@@ -1,0 +1,493 @@
+---
+name: oat-project-complete
+version: 1.4.4
+description: Use when all implementation work is finished and the project is ready to close. Marks the OAT project lifecycle as complete.
+disable-model-invocation: true
+user-invocable: true
+allowed-tools: Read, Write, Bash, AskUserQuestion
+---
+
+# Complete Project
+
+Mark the active OAT project lifecycle as complete.
+
+## Progress Indicators (User-Facing)
+
+When executing this skill, provide lightweight progress feedback so the user can tell what's happening after they confirm.
+
+- Print a phase banner once at start using horizontal separators, e.g.:
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  OAT ▸ COMPLETE PROJECT
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+- Before multi-step work, print step indicators, e.g.:
+  - `[1/6] Resolving project + collecting user choices…`
+  - `[2/6] Checking completion gates…`
+  - `[3/6] Completing lifecycle…`
+  - `[4/6] Generating PR description + archiving…`
+  - `[5/6] Refreshing dashboard + committing…`
+  - `[6/6] Opening PR…`
+
+## Process
+
+### Step 1: Resolve Active Project + Detect Shared Status
+
+```bash
+PROJECT_PATH=$(oat config get activeProject 2>/dev/null || true)
+
+if [[ -z "$PROJECT_PATH" ]]; then
+  echo "Error: No active project set. Use the oat-project-open skill first." >&2
+  exit 1
+fi
+
+PROJECT_NAME=$(basename "$PROJECT_PATH")
+
+PROJECTS_ROOT="${OAT_PROJECTS_ROOT:-$(oat config get projects.root 2>/dev/null || echo ".oat/projects/shared")}"
+PROJECTS_ROOT="${PROJECTS_ROOT%/}"
+IS_SHARED_PROJECT="false"
+
+case "$PROJECT_PATH" in
+  "${PROJECTS_ROOT}/"*) IS_SHARED_PROJECT="true" ;;
+esac
+```
+
+### Step 2: Upfront User Questions (Batched)
+
+Ask all user questions at once so the user can answer them in a single interaction, then the rest of the skill runs without further prompts.
+
+**Host-specific structured input guidance:**
+
+- Claude Code: use `AskUserQuestion` when available
+- Codex: use structured user-input tooling when available in the current Codex host/runtime
+- Fallback: present as a plain-text conversational prompt
+
+Before asking the batched questions, read `oat_pr_status` and `oat_pr_url` from `state.md` frontmatter.
+
+**Workflow preference checks (before asking questions):**
+
+Some questions can be answered automatically from workflow preferences. Read each preference before deciding whether to include its question in the batched prompt:
+
+```bash
+ARCHIVE_PREF=$(oat config get workflow.archiveOnComplete 2>/dev/null || true)
+PR_ON_COMPLETE=$(oat config get workflow.createPrOnComplete 2>/dev/null || true)
+```
+
+- **If `ARCHIVE_PREF` is `true`:** Set `SHOULD_ARCHIVE="true"`. Skip the archive question. Print `Archive on complete: enabled (from workflow.archiveOnComplete).`
+- **If `ARCHIVE_PREF` is `false`:** Set `SHOULD_ARCHIVE="false"`. Skip the archive question. Print `Archive on complete: disabled (from workflow.archiveOnComplete).`
+- **If unset:** Include the archive question in the batched prompt as normal (backward compatible).
+- **If `PR_ON_COMPLETE` is `true` AND no tracked open PR exists:** Set `SHOULD_OPEN_PR="true"`. Skip the Open PR question. Print `PR on complete: enabled (from workflow.createPrOnComplete).`
+- **If `PR_ON_COMPLETE` is `false`:** Set `SHOULD_OPEN_PR="false"`. Skip the Open PR question. Print `PR on complete: disabled (from workflow.createPrOnComplete).`
+- **If `PR_ON_COMPLETE` is unset:** Include the Open PR question in the batched prompt as normal (backward compatible).
+- The existing tracked-PR skip still applies: if `oat_pr_status` is `open`, do not ask the Open PR question and do not honor `PR_ON_COMPLETE=true` — the PR already exists.
+
+The "Ready to mark complete?" confirmation is always asked — it is a meaningful "are you sure" moment, not a preference.
+
+Also preflight summary status using the same freshness rules as `oat-project-summary`:
+
+- `summary.md` is `missing` when `{PROJECT_PATH}/summary.md` does not exist
+- `summary.md` is `stale` when the tracking frontmatter fields `oat_summary_last_task`, `oat_summary_revision_count`, or `oat_summary_includes_revisions` no longer match `current_last_task`, `current_rev_count`, or `current_rev_list` as defined in `oat-project-summary` Step 3
+- `summary.md` is `current` when those tracking fields still match the `oat-project-summary` Step 3 comparison inputs
+
+**Questions to ask (in a single prompt):**
+
+1. **Confirm completion:** "Ready to mark **{PROJECT_NAME}** as complete?"
+2. **Archive** (only if `IS_SHARED_PROJECT` is `true`): "Archive the project after completion?"
+3. **Generate or refresh summary** (only if summary status is `missing` or `stale`): present the status explicitly:
+   - Missing example: "A summary has not been generated yet. Would you like me to generate it now as part of completion?"
+   - Stale example: "The project summary is out of date. Would you like me to refresh it now as part of completion?"
+4. **Open PR:** "Open a PR in GitHub after generating the PR description?" — ask this only when no tracked open PR already exists.
+
+If `oat_pr_status` is `open`, do not ask the Open PR question. Set `SHOULD_OPEN_PR="false"` and treat the existing PR as already tracked.
+
+Present all applicable questions together. Example combined prompt:
+
+```
+Ready to complete project **{PROJECT_NAME}**?
+
+1. Archive the project after completion? (yes/no)
+2. A summary has not been generated yet. Generate it now as part of completion? (yes/no)
+3. Open a PR in GitHub? (yes/no)
+```
+
+If the user declines the completion confirmation, exit gracefully.
+
+Store the answers as `SHOULD_ARCHIVE`, `SHOULD_GENERATE_SUMMARY`, and `SHOULD_OPEN_PR` for use in later steps.
+
+If the summary status is `current`, set `SHOULD_GENERATE_SUMMARY="false"` and note that a current summary is already available.
+
+If `oat_pr_url` is present, show it in the completion summary.
+
+### Step 3: Check Completion Gates
+
+#### 3.0: Phase Status Permissiveness
+
+Read `oat_phase_status` from `state.md` frontmatter and handle permissively:
+
+- **`pr_open`:** Proceed normally. This is the expected entry point after `oat-project-pr-final`.
+- **`complete`:** Proceed normally. Implementation is done.
+- **`in_progress`:** Note: "Project is still in progress. Completing anyway." — proceed without additional confirmation.
+
+All three are valid starting states for completion. Do not block on any phase status value.
+
+#### 3.1: Final Review Status
+
+Run all gate checks and collect warnings. These are informational — they don't require individual user answers.
+
+```bash
+PLAN_FILE="${PROJECT_PATH}/plan.md"
+
+if [[ -f "$PLAN_FILE" ]]; then
+  final_row=$(grep -E "^\|\s*final\s*\|" "$PLAN_FILE" | head -1 || true)
+  if [[ -z "$final_row" ]]; then
+    echo "Warning: No final review row found in plan.md."
+  elif ! echo "$final_row" | grep -qE "\|\s*passed\s*\|"; then
+    echo "Warning: Final code review is not marked passed."
+    echo "Recommendation: run the oat-project-review-provide skill with code final and oat-project-review-receive before completing."
+  fi
+else
+  echo "Warning: plan.md not found, unable to verify final review status."
+fi
+```
+
+#### 3.2: Deferred Medium Findings
+
+```bash
+IMPL_FILE="${PROJECT_PATH}/implementation.md"
+
+if [[ -f "$IMPL_FILE" ]]; then
+  medium_items=$(awk '
+    BEGIN { in_medium = 0 }
+    /^\*\*Deferred Findings \(Medium\):\*\*/ { in_medium = 1; next }
+    /^\*\*Deferred Findings \(Medium\/Minor\):\*\*/ { in_medium = 1; next }
+    in_medium && /^\*\*/ { in_medium = 0; next }
+    in_medium && /^[[:space:]]*-[[:space:]]+/ { print }
+  ' "$IMPL_FILE")
+
+  has_unresolved_medium="false"
+  while IFS= read -r line; do
+    item=$(echo "$line" | sed -E 's/^[[:space:]]*-[[:space:]]+//')
+    if ! echo "$item" | grep -qiE '^none([[:space:]]|[[:punct:]]|$)'; then
+      has_unresolved_medium="true"
+      break
+    fi
+  done <<< "$medium_items"
+
+  if [[ "$has_unresolved_medium" == "true" ]]; then
+    echo "Warning: Deferred Medium findings are recorded in implementation.md."
+    echo "Recommendation: resurface via final review and explicitly disposition before completion."
+  fi
+fi
+```
+
+#### 3.3: Documentation Sync Status
+
+```bash
+DOCS_UPDATED=$(oat project status --field project.docsUpdated 2>/dev/null || echo null)
+
+# Read policy from config (default: false = soft suggestion)
+REQUIRE_DOCS=$(oat config get documentation.requireForProjectCompletion 2>/dev/null || echo "false")
+
+if [[ "$DOCS_UPDATED" == "null" || -z "$DOCS_UPDATED" ]]; then
+  if [[ "$REQUIRE_DOCS" == "true" ]]; then
+    echo "Gate: Documentation sync required (documentation.requireForProjectCompletion is true)."
+    echo "Action: Run oat-project-document first, or choose to skip."
+  else
+    echo "Suggestion: Consider running oat-project-document to sync documentation before completing."
+  fi
+fi
+```
+
+If `oat_docs_updated` is `null` or empty:
+
+- **If `requireForProjectCompletion` is `true`:** Hard gate — ask user to run `oat-project-document` or explicitly skip. If user chooses to skip, update `state.md` frontmatter to set `oat_docs_updated: skipped`.
+- **If `requireForProjectCompletion` is `false` (default):** Soft suggestion — inform user about `oat-project-document` and allow proceeding. If user wants to skip, set `oat_docs_updated: skipped`.
+
+If `oat_docs_updated` is `skipped` or `complete`: proceed normally.
+
+#### Gate Confirmation
+
+After collecting all warnings from 3.1, 3.2, and 3.3:
+
+- If any gate is unsatisfied (final review not `passed`, unresolved deferred Medium findings, or documentation gate blocking), present all warnings together and ask one confirmation:
+  - "Completion gates are not fully satisfied. Continue marking lifecycle complete anyway?"
+- If all gates pass, proceed without asking.
+
+### Step 3.5: Summary Gate
+
+Check if `{PROJECT_PATH}/summary.md` exists and whether it is current against the implementation state:
+
+- If `summary.md` is missing or stale and `SHOULD_GENERATE_SUMMARY="true"`, generate or refresh it before completing.
+- Prefer running the `oat-project-summary` skill when skill-to-skill invocation is available in the current host/runtime.
+- If direct skill invocation is unavailable, generate or update `summary.md` inline by following the same synthesis rules as `oat-project-summary` (validate implementation state, read the same project artifacts, apply the same freshness checks, update the same frontmatter tracking fields, and write a complete `summary.md` before continuing).
+- Do not assume `oat-project-summary` is a shell command on `PATH`. Only execute a shell command with that name if the environment explicitly provides a real executable.
+- If `summary.md` is missing or stale and `SHOULD_GENERATE_SUMMARY="false"`, emit: `Warning: Proceeding without summary generation.`
+- If summary generation succeeds, proceed with the refreshed `summary.md` available for PR and archive steps.
+- If summary generation fails mid-way (context limits, missing artifacts, etc.), warn "Summary generation failed: {reason}. Proceeding without summary." Do NOT leave a half-written summary.md — either it completes fully or clean up the partial file and proceed without it.
+- If `summary.md` already exists and is current, note it as available. Summary.md will be:
+  - Used as source for the PR description (in Step 7)
+  - Preserved in the archived project directory (in Step 8)
+
+### Step 4: Archive Residual Active Review Artifacts
+
+Detect any leftover active review artifacts in the top level of `"$PROJECT_PATH/reviews/"`:
+
+```bash
+find "$PROJECT_PATH/reviews" -maxdepth 1 -type f -name "*.md" 2>/dev/null
+```
+
+If any active review artifacts exist:
+
+1. Create `"$PROJECT_PATH/reviews/archived"` if needed.
+2. Rewrite any references touched during this preflight from `reviews/{filename}.md` to `reviews/archived/{filename}.md` in:
+   - `"$PROJECT_PATH/plan.md"`
+   - `"$PROJECT_PATH/implementation.md"`
+   - `"$PROJECT_PATH/state.md"`
+3. Move each active review artifact into `reviews/archived/`, adding a timestamp suffix if needed to avoid overwriting prior history.
+4. Report the archived paths before continuing.
+
+Rules:
+
+- Only archive top-level active review artifacts. Leave `reviews/archived/` untouched.
+- Keep these archive moves inside the project at `reviews/archived/`; do not route them through the shared-project archive destination logic in Step 6.
+
+### Step 5: Set Lifecycle Complete
+
+Delegate the canonical `state.md` completion mutation to the CLI:
+
+```bash
+COMPLETE_STATE_ARGS=("$PROJECT_PATH")
+if [[ "$SHOULD_ARCHIVE" == "true" && "$IS_SHARED_PROJECT" == "true" ]]; then
+  COMPLETE_STATE_ARGS+=("--archived")
+fi
+
+oat project complete-state "${COMPLETE_STATE_ARGS[@]}"
+```
+
+The CLI command owns both the frontmatter completion fields and the canonical markdown body updates for `state.md`.
+It must set `oat_lifecycle: complete`, completion timestamps, `**Status:** Complete`, `**Last Updated:**`, the canonical `## Current Phase` body, normalized `## Progress`, and `## Next Milestone`.
+
+### Step 6: Clear Active Project Pointer
+
+Clear the active project pointer immediately. If the user is completing a project, clearing the pointer is implicit — no confirmation needed.
+
+```bash
+oat config set activeProject ""
+echo "Active project pointer cleared."
+```
+
+### Step 7: Generate PR Description
+
+PR description generation is automatic — it always runs as part of project completion. This must happen **before** archiving so that project artifacts are still at their tracked paths and blob links resolve correctly.
+
+Follow the `oat-project-pr-final` skill's process (Steps 0.5 through 4) inline:
+
+1. **Archive residual review artifacts** — already handled in Step 4.
+2. **Validate required artifacts** — read available project artifacts (`plan.md`, `implementation.md`, `spec.md`, `design.md`, `discovery.md`) based on workflow mode from `state.md`.
+3. **Check final review status** — already checked in Step 3.1. Use the result, don't re-check.
+4. **Collect project summary** — if `summary.md` exists (from Step 3.5), use it as the primary source for the PR description's Summary section (per `oat-project-pr-final` Step 3.0). Read remaining artifacts and collect git context:
+
+```bash
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
+MERGE_BASE=$(git merge-base origin/main HEAD 2>/dev/null || git merge-base main HEAD 2>/dev/null || echo "")
+
+if [[ -n "$MERGE_BASE" ]]; then
+  git log --oneline "${MERGE_BASE}..HEAD"
+  git diff --shortstat "${MERGE_BASE}..HEAD"
+fi
+```
+
+5. **Write PR description artifact** — write to `{PROJECT_PATH}/pr/project-pr-YYYY-MM-DD.md` following the template and policies from `oat-project-pr-final` Step 4 (frontmatter policy, reference links policy, local path exclusion).
+
+If a PR description artifact already exists at `{PROJECT_PATH}/pr/project-pr-*.md`, skip generation and use the existing one instead.
+
+### Step 8: Archive Project (Conditional)
+
+**Skip if `SHOULD_ARCHIVE` is false or `IS_SHARED_PROJECT` is false.**
+
+Archive happens after PR description generation (so artifacts are readable at tracked paths) but before commit+push (so the archive deletion is included in the commit).
+
+The archive-side effects in this step are CLI-owned. Follow the canonical behavior from `packages/cli/src/commands/project/archive/archive-utils.ts` rather than inventing separate S3 or summary-export logic inside the skill.
+
+**Anti-pattern (do NOT do this):** Running `git check-ignore` on the
+`.oat/projects/archived` directory itself to decide durability. A common
+gitignore shape for this repo is `.oat/projects/archived/**`, which leaves the
+directory visible in the tree while ignoring every file placed inside. A
+directory-level check reports "not ignored" and produces the inverse of the
+intended decision — archiving in the worktree when the archive must actually
+go to the primary repo. Always probe a representative path **inside** the
+archive directory (the project subpath or a probe filename), matching the CLI
+helper at `packages/cli/src/commands/project/archive/archive-utils.ts`.
+
+```bash
+ARCHIVED_ROOT=".oat/projects/archived"
+# ARCHIVE_RELATIVE_PATH is the contents-level probe: a hypothetical file that
+# would live inside the archive directory. This is the same probe shape the
+# CLI helper uses — do not simplify this to the directory itself.
+ARCHIVE_RELATIVE_PATH=".oat/projects/archived/${PROJECT_NAME}"
+PRIMARY_REPO_ARCHIVE=""
+ARCHIVE_CONTENTS_TRACKED="true"
+USE_PRIMARY_REPO_ARCHIVE="false"
+
+# Will a newly-archived file at ${ARCHIVE_RELATIVE_PATH} actually be tracked in
+# this checkout? Probe a representative path INSIDE the directory, not the
+# directory itself. A `.oat/projects/archived/**` gitignore pattern leaves the
+# directory visible in the tree but ignores everything placed inside, so a
+# directory-level check reports "tracked" and gives the inverse of the
+# intended answer.
+if git check-ignore --quiet --no-index "$ARCHIVE_RELATIVE_PATH" 2>/dev/null; then
+  ARCHIVE_CONTENTS_TRACKED="false"
+fi
+
+# Fall back to the primary checkout whenever archive contents are local-only
+# in the current worktree, regardless of whether the archive directory itself
+# happens to exist in the tree.
+if [[ "$ARCHIVE_CONTENTS_TRACKED" == "false" ]] && git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  GIT_COMMON_DIR=$(git rev-parse --git-common-dir 2>/dev/null || true)
+  GIT_DIR=$(git rev-parse --git-dir 2>/dev/null || true)
+  if [[ -n "$GIT_COMMON_DIR" && -n "$GIT_DIR" && "$GIT_COMMON_DIR" != "$GIT_DIR" ]]; then
+    PRIMARY_REPO_ROOT=$(cd "$(dirname "$GIT_COMMON_DIR")" && pwd)
+    PRIMARY_REPO_ARCHIVE="${PRIMARY_REPO_ROOT}/.oat/projects/archived"
+    if [[ -d "$(dirname "$PRIMARY_REPO_ARCHIVE")" ]]; then
+      USE_PRIMARY_REPO_ARCHIVE="true"
+      ARCHIVED_ROOT="$PRIMARY_REPO_ARCHIVE"
+    else
+      echo "Warning: Running in a worktree with a local-only archive path, but the primary repo archive path is unavailable: $PRIMARY_REPO_ARCHIVE"
+      echo "A worktree-local archive may be deleted when the worktree is removed and is not a durable archive."
+      echo "Require explicit confirmation before proceeding with local-only archive."
+    fi
+  fi
+fi
+
+if [[ "$USE_PRIMARY_REPO_ARCHIVE" != "true" ]]; then
+  ARCHIVED_ROOT=".oat/projects/archived"
+fi
+
+mkdir -p "$ARCHIVED_ROOT"
+ARCHIVE_PATH="${ARCHIVED_ROOT}/${PROJECT_NAME}"
+
+if [[ -e "$ARCHIVE_PATH" ]]; then
+  ARCHIVE_PATH="${ARCHIVED_ROOT}/${PROJECT_NAME}-$(date +%Y%m%d-%H%M%S)"
+fi
+
+mv "$PROJECT_PATH" "$ARCHIVE_PATH"
+PROJECT_PATH="$ARCHIVE_PATH"
+echo "Project archived to $ARCHIVE_PATH"
+```
+
+**Canonical helper behaviors (required):**
+
+- Always archive locally first. The local archive is the authoritative completion artifact even when remote sync is also configured.
+- If `archive.summaryExportPath` is configured and `summary.md` exists after archive, copy it to `{repoRoot}/{archive.summaryExportPath}/YYYYMMDD-{PROJECT_NAME}.md`.
+- If `archive.s3SyncOnComplete=true` and `archive.s3Uri` is configured, sync the archived project to `{archive.s3Uri}/{repo-slug}/{PROJECT_NAME}/`. The S3 sync excludes process artifacts (`reviews/*`, `pr/*`) — only core deliverables (discovery, spec, design, plan, implementation, summary, state) are uploaded. The CLI enforces this via `S3_ARCHIVE_SYNC_EXCLUDES` in `archive-utils.ts`.
+- If AWS CLI is missing or unusable for that S3 sync, warn and continue. Completion must not fail after the local archive succeeds.
+- If `archive.s3SyncOnComplete` is false or `archive.s3Uri` is unset, skip remote sync without prompting.
+
+**Worktree durability guard (required):**
+
+- If running in a worktree and the primary repo archive path is unavailable, do not silently continue with a local-only archive.
+- Ask the user explicitly: "Primary repo archive path is unavailable, so this archive may be lost when the worktree is deleted. Continue with local-only archive anyway?"
+- If the user declines, skip archiving and continue the completion flow without archive.
+- Resolve the durable repo root from `git rev-parse --git-common-dir` and `git rev-parse --git-dir`, matching the CLI helper in `packages/cli/src/commands/project/archive/archive-utils.ts`. Do not rely on a `main` checkout or default-branch naming.
+- Apply this guard only when `git check-ignore --quiet --no-index "$ARCHIVE_RELATIVE_PATH"` reports that the archive **contents** are local-only in the current checkout. `$ARCHIVE_RELATIVE_PATH` must be a path **inside** the archive directory (the project subpath), never the directory itself — see the anti-pattern note above the bash block.
+
+**Git handling after archive:**
+
+If the archived directory is gitignored (check with `git check-ignore -q "$ARCHIVE_PATH"`), the move looks like a deletion to git — the original tracked files disappear and the archived copy is local-only. To commit:
+
+```bash
+git add -A "$PROJECTS_ROOT/$PROJECT_NAME" 2>/dev/null || true
+```
+
+This stages the deletions from the shared directory. The archived copy is preserved locally but not tracked by git.
+
+**Worktree archive target (required when available):**
+
+If running from a git worktree, prefer the primary repo archive directory whenever a newly-archived file inside `.oat/projects/archived/` would be local-only in the current checkout.
+
+Reference path:
+
+```bash
+GIT_COMMON_DIR=$(git rev-parse --git-common-dir)
+PRIMARY_REPO_ROOT=$(cd "$(dirname "$GIT_COMMON_DIR")" && pwd)
+PRIMARY_REPO_ARCHIVE="${PRIMARY_REPO_ROOT}/.oat/projects/archived"
+```
+
+Guidance:
+
+- In a worktree, prefer `PRIMARY_REPO_ARCHIVE` whenever `git check-ignore --quiet --no-index "$ARCHIVE_RELATIVE_PATH"` reports the archive **contents** as ignored — regardless of whether the archive directory itself happens to exist in the tree. Only archive in the current checkout when a hypothetical file at `.oat/projects/archived/<project>/state.md` would actually be tracked here.
+- Do not check `git check-ignore` on `.oat/projects/archived` (the directory itself). A `.oat/projects/archived/**` ignore pattern leaves the directory unignored while ignoring all contents, so a directory-level check reports "tracked" and an agent can mistakenly archive in the worktree.
+- Do not treat the worktree-local archive as durable.
+- If forced to use a local-only archive, warn and require explicit user confirmation.
+- Always write the dated `archive.summaryExportPath` copy into the current checkout (`repoRoot`), even when the project archive itself is written to the primary checkout.
+- Do not hardcode user-specific absolute paths.
+
+### Step 9: Regenerate Dashboard
+
+Regenerate the repo state dashboard so the completion status is reflected before committing.
+
+```bash
+oat state refresh
+```
+
+### Step 10: Commit + Push Bookkeeping (Required)
+
+Completion is not done until bookkeeping changes are committed and pushed. This prevents local-only `state.md` updates that leave project status stale for later sessions/reviews.
+
+Expected changes may include:
+
+- `{PROJECT_PATH}/state.md`
+- `{PROJECT_PATH}/implementation.md` (if touched earlier in the lifecycle closeout)
+- `{PROJECT_PATH}/plan.md` (if review receive just ran)
+- `{PROJECT_PATH}/pr/project-pr-*.md` (PR description artifact)
+- `.oat/state.md` (dashboard regenerated in Step 9)
+- `.oat/config.local.json` (if `activeProject` cleared)
+- Shared-project deletions under `{PROJECTS_ROOT}/{PROJECT_NAME}` (if archived)
+
+Run:
+
+```bash
+git status --short
+git add -A
+git commit -m "chore(oat): complete project lifecycle for ${PROJECT_NAME}"
+git push
+```
+
+Rules:
+
+- If there are unrelated unstaged/staged changes, stage and commit only the completion/bookkeeping files (do not sweep unrelated work into this commit).
+- If there is nothing to commit, state that explicitly and verify whether the completion bookkeeping was already committed in a prior commit.
+- If push fails, report the failure and do not claim completion is fully recorded.
+
+### Step 11: Open PR in GitHub (Conditional)
+
+**Skip if `SHOULD_OPEN_PR` is false.**
+
+**CRITICAL — Strip YAML frontmatter before submitting to GitHub.**
+The local artifact file contains YAML frontmatter (`---` delimited block at the top) for OAT metadata. This frontmatter MUST NOT appear in the GitHub PR body. Before passing the file to `gh pr create`, strip everything from the start of the file through and including the closing `---` line. Verify the resulting body starts with the markdown heading (e.g., `# feat: ...`), not YAML keys.
+
+Steps:
+
+1. Locate the PR description artifact at `{PROJECT_PATH}/pr/project-pr-*.md`.
+2. Write the stripped body to a temporary file (remove all lines from the opening `---` through the closing `---`, inclusive).
+3. Verify the temp file does not start with YAML frontmatter keys.
+4. Push and create the PR:
+
+```bash
+git push -u origin "$(git rev-parse --abbrev-ref HEAD)"
+gh pr create --base main --title "{title}" --body-file "$TMP_BODY"
+```
+
+5. Clean up the temp file.
+
+Do not assume `gh` is installed; if missing, instruct manual PR creation using the file contents.
+
+### Step 12: Confirm to User
+
+Show user:
+
+- "Project **{PROJECT_NAME}** marked as complete."
+- If archived: "Archived location: **{PROJECT_PATH}**"
+- Include commit hash and push result for the bookkeeping changes.
+- If PR was opened: include the PR URL.
+- If `oat_pr_url` is present, show it in the completion summary even when PR creation was skipped because the project already tracked an open PR.

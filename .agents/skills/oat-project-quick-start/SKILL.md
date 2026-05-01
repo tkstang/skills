@@ -1,0 +1,499 @@
+---
+name: oat-project-quick-start
+version: 2.0.2
+description: Use when a task is small enough for quick mode or rapid iteration is preferred. Scaffolds a lightweight OAT project from discovery directly to a runnable plan, with optional brainstorming and lightweight design.
+argument-hint: '<project-name> ["project description"]'
+disable-model-invocation: true
+user-invocable: true
+allowed-tools: Read, Write, Bash, Glob, Grep, AskUserQuestion
+---
+
+# Quick Start Project
+
+Create or resume a project in **quick mode** and produce a runnable `plan.md` with minimal ceremony.
+
+## Prerequisites
+
+- A repository initialized for OAT (`.oat/` and `.agents/` exist).
+- User has a feature request or task objective to execute.
+
+## Mode Assertion
+
+**OAT MODE: Quick Start**
+
+**Purpose:** Capture intent quickly (`discovery.md`) and generate an execution-ready `plan.md` for `oat-project-implement`.
+
+**BLOCKED Activities:**
+
+- No spec-driven spec/design authoring unless user explicitly asks to promote to the spec-driven workflow.
+- No implementation code changes.
+
+**ALLOWED Activities:**
+
+- Project scaffolding and project pointer updates.
+- Discovery conversation with adaptive depth (including brainstorming when appropriate).
+- Optional lightweight design artifact (`design.md`) when user chooses it at the decision point.
+- Plan generation with stable task IDs and verification commands.
+
+**Self-Correction Protocol:**
+If you catch yourself:
+
+- Expanding into spec-driven lifecycle documentation → STOP and keep scope to quick workflow artifacts.
+- Writing implementation code → STOP and return to plan authoring.
+
+**Recovery:**
+
+1. Re-focus on quick workflow outcome (`discovery.md` + `plan.md`).
+2. Route implementation to `oat-project-implement`.
+
+## Progress Indicators (User-Facing)
+
+When executing this skill, provide lightweight progress feedback so the user can tell what’s happening after they confirm.
+
+- Print a phase banner once at start using horizontal separators, e.g.:
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  OAT ▸ QUICK START
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+- Before multi-step work, print step indicators, e.g.:
+  - `[1/6] Scaffolding quick-mode project…`
+  - `[2/6] Exploring solution space + capturing discovery…`
+  - `[3/6] Decision point: design depth…`
+  - `[4/6] Generating execution plan…`
+  - `[5/6] Initializing implementation tracker…`
+  - `[6/6] Refreshing dashboard…`
+  - _(If lightweight design is chosen, insert design steps between 3 and 4)_
+
+## Artifact Persistence (Required)
+
+- After any write to `discovery.md`, `design.md`, `plan.md`, `implementation.md`, or project `state.md`, ensure the artifact is saved immediately and remains tracked in git.
+- If the skill is about to pause for user input or stop after mutating artifacts, commit the changed artifacts before waiting. Do not leave discovery/design updates only in the working tree.
+- Quick-start handoff is not complete until the changed project artifacts and regenerated `.oat/state.md` dashboard have been committed.
+- This applies to downstream lifecycle boundaries too: implementation, review, revise, and PR skills must inherit a committed artifact baseline, not an untracked project tree.
+
+## Process
+
+### Step 0: Resolve Active Project
+
+```bash
+PROJECT_PATH=$(oat config get activeProject 2>/dev/null || true)
+PROJECTS_ROOT="${OAT_PROJECTS_ROOT:-$(oat config get projects.root 2>/dev/null || echo ".oat/projects/shared")}"
+PROJECTS_ROOT="${PROJECTS_ROOT%/}"
+```
+
+If no valid active project exists:
+
+- Resolve startup input from `$ARGUMENTS` before doing any discovery work:
+  - Accept `{project-name}` plus an optional `{project-description}`.
+  - If `$ARGUMENTS` contains only a bare `{project-name}` (for example a slug or short title) without a substantive description, ask the user for a short project description before scanning the repo or drafting discovery.
+  - Do not infer requirements from the project name alone or go exploring the codebase to guess what the project means.
+  - If neither field is available, ask for both the project name and a short project description. One or two sentences is enough for the description.
+- Create project via the same scaffolding path used by `oat-project-new`:
+
+```bash
+oat project new "{project-name}" --mode quick
+```
+
+This guarantees:
+
+- standard artifact scaffolding from `.oat/templates/`
+- `activeProject` update in `.oat/config.local.json`
+- repo dashboard refresh (`.oat/state.md`) via existing scaffolder behavior
+
+### Step 1: Set Quick Workflow Metadata
+
+Update `"$PROJECT_PATH/state.md"` frontmatter:
+
+- `oat_workflow_mode: quick`
+- `oat_workflow_origin: native`
+- `oat_phase: discovery`
+- `oat_phase_status: in_progress`
+- `oat_project_state_updated: "{ISO 8601 UTC timestamp}"`
+
+### Step 2: Capture Discovery (Adaptive Depth)
+
+If `"$PROJECT_PATH/discovery.md"` is missing, create it from `.oat/templates/discovery.md` first.
+
+**Adapt discovery depth to the ambiguity of the request.** Do not rush past exploration to get to planning.
+
+#### 2a: Assess Request Ambiguity
+
+Before asking questions, classify the request:
+
+- Base this classification on the user's project description plus session context. A bare project name by itself is not enough context to start discovery.
+
+- **Well-understood** — the user has a clear mental model, requirements are specific, approach is obvious. Examples: "add a CLI flag for verbose output", "rename X to Y across the codebase."
+  → Synthesize `discovery.md` from available session context quickly when enough detail is already available. Ask only the minimum additional questions needed to remove blockers for a quality plan.
+
+- **Exploratory** — the user is thinking out loud, requirements have gaps, multiple approaches are viable. Signals: "I'm considering...", "what do you think about...", "how should we approach...", "I want to add X but I'm not sure how."
+  → Invest in solution space exploration before converging.
+
+#### 2b: Solution Space Exploration (Exploratory Requests)
+
+For exploratory requests, spend time in divergent thinking before converging on an approach:
+
+1. **Propose 2-3 distinct approaches** — not minor variations, but genuinely different strategies. For each:
+   - Describe the approach concretely
+   - List tradeoffs (not just pros/cons — explain _when_ each approach is the better choice)
+   - **Lead with your recommendation and explain why**
+
+2. **One question at a time** — ask focused clarifying questions sequentially, not as a batch. After each answer, update your understanding and let the next question be informed by the response.
+
+3. **Incremental validation** — after exploring the solution space and converging on an approach, summarize the chosen direction and get explicit user buy-in before moving to decisions and constraints.
+
+Document the exploration in the `## Solution Space` section of `discovery.md`.
+
+#### 2c: Capture Decisions
+
+Whether well-understood or exploratory, backfill `discovery.md` with the discussion, Q&A, and decisions from the session before planning:
+
+- initial request
+- solution space exploration (if applicable)
+- clarifying Q&A that materially shaped the project
+- key decisions
+- options considered and chosen approach
+- constraints
+- out-of-scope
+- success criteria
+
+Keep this concise and outcome-oriented.
+
+### Step 2d: Persist Discovery Before Any Decision Pause
+
+If discovery/state artifacts were updated and the skill is about to pause for the Step 2.5 design-depth decision, commit those artifact changes first so the project can be resumed cleanly.
+
+```bash
+git add "$PROJECT_PATH/discovery.md" "$PROJECT_PATH/state.md"
+git diff --cached --quiet || git commit -m "chore(oat): capture quick-start discovery for {project-name}"
+```
+
+### Step 2.5: Decision Point — Design Depth
+
+**Auto-advance rule:** If the request was classified as **well-understood** in Step 2a and discovery surfaced no architecture decisions, component boundary questions, or unexpected complexity, skip this decision point entirely and continue directly to Step 2.6 (the requirements gate still fires before plan generation). This preserves the minimal-ceremony contract for straightforward requests.
+
+**Otherwise**, present the user with a choice about how to proceed:
+
+> "Discovery is complete. How would you like to proceed?"
+>
+> 1. **Straight to plan** — scope is clear, ready to generate tasks
+> 2. **Lightweight design first** — draft architecture and components before planning _(produces design.md)_
+> 3. **Promote to spec-driven** — this needs formal requirements and full design
+
+Use `AskUserQuestion` to present this choice.
+
+**Recommendation heuristic** — lead with a recommendation based on discovery findings:
+
+- If discovery revealed clear scope with no significant architecture decisions → recommend "Straight to plan"
+- If discovery surfaced architecture choices, component boundaries, or data model questions → recommend "Lightweight design first"
+- If discovery revealed the scope is larger or more complex than initially expected → recommend "Promote to spec-driven"
+
+**If user chooses "Straight to plan":** continue to Step 2.6 (requirements gate), then Step 3.
+
+**If user chooses "Lightweight design first":** execute Step 2.75 before continuing to Step 3. The Step 2.6 requirements gate is skipped — Step 2.75's in-conversation design validation covers that ground.
+
+**If user chooses "Promote to spec-driven":**
+
+- Update `discovery.md` frontmatter:
+  - `oat_status: complete`
+  - `oat_ready_for: oat-project-design`
+  - `oat_last_updated: {today}`
+- Update `state.md`:
+  - `oat_workflow_mode: spec-driven`
+  - `oat_phase: discovery`
+  - `oat_phase_status: complete`
+  - `oat_project_state_updated: "{ISO 8601 UTC timestamp}"`
+- Refresh repo dashboard: `oat state refresh`
+- Commit the promoted discovery/state artifacts before stopping:
+
+```bash
+git add "$PROJECT_PATH/discovery.md" "$PROJECT_PATH/state.md" ".oat/state.md"
+git diff --cached --quiet || git commit -m "chore(oat): promote quick-start discovery for {project-name}"
+```
+
+- Inform the user: "Discovery is complete. Run `oat-project-design` next — it will confirm requirements and produce both `spec.md` and `design.md` in one collaborative pass. If you'd rather formalize requirements without designing yet, `oat-project-spec` remains available as an optional standalone step."
+- Stop here. Do not generate a plan.
+
+### Step 2.6: Requirements Gate (Straight-to-Plan Path)
+
+Fires only when the straight-to-plan path was chosen at Step 2.5 (explicit choice or auto-advance). Skip when the user selected "Lightweight design first" (Step 2.75 handles its own in-conversation confirmation) or "Promote to spec-driven".
+
+Single conversational turn — no loop inside the gate. If the user materially redirects scope, route OUT to lightweight design or back to discovery.
+
+> **Tool availability is not the same as interactivity.** If `AskUserQuestion` is unavailable but chat is available, present this gate as a plain chat message and wait for the user's reply. Do not auto-confirm just because the structured question tool is missing.
+
+```
+# Explicit non-interactive fallback FIRST (FR9 contract; same signal as
+# design mode choice). Lack of AskUserQuestion alone is NOT non-interactive
+# — if chat with the user is available, present the gate as a plain chat
+# message and wait for their reply instead.
+if [ "${OAT_NON_INTERACTIVE:-}" = "1" ] || no_user_response_channel_exists; then
+  echo "Requirements gate auto-confirmed in non-interactive mode."
+  # proceed to Step 3
+fi
+
+# Interactive bypass (power-user opt-out).
+if [ "${OAT_NO_REQUIREMENTS_GATE:-}" = "1" ] || [ "$ARG_NO_GATE" = "1" ]; then
+  # proceed to Step 3 silently
+fi
+
+# Extract requirements from discovery.md:
+#   - Key Decisions
+#   - Success Criteria
+#   - Constraints
+# Format as bullet list and present (SINGLE TURN):
+#
+#   > "Before I generate the plan, here are the requirements I'm building against:
+#   >
+#   >    Key decisions:
+#   >    - [decision 1]
+#   >    - [decision 2]
+#   >
+#   >    Success criteria:
+#   >    - [criterion 1]
+#   >
+#   >    Constraints:
+#   >    - [constraint 1]
+#   >
+#   >  Does this match what you want?"
+
+# AskUserQuestion multi-choice:
+#   1. Yes — proceed to plan generation
+#   2. Add a minor requirement that still fits this scope (capture inline, proceed — no re-present)
+#   3. Scope needs redirecting — rework discovery or produce a lightweight design first
+#
+# On choice 1: continue to Step 3.
+# On choice 2: prompt once for the addition, append to discovery.md, proceed to Step 3 (do NOT re-present).
+# On choice 3: exit the gate cleanly. Present follow-up choice:
+#   a. Produce a lightweight design first (run Step 2.75)
+#   b. Expand discovery (return to Step 2)
+# Route the user accordingly. Do NOT loop back into the gate.
+```
+
+### Step 2.75a: Lightweight Design Mode Choice
+
+Resolve the interaction mode before drafting. Same mechanics as the full `oat-project-design` skill (Component 1): argument precedes env var, config fallback, **explicit** non-interactive fallback to draft.
+
+> **Tool availability is not the same as interactivity.** If `AskUserQuestion` is unavailable but chat is available, ask the mode-choice question as a plain chat message and wait for the user's reply. Only fall back to draft when `OAT_NON_INTERACTIVE=1` is set or there is no user-response channel at all.
+
+```
+DESIGN_MODE="${ARG_MODE:-${OAT_DESIGN_MODE:-}}"
+if [ -z "$DESIGN_MODE" ]; then
+  if [ "${OAT_NON_INTERACTIVE:-}" = "1" ] || no_user_response_channel_exists; then
+    DESIGN_MODE="draft"
+    echo "Non-interactive context detected. Falling back to draft-and-review mode."
+  else
+    # Consult persisted preference (FR15 / Component 14) before prompting
+    CONFIG_MODE=$(oat config get workflow.designMode 2>/dev/null || echo "")
+    if [ "$CONFIG_MODE" = "collaborative" ] || [ "$CONFIG_MODE" = "selective" ] || [ "$CONFIG_MODE" = "draft" ]; then
+      DESIGN_MODE="$CONFIG_MODE"
+      if [ "$DESIGN_MODE" = "selective" ]; then
+        DESIGN_MODE="collaborative"
+        echo "Using workflow.designMode = selective from config (treating as collaborative for lightweight design; Selective Collaborative is only available in full oat-project-design)."
+      else
+        echo "Using workflow.designMode = ${DESIGN_MODE} from config."
+      fi
+    else
+      # Prefer AskUserQuestion for structured multi-choice when available.
+      # If AskUserQuestion is unavailable, ask the same question as a plain
+      # chat message and wait for the user's reply. Do NOT switch to draft
+      # mode just because the structured tool is missing.
+      #
+      # Prompt (SAME text as oat-project-design Step 1.5):
+      #   "How would you like to work through the lightweight design?
+      #     1. Collaborative (recommended) — section-by-section, one approach confirmation before drafting
+      #     2. Draft-and-review — full draft up front, you review holistically"
+      :
+    fi
+  fi
+fi
+echo "Running in ${DESIGN_MODE} mode."
+```
+
+### Step 2.75: Lightweight Design (Optional)
+
+Produce a focused `design.md` covering only what's needed for a quality plan. This is NOT the full spec-driven design — it's a quick architectural sketch.
+
+Copy template: `.oat/templates/design.md` → `"$PROJECT_PATH/design.md"`
+
+**Required sections (always fill these):**
+
+1. **Overview** — 2-3 paragraph summary of the technical approach
+2. **Architecture** — system context, key components, and data flow
+3. **Component Design** — for each component: purpose, responsibilities, interfaces
+4. **Testing Strategy** — key test levels and scenarios (no requirement-to-test mapping needed in quick mode)
+
+**Optional sections (include only when relevant to the feature):**
+
+- Data Models — if new models or schema changes are involved
+- API Design — if new endpoints or interfaces are introduced
+- Error Handling — if non-obvious error scenarios exist
+
+**Skip these sections in quick mode** (they belong to spec-driven design):
+
+- Security Considerations (unless the feature is security-related)
+- Performance Considerations (unless the feature has specific performance requirements)
+- Deployment Strategy
+- Migration Plan
+- Dependencies (captured in discovery instead)
+- Risks and Mitigation (captured in discovery instead)
+
+**Draft the design based on `DESIGN_MODE` (resolved in Step 2.75a):**
+
+```
+IF DESIGN_MODE == "collaborative":
+  For SECTION in [Overview, Architecture, Component Design, Testing Strategy
+                  (required); Data Models, API Design, Error Handling
+                  (include only when relevant); SKIP Security, Performance,
+                  Deployment, Migration]:
+    Draft section content. Scale each section to its complexity:
+      a few sentences if straightforward, up to 200-300 words if nuanced.
+    Not-applicable sections: state as a single sentence, not empty.
+    Present:
+      "Here's what I have for [section]: [content].
+       Does this look right, or should we adjust before continuing?"
+    Use AskUserQuestion for the validation prompt.
+    Revise inline on feedback. Be ready to go back and clarify if something
+      doesn't make sense. Re-present if substantive.
+    Mark section approved. Move to next.
+
+IF DESIGN_MODE == "draft":
+  Draft all required sections (Overview, Architecture, Component Design,
+    Testing Strategy) and any applicable optional sections (Data Models,
+    API Design, Error Handling) in ONE pass (same reduced section set).
+  Scale each section to its complexity — no per-section prompts fire.
+  Run the FULL 4-check self-review (placeholder + internal consistency +
+    scope + ambiguity). No scaled-down variant — identical to the full
+    oat-project-design self-review.
+  Present the user-review gate wording (adapted for quick-start:
+    no HiLL gate by default; commits-first is still in effect).
+  Produce design.md only — NO spec.md is written by lightweight design.
+```
+
+If `design.md` or `state.md` was updated before one of these validation pauses, commit those artifact changes before waiting for the user response.
+
+Update `design.md` frontmatter:
+
+```yaml
+---
+oat_status: complete
+oat_ready_for: null
+oat_last_updated: { today }
+oat_generated: false
+oat_template: false
+---
+```
+
+Update `"$PROJECT_PATH/state.md"` to reflect the design phase:
+
+- `oat_phase: design`
+- `oat_phase_status: complete`
+- `oat_project_state_updated: "{ISO 8601 UTC timestamp}"`
+
+Before proceeding to plan generation or pausing for validation, persist the design bookkeeping:
+
+```bash
+git add "$PROJECT_PATH/design.md" "$PROJECT_PATH/state.md"
+git diff --cached --quiet || git commit -m "chore(oat): capture quick-start design for {project-name}"
+```
+
+### Step 3: Generate Plan Directly
+
+Create/update `"$PROJECT_PATH/plan.md"` from `.oat/templates/plan.md`.
+
+Required frontmatter updates:
+
+- `oat_status: complete`
+- `oat_ready_for: oat-project-implement`
+- `oat_phase: plan`
+- `oat_phase_status: complete`
+- `oat_plan_source: quick`
+- `oat_import_reference: null`
+- `oat_import_source_path: null`
+- `oat_import_provider: null`
+
+Plan requirements — apply `oat-project-plan-writing` canonical format invariants:
+
+- Stable task IDs (`pNN-tNN`)
+- Verification step per task
+- Atomic commit message per task
+- Required sections: `## Reviews`, `## Implementation Complete`, `## References`
+- Review table preservation rules (never delete existing rows)
+
+Required parallelism pass before finalizing the plan:
+
+- Evaluate adjacent phases for phase-level parallelism before treating the plan as complete.
+- Set `oat_plan_parallel_groups` whenever phases can run independently in isolated worktrees with disjoint write boundaries and independent verification.
+- Keep dependent tasks in the same phase when they must run sequentially.
+- Do not declare parallel groups when phases share a fragile migration, require the same generated artifact, or one phase's tests depend on another phase's behavior.
+- Add a short `## Parallelism` section to `plan.md` explaining the dependency and write-set reasoning, including why groups were declared or why the plan remains sequential.
+- Quick mode is not "sequential by default." A quick-start plan is sequential only when the dependency and write-set analysis says it should be.
+- When a task claims scoped verification, prefer the exact runner invocation that truly scopes to the intended file, test, or target instead of package-level shortcuts that may execute the full suite.
+
+### Step 4: Sync Project State
+
+Update `"$PROJECT_PATH/state.md"`:
+
+- `oat_phase: plan`
+- `oat_phase_status: complete`
+- `oat_current_task: null`
+- `oat_project_state_updated: "{ISO 8601 UTC timestamp, e.g. 2026-03-10T14:30:00Z}"`
+- set `oat_hill_checkpoints: []` for quick mode to avoid spec/design gate confusion
+
+Recommended quick-mode gate defaults:
+
+- keep implementation phase checkpoints via `oat_plan_hill_phases`
+- do not require discovery/spec/design artifact review rows to be passed before implementation
+
+### Step 5: Initialize Implementation Tracking
+
+Ensure `"$PROJECT_PATH/implementation.md"` exists and frontmatter is resumable:
+
+- `oat_status: in_progress`
+- `oat_current_task_id: p01-t01` (or first task in plan)
+
+### Step 6: Refresh Repo Dashboard
+
+Always regenerate the repo dashboard after quick-start updates (including resume path):
+
+```bash
+oat state refresh
+```
+
+### Step 6.5: Commit Quick-Start Artifacts
+
+After dashboard refresh, stage and commit the changed quick-start artifacts before handing off to implementation or stopping.
+
+```bash
+for path in \
+  "$PROJECT_PATH/discovery.md" \
+  "$PROJECT_PATH/design.md" \
+  "$PROJECT_PATH/plan.md" \
+  "$PROJECT_PATH/implementation.md" \
+  "$PROJECT_PATH/state.md" \
+  ".oat/state.md"; do
+  [ -e "$path" ] && git add "$path"
+done
+git diff --cached --quiet || git commit -m "chore(oat): update quick-start artifacts for {project-name}"
+```
+
+### Step 7: Output Next Action
+
+Report:
+
+- workflow mode (`quick`)
+- total phases/tasks generated
+- first task ID
+- execution shape summary (sequential or declared parallel groups)
+- next options:
+  - `oat-project-implement`
+- dashboard location: `.oat/state.md` (confirm it was regenerated)
+
+## Success Criteria
+
+- ✅ Active project exists and pointer is valid.
+- ✅ `state.md` marks `oat_workflow_mode: quick`.
+- ✅ `discovery.md` contains synthesized or backfilled quick discovery decisions from the session context.
+- ✅ `plan.md` is complete and executable (`oat_ready_for: oat-project-implement`).
+- ✅ `implementation.md` is initialized for resumable execution.
+- ✅ Changed quick-start artifacts and refreshed `.oat/state.md` are committed before handoff or pause.

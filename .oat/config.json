@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "projects": {
+    "root": ".oat/projects/shared"
+  },
+  "tools": {
+    "core": true,
+    "ideas": false,
+    "docs": false,
+    "workflows": true,
+    "utility": false,
+    "project-management": false,
+    "research": false
+  },
+  "localPaths": [
+    ".oat/projects/**/pr",
+    ".oat/projects/**/reviews/archived"
+  ]
+}
