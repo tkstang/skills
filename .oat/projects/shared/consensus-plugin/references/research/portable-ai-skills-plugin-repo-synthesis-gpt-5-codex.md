@@ -1,0 +1,1 @@
+/Users/thomas.stang/Library/Mobile Documents/iCloud~md~obsidian/Documents/Vault/04 - Resources/Research/AI Plugins/portable-ai-skills-plugin-repo-synthesis-gpt-5-codex.md
