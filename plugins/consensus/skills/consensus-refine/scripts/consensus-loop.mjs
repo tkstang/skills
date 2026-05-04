@@ -199,6 +199,22 @@ function outputCapError(streamName, capBytes) {
   });
 }
 
+function paseoMissingError(error) {
+  return new ConsensusError('paseo executable not found on PATH', {
+    code: 'PASEO_MISSING',
+    exitCode: EXIT_CODES.CONFIG,
+    cause: error,
+    details: {
+      path: error?.path,
+      syscall: error?.syscall
+    }
+  });
+}
+
+function isMissingPaseoSpawnError(error) {
+  return error?.code === 'ENOENT' && (error.path === 'paseo' || error.syscall === 'spawn paseo');
+}
+
 export function exitCodeForError(error) {
   if (error?.name === 'AbortError' || error?.code === 'SIGINT') {
     return EXIT_CODES.INTERRUPTED;
@@ -474,7 +490,9 @@ export function invokePaseo({ provider, schemaPath, prompt, env = process.env, c
 
     child.stdout.on('data', (chunk) => capture('stdout', stdoutChunks, chunk));
     child.stderr.on('data', (chunk) => capture('stderr', stderrChunks, chunk));
-    child.on('error', reject);
+    child.on('error', (error) => {
+      reject(isMissingPaseoSpawnError(error) ? paseoMissingError(error) : error);
+    });
     child.on('close', (code, signal) => {
       if (capError) {
         reject(capError);

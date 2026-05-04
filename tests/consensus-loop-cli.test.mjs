@@ -6,6 +6,8 @@ import test from 'node:test';
 
 import {
   buildTurnPrompt,
+  EXIT_CODES,
+  exitCodeForError,
   parseLoopArgs,
   runConsensusLoop
 } from '../plugins/consensus/skills/consensus-refine/scripts/consensus-loop.mjs';
@@ -279,4 +281,22 @@ test('runConsensusLoop writes an error status and rejects hard Paseo failures', 
   assert.equal(status.status, 'error');
   assert.equal(status.termination_reason, 'hard_error');
   assert.match(status.error, /provider failed/);
+});
+
+test('runConsensusLoop maps missing direct paseo executable to config', async () => {
+  const files = await makeRunFiles();
+
+  await assert.rejects(
+    runConsensusLoop(argvFor(files), { env: { ...process.env, PATH: files.tempRoot } }),
+    (error) => {
+      assert.equal(error.code, 'PASEO_MISSING');
+      assert.equal(exitCodeForError(error), EXIT_CODES.CONFIG);
+      return true;
+    }
+  );
+
+  const status = await readJson(files.statusPath);
+  assert.equal(status.status, 'error');
+  assert.equal(status.termination_reason, 'hard_error');
+  assert.match(status.error, /paseo executable not found/);
 });
