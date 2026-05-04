@@ -1,4 +1,6 @@
 import { createHash } from 'node:crypto';
+import { mkdir, open, readFile, writeFile } from 'node:fs/promises';
+import path from 'node:path';
 
 export const VERDICT_CAPS = Object.freeze({
   reasoning_bytes: 64 * 1024,
@@ -6,6 +8,8 @@ export const VERDICT_CAPS = Object.freeze({
   concern_bytes: 16 * 1024,
   concerns_total_bytes: 64 * 1024
 });
+
+export const LOOP_SCHEMA_VERSION = 'v0';
 
 const DEFAULT_NORMALIZE_OPTIONS = {
   normalizeLineEndings: true,
@@ -55,6 +59,53 @@ function oversizedResult(field, limitBytes, actualBytes) {
 
 function pushTypeError(errors, field, expected) {
   errors.push(`${field} must be ${expected}`);
+}
+
+function timestamp(options = {}) {
+  return options.now?.() ?? new Date().toISOString();
+}
+
+function withRecordMetadata(record, options = {}) {
+  return {
+    schema_version: LOOP_SCHEMA_VERSION,
+    recorded_at: timestamp(options),
+    ...record
+  };
+}
+
+async function readExistingRecords(recordsPath) {
+  try {
+    const parsed = JSON.parse(await readFile(recordsPath, 'utf8'));
+    if (!Array.isArray(parsed)) {
+      throw new Error('records file must contain a JSON array');
+    }
+    return parsed;
+  } catch (error) {
+    if (error.code === 'ENOENT') return [];
+    throw error;
+  }
+}
+
+async function syncFileIfAvailable(filePath) {
+  let handle;
+  try {
+    handle = await open(filePath, 'r');
+    await handle.sync();
+  } finally {
+    await handle?.close();
+  }
+}
+
+function normalizeCost(status) {
+  const source = status.cost_source ?? status.cost?.source ?? 'unavailable';
+  const normalized = ['paseo', 'estimated', 'unavailable'].includes(source) ? source : 'unavailable';
+  const costUsd = status.cost_usd ?? status.cost?.usd;
+
+  if (normalized === 'unavailable' || typeof costUsd !== 'number') {
+    return { cost_source: normalized };
+  }
+
+  return { cost_source: normalized, cost_usd: costUsd };
 }
 
 function recordHash(record, options = {}) {
@@ -188,6 +239,55 @@ export function validateVerdictCaps(verdict) {
   }
 
   return { ok: true, errors: [] };
+}
+
+export async function createRecordsWriter(recordsPath, options = {}) {
+  await mkdir(path.dirname(recordsPath), { recursive: true });
+  const records = await readExistingRecords(recordsPath);
+
+  async function flush() {
+    await writeFile(recordsPath, `${JSON.stringify(records, null, 2)}\n`);
+    await syncFileIfAvailable(recordsPath);
+  }
+
+  if (records.length === 0) {
+    await flush();
+  }
+
+  return {
+    path: recordsPath,
+    async append(record) {
+      const entry = withRecordMetadata(record, options);
+      records.push(entry);
+      await flush();
+      return entry;
+    },
+    async close() {
+      await flush();
+    }
+  };
+}
+
+export async function writeLoopStatus(statusPath, status, options = {}) {
+  await mkdir(path.dirname(statusPath), { recursive: true });
+  const normalizedStatus = {
+    schema_version: LOOP_SCHEMA_VERSION,
+    written_at: timestamp(options),
+    status: status.status,
+    termination_reason: status.termination_reason ?? null,
+    turns: status.turns ?? 0,
+    rounds: status.rounds ?? 0
+  };
+
+  if (status.peers) {
+    normalizedStatus.peers = status.peers;
+  }
+
+  Object.assign(normalizedStatus, normalizeCost(status));
+
+  await writeFile(statusPath, `${JSON.stringify(normalizedStatus, null, 2)}\n`);
+  await syncFileIfAvailable(statusPath);
+  return normalizedStatus;
 }
 
 export function detectConvergence(records, options = {}) {
