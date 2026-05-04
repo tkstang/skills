@@ -19,3 +19,4 @@ jobs:
           node-version: "20"
       - run: npm test
       - run: npm run validate
+      - run: npm run smoke
