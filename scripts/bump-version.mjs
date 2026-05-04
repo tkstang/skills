@@ -15,6 +15,8 @@ export const MARKETPLACE_MANIFESTS = [
   '.agents/plugins/marketplace.json'
 ];
 
+export const SKILL_FILES = ['plugins/consensus/skills/consensus-refine/SKILL.md'];
+
 const SEMVER_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/u;
 
 export function isValidSemver(version) {
@@ -27,6 +29,39 @@ async function readJson(root, relativePath) {
 
 async function writeJson(root, relativePath, value) {
   await writeFile(path.join(root, relativePath), `${JSON.stringify(value, null, 2)}\n`);
+}
+
+function skillMetadataVersion(markdown, relativePath) {
+  const match = String(markdown).match(/^---\n([\s\S]*?)\n---(?:\n|$)/);
+  if (!match) {
+    throw new Error(`${relativePath}: missing frontmatter block`);
+  }
+
+  const versionMatch = match[1].match(/^metadata:\n(?:  .+\n)*?  version:\s*["']?([^"'\n]+)["']?$/m);
+  if (!versionMatch) {
+    throw new Error(`${relativePath}: missing metadata.version`);
+  }
+  return versionMatch[1];
+}
+
+function replaceSkillMetadataVersion(markdown, version, relativePath) {
+  const match = String(markdown).match(/^---\n([\s\S]*?)\n---(?:\n|$)/);
+  if (!match) {
+    throw new Error(`${relativePath}: missing frontmatter block`);
+  }
+
+  const updatedFrontmatter = match[1].replace(
+    /(^metadata:\n(?:  .+\n)*?  version:\s*)["']?[^"'\n]+["']?$/m,
+    `$1"${version}"`
+  );
+  if (updatedFrontmatter === match[1]) {
+    throw new Error(`${relativePath}: missing metadata.version`);
+  }
+
+  const trailingNewline = match[0].endsWith('\n') ? '\n' : '';
+  return `${markdown.slice(0, match.index)}---\n${updatedFrontmatter}\n---${trailingNewline}${markdown.slice(
+    match.index + match[0].length
+  )}`;
 }
 
 function requireSemver(version) {
@@ -66,6 +101,13 @@ export async function bumpVersion({ root = process.cwd(), version }) {
     updatedFiles.push(relativePath);
   }
 
+  for (const relativePath of SKILL_FILES) {
+    const filePath = path.join(root, relativePath);
+    const updated = replaceSkillMetadataVersion(await readFile(filePath, 'utf8'), nextVersion, relativePath);
+    await writeFile(filePath, updated);
+    updatedFiles.push(relativePath);
+  }
+
   return { version: nextVersion, updatedFiles };
 }
 
@@ -86,6 +128,13 @@ export async function checkTagVersion({ root = process.cwd(), tag }) {
       if (Object.hasOwn(plugin, 'version') && plugin.version !== expectedVersion) {
         mismatches.push(`${relativePath}:plugins[${index}].version=${plugin.version}`);
       }
+    }
+  }
+
+  for (const relativePath of SKILL_FILES) {
+    const version = skillMetadataVersion(await readFile(path.join(root, relativePath), 'utf8'), relativePath);
+    if (version !== expectedVersion) {
+      mismatches.push(`${relativePath}:metadata.version=${version}`);
     }
   }
 

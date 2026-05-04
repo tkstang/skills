@@ -2,6 +2,8 @@ import { lstat, readdir, readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { isValidSemver } from './bump-version.mjs';
+
 const DEFAULT_ROOT = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const PROVIDER_MANIFESTS = [
   'plugins/consensus/.claude-plugin/plugin.json',
@@ -164,8 +166,8 @@ async function validateSkillFrontmatter(root, skillPath) {
     issues.push(`${path.relative(root, skillFile)} name does not match folder`);
   }
 
-  if (parsed.metadata?.version !== '0.1.0') {
-    issues.push(`${path.relative(root, skillFile)} metadata.version should be 0.1.0`);
+  if (!isValidSemver(parsed.metadata?.version)) {
+    issues.push(`${path.relative(root, skillFile)} metadata.version must be valid semver`);
   }
 
   return issues;
@@ -226,6 +228,9 @@ export async function validateVersionConsistency(root) {
   for (const relativePath of PROVIDER_MANIFESTS) {
     const manifest = await parseJsonFile(path.join(root, relativePath));
     versions.set(relativePath, manifest.version);
+    if (!isValidSemver(manifest.version)) {
+      issues.push(`${relativePath} version must be valid semver`);
+    }
   }
 
   const uniqueVersions = new Set(versions.values());
@@ -250,8 +255,8 @@ async function validateProviderManifest(root, relativePath) {
     issues.push(`${relativePath} name should be consensus`);
   }
 
-  if (manifest.version !== '0.1.0') {
-    issues.push(`${relativePath} version should be 0.1.0`);
+  if (!isValidSemver(manifest.version)) {
+    issues.push('version must be valid semver');
   }
 
   if (!Array.isArray(manifest.skills) || manifest.skills.length === 0) {

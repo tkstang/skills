@@ -119,6 +119,30 @@ test('version consistency and full repository validation pass', async () => {
   assert.deepEqual(result.errors, []);
 });
 
+test('repository validation accepts bumped semver versions and rejects malformed versions', async () => {
+  const tempRoot = await createValidTempRepository();
+  for (const provider of ['.claude-plugin', '.cursor-plugin', '.codex-plugin']) {
+    await writeJson(path.join(tempRoot, `plugins/consensus/${provider}/plugin.json`), {
+      name: 'consensus',
+      version: '0.1.1',
+      skills: [{ path: './skills/consensus-refine' }]
+    });
+  }
+
+  const bumped = await validateRepository({ root: tempRoot });
+  assert.equal(bumped.ok, true, bumped.errors.join('\n'));
+
+  await writeJson(path.join(tempRoot, 'plugins/consensus/.codex-plugin/plugin.json'), {
+    name: 'consensus',
+    version: 'next',
+    skills: [{ path: './skills/consensus-refine' }]
+  });
+
+  const malformed = await validateRepository({ root: tempRoot });
+  assert.equal(malformed.ok, false);
+  assert.match(malformed.errors.join('\n'), /valid semver/);
+});
+
 test('full repository validation rejects invalid standalone skill directories', async () => {
   const tempRoot = await createValidTempRepository();
   await mkdir(path.join(tempRoot, 'skills/bad-skill'), { recursive: true });
