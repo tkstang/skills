@@ -114,9 +114,13 @@ function sectionOutput(section) {
   return section.output ?? section.result?.output ?? section.markdown ?? '';
 }
 
+async function readJsonFile(filePath) {
+  return JSON.parse(await readFile(filePath, 'utf8'));
+}
+
 async function readJsonIfPresent(filePath, fallback) {
   try {
-    return JSON.parse(await readFile(filePath, 'utf8'));
+    return await readJsonFile(filePath);
   } catch (error) {
     if (error.code === 'ENOENT') return fallback;
     return fallback;
@@ -172,7 +176,8 @@ function sectionStates(sections) {
     termination_reason: section.status?.termination_reason ?? null,
     turns: section.status?.turns ?? 0,
     rounds: section.status?.rounds ?? 0,
-    final_artifact_hash: section.status?.final_artifact_hash ?? null
+    final_artifact_hash: section.status?.final_artifact_hash ?? null,
+    subagent_id: section.subagent_id ?? null
   }));
 }
 
@@ -247,14 +252,21 @@ function renderArtifactFrontmatter(resolution) {
 }
 
 function renderResolutionSummary(resolution) {
-  return [
+  const rows = [
     `- Status: ${resolution.status}`,
     `- Mode: ${resolution.mode}`,
+    `- Parallel: ${resolution.parallel ? 'true' : 'false'}`,
     `- Agency: ${resolution.agency}`,
     `- Peers: ${resolution.peers.join(', ')}`,
     `- Sections: ${resolution.sections.converged}/${resolution.sections.total} converged; ${resolution.sections.impasse} impasse; ${resolution.sections.error} error`,
     `- Turns: ${resolution.total_turns}; rounds: ${resolution.total_rounds}`
-  ].join('\n');
+  ];
+
+  if (resolution.subagent_ids?.length > 0) {
+    rows.push(`- Subagents: ${resolution.subagent_ids.join(', ')}`);
+  }
+
+  return rows.join('\n');
 }
 
 function tableCell(value) {
@@ -798,7 +810,8 @@ export function renderDeliberationArtifact(runResult) {
     cost_source: 'unavailable',
     approximate_cost_usd: null,
     started_at: runResult.startedAt ?? null,
-    ended_at: runResult.endedAt ?? null
+    ended_at: runResult.endedAt ?? null,
+    subagent_ids: sections.map((section) => section.subagent_id).filter(Boolean)
   };
 
   const parts = [
@@ -1053,6 +1066,64 @@ export async function prepareParallelRun(options, runOptions = {}) {
   };
 }
 
+export async function fanInParallelRun(manifestPath, options = {}) {
+  const cwd = path.resolve(options.cwd ?? process.cwd());
+  const resolvedManifestPath = path.isAbsolute(manifestPath) ? manifestPath : path.resolve(cwd, manifestPath);
+  const startedAt = nowIso();
+  const startMs = Date.now();
+  const manifest = await readJsonFile(resolvedManifestPath);
+  const sections = [];
+
+  for (const entry of manifest.sections ?? []) {
+    const [output, records, status] = await Promise.all([
+      readFile(entry.output_section, 'utf8'),
+      readJsonFile(entry.output_records),
+      readJsonFile(entry.output_status)
+    ]);
+
+    sections.push({
+      id: entry.section_id,
+      name: entry.name,
+      original_index: entry.original_index,
+      subagent_id: entry.subagent_id,
+      paths: {
+        input: entry.section_file,
+        records: entry.output_records,
+        output: entry.output_section,
+        status: entry.output_status,
+        packet: entry.packet_path
+      },
+      output,
+      records,
+      status
+    });
+  }
+
+  const endedAt = nowIso();
+  const runResult = {
+    mode: 'parallel',
+    parallel: true,
+    inputPath: manifest.input_path,
+    outputPath: manifest.output_path,
+    runDir: manifest.run_dir,
+    manifestPath: resolvedManifestPath,
+    goal: manifest.goal,
+    peers: manifest.peers,
+    agency: manifest.agency,
+    maxRounds: manifest.max_rounds,
+    startedAt,
+    endedAt,
+    wallClockMs: Date.now() - startMs,
+    sections
+  };
+  runResult.status = aggregateStatus(sections);
+
+  const artifact = renderDeliberationArtifact(runResult);
+  const outputWriteRoot = path.resolve(options.allowRoot ?? path.dirname(manifest.output_path));
+  await atomicWriteFile(manifest.output_path, artifact, { rootPath: outputWriteRoot });
+  return { ...runResult, artifact };
+}
+
 export function resolvePeers(options = {}, host = 'unknown', providerInventory = []) {
   const defaultPeers = host === 'codex' ? ['codex', 'claude'] : ['claude', 'codex'];
   const peers = options.peers ?? defaultPeers;
@@ -1155,6 +1226,17 @@ export async function runWrapperCli(argv, options = {}) {
       writeJsonl(stdout, 'run_completed', {
         status: result.status,
         manifest_path: result.manifestPath,
+        run_dir: result.runDir,
+        sections: result.sections.length
+      });
+      return 0;
+    }
+
+    if (parsed.mode === 'fan_in') {
+      const result = await fanInParallelRun(parsed.manifestPath, { env, cwd, allowRoot: parsed.allowRoot });
+      writeJsonl(stdout, 'run_completed', {
+        status: result.status,
+        output_path: result.outputPath,
         run_dir: result.runDir,
         sections: result.sections.length
       });
