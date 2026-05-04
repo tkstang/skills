@@ -255,8 +255,43 @@ function lastProposedArtifact(records) {
   return null;
 }
 
-function normalizeResumeSection(state, logSection, index) {
-  const records = logSection?.records ?? [];
+function normalizeResumeRecords(records, peers = ['claude', 'codex']) {
+  let peerIndex = 0;
+  let currentArtifact = null;
+  return (records ?? []).map((record) => {
+    const isUser = record?.verdict === 'USER_INTERVENTION' || record?.agent === 'user';
+    const normalized = {
+      schema_version: 'v0',
+      ...record
+    };
+
+    if (typeof normalized.proposed_artifact === 'string') {
+      currentArtifact = normalized.proposed_artifact;
+    }
+
+    if (isUser) {
+      normalized.agent = 'user';
+      normalized.round_index ??= Math.floor(peerIndex / peers.length) + 1;
+      normalized.turn_index ??= peerIndex + 1;
+      normalized.reasoning ??= normalized.user_direction ?? '';
+      normalized.user_direction ??= normalized.reasoning;
+    } else {
+      normalized.agent ??= peers[peerIndex % peers.length] ?? `peer-${peerIndex + 1}`;
+      normalized.turn_index ??= peerIndex + 1;
+      normalized.round_index ??= Math.floor(peerIndex / peers.length) + 1;
+      peerIndex += 1;
+    }
+
+    if (!normalized.artifact_hash && currentArtifact !== null) {
+      normalized.artifact_hash = hashArtifact(currentArtifact);
+    }
+
+    return normalized;
+  });
+}
+
+function normalizeResumeSection(state, logSection, index, options = {}) {
+  const records = normalizeResumeRecords(logSection?.records ?? [], options.peers);
   const resumedArtifact = lastProposedArtifact(records);
   const status = logSection?.status ?? {};
   const sectionStatus = state.status ?? status.status ?? 'unknown';
@@ -289,7 +324,7 @@ function resumeHashError(section, expectedHash, actualHash) {
   };
 }
 
-function collectResumeValidationErrors(sectionStates, logSections, unscopedErrors) {
+function collectResumeValidationErrors(sectionStates, logSections, unscopedErrors, options = {}) {
   const errors = [...unscopedErrors];
 
   if (logSections.length < sectionStates.length) {
@@ -314,7 +349,7 @@ function collectResumeValidationErrors(sectionStates, logSections, unscopedError
   }
 
   const sections = sectionStates.map((state, index) => {
-    const section = normalizeResumeSection(state, logSections[index], index);
+    const section = normalizeResumeSection(state, logSections[index], index, options);
     if (!state || typeof state !== 'object' || Array.isArray(state) || !state.id) {
       errors.push({
         code: 'RESUME_SECTION_STATE_MISSING',
@@ -766,6 +801,9 @@ function renderRecord(record) {
     verdict: record.verdict ?? 'UNKNOWN',
     reasoning: record.reasoning ?? ''
   };
+  if ('user_direction' in record) {
+    verdictDocument.user_direction = record.user_direction;
+  }
   if ('proposed_artifact' in record) {
     verdictDocument.proposed_artifact = record.proposed_artifact;
   }
@@ -773,9 +811,18 @@ function renderRecord(record) {
     verdictDocument.concerns = record.concerns;
   }
 
-  const parts = [
-    `#### Round ${record.round_index ?? record.round ?? '?'} - ${record.agent ?? record.provider ?? 'peer'} - ${verdictDocument.verdict}`
-  ];
+  const roundLabel = record.round_index ?? record.round ?? '?';
+  const heading =
+    verdictDocument.verdict === 'USER_INTERVENTION'
+      ? `#### <user round=${roundLabel}> - USER_INTERVENTION`
+      : `#### Round ${roundLabel} - ${record.agent ?? record.provider ?? 'peer'} - ${verdictDocument.verdict}`;
+  const parts = [heading];
+
+  if (verdictDocument.verdict === 'USER_INTERVENTION') {
+    parts.push('', 'User direction:', sanitizeLogProse(record.user_direction ?? verdictDocument.reasoning));
+    parts.push('', canonicalJsonBlock('consensus-verdict', verdictDocument));
+    return parts.join('\n');
+  }
 
   if (verdictDocument.reasoning) {
     parts.push('', 'Reasoning:', sanitizeLogProse(verdictDocument.reasoning));
@@ -1108,6 +1155,7 @@ export function parseWrapperArgs(argv) {
     agency: 'moderate',
     output: null,
     resume: null,
+    userDirection: null,
     runDir: null,
     allowRoot: null,
     failOnSectionError: false,
@@ -1152,6 +1200,10 @@ export function parseWrapperArgs(argv) {
         break;
       case '--resume':
         parsed.resume = requireValue(argv, index, token);
+        index += 1;
+        break;
+      case '--user-direction':
+        parsed.userDirection = requireValue(argv, index, token);
         index += 1;
         break;
       case '--run-dir':
@@ -1246,9 +1298,12 @@ export async function parseDeliberationArtifactForResume(pathOrText, options = {
     });
   }
 
+  const resolution = resolutions[0];
   const sectionStates = sectionStatesBlocks[0];
   const { logSections, unscopedErrors } = extractLogSectionBlocks(text);
-  const { sections, errors } = collectResumeValidationErrors(sectionStates, logSections, unscopedErrors);
+  const { sections, errors } = collectResumeValidationErrors(sectionStates, logSections, unscopedErrors, {
+    peers: resolution.peers
+  });
   const { skippedIds, unhandledErrors } = await applyResumeSkipPolicy(sections, errors, options);
   const diagnosticsPath = errors.length > 0 ? await writeResumeErrors(options.runDir, errors, [...skippedIds]) : null;
   if (unhandledErrors.length > 0) {
@@ -1259,7 +1314,7 @@ export async function parseDeliberationArtifactForResume(pathOrText, options = {
     sourcePath,
     consensusSchemaVersion,
     frontmatter,
-    resolution: resolutions[0],
+    resolution,
     sectionStates,
     sections,
     completedSections: sections.filter((section) => section.completed),
@@ -1513,6 +1568,12 @@ export async function runSequential(options, runOptions = {}) {
       ? { peers: normalized.peers ?? ['claude', 'codex'], warnings: [] }
       : await (normalized.preflight ?? preflightPaseo)({ ...normalized, env, cwd });
   const peers = normalized.peers ?? preflight.peers;
+  const resumeSections = new Map(
+    (resumeState?.sections ?? []).flatMap((section) => [
+      [`id:${section.id}`, section],
+      [`index:${section.original_index}`, section]
+    ])
+  );
   const sectionResults = [];
 
   for (const section of parsedSections) {
@@ -1523,19 +1584,66 @@ export async function runSequential(options, runOptions = {}) {
       output: path.join(sectionDir, 'output.md'),
       status: path.join(sectionDir, 'status.json')
     };
+    const resumeSection =
+      resumeSections.get(`id:${section.id}`) ?? resumeSections.get(`index:${section.original_index}`) ?? null;
+    const sectionInput = resumeSection?.resumedArtifact ?? section.markdown;
 
     await Promise.all([
       confineWrite(paths.records, runWriteRoot),
       confineWrite(paths.output, runWriteRoot),
       confineWrite(paths.status, runWriteRoot)
     ]);
-    await atomicWriteFile(paths.input, section.markdown, { rootPath: runWriteRoot });
+    await atomicWriteFile(paths.input, sectionInput, { rootPath: runWriteRoot });
+
+    if (resumeSection?.skipped) {
+      const status = {
+        schema_version: 'v0',
+        status: 'skipped',
+        termination_reason: 'corrupt_resume_skipped',
+        turns: 0,
+        rounds: 0,
+        final_artifact_hash: hashArtifact(section.markdown),
+        resume_errors: resumeSection.corruptErrors
+      };
+      await Promise.all([
+        atomicWriteFile(paths.records, `${JSON.stringify(resumeSection.records, null, 2)}\n`, { rootPath: runWriteRoot }),
+        atomicWriteFile(paths.output, section.markdown, { rootPath: runWriteRoot }),
+        atomicWriteFile(paths.status, `${JSON.stringify(status, null, 2)}\n`, { rootPath: runWriteRoot })
+      ]);
+      sectionResults.push({
+        ...section,
+        paths,
+        output: section.markdown,
+        status,
+        records: resumeSection.records
+      });
+      continue;
+    }
+
+    if (resumeSection?.completed) {
+      await Promise.all([
+        atomicWriteFile(paths.records, `${JSON.stringify(resumeSection.records, null, 2)}\n`, { rootPath: runWriteRoot }),
+        atomicWriteFile(paths.output, sectionInput, { rootPath: runWriteRoot }),
+        atomicWriteFile(paths.status, `${JSON.stringify(resumeSection.status, null, 2)}\n`, { rootPath: runWriteRoot })
+      ]);
+      sectionResults.push({
+        ...section,
+        paths,
+        output: sectionInput,
+        status: resumeSection.status,
+        records: resumeSection.records
+      });
+      continue;
+    }
 
     try {
       const result = await runConsensusLoop(loopArgvForSection({ section, paths, options: normalized, peers }), {
         env,
         cwd,
-        invokePeer: normalized.invokePeer ?? runOptions.invokePeer
+        invokePeer: normalized.invokePeer ?? runOptions.invokePeer,
+        initialRecords: resumeSection?.records ?? [],
+        initialArtifact: sectionInput,
+        userDirection: resumeSection?.inFlight ? normalized.userDirection : null
       });
       sectionResults.push({
         ...section,

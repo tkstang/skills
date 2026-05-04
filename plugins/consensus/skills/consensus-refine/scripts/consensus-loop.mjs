@@ -617,6 +617,13 @@ export function parseLoopArgs(argv) {
 
 function verdictForPrompt(record) {
   if (!record) return null;
+  if (record.verdict === 'USER_INTERVENTION') {
+    return {
+      schema_version: record.schema_version ?? LOOP_SCHEMA_VERSION,
+      verdict: 'USER_INTERVENTION',
+      user_direction: record.user_direction ?? record.reasoning ?? ''
+    };
+  }
 
   const verdict = {
     schema_version: record.schema_version ?? LOOP_SCHEMA_VERSION,
@@ -632,9 +639,25 @@ function verdictForPrompt(record) {
   return verdict;
 }
 
-export function buildTurnPrompt({ provider, round, turn, goal, artifact, previousVerdict = null }) {
+function promptRecord(record) {
+  return verdictForPrompt(record);
+}
+
+function peerRecords(records) {
+  return records.filter((record) => record?.agent !== 'user' && record?.verdict !== 'USER_INTERVENTION');
+}
+
+function peerTurnCount(records) {
+  return peerRecords(records).length;
+}
+
+export function buildTurnPrompt({ provider, round, turn, goal, artifact, previousVerdict = null, priorRecords = [] }) {
   const artifactBlock = String(artifact ?? '').replace(/\n*$/u, '\n');
   const previousVerdictBlock = previousVerdict ? JSON.stringify(previousVerdict) : 'None - you are first';
+  const priorRecordsBlock =
+    priorRecords.length > 0
+      ? JSON.stringify(priorRecords.map(promptRecord).filter(Boolean), null, 2)
+      : 'None';
 
   return [
     `You are ${provider} participating in consensus deliberation on a single`,
@@ -656,6 +679,9 @@ export function buildTurnPrompt({ provider, round, turn, goal, artifact, previou
     '<SECTION>',
     artifactBlock,
     '</SECTION>',
+    '',
+    'Prior deliberation records:',
+    priorRecordsBlock,
     '',
     'Last verdict from the other peer (round N-1):',
     previousVerdictBlock,
@@ -683,7 +709,7 @@ async function writeTerminalArtifacts(options, status, artifact, records) {
 }
 
 function resultStatus(status, terminationReason, records, options, extra = {}) {
-  const turns = records.length;
+  const turns = peerTurnCount(records);
   return {
     status,
     termination_reason: terminationReason,
@@ -695,11 +721,52 @@ function resultStatus(status, terminationReason, records, options, extra = {}) {
   };
 }
 
+async function seedRecordsFile(recordsPath, records, options = {}) {
+  const seedRecords = Array.isArray(records) ? records : [];
+  const existingRecords = await readExistingRecords(recordsPath);
+  if (existingRecords.length > 0 || seedRecords.length === 0) {
+    return existingRecords;
+  }
+
+  const normalizedRecords = seedRecords.map((record) => withRecordMetadata(record, options));
+  await mkdir(path.dirname(recordsPath), { recursive: true });
+  await writeFile(recordsPath, `${JSON.stringify(normalizedRecords, null, 2)}\n`);
+  await syncFileIfAvailable(recordsPath);
+  return normalizedRecords;
+}
+
+async function appendUserIntervention({ writer, records, options, currentArtifact, userDirection }) {
+  if (!userDirection) return null;
+
+  const peerTurns = peerTurnCount(records);
+  const nextUserRound = Math.max(0, ...records.map((record) => Number(record.round_index) || 0)) + 1;
+  const record = await writer.append({
+    turn_index: records.length + 1,
+    round_index: nextUserRound,
+    agent: 'user',
+    verdict: 'USER_INTERVENTION',
+    reasoning: userDirection,
+    user_direction: userDirection,
+    artifact_hash: hashArtifact(currentArtifact, hashOptionsForAgency(options.agency)),
+    iteration_mode: options.iteration
+  });
+  records.push(record);
+  return record;
+}
+
 export async function runConsensusLoop(argv, runOptions = {}) {
   const options = Array.isArray(argv) ? parseLoopArgs(argv) : argv;
-  const records = [];
+  const initialRecords = runOptions.initialRecords ?? options.initialRecords ?? [];
+  const records = await seedRecordsFile(options.outputRecords, initialRecords, runOptions);
   const writer = await createRecordsWriter(options.outputRecords, runOptions);
-  let currentArtifact = await readFile(options.sectionFile, 'utf8');
+  let currentArtifact = runOptions.initialArtifact ?? options.initialArtifact ?? (await readFile(options.sectionFile, 'utf8'));
+  await appendUserIntervention({
+    writer,
+    records,
+    options,
+    currentArtifact,
+    userDirection: runOptions.userDirection ?? options.userDirection
+  });
   const maxTurns = options.maxRounds * options.peers.length;
   const invokePeer =
     runOptions.invokePeer ??
@@ -713,7 +780,7 @@ export async function runConsensusLoop(argv, runOptions = {}) {
       }));
 
   try {
-    for (let turnIndex = 0; turnIndex < maxTurns; turnIndex += 1) {
+    for (let turnIndex = peerTurnCount(records); turnIndex < maxTurns; turnIndex += 1) {
       const peerIndex = turnIndex % options.peers.length;
       const provider = options.peers[peerIndex];
       const turn = turnIndex + 1;
@@ -725,7 +792,8 @@ export async function runConsensusLoop(argv, runOptions = {}) {
         turn,
         goal: options.goal,
         artifact: currentArtifact,
-        previousVerdict: verdictForPrompt(records.at(-1))
+        previousVerdict: verdictForPrompt(records.at(-1)),
+        priorRecords: records
       });
       const peerResult = await invokePeer({ provider, peerIndex, round, turn, prompt, artifact: currentArtifact });
       const verdict = peerResult.json;
