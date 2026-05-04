@@ -16,4 +16,20 @@ v0.1 is not ready to tag until the full project validation and provider smoke te
 
 ## Versioning
 
-Update `CHANGELOG.md` and all provider manifests together. The structural validator enforces version consistency for plugin manifests.
+Update `CHANGELOG.md` and all provider manifests together.
+
+Use:
+
+```bash
+node scripts/bump-version.mjs 0.1.0
+```
+
+The bump script updates the three provider plugin manifests and any marketplace `version` fields that are already present. It does not add version fields to marketplace schemas that omit them.
+
+Before pushing a release tag, verify the tag and manifests match:
+
+```bash
+node scripts/bump-version.mjs --check-tag v0.1.0
+```
+
+The structural validator enforces provider manifest consistency during normal development; the release workflow also checks the pushed tag against provider manifests and present marketplace version fields.

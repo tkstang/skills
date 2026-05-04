@@ -18,3 +18,4 @@ jobs:
           node-version: "20"
       - run: npm test
       - run: npm run validate
+      - run: node scripts/bump-version.mjs --check-tag "$GITHUB_REF_NAME"
