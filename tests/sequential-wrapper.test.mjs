@@ -22,7 +22,7 @@ function stubEnv(overrides = {}) {
 }
 
 function extractJsonBlock(markdown, label) {
-  const pattern = new RegExp('```json ' + label + '\\n([\\s\\S]*?)\\n```');
+  const pattern = new RegExp('<!-- consensus:' + label + '\\n([\\s\\S]*?)\\n-->');
   const match = markdown.match(pattern);
   assert.ok(match, `missing ${label} JSON block`);
   return JSON.parse(match[1]);
@@ -57,13 +57,16 @@ test('runSequential refines sections, creates run files, and writes an artifact'
   }
 
   const artifact = await readFile(outputPath, 'utf8');
-  assert.match(artifact, /^# Consensus Refine Artifact/m);
+  assert.match(artifact, /^---\nconsensus_schema_version: v0\n/m);
+  assert.match(artifact, /\n---\n\n# Consensus Refine Artifact/m);
   assert.match(artifact, /## Final Output/);
   assert.match(artifact, /# Intro/);
   assert.match(artifact, /## Details/);
   assert.match(artifact, /## Resolution/);
   assert.match(artifact, /Make each section clearer\./);
   assert.match(artifact, /## Deliberation Log/);
+  assert.doesNotMatch(artifact, /```json consensus-resolution/);
+  assert.match(artifact, /<!-- consensus:consensus-resolution\n/);
 
   const resolution = extractJsonBlock(artifact, 'consensus-resolution');
   assert.equal(resolution.consensus_schema_version, 'v0');
@@ -79,7 +82,7 @@ test('runSequential refines sections, creates run files, and writes an artifact'
   );
 });
 
-test('renderDeliberationArtifact uses dynamic fences and sanitizes prose without changing JSON blocks', () => {
+test('renderDeliberationArtifact uses canonical containers and contains prose headings', () => {
   const artifact = renderDeliberationArtifact({
     goal: 'Review tricky text.',
     mode: 'sequential',
@@ -102,7 +105,7 @@ test('renderDeliberationArtifact uses dynamic fences and sanitizes prose without
             round_index: 1,
             agent: 'claude',
             verdict: 'REVISE',
-            reasoning: 'Remove <script>alert(1)</script> from prose.',
+            reasoning: '# Unexpected Heading\nRemove <script>alert(1)</script> from prose.',
             proposed_artifact: 'Draft with ``` fence.\n'
           }
         ]
@@ -112,5 +115,7 @@ test('renderDeliberationArtifact uses dynamic fences and sanitizes prose without
 
   assert.match(artifact, /````markdown\nDraft with ``` fence\.\n````/);
   assert.doesNotMatch(artifact, /Reasoning:\nRemove <script>/);
+  assert.match(artifact, /Reasoning:\n\\# Unexpected Heading\nRemove \[removed\] from prose\./);
+  assert.match(artifact, /<!-- consensus:consensus-verdict\n/);
   assert.match(artifact, /"proposed_artifact": "Draft with ``` fence\.\\n"/);
 });

@@ -92,7 +92,7 @@ function dynamicFence(contents, info = '') {
 }
 
 function canonicalJsonBlock(label, value) {
-  return dynamicFence(JSON.stringify(value, null, 2), `json ${label}`);
+  return `<!-- consensus:${label}\n${JSON.stringify(value, null, 2)}\n-->`;
 }
 
 function sanitizeProse(text) {
@@ -100,6 +100,14 @@ function sanitizeProse(text) {
     .replace(/<(script|style)\b[\s\S]*?<\/\1>/gi, '[removed]')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
+}
+
+function containMarkdownHeadings(text) {
+  return String(text ?? '').replace(/^([ \t]{0,3})(#{1,6})([ \t]+.*)$/gmu, '$1\\$2$3');
+}
+
+function sanitizeLogProse(text) {
+  return containMarkdownHeadings(sanitizeProse(text));
 }
 
 function sectionOutput(section) {
@@ -202,7 +210,7 @@ function renderRecord(record) {
   ];
 
   if (verdictDocument.reasoning) {
-    parts.push('', 'Reasoning:', sanitizeProse(verdictDocument.reasoning));
+    parts.push('', 'Reasoning:', sanitizeLogProse(verdictDocument.reasoning));
   }
 
   if (verdictDocument.proposed_artifact) {
@@ -211,6 +219,57 @@ function renderRecord(record) {
 
   parts.push('', canonicalJsonBlock('consensus-verdict', verdictDocument));
   return parts.join('\n');
+}
+
+function yamlScalar(value) {
+  if (value === null || value === undefined) return 'null';
+  if (typeof value === 'boolean') return value ? 'true' : 'false';
+  if (typeof value === 'number') return Number.isFinite(value) ? String(value) : 'null';
+  const text = String(value);
+  return /^[A-Za-z0-9_.-]+$/u.test(text) ? text : JSON.stringify(text);
+}
+
+function renderArtifactFrontmatter(resolution) {
+  const fields = {
+    consensus_schema_version: resolution.consensus_schema_version,
+    status: resolution.status,
+    mode: resolution.mode,
+    parallel: resolution.parallel,
+    agency: resolution.agency,
+    sections_total: resolution.sections.total,
+    sections_converged: resolution.sections.converged,
+    sections_impasse: resolution.sections.impasse,
+    sections_error: resolution.sections.error,
+    generated_at: resolution.ended_at
+  };
+
+  return ['---', ...Object.entries(fields).map(([key, value]) => `${key}: ${yamlScalar(value)}`), '---'].join('\n');
+}
+
+function renderResolutionSummary(resolution) {
+  return [
+    `- Status: ${resolution.status}`,
+    `- Mode: ${resolution.mode}`,
+    `- Agency: ${resolution.agency}`,
+    `- Peers: ${resolution.peers.join(', ')}`,
+    `- Sections: ${resolution.sections.converged}/${resolution.sections.total} converged; ${resolution.sections.impasse} impasse; ${resolution.sections.error} error`,
+    `- Turns: ${resolution.total_turns}; rounds: ${resolution.total_rounds}`
+  ].join('\n');
+}
+
+function tableCell(value) {
+  return sanitizeProse(value).replace(/\|/g, '\\|') || '-';
+}
+
+function renderSectionStatesSummary(states) {
+  const rows = [
+    '| Section | Status | Turns | Rounds |',
+    '| --- | --- | ---: | ---: |'
+  ];
+  for (const state of states) {
+    rows.push(`| ${tableCell(state.name)} | ${tableCell(state.status)} | ${state.turns} | ${state.rounds} |`);
+  }
+  return rows.join('\n');
 }
 
 function requireValue(argv, index, flag) {
@@ -703,12 +762,16 @@ export function renderDeliberationArtifact(runResult) {
   };
 
   const parts = [
+    renderArtifactFrontmatter(resolution),
+    '',
     '# Consensus Refine Artifact',
     '',
     '## Final Output',
     '',
     finalOutput,
     '## Resolution',
+    '',
+    renderResolutionSummary(resolution),
     '',
     canonicalJsonBlock('consensus-resolution', resolution),
     '',
@@ -717,6 +780,8 @@ export function renderDeliberationArtifact(runResult) {
     sanitizeProse(runResult.goal || '(no explicit goal provided)'),
     '',
     '## Section States',
+    '',
+    renderSectionStatesSummary(states),
     '',
     canonicalJsonBlock('consensus-section-states', states),
     '',
