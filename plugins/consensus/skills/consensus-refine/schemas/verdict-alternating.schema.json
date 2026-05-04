@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/consensus/verdict-alternating.schema.json",
+  "title": "Consensus alternating verdict v0",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "decision", "reasoning"],
+      "properties": {
+        "schema_version": { "const": "v0" },
+        "decision": { "const": "ACCEPT" },
+        "reasoning": { "type": "string" },
+        "concerns": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "decision", "reasoning", "proposed_artifact"],
+      "properties": {
+        "schema_version": { "const": "v0" },
+        "decision": { "const": "REVISE" },
+        "reasoning": { "type": "string" },
+        "proposed_artifact": { "type": "string" },
+        "concerns": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "decision", "reasoning", "concerns"],
+      "properties": {
+        "schema_version": { "const": "v0" },
+        "decision": { "const": "IMPASSE" },
+        "reasoning": { "type": "string" },
+        "concerns": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        }
+      }
+    }
+  ]
+}
