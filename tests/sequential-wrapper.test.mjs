@@ -209,6 +209,53 @@ test('runSequential preserves completed resume section output when source input 
   assert.doesNotMatch(artifact, /Changed details\./);
 });
 
+test('runSequential preserves artifact section inventory when source headings drift', async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-resume-inventory-'));
+  const inputPath = path.join(tempRoot, 'draft.md');
+  const resumePath = path.join(tempRoot, 'draft.old.consensus.md');
+  const outputPath = path.join(tempRoot, 'draft.new.consensus.md');
+  const runDir = path.join(tempRoot, '.consensus/run');
+  const oldIntro = '# Intro\n\nOld stable text.\n';
+  const oldDetails = '## Details\n\nOld stable details.\n';
+
+  await writeFile(
+    resumePath,
+    completedResumeArtifact([
+      { id: 'intro-0', name: 'Intro', output: oldIntro },
+      { id: 'details-1', name: 'Details', output: oldDetails }
+    ])
+  );
+  await writeFile(inputPath, '# Renamed Intro\n\nThe current source no longer has Details.\n');
+
+  const result = await runSequential({
+    inputPath,
+    resume: resumePath,
+    output: outputPath,
+    runDir,
+    allowRoot: tempRoot,
+    cwd: tempRoot,
+    peers: ['claude', 'codex'],
+    preflight: async () => ({ peers: ['claude', 'codex'], warnings: [] }),
+    env: stubEnv()
+  });
+
+  const artifact = await readFile(outputPath, 'utf8');
+  const sectionStates = extractJsonBlock(artifact, 'consensus-section-states');
+
+  assert.equal(result.sections.length, 2);
+  assert.deepEqual(
+    result.sections.map((section) => section.name),
+    ['Intro', 'Details']
+  );
+  assert.deepEqual(
+    sectionStates.map((section) => section.id),
+    ['intro-0', 'details-1']
+  );
+  assert.match(artifact, /Old stable text\./);
+  assert.match(artifact, /Old stable details\./);
+  assert.doesNotMatch(artifact, /The current source no longer has Details/);
+});
+
 test('renderDeliberationArtifact uses canonical containers and contains prose headings', () => {
   const artifact = renderDeliberationArtifact({
     goal: 'Review tricky text.',

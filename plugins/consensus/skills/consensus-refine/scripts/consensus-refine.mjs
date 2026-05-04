@@ -1424,6 +1424,33 @@ function sectionRunDirectory(runDir, section) {
   return path.join(runDir, 'sections', `${String(section.original_index + 1).padStart(2, '0')}-${section.id}`);
 }
 
+function sectionLookup(sections) {
+  return new Map(
+    (sections ?? []).flatMap((section) => [
+      [`id:${section.id}`, section],
+      [`index:${section.original_index}`, section]
+    ])
+  );
+}
+
+function sequentialRunSections(parsedSections, resumeState) {
+  if (!resumeState) return parsedSections;
+  const currentSections = sectionLookup(parsedSections);
+  return resumeState.sections.map((resumeSection, index) => {
+    const currentSection =
+      currentSections.get(`id:${resumeSection.id}`) ??
+      currentSections.get(`index:${resumeSection.original_index}`) ??
+      null;
+
+    return {
+      id: resumeSection.id,
+      name: resumeSection.name,
+      original_index: resumeSection.original_index ?? index,
+      markdown: currentSection?.markdown ?? resumeSection.resumedArtifact ?? ''
+    };
+  });
+}
+
 function loopArgvForSection({ section, paths, options, peers }) {
   return [
     '--section-file',
@@ -1595,15 +1622,11 @@ export async function runSequential(options, runOptions = {}) {
       ? { peers: normalized.peers ?? ['claude', 'codex'], warnings: [] }
       : await (normalized.preflight ?? preflightPaseo)({ ...normalized, env, cwd });
   const peers = normalized.peers ?? preflight.peers;
-  const resumeSections = new Map(
-    (resumeState?.sections ?? []).flatMap((section) => [
-      [`id:${section.id}`, section],
-      [`index:${section.original_index}`, section]
-    ])
-  );
+  const resumeSections = sectionLookup(resumeState?.sections);
+  const runSections = sequentialRunSections(parsedSections, resumeState);
   const sectionResults = [];
 
-  for (const section of parsedSections) {
+  for (const section of runSections) {
     const sectionDir = sectionRunDirectory(runDir, section);
     const paths = {
       input: path.join(sectionDir, 'section.md'),
