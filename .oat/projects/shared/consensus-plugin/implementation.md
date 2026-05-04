@@ -1,9 +1,9 @@
 ---
-oat_status: in_progress
-oat_ready_for: oat-project-implement
+oat_status: complete
+oat_ready_for: oat-project-review-provide
 oat_blockers: []
 oat_last_updated: 2026-05-04
-oat_current_task_id: p05-t01
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -30,9 +30,9 @@ oat_generated: false
 | Phase 2 | completed   | 13    | 13/13     |
 | Phase 3 | completed   | 5     | 5/5       |
 | Phase 4 | completed   | 8     | 8/8       |
-| Phase 5 | pending     | 4     | 0/4       |
+| Phase 5 | completed   | 4     | 4/4       |
 
-**Total:** 33/37 tasks completed
+**Total:** 37/37 tasks completed
 
 ---
 
@@ -383,25 +383,61 @@ oat_generated: false
 
 ## Phase 5: Final Review Fixes
 
-**Status:** pending
-**Started:** -
-**Completed:** -
+**Status:** completed
+**Started:** 2026-05-04
+**Completed:** 2026-05-04
 
 ### Task p05-t01: (review) Preserve Completed Resume Section Output
 
-**Status:** pending
+**Status:** completed
+**Commit:** cb60059
 
 ### Task p05-t02: (review) Make Release Validation Version-Aware
 
-**Status:** pending
+**Status:** completed
+**Commit:** 07d5141
 
 ### Task p05-t03: (review) Align Artifact Frontmatter Metadata
 
-**Status:** pending
+**Status:** completed
+**Commit:** b4aaf36
 
 ### Task p05-t04: (review) Refresh Release Readiness Evidence
 
-**Status:** pending
+**Status:** completed
+**Commit:** this commit (`docs(p05-t04): refresh release readiness evidence`)
+
+### Phase Summary
+
+**Outcome (what changed):**
+
+- Preserved canonical per-section final output for resume so completed ACCEPT-only sections do not drift when the source input changes.
+- Made release validation version-aware and moved tag-specific checks to `bump-version --check-tag`, including skill metadata.
+- Expanded artifact frontmatter with design-listed machine metadata already present in resolution state.
+- Refreshed release-readiness evidence after final local verification; manual provider-runtime blockers remain in place before public tagging.
+
+**Key files touched:**
+
+- `plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs` - resume source handling, canonical section state output, and artifact frontmatter metadata.
+- `scripts/validate.mjs`, `scripts/bump-version.mjs` - semver-aware validation and version bump/tag checks.
+- `tests/resume-parse.test.mjs`, `tests/sequential-wrapper.test.mjs`, `tests/release-versioning.test.mjs`, `tests/validate-script.test.mjs` - final review regressions.
+- `RELEASING.md` - final readiness evidence.
+
+**Verification:**
+
+- Run: `node --test tests/resume-parse.test.mjs tests/sequential-wrapper.test.mjs`
+- Result: pass, 7 tests.
+- Run: `node --test tests/release-versioning.test.mjs tests/validate-script.test.mjs && node scripts/validate.mjs`
+- Result: pass, 10 tests; validator passed.
+- Run: `node --test tests/sequential-wrapper.test.mjs`
+- Result: pass, 3 tests.
+- Run: `npm test && node scripts/validate.mjs && node scripts/smoke-test.mjs`
+- Result: pass; 122 tests, validator passed, smoke passed.
+
+**Notes / Decisions:**
+
+- Public v0.1 tagging remains blocked until the manual provider-runtime install and permission checks documented in `RELEASING.md` are complete.
+- The final lifecycle review should be re-run after p05 phase review/bookkeeping.
 
 ---
 
@@ -529,6 +565,16 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 ## Implementation Log
 
 Chronological log of implementation progress.
+
+### 2026-05-04
+
+**Phase 5 Complete:** 2026-05-04
+
+- Implementer completed p05 tasks p05-t01 through p05-t04 in commits `cb60059`, `07d5141`, `b4aaf36`, and this docs/evidence commit.
+- Final local verification after p05 fixes passed: `npm test && node scripts/validate.mjs && node scripts/smoke-test.mjs`.
+- Result: 122 tests passed, validator passed, smoke passed.
+- Manual provider runtime install/permission checks remain blocked before public tagging and are preserved in `RELEASING.md`.
+- Next: run p05 phase review and then re-run the final lifecycle review gate.
 
 ### 2026-05-04
 
@@ -687,8 +733,10 @@ Track test execution during implementation.
 
 - Running `consensus-refine` on markdown produces a publishable artifact with Final Output, Resolution, Goal, Section States, and per-section Deliberation Log.
 - Users can resume from prior artifacts with explicit corrupt-section skip controls and add `--user-direction` to continue after intervention.
+- Resume uses canonical per-section final output from the prior artifact, so completed sections remain stable even when the source input has changed.
 - Missing Paseo preflight points users to `npm install -g @getpaseo/cli`, the source-build path, and `scripts/install-paseo.mjs`; the helper never auto-installs.
 - Parallel mode remains host-mediated: the wrapper prepares packets and fans in results; the host runtime owns subagent dispatch.
+- Release validation accepts semver-bumped plugin versions and leaves tag-specific consistency checks to `scripts/bump-version.mjs --check-tag`.
 
 **Key files / modules:**
 
@@ -700,7 +748,7 @@ Track test execution during implementation.
 
 **Verification performed:**
 
-- `npm test` - passed, 118 tests.
+- `npm test` - passed, 122 tests.
 - `node scripts/validate.mjs` - passed.
 - `node scripts/smoke-test.mjs` - passed.
 - `paseo --version` - `0.1.63`.
