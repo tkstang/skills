@@ -2,7 +2,7 @@
 oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
-oat_last_updated: 2026-05-01
+oat_last_updated: 2026-05-04
 oat_current_task_id: p01-t01
 oat_generated: false
 ---
@@ -127,6 +127,15 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 ## Implementation Log
 
 Chronological log of implementation progress.
+
+### 2026-05-04
+
+**Implementation Start:** 00:47
+
+- Tier 1 selected after user authorization: phase implementation and phase reviews delegated to subagents.
+- Plan HiLL checkpoints confirmed from config: final phase only (`p04`).
+- Auto-review at HiLL checkpoints enabled by user confirmation.
+- Next: dispatch Phase 1 (`p01`) implementation.
 
 ### 2026-05-04
 
