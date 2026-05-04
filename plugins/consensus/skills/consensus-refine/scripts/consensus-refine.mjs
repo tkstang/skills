@@ -136,6 +136,193 @@ async function readTextIfPresent(filePath) {
   }
 }
 
+function manifestError(message, details = {}) {
+  return new ConsensusError(message, {
+    code: details.code ?? 'INVALID_MANIFEST',
+    exitCode: details.exitCode ?? EXIT_CODES.CONFIG,
+    details: details.details
+  });
+}
+
+function pathConfinementError(field, target, root) {
+  return manifestError(`${field} path is outside allowed root: ${target}`, {
+    code: 'PATH_OUTSIDE_ROOT',
+    exitCode: EXIT_CODES.NOPERM,
+    details: { field, path: target, root }
+  });
+}
+
+function runDirConfinementError(field, target, runDir) {
+  return manifestError(`${field} path is outside prepared run directory: ${target}`, {
+    code: 'PATH_OUTSIDE_RUN_DIR',
+    exitCode: EXIT_CODES.NOPERM,
+    details: { field, path: target, run_dir: runDir }
+  });
+}
+
+function requiredManifestString(value, field) {
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw manifestError(`parallel manifest ${field} must be a non-empty string`);
+  }
+}
+
+function requiredManifestInteger(value, field) {
+  if (!Number.isInteger(value) || value < 0) {
+    throw manifestError(`parallel manifest ${field} must be a non-negative integer`);
+  }
+}
+
+function validateParallelManifestShape(manifest) {
+  if (manifest === null || typeof manifest !== 'object' || Array.isArray(manifest)) {
+    throw manifestError('parallel manifest must be a JSON object');
+  }
+  if (manifest.consensus_schema_version !== 'v0') {
+    throw manifestError('parallel manifest consensus_schema_version must be v0');
+  }
+  if (manifest.manifest_type !== 'consensus-parallel-run') {
+    throw manifestError('parallel manifest manifest_type must be consensus-parallel-run');
+  }
+  if (manifest.mode !== 'parallel') {
+    throw manifestError('parallel manifest mode must be parallel');
+  }
+
+  for (const field of ['output_path', 'run_dir']) {
+    requiredManifestString(manifest[field], field);
+  }
+  if (!Array.isArray(manifest.sections)) {
+    throw manifestError('parallel manifest sections must be an array');
+  }
+
+  for (const [index, entry] of manifest.sections.entries()) {
+    if (entry === null || typeof entry !== 'object' || Array.isArray(entry)) {
+      throw manifestError(`parallel manifest sections[${index}] must be a JSON object`);
+    }
+    for (const field of [
+      'section_id',
+      'name',
+      'packet_path',
+      'section_file',
+      'output_records',
+      'output_section',
+      'output_status',
+      'subagent_id'
+    ]) {
+      requiredManifestString(entry[field], `sections[${index}].${field}`);
+    }
+    requiredManifestInteger(entry.original_index, `sections[${index}].original_index`);
+  }
+}
+
+function resolveManifestPathValue(value, basePath) {
+  return path.isAbsolute(value) ? path.resolve(value) : path.resolve(basePath, value);
+}
+
+async function assertPathResolvesInside(rootPath, targetPath, field, errorFactory) {
+  const root = path.resolve(rootPath);
+  const target = path.resolve(targetPath);
+  const realRoot = await realpath(root);
+  const existing = await nearestExistingPath(target);
+  const realExisting = await realpath(existing);
+  const realTarget = path.resolve(realExisting, path.relative(existing, target));
+
+  if (!inside(realRoot, realTarget)) {
+    throw errorFactory(field, target, root);
+  }
+}
+
+async function resolveConfinedManifestPath(value, { root, base, field, errorFactory }) {
+  requiredManifestString(value, field);
+  const resolved = resolveManifestPathValue(value, base);
+  const resolvedRoot = path.resolve(root);
+  if (!inside(resolvedRoot, resolved)) {
+    throw errorFactory(field, resolved, resolvedRoot);
+  }
+  await assertPathResolvesInside(resolvedRoot, resolved, field, errorFactory);
+  return resolved;
+}
+
+async function normalizeParallelManifest(manifest, options) {
+  validateParallelManifestShape(manifest);
+
+  const cwd = path.resolve(options.cwd);
+  const trustedRoot = path.resolve(options.trustedRoot);
+  const manifestPath = path.resolve(options.manifestPath);
+  const runDir = await resolveConfinedManifestPath(manifest.run_dir, {
+    root: trustedRoot,
+    base: cwd,
+    field: 'run_dir',
+    errorFactory: pathConfinementError
+  });
+
+  if (runDir !== path.dirname(manifestPath)) {
+    throw manifestError('parallel manifest run_dir must match the manifest file directory');
+  }
+
+  if (manifest.manifest_path !== undefined) {
+    const declaredManifestPath = await resolveConfinedManifestPath(manifest.manifest_path, {
+      root: trustedRoot,
+      base: cwd,
+      field: 'manifest_path',
+      errorFactory: pathConfinementError
+    });
+    if (declaredManifestPath !== manifestPath) {
+      throw manifestError('parallel manifest manifest_path must match the fan-in manifest path');
+    }
+  }
+
+  const outputPath = await resolveConfinedManifestPath(manifest.output_path, {
+    root: trustedRoot,
+    base: cwd,
+    field: 'output_path',
+    errorFactory: pathConfinementError
+  });
+
+  const sections = [];
+  for (const entry of manifest.sections) {
+    sections.push({
+      ...entry,
+      packet_path: await resolveConfinedManifestPath(entry.packet_path, {
+        root: runDir,
+        base: runDir,
+        field: 'packet_path',
+        errorFactory: runDirConfinementError
+      }),
+      section_file: await resolveConfinedManifestPath(entry.section_file, {
+        root: runDir,
+        base: runDir,
+        field: 'section_file',
+        errorFactory: runDirConfinementError
+      }),
+      output_records: await resolveConfinedManifestPath(entry.output_records, {
+        root: runDir,
+        base: runDir,
+        field: 'output_records',
+        errorFactory: runDirConfinementError
+      }),
+      output_section: await resolveConfinedManifestPath(entry.output_section, {
+        root: runDir,
+        base: runDir,
+        field: 'output_section',
+        errorFactory: runDirConfinementError
+      }),
+      output_status: await resolveConfinedManifestPath(entry.output_status, {
+        root: runDir,
+        base: runDir,
+        field: 'output_status',
+        errorFactory: runDirConfinementError
+      })
+    });
+  }
+
+  return {
+    ...manifest,
+    output_path: outputPath,
+    run_dir: runDir,
+    manifest_path: manifestPath,
+    sections
+  };
+}
+
 function latestRevisedOutput(records, fallback) {
   for (let index = records.length - 1; index >= 0; index -= 1) {
     const record = records[index];
@@ -1077,10 +1264,19 @@ export async function prepareParallelRun(options, runOptions = {}) {
 
 export async function fanInParallelRun(manifestPath, options = {}) {
   const cwd = path.resolve(options.cwd ?? process.cwd());
-  const resolvedManifestPath = path.isAbsolute(manifestPath) ? manifestPath : path.resolve(cwd, manifestPath);
+  const trustedRoot = path.resolve(options.allowRoot ?? cwd);
+  const resolvedManifestPath = resolveManifestPathValue(manifestPath, cwd);
+  if (!inside(trustedRoot, resolvedManifestPath)) {
+    throw pathConfinementError('manifest_path', resolvedManifestPath, trustedRoot);
+  }
+  await assertPathResolvesInside(trustedRoot, resolvedManifestPath, 'manifest_path', pathConfinementError);
   const startedAt = nowIso();
   const startMs = Date.now();
-  const manifest = await readJsonFile(resolvedManifestPath);
+  const manifest = await normalizeParallelManifest(await readJsonFile(resolvedManifestPath), {
+    cwd,
+    trustedRoot,
+    manifestPath: resolvedManifestPath
+  });
   const sections = [];
 
   for (const entry of manifest.sections ?? []) {
@@ -1205,8 +1401,7 @@ export async function fanInParallelRun(manifestPath, options = {}) {
   runResult.status = aggregateParallelStatus(sections);
 
   const artifact = renderDeliberationArtifact(runResult);
-  const outputWriteRoot = path.resolve(options.allowRoot ?? path.dirname(manifest.output_path));
-  await atomicWriteFile(manifest.output_path, artifact, { rootPath: outputWriteRoot });
+  await atomicWriteFile(manifest.output_path, artifact, { rootPath: trustedRoot });
   const failedSections = failingSections(sections);
   if (options.failOnSectionError && failedSections.length > 0) {
     throw new ConsensusError(`section error or impasse in ${failedSections.length} section(s)`, {

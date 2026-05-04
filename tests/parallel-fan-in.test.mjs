@@ -95,8 +95,8 @@ async function prepareCompletedManifest() {
 }
 
 test('fanInParallelRun assembles section outputs in original order with parallel metadata', async () => {
-  const { prepared, manifest } = await prepareCompletedManifest();
-  const result = await fanInParallelRun(prepared.manifestPath);
+  const { tempRoot, prepared, manifest } = await prepareCompletedManifest();
+  const result = await fanInParallelRun(prepared.manifestPath, { cwd: tempRoot, allowRoot: tempRoot });
 
   assert.equal(result.mode, 'parallel');
   assert.equal(result.parallel, true);
@@ -121,11 +121,36 @@ test('fanInParallelRun assembles section outputs in original order with parallel
   assert.deepEqual(resolution.subagent_ids, manifest.sections.map((section) => section.subagent_id));
 });
 
+test('fanInParallelRun rejects manifest section paths that escape the prepared run directory', async () => {
+  const { tempRoot, prepared, manifest } = await prepareCompletedManifest();
+  const escapedRecords = path.join(tempRoot, 'escaped-records.json');
+  await writeFile(escapedRecords, '[]\n');
+  manifest.sections[0].output_records = escapedRecords;
+  await writeFile(prepared.manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+
+  await assert.rejects(
+    fanInParallelRun(prepared.manifestPath, { cwd: tempRoot, allowRoot: tempRoot }),
+    /output_records.*outside.*run/i
+  );
+});
+
+test('fanInParallelRun rejects manifest output paths outside cwd or allow-root', async () => {
+  const { tempRoot, prepared, manifest } = await prepareCompletedManifest();
+  const escapedOutputRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-output-escape-'));
+  manifest.output_path = path.join(escapedOutputRoot, 'escaped.consensus.md');
+  await writeFile(prepared.manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+
+  await assert.rejects(
+    fanInParallelRun(prepared.manifestPath, { cwd: tempRoot, allowRoot: tempRoot }),
+    /output_path.*outside allowed root/i
+  );
+});
+
 test('runWrapperCli fans in a prepared manifest', async () => {
-  const { prepared, manifest } = await prepareCompletedManifest();
+  const { tempRoot, prepared, manifest } = await prepareCompletedManifest();
   const stdout = captureWriter();
   const stderr = captureWriter();
-  const exitCode = await runWrapperCli(['--fan-in', prepared.manifestPath], {
+  const exitCode = await runWrapperCli(['--fan-in', prepared.manifestPath, '--allow-root', tempRoot], {
     stdout: stdout.stream,
     stderr: stderr.stream
   });

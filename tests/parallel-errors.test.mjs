@@ -79,12 +79,12 @@ async function prepareBrokenManifest() {
     `${JSON.stringify({ schema_version: 'v0', status: 'timeout', termination_reason: 'section_timeout', turns: 0, rounds: 0 })}\n`
   );
 
-  return { prepared, manifest };
+  return { tempRoot, prepared, manifest };
 }
 
 test('fanInParallelRun writes partial artifacts for malformed, missing, and timeout sections', async () => {
-  const { prepared, manifest } = await prepareBrokenManifest();
-  const result = await fanInParallelRun(prepared.manifestPath);
+  const { tempRoot, prepared, manifest } = await prepareBrokenManifest();
+  const result = await fanInParallelRun(prepared.manifestPath, { cwd: tempRoot, allowRoot: tempRoot });
 
   assert.equal(result.status, 'partial');
   assert.equal(result.sections[0].status.status, 'converged');
@@ -114,13 +114,16 @@ test('fanInParallelRun writes partial artifacts for malformed, missing, and time
 });
 
 test('runWrapperCli returns 74 for parallel section errors only after writing the artifact', async () => {
-  const { prepared, manifest } = await prepareBrokenManifest();
+  const { tempRoot, prepared, manifest } = await prepareBrokenManifest();
   const stdout = captureWriter();
   const stderr = captureWriter();
-  const exitCode = await runWrapperCli(['--fan-in', prepared.manifestPath, '--fail-on-section-error'], {
-    stdout: stdout.stream,
-    stderr: stderr.stream
-  });
+  const exitCode = await runWrapperCli(
+    ['--fan-in', prepared.manifestPath, '--allow-root', tempRoot, '--fail-on-section-error'],
+    {
+      stdout: stdout.stream,
+      stderr: stderr.stream
+    }
+  );
 
   assert.equal(exitCode, EXIT_CODES.SECTION_ERROR);
   assert.equal((await stat(manifest.output_path)).isFile(), true);
