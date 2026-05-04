@@ -88,3 +88,16 @@ test('atomicWriteFile writes through temp file then renames over the target', as
   await symlink(outputPath, symlinkPath);
   await assert.rejects(atomicWriteFile(symlinkPath, 'nope'), /symlink/);
 });
+
+test('atomicWriteFile rejects symlink parents under a confined run directory', async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-path-'));
+  const outside = await mkdtemp(path.join(os.tmpdir(), 'consensus-outside-'));
+  const runDir = path.join(tempRoot, '.consensus/run');
+  await mkdir(runDir, { recursive: true });
+  await symlink(outside, path.join(runDir, 'sections'));
+
+  await assert.rejects(
+    atomicWriteFile(path.join(runDir, 'sections/01-intro/section.md'), 'escaped', { rootPath: tempRoot }),
+    /outside allowed root/
+  );
+});

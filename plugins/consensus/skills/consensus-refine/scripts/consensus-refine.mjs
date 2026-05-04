@@ -324,25 +324,27 @@ export async function confineWrite(targetPath, rootPath) {
   return target;
 }
 
-export async function atomicWriteFile(targetPath, contents) {
-  if (await pathExists(targetPath)) {
-    const targetStat = await lstat(targetPath);
+export async function atomicWriteFile(targetPath, contents, options = {}) {
+  const writePath = options.rootPath ? await confineWrite(targetPath, options.rootPath) : path.resolve(targetPath);
+
+  if (await pathExists(writePath)) {
+    const targetStat = await lstat(writePath);
     if (targetStat.isSymbolicLink()) {
-      throw new Error(`write target may not be a symlink: ${targetPath}`);
+      throw new Error(`write target may not be a symlink: ${writePath}`);
     }
   }
 
-  await mkdir(path.dirname(targetPath), { recursive: true });
+  await mkdir(path.dirname(writePath), { recursive: true });
   const tempPath = path.join(
-    path.dirname(targetPath),
-    `.${path.basename(targetPath)}.tmp-${process.pid}-${randomBytes(8).toString('hex')}`
+    path.dirname(writePath),
+    `.${path.basename(writePath)}.tmp-${process.pid}-${randomBytes(8).toString('hex')}`
   );
 
   try {
     await writeFile(tempPath, contents);
     await syncPathIfAvailable(tempPath);
-    await rename(tempPath, targetPath);
-    await syncPathIfAvailable(path.dirname(targetPath));
+    await rename(tempPath, writePath);
+    await syncPathIfAvailable(path.dirname(writePath));
   } catch (error) {
     try {
       await unlink(tempPath);
@@ -353,6 +355,8 @@ export async function atomicWriteFile(targetPath, contents) {
     }
     throw error;
   }
+
+  return writePath;
 }
 
 export async function resolveRunDir(options = {}) {
@@ -684,6 +688,8 @@ export async function runSequential(options, runOptions = {}) {
   const parsedSections = parseSections(markdown);
   const runDir = await resolveRunDir({ ...normalized, cwd });
   const outputPath = await resolveOutputPath({ ...normalized, cwd }, inputPath);
+  const runWriteRoot = path.resolve(normalized.allowRoot ?? cwd);
+  const outputWriteRoot = normalized.output ? path.resolve(normalized.allowRoot ?? cwd) : path.dirname(inputPath);
   const preflight =
     normalized.preflight === false
       ? { peers: normalized.peers ?? ['claude', 'codex'], warnings: [] }
@@ -700,7 +706,12 @@ export async function runSequential(options, runOptions = {}) {
       status: path.join(sectionDir, 'status.json')
     };
 
-    await atomicWriteFile(paths.input, section.markdown);
+    await Promise.all([
+      confineWrite(paths.records, runWriteRoot),
+      confineWrite(paths.output, runWriteRoot),
+      confineWrite(paths.status, runWriteRoot)
+    ]);
+    await atomicWriteFile(paths.input, section.markdown, { rootPath: runWriteRoot });
 
     try {
       const result = await runConsensusLoop(loopArgvForSection({ section, paths, options: normalized, peers }), {
@@ -760,7 +771,7 @@ export async function runSequential(options, runOptions = {}) {
   runResult.status = aggregateStatus(sectionResults);
 
   const artifact = renderDeliberationArtifact(runResult);
-  await atomicWriteFile(outputPath, artifact);
+  await atomicWriteFile(outputPath, artifact, { rootPath: outputWriteRoot });
   return { ...runResult, artifact };
 }
 
