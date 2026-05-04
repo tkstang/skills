@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { spawn } from 'node:child_process';
 import { mkdir, open, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
@@ -10,6 +11,7 @@ export const VERDICT_CAPS = Object.freeze({
 });
 
 export const LOOP_SCHEMA_VERSION = 'v0';
+export const SUBPROCESS_OUTPUT_CAP_BYTES = 10 * 1024 * 1024;
 
 const DEFAULT_NORMALIZE_OPTIONS = {
   normalizeLineEndings: true,
@@ -106,6 +108,13 @@ function normalizeCost(status) {
   }
 
   return { cost_source: normalized, cost_usd: costUsd };
+}
+
+function outputCapError(streamName, capBytes) {
+  const error = new Error(`${streamName} exceeded subprocess output cap (${capBytes} bytes)`);
+  error.code = 'SUBPROCESS_OUTPUT_CAP';
+  error.stream = streamName;
+  return error;
 }
 
 function recordHash(record, options = {}) {
@@ -288,6 +297,80 @@ export async function writeLoopStatus(statusPath, status, options = {}) {
   await writeFile(statusPath, `${JSON.stringify(normalizedStatus, null, 2)}\n`);
   await syncFileIfAvailable(statusPath);
   return normalizedStatus;
+}
+
+export function invokePaseo({ provider, schemaPath, prompt, env = process.env, cwd = process.cwd() }) {
+  return new Promise((resolve, reject) => {
+    const args = ['run', '--provider', provider, '--output-schema', schemaPath, '--json', prompt];
+    const child = spawn('paseo', args, {
+      cwd,
+      env,
+      stdio: ['ignore', 'pipe', 'pipe']
+    });
+
+    const stdoutChunks = [];
+    const stderrChunks = [];
+    let stdoutBytes = 0;
+    let stderrBytes = 0;
+    let capError = null;
+
+    function capture(streamName, chunks, chunk) {
+      if (capError) return;
+
+      const nextBytes = streamName === 'stdout' ? stdoutBytes + chunk.length : stderrBytes + chunk.length;
+      if (nextBytes > SUBPROCESS_OUTPUT_CAP_BYTES) {
+        capError = outputCapError(streamName, SUBPROCESS_OUTPUT_CAP_BYTES);
+        child.kill('SIGKILL');
+        return;
+      }
+
+      chunks.push(chunk);
+      if (streamName === 'stdout') {
+        stdoutBytes = nextBytes;
+      } else {
+        stderrBytes = nextBytes;
+      }
+    }
+
+    child.stdout.on('data', (chunk) => capture('stdout', stdoutChunks, chunk));
+    child.stderr.on('data', (chunk) => capture('stderr', stderrChunks, chunk));
+    child.on('error', reject);
+    child.on('close', (code, signal) => {
+      if (capError) {
+        reject(capError);
+        return;
+      }
+
+      const stdout = Buffer.concat(stdoutChunks).toString('utf8');
+      const stderr = Buffer.concat(stderrChunks).toString('utf8');
+
+      if (code !== 0) {
+        const detail = stderr.trim() ? `: ${stderr.trim()}` : signal ? ` (signal ${signal})` : '';
+        const error = new Error(`paseo exited with code ${code}${detail}`);
+        error.code = 'PASEO_EXIT';
+        error.exitCode = code;
+        error.stderr = stderr;
+        reject(error);
+        return;
+      }
+
+      try {
+        resolve({
+          provider,
+          args,
+          stdout,
+          stderr,
+          json: JSON.parse(stdout)
+        });
+      } catch (error) {
+        error.message = `paseo returned invalid JSON: ${error.message}`;
+        error.code = 'PASEO_INVALID_JSON';
+        error.stdout = stdout;
+        error.stderr = stderr;
+        reject(error);
+      }
+    });
+  });
 }
 
 export function detectConvergence(records, options = {}) {
