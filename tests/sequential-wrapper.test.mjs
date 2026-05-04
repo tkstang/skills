@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, stat } from 'node:fs/promises';
+import { mkdtemp, readFile, stat, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -8,6 +8,7 @@ import {
   renderDeliberationArtifact,
   runSequential
 } from '../plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs';
+import { hashArtifact } from '../plugins/consensus/skills/consensus-refine/scripts/consensus-loop.mjs';
 
 const repoRoot = path.resolve(new URL('..', import.meta.url).pathname);
 const fixtureBin = path.join(repoRoot, 'tests/fixtures/bin');
@@ -26,6 +27,79 @@ function extractJsonBlock(markdown, label) {
   const match = markdown.match(pattern);
   assert.ok(match, `missing ${label} JSON block`);
   return JSON.parse(match[1]);
+}
+
+function consensusBlock(label, value) {
+  return `<!-- consensus:${label}\n${JSON.stringify(value, null, 2)}\n-->`;
+}
+
+function completedResumeArtifact(sections) {
+  return [
+    '---',
+    'consensus_schema_version: v0',
+    'status: converged',
+    'mode: sequential',
+    '---',
+    '',
+    '# Consensus Refine Artifact',
+    '',
+    '## Final Output',
+    '',
+    sections.map((section) => section.output).join('\n\n').replace(/\n*$/u, '\n'),
+    '## Resolution',
+    '',
+    consensusBlock('consensus-resolution', {
+      consensus_schema_version: 'v0',
+      status: 'converged',
+      mode: 'sequential',
+      parallel: false,
+      peers: ['claude', 'codex']
+    }),
+    '',
+    '## Section States',
+    '',
+    consensusBlock(
+      'consensus-section-states',
+      sections.map((section, index) => ({
+        id: section.id,
+        name: section.name,
+        original_index: index,
+        status: 'converged',
+        turns: 2,
+        rounds: 1,
+        final_artifact_hash: hashArtifact(section.output),
+        final_output: section.output
+      }))
+    ),
+    '',
+    '## Deliberation Log',
+    '',
+    ...sections.flatMap((section, index) => [
+      `### ${index + 1}. ${section.name} (converged)`,
+      '',
+      consensusBlock('consensus-section-status', {
+        schema_version: 'v0',
+        status: 'converged',
+        termination_reason: 'accept_twice',
+        turns: 2,
+        rounds: 1,
+        final_artifact_hash: hashArtifact(section.output)
+      }),
+      '',
+      consensusBlock('consensus-verdict', {
+        schema_version: 'v0',
+        verdict: 'ACCEPT',
+        reasoning: 'Stable.'
+      }),
+      '',
+      consensusBlock('consensus-verdict', {
+        schema_version: 'v0',
+        verdict: 'ACCEPT',
+        reasoning: 'Still stable.'
+      }),
+      ''
+    ])
+  ].join('\n');
 }
 
 test('runSequential refines sections, creates run files, and writes an artifact', async () => {
@@ -76,10 +150,53 @@ test('runSequential refines sections, creates run files, and writes an artifact'
 
   const sectionStates = extractJsonBlock(artifact, 'consensus-section-states');
   assert.equal(sectionStates.length, 3);
+  assert.ok(sectionStates.every((section) => typeof section.final_output === 'string' && section.final_output.length > 0));
   assert.deepEqual(
     sectionStates.map((section) => section.original_index),
     [0, 1, 2]
   );
+});
+
+test('runSequential preserves completed resume section output when source input changes', async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-resume-completed-'));
+  const inputPath = path.join(tempRoot, 'draft.md');
+  const resumePath = path.join(tempRoot, 'draft.old.consensus.md');
+  const outputPath = path.join(tempRoot, 'draft.new.consensus.md');
+  const runDir = path.join(tempRoot, '.consensus/run');
+  const oldIntro = '# Intro\n\nOld stable text.\n';
+  const oldDetails = '## Details\n\nOld stable details.\n';
+
+  await writeFile(
+    resumePath,
+    completedResumeArtifact([
+      { id: 'intro-0', name: 'Intro', output: oldIntro },
+      { id: 'details-1', name: 'Details', output: oldDetails }
+    ])
+  );
+  await writeFile(
+    inputPath,
+    '# Intro\n\nCHANGED INPUT SHOULD NOT BE RESUME STATE.\n\n## Details\n\nChanged details.\n'
+  );
+
+  const result = await runSequential({
+    inputPath,
+    resume: resumePath,
+    output: outputPath,
+    runDir,
+    allowRoot: tempRoot,
+    cwd: tempRoot,
+    peers: ['claude', 'codex'],
+    preflight: async () => ({ peers: ['claude', 'codex'], warnings: [] }),
+    env: stubEnv()
+  });
+
+  const artifact = await readFile(outputPath, 'utf8');
+  assert.equal(result.sections[0].output, oldIntro);
+  assert.equal(result.sections[1].output, oldDetails);
+  assert.match(artifact, /Old stable text\./);
+  assert.match(artifact, /Old stable details\./);
+  assert.doesNotMatch(artifact, /CHANGED INPUT SHOULD NOT BE RESUME STATE/);
+  assert.doesNotMatch(artifact, /Changed details\./);
 });
 
 test('renderDeliberationArtifact uses canonical containers and contains prose headings', () => {

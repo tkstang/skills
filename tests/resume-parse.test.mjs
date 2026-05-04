@@ -11,6 +11,7 @@ import { hashArtifact } from '../plugins/consensus/skills/consensus-refine/scrip
 
 const revisedIntro = '# Intro\n\nClearer intro.\n';
 const stalledDetails = '## Details\n\nStill unresolved.\n';
+const acceptedIntro = '# Intro\n\nOld stable text.\n';
 
 function consensusBlock(label, value) {
   return `<!-- consensus:${label}\n${JSON.stringify(value, null, 2)}\n-->`;
@@ -112,6 +113,73 @@ function artifact({ schemaVersion = 'v0' } = {}) {
   ].join('\n');
 }
 
+function acceptOnlyArtifact() {
+  const introHash = hashArtifact(acceptedIntro);
+  return [
+    '---',
+    'consensus_schema_version: v0',
+    'status: converged',
+    'mode: sequential',
+    '---',
+    '',
+    '# Consensus Refine Artifact',
+    '',
+    '## Final Output',
+    '',
+    acceptedIntro,
+    '## Resolution',
+    '',
+    consensusBlock('consensus-resolution', {
+      consensus_schema_version: 'v0',
+      status: 'converged',
+      mode: 'sequential',
+      parallel: false,
+      peers: ['claude', 'codex']
+    }),
+    '',
+    '## Section States',
+    '',
+    consensusBlock('consensus-section-states', [
+      {
+        id: 'intro-0',
+        name: 'Intro',
+        original_index: 0,
+        status: 'converged',
+        turns: 2,
+        rounds: 1,
+        final_artifact_hash: introHash,
+        final_output: acceptedIntro
+      }
+    ]),
+    '',
+    '## Deliberation Log',
+    '',
+    '### 1. Intro (converged)',
+    '',
+    consensusBlock('consensus-section-status', {
+      schema_version: 'v0',
+      status: 'converged',
+      termination_reason: 'accept_twice',
+      turns: 2,
+      rounds: 1,
+      final_artifact_hash: introHash
+    }),
+    '',
+    consensusBlock('consensus-verdict', {
+      schema_version: 'v0',
+      verdict: 'ACCEPT',
+      reasoning: 'Stable.'
+    }),
+    '',
+    consensusBlock('consensus-verdict', {
+      schema_version: 'v0',
+      verdict: 'ACCEPT',
+      reasoning: 'Still stable.'
+    }),
+    ''
+  ].join('\n');
+}
+
 test('parseDeliberationArtifactForResume reads frontmatter and canonical state blocks from text', async () => {
   const parsed = await parseDeliberationArtifactForResume(artifact());
 
@@ -135,6 +203,13 @@ test('parseDeliberationArtifactForResume reads frontmatter and canonical state b
     ]
   );
   assert.deepEqual(parsed.inFlightSections.map((section) => section.id), ['details-1']);
+});
+
+test('parseDeliberationArtifactForResume uses canonical final output for ACCEPT-only completed sections', async () => {
+  const parsed = await parseDeliberationArtifactForResume(acceptOnlyArtifact());
+
+  assert.equal(parsed.sections[0].resumedArtifact, acceptedIntro);
+  assert.equal(parsed.sections[0].resumedArtifactHash, hashArtifact(acceptedIntro));
 });
 
 test('parseDeliberationArtifactForResume accepts a file path input', async () => {

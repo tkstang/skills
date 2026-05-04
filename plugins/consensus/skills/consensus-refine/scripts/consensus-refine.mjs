@@ -292,15 +292,17 @@ function normalizeResumeRecords(records, peers = ['claude', 'codex']) {
 
 function normalizeResumeSection(state, logSection, index, options = {}) {
   const records = normalizeResumeRecords(logSection?.records ?? [], options.peers);
-  const resumedArtifact = lastProposedArtifact(records);
+  const canonicalArtifact = typeof state?.final_output === 'string' ? state.final_output : null;
+  const logArtifact = lastProposedArtifact(records);
+  const resumedArtifact = canonicalArtifact ?? logArtifact;
   const status = logSection?.status ?? {};
-  const sectionStatus = state.status ?? status.status ?? 'unknown';
+  const sectionStatus = state?.status ?? status.status ?? 'unknown';
   const completed = sectionStatus === 'converged';
 
   return {
-    id: state.id,
-    name: state.name,
-    original_index: state.original_index ?? index,
+    id: state?.id,
+    name: state?.name,
+    original_index: state?.original_index ?? index,
     state,
     status,
     records,
@@ -309,7 +311,9 @@ function normalizeResumeSection(state, logSection, index, options = {}) {
     skipped: false,
     corruptErrors: [],
     resumedArtifact,
-    resumedArtifactHash: resumedArtifact === null ? null : hashArtifact(resumedArtifact)
+    resumedArtifactHash: resumedArtifact === null ? null : hashArtifact(resumedArtifact),
+    resumedArtifactSource:
+      canonicalArtifact !== null ? 'section_state.final_output' : logArtifact !== null ? 'deliberation_log.proposed_artifact' : null
   };
 }
 
@@ -384,6 +388,15 @@ function collectResumeValidationErrors(sectionStates, logSections, unscopedError
     }
 
     const expectedHash = statusHash ?? stateHash;
+    if (expectedHash && section.resumedArtifact === null) {
+      errors.push({
+        code: 'RESUME_SECTION_OUTPUT_MISSING',
+        section_id: section.id,
+        section_name: section.name,
+        section_index: index,
+        message: `missing canonical final output for section ${section.id}`
+      });
+    }
     if (section.resumedArtifact !== null && expectedHash && section.resumedArtifactHash !== expectedHash) {
       errors.push(resumeHashError(section, expectedHash, section.resumedArtifactHash));
     }
@@ -775,6 +788,7 @@ function sectionStates(sections) {
     turns: section.status?.turns ?? 0,
     rounds: section.status?.rounds ?? 0,
     final_artifact_hash: section.status?.final_artifact_hash ?? null,
+    final_output: sectionOutput(section),
     subagent_id: section.subagent_id ?? null
   }));
 }
