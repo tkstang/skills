@@ -189,6 +189,57 @@ test('runConsensusLoop stops at max rounds without treating it as a hard error',
   assert.equal(await readFile(files.outputPath, 'utf8'), 'Revision 2\n');
 });
 
+test('runConsensusLoop applies agency hash strictness', async () => {
+  async function runWithAgency(agency) {
+    const files = await makeRunFiles('Seed\n');
+    let turn = 0;
+    return runConsensusLoop(argvFor(files, ['--max-rounds', '1', '--agency', agency]), {
+      invokePeer: async () => {
+        turn += 1;
+        return {
+          json: {
+            schema_version: 'v0',
+            verdict: 'REVISE',
+            reasoning: `revision ${turn}`,
+            proposed_artifact: turn === 1 ? 'Same text  \n' : 'Same text\n'
+          }
+        };
+      }
+    });
+  }
+
+  const moderate = await runWithAgency('moderate');
+  assert.equal(moderate.status.status, 'converged');
+  assert.equal(moderate.status.termination_reason, 'hash_match');
+
+  const minimal = await runWithAgency('minimal');
+  assert.equal(minimal.status.status, 'max-rounds');
+  assert.equal(minimal.status.termination_reason, 'max_rounds_exhausted');
+});
+
+test('runConsensusLoop logs maximum agency when declaring done at max rounds', async () => {
+  const files = await makeRunFiles('Seed\n');
+  let turn = 0;
+  const result = await runConsensusLoop(argvFor(files, ['--max-rounds', '1', '--agency', 'maximum']), {
+    invokePeer: async () => {
+      turn += 1;
+      return {
+        json: {
+          schema_version: 'v0',
+          verdict: 'REVISE',
+          reasoning: `revision ${turn}`,
+          proposed_artifact: `Different revision ${turn}\n`
+        }
+      };
+    }
+  });
+
+  assert.equal(result.status.status, 'converged');
+  assert.equal(result.status.termination_reason, 'max_rounds_exhausted');
+  assert.equal(result.status.agency_decision, 'maximum_declared_done_at_max_rounds');
+  assert.equal(await readFile(files.outputPath, 'utf8'), 'Different revision 2\n');
+});
+
 test('runConsensusLoop detects two-state oscillation', async () => {
   const files = await makeRunFiles('Start\n');
   const revisions = ['Alpha\n', 'Beta\n', 'Alpha\n', 'Beta\n'];

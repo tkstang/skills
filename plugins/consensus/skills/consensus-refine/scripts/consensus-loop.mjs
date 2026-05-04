@@ -41,6 +41,13 @@ const DEFAULT_NORMALIZE_OPTIONS = {
   finalNewline: true
 };
 
+const STRICT_HASH_OPTIONS = {
+  normalizeLineEndings: false,
+  trimTrailingWhitespace: false,
+  collapseEofNewlines: false,
+  finalNewline: false
+};
+
 const VERDICT_BRANCHES = {
   ACCEPT: {
     required: ['schema_version', 'verdict', 'reasoning'],
@@ -58,6 +65,14 @@ const VERDICT_BRANCHES = {
 
 function normalizeOptions(options = {}) {
   return { ...DEFAULT_NORMALIZE_OPTIONS, ...options };
+}
+
+function hashOptionsForAgency(agency = 'moderate') {
+  return agency === 'minimal' ? STRICT_HASH_OPTIONS : {};
+}
+
+function convergenceOptionsForAgency(agency = 'moderate') {
+  return { agency, hashOptions: hashOptionsForAgency(agency) };
 }
 
 function verdictDecision(record) {
@@ -210,13 +225,14 @@ export function exitCodeForError(error) {
 }
 
 function recordHash(record, options = {}) {
+  const hashOptions = options.hashOptions ?? hashOptionsForAgency(options.agency);
   if (record?.artifact_hash) return formatArtifactHash(record.artifact_hash);
   if (record?.final_artifact_hash) return formatArtifactHash(record.final_artifact_hash);
   if (record?.artifactHash) return formatArtifactHash(record.artifactHash);
-  if (typeof record?.artifact === 'string') return hashArtifact(record.artifact, options);
-  if (typeof record?.proposed_artifact === 'string') return hashArtifact(record.proposed_artifact, options);
+  if (typeof record?.artifact === 'string') return hashArtifact(record.artifact, hashOptions);
+  if (typeof record?.proposed_artifact === 'string') return hashArtifact(record.proposed_artifact, hashOptions);
   if (typeof record?.verdict?.proposed_artifact === 'string') {
-    return hashArtifact(record.verdict.proposed_artifact, options);
+    return hashArtifact(record.verdict.proposed_artifact, hashOptions);
   }
   return null;
 }
@@ -723,7 +739,7 @@ export async function runConsensusLoop(argv, runOptions = {}) {
         agent: provider,
         verdict: verdict.verdict,
         reasoning: verdict.reasoning,
-        artifact_hash: hashArtifact(currentArtifact),
+        artifact_hash: hashArtifact(currentArtifact, hashOptionsForAgency(options.agency)),
         iteration_mode: options.iteration,
         raw_paseo_response: peerResult.stdout ?? JSON.stringify(peerResult.json)
       };
@@ -741,35 +757,43 @@ export async function runConsensusLoop(argv, runOptions = {}) {
 
       if (verdict.verdict === 'IMPASSE') {
         const status = resultStatus('impasse', 'explicit_impasse', records, options, {
-          final_artifact_hash: hashArtifact(currentArtifact)
+          final_artifact_hash: hashArtifact(currentArtifact, hashOptionsForAgency(options.agency))
         });
         return await writeTerminalArtifacts(options, status, currentArtifact, records);
       }
 
-      const convergence = detectConvergence(records);
+      const convergence = detectConvergence(records, convergenceOptionsForAgency(options.agency));
       if (convergence.converged) {
-        const status = resultStatus('converged', convergence.reason, records, options, {
-          final_artifact_hash: convergence.artifact_hash
-        });
+        const statusExtra = { final_artifact_hash: convergence.artifact_hash };
+        if (convergence.agency_decision) {
+          statusExtra.agency_decision = convergence.agency_decision;
+        }
+        const status = resultStatus('converged', convergence.reason, records, options, statusExtra);
         return await writeTerminalArtifacts(options, status, currentArtifact, records);
       }
 
-      const oscillation = detectOscillation(records);
+      const oscillation = detectOscillation(records, convergenceOptionsForAgency(options.agency));
       if (oscillation.oscillating) {
         const status = resultStatus('oscillation', 'oscillation_detected', records, options, {
-          final_artifact_hash: hashArtifact(currentArtifact)
+          final_artifact_hash: hashArtifact(currentArtifact, hashOptionsForAgency(options.agency))
         });
         return await writeTerminalArtifacts(options, status, currentArtifact, records);
       }
     }
 
-    const status = resultStatus('max-rounds', 'max_rounds_exhausted', records, options, {
-      final_artifact_hash: hashArtifact(currentArtifact)
-    });
-    return await writeTerminalArtifacts(options, status, currentArtifact, records);
+    const maxRoundsStatus =
+      options.agency === 'maximum'
+        ? resultStatus('converged', 'max_rounds_exhausted', records, options, {
+            final_artifact_hash: hashArtifact(currentArtifact, hashOptionsForAgency(options.agency)),
+            agency_decision: 'maximum_declared_done_at_max_rounds'
+          })
+        : resultStatus('max-rounds', 'max_rounds_exhausted', records, options, {
+            final_artifact_hash: hashArtifact(currentArtifact, hashOptionsForAgency(options.agency))
+          });
+    return await writeTerminalArtifacts(options, maxRoundsStatus, currentArtifact, records);
   } catch (error) {
     const status = resultStatus('error', 'hard_error', records, options, {
-      final_artifact_hash: hashArtifact(currentArtifact),
+      final_artifact_hash: hashArtifact(currentArtifact, hashOptionsForAgency(options.agency)),
       error: hardErrorMessage(error)
     });
     await writeLoopStatus(options.outputStatus, status);
@@ -791,13 +815,28 @@ export function detectConvergence(records, options = {}) {
   const leftHash = recordHash(left, options);
   const rightHash = recordHash(right, options);
 
-  if (!leftHash || !rightHash || leftHash !== rightHash) {
+  const leftDecision = verdictDecision(left);
+  const rightDecision = verdictDecision(right);
+  const doubleAccept = leftDecision === 'ACCEPT' && rightDecision === 'ACCEPT';
+
+  if (!leftHash || !rightHash) {
     return { converged: false, reason: null };
   }
 
-  const leftDecision = verdictDecision(left);
-  const rightDecision = verdictDecision(right);
-  const reason = leftDecision === 'ACCEPT' && rightDecision === 'ACCEPT' ? 'double_accept' : 'hash_match';
+  if (leftHash !== rightHash) {
+    if (options.agency === 'maximum' && doubleAccept) {
+      return {
+        converged: true,
+        reason: 'double_accept',
+        record_indexes: [leftIndex, rightIndex],
+        artifact_hash: rightHash,
+        agency_decision: 'maximum_double_accept_near_match'
+      };
+    }
+    return { converged: false, reason: null };
+  }
+
+  const reason = doubleAccept ? 'double_accept' : 'hash_match';
 
   return {
     converged: true,
@@ -807,14 +846,14 @@ export function detectConvergence(records, options = {}) {
   };
 }
 
-export function detectOscillation(records) {
+export function detectOscillation(records, options = {}) {
   if (!Array.isArray(records) || records.length < 4) {
     return { oscillating: false, reason: null };
   }
 
   for (let end = records.length; end >= 4; end -= 1) {
     const window = records.slice(end - 4, end);
-    const hashes = window.map((record) => recordHash(record));
+    const hashes = window.map((record) => recordHash(record, options));
     if (hashes.every(Boolean) && hashes[0] === hashes[2] && hashes[1] === hashes[3] && hashes[0] !== hashes[1]) {
       return {
         oscillating: true,

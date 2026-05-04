@@ -64,6 +64,31 @@ test('detectConvergence returns a stable non-converged shape', () => {
   );
 });
 
+test('detectConvergence uses strict bytewise hashing for minimal agency', () => {
+  const records = [
+    { artifact: 'same text  \n', verdict: 'REVISE' },
+    { artifact: 'same text\n', verdict: 'REVISE' }
+  ];
+
+  assert.equal(detectConvergence(records, { agency: 'moderate' }).converged, true);
+  assert.deepEqual(detectConvergence(records, { agency: 'minimal' }), { converged: false, reason: null });
+});
+
+test('detectConvergence allows maximum agency double ACCEPT near matches', () => {
+  const result = detectConvergence(
+    [
+      { artifact_hash: hashArtifact('accepted one'), verdict: 'ACCEPT' },
+      { artifact_hash: hashArtifact('accepted two'), verdict: 'ACCEPT' }
+    ],
+    { agency: 'maximum' }
+  );
+
+  assert.equal(result.converged, true);
+  assert.equal(result.reason, 'double_accept');
+  assert.equal(result.agency_decision, 'maximum_double_accept_near_match');
+  assert.deepEqual(result.record_indexes, [0, 1]);
+});
+
 test('detectOscillation detects four-turn two-state alternation', () => {
   const a = hashArtifact('A');
   const b = hashArtifact('B');
