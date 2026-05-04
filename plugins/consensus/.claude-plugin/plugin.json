@@ -1,0 +1,24 @@
+{
+  "name": "consensus",
+  "version": "0.1.0",
+  "description": "Consensus deliberation skills for refining drafts with multiple AI peers.",
+  "license": "MIT",
+  "skills": [
+    {
+      "name": "consensus-refine",
+      "path": "./skills/consensus-refine"
+    }
+  ],
+  "permissions": {
+    "bash": {
+      "allow": ["node", "paseo"]
+    }
+  },
+  "metadata": {
+    "provider": "claude",
+    "permission_declaration": "provisional",
+    "release_checklist": [
+      "Verify Bash permission shape against the Claude runtime before v0.1 tagging."
+    ]
+  }
+}
