@@ -1125,7 +1125,7 @@ git commit -m "docs(p04-t08): record release readiness"
 | final  | code     | pending | -    | -        |
 | spec   | artifact | pending | -    | -        |
 | design | artifact | fixes_completed | 2026-05-04 | reviews/archived/artifact-design-review-2026-05-03.md |
-| plan   | artifact | fixes_completed | 2026-05-04 | reviews/archived/artifact-plan-review-2026-05-04.md |
+| plan   | artifact | received | 2026-05-04 | reviews/artifact-plan-review-2026-05-04-v2.md |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 
