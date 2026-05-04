@@ -405,7 +405,7 @@ oat_generated: false
 ### Task p05-t04: (review) Refresh Release Readiness Evidence
 
 **Status:** completed
-**Commit:** this commit (`docs(p05-t04): refresh release readiness evidence`)
+**Commit:** a543452
 
 ### Phase Summary
 
@@ -437,7 +437,8 @@ oat_generated: false
 **Notes / Decisions:**
 
 - Public v0.1 tagging remains blocked until the manual provider-runtime install and permission checks documented in `RELEASING.md` are complete.
-- The final lifecycle review should be re-run after p05 phase review/bookkeeping.
+- Phase review artifact `reviews/p05-review-2026-05-04.md` passed with 0 Critical, 0 Important, 0 Medium, and 0 Minor findings.
+- Next: re-run the final lifecycle review gate.
 
 ---
 
@@ -558,6 +559,27 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 
 - Public v0.1 tagging remains blocked on manual provider-runtime install/permission smoke checks recorded in `RELEASING.md`.
 
+### Run 6 — 2026-05-04 11:49
+
+**Branch:** consensus-refine-v1
+**Tier:** 1
+**Policy:** merge-strategy=sequential, retry-limit=2
+**Phases:** 1 executed, 1 passed, 0 failed, 0 stopped
+
+#### Phase Outcomes
+
+| Phase | Implementer | Review | Fix Iterations | Disposition |
+| ----- | ----------- | ------ | -------------- | ----------- |
+| p05 | DONE | pass | 0/2 | passed |
+
+#### Parallel Groups
+
+- p05 final review fixes: sequential
+
+#### Outstanding Items
+
+- Public v0.1 tagging remains blocked on manual provider-runtime install/permission smoke checks recorded in `RELEASING.md`.
+
 <!-- orchestration-runs-end -->
 
 ---
@@ -570,11 +592,12 @@ Chronological log of implementation progress.
 
 **Phase 5 Complete:** 2026-05-04
 
-- Implementer completed p05 tasks p05-t01 through p05-t04 in commits `cb60059`, `07d5141`, `b4aaf36`, and this docs/evidence commit.
+- Implementer completed p05 tasks p05-t01 through p05-t04 in commits `cb60059`, `07d5141`, `b4aaf36`, and `a543452`.
 - Final local verification after p05 fixes passed: `npm test && node scripts/validate.mjs && node scripts/smoke-test.mjs`.
 - Result: 122 tests passed, validator passed, smoke passed.
 - Manual provider runtime install/permission checks remain blocked before public tagging and are preserved in `RELEASING.md`.
-- Next: run p05 phase review and then re-run the final lifecycle review gate.
+- Phase review artifact `reviews/p05-review-2026-05-04.md` passed with 0 Critical, 0 Important, 0 Medium, and 0 Minor findings.
+- Next: re-run the final lifecycle review gate.
 
 ### 2026-05-04
 

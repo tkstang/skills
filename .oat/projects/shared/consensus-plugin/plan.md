@@ -1327,8 +1327,8 @@ git commit -m "docs(p05-t04): refresh release readiness evidence"
 | p02    | code     | passed | 2026-05-04 | reviews/p02-fix-tasks-review-2026-05-04.md |
 | p03    | code     | passed | 2026-05-04 | reviews/p03-review-2026-05-04-v3.md |
 | p04    | code     | passed | 2026-05-04 | reviews/p04-review-2026-05-04-v2.md |
-| p05    | code     | pending | -    | -        |
-| final  | code     | fixes_added | 2026-05-04 | reviews/archived/final-review-2026-05-04.md |
+| p05    | code     | passed | 2026-05-04 | reviews/p05-review-2026-05-04.md |
+| final  | code     | fixes_completed | 2026-05-04 | reviews/archived/final-review-2026-05-04.md |
 | spec   | artifact | pending | -    | -        |
 | design | artifact | fixes_completed | 2026-05-04 | reviews/archived/artifact-design-review-2026-05-03.md |
 | plan   | artifact | received | 2026-05-04 | reviews/artifact-plan-review-2026-05-04-v2.md |
@@ -1358,7 +1358,7 @@ git commit -m "docs(p05-t04): refresh release readiness evidence"
 
 **Total: 37 tasks**
 
-Final review fix tasks queued; implementation resumes at `p05-t01`.
+Implementation tasks complete; final code re-review pending.
 
 ## References
 
