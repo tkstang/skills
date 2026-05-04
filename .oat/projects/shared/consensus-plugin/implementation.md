@@ -1,9 +1,9 @@
 ---
-oat_status: in_progress
-oat_ready_for: oat-project-implement
+oat_status: complete
+oat_ready_for: oat-project-review-provide
 oat_blockers: []
 oat_last_updated: 2026-05-04
-oat_current_task_id: p06-t01
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -31,9 +31,9 @@ oat_generated: false
 | Phase 3 | completed   | 5     | 5/5       |
 | Phase 4 | completed   | 8     | 8/8       |
 | Phase 5 | completed   | 4     | 4/4       |
-| Phase 6 | pending     | 2     | 0/2       |
+| Phase 6 | completed   | 2     | 2/2       |
 
-**Total:** 37/39 tasks completed
+**Total:** 39/39 tasks completed
 
 ---
 
@@ -445,17 +445,43 @@ oat_generated: false
 
 ## Phase 6: Final Resume Review Fixes
 
-**Status:** pending
-**Started:** -
-**Completed:** -
+**Status:** completed
+**Started:** 2026-05-04
+**Completed:** 2026-05-04
 
 ### Task p06-t01: (review) Make Resume Section Inventory Artifact-Authoritative
 
-**Status:** pending
+**Status:** completed
+**Commit:** 8067b42
 
 ### Task p06-t02: (review) Use Agency-Aware Resume Hash Validation
 
-**Status:** pending
+**Status:** completed
+**Commit:** 648c716
+
+### Phase Summary
+
+**Outcome (what changed):**
+
+- Made resume section inventory artifact-authoritative so current input heading drift cannot drop prior artifact sections.
+- Made resume hash validation agency-aware, including strict bytewise validation for minimal-agency artifacts.
+
+**Key files touched:**
+
+- `plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs` - resume section inventory and agency-aware hash validation.
+- `tests/sequential-wrapper.test.mjs`, `tests/resume-parse.test.mjs` - regressions for source-section drift and minimal-agency hashes.
+
+**Verification:**
+
+- Run: `node --test tests/sequential-wrapper.test.mjs tests/resume-parse.test.mjs`
+- Result: pass, 9 tests.
+- Run: `npm test`
+- Result: pass, 124 tests.
+
+**Notes / Decisions:**
+
+- Phase review artifact `reviews/p06-review-2026-05-04.md` passed with 0 Critical, 0 Important, 0 Medium, and 0 Minor findings.
+- Next: re-run the final lifecycle review gate.
 
 ---
 
@@ -576,6 +602,27 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 
 - Public v0.1 tagging remains blocked on manual provider-runtime install/permission smoke checks recorded in `RELEASING.md`.
 
+### Run 7 — 2026-05-04 12:16
+
+**Branch:** consensus-refine-v1
+**Tier:** 1
+**Policy:** merge-strategy=sequential, retry-limit=2
+**Phases:** 1 executed, 1 passed, 0 failed, 0 stopped
+
+#### Phase Outcomes
+
+| Phase | Implementer | Review | Fix Iterations | Disposition |
+| ----- | ----------- | ------ | -------------- | ----------- |
+| p06 | DONE | pass | 0/2 | passed |
+
+#### Parallel Groups
+
+- p06 final resume fixes: sequential
+
+#### Outstanding Items
+
+- Public v0.1 tagging remains blocked on manual provider-runtime install/permission smoke checks recorded in `RELEASING.md`.
+
 ### Run 6 — 2026-05-04 11:49
 
 **Branch:** consensus-refine-v1
@@ -614,6 +661,16 @@ Chronological log of implementation progress.
 - New tasks added: `p06-t01`, `p06-t02`.
 - Finding disposition map: C1 converted, I1 converted.
 - Next: execute final resume review fix tasks via `oat-project-implement`.
+
+### 2026-05-04
+
+**Phase 6 Complete:** 12:16
+
+- Implementer completed p06 tasks p06-t01 and p06-t02 in commits `8067b42` and `648c716`.
+- Targeted resume verification passed: `node --test tests/sequential-wrapper.test.mjs tests/resume-parse.test.mjs`.
+- Full local tests passed: `npm test` reported 124 tests.
+- Phase review artifact `reviews/p06-review-2026-05-04.md` passed with 0 Critical, 0 Important, 0 Medium, and 0 Minor findings.
+- Next: re-run the final lifecycle review gate.
 
 ### 2026-05-04
 
