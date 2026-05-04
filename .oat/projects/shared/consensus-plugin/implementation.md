@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-05-04
-oat_current_task_id: p01-t01
+oat_current_task_id: p02-t01
 oat_generated: false
 ---
 
@@ -26,82 +26,98 @@ oat_generated: false
 
 | Phase   | Status      | Tasks | Completed |
 | ------- | ----------- | ----- | --------- |
-| Phase 1 | in_progress | N     | 0/N       |
-| Phase 2 | pending     | N     | 0/N       |
+| Phase 1 | completed   | 7     | 7/7       |
+| Phase 2 | pending     | 10    | 0/10      |
+| Phase 3 | pending     | 5     | 0/5       |
+| Phase 4 | pending     | 8     | 0/8       |
 
-**Total:** 0/{N} tasks completed
+**Total:** 7/30 tasks completed
 
 ---
 
-## Phase 1: {Phase Name}
+## Phase 1: Repository Scaffolding and Distribution Metadata
 
-**Status:** in_progress
+**Status:** completed
 **Started:** 2026-05-01
+**Completed:** 2026-05-04
 
-### Phase Summary (fill when phase is complete)
+### Phase Summary
 
 **Outcome (what changed):**
 
-- {2-5 bullets describing user-visible / behavior-level changes delivered in this phase}
+- Created the Node.js project metadata, dependency-free `node --test` harness, and runtime-output ignores.
+- Established the standalone `skills/` area and self-contained `plugins/consensus/` package layout.
+- Added Claude, Cursor, and Codex provider manifests plus repo-root marketplace entries.
+- Added the initial `consensus-refine` skill instructions, section-runner agent contract, baseline docs, and MIT license.
+- Added structural validation and CI/release workflows, then fixed validator discovery so standalone and plugin skill directories are both checked.
 
 **Key files touched:**
 
-- `{path}` - {why}
+- `package.json` - Node 20 ESM project metadata and test/validate/smoke scripts.
+- `plugins/consensus/` - provider manifests, skill scaffold, and section-runner contract.
+- `.claude-plugin/marketplace.json`, `.cursor-plugin/marketplace.json`, `.agents/plugins/marketplace.json` - repo-root plugin discovery entries.
+- `README.md`, `CONTRIBUTING.md`, `RELEASING.md`, `CHANGELOG.md`, `LICENSE` - baseline release and contribution documentation.
+- `scripts/validate.mjs` - structural repository validator.
+- `tests/*.test.mjs` - p01 validation coverage.
 
 **Verification:**
 
-- Run: `{command(s)}`
-- Result: {pass/fail + notes}
+- Run: `npm test`
+- Result: pass, 15 tests.
+- Run: `npm run validate`
+- Result: pass.
+- Run: `node --test tests/validate-script.test.mjs && node scripts/validate.mjs`
+- Result: pass.
 
 **Notes / Decisions:**
 
-- {trade-offs or deviations discovered during implementation}
+- Provider install and permission syntax remains intentionally provisional until the release-readiness pass verifies it against live provider runtimes.
+- Phase review initially found validator coverage missing for filesystem-discovered standalone skills. Fix commit `139fc93` added discovered skill validation and regression coverage; re-review passed with zero findings.
 
-### Task p01-t01: {Task Name}
+### Task p01-t01: Add Node Project Metadata and Test Harness
 
-**Status:** completed / in_progress / pending / blocked
-**Commit:** {sha} (if completed)
+**Status:** completed
+**Commit:** 66a74f9
 
-**Outcome (required when completed):**
+### Task p01-t02: Create Self-Contained Plugin Directory Structure
 
-- {what materially changed (not “did task”, but “system now does X”)}
+**Status:** completed
+**Commit:** 77710ee
 
-**Files changed:**
+### Task p01-t03: Add Provider Plugin Manifests
 
-- `{path}` - {why}
+**Status:** completed
+**Commit:** 9354d3a
 
-**Verification:**
+### Task p01-t04: Add Repo-Root Marketplace Entries
 
-- Run: `{command(s)}`
-- Result: {pass/fail + notes}
+**Status:** completed
+**Commit:** 2c4d9c4
 
-**Notes / Decisions:**
+### Task p01-t05: Add Skill and Section-Runner Instruction Artifacts
 
-- {gotchas, trade-offs, design deltas, important context for future sessions}
+**Status:** completed
+**Commit:** 50680a9
 
-**Issues Encountered:**
+### Task p01-t06: Add Baseline Project Documentation
 
-- {Issue and resolution}
+**Status:** completed
+**Commit:** 8cee8fc
+
+### Task p01-t07: Implement Structural Validator and CI Workflows
+
+**Status:** completed
+**Commit:** 8c5b80a
+**Review Fix:** 139fc93 (`fix(p01): validate discovered skill directories`)
 
 ---
 
-### Task p01-t02: {Task Name}
-
-**Status:** pending
-**Commit:** -
-
-**Notes:**
-
-- {Notes will be added during implementation}
-
----
-
-## Phase 2: {Phase Name}
+## Phase 2: Sequential Wrapper and Loop Core
 
 **Status:** pending
 **Started:** -
 
-### Task p02-t01: {Task Name}
+### Task p02-t01: Implement Hash Normalization and Convergence Helpers
 
 **Status:** pending
 **Commit:** -
@@ -120,6 +136,27 @@ _- Outstanding Items_
 
 _Orchestration runs from `oat-project-implement` are appended here, most-recent-first within the file but append-only at the bottom of the log._
 
+### Run 1 — 2026-05-04 01:15
+
+**Branch:** consensus-refine-v1
+**Tier:** 1
+**Policy:** merge-strategy=sequential, retry-limit=2
+**Phases:** 1 executed, 1 passed, 0 failed, 0 stopped
+
+#### Phase Outcomes
+
+| Phase | Implementer | Review | Fix Iterations | Disposition |
+| ----- | ----------- | ------ | -------------- | ----------- |
+| p01 | DONE | pass | 1/2 | passed |
+
+#### Parallel Groups
+
+- p01: sequential
+
+#### Outstanding Items
+
+- None
+
 <!-- orchestration-runs-end -->
 
 ---
@@ -127,6 +164,16 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 ## Implementation Log
 
 Chronological log of implementation progress.
+
+### 2026-05-04
+
+**Phase 1 Complete:** 01:15
+
+- Implementer completed p01 tasks p01-t01 through p01-t07 in commits `66a74f9..8c5b80a`.
+- Phase review artifact `reviews/p01-review-2026-05-04.md` found one Important issue: validator discovery missed standalone skill directories.
+- Fix commit `139fc93` addressed the validator discovery gap.
+- Re-review artifact `reviews/p01-review-2026-05-04-v2.md` passed with 0 Critical, 0 Important, and 0 Minor findings.
+- Next: dispatch Phase 2 (`p02`) implementation.
 
 ### 2026-05-04
 
