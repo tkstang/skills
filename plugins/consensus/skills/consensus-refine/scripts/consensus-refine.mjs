@@ -1,10 +1,14 @@
 import { execFile } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
+import { lstat, mkdir, open, readFile, realpath, rename, stat, unlink, writeFile } from 'node:fs/promises';
+import path from 'node:path';
 import { promisify } from 'node:util';
 
 const execFileAsync = promisify(execFile);
 
 export const MIN_PASEO_VERSION = '0.1.0';
 export const MAX_TESTED_PASEO_VERSION = '0.9.0';
+export const INPUT_SIZE_CAP_BYTES = 1024 * 1024;
 
 const MAX_ROUNDS_MIN = 1;
 const MAX_ROUNDS_MAX = 100;
@@ -13,6 +17,41 @@ const PASEO_REMEDIATION = Object.freeze({
   source_url: 'https://github.com/getpaseo/paseo',
   install_script: 'plugins/consensus/skills/consensus-refine/scripts/install-paseo.mjs'
 });
+
+function inside(root, target) {
+  const relative = path.relative(root, target);
+  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
+}
+
+async function pathExists(targetPath) {
+  try {
+    await lstat(targetPath);
+    return true;
+  } catch (error) {
+    if (error.code === 'ENOENT') return false;
+    throw error;
+  }
+}
+
+async function nearestExistingPath(targetPath) {
+  let current = path.resolve(targetPath);
+  while (!(await pathExists(current))) {
+    const parent = path.dirname(current);
+    if (parent === current) return current;
+    current = parent;
+  }
+  return current;
+}
+
+async function syncPathIfAvailable(targetPath) {
+  let handle;
+  try {
+    handle = await open(targetPath, 'r');
+    await handle.sync();
+  } finally {
+    await handle?.close();
+  }
+}
 
 function requireValue(argv, index, flag) {
   if (index + 1 >= argv.length) {
@@ -134,6 +173,102 @@ function missingPaseoError(cause) {
   error.cause = cause;
   error.remediation = PASEO_REMEDIATION;
   return error;
+}
+
+export async function readInputFile(inputPath, options = {}) {
+  const capBytes = options.sizeCapBytes ?? INPUT_SIZE_CAP_BYTES;
+  const fileStat = await stat(inputPath);
+  if (fileStat.size > capBytes) {
+    throw new Error(`input exceeds size cap of ${capBytes} bytes`);
+  }
+
+  const contents = await readFile(inputPath, 'utf8');
+  if (Buffer.byteLength(contents, 'utf8') > capBytes) {
+    throw new Error(`input exceeds size cap of ${capBytes} bytes`);
+  }
+  return contents;
+}
+
+export async function confineWrite(targetPath, rootPath) {
+  const root = path.resolve(rootPath);
+  const target = path.isAbsolute(targetPath) ? path.resolve(targetPath) : path.resolve(root, targetPath);
+
+  if (!inside(root, target)) {
+    throw new Error(`write path is outside allowed root: ${target}`);
+  }
+
+  if (await pathExists(target)) {
+    const targetStat = await lstat(target);
+    if (targetStat.isSymbolicLink()) {
+      throw new Error(`write target may not be a symlink: ${target}`);
+    }
+  }
+
+  const realRoot = await realpath(root);
+  const parent = path.dirname(target);
+  const existing = await nearestExistingPath(parent);
+  const realExisting = await realpath(existing);
+  const realParent = path.resolve(realExisting, path.relative(existing, parent));
+  if (!inside(realRoot, realParent)) {
+    throw new Error(`write path resolves outside allowed root: ${target}`);
+  }
+
+  return target;
+}
+
+export async function atomicWriteFile(targetPath, contents) {
+  if (await pathExists(targetPath)) {
+    const targetStat = await lstat(targetPath);
+    if (targetStat.isSymbolicLink()) {
+      throw new Error(`write target may not be a symlink: ${targetPath}`);
+    }
+  }
+
+  await mkdir(path.dirname(targetPath), { recursive: true });
+  const tempPath = path.join(
+    path.dirname(targetPath),
+    `.${path.basename(targetPath)}.tmp-${process.pid}-${randomBytes(8).toString('hex')}`
+  );
+
+  try {
+    await writeFile(tempPath, contents);
+    await syncPathIfAvailable(tempPath);
+    await rename(tempPath, targetPath);
+    await syncPathIfAvailable(path.dirname(targetPath));
+  } catch (error) {
+    try {
+      await unlink(tempPath);
+    } catch (cleanupError) {
+      if (cleanupError.code !== 'ENOENT') {
+        error.cleanupError = cleanupError;
+      }
+    }
+    throw error;
+  }
+}
+
+export async function resolveRunDir(options = {}) {
+  const cwd = path.resolve(options.cwd ?? process.cwd());
+  const root = path.resolve(options.allowRoot ?? cwd);
+  const target = options.runDir
+    ? path.isAbsolute(options.runDir)
+      ? options.runDir
+      : path.resolve(cwd, options.runDir)
+    : path.resolve(cwd, '.consensus', 'run');
+
+  return await confineWrite(target, root);
+}
+
+export async function resolveOutputPath(options = {}, inputPath) {
+  if (options.output) {
+    const cwd = path.resolve(options.cwd ?? process.cwd());
+    const root = path.resolve(options.allowRoot ?? cwd);
+    const target = path.isAbsolute(options.output) ? options.output : path.resolve(cwd, options.output);
+    return await confineWrite(target, root);
+  }
+
+  const target = path.resolve(`${inputPath}.consensus.md`);
+  return await confineWrite(target, path.dirname(path.resolve(inputPath)));
 }
 
 async function defaultRunCommand(command, args, options = {}) {
