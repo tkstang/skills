@@ -760,14 +760,16 @@ export async function runConsensusLoop(argv, runOptions = {}) {
   const records = await seedRecordsFile(options.outputRecords, initialRecords, runOptions);
   const writer = await createRecordsWriter(options.outputRecords, runOptions);
   let currentArtifact = runOptions.initialArtifact ?? options.initialArtifact ?? (await readFile(options.sectionFile, 'utf8'));
-  await appendUserIntervention({
+  const initialPeerTurns = peerTurnCount(records);
+  const userIntervention = await appendUserIntervention({
     writer,
     records,
     options,
     currentArtifact,
     userDirection: runOptions.userDirection ?? options.userDirection
   });
-  const maxTurns = options.maxRounds * options.peers.length;
+  const turnBudget = options.maxRounds * options.peers.length;
+  const maxTurns = userIntervention ? initialPeerTurns + turnBudget : turnBudget;
   const invokePeer =
     runOptions.invokePeer ??
     ((turn) =>
