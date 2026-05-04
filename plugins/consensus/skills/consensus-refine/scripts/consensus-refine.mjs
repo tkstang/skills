@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
-import { ConsensusError, EXIT_CODES, exitCodeForError, runConsensusLoop } from './consensus-loop.mjs';
+import { ConsensusError, EXIT_CODES, exitCodeForError, hashArtifact, runConsensusLoop } from './consensus-loop.mjs';
 
 const execFileAsync = promisify(execFile);
 
@@ -112,6 +112,156 @@ function sanitizeLogProse(text) {
 
 function sectionOutput(section) {
   return section.output ?? section.result?.output ?? section.markdown ?? '';
+}
+
+function resumeDataError(message, details = {}) {
+  return new ConsensusError(message, {
+    code: details.code ?? 'RESUME_DATA_INVALID',
+    exitCode: EXIT_CODES.DATA,
+    details: details.details
+  });
+}
+
+function parseYamlScalar(value) {
+  const text = String(value ?? '').trim();
+  if (text === 'null') return null;
+  if (text === 'true') return true;
+  if (text === 'false') return false;
+  if (/^-?\d+(?:\.\d+)?$/u.test(text)) return Number(text);
+  if (
+    (text.startsWith('"') && text.endsWith('"')) ||
+    (text.startsWith("'") && text.endsWith("'"))
+  ) {
+    try {
+      return JSON.parse(text);
+    } catch {
+      return text.slice(1, -1);
+    }
+  }
+  return text;
+}
+
+function parseFrontmatter(markdown) {
+  const text = String(markdown ?? '');
+  if (!text.startsWith('---\n')) {
+    return {};
+  }
+
+  const endIndex = text.indexOf('\n---', 4);
+  if (endIndex === -1) {
+    throw resumeDataError('resume artifact frontmatter is unterminated', {
+      code: 'RESUME_FRONTMATTER_INVALID'
+    });
+  }
+
+  const frontmatter = {};
+  for (const line of text.slice(4, endIndex).split('\n')) {
+    if (!line.trim() || line.trim().startsWith('#')) continue;
+    const match = line.match(/^([A-Za-z0-9_-]+):\s*(.*)$/u);
+    if (!match) continue;
+    frontmatter[match[1]] = parseYamlScalar(match[2]);
+  }
+  return frontmatter;
+}
+
+function consensusBlockPattern(label) {
+  return new RegExp(`<!-- consensus:${label}\\n([\\s\\S]*?)\\n-->`, 'g');
+}
+
+function parseConsensusJsonBlock(label, jsonText, index) {
+  try {
+    return JSON.parse(jsonText);
+  } catch (error) {
+    throw resumeDataError(`corrupt consensus:${label} JSON block at index ${index}: ${error.message}`, {
+      code: 'RESUME_JSON_CORRUPT',
+      details: { label, index }
+    });
+  }
+}
+
+function extractConsensusJsonBlocks(markdown, label) {
+  const blocks = [];
+  for (const [index, match] of [...String(markdown ?? '').matchAll(consensusBlockPattern(label))].entries()) {
+    blocks.push(parseConsensusJsonBlock(label, match[1], index));
+  }
+  return blocks;
+}
+
+function extractLogSectionBlocks(markdown) {
+  const logStart = String(markdown ?? '').match(/^## Deliberation Log\s*$/mu);
+  const logText = logStart ? String(markdown).slice(logStart.index) : String(markdown ?? '');
+  const blockPattern = /<!-- consensus:(consensus-section-status|consensus-verdict)\n([\s\S]*?)\n-->/g;
+  const sections = [];
+  let current = null;
+
+  for (const [index, match] of [...logText.matchAll(blockPattern)].entries()) {
+    const [, label, jsonText] = match;
+    const parsed = parseConsensusJsonBlock(label, jsonText, index);
+    if (label === 'consensus-section-status') {
+      current = { status: parsed, records: [] };
+      sections.push(current);
+      continue;
+    }
+
+    if (!current) {
+      throw resumeDataError('resume artifact has verdict records before any section status block', {
+        code: 'RESUME_SECTION_STATE_MISSING'
+      });
+    }
+    current.records.push(parsed);
+  }
+
+  return sections;
+}
+
+function lastProposedArtifact(records) {
+  for (let index = records.length - 1; index >= 0; index -= 1) {
+    if (typeof records[index]?.proposed_artifact === 'string') {
+      return records[index].proposed_artifact;
+    }
+  }
+  return null;
+}
+
+function normalizeResumeSection(state, logSection, index) {
+  const records = logSection?.records ?? [];
+  const resumedArtifact = lastProposedArtifact(records);
+  const status = logSection?.status ?? {};
+  const sectionStatus = state.status ?? status.status ?? 'unknown';
+  const completed = sectionStatus === 'converged';
+
+  return {
+    id: state.id,
+    name: state.name,
+    original_index: state.original_index ?? index,
+    state,
+    status,
+    records,
+    completed,
+    inFlight: !completed,
+    resumedArtifact,
+    resumedArtifactHash: resumedArtifact === null ? null : hashArtifact(resumedArtifact)
+  };
+}
+
+async function readResumePathOrText(pathOrText) {
+  const value = String(pathOrText ?? '');
+  if (!value.includes('\n')) {
+    try {
+      const fileStatus = await stat(value);
+      if (fileStatus.isFile()) {
+        return {
+          text: await readFile(value, 'utf8'),
+          sourcePath: path.resolve(value)
+        };
+      }
+    } catch (error) {
+      if (!['ENOENT', 'ENOTDIR'].includes(error.code)) {
+        throw error;
+      }
+    }
+  }
+  return { text: value, sourcePath: null };
 }
 
 async function readJsonFile(filePath) {
@@ -733,6 +883,15 @@ export async function resolveOutputPath(options = {}, inputPath) {
   return await confineWrite(target, path.dirname(path.resolve(inputPath)));
 }
 
+export async function resolveResumePath(options = {}) {
+  if (!options.resume) return null;
+
+  const cwd = path.resolve(options.cwd ?? process.cwd());
+  const root = path.resolve(options.allowRoot ?? cwd);
+  const target = path.isAbsolute(options.resume) ? options.resume : path.resolve(cwd, options.resume);
+  return await confineWrite(target, root);
+}
+
 async function defaultRunCommand(command, args, options = {}) {
   const result = await execFileAsync(command, args, {
     cwd: options.cwd,
@@ -858,6 +1017,54 @@ export function parseWrapperArgs(argv) {
   }
 
   return parsed;
+}
+
+export async function parseDeliberationArtifactForResume(pathOrText) {
+  const { text, sourcePath } = await readResumePathOrText(pathOrText);
+  const frontmatter = parseFrontmatter(text);
+  const consensusSchemaVersion = frontmatter.consensus_schema_version;
+  if (consensusSchemaVersion !== 'v0') {
+    throw resumeDataError(`unsupported consensus_schema_version for resume: ${consensusSchemaVersion ?? '(missing)'}`, {
+      code: 'RESUME_SCHEMA_UNSUPPORTED',
+      details: { consensus_schema_version: consensusSchemaVersion ?? null }
+    });
+  }
+
+  const resolutions = extractConsensusJsonBlocks(text, 'consensus-resolution');
+  const sectionStatesBlocks = extractConsensusJsonBlocks(text, 'consensus-section-states');
+  if (resolutions.length !== 1) {
+    throw resumeDataError('resume artifact must contain exactly one consensus-resolution block', {
+      code: 'RESUME_RESOLUTION_MISSING',
+      details: { count: resolutions.length }
+    });
+  }
+  if (sectionStatesBlocks.length !== 1 || !Array.isArray(sectionStatesBlocks[0])) {
+    throw resumeDataError('resume artifact must contain one consensus-section-states array block', {
+      code: 'RESUME_SECTION_STATE_MISSING',
+      details: { count: sectionStatesBlocks.length }
+    });
+  }
+
+  const sectionStates = sectionStatesBlocks[0];
+  const logSections = extractLogSectionBlocks(text);
+  if (logSections.length !== sectionStates.length) {
+    throw resumeDataError('resume artifact section-state count does not match deliberation log sections', {
+      code: 'RESUME_SECTION_STATE_MISSING',
+      details: { section_state_count: sectionStates.length, log_section_count: logSections.length }
+    });
+  }
+
+  const sections = sectionStates.map((state, index) => normalizeResumeSection(state, logSections[index], index));
+  return {
+    sourcePath,
+    consensusSchemaVersion,
+    frontmatter,
+    resolution: resolutions[0],
+    sectionStates,
+    sections,
+    completedSections: sections.filter((section) => section.completed),
+    inFlightSections: sections.filter((section) => section.inFlight)
+  };
 }
 
 export function detectHost(env = process.env) {
@@ -1085,6 +1292,8 @@ export async function runSequential(options, runOptions = {}) {
   const parsedSections = parseSections(markdown);
   const runDir = await resolveRunDir({ ...normalized, cwd });
   const outputPath = await resolveOutputPath({ ...normalized, cwd }, inputPath);
+  const resumePath = await resolveResumePath({ ...normalized, cwd });
+  const resumeState = resumePath ? await parseDeliberationArtifactForResume(resumePath) : null;
   const runWriteRoot = path.resolve(normalized.allowRoot ?? cwd);
   const outputWriteRoot = normalized.output ? path.resolve(normalized.allowRoot ?? cwd) : path.dirname(inputPath);
   const preflight =
@@ -1151,6 +1360,8 @@ export async function runSequential(options, runOptions = {}) {
     parallel: false,
     inputPath,
     outputPath,
+    resumePath,
+    resumeState,
     runDir,
     goal: normalized.goal,
     peers,
