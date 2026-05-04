@@ -1385,16 +1385,16 @@ git commit -m "fix(p06-t02): use agency-aware resume hashes"
 
 | Scope  | Type     | Status  | Date | Artifact |
 | ------ | -------- | ------- | ---- | -------- |
-| p01    | code     | passed | 2026-05-04 | reviews/p01-review-2026-05-04-v2.md |
-| p02    | code     | passed | 2026-05-04 | reviews/p02-fix-tasks-review-2026-05-04.md |
-| p03    | code     | passed | 2026-05-04 | reviews/p03-review-2026-05-04-v3.md |
-| p04    | code     | passed | 2026-05-04 | reviews/p04-review-2026-05-04-v2.md |
-| p05    | code     | passed | 2026-05-04 | reviews/p05-review-2026-05-04.md |
-| p06    | code     | passed | 2026-05-04 | reviews/p06-review-2026-05-04.md |
-| final  | code     | passed | 2026-05-04 | reviews/final-review-2026-05-04-v3.md |
-| spec   | artifact | pending | -    | -        |
-| design | artifact | fixes_completed | 2026-05-04 | reviews/archived/artifact-design-review-2026-05-03.md |
-| plan   | artifact | received | 2026-05-04 | reviews/artifact-plan-review-2026-05-04-v2.md |
+| p01    | code     | passed | 2026-05-04 | reviews/archived/p01-review-2026-05-04-v2.md |
+| p02    | code     | passed | 2026-05-04 | reviews/archived/p02-fix-tasks-review-2026-05-04.md |
+| p03    | code     | passed | 2026-05-04 | reviews/archived/p03-review-2026-05-04-v3.md |
+| p04    | code     | passed | 2026-05-04 | reviews/archived/p04-review-2026-05-04-v2.md |
+| p05    | code     | passed | 2026-05-04 | reviews/archived/p05-review-2026-05-04.md |
+| p06    | code     | passed | 2026-05-04 | reviews/archived/p06-review-2026-05-04.md |
+| final  | code     | passed | 2026-05-04 | reviews/archived/final-review-2026-05-04-v3.md |
+| spec   | artifact | passed | 2026-05-04 | reviews/archived/artifact-spec-review-2026-05-04.md |
+| design | artifact | passed | 2026-05-04 | reviews/archived/artifact-design-review-2026-05-04.md |
+| plan   | artifact | passed | 2026-05-04 | reviews/archived/artifact-plan-review-2026-05-04-v2.md |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 
@@ -1405,9 +1405,11 @@ git commit -m "fix(p06-t02): use agency-aware resume hashes"
 - `fixes_completed`: fix tasks implemented, awaiting re-review
 - `passed`: re-review run and recorded as passing (no Critical/Important)
 
-**Design review note:** The Important design review finding was addressed by commit `436c1b2` (`docs(spec): reconcile spec.md with design.md per artifact review (design)`). It is marked `fixes_completed`, not `passed`, because no re-review has been recorded yet.
+**Design review note:** The Important design review finding was addressed by commit `436c1b2` (`docs(spec): reconcile spec.md with design.md per artifact review (design)`). Re-review `reviews/archived/artifact-design-review-2026-05-04.md` passed with no remaining findings.
 
 **Plan review note:** The 2026-05-04 plan artifact review findings were resolved directly in this plan. Disposition map: I1/I2/I3/M1/M2/M3/M4/m4 resolved in artifact; m1 rejected because `oat_phase_status: complete` means the plan artifact is complete and ready for the next OAT gate; m2 rejected because the plan review row now exists; m3 rejected because HiLL checkpoint choice is intentionally deferred to `oat-project-implement`.
+
+**Spec review note:** The spec artifact review `reviews/archived/artifact-spec-review-2026-05-04.md` passed with no remaining findings after the design/spec reconciliation.
 
 ## Implementation Complete
 

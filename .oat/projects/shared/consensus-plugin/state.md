@@ -16,7 +16,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-05-01T21:13:51.501Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-05-04T17:23:46Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-05-04T17:33:43Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -36,7 +36,7 @@ Implementation complete — final code review passed.
 - **Spec:** `spec.md` (complete — folded into design)
 - **Design:** `design.md` (complete)
 - **Plan:** `plan.md` (complete)
-- **Implementation:** `implementation.md` (in progress)
+- **Implementation:** `implementation.md` (complete)
 
 ## Progress
 

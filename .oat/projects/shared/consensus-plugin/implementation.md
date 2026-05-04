@@ -177,9 +177,9 @@ oat_generated: false
 
 **Review artifacts:**
 
-- `reviews/p02-review-2026-05-04.md` - 3 Critical, 2 Important, 1 Minor.
-- `reviews/p02-review-2026-05-04-v2.md` - 0 Critical, 3 Important, 1 Minor.
-- `reviews/p02-review-2026-05-04-v3.md` - 0 Critical, 1 Important, 2 Minor.
+- `reviews/archived/p02-review-2026-05-04.md` - 3 Critical, 2 Important, 1 Minor.
+- `reviews/archived/p02-review-2026-05-04-v2.md` - 0 Critical, 3 Important, 1 Minor.
+- `reviews/archived/p02-review-2026-05-04-v3.md` - 0 Critical, 1 Important, 2 Minor.
 
 **Outstanding Important finding:**
 
@@ -226,7 +226,7 @@ oat_generated: false
 
 **Notes / Decisions:**
 
-- Review artifacts `reviews/p02-review-2026-05-04.md`, `reviews/p02-review-2026-05-04-v2.md`, and `reviews/archived/p02-review-2026-05-04-v3.md` track the blocked review loop before review-receive added explicit fix tasks.
+- Review artifacts `reviews/archived/p02-review-2026-05-04.md`, `reviews/archived/p02-review-2026-05-04-v2.md`, and `reviews/archived/p02-review-2026-05-04-v3.md` track the blocked review loop before review-receive added explicit fix tasks.
 - Final p02 fix-task review passed with zero Critical/Important findings. One Minor note remains: frontmatter includes a narrower field set than design section 4.5, while the omitted state is available in the commented resolution JSON block.
 
 ---
@@ -378,7 +378,7 @@ oat_generated: false
 **Notes / Decisions:**
 
 - Public v0.1 tagging remains blocked until manual provider-runtime install and permission checks are completed for Claude Code, Cursor, Codex Git/local, and Agent Skills discovery.
-- Phase review initially found one Critical max-rounds resume continuation defect. Fix commit `1c05686` closed it; re-review artifact `reviews/p04-review-2026-05-04-v2.md` passed with 0 Critical, 0 Important, and 0 Minor findings.
+- Phase review initially found one Critical max-rounds resume continuation defect. Fix commit `1c05686` closed it; re-review artifact `reviews/archived/p04-review-2026-05-04-v2.md` passed with 0 Critical, 0 Important, and 0 Minor findings.
 
 ---
 
@@ -438,7 +438,7 @@ oat_generated: false
 **Notes / Decisions:**
 
 - Public v0.1 tagging remains blocked until the manual provider-runtime install and permission checks documented in `RELEASING.md` are complete.
-- Phase review artifact `reviews/p05-review-2026-05-04.md` passed with 0 Critical, 0 Important, 0 Medium, and 0 Minor findings.
+- Phase review artifact `reviews/archived/p05-review-2026-05-04.md` passed with 0 Critical, 0 Important, 0 Medium, and 0 Minor findings.
 - Next: re-run the final lifecycle review gate.
 
 ---
@@ -480,7 +480,7 @@ oat_generated: false
 
 **Notes / Decisions:**
 
-- Phase review artifact `reviews/p06-review-2026-05-04.md` passed with 0 Critical, 0 Important, 0 Medium, and 0 Minor findings.
+- Phase review artifact `reviews/archived/p06-review-2026-05-04.md` passed with 0 Critical, 0 Important, 0 Medium, and 0 Minor findings.
 - Next: re-run the final lifecycle review gate.
 
 ---
@@ -537,7 +537,7 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 
 #### Outstanding Items
 
-- p02 stopped after retry-limit=2. Review artifact: `reviews/p02-review-2026-05-04-v3.md`. Unresolved: `--fail-on-section-error` aggregation/exit semantics.
+- p02 stopped after retry-limit=2. Review artifact: `reviews/archived/p02-review-2026-05-04-v3.md`. Unresolved: `--fail-on-section-error` aggregation/exit semantics.
 
 ### Run 3 — 2026-05-04 09:28
 
@@ -558,7 +558,7 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 
 #### Outstanding Items
 
-- Minor follow-up noted in `reviews/p02-fix-tasks-review-2026-05-04.md`: artifact frontmatter omits some design-listed metadata, though the state exists in the commented resolution JSON.
+- Minor follow-up noted in `reviews/archived/p02-fix-tasks-review-2026-05-04.md`: artifact frontmatter omits some design-listed metadata, though the state exists in the commented resolution JSON.
 
 ### Run 4 — 2026-05-04 10:18
 
@@ -657,9 +657,10 @@ Chronological log of implementation progress.
 **Final Review Passed:** 12:25
 
 - Final review cycle 3 completed via inline fallback after the reviewer subagent returned incomplete without writing an artifact.
-- Review artifact: `reviews/final-review-2026-05-04-v3.md`
+- Review artifact: `reviews/archived/final-review-2026-05-04-v3.md`
 - Findings: 0 Critical, 0 Important, 0 Medium, 0 Minor.
 - Verification passed: `git diff --check`, targeted resume tests, `npm test` (124 tests), `node scripts/validate.mjs`, `node scripts/smoke-test.mjs`, `node scripts/bump-version.mjs --check-tag v0.1.0`, and `oat project status`.
+- Review ledger reconciled: historical failed review artifacts were archived after their replacement reviews passed, and the spec/design/plan artifact review rows were marked `passed`.
 - Next: post-implementation handoff.
 
 ### 2026-05-04
@@ -679,7 +680,7 @@ Chronological log of implementation progress.
 - Implementer completed p06 tasks p06-t01 and p06-t02 in commits `8067b42` and `648c716`.
 - Targeted resume verification passed: `node --test tests/sequential-wrapper.test.mjs tests/resume-parse.test.mjs`.
 - Full local tests passed: `npm test` reported 124 tests.
-- Phase review artifact `reviews/p06-review-2026-05-04.md` passed with 0 Critical, 0 Important, 0 Medium, and 0 Minor findings.
+- Phase review artifact `reviews/archived/p06-review-2026-05-04.md` passed with 0 Critical, 0 Important, 0 Medium, and 0 Minor findings.
 - Next: re-run the final lifecycle review gate.
 
 ### 2026-05-04
@@ -690,7 +691,7 @@ Chronological log of implementation progress.
 - Final local verification after p05 fixes passed: `npm test && node scripts/validate.mjs && node scripts/smoke-test.mjs`.
 - Result: 122 tests passed, validator passed, smoke passed.
 - Manual provider runtime install/permission checks remain blocked before public tagging and are preserved in `RELEASING.md`.
-- Phase review artifact `reviews/p05-review-2026-05-04.md` passed with 0 Critical, 0 Important, 0 Medium, and 0 Minor findings.
+- Phase review artifact `reviews/archived/p05-review-2026-05-04.md` passed with 0 Critical, 0 Important, 0 Medium, and 0 Minor findings.
 - Next: re-run the final lifecycle review gate.
 
 ### 2026-05-04
@@ -711,9 +712,9 @@ Chronological log of implementation progress.
 - Full local verification before readiness notes passed: `npm test && node scripts/validate.mjs && node scripts/smoke-test.mjs`.
 - Local Paseo readiness check passed with `paseo 0.1.63`; `paseo provider ls --json` reported `claude` and `codex` available.
 - Manual provider runtime install/permission checks remain blocked before public tagging and are recorded in `RELEASING.md`.
-- Phase review artifact `reviews/p04-review-2026-05-04.md` found one Critical max-rounds resume continuation defect.
+- Phase review artifact `reviews/archived/p04-review-2026-05-04.md` found one Critical max-rounds resume continuation defect.
 - Fix commit `1c05686` grants user-intervention resumes a continuation budget and adds the true max-rounds regression.
-- Re-review artifact `reviews/p04-review-2026-05-04-v2.md` passed with 0 Critical, 0 Important, 0 Medium, and 0 Minor findings.
+- Re-review artifact `reviews/archived/p04-review-2026-05-04-v2.md` passed with 0 Critical, 0 Important, 0 Medium, and 0 Minor findings.
 - Next: final lifecycle review gate.
 
 ### 2026-05-04
@@ -721,10 +722,10 @@ Chronological log of implementation progress.
 **Phase 3 Passed:** 10:18
 
 - Implementer completed p03 tasks p03-t01 through p03-t05 in commits `617058d..57cde21`.
-- Initial p03 review artifact `reviews/p03-review-2026-05-04.md` found one Important fan-in path confinement issue.
-- Fix commit `20603ca` addressed manifest path trust; re-review artifact `reviews/p03-review-2026-05-04-v2.md` found one remaining Important default-output-domain issue.
+- Initial p03 review artifact `reviews/archived/p03-review-2026-05-04.md` found one Important fan-in path confinement issue.
+- Fix commit `20603ca` addressed manifest path trust; re-review artifact `reviews/archived/p03-review-2026-05-04-v2.md` found one remaining Important default-output-domain issue.
 - Fix commit `8ee5354` preserved valid default fan-in output beside absolute inputs outside `cwd`.
-- Final re-review artifact `reviews/p03-review-2026-05-04-v3.md` passed with 0 Critical, 0 Important, and 0 Minor findings.
+- Final re-review artifact `reviews/archived/p03-review-2026-05-04-v3.md` passed with 0 Critical, 0 Important, and 0 Minor findings.
 - Next: dispatch Phase 4 (`p04`) implementation.
 
 ### 2026-05-04
@@ -732,7 +733,7 @@ Chronological log of implementation progress.
 **Phase 2 Passed:** 09:28
 
 - Review-fix tasks p02-t11 through p02-t13 completed in commits `1c76ad5`, `6e90bac`, and `f6ed669`.
-- Focused fix-task review artifact `reviews/p02-fix-tasks-review-2026-05-04.md` passed with 0 Critical and 0 Important findings.
+- Focused fix-task review artifact `reviews/archived/p02-fix-tasks-review-2026-05-04.md` passed with 0 Critical and 0 Important findings.
 - One Minor note remains on artifact frontmatter completeness; it does not block phase progression.
 - Next: dispatch Phase 3 (`p03`) implementation.
 
@@ -751,9 +752,9 @@ Chronological log of implementation progress.
 **Phase 2 Stopped:** 08:47
 
 - Implementer completed p02 tasks p02-t01 through p02-t10 in commits `9ae99f4..26f2742`.
-- First p02 review (`reviews/p02-review-2026-05-04.md`) found 3 Critical, 2 Important, and 1 Minor findings.
-- First fix loop produced commits `9dcb4d0..7e56e77`; re-review (`reviews/p02-review-2026-05-04-v2.md`) reduced the gate to 3 Important findings.
-- Second fix loop produced commits `79a8127`, `4319c49`, and `c53c70c`; final re-review (`reviews/p02-review-2026-05-04-v3.md`) still found 1 Important issue.
+- First p02 review (`reviews/archived/p02-review-2026-05-04.md`) found 3 Critical, 2 Important, and 1 Minor findings.
+- First fix loop produced commits `9dcb4d0..7e56e77`; re-review (`reviews/archived/p02-review-2026-05-04-v2.md`) reduced the gate to 3 Important findings.
+- Second fix loop produced commits `79a8127`, `4319c49`, and `c53c70c`; final re-review (`reviews/archived/p02-review-2026-05-04-v3.md`) still found 1 Important issue.
 - Retry limit exhausted. Next: run `oat-project-review-receive` for the p02 v3 review artifact, then resume implementation.
 
 ### 2026-05-04
@@ -761,9 +762,9 @@ Chronological log of implementation progress.
 **Phase 1 Complete:** 01:15
 
 - Implementer completed p01 tasks p01-t01 through p01-t07 in commits `66a74f9..8c5b80a`.
-- Phase review artifact `reviews/p01-review-2026-05-04.md` found one Important issue: validator discovery missed standalone skill directories.
+- Phase review artifact `reviews/archived/p01-review-2026-05-04.md` found one Important issue: validator discovery missed standalone skill directories.
 - Fix commit `139fc93` addressed the validator discovery gap.
-- Re-review artifact `reviews/p01-review-2026-05-04-v2.md` passed with 0 Critical, 0 Important, and 0 Minor findings.
+- Re-review artifact `reviews/archived/p01-review-2026-05-04-v2.md` passed with 0 Critical, 0 Important, and 0 Minor findings.
 - Next: dispatch Phase 2 (`p02`) implementation.
 
 ### 2026-05-04
