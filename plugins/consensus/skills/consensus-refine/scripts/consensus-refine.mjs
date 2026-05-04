@@ -805,13 +805,17 @@ export function resolvePeers(options = {}, host = 'unknown', providerInventory =
   }
 
   if (missing.length > 0) {
-    throw new Error(
+    const error = new Error(
       `Missing peers in Paseo inventory: ${missing.join(', ')}. Verify configured providers with "paseo provider ls --json".`
     );
+    error.code = 'PEER_UNAVAILABLE';
+    throw error;
   }
 
   if (unavailable.length > 0) {
-    throw new Error(`Paseo providers are unavailable: ${unavailable.join(', ')}.`);
+    const error = new Error(`Paseo providers are unavailable: ${unavailable.join(', ')}.`);
+    error.code = 'PEER_UNAVAILABLE';
+    throw error;
   }
 
   return { peers, inventory };
@@ -899,7 +903,7 @@ export async function runWrapperCli(argv, options = {}) {
     writeJsonl(stdout, 'error', {
       code: error.code ?? 'ERROR',
       exit_code: exitCode,
-      message: renderHumanError(error, env)
+      message: error?.message ?? String(error)
     });
     stderr.write(`${renderHumanError(error, env)}\n`);
     return exitCode;

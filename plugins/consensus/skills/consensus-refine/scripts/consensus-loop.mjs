@@ -19,7 +19,7 @@ export const EXIT_CODES = Object.freeze({
   DATA: 65,
   IO: 73,
   SECTION_ERROR: 74,
-  DEPENDENCY: 77,
+  NOPERM: 77,
   CONFIG: 78,
   INTERRUPTED: 130
 });
@@ -179,7 +179,7 @@ function hardErrorMessage(error) {
 function outputCapError(streamName, capBytes) {
   return new ConsensusError(`${streamName} exceeded subprocess output cap (${capBytes} bytes)`, {
     code: 'SUBPROCESS_OUTPUT_CAP',
-    exitCode: EXIT_CODES.DEPENDENCY,
+    exitCode: EXIT_CODES.CONFIG,
     details: { stream: streamName, cap_bytes: capBytes }
   });
 }
@@ -191,10 +191,13 @@ export function exitCodeForError(error) {
   if (Number.isInteger(error?.exitCode)) {
     return error.exitCode;
   }
-  if (error?.code === 'PASEO_MISSING') {
-    return EXIT_CODES.DEPENDENCY;
+  if (['PASEO_MISSING', 'PEER_UNAVAILABLE', 'NODE_TOO_OLD', 'NODE_VERSION_UNSUPPORTED'].includes(error?.code)) {
+    return EXIT_CODES.CONFIG;
   }
-  if (['ENOENT', 'EACCES', 'EPERM', 'ENOTDIR', 'EISDIR'].includes(error?.code)) {
+  if (['EACCES', 'EPERM'].includes(error?.code)) {
+    return EXIT_CODES.NOPERM;
+  }
+  if (['ENOENT', 'ENOTDIR', 'EISDIR'].includes(error?.code)) {
     return EXIT_CODES.IO;
   }
   if (error instanceof SyntaxError || error?.code === 'PASEO_INVALID_JSON') {
@@ -469,7 +472,7 @@ export function invokePaseo({ provider, schemaPath, prompt, env = process.env, c
         const detail = stderr.trim() ? `: ${stderr.trim()}` : signal ? ` (signal ${signal})` : '';
         const error = new ConsensusError(`paseo exited with code ${code}${detail}`, {
           code: 'PASEO_EXIT',
-          exitCode: EXIT_CODES.DEPENDENCY,
+          exitCode: EXIT_CODES.CONFIG,
           details: { paseo_exit_code: code, stderr }
         });
         error.paseoExitCode = code;
@@ -487,6 +490,10 @@ export function invokePaseo({ provider, schemaPath, prompt, env = process.env, c
           json: JSON.parse(stdout)
         });
       } catch (error) {
+        if (stdoutBytes >= SUBPROCESS_OUTPUT_CAP_BYTES) {
+          reject(outputCapError('stdout', SUBPROCESS_OUTPUT_CAP_BYTES));
+          return;
+        }
         reject(
           new ConsensusError(`paseo returned invalid JSON: ${error.message}`, {
             code: 'PASEO_INVALID_JSON',

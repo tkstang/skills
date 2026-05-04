@@ -74,8 +74,12 @@ test('exitCodeForError maps unit-testable wrapper exit codes', () => {
   assert.equal(exitCodeForError(new ConsensusError('usage', { exitCode: EXIT_CODES.USAGE })), 64);
   assert.equal(exitCodeForError(new ConsensusError('data', { exitCode: EXIT_CODES.DATA })), 65);
   assert.equal(exitCodeForError(Object.assign(new Error('io'), { code: 'ENOENT' })), 73);
+  assert.equal(exitCodeForError(Object.assign(new Error('permission'), { code: 'EACCES' })), 77);
+  assert.equal(exitCodeForError(Object.assign(new Error('permission'), { code: 'EPERM' })), 77);
   assert.equal(exitCodeForError(new ConsensusError('section', { exitCode: EXIT_CODES.SECTION_ERROR })), 74);
-  assert.equal(exitCodeForError(Object.assign(new Error('missing'), { code: 'PASEO_MISSING' })), 77);
+  assert.equal(exitCodeForError(Object.assign(new Error('missing'), { code: 'PASEO_MISSING' })), 78);
+  assert.equal(exitCodeForError(Object.assign(new Error('peer'), { code: 'PEER_UNAVAILABLE' })), 78);
+  assert.equal(exitCodeForError(Object.assign(new Error('node'), { code: 'NODE_TOO_OLD' })), 78);
   assert.equal(exitCodeForError(new ConsensusError('config', { exitCode: EXIT_CODES.CONFIG })), 78);
   assert.equal(exitCodeForError(Object.assign(new Error('interrupted'), { name: 'AbortError' })), 130);
 });
@@ -91,6 +95,22 @@ test('runWrapperCli writes JSONL to stdout and human errors to stderr', async ()
   assert.equal(event.exit_code, EXIT_CODES.USAGE);
   assert.match(stderr.value(), /--max-rounds must be between 1 and 100/);
   assert.doesNotMatch(stdout.value(), /Error:/);
+});
+
+test('runWrapperCli keeps trace stacks out of stdout JSONL', async () => {
+  const stdout = captureWriter();
+  const stderr = captureWriter();
+  const exitCode = await runWrapperCli(['--max-rounds', '0'], {
+    stdout: stdout.stream,
+    stderr: stderr.stream,
+    env: { CONSENSUS_LOG: 'trace' }
+  });
+
+  assert.equal(exitCode, EXIT_CODES.USAGE);
+  const event = JSON.parse(stdout.value().trim());
+  assert.equal(event.message, '--max-rounds must be between 1 and 100');
+  assert.doesNotMatch(stdout.value(), /at parseWrapperArgs/);
+  assert.match(stderr.value(), /at parseWrapperArgs/);
 });
 
 test('runSequential aggregates section errors without aborting unrelated sections', async () => {
