@@ -167,6 +167,15 @@ function aggregateStatus(sections) {
   return 'unknown';
 }
 
+function aggregateParallelStatus(sections) {
+  const statuses = sections.map((section) => section.status?.status ?? 'unknown');
+  if (statuses.every((status) => status === 'converged')) return 'converged';
+  if (statuses.some((status) => ['error', 'impasse'].includes(status))) {
+    return statuses.some((status) => status === 'converged') ? 'partial' : 'error';
+  }
+  return aggregateStatus(sections);
+}
+
 function sectionStates(sections) {
   return sections.map((section) => ({
     id: section.id,
@@ -781,7 +790,7 @@ function dispatchInstructions(manifest) {
 
 export function renderDeliberationArtifact(runResult) {
   const sections = [...runResult.sections].sort((left, right) => left.original_index - right.original_index);
-  const status = aggregateStatus(sections);
+  const status = runResult.status ?? aggregateStatus(sections);
   const states = sectionStates(sections);
   const finalOutput = sections.map(sectionOutput).join('\n\n').replace(/\n*$/u, '\n');
   const totalRounds = sections.reduce((sum, section) => sum + (section.status?.rounds ?? 0), 0);
@@ -1075,11 +1084,88 @@ export async function fanInParallelRun(manifestPath, options = {}) {
   const sections = [];
 
   for (const entry of manifest.sections ?? []) {
-    const [output, records, status] = await Promise.all([
-      readFile(entry.output_section, 'utf8'),
-      readJsonFile(entry.output_records),
-      readJsonFile(entry.output_status)
-    ]);
+    const errors = [];
+    let output = null;
+    let records = [];
+    let status = null;
+
+    try {
+      output = await readFile(entry.output_section, 'utf8');
+    } catch (error) {
+      errors.push({
+        code: 'missing output file',
+        path: entry.output_section,
+        message: error.message
+      });
+    }
+
+    try {
+      records = await readJsonFile(entry.output_records);
+      if (!Array.isArray(records)) {
+        errors.push({
+          code: 'malformed result JSON',
+          path: entry.output_records,
+          message: 'records file must contain a JSON array'
+        });
+        records = [];
+      }
+    } catch (error) {
+      errors.push({
+        code: 'malformed result JSON',
+        path: entry.output_records,
+        message: error.message
+      });
+      records = [];
+    }
+
+    try {
+      status = await readJsonFile(entry.output_status);
+    } catch (error) {
+      errors.push({
+        code: 'malformed result JSON',
+        path: entry.output_status,
+        message: error.message
+      });
+      status = null;
+    }
+
+    if (status?.status === 'timeout' || status?.termination_reason === 'section_timeout') {
+      errors.push({
+        code: 'section_timeout',
+        path: entry.output_status,
+        message: 'section runner reported timeout'
+      });
+    }
+
+    if (status?.status === 'error') {
+      errors.push({
+        code: 'section_error',
+        path: entry.output_status,
+        message: status.error ?? status.termination_reason ?? 'section runner reported error'
+      });
+    }
+
+    if (errors.length > 0) {
+      const original = (await readTextIfPresent(entry.section_file)) ?? '';
+      const marker = {
+        consensus_schema_version: 'v0',
+        section_id: entry.section_id,
+        subagent_id: entry.subagent_id,
+        status_path: entry.output_status,
+        errors
+      };
+      output = `${original.replace(/\n*$/u, '\n')}\n${canonicalJsonBlock('section-error', marker)}\n`;
+      status = {
+        schema_version: 'v0',
+        ...(status ?? {}),
+        status: 'error',
+        termination_reason: status?.termination_reason ?? errors[0].code,
+        turns: status?.turns ?? records.length,
+        rounds: status?.rounds ?? 0,
+        error: errors.map((error) => `${error.code}: ${error.message}`).join('; '),
+        parallel_errors: errors
+      };
+    }
 
     sections.push({
       id: entry.section_id,
@@ -1116,11 +1202,24 @@ export async function fanInParallelRun(manifestPath, options = {}) {
     wallClockMs: Date.now() - startMs,
     sections
   };
-  runResult.status = aggregateStatus(sections);
+  runResult.status = aggregateParallelStatus(sections);
 
   const artifact = renderDeliberationArtifact(runResult);
   const outputWriteRoot = path.resolve(options.allowRoot ?? path.dirname(manifest.output_path));
   await atomicWriteFile(manifest.output_path, artifact, { rootPath: outputWriteRoot });
+  const failedSections = failingSections(sections);
+  if (options.failOnSectionError && failedSections.length > 0) {
+    throw new ConsensusError(`section error or impasse in ${failedSections.length} section(s)`, {
+      code: 'SECTION_ERROR',
+      exitCode: EXIT_CODES.SECTION_ERROR,
+      details: {
+        output_path: manifest.output_path,
+        run_dir: manifest.run_dir,
+        manifest_path: resolvedManifestPath,
+        failing_sections: failedSections
+      }
+    });
+  }
   return { ...runResult, artifact };
 }
 
@@ -1233,7 +1332,12 @@ export async function runWrapperCli(argv, options = {}) {
     }
 
     if (parsed.mode === 'fan_in') {
-      const result = await fanInParallelRun(parsed.manifestPath, { env, cwd, allowRoot: parsed.allowRoot });
+      const result = await fanInParallelRun(parsed.manifestPath, {
+        env,
+        cwd,
+        allowRoot: parsed.allowRoot,
+        failOnSectionError: parsed.failOnSectionError
+      });
       writeJsonl(stdout, 'run_completed', {
         status: result.status,
         output_path: result.outputPath,
