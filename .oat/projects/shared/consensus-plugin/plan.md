@@ -1391,7 +1391,7 @@ git commit -m "fix(p06-t02): use agency-aware resume hashes"
 | p04    | code     | passed | 2026-05-04 | reviews/p04-review-2026-05-04-v2.md |
 | p05    | code     | passed | 2026-05-04 | reviews/p05-review-2026-05-04.md |
 | p06    | code     | passed | 2026-05-04 | reviews/p06-review-2026-05-04.md |
-| final  | code     | fixes_completed | 2026-05-04 | reviews/archived/final-review-2026-05-04-v2.md |
+| final  | code     | passed | 2026-05-04 | reviews/final-review-2026-05-04-v3.md |
 | spec   | artifact | pending | -    | -        |
 | design | artifact | fixes_completed | 2026-05-04 | reviews/archived/artifact-design-review-2026-05-03.md |
 | plan   | artifact | received | 2026-05-04 | reviews/artifact-plan-review-2026-05-04-v2.md |
@@ -1422,7 +1422,7 @@ git commit -m "fix(p06-t02): use agency-aware resume hashes"
 
 **Total: 39 tasks**
 
-Implementation tasks complete; final code re-review pending.
+Implementation and final code review complete.
 
 ## References
 
