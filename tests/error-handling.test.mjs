@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp } from 'node:fs/promises';
+import { mkdtemp, readFile, stat } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -75,6 +75,39 @@ function sectionPartialFailureInvoker() {
       }
     };
   };
+}
+
+function impasseThenAcceptInvoker() {
+  let calls = 0;
+  return async () => {
+    calls += 1;
+    if (calls === 1) {
+      return {
+        json: {
+          schema_version: 'v0',
+          verdict: 'IMPASSE',
+          reasoning: 'needs user direction',
+          concerns: ['unclear scope']
+        }
+      };
+    }
+    return {
+      json: {
+        schema_version: 'v0',
+        verdict: 'ACCEPT',
+        reasoning: 'accepted'
+      }
+    };
+  };
+}
+
+function extractLabeledJson(markdown, label) {
+  const fenced = markdown.match(new RegExp('```json ' + label + '\\n([\\s\\S]*?)\\n```'));
+  if (fenced) return JSON.parse(fenced[1]);
+
+  const commented = markdown.match(new RegExp('<!-- consensus:' + label + '\\n([\\s\\S]*?)\\n-->'));
+  assert.ok(commented, `missing ${label} JSON block`);
+  return JSON.parse(commented[1]);
 }
 
 test('createJsonlEvent returns stdout-safe JSONL event shape', () => {
@@ -193,11 +226,15 @@ test('runSequential preserves partial records and status after a section hard er
 
 test('runSequential honors --fail-on-section-error with exit 74 semantics', async () => {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-errors-'));
-  await assert.rejects(
-    runSequential({
+  const outputPath = path.join(tempRoot, 'out.md');
+  const runDir = path.join(tempRoot, '.consensus/run');
+  let thrown;
+
+  try {
+    await runSequential({
       inputPath: sampleInput,
-      output: path.join(tempRoot, 'out.md'),
-      runDir: path.join(tempRoot, '.consensus/run'),
+      output: outputPath,
+      runDir,
       allowRoot: tempRoot,
       cwd: tempRoot,
       goal: 'Handle errors.',
@@ -207,11 +244,60 @@ test('runSequential honors --fail-on-section-error with exit 74 semantics', asyn
       failOnSectionError: true,
       preflight: async () => ({ peers: ['claude', 'codex'], warnings: [] }),
       invokePeer: sectionFailOnceInvoker()
-    }),
-    (error) => {
-      assert.equal(exitCodeForError(error), EXIT_CODES.SECTION_ERROR);
-      assert.match(error.message, /section intro-0 failed/);
-      return true;
-    }
+    });
+  } catch (error) {
+    thrown = error;
+  }
+
+  assert.ok(thrown);
+  assert.equal(exitCodeForError(thrown), EXIT_CODES.SECTION_ERROR);
+  assert.match(thrown.message, /section error or impasse/i);
+  assert.equal(thrown.details.output_path, outputPath);
+  assert.equal(thrown.details.run_dir, runDir);
+  assert.equal((await stat(outputPath)).isFile(), true);
+
+  const artifact = await readFile(outputPath, 'utf8');
+  const sectionStates = extractLabeledJson(artifact, 'consensus-section-states');
+  assert.deepEqual(
+    sectionStates.map((section) => section.status),
+    ['error', 'converged', 'converged']
+  );
+  assert.match(artifact, /## Details/);
+  assert.match(artifact, /## Close/);
+});
+
+test('runSequential treats impasse as a section error after writing the artifact', async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-errors-'));
+  const outputPath = path.join(tempRoot, 'out.md');
+  let thrown;
+
+  try {
+    await runSequential({
+      inputPath: sampleInput,
+      output: outputPath,
+      runDir: path.join(tempRoot, '.consensus/run'),
+      allowRoot: tempRoot,
+      cwd: tempRoot,
+      goal: 'Handle impasse.',
+      peers: ['claude', 'codex'],
+      maxRounds: 1,
+      agency: 'moderate',
+      failOnSectionError: true,
+      preflight: async () => ({ peers: ['claude', 'codex'], warnings: [] }),
+      invokePeer: impasseThenAcceptInvoker()
+    });
+  } catch (error) {
+    thrown = error;
+  }
+
+  assert.ok(thrown);
+  assert.equal(exitCodeForError(thrown), EXIT_CODES.SECTION_ERROR);
+  assert.equal((await stat(outputPath)).isFile(), true);
+
+  const artifact = await readFile(outputPath, 'utf8');
+  const sectionStates = extractLabeledJson(artifact, 'consensus-section-states');
+  assert.deepEqual(
+    sectionStates.map((section) => section.status),
+    ['impasse', 'converged', 'converged']
   );
 });

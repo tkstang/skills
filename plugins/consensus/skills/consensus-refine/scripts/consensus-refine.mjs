@@ -172,6 +172,18 @@ function countByStatus(sections, statusName) {
   return sections.filter((section) => section.status?.status === statusName).length;
 }
 
+function failingSections(sections) {
+  return sections
+    .filter((section) => ['error', 'impasse'].includes(section.status?.status))
+    .map((section) => ({
+      id: section.id,
+      name: section.name,
+      original_index: section.original_index,
+      status: section.status.status,
+      termination_reason: section.status?.termination_reason ?? null
+    }));
+}
+
 function renderRecord(record) {
   const verdictDocument = {
     schema_version: record.schema_version ?? 'v0',
@@ -796,14 +808,6 @@ export async function runSequential(options, runOptions = {}) {
         status,
         records
       });
-      if (normalized.failOnSectionError) {
-        throw new ConsensusError(`section ${section.id} failed: ${error.message}`, {
-          code: 'SECTION_ERROR',
-          exitCode: EXIT_CODES.SECTION_ERROR,
-          cause: error,
-          details: { section_id: section.id }
-        });
-      }
     }
   }
 
@@ -827,6 +831,18 @@ export async function runSequential(options, runOptions = {}) {
 
   const artifact = renderDeliberationArtifact(runResult);
   await atomicWriteFile(outputPath, artifact, { rootPath: outputWriteRoot });
+  const failedSections = failingSections(sectionResults);
+  if (normalized.failOnSectionError && failedSections.length > 0) {
+    throw new ConsensusError(`section error or impasse in ${failedSections.length} section(s)`, {
+      code: 'SECTION_ERROR',
+      exitCode: EXIT_CODES.SECTION_ERROR,
+      details: {
+        output_path: outputPath,
+        run_dir: runDir,
+        failing_sections: failedSections
+      }
+    });
+  }
   return { ...runResult, artifact };
 }
 
@@ -946,7 +962,8 @@ export async function runWrapperCli(argv, options = {}) {
     writeJsonl(stdout, 'error', {
       code: error.code ?? 'ERROR',
       exit_code: exitCode,
-      message: error?.message ?? String(error)
+      message: error?.message ?? String(error),
+      ...(error.details === undefined ? {} : { details: error.details })
     });
     stderr.write(`${renderHumanError(error, env)}\n`);
     return exitCode;
