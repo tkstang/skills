@@ -2,6 +2,7 @@ import { execFile } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { lstat, mkdir, open, readFile, realpath, rename, stat, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { createInterface } from 'node:readline/promises';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
@@ -179,6 +180,22 @@ function parseConsensusJsonBlock(label, jsonText, index) {
   }
 }
 
+function tryParseConsensusJsonBlock(label, jsonText, index) {
+  try {
+    return { ok: true, value: JSON.parse(jsonText) };
+  } catch (error) {
+    return {
+      ok: false,
+      error: {
+        code: 'RESUME_JSON_CORRUPT',
+        message: `corrupt consensus:${label} JSON block at index ${index}: ${error.message}`,
+        block_label: label,
+        block_index: index
+      }
+    };
+  }
+}
+
 function extractConsensusJsonBlocks(markdown, label) {
   const blocks = [];
   for (const [index, match] of [...String(markdown ?? '').matchAll(consensusBlockPattern(label))].entries()) {
@@ -191,27 +208,42 @@ function extractLogSectionBlocks(markdown) {
   const logStart = String(markdown ?? '').match(/^## Deliberation Log\s*$/mu);
   const logText = logStart ? String(markdown).slice(logStart.index) : String(markdown ?? '');
   const blockPattern = /<!-- consensus:(consensus-section-status|consensus-verdict)\n([\s\S]*?)\n-->/g;
-  const sections = [];
+  const logSections = [];
+  const unscopedErrors = [];
   let current = null;
 
   for (const [index, match] of [...logText.matchAll(blockPattern)].entries()) {
     const [, label, jsonText] = match;
-    const parsed = parseConsensusJsonBlock(label, jsonText, index);
+    const parsed = tryParseConsensusJsonBlock(label, jsonText, index);
     if (label === 'consensus-section-status') {
-      current = { status: parsed, records: [] };
-      sections.push(current);
+      current = { status: null, records: [], errors: [] };
+      if (parsed.ok) {
+        current.status = parsed.value;
+      } else {
+        current.errors.push(parsed.error);
+      }
+      logSections.push(current);
       continue;
     }
 
     if (!current) {
-      throw resumeDataError('resume artifact has verdict records before any section status block', {
-        code: 'RESUME_SECTION_STATE_MISSING'
+      unscopedErrors.push({
+        code: 'RESUME_SECTION_STATE_MISSING',
+        message: 'resume artifact has verdict records before any section status block',
+        block_label: label,
+        block_index: index
       });
+      continue;
     }
-    current.records.push(parsed);
+
+    if (parsed.ok) {
+      current.records.push(parsed.value);
+    } else {
+      current.errors.push(parsed.error);
+    }
   }
 
-  return sections;
+  return { logSections, unscopedErrors };
 }
 
 function lastProposedArtifact(records) {
@@ -239,9 +271,174 @@ function normalizeResumeSection(state, logSection, index) {
     records,
     completed,
     inFlight: !completed,
+    skipped: false,
+    corruptErrors: [],
     resumedArtifact,
     resumedArtifactHash: resumedArtifact === null ? null : hashArtifact(resumedArtifact)
   };
+}
+
+function resumeHashError(section, expectedHash, actualHash) {
+  return {
+    code: 'RESUME_HASH_MISMATCH',
+    section_id: section.id,
+    section_name: section.name,
+    message: `hash mismatch for section ${section.id}: expected ${expectedHash}, recomputed ${actualHash}`,
+    expected_hash: expectedHash,
+    actual_hash: actualHash
+  };
+}
+
+function collectResumeValidationErrors(sectionStates, logSections, unscopedErrors) {
+  const errors = [...unscopedErrors];
+
+  if (logSections.length < sectionStates.length) {
+    for (let index = logSections.length; index < sectionStates.length; index += 1) {
+      const state = sectionStates[index] ?? {};
+      errors.push({
+        code: 'RESUME_SECTION_STATE_MISSING',
+        section_id: state.id,
+        section_name: state.name,
+        section_index: index,
+        message: `missing section state for ${state.id ?? `section index ${index}`}`
+      });
+    }
+  } else if (logSections.length > sectionStates.length) {
+    for (let index = sectionStates.length; index < logSections.length; index += 1) {
+      errors.push({
+        code: 'RESUME_SECTION_STATE_MISSING',
+        section_index: index,
+        message: `deliberation log has no canonical section state for section index ${index}`
+      });
+    }
+  }
+
+  const sections = sectionStates.map((state, index) => {
+    const section = normalizeResumeSection(state, logSections[index], index);
+    if (!state || typeof state !== 'object' || Array.isArray(state) || !state.id) {
+      errors.push({
+        code: 'RESUME_SECTION_STATE_MISSING',
+        section_index: index,
+        message: `missing section state for section index ${index}`
+      });
+    }
+
+    for (const error of logSections[index]?.errors ?? []) {
+      errors.push({
+        ...error,
+        section_id: section.id,
+        section_name: section.name,
+        section_index: index
+      });
+    }
+
+    if (!logSections[index]?.status) {
+      errors.push({
+        code: 'RESUME_SECTION_STATE_MISSING',
+        section_id: section.id,
+        section_name: section.name,
+        section_index: index,
+        message: `missing section state for ${section.id}`
+      });
+    }
+
+    const stateHash = state?.final_artifact_hash ?? null;
+    const statusHash = logSections[index]?.status?.final_artifact_hash ?? null;
+    if (stateHash && statusHash && stateHash !== statusHash) {
+      errors.push(resumeHashError(section, stateHash, statusHash));
+    }
+
+    const expectedHash = statusHash ?? stateHash;
+    if (section.resumedArtifact !== null && expectedHash && section.resumedArtifactHash !== expectedHash) {
+      errors.push(resumeHashError(section, expectedHash, section.resumedArtifactHash));
+    }
+
+    return section;
+  });
+
+  return { sections, errors };
+}
+
+async function writeResumeErrors(runDir, errors, skippedIds = []) {
+  if (!runDir) return null;
+
+  const outputPath = path.join(runDir, 'resume-errors.json');
+  await mkdir(runDir, { recursive: true });
+  await writeFile(
+    outputPath,
+    `${JSON.stringify(
+      {
+        consensus_schema_version: 'v0',
+        generated_at: nowIso(),
+        errors,
+        skipped_section_ids: skippedIds
+      },
+      null,
+      2
+    )}\n`
+  );
+  await syncPathIfAvailable(outputPath);
+  return outputPath;
+}
+
+async function defaultConfirmSkipAllCorrupt({ errors, stdin = process.stdin, stdout = process.stdout } = {}) {
+  if (!stdin.isTTY) return false;
+  const rl = createInterface({ input: stdin, output: stdout });
+  try {
+    const answer = await rl.question(
+      `Skip ${errors.length} corrupt resume section(s) and continue? [y/N] `
+    );
+    return /^y(?:es)?$/iu.test(answer.trim());
+  } finally {
+    rl.close();
+  }
+}
+
+async function applyResumeSkipPolicy(sections, errors, options = {}) {
+  const sectionErrors = errors.filter((error) => error.section_id);
+  const explicitSkipIds = new Set(options.skipCorruptSections ?? []);
+  let skipAll = Boolean(options.yesSkipCorrupt);
+
+  if (!skipAll && options.skipAllCorrupt && sectionErrors.length > 0) {
+    const confirm = options.confirmSkipAllCorrupt ?? defaultConfirmSkipAllCorrupt;
+    skipAll = await confirm({
+      errors: sectionErrors,
+      stdin: options.stdin,
+      stdout: options.stdout
+    });
+  }
+
+  const skippedIds = new Set();
+  for (const error of sectionErrors) {
+    if (skipAll || explicitSkipIds.has(error.section_id)) {
+      skippedIds.add(error.section_id);
+    }
+  }
+
+  for (const section of sections) {
+    if (!skippedIds.has(section.id)) continue;
+    section.skipped = true;
+    section.inFlight = false;
+    section.completed = false;
+    section.corruptErrors = errors.filter((error) => error.section_id === section.id);
+  }
+
+  return {
+    skippedIds,
+    unhandledErrors: errors.filter((error) => !error.section_id || !skippedIds.has(error.section_id))
+  };
+}
+
+function corruptResumeError(errors, diagnosticsPath) {
+  const details = {
+    errors,
+    ...(diagnosticsPath ? { resume_errors_path: diagnosticsPath } : {})
+  };
+  const firstMessage = errors[0]?.message ? `: ${errors[0].message}` : '';
+  return resumeDataError(`corrupt resume state${firstMessage}; resume is blocked until corrupt sections are skipped explicitly`, {
+    code: 'RESUME_CORRUPT',
+    details
+  });
 }
 
 async function readResumePathOrText(pathOrText) {
@@ -915,6 +1112,7 @@ export function parseWrapperArgs(argv) {
     allowRoot: null,
     failOnSectionError: false,
     skipCorruptSections: [],
+    skipAllCorrupt: false,
     yesSkipCorrupt: false,
     prepareParallel: false,
     parallelism: null,
@@ -971,6 +1169,9 @@ export function parseWrapperArgs(argv) {
         parsed.skipCorruptSections.push(requireValue(argv, index, token));
         index += 1;
         break;
+      case '--skip-all-corrupt':
+        parsed.skipAllCorrupt = true;
+        break;
       case '--yes-skip-corrupt':
         parsed.yesSkipCorrupt = true;
         break;
@@ -1019,7 +1220,7 @@ export function parseWrapperArgs(argv) {
   return parsed;
 }
 
-export async function parseDeliberationArtifactForResume(pathOrText) {
+export async function parseDeliberationArtifactForResume(pathOrText, options = {}) {
   const { text, sourcePath } = await readResumePathOrText(pathOrText);
   const frontmatter = parseFrontmatter(text);
   const consensusSchemaVersion = frontmatter.consensus_schema_version;
@@ -1046,15 +1247,14 @@ export async function parseDeliberationArtifactForResume(pathOrText) {
   }
 
   const sectionStates = sectionStatesBlocks[0];
-  const logSections = extractLogSectionBlocks(text);
-  if (logSections.length !== sectionStates.length) {
-    throw resumeDataError('resume artifact section-state count does not match deliberation log sections', {
-      code: 'RESUME_SECTION_STATE_MISSING',
-      details: { section_state_count: sectionStates.length, log_section_count: logSections.length }
-    });
+  const { logSections, unscopedErrors } = extractLogSectionBlocks(text);
+  const { sections, errors } = collectResumeValidationErrors(sectionStates, logSections, unscopedErrors);
+  const { skippedIds, unhandledErrors } = await applyResumeSkipPolicy(sections, errors, options);
+  const diagnosticsPath = errors.length > 0 ? await writeResumeErrors(options.runDir, errors, [...skippedIds]) : null;
+  if (unhandledErrors.length > 0) {
+    throw corruptResumeError(unhandledErrors, diagnosticsPath);
   }
 
-  const sections = sectionStates.map((state, index) => normalizeResumeSection(state, logSections[index], index));
   return {
     sourcePath,
     consensusSchemaVersion,
@@ -1063,7 +1263,10 @@ export async function parseDeliberationArtifactForResume(pathOrText) {
     sectionStates,
     sections,
     completedSections: sections.filter((section) => section.completed),
-    inFlightSections: sections.filter((section) => section.inFlight)
+    inFlightSections: sections.filter((section) => section.inFlight),
+    skippedCorruptSections: sections.filter((section) => section.skipped),
+    resumeErrors: errors,
+    resumeErrorsPath: diagnosticsPath
   };
 }
 
@@ -1293,7 +1496,16 @@ export async function runSequential(options, runOptions = {}) {
   const runDir = await resolveRunDir({ ...normalized, cwd });
   const outputPath = await resolveOutputPath({ ...normalized, cwd }, inputPath);
   const resumePath = await resolveResumePath({ ...normalized, cwd });
-  const resumeState = resumePath ? await parseDeliberationArtifactForResume(resumePath) : null;
+  const resumeState = resumePath
+    ? await parseDeliberationArtifactForResume(resumePath, {
+        runDir,
+        skipCorruptSections: normalized.skipCorruptSections,
+        skipAllCorrupt: normalized.skipAllCorrupt,
+        yesSkipCorrupt: normalized.yesSkipCorrupt,
+        stdin: runOptions.stdin,
+        stdout: runOptions.stdout
+      })
+    : null;
   const runWriteRoot = path.resolve(normalized.allowRoot ?? cwd);
   const outputWriteRoot = normalized.output ? path.resolve(normalized.allowRoot ?? cwd) : path.dirname(inputPath);
   const preflight =
@@ -1780,7 +1992,10 @@ export async function runWrapperCli(argv, options = {}) {
       });
     }
 
-    const result = await runSequential({ ...parsed, env, cwd, preflight: options.preflight });
+    const result = await runSequential(
+      { ...parsed, env, cwd, preflight: options.preflight },
+      { stdin: options.stdin ?? process.stdin, stdout }
+    );
     writeJsonl(stdout, 'run_completed', {
       status: result.status,
       output_path: result.outputPath,
