@@ -129,18 +129,18 @@ git commit -m "chore(p01-t02): create consensus plugin layout"
 
 **Step 1: Write test (RED)**
 
-Test that each provider `plugin.json` parses, has name `consensus`, version `0.1.0`, and references `./skills/consensus-refine` under plugin root.
+Test that each provider `plugin.json` parses, has name `consensus`, version `0.1.0`, references `./skills/consensus-refine` under plugin root, and declares the provider-specific Bash/exec permission shape needed to run `node` and `paseo`.
 
 Run: `node --test tests/plugin-manifests.test.mjs`
 Expected: Test fails because manifests do not exist.
 
 **Step 2: Implement (GREEN)**
 
-Create the three provider manifests with provider-specific metadata kept inside each manifest. Codex manifest includes its interface metadata placeholder per design; Claude/Cursor include only supported fields verified by schema assumptions.
+Create the three provider manifests with provider-specific metadata kept inside each manifest. Codex manifest includes its interface metadata placeholder per design; Claude/Cursor include only supported fields verified by schema assumptions. Document any provider whose permission declaration is provisional so p04-t08 can verify it against the live runtime before release.
 
 **Step 3: Refactor**
 
-Keep all skill paths plugin-root-relative. Do not use `../` traversal.
+Keep all skill paths plugin-root-relative. Do not use `../` traversal. Add a release-checklist note that Codex skill path syntax must be verified with local Codex plugin installation before tagging v0.1.
 
 **Step 4: Verify**
 
@@ -238,14 +238,14 @@ git commit -m "feat(p01-t05): add consensus refine skill instructions"
 
 **Step 1: Write test (RED)**
 
-Create `tests/docs-presence.test.mjs` asserting required docs exist, README has an Install Matrix, README has Permissions and Limitations sections, LICENSE is MIT, and CHANGELOG has `0.1.0` unreleased.
+Create `tests/docs-presence.test.mjs` asserting required docs exist, README has an Install Matrix, README has Permissions and Limitations sections, LICENSE is MIT, CHANGELOG has `0.1.0` unreleased, and `CLAUDE.md` is a symlink to `AGENTS.md`.
 
 Run: `node --test tests/docs-presence.test.mjs`
 Expected: Test fails because docs are missing.
 
 **Step 2: Implement (GREEN)**
 
-Write concise docs matching the design scope. Create `CLAUDE.md` as a symlink or exact companion to `AGENTS.md` only if supported cleanly by the local repo; otherwise document why it is intentionally a normal file.
+Write concise docs matching the design scope. Create `CLAUDE.md` as a symlink to `AGENTS.md`.
 
 **Step 3: Refactor**
 
@@ -386,14 +386,14 @@ git commit -m "feat(p02-t02): validate peer verdicts"
 
 **Step 1: Write test (RED)**
 
-Test JSON-array write-through behavior, fsync-on-append where available, status JSON schema fields, and recovery-friendly behavior when a process stops after writing one record.
+Test JSON-array write-through behavior, fsync-on-append where available, status JSON schema fields, preservation of optional `raw_paseo_response`, cost reporting branches (`cost_source: "paseo" | "estimated" | "unavailable"`), and recovery-friendly behavior when a process stops after writing one record.
 
 Run: `node --test tests/loop-records.test.mjs`
 Expected: Test fails because record writer is missing.
 
 **Step 2: Implement (GREEN)**
 
-Export `createRecordsWriter(path)` and `writeLoopStatus(path, status)`. Ensure records are valid JSON arrays after close and intermediate writes are durable enough for resume tests.
+Export `createRecordsWriter(path)` and `writeLoopStatus(path, status)`. Ensure records are valid JSON arrays after close, optional debug fields are not stripped, cost metadata is normalized into loop status, and intermediate writes are durable enough for resume tests.
 
 **Step 3: Refactor**
 
@@ -421,14 +421,14 @@ git commit -m "feat(p02-t03): write loop records incrementally"
 
 **Step 1: Write test (RED)**
 
-Test that the loop invokes `paseo run --provider <peer> --output-schema <schema> --json <prompt>` via `spawn` array form, enforces stdout/stderr caps, parses JSON output, and propagates non-zero exit as a hard error.
+Test that the loop invokes `paseo run --provider <peer> --output-schema <schema> --json <prompt>` via `spawn` array form, enforces `SUBPROCESS_OUTPUT_CAP_BYTES = 10 * 1024 * 1024` on stdout/stderr with a boundary case at 10 MB + 1 byte, parses JSON output, and propagates non-zero exit as a hard error.
 
 Run: `node --test tests/paseo-invocation.test.mjs`
 Expected: Test fails because invocation helper and stub are missing.
 
 **Step 2: Implement (GREEN)**
 
-Add `invokePaseo({ provider, schemaPath, prompt, env, cwd })` and a deterministic `paseo` fixture binary with canned responses.
+Add `invokePaseo({ provider, schemaPath, prompt, env, cwd })`, the 10 MB subprocess output cap constant, and a deterministic `paseo` fixture binary with canned responses.
 
 **Step 3: Refactor**
 
@@ -489,14 +489,14 @@ git commit -m "feat(p02-t05): implement alternating loop cli"
 
 **Step 1: Write test (RED)**
 
-Test argv parsing for sequential flags, host-aware default peers, `--peers` validation, `--max-rounds` bounds, `--agency` values, `--prepare-parallel`, `--fan-in`, and peer inventory from `paseo provider ls --json`.
+Test argv parsing for sequential flags, host-aware default peers, `--peers` validation, `--max-rounds` bounds, `--agency` values, `--prepare-parallel`, `--fan-in`, peer inventory from `paseo provider ls --json`, and `paseo --version` parsing against a tested version range (`MIN_PASEO_VERSION` / `MAX_TESTED_PASEO_VERSION`) that emits a structured warning when out of range.
 
 Run: `node --test tests/wrapper-options.test.mjs`
 Expected: Test fails because wrapper exports are missing.
 
 **Step 2: Implement (GREEN)**
 
-Export `parseWrapperArgs(argv)`, `detectHost(env)`, `resolvePeers(options, host, providerInventory)`, and `preflightPaseo(options)`.
+Export `parseWrapperArgs(argv)`, `detectHost(env)`, `resolvePeers(options, host, providerInventory)`, and `preflightPaseo(options)`. `preflightPaseo` checks both provider inventory and Paseo version, warning but not hard-failing when the installed version is outside the documented tested range.
 
 **Step 3: Refactor**
 
@@ -979,14 +979,14 @@ git commit -m "feat(p04-t04): add paseo install assist"
 
 **Step 1: Write test (RED)**
 
-Test README includes install commands for Claude, Cursor, Codex Git/local, and `npx skills add`; includes Permissions and Limitations; documents no telemetry; documents prompt-injection limitation; and lists deferred features accurately.
+Test README includes install commands for Claude, Cursor, Codex Git/local, and `npx skills add`; names the tested Paseo version range in the prerequisite/install section; includes Permissions and Limitations; documents no telemetry; documents prompt-injection limitation; includes Advanced Configuration for custom ACP providers including cursor-as-peer opt-in; and lists deferred features accurately.
 
 Run: `node --test tests/readme-scope.test.mjs`
 Expected: Test fails until docs match v0.1 scope.
 
 **Step 2: Implement (GREEN)**
 
-Complete README and contribution guidance from the design. Update CHANGELOG with the implemented v0.1 scope.
+Complete README and contribution guidance from the design. Update CHANGELOG with the implemented v0.1 scope, including the tested Paseo version range used for release validation.
 
 **Step 3: Refactor**
 
@@ -1085,14 +1085,14 @@ git commit -m "test(p04-t07): add mocked end-to-end smoke test"
 
 **Step 1: Write test (RED)**
 
-No new unit test. Run the full local verification suite before the readiness update and record any failures in implementation notes.
+No new unit test. Run the full local verification suite before the readiness update and record any failures in implementation notes. Also run the manual release-readiness checks for Codex skill path syntax and per-provider `node`/`paseo` permission profile, or record a blocking release note if any provider cannot be verified.
 
 Run: `npm test && node scripts/validate.mjs && node scripts/smoke-test.mjs`
 Expected: All commands pass before release notes are finalized.
 
 **Step 2: Implement (GREEN)**
 
-Finalize release notes, document manual smoke-test checklist status in `RELEASING.md`, and update OAT implementation notes with verification evidence.
+Finalize release notes, document manual smoke-test checklist status in `RELEASING.md`, verify local Codex installation accepts the `./skills/consensus-refine` manifest path syntax, verify each provider's declared permissions allow `node` and `paseo` invocation, and update OAT implementation notes with verification evidence.
 
 **Step 3: Refactor**
 
@@ -1125,7 +1125,7 @@ git commit -m "docs(p04-t08): record release readiness"
 | final  | code     | pending | -    | -        |
 | spec   | artifact | pending | -    | -        |
 | design | artifact | fixes_completed | 2026-05-04 | reviews/archived/artifact-design-review-2026-05-03.md |
-| plan   | artifact | received | 2026-05-04 | reviews/artifact-plan-review-2026-05-04.md |
+| plan   | artifact | fixes_completed | 2026-05-04 | reviews/archived/artifact-plan-review-2026-05-04.md |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 
@@ -1137,6 +1137,8 @@ git commit -m "docs(p04-t08): record release readiness"
 - `passed`: re-review run and recorded as passing (no Critical/Important)
 
 **Design review note:** The Important design review finding was addressed by commit `436c1b2` (`docs(spec): reconcile spec.md with design.md per artifact review (design)`). It is marked `fixes_completed`, not `passed`, because no re-review has been recorded yet.
+
+**Plan review note:** The 2026-05-04 plan artifact review findings were resolved directly in this plan. Disposition map: I1/I2/I3/M1/M2/M3/M4/m4 resolved in artifact; m1 rejected because `oat_phase_status: complete` means the plan artifact is complete and ready for the next OAT gate; m2 rejected because the plan review row now exists; m3 rejected because HiLL checkpoint choice is intentionally deferred to `oat-project-implement`.
 
 ## Implementation Complete
 
