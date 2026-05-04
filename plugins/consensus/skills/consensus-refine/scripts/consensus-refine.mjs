@@ -58,6 +58,56 @@ function normalizeProviderInventory(providerInventory) {
   });
 }
 
+function markdownLines(markdown) {
+  const normalized = String(markdown ?? '').replace(/\r\n?/g, '\n');
+  return normalized.match(/[^\n]*\n|[^\n]+$/g) ?? [];
+}
+
+function markerName(line) {
+  const match = line.trim().match(/^<!--\s*section:\s*(.*?)\s*-->$/i);
+  return match?.[1]?.trim() || null;
+}
+
+function headingName(line) {
+  const match = line.match(/^\s{0,3}#{1,6}\s+(.+?)\s*$/);
+  if (!match) return null;
+  return match[1].replace(/\s+#+\s*$/u, '').trim() || null;
+}
+
+function buildSectionsFromBoundaries(lines, boundaries) {
+  const sections = [];
+  const firstBoundary = boundaries[0];
+
+  if (firstBoundary?.lineIndex > 0) {
+    const preamble = lines.slice(0, firstBoundary.lineIndex).join('');
+    if (preamble.trim()) {
+      sections.push({
+        id: slugSectionId('Preamble', sections.length),
+        name: 'Preamble',
+        original_index: sections.length,
+        start_line: 1,
+        end_line: firstBoundary.lineIndex,
+        markdown: preamble
+      });
+    }
+  }
+
+  for (const [boundaryIndex, boundary] of boundaries.entries()) {
+    const nextBoundary = boundaries[boundaryIndex + 1];
+    const markdown = lines.slice(boundary.lineIndex, nextBoundary?.lineIndex ?? lines.length).join('');
+    sections.push({
+      id: slugSectionId(boundary.name, sections.length),
+      name: boundary.name,
+      original_index: sections.length,
+      start_line: boundary.lineIndex + 1,
+      end_line: nextBoundary?.lineIndex ?? lines.length,
+      markdown
+    });
+  }
+
+  return sections;
+}
+
 function parseVersionText(text) {
   const match = String(text).match(/(\d+)\.(\d+)\.(\d+)/);
   if (!match) {
@@ -224,6 +274,52 @@ export function detectHost(env = process.env) {
     return 'cursor';
   }
   return 'unknown';
+}
+
+export function slugSectionId(name, index) {
+  const slug = String(name ?? '')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  return `${slug || 'section'}-${index}`;
+}
+
+export function parseSections(markdown) {
+  const lines = markdownLines(markdown);
+  const markerBoundaries = [];
+  const headingBoundaries = [];
+
+  lines.forEach((line, lineIndex) => {
+    const sectionMarkerName = markerName(line);
+    if (sectionMarkerName) {
+      markerBoundaries.push({ lineIndex, name: sectionMarkerName });
+      return;
+    }
+
+    const sectionHeadingName = headingName(line);
+    if (sectionHeadingName) {
+      headingBoundaries.push({ lineIndex, name: sectionHeadingName });
+    }
+  });
+
+  const boundaries = markerBoundaries.length > 0 ? markerBoundaries : headingBoundaries;
+  if (boundaries.length > 0) {
+    return buildSectionsFromBoundaries(lines, boundaries);
+  }
+
+  return [
+    {
+      id: slugSectionId('Document', 0),
+      name: 'Document',
+      original_index: 0,
+      start_line: 1,
+      end_line: lines.length,
+      markdown: lines.join('')
+    }
+  ];
 }
 
 export function resolvePeers(options = {}, host = 'unknown', providerInventory = []) {
