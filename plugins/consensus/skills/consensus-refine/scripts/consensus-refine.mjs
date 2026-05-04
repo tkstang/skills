@@ -19,7 +19,7 @@ const MAX_ROUNDS_MAX = 100;
 const PASEO_REMEDIATION = Object.freeze({
   install_command: 'npm install -g @getpaseo/cli',
   source_url: 'https://github.com/getpaseo/paseo',
-  install_script: 'plugins/consensus/skills/consensus-refine/scripts/install-paseo.mjs'
+  install_script: 'scripts/install-paseo.mjs'
 });
 
 function inside(root, target) {

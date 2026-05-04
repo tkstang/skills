@@ -149,7 +149,7 @@ test('preflightPaseo surfaces missing paseo with install remediation', async () 
       assert.match(error.message, /paseo.*missing/i);
       assert.equal(error.remediation.install_command, 'npm install -g @getpaseo/cli');
       assert.match(error.remediation.source_url, /github\.com\/getpaseo\/paseo/);
-      assert.match(error.remediation.install_script, /install-paseo\.mjs/);
+      assert.equal(error.remediation.install_script, 'scripts/install-paseo.mjs');
       return true;
     }
   );
