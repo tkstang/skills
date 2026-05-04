@@ -727,6 +727,46 @@ function loopArgvForSection({ section, paths, options, peers }) {
   ];
 }
 
+function parallelismFor(sectionCount, requested) {
+  if (requested !== null && requested !== undefined) {
+    return Math.min(requested, sectionCount);
+  }
+  return Math.min(sectionCount, 4);
+}
+
+function manifestSectionEntry({ section, paths, packetPath, loopArgv }) {
+  return {
+    section_id: section.id,
+    name: section.name,
+    original_index: section.original_index,
+    packet_path: packetPath,
+    section_file: paths.input,
+    output_records: paths.records,
+    output_section: paths.output,
+    output_status: paths.status,
+    subagent_id: `section-runner-${String(section.original_index + 1).padStart(2, '0')}-${section.id}`,
+    loop_argv: loopArgv
+  };
+}
+
+function dispatchInstructions(manifest) {
+  return {
+    phase: 'parallel_dispatch_required',
+    manifest: manifest.manifest_path,
+    parallelism: manifest.parallelism,
+    sections: manifest.sections.map((section) => ({
+      section_id: section.section_id,
+      name: section.name,
+      original_index: section.original_index,
+      packet_path: section.packet_path,
+      subagent_id: section.subagent_id,
+      output_records: section.output_records,
+      output_section: section.output_section,
+      output_status: section.output_status
+    }))
+  };
+}
+
 export function renderDeliberationArtifact(runResult) {
   const sections = [...runResult.sections].sort((left, right) => left.original_index - right.original_index);
   const status = aggregateStatus(sections);
@@ -911,6 +951,108 @@ export async function runSequential(options, runOptions = {}) {
   return { ...runResult, artifact };
 }
 
+export async function prepareParallelRun(options, runOptions = {}) {
+  const normalized = normalizeSequentialOptions(options);
+  const cwd = path.resolve(normalized.cwd ?? runOptions.cwd ?? process.cwd());
+  const env = normalized.env ?? runOptions.env ?? process.env;
+  const inputPath = path.isAbsolute(normalized.inputPath) ? normalized.inputPath : path.resolve(cwd, normalized.inputPath);
+  const startedAt = nowIso();
+  const markdown = await readInputFile(inputPath);
+  const parsedSections = parseSections(markdown);
+  const runDir = await resolveRunDir({ ...normalized, cwd });
+  const outputPath = await resolveOutputPath({ ...normalized, cwd }, inputPath);
+  const runWriteRoot = path.resolve(normalized.allowRoot ?? cwd);
+  const preflight =
+    normalized.preflight === false
+      ? { peers: normalized.peers ?? ['claude', 'codex'], warnings: [] }
+      : await (normalized.preflight ?? preflightPaseo)({ ...normalized, env, cwd });
+  const peers = normalized.peers ?? preflight.peers;
+  const parallelism = parallelismFor(parsedSections.length, normalized.parallelism);
+  const sections = [];
+
+  for (const section of parsedSections) {
+    const sectionDir = sectionRunDirectory(runDir, section);
+    const paths = {
+      input: path.join(sectionDir, 'section.md'),
+      records: path.join(sectionDir, 'records.json'),
+      output: path.join(sectionDir, 'output.md'),
+      status: path.join(sectionDir, 'status.json')
+    };
+    const packetPath = path.join(sectionDir, 'packet.json');
+    const loopArgv = loopArgvForSection({ section, paths, options: normalized, peers });
+
+    await Promise.all([
+      confineWrite(paths.input, runWriteRoot),
+      confineWrite(paths.records, runWriteRoot),
+      confineWrite(paths.output, runWriteRoot),
+      confineWrite(paths.status, runWriteRoot),
+      confineWrite(packetPath, runWriteRoot)
+    ]);
+
+    const packet = {
+      consensus_schema_version: 'v0',
+      packet_type: 'consensus-section-runner',
+      manifest_path: path.join(runDir, 'manifest.json'),
+      section_id: section.id,
+      name: section.name,
+      original_index: section.original_index,
+      section_file: paths.input,
+      goal: normalized.goal ?? '',
+      peers,
+      max_rounds: normalized.maxRounds,
+      agency: normalized.agency,
+      output_records: paths.records,
+      output_section: paths.output,
+      output_status: paths.status,
+      loop_argv: loopArgv
+    };
+
+    await atomicWriteFile(paths.input, section.markdown, { rootPath: runWriteRoot });
+    await atomicWriteFile(packetPath, `${JSON.stringify(packet, null, 2)}\n`, { rootPath: runWriteRoot });
+    sections.push(manifestSectionEntry({ section, paths, packetPath, loopArgv }));
+  }
+
+  const manifestPath = path.join(runDir, 'manifest.json');
+  await confineWrite(manifestPath, runWriteRoot);
+  const manifest = {
+    consensus_schema_version: 'v0',
+    manifest_type: 'consensus-parallel-run',
+    mode: 'parallel',
+    status: 'prepared',
+    created_at: startedAt,
+    input_path: inputPath,
+    output_path: outputPath,
+    run_dir: runDir,
+    goal: normalized.goal ?? '',
+    peers,
+    max_rounds: normalized.maxRounds,
+    agency: normalized.agency,
+    parallelism,
+    sections,
+    manifest_path: manifestPath
+  };
+
+  await atomicWriteFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, { rootPath: runWriteRoot });
+  const dispatchEvent = dispatchInstructions(manifest);
+
+  return {
+    mode: 'prepare_parallel',
+    parallel: true,
+    status: 'prepared',
+    inputPath,
+    outputPath,
+    runDir,
+    manifestPath,
+    goal: normalized.goal ?? '',
+    peers,
+    agency: normalized.agency,
+    maxRounds: normalized.maxRounds,
+    parallelism,
+    sections,
+    dispatchEvent
+  };
+}
+
 export function resolvePeers(options = {}, host = 'unknown', providerInventory = []) {
   const defaultPeers = host === 'codex' ? ['codex', 'claude'] : ['claude', 'codex'];
   const peers = options.peers ?? defaultPeers;
@@ -1007,14 +1149,26 @@ export async function runWrapperCli(argv, options = {}) {
       manifest_path: parsed.manifestPath
     });
 
+    if (parsed.mode === 'prepare_parallel') {
+      const result = await prepareParallelRun({ ...parsed, env, cwd, preflight: options.preflight });
+      writeJsonl(stdout, 'parallel_dispatch_required', result.dispatchEvent);
+      writeJsonl(stdout, 'run_completed', {
+        status: result.status,
+        manifest_path: result.manifestPath,
+        run_dir: result.runDir,
+        sections: result.sections.length
+      });
+      return 0;
+    }
+
     if (parsed.mode !== 'sequential') {
-      throw new ConsensusError(`${parsed.mode} is not implemented in Phase 2`, {
+      throw new ConsensusError(`${parsed.mode} is not implemented in Phase 3 prepare`, {
         code: 'MODE_NOT_IMPLEMENTED',
         exitCode: EXIT_CODES.CONFIG
       });
     }
 
-    const result = await runSequential({ ...parsed, env, cwd });
+    const result = await runSequential({ ...parsed, env, cwd, preflight: options.preflight });
     writeJsonl(stdout, 'run_completed', {
       status: result.status,
       output_path: result.outputPath,
