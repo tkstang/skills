@@ -1391,7 +1391,7 @@ git commit -m "fix(p06-t02): use agency-aware resume hashes"
 | p04    | code     | passed | 2026-05-04 | reviews/archived/p04-review-2026-05-04-v2.md |
 | p05    | code     | passed | 2026-05-04 | reviews/archived/p05-review-2026-05-04.md |
 | p06    | code     | passed | 2026-05-04 | reviews/archived/p06-review-2026-05-04.md |
-| final  | code     | passed | 2026-05-04 | reviews/archived/final-review-2026-05-04-v3.md |
+| final  | code     | received | 2026-05-04 | reviews/final-review-2026-05-04-v4.md |
 | spec   | artifact | passed | 2026-05-04 | reviews/archived/artifact-spec-review-2026-05-04.md |
 | design | artifact | passed | 2026-05-04 | reviews/archived/artifact-design-review-2026-05-04.md |
 | plan   | artifact | passed | 2026-05-04 | reviews/archived/artifact-plan-review-2026-05-04-v2.md |
