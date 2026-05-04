@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { mkdir, open, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 export const VERDICT_CAPS = Object.freeze({
   reasoning_bytes: 64 * 1024,
@@ -108,6 +109,47 @@ function normalizeCost(status) {
   }
 
   return { cost_source: normalized, cost_usd: costUsd };
+}
+
+function roundCount(turns, peerCount) {
+  if (turns === 0) return 0;
+  return Math.ceil(turns / peerCount);
+}
+
+function required(value, name) {
+  if (!value) {
+    throw new Error(`missing required option: ${name}`);
+  }
+  return value;
+}
+
+function parsePositiveInteger(value, name) {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isInteger(parsed) || parsed < 1 || String(parsed) !== String(value)) {
+    throw new Error(`${name} must be a positive integer`);
+  }
+  return parsed;
+}
+
+function parsePeers(value) {
+  const peers = String(required(value, '--peers'))
+    .split(',')
+    .map((peer) => peer.trim())
+    .filter(Boolean);
+
+  if (peers.length !== 2) {
+    throw new Error('--peers must contain exactly two peers');
+  }
+
+  return peers;
+}
+
+function schemaPath() {
+  return fileURLToPath(new URL('../schemas/verdict-alternating.schema.json', import.meta.url));
+}
+
+function hardErrorMessage(error) {
+  return error?.message ?? String(error);
 }
 
 function outputCapError(streamName, capBytes) {
@@ -279,6 +321,18 @@ export async function createRecordsWriter(recordsPath, options = {}) {
 
 export async function writeLoopStatus(statusPath, status, options = {}) {
   await mkdir(path.dirname(statusPath), { recursive: true });
+  const reserved = new Set([
+    'schema_version',
+    'written_at',
+    'status',
+    'termination_reason',
+    'turns',
+    'rounds',
+    'peers',
+    'cost',
+    'cost_source',
+    'cost_usd'
+  ]);
   const normalizedStatus = {
     schema_version: LOOP_SCHEMA_VERSION,
     written_at: timestamp(options),
@@ -290,6 +344,12 @@ export async function writeLoopStatus(statusPath, status, options = {}) {
 
   if (status.peers) {
     normalizedStatus.peers = status.peers;
+  }
+
+  for (const [key, value] of Object.entries(status)) {
+    if (!reserved.has(key)) {
+      normalizedStatus[key] = value;
+    }
   }
 
   Object.assign(normalizedStatus, normalizeCost(status));
@@ -373,6 +433,232 @@ export function invokePaseo({ provider, schemaPath, prompt, env = process.env, c
   });
 }
 
+export function parseLoopArgs(argv) {
+  const parsed = {
+    goal: '',
+    maxRounds: 12,
+    iteration: 'alternating',
+    coldStart: 'shared_input',
+    agency: 'moderate'
+  };
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const token = argv[index];
+    const next = () => {
+      index += 1;
+      if (index >= argv.length) {
+        throw new Error(`${token} requires a value`);
+      }
+      return argv[index];
+    };
+
+    switch (token) {
+      case '--section-file':
+        parsed.sectionFile = next();
+        break;
+      case '--goal':
+        parsed.goal = next();
+        break;
+      case '--peers':
+        parsed.peers = parsePeers(next());
+        break;
+      case '--max-rounds':
+        parsed.maxRounds = parsePositiveInteger(next(), '--max-rounds');
+        break;
+      case '--iteration':
+        parsed.iteration = next();
+        break;
+      case '--cold-start':
+        parsed.coldStart = next();
+        break;
+      case '--agency':
+        parsed.agency = next();
+        break;
+      case '--output-records':
+        parsed.outputRecords = next();
+        break;
+      case '--output-section':
+        parsed.outputSection = next();
+        break;
+      case '--output-status':
+        parsed.outputStatus = next();
+        break;
+      default:
+        throw new Error(`unknown option: ${token}`);
+    }
+  }
+
+  if (parsed.iteration !== 'alternating') {
+    throw new Error('--iteration must be alternating');
+  }
+  if (parsed.coldStart !== 'shared_input') {
+    throw new Error('--cold-start must be shared_input');
+  }
+  if (!['minimal', 'moderate', 'maximum'].includes(parsed.agency)) {
+    throw new Error('--agency must be minimal, moderate, or maximum');
+  }
+
+  required(parsed.sectionFile, '--section-file');
+  required(parsed.peers, '--peers');
+  required(parsed.outputRecords, '--output-records');
+  required(parsed.outputSection, '--output-section');
+  required(parsed.outputStatus, '--output-status');
+
+  return parsed;
+}
+
+export function buildTurnPrompt({ provider, peerIndex, round, turn, goal, artifact }) {
+  const artifactBlock = artifact.replace(/\n*$/u, '\n');
+
+  return [
+    `You are ${provider}, consensus peer ${peerIndex + 1}.`,
+    `Round: ${round}. Turn: ${turn}.`,
+    '',
+    'Goal:',
+    goal || '(no explicit goal provided)',
+    '',
+    'Current artifact:',
+    `\`\`\`markdown\n${artifactBlock}\`\`\``,
+    '',
+    'Return only JSON matching the alternating consensus verdict schema.',
+    'Use decision ACCEPT when the artifact already satisfies the goal.',
+    'Use decision REVISE with proposed_artifact when you can improve it.',
+    'Use decision IMPASSE with concerns when the disagreement needs user direction.'
+  ].join('\n');
+}
+
+async function writeSectionOutput(outputPath, artifact) {
+  await mkdir(path.dirname(outputPath), { recursive: true });
+  await writeFile(outputPath, artifact);
+  await syncFileIfAvailable(outputPath);
+}
+
+async function writeTerminalArtifacts(options, status, artifact, records) {
+  await writeSectionOutput(options.outputSection, artifact);
+  const normalizedStatus = await writeLoopStatus(options.outputStatus, status);
+  return {
+    status: normalizedStatus,
+    output: artifact,
+    records
+  };
+}
+
+function resultStatus(status, terminationReason, records, options, extra = {}) {
+  const turns = records.length;
+  return {
+    status,
+    termination_reason: terminationReason,
+    turns,
+    rounds: roundCount(turns, options.peers.length),
+    peers: options.peers,
+    agency: options.agency,
+    iteration: options.iteration,
+    cold_start: options.coldStart,
+    ...extra
+  };
+}
+
+export async function runConsensusLoop(argv, runOptions = {}) {
+  const options = Array.isArray(argv) ? parseLoopArgs(argv) : argv;
+  const records = [];
+  const writer = await createRecordsWriter(options.outputRecords, runOptions);
+  let currentArtifact = await readFile(options.sectionFile, 'utf8');
+  const maxTurns = options.maxRounds * options.peers.length;
+  const invokePeer =
+    runOptions.invokePeer ??
+    ((turn) =>
+      invokePaseo({
+        provider: turn.provider,
+        schemaPath: schemaPath(),
+        prompt: turn.prompt,
+        env: runOptions.env ?? process.env,
+        cwd: runOptions.cwd ?? process.cwd()
+      }));
+
+  try {
+    for (let turnIndex = 0; turnIndex < maxTurns; turnIndex += 1) {
+      const peerIndex = turnIndex % options.peers.length;
+      const provider = options.peers[peerIndex];
+      const turn = turnIndex + 1;
+      const round = Math.floor(turnIndex / options.peers.length) + 1;
+      const prompt = buildTurnPrompt({
+        provider,
+        peerIndex,
+        round,
+        turn,
+        goal: options.goal,
+        artifact: currentArtifact
+      });
+      const peerResult = await invokePeer({ provider, peerIndex, round, turn, prompt, artifact: currentArtifact });
+      const verdict = peerResult.json;
+      const shape = validateVerdictShape(verdict);
+      if (!shape.ok) {
+        throw new Error(`invalid verdict shape: ${shape.errors.join('; ')}`);
+      }
+
+      const caps = validateVerdictCaps(verdict);
+      if (!caps.ok) {
+        throw new Error(`invalid verdict caps: ${JSON.stringify(caps.metadata)}`);
+      }
+
+      if (verdict.decision === 'REVISE') {
+        currentArtifact = verdict.proposed_artifact;
+      }
+
+      const record = await writer.append({
+        turn,
+        round,
+        agent: provider,
+        provider,
+        verdict,
+        artifact: currentArtifact,
+        artifact_hash: hashArtifact(currentArtifact),
+        raw_paseo_response: peerResult.json
+      });
+      records.push(record);
+
+      if (verdict.decision === 'IMPASSE') {
+        const status = resultStatus('impasse', 'explicit_impasse', records, options, {
+          artifact_hash: hashArtifact(currentArtifact)
+        });
+        return await writeTerminalArtifacts(options, status, currentArtifact, records);
+      }
+
+      const convergence = detectConvergence(records);
+      if (convergence.converged) {
+        const status = resultStatus('converged', convergence.reason, records, options, {
+          artifact_hash: convergence.artifact_hash
+        });
+        return await writeTerminalArtifacts(options, status, currentArtifact, records);
+      }
+
+      const oscillation = detectOscillation(records);
+      if (oscillation.oscillating) {
+        const status = resultStatus('impasse', 'oscillation', records, options, {
+          artifact_hash: hashArtifact(currentArtifact),
+          oscillation_hashes: oscillation.hashes
+        });
+        return await writeTerminalArtifacts(options, status, currentArtifact, records);
+      }
+    }
+
+    const statusName = options.agency === 'maximum' ? 'converged' : 'max_rounds';
+    const terminationReason = options.agency === 'maximum' ? 'agency_maximum_accept_last' : 'max_rounds';
+    const status = resultStatus(statusName, terminationReason, records, options, {
+      artifact_hash: hashArtifact(currentArtifact)
+    });
+    return await writeTerminalArtifacts(options, status, currentArtifact, records);
+  } catch (error) {
+    const status = resultStatus('error', 'hard_error', records, options, {
+      error: hardErrorMessage(error)
+    });
+    await writeLoopStatus(options.outputStatus, status);
+    throw error;
+  } finally {
+    await writer.close();
+  }
+}
+
 export function detectConvergence(records, options = {}) {
   if (!Array.isArray(records) || records.length < 2) {
     return { converged: false, reason: null };
@@ -421,4 +707,11 @@ export function detectOscillation(records) {
   }
 
   return { oscillating: false, reason: null };
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  runConsensusLoop(process.argv.slice(2)).catch((error) => {
+    process.stderr.write(`${hardErrorMessage(error)}\n`);
+    process.exitCode = 1;
+  });
 }
