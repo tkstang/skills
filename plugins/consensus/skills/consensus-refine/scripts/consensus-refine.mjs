@@ -12,6 +12,7 @@ const execFileAsync = promisify(execFile);
 export const MIN_PASEO_VERSION = '0.1.0';
 export const MAX_TESTED_PASEO_VERSION = '0.9.0';
 export const INPUT_SIZE_CAP_BYTES = 1024 * 1024;
+export const PROVIDER_ID_PATTERN = /^[a-z][a-z0-9-]{0,31}$/u;
 
 const MAX_ROUNDS_MIN = 1;
 const MAX_ROUNDS_MAX = 100;
@@ -186,7 +187,18 @@ function parsePeers(value) {
     throw new Error('--peers must contain exactly two peers');
   }
 
+  for (const peer of peers) {
+    validateProviderId(peer, '--peers');
+  }
+
   return peers;
+}
+
+function validateProviderId(providerId, label = 'provider id') {
+  if (typeof providerId !== 'string' || !PROVIDER_ID_PATTERN.test(providerId)) {
+    throw new Error(`${label} "${providerId}" must match ^[a-z][a-z0-9-]{0,31}$`);
+  }
+  return providerId;
 }
 
 function normalizeProviderInventory(providerInventory) {
@@ -196,10 +208,10 @@ function normalizeProviderInventory(providerInventory) {
 
   return entries.map((entry) => {
     if (typeof entry === 'string') {
-      return { id: entry, available: true };
+      return { id: validateProviderId(entry, 'provider inventory id'), available: true };
     }
 
-    const id = entry.id ?? entry.name ?? entry.provider;
+    const id = validateProviderId(entry.id ?? entry.name ?? entry.provider, 'provider inventory id');
     const available = entry.available === false || entry.enabled === false ? false : true;
     return { ...entry, id, available };
   });

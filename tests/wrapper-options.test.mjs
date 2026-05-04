@@ -63,6 +63,10 @@ test('parseWrapperArgs handles prepare-parallel and fan-in modes', () => {
 
 test('parseWrapperArgs validates peers, max-rounds bounds, agency, and positional shape', () => {
   assert.throws(() => parseWrapperArgs(['draft.md', '--peers', 'claude']), /exactly two peers/);
+  assert.throws(() => parseWrapperArgs(['draft.md', '--peers', 'claude,Codex']), /must match/);
+  assert.throws(() => parseWrapperArgs(['draft.md', '--peers', '1claude,codex']), /must match/);
+  assert.throws(() => parseWrapperArgs(['draft.md', '--peers', 'claude,co.dex']), /must match/);
+  assert.throws(() => parseWrapperArgs(['draft.md', '--peers', `claude,${'a'.repeat(33)}`]), /must match/);
   assert.throws(() => parseWrapperArgs(['draft.md', '--max-rounds', '0']), /between 1 and 100/);
   assert.throws(() => parseWrapperArgs(['draft.md', '--max-rounds', '101']), /between 1 and 100/);
   assert.throws(() => parseWrapperArgs(['draft.md', '--agency', 'reckless']), /agency/);
@@ -93,6 +97,10 @@ test('resolvePeers uses host-aware defaults and paseo inventory as source of tru
   assert.throws(
     () => resolvePeers({ peers: ['claude', 'codex'] }, 'claude', [{ id: 'claude', available: true }, { id: 'codex', available: false }]),
     /unavailable.*codex/i
+  );
+  assert.throws(
+    () => resolvePeers({ peers: ['claude', 'codex'] }, 'claude', [{ id: 'claude', available: true }, { id: 'Codex', available: true }]),
+    /provider inventory id.*must match/
   );
 });
 
