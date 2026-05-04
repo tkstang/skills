@@ -852,6 +852,7 @@ function renderRecord(record) {
 
 function yamlScalar(value) {
   if (value === null || value === undefined) return 'null';
+  if (Array.isArray(value)) return JSON.stringify(value);
   if (typeof value === 'boolean') return value ? 'true' : 'false';
   if (typeof value === 'number') return Number.isFinite(value) ? String(value) : 'null';
   const text = String(value);
@@ -864,11 +865,21 @@ function renderArtifactFrontmatter(resolution) {
     status: resolution.status,
     mode: resolution.mode,
     parallel: resolution.parallel,
+    iteration: resolution.iteration,
+    cold_start: resolution.cold_start,
     agency: resolution.agency,
+    peers: resolution.peers,
     sections_total: resolution.sections.total,
     sections_converged: resolution.sections.converged,
     sections_impasse: resolution.sections.impasse,
     sections_error: resolution.sections.error,
+    total_turns: resolution.total_turns,
+    total_rounds: resolution.total_rounds,
+    wall_clock_ms: resolution.wall_clock_ms,
+    cost_source: resolution.cost_source,
+    approximate_cost_usd: resolution.approximate_cost_usd,
+    input_path: resolution.input_path,
+    run_id: resolution.run_id,
     generated_at: resolution.ended_at
   };
 
@@ -1504,6 +1515,8 @@ export function renderDeliberationArtifact(runResult) {
     wall_clock_ms: runResult.wallClockMs ?? null,
     cost_source: 'unavailable',
     approximate_cost_usd: null,
+    input_path: runResult.inputPath ?? null,
+    run_id: runResult.runId ?? (runResult.runDir ? path.basename(runResult.runDir) : null),
     started_at: runResult.startedAt ?? null,
     ended_at: runResult.endedAt ?? null,
     subagent_ids: sections.map((section) => section.subagent_id).filter(Boolean)

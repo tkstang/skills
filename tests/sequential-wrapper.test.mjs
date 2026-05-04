@@ -132,6 +132,16 @@ test('runSequential refines sections, creates run files, and writes an artifact'
 
   const artifact = await readFile(outputPath, 'utf8');
   assert.match(artifact, /^---\nconsensus_schema_version: v0\n/m);
+  assert.match(artifact, /^iteration: alternating$/m);
+  assert.match(artifact, /^cold_start: shared_input$/m);
+  assert.match(artifact, /^peers: \["claude","codex"\]$/m);
+  assert.match(artifact, /^total_turns: [1-9]\d*$/m);
+  assert.match(artifact, /^total_rounds: [1-9]\d*$/m);
+  assert.match(artifact, /^wall_clock_ms: \d+$/m);
+  assert.match(artifact, /^cost_source: unavailable$/m);
+  assert.match(artifact, /^approximate_cost_usd: null$/m);
+  assert.match(artifact, new RegExp(`^input_path: ${JSON.stringify(sampleInput).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'm'));
+  assert.match(artifact, /^run_id: run$/m);
   assert.match(artifact, /\n---\n\n# Consensus Refine Artifact/m);
   assert.match(artifact, /## Final Output/);
   assert.match(artifact, /# Intro/);
