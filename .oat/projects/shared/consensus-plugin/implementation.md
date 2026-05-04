@@ -1,9 +1,9 @@
 ---
-oat_status: complete
-oat_ready_for: oat-project-review-provide
+oat_status: in_progress
+oat_ready_for: oat-project-implement
 oat_blockers: []
 oat_last_updated: 2026-05-04
-oat_current_task_id: null
+oat_current_task_id: p05-t01
 oat_generated: false
 ---
 
@@ -30,8 +30,9 @@ oat_generated: false
 | Phase 2 | completed   | 13    | 13/13     |
 | Phase 3 | completed   | 5     | 5/5       |
 | Phase 4 | completed   | 8     | 8/8       |
+| Phase 5 | pending     | 4     | 0/4       |
 
-**Total:** 33/33 tasks completed
+**Total:** 33/37 tasks completed
 
 ---
 
@@ -380,6 +381,30 @@ oat_generated: false
 
 ---
 
+## Phase 5: Final Review Fixes
+
+**Status:** pending
+**Started:** -
+**Completed:** -
+
+### Task p05-t01: (review) Preserve Completed Resume Section Output
+
+**Status:** pending
+
+### Task p05-t02: (review) Make Release Validation Version-Aware
+
+**Status:** pending
+
+### Task p05-t03: (review) Align Artifact Frontmatter Metadata
+
+**Status:** pending
+
+### Task p05-t04: (review) Refresh Release Readiness Evidence
+
+**Status:** pending
+
+---
+
 ## Orchestration Runs
 
 _Each run from `oat-project-implement` appends an entry below with:_
@@ -504,6 +529,16 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 ## Implementation Log
 
 Chronological log of implementation progress.
+
+### 2026-05-04
+
+**Review Received:** final
+
+- Review artifact: `reviews/archived/final-review-2026-05-04.md`
+- Findings: 1 Critical, 1 Important, 0 Medium, 2 Minor.
+- New tasks added: `p05-t01`, `p05-t02`, `p05-t03`, `p05-t04`.
+- Finding disposition map: C1 converted, I1 converted, m1 converted, m2 converted. Auto-review mode converted the minor findings because both are in scope and low-risk to fix.
+- Next: execute final review fix tasks via `oat-project-implement`.
 
 ### 2026-05-04
 

@@ -7,7 +7,7 @@ oat_last_updated: 2026-05-04
 oat_phase: plan
 oat_phase_status: complete
 oat_plan_parallel_groups: []
-oat_plan_hill_phases: ["p04"]
+oat_plan_hill_phases: ["p05"]
 oat_auto_review_at_hill_checkpoints: true
 oat_import_reference: null
 oat_import_source_path: null
@@ -1196,6 +1196,125 @@ git add CHANGELOG.md RELEASING.md .oat/projects/shared/consensus-plugin/implemen
 git commit -m "docs(p04-t08): record release readiness"
 ```
 
+## Phase 5: Final Review Fixes
+
+Goal: close the final lifecycle review findings before the final code review can pass.
+
+### Task p05-t01: (review) Preserve Completed Resume Section Output
+
+**Files:**
+
+- Modify: `plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs`
+- Create/Modify: `tests/resume-parse.test.mjs`
+- Create/Modify: `tests/sequential-wrapper.test.mjs`
+
+**Step 1: Understand the issue**
+
+Review finding: resume reconstruction can replace an already-completed section with text from the current input file when the completed section converged via ACCEPT-only turns and has no `proposed_artifact` record.
+Location: `plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs:1589`
+
+**Step 2: Implement fix**
+
+Persist every section's final output in canonical resume state, parse it as the authoritative resume source, and validate it against `final_artifact_hash`. Do not fall back to current input for resume sections except through explicit corrupt-section skip/restart behavior.
+
+**Step 3: Verify**
+
+Run: `node --test tests/resume-parse.test.mjs tests/sequential-wrapper.test.mjs`
+Expected: tests pass, including a regression where an ACCEPT-only completed section is preserved after the source input changes.
+
+**Step 4: Commit**
+
+```bash
+git add plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs tests/resume-parse.test.mjs tests/sequential-wrapper.test.mjs
+git commit -m "fix(p05-t01): preserve completed resume section output"
+```
+
+### Task p05-t02: (review) Make Release Validation Version-Aware
+
+**Files:**
+
+- Modify: `scripts/validate.mjs`
+- Modify: `scripts/bump-version.mjs`
+- Create/Modify: `tests/release-versioning.test.mjs`
+- Create/Modify: `tests/validate-script.test.mjs`
+
+**Step 1: Understand the issue**
+
+Review finding: `scripts/bump-version.mjs` can update manifests to `0.1.1` or future versions, but `scripts/validate.mjs` still hardcodes `0.1.0`, so the release workflow rejects legitimate bumped versions before tag-version consistency is checked.
+Location: `scripts/validate.mjs:253`
+
+**Step 2: Implement fix**
+
+Validate provider manifest versions as semver and mutually consistent rather than hardcoding `0.1.0`. Let `bump-version --check-tag` enforce the tag-specific expected version. Either include skill metadata version in the bump tool or make validator semantics explicitly independent without blocking bumped plugin versions.
+
+**Step 3: Verify**
+
+Run: `node --test tests/release-versioning.test.mjs tests/validate-script.test.mjs && node scripts/validate.mjs`
+Expected: tests and validator pass, including a temp-repo regression that bumps to `0.1.1`, validates successfully, and passes `--check-tag v0.1.1`.
+
+**Step 4: Commit**
+
+```bash
+git add scripts/validate.mjs scripts/bump-version.mjs tests/release-versioning.test.mjs tests/validate-script.test.mjs
+git commit -m "fix(p05-t02): validate bumped release versions"
+```
+
+### Task p05-t03: (review) Align Artifact Frontmatter Metadata
+
+**Files:**
+
+- Modify: `plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs`
+- Create/Modify: `tests/sequential-wrapper.test.mjs`
+
+**Step 1: Understand the issue**
+
+Review finding: artifact frontmatter omits several design-listed metadata fields, leaving a repeated Minor gap from earlier reviews.
+Location: `plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs:847`
+
+**Step 2: Implement fix**
+
+Expand rendered frontmatter to include the design-listed machine metadata that is already available in the resolution state, including iteration, cold-start mode, peers, turn/round totals, wall-clock/cost fields, input path, and run id.
+
+**Step 3: Verify**
+
+Run: `node --test tests/sequential-wrapper.test.mjs`
+Expected: tests pass and assert the expanded metadata is present in artifact frontmatter.
+
+**Step 4: Commit**
+
+```bash
+git add plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs tests/sequential-wrapper.test.mjs
+git commit -m "fix(p05-t03): align artifact frontmatter metadata"
+```
+
+### Task p05-t04: (review) Refresh Release Readiness Evidence
+
+**Files:**
+
+- Modify: `RELEASING.md`
+- Modify: `.oat/projects/shared/consensus-plugin/implementation.md`
+
+**Step 1: Understand the issue**
+
+Review finding: `RELEASING.md` records a stale local test count after the review-fix regression increased the suite.
+Location: `RELEASING.md:25`
+
+**Step 2: Implement fix**
+
+Run final local verification after p05 fixes and update release-readiness evidence to match the actual test count and commands. Preserve the documented provider-runtime blockers until manual checks are complete.
+
+**Step 3: Verify**
+
+Run: `npm test && node scripts/validate.mjs && node scripts/smoke-test.mjs`
+Expected: full local verification passes and documented evidence matches the final run.
+
+**Step 4: Commit**
+
+```bash
+git add RELEASING.md .oat/projects/shared/consensus-plugin/implementation.md
+git commit -m "docs(p05-t04): refresh release readiness evidence"
+```
+
 ## Reviews
 
 {Track reviews here after running the oat-project-review-provide and oat-project-review-receive skills.}
@@ -1208,7 +1327,8 @@ git commit -m "docs(p04-t08): record release readiness"
 | p02    | code     | passed | 2026-05-04 | reviews/p02-fix-tasks-review-2026-05-04.md |
 | p03    | code     | passed | 2026-05-04 | reviews/p03-review-2026-05-04-v3.md |
 | p04    | code     | passed | 2026-05-04 | reviews/p04-review-2026-05-04-v2.md |
-| final  | code     | pending | -    | -        |
+| p05    | code     | pending | -    | -        |
+| final  | code     | fixes_added | 2026-05-04 | reviews/archived/final-review-2026-05-04.md |
 | spec   | artifact | pending | -    | -        |
 | design | artifact | fixes_completed | 2026-05-04 | reviews/archived/artifact-design-review-2026-05-03.md |
 | plan   | artifact | received | 2026-05-04 | reviews/artifact-plan-review-2026-05-04-v2.md |
@@ -1234,10 +1354,11 @@ git commit -m "docs(p04-t08): record release readiness"
 - Phase 2: 13 tasks - sequential wrapper and loop core
 - Phase 3: 5 tasks - host-mediated parallel orchestration
 - Phase 4: 8 tasks - resume, release polish, and distribution validation
+- Phase 5: 4 tasks - final review fixes
 
-**Total: 33 tasks**
+**Total: 37 tasks**
 
-Implementation tasks complete; final code review pending.
+Final review fix tasks queued; implementation resumes at `p05-t01`.
 
 ## References
 
