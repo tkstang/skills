@@ -281,22 +281,22 @@ _Design-related open questions are tracked in the [Open Questions](#open-questio
 
 | ID | Description | Priority | Verification | Planned Tasks |
 |---|---|---|---|---|
-| FR1 | Repo scaffolded with skills/ + plugins/consensus/ + Agent Skills frontmatter | P0 | manual + unit: directory structure, manifest JSON parse, frontmatter validation | TBD - see plan.md |
-| FR2 | consensus-refine alternating-mode deliberation | P0 | integration: skill invocation produces valid alternating turns | TBD - see plan.md |
-| FR3 | Hash-based convergence detection | P0 | unit: hash equality, oscillation detection, round budget; integration: end-to-end termination | TBD - see plan.md |
-| FR4 | Section parsing + per-section deliberation (sequential default, opt-in parallel via host-mediated dispatch) | P0 | unit: heading parser, marker override; integration: sequential multi-section run; integration: --prepare-parallel/--fan-in flow with simulated host dispatch | TBD - see plan.md |
-| FR5 | Deliberation artifact format | P0 | manual: artifact passes readability spot-check; unit: round-record schema | TBD - see plan.md |
-| FR6 | Impasse handling + user surfacing | P0 | manual: forced impasse run; integration: user-intervention round entry | TBD - see plan.md |
-| FR7 | Cross-provider install paths | P0 | manual: fresh install smoke test on all 3 providers | TBD - see plan.md |
-| FR8 | CI validation pipeline | P1 | integration: CI green on representative PR | TBD - see plan.md |
-| FR9 | Configurable deliberation peers | P0 | unit: peer flag parsing + paseo-availability preflight; integration: non-default peer pair runs end-to-end | TBD - see plan.md |
-| FR10 | Optional Paseo install assistance | P1 | manual: install script smoke test on a clean machine; unit: prompt+confirm flow | TBD - see plan.md |
-| NFR1 | Audit trail is publishable | P0 | manual: dogfooding readability sample | TBD - see plan.md |
-| NFR2 | Wall-clock < 5 min, cost < $1 on one-pager | P1 | perf: dogfooding measurement | TBD - see plan.md |
-| NFR3 | Cross-provider portability via additive frontmatter | P0 | manual + unit: canonical SKILL.md files use additive frontmatter pattern (provider-tolerant); release smoke tests verify per-provider tolerance | TBD - see plan.md |
-| NFR4 | OAT/plugin separation | P0 | manual: published plugin installs without OAT | TBD - see plan.md |
-| NFR5 | Honest README about scope | P1 | manual: README review against v0.1 actual scope | TBD - see plan.md |
-| NFR6 | OAT subagent best practices for cross-provider runtime | P0 | manual: cross-provider install + permission docs verification; integration: paseo-availability preflight | TBD - see plan.md |
+| FR1 | Repo scaffolded with skills/ + plugins/consensus/ + Agent Skills frontmatter | P0 | manual + unit: directory structure, manifest JSON parse, frontmatter validation | p01-t02, p01-t03, p01-t04, p01-t05, p01-t07 |
+| FR2 | consensus-refine alternating-mode deliberation | P0 | integration: skill invocation produces valid alternating turns | p02-t04, p02-t05, p02-t09 |
+| FR3 | Hash-based convergence detection | P0 | unit: hash equality, oscillation detection, round budget; integration: end-to-end termination | p02-t01, p02-t02, p02-t03, p02-t05 |
+| FR4 | Section parsing + per-section deliberation (sequential default, opt-in parallel via host-mediated dispatch) | P0 | unit: heading parser, marker override; integration: sequential multi-section run; integration: --prepare-parallel/--fan-in flow with simulated host dispatch | p02-t07, p02-t09, p03-t01, p03-t02, p03-t05 |
+| FR5 | Deliberation artifact format | P0 | manual: artifact passes readability spot-check; unit: round-record schema | p02-t03, p02-t09, p04-t01 |
+| FR6 | Impasse handling + user surfacing | P0 | manual: forced impasse run; integration: user-intervention round entry | p02-t05, p02-t10, p03-t04, p04-t03 |
+| FR7 | Cross-provider install paths | P0 | manual: fresh install smoke test on all 3 providers | p01-t03, p01-t04, p01-t05, p04-t05, p04-t07, p04-t08 |
+| FR8 | CI validation pipeline | P1 | integration: CI green on representative PR | p01-t01, p01-t07, p04-t07 |
+| FR9 | Configurable deliberation peers | P0 | unit: peer flag parsing + paseo-availability preflight; integration: non-default peer pair runs end-to-end | p02-t04, p02-t06, p02-t10 |
+| FR10 | Optional Paseo install assistance | P1 | manual: install script smoke test on a clean machine; unit: prompt+confirm flow | p04-t04, p04-t05 |
+| NFR1 | Audit trail is publishable | P0 | manual: dogfooding readability sample | p02-t09, p04-t05, p04-t07 |
+| NFR2 | Wall-clock < 5 min, cost < $1 on one-pager | P1 | perf: dogfooding measurement | p02-t05, p02-t09, p03-t05, p04-t07, p04-t08 |
+| NFR3 | Cross-provider portability via additive frontmatter | P0 | manual + unit: canonical SKILL.md files use additive frontmatter pattern (provider-tolerant); release smoke tests verify per-provider tolerance | p01-t03, p01-t04, p01-t05, p01-t07, p04-t05 |
+| NFR4 | OAT/plugin separation | P0 | manual: published plugin installs without OAT | p01-t02, p01-t03, p01-t04, p01-t07 |
+| NFR5 | Honest README about scope | P1 | manual: README review against v0.1 actual scope | p01-t06, p04-t05 |
+| NFR6 | OAT subagent best practices for cross-provider runtime | P0 | manual: cross-provider install + permission docs verification; integration: paseo-availability preflight | p02-t06, p03-t01, p03-t03, p03-t05, p04-t05 |
 
 **Notes:**
 

@@ -1,148 +1,1114 @@
 ---
-oat_status: in_progress
-oat_ready_for: null
+oat_plan_source: spec-driven
+oat_status: complete
+oat_ready_for: oat-project-implement
 oat_blockers: []
-oat_last_updated: 2026-05-01
+oat_last_updated: 2026-05-04
 oat_phase: plan
-oat_phase_status: in_progress
-oat_plan_hill_phases: [] # phases to pause AFTER completing (empty = every phase)
-oat_plan_parallel_groups: [] # groups of phases that run concurrently in worktrees; [] = fully sequential
-oat_plan_source: spec-driven # spec-driven | quick | imported
-oat_import_reference: null # e.g., references/imported-plan.md
-oat_import_source_path: null # original source path provided by user
-oat_import_provider: null # codex | cursor | claude | null
+oat_phase_status: complete
+oat_plan_parallel_groups: []
+oat_import_reference: null
+oat_import_source_path: null
+oat_import_provider: null
 oat_generated: false
+oat_template: false
 ---
 
 # Implementation Plan: consensus-plugin
 
-> Execute this plan using `oat-project-implement` — sequential by default, parallel when `oat_plan_parallel_groups` is declared.
+> Execute this plan using `oat-project-implement`. Sequential execution is the default. `oat-project-implement` will confirm HiLL checkpoints before starting and write `oat_plan_hill_phases` then.
 
-**Goal:** {Brief goal statement from spec}
+**Goal:** Ship v0.1 of the `consensus` plugin: a portable, multi-provider `consensus-refine` skill that runs alternating Claude/Codex-style deliberation through Paseo, produces a deliberation artifact, supports sequential and host-mediated parallel section orchestration, and validates the repository's plugin distribution invariants.
 
-**Architecture:** {1-2 sentence architecture summary from design}
+**Architecture:** The repo has standalone personal skills at top-level `skills/` and a self-contained plugin package at `plugins/consensus/`. The `consensus-refine` skill contains `SKILL.md`, `consensus-refine.mjs` as the wrapper/orchestrator, and `consensus-loop.mjs` as the deterministic per-turn loop engine.
 
-**Tech Stack:** {Key technologies from design}
+**Tech Stack:** Node.js >= 20, ESM `.mjs`, Node stdlib only, `node --test`, GitHub Actions, Paseo CLI as an external subprocess.
 
-**Commit Convention:** `{type}({scope}): {description}` - e.g., `feat(p01-t01): add user auth endpoint`
+**Commit Convention:** `{type}({task-id}): {description}` - for example, `feat(p02-t04): invoke paseo from loop engine`.
 
 ## Planning Checklist
 
-- [ ] Confirmed HiLL checkpoints with user
-- [ ] Set `oat_plan_hill_phases` in frontmatter
-- [ ] Evaluated phases for parallelism opportunities
-- [ ] Set `oat_plan_parallel_groups` in frontmatter
-
----
+- [x] Defer HiLL checkpoint confirmation to oat-project-implement
+- [x] Evaluated phases for parallelism opportunities
+- [x] Set `oat_plan_parallel_groups` in frontmatter
 
 ## Parallelism
 
-Phases that have no overlapping file modifications may run concurrently. To declare parallelism:
+Implementation phases are sequential for v0.1. The phases share generated repo structure, validation helpers, scripts, docs, and fixtures, so no phase pair is cleanly file-disjoint enough to declare `oat_plan_parallel_groups`.
 
-```yaml
-oat_plan_parallel_groups: [['p02', 'p03']]
-```
+## Phase 1: Repository Scaffolding and Distribution Metadata
 
-Each inner array is a group of phases that execute in parallel (each in its own worktree) and merge back in plan order after all pass. Groups themselves run sequentially.
+Goal: establish the public repo shape, plugin/marketplace manifests, baseline docs, and structural validation pipeline before implementing runtime behavior.
 
-Default is `[]` (fully sequential, no worktrees). Only declare parallelism when phases are genuinely file-disjoint — overlap will produce merge conflicts that stop the run.
-
----
-
-## Phase 1: {Phase Name}
-
-### Task p01-t01: {Task Name}
+### Task p01-t01: Add Node Project Metadata and Test Harness
 
 **Files:**
 
-- Create: `{path/to/file.ts}`
-- Modify: `{path/to/existing.ts}`
+- Create: `package.json`
+- Create: `tests/fixtures/.gitkeep`
+- Create: `tests/helpers/.gitkeep`
+- Create: `.gitignore`
 
 **Step 1: Write test (RED)**
 
-```typescript
-// {path/to/file.test.ts}
-describe('{feature}', () => {
-  it('{test case}', () => {
-    // Test implementation
-  });
-});
-```
+Create `tests/package-metadata.test.mjs` with assertions that `package.json` exists, is private, declares `type: "module"`, uses Node >= 20, and exposes `test`, `validate`, and `smoke` scripts.
 
-Run: `pnpm --filter {package-name} exec vitest run {path/to/file.test.ts}`
-Expected: Test fails (RED)
+Run: `node --test tests/package-metadata.test.mjs`
+Expected: Test fails because `package.json` does not exist.
 
 **Step 2: Implement (GREEN)**
 
-```typescript
-// {path/to/file.ts}
-// Implementation code or interface signatures
-```
+Create minimal package metadata with stdlib-only scripts:
 
-Run: `pnpm --filter {package-name} exec vitest run {path/to/file.test.ts}`
-Expected: Test passes (GREEN)
+- `test`: `node --test`
+- `validate`: `node scripts/validate.mjs`
+- `smoke`: `node scripts/smoke-test.mjs`
 
-Use the actual runner command that scopes to the intended file or test target. Do not write a package-level shortcut unless it truly executes only the scope the task claims.
+Create empty fixture/helper directories and ignore runtime outputs such as `.consensus/`, `node_modules/`, and temporary test output.
 
 **Step 3: Refactor**
 
-{Any cleanup or improvements while tests stay green}
+Keep the package dependency-free; do not add build tooling.
 
 **Step 4: Verify**
 
-Run: `pnpm lint && pnpm type-check`
-Expected: No errors
+Run: `node --test tests/package-metadata.test.mjs`
+Expected: Test passes.
 
 **Step 5: Commit**
 
 ```bash
-git add {files}
-git commit -m "feat(p01-t01): {description}"
+git add package.json tests/fixtures/.gitkeep tests/helpers/.gitkeep .gitignore
+git commit -m "chore(p01-t01): add node test harness"
 ```
 
----
-
-### Task p01-t02: {Task Name}
+### Task p01-t02: Create Self-Contained Plugin Directory Structure
 
 **Files:**
 
-- {File list}
+- Create: `skills/.gitkeep`
+- Create: `plugins/consensus/skills/consensus-refine/scripts/.gitkeep`
+- Create: `plugins/consensus/agents/.gitkeep`
+- Create: `scripts/.gitkeep`
 
 **Step 1: Write test (RED)**
 
-{Test code}
+Create `tests/repo-layout.test.mjs` that asserts the top-level standalone `skills/` directory exists and `plugins/consensus/` owns its `skills/`, `agents/`, and provider plugin directories.
+
+Run: `node --test tests/repo-layout.test.mjs`
+Expected: Test fails because directories are missing.
 
 **Step 2: Implement (GREEN)**
 
-{Implementation code or signatures}
+Create the expected directories with `.gitkeep` placeholders only. Do not add runtime logic yet.
 
 **Step 3: Refactor**
 
-{Optional cleanup}
+Keep OAT directories out of the plugin package path.
 
 **Step 4: Verify**
 
-Run: `{verification command}`
-Expected: {output}
-
-Verification commands should be behaviorally accurate. If the task claims a file-scoped or test-scoped check, use the concrete runner invocation that really scopes to that target.
+Run: `node --test tests/repo-layout.test.mjs`
+Expected: Test passes.
 
 **Step 5: Commit**
 
 ```bash
-git add {files}
-git commit -m "feat(p01-t02): {description}"
+git add skills plugins/consensus scripts tests/repo-layout.test.mjs
+git commit -m "chore(p01-t02): create consensus plugin layout"
 ```
 
----
+### Task p01-t03: Add Provider Plugin Manifests
 
-## Phase 2: {Phase Name}
+**Files:**
 
-### Task p02-t01: {Task Name}
+- Create: `plugins/consensus/.claude-plugin/plugin.json`
+- Create: `plugins/consensus/.cursor-plugin/plugin.json`
+- Create: `plugins/consensus/.codex-plugin/plugin.json`
+- Create: `tests/plugin-manifests.test.mjs`
 
-{Continue TDD pattern...}
+**Step 1: Write test (RED)**
 
----
+Test that each provider `plugin.json` parses, has name `consensus`, version `0.1.0`, and references `./skills/consensus-refine` under plugin root.
+
+Run: `node --test tests/plugin-manifests.test.mjs`
+Expected: Test fails because manifests do not exist.
+
+**Step 2: Implement (GREEN)**
+
+Create the three provider manifests with provider-specific metadata kept inside each manifest. Codex manifest includes its interface metadata placeholder per design; Claude/Cursor include only supported fields verified by schema assumptions.
+
+**Step 3: Refactor**
+
+Keep all skill paths plugin-root-relative. Do not use `../` traversal.
+
+**Step 4: Verify**
+
+Run: `node --test tests/plugin-manifests.test.mjs`
+Expected: Test passes.
+
+**Step 5: Commit**
+
+```bash
+git add plugins/consensus/.claude-plugin/plugin.json plugins/consensus/.cursor-plugin/plugin.json plugins/consensus/.codex-plugin/plugin.json tests/plugin-manifests.test.mjs
+git commit -m "feat(p01-t03): add consensus provider manifests"
+```
+
+### Task p01-t04: Add Repo-Root Marketplace Entries
+
+**Files:**
+
+- Create: `.claude-plugin/marketplace.json`
+- Create: `.cursor-plugin/marketplace.json`
+- Create: `.agents/plugins/marketplace.json`
+- Create: `tests/marketplace-manifests.test.mjs`
+
+**Step 1: Write test (RED)**
+
+Test that each marketplace file parses and declares `plugins/consensus` using `source.path: "./plugins/consensus"` without escaping repo root.
+
+Run: `node --test tests/marketplace-manifests.test.mjs`
+Expected: Test fails because marketplace files do not exist.
+
+**Step 2: Implement (GREEN)**
+
+Create repo-root marketplace files for Claude, Cursor, and Codex discovery. Include version fields only where the selected marketplace shape supports or tolerates them.
+
+**Step 3: Refactor**
+
+Normalize marketplace path checks to avoid hard-coded absolute paths in tests.
+
+**Step 4: Verify**
+
+Run: `node --test tests/marketplace-manifests.test.mjs`
+Expected: Test passes.
+
+**Step 5: Commit**
+
+```bash
+git add .claude-plugin/marketplace.json .cursor-plugin/marketplace.json .agents/plugins/marketplace.json tests/marketplace-manifests.test.mjs
+git commit -m "feat(p01-t04): add plugin marketplace entries"
+```
+
+### Task p01-t05: Add Skill and Section-Runner Instruction Artifacts
+
+**Files:**
+
+- Create: `plugins/consensus/skills/consensus-refine/SKILL.md`
+- Create: `plugins/consensus/agents/consensus-section-runner.md`
+- Create: `tests/skill-frontmatter.test.mjs`
+
+**Step 1: Write test (RED)**
+
+Test that `SKILL.md` has frontmatter fields `name`, `description`, `license`, `compatibility`, additive `allowed-tools`, and metadata version `0.1.0`; also verify the folder name matches `name`.
+
+Run: `node --test tests/skill-frontmatter.test.mjs`
+Expected: Test fails because `SKILL.md` does not exist.
+
+**Step 2: Implement (GREEN)**
+
+Write `SKILL.md` with the host LLM responsibilities from design: wrapper invocation, JSONL interpretation, parallel prepare/dispatch/fan-in, Codex authorization fail-closed, and impasse surfacing. Write `consensus-section-runner.md` with the bounded parallel section task packet contract.
+
+**Step 3: Refactor**
+
+Keep deterministic mechanics in script references, not in natural-language pseudo-implementation.
+
+**Step 4: Verify**
+
+Run: `node --test tests/skill-frontmatter.test.mjs`
+Expected: Test passes.
+
+**Step 5: Commit**
+
+```bash
+git add plugins/consensus/skills/consensus-refine/SKILL.md plugins/consensus/agents/consensus-section-runner.md tests/skill-frontmatter.test.mjs
+git commit -m "feat(p01-t05): add consensus refine skill instructions"
+```
+
+### Task p01-t06: Add Baseline Project Documentation
+
+**Files:**
+
+- Create: `README.md`
+- Create: `LICENSE`
+- Create: `CHANGELOG.md`
+- Create: `CONTRIBUTING.md`
+- Create: `RELEASING.md`
+- Create/Modify: `CLAUDE.md`
+
+**Step 1: Write test (RED)**
+
+Create `tests/docs-presence.test.mjs` asserting required docs exist, README has an Install Matrix, README has Permissions and Limitations sections, LICENSE is MIT, and CHANGELOG has `0.1.0` unreleased.
+
+Run: `node --test tests/docs-presence.test.mjs`
+Expected: Test fails because docs are missing.
+
+**Step 2: Implement (GREEN)**
+
+Write concise docs matching the design scope. Create `CLAUDE.md` as a symlink or exact companion to `AGENTS.md` only if supported cleanly by the local repo; otherwise document why it is intentionally a normal file.
+
+**Step 3: Refactor**
+
+Keep marketplace submission claims provisional where docs require release-time verification.
+
+**Step 4: Verify**
+
+Run: `node --test tests/docs-presence.test.mjs`
+Expected: Test passes.
+
+**Step 5: Commit**
+
+```bash
+git add README.md LICENSE CHANGELOG.md CONTRIBUTING.md RELEASING.md CLAUDE.md tests/docs-presence.test.mjs
+git commit -m "docs(p01-t06): add release and install documentation"
+```
+
+### Task p01-t07: Implement Structural Validator and CI Workflows
+
+**Files:**
+
+- Create: `scripts/validate.mjs`
+- Create: `tests/validate-script.test.mjs`
+- Create: `.github/workflows/validate.yml`
+- Create: `.github/workflows/release.yml`
+
+**Step 1: Write test (RED)**
+
+Test exported validator responsibilities: frontmatter parsing, JSON parsing, skill path existence, marketplace source path confinement, version consistency for plugin manifests, and README Install Matrix detection.
+
+Run: `node --test tests/validate-script.test.mjs`
+Expected: Test fails because `scripts/validate.mjs` does not exist.
+
+**Step 2: Implement (GREEN)**
+
+Implement `scripts/validate.mjs` as stdlib-only ESM with an exported validation function and CLI entrypoint. Add read-only `validate.yml` and tag-triggered `release.yml` with `contents: write` only.
+
+**Step 3: Refactor**
+
+Make validation messages actionable and deterministic for CI.
+
+**Step 4: Verify**
+
+Run: `node --test tests/validate-script.test.mjs && node scripts/validate.mjs`
+Expected: Tests and validator pass.
+
+**Step 5: Commit**
+
+```bash
+git add scripts/validate.mjs tests/validate-script.test.mjs .github/workflows/validate.yml .github/workflows/release.yml
+git commit -m "feat(p01-t07): add structural validation pipeline"
+```
+
+## Phase 2: Sequential Wrapper and Loop Core
+
+Goal: make `consensus-refine` run end-to-end on markdown with mocked Paseo peers in sequential mode.
+
+### Task p02-t01: Implement Hash Normalization and Convergence Helpers
+
+**Files:**
+
+- Create: `plugins/consensus/skills/consensus-refine/scripts/consensus-loop.mjs`
+- Create: `tests/loop-convergence.test.mjs`
+
+**Step 1: Write test (RED)**
+
+Test line-ending normalization, trailing whitespace trimming, EOF newline collapse, SHA-256 hash format, hash-match convergence, double-ACCEPT same-hash convergence, and 4+ state oscillation detection.
+
+Run: `node --test tests/loop-convergence.test.mjs`
+Expected: Test fails because exports are missing.
+
+**Step 2: Implement (GREEN)**
+
+Export helper signatures from `consensus-loop.mjs`:
+
+- `normalizeForHash(text, options)`
+- `hashArtifact(text, options)`
+- `detectConvergence(records, options)`
+- `detectOscillation(records)`
+
+**Step 3: Refactor**
+
+Keep agency-specific branching in data-driven helper options.
+
+**Step 4: Verify**
+
+Run: `node --test tests/loop-convergence.test.mjs`
+Expected: Test passes.
+
+**Step 5: Commit**
+
+```bash
+git add plugins/consensus/skills/consensus-refine/scripts/consensus-loop.mjs tests/loop-convergence.test.mjs
+git commit -m "feat(p02-t01): add convergence helpers"
+```
+
+### Task p02-t02: Implement Verdict Schema and Byte-Cap Validation
+
+**Files:**
+
+- Create: `plugins/consensus/skills/consensus-refine/schemas/verdict-alternating.schema.json`
+- Modify: `plugins/consensus/skills/consensus-refine/scripts/consensus-loop.mjs`
+- Create: `tests/verdict-validation.test.mjs`
+
+**Step 1: Write test (RED)**
+
+Test ACCEPT/REVISE/IMPASSE schema branches, `schema_version: "v0"`, rejection of additional properties, UTF-8 byte caps for reasoning/proposed artifact/concerns, and `OVERSIZE_REJECTED` metadata shape.
+
+Run: `node --test tests/verdict-validation.test.mjs`
+Expected: Test fails because schema and validators are missing.
+
+**Step 2: Implement (GREEN)**
+
+Add schema JSON without `maxLength` constraints. Export `validateVerdictShape(verdict)` and `validateVerdictCaps(verdict)` from the loop script.
+
+**Step 3: Refactor**
+
+Keep cap constants grouped and named for Section 5 traceability.
+
+**Step 4: Verify**
+
+Run: `node --test tests/verdict-validation.test.mjs`
+Expected: Test passes.
+
+**Step 5: Commit**
+
+```bash
+git add plugins/consensus/skills/consensus-refine/schemas/verdict-alternating.schema.json plugins/consensus/skills/consensus-refine/scripts/consensus-loop.mjs tests/verdict-validation.test.mjs
+git commit -m "feat(p02-t02): validate peer verdicts"
+```
+
+### Task p02-t03: Implement Write-Through Records and Status Output
+
+**Files:**
+
+- Modify: `plugins/consensus/skills/consensus-refine/scripts/consensus-loop.mjs`
+- Create: `tests/loop-records.test.mjs`
+
+**Step 1: Write test (RED)**
+
+Test JSON-array write-through behavior, fsync-on-append where available, status JSON schema fields, and recovery-friendly behavior when a process stops after writing one record.
+
+Run: `node --test tests/loop-records.test.mjs`
+Expected: Test fails because record writer is missing.
+
+**Step 2: Implement (GREEN)**
+
+Export `createRecordsWriter(path)` and `writeLoopStatus(path, status)`. Ensure records are valid JSON arrays after close and intermediate writes are durable enough for resume tests.
+
+**Step 3: Refactor**
+
+Centralize timestamp and schema-version assignment.
+
+**Step 4: Verify**
+
+Run: `node --test tests/loop-records.test.mjs`
+Expected: Test passes.
+
+**Step 5: Commit**
+
+```bash
+git add plugins/consensus/skills/consensus-refine/scripts/consensus-loop.mjs tests/loop-records.test.mjs
+git commit -m "feat(p02-t03): write loop records incrementally"
+```
+
+### Task p02-t04: Add Paseo Invocation and Stub Harness
+
+**Files:**
+
+- Modify: `plugins/consensus/skills/consensus-refine/scripts/consensus-loop.mjs`
+- Create: `tests/fixtures/bin/paseo`
+- Create: `tests/paseo-invocation.test.mjs`
+
+**Step 1: Write test (RED)**
+
+Test that the loop invokes `paseo run --provider <peer> --output-schema <schema> --json <prompt>` via `spawn` array form, enforces stdout/stderr caps, parses JSON output, and propagates non-zero exit as a hard error.
+
+Run: `node --test tests/paseo-invocation.test.mjs`
+Expected: Test fails because invocation helper and stub are missing.
+
+**Step 2: Implement (GREEN)**
+
+Add `invokePaseo({ provider, schemaPath, prompt, env, cwd })` and a deterministic `paseo` fixture binary with canned responses.
+
+**Step 3: Refactor**
+
+Keep stub behavior data-driven via fixture files or environment variables, not hard-coded per test case.
+
+**Step 4: Verify**
+
+Run: `node --test tests/paseo-invocation.test.mjs`
+Expected: Test passes.
+
+**Step 5: Commit**
+
+```bash
+git add plugins/consensus/skills/consensus-refine/scripts/consensus-loop.mjs tests/fixtures/bin/paseo tests/paseo-invocation.test.mjs
+git commit -m "feat(p02-t04): invoke paseo safely"
+```
+
+### Task p02-t05: Implement Alternating Loop CLI
+
+**Files:**
+
+- Modify: `plugins/consensus/skills/consensus-refine/scripts/consensus-loop.mjs`
+- Create: `tests/consensus-loop-cli.test.mjs`
+
+**Step 1: Write test (RED)**
+
+Test CLI parsing for `--section-file`, `--goal`, `--peers`, `--max-rounds`, `--agency`, and output paths. Cover convergence, explicit impasse, max-rounds, oscillation, and non-zero hard error cases using the Paseo stub.
+
+Run: `node --test tests/consensus-loop-cli.test.mjs`
+Expected: Test fails because CLI entrypoint is incomplete.
+
+**Step 2: Implement (GREEN)**
+
+Add `runConsensusLoop(argv, options)` and CLI entrypoint behavior. Emit output files exactly as the design describes and exit non-zero only for hard errors.
+
+**Step 3: Refactor**
+
+Keep prompt construction isolated in `buildTurnPrompt(...)` so injection framing is testable.
+
+**Step 4: Verify**
+
+Run: `node --test tests/consensus-loop-cli.test.mjs`
+Expected: Test passes.
+
+**Step 5: Commit**
+
+```bash
+git add plugins/consensus/skills/consensus-refine/scripts/consensus-loop.mjs tests/consensus-loop-cli.test.mjs
+git commit -m "feat(p02-t05): implement alternating loop cli"
+```
+
+### Task p02-t06: Implement Wrapper Arg Parsing, Host Detection, and Peer Preflight
+
+**Files:**
+
+- Create: `plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs`
+- Create: `tests/wrapper-options.test.mjs`
+
+**Step 1: Write test (RED)**
+
+Test argv parsing for sequential flags, host-aware default peers, `--peers` validation, `--max-rounds` bounds, `--agency` values, `--prepare-parallel`, `--fan-in`, and peer inventory from `paseo provider ls --json`.
+
+Run: `node --test tests/wrapper-options.test.mjs`
+Expected: Test fails because wrapper exports are missing.
+
+**Step 2: Implement (GREEN)**
+
+Export `parseWrapperArgs(argv)`, `detectHost(env)`, `resolvePeers(options, host, providerInventory)`, and `preflightPaseo(options)`.
+
+**Step 3: Refactor**
+
+Keep remediation messages structured for JSONL and stderr renderers.
+
+**Step 4: Verify**
+
+Run: `node --test tests/wrapper-options.test.mjs`
+Expected: Test passes.
+
+**Step 5: Commit**
+
+```bash
+git add plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs tests/wrapper-options.test.mjs
+git commit -m "feat(p02-t06): parse wrapper options and peers"
+```
+
+### Task p02-t07: Implement Markdown Section Parsing
+
+**Files:**
+
+- Modify: `plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs`
+- Create: `tests/section-parser.test.mjs`
+
+**Step 1: Write test (RED)**
+
+Test heading-based sections, explicit `<!-- section: name -->` markers, single-section fallback, stable section IDs, original index ordering, and preservation of section markdown.
+
+Run: `node --test tests/section-parser.test.mjs`
+Expected: Test fails because section parser is missing.
+
+**Step 2: Implement (GREEN)**
+
+Export `parseSections(markdown)` and `slugSectionId(name, index)`.
+
+**Step 3: Refactor**
+
+Keep parser behavior deterministic and independent from filesystem access.
+
+**Step 4: Verify**
+
+Run: `node --test tests/section-parser.test.mjs`
+Expected: Test passes.
+
+**Step 5: Commit**
+
+```bash
+git add plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs tests/section-parser.test.mjs
+git commit -m "feat(p02-t07): parse markdown sections"
+```
+
+### Task p02-t08: Implement Path Safety and Atomic Writes
+
+**Files:**
+
+- Modify: `plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs`
+- Create: `tests/path-safety.test.mjs`
+
+**Step 1: Write test (RED)**
+
+Test unrestricted input reads with size cap, run-dir confinement, default output next to readable input, explicit `--output` under CWD/`--allow-root`, symlink target rejection, and temp-file-then-rename writes.
+
+Run: `node --test tests/path-safety.test.mjs`
+Expected: Test fails because path helpers are missing.
+
+**Step 2: Implement (GREEN)**
+
+Export `confineWrite(targetPath, rootPath)`, `atomicWriteFile(path, contents)`, `resolveRunDir(options)`, and `resolveOutputPath(options, inputPath)`.
+
+**Step 3: Refactor**
+
+Use crypto-random temp suffixes and avoid creating directories before confinement checks.
+
+**Step 4: Verify**
+
+Run: `node --test tests/path-safety.test.mjs`
+Expected: Test passes.
+
+**Step 5: Commit**
+
+```bash
+git add plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs tests/path-safety.test.mjs
+git commit -m "feat(p02-t08): enforce path safety"
+```
+
+### Task p02-t09: Implement Sequential Orchestration and Artifact Rendering
+
+**Files:**
+
+- Modify: `plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs`
+- Create: `tests/fixtures/sample-input.md`
+- Create: `tests/sequential-wrapper.test.mjs`
+
+**Step 1: Write test (RED)**
+
+Test a three-section markdown input with the Paseo stub: wrapper creates run files, invokes the loop per section, assembles Final Output, Resolution, Goal, per-section logs, canonical JSON blocks, and sanitized prose logs.
+
+Run: `node --test tests/sequential-wrapper.test.mjs`
+Expected: Test fails because orchestration and rendering are missing.
+
+**Step 2: Implement (GREEN)**
+
+Add `runSequential(options)` and `renderDeliberationArtifact(runResult)`. Implement dynamic backtick fences, heading containment, script/style stripping in prose only, and canonical JSON preservation.
+
+**Step 3: Refactor**
+
+Keep renderer pure where possible so artifact shape tests can call it directly.
+
+**Step 4: Verify**
+
+Run: `node --test tests/sequential-wrapper.test.mjs`
+Expected: Test passes.
+
+**Step 5: Commit**
+
+```bash
+git add plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs tests/fixtures/sample-input.md tests/sequential-wrapper.test.mjs
+git commit -m "feat(p02-t09): orchestrate sequential refinement"
+```
+
+### Task p02-t10: Implement JSONL Progress and Error Handling
+
+**Files:**
+
+- Modify: `plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs`
+- Modify: `plugins/consensus/skills/consensus-refine/scripts/consensus-loop.mjs`
+- Create: `tests/error-handling.test.mjs`
+
+**Step 1: Write test (RED)**
+
+Test stdout JSONL shape, stderr human text, exit codes 64/65/73/74/77/78/130 where unit-testable, `--fail-on-section-error`, and section-level error aggregation without aborting unrelated sections.
+
+Run: `node --test tests/error-handling.test.mjs`
+Expected: Test fails because error channel behavior is incomplete.
+
+**Step 2: Implement (GREEN)**
+
+Add structured event helpers and error classes/codes. Ensure wrapper exits 0 for normal terminal states unless `--fail-on-section-error` applies.
+
+**Step 3: Refactor**
+
+Keep stack traces out of stdout and reserve trace logging for explicit `CONSENSUS_LOG=trace`.
+
+**Step 4: Verify**
+
+Run: `node --test tests/error-handling.test.mjs`
+Expected: Test passes.
+
+**Step 5: Commit**
+
+```bash
+git add plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs plugins/consensus/skills/consensus-refine/scripts/consensus-loop.mjs tests/error-handling.test.mjs
+git commit -m "feat(p02-t10): add structured error handling"
+```
+
+## Phase 3: Host-Mediated Parallel Orchestration
+
+Goal: make `--prepare-parallel` and `--fan-in` work with simulated host dispatch and documented host responsibilities.
+
+### Task p03-t01: Implement Parallel Prepare Manifest and Packets
+
+**Files:**
+
+- Modify: `plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs`
+- Create: `tests/parallel-prepare.test.mjs`
+
+**Step 1: Write test (RED)**
+
+Test `--prepare-parallel` writes section packets, manifest schema v0, output path entries, peer config, agency, max rounds, and JSONL dispatch instructions with default `parallelism = min(section_count, 4)`.
+
+Run: `node --test tests/parallel-prepare.test.mjs`
+Expected: Test fails because prepare mode is missing.
+
+**Step 2: Implement (GREEN)**
+
+Add `prepareParallelRun(options)` and CLI branch for `--prepare-parallel`.
+
+**Step 3: Refactor**
+
+Reuse section parsing and path safety helpers from sequential mode.
+
+**Step 4: Verify**
+
+Run: `node --test tests/parallel-prepare.test.mjs`
+Expected: Test passes.
+
+**Step 5: Commit**
+
+```bash
+git add plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs tests/parallel-prepare.test.mjs
+git commit -m "feat(p03-t01): prepare parallel section packets"
+```
+
+### Task p03-t02: Implement Parallel Fan-In
+
+**Files:**
+
+- Modify: `plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs`
+- Create: `tests/parallel-fan-in.test.mjs`
+
+**Step 1: Write test (RED)**
+
+Test `--fan-in <manifest>` reads section outputs, records, and status files; assembles in `original_index` order regardless of completion order; and includes `parallel: true` and subagent IDs in the Resolution block.
+
+Run: `node --test tests/parallel-fan-in.test.mjs`
+Expected: Test fails because fan-in mode is missing.
+
+**Step 2: Implement (GREEN)**
+
+Add `fanInParallelRun(manifestPath, options)` and CLI branch for `--fan-in`.
+
+**Step 3: Refactor**
+
+Share artifact rendering with sequential mode.
+
+**Step 4: Verify**
+
+Run: `node --test tests/parallel-fan-in.test.mjs`
+Expected: Test passes.
+
+**Step 5: Commit**
+
+```bash
+git add plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs tests/parallel-fan-in.test.mjs
+git commit -m "feat(p03-t02): fan in parallel results"
+```
+
+### Task p03-t03: Document Host Dispatch Responsibilities
+
+**Files:**
+
+- Modify: `plugins/consensus/skills/consensus-refine/SKILL.md`
+- Modify: `plugins/consensus/agents/consensus-section-runner.md`
+- Create: `tests/host-dispatch-docs.test.mjs`
+
+**Step 1: Write test (RED)**
+
+Test that `SKILL.md` contains the required prepare/dispatch/fan-in flow, Codex authorization fail-closed wording, parallelism batching instruction, and SIGINT cancellation responsibility.
+
+Run: `node --test tests/host-dispatch-docs.test.mjs`
+Expected: Test fails until docs include the required contract.
+
+**Step 2: Implement (GREEN)**
+
+Update host-facing instructions and subagent runner packet schema. Keep provider-specific differences explicit but concise.
+
+**Step 3: Refactor**
+
+Avoid promising wrapper-owned subagent cancellation.
+
+**Step 4: Verify**
+
+Run: `node --test tests/host-dispatch-docs.test.mjs`
+Expected: Test passes.
+
+**Step 5: Commit**
+
+```bash
+git add plugins/consensus/skills/consensus-refine/SKILL.md plugins/consensus/agents/consensus-section-runner.md tests/host-dispatch-docs.test.mjs
+git commit -m "docs(p03-t03): document parallel host dispatch"
+```
+
+### Task p03-t04: Handle Parallel Section Errors
+
+**Files:**
+
+- Modify: `plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs`
+- Create: `tests/parallel-errors.test.mjs`
+
+**Step 1: Write test (RED)**
+
+Test malformed result JSON, missing output file, section timeout status, error markers in Final Output, partial-success Resolution status, and `--fail-on-section-error` exit 74.
+
+Run: `node --test tests/parallel-errors.test.mjs`
+Expected: Test fails because error aggregation is incomplete.
+
+**Step 2: Implement (GREEN)**
+
+Add parallel result validation and partial artifact behavior for failed sections.
+
+**Step 3: Refactor**
+
+Share section-status summarization with sequential mode.
+
+**Step 4: Verify**
+
+Run: `node --test tests/parallel-errors.test.mjs`
+Expected: Test passes.
+
+**Step 5: Commit**
+
+```bash
+git add plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs tests/parallel-errors.test.mjs
+git commit -m "feat(p03-t04): aggregate parallel section errors"
+```
+
+### Task p03-t05: Add Simulated Host Dispatch Integration Test
+
+**Files:**
+
+- Create: `tests/parallel-integration.test.mjs`
+- Modify: `tests/fixtures/sample-input.md`
+
+**Step 1: Write test (RED)**
+
+Test full prepare → simulated subagent loop invocations → fan-in against the Paseo stub. Include at least one out-of-order section completion and one impasse section.
+
+Run: `node --test tests/parallel-integration.test.mjs`
+Expected: Test fails until prepare/fan-in pieces interoperate.
+
+**Step 2: Implement (GREEN)**
+
+Wire test helpers to call the wrapper in prepare mode, run `consensus-loop.mjs` per manifest entry, then call fan-in.
+
+**Step 3: Refactor**
+
+Move only reusable test process helpers into `tests/helpers/`.
+
+**Step 4: Verify**
+
+Run: `node --test tests/parallel-integration.test.mjs`
+Expected: Test passes.
+
+**Step 5: Commit**
+
+```bash
+git add tests/parallel-integration.test.mjs tests/fixtures/sample-input.md tests/helpers
+git commit -m "test(p03-t05): cover host-mediated parallel flow"
+```
+
+## Phase 4: Resume, Release Polish, and Distribution Validation
+
+Goal: finish v0.1 release readiness: resume handling, install assist, docs, smoke testing, and release automation.
+
+### Task p04-t01: Parse Deliberation Artifacts for Resume
+
+**Files:**
+
+- Modify: `plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs`
+- Create: `tests/resume-parse.test.mjs`
+
+**Step 1: Write test (RED)**
+
+Test frontmatter parsing, `consensus_schema_version: v0`, canonical section-state JSON block extraction, completed vs. in-flight section detection, and rejection of unsupported schema versions.
+
+Run: `node --test tests/resume-parse.test.mjs`
+Expected: Test fails because resume parsing is missing.
+
+**Step 2: Implement (GREEN)**
+
+Export `parseDeliberationArtifactForResume(pathOrText)` and integrate `--resume` argument validation.
+
+**Step 3: Refactor**
+
+Keep resume reads against canonical JSON blocks, never prose.
+
+**Step 4: Verify**
+
+Run: `node --test tests/resume-parse.test.mjs`
+Expected: Test passes.
+
+**Step 5: Commit**
+
+```bash
+git add plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs tests/resume-parse.test.mjs
+git commit -m "feat(p04-t01): parse artifacts for resume"
+```
+
+### Task p04-t02: Implement Resume Corruption Handling and Skip Flags
+
+**Files:**
+
+- Modify: `plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs`
+- Create: `tests/resume-corruption.test.mjs`
+
+**Step 1: Write test (RED)**
+
+Test corrupt JSON block, hash recomputation mismatch, missing section state, `--skip-corrupt-section`, interactive `--skip-all-corrupt`, and non-interactive `--yes-skip-corrupt` behavior.
+
+Run: `node --test tests/resume-corruption.test.mjs`
+Expected: Test fails because fail-closed resume behavior is incomplete.
+
+**Step 2: Implement (GREEN)**
+
+Add resume validation errors with exit 65 and explicit skip handling.
+
+**Step 3: Refactor**
+
+Write `resume-errors.json` in the run directory for detailed diagnostics.
+
+**Step 4: Verify**
+
+Run: `node --test tests/resume-corruption.test.mjs`
+Expected: Test passes.
+
+**Step 5: Commit**
+
+```bash
+git add plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs tests/resume-corruption.test.mjs
+git commit -m "feat(p04-t02): fail closed on corrupt resume state"
+```
+
+### Task p04-t03: Add User Intervention Resume Flow
+
+**Files:**
+
+- Modify: `plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs`
+- Modify: `plugins/consensus/skills/consensus-refine/scripts/consensus-loop.mjs`
+- Create: `tests/user-intervention.test.mjs`
+
+**Step 1: Write test (RED)**
+
+Test adding a `<user round=N>` intervention entry, replaying logged rounds into the next turn context, and continuing from the next agent turn without losing prior records.
+
+Run: `node --test tests/user-intervention.test.mjs`
+Expected: Test fails because user intervention handling is missing.
+
+**Step 2: Implement (GREEN)**
+
+Add resume-time user direction plumbing and `USER_INTERVENTION` records.
+
+**Step 3: Refactor**
+
+Keep intervention rendering consistent with ordinary turn records.
+
+**Step 4: Verify**
+
+Run: `node --test tests/user-intervention.test.mjs`
+Expected: Test passes.
+
+**Step 5: Commit**
+
+```bash
+git add plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs plugins/consensus/skills/consensus-refine/scripts/consensus-loop.mjs tests/user-intervention.test.mjs
+git commit -m "feat(p04-t03): resume with user intervention"
+```
+
+### Task p04-t04: Implement Paseo Install Assist
+
+**Files:**
+
+- Create: `scripts/install-paseo.mjs`
+- Create: `tests/install-paseo.test.mjs`
+
+**Step 1: Write test (RED)**
+
+Test default decline, explicit yes confirmation, hardcoded `npm install -g @getpaseo/cli`, no user input in subprocess args, post-install `paseo --version` check, and failure surfacing without retries.
+
+Run: `node --test tests/install-paseo.test.mjs`
+Expected: Test fails because install assist is missing.
+
+**Step 2: Implement (GREEN)**
+
+Implement prompt-and-confirm install assist with injectable process runner for tests.
+
+**Step 3: Refactor**
+
+Keep script standalone and dependency-free.
+
+**Step 4: Verify**
+
+Run: `node --test tests/install-paseo.test.mjs`
+Expected: Test passes.
+
+**Step 5: Commit**
+
+```bash
+git add scripts/install-paseo.mjs tests/install-paseo.test.mjs
+git commit -m "feat(p04-t04): add paseo install assist"
+```
+
+### Task p04-t05: Complete README Provider Support and Limitations
+
+**Files:**
+
+- Modify: `README.md`
+- Modify: `CONTRIBUTING.md`
+- Modify: `CHANGELOG.md`
+- Create: `tests/readme-scope.test.mjs`
+
+**Step 1: Write test (RED)**
+
+Test README includes install commands for Claude, Cursor, Codex Git/local, and `npx skills add`; includes Permissions and Limitations; documents no telemetry; documents prompt-injection limitation; and lists deferred features accurately.
+
+Run: `node --test tests/readme-scope.test.mjs`
+Expected: Test fails until docs match v0.1 scope.
+
+**Step 2: Implement (GREEN)**
+
+Complete README and contribution guidance from the design. Update CHANGELOG with the implemented v0.1 scope.
+
+**Step 3: Refactor**
+
+Remove any hard-coded pricing claims that require current provider-price refresh.
+
+**Step 4: Verify**
+
+Run: `node --test tests/readme-scope.test.mjs && node scripts/validate.mjs`
+Expected: Test and validator pass.
+
+**Step 5: Commit**
+
+```bash
+git add README.md CONTRIBUTING.md CHANGELOG.md tests/readme-scope.test.mjs
+git commit -m "docs(p04-t05): complete v0.1 user documentation"
+```
+
+### Task p04-t06: Add Version Bump and Release Workflow Support
+
+**Files:**
+
+- Create: `scripts/bump-version.mjs`
+- Modify: `RELEASING.md`
+- Modify: `.github/workflows/release.yml`
+- Create: `tests/release-versioning.test.mjs`
+
+**Step 1: Write test (RED)**
+
+Test bump-version updates all three plugin manifest versions and any marketplace version fields present, while rejecting malformed semver and leaving unsupported marketplace version fields absent.
+
+Run: `node --test tests/release-versioning.test.mjs`
+Expected: Test fails because version bump script is missing.
+
+**Step 2: Implement (GREEN)**
+
+Add the script and release workflow validation steps for tag-version consistency.
+
+**Step 3: Refactor**
+
+Keep release workflow permissions limited to `contents: write`.
+
+**Step 4: Verify**
+
+Run: `node --test tests/release-versioning.test.mjs && node scripts/validate.mjs`
+Expected: Tests and validator pass.
+
+**Step 5: Commit**
+
+```bash
+git add scripts/bump-version.mjs RELEASING.md .github/workflows/release.yml tests/release-versioning.test.mjs
+git commit -m "feat(p04-t06): add release version tooling"
+```
+
+### Task p04-t07: Add CI Smoke Test
+
+**Files:**
+
+- Create: `scripts/smoke-test.mjs`
+- Create: `tests/smoke-test-script.test.mjs`
+- Modify: `.github/workflows/validate.yml`
+
+**Step 1: Write test (RED)**
+
+Test that `scripts/smoke-test.mjs` runs validation, installs the Paseo stub into PATH, executes the wrapper against `tests/fixtures/sample-input.md`, checks JSONL stdout, verifies artifact structure, and exits non-zero on failed assertions.
+
+Run: `node --test tests/smoke-test-script.test.mjs`
+Expected: Test fails because smoke test script is missing.
+
+**Step 2: Implement (GREEN)**
+
+Implement stdlib-only smoke test and wire it into CI after `node scripts/validate.mjs`.
+
+**Step 3: Refactor**
+
+Keep smoke output concise and deterministic for CI logs.
+
+**Step 4: Verify**
+
+Run: `node --test tests/smoke-test-script.test.mjs && node scripts/smoke-test.mjs`
+Expected: Test and smoke pass without real LLM tokens.
+
+**Step 5: Commit**
+
+```bash
+git add scripts/smoke-test.mjs tests/smoke-test-script.test.mjs .github/workflows/validate.yml
+git commit -m "test(p04-t07): add mocked end-to-end smoke test"
+```
+
+### Task p04-t08: Final Release Readiness Pass
+
+**Files:**
+
+- Modify: `CHANGELOG.md`
+- Modify: `RELEASING.md`
+- Modify: `.oat/projects/shared/consensus-plugin/implementation.md`
+
+**Step 1: Write test (RED)**
+
+No new unit test. Run the full local verification suite before the readiness update and record any failures in implementation notes.
+
+Run: `npm test && node scripts/validate.mjs && node scripts/smoke-test.mjs`
+Expected: All commands pass before release notes are finalized.
+
+**Step 2: Implement (GREEN)**
+
+Finalize release notes, document manual smoke-test checklist status in `RELEASING.md`, and update OAT implementation notes with verification evidence.
+
+**Step 3: Refactor**
+
+Make sure docs do not claim marketplace publication happened before manual submission.
+
+**Step 4: Verify**
+
+Run: `npm test && node scripts/validate.mjs && node scripts/smoke-test.mjs`
+Expected: Full local verification passes.
+
+**Step 5: Commit**
+
+```bash
+git add CHANGELOG.md RELEASING.md .oat/projects/shared/consensus-plugin/implementation.md
+git commit -m "docs(p04-t08): record release readiness"
+```
 
 ## Reviews
 
@@ -154,9 +1120,11 @@ git commit -m "feat(p01-t02): {description}"
 | ------ | -------- | ------- | ---- | -------- |
 | p01    | code     | pending | -    | -        |
 | p02    | code     | pending | -    | -        |
+| p03    | code     | pending | -    | -        |
+| p04    | code     | pending | -    | -        |
 | final  | code     | pending | -    | -        |
 | spec   | artifact | pending | -    | -        |
-| design | artifact | received | 2026-05-03 | reviews/artifact-design-review-2026-05-03.md |
+| design | artifact | fixes_completed | 2026-05-04 | reviews/archived/artifact-design-review-2026-05-03.md |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 
@@ -167,24 +1135,24 @@ git commit -m "feat(p01-t02): {description}"
 - `fixes_completed`: fix tasks implemented, awaiting re-review
 - `passed`: re-review run and recorded as passing (no Critical/Important)
 
----
+**Design review note:** The Important design review finding was addressed by commit `436c1b2` (`docs(spec): reconcile spec.md with design.md per artifact review (design)`). It is marked `fixes_completed`, not `passed`, because no re-review has been recorded yet.
 
 ## Implementation Complete
 
 **Summary:**
 
-- Phase 1: {N} tasks - {Description}
-- Phase 2: {N} tasks - {Description}
+- Phase 1: 7 tasks - repository scaffolding and distribution metadata
+- Phase 2: 10 tasks - sequential wrapper and loop core
+- Phase 3: 5 tasks - host-mediated parallel orchestration
+- Phase 4: 8 tasks - resume, release polish, and distribution validation
 
-**Total: {N} tasks**
+**Total: 30 tasks**
 
-Ready for code review and merge.
-
----
+Ready for implementation.
 
 ## References
 
-- Design: `design.md` (required in spec-driven mode; optional in quick/import mode)
-- Spec: `spec.md` (required in spec-driven mode; optional in quick/import mode)
+- Design: `design.md`
+- Spec: `spec.md`
 - Discovery: `discovery.md`
-- Imported Source: `references/imported-plan.md` (when `oat_plan_source: imported`)
+- Design review: `reviews/archived/artifact-design-review-2026-05-03.md`
