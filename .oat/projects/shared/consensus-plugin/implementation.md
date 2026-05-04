@@ -1,12 +1,9 @@
 ---
 oat_status: in_progress
-oat_ready_for: oat-project-review-receive
-oat_blockers:
-  - task_id: p02
-    reason: "Phase p02 review still has 1 Important finding after retry-limit=2"
-    since: 2026-05-04
+oat_ready_for: oat-project-implement
+oat_blockers: []
 oat_last_updated: 2026-05-04
-oat_current_task_id: null
+oat_current_task_id: p02-t11
 oat_generated: false
 ---
 
@@ -30,11 +27,11 @@ oat_generated: false
 | Phase   | Status      | Tasks | Completed |
 | ------- | ----------- | ----- | --------- |
 | Phase 1 | completed   | 7     | 7/7       |
-| Phase 2 | blocked     | 10    | 10/10     |
+| Phase 2 | in_progress | 13    | 10/13     |
 | Phase 3 | pending     | 5     | 0/5       |
 | Phase 4 | pending     | 8     | 0/8       |
 
-**Total:** 17/30 tasks completed
+**Total:** 17/33 tasks completed
 
 ---
 
@@ -117,9 +114,8 @@ oat_generated: false
 
 ## Phase 2: Sequential Wrapper and Loop Core
 
-**Status:** blocked - review retry limit exhausted
+**Status:** in_progress - review fixes queued
 **Started:** 2026-05-04
-**Stopped:** 2026-05-04
 
 ### Task p02-t01: Implement Hash Normalization and Convergence Helpers
 
@@ -186,6 +182,21 @@ oat_generated: false
 
 - `--fail-on-section-error` bypasses designed aggregation semantics; it should write the partial artifact after processing all sections, then exit 74 when any section ended in `error` or `impasse`.
 
+### Task p02-t11: (review) Fix fail-on-section-error aggregation semantics
+
+**Status:** pending
+**Commit:** -
+
+### Task p02-t12: (review) Render canonical artifact state containers
+
+**Status:** pending
+**Commit:** -
+
+### Task p02-t13: (review) Point Paseo install remediation to repo script
+
+**Status:** pending
+**Commit:** -
+
 ---
 
 ## Orchestration Runs
@@ -249,6 +260,16 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 ## Implementation Log
 
 Chronological log of implementation progress.
+
+### 2026-05-04
+
+**Review Received:** p02
+
+- Review artifact: `reviews/archived/p02-review-2026-05-04-v3.md`
+- Findings: 0 Critical, 1 Important, 0 Medium, 2 Minor.
+- New tasks added: `p02-t11`, `p02-t12`, `p02-t13`.
+- Finding disposition map: I1 converted, m1 converted, m2 converted.
+- Next: execute review fix tasks via `oat-project-implement`.
 
 ### 2026-05-04
 

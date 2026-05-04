@@ -654,6 +654,90 @@ git add plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs p
 git commit -m "feat(p02-t10): add structured error handling"
 ```
 
+### Task p02-t11: (review) Fix fail-on-section-error aggregation semantics
+
+**Files:**
+
+- Modify: `plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs`
+- Modify: `tests/error-handling.test.mjs`
+
+**Step 1: Understand the issue**
+
+Review finding: `--fail-on-section-error` currently throws inside the per-section catch path, so later sections are skipped and the partial artifact is not rendered. The flag also does not convert completed `impasse` sections to exit 74.
+Location: `plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs:799`
+
+**Step 2: Implement fix**
+
+Always collect all section results and write the artifact first. After aggregation, if `failOnSectionError` is set and any section ended in `error` or `impasse`, return or throw a `SECTION_ERROR` with exit 74 while preserving the output path/run directory in the structured event.
+
+**Step 3: Verify**
+
+Run: `node --test tests/error-handling.test.mjs`
+Expected: Test passes, including regressions that a hard-error section still processes later sections and writes the artifact, and that explicit IMPASSE with `--fail-on-section-error` exits 74.
+
+**Step 4: Commit**
+
+```bash
+git add plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs tests/error-handling.test.mjs
+git commit -m "fix(p02-t11): honor fail-on-section-error aggregation"
+```
+
+### Task p02-t12: (review) Render canonical artifact state containers
+
+**Files:**
+
+- Modify: `plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs`
+- Modify: `tests/sequential-wrapper.test.mjs`
+
+**Step 1: Understand the issue**
+
+Review finding: `renderDeliberationArtifact` emits visible JSON blocks instead of the designed frontmatter plus HTML-commented canonical JSON blocks, and heading containment for prose logs remains deferred.
+Location: `plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs:693`
+
+**Step 2: Implement fix**
+
+Update the renderer to emit the designed canonical-state container shape while keeping the human-readable artifact useful. Add heading-prefix containment for rendered prose logs so section content cannot escape its intended artifact hierarchy.
+
+**Step 3: Verify**
+
+Run: `node --test tests/sequential-wrapper.test.mjs`
+Expected: Test passes and asserts frontmatter/commented canonical JSON state blocks plus heading containment.
+
+**Step 4: Commit**
+
+```bash
+git add plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs tests/sequential-wrapper.test.mjs
+git commit -m "fix(p02-t12): render canonical artifact state"
+```
+
+### Task p02-t13: (review) Point Paseo install remediation to repo script
+
+**Files:**
+
+- Modify: `plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs`
+- Modify: `tests/wrapper-options.test.mjs`
+
+**Step 1: Understand the issue**
+
+Review finding: missing-Paseo remediation points at `plugins/consensus/skills/consensus-refine/scripts/install-paseo.mjs`, but the spec and plan schedule the repo-level `scripts/install-paseo.mjs`.
+Location: `plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs:22`
+
+**Step 2: Implement fix**
+
+Change the remediation text/constant to the repo-level `scripts/install-paseo.mjs` path. Tighten the wrapper-options test so it asserts the exact repo-level path rather than any install-paseo filename.
+
+**Step 3: Verify**
+
+Run: `node --test tests/wrapper-options.test.mjs`
+Expected: Test passes and verifies the repo-level install assist path.
+
+**Step 4: Commit**
+
+```bash
+git add plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs tests/wrapper-options.test.mjs
+git commit -m "fix(p02-t13): point install assist to repo script"
+```
+
 ## Phase 3: Host-Mediated Parallel Orchestration
 
 Goal: make `--prepare-parallel` and `--fan-in` work with simulated host dispatch and documented host responsibilities.
@@ -1121,7 +1205,7 @@ git commit -m "docs(p04-t08): record release readiness"
 | Scope  | Type     | Status  | Date | Artifact |
 | ------ | -------- | ------- | ---- | -------- |
 | p01    | code     | passed | 2026-05-04 | reviews/p01-review-2026-05-04-v2.md |
-| p02    | code     | received | 2026-05-04 | reviews/p02-review-2026-05-04-v3.md |
+| p02    | code     | fixes_added | 2026-05-04 | reviews/archived/p02-review-2026-05-04-v3.md |
 | p03    | code     | pending | -    | -        |
 | p04    | code     | pending | -    | -        |
 | final  | code     | pending | -    | -        |
@@ -1147,11 +1231,11 @@ git commit -m "docs(p04-t08): record release readiness"
 **Summary:**
 
 - Phase 1: 7 tasks - repository scaffolding and distribution metadata
-- Phase 2: 10 tasks - sequential wrapper and loop core
+- Phase 2: 13 tasks - sequential wrapper and loop core
 - Phase 3: 5 tasks - host-mediated parallel orchestration
 - Phase 4: 8 tasks - resume, release polish, and distribution validation
 
-**Total: 30 tasks**
+**Total: 33 tasks**
 
 Ready for implementation.
 
