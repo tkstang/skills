@@ -9,3 +9,4 @@ These are the details.
 ## Close
 
 This is the closing note.
+This section is also used by the parallel integration fixture.
