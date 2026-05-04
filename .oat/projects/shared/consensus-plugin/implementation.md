@@ -337,7 +337,8 @@ oat_generated: false
 ### Task p04-t08: Final Release Readiness Pass
 
 **Status:** completed
-**Commit:** this commit (`docs(p04-t08): record release readiness`)
+**Commit:** c609767
+**Review Fix:** 1c05686 (`fix(p04): continue max-rounds resumes after intervention`)
 
 ### Phase Summary
 
@@ -345,6 +346,7 @@ oat_generated: false
 
 - Added canonical artifact parsing for resume, including frontmatter/schema validation, section state extraction, hash recomputation, corrupt-section diagnostics, and skip controls.
 - Added resume-time user intervention handling that records `<user round=N>` entries and continues with the next peer turn without losing prior records.
+- Fixed max-rounds resume continuation so `--user-direction` grants a fresh continuation budget and invokes the next peer even when the prior run exhausted its original budget.
 - Added the opt-in Paseo install assist script, complete v0.1 user documentation, release version tooling, and mocked end-to-end smoke testing.
 - Updated CI to run validation plus the mocked smoke test.
 - Recorded release-readiness evidence and documented remaining manual provider-runtime blockers.
@@ -362,6 +364,8 @@ oat_generated: false
 
 - Run before readiness update: `npm test && node scripts/validate.mjs && node scripts/smoke-test.mjs`
 - Result: pass; 117 tests, validator passed, smoke passed.
+- Run after review fix: `npm test && node scripts/validate.mjs && node scripts/smoke-test.mjs`
+- Result: pass; 118 tests, validator passed, smoke passed.
 - Run: `paseo --version`
 - Result: `0.1.63`.
 - Run: `paseo provider ls --json`
@@ -372,7 +376,7 @@ oat_generated: false
 **Notes / Decisions:**
 
 - Public v0.1 tagging remains blocked until manual provider-runtime install and permission checks are completed for Claude Code, Cursor, Codex Git/local, and Agent Skills discovery.
-- The p04 implementation is complete and ready for the orchestrator-owned phase/final review gate; no lifecycle review was run in this phase.
+- Phase review initially found one Critical max-rounds resume continuation defect. Fix commit `1c05686` closed it; re-review artifact `reviews/p04-review-2026-05-04-v2.md` passed with 0 Critical, 0 Important, and 0 Minor findings.
 
 ---
 
@@ -472,6 +476,27 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 
 - None
 
+### Run 5 — 2026-05-04 11:09
+
+**Branch:** consensus-refine-v1
+**Tier:** 1
+**Policy:** merge-strategy=sequential, retry-limit=2
+**Phases:** 1 executed, 1 passed, 0 failed, 0 stopped
+
+#### Phase Outcomes
+
+| Phase | Implementer | Review | Fix Iterations | Disposition |
+| ----- | ----------- | ------ | -------------- | ----------- |
+| p04 | DONE_WITH_CONCERNS | pass | 1/2 | passed |
+
+#### Parallel Groups
+
+- p04: sequential
+
+#### Outstanding Items
+
+- Public v0.1 tagging remains blocked on manual provider-runtime install/permission smoke checks recorded in `RELEASING.md`.
+
 <!-- orchestration-runs-end -->
 
 ---
@@ -484,11 +509,14 @@ Chronological log of implementation progress.
 
 **Phase 4 Complete:** 10:48
 
-- Implementer completed p04 tasks p04-t01 through p04-t08 in commits `52ad822..bfd036d` plus the readiness documentation commit.
+- Implementer completed p04 tasks p04-t01 through p04-t08 in commits `52ad822..c609767`.
 - Full local verification before readiness notes passed: `npm test && node scripts/validate.mjs && node scripts/smoke-test.mjs`.
 - Local Paseo readiness check passed with `paseo 0.1.63`; `paseo provider ls --json` reported `claude` and `codex` available.
 - Manual provider runtime install/permission checks remain blocked before public tagging and are recorded in `RELEASING.md`.
-- Next: orchestrator should run the p04/final review gate. This phase did not run the lifecycle review.
+- Phase review artifact `reviews/p04-review-2026-05-04.md` found one Critical max-rounds resume continuation defect.
+- Fix commit `1c05686` grants user-intervention resumes a continuation budget and adds the true max-rounds regression.
+- Re-review artifact `reviews/p04-review-2026-05-04-v2.md` passed with 0 Critical, 0 Important, 0 Medium, and 0 Minor findings.
+- Next: final lifecycle review gate.
 
 ### 2026-05-04
 
@@ -637,7 +665,7 @@ Track test execution during implementation.
 
 **Verification performed:**
 
-- `npm test` - passed, 117 tests.
+- `npm test` - passed, 118 tests.
 - `node scripts/validate.mjs` - passed.
 - `node scripts/smoke-test.mjs` - passed.
 - `paseo --version` - `0.1.63`.

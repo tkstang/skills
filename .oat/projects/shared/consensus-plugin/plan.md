@@ -1207,7 +1207,7 @@ git commit -m "docs(p04-t08): record release readiness"
 | p01    | code     | passed | 2026-05-04 | reviews/p01-review-2026-05-04-v2.md |
 | p02    | code     | passed | 2026-05-04 | reviews/p02-fix-tasks-review-2026-05-04.md |
 | p03    | code     | passed | 2026-05-04 | reviews/p03-review-2026-05-04-v3.md |
-| p04    | code     | pending | -    | -        |
+| p04    | code     | passed | 2026-05-04 | reviews/p04-review-2026-05-04-v2.md |
 | final  | code     | pending | -    | -        |
 | spec   | artifact | pending | -    | -        |
 | design | artifact | fixes_completed | 2026-05-04 | reviews/archived/artifact-design-review-2026-05-03.md |
@@ -1237,7 +1237,7 @@ git commit -m "docs(p04-t08): record release readiness"
 
 **Total: 33 tasks**
 
-Ready for implementation.
+Implementation tasks complete; final code review pending.
 
 ## References
 
