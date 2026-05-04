@@ -2,7 +2,7 @@
 oat_status: complete
 oat_ready_for: oat-project-design
 oat_blockers: []
-oat_last_updated: 2026-05-01
+oat_last_updated: 2026-05-03
 oat_generated: false
 oat_template: false
 ---
@@ -23,9 +23,9 @@ The user routinely refines drafts (emails, design docs, architecture documents, 
 
 The user has already designed the solution: a family of consensus-deliberation skills, sharing a `consensus-loop` primitive, that drive Claude Code and Codex (and other Agent Skills clients) as **symmetric peers** through structured turns until the artifact converges. Hash-based convergence + structured ACCEPT/REVISE/IMPASSE verdicts replace soft "iterate until done" instructions. The deliberation log is a first-class artifact alongside the converged output.
 
-This project sets up the user's long-term **personal skills repository** (this repo, `~/Code/skills`, public on GitHub as `<username>/skills`) and ships v0.1 of the consensus skill family — packaged as a portable `consensus` plugin distributable on Claude Code, Cursor, and Codex. v0.1 scope is intentionally small (one skill, one iteration mode, sequential only) per the v3 implementation plan's "smallest valuable shippable scope": core primitive + `consensus-refine` with alternating mode.
+This project sets up the user's long-term **personal skills repository** (this repo, `~/Code/skills`, public on GitHub as `<username>/skills`) and ships v0.1 of the consensus skill family — packaged as a portable `consensus` plugin distributable on Claude Code, Cursor, and Codex. v0.1 scope is one skill (`consensus-refine`) using alternating iteration mode, with sequential section orchestration as default and opt-in parallel orchestration (host-mediated, two-phase wrapper). The user-facing `--agency` flag is exposed at v0.1.
 
-The repo doubles as a **growth platform** for additional personal skills and plugin groups; the sub-plugin pattern under `plugins/<name>/` keeps that path open without forcing future restructure.
+The repo follows a self-contained plugin pattern: `plugins/consensus/` is a fully self-contained package (own skills, own manifests), while top-level `skills/` is reserved for standalone personal skills. This distinguishes plugin-bundled skills from standalone ones and lets additional plugin groups (`plugins/<other>/`) ship without restructure.
 
 ## Goals
 
@@ -46,7 +46,7 @@ The repo doubles as a **growth platform** for additional personal skills and plu
 
 - Skills 2–6 in the consensus family (`consensus-create`, `-evaluate`, `-decide`, `-plan`, `-research`) at v0.1.
 - Parallel-revision and parallel-synthesized iteration modes at v0.1 (alternating only).
-- User-facing editorial-agency flag (hard-coded to moderate per v3's `consensus-refine` default).
+- Whole-doc harmonization pass after section convergence (deferred to v0.2).
 - Cursor CLI as a deliberation **peer** (paseo does not implement a cursor provider as of 2026-05-01). Cursor is supported as a **host runtime**; in that case peers fall back to the `claude` + `codex` defaults.
 - Codex public marketplace submission (Git/local install path until OpenAI's flow matures).
 - Public skills.sh listing claims at launch.
@@ -77,7 +77,7 @@ The repo doubles as a **growth platform** for additional personal skills and plu
   - Skill accepts a markdown file path and an optional `--goal` text.
   - Each agent turn emits valid JSON conforming to the alternating-mode verdict schema.
   - Artifact state is updated after each REVISE; ACCEPT preserves prior state.
-  - Default agent pair is Claude Code + Codex; configurable via `--providers`.
+  - Default agent pair is Claude Code + Codex; configurable via `--peers` (see FR9).
 - **Priority:** P0
 
 **FR3: Hash-based convergence detection terminates the loop**
@@ -87,7 +87,7 @@ The repo doubles as a **growth platform** for additional personal skills and plu
   - Termination on hash-match between consecutive turns (different agents).
   - Termination on two consecutive ACCEPTs against the same artifact.
   - Termination + escalation on explicit IMPASSE.
-  - Termination + escalation on round budget exceeded (default 10–15 rounds per section).
+  - Termination + escalation on round budget exceeded (default 12 rounds per section).
   - Oscillation detection: hash alternation between two states across 4+ rounds escalates as impasse.
 - **Priority:** P0
 
@@ -208,11 +208,11 @@ The repo doubles as a **growth platform** for additional personal skills and plu
 
 **NFR5: Honest README about scope**
 
-- **Description:** The repo's README accurately represents v0.1 scope (Phase 1 only: refine, alternating, sequential), the deferred path (Phases 2–4), and provider asymmetry (Claude/Cursor public; Codex Git/local).
+- **Description:** The repo's README accurately represents v0.1 scope (`consensus-refine` with alternating iteration mode, sequential default + opt-in parallel orchestration, `--agency` flag exposed), the deferred path, and provider asymmetry (Claude/Cursor public; Codex Git/local).
 - **Acceptance Criteria:**
-  - README has a "Status: v0.1 / Phase 1" badge or section.
+  - README has a "Status: v0.1" badge or section.
   - README clearly notes Codex install differs (Git/local) from Claude/Cursor (marketplace).
-  - Deferred features (skills 2–6, parallel modes, agency flag) are listed as "future" — not promised, not hidden.
+  - Deferred features (skills 2–6, parallel-revision/parallel-synthesized iteration modes, harmonization pass) are listed as "future" — not promised, not hidden.
 - **Priority:** P1
 
 **NFR6: Provider-runtime subagent permission handling follows OAT best practice**
@@ -222,7 +222,7 @@ The repo doubles as a **growth platform** for additional personal skills and plu
   - At v0.1, the skill documents required host-runtime permissions (Bash/exec to invoke `paseo`) per provider in its `SKILL.md` and the per-provider plugin manifests.
   - At v0.1, the skill verifies `paseo` availability before starting deliberation and fails clearly if missing or unauthorized.
   - The skill does not silently degrade behavior across providers; cross-provider differences are surfaced in user-facing messages.
-  - Phase 4 (parallel section orchestration) inherits the full OAT tier-detection + Codex fail-closed authorization pattern (deferred but documented in design).
+  - v0.1 parallel section orchestration uses the full OAT tier-detection + Codex fail-closed authorization pattern (host LLM dispatches host-native subagents per SKILL.md; refuses silent fallback).
 - **Priority:** P0
 
 ## Constraints
@@ -233,8 +233,8 @@ The repo doubles as a **growth platform** for additional personal skills and plu
 - **Skills layer is the only portable thing.** Hooks, agents, commands, rules, settings diverge per provider — adapter surfaces only.
 - **Codex public Plugin Directory submission is not yet self-serve** (as of 2026-05-01). v0.1 ships Codex via Git/local install only.
 - **Agent Skills baseline frontmatter** is the canonical contract. Provider-specific top-level fields go into provider-specific manifests, not into canonical skill bodies.
-- **Personal-time project.** Scope is Phase 1 only at v0.1; all expansion is deferred and not committed in this project.
-- **OAT subagent best practices govern host-runtime interactions.** Cross-provider subagent/subprocess dispatch follows the pattern from `oat-project-implement` Step 0.5: tier detection (Claude Task tool / Cursor native / Codex multi-agent / inline fallback); Codex requires explicit user authorization when `spawn_agent` is gated, fail-closed; tier is locked once selected for the run. v0.1 only invokes paseo as a subprocess (not a host-runtime subagent) but the pattern is committed for Phase 4 parallel section orchestration.
+- **Personal-time project.** v0.1 includes consensus-refine (alternating mode) + sequential & parallel section orchestration + `--agency` flag exposure. Skills 2–6, parallel-revision/parallel-synthesized iteration modes, and the harmonization pass remain deferred.
+- **OAT subagent best practices govern host-runtime interactions.** Cross-provider subagent/subprocess dispatch follows the pattern from `oat-project-implement` Step 0.5: tier detection (Claude Task tool / Cursor native / Codex multi-agent / inline fallback); Codex requires explicit user authorization when `spawn_agent` is gated, fail-closed; tier is locked once selected for the run. v0.1 invokes paseo as a subprocess in all modes; parallel mode additionally uses host-runtime subagents via host-mediated dispatch (SKILL.md instructs the host LLM; wrapper does not directly spawn host subagents).
 
 ## Dependencies
 
@@ -248,24 +248,25 @@ The repo doubles as a **growth platform** for additional personal skills and plu
 
 ## High-Level Design (Proposed)
 
-The repository takes the proven `obra/superpowers` shape: top-level `skills/` holds canonical skill bodies, and **repo-level plugin manifests** sit as siblings at the repo root (`.claude-plugin/`, `.cursor-plugin/`, `.codex-plugin/`, plus `.agents/plugins/marketplace.json` for Codex). Manifest paths reference `./skills/...` plugin-root-relative — no `../` traversal. Sub-plugin packaging (under `plugins/<name>/`) is deferred until a second plugin group exists, at which point a copy/sync mechanism keeps multiple plugin packages in step with canonical `skills/`.
+The repository uses **self-contained plugins** under `plugins/<name>/` (Option C variant 1, validated against Codex sub-plugin docs and `npx skills 1.5.3` local probe). Each plugin owns its skills, scripts, and manifests entirely; top-level `skills/` is reserved for **standalone personal skills** that aren't part of any published plugin. Repo-root marketplace files (`.claude-plugin/marketplace.json`, `.cursor-plugin/marketplace.json`, `.agents/plugins/marketplace.json`) declare `plugins/consensus` as an installable plugin via `source.path: "./plugins/consensus"`.
 
-The `consensus` plugin contains one user-facing skill at v0.1 (`consensus-refine`), backed by a shared `consensus-loop` primitive. The primitive is a small TypeScript or shell wrapper around `paseo run --output-schema` that owns the per-turn loop, structured-verdict parsing, hash-based convergence detection, and deliberation-log assembly. The skill is a thin wrapper that supplies `consensus-refine`-specific defaults (alternating mode, shared_input cold-start, moderate agency).
+The `consensus` plugin contains one user-facing skill at v0.1 (`consensus-refine`). Internally the skill has three layers: `SKILL.md` (instructions to host LLM), `consensus-refine.mjs` (deterministic wrapper script — argv parsing, host detection, peer resolution, sequential dispatch, parallel prepare/fan-in), and `consensus-loop.mjs` (per-turn loop engine — paseo invocation, verdict validation, hash-based convergence). The loop is **Node ESM (.mjs) using stdlib only** (no TypeScript build step at v0.1) and is **vendored inside the consensus-refine skill** for now (refactor target deferred per Open Questions).
 
-Cross-provider portability is enforced by keeping the skill body provider-agnostic: only Agent Skills baseline frontmatter; provider-specific behavior (Claude `allowed-tools`, Cursor rules, Codex `interface` metadata) lives in the per-provider manifest. The OAT scaffolding in this repo (`.oat/`, `.agents/`, OAT block in `AGENTS.md`) coexists but is not referenced by plugin manifests.
+Cross-provider portability follows the OAT-tested **additive frontmatter** rule: canonical `SKILL.md` carries fields like Claude's `allowed-tools` when current target providers tolerate them; conflicting fields go in provider-specific manifests. The OAT scaffolding in this repo (`.oat/`, `.agents/`, OAT block in `AGENTS.md`) coexists as project-management infrastructure but is not referenced by plugin manifests.
 
 **Key Components:**
 
-- **`consensus-loop` primitive** — Shared engine for all consensus skills. Drives `paseo run` per turn, parses verdicts, detects convergence, assembles deliberation log. Parameterized by iteration mode, cold-start, agency, etc.
-- **`consensus-refine` skill** — `SKILL.md` + supporting scripts. Reads input artifact, parses sections, runs the consensus loop sequentially per section, writes the deliberation artifact. Currently the only shipped consensus skill at v0.1.
-- **`consensus` plugin manifests** — Per-provider `plugin.json` files at repo root: `.claude-plugin/plugin.json`, `.cursor-plugin/plugin.json`, `.codex-plugin/plugin.json`. Each selects `./skills/consensus-refine` (plugin-root-relative).
-- **Repo-level scaffolding** — `README.md` with install matrix, CI workflow validating skills + manifests, `LICENSE`, `AGENTS.md`/`CLAUDE.md` symlink. Coexists with OAT scaffolding (`.oat/`, `.agents/`).
+- **`consensus-refine` skill (3 layers)** — `plugins/consensus/skills/consensus-refine/SKILL.md` (instructions) + `scripts/consensus-refine.mjs` (wrapper) + `scripts/consensus-loop.mjs` (per-turn loop). The wrapper supplies sensible defaults (alternating mode, shared_input cold-start, `moderate` agency); `--agency` is exposed as a CLI flag.
+- **`consensus` plugin manifests** — Per-provider `plugin.json` under `plugins/consensus/.{claude|cursor|codex}-plugin/`. Skill paths inside these manifests are plugin-root-relative (`./skills/consensus-refine`) where the plugin root is `plugins/consensus/`.
+- **Repo-root marketplace files** — `.claude-plugin/marketplace.json`, `.cursor-plugin/marketplace.json`, `.agents/plugins/marketplace.json`. Each declares `plugins/consensus` as an installable plugin. Plugin runtimes (Claude/Codex/skills.sh) honor these for discovery.
+- **Repo-level scaffolding** — `README.md` with install matrix, CI workflow validating skills + manifests, `scripts/validate.mjs`, `scripts/install-paseo.mjs` (FR10), `LICENSE`, `AGENTS.md` ↔ `CLAUDE.md`. Coexists with OAT scaffolding.
 
 **Alternatives Considered:**
 
-- **Sub-plugin packaging at v0.1** (`plugins/consensus/.{provider}-plugin/`). Rejected after design review: provider plugin runtimes expect plugin-root-relative paths starting with `./`, not paths reaching up out of plugin root via `../`. The proven reference (`obra/superpowers`) uses repo-level manifests. Sub-plugin packaging stays on the table for the future when a second plugin group exists; it will require a copy/sync mechanism not warranted at v0.1.
-- **Standalone CLI separate from Claude Code skill ecosystem.** Rejected during v3 design (`ideas/2026-05-01-two-agent-consensus-deliberation-as.md`) in favor of a skill, since Paseo's `--output-schema` already handles the heavy lifting and skills give native invocation + filesystem access + sub-agent delegation for free.
-- **Bundling Paseo into the plugin.** Rejected — Paseo's AGPL license requires shell-out, not embedding. Users install Paseo as a documented prerequisite.
+- **Self-contained plugin under `plugins/consensus/` (Chosen).** Validated against Codex sub-plugin docs (paths must start with `./`, must stay inside marketplace root) and `npx skills 1.5.3` local probe (Phase 2 marketplace.json discovery picks up nested skills). Distinguishes plugin-bundled skills from standalone personal skills under top-level `skills/` — directly serves the user's stated requirement.
+- **Repo-level plugin manifests** (`obra/superpowers` shape). Rejected because it conflates the repo with a single plugin and doesn't distinguish plugin-bundled skills from standalone personal skills. Migration path from this shape to sub-plugin requires either copy/sync mechanism or restructure when a second plugin group arrives.
+- **Standalone CLI separate from Claude Code skill ecosystem.** Rejected during v3 design (`ideas/2026-05-01-two-agent-consensus-deliberation-as.md`) in favor of a skill, since Paseo's `--output-schema` handles the heavy lifting and skills give native invocation + filesystem access + sub-agent delegation for free.
+- **Bundling Paseo into the plugin.** Rejected — Paseo's AGPL license requires shell-out, not embedding. Users install Paseo as a documented prerequisite (FR10 provides opt-in install assist).
 
 _Design-related open questions are tracked in the [Open Questions](#open-questions) section below._
 
@@ -283,7 +284,7 @@ _Design-related open questions are tracked in the [Open Questions](#open-questio
 | FR1 | Repo scaffolded with skills/ + plugins/consensus/ + Agent Skills frontmatter | P0 | manual + unit: directory structure, manifest JSON parse, frontmatter validation | TBD - see plan.md |
 | FR2 | consensus-refine alternating-mode deliberation | P0 | integration: skill invocation produces valid alternating turns | TBD - see plan.md |
 | FR3 | Hash-based convergence detection | P0 | unit: hash equality, oscillation detection, round budget; integration: end-to-end termination | TBD - see plan.md |
-| FR4 | Section parsing + sequential per-section deliberation | P0 | unit: heading parser, marker override; integration: multi-section run | TBD - see plan.md |
+| FR4 | Section parsing + per-section deliberation (sequential default, opt-in parallel via host-mediated dispatch) | P0 | unit: heading parser, marker override; integration: sequential multi-section run; integration: --prepare-parallel/--fan-in flow with simulated host dispatch | TBD - see plan.md |
 | FR5 | Deliberation artifact format | P0 | manual: artifact passes readability spot-check; unit: round-record schema | TBD - see plan.md |
 | FR6 | Impasse handling + user surfacing | P0 | manual: forced impasse run; integration: user-intervention round entry | TBD - see plan.md |
 | FR7 | Cross-provider install paths | P0 | manual: fresh install smoke test on all 3 providers | TBD - see plan.md |
@@ -292,7 +293,7 @@ _Design-related open questions are tracked in the [Open Questions](#open-questio
 | FR10 | Optional Paseo install assistance | P1 | manual: install script smoke test on a clean machine; unit: prompt+confirm flow | TBD - see plan.md |
 | NFR1 | Audit trail is publishable | P0 | manual: dogfooding readability sample | TBD - see plan.md |
 | NFR2 | Wall-clock < 5 min, cost < $1 on one-pager | P1 | perf: dogfooding measurement | TBD - see plan.md |
-| NFR3 | Cross-provider portability of skill bodies | P0 | manual + unit: canonical SKILL.md files contain only baseline frontmatter | TBD - see plan.md |
+| NFR3 | Cross-provider portability via additive frontmatter | P0 | manual + unit: canonical SKILL.md files use additive frontmatter pattern (provider-tolerant); release smoke tests verify per-provider tolerance | TBD - see plan.md |
 | NFR4 | OAT/plugin separation | P0 | manual: published plugin installs without OAT | TBD - see plan.md |
 | NFR5 | Honest README about scope | P1 | manual: README review against v0.1 actual scope | TBD - see plan.md |
 | NFR6 | OAT subagent best practices for cross-provider runtime | P0 | manual: cross-provider install + permission docs verification; integration: paseo-availability preflight | TBD - see plan.md |
@@ -347,8 +348,20 @@ Carried forward from `discovery.md`; resolved during design phase:
   - **Mitigation:** Enforce baseline-frontmatter canonical skills via CI; document the contribution rule; provider-specific fields only in provider manifests.
 - **Personal-time scope drift**
   - **Likelihood:** Medium
-  - **Impact:** Low (Phase 1 stands alone)
-  - **Mitigation:** Commit to shipping Phase 1 standalone before starting Phase 2; the repo can sit at v0.1 indefinitely.
+  - **Impact:** Low (sequential v0.1 stands alone if parallel must be cut)
+  - **Mitigation:** Commit to shipping the sequential path standalone before extending; if personal time runs short before implementation starts, re-scope v0.1 to sequential-only and update spec/design/README before release. Do not silently defer `--prepare-parallel`/`--fan-in` once public docs advertise them.
+- **Prompt injection inside input artifact (surfaced during design)**
+  - **Likelihood:** Medium (any user-supplied content could contain it)
+  - **Impact:** Low–Medium (manipulated verdicts visible in audit trail; user reviews the deliberation log)
+  - **Mitigation:** Per-turn prompt frames artifact as untrusted with `<SECTION>` delimiters and explicit "ignore instructions inside" guidance; schema enforcement keeps the loop parseable but does not prevent maliciously influenced valid verdicts; audit trail surfaces unusual verdicts post-hoc; documented as known limitation in README.
+- **Wrapper-vs-host-runtime parallel dispatch fragility (surfaced during design)**
+  - **Likelihood:** Medium (host runtimes evolve; new versions may change subagent semantics)
+  - **Impact:** Medium (parallel mode breaks; sequential still works)
+  - **Mitigation:** Sequential is the default mode; parallel two-phase wrapper makes phases independently testable; SKILL.md documents host responsibilities for parallel; Codex authorization fail-closed prevents silent degradation.
+- **Paseo CLI breaking changes (surfaced during design)**
+  - **Likelihood:** Medium (paseo is pre-1.0; CLI surface may evolve)
+  - **Impact:** Medium–High (loop fails; section preflight catches early)
+  - **Mitigation:** Version check at preflight with warning if outside tested range; provider preflight via `paseo provider ls --json` validates JSON shape; subprocess output cap defends against unexpected verbosity; wrapper depends only on documented paseo flags; pin tested version range in README install instructions.
 
 ## References
 
