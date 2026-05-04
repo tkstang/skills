@@ -1,9 +1,9 @@
 ---
-oat_status: in_progress
-oat_ready_for: null
+oat_status: complete
+oat_ready_for: oat-project-review-provide
 oat_blockers: []
 oat_last_updated: 2026-05-04
-oat_current_task_id: p04-t01
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -29,9 +29,9 @@ oat_generated: false
 | Phase 1 | completed   | 7     | 7/7       |
 | Phase 2 | completed   | 13    | 13/13     |
 | Phase 3 | completed   | 5     | 5/5       |
-| Phase 4 | pending     | 8     | 0/8       |
+| Phase 4 | completed   | 8     | 8/8       |
 
-**Total:** 25/33 tasks completed
+**Total:** 33/33 tasks completed
 
 ---
 
@@ -293,6 +293,89 @@ oat_generated: false
 
 ---
 
+## Phase 4: Resume, Release Polish, and Distribution Validation
+
+**Status:** completed
+**Started:** 2026-05-04
+**Completed:** 2026-05-04
+
+### Task p04-t01: Parse Deliberation Artifacts for Resume
+
+**Status:** completed
+**Commit:** 52ad822
+
+### Task p04-t02: Implement Resume Corruption Handling and Skip Flags
+
+**Status:** completed
+**Commit:** aeb0fcc
+
+### Task p04-t03: Add User Intervention Resume Flow
+
+**Status:** completed
+**Commit:** 7a72799
+
+### Task p04-t04: Implement Paseo Install Assist
+
+**Status:** completed
+**Commit:** 6835827
+
+### Task p04-t05: Complete README Provider Support and Limitations
+
+**Status:** completed
+**Commit:** 9c1dd9c
+
+### Task p04-t06: Add Version Bump and Release Workflow Support
+
+**Status:** completed
+**Commit:** 1212207
+
+### Task p04-t07: Add CI Smoke Test
+
+**Status:** completed
+**Commit:** bfd036d
+
+### Task p04-t08: Final Release Readiness Pass
+
+**Status:** completed
+**Commit:** this commit (`docs(p04-t08): record release readiness`)
+
+### Phase Summary
+
+**Outcome (what changed):**
+
+- Added canonical artifact parsing for resume, including frontmatter/schema validation, section state extraction, hash recomputation, corrupt-section diagnostics, and skip controls.
+- Added resume-time user intervention handling that records `<user round=N>` entries and continues with the next peer turn without losing prior records.
+- Added the opt-in Paseo install assist script, complete v0.1 user documentation, release version tooling, and mocked end-to-end smoke testing.
+- Updated CI to run validation plus the mocked smoke test.
+- Recorded release-readiness evidence and documented remaining manual provider-runtime blockers.
+
+**Key files touched:**
+
+- `plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs` - resume parsing, validation, skip handling, and resumed sequential orchestration.
+- `plugins/consensus/skills/consensus-refine/scripts/consensus-loop.mjs` - seeded records, user intervention records, and resumed turn prompting.
+- `scripts/install-paseo.mjs`, `scripts/bump-version.mjs`, `scripts/smoke-test.mjs` - install, release, and smoke-test utilities.
+- `README.md`, `CONTRIBUTING.md`, `CHANGELOG.md`, `RELEASING.md` - v0.1 release-scope documentation.
+- `.github/workflows/validate.yml`, `.github/workflows/release.yml` - smoke and tag-version validation wiring.
+- `tests/*resume*.test.mjs`, `tests/user-intervention.test.mjs`, `tests/install-paseo.test.mjs`, `tests/readme-scope.test.mjs`, `tests/release-versioning.test.mjs`, `tests/smoke-test-script.test.mjs` - p04 coverage.
+
+**Verification:**
+
+- Run before readiness update: `npm test && node scripts/validate.mjs && node scripts/smoke-test.mjs`
+- Result: pass; 117 tests, validator passed, smoke passed.
+- Run: `paseo --version`
+- Result: `0.1.63`.
+- Run: `paseo provider ls --json`
+- Result: `claude` and `codex` reported available; `copilot`, `opencode`, and `pi` unavailable.
+- Run: `codex plugin marketplace add --help`
+- Result: local marketplace roots are supported, but no non-mutating dry-run was exposed.
+
+**Notes / Decisions:**
+
+- Public v0.1 tagging remains blocked until manual provider-runtime install and permission checks are completed for Claude Code, Cursor, Codex Git/local, and Agent Skills discovery.
+- The p04 implementation is complete and ready for the orchestrator-owned phase/final review gate; no lifecycle review was run in this phase.
+
+---
+
 ## Orchestration Runs
 
 _Each run from `oat-project-implement` appends an entry below with:_
@@ -396,6 +479,16 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 ## Implementation Log
 
 Chronological log of implementation progress.
+
+### 2026-05-04
+
+**Phase 4 Complete:** 10:48
+
+- Implementer completed p04 tasks p04-t01 through p04-t08 in commits `52ad822..bfd036d` plus the readiness documentation commit.
+- Full local verification before readiness notes passed: `npm test && node scripts/validate.mjs && node scripts/smoke-test.mjs`.
+- Local Paseo readiness check passed with `paseo 0.1.63`; `paseo provider ls --json` reported `claude` and `codex` available.
+- Manual provider runtime install/permission checks remain blocked before public tagging and are recorded in `RELEASING.md`.
+- Next: orchestrator should run the p04/final review gate. This phase did not run the lifecycle review.
 
 ### 2026-05-04
 
@@ -522,24 +615,38 @@ Track test execution during implementation.
 
 **What shipped:**
 
-- {capability 1}
-- {capability 2}
+- A self-contained `consensus` plugin with one v0.1 skill, `consensus-refine`, packaged for Claude Code, Cursor, Codex Git/local, and Agent Skills discovery.
+- Sequential and host-mediated parallel section orchestration backed by a dependency-free Node/Paseo consensus loop.
+- Resume support from canonical deliberation artifacts, including corrupt-state fail-closed handling and user intervention records.
+- Release polish: opt-in Paseo install assist, complete v0.1 docs, version bump/tag-check tooling, mocked smoke testing, and release-readiness notes.
 
 **Behavioral changes (user-facing):**
 
-- {bullet}
+- Running `consensus-refine` on markdown produces a publishable artifact with Final Output, Resolution, Goal, Section States, and per-section Deliberation Log.
+- Users can resume from prior artifacts with explicit corrupt-section skip controls and add `--user-direction` to continue after intervention.
+- Missing Paseo preflight points users to `npm install -g @getpaseo/cli`, the source-build path, and `scripts/install-paseo.mjs`; the helper never auto-installs.
+- Parallel mode remains host-mediated: the wrapper prepares packets and fans in results; the host runtime owns subagent dispatch.
 
 **Key files / modules:**
 
-- `{path}` - {purpose}
+- `plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs` - wrapper, section orchestration, artifact rendering, resume handling, and fan-in.
+- `plugins/consensus/skills/consensus-refine/scripts/consensus-loop.mjs` - alternating peer loop, convergence, records/status persistence, and user intervention records.
+- `plugins/consensus/skills/consensus-refine/SKILL.md` - user-facing skill and host dispatch instructions.
+- `scripts/validate.mjs`, `scripts/smoke-test.mjs`, `scripts/bump-version.mjs`, `scripts/install-paseo.mjs` - validation, release, smoke, and install utilities.
+- `README.md`, `CONTRIBUTING.md`, `RELEASING.md`, `CHANGELOG.md` - v0.1 docs and release notes.
 
 **Verification performed:**
 
-- {tests/lint/typecheck/build/manual steps}
+- `npm test` - passed, 117 tests.
+- `node scripts/validate.mjs` - passed.
+- `node scripts/smoke-test.mjs` - passed.
+- `paseo --version` - `0.1.63`.
+- `paseo provider ls --json` - `claude` and `codex` available locally.
+- Provider runtime install/permission checks are documented as pre-tag blockers in `RELEASING.md`.
 
 **Design deltas (if any):**
 
-- {what changed vs design.md and why}
+- No intentional scope expansion beyond p04. Public release readiness remains gated on manual provider-runtime smoke tests because local CLIs did not expose safe non-mutating plugin install/permission validation for every provider.
 
 ## References
 
