@@ -34,6 +34,41 @@ async function pathExists(targetPath) {
   }
 }
 
+async function listSubdirectories(directory) {
+  try {
+    const entries = await readdir(directory, { withFileTypes: true });
+    return entries
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => path.join(directory, entry.name))
+      .sort();
+  } catch (error) {
+    if (error.code === 'ENOENT') return [];
+    throw error;
+  }
+}
+
+async function discoverSkillDirectories(root) {
+  const skillDirectories = new Set();
+
+  for (const skillPath of await listSubdirectories(path.join(root, 'skills'))) {
+    if (await pathExists(path.join(skillPath, 'SKILL.md'))) {
+      skillDirectories.add(skillPath);
+    }
+  }
+
+  for (const pluginPath of await listSubdirectories(path.join(root, 'plugins'))) {
+    for (const skillPath of await listSubdirectories(path.join(pluginPath, 'skills'))) {
+      if (await pathExists(path.join(skillPath, 'SKILL.md'))) {
+        skillDirectories.add(skillPath);
+      }
+    }
+  }
+
+  return [...skillDirectories].sort((left, right) =>
+    path.relative(root, left).localeCompare(path.relative(root, right))
+  );
+}
+
 export function parseFrontmatter(markdown, source = 'markdown') {
   const match = markdown.match(/^---\n([\s\S]*?)\n---(?:\n|$)/);
   if (!match) {
@@ -131,6 +166,16 @@ async function validateSkillFrontmatter(root, skillPath) {
 
   if (parsed.metadata?.version !== '0.1.0') {
     issues.push(`${path.relative(root, skillFile)} metadata.version should be 0.1.0`);
+  }
+
+  return issues;
+}
+
+async function validateDiscoveredSkillDirectories(root) {
+  const issues = [];
+
+  for (const skillPath of await discoverSkillDirectories(root)) {
+    issues.push(...(await validateSkillFrontmatter(root, skillPath)));
   }
 
   return issues;
@@ -291,6 +336,7 @@ export async function validateRepository(options = {}) {
   errors.push(...(await validateDirectoryLayout(root)));
   errors.push(...(await validateDocs(root)));
   errors.push(...(await validateVersionConsistency(root)));
+  errors.push(...(await validateDiscoveredSkillDirectories(root)));
 
   for (const manifest of PROVIDER_MANIFESTS) {
     errors.push(...(await validateProviderManifest(root, manifest)));
