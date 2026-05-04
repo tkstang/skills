@@ -1,9 +1,9 @@
 ---
-oat_status: complete
-oat_ready_for: oat-project-review-provide
+oat_status: in_progress
+oat_ready_for: oat-project-implement
 oat_blockers: []
 oat_last_updated: 2026-05-04
-oat_current_task_id: null
+oat_current_task_id: p06-t01
 oat_generated: false
 ---
 
@@ -31,8 +31,9 @@ oat_generated: false
 | Phase 3 | completed   | 5     | 5/5       |
 | Phase 4 | completed   | 8     | 8/8       |
 | Phase 5 | completed   | 4     | 4/4       |
+| Phase 6 | pending     | 2     | 0/2       |
 
-**Total:** 37/37 tasks completed
+**Total:** 37/39 tasks completed
 
 ---
 
@@ -442,6 +443,22 @@ oat_generated: false
 
 ---
 
+## Phase 6: Final Resume Review Fixes
+
+**Status:** pending
+**Started:** -
+**Completed:** -
+
+### Task p06-t01: (review) Make Resume Section Inventory Artifact-Authoritative
+
+**Status:** pending
+
+### Task p06-t02: (review) Use Agency-Aware Resume Hash Validation
+
+**Status:** pending
+
+---
+
 ## Orchestration Runs
 
 _Each run from `oat-project-implement` appends an entry below with:_
@@ -587,6 +604,16 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 ## Implementation Log
 
 Chronological log of implementation progress.
+
+### 2026-05-04
+
+**Review Received:** final v2
+
+- Review artifact: `reviews/archived/final-review-2026-05-04-v2.md`
+- Findings: 1 Critical, 1 Important, 0 Medium, 0 Minor.
+- New tasks added: `p06-t01`, `p06-t02`.
+- Finding disposition map: C1 converted, I1 converted.
+- Next: execute final resume review fix tasks via `oat-project-implement`.
 
 ### 2026-05-04
 

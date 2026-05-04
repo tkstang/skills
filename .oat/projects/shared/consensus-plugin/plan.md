@@ -7,7 +7,7 @@ oat_last_updated: 2026-05-04
 oat_phase: plan
 oat_phase_status: complete
 oat_plan_parallel_groups: []
-oat_plan_hill_phases: ["p05"]
+oat_plan_hill_phases: ["p06"]
 oat_auto_review_at_hill_checkpoints: true
 oat_import_reference: null
 oat_import_source_path: null
@@ -1315,6 +1315,68 @@ git add RELEASING.md .oat/projects/shared/consensus-plugin/implementation.md
 git commit -m "docs(p05-t04): refresh release readiness evidence"
 ```
 
+## Phase 6: Final Resume Review Fixes
+
+Goal: close the remaining final lifecycle resume findings from the second final review cycle.
+
+### Task p06-t01: (review) Make Resume Section Inventory Artifact-Authoritative
+
+**Files:**
+
+- Modify: `plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs`
+- Create/Modify: `tests/sequential-wrapper.test.mjs`
+- Create/Modify: `tests/resume-parse.test.mjs`
+
+**Step 1: Understand the issue**
+
+Review finding: resumed runs still let the current input file decide which sections exist, so if the source input removes or renames a section, that section can be silently dropped from the resumed artifact.
+Location: `plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs:1576`
+
+**Step 2: Implement fix**
+
+When `--resume` is present, build the run section list from `resumeState.sections` instead of the current input section inventory. Preserve all artifact sections as the authoritative state. Treat current-input drift as non-fatal for known sections; only use current input text for explicit corrupt-section skip/restart behavior.
+
+**Step 3: Verify**
+
+Run: `node --test tests/sequential-wrapper.test.mjs tests/resume-parse.test.mjs`
+Expected: tests pass, including a regression where a resumed artifact preserves all original sections after the source input removes or renames headings.
+
+**Step 4: Commit**
+
+```bash
+git add plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs tests/sequential-wrapper.test.mjs tests/resume-parse.test.mjs
+git commit -m "fix(p06-t01): keep resume section inventory authoritative"
+```
+
+### Task p06-t02: (review) Use Agency-Aware Resume Hash Validation
+
+**Files:**
+
+- Modify: `plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs`
+- Create/Modify: `tests/resume-parse.test.mjs`
+- Create/Modify: `tests/sequential-wrapper.test.mjs`
+
+**Step 1: Understand the issue**
+
+Review finding: minimal-agency artifacts use strict bytewise hashing in the loop, but resume validation recomputes resumed output hashes with default normalized hashing and can falsely reject valid minimal-agency artifacts.
+Location: `plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs:314`
+
+**Step 2: Implement fix**
+
+Recompute resume hashes with the same agency-aware hash options used by the loop, using `resolution.agency` or equivalent resume metadata. Normalize legacy artifacts explicitly if needed and keep corruption checks fail-closed for genuine mismatches.
+
+**Step 3: Verify**
+
+Run: `node --test tests/resume-parse.test.mjs tests/sequential-wrapper.test.mjs`
+Expected: tests pass, including a minimal-agency resume regression with trailing whitespace.
+
+**Step 4: Commit**
+
+```bash
+git add plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs tests/resume-parse.test.mjs tests/sequential-wrapper.test.mjs
+git commit -m "fix(p06-t02): use agency-aware resume hashes"
+```
+
 ## Reviews
 
 {Track reviews here after running the oat-project-review-provide and oat-project-review-receive skills.}
@@ -1328,7 +1390,8 @@ git commit -m "docs(p05-t04): refresh release readiness evidence"
 | p03    | code     | passed | 2026-05-04 | reviews/p03-review-2026-05-04-v3.md |
 | p04    | code     | passed | 2026-05-04 | reviews/p04-review-2026-05-04-v2.md |
 | p05    | code     | passed | 2026-05-04 | reviews/p05-review-2026-05-04.md |
-| final  | code     | fixes_completed | 2026-05-04 | reviews/archived/final-review-2026-05-04.md |
+| p06    | code     | pending | -    | -        |
+| final  | code     | fixes_added | 2026-05-04 | reviews/archived/final-review-2026-05-04-v2.md |
 | spec   | artifact | pending | -    | -        |
 | design | artifact | fixes_completed | 2026-05-04 | reviews/archived/artifact-design-review-2026-05-03.md |
 | plan   | artifact | received | 2026-05-04 | reviews/artifact-plan-review-2026-05-04-v2.md |
@@ -1355,10 +1418,11 @@ git commit -m "docs(p05-t04): refresh release readiness evidence"
 - Phase 3: 5 tasks - host-mediated parallel orchestration
 - Phase 4: 8 tasks - resume, release polish, and distribution validation
 - Phase 5: 4 tasks - final review fixes
+- Phase 6: 2 tasks - final resume review fixes
 
-**Total: 37 tasks**
+**Total: 39 tasks**
 
-Implementation tasks complete; final code re-review pending.
+Final review fix tasks queued; implementation resumes at `p06-t01`.
 
 ## References
 
