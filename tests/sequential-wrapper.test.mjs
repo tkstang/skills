@@ -99,13 +99,11 @@ test('renderDeliberationArtifact uses dynamic fences and sanitizes prose without
         status: { status: 'converged', termination_reason: 'hash_match', turns: 2, rounds: 1 },
         records: [
           {
-            round: 1,
+            round_index: 1,
             agent: 'claude',
-            verdict: {
-              decision: 'REVISE',
-              reasoning: 'Remove <script>alert(1)</script> from prose.',
-              proposed_artifact: 'Draft with ``` fence.\n'
-            }
+            verdict: 'REVISE',
+            reasoning: 'Remove <script>alert(1)</script> from prose.',
+            proposed_artifact: 'Draft with ``` fence.\n'
           }
         ]
       }

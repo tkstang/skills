@@ -31,7 +31,7 @@ test('invokePaseo shells out with array args for provider, schema, and JSON prom
     env: stubEnv({ PASEO_STUB_CAPTURE_PATH: capturePath })
   });
 
-  assert.equal(result.json.decision, 'ACCEPT');
+  assert.equal(result.json.verdict, 'ACCEPT');
   assert.equal(result.provider, 'codex');
 
   const capture = JSON.parse(await readFile(capturePath, 'utf8'));
@@ -52,7 +52,7 @@ test('invokePaseo parses JSON output from the fixture response file', async () =
   const responsePath = path.join(tempRoot, 'response.json');
   await writeFile(
     responsePath,
-    JSON.stringify({ schema_version: 'v0', decision: 'REVISE', reasoning: 'tighten', proposed_artifact: 'New text' })
+    JSON.stringify({ schema_version: 'v0', verdict: 'REVISE', reasoning: 'tighten', proposed_artifact: 'New text' })
   );
 
   const result = await invokePaseo({
@@ -62,7 +62,7 @@ test('invokePaseo parses JSON output from the fixture response file', async () =
     env: stubEnv({ PASEO_STUB_RESPONSE_FILE: responsePath })
   });
 
-  assert.equal(result.json.decision, 'REVISE');
+  assert.equal(result.json.verdict, 'REVISE');
   assert.equal(result.json.proposed_artifact, 'New text');
 });
 
@@ -79,7 +79,7 @@ test('invokePaseo rejects stdout beyond the 10 MB subprocess cap', async () => {
 });
 
 test('invokePaseo allows stdout at the 10 MB boundary', async () => {
-  const payload = JSON.stringify({ schema_version: 'v0', decision: 'ACCEPT', reasoning: 'ok' });
+  const payload = JSON.stringify({ schema_version: 'v0', verdict: 'ACCEPT', reasoning: 'ok' });
   const padding = SUBPROCESS_OUTPUT_CAP_BYTES - Buffer.byteLength(payload);
   const result = await invokePaseo({
     provider: 'claude',
@@ -88,7 +88,7 @@ test('invokePaseo allows stdout at the 10 MB boundary', async () => {
     env: stubEnv({ PASEO_STUB_JSON_WITH_PADDING_BYTES: String(padding) })
   });
 
-  assert.equal(result.json.decision, 'ACCEPT');
+  assert.equal(result.json.verdict, 'ACCEPT');
 });
 
 test('invokePaseo propagates non-zero exit as a hard error with stderr', async () => {

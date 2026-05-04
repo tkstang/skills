@@ -5,10 +5,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const VERDICT_CAPS = Object.freeze({
-  reasoning_bytes: 64 * 1024,
-  proposed_artifact_bytes: 1024 * 1024,
-  concern_bytes: 16 * 1024,
-  concerns_total_bytes: 64 * 1024
+  reasoning_bytes: 16 * 1024,
+  proposed_artifact_bytes: 256 * 1024,
+  concern_bytes: 4 * 1024,
+  max_concerns: 20,
+  total_verdict_bytes: 512 * 1024
 });
 
 export const LOOP_SCHEMA_VERSION = 'v0';
@@ -42,16 +43,16 @@ const DEFAULT_NORMALIZE_OPTIONS = {
 
 const VERDICT_BRANCHES = {
   ACCEPT: {
-    required: ['schema_version', 'decision', 'reasoning'],
+    required: ['schema_version', 'verdict', 'reasoning'],
     optional: ['concerns']
   },
   REVISE: {
-    required: ['schema_version', 'decision', 'reasoning', 'proposed_artifact'],
+    required: ['schema_version', 'verdict', 'reasoning', 'proposed_artifact'],
     optional: ['concerns']
   },
   IMPASSE: {
-    required: ['schema_version', 'decision', 'reasoning', 'concerns'],
-    optional: []
+    required: ['schema_version', 'verdict', 'reasoning'],
+    optional: ['concerns']
   }
 };
 
@@ -60,7 +61,8 @@ function normalizeOptions(options = {}) {
 }
 
 function verdictDecision(record) {
-  return record?.verdict?.decision ?? record?.decision ?? null;
+  if (typeof record?.verdict === 'string') return record.verdict;
+  return record?.verdict?.verdict ?? record?.verdict?.decision ?? record?.decision ?? null;
 }
 
 function byteLength(value) {
@@ -88,11 +90,14 @@ function timestamp(options = {}) {
 }
 
 function withRecordMetadata(record, options = {}) {
-  return {
+  const entry = {
     schema_version: LOOP_SCHEMA_VERSION,
-    recorded_at: timestamp(options),
     ...record
   };
+  if (!entry.timestamp) {
+    entry.timestamp = timestamp(options);
+  }
+  return entry;
 }
 
 async function readExistingRecords(recordsPath) {
@@ -121,13 +126,13 @@ async function syncFileIfAvailable(filePath) {
 function normalizeCost(status) {
   const source = status.cost_source ?? status.cost?.source ?? 'unavailable';
   const normalized = ['paseo', 'estimated', 'unavailable'].includes(source) ? source : 'unavailable';
-  const costUsd = status.cost_usd ?? status.cost?.usd;
+  const costUsd = status.approximate_cost_usd ?? status.cost_usd ?? status.cost?.usd;
 
   if (normalized === 'unavailable' || typeof costUsd !== 'number') {
     return { cost_source: normalized };
   }
 
-  return { cost_source: normalized, cost_usd: costUsd };
+  return { cost_source: normalized, approximate_cost_usd: costUsd };
 }
 
 function roundCount(turns, peerCount) {
@@ -202,14 +207,22 @@ export function exitCodeForError(error) {
 }
 
 function recordHash(record, options = {}) {
-  if (record?.artifact_hash) return record.artifact_hash;
-  if (record?.artifactHash) return record.artifactHash;
+  if (record?.artifact_hash) return formatArtifactHash(record.artifact_hash);
+  if (record?.final_artifact_hash) return formatArtifactHash(record.final_artifact_hash);
+  if (record?.artifactHash) return formatArtifactHash(record.artifactHash);
   if (typeof record?.artifact === 'string') return hashArtifact(record.artifact, options);
   if (typeof record?.proposed_artifact === 'string') return hashArtifact(record.proposed_artifact, options);
   if (typeof record?.verdict?.proposed_artifact === 'string') {
     return hashArtifact(record.verdict.proposed_artifact, options);
   }
   return null;
+}
+
+function formatArtifactHash(value) {
+  const text = String(value ?? '');
+  if (/^sha256:[0-9a-f]{64}$/u.test(text)) return text;
+  if (/^[0-9a-f]{64}$/u.test(text)) return `sha256:${text}`;
+  return text;
 }
 
 export function normalizeForHash(text, options = {}) {
@@ -239,7 +252,7 @@ export function normalizeForHash(text, options = {}) {
 }
 
 export function hashArtifact(text, options = {}) {
-  return createHash('sha256').update(normalizeForHash(text, options), 'utf8').digest('hex');
+  return `sha256:${createHash('sha256').update(normalizeForHash(text, options), 'utf8').digest('hex')}`;
 }
 
 export function validateVerdictShape(verdict) {
@@ -253,9 +266,9 @@ export function validateVerdictShape(verdict) {
     errors.push('schema_version must be "v0"');
   }
 
-  const branch = VERDICT_BRANCHES[verdict.decision];
+  const branch = VERDICT_BRANCHES[verdict.verdict];
   if (!branch) {
-    errors.push('decision must be ACCEPT, REVISE, or IMPASSE');
+    errors.push('verdict must be ACCEPT, REVISE, or IMPASSE');
   }
 
   if (!branch) {
@@ -286,8 +299,6 @@ export function validateVerdictShape(verdict) {
   if ('concerns' in verdict) {
     if (!Array.isArray(verdict.concerns)) {
       pushTypeError(errors, 'concerns', 'an array');
-    } else if (verdict.decision === 'IMPASSE' && verdict.concerns.length === 0) {
-      errors.push('concerns must include at least one entry for IMPASSE');
     } else {
       verdict.concerns.forEach((concern, index) => {
         if (typeof concern !== 'string') {
@@ -304,6 +315,11 @@ export function validateVerdictCaps(verdict) {
   const shape = validateVerdictShape(verdict);
   if (!shape.ok) return shape;
 
+  const totalBytes = byteLength(JSON.stringify(verdict));
+  if (totalBytes > VERDICT_CAPS.total_verdict_bytes) {
+    return oversizedResult('verdict', VERDICT_CAPS.total_verdict_bytes, totalBytes);
+  }
+
   const reasoningBytes = byteLength(verdict.reasoning);
   if (reasoningBytes > VERDICT_CAPS.reasoning_bytes) {
     return oversizedResult('reasoning', VERDICT_CAPS.reasoning_bytes, reasoningBytes);
@@ -317,17 +333,23 @@ export function validateVerdictCaps(verdict) {
   }
 
   if (Array.isArray(verdict.concerns)) {
-    let totalBytes = 0;
+    if (verdict.concerns.length > VERDICT_CAPS.max_concerns) {
+      return {
+        ok: false,
+        metadata: {
+          code: 'OVERSIZE_REJECTED',
+          field: 'concerns',
+          limit_count: VERDICT_CAPS.max_concerns,
+          actual_count: verdict.concerns.length
+        }
+      };
+    }
+
     for (const [index, concern] of verdict.concerns.entries()) {
       const concernBytes = byteLength(concern);
       if (concernBytes > VERDICT_CAPS.concern_bytes) {
         return oversizedResult(`concerns[${index}]`, VERDICT_CAPS.concern_bytes, concernBytes);
       }
-      totalBytes += concernBytes;
-    }
-
-    if (totalBytes > VERDICT_CAPS.concerns_total_bytes) {
-      return oversizedResult('concerns', VERDICT_CAPS.concerns_total_bytes, totalBytes);
     }
   }
 
@@ -365,28 +387,25 @@ export async function writeLoopStatus(statusPath, status, options = {}) {
   await mkdir(path.dirname(statusPath), { recursive: true });
   const reserved = new Set([
     'schema_version',
-    'written_at',
     'status',
     'termination_reason',
     'turns',
     'rounds',
-    'peers',
+    'final_artifact_hash',
+    'artifact_hash',
     'cost',
     'cost_source',
-    'cost_usd'
+    'cost_usd',
+    'approximate_cost_usd'
   ]);
   const normalizedStatus = {
     schema_version: LOOP_SCHEMA_VERSION,
-    written_at: timestamp(options),
     status: status.status,
     termination_reason: status.termination_reason ?? null,
     turns: status.turns ?? 0,
-    rounds: status.rounds ?? 0
+    rounds: status.rounds ?? 0,
+    final_artifact_hash: formatArtifactHash(status.final_artifact_hash ?? status.artifact_hash)
   };
-
-  if (status.peers) {
-    normalizedStatus.peers = status.peers;
-  }
 
   for (const [key, value] of Object.entries(status)) {
     if (!reserved.has(key)) {
@@ -598,10 +617,8 @@ function resultStatus(status, terminationReason, records, options, extra = {}) {
     termination_reason: terminationReason,
     turns,
     rounds: roundCount(turns, options.peers.length),
-    peers: options.peers,
     agency: options.agency,
-    iteration: options.iteration,
-    cold_start: options.coldStart,
+    iteration_mode: options.iteration,
     ...extra
   };
 }
@@ -657,25 +674,35 @@ export async function runConsensusLoop(argv, runOptions = {}) {
         });
       }
 
-      if (verdict.decision === 'REVISE') {
+      if (verdict.verdict === 'REVISE') {
         currentArtifact = verdict.proposed_artifact;
       }
 
-      const record = await writer.append({
-        turn,
-        round,
+      const recordPayload = {
+        turn_index: turn,
+        round_index: round,
         agent: provider,
-        provider,
-        verdict,
-        artifact: currentArtifact,
+        verdict: verdict.verdict,
+        reasoning: verdict.reasoning,
         artifact_hash: hashArtifact(currentArtifact),
-        raw_paseo_response: peerResult.json
+        iteration_mode: options.iteration,
+        raw_paseo_response: peerResult.stdout ?? JSON.stringify(peerResult.json)
+      };
+      if ('proposed_artifact' in verdict) {
+        recordPayload.proposed_artifact = verdict.proposed_artifact;
+      }
+      if ('concerns' in verdict) {
+        recordPayload.concerns = verdict.concerns;
+      }
+
+      const record = await writer.append({
+        ...recordPayload
       });
       records.push(record);
 
-      if (verdict.decision === 'IMPASSE') {
+      if (verdict.verdict === 'IMPASSE') {
         const status = resultStatus('impasse', 'explicit_impasse', records, options, {
-          artifact_hash: hashArtifact(currentArtifact)
+          final_artifact_hash: hashArtifact(currentArtifact)
         });
         return await writeTerminalArtifacts(options, status, currentArtifact, records);
       }
@@ -683,29 +710,27 @@ export async function runConsensusLoop(argv, runOptions = {}) {
       const convergence = detectConvergence(records);
       if (convergence.converged) {
         const status = resultStatus('converged', convergence.reason, records, options, {
-          artifact_hash: convergence.artifact_hash
+          final_artifact_hash: convergence.artifact_hash
         });
         return await writeTerminalArtifacts(options, status, currentArtifact, records);
       }
 
       const oscillation = detectOscillation(records);
       if (oscillation.oscillating) {
-        const status = resultStatus('impasse', 'oscillation', records, options, {
-          artifact_hash: hashArtifact(currentArtifact),
-          oscillation_hashes: oscillation.hashes
+        const status = resultStatus('oscillation', 'oscillation_detected', records, options, {
+          final_artifact_hash: hashArtifact(currentArtifact)
         });
         return await writeTerminalArtifacts(options, status, currentArtifact, records);
       }
     }
 
-    const statusName = options.agency === 'maximum' ? 'converged' : 'max_rounds';
-    const terminationReason = options.agency === 'maximum' ? 'agency_maximum_accept_last' : 'max_rounds';
-    const status = resultStatus(statusName, terminationReason, records, options, {
-      artifact_hash: hashArtifact(currentArtifact)
+    const status = resultStatus('max-rounds', 'max_rounds_exhausted', records, options, {
+      final_artifact_hash: hashArtifact(currentArtifact)
     });
     return await writeTerminalArtifacts(options, status, currentArtifact, records);
   } catch (error) {
     const status = resultStatus('error', 'hard_error', records, options, {
+      final_artifact_hash: hashArtifact(currentArtifact),
       error: hardErrorMessage(error)
     });
     await writeLoopStatus(options.outputStatus, status);
@@ -733,8 +758,7 @@ export function detectConvergence(records, options = {}) {
 
   const leftDecision = verdictDecision(left);
   const rightDecision = verdictDecision(right);
-  const reason =
-    leftDecision === 'ACCEPT' && rightDecision === 'ACCEPT' ? 'double_accept_same_hash' : 'hash_match';
+  const reason = leftDecision === 'ACCEPT' && rightDecision === 'ACCEPT' ? 'double_accept' : 'hash_match';
 
   return {
     converged: true,
@@ -755,7 +779,7 @@ export function detectOscillation(records) {
     if (hashes.every(Boolean) && hashes[0] === hashes[2] && hashes[1] === hashes[3] && hashes[0] !== hashes[1]) {
       return {
         oscillating: true,
-        reason: 'two_state_oscillation',
+        reason: 'oscillation_detected',
         record_indexes: [end - 4, end - 3, end - 2, end - 1],
         hashes: [hashes[0], hashes[1]]
       };

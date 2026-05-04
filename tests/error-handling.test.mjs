@@ -43,7 +43,7 @@ function sectionFailOnceInvoker() {
     return {
       json: {
         schema_version: 'v0',
-        decision: 'ACCEPT',
+        verdict: 'ACCEPT',
         reasoning: 'accepted'
       }
     };

@@ -1,51 +1,31 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://example.com/consensus/verdict-alternating.schema.json",
-  "title": "Consensus alternating verdict v0",
+  "$id": "consensus-plugin/v0/verdict-alternating.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "verdict", "reasoning"],
+  "properties": {
+    "schema_version": { "const": "v0" },
+    "verdict": { "enum": ["ACCEPT", "REVISE", "IMPASSE"] },
+    "reasoning": { "type": "string" },
+    "proposed_artifact": { "type": "string" },
+    "concerns": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
   "oneOf": [
     {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["schema_version", "decision", "reasoning"],
-      "properties": {
-        "schema_version": { "const": "v0" },
-        "decision": { "const": "ACCEPT" },
-        "reasoning": { "type": "string" },
-        "concerns": {
-          "type": "array",
-          "items": { "type": "string" }
-        }
-      }
+      "properties": { "verdict": { "const": "ACCEPT" } },
+      "not": { "required": ["proposed_artifact"] }
     },
     {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["schema_version", "decision", "reasoning", "proposed_artifact"],
-      "properties": {
-        "schema_version": { "const": "v0" },
-        "decision": { "const": "REVISE" },
-        "reasoning": { "type": "string" },
-        "proposed_artifact": { "type": "string" },
-        "concerns": {
-          "type": "array",
-          "items": { "type": "string" }
-        }
-      }
+      "properties": { "verdict": { "const": "REVISE" } },
+      "required": ["proposed_artifact"]
     },
     {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["schema_version", "decision", "reasoning", "concerns"],
-      "properties": {
-        "schema_version": { "const": "v0" },
-        "decision": { "const": "IMPASSE" },
-        "reasoning": { "type": "string" },
-        "concerns": {
-          "type": "array",
-          "minItems": 1,
-          "items": { "type": "string" }
-        }
-      }
+      "properties": { "verdict": { "const": "IMPASSE" } },
+      "not": { "required": ["proposed_artifact"] }
     }
   ]
 }

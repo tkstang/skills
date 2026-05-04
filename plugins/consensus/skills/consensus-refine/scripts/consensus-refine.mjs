@@ -109,7 +109,9 @@ function aggregateStatus(sections) {
   const statuses = sections.map((section) => section.status?.status ?? section.result?.status?.status ?? 'unknown');
   if (statuses.every((status) => status === 'converged')) return 'converged';
   if (statuses.some((status) => status === 'error')) return 'error';
-  if (statuses.some((status) => status === 'impasse' || status === 'max_rounds')) return 'partial';
+  if (statuses.some((status) => status === 'impasse' || status === 'max-rounds' || status === 'oscillation')) {
+    return 'partial';
+  }
   return 'unknown';
 }
 
@@ -122,7 +124,7 @@ function sectionStates(sections) {
     termination_reason: section.status?.termination_reason ?? null,
     turns: section.status?.turns ?? 0,
     rounds: section.status?.rounds ?? 0,
-    artifact_hash: section.status?.artifact_hash ?? null
+    final_artifact_hash: section.status?.final_artifact_hash ?? null
   }));
 }
 
@@ -131,20 +133,31 @@ function countByStatus(sections, statusName) {
 }
 
 function renderRecord(record) {
-  const verdict = record.verdict ?? {};
+  const verdictDocument = {
+    schema_version: record.schema_version ?? 'v0',
+    verdict: record.verdict ?? 'UNKNOWN',
+    reasoning: record.reasoning ?? ''
+  };
+  if ('proposed_artifact' in record) {
+    verdictDocument.proposed_artifact = record.proposed_artifact;
+  }
+  if ('concerns' in record) {
+    verdictDocument.concerns = record.concerns;
+  }
+
   const parts = [
-    `#### Round ${record.round ?? '?'} - ${record.agent ?? record.provider ?? 'peer'} - ${verdict.decision ?? 'UNKNOWN'}`
+    `#### Round ${record.round_index ?? record.round ?? '?'} - ${record.agent ?? record.provider ?? 'peer'} - ${verdictDocument.verdict}`
   ];
 
-  if (verdict.reasoning) {
-    parts.push('', 'Reasoning:', sanitizeProse(verdict.reasoning));
+  if (verdictDocument.reasoning) {
+    parts.push('', 'Reasoning:', sanitizeProse(verdictDocument.reasoning));
   }
 
-  if (verdict.proposed_artifact) {
-    parts.push('', 'Proposed Artifact:', dynamicFence(sanitizeProse(verdict.proposed_artifact), 'markdown'));
+  if (verdictDocument.proposed_artifact) {
+    parts.push('', 'Proposed Artifact:', dynamicFence(sanitizeProse(verdictDocument.proposed_artifact), 'markdown'));
   }
 
-  parts.push('', canonicalJsonBlock('consensus-verdict', verdict));
+  parts.push('', canonicalJsonBlock('consensus-verdict', verdictDocument));
   return parts.join('\n');
 }
 
@@ -609,7 +622,8 @@ export function renderDeliberationArtifact(runResult) {
       total: sections.length,
       converged: countByStatus(sections, 'converged'),
       impasse: countByStatus(sections, 'impasse'),
-      max_rounds: countByStatus(sections, 'max_rounds'),
+      max_rounds: countByStatus(sections, 'max-rounds'),
+      oscillation: countByStatus(sections, 'oscillation'),
       error: countByStatus(sections, 'error')
     },
     total_rounds: totalRounds,

@@ -19,19 +19,19 @@ test('normalizeForHash can be made strict through options', () => {
   assert.equal(normalizeForHash('Hello  \n', { trimTrailingWhitespace: false }), 'Hello  \n');
 });
 
-test('hashArtifact returns a SHA-256 hex digest over normalized text', () => {
+test('hashArtifact returns a prefixed SHA-256 digest over normalized text', () => {
   const first = hashArtifact('alpha\r\nbeta  \n\n');
   const second = hashArtifact('alpha\nbeta\n');
 
-  assert.match(first, /^[a-f0-9]{64}$/);
+  assert.match(first, /^sha256:[a-f0-9]{64}$/);
   assert.equal(first, second);
 });
 
 test('detectConvergence reports adjacent matching hashes', () => {
   const hash = hashArtifact('same');
   const result = detectConvergence([
-    { turn: 1, agent: 'claude', artifact_hash: hash, verdict: { decision: 'REVISE' } },
-    { turn: 2, agent: 'codex', artifact_hash: hash, verdict: { decision: 'REVISE' } }
+    { turn_index: 1, agent: 'claude', artifact_hash: hash, verdict: 'REVISE' },
+    { turn_index: 2, agent: 'codex', artifact_hash: hash, verdict: 'REVISE' }
   ]);
 
   assert.deepEqual(result, {
@@ -45,20 +45,20 @@ test('detectConvergence reports adjacent matching hashes', () => {
 test('detectConvergence reports double ACCEPT on the same hash', () => {
   const hash = hashArtifact('accepted');
   const result = detectConvergence([
-    { turn: 1, artifact_hash: hash, verdict: { decision: 'ACCEPT' } },
-    { turn: 2, artifact_hash: hash, verdict: { decision: 'ACCEPT' } }
+    { turn_index: 1, artifact_hash: hash, verdict: 'ACCEPT' },
+    { turn_index: 2, artifact_hash: hash, verdict: 'ACCEPT' }
   ]);
 
   assert.equal(result.converged, true);
-  assert.equal(result.reason, 'double_accept_same_hash');
+  assert.equal(result.reason, 'double_accept');
   assert.deepEqual(result.record_indexes, [0, 1]);
 });
 
 test('detectConvergence returns a stable non-converged shape', () => {
   assert.deepEqual(
     detectConvergence([
-      { artifact_hash: hashArtifact('one'), verdict: { decision: 'REVISE' } },
-      { artifact_hash: hashArtifact('two'), verdict: { decision: 'REVISE' } }
+      { artifact_hash: hashArtifact('one'), verdict: 'REVISE' },
+      { artifact_hash: hashArtifact('two'), verdict: 'REVISE' }
     ]),
     { converged: false, reason: null }
   );
@@ -76,7 +76,7 @@ test('detectOscillation detects four-turn two-state alternation', () => {
 
   assert.deepEqual(result, {
     oscillating: true,
-    reason: 'two_state_oscillation',
+    reason: 'oscillation_detected',
     record_indexes: [0, 1, 2, 3],
     hashes: [a, b]
   });

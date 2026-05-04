@@ -20,39 +20,62 @@ test('createRecordsWriter writes a valid JSON array after each append', async ()
     now: () => '2026-05-04T01:00:00.000Z'
   });
 
-  await writer.append({ turn: 1, verdict: { decision: 'ACCEPT' }, raw_paseo_response: { id: 'raw' } });
+  await writer.append({
+    turn_index: 1,
+    round_index: 1,
+    agent: 'claude',
+    verdict: 'ACCEPT',
+    reasoning: 'accepted',
+    artifact_hash: 'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    iteration_mode: 'alternating',
+    raw_paseo_response: '{"id":"raw"}'
+  });
 
   assert.deepEqual(await readJson(recordsPath), [
     {
       schema_version: 'v0',
-      recorded_at: '2026-05-04T01:00:00.000Z',
-      turn: 1,
-      verdict: { decision: 'ACCEPT' },
-      raw_paseo_response: { id: 'raw' }
+      turn_index: 1,
+      round_index: 1,
+      agent: 'claude',
+      verdict: 'ACCEPT',
+      reasoning: 'accepted',
+      artifact_hash: 'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      iteration_mode: 'alternating',
+      raw_paseo_response: '{"id":"raw"}',
+      timestamp: '2026-05-04T01:00:00.000Z'
     }
   ]);
 
-  await writer.append({ turn: 2, verdict: { decision: 'ACCEPT' } });
+  await writer.append({
+    turn_index: 2,
+    round_index: 1,
+    agent: 'codex',
+    verdict: 'ACCEPT',
+    reasoning: 'accepted',
+    artifact_hash: 'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    iteration_mode: 'alternating'
+  });
   await writer.close();
 
   const records = await readJson(recordsPath);
   assert.equal(records.length, 2);
   assert.equal(records[1].schema_version, 'v0');
+  assert.equal(records[1].timestamp, '2026-05-04T01:00:00.000Z');
 });
 
 test('createRecordsWriter can continue from a one-record write-through file', async () => {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-records-'));
   const recordsPath = path.join(tempRoot, 'records.json');
   const firstWriter = await createRecordsWriter(recordsPath);
-  await firstWriter.append({ turn: 1, verdict: { decision: 'REVISE' } });
+  await firstWriter.append({ turn_index: 1, verdict: 'REVISE' });
 
   const secondWriter = await createRecordsWriter(recordsPath);
-  await secondWriter.append({ turn: 2, verdict: { decision: 'ACCEPT' } });
+  await secondWriter.append({ turn_index: 2, verdict: 'ACCEPT' });
   await secondWriter.close();
 
   const records = await readJson(recordsPath);
   assert.deepEqual(
-    records.map((record) => record.turn),
+    records.map((record) => record.turn_index),
     [1, 2]
   );
 });
@@ -68,7 +91,9 @@ test('writeLoopStatus emits stable status fields and paseo cost metadata', async
       termination_reason: 'hash_match',
       turns: 2,
       rounds: 1,
-      peers: ['claude', 'codex'],
+      final_artifact_hash: 'sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+      iteration_mode: 'alternating',
+      agency: 'moderate',
       cost: { source: 'paseo', usd: 0.0123 }
     },
     { now: () => '2026-05-04T01:02:00.000Z' }
@@ -76,14 +101,15 @@ test('writeLoopStatus emits stable status fields and paseo cost metadata', async
 
   assert.deepEqual(await readJson(statusPath), {
     schema_version: 'v0',
-    written_at: '2026-05-04T01:02:00.000Z',
     status: 'converged',
     termination_reason: 'hash_match',
     turns: 2,
     rounds: 1,
-    peers: ['claude', 'codex'],
+    final_artifact_hash: 'sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+    iteration_mode: 'alternating',
+    agency: 'moderate',
     cost_source: 'paseo',
-    cost_usd: 0.0123
+    approximate_cost_usd: 0.0123
   });
 });
 
@@ -92,11 +118,19 @@ test('writeLoopStatus supports estimated and unavailable cost branches', async (
   const estimatedPath = path.join(tempRoot, 'estimated.json');
   const unavailablePath = path.join(tempRoot, 'unavailable.json');
 
-  await writeLoopStatus(estimatedPath, { status: 'max_rounds', cost_source: 'estimated', cost_usd: 0.25 });
-  await writeLoopStatus(unavailablePath, { status: 'impasse' });
+  await writeLoopStatus(estimatedPath, {
+    status: 'max-rounds',
+    final_artifact_hash: 'sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',
+    cost_source: 'estimated',
+    approximate_cost_usd: 0.25
+  });
+  await writeLoopStatus(unavailablePath, {
+    status: 'impasse',
+    final_artifact_hash: 'sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd'
+  });
 
   assert.equal((await readJson(estimatedPath)).cost_source, 'estimated');
-  assert.equal((await readJson(estimatedPath)).cost_usd, 0.25);
+  assert.equal((await readJson(estimatedPath)).approximate_cost_usd, 0.25);
   assert.equal((await readJson(unavailablePath)).cost_source, 'unavailable');
-  assert.equal('cost_usd' in (await readJson(unavailablePath)), false);
+  assert.equal('approximate_cost_usd' in (await readJson(unavailablePath)), false);
 });

@@ -31,7 +31,7 @@ function responsePayload() {
 
   return JSON.stringify({
     schema_version: 'v0',
-    decision: 'ACCEPT',
+    verdict: 'ACCEPT',
     reasoning: 'fixture accepted'
   });
 }

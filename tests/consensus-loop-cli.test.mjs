@@ -110,12 +110,18 @@ test('runConsensusLoop converges on two ACCEPT turns with the Paseo stub', async
   const result = await runConsensusLoop(argvFor(files), { env: stubEnv() });
 
   assert.equal(result.status.status, 'converged');
-  assert.equal(result.status.termination_reason, 'double_accept_same_hash');
+  assert.equal(result.status.termination_reason, 'double_accept');
+  assert.match(result.status.final_artifact_hash, /^sha256:[0-9a-f]{64}$/);
   assert.equal(await readFile(files.outputPath, 'utf8'), 'Stable text.\n');
 
   const records = await readJson(files.recordsPath);
   assert.equal(records.length, 2);
   assert.deepEqual(records.map((record) => record.agent), ['claude', 'codex']);
+  assert.deepEqual(records.map((record) => record.verdict), ['ACCEPT', 'ACCEPT']);
+  assert.equal(records[0].turn_index, 1);
+  assert.equal(records[0].round_index, 1);
+  assert.match(records[0].artifact_hash, /^sha256:[0-9a-f]{64}$/);
+  assert.equal(records[0].iteration_mode, 'alternating');
 });
 
 test('runConsensusLoop stops on explicit IMPASSE verdicts', async () => {
@@ -125,7 +131,7 @@ test('runConsensusLoop stops on explicit IMPASSE verdicts', async () => {
     responsePath,
     JSON.stringify({
       schema_version: 'v0',
-      decision: 'IMPASSE',
+      verdict: 'IMPASSE',
       reasoning: 'The goals conflict.',
       concerns: ['clarity and legal precision disagree']
     })
@@ -147,7 +153,7 @@ test('runConsensusLoop stops at max rounds without treating it as a hard error',
       return {
         json: {
           schema_version: 'v0',
-          decision: 'REVISE',
+          verdict: 'REVISE',
           reasoning: `revision ${turn}`,
           proposed_artifact: `Revision ${turn}\n`
         }
@@ -155,8 +161,8 @@ test('runConsensusLoop stops at max rounds without treating it as a hard error',
     }
   });
 
-  assert.equal(result.status.status, 'max_rounds');
-  assert.equal(result.status.termination_reason, 'max_rounds');
+  assert.equal(result.status.status, 'max-rounds');
+  assert.equal(result.status.termination_reason, 'max_rounds_exhausted');
   assert.equal(result.status.turns, 2);
   assert.equal(await readFile(files.outputPath, 'utf8'), 'Revision 2\n');
 });
@@ -173,7 +179,7 @@ test('runConsensusLoop detects two-state oscillation', async () => {
       return {
         json: {
           schema_version: 'v0',
-          decision: 'REVISE',
+          verdict: 'REVISE',
           reasoning: `revision ${turn}`,
           proposed_artifact: proposed
         }
@@ -181,8 +187,8 @@ test('runConsensusLoop detects two-state oscillation', async () => {
     }
   });
 
-  assert.equal(result.status.status, 'impasse');
-  assert.equal(result.status.termination_reason, 'oscillation');
+  assert.equal(result.status.status, 'oscillation');
+  assert.equal(result.status.termination_reason, 'oscillation_detected');
   assert.equal(result.status.turns, 4);
 });
 
