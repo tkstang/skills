@@ -13,6 +13,25 @@ export const VERDICT_CAPS = Object.freeze({
 
 export const LOOP_SCHEMA_VERSION = 'v0';
 export const SUBPROCESS_OUTPUT_CAP_BYTES = 10 * 1024 * 1024;
+export const EXIT_CODES = Object.freeze({
+  USAGE: 64,
+  DATA: 65,
+  IO: 73,
+  SECTION_ERROR: 74,
+  DEPENDENCY: 77,
+  CONFIG: 78,
+  INTERRUPTED: 130
+});
+
+export class ConsensusError extends Error {
+  constructor(message, options = {}) {
+    super(message, { cause: options.cause });
+    this.name = 'ConsensusError';
+    this.code = options.code ?? 'CONSENSUS_ERROR';
+    this.exitCode = options.exitCode ?? EXIT_CODES.CONFIG;
+    this.details = options.details;
+  }
+}
 
 const DEFAULT_NORMALIZE_OPTIONS = {
   normalizeLineEndings: true,
@@ -153,10 +172,33 @@ function hardErrorMessage(error) {
 }
 
 function outputCapError(streamName, capBytes) {
-  const error = new Error(`${streamName} exceeded subprocess output cap (${capBytes} bytes)`);
-  error.code = 'SUBPROCESS_OUTPUT_CAP';
-  error.stream = streamName;
-  return error;
+  return new ConsensusError(`${streamName} exceeded subprocess output cap (${capBytes} bytes)`, {
+    code: 'SUBPROCESS_OUTPUT_CAP',
+    exitCode: EXIT_CODES.DEPENDENCY,
+    details: { stream: streamName, cap_bytes: capBytes }
+  });
+}
+
+export function exitCodeForError(error) {
+  if (error?.name === 'AbortError' || error?.code === 'SIGINT') {
+    return EXIT_CODES.INTERRUPTED;
+  }
+  if (Number.isInteger(error?.exitCode)) {
+    return error.exitCode;
+  }
+  if (error?.code === 'PASEO_MISSING') {
+    return EXIT_CODES.DEPENDENCY;
+  }
+  if (['ENOENT', 'EACCES', 'EPERM', 'ENOTDIR', 'EISDIR'].includes(error?.code)) {
+    return EXIT_CODES.IO;
+  }
+  if (error instanceof SyntaxError || error?.code === 'PASEO_INVALID_JSON') {
+    return EXIT_CODES.DATA;
+  }
+  if (/^(--|unknown option|missing required option|input path|unexpected positional)/i.test(error?.message ?? '')) {
+    return EXIT_CODES.USAGE;
+  }
+  return EXIT_CODES.CONFIG;
 }
 
 function recordHash(record, options = {}) {
@@ -406,9 +448,12 @@ export function invokePaseo({ provider, schemaPath, prompt, env = process.env, c
 
       if (code !== 0) {
         const detail = stderr.trim() ? `: ${stderr.trim()}` : signal ? ` (signal ${signal})` : '';
-        const error = new Error(`paseo exited with code ${code}${detail}`);
-        error.code = 'PASEO_EXIT';
-        error.exitCode = code;
+        const error = new ConsensusError(`paseo exited with code ${code}${detail}`, {
+          code: 'PASEO_EXIT',
+          exitCode: EXIT_CODES.DEPENDENCY,
+          details: { paseo_exit_code: code, stderr }
+        });
+        error.paseoExitCode = code;
         error.stderr = stderr;
         reject(error);
         return;
@@ -423,11 +468,14 @@ export function invokePaseo({ provider, schemaPath, prompt, env = process.env, c
           json: JSON.parse(stdout)
         });
       } catch (error) {
-        error.message = `paseo returned invalid JSON: ${error.message}`;
-        error.code = 'PASEO_INVALID_JSON';
-        error.stdout = stdout;
-        error.stderr = stderr;
-        reject(error);
+        reject(
+          new ConsensusError(`paseo returned invalid JSON: ${error.message}`, {
+            code: 'PASEO_INVALID_JSON',
+            exitCode: EXIT_CODES.DATA,
+            cause: error,
+            details: { stdout, stderr }
+          })
+        );
       }
     });
   });
@@ -593,12 +641,20 @@ export async function runConsensusLoop(argv, runOptions = {}) {
       const verdict = peerResult.json;
       const shape = validateVerdictShape(verdict);
       if (!shape.ok) {
-        throw new Error(`invalid verdict shape: ${shape.errors.join('; ')}`);
+        throw new ConsensusError(`invalid verdict shape: ${shape.errors.join('; ')}`, {
+          code: 'INVALID_VERDICT_SHAPE',
+          exitCode: EXIT_CODES.DATA,
+          details: { errors: shape.errors }
+        });
       }
 
       const caps = validateVerdictCaps(verdict);
       if (!caps.ok) {
-        throw new Error(`invalid verdict caps: ${JSON.stringify(caps.metadata)}`);
+        throw new ConsensusError(`invalid verdict caps: ${JSON.stringify(caps.metadata)}`, {
+          code: 'INVALID_VERDICT_CAPS',
+          exitCode: EXIT_CODES.DATA,
+          details: caps.metadata
+        });
       }
 
       if (verdict.decision === 'REVISE') {
@@ -712,6 +768,6 @@ export function detectOscillation(records) {
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   runConsensusLoop(process.argv.slice(2)).catch((error) => {
     process.stderr.write(`${hardErrorMessage(error)}\n`);
-    process.exitCode = 1;
+    process.exitCode = exitCodeForError(error);
   });
 }

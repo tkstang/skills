@@ -2,9 +2,10 @@ import { execFile } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { lstat, mkdir, open, readFile, realpath, rename, stat, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
-import { runConsensusLoop } from './consensus-loop.mjs';
+import { ConsensusError, EXIT_CODES, exitCodeForError, runConsensusLoop } from './consensus-loop.mjs';
 
 const execFileAsync = promisify(execFile);
 
@@ -57,6 +58,28 @@ async function syncPathIfAvailable(targetPath) {
 
 function nowIso() {
   return new Date().toISOString();
+}
+
+export function createJsonlEvent(event, payload = {}, options = {}) {
+  return {
+    consensus_schema_version: 'v0',
+    event,
+    timestamp: options.now?.() ?? nowIso(),
+    ...payload
+  };
+}
+
+function writeJsonl(stream, event, payload = {}, options = {}) {
+  const entry = createJsonlEvent(event, payload, options);
+  stream.write(`${JSON.stringify(entry)}\n`);
+  return entry;
+}
+
+export function renderHumanError(error, env = process.env) {
+  if (env.CONSENSUS_LOG === 'trace' && error?.stack) {
+    return error.stack;
+  }
+  return error?.message ?? String(error);
 }
 
 function dynamicFence(contents, info = '') {
@@ -694,7 +717,12 @@ export async function runSequential(options, runOptions = {}) {
         records: []
       });
       if (normalized.failOnSectionError) {
-        throw error;
+        throw new ConsensusError(`section ${section.id} failed: ${error.message}`, {
+          code: 'SECTION_ERROR',
+          exitCode: EXIT_CODES.SECTION_ERROR,
+          cause: error,
+          details: { section_id: section.id }
+        });
       }
     }
   }
@@ -798,4 +826,51 @@ export async function preflightPaseo(options = {}) {
     peers: resolved.peers,
     warnings
   };
+}
+
+export async function runWrapperCli(argv, options = {}) {
+  const stdout = options.stdout ?? process.stdout;
+  const stderr = options.stderr ?? process.stderr;
+  const env = options.env ?? process.env;
+  const cwd = options.cwd ?? process.cwd();
+
+  try {
+    const parsed = parseWrapperArgs(argv);
+    writeJsonl(stdout, 'run_started', {
+      mode: parsed.mode,
+      input_path: parsed.inputPath,
+      manifest_path: parsed.manifestPath
+    });
+
+    if (parsed.mode !== 'sequential') {
+      throw new ConsensusError(`${parsed.mode} is not implemented in Phase 2`, {
+        code: 'MODE_NOT_IMPLEMENTED',
+        exitCode: EXIT_CODES.CONFIG
+      });
+    }
+
+    const result = await runSequential({ ...parsed, env, cwd });
+    writeJsonl(stdout, 'run_completed', {
+      status: result.status,
+      output_path: result.outputPath,
+      run_dir: result.runDir,
+      sections: result.sections.length
+    });
+    return 0;
+  } catch (error) {
+    const exitCode = exitCodeForError(error);
+    writeJsonl(stdout, 'error', {
+      code: error.code ?? 'ERROR',
+      exit_code: exitCode,
+      message: renderHumanError(error, env)
+    });
+    stderr.write(`${renderHumanError(error, env)}\n`);
+    return exitCode;
+  }
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  runWrapperCli(process.argv.slice(2)).then((exitCode) => {
+    process.exitCode = exitCode;
+  });
 }
