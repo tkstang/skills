@@ -39,15 +39,18 @@ Parallel mode is host mediated. The wrapper prepares packets and the host model 
 node ./scripts/consensus-refine.mjs <input.md> --prepare-parallel --goal "<goal>"
 ```
 
-2. Parse the JSONL line with `phase: "parallel_dispatch_required"`. It includes the manifest path, section packets, and requested parallelism.
+2. Parse the JSONL line with `phase: "parallel_dispatch_required"`. It includes the manifest path, section packets, and requested `parallelism`.
 3. Dispatch one bounded section-runner subagent per section packet using the host runtime's native mechanism. Use `plugins/consensus/agents/consensus-section-runner.md` as the task contract.
-4. After every section runner writes its declared files, fan in:
+4. Batch dispatches by the requested `parallelism`: launch at most that many section runners at once, wait for a batch to finish, then launch the next batch until every manifest section has produced its declared files.
+5. After every section runner writes its declared files, fan in:
 
 ```bash
 node ./scripts/consensus-refine.mjs --fan-in <manifest-path>
 ```
 
 Keep result assembly in original section order. If a section reports impasse or error, continue collecting other completed sections unless the user's flags require failure.
+
+On SIGINT or user cancellation during parallel dispatch, the host model owns cleanup. Cancel outstanding subagents using the host runtime's native cancellation mechanism, then run `--fan-in <manifest-path>` only for completed section outputs if the user wants a partial artifact. The wrapper does not own host-native subagent processes and cannot cancel them directly.
 
 ## Codex Authorization
 

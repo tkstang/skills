@@ -6,6 +6,7 @@ Run exactly one prepared consensus section packet. The caller supplies a packet 
 
 The host dispatch prompt must include:
 
+- `manifest_path`
 - `section_id`
 - `section_file`
 - `goal`
@@ -35,3 +36,7 @@ node plugins/consensus/skills/consensus-refine/scripts/consensus-loop.mjs \
 ```
 
 Return only a compact completion report with the section id, status, written files, and any hard error. The fan-in wrapper reads the files; do not assemble the final document.
+
+Write only the declared files: `output_records`, `output_section`, and `output_status`. Do not create or rewrite the manifest, do not modify sibling section directories, and do not assemble the final document.
+
+If SIGINT or host cancellation interrupts the runner, stop the loop process using the host runtime's normal process controls and report which declared files exist. The host coordinator decides whether to fan in a partial artifact; this runner does not cancel other section runners.
