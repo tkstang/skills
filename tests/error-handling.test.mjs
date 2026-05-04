@@ -50,6 +50,33 @@ function sectionFailOnceInvoker() {
   };
 }
 
+function sectionPartialFailureInvoker() {
+  let calls = 0;
+  return async () => {
+    calls += 1;
+    if (calls === 1) {
+      return {
+        json: {
+          schema_version: 'v0',
+          verdict: 'REVISE',
+          reasoning: 'partial edit landed',
+          proposed_artifact: 'Partially revised intro.\n'
+        }
+      };
+    }
+    if (calls === 2) {
+      throw new Error('provider unavailable after first turn');
+    }
+    return {
+      json: {
+        schema_version: 'v0',
+        verdict: 'ACCEPT',
+        reasoning: 'accepted'
+      }
+    };
+  };
+}
+
 test('createJsonlEvent returns stdout-safe JSONL event shape', () => {
   const event = createJsonlEvent('run_started', { input_path: 'draft.md' }, { now: () => '2026-05-04T03:00:00.000Z' });
 
@@ -134,6 +161,34 @@ test('runSequential aggregates section errors without aborting unrelated section
   assert.equal(result.sections[0].status.status, 'error');
   assert.equal(result.sections[1].status.status, 'converged');
   assert.equal(result.sections[2].status.status, 'converged');
+});
+
+test('runSequential preserves partial records and status after a section hard error', async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-errors-'));
+  const result = await runSequential({
+    inputPath: sampleInput,
+    output: path.join(tempRoot, 'out.md'),
+    runDir: path.join(tempRoot, '.consensus/run'),
+    allowRoot: tempRoot,
+    cwd: tempRoot,
+    goal: 'Handle partial errors.',
+    peers: ['claude', 'codex'],
+    maxRounds: 2,
+    agency: 'moderate',
+    preflight: async () => ({ peers: ['claude', 'codex'], warnings: [] }),
+    invokePeer: sectionPartialFailureInvoker()
+  });
+
+  const failed = result.sections[0];
+  assert.equal(result.status, 'error');
+  assert.equal(failed.status.status, 'error');
+  assert.equal(failed.status.turns, 1);
+  assert.equal(failed.status.rounds, 1);
+  assert.equal(failed.records.length, 1);
+  assert.equal(failed.records[0].reasoning, 'partial edit landed');
+  assert.equal(failed.output, 'Partially revised intro.\n');
+  assert.match(result.artifact, /Partially revised intro\./);
+  assert.match(result.artifact, /partial edit landed/);
 });
 
 test('runSequential honors --fail-on-section-error with exit 74 semantics', async () => {

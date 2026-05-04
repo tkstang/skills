@@ -106,6 +106,45 @@ function sectionOutput(section) {
   return section.output ?? section.result?.output ?? section.markdown ?? '';
 }
 
+async function readJsonIfPresent(filePath, fallback) {
+  try {
+    return JSON.parse(await readFile(filePath, 'utf8'));
+  } catch (error) {
+    if (error.code === 'ENOENT') return fallback;
+    return fallback;
+  }
+}
+
+async function readTextIfPresent(filePath) {
+  try {
+    return await readFile(filePath, 'utf8');
+  } catch (error) {
+    if (error.code === 'ENOENT') return null;
+    return null;
+  }
+}
+
+function latestRevisedOutput(records, fallback) {
+  for (let index = records.length - 1; index >= 0; index -= 1) {
+    const record = records[index];
+    if (typeof record?.proposed_artifact === 'string') {
+      return record.proposed_artifact;
+    }
+  }
+  return fallback;
+}
+
+function fallbackErrorStatus(error, records, peerCount) {
+  const turns = records.length;
+  return {
+    status: 'error',
+    termination_reason: 'hard_error',
+    turns,
+    rounds: turns === 0 ? 0 : Math.ceil(turns / peerCount),
+    error: error.message
+  };
+}
+
 function aggregateStatus(sections) {
   const statuses = sections.map((section) => section.status?.status ?? section.result?.status?.status ?? 'unknown');
   if (statuses.every((status) => status === 'converged')) return 'converged';
@@ -739,19 +778,23 @@ export async function runSequential(options, runOptions = {}) {
         records: result.records
       });
     } catch (error) {
+      const records = await readJsonIfPresent(paths.records, []);
+      const persistedStatus = await readJsonIfPresent(paths.status, null);
+      const recoveredOutput =
+        (await readTextIfPresent(paths.output)) ?? latestRevisedOutput(records, section.markdown);
       const status = {
-        status: 'error',
-        termination_reason: 'hard_error',
-        turns: 0,
-        rounds: 0,
-        error: error.message
+        ...fallbackErrorStatus(error, records, peers.length),
+        ...(persistedStatus ?? {})
       };
+      if (!status.error) {
+        status.error = error.message;
+      }
       sectionResults.push({
         ...section,
         paths,
-        output: section.markdown,
+        output: recoveredOutput,
         status,
-        records: []
+        records
       });
       if (normalized.failOnSectionError) {
         throw new ConsensusError(`section ${section.id} failed: ${error.message}`, {
