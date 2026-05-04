@@ -180,8 +180,8 @@ v0.1 is done when **all three** are true:
 
 - **Skills 2–6** (`consensus-create`, `-evaluate`, `-decide`, `-plan`, `-research`) — deferred to Phase 4 of the v3 plan.
 - **Parallel iteration modes** (parallel-revision, parallel-synthesized) — deferred to Phase 2 of the v3 plan.
-- **Editorial agency setting** as a user-facing flag — deferred to Phase 3 of the v3 plan.
-- **Parallel section orchestration** via `paseo run --detach` + sub-agent delegation — deferred to Phase 4.
+- ~~**Editorial agency setting** as a user-facing flag — deferred to Phase 3 of the v3 plan.~~ **Superseded by spec.md:** `--agency` flag is included in v0.1.
+- ~~**Parallel section orchestration** via `paseo run --detach` + sub-agent delegation — deferred to Phase 4.~~ **Superseded by spec.md FR4:** parallel section orchestration with host-runtime subagent dispatch is included in v0.1 as an opt-in mode (`--parallel`); sequential remains the default.
 - **Other plugin groups** in the repo (e.g., `plugins/research/`, `plugins/oat/`) — out of scope for this project; the sub-plugin shape leaves room.
 - **Lifting to OAT** as a published OAT skill family — deferred per "personal-first, OAT later."
 - **`consensus` umbrella command** vs. six discrete skills — open design question carried from v3, not blocking v0.1.

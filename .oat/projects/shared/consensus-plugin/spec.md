@@ -46,8 +46,8 @@ The repo doubles as a **growth platform** for additional personal skills and plu
 
 - Skills 2–6 in the consensus family (`consensus-create`, `-evaluate`, `-decide`, `-plan`, `-research`) at v0.1.
 - Parallel-revision and parallel-synthesized iteration modes at v0.1 (alternating only).
-- Parallel section orchestration via `paseo run --detach` (sequential per-section only).
 - User-facing editorial-agency flag (hard-coded to moderate per v3's `consensus-refine` default).
+- Cursor CLI as a deliberation **peer** (paseo does not implement a cursor provider as of 2026-05-01). Cursor is supported as a **host runtime**; in that case peers fall back to the `claude` + `codex` defaults.
 - Codex public marketplace submission (Git/local install path until OpenAI's flow matures).
 - Public skills.sh listing claims at launch.
 - Lifting the consensus skills into OAT as published OAT skills.
@@ -59,12 +59,15 @@ The repo doubles as a **growth platform** for additional personal skills and plu
 
 **FR1: Repository scaffolded for multi-provider plugin distribution**
 
-- **Description:** The repo has a canonical `skills/` directory containing skill bodies, a `plugins/consensus/` sub-plugin directory holding Claude/Cursor/Codex manifests selecting the consensus skills, and Agent Skills-baseline frontmatter on every shipped skill.
+- **Description:** The repo distinguishes plugin-bundled skills from standalone personal skills. Plugins are self-contained packages under `plugins/<name>/` — each owns its skills, scripts, and manifests. Standalone personal skills live at top-level `skills/`. Repo-root marketplace files declare which plugins exist and where; skills.sh Phase 2 and the Codex/Claude marketplace runtimes both honor them.
 - **Acceptance Criteria:**
-  - Top-level `skills/` directory exists with one folder per shipped skill.
-  - `plugins/consensus/.claude-plugin/plugin.json`, `plugins/consensus/.cursor-plugin/plugin.json`, `plugins/consensus/.codex-plugin/plugin.json` exist and parse as valid JSON.
+  - Top-level `skills/` directory exists for standalone personal skills (may be empty at v0.1).
+  - `plugins/consensus/` exists as a self-contained package with: `skills/consensus-refine/`, `.claude-plugin/plugin.json`, `.cursor-plugin/plugin.json`, `.codex-plugin/plugin.json`. All manifests parse as valid JSON.
+  - Plugin manifest skill paths inside `plugins/consensus/.{provider}-plugin/plugin.json` use plugin-root-relative `./skills/...` references (plugin root = `plugins/consensus/`).
+  - Repo-root marketplace files exist and parse as valid JSON: `.claude-plugin/marketplace.json`, `.cursor-plugin/marketplace.json`, `.agents/plugins/marketplace.json`. Each declares `plugins/consensus` as an installable plugin via `source.path: "./plugins/consensus"`.
   - Each shipped skill includes `name`, `description`, `license`, and `compatibility` frontmatter.
   - Skill folder names match `name` frontmatter values.
+  - `npx skills add <username>/skills` correctly discovers the consensus plugin's skills (via marketplace.json Phase 2, validated in CI as a smoke test).
 - **Priority:** P0
 
 **FR2: `consensus-refine` skill performs alternating-mode deliberation**
@@ -88,14 +91,40 @@ The repo doubles as a **growth platform** for additional personal skills and plu
   - Oscillation detection: hash alternation between two states across 4+ rounds escalates as impasse.
 - **Priority:** P0
 
-**FR4: Section detection and sequential per-section deliberation**
+**FR4: Section detection and per-section deliberation, sequential by default with optional parallel**
 
-- **Description:** The skill parses the input markdown into sections (default: by markdown headings) and runs an independent consensus loop per section, sequentially.
+- **Description:** The skill parses the input markdown into sections (default: by markdown headings) and runs an independent consensus loop per section. Default execution is sequential; users can opt into parallel section orchestration via `--parallel`. Parallel mode dispatches one host-runtime subagent per section (each subagent runs its own consensus loop).
 - **Acceptance Criteria:**
   - Default section detection by markdown headings.
   - Explicit `<!-- section: name -->` markers override heading-based detection.
   - Single-section docs (no headings) work as a single loop.
-  - Section impasse marks that section but does not block subsequent sections.
+  - Section impasse marks that section but does not block subsequent sections (sequential) or peer sections (parallel).
+  - `--parallel` flag enables parallel section orchestration; default is sequential.
+  - Parallel mode follows OAT tier-detection + Codex fail-closed authorization pattern (see NFR6).
+  - Ordered fan-in: parallel results are assembled in original section order in the deliberation artifact.
+- **Priority:** P0
+
+**FR10: Optional Paseo install assistance**
+
+- **Description:** When the wrapper's preflight detects Paseo is missing, the skill clearly tells the user how to install it and offers an opt-in install script that runs `npm install -g @getpaseo/cli` after explicit confirmation. Users may decline and install another way, or stop entirely; the skill does not auto-install or repeatedly nag.
+- **Acceptance Criteria:**
+  - When `paseo` is missing on preflight, the wrapper outputs a clear error including: the official npm install command (`npm install -g @getpaseo/cli`), the source-build path (`https://github.com/getpaseo/paseo`), and the path to `scripts/install-paseo.mjs`.
+  - `scripts/install-paseo.mjs` prompts the user (`About to run "npm install -g @getpaseo/cli". Continue? [y/N]`) before executing; the package name is hardcoded (no user input flows into subprocess args).
+  - The script verifies `paseo --version` succeeds after install; reports success/failure plainly.
+  - The script does not retry, escalate, or run any other commands if the install fails — it surfaces the npm error and exits.
+  - The wrapper does not auto-install on first run; install assist is always opt-in via the explicit script invocation.
+- **Priority:** P1 (nice-to-have; doesn't gate v0.1 release).
+
+**FR9: Configurable deliberation peers (decoupled from host runtime)**
+
+- **Description:** The deliberation peers (the CLIs paseo drives per turn) are configurable independently of the host runtime that invoked the skill. Defaults are sensible per host; users can override via a peers configuration.
+- **Acceptance Criteria:**
+  - Default peer pair when host is Claude Code: `claude` + `codex`.
+  - Default peer pair when host is Codex: `codex` + `claude`.
+  - Default peer pair when host is Cursor: `claude` + `codex` (cursor not a paseo built-in at v0.1; cursor-as-peer is opt-in only via custom ACP provider configured by the user and visible to paseo's provider inventory).
+  - Users can override peers via `--peers <a>,<b>` flag, accepting any provider IDs paseo recognizes (including custom ACP providers when configured).
+  - Skill verifies each configured peer is available via `paseo provider ls --json` before starting deliberation; fails clearly with a remediation message if missing or unavailable.
+  - Peer preflight does NOT use OS-level executable probing (`command -v claude`); paseo's provider inventory is the source of truth (handles ACP-style and custom providers correctly).
 - **Priority:** P0
 
 **FR5: Deliberation artifact captures final output + full audit trail**
@@ -151,20 +180,21 @@ The repo doubles as a **growth platform** for additional personal skills and plu
 
 **NFR2: Convergence within a reasonable wall-clock and cost budget**
 
-- **Description:** A typical refine run on a one-pager (3–5 sections) completes in under 5 minutes wall-clock and under $1 in API cost using default settings.
+- **Description:** A run against the **typical supported input profile** (one-pagers, tens of KB, 3–8 sections, average difficulty) completes in under 5 minutes wall-clock and under $1 in API cost using default settings. The budget is not a guarantee for inputs near the 1 MB hard cap, contentious docs requiring repeated user impasse intervention, or custom peer pairs with significantly higher per-token cost than Claude/Codex defaults.
 - **Acceptance Criteria:**
-  - Typical run wall-clock < 5 min on a one-pager (measured during dogfooding).
-  - Typical run API cost < $1 on a one-pager.
+  - Typical-profile run wall-clock < 5 min (measured during dogfooding).
+  - Typical-profile run API cost < $1 (cost_source = paseo or estimated; unavailable counts as not-measurable, not a failure).
   - No metrics-gating in v0.1; tracked but not blocking.
 - **Priority:** P1
 
-**NFR3: Cross-provider portability — skills layer is the only canonical thing**
+**NFR3: Cross-provider portability — additive frontmatter, OAT-tested pattern**
 
-- **Description:** Skills are written against the Agent Skills baseline; provider-specific behavior lives in provider manifests, never inside canonical `SKILL.md` files. This protects the multi-provider thesis from drift.
+- **Description:** Skills are written so they work across providers. Frontmatter follows the OAT-tested rule: it is OK for canonical `SKILL.md` to carry fields not recognized by all providers, as long as those fields are **additive** (unrecognized = ignored, not fatal). Fields with conflicting semantics across providers go into provider-specific manifests, not canonical skills.
 - **Acceptance Criteria:**
-  - Canonical `SKILL.md` files contain only Agent Skills baseline frontmatter (`name`, `description`, `license`, `compatibility`, `metadata`).
-  - Provider-specific fields (`disable-model-invocation`, `allowed-tools`) appear only in provider-specific manifests or generated provider-views, not in canonical skill bodies.
-  - A documented contribution rule prevents future drift.
+  - Canonical `SKILL.md` includes Agent Skills baseline frontmatter (`name`, `description`, `license`, `compatibility`, `metadata`).
+  - Additive provider-specific fields (e.g. Claude's `allowed-tools`, `disable-model-invocation`) MAY appear in canonical skills when their unrecognized form is gracefully ignored by other providers.
+  - Fields whose semantics conflict across providers (e.g. competing model-invocation defaults) are isolated to per-provider manifests.
+  - A documented contribution rule clarifies the additive-vs-conflicting distinction so future skills don't drift.
 - **Priority:** P0
 
 **NFR4: OAT scaffolding does not leak into the published plugin**
@@ -209,15 +239,16 @@ The repo doubles as a **growth platform** for additional personal skills and plu
 ## Dependencies
 
 - **Paseo CLI** — agent-orchestration primitive, shelled out from skill scripts. Users must install Paseo separately. License: AGPL-3.0-or-later (handled by shell-out).
-- **Claude Code CLI** — one of two default deliberation agents.
-- **Codex CLI** — one of two default deliberation agents.
-- **Provider plugin runtimes** — Claude Code plugin runtime, Cursor plugin runtime, Codex plugin runtime. Each consumes its respective `.{provider}-plugin/plugin.json` manifest.
+- **Claude Code CLI** — default deliberation peer.
+- **Codex CLI** — default deliberation peer.
+- **(Optional) other paseo-supported peer CLIs** — `opencode`, `copilot-acp-agent`, `generic-acp-agent`. Selectable via `--peers`.
+- **Provider plugin runtimes** — Claude Code, Cursor, and Codex plugin runtimes consume their respective `.{provider}-plugin/plugin.json` manifests. Cursor is supported only as a host runtime (not a peer) since paseo doesn't implement a cursor provider.
 - **Agent Skills baseline** — `name`, `description`, `license`, `compatibility` frontmatter contract; `npx skills add` install path.
 - **GitHub Actions** — CI validation pipeline.
 
 ## High-Level Design (Proposed)
 
-The repository takes the **skills-first repo** shape recommended by the user's plugin synthesis research. `skills/` is canonical and holds skill bodies; provider plugin manifests live under `plugins/consensus/` (sub-plugin pattern, leaves room for future plugin groups). Optional discovery-view symlinks are out of scope for v0.1.
+The repository takes the proven `obra/superpowers` shape: top-level `skills/` holds canonical skill bodies, and **repo-level plugin manifests** sit as siblings at the repo root (`.claude-plugin/`, `.cursor-plugin/`, `.codex-plugin/`, plus `.agents/plugins/marketplace.json` for Codex). Manifest paths reference `./skills/...` plugin-root-relative — no `../` traversal. Sub-plugin packaging (under `plugins/<name>/`) is deferred until a second plugin group exists, at which point a copy/sync mechanism keeps multiple plugin packages in step with canonical `skills/`.
 
 The `consensus` plugin contains one user-facing skill at v0.1 (`consensus-refine`), backed by a shared `consensus-loop` primitive. The primitive is a small TypeScript or shell wrapper around `paseo run --output-schema` that owns the per-turn loop, structured-verdict parsing, hash-based convergence detection, and deliberation-log assembly. The skill is a thin wrapper that supplies `consensus-refine`-specific defaults (alternating mode, shared_input cold-start, moderate agency).
 
@@ -227,12 +258,12 @@ Cross-provider portability is enforced by keeping the skill body provider-agnost
 
 - **`consensus-loop` primitive** — Shared engine for all consensus skills. Drives `paseo run` per turn, parses verdicts, detects convergence, assembles deliberation log. Parameterized by iteration mode, cold-start, agency, etc.
 - **`consensus-refine` skill** — `SKILL.md` + supporting scripts. Reads input artifact, parses sections, runs the consensus loop sequentially per section, writes the deliberation artifact. Currently the only shipped consensus skill at v0.1.
-- **`consensus` plugin manifests** — Per-provider `plugin.json` files under `plugins/consensus/.{claude|cursor|codex}-plugin/`, each selecting `consensus-refine` from `skills/`.
+- **`consensus` plugin manifests** — Per-provider `plugin.json` files at repo root: `.claude-plugin/plugin.json`, `.cursor-plugin/plugin.json`, `.codex-plugin/plugin.json`. Each selects `./skills/consensus-refine` (plugin-root-relative).
 - **Repo-level scaffolding** — `README.md` with install matrix, CI workflow validating skills + manifests, `LICENSE`, `AGENTS.md`/`CLAUDE.md` symlink. Coexists with OAT scaffolding (`.oat/`, `.agents/`).
 
 **Alternatives Considered:**
 
-- **Repo-level plugin manifests at root** (single plugin per repo). Rejected because the user wants this repo to host additional plugin groups long-term; sub-plugin pattern is cleaner for that future. (See `discovery.md` Options Considered.)
+- **Sub-plugin packaging at v0.1** (`plugins/consensus/.{provider}-plugin/`). Rejected after design review: provider plugin runtimes expect plugin-root-relative paths starting with `./`, not paths reaching up out of plugin root via `../`. The proven reference (`obra/superpowers`) uses repo-level manifests. Sub-plugin packaging stays on the table for the future when a second plugin group exists; it will require a copy/sync mechanism not warranted at v0.1.
 - **Standalone CLI separate from Claude Code skill ecosystem.** Rejected during v3 design (`ideas/2026-05-01-two-agent-consensus-deliberation-as.md`) in favor of a skill, since Paseo's `--output-schema` already handles the heavy lifting and skills give native invocation + filesystem access + sub-agent delegation for free.
 - **Bundling Paseo into the plugin.** Rejected — Paseo's AGPL license requires shell-out, not embedding. Users install Paseo as a documented prerequisite.
 
@@ -257,6 +288,8 @@ _Design-related open questions are tracked in the [Open Questions](#open-questio
 | FR6 | Impasse handling + user surfacing | P0 | manual: forced impasse run; integration: user-intervention round entry | TBD - see plan.md |
 | FR7 | Cross-provider install paths | P0 | manual: fresh install smoke test on all 3 providers | TBD - see plan.md |
 | FR8 | CI validation pipeline | P1 | integration: CI green on representative PR | TBD - see plan.md |
+| FR9 | Configurable deliberation peers | P0 | unit: peer flag parsing + paseo-availability preflight; integration: non-default peer pair runs end-to-end | TBD - see plan.md |
+| FR10 | Optional Paseo install assistance | P1 | manual: install script smoke test on a clean machine; unit: prompt+confirm flow | TBD - see plan.md |
 | NFR1 | Audit trail is publishable | P0 | manual: dogfooding readability sample | TBD - see plan.md |
 | NFR2 | Wall-clock < 5 min, cost < $1 on one-pager | P1 | perf: dogfooding measurement | TBD - see plan.md |
 | NFR3 | Cross-provider portability of skill bodies | P0 | manual + unit: canonical SKILL.md files contain only baseline frontmatter | TBD - see plan.md |
@@ -282,6 +315,8 @@ Carried forward from `discovery.md`; resolved during design phase:
 - **`allowed-tools` portability:** Use it (per-provider manifest only) or rely on natural-language guidance in the skill body?
 - **Skill invocation surface:** `/consensus-refine` (separate skills per family member) or `/consensus refine` (umbrella with subcommand)?
 - **Paseo invocation permission profile per provider:** What permission scopes does each provider require to invoke `paseo` as a subprocess? Document per-provider `allowed-tools` / equivalent in plugin manifests. Decide whether the skill emits a preflight permission summary on first run.
+- **Future shared consensus-loop refactor:** When a 2nd consensus-* skill ships, where does the shared loop live so that `npx skills add <consensus-skill>` standalone installs still work? Each-skill-vendors-its-own copy duplicates code; a plugin-level `lib/` doesn't travel with standalone skill installs. Decide between vendoring, plugin-only distribution for consensus skills, or a more sophisticated packaging strategy. v0.1 is fine with the loop inside `consensus-refine/scripts/`; only revisit when the 2nd skill arrives.
+- **Skill path syntax inside `.codex-plugin/plugin.json`:** Codex docs show `skills/` at plugin root but don't precisely document whether plugin.json's skill references are relative-to-plugin-root (`./skills/consensus-refine`) or relative-to-`skills/` (`./consensus-refine`). Codex's marketplace.json plugin entries use plugin-root-relative paths (`source.path`); resolve plugin.json's internal syntax in implementation by testing both forms.
 
 ## Assumptions
 
