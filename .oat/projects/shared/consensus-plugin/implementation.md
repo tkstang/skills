@@ -1,9 +1,12 @@
 ---
 oat_status: in_progress
-oat_ready_for: null
-oat_blockers: []
+oat_ready_for: oat-project-review-receive
+oat_blockers:
+  - task_id: p02
+    reason: "Phase p02 review still has 1 Important finding after retry-limit=2"
+    since: 2026-05-04
 oat_last_updated: 2026-05-04
-oat_current_task_id: p02-t01
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -27,11 +30,11 @@ oat_generated: false
 | Phase   | Status      | Tasks | Completed |
 | ------- | ----------- | ----- | --------- |
 | Phase 1 | completed   | 7     | 7/7       |
-| Phase 2 | pending     | 10    | 0/10      |
+| Phase 2 | blocked     | 10    | 10/10     |
 | Phase 3 | pending     | 5     | 0/5       |
 | Phase 4 | pending     | 8     | 0/8       |
 
-**Total:** 7/30 tasks completed
+**Total:** 17/30 tasks completed
 
 ---
 
@@ -114,13 +117,74 @@ oat_generated: false
 
 ## Phase 2: Sequential Wrapper and Loop Core
 
-**Status:** pending
-**Started:** -
+**Status:** blocked - review retry limit exhausted
+**Started:** 2026-05-04
+**Stopped:** 2026-05-04
 
 ### Task p02-t01: Implement Hash Normalization and Convergence Helpers
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** 9ae99f4
+
+### Task p02-t02: Implement Verdict Schema and Byte-Cap Validation
+
+**Status:** completed
+**Commit:** 359dfea
+
+### Task p02-t03: Implement Write-Through Records and Status Output
+
+**Status:** completed
+**Commit:** 58282c3
+
+### Task p02-t04: Add Paseo Invocation and Stub Harness
+
+**Status:** completed
+**Commit:** a9209ad
+
+### Task p02-t05: Implement Alternating Loop CLI
+
+**Status:** completed
+**Commit:** 6705a4d
+
+### Task p02-t06: Implement Wrapper Arg Parsing, Host Detection, and Peer Preflight
+
+**Status:** completed
+**Commit:** aeb23fb
+
+### Task p02-t07: Implement Markdown Section Parsing
+
+**Status:** completed
+**Commit:** 8342d9e
+
+### Task p02-t08: Implement Path Safety and Atomic Writes
+
+**Status:** completed
+**Commit:** fa392d6
+
+### Task p02-t09: Implement Sequential Orchestration and Artifact Rendering
+
+**Status:** completed
+**Commit:** 8e80501
+
+### Task p02-t10: Implement JSONL Progress and Error Handling
+
+**Status:** completed
+**Commit:** 26f2742
+
+### Review Fixes
+
+**Status:** stopped - unresolved Important finding remains
+**Commits:** 9dcb4d0, bea643b, 5115efd, 49c5776, 7e56e77, 79a8127, 4319c49, c53c70c
+
+**Review artifacts:**
+
+- `reviews/p02-review-2026-05-04.md` - 3 Critical, 2 Important, 1 Minor.
+- `reviews/p02-review-2026-05-04-v2.md` - 0 Critical, 3 Important, 1 Minor.
+- `reviews/p02-review-2026-05-04-v3.md` - 0 Critical, 1 Important, 2 Minor.
+
+**Outstanding Important finding:**
+
+- `--fail-on-section-error` bypasses designed aggregation semantics; it should write the partial artifact after processing all sections, then exit 74 when any section ended in `error` or `impasse`.
 
 ---
 
@@ -157,6 +221,27 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 
 - None
 
+### Run 2 — 2026-05-04 08:47
+
+**Branch:** consensus-refine-v1
+**Tier:** 1
+**Policy:** merge-strategy=sequential, retry-limit=2
+**Phases:** 1 executed, 0 passed, 1 failed, 1 stopped
+
+#### Phase Outcomes
+
+| Phase | Implementer | Review | Fix Iterations | Disposition |
+| ----- | ----------- | ------ | -------------- | ----------- |
+| p02 | DONE | fail | 2/2 | stopped |
+
+#### Parallel Groups
+
+- p02: sequential
+
+#### Outstanding Items
+
+- p02 stopped after retry-limit=2. Review artifact: `reviews/p02-review-2026-05-04-v3.md`. Unresolved: `--fail-on-section-error` aggregation/exit semantics.
+
 <!-- orchestration-runs-end -->
 
 ---
@@ -164,6 +249,16 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 ## Implementation Log
 
 Chronological log of implementation progress.
+
+### 2026-05-04
+
+**Phase 2 Stopped:** 08:47
+
+- Implementer completed p02 tasks p02-t01 through p02-t10 in commits `9ae99f4..26f2742`.
+- First p02 review (`reviews/p02-review-2026-05-04.md`) found 3 Critical, 2 Important, and 1 Minor findings.
+- First fix loop produced commits `9dcb4d0..7e56e77`; re-review (`reviews/p02-review-2026-05-04-v2.md`) reduced the gate to 3 Important findings.
+- Second fix loop produced commits `79a8127`, `4319c49`, and `c53c70c`; final re-review (`reviews/p02-review-2026-05-04-v3.md`) still found 1 Important issue.
+- Retry limit exhausted. Next: run `oat-project-review-receive` for the p02 v3 review artifact, then resume implementation.
 
 ### 2026-05-04
 
