@@ -186,7 +186,7 @@ function validateParallelManifestShape(manifest) {
     throw manifestError('parallel manifest mode must be parallel');
   }
 
-  for (const field of ['output_path', 'run_dir']) {
+  for (const field of ['input_path', 'output_path', 'run_dir']) {
     requiredManifestString(manifest[field], field);
   }
   if (!Array.isArray(manifest.sections)) {
@@ -241,6 +241,29 @@ async function resolveConfinedManifestPath(value, { root, base, field, errorFact
   return resolved;
 }
 
+async function resolveManifestOutputPath(manifest, { cwd, trustedRoot }) {
+  const inputPath = resolveManifestPathValue(manifest.input_path, cwd);
+  const outputPath = resolveManifestPathValue(manifest.output_path, cwd);
+  const defaultOutputPath = path.resolve(`${inputPath}.consensus.md`);
+
+  if (outputPath === defaultOutputPath) {
+    const outputWriteRoot = path.dirname(inputPath);
+    await assertPathResolvesInside(outputWriteRoot, outputPath, 'output_path', pathConfinementError);
+    return { inputPath, outputPath, outputWriteRoot };
+  }
+
+  return {
+    inputPath,
+    outputPath: await resolveConfinedManifestPath(manifest.output_path, {
+      root: trustedRoot,
+      base: cwd,
+      field: 'output_path',
+      errorFactory: pathConfinementError
+    }),
+    outputWriteRoot: trustedRoot
+  };
+}
+
 async function normalizeParallelManifest(manifest, options) {
   validateParallelManifestShape(manifest);
 
@@ -270,12 +293,7 @@ async function normalizeParallelManifest(manifest, options) {
     }
   }
 
-  const outputPath = await resolveConfinedManifestPath(manifest.output_path, {
-    root: trustedRoot,
-    base: cwd,
-    field: 'output_path',
-    errorFactory: pathConfinementError
-  });
+  const { inputPath, outputPath, outputWriteRoot } = await resolveManifestOutputPath(manifest, { cwd, trustedRoot });
 
   const sections = [];
   for (const entry of manifest.sections) {
@@ -316,7 +334,9 @@ async function normalizeParallelManifest(manifest, options) {
 
   return {
     ...manifest,
+    input_path: inputPath,
     output_path: outputPath,
+    output_write_root: outputWriteRoot,
     run_dir: runDir,
     manifest_path: manifestPath,
     sections
@@ -1401,7 +1421,7 @@ export async function fanInParallelRun(manifestPath, options = {}) {
   runResult.status = aggregateParallelStatus(sections);
 
   const artifact = renderDeliberationArtifact(runResult);
-  await atomicWriteFile(manifest.output_path, artifact, { rootPath: trustedRoot });
+  await atomicWriteFile(manifest.output_path, artifact, { rootPath: manifest.output_write_root });
   const failedSections = failingSections(sections);
   if (options.failOnSectionError && failedSections.length > 0) {
     throw new ConsensusError(`section error or impasse in ${failedSections.length} section(s)`, {

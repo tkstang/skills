@@ -55,6 +55,12 @@ async function prepareCompletedManifest() {
   });
 
   const manifest = await readJson(prepared.manifestPath);
+  await writeCompletedSectionOutputs(manifest);
+
+  return { tempRoot, prepared, manifest };
+}
+
+async function writeCompletedSectionOutputs(manifest) {
   for (const section of [...manifest.sections].reverse()) {
     await writeFile(section.output_section, `Final ${section.original_index}: ${section.name}\n`);
     await writeFile(
@@ -90,9 +96,34 @@ async function prepareCompletedManifest() {
       )}\n`
     );
   }
-
-  return { tempRoot, prepared, manifest };
 }
+
+test('fanInParallelRun accepts prepared default output next to an absolute input outside cwd', async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-fan-in-cwd-'));
+  const inputRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-fan-in-input-'));
+  const inputPath = path.join(inputRoot, 'draft.md');
+  await writeFile(inputPath, '# A\nFirst\n\n# B\nSecond\n');
+
+  const prepared = await prepareParallelRun({
+    inputPath,
+    runDir: path.join(tempRoot, '.consensus/run'),
+    cwd: tempRoot,
+    goal: 'Fan in default output.',
+    peers: ['claude', 'codex'],
+    maxRounds: 2,
+    agency: 'moderate',
+    preflight: async () => ({ peers: ['claude', 'codex'], warnings: [] })
+  });
+  const manifest = await readJson(prepared.manifestPath);
+  await writeCompletedSectionOutputs(manifest);
+
+  const result = await fanInParallelRun(prepared.manifestPath, { cwd: tempRoot });
+
+  assert.equal(result.status, 'converged');
+  assert.equal(manifest.output_path, `${inputPath}.consensus.md`);
+  assert.equal((await stat(manifest.output_path)).isFile(), true);
+  assert.match(await readFile(manifest.output_path, 'utf8'), /Final 0: A/);
+});
 
 test('fanInParallelRun assembles section outputs in original order with parallel metadata', async () => {
   const { tempRoot, prepared, manifest } = await prepareCompletedManifest();
