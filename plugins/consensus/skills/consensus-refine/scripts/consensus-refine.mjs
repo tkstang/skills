@@ -4,6 +4,8 @@ import { lstat, mkdir, open, readFile, realpath, rename, stat, unlink, writeFile
 import path from 'node:path';
 import { promisify } from 'node:util';
 
+import { runConsensusLoop } from './consensus-loop.mjs';
+
 const execFileAsync = promisify(execFile);
 
 export const MIN_PASEO_VERSION = '0.1.0';
@@ -51,6 +53,76 @@ async function syncPathIfAvailable(targetPath) {
   } finally {
     await handle?.close();
   }
+}
+
+function nowIso() {
+  return new Date().toISOString();
+}
+
+function dynamicFence(contents, info = '') {
+  const text = String(contents ?? '');
+  const maxRun = Math.max(0, ...[...text.matchAll(/`+/g)].map((match) => match[0].length));
+  const ticks = '`'.repeat(Math.max(3, maxRun + 1));
+  const opener = info ? `${ticks}${info}` : ticks;
+  return `${opener}\n${text.replace(/\n*$/u, '\n')}${ticks}`;
+}
+
+function canonicalJsonBlock(label, value) {
+  return dynamicFence(JSON.stringify(value, null, 2), `json ${label}`);
+}
+
+function sanitizeProse(text) {
+  return String(text ?? '')
+    .replace(/<(script|style)\b[\s\S]*?<\/\1>/gi, '[removed]')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function sectionOutput(section) {
+  return section.output ?? section.result?.output ?? section.markdown ?? '';
+}
+
+function aggregateStatus(sections) {
+  const statuses = sections.map((section) => section.status?.status ?? section.result?.status?.status ?? 'unknown');
+  if (statuses.every((status) => status === 'converged')) return 'converged';
+  if (statuses.some((status) => status === 'error')) return 'error';
+  if (statuses.some((status) => status === 'impasse' || status === 'max_rounds')) return 'partial';
+  return 'unknown';
+}
+
+function sectionStates(sections) {
+  return sections.map((section) => ({
+    id: section.id,
+    name: section.name,
+    original_index: section.original_index,
+    status: section.status?.status ?? 'unknown',
+    termination_reason: section.status?.termination_reason ?? null,
+    turns: section.status?.turns ?? 0,
+    rounds: section.status?.rounds ?? 0,
+    artifact_hash: section.status?.artifact_hash ?? null
+  }));
+}
+
+function countByStatus(sections, statusName) {
+  return sections.filter((section) => section.status?.status === statusName).length;
+}
+
+function renderRecord(record) {
+  const verdict = record.verdict ?? {};
+  const parts = [
+    `#### Round ${record.round ?? '?'} - ${record.agent ?? record.provider ?? 'peer'} - ${verdict.decision ?? 'UNKNOWN'}`
+  ];
+
+  if (verdict.reasoning) {
+    parts.push('', 'Reasoning:', sanitizeProse(verdict.reasoning));
+  }
+
+  if (verdict.proposed_artifact) {
+    parts.push('', 'Proposed Artifact:', dynamicFence(sanitizeProse(verdict.proposed_artifact), 'markdown'));
+  }
+
+  parts.push('', canonicalJsonBlock('consensus-verdict', verdict));
+  return parts.join('\n');
 }
 
 function requireValue(argv, index, flag) {
@@ -455,6 +527,199 @@ export function parseSections(markdown) {
       markdown: lines.join('')
     }
   ];
+}
+
+function normalizeSequentialOptions(options) {
+  const parsed = Array.isArray(options) ? parseWrapperArgs(options) : options;
+  return {
+    goal: '',
+    maxRounds: 12,
+    agency: 'moderate',
+    failOnSectionError: false,
+    ...parsed
+  };
+}
+
+function sectionRunDirectory(runDir, section) {
+  return path.join(runDir, 'sections', `${String(section.original_index + 1).padStart(2, '0')}-${section.id}`);
+}
+
+function loopArgvForSection({ section, paths, options, peers }) {
+  return [
+    '--section-file',
+    paths.input,
+    '--goal',
+    options.goal ?? '',
+    '--peers',
+    peers.join(','),
+    '--max-rounds',
+    String(options.maxRounds),
+    '--agency',
+    options.agency,
+    '--output-records',
+    paths.records,
+    '--output-section',
+    paths.output,
+    '--output-status',
+    paths.status
+  ];
+}
+
+export function renderDeliberationArtifact(runResult) {
+  const sections = [...runResult.sections].sort((left, right) => left.original_index - right.original_index);
+  const status = aggregateStatus(sections);
+  const states = sectionStates(sections);
+  const finalOutput = sections.map(sectionOutput).join('\n\n').replace(/\n*$/u, '\n');
+  const totalRounds = sections.reduce((sum, section) => sum + (section.status?.rounds ?? 0), 0);
+  const totalTurns = sections.reduce((sum, section) => sum + (section.status?.turns ?? 0), 0);
+  const resolution = {
+    consensus_schema_version: 'v0',
+    status,
+    mode: runResult.mode ?? 'sequential',
+    parallel: Boolean(runResult.parallel),
+    iteration: 'alternating',
+    cold_start: 'shared_input',
+    agency: runResult.agency,
+    peers: runResult.peers,
+    max_rounds: runResult.maxRounds,
+    sections: {
+      total: sections.length,
+      converged: countByStatus(sections, 'converged'),
+      impasse: countByStatus(sections, 'impasse'),
+      max_rounds: countByStatus(sections, 'max_rounds'),
+      error: countByStatus(sections, 'error')
+    },
+    total_rounds: totalRounds,
+    total_turns: totalTurns,
+    wall_clock_ms: runResult.wallClockMs ?? null,
+    cost_source: 'unavailable',
+    approximate_cost_usd: null,
+    started_at: runResult.startedAt ?? null,
+    ended_at: runResult.endedAt ?? null
+  };
+
+  const parts = [
+    '# Consensus Refine Artifact',
+    '',
+    '## Final Output',
+    '',
+    finalOutput,
+    '## Resolution',
+    '',
+    canonicalJsonBlock('consensus-resolution', resolution),
+    '',
+    '## Goal',
+    '',
+    sanitizeProse(runResult.goal || '(no explicit goal provided)'),
+    '',
+    '## Section States',
+    '',
+    canonicalJsonBlock('consensus-section-states', states),
+    '',
+    '## Deliberation Log'
+  ];
+
+  for (const section of sections) {
+    parts.push(
+      '',
+      `### ${section.original_index + 1}. ${sanitizeProse(section.name)} (${section.status?.status ?? 'unknown'})`,
+      '',
+      canonicalJsonBlock('consensus-section-status', section.status ?? {}),
+      ''
+    );
+
+    for (const record of section.records ?? []) {
+      parts.push(renderRecord(record), '');
+    }
+  }
+
+  return `${parts.join('\n').replace(/\n{4,}/g, '\n\n\n').replace(/\s+$/u, '')}\n`;
+}
+
+export async function runSequential(options, runOptions = {}) {
+  const normalized = normalizeSequentialOptions(options);
+  const cwd = path.resolve(normalized.cwd ?? runOptions.cwd ?? process.cwd());
+  const env = normalized.env ?? runOptions.env ?? process.env;
+  const inputPath = path.isAbsolute(normalized.inputPath) ? normalized.inputPath : path.resolve(cwd, normalized.inputPath);
+  const startedAt = nowIso();
+  const startMs = Date.now();
+  const markdown = await readInputFile(inputPath);
+  const parsedSections = parseSections(markdown);
+  const runDir = await resolveRunDir({ ...normalized, cwd });
+  const outputPath = await resolveOutputPath({ ...normalized, cwd }, inputPath);
+  const preflight =
+    normalized.preflight === false
+      ? { peers: normalized.peers ?? ['claude', 'codex'], warnings: [] }
+      : await (normalized.preflight ?? preflightPaseo)({ ...normalized, env, cwd });
+  const peers = normalized.peers ?? preflight.peers;
+  const sectionResults = [];
+
+  for (const section of parsedSections) {
+    const sectionDir = sectionRunDirectory(runDir, section);
+    const paths = {
+      input: path.join(sectionDir, 'section.md'),
+      records: path.join(sectionDir, 'records.json'),
+      output: path.join(sectionDir, 'output.md'),
+      status: path.join(sectionDir, 'status.json')
+    };
+
+    await atomicWriteFile(paths.input, section.markdown);
+
+    try {
+      const result = await runConsensusLoop(loopArgvForSection({ section, paths, options: normalized, peers }), {
+        env,
+        cwd,
+        invokePeer: normalized.invokePeer ?? runOptions.invokePeer
+      });
+      sectionResults.push({
+        ...section,
+        paths,
+        output: result.output,
+        status: result.status,
+        records: result.records
+      });
+    } catch (error) {
+      const status = {
+        status: 'error',
+        termination_reason: 'hard_error',
+        turns: 0,
+        rounds: 0,
+        error: error.message
+      };
+      sectionResults.push({
+        ...section,
+        paths,
+        output: section.markdown,
+        status,
+        records: []
+      });
+      if (normalized.failOnSectionError) {
+        throw error;
+      }
+    }
+  }
+
+  const endedAt = nowIso();
+  const runResult = {
+    mode: 'sequential',
+    parallel: false,
+    inputPath,
+    outputPath,
+    runDir,
+    goal: normalized.goal,
+    peers,
+    agency: normalized.agency,
+    maxRounds: normalized.maxRounds,
+    startedAt,
+    endedAt,
+    wallClockMs: Date.now() - startMs,
+    sections: sectionResults
+  };
+  runResult.status = aggregateStatus(sectionResults);
+
+  const artifact = renderDeliberationArtifact(runResult);
+  await atomicWriteFile(outputPath, artifact);
+  return { ...runResult, artifact };
 }
 
 export function resolvePeers(options = {}, host = 'unknown', providerInventory = []) {
