@@ -17,6 +17,12 @@ export const PROVIDER_ID_PATTERN = /^[a-z][a-z0-9-]{0,31}$/u;
 
 const MAX_ROUNDS_MIN = 1;
 const MAX_ROUNDS_MAX = 100;
+const STRICT_RESUME_HASH_OPTIONS = Object.freeze({
+  normalizeLineEndings: false,
+  trimTrailingWhitespace: false,
+  collapseEofNewlines: false,
+  finalNewline: false
+});
 const PASEO_REMEDIATION = Object.freeze({
   install_command: 'npm install -g @getpaseo/cli',
   source_url: 'https://github.com/getpaseo/paseo',
@@ -255,9 +261,19 @@ function lastProposedArtifact(records) {
   return null;
 }
 
-function normalizeResumeRecords(records, peers = ['claude', 'codex']) {
+function resumeAgencyFromMetadata(resolution = {}, frontmatter = {}, options = {}) {
+  const agency = resolution.agency ?? frontmatter.agency ?? options.agency ?? 'moderate';
+  return ['minimal', 'moderate', 'maximum'].includes(agency) ? agency : 'moderate';
+}
+
+function resumeHashOptionsForAgency(agency = 'moderate') {
+  return agency === 'minimal' ? STRICT_RESUME_HASH_OPTIONS : {};
+}
+
+function normalizeResumeRecords(records, peers = ['claude', 'codex'], options = {}) {
   let peerIndex = 0;
   let currentArtifact = null;
+  const hashOptions = resumeHashOptionsForAgency(options.agency);
   return (records ?? []).map((record) => {
     const isUser = record?.verdict === 'USER_INTERVENTION' || record?.agent === 'user';
     const normalized = {
@@ -283,7 +299,7 @@ function normalizeResumeRecords(records, peers = ['claude', 'codex']) {
     }
 
     if (!normalized.artifact_hash && currentArtifact !== null) {
-      normalized.artifact_hash = hashArtifact(currentArtifact);
+      normalized.artifact_hash = hashArtifact(currentArtifact, hashOptions);
     }
 
     return normalized;
@@ -291,13 +307,16 @@ function normalizeResumeRecords(records, peers = ['claude', 'codex']) {
 }
 
 function normalizeResumeSection(state, logSection, index, options = {}) {
-  const records = normalizeResumeRecords(logSection?.records ?? [], options.peers);
+  const records = normalizeResumeRecords(logSection?.records ?? [], options.peers, {
+    agency: options.agency
+  });
   const canonicalArtifact = typeof state?.final_output === 'string' ? state.final_output : null;
   const logArtifact = lastProposedArtifact(records);
   const resumedArtifact = canonicalArtifact ?? logArtifact;
   const status = logSection?.status ?? {};
   const sectionStatus = state?.status ?? status.status ?? 'unknown';
   const completed = sectionStatus === 'converged';
+  const hashOptions = resumeHashOptionsForAgency(options.agency);
 
   return {
     id: state?.id,
@@ -311,7 +330,7 @@ function normalizeResumeSection(state, logSection, index, options = {}) {
     skipped: false,
     corruptErrors: [],
     resumedArtifact,
-    resumedArtifactHash: resumedArtifact === null ? null : hashArtifact(resumedArtifact),
+    resumedArtifactHash: resumedArtifact === null ? null : hashArtifact(resumedArtifact, hashOptions),
     resumedArtifactSource:
       canonicalArtifact !== null ? 'section_state.final_output' : logArtifact !== null ? 'deliberation_log.proposed_artifact' : null
   };
@@ -1326,8 +1345,10 @@ export async function parseDeliberationArtifactForResume(pathOrText, options = {
   const resolution = resolutions[0];
   const sectionStates = sectionStatesBlocks[0];
   const { logSections, unscopedErrors } = extractLogSectionBlocks(text);
+  const resumeAgency = resumeAgencyFromMetadata(resolution, frontmatter, options);
   const { sections, errors } = collectResumeValidationErrors(sectionStates, logSections, unscopedErrors, {
-    peers: resolution.peers
+    peers: resolution.peers,
+    agency: resumeAgency
   });
   const { skippedIds, unhandledErrors } = await applyResumeSkipPolicy(sections, errors, options);
   const diagnosticsPath = errors.length > 0 ? await writeResumeErrors(options.runDir, errors, [...skippedIds]) : null;
