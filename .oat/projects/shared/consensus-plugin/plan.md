@@ -7,7 +7,7 @@ oat_last_updated: 2026-05-04
 oat_phase: plan
 oat_phase_status: complete
 oat_plan_parallel_groups: []
-oat_plan_hill_phases: ["p06"]
+oat_plan_hill_phases: ["p07"]
 oat_auto_review_at_hill_checkpoints: true
 oat_import_reference: null
 oat_import_source_path: null
@@ -1377,6 +1377,65 @@ git add plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs t
 git commit -m "fix(p06-t02): use agency-aware resume hashes"
 ```
 
+## Phase 7: Final Minor Review Fixes
+
+Goal: close the non-blocking final review v4 minor findings before post-implementation handoff.
+
+### Task p07-t01: (review) Refresh Release Readiness Test Count
+
+**Files:**
+
+- Modify: `RELEASING.md`
+
+**Step 1: Understand the issue**
+
+Review finding: the v0.1 Readiness Snapshot still reports `npm test` as 122 tests, but the current suite reports 124 after p06 regressions were added.
+Location: `RELEASING.md:25`
+
+**Step 2: Implement fix**
+
+Update the automated-checks table to report `124 tests passed locally`. Keep the provider-runtime manual blocker notes unchanged.
+
+**Step 3: Verify**
+
+Run: `npm test`
+Expected: the test suite passes and reports 124 tests.
+
+**Step 4: Commit**
+
+```bash
+git add RELEASING.md
+git commit -m "docs(p07-t01): refresh release readiness test count"
+```
+
+### Task p07-t02: (review) Add Host Metadata to Deliberation Artifacts
+
+**Files:**
+
+- Modify: `plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs`
+- Create/Modify: `tests/sequential-wrapper.test.mjs`
+
+**Step 1: Understand the issue**
+
+Review finding: design.md section 4.5 lists `host` as part of the artifact frontmatter contract, but artifact rendering never carries the detected host runtime into frontmatter or the canonical resolution JSON.
+Location: `plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs:881`
+
+**Step 2: Implement fix**
+
+Plumb the detected host runtime into the resolution object, include it in artifact frontmatter alongside `peers`, and include it in the canonical `consensus-resolution` JSON block. Keep the field additive and backwards-compatible.
+
+**Step 3: Verify**
+
+Run: `node --test tests/sequential-wrapper.test.mjs`
+Expected: tests pass and assert rendered artifacts include `host` metadata in frontmatter and resolution JSON.
+
+**Step 4: Commit**
+
+```bash
+git add plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs tests/sequential-wrapper.test.mjs
+git commit -m "fix(p07-t02): add host artifact metadata"
+```
+
 ## Reviews
 
 {Track reviews here after running the oat-project-review-provide and oat-project-review-receive skills.}
@@ -1391,7 +1450,7 @@ git commit -m "fix(p06-t02): use agency-aware resume hashes"
 | p04    | code     | passed | 2026-05-04 | reviews/archived/p04-review-2026-05-04-v2.md |
 | p05    | code     | passed | 2026-05-04 | reviews/archived/p05-review-2026-05-04.md |
 | p06    | code     | passed | 2026-05-04 | reviews/archived/p06-review-2026-05-04.md |
-| final  | code     | received | 2026-05-04 | reviews/final-review-2026-05-04-v4.md |
+| final  | code     | fixes_added | 2026-05-04 | reviews/archived/final-review-2026-05-04-v4.md |
 | spec   | artifact | passed | 2026-05-04 | reviews/archived/artifact-spec-review-2026-05-04.md |
 | design | artifact | passed | 2026-05-04 | reviews/archived/artifact-design-review-2026-05-04.md |
 | plan   | artifact | passed | 2026-05-04 | reviews/archived/artifact-plan-review-2026-05-04-v2.md |
@@ -1421,10 +1480,11 @@ git commit -m "fix(p06-t02): use agency-aware resume hashes"
 - Phase 4: 8 tasks - resume, release polish, and distribution validation
 - Phase 5: 4 tasks - final review fixes
 - Phase 6: 2 tasks - final resume review fixes
+- Phase 7: 2 tasks - final minor review fixes
 
-**Total: 39 tasks**
+**Total: 41 tasks**
 
-Implementation and final code review complete.
+Implementation has 41 planned tasks; 39 are complete and final minor review fixes are pending.
 
 ## References
 

@@ -1,9 +1,9 @@
 ---
-oat_status: complete
-oat_ready_for: oat-project-review-provide
+oat_status: in_progress
+oat_ready_for: oat-project-implement
 oat_blockers: []
 oat_last_updated: 2026-05-04
-oat_current_task_id: null
+oat_current_task_id: p07-t01
 oat_generated: false
 ---
 
@@ -32,8 +32,9 @@ oat_generated: false
 | Phase 4 | completed   | 8     | 8/8       |
 | Phase 5 | completed   | 4     | 4/4       |
 | Phase 6 | completed   | 2     | 2/2       |
+| Phase 7 | in_progress | 2     | 0/2       |
 
-**Total:** 39/39 tasks completed
+**Total:** 39/41 tasks completed
 
 ---
 
@@ -485,6 +486,38 @@ oat_generated: false
 
 ---
 
+## Phase 7: Final Minor Review Fixes
+
+**Status:** in_progress
+**Started:** 2026-05-04
+
+### Task p07-t01: (review) Refresh Release Readiness Test Count
+
+**Status:** pending
+**Commit:** -
+
+### Task p07-t02: (review) Add Host Metadata to Deliberation Artifacts
+
+**Status:** pending
+**Commit:** -
+
+### Phase Summary
+
+**Outcome (what changed):**
+
+- Pending.
+
+**Verification:**
+
+- Pending.
+
+**Notes / Decisions:**
+
+- Added from final review v4 minor findings. User chose to convert all minor findings to tasks.
+- Next: execute p07-t01 and p07-t02 via `oat-project-implement`.
+
+---
+
 ## Orchestration Runs
 
 _Each run from `oat-project-implement` appends an entry below with:_
@@ -651,6 +684,19 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 ## Implementation Log
 
 Chronological log of implementation progress.
+
+### 2026-05-04
+
+**Review Received:** final v4
+
+- Review artifact: `reviews/archived/final-review-2026-05-04-v4.md`
+- Findings: 0 Critical, 0 Important, 0 Medium, 2 Minor.
+- Deferred Medium ledger: empty.
+- Minor disposition: user selected "Convert all minors to tasks."
+- New tasks added: `p07-t01`, `p07-t02`.
+- Finding disposition map: m1 converted, m2 converted.
+- Review cycle: 4 of 3 automated cycles; further automated review cycles require explicit user override.
+- Next: execute final minor review fix tasks via `oat-project-implement`.
 
 ### 2026-05-04
 
