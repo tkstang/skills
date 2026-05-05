@@ -106,6 +106,10 @@ test('runSequential refines sections, creates run files, and writes an artifact'
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-sequential-'));
   const outputPath = path.join(tempRoot, 'sample.consensus.md');
   const runDir = path.join(tempRoot, '.consensus/run');
+  const env = {
+    PATH: `${fixtureBin}${path.delimiter}${process.env.PATH}`,
+    CURSOR_TRACE_ID: 'artifact-host-test'
+  };
   const result = await runSequential({
     inputPath: sampleInput,
     output: outputPath,
@@ -117,7 +121,7 @@ test('runSequential refines sections, creates run files, and writes an artifact'
     maxRounds: 2,
     agency: 'moderate',
     preflight: async () => ({ peers: ['claude', 'codex'], warnings: [] }),
-    env: stubEnv()
+    env
   });
 
   assert.equal(result.sections.length, 3);
@@ -135,6 +139,7 @@ test('runSequential refines sections, creates run files, and writes an artifact'
   assert.match(artifact, /^iteration: alternating$/m);
   assert.match(artifact, /^cold_start: shared_input$/m);
   assert.match(artifact, /^peers: \["claude","codex"\]$/m);
+  assert.match(artifact, /^host: cursor$/m);
   assert.match(artifact, /^total_turns: [1-9]\d*$/m);
   assert.match(artifact, /^total_rounds: [1-9]\d*$/m);
   assert.match(artifact, /^wall_clock_ms: \d+$/m);
@@ -155,6 +160,7 @@ test('runSequential refines sections, creates run files, and writes an artifact'
   const resolution = extractJsonBlock(artifact, 'consensus-resolution');
   assert.equal(resolution.consensus_schema_version, 'v0');
   assert.equal(resolution.mode, 'sequential');
+  assert.equal(resolution.host, 'cursor');
   assert.equal(resolution.sections.total, 3);
   assert.equal(resolution.sections.converged, 3);
 

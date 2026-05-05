@@ -888,6 +888,7 @@ function renderArtifactFrontmatter(resolution) {
     cold_start: resolution.cold_start,
     agency: resolution.agency,
     peers: resolution.peers,
+    host: resolution.host,
     sections_total: resolution.sections.total,
     sections_converged: resolution.sections.converged,
     sections_impasse: resolution.sections.impasse,
@@ -1549,6 +1550,7 @@ export function renderDeliberationArtifact(runResult) {
     cold_start: 'shared_input',
     agency: runResult.agency,
     peers: runResult.peers,
+    host: runResult.host ?? 'unknown',
     max_rounds: runResult.maxRounds,
     sections: {
       total: sections.length,
@@ -1643,6 +1645,7 @@ export async function runSequential(options, runOptions = {}) {
       ? { peers: normalized.peers ?? ['claude', 'codex'], warnings: [] }
       : await (normalized.preflight ?? preflightPaseo)({ ...normalized, env, cwd });
   const peers = normalized.peers ?? preflight.peers;
+  const host = preflight.host ?? detectHost(env);
   const resumeSections = sectionLookup(resumeState?.sections);
   const runSections = sequentialRunSections(parsedSections, resumeState);
   const sectionResults = [];
@@ -1756,6 +1759,7 @@ export async function runSequential(options, runOptions = {}) {
     runDir,
     goal: normalized.goal,
     peers,
+    host,
     agency: normalized.agency,
     maxRounds: normalized.maxRounds,
     startedAt,
@@ -1798,6 +1802,7 @@ export async function prepareParallelRun(options, runOptions = {}) {
       ? { peers: normalized.peers ?? ['claude', 'codex'], warnings: [] }
       : await (normalized.preflight ?? preflightPaseo)({ ...normalized, env, cwd });
   const peers = normalized.peers ?? preflight.peers;
+  const host = preflight.host ?? detectHost(env);
   const parallelism = parallelismFor(parsedSections.length, normalized.parallelism);
   const sections = [];
 
@@ -1856,6 +1861,7 @@ export async function prepareParallelRun(options, runOptions = {}) {
     run_dir: runDir,
     goal: normalized.goal ?? '',
     peers,
+    host,
     max_rounds: normalized.maxRounds,
     agency: normalized.agency,
     parallelism,
@@ -1876,6 +1882,7 @@ export async function prepareParallelRun(options, runOptions = {}) {
     manifestPath,
     goal: normalized.goal ?? '',
     peers,
+    host,
     agency: normalized.agency,
     maxRounds: normalized.maxRounds,
     parallelism,
@@ -2013,6 +2020,7 @@ export async function fanInParallelRun(manifestPath, options = {}) {
     manifestPath: resolvedManifestPath,
     goal: manifest.goal,
     peers: manifest.peers,
+    host: manifest.host ?? 'unknown',
     agency: manifest.agency,
     maxRounds: manifest.max_rounds,
     startedAt,
@@ -2117,6 +2125,7 @@ export async function preflightPaseo(options = {}) {
     ok: true,
     version,
     providerInventory: normalizeProviderInventory(providerInventory),
+    host,
     peers: resolved.peers,
     warnings
   };
