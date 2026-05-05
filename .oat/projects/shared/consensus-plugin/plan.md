@@ -1451,7 +1451,7 @@ git commit -m "fix(p07-t02): add host artifact metadata"
 | p05    | code     | passed | 2026-05-04 | reviews/archived/p05-review-2026-05-04.md |
 | p06    | code     | passed | 2026-05-04 | reviews/archived/p06-review-2026-05-04.md |
 | p07    | code     | passed | 2026-05-04 | reviews/archived/p07-review-2026-05-04.md |
-| final  | code     | fixes_completed | 2026-05-04 | reviews/archived/final-review-2026-05-04-v4.md |
+| final  | code     | passed | 2026-05-04 | reviews/archived/final-review-2026-05-04-v5.md |
 | spec   | artifact | passed | 2026-05-04 | reviews/archived/artifact-spec-review-2026-05-04.md |
 | design | artifact | passed | 2026-05-04 | reviews/archived/artifact-design-review-2026-05-04.md |
 | plan   | artifact | passed | 2026-05-04 | reviews/archived/artifact-plan-review-2026-05-04-v2.md |
@@ -1485,7 +1485,7 @@ git commit -m "fix(p07-t02): add host artifact metadata"
 
 **Total: 41 tasks**
 
-Implementation has 41 planned tasks; all 41 are complete and final minor review fixes are awaiting re-review.
+Implementation and final code review complete.
 
 ## References
 
