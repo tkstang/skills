@@ -22,7 +22,7 @@ Last updated: 2026-05-04.
 
 | Check | Status | Evidence |
 | --- | --- | --- |
-| `npm test` | passed | 122 tests passed locally |
+| `npm test` | passed | 124 tests passed locally |
 | `node scripts/validate.mjs` | passed | `validation passed` |
 | `node scripts/smoke-test.mjs` | passed | `smoke passed` |
 | Paseo availability | passed | `paseo --version` -> `0.1.63` |
