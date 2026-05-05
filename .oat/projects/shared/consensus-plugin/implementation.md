@@ -1,9 +1,9 @@
 ---
-oat_status: in_progress
-oat_ready_for: oat-project-implement
+oat_status: complete
+oat_ready_for: oat-project-review-provide
 oat_blockers: []
 oat_last_updated: 2026-05-04
-oat_current_task_id: p07-t01
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -32,9 +32,9 @@ oat_generated: false
 | Phase 4 | completed   | 8     | 8/8       |
 | Phase 5 | completed   | 4     | 4/4       |
 | Phase 6 | completed   | 2     | 2/2       |
-| Phase 7 | in_progress | 2     | 0/2       |
+| Phase 7 | completed   | 2     | 2/2       |
 
-**Total:** 39/41 tasks completed
+**Total:** 41/41 tasks completed
 
 ---
 
@@ -488,33 +488,44 @@ oat_generated: false
 
 ## Phase 7: Final Minor Review Fixes
 
-**Status:** in_progress
+**Status:** completed
 **Started:** 2026-05-04
+**Completed:** 2026-05-04
 
 ### Task p07-t01: (review) Refresh Release Readiness Test Count
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** 2fa8774
 
 ### Task p07-t02: (review) Add Host Metadata to Deliberation Artifacts
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** b43240f
 
 ### Phase Summary
 
 **Outcome (what changed):**
 
-- Pending.
+- Refreshed `RELEASING.md` readiness evidence to report the current 124-test suite.
+- Added host runtime metadata to deliberation artifact frontmatter and the canonical `consensus-resolution` JSON block.
+
+**Key files touched:**
+
+- `RELEASING.md` - current local test count evidence.
+- `plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs` - host metadata in rendered artifacts.
+- `tests/sequential-wrapper.test.mjs` - host metadata assertions.
 
 **Verification:**
 
-- Pending.
+- Run: `node --test tests/sequential-wrapper.test.mjs`
+- Result: pass, 4 tests.
+- Run: `npm test`
+- Result: pass, 124 tests.
 
 **Notes / Decisions:**
 
 - Added from final review v4 minor findings. User chose to convert all minor findings to tasks.
-- Next: execute p07-t01 and p07-t02 via `oat-project-implement`.
+- Next: re-run final code review only with explicit user override because the final review cycle count is already above the automated limit.
 
 ---
 
@@ -684,6 +695,16 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 ## Implementation Log
 
 Chronological log of implementation progress.
+
+### 2026-05-04
+
+**Phase 7 Complete:** 2026-05-04
+
+- Implementer completed p07 tasks p07-t01 and p07-t02 in commits `2fa8774` and `b43240f`.
+- Targeted verification passed: `node --test tests/sequential-wrapper.test.mjs` reported 4 passing tests.
+- Full local verification passed: `npm test` reported 124 passing tests.
+- Final review row updated to `fixes_completed` for `reviews/archived/final-review-2026-05-04-v4.md`.
+- Next: final code re-review requires explicit user override because this scope has already reached the automated review cycle limit.
 
 ### 2026-05-04
 
