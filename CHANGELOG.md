@@ -13,6 +13,7 @@
 - Resume support for canonical artifact state, corrupt-section fail-closed handling, skip flags, and user intervention records.
 - Paseo install assist via `scripts/install-paseo.mjs`; tested Paseo range 0.1.0 to 0.9.0.
 - Mocked smoke test coverage for dependency-free end-to-end validation.
+- Node.js 22+ runtime and CI baseline.
 
 ### Release validation
 

@@ -7,7 +7,7 @@ test('package metadata declares the Node test harness contract', async () => {
 
   assert.equal(packageJson.private, true);
   assert.equal(packageJson.type, 'module');
-  assert.match(packageJson.engines?.node ?? '', />=\s*20/);
+  assert.match(packageJson.engines?.node ?? '', />=\s*22/);
   assert.equal(packageJson.scripts?.test, 'node --test');
   assert.equal(packageJson.scripts?.validate, 'node scripts/validate.mjs');
   assert.equal(packageJson.scripts?.smoke, 'node scripts/smoke-test.mjs');

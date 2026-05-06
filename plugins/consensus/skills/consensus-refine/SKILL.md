@@ -15,7 +15,7 @@ Use this skill when the user wants a markdown draft refined through two-peer del
 
 ## Prerequisites
 
-Before a run, ensure Node.js 20 or newer and `paseo` are available. If `paseo` is missing, tell the user the wrapper will fail preflight and point them to the install-assist script documented by this plugin. Do not auto-install dependencies.
+Before a run, ensure Node.js 22 or newer and `paseo` are available. If `paseo` is missing, tell the user the wrapper will fail preflight and point them to the install-assist script documented by this plugin. Do not auto-install dependencies.
 
 ## Sequential Invocation
 
@@ -28,6 +28,14 @@ node ./scripts/consensus-refine.mjs <input.md> --goal "<goal>"
 Pass through user-specified flags such as `--peers`, `--max-rounds`, `--agency`, `--output`, `--resume`, `--allow-root`, and `--fail-on-section-error` when the user asks for them. The default mode is sequential section processing.
 
 Read JSONL emitted on stdout. Treat each JSONL line as host coordination data: status updates, warnings, artifact paths, impasse summaries, or parallel dispatch instructions. Use stderr only as terminal diagnostics, not as the coordination protocol.
+
+## Resume and Recovery
+
+Use `--resume <artifact-path>` to continue from a prior deliberation artifact. Resume state comes from the artifact's canonical section states and deliberation records; do not reconstruct completed sections from the current input file.
+
+When the prior run stopped at impasse or max rounds and the user gives new direction, pass it through with `--user-direction "<direction>"`. User direction is recorded as a user round in the new deliberation artifact.
+
+If resume reports corrupt section state, surface the diagnostics path and ask before skipping anything. Use `--skip-corrupt-section <section-id>` for explicit per-section skips, `--skip-all-corrupt` when the user approves skipping every corrupt section interactively, and `--yes-skip-corrupt` only when the user has already approved non-interactive corrupt-section skipping. Do not silently restart corrupt sections or discard resume records.
 
 ## Parallel Orchestration
 

@@ -6,7 +6,11 @@ v0.1 is not ready to tag until the full project validation and provider smoke te
 
 - Run `npm test`.
 - Run `npm run validate`.
-- Verify `consensus-refine` on a real markdown artifact.
+- Verify sequential `consensus-refine` on a real markdown artifact.
+- Verify resume from a generated deliberation artifact.
+- Verify user-direction continuation after an impasse or max-rounds stop.
+- Verify corrupt resume handling with explicit skip controls before continuing from damaged state.
+- Verify host-mediated parallel prepare, section dispatch, and fan-in on a multi-section markdown artifact.
 - Verify Claude Code plugin install and Bash permission shape.
 - Verify Cursor plugin install and exec permission shape.
 - Verify Codex Git/local install, interface metadata, skill path syntax, and exec permission shape.

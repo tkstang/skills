@@ -20,7 +20,7 @@ These are release-candidate install paths. Re-check the provider CLIs and market
 
 ## Prerequisites
 
-- Node.js 20 or newer.
+- Node.js 22 or newer.
 - Paseo CLI on `PATH`: `npm install -g @getpaseo/cli`. v0.1 validates against tested range 0.1.0 to 0.9.0 and emits a warning outside that range.
 - The peer CLIs configured in Paseo, usually `claude` and `codex`.
 
@@ -31,6 +31,31 @@ node scripts/install-paseo.mjs
 ```
 
 The helper prompts before running `npm install -g @getpaseo/cli`; declining leaves your machine unchanged.
+
+## Usage
+
+For the default sequential flow, run the wrapper against a markdown file:
+
+```bash
+node plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs draft.md --goal "Make this clearer."
+```
+
+The wrapper parses the document into sections, runs the configured peers through alternating verdict rounds, and writes a deliberation artifact beside the input as `<input>.consensus.md` unless `--output <path>` is provided. The artifact contains the final output, resolution metadata, section states, and a per-section deliberation log.
+
+Resume from a prior artifact with `--resume <artifact-path>`. Use `--user-direction "<direction>"` when continuing after an impasse or max-rounds stop, and use the corrupt-section controls only when the wrapper reports blocked resume state:
+
+```bash
+node plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs draft.md \
+  --resume draft.consensus.md \
+  --user-direction "Prefer the shorter introduction."
+```
+
+Parallel section orchestration is host mediated. Prepare packets first, dispatch section runners with the host runtime, then fan in the completed section outputs:
+
+```bash
+node plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs draft.md --prepare-parallel --goal "Tighten the draft."
+node plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs --fan-in .consensus/<run-id>/manifest.json
+```
 
 ## Permissions
 
