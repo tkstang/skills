@@ -12,23 +12,23 @@ oat_phase_status: complete # Status: in_progress | complete | pr_open
 oat_workflow_mode: spec-driven # spec-driven | quick | import
 oat_workflow_origin: native # native | imported
 oat_docs_updated: null # null | skipped | complete — documentation sync status
-oat_pr_status: null # null | ready | open | closed | merged — actual PR state for the current project
+oat_pr_status: ready # null | ready | open | closed | merged — actual PR state for the current project
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-05-01T21:13:51.501Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-05-05T01:33:35Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-05-06T04:01:17Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
 # Project State: consensus-plugin
 
-**Status:** Implementation complete
+**Status:** PR description ready
 **Started:** 2026-05-01
-**Last Updated:** 2026-05-04
+**Last Updated:** 2026-05-05
 
 ## Current Phase
 
-Implementation complete — final code review passed.
+Implementation complete — final PR description generated; remote target required before PR can be opened.
 
 ## Artifacts
 
@@ -37,6 +37,8 @@ Implementation complete — final code review passed.
 - **Design:** `design.md` (complete)
 - **Plan:** `plan.md` (complete)
 - **Implementation:** `implementation.md` (complete)
+- **Summary:** `summary.md` (complete)
+- **Final PR:** `pr/project-pr-2026-05-05.md` (ready, local-only)
 
 ## Progress
 
@@ -47,6 +49,9 @@ Implementation complete — final code review passed.
 - ✓ Plan complete
 - ✓ Final minor review fixes complete
 - ✓ Final code review passed
+- ✓ Summary generated
+- ✓ Final PR description generated
+- ⧗ Awaiting GitHub remote configuration and PR creation
 
 ## Blockers
 
@@ -54,4 +59,8 @@ None
 
 ## Next Milestone
 
-Choose post-implementation handoff: summary, docs sync, or final PR
+Final PR description is ready locally, but this repository has no configured Git remote.
+
+- Configure a GitHub remote for this repo.
+- Push branch `consensus-refine-v1`.
+- Open a PR against `main` using `pr/project-pr-2026-05-05.md` with YAML frontmatter stripped from the GitHub body.
