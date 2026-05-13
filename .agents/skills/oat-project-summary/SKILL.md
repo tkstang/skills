@@ -1,8 +1,8 @@
 ---
 name: oat-project-summary
-version: 1.0.0
-description: Use when a project needs a summary artifact. Generates summary.md from project artifacts as institutional memory.
-disable-model-invocation: true
+version: 1.1.1
+description: Use when the user requests or confirms summarizing an active OAT project — e.g. "summarize the project", "generate the summary", "run oat-project-summary", or confirms a previously offered summary run. Do NOT auto-invoke when implementation completes. Generates summary.md from project artifacts as institutional memory.
+disable-model-invocation: false
 user-invocable: true
 allowed-tools: Read, Write, Bash(git:*), Glob, Grep, AskUserQuestion
 ---
