@@ -206,6 +206,13 @@ describe('extractMeta (codex)', () => {
     assert.equal(meta.sessionId, 'codex-session-003');
     assert.equal(meta.recordedCwd, null);
   });
+
+  it('payload-cwd: extracts recordedCwd from payload.cwd when top-level cwd is absent', async () => {
+    const meta = await extractMeta('codex', fixturePath('codex', 'payload-cwd.jsonl'));
+    assert.ok(meta !== null, 'meta should not be null');
+    assert.equal(meta.sessionId, 'codex-payload-cwd-001');
+    assert.equal(meta.recordedCwd, '/Users/testuser/Code/payload-project');
+  });
 });
 
 // ---------------------------------------------------------------------------

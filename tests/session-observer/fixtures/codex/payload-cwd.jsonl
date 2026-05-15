@@ -1,0 +1,5 @@
+{"type":"session_started","sessionId":"codex-payload-cwd-001","payload":{"cwd":"/Users/testuser/Code/payload-project","sessionId":"codex-payload-cwd-001","startedAt":"2026-05-14T10:00:00Z"}}
+{"type":"response_item","sessionId":"codex-payload-cwd-001","payload":{"type":"message","role":"user","content":"Hello from a session where cwd is nested under payload.","id":"msg-001"}}
+{"type":"response_item","sessionId":"codex-payload-cwd-001","payload":{"type":"message","role":"assistant","content":"Got it! I can see your cwd is stored in the payload object.","id":"msg-002"}}
+{"type":"response_item","sessionId":"codex-payload-cwd-001","payload":{"type":"message","role":"user","content":"Good. This tests payload.cwd extraction.","id":"msg-003"}}
+{"type":"response_item","sessionId":"codex-payload-cwd-001","payload":{"type":"message","role":"assistant","content":"Confirmed. The payload.cwd field should be read when top-level cwd is absent.","id":"msg-004"}}

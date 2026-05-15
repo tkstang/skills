@@ -55,7 +55,7 @@ function cwdCachePath() {
 /**
  * Load the codex cwd cache from disk.
  * Returns an empty object on any read/parse error.
- * @returns {Promise<Record<string, { recordedCwd: string }>>}
+ * @returns {Promise<Record<string, { recordedCwd: string | null, sessionId?: string }>>}
  */
 async function loadCwdCache() {
   try {
@@ -282,9 +282,11 @@ async function discoverCodex(targetCwd) {
     const key = cwdCacheKey(transcriptPath, mtime);
 
     let recordedCwd;
-    if (cache[key]) {
-      // Cache hit: use cached value
+    let sessionId;
+    if (cache[key] && cache[key].sessionId !== undefined) {
+      // Cache hit: use cached values for both recordedCwd and sessionId
       recordedCwd = cache[key].recordedCwd;
+      sessionId = cache[key].sessionId;
     } else {
       // Cache miss: parse the transcript
       let meta;
@@ -294,20 +296,11 @@ async function discoverCodex(targetCwd) {
         meta = null;
       }
       recordedCwd = meta?.recordedCwd ?? null;
-
-      // Populate cache
-      cache[key] = { recordedCwd };
-      cacheModified = true;
-    }
-
-    let sessionId;
-    // We always need the sessionId (not cached); use extractMeta again
-    // (already parsed above if cache miss; cheap if file is small)
-    try {
-      const meta = await extractMeta('codex', transcriptPath);
       sessionId = meta?.sessionId ?? basename(transcriptPath).replace(/\.jsonl$/, '');
-    } catch {
-      sessionId = basename(transcriptPath).replace(/\.jsonl$/, '');
+
+      // Populate cache with both recordedCwd and sessionId
+      cache[key] = { recordedCwd, sessionId };
+      cacheModified = true;
     }
 
     candidates.push({

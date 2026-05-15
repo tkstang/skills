@@ -302,7 +302,11 @@ export async function extractMeta(runtime, transcriptPath) {
         if (id) sessionId = id;
       }
       if (recordedCwd === null) {
-        const cwd = asString(record.cwd);
+        // Check top-level cwd first, then fall back to payload.cwd
+        // (current Codex session_meta records store cwd under payload.cwd)
+        const topLevelCwd = asString(record.cwd);
+        const payloadCwd = isObject(record.payload) ? asString(record.payload.cwd) : undefined;
+        const cwd = topLevelCwd ?? payloadCwd;
         if (cwd) recordedCwd = cwd;
       }
       if (sessionId && recordedCwd !== null) break;
