@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-05-15
-oat_current_task_id: p04-t01
+oat_current_task_id: p05-t01
 oat_generated: false
 ---
 
@@ -27,11 +27,11 @@ oat_generated: false
 | Phase 1 | complete    | 2     | 2/2       |
 | Phase 2 | complete    | 2     | 2/2       |
 | Phase 3 | complete    | 2     | 2/2       |
-| Phase 4 | pending     | 4     | 0/4       |
+| Phase 4 | complete    | 4     | 4/4       |
 | Phase 5 | pending     | 3     | 0/3       |
 | Phase 6 | pending     | 2     | 0/2       |
 
-**Total:** 6/15 tasks completed
+**Total:** 10/15 tasks completed
 
 ---
 
@@ -123,28 +123,36 @@ All three Medium findings sit on dormant/edge-case paths (schema v1 is current s
 
 ## Phase 4: Digest + CLI (runs in parallel with Phase 5)
 
-**Status:** pending
-**Started:** -
+**Status:** complete
+**Started:** 2026-05-15
 
 ### Task p04-t01: Implement scripts/lib/digest.mjs + tests
 
-**Status:** pending
-**Commit:** -
+**Status:** complete
+**Commit:** ca5a389
 
 ### Task p04-t02: Implement scripts/session-observer.mjs (CLI) + cli.test.mjs
 
-**Status:** pending
-**Commit:** -
+**Status:** complete
+**Commit:** 40c5a2b
 
 ### Task p04-t03: Implement scripts/probe-local.mjs
 
-**Status:** pending
-**Commit:** -
+**Status:** complete
+**Commit:** 9c28d6d
 
 ### Task p04-t04: Integration test (synthetic fixtures, temp HOME)
 
-**Status:** pending
-**Commit:** -
+**Status:** complete
+**Commit:** 94787e8
+
+### Phase 4 Summary
+
+**Outcome:** `scripts/lib/digest.mjs` implements `buildDigest`, `renderMarkdown`, `renderJson`. `scripts/session-observer.mjs` is the CLI entrypoint with full subcommand dispatch (`review`, `catch-up`, `locate`, `state`), exit codes 0–3, `--runtime auto` resolution via env hint or tier-population, `node:util parseArgs`, `--debug` shorthand, `--mark-read` flag. `scripts/probe-local.mjs` is an opt-in helper that resolves the sibling CLI via `fileURLToPath(new URL('./session-observer.mjs', import.meta.url))`. Integration tests cover all 6 plan test cases.
+
+**Key files:** `.agents/skills/session-observer/scripts/lib/digest.mjs`, `.agents/skills/session-observer/scripts/session-observer.mjs`, `.agents/skills/session-observer/scripts/probe-local.mjs`, `tests/session-observer/digest.test.mjs`, `tests/session-observer/cli.test.mjs`, `tests/session-observer/integration.test.mjs`.
+
+**Verification:** `node --test tests/session-observer/` (all 7 test files) → 91 pass / 0 fail.
 
 ---
 
@@ -274,7 +282,7 @@ Both review artifacts archived to `reviews/archived/`. No plan tasks were added;
 | 1     | 11        | 11     | 0      | all plan cases covered |
 | 2     | 39        | 39     | 0      | all plan cases covered |
 | 3     | 60        | 60     | 0      | all plan cases covered |
-| 4     | -         | -      | -      | -        |
+| 4     | 91        | 91     | 0      | all plan cases covered |
 | 5     | -         | -      | -      | -        |
 | 6     | -         | -      | -      | -        |
 
