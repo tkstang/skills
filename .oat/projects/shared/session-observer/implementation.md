@@ -50,6 +50,23 @@ oat_generated: false
 **Status:** complete
 **Commit:** d56577f
 
+### Phase 1 Summary
+
+**Outcome:** The `session-observer` skill directory is scaffolded (`SKILL.md` skeleton + `scripts/`, `scripts/lib/`, `references/`), and `scripts/lib/state.mjs` provides atomic, lock-protected high-water-mark persistence at `~/.local/state/session-observer/state.json`.
+
+**Key files:** `.agents/skills/session-observer/SKILL.md`, `.agents/skills/session-observer/scripts/lib/state.mjs`, `tests/session-observer/state.test.mjs`, `tests/session-observer/helpers/tmpdir.mjs`.
+
+**Verification:** `node --test tests/session-observer/state.test.mjs` → 11 pass / 0 fail.
+
+**Review:** p01 phase-gate review → **PASS** (0 Critical, 0 Important). 3 Medium + 2 Minor non-blocking findings recorded in `reviews/p01-review-2026-05-15.md`:
+
+- M1 — `load()`'s callee writes backup files (corrupt/migration) without the `mutate` lock.
+- M2 — `migrateIfNeeded` upgrades the in-memory object but does not persist the upgraded `state.json`.
+- M3 — backup writes use non-atomic `writeFile`; fixed-name `state.v0.json.bak` can clobber a prior backup.
+- Minor — unused `access` import; `load()` docstring overstates "read-only".
+
+All three Medium findings sit on dormant/edge-case paths (schema v1 is current so the migration branch is inert; corrupt-state and repeat-backup are edge cases) — none affect the happy path. Deferred to the final review unless surfaced sooner.
+
 ---
 
 ## Phase 2: Runtime parsing
@@ -156,7 +173,30 @@ oat_generated: false
 
 <!-- orchestration-runs-start -->
 
-_No orchestration runs yet. `oat-project-implement` will append entries here._
+### Run 1 — 2026-05-15
+
+**Branch:** chore/new-skill-brainstorm
+**Tier:** 1 (subagents)
+**Policy:** merge-strategy=merge, retry-limit=2
+**Phases:** 1 executed, 1 passed, 0 failed, 0 stopped
+
+#### Phase Outcomes
+
+| Phase | Implementer | Review | Fix Iterations | Disposition |
+| ----- | ----------- | ------ | -------------- | ----------- |
+| p01   | DONE        | pass   | 0/2            | committed   |
+
+#### Parallel Groups
+
+- p01: sequential
+
+#### Dispatch Notes
+
+- Dispatch: p01 — model_axis=selected:sonnet, effort_axis=not-applicable (Claude Code; skill scaffolding + state module with file-locking).
+
+#### Outstanding Items
+
+- p01 review recorded 3 Medium + 2 Minor non-blocking findings (`reviews/p01-review-2026-05-15.md`). All on dormant/edge-case paths in `state.mjs`; deferred to final review.
 
 <!-- orchestration-runs-end -->
 
