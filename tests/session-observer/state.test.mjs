@@ -15,7 +15,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname } from 'node:path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const STATE_MJS = join(__dirname, '../../.agents/skills/session-observer/scripts/lib/state.mjs');
+const STATE_MJS = join(__dirname, '../../skills/session-observer/scripts/lib/state.mjs');
 
 async function importState() {
   // Dynamic import so each test group can pick up a fresh module.

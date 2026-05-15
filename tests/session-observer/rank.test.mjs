@@ -16,7 +16,7 @@ import assert from 'node:assert/strict';
 
 // Dynamic import so we get the live module once
 const { rank, tierOf } = await import(
-  '../../.agents/skills/session-observer/scripts/lib/rank.mjs'
+  '../../skills/session-observer/scripts/lib/rank.mjs'
 );
 
 // ---------------------------------------------------------------------------

@@ -44,7 +44,7 @@ async function importLocate() {
   // Actually ESM caches by URL — we just import once and rely on the module reading
   // process.env at call time (which our implementation does).
   const { discover, gitWorktrees } = await import(
-    '../../.agents/skills/session-observer/scripts/lib/locate.mjs'
+    '../../skills/session-observer/scripts/lib/locate.mjs'
   );
   return { discover, gitWorktrees };
 }

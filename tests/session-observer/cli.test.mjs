@@ -14,7 +14,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // Absolute path to the CLI — resolved from import.meta.url, never a bare relative path.
 const CLI_PATH = fileURLToPath(new URL(
-  '../../.agents/skills/session-observer/scripts/session-observer.mjs',
+  '../../skills/session-observer/scripts/session-observer.mjs',
   import.meta.url
 ));
 

@@ -16,7 +16,7 @@ const emptyClaude = join(FIXTURES, 'claude-code', 'empty.jsonl');
 const withToolBurst = join(FIXTURES, 'claude-code', 'with-tool-burst.jsonl');
 const typicalCodex = join(FIXTURES, 'codex', 'typical.jsonl');
 
-const digestMjs = join(__dirname, '../../.agents/skills/session-observer/scripts/lib/digest.mjs');
+const digestMjs = join(__dirname, '../../skills/session-observer/scripts/lib/digest.mjs');
 
 let buildDigest, renderMarkdown, renderJson;
 try {

@@ -23,7 +23,7 @@ const {
   extractMeta,
   readRecords,
   normalizeEntries,
-} = await import('../../.agents/skills/session-observer/scripts/lib/runtimes.mjs');
+} = await import('../../skills/session-observer/scripts/lib/runtimes.mjs');
 
 // ---------------------------------------------------------------------------
 // Helpers
