@@ -235,6 +235,65 @@ async function runReview(args) {
     return emit(`No ${runtime} transcripts found for cwd: ${cwd}`, 2);
   }
 
+  // Resolve pinned session override BEFORE tie/no-match checks.
+  // When --session <runtime:id> is provided and the candidate exists, select it directly
+  // and skip ranking/tie/no-match branches entirely.
+  if (session) {
+    const colonIndex = session.indexOf(':');
+    if (colonIndex === -1) {
+      return emitError('--session must be in <runtime>:<sessionId> format (e.g. codex:abc123)', 1);
+    }
+    const pinnedRuntime = session.slice(0, colonIndex);
+    const pinnedId = session.slice(colonIndex + 1);
+    if (!VALID_RUNTIMES.includes(pinnedRuntime)) {
+      return emitError(
+        `Unknown runtime in --session: ${pinnedRuntime}. Use claude-code or codex.`,
+        1
+      );
+    }
+    const pinned = candidates.find(c => c.runtime === pinnedRuntime && c.sessionId === pinnedId);
+    if (!pinned) {
+      return emitError(
+        `Pinned session not found: ${session}. Run locate to see available sessions.`,
+        1
+      );
+    }
+    // Build digest directly from the pinned candidate
+    let digest;
+    try {
+      digest = await buildDigest(pinnedRuntime, pinned.transcriptPath, {
+        fromIndex: 0,
+        mode: 'review',
+        includeToolCalls: includeTools,
+        includeToolResults,
+        maxTurns,
+        maxBytes,
+        sessionId: pinned.sessionId,
+        recordedCwd: pinned.recordedCwd,
+        matchedTier: null,
+        widenedFrom: null,
+        active: pinned.active ?? false,
+        fallbacks: [],
+      });
+    } catch (err) {
+      return emitError(`Failed to build digest: ${err.message}`, 1);
+    }
+    if (markRead) {
+      try {
+        await stateLib.markRead(pinnedRuntime, pinned.sessionId, {
+          lastRecordIndex: digest.range.toIndex,
+          lastTotalRecords: digest.range.totalRecords,
+          transcriptPath: pinned.transcriptPath,
+          recordedCwd: pinned.recordedCwd,
+        });
+      } catch {
+        // Non-fatal
+      }
+    }
+    if (json) return emitJson(digest, 0);
+    return emit(renderMarkdown(digest), 0);
+  }
+
   // Rank candidates
   const worktrees = await gitWorktrees(cwd).catch(() => []);
   const rankResult = rank(candidates, cwd, { gitWorktrees: worktrees });
@@ -267,13 +326,7 @@ async function runReview(args) {
     );
   }
 
-  // Check for pinned session override
   let winner = rankResult.winner;
-  if (session) {
-    const [pinnedRuntime, pinnedId] = session.split(':');
-    const pinned = candidates.find(c => c.runtime === pinnedRuntime && c.sessionId === pinnedId);
-    if (pinned) winner = pinned;
-  }
 
   // Get prior offset (review uses fromIndex=0 unless --mark-read was used before)
   const fromIndex = 0; // review always starts from 0
@@ -363,6 +416,66 @@ async function runCatchUp(args) {
     return emit(`No ${runtime} transcripts found for cwd: ${cwd}`, 2);
   }
 
+  // Resolve pinned session override BEFORE tie/no-match checks.
+  if (session) {
+    const colonIndex = session.indexOf(':');
+    if (colonIndex === -1) {
+      return emitError('--session must be in <runtime>:<sessionId> format (e.g. codex:abc123)', 1);
+    }
+    const pinnedRuntime = session.slice(0, colonIndex);
+    const pinnedId = session.slice(colonIndex + 1);
+    if (!VALID_RUNTIMES.includes(pinnedRuntime)) {
+      return emitError(
+        `Unknown runtime in --session: ${pinnedRuntime}. Use claude-code or codex.`,
+        1
+      );
+    }
+    const pinned = candidates.find(c => c.runtime === pinnedRuntime && c.sessionId === pinnedId);
+    if (!pinned) {
+      return emitError(
+        `Pinned session not found: ${session}. Run locate to see available sessions.`,
+        1
+      );
+    }
+    // Get prior offset from state
+    let pinnedFromIndex = 0;
+    try {
+      const sessionState = await stateLib.getSession(pinnedRuntime, pinned.sessionId);
+      if (sessionState) pinnedFromIndex = sessionState.lastRecordIndex;
+    } catch {
+      pinnedFromIndex = 0;
+    }
+    // Build digest from the pinned candidate
+    let digest;
+    try {
+      digest = await buildDigest(pinnedRuntime, pinned.transcriptPath, {
+        fromIndex: pinnedFromIndex,
+        mode: 'catch-up',
+        includeToolCalls: includeTools,
+        includeToolResults,
+        sessionId: pinned.sessionId,
+        recordedCwd: pinned.recordedCwd,
+        matchedTier: null,
+        active: pinned.active ?? false,
+        fallbacks: [],
+      });
+    } catch (err) {
+      return emitError(`Failed to build digest: ${err.message}`, 1);
+    }
+    try {
+      await stateLib.markRead(pinnedRuntime, pinned.sessionId, {
+        lastRecordIndex: digest.range.toIndex,
+        lastTotalRecords: digest.range.totalRecords,
+        transcriptPath: pinned.transcriptPath,
+        recordedCwd: pinned.recordedCwd,
+      });
+    } catch {
+      // Non-fatal
+    }
+    if (json) return emitJson(digest, 0);
+    return emit(renderMarkdown(digest), 0);
+  }
+
   const worktrees = await gitWorktrees(cwd).catch(() => []);
   const rankResult = rank(candidates, cwd, { gitWorktrees: worktrees });
 
@@ -379,11 +492,6 @@ async function runCatchUp(args) {
   }
 
   let winner = rankResult.winner;
-  if (session) {
-    const [pinnedRuntime, pinnedId] = session.split(':');
-    const pinned = candidates.find(c => c.runtime === pinnedRuntime && c.sessionId === pinnedId);
-    if (pinned) winner = pinned;
-  }
 
   // Get prior offset from state
   let fromIndex = 0;

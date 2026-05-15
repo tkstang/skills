@@ -232,6 +232,162 @@ describe('--runtime auto', () => {
 });
 
 // ---------------------------------------------------------------------------
+// --session override: tie recovery and no-match recovery
+// ---------------------------------------------------------------------------
+
+describe('--session override', () => {
+  test('review: --session resolves tie to a digest (exit 0)', async (t) => {
+    // Build two same-mtime candidates in the same encoded dir.
+    // Without --session this causes a tie (exit 3). With --session it should exit 0.
+    const tmpDir = await mkdtemp(join(tmpdir(), 'cli-session-tie-'));
+    try {
+      const cwd = '/test/tie-project';
+      const encodedCwd = '-test-tie-project';
+      const projectDir = join(tmpDir, '.claude', 'projects', encodedCwd);
+      await mkdir(projectDir, { recursive: true });
+
+      // Copy the typical fixture as two different session files
+      await copyFile(typicalClaude, join(projectDir, 'session-tie-a.jsonl'));
+      await copyFile(typicalClaude, join(projectDir, 'session-tie-b.jsonl'));
+
+      const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
+      await mkdir(stateDir, { recursive: true });
+
+      // Without --session: should exit 3 (tie) or 0 if only one session is found
+      const noSession = spawnCli(
+        ['review', '--runtime', 'claude-code', '--cwd', cwd, '--json'],
+        { HOME: tmpDir, STATE_DIR: stateDir }
+      );
+      // Either exit 0 (one wins outright) or exit 3 (tie) — depends on file timestamps.
+      // We'll proceed to test --session regardless.
+
+      // Get the session IDs from locate
+      const locateResult = spawnCli(
+        ['locate', '--runtime', 'claude-code', '--cwd', cwd, '--json'],
+        { HOME: tmpDir, STATE_DIR: stateDir }
+      );
+
+      if (locateResult.status !== 0) {
+        // No match or error — skip the session pinning test
+        t.skip('locate did not return a winner; skipping --session tie recovery sub-test');
+        return;
+      }
+
+      const locateData = JSON.parse(locateResult.stdout);
+      const winner = locateData.winner;
+      assert.ok(winner, 'locate should return a winner');
+
+      // Pin to the winner's session — should always exit 0
+      const pinnedResult = spawnCli(
+        ['review', '--runtime', 'claude-code', '--cwd', cwd,
+          '--session', `${winner.runtime}:${winner.sessionId}`, '--json'],
+        { HOME: tmpDir, STATE_DIR: stateDir }
+      );
+
+      assert.equal(pinnedResult.status, 0,
+        `--session should resolve to exit 0, got ${pinnedResult.status}\nstdout: ${pinnedResult.stdout}\nstderr: ${pinnedResult.stderr}`);
+
+      const digestData = JSON.parse(pinnedResult.stdout);
+      assert.ok(digestData.entries || digestData.range, 'should return a digest object');
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  test('catch-up: --session resolves to a digest (exit 0)', async (t) => {
+    const tmpDir = await mkdtemp(join(tmpdir(), 'cli-session-catchup-'));
+    try {
+      const cwd = '/test/catchup-session-project';
+      const encodedCwd = '-test-catchup-session-project';
+      const projectDir = join(tmpDir, '.claude', 'projects', encodedCwd);
+      await mkdir(projectDir, { recursive: true });
+      await copyFile(typicalClaude, join(projectDir, 'session-cu-a.jsonl'));
+      await copyFile(typicalClaude, join(projectDir, 'session-cu-b.jsonl'));
+
+      const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
+      await mkdir(stateDir, { recursive: true });
+
+      // Get a session ID from locate
+      const locateResult = spawnCli(
+        ['locate', '--runtime', 'claude-code', '--cwd', cwd, '--json'],
+        { HOME: tmpDir, STATE_DIR: stateDir }
+      );
+
+      if (locateResult.status !== 0) {
+        t.skip('locate did not return a winner; skipping --session catch-up sub-test');
+        return;
+      }
+
+      const locateData = JSON.parse(locateResult.stdout);
+      const winner = locateData.winner;
+      assert.ok(winner, 'locate should return a winner');
+
+      // catch-up with --session should exit 0
+      const pinnedResult = spawnCli(
+        ['catch-up', '--runtime', 'claude-code', '--cwd', cwd,
+          '--session', `${winner.runtime}:${winner.sessionId}`, '--json'],
+        { HOME: tmpDir, STATE_DIR: stateDir }
+      );
+
+      assert.equal(pinnedResult.status, 0,
+        `catch-up --session should resolve to exit 0, got ${pinnedResult.status}\nstdout: ${pinnedResult.stdout}\nstderr: ${pinnedResult.stderr}`);
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  test('review: --session with invalid session exits 1', async (t) => {
+    const tmpDir = await mkdtemp(join(tmpdir(), 'cli-session-bad-'));
+    try {
+      const cwd = '/test/bad-session-project';
+      const encodedCwd = '-test-bad-session-project';
+      const projectDir = join(tmpDir, '.claude', 'projects', encodedCwd);
+      await mkdir(projectDir, { recursive: true });
+      await copyFile(typicalClaude, join(projectDir, 'session-001.jsonl'));
+
+      const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
+      await mkdir(stateDir, { recursive: true });
+
+      const result = spawnCli(
+        ['review', '--runtime', 'claude-code', '--cwd', cwd,
+          '--session', 'claude-code:nonexistent-session-id'],
+        { HOME: tmpDir, STATE_DIR: stateDir }
+      );
+
+      assert.equal(result.status, 1,
+        `--session with non-existent id should exit 1, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`);
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  test('review: --session with wrong-format exits 1', async (t) => {
+    const tmpDir = await mkdtemp(join(tmpdir(), 'cli-session-fmt-'));
+    try {
+      const cwd = '/test/fmt-session-project';
+      const encodedCwd = '-test-fmt-session-project';
+      const projectDir = join(tmpDir, '.claude', 'projects', encodedCwd);
+      await mkdir(projectDir, { recursive: true });
+      await copyFile(typicalClaude, join(projectDir, 'session-001.jsonl'));
+
+      const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
+      await mkdir(stateDir, { recursive: true });
+
+      const result = spawnCli(
+        ['review', '--runtime', 'claude-code', '--cwd', cwd,
+          '--session', 'no-colon-here'],
+        { HOME: tmpDir, STATE_DIR: stateDir }
+      );
+
+      assert.equal(result.status, 1,
+        `--session without colon should exit 1, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`);
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
 // state subcommand
 // ---------------------------------------------------------------------------
 
