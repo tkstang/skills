@@ -1,0 +1,467 @@
+/**
+ * runtimes.mjs — Per-runtime transcript adapters for Claude Code and Codex.
+ *
+ * This is the only file with structural knowledge of how each runtime's JSONL
+ * transcripts are shaped. Logic is ported from Stoa's shipped adapters at:
+ *   apps/server/src/client/adapters/claude-code.ts
+ *   apps/server/src/client/adapters/codex.ts
+ *
+ * Exports:
+ *   discoverPaths(runtime)                         → string[]
+ *   encodeCwd(runtime, cwd)                        → string | null
+ *   extractMeta(runtime, transcriptPath)           → Promise<{ sessionId, recordedCwd } | null>
+ *   readRecords(transcriptPath)                    → Promise<JsonObject[]>
+ *   normalizeEntries(runtime, records, opts)       → DigestEntry[]
+ */
+
+import { readFile } from 'node:fs/promises';
+import { homedir } from 'node:os';
+import { join, dirname, basename } from 'node:path';
+
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+const TOOL_INPUT_LIMIT = 200;
+const TOOL_RESULT_LIMIT = 500;
+
+// ---------------------------------------------------------------------------
+// Small helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns true when value is a non-null, non-array plain object.
+ * @param {unknown} value
+ * @returns {boolean}
+ */
+function isObject(value) {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Returns value if it is a string, otherwise undefined.
+ * @param {unknown} value
+ * @returns {string | undefined}
+ */
+function asString(value) {
+  return typeof value === 'string' ? value : undefined;
+}
+
+/**
+ * Truncates a string to `limit` chars, appending '...' when truncated.
+ * @param {string} str
+ * @param {number} limit
+ * @returns {string}
+ */
+function truncate(str, limit) {
+  if (str.length <= limit) return str;
+  return str.slice(0, limit) + '...';
+}
+
+/**
+ * Stringify a tool/function argument value and truncate to limit.
+ * @param {unknown} value
+ * @param {number} limit
+ * @returns {string}
+ */
+function stringifyArgs(value, limit) {
+  if (typeof value === 'string') return truncate(value, limit);
+  return truncate(JSON.stringify(value ?? {}) ?? '{}', limit);
+}
+
+/**
+ * Attempt to JSON.parse a single line.
+ * Returns { ok: true, value } or { ok: false, reason }.
+ * @param {string} line
+ * @returns {{ ok: boolean, value?: object, reason?: unknown }}
+ */
+function safeParseLine(line) {
+  try {
+    const parsed = JSON.parse(line);
+    if (!isObject(parsed)) return { ok: false, reason: 'not a JSON object' };
+    return { ok: true, value: parsed };
+  } catch (err) {
+    return { ok: false, reason: err.message };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// discoverPaths
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns the discovery root directories for the given runtime.
+ *
+ * @param {'claude-code' | 'codex'} runtime
+ * @returns {string[]}
+ */
+export function discoverPaths(runtime) {
+  const home = homedir();
+  if (runtime === 'claude-code') {
+    return [join(home, '.claude', 'projects')];
+  }
+  if (runtime === 'codex') {
+    return [join(home, '.codex', 'sessions')];
+  }
+  throw new Error(`Unknown runtime: ${runtime}`);
+}
+
+// ---------------------------------------------------------------------------
+// encodeCwd
+// ---------------------------------------------------------------------------
+
+/**
+ * Encode a cwd path for Claude Code's directory-name scheme.
+ * Claude Code replaces every '/' with '-', so '/Users/x/y' becomes '-Users-x-y'.
+ * Codex has no path encoding — returns null.
+ *
+ * @param {'claude-code' | 'codex'} runtime
+ * @param {string} cwd
+ * @returns {string | null}
+ */
+export function encodeCwd(runtime, cwd) {
+  if (runtime === 'codex') return null;
+  // Replace every '/' with '-'
+  return cwd.replace(/\//g, '-');
+}
+
+// ---------------------------------------------------------------------------
+// readRecords
+// ---------------------------------------------------------------------------
+
+/**
+ * Read a JSONL transcript file tolerantly:
+ * - Blank/whitespace-only lines are silently dropped.
+ * - A line that is invalid JSON emits a console.warn and is skipped.
+ * - The last line is checked: if it is non-empty but fails to parse AND the
+ *   file did not end with a newline (i.e., it is a partial write), it is
+ *   dropped with a warning.
+ *
+ * @param {string} transcriptPath
+ * @returns {Promise<object[]>}
+ */
+export async function readRecords(transcriptPath) {
+  const raw = await readFile(transcriptPath, 'utf8');
+  if (!raw) return [];
+
+  const lines = raw.split(/\r?\n/);
+  const records = [];
+
+  // Detect whether the file ends with a newline.
+  // If the last character is a newline, the final split token is an empty string
+  // and that token represents the trailing newline (not a partial line).
+  // If the last character is NOT a newline, the last token is potentially partial.
+  const fileEndsWithNewline = raw.endsWith('\n') || raw.endsWith('\r\n');
+  const lastIndex = lines.length - 1;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+
+    // Skip blank lines silently
+    if (!line) continue;
+
+    const result = safeParseLine(line);
+
+    if (result.ok) {
+      records.push(result.value);
+      continue;
+    }
+
+    // Parse failed — is this the last non-empty line of a file that doesn't end in \n?
+    const isLastToken = i === lastIndex;
+    if (isLastToken && !fileEndsWithNewline) {
+      console.warn(
+        `[runtimes] Partial trailing line dropped from ${transcriptPath} (line ${i + 1}): ${result.reason}`
+      );
+    } else {
+      console.warn(
+        `[runtimes] Malformed JSONL line ${i + 1} in ${transcriptPath} skipped: ${result.reason}`
+      );
+    }
+  }
+
+  return records;
+}
+
+// ---------------------------------------------------------------------------
+// extractMeta — Claude Code helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Extract the session ID from a Claude Code record.
+ * Checks multiple placement variants used in the wild.
+ *
+ * @param {object} record
+ * @returns {string | undefined}
+ */
+function claudeSessionIdFromRecord(record) {
+  const message = isObject(record.message) ? record.message : record;
+  return (
+    asString(record.sessionId) ??
+    asString(record.session_id) ??
+    asString(record.sessionID) ??
+    asString(message.sessionId) ??
+    asString(message.session_id)
+  );
+}
+
+/**
+ * Decode a Claude Code encoded directory name back to a cwd path.
+ * Claude Code encodes '/Users/x/y' as '-Users-x-y' (replaces '/' with '-').
+ * We reverse this by replacing the leading '-' with '/' and all subsequent
+ * '-' chars with '/' IF the name starts with a leading '-'.
+ *
+ * This is an approximation — path segments that contain '-' themselves are
+ * ambiguous. We use a heuristic: only decode when the dir name starts with '-'
+ * (the leading slash of an absolute path).
+ *
+ * @param {string} dirName
+ * @returns {string | null}
+ */
+function decodeCwdDirName(dirName) {
+  if (!dirName.startsWith('-')) return null;
+  // Replace all '-' with '/' to get back the path
+  return dirName.replace(/-/g, '/');
+}
+
+// ---------------------------------------------------------------------------
+// extractMeta — Codex helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Extract the session ID from a Codex record (payload or top-level).
+ *
+ * We check `record.sessionId` / `record.session_id` first (the top-level
+ * session identifier present on every record in a session), then fall back
+ * to `payload.sessionId` / `payload.session_id` (present on session-meta
+ * payload objects). We intentionally skip `payload.id` because in Codex
+ * message records that field holds a per-message ID (e.g. "msg-001"), not
+ * the session ID.
+ *
+ * @param {object} record
+ * @returns {string | undefined}
+ */
+function codexSessionIdFromRecord(record) {
+  const payload = isObject(record.payload) ? record.payload : record;
+  return (
+    asString(record.sessionId) ??
+    asString(record.session_id) ??
+    asString(payload.sessionId) ??
+    asString(payload.session_id)
+  );
+}
+
+// ---------------------------------------------------------------------------
+// extractMeta
+// ---------------------------------------------------------------------------
+
+/**
+ * Extract (sessionId, recordedCwd) metadata from a transcript file.
+ *
+ * Claude Code:
+ *   - sessionId: first record with a sessionId field.
+ *   - recordedCwd: decoded from the parent directory name.
+ *
+ * Codex:
+ *   - sessionId: from `payload.id` / `sessionId` on any record.
+ *   - recordedCwd: from a session_started record's `cwd` field.
+ *
+ * Falls back to basename (without .jsonl) for sessionId when no record has one.
+ *
+ * @param {'claude-code' | 'codex'} runtime
+ * @param {string} transcriptPath
+ * @returns {Promise<{ sessionId: string, recordedCwd: string | null } | null>}
+ */
+export async function extractMeta(runtime, transcriptPath) {
+  const records = await readRecords(transcriptPath);
+
+  if (runtime === 'claude-code') {
+    let sessionId;
+    for (const record of records) {
+      const id = claudeSessionIdFromRecord(record);
+      if (id) { sessionId = id; break; }
+    }
+    if (!sessionId) {
+      sessionId = basename(transcriptPath).replace(/\.jsonl$/u, '');
+    }
+
+    // Decode cwd from the parent directory name
+    const parentDirName = basename(dirname(transcriptPath));
+    const recordedCwd = decodeCwdDirName(parentDirName);
+
+    return { sessionId, recordedCwd };
+  }
+
+  if (runtime === 'codex') {
+    let sessionId;
+    let recordedCwd = null;
+
+    for (const record of records) {
+      if (!sessionId) {
+        const id = codexSessionIdFromRecord(record);
+        if (id) sessionId = id;
+      }
+      if (recordedCwd === null) {
+        const cwd = asString(record.cwd);
+        if (cwd) recordedCwd = cwd;
+      }
+      if (sessionId && recordedCwd !== null) break;
+    }
+
+    if (!sessionId) {
+      sessionId = basename(transcriptPath).replace(/\.jsonl$/u, '');
+    }
+
+    return { sessionId, recordedCwd };
+  }
+
+  throw new Error(`Unknown runtime: ${runtime}`);
+}
+
+// ---------------------------------------------------------------------------
+// normalizeEntries — Claude Code adapter
+// ---------------------------------------------------------------------------
+
+/**
+ * Extract DigestEntry objects from a single Claude Code content block.
+ *
+ * @param {'assistant' | 'user'} role
+ * @param {unknown} content
+ * @param {number} recordIndex
+ * @param {{ includeToolCalls: boolean, includeToolResults: boolean }} opts
+ * @returns {object[]}
+ */
+function claudeEntriesFromContent(role, content, recordIndex, opts) {
+  if (typeof content === 'string') {
+    return content ? [{ role, text: content, recordIndex, kind: 'message' }] : [];
+  }
+  if (!Array.isArray(content)) return [];
+
+  return content.flatMap((block) => {
+    if (!isObject(block)) return [];
+
+    if (block.type === 'tool_use') {
+      if (!opts.includeToolCalls) return [];
+      const name = asString(block.name) ?? 'tool_use';
+      const argsStr = stringifyArgs(block.input, TOOL_INPUT_LIMIT);
+      return [{ role, text: `[Tool: ${name}] ${argsStr}`, recordIndex, kind: 'tool_call', toolName: name }];
+    }
+
+    if (block.type === 'tool_result') {
+      if (!opts.includeToolResults) return [];
+      // Content of tool_result can be string or array
+      let resultText = '';
+      if (typeof block.content === 'string') {
+        resultText = truncate(block.content, TOOL_RESULT_LIMIT);
+      } else if (Array.isArray(block.content)) {
+        const parts = block.content
+          .filter(isObject)
+          .map(b => asString(b.text) ?? '')
+          .filter(Boolean);
+        resultText = truncate(parts.join('\n'), TOOL_RESULT_LIMIT);
+      }
+      return [{ role, text: `[Tool → result] ${resultText}`, recordIndex, kind: 'tool_result' }];
+    }
+
+    // text / content blocks
+    const text = asString(block.text) ?? asString(block.content);
+    return text ? [{ role, text, recordIndex, kind: 'message' }] : [];
+  });
+}
+
+/**
+ * Normalize Claude Code records into DigestEntry[].
+ *
+ * @param {object[]} records
+ * @param {{ includeToolCalls?: boolean, includeToolResults?: boolean }} opts
+ * @returns {object[]}
+ */
+function normalizeClaudeCode(records, opts) {
+  const includeToolCalls = opts.includeToolCalls ?? false;
+  const includeToolResults = opts.includeToolResults ?? false;
+
+  return records.flatMap((record, recordIndex) => {
+    // Determine role
+    const message = isObject(record.message) ? record.message : record;
+    const role =
+      asString(message.role) ??
+      asString(record.role) ??
+      asString(record.type);
+
+    if (role !== 'assistant' && role !== 'user') return [];
+
+    return claudeEntriesFromContent(role, message.content, recordIndex, {
+      includeToolCalls,
+      includeToolResults,
+    });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// normalizeEntries — Codex adapter
+// ---------------------------------------------------------------------------
+
+/**
+ * Normalize Codex records into DigestEntry[].
+ *
+ * @param {object[]} records
+ * @param {{ includeToolCalls?: boolean, includeToolResults?: boolean }} opts
+ * @returns {object[]}
+ */
+function normalizeCodex(records, opts) {
+  const includeToolCalls = opts.includeToolCalls ?? false;
+
+  return records.flatMap((record, recordIndex) => {
+    const payload = isObject(record.payload) ? record.payload : record;
+    const payloadType = asString(payload.type) ?? asString(record.type);
+
+    // function_call records
+    if (payloadType === 'function_call') {
+      if (!includeToolCalls) return [];
+      const name = asString(payload.name) ?? asString(record.name) ?? 'function_call';
+      const args = payload.arguments ?? record.arguments;
+      const argsStr = stringifyArgs(args, TOOL_INPUT_LIMIT);
+      return [{ role: 'assistant', text: `[Tool: ${name}] ${argsStr}`, recordIndex, kind: 'tool_call', toolName: name }];
+    }
+
+    // message records
+    if (payloadType !== 'message') return [];
+
+    const role = asString(payload.role);
+    if (role !== 'assistant' && role !== 'user') return [];
+
+    const content = payload.content;
+    if (typeof content === 'string') {
+      return content ? [{ role, text: content, recordIndex, kind: 'message' }] : [];
+    }
+    if (!Array.isArray(content)) return [];
+
+    return content.flatMap((block) => {
+      if (!isObject(block)) return [];
+      const text = asString(block.text) ?? asString(block.content);
+      return text ? [{ role, text, recordIndex, kind: 'message' }] : [];
+    });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// normalizeEntries — public API
+// ---------------------------------------------------------------------------
+
+/**
+ * Normalize raw JSONL records for a given runtime into DigestEntry[].
+ *
+ * @param {'claude-code' | 'codex'} runtime
+ * @param {object[]} records
+ * @param {{ includeToolCalls?: boolean, includeToolResults?: boolean }} opts
+ * @returns {object[]}
+ *
+ * Each DigestEntry:
+ *   { role: 'user' | 'assistant', text: string, recordIndex: number,
+ *     kind: 'message' | 'tool_call' | 'tool_result', toolName?: string }
+ */
+export function normalizeEntries(runtime, records, opts = {}) {
+  if (runtime === 'claude-code') return normalizeClaudeCode(records, opts);
+  if (runtime === 'codex') return normalizeCodex(records, opts);
+  throw new Error(`Unknown runtime: ${runtime}`);
+}
