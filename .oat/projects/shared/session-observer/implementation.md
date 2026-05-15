@@ -2,15 +2,15 @@
 oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
-oat_last_updated: 2026-05-14
-oat_current_task_id: p01-t01
+oat_last_updated: 2026-05-15
+oat_current_task_id: p02-t01
 oat_generated: false
 ---
 
 # Implementation: session-observer
 
-**Started:** (pending — execute via `oat-project-implement`)
-**Last Updated:** 2026-05-14
+**Started:** 2026-05-15
+**Last Updated:** 2026-05-15
 
 > Conventions:
 >
@@ -24,31 +24,31 @@ oat_generated: false
 
 | Phase   | Status      | Tasks | Completed |
 | ------- | ----------- | ----- | --------- |
-| Phase 1 | pending     | 2     | 0/2       |
+| Phase 1 | complete    | 2     | 2/2       |
 | Phase 2 | pending     | 2     | 0/2       |
 | Phase 3 | pending     | 2     | 0/2       |
 | Phase 4 | pending     | 4     | 0/4       |
 | Phase 5 | pending     | 3     | 0/3       |
 | Phase 6 | pending     | 2     | 0/2       |
 
-**Total:** 0/15 tasks completed
+**Total:** 2/15 tasks completed
 
 ---
 
 ## Phase 1: Skill scaffolding + state
 
-**Status:** pending
-**Started:** -
+**Status:** complete
+**Started:** 2026-05-15
 
 ### Task p01-t01: Scaffold skill directory and SKILL.md skeleton
 
-**Status:** pending
-**Commit:** -
+**Status:** complete
+**Commit:** ec18d74
 
 ### Task p01-t02: Implement scripts/lib/state.mjs + tests
 
-**Status:** pending
-**Commit:** -
+**Status:** complete
+**Commit:** d56577f
 
 ---
 
@@ -206,7 +206,7 @@ Both review artifacts archived to `reviews/archived/`. No plan tasks were added;
 
 | Phase | Tests Run | Passed | Failed | Coverage |
 | ----- | --------- | ------ | ------ | -------- |
-| 1     | -         | -      | -      | -        |
+| 1     | 11        | 11     | 0      | all plan cases covered |
 | 2     | -         | -      | -      | -        |
 | 3     | -         | -      | -      | -        |
 | 4     | -         | -      | -      | -        |
