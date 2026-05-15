@@ -1,13 +1,13 @@
 ---
-oat_current_task: null
+oat_current_task: p01-t01
 oat_last_commit: null
 oat_blockers: []
 associated_issues: []
 oat_hill_checkpoints: []
 oat_hill_completed: []
 oat_parallel_execution: false
-oat_phase: plan
-oat_phase_status: complete
+oat_phase: implement
+oat_phase_status: in_progress
 oat_workflow_mode: quick
 oat_workflow_origin: native
 oat_docs_updated: null
@@ -15,7 +15,7 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: "2026-05-15T02:45:07.398Z"
 oat_project_completed: null
-oat_project_state_updated: "2026-05-15T04:10:00.000Z"
+oat_project_state_updated: "2026-05-15T05:00:00.000Z"
 oat_generated: false
 ---
 
@@ -27,7 +27,7 @@ oat_generated: false
 
 ## Current Phase
 
-Plan complete — ready for `oat-project-implement`.
+Implementation — Tier 1 (subagents), executing plan phases. HiLL checkpoint: p06 only.
 
 ## Artifacts
 
@@ -45,7 +45,7 @@ Plan complete — ready for `oat-project-implement`.
 - ✓ Lightweight design populated from the spec
 - ✓ Plan generated (15 tasks across 6 phases; p04 ‖ p05 parallel group)
 - ✓ Design + plan artifact reviews received and resolved in-artifact (2 important, 2 medium)
-- ⧗ Awaiting `oat-project-implement`
+- ⧗ Implementation in progress
 
 ## Blockers
 
