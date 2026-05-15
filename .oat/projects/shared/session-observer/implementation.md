@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-05-15
-oat_current_task_id: p07-t01
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -30,9 +30,9 @@ oat_generated: false
 | Phase 4 | complete    | 4     | 4/4       |
 | Phase 5 | complete    | 3     | 3/3       |
 | Phase 6 | complete    | 2     | 2/2       |
-| Phase 7 | pending     | 4     | 0/4       |
+| Phase 7 | complete    | 4     | 4/4       |
 
-**Total:** 15/19 tasks completed
+**Total:** 19/19 tasks completed
 
 ---
 
@@ -192,6 +192,7 @@ All three Medium findings sit on dormant/edge-case paths (schema v1 is current s
 | ID | Phase | Description | Fix Commit |
 |----|-------|-------------|------------|
 | D1 | p04/p05 | `state reset --session <runtime>:<sessionId>` was documented in SKILL.md (p05) but the CLI `reset` handler (p04) never read `args.session` — it required `--runtime` and always called `resetByRuntime`. Fixed in p05 fix pass: `--session` is now parsed in the `reset` case; when present the handler calls `stateLib.resetBySession(runtime, sessionId)` instead. A new `cli.test.mjs` case verifies the per-session reset zeroes exactly one entry and leaves others intact. | e615b21 |
+| D2 | p07-t04 | p01 planned backup filename `state.v0.json.bak` (fixed name). p07-t04 changed to `state.json.v0-<timestamp>-<pid>.bak` (unique, atomic). Existing state.test.mjs test updated to match new pattern. This is intentional: unique names are the correct implementation for p01-M3 (no clobber). | 06e1d23 |
 
 ---
 
@@ -222,28 +223,41 @@ All three Medium findings sit on dormant/edge-case paths (schema v1 is current s
 
 ## Phase 7: Final Review Fixes
 
-**Status:** pending
-**Started:** -
+**Status:** complete
+**Started:** 2026-05-15
 
 ### Task p07-t01: (review) Read Codex payload.cwd in transcript metadata extraction
 
-**Status:** pending
-**Commit:** -
+**Status:** complete
+**Commit:** 280d2aa
+
+In `runtimes.mjs` Codex `extractMeta`, added fallback to `record.payload.cwd` when top-level `record.cwd` is absent. In `locate.mjs`, cached `sessionId` alongside `recordedCwd` in the codex cwd-cache so a cache hit avoids re-parsing the transcript entirely. Added fixture `tests/session-observer/fixtures/codex/payload-cwd.jsonl` with `cwd` under `payload`, and added `runtimes.test.mjs` coverage proving `extractMeta` resolves `recordedCwd` from the `payload.cwd` fixture.
 
 ### Task p07-t02: (review) Apply --session pinned override before tie and no-match returns
 
-**Status:** pending
-**Commit:** -
+**Status:** complete
+**Commit:** a27dc47
+
+In both `runReview` and `runCatchUp`, moved the `--session` parsing block to execute before `rank()` and the tie/no-match early-return branches. When a valid pinned session is supplied, the candidate is selected directly and a digest is built without touching the ranking path. Validates the pinned runtime (must be a known runtime), validates the session format (must contain `:`), and exits 1 with a clear message on invalid or unresolvable sessions. Added 4 new `cli.test.mjs` cases: tie-recovery for review, catch-up with session, invalid session ID (exit 1), invalid format (exit 1).
 
 ### Task p07-t03: (review) Make rank.mjs Tier B path matching bidirectional
 
-**Status:** pending
-**Commit:** -
+**Status:** complete
+**Commit:** 35c0fe3
+
+In `rank.mjs` `tierOf`, added a second Tier B check: `targetCwd.startsWith(recordedCwd + '/')` so sessions started at a repo root still match when the agent is invoked from a subdirectory. Both directions are path-boundary-safe (the `/` sentinel prevents `/foo/bar` from matching `/foo/barbaz`). Added 4 new `rank.test.mjs` cases: ancestor direction (primary new case), path-boundary safety, and a full `rank()` integration test for the ancestor direction.
 
 ### Task p07-t04: (review) Harden state.mjs backup and migration write paths
 
-**Status:** pending
-**Commit:** -
+**Status:** complete
+**Commit:** 06e1d23
+
+Four fixes applied in one coherent pass:
+- (p01-M1) Backup writes now happen inside `mutate()`'s lock scope (both corrupt-state and migration backups are written via `writeBackup()` which is called from `readState()`, which is called inside the locked `mutate()` block).
+- (p01-M2) `migrateIfNeeded` upgrades the in-memory state; the upgraded state is then persisted to disk via the normal `writeState()` call inside `mutate()` — so a subsequent bare `load()` sees the schemaVersion 1 file.
+- (p01-M3) Backup filenames now include a timestamp + PID suffix (e.g. `state.json.v0-1747326000000-12345.bak`), written atomically via tmp+rename, so repeat migrations/corruptions never clobber a prior backup.
+- (m1) Removed unused `access` import from the `node:fs/promises` import list.
+Updated state.test.mjs: existing migration test updated to expect new `state.json.v0-*` filename pattern; added 2 new cases: migration persists to disk (re-read returns schemaVersion 1), backup uniqueness (two corrupt loads produce two distinct filenames).
 
 ---
 
@@ -426,6 +440,7 @@ Both review artifacts archived to `reviews/archived/`. No plan tasks were added;
 | 4     | 91        | 91     | 0      | all plan cases covered |
 | 5     | -         | -      | -      | -        |
 | 6     | -         | -      | -      | -        |
+| 7     | 226       | 226    | 0      | all p07 fix cases covered (+10 new tests) |
 
 ## Final Summary (for PR/docs)
 
