@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-05-15
-oat_current_task_id: p06-t01
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -29,9 +29,9 @@ oat_generated: false
 | Phase 3 | complete    | 2     | 2/2       |
 | Phase 4 | complete    | 4     | 4/4       |
 | Phase 5 | complete    | 3     | 3/3       |
-| Phase 6 | pending     | 2     | 0/2       |
+| Phase 6 | complete    | 2     | 2/2       |
 
-**Total:** 13/15 tasks completed
+**Total:** 15/15 tasks completed
 
 ---
 
@@ -196,18 +196,26 @@ All three Medium findings sit on dormant/edge-case paths (schema v1 is current s
 
 ## Phase 6: Validation
 
-**Status:** pending
-**Started:** -
+**Status:** complete
+**Started:** 2026-05-15
 
 ### Task p06-t01: Confirm npm run validate passes; update scripts/validate.mjs if needed
 
-**Status:** pending
-**Commit:** -
+**Status:** complete
+**Commit:** (no commit — validate.mjs already recognized session-observer; no modification needed)
+
+`npm run validate` passed without changes. `npm test` passed: 216 tests, 216 pass, 0 fail.
 
 ### Task p06-t02: Manual local probe verification
 
-**Status:** pending
-**Commit:** -
+**Status:** complete
+**Commit:** (committed below after implementation.md update)
+
+### Phase 6 Summary
+
+**Outcome:** `npm run validate` passed without modification to `validate.mjs` — the validator already recognized `.agents/skills/session-observer/` from prior phases. `npm test` passed all 216 tests (216 pass / 0 fail). Both `probe-local.mjs` invocations returned exit code 2 (noMatch), which is a PASS per the plan. 406 Claude Code transcripts and 140 Codex transcripts exist globally; none are recorded under this specific worktree path, which is expected.
+
+**Verification:** `npm test` → 216/216 pass; `npm run validate` → passed; probe-local claude-code → exit 2 (PASS); probe-local codex → exit 2 (PASS).
 
 ---
 
@@ -266,7 +274,61 @@ _Append session entries below as `oat-project-implement` runs._
 
 ## Manual Verification
 
-_Filled in p06-t02. Will record probe-local results against the user's real local `~/.claude/projects` and `~/.codex/sessions` stores._
+**Date:** 2026-05-15
+**Repo cwd:** `/Users/thomas.stang/.superconductor/worktrees/skills/sc-pinned-meissner-9974`
+
+### claude-code probe
+
+```
+node .agents/skills/session-observer/scripts/probe-local.mjs --runtime claude-code --cwd "$PWD"
+```
+
+**Exit code:** 2 (noMatch — PASS)
+
+**Header output:**
+```
+[probe-local] runtime: claude-code
+[probe-local] cwd: /Users/thomas.stang/.superconductor/worktrees/skills/sc-pinned-meissner-9974
+[probe-local] transcript store: ~/.claude/projects/
+[probe-local] candidates found: 406
+[probe-local] no match in target cwd (noMatch)
+[probe-local] --- spawning CLI review ---
+
+No claude-code transcripts matched cwd: /Users/thomas.stang/.superconductor/worktrees/skills/sc-pinned-meissner-9974
+```
+
+**Assessment:** 406 Claude Code transcripts found globally. No transcript recorded under this worktree path (expected — this is a dedicated worktree not a regular project directory). The noMatch response is correct. No hard error.
+
+### codex probe
+
+```
+node .agents/skills/session-observer/scripts/probe-local.mjs --runtime codex --cwd "$PWD"
+```
+
+**Exit code:** 2 (noMatch — PASS)
+
+**Header output:**
+```
+[probe-local] runtime: codex
+[probe-local] cwd: /Users/thomas.stang/.superconductor/worktrees/skills/sc-pinned-meissner-9974
+[probe-local] transcript store: ~/.codex/sessions/
+[probe-local] candidates found: 140
+[probe-local] no match in target cwd (noMatch)
+[probe-local] --- spawning CLI review ---
+
+No codex transcripts matched cwd: /Users/thomas.stang/.superconductor/worktrees/skills/sc-pinned-meissner-9974
+```
+
+**Assessment:** 140 Codex transcripts found globally. No transcript recorded under this worktree path (expected — same reason as claude-code). The noMatch response is correct. No hard error.
+
+### Summary
+
+| Runtime     | Exit Code | Transcript Stores Found | Right Session Picked | Result |
+| ----------- | --------- | ----------------------- | -------------------- | ------ |
+| claude-code | 2         | 406                     | N/A (noMatch)        | PASS   |
+| codex       | 2         | 140                     | N/A (noMatch)        | PASS   |
+
+Both probes returned exit code 2 (noMatch). This is correct behavior per the plan: "An exit code of 0 (a digest was produced) or 2 (noMatch / no candidates) is a PASS — only exit code 1 (hard error) is a failure." The probe helper correctly discovers global transcript stores and searches them without throwing. No follow-up bugs to record.
 
 ---
 
