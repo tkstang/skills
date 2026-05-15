@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-05-15
-oat_current_task_id: p03-t01
+oat_current_task_id: p04-t01
 oat_generated: false
 ---
 
@@ -26,12 +26,12 @@ oat_generated: false
 | ------- | ----------- | ----- | --------- |
 | Phase 1 | complete    | 2     | 2/2       |
 | Phase 2 | complete    | 2     | 2/2       |
-| Phase 3 | pending     | 2     | 0/2       |
+| Phase 3 | complete    | 2     | 2/2       |
 | Phase 4 | pending     | 4     | 0/4       |
 | Phase 5 | pending     | 3     | 0/3       |
 | Phase 6 | pending     | 2     | 0/2       |
 
-**Total:** 4/15 tasks completed
+**Total:** 6/15 tasks completed
 
 ---
 
@@ -96,18 +96,28 @@ All three Medium findings sit on dormant/edge-case paths (schema v1 is current s
 
 ## Phase 3: Discovery + ranking
 
-**Status:** pending
-**Started:** -
+**Status:** complete
+**Started:** 2026-05-15
 
 ### Task p03-t01: Implement scripts/lib/locate.mjs + tests
 
-**Status:** pending
-**Commit:** -
+**Status:** complete
+**Commit:** 9012049
 
 ### Task p03-t02: Implement scripts/lib/rank.mjs + tests
 
-**Status:** pending
-**Commit:** -
+**Status:** complete
+**Commit:** c3685ce
+
+### Phase 3 Summary
+
+**Outcome:** `scripts/lib/locate.mjs` discovers Claude Code transcripts via direct `encodeCwd` dir lookup (with glob fallback) and Codex transcripts via dated directory glob with a 7-day LOOKBACK_DAYS filter. Direct Claude Code hits set `recordedCwd = targetCwd` exactly (not via lossy decode). A codex cwd-cache at `${STATE_DIR}/codex-cwd-cache.json` keyed by `${transcriptPath}:${mtimeSec}` avoids re-parsing unchanged transcripts. `gitWorktrees` enumerates sister git worktrees, returning `[]` on any failure.
+
+`scripts/lib/rank.mjs` exports `rank(candidates, targetCwd, opts)` and `tierOf(candidate, targetCwd)`. Tier ordering: A (exact cwd) > B (descendant cwd) > C (no match). On no-match, returns `{ winner: null, noMatch: true, sisters, globalRecent }` with `globalRecent` top-5 by mtime. Ties within `TIE_WINDOW_SEC = 5s` of the winner appear in `ties[]`. Winners younger than `ACTIVE_THRESHOLD_SEC = 60s` are flagged `active: true`. No I/O; `gitWorktrees` and `globalRecentProvider` injected via `opts`. No dependency on `locate.mjs`.
+
+**Key files:** `.agents/skills/session-observer/scripts/lib/locate.mjs`, `.agents/skills/session-observer/scripts/lib/rank.mjs`, `tests/session-observer/locate.test.mjs`, `tests/session-observer/rank.test.mjs`.
+
+**Verification:** `node --test tests/session-observer/state.test.mjs tests/session-observer/runtimes.test.mjs tests/session-observer/locate.test.mjs tests/session-observer/rank.test.mjs` → 60 pass / 0 fail.
 
 ---
 
@@ -259,7 +269,7 @@ Both review artifacts archived to `reviews/archived/`. No plan tasks were added;
 | ----- | --------- | ------ | ------ | -------- |
 | 1     | 11        | 11     | 0      | all plan cases covered |
 | 2     | 39        | 39     | 0      | all plan cases covered |
-| 3     | -         | -      | -      | -        |
+| 3     | 60        | 60     | 0      | all plan cases covered |
 | 4     | -         | -      | -      | -        |
 | 5     | -         | -      | -      | -        |
 | 6     | -         | -      | -      | -        |
