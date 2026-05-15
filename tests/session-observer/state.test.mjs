@@ -6,7 +6,7 @@
 
 import { describe, it, before, after, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile, readdir, writeFile, access } from 'node:fs/promises';
+import { readFile, readdir, writeFile, access, utimes } from 'node:fs/promises';
 import { join } from 'node:path';
 import { withTmpStateDir } from './helpers/tmpdir.mjs';
 
@@ -224,9 +224,9 @@ it('clear empties sessions but preserves schemaVersion', async () => {
 });
 
 // ---------------------------------------------------------------------------
-// 9. migrateIfNeeded writes state.v0.json.bak when reading an older schema
+// 9. migrateIfNeeded writes a v0 backup when reading an older schema
 // ---------------------------------------------------------------------------
-it('migrateIfNeeded writes state.v0.json.bak and upgrades in place on older schema', async () => {
+it('migrateIfNeeded writes a v0 backup and upgrades in memory on older schema', async () => {
   await withTmpStateDir(async (dir) => {
     // Write a fake v0 state (no schemaVersion field)
     const v0State = {
@@ -244,13 +244,14 @@ it('migrateIfNeeded writes state.v0.json.bak and upgrades in place on older sche
     };
     await writeFile(join(dir, 'state.json'), JSON.stringify(v0State));
 
-    // Loading should trigger migration
+    // Loading should trigger migration (backup filenames now use timestamp+pid)
     const state = await importState();
     const loaded = await state.load();
 
-    // Backup must exist
-    const bakFile = join(dir, 'state.v0.json.bak');
-    await assert.doesNotReject(() => access(bakFile), 'state.v0.json.bak must be created');
+    // A backup file with 'v0' in the name must exist (unique timestamped name)
+    const files = await readdir(dir);
+    const bakFiles = files.filter((f) => f.startsWith('state.json.v0-'));
+    assert.ok(bakFiles.length > 0, 'a v0 backup file must be created');
 
     // Migrated state must have schemaVersion: 1
     assert.equal(loaded.schemaVersion, 1);
@@ -276,5 +277,64 @@ it('corrupt state.json is backed up and subsequent load returns empty state', as
     const files = await readdir(dir);
     const bakFiles = files.filter((f) => f.startsWith('state.json.corrupt-'));
     assert.ok(bakFiles.length > 0, 'a corrupt backup file must be created');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 11. migrateIfNeeded: migration persists to disk via mutate() path
+// ---------------------------------------------------------------------------
+it('migration via mutate(): re-load after mutate returns upgraded schema (schemaVersion 1)', async () => {
+  await withTmpStateDir(async (dir) => {
+    // Write a v0 state (no schemaVersion)
+    const v0State = {
+      sessions: {
+        'claude-code:migrated-session': {
+          runtime: 'claude-code',
+          sessionId: 'migrated-session',
+          lastRecordIndex: 3,
+          lastTotalRecords: 9,
+          lastReadAt: '2026-01-01T00:00:00.000Z',
+          transcriptPath: '/tmp/migrated.jsonl',
+          recordedCwd: '/migrated/project',
+        },
+      },
+    };
+    await writeFile(join(dir, 'state.json'), JSON.stringify(v0State));
+
+    // Go through mutate() — this forces a readState+writeState cycle under the lock,
+    // which persists the migrated state (schemaVersion: 1) to disk.
+    const state = await importState();
+    await state.mutate((s) => s); // identity mutation — just triggers read+persist
+
+    // Re-read the raw file: it must now have schemaVersion: 1
+    const raw = JSON.parse(await readFile(join(dir, 'state.json'), 'utf8'));
+    assert.equal(raw.schemaVersion, 1, 'state.json must be upgraded to schemaVersion 1 after mutate()');
+    // Session data must be preserved
+    assert.ok(raw.sessions['claude-code:migrated-session'], 'session entry must survive migration');
+    assert.equal(raw.sessions['claude-code:migrated-session'].lastRecordIndex, 3);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 12. Backup uniqueness: repeated backups do not overwrite each other
+// ---------------------------------------------------------------------------
+it('repeated corrupt backups produce unique filenames and do not clobber each other', async () => {
+  await withTmpStateDir(async (dir) => {
+    // Simulate two consecutive corrupt-state loads (via load() which writes backups non-locked).
+    // We do them sequentially with a tiny delay to get distinct timestamps.
+    const state = await importState();
+
+    await writeFile(join(dir, 'state.json'), '{ bad json 1 }');
+    await state.load(); // triggers first backup
+
+    await writeFile(join(dir, 'state.json'), '{ bad json 2 }');
+    // Small delay to ensure distinct millisecond timestamp in backup filename
+    await new Promise((r) => setTimeout(r, 5));
+    await state.load(); // triggers second backup
+
+    const files = await readdir(dir);
+    const bakFiles = files.filter((f) => f.startsWith('state.json.corrupt-'));
+    // Both backups must exist as distinct files
+    assert.ok(bakFiles.length >= 2, `expected at least 2 backup files, got ${bakFiles.length}: ${bakFiles.join(', ')}`);
   });
 });

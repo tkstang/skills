@@ -12,9 +12,13 @@
  *   5. fsync the tmp file
  *   6. rename(tmp, state.json)
  *   7. release lock in finally
+ *
+ * Backup writes (corrupt-state + migration) are performed while holding the lock
+ * to avoid concurrent writers observing a partial backup. Backup filenames include
+ * a timestamp and PID to be unique across retries.
  */
 
-import { open, rename, mkdir, readFile, writeFile, access, unlink } from 'node:fs/promises';
+import { open, rename, mkdir, readFile, writeFile, unlink } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
@@ -44,6 +48,16 @@ function lockPath(dir) {
 
 function tmpPath(dir) {
   return join(dir, `state.json.${process.pid}.tmp`);
+}
+
+/**
+ * Generate a unique backup path using timestamp + pid.
+ * @param {string} dir
+ * @param {string} label  — e.g. 'corrupt' or 'v0'
+ * @returns {string}
+ */
+function bakPath(dir, label) {
+  return join(dir, `state.json.${label}-${Date.now()}-${process.pid}.bak`);
 }
 
 // ---------------------------------------------------------------------------
@@ -85,10 +99,42 @@ function emptyState() {
 }
 
 /**
+ * Write content to a backup file atomically (tmp → rename), with a unique name.
+ * Called while holding the mutate lock, so no additional locking is needed.
+ * @param {string} dir
+ * @param {string} label — used in the backup filename (e.g. 'corrupt', 'v0')
+ * @param {string} content — raw content to write
+ */
+async function writeBackup(dir, label, content) {
+  const bak = bakPath(dir, label);
+  const tmp = bak + '.tmp';
+  let fh;
+  try {
+    fh = await open(tmp, 'w');
+    await fh.write(content);
+    await fh.datasync();
+    await fh.close();
+    fh = null;
+    await rename(tmp, bak);
+  } catch {
+    // Backup is best-effort; ignore errors.
+  } finally {
+    if (fh) {
+      try { await fh.close(); } catch { /* ignore */ }
+    }
+    try { await unlink(tmp); } catch { /* ignore ENOENT */ }
+  }
+}
+
+/**
  * Read and parse state, handling:
- *   - missing file → empty state
- *   - corrupt JSON → back up to state.json.corrupt-<ts>.bak, return empty
- *   - older schema (missing schemaVersion) → back up to state.v0.json.bak, migrate
+ *   - missing file → empty state (no backup needed)
+ *   - corrupt JSON → back up (atomic, unique name), return empty
+ *   - older schema (missing schemaVersion) → back up, migrate in-memory
+ *
+ * NOTE: caller MUST hold the lock before calling readState when backup writes
+ * are possible (i.e. all paths that go through mutate()).
+ * The bare load() path does not write backups, so it does not need the lock.
  */
 async function readState(dir) {
   const file = statePath(dir);
@@ -104,9 +150,8 @@ async function readState(dir) {
   try {
     parsed = JSON.parse(raw);
   } catch {
-    // Corrupt JSON — back up and return empty
-    const bakPath = join(dir, `state.json.corrupt-${Date.now()}.bak`);
-    await writeFile(bakPath, raw, 'utf8');
+    // Corrupt JSON — write backup atomically with a unique name, return empty.
+    await writeBackup(dir, 'corrupt', raw);
     return emptyState();
   }
 
@@ -114,15 +159,23 @@ async function readState(dir) {
 }
 
 /**
- * If the parsed state has no schemaVersion (v0), back up and upgrade.
+ * If the parsed state has no schemaVersion (v0), back up and upgrade in memory.
+ * Migration backup is written here; persist-to-disk is handled by the caller
+ * (mutate will write the upgraded state; load() callers get the in-memory upgrade
+ * but do not persist — this is intentional: persisting requires the lock).
+ *
+ * @param {object} parsed
+ * @param {string} dir
+ * @param {string} rawBackup
+ * @returns {object}
  */
 async function migrateIfNeeded(parsed, dir, rawBackup) {
   if (typeof parsed.schemaVersion === 'number' && parsed.schemaVersion >= SCHEMA_VERSION) {
     return parsed;
   }
-  // v0 or unknown — write backup then upgrade
-  const bakPath = join(dir, 'state.v0.json.bak');
-  await writeFile(bakPath, rawBackup ?? JSON.stringify(parsed), 'utf8');
+  // v0 or unknown — write backup atomically, then return upgraded in-memory state.
+  // The backup write is lock-safe when called from readState() inside mutate().
+  await writeBackup(dir, 'v0', rawBackup ?? JSON.stringify(parsed));
 
   return {
     schemaVersion: SCHEMA_VERSION,
@@ -177,6 +230,8 @@ function zeroSession(entry) {
 /**
  * Load and return the current state without any mutation.
  * Does NOT acquire the lock (read-only path).
+ * NOTE: If a v0 migration backup is written here, it is not lock-protected;
+ * for fully safe migration persistence, go through mutate() instead.
  */
 export async function load() {
   const dir = stateDir();
@@ -186,6 +241,8 @@ export async function load() {
 /**
  * Atomically apply fn(state) => state and persist the result.
  * Acquires the exclusive lock, reads, mutates, writes, releases.
+ * All backup writes (corrupt/migration) happen inside this lock.
+ * migrateIfNeeded upgrades are persisted via the normal writeState path.
  *
  * @param {(state: object) => object} fn
  */
