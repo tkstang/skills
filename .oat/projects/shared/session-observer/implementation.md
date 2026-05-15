@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-05-15
-oat_current_task_id: p02-t01
+oat_current_task_id: p03-t01
 oat_generated: false
 ---
 
@@ -25,13 +25,13 @@ oat_generated: false
 | Phase   | Status      | Tasks | Completed |
 | ------- | ----------- | ----- | --------- |
 | Phase 1 | complete    | 2     | 2/2       |
-| Phase 2 | pending     | 2     | 0/2       |
+| Phase 2 | complete    | 2     | 2/2       |
 | Phase 3 | pending     | 2     | 0/2       |
 | Phase 4 | pending     | 4     | 0/4       |
 | Phase 5 | pending     | 3     | 0/3       |
 | Phase 6 | pending     | 2     | 0/2       |
 
-**Total:** 2/15 tasks completed
+**Total:** 4/15 tasks completed
 
 ---
 
@@ -71,18 +71,26 @@ All three Medium findings sit on dormant/edge-case paths (schema v1 is current s
 
 ## Phase 2: Runtime parsing
 
-**Status:** pending
-**Started:** -
+**Status:** complete
+**Started:** 2026-05-15
 
 ### Task p02-t01: Author synthetic JSONL fixtures for both runtimes
 
-**Status:** pending
-**Commit:** -
+**Status:** complete
+**Commit:** 81cd68c
 
 ### Task p02-t02: Implement scripts/lib/runtimes.mjs + tests
 
-**Status:** pending
-**Commit:** -
+**Status:** complete
+**Commit:** d701d52
+
+### Phase 2 Summary
+
+**Outcome:** Synthetic JSONL fixtures created for both runtimes (11 files), and `scripts/lib/runtimes.mjs` implements all five public exports: `discoverPaths`, `encodeCwd`, `extractMeta`, `readRecords`, `normalizeEntries`. Tolerant JSONL parsing (malformed lines warn + skip; partial trailing lines warn + drop). Tool calls excluded by default; `includeToolCalls: true` adds `[Tool: name] args` (200-char truncation); `includeToolResults: true` adds `[Tool → result] body` (500-char truncation).
+
+**Key files:** `tests/session-observer/fixtures/` (11 files), `.agents/skills/session-observer/scripts/lib/runtimes.mjs`, `tests/session-observer/runtimes.test.mjs`.
+
+**Verification:** `node --test tests/session-observer/runtimes.test.mjs tests/session-observer/state.test.mjs` → 39 pass / 0 fail.
 
 ---
 
@@ -247,7 +255,7 @@ Both review artifacts archived to `reviews/archived/`. No plan tasks were added;
 | Phase | Tests Run | Passed | Failed | Coverage |
 | ----- | --------- | ------ | ------ | -------- |
 | 1     | 11        | 11     | 0      | all plan cases covered |
-| 2     | -         | -      | -      | -        |
+| 2     | 39        | 39     | 0      | all plan cases covered |
 | 3     | -         | -      | -      | -        |
 | 4     | -         | -      | -      | -        |
 | 5     | -         | -      | -      | -        |
