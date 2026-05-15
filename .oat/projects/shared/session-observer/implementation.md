@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-05-15
-oat_current_task_id: p05-t01
+oat_current_task_id: p06-t01
 oat_generated: false
 ---
 
@@ -28,10 +28,10 @@ oat_generated: false
 | Phase 2 | complete    | 2     | 2/2       |
 | Phase 3 | complete    | 2     | 2/2       |
 | Phase 4 | complete    | 4     | 4/4       |
-| Phase 5 | pending     | 3     | 0/3       |
+| Phase 5 | complete    | 3     | 3/3       |
 | Phase 6 | pending     | 2     | 0/2       |
 
-**Total:** 10/15 tasks completed
+**Total:** 13/15 tasks completed
 
 ---
 
@@ -158,23 +158,31 @@ All three Medium findings sit on dormant/edge-case paths (schema v1 is current s
 
 ## Phase 5: Documentation (runs in parallel with Phase 4)
 
-**Status:** pending
-**Started:** -
+**Status:** complete
+**Started:** 2026-05-15
 
 ### Task p05-t01: Write full SKILL.md body
 
-**Status:** pending
-**Commit:** -
+**Status:** complete
+**Commit:** 5753e08
 
 ### Task p05-t02: Write references/watch-design.md
 
-**Status:** pending
-**Commit:** -
+**Status:** complete
+**Commit:** ca9c3f7
 
 ### Task p05-t03: Write references/transcript-formats.md
 
-**Status:** pending
-**Commit:** -
+**Status:** complete
+**Commit:** cf0d6dd
+
+### Phase 5 Summary
+
+**Outcome:** Full SKILL.md body written (299 lines, frontmatter untouched). All 8 required sections present in plan order: Title, When to Use (with NL→subcommand table), When NOT to Use, Arguments (full CLI flag matrix + subcommand table), Workflow (Steps 1–4 with exit-code handling), Examples, Troubleshooting (7 scenarios including nuke option + probe-local), Success Criteria. `references/watch-design.md` (220 lines) documents the v2 continuous watcher design: CLI shape, polling rationale + pseudocode, debounce strategy, event emission pipeline, watch.json schema, singleton enforcement, event-log JSONL schema, `--runtime both` semantics, control surface (`watch-ctl` verbs + `watch.control.json` schema), SIGTERM/SIGINT shutdown, future hook integration notes, safety rules, and locked decisions. `references/transcript-formats.md` (253 lines) documents Claude Code and Codex JSONL record shapes including file location patterns, session-ID placement quirks, cwd extraction strategy per runtime, tool-use/tool-result correlation, and notes the known Minor limitation that Codex `extractMeta` reads `cwd` at the record top level.
+
+**Key files:** `.agents/skills/session-observer/SKILL.md`, `.agents/skills/session-observer/references/watch-design.md`, `.agents/skills/session-observer/references/transcript-formats.md`.
+
+**Verification:** SKILL.md: 299 lines (≤ 500 limit); frontmatter intact (name, version, description, argument-hint, disable-model-invocation, user-invocable, allowed-tools). watch-design.md: 220 lines (non-trivial). transcript-formats.md: 253 lines with section structure confirmed via `head -20`.
 
 ---
 
