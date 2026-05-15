@@ -328,7 +328,7 @@ export async function extractMeta(runtime, transcriptPath) {
  * @param {'assistant' | 'user'} role
  * @param {unknown} content
  * @param {number} recordIndex
- * @param {{ includeToolCalls: boolean, includeToolResults: boolean }} opts
+ * @param {{ includeToolCalls: boolean, includeToolResults: boolean, toolNameById: Map<string,string> }} opts
  * @returns {object[]}
  */
 function claudeEntriesFromContent(role, content, recordIndex, opts) {
@@ -344,11 +344,14 @@ function claudeEntriesFromContent(role, content, recordIndex, opts) {
       if (!opts.includeToolCalls) return [];
       const name = asString(block.name) ?? 'tool_use';
       const argsStr = stringifyArgs(block.input, TOOL_INPUT_LIMIT);
-      return [{ role, text: `[Tool: ${name}] ${argsStr}`, recordIndex, kind: 'tool_call', toolName: name }];
+      return [{ role, text: `[${name}] ${argsStr}`, recordIndex, kind: 'tool_call', toolName: name }];
     }
 
     if (block.type === 'tool_result') {
       if (!opts.includeToolResults) return [];
+      // Resolve the tool name by correlating tool_use_id → tool name
+      const toolUseId = asString(block.tool_use_id);
+      const name = (toolUseId && opts.toolNameById?.get(toolUseId)) ?? 'tool_result';
       // Content of tool_result can be string or array
       let resultText = '';
       if (typeof block.content === 'string') {
@@ -360,7 +363,7 @@ function claudeEntriesFromContent(role, content, recordIndex, opts) {
           .filter(Boolean);
         resultText = truncate(parts.join('\n'), TOOL_RESULT_LIMIT);
       }
-      return [{ role, text: `[Tool → result] ${resultText}`, recordIndex, kind: 'tool_result' }];
+      return [{ role, text: `[${name} → result] ${resultText}`, recordIndex, kind: 'tool_result', toolName: name }];
     }
 
     // text / content blocks
@@ -372,6 +375,10 @@ function claudeEntriesFromContent(role, content, recordIndex, opts) {
 /**
  * Normalize Claude Code records into DigestEntry[].
  *
+ * Builds a first-pass correlation map from tool_use id → tool name so that
+ * tool_result entries (which carry tool_use_id, not the tool name) can be
+ * rendered as `[ToolName → result] output` with toolName set.
+ *
  * @param {object[]} records
  * @param {{ includeToolCalls?: boolean, includeToolResults?: boolean }} opts
  * @returns {object[]}
@@ -379,6 +386,22 @@ function claudeEntriesFromContent(role, content, recordIndex, opts) {
 function normalizeClaudeCode(records, opts) {
   const includeToolCalls = opts.includeToolCalls ?? false;
   const includeToolResults = opts.includeToolResults ?? false;
+
+  // First pass: build tool_use_id → tool name correlation map
+  /** @type {Map<string, string>} */
+  const toolNameById = new Map();
+  for (const record of records) {
+    const message = isObject(record.message) ? record.message : record;
+    const content = message.content;
+    if (!Array.isArray(content)) continue;
+    for (const block of content) {
+      if (isObject(block) && block.type === 'tool_use') {
+        const id = asString(block.id);
+        const name = asString(block.name);
+        if (id && name) toolNameById.set(id, name);
+      }
+    }
+  }
 
   return records.flatMap((record, recordIndex) => {
     // Determine role
@@ -393,6 +416,7 @@ function normalizeClaudeCode(records, opts) {
     return claudeEntriesFromContent(role, message.content, recordIndex, {
       includeToolCalls,
       includeToolResults,
+      toolNameById,
     });
   });
 }
@@ -421,7 +445,7 @@ function normalizeCodex(records, opts) {
       const name = asString(payload.name) ?? asString(record.name) ?? 'function_call';
       const args = payload.arguments ?? record.arguments;
       const argsStr = stringifyArgs(args, TOOL_INPUT_LIMIT);
-      return [{ role: 'assistant', text: `[Tool: ${name}] ${argsStr}`, recordIndex, kind: 'tool_call', toolName: name }];
+      return [{ role: 'assistant', text: `[${name}] ${argsStr}`, recordIndex, kind: 'tool_call', toolName: name }];
     }
 
     // message records

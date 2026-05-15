@@ -234,23 +234,31 @@ describe('normalizeEntries (claude-code)', () => {
     assert.equal(toolEntries.length, 0);
   });
 
-  it('includeToolCalls: true — includes [Tool] args entries (truncated to 200)', () => {
+  it('includeToolCalls: true — includes [ToolName] args entries (truncated to 200)', () => {
     const entries = normalizeEntries('claude-code', records, { includeToolCalls: true, includeToolResults: false });
     const toolCallEntries = entries.filter(e => e.kind === 'tool_call');
     assert.ok(toolCallEntries.length > 0, 'should have at least one tool_call entry');
     for (const e of toolCallEntries) {
-      assert.ok(e.text.startsWith('['), `tool_call text should start with '[', got: ${e.text}`);
+      // Must match spec: [ToolName] args — no "Tool: " prefix
+      assert.ok(/^\[[^\]]+\] /.test(e.text), `tool_call text must match [ToolName] args, got: ${e.text}`);
+      assert.ok(!e.text.startsWith('[Tool: '), `tool_call text must not have "Tool: " prefix, got: ${e.text}`);
+      assert.ok(typeof e.toolName === 'string' && e.toolName.length > 0, `toolName must be set on tool_call entry`);
       // Args should be truncated at 200 chars
       assert.ok(e.text.length <= 300, 'text should not be excessively long'); // brackets + name + args
     }
   });
 
-  it('includeToolCalls: true, includeToolResults: true — includes [Tool → result] entries (truncated to 500)', () => {
+  it('includeToolCalls: true, includeToolResults: true — includes [ToolName → result] entries with toolName set', () => {
     const entries = normalizeEntries('claude-code', records, { includeToolCalls: true, includeToolResults: true });
     const toolResultEntries = entries.filter(e => e.kind === 'tool_result');
     assert.ok(toolResultEntries.length > 0, 'should have at least one tool_result entry');
     for (const e of toolResultEntries) {
-      assert.ok(e.text.includes('→'), `tool_result text should contain '→', got: ${e.text}`);
+      // Must match spec: [ToolName → result] output — with the tool name, not bare [Tool → result]
+      assert.ok(/^\[[^\]]+\s→\s+result\]/.test(e.text), `tool_result text must match [ToolName → result] output, got: ${e.text}`);
+      assert.ok(!e.text.startsWith('[Tool →'), `tool_result text must not use bare "[Tool →", got: ${e.text}`);
+      // toolName must be set and match the name in the marker
+      assert.ok(typeof e.toolName === 'string' && e.toolName.length > 0, `toolName must be set on tool_result entry, got: ${e.toolName}`);
+      assert.ok(e.text.startsWith(`[${e.toolName} →`), `text marker [${e.toolName} →] must match toolName field, got: ${e.text}`);
     }
   });
 
@@ -322,12 +330,15 @@ describe('normalizeEntries (codex)', () => {
     assert.equal(entries.filter(e => e.kind !== 'message').length, 0);
   });
 
-  it('includeToolCalls: true — function_call records produce tool_call entries', () => {
+  it('includeToolCalls: true — function_call records produce tool_call entries with [ToolName] format', () => {
     const entries = normalizeEntries('codex', withFcRecords, { includeToolCalls: true, includeToolResults: false });
     const toolCallEntries = entries.filter(e => e.kind === 'tool_call');
     assert.ok(toolCallEntries.length > 0, 'should have tool_call entries from function_calls');
     for (const e of toolCallEntries) {
-      assert.ok(e.text.startsWith('['), `tool_call text should start with '[', got: ${e.text}`);
+      // Must match spec: [ToolName] args — no "Tool: " prefix
+      assert.ok(/^\[[^\]]+\] /.test(e.text), `tool_call text must match [ToolName] args, got: ${e.text}`);
+      assert.ok(!e.text.startsWith('[Tool: '), `tool_call text must not have "Tool: " prefix, got: ${e.text}`);
+      assert.ok(typeof e.toolName === 'string' && e.toolName.length > 0, `toolName must be set on tool_call entry`);
     }
   });
 
