@@ -220,7 +220,7 @@ All three Medium findings sit on dormant/edge-case paths (schema v1 is current s
 **Branch:** chore/new-skill-brainstorm
 **Tier:** 1 (subagents)
 **Policy:** merge-strategy=merge, retry-limit=2
-**Phases:** 4 executed, 4 passed, 0 failed, 0 stopped
+**Phases:** 5 executed, 5 passed, 0 failed, 0 stopped
 
 #### Phase Outcomes
 
@@ -230,6 +230,7 @@ All three Medium findings sit on dormant/edge-case paths (schema v1 is current s
 | p02   | DONE        | pass (after fix)  | 1/2            | committed   |
 | p03   | DONE        | pass              | 0/2            | committed   |
 | p04   | DONE        | pass              | 0/2            | committed   |
+| p05   | DONE        | pass (after fix)  | 1/2            | committed   |
 
 #### Parallel Groups
 
@@ -242,6 +243,7 @@ All three Medium findings sit on dormant/edge-case paths (schema v1 is current s
 - Dispatch: p02 — model_axis=selected:sonnet, effort_axis=not-applicable (Claude Code; per-runtime transcript adapters + fixtures). Fix dispatch (1 iteration) used the same axes.
 - Dispatch: p03 — model_axis=selected:sonnet, effort_axis=not-applicable (Claude Code; candidate discovery + tier-based ranking).
 - Dispatch: p04 — model_axis=selected:sonnet, effort_axis=not-applicable (Claude Code; digest builder + CLI entrypoint + probe helper + integration test).
+- Dispatch: p05 — model_axis=selected:sonnet, effort_axis=not-applicable (Claude Code; SKILL.md body + reference docs). Fix dispatch (1 iteration) used the same axes.
 
 #### Outstanding Items
 
@@ -250,6 +252,7 @@ All three Medium findings sit on dormant/edge-case paths (schema v1 is current s
 - p03 review PASS with 2 Minor non-blocking findings (`reviews/p03-review-2026-05-15.md`): (1) the Codex cwd-cache still re-calls `extractMeta` for `sessionId` after a cache hit, so it yields correct results but no real speedup — fix by caching `sessionId` alongside `recordedCwd`; (2) `rank.tierOf` uses raw string equality rather than `realpath`-normalized comparison (spec failure mode #14, symlinked cwds). Both carried to the final review.
 - **Parallel group [p04, p05] degraded to sequential.** `oat-worktree-bootstrap-auto`'s baseline-check contract requires `pnpm run worktree:init`; this repo is a plain npm project (Node stdlib only; package.json scripts are `test`/`validate`/`smoke`, no `worktree:init`), so a strict worktree bootstrap fails by construction. Per the orchestrator's bootstrap-failure rule, p04 and p05 run sequentially on the orchestration branch with the normal per-phase dispatch/review/fix loop. Write sets are disjoint (p04 → `scripts/` + `tests/`, p05 → SKILL.md body + `references/`), so sequential execution is correct — only wall-clock parallelism is lost. No worktrees created; no fan-in merge.
 - p04 review PASS with 3 Minor non-blocking findings (`reviews/p04-review-2026-05-15.md`): (1) `runCatchUp` calls `markRead` even when `newRecords === 0` — a redundant locked write on a no-op `catch-up`; behavior stays correct; (2) `tierOf` raw string equality vs `realpath` — same p03 carry-over; (3) exit code 4 (schema mismatch) is documented but never produced by any CLI path — likely intentionally reserved. All carried to the final review.
+- p05 first review FAIL (1 Important — `state reset --session` documented but not wired into the CLI; 2 Minor). Fixed in `e615b21` (wired `--session` into the CLI reset handler + new `cli.test.mjs` case; aligned the EBUSY doc wording and a doc path reference). Re-review PASS, 0 findings (`reviews/p05-rereview-2026-05-15.md`).
 
 <!-- orchestration-runs-end -->
 

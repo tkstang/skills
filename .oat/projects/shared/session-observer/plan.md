@@ -791,7 +791,7 @@ git commit -m "chore(p06-t02): record manual local probe verification results"
 | p02    | code     | passed  | 2026-05-15 | reviews/p02-rereview-2026-05-15.md |
 | p03    | code     | passed  | 2026-05-15 | reviews/p03-review-2026-05-15.md |
 | p04    | code     | passed  | 2026-05-15 | reviews/p04-review-2026-05-15.md |
-| p05    | code     | pending | -    | -        |
+| p05    | code     | passed  | 2026-05-15 | reviews/p05-rereview-2026-05-15.md |
 | p06    | code     | pending | -    | -        |
 | final  | code     | pending | -    | -        |
 | spec   | artifact | pending  | -          | -                                               |
