@@ -174,6 +174,28 @@ _Filled in p06-t02. Will record probe-local results against the user's real loca
 
 ---
 
+## Artifact Reviews Received
+
+### 2026-05-15 — design + plan artifact reviews
+
+Two `artifact`-type reviews were received and resolved directly in the artifacts (no plan tasks — artifact reviews resolve in-place).
+
+- **`artifact-design-review-2026-05-14.md`** (scope: design) — 0 critical, 1 important, 1 medium, 0 minor.
+- **`artifact-plan-review-2026-05-14.md`** (scope: plan) — 0 critical, 1 important, 1 medium, 0 minor.
+
+**Findings + disposition (all `resolve_in_artifact`):**
+
+- `I1` — `design.md` data flow + the source spec used a bare relative `scripts/session-observer.mjs` path that resolves wrong from a normal cwd. Fixed: `design.md` invokes the CLI by its skill-relative path and adds a "Script resolution" design decision; `probe-local.mjs` resolves its sibling via `import.meta.url`; the spec integration command resolves an absolute path.
+- `I2` — `plan.md` p04-t03 spawned `node scripts/session-observer.mjs` (relative). Fixed: p04-t03 resolves the sibling CLI via `fileURLToPath(new URL('./session-observer.mjs', import.meta.url))`.
+- `M1` — `design.md` rank.mjs `sisters` ownership was ambiguous. Fixed: the `rank` interface now takes injected `gitWorktrees` / `globalRecentProvider` via `opts`, with an explicit no-`locate`-dependency note; matches `plan.md` p03-t02. Also corrected an internal exit-code typo (`noMatch` is exit 2, not 3).
+- `M2` — `plan.md` p03-t01 cwd-cache test relied on monkeypatching an ESM export. Fixed: the test now proves the cache hit via observable cache-file state.
+
+**Related hardening:** `plan.md` p04-t02 and p04-t04 now instruct the implementer to spawn the CLI by an `import.meta.url`-resolved absolute path so the relative-path trap is not reintroduced in the test tasks.
+
+Both review artifacts archived to `reviews/archived/`. No plan tasks were added; `plan.md` remains `oat_ready_for: oat-project-implement` with 15 tasks unchanged.
+
+---
+
 ## Deviations from Plan
 
 | Task | Planned | Actual | Reason |

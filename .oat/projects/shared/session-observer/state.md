@@ -15,7 +15,7 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: "2026-05-15T02:45:07.398Z"
 oat_project_completed: null
-oat_project_state_updated: "2026-05-15T03:00:00.000Z"
+oat_project_state_updated: "2026-05-15T04:10:00.000Z"
 oat_generated: false
 ---
 
@@ -44,6 +44,7 @@ Plan complete — ready for `oat-project-implement`.
 - ✓ Discovery populated from the spec
 - ✓ Lightweight design populated from the spec
 - ✓ Plan generated (15 tasks across 6 phases; p04 ‖ p05 parallel group)
+- ✓ Design + plan artifact reviews received and resolved in-artifact (2 important, 2 medium)
 - ⧗ Awaiting `oat-project-implement`
 
 ## Blockers

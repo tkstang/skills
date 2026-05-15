@@ -576,7 +576,7 @@ All fixtures hand-crafted, synthetic — no real user transcripts in the repo.
 **Integration test** (`integration.test.mjs`):
 - Build temp `HOME/.claude/projects/<encoded-cwd>/` with `typical.jsonl`.
 - `STATE_DIR=<tmp>` `HOME=<tmp>`.
-- `child_process.spawnSync('node', ['scripts/session-observer.mjs', 'review', '--runtime', 'claude-code', '--cwd', tempCwd])`.
+- `child_process.spawnSync('node', [cliPath, 'review', '--runtime', 'claude-code', '--cwd', tempCwd])`, where `cliPath` is an absolute path to `.agents/skills/session-observer/scripts/session-observer.mjs` resolved via `import.meta.url` — never a bare relative `scripts/...` path.
 - Assert: exit 0, header contains expected fields, body has both `### User` and `### Assistant` sections, no tool noise.
 - Re-run as `catch-up`; first marks read; second reports "no new records."
 

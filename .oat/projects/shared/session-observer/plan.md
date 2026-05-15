@@ -296,7 +296,7 @@ git commit -m "feat(p02-t02): add per-runtime transcript adapters (claude-code +
 - claude-code: when the encoded dir is missing, `discover` glob-falls-back to `projects/*/*.jsonl` and finds nothing under the target cwd (but doesn't throw).
 - codex: builds temp `HOME/.codex/sessions/2026/05/14/session-*.jsonl`; `discover('codex', tempCwd)` returns the candidate with cwd derived from the session-meta record.
 - codex: a file older than `LOOKBACK_DAYS = 7` is excluded.
-- codex cwd cache: on second invocation with unchanged file mtime, `extractMeta` is not called again (assert via a spy on `runtimes.extractMeta`).
+- codex cwd cache: prove a cache hit via observable cache state, not an ESM spy. After a first `discover`, assert `${STATE_DIR}/codex-cwd-cache.json` contains the entry keyed by `${transcriptPath}:${mtime}`. Then rewrite the transcript's content so a fresh parse would yield a different cwd, restore its original mtime via `fs.utimes`, call `discover` again, and assert the originally-cached cwd is still returned — proving the cache was consulted rather than the transcript re-parsed.
 - `gitWorktrees`: parses a known `git worktree list --porcelain` string; returns `[]` when `git` exec fails.
 
 Run: `node --test tests/session-observer/locate.test.mjs`
@@ -459,7 +459,7 @@ git commit -m "feat(p04-t01): add digest builder with filter-aware markdown and 
 `tests/session-observer/cli.test.mjs`:
 
 - argv parsing: `review`, `catch-up`, `locate`, `state get`, `state reset --runtime codex`, `state clear` all dispatch correctly (assert via a stub on the subcommand handlers exported from the module).
-- Exit codes via `spawnSync`: `review` against an empty fixture → exit 2; `review` against a typical fixture → exit 0.
+- Exit codes via `spawnSync`: `review` against an empty fixture → exit 2; `review` against a typical fixture → exit 0. Spawn the CLI by an absolute path to `.agents/skills/session-observer/scripts/session-observer.mjs` (resolve via `import.meta.url`) — never a bare relative `scripts/...` path.
 - `locate --json` output is parseable JSON containing `{ winner, fallbacks }`.
 - `--runtime auto` with `SESSION_OBSERVER_SELF=claude-code` env resolves to `codex`.
 - `--runtime auto` with no env hint and candidates in both stores → exit 3 with `ambiguousRuntime: true` in the JSON payload.
@@ -513,7 +513,7 @@ git commit -m "feat(p04-t02): add CLI entrypoint with subcommand dispatch and ex
 `scripts/probe-local.mjs`:
 
 - Accept `--runtime <r>` and `--cwd <path>` (default `process.cwd()`).
-- Spawn the real CLI as `spawnSync('node', ['scripts/session-observer.mjs', 'review', '--runtime', runtime, '--cwd', cwd])` and pipe stdout/stderr to the caller.
+- Resolve the sibling CLI path with `fileURLToPath(new URL('./session-observer.mjs', import.meta.url))` so it works regardless of the caller's cwd, then spawn it as `spawnSync('node', [cliPath, 'review', '--runtime', runtime, '--cwd', cwd])` and pipe stdout/stderr to the caller. Never spawn a bare relative `scripts/session-observer.mjs`.
 - Print a brief header: which transcript store was searched, how many candidates were found, which won.
 
 Exit codes propagate from the CLI.
@@ -544,7 +544,7 @@ git commit -m "feat(p04-t03): add opt-in probe-local helper for manual verificat
 
 `tests/session-observer/integration.test.mjs`:
 
-- Setup: build a temp dir, populate `tempDir/.claude/projects/<encoded-cwd>/typical.jsonl` from the existing fixture. Set `HOME=tempDir`, `STATE_DIR=tempDir/.local/state/session-observer`.
+- Setup: build a temp dir, populate `tempDir/.claude/projects/<encoded-cwd>/typical.jsonl` from the existing fixture. Set `HOME=tempDir`, `STATE_DIR=tempDir/.local/state/session-observer`. Spawn the CLI by an absolute path to `.agents/skills/session-observer/scripts/session-observer.mjs` (resolve via `import.meta.url`) — never a bare relative `scripts/...` path.
 - Test 1: `review --runtime claude-code --cwd <cwd>` exits 0; stdout contains both `### User` and `### Assistant`; contains no `[Edit]` / `[Bash]` markers (tools excluded by default).
 - Test 2: `review --runtime claude-code --include-tools` exits 0; stdout contains compact tool markers; results still excluded.
 - Test 3: `review --debug` exits 0; stdout contains both tool markers and result markers.

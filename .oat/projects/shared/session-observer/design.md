@@ -81,7 +81,10 @@ The implementation borrows record-parsing patterns from Stoa's transcript adapte
 End-to-end `catch-up` invocation:
 
 ```
-1. SKILL.md   : "check again" → spawnSync('node', ['scripts/session-observer.mjs', 'catch-up'])
+1. SKILL.md   : "check again" → agent runs, via Bash:
+                node .agents/skills/session-observer/scripts/session-observer.mjs catch-up
+                (the CLI is invoked by its skill-relative path; .agents/skills/... is the
+                 in-repo location, the installed-skill location is used once installed)
 2. CLI        : parse argv → resolve runtime ('auto' → other-runtime via env hint / tier fallback)
 3. locate.mjs : discover candidates under ~/.claude/projects or ~/.codex/sessions
                 → for each: stat mtime + extractMeta(sessionId, recordedCwd)
@@ -138,6 +141,7 @@ async function main(argv) {
 
 - CLI uses `node:util parseArgs` (Node 22 stdlib) — no third-party arg parser, matches the repo's stdlib-only constraint.
 - Exit codes are part of the contract (SKILL.md branches on them to drive the ask flow). They are not redefined per-subcommand.
+- **Script resolution.** The CLI is invoked by its skill-relative path (`<skill-dir>/scripts/session-observer.mjs`); the SKILL.md body documents that path per install location. `probe-local.mjs` resolves its sibling CLI with `new URL('./session-observer.mjs', import.meta.url)` so it runs correctly regardless of the caller's cwd. No script — CLI or helper — is invoked by a bare relative `scripts/...` path.
 
 ### `scripts/lib/runtimes.mjs`
 
@@ -210,20 +214,25 @@ export async function gitWorktrees(cwd);             // string[] (worktree paths
 - Tier each candidate (A=exact-cwd, B=descendant-cwd, C=no match).
 - Within the top non-empty tier, sort by mtime DESC and return the winner plus fallbacks.
 - Detect ties (multiple candidates within `TIE_WINDOW_SEC = 5s` mtime distance of the winner).
-- On no match, populate `sisters` (from `gitWorktrees`) and `globalRecent` (top-5 by mtime across all candidates).
+- On no match, assemble the widening options into the result: `sisters` (from the `gitWorktrees` result injected via `opts`) and `globalRecent` (top-5 by mtime across all candidates).
 - Set `active: true` flag on the winner if `ageSec < ACTIVE_THRESHOLD_SEC = 60`.
 
 **Interfaces:**
 
 ```javascript
-export function rank(candidates, targetCwd, { tieWindowSec = 5 });
+export function rank(candidates, targetCwd, { tieWindowSec = 5, gitWorktrees = [], globalRecentProvider });
 // → { winner, tier, ties, fallbacks } | { winner: null, noMatch: true, sisters, globalRecent }
 ```
+
+**Dependencies:**
+
+- No dependency on `locate.mjs`. `rank` is a pure function over its inputs. The caller (the CLI) invokes `locate.gitWorktrees(cwd)` and passes the result in via `opts.gitWorktrees`, and supplies `opts.globalRecentProvider` for the no-match `globalRecent` list. This keeps `rank` independently testable — tests stub both via `opts` rather than monkeypatching an ESM export — and avoids a `rank → locate` import.
 
 **Design Decisions:**
 
 - **Tiered (lexicographic) ranking** instead of a weighted score. More predictable, easier to test, no magic constants beyond the tie window and active threshold.
-- **No auto-fall-through on no-match.** The CLI emits `noMatch` with options and exits 3; the SKILL.md does the asking. This is a binding decision from the brainstorm.
+- **No auto-fall-through on no-match.** The CLI emits `noMatch` with options and exits 2; the SKILL.md does the asking. This is a binding decision from the brainstorm.
+- **`rank` owns no I/O.** Worktree enumeration and candidate discovery live in `locate.mjs`; `rank` only classifies and orders what it is handed. The `sisters` / `globalRecent` widening options are assembled from injected `opts`, not fetched by `rank`.
 
 ### `scripts/lib/digest.mjs`
 
