@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-05-15
-oat_current_task_id: null
+oat_current_task_id: p07-t01
 oat_generated: false
 ---
 
@@ -30,8 +30,9 @@ oat_generated: false
 | Phase 4 | complete    | 4     | 4/4       |
 | Phase 5 | complete    | 3     | 3/3       |
 | Phase 6 | complete    | 2     | 2/2       |
+| Phase 7 | pending     | 4     | 0/4       |
 
-**Total:** 15/15 tasks completed
+**Total:** 15/19 tasks completed
 
 ---
 
@@ -219,6 +220,33 @@ All three Medium findings sit on dormant/edge-case paths (schema v1 is current s
 
 ---
 
+## Phase 7: Final Review Fixes
+
+**Status:** pending
+**Started:** -
+
+### Task p07-t01: (review) Read Codex payload.cwd in transcript metadata extraction
+
+**Status:** pending
+**Commit:** -
+
+### Task p07-t02: (review) Apply --session pinned override before tie and no-match returns
+
+**Status:** pending
+**Commit:** -
+
+### Task p07-t03: (review) Make rank.mjs Tier B path matching bidirectional
+
+**Status:** pending
+**Commit:** -
+
+### Task p07-t04: (review) Harden state.mjs backup and migration write paths
+
+**Status:** pending
+**Commit:** -
+
+---
+
 ## Orchestration Runs
 
 <!-- orchestration-runs-start -->
@@ -354,6 +382,31 @@ Two `artifact`-type reviews were received and resolved directly in the artifacts
 **Related hardening:** `plan.md` p04-t02 and p04-t04 now instruct the implementer to spawn the CLI by an `import.meta.url`-resolved absolute path so the relative-path trap is not reintroduced in the test tasks.
 
 Both review artifacts archived to `reviews/archived/`. No plan tasks were added; `plan.md` remains `oat_ready_for: oat-project-implement` with 15 tasks unchanged.
+
+---
+
+## Final Review Received
+
+### 2026-05-15 — final-scope code review
+
+**Review artifact:** `reviews/archived/final-review-2026-05-15.md`
+
+**Findings:** 1 Critical, 1 Important, 1 Medium, 2 Minor.
+
+**New tasks added (Phase 7 — `oat_ready_for: oat-project-implement`):**
+
+- `p07-t01` — (C1) Read Codex `payload.cwd` in `extractMeta`; cache `sessionId` with `recordedCwd`; add a `payload.cwd` fixture/test. Current Codex `session_meta` records store cwd under `payload.cwd`, so codex transcripts were resolving `recordedCwd: null` → noMatch.
+- `p07-t02` — (C1 recovery + I1) Apply the validated `--session` pinned override before the tie (exit 3) and no-match (exit 2) early returns in `runReview`/`runCatchUp`, so the documented recovery path works.
+- `p07-t03` — (M1) Make `rank.tierOf` Tier B bidirectional (either side a path-prefix of the other), per the spec's subdirectory-matching contract.
+- `p07-t04` — (3 deferred p01 Mediums + Minor m1, user-elected to fix now) Harden `state.mjs`: lock backup writes, persist `migrateIfNeeded` upgrades to disk, unique+atomic backup filenames, remove the unused `access` import.
+
+**Deferred Findings:**
+
+- **m2 (Minor)** — `implementation.md` `## Final Summary` placeholders + `state.md` `oat_phase_status: in_progress`. Deferred with rationale: this is closeout metadata that the normal finalization flow resolves on its own — `oat-project-implement` keeps `oat_phase_status: in_progress` by design until the final review passes, and the Final Summary is filled at implementation-complete / `oat-project-pr-final`. No fix task needed.
+
+**Step 8.5 deferred-Medium ledger:** the 3 previously-deferred p01 `state.mjs` Mediums (`load()` lock, `migrateIfNeeded` persistence, backup-clobber atomicity) were resurfaced; the user elected to **convert all 3** to fix tasks (folded into `p07-t04`) rather than carry the deferral.
+
+**Next:** Execute Phase 7 via `oat-project-implement` (starts at `p07-t01`). After the fix tasks complete, re-run `oat-project-review-provide code final` then `oat-project-review-receive` to reach `passed`.
 
 ---
 
