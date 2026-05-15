@@ -58,7 +58,7 @@ oat_generated: false
 
 **Verification:** `node --test tests/session-observer/state.test.mjs` → 11 pass / 0 fail.
 
-**Review:** p01 phase-gate review → **PASS** (0 Critical, 0 Important). 3 Medium + 2 Minor non-blocking findings recorded in `reviews/p01-review-2026-05-15.md`:
+**Review:** p01 phase-gate review → **PASS** (0 Critical, 0 Important). 3 Medium + 2 Minor non-blocking findings recorded in `reviews/archived/p01-review-2026-05-15.md`:
 
 - M1 — `load()`'s callee writes backup files (corrupt/migration) without the `mutate` lock.
 - M2 — `migrateIfNeeded` upgrades the in-memory object but does not persist the upgraded `state.json`.
@@ -257,13 +257,13 @@ All three Medium findings sit on dormant/edge-case paths (schema v1 is current s
 
 #### Outstanding Items
 
-- p01 review recorded 3 Medium + 2 Minor non-blocking findings (`reviews/p01-review-2026-05-15.md`). All on dormant/edge-case paths in `state.mjs`; deferred to final review.
-- p02 first review FAIL (2 Critical — tool-marker format diverged from spec); fixed in `b4b3bd0`; re-review PASS (`reviews/p02-rereview-2026-05-15.md`). 1 Minor (`payload.cwd` fallback for Codex `extractMeta`) carried forward — revisit during p05-t03 / final review.
-- p03 review PASS with 2 Minor non-blocking findings (`reviews/p03-review-2026-05-15.md`): (1) the Codex cwd-cache still re-calls `extractMeta` for `sessionId` after a cache hit, so it yields correct results but no real speedup — fix by caching `sessionId` alongside `recordedCwd`; (2) `rank.tierOf` uses raw string equality rather than `realpath`-normalized comparison (spec failure mode #14, symlinked cwds). Both carried to the final review.
+- p01 review recorded 3 Medium + 2 Minor non-blocking findings (`reviews/archived/p01-review-2026-05-15.md`). All on dormant/edge-case paths in `state.mjs`; deferred to final review.
+- p02 first review FAIL (2 Critical — tool-marker format diverged from spec); fixed in `b4b3bd0`; re-review PASS (`reviews/archived/p02-rereview-2026-05-15.md`). 1 Minor (`payload.cwd` fallback for Codex `extractMeta`) carried forward — revisit during p05-t03 / final review.
+- p03 review PASS with 2 Minor non-blocking findings (`reviews/archived/p03-review-2026-05-15.md`): (1) the Codex cwd-cache still re-calls `extractMeta` for `sessionId` after a cache hit, so it yields correct results but no real speedup — fix by caching `sessionId` alongside `recordedCwd`; (2) `rank.tierOf` uses raw string equality rather than `realpath`-normalized comparison (spec failure mode #14, symlinked cwds). Both carried to the final review.
 - **Parallel group [p04, p05] degraded to sequential.** `oat-worktree-bootstrap-auto`'s baseline-check contract requires `pnpm run worktree:init`; this repo is a plain npm project (Node stdlib only; package.json scripts are `test`/`validate`/`smoke`, no `worktree:init`), so a strict worktree bootstrap fails by construction. Per the orchestrator's bootstrap-failure rule, p04 and p05 run sequentially on the orchestration branch with the normal per-phase dispatch/review/fix loop. Write sets are disjoint (p04 → `scripts/` + `tests/`, p05 → SKILL.md body + `references/`), so sequential execution is correct — only wall-clock parallelism is lost. No worktrees created; no fan-in merge.
-- p04 review PASS with 3 Minor non-blocking findings (`reviews/p04-review-2026-05-15.md`): (1) `runCatchUp` calls `markRead` even when `newRecords === 0` — a redundant locked write on a no-op `catch-up`; behavior stays correct; (2) `tierOf` raw string equality vs `realpath` — same p03 carry-over; (3) exit code 4 (schema mismatch) is documented but never produced by any CLI path — likely intentionally reserved. All carried to the final review.
-- p05 first review FAIL (1 Important — `state reset --session` documented but not wired into the CLI; 2 Minor). Fixed in `e615b21` (wired `--session` into the CLI reset handler + new `cli.test.mjs` case; aligned the EBUSY doc wording and a doc path reference). Re-review PASS, 0 findings (`reviews/p05-rereview-2026-05-15.md`).
-- p06 review PASS (`reviews/p06-review-2026-05-15.md`). 2 Minor, both out of p06 scope: (1) `plan.md`/`design.md` carry a stale `oat_last_updated: 2026-05-14` — normalize at PR-final; (2) `implementation.md` `## Final Summary` placeholders — filled at implementation-complete / before `oat-project-pr-final`.
+- p04 review PASS with 3 Minor non-blocking findings (`reviews/archived/p04-review-2026-05-15.md`): (1) `runCatchUp` calls `markRead` even when `newRecords === 0` — a redundant locked write on a no-op `catch-up`; behavior stays correct; (2) `tierOf` raw string equality vs `realpath` — same p03 carry-over; (3) exit code 4 (schema mismatch) is documented but never produced by any CLI path — likely intentionally reserved. All carried to the final review.
+- p05 first review FAIL (1 Important — `state reset --session` documented but not wired into the CLI; 2 Minor). Fixed in `e615b21` (wired `--session` into the CLI reset handler + new `cli.test.mjs` case; aligned the EBUSY doc wording and a doc path reference). Re-review PASS, 0 findings (`reviews/archived/p05-rereview-2026-05-15.md`).
+- p06 review PASS (`reviews/archived/p06-review-2026-05-15.md`). 2 Minor, both out of p06 scope: (1) `plan.md`/`design.md` carry a stale `oat_last_updated: 2026-05-14` — normalize at PR-final; (2) `implementation.md` `## Final Summary` placeholders — filled at implementation-complete / before `oat-project-pr-final`.
 
 <!-- orchestration-runs-end -->
 
