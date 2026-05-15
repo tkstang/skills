@@ -252,10 +252,39 @@ test('tierOf: Tier A for exact cwd match', () => {
   assert.equal(tierOf(candidate, TARGET_CWD), 'A');
 });
 
-test('tierOf: Tier B for descendant cwd', () => {
+test('tierOf: Tier B for descendant cwd (recordedCwd under targetCwd)', () => {
   if (!tierOf) return;
   const candidate = mkCandidate({ recordedCwd: TARGET_CWD + '/subdir/nested' });
   assert.equal(tierOf(candidate, TARGET_CWD), 'B');
+});
+
+test('tierOf: Tier B for ancestor cwd (targetCwd under recordedCwd)', () => {
+  // Session was started at the repo root (/tmp/project), agent invoked from a subdir
+  // e.g. tierOf({ recordedCwd: '/tmp/project' }, '/tmp/project/src') → 'B'
+  if (!tierOf) return;
+  const candidate = mkCandidate({ recordedCwd: '/tmp/project' });
+  assert.equal(tierOf(candidate, '/tmp/project/src'), 'B');
+});
+
+test('tierOf: Tier C when recordedCwd is a prefix of targetCwd but not path-boundary-safe', () => {
+  // /foo/barbaz should NOT match /foo/bar — the '/foo/bar' + '/' check prevents this
+  if (!tierOf) return;
+  const candidate = mkCandidate({ recordedCwd: '/foo/bar' });
+  assert.equal(tierOf(candidate, '/foo/barbaz'), 'C');
+});
+
+test('rank: Tier B bidirectional — ancestor recordedCwd yields a winner', () => {
+  // Session started at /tmp/project, target is /tmp/project/src → should be Tier B winner
+  const ancestorCandidate = mkCandidate({
+    recordedCwd: '/tmp/project',
+    mtime: Math.floor(Date.now() / 1000) - 10,
+    ageSec: 10,
+    sessionId: 'sess-ancestor',
+  });
+  const result = rank([ancestorCandidate], '/tmp/project/src');
+  assert.ok(result.winner, 'should have a winner');
+  assert.equal(result.winner.sessionId, 'sess-ancestor');
+  assert.equal(result.tier, 'B');
 });
 
 test('tierOf: Tier C for no match', () => {

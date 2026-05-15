@@ -33,9 +33,12 @@ const ACTIVE_THRESHOLD_SEC = 60;
  * Classify a candidate against a target cwd.
  *
  * Tier A: recordedCwd matches targetCwd exactly.
- * Tier B: targetCwd is a proper prefix of recordedCwd (descendant).
- *         We check for an exact path prefix: targetCwd + '/' to avoid
- *         false matches like /foo/bar matching /foo/barbaz.
+ * Tier B: either side is a path-prefix of the other (bidirectional), using a
+ *         path-boundary-safe check (append '/' sentinel to avoid false matches
+ *         like /foo/bar matching /foo/barbaz). This covers two cases:
+ *           (a) recordedCwd starts with targetCwd + '/' — session started in a subdir
+ *           (b) targetCwd starts with recordedCwd + '/' — agent invoked in a subdir,
+ *               session was started at the repo root
  * Tier C: no relationship.
  *
  * Null recordedCwd → Tier C.
@@ -48,8 +51,9 @@ export function tierOf(candidate, targetCwd) {
   const { recordedCwd } = candidate;
   if (!recordedCwd) return 'C';
   if (recordedCwd === targetCwd) return 'A';
-  // Tier B: candidate is under targetCwd (e.g. a subdir was the cwd when the session started)
+  // Tier B: bidirectional path-prefix check (path-boundary-safe)
   if (recordedCwd.startsWith(targetCwd + '/')) return 'B';
+  if (targetCwd.startsWith(recordedCwd + '/')) return 'B';
   return 'C';
 }
 
