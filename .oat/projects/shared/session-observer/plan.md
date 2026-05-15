@@ -793,8 +793,9 @@ git commit -m "chore(p06-t02): record manual local probe verification results"
 | p05    | code     | pending | -    | -        |
 | p06    | code     | pending | -    | -        |
 | final  | code     | pending | -    | -        |
-| spec   | artifact | pending | -    | -        |
-| design | artifact | pending | -    | -        |
+| spec   | artifact | pending  | -          | -                                               |
+| design | artifact | received | 2026-05-14 | reviews/artifact-design-review-2026-05-14.md   |
+| plan   | artifact | received | 2026-05-14 | reviews/artifact-plan-review-2026-05-14.md     |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 
