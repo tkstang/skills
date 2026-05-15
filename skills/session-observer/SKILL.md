@@ -1,11 +1,15 @@
 ---
 name: session-observer
-version: 1.0.0
 description: Use when checking what the other coding agent (Claude Code or Codex) just did in this project, reviewing a peer session, or catching up on new messages. Locates the active transcript, renders a tool-free digest, and tracks per-runtime read offsets.
+license: MIT
+compatibility: Agent Skills baseline; requires Node.js 22+. No third-party runtime dependencies.
 argument-hint: '[review|catch-up|locate|state] [--runtime <claude-code|codex|auto>] [--debug]'
 disable-model-invocation: false
 user-invocable: true
 allowed-tools: Bash, Read, AskUserQuestion
+metadata:
+  author: thomas.stang
+  version: "1.0.0"
 ---
 
 # session-observer
@@ -97,7 +101,7 @@ The CLI lives at the skill's install location. In this repository it is at:
 <skill-dir>/scripts/session-observer.mjs
 ```
 
-where `<skill-dir>` is `.agents/skills/session-observer` (repo-relative) or the installed path on the user's machine.
+where `<skill-dir>` is `skills/session-observer` (repo-relative) or the installed path on the user's machine.
 
 **Basic invocation pattern:**
 
@@ -174,23 +178,23 @@ If you used `review` and want the same bookkeeping, pass `--mark-read`.
 
 ```bash
 # Check what Codex just did in this project
-node .agents/skills/session-observer/scripts/session-observer.mjs \
+node skills/session-observer/scripts/session-observer.mjs \
   review --runtime codex --cwd "$PWD"
 
 # Catch up on new Codex activity since last check
-node .agents/skills/session-observer/scripts/session-observer.mjs \
+node skills/session-observer/scripts/session-observer.mjs \
   catch-up --runtime codex --cwd "$PWD"
 
 # Include tool calls in the digest (compact markers)
-node .agents/skills/session-observer/scripts/session-observer.mjs \
+node skills/session-observer/scripts/session-observer.mjs \
   review --runtime codex --include-tools
 
 # Full debug view (tool calls + results)
-node .agents/skills/session-observer/scripts/session-observer.mjs \
+node skills/session-observer/scripts/session-observer.mjs \
   review --runtime codex --debug
 
 # Limit output to the last 10 turn groups
-node .agents/skills/session-observer/scripts/session-observer.mjs \
+node skills/session-observer/scripts/session-observer.mjs \
   review --runtime codex --max-turns 10
 ```
 
@@ -201,7 +205,7 @@ node .agents/skills/session-observer/scripts/session-observer.mjs \
 **Agent:** I'll run a review of the Codex session for this project.
 
 ```bash
-node .agents/skills/session-observer/scripts/session-observer.mjs \
+node skills/session-observer/scripts/session-observer.mjs \
   review --runtime codex --cwd "$PWD"
 ```
 
@@ -274,11 +278,11 @@ Use the opt-in probe helper to test against your real transcript stores:
 
 ```bash
 # Claude Code transcripts
-node .agents/skills/session-observer/scripts/probe-local.mjs \
+node skills/session-observer/scripts/probe-local.mjs \
   --runtime claude-code --cwd "$PWD"
 
 # Codex transcripts
-node .agents/skills/session-observer/scripts/probe-local.mjs \
+node skills/session-observer/scripts/probe-local.mjs \
   --runtime codex --cwd "$PWD"
 ```
 
