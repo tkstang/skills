@@ -186,6 +186,14 @@ All three Medium findings sit on dormant/edge-case paths (schema v1 is current s
 
 ---
 
+## Deviations from Plan
+
+| ID | Phase | Description | Fix Commit |
+|----|-------|-------------|------------|
+| D1 | p04/p05 | `state reset --session <runtime>:<sessionId>` was documented in SKILL.md (p05) but the CLI `reset` handler (p04) never read `args.session` — it required `--runtime` and always called `resetByRuntime`. Fixed in p05 fix pass: `--session` is now parsed in the `reset` case; when present the handler calls `stateLib.resetBySession(runtime, sessionId)` instead. A new `cli.test.mjs` case verifies the per-session reset zeroes exactly one entry and leaves others intact. | see fix commit below |
+
+---
+
 ## Phase 6: Validation
 
 **Status:** pending

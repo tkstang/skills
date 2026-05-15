@@ -236,9 +236,9 @@ Both Claude Code and Codex have sessions for this cwd. `--runtime auto` can't pi
 
 **Recovery:** Re-run with `--runtime claude-code` or `--runtime codex`.
 
-### Lock exhausted (exit 1, `EBUSY`)
+### Lock exhausted (exit 1)
 
-Another `session-observer` process holds the state lock and did not release it.
+Another `session-observer` process holds the state lock and did not release it. The CLI exits 1 with a `Failed to ... could not acquire lock after N retries` message.
 
 **Recovery:** Check for a stuck process. If none, remove the lock file:
 

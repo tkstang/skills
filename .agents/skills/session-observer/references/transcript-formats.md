@@ -1,6 +1,6 @@
 # Transcript Formats Reference
 
-Short reference for the Claude Code and Codex JSONL record shapes that `scripts/lib/runtimes.mjs` parses. These formats may drift between runtime releases; the canonical parsing logic lives in `runtimes.mjs`.
+Short reference for the Claude Code and Codex JSONL record shapes that `<skill-dir>/scripts/lib/runtimes.mjs` parses. These formats may drift between runtime releases; the canonical parsing logic lives in `runtimes.mjs`.
 
 ---
 

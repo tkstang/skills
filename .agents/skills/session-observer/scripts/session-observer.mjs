@@ -542,8 +542,37 @@ async function runState(args) {
     }
 
     case 'reset': {
+      // --session <runtime>:<sessionId> takes priority over --runtime
+      if (args.session) {
+        const sep = args.session.indexOf(':');
+        if (sep === -1) {
+          return emitError(
+            '--session must be in <runtime>:<sessionId> format (e.g. codex:abc123)',
+            1
+          );
+        }
+        const sessionRuntime = args.session.slice(0, sep);
+        const sessionId = args.session.slice(sep + 1);
+        if (!VALID_RUNTIMES.includes(sessionRuntime)) {
+          return emitError(
+            `Unknown runtime in --session: ${sessionRuntime}. Use claude-code or codex.`,
+            1
+          );
+        }
+        try {
+          await stateLib.resetBySession(sessionRuntime, sessionId);
+          if (json) return emitJson({ reset: true, runtime: sessionRuntime, sessionId }, 0);
+          return emit(`Reset session: ${sessionRuntime}:${sessionId}`, 0);
+        } catch (err) {
+          return emitError(`Failed to reset state: ${err.message}`, 1);
+        }
+      }
+
       if (!runtime || runtime === 'auto') {
-        return emitError('--runtime is required for state reset (use claude-code or codex)', 1);
+        return emitError(
+          '--runtime is required for state reset (use claude-code or codex), or use --session <runtime>:<sessionId>',
+          1
+        );
       }
       if (!VALID_RUNTIMES.includes(runtime)) {
         return emitError(`Unknown runtime: ${runtime}. Use claude-code or codex.`, 1);

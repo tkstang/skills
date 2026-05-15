@@ -277,4 +277,69 @@ describe('state subcommand', () => {
       await rm(tmpDir, { recursive: true, force: true });
     }
   });
+
+  test('state reset --session <r>:<id> resets one entry and leaves others intact', async (t) => {
+    const tmpDir = await mkdtemp(join(tmpdir(), 'cli-test-'));
+    try {
+      const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
+      await mkdir(stateDir, { recursive: true });
+
+      // Pre-populate state.json with two sessions, both with non-zero offsets.
+      const initialState = {
+        schemaVersion: 1,
+        sessions: {
+          'codex:abc123': {
+            runtime: 'codex',
+            sessionId: 'abc123',
+            transcriptPath: '/tmp/codex.jsonl',
+            recordedCwd: '/tmp',
+            lastRecordIndex: 42,
+            lastTotalRecords: 42,
+            lastReadAt: '2026-05-14T10:00:00.000Z',
+          },
+          'claude-code:xyz789': {
+            runtime: 'claude-code',
+            sessionId: 'xyz789',
+            transcriptPath: '/tmp/claude.jsonl',
+            recordedCwd: '/tmp',
+            lastRecordIndex: 17,
+            lastTotalRecords: 17,
+            lastReadAt: '2026-05-14T09:00:00.000Z',
+          },
+        },
+      };
+      await writeFile(
+        join(stateDir, 'state.json'),
+        JSON.stringify(initialState, null, 2),
+        'utf8'
+      );
+
+      // Reset only codex:abc123.
+      const result = spawnCli(
+        ['state', 'reset', '--session', 'codex:abc123'],
+        { HOME: tmpDir, STATE_DIR: stateDir }
+      );
+      assert.equal(result.status, 0, `state reset --session should exit 0\nstderr: ${result.stderr}`);
+
+      // Verify via state get --json that codex:abc123 is zeroed and claude-code:xyz789 is untouched.
+      const getResult = spawnCli(
+        ['state', 'get', '--json'],
+        { HOME: tmpDir, STATE_DIR: stateDir }
+      );
+      assert.equal(getResult.status, 0, `state get should exit 0\nstderr: ${getResult.stderr}`);
+
+      const state = JSON.parse(getResult.stdout);
+      const codexSession = state.sessions['codex:abc123'];
+      const claudeSession = state.sessions['claude-code:xyz789'];
+
+      assert.ok(codexSession, 'codex:abc123 session should still exist in state');
+      assert.equal(codexSession.lastRecordIndex, 0, 'codex:abc123 lastRecordIndex should be reset to 0');
+      assert.equal(codexSession.lastTotalRecords, 0, 'codex:abc123 lastTotalRecords should be reset to 0');
+
+      assert.ok(claudeSession, 'claude-code:xyz789 session should still exist in state');
+      assert.equal(claudeSession.lastRecordIndex, 17, 'claude-code:xyz789 lastRecordIndex should be unchanged');
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
 });
