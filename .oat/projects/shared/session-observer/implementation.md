@@ -1,5 +1,5 @@
 ---
-oat_status: in_progress
+oat_status: complete
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-05-15
@@ -259,6 +259,16 @@ Four fixes applied in one coherent pass:
 - (m1) Removed unused `access` import from the `node:fs/promises` import list.
 Updated state.test.mjs: existing migration test updated to expect new `state.json.v0-*` filename pattern; added 2 new cases: migration persists to disk (re-read returns schemaVersion 1), backup uniqueness (two corrupt loads produce two distinct filenames).
 
+### Phase 7 Summary
+
+**Outcome:** All 5 findings from the final-scope code review are resolved. Codex transcripts whose `session_meta` stores `cwd` under `payload.cwd` now match the active project (was the Critical that broke bidirectional Codex inspection). The documented `--session` recovery path now works — it is applied before the tie (exit 3) and no-match (exit 2) returns. `rank.tierOf` Tier B is bidirectional, so a session started at a repo root matches when the agent runs from a subdirectory. `state.mjs` backup/migration write paths are hardened (locked backups, persisted migration, unique atomic backup filenames).
+
+**Key files:** `scripts/lib/runtimes.mjs`, `scripts/lib/locate.mjs`, `scripts/lib/rank.mjs`, `scripts/lib/state.mjs`, `scripts/session-observer.mjs`, `tests/session-observer/fixtures/codex/payload-cwd.jsonl`, and the four affected test files.
+
+**Verification:** `npm test` → 226/226 pass; `npm run validate` → passed.
+
+**Review:** p07 phase-gate review → **PASS** (0 Critical, 0 Important). 1 Minor non-blocking finding (`load()` unlocked-backup residual) recorded in `reviews/archived/p07-review-2026-05-15.md` — bounded, no fix task.
+
 ---
 
 ## Orchestration Runs
@@ -306,6 +316,31 @@ Updated state.test.mjs: existing migration test updated to expect new `state.jso
 - p04 review PASS with 3 Minor non-blocking findings (`reviews/archived/p04-review-2026-05-15.md`): (1) `runCatchUp` calls `markRead` even when `newRecords === 0` — a redundant locked write on a no-op `catch-up`; behavior stays correct; (2) `tierOf` raw string equality vs `realpath` — same p03 carry-over; (3) exit code 4 (schema mismatch) is documented but never produced by any CLI path — likely intentionally reserved. All carried to the final review.
 - p05 first review FAIL (1 Important — `state reset --session` documented but not wired into the CLI; 2 Minor). Fixed in `e615b21` (wired `--session` into the CLI reset handler + new `cli.test.mjs` case; aligned the EBUSY doc wording and a doc path reference). Re-review PASS, 0 findings (`reviews/archived/p05-rereview-2026-05-15.md`).
 - p06 review PASS (`reviews/archived/p06-review-2026-05-15.md`). 2 Minor, both out of p06 scope: (1) `plan.md`/`design.md` carry a stale `oat_last_updated: 2026-05-14` — normalize at PR-final; (2) `implementation.md` `## Final Summary` placeholders — filled at implementation-complete / before `oat-project-pr-final`.
+
+### Run 2 — 2026-05-15
+
+**Branch:** chore/new-skill-brainstorm
+**Tier:** 1 (subagents)
+**Policy:** merge-strategy=merge, retry-limit=2
+**Phases:** 1 executed, 1 passed, 0 failed, 0 stopped
+
+#### Phase Outcomes
+
+| Phase | Implementer | Review | Fix Iterations | Disposition |
+| ----- | ----------- | ------ | -------------- | ----------- |
+| p07   | DONE        | pass   | 0/2            | committed   |
+
+#### Parallel Groups
+
+- p07: sequential
+
+#### Dispatch Notes
+
+- Dispatch: p07 — model_axis=selected:sonnet, effort_axis=not-applicable (Claude Code; final-review fix tasks — Codex payload.cwd, --session ordering, bidirectional Tier B, state.mjs hardening).
+
+#### Outstanding Items
+
+- p07 review PASS (`reviews/archived/p07-review-2026-05-15.md`) with 1 Minor non-blocking finding: `load()`'s direct (unlocked) path can still write a backup file. Bounded — `load()` writes no `state.json`, and unique `Date.now()-pid` backup names prevent any clobber; consistent with the final review's "dormant/edge-case" disposition of p01-M1. No fix task.
 
 <!-- orchestration-runs-end -->
 
@@ -438,21 +473,40 @@ Both review artifacts archived to `reviews/archived/`. No plan tasks were added;
 | 2     | 39        | 39     | 0      | all plan cases covered |
 | 3     | 60        | 60     | 0      | all plan cases covered |
 | 4     | 91        | 91     | 0      | all plan cases covered |
-| 5     | -         | -      | -      | -        |
-| 6     | -         | -      | -      | -        |
-| 7     | 226       | 226    | 0      | all p07 fix cases covered (+10 new tests) |
+| 5     | 92        | 92     | 0      | session-observer suite after p05 fix (+1 test) |
+| 6     | 216       | 216    | 0      | full `npm test` repo suite at p06 |
+| 7     | 226       | 226    | 0      | full `npm test` repo suite; +10 new p07 fix tests |
 
 ## Final Summary (for PR/docs)
 
-**What shipped:** (to be filled at end of implementation)
+**What shipped:** `session-observer` — a portable, user-installable Agent Skill at `.agents/skills/session-observer/` that lets Claude Code and Codex inspect each other's transcripts for the active project. v1 ships four CLI subcommands:
 
-**Behavioral changes (user-facing):** (to be filled)
+- `review` — one-shot tool-free digest of the most relevant peer session.
+- `catch-up` — incremental digest of only the records added since the last check, via a per-`(runtime, sessionId)` high-water mark.
+- `locate` — ranked candidate list as JSON.
+- `state` — manage the read-offset store (`get` / `reset --runtime` / `reset --session` / `clear`).
 
-**Key files / modules:** (to be filled)
+The continuous `watch` mode is designed (`references/watch-design.md`) but intentionally not implemented in v1.
 
-**Verification performed:** (to be filled)
+**Behavioral changes (user-facing):** New skill only — no change to existing repo behavior. The skill adds runtime code under `.agents/skills/session-observer/scripts/` and a test suite under `tests/session-observer/`. State is written only to `~/.local/state/session-observer/`; transcripts are read-only; no network calls; no Stoa runtime dependency.
 
-**Design deltas (if any):** (to be filled)
+**Key files / modules:**
+
+- `.agents/skills/session-observer/SKILL.md` — agent-facing skill (frontmatter + workflow + examples).
+- `scripts/session-observer.mjs` — CLI entrypoint (subcommand dispatch, exit-code contract, `--runtime auto`, `--session` pinned override).
+- `scripts/lib/{runtimes,locate,rank,digest,state}.mjs` — per-runtime transcript adapters, candidate discovery, tier ranking, digest builder/renderer, atomic lock-protected state.
+- `scripts/probe-local.mjs` — opt-in manual verification helper.
+- `references/watch-design.md`, `references/transcript-formats.md` — frozen watcher design + JSONL format reference.
+- `tests/session-observer/**` — 226 tests (8 module/integration test files + fixtures).
+
+**Verification performed:** `npm test` → 226/226 pass; `npm run validate` → passed; `npm run smoke` available. Manual `probe-local.mjs` run against the user's real `~/.claude/projects` and `~/.codex/sessions` (exit 2 / noMatch — expected for the current worktree path). Every phase passed a Tier 1 `oat-reviewer` phase-gate review; the final-scope review's findings were all fixed in Phase 7.
+
+**Design deltas (if any):**
+
+- p02-t02 — tool markers render as `[Name] args` / `[Name → result] output` (the design's `[Tool]` was a tool-name placeholder); a `tool_use_id → name` correlation map was added.
+- p07-t04 — backup filenames are `state.json.v0-<ts>-<pid>.bak` (not the plan's fixed `state.v0.json.bak`) so repeat migrations/corruptions cannot clobber a prior backup.
+- The `[p04, p05]` parallel group degraded to sequential — `oat-worktree-bootstrap-auto` requires a `pnpm run worktree:init` script this npm-only repo lacks; write-disjoint, so sequential execution was correct.
+- One Minor residual deferred: `load()`'s direct path can write a backup outside the `mutate` lock — bounded (no `state.json` write, unique backup names), consistent with the final review's dormant-path disposition.
 
 ## References
 
