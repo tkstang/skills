@@ -1,0 +1,11 @@
+{"type":"session_started","sessionId":"codex-session-002","cwd":"/Users/testuser/Code/my-project","timestamp":"2026-05-14T11:00:00Z"}
+{"type":"response_item","sessionId":"codex-session-002","payload":{"type":"message","role":"user","content":"Run the tests and show me the output.","id":"msg-101"}}
+{"type":"response_item","sessionId":"codex-session-002","payload":{"type":"function_call","name":"shell","arguments":{"command":"npm test"},"id":"fc-101"}}
+{"type":"response_item","sessionId":"codex-session-002","payload":{"type":"function_call","name":"shell","arguments":{"command":"cat test-results.json"},"id":"fc-102"}}
+{"type":"response_item","sessionId":"codex-session-002","payload":{"type":"message","role":"assistant","content":"The tests ran successfully. All 11 tests passed with 0 failures.","id":"msg-102"}}
+{"type":"response_item","sessionId":"codex-session-002","payload":{"type":"message","role":"user","content":"Now lint the code.","id":"msg-103"}}
+{"type":"response_item","sessionId":"codex-session-002","payload":{"type":"function_call","name":"shell","arguments":{"command":"npm run lint"},"id":"fc-103"}}
+{"type":"response_item","sessionId":"codex-session-002","payload":{"type":"message","role":"assistant","content":"Linting completed with no errors or warnings.","id":"msg-104"}}
+{"type":"response_item","sessionId":"codex-session-002","payload":{"type":"message","role":"user","content":"Perfect. Commit the changes.","id":"msg-105"}}
+{"type":"response_item","sessionId":"codex-session-002","payload":{"type":"function_call","name":"shell","arguments":{"command":"git add -A && git commit -m 'feat: add new feature'"},"id":"fc-104"}}
+{"type":"response_item","sessionId":"codex-session-002","payload":{"type":"message","role":"assistant","content":"Changes committed successfully.","id":"msg-106"}}

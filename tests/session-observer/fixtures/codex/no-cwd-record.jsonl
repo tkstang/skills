@@ -1,0 +1,4 @@
+{"type":"response_item","sessionId":"codex-session-003","payload":{"type":"message","role":"user","content":"This session has no cwd in its session-meta record.","id":"msg-201"}}
+{"type":"response_item","sessionId":"codex-session-003","payload":{"type":"message","role":"assistant","content":"That is correct. Some older sessions or sessions started without a cwd field will not have the cwd in the session-meta record.","id":"msg-202"}}
+{"type":"response_item","sessionId":"codex-session-003","payload":{"type":"message","role":"user","content":"How do you handle that?","id":"msg-203"}}
+{"type":"response_item","sessionId":"codex-session-003","payload":{"type":"message","role":"assistant","content":"The extractMeta function returns null for recordedCwd when no cwd can be found.","id":"msg-204"}}

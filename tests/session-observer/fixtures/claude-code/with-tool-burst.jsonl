@@ -1,0 +1,11 @@
+{"sessionId":"cc-session-002","type":"summary","summary":"Tool-heavy session"}
+{"type":"user","message":{"role":"user","content":"Please list all the files and then read the package.json."},"sessionId":"cc-session-002"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"I'll list the files first."},{"type":"tool_use","id":"tool_a","name":"Bash","input":{"command":"ls -la"}}]},"sessionId":"cc-session-002"}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tool_a","content":"total 48\ndrwxr-xr-x  src\n-rw-r--r--  package.json\n-rw-r--r--  tsconfig.json"}]},"sessionId":"cc-session-002"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Now let me read package.json."},{"type":"tool_use","id":"tool_b","name":"Read","input":{"file_path":"package.json"}}]},"sessionId":"cc-session-002"}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tool_b","content":"{\"name\":\"my-project\",\"version\":\"1.0.0\",\"scripts\":{\"test\":\"node --test\"}}"}]},"sessionId":"cc-session-002"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"I can see the project uses Node's built-in test runner. Let me also check the tsconfig."},{"type":"tool_use","id":"tool_c","name":"Read","input":{"file_path":"tsconfig.json"}}]},"sessionId":"cc-session-002"}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tool_c","content":"{\"compilerOptions\":{\"target\":\"ES2022\",\"module\":\"NodeNext\"}}"}]},"sessionId":"cc-session-002"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"The project is well configured. It uses ES2022 with NodeNext module resolution. Everything looks good for the refactoring task."}]},"sessionId":"cc-session-002"}
+{"type":"user","message":{"role":"user","content":"Great summary! Thank you."},"sessionId":"cc-session-002"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"You're welcome! Let me know if you need anything else."}]},"sessionId":"cc-session-002"}

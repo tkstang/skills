@@ -1,0 +1,6 @@
+{"sessionId":"cc-session-003","type":"summary","summary":"Session with a malformed line"}
+{"type":"user","message":{"role":"user","content":"This is a normal message."},"sessionId":"cc-session-003"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Understood. Here is a normal response."}]},"sessionId":"cc-session-003"}
+THIS LINE IS NOT JSON — it was corrupted during write
+{"type":"user","message":{"role":"user","content":"Continuing after the bad line."},"sessionId":"cc-session-003"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Looks like a transcript corruption happened above. Continuing normally."}]},"sessionId":"cc-session-003"}

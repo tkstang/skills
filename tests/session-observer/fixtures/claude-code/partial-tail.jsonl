@@ -1,0 +1,5 @@
+{"sessionId":"cc-session-004","type":"summary","summary":"Session with partial trailing line"}
+{"type":"user","message":{"role":"user","content":"Please write me a haiku."},"sessionId":"cc-session-004"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Old pond, frog leaps in / Water's echo disappears / Silence returns now"}]},"sessionId":"cc-session-004"}
+{"type":"user","message":{"role":"user","content":"Beautiful! One more please."},"sessionId":"cc-session-004"}
+{"partial-line-truncated-mid-write":true,"type":"assistant","message":{"role":"ass
