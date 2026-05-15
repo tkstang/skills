@@ -248,7 +248,7 @@ Both review artifacts archived to `reviews/archived/`. No plan tasks were added;
 
 | Task | Planned | Actual | Reason |
 | ---- | ------- | ------ | ------ |
-| -    | -       | -      | -      |
+| p02-t02 | `[Tool: Name] args` / `[Tool → result] output` (emitted in original impl) | `[Name] args` / `[Name → result] output` with `toolName` set on tool_result entries; added first-pass `tool_use_id → name` correlation map in `normalizeClaudeCode` | p02 phase-gate review (Critical #1 + #2): marker format diverged from source-of-truth spec. Fixed in commit b4b3bd0. |
 
 ## Test Results
 
