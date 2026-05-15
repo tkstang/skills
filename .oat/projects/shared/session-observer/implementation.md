@@ -350,6 +350,16 @@ Updated state.test.mjs: existing migration test updated to expect new `state.jso
 
 _Append session entries below as `oat-project-implement` runs._
 
+### 2026-05-15 — Post-implementation: skill relocated to `skills/` for distribution
+
+After implementation completed, the skill was moved out of `.agents/skills/session-observer/` to `skills/session-observer/`. The plan/design/spec were authored against `.agents/skills/` (the `create-agnostic-skill` convention), but this repo's README designates `skills/` as the distribution home for standalone skills and `.agents/` as non-consumer project tooling — and `scripts/validate.mjs` only scans `skills/` + `plugins/*/skills/`, so the skill had never actually been validated.
+
+- `git mv` the skill to `skills/session-observer/`; `.agents/skills/session-observer` is now a symlink to it (for in-repo OAT/provider use).
+- Updated the 7 `tests/session-observer/*.test.mjs` path references and the `SKILL.md` command examples from `.agents/skills/` to `skills/`.
+- Added `license`, `compatibility`, and a `metadata.version` frontmatter block so the skill satisfies `validate.mjs`'s standalone-skill contract.
+- OAT project artifacts (`plan.md`, `design.md`, `spec`, `implementation.md`) intentionally keep their `.agents/skills/` path references — not rewritten, per user direction.
+- Commits: `db8fb0e` (move + symlink + test refs), `8b1afd6` (SKILL.md content). `npm test` 226/226, `npm run validate` + `npm run smoke` pass.
+
 ---
 
 ## Manual Verification
@@ -464,6 +474,7 @@ Both review artifacts archived to `reviews/archived/`. No plan tasks were added;
 | Task | Planned | Actual | Reason |
 | ---- | ------- | ------ | ------ |
 | p02-t02 | `[Tool: Name] args` / `[Tool → result] output` (emitted in original impl) | `[Name] args` / `[Name → result] output` with `toolName` set on tool_result entries; added first-pass `tool_use_id → name` correlation map in `normalizeClaudeCode` | p02 phase-gate review (Critical #1 + #2): marker format diverged from source-of-truth spec. Fixed in commit b4b3bd0. |
+| post-impl (all phases) | Skill authored under `.agents/skills/session-observer/` per plan/design/spec | Relocated to `skills/session-observer/`; `.agents/skills/session-observer` left as a symlink. Test path refs + SKILL.md examples repointed; `license`/`compatibility`/`metadata.version` frontmatter added. | This repo's README designates `skills/` as the distribution home for standalone skills (`.agents/` is non-consumer tooling), and `validate.mjs` only scans `skills/`. Commits `db8fb0e`, `8b1afd6`. See Implementation Log 2026-05-15 entry. |
 
 ## Test Results
 
@@ -507,6 +518,7 @@ The continuous `watch` mode is designed (`references/watch-design.md`) but inten
 - p07-t04 — backup filenames are `state.json.v0-<ts>-<pid>.bak` (not the plan's fixed `state.v0.json.bak`) so repeat migrations/corruptions cannot clobber a prior backup.
 - The `[p04, p05]` parallel group degraded to sequential — `oat-worktree-bootstrap-auto` requires a `pnpm run worktree:init` script this npm-only repo lacks; write-disjoint, so sequential execution was correct.
 - One Minor residual deferred: `load()`'s direct path can write a backup outside the `mutate` lock — bounded (no `state.json` write, unique backup names), consistent with the final review's dormant-path disposition.
+- Post-implementation relocation: the skill ships from `skills/session-observer/` (not `.agents/skills/`, which the plan/design assumed) — `skills/` is this repo's distribution home; `.agents/skills/session-observer` is a symlink for in-repo use. SKILL.md frontmatter gained `license`/`compatibility`/`metadata.version` to satisfy `validate.mjs`. See the 2026-05-15 Implementation Log entry.
 
 ## References
 
