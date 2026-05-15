@@ -186,25 +186,28 @@ All three Medium findings sit on dormant/edge-case paths (schema v1 is current s
 **Branch:** chore/new-skill-brainstorm
 **Tier:** 1 (subagents)
 **Policy:** merge-strategy=merge, retry-limit=2
-**Phases:** 1 executed, 1 passed, 0 failed, 0 stopped
+**Phases:** 2 executed, 2 passed, 0 failed, 0 stopped
 
 #### Phase Outcomes
 
-| Phase | Implementer | Review | Fix Iterations | Disposition |
-| ----- | ----------- | ------ | -------------- | ----------- |
-| p01   | DONE        | pass   | 0/2            | committed   |
+| Phase | Implementer | Review            | Fix Iterations | Disposition |
+| ----- | ----------- | ----------------- | -------------- | ----------- |
+| p01   | DONE        | pass              | 0/2            | committed   |
+| p02   | DONE        | pass (after fix)  | 1/2            | committed   |
 
 #### Parallel Groups
 
-- p01: sequential
+- p01, p02: sequential
 
 #### Dispatch Notes
 
 - Dispatch: p01 — model_axis=selected:sonnet, effort_axis=not-applicable (Claude Code; skill scaffolding + state module with file-locking).
+- Dispatch: p02 — model_axis=selected:sonnet, effort_axis=not-applicable (Claude Code; per-runtime transcript adapters + fixtures). Fix dispatch (1 iteration) used the same axes.
 
 #### Outstanding Items
 
 - p01 review recorded 3 Medium + 2 Minor non-blocking findings (`reviews/p01-review-2026-05-15.md`). All on dormant/edge-case paths in `state.mjs`; deferred to final review.
+- p02 first review FAIL (2 Critical — tool-marker format diverged from spec); fixed in `b4b3bd0`; re-review PASS (`reviews/p02-rereview-2026-05-15.md`). 1 Minor (`payload.cwd` fallback for Codex `extractMeta`) carried forward — revisit during p05-t03 / final review.
 
 <!-- orchestration-runs-end -->
 
