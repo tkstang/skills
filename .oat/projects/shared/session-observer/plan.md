@@ -929,7 +929,7 @@ git commit -m "fix(p07-t04): harden state.mjs backup and migration write paths"
 | p05    | code     | passed  | 2026-05-15 | reviews/archived/p05-rereview-2026-05-15.md |
 | p06    | code     | passed  | 2026-05-15 | reviews/archived/p06-review-2026-05-15.md |
 | p07    | code     | passed  | 2026-05-15 | reviews/archived/p07-review-2026-05-15.md |
-| final  | code     | fixes_added | 2026-05-15 | reviews/archived/final-review-2026-05-15.md |
+| final  | code     | received | 2026-05-15 | reviews/final-rereview-2026-05-15.md |
 | spec   | artifact | pending  | -          | -                                               |
 | design | artifact | received | 2026-05-14 | reviews/artifact-design-review-2026-05-14.md   |
 | plan   | artifact | received | 2026-05-14 | reviews/artifact-plan-review-2026-05-14.md     |
