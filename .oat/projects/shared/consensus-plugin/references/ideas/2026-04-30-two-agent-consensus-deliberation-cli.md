@@ -1,1 +1,0 @@
-/Users/thomas.stang/Library/Mobile Documents/iCloud~md~obsidian/Documents/Vault/02 - Projects/Open Agent Toolkit/Ideas/2026-04-30-two-agent-consensus-deliberation-cli.md

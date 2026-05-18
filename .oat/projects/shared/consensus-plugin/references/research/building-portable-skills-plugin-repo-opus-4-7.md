@@ -1,1 +1,0 @@
-/Users/thomas.stang/Library/Mobile Documents/iCloud~md~obsidian/Documents/Vault/04 - Resources/Research/AI Plugins/building-portable-skills-plugin-repo-opus-4-7.md
