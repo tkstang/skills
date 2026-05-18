@@ -1,0 +1,33 @@
+import assert from 'node:assert/strict';
+import { lstat, readFile } from 'node:fs/promises';
+import test from 'node:test';
+
+const repoRoot = new URL('..', import.meta.url);
+const requiredDocs = ['README.md', 'LICENSE', 'CHANGELOG.md', 'CONTRIBUTING.md', 'RELEASING.md'];
+
+async function read(relativePath) {
+  return readFile(new URL(relativePath, repoRoot), 'utf8');
+}
+
+test('baseline documentation files exist', async () => {
+  for (const docPath of requiredDocs) {
+    const contents = await read(docPath);
+    assert.ok(contents.trim().length > 0, `${docPath} should not be empty`);
+  }
+});
+
+test('README documents install matrix, permissions, and limitations', async () => {
+  const readme = await read('README.md');
+
+  assert.match(readme, /^## Install Matrix$/m);
+  assert.match(readme, /^## Permissions$/m);
+  assert.match(readme, /^## Limitations$/m);
+});
+
+test('license, changelog, and provider docs contract are present', async () => {
+  assert.match(await read('LICENSE'), /MIT License/);
+  assert.match(await read('CHANGELOG.md'), /## \[0\.1\.0\] - Unreleased/);
+
+  const claude = await lstat(new URL('CLAUDE.md', repoRoot));
+  assert.equal(claude.isSymbolicLink(), true);
+});

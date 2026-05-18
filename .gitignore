@@ -11,3 +11,11 @@
 .oat/projects/**/pr/
 .oat/projects/**/reviews/archived/
 # END OAT local paths
+
+# Node/runtime outputs
+node_modules/
+.consensus/
+tmp/
+temp/
+*.tmp
+# END Node/runtime outputs

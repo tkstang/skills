@@ -1,0 +1,29 @@
+{
+  "name": "consensus",
+  "version": "0.1.0",
+  "description": "Consensus deliberation skills for refining drafts with multiple AI peers.",
+  "license": "MIT",
+  "skills": [
+    {
+      "name": "consensus-refine",
+      "path": "./skills/consensus-refine"
+    }
+  ],
+  "permissions": {
+    "exec": {
+      "allow": ["node", "paseo"]
+    }
+  },
+  "interface": {
+    "kind": "skill-plugin",
+    "status": "placeholder",
+    "entrypoint": "consensus-refine"
+  },
+  "metadata": {
+    "provider": "codex",
+    "permission_declaration": "provisional",
+    "release_checklist": [
+      "Verify exec permission shape and skill path syntax against the Codex runtime through local plugin installation before v0.1 tagging."
+    ]
+  }
+}
