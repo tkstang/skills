@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-05-21
-oat_current_task_id: prev1-t04
+oat_current_task_id: prev1-t05
 oat_generated: false
 ---
 
@@ -31,9 +31,9 @@ oat_generated: false
 | Phase 5 | complete    | 3     | 3/3       |
 | Phase 6 | complete    | 2     | 2/2       |
 | Phase 7 | complete    | 4     | 4/4       |
-| Phase p-rev1 | in_progress | 5 | 3/5 |
+| Phase p-rev1 | in_progress | 5 | 4/5 |
 
-**Total:** 22/24 tasks completed
+**Total:** 23/24 tasks completed
 
 ---
 
@@ -322,10 +322,14 @@ Implemented Cursor candidate discovery with direct encoded-cwd lookup and fallba
 
 ### Task prev1-t04: (revision) Wire Cursor through CLI, state, and auto-runtime behavior
 
-**Status:** pending
-**Commit:** pending
+**Status:** complete
+**Commit:** d5d19e1
 
 Expose `cursor` through CLI validation/help, state reset, pinned sessions, `probe-local`, and three-runtime `--runtime auto` ambiguity handling.
+
+Added Cursor to CLI runtime validation, help text, pinned `--session`, state reset validation, `probe-local`, and three-runtime `--runtime auto` behavior. Auto now chooses the only other runtime with candidates when `SESSION_OBSERVER_SELF` is set, prefers a single previously read same-cwd runtime from state, and otherwise returns `ambiguousRuntime` with all matching runtimes.
+
+**Verification:** `node --test tests/session-observer/cli.test.mjs tests/session-observer/integration.test.mjs` → 34/34 pass.
 
 ### Task prev1-t05: (revision) Update docs and validate Cursor support end-to-end
 
@@ -470,6 +474,14 @@ Committed Cursor transcript discovery and weak slug-evidence ranking as `214918f
 **Verification:** `node --test tests/session-observer/locate.test.mjs tests/session-observer/rank.test.mjs` → 32/32 pass.
 
 **Next:** `prev1-t04` — wire Cursor through CLI, state, auto-runtime behavior, and probe-local.
+
+### 2026-05-21 — prev1-t04 complete: Cursor CLI/state/probe wiring
+
+Committed Cursor CLI wiring as `d5d19e1` (`feat(prev1-t04): wire Cursor runtime through session-observer CLI`). The public runtime surface now accepts `cursor` for review/catch-up/locate, pinned sessions, state reset, auto-runtime resolution, and `probe-local`.
+
+**Verification:** `node --test tests/session-observer/cli.test.mjs tests/session-observer/integration.test.mjs` → 34/34 pass.
+
+**Next:** `prev1-t05` — update docs, run end-to-end validation, refresh installed copies, and record final spike evidence.
 
 ### 2026-05-15 — Post-implementation: skill relocated to `skills/` for distribution
 
