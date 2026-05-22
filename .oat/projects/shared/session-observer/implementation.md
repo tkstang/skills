@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-05-22
-oat_current_task_id: prev1-t12
+oat_current_task_id: prev1-t13
 oat_generated: false
 ---
 
@@ -31,9 +31,9 @@ oat_generated: false
 | Phase 5 | complete    | 3     | 3/3       |
 | Phase 6 | complete    | 2     | 2/2       |
 | Phase 7 | complete    | 4     | 4/4       |
-| Phase p-rev1 | in_progress | 13 | 11/13 |
+| Phase p-rev1 | in_progress | 13 | 12/13 |
 
-**Total:** 30/32 tasks completed
+**Total:** 31/32 tasks completed
 
 ---
 
@@ -430,12 +430,14 @@ Added a shared catch-up mark-read guard that preserves first-read initialization
 
 ### Task prev1-t12: (review) Add Cursor digest smoke coverage
 
-**Status:** pending
-**Commit:** pending
+**Status:** complete
+**Commit:** a627796
 
 Review-generated follow-up from `p-rev1-review-2026-05-22.md`: add direct `buildDigest('cursor', ...)` smoke coverage in `digest.test.mjs`.
 
-**Verification:** pending.
+Added a direct Cursor runtime `buildDigest` smoke test using the Cursor typical fixture.
+
+**Verification:** `node --test tests/session-observer/digest.test.mjs` → 17/17 pass.
 
 ### Task prev1-t13: (review) Lock load-time state backup writes
 

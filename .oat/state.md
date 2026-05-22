@@ -19,7 +19,7 @@ oat_generated_at: 2026-05-22
 | Phase | implement |
 | Status | in_progress |
 | HiLL Gate | n/a |
-| Current Task | prev1-t12 |
+| Current Task | prev1-t13 |
 | Docs Updated | ⚠ not yet run |
 
 Details: `.oat/projects/shared/session-observer/state.md`
