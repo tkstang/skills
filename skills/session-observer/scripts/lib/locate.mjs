@@ -411,17 +411,20 @@ async function collectCursorAgentTranscripts(transcriptsRoot) {
  * @param {string | null} evidence.recordedCwd
  * @param {string} evidence.cwdSlug
  * @param {string} evidence.cwdEvidence
+ * @param {import('node:fs').Stats | null} [fileStat]
  * @returns {Promise<object | null>}
  */
-async function cursorCandidate(transcriptPath, now, evidence) {
-  let fileStat;
-  try {
-    fileStat = await stat(transcriptPath);
-  } catch {
-    return null;
+async function cursorCandidate(transcriptPath, now, evidence, fileStat = null) {
+  let resolvedStat = fileStat;
+  if (!resolvedStat) {
+    try {
+      resolvedStat = await stat(transcriptPath);
+    } catch {
+      return null;
+    }
   }
 
-  const mtime = Math.floor(fileStat.mtime.getTime() / 1000);
+  const mtime = Math.floor(resolvedStat.mtime.getTime() / 1000);
   const ageSec = now - mtime;
 
   let meta;
@@ -439,7 +442,7 @@ async function cursorCandidate(transcriptPath, now, evidence) {
     cwdSlug: evidence.cwdSlug,
     cwdEvidence: evidence.cwdEvidence,
     mtime,
-    size: fileStat.size,
+    size: resolvedStat.size,
     ageSec,
   };
 }
@@ -516,7 +519,7 @@ async function discoverCursor(targetCwd) {
         recordedCwd: null,
         cwdSlug: projectDir.name,
         cwdEvidence: 'project-dir-slug',
-      });
+      }, fileStat);
       if (candidate) candidates.push(candidate);
     }
   }
