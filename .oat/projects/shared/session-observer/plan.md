@@ -1,8 +1,8 @@
 ---
 oat_status: complete
-oat_ready_for: oat-project-implement
+oat_ready_for: oat-project-review-provide
 oat_blockers: []
-oat_last_updated: 2026-05-21
+oat_last_updated: 2026-05-22
 oat_phase: plan
 oat_phase_status: complete
 oat_plan_hill_phases: ["p06"]
@@ -1388,8 +1388,8 @@ git commit -m "fix(prev1-t13): lock load-time state backups"
 | p05    | code     | passed  | 2026-05-15 | reviews/archived/p05-rereview-2026-05-15.md |
 | p06    | code     | passed  | 2026-05-15 | reviews/archived/p06-review-2026-05-15.md |
 | p07    | code     | passed  | 2026-05-15 | reviews/archived/p07-review-2026-05-15.md |
-| p-rev1 | code     | fixes_added | 2026-05-22 | reviews/archived/p-rev1-review-2026-05-22.md |
-| final  | code     | fixes_added | 2026-05-22 | reviews/archived/final-rereview-2026-05-15.md |
+| p-rev1 | code     | fixes_completed | 2026-05-22 | reviews/archived/p-rev1-review-2026-05-22.md |
+| final  | code     | fixes_completed | 2026-05-22 | reviews/archived/final-rereview-2026-05-15.md |
 | spec   | artifact | pending  | -          | -                                               |
 | design | artifact | received | 2026-05-14 | reviews/artifact-design-review-2026-05-14.md   |
 | plan   | artifact | received | 2026-05-14 | reviews/artifact-plan-review-2026-05-14.md     |
@@ -1413,7 +1413,7 @@ git commit -m "fix(prev1-t13): lock load-time state backups"
 
 **Total: 32 tasks**
 
-Ready for p-rev1/final review-fix implementation. Not ready for final code review or merge until `prev1-t06` through `prev1-t13` complete and p-rev1/final re-reviews pass.
+Ready for focused p-rev1/final re-review. Not ready for merge until p-rev1/final re-reviews pass.
 
 ---
 

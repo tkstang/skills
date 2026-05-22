@@ -17,9 +17,9 @@ oat_generated_at: 2026-05-22
 |-------|-------|
 | Mode | quick |
 | Phase | implement |
-| Status | in_progress |
+| Status | complete |
 | HiLL Gate | n/a |
-| Current Task | prev1-t13 |
+| Current Task | - |
 | Docs Updated | ⚠ not yet run |
 
 Details: `.oat/projects/shared/session-observer/state.md`
@@ -35,7 +35,7 @@ Details: `.oat/projects/shared/session-observer/state.md`
 
 ## Recommended Next Step
 
-**oat-project-implement** - Continue implementation
+**oat-project-document** - Sync documentation before generating PR
 
 ## Quick Commands
 

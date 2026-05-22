@@ -1,9 +1,9 @@
 ---
-oat_status: in_progress
-oat_ready_for: null
+oat_status: complete
+oat_ready_for: oat-project-review-provide
 oat_blockers: []
 oat_last_updated: 2026-05-22
-oat_current_task_id: prev1-t13
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -31,9 +31,9 @@ oat_generated: false
 | Phase 5 | complete    | 3     | 3/3       |
 | Phase 6 | complete    | 2     | 2/2       |
 | Phase 7 | complete    | 4     | 4/4       |
-| Phase p-rev1 | in_progress | 13 | 12/13 |
+| Phase p-rev1 | complete | 13 | 13/13 |
 
-**Total:** 31/32 tasks completed
+**Total:** 32/32 tasks completed
 
 ---
 
@@ -441,12 +441,14 @@ Added a direct Cursor runtime `buildDigest` smoke test using the Cursor typical 
 
 ### Task prev1-t13: (review) Lock load-time state backup writes
 
-**Status:** pending
-**Commit:** pending
+**Status:** complete
+**Commit:** c5351c5
 
 Review-generated follow-up from `final-rereview-2026-05-15.md`: route backup writes triggered by the public `load()` path through locking, or otherwise make backup ownership explicit and safe, removing the residual bounded race noted in final re-review.
 
-**Verification:** pending.
+`load()` now acquires the state lock before reading because corrupt JSON and v0 migration paths can write backup files. State tests cover waiting on an existing lock before corrupt backup creation.
+
+**Verification:** `node --test tests/session-observer/state.test.mjs` → 14/14 pass.
 
 ---
 
@@ -542,6 +544,27 @@ Review-generated follow-up from `final-rereview-2026-05-15.md`: route backup wri
 #### Outstanding Items
 
 - p-rev1 review PASS (`reviews/p-rev1-review-2026-05-21.md`) with 1 Minor non-blocking finding: pinned `--session <runtime:id>` does not bypass `--runtime auto` ambiguity before runtime resolution. Bounded — explicit `--runtime cursor --session cursor:<id>` works and is tested. No fix task added.
+
+### Run 4 — 2026-05-22
+
+**Branch:** chore/new-skill-brainstorm
+**Tier:** 2 (inline)
+**Policy:** direct execution per user instruction for single-task review fixes
+**Phases:** p-rev1 review fixes executed, 8 tasks completed, 0 failed, 0 stopped
+
+#### Phase Outcomes
+
+| Phase | Implementer | Review | Fix Iterations | Disposition |
+| ----- | ----------- | ------ | -------------- | ----------- |
+| p-rev1 review fixes | DONE | pending re-review | 0/2 | committed |
+
+#### Dispatch Notes
+
+- Executed `prev1-t06` through `prev1-t13` inline: pinned-session auto-runtime bypass, Cursor parser fixture parity, Cursor empty-direct fallback documentation/test, fallback stat reuse, symlink-normalized cwd ranking, no-op catch-up write elision, Cursor digest smoke coverage, and lock-protected load-time state backups.
+
+#### Outstanding Items
+
+- p-rev1 and final review rows are now `fixes_completed`; run focused p-rev1/final re-reviews next.
 
 <!-- orchestration-runs-end -->
 

@@ -1,13 +1,13 @@
 ---
-oat_current_task: prev1-t13
-oat_last_commit: a627796
+oat_current_task: null
+oat_last_commit: c5351c5
 oat_blockers: []
 associated_issues: []
 oat_hill_checkpoints: []
 oat_hill_completed: []
 oat_parallel_execution: false
 oat_phase: implement
-oat_phase_status: in_progress
+oat_phase_status: complete
 oat_workflow_mode: quick
 oat_workflow_origin: native
 oat_docs_updated: null
@@ -15,27 +15,27 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: "2026-05-15T02:45:07.398Z"
 oat_project_completed: null
-oat_project_state_updated: "2026-05-22T17:03:00Z"
+oat_project_state_updated: "2026-05-22T17:13:00Z"
 oat_generated: false
 ---
 
 # Project State: session-observer
 
-**Status:** Implementation revision
+**Status:** Implementation revision fixes complete
 **Started:** 2026-05-14
 **Last Updated:** 2026-05-22
 
 ## Current Phase
 
-Implementation — revision phase p-rev1 has review-fix tasks queued from p-rev1 and final receive-review. Current task: `prev1-t13`.
+Implementation — revision phase p-rev1 review-fix tasks are complete. Ready for focused p-rev1/final re-review.
 
 ## Artifacts
 
 - **Discovery:** `discovery.md` (complete)
 - **Spec:** N/A (quick mode — source-of-truth is `.superpowers/specs/2026-05-14-session-observer-design.md`)
 - **Design:** `design.md` (lightweight, complete)
-- **Plan:** `plan.md` (complete; `oat_ready_for: oat-project-implement`)
-- **Implementation:** `implementation.md` (initialized; `oat_current_task_id: p01-t01`)
+- **Plan:** `plan.md` (complete; `oat_ready_for: oat-project-review-provide`)
+- **Implementation:** `implementation.md` (complete; `oat_current_task_id: null`)
 
 ## Progress
 
@@ -61,6 +61,7 @@ Implementation — revision phase p-rev1 has review-fix tasks queued from p-rev1
 - ✓ Revision p-rev1 `prev1-t10` complete: cwd ranking now normalizes symlink-equivalent paths
 - ✓ Revision p-rev1 `prev1-t11` complete: no-op catch-up skips redundant state writes
 - ✓ Revision p-rev1 `prev1-t12` complete: Cursor digest smoke coverage added
+- ✓ Revision p-rev1 `prev1-t13` complete: load-time state backups are lock-protected
 
 ## Blockers
 
@@ -68,4 +69,4 @@ None
 
 ## Next Milestone
 
-Execute `prev1-t13` via `oat-project-implement`, then re-review p-rev1 and final.
+Run focused p-rev1/final re-reviews, then proceed to final project closeout if they pass.
