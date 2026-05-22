@@ -61,3 +61,29 @@ Codex transcripts follow the record shape used in `~/.codex/sessions/**/*.jsonl`
 ### partial-tail.jsonl
 
 5 lines where the last line is truncated mid-write. Used to verify that `readRecords` drops the partial trailing line with a warning (same as claude-code/partial-tail.jsonl).
+
+---
+
+## cursor/
+
+Cursor agent transcripts follow the record shape used in `~/.cursor/projects/<encoded-project>/agent-transcripts/<session-id>/<session-id>.jsonl`:
+- `record.role` - `user` or `assistant` at the top level
+- `record.message.content` - string or array of content blocks
+- text blocks use `type: text`
+- tool calls use `type: tool_use`
+
+### typical.jsonl
+
+3 records: a short user/assistant exchange with text blocks only. Used to verify record parsing, message extraction, and direct Cursor `buildDigest` coverage.
+
+### with-tool-use.jsonl
+
+2 records: assistant content with text plus a `tool_use` block. Used to verify that Cursor tool calls are filtered by default and included as compact markers when `includeToolCalls` is enabled.
+
+### malformed.jsonl
+
+5 lines, one of which is not valid JSON. Used to verify tolerant parsing for Cursor-shaped transcripts: `readRecords` warns, skips the bad line, and preserves valid records before and after it.
+
+### partial-tail.jsonl
+
+5 lines where the last line is truncated mid-write. Used to verify that `readRecords` drops the partial trailing line with a warning for Cursor-shaped transcripts.
