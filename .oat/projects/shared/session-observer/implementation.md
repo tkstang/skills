@@ -31,9 +31,9 @@ oat_generated: false
 | Phase 5 | complete    | 3     | 3/3       |
 | Phase 6 | complete    | 2     | 2/2       |
 | Phase 7 | complete    | 4     | 4/4       |
-| Phase p-rev1 | in_progress | 6 | 5/6 |
+| Phase p-rev1 | in_progress | 13 | 5/13 |
 
-**Total:** 24/25 tasks completed
+**Total:** 24/32 tasks completed
 
 ---
 
@@ -360,12 +360,79 @@ Docs updated to include Cursor in runtime examples, flag docs, troubleshooting, 
 
 **Review:** p-rev1 phase-gate review → **PASS** (0 Critical, 0 Important). 1 Minor non-blocking finding recorded in `reviews/archived/p-rev1-review-2026-05-21.md`: pinned `--session <runtime:id>` does not bypass `--runtime auto` ambiguity. Converted to review-fix task `prev1-t06` by review receive because the fix is small and likely useful future cleanup.
 
+**Second-look review:** `reviews/archived/p-rev1-review-2026-05-22.md` independently re-confirmed the same pinned-session finding and added six additional Minor polish/parity findings. Per user direction to incorporate other feedback, the additional findings were converted to `prev1-t07` through `prev1-t12`.
+
+**Final re-review receive:** `reviews/archived/final-rereview-2026-05-15.md` had 0 Critical, 0 Important, 0 Medium, and 1 Minor. Per user direction to incorporate other feedback, the bounded load-time backup-locking residual was converted to `prev1-t13`.
+
 ### Task prev1-t06: (review) Fix pinned-session auto-runtime ambiguity
 
 **Status:** pending
 **Commit:** pending
 
 Review-generated follow-up for p-rev1 Minor `m1`: parse and validate pinned `--session <runtime:id>` before `--runtime auto` resolution so `--runtime auto --session cursor:<id>` uses the pinned runtime instead of failing on multi-runtime ambiguity.
+
+**Verification:** pending.
+
+### Task prev1-t07: (review) Add Cursor malformed and partial-tail fixtures
+
+**Status:** pending
+**Commit:** pending
+
+Review-generated follow-up from `p-rev1-review-2026-05-22.md`: add Cursor malformed and partial-tail JSONL fixtures plus `readRecords` tests so Cursor has parity with Claude/Codex parser-tolerance coverage.
+
+**Verification:** pending.
+
+### Task prev1-t08: (review) Document Cursor direct-hit fallback behavior
+
+**Status:** pending
+**Commit:** pending
+
+Review-generated follow-up from `p-rev1-review-2026-05-22.md`: document and test the intentional Cursor behavior where an empty direct transcript directory does not suppress fallback project-dir scans.
+
+**Verification:** pending.
+
+### Task prev1-t09: (review) Avoid duplicate stat in Cursor fallback discovery
+
+**Status:** pending
+**Commit:** pending
+
+Review-generated follow-up from `p-rev1-review-2026-05-22.md`: avoid statting Cursor fallback transcript files twice during discovery while preserving the existing 7-day lookback behavior.
+
+**Verification:** pending.
+
+### Task prev1-t10: (review) Normalize symlinked cwd paths before ranking
+
+**Status:** pending
+**Commit:** pending
+
+Review-generated follow-up from `p-rev1-review-2026-05-22.md`: normalize symlink-equivalent cwd paths before Tier A/B ranking comparisons so paths like `/tmp/foo` and `/private/tmp/foo` can match on macOS.
+
+**Verification:** pending.
+
+### Task prev1-t11: (review) Skip no-op catch-up state writes
+
+**Status:** pending
+**Commit:** pending
+
+Review-generated follow-up from `p-rev1-review-2026-05-22.md`: avoid unnecessary `markRead` locked writes when catch-up consumes no new records and existing state already matches the current offset.
+
+**Verification:** pending.
+
+### Task prev1-t12: (review) Add Cursor digest smoke coverage
+
+**Status:** pending
+**Commit:** pending
+
+Review-generated follow-up from `p-rev1-review-2026-05-22.md`: add direct `buildDigest('cursor', ...)` smoke coverage in `digest.test.mjs`.
+
+**Verification:** pending.
+
+### Task prev1-t13: (review) Lock load-time state backup writes
+
+**Status:** pending
+**Commit:** pending
+
+Review-generated follow-up from `final-rereview-2026-05-15.md`: route backup writes triggered by the public `load()` path through locking, or otherwise make backup ownership explicit and safe, removing the residual bounded race noted in final re-review.
 
 **Verification:** pending.
 
@@ -490,6 +557,33 @@ _Append session entries below as `oat-project-implement` runs._
 **New tasks added:** `prev1-t06`
 
 **Next:** Execute `prev1-t06` via `oat-project-implement`, then update p-rev1 review status to `fixes_completed` and re-run `oat-project-review-provide code p-rev1`.
+
+### 2026-05-22 — Additional reviews received: p-rev1 second look + final re-review
+
+**Review artifacts:**
+
+- `reviews/archived/p-rev1-review-2026-05-22.md`
+- `reviews/archived/final-rereview-2026-05-15.md`
+
+**Findings:**
+
+- p-rev1 second look: 0 Critical, 0 Important, 0 Medium, 7 Minor. One Minor duplicated `prev1-t06`; the remaining six were converted.
+- final re-review: 0 Critical, 0 Important, 0 Medium, 1 Minor. Converted per user direction to incorporate other feedback.
+
+**Disposition:**
+
+- `m1` (duplicate) — Pinned sessions do not bypass auto-runtime ambiguity. Already tracked as `prev1-t06`.
+- `m2` — Cursor fixture parity is thinner than Claude/Codex. Converted to `prev1-t07`.
+- `m3` — Cursor empty direct-dir fallback behavior should be explicit. Converted to `prev1-t08`.
+- `m4` — Cursor fallback discovery stats files twice. Converted to `prev1-t09`.
+- `m5` — Ranking still lacks realpath/symlink normalization. Converted to `prev1-t10`.
+- `m6` — No-op catch-up writes state unnecessarily. Converted to `prev1-t11`.
+- `m7` — Cursor digest coverage is inherited rather than direct. Converted to `prev1-t12`.
+- `final-m1` — `load()` can still write backup files outside the lock. Converted to `prev1-t13`.
+
+**New tasks added:** `prev1-t07` through `prev1-t13`
+
+**Next:** Execute `prev1-t06` through `prev1-t13` via `oat-project-implement`, then update p-rev1 and final review rows to `fixes_completed` and run focused re-reviews.
 
 ### 2026-05-21 — Revision received: dogfood hardening + Cursor target support
 

@@ -1166,6 +1166,217 @@ git commit -m "fix(prev1-t06): honor pinned sessions before auto runtime"
 
 ---
 
+### Task prev1-t07: (review) Add Cursor malformed and partial-tail fixtures
+
+**Files:**
+
+- Create: `tests/session-observer/fixtures/cursor/malformed.jsonl`
+- Create: `tests/session-observer/fixtures/cursor/partial-tail.jsonl`
+- Modify: `tests/session-observer/runtimes.test.mjs`
+
+**Step 1: Understand the issue**
+
+Review finding: Cursor fixture coverage is thinner than Claude/Codex; tolerant JSONL parsing is shared, but Cursor-flavored malformed and partial-tail fixtures would catch future Cursor-specific parser drift.
+Location: `tests/session-observer/fixtures/cursor/`
+
+**Step 2: Implement fix**
+
+Add Cursor malformed and partial-tail JSONL fixtures mirroring the existing Claude/Codex tolerance cases. Add `readRecords` tests for Cursor warn-and-skip and warn-and-drop behavior.
+
+**Step 3: Verify**
+
+Run: `node --test tests/session-observer/runtimes.test.mjs`
+Expected: Cursor fixture parity tests pass.
+
+**Step 4: Commit**
+
+```bash
+git add tests/session-observer/fixtures/cursor tests/session-observer/runtimes.test.mjs
+git commit -m "test(prev1-t07): add Cursor malformed transcript fixtures"
+```
+
+---
+
+### Task prev1-t08: (review) Document Cursor direct-hit fallback behavior
+
+**Files:**
+
+- Modify: `skills/session-observer/scripts/lib/locate.mjs`
+- Modify: `tests/session-observer/locate.test.mjs`
+
+**Step 1: Understand the issue**
+
+Review finding: Cursor direct lookup currently falls back to global project-dir scans when an encoded direct directory exists but has no JSONL transcripts; Claude suppresses fallback once the encoded directory is readable. This is acceptable, but the branch-specific behavior is easy to miss if Cursor gains more slug variants.
+Location: `skills/session-observer/scripts/lib/locate.mjs:461-482`
+
+**Step 2: Implement fix**
+
+Document the intentional Cursor behavior in `locate.mjs` strategy comments and add/adjust a targeted locate test proving an empty direct Cursor transcript directory still allows fallback candidates.
+
+**Step 3: Verify**
+
+Run: `node --test tests/session-observer/locate.test.mjs`
+Expected: Cursor fallback behavior is documented and covered.
+
+**Step 4: Commit**
+
+```bash
+git add skills/session-observer/scripts/lib/locate.mjs tests/session-observer/locate.test.mjs
+git commit -m "test(prev1-t08): document Cursor empty-direct fallback"
+```
+
+---
+
+### Task prev1-t09: (review) Avoid duplicate stat in Cursor fallback discovery
+
+**Files:**
+
+- Modify: `skills/session-observer/scripts/lib/locate.mjs`
+- Modify: `tests/session-observer/locate.test.mjs`
+
+**Step 1: Understand the issue**
+
+Review finding: `discoverCursor` stats fallback transcript files once for the 7-day cutoff and then `cursorCandidate()` stats them again to build the candidate. This is correct but unnecessary I/O.
+Location: `skills/session-observer/scripts/lib/locate.mjs:502-517`
+
+**Step 2: Implement fix**
+
+Allow `cursorCandidate()` to accept a pre-read `fileStat` (or equivalent mtime/size values) and pass it from fallback discovery so each fallback transcript is statted only once.
+
+**Step 3: Verify**
+
+Run: `node --test tests/session-observer/locate.test.mjs`
+Expected: Cursor direct/fallback discovery tests still pass.
+
+**Step 4: Commit**
+
+```bash
+git add skills/session-observer/scripts/lib/locate.mjs tests/session-observer/locate.test.mjs
+git commit -m "fix(prev1-t09): avoid duplicate Cursor transcript stat"
+```
+
+---
+
+### Task prev1-t10: (review) Normalize symlinked cwd paths before ranking
+
+**Files:**
+
+- Modify: `skills/session-observer/scripts/lib/rank.mjs`
+- Modify: `tests/session-observer/rank.test.mjs`
+
+**Step 1: Understand the issue**
+
+Review finding: `rank.tierOf` still compares raw path strings, so symlink-equivalent paths such as `/tmp/foo` and `/private/tmp/foo` may fail to match on macOS.
+Location: `skills/session-observer/scripts/lib/rank.mjs:50-58`
+
+**Step 2: Implement fix**
+
+Add realpath normalization for `recordedCwd` and `targetCwd` before Tier A/B comparison, falling back to the original path when realpath fails. Preserve the current synchronous `tierOf` API or introduce a compatible async ranking path only if necessary.
+
+**Step 3: Verify**
+
+Run: `node --test tests/session-observer/rank.test.mjs`
+Expected: existing rank tests pass and symlink-equivalent cwd coverage is added.
+
+**Step 4: Commit**
+
+```bash
+git add skills/session-observer/scripts/lib/rank.mjs tests/session-observer/rank.test.mjs
+git commit -m "fix(prev1-t10): normalize cwd paths before ranking"
+```
+
+---
+
+### Task prev1-t11: (review) Skip no-op catch-up state writes
+
+**Files:**
+
+- Modify: `skills/session-observer/scripts/session-observer.mjs`
+- Modify: `tests/session-observer/cli.test.mjs`
+- Modify: `tests/session-observer/integration.test.mjs`
+
+**Step 1: Understand the issue**
+
+Review finding: `runCatchUp` calls `markRead` even when `digest.range.newRecords === 0`, causing unnecessary locked writes and lock contention for no-op catch-up runs.
+Location: `skills/session-observer/scripts/session-observer.mjs:629-639`
+
+**Step 2: Implement fix**
+
+Guard catch-up state writes so the CLI skips `markRead` when no new raw records were consumed and an existing session state already matches the current offset. Preserve the first-read/session-initialization path.
+
+**Step 3: Verify**
+
+Run: `node --test tests/session-observer/cli.test.mjs tests/session-observer/integration.test.mjs`
+Expected: catch-up behavior remains correct and no-op write coverage is added.
+
+**Step 4: Commit**
+
+```bash
+git add skills/session-observer/scripts/session-observer.mjs tests/session-observer/cli.test.mjs tests/session-observer/integration.test.mjs
+git commit -m "fix(prev1-t11): skip no-op catch-up state writes"
+```
+
+---
+
+### Task prev1-t12: (review) Add Cursor digest smoke coverage
+
+**Files:**
+
+- Modify: `tests/session-observer/digest.test.mjs`
+
+**Step 1: Understand the issue**
+
+Review finding: Cursor digest behavior is covered by parser and CLI tests, but `digest.test.mjs` has direct `buildDigest` smoke cases only for Claude Code and Codex.
+Location: `tests/session-observer/digest.test.mjs`
+
+**Step 2: Implement fix**
+
+Add a `buildDigest('cursor', ...)` smoke test using the Cursor typical fixture to ensure future digest refactors exercise Cursor directly.
+
+**Step 3: Verify**
+
+Run: `node --test tests/session-observer/digest.test.mjs`
+Expected: digest tests pass with Cursor coverage.
+
+**Step 4: Commit**
+
+```bash
+git add tests/session-observer/digest.test.mjs
+git commit -m "test(prev1-t12): add Cursor digest smoke coverage"
+```
+
+---
+
+### Task prev1-t13: (review) Lock load-time state backup writes
+
+**Files:**
+
+- Modify: `skills/session-observer/scripts/lib/state.mjs`
+- Modify: `tests/session-observer/state.test.mjs`
+
+**Step 1: Understand the issue**
+
+Review finding: final re-review confirmed `load()` can still write corrupt/v0 backup files outside the `mutate` lock. Existing unique atomic backup filenames make this bounded, but routing load-time backups through the lock removes the residual race entirely.
+Location: `skills/session-observer/scripts/lib/state.mjs:139`, `:154`, `:158`
+
+**Step 2: Implement fix**
+
+Ensure backup writes triggered by the public `load()` path are lock-protected, or refactor backup writing so lock ownership is explicit and safe. Preserve current state-file schema, migration persistence, and corrupt-state recovery behavior.
+
+**Step 3: Verify**
+
+Run: `node --test tests/session-observer/state.test.mjs`
+Expected: state tests pass and load-time backup locking behavior is covered.
+
+**Step 4: Commit**
+
+```bash
+git add skills/session-observer/scripts/lib/state.mjs tests/session-observer/state.test.mjs
+git commit -m "fix(prev1-t13): lock load-time state backups"
+```
+
+---
+
 ## Reviews
 
 | Scope  | Type     | Status  | Date | Artifact |
@@ -1177,8 +1388,8 @@ git commit -m "fix(prev1-t06): honor pinned sessions before auto runtime"
 | p05    | code     | passed  | 2026-05-15 | reviews/archived/p05-rereview-2026-05-15.md |
 | p06    | code     | passed  | 2026-05-15 | reviews/archived/p06-review-2026-05-15.md |
 | p07    | code     | passed  | 2026-05-15 | reviews/archived/p07-review-2026-05-15.md |
-| p-rev1 | code     | fixes_added | 2026-05-22 | reviews/archived/p-rev1-review-2026-05-21.md |
-| final  | code     | received | 2026-05-15 | reviews/final-rereview-2026-05-15.md |
+| p-rev1 | code     | fixes_added | 2026-05-22 | reviews/archived/p-rev1-review-2026-05-22.md |
+| final  | code     | fixes_added | 2026-05-22 | reviews/archived/final-rereview-2026-05-15.md |
 | spec   | artifact | pending  | -          | -                                               |
 | design | artifact | received | 2026-05-14 | reviews/artifact-design-review-2026-05-14.md   |
 | plan   | artifact | received | 2026-05-14 | reviews/artifact-plan-review-2026-05-14.md     |
@@ -1198,11 +1409,11 @@ git commit -m "fix(prev1-t06): honor pinned sessions before auto runtime"
 - Phase 5: 3 tasks — Full SKILL.md body + watch-design reference + transcript-formats reference
 - Phase 6: 2 tasks — npm run validate + manual local probe verification
 - Phase 7: 4 tasks — Final-review fix tasks (Codex payload.cwd, --session override ordering, bidirectional Tier B, state.mjs hardening)
-- Phase p-rev1: 6 tasks — Dogfood hardening + Cursor agent transcript support + p-rev1 review fix
+- Phase p-rev1: 13 tasks — Dogfood hardening + Cursor agent transcript support + review fixes
 
-**Total: 25 tasks**
+**Total: 32 tasks**
 
-Ready for p-rev1 review-fix implementation. Not ready for final code review or merge until `prev1-t06` completes and p-rev1 re-review passes.
+Ready for p-rev1/final review-fix implementation. Not ready for final code review or merge until `prev1-t06` through `prev1-t13` complete and p-rev1/final re-reviews pass.
 
 ---
 

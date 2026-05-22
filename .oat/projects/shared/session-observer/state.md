@@ -1,6 +1,6 @@
 ---
 oat_current_task: prev1-t06
-oat_last_commit: 8a91377
+oat_last_commit: 9e41bdf
 oat_blockers: []
 associated_issues: []
 oat_hill_checkpoints: []
@@ -15,7 +15,7 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: "2026-05-15T02:45:07.398Z"
 oat_project_completed: null
-oat_project_state_updated: "2026-05-22T15:36:46Z"
+oat_project_state_updated: "2026-05-22T15:45:00Z"
 oat_generated: false
 ---
 
@@ -27,7 +27,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation — revision phase p-rev1 has one review-fix task queued from receive-review. Current task: `prev1-t06`.
+Implementation — revision phase p-rev1 has review-fix tasks queued from p-rev1 and final receive-review. Current task: `prev1-t06`.
 
 ## Artifacts
 
@@ -53,7 +53,7 @@ Implementation — revision phase p-rev1 has one review-fix task queued from rec
 - ✓ Revision p-rev1 `prev1-t03` complete: Cursor transcript discovery and ranking evidence added
 - ✓ Revision p-rev1 `prev1-t04` complete: Cursor CLI/state/auto/probe wiring added
 - ✓ Revision p-rev1 `prev1-t05` complete: Cursor docs, validation, and installed-copy refresh done
-- ⧗ Revision p-rev1 review received: 1 Minor converted to `prev1-t06`
+- ⧗ Revision p-rev1/final reviews received: 8 Minor findings converted or deduplicated into `prev1-t06` through `prev1-t13`
 
 ## Blockers
 
@@ -61,4 +61,4 @@ None
 
 ## Next Milestone
 
-Execute `prev1-t06` via `oat-project-implement`, then re-review p-rev1.
+Execute `prev1-t06` through `prev1-t13` via `oat-project-implement`, then re-review p-rev1 and final.
