@@ -92,6 +92,19 @@ describe('readRecords', () => {
     }
   });
 
+  it('malformed.jsonl — returns valid records, warns, does not throw (cursor)', async () => {
+    const warnings = [];
+    const origWarn = console.warn;
+    console.warn = (...args) => warnings.push(args.join(' '));
+    try {
+      const records = await readRecords(fixturePath('cursor', 'malformed.jsonl'));
+      assert.equal(records.length, 4);
+      assert.ok(warnings.length > 0, 'expected a console.warn for the bad line');
+    } finally {
+      console.warn = origWarn;
+    }
+  });
+
   it('partial-tail.jsonl — drops the partial last line with a warning (claude-code)', async () => {
     const warnings = [];
     const origWarn = console.warn;
@@ -112,6 +125,19 @@ describe('readRecords', () => {
     console.warn = (...args) => warnings.push(args.join(' '));
     try {
       const records = await readRecords(fixturePath('codex', 'partial-tail.jsonl'));
+      assert.equal(records.length, 4);
+      assert.ok(warnings.length > 0, 'expected a console.warn for the partial tail');
+    } finally {
+      console.warn = origWarn;
+    }
+  });
+
+  it('partial-tail.jsonl — drops the partial last line with a warning (cursor)', async () => {
+    const warnings = [];
+    const origWarn = console.warn;
+    console.warn = (...args) => warnings.push(args.join(' '));
+    try {
+      const records = await readRecords(fixturePath('cursor', 'partial-tail.jsonl'));
       assert.equal(records.length, 4);
       assert.ok(warnings.length > 0, 'expected a console.warn for the partial tail');
     } finally {
