@@ -212,6 +212,15 @@ function parsePinnedSession(session) {
   return { runtime, sessionId };
 }
 
+function shouldMarkCatchUpRead(sessionState, digest) {
+  if (digest.range.newRecords > 0) return true;
+  if (!sessionState) return true;
+  return (
+    sessionState.lastRecordIndex !== digest.range.nextIndex ||
+    sessionState.lastTotalRecords !== digest.range.totalRecords
+  );
+}
+
 async function applySnippetFilter(candidates, snippet) {
   if (!snippet) return { candidates, matches: [] };
   const needle = snippet.toLowerCase();
@@ -520,9 +529,10 @@ async function runCatchUp(args) {
     }
     // Get prior offset from state
     let pinnedFromIndex = 0;
+    let pinnedSessionState = null;
     try {
-      const sessionState = await stateLib.getSession(pinnedRuntime, pinned.sessionId);
-      if (sessionState) pinnedFromIndex = sessionState.lastRecordIndex;
+      pinnedSessionState = await stateLib.getSession(pinnedRuntime, pinned.sessionId);
+      if (pinnedSessionState) pinnedFromIndex = pinnedSessionState.lastRecordIndex;
     } catch {
       pinnedFromIndex = 0;
     }
@@ -546,15 +556,17 @@ async function runCatchUp(args) {
     } catch (err) {
       return emitError(`Failed to build digest: ${err.message}`, 1);
     }
-    try {
-      await stateLib.markRead(pinnedRuntime, pinned.sessionId, {
-        lastRecordIndex: digest.range.nextIndex,
-        lastTotalRecords: digest.range.totalRecords,
-        transcriptPath: pinned.transcriptPath,
-        recordedCwd: pinned.recordedCwd,
-      });
-    } catch {
-      // Non-fatal
+    if (shouldMarkCatchUpRead(pinnedSessionState, digest)) {
+      try {
+        await stateLib.markRead(pinnedRuntime, pinned.sessionId, {
+          lastRecordIndex: digest.range.nextIndex,
+          lastTotalRecords: digest.range.totalRecords,
+          transcriptPath: pinned.transcriptPath,
+          recordedCwd: pinned.recordedCwd,
+        });
+      } catch {
+        // Non-fatal
+      }
     }
     if (json) return emitJson(digest, 0);
     return emit(renderMarkdown(digest), 0);
@@ -595,8 +607,9 @@ async function runCatchUp(args) {
 
   // Get prior offset from state
   let fromIndex = 0;
+  let sessionState = null;
   try {
-    const sessionState = await stateLib.getSession(runtime, winner.sessionId);
+    sessionState = await stateLib.getSession(runtime, winner.sessionId);
     if (sessionState) {
       fromIndex = sessionState.lastRecordIndex;
     }
@@ -629,15 +642,17 @@ async function runCatchUp(args) {
   }
 
   // Advance the high-water mark on successful emit
-  try {
-    await stateLib.markRead(runtime, winner.sessionId, {
-      lastRecordIndex: digest.range.nextIndex,
-      lastTotalRecords: digest.range.totalRecords,
-      transcriptPath: winner.transcriptPath,
-      recordedCwd: winner.recordedCwd,
-    });
-  } catch {
-    // Non-fatal
+  if (shouldMarkCatchUpRead(sessionState, digest)) {
+    try {
+      await stateLib.markRead(runtime, winner.sessionId, {
+        lastRecordIndex: digest.range.nextIndex,
+        lastTotalRecords: digest.range.totalRecords,
+        transcriptPath: winner.transcriptPath,
+        recordedCwd: winner.recordedCwd,
+      });
+    } catch {
+      // Non-fatal
+    }
   }
 
   if (json) return emitJson(digest, 0);

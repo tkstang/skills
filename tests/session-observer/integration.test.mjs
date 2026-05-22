@@ -54,6 +54,10 @@ function cursorSlug(cwd) {
   return cwd.split(/[/.]/u).filter(Boolean).join('-');
 }
 
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 async function copyCursorTranscript(home, cwd, sessionId = 'cursor-session-001') {
   const transcriptDir = join(home, '.cursor', 'projects', cursorSlug(cwd), 'agent-transcripts', sessionId);
   await mkdir(transcriptDir, { recursive: true });
@@ -204,6 +208,34 @@ describe('integration: catch-up', () => {
         second.stdout.length > 0,
         'Second catch-up should exit 0 (even with no new content)'
       );
+    } finally {
+      await cleanup();
+    }
+  });
+
+  test('catch-up no-op leaves existing state unchanged', async (t) => {
+    const { tmpDir, cwd, stateDir, cleanup } = await setupTempHome();
+    try {
+      const first = spawnCli(
+        ['catch-up', '--runtime', 'claude-code', '--cwd', cwd, '--json'],
+        { HOME: tmpDir, STATE_DIR: stateDir }
+      );
+      assert.equal(first.status, 0,
+        `First catch-up should exit 0\nstdout: ${first.stdout}\nstderr: ${first.stderr}`);
+
+      const statePath = join(stateDir, 'state.json');
+      const before = JSON.parse(await readFile(statePath, 'utf8'));
+      await sleep(25);
+
+      const second = spawnCli(
+        ['catch-up', '--runtime', 'claude-code', '--cwd', cwd, '--json'],
+        { HOME: tmpDir, STATE_DIR: stateDir }
+      );
+      assert.equal(second.status, 0,
+        `Second catch-up should exit 0\nstdout: ${second.stdout}\nstderr: ${second.stderr}`);
+
+      const after = JSON.parse(await readFile(statePath, 'utf8'));
+      assert.deepEqual(after, before, 'no-op catch-up should not rewrite matching state');
     } finally {
       await cleanup();
     }

@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { mkdtemp, rm, mkdir, copyFile, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm, mkdir, copyFile, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -36,6 +36,10 @@ function spawnCli(args, env = {}) {
 
 function cursorSlug(cwd) {
   return cwd.split(/[/.]/u).filter(Boolean).join('-');
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 async function copyCursorTranscript(home, cwd, sessionId = 'cursor-session-001') {
@@ -724,6 +728,21 @@ describe('--session override', () => {
 
       assert.equal(pinnedResult.status, 0,
         `catch-up --session should resolve to exit 0, got ${pinnedResult.status}\nstdout: ${pinnedResult.stdout}\nstderr: ${pinnedResult.stderr}`);
+
+      const statePath = join(stateDir, 'state.json');
+      const before = JSON.parse(await readFile(statePath, 'utf8'));
+      await sleep(25);
+
+      const secondPinnedResult = spawnCli(
+        ['catch-up', '--runtime', 'claude-code', '--cwd', cwd,
+          '--session', `${winner.runtime}:${winner.sessionId}`, '--json'],
+        { HOME: tmpDir, STATE_DIR: stateDir }
+      );
+      assert.equal(secondPinnedResult.status, 0,
+        `second pinned catch-up should exit 0\nstdout: ${secondPinnedResult.stdout}\nstderr: ${secondPinnedResult.stderr}`);
+
+      const after = JSON.parse(await readFile(statePath, 'utf8'));
+      assert.deepEqual(after, before, 'pinned no-op catch-up should not rewrite matching state');
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
