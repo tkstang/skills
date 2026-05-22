@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-05-22
-oat_current_task_id: prev1-t08
+oat_current_task_id: prev1-t09
 oat_generated: false
 ---
 
@@ -31,9 +31,9 @@ oat_generated: false
 | Phase 5 | complete    | 3     | 3/3       |
 | Phase 6 | complete    | 2     | 2/2       |
 | Phase 7 | complete    | 4     | 4/4       |
-| Phase p-rev1 | in_progress | 13 | 7/13 |
+| Phase p-rev1 | in_progress | 13 | 8/13 |
 
-**Total:** 26/32 tasks completed
+**Total:** 27/32 tasks completed
 
 ---
 
@@ -386,12 +386,14 @@ Added Cursor malformed and partial-tail JSONL fixtures plus `readRecords` tests 
 
 ### Task prev1-t08: (review) Document Cursor direct-hit fallback behavior
 
-**Status:** pending
-**Commit:** pending
+**Status:** complete
+**Commit:** fb94b15
 
 Review-generated follow-up from `p-rev1-review-2026-05-22.md`: document and test the intentional Cursor behavior where an empty direct transcript directory does not suppress fallback project-dir scans.
 
-**Verification:** pending.
+Added a `locate.mjs` strategy comment and a targeted Cursor discovery test proving an empty encoded direct `agent-transcripts` directory still falls through to fallback project-dir scans.
+
+**Verification:** `node --test tests/session-observer/locate.test.mjs` → 13/13 pass.
 
 ### Task prev1-t09: (review) Avoid duplicate stat in Cursor fallback discovery
 
