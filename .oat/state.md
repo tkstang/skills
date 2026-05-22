@@ -17,7 +17,7 @@ oat_generated_at: 2026-05-22
 |-------|-------|
 | Mode | quick |
 | Phase | implement |
-| Status | in_progress |
+| Status | pr_open |
 | HiLL Gate | n/a |
 | Current Task | - |
 | Docs Updated | ⚠ not yet run |
@@ -35,7 +35,7 @@ Details: `.oat/projects/shared/session-observer/state.md`
 
 ## Recommended Next Step
 
-**oat-project-implement** - Continue implementation
+**oat-project-revise** - PR open — run oat-project-revise for feedback or oat-project-complete when approved
 
 ## Quick Commands
 

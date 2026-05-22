@@ -7,7 +7,7 @@ oat_hill_checkpoints: []
 oat_hill_completed: []
 oat_parallel_execution: false
 oat_phase: implement
-oat_phase_status: in_progress
+oat_phase_status: pr_open
 oat_workflow_mode: quick
 oat_workflow_origin: native
 oat_docs_updated: null
@@ -27,7 +27,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation — revision phase p-rev1 is implementation-complete. Next step: run the p-rev1 phase-gate review.
+Implementation — revision phase p-rev1 is complete and phase-gate reviewed. Next step: final lifecycle closeout/review handling.
 
 ## Artifacts
 
@@ -53,7 +53,7 @@ Implementation — revision phase p-rev1 is implementation-complete. Next step: 
 - ✓ Revision p-rev1 `prev1-t03` complete: Cursor transcript discovery and ranking evidence added
 - ✓ Revision p-rev1 `prev1-t04` complete: Cursor CLI/state/auto/probe wiring added
 - ✓ Revision p-rev1 `prev1-t05` complete: Cursor docs, validation, and installed-copy refresh done
-- ⧗ Revision p-rev1 awaiting phase-gate review
+- ✓ Revision p-rev1 phase-gate review passed (0 Critical, 0 Important; 1 Minor non-blocking)
 
 ## Blockers
 
@@ -61,4 +61,4 @@ None
 
 ## Next Milestone
 
-Run p-rev1 phase-gate review, then process any findings.
+Continue lifecycle closeout: run final review/receive handling as needed, then `oat-project-pr-final`.

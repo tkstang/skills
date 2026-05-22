@@ -358,7 +358,7 @@ Docs updated to include Cursor in runtime examples, flag docs, troubleshooting, 
 
 **Verification:** `node --test 'tests/session-observer/*.test.mjs'` → 136/136 pass; `npm test` → 260/260 pass; `npm run validate` → passed; `npm run smoke` → passed; `node skills/session-observer/scripts/probe-local.mjs --runtime cursor --cwd "$PWD"` → exit 2 (acceptable noMatch for this worktree).
 
-**Review:** pending p-rev1 phase-gate review.
+**Review:** p-rev1 phase-gate review → **PASS** (0 Critical, 0 Important). 1 Minor non-blocking finding recorded in `reviews/p-rev1-review-2026-05-21.md`: pinned `--session <runtime:id>` does not bypass `--runtime auto` ambiguity. Bounded because the documented and tested recovery path works with explicit `--runtime <runtime>`; no fix task added.
 
 ---
 
@@ -432,6 +432,28 @@ Docs updated to include Cursor in runtime examples, flag docs, troubleshooting, 
 #### Outstanding Items
 
 - p07 review PASS (`reviews/archived/p07-review-2026-05-15.md`) with 1 Minor non-blocking finding: `load()`'s direct (unlocked) path can still write a backup file. Bounded — `load()` writes no `state.json`, and unique `Date.now()-pid` backup names prevent any clobber; consistent with the final review's "dormant/edge-case" disposition of p01-M1. No fix task.
+
+### Run 3 — 2026-05-21
+
+**Branch:** chore/new-skill-brainstorm
+**Tier:** 1 (subagents)
+**Policy:** merge-strategy=append-only, retry-limit=2
+**Phases:** 1 executed, 1 passed, 0 failed, 0 stopped
+
+#### Phase Outcomes
+
+| Phase | Implementer | Review | Fix Iterations | Disposition |
+| ----- | ----------- | ------ | -------------- | ----------- |
+| p-rev1 | DONE | pass | 0/2 | committed |
+
+#### Dispatch Notes
+
+- Dispatch: p-rev1 task execution was split into bounded subagent tasks for `prev1-t02`, `prev1-t03`, and `prev1-t04`; `prev1-t01` and `prev1-t05` were completed by the orchestrator to normalize pre-existing dogfood changes and final docs/validation.
+- Review: p-rev1 phase-gate review used `oat-reviewer` and passed with 0 Critical, 0 Important, 1 Minor non-blocking finding.
+
+#### Outstanding Items
+
+- p-rev1 review PASS (`reviews/p-rev1-review-2026-05-21.md`) with 1 Minor non-blocking finding: pinned `--session <runtime:id>` does not bypass `--runtime auto` ambiguity before runtime resolution. Bounded — explicit `--runtime cursor --session cursor:<id>` works and is tested. No fix task added.
 
 <!-- orchestration-runs-end -->
 
