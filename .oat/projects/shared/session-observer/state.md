@@ -1,6 +1,6 @@
 ---
-oat_current_task: prev1-t05
-oat_last_commit: d5d19e1
+oat_current_task: null
+oat_last_commit: bd41e3f
 oat_blockers: []
 associated_issues: []
 oat_hill_checkpoints: []
@@ -27,7 +27,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation — revision phase p-rev1 is in progress. `prev1-t01` through `prev1-t04` are complete; current task is `prev1-t05` (docs, end-to-end validation, installed-copy refresh, and final spike evidence).
+Implementation — revision phase p-rev1 is implementation-complete. Next step: run the p-rev1 phase-gate review.
 
 ## Artifacts
 
@@ -52,7 +52,8 @@ Implementation — revision phase p-rev1 is in progress. `prev1-t01` through `pr
 - ✓ Revision p-rev1 `prev1-t02` complete: Cursor runtime adapter and fixtures added
 - ✓ Revision p-rev1 `prev1-t03` complete: Cursor transcript discovery and ranking evidence added
 - ✓ Revision p-rev1 `prev1-t04` complete: Cursor CLI/state/auto/probe wiring added
-- ⧗ Revision p-rev1 continuing with Cursor agent transcript support
+- ✓ Revision p-rev1 `prev1-t05` complete: Cursor docs, validation, and installed-copy refresh done
+- ⧗ Revision p-rev1 awaiting phase-gate review
 
 ## Blockers
 
@@ -60,4 +61,4 @@ None
 
 ## Next Milestone
 
-Execute `p-rev1` via `oat-project-implement`, continuing at `prev1-t05`.
+Run p-rev1 phase-gate review, then process any findings.

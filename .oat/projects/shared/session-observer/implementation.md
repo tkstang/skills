@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-05-21
-oat_current_task_id: prev1-t05
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -31,9 +31,9 @@ oat_generated: false
 | Phase 5 | complete    | 3     | 3/3       |
 | Phase 6 | complete    | 2     | 2/2       |
 | Phase 7 | complete    | 4     | 4/4       |
-| Phase p-rev1 | in_progress | 5 | 4/5 |
+| Phase p-rev1 | complete | 5 | 5/5 |
 
-**Total:** 23/24 tasks completed
+**Total:** 24/24 tasks completed
 
 ---
 
@@ -333,8 +333,8 @@ Added Cursor to CLI runtime validation, help text, pinned `--session`, state res
 
 ### Task prev1-t05: (revision) Update docs and validate Cursor support end-to-end
 
-**Status:** pending
-**Commit:** pending
+**Status:** complete
+**Commit:** bd41e3f
 
 Document Cursor agent transcript support, explicitly defer `~/.cursor/chats/*/store.db`, run full verification, and refresh installed user-level skill copies.
 
@@ -352,11 +352,13 @@ Docs updated to include Cursor in runtime examples, flag docs, troubleshooting, 
 
 ### Phase p-rev1 Summary
 
-**Outcome:** pending.
+**Outcome:** Revision 1 is implementation-complete. The folded dogfood hardening patch is committed and recorded under `prev1-t01`, and Cursor agent transcript support is implemented across parsing, discovery/ranking, CLI/state/probe behavior, docs, tests, and installed user-level skill copies. Cursor support is explicitly limited to `~/.cursor/projects/<encoded-project>/agent-transcripts/*/*.jsonl`; `~/.cursor/chats/*/store.db` is deferred.
 
-**Key files:** `skills/session-observer/**`, `tests/session-observer/**`, `.oat/projects/shared/session-observer/implementation.md`.
+**Key files:** `skills/session-observer/scripts/lib/{runtimes,locate,rank}.mjs`, `skills/session-observer/scripts/{session-observer,probe-local}.mjs`, `skills/session-observer/SKILL.md`, `skills/session-observer/references/transcript-formats.md`, `tests/session-observer/**`, `.oat/projects/shared/session-observer/implementation.md`.
 
-**Verification:** pending.
+**Verification:** `node --test 'tests/session-observer/*.test.mjs'` → 136/136 pass; `npm test` → 260/260 pass; `npm run validate` → passed; `npm run smoke` → passed; `node skills/session-observer/scripts/probe-local.mjs --runtime cursor --cwd "$PWD"` → exit 2 (acceptable noMatch for this worktree).
+
+**Review:** pending p-rev1 phase-gate review.
 
 ---
 
@@ -632,10 +634,11 @@ Both review artifacts archived to `reviews/archived/`. No plan tasks were added;
 | 5     | 92        | 92     | 0      | session-observer suite after p05 fix (+1 test) |
 | 6     | 216       | 216    | 0      | full `npm test` repo suite at p06 |
 | 7     | 226       | 226    | 0      | full `npm test` repo suite; +10 new p07 fix tests |
+| p-rev1 | 260     | 260    | 0      | full `npm test` repo suite; Cursor runtime support + dogfood hardening |
 
 ## Final Summary (for PR/docs)
 
-**What shipped:** `session-observer` — a portable, user-installable Agent Skill at `.agents/skills/session-observer/` that lets Claude Code and Codex inspect each other's transcripts for the active project. v1 ships four CLI subcommands:
+**What shipped:** `session-observer` — a portable, user-installable Agent Skill at `.agents/skills/session-observer/` that lets Claude Code, Codex, and Cursor inspect peer agent transcripts for the active project. v1 ships four CLI subcommands:
 
 - `review` — one-shot tool-free digest of the most relevant peer session.
 - `catch-up` — incremental digest of only the records added since the last check, via a per-`(runtime, sessionId)` high-water mark.
@@ -653,9 +656,9 @@ The continuous `watch` mode is designed (`references/watch-design.md`) but inten
 - `scripts/lib/{runtimes,locate,rank,digest,state}.mjs` — per-runtime transcript adapters, candidate discovery, tier ranking, digest builder/renderer, atomic lock-protected state.
 - `scripts/probe-local.mjs` — opt-in manual verification helper.
 - `references/watch-design.md`, `references/transcript-formats.md` — frozen watcher design + JSONL format reference.
-- `tests/session-observer/**` — 226 tests (8 module/integration test files + fixtures).
+- `tests/session-observer/**` — 260 tests in the full repository suite, including Cursor runtime fixtures and session-observer coverage.
 
-**Verification performed:** `npm test` → 226/226 pass; `npm run validate` → passed; `npm run smoke` available. Manual `probe-local.mjs` run against the user's real `~/.claude/projects` and `~/.codex/sessions` (exit 2 / noMatch — expected for the current worktree path). Every phase passed a Tier 1 `oat-reviewer` phase-gate review; the final-scope review's findings were all fixed in Phase 7.
+**Verification performed:** `npm test` → 260/260 pass; `npm run validate` → passed; `npm run smoke` → passed. Manual `probe-local.mjs` run against the user's real `~/.claude/projects`, `~/.codex/sessions`, and `~/.cursor/projects` (Cursor exit 2 / noMatch — acceptable for the current worktree path). Earlier implementation phases passed Tier 1 `oat-reviewer` phase-gate reviews; p-rev1 review is pending.
 
 **Design deltas (if any):**
 
@@ -664,6 +667,7 @@ The continuous `watch` mode is designed (`references/watch-design.md`) but inten
 - The `[p04, p05]` parallel group degraded to sequential — `oat-worktree-bootstrap-auto` requires a `pnpm run worktree:init` script this npm-only repo lacks; write-disjoint, so sequential execution was correct.
 - One Minor residual deferred: `load()`'s direct path can write a backup outside the `mutate` lock — bounded (no `state.json` write, unique backup names), consistent with the final review's dormant-path disposition.
 - Post-implementation relocation: the skill ships from `skills/session-observer/` (not `.agents/skills/`, which the plan/design assumed) — `skills/` is this repo's distribution home; `.agents/skills/session-observer` is a symlink for in-repo use. SKILL.md frontmatter gained `license`/`compatibility`/`metadata.version` to satisfy `validate.mjs`. See the 2026-05-15 Implementation Log entry.
+- Revision 1: Cursor support was added for agent transcript JSONL under `~/.cursor/projects/<encoded-project>/agent-transcripts/*/*.jsonl`; Cursor SQLite chat history at `~/.cursor/chats/*/store.db` is explicitly deferred.
 
 ## References
 
