@@ -529,6 +529,82 @@ describe('--runtime auto', () => {
 // ---------------------------------------------------------------------------
 
 describe('--session override', () => {
+  test('review: --runtime auto uses pinned cursor runtime before ambiguity checks', async (t) => {
+    const tmpDir = await mkdtemp(join(tmpdir(), 'cli-session-auto-cursor-'));
+    try {
+      const cwd = '/test/auto-pinned-cursor-project';
+      const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
+      await mkdir(stateDir, { recursive: true });
+      await copyCursorTranscript(tmpDir, cwd, 'cursor-pinned-auto');
+
+      const codexDir = join(tmpDir, '.codex', 'sessions', '2026', '05', '17');
+      await mkdir(codexDir, { recursive: true });
+      await writeFile(
+        join(codexDir, 'codex-also-matches.jsonl'),
+        [
+          JSON.stringify({ sessionId: 'codex-also-matches', payload: { type: 'session_meta', cwd } }),
+          JSON.stringify({
+            sessionId: 'codex-also-matches',
+            payload: { type: 'message', role: 'assistant', content: 'Codex also matches.' },
+          }),
+        ].join('\n') + '\n',
+        'utf8'
+      );
+
+      const result = spawnCli(
+        ['review', '--runtime', 'auto', '--cwd', cwd,
+          '--session', 'cursor:cursor-pinned-auto', '--json'],
+        { HOME: tmpDir, STATE_DIR: stateDir }
+      );
+
+      assert.equal(result.status, 0,
+        `auto + pinned cursor session should bypass runtime ambiguity\nstdout: ${result.stdout}\nstderr: ${result.stderr}`);
+      const parsed = JSON.parse(result.stdout);
+      assert.equal(parsed.runtime, 'cursor');
+      assert.equal(parsed.sessionId, 'cursor-pinned-auto');
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  test('catch-up: --runtime auto uses pinned cursor runtime before ambiguity checks', async (t) => {
+    const tmpDir = await mkdtemp(join(tmpdir(), 'cli-session-auto-cursor-catchup-'));
+    try {
+      const cwd = '/test/auto-pinned-cursor-catchup-project';
+      const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
+      await mkdir(stateDir, { recursive: true });
+      await copyCursorTranscript(tmpDir, cwd, 'cursor-pinned-catchup');
+
+      const codexDir = join(tmpDir, '.codex', 'sessions', '2026', '05', '17');
+      await mkdir(codexDir, { recursive: true });
+      await writeFile(
+        join(codexDir, 'codex-also-matches.jsonl'),
+        [
+          JSON.stringify({ sessionId: 'codex-also-matches', payload: { type: 'session_meta', cwd } }),
+          JSON.stringify({
+            sessionId: 'codex-also-matches',
+            payload: { type: 'message', role: 'assistant', content: 'Codex also matches.' },
+          }),
+        ].join('\n') + '\n',
+        'utf8'
+      );
+
+      const result = spawnCli(
+        ['catch-up', '--runtime', 'auto', '--cwd', cwd,
+          '--session', 'cursor:cursor-pinned-catchup', '--json'],
+        { HOME: tmpDir, STATE_DIR: stateDir }
+      );
+
+      assert.equal(result.status, 0,
+        `auto + pinned cursor catch-up should bypass runtime ambiguity\nstdout: ${result.stdout}\nstderr: ${result.stderr}`);
+      const parsed = JSON.parse(result.stdout);
+      assert.equal(parsed.runtime, 'cursor');
+      assert.equal(parsed.sessionId, 'cursor-pinned-catchup');
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
   test('review: --session accepts cursor runtime', async (t) => {
     const tmpDir = await mkdtemp(join(tmpdir(), 'cli-session-cursor-'));
     try {

@@ -196,6 +196,22 @@ function emitError(message, exitCode = 1) {
   process.exit(exitCode);
 }
 
+function parsePinnedSession(session) {
+  if (!session) return null;
+  const colonIndex = session.indexOf(':');
+  if (colonIndex === -1) {
+    return { error: '--session must be in <runtime>:<sessionId> format (e.g. codex:abc123)' };
+  }
+  const runtime = session.slice(0, colonIndex);
+  const sessionId = session.slice(colonIndex + 1);
+  if (!VALID_RUNTIMES.includes(runtime)) {
+    return {
+      error: `Unknown runtime in --session: ${runtime}. Use one of: ${VALID_RUNTIME_LABEL}.`,
+    };
+  }
+  return { runtime, sessionId };
+}
+
 async function applySnippetFilter(candidates, snippet) {
   if (!snippet) return { candidates, matches: [] };
   const needle = snippet.toLowerCase();
@@ -254,6 +270,9 @@ function printUsage() {
 async function runReview(args) {
   const { cwd, includeTools, includeToolResults, includeCommandMessages, maxTurns, maxBytes, json, markRead, session, snippet } = args;
   let { runtime } = args;
+  const pinnedSession = parsePinnedSession(session);
+  if (pinnedSession?.error) return emitError(pinnedSession.error, 1);
+  if (pinnedSession) runtime = pinnedSession.runtime;
 
   // Resolve auto runtime
   if (runtime === 'auto') {
@@ -296,19 +315,9 @@ async function runReview(args) {
   // Resolve pinned session override BEFORE tie/no-match checks.
   // When --session <runtime:id> is provided and the candidate exists, select it directly
   // and skip ranking/tie/no-match branches entirely.
-  if (session) {
-    const colonIndex = session.indexOf(':');
-    if (colonIndex === -1) {
-      return emitError('--session must be in <runtime>:<sessionId> format (e.g. codex:abc123)', 1);
-    }
-    const pinnedRuntime = session.slice(0, colonIndex);
-    const pinnedId = session.slice(colonIndex + 1);
-    if (!VALID_RUNTIMES.includes(pinnedRuntime)) {
-      return emitError(
-        `Unknown runtime in --session: ${pinnedRuntime}. Use one of: ${VALID_RUNTIME_LABEL}.`,
-        1
-      );
-    }
+  if (pinnedSession) {
+    const pinnedRuntime = pinnedSession.runtime;
+    const pinnedId = pinnedSession.sessionId;
     const pinned = candidates.find(c => c.runtime === pinnedRuntime && c.sessionId === pinnedId);
     if (!pinned) {
       return emitError(
@@ -456,6 +465,9 @@ async function runReview(args) {
 async function runCatchUp(args) {
   const { cwd, includeTools, includeToolResults, includeCommandMessages, maxTurns, maxBytes, json, session, snippet } = args;
   let { runtime } = args;
+  const pinnedSession = parsePinnedSession(session);
+  if (pinnedSession?.error) return emitError(pinnedSession.error, 1);
+  if (pinnedSession) runtime = pinnedSession.runtime;
 
   // Resolve auto runtime
   if (runtime === 'auto') {
@@ -496,19 +508,9 @@ async function runCatchUp(args) {
   }
 
   // Resolve pinned session override BEFORE tie/no-match checks.
-  if (session) {
-    const colonIndex = session.indexOf(':');
-    if (colonIndex === -1) {
-      return emitError('--session must be in <runtime>:<sessionId> format (e.g. codex:abc123)', 1);
-    }
-    const pinnedRuntime = session.slice(0, colonIndex);
-    const pinnedId = session.slice(colonIndex + 1);
-    if (!VALID_RUNTIMES.includes(pinnedRuntime)) {
-      return emitError(
-        `Unknown runtime in --session: ${pinnedRuntime}. Use one of: ${VALID_RUNTIME_LABEL}.`,
-        1
-      );
-    }
+  if (pinnedSession) {
+    const pinnedRuntime = pinnedSession.runtime;
+    const pinnedId = pinnedSession.sessionId;
     const pinned = candidates.find(c => c.runtime === pinnedRuntime && c.sessionId === pinnedId);
     if (!pinned) {
       return emitError(
