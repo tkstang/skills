@@ -15,6 +15,7 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const FIXTURES_CC = join(__dirname, 'fixtures/claude-code');
 const FIXTURES_CX = join(__dirname, 'fixtures/codex');
+const FIXTURES_CURSOR = join(__dirname, 'fixtures/cursor');
 
 // Import the module under test — will fail RED until runtimes.mjs exists
 const {
@@ -31,9 +32,10 @@ const {
 // ---------------------------------------------------------------------------
 
 function fixturePath(runtime, name) {
-  return runtime === 'claude-code'
-    ? join(FIXTURES_CC, name)
-    : join(FIXTURES_CX, name);
+  if (runtime === 'claude-code') return join(FIXTURES_CC, name);
+  if (runtime === 'codex') return join(FIXTURES_CX, name);
+  if (runtime === 'cursor') return join(FIXTURES_CURSOR, name);
+  throw new Error(`Unknown fixture runtime: ${runtime}`);
 }
 
 // ---------------------------------------------------------------------------
@@ -54,6 +56,13 @@ describe('readRecords', () => {
     // 13 lines in the fixture
     assert.equal(records.length, 13);
     assert.equal(typeof records[0], 'object');
+  });
+
+  it('typical.jsonl — returns expected count and parsed objects (cursor)', async () => {
+    const records = await readRecords(fixturePath('cursor', 'typical.jsonl'));
+    assert.equal(records.length, 3);
+    assert.equal(typeof records[0], 'object');
+    assert.equal(records[0].role, 'user');
   });
 
   it('malformed.jsonl — returns valid records, warns, does not throw (claude-code)', async () => {
@@ -152,6 +161,16 @@ describe('encodeCwd', () => {
     const encoded = encodeCwd('codex', '/Users/x/Code/y');
     assert.equal(encoded, null);
   });
+
+  it('cursor: encodes absolute path by joining slash and dot separated segments', () => {
+    const encoded = encodeCwd('cursor', '/Users/thomas.stang/Code/vox/duet');
+    assert.equal(encoded, 'Users-thomas-stang-Code-vox-duet');
+  });
+
+  it('cursor: exposes the observed project slug variant', () => {
+    const variants = encodeCwdVariants('cursor', '/Users/thomas.stang/Code/vox/duet');
+    assert.deepEqual(variants, ['Users-thomas-stang-Code-vox-duet']);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -229,6 +248,41 @@ describe('extractMeta (codex)', () => {
     assert.ok(meta !== null, 'meta should not be null');
     assert.equal(meta.sessionId, 'codex-payload-cwd-001');
     assert.equal(meta.recordedCwd, '/Users/testuser/Code/payload-project');
+  });
+});
+
+describe('extractMeta (cursor)', () => {
+  let tmpDir;
+
+  before(async () => {
+    tmpDir = await mkdtemp(join(tmpdir(), 'runtimes-cursor-test-'));
+  });
+
+  after(async () => {
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('returns sessionId from transcript basename', async () => {
+    const meta = await extractMeta('cursor', fixturePath('cursor', 'typical.jsonl'));
+    assert.ok(meta !== null);
+    assert.equal(meta.sessionId, 'typical');
+    assert.equal(meta.recordedCwd, null);
+  });
+
+  it('returns sessionId from parent transcript directory for generic transcript files', async () => {
+    const sessionDir = join(tmpDir, 'cursor-session-001');
+    await mkdir(sessionDir, { recursive: true });
+    const transcriptPath = join(sessionDir, 'transcript.jsonl');
+    await writeFile(
+      transcriptPath,
+      JSON.stringify({ role: 'user', message: { content: [{ type: 'text', text: 'Hello' }] } }) + '\n',
+      'utf8'
+    );
+
+    const meta = await extractMeta('cursor', transcriptPath);
+    assert.ok(meta !== null);
+    assert.equal(meta.sessionId, 'cursor-session-001');
+    assert.equal(meta.recordedCwd, null);
   });
 });
 
@@ -442,6 +496,52 @@ describe('normalizeEntries (codex)', () => {
 });
 
 // ---------------------------------------------------------------------------
+// normalizeEntries (cursor)
+// ---------------------------------------------------------------------------
+
+describe('normalizeEntries (cursor)', () => {
+  let records;
+  let withToolUseRecords;
+
+  before(async () => {
+    records = await readRecords(fixturePath('cursor', 'typical.jsonl'));
+    withToolUseRecords = await readRecords(fixturePath('cursor', 'with-tool-use.jsonl'));
+  });
+
+  it('default (no tools): returns only message-kind entries', () => {
+    const entries = normalizeEntries('cursor', records, { includeToolCalls: false });
+    assert.equal(entries.length, 3);
+    for (const e of entries) {
+      assert.equal(e.kind, 'message');
+      assert.ok(e.role === 'user' || e.role === 'assistant');
+      assert.ok(typeof e.text === 'string');
+      assert.ok(typeof e.recordIndex === 'number');
+    }
+  });
+
+  it('default (no tools): excludes tool_use blocks', () => {
+    const entries = normalizeEntries('cursor', withToolUseRecords, { includeToolCalls: false });
+    assert.equal(entries.filter(e => e.kind === 'tool_call').length, 0);
+    assert.deepEqual(entries.map(e => e.text), [
+      'Please read the runtime adapter.',
+      'I will open the file.',
+    ]);
+  });
+
+  it('includeToolCalls: true — tool_use blocks produce compact tool_call entries', () => {
+    const entries = normalizeEntries('cursor', withToolUseRecords, { includeToolCalls: true });
+    const toolCallEntries = entries.filter(e => e.kind === 'tool_call');
+    assert.equal(toolCallEntries.length, 1);
+    assert.equal(toolCallEntries[0].toolName, 'read_file');
+    assert.ok(
+      toolCallEntries[0].text.startsWith('[read_file] '),
+      `tool_call text must match [ToolName] args, got: ${toolCallEntries[0].text}`
+    );
+    assert.ok(toolCallEntries[0].text.includes('runtimes.mjs'));
+  });
+});
+
+// ---------------------------------------------------------------------------
 // discoverPaths
 // ---------------------------------------------------------------------------
 
@@ -458,5 +558,12 @@ describe('discoverPaths', () => {
     assert.ok(Array.isArray(paths));
     assert.ok(paths.length > 0);
     assert.ok(paths[0].includes('.codex/sessions'), `expected .codex/sessions in path, got: ${paths[0]}`);
+  });
+
+  it('cursor: returns array containing ~/.cursor/projects/ path', () => {
+    const paths = discoverPaths('cursor');
+    assert.ok(Array.isArray(paths));
+    assert.ok(paths.length > 0);
+    assert.ok(paths[0].includes('.cursor/projects'), `expected .cursor/projects in path, got: ${paths[0]}`);
   });
 });

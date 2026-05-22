@@ -1,0 +1,2 @@
+{"role":"user","message":{"content":[{"type":"text","text":"Please read the runtime adapter."}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"I will open the file."},{"type":"tool_use","id":"toolu_cursor_001","name":"read_file","input":{"path":"skills/session-observer/scripts/lib/runtimes.mjs","limit":120}}]}}

@@ -1,5 +1,5 @@
 /**
- * runtimes.mjs — Per-runtime transcript adapters for Claude Code and Codex.
+ * runtimes.mjs — Per-runtime transcript adapters for Claude Code, Codex, and Cursor.
  *
  * This is the only file with structural knowledge of how each runtime's JSONL
  * transcripts are shaped. Logic is ported from Stoa's shipped adapters at:
@@ -106,7 +106,7 @@ function safeParseLine(line) {
 /**
  * Returns the discovery root directories for the given runtime.
  *
- * @param {'claude-code' | 'codex'} runtime
+ * @param {'claude-code' | 'codex' | 'cursor'} runtime
  * @returns {string[]}
  */
 export function discoverPaths(runtime) {
@@ -116,6 +116,9 @@ export function discoverPaths(runtime) {
   }
   if (runtime === 'codex') {
     return [join(home, '.codex', 'sessions')];
+  }
+  if (runtime === 'cursor') {
+    return [join(home, '.cursor', 'projects')];
   }
   throw new Error(`Unknown runtime: ${runtime}`);
 }
@@ -129,8 +132,9 @@ export function discoverPaths(runtime) {
  * Current Claude Code project dirs replace both '/' and '.' with '-'. For
  * example, '/Users/thomas.stang/.superconductor' becomes
  * '-Users-thomas-stang--superconductor'. Codex has no path encoding.
+ * Cursor uses slash/dot-separated non-empty path segments joined by '-'.
  *
- * @param {'claude-code' | 'codex'} runtime
+ * @param {'claude-code' | 'codex' | 'cursor'} runtime
  * @param {string} cwd
  * @returns {string | null}
  */
@@ -144,12 +148,15 @@ export function encodeCwd(runtime, cwd) {
  * Claude Code has used at least two observable schemes: the current scheme
  * sanitizes '/' and '.', while older docs/tests assumed slash-only encoding.
  *
- * @param {'claude-code' | 'codex'} runtime
+ * @param {'claude-code' | 'codex' | 'cursor'} runtime
  * @param {string} cwd
  * @returns {string[]}
  */
 export function encodeCwdVariants(runtime, cwd) {
   if (runtime === 'codex') return [];
+  if (runtime === 'cursor') {
+    return [cwd.split(/[/.]/u).filter(Boolean).join('-')];
+  }
   const variants = [
     cwd.replace(/[/.]/g, '-'),
     cwd.replace(/\//g, '-'),
@@ -296,9 +303,14 @@ function codexSessionIdFromRecord(record) {
  *   - sessionId: from `payload.id` / `sessionId` on any record.
  *   - recordedCwd: from a session_started record's `cwd` field.
  *
+ * Cursor:
+ *   - sessionId: from the transcript basename, or parent directory when the
+ *     basename is a generic transcript filename.
+ *   - recordedCwd: null; Cursor project slugs are not reversible.
+ *
  * Falls back to basename (without .jsonl) for sessionId when no record has one.
  *
- * @param {'claude-code' | 'codex'} runtime
+ * @param {'claude-code' | 'codex' | 'cursor'} runtime
  * @param {string} transcriptPath
  * @returns {Promise<{ sessionId: string, recordedCwd: string | null } | null>}
  */
@@ -347,6 +359,17 @@ export async function extractMeta(runtime, transcriptPath) {
     }
 
     return { sessionId, recordedCwd };
+  }
+
+  if (runtime === 'cursor') {
+    const transcriptBase = basename(transcriptPath).replace(/\.jsonl$/u, '');
+    const parentDirName = basename(dirname(transcriptPath));
+    const sessionId =
+      transcriptBase && !['transcript', 'conversation', 'messages'].includes(transcriptBase)
+        ? transcriptBase
+        : parentDirName;
+
+    return { sessionId, recordedCwd: null };
   }
 
   throw new Error(`Unknown runtime: ${runtime}`);
@@ -514,13 +537,58 @@ function normalizeCodex(records, opts) {
 }
 
 // ---------------------------------------------------------------------------
+// normalizeEntries — Cursor adapter
+// ---------------------------------------------------------------------------
+
+/**
+ * Normalize Cursor agent JSONL records into DigestEntry[].
+ *
+ * Cursor records observed in ~/.cursor/projects use top-level role and nested
+ * message.content blocks. Text blocks become message entries. Tool-use blocks
+ * become compact marker entries only when explicitly requested.
+ *
+ * @param {object[]} records
+ * @param {{ includeToolCalls?: boolean }} opts
+ * @returns {object[]}
+ */
+function normalizeCursor(records, opts) {
+  const includeToolCalls = opts.includeToolCalls ?? false;
+
+  return records.flatMap((record, recordIndex) => {
+    const role = asString(record.role);
+    if (role !== 'assistant' && role !== 'user') return [];
+
+    const message = isObject(record.message) ? record.message : record;
+    const content = message.content;
+    if (typeof content === 'string') {
+      return content ? [{ role, text: content, recordIndex, kind: 'message' }] : [];
+    }
+    if (!Array.isArray(content)) return [];
+
+    return content.flatMap((block) => {
+      if (!isObject(block)) return [];
+
+      if (block.type === 'tool_use') {
+        if (!includeToolCalls) return [];
+        const name = asString(block.name) ?? 'tool_use';
+        const argsStr = stringifyArgs(block.input, TOOL_INPUT_LIMIT);
+        return [{ role, text: `[${name}] ${argsStr}`, recordIndex, kind: 'tool_call', toolName: name }];
+      }
+
+      const text = asString(block.text) ?? asString(block.content);
+      return text ? [{ role, text, recordIndex, kind: 'message' }] : [];
+    });
+  });
+}
+
+// ---------------------------------------------------------------------------
 // normalizeEntries — public API
 // ---------------------------------------------------------------------------
 
 /**
  * Normalize raw JSONL records for a given runtime into DigestEntry[].
  *
- * @param {'claude-code' | 'codex'} runtime
+ * @param {'claude-code' | 'codex' | 'cursor'} runtime
  * @param {object[]} records
  * @param {{ includeToolCalls?: boolean, includeToolResults?: boolean }} opts
  * @returns {object[]}
@@ -532,5 +600,6 @@ function normalizeCodex(records, opts) {
 export function normalizeEntries(runtime, records, opts = {}) {
   if (runtime === 'claude-code') return normalizeClaudeCode(records, opts);
   if (runtime === 'codex') return normalizeCodex(records, opts);
+  if (runtime === 'cursor') return normalizeCursor(records, opts);
   throw new Error(`Unknown runtime: ${runtime}`);
 }
