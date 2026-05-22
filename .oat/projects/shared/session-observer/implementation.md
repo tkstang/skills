@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-05-21
-oat_current_task_id: prev1-t06
+oat_current_task_id: prev1-t07
 oat_generated: false
 ---
 
@@ -31,9 +31,9 @@ oat_generated: false
 | Phase 5 | complete    | 3     | 3/3       |
 | Phase 6 | complete    | 2     | 2/2       |
 | Phase 7 | complete    | 4     | 4/4       |
-| Phase p-rev1 | in_progress | 13 | 5/13 |
+| Phase p-rev1 | in_progress | 13 | 6/13 |
 
-**Total:** 24/32 tasks completed
+**Total:** 25/32 tasks completed
 
 ---
 
@@ -366,12 +366,12 @@ Docs updated to include Cursor in runtime examples, flag docs, troubleshooting, 
 
 ### Task prev1-t06: (review) Fix pinned-session auto-runtime ambiguity
 
-**Status:** pending
-**Commit:** pending
+**Status:** complete
+**Commit:** afb0145
 
 Review-generated follow-up for p-rev1 Minor `m1`: parse and validate pinned `--session <runtime:id>` before `--runtime auto` resolution so `--runtime auto --session cursor:<id>` uses the pinned runtime instead of failing on multi-runtime ambiguity.
 
-**Verification:** pending.
+**Verification:** `node --test tests/session-observer/cli.test.mjs` → 28/28 pass.
 
 ### Task prev1-t07: (review) Add Cursor malformed and partial-tail fixtures
 
