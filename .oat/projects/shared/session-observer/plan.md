@@ -1136,6 +1136,36 @@ git commit -m "docs(prev1-t05): document Cursor session-observer support"
 
 ---
 
+### Task prev1-t06: (review) Fix pinned-session auto-runtime ambiguity
+
+**Files:**
+
+- Modify: `skills/session-observer/scripts/session-observer.mjs`
+- Modify: `tests/session-observer/cli.test.mjs`
+
+**Step 1: Understand the issue**
+
+Review finding: `runReview` and `runCatchUp` resolve `--runtime auto` before parsing `--session`, so `--runtime auto --session cursor:<id>` can return `ambiguousRuntime` before it reaches the pinned-session branch.
+Location: `skills/session-observer/scripts/session-observer.mjs:258`
+
+**Step 2: Implement fix**
+
+Parse and validate `args.session` before auto-runtime resolution. When present, use the pinned runtime as the effective runtime, discover only that runtime, and keep the existing pinned-session validation/error behavior. Apply consistently to `review` and `catch-up`.
+
+**Step 3: Verify**
+
+Run: `node --test tests/session-observer/cli.test.mjs`
+Expected: tests pass, including coverage for `--runtime auto --session cursor:<id>` when multiple runtimes have matching candidates.
+
+**Step 4: Commit**
+
+```bash
+git add skills/session-observer/scripts/session-observer.mjs tests/session-observer/cli.test.mjs
+git commit -m "fix(prev1-t06): honor pinned sessions before auto runtime"
+```
+
+---
+
 ## Reviews
 
 | Scope  | Type     | Status  | Date | Artifact |
@@ -1147,7 +1177,7 @@ git commit -m "docs(prev1-t05): document Cursor session-observer support"
 | p05    | code     | passed  | 2026-05-15 | reviews/archived/p05-rereview-2026-05-15.md |
 | p06    | code     | passed  | 2026-05-15 | reviews/archived/p06-review-2026-05-15.md |
 | p07    | code     | passed  | 2026-05-15 | reviews/archived/p07-review-2026-05-15.md |
-| p-rev1 | code     | passed  | 2026-05-21 | reviews/p-rev1-review-2026-05-21.md |
+| p-rev1 | code     | fixes_added | 2026-05-22 | reviews/archived/p-rev1-review-2026-05-21.md |
 | final  | code     | received | 2026-05-15 | reviews/final-rereview-2026-05-15.md |
 | spec   | artifact | pending  | -          | -                                               |
 | design | artifact | received | 2026-05-14 | reviews/artifact-design-review-2026-05-14.md   |
@@ -1168,11 +1198,11 @@ git commit -m "docs(prev1-t05): document Cursor session-observer support"
 - Phase 5: 3 tasks — Full SKILL.md body + watch-design reference + transcript-formats reference
 - Phase 6: 2 tasks — npm run validate + manual local probe verification
 - Phase 7: 4 tasks — Final-review fix tasks (Codex payload.cwd, --session override ordering, bidirectional Tier B, state.mjs hardening)
-- Phase p-rev1: 5 tasks — Dogfood hardening + Cursor agent transcript support
+- Phase p-rev1: 6 tasks — Dogfood hardening + Cursor agent transcript support + p-rev1 review fix
 
-**Total: 24 tasks**
+**Total: 25 tasks**
 
-Ready for revision implementation. Not ready for final code review or merge until `p-rev1` completes.
+Ready for p-rev1 review-fix implementation. Not ready for final code review or merge until `prev1-t06` completes and p-rev1 re-review passes.
 
 ---
 

@@ -1,13 +1,13 @@
 ---
-oat_current_task: null
-oat_last_commit: bd41e3f
+oat_current_task: prev1-t06
+oat_last_commit: 8a91377
 oat_blockers: []
 associated_issues: []
 oat_hill_checkpoints: []
 oat_hill_completed: []
 oat_parallel_execution: false
 oat_phase: implement
-oat_phase_status: pr_open
+oat_phase_status: in_progress
 oat_workflow_mode: quick
 oat_workflow_origin: native
 oat_docs_updated: null
@@ -15,7 +15,7 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: "2026-05-15T02:45:07.398Z"
 oat_project_completed: null
-oat_project_state_updated: "2026-05-21T12:00:00.000Z"
+oat_project_state_updated: "2026-05-22T15:36:46Z"
 oat_generated: false
 ---
 
@@ -27,7 +27,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation — revision phase p-rev1 is complete and phase-gate reviewed. Next step: final lifecycle closeout/review handling.
+Implementation — revision phase p-rev1 has one review-fix task queued from receive-review. Current task: `prev1-t06`.
 
 ## Artifacts
 
@@ -53,7 +53,7 @@ Implementation — revision phase p-rev1 is complete and phase-gate reviewed. Ne
 - ✓ Revision p-rev1 `prev1-t03` complete: Cursor transcript discovery and ranking evidence added
 - ✓ Revision p-rev1 `prev1-t04` complete: Cursor CLI/state/auto/probe wiring added
 - ✓ Revision p-rev1 `prev1-t05` complete: Cursor docs, validation, and installed-copy refresh done
-- ✓ Revision p-rev1 phase-gate review passed (0 Critical, 0 Important; 1 Minor non-blocking)
+- ⧗ Revision p-rev1 review received: 1 Minor converted to `prev1-t06`
 
 ## Blockers
 
@@ -61,4 +61,4 @@ None
 
 ## Next Milestone
 
-Continue lifecycle closeout: run final review/receive handling as needed, then `oat-project-pr-final`.
+Execute `prev1-t06` via `oat-project-implement`, then re-review p-rev1.

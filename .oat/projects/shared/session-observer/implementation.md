@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-05-21
-oat_current_task_id: null
+oat_current_task_id: prev1-t06
 oat_generated: false
 ---
 
@@ -31,9 +31,9 @@ oat_generated: false
 | Phase 5 | complete    | 3     | 3/3       |
 | Phase 6 | complete    | 2     | 2/2       |
 | Phase 7 | complete    | 4     | 4/4       |
-| Phase p-rev1 | complete | 5 | 5/5 |
+| Phase p-rev1 | in_progress | 6 | 5/6 |
 
-**Total:** 24/24 tasks completed
+**Total:** 24/25 tasks completed
 
 ---
 
@@ -358,7 +358,16 @@ Docs updated to include Cursor in runtime examples, flag docs, troubleshooting, 
 
 **Verification:** `node --test 'tests/session-observer/*.test.mjs'` → 136/136 pass; `npm test` → 260/260 pass; `npm run validate` → passed; `npm run smoke` → passed; `node skills/session-observer/scripts/probe-local.mjs --runtime cursor --cwd "$PWD"` → exit 2 (acceptable noMatch for this worktree).
 
-**Review:** p-rev1 phase-gate review → **PASS** (0 Critical, 0 Important). 1 Minor non-blocking finding recorded in `reviews/p-rev1-review-2026-05-21.md`: pinned `--session <runtime:id>` does not bypass `--runtime auto` ambiguity. Bounded because the documented and tested recovery path works with explicit `--runtime <runtime>`; no fix task added.
+**Review:** p-rev1 phase-gate review → **PASS** (0 Critical, 0 Important). 1 Minor non-blocking finding recorded in `reviews/archived/p-rev1-review-2026-05-21.md`: pinned `--session <runtime:id>` does not bypass `--runtime auto` ambiguity. Converted to review-fix task `prev1-t06` by review receive because the fix is small and likely useful future cleanup.
+
+### Task prev1-t06: (review) Fix pinned-session auto-runtime ambiguity
+
+**Status:** pending
+**Commit:** pending
+
+Review-generated follow-up for p-rev1 Minor `m1`: parse and validate pinned `--session <runtime:id>` before `--runtime auto` resolution so `--runtime auto --session cursor:<id>` uses the pinned runtime instead of failing on multi-runtime ambiguity.
+
+**Verification:** pending.
 
 ---
 
@@ -462,6 +471,25 @@ Docs updated to include Cursor in runtime examples, flag docs, troubleshooting, 
 ## Implementation Log
 
 _Append session entries below as `oat-project-implement` runs._
+
+### 2026-05-22 — Review received: p-rev1
+
+**Review artifact:** `reviews/archived/p-rev1-review-2026-05-21.md`
+
+**Findings:**
+
+- Critical: 0
+- Important: 0
+- Medium: 0
+- Minor: 1
+
+**Disposition:**
+
+- `m1` — Pinned sessions do not bypass auto-runtime ambiguity. Converted to task `prev1-t06` because the fix is minor, bounded to CLI/session tests, and likely useful future cleanup.
+
+**New tasks added:** `prev1-t06`
+
+**Next:** Execute `prev1-t06` via `oat-project-implement`, then update p-rev1 review status to `fixes_completed` and re-run `oat-project-review-provide code p-rev1`.
 
 ### 2026-05-21 — Revision received: dogfood hardening + Cursor target support
 
@@ -656,7 +684,7 @@ Both review artifacts archived to `reviews/archived/`. No plan tasks were added;
 | 5     | 92        | 92     | 0      | session-observer suite after p05 fix (+1 test) |
 | 6     | 216       | 216    | 0      | full `npm test` repo suite at p06 |
 | 7     | 226       | 226    | 0      | full `npm test` repo suite; +10 new p07 fix tests |
-| p-rev1 | 260     | 260    | 0      | full `npm test` repo suite; Cursor runtime support + dogfood hardening |
+| p-rev1 | 260     | 260    | 0      | full `npm test` repo suite; Cursor runtime support + dogfood hardening before review fix |
 
 ## Final Summary (for PR/docs)
 
