@@ -9,13 +9,17 @@
  *   5. active: true set on winner when ageSec < 60
  *   6. realpathSafe handles ENOENT without throwing
  *   7. Within a tier, sort by mtime DESC
+ *   8. Symlink-equivalent cwd paths rank as Tier A
  */
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdtemp, mkdir, rm, symlink } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 // Dynamic import so we get the live module once
-const { rank, tierOf } = await import(
+const { rank, realpathSafe, tierOf } = await import(
   '../../skills/session-observer/scripts/lib/rank.mjs'
 );
 
@@ -268,26 +272,9 @@ test('active: false set on winner when ageSec >= 60', () => {
 });
 
 test('realpathSafe handles ENOENT without throwing', async () => {
-  // rank.mjs may optionally export realpathSafe; if not, skip.
-  // The plan says "handles ENOENT without throwing (test by passing path that doesn't exist)".
-  // We test this by passing a candidate whose transcriptPath doesn't exist on disk.
-  const candidate = mkCandidate({
-    recordedCwd: TARGET_CWD,
-    transcriptPath: '/nonexistent/path/that/does/not/exist.jsonl',
-    mtime: NOW - 5,
-    ageSec: 5,
-    sessionId: 'sess-enoent',
-  });
+  const missingPath = '/nonexistent/path/that/does/not/exist';
 
-  // rank() must not throw even if it tries to realpath a nonexistent file
-  let result;
-  try {
-    result = await Promise.resolve(rank([candidate], TARGET_CWD));
-  } catch (err) {
-    assert.fail(`rank() threw on ENOENT path: ${err.message}`);
-  }
-
-  assert.ok(result, 'rank should return a result even for nonexistent paths');
+  assert.equal(realpathSafe(missingPath), missingPath);
 });
 
 test('Within a tier, candidates sorted by mtime DESC', () => {
@@ -328,6 +315,22 @@ test('tierOf: Tier A for exact cwd match', () => {
   if (!tierOf) return; // tierOf export is optional per plan
   const candidate = mkCandidate({ recordedCwd: TARGET_CWD });
   assert.equal(tierOf(candidate, TARGET_CWD), 'A');
+});
+
+test('tierOf: Tier A for symlink-equivalent cwd match', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'rank-symlink-'));
+  try {
+    const realDir = join(root, 'real-project');
+    const linkDir = join(root, 'linked-project');
+    await mkdir(realDir);
+    await symlink(realDir, linkDir, 'dir');
+
+    const candidate = mkCandidate({ recordedCwd: linkDir });
+
+    assert.equal(tierOf(candidate, realDir), 'A');
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
 
 test('tierOf: Tier B for descendant cwd (recordedCwd under targetCwd)', () => {

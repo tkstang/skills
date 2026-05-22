@@ -18,12 +18,35 @@
  *   ACTIVE_THRESHOLD_SEC = 60  — winners younger than this are marked active: true
  */
 
+import { realpathSync } from 'node:fs';
+
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
 const TIE_WINDOW_SEC = 5;
 const ACTIVE_THRESHOLD_SEC = 60;
+
+// ---------------------------------------------------------------------------
+// Path normalization
+// ---------------------------------------------------------------------------
+
+function stripTrailingSlashes(path) {
+  if (path === '/') return path;
+  return path.replace(/\/+$/u, '');
+}
+
+export function realpathSafe(path) {
+  try {
+    return realpathSync.native(path);
+  } catch {
+    return path;
+  }
+}
+
+function normalizeCwdPath(path) {
+  return stripTrailingSlashes(realpathSafe(path));
+}
 
 // ---------------------------------------------------------------------------
 // tierOf
@@ -50,10 +73,12 @@ const ACTIVE_THRESHOLD_SEC = 60;
 export function tierOf(candidate, targetCwd) {
   const { recordedCwd } = candidate;
   if (!recordedCwd) return 'C';
-  if (recordedCwd === targetCwd) return 'A';
+  const normalizedRecordedCwd = normalizeCwdPath(recordedCwd);
+  const normalizedTargetCwd = normalizeCwdPath(targetCwd);
+  if (normalizedRecordedCwd === normalizedTargetCwd) return 'A';
   // Tier B: bidirectional path-prefix check (path-boundary-safe)
-  if (recordedCwd.startsWith(targetCwd + '/')) return 'B';
-  if (targetCwd.startsWith(recordedCwd + '/')) return 'B';
+  if (normalizedRecordedCwd.startsWith(normalizedTargetCwd + '/')) return 'B';
+  if (normalizedTargetCwd.startsWith(normalizedRecordedCwd + '/')) return 'B';
   return 'C';
 }
 
