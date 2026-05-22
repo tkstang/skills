@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-05-22
-oat_current_task_id: prev1-t10
+oat_current_task_id: prev1-t11
 oat_generated: false
 ---
 
@@ -31,9 +31,9 @@ oat_generated: false
 | Phase 5 | complete    | 3     | 3/3       |
 | Phase 6 | complete    | 2     | 2/2       |
 | Phase 7 | complete    | 4     | 4/4       |
-| Phase p-rev1 | in_progress | 13 | 9/13 |
+| Phase p-rev1 | in_progress | 13 | 10/13 |
 
-**Total:** 28/32 tasks completed
+**Total:** 29/32 tasks completed
 
 ---
 
@@ -408,12 +408,14 @@ Review-generated follow-up from `p-rev1-review-2026-05-22.md`: avoid statting Cu
 
 ### Task prev1-t10: (review) Normalize symlinked cwd paths before ranking
 
-**Status:** pending
-**Commit:** pending
+**Status:** complete
+**Commit:** c1c11ba
 
 Review-generated follow-up from `p-rev1-review-2026-05-22.md`: normalize symlink-equivalent cwd paths before Tier A/B ranking comparisons so paths like `/tmp/foo` and `/private/tmp/foo` can match on macOS.
 
-**Verification:** pending.
+Added `realpathSafe()` normalization for Tier A/B comparisons while preserving fallback-to-original-path behavior when realpath fails. Added rank coverage for ENOENT fallback and symlink-equivalent cwd matching.
+
+**Verification:** `node --test tests/session-observer/rank.test.mjs` → 21/21 pass.
 
 ### Task prev1-t11: (review) Skip no-op catch-up state writes
 
