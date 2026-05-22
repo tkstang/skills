@@ -20,7 +20,7 @@ oat_generated_at: 2026-05-22
 | Status | complete |
 | HiLL Gate | n/a |
 | Current Task | - |
-| Docs Updated | ⚠ not yet run |
+| Docs Updated | ✓ complete |
 
 Details: `.oat/projects/shared/session-observer/state.md`
 
@@ -35,7 +35,7 @@ Details: `.oat/projects/shared/session-observer/state.md`
 
 ## Recommended Next Step
 
-**oat-project-document** - Sync documentation before generating PR
+**oat-project-pr-final** - Generate final PR description (final review passed)
 
 ## Quick Commands
 
@@ -50,5 +50,4 @@ Details: `.oat/projects/shared/session-observer/state.md`
 
 ## Available Projects
 
-- **consensus-plugin** - implement
 - **session-observer** - implement
