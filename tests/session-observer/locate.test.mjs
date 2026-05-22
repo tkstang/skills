@@ -66,9 +66,9 @@ function makeCodexTypical(cwd) {
 `;
 }
 
-// Encode cwd the way Claude Code does: replace '/' with '-'
+// Encode cwd the way Claude Code currently does: replace '/' and '.' with '-'
 function encodeCwd(cwd) {
-  return cwd.replace(/\//g, '-');
+  return cwd.replace(/[/.]/g, '-');
 }
 
 // ---------------------------------------------------------------------------
@@ -119,6 +119,49 @@ test('claude-code: glob fallback when encoded dir is missing — no throw, retur
     // All returned candidates (if any from other dirs) should not have recordedCwd === targetCwd
     const exactMatch = candidates.filter(c => c.recordedCwd === targetCwd);
     assert.equal(exactMatch.length, 0, 'should find no exact-cwd match when encoded dir is absent');
+  });
+});
+
+test('claude-code: direct lookup uses dot-sanitized project dir slug', async () => {
+  await withTempHome(async (home) => {
+    const { discover } = await importLocate();
+
+    const targetCwd = join(home, 'thomas.stang', '.superconductor', 'worktrees', 'stoa', 'sc-levitated-phonon-e8a5');
+    const encoded = encodeCwd(targetCwd);
+
+    const projectDir = join(home, '.claude', 'projects', encoded);
+    await mkdir(projectDir, { recursive: true });
+    const transcriptPath = join(projectDir, 'typical.jsonl');
+    await writeFile(transcriptPath, CLAUDE_CODE_TYPICAL, 'utf8');
+
+    const candidates = await discover('claude-code', targetCwd);
+    const c = candidates.find(candidate => candidate.transcriptPath === transcriptPath);
+
+    assert.ok(c, 'should find the transcript via dot-sanitized direct lookup');
+    assert.equal(c.recordedCwd, targetCwd);
+    assert.equal(c.cwdSlug, encoded);
+    assert.equal(c.cwdEvidence, 'direct-parent-dir');
+  });
+});
+
+test('claude-code: fallback candidates preserve parent cwdSlug as weak evidence', async () => {
+  await withTempHome(async (home) => {
+    const { discover } = await importLocate();
+
+    const targetCwd = join(home, 'Code', 'missing-project');
+    const otherSlug = '-Users-thomas-stang--superconductor-worktrees-stoa-sc-levitated-phonon-e8a5';
+    const projectDir = join(home, '.claude', 'projects', otherSlug);
+    await mkdir(projectDir, { recursive: true });
+    const transcriptPath = join(projectDir, 'typical.jsonl');
+    await writeFile(transcriptPath, CLAUDE_CODE_TYPICAL, 'utf8');
+
+    const candidates = await discover('claude-code', targetCwd);
+    const c = candidates.find(candidate => candidate.transcriptPath === transcriptPath);
+
+    assert.ok(c, 'fallback scan should include non-direct project dirs');
+    assert.equal(c.cwdSlug, otherSlug);
+    assert.equal(c.cwdEvidence, 'decoded-parent-dir');
+    assert.notEqual(c.recordedCwd, targetCwd);
   });
 });
 

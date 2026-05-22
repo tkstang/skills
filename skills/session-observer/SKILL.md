@@ -63,20 +63,24 @@ Use this skill when any of the following applies:
 
 | Flag | Type | Default | Description |
 |---|---|---|---|
-| `--runtime <r>` | `claude-code\|codex\|auto` | `auto` | Which runtime to read. `auto` picks the peer via `SESSION_OBSERVER_SELF` env hint or tier-population fallback. |
+| `--runtime <r>` | `claude-code\|codex\|auto` | `auto` | Which runtime to read. `auto` picks the peer via `SESSION_OBSERVER_SELF`, a prior same-cwd state entry, or tier-population fallback. |
 | `--cwd <path>` | path | `process.cwd()` | Project directory to match transcripts against. |
 | `--include-tools` | boolean | false | Include compact `[ToolName] args` tool-call markers. |
-| `--debug` | boolean | false | Shorthand for `--include-tools --include-tool-results`. Adds `[ToolName → result] output` entries. |
+| `--include-command-messages` | boolean | false | Include Claude Code slash-command payload records such as `<command-message>…</command-message>`. |
+| `--debug` | boolean | false | Shorthand for `--include-tools --include-tool-results`. Adds `[ToolName → result] output` entries. For `locate --json`, includes lookup diagnostics such as Claude's expected project-dir slugs. |
 | `--include-tool-results` | boolean | false | Include tool-result markers without tool-call markers (unusual; emits a note suggesting `--debug`). |
 | `--json` | boolean | false | Machine-readable JSON output (default is markdown). |
-| `--max-turns N` | integer | — | Tail-slice to last N turn groups. `review` only. |
-| `--max-bytes N` | integer | — | Tail-slice to last N bytes of content. `review` only. |
+| `--max-turns N` | integer | — | Tail-slice to last N turn groups. |
+| `--max-bytes N` | integer | — | Tail-slice to last N bytes of content. |
 | `--session <r:id>` | string | — | Pin to a specific `runtime:sessionId`. Overrides rank winner. |
+| `--snippet <text>` | string | — | Prefer candidate transcripts containing this excerpt. Use when the user identifies a session by its last message or a memorable phrase. |
 | `--mark-read` | boolean | false | Advance the high-water mark after a `review` run. |
 
 ### Default content filter
 
-By default, only natural-language `user`/`assistant` messages are included. Tool calls and tool results are excluded. Opt in with `--include-tools` (adds call markers) or `--debug` (adds both markers and results).
+By default, only natural-language `user`/`assistant` messages are included. Tool calls, tool results, and Claude Code slash-command payload records (`<command-message>`, `<command-name>`, `<command-args>`) are excluded. Opt in with `--include-tools` (adds call markers), `--include-command-messages` (adds slash-command payloads), or `--debug` (adds tool markers and results).
+
+If a digest would exceed the large-output threshold, the CLI automatically falls back to the last 8 user/assistant turn groups and adds a `Large digest fallback` warning. This protects `catch-up` from dumping pasted skill bodies or large transcript spans. Use `--max-turns` or `--max-bytes` for an explicit bound, or `--include-command-messages` when the slash-command payload itself is the thing being debugged.
 
 ---
 
@@ -87,9 +91,10 @@ By default, only natural-language `user`/`assistant` messages are included. Tool
 Before running the CLI, resolve any ambiguity:
 
 1. **Mode ambiguous** (`"can you check?"` with no verb hint) → ask: *"Full review, or just what's new since last time?"*
-2. **Runtime ambiguous** — default to `--runtime auto`. Only ask if `auto` exits 3 with `ambiguousRuntime`.
-3. **Ties within winning tier** (exit 3 with `ties`) — present the top candidates; ask which to use; re-invoke with `--session <runtime>:<id>`.
-4. **No candidates (exit 2)** — present widening options (sister worktree, specific cwd, global most-recent).
+2. **Runtime ambiguous** — default to `--runtime auto`. If both runtimes have matching transcripts, `auto` first checks whether the state file has exactly one previously read session for this cwd and reuses that runtime; otherwise it exits 3 with `ambiguousRuntime`.
+3. **User identifies a session by text** — run `locate --runtime <r> --cwd "$PWD" --json --snippet "<excerpt>"`, confirm the matched `sessionId`/`recordedCwd`, then re-run with `--session <runtime>:<id>` if needed.
+4. **Ties within winning tier** (exit 3 with `ties`) — present the top candidates; ask which to use; re-invoke with `--session <runtime>:<id>`.
+5. **No candidates (exit 2)** — run `locate --json --debug` for diagnostics, then present widening options (sister worktree, specific cwd, global most-recent). Treat `globalRecent` as diagnostic only: if one candidate's path or slug clearly matches the current worktree and a newer candidate is unrelated, prefer the same-worktree candidate or ask before using it.
 
 Use `AskUserQuestion` (Claude Code) or structured input / conversational ask (other runtimes) for disambiguation.
 
@@ -115,7 +120,7 @@ node <skill-dir>/scripts/session-observer.mjs <subcommand> [flags]
 |---|---|---|
 | 0 | Success | Proceed to Step 3. |
 | 1 | Hard error | Surface the error; do not update state. |
-| 2 | No candidates (noMatch / noCandidates) | Offer widening options from the JSON payload (`sisters`, `globalRecent`). |
+| 2 | No candidates (noMatch / noCandidates) | Offer widening options from the JSON payload (`sisters`, `globalRecent`). Do not silently jump to an unrelated globally recent transcript. |
 | 3 | Needs user input (ties / ambiguousRuntime) | Present options from the JSON payload; re-invoke with `--session` or `--runtime`. |
 | 4 | Schema mismatch | Auto-migrated (should not reach SKILL.md); report if seen. |
 
@@ -133,6 +138,10 @@ node <skill-dir>/scripts/session-observer.mjs catch-up \
 # Locate — diagnostic ranked candidate list
 node <skill-dir>/scripts/session-observer.mjs locate \
   --runtime auto --cwd "$PWD" --json
+
+# Locate by last-message excerpt before pinning
+node <skill-dir>/scripts/session-observer.mjs locate \
+  --runtime claude-code --cwd "$PWD" --json --snippet "the last thing I saw"
 
 # State — inspect or reset tracked offsets
 node <skill-dir>/scripts/session-observer.mjs state get
@@ -166,7 +175,17 @@ Read the markdown digest. Then offer a take on what the peer did or said:
 
 ### Step 4: Catch-up bookkeeping
 
-`catch-up` automatically advances the high-water mark on exit 0. The next `check again` will only surface records that arrive after this call. Remind the user of this behavior when relevant.
+`catch-up` automatically advances the high-water mark on exit 0. The high-water mark advances over **raw transcript records consumed**, not just rendered messages. The header separates:
+
+- `raw range (zero-based JSONL indices)` / `raw records consumed` — all transcript records consumed for offset bookkeeping.
+- `rendered messages` — natural-language/tool entries actually shown after filters and tail slicing. Rendered ranges also use zero-based JSONL record indices.
+- `filtered out` — omitted tool calls, tool results, command messages, metadata/non-message records, or tail-sliced entries.
+
+If the header says `raw records consumed: 8` and `rendered messages: 1`, that is normal: the default digest filtered out the other raw records, usually tool activity or Claude slash-command payloads. Do not describe this as a range bug.
+
+Use one convention everywhere when discussing positions: record numbers are **zero-based JSONL record indices**, not one-based line numbers. If you need one-based line numbers for a separate shell command, label them explicitly as line numbers.
+
+The stored high-water mark is exclusive: after rendering/consuming record `N`, the next catch-up starts at `N + 1`. In the state file this is still named `lastRecordIndex` for compatibility, but semantically it is the next unread zero-based record index.
 
 If you used `review` and want the same bookkeeping, pass `--mark-read`.
 
@@ -225,8 +244,10 @@ The skill did not find any transcripts for the target cwd and runtime.
 
 1. **Sister git worktrees** — re-run with `--cwd <sister-path>`. The payload includes `sisters[]`.
 2. **Specific cwd** — re-run with `--cwd <path>` for a different project directory.
-3. **Global most-recent** — re-run without `--cwd` against the globally most-recent session. Note it may be from an unrelated project.
+3. **Global most-recent** — diagnostic only. Do not use a globally newer unrelated transcript when another candidate path clearly belongs to the requested project/worktree; ask or pin with `--session <runtime>:<id>`.
 4. Check that the peer runtime has been run in this project at all.
+
+For Claude Code cwd issues, run `locate --runtime claude-code --cwd "$PWD" --json --debug` and inspect `lookupDiagnostics.claudeCode[]`. It shows the expected project-dir slug variants and whether each directory exists.
 
 ### Ties (exit 3, `ties`)
 
@@ -234,9 +255,20 @@ Two or more sessions have modification times within 5 seconds of each other.
 
 **Recovery:** Pass `--session <runtime>:<id>` with one of the candidates from the `candidates[]` payload. Use `locate --json` first if you want to see all available sessions.
 
+### User identifies a session by last-message text
+
+Run:
+
+```bash
+node skills/session-observer/scripts/session-observer.mjs locate \
+  --runtime claude-code --cwd "$PWD" --json --snippet "<excerpt>"
+```
+
+If the `snippet.matches[]` result identifies the expected `sessionId` and cwd, use `--session <runtime>:<sessionId>` for `review` or `catch-up`. `--session` is the recovery path for ties, no-match ambiguity, and user-confirmed session identity.
+
 ### Ambiguous runtime (exit 3, `ambiguousRuntime`)
 
-Both Claude Code and Codex have sessions for this cwd. `--runtime auto` can't pick one.
+Both Claude Code and Codex have sessions for this cwd, and no single prior same-cwd state entry resolved the preference. `--runtime auto` can't pick one safely.
 
 **Recovery:** Re-run with `--runtime claude-code` or `--runtime codex`.
 

@@ -17,16 +17,19 @@ Short reference for the Claude Code and Codex JSONL record shapes that `<skill-d
 
 ### File naming and cwd encoding
 
-Claude Code encodes the project cwd as the **parent directory name** by replacing every `/` with `-`. For example:
+Claude Code encodes the project cwd as the **parent directory name**. Current observed project dirs replace `/` and `.` with `-`. For example:
 
 ```
 /Users/alice/Code/my-project
     → ~/.claude/projects/-Users-alice-Code-my-project/<session-id>.jsonl
+
+/Users/thomas.stang/.superconductor/worktrees/stoa/sc-levitated-phonon-e8a5
+    → ~/.claude/projects/-Users-thomas-stang--superconductor-worktrees-stoa-sc-levitated-phonon-e8a5/<session-id>.jsonl
 ```
 
-`runtimes.encodeCwd('claude-code', cwd)` returns this encoded form. `locate.mjs` uses the encoded name to do a direct directory lookup — no transcript read needed to derive the cwd.
+`runtimes.encodeCwd('claude-code', cwd)` returns the preferred encoded form. `runtimes.encodeCwdVariants('claude-code', cwd)` returns the preferred form plus compatibility variants, and `locate.mjs` tries all direct directories before glob fallback.
 
-Decoding is approximate: the reverse replacement (`-` → `/`) is ambiguous when path segments themselves contain hyphens. `runtimes.mjs` applies the heuristic "decode only when the dir name starts with `-` (the leading slash of an absolute path)." Direct hits from `discover('claude-code', cwd)` set `recordedCwd = targetCwd` exactly, bypassing the lossy decode.
+Decoding is approximate: the reverse replacement (`-` → `/`) is ambiguous when path segments themselves contain hyphens or dots. `runtimes.mjs` applies the heuristic "decode only when the dir name starts with `-` (the leading slash of an absolute path)." Direct hits from `discover('claude-code', cwd)` set `recordedCwd = targetCwd` exactly, bypassing the lossy decode. Glob fallback candidates carry the parent `cwdSlug` as weak evidence, and ranking prefers a slug that matches the requested cwd over unrelated global recency.
 
 ### Session ID placement
 
@@ -62,6 +65,21 @@ Session ID appears in multiple fields across record types:
 ```
 
 The `message` wrapper is present on most records. `runtimes.mjs` checks `record.message.role` first, then falls back to `record.role` and `record.type` for older or alternative shapes.
+
+Claude Code also records slash-command payloads as user text, for example:
+
+```json
+{
+  "type": "user",
+  "sessionId": "cc-session-001",
+  "message": {
+    "role": "user",
+    "content": "<command-message>oat-project-open</command-message>\n<command-name>/oat-project-open</command-name>"
+  }
+}
+```
+
+`normalizeEntries` classifies these as `command_message` entries and excludes them by default because they can contain entire pasted skill bodies. Pass `includeCommandMessages: true` / `--include-command-messages` when debugging command payloads directly.
 
 **Assistant message with text block:**
 

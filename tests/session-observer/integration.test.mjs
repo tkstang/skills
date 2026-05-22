@@ -184,6 +184,62 @@ describe('integration: catch-up', () => {
     }
   });
 
+  test('catch-up treats stored offset as exclusive next record index', async (t) => {
+    const tmpDir = await mkdtemp(join(tmpdir(), 'integration-test-'));
+    const cwd = '/integration-test/boundary-project';
+    const encodedCwd = '-integration-test-boundary-project';
+    const projectDir = join(tmpDir, '.claude', 'projects', encodedCwd);
+    const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
+    try {
+      await mkdir(projectDir, { recursive: true });
+      await mkdir(stateDir, { recursive: true });
+
+      const transcriptPath = join(projectDir, 'session-boundary.jsonl');
+      const records = [
+        { sessionId: 'boundary-session', message: { role: 'assistant', content: 'previous message' } },
+        { sessionId: 'boundary-session', message: { role: 'assistant', content: 'boundary message should not repeat' } },
+        { sessionId: 'boundary-session', message: { role: 'assistant', content: 'new message only' } },
+      ];
+      await writeFile(transcriptPath, records.map(record => JSON.stringify(record)).join('\n') + '\n', 'utf8');
+
+      await writeFile(join(stateDir, 'state.json'), JSON.stringify({
+        schemaVersion: 1,
+        sessions: {
+          'claude-code:boundary-session': {
+            runtime: 'claude-code',
+            sessionId: 'boundary-session',
+            lastRecordIndex: 2,
+            lastTotalRecords: 3,
+            lastReadAt: new Date().toISOString(),
+            transcriptPath,
+            recordedCwd: cwd,
+            watchedByPid: null,
+          },
+        },
+      }, null, 2), 'utf8');
+
+      const result = spawnCli(
+        ['catch-up', '--runtime', 'claude-code', '--cwd', cwd],
+        { HOME: tmpDir, STATE_DIR: stateDir }
+      );
+
+      assert.equal(result.status, 0,
+        `catch-up should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`);
+      assert.ok(result.stdout.includes('new message only'), 'should render the first unread record');
+      assert.ok(!result.stdout.includes('boundary message should not repeat'), 'must not re-render the previous boundary record');
+      assert.ok(result.stdout.includes('raw range (zero-based JSONL indices):** records 2–2 of 3'));
+
+      const state = JSON.parse(await readFile(join(stateDir, 'state.json'), 'utf8'));
+      assert.equal(
+        state.sessions['claude-code:boundary-session'].lastRecordIndex,
+        3,
+        'stored offset should advance to the next unread zero-based record index'
+      );
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
   // ---------------------------------------------------------------------------
   // Test 5: state reset followed by catch-up re-emits full content
   // ---------------------------------------------------------------------------

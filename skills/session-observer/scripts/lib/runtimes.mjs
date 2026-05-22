@@ -9,6 +9,7 @@
  * Exports:
  *   discoverPaths(runtime)                         → string[]
  *   encodeCwd(runtime, cwd)                        → string | null
+ *   encodeCwdVariants(runtime, cwd)                → string[]
  *   extractMeta(runtime, transcriptPath)           → Promise<{ sessionId, recordedCwd } | null>
  *   readRecords(transcriptPath)                    → Promise<JsonObject[]>
  *   normalizeEntries(runtime, records, opts)       → DigestEntry[]
@@ -24,6 +25,7 @@ import { join, dirname, basename } from 'node:path';
 
 const TOOL_INPUT_LIMIT = 200;
 const TOOL_RESULT_LIMIT = 500;
+const COMMAND_MESSAGE_RE = /<(command-message|command-name|command-args)>[\s\S]*?<\/\1>/u;
 
 // ---------------------------------------------------------------------------
 // Small helpers
@@ -56,6 +58,18 @@ function asString(value) {
 function truncate(str, limit) {
   if (str.length <= limit) return str;
   return str.slice(0, limit) + '...';
+}
+
+/**
+ * Claude Code records slash-command payloads as user-visible XML-ish text.
+ * Those payloads can include full skill bodies and usually drown out the
+ * natural-language conversation, so the digest excludes them by default.
+ *
+ * @param {string} text
+ * @returns {boolean}
+ */
+function isClaudeCommandMessageText(text) {
+  return COMMAND_MESSAGE_RE.test(text);
 }
 
 /**
@@ -112,8 +126,9 @@ export function discoverPaths(runtime) {
 
 /**
  * Encode a cwd path for Claude Code's directory-name scheme.
- * Claude Code replaces every '/' with '-', so '/Users/x/y' becomes '-Users-x-y'.
- * Codex has no path encoding — returns null.
+ * Current Claude Code project dirs replace both '/' and '.' with '-'. For
+ * example, '/Users/thomas.stang/.superconductor' becomes
+ * '-Users-thomas-stang--superconductor'. Codex has no path encoding.
  *
  * @param {'claude-code' | 'codex'} runtime
  * @param {string} cwd
@@ -121,8 +136,25 @@ export function discoverPaths(runtime) {
  */
 export function encodeCwd(runtime, cwd) {
   if (runtime === 'codex') return null;
-  // Replace every '/' with '-'
-  return cwd.replace(/\//g, '-');
+  return encodeCwdVariants(runtime, cwd)[0];
+}
+
+/**
+ * Return all known cwd slug variants for a runtime, ordered by preference.
+ * Claude Code has used at least two observable schemes: the current scheme
+ * sanitizes '/' and '.', while older docs/tests assumed slash-only encoding.
+ *
+ * @param {'claude-code' | 'codex'} runtime
+ * @param {string} cwd
+ * @returns {string[]}
+ */
+export function encodeCwdVariants(runtime, cwd) {
+  if (runtime === 'codex') return [];
+  const variants = [
+    cwd.replace(/[/.]/g, '-'),
+    cwd.replace(/\//g, '-'),
+  ];
+  return [...new Set(variants)];
 }
 
 // ---------------------------------------------------------------------------
@@ -207,13 +239,11 @@ function claudeSessionIdFromRecord(record) {
 
 /**
  * Decode a Claude Code encoded directory name back to a cwd path.
- * Claude Code encodes '/Users/x/y' as '-Users-x-y' (replaces '/' with '-').
- * We reverse this by replacing the leading '-' with '/' and all subsequent
- * '-' chars with '/' IF the name starts with a leading '-'.
  *
- * This is an approximation — path segments that contain '-' themselves are
- * ambiguous. We use a heuristic: only decode when the dir name starts with '-'
- * (the leading slash of an absolute path).
+ * This is weak/display-only evidence. Claude project dir slugs are not
+ * reversible because '-' can represent a slash, a dot, or a literal hyphen in
+ * the original path. Direct lookup must set recordedCwd from the requested cwd;
+ * fallback ranking should prefer slug evidence over this lossy decode.
  *
  * @param {string} dirName
  * @returns {string | null}
@@ -332,12 +362,17 @@ export async function extractMeta(runtime, transcriptPath) {
  * @param {'assistant' | 'user'} role
  * @param {unknown} content
  * @param {number} recordIndex
- * @param {{ includeToolCalls: boolean, includeToolResults: boolean, toolNameById: Map<string,string> }} opts
+ * @param {{ includeToolCalls: boolean, includeToolResults: boolean, includeCommandMessages: boolean, toolNameById: Map<string,string> }} opts
  * @returns {object[]}
  */
 function claudeEntriesFromContent(role, content, recordIndex, opts) {
   if (typeof content === 'string') {
-    return content ? [{ role, text: content, recordIndex, kind: 'message' }] : [];
+    if (!content) return [];
+    if (isClaudeCommandMessageText(content)) {
+      if (!opts.includeCommandMessages) return [];
+      return [{ role, text: content, recordIndex, kind: 'command_message' }];
+    }
+    return [{ role, text: content, recordIndex, kind: 'message' }];
   }
   if (!Array.isArray(content)) return [];
 
@@ -372,6 +407,10 @@ function claudeEntriesFromContent(role, content, recordIndex, opts) {
 
     // text / content blocks
     const text = asString(block.text) ?? asString(block.content);
+    if (text && isClaudeCommandMessageText(text)) {
+      if (!opts.includeCommandMessages) return [];
+      return [{ role, text, recordIndex, kind: 'command_message' }];
+    }
     return text ? [{ role, text, recordIndex, kind: 'message' }] : [];
   });
 }
@@ -384,12 +423,13 @@ function claudeEntriesFromContent(role, content, recordIndex, opts) {
  * rendered as `[ToolName → result] output` with toolName set.
  *
  * @param {object[]} records
- * @param {{ includeToolCalls?: boolean, includeToolResults?: boolean }} opts
+ * @param {{ includeToolCalls?: boolean, includeToolResults?: boolean, includeCommandMessages?: boolean }} opts
  * @returns {object[]}
  */
 function normalizeClaudeCode(records, opts) {
   const includeToolCalls = opts.includeToolCalls ?? false;
   const includeToolResults = opts.includeToolResults ?? false;
+  const includeCommandMessages = opts.includeCommandMessages ?? false;
 
   // First pass: build tool_use_id → tool name correlation map
   /** @type {Map<string, string>} */
@@ -420,6 +460,7 @@ function normalizeClaudeCode(records, opts) {
     return claudeEntriesFromContent(role, message.content, recordIndex, {
       includeToolCalls,
       includeToolResults,
+      includeCommandMessages,
       toolNameById,
     });
   });
@@ -433,7 +474,7 @@ function normalizeClaudeCode(records, opts) {
  * Normalize Codex records into DigestEntry[].
  *
  * @param {object[]} records
- * @param {{ includeToolCalls?: boolean, includeToolResults?: boolean }} opts
+ * @param {{ includeToolCalls?: boolean, includeToolResults?: boolean, includeCommandMessages?: boolean }} opts
  * @returns {object[]}
  */
 function normalizeCodex(records, opts) {
@@ -486,7 +527,7 @@ function normalizeCodex(records, opts) {
  *
  * Each DigestEntry:
  *   { role: 'user' | 'assistant', text: string, recordIndex: number,
- *     kind: 'message' | 'tool_call' | 'tool_result', toolName?: string }
+ *     kind: 'message' | 'tool_call' | 'tool_result' | 'command_message', toolName?: string }
  */
 export function normalizeEntries(runtime, records, opts = {}) {
   if (runtime === 'claude-code') return normalizeClaudeCode(records, opts);

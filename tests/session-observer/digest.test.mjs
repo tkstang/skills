@@ -103,6 +103,136 @@ describe('buildDigest', () => {
     assert.ok(catchUp.range.newRecords >= 0, 'newRecords should be >= 0');
   });
 
+  test('catch-up separates raw records consumed from rendered messages', async (t) => {
+    if (skipIfMissing(t)) return;
+
+    const tmpDir = await mkdtemp(join(tmpdir(), 'digest-filter-test-'));
+    try {
+      const transcriptPath = join(tmpDir, 'filtered.jsonl');
+      const records = [
+        { sessionId: 'sess-filtered', message: { role: 'assistant', content: [{ type: 'tool_use', id: 'tool-1', name: 'Read', input: { file: 'a' } }] } },
+        { sessionId: 'sess-filtered', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'tool-1', content: 'result a' }] } },
+        { sessionId: 'sess-filtered', message: { role: 'assistant', content: [{ type: 'tool_use', id: 'tool-2', name: 'Bash', input: { cmd: 'npm test' } }] } },
+        { sessionId: 'sess-filtered', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'tool-2', content: 'result b' }] } },
+        { sessionId: 'sess-filtered', message: { role: 'assistant', content: [{ type: 'text', text: 'One rendered assistant message.' }] } },
+        { sessionId: 'sess-filtered', message: { role: 'assistant', content: [{ type: 'tool_use', id: 'tool-3', name: 'Edit', input: { file: 'b' } }] } },
+        { sessionId: 'sess-filtered', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'tool-3', content: 'result c' }] } },
+        { sessionId: 'sess-filtered', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'tool-4', content: 'result d' }] } },
+      ];
+      await writeFile(transcriptPath, records.map(record => JSON.stringify(record)).join('\n') + '\n', 'utf8');
+
+      const digest = await buildDigest('claude-code', transcriptPath, {
+        fromIndex: 0,
+        mode: 'catch-up',
+      });
+
+      assert.equal(digest.range.fromIndex, 0);
+      assert.equal(digest.range.indexBase, 'zero-based-jsonl-record-index');
+      assert.equal(digest.accounting.indexBase, 'zero-based-jsonl-record-index');
+      assert.equal(digest.range.toIndex, 7, 'raw toIndex should be the last consumed raw record');
+      assert.equal(digest.range.nextIndex, 8, 'nextIndex should advance past all raw consumed records');
+      assert.equal(digest.range.newRecords, 8);
+      assert.equal(digest.accounting.rendered.count, 1);
+      assert.equal(digest.accounting.rendered.fromIndex, 4);
+      assert.equal(digest.accounting.rendered.toIndex, 4);
+      assert.equal(digest.accounting.filtered.toolCalls, 3);
+      assert.equal(digest.accounting.filtered.toolResults, 4);
+
+      const md = renderMarkdown(digest);
+      assert.ok(md.includes('raw range (zero-based JSONL indices):** records 0–7 of 8'), 'header should show raw range');
+      assert.ok(md.includes('raw records consumed:** 8'), 'header should show raw consumed count');
+      assert.ok(md.includes('rendered messages:** 1 (zero-based records 4–4)'), 'header should show rendered range separately');
+      assert.ok(md.includes('tool calls: 3'), 'header should explain filtered tool calls');
+      assert.ok(md.includes('tool results: 4'), 'header should explain filtered tool results');
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  test('catch-up accounts for default command-message filtering', async (t) => {
+    if (skipIfMissing(t)) return;
+
+    const tmpDir = await mkdtemp(join(tmpdir(), 'digest-command-test-'));
+    try {
+      const transcriptPath = join(tmpDir, 'command.jsonl');
+      const records = [
+        {
+          sessionId: 'sess-command',
+          message: {
+            role: 'user',
+            content: '<command-message>skill body</command-message>\n<command-name>/oat-project-open</command-name>',
+          },
+        },
+        {
+          sessionId: 'sess-command',
+          message: {
+            role: 'assistant',
+            content: [{ type: 'text', text: 'Visible response.' }],
+          },
+        },
+      ];
+      await writeFile(transcriptPath, records.map(record => JSON.stringify(record)).join('\n') + '\n', 'utf8');
+
+      const digest = await buildDigest('claude-code', transcriptPath, {
+        fromIndex: 0,
+        mode: 'catch-up',
+      });
+
+      assert.equal(digest.entries.length, 1);
+      assert.equal(digest.entries[0].text, 'Visible response.');
+      assert.equal(digest.accounting.filtered.commandMessages, 1);
+      assert.equal(digest.filters.includeCommandMessages, false);
+
+      const md = renderMarkdown(digest);
+      assert.ok(md.includes('command messages: 1'), 'header should explain command-message filtering');
+      assert.ok(md.includes('command messages excluded'), 'filters should include command messages excluded');
+
+      const debugDigest = await buildDigest('claude-code', transcriptPath, {
+        fromIndex: 0,
+        mode: 'catch-up',
+        includeCommandMessages: true,
+      });
+      assert.equal(debugDigest.entries.length, 2);
+      assert.equal(debugDigest.entries[0].kind, 'command_message');
+      assert.equal(debugDigest.accounting.filtered.commandMessages, 0);
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  test('large digest fallback keeps the last turn groups automatically', async (t) => {
+    if (skipIfMissing(t)) return;
+
+    const tmpDir = await mkdtemp(join(tmpdir(), 'digest-large-fallback-'));
+    try {
+      const transcriptPath = join(tmpDir, 'large.jsonl');
+      const longText = 'A'.repeat(3000);
+      const records = [];
+      for (let i = 0; i < 12; i++) {
+        records.push({
+          sessionId: 'sess-large-fallback',
+          message: { role: i % 2 === 0 ? 'user' : 'assistant', content: `${i}:${longText}` },
+        });
+      }
+      await writeFile(transcriptPath, records.map(record => JSON.stringify(record)).join('\n') + '\n', 'utf8');
+
+      const digest = await buildDigest('claude-code', transcriptPath, {
+        fromIndex: 0,
+        mode: 'catch-up',
+      });
+
+      assert.equal(digest.range.newRecords, 12);
+      assert.ok(digest.accounting.autoLargeDigest, 'autoLargeDigest accounting should be present');
+      assert.equal(digest.accounting.autoLargeDigest.retainedTurnGroups, 8);
+      assert.equal(digest.entries.length, 8);
+      assert.equal(digest.entries[0].recordIndex, 4);
+      assert.equal(digest.accounting.filtered.tailSliceEntries, 4);
+      assert.ok(digest.warnings.some(w => w.includes('Large digest fallback')));
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
   test('buildDigest works for codex runtime', async (t) => {
     if (skipIfMissing(t)) return;
     const digest = await buildDigest('codex', typicalCodex, {

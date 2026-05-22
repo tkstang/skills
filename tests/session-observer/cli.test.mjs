@@ -156,6 +156,68 @@ describe('locate --json', () => {
       await rm(tmpDir, { recursive: true, force: true });
     }
   });
+
+  test('locate --debug --json includes Claude lookup diagnostics', async (t) => {
+    const tmpDir = await mkdtemp(join(tmpdir(), 'cli-test-'));
+    try {
+      const cwd = '/Users/thomas.stang/.superconductor/worktrees/stoa/sc-levitated-phonon-e8a5';
+      const encodedCwd = '-Users-thomas-stang--superconductor-worktrees-stoa-sc-levitated-phonon-e8a5';
+      const projectDir = join(tmpDir, '.claude', 'projects', encodedCwd);
+      await mkdir(projectDir, { recursive: true });
+      await copyFile(typicalClaude, join(projectDir, 'session-001.jsonl'));
+
+      const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
+      await mkdir(stateDir, { recursive: true });
+
+      const result = spawnCli(
+        ['locate', '--runtime', 'claude-code', '--cwd', cwd, '--json', '--debug'],
+        { HOME: tmpDir, STATE_DIR: stateDir }
+      );
+
+      assert.equal(result.status, 0,
+        `Expected exit 0 for locate debug, got ${result.status}\nstderr: ${result.stderr}`);
+
+      const parsed = JSON.parse(result.stdout);
+      assert.ok(parsed.lookupDiagnostics?.claudeCode, 'lookupDiagnostics.claudeCode should be present');
+      assert.ok(
+        parsed.lookupDiagnostics.claudeCode.some(d => d.encoded === encodedCwd && d.exists === true),
+        'diagnostics should include the expected encoded dir and existence'
+      );
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  test('locate --snippet reports matched session before use', async (t) => {
+    const tmpDir = await mkdtemp(join(tmpdir(), 'cli-test-'));
+    try {
+      const cwd = '/test/snippet-project';
+      const encodedCwd = '-test-snippet-project';
+      const projectDir = join(tmpDir, '.claude', 'projects', encodedCwd);
+      await mkdir(projectDir, { recursive: true });
+      await copyFile(typicalClaude, join(projectDir, 'session-001.jsonl'));
+
+      const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
+      await mkdir(stateDir, { recursive: true });
+
+      const result = spawnCli(
+        ['locate', '--runtime', 'claude-code', '--cwd', cwd, '--json', '--snippet', 'Hello'],
+        { HOME: tmpDir, STATE_DIR: stateDir }
+      );
+
+      assert.equal(result.status, 0,
+        `Expected exit 0 for locate snippet, got ${result.status}\nstderr: ${result.stderr}`);
+
+      const parsed = JSON.parse(result.stdout);
+      assert.equal(parsed.winner.sessionId, 'cc-session-001');
+      assert.equal(parsed.snippet.query, 'Hello');
+      assert.equal(parsed.snippet.matches.length, 1);
+      assert.equal(parsed.snippet.matches[0].sessionId, 'cc-session-001');
+      assert.ok(parsed.snippet.matches[0].snippetMatch.context.includes('Hello'));
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -225,6 +287,76 @@ describe('--runtime auto', () => {
       // No candidates in either runtime → exit 2 or 3
       assert.ok(result.status === 2 || result.status === 3,
         `Expected exit 2 or 3 when no candidates in either runtime, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`);
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  test('auto prefers a previously read runtime for the same cwd when both runtimes match', async (t) => {
+    const tmpDir = await mkdtemp(join(tmpdir(), 'cli-auto-state-'));
+    try {
+      const cwd = '/test/dual-runtime-project';
+      const encodedCwd = '-test-dual-runtime-project';
+
+      const claudeProjectDir = join(tmpDir, '.claude', 'projects', encodedCwd);
+      await mkdir(claudeProjectDir, { recursive: true });
+      const claudePath = join(claudeProjectDir, 'claude-dual.jsonl');
+      await writeFile(
+        claudePath,
+        JSON.stringify({
+          sessionId: 'cc-dual',
+          message: { role: 'assistant', content: 'Claude visible.' },
+        }) + '\n',
+        'utf8'
+      );
+
+      const codexDir = join(tmpDir, '.codex', 'sessions', '2026', '05', '17');
+      await mkdir(codexDir, { recursive: true });
+      await writeFile(
+        join(codexDir, 'codex-dual.jsonl'),
+        [
+          JSON.stringify({ sessionId: 'codex-dual', payload: { type: 'session_meta', cwd } }),
+          JSON.stringify({
+            sessionId: 'codex-dual',
+            payload: { type: 'message', role: 'assistant', content: 'Codex visible.' },
+          }),
+        ].join('\n') + '\n',
+        'utf8'
+      );
+
+      const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
+      await mkdir(stateDir, { recursive: true });
+      await writeFile(
+        join(stateDir, 'state.json'),
+        JSON.stringify({
+          schemaVersion: 1,
+          sessions: {
+            'claude-code:cc-dual': {
+              runtime: 'claude-code',
+              sessionId: 'cc-dual',
+              transcriptPath: claudePath,
+              recordedCwd: cwd,
+              lastRecordIndex: 0,
+              lastTotalRecords: 0,
+              lastReadAt: '2026-05-17T12:00:00.000Z',
+              watchedByPid: null,
+            },
+          },
+        }),
+        'utf8'
+      );
+
+      const result = spawnCli(
+        ['catch-up', '--runtime', 'auto', '--cwd', cwd, '--json'],
+        { HOME: tmpDir, STATE_DIR: stateDir }
+      );
+
+      assert.equal(result.status, 0,
+        `Expected auto runtime to use state preference, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`);
+      const parsed = JSON.parse(result.stdout);
+      assert.equal(parsed.runtime, 'claude-code');
+      assert.equal(parsed.sessionId, 'cc-dual');
+      assert.equal(parsed.entries[0].text, 'Claude visible.');
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }

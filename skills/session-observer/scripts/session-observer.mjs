@@ -21,6 +21,7 @@
 import { parseArgs } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { readFile } from 'node:fs/promises';
 
 // ---------------------------------------------------------------------------
 // Lib imports (resolved relative to this file)
@@ -29,7 +30,7 @@ import { dirname, join } from 'node:path';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const LIB = join(__dirname, 'lib');
 
-const { discover, gitWorktrees } = await import(join(LIB, 'locate.mjs'));
+const { discover, gitWorktrees, claudeCodeLookupDiagnostics } = await import(join(LIB, 'locate.mjs'));
 const { rank } = await import(join(LIB, 'rank.mjs'));
 const { buildDigest, renderMarkdown, renderJson } = await import(join(LIB, 'digest.mjs'));
 const stateLib = await import(join(LIB, 'state.mjs'));
@@ -53,10 +54,12 @@ function parseCliArgs(argv) {
       json:                 { type: 'boolean', default: false },
       'include-tools':      { type: 'boolean', default: false },
       'include-tool-results': { type: 'boolean', default: false },
+      'include-command-messages': { type: 'boolean', default: false },
       debug:                { type: 'boolean', default: false },
       'max-turns':          { type: 'string',  default: undefined },
       'max-bytes':          { type: 'string',  default: undefined },
       session:              { type: 'string',  default: undefined },
+      snippet:              { type: 'string',  default: undefined },
       'mark-read':          { type: 'boolean', default: false },
       help:                 { type: 'boolean', default: false },
     },
@@ -82,9 +85,12 @@ function parseCliArgs(argv) {
     json: values.json,
     includeTools,
     includeToolResults,
+    includeCommandMessages: values['include-command-messages'] || false,
+    debug: values.debug,
     maxTurns,
     maxBytes,
     session: values.session,
+    snippet: values.snippet,
     markRead: values['mark-read'],
     help: values.help,
   };
@@ -95,6 +101,30 @@ function parseCliArgs(argv) {
 // ---------------------------------------------------------------------------
 
 const VALID_RUNTIMES = ['claude-code', 'codex'];
+
+async function preferredRuntimeFromState(withCandidates, targetCwd) {
+  let state;
+  try {
+    state = await stateLib.load();
+  } catch {
+    return null;
+  }
+
+  const runtimeSet = new Set(withCandidates.map(r => r.runtime));
+  const sessionIdsByRuntime = new Map(
+    withCandidates.map(r => [r.runtime, new Set(r.candidates.map(c => c.sessionId))])
+  );
+
+  const matches = Object.values(state.sessions ?? {})
+    .filter(s => runtimeSet.has(s.runtime))
+    .filter(s => s.recordedCwd === targetCwd)
+    .filter(s => sessionIdsByRuntime.get(s.runtime)?.has(s.sessionId))
+    .sort((a, b) => String(b.lastReadAt ?? '').localeCompare(String(a.lastReadAt ?? '')));
+
+  const runtimes = [...new Set(matches.map(s => s.runtime))];
+  if (runtimes.length !== 1) return null;
+  return { runtime: runtimes[0], reason: 'state-cwd-prior-session', sessionId: matches[0]?.sessionId };
+}
 
 /**
  * Resolve --runtime auto:
@@ -137,6 +167,9 @@ async function resolveAutoRuntime(targetCwd) {
     return { noMatch: true };
   }
 
+  const preferred = await preferredRuntimeFromState(withCandidates, targetCwd);
+  if (preferred) return preferred;
+
   // Both runtimes have candidates → ambiguous
   return {
     ambiguous: true,
@@ -164,6 +197,30 @@ function emitError(message, exitCode = 1) {
   process.exit(exitCode);
 }
 
+async function applySnippetFilter(candidates, snippet) {
+  if (!snippet) return { candidates, matches: [] };
+  const needle = snippet.toLowerCase();
+  const matches = [];
+  for (const candidate of candidates) {
+    let raw;
+    try {
+      raw = await readFile(candidate.transcriptPath, 'utf8');
+    } catch {
+      continue;
+    }
+    const index = raw.toLowerCase().indexOf(needle);
+    if (index === -1) continue;
+    const start = Math.max(0, index - 80);
+    const end = Math.min(raw.length, index + snippet.length + 80);
+    const snippetMatch = {
+      excerpt: snippet,
+      context: raw.slice(start, end).replace(/\s+/g, ' ').trim(),
+    };
+    matches.push({ ...candidate, snippetMatch });
+  }
+  return { candidates: matches, matches };
+}
+
 function printUsage() {
   process.stdout.write([
     'Usage: session-observer <subcommand> [options]',
@@ -178,11 +235,13 @@ function printUsage() {
     '  --runtime <claude-code|codex|auto>  (default: auto)',
     '  --cwd <path>                        (default: process.cwd())',
     '  --include-tools                     Include tool call markers',
+    '  --include-command-messages          Include Claude slash-command payloads',
     '  --debug                             Include tool calls and results',
     '  --json                              Output JSON instead of markdown',
-    '  --max-turns <N>                     Limit to last N turn groups (review only)',
-    '  --max-bytes <N>                     Limit to last N bytes of content (review only)',
+    '  --max-turns <N>                     Limit to last N turn groups',
+    '  --max-bytes <N>                     Limit to last N bytes of content',
     '  --session <runtime:id>              Pin to a specific session',
+    '  --snippet <text>                    Prefer candidates containing this transcript excerpt',
     '  --mark-read                         Advance offset after review',
     '',
   ].join('\n'));
@@ -194,7 +253,7 @@ function printUsage() {
 // ---------------------------------------------------------------------------
 
 async function runReview(args) {
-  const { cwd, includeTools, includeToolResults, maxTurns, maxBytes, json, markRead, session } = args;
+  const { cwd, includeTools, includeToolResults, includeCommandMessages, maxTurns, maxBytes, json, markRead, session, snippet } = args;
   let { runtime } = args;
 
   // Resolve auto runtime
@@ -266,6 +325,7 @@ async function runReview(args) {
         mode: 'review',
         includeToolCalls: includeTools,
         includeToolResults,
+        includeCommandMessages,
         maxTurns,
         maxBytes,
         sessionId: pinned.sessionId,
@@ -281,7 +341,7 @@ async function runReview(args) {
     if (markRead) {
       try {
         await stateLib.markRead(pinnedRuntime, pinned.sessionId, {
-          lastRecordIndex: digest.range.toIndex,
+          lastRecordIndex: digest.range.nextIndex,
           lastTotalRecords: digest.range.totalRecords,
           transcriptPath: pinned.transcriptPath,
           recordedCwd: pinned.recordedCwd,
@@ -292,6 +352,22 @@ async function runReview(args) {
     }
     if (json) return emitJson(digest, 0);
     return emit(renderMarkdown(digest), 0);
+  }
+
+  if (snippet) {
+    const filtered = await applySnippetFilter(candidates, snippet);
+    candidates = filtered.candidates;
+    if (candidates.length === 0) {
+      const payload = {
+        noMatch: true,
+        runtime,
+        cwd,
+        snippet,
+        message: 'No candidate transcripts contained the provided snippet.',
+      };
+      if (json) return emitJson(payload, 2);
+      return emit(`No ${runtime} candidate transcripts contained the provided snippet.`, 2);
+    }
   }
 
   // Rank candidates
@@ -339,6 +415,7 @@ async function runReview(args) {
       mode: 'review',
       includeToolCalls: includeTools,
       includeToolResults,
+      includeCommandMessages,
       maxTurns,
       maxBytes,
       sessionId: winner.sessionId,
@@ -346,6 +423,9 @@ async function runReview(args) {
       matchedTier: rankResult.tier,
       widenedFrom: null,
       active: winner.active,
+      warnings: winner.snippetMatch
+        ? [`Selected session by snippet match: ${winner.sessionId} (${winner.recordedCwd ?? 'unknown cwd'})`]
+        : [],
       fallbacks: rankResult.fallbacks,
     });
   } catch (err) {
@@ -356,7 +436,7 @@ async function runReview(args) {
   if (markRead) {
     try {
       await stateLib.markRead(runtime, winner.sessionId, {
-        lastRecordIndex: digest.range.toIndex,
+        lastRecordIndex: digest.range.nextIndex,
         lastTotalRecords: digest.range.totalRecords,
         transcriptPath: winner.transcriptPath,
         recordedCwd: winner.recordedCwd,
@@ -375,7 +455,7 @@ async function runReview(args) {
 // ---------------------------------------------------------------------------
 
 async function runCatchUp(args) {
-  const { cwd, includeTools, includeToolResults, json, session } = args;
+  const { cwd, includeTools, includeToolResults, includeCommandMessages, maxTurns, maxBytes, json, session, snippet } = args;
   let { runtime } = args;
 
   // Resolve auto runtime
@@ -453,6 +533,9 @@ async function runCatchUp(args) {
         mode: 'catch-up',
         includeToolCalls: includeTools,
         includeToolResults,
+        includeCommandMessages,
+        maxTurns,
+        maxBytes,
         sessionId: pinned.sessionId,
         recordedCwd: pinned.recordedCwd,
         matchedTier: null,
@@ -464,7 +547,7 @@ async function runCatchUp(args) {
     }
     try {
       await stateLib.markRead(pinnedRuntime, pinned.sessionId, {
-        lastRecordIndex: digest.range.toIndex,
+        lastRecordIndex: digest.range.nextIndex,
         lastTotalRecords: digest.range.totalRecords,
         transcriptPath: pinned.transcriptPath,
         recordedCwd: pinned.recordedCwd,
@@ -474,6 +557,22 @@ async function runCatchUp(args) {
     }
     if (json) return emitJson(digest, 0);
     return emit(renderMarkdown(digest), 0);
+  }
+
+  if (snippet) {
+    const filtered = await applySnippetFilter(candidates, snippet);
+    candidates = filtered.candidates;
+    if (candidates.length === 0) {
+      const payload = {
+        noMatch: true,
+        runtime,
+        cwd,
+        snippet,
+        message: 'No candidate transcripts contained the provided snippet.',
+      };
+      if (json) return emitJson(payload, 2);
+      return emit(`No ${runtime} candidate transcripts contained the provided snippet.`, 2);
+    }
   }
 
   const worktrees = await gitWorktrees(cwd).catch(() => []);
@@ -512,12 +611,18 @@ async function runCatchUp(args) {
       mode: 'catch-up',
       includeToolCalls: includeTools,
       includeToolResults,
+      includeCommandMessages,
+      maxTurns,
+      maxBytes,
       sessionId: winner.sessionId,
       recordedCwd: winner.recordedCwd,
-      matchedTier: rankResult.tier,
-      active: winner.active,
-      fallbacks: rankResult.fallbacks,
-    });
+        matchedTier: rankResult.tier,
+        active: winner.active,
+        warnings: winner.snippetMatch
+          ? [`Selected session by snippet match: ${winner.sessionId} (${winner.recordedCwd ?? 'unknown cwd'})`]
+          : [],
+        fallbacks: rankResult.fallbacks,
+      });
   } catch (err) {
     return emitError(`Failed to build digest: ${err.message}`, 1);
   }
@@ -525,7 +630,7 @@ async function runCatchUp(args) {
   // Advance the high-water mark on successful emit
   try {
     await stateLib.markRead(runtime, winner.sessionId, {
-      lastRecordIndex: digest.range.toIndex,
+      lastRecordIndex: digest.range.nextIndex,
       lastTotalRecords: digest.range.totalRecords,
       transcriptPath: winner.transcriptPath,
       recordedCwd: winner.recordedCwd,
@@ -543,7 +648,7 @@ async function runCatchUp(args) {
 // ---------------------------------------------------------------------------
 
 async function runLocate(args) {
-  const { cwd, json } = args;
+  const { cwd, json, debug, snippet } = args;
   let { runtime } = args;
 
   if (runtime === 'auto') {
@@ -558,11 +663,34 @@ async function runLocate(args) {
       }
     }
 
+    let snippetMatches = [];
+    if (snippet) {
+      const filtered = await applySnippetFilter(allCandidates, snippet);
+      snippetMatches = filtered.matches;
+      allCandidates.splice(0, allCandidates.length, ...filtered.candidates);
+      if (allCandidates.length === 0) {
+        const payload = {
+          noMatch: true,
+          cwd,
+          snippet,
+          message: 'No candidate transcripts contained the provided snippet.',
+        };
+        if (debug) payload.lookupDiagnostics = {
+          claudeCode: await claudeCodeLookupDiagnostics(cwd),
+        };
+        if (json) return emitJson(payload, 2);
+        return emit(`No transcripts contained the provided snippet.`, 2);
+      }
+    }
+
     const worktrees = await gitWorktrees(cwd).catch(() => []);
     const rankResult = rank(allCandidates, cwd, { gitWorktrees: worktrees });
 
     if (rankResult.noMatch) {
       const payload = { noMatch: true, cwd, sisters: rankResult.sisters, globalRecent: rankResult.globalRecent };
+      if (debug) payload.lookupDiagnostics = {
+        claudeCode: await claudeCodeLookupDiagnostics(cwd),
+      };
       if (json) return emitJson(payload, 2);
       return emit(`No transcripts found for cwd: ${cwd}`, 2);
     }
@@ -572,6 +700,10 @@ async function runLocate(args) {
       tier: rankResult.tier,
       ties: rankResult.ties,
       fallbacks: rankResult.fallbacks,
+    };
+    if (snippet) payload.snippet = { query: snippet, matches: snippetMatches };
+    if (debug) payload.lookupDiagnostics = {
+      claudeCode: await claudeCodeLookupDiagnostics(cwd),
     };
     if (json) return emitJson(payload, 0);
     return emit(
@@ -593,8 +725,36 @@ async function runLocate(args) {
 
   if (candidates.length === 0) {
     const payload = { noMatch: true, runtime, cwd };
+    if (debug && runtime === 'claude-code') {
+      payload.lookupDiagnostics = {
+        claudeCode: await claudeCodeLookupDiagnostics(cwd),
+      };
+    }
     if (json) return emitJson(payload, 2);
     return emit(`No ${runtime} transcripts found for cwd: ${cwd}`, 2);
+  }
+
+  let snippetMatches = [];
+  if (snippet) {
+    const filtered = await applySnippetFilter(candidates, snippet);
+    snippetMatches = filtered.matches;
+    candidates = filtered.candidates;
+    if (candidates.length === 0) {
+      const payload = {
+        noMatch: true,
+        runtime,
+        cwd,
+        snippet,
+        message: 'No candidate transcripts contained the provided snippet.',
+      };
+      if (debug && runtime === 'claude-code') {
+        payload.lookupDiagnostics = {
+          claudeCode: await claudeCodeLookupDiagnostics(cwd),
+        };
+      }
+      if (json) return emitJson(payload, 2);
+      return emit(`No ${runtime} candidate transcripts contained the provided snippet.`, 2);
+    }
   }
 
   const worktrees = await gitWorktrees(cwd).catch(() => []);
@@ -602,6 +762,11 @@ async function runLocate(args) {
 
   if (rankResult.noMatch) {
     const payload = { noMatch: true, runtime, cwd, sisters: rankResult.sisters, globalRecent: rankResult.globalRecent };
+    if (debug && runtime === 'claude-code') {
+      payload.lookupDiagnostics = {
+        claudeCode: await claudeCodeLookupDiagnostics(cwd),
+      };
+    }
     if (json) return emitJson(payload, 2);
     return emit(`No ${runtime} transcripts matched cwd: ${cwd}`, 2);
   }
@@ -612,6 +777,12 @@ async function runLocate(args) {
     ties: rankResult.ties,
     fallbacks: rankResult.fallbacks,
   };
+  if (snippet) payload.snippet = { query: snippet, matches: snippetMatches };
+  if (debug && runtime === 'claude-code') {
+    payload.lookupDiagnostics = {
+      claudeCode: await claudeCodeLookupDiagnostics(cwd),
+    };
+  }
   if (json) return emitJson(payload, 0);
   return emit(
     `Winner: ${rankResult.winner.runtime}:${rankResult.winner.sessionId}\n` +

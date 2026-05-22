@@ -23,6 +23,7 @@ const {
   extractMeta,
   readRecords,
   normalizeEntries,
+  encodeCwdVariants,
 } = await import('../../skills/session-observer/scripts/lib/runtimes.mjs');
 
 // ---------------------------------------------------------------------------
@@ -120,15 +121,31 @@ describe('readRecords', () => {
 // ---------------------------------------------------------------------------
 
 describe('encodeCwd', () => {
-  it('claude-code: encodes absolute path by replacing / with -', () => {
-    // Design: '/Users/x/Code/y' → '-Users-x-Code-y'
+  it('claude-code: encodes absolute path by replacing / and . with -', () => {
     const encoded = encodeCwd('claude-code', '/Users/x/Code/y');
     assert.equal(encoded, '-Users-x-Code-y');
   });
 
-  it('claude-code: encodes another path correctly', () => {
-    const encoded = encodeCwd('claude-code', '/home/user/projects/my-app');
-    assert.equal(encoded, '-home-user-projects-my-app');
+  it('claude-code: matches observed dot-sanitized project dirs', () => {
+    const encoded = encodeCwd(
+      'claude-code',
+      '/Users/thomas.stang/.superconductor/worktrees/stoa/sc-levitated-phonon-e8a5'
+    );
+    assert.equal(
+      encoded,
+      '-Users-thomas-stang--superconductor-worktrees-stoa-sc-levitated-phonon-e8a5'
+    );
+  });
+
+  it('claude-code: exposes dot-sanitized and slash-only variants', () => {
+    const variants = encodeCwdVariants(
+      'claude-code',
+      '/Users/thomas.stang/.superconductor/worktrees/stoa/sc-levitated-phonon-e8a5'
+    );
+    assert.deepEqual(variants, [
+      '-Users-thomas-stang--superconductor-worktrees-stoa-sc-levitated-phonon-e8a5',
+      '-Users-thomas.stang-.superconductor-worktrees-stoa-sc-levitated-phonon-e8a5',
+    ]);
   });
 
   it('codex: returns null (no path encoding)', () => {
@@ -303,6 +320,44 @@ describe('normalizeEntries (claude-code)', () => {
       assert.ok(e.recordIndex >= prevIndex);
       prevIndex = e.recordIndex;
     }
+  });
+
+  it('filters Claude slash-command message payloads by default', () => {
+    const commandRecord = {
+      sessionId: 'cc-command',
+      message: {
+        role: 'user',
+        content: '<command-message>oat-project-open</command-message>\n<command-name>/oat-project-open</command-name>',
+      },
+    };
+    const naturalRecord = {
+      sessionId: 'cc-command',
+      message: {
+        role: 'assistant',
+        content: [{ type: 'text', text: 'Natural language response.' }],
+      },
+    };
+
+    const entries = normalizeEntries('claude-code', [commandRecord, naturalRecord], {});
+
+    assert.equal(entries.length, 1);
+    assert.equal(entries[0].text, 'Natural language response.');
+  });
+
+  it('can include Claude slash-command message payloads for debugging', () => {
+    const commandRecord = {
+      sessionId: 'cc-command',
+      message: {
+        role: 'user',
+        content: '<command-message>oat-project-open</command-message>\n<command-name>/oat-project-open</command-name>',
+      },
+    };
+
+    const entries = normalizeEntries('claude-code', [commandRecord], { includeCommandMessages: true });
+
+    assert.equal(entries.length, 1);
+    assert.equal(entries[0].kind, 'command_message');
+    assert.ok(entries[0].text.includes('<command-message>'));
   });
 
   it('with-tool-burst: multiple tool calls all included', async () => {

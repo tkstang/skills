@@ -7,8 +7,8 @@
  *
  * Tier definitions:
  *   A — candidate.recordedCwd === targetCwd         (exact match)
- *   B — targetCwd is a prefix of candidate.recordedCwd  (descendant match)
- *   C — no relationship                             (no match)
+ *   B — either cwd is a path-prefix of the other       (subdir/root match)
+ *   C — Claude parent-dir slug matches target cwd      (weak recovery)
  *
  * No dependency on locate.mjs. The CLI injects gitWorktrees results and the
  * globalRecentProvider via opts so rank is a pure, independently-testable function.
@@ -80,6 +80,36 @@ export function tierOf(candidate, targetCwd) {
  * RankResult (noMatch):
  *   { winner: null, noMatch: true, sisters: string[], globalRecent: Candidate[] }
  */
+
+function cwdSlugVariants(cwd) {
+  return [...new Set([
+    cwd.replace(/[/.]/g, '-'),
+    cwd.replace(/\//g, '-'),
+  ])];
+}
+
+function slugFromTranscriptPath(transcriptPath) {
+  const marker = '/.claude/projects/';
+  const index = transcriptPath.indexOf(marker);
+  if (index === -1) return null;
+  const rest = transcriptPath.slice(index + marker.length);
+  const slash = rest.indexOf('/');
+  return slash === -1 ? rest : rest.slice(0, slash);
+}
+
+/**
+ * Weak recovery for Claude fallback candidates whose parent directory slug
+ * matches the requested cwd even though the lossy decoded cwd does not.
+ *
+ * @param {object} candidate
+ * @param {string} targetCwd
+ * @returns {boolean}
+ */
+function parentSlugMatches(candidate, targetCwd) {
+  const slug = candidate.cwdSlug ?? slugFromTranscriptPath(candidate.transcriptPath ?? '');
+  if (!slug) return false;
+  return cwdSlugVariants(targetCwd).includes(slug);
+}
 export function rank(candidates, targetCwd, opts = {}) {
   const {
     tieWindowSec = TIE_WINDOW_SEC,
@@ -87,11 +117,16 @@ export function rank(candidates, targetCwd, opts = {}) {
     globalRecentProvider,
   } = opts;
 
-  // Classify all candidates into tiers
+  // Classify all candidates into tiers. Tier C is weak Claude slug evidence,
+  // not "any no-match candidate"; global recency remains diagnostic only.
   const byTier = { A: [], B: [], C: [] };
   for (const c of candidates) {
     const tier = tierOf(c, targetCwd);
-    byTier[tier].push(c);
+    if (tier === 'A' || tier === 'B') {
+      byTier[tier].push(c);
+    } else if (parentSlugMatches(c, targetCwd)) {
+      byTier.C.push(c);
+    }
   }
 
   // Find the best non-empty tier (A > B > C)
@@ -103,6 +138,9 @@ export function rank(candidates, targetCwd, opts = {}) {
   } else if (byTier.B.length > 0) {
     winningTier = 'B';
     winningPool = byTier.B;
+  } else if (byTier.C.length > 0) {
+    winningTier = 'C';
+    winningPool = byTier.C;
   }
 
   // No match case

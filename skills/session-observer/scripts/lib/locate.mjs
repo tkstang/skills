@@ -10,8 +10,8 @@
  *
  * Strategy:
  *   Claude Code:
- *     1. Encode targetCwd → dir name via encodeCwd.
- *     2. Check if ~/.claude/projects/<encoded>/ exists.
+ *     1. Encode targetCwd → known dir-name variants via encodeCwdVariants.
+ *     2. Check if ~/.claude/projects/<encoded>/ exists for each variant.
  *     3a. If yes: read *.jsonl files from that dir (guaranteed exact-cwd match).
  *         For these, set recordedCwd = targetCwd directly (not a lossy decode).
  *     3b. If no: glob ~/.claude/projects/*\/*.jsonl and check approximate decoded cwd.
@@ -27,7 +27,7 @@ import { homedir } from 'node:os';
 import { join, basename } from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { discoverPaths, encodeCwd, extractMeta } from './runtimes.mjs';
+import { discoverPaths, encodeCwdVariants, extractMeta } from './runtimes.mjs';
 
 const execFileAsync = promisify(execFile);
 
@@ -104,54 +104,60 @@ function cwdCacheKey(transcriptPath, mtimeSec) {
  */
 async function discoverClaudeCode(targetCwd) {
   const [projectsRoot] = discoverPaths('claude-code');
-  const encoded = encodeCwd('claude-code', targetCwd);
-  const encodedDir = join(projectsRoot, encoded);
+  const encodedVariants = encodeCwdVariants('claude-code', targetCwd);
 
   const now = Date.now() / 1000;
   const candidates = [];
+  const seenTranscripts = new Set();
 
-  // Try the direct encoded-dir lookup first
   let directHit = false;
-  try {
-    const entries = await readdir(encodedDir);
-    const jsonlFiles = entries.filter(e => e.endsWith('.jsonl'));
+  for (const encoded of encodedVariants) {
+    const encodedDir = join(projectsRoot, encoded);
+    try {
+      const entries = await readdir(encodedDir);
+      const jsonlFiles = entries.filter(e => e.endsWith('.jsonl'));
 
-    for (const file of jsonlFiles) {
-      const transcriptPath = join(encodedDir, file);
-      let fileStat;
-      try {
-        fileStat = await stat(transcriptPath);
-      } catch {
-        continue;
+      for (const file of jsonlFiles) {
+        const transcriptPath = join(encodedDir, file);
+        if (seenTranscripts.has(transcriptPath)) continue;
+        seenTranscripts.add(transcriptPath);
+
+        let fileStat;
+        try {
+          fileStat = await stat(transcriptPath);
+        } catch {
+          continue;
+        }
+
+        const mtime = Math.floor(fileStat.mtime.getTime() / 1000);
+        const ageSec = now - mtime;
+
+        let meta;
+        try {
+          meta = await extractMeta('claude-code', transcriptPath);
+        } catch {
+          meta = null;
+        }
+
+        const sessionId = meta?.sessionId ?? basename(transcriptPath).replace(/\.jsonl$/, '');
+
+        candidates.push({
+          runtime: 'claude-code',
+          transcriptPath,
+          sessionId,
+          // Guaranteed exact match: do NOT use decodeCwdDirName (lossy).
+          recordedCwd: targetCwd,
+          cwdSlug: encoded,
+          cwdEvidence: 'direct-parent-dir',
+          mtime,
+          size: fileStat.size,
+          ageSec,
+        });
       }
-
-      const mtime = Math.floor(fileStat.mtime.getTime() / 1000);
-      const ageSec = now - mtime;
-
-      // Extract sessionId — for direct hits, recordedCwd is definitively targetCwd
-      let meta;
-      try {
-        meta = await extractMeta('claude-code', transcriptPath);
-      } catch {
-        meta = null;
-      }
-
-      const sessionId = meta?.sessionId ?? basename(transcriptPath).replace(/\.jsonl$/, '');
-
-      candidates.push({
-        runtime: 'claude-code',
-        transcriptPath,
-        sessionId,
-        // Guaranteed exact match: do NOT use decodeCwdDirName (lossy).
-        recordedCwd: targetCwd,
-        mtime,
-        size: fileStat.size,
-        ageSec,
-      });
+      directHit = true;
+    } catch {
+      // This slug variant doesn't exist — keep trying other known variants.
     }
-    directHit = true;
-  } catch {
-    // encodedDir doesn't exist — fall through to glob fallback
   }
 
   if (!directHit) {
@@ -165,7 +171,7 @@ async function discoverClaudeCode(targetCwd) {
     }
 
     for (const dirName of projectDirs) {
-      if (dirName === encoded) continue; // already tried (but didn't exist)
+      if (encodedVariants.includes(dirName)) continue; // already tried
       const projectDir = join(projectsRoot, dirName);
 
       let dirEntries;
@@ -178,6 +184,9 @@ async function discoverClaudeCode(targetCwd) {
       const jsonlFiles = dirEntries.filter(e => e.endsWith('.jsonl'));
       for (const file of jsonlFiles) {
         const transcriptPath = join(projectDir, file);
+        if (seenTranscripts.has(transcriptPath)) continue;
+        seenTranscripts.add(transcriptPath);
+
         let fileStat;
         try {
           fileStat = await stat(transcriptPath);
@@ -204,6 +213,8 @@ async function discoverClaudeCode(targetCwd) {
           transcriptPath,
           sessionId,
           recordedCwd,
+          cwdSlug: dirName,
+          cwdEvidence: 'decoded-parent-dir',
           mtime,
           size: fileStat.size,
           ageSec,
@@ -213,6 +224,29 @@ async function discoverClaudeCode(targetCwd) {
   }
 
   return candidates;
+}
+
+/**
+ * Return Claude Code direct lookup diagnostics for `locate --debug`.
+ *
+ * @param {string} targetCwd
+ * @returns {Promise<Array<{ encoded: string, path: string, exists: boolean }>>}
+ */
+export async function claudeCodeLookupDiagnostics(targetCwd) {
+  const [projectsRoot] = discoverPaths('claude-code');
+  const diagnostics = [];
+  for (const encoded of encodeCwdVariants('claude-code', targetCwd)) {
+    const path = join(projectsRoot, encoded);
+    let exists = false;
+    try {
+      const s = await stat(path);
+      exists = s.isDirectory();
+    } catch {
+      exists = false;
+    }
+    diagnostics.push({ encoded, path, exists });
+  }
+  return diagnostics;
 }
 
 // ---------------------------------------------------------------------------

@@ -70,6 +70,28 @@ test('Tier A wins over Tier B and non-A candidates are not in fallbacks', () => 
   assert.ok(Array.isArray(result.fallbacks), 'fallbacks should be an array');
 });
 
+test('Tier A exact cwd beats newer unrelated candidate', () => {
+  const exact = mkCandidate({
+    recordedCwd: TARGET_CWD,
+    mtime: NOW - 200,
+    ageSec: 200,
+    sessionId: 'sess-exact',
+  });
+  const newerUnrelated = mkCandidate({
+    recordedCwd: '/Users/test/other-project',
+    mtime: NOW - 2,
+    ageSec: 2,
+    sessionId: 'sess-newer-unrelated',
+  });
+
+  const result = rank([newerUnrelated, exact], TARGET_CWD);
+
+  assert.ok(result.winner, 'should have a winner');
+  assert.equal(result.winner.sessionId, 'sess-exact');
+  assert.equal(result.tier, 'A');
+});
+
+
 test('Tier B wins when no Tier A; Tier C (no-match) candidates not in result', () => {
   const tierB = mkCandidate({
     recordedCwd: TARGET_CWD + '/sub',
@@ -115,6 +137,32 @@ test('No match → { winner: null, noMatch: true, sisters, globalRecent }', () =
   assert.deepEqual(result.sisters, mockSisters, 'sisters should come from opts.gitWorktrees');
   assert.ok(Array.isArray(result.globalRecent), 'globalRecent should be an array');
   assert.ok(result.globalRecent.length >= 1, 'globalRecent should have at least one entry');
+});
+
+test('Claude parent-dir slug match beats newer unrelated global candidate', () => {
+  const targetCwd = '/Users/thomas.stang/.superconductor/worktrees/stoa/sc-levitated-phonon-e8a5';
+  const sameWorktree = mkCandidate({
+    recordedCwd: '/Users/thomas/stang/superconductor/worktrees/stoa/sc/levitated/phonon/e8a5',
+    cwdSlug: '-Users-thomas-stang--superconductor-worktrees-stoa-sc-levitated-phonon-e8a5',
+    transcriptPath: '/Users/thomas.stang/.claude/projects/-Users-thomas-stang--superconductor-worktrees-stoa-sc-levitated-phonon-e8a5/session.jsonl',
+    mtime: NOW - 300,
+    ageSec: 300,
+    sessionId: 'sess-same-worktree',
+  });
+  const unrelatedRecent = mkCandidate({
+    recordedCwd: '/Users/thomas.stang/Code/vault/night-tab',
+    cwdSlug: '-Users-thomas-stang-Code-vault-night-tab',
+    transcriptPath: '/Users/thomas.stang/.claude/projects/-Users-thomas-stang-Code-vault-night-tab/session.jsonl',
+    mtime: NOW - 5,
+    ageSec: 5,
+    sessionId: 'sess-unrelated-recent',
+  });
+
+  const result = rank([unrelatedRecent, sameWorktree], targetCwd);
+
+  assert.ok(result.winner, 'slug match should produce a winner');
+  assert.equal(result.winner.sessionId, 'sess-same-worktree');
+  assert.equal(result.tier, 'C');
 });
 
 test('No match with empty candidates → noMatch result', () => {

@@ -271,7 +271,8 @@ export async function getSession(runtime, sessionId) {
 }
 
 /**
- * Record that we have read up to lastRecordIndex in the given session.
+ * Record the exclusive next unread zero-based JSONL record index for a session.
+ * The field name is retained as lastRecordIndex for state-file compatibility.
  */
 export async function markRead(runtime, sessionId, { lastRecordIndex, lastTotalRecords, transcriptPath, recordedCwd }) {
   const key = sessionKey(runtime, sessionId);

@@ -11,12 +11,13 @@
  *   mode            {string}  — 'review' | 'catch-up' | 'locate' (default 'review')
  *   includeToolCalls    {boolean}  (default false)
  *   includeToolResults  {boolean}  (default false)
- *   maxTurns        {number}  — tail-slice: keep only last N turn groups (review only)
+ *   includeCommandMessages {boolean} (default false)
+ *   maxTurns        {number}  — tail-slice: keep only last N turn groups
  *   maxBytes        {number}  — tail-slice: keep only tail entries whose cumulative text fits
  *
  * Digest schema (schemaVersion: 1):
  *   { schemaVersion, runtime, sessionId, transcriptPath, recordedCwd,
- *     matchedTier, widenedFrom, active, mode, range, entries, filters, warnings, fallbacks }
+ *     matchedTier, widenedFrom, active, mode, range, accounting, entries, filters, warnings, fallbacks }
  */
 
 import { readRecords, normalizeEntries, extractMeta } from './runtimes.mjs';
@@ -27,6 +28,7 @@ import { readRecords, normalizeEntries, extractMeta } from './runtimes.mjs';
 
 const SCHEMA_VERSION = 1;
 const LARGE_OUTPUT_THRESHOLD = 20_000; // chars
+const AUTO_LARGE_DIGEST_TURNS = 8;
 
 // ---------------------------------------------------------------------------
 // applyTailSlice
@@ -34,15 +36,13 @@ const LARGE_OUTPUT_THRESHOLD = 20_000; // chars
 
 /**
  * Slice entries from the tail by maxTurns or maxBytes.
- * Only applied in 'review' mode.
  *
  * @param {object[]} entries  — DigestEntry[]
- * @param {{ maxTurns?: number, maxBytes?: number, mode?: string }} opts
+ * @param {{ maxTurns?: number, maxBytes?: number }} opts
  * @returns {object[]}
  */
 function applyTailSlice(entries, opts) {
-  const { maxTurns, maxBytes, mode } = opts;
-  if (mode !== 'review') return entries;
+  const { maxTurns, maxBytes } = opts;
 
   if (maxBytes && maxBytes > 0) {
     // Walk from the tail, accumulate byte count, include entries until we exceed maxBytes
@@ -65,6 +65,10 @@ function applyTailSlice(entries, opts) {
   }
 
   return entries;
+}
+
+function renderedCharCount(entries) {
+  return entries.reduce((sum, entry) => sum + (entry.text?.length ?? 0), 0);
 }
 
 // ---------------------------------------------------------------------------
@@ -106,7 +110,7 @@ function groupByRole(entries) {
  * @returns {string}
  */
 function formatHeader(digest) {
-  const { runtime, transcriptPath, recordedCwd, mode, range, filters, active, warnings } = digest;
+  const { runtime, transcriptPath, recordedCwd, mode, range, accounting, filters, active, warnings } = digest;
   const lines = [];
   lines.push(`## session-observer digest`);
   lines.push('');
@@ -116,16 +120,40 @@ function formatHeader(digest) {
   lines.push(`**transcript:** ${transcriptPath}`);
   if (active) lines.push(`**status:** ACTIVE (modified < 60s ago)`);
 
-  // Range info
-  lines.push(`**range:** records ${range.fromIndex}–${range.toIndex} of ${range.totalRecords}`);
+  // Range info. `range` is raw transcript consumption; rendered message
+  // ranges are shown separately because tool filtering can consume raw records
+  // without emitting digest entries.
+  if (range.newRecords > 0) {
+    lines.push(`**raw range (zero-based JSONL indices):** records ${range.fromIndex}–${range.toIndex} of ${range.totalRecords}`);
+  } else {
+    lines.push(`**raw range (zero-based JSONL indices):** no new records at offset ${range.fromIndex} of ${range.totalRecords}`);
+  }
   if (mode === 'catch-up' && range.newRecords !== undefined) {
-    lines.push(`**new records:** ${range.newRecords}`);
+    lines.push(`**raw records consumed:** ${range.newRecords}`);
+  }
+  if (accounting?.rendered) {
+    const { count, fromIndex, toIndex } = accounting.rendered;
+    const renderedRange = count > 0 ? `zero-based records ${fromIndex}–${toIndex}` : 'none';
+    lines.push(`**rendered messages:** ${count} (${renderedRange})`);
+  }
+  if (accounting?.filtered) {
+    const filtered = accounting.filtered;
+    const filterParts = [];
+    if (filtered.toolCalls > 0) filterParts.push(`tool calls: ${filtered.toolCalls}`);
+    if (filtered.toolResults > 0) filterParts.push(`tool results: ${filtered.toolResults}`);
+    if (filtered.commandMessages > 0) filterParts.push(`command messages: ${filtered.commandMessages}`);
+    if (filtered.metadataRecords > 0) filterParts.push(`metadata/non-message records: ${filtered.metadataRecords}`);
+    if (filtered.tailSliceEntries > 0) filterParts.push(`tail-sliced entries: ${filtered.tailSliceEntries}`);
+    if (filterParts.length > 0) {
+      lines.push(`**filtered out:** ${filterParts.join(' · ')}`);
+    }
   }
 
   // Filters
   const filterParts = [];
   if (!filters.includeToolCalls) filterParts.push('tool calls excluded');
   if (!filters.includeToolResults) filterParts.push('tool results excluded');
+  if (!filters.includeCommandMessages) filterParts.push('command messages excluded');
   if (filterParts.length > 0) {
     lines.push(`**filters:** ${filterParts.join(' · ')}`);
   }
@@ -157,6 +185,7 @@ function formatHeader(digest) {
  * @param {'review'|'catch-up'|'locate'} [opts.mode='review']
  * @param {boolean} [opts.includeToolCalls=false]
  * @param {boolean} [opts.includeToolResults=false]
+ * @param {boolean} [opts.includeCommandMessages=false]
  * @param {number} [opts.maxTurns]
  * @param {number} [opts.maxBytes]
  * @param {string} [opts.sessionId]
@@ -173,12 +202,13 @@ export async function buildDigest(runtime, transcriptPath, opts = {}) {
     mode = 'review',
     includeToolCalls = false,
     includeToolResults = false,
+    includeCommandMessages = false,
     maxTurns,
     maxBytes,
     fallbacks = [],
   } = opts;
 
-  const warnings = [];
+  const warnings = [...(opts.warnings ?? [])];
 
   // Read records
   const records = await readRecords(transcriptPath);
@@ -203,31 +233,101 @@ export async function buildDigest(runtime, transcriptPath, opts = {}) {
     warnings.push(`Transcript shrank (stored offset ${fromIndex} > totalRecords ${totalRecords}); reset to 0.`);
   }
 
-  // Normalize all records to entries
-  const allEntries = normalizeEntries(runtime, records, { includeToolCalls, includeToolResults });
+  const rawFromIndex = effectiveFromIndex;
+  const rawToIndex = totalRecords > rawFromIndex ? totalRecords - 1 : rawFromIndex;
+  const rawCount = Math.max(0, totalRecords - rawFromIndex);
+
+  // Normalize all records to entries. Keep an unfiltered view for accounting so
+  // the digest can explain records consumed but omitted by default filters.
+  const allEntriesWithTools = normalizeEntries(runtime, records, {
+    includeToolCalls: true,
+    includeToolResults: true,
+    includeCommandMessages: true,
+  });
+  const allEntries = normalizeEntries(runtime, records, {
+    includeToolCalls,
+    includeToolResults,
+    includeCommandMessages,
+  });
 
   // Filter to only entries with recordIndex >= effectiveFromIndex
-  let filteredEntries = allEntries.filter(e => e.recordIndex >= effectiveFromIndex);
+  const entriesBeforeTailSlice = allEntries.filter(e => e.recordIndex >= effectiveFromIndex);
+  let filteredEntries = entriesBeforeTailSlice;
 
-  // Apply tail-slice (review mode only)
-  filteredEntries = applyTailSlice(filteredEntries, { maxTurns, maxBytes, mode });
+  // Apply explicit tail-slice first. If the caller did not request a slice and
+  // the digest is still huge, fall back to the last few role turns automatically.
+  filteredEntries = applyTailSlice(filteredEntries, { maxTurns, maxBytes });
+  let autoLargeDigest = null;
+  const explicitTailSlice = Boolean((maxTurns && maxTurns > 0) || (maxBytes && maxBytes > 0));
+  if (!explicitTailSlice && renderedCharCount(filteredEntries) > LARGE_OUTPUT_THRESHOLD) {
+    const beforeCount = filteredEntries.length;
+    filteredEntries = applyTailSlice(filteredEntries, { maxTurns: AUTO_LARGE_DIGEST_TURNS });
+    autoLargeDigest = {
+      thresholdChars: LARGE_OUTPUT_THRESHOLD,
+      retainedTurnGroups: AUTO_LARGE_DIGEST_TURNS,
+      originalRenderedMessages: beforeCount,
+      retainedRenderedMessages: filteredEntries.length,
+      omittedRenderedMessages: Math.max(0, beforeCount - filteredEntries.length),
+    };
+    warnings.push(
+      `Large digest fallback: rendered content exceeded ${LARGE_OUTPUT_THRESHOLD.toLocaleString()} chars; ` +
+      `showing the last ${AUTO_LARGE_DIGEST_TURNS} user/assistant turn groups. ` +
+      `Use --max-turns, --max-bytes, or --include-command-messages for a different view.`
+    );
+  }
 
-  // Compute range
-  const toIndex = filteredEntries.length > 0
+  const renderedFromIndex = filteredEntries.length > 0
+    ? Math.min(...filteredEntries.map(e => e.recordIndex))
+    : null;
+  const renderedToIndex = filteredEntries.length > 0
     ? Math.max(...filteredEntries.map(e => e.recordIndex))
-    : effectiveFromIndex;
+    : null;
 
   const range = {
-    fromIndex: effectiveFromIndex,
-    toIndex,
+    indexBase: 'zero-based-jsonl-record-index',
+    fromIndex: rawFromIndex,
+    toIndex: rawToIndex,
+    nextIndex: totalRecords,
     totalRecords,
+    renderedFromIndex,
+    renderedToIndex,
   };
 
   if (mode === 'catch-up') {
-    range.newRecords = totalRecords - effectiveFromIndex;
+    range.newRecords = rawCount;
+  } else {
+    range.newRecords = rawCount;
   }
 
-  const filters = { includeToolCalls, includeToolResults };
+  const filters = { includeToolCalls, includeToolResults, includeCommandMessages };
+  const fullEntriesInRawRange = allEntriesWithTools.filter(e => e.recordIndex >= rawFromIndex);
+  const rawRecordIndexesWithAnyEntry = new Set(fullEntriesInRawRange.map(e => e.recordIndex));
+  const rawRecordIndexes = new Set();
+  for (let i = rawFromIndex; i < totalRecords; i++) rawRecordIndexes.add(i);
+
+  const accounting = {
+    indexBase: 'zero-based-jsonl-record-index',
+    raw: {
+      fromIndex: rawFromIndex,
+      toIndex: rawToIndex,
+      count: rawCount,
+      nextIndex: totalRecords,
+      totalRecords,
+    },
+    rendered: {
+      count: filteredEntries.length,
+      fromIndex: renderedFromIndex,
+      toIndex: renderedToIndex,
+    },
+    filtered: {
+      toolCalls: includeToolCalls ? 0 : fullEntriesInRawRange.filter(e => e.kind === 'tool_call').length,
+      toolResults: includeToolResults ? 0 : fullEntriesInRawRange.filter(e => e.kind === 'tool_result').length,
+      commandMessages: includeCommandMessages ? 0 : fullEntriesInRawRange.filter(e => e.kind === 'command_message').length,
+      metadataRecords: [...rawRecordIndexes].filter(index => !rawRecordIndexesWithAnyEntry.has(index)).length,
+      tailSliceEntries: Math.max(0, entriesBeforeTailSlice.length - filteredEntries.length),
+    },
+    autoLargeDigest,
+  };
 
   return {
     schemaVersion: SCHEMA_VERSION,
@@ -240,6 +340,7 @@ export async function buildDigest(runtime, transcriptPath, opts = {}) {
     active: opts.active ?? false,
     mode,
     range,
+    accounting,
     entries: filteredEntries,
     filters,
     warnings,
