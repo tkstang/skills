@@ -2,15 +2,15 @@
 oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
-oat_last_updated: 2026-05-21
-oat_current_task_id: prev1-t07
+oat_last_updated: 2026-05-22
+oat_current_task_id: prev1-t08
 oat_generated: false
 ---
 
 # Implementation: session-observer
 
 **Started:** 2026-05-15
-**Last Updated:** 2026-05-21
+**Last Updated:** 2026-05-22
 
 > Conventions:
 >
@@ -31,9 +31,9 @@ oat_generated: false
 | Phase 5 | complete    | 3     | 3/3       |
 | Phase 6 | complete    | 2     | 2/2       |
 | Phase 7 | complete    | 4     | 4/4       |
-| Phase p-rev1 | in_progress | 13 | 6/13 |
+| Phase p-rev1 | in_progress | 13 | 7/13 |
 
-**Total:** 25/32 tasks completed
+**Total:** 26/32 tasks completed
 
 ---
 
@@ -375,12 +375,14 @@ Review-generated follow-up for p-rev1 Minor `m1`: parse and validate pinned `--s
 
 ### Task prev1-t07: (review) Add Cursor malformed and partial-tail fixtures
 
-**Status:** pending
-**Commit:** pending
+**Status:** complete
+**Commit:** 16d827f
 
 Review-generated follow-up from `p-rev1-review-2026-05-22.md`: add Cursor malformed and partial-tail JSONL fixtures plus `readRecords` tests so Cursor has parity with Claude/Codex parser-tolerance coverage.
 
-**Verification:** pending.
+Added Cursor malformed and partial-tail JSONL fixtures plus `readRecords` tests proving valid records are preserved and malformed/partial lines warn without throwing.
+
+**Verification:** `node --test tests/session-observer/runtimes.test.mjs` → 43/43 pass.
 
 ### Task prev1-t08: (review) Document Cursor direct-hit fallback behavior
 
