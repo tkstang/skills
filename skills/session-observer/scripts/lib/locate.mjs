@@ -460,6 +460,9 @@ async function discoverCursor(targetCwd) {
   const seenTranscripts = new Set();
   let directHit = false;
 
+  // Cursor direct lookup is intentionally transcript-based, not directory-based:
+  // an encoded project dir can exist before it contains usable agent JSONL, so
+  // an empty direct dir should still fall through to the fallback project scan.
   for (const encoded of encodedVariants) {
     const transcriptsRoot = join(projectsRoot, encoded, 'agent-transcripts');
     const transcriptPaths = await collectCursorAgentTranscripts(transcriptsRoot);

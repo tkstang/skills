@@ -7,8 +7,9 @@
  *   3. codex: discovers transcript and extracts cwd from session-meta record
  *   4. codex: LOOKBACK_DAYS filter excludes old files
  *   5. codex cwd cache: cache hit proved by observable cache-file state
- *   6. gitWorktrees: parses known --porcelain output
- *   7. gitWorktrees: returns [] when git exec fails
+ *   6. cursor: empty direct transcript dirs do not suppress fallback scans
+ *   7. gitWorktrees: parses known --porcelain output
+ *   8. gitWorktrees: returns [] when git exec fails
  */
 
 import { test } from 'node:test';
@@ -318,6 +319,31 @@ test('cursor: fallback scan preserves project cwdSlug evidence', async () => {
     assert.ok(c, 'fallback scan should include Cursor project dirs');
     assert.equal(c.runtime, 'cursor');
     assert.equal(c.sessionId, 'session-abc');
+    assert.equal(c.recordedCwd, null);
+    assert.equal(c.cwdSlug, fallbackSlug);
+    assert.equal(c.cwdEvidence, 'project-dir-slug');
+  });
+});
+
+test('cursor: empty direct transcript dir still allows fallback scan', async () => {
+  await withTempHome(async (home) => {
+    const { discover } = await importLocate();
+
+    const targetCwd = join(home, 'Code', 'my.cursor-project');
+    const encoded = encodeCursorCwd(targetCwd);
+    const directRoot = join(home, '.cursor', 'projects', encoded, 'agent-transcripts');
+    await mkdir(directRoot, { recursive: true });
+
+    const fallbackSlug = 'Users-test-Code-other-cursor-project';
+    const transcriptDir = join(home, '.cursor', 'projects', fallbackSlug, 'agent-transcripts', 'session-fallback');
+    await mkdir(transcriptDir, { recursive: true });
+    const transcriptPath = join(transcriptDir, 'conversation.jsonl');
+    await writeFile(transcriptPath, CURSOR_TYPICAL, 'utf8');
+
+    const candidates = await discover('cursor', targetCwd);
+    const c = candidates.find(candidate => candidate.transcriptPath === transcriptPath);
+
+    assert.ok(c, 'empty direct Cursor dirs should not suppress fallback candidates');
     assert.equal(c.recordedCwd, null);
     assert.equal(c.cwdSlug, fallbackSlug);
     assert.equal(c.cwdEvidence, 'project-dir-slug');
