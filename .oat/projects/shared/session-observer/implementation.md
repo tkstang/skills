@@ -620,6 +620,22 @@ _Append session entries below as `oat-project-implement` runs._
 
 **Next:** Execute `prev1-t06` through `prev1-t13` via `oat-project-implement`, then update p-rev1 and final review rows to `fixes_completed` and run focused re-reviews.
 
+### 2026-05-22 — p-rev1 re-review received: PASS (0 blocking, 1 deferred Minor)
+
+**Review artifact:** `reviews/archived/p-rev1-rereview-2026-05-22.md`
+
+**Findings:** 0 Critical, 0 Important, 0 Medium, 1 Minor.
+
+**Per-finding resolution (confirmed by reviewer):** `prev1-t06`..`prev1-t13` all `resolved` — the seven prior minors plus the bonus `load()` lock-residual are demonstrably fixed in code and tests. `npm test` 269/269, `npm run validate` + `npm run smoke` green.
+
+**Deferred Findings (Minor):**
+
+- `m1` — `tierOf` realpath cost is per-candidate, not per-rank (`skills/session-observer/scripts/lib/rank.mjs:73-83`). `tierOf` calls `normalizeCwdPath(targetCwd)` once per candidate even though `targetCwd` is identical across the `rank()` invocation; each call is a synchronous `realpathSync.native`. Unmeasurable for typical batches (single-digit candidates) and only matters on slow filesystems with many fallback candidates. **Deferred with rationale (user-approved):** the reviewer themselves recommended "defer unless a profile flags it" — micro-optimization on an un-profiled hot path is textbook premature optimization. Fix is trivial (memoize the normalized `targetCwd` at the `rank()` boundary) if a future profile surfaces a regression. No correctness impact.
+
+**Lifecycle:** `p-rev1` Reviews row → `passed`. Review cycle count for `p-rev1`: 3 (at the skill's 3-cycle cap, but reached via convergence — verdict is PASS at cycle 3, not a runaway loop).
+
+**Next:** the `final` Reviews row is still `fixes_completed` pointing at `reviews/archived/final-rereview-2026-05-15.md` (a stale lifecycle thread predating p-rev1). It either needs a fresh re-review against current HEAD or an explicit user decision to fold its disposition into the p-rev1 close-out before `oat-project-pr-final`.
+
 ### 2026-05-21 — Revision received: dogfood hardening + Cursor target support
 
 **Source:** inline conversation and read-only local Cursor spike.
