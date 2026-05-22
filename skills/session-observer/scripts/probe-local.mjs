@@ -6,7 +6,7 @@
  * the caller's cwd. Never spawns a bare relative 'scripts/session-observer.mjs'.
  *
  * Usage:
- *   node probe-local.mjs [--runtime <claude-code|codex>] [--cwd <path>]
+ *   node probe-local.mjs [--runtime <claude-code|codex|cursor>] [--cwd <path>]
  *
  * Exit codes propagate from the CLI.
  */
@@ -46,11 +46,12 @@ const cliPath = fileURLToPath(new URL('./session-observer.mjs', import.meta.url)
 
 process.stdout.write(`[probe-local] runtime: ${runtime}\n`);
 process.stdout.write(`[probe-local] cwd: ${cwd}\n`);
-process.stdout.write(`[probe-local] transcript store: ${
-  runtime === 'claude-code'
-    ? '~/.claude/projects/'
-    : '~/.codex/sessions/'
-}\n`);
+const transcriptStoreByRuntime = {
+  'claude-code': '~/.claude/projects/',
+  codex: '~/.codex/sessions/',
+  cursor: '~/.cursor/projects/',
+};
+process.stdout.write(`[probe-local] transcript store: ${transcriptStoreByRuntime[runtime] ?? '(unknown runtime)'}\n`);
 
 let candidates = [];
 try {

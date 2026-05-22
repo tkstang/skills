@@ -100,7 +100,8 @@ function parseCliArgs(argv) {
 // Runtime resolution
 // ---------------------------------------------------------------------------
 
-const VALID_RUNTIMES = ['claude-code', 'codex'];
+const VALID_RUNTIMES = ['claude-code', 'codex', 'cursor'];
+const VALID_RUNTIME_LABEL = VALID_RUNTIMES.join(', ');
 
 async function preferredRuntimeFromState(withCandidates, targetCwd) {
   let state;
@@ -128,22 +129,17 @@ async function preferredRuntimeFromState(withCandidates, targetCwd) {
 
 /**
  * Resolve --runtime auto:
- *   1. If SESSION_OBSERVER_SELF is set, return the other runtime.
- *   2. Otherwise, try both and return the one with candidates in targetCwd.
- *   3. If both (or neither) have candidates → return 'ambiguous' or null.
+ *   1. Discover matching candidates in all runtimes.
+ *   2. If SESSION_OBSERVER_SELF is a known runtime, consider only other runtimes.
+ *   3. If exactly one considered runtime has candidates, return it.
+ *   4. If state identifies exactly one previously read same-cwd runtime, return it.
+ *   5. Otherwise return noMatch or ambiguousRuntime.
  *
  * @param {string} targetCwd
  * @returns {Promise<{ runtime: string } | { ambiguous: true, candidates: object } | { noMatch: true }>}
  */
 async function resolveAutoRuntime(targetCwd) {
   const self = process.env.SESSION_OBSERVER_SELF;
-  if (self && VALID_RUNTIMES.includes(self)) {
-    // The peer is the other runtime
-    const peer = self === 'claude-code' ? 'codex' : 'claude-code';
-    return { runtime: peer };
-  }
-
-  // Try both runtimes
   const results = await Promise.all(
     VALID_RUNTIMES.map(async (rt) => {
       try {
@@ -156,25 +152,28 @@ async function resolveAutoRuntime(targetCwd) {
   );
 
   const withCandidates = results.filter(r => r.candidates.length > 0);
+  const considered = VALID_RUNTIMES.includes(self)
+    ? withCandidates.filter(r => r.runtime !== self)
+    : withCandidates;
 
-  if (withCandidates.length === 1) {
+  if (considered.length === 1) {
     // Unambiguous
-    return { runtime: withCandidates[0].runtime };
+    return { runtime: considered[0].runtime };
   }
 
-  if (withCandidates.length === 0) {
+  if (considered.length === 0) {
     // No candidates in any runtime
     return { noMatch: true };
   }
 
-  const preferred = await preferredRuntimeFromState(withCandidates, targetCwd);
+  const preferred = await preferredRuntimeFromState(considered, targetCwd);
   if (preferred) return preferred;
 
-  // Both runtimes have candidates → ambiguous
+  // Multiple runtimes have candidates → ambiguous
   return {
     ambiguous: true,
-    runtimes: withCandidates.map(r => r.runtime),
-    candidates: Object.fromEntries(withCandidates.map(r => [r.runtime, r.candidates])),
+    runtimes: considered.map(r => r.runtime),
+    candidates: Object.fromEntries(considered.map(r => [r.runtime, r.candidates])),
   };
 }
 
@@ -232,7 +231,7 @@ function printUsage() {
     '  state      Manage high-water marks: get, reset, clear',
     '',
     'Options:',
-    '  --runtime <claude-code|codex|auto>  (default: auto)',
+    '  --runtime <claude-code|codex|cursor|auto>  (default: auto)',
     '  --cwd <path>                        (default: process.cwd())',
     '  --include-tools                     Include tool call markers',
     '  --include-command-messages          Include Claude slash-command payloads',
@@ -306,7 +305,7 @@ async function runReview(args) {
     const pinnedId = session.slice(colonIndex + 1);
     if (!VALID_RUNTIMES.includes(pinnedRuntime)) {
       return emitError(
-        `Unknown runtime in --session: ${pinnedRuntime}. Use claude-code or codex.`,
+        `Unknown runtime in --session: ${pinnedRuntime}. Use one of: ${VALID_RUNTIME_LABEL}.`,
         1
       );
     }
@@ -506,7 +505,7 @@ async function runCatchUp(args) {
     const pinnedId = session.slice(colonIndex + 1);
     if (!VALID_RUNTIMES.includes(pinnedRuntime)) {
       return emitError(
-        `Unknown runtime in --session: ${pinnedRuntime}. Use claude-code or codex.`,
+        `Unknown runtime in --session: ${pinnedRuntime}. Use one of: ${VALID_RUNTIME_LABEL}.`,
         1
       );
     }
@@ -834,7 +833,7 @@ async function runState(args) {
         const sessionId = args.session.slice(sep + 1);
         if (!VALID_RUNTIMES.includes(sessionRuntime)) {
           return emitError(
-            `Unknown runtime in --session: ${sessionRuntime}. Use claude-code or codex.`,
+            `Unknown runtime in --session: ${sessionRuntime}. Use one of: ${VALID_RUNTIME_LABEL}.`,
             1
           );
         }
@@ -849,12 +848,12 @@ async function runState(args) {
 
       if (!runtime || runtime === 'auto') {
         return emitError(
-          '--runtime is required for state reset (use claude-code or codex), or use --session <runtime>:<sessionId>',
+          `--runtime is required for state reset (use one of: ${VALID_RUNTIME_LABEL}), or use --session <runtime>:<sessionId>`,
           1
         );
       }
       if (!VALID_RUNTIMES.includes(runtime)) {
-        return emitError(`Unknown runtime: ${runtime}. Use claude-code or codex.`, 1);
+        return emitError(`Unknown runtime: ${runtime}. Use one of: ${VALID_RUNTIME_LABEL}.`, 1);
       }
       try {
         const count = await stateLib.resetByRuntime(runtime);

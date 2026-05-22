@@ -21,6 +21,7 @@ const CLI_PATH = fileURLToPath(new URL(
 const FIXTURES = join(__dirname, 'fixtures');
 const typicalClaude = join(FIXTURES, 'claude-code', 'typical.jsonl');
 const emptyClaude = join(FIXTURES, 'claude-code', 'empty.jsonl');
+const typicalCursor = join(FIXTURES, 'cursor', 'typical.jsonl');
 
 /**
  * Spawn the CLI with the given args and env.
@@ -33,11 +34,32 @@ function spawnCli(args, env = {}) {
   });
 }
 
+function cursorSlug(cwd) {
+  return cwd.split(/[/.]/u).filter(Boolean).join('-');
+}
+
+async function copyCursorTranscript(home, cwd, sessionId = 'cursor-session-001') {
+  const transcriptDir = join(home, '.cursor', 'projects', cursorSlug(cwd), 'agent-transcripts', sessionId);
+  await mkdir(transcriptDir, { recursive: true });
+  const transcriptPath = join(transcriptDir, `${sessionId}.jsonl`);
+  await copyFile(typicalCursor, transcriptPath);
+  return transcriptPath;
+}
+
 // ---------------------------------------------------------------------------
 // Basic dispatch tests
 // ---------------------------------------------------------------------------
 
 describe('CLI subcommand dispatch', () => {
+  test('--help lists cursor as a runtime option', (t) => {
+    const result = spawnCli(['--help']);
+    assert.equal(result.status, 0, `help should exit 0\nstderr: ${result.stderr}`);
+    assert.ok(
+      result.stdout.includes('--runtime <claude-code|codex|cursor|auto>'),
+      'help should include cursor in the runtime list'
+    );
+  });
+
   test('review --help does not throw', (t) => {
     const result = spawnCli(['review', '--help']);
     // --help exits 0 or 1; should not crash with code 127 or similar
@@ -292,6 +314,74 @@ describe('--runtime auto', () => {
     }
   });
 
+  test('auto with SESSION_OBSERVER_SELF chooses the only other runtime with candidates', async (t) => {
+    const tmpDir = await mkdtemp(join(tmpdir(), 'cli-auto-self-cursor-'));
+    try {
+      const cwd = '/test/cursor-peer-project';
+      const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
+      await mkdir(stateDir, { recursive: true });
+      await copyCursorTranscript(tmpDir, cwd, 'cursor-peer');
+
+      const result = spawnCli(
+        ['review', '--runtime', 'auto', '--cwd', cwd, '--json'],
+        {
+          HOME: tmpDir,
+          STATE_DIR: stateDir,
+          SESSION_OBSERVER_SELF: 'claude-code',
+        }
+      );
+
+      assert.equal(result.status, 0,
+        `Expected auto runtime to choose cursor, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`);
+      const parsed = JSON.parse(result.stdout);
+      assert.equal(parsed.runtime, 'cursor');
+      assert.equal(parsed.sessionId, 'cursor-peer');
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  test('auto with SESSION_OBSERVER_SELF returns ambiguousRuntime when multiple other runtimes match', async (t) => {
+    const tmpDir = await mkdtemp(join(tmpdir(), 'cli-auto-self-ambiguous-'));
+    try {
+      const cwd = '/test/multi-peer-project';
+      const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
+      await mkdir(stateDir, { recursive: true });
+      await copyCursorTranscript(tmpDir, cwd, 'cursor-peer');
+
+      const codexDir = join(tmpDir, '.codex', 'sessions', '2026', '05', '17');
+      await mkdir(codexDir, { recursive: true });
+      await writeFile(
+        join(codexDir, 'codex-peer.jsonl'),
+        [
+          JSON.stringify({ sessionId: 'codex-peer', payload: { type: 'session_meta', cwd } }),
+          JSON.stringify({
+            sessionId: 'codex-peer',
+            payload: { type: 'message', role: 'assistant', content: 'Codex peer visible.' },
+          }),
+        ].join('\n') + '\n',
+        'utf8'
+      );
+
+      const result = spawnCli(
+        ['review', '--runtime', 'auto', '--cwd', cwd, '--json'],
+        {
+          HOME: tmpDir,
+          STATE_DIR: stateDir,
+          SESSION_OBSERVER_SELF: 'claude-code',
+        }
+      );
+
+      assert.equal(result.status, 3,
+        `Expected ambiguousRuntime, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`);
+      const parsed = JSON.parse(result.stdout);
+      assert.equal(parsed.ambiguousRuntime, true);
+      assert.deepEqual(parsed.runtimes.sort(), ['codex', 'cursor']);
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
   test('auto prefers a previously read runtime for the same cwd when both runtimes match', async (t) => {
     const tmpDir = await mkdtemp(join(tmpdir(), 'cli-auto-state-'));
     try {
@@ -361,6 +451,77 @@ describe('--runtime auto', () => {
       await rm(tmpDir, { recursive: true, force: true });
     }
   });
+
+  test('auto prefers the only previously read same-cwd runtime across three matching runtimes', async (t) => {
+    const tmpDir = await mkdtemp(join(tmpdir(), 'cli-auto-three-state-'));
+    try {
+      const cwd = '/test/three-runtime-project';
+      const encodedCwd = '-test-three-runtime-project';
+
+      const claudeProjectDir = join(tmpDir, '.claude', 'projects', encodedCwd);
+      await mkdir(claudeProjectDir, { recursive: true });
+      await writeFile(
+        join(claudeProjectDir, 'claude-three.jsonl'),
+        JSON.stringify({
+          sessionId: 'cc-three',
+          message: { role: 'assistant', content: 'Claude visible.' },
+        }) + '\n',
+        'utf8'
+      );
+
+      const codexDir = join(tmpDir, '.codex', 'sessions', '2026', '05', '17');
+      await mkdir(codexDir, { recursive: true });
+      await writeFile(
+        join(codexDir, 'codex-three.jsonl'),
+        [
+          JSON.stringify({ sessionId: 'codex-three', payload: { type: 'session_meta', cwd } }),
+          JSON.stringify({
+            sessionId: 'codex-three',
+            payload: { type: 'message', role: 'assistant', content: 'Codex visible.' },
+          }),
+        ].join('\n') + '\n',
+        'utf8'
+      );
+
+      const cursorPath = await copyCursorTranscript(tmpDir, cwd, 'cursor-three');
+
+      const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
+      await mkdir(stateDir, { recursive: true });
+      await writeFile(
+        join(stateDir, 'state.json'),
+        JSON.stringify({
+          schemaVersion: 1,
+          sessions: {
+            'cursor:cursor-three': {
+              runtime: 'cursor',
+              sessionId: 'cursor-three',
+              transcriptPath: cursorPath,
+              recordedCwd: cwd,
+              lastRecordIndex: 0,
+              lastTotalRecords: 0,
+              lastReadAt: '2026-05-17T12:00:00.000Z',
+              watchedByPid: null,
+            },
+          },
+        }),
+        'utf8'
+      );
+
+      const result = spawnCli(
+        ['catch-up', '--runtime', 'auto', '--cwd', cwd, '--json'],
+        { HOME: tmpDir, STATE_DIR: stateDir }
+      );
+
+      assert.equal(result.status, 0,
+        `Expected auto runtime to use cursor state preference, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`);
+      const parsed = JSON.parse(result.stdout);
+      assert.equal(parsed.runtime, 'cursor');
+      assert.equal(parsed.sessionId, 'cursor-three');
+      assert.equal(parsed.entries[0].text, 'Can you inspect the failing test?');
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -368,6 +529,30 @@ describe('--runtime auto', () => {
 // ---------------------------------------------------------------------------
 
 describe('--session override', () => {
+  test('review: --session accepts cursor runtime', async (t) => {
+    const tmpDir = await mkdtemp(join(tmpdir(), 'cli-session-cursor-'));
+    try {
+      const cwd = '/test/cursor-session-project';
+      const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
+      await mkdir(stateDir, { recursive: true });
+      await copyCursorTranscript(tmpDir, cwd, 'cursor-pinned');
+
+      const result = spawnCli(
+        ['review', '--runtime', 'cursor', '--cwd', cwd,
+          '--session', 'cursor:cursor-pinned', '--json'],
+        { HOME: tmpDir, STATE_DIR: stateDir }
+      );
+
+      assert.equal(result.status, 0,
+        `--session should accept cursor, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`);
+      const parsed = JSON.parse(result.stdout);
+      assert.equal(parsed.runtime, 'cursor');
+      assert.equal(parsed.sessionId, 'cursor-pinned');
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
   test('review: --session resolves tie to a digest (exit 0)', async (t) => {
     // Build two same-mtime candidates in the same encoded dir.
     // Without --session this causes a tie (exit 3). With --session it should exit 0.
@@ -558,6 +743,22 @@ describe('state subcommand', () => {
 
       const result = spawnCli(
         ['state', 'reset', '--runtime', 'codex'],
+        { HOME: tmpDir, STATE_DIR: stateDir }
+      );
+      assert.equal(result.status, 0, `state reset should exit 0\nstderr: ${result.stderr}`);
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  test('state reset --runtime cursor exits 0', async (t) => {
+    const tmpDir = await mkdtemp(join(tmpdir(), 'cli-test-'));
+    try {
+      const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
+      await mkdir(stateDir, { recursive: true });
+
+      const result = spawnCli(
+        ['state', 'reset', '--runtime', 'cursor'],
         { HOME: tmpDir, STATE_DIR: stateDir }
       );
       assert.equal(result.status, 0, `state reset should exit 0\nstderr: ${result.stderr}`);

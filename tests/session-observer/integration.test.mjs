@@ -21,10 +21,15 @@ const CLI_PATH = fileURLToPath(new URL(
   '../../skills/session-observer/scripts/session-observer.mjs',
   import.meta.url
 ));
+const PROBE_PATH = fileURLToPath(new URL(
+  '../../skills/session-observer/scripts/probe-local.mjs',
+  import.meta.url
+));
 
 const FIXTURES = join(__dirname, 'fixtures');
 const TYPICAL_CLAUDE = join(FIXTURES, 'claude-code', 'typical.jsonl');
 const EMPTY_CLAUDE = join(FIXTURES, 'claude-code', 'empty.jsonl');
+const TYPICAL_CURSOR = join(FIXTURES, 'cursor', 'typical.jsonl');
 
 /**
  * Spawn the CLI with given args and env.
@@ -35,6 +40,26 @@ function spawnCli(args, env = {}) {
     timeout: 20000,
     env: { ...process.env, ...env },
   });
+}
+
+function spawnProbe(args, env = {}) {
+  return spawnSync('node', [PROBE_PATH, ...args], {
+    encoding: 'utf8',
+    timeout: 20000,
+    env: { ...process.env, ...env },
+  });
+}
+
+function cursorSlug(cwd) {
+  return cwd.split(/[/.]/u).filter(Boolean).join('-');
+}
+
+async function copyCursorTranscript(home, cwd, sessionId = 'cursor-session-001') {
+  const transcriptDir = join(home, '.cursor', 'projects', cursorSlug(cwd), 'agent-transcripts', sessionId);
+  await mkdir(transcriptDir, { recursive: true });
+  const transcriptPath = join(transcriptDir, `${sessionId}.jsonl`);
+  await copyFile(TYPICAL_CURSOR, transcriptPath);
+  return transcriptPath;
 }
 
 /**
@@ -296,6 +321,36 @@ describe('integration: empty fixture', () => {
         `Expected exit 0 or 2 for empty fixture, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`);
     } finally {
       await cleanup();
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Test 7: probe-local reports Cursor transcript store
+// ---------------------------------------------------------------------------
+
+describe('integration: probe-local', () => {
+  test('probe-local --runtime cursor reports ~/.cursor/projects/', async (t) => {
+    const tmpDir = await mkdtemp(join(tmpdir(), 'integration-probe-cursor-'));
+    try {
+      const cwd = '/integration-test/cursor-project';
+      const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
+      await mkdir(stateDir, { recursive: true });
+      await copyCursorTranscript(tmpDir, cwd, 'cursor-probe');
+
+      const result = spawnProbe(
+        ['--runtime', 'cursor', '--cwd', cwd],
+        { HOME: tmpDir, STATE_DIR: stateDir }
+      );
+
+      assert.equal(result.status, 0,
+        `probe-local should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`);
+      assert.ok(
+        result.stdout.includes('[probe-local] transcript store: ~/.cursor/projects/'),
+        'probe-local should report Cursor transcript store'
+      );
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
     }
   });
 });
