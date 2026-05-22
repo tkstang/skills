@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-05-21
-oat_current_task_id: prev1-t02
+oat_current_task_id: prev1-t03
 oat_generated: false
 ---
 
@@ -31,9 +31,9 @@ oat_generated: false
 | Phase 5 | complete    | 3     | 3/3       |
 | Phase 6 | complete    | 2     | 2/2       |
 | Phase 7 | complete    | 4     | 4/4       |
-| Phase p-rev1 | in_progress | 5 | 1/5 |
+| Phase p-rev1 | in_progress | 5 | 2/5 |
 
-**Total:** 20/24 tasks completed
+**Total:** 21/24 tasks completed
 
 ---
 
@@ -300,10 +300,14 @@ Owns the current uncommitted dogfood patch:
 
 ### Task prev1-t02: (revision) Add Cursor runtime adapter and fixtures
 
-**Status:** pending
-**Commit:** pending
+**Status:** complete
+**Commit:** 6fe9aa2
 
 Add `cursor` support in `runtimes.mjs` plus Cursor agent-transcript fixtures and parser tests.
+
+Implemented Cursor runtime parsing: `discoverPaths('cursor')`, Cursor cwd slug variants, session ID extraction from transcript path, `text` block normalization, and opt-in `tool_use` normalization. Added Cursor JSONL fixtures for plain conversation and tool-use cases.
+
+**Verification:** `node --test tests/session-observer/runtimes.test.mjs` → 41/41 pass.
 
 ### Task prev1-t03: (revision) Add Cursor transcript discovery and ranking evidence
 
@@ -446,6 +450,14 @@ Committed the folded dogfood hardening patch as `0e452a1` (`fix(prev1-t01): hard
 **Installed copies:** refreshed `~/.agents/skills/session-observer` from `skills/session-observer`; confirmed `~/.claude/skills/session-observer` points to `../../.agents/skills/session-observer`.
 
 **Next:** `prev1-t02` — add Cursor runtime adapter and fixtures.
+
+### 2026-05-21 — prev1-t02 complete: Cursor runtime adapter
+
+Committed Cursor runtime parsing as `6fe9aa2` (`feat(prev1-t02): add Cursor transcript runtime adapter`). The adapter covers the observed Cursor agent-transcript JSONL shape and keeps `~/.cursor/chats/*/store.db` out of scope.
+
+**Verification:** `node --test tests/session-observer/runtimes.test.mjs` → 41/41 pass.
+
+**Next:** `prev1-t03` — add Cursor transcript discovery and ranking evidence.
 
 ### 2026-05-15 — Post-implementation: skill relocated to `skills/` for distribution
 
