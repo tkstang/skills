@@ -66,9 +66,18 @@ function makeCodexTypical(cwd) {
 `;
 }
 
+const CURSOR_TYPICAL = `{"role":"user","message":{"content":"Hello"}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"Hi!"}]}}
+`;
+
 // Encode cwd the way Claude Code currently does: replace '/' and '.' with '-'
 function encodeCwd(cwd) {
   return cwd.replace(/[/.]/g, '-');
+}
+
+// Encode cwd the way Cursor project dirs do: slash/dot path segments joined by '-'
+function encodeCursorCwd(cwd) {
+  return cwd.split(/[/.]/u).filter(Boolean).join('-');
 }
 
 // ---------------------------------------------------------------------------
@@ -266,6 +275,75 @@ test('codex cwd cache: cache hit proved by observable cache-file state', async (
       targetCwd,
       'recordedCwd should come from the cache, not the rewritten transcript'
     );
+  });
+});
+
+test('cursor: direct lookup discovers agent transcript with exact cwd evidence', async () => {
+  await withTempHome(async (home) => {
+    const { discover } = await importLocate();
+
+    const targetCwd = join(home, 'Code', 'my.cursor-project');
+    const encoded = encodeCursorCwd(targetCwd);
+    const transcriptDir = join(home, '.cursor', 'projects', encoded, 'agent-transcripts', 'session-123');
+    await mkdir(transcriptDir, { recursive: true });
+    const transcriptPath = join(transcriptDir, 'transcript.jsonl');
+    await writeFile(transcriptPath, CURSOR_TYPICAL, 'utf8');
+
+    const candidates = await discover('cursor', targetCwd);
+    const c = candidates.find(candidate => candidate.transcriptPath === transcriptPath);
+
+    assert.ok(c, 'should find the direct Cursor transcript');
+    assert.equal(c.runtime, 'cursor');
+    assert.equal(c.sessionId, 'session-123');
+    assert.equal(c.recordedCwd, targetCwd);
+    assert.equal(c.cwdSlug, encoded);
+    assert.equal(c.cwdEvidence, 'direct-parent-dir');
+  });
+});
+
+test('cursor: fallback scan preserves project cwdSlug evidence', async () => {
+  await withTempHome(async (home) => {
+    const { discover } = await importLocate();
+
+    const targetCwd = join(home, 'Code', 'missing-project');
+    const fallbackSlug = 'Users-test-Code-real-project';
+    const transcriptDir = join(home, '.cursor', 'projects', fallbackSlug, 'agent-transcripts', 'session-abc');
+    await mkdir(transcriptDir, { recursive: true });
+    const transcriptPath = join(transcriptDir, 'conversation.jsonl');
+    await writeFile(transcriptPath, CURSOR_TYPICAL, 'utf8');
+
+    const candidates = await discover('cursor', targetCwd);
+    const c = candidates.find(candidate => candidate.transcriptPath === transcriptPath);
+
+    assert.ok(c, 'fallback scan should include Cursor project dirs');
+    assert.equal(c.runtime, 'cursor');
+    assert.equal(c.sessionId, 'session-abc');
+    assert.equal(c.recordedCwd, null);
+    assert.equal(c.cwdSlug, fallbackSlug);
+    assert.equal(c.cwdEvidence, 'project-dir-slug');
+  });
+});
+
+test('cursor: fallback scan excludes transcripts older than 7 days', async () => {
+  await withTempHome(async (home) => {
+    const { discover } = await importLocate();
+
+    const targetCwd = join(home, 'Code', 'missing-project');
+    const fallbackSlug = 'Users-test-Code-real-project';
+    const transcriptDir = join(home, '.cursor', 'projects', fallbackSlug, 'agent-transcripts', 'session-old');
+    await mkdir(transcriptDir, { recursive: true });
+    const transcriptPath = join(transcriptDir, 'conversation.jsonl');
+    await writeFile(transcriptPath, CURSOR_TYPICAL, 'utf8');
+
+    const staleDate = new Date();
+    staleDate.setDate(staleDate.getDate() - 30);
+    const staleTime = staleDate.getTime() / 1000;
+    await utimes(transcriptPath, staleTime, staleTime);
+
+    const candidates = await discover('cursor', targetCwd);
+    const staleFound = candidates.find(candidate => candidate.transcriptPath === transcriptPath);
+
+    assert.equal(staleFound, undefined, 'stale Cursor fallback transcript should be excluded');
   });
 });
 

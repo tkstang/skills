@@ -165,6 +165,36 @@ test('Claude parent-dir slug match beats newer unrelated global candidate', () =
   assert.equal(result.tier, 'C');
 });
 
+test('Cursor project-dir slug match beats newer unrelated global candidate', () => {
+  const targetCwd = '/Users/thomas.stang/.superconductor/worktrees/skills/sc-pinned-meissner-9974';
+  const sameWorktree = mkCandidate({
+    runtime: 'cursor',
+    recordedCwd: null,
+    cwdSlug: 'Users-thomas-stang-superconductor-worktrees-skills-sc-pinned-meissner-9974',
+    cwdEvidence: 'project-dir-slug',
+    transcriptPath: '/Users/thomas.stang/.cursor/projects/Users-thomas-stang-superconductor-worktrees-skills-sc-pinned-meissner-9974/agent-transcripts/session-a/transcript.jsonl',
+    mtime: NOW - 300,
+    ageSec: 300,
+    sessionId: 'cursor-same-worktree',
+  });
+  const unrelatedRecent = mkCandidate({
+    runtime: 'cursor',
+    recordedCwd: null,
+    cwdSlug: 'Users-thomas-stang-Code-vault-night-tab',
+    cwdEvidence: 'project-dir-slug',
+    transcriptPath: '/Users/thomas.stang/.cursor/projects/Users-thomas-stang-Code-vault-night-tab/agent-transcripts/session-b/transcript.jsonl',
+    mtime: NOW - 5,
+    ageSec: 5,
+    sessionId: 'cursor-unrelated-recent',
+  });
+
+  const result = rank([unrelatedRecent, sameWorktree], targetCwd);
+
+  assert.ok(result.winner, 'Cursor slug match should produce a winner');
+  assert.equal(result.winner.sessionId, 'cursor-same-worktree');
+  assert.equal(result.tier, 'C');
+});
+
 test('No match with empty candidates → noMatch result', () => {
   const result = rank([], TARGET_CWD);
 

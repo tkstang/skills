@@ -83,6 +83,7 @@ export function tierOf(candidate, targetCwd) {
 
 function cwdSlugVariants(cwd) {
   return [...new Set([
+    cwd.split(/[/.]/u).filter(Boolean).join('-'),
     cwd.replace(/[/.]/g, '-'),
     cwd.replace(/\//g, '-'),
   ])];

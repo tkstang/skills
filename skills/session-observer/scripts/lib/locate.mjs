@@ -20,6 +20,13 @@
  *     1. Glob ~/.codex/sessions/**\/*.jsonl within LOOKBACK_DAYS.
  *     2. For each, check mtime against LOOKBACK_DAYS cutoff.
  *     3. Extract cwd from session-meta record, using the cwd cache to avoid re-parsing.
+ *
+ *   Cursor:
+ *     1. Encode targetCwd → ~/.cursor/projects/<encoded>/agent-transcripts.
+ *     2. Read one-level nested JSONL files below the direct transcripts dir and
+ *        mark exact cwd evidence.
+ *     3. If no direct dir exists, scan all project slugs under ~/.cursor/projects
+ *        within LOOKBACK_DAYS and preserve cwdSlug as weak ranking evidence.
  */
 
 import { readdir, stat, mkdir, readFile, writeFile } from 'node:fs/promises';
@@ -356,19 +363,179 @@ async function discoverCodex(targetCwd) {
 }
 
 // ---------------------------------------------------------------------------
+// discover — Cursor
+// ---------------------------------------------------------------------------
+
+/**
+ * Collect Cursor agent transcript paths from one-level nested session dirs.
+ *
+ * @param {string} transcriptsRoot
+ * @returns {Promise<string[]>}
+ */
+async function collectCursorAgentTranscripts(transcriptsRoot) {
+  const results = [];
+  let sessionDirs;
+  try {
+    sessionDirs = await readdir(transcriptsRoot, { withFileTypes: true });
+  } catch {
+    return results;
+  }
+
+  for (const sessionDir of sessionDirs) {
+    if (!sessionDir.isDirectory()) continue;
+    const sessionPath = join(transcriptsRoot, sessionDir.name);
+
+    let entries;
+    try {
+      entries = await readdir(sessionPath, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+
+    for (const entry of entries) {
+      if (entry.isFile() && entry.name.endsWith('.jsonl')) {
+        results.push(join(sessionPath, entry.name));
+      }
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Build a Cursor candidate from a transcript path.
+ *
+ * @param {string} transcriptPath
+ * @param {number} now
+ * @param {object} evidence
+ * @param {string | null} evidence.recordedCwd
+ * @param {string} evidence.cwdSlug
+ * @param {string} evidence.cwdEvidence
+ * @returns {Promise<object | null>}
+ */
+async function cursorCandidate(transcriptPath, now, evidence) {
+  let fileStat;
+  try {
+    fileStat = await stat(transcriptPath);
+  } catch {
+    return null;
+  }
+
+  const mtime = Math.floor(fileStat.mtime.getTime() / 1000);
+  const ageSec = now - mtime;
+
+  let meta;
+  try {
+    meta = await extractMeta('cursor', transcriptPath);
+  } catch {
+    meta = null;
+  }
+
+  return {
+    runtime: 'cursor',
+    transcriptPath,
+    sessionId: meta?.sessionId ?? basename(transcriptPath).replace(/\.jsonl$/, ''),
+    recordedCwd: evidence.recordedCwd,
+    cwdSlug: evidence.cwdSlug,
+    cwdEvidence: evidence.cwdEvidence,
+    mtime,
+    size: fileStat.size,
+    ageSec,
+  };
+}
+
+/**
+ * Discover Cursor transcript candidates for a target cwd.
+ *
+ * @param {string} targetCwd
+ * @returns {Promise<object[]>} Candidate[]
+ */
+async function discoverCursor(targetCwd) {
+  const [projectsRoot] = discoverPaths('cursor');
+  const encodedVariants = encodeCwdVariants('cursor', targetCwd);
+  const now = Date.now() / 1000;
+  const cutoffSec = now - LOOKBACK_DAYS * 86400;
+
+  const candidates = [];
+  const seenTranscripts = new Set();
+  let directHit = false;
+
+  for (const encoded of encodedVariants) {
+    const transcriptsRoot = join(projectsRoot, encoded, 'agent-transcripts');
+    const transcriptPaths = await collectCursorAgentTranscripts(transcriptsRoot);
+    if (transcriptPaths.length === 0) continue;
+
+    directHit = true;
+    for (const transcriptPath of transcriptPaths) {
+      if (seenTranscripts.has(transcriptPath)) continue;
+      seenTranscripts.add(transcriptPath);
+
+      const candidate = await cursorCandidate(transcriptPath, now, {
+        recordedCwd: targetCwd,
+        cwdSlug: encoded,
+        cwdEvidence: 'direct-parent-dir',
+      });
+      if (candidate) candidates.push(candidate);
+    }
+  }
+
+  if (directHit) return candidates;
+
+  let projectDirs = [];
+  try {
+    projectDirs = await readdir(projectsRoot, { withFileTypes: true });
+  } catch {
+    return candidates;
+  }
+
+  for (const projectDir of projectDirs) {
+    if (!projectDir.isDirectory()) continue;
+    if (encodedVariants.includes(projectDir.name)) continue;
+
+    const transcriptsRoot = join(projectsRoot, projectDir.name, 'agent-transcripts');
+    const transcriptPaths = await collectCursorAgentTranscripts(transcriptsRoot);
+
+    for (const transcriptPath of transcriptPaths) {
+      if (seenTranscripts.has(transcriptPath)) continue;
+      seenTranscripts.add(transcriptPath);
+
+      let fileStat;
+      try {
+        fileStat = await stat(transcriptPath);
+      } catch {
+        continue;
+      }
+
+      const mtime = Math.floor(fileStat.mtime.getTime() / 1000);
+      if (mtime < cutoffSec) continue;
+
+      const candidate = await cursorCandidate(transcriptPath, now, {
+        recordedCwd: null,
+        cwdSlug: projectDir.name,
+        cwdEvidence: 'project-dir-slug',
+      });
+      if (candidate) candidates.push(candidate);
+    }
+  }
+
+  return candidates;
+}
+
+// ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
 /**
  * Discover candidate transcripts for the given runtime and target cwd.
  *
- * @param {'claude-code' | 'codex'} runtime
+ * @param {'claude-code' | 'codex' | 'cursor'} runtime
  * @param {string} targetCwd
  * @returns {Promise<object[]>} Candidate[]
  */
 export async function discover(runtime, targetCwd) {
   if (runtime === 'claude-code') return discoverClaudeCode(targetCwd);
   if (runtime === 'codex') return discoverCodex(targetCwd);
+  if (runtime === 'cursor') return discoverCursor(targetCwd);
   throw new Error(`Unknown runtime: ${runtime}`);
 }
 
