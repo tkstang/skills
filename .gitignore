@@ -12,6 +12,8 @@
 .oat/projects/**/reviews/archived/
 # END OAT local paths
 
+.superpowers/
+
 # Node/runtime outputs
 node_modules/
 .consensus/
