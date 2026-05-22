@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-05-21
-oat_current_task_id: prev1-t03
+oat_current_task_id: prev1-t04
 oat_generated: false
 ---
 
@@ -31,9 +31,9 @@ oat_generated: false
 | Phase 5 | complete    | 3     | 3/3       |
 | Phase 6 | complete    | 2     | 2/2       |
 | Phase 7 | complete    | 4     | 4/4       |
-| Phase p-rev1 | in_progress | 5 | 2/5 |
+| Phase p-rev1 | in_progress | 5 | 3/5 |
 
-**Total:** 21/24 tasks completed
+**Total:** 22/24 tasks completed
 
 ---
 
@@ -311,10 +311,14 @@ Implemented Cursor runtime parsing: `discoverPaths('cursor')`, Cursor cwd slug v
 
 ### Task prev1-t03: (revision) Add Cursor transcript discovery and ranking evidence
 
-**Status:** pending
-**Commit:** pending
+**Status:** complete
+**Commit:** 214918f
 
 Discover `~/.cursor/projects/<encoded-project>/agent-transcripts/*/*.jsonl`, use exact cwd on direct hits, and carry project slug evidence for fallback ranking.
+
+Implemented Cursor candidate discovery with direct encoded-cwd lookup and fallback project-dir scans under `agent-transcripts/*/*.jsonl`. Direct hits get exact `recordedCwd` and `cwdEvidence: "direct-parent-dir"`; fallback candidates preserve `cwdSlug` with `cwdEvidence: "project-dir-slug"`. Ranking now treats Cursor project-dir slug evidence as a weak cwd recovery tier above unrelated global recency.
+
+**Verification:** `node --test tests/session-observer/locate.test.mjs tests/session-observer/rank.test.mjs` → 32/32 pass.
 
 ### Task prev1-t04: (revision) Wire Cursor through CLI, state, and auto-runtime behavior
 
@@ -458,6 +462,14 @@ Committed Cursor runtime parsing as `6fe9aa2` (`feat(prev1-t02): add Cursor tran
 **Verification:** `node --test tests/session-observer/runtimes.test.mjs` → 41/41 pass.
 
 **Next:** `prev1-t03` — add Cursor transcript discovery and ranking evidence.
+
+### 2026-05-21 — prev1-t03 complete: Cursor discovery and ranking evidence
+
+Committed Cursor transcript discovery and weak slug-evidence ranking as `214918f` (`feat(prev1-t03): discover Cursor agent transcripts`). Direct lookups target `~/.cursor/projects/<encoded-cwd>/agent-transcripts/*/*.jsonl`; fallback scans preserve project slug evidence without relying on `repo.json`.
+
+**Verification:** `node --test tests/session-observer/locate.test.mjs tests/session-observer/rank.test.mjs` → 32/32 pass.
+
+**Next:** `prev1-t04` — wire Cursor through CLI, state, auto-runtime behavior, and probe-local.
 
 ### 2026-05-15 — Post-implementation: skill relocated to `skills/` for distribution
 
