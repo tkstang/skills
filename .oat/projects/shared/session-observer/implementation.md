@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-05-22
-oat_current_task_id: prev1-t09
+oat_current_task_id: prev1-t10
 oat_generated: false
 ---
 
@@ -31,9 +31,9 @@ oat_generated: false
 | Phase 5 | complete    | 3     | 3/3       |
 | Phase 6 | complete    | 2     | 2/2       |
 | Phase 7 | complete    | 4     | 4/4       |
-| Phase p-rev1 | in_progress | 13 | 8/13 |
+| Phase p-rev1 | in_progress | 13 | 9/13 |
 
-**Total:** 27/32 tasks completed
+**Total:** 28/32 tasks completed
 
 ---
 
@@ -397,12 +397,14 @@ Added a `locate.mjs` strategy comment and a targeted Cursor discovery test provi
 
 ### Task prev1-t09: (review) Avoid duplicate stat in Cursor fallback discovery
 
-**Status:** pending
-**Commit:** pending
+**Status:** complete
+**Commit:** 172a12c
 
 Review-generated follow-up from `p-rev1-review-2026-05-22.md`: avoid statting Cursor fallback transcript files twice during discovery while preserving the existing 7-day lookback behavior.
 
-**Verification:** pending.
+`cursorCandidate()` now accepts an optional pre-read `fileStat`, and Cursor fallback discovery passes the same stat used for the 7-day cutoff into candidate construction.
+
+**Verification:** `node --test tests/session-observer/locate.test.mjs` → 13/13 pass.
 
 ### Task prev1-t10: (review) Normalize symlinked cwd paths before ranking
 
