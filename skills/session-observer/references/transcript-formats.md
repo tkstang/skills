@@ -1,6 +1,6 @@
 # Transcript Formats Reference
 
-Short reference for the Claude Code and Codex JSONL record shapes that `<skill-dir>/scripts/lib/runtimes.mjs` parses. These formats may drift between runtime releases; the canonical parsing logic lives in `runtimes.mjs`.
+Short reference for the Claude Code, Codex, and Cursor JSONL record shapes that `<skill-dir>/scripts/lib/runtimes.mjs` parses. These formats may drift between runtime releases; the canonical parsing logic lives in `runtimes.mjs`.
 
 ---
 
@@ -10,6 +10,7 @@ Short reference for the Claude Code and Codex JSONL record shapes that `<skill-d
 |---|---|---|
 | Claude Code | `~/.claude/projects/` | `~/.claude/projects/<encoded-cwd>/<session-id>.jsonl` |
 | Codex | `~/.codex/sessions/` | `~/.codex/sessions/<YYYY>/<MM>/<DD>/session-<id>.jsonl` |
+| Cursor | `~/.cursor/projects/` | `~/.cursor/projects/<encoded-project>/agent-transcripts/<session-id>/<session-id>.jsonl` |
 
 ---
 
@@ -170,9 +171,7 @@ The cwd is extracted from the **`session_started` record** at the top of the fil
   "cwd": "/Users/testuser/Code/my-project", "timestamp": "2026-05-14T10:00:00Z" }
 ```
 
-`runtimes.extractMeta` reads `record.cwd` at the **record top level** to extract the cwd.
-
-> **Known limitation (p02 review, Minor finding):** `extractMeta` reads `cwd` from `record.cwd` (top-level). If a Codex version stores cwd inside a nested `payload` object instead, the extraction falls back to `recordedCwd: null`, placing the candidate in Tier C. The candidate still appears in `locate` output and can be selected manually with `--session <r:id>`.
+`runtimes.extractMeta` reads `record.cwd` at the **record top level** first, then falls back to `record.payload.cwd` for Codex versions that nest metadata under `payload`.
 
 `locate.mjs` caches the extracted `(sessionId, recordedCwd)` keyed by `${transcriptPath}:${mtime}` at `~/.local/state/session-observer/codex-cwd-cache.json` to avoid re-reading unchanged files on every poll or check.
 
@@ -244,23 +243,82 @@ Function args are truncated to 200 characters.
 
 ---
 
+## Cursor
+
+### File naming and cwd encoding
+
+Cursor agent transcripts live under:
+
+```
+~/.cursor/projects/<encoded-project>/agent-transcripts/<session-id>/<session-id>.jsonl
+```
+
+The project directory slug is derived from the cwd by splitting on `/` and `.` and joining non-empty segments with `-`. For example:
+
+```
+/Users/thomas.stang/Code/vox/duet
+    → ~/.cursor/projects/Users-thomas-stang-Code-vox-duet/agent-transcripts/<session-id>/<session-id>.jsonl
+```
+
+Direct hits from `discover('cursor', cwd)` set `recordedCwd = targetCwd` exactly and mark `cwdEvidence = "direct-parent-dir"`. Fallback scans search `~/.cursor/projects/*/agent-transcripts/*/*.jsonl` within the normal 7-day lookback, carry the project `cwdSlug`, and mark `cwdEvidence = "project-dir-slug"`. Ranking treats matching Cursor slug evidence as a weak cwd recovery tier above unrelated global recency.
+
+The SQLite chat-history store at `~/.cursor/chats/*/store.db` exists separately and is intentionally out of scope. This skill supports Cursor **agent transcript JSONL** only.
+
+### Session ID placement
+
+Cursor session IDs are inferred from the transcript path:
+
+- preferred: transcript basename without `.jsonl`
+- fallback: parent transcript directory name when the file is named generically
+
+### Record shape
+
+Cursor agent transcript records are JSONL objects with a top-level role and a message wrapper:
+
+```json
+{
+  "role": "assistant",
+  "message": {
+    "content": [
+      { "type": "text", "text": "I found the failing test." },
+      {
+        "type": "tool_use",
+        "name": "Read",
+        "input": { "file_path": "/project/src/index.ts" }
+      }
+    ]
+  }
+}
+```
+
+`normalizeEntries` extracts `type: "text"` blocks as message entries. When `includeToolCalls: true`, `type: "tool_use"` blocks become compact tool-call entries:
+
+```
+role: "assistant", kind: "tool_call", toolName: "Read",
+text: "[Read] {\"file_path\":\"/project/src/index.ts\"}"
+```
+
+Observed Cursor block types in the local spike were `text` and `tool_use`; observed tool names included `Shell`, `Read`, `Grep`, `StrReplace`, `Glob`, and `Write`.
+
+---
+
 ## Summary of Key Differences
 
-| Aspect | Claude Code | Codex |
-|---|---|---|
-| cwd source | Directory name (encoded, lossy) | `record.cwd` at top level |
-| Session ID source | `record.sessionId` or `message.sessionId` | `record.sessionId` (every record) |
-| Message wrapper | `record.message.role` / `record.message.content` | `record.payload.role` / `record.payload.content` |
-| Tool call format | `type: "tool_use"` in content array | `payload.type === "function_call"` |
-| Tool result format | `type: "tool_result"` with `tool_use_id` (user message) | None in v1 |
-| Name-to-result correlation | First-pass `tool_use_id → toolName` map | N/A |
-| Discovery | Direct encoded-dir lookup + glob fallback | Dated directory glob (7-day window) |
+| Aspect | Claude Code | Codex | Cursor |
+|---|---|---|---|
+| cwd source | Directory name (encoded, lossy) | `record.cwd` or `record.payload.cwd` | Encoded project dir slug |
+| Session ID source | `record.sessionId` or `message.sessionId` | `record.sessionId` (every record) | Transcript basename or parent dir |
+| Message wrapper | `record.message.role` / `record.message.content` | `record.payload.role` / `record.payload.content` | `record.role` / `record.message.content` |
+| Tool call format | `type: "tool_use"` in content array | `payload.type === "function_call"` | `type: "tool_use"` in content array |
+| Tool result format | `type: "tool_result"` with `tool_use_id` (user message) | None in v1 | None in v1 |
+| Name-to-result correlation | First-pass `tool_use_id → toolName` map | N/A | N/A |
+| Discovery | Direct encoded-dir lookup + glob fallback | Dated directory glob (7-day window) | Direct encoded-dir lookup + agent-transcript glob fallback |
 
 ---
 
 ## Adding a New Runtime
 
-`runtimes.mjs` is the only file with structural knowledge of per-runtime formats. Adding a third runtime (e.g. Cursor, Gemini CLI) requires:
+`runtimes.mjs` is the only file with structural knowledge of per-runtime formats. Adding another runtime (e.g. Gemini CLI) requires:
 
 1. Add a case to `discoverPaths(runtime)`.
 2. Add a case to `encodeCwd(runtime, cwd)`.

@@ -338,6 +338,18 @@ Added Cursor to CLI runtime validation, help text, pinned `--session`, state res
 
 Document Cursor agent transcript support, explicitly defer `~/.cursor/chats/*/store.db`, run full verification, and refresh installed user-level skill copies.
 
+Docs updated to include Cursor in runtime examples, flag docs, troubleshooting, probe-local usage, transcript storage notes, and runtime-format reference. Cursor support is explicitly scoped to agent transcript JSONL:
+
+```
+~/.cursor/projects/<encoded-project>/agent-transcripts/<session-id>/<session-id>.jsonl
+```
+
+`~/.cursor/chats/*/store.db` SQLite chat history is intentionally deferred.
+
+**Verification:** `node --test 'tests/session-observer/*.test.mjs'` → 136/136 pass; `npm test` → 260/260 pass; `npm run validate` → passed; `npm run smoke` → passed; `node skills/session-observer/scripts/probe-local.mjs --runtime cursor --cwd "$PWD"` → exit 2 (acceptable noMatch for this worktree).
+
+**Installed copies:** refreshed `~/.agents/skills/session-observer` from `skills/session-observer`; confirmed `~/.claude/skills/session-observer` points to `../../.agents/skills/session-observer`.
+
 ### Phase p-rev1 Summary
 
 **Outcome:** pending.

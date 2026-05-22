@@ -1,9 +1,9 @@
 ---
 name: session-observer
-description: Use when checking what the other coding agent (Claude Code or Codex) just did in this project, reviewing a peer session, or catching up on new messages. Locates the active transcript, renders a tool-free digest, and tracks per-runtime read offsets.
+description: Use when checking what another coding agent (Claude Code, Codex, or Cursor) just did in this project, reviewing a peer session, or catching up on new messages. Locates the active transcript, renders a tool-free digest, and tracks per-runtime read offsets.
 license: MIT
 compatibility: Agent Skills baseline; requires Node.js 22+. No third-party runtime dependencies.
-argument-hint: '[review|catch-up|locate|state] [--runtime <claude-code|codex|auto>] [--debug]'
+argument-hint: '[review|catch-up|locate|state] [--runtime <claude-code|codex|cursor|auto>] [--debug]'
 disable-model-invocation: false
 user-invocable: true
 allowed-tools: Bash, Read, AskUserQuestion
@@ -14,7 +14,7 @@ metadata:
 
 # session-observer
 
-Lets you (Claude Code or Codex) inspect the other runtime's transcript for the current project, render a tool-free digest, and track per-runtime read offsets so follow-up checks surface only new content.
+Lets you (Claude Code, Codex, or Cursor) inspect another runtime's transcript for the current project, render a tool-free digest, and track per-runtime read offsets so follow-up checks surface only new content.
 
 ---
 
@@ -26,6 +26,7 @@ Use this skill when any of the following applies:
 |---|---|
 | `check Codex` / `review the other terminal` / `summarize Codex's session` | `review --runtime codex` |
 | `check Claude` / `check what Claude said` | `review --runtime claude-code` |
+| `check Cursor` / `summarize Cursor's agent session` | `review --runtime cursor` |
 | `check again` / `anything new?` | `catch-up` (auto runtime) |
 | `what do you think of what was just said?` | `catch-up`, then comment |
 | `get up to speed` / `start watching this session` | `review` once, `catch-up` thereafter |
@@ -63,7 +64,7 @@ Use this skill when any of the following applies:
 
 | Flag | Type | Default | Description |
 |---|---|---|---|
-| `--runtime <r>` | `claude-code\|codex\|auto` | `auto` | Which runtime to read. `auto` picks the peer via `SESSION_OBSERVER_SELF`, a prior same-cwd state entry, or tier-population fallback. |
+| `--runtime <r>` | `claude-code\|codex\|cursor\|auto` | `auto` | Which runtime to read. `auto` picks the peer via `SESSION_OBSERVER_SELF`, a prior same-cwd state entry, or tier-population fallback. |
 | `--cwd <path>` | path | `process.cwd()` | Project directory to match transcripts against. |
 | `--include-tools` | boolean | false | Include compact `[ToolName] args` tool-call markers. |
 | `--include-command-messages` | boolean | false | Include Claude Code slash-command payload records such as `<command-message>…</command-message>`. |
@@ -91,7 +92,7 @@ If a digest would exceed the large-output threshold, the CLI automatically falls
 Before running the CLI, resolve any ambiguity:
 
 1. **Mode ambiguous** (`"can you check?"` with no verb hint) → ask: *"Full review, or just what's new since last time?"*
-2. **Runtime ambiguous** — default to `--runtime auto`. If both runtimes have matching transcripts, `auto` first checks whether the state file has exactly one previously read session for this cwd and reuses that runtime; otherwise it exits 3 with `ambiguousRuntime`.
+2. **Runtime ambiguous** — default to `--runtime auto`. If multiple runtimes have matching transcripts, `auto` first checks whether the state file has exactly one previously read session for this cwd and reuses that runtime; otherwise it exits 3 with `ambiguousRuntime`.
 3. **User identifies a session by text** — run `locate --runtime <r> --cwd "$PWD" --json --snippet "<excerpt>"`, confirm the matched `sessionId`/`recordedCwd`, then re-run with `--session <runtime>:<id>` if needed.
 4. **Ties within winning tier** (exit 3 with `ties`) — present the top candidates; ask which to use; re-invoke with `--session <runtime>:<id>`.
 5. **No candidates (exit 2)** — run `locate --json --debug` for diagnostics, then present widening options (sister worktree, specific cwd, global most-recent). Treat `globalRecent` as diagnostic only: if one candidate's path or slug clearly matches the current worktree and a newer candidate is unrelated, prefer the same-worktree candidate or ask before using it.
@@ -162,7 +163,7 @@ On exit 3 (ties):
 
 On exit 3 (ambiguousRuntime):
 ```json
-{ "ambiguousRuntime": true, "runtimes": ["claude-code", "codex"] }
+{ "ambiguousRuntime": true, "runtimes": ["claude-code", "codex", "cursor"] }
 ```
 
 ### Step 3: Present digest and comment
@@ -203,6 +204,10 @@ node skills/session-observer/scripts/session-observer.mjs \
 # Catch up on new Codex activity since last check
 node skills/session-observer/scripts/session-observer.mjs \
   catch-up --runtime codex --cwd "$PWD"
+
+# Check Cursor agent transcripts for this project
+node skills/session-observer/scripts/session-observer.mjs \
+  review --runtime cursor --cwd "$PWD"
 
 # Include tool calls in the digest (compact markers)
 node skills/session-observer/scripts/session-observer.mjs \
@@ -249,6 +254,14 @@ The skill did not find any transcripts for the target cwd and runtime.
 
 For Claude Code cwd issues, run `locate --runtime claude-code --cwd "$PWD" --json --debug` and inspect `lookupDiagnostics.claudeCode[]`. It shows the expected project-dir slug variants and whether each directory exists.
 
+For Cursor cwd issues, the supported transcript store is:
+
+```
+~/.cursor/projects/<encoded-project>/agent-transcripts/<session-id>/<session-id>.jsonl
+```
+
+The encoded project slug splits cwd paths on `/` and `.` and joins non-empty segments with `-` (for example `/Users/thomas.stang/Code/vox/duet` → `Users-thomas-stang-Code-vox-duet`). Cursor's SQLite chat-history store at `~/.cursor/chats/*/store.db` is intentionally out of scope for this skill.
+
 ### Ties (exit 3, `ties`)
 
 Two or more sessions have modification times within 5 seconds of each other.
@@ -268,9 +281,9 @@ If the `snippet.matches[]` result identifies the expected `sessionId` and cwd, u
 
 ### Ambiguous runtime (exit 3, `ambiguousRuntime`)
 
-Both Claude Code and Codex have sessions for this cwd, and no single prior same-cwd state entry resolved the preference. `--runtime auto` can't pick one safely.
+Multiple runtimes have sessions for this cwd, and no single prior same-cwd state entry resolved the preference. `--runtime auto` can't pick one safely.
 
-**Recovery:** Re-run with `--runtime claude-code` or `--runtime codex`.
+**Recovery:** Re-run with `--runtime claude-code`, `--runtime codex`, or `--runtime cursor`.
 
 ### Lock exhausted (exit 1)
 
@@ -316,6 +329,10 @@ node skills/session-observer/scripts/probe-local.mjs \
 # Codex transcripts
 node skills/session-observer/scripts/probe-local.mjs \
   --runtime codex --cwd "$PWD"
+
+# Cursor agent transcripts
+node skills/session-observer/scripts/probe-local.mjs \
+  --runtime cursor --cwd "$PWD"
 ```
 
 Exit codes 0 (digest found) and 2 (no transcripts for this cwd) are both acceptable. Only exit 1 (hard error) indicates a problem.
@@ -330,6 +347,6 @@ Exit codes 0 (digest found) and 2 (no transcripts for this cwd) are both accepta
 - [ ] `catch-up` advances the high-water mark; a second identical `catch-up` emits "no new records."
 - [ ] `state reset --runtime <r>` zeros offsets; subsequent `catch-up` re-emits the full session.
 - [ ] Exit codes 0 / 1 / 2 / 3 are produced as documented for their respective conditions.
-- [ ] `--runtime auto` resolves the peer via `SESSION_OBSERVER_SELF` or tier-population; exits 3 when both runtimes have candidates.
+- [ ] `--runtime auto` resolves the peer via `SESSION_OBSERVER_SELF`, prior same-cwd state, or tier-population; exits 3 when multiple runtimes have candidates.
 - [ ] No Stoa runtime dependency; no network calls; no writes to transcripts.
 - [ ] State stored at `~/.local/state/session-observer/state.json`; nuke option documented above.
