@@ -6,7 +6,7 @@
 
 import { describe, it, before, after, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile, readdir, writeFile, access, utimes } from 'node:fs/promises';
+import { readFile, readdir, writeFile, access, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import { withTmpStateDir } from './helpers/tmpdir.mjs';
 
@@ -22,6 +22,10 @@ async function importState() {
   // We clear the module cache by appending a query to bust Node's ESM cache.
   const cacheBust = `?t=${Date.now()}-${Math.random()}`;
   return import(`${STATE_MJS}${cacheBust}`);
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 // ---------------------------------------------------------------------------
@@ -280,6 +284,31 @@ it('corrupt state.json is backed up and subsequent load returns empty state', as
   });
 });
 
+it('load waits for the state lock before writing corrupt backups', async () => {
+  await withTmpStateDir(async (dir) => {
+    await writeFile(join(dir, 'state.json'), '{ this is not valid json !!!');
+    const lock = join(dir, 'state.json.lock');
+    await writeFile(lock, String(process.pid));
+
+    const state = await importState();
+    let settled = false;
+    const pendingLoad = state.load().finally(() => {
+      settled = true;
+    });
+
+    await sleep(75);
+    assert.equal(settled, false, 'load() should wait while the state lock exists');
+
+    await unlink(lock);
+    const loaded = await pendingLoad;
+    assert.equal(loaded.schemaVersion, 1);
+
+    const files = await readdir(dir);
+    const bakFiles = files.filter((f) => f.startsWith('state.json.corrupt-'));
+    assert.ok(bakFiles.length > 0, 'a corrupt backup file must be created after lock release');
+  });
+});
+
 // ---------------------------------------------------------------------------
 // 11. migrateIfNeeded: migration persists to disk via mutate() path
 // ---------------------------------------------------------------------------
@@ -320,7 +349,7 @@ it('migration via mutate(): re-load after mutate returns upgraded schema (schema
 // ---------------------------------------------------------------------------
 it('repeated corrupt backups produce unique filenames and do not clobber each other', async () => {
   await withTmpStateDir(async (dir) => {
-    // Simulate two consecutive corrupt-state loads (via load() which writes backups non-locked).
+    // Simulate two consecutive corrupt-state loads.
     // We do them sequentially with a tiny delay to get distinct timestamps.
     const state = await importState();
 
@@ -329,7 +358,7 @@ it('repeated corrupt backups produce unique filenames and do not clobber each ot
 
     await writeFile(join(dir, 'state.json'), '{ bad json 2 }');
     // Small delay to ensure distinct millisecond timestamp in backup filename
-    await new Promise((r) => setTimeout(r, 5));
+    await sleep(5);
     await state.load(); // triggers second backup
 
     const files = await readdir(dir);

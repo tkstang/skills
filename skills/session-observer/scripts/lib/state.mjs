@@ -13,9 +13,10 @@
  *   6. rename(tmp, state.json)
  *   7. release lock in finally
  *
- * Backup writes (corrupt-state + migration) are performed while holding the lock
- * to avoid concurrent writers observing a partial backup. Backup filenames include
- * a timestamp and PID to be unique across retries.
+ * Backup writes (corrupt-state + migration) are performed while holding the lock,
+ * including the public load() path, to avoid concurrent writers observing a
+ * partial backup. Backup filenames include a timestamp and PID to be unique
+ * across retries.
  */
 
 import { open, rename, mkdir, readFile, writeFile, unlink } from 'node:fs/promises';
@@ -132,9 +133,8 @@ async function writeBackup(dir, label, content) {
  *   - corrupt JSON → back up (atomic, unique name), return empty
  *   - older schema (missing schemaVersion) → back up, migrate in-memory
  *
- * NOTE: caller MUST hold the lock before calling readState when backup writes
- * are possible (i.e. all paths that go through mutate()).
- * The bare load() path does not write backups, so it does not need the lock.
+ * NOTE: caller MUST hold the lock before calling readState because corrupt JSON
+ * and v0 migration reads can write backup files.
  */
 async function readState(dir) {
   const file = statePath(dir);
@@ -160,9 +160,9 @@ async function readState(dir) {
 
 /**
  * If the parsed state has no schemaVersion (v0), back up and upgrade in memory.
- * Migration backup is written here; persist-to-disk is handled by the caller
- * (mutate will write the upgraded state; load() callers get the in-memory upgrade
- * but do not persist — this is intentional: persisting requires the lock).
+ * Migration backup is written here; persist-to-disk is handled by the caller.
+ * mutate() writes the upgraded state; load() callers get the in-memory upgrade
+ * but do not persist it because load() remains read-only for state.json itself.
  *
  * @param {object} parsed
  * @param {string} dir
@@ -229,13 +229,18 @@ function zeroSession(entry) {
 
 /**
  * Load and return the current state without any mutation.
- * Does NOT acquire the lock (read-only path).
- * NOTE: If a v0 migration backup is written here, it is not lock-protected;
- * for fully safe migration persistence, go through mutate() instead.
+ * Acquires the lock because reading can create corrupt/v0 backup files.
  */
 export async function load() {
   const dir = stateDir();
-  return readState(dir);
+  await mkdir(dir, { recursive: true });
+  const lock = lockPath(dir);
+  await acquireLock(lock);
+  try {
+    return await readState(dir);
+  } finally {
+    await releaseLock(lock);
+  }
 }
 
 /**
