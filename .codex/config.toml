@@ -12,3 +12,15 @@ config_file = "agents/oat-phase-implementer.toml"
 [agents.oat-reviewer]
 description = "Unified reviewer for OAT projects - mode-aware verification of requirements/design alignment and code quality. Writes review artifact to disk."
 config_file = "agents/oat-reviewer.toml"
+
+[agents.oat-phase-implementer-high]
+description = "OAT phase implementer pinned to high reasoning effort for broad, subtle, or higher-risk implementation or fix phases."
+config_file = "agents/oat-phase-implementer-high.toml"
+
+[agents.oat-phase-implementer-low]
+description = "OAT phase implementer pinned to low reasoning effort for narrow mechanical implementation or fix phases."
+config_file = "agents/oat-phase-implementer-low.toml"
+
+[agents.oat-phase-implementer-medium]
+description = "OAT phase implementer pinned to medium reasoning effort for normal multi-file implementation or fix phases."
+config_file = "agents/oat-phase-implementer-medium.toml"

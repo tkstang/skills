@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-05-21
-oat_current_task_id: prev1-t01
+oat_current_task_id: prev1-t02
 oat_generated: false
 ---
 
@@ -31,9 +31,9 @@ oat_generated: false
 | Phase 5 | complete    | 3     | 3/3       |
 | Phase 6 | complete    | 2     | 2/2       |
 | Phase 7 | complete    | 4     | 4/4       |
-| Phase p-rev1 | in_progress | 5 | 0/5 |
+| Phase p-rev1 | in_progress | 5 | 1/5 |
 
-**Total:** 19/24 tasks completed
+**Total:** 20/24 tasks completed
 
 ---
 
@@ -282,8 +282,8 @@ This revision intentionally folds the already-applied dogfood patch into the sam
 
 ### Task prev1-t01: (revision) Finalize dogfood-driven matching and digest hardening
 
-**Status:** in_progress
-**Commit:** pending
+**Status:** complete
+**Commit:** 0e452a1
 
 Owns the current uncommitted dogfood patch:
 
@@ -295,6 +295,8 @@ Owns the current uncommitted dogfood patch:
 - `--max-turns` / `--max-bytes` support for catch-up.
 - Same-cwd prior-runtime preference for `--runtime auto`.
 - Installed-copy refresh for `~/.agents/skills/session-observer` / `~/.claude/skills/session-observer`.
+
+**Verification:** `node --test 'tests/session-observer/*.test.mjs'` → 116/116 pass; `npm test` → 240/240 pass; `npm run validate` → passed; `npm run smoke` → passed. Refreshed `~/.agents/skills/session-observer` with `rsync -a --delete`; `~/.claude/skills/session-observer` remains a symlink to `../../.agents/skills/session-observer`.
 
 ### Task prev1-t02: (revision) Add Cursor runtime adapter and fixtures
 
@@ -434,6 +436,16 @@ _Append session entries below as `oat-project-implement` runs._
 **Revision tasks added:** `prev1-t01` through `prev1-t05` in `plan.md`.
 
 **Next:** Run `oat-project-implement` starting at `prev1-t01`. `prev1-t01` should verify and commit the current dogfood patch before Cursor implementation begins.
+
+### 2026-05-21 — prev1-t01 complete: dogfood hardening committed
+
+Committed the folded dogfood hardening patch as `0e452a1` (`fix(prev1-t01): harden session-observer dogfood paths`). This closes the pre-Cursor part of the revision record and keeps the dogfood changes explicitly inside `p-rev1`.
+
+**Verification:** `node --test 'tests/session-observer/*.test.mjs'` → 116/116 pass; `npm test` → 240/240 pass; `npm run validate` → passed; `npm run smoke` → passed.
+
+**Installed copies:** refreshed `~/.agents/skills/session-observer` from `skills/session-observer`; confirmed `~/.claude/skills/session-observer` points to `../../.agents/skills/session-observer`.
+
+**Next:** `prev1-t02` — add Cursor runtime adapter and fixtures.
 
 ### 2026-05-15 — Post-implementation: skill relocated to `skills/` for distribution
 
