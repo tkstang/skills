@@ -15,6 +15,7 @@ const typicalClaude = join(FIXTURES, 'claude-code', 'typical.jsonl');
 const emptyClaude = join(FIXTURES, 'claude-code', 'empty.jsonl');
 const withToolBurst = join(FIXTURES, 'claude-code', 'with-tool-burst.jsonl');
 const typicalCodex = join(FIXTURES, 'codex', 'typical.jsonl');
+const typicalCursor = join(FIXTURES, 'cursor', 'typical.jsonl');
 
 const digestMjs = join(__dirname, '../../skills/session-observer/scripts/lib/digest.mjs');
 
@@ -241,6 +242,18 @@ describe('buildDigest', () => {
     });
     assert.ok(digest.range.totalRecords > 0, 'should parse codex fixture');
     assert.equal(digest.runtime, 'codex');
+  });
+
+  test('buildDigest works for cursor runtime', async (t) => {
+    if (skipIfMissing(t)) return;
+    const digest = await buildDigest('cursor', typicalCursor, {
+      fromIndex: 0,
+      mode: 'review',
+    });
+
+    assert.ok(digest.range.totalRecords > 0, 'should parse cursor fixture');
+    assert.equal(digest.runtime, 'cursor');
+    assert.ok(digest.entries.some(entry => entry.role === 'assistant'), 'should include assistant messages');
   });
 });
 
