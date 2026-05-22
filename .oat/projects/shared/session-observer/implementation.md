@@ -1,16 +1,16 @@
 ---
-oat_status: complete
+oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
-oat_last_updated: 2026-05-15
-oat_current_task_id: null
+oat_last_updated: 2026-05-21
+oat_current_task_id: prev1-t01
 oat_generated: false
 ---
 
 # Implementation: session-observer
 
 **Started:** 2026-05-15
-**Last Updated:** 2026-05-15
+**Last Updated:** 2026-05-21
 
 > Conventions:
 >
@@ -31,8 +31,9 @@ oat_generated: false
 | Phase 5 | complete    | 3     | 3/3       |
 | Phase 6 | complete    | 2     | 2/2       |
 | Phase 7 | complete    | 4     | 4/4       |
+| Phase p-rev1 | in_progress | 5 | 0/5 |
 
-**Total:** 19/19 tasks completed
+**Total:** 19/24 tasks completed
 
 ---
 
@@ -271,6 +272,68 @@ Updated state.test.mjs: existing migration test updated to expect new `state.jso
 
 ---
 
+## Phase p-rev1: Revision 1 — Dogfood hardening + Cursor runtime support
+
+**Status:** in_progress
+**Started:** 2026-05-21
+**Source:** inline dogfood feedback + local Cursor transcript spike
+
+This revision intentionally folds the already-applied dogfood patch into the same revision record as Cursor support. The goal is to avoid a separate, ambiguous pre-revision history line: `prev1-t01` owns the existing dogfood hardening changes and should verify/commit them before Cursor implementation begins.
+
+### Task prev1-t01: (revision) Finalize dogfood-driven matching and digest hardening
+
+**Status:** in_progress
+**Commit:** pending
+
+Owns the current uncommitted dogfood patch:
+
+- Claude cwd slug lookup and fallback ranking hardening.
+- Snippet-assisted session selection.
+- Raw-vs-rendered digest accounting and exclusive high-water offsets.
+- Default filtering for Claude slash-command payloads via `command_message`.
+- Large-digest fallback to the last 8 user/assistant turn groups.
+- `--max-turns` / `--max-bytes` support for catch-up.
+- Same-cwd prior-runtime preference for `--runtime auto`.
+- Installed-copy refresh for `~/.agents/skills/session-observer` / `~/.claude/skills/session-observer`.
+
+### Task prev1-t02: (revision) Add Cursor runtime adapter and fixtures
+
+**Status:** pending
+**Commit:** pending
+
+Add `cursor` support in `runtimes.mjs` plus Cursor agent-transcript fixtures and parser tests.
+
+### Task prev1-t03: (revision) Add Cursor transcript discovery and ranking evidence
+
+**Status:** pending
+**Commit:** pending
+
+Discover `~/.cursor/projects/<encoded-project>/agent-transcripts/*/*.jsonl`, use exact cwd on direct hits, and carry project slug evidence for fallback ranking.
+
+### Task prev1-t04: (revision) Wire Cursor through CLI, state, and auto-runtime behavior
+
+**Status:** pending
+**Commit:** pending
+
+Expose `cursor` through CLI validation/help, state reset, pinned sessions, `probe-local`, and three-runtime `--runtime auto` ambiguity handling.
+
+### Task prev1-t05: (revision) Update docs and validate Cursor support end-to-end
+
+**Status:** pending
+**Commit:** pending
+
+Document Cursor agent transcript support, explicitly defer `~/.cursor/chats/*/store.db`, run full verification, and refresh installed user-level skill copies.
+
+### Phase p-rev1 Summary
+
+**Outcome:** pending.
+
+**Key files:** `skills/session-observer/**`, `tests/session-observer/**`, `.oat/projects/shared/session-observer/implementation.md`.
+
+**Verification:** pending.
+
+---
+
 ## Orchestration Runs
 
 <!-- orchestration-runs-start -->
@@ -349,6 +412,28 @@ Updated state.test.mjs: existing migration test updated to expect new `state.jso
 ## Implementation Log
 
 _Append session entries below as `oat-project-implement` runs._
+
+### 2026-05-21 — Revision received: dogfood hardening + Cursor target support
+
+**Source:** inline conversation and read-only local Cursor spike.
+
+**Changes requested:**
+
+- Fold the already-applied session-observer dogfood hardening patch into the same revision record instead of committing it as a separate pre-revision change.
+- Add Cursor as a supported target runtime for **agent transcripts**.
+
+**Local Cursor spike evidence:**
+
+- `~/.cursor/projects/*/agent-transcripts/*/*.jsonl` exists and is the practical Cursor agent transcript seam.
+- Found 19 Cursor agent transcript JSONL files across 12 project directories.
+- Sampled JSONL records have top-level `role` and `message.content[]`.
+- Observed block types are `text` and `tool_use`; observed tool names include `Shell`, `Read`, `Grep`, `StrReplace`, `Glob`, and `Write`.
+- Cursor project directory slugs appear to split cwd paths on `/` and `.` then join with `-`.
+- `~/.cursor/chats/*/store.db` exists separately (11 DBs found), but SQLite chat-history support is explicitly out of scope for this revision.
+
+**Revision tasks added:** `prev1-t01` through `prev1-t05` in `plan.md`.
+
+**Next:** Run `oat-project-implement` starting at `prev1-t01`. `prev1-t01` should verify and commit the current dogfood patch before Cursor implementation begins.
 
 ### 2026-05-15 — Post-implementation: skill relocated to `skills/` for distribution
 

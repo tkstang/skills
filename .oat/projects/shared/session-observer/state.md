@@ -1,5 +1,5 @@
 ---
-oat_current_task: null
+oat_current_task: prev1-t01
 oat_last_commit: 4571c56
 oat_blockers: []
 associated_issues: []
@@ -15,19 +15,19 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: "2026-05-15T02:45:07.398Z"
 oat_project_completed: null
-oat_project_state_updated: "2026-05-15T16:30:00.000Z"
+oat_project_state_updated: "2026-05-21T00:00:00.000Z"
 oat_generated: false
 ---
 
 # Project State: session-observer
 
-**Status:** Discovery
+**Status:** Implementation revision
 **Started:** 2026-05-14
-**Last Updated:** 2026-05-14
+**Last Updated:** 2026-05-21
 
 ## Current Phase
 
-Implementation — all 19 tasks complete (p01–p07). Awaiting the final re-review before PR.
+Implementation — revision phase p-rev1 added. Current task: `prev1-t01` (fold dogfood hardening into revision record and commit it), then Cursor agent transcript support.
 
 ## Artifacts
 
@@ -48,7 +48,7 @@ Implementation — all 19 tasks complete (p01–p07). Awaiting the final re-revi
 - ✓ Implementation phases p01–p06 complete and reviewed (all passed)
 - ✓ Final-scope code review received — Phase 7 added (4 fix tasks)
 - ✓ Phase 7 fix tasks complete and reviewed (passed); 19/19 tasks done
-- ⧗ Awaiting the final re-review (`final` row at `fixes_added`)
+- ⧗ Revision p-rev1 added from inline feedback: dogfood hardening + Cursor agent transcript support
 
 ## Blockers
 
@@ -56,4 +56,4 @@ None
 
 ## Next Milestone
 
-Complete discovery + lightweight design, then generate the implementation plan.
+Execute `p-rev1` via `oat-project-implement`, starting at `prev1-t01`.

@@ -2,7 +2,7 @@
 oat_status: complete
 oat_ready_for: oat-project-implement
 oat_blockers: []
-oat_last_updated: 2026-05-14
+oat_last_updated: 2026-05-21
 oat_phase: plan
 oat_phase_status: complete
 oat_plan_hill_phases: ["p06"]
@@ -918,6 +918,224 @@ git commit -m "fix(p07-t04): harden state.mjs backup and migration write paths"
 
 ---
 
+## Phase p-rev1: Revision 1 — Dogfood hardening + Cursor runtime support
+
+Source: inline feedback and local spike (2026-05-21)
+
+Scope notes:
+
+- Fold the already-implemented dogfood patch into this revision record so it is not a separate untracked history line.
+- Add Cursor **agent transcript** support from `~/.cursor/projects/*/agent-transcripts/*/*.jsonl`.
+- Keep `~/.cursor/chats/*/store.db` SQLite chat-history support out of scope for this revision.
+
+### Task prev1-t01: (revision) Finalize dogfood-driven matching and digest hardening
+
+**Files:**
+
+- Modify: `skills/session-observer/scripts/lib/runtimes.mjs`
+- Modify: `skills/session-observer/scripts/lib/locate.mjs`
+- Modify: `skills/session-observer/scripts/lib/rank.mjs`
+- Modify: `skills/session-observer/scripts/lib/digest.mjs`
+- Modify: `skills/session-observer/scripts/lib/state.mjs`
+- Modify: `skills/session-observer/scripts/session-observer.mjs`
+- Modify: `skills/session-observer/SKILL.md`
+- Modify: `skills/session-observer/references/transcript-formats.md`
+- Modify: `tests/session-observer/*.test.mjs`
+
+**Step 1: Normalize the existing dogfood patch into the revision**
+
+Finalize the already-applied dogfood changes under this task:
+
+- Claude Code project slug lookup supports dot-sanitized slugs and fallback slug evidence.
+- Same-worktree/cwd evidence outranks unrelated global recency.
+- `--snippet` can identify a session by an excerpt before review/catch-up.
+- Raw transcript bookkeeping is separated from rendered digest bookkeeping.
+- High-water offsets are exclusive (`nextIndex`), avoiding one-record overlap.
+- Claude `<command-message>` / `<command-name>` / `<command-args>` payloads are `command_message` entries and excluded by default.
+- `--include-command-messages` opts command payloads back in.
+- Large digests automatically fall back to the last 8 user/assistant turn groups.
+- `--max-turns` / `--max-bytes` apply to catch-up as well as review.
+- `--runtime auto` can prefer a previously read same-cwd runtime when both Claude and Codex match.
+
+**Step 2: Verify**
+
+Run:
+
+```bash
+node --test 'tests/session-observer/*.test.mjs'
+npm test
+npm run validate
+npm run smoke
+```
+
+Expected: all commands pass.
+
+**Step 3: Refresh installed copies**
+
+Refresh the user-level installed skill copies:
+
+```bash
+rsync -a --delete skills/session-observer/ ~/.agents/skills/session-observer/
+```
+
+`~/.claude/skills/session-observer` is a symlink to `~/.agents/skills/session-observer`; verify it still resolves there.
+
+**Step 4: Commit**
+
+```bash
+git add skills/session-observer tests/session-observer
+git commit -m "fix(prev1-t01): harden session-observer dogfood paths"
+```
+
+---
+
+### Task prev1-t02: (revision) Add Cursor runtime adapter and fixtures
+
+**Files:**
+
+- Modify: `skills/session-observer/scripts/lib/runtimes.mjs`
+- Create: `tests/session-observer/fixtures/cursor/typical.jsonl`
+- Create: `tests/session-observer/fixtures/cursor/with-tool-use.jsonl`
+- Modify: `tests/session-observer/runtimes.test.mjs`
+
+**Step 1: Implement Cursor adapter**
+
+Add `cursor` support to runtime parsing:
+
+- `discoverPaths('cursor')` returns `~/.cursor/projects`.
+- `encodeCwdVariants('cursor', cwd)` returns Cursor's observed project slug: split path on `/` and `.` and join non-empty segments with `-` (for example `/Users/thomas.stang/Code/vox/duet` → `Users-thomas-stang-Code-vox-duet`).
+- `extractMeta('cursor', transcriptPath)` returns `sessionId` from the transcript basename or parent transcript directory.
+- `normalizeCursor()` parses Cursor agent JSONL records shaped as `{ "role": "user|assistant", "message": { "content": [...] } }`.
+- `text` blocks become `message` entries.
+- `tool_use` blocks become compact `tool_call` entries when `includeToolCalls` is true.
+
+Do not add SQLite support for `~/.cursor/chats` in this task.
+
+**Step 2: Verify**
+
+Run: `node --test tests/session-observer/runtimes.test.mjs`
+Expected: Cursor fixtures parse; default output excludes tool calls; `includeToolCalls` includes `[ToolName] args` markers.
+
+**Step 3: Commit**
+
+```bash
+git add skills/session-observer/scripts/lib/runtimes.mjs tests/session-observer/fixtures/cursor tests/session-observer/runtimes.test.mjs
+git commit -m "feat(prev1-t02): add Cursor transcript runtime adapter"
+```
+
+---
+
+### Task prev1-t03: (revision) Add Cursor transcript discovery and ranking evidence
+
+**Files:**
+
+- Modify: `skills/session-observer/scripts/lib/locate.mjs`
+- Modify: `skills/session-observer/scripts/lib/rank.mjs`
+- Modify: `tests/session-observer/locate.test.mjs`
+- Modify: `tests/session-observer/rank.test.mjs`
+
+**Step 1: Implement Cursor discovery**
+
+Add `discoverCursor(targetCwd)`:
+
+- Direct lookup: `~/.cursor/projects/<encoded-cwd>/agent-transcripts/*/*.jsonl`.
+- Direct hits set `recordedCwd = targetCwd` and `cwdEvidence = "direct-parent-dir"`.
+- Glob fallback scans `~/.cursor/projects/*/agent-transcripts/*/*.jsonl` within the same lookback policy as other runtimes.
+- Fallback candidates carry `cwdSlug` and `cwdEvidence = "project-dir-slug"`.
+- Do not depend on `repo.json`; local spike found repo files with only an `id` key, so slug evidence is the reliable baseline.
+
+**Step 2: Verify**
+
+Run: `node --test tests/session-observer/locate.test.mjs tests/session-observer/rank.test.mjs`
+Expected: direct Cursor cwd lookup produces Tier A candidates; fallback slug evidence can rank above unrelated global recency.
+
+**Step 3: Commit**
+
+```bash
+git add skills/session-observer/scripts/lib/locate.mjs skills/session-observer/scripts/lib/rank.mjs tests/session-observer/locate.test.mjs tests/session-observer/rank.test.mjs
+git commit -m "feat(prev1-t03): discover Cursor agent transcripts"
+```
+
+---
+
+### Task prev1-t04: (revision) Wire Cursor through CLI, state, and auto-runtime behavior
+
+**Files:**
+
+- Modify: `skills/session-observer/scripts/session-observer.mjs`
+- Modify: `skills/session-observer/scripts/probe-local.mjs`
+- Modify: `tests/session-observer/cli.test.mjs`
+- Modify: `tests/session-observer/integration.test.mjs`
+
+**Step 1: Wire runtime surface**
+
+- Add `cursor` to the runtime allowlist, help text, `--session` validation, and state reset validation.
+- Update `--runtime auto` behavior for three runtimes:
+  - If `SESSION_OBSERVER_SELF` is set to a known runtime and exactly one other runtime has candidates, choose it.
+  - If state has exactly one previously read same-cwd runtime among matching candidates, choose that runtime.
+  - Otherwise return `ambiguousRuntime` with all matching runtimes.
+- Update `probe-local.mjs --runtime cursor` to report `~/.cursor/projects/`.
+
+**Step 2: Verify**
+
+Run: `node --test tests/session-observer/cli.test.mjs tests/session-observer/integration.test.mjs`
+Expected: `review`, `catch-up`, `locate`, `state reset --runtime cursor`, and pinned `--session cursor:<id>` work against temp HOME fixtures.
+
+**Step 3: Commit**
+
+```bash
+git add skills/session-observer/scripts/session-observer.mjs skills/session-observer/scripts/probe-local.mjs tests/session-observer/cli.test.mjs tests/session-observer/integration.test.mjs
+git commit -m "feat(prev1-t04): wire Cursor runtime through session-observer CLI"
+```
+
+---
+
+### Task prev1-t05: (revision) Update docs and validate Cursor support end-to-end
+
+**Files:**
+
+- Modify: `skills/session-observer/SKILL.md`
+- Modify: `skills/session-observer/references/transcript-formats.md`
+- Modify: `.oat/projects/shared/session-observer/implementation.md`
+
+**Step 1: Update docs**
+
+- Add Cursor to runtime examples, flag docs, troubleshooting, and success criteria.
+- Document Cursor's supported store as `~/.cursor/projects/<encoded-project>/agent-transcripts/<session-id>/<session-id>.jsonl`.
+- Document `~/.cursor/chats/*/store.db` as intentionally out of scope for this revision.
+- Record the local spike evidence in `implementation.md`: 19 agent transcript JSONL files across 12 project dirs; JSONL records have top-level `role` and `message.content[]`; observed blocks are `text` and `tool_use`; `repo.json` was not useful for cwd recovery.
+
+**Step 2: Verify**
+
+Run:
+
+```bash
+node --test 'tests/session-observer/*.test.mjs'
+npm test
+npm run validate
+npm run smoke
+node skills/session-observer/scripts/probe-local.mjs --runtime cursor --cwd "$PWD"
+```
+
+Expected: tests/validate/smoke pass. Cursor probe exits 0 or 2; exit 1 is a failure.
+
+**Step 3: Refresh installed copies**
+
+```bash
+rsync -a --delete skills/session-observer/ ~/.agents/skills/session-observer/
+```
+
+Verify `~/.claude/skills/session-observer` still resolves to the refreshed `~/.agents/skills/session-observer`.
+
+**Step 4: Commit**
+
+```bash
+git add skills/session-observer/SKILL.md skills/session-observer/references/transcript-formats.md .oat/projects/shared/session-observer/implementation.md
+git commit -m "docs(prev1-t05): document Cursor session-observer support"
+```
+
+---
+
 ## Reviews
 
 | Scope  | Type     | Status  | Date | Artifact |
@@ -929,6 +1147,7 @@ git commit -m "fix(p07-t04): harden state.mjs backup and migration write paths"
 | p05    | code     | passed  | 2026-05-15 | reviews/archived/p05-rereview-2026-05-15.md |
 | p06    | code     | passed  | 2026-05-15 | reviews/archived/p06-review-2026-05-15.md |
 | p07    | code     | passed  | 2026-05-15 | reviews/archived/p07-review-2026-05-15.md |
+| p-rev1 | code     | pending | - | - |
 | final  | code     | received | 2026-05-15 | reviews/final-rereview-2026-05-15.md |
 | spec   | artifact | pending  | -          | -                                               |
 | design | artifact | received | 2026-05-14 | reviews/artifact-design-review-2026-05-14.md   |
@@ -949,10 +1168,11 @@ git commit -m "fix(p07-t04): harden state.mjs backup and migration write paths"
 - Phase 5: 3 tasks — Full SKILL.md body + watch-design reference + transcript-formats reference
 - Phase 6: 2 tasks — npm run validate + manual local probe verification
 - Phase 7: 4 tasks — Final-review fix tasks (Codex payload.cwd, --session override ordering, bidirectional Tier B, state.mjs hardening)
+- Phase p-rev1: 5 tasks — Dogfood hardening + Cursor agent transcript support
 
-**Total: 19 tasks**
+**Total: 24 tasks**
 
-Ready for code review and merge.
+Ready for revision implementation. Not ready for final code review or merge until `p-rev1` completes.
 
 ---
 
