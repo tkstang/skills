@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-05-22
-oat_current_task_id: prev1-t11
+oat_current_task_id: prev1-t12
 oat_generated: false
 ---
 
@@ -31,9 +31,9 @@ oat_generated: false
 | Phase 5 | complete    | 3     | 3/3       |
 | Phase 6 | complete    | 2     | 2/2       |
 | Phase 7 | complete    | 4     | 4/4       |
-| Phase p-rev1 | in_progress | 13 | 10/13 |
+| Phase p-rev1 | in_progress | 13 | 11/13 |
 
-**Total:** 29/32 tasks completed
+**Total:** 30/32 tasks completed
 
 ---
 
@@ -419,12 +419,14 @@ Added `realpathSafe()` normalization for Tier A/B comparisons while preserving f
 
 ### Task prev1-t11: (review) Skip no-op catch-up state writes
 
-**Status:** pending
-**Commit:** pending
+**Status:** complete
+**Commit:** 6309f11
 
 Review-generated follow-up from `p-rev1-review-2026-05-22.md`: avoid unnecessary `markRead` locked writes when catch-up consumes no new records and existing state already matches the current offset.
 
-**Verification:** pending.
+Added a shared catch-up mark-read guard that preserves first-read initialization but skips writes when no raw records were consumed and stored offsets already match. Added normal and pinned no-op catch-up tests that assert state remains unchanged.
+
+**Verification:** `node --test tests/session-observer/cli.test.mjs tests/session-observer/integration.test.mjs` → 37/37 pass.
 
 ### Task prev1-t12: (review) Add Cursor digest smoke coverage
 

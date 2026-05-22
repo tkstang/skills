@@ -1,6 +1,6 @@
 ---
-oat_current_task: prev1-t11
-oat_last_commit: c1c11ba
+oat_current_task: prev1-t12
+oat_last_commit: 6309f11
 oat_blockers: []
 associated_issues: []
 oat_hill_checkpoints: []
@@ -15,7 +15,7 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: "2026-05-15T02:45:07.398Z"
 oat_project_completed: null
-oat_project_state_updated: "2026-05-22T16:47:00Z"
+oat_project_state_updated: "2026-05-22T16:58:00Z"
 oat_generated: false
 ---
 
@@ -27,7 +27,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation — revision phase p-rev1 has review-fix tasks queued from p-rev1 and final receive-review. Current task: `prev1-t11`.
+Implementation — revision phase p-rev1 has review-fix tasks queued from p-rev1 and final receive-review. Current task: `prev1-t12`.
 
 ## Artifacts
 
@@ -59,6 +59,7 @@ Implementation — revision phase p-rev1 has review-fix tasks queued from p-rev1
 - ✓ Revision p-rev1 `prev1-t08` complete: Cursor empty direct-dir fallback behavior documented and tested
 - ✓ Revision p-rev1 `prev1-t09` complete: Cursor fallback discovery reuses transcript stat results
 - ✓ Revision p-rev1 `prev1-t10` complete: cwd ranking now normalizes symlink-equivalent paths
+- ✓ Revision p-rev1 `prev1-t11` complete: no-op catch-up skips redundant state writes
 
 ## Blockers
 
@@ -66,4 +67,4 @@ None
 
 ## Next Milestone
 
-Execute `prev1-t11` through `prev1-t13` via `oat-project-implement`, then re-review p-rev1 and final.
+Execute `prev1-t12` through `prev1-t13` via `oat-project-implement`, then re-review p-rev1 and final.
