@@ -11,11 +11,11 @@ oat_phase_status: pr_open
 oat_workflow_mode: quick
 oat_workflow_origin: native
 oat_docs_updated: complete
-oat_pr_status: ready
-oat_pr_url: null
+oat_pr_status: open
+oat_pr_url: "https://github.com/tkstang/skills/pull/2"
 oat_project_created: "2026-05-15T02:45:07.398Z"
 oat_project_completed: null
-oat_project_state_updated: "2026-05-22T19:30:00Z"
+oat_project_state_updated: "2026-05-23T15:00:00Z"
 oat_generated: false
 ---
 
@@ -63,7 +63,8 @@ Implementation — PR open, awaiting human review.
 - ✓ Revision p-rev1 `prev1-t12` complete: Cursor digest smoke coverage added
 - ✓ Revision p-rev1 `prev1-t13` complete: load-time state backups are lock-protected
 - ✓ p-rev1 re-review and final-scope re-review both passed (2026-05-22)
-- ✓ PR created
+- ✓ PR created — https://github.com/tkstang/skills/pull/2
+- ⧗ Awaiting human review
 
 ## Blockers
 
