@@ -14,7 +14,6 @@
 import { parseArgs } from 'node:util';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { join, dirname } from 'node:path';
 import { discover } from './lib/locate.mjs';
 import { rank } from './lib/rank.mjs';
 
