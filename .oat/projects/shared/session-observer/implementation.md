@@ -826,6 +826,25 @@ Both review artifacts archived to `reviews/archived/`. No plan tasks were added;
 
 **Lifecycle:** `final` Reviews row → `passed`. Ready for `oat-project-pr-final`.
 
+### 2026-05-23 — final-scope re-review received: PASS (final → passed)
+
+**Review artifact:** `reviews/archived/final-review-2026-05-23.md`
+
+**Findings:** 0 Critical, 0 Important, 0 Medium, 0 Minor (new).
+
+**Delta since 2026-05-22 pass:** Bookkeeping commits only (`summary.md`, PR URL in `state.md`) plus inline fix for prior Minor (`1ea723d` — unused `node:path` in `probe-local.mjs`). No implementation regressions on p07/p-rev1 fixes.
+
+**Verification:** `npm test` 269/269; `npm run validate`; `npm run smoke` — all green (2026-05-23).
+
+**Final-scope gates:**
+
+- **Deferred-Medium ledger:** 0 items — gate satisfied (all prior Mediums fixed in Phase 7 + p-rev1).
+- **Minor disposition (`m1`):** Accept-deferred (unchanged). `tierOf` realpath per-candidate cost in `rank.mjs:73-77` — micro-optimization, zero correctness impact, defer unless profiled. Same disposition as 2026-05-22 final receive.
+
+**New tasks added:** none
+
+**Lifecycle:** `final` Reviews row → `passed`. PR open at https://github.com/tkstang/skills/pull/2 — awaiting human merge review.
+
 ---
 
 ## Deviations from Plan

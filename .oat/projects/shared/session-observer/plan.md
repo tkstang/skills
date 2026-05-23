@@ -1389,7 +1389,7 @@ git commit -m "fix(prev1-t13): lock load-time state backups"
 | p06    | code     | passed  | 2026-05-15 | reviews/archived/p06-review-2026-05-15.md |
 | p07    | code     | passed  | 2026-05-15 | reviews/archived/p07-review-2026-05-15.md |
 | p-rev1 | code     | passed | 2026-05-22 | reviews/archived/p-rev1-rereview-2026-05-22.md |
-| final  | code     | received | 2026-05-23 | reviews/final-review-2026-05-23.md |
+| final  | code     | passed | 2026-05-23 | reviews/archived/final-review-2026-05-23.md |
 | spec   | artifact | pending  | -          | -                                               |
 | design | artifact | received | 2026-05-14 | reviews/artifact-design-review-2026-05-14.md   |
 | plan   | artifact | received | 2026-05-14 | reviews/artifact-plan-review-2026-05-14.md     |
