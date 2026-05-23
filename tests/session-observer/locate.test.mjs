@@ -8,7 +8,7 @@
  *   4. codex: LOOKBACK_DAYS filter excludes old files
  *   5. codex cwd cache: cache hit proved by observable cache-file state
  *   6. cursor: empty direct transcript dirs do not suppress fallback scans
- *   7. gitWorktrees: parses known --porcelain output
+ *   7. gitWorktrees: parses real repo --porcelain output
  *   8. gitWorktrees: returns [] when git exec fails
  */
 
@@ -373,16 +373,12 @@ test('cursor: fallback scan excludes transcripts older than 7 days', async () =>
   });
 });
 
-test('gitWorktrees: parses a known --porcelain string and returns worktree paths', async () => {
+test('gitWorktrees: parses real repo --porcelain output and returns worktree paths', async () => {
   // We need a real git repo for this; use the repo itself.
-  // But we also want to ensure the parser handles a known string.
-  // Test: inject a known porcelain output by testing the module against the real repo.
-  // The real repo should have at least one worktree (the main worktree).
+  // The real repo should have at least one worktree (the current checkout).
   const { gitWorktrees } = await importLocate();
 
-  const worktrees = await gitWorktrees(
-    '/Users/thomas.stang/.superconductor/worktrees/skills/sc-pinned-meissner-9974'
-  );
+  const worktrees = await gitWorktrees(process.cwd());
 
   assert.ok(Array.isArray(worktrees), 'should return an array');
   // The main worktree should be included
