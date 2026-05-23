@@ -7,15 +7,15 @@ oat_hill_checkpoints: []
 oat_hill_completed: []
 oat_parallel_execution: false
 oat_phase: implement
-oat_phase_status: complete
+oat_phase_status: pr_open
 oat_workflow_mode: quick
 oat_workflow_origin: native
 oat_docs_updated: complete
-oat_pr_status: null
+oat_pr_status: ready
 oat_pr_url: null
 oat_project_created: "2026-05-15T02:45:07.398Z"
 oat_project_completed: null
-oat_project_state_updated: "2026-05-22T18:30:00Z"
+oat_project_state_updated: "2026-05-22T19:30:00Z"
 oat_generated: false
 ---
 
@@ -27,7 +27,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation — revision phase p-rev1 review-fix tasks are complete. Ready for focused p-rev1/final re-review.
+Implementation — PR open, awaiting human review.
 
 ## Artifacts
 
@@ -62,6 +62,8 @@ Implementation — revision phase p-rev1 review-fix tasks are complete. Ready fo
 - ✓ Revision p-rev1 `prev1-t11` complete: no-op catch-up skips redundant state writes
 - ✓ Revision p-rev1 `prev1-t12` complete: Cursor digest smoke coverage added
 - ✓ Revision p-rev1 `prev1-t13` complete: load-time state backups are lock-protected
+- ✓ p-rev1 re-review and final-scope re-review both passed (2026-05-22)
+- ✓ PR created
 
 ## Blockers
 
@@ -69,4 +71,7 @@ None
 
 ## Next Milestone
 
-Run focused p-rev1/final re-reviews, then proceed to final project closeout if they pass.
+PR is open for review.
+
+- To incorporate feedback: run `oat-project-revise`
+- When approved: run `oat-project-complete`

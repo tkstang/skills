@@ -809,6 +809,23 @@ Both review artifacts archived to `reviews/archived/`. No plan tasks were added;
 
 **Next:** Execute Phase 7 via `oat-project-implement` (starts at `p07-t01`). After the fix tasks complete, re-run `oat-project-review-provide code final` then `oat-project-review-receive` to reach `passed`.
 
+### 2026-05-22 — final-scope re-review received: PASS (final → passed)
+
+**Review artifact:** `reviews/archived/final-review-2026-05-22.md`
+
+**Findings:** 0 Critical, 0 Important, 0 Medium, 1 Minor (new) + 1 Minor (deferred, accept-defer).
+
+**All 11 shippable-state criteria met:** `npm test` 269/269, `npm run validate` + `npm run smoke` green; three-runtime contract consistent across Claude/Codex/Cursor; no Stoa/network/transcript-writes; exit-code + `--session` ordering + path-encoding + state.mjs invariants all intact; SKILL.md frontmatter passes `validate.mjs`; skill at canonical `skills/session-observer/` with `.agents/skills/` symlink.
+
+**Disposition:**
+
+- **New Minor — unused `node:path` imports in `probe-local.mjs:17`** → Fixed inline as part of pr-final preflight (commit `1ea723d`, `fix: remove unused node:path imports from probe-local.mjs`). Zero behavior impact; tests + validate stayed green.
+- **Deferred Minor — `m1` (`tierOf` realpath per-candidate cost, `rank.mjs:73-83`)** → Accept-deferred (reviewer's own framing was "defer unless a profile flags it"). Already recorded in the prior p-rev1 receive Deferred Findings section; this final-scope review explicitly accept-deferred it again. No outstanding action.
+
+**Deferred-Medium ledger (final-scope gate):** 0 deferred Mediums. (All prior Mediums from earlier cycles were converted and fixed via Phase 7 + p-rev1.)
+
+**Lifecycle:** `final` Reviews row → `passed`. Ready for `oat-project-pr-final`.
+
 ---
 
 ## Deviations from Plan
@@ -833,7 +850,7 @@ Both review artifacts archived to `reviews/archived/`. No plan tasks were added;
 
 ## Final Summary (for PR/docs)
 
-**What shipped:** `session-observer` — a portable, user-installable Agent Skill at `.agents/skills/session-observer/` that lets Claude Code, Codex, and Cursor inspect peer agent transcripts for the active project. v1 ships four CLI subcommands:
+**What shipped:** `session-observer` — a portable, user-installable Agent Skill at `skills/session-observer/` (with `.agents/skills/session-observer` symlinked for in-repo use) that lets Claude Code, Codex, and Cursor inspect peer agent transcripts for the active project. v1 ships four CLI subcommands:
 
 - `review` — one-shot tool-free digest of the most relevant peer session.
 - `catch-up` — incremental digest of only the records added since the last check, via a per-`(runtime, sessionId)` high-water mark.
@@ -842,18 +859,18 @@ Both review artifacts archived to `reviews/archived/`. No plan tasks were added;
 
 The continuous `watch` mode is designed (`references/watch-design.md`) but intentionally not implemented in v1.
 
-**Behavioral changes (user-facing):** New skill only — no change to existing repo behavior. The skill adds runtime code under `.agents/skills/session-observer/scripts/` and a test suite under `tests/session-observer/`. State is written only to `~/.local/state/session-observer/`; transcripts are read-only; no network calls; no Stoa runtime dependency.
+**Behavioral changes (user-facing):** New skill only — no change to existing repo behavior. The skill adds runtime code under `skills/session-observer/scripts/` and a test suite under `tests/session-observer/`. State is written only to `~/.local/state/session-observer/`; transcripts are read-only; no network calls; no Stoa runtime dependency.
 
 **Key files / modules:**
 
-- `.agents/skills/session-observer/SKILL.md` — agent-facing skill (frontmatter + workflow + examples).
-- `scripts/session-observer.mjs` — CLI entrypoint (subcommand dispatch, exit-code contract, `--runtime auto`, `--session` pinned override).
-- `scripts/lib/{runtimes,locate,rank,digest,state}.mjs` — per-runtime transcript adapters, candidate discovery, tier ranking, digest builder/renderer, atomic lock-protected state.
-- `scripts/probe-local.mjs` — opt-in manual verification helper.
-- `references/watch-design.md`, `references/transcript-formats.md` — frozen watcher design + JSONL format reference.
-- `tests/session-observer/**` — 260 tests in the full repository suite, including Cursor runtime fixtures and session-observer coverage.
+- `skills/session-observer/SKILL.md` — agent-facing skill (frontmatter + workflow + examples).
+- `skills/session-observer/scripts/session-observer.mjs` — CLI entrypoint (subcommand dispatch, exit-code contract, `--runtime auto`, `--session` pinned override).
+- `skills/session-observer/scripts/lib/{runtimes,locate,rank,digest,state}.mjs` — per-runtime transcript adapters, candidate discovery, tier ranking, digest builder/renderer, atomic lock-protected state.
+- `skills/session-observer/scripts/probe-local.mjs` — opt-in manual verification helper.
+- `skills/session-observer/references/watch-design.md`, `references/transcript-formats.md` — frozen watcher design + JSONL format reference.
+- `tests/session-observer/**` — full repo suite is **269 tests** including Cursor runtime fixtures, locate/rank parity coverage, and Cursor digest smoke.
 
-**Verification performed:** `npm test` → 260/260 pass; `npm run validate` → passed; `npm run smoke` → passed. Manual `probe-local.mjs` run against the user's real `~/.claude/projects`, `~/.codex/sessions`, and `~/.cursor/projects` (Cursor exit 2 / noMatch — acceptable for the current worktree path). Earlier implementation phases passed Tier 1 `oat-reviewer` phase-gate reviews; p-rev1 review is pending.
+**Verification performed:** `npm test` → **269/269 pass**; `npm run validate` → passed; `npm run smoke` → passed. Manual `probe-local.mjs` run against the user's real `~/.claude/projects`, `~/.codex/sessions`, and `~/.cursor/projects` (Cursor exit 2 / noMatch — acceptable for the current worktree path). Every phase-gate review passed (p01–p07 + p-rev1), the p-rev1 re-review on 2026-05-22 passed (all 7 prior minors + bonus `prev1-t13` resolved), and the final-scope re-review on 2026-05-22 passed (0 blocking, 1 inline-fixed Minor, 1 accept-deferred Minor).
 
 **Design deltas (if any):**
 
