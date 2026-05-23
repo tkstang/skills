@@ -1,6 +1,6 @@
 ---
 name: oat-project-import-plan
-version: 1.2.1
+version: 1.2.2
 description: Use when you have an external markdown plan to execute with OAT. Preserves the source plan and normalizes it into canonical plan.md format.
 argument-hint: '<path-to-plan.md> [--provider codex|cursor|claude] [--project <name>]'
 disable-model-invocation: true
@@ -150,6 +150,13 @@ Normalization rules:
 - Where source lacks test/verify details, add explicit TODO-style placeholders with clear expected output.
 - Keep tasks executable and atomic.
 
+Dispatch Profile import handling:
+
+- Preserve recognizable OAT-format `## Dispatch Profile` rows as user-authored constraints or preferences.
+- Treat foreign model or effort hints as dispatch constraints only when the source clearly presents them as explicit requirements or preferences.
+- Otherwise preserve model or effort hints as rationale/context in the relevant task or phase text and let runtime selection decide.
+- Do not generate Dispatch Profile recommendation rows during import.
+
 ### Step 4: Update Plan Metadata
 
 Set frontmatter in `"$PROJECT_PATH/plan.md"`:
@@ -208,6 +215,7 @@ Report:
 
 - source imported path
 - normalized phases/tasks count
+- Dispatch Profile handling: preserved/mapped/omitted; foreign hints kept as rationale when not explicit constraints
 - first task ID
 - active project pointer path
 - dashboard refresh status

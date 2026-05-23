@@ -1,6 +1,6 @@
 ---
 name: oat-phase-implementer
-version: 1.0.0
+version: 1.0.1
 description: Implements a single plan phase end-to-end — reads artifacts once, executes tasks sequentially, commits per task, self-reviews, and returns a structured summary. Dispatched by oat-project-implement.
 tools: Read, Write, Edit, Bash, Grep, Glob
 color: cyan
@@ -33,6 +33,11 @@ You will be given a "Phase Scope" block including:
 - **artifact_paths**: Paths to `plan.md`, `design.md`, `spec.md`, `implementation.md`, `discovery.md` (whichever exist for the project's mode)
 - **commit_convention**: Commit message format from plan.md (e.g., `feat({scope}): {description}`)
 - **workflow_mode**: `spec-driven` | `quick` | `import` (default `spec-driven`)
+- **model_axis**: Optional model dispatch state selected by the orchestrator (`selected:<value>`, `inherited`, `not-applicable`, or `host-auto`)
+- **effort_axis**: Optional effort dispatch state selected by the orchestrator (`selected:<value>`, `inherited`, `not-applicable`, or `host-auto`)
+- **dispatch_rationale**: Optional short rationale for the model/effort axis choices
+
+The `model_axis` and `effort_axis` fields describe the dispatch state the orchestrator already chose; they are descriptive context for your report, not actions for you to take. Echo whatever values were provided in your summary under `Model axis` / `Effort axis`. If neither field is in your scope packet, report both as "not provided."
 
 If `mode: fix`, the block also includes:
 
@@ -77,6 +82,8 @@ For each task in the phase, in the order declared in plan.md:
 3. Run the task's verification commands. Record pass/fail.
 4. Commit using the plan's commit convention. Include only files the task declared.
 
+Track your implementation confidence as `high`, `medium`, or `low` throughout the phase. If you are blocked because the work needs more reasoning or provider capability than the current dispatch appears to provide, say that explicitly in the report, include the current dispatch control when known, and do not keep retrying at the same capability as if the issue were missing context.
+
 **Do not:**
 
 - Skip tasks or reorder them.
@@ -116,6 +123,9 @@ Report format:
 **Phase:** {phase-id}
 **Tasks executed:** {N} of {N}
 **Commits:** {sha1}..{shaN}
+**Confidence:** high | medium | low
+**Model axis:** {model_axis if provided, otherwise "not provided"}
+**Effort axis:** {effort_axis if provided, otherwise "not provided"}
 
 ### Task Outcomes
 
@@ -179,6 +189,9 @@ If a fix introduces a regression or doesn't address its finding, either re-fix w
 **Phase:** {phase-id}
 **Findings addressed:** {N} critical, {N} important
 **Commits:** {sha1}..{shaN}
+**Confidence:** high | medium | low
+**Model axis:** {model_axis if provided, otherwise "not provided"}
+**Effort axis:** {effort_axis if provided, otherwise "not provided"}
 
 ### Fix Outcomes
 

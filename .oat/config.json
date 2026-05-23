@@ -10,7 +10,8 @@
     "workflows": true,
     "utility": false,
     "project-management": false,
-    "research": false
+    "research": false,
+    "brainstorm": true
   },
   "localPaths": [
     ".oat/**/analysis",

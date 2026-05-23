@@ -1,6 +1,6 @@
 ---
 name: oat-project-implement
-version: 2.0.6
+version: 2.0.10
 description: Use when plan.md is ready for execution. Dispatches phase-level subagents with bounded fix loops; supports plan-declared parallel phase groups with worktree-isolated execution and ordered fan-in.
 argument-hint: '[--retry-limit <N>] [--dry-run]'
 disable-model-invocation: true
@@ -23,7 +23,7 @@ Execute the implementation plan task-by-task with full state tracking.
 **Purpose:** Execute plan tasks with TDD discipline, track progress, handle blockers.
 
 **CRITICAL — Bookkeeping commits are mandatory, not optional.**
-After every code commit and after every phase/review-fix completion, you MUST commit the OAT tracking files (`implementation.md`, `state.md`, `plan.md`) as a separate bookkeeping commit. Do not defer, batch, or skip these commits under the reasoning that they "aren't related to the implementation." Skipping a bookkeeping commit is the primary cause of cross-session state drift and will cause the next implementation run to fail bookkeeping cross-checks. If bookkeeping commits feel frequent, that is the intended design — they are cheap and they prevent drift.
+After every code commit and after every phase/review-fix completion, you MUST commit the OAT tracking files (project: `implementation.md`, `state.md`, `plan.md`; repo dashboard: `.oat/state.md`) as a separate bookkeeping commit. Refresh the repo dashboard with `oat state refresh` immediately before staging so `.oat/state.md` reflects the just-completed phase/task. Do not defer, batch, or skip these commits under the reasoning that they "aren't related to the implementation." Skipping a bookkeeping commit (or skipping the dashboard refresh) is the primary cause of cross-session state drift and will cause the next implementation run to fail bookkeeping cross-checks. If bookkeeping commits feel frequent, that is the intended design — they are cheap and they prevent drift.
 
 **CRITICAL — Review boundaries require a committed artifact baseline.**
 Do not enter checkpoint review, final review, revise, or PR-final handoff with dirty core project artifacts (`discovery.md`, `spec.md`, `design.md`, `plan.md`, `implementation.md`, `state.md`, plus `.oat/state.md` when refreshed). If one of those boundaries is next and artifact bookkeeping is still uncommitted, stop and create the bookkeeping commit first.
@@ -158,6 +158,65 @@ Forbidden: Selected: Tier 2 — Inline because the user did not separately menti
 ```
 
 **Legacy state migration:** If `state.md` contains `oat_execution_mode: subagent-driven`, silently ignore it. On the next bookkeeping write, remove that key. Do not redirect to `oat-project-subagent-implement` — that skill is deprecated.
+
+### Runtime dispatch selection
+
+Before each phase implementation dispatch, choose and log the phase's runtime dispatch controls. This is separate from the Tier 1/Tier 2 execution mode above: Tier 1/Tier 2 decides whether OAT uses subagents or inline fallback; runtime dispatch selection decides the model and effort controls to use for the specific phase when the host exposes them.
+
+Use these inputs:
+
+- phase ID
+- phase scope, including task count, file boundaries, verification commands, and integration risk
+- optional `## Dispatch Profile` row in `plan.md`
+- host-exposed provider controls, by axis
+- prior outcomes for the phase, including review results and failed retries
+
+Selection rule:
+
+1. If a valid Dispatch Profile override row applies and the host can honor it, use the requested provider control and log that the choice came from the override.
+2. If no override applies, choose the lowest available model and/or effort that can confidently complete the phase.
+3. Treat model and effort as separate axes. Each axis logs exactly one state:
+   - `selected:<value>` — host exposes the axis and the orchestrator chose a value.
+   - `inherited` — host exposes the axis and the orchestrator deliberately defers to the parent session.
+   - `not-applicable` — this host/API has no meaningful per-dispatch concept for that axis.
+   - `host-auto` — exceptional; the host uses that axis internally but the orchestrator cannot read or pin it.
+4. In Codex, the model axis normally logs `inherited`; choose and pass `reasoning_effort=low|medium|high|xhigh` on the effort axis from phase complexity.
+5. In Claude Code, when subagent model selection is available, choose the lowest sufficient model on the model axis; the effort axis is `not-applicable` because Claude Code does not expose a separate `reasoning_effort` control for subagent dispatch.
+6. If a host uses model/effort internally but exposes neither axis to the orchestrator, log `model_axis=host-auto, effort_axis=host-auto` and include the rationale that would have informed selection.
+7. If confidence is low, choose a stronger available control before dispatch rather than knowingly underpowering the phase.
+
+**Passing axis values to the host dispatch API.** The log shape and the actual dispatch call must agree: never log a `selected:<value>` axis without passing the corresponding parameter on the dispatch invocation, and never pass an explicit parameter that the log does not reflect.
+
+- **Claude Code implementer/fix dispatch:** when `model_axis=selected:<value>`, pass `model: "<value>"` on the Task tool call. When `model_axis=inherited`, omit the `model` parameter so Claude Code uses its own default. `effort_axis=not-applicable` for both cases because the Task tool exposes no per-dispatch `reasoning_effort` control.
+- **Codex implementer/fix dispatch:** when `effort_axis=selected:<value>`, pass `reasoning_effort: "<value>"` as a top-level `spawn_agent` argument. `model_axis=inherited` is the normal case; omit the `model` override unless the user explicitly requested one. Do not rely on the Phase Scope packet alone to apply selected effort.
+- **Reviewer dispatch on either host:** use `model_axis=inherited, effort_axis=inherited`. Omit `model` and, on Codex, `reasoning_effort` overrides entirely.
+
+Log the choice before dispatch in this shape:
+
+```text
+Dispatching {phase_id} with model_axis={state}, effort_axis={state}: {short rationale grounded in phase scope}.
+```
+
+Examples:
+
+```text
+Dispatching p01 with model_axis=selected:haiku, effort_axis=not-applicable: Claude Code implementation dispatch for mechanical template edits.
+Dispatching p02 with model_axis=selected:sonnet, effort_axis=not-applicable: Claude Code implementation dispatch for multi-file integration with mock wiring.
+Dispatching p03 with model_axis=inherited, effort_axis=selected:medium: Codex implementation dispatch for shared TypeScript/config substrate with cross-file contracts.
+Dispatching p04 with model_axis=host-auto, effort_axis=host-auto: host does not expose readable or pinnable dispatch controls; rationale maps to standard effort.
+```
+
+Use `low` for trivial docs-only, narrow single-file, or mechanical changes; `medium` for normal multi-file implementation and moderate integration risk; `high` or `xhigh` for broad architecture, security/auth/redaction boundaries, subtle state behavior, or repeated substantive review failures.
+
+Include the resolved implementation dispatch axes and rationale in the Phase Scope packet when known. Reserve `host-auto` for an axis the host uses internally but the orchestrator cannot read or pin; use `inherited` for deliberate inheritance and `not-applicable` when an axis is not meaningful for that host/API.
+
+```yaml
+model_axis: { selected:<value> | inherited | not-applicable | host-auto }
+effort_axis: { selected:<value> | inherited | not-applicable | host-auto }
+dispatch_rationale: { short rationale }
+```
+
+Review dispatch is intentionally different. A reviewer should inherit the parent session's model and effort axes unless the user explicitly requests a review override. In Codex, omit `model` and `reasoning_effort` overrides when spawning `oat-reviewer`; in Claude Code, do not pass a per-review model override. Log review scope as `model_axis=inherited, effort_axis=inherited`.
 
 ### Dry-Run Mode
 
@@ -433,11 +492,23 @@ For each phase `pNN` in the plan (or each phase in the current parallel group), 
      discovery: {PROJECT_PATH}/discovery.md
    commit_convention: {from plan.md header}
    workflow_mode: {from state.md or plan.md frontmatter}
+   model_axis: {selected:<value> | inherited | not-applicable | host-auto; omit if unknown}
+   effort_axis: {selected:<value> | inherited | not-applicable | host-auto; omit if unknown}
+   dispatch_rationale: {short rationale; omit if unknown}
    ```
 
-2. Dispatch `oat-phase-implementer` (Tier 1 via provider-native subagent mechanism) with the Phase Scope block as input.
+2. Perform a pre-dispatch assertion against the host invocation parameters. The Phase Scope fields are audit/context fields; selected axes must also be represented in the actual host dispatch call.
+   - Codex implementer/fix dispatch:
+     - If `effort_axis=selected:<value>`, the `spawn_agent` call MUST include top-level `reasoning_effort: "<value>"`.
+     - If the spawned Codex status reports a different effort than the selected value (for example, the log says `effort_axis=selected:medium` but the spawn result reports `gpt-5.5 high`), treat this as an orchestration deviation. Stop, record the deviation in `implementation.md`, and redispatch with corrected parameters before continuing. Do not use work from the mismatched dispatch.
+     - If `effort_axis=inherited`, omit `reasoning_effort`.
+   - Claude Code implementer/fix dispatch:
+     - If `model_axis=selected:<value>`, the Task tool call MUST include `model: "<value>"`.
+     - If `model_axis=inherited`, omit `model`.
 
-3. Receive the structured summary (DONE | DONE_WITH_CONCERNS | NEEDS_CONTEXT | BLOCKED).
+3. Dispatch `oat-phase-implementer` (Tier 1 via provider-native subagent mechanism) with the Phase Scope block as input and with the asserted host invocation parameters.
+
+4. Receive the structured summary (DONE | DONE_WITH_CONCERNS | NEEDS_CONTEXT | BLOCKED).
 
 **Tier 2 dispatch (inline fallback):**
 
@@ -458,6 +529,24 @@ If Tier 2 is selected, do not dispatch. Instead:
   - Recommended next step (plan fix, external resolution, user guidance)
     Do not proceed to subsequent phases while a phase is blocked.
 
+#### Confidence-Based Dispatch Escalation
+
+Escalate the runtime dispatch control when there is evidence that the current control is underpowered:
+
+- implementer reports low confidence
+- implementer reports a reasoning or capability blockage
+- the same phase fails substantive review twice
+- the fix loop repeats the same class of error
+
+When escalation is needed:
+
+1. If a stronger available control exists, re-dispatch at the next stronger control and include the reason in the scope packet.
+2. Count the escalation redispatch against the existing bounded retry budget. Escalation changes the control; it does not create extra retry attempts.
+3. Record a compact note in `implementation.md` when practical:
+   - `Dispatch: p03 escalated to model_axis=selected:opus, effort_axis=selected:xhigh after repeated review failures.`
+   - `Dispatch: p02 remained model_axis=host-auto, effort_axis=host-auto; no explicit stronger control is exposed by this host.`
+4. If the phase is already at the strongest available control, do not invent a stronger tier. Provide more context, split the phase, revise the plan, or stop for user direction.
+
 #### Dispatch Retry (Transient Failures)
 
 If a Tier 1 dispatch fails (agent did not resolve, returned empty, etc.), retry exactly once. If the second attempt also fails, treat the phase as `failed` via the same mechanism as fix-loop retry exhaustion (see Step 7 below). Tier is never silently downgraded.
@@ -469,6 +558,7 @@ After the implementer returns DONE (or DONE_WITH_CONCERNS without correctness co
 **Dispatch:**
 
 - Use the same tier that was selected at start.
+- Inherit the parent session's model/effort/control for review. Do not choose a separate reviewer model or reasoning effort unless the user explicitly requests an override.
 - Tier 1: dispatch `oat-reviewer` via provider-native subagent mechanism with Review Scope:
 
   ```
@@ -480,9 +570,13 @@ After the implementer returns DONE (or DONE_WITH_CONCERNS without correctness co
   workflow_mode: {from state.md}
   artifact_paths: {same as Phase Scope}
   tasks_in_scope: {list of pNN-tNN IDs in the phase}
+  model_axis: inherited
+  effort_axis: inherited
+  dispatch_rationale: review dispatch inherits parent session controls
   ```
 
   - For Codex Tier 1 dispatches, send the Review Scope block as a self-contained packet and keep fresh context (`fork_context: false`). The reviewer is expected to reconstruct context from git state and the OAT artifacts listed above.
+  - For Codex Tier 1 review dispatches, omit `model` and `reasoning_effort` overrides in the `spawn_agent` call. For Claude Code review dispatches, do not pass a per-review model override. `host-auto` is not the right label when the review is intentionally inheriting parent controls.
   - Treat the commit range as authoritative for review scope. `files_changed` is optional orientation metadata only.
   - If a Codex reviewer does not return a terminal result on the first wait, poll once more. If it still has not concluded, send one concise nudge to return immediately with current findings. If the reviewer still does not conclude, treat the Tier 1 review dispatch as failed for this phase and perform the review inline instead of waiting indefinitely.
 
@@ -503,13 +597,14 @@ On reviewer verdict `fail`, run a bounded fix loop.
 
 1. Read `oat_orchestration_retry_limit` from `state.md` frontmatter (default: `2`, range 0–5).
 2. For each retry (up to the limit):
-   a. Dispatch `oat-phase-implementer` in `fix` mode (Tier 1) OR read the agent and apply fixes inline (Tier 2), with: - `review_artifact`: the path written by the reviewer - `findings`: the Critical + Important findings list - `prior_summary`: the last implementer summary
-   b. Receive the fix summary.
-   c. Re-dispatch the reviewer with the updated commit range.
-   d. Parse the new verdict.
-   e. If pass → exit the loop successfully.
-   f. If fail and retries remain → continue.
-   g. If fail and retries exhausted → exit the loop with terminal verdict `failed`.
+   a. Select/log fix dispatch axes from the fix scope, then perform the same pre-dispatch assertion used for implementation dispatch. A Codex fix dispatch with `effort_axis=selected:<value>` MUST pass top-level `reasoning_effort: "<value>"` on `spawn_agent`; a Claude Code fix dispatch with `model_axis=selected:<value>` MUST pass `model: "<value>"` on the Task call.
+   b. Dispatch `oat-phase-implementer` in `fix` mode (Tier 1) OR read the agent and apply fixes inline (Tier 2), with: - `review_artifact`: the path written by the reviewer - `findings`: the Critical + Important findings list - `prior_summary`: the last implementer summary
+   c. Receive the fix summary.
+   d. Re-dispatch the reviewer with the updated commit range.
+   e. Parse the new verdict.
+   f. If pass → exit the loop successfully.
+   g. If fail and retries remain → continue.
+   h. If fail and retries exhausted → exit the loop with terminal verdict `failed`.
 
 **Terminal `failed` handling:**
 
@@ -619,6 +714,10 @@ Append a new entry to the `## Orchestration Runs` section between the `<!-- orch
 - Group {N} [{phase list}]: worktree-based, merged in order
 - {singleton phases}: sequential
 
+#### Dispatch Notes
+
+- Dispatch: {phase dispatch control and rationale, including escalation notes when applicable}
+
 #### Outstanding Items
 
 - {None | list of excluded phases with review paths and worktree paths}
@@ -646,7 +745,8 @@ For each phase that completed:
 **Bookkeeping commit (mandatory):**
 
 ```bash
-git add {PROJECT_PATH}/implementation.md {PROJECT_PATH}/state.md {PROJECT_PATH}/plan.md
+oat state refresh
+git add {PROJECT_PATH}/implementation.md {PROJECT_PATH}/state.md {PROJECT_PATH}/plan.md .oat/state.md
 git commit -m "chore(oat): bookkeeping after {pNN} {pass|fail}"
 ```
 
@@ -719,14 +819,15 @@ When pausing:
 
 **DO NOT SKIP.** This commit prevents state drift across sessions.
 
-After phase summary and task pointer advancement, commit all modified OAT tracking files:
+After phase summary and task pointer advancement, refresh the repo dashboard and commit all modified OAT tracking files:
 
 ```bash
-git add "$PROJECT_PATH/implementation.md" "$PROJECT_PATH/state.md" "$PROJECT_PATH/plan.md"
+oat state refresh
+git add "$PROJECT_PATH/implementation.md" "$PROJECT_PATH/state.md" "$PROJECT_PATH/plan.md" .oat/state.md
 git diff --cached --quiet || git commit -m "chore(oat): update tracking artifacts for {phase} completion"
 ```
 
-Do not use `git add -A` or glob patterns. Only commit the three OAT project files listed above.
+Do not use `git add -A` or glob patterns. Only commit the four files listed above (three project artifacts plus the regenerated repo dashboard).
 
 **Note on HiLL types:**
 
@@ -852,14 +953,15 @@ Implementation - Tasks complete; awaiting final review.
 
 **DO NOT SKIP.** This commit prevents state drift across sessions.
 
-After updating state.md to reflect implementation completion, commit all modified OAT tracking files:
+After updating state.md to reflect implementation completion, refresh the repo dashboard and commit all modified OAT tracking files:
 
 ```bash
-git add "$PROJECT_PATH/implementation.md" "$PROJECT_PATH/state.md" "$PROJECT_PATH/plan.md"
+oat state refresh
+git add "$PROJECT_PATH/implementation.md" "$PROJECT_PATH/state.md" "$PROJECT_PATH/plan.md" .oat/state.md
 git diff --cached --quiet || git commit -m "chore(oat): update tracking artifacts for implementation complete"
 ```
 
-Do not use `git add -A` or glob patterns. Only commit the three OAT project files listed above.
+Do not use `git add -A` or glob patterns. Only commit the four files listed above (three project artifacts plus the regenerated repo dashboard).
 
 ### Step 13: Final Verification
 

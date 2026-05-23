@@ -1,0 +1,5 @@
+{"type":"session_started","sessionId":"codex-session-005","cwd":"/Users/testuser/Code/project","timestamp":"2026-05-14T13:00:00Z"}
+{"type":"response_item","sessionId":"codex-session-005","payload":{"type":"message","role":"user","content":"This session has a partial last line.","id":"msg-401"}}
+{"type":"response_item","sessionId":"codex-session-005","payload":{"type":"message","role":"assistant","content":"Correct. The transcript was captured mid-write.","id":"msg-402"}}
+{"type":"response_item","sessionId":"codex-session-005","payload":{"type":"message","role":"user","content":"What happens at the end?","id":"msg-403"}}
+{"type":"response_item","sessionId":"codex-session-005","payload":{"type":"message","role":"assistant","content":"The last line will be truncated and sh

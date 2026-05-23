@@ -1,0 +1,5 @@
+{"role":"user","message":{"content":[{"type":"text","text":"Can you inspect this Cursor session?"}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"I will inspect the files now."}]}}
+THIS CURSOR LINE IS NOT JSON
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Read","input":{"file_path":"/tmp/example.js"}}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"Continuing after a malformed transcript line."}]}}

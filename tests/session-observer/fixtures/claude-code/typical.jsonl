@@ -1,0 +1,13 @@
+{"sessionId":"cc-session-001","type":"summary","summary":"Session started"}
+{"type":"user","message":{"role":"user","content":"Hello, can you help me refactor this project?"},"sessionId":"cc-session-001"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Sure! I'd be happy to help refactor your project. What would you like to improve?"}]},"sessionId":"cc-session-001"}
+{"type":"user","message":{"role":"user","content":"Start with the main entry point."},"sessionId":"cc-session-001"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Let me read the main entry point first."},{"type":"tool_use","id":"tool_1","name":"Read","input":{"file_path":"/project/src/index.ts"}}]},"sessionId":"cc-session-001"}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tool_1","content":"export function main() { console.log('hello'); }"}]},"sessionId":"cc-session-001"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"I can see the main function. It's quite simple. Let me suggest adding proper error handling and a return type."}]},"sessionId":"cc-session-001"}
+{"type":"user","message":{"role":"user","content":"Looks good. Can you also check the config file?"},"sessionId":"cc-session-001"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Of course, let me read the config."}]},"sessionId":"cc-session-001"}
+{"type":"user","message":{"role":"user","content":"Actually, let's focus on testing first."},"sessionId":"cc-session-001"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Great idea. I'll help you set up a test suite. What testing framework do you prefer?"}]},"sessionId":"cc-session-001"}
+{"type":"user","message":{"role":"user","content":"Use Node's built-in test runner."},"sessionId":"cc-session-001"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Perfect choice. Node's built-in test runner (node:test) requires no extra dependencies and works well for this use case. Here's a starter test file:"}]},"sessionId":"cc-session-001"}

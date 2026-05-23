@@ -1,0 +1,5 @@
+{"role":"user","message":{"content":[{"type":"text","text":"Summarize the current Cursor changes."}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"The current changes add a parser fixture."}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"npm test"}}]}}
+{"role":"user","message":{"content":[{"type":"text","text":"Thanks, continue."}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"This line is truncated"

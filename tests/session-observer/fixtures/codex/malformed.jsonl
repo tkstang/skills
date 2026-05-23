@@ -1,0 +1,6 @@
+{"type":"session_started","sessionId":"codex-session-004","cwd":"/Users/testuser/Code/project","timestamp":"2026-05-14T12:00:00Z"}
+{"type":"response_item","sessionId":"codex-session-004","payload":{"type":"message","role":"user","content":"This session contains a malformed line.","id":"msg-301"}}
+{"type":"response_item","sessionId":"codex-session-004","payload":{"type":"message","role":"assistant","content":"Understood.","id":"msg-302"}}
+MALFORMED: this is not valid JSON and should trigger a warning
+{"type":"response_item","sessionId":"codex-session-004","payload":{"type":"message","role":"user","content":"Did it survive the bad line?","id":"msg-303"}}
+{"type":"response_item","sessionId":"codex-session-004","payload":{"type":"message","role":"assistant","content":"Yes, the parser skipped the bad line and continued processing.","id":"msg-304"}}

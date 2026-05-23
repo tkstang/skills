@@ -23,6 +23,7 @@
 - Keep runtime plugin code dependency-free and use Node standard library APIs unless a future project explicitly changes that contract.
 - Do not document provider support, marketplace availability, or skills.sh discovery as complete until the release checklist verifies the live provider path.
 - Keep plugin-facing documentation accurate to source code and manifests; do not preserve stale workaround notes when the implementation contract changes.
+- When editing a standalone skill under `skills/` for local dogfooding, keep the user-level install in sync before closeout. Refresh the canonical copy at `~/.agents/skills/<skill-name>/`, verify provider-specific user skill entries such as `~/.claude/skills/<skill-name>` and `~/.cursor/skills/<skill-name>` resolve to that canonical copy when present, then run `oat sync --scope user`.
 
 ## Verification
 
