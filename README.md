@@ -20,17 +20,29 @@ See `plugins/consensus/README.md` for consensus prerequisites, usage, resume beh
 
 The canonical user-facing documentation is `skills/session-observer/SKILL.md`. Runtime format details live in `skills/session-observer/references/transcript-formats.md`; the deferred watcher design lives in `skills/session-observer/references/watch-design.md`.
 
-## Install Matrix
+## Local Dogfood Install
 
-These are release-candidate install paths. Re-check the provider CLIs and marketplace flows before tagging v0.1.
+The current v0.1 path is local marketplace installation from this checkout. The repo root contains provider marketplace entries, and `plugins/consensus/` contains the provider plugin manifests.
 
-| Provider | Command |
-| --- | --- |
-| Claude Code | `claude plugin add https://github.com/<username>/skills --plugin consensus` |
-| Cursor | `cursor plugin add https://github.com/<username>/skills --plugin consensus` |
-| Codex | `codex plugin install https://github.com/<username>/skills --path plugins/consensus` |
-| Agent Skills | `npx skills add <username>/skills` |
-| Local development | `git clone https://github.com/<username>/skills.git && cd skills && npm test` |
+From this repository root, install the consensus plugin for Claude Code:
+
+```bash
+claude plugin marketplace add "$PWD" --scope user
+claude plugin install consensus@skills --scope user
+claude plugin details consensus
+```
+
+Install the consensus plugin for Codex:
+
+```bash
+codex plugin marketplace add "$PWD"
+codex plugin add consensus --marketplace skills
+codex plugin list | rg 'consensus@skills'
+```
+
+The Cursor marketplace manifest is kept in sync with the Claude local marketplace shape, but the Cursor install command remains a release-checklist item until verified against the live Cursor CLI.
+
+Published Git and marketplace install flows are not yet release claims. Re-check provider CLIs and marketplace flows before tagging v0.1.
 
 ## Prerequisites
 

@@ -6,16 +6,29 @@ Status: v0.1 pre-release.
 
 The v0.1 scope is intentionally narrow: `consensus-refine`, alternating iteration mode, sequential sections by default, opt-in host-mediated parallel section orchestration, and the `--agency` flag. Future work may add the rest of the consensus skill family, additional iteration modes, and a whole-document harmonization pass.
 
-## Install Matrix
+## Local Dogfood Install
 
-These are release-candidate install paths. Re-check the provider CLIs and marketplace flows before tagging v0.1.
+Install from the repository root as a local marketplace while the plugin is in v0.1 pre-release.
 
-| Provider | Command |
-| --- | --- |
-| Claude Code | `claude plugin add https://github.com/<username>/skills --plugin consensus` |
-| Cursor | `cursor plugin add https://github.com/<username>/skills --plugin consensus` |
-| Codex | `codex plugin install https://github.com/<username>/skills --path plugins/consensus` |
-| Local development | `git clone https://github.com/<username>/skills.git && cd skills && npm test` |
+Claude Code:
+
+```bash
+claude plugin marketplace add "$PWD" --scope user
+claude plugin install consensus@skills --scope user
+claude plugin details consensus
+```
+
+Codex:
+
+```bash
+codex plugin marketplace add "$PWD"
+codex plugin add consensus --marketplace skills
+codex plugin list | rg 'consensus@skills'
+```
+
+The Cursor marketplace manifest is maintained with the Claude local marketplace shape, but the live Cursor install command still needs provider verification before v0.1 tagging.
+
+Published Git and provider marketplace install flows are not release claims yet. Re-check provider CLIs and marketplace flows before tagging v0.1.
 
 ## Prerequisites
 

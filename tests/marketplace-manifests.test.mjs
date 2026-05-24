@@ -6,9 +6,18 @@ import test from 'node:test';
 const repoRoot = new URL('..', import.meta.url);
 
 const marketplaces = [
-  '.claude-plugin/marketplace.json',
-  '.cursor-plugin/marketplace.json',
-  '.agents/plugins/marketplace.json'
+  {
+    path: '.claude-plugin/marketplace.json',
+    sourceKind: 'string'
+  },
+  {
+    path: '.cursor-plugin/marketplace.json',
+    sourceKind: 'string'
+  },
+  {
+    path: '.agents/plugins/marketplace.json',
+    sourceKind: 'object'
+  }
 ];
 
 async function readJson(relativePath) {
@@ -16,15 +25,18 @@ async function readJson(relativePath) {
 }
 
 test('marketplace manifests declare local consensus plugin source', async () => {
-  for (const marketplacePath of marketplaces) {
+  for (const { path: marketplacePath, sourceKind } of marketplaces) {
     const manifest = await readJson(marketplacePath);
     const entry = manifest.plugins?.find((plugin) => plugin.name === 'consensus');
+    const sourcePath = typeof entry?.source === 'string' ? entry.source : entry?.source?.path;
 
+    assert.equal(manifest.name, 'skills');
     assert.ok(entry, `${marketplacePath} should declare consensus`);
-    assert.equal(entry.source?.path, './plugins/consensus');
-    assert.equal(entry.source.path.includes('..'), false, `${marketplacePath} should not escape repo root`);
+    assert.equal(typeof entry.source, sourceKind);
+    assert.equal(sourcePath, './plugins/consensus');
+    assert.equal(sourcePath.includes('..'), false, `${marketplacePath} should not escape repo root`);
 
-    const resolvedSourcePath = path.resolve(repoRoot.pathname, entry.source.path);
+    const resolvedSourcePath = path.resolve(repoRoot.pathname, sourcePath);
     assert.ok(resolvedSourcePath.startsWith(path.resolve(repoRoot.pathname)));
     assert.equal((await stat(resolvedSourcePath)).isDirectory(), true);
   }

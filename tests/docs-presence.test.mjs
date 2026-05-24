@@ -16,10 +16,10 @@ test('baseline documentation files exist', async () => {
   }
 });
 
-test('README documents install matrix, permissions, and limitations', async () => {
+test('README documents local install, permissions, and limitations', async () => {
   const readme = await read('README.md');
 
-  assert.match(readme, /^## Install Matrix$/m);
+  assert.match(readme, /^## Local Dogfood Install$/m);
   assert.match(readme, /^## Permissions$/m);
   assert.match(readme, /^## Limitations$/m);
 });

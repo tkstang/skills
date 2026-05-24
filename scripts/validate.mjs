@@ -185,7 +185,7 @@ async function validateDiscoveredSkillDirectories(root) {
 
 export async function validateMarketplaceSource(root, entry) {
   const issues = [];
-  const sourcePath = entry?.source?.path;
+  const sourcePath = typeof entry?.source === 'string' ? entry.source : entry?.source?.path;
 
   if (!sourcePath) {
     return [`marketplace entry ${entry?.name ?? '<unknown>'} missing source.path`];
@@ -214,8 +214,8 @@ export async function validateReadmeInstallMatrix(root) {
   const readme = await readFile(readmePath, 'utf8');
   const issues = [];
 
-  if (!/^## Install Matrix$/m.test(readme)) {
-    issues.push('README.md missing Install Matrix section');
+  if (!/^## Local Dogfood Install$/m.test(readme)) {
+    issues.push('README.md missing Local Dogfood Install section');
   }
 
   return issues;
@@ -250,6 +250,7 @@ async function validateProviderManifest(root, relativePath) {
   const manifestPath = path.join(root, relativePath);
   const pluginRoot = path.resolve(path.dirname(manifestPath), '..');
   const manifest = await parseJsonFile(manifestPath);
+  const provider = relativePath.match(/\.([^.\/]+)-plugin/u)?.[1];
 
   if (manifest.name !== 'consensus') {
     issues.push(`${relativePath} name should be consensus`);
@@ -259,9 +260,24 @@ async function validateProviderManifest(root, relativePath) {
     issues.push('version must be valid semver');
   }
 
-  if (!Array.isArray(manifest.skills) || manifest.skills.length === 0) {
-    issues.push(`${relativePath} should declare skills`);
+  if (provider === 'codex') {
+    if (manifest.skills !== './skills/') {
+      issues.push(`${relativePath} skills should be ./skills/`);
+    }
   } else {
+    if (manifest.skills !== undefined) {
+      issues.push(`${relativePath} should rely on skills/ directory discovery, not manifest.skills`);
+    }
+  }
+
+  const requiredSkillPath = path.join(pluginRoot, 'skills/consensus-refine');
+  if (!(await pathExists(requiredSkillPath))) {
+    issues.push(`${relativePath} missing skills/consensus-refine directory`);
+  } else {
+    issues.push(...(await validateSkillFrontmatter(root, requiredSkillPath)));
+  }
+
+  if (Array.isArray(manifest.skills)) {
     for (const skill of manifest.skills) {
       issues.push(...(await validateSkillReference(root, skill, pluginRoot)));
       const skillPath = path.resolve(pluginRoot, skill.path);
@@ -286,7 +302,8 @@ async function validateMarketplaceManifest(root, relativePath) {
   }
 
   issues.push(...(await validateMarketplaceSource(root, consensus)));
-  if (consensus.source?.path !== './plugins/consensus') {
+  const sourcePath = typeof consensus.source === 'string' ? consensus.source : consensus.source?.path;
+  if (sourcePath !== './plugins/consensus') {
     issues.push(`${relativePath}: consensus source.path should be ./plugins/consensus`);
   }
 

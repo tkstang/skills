@@ -13,13 +13,14 @@ async function read(relativePath) {
   return readFile(new URL(relativePath, repoRoot), 'utf8');
 }
 
-test('README documents v0.1 install paths and Paseo prerequisite range', async () => {
+test('README documents v0.1 local install paths and Paseo prerequisite range', async () => {
   const readme = await read('README.md');
 
-  assert.match(readme, /claude plugin add https:\/\/github\.com\/<username>\/skills --plugin consensus/);
-  assert.match(readme, /cursor plugin add https:\/\/github\.com\/<username>\/skills --plugin consensus/);
-  assert.match(readme, /codex plugin install https:\/\/github\.com\/<username>\/skills --path plugins\/consensus/);
-  assert.match(readme, /npx skills add <username>\/skills/);
+  assert.match(readme, /claude plugin marketplace add "\$PWD" --scope user/);
+  assert.match(readme, /claude plugin install consensus@skills --scope user/);
+  assert.match(readme, /codex plugin marketplace add "\$PWD"/);
+  assert.match(readme, /codex plugin add consensus --marketplace skills/);
+  assert.match(readme, /Cursor install command remains a release-checklist item/i);
   assert.match(readme, new RegExp(`tested range ${MIN_PASEO_VERSION.replaceAll('.', '\\.')} to ${MAX_TESTED_PASEO_VERSION.replaceAll('.', '\\.')}`, 'i'));
   assert.match(readme, /scripts\/install-paseo\.mjs/);
 });
