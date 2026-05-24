@@ -7,7 +7,7 @@ import test from 'node:test';
 import {
   createRecordsWriter,
   writeLoopStatus
-} from '../plugins/consensus/skills/consensus-refine/scripts/consensus-loop.mjs';
+} from '../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
 
 async function readJson(filePath) {
   return JSON.parse(await readFile(filePath, 'utf8'));

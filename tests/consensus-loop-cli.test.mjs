@@ -10,7 +10,7 @@ import {
   exitCodeForError,
   parseLoopArgs,
   runConsensusLoop
-} from '../plugins/consensus/skills/consensus-refine/scripts/consensus-loop.mjs';
+} from '../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
 
 const repoRoot = path.resolve(new URL('..', import.meta.url).pathname);
 const fixtureBin = path.join(repoRoot, 'tests/fixtures/bin');

@@ -6,7 +6,7 @@ import {
   detectOscillation,
   hashArtifact,
   normalizeForHash
-} from '../plugins/consensus/skills/consensus-refine/scripts/consensus-loop.mjs';
+} from '../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
 
 test('normalizeForHash canonicalizes line endings, trailing whitespace, and EOF newlines', () => {
   assert.equal(normalizeForHash('Hello  \r\nworld\t\r\n\r\n'), 'Hello\nworld\n');

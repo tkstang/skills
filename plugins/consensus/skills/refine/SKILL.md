@@ -1,5 +1,5 @@
 ---
-name: consensus-refine
+name: refine
 description: Use when refining a draft and you want two AI peers to deliberate to convergence with structured verdicts, a final artifact, and a readable audit trail.
 license: MIT
 compatibility: Agent Skills baseline; requires `paseo` CLI on PATH.
@@ -9,7 +9,7 @@ metadata:
   version: "0.1.0"
 ---
 
-# consensus-refine
+# Refine
 
 Use this skill when the user wants a markdown draft refined through two-peer deliberation. The host model translates the user's intent into a wrapper invocation, coordinates host-native parallel dispatch when requested, and summarizes the resulting artifact. The deterministic work belongs to the scripts in this skill.
 

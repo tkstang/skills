@@ -37,8 +37,8 @@ test('provider plugin manifests declare consensus metadata and skill directory',
       assert.equal('skills' in manifest, false, `${provider} should rely on skills/ directory discovery`);
     }
 
-    const relativeSkillPath = './skills/consensus-refine';
-    assert.equal(relativeSkillPath, './skills/consensus-refine');
+    const relativeSkillPath = './skills/refine';
+    assert.equal(relativeSkillPath, './skills/refine');
     assert.equal(relativeSkillPath.includes('..'), false, `${provider} skill path should not traverse upward`);
 
     const resolvedSkillPath = path.resolve(pluginRoot.pathname, relativeSkillPath);

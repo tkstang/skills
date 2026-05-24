@@ -7,8 +7,8 @@ import test from 'node:test';
 import {
   parseWrapperArgs,
   runSequential
-} from '../plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs';
-import { hashArtifact } from '../plugins/consensus/skills/consensus-refine/scripts/consensus-loop.mjs';
+} from '../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
+import { hashArtifact } from '../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
 
 const original = '# Intro\n\nNeeds work.\n';
 const resumed = '# Intro\n\nUse decisive language.\n';

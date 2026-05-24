@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import test from 'node:test';
 
-const skillPath = new URL('../plugins/consensus/skills/consensus-refine/SKILL.md', import.meta.url);
+const skillPath = new URL('../plugins/consensus/skills/refine/SKILL.md', import.meta.url);
 
 function frontmatter(markdown) {
   const match = markdown.match(/^---\n([\s\S]*?)\n---\n/);
@@ -17,12 +17,12 @@ function field(block, name) {
   return match[1].trim().replace(/^["']|["']$/g, '');
 }
 
-test('consensus-refine skill frontmatter is portable and versioned', async () => {
+test('refine skill frontmatter is portable and versioned', async () => {
   const markdown = await readFile(skillPath, 'utf8');
   const block = frontmatter(markdown);
   const name = field(block, 'name');
 
-  assert.equal(name, 'consensus-refine');
+  assert.equal(name, 'refine');
   assert.equal(path.basename(path.dirname(skillPath.pathname)), name);
   assert.ok(field(block, 'description').length > 40);
   assert.equal(field(block, 'license'), 'MIT');

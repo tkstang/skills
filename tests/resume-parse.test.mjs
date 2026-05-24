@@ -6,8 +6,8 @@ import test from 'node:test';
 
 import {
   parseDeliberationArtifactForResume
-} from '../plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs';
-import { hashArtifact } from '../plugins/consensus/skills/consensus-refine/scripts/consensus-loop.mjs';
+} from '../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
+import { hashArtifact } from '../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
 
 const revisedIntro = '# Intro\n\nClearer intro.\n';
 const stalledDetails = '## Details\n\nStill unresolved.\n';

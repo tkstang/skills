@@ -270,9 +270,9 @@ async function validateProviderManifest(root, relativePath) {
     }
   }
 
-  const requiredSkillPath = path.join(pluginRoot, 'skills/consensus-refine');
+  const requiredSkillPath = path.join(pluginRoot, 'skills/refine');
   if (!(await pathExists(requiredSkillPath))) {
-    issues.push(`${relativePath} missing skills/consensus-refine directory`);
+    issues.push(`${relativePath} missing skills/refine directory`);
   } else {
     issues.push(...(await validateSkillFrontmatter(root, requiredSkillPath)));
   }
@@ -334,7 +334,7 @@ async function validateDirectoryLayout(root) {
   const issues = [];
   const directories = [
     'skills',
-    'plugins/consensus/skills/consensus-refine',
+    'plugins/consensus/skills/refine',
     'plugins/consensus/agents',
     'plugins/consensus/.claude-plugin',
     'plugins/consensus/.cursor-plugin',

@@ -5,7 +5,7 @@ import test from 'node:test';
 import {
   MAX_TESTED_PASEO_VERSION,
   MIN_PASEO_VERSION
-} from '../plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs';
+} from '../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
 
 const repoRoot = new URL('..', import.meta.url);
 

@@ -7,7 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
-import { runWrapperCli } from '../plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs';
+import { runWrapperCli } from '../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
 
 const execFileAsync = promisify(execFile);
 

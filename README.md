@@ -8,9 +8,9 @@ This repository is a personal Agent Skills home. It contains standalone skills u
 
 ### Consensus plugin
 
-`plugins/consensus/` is a self-contained plugin package for consensus workflows. Its first shipped skill is `consensus-refine`, a markdown refinement skill that uses two Paseo-backed AI peers to deliberate toward a converged artifact with an audit trail.
+`plugins/consensus/` is a self-contained plugin package for consensus workflows. Its first shipped skill is `refine`, a markdown refinement skill that uses two Paseo-backed AI peers to deliberate toward a converged artifact with an audit trail.
 
-The v0.1 consensus scope is intentionally narrow: `consensus-refine`, alternating iteration mode, sequential sections by default, opt-in host-mediated parallel section orchestration, and the `--agency` flag. Future work may add the rest of the consensus skill family, additional iteration modes, and a whole-document harmonization pass.
+The v0.1 consensus scope is intentionally narrow: the `refine` skill, alternating iteration mode, sequential sections by default, opt-in host-mediated parallel section orchestration, and the `--agency` flag. Future work may add the rest of the consensus skill family, additional iteration modes, and a whole-document harmonization pass.
 
 See `plugins/consensus/README.md` for consensus prerequisites, usage, resume behavior, parallel orchestration, permissions, advanced peer configuration, and limitations.
 
@@ -69,7 +69,7 @@ The helper prompts before running `npm install -g @getpaseo/cli`; declining leav
 Consensus refinement:
 
 ```bash
-node plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs draft.md --goal "Make this clearer."
+node plugins/consensus/skills/refine/scripts/consensus-refine.mjs draft.md --goal "Make this clearer."
 ```
 
 Session observer:
@@ -81,7 +81,7 @@ node skills/session-observer/scripts/session-observer.mjs catch-up --runtime cur
 
 ## Permissions
 
-`consensus-refine` needs permission to run `node` for wrapper scripts, `paseo` for peer invocation, and read/write access to the input markdown file, generated `.consensus/` run state, and the output deliberation artifact. Parallel mode additionally requires host-native subagent dispatch.
+The consensus `refine` skill needs permission to run `node` for wrapper scripts, `paseo` for peer invocation, and read/write access to the input markdown file, generated `.consensus/` run state, and the output deliberation artifact. Parallel mode additionally requires host-native subagent dispatch.
 
 `session-observer` needs permission to run `node`, read transcript stores under `~/.claude/projects/`, `~/.codex/sessions/`, and `~/.cursor/projects/`, and write read-offset state under `~/.local/state/session-observer/`. It does not write to peer transcripts.
 
@@ -93,7 +93,7 @@ Session observer defaults to `--runtime auto`, which resolves by host hint, prio
 
 ## Limitations
 
-- v0.1 ships `consensus-refine` only.
+- v0.1 ships the `refine` skill only.
 - The rest of the consensus family is deferred: `consensus-create`, `consensus-evaluate`, `consensus-decide`, `consensus-plan`, and `consensus-research`.
 - Consensus alternating iteration mode only; parallel-revision and parallel-synthesized modes are future work.
 - Consensus sections converge independently; there is no whole-document harmonization pass in v0.1.

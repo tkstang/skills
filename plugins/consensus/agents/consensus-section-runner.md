@@ -22,7 +22,7 @@ The host dispatch prompt must include:
 Run the per-section loop script with the provided values:
 
 ```bash
-node plugins/consensus/skills/consensus-refine/scripts/consensus-loop.mjs \
+node plugins/consensus/skills/refine/scripts/consensus-loop.mjs \
   --section-file <section_file> \
   --goal "<goal>" \
   --peers <peers> \

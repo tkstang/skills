@@ -19,7 +19,7 @@
       "Write"
     ],
     "defaultPrompt": [
-      "Use consensus-refine to improve this markdown draft."
+      "Use the Consensus Refine skill to improve this markdown draft."
     ]
   },
   "metadata": {

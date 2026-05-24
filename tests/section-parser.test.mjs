@@ -4,7 +4,7 @@ import test from 'node:test';
 import {
   parseSections,
   slugSectionId
-} from '../plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs';
+} from '../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
 
 test('slugSectionId creates deterministic stable IDs', () => {
   assert.equal(slugSectionId('Intro & Scope', 0), 'intro-scope-0');

@@ -6,10 +6,10 @@ import {
   VERDICT_CAPS,
   validateVerdictCaps,
   validateVerdictShape
-} from '../plugins/consensus/skills/consensus-refine/scripts/consensus-loop.mjs';
+} from '../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
 
 const schemaPath = new URL(
-  '../plugins/consensus/skills/consensus-refine/schemas/verdict-alternating.schema.json',
+  '../plugins/consensus/skills/refine/schemas/verdict-alternating.schema.json',
   import.meta.url
 );
 

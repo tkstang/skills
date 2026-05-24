@@ -4,12 +4,12 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
-import { EXIT_CODES } from '../plugins/consensus/skills/consensus-refine/scripts/consensus-loop.mjs';
+import { EXIT_CODES } from '../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
 import {
   fanInParallelRun,
   prepareParallelRun,
   runWrapperCli
-} from '../plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs';
+} from '../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
 
 const repoRoot = path.resolve(new URL('..', import.meta.url).pathname);
 const sampleInput = path.join(repoRoot, 'tests/fixtures/sample-input.md');

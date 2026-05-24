@@ -24,7 +24,7 @@ async function createValidTempRepository() {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-validator-'));
 
   await mkdir(path.join(tempRoot, 'skills'), { recursive: true });
-  await mkdir(path.join(tempRoot, 'plugins/consensus/skills/consensus-refine'), { recursive: true });
+  await mkdir(path.join(tempRoot, 'plugins/consensus/skills/refine'), { recursive: true });
   await mkdir(path.join(tempRoot, 'plugins/consensus/agents'), { recursive: true });
   await mkdir(path.join(tempRoot, 'plugins/consensus/.claude-plugin'), { recursive: true });
   await mkdir(path.join(tempRoot, 'plugins/consensus/.cursor-plugin'), { recursive: true });
@@ -42,7 +42,7 @@ async function createValidTempRepository() {
   await symlink('AGENTS.md', path.join(tempRoot, 'CLAUDE.md'));
 
   const skillFrontmatter = `---
-name: consensus-refine
+name: refine
 description: Test skill
 license: MIT
 compatibility: codex
@@ -51,7 +51,7 @@ metadata:
 ---
 # Consensus Refine
 `;
-  await writeFile(path.join(tempRoot, 'plugins/consensus/skills/consensus-refine/SKILL.md'), skillFrontmatter);
+  await writeFile(path.join(tempRoot, 'plugins/consensus/skills/refine/SKILL.md'), skillFrontmatter);
 
   const providerManifest = {
     name: 'consensus',
@@ -82,9 +82,9 @@ metadata:
 }
 
 test('parseFrontmatter reads skill metadata', () => {
-  const parsed = parseFrontmatter(`---\nname: consensus-refine\nmetadata:\n  version: "0.1.0"\n---\n# Body\n`);
+  const parsed = parseFrontmatter(`---\nname: refine\nmetadata:\n  version: "0.1.0"\n---\n# Body\n`);
 
-  assert.equal(parsed.name, 'consensus-refine');
+  assert.equal(parsed.name, 'refine');
   assert.deepEqual(parsed.metadata, { version: '0.1.0' });
 });
 
