@@ -20,7 +20,8 @@ test('README documents v0.1 local install paths and Paseo prerequisite range', a
   assert.match(readme, /claude plugin install consensus@skills --scope user/);
   assert.match(readme, /codex plugin marketplace add "\$PWD"/);
   assert.match(readme, /codex plugin add consensus --marketplace skills/);
-  assert.match(readme, /Cursor install command remains a release-checklist item/i);
+  assert.match(readme, /cursor agent --plugin-dir "\$PWD\/plugins\/consensus"/);
+  assert.match(readme, /session-scoped through Cursor Agent's `--plugin-dir` option/);
   assert.match(readme, new RegExp(`tested range ${MIN_PASEO_VERSION.replaceAll('.', '\\.')} to ${MAX_TESTED_PASEO_VERSION.replaceAll('.', '\\.')}`, 'i'));
   assert.match(readme, /scripts\/install-paseo\.mjs/);
 });

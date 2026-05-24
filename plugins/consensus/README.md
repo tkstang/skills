@@ -26,7 +26,13 @@ codex plugin add consensus --marketplace skills
 codex plugin list | rg 'consensus@skills'
 ```
 
-The Cursor marketplace manifest is maintained with the Claude local marketplace shape, but the live Cursor install command still needs provider verification before v0.1 tagging.
+Cursor Agent:
+
+```bash
+cursor agent --plugin-dir "$PWD/plugins/consensus"
+```
+
+The Cursor CLI does not currently expose `cursor plugin marketplace` or `cursor plugin install`; local plugin loading is session-scoped through Cursor Agent's `--plugin-dir` option.
 
 Published Git and provider marketplace install flows are not release claims yet. Re-check provider CLIs and marketplace flows before tagging v0.1.
 
