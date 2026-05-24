@@ -6,7 +6,7 @@ Status: v0.1 pre-release.
 
 The v0.1 scope is intentionally narrow: `consensus-refine`, alternating iteration mode, sequential sections by default, opt-in host-mediated parallel section orchestration, and the `--agency` flag. Future work may add the rest of the consensus skill family, additional iteration modes, and a whole-document harmonization pass.
 
-## Local Dogfood Install
+## Local Git Repository Install
 
 Install from the repository root as a local marketplace while the plugin is in v0.1 pre-release.
 

@@ -33,7 +33,7 @@ async function createValidTempRepository() {
   await mkdir(path.join(tempRoot, '.cursor-plugin'), { recursive: true });
   await mkdir(path.join(tempRoot, '.agents/plugins'), { recursive: true });
 
-  await writeFile(path.join(tempRoot, 'README.md'), '# Test\n\n## Local Dogfood Install\n');
+  await writeFile(path.join(tempRoot, 'README.md'), '# Test\n\n## Local Git Repository Install\n');
   await writeFile(path.join(tempRoot, 'LICENSE'), 'MIT\n');
   await writeFile(path.join(tempRoot, 'CHANGELOG.md'), '# Changelog\n');
   await writeFile(path.join(tempRoot, 'CONTRIBUTING.md'), '# Contributing\n');
@@ -116,7 +116,7 @@ test('individual validators reject escaping paths and missing install docs', asy
 
   const readmeIssues = await validateReadmeInstallMatrix(tempRoot);
   assert.equal(readmeIssues.length, 1);
-  assert.match(readmeIssues[0], /Local Dogfood Install/);
+  assert.match(readmeIssues[0], /Local Git Repository Install/);
 });
 
 test('version consistency and full repository validation pass', async () => {

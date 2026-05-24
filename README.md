@@ -20,7 +20,7 @@ See `plugins/consensus/README.md` for consensus prerequisites, usage, resume beh
 
 The canonical user-facing documentation is `skills/session-observer/SKILL.md`. Runtime format details live in `skills/session-observer/references/transcript-formats.md`; the deferred watcher design lives in `skills/session-observer/references/watch-design.md`.
 
-## Local Dogfood Install
+## Local Git Repository Install
 
 The current v0.1 path is local marketplace installation from this checkout. The repo root contains provider marketplace entries, and `plugins/consensus/` contains the provider plugin manifests.
 

@@ -1,7 +1,7 @@
 {
   "name": "skills",
   "interface": {
-    "displayName": "Skills Local Dogfood"
+    "displayName": "Skills Local Git Repo"
   },
   "plugins": [
     {

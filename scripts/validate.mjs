@@ -214,8 +214,8 @@ export async function validateReadmeInstallMatrix(root) {
   const readme = await readFile(readmePath, 'utf8');
   const issues = [];
 
-  if (!/^## Local Dogfood Install$/m.test(readme)) {
-    issues.push('README.md missing Local Dogfood Install section');
+  if (!/^## Local Git Repository Install$/m.test(readme)) {
+    issues.push('README.md missing Local Git Repository Install section');
   }
 
   return issues;

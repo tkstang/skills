@@ -1,6 +1,6 @@
 {
   "name": "skills",
-  "description": "Local dogfood marketplace for personal skills plugins.",
+  "description": "Local git repository marketplace for personal skills plugins.",
   "owner": {
     "name": "Thomas Stang"
   },
