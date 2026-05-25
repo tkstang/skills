@@ -2,18 +2,10 @@
   "name": "consensus",
   "version": "0.1.0",
   "description": "Consensus deliberation skills for refining drafts with multiple AI peers.",
-  "license": "MIT",
-  "skills": [
-    {
-      "name": "consensus-refine",
-      "path": "./skills/consensus-refine"
-    }
-  ],
-  "permissions": {
-    "bash": {
-      "allow": ["node", "paseo"]
-    }
+  "author": {
+    "name": "Thomas Stang"
   },
+  "license": "MIT",
   "metadata": {
     "provider": "claude",
     "permission_declaration": "provisional",

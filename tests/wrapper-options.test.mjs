@@ -8,7 +8,7 @@ import {
   parseWrapperArgs,
   preflightPaseo,
   resolvePeers
-} from '../plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs';
+} from '../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
 
 function inventory(ids) {
   return ids.map((id) => ({ id, available: true }));

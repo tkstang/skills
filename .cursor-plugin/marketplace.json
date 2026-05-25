@@ -1,13 +1,19 @@
 {
+  "name": "skills",
+  "description": "Local git repository marketplace for personal skills plugins.",
+  "owner": {
+    "name": "Thomas Stang"
+  },
   "plugins": [
     {
       "name": "consensus",
       "version": "0.1.0",
       "description": "Consensus deliberation skills for refining drafts with multiple AI peers.",
-      "source": {
-        "type": "local",
-        "path": "./plugins/consensus"
-      }
+      "author": {
+        "name": "Thomas Stang"
+      },
+      "category": "development",
+      "source": "./plugins/consensus"
     }
   ]
 }

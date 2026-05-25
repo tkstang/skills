@@ -4,13 +4,13 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
-import { runWrapperCli } from '../plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs';
+import { runWrapperCli } from '../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
 import { captureWriter, parseJsonl, runNodeScript } from './helpers/process.mjs';
 
 const repoRoot = path.resolve(new URL('..', import.meta.url).pathname);
 const sampleInput = path.join(repoRoot, 'tests/fixtures/sample-input.md');
 const fixtureBin = path.join(repoRoot, 'tests/fixtures/bin');
-const loopScript = path.join(repoRoot, 'plugins/consensus/skills/consensus-refine/scripts/consensus-loop.mjs');
+const loopScript = path.join(repoRoot, 'plugins/consensus/skills/refine/scripts/consensus-loop.mjs');
 
 function stubEnv(overrides = {}) {
   return {

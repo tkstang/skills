@@ -20,7 +20,7 @@ const jsonFiles = [
   '.cursor-plugin/marketplace.json',
   '.agents/plugins/marketplace.json'
 ];
-const skillFiles = ['plugins/consensus/skills/consensus-refine/SKILL.md'];
+const skillFiles = ['plugins/consensus/skills/refine/SKILL.md'];
 const requiredDocs = ['README.md', 'LICENSE', 'CHANGELOG.md', 'CONTRIBUTING.md', 'RELEASING.md', 'AGENTS.md'];
 
 async function tempReleaseRoot() {

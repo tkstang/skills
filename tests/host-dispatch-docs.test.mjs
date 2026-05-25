@@ -4,7 +4,7 @@ import path from 'node:path';
 import test from 'node:test';
 
 const repoRoot = path.resolve(new URL('..', import.meta.url).pathname);
-const skillPath = path.join(repoRoot, 'plugins/consensus/skills/consensus-refine/SKILL.md');
+const skillPath = path.join(repoRoot, 'plugins/consensus/skills/refine/SKILL.md');
 const runnerPath = path.join(repoRoot, 'plugins/consensus/agents/consensus-section-runner.md');
 
 test('SKILL.md documents the host-mediated parallel dispatch contract', async () => {

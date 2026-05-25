@@ -2,22 +2,25 @@
   "name": "consensus",
   "version": "0.1.0",
   "description": "Consensus deliberation skills for refining drafts with multiple AI peers.",
-  "license": "MIT",
-  "skills": [
-    {
-      "name": "consensus-refine",
-      "path": "./skills/consensus-refine"
-    }
-  ],
-  "permissions": {
-    "exec": {
-      "allow": ["node", "paseo"]
-    }
+  "author": {
+    "name": "Thomas Stang"
   },
+  "license": "MIT",
+  "skills": "./skills/",
   "interface": {
-    "kind": "skill-plugin",
-    "status": "placeholder",
-    "entrypoint": "consensus-refine"
+    "displayName": "Consensus",
+    "shortDescription": "Refine drafts with two-peer deliberation.",
+    "longDescription": "Consensus deliberation skills for refining markdown drafts with multiple AI peers and an audit trail.",
+    "developerName": "Thomas Stang",
+    "category": "Coding",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Use the Consensus Refine skill to improve this markdown draft."
+    ]
   },
   "metadata": {
     "provider": "codex",

@@ -8,13 +8,13 @@ import {
   ConsensusError,
   EXIT_CODES,
   exitCodeForError
-} from '../plugins/consensus/skills/consensus-refine/scripts/consensus-loop.mjs';
+} from '../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
 import {
   createJsonlEvent,
   renderHumanError,
   runSequential,
   runWrapperCli
-} from '../plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs';
+} from '../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
 
 const repoRoot = path.resolve(new URL('..', import.meta.url).pathname);
 const sampleInput = path.join(repoRoot, 'tests/fixtures/sample-input.md');

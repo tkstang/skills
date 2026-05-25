@@ -11,7 +11,7 @@ import {
   readInputFile,
   resolveOutputPath,
   resolveRunDir
-} from '../plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs';
+} from '../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
 
 test('readInputFile allows unrestricted reads but enforces size cap', async () => {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-path-'));

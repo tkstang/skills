@@ -7,8 +7,8 @@ import test from 'node:test';
 import {
   parseDeliberationArtifactForResume,
   parseWrapperArgs
-} from '../plugins/consensus/skills/consensus-refine/scripts/consensus-refine.mjs';
-import { EXIT_CODES, hashArtifact } from '../plugins/consensus/skills/consensus-refine/scripts/consensus-loop.mjs';
+} from '../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
+import { EXIT_CODES, hashArtifact } from '../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
 
 const intro = '# Intro\n\nClear.\n';
 const details = '## Details\n\nStill unresolved.\n';
