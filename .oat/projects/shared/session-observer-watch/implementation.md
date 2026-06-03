@@ -36,7 +36,7 @@ oat_generated: false
 
 ### Task p01-t01: Add Watch State Primitives
 
-**Status:** complete
+**Status:** completed
 **Commit:** cd73202
 
 **Notes:**
@@ -49,7 +49,7 @@ oat_generated: false
 
 ### Task p01-t02: Add Watch CLI Parsing And Help
 
-**Status:** complete
+**Status:** completed
 **Commit:** 13162eb
 
 **Notes:**
