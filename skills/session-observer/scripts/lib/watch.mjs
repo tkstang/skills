@@ -37,6 +37,13 @@ function targetKey(runtime, sessionId) {
   return `${runtime}:${sessionId}`;
 }
 
+function hasTargetForRuntime(targets, runtime) {
+  for (const target of targets.values()) {
+    if (target.runtime === runtime) return true;
+  }
+  return false;
+}
+
 function signatureChanged(previous, next) {
   if (!previous) return false;
   return previous.mtimeMs !== next.mtimeMs || previous.size !== next.size;
@@ -121,6 +128,7 @@ async function establishBaselines(args, targets, statFn, eventState) {
   }
 
   for (const runtime of watchRuntimes(args.runtime)) {
+    if (args.runtime === 'both' && hasTargetForRuntime(targets, runtime)) continue;
     await establishBaseline(runtime, args, targets, statFn, eventState);
   }
 }

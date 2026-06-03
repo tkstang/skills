@@ -201,6 +201,47 @@ describe('runWatchLoop', () => {
     });
   });
 
+  test('runtime both preserves tracked transcript updates until debounce emission', async () => {
+    await withTempSessionHome(async (home, stateDir) => {
+      const cwd = '/test/watch-runtime-both';
+      const sessionId = 'watch-runtime-both';
+      const transcriptPath = await writeClaudeTranscript(home, cwd, sessionId, [
+        { content: 'both baseline message' },
+      ]);
+      const { runWatchLoop } = await importWatch();
+      const stdout = [];
+
+      const watchPromise = runWatchLoop({
+        runtime: 'both',
+        cwd,
+        pollSec: 0.03,
+        debounceSec: 0.04,
+        maxRuntimeMin: 0.012,
+        json: true,
+      }, {
+        writeStdout: chunk => stdout.push(chunk),
+      });
+
+      await waitFor(async () => {
+        const state = await readJsonIfExists(join(stateDir, 'state.json'));
+        return state?.sessions?.['claude-code:watch-runtime-both']?.lastRecordIndex === 1;
+      });
+      await appendClaudeMessage(transcriptPath, sessionId, 'both runtime update payload');
+
+      const result = await watchPromise;
+      assert.equal(result.eventCount, 1);
+
+      const lines = stdout.join('').trim().split('\n').filter(Boolean);
+      assert.equal(lines.length, 1);
+      const event = JSON.parse(lines[0]);
+      assert.equal(event.type, 'catch-up');
+      assert.equal(event.runtime, 'claude-code');
+      assert.equal(event.sessionId, sessionId);
+      assert.equal(event.newRecords, 1);
+      assert.equal(event.digest.entries[0].text, 'both runtime update payload');
+    });
+  });
+
   test('writes metadata-only JSONL records to the event log', async () => {
     await withTempSessionHome(async (home, stateDir) => {
       const cwd = '/test/watch-event-log';
