@@ -36,6 +36,10 @@ function claudeSlug(cwd) {
   return cwd.replace(/[/.]/g, '-');
 }
 
+function cursorSlug(cwd) {
+  return cwd.split(/[/.]/u).filter(Boolean).join('-');
+}
+
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -65,6 +69,18 @@ async function writeClaudeTranscript(home, cwd, sessionId, messages) {
   const records = messages.map(({ role = 'assistant', content }) => ({
     sessionId,
     message: { role, content },
+  }));
+  await writeFile(transcriptPath, records.map(record => JSON.stringify(record)).join('\n') + '\n', 'utf8');
+  return transcriptPath;
+}
+
+async function writeCursorTranscript(home, cwd, sessionId, messages) {
+  const dir = join(home, '.cursor', 'projects', cursorSlug(cwd), 'agent-transcripts', sessionId);
+  await mkdir(dir, { recursive: true });
+  const transcriptPath = join(dir, `${sessionId}.jsonl`);
+  const records = messages.map(({ role = 'assistant', content }) => ({
+    role,
+    message: { content: [{ type: 'text', text: content }] },
   }));
   await writeFile(transcriptPath, records.map(record => JSON.stringify(record)).join('\n') + '\n', 'utf8');
   return transcriptPath;
@@ -239,6 +255,40 @@ describe('runWatchLoop', () => {
       assert.equal(event.sessionId, sessionId);
       assert.equal(event.newRecords, 1);
       assert.equal(event.digest.entries[0].text, 'both runtime update payload');
+    });
+  });
+
+  test('runtime both does not baseline cursor-only same-cwd transcripts', async () => {
+    await withTempSessionHome(async (home, stateDir) => {
+      const cwd = '/test/watch-runtime-both-cursor-excluded';
+      const sessionId = 'cursor-both-excluded';
+      await writeCursorTranscript(home, cwd, sessionId, [
+        { content: 'cursor baseline message should stay unread' },
+      ]);
+      const { runWatchLoop } = await importWatch();
+      const stdout = [];
+
+      const result = await runWatchLoop({
+        runtime: 'both',
+        cwd,
+        pollSec: 0.02,
+        debounceSec: 0.02,
+        maxRuntimeMin: 0.004,
+        json: true,
+      }, {
+        writeStdout: chunk => stdout.push(chunk),
+      });
+
+      assert.equal(result.reason, 'max-runtime');
+      assert.equal(result.eventCount, 0);
+      assert.equal(stdout.join(''), '');
+
+      const state = await readJsonIfExists(join(stateDir, 'state.json'));
+      assert.equal(state?.sessions?.[`cursor:${sessionId}`], undefined);
+      assert.equal(
+        Object.keys(state?.sessions ?? {}).some(key => key.startsWith('cursor:')),
+        false
+      );
     });
   });
 

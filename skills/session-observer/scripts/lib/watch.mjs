@@ -6,12 +6,13 @@ import { appendFile, mkdir, stat } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { renderMarkdown } from './digest.mjs';
-import { observeCatchUp, VALID_RUNTIMES } from './observe.mjs';
+import { observeCatchUp } from './observe.mjs';
 import * as stateLib from './state.mjs';
 import * as watchStateLib from './watch-state.mjs';
 
 const DEFAULT_POLL_SEC = 2;
 const DEFAULT_DEBOUNCE_SEC = 2;
+const BOTH_RUNTIMES = ['claude-code', 'codex'];
 
 function toPositiveMs(value, fallbackSec) {
   const numeric = Number(value);
@@ -34,7 +35,7 @@ function stateDir() {
 }
 
 function watchRuntimes(runtime) {
-  if (runtime === 'both') return VALID_RUNTIMES;
+  if (runtime === 'both') return BOTH_RUNTIMES;
   return [runtime];
 }
 
