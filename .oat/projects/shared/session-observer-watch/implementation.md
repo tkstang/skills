@@ -1,9 +1,9 @@
 ---
-oat_status: in_progress
-oat_ready_for: null
+oat_status: complete
+oat_ready_for: oat-project-review-provide
 oat_blockers: []
 oat_last_updated: 2026-06-03
-oat_current_task_id: p03-t01
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -22,9 +22,9 @@ oat_generated: false
 | ----- | ------ | ----- | --------- |
 | Phase 1: Watch State And CLI Surface | complete | 2 | 2/2 |
 | Phase 2: Watch Loop And Event Emission | complete | 3 | 3/3 |
-| Phase 3: Skill Documentation And Dogfooding Sync | pending | 2 | 0/2 |
+| Phase 3: Skill Documentation And Dogfooding Sync | complete | 2 | 2/2 |
 
-**Total:** 5/7 tasks completed
+**Total:** 7/7 tasks completed
 
 ---
 
@@ -113,20 +113,44 @@ oat_generated: false
 
 ## Phase 3: Skill Documentation And Dogfooding Sync
 
-**Status:** pending
-**Started:** -
+**Status:** complete
+**Started:** 2026-06-03
+**Completed:** 2026-06-03
 
 ### Task p03-t01: Update Skill Instructions And Watch Reference
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** 1f33657
+**Follow-up Fix:** e5505bf
+
+**Notes:**
+
+- Added a validation invariant that rejects stale session-observer watch-mode status and requires `watch`, `watch-ctl`, and `--watch` documentation when the session-observer skill is present.
+- Updated `SKILL.md` and `references/watch-design.md` to document implemented watch behavior, active-invocation automatic-response boundaries, and deferred provider-hook integration.
+- `.agents/skills/session-observer` resolves through the tracked symlink to `../../skills/session-observer`, so the provider-view docs reflect the canonical updates.
+- Verification passed: `npm run validate`.
+- Verification passed: `rg -n "not implemented|watch|watch-ctl|--watch" skills/session-observer .agents/skills/session-observer`.
 
 ---
 
 ### Task p03-t02: Sync Dogfooding Install And Run Full Verification
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** d41a050
+
+**Notes:**
+
+- Refreshed `~/.agents/skills/session-observer` from `skills/session-observer`.
+- Verified `.agents/skills/session-observer` is already in sync via the tracked symlink.
+- Verified `~/.claude/skills/session-observer` and `~/.cursor/skills/session-observer` both resolve to `../../.agents/skills/session-observer`.
+- Ran `oat sync --scope user`; it reported session-observer already in sync for Claude, Cursor, and Copilot provider views with no changes required.
+- Verification passed: `npm test`.
+- Verification passed: `npm run validate`.
+- Verification passed: `npm run smoke`.
+- Verification passed: `diff -qr skills/session-observer .agents/skills/session-observer`.
+- Verification passed: `test -d ~/.agents/skills/session-observer`.
+- Verification passed: `oat project validate-plan --project-path .oat/projects/shared/session-observer-watch`.
+- Note: one full `npm test` run after the validation fix hit a transient watch-loop coalescing timing failure; focused `node --test tests/session-observer/watch.test.mjs` passed, and the subsequent full `npm test` passed.
 
 ---
 
@@ -153,8 +177,8 @@ _No orchestration runs yet._
 - [x] p02-t01: Extract Reusable Catch-Up Observation Pipeline - complete (`f889d32`)
 - [x] p02-t02: Implement Polling, Debounce, And Event Log - complete (`393488d`)
 - [x] p02-t03: Add Watch Control And Graceful Shutdown - complete (`15dd40f`)
-- [ ] p03-t01: Update Skill Instructions And Watch Reference - pending
-- [ ] p03-t02: Sync Dogfooding Install And Run Full Verification - pending
+- [x] p03-t01: Update Skill Instructions And Watch Reference - complete (`1f33657`, follow-up `e5505bf`)
+- [x] p03-t02: Sync Dogfooding Install And Run Full Verification - complete (`d41a050`)
 
 **What changed (high level):**
 
@@ -168,13 +192,13 @@ _No orchestration runs yet._
 
 **Follow-ups / TODO:**
 
-- Execute the plan with `oat-project-implement`.
+- Run code review for the completed implementation.
 
 **Blockers:**
 
 - None.
 
-**Session End:** -
+**Session End:** 2026-06-03T14:50:16Z
 
 ---
 
@@ -256,6 +280,39 @@ _No orchestration runs yet._
 **Notes:**
 
 - p02 scope is complete. Skill documentation, provider-view sync, user-level dogfooding install, and full-suite verification remain scheduled for p03.
+
+---
+
+### Phase p03 Implementation Complete
+
+**Completed:** 2026-06-03T14:50:16Z
+**Next task:** none
+
+**Verification:**
+
+- Passed: `npm run validate` after the p03-t01 docs update.
+- Passed: `rg -n "not implemented|watch|watch-ctl|--watch" skills/session-observer .agents/skills/session-observer`.
+- Passed: `diff -qr skills/session-observer .agents/skills/session-observer`.
+- Passed: `test -d ~/.agents/skills/session-observer`.
+- Passed: `if [ -e ~/.claude/skills/session-observer ]; then readlink ~/.claude/skills/session-observer || true; fi` -> `../../.agents/skills/session-observer`.
+- Passed: `if [ -e ~/.cursor/skills/session-observer ]; then readlink ~/.cursor/skills/session-observer || true; fi` -> `../../.agents/skills/session-observer`.
+- Passed: `oat sync --scope user` (no changes required after home install refresh).
+- Passed: `npm test`.
+- Passed: `npm run smoke`.
+- Passed: `oat project validate-plan --project-path .oat/projects/shared/session-observer-watch`.
+
+**Dispatch ceiling enforcement:**
+
+- model_axis: inherited
+- effort_axis: selected:xhigh
+- dispatch_ceiling: xhigh
+- ceiling_source: project-state
+- provider_default_effort: xhigh
+- dispatch_rationale: p03 updates user-facing skill instructions, validation, provider views, user-level dogfooding install, and runs full verification.
+
+**Notes:**
+
+- p03 scope is complete. All implementation-plan tasks are complete and the project is ready for code review.
 
 ---
 
