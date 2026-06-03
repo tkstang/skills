@@ -404,23 +404,38 @@ _No orchestration runs yet._
 
 **What shipped:**
 
-- Pending implementation.
+- `session-observer watch` and top-level `--watch` now run a foreground polling watcher around the existing locate/rank/digest/state catch-up pipeline.
+- `session-observer watch-ctl` manages active watchers with `status`, `pause`, `resume`, `flush`, and `stop`.
+- Final review fixes preserve debounced updates in `--runtime both` mode and constrain `--event-log` writes to the session-observer state directory.
 
 **Behavioral changes (user-facing):**
 
-- Pending implementation.
+- Watch mode establishes an initial baseline without re-emitting old transcript content, then emits one catch-up digest per settled update burst.
+- `--json` emits newline-delimited catch-up event objects to stdout; `--event-log` mirrors metadata-only JSONL records with no message content.
+- Relative event-log paths resolve under `~/.local/state/session-observer/`; absolute or relative paths that escape that directory are rejected.
+- Watch control directives can pause/resume output, flush pending debounced updates, stop the watcher, and report active watcher state.
+- Manual `catch-up` warns when a watcher owns the same session offset but still succeeds.
 
 **Key files / modules:**
 
-- Pending implementation.
+- `skills/session-observer/scripts/session-observer.mjs`: watch/watch-ctl CLI parsing, help, dispatch, and manual catch-up watcher warning.
+- `skills/session-observer/scripts/lib/watch-state.mjs`: lock-protected watcher/control state under the session-observer state directory.
+- `skills/session-observer/scripts/lib/observe.mjs`: reusable catch-up observation pipeline for one-shot and watch flows.
+- `skills/session-observer/scripts/lib/watch.mjs`: polling, debounce, event rendering, event-log path safety, control handling, and shutdown cleanup.
+- `skills/session-observer/SKILL.md` and `skills/session-observer/references/watch-design.md`: operator guidance, implemented watch contract, safety rules, and deferred provider-hook boundary.
+- `tests/session-observer/watch-state.test.mjs`, `tests/session-observer/observe.test.mjs`, `tests/session-observer/watch.test.mjs`, and `tests/session-observer/cli.test.mjs`: state, pipeline, watcher, control, event-log, and CLI coverage.
 
 **Verification performed:**
 
-- Pending implementation.
+- Targeted Node tests covered watch state helpers, observe pipeline behavior, CLI watch/watch-ctl behavior, polling/debounce emission, `--runtime both` regression coverage, metadata-only event logs, event-log path rejection, control directives, and signal cleanup.
+- Full implementation verification included `npm test`, `npm run validate`, `npm run smoke`, and `oat project validate-plan --project-path .oat/projects/shared/session-observer-watch`.
+- Dogfooding verification confirmed the repo skill view matched the canonical skill, the user-level `~/.agents/skills/session-observer` install existed, provider symlinks resolved through the canonical copy when present, and `oat sync --scope user` succeeded.
 
 **Design deltas (if any):**
 
-- Pending implementation.
+- Provider-hook automation remains deferred. Automatic responses are available only while an active agent invocation keeps the foreground watch process running and consumes stdout.
+- Watch state uses one global active watcher entry, which is stricter than duplicate-only singleton wording but matches the single `watch.json` / `watch.control.json` control-file model.
+- `--event-log` path semantics are intentionally constrained: callers may choose filenames/subdirectories only within the session-observer state directory.
 
 ## References
 
