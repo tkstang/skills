@@ -33,6 +33,7 @@ const LIB = join(__dirname, 'lib');
 const { discover, gitWorktrees, claudeCodeLookupDiagnostics } = await import(join(LIB, 'locate.mjs'));
 const { rank } = await import(join(LIB, 'rank.mjs'));
 const { buildDigest, renderMarkdown, renderJson } = await import(join(LIB, 'digest.mjs'));
+const { observeCatchUp } = await import(join(LIB, 'observe.mjs'));
 const stateLib = await import(join(LIB, 'state.mjs'));
 const watchStateLib = await import(join(LIB, 'watch-state.mjs'));
 
@@ -537,191 +538,15 @@ async function runReview(args) {
 // ---------------------------------------------------------------------------
 
 async function runCatchUp(args) {
-  const { cwd, includeTools, includeToolResults, includeCommandMessages, maxTurns, maxBytes, json, session, snippet } = args;
-  let { runtime } = args;
-  const pinnedSession = parsePinnedSession(session);
-  if (pinnedSession?.error) return emitError(pinnedSession.error, 1);
-  if (pinnedSession) runtime = pinnedSession.runtime;
-
-  // Resolve auto runtime
-  if (runtime === 'auto') {
-    const resolved = await resolveAutoRuntime(cwd);
-    if (resolved.noMatch) {
-      const payload = { noMatch: true, cwd, message: 'No candidates found in any runtime for this cwd.' };
-      if (json) return emitJson(payload, 2);
-      return emit(`No peer-session candidates found for cwd: ${cwd}`, 2);
-    }
-    if (resolved.ambiguous) {
-      const payload = {
-        ambiguousRuntime: true,
-        runtimes: resolved.runtimes,
-        message: 'Candidates found in multiple runtimes. Use --runtime to specify.',
-      };
-      if (json) return emitJson(payload, 3);
-      return emit(
-        `Ambiguous runtime: candidates found in both ${resolved.runtimes.join(', ')}. ` +
-        `Specify --runtime <runtime>.`,
-        3
-      );
-    }
-    runtime = resolved.runtime;
+  const result = await observeCatchUp(args);
+  if (!result.ok) {
+    if (result.kind === 'error') return emitError(result.message, result.exitCode);
+    if (args.json) return emitJson(result.payload, result.exitCode);
+    return emit(result.message, result.exitCode);
   }
 
-  // Discover + rank
-  let candidates;
-  try {
-    candidates = await discover(runtime, cwd);
-  } catch (err) {
-    return emitError(`Failed to discover transcripts: ${err.message}`, 1);
-  }
-
-  if (candidates.length === 0) {
-    const payload = { noMatch: true, runtime, cwd };
-    if (json) return emitJson(payload, 2);
-    return emit(`No ${runtime} transcripts found for cwd: ${cwd}`, 2);
-  }
-
-  // Resolve pinned session override BEFORE tie/no-match checks.
-  if (pinnedSession) {
-    const pinnedRuntime = pinnedSession.runtime;
-    const pinnedId = pinnedSession.sessionId;
-    const pinned = candidates.find(c => c.runtime === pinnedRuntime && c.sessionId === pinnedId);
-    if (!pinned) {
-      return emitError(
-        `Pinned session not found: ${session}. Run locate to see available sessions.`,
-        1
-      );
-    }
-    // Get prior offset from state
-    let pinnedFromIndex = 0;
-    let pinnedSessionState = null;
-    try {
-      pinnedSessionState = await stateLib.getSession(pinnedRuntime, pinned.sessionId);
-      if (pinnedSessionState) pinnedFromIndex = pinnedSessionState.lastRecordIndex;
-    } catch {
-      pinnedFromIndex = 0;
-    }
-    // Build digest from the pinned candidate
-    let digest;
-    try {
-      digest = await buildDigest(pinnedRuntime, pinned.transcriptPath, {
-        fromIndex: pinnedFromIndex,
-        mode: 'catch-up',
-        includeToolCalls: includeTools,
-        includeToolResults,
-        includeCommandMessages,
-        maxTurns,
-        maxBytes,
-        sessionId: pinned.sessionId,
-        recordedCwd: pinned.recordedCwd,
-        matchedTier: null,
-        active: pinned.active ?? false,
-        fallbacks: [],
-      });
-    } catch (err) {
-      return emitError(`Failed to build digest: ${err.message}`, 1);
-    }
-    if (shouldMarkCatchUpRead(pinnedSessionState, digest)) {
-      try {
-        await stateLib.markRead(pinnedRuntime, pinned.sessionId, {
-          lastRecordIndex: digest.range.nextIndex,
-          lastTotalRecords: digest.range.totalRecords,
-          transcriptPath: pinned.transcriptPath,
-          recordedCwd: pinned.recordedCwd,
-        });
-      } catch {
-        // Non-fatal
-      }
-    }
-    if (json) return emitJson(digest, 0);
-    return emit(renderMarkdown(digest), 0);
-  }
-
-  if (snippet) {
-    const filtered = await applySnippetFilter(candidates, snippet);
-    candidates = filtered.candidates;
-    if (candidates.length === 0) {
-      const payload = {
-        noMatch: true,
-        runtime,
-        cwd,
-        snippet,
-        message: 'No candidate transcripts contained the provided snippet.',
-      };
-      if (json) return emitJson(payload, 2);
-      return emit(`No ${runtime} candidate transcripts contained the provided snippet.`, 2);
-    }
-  }
-
-  const worktrees = await gitWorktrees(cwd).catch(() => []);
-  const rankResult = rank(candidates, cwd, { gitWorktrees: worktrees });
-
-  if (rankResult.noMatch) {
-    const payload = { noMatch: true, runtime, cwd, sisters: rankResult.sisters, globalRecent: rankResult.globalRecent };
-    if (json) return emitJson(payload, 2);
-    return emit(`No ${runtime} transcripts matched cwd: ${cwd}`, 2);
-  }
-
-  if (rankResult.ties && rankResult.ties.length > 0) {
-    const payload = { ties: true, candidates: [rankResult.winner, ...rankResult.ties] };
-    if (json) return emitJson(payload, 3);
-    return emit(`Multiple sessions tied. Use --session to disambiguate.`, 3);
-  }
-
-  let winner = rankResult.winner;
-
-  // Get prior offset from state
-  let fromIndex = 0;
-  let sessionState = null;
-  try {
-    sessionState = await stateLib.getSession(runtime, winner.sessionId);
-    if (sessionState) {
-      fromIndex = sessionState.lastRecordIndex;
-    }
-  } catch {
-    fromIndex = 0;
-  }
-
-  // Build digest
-  let digest;
-  try {
-    digest = await buildDigest(runtime, winner.transcriptPath, {
-      fromIndex,
-      mode: 'catch-up',
-      includeToolCalls: includeTools,
-      includeToolResults,
-      includeCommandMessages,
-      maxTurns,
-      maxBytes,
-      sessionId: winner.sessionId,
-      recordedCwd: winner.recordedCwd,
-        matchedTier: rankResult.tier,
-        active: winner.active,
-        warnings: winner.snippetMatch
-          ? [`Selected session by snippet match: ${winner.sessionId} (${winner.recordedCwd ?? 'unknown cwd'})`]
-          : [],
-        fallbacks: rankResult.fallbacks,
-      });
-  } catch (err) {
-    return emitError(`Failed to build digest: ${err.message}`, 1);
-  }
-
-  // Advance the high-water mark on successful emit
-  if (shouldMarkCatchUpRead(sessionState, digest)) {
-    try {
-      await stateLib.markRead(runtime, winner.sessionId, {
-        lastRecordIndex: digest.range.nextIndex,
-        lastTotalRecords: digest.range.totalRecords,
-        transcriptPath: winner.transcriptPath,
-        recordedCwd: winner.recordedCwd,
-      });
-    } catch {
-      // Non-fatal
-    }
-  }
-
-  if (json) return emitJson(digest, 0);
-  return emit(renderMarkdown(digest), 0);
+  if (args.json) return emitJson(result.digest, 0);
+  return emit(renderMarkdown(result.digest), 0);
 }
 
 // ---------------------------------------------------------------------------
