@@ -5,7 +5,7 @@ oat_blockers: []
 oat_last_updated: 2026-06-03
 oat_phase: plan
 oat_phase_status: complete
-oat_plan_hill_phases: ["p06"]
+oat_plan_hill_phases: ["p07"]
 oat_auto_review_at_hill_checkpoints: true
 oat_plan_parallel_groups: []
 oat_plan_source: quick
@@ -673,6 +673,46 @@ git commit -m "chore(p06-t03): refresh oat dashboard state"
 
 ---
 
+## Phase 7: Final Review Fixes v4
+
+### Task p07-t01: (review) Harden Event Log File Safety
+
+**Files:**
+
+- Modify: `skills/session-observer/scripts/lib/watch.mjs`
+- Modify: `tests/session-observer/watch.test.mjs`
+- Modify: `skills/session-observer/references/watch-design.md` only if path semantics need clarification
+- Modify: `skills/session-observer/SKILL.md` only if operator-facing path semantics need clarification
+
+**Step 1: Understand the issue**
+
+Review finding: `--event-log` uses a lexical containment check and then appends to the chosen path. An in-state symlink can point outside the session-observer state directory, and reserved state filenames such as `state.json`, `watch.json`, and `watch.control.json` can corrupt watcher/session state.
+Location: `skills/session-observer/scripts/lib/watch.mjs:106`
+
+**Step 2: Implement fix**
+
+Harden event-log resolution before starting a watcher. Reject event-log paths that would write through symlinks escaping the session-observer state directory, and reject reserved state/control filenames, lock files, temp files, and backup-style state files. Preserve metadata-only event log behavior for valid paths.
+
+**Step 3: Verify**
+
+Run: `node --test tests/session-observer/watch.test.mjs tests/session-observer/cli.test.mjs`
+Expected: Tests pass, including regression coverage for an in-state symlink pointing outside and reserved filenames such as `state.json` and `watch.json`.
+
+Run: `npm test`
+Expected: Full test suite passes.
+
+**Step 4: Commit**
+
+```bash
+git add skills/session-observer/scripts/lib/watch.mjs \
+  tests/session-observer/watch.test.mjs \
+  skills/session-observer/references/watch-design.md \
+  skills/session-observer/SKILL.md
+git commit -m "fix(p07-t01): harden session observer event logs"
+```
+
+---
+
 ## Reviews
 
 | Scope | Type | Status | Date | Artifact |
@@ -683,7 +723,8 @@ git commit -m "chore(p06-t03): refresh oat dashboard state"
 | p04 | code | pending | - | - |
 | p05 | code | pending | - | - |
 | p06 | code | pending | - | - |
-| final | code | fixes_added | 2026-06-03 | reviews/archived/final-code-review-2026-06-03-v3.md |
+| p07 | code | pending | - | - |
+| final | code | fixes_added | 2026-06-03 | reviews/archived/final-code-review-2026-06-03-v4.md |
 | spec | artifact | n/a | - | quick mode has no spec.md |
 | design | artifact | n/a | - | quick mode has no design.md |
 | plan | artifact | passed | 2026-06-03 | reviews/archived/artifact-plan-review-2026-06-02.md |
@@ -700,8 +741,9 @@ git commit -m "chore(p06-t03): refresh oat dashboard state"
 - Phase 4: 3 tasks - Final review fixes for both-runtime emission, event-log path safety, and implementation summary.
 - Phase 5: 1 task - Final review fix aligning `--runtime both` with the documented Claude Code plus Codex scope.
 - Phase 6: 3 tasks - Final review fixes for inactive watch-control directives, debounce test determinism, and repo dashboard freshness.
+- Phase 7: 1 task - Final review fix hardening event-log symlink and reserved-file safety.
 
-**Total: 14 tasks**
+**Total: 15 tasks**
 
 Ready for `oat-project-implement`.
 

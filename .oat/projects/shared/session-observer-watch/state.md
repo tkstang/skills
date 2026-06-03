@@ -1,9 +1,9 @@
 ---
-oat_current_task: null
-oat_last_commit: 125a838
+oat_current_task: p07-t01
+oat_last_commit: f5c4c9a
 oat_blockers: []
 associated_issues: []
-oat_hill_checkpoints: ["p06"]
+oat_hill_checkpoints: ["p07"]
 oat_hill_completed: []
 oat_parallel_execution: false
 oat_dispatch_ceiling:
@@ -13,7 +13,7 @@ oat_dispatch_ceiling:
     claude: opus
   source: project-state
 oat_phase: implement
-oat_phase_status: complete
+oat_phase_status: in_progress
 oat_workflow_mode: quick
 oat_workflow_origin: native
 oat_docs_updated: true
@@ -21,19 +21,19 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: "2026-06-03T02:16:48.641Z"
 oat_project_completed: null
-oat_project_state_updated: "2026-06-03T15:55:40Z"
+oat_project_state_updated: "2026-06-03T16:26:04Z"
 oat_generated: false
 ---
 
 # Project State: session-observer-watch
 
-**Status:** Implementation complete
+**Status:** Implementation in progress
 **Started:** 2026-06-03
 **Last Updated:** 2026-06-03
 
 ## Current Phase
 
-Final review v3 fixes are implemented. The project is ready for p06 checkpoint/final code review.
+Final review v4 found one remaining event-log safety issue. Continue implementation with review-fix task `p07-t01` under the explicit review-cycle override.
 
 ## Artifacts
 
@@ -41,7 +41,7 @@ Final review v3 fixes are implemented. The project is ready for p06 checkpoint/f
 - **Spec:** N/A (quick mode)
 - **Design:** N/A (quick mode; existing reference design is `skills/session-observer/references/watch-design.md`)
 - **Plan:** `plan.md` (complete)
-- **Implementation:** `implementation.md` (complete; 14/14 tasks)
+- **Implementation:** `implementation.md` (in progress; next task `p07-t01`)
 
 ## Progress
 
@@ -55,6 +55,7 @@ Final review v3 fixes are implemented. The project is ready for p06 checkpoint/f
 - [x] Phase 4 implemented: Final Review Fixes
 - [x] Phase 5 implemented: Final Review Fixes v2
 - [x] Phase 6 implemented: Final Review Fixes v3
+- [ ] Phase 7 review fix not started: Final Review Fixes v4
 
 ## Verification
 
@@ -106,4 +107,4 @@ None
 
 ## Next Milestone
 
-Run p06 checkpoint/final code review.
+Run `oat-project-implement` to execute review-fix task `p07-t01`.

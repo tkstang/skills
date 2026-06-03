@@ -1,9 +1,9 @@
 ---
-oat_status: complete
-oat_ready_for: oat-project-review-provide
+oat_status: in_progress
+oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-03
-oat_current_task_id: null
+oat_current_task_id: p07-t01
 oat_generated: false
 ---
 
@@ -26,8 +26,9 @@ oat_generated: false
 | Phase 4: Final Review Fixes | complete | 3 | 3/3 |
 | Phase 5: Final Review Fixes v2 | complete | 1 | 1/1 |
 | Phase 6: Final Review Fixes v3 | complete | 3 | 3/3 |
+| Phase 7: Final Review Fixes v4 | in_progress | 1 | 0/1 |
 
-**Total:** 14/14 tasks completed
+**Total:** 14/15 tasks completed
 
 ---
 
@@ -273,6 +274,23 @@ oat_generated: false
 
 ---
 
+## Phase 7: Final Review Fixes v4
+
+**Status:** in_progress
+**Started:** 2026-06-03
+
+### Task p07-t01: (review) Harden Event Log File Safety
+
+**Status:** pending
+**Commit:** -
+
+**Notes:**
+
+- Added from final code review v4 Important finding I1.
+- User explicitly overrode the final-review cycle cap on 2026-06-03 after v4 because the remaining finding is concrete and bounded.
+
+---
+
 ## Orchestration Runs
 
 _Each run from `oat-project-implement` appends an entry below with run metadata, phase outcomes, parallel groups, and outstanding items._
@@ -305,6 +323,7 @@ _No orchestration runs yet._
 - [x] p06-t01: Prevent stale inactive watch control directives - complete (`b46f127`)
 - [x] p06-t02: Stabilize debounce coalescing verification - complete (`54ac0a4`)
 - [x] p06-t03: Refresh OAT repo dashboard state - complete (`125a838`)
+- [ ] p07-t01: Harden event-log file safety - pending
 
 **What changed (high level):**
 
@@ -318,7 +337,7 @@ _No orchestration runs yet._
 
 **Follow-ups / TODO:**
 
-- Rerun checkpoint/final code review for p06.
+- Execute p07-t01, then rerun checkpoint/final code review under the explicit cycle-cap override.
 
 **Blockers:**
 
@@ -600,6 +619,31 @@ _No orchestration runs yet._
 **Notes:**
 
 - p06 scope is complete. The project is ready for checkpoint/final code review.
+
+---
+
+### Review Received: final v4
+
+**Date:** 2026-06-03
+**Review artifact:** reviews/archived/final-code-review-2026-06-03-v4.md
+**Review type:** code
+**Review invocation:** auto
+**Cycle cap:** explicit user override received after 4 final-review cycles
+
+**Findings:**
+
+- Critical: 0
+- Important: 1
+- Medium: 0
+- Minor: 0
+
+**New tasks added:** p07-t01
+
+**Finding disposition map:**
+
+- I1 -> converted to `p07-t01`: harden `--event-log` against symlink escape and reserved state/control-file corruption.
+
+**Next:** Execute final review fix task via `oat-project-implement` starting from `p07-t01`.
 
 ---
 
