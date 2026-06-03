@@ -20,7 +20,7 @@ oat_generated_at: 2026-06-03
 | Status | complete |
 | HiLL Gate | n/a |
 | Current Task | - |
-| Docs Updated | yes |
+| Docs Updated | ⚠ not yet run |
 
 Details: `.oat/projects/shared/session-observer-watch/state.md`
 
@@ -35,7 +35,7 @@ Details: `.oat/projects/shared/session-observer-watch/state.md`
 
 ## Recommended Next Step
 
-**oat-project-review-provide** - Run p06 checkpoint/final code review
+**oat-project-pr-final** - Generate final PR description (final review passed)
 
 ## Quick Commands
 

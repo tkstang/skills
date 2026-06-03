@@ -724,7 +724,7 @@ git commit -m "fix(p07-t01): harden session observer event logs"
 | p05 | code | pending | - | - |
 | p06 | code | pending | - | - |
 | p07 | code | pending | - | - |
-| final | code | fixes_added | 2026-06-03 | reviews/archived/final-code-review-2026-06-03-v4.md |
+| final | code | passed | 2026-06-03 | reviews/archived/final-code-review-2026-06-03-v5.md |
 | spec | artifact | n/a | - | quick mode has no spec.md |
 | design | artifact | n/a | - | quick mode has no design.md |
 | plan | artifact | passed | 2026-06-03 | reviews/archived/artifact-plan-review-2026-06-02.md |
