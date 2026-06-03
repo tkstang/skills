@@ -1,6 +1,6 @@
 ---
 name: oat-project-implement
-version: 2.0.10
+version: 2.0.20
 description: Use when plan.md is ready for execution. Dispatches phase-level subagents with bounded fix loops; supports plan-declared parallel phase groups with worktree-isolated execution and ordered fan-in.
 argument-hint: '[--retry-limit <N>] [--dry-run]'
 disable-model-invocation: true
@@ -23,10 +23,13 @@ Execute the implementation plan task-by-task with full state tracking.
 **Purpose:** Execute plan tasks with TDD discipline, track progress, handle blockers.
 
 **CRITICAL — Bookkeeping commits are mandatory, not optional.**
-After every code commit and after every phase/review-fix completion, you MUST commit the OAT tracking files (project: `implementation.md`, `state.md`, `plan.md`; repo dashboard: `.oat/state.md`) as a separate bookkeeping commit. Refresh the repo dashboard with `oat state refresh` immediately before staging so `.oat/state.md` reflects the just-completed phase/task. Do not defer, batch, or skip these commits under the reasoning that they "aren't related to the implementation." Skipping a bookkeeping commit (or skipping the dashboard refresh) is the primary cause of cross-session state drift and will cause the next implementation run to fail bookkeeping cross-checks. If bookkeeping commits feel frequent, that is the intended design — they are cheap and they prevent drift.
+After every code commit and after every phase/review-fix completion, you MUST commit the OAT tracking files (project: `implementation.md`, `state.md`, `plan.md`) as a separate bookkeeping commit. Refresh the repo dashboard with `oat state refresh` before staging when available, but do not stage `.oat/state.md`; it is generated dashboard state and is normally gitignored. Do not defer, batch, or skip these commits under the reasoning that they "aren't related to the implementation." Skipping a bookkeeping commit is the primary cause of cross-session state drift and will cause the next implementation run to fail bookkeeping cross-checks. If bookkeeping commits feel frequent, that is the intended design — they are cheap and they prevent drift.
 
 **CRITICAL — Review boundaries require a committed artifact baseline.**
-Do not enter checkpoint review, final review, revise, or PR-final handoff with dirty core project artifacts (`discovery.md`, `spec.md`, `design.md`, `plan.md`, `implementation.md`, `state.md`, plus `.oat/state.md` when refreshed). If one of those boundaries is next and artifact bookkeeping is still uncommitted, stop and create the bookkeeping commit first.
+Do not enter checkpoint review, final review, revise, or PR-final handoff with dirty core project artifacts (`discovery.md`, `spec.md`, `design.md`, `plan.md`, `implementation.md`, `state.md`). If one of those boundaries is next and artifact bookkeeping is still uncommitted, stop and create the bookkeeping commit first.
+
+**CRITICAL — Intentional artifact divergence must be recorded.**
+If implementation intentionally diverges from `spec.md`, `design.md`, or `plan.md`, record the delta in `implementation.md` before the next phase/review boundary. Include what diverged, why it diverged, whether the implementation or original artifact is now source of truth, and any follow-up artifact updates or explicit deferral. Do not leave accepted design drift only in chat, a review artifact, or code comments; final summary generation depends on `implementation.md` preserving the delta.
 
 ## Progress Indicators (User-Facing)
 
@@ -159,64 +162,297 @@ Forbidden: Selected: Tier 2 — Inline because the user did not separately menti
 
 **Legacy state migration:** If `state.md` contains `oat_execution_mode: subagent-driven`, silently ignore it. On the next bookkeeping write, remove that key. Do not redirect to `oat-project-subagent-implement` — that skill is deprecated.
 
+### Dispatch Ceiling Preflight
+
+Before any phase work, resolve and print the OAT dispatch ceiling. This is a
+preflight gate, not a mid-run question.
+
+Use the CLI resolver as the source of truth:
+
+```bash
+oat project dispatch-ceiling resolve --provider <active-provider> --preflight --json
+```
+
+If `oat` is not in PATH, use:
+
+```bash
+pnpm run cli -- project dispatch-ceiling resolve --provider <active-provider> --preflight --json
+```
+
+Resolution order:
+
+1. Config keys `workflow.dispatchCeiling.providers.<provider>` (local > shared > user)
+2. Project `state.md` frontmatter key `oat_dispatch_ceiling`
+3. Interactive implementation preflight prompt (below)
+4. Non-interactive unresolved: block before work starts
+
+**JSON response shape** (from `--json`):
+
+```json
+{
+  "status": "resolved",
+  "provider": "codex",
+  "value": "high",
+  "source": "project-state",
+  "preset": "balanced",
+  "unresolved": false,
+  "providerDefaultEffort": "medium",
+  "providers": {
+    "codex": {
+      "value": "high",
+      "mode": "enforced",
+      "mechanism": "pinned-variant",
+      "dispatchArgs": { "variant": "oat-phase-implementer-high" },
+      "verifyOnDispatch": false
+    }
+  }
+}
+```
+
+Read `providers.<active-provider>` for the concrete dispatch controls. The
+`dispatchArgs` field carries the provider-specific argument to pass through
+(Codex: `variant` name; Claude: `model` string). Never re-derive these from the
+preset label — the resolver is the single compilation/join point.
+
+Print before phase work:
+
+```text
+Dispatch ceiling: high (codex, enforced — pinned-variant)
+Source: project state  |  Preset: balanced
+Provider default effort: medium
+Note: OAT will use pinned subagent variants up to high. Base/unpinned roles resolve through the provider default.
+```
+
+If no ceiling resolves and the session is interactive, present the preset
+prompt once before starting work:
+
+```text
+No dispatch ceiling is configured for this project.
+
+Set the dispatch ceiling — the maximum subagent tier OAT may use.
+
+  1. Balanced (recommended) — Codex: high · Claude: sonnet
+  2. Maximum                — Codex: xhigh · Claude: opus  (reviews always run at this tier)
+  3. Cost-conscious         — Codex: medium · Claude: sonnet
+  4. Advanced — set per provider
+  5. No ceiling
+
+OAT applies this where the provider exposes a reliable mechanism (Codex: pinned
+variants; Claude: Task model parameter). Other providers may treat it as advisory.
+```
+
+**Preset selection** persists `preset` + compiled per-provider values. On
+selection, print the exact compiled result (e.g., "Ceiling set: balanced →
+Codex: high · Claude: sonnet") before proceeding.
+
+**Advanced (option 4)** prompts for each provider's value individually, then
+persists `providers` + `source` only — no `preset` key.
+
+**No ceiling (option 5)** leaves `oat_dispatch_ceiling` unset; implementer
+subagents run at provider defaults.
+
+Persist in project `state.md` frontmatter using the normalized shape:
+
+```yaml
+oat_dispatch_ceiling:
+  preset: balanced # omit when Advanced was chosen
+  providers:
+    codex: high
+    claude: sonnet
+  source: project-state
+```
+
+If no ceiling resolves and `OAT_NON_INTERACTIVE=1` or no user-response channel
+exists, rerun the resolver with non-interactive behavior and stop before work
+starts if it blocks:
+
+```bash
+oat project dispatch-ceiling resolve --provider <active-provider> --preflight --non-interactive
+```
+
+```text
+BLOCKED: Codex dispatch ceiling is unresolved in non-interactive mode.
+Set workflow.dispatchCeiling.providers.codex in .oat/config.json or oat_dispatch_ceiling in project state.
+```
+
+Dry-run mode must report the unresolved ceiling and planned behavior without
+modifying project state.
+
 ### Runtime dispatch selection
 
-Before each phase implementation dispatch, choose and log the phase's runtime dispatch controls. This is separate from the Tier 1/Tier 2 execution mode above: Tier 1/Tier 2 decides whether OAT uses subagents or inline fallback; runtime dispatch selection decides the model and effort controls to use for the specific phase when the host exposes them.
+Before each phase implementation, fix, or review dispatch, choose and log the
+runtime dispatch controls. This is separate from Tier 1/Tier 2 execution mode:
+Tier 1/Tier 2 decides whether OAT uses subagents or inline fallback; runtime
+dispatch selection decides model/effort controls for the specific work.
 
 Use these inputs:
 
-- phase ID
-- phase scope, including task count, file boundaries, verification commands, and integration risk
+- resolved dispatch ceiling and source
+- phase ID and phase scope
 - optional `## Dispatch Profile` row in `plan.md`
 - host-exposed provider controls, by axis
 - prior outcomes for the phase, including review results and failed retries
 
-Selection rule:
+Axis states:
 
-1. If a valid Dispatch Profile override row applies and the host can honor it, use the requested provider control and log that the choice came from the override.
-2. If no override applies, choose the lowest available model and/or effort that can confidently complete the phase.
-3. Treat model and effort as separate axes. Each axis logs exactly one state:
-   - `selected:<value>` — host exposes the axis and the orchestrator chose a value.
-   - `inherited` — host exposes the axis and the orchestrator deliberately defers to the parent session.
-   - `not-applicable` — this host/API has no meaningful per-dispatch concept for that axis.
-   - `host-auto` — exceptional; the host uses that axis internally but the orchestrator cannot read or pin it.
-4. In Codex, the model axis normally logs `inherited`; choose and pass `reasoning_effort=low|medium|high|xhigh` on the effort axis from phase complexity.
-5. In Claude Code, when subagent model selection is available, choose the lowest sufficient model on the model axis; the effort axis is `not-applicable` because Claude Code does not expose a separate `reasoning_effort` control for subagent dispatch.
-6. If a host uses model/effort internally but exposes neither axis to the orchestrator, log `model_axis=host-auto, effort_axis=host-auto` and include the rationale that would have informed selection.
-7. If confidence is low, choose a stronger available control before dispatch rather than knowingly underpowering the phase.
+- `selected:<value>` - host exposes the axis and the orchestrator chose a value.
+- `provider-default` - Codex base/unpinned role follows configured/provider default effort.
+- `inherited` - host/API explicitly inherits the parent setting and OAT can trust that behavior.
+- `not-applicable` - this host/API has no meaningful per-dispatch concept for that axis.
+- `host-auto` - exceptional; the host uses that axis internally but OAT cannot read or pin it.
 
-**Passing axis values to the host dispatch API.** The log shape and the actual dispatch call must agree: never log a `selected:<value>` axis without passing the corresponding parameter on the dispatch invocation, and never pass an explicit parameter that the log does not reflect.
+Codex rules:
 
-- **Claude Code implementer/fix dispatch:** when `model_axis=selected:<value>`, pass `model: "<value>"` on the Task tool call. When `model_axis=inherited`, omit the `model` parameter so Claude Code uses its own default. `effort_axis=not-applicable` for both cases because the Task tool exposes no per-dispatch `reasoning_effort` control.
-- **Codex implementer/fix dispatch:** when `effort_axis=selected:<value>`, pass `reasoning_effort: "<value>"` as a top-level `spawn_agent` argument. `model_axis=inherited` is the normal case; omit the `model` override unless the user explicitly requested one. Do not rely on the Phase Scope packet alone to apply selected effort.
-- **Reviewer dispatch on either host:** use `model_axis=inherited, effort_axis=inherited`. Omit `model` and, on Codex, `reasoning_effort` overrides entirely.
+1. Codex effort order is `low < medium < high < xhigh`.
+2. Classify preferred effort from scope:
+   - `low`: trivial docs-only, narrow single-file, or mechanical changes
+   - `medium`: normal multi-file implementation and moderate integration risk
+   - `high`: broad architecture, security/auth/redaction boundaries, subtle state behavior, or repeated substantive review failures
+   - `xhigh`: highest-risk work that requires the configured ceiling to allow xhigh
+3. Selected effort is `min(preferred, resolved_ceiling)` for implementer/fix work.
+4. For implementer/fix dispatch: call `oat project dispatch-ceiling resolve --provider codex --role implementer`; read `providers.codex.dispatchArgs.variant` for the role name (e.g., `oat-phase-implementer-high`). Pass that variant name directly — do not re-derive it from the ceiling value.
+5. For review dispatch: call `oat project dispatch-ceiling resolve --provider codex --role reviewer`; read `providers.codex.dispatchArgs.variant` for the reviewer role name (e.g., `oat-reviewer-high`). Reviewer always targets the ceiling for deterministic quality gate behavior.
+6. Use base/unpinned Codex roles only as a fallback or explicit provider-default choice. Log `Selected effort: provider-default`, display provider default effort when known, and do not describe this as parent-ceiling inheritance.
+7. Do not use top-level per-call `reasoning_effort` as the standard OAT selected-effort path; dogfooding showed that path can be inconsistent.
 
-Log the choice before dispatch in this shape:
+Claude rules:
+
+- Claude ceiling is model-based: `haiku < sonnet < opus`.
+- Implementer dispatch: select the lowest sufficient model capped by the resolved Claude ceiling (`min(preferred, ceiling)`).
+- Review dispatch: target the resolved Claude ceiling directly.
+- Call `oat project dispatch-ceiling resolve --provider claude --role implementer --orchestrator-tier <current-orchestrator-tier>` (or `--role reviewer`); read `providers.claude.dispatchArgs.model` for the model string to pass. Pass `--orchestrator-tier` so the resolver can flag above-orchestrator upgrade requests and set `verifyOnDispatch` correctly.
+- Pass `model: "<value>"` when `model_axis=selected:<value>` on the Task tool call.
+- Keep `effort_axis=not-applicable`; Claude Code has no separate per-dispatch effort axis.
+
+Payload-first invariant:
+
+- Build the actual host dispatch argument map before logging.
+- Do not emit `selected:<value>` unless the host invocation contains the corresponding role/model selection.
+- Derive `Dispatch target` and `Effort axis` / `Model axis` from the payload.
+
+Structured dispatch log:
 
 ```text
-Dispatching {phase_id} with model_axis={state}, effort_axis={state}: {short rationale grounded in phase scope}.
+OAT Dispatch: Phase {phase_id} {implementation | fix | review}
+Host: {Claude Code | Codex | Cursor | other host}
+Preferred effort: {low | medium | high | xhigh | not-applicable}
+Dispatch ceiling: {resolved ceiling value}
+Selected effort: {low | medium | high | xhigh | provider-default | not-applicable}
+Ceiling source: {repo config | project state | preflight prompt}
+Provider default effort: {value | unknown | not-applicable}
+Model axis: { selected:<value> | inherited | not-applicable | host-auto }
+Effort axis: { selected:<value> | provider-default | inherited | not-applicable | host-auto }
+Dispatch target: {host-specific subagent/role/tool target}
+Rationale: {short rationale grounded in phase scope and any ceiling cap}
 ```
 
-Examples:
+Codex capped example:
 
 ```text
-Dispatching p01 with model_axis=selected:haiku, effort_axis=not-applicable: Claude Code implementation dispatch for mechanical template edits.
-Dispatching p02 with model_axis=selected:sonnet, effort_axis=not-applicable: Claude Code implementation dispatch for multi-file integration with mock wiring.
-Dispatching p03 with model_axis=inherited, effort_axis=selected:medium: Codex implementation dispatch for shared TypeScript/config substrate with cross-file contracts.
-Dispatching p04 with model_axis=host-auto, effort_axis=host-auto: host does not expose readable or pinnable dispatch controls; rationale maps to standard effort.
+OAT Dispatch: Phase p02 implementation
+Host: Codex
+Preferred effort: high
+Dispatch ceiling: medium
+Selected effort: medium
+Ceiling source: repo config
+Provider default effort: high
+Model axis: inherited
+Effort axis: selected:medium
+Dispatch target: oat-phase-implementer-medium
+Rationale: normal multi-file implementation; high preferred due to integration risk, capped by configured ceiling.
 ```
 
-Use `low` for trivial docs-only, narrow single-file, or mechanical changes; `medium` for normal multi-file implementation and moderate integration risk; `high` or `xhigh` for broad architecture, security/auth/redaction boundaries, subtle state behavior, or repeated substantive review failures.
+Codex reviewer example:
 
-Include the resolved implementation dispatch axes and rationale in the Phase Scope packet when known. Reserve `host-auto` for an axis the host uses internally but the orchestrator cannot read or pin; use `inherited` for deliberate inheritance and `not-applicable` when an axis is not meaningful for that host/API.
+```text
+OAT Dispatch: Phase p02 review
+Host: Codex
+Preferred effort: high
+Dispatch ceiling: high
+Selected effort: high
+Ceiling source: project state
+Provider default effort: medium
+Model axis: inherited
+Effort axis: selected:high
+Dispatch target: oat-reviewer-high
+Rationale: reviewer runs at the configured ceiling for deterministic quality gate behavior.
+```
+
+Codex base/unpinned fallback example:
+
+```text
+OAT Dispatch: Phase p02 review
+Host: Codex
+Preferred effort: provider-default
+Dispatch ceiling: high
+Selected effort: provider-default
+Ceiling source: project state
+Provider default effort: medium
+Model axis: inherited
+Effort axis: provider-default
+Dispatch target: oat-reviewer
+Rationale: base unpinned role fallback; effective effort follows Codex provider default.
+```
+
+Include resolved dispatch context in scope packets when known:
 
 ```yaml
 model_axis: { selected:<value> | inherited | not-applicable | host-auto }
-effort_axis: { selected:<value> | inherited | not-applicable | host-auto }
+effort_axis:
+  {
+    selected:<value> | provider-default | inherited | not-applicable | host-auto,
+  }
+dispatch_ceiling: { resolved ceiling value }
+ceiling_source: { repo config | project state | preflight prompt }
+provider_default_effort: { value | unknown | not-applicable }
 dispatch_rationale: { short rationale }
 ```
 
-Review dispatch is intentionally different. A reviewer should inherit the parent session's model and effort axes unless the user explicitly requests a review override. In Codex, omit `model` and `reasoning_effort` overrides when spawning `oat-reviewer`; in Claude Code, do not pass a per-review model override. Log review scope as `model_axis=inherited, effort_axis=inherited`.
+### Dispatch Ceiling Enforcement Log
+
+After each phase dispatch (implementation, fix, or review), append one enforcement
+log line. The log reflects the `mode` and `mechanism` returned by
+`oat project dispatch-ceiling resolve` — do not compute these yourself.
+
+**Three-state log format:**
+
+```text
+Dispatch ceiling: {value} ({provider}, {mode} — {mechanism detail})
+```
+
+**Log examples (matching resolver output):**
+
+```text
+Dispatch ceiling: high (codex, enforced — variant oat-phase-implementer-high)
+Dispatch ceiling: high (codex, enforced — variant oat-reviewer-high)
+Dispatch ceiling: sonnet (claude, enforced — Task model arg)
+Dispatch ceiling: opus (claude, enforced — Task model arg)
+Dispatch ceiling: high (cursor, unsupported — no adapter; informational)
+Dispatch ceiling: unresolved (codex, advisory — ceiling set but no value resolved)
+```
+
+**Verify-on-upgrade (`verifyOnDispatch: true`):**
+
+When the resolver returns `providers.<provider>.verifyOnDispatch: true`, the
+requested tier is above the orchestrator tier (an upgrade request). Before
+logging `enforced`, confirm the actual model/tier used by the dispatched agent.
+If the provider honored the request, log `enforced`. If it did not:
+
+```text
+Dispatch ceiling: opus (claude, advisory — provider did not honor upgrade; ran sonnet)
+```
+
+**`enforced`** — the adapter compiled concrete dispatch args and the provider
+accepted them. Log value + provider + mechanism detail (variant name or "Task
+model arg").
+
+**`advisory`** — the adapter supports the ceiling but no concrete value resolved,
+or the provider is known but could not be verified. Log with note "ceiling set
+but no value resolved" or "provider did not honor upgrade; ran \<tier\>".
+
+**`unsupported`** — the provider has no registered adapter. Log with note "no
+adapter; informational". Never block on unsupported — dispatch follows provider
+defaults.
 
 ### Dry-Run Mode
 
@@ -490,23 +726,29 @@ For each phase `pNN` in the plan (or each phase in the current parallel group), 
      spec: {PROJECT_PATH}/spec.md
      implementation: {PROJECT_PATH}/implementation.md
      discovery: {PROJECT_PATH}/discovery.md
+   delta_recording: record any intentional divergence from spec/design/plan in implementation.md with rationale, source of truth, and follow-up artifact disposition
    commit_convention: {from plan.md header}
    workflow_mode: {from state.md or plan.md frontmatter}
    model_axis: {selected:<value> | inherited | not-applicable | host-auto; omit if unknown}
-   effort_axis: {selected:<value> | inherited | not-applicable | host-auto; omit if unknown}
+   effort_axis: {selected:<value> | provider-default | inherited | not-applicable | host-auto; omit if unknown}
+   dispatch_ceiling: {resolved ceiling value; omit if unknown}
+   ceiling_source: {repo config | project state | preflight prompt; omit if unknown}
+   provider_default_effort: {value | unknown | not-applicable; omit if unknown}
    dispatch_rationale: {short rationale; omit if unknown}
    ```
 
 2. Perform a pre-dispatch assertion against the host invocation parameters. The Phase Scope fields are audit/context fields; selected axes must also be represented in the actual host dispatch call.
    - Codex implementer/fix dispatch:
-     - If `effort_axis=selected:<value>`, the `spawn_agent` call MUST include top-level `reasoning_effort: "<value>"`.
-     - If the spawned Codex status reports a different effort than the selected value (for example, the log says `effort_axis=selected:medium` but the spawn result reports `gpt-5.5 high`), treat this as an orchestration deviation. Stop, record the deviation in `implementation.md`, and redispatch with corrected parameters before continuing. Do not use work from the mismatched dispatch.
-     - If `effort_axis=inherited`, omit `reasoning_effort`.
+     - Before building the `spawn_agent` argument map, classify the phase complexity and choose preferred effort (`low`, `medium`, `high`, or `xhigh`), then cap it to the resolved Codex dispatch ceiling.
+     - Build the `spawn_agent` argument map before logging the dispatch. If `effort_axis=selected:low|medium|high|xhigh`, the argument map MUST use the matching `agent_type`: `"oat-phase-implementer-low"`, `"oat-phase-implementer-medium"`, `"oat-phase-implementer-high"`, or `"oat-phase-implementer-xhigh"`. Then derive the `OAT Dispatch:` block `Effort axis:` field from that same argument map.
+     - Example selected low payload shape: `agent_type: "oat-phase-implementer-low"` and a Phase Scope message containing `effort_axis: selected:low`.
+     - Immediately after spawning, compare the returned Codex status line with the selected effort before waiting on the agent. If the spawned status reports a different effort than the selected value (for example, the log says `effort_axis=selected:medium` but the spawn result reports `gpt-5.5 high`), treat this as an orchestration deviation. Stop, record the deviation in `implementation.md`, and redispatch with corrected parameters before continuing. Do not use work from the mismatched dispatch.
+     - If `effort_axis=provider-default`, use base `agent_type: "oat-phase-implementer"` and omit `reasoning_effort`. The dispatch rationale MUST say this is a base/unpinned fallback and include provider default effort when known.
    - Claude Code implementer/fix dispatch:
      - If `model_axis=selected:<value>`, the Task tool call MUST include `model: "<value>"`.
      - If `model_axis=inherited`, omit `model`.
 
-3. Dispatch `oat-phase-implementer` (Tier 1 via provider-native subagent mechanism) with the Phase Scope block as input and with the asserted host invocation parameters.
+3. Dispatch the selected implementer role (Tier 1 via provider-native subagent mechanism) — the role asserted in the pre-dispatch step above (e.g., `oat-phase-implementer-low`, `oat-phase-implementer-medium`, `oat-phase-implementer-high`, `oat-phase-implementer-xhigh`, or base `oat-phase-implementer` only for provider-default fallback) — with the Phase Scope block as input and with the asserted host invocation parameters.
 
 4. Receive the structured summary (DONE | DONE_WITH_CONCERNS | NEEDS_CONTEXT | BLOCKED).
 
@@ -540,10 +782,13 @@ Escalate the runtime dispatch control when there is evidence that the current co
 
 When escalation is needed:
 
-1. If a stronger available control exists, re-dispatch at the next stronger control and include the reason in the scope packet.
+1. If a stronger available control exists, re-dispatch at the next stronger control and include the reason in the scope packet. The escalation ladder is provider-specific:
+   - **Codex:** `selected:low -> selected:medium -> selected:high -> selected:xhigh`, capped by the resolved Codex dispatch ceiling.
+   - **Claude Code:** `selected:haiku -> selected:sonnet -> selected:opus`, capped by the resolved Claude dispatch ceiling.
 2. Count the escalation redispatch against the existing bounded retry budget. Escalation changes the control; it does not create extra retry attempts.
 3. Record a compact note in `implementation.md` when practical:
-   - `Dispatch: p03 escalated to model_axis=selected:opus, effort_axis=selected:xhigh after repeated review failures.`
+   - `Dispatch: p03 escalated to model_axis=selected:opus, effort_axis=not-applicable after repeated review failures.` (Claude Code)
+   - `Dispatch: p03 escalated to effort_axis=selected:high, model_axis=inherited after repeated review failures.` (Codex)
    - `Dispatch: p02 remained model_axis=host-auto, effort_axis=host-auto; no explicit stronger control is exposed by this host.`
 4. If the phase is already at the strongest available control, do not invent a stronger tier. Provide more context, split the phase, revise the plan, or stop for user direction.
 
@@ -558,8 +803,9 @@ After the implementer returns DONE (or DONE_WITH_CONCERNS without correctness co
 **Dispatch:**
 
 - Use the same tier that was selected at start.
-- Inherit the parent session's model/effort/control for review. Do not choose a separate reviewer model or reasoning effort unless the user explicitly requests an override.
-- Tier 1: dispatch `oat-reviewer` via provider-native subagent mechanism with Review Scope:
+- For Codex, dispatch the reviewer variant matching the resolved ceiling (`oat-reviewer-low|medium|high|xhigh`) for deterministic quality gates.
+- For Claude Code, cap any selected review model by the resolved Claude ceiling and keep `effort_axis=not-applicable`.
+- Tier 1: dispatch the selected reviewer target via provider-native subagent mechanism with Review Scope:
 
   ```
   project: {PROJECT_PATH}
@@ -570,13 +816,16 @@ After the implementer returns DONE (or DONE_WITH_CONCERNS without correctness co
   workflow_mode: {from state.md}
   artifact_paths: {same as Phase Scope}
   tasks_in_scope: {list of pNN-tNN IDs in the phase}
+  dispatch_ceiling: {resolved ceiling value}
+  ceiling_source: {repo config | project state | preflight prompt}
+  provider_default_effort: {value | unknown | not-applicable}
   model_axis: inherited
-  effort_axis: inherited
-  dispatch_rationale: review dispatch inherits parent session controls
+  effort_axis: selected:{resolved Codex ceiling}   # on Codex; use not-applicable on Claude Code
+  dispatch_rationale: reviewer runs at the configured ceiling for deterministic quality gate behavior
   ```
 
   - For Codex Tier 1 dispatches, send the Review Scope block as a self-contained packet and keep fresh context (`fork_context: false`). The reviewer is expected to reconstruct context from git state and the OAT artifacts listed above.
-  - For Codex Tier 1 review dispatches, omit `model` and `reasoning_effort` overrides in the `spawn_agent` call. For Claude Code review dispatches, do not pass a per-review model override. `host-auto` is not the right label when the review is intentionally inheriting parent controls.
+  - For Codex Tier 1 review dispatches, use `agent_type: "oat-reviewer-low|medium|high|xhigh"` matching the resolved ceiling. Use base `oat-reviewer` only as a provider-default fallback and log `effort_axis=provider-default`. For Claude Code review dispatches, do not pass a per-review effort override because the effort axis is not applicable; if selecting a model, cap it by the resolved Claude ceiling.
   - Treat the commit range as authoritative for review scope. `files_changed` is optional orientation metadata only.
   - If a Codex reviewer does not return a terminal result on the first wait, poll once more. If it still has not concluded, send one concise nudge to return immediately with current findings. If the reviewer still does not conclude, treat the Tier 1 review dispatch as failed for this phase and perform the review inline instead of waiting indefinitely.
 
@@ -597,8 +846,8 @@ On reviewer verdict `fail`, run a bounded fix loop.
 
 1. Read `oat_orchestration_retry_limit` from `state.md` frontmatter (default: `2`, range 0–5).
 2. For each retry (up to the limit):
-   a. Select/log fix dispatch axes from the fix scope, then perform the same pre-dispatch assertion used for implementation dispatch. A Codex fix dispatch with `effort_axis=selected:<value>` MUST pass top-level `reasoning_effort: "<value>"` on `spawn_agent`; a Claude Code fix dispatch with `model_axis=selected:<value>` MUST pass `model: "<value>"` on the Task call.
-   b. Dispatch `oat-phase-implementer` in `fix` mode (Tier 1) OR read the agent and apply fixes inline (Tier 2), with: - `review_artifact`: the path written by the reviewer - `findings`: the Critical + Important findings list - `prior_summary`: the last implementer summary
+   a. Select/log fix dispatch axes from the fix scope, then perform the same pre-dispatch assertion used for implementation dispatch. A Codex fix dispatch with `effort_axis=selected:low|medium|high|xhigh` MUST use matching `agent_type: "oat-phase-implementer-low|medium|high|xhigh"`; a Claude Code fix dispatch with `model_axis=selected:<value>` MUST pass `model: "<value>"` on the Task call.
+   b. Dispatch the selected phase implementer role in `fix` mode (Tier 1) OR read the agent and apply fixes inline (Tier 2), with: - `review_artifact`: the path written by the reviewer - `findings`: the Critical + Important findings list - `prior_summary`: the last implementer summary
    c. Receive the fix summary.
    d. Re-dispatch the reviewer with the updated commit range.
    e. Parse the new verdict.
@@ -721,6 +970,14 @@ Append a new entry to the `## Orchestration Runs` section between the `<!-- orch
 #### Outstanding Items
 
 - {None | list of excluded phases with review paths and worktree paths}
+
+#### Artifact / Design Deltas
+
+Run-scoped snapshot only. The durable record is `## Deviations from Plan / Design`; consolidate any non-`None` entries there at the next phase boundary.
+
+| Task / Review                 | Source Artifact                     | Planned / Documented            | Actual / Accepted                      | Reason                       | Source of Truth           | Follow-up                                   |
+| ----------------------------- | ----------------------------------- | ------------------------------- | -------------------------------------- | ---------------------------- | ------------------------- | ------------------------------------------- |
+| {task_id/review_id or `None`} | {spec.md/design.md/plan.md section} | {planned behavior/taxonomy/API} | {actual shipped behavior/taxonomy/API} | {why divergence is accepted} | {implementation/artifact} | {artifact update task or explicit deferral} |
 ```
 
 Append only — never overwrite prior run entries.
@@ -746,7 +1003,7 @@ For each phase that completed:
 
 ```bash
 oat state refresh
-git add {PROJECT_PATH}/implementation.md {PROJECT_PATH}/state.md {PROJECT_PATH}/plan.md .oat/state.md
+git add {PROJECT_PATH}/implementation.md {PROJECT_PATH}/state.md {PROJECT_PATH}/plan.md
 git commit -m "chore(oat): bookkeeping after {pNN} {pass|fail}"
 ```
 
@@ -815,19 +1072,27 @@ When pausing:
   - Verification run
   - Notable decisions/deviations
 
+**Design/artifact deltas (required when present):**
+
+- If a completed task intentionally diverged from `spec.md`, `design.md`, or `plan.md`, update the `## Deviations from Plan / Design` table in `implementation.md`.
+- For existing project artifacts, treat any `## Deviations...` heading as the deviations section; migrate to the preferred `## Deviations from Plan / Design` heading and table shape when already touching the section.
+- Each delta must include: the affected source artifact/section, the planned/documented expectation, the actual shipped implementation, the reason the divergence is accepted, the current source of truth, and any follow-up artifact update task or explicit deferral.
+- If the implementation is now source of truth and the design/spec/plan is stale, write that directly. Do not treat the stale artifact as a no-op just because code is correct.
+- If no deltas exist for the phase, do not invent one; leave the table unchanged.
+
 **Bookkeeping commit (required):**
 
 **DO NOT SKIP.** This commit prevents state drift across sessions.
 
-After phase summary and task pointer advancement, refresh the repo dashboard and commit all modified OAT tracking files:
+After phase summary and task pointer advancement, refresh the repo dashboard when available and commit all modified project tracking files:
 
 ```bash
 oat state refresh
-git add "$PROJECT_PATH/implementation.md" "$PROJECT_PATH/state.md" "$PROJECT_PATH/plan.md" .oat/state.md
+git add "$PROJECT_PATH/implementation.md" "$PROJECT_PATH/state.md" "$PROJECT_PATH/plan.md"
 git diff --cached --quiet || git commit -m "chore(oat): update tracking artifacts for {phase} completion"
 ```
 
-Do not use `git add -A` or glob patterns. Only commit the four files listed above (three project artifacts plus the regenerated repo dashboard).
+Do not use `git add -A` or glob patterns. Only commit the three project artifacts listed above; `.oat/state.md` is a generated, gitignored dashboard.
 
 **Note on HiLL types:**
 
@@ -953,15 +1218,15 @@ Implementation - Tasks complete; awaiting final review.
 
 **DO NOT SKIP.** This commit prevents state drift across sessions.
 
-After updating state.md to reflect implementation completion, refresh the repo dashboard and commit all modified OAT tracking files:
+After updating state.md to reflect implementation completion, refresh the repo dashboard when available and commit all modified project tracking files:
 
 ```bash
 oat state refresh
-git add "$PROJECT_PATH/implementation.md" "$PROJECT_PATH/state.md" "$PROJECT_PATH/plan.md" .oat/state.md
+git add "$PROJECT_PATH/implementation.md" "$PROJECT_PATH/state.md" "$PROJECT_PATH/plan.md"
 git diff --cached --quiet || git commit -m "chore(oat): update tracking artifacts for implementation complete"
 ```
 
-Do not use `git add -A` or glob patterns. Only commit the four files listed above (three project artifacts plus the regenerated repo dashboard).
+Do not use `git add -A` or glob patterns. Only commit the three project artifacts listed above; `.oat/state.md` is a generated, gitignored dashboard.
 
 ### Step 13: Final Verification
 

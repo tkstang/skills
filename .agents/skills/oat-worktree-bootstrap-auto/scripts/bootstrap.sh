@@ -152,11 +152,12 @@ fi
 
 run_check "project_status" oat status --scope project
 run_check "tests" pnpm test
-run_check "git_clean" test -z "$(git status --porcelain)"
 
 # ─── Step 4: Create Provider Directories ────────────────────────────────────
 mkdir -p "$TARGET_PATH/.claude/skills"
 mkdir -p "$TARGET_PATH/.cursor/rules"
+run_check "git_clean" test -z "$(git status --porcelain)"
+
 if oat sync --scope all >/dev/null 2>&1; then
   CHECK_RESULTS["provider_sync"]="pass"
 else
@@ -166,6 +167,46 @@ else
   else
     WARNINGS+=("provider_sync: sync failed")
   fi
+fi
+
+# ─── Step 4.5: Commit Sync Output ───────────────────────────────────────────
+SYNC_PATHS=(.oat/sync/manifest.json .claude .cursor .codex)
+SYNC_STAGE_PATHS=()
+for sync_path in "${SYNC_PATHS[@]}"; do
+  if [[ -e "$sync_path" ]] || [[ -n "$(git ls-files -- "$sync_path")" ]]; then
+    SYNC_STAGE_PATHS+=("$sync_path")
+  fi
+done
+
+SYNC_DIRTY=""
+if [[ ${#SYNC_STAGE_PATHS[@]} -gt 0 ]]; then
+  SYNC_DIRTY=$(git status --porcelain -- "${SYNC_STAGE_PATHS[@]}" 2>/dev/null || true)
+fi
+if [[ -n "$SYNC_DIRTY" ]]; then
+  git add -A -- "${SYNC_STAGE_PATHS[@]}" 2>/dev/null || true
+  if ! git diff --cached --quiet -- "${SYNC_STAGE_PATHS[@]}"; then
+    STAGED_SYNC_FILES=()
+    while IFS= read -r -d '' staged_sync_file; do
+      STAGED_SYNC_FILES+=("$staged_sync_file")
+    done < <(git diff --cached --name-only -z --no-renames -- "${SYNC_STAGE_PATHS[@]}")
+
+    if [[ ${#STAGED_SYNC_FILES[@]} -eq 0 ]]; then
+      CHECK_RESULTS["sync_commit"]="skip"
+    elif git commit -m "chore: run sync" -- "${STAGED_SYNC_FILES[@]}" >/dev/null 2>&1; then
+      CHECK_RESULTS["sync_commit"]="pass"
+    else
+      CHECK_RESULTS["sync_commit"]="fail"
+      if [[ "$BASELINE_POLICY" == "strict" ]]; then
+        HAS_ERROR=true
+      else
+        WARNINGS+=("sync_commit: commit failed")
+      fi
+    fi
+  else
+    CHECK_RESULTS["sync_commit"]="skip"
+  fi
+else
+  CHECK_RESULTS["sync_commit"]="skip"
 fi
 
 # ─── Step 5: Return Structured Status ───────────────────────────────────────
@@ -188,6 +229,7 @@ checks:
   tests: ${CHECK_RESULTS[tests]:-skip}
   git_clean: ${CHECK_RESULTS[git_clean]:-skip}
   provider_sync: ${CHECK_RESULTS[provider_sync]:-skip}
+  sync_commit: ${CHECK_RESULTS[sync_commit]:-skip}
 warnings: [$(IFS=','; echo "${WARNINGS[*]:-}")]
 error: ${HAS_ERROR:+baseline check failed under strict policy}
 baseline_policy: $BASELINE_POLICY

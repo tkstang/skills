@@ -1,10 +1,10 @@
 ---
 name: oat-project-discover
-version: 2.0.0
+version: 2.0.2
 description: Use when starting a project or when requirements are still unclear. Runs structured discovery to gather requirements, constraints, and context.
 disable-model-invocation: true
 user-invocable: true
-allowed-tools: Read, Write, Bash(git:*), Glob, Grep, AskUserQuestion
+allowed-tools: Read, Write, Bash(git:*), Bash(oat:*), Bash(pnpm:*), Glob, Grep, AskUserQuestion
 ---
 
 # Discovery Phase
@@ -262,6 +262,59 @@ This focuses the conversation on what matters most to the user.
 
 Before converging on an approach, invest in genuine divergent exploration. Simple projects are where unexamined assumptions cause the most wasted work.
 
+**Step 9 Split Detection: Evaluate Multi-Project Signals**
+
+During solution-space exploration, silently evaluate whether the current thread is really multiple loosely related projects. Re-evaluate after each user turn while approaches are being shaped; do not interrupt normal discovery unless the threshold is met.
+
+Track the four codified signals:
+
+1. `independently-shippable` — at least two deliverables can ship independently.
+2. `no-shared-design-surface` — the work lacks a single shared design surface.
+3. `expect-separate-prs` — a reviewer would reasonably expect separate PRs.
+4. `distinct-subsystems` — the work spans distinct subsystems, packages, layers, or ownership areas.
+
+Evaluate the current comma-separated signal list through the installed CLI:
+
+```bash
+oat project split evaluate-signals --fired "<comma-list>"
+```
+
+Use the local-development fallback only when the installed `oat` command is unavailable:
+
+```bash
+pnpm run cli -- project split evaluate-signals --fired "<comma-list>"
+```
+
+Parse the JSON output:
+
+```json
+{ "fired": [], "triggered": false, "confidence": "below" }
+```
+
+Branch on `confidence`:
+
+- `high` — both load-bearing signals 1 and 2 fired. Use high-confidence wording and ask directly: "This looks like multiple independent projects. Split now, do one round of broad cross-cutting discovery first, or keep this as one project?"
+- `soft` — at least two signals fired, but not both load-bearing signals. Use soft wording: "This may be multiple projects. Split, do one round of broad cross-cutting discovery first, or keep it as one project?"
+- `below` — Below 2 signals, do not surface a split offer.
+
+If the user confirms split, invoke the `oat-project-split` skill with a `SplitPayload` using `origin: "detected-mid-stream"`, `interactive: true`, the active discovery path as `priorDiscovery.path`, and any inferred children already named in the conversation. The discover hook only detects and hands off; it does not scaffold children or write the coordination parent itself.
+
+**Non-interactive branch:** if `OAT_NON_INTERACTIVE=1` and detection triggers (`confidence` is `high` or `soft`), do not show an offer prompt and do not silently choose. Append this section to `"$PROJECT_PATH/discovery.md"` and exit non-zero:
+
+```markdown
+## Detected Split Recommendation
+
+Discovery detected multi-project scope via `oat project split evaluate-signals`.
+
+- Fired signals: <comma-list>
+- Confidence: <high|soft>
+- Recommendation: rerun discovery interactively and choose whether to invoke `oat-project-split`.
+```
+
+```bash
+exit 1
+```
+
 **Step 9a: Propose Approaches**
 
 Propose 2-3 **genuinely distinct** approaches (not minor variations). For each:
@@ -313,6 +366,19 @@ Update discovery.md sections:
 
 ### Step 11: Human-in-the-Loop Lifecycle (HiLL) Gate (If Configured)
 
+Before the HiLL gate or discovery completion, run the same split signal evaluation one final time.
+
+**Non-interactive convergence branch:** if `OAT_NON_INTERACTIVE=1`, do not show the scope-check prompt and do not silently choose. Parse the final `oat project split evaluate-signals --fired "<comma-list>"` result:
+
+- `high` or `soft` — append the same section to `"$PROJECT_PATH/discovery.md"` as the Step 9 non-interactive branch, using the final fired signal list and confidence, then exit non-zero.
+- `below` — proceed as one cohesive project without prompting.
+
+For interactive runs, show an always-visible scope-check confirmation. The prompt is required even when no mid-stream offer fired:
+
+> "This reads as one cohesive project — proceed, or split into multiple?"
+
+Pre-fill the recommendation from `oat project split evaluate-signals --fired "<comma-list>"`: recommend splitting for `high`, suggest considering a split for `soft`, and recommend proceeding as one cohesive project for `below`. If the user chooses split at this convergence point, invoke `oat-project-split` with `origin: "detected-convergence"` and `interactive: true`.
+
 Read `"$PROJECT_PATH/state.md"` frontmatter:
 
 - `oat_hill_checkpoints`
@@ -342,13 +408,11 @@ If discovery is not configured as a HiLL checkpoint, or user explicitly approves
 
 ### Step 12: Mark Discovery Complete
 
-Update frontmatter:
+Use the CLI completion boundary so split-created child discoveries cannot
+complete until inherited context has been revalidated:
 
-```yaml
----
-oat_status: complete
-oat_ready_for: oat-project-design
----
+```bash
+oat project complete-discovery "$PROJECT_PATH" --ready-for oat-project-design
 ```
 
 ### Step 13: Update Project State

@@ -1,6 +1,6 @@
 ---
 name: oat-project-review-receive
-version: 1.4.1
+version: 1.5.1
 description: Use when review findings from oat-project-review-provide need closure. Converts review artifacts into actionable plan tasks.
 disable-model-invocation: true
 user-invocable: true
@@ -52,6 +52,7 @@ When executing this skill, provide lightweight progress feedback so the user can
 - No re-reviewing
 - For `artifact` reviews: no converting findings into plan tasks
 - For `artifact` reviews: no deferring findings by default
+- No treating accepted design/code drift as a no-op; accepted drift must be converted to an artifact-alignment task or explicitly deferred, with an `implementation.md` note
 
 **ALLOWED Activities:**
 
@@ -167,6 +168,10 @@ For each finding, build a structured register entry:
 - Agent analysis (agree/disagree + why)
 - Recommendation (convert to task now vs defer with rationale)
 - Task Scope (`Large` | `Moderate` | `Minor` | `Negligible`)
+- Drift disposition, when applicable:
+  - `code_fix_required` — implementation should change
+  - `artifact_alignment_required` — shipped implementation is defensible; design/docs/plan should be aligned
+  - `explicit_deferral` — drift is accepted for now with a concrete rationale and follow-up trigger
 - For `artifact` reviews, use dispositions:
   - `resolve_in_artifact`
   - `rejected_with_rationale` (invalid/not applicable)
@@ -244,7 +249,7 @@ Read `oat_review_type` and `oat_review_invocation` from review artifact frontmat
 - If `oat_review_type == code` AND `oat_review_invocation == auto`:
   - **Auto-disposition mode.** This review was spawned by the auto-review checkpoint trigger in `oat-project-implement`. Apply relaxed disposition defaults:
     - Critical/Important/Medium: convert to fix tasks (same as manual mode)
-    - Minor: auto-convert to fix tasks unless clearly out of scope (e.g., cosmetic polish unrelated to changed code). In manual mode, minors are auto-deferred for non-final scopes — in auto mode, the goal is to fix everything while context is fresh.
+    - Minor: auto-convert to fix tasks unless clearly out of scope (e.g., cosmetic polish unrelated to changed code). Manual mode now also defaults minors to `convert` (see Step 9); auto mode keeps the same intent — fix everything while context is fresh — but without any user prompts.
     - **No user prompts for disposition decisions.** The auto-review path runs fully autonomously.
     - Genuinely ambiguous findings (e.g., a medium the agent disagrees with) are deferred with a note explaining why, rather than pausing for interactive resolution.
   - Follow the task-conversion flow in Steps 3-10 with these adjusted defaults.
@@ -386,6 +391,10 @@ Add a note to implementation.md:
 
 **New tasks added:** {task_ids}
 
+**Design drift / artifact alignment notes:**
+
+- {finding_id}: {review found stale design/spec/plan relative to shipped implementation; why the implementation is accepted; source of truth; artifact-alignment task ID or explicit deferral}
+
 **Next:** Execute fix tasks via the `oat-project-implement` skill.
 
 After the fix tasks are complete:
@@ -399,6 +408,10 @@ After the fix tasks are complete:
 - If `{PROJECT_PATH}/implementation.md` exists, ensure it will resume correctly after this skill:
   - If `oat_current_task_id` is `null` (or points at already-completed work), set it to the **first newly-added review-fix task ID** (or the next incomplete task in plan order).
   - Update the Progress Overview table totals (tasks + completed) if they are present and depend on task counts.
+  - If any finding is resolved by accepting the shipped implementation and aligning stale artifacts instead of changing code, add an explicit review note under the current "Review Received" section and update `## Deviations from Plan / Design` when that table exists.
+    - For existing project artifacts, treat any `## Deviations...` heading as the deviations section; migrate to the preferred `## Deviations from Plan / Design` heading and table shape when already touching the section.
+    - The note must say the review found design/spec/plan drift, why the shipped implementation is accepted, which source is now authoritative, and which artifact-alignment task will update the stale artifact.
+    - If the artifact update is intentionally deferred, record the deferral rationale and follow-up trigger in `implementation.md`.
   - Update `{PROJECT_PATH}/state.md` frontmatter so routing/UI is accurate:
     - `oat_phase: implement`
     - `oat_phase_status: in_progress`
@@ -437,7 +450,7 @@ git diff --cached --quiet || git commit -m "chore(oat): record review findings a
 
 Do not use `git add -A` or glob patterns that reach outside `"$PROJECT_PATH/reviews/"`. Do not include unrelated implementation or code files in this commit. Do not defer this commit without explicit user approval — if deferred, clearly state in the summary that bookkeeping is uncommitted so the original agent knows to commit on return.
 
-If the project itself is still untracked because earlier lifecycle steps never committed the initial artifact set, widen this bookkeeping commit to include the untracked core project artifacts (`discovery.md`, `spec.md`, `design.md`, `plan.md`, `implementation.md`, `state.md`, plus `.oat/state.md` when relevant). Do not leave the project tree partially tracked after receive-review finishes.
+If the project itself is still untracked because earlier lifecycle steps never committed the initial artifact set, widen this bookkeeping commit to include the untracked core project artifacts (`discovery.md`, `spec.md`, `design.md`, `plan.md`, `implementation.md`, `state.md`). Do not stage `.oat/state.md`; it is generated dashboard state and normally gitignored. Do not leave the project tree partially tracked after receive-review finishes.
 
 **Note on archived review paths:** When `reviews/archived/` matches a `localPaths` pattern (the default setup), the archived file is gitignored and `git add "$PROJECT_PATH/reviews/"` will only stage the deletion of the original (now-moved) top-level review file. When `reviews/archived/` is tracked, both the deletion and the new archived location are staged. Both cases are safe — the command handles them uniformly.
 
@@ -503,14 +516,18 @@ If any Medium is proposed for deferral:
 - If user declines deferral, convert that Medium to a fix task now.
 - If user approves deferral, record rationale in `implementation.md` under "Deferred Findings (Medium)".
 
+Design drift handling applies before Medium/Minor convenience deferrals:
+
+- If a review finding reveals that the design artifact is stale relative to a defensible implementation, do not treat this as a no-op.
+- Either convert the finding to an artifact-alignment task or record an explicit deferral.
+- In both cases, add an `implementation.md` review note so final summary generation can preserve the design delta.
+- The note must include what drift was found, why the implementation is accepted, whether implementation or artifact is source of truth, and the artifact task or deferral that will align the lifecycle record.
+
 Minor findings handling is scope-aware:
 
 - If `scope != final`:
-  - Minor findings are not auto-deferred just because they are non-functional.
-  - Default to converting a Minor finding to a task when either of these is true:
-    - it is likely future cleanup (better than even chance that the team will need to address it later), or
-    - the fix scope is `Negligible` or `Minor`.
-  - Only propose deferral when the finding is genuinely low-probability cleanup, blocked by another change, duplicated elsewhere, explicitly out of scope, or fixing now would create disproportionate churn/risk.
+  - Minor findings default to `convert`, not `defer`. Small findings are usually cheaper to fix inline than to track as backlog items, so converting is the baseline disposition for every Minor.
+  - `defer` (and `dismiss`) at Minor severity requires explicit, concrete rationale — the same gate that applies to Medium and above. Only propose deferral when the finding is genuinely low-probability cleanup, blocked by another change, duplicated elsewhere, explicitly out of scope, or fixing now would create disproportionate churn/risk.
   - If deferred, record rationale in implementation.md under "Deferred Findings".
   - Do not block review completion on minor disposition once each finding has been converted or explicitly deferred with rationale.
 
@@ -521,8 +538,8 @@ Minor findings handling is scope-aware:
     - potential user/maintainer impact,
     - why fixing now vs deferring is reasonable.
   - Recommendation default:
-    - recommend `convert` when the finding is likely future cleanup or the fix scope is `Negligible`/`Minor`;
-    - recommend `defer` only when the finding is unlikely to matter soon, blocked, duplicated, or high-churn to address now.
+    - default to recommending `convert` — fixing a non-blocking minor inline is usually cheaper than tracking it as a backlog item, and this is especially true for `Negligible`/`Minor`-scope fixes;
+    - recommend `defer` only when the finding is unlikely to matter soon, blocked, duplicated, or high-churn to address now, and capture that concrete rationale.
   - Keep explanations concise (1-3 sentences per minor) and include file/line when available.
   - Ask user explicitly:
 
@@ -613,7 +630,7 @@ Actions taken:
 - Updated implementation.md with review notes
 - Archived review artifact to `reviews/archived/{filename}.md`
 - Deferred/accepted Medium findings: {N}
-- Deferred {N} minor findings (auto for non-final, explicit decision for final)
+- Minor findings dispositioned: {N} converted (default), {N} deferred-with-rationale (explicit user decision required for final scope)
 - Finding disposition map: {ID -> converted|deferred|accepted + rationale summary}
 
 Review cycle: {N} of 3

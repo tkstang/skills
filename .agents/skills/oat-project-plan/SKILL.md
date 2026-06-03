@@ -1,6 +1,6 @@
 ---
 name: oat-project-plan
-version: 1.3.2
+version: 1.3.4
 description: Use when design.md is complete and executable implementation tasks are needed. Breaks design into bite-sized TDD tasks in canonical plan.md format.
 disable-model-invocation: true
 user-invocable: true
@@ -311,6 +311,62 @@ Unless the source artifact or user already supplied a confirmed `oat_plan_hill_p
   - `[x] Defer HiLL checkpoint confirmation to oat-project-implement`
 
 If `## Planning Checklist` is missing (older plans), add it before finalizing with the items above.
+
+### Step 11.5: Resolve Dispatch Ceiling Before Implementation Readiness
+
+Before marking the plan ready for implementation, resolve the dispatch ceiling.
+
+Resolution order:
+
+1. Config keys `workflow.dispatchCeiling.providers.<provider>` via the resolver CLI
+2. Project `state.md` frontmatter key `oat_dispatch_ceiling`
+3. Interactive planning prompt (below)
+4. Leave unresolved for implementation preflight when non-interactive
+
+If no ceiling resolves and the session is interactive, present the preset
+prompt once before final plan review:
+
+```text
+Set the dispatch ceiling — the maximum subagent tier OAT may use.
+
+  1. Balanced (recommended) — Codex: high · Claude: sonnet
+  2. Maximum                — Codex: xhigh · Claude: opus  (reviews always run at this tier)
+  3. Cost-conscious         — Codex: medium · Claude: sonnet
+  4. Advanced — set per provider
+  5. No ceiling
+
+OAT applies this where the provider exposes a reliable mechanism (Codex: pinned
+variants; Claude: Task model parameter). Other providers may treat it as advisory.
+```
+
+**Preset selection** persists `preset` + compiled per-provider values. On
+selection, print the exact compiled result (e.g., "Ceiling set: balanced →
+Codex: high · Claude: sonnet") before proceeding.
+
+**Advanced (option 4)** prompts for each provider's value individually, then
+persists `providers` + `source` only — no `preset` key.
+
+**No ceiling (option 5)** leaves `oat_dispatch_ceiling` unset; implementer
+subagents run at provider defaults.
+
+Persist the answer in `"$PROJECT_PATH/state.md"` frontmatter using the
+normalized shape:
+
+```yaml
+oat_dispatch_ceiling:
+  preset: balanced          # omit when Advanced was chosen
+  providers:
+    codex: high
+    claude: sonnet
+  source: project-state
+```
+
+Do not prompt when `OAT_NON_INTERACTIVE=1` or when no user-response channel
+exists. In that case, leave the value unresolved. `oat-project-implement`
+must block before work starts if it still cannot resolve a ceiling.
+
+Do not treat provider default effort as the OAT dispatch ceiling. Provider
+default is informational for base/unpinned roles only.
 
 ### Step 12: Review Plan with User
 

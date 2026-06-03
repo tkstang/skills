@@ -3,6 +3,13 @@
   "projects": {
     "root": ".oat/projects/shared"
   },
+  "archive": {
+    "s3Uri": "s3://tkstang-open-agent-toolkit/repositories",
+    "s3SyncOnComplete": true,
+    "summaryExportPath": ".oat/repo/reference/project-summaries",
+    "awsProfile": "tkstang-artifact-sync",
+    "awsRegion": "us-east-1"
+  },
   "tools": {
     "core": true,
     "ideas": false,
@@ -11,7 +18,7 @@
     "utility": false,
     "project-management": false,
     "research": false,
-    "brainstorm": true
+    "brainstorm": false
   },
   "localPaths": [
     ".oat/**/analysis",
@@ -27,12 +34,5 @@
   "workflow": {
     "archiveOnComplete": true,
     "postImplementSequence": "docs-pr"
-  },
-  "archive": {
-    "s3Uri": "s3://tkstang-open-agent-toolkit/repositories",
-    "s3SyncOnComplete": true,
-    "summaryExportPath": ".oat/repo/reference/project-summaries",
-    "awsProfile": "tkstang-artifact-sync",
-    "awsRegion": "us-east-1"
   }
 }

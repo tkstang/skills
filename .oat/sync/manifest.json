@@ -321,7 +321,27 @@
       "contentHash": null,
       "isFile": true,
       "lastSynced": "2026-05-01T20:47:22.635Z"
+    },
+    {
+      "canonicalPath": ".agents/skills/oat-project-review-provide-remote",
+      "providerPath": ".claude/skills/oat-project-review-provide-remote",
+      "provider": "claude",
+      "contentType": "skill",
+      "strategy": "symlink",
+      "contentHash": null,
+      "isFile": false,
+      "lastSynced": "2026-06-03T02:58:02.888Z"
+    },
+    {
+      "canonicalPath": ".agents/skills/oat-project-split",
+      "providerPath": ".claude/skills/oat-project-split",
+      "provider": "claude",
+      "contentType": "skill",
+      "strategy": "symlink",
+      "contentHash": null,
+      "isFile": false,
+      "lastSynced": "2026-06-03T02:58:02.889Z"
     }
   ],
-  "lastUpdated": "2026-05-01T20:47:22.635Z"
+  "lastUpdated": "2026-06-03T02:58:02.889Z"
 }

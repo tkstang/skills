@@ -1,6 +1,6 @@
 ---
 name: oat-project-review-provide
-version: 1.3.3
+version: 1.3.5
 description: Use when completed work in an active OAT project needs a quality gate before merge. Performs a lifecycle-scoped review after a task, phase, or full implementation, unlike oat-review-provide.
 disable-model-invocation: true
 user-invocable: true
@@ -14,6 +14,8 @@ Request and execute a code or artifact review for the current project scope.
 ## Purpose
 
 Produce an independent review artifact that verifies requirements/design alignment (mode-aware) and code quality.
+
+Reviewers should distinguish implementation defects from artifact drift. If code is defensible but `spec.md`, `design.md`, or `plan.md` is stale, frame the finding as artifact alignment rather than a required code change.
 
 ## Prerequisites
 
@@ -232,7 +234,7 @@ Before gathering review context, inspect the core project artifacts:
 - `"$PROJECT_PATH/plan.md"`
 - `"$PROJECT_PATH/implementation.md"`
 - `"$PROJECT_PATH/state.md"`
-- `.oat/state.md` (when it exists and was refreshed as part of the project workflow)
+- `.oat/state.md` is generated dashboard state; ignore it for committed artifact baseline checks.
 
 If any of those files are untracked or modified only because the previous workflow step did not finish its bookkeeping commit:
 
@@ -481,6 +483,12 @@ Build the "Review Scope" metadata for the reviewer:
 - Deferred Medium count: {DEFERRED_MEDIUM_COUNT}
 - Deferred Minor count: {DEFERRED_MINOR_COUNT}
   {DEFERRED_LEDGER}
+
+**Design Drift Review Guidance:**
+
+- If implementation differs from `spec.md`, `design.md`, or `plan.md`, decide whether the code should change or whether the artifact is stale.
+- Use artifact-alignment framing when shipped implementation is defensible and the lifecycle artifact should be updated.
+- Do not force a code-defect framing for accepted design drift; `oat-project-review-receive` can convert artifact drift into alignment tasks or explicit deferrals.
 ```
 
 ### Step 6: Execute Review (3-Tier Capability Model)

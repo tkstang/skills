@@ -61,6 +61,8 @@ Blank or `auto` means there is no explicit constraint for that provider. Do not 
 | ----- | ------------------------- | ------------------------------ | ----------------------------- |
 | pNN   | haiku\|sonnet\|opus\|auto | low\|medium\|high\|xhigh\|auto | why this constraint is needed |
 
+Codex effort values are preferred controls. `oat-project-implement` caps them against the resolved OAT dispatch ceiling and maps selected efforts to pinned implementer variants. Codex provider default effort is informational for base/unpinned roles and is not an OAT ceiling.
+
 ---
 
 ## Phase 1: {Phase Name}

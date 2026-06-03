@@ -1,9 +1,9 @@
 ---
 name: oat-worktree-bootstrap-auto
-version: 1.2.2
+version: 1.4.0
 description: Use when an orchestrator/subagent needs autonomous worktree bootstrap. Non-interactive companion to oat-worktree-bootstrap.
 argument-hint: '<branch-name> [--base <ref>] [--path <root>] [--baseline-policy <strict|allow-failing>]'
-disable-model-invocation: true
+disable-model-invocation: false
 user-invocable: false
 allowed-tools: Read, Write, Bash, Glob, Grep
 ---
@@ -11,6 +11,8 @@ allowed-tools: Read, Write, Bash, Glob, Grep
 # Autonomous Worktree Bootstrap
 
 Non-interactive worktree bootstrap for orchestrator and subagent execution flows. Creates or reuses a worktree, runs baseline checks, and reports structured status — all without user prompts.
+
+This skill is **model-invocable** (`disable-model-invocation: false`): orchestrators such as `oat-project-implement` invoke it programmatically when a parallel phase group needs autonomous worktree bootstrap. It is **not** user-invocable (`user-invocable: false`) — it has no interactive surface and is never offered as a slash command.
 
 > ⚠️ **When not to substitute.** This skill is the **only** supported mechanism for orchestrator-driven worktree creation in OAT skills. Host-native isolation primitives — Claude Code's `Agent({ isolation: "worktree" })`, Cursor's worktree-isolated agent invocations, and equivalents in other hosts — are **not** substitutes. They may use the primary repo's checkout (often `main`) as the base regardless of the caller's current branch, silently producing a worktree at the wrong base. OAT orchestrators dispatching mid-run from a feature branch MUST go through this skill with an explicit `--base` so the resulting worktree contains the orchestrator's prior commits.
 
@@ -158,8 +160,12 @@ Execute in the target worktree directory:
 pnpm run worktree:init          # install + build + sync
 oat status --scope project
 pnpm test
-git status --porcelain
 ```
+
+Continue to Step 4 for provider directory setup, the `git_clean` baseline
+check, and the all-scope sync. The `git_clean` check must run after provider
+directory creation but before the all-scope sync sweep, so it measures inherited
+worktree state plus setup output rather than the sync sweep's generated output.
 
 Check behavior per baseline policy:
 
@@ -175,20 +181,37 @@ Check behavior per baseline policy:
   - If active project with `implementation.md` exists → append timestamped baseline-failure note.
   - Otherwise → console output only (no fallback file creation).
 
-### Step 4: Create Provider Directories
+### Step 4: Create Provider Directories and Sync
 
-Worktrees do not inherit gitignored provider directories. Create them if missing:
+Worktrees do not inherit gitignored provider directories. Create them if
+missing, run the `git_clean` baseline check, and then run sync:
 
 ```bash
 mkdir -p "{target-path}/.claude/skills"
 mkdir -p "{target-path}/.cursor/rules"
-```
-
-Then re-run sync to establish symlinks:
-
-```bash
+git status --porcelain
 oat sync --scope all
 ```
+
+After sync completes, commit sync-managed output if any scoped path is dirty:
+
+```bash
+SYNC_PATHS=(.oat/sync/manifest.json .claude .cursor .codex)
+SYNC_STAGE_PATHS=(existing-or-tracked sync paths)
+git status --porcelain -- "${SYNC_STAGE_PATHS[@]}"
+git add -A -- "${SYNC_STAGE_PATHS[@]}"
+STAGED_SYNC_FILES=(staged sync-managed files from git diff --cached)
+git commit -m "chore: run sync" -- "${STAGED_SYNC_FILES[@]}"
+```
+
+Use a staged-diff guard so no empty commit is created. After scoped staging,
+derive the concrete staged sync-managed files from
+`git diff --cached --name-only --no-renames -- "${SYNC_STAGE_PATHS[@]}"` and
+commit only those file paths. Do not pass provider directory pathspecs to
+`git commit`, because empty provider directories can make the commit fail. This
+file-list isolation is what keeps `chore: run sync` limited to sync-managed
+paths even if unrelated files were already staged. If no scoped path is dirty,
+or staging produces no diff, report `sync_commit: skip`.
 
 ### Step 5: Return Structured Status
 
@@ -207,6 +230,7 @@ checks:
   tests: pass | fail | skip
   git_clean: pass | fail | skip
   provider_sync: pass | fail | skip
+  sync_commit: pass | fail | skip
 warnings: [] # List of warning messages (allow-failing mode)
 error: null # Error message (strict mode failure)
 reason: null # Structured reason on failure (e.g., base-mismatch)
@@ -221,6 +245,8 @@ baseline_policy: strict | allow-failing
 - `success`: All checks passed and Step 2.7 base-resolution verification passed.
 - `warning`: Some checks failed under `allow-failing` policy (Step 2.7 still passed).
 - `error`: A baseline check failed under `strict` policy, or worktree creation failed.
+- `error`: `sync_commit` failed under `strict` policy.
+- `warning`: `sync_commit` failed under `allow-failing` policy.
 - `failed` (with `reason: base-mismatch`): Step 2.7 base-resolution verification failed. Callers should treat this distinctly from a generic baseline error — it is a contract violation, not a flaky check.
 
 ## Error Handling
