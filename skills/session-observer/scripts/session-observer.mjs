@@ -34,6 +34,7 @@ const { discover, gitWorktrees, claudeCodeLookupDiagnostics } = await import(joi
 const { rank } = await import(join(LIB, 'rank.mjs'));
 const { buildDigest, renderMarkdown, renderJson } = await import(join(LIB, 'digest.mjs'));
 const { observeCatchUp } = await import(join(LIB, 'observe.mjs'));
+const { runWatchLoop } = await import(join(LIB, 'watch.mjs'));
 const stateLib = await import(join(LIB, 'state.mjs'));
 const watchStateLib = await import(join(LIB, 'watch-state.mjs'));
 
@@ -805,20 +806,13 @@ async function runWatch(args) {
     );
   }
 
-  const payload = {
-    watch: true,
-    status: 'pending-implementation',
-    runtime: args.runtime,
-    cwd: args.cwd,
-    debounceSec: args.debounceSec,
-    pollSec: args.pollSec,
-    maxRuntimeMin: args.maxRuntimeMin,
-    eventLog: args.eventLog ?? null,
-    message: 'Watch CLI surface is available; polling loop is implemented in phase p02.',
-  };
-
-  if (args.json) return emitJson(payload, 0);
-  return emit(payload.message, 0);
+  try {
+    await runWatchLoop(args, {
+      writeStdout: chunk => process.stdout.write(chunk),
+    });
+  } catch (err) {
+    return emitError(`Watch failed: ${err.message}`, 1);
+  }
 }
 
 async function runWatchCtl(args) {
