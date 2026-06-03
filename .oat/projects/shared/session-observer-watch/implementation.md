@@ -1,9 +1,9 @@
 ---
-oat_status: in_progress
-oat_ready_for: null
+oat_status: complete
+oat_ready_for: oat-project-review-provide
 oat_blockers: []
 oat_last_updated: 2026-06-03
-oat_current_task_id: p04-t01
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -23,9 +23,9 @@ oat_generated: false
 | Phase 1: Watch State And CLI Surface | complete | 2 | 2/2 |
 | Phase 2: Watch Loop And Event Emission | complete | 3 | 3/3 |
 | Phase 3: Skill Documentation And Dogfooding Sync | complete | 2 | 2/2 |
-| Phase 4: Final Review Fixes | in_progress | 3 | 0/3 |
+| Phase 4: Final Review Fixes | complete | 3 | 3/3 |
 
-**Total:** 7/10 tasks completed
+**Total:** 10/10 tasks completed
 
 ---
 
@@ -157,39 +157,45 @@ oat_generated: false
 
 ## Phase 4: Final Review Fixes
 
-**Status:** in_progress
+**Status:** complete
 **Started:** 2026-06-03
+**Completed:** 2026-06-03
 
 ### Task p04-t01: (review) Fix `--runtime both` dropped watch updates
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** a7d5699
 
 **Notes:**
 
-- Added from final code review finding I1.
+- Fixed final code review finding I1 by skipping state-advancing baseline refresh for runtimes already tracked by a `--runtime both` watcher.
+- Added regression coverage that appends to a tracked Claude transcript under `runtime: "both"` and asserts one JSON catch-up event.
+- Verification passed: `node --test tests/session-observer/watch.test.mjs tests/session-observer/cli.test.mjs`.
 
 ---
 
 ### Task p04-t02: (review) Constrain watch event log writes
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** 6c3300e
 
 **Notes:**
 
-- Added from final code review finding I2.
+- Fixed final code review finding I2 by resolving relative `--event-log` paths inside the session-observer state directory and rejecting absolute or relative paths that escape it.
+- Event logs remain metadata-only; watch reference documentation now records the constrained path semantics.
+- Verification passed: `node --test tests/session-observer/watch.test.mjs tests/session-observer/cli.test.mjs`.
 
 ---
 
 ### Task p04-t03: (review) Update final implementation summary
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** 5c72e6c
 
 **Notes:**
 
-- Added from final code review minor finding m1.
+- Fixed final code review minor finding m1 by replacing final-summary placeholders with shipped behavior, key modules, verification, and design deltas.
+- Verification passed: final-summary placeholder scan produced no matches.
 
 ---
 
@@ -218,6 +224,9 @@ _No orchestration runs yet._
 - [x] p02-t03: Add Watch Control And Graceful Shutdown - complete (`15dd40f`)
 - [x] p03-t01: Update Skill Instructions And Watch Reference - complete (`1f33657`, follow-up `e5505bf`)
 - [x] p03-t02: Sync Dogfooding Install And Run Full Verification - complete (`d41a050`)
+- [x] p04-t01: Fix `--runtime both` dropped watch updates - complete (`a7d5699`)
+- [x] p04-t02: Constrain watch event log writes - complete (`6c3300e`)
+- [x] p04-t03: Update final implementation summary - complete (`5c72e6c`)
 
 **What changed (high level):**
 
@@ -231,7 +240,7 @@ _No orchestration runs yet._
 
 **Follow-ups / TODO:**
 
-- Run code review for the completed implementation.
+- Run checkpoint/final code review for the completed p04 fixes.
 
 **Blockers:**
 
@@ -355,6 +364,37 @@ _No orchestration runs yet._
 
 ---
 
+### Phase p04 Implementation Complete
+
+**Completed:** 2026-06-03T15:13:04Z
+**Next task:** none
+
+**Verification:**
+
+- Passed: `node --test tests/session-observer/watch.test.mjs tests/session-observer/cli.test.mjs` (45 tests).
+- Passed: `npm test` (296 tests).
+- Passed: `npm run validate`.
+- Passed: `npm run smoke`.
+- Passed: `oat project validate-plan --project-path .oat/projects/shared/session-observer-watch`.
+- Passed: final-summary placeholder scan produced no matches.
+
+**Dispatch ceiling enforcement:**
+
+- dispatch_ceiling: maximum / Codex xhigh
+- ceiling_source: project-state
+
+**Accepted design deltas:**
+
+- Provider-hook automation remains deferred; watch mode provides automatic responses only while an active invocation consumes foreground watcher output.
+- `--event-log` path semantics are constrained to the session-observer state directory.
+- The single active watcher entry remains the implementation source of truth for watch/control state.
+
+**Notes:**
+
+- p04 scope is complete. The project is ready for checkpoint/final code review.
+
+---
+
 ### Review Received: final
 
 **Date:** 2026-06-03
@@ -399,6 +439,12 @@ _No orchestration runs yet._
 | p02 | `npm test -- tests/session-observer/watch.test.mjs tests/session-observer/cli.test.mjs` | 43 | 0 | npm-targeted watch and CLI tests |
 | p02 | `node skills/session-observer/scripts/session-observer.mjs watch --runtime claude-code --cwd "$PWD" --poll-sec 1 --debounce-sec 1 --max-runtime-min 0.02 --json` | 1 | 0 | bounded watch smoke, no events emitted |
 | p02 | `oat project validate-plan --project-path .oat/projects/shared/session-observer-watch` | 1 | 0 | plan structure validation |
+| p04 | `node --test tests/session-observer/watch.test.mjs tests/session-observer/cli.test.mjs` | 45 | 0 | final review fixes for both-runtime watch updates, event-log path safety, and CLI regression coverage |
+| p04 | `npm test` | 296 | 0 | full repository test suite |
+| p04 | `npm run validate` | 1 | 0 | repository structure, manifest, and docs invariants |
+| p04 | `npm run smoke` | 1 | 0 | mocked end-to-end consensus wrapper flow |
+| p04 | `oat project validate-plan --project-path .oat/projects/shared/session-observer-watch` | 1 | 0 | plan structure validation |
+| p04 | final-summary placeholder scan | 1 | 0 | no final-summary placeholders remain |
 
 ## Final Summary (for PR/docs)
 
