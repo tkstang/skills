@@ -819,6 +819,22 @@ async function runWatch(args) {
   }
 }
 
+async function emitNoActiveWatcher(args) {
+  await watchStateLib.clearControlDirective().catch(() => false);
+  const payload = {
+    active: false,
+    noActiveWatcher: true,
+    watcher: null,
+    message: 'No active watcher.',
+  };
+  if (args.watchCtlOp && args.watchCtlOp !== 'status') {
+    payload.directive = args.watchCtlOp;
+    payload.control = null;
+  }
+  if (args.json) return emitJson(payload, 0);
+  return emit('No active watcher.', 0);
+}
+
 async function runWatchCtl(args) {
   if (args.help || !args.watchCtlOp) return printWatchCtlUsage();
 
@@ -846,6 +862,9 @@ async function runWatchCtl(args) {
     case 'pause':
     case 'resume':
     case 'flush': {
+      const state = await watchStateLib.loadWatchState();
+      if (!state.active) return emitNoActiveWatcher(args);
+
       const control = await watchStateLib.writeControlDirective(args.watchCtlOp);
       const payload = {
         directive: args.watchCtlOp,
@@ -857,6 +876,8 @@ async function runWatchCtl(args) {
 
     case 'stop': {
       const state = await watchStateLib.loadWatchState();
+      if (!state.active) return emitNoActiveWatcher(args);
+
       const control = await watchStateLib.writeControlDirective('stop');
       let signaled = false;
       if (state.active?.pid) {

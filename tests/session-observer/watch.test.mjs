@@ -4,7 +4,7 @@
 
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { once } from 'node:events';
 import { mkdtemp, rm, mkdir, readFile, writeFile, appendFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -468,6 +468,55 @@ describe('runWatchLoop', () => {
       const watchJson = JSON.parse(await readFile(join(stateDir, 'watch.json'), 'utf8'));
       assert.equal(watchJson.active, null);
       assert.equal(await readJsonIfExists(join(stateDir, 'watch.control.json')), null);
+    });
+  });
+
+  test('inactive watch-ctl stop leaves no stale directive for the next watcher', async () => {
+    await withTempSessionHome(async (home, stateDir) => {
+      const cwd = '/test/watch-inactive-stop';
+      const sessionId = 'watch-inactive-stop';
+      const transcriptPath = await writeClaudeTranscript(home, cwd, sessionId, [
+        { content: 'inactive stop baseline message' },
+      ]);
+      await writeFile(
+        join(stateDir, 'watch.control.json'),
+        JSON.stringify({ directive: 'stop', issuedAt: new Date().toISOString() }),
+        'utf8'
+      );
+
+      const stopResult = spawnSync('node', [CLI_PATH, 'watch-ctl', 'stop', '--json'], {
+        encoding: 'utf8',
+        env: { ...process.env, HOME: home, STATE_DIR: stateDir },
+      });
+      assert.equal(stopResult.status, 0,
+        `inactive stop should exit 0\nstdout: ${stopResult.stdout}\nstderr: ${stopResult.stderr}`);
+      const stopPayload = JSON.parse(stopResult.stdout);
+      assert.equal(stopPayload.noActiveWatcher, true);
+      assert.equal(stopPayload.active, false);
+      assert.equal(await readJsonIfExists(join(stateDir, 'watch.control.json')), null);
+
+      const { runWatchLoop } = await importWatch();
+      const stdout = [];
+      const watchPromise = runWatchLoop({
+        runtime: 'claude-code',
+        cwd,
+        pollSec: 0.03,
+        debounceSec: 0.04,
+        maxRuntimeMin: 0.012,
+      }, {
+        writeStdout: chunk => stdout.push(chunk),
+      });
+
+      await waitFor(async () => {
+        const state = await readJsonIfExists(join(stateDir, 'state.json'));
+        return state?.sessions?.['claude-code:watch-inactive-stop']?.lastRecordIndex === 1;
+      });
+      await appendClaudeMessage(transcriptPath, sessionId, 'next watcher update after inactive stop');
+
+      const result = await watchPromise;
+      assert.equal(result.reason, 'max-runtime');
+      assert.equal(result.eventCount, 1);
+      assert.ok(stdout.join('').includes('next watcher update after inactive stop'));
     });
   });
 

@@ -42,6 +42,14 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+async function readJsonIfExists(path) {
+  try {
+    return JSON.parse(await readFile(path, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
 async function copyCursorTranscript(home, cwd, sessionId = 'cursor-session-001') {
   const transcriptDir = join(home, '.cursor', 'projects', cursorSlug(cwd), 'agent-transcripts', sessionId);
   await mkdir(transcriptDir, { recursive: true });
@@ -127,6 +135,21 @@ describe('CLI subcommand dispatch', () => {
     try {
       const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
       await mkdir(stateDir, { recursive: true });
+      await writeFile(
+        join(stateDir, 'watch.json'),
+        JSON.stringify({
+          schemaVersion: 1,
+          active: {
+            pid: process.pid,
+            runtime: 'claude-code',
+            cwd: '/test/active-watch-control',
+            startedAt: new Date().toISOString(),
+            lastEventAt: null,
+            eventCount: 0,
+          },
+        }),
+        'utf8'
+      );
 
       for (const op of ['pause', 'resume', 'flush']) {
         const result = spawnCli(
@@ -142,6 +165,37 @@ describe('CLI subcommand dispatch', () => {
 
         const raw = JSON.parse(await readFile(join(stateDir, 'watch.control.json'), 'utf8'));
         assert.equal(raw.directive, op);
+      }
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  test('watch-ctl inactive controls clear stale directives without writing a new one', async (t) => {
+    const tmpDir = await mkdtemp(join(tmpdir(), 'cli-watch-control-inactive-'));
+    try {
+      const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
+      await mkdir(stateDir, { recursive: true });
+
+      for (const op of ['pause', 'resume', 'flush', 'stop']) {
+        await writeFile(
+          join(stateDir, 'watch.control.json'),
+          JSON.stringify({ directive: 'pause', issuedAt: new Date().toISOString() }),
+          'utf8'
+        );
+
+        const result = spawnCli(
+          ['watch-ctl', op, '--json'],
+          { HOME: tmpDir, STATE_DIR: stateDir }
+        );
+
+        assert.equal(result.status, 0,
+          `watch-ctl ${op} should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`);
+        const payload = JSON.parse(result.stdout);
+        assert.equal(payload.noActiveWatcher, true);
+        assert.equal(payload.active, false);
+        assert.equal(payload.watcher, null);
+        assert.equal(await readJsonIfExists(join(stateDir, 'watch.control.json')), null);
       }
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
