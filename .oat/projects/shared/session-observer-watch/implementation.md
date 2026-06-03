@@ -261,7 +261,7 @@ oat_generated: false
 ### Task p06-t03: (review) Refresh OAT Repo Dashboard State
 
 **Status:** completed
-**Commit:** pending (this commit)
+**Commit:** 125a838
 
 **Notes:**
 
@@ -304,7 +304,7 @@ _No orchestration runs yet._
 - [x] p05-t01: Align `--runtime both` with documented runtime scope - complete (`60bd05d`)
 - [x] p06-t01: Prevent stale inactive watch control directives - complete (`b46f127`)
 - [x] p06-t02: Stabilize debounce coalescing verification - complete (`54ac0a4`)
-- [x] p06-t03: Refresh OAT repo dashboard state - complete (pending this commit)
+- [x] p06-t03: Refresh OAT repo dashboard state - complete (`125a838`)
 
 **What changed (high level):**
 
