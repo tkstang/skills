@@ -6,7 +6,7 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { once } from 'node:events';
-import { mkdtemp, rm, mkdir, readFile, writeFile, appendFile } from 'node:fs/promises';
+import { mkdtemp, rm, mkdir, readFile, writeFile, appendFile, symlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -372,6 +372,77 @@ describe('runWatchLoop', () => {
         }),
         /--event-log must stay under the session-observer state directory/
       );
+    });
+  });
+
+  test('rejects event log symlinks that escape the session-observer state directory', async () => {
+    await withTempSessionHome(async (home, stateDir) => {
+      const outsideLog = join(home, 'outside-events.jsonl');
+      const outsideDir = join(home, 'outside-event-dir');
+      await writeFile(outsideLog, '', 'utf8');
+      await mkdir(outsideDir, { recursive: true });
+      await symlink(outsideLog, join(stateDir, 'events.jsonl'));
+      await symlink(outsideDir, join(stateDir, 'linked-logs'));
+
+      const { runWatchLoop } = await importWatch();
+      const options = {
+        runtime: 'claude-code',
+        cwd: '/test/watch-event-log-symlink-reject',
+        pollSec: 0.03,
+        debounceSec: 0.04,
+        maxRuntimeMin: 0.001,
+      };
+
+      await assert.rejects(
+        runWatchLoop({ ...options, eventLog: 'events.jsonl' }, {
+          writeStdout: () => {},
+        }),
+        /--event-log must stay under the session-observer state directory/
+      );
+      await assert.rejects(
+        runWatchLoop({ ...options, eventLog: join('linked-logs', 'events.jsonl') }, {
+          writeStdout: () => {},
+        }),
+        /--event-log must stay under the session-observer state directory/
+      );
+
+      assert.equal(await readFile(outsideLog, 'utf8'), '');
+      assert.equal(await readJsonIfExists(join(stateDir, 'watch.json')), null);
+    });
+  });
+
+  test('rejects event log paths reserved for session-observer state files', async () => {
+    await withTempSessionHome(async () => {
+      const { runWatchLoop } = await importWatch();
+      const options = {
+        runtime: 'claude-code',
+        cwd: '/test/watch-event-log-reserved-reject',
+        pollSec: 0.03,
+        debounceSec: 0.04,
+        maxRuntimeMin: 0.001,
+      };
+      const reservedEventLogs = [
+        'state.json',
+        'watch.json',
+        'watch.control.json',
+        'state.json.lock',
+        'watch.json.lock',
+        'watch.control.json.lock',
+        `state.json.${process.pid}.tmp`,
+        `watch.json.${process.pid}.123.tmp`,
+        `watch.control.json.${process.pid}.123.tmp`,
+        `state.json.corrupt-123-${process.pid}.bak`,
+        `state.json.v0-123-${process.pid}.bak`,
+      ];
+
+      for (const eventLog of reservedEventLogs) {
+        await assert.rejects(
+          runWatchLoop({ ...options, eventLog }, {
+            writeStdout: () => {},
+          }),
+          /--event-log cannot use session-observer state, lock, temp, or backup files/
+        );
+      }
     });
   });
 

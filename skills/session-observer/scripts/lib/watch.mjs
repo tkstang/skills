@@ -2,7 +2,7 @@
  * watch.mjs — foreground polling watcher for debounced catch-up events.
  */
 
-import { appendFile, mkdir, stat } from 'node:fs/promises';
+import { appendFile, lstat, mkdir, realpath, stat } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { renderMarkdown } from './digest.mjs';
@@ -13,6 +13,11 @@ import * as watchStateLib from './watch-state.mjs';
 const DEFAULT_POLL_SEC = 2;
 const DEFAULT_DEBOUNCE_SEC = 2;
 const BOTH_RUNTIMES = ['claude-code', 'codex'];
+const RESERVED_EVENT_LOG_NAMES = new Set([
+  'state.json',
+  'watch.json',
+  'watch.control.json',
+]);
 
 function toPositiveMs(value, fallbackSec) {
   const numeric = Number(value);
@@ -103,21 +108,104 @@ function isWithinDir(dir, path) {
   return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel));
 }
 
-function resolveEventLogPath(eventLog) {
+function eventLogBoundaryError(dir) {
+  return new Error(`--event-log must stay under the session-observer state directory: ${dir}`);
+}
+
+function eventLogReservedError() {
+  return new Error('--event-log cannot use session-observer state, lock, temp, or backup files');
+}
+
+function isReservedEventLogSegment(segment) {
+  return RESERVED_EVENT_LOG_NAMES.has(segment)
+    || segment.endsWith('.lock')
+    || segment.endsWith('.tmp')
+    || segment.endsWith('.bak')
+    || [...RESERVED_EVENT_LOG_NAMES].some(name => segment.startsWith(`${name}.`));
+}
+
+function eventLogSegments(dir, resolved) {
+  const rel = relative(dir, resolved);
+  if (rel === '') return [];
+  return rel.split(/[\\/]+/u).filter(Boolean);
+}
+
+async function lstatIfExists(path) {
+  try {
+    return await lstat(path);
+  } catch (err) {
+    if (err.code === 'ENOENT') return null;
+    throw err;
+  }
+}
+
+async function assertRealPathWithinState(dir, realDir, candidate) {
+  let realCandidate;
+  try {
+    realCandidate = await realpath(candidate);
+  } catch {
+    throw eventLogBoundaryError(dir);
+  }
+
+  if (!isWithinDir(realDir, realCandidate)) {
+    throw eventLogBoundaryError(dir);
+  }
+}
+
+async function assertEventLogPathSafe(dir, resolved) {
+  if (!isWithinDir(dir, resolved)) {
+    throw eventLogBoundaryError(dir);
+  }
+
+  const segments = eventLogSegments(dir, resolved);
+  if (segments.some(isReservedEventLogSegment)) {
+    throw eventLogReservedError();
+  }
+
+  await mkdir(dir, { recursive: true });
+  const realDir = await realpath(dir);
+  const parent = dirname(resolved);
+  const parentSegments = eventLogSegments(dir, parent);
+  let current = dir;
+
+  for (const segment of parentSegments) {
+    current = join(current, segment);
+    const currentStat = await lstatIfExists(current);
+    if (!currentStat) break;
+
+    if (currentStat.isSymbolicLink()) {
+      await assertRealPathWithinState(dir, realDir, current);
+    } else if (!currentStat.isDirectory()) {
+      throw new Error(`--event-log parent path must be a directory: ${current}`);
+    }
+  }
+
+  const targetStat = await lstatIfExists(resolved);
+  if (!targetStat) return;
+  if (targetStat.isSymbolicLink()) {
+    await assertRealPathWithinState(dir, realDir, resolved);
+    return;
+  }
+  if (targetStat.isDirectory()) {
+    throw new Error(`--event-log must be a file path, not a directory: ${resolved}`);
+  }
+}
+
+async function resolveEventLogPath(eventLog) {
   if (!eventLog) return undefined;
   const dir = resolve(stateDir());
   const resolved = isAbsolute(eventLog)
     ? resolve(eventLog)
     : resolve(dir, eventLog);
-  if (!isWithinDir(dir, resolved)) {
-    throw new Error(`--event-log must stay under the session-observer state directory: ${dir}`);
-  }
+  await assertEventLogPathSafe(dir, resolved);
   return resolved;
 }
 
 async function appendEventLog(eventLog, event) {
   if (!eventLog) return;
+  await assertEventLogPathSafe(resolve(stateDir()), eventLog);
   await mkdir(dirname(eventLog), { recursive: true });
+  await assertEventLogPathSafe(resolve(stateDir()), eventLog);
   await appendFile(eventLog, JSON.stringify(event) + '\n', 'utf8');
 }
 
@@ -263,11 +351,12 @@ function installSignalHandlers(eventState) {
 export async function runWatchLoop(args, deps = {}) {
   const runtime = args.runtime ?? 'auto';
   const cwd = args.cwd ?? process.cwd();
+  const eventLog = args.eventLog ? await resolveEventLogPath(args.eventLog) : undefined;
   const normalizedArgs = {
     ...args,
     runtime,
     cwd,
-    eventLog: resolveEventLogPath(args.eventLog),
+    eventLog,
   };
   const pollMs = toPositiveMs(args.pollSec, DEFAULT_POLL_SEC);
   const debounceMs = toPositiveMs(args.debounceSec, DEFAULT_DEBOUNCE_SEC);
