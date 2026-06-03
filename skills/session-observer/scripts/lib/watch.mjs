@@ -6,6 +6,7 @@ import { appendFile, mkdir, stat } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { renderMarkdown } from './digest.mjs';
 import { observeCatchUp, VALID_RUNTIMES } from './observe.mjs';
+import * as stateLib from './state.mjs';
 import * as watchStateLib from './watch-state.mjs';
 
 const DEFAULT_POLL_SEC = 2;
@@ -90,7 +91,7 @@ async function appendEventLog(eventLog, event) {
   await appendFile(eventLog, JSON.stringify(event) + '\n', 'utf8');
 }
 
-async function establishBaseline(runtime, args, targets, statFn) {
+async function establishBaseline(runtime, args, targets, statFn, eventState) {
   const result = await observeCatchUp({ ...args, runtime });
   if (!result.ok) {
     if (result.kind === 'noMatch') return null;
@@ -109,17 +110,18 @@ async function establishBaseline(runtime, args, targets, statFn) {
     signature,
   };
   targets.set(key, target);
+  await stateLib.setWatchedByPid(target.runtime, target.sessionId, eventState.pid).catch(() => false);
   return target;
 }
 
-async function establishBaselines(args, targets, statFn) {
+async function establishBaselines(args, targets, statFn, eventState) {
   if (args.runtime === 'auto') {
-    await establishBaseline('auto', args, targets, statFn);
+    await establishBaseline('auto', args, targets, statFn, eventState);
     return;
   }
 
   for (const runtime of watchRuntimes(args.runtime)) {
-    await establishBaseline(runtime, args, targets, statFn);
+    await establishBaseline(runtime, args, targets, statFn, eventState);
   }
 }
 
@@ -148,6 +150,7 @@ async function emitPending(entry, args, deps, eventState) {
     ...args,
     runtime: entry.runtime,
     session: `${entry.runtime}:${entry.sessionId}`,
+    suppressWatchedWarningPid: eventState.pid,
   });
   if (!result.ok) {
     if (result.kind === 'noMatch') return false;
@@ -169,6 +172,7 @@ async function emitPending(entry, args, deps, eventState) {
   await appendEventLog(args.eventLog, metadata);
   eventState.eventCount++;
   await watchStateLib.recordWatcherEvent({ pid: eventState.pid, lastEventAt: ts });
+  await stateLib.setWatchedByPid(result.runtime, result.digest.sessionId, eventState.pid).catch(() => false);
   return true;
 }
 
@@ -179,6 +183,43 @@ async function emitReadyPending(args, pending, deps, eventState, { force = false
     await emitPending(entry, args, deps, eventState);
     pending.delete(entry.key);
   }
+}
+
+async function applyControlDirective(args, pending, deps, eventState) {
+  const control = await watchStateLib.readControlDirective();
+  if (!control?.directive) return;
+
+  await watchStateLib.clearControlDirective();
+  switch (control.directive) {
+    case 'pause':
+      eventState.paused = true;
+      return;
+    case 'resume':
+      eventState.paused = false;
+      return;
+    case 'flush':
+      await emitReadyPending(args, pending, deps, eventState, { force: true });
+      return;
+    case 'stop':
+      eventState.stopRequested = true;
+      eventState.stopReason = 'control-stop';
+      return;
+    default:
+      return;
+  }
+}
+
+function installSignalHandlers(eventState) {
+  const handler = () => {
+    eventState.stopRequested = true;
+    eventState.stopReason = 'signal';
+  };
+  process.once('SIGINT', handler);
+  process.once('SIGTERM', handler);
+  return () => {
+    process.removeListener('SIGINT', handler);
+    process.removeListener('SIGTERM', handler);
+  };
 }
 
 /**
@@ -215,11 +256,22 @@ export async function runWatchLoop(args, deps = {}) {
     pid: active.pid,
     debounceMs,
     eventCount: 0,
+    paused: false,
+    stopRequested: false,
+    stopReason: 'stopped',
   };
+  const removeSignalHandlers = deps.handleSignals === false
+    ? () => {}
+    : installSignalHandlers(eventState);
   let reason = 'stopped';
 
   try {
     while (true) {
+      if (eventState.stopRequested) {
+        reason = eventState.stopReason;
+        break;
+      }
+
       const nowMs = resolvedDeps.now();
       if (deadlineMs !== null && nowMs >= deadlineMs) {
         reason = 'max-runtime';
@@ -227,10 +279,17 @@ export async function runWatchLoop(args, deps = {}) {
       }
 
       if (targets.size === 0 || args.runtime === 'both') {
-        await establishBaselines({ ...args, runtime, cwd }, targets, resolvedDeps.stat);
+        await establishBaselines({ ...args, runtime, cwd }, targets, resolvedDeps.stat, eventState);
       }
       await pollTargets(targets, pending, nowMs, resolvedDeps.stat);
-      await emitReadyPending({ ...args, runtime, cwd }, pending, resolvedDeps, eventState);
+      await applyControlDirective({ ...args, runtime, cwd }, pending, resolvedDeps, eventState);
+      if (eventState.stopRequested) {
+        reason = eventState.stopReason;
+        break;
+      }
+      if (!eventState.paused) {
+        await emitReadyPending({ ...args, runtime, cwd }, pending, resolvedDeps, eventState);
+      }
 
       const afterTickMs = resolvedDeps.now();
       if (deadlineMs !== null && afterTickMs >= deadlineMs) {
@@ -245,6 +304,11 @@ export async function runWatchLoop(args, deps = {}) {
 
     return { reason, eventCount: eventState.eventCount };
   } finally {
+    removeSignalHandlers();
+    for (const target of targets.values()) {
+      await stateLib.clearWatchedByPid(target.runtime, target.sessionId, active.pid).catch(() => false);
+    }
+    await watchStateLib.clearControlDirective().catch(() => false);
     await watchStateLib.clearWatcher({ pid: active.pid });
   }
 }

@@ -85,6 +85,14 @@ describe('CLI subcommand dispatch', () => {
     );
   });
 
+  test('watch-ctl --help lists control operations', (t) => {
+    const result = spawnCli(['watch-ctl', '--help']);
+    assert.equal(result.status, 0, `watch-ctl help should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`);
+    for (const op of ['status', 'pause', 'resume', 'flush', 'stop']) {
+      assert.ok(result.stdout.includes(op), `watch-ctl help should include ${op}`);
+    }
+  });
+
   test('--watch --help maps to watch help', (t) => {
     const canonical = spawnCli(['watch', '--help']);
     const alias = spawnCli(['--watch', '--help']);
@@ -109,6 +117,32 @@ describe('CLI subcommand dispatch', () => {
       assert.equal(parsed.noActiveWatcher, true);
       assert.equal(parsed.active, false);
       assert.equal(parsed.watcher, null);
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  test('watch-ctl pause resume and flush write control directives', async (t) => {
+    const tmpDir = await mkdtemp(join(tmpdir(), 'cli-watch-control-'));
+    try {
+      const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
+      await mkdir(stateDir, { recursive: true });
+
+      for (const op of ['pause', 'resume', 'flush']) {
+        const result = spawnCli(
+          ['watch-ctl', op, '--json'],
+          { HOME: tmpDir, STATE_DIR: stateDir }
+        );
+        assert.equal(result.status, 0,
+          `watch-ctl ${op} should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`);
+
+        const payload = JSON.parse(result.stdout);
+        assert.equal(payload.directive, op);
+        assert.equal(payload.control.directive, op);
+
+        const raw = JSON.parse(await readFile(join(stateDir, 'watch.control.json'), 'utf8'));
+        assert.equal(raw.directive, op);
+      }
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -793,6 +827,61 @@ describe('--session override', () => {
 
       const after = JSON.parse(await readFile(statePath, 'utf8'));
       assert.deepEqual(after, before, 'pinned no-op catch-up should not rewrite matching state');
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  test('catch-up warns but succeeds when a watcher owns the same session', async (t) => {
+    const tmpDir = await mkdtemp(join(tmpdir(), 'cli-catchup-watched-'));
+    try {
+      const cwd = '/test/watched-catchup-project';
+      const encodedCwd = '-test-watched-catchup-project';
+      const projectDir = join(tmpDir, '.claude', 'projects', encodedCwd);
+      await mkdir(projectDir, { recursive: true });
+      const transcriptPath = join(projectDir, 'watched-catchup.jsonl');
+      await writeFile(
+        transcriptPath,
+        [
+          JSON.stringify({
+            sessionId: 'watched-catchup',
+            message: { role: 'assistant', content: 'watched session update' },
+          }),
+        ].join('\n') + '\n',
+        'utf8'
+      );
+
+      const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
+      await mkdir(stateDir, { recursive: true });
+      await writeFile(
+        join(stateDir, 'state.json'),
+        JSON.stringify({
+          schemaVersion: 1,
+          sessions: {
+            'claude-code:watched-catchup': {
+              runtime: 'claude-code',
+              sessionId: 'watched-catchup',
+              transcriptPath,
+              recordedCwd: cwd,
+              lastRecordIndex: 0,
+              lastTotalRecords: 0,
+              lastReadAt: '2026-06-03T12:00:00.000Z',
+              watchedByPid: 12345,
+            },
+          },
+        }),
+        'utf8'
+      );
+
+      const result = spawnCli(
+        ['catch-up', '--runtime', 'claude-code', '--cwd', cwd,
+          '--session', 'claude-code:watched-catchup'],
+        { HOME: tmpDir, STATE_DIR: stateDir }
+      );
+
+      assert.equal(result.status, 0,
+        `watched catch-up should still succeed\nstdout: ${result.stdout}\nstderr: ${result.stderr}`);
+      assert.ok(result.stdout.includes('watcher pid 12345 is also reading this session'));
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }

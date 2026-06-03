@@ -4,17 +4,32 @@
 
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
+import { spawn } from 'node:child_process';
+import { once } from 'node:events';
 import { mkdtemp, rm, mkdir, readFile, writeFile, appendFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { fileURLToPath } from 'node:url';
 
 const WATCH_MJS = new URL(
   '../../skills/session-observer/scripts/lib/watch.mjs',
   import.meta.url
 );
+const WATCH_STATE_MJS = new URL(
+  '../../skills/session-observer/scripts/lib/watch-state.mjs',
+  import.meta.url
+);
+const CLI_PATH = fileURLToPath(new URL(
+  '../../skills/session-observer/scripts/session-observer.mjs',
+  import.meta.url
+));
 
 async function importWatch() {
   return import(`${WATCH_MJS.href}?t=${Date.now()}-${Math.random()}`);
+}
+
+async function importWatchState() {
+  return import(`${WATCH_STATE_MJS.href}?t=${Date.now()}-${Math.random()}`);
 }
 
 function claudeSlug(cwd) {
@@ -61,6 +76,24 @@ async function appendClaudeMessage(transcriptPath, sessionId, content, role = 'a
     JSON.stringify({ sessionId, message: { role, content } }) + '\n',
     'utf8'
   );
+}
+
+async function readJsonIfExists(path) {
+  try {
+    return JSON.parse(await readFile(path, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+async function waitFor(predicate, { timeoutMs = 1500, intervalMs = 25 } = {}) {
+  const started = Date.now();
+  while (Date.now() - started < timeoutMs) {
+    const value = await predicate();
+    if (value) return value;
+    await sleep(intervalMs);
+  }
+  throw new Error('timed out waiting for condition');
 }
 
 describe('runWatchLoop', () => {
@@ -213,6 +246,157 @@ describe('runWatchLoop', () => {
       ]);
       assert.equal('digest' in event, false);
       assert.equal('entries' in event, false);
+    });
+  });
+
+  test('pause prevents emission until resume while polling continues', async () => {
+    await withTempSessionHome(async (home) => {
+      const cwd = '/test/watch-pause-resume';
+      const sessionId = 'watch-pause-resume';
+      const transcriptPath = await writeClaudeTranscript(home, cwd, sessionId, [
+        { content: 'pause baseline message' },
+      ]);
+      const { runWatchLoop } = await importWatch();
+      const watchState = await importWatchState();
+      const stdout = [];
+
+      const watchPromise = runWatchLoop({
+        runtime: 'claude-code',
+        cwd,
+        pollSec: 0.03,
+        debounceSec: 0.05,
+        maxRuntimeMin: 0.02,
+      }, {
+        writeStdout: chunk => stdout.push(chunk),
+      });
+
+      await sleep(70);
+      await watchState.writeControlDirective('pause');
+      await sleep(70);
+      await appendClaudeMessage(transcriptPath, sessionId, 'paused update');
+      await sleep(180);
+
+      assert.equal(stdout.join(''), '', 'paused watcher should not emit settled updates');
+
+      await watchState.writeControlDirective('resume');
+      const result = await watchPromise;
+
+      assert.equal(result.reason, 'max-runtime');
+      assert.equal(result.eventCount, 1);
+      assert.ok(stdout.join('').includes('paused update'));
+    });
+  });
+
+  test('flush emits a pending debounced update immediately', async () => {
+    await withTempSessionHome(async (home) => {
+      const cwd = '/test/watch-flush';
+      const sessionId = 'watch-flush';
+      const transcriptPath = await writeClaudeTranscript(home, cwd, sessionId, [
+        { content: 'flush baseline message' },
+      ]);
+      const { runWatchLoop } = await importWatch();
+      const watchState = await importWatchState();
+      const stdout = [];
+
+      const watchPromise = runWatchLoop({
+        runtime: 'claude-code',
+        cwd,
+        pollSec: 0.03,
+        debounceSec: 2,
+        maxRuntimeMin: 0.008,
+      }, {
+        writeStdout: chunk => stdout.push(chunk),
+      });
+
+      await sleep(80);
+      await appendClaudeMessage(transcriptPath, sessionId, 'flush update');
+      await sleep(80);
+      await watchState.writeControlDirective('flush');
+
+      const result = await watchPromise;
+      assert.equal(result.eventCount, 1);
+      assert.ok(stdout.join('').includes('flush update'));
+    });
+  });
+
+  test('stop directive exits cleanly and clears watch metadata', async () => {
+    await withTempSessionHome(async (home, stateDir) => {
+      const cwd = '/test/watch-stop';
+      await writeClaudeTranscript(home, cwd, 'watch-stop', [
+        { content: 'stop baseline message' },
+      ]);
+      const { runWatchLoop } = await importWatch();
+      const watchState = await importWatchState();
+
+      const watchPromise = runWatchLoop({
+        runtime: 'claude-code',
+        cwd,
+        pollSec: 0.03,
+        debounceSec: 0.05,
+        maxRuntimeMin: 0.02,
+      }, {
+        writeStdout: () => {},
+      });
+
+      await waitFor(async () => {
+        const state = await readJsonIfExists(join(stateDir, 'watch.json'));
+        return state?.active;
+      });
+      await watchState.writeControlDirective('stop');
+
+      const result = await watchPromise;
+      assert.equal(result.reason, 'control-stop');
+
+      const watchJson = JSON.parse(await readFile(join(stateDir, 'watch.json'), 'utf8'));
+      assert.equal(watchJson.active, null);
+      assert.equal(await readJsonIfExists(join(stateDir, 'watch.control.json')), null);
+    });
+  });
+
+  test('SIGTERM cleanup clears watcher and control metadata', async () => {
+    await withTempSessionHome(async (home, stateDir) => {
+      const cwd = '/test/watch-sigterm';
+      await writeClaudeTranscript(home, cwd, 'watch-sigterm', [
+        { content: 'sigterm baseline message' },
+      ]);
+      await writeFile(
+        join(stateDir, 'watch.control.json'),
+        JSON.stringify({ directive: 'pause', issuedAt: new Date().toISOString() }),
+        'utf8'
+      );
+
+      const child = spawn('node', [
+        CLI_PATH,
+        'watch',
+        '--runtime', 'claude-code',
+        '--cwd', cwd,
+        '--poll-sec', '0.05',
+        '--debounce-sec', '0.05',
+        '--max-runtime-min', '0',
+        '--json',
+      ], {
+        env: { ...process.env, HOME: home, STATE_DIR: stateDir },
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+
+      try {
+        await waitFor(async () => {
+          const state = await readJsonIfExists(join(stateDir, 'watch.json'));
+          return state?.active;
+        });
+
+        child.kill('SIGTERM');
+        const [code, signal] = await once(child, 'exit');
+
+        assert.equal(signal, null);
+        assert.equal(code, 0);
+
+        const watchJson = JSON.parse(await readFile(join(stateDir, 'watch.json'), 'utf8'));
+        assert.equal(watchJson.active, null);
+        assert.equal(await readJsonIfExists(join(stateDir, 'watch.control.json')), null);
+      } finally {
+        if (!child.killed) child.kill('SIGKILL');
+      }
     });
   });
 });

@@ -152,6 +152,14 @@ async function markReadIfNeeded(runtime, candidate, sessionState, digest) {
   }
 }
 
+function watchedByPidWarnings(sessionState, suppressWatchedWarningPid) {
+  const watchedByPid = sessionState?.watchedByPid;
+  if (!watchedByPid || watchedByPid === suppressWatchedWarningPid) return [];
+  return [
+    `watcher pid ${watchedByPid} is also reading this session; offsets may interleave (benign)`,
+  ];
+}
+
 async function buildCatchUpDigest(runtime, candidate, {
   fromIndex,
   includeTools,
@@ -205,6 +213,7 @@ async function observePinnedSession(runtime, cwd, pinnedSession, args) {
 
   const sessionState = await sessionStateFor(pinnedSession.runtime, pinned.sessionId);
   const fromIndex = sessionState?.lastRecordIndex ?? 0;
+  const warnings = watchedByPidWarnings(sessionState, args.suppressWatchedWarningPid);
 
   let digest;
   try {
@@ -212,6 +221,7 @@ async function observePinnedSession(runtime, cwd, pinnedSession, args) {
       ...args,
       fromIndex,
       active: pinned.active ?? false,
+      warnings,
       fallbacks: [],
     });
   } catch (err) {
@@ -332,9 +342,12 @@ export async function observeCatchUp(args) {
   const winner = rankResult.winner;
   const sessionState = await sessionStateFor(runtime, winner.sessionId);
   const fromIndex = sessionState?.lastRecordIndex ?? 0;
-  const warnings = winner.snippetMatch
+  const warnings = [
+    ...watchedByPidWarnings(sessionState, args.suppressWatchedWarningPid),
+    ...(winner.snippetMatch
     ? [`Selected session by snippet match: ${winner.sessionId} (${winner.recordedCwd ?? 'unknown cwd'})`]
-    : [];
+    : []),
+  ];
 
   let digest;
   try {

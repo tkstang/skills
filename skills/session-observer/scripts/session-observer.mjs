@@ -331,6 +331,10 @@ function printWatchCtlUsage() {
     '',
     'Operations:',
     '  status     Print active watcher state',
+    '  pause      Pause event emission while polling continues',
+    '  resume     Resume event emission',
+    '  flush      Emit any pending debounced update immediately',
+    '  stop       Stop the active watcher',
     '',
     'Options:',
     '  --json     Output JSON instead of text',
@@ -839,9 +843,45 @@ async function runWatchCtl(args) {
         : 'No active watcher.', 0);
     }
 
+    case 'pause':
+    case 'resume':
+    case 'flush': {
+      const control = await watchStateLib.writeControlDirective(args.watchCtlOp);
+      const payload = {
+        directive: args.watchCtlOp,
+        control,
+      };
+      if (args.json) return emitJson(payload, 0);
+      return emit(`Watcher directive written: ${args.watchCtlOp}`, 0);
+    }
+
+    case 'stop': {
+      const state = await watchStateLib.loadWatchState();
+      const control = await watchStateLib.writeControlDirective('stop');
+      let signaled = false;
+      if (state.active?.pid) {
+        try {
+          process.kill(state.active.pid, 'SIGTERM');
+          signaled = true;
+        } catch {
+          signaled = false;
+        }
+      }
+      const payload = {
+        directive: 'stop',
+        control,
+        watcher: state.active ?? null,
+        signaled,
+      };
+      if (args.json) return emitJson(payload, 0);
+      return emit(signaled
+        ? `Watcher stop requested for pid ${state.active.pid}`
+        : 'Watcher stop directive written.', 0);
+    }
+
     default:
       return emitError(
-        `Unknown watch-ctl operation: ${args.watchCtlOp}. Valid operations: status`,
+        `Unknown watch-ctl operation: ${args.watchCtlOp}. Valid operations: status, pause, resume, flush, stop`,
         1
       );
   }
