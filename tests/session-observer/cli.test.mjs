@@ -64,6 +64,56 @@ describe('CLI subcommand dispatch', () => {
     );
   });
 
+  test('--help lists watch command surface', (t) => {
+    const result = spawnCli(['--help']);
+    assert.equal(result.status, 0, `help should exit 0\nstderr: ${result.stderr}`);
+    assert.ok(result.stdout.includes('watch'), 'help should list watch subcommand');
+    assert.ok(result.stdout.includes('watch-ctl'), 'help should list watch-ctl subcommand');
+    assert.ok(result.stdout.includes('--watch'), 'help should list top-level --watch alias');
+  });
+
+  test('watch --help lists watch flags', (t) => {
+    const result = spawnCli(['watch', '--help']);
+    assert.equal(result.status, 0, `watch help should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`);
+    assert.ok(result.stdout.includes('--debounce-sec'), 'watch help should include debounce flag');
+    assert.ok(result.stdout.includes('--poll-sec'), 'watch help should include poll flag');
+    assert.ok(result.stdout.includes('--max-runtime-min'), 'watch help should include bounded runtime flag');
+    assert.ok(result.stdout.includes('--event-log'), 'watch help should include event log flag');
+    assert.ok(
+      result.stdout.includes('--runtime <claude-code|codex|cursor|auto|both>'),
+      'watch help should include both as a watch runtime option'
+    );
+  });
+
+  test('--watch --help maps to watch help', (t) => {
+    const canonical = spawnCli(['watch', '--help']);
+    const alias = spawnCli(['--watch', '--help']);
+    assert.equal(alias.status, 0, `--watch help should exit 0\nstdout: ${alias.stdout}\nstderr: ${alias.stderr}`);
+    assert.equal(alias.stdout, canonical.stdout, '--watch --help should print the same help as watch --help');
+  });
+
+  test('watch-ctl status --json reports no active watcher', async (t) => {
+    const tmpDir = await mkdtemp(join(tmpdir(), 'cli-watch-status-'));
+    try {
+      const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
+      await mkdir(stateDir, { recursive: true });
+
+      const result = spawnCli(
+        ['watch-ctl', 'status', '--json'],
+        { HOME: tmpDir, STATE_DIR: stateDir }
+      );
+
+      assert.equal(result.status, 0,
+        `watch-ctl status should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`);
+      const parsed = JSON.parse(result.stdout);
+      assert.equal(parsed.noActiveWatcher, true);
+      assert.equal(parsed.active, false);
+      assert.equal(parsed.watcher, null);
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
   test('review --help does not throw', (t) => {
     const result = spawnCli(['review', '--help']);
     // --help exits 0 or 1; should not crash with code 127 or similar

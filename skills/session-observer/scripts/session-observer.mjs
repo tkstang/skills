@@ -5,7 +5,7 @@
  * Usage:
  *   node session-observer.mjs <subcommand> [options]
  *
- * Subcommands: review, catch-up, locate, state
+ * Subcommands: review, catch-up, locate, state, watch, watch-ctl
  *
  * Exit codes:
  *   0 — success
@@ -34,6 +34,7 @@ const { discover, gitWorktrees, claudeCodeLookupDiagnostics } = await import(joi
 const { rank } = await import(join(LIB, 'rank.mjs'));
 const { buildDigest, renderMarkdown, renderJson } = await import(join(LIB, 'digest.mjs'));
 const stateLib = await import(join(LIB, 'state.mjs'));
+const watchStateLib = await import(join(LIB, 'watch-state.mjs'));
 
 // ---------------------------------------------------------------------------
 // argv parsing
@@ -61,11 +62,20 @@ function parseCliArgs(argv) {
       session:              { type: 'string',  default: undefined },
       snippet:              { type: 'string',  default: undefined },
       'mark-read':          { type: 'boolean', default: false },
+      watch:                { type: 'boolean', default: false },
+      'debounce-sec':       { type: 'string',  default: undefined },
+      'poll-sec':           { type: 'string',  default: undefined },
+      'max-runtime-min':    { type: 'string',  default: undefined },
+      'event-log':          { type: 'string',  default: undefined },
       help:                 { type: 'boolean', default: false },
     },
   });
 
-  const [subcommand, ...rest] = positionals;
+  let [subcommand, ...rest] = positionals;
+  if (values.watch && !subcommand) {
+    subcommand = 'watch';
+    rest = [];
+  }
 
   // --debug is shorthand for --include-tools --include-tool-results
   const includeTools = values['include-tools'] || values.debug || false;
@@ -73,13 +83,18 @@ function parseCliArgs(argv) {
 
   const maxTurns = values['max-turns'] ? parseInt(values['max-turns'], 10) : undefined;
   const maxBytes = values['max-bytes'] ? parseInt(values['max-bytes'], 10) : undefined;
+  const debounceSec = values['debounce-sec'] ? parseFloat(values['debounce-sec']) : 2;
+  const pollSec = values['poll-sec'] ? parseFloat(values['poll-sec']) : 2;
+  const maxRuntimeMin = values['max-runtime-min'] ? parseFloat(values['max-runtime-min']) : 0;
 
   // For 'state' subcommand, the op is in rest[0]: get, reset, clear
   const stateOp = subcommand === 'state' ? rest[0] : undefined;
+  const watchCtlOp = subcommand === 'watch-ctl' ? rest[0] : undefined;
 
   return {
     subcommand,
     stateOp,
+    watchCtlOp,
     runtime: values.runtime,
     cwd: values.cwd,
     json: values.json,
@@ -92,6 +107,11 @@ function parseCliArgs(argv) {
     session: values.session,
     snippet: values.snippet,
     markRead: values['mark-read'],
+    watch: values.watch,
+    debounceSec,
+    pollSec,
+    maxRuntimeMin,
+    eventLog: values['event-log'],
     help: values.help,
   };
 }
@@ -102,6 +122,8 @@ function parseCliArgs(argv) {
 
 const VALID_RUNTIMES = ['claude-code', 'codex', 'cursor'];
 const VALID_RUNTIME_LABEL = VALID_RUNTIMES.join(', ');
+const VALID_WATCH_RUNTIMES = [...VALID_RUNTIMES, 'auto', 'both'];
+const VALID_WATCH_RUNTIME_LABEL = VALID_WATCH_RUNTIMES.join('|');
 
 async function preferredRuntimeFromState(withCandidates, targetCwd) {
   let state;
@@ -254,6 +276,8 @@ function printUsage() {
     '  catch-up   Incremental: only records added since the last read',
     '  locate     Diagnostic: ranked candidate list',
     '  state      Manage high-water marks: get, reset, clear',
+    '  watch      Foreground watcher for debounced catch-up updates',
+    '  watch-ctl  Inspect or control active watch state',
     '',
     'Options:',
     '  --runtime <claude-code|codex|cursor|auto>  (default: auto)',
@@ -267,6 +291,47 @@ function printUsage() {
     '  --session <runtime:id>              Pin to a specific session',
     '  --snippet <text>                    Prefer candidates containing this transcript excerpt',
     '  --mark-read                         Advance offset after review',
+    '  --watch                             Alias for the watch subcommand',
+    '',
+    'Watch options:',
+    '  --runtime <claude-code|codex|cursor|auto|both>  (default: auto)',
+    '  --debounce-sec <N>                  Seconds of quiet before emitting',
+    '  --poll-sec <N>                      Poll interval in seconds',
+    '  --max-runtime-min <N>               Auto-exit after N minutes (0 = unlimited)',
+    '  --event-log <path>                  Metadata-only JSONL event log',
+    '',
+  ].join('\n'));
+  process.exit(0);
+}
+
+function printWatchUsage() {
+  process.stdout.write([
+    'Usage: session-observer watch [options]',
+    '',
+    'Options:',
+    '  --runtime <claude-code|codex|cursor|auto|both>  (default: auto)',
+    '  --cwd <path>                        (default: process.cwd())',
+    '  --debounce-sec <N>                  Seconds of quiet before emitting (default: 2)',
+    '  --poll-sec <N>                      Poll interval in seconds (default: 2)',
+    '  --max-runtime-min <N>               Auto-exit after N minutes (0 = unlimited)',
+    '  --event-log <path>                  Metadata-only JSONL event log',
+    '  --json                              Emit JSON-line events instead of markdown',
+    '  --session <runtime:id>              Pin to a specific session',
+    '  --snippet <text>                    Prefer candidates containing this transcript excerpt',
+    '',
+  ].join('\n'));
+  process.exit(0);
+}
+
+function printWatchCtlUsage() {
+  process.stdout.write([
+    'Usage: session-observer watch-ctl <operation> [options]',
+    '',
+    'Operations:',
+    '  status     Print active watcher state',
+    '',
+    'Options:',
+    '  --json     Output JSON instead of text',
     '',
   ].join('\n'));
   process.exit(0);
@@ -902,6 +967,68 @@ async function runState(args) {
 }
 
 // ---------------------------------------------------------------------------
+// runWatch / runWatchCtl
+// ---------------------------------------------------------------------------
+
+async function runWatch(args) {
+  if (args.help) return printWatchUsage();
+
+  if (!VALID_WATCH_RUNTIMES.includes(args.runtime)) {
+    return emitError(
+      `Unknown watch runtime: ${args.runtime}. Use one of: ${VALID_WATCH_RUNTIME_LABEL}.`,
+      1
+    );
+  }
+
+  const payload = {
+    watch: true,
+    status: 'pending-implementation',
+    runtime: args.runtime,
+    cwd: args.cwd,
+    debounceSec: args.debounceSec,
+    pollSec: args.pollSec,
+    maxRuntimeMin: args.maxRuntimeMin,
+    eventLog: args.eventLog ?? null,
+    message: 'Watch CLI surface is available; polling loop is implemented in phase p02.',
+  };
+
+  if (args.json) return emitJson(payload, 0);
+  return emit(payload.message, 0);
+}
+
+async function runWatchCtl(args) {
+  if (args.help || !args.watchCtlOp) return printWatchCtlUsage();
+
+  switch (args.watchCtlOp) {
+    case 'status': {
+      const state = await watchStateLib.loadWatchState();
+      const payload = state.active
+        ? {
+            active: true,
+            noActiveWatcher: false,
+            watcher: state.active,
+          }
+        : {
+            active: false,
+            noActiveWatcher: true,
+            watcher: null,
+            message: 'No active watcher.',
+          };
+      if (args.json) return emitJson(payload, 0);
+      return emit(state.active
+        ? `Watcher active: ${state.active.runtime} ${state.active.cwd} (pid ${state.active.pid})`
+        : 'No active watcher.', 0);
+    }
+
+    default:
+      return emitError(
+        `Unknown watch-ctl operation: ${args.watchCtlOp}. Valid operations: status`,
+        1
+      );
+  }
+}
+
+// ---------------------------------------------------------------------------
 // main
 // ---------------------------------------------------------------------------
 
@@ -917,11 +1044,13 @@ async function main(argv) {
     case 'catch-up': return runCatchUp(args);
     case 'locate':   return runLocate(args);
     case 'state':    return runState(args);
+    case 'watch':    return runWatch(args);
+    case 'watch-ctl': return runWatchCtl(args);
     default:
       return emitError(
         args.subcommand
-          ? `Unknown subcommand: ${args.subcommand}. Use review, catch-up, locate, or state.`
-          : 'No subcommand specified. Use review, catch-up, locate, or state.',
+          ? `Unknown subcommand: ${args.subcommand}. Use review, catch-up, locate, state, watch, or watch-ctl.`
+          : 'No subcommand specified. Use review, catch-up, locate, state, watch, or watch-ctl.',
         1
       );
   }
