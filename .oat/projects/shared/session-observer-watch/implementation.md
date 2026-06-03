@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-03
-oat_current_task_id: p02-t01
+oat_current_task_id: p03-t01
 oat_generated: false
 ---
 
@@ -21,10 +21,10 @@ oat_generated: false
 | Phase | Status | Tasks | Completed |
 | ----- | ------ | ----- | --------- |
 | Phase 1: Watch State And CLI Surface | complete | 2 | 2/2 |
-| Phase 2: Watch Loop And Event Emission | pending | 3 | 0/3 |
+| Phase 2: Watch Loop And Event Emission | complete | 3 | 3/3 |
 | Phase 3: Skill Documentation And Dogfooding Sync | pending | 2 | 0/2 |
 
-**Total:** 2/7 tasks completed
+**Total:** 5/7 tasks completed
 
 ---
 
@@ -63,27 +63,51 @@ oat_generated: false
 
 ## Phase 2: Watch Loop And Event Emission
 
-**Status:** pending
-**Started:** -
+**Status:** complete
+**Started:** 2026-06-03
+**Completed:** 2026-06-03
 
 ### Task p02-t01: Extract Reusable Catch-Up Observation Pipeline
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** f889d32
+
+**Notes:**
+
+- Added `observe.mjs` as a reusable catch-up observation pipeline that returns exit-style outcomes without calling `process.exit`.
+- Updated `runCatchUp` to use the helper while preserving existing CLI output behavior.
+- Verification passed: `node --test tests/session-observer/observe.test.mjs tests/session-observer/cli.test.mjs`.
+- Verification passed: `npm test -- tests/session-observer/observe.test.mjs tests/session-observer/cli.test.mjs`.
 
 ---
 
 ### Task p02-t02: Implement Polling, Debounce, And Event Log
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** 393488d
+
+**Notes:**
+
+- Added `watch.mjs` with foreground stat-based polling, initial baseline establishment, debounce coalescing, markdown/JSON-line event emission, metadata-only event logs, and bounded runtime support.
+- Updated the `watch` CLI command to run the polling loop instead of the p01 placeholder.
+- Verification passed: `node --test tests/session-observer/watch.test.mjs tests/session-observer/cli.test.mjs`.
+- Verification passed: `node skills/session-observer/scripts/session-observer.mjs watch --runtime claude-code --cwd "$PWD" --poll-sec 1 --debounce-sec 1 --max-runtime-min 0.02 --json`.
+- Verification passed: `npm test -- tests/session-observer/watch.test.mjs tests/session-observer/cli.test.mjs`.
 
 ---
 
 ### Task p02-t03: Add Watch Control And Graceful Shutdown
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** 15dd40f
+
+**Notes:**
+
+- Added `watch-ctl` directives for pause, resume, flush, and stop.
+- The watcher now applies control directives on poll ticks, clears `watch.json` and `watch.control.json` on normal/control/signal exit, and maintains `watchedByPid` ownership for active sessions.
+- Manual `catch-up` warns when a watcher owns the same session offset but still succeeds.
+- Verification passed: `node --test tests/session-observer/watch.test.mjs tests/session-observer/cli.test.mjs`.
+- Verification passed: `npm test -- tests/session-observer/watch.test.mjs tests/session-observer/cli.test.mjs`.
 
 ---
 
@@ -126,9 +150,9 @@ _No orchestration runs yet._
 
 - [x] p01-t01: Add Watch State Primitives - complete (`cd73202`)
 - [x] p01-t02: Add Watch CLI Parsing And Help - complete (`13162eb`)
-- [ ] p02-t01: Extract Reusable Catch-Up Observation Pipeline - pending
-- [ ] p02-t02: Implement Polling, Debounce, And Event Log - pending
-- [ ] p02-t03: Add Watch Control And Graceful Shutdown - pending
+- [x] p02-t01: Extract Reusable Catch-Up Observation Pipeline - complete (`f889d32`)
+- [x] p02-t02: Implement Polling, Debounce, And Event Log - complete (`393488d`)
+- [x] p02-t03: Add Watch Control And Graceful Shutdown - complete (`15dd40f`)
 - [ ] p03-t01: Update Skill Instructions And Watch Reference - pending
 - [ ] p03-t02: Sync Dogfooding Install And Run Full Verification - pending
 
@@ -207,6 +231,34 @@ _No orchestration runs yet._
 
 ---
 
+### Phase p02 Implementation Complete
+
+**Completed:** 2026-06-03T14:39:08Z
+**Next task:** p03-t01
+
+**Verification:**
+
+- Passed: `node --test tests/session-observer/observe.test.mjs tests/session-observer/cli.test.mjs`
+- Passed: `node --test tests/session-observer/watch.test.mjs tests/session-observer/cli.test.mjs`
+- Passed: `npm test -- tests/session-observer/watch.test.mjs tests/session-observer/cli.test.mjs`
+- Passed: `node skills/session-observer/scripts/session-observer.mjs watch --runtime claude-code --cwd "$PWD" --poll-sec 1 --debounce-sec 1 --max-runtime-min 0.02 --json`
+- Passed: `oat project validate-plan --project-path .oat/projects/shared/session-observer-watch`
+
+**Dispatch ceiling enforcement:**
+
+- model_axis: inherited
+- effort_axis: selected:xhigh
+- dispatch_ceiling: xhigh
+- ceiling_source: project-state
+- provider_default_effort: xhigh
+- dispatch_rationale: p02 is the main integration phase: reusable catch-up pipeline, polling/debounce loop, event log, control directives, and shutdown behavior.
+
+**Notes:**
+
+- p02 scope is complete. Skill documentation, provider-view sync, user-level dogfooding install, and full-suite verification remain scheduled for p03.
+
+---
+
 ## Deviations from Plan
 
 | Task | Planned | Actual | Reason |
@@ -220,6 +272,11 @@ _No orchestration runs yet._
 | p01 | `node --test tests/session-observer/watch-state.test.mjs tests/session-observer/state.test.mjs` | 19 | 0 | watch state primitives and session state watcher metadata |
 | p01 | `node --test tests/session-observer/cli.test.mjs` | 32 | 0 | watch CLI surface and existing CLI behavior |
 | p01 | `node skills/session-observer/scripts/session-observer.mjs --help` | 1 | 0 | top-level help surface |
+| p02 | `node --test tests/session-observer/observe.test.mjs tests/session-observer/cli.test.mjs` | 40 | 0 | reusable observe pipeline and CLI behavior |
+| p02 | `node --test tests/session-observer/watch.test.mjs tests/session-observer/cli.test.mjs` | 43 | 0 | watch loop, control directives, shutdown, and CLI behavior |
+| p02 | `npm test -- tests/session-observer/watch.test.mjs tests/session-observer/cli.test.mjs` | 43 | 0 | npm-targeted watch and CLI tests |
+| p02 | `node skills/session-observer/scripts/session-observer.mjs watch --runtime claude-code --cwd "$PWD" --poll-sec 1 --debounce-sec 1 --max-runtime-min 0.02 --json` | 1 | 0 | bounded watch smoke, no events emitted |
+| p02 | `oat project validate-plan --project-path .oat/projects/shared/session-observer-watch` | 1 | 0 | plan structure validation |
 
 ## Final Summary (for PR/docs)
 
