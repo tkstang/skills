@@ -6,6 +6,12 @@ associated_issues: []
 oat_hill_checkpoints: []
 oat_hill_completed: []
 oat_parallel_execution: false
+oat_dispatch_ceiling:
+  preset: maximum
+  providers:
+    codex: xhigh
+    claude: opus
+  source: project-state
 oat_phase: plan
 oat_phase_status: complete
 oat_workflow_mode: quick
@@ -15,7 +21,7 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: "2026-06-03T02:16:48.641Z"
 oat_project_completed: null
-oat_project_state_updated: "2026-06-03T04:59:55Z"
+oat_project_state_updated: "2026-06-03T14:12:16Z"
 oat_generated: false
 ---
 
