@@ -1,10 +1,10 @@
 ---
-oat_current_task: p05-t01
-oat_last_commit: e750aab
+oat_current_task: null
+oat_last_commit: 60bd05d
 oat_blockers: []
 associated_issues: []
 oat_hill_checkpoints: ["p05"]
-oat_hill_completed: []
+oat_hill_completed: ["p05"]
 oat_parallel_execution: false
 oat_dispatch_ceiling:
   preset: maximum
@@ -13,7 +13,7 @@ oat_dispatch_ceiling:
     claude: opus
   source: project-state
 oat_phase: implement
-oat_phase_status: in_progress
+oat_phase_status: complete
 oat_workflow_mode: quick
 oat_workflow_origin: native
 oat_docs_updated: true
@@ -21,19 +21,19 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: "2026-06-03T02:16:48.641Z"
 oat_project_completed: null
-oat_project_state_updated: "2026-06-03T15:23:19Z"
+oat_project_state_updated: "2026-06-03T15:28:58Z"
 oat_generated: false
 ---
 
 # Project State: session-observer-watch
 
-**Status:** Implementation in progress
+**Status:** Ready for checkpoint/final review
 **Started:** 2026-06-03
 **Last Updated:** 2026-06-03
 
 ## Current Phase
 
-Final review v2 found one Medium issue. Continue implementation with review-fix task `p05-t01`.
+Phase 5 review-fix implementation is complete. Continue with checkpoint/final code review for p05/final scope.
 
 ## Artifacts
 
@@ -41,7 +41,7 @@ Final review v2 found one Medium issue. Continue implementation with review-fix 
 - **Spec:** N/A (quick mode)
 - **Design:** N/A (quick mode; existing reference design is `skills/session-observer/references/watch-design.md`)
 - **Plan:** `plan.md` (complete)
-- **Implementation:** `implementation.md` (in progress; next task `p05-t01`)
+- **Implementation:** `implementation.md` (complete; 11/11 tasks)
 
 ## Progress
 
@@ -53,7 +53,7 @@ Final review v2 found one Medium issue. Continue implementation with review-fix 
 - [x] Phase 2 implemented: Watch Loop And Event Emission
 - [x] Phase 3 implemented: Skill Documentation And Dogfooding Sync
 - [x] Phase 4 implemented: Final Review Fixes
-- [ ] Phase 5 review fix not started: Final Review Fixes v2
+- [x] Phase 5 implemented: Final Review Fixes v2
 
 ## Verification
 
@@ -80,6 +80,11 @@ Final review v2 found one Medium issue. Continue implementation with review-fix 
 - Passed: `npm run smoke` (p04 final verification)
 - Passed: `oat project validate-plan --project-path .oat/projects/shared/session-observer-watch` (p04 final verification)
 - Passed: `rg -n "Pending implementation" .oat/projects/shared/session-observer-watch/implementation.md` produced no matches
+- Passed: `node --test tests/session-observer/watch.test.mjs tests/session-observer/cli.test.mjs` (p05 final verification, 46 tests)
+- Passed: `npm test` (p05 final verification, 297 tests)
+- Passed: `npm run validate` (p05 final verification)
+- Passed: `npm run smoke` (p05 final verification)
+- Passed: `oat project validate-plan --project-path .oat/projects/shared/session-observer-watch` (p05 final verification)
 
 ## Dispatch Ceiling Enforcement
 
@@ -97,4 +102,4 @@ None
 
 ## Next Milestone
 
-Run `oat-project-implement` to execute review-fix task `p05-t01`.
+Run checkpoint/final code review for p05/final scope.

@@ -1,9 +1,9 @@
 ---
-oat_status: in_progress
-oat_ready_for: null
+oat_status: complete
+oat_ready_for: final_review
 oat_blockers: []
 oat_last_updated: 2026-06-03
-oat_current_task_id: p05-t01
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -24,9 +24,9 @@ oat_generated: false
 | Phase 2: Watch Loop And Event Emission | complete | 3 | 3/3 |
 | Phase 3: Skill Documentation And Dogfooding Sync | complete | 2 | 2/2 |
 | Phase 4: Final Review Fixes | complete | 3 | 3/3 |
-| Phase 5: Final Review Fixes v2 | in_progress | 1 | 0/1 |
+| Phase 5: Final Review Fixes v2 | complete | 1 | 1/1 |
 
-**Total:** 10/11 tasks completed
+**Total:** 11/11 tasks completed
 
 ---
 
@@ -202,18 +202,24 @@ oat_generated: false
 
 ## Phase 5: Final Review Fixes v2
 
-**Status:** in_progress
+**Status:** complete
 **Started:** 2026-06-03
+**Completed:** 2026-06-03
 
 ### Task p05-t01: (review) Align `--runtime both` With Documented Runtime Scope
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** 60bd05d
 
 **Notes:**
 
-- Added from final code review v2 Medium finding M1.
-- Intended contract is the documented one: `--runtime both` watches Claude Code plus Codex, not Cursor.
+- Fixed final code review v2 Medium finding M1 by making `--runtime both` expand to Claude Code plus Codex only.
+- Added regression coverage proving a Cursor-only same-cwd transcript is not baselined, emitted, or marked read by `runtime: "both"`.
+- Verification passed: `node --test tests/session-observer/watch.test.mjs tests/session-observer/cli.test.mjs` (46 tests).
+- Verification passed: `npm test` (297 tests).
+- Verification passed: `npm run validate`.
+- Verification passed: `npm run smoke`.
+- Verification passed: `oat project validate-plan --project-path .oat/projects/shared/session-observer-watch`.
 
 ---
 
@@ -245,7 +251,7 @@ _No orchestration runs yet._
 - [x] p04-t01: Fix `--runtime both` dropped watch updates - complete (`a7d5699`)
 - [x] p04-t02: Constrain watch event log writes - complete (`6c3300e`)
 - [x] p04-t03: Update final implementation summary - complete (`5c72e6c`)
-- [ ] p05-t01: Align `--runtime both` with documented runtime scope - pending
+- [x] p05-t01: Align `--runtime both` with documented runtime scope - complete (`60bd05d`)
 
 **What changed (high level):**
 
@@ -259,7 +265,7 @@ _No orchestration runs yet._
 
 **Follow-ups / TODO:**
 
-- Execute p05-t01, then rerun checkpoint/final code review.
+- Rerun checkpoint/final code review.
 
 **Blockers:**
 
@@ -414,6 +420,34 @@ _No orchestration runs yet._
 
 ---
 
+### Phase p05 Implementation Complete
+
+**Completed:** 2026-06-03T15:28:58Z
+**Next task:** none
+
+**Verification:**
+
+- Passed: `node --test tests/session-observer/watch.test.mjs tests/session-observer/cli.test.mjs` (46 tests).
+- Passed: `npm test` (297 tests).
+- Passed: `npm run validate`.
+- Passed: `npm run smoke`.
+- Passed: `oat project validate-plan --project-path .oat/projects/shared/session-observer-watch`.
+
+**Dispatch ceiling enforcement:**
+
+- dispatch_ceiling: maximum / Codex xhigh
+- ceiling_source: project-state
+
+**Accepted design deltas:**
+
+- `--runtime both` follows the documented alias scope: Claude Code plus Codex only. Cursor remains supported through explicit `--runtime cursor` and `--runtime auto`, but is excluded from `both` watcher baseline/read-offset handling.
+
+**Notes:**
+
+- p05 scope is complete. The project is ready for checkpoint/final code review.
+
+---
+
 ### Review Received: final
 
 **Date:** 2026-06-03
@@ -488,6 +522,11 @@ _No orchestration runs yet._
 | p04 | `npm run smoke` | 1 | 0 | mocked end-to-end consensus wrapper flow |
 | p04 | `oat project validate-plan --project-path .oat/projects/shared/session-observer-watch` | 1 | 0 | plan structure validation |
 | p04 | final-summary placeholder scan | 1 | 0 | no final-summary placeholders remain |
+| p05 | `node --test tests/session-observer/watch.test.mjs tests/session-observer/cli.test.mjs` | 46 | 0 | final review v2 runtime-both scope regression and CLI coverage |
+| p05 | `npm test` | 297 | 0 | full repository test suite |
+| p05 | `npm run validate` | 1 | 0 | repository structure, manifest, and docs invariants |
+| p05 | `npm run smoke` | 1 | 0 | mocked end-to-end consensus wrapper flow |
+| p05 | `oat project validate-plan --project-path .oat/projects/shared/session-observer-watch` | 1 | 0 | plan structure validation |
 
 ## Final Summary (for PR/docs)
 
@@ -504,6 +543,7 @@ _No orchestration runs yet._
 - Relative event-log paths resolve under `~/.local/state/session-observer/`; absolute or relative paths that escape that directory are rejected.
 - Watch control directives can pause/resume output, flush pending debounced updates, stop the watcher, and report active watcher state.
 - Manual `catch-up` warns when a watcher owns the same session offset but still succeeds.
+- `--runtime both` watches Claude Code plus Codex only; Cursor transcripts require `--runtime cursor` or `--runtime auto` and are not baselined by the `both` watcher.
 
 **Key files / modules:**
 
@@ -525,6 +565,7 @@ _No orchestration runs yet._
 - Provider-hook automation remains deferred. Automatic responses are available only while an active agent invocation keeps the foreground watch process running and consumes stdout.
 - Watch state uses one global active watcher entry, which is stricter than duplicate-only singleton wording but matches the single `watch.json` / `watch.control.json` control-file model.
 - `--event-log` path semantics are intentionally constrained: callers may choose filenames/subdirectories only within the session-observer state directory.
+- `--runtime both` intentionally excludes Cursor to match the shipped operator contract.
 
 ## References
 
