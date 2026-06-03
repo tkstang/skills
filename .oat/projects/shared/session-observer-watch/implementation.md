@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-03
-oat_current_task_id: p01-t01
+oat_current_task_id: p02-t01
 oat_generated: false
 ---
 
@@ -20,34 +20,44 @@ oat_generated: false
 
 | Phase | Status | Tasks | Completed |
 | ----- | ------ | ----- | --------- |
-| Phase 1: Watch State And CLI Surface | in_progress | 2 | 0/2 |
+| Phase 1: Watch State And CLI Surface | complete | 2 | 2/2 |
 | Phase 2: Watch Loop And Event Emission | pending | 3 | 0/3 |
 | Phase 3: Skill Documentation And Dogfooding Sync | pending | 2 | 0/2 |
 
-**Total:** 0/7 tasks completed
+**Total:** 2/7 tasks completed
 
 ---
 
 ## Phase 1: Watch State And CLI Surface
 
-**Status:** in_progress
+**Status:** complete
 **Started:** 2026-06-03
+**Completed:** 2026-06-03
 
 ### Task p01-t01: Add Watch State Primitives
 
-**Status:** pending
-**Commit:** -
+**Status:** complete
+**Commit:** cd73202
 
 **Notes:**
 
-- Start here. Add watch metadata/control helpers before wiring CLI watch behavior.
+- Added lock-protected `watch-state.mjs`, atomic watch/control JSON writes, stale-pid cleanup, and offset-preserving `watchedByPid` helpers.
+- Verification passed: `node --test tests/session-observer/watch-state.test.mjs tests/session-observer/state.test.mjs`.
+- Verification passed: `npm test -- tests/session-observer/watch-state.test.mjs tests/session-observer/state.test.mjs`.
 
 ---
 
 ### Task p01-t02: Add Watch CLI Parsing And Help
 
-**Status:** pending
-**Commit:** -
+**Status:** complete
+**Commit:** 13162eb
+
+**Notes:**
+
+- Added canonical `watch` and `watch-ctl` commands, top-level `--watch` alias, watch help flags, and `watch-ctl status --json` no-active-watcher payload.
+- Watch execution is intentionally a CLI placeholder; polling/debounce implementation remains scheduled for p02.
+- Verification passed: `node --test tests/session-observer/cli.test.mjs`.
+- Verification passed: `node skills/session-observer/scripts/session-observer.mjs --help`.
 
 ---
 
@@ -114,8 +124,8 @@ _No orchestration runs yet._
 
 **Session Start:** 2026-06-03T02:17:35Z
 
-- [ ] p01-t01: Add Watch State Primitives - pending
-- [ ] p01-t02: Add Watch CLI Parsing And Help - pending
+- [x] p01-t01: Add Watch State Primitives - complete (`cd73202`)
+- [x] p01-t02: Add Watch CLI Parsing And Help - complete (`13162eb`)
 - [ ] p02-t01: Extract Reusable Catch-Up Observation Pipeline - pending
 - [ ] p02-t02: Implement Polling, Debounce, And Event Log - pending
 - [ ] p02-t03: Add Watch Control And Graceful Shutdown - pending
@@ -167,7 +177,33 @@ _No orchestration runs yet._
 
 **New tasks added:** none; artifact review findings were resolved directly in the reviewed artifact.
 
-**Next:** Execute implementation tasks via the `oat-project-implement` skill starting from `p01-t01`.
+**Next:** Continue implementation with `p02-t01`.
+
+---
+
+### Phase p01 Implementation Complete
+
+**Completed:** 2026-06-03T14:21:45Z
+**Next task:** p02-t01
+
+**Verification:**
+
+- Passed: `node --test tests/session-observer/watch-state.test.mjs tests/session-observer/state.test.mjs`
+- Passed: `node --test tests/session-observer/cli.test.mjs`
+- Passed: `node skills/session-observer/scripts/session-observer.mjs --help`
+
+**Dispatch ceiling enforcement:**
+
+- model_axis: inherited
+- effort_axis: selected:xhigh
+- dispatch_ceiling: xhigh
+- ceiling_source: project-state
+- provider_default_effort: xhigh
+- dispatch_rationale: p01 includes lock-protected state persistence and CLI surface changes; maximum ceiling requested.
+
+**Notes:**
+
+- p01 scope is complete. The watch loop, event emission, control directives beyond `status`, and graceful shutdown remain scheduled for p02.
 
 ---
 
@@ -181,7 +217,9 @@ _No orchestration runs yet._
 
 | Phase | Tests Run | Passed | Failed | Coverage |
 | ----- | --------- | ------ | ------ | -------- |
-| - | - | - | - | - |
+| p01 | `node --test tests/session-observer/watch-state.test.mjs tests/session-observer/state.test.mjs` | 19 | 0 | watch state primitives and session state watcher metadata |
+| p01 | `node --test tests/session-observer/cli.test.mjs` | 32 | 0 | watch CLI surface and existing CLI behavior |
+| p01 | `node skills/session-observer/scripts/session-observer.mjs --help` | 1 | 0 | top-level help surface |
 
 ## Final Summary (for PR/docs)
 
