@@ -153,30 +153,38 @@ describe('runWatchLoop', () => {
       ]);
       const { runWatchLoop } = await importWatch();
       const stdout = [];
+      let nowMs = Date.UTC(2026, 5, 3, 12, 0, 0);
+      let sleepCount = 0;
 
-      const watchPromise = runWatchLoop({
+      const result = await runWatchLoop({
         runtime: 'claude-code',
         cwd,
         pollSec: 0.03,
         debounceSec: 0.06,
-        maxRuntimeMin: 0.012,
+        maxRuntimeMin: 0.003,
       }, {
         writeStdout: chunk => stdout.push(chunk),
+        now: () => nowMs,
+        sleep: async (ms) => {
+          nowMs += ms;
+          sleepCount++;
+          if (sleepCount === 1) {
+            await appendClaudeMessage(transcriptPath, sessionId, 'first debounced update');
+          } else if (sleepCount === 2) {
+            await appendClaudeMessage(transcriptPath, sessionId, 'second debounced update');
+          }
+        },
       });
 
-      await sleep(90);
-      await appendClaudeMessage(transcriptPath, sessionId, 'first debounced update');
-      await sleep(20);
-      await appendClaudeMessage(transcriptPath, sessionId, 'second debounced update');
-
-      const result = await watchPromise;
       const output = stdout.join('');
       const digestCount = (output.match(/## session-observer digest/g) ?? []).length;
 
+      assert.equal(result.reason, 'max-runtime');
       assert.equal(result.eventCount, 1);
       assert.equal(digestCount, 1);
       assert.ok(output.includes('first debounced update'));
       assert.ok(output.includes('second debounced update'));
+      assert.ok(sleepCount >= 4, 'fake clock should advance through debounce settling');
     });
   });
 
