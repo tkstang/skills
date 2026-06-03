@@ -1,9 +1,9 @@
 ---
-oat_status: in_progress
-oat_ready_for: null
+oat_status: complete
+oat_ready_for: oat-project-review-provide
 oat_blockers: []
 oat_last_updated: 2026-06-03
-oat_current_task_id: p07-t01
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -26,9 +26,9 @@ oat_generated: false
 | Phase 4: Final Review Fixes | complete | 3 | 3/3 |
 | Phase 5: Final Review Fixes v2 | complete | 1 | 1/1 |
 | Phase 6: Final Review Fixes v3 | complete | 3 | 3/3 |
-| Phase 7: Final Review Fixes v4 | in_progress | 1 | 0/1 |
+| Phase 7: Final Review Fixes v4 | complete | 1 | 1/1 |
 
-**Total:** 14/15 tasks completed
+**Total:** 15/15 tasks completed
 
 ---
 
@@ -276,18 +276,25 @@ oat_generated: false
 
 ## Phase 7: Final Review Fixes v4
 
-**Status:** in_progress
+**Status:** complete
 **Started:** 2026-06-03
+**Completed:** 2026-06-03
 
 ### Task p07-t01: (review) Harden Event Log File Safety
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** 00d744d
 
 **Notes:**
 
 - Added from final code review v4 Important finding I1.
 - User explicitly overrode the final-review cycle cap on 2026-06-03 after v4 because the remaining finding is concrete and bounded.
+- Hardened `--event-log` resolution before watcher startup to reject symlink targets or parent paths that escape the session-observer state directory.
+- Rejected event-log path segments reserved for `state.json`, `watch.json`, `watch.control.json`, lock files, temp files, and backup-style state files.
+- Preserved valid in-state metadata-only event logs; append writes revalidate the path before writing.
+- Accepted design delta: `--event-log` now rejects any path segment using session-observer state basenames or `.lock` / `.tmp` / `.bak` style names, even under nested log directories.
+- Verification passed: `node --test tests/session-observer/watch.test.mjs tests/session-observer/cli.test.mjs` (50 tests).
+- Verification passed: `npm test` (301 tests).
 
 ---
 
@@ -323,7 +330,7 @@ _No orchestration runs yet._
 - [x] p06-t01: Prevent stale inactive watch control directives - complete (`b46f127`)
 - [x] p06-t02: Stabilize debounce coalescing verification - complete (`54ac0a4`)
 - [x] p06-t03: Refresh OAT repo dashboard state - complete (`125a838`)
-- [ ] p07-t01: Harden event-log file safety - pending
+- [x] p07-t01: Harden event-log file safety - complete (`00d744d`)
 
 **What changed (high level):**
 
@@ -337,7 +344,7 @@ _No orchestration runs yet._
 
 **Follow-ups / TODO:**
 
-- Execute p07-t01, then rerun checkpoint/final code review under the explicit cycle-cap override.
+- Rerun checkpoint/final code review under the explicit cycle-cap override.
 
 **Blockers:**
 
@@ -679,6 +686,8 @@ _No orchestration runs yet._
 | p06 | `node --test tests/session-observer/cli.test.mjs tests/session-observer/watch.test.mjs` | 48 | 0 | inactive watch-control cleanup, subsequent watcher regression, and CLI coverage |
 | p06 | `node --test tests/session-observer/watch.test.mjs tests/session-observer/cli.test.mjs` | 48 | 0 | deterministic debounce coalescing and watch/CLI coverage |
 | p06 | `npm test` | 299 | 0 | full repository test suite with deterministic coalescing regression |
+| p07 | `node --test tests/session-observer/watch.test.mjs tests/session-observer/cli.test.mjs` | 50 | 0 | event-log symlink escape and reserved-file regressions plus CLI coverage |
+| p07 | `npm test` | 301 | 0 | full repository test suite after event-log hardening |
 
 ## Final Summary (for PR/docs)
 
@@ -686,7 +695,7 @@ _No orchestration runs yet._
 
 - `session-observer watch` and top-level `--watch` now run a foreground polling watcher around the existing locate/rank/digest/state catch-up pipeline.
 - `session-observer watch-ctl` manages active watchers with `status`, `pause`, `resume`, `flush`, and `stop`.
-- Final review fixes preserve debounced updates in `--runtime both` mode, constrain `--event-log` writes to the session-observer state directory, prevent inactive control directives from leaking into later watchers, and stabilize debounce coalescing verification.
+- Final review fixes preserve debounced updates in `--runtime both` mode, constrain `--event-log` writes against traversal, symlink escape, and reserved state-file paths, prevent inactive control directives from leaking into later watchers, and stabilize debounce coalescing verification.
 
 **Behavioral changes (user-facing):**
 

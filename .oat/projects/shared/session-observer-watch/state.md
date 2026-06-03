@@ -1,10 +1,10 @@
 ---
-oat_current_task: p07-t01
-oat_last_commit: f5c4c9a
+oat_current_task: null
+oat_last_commit: 00d744d
 oat_blockers: []
 associated_issues: []
 oat_hill_checkpoints: ["p07"]
-oat_hill_completed: []
+oat_hill_completed: ["p07"]
 oat_parallel_execution: false
 oat_dispatch_ceiling:
   preset: maximum
@@ -13,7 +13,7 @@ oat_dispatch_ceiling:
     claude: opus
   source: project-state
 oat_phase: implement
-oat_phase_status: in_progress
+oat_phase_status: complete
 oat_workflow_mode: quick
 oat_workflow_origin: native
 oat_docs_updated: true
@@ -21,19 +21,19 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: "2026-06-03T02:16:48.641Z"
 oat_project_completed: null
-oat_project_state_updated: "2026-06-03T16:26:04Z"
+oat_project_state_updated: "2026-06-03T16:35:02Z"
 oat_generated: false
 ---
 
 # Project State: session-observer-watch
 
-**Status:** Implementation in progress
+**Status:** Implementation complete; ready for checkpoint/final code review
 **Started:** 2026-06-03
 **Last Updated:** 2026-06-03
 
 ## Current Phase
 
-Final review v4 found one remaining event-log safety issue. Continue implementation with review-fix task `p07-t01` under the explicit review-cycle override.
+Phase 7 completed the final review v4 event-log safety fix. Ready for checkpoint/final code review under the explicit review-cycle override.
 
 ## Artifacts
 
@@ -41,7 +41,7 @@ Final review v4 found one remaining event-log safety issue. Continue implementat
 - **Spec:** N/A (quick mode)
 - **Design:** N/A (quick mode; existing reference design is `skills/session-observer/references/watch-design.md`)
 - **Plan:** `plan.md` (complete)
-- **Implementation:** `implementation.md` (in progress; next task `p07-t01`)
+- **Implementation:** `implementation.md` (complete)
 
 ## Progress
 
@@ -55,7 +55,7 @@ Final review v4 found one remaining event-log safety issue. Continue implementat
 - [x] Phase 4 implemented: Final Review Fixes
 - [x] Phase 5 implemented: Final Review Fixes v2
 - [x] Phase 6 implemented: Final Review Fixes v3
-- [ ] Phase 7 review fix not started: Final Review Fixes v4
+- [x] Phase 7 implemented: Final Review Fixes v4
 
 ## Verification
 
@@ -90,6 +90,8 @@ Final review v4 found one remaining event-log safety issue. Continue implementat
 - Passed: `node --test tests/session-observer/cli.test.mjs tests/session-observer/watch.test.mjs` (p06-t01 verification, 48 tests)
 - Passed: `node --test tests/session-observer/watch.test.mjs tests/session-observer/cli.test.mjs` (p06-t02 verification, 48 tests)
 - Passed: `npm test` (p06-t02 verification, 299 tests)
+- Passed: `node --test tests/session-observer/watch.test.mjs tests/session-observer/cli.test.mjs` (p07-t01 verification, 50 tests)
+- Passed: `npm test` (p07-t01 verification, 301 tests)
 
 ## Dispatch Ceiling Enforcement
 
@@ -107,4 +109,4 @@ None
 
 ## Next Milestone
 
-Run `oat-project-implement` to execute review-fix task `p07-t01`.
+Run checkpoint/final code review for p07/final under the explicit review-cycle override.
