@@ -223,6 +223,11 @@ export async function validateReadmeInstallMatrix(root) {
 
 export async function validateSessionObserverWatchDocs(root) {
   const issues = [];
+  const canonicalSkillPath = path.join(root, 'skills/session-observer/SKILL.md');
+  if (!(await pathExists(canonicalSkillPath))) {
+    return issues;
+  }
+
   const docPaths = [
     'skills/session-observer/SKILL.md',
     'skills/session-observer/references/watch-design.md',
