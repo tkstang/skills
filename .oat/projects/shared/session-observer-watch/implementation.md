@@ -125,10 +125,12 @@ _No orchestration runs yet._
 **What changed (high level):**
 
 - Quick-start artifacts were created for adding watch mode to `session-observer`.
+- Plan artifact review was received and resolved directly in `plan.md`.
 
 **Decisions:**
 
 - Use the existing watch-design reference as the basis for a foreground polling watcher with a `--watch` alias.
+- Accepted the plan review's artifact-alignment fixes without adding implementation tasks.
 
 **Follow-ups / TODO:**
 
@@ -139,6 +141,33 @@ _No orchestration runs yet._
 - None.
 
 **Session End:** -
+
+---
+
+### Review Received: plan
+
+**Date:** 2026-06-03
+**Review artifact:** reviews/archived/artifact-plan-review-2026-06-02.md
+**Review type:** artifact
+
+**Findings:**
+
+- Critical: 0
+- Important: 0
+- Medium: 2
+- Minor: 3
+
+**Actions taken:**
+
+- M1: Resolved in `plan.md` by marking `spec` and `design` artifact review rows as `n/a` for quick mode.
+- M2: Resolved in `plan.md` by adding a sanctioned fallback to defer `--runtime both` if singleton-state or test determinism becomes costly.
+- m1: Resolved in `plan.md` by tightening the p03-t01 RED step around validation or an explicit `rg` assertion.
+- m2: Resolved in `plan.md` by noting that artifact-state bookkeeping may be committed separately from skill sync.
+- m3: Rejected with rationale. The implementation tracker is scaffolded as `in_progress` with `p01-t01` as the next task, but all task rows still show `pending`; this is acceptable restart state and does not imply partial implementation.
+
+**New tasks added:** none; artifact review findings were resolved directly in the reviewed artifact.
+
+**Next:** Execute implementation tasks via the `oat-project-implement` skill starting from `p01-t01`.
 
 ---
 

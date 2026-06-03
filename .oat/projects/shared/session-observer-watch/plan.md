@@ -108,6 +108,8 @@ Add CLI tests that assert:
 - `session-observer --watch --help` maps to the same watch help.
 - `watch-ctl status --json` returns a parseable no-active-watcher payload when no watcher is active.
 
+If `--runtime both` makes singleton-state handling or deterministic tests materially harder, it may be deferred in favor of `auto`-only watch mode for this iteration. Record that deviation in `implementation.md` rather than treating it as a plan failure.
+
 Run: `node --test tests/session-observer/cli.test.mjs`
 
 Expected: Tests fail because the CLI does not recognize watch mode.
@@ -322,7 +324,7 @@ git commit -m "feat(p02-t03): add session observer watch controls"
 
 **Step 1: Write test (RED)**
 
-Add or update validation expectations so docs fail if the skill still says watch mode is unimplemented or omits the watch command surface. If the existing validation script already catches the stale text once docs change, keep `scripts/validate.mjs` untouched and document that in the task notes.
+Add or update validation expectations so docs fail if the skill still says watch mode is unimplemented or omits the watch command surface. If no existing validation invariant catches this stale wording, add a concrete `scripts/validate.mjs` check or an explicit `rg`-based assertion that fails on the current "not implemented" text before updating the docs. If an existing invariant already catches it, keep `scripts/validate.mjs` untouched and document that in the task notes.
 
 Run: `npm run validate`
 
@@ -405,6 +407,8 @@ Expected: Repo skill views are in sync, canonical user skill exists, provider en
 
 Do not commit home-directory files. Commit only repo files and OAT artifact bookkeeping.
 
+Artifact-state updates may be committed separately from the `.agents` skill sync when that makes the history clearer. Keep each commit scoped and make sure the OAT tracker remains accurate before closeout.
+
 **Step 4: Verify**
 
 Run:
@@ -438,9 +442,9 @@ git commit -m "chore(p03-t02): sync session observer watch skill views"
 | p02 | code | pending | - | - |
 | p03 | code | pending | - | - |
 | final | code | pending | - | - |
-| spec | artifact | pending | - | - |
-| design | artifact | pending | - | - |
-| plan | artifact | received | 2026-06-02 | reviews/artifact-plan-review-2026-06-02.md |
+| spec | artifact | n/a | - | quick mode has no spec.md |
+| design | artifact | n/a | - | quick mode has no design.md |
+| plan | artifact | passed | 2026-06-03 | reviews/archived/artifact-plan-review-2026-06-02.md |
 
 **Status values:** `pending` -> `received` -> `fixes_added` -> `fixes_completed` -> `passed`
 
