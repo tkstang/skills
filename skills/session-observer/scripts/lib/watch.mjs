@@ -3,7 +3,8 @@
  */
 
 import { appendFile, mkdir, stat } from 'node:fs/promises';
-import { dirname } from 'node:path';
+import { homedir } from 'node:os';
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { renderMarkdown } from './digest.mjs';
 import { observeCatchUp, VALID_RUNTIMES } from './observe.mjs';
 import * as stateLib from './state.mjs';
@@ -26,6 +27,10 @@ function maxRuntimeMs(value) {
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function stateDir() {
+  return process.env.STATE_DIR ?? join(homedir(), '.local', 'state', 'session-observer');
 }
 
 function watchRuntimes(runtime) {
@@ -90,6 +95,23 @@ function stdoutEvent(ts, digest, rendered) {
     ranges: eventRanges(digest),
     digest,
   };
+}
+
+function isWithinDir(dir, path) {
+  const rel = relative(dir, path);
+  return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel));
+}
+
+function resolveEventLogPath(eventLog) {
+  if (!eventLog) return undefined;
+  const dir = resolve(stateDir());
+  const resolved = isAbsolute(eventLog)
+    ? resolve(eventLog)
+    : resolve(dir, eventLog);
+  if (!isWithinDir(dir, resolved)) {
+    throw new Error(`--event-log must stay under the session-observer state directory: ${dir}`);
+  }
+  return resolved;
 }
 
 async function appendEventLog(eventLog, event) {
@@ -240,6 +262,12 @@ function installSignalHandlers(eventState) {
 export async function runWatchLoop(args, deps = {}) {
   const runtime = args.runtime ?? 'auto';
   const cwd = args.cwd ?? process.cwd();
+  const normalizedArgs = {
+    ...args,
+    runtime,
+    cwd,
+    eventLog: resolveEventLogPath(args.eventLog),
+  };
   const pollMs = toPositiveMs(args.pollSec, DEFAULT_POLL_SEC);
   const debounceMs = toPositiveMs(args.debounceSec, DEFAULT_DEBOUNCE_SEC);
   const limitMs = maxRuntimeMs(args.maxRuntimeMin);
@@ -287,16 +315,16 @@ export async function runWatchLoop(args, deps = {}) {
       }
 
       if (targets.size === 0 || args.runtime === 'both') {
-        await establishBaselines({ ...args, runtime, cwd }, targets, resolvedDeps.stat, eventState);
+        await establishBaselines(normalizedArgs, targets, resolvedDeps.stat, eventState);
       }
       await pollTargets(targets, pending, nowMs, resolvedDeps.stat);
-      await applyControlDirective({ ...args, runtime, cwd }, pending, resolvedDeps, eventState);
+      await applyControlDirective(normalizedArgs, pending, resolvedDeps, eventState);
       if (eventState.stopRequested) {
         reason = eventState.stopReason;
         break;
       }
       if (!eventState.paused) {
-        await emitReadyPending({ ...args, runtime, cwd }, pending, resolvedDeps, eventState);
+        await emitReadyPending(normalizedArgs, pending, resolvedDeps, eventState);
       }
 
       const afterTickMs = resolvedDeps.now();

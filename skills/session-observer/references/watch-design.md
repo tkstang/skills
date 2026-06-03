@@ -41,7 +41,7 @@ session-observer --watch [watch options]
 | `--debounce-sec N` | 2 | Hold for N seconds of quiet before emitting an event. |
 | `--poll-sec N` | 2 | Poll interval in seconds. |
 | `--max-runtime-min N` | 0 (unlimited) | Auto-exit after N minutes (0 = run until stopped). |
-| `--event-log <path>` | — | Mirror events to a JSONL file (metadata only, no content). |
+| `--event-log <path>` | — | Mirror events to a JSONL file (metadata only, no content). Relative paths resolve inside `~/.local/state/session-observer/`; absolute paths must also stay inside that directory. |
 | `--json` | false | Emit each event as a JSON line to stdout instead of human-readable text. |
 
 Foreground process. Quits on SIGINT or SIGTERM. Stdout is a human-readable event stream; `--event-log` mirrors events to a JSONL file for replay/introspection.
@@ -144,6 +144,8 @@ Each line in the event log is metadata only — no message content:
 ```
 
 Content stays in the rendered stdout digest. The log is for introspection and replay.
+
+Event-log paths are constrained to the session-observer state directory. A relative path such as `events/watch.jsonl` writes under `~/.local/state/session-observer/`; absolute paths or `..` segments that escape that directory are rejected.
 
 ---
 

@@ -249,7 +249,8 @@ describe('runWatchLoop', () => {
       const transcriptPath = await writeClaudeTranscript(home, cwd, sessionId, [
         { content: 'event log baseline message' },
       ]);
-      const eventLog = join(stateDir, 'events.jsonl');
+      const eventLog = join('logs', 'events.jsonl');
+      const resolvedEventLog = join(stateDir, eventLog);
       const { runWatchLoop } = await importWatch();
 
       const watchPromise = runWatchLoop({
@@ -267,7 +268,7 @@ describe('runWatchLoop', () => {
       await appendClaudeMessage(transcriptPath, sessionId, 'event log content must stay out');
       await watchPromise;
 
-      const raw = await readFile(eventLog, 'utf8');
+      const raw = await readFile(resolvedEventLog, 'utf8');
       assert.equal(raw.includes('event log content must stay out'), false);
 
       const lines = raw.trim().split('\n').filter(Boolean);
@@ -287,6 +288,32 @@ describe('runWatchLoop', () => {
       ]);
       assert.equal('digest' in event, false);
       assert.equal('entries' in event, false);
+    });
+  });
+
+  test('rejects event log paths outside the session-observer state directory', async () => {
+    await withTempSessionHome(async (home) => {
+      const { runWatchLoop } = await importWatch();
+      const options = {
+        runtime: 'claude-code',
+        cwd: '/test/watch-event-log-reject',
+        pollSec: 0.03,
+        debounceSec: 0.04,
+        maxRuntimeMin: 0.001,
+      };
+
+      await assert.rejects(
+        runWatchLoop({ ...options, eventLog: join('..', 'outside.jsonl') }, {
+          writeStdout: () => {},
+        }),
+        /--event-log must stay under the session-observer state directory/
+      );
+      await assert.rejects(
+        runWatchLoop({ ...options, eventLog: join(home, 'outside.jsonl') }, {
+          writeStdout: () => {},
+        }),
+        /--event-log must stay under the session-observer state directory/
+      );
     });
   });
 
