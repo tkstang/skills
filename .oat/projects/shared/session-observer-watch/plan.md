@@ -5,7 +5,7 @@ oat_blockers: []
 oat_last_updated: 2026-06-03
 oat_phase: plan
 oat_phase_status: complete
-oat_plan_hill_phases: ["p05"]
+oat_plan_hill_phases: ["p06"]
 oat_auto_review_at_hill_checkpoints: true
 oat_plan_parallel_groups: []
 oat_plan_source: quick
@@ -569,6 +569,110 @@ git commit -m "fix(p05-t01): limit both watch runtime scope"
 
 ---
 
+## Phase 6: Final Review Fixes v3
+
+### Task p06-t01: (review) Prevent Stale Inactive Watch Control Directives
+
+**Files:**
+
+- Modify: `skills/session-observer/scripts/session-observer.mjs`
+- Modify: `tests/session-observer/cli.test.mjs`
+- Modify: `tests/session-observer/watch.test.mjs` only if an end-to-end watcher regression belongs there
+
+**Step 1: Understand the issue**
+
+Review finding: `watch-ctl pause`, `resume`, `flush`, and `stop` can write `watch.control.json` when no watcher is active. With no process to consume the directive, the next watcher can pause, flush, or stop immediately from stale control state.
+Location: `skills/session-observer/scripts/session-observer.mjs:849`
+
+**Step 2: Implement fix**
+
+Load active watch state before writing any control directive. If there is no active watcher, return the existing no-active-watcher style payload and do not write a directive; also clear any stale control directive in that branch. Preserve active-watcher behavior for pause, resume, flush, and stop.
+
+**Step 3: Verify**
+
+Run: `node --test tests/session-observer/cli.test.mjs tests/session-observer/watch.test.mjs`
+Expected: Tests pass, including a regression that `watch-ctl stop --json` with no active watcher leaves no `watch.control.json` and a subsequent watcher runs normally.
+
+**Step 4: Commit**
+
+```bash
+git add skills/session-observer/scripts/session-observer.mjs \
+  tests/session-observer/cli.test.mjs \
+  tests/session-observer/watch.test.mjs
+git commit -m "fix(p06-t01): ignore inactive watch control directives"
+```
+
+---
+
+### Task p06-t02: (review) Stabilize Debounce Coalescing Verification
+
+**Files:**
+
+- Modify: `tests/session-observer/watch.test.mjs`
+- Modify: `skills/session-observer/scripts/lib/watch.mjs` only if additional test hooks are needed
+
+**Step 1: Understand the issue**
+
+Review finding: the full `npm test` gate observed a flaky failure in `coalesces appended records inside the debounce window into one markdown event`, with `eventCount` reported as `2` before a rerun passed. The implementation tracker also records an earlier transient coalescing failure.
+Location: `tests/session-observer/watch.test.mjs:147`
+
+**Step 2: Implement fix**
+
+Make the debounce/coalescing test deterministic. Prefer injected fake `now`, `sleep`, and `stat` hooks if practical; otherwise widen/control the wall-clock setup so both appends are guaranteed to be observed as one unsettled burst before the debounce can fire.
+
+**Step 3: Verify**
+
+Run: `node --test tests/session-observer/watch.test.mjs tests/session-observer/cli.test.mjs`
+Expected: Tests pass reliably.
+
+Run: `npm test`
+Expected: Full test suite passes.
+
+**Step 4: Commit**
+
+```bash
+git add tests/session-observer/watch.test.mjs skills/session-observer/scripts/lib/watch.mjs
+git commit -m "test(p06-t02): stabilize watch debounce coalescing"
+```
+
+---
+
+### Task p06-t03: (review) Refresh OAT Repo Dashboard State
+
+**Files:**
+
+- Modify: `.oat/state.md`
+- Modify: `.oat/projects/shared/session-observer-watch/implementation.md`
+- Modify: `.oat/projects/shared/session-observer-watch/state.md`
+
+**Step 1: Understand the issue**
+
+Review finding: the project-specific state says implementation is complete and ready for final review, but the repo-level `.oat/state.md` dashboard still reports the active project as plan-phase work.
+Location: `.oat/state.md:19`
+
+**Step 2: Implement fix**
+
+Run `oat state refresh` after p06 code/test fixes and update project bookkeeping. `.oat/state.md` is tracked in this repository; stage it only if `git ls-files .oat/state.md` confirms it remains tracked.
+
+**Step 3: Verify**
+
+Run: `oat project status --json`
+Expected: Active project status reflects p06 complete and ready for final review.
+
+Run: `sed -n '1,80p' .oat/state.md`
+Expected: Repo dashboard no longer reports the active project as plan-phase work.
+
+**Step 4: Commit**
+
+```bash
+git add .oat/projects/shared/session-observer-watch/implementation.md \
+  .oat/projects/shared/session-observer-watch/state.md
+if git ls-files --error-unmatch .oat/state.md >/dev/null 2>&1; then git add .oat/state.md; fi
+git commit -m "chore(p06-t03): refresh oat dashboard state"
+```
+
+---
+
 ## Reviews
 
 | Scope | Type | Status | Date | Artifact |
@@ -578,7 +682,8 @@ git commit -m "fix(p05-t01): limit both watch runtime scope"
 | p03 | code | pending | - | - |
 | p04 | code | pending | - | - |
 | p05 | code | pending | - | - |
-| final | code | fixes_added | 2026-06-03 | reviews/archived/final-code-review-2026-06-03-v2.md |
+| p06 | code | pending | - | - |
+| final | code | fixes_added | 2026-06-03 | reviews/archived/final-code-review-2026-06-03-v3.md |
 | spec | artifact | n/a | - | quick mode has no spec.md |
 | design | artifact | n/a | - | quick mode has no design.md |
 | plan | artifact | passed | 2026-06-03 | reviews/archived/artifact-plan-review-2026-06-02.md |
@@ -594,8 +699,9 @@ git commit -m "fix(p05-t01): limit both watch runtime scope"
 - Phase 3: 2 tasks - Skill docs, provider-view sync, user-level dogfooding install, and full verification.
 - Phase 4: 3 tasks - Final review fixes for both-runtime emission, event-log path safety, and implementation summary.
 - Phase 5: 1 task - Final review fix aligning `--runtime both` with the documented Claude Code plus Codex scope.
+- Phase 6: 3 tasks - Final review fixes for inactive watch-control directives, debounce test determinism, and repo dashboard freshness.
 
-**Total: 11 tasks**
+**Total: 14 tasks**
 
 Ready for `oat-project-implement`.
 

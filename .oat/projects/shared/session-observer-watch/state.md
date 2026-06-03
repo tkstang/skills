@@ -1,10 +1,10 @@
 ---
-oat_current_task: null
-oat_last_commit: 60bd05d
+oat_current_task: p06-t01
+oat_last_commit: 888d8f7
 oat_blockers: []
 associated_issues: []
-oat_hill_checkpoints: ["p05"]
-oat_hill_completed: ["p05"]
+oat_hill_checkpoints: ["p06"]
+oat_hill_completed: []
 oat_parallel_execution: false
 oat_dispatch_ceiling:
   preset: maximum
@@ -13,7 +13,7 @@ oat_dispatch_ceiling:
     claude: opus
   source: project-state
 oat_phase: implement
-oat_phase_status: complete
+oat_phase_status: in_progress
 oat_workflow_mode: quick
 oat_workflow_origin: native
 oat_docs_updated: true
@@ -21,19 +21,19 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: "2026-06-03T02:16:48.641Z"
 oat_project_completed: null
-oat_project_state_updated: "2026-06-03T15:28:58Z"
+oat_project_state_updated: "2026-06-03T15:44:30Z"
 oat_generated: false
 ---
 
 # Project State: session-observer-watch
 
-**Status:** Ready for checkpoint/final review
+**Status:** Implementation in progress
 **Started:** 2026-06-03
 **Last Updated:** 2026-06-03
 
 ## Current Phase
 
-Phase 5 review-fix implementation is complete. Continue with checkpoint/final code review for p05/final scope.
+Final review v3 found issues. Continue implementation with review-fix task `p06-t01`.
 
 ## Artifacts
 
@@ -41,7 +41,7 @@ Phase 5 review-fix implementation is complete. Continue with checkpoint/final co
 - **Spec:** N/A (quick mode)
 - **Design:** N/A (quick mode; existing reference design is `skills/session-observer/references/watch-design.md`)
 - **Plan:** `plan.md` (complete)
-- **Implementation:** `implementation.md` (complete; 11/11 tasks)
+- **Implementation:** `implementation.md` (in progress; next task `p06-t01`)
 
 ## Progress
 
@@ -54,6 +54,7 @@ Phase 5 review-fix implementation is complete. Continue with checkpoint/final co
 - [x] Phase 3 implemented: Skill Documentation And Dogfooding Sync
 - [x] Phase 4 implemented: Final Review Fixes
 - [x] Phase 5 implemented: Final Review Fixes v2
+- [ ] Phase 6 review fixes not started: Final Review Fixes v3
 
 ## Verification
 
@@ -102,4 +103,4 @@ None
 
 ## Next Milestone
 
-Run checkpoint/final code review for p05/final scope.
+Run `oat-project-implement` to execute review-fix task `p06-t01`.

@@ -1,9 +1,9 @@
 ---
-oat_status: complete
-oat_ready_for: final_review
+oat_status: in_progress
+oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-03
-oat_current_task_id: null
+oat_current_task_id: p06-t01
 oat_generated: false
 ---
 
@@ -25,8 +25,9 @@ oat_generated: false
 | Phase 3: Skill Documentation And Dogfooding Sync | complete | 2 | 2/2 |
 | Phase 4: Final Review Fixes | complete | 3 | 3/3 |
 | Phase 5: Final Review Fixes v2 | complete | 1 | 1/1 |
+| Phase 6: Final Review Fixes v3 | in_progress | 3 | 0/3 |
 
-**Total:** 11/11 tasks completed
+**Total:** 11/14 tasks completed
 
 ---
 
@@ -223,6 +224,45 @@ oat_generated: false
 
 ---
 
+## Phase 6: Final Review Fixes v3
+
+**Status:** in_progress
+**Started:** 2026-06-03
+
+### Task p06-t01: (review) Prevent Stale Inactive Watch Control Directives
+
+**Status:** pending
+**Commit:** -
+
+**Notes:**
+
+- Added from final code review v3 Important finding I1.
+
+---
+
+### Task p06-t02: (review) Stabilize Debounce Coalescing Verification
+
+**Status:** pending
+**Commit:** -
+
+**Notes:**
+
+- Added from final code review v3 Important finding I2.
+
+---
+
+### Task p06-t03: (review) Refresh OAT Repo Dashboard State
+
+**Status:** pending
+**Commit:** -
+
+**Notes:**
+
+- Added from final code review v3 minor finding m1.
+- `.oat/state.md` is tracked in this repository and should be refreshed after p06 code/test fixes.
+
+---
+
 ## Orchestration Runs
 
 _Each run from `oat-project-implement` appends an entry below with run metadata, phase outcomes, parallel groups, and outstanding items._
@@ -252,6 +292,9 @@ _No orchestration runs yet._
 - [x] p04-t02: Constrain watch event log writes - complete (`6c3300e`)
 - [x] p04-t03: Update final implementation summary - complete (`5c72e6c`)
 - [x] p05-t01: Align `--runtime both` with documented runtime scope - complete (`60bd05d`)
+- [ ] p06-t01: Prevent stale inactive watch control directives - pending
+- [ ] p06-t02: Stabilize debounce coalescing verification - pending
+- [ ] p06-t03: Refresh OAT repo dashboard state - pending
 
 **What changed (high level):**
 
@@ -265,7 +308,7 @@ _No orchestration runs yet._
 
 **Follow-ups / TODO:**
 
-- Rerun checkpoint/final code review.
+- Execute p06 review-fix tasks, then rerun checkpoint/final code review.
 
 **Blockers:**
 
@@ -495,6 +538,32 @@ _No orchestration runs yet._
 - M1 -> converted to `p05-t01`: align `--runtime both` with the documented Claude Code plus Codex runtime scope.
 
 **Next:** Execute final review fix task via `oat-project-implement` starting from `p05-t01`.
+
+---
+
+### Review Received: final v3
+
+**Date:** 2026-06-03
+**Review artifact:** reviews/archived/final-code-review-2026-06-03-v3.md
+**Review type:** code
+**Review invocation:** auto
+
+**Findings:**
+
+- Critical: 0
+- Important: 2
+- Medium: 0
+- Minor: 1
+
+**New tasks added:** p06-t01, p06-t02, p06-t03
+
+**Finding disposition map:**
+
+- I1 -> converted to `p06-t01`: prevent inactive `watch-ctl` commands from leaving stale control directives.
+- I2 -> converted to `p06-t02`: make debounce coalescing verification deterministic.
+- m1 -> converted to `p06-t03`: refresh the tracked repo-level OAT dashboard state.
+
+**Next:** Execute final review fix tasks via `oat-project-implement` starting from `p06-t01`.
 
 ---
 
