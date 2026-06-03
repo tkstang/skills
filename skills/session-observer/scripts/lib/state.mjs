@@ -299,6 +299,47 @@ export async function markRead(runtime, sessionId, { lastRecordIndex, lastTotalR
 }
 
 /**
+ * Set watcher ownership metadata for an existing session without changing
+ * read offsets or lastReadAt. Returns true when the session existed.
+ */
+export async function setWatchedByPid(runtime, sessionId, pid) {
+  const key = sessionKey(runtime, sessionId);
+  let updated = false;
+  await mutate((state) => {
+    const existing = state.sessions[key];
+    if (!existing) return state;
+    state.sessions[key] = {
+      ...existing,
+      watchedByPid: pid,
+    };
+    updated = true;
+    return state;
+  });
+  return updated;
+}
+
+/**
+ * Clear watcher ownership metadata for an existing session without changing
+ * read offsets or lastReadAt. If pid is provided, only clear matching owners.
+ */
+export async function clearWatchedByPid(runtime, sessionId, pid) {
+  const key = sessionKey(runtime, sessionId);
+  let updated = false;
+  await mutate((state) => {
+    const existing = state.sessions[key];
+    if (!existing) return state;
+    if (pid !== undefined && existing.watchedByPid !== pid) return state;
+    state.sessions[key] = {
+      ...existing,
+      watchedByPid: null,
+    };
+    updated = true;
+    return state;
+  });
+  return updated;
+}
+
+/**
  * Zero all entries for a given runtime. Returns the count of entries zeroed.
  */
 export async function resetByRuntime(runtime) {
