@@ -1,9 +1,9 @@
 ---
-oat_status: in_progress
-oat_ready_for: null
+oat_status: complete
+oat_ready_for: oat-project-review-provide
 oat_blockers: []
 oat_last_updated: 2026-06-03
-oat_current_task_id: p06-t01
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -25,9 +25,9 @@ oat_generated: false
 | Phase 3: Skill Documentation And Dogfooding Sync | complete | 2 | 2/2 |
 | Phase 4: Final Review Fixes | complete | 3 | 3/3 |
 | Phase 5: Final Review Fixes v2 | complete | 1 | 1/1 |
-| Phase 6: Final Review Fixes v3 | in_progress | 3 | 0/3 |
+| Phase 6: Final Review Fixes v3 | complete | 3 | 3/3 |
 
-**Total:** 11/14 tasks completed
+**Total:** 14/14 tasks completed
 
 ---
 
@@ -226,40 +226,50 @@ oat_generated: false
 
 ## Phase 6: Final Review Fixes v3
 
-**Status:** in_progress
+**Status:** complete
 **Started:** 2026-06-03
+**Completed:** 2026-06-03
 
 ### Task p06-t01: (review) Prevent Stale Inactive Watch Control Directives
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** b46f127
 
 **Notes:**
 
-- Added from final code review v3 Important finding I1.
+- Fixed final code review v3 Important finding I1 by loading active watch state before writing `pause`, `resume`, `flush`, or `stop` directives.
+- Inactive `watch-ctl` operations now return the no-active-watcher payload, avoid writing a directive, and clear any stale `watch.control.json`.
+- Added regressions for inactive control cleanup, active pause/resume/flush directive preservation, and `watch-ctl stop --json` not poisoning a subsequent watcher.
+- Verification passed: `node --test tests/session-observer/cli.test.mjs tests/session-observer/watch.test.mjs` (48 tests).
 
 ---
 
 ### Task p06-t02: (review) Stabilize Debounce Coalescing Verification
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** 54ac0a4
 
 **Notes:**
 
-- Added from final code review v3 Important finding I2.
+- Fixed final code review v3 Important finding I2 by replacing wall-clock sleeps in the coalescing regression with injected fake `now` and `sleep` hooks.
+- The test now schedules both appends inside one deterministic unsettled burst before debounce settling, while still exercising the real file/stat/observe path.
+- Verification passed: `node --test tests/session-observer/watch.test.mjs tests/session-observer/cli.test.mjs` (48 tests).
+- Verification passed: `npm test` (299 tests).
 
 ---
 
 ### Task p06-t03: (review) Refresh OAT Repo Dashboard State
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** pending (this commit)
 
 **Notes:**
 
-- Added from final code review v3 minor finding m1.
-- `.oat/state.md` is tracked in this repository and should be refreshed after p06 code/test fixes.
+- Fixed final code review v3 minor finding m1 by refreshing tracked repo-level `.oat/state.md` after p06 code/test fixes.
+- Updated project implementation/state bookkeeping to mark p06 complete and ready for checkpoint/final code review.
+- Confirmed `.oat/state.md` is tracked with `git ls-files .oat/state.md`.
+- Verification passed: `oat project status --json` reported 14/14 tasks complete and `currentTaskId: null`.
+- Verification passed: `sed -n '1,80p' .oat/state.md` no longer reports plan-phase stale active-project state.
 
 ---
 
@@ -292,9 +302,9 @@ _No orchestration runs yet._
 - [x] p04-t02: Constrain watch event log writes - complete (`6c3300e`)
 - [x] p04-t03: Update final implementation summary - complete (`5c72e6c`)
 - [x] p05-t01: Align `--runtime both` with documented runtime scope - complete (`60bd05d`)
-- [ ] p06-t01: Prevent stale inactive watch control directives - pending
-- [ ] p06-t02: Stabilize debounce coalescing verification - pending
-- [ ] p06-t03: Refresh OAT repo dashboard state - pending
+- [x] p06-t01: Prevent stale inactive watch control directives - complete (`b46f127`)
+- [x] p06-t02: Stabilize debounce coalescing verification - complete (`54ac0a4`)
+- [x] p06-t03: Refresh OAT repo dashboard state - complete (pending this commit)
 
 **What changed (high level):**
 
@@ -308,7 +318,7 @@ _No orchestration runs yet._
 
 **Follow-ups / TODO:**
 
-- Execute p06 review-fix tasks, then rerun checkpoint/final code review.
+- Rerun checkpoint/final code review for p06.
 
 **Blockers:**
 
@@ -567,6 +577,32 @@ _No orchestration runs yet._
 
 ---
 
+### Phase p06 Implementation Complete
+
+**Completed:** 2026-06-03T15:52:54Z
+**Next task:** none
+
+**Verification:**
+
+- Passed: `node --test tests/session-observer/cli.test.mjs tests/session-observer/watch.test.mjs` (48 tests).
+- Passed: `node --test tests/session-observer/watch.test.mjs tests/session-observer/cli.test.mjs` (48 tests).
+- Passed: `npm test` (299 tests).
+
+**Dispatch ceiling enforcement:**
+
+- dispatch_ceiling: maximum / Codex xhigh
+- ceiling_source: project-state
+
+**Accepted design deltas:**
+
+- None added in p06. Inactive control commands now follow the existing no-active-watcher contract instead of writing inert directives.
+
+**Notes:**
+
+- p06 scope is complete. The project is ready for checkpoint/final code review.
+
+---
+
 ## Deviations from Plan
 
 | Task | Planned | Actual | Reason |
@@ -596,6 +632,9 @@ _No orchestration runs yet._
 | p05 | `npm run validate` | 1 | 0 | repository structure, manifest, and docs invariants |
 | p05 | `npm run smoke` | 1 | 0 | mocked end-to-end consensus wrapper flow |
 | p05 | `oat project validate-plan --project-path .oat/projects/shared/session-observer-watch` | 1 | 0 | plan structure validation |
+| p06 | `node --test tests/session-observer/cli.test.mjs tests/session-observer/watch.test.mjs` | 48 | 0 | inactive watch-control cleanup, subsequent watcher regression, and CLI coverage |
+| p06 | `node --test tests/session-observer/watch.test.mjs tests/session-observer/cli.test.mjs` | 48 | 0 | deterministic debounce coalescing and watch/CLI coverage |
+| p06 | `npm test` | 299 | 0 | full repository test suite with deterministic coalescing regression |
 
 ## Final Summary (for PR/docs)
 
@@ -603,7 +642,7 @@ _No orchestration runs yet._
 
 - `session-observer watch` and top-level `--watch` now run a foreground polling watcher around the existing locate/rank/digest/state catch-up pipeline.
 - `session-observer watch-ctl` manages active watchers with `status`, `pause`, `resume`, `flush`, and `stop`.
-- Final review fixes preserve debounced updates in `--runtime both` mode and constrain `--event-log` writes to the session-observer state directory.
+- Final review fixes preserve debounced updates in `--runtime both` mode, constrain `--event-log` writes to the session-observer state directory, prevent inactive control directives from leaking into later watchers, and stabilize debounce coalescing verification.
 
 **Behavioral changes (user-facing):**
 
@@ -611,6 +650,7 @@ _No orchestration runs yet._
 - `--json` emits newline-delimited catch-up event objects to stdout; `--event-log` mirrors metadata-only JSONL records with no message content.
 - Relative event-log paths resolve under `~/.local/state/session-observer/`; absolute or relative paths that escape that directory are rejected.
 - Watch control directives can pause/resume output, flush pending debounced updates, stop the watcher, and report active watcher state.
+- Inactive `watch-ctl pause`, `resume`, `flush`, and `stop` return a no-active-watcher payload and clear stale control files instead of writing directives.
 - Manual `catch-up` warns when a watcher owns the same session offset but still succeeds.
 - `--runtime both` watches Claude Code plus Codex only; Cursor transcripts require `--runtime cursor` or `--runtime auto` and are not baselined by the `both` watcher.
 
@@ -625,7 +665,7 @@ _No orchestration runs yet._
 
 **Verification performed:**
 
-- Targeted Node tests covered watch state helpers, observe pipeline behavior, CLI watch/watch-ctl behavior, polling/debounce emission, `--runtime both` regression coverage, metadata-only event logs, event-log path rejection, control directives, and signal cleanup.
+- Targeted Node tests covered watch state helpers, observe pipeline behavior, CLI watch/watch-ctl behavior, polling/debounce emission, deterministic debounce coalescing, `--runtime both` regression coverage, metadata-only event logs, event-log path rejection, inactive control cleanup, active control directives, and signal cleanup.
 - Full implementation verification included `npm test`, `npm run validate`, `npm run smoke`, and `oat project validate-plan --project-path .oat/projects/shared/session-observer-watch`.
 - Dogfooding verification confirmed the repo skill view matched the canonical skill, the user-level `~/.agents/skills/session-observer` install existed, provider symlinks resolved through the canonical copy when present, and `oat sync --scope user` succeeded.
 

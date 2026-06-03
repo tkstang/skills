@@ -16,11 +16,11 @@ oat_generated_at: 2026-06-03
 | Field | Value |
 |-------|-------|
 | Mode | quick |
-| Phase | plan |
+| Phase | implement |
 | Status | complete |
 | HiLL Gate | n/a |
 | Current Task | - |
-| Docs Updated | ⚠ not yet run |
+| Docs Updated | yes |
 
 Details: `.oat/projects/shared/session-observer-watch/state.md`
 
@@ -35,7 +35,7 @@ Details: `.oat/projects/shared/session-observer-watch/state.md`
 
 ## Recommended Next Step
 
-**oat-project-implement** - Start implementation
+**oat-project-review-provide** - Run p06 checkpoint/final code review
 
 ## Quick Commands
 
@@ -50,7 +50,7 @@ Details: `.oat/projects/shared/session-observer-watch/state.md`
 
 ## Available Projects
 
-- **session-observer-watch** - plan
+- **session-observer-watch** - implement
 
 ## Decompositions
 
