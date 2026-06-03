@@ -440,6 +440,7 @@ git commit -m "chore(p03-t02): sync session observer watch skill views"
 | final | code | pending | - | - |
 | spec | artifact | pending | - | - |
 | design | artifact | pending | - | - |
+| plan | artifact | received | 2026-06-02 | reviews/artifact-plan-review-2026-06-02.md |
 
 **Status values:** `pending` -> `received` -> `fixes_added` -> `fixes_completed` -> `passed`
 
