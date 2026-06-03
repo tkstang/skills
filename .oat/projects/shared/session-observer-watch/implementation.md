@@ -1,9 +1,9 @@
 ---
-oat_status: complete
-oat_ready_for: oat-project-review-provide
+oat_status: in_progress
+oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-03
-oat_current_task_id: null
+oat_current_task_id: p05-t01
 oat_generated: false
 ---
 
@@ -24,8 +24,9 @@ oat_generated: false
 | Phase 2: Watch Loop And Event Emission | complete | 3 | 3/3 |
 | Phase 3: Skill Documentation And Dogfooding Sync | complete | 2 | 2/2 |
 | Phase 4: Final Review Fixes | complete | 3 | 3/3 |
+| Phase 5: Final Review Fixes v2 | in_progress | 1 | 0/1 |
 
-**Total:** 10/10 tasks completed
+**Total:** 10/11 tasks completed
 
 ---
 
@@ -199,6 +200,23 @@ oat_generated: false
 
 ---
 
+## Phase 5: Final Review Fixes v2
+
+**Status:** in_progress
+**Started:** 2026-06-03
+
+### Task p05-t01: (review) Align `--runtime both` With Documented Runtime Scope
+
+**Status:** pending
+**Commit:** -
+
+**Notes:**
+
+- Added from final code review v2 Medium finding M1.
+- Intended contract is the documented one: `--runtime both` watches Claude Code plus Codex, not Cursor.
+
+---
+
 ## Orchestration Runs
 
 _Each run from `oat-project-implement` appends an entry below with run metadata, phase outcomes, parallel groups, and outstanding items._
@@ -227,6 +245,7 @@ _No orchestration runs yet._
 - [x] p04-t01: Fix `--runtime both` dropped watch updates - complete (`a7d5699`)
 - [x] p04-t02: Constrain watch event log writes - complete (`6c3300e`)
 - [x] p04-t03: Update final implementation summary - complete (`5c72e6c`)
+- [ ] p05-t01: Align `--runtime both` with documented runtime scope - pending
 
 **What changed (high level):**
 
@@ -240,7 +259,7 @@ _No orchestration runs yet._
 
 **Follow-ups / TODO:**
 
-- Run checkpoint/final code review for the completed p04 fixes.
+- Execute p05-t01, then rerun checkpoint/final code review.
 
 **Blockers:**
 
@@ -418,6 +437,30 @@ _No orchestration runs yet._
 - m1 -> converted to `p04-t03`: replace final-summary placeholders.
 
 **Next:** Execute final review fix tasks via `oat-project-implement` starting from `p04-t01`.
+
+---
+
+### Review Received: final v2
+
+**Date:** 2026-06-03
+**Review artifact:** reviews/archived/final-code-review-2026-06-03-v2.md
+**Review type:** code
+**Review invocation:** auto
+
+**Findings:**
+
+- Critical: 0
+- Important: 0
+- Medium: 1
+- Minor: 0
+
+**New tasks added:** p05-t01
+
+**Finding disposition map:**
+
+- M1 -> converted to `p05-t01`: align `--runtime both` with the documented Claude Code plus Codex runtime scope.
+
+**Next:** Execute final review fix task via `oat-project-implement` starting from `p05-t01`.
 
 ---
 

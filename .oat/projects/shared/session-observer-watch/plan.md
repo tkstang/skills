@@ -5,7 +5,7 @@ oat_blockers: []
 oat_last_updated: 2026-06-03
 oat_phase: plan
 oat_phase_status: complete
-oat_plan_hill_phases: ["p04"]
+oat_plan_hill_phases: ["p05"]
 oat_auto_review_at_hill_checkpoints: true
 oat_plan_parallel_groups: []
 oat_plan_source: quick
@@ -527,6 +527,48 @@ git commit -m "fix(p04-t03): update session observer final summary"
 
 ---
 
+## Phase 5: Final Review Fixes v2
+
+### Task p05-t01: (review) Align `--runtime both` With Documented Runtime Scope
+
+**Files:**
+
+- Modify: `skills/session-observer/scripts/lib/watch.mjs`
+- Modify: `tests/session-observer/watch.test.mjs`
+- Modify: `skills/session-observer/references/watch-design.md` only if the code change requires clarifying wording
+- Modify: `skills/session-observer/SKILL.md` only if the code change requires clarifying wording
+- Modify: `.oat/projects/shared/session-observer-watch/implementation.md`
+
+**Step 1: Understand the issue**
+
+Review finding: `--runtime both` currently expands to every runtime in `VALID_RUNTIMES`, including Cursor, but the shipped operator docs define `both` as Claude Code plus Codex. Because baseline establishment advances read offsets, a Cursor-only same-cwd transcript can be marked read even though the documented `both` scope does not include Cursor.
+Location: `skills/session-observer/scripts/lib/watch.mjs:37`
+
+**Step 2: Implement fix**
+
+Keep the documented contract: `both` means Claude Code plus Codex. Change `watchRuntimes("both")` so it returns only those two runtimes, and add regression coverage proving a Cursor-only same-cwd transcript is not baselined or marked read by `runtime: "both"`.
+
+**Step 3: Verify**
+
+Run: `node --test tests/session-observer/watch.test.mjs tests/session-observer/cli.test.mjs`
+Expected: Tests pass, including the Cursor-only same-cwd regression for `runtime: "both"`.
+
+Run: `npm test`
+Expected: Full test suite passes.
+
+**Step 4: Commit**
+
+```bash
+git add skills/session-observer/scripts/lib/watch.mjs \
+  tests/session-observer/watch.test.mjs \
+  skills/session-observer/references/watch-design.md \
+  skills/session-observer/SKILL.md \
+  .oat/projects/shared/session-observer-watch/implementation.md
+git commit -m "fix(p05-t01): limit both watch runtime scope"
+```
+
+---
+
 ## Reviews
 
 | Scope | Type | Status | Date | Artifact |
@@ -535,7 +577,8 @@ git commit -m "fix(p04-t03): update session observer final summary"
 | p02 | code | pending | - | - |
 | p03 | code | pending | - | - |
 | p04 | code | pending | - | - |
-| final | code | fixes_added | 2026-06-03 | reviews/archived/final-code-review-2026-06-03.md |
+| p05 | code | pending | - | - |
+| final | code | fixes_added | 2026-06-03 | reviews/archived/final-code-review-2026-06-03-v2.md |
 | spec | artifact | n/a | - | quick mode has no spec.md |
 | design | artifact | n/a | - | quick mode has no design.md |
 | plan | artifact | passed | 2026-06-03 | reviews/archived/artifact-plan-review-2026-06-02.md |
@@ -550,8 +593,9 @@ git commit -m "fix(p04-t03): update session observer final summary"
 - Phase 2: 3 tasks - Reusable catch-up pipeline, polling/debounce event emission, and control/shutdown behavior.
 - Phase 3: 2 tasks - Skill docs, provider-view sync, user-level dogfooding install, and full verification.
 - Phase 4: 3 tasks - Final review fixes for both-runtime emission, event-log path safety, and implementation summary.
+- Phase 5: 1 task - Final review fix aligning `--runtime both` with the documented Claude Code plus Codex scope.
 
-**Total: 10 tasks**
+**Total: 11 tasks**
 
 Ready for `oat-project-implement`.
 
