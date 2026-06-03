@@ -1,6 +1,6 @@
 ---
-oat_current_task: null
-oat_last_commit: d41a050
+oat_current_task: p04-t01
+oat_last_commit: 03336ea
 oat_blockers: []
 associated_issues: []
 oat_hill_checkpoints: []
@@ -13,7 +13,7 @@ oat_dispatch_ceiling:
     claude: opus
   source: project-state
 oat_phase: implement
-oat_phase_status: complete
+oat_phase_status: in_progress
 oat_workflow_mode: quick
 oat_workflow_origin: native
 oat_docs_updated: true
@@ -21,19 +21,19 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: "2026-06-03T02:16:48.641Z"
 oat_project_completed: null
-oat_project_state_updated: "2026-06-03T14:50:16Z"
+oat_project_state_updated: "2026-06-03T15:00:32Z"
 oat_generated: false
 ---
 
 # Project State: session-observer-watch
 
-**Status:** Implementation complete
+**Status:** Implementation in progress
 **Started:** 2026-06-03
 **Last Updated:** 2026-06-03
 
 ## Current Phase
 
-All implementation phases are complete. Ready for code review.
+Final review found issues. Continue implementation with review-fix task `p04-t01`.
 
 ## Artifacts
 
@@ -41,7 +41,7 @@ All implementation phases are complete. Ready for code review.
 - **Spec:** N/A (quick mode)
 - **Design:** N/A (quick mode; existing reference design is `skills/session-observer/references/watch-design.md`)
 - **Plan:** `plan.md` (complete)
-- **Implementation:** `implementation.md` (complete; current task cleared)
+- **Implementation:** `implementation.md` (in progress; next task `p04-t01`)
 
 ## Progress
 
@@ -52,6 +52,7 @@ All implementation phases are complete. Ready for code review.
 - [x] Phase 1 implemented: Watch State And CLI Surface
 - [x] Phase 2 implemented: Watch Loop And Event Emission
 - [x] Phase 3 implemented: Skill Documentation And Dogfooding Sync
+- [ ] Phase 4 review fixes not started: Final Review Fixes
 
 ## Verification
 
@@ -88,4 +89,4 @@ None
 
 ## Next Milestone
 
-Run code review for the completed implementation.
+Run `oat-project-implement` to execute review-fix task `p04-t01`.

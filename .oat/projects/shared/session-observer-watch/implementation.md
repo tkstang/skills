@@ -1,9 +1,9 @@
 ---
-oat_status: complete
-oat_ready_for: oat-project-review-provide
+oat_status: in_progress
+oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-03
-oat_current_task_id: null
+oat_current_task_id: p04-t01
 oat_generated: false
 ---
 
@@ -23,8 +23,9 @@ oat_generated: false
 | Phase 1: Watch State And CLI Surface | complete | 2 | 2/2 |
 | Phase 2: Watch Loop And Event Emission | complete | 3 | 3/3 |
 | Phase 3: Skill Documentation And Dogfooding Sync | complete | 2 | 2/2 |
+| Phase 4: Final Review Fixes | in_progress | 3 | 0/3 |
 
-**Total:** 7/7 tasks completed
+**Total:** 7/10 tasks completed
 
 ---
 
@@ -151,6 +152,44 @@ oat_generated: false
 - Verification passed: `test -d ~/.agents/skills/session-observer`.
 - Verification passed: `oat project validate-plan --project-path .oat/projects/shared/session-observer-watch`.
 - Note: one full `npm test` run after the validation fix hit a transient watch-loop coalescing timing failure; focused `node --test tests/session-observer/watch.test.mjs` passed, and the subsequent full `npm test` passed.
+
+---
+
+## Phase 4: Final Review Fixes
+
+**Status:** in_progress
+**Started:** 2026-06-03
+
+### Task p04-t01: (review) Fix `--runtime both` dropped watch updates
+
+**Status:** pending
+**Commit:** -
+
+**Notes:**
+
+- Added from final code review finding I1.
+
+---
+
+### Task p04-t02: (review) Constrain watch event log writes
+
+**Status:** pending
+**Commit:** -
+
+**Notes:**
+
+- Added from final code review finding I2.
+
+---
+
+### Task p04-t03: (review) Update final implementation summary
+
+**Status:** pending
+**Commit:** -
+
+**Notes:**
+
+- Added from final code review minor finding m1.
 
 ---
 
@@ -313,6 +352,32 @@ _No orchestration runs yet._
 **Notes:**
 
 - p03 scope is complete. All implementation-plan tasks are complete and the project is ready for code review.
+
+---
+
+### Review Received: final
+
+**Date:** 2026-06-03
+**Review artifact:** reviews/archived/final-code-review-2026-06-03.md
+**Review type:** code
+**Review invocation:** auto
+
+**Findings:**
+
+- Critical: 0
+- Important: 2
+- Medium: 0
+- Minor: 1
+
+**New tasks added:** p04-t01, p04-t02, p04-t03
+
+**Finding disposition map:**
+
+- I1 -> converted to `p04-t01`: fix `--runtime both` dropped watch updates.
+- I2 -> converted to `p04-t02`: constrain watch event-log writes to the session-observer state directory.
+- m1 -> converted to `p04-t03`: replace final-summary placeholders.
+
+**Next:** Execute final review fix tasks via `oat-project-implement` starting from `p04-t01`.
 
 ---
 

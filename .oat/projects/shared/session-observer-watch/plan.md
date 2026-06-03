@@ -5,7 +5,7 @@ oat_blockers: []
 oat_last_updated: 2026-06-03
 oat_phase: plan
 oat_phase_status: complete
-oat_plan_hill_phases: ["p03"]
+oat_plan_hill_phases: ["p04"]
 oat_auto_review_at_hill_checkpoints: true
 oat_plan_parallel_groups: []
 oat_plan_source: quick
@@ -435,6 +435,98 @@ git commit -m "chore(p03-t02): sync session observer watch skill views"
 
 ---
 
+## Phase 4: Final Review Fixes
+
+### Task p04-t01: (review) Fix `--runtime both` dropped watch updates
+
+**Files:**
+
+- Modify: `skills/session-observer/scripts/lib/watch.mjs`
+- Modify: `tests/session-observer/watch.test.mjs`
+
+**Step 1: Understand the issue**
+
+Review finding: `--runtime both` re-establishes baselines every tick. Baseline establishment calls the state-advancing catch-up pipeline before checking whether a target is already tracked, so appended records can be marked read before the debounce emitter runs.
+Location: `skills/session-observer/scripts/lib/watch.mjs:281`
+
+**Step 2: Implement fix**
+
+Avoid running the state-advancing catch-up pipeline for already tracked targets in `both` mode. Split target discovery/baseline refresh from catch-up emission or check known targets before any call that advances offsets.
+
+**Step 3: Verify**
+
+Run: `node --test tests/session-observer/watch.test.mjs tests/session-observer/cli.test.mjs`
+Expected: Tests pass, including a regression that appends to a tracked transcript under `runtime: "both"` and observes one emitted digest/event.
+
+**Step 4: Commit**
+
+```bash
+git add skills/session-observer/scripts/lib/watch.mjs tests/session-observer/watch.test.mjs
+git commit -m "fix(p04-t01): preserve both-runtime watch updates"
+```
+
+---
+
+### Task p04-t02: (review) Constrain watch event log writes
+
+**Files:**
+
+- Modify: `skills/session-observer/scripts/lib/watch.mjs`
+- Modify: `tests/session-observer/watch.test.mjs`
+- Modify: `skills/session-observer/references/watch-design.md` only if the implementation requires clarifying path semantics
+
+**Step 1: Understand the issue**
+
+Review finding: `--event-log` currently accepts arbitrary paths and creates parent directories, but discovery and watch docs declare watch-mode writes are limited to `~/.local/state/session-observer/`.
+Location: `skills/session-observer/scripts/lib/watch.mjs:88`
+
+**Step 2: Implement fix**
+
+Resolve relative `--event-log` paths inside the session-observer state directory and reject absolute or relative paths that escape that directory. Keep event logs metadata-only. If path semantics need documentation, update the watch reference without broadening the safety boundary.
+
+**Step 3: Verify**
+
+Run: `node --test tests/session-observer/watch.test.mjs tests/session-observer/cli.test.mjs`
+Expected: Tests pass, including rejection/normalization coverage for event-log paths that would escape the state directory.
+
+**Step 4: Commit**
+
+```bash
+git add skills/session-observer/scripts/lib/watch.mjs tests/session-observer/watch.test.mjs skills/session-observer/references/watch-design.md
+git commit -m "fix(p04-t02): constrain session observer event logs"
+```
+
+---
+
+### Task p04-t03: (review) Update final implementation summary
+
+**Files:**
+
+- Modify: `.oat/projects/shared/session-observer-watch/implementation.md`
+
+**Step 1: Understand the issue**
+
+Review finding: `implementation.md` marks all implementation phases complete, but `## Final Summary (for PR/docs)` still contains `Pending implementation` placeholders.
+Location: `.oat/projects/shared/session-observer-watch/implementation.md:340`
+
+**Step 2: Implement fix**
+
+Replace the placeholder final summary with shipped watch behavior, user-facing changes, key modules, verification performed, and design deltas.
+
+**Step 3: Verify**
+
+Run: `rg -n "Pending implementation" .oat/projects/shared/session-observer-watch/implementation.md`
+Expected: No matches.
+
+**Step 4: Commit**
+
+```bash
+git add .oat/projects/shared/session-observer-watch/implementation.md
+git commit -m "fix(p04-t03): update session observer final summary"
+```
+
+---
+
 ## Reviews
 
 | Scope | Type | Status | Date | Artifact |
@@ -442,7 +534,8 @@ git commit -m "chore(p03-t02): sync session observer watch skill views"
 | p01 | code | pending | - | - |
 | p02 | code | pending | - | - |
 | p03 | code | pending | - | - |
-| final | code | pending | - | - |
+| p04 | code | pending | - | - |
+| final | code | fixes_added | 2026-06-03 | reviews/archived/final-code-review-2026-06-03.md |
 | spec | artifact | n/a | - | quick mode has no spec.md |
 | design | artifact | n/a | - | quick mode has no design.md |
 | plan | artifact | passed | 2026-06-03 | reviews/archived/artifact-plan-review-2026-06-02.md |
@@ -456,8 +549,9 @@ git commit -m "chore(p03-t02): sync session observer watch skill views"
 - Phase 1: 2 tasks - Watch state primitives and CLI command surface.
 - Phase 2: 3 tasks - Reusable catch-up pipeline, polling/debounce event emission, and control/shutdown behavior.
 - Phase 3: 2 tasks - Skill docs, provider-view sync, user-level dogfooding install, and full verification.
+- Phase 4: 3 tasks - Final review fixes for both-runtime emission, event-log path safety, and implementation summary.
 
-**Total: 7 tasks**
+**Total: 10 tasks**
 
 Ready for `oat-project-implement`.
 
