@@ -1,22 +1,25 @@
-# Watch Mode — Design Reference (v2, not implemented in v1)
+# Watch Mode — Implementation Reference
 
-**Status:** designed, not implemented. This document commits the leading hypothesis so v2 doesn't re-litigate.
+**Status:** implemented. The `watch` and `watch-ctl` subcommands are available, and top-level `--watch` maps to the foreground watcher.
 
-**Scope:** Everything in this document is design-only. No `watch` or `watch-ctl` subcommand exists in v1. The v1 skill ships `review`, `catch-up`, `locate`, and `state`.
+**Scope:** This document records the watch-mode behavior, state contract, event stream, control surface, and deferred provider-hook boundary. The root `SKILL.md` stays operator-focused; keep detailed internals here.
 
 ---
 
-## Why design-only in v1?
+## What watch mode does
 
-`watch` is a foreground polling daemon — a fundamentally different execution model from the single-shot CLI subcommands in v1. Shipping it correctly requires:
+`watch` is a foreground polling process around the existing locate/rank/digest/state pipeline. It identifies the relevant peer transcript for the selected runtime/cwd, establishes an initial baseline, then emits debounced catch-up digests when settled transcript changes arrive.
 
-- Singleton enforcement (one watcher per runtime per machine).
-- Stale-pid detection at startup.
-- A durable event log (JSONL, metadata-only).
-- A control surface for `pause`/`resume`/`flush`/`stop`.
-- Graceful shutdown on SIGTERM/SIGINT with state-file cleanup.
+Implemented behavior includes:
 
-These add surface area and test complexity that are out of scope for the first iteration. The design is frozen here to avoid rediscovery work when v2 picks this up.
+- Singleton enforcement through `watch.json`.
+- Stale-pid cleanup at startup.
+- Metadata-only JSONL event logging with `--event-log`.
+- `watch-ctl` operations for `status`, `pause`, `resume`, `flush`, and `stop`.
+- Graceful shutdown on normal exit, `watch-ctl stop`, SIGTERM, and SIGINT.
+- `watchedByPid` ownership metadata on active session state.
+
+Automatic agent responses only happen while the active invocation keeps the foreground watch process running and polls its output. Host/provider hooks that would wake a future invocation after the current one ends are deferred.
 
 ---
 
@@ -27,6 +30,8 @@ session-observer watch [--runtime <r>|both] [--cwd <path>]
                        [--debounce-sec 2] [--poll-sec 2]
                        [--max-runtime-min 0]
                        [--event-log <path>] [--json]
+
+session-observer --watch [watch options]
 ```
 
 | Flag | Default | Description |
@@ -40,6 +45,8 @@ session-observer watch [--runtime <r>|both] [--cwd <path>]
 | `--json` | false | Emit each event as a JSON line to stdout instead of human-readable text. |
 
 Foreground process. Quits on SIGINT or SIGTERM. Stdout is a human-readable event stream; `--event-log` mirrors events to a JSONL file for replay/introspection.
+
+`--watch` is a top-level alias for `watch` and accepts the same watch options.
 
 ---
 
@@ -192,24 +199,26 @@ The race is benign — the offset advances; the watcher's next tick sees no new 
 
 ---
 
-## Future Hook Integration (post-v2, out of scope)
+## Deferred Provider Hook Integration
 
-Wiring the watcher into Claude Code's `UserPromptSubmit` hook or a Codex equivalent would let the host runtime automatically prompt the agent when fresh peer activity is available. This requires host-specific `settings.json` changes and is out of scope for the watcher itself.
+Wiring the watcher into Claude Code's `UserPromptSubmit` hook or a Codex equivalent would let the host runtime automatically prompt an agent when fresh peer activity is available after the original invocation ends. That requires host-specific settings and lifecycle handling and remains deferred.
+
+The current automatic-response boundary is the active invocation: an agent starts `watch`, keeps the foreground process running, polls stdout, and responds to each emitted digest until the user stops watching or the process exits. Once the invocation stops polling, no provider hook will summon a new agent for later watch events.
 
 ---
 
 ## Safety Rules
 
-These are binding even at design stage:
+These are binding for watch mode:
 
 - **Read-only on transcripts.** No writes to `~/.claude/` or `~/.codex/` ever.
 - **Writes only to** `~/.local/state/session-observer/`. No other filesystem mutations.
-- **No memory/vault writes from the watcher.** A future `--capture-notable` flag, if added, must be opt-in and must only write summarized findings (not per-event content). A v2 question.
+- **No memory/vault writes from the watcher.** A future `--capture-notable` flag, if added, must be opt-in and must only write summarized findings, not per-event content.
 - **No network calls.**
 
 ---
 
-## Decisions Locked (Not Open for v2 Re-litigaton)
+## Decisions Locked
 
 | Decision | Rationale |
 |---|---|
