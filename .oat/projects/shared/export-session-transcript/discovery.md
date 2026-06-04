@@ -12,131 +12,217 @@ oat_generated: false
 
 Discovery is for requirements and decisions, not implementation details.
 
-- Prefer outcomes and constraints over concrete deliverables (no specific scripts, file paths, or function names).
-- If an implementation detail comes up, capture it as an **Open Question** for design (or a constraint), not as a deliverable list.
-
 ## Initial Request
 
-{Copy of user's initial request}
+Create a skill, `export-session-transcript`, that exports the current coding-agent
+session's conversation history to a **sanitized Markdown transcript**, named after
+the current git feature branch, written by default to `~/Downloads`. The transcript
+must include only visible user and assistant messages and must exclude tool calls,
+tool outputs, system/developer instructions, environment-context payloads,
+AGENTS.md/skill payloads, and subagent notifications.
+
+The skill must work across **at least Codex, Claude Code, and Cursor**, with
+provider-specific variations as needed, and must include identification of where
+each provider stores its logs / conversation history. The original Codex-authored
+prompt (a jq pipeline over `~/.codex/sessions/.../rollout-*.jsonl`) is the starting
+point; the existing `session-observer` skill already encodes the cross-provider
+transcript-location and parsing knowledge and is the basis for reuse.
 
 ## Clarifying Questions
 
-### Question 1: {Topic}
+### Question 1: Which session does the skill export?
 
-**Q:** {Question}
-**A:** {User's answer}
-**Decision:** {What this means for the project}
+**Q:** Current session, a specific session, or all sessions?
+**A:** Default is **the session from which the skill is executed** (the current
+conversation). Look for sessions in the cwd and **match to the conversation of that
+session by content**. Optionally support exporting a specific session and exporting
+**all** sessions for a cwd.
+**Decision:** Default = current session, identified by content-matching the live
+conversation (newest-for-cwd as fallback). Also ship `--session <id>` (specific) and
+`--all` (every session for the cwd).
+
+### Question 2: How independent should the skill be from session-observer?
+
+**Q:** Vendor a copy, depend hard on session-observer, or share an engine?
+**A:** "If we truly need to repeat this logic, should we not just make the
+functionality independent scripts and have a package.json script that copies the
+files to each skill that needs its scripts directory." Plus: "I don't think we
+should share more than what we need, but I do think we should extract it now."
+**Decision:** Extract a **minimal** shared core to a skill-independent canonical
+location now; a `package.json` sync script materializes a committed copy into each
+consuming skill's `scripts/lib/`; a test-suite drift guard asserts the copies stay
+in sync. Migrate `session-observer` to consume the synced copy in the same pass.
+
+### Question 3: Output location and filename
+
+**Q:** Default path and overrides?
+**A:** Support an optional output path/name argument.
+**Decision:** Default `~/Downloads/<branch>.md` (`/` → `-`). Optional output arg
+(`--out` / positional) accepts a **file path** (used verbatim) or a **directory**
+(auto-named `<branch>.md` inside). For `--all`, a directory receives one file per
+session. Not in a git repo / detached HEAD → fall back to a `<cwd-name>-<UTC>.md`
+name so the export never hard-fails.
 
 ## Solution Space
 
-_Include this section only when the request is exploratory or multiple viable approaches exist. For well-understood requests with an obvious approach, omit or replace with a single sentence stating the chosen direction._
+### Architecture for cross-provider parse/locate logic
 
-{Divergent exploration of the problem space before converging on an approach. Capture genuinely distinct strategies, not minor variations. Include 2-3 approaches as needed.}
+#### Approach 1: Lean self-contained skill _(initial lean)_
 
-### Approach 1: {Strategy Name} _(Recommended)_
+Ship a small standalone script that borrows session-observer's format knowledge as
+reference but vendors its own minimal parser. Portable, but duplicates format
+knowledge across two skills (two update sites on runtime drift).
 
-**Description:** {What this approach involves}
-**When this is the right choice:** {Conditions under which this approach is best}
-**Tradeoffs:** {What you give up by choosing this}
+#### Approach 2: Reuse session-observer engine as a mode / hard dependency
 
-### Approach 2: {Strategy Name}
+Add an export mode to session-observer or import its engine. DRYest, but couples the
+export skill to session-observer at install time; can't stand alone.
 
-**Description:** {What this approach involves}
-**When this is the right choice:** {Conditions under which this approach is best}
-**Tradeoffs:** {What you give up by choosing this}
+#### Approach 3: Canonical shared core + build-time sync into each skill _(Chosen)_
+
+A single, skill-independent canonical module owns the per-provider format/locate/parse
+logic. A `package.json` sync script copies a committed, byte-identical copy into each
+consuming skill's `scripts/` with a generated-file banner. A drift-guard test
+(`--check`) fails CI if a vendored copy diverges. Each installed skill is fully
+self-contained (no cross-skill import, no install-order coupling) **and** there is a
+single source of truth (no drift).
 
 ### Chosen Direction
 
-**Approach:** {Which approach was selected}
-**Rationale:** {Why this approach over the alternatives}
-**User validated:** {Yes/No — explicit buy-in before proceeding}
+**Approach:** Canonical shared core + build-time sync (Approach 3), with a
+**minimal** core and **extract-now** migration of session-observer.
+**Rationale:** Delivers DRY (one place to fix a format change) and portable
+standalone skills (each ships its own committed copy). The drift guard makes
+"copy the files" safe rather than a latent drift trap. User explicitly chose
+extract-now and minimal sharing.
+**User validated:** Yes — across the discovery conversation.
 
 ## Options Considered
 
-{Specific implementation options within the chosen approach. More granular than Solution Space — captures decisions about libraries, patterns, data formats, etc.}
+### Option A: What goes in the shared core
 
-### Option A: {Option Name}
+**Description:** `session-observer/scripts/lib/runtimes.mjs` is a **leaf module**
+(only Node stdlib imports) that exposes the per-provider primitives both skills need:
+`discoverPaths`, `encodeCwd`/`encodeCwdVariants`, `readRecords`, `extractMeta`, and
+`normalizeEntries` (which already filters tool calls/results and command-payloads by
+default — i.e. the sanitization). `locate.mjs` and `digest.mjs` import it via
+`./runtimes.mjs`; `rank.mjs` and `state.mjs` are independent and observe-specific.
 
-**Description:** {What this option involves}
+**Chosen:** Shared core = **`runtimes.mjs` only**. Observe-specific orchestration
+(`locate`, `digest`, `rank`, `state`) stays in session-observer. Export builds its
+own thin locate-current + renderer on the synced primitives.
 
-**Pros:**
-
-- {Benefit 1}
-- {Benefit 2}
-
-**Cons:**
-
-- {Drawback 1}
-- {Drawback 2}
-
-**Chosen:** {A/B/Neither}
-
-**Summary:** {1-2 sentence summary of the chosen option and why}
+**Summary:** Sharing `runtimes.mjs` captures all the drift-prone, format-specific
+knowledge while honoring "don't share more than we need." Migration is near-zero
+risk: session-observer's `locate`/`digest` keep importing `./runtimes.mjs` unchanged;
+that file simply becomes a synced copy of the canonical source.
 
 ## Key Decisions
 
-1. **{Decision Category}:** {Decision made and why}
-2. **{Decision Category}:** {Decision made and why}
+1. **Targeting:** Default exports the current session, identified by content-matching
+   the live conversation; newest-for-(runtime, cwd) is the fallback. `--session <id>`
+   targets a specific session; `--all` exports every session for the cwd.
+2. **Sanitization:** Reuse `normalizeEntries`' default filtering (visible
+   user/assistant natural-language messages only; tool calls/results and
+   command/skill payloads excluded). Output adds a header (branch, export timestamp,
+   source path, sanitization note) and `## User` / `## Assistant` entries.
+3. **Architecture:** Single canonical shared core (`runtimes.mjs`) in a
+   skill-independent location, synced into each consuming skill by a `package.json`
+   script, guarded by a drift-check test. Extract now; migrate session-observer in
+   the same pass.
+4. **Minimal sharing:** Only `runtimes.mjs` is shared. Observe-only modules stay in
+   session-observer; export gets its own thin locate + renderer.
+5. **Runtime detection:** The skill exports the runtime it is itself running under
+   (self), the inverse of session-observer (peer). Runtime is resolved by explicit
+   `--runtime`, environment hints, or auto-detection, defaulting to self.
+6. **Output:** Default `~/Downloads/<branch>.md`; optional output arg accepts a file
+   path (verbatim) or directory (auto-named); not-in-git fallback name.
+7. **Providers:** Claude Code, Codex, Cursor (matches session-observer's coverage).
+   Provider store locations documented in the skill.
 
 ## Constraints
 
-- {Constraint 1}
-- {Constraint 2}
+- Node >= 22, runtime code dependency-free (Node stdlib only) per repo conventions.
+- Skills must remain self-contained at install time (committed vendored copy, no
+  cross-skill runtime import).
+- Must pass `npm test`, `npm run validate`; SKILL.md frontmatter must satisfy
+  validate invariants (name/license/compatibility, semver `metadata.version`,
+  name matches folder).
+- Must never emit hidden developer/system instructions, tokens/auth, environment or
+  AGENTS.md/skill payloads, or subagent notifications.
+- Keep user-level installs in sync at closeout (`~/.agents/skills/<name>/`, provider
+  user skill dirs, `oat sync --scope user`) per repo conventions.
 
 ## Success Criteria
 
-- {Criterion 1}
-- {Criterion 2}
+- A new `skills/export-session-transcript/` skill exports the **current** session to
+  a sanitized Markdown transcript at `~/Downloads/<branch>.md` for Claude Code,
+  Codex, and Cursor.
+- `--session <id>`, `--all`, `--runtime`, and an output path/dir override work as
+  specified.
+- Exactly `runtimes.mjs` is extracted to a canonical shared location; a
+  `package.json` sync script materializes committed copies into both
+  `session-observer` and `export-session-transcript`; a drift-guard test fails on
+  divergence.
+- `session-observer` is migrated to consume the synced copy with its existing tests
+  still green; no behavior change.
+- Output excludes tool calls/results, system/developer instructions, environment
+  context, AGENTS.md/skill payloads, and subagent notifications (verified).
+- `npm test` and `npm run validate` pass; docs/README updated for the new skill and
+  the shared-core convention.
 
 ## Out of Scope
 
-- {Thing we explicitly decided not to do}
-- {Thing we explicitly decided not to include in this phase}
+- Cursor SQLite chat-history store (`~/.cursor/chats/*/store.db`) — agent transcript
+  JSONL only (matches session-observer).
+- Live/continuous export (watch mode).
+- Runtimes beyond Claude Code, Codex, Cursor (e.g. Gemini) — extension point noted
+  but not built.
 
 ## Deferred Ideas
 
-{Ideas that came up during discovery but are intentionally out of scope for now}
+- Additional runtimes (Gemini CLI, etc.) — the shared core's "adding a runtime"
+  extension points make this straightforward later.
+- Richer rendering options (e.g. including a compact tool-activity appendix behind a
+  flag) — default stays strictly sanitized.
 
-- {Idea 1} - {Why deferred}
-- {Idea 2} - {Why deferred}
+## Open Questions (for design)
 
-## Open Questions
-
-{Questions that need resolution before or during specification (and later design)}
-
-- **{Question Category}:** {Question that needs answering}
-- **{Question Category}:** {Question that needs answering}
+- **Content-match mechanics:** How does the running agent identify *its own*
+  conversation — does the SKILL.md instruct the agent to pass a distinctive recent
+  excerpt (`--match <text>`) that the script greps candidate transcripts for, with
+  newest-for-cwd as fallback? (Leaning yes.)
+- **Runtime self-detection:** Precise precedence for resolving "self" runtime
+  (explicit flag > env hint > auto-detect) and which env signals are reliable per
+  provider.
+- **Canonical location + sync naming:** Exact path for the canonical core
+  (e.g. `shared/transcript-core/`), the sync script name, the vendored target path
+  inside each skill, and where the drift-guard test lives.
+- **Test relocation:** Whether `runtimes` unit tests move to a canonical
+  `tests/transcript-core/` or remain under `tests/session-observer/` pointing at the
+  synced copy.
+- **`--all` naming scheme:** Filename pattern when exporting multiple sessions
+  (e.g. `<branch>-<sessionId>.md` into a directory).
 
 ## Assumptions
 
-{Assumptions we're making that need validation}
-
-- {Assumption 1}
-- {Assumption 2}
+- `runtimes.mjs`'s default filtering is sufficient sanitization for the export's
+  requirements (no tool/command/system/env payloads leak through).
+- Each consuming skill is allowed to carry a committed generated copy of the shared
+  core (no repo rule against committed generated runtime files).
 
 ## Risks
 
-{Potential risks identified during discovery}
-
-- **{Risk Name}:** {Description}
-  - **Likelihood:** Low / Medium / High
-  - **Impact:** Low / Medium / High
-  - **Mitigation Ideas:** {How to address}
+- **Drift between canonical and vendored copies:** _Likelihood: Medium, Impact:
+  Medium._ Mitigation: drift-guard `--check` test wired into `npm test`.
+- **session-observer regression during migration:** _Likelihood: Low, Impact:
+  High._ Mitigation: keep `runtimes.mjs` byte-identical; rely on existing
+  session-observer test suite staying green.
+- **Wrong-session export under concurrency:** _Likelihood: Low, Impact: Medium._
+  Mitigation: content-match the live conversation; confirm/ask on ambiguity.
 
 ## Next Steps
 
-Use this discovery artifact to drive the next workflow step:
-
-- **Spec-driven mode:** continue to `oat-project-design` (which confirms
-  requirements and produces both `spec.md` and `design.md`).
-- **Spec-driven mode → formalize-only:** use `oat-project-spec` standalone
-  if you want a formalized requirements artifact but aren't ready to
-  design yet.
-- **Quick mode → straight to plan:** proceed directly to `plan.md` when
-  scope is clear and no architecture decisions remain.
-- **Quick mode → optional lightweight design:** produce a focused
-  `design.md` (architecture, components, data flow, testing) before
-  planning. Choose this when discovery surfaced architecture choices
-  or component boundaries.
-- **Quick mode → promote:** escalate to spec-driven if discovery revealed
-  the scope is larger or more complex than expected.
+Proceed to the design-depth decision: this discovery surfaced real architecture and
+component-boundary decisions (shared-core extraction, sync mechanism, drift guard,
+new CLI), so a **lightweight design** is recommended before plan generation.
