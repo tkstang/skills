@@ -31,6 +31,7 @@ Use this skill when any of the following applies:
 | `what do you think of what was just said?` | `catch-up`, then comment |
 | `get up to speed` | `review` once, `catch-up` thereafter |
 | `start watching this session` / `keep watching Codex` / `respond when anything new appears` | `watch --runtime <peer>` or `--watch --runtime <peer>` |
+| `catch up and watch Claude` / `catch up, then keep watching <peer>` | `catch-up --runtime <peer>`, then `watch --runtime <peer>` |
 | `which sessions are available?` / `find the session` | `locate` |
 | `reset / start over watching Codex` | `state reset --runtime codex`, then `review` |
 
@@ -203,6 +204,8 @@ On exit 3 (ambiguousRuntime):
 **Watch mode operation:**
 
 Use `watch` when the user explicitly asks to keep monitoring a peer session, respond as new peer activity arrives, or watch another terminal while the current invocation remains active. `watch` is a foreground process: keep it running, poll its stdout, and respond to each emitted digest until the user asks you to stop, `watch-ctl stop` exits the watcher, `--max-runtime-min` expires, or the process exits for another reason.
+
+For combined catch-up/watch requests, run `catch-up` first, then start `watch`. Starting `watch` alone establishes an initial baseline and does not emit already-unread transcript content.
 
 Each emitted watch digest is equivalent to a debounced `catch-up` result and advances the high-water mark for the consumed raw transcript records. If the watcher prints JSON lines, parse each line and respond to events that include digest content or metadata indicating new records. If it prints markdown, read each emitted digest before commenting.
 
