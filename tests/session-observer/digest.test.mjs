@@ -201,6 +201,101 @@ describe('buildDigest', () => {
     }
   });
 
+  test('filters Codex bootstrap records out of rendered digests and engagement', async (t) => {
+    if (skipIfMissing(t)) return;
+
+    const tmpDir = await mkdtemp(join(tmpdir(), 'digest-codex-bootstrap-'));
+    try {
+      const transcriptPath = join(tmpDir, 'codex-bootstrap.jsonl');
+      const records = [
+        { sessionId: 'codex-bootstrap', type: 'session_meta', payload: { id: 'codex-bootstrap', cwd: '/test/codex-bootstrap' } },
+        { sessionId: 'codex-bootstrap', type: 'event_msg', payload: { type: 'task_started' } },
+        {
+          sessionId: 'codex-bootstrap',
+          type: 'response_item',
+          payload: {
+            type: 'message',
+            role: 'developer',
+            content: '<permissions instructions>\nFilesystem sandboxing...',
+          },
+        },
+        {
+          sessionId: 'codex-bootstrap',
+          type: 'response_item',
+          payload: {
+            type: 'message',
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: '# AGENTS.md instructions for /test/codex-bootstrap\n\n<INSTRUCTIONS>\nRepo rules\n</INSTRUCTIONS>',
+              },
+              {
+                type: 'text',
+                text: '<environment_context>\n  <cwd>/test/codex-bootstrap</cwd>\n</environment_context>',
+              },
+            ],
+          },
+        },
+        { sessionId: 'codex-bootstrap', type: 'turn_context', cwd: '/test/codex-bootstrap' },
+        {
+          sessionId: 'codex-bootstrap',
+          type: 'response_item',
+          payload: {
+            type: 'message',
+            role: 'user',
+            content: 'Generate a concise tab title for this coding chat.\nRules:\n- 2 to 5 words.',
+          },
+        },
+        {
+          sessionId: 'codex-bootstrap',
+          type: 'response_item',
+          payload: { type: 'message', role: 'assistant', content: 'Bootstrap Title' },
+        },
+        {
+          sessionId: 'codex-bootstrap',
+          type: 'response_item',
+          payload: { type: 'message', role: 'user', content: 'Please inspect the actual design conversation.' },
+        },
+        {
+          sessionId: 'codex-bootstrap',
+          type: 'response_item',
+          payload: {
+            type: 'message',
+            role: 'user',
+            content: '<skill>\n<name>oat-project-open</name>\n<body>synthetic skill body</body>\n</skill>',
+          },
+        },
+        {
+          sessionId: 'codex-bootstrap',
+          type: 'response_item',
+          payload: { type: 'message', role: 'assistant', content: 'Actual assistant response.' },
+        },
+      ];
+      await writeFile(transcriptPath, records.map(record => JSON.stringify(record)).join('\n') + '\n', 'utf8');
+
+      const digest = await buildDigest('codex', transcriptPath, {
+        fromIndex: 0,
+        mode: 'catch-up',
+      });
+      const renderedText = digest.entries.map(entry => entry.text).join('\n');
+      const md = renderMarkdown(digest);
+
+      assert.equal(digest.engagement.status, 'engaged');
+      assert.equal(digest.engagement.genuineUserMessages, 1);
+      assert.equal(digest.engagement.bootstrapRecordCount, 4);
+      assert.equal(digest.accounting.filtered.bootstrapRecords, 4);
+      assert.ok(renderedText.includes('Please inspect the actual design conversation.'));
+      assert.ok(renderedText.includes('Actual assistant response.'));
+      assert.ok(!renderedText.includes('AGENTS.md instructions'));
+      assert.ok(!renderedText.includes('Bootstrap Title'));
+      assert.ok(!renderedText.includes('<skill>'));
+      assert.ok(md.includes('bootstrap records: 4'));
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
   test('large digest fallback keeps the last turn groups automatically', async (t) => {
     if (skipIfMissing(t)) return;
 

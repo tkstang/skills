@@ -129,6 +129,14 @@ function errorOutcome(message) {
   return { ok: false, kind: 'error', exitCode: 1, message };
 }
 
+function unengagedOnlyMessage(runtime, cwd) {
+  return (
+    `The only ${runtime} session for this cwd has no user conversation yet: ${cwd}. ` +
+    'It looks like a freshly spawned/bootstrap session you have not engaged with. ' +
+    'Did you mean a different session (another runtime, a sister worktree, or a specific session id)?'
+  );
+}
+
 async function sessionStateFor(runtime, sessionId) {
   try {
     return await stateLib.getSession(runtime, sessionId);
@@ -328,6 +336,21 @@ export async function observeCatchUp(args) {
         globalRecent: rankResult.globalRecent,
       },
       `No ${runtime} transcripts matched cwd: ${cwd}`
+    );
+  }
+
+  if (rankResult.unengagedOnly) {
+    return inputNeededOutcome(
+      'unengagedOnly',
+      {
+        unengagedOnly: true,
+        runtime,
+        cwd,
+        tier: rankResult.tier,
+        candidates: rankResult.candidates,
+        message: 'Only bootstrap/unengaged sessions matched this cwd. Use --session to confirm one or specify a different runtime/cwd.',
+      },
+      unengagedOnlyMessage(runtime, cwd)
     );
   }
 

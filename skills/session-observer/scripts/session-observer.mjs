@@ -35,6 +35,7 @@ const { rank } = await import(join(LIB, 'rank.mjs'));
 const { buildDigest, renderMarkdown, renderJson } = await import(join(LIB, 'digest.mjs'));
 const { observeCatchUp } = await import(join(LIB, 'observe.mjs'));
 const { runWatchLoop } = await import(join(LIB, 'watch.mjs'));
+const { readRecords } = await import(join(LIB, 'runtimes.mjs'));
 const stateLib = await import(join(LIB, 'state.mjs'));
 const watchStateLib = await import(join(LIB, 'watch-state.mjs'));
 
@@ -67,6 +68,7 @@ function parseCliArgs(argv) {
       watch:                { type: 'boolean', default: false },
       'debounce-sec':       { type: 'string',  default: undefined },
       'poll-sec':           { type: 'string',  default: undefined },
+      'max-pending-sec':    { type: 'string',  default: undefined },
       'max-runtime-min':    { type: 'string',  default: undefined },
       'event-log':          { type: 'string',  default: undefined },
       help:                 { type: 'boolean', default: false },
@@ -87,6 +89,7 @@ function parseCliArgs(argv) {
   const maxBytes = values['max-bytes'] ? parseInt(values['max-bytes'], 10) : undefined;
   const debounceSec = values['debounce-sec'] ? parseFloat(values['debounce-sec']) : 2;
   const pollSec = values['poll-sec'] ? parseFloat(values['poll-sec']) : 2;
+  const maxPendingSec = values['max-pending-sec'] ? parseFloat(values['max-pending-sec']) : undefined;
   const maxRuntimeMin = values['max-runtime-min'] ? parseFloat(values['max-runtime-min']) : 0;
 
   // For 'state' subcommand, the op is in rest[0]: get, reset, clear
@@ -112,6 +115,7 @@ function parseCliArgs(argv) {
     watch: values.watch,
     debounceSec,
     pollSec,
+    maxPendingSec,
     maxRuntimeMin,
     eventLog: values['event-log'],
     help: values.help,
@@ -220,6 +224,20 @@ function emitError(message, exitCode = 1) {
   process.exit(exitCode);
 }
 
+function unengagedOnlyMessage(runtime, cwd) {
+  return (
+    `The only ${runtime} session for this cwd has no user conversation yet: ${cwd}. ` +
+    'It looks like a freshly spawned/bootstrap session you have not engaged with. ' +
+    'Did you mean a different session (another runtime, a sister worktree, or a specific session id)?'
+  );
+}
+
+function renderCandidateList(candidates) {
+  return candidates
+    .map(c => `  ${c.runtime}:${c.sessionId}  ${c.engagementStatus ?? 'unknown'}  records=${c.recordCount ?? '?'}  ${c.transcriptPath}`)
+    .join('\n');
+}
+
 function parsePinnedSession(session) {
   if (!session) return null;
   const colonIndex = session.indexOf(':');
@@ -299,6 +317,7 @@ function printUsage() {
     '  --runtime <claude-code|codex|cursor|auto|both>  (default: auto)',
     '  --debounce-sec <N>                  Seconds of quiet before emitting',
     '  --poll-sec <N>                      Poll interval in seconds',
+    '  --max-pending-sec <N>               Max seconds to hold continuous changes before emitting',
     '  --max-runtime-min <N>               Auto-exit after N minutes (0 = unlimited)',
     '  --event-log <path>                  Metadata-only JSONL event log',
     '',
@@ -315,6 +334,7 @@ function printWatchUsage() {
     '  --cwd <path>                        (default: process.cwd())',
     '  --debounce-sec <N>                  Seconds of quiet before emitting (default: 2)',
     '  --poll-sec <N>                      Poll interval in seconds (default: 2)',
+    '  --max-pending-sec <N>               Max seconds to hold continuous changes before emitting (default: 30)',
     '  --max-runtime-min <N>               Auto-exit after N minutes (0 = unlimited)',
     '  --event-log <path>                  Metadata-only JSONL event log',
     '  --json                              Emit JSON-line events instead of markdown',
@@ -475,6 +495,23 @@ async function runReview(args) {
     return emit(`No ${runtime} transcripts matched cwd: ${cwd}`, 2);
   }
 
+  if (rankResult.unengagedOnly) {
+    const payload = {
+      unengagedOnly: true,
+      runtime,
+      cwd,
+      tier: rankResult.tier,
+      candidates: rankResult.candidates,
+      message: 'Only bootstrap/unengaged sessions matched this cwd. Use --session to confirm one or specify a different runtime/cwd.',
+    };
+    if (json) return emitJson(payload, 3);
+    return emit(
+      `${unengagedOnlyMessage(runtime, cwd)}\n` +
+      renderCandidateList(rankResult.candidates),
+      3
+    );
+  }
+
   // Check for ties
   if (rankResult.ties && rankResult.ties.length > 0) {
     const payload = {
@@ -606,6 +643,25 @@ async function runLocate(args) {
       return emit(`No transcripts found for cwd: ${cwd}`, 2);
     }
 
+    if (rankResult.unengagedOnly) {
+      const payload = {
+        unengagedOnly: true,
+        cwd,
+        tier: rankResult.tier,
+        candidates: rankResult.candidates,
+        message: 'Only bootstrap/unengaged sessions matched this cwd. Use --session to confirm one or specify a runtime/cwd.',
+      };
+      if (debug) payload.lookupDiagnostics = {
+        claudeCode: await claudeCodeLookupDiagnostics(cwd),
+      };
+      if (json) return emitJson(payload, 3);
+      return emit(
+        `${unengagedOnlyMessage('auto', cwd)}\n` +
+        renderCandidateList(rankResult.candidates),
+        3
+      );
+    }
+
     const payload = {
       winner: rankResult.winner,
       tier: rankResult.tier,
@@ -680,6 +736,28 @@ async function runLocate(args) {
     }
     if (json) return emitJson(payload, 2);
     return emit(`No ${runtime} transcripts matched cwd: ${cwd}`, 2);
+  }
+
+  if (rankResult.unengagedOnly) {
+    const payload = {
+      unengagedOnly: true,
+      runtime,
+      cwd,
+      tier: rankResult.tier,
+      candidates: rankResult.candidates,
+      message: 'Only bootstrap/unengaged sessions matched this cwd. Use --session to confirm one or specify a different runtime/cwd.',
+    };
+    if (debug && runtime === 'claude-code') {
+      payload.lookupDiagnostics = {
+        claudeCode: await claudeCodeLookupDiagnostics(cwd),
+      };
+    }
+    if (json) return emitJson(payload, 3);
+    return emit(
+      `${unengagedOnlyMessage(runtime, cwd)}\n` +
+      renderCandidateList(rankResult.candidates),
+      3
+    );
   }
 
   const payload = {
@@ -811,9 +889,7 @@ async function runWatch(args) {
   }
 
   try {
-    await runWatchLoop(args, {
-      writeStdout: chunk => process.stdout.write(chunk),
-    });
+    await runWatchLoop(args);
   } catch (err) {
     return emitError(`Watch failed: ${err.message}`, 1);
   }
@@ -835,28 +911,133 @@ async function emitNoActiveWatcher(args) {
   return emit('No active watcher.', 0);
 }
 
+function secondsSince(value, now = Date.now()) {
+  if (!value) return null;
+  const parsed = Date.parse(value);
+  if (!Number.isFinite(parsed)) return null;
+  return Math.max(0, Math.floor((now - parsed) / 1000));
+}
+
+function consumedThrough(lastRecordIndex) {
+  if (!Number.isFinite(lastRecordIndex) || lastRecordIndex <= 0) return null;
+  return lastRecordIndex - 1;
+}
+
+async function transcriptRecordCount(transcriptPath) {
+  return (await readRecords(transcriptPath)).length;
+}
+
+async function watcherStatusPayload(state) {
+  const active = state.active;
+  if (!active) {
+    return {
+      active: false,
+      noActiveWatcher: true,
+      watcher: null,
+      message: 'No active watcher.',
+    };
+  }
+
+  const now = Date.now();
+  const sessionState = await stateLib.load().catch(() => ({ sessions: {} }));
+  const staleAfterSec = Number.isFinite(Number(active.staleAfterSec))
+    ? Number(active.staleAfterSec)
+    : 30;
+  const secondsSinceLastEmit = secondsSince(active.lastEventAt, now);
+  const secondsSinceLastPoll = secondsSince(active.lastPollAt, now);
+  const secondsSinceStarted = secondsSince(active.startedAt, now);
+  const targets = [];
+
+  for (const target of active.targets ?? []) {
+    const stateKey = `${target.runtime}:${target.sessionId}`;
+    const stored = sessionState.sessions?.[stateKey] ?? null;
+    const lastRecordIndex = Number.isFinite(Number(stored?.lastRecordIndex))
+      ? Number(stored.lastRecordIndex)
+      : Number(target.baselineRecordIndex ?? 0);
+    let transcriptRecords = null;
+    let recordError = null;
+    try {
+      transcriptRecords = await transcriptRecordCount(target.transcriptPath);
+    } catch (err) {
+      recordError = err.message;
+    }
+
+    const recordsBehind = transcriptRecords === null
+      ? null
+      : Math.max(0, transcriptRecords - lastRecordIndex);
+    const staleClockSec = secondsSinceLastEmit ?? secondsSinceStarted ?? 0;
+    const reasons = [];
+    if (recordsBehind !== null && recordsBehind > 0 && staleClockSec > staleAfterSec) {
+      reasons.push('records-behind-stale');
+    }
+    if (secondsSinceLastPoll !== null && secondsSinceLastPoll > Math.max(staleAfterSec, (active.pollSec ?? 2) * 3)) {
+      reasons.push('poll-heartbeat-stale');
+    }
+    if (recordError) reasons.push('transcript-read-error');
+
+    targets.push({
+      ...target,
+      transcriptRecords,
+      lastRecordIndex,
+      consumedThrough: consumedThrough(lastRecordIndex),
+      recordsBehind,
+      secondsSinceLastEmit,
+      secondsSinceLastPoll,
+      staleAfterSec,
+      healthy: reasons.length === 0,
+      healthReasons: reasons,
+      error: recordError,
+    });
+  }
+
+  const activeWithStatus = {
+    ...active,
+    targets,
+  };
+  const targetReasons = targets.flatMap(target => target.healthReasons ?? []);
+  const processReasons = [];
+  if (active.lastError?.message) processReasons.push('watcher-error');
+  const reasons = [...new Set([...targetReasons, ...processReasons])];
+  const healthy = reasons.length === 0;
+
+  return {
+    active: true,
+    noActiveWatcher: false,
+    healthy,
+    health: { healthy, reasons },
+    watcher: activeWithStatus,
+    targets,
+    requestedRuntime: active.requestedRuntime ?? active.runtime,
+    resolvedRuntime: active.resolvedRuntime ?? targets[0]?.runtime ?? null,
+    sessionId: active.sessionId ?? targets[0]?.sessionId ?? null,
+    transcriptPath: active.transcriptPath ?? targets[0]?.transcriptPath ?? null,
+    secondsSinceLastEmit,
+    secondsSinceLastPoll,
+  };
+}
+
+function formatWatcherStatus(payload) {
+  if (!payload.active) return 'No active watcher.';
+  const watcher = payload.watcher;
+  const targetLines = (payload.targets ?? []).map(target => {
+    const behind = target.recordsBehind === null ? '?' : target.recordsBehind;
+    return `  ${target.runtime}:${target.sessionId} recordsBehind=${behind} transcript=${target.transcriptPath}`;
+  });
+  return [
+    `Watcher active: ${watcher.runtime} ${watcher.cwd} (pid ${watcher.pid}) healthy=${payload.healthy}`,
+    ...targetLines,
+  ].join('\n');
+}
+
 async function runWatchCtl(args) {
   if (args.help || !args.watchCtlOp) return printWatchCtlUsage();
 
   switch (args.watchCtlOp) {
     case 'status': {
       const state = await watchStateLib.loadWatchState();
-      const payload = state.active
-        ? {
-            active: true,
-            noActiveWatcher: false,
-            watcher: state.active,
-          }
-        : {
-            active: false,
-            noActiveWatcher: true,
-            watcher: null,
-            message: 'No active watcher.',
-          };
+      const payload = await watcherStatusPayload(state);
       if (args.json) return emitJson(payload, 0);
-      return emit(state.active
-        ? `Watcher active: ${state.active.runtime} ${state.active.cwd} (pid ${state.active.pid})`
-        : 'No active watcher.', 0);
+      return emit(formatWatcherStatus(payload), 0);
     }
 
     case 'pause':

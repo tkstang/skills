@@ -14,7 +14,7 @@
  * globalRecentProvider via opts so rank is a pure, independently-testable function.
  *
  * Constants:
- *   TIE_WINDOW_SEC      = 5   — candidates within this many seconds of the winner are "ties"
+ *   TIE_WINDOW_SEC       = 5   — close candidates within this many seconds are "ties"
  *   ACTIVE_THRESHOLD_SEC = 60  — winners younger than this are marked active: true
  */
 
@@ -26,6 +26,9 @@ import { realpathSync } from 'node:fs';
 
 const TIE_WINDOW_SEC = 5;
 const ACTIVE_THRESHOLD_SEC = 60;
+const CLOSE_REAL_MESSAGE_DELTA = 2;
+const CLOSE_SIZE_RATIO = 0.9;
+const CLOSE_SIZE_ABS = 4096;
 
 // ---------------------------------------------------------------------------
 // Path normalization
@@ -136,6 +139,65 @@ function parentSlugMatches(candidate, targetCwd) {
   if (!slug) return false;
   return cwdSlugVariants(targetCwd).includes(slug);
 }
+
+function engagementStatus(candidate) {
+  const status = candidate.engagementStatus ?? candidate.engagement?.status;
+  return status === 'unengaged' ? 'unengaged' : 'engaged';
+}
+
+function isEngaged(candidate) {
+  return engagementStatus(candidate) !== 'unengaged';
+}
+
+function metric(candidate, key) {
+  const value = candidate[key] ?? candidate.engagement?.[key];
+  return Number.isFinite(Number(value)) ? Number(value) : 0;
+}
+
+function hasAssistantAndUser(candidate) {
+  return Boolean(candidate.hasAssistantAndUser ?? candidate.engagement?.hasAssistantAndUser);
+}
+
+function compareCandidatePreference(a, b) {
+  if (isEngaged(a) !== isEngaged(b)) return isEngaged(a) ? -1 : 1;
+  if (hasAssistantAndUser(a) !== hasAssistantAndUser(b)) {
+    return hasAssistantAndUser(a) ? -1 : 1;
+  }
+
+  const realMessageDelta = metric(b, 'realMessageCount') - metric(a, 'realMessageCount');
+  if (realMessageDelta !== 0) return realMessageDelta;
+
+  const userDelta = metric(b, 'genuineUserMessages') - metric(a, 'genuineUserMessages');
+  if (userDelta !== 0) return userDelta;
+
+  const assistantDelta = metric(b, 'assistantMessages') - metric(a, 'assistantMessages');
+  if (assistantDelta !== 0) return assistantDelta;
+
+  const sizeDelta = (b.size ?? 0) - (a.size ?? 0);
+  if (sizeDelta !== 0) return sizeDelta;
+
+  return (b.mtime ?? 0) - (a.mtime ?? 0);
+}
+
+function sizesClose(a, b) {
+  const aSize = Number(a.size ?? 0);
+  const bSize = Number(b.size ?? 0);
+  const diff = Math.abs(aSize - bSize);
+  if (diff <= CLOSE_SIZE_ABS) return true;
+  const larger = Math.max(aSize, bSize);
+  const smaller = Math.min(aSize, bSize);
+  if (larger === 0) return true;
+  return smaller / larger >= CLOSE_SIZE_RATIO;
+}
+
+function closeEngagedTie(winner, candidate, tieWindowSec) {
+  if (!isEngaged(winner) || !isEngaged(candidate)) return false;
+  if (hasAssistantAndUser(winner) !== hasAssistantAndUser(candidate)) return false;
+  if (Math.abs(metric(winner, 'realMessageCount') - metric(candidate, 'realMessageCount')) > CLOSE_REAL_MESSAGE_DELTA) return false;
+  if (!sizesClose(winner, candidate)) return false;
+  return Math.abs((winner.mtime ?? 0) - (candidate.mtime ?? 0)) <= tieWindowSec;
+}
+
 export function rank(candidates, targetCwd, opts = {}) {
   const {
     tieWindowSec = TIE_WINDOW_SEC,
@@ -181,8 +243,22 @@ export function rank(candidates, targetCwd, opts = {}) {
     };
   }
 
-  // Sort winning pool by mtime DESC
-  const sorted = [...winningPool].sort((a, b) => b.mtime - a.mtime);
+  const engagedPool = winningPool.filter(isEngaged);
+  const unengagedPool = winningPool.filter(candidate => !isEngaged(candidate));
+  if (engagedPool.length === 0) {
+    return {
+      winner: null,
+      unengagedOnly: true,
+      tier: winningTier,
+      candidates: [...unengagedPool].sort(compareCandidatePreference),
+      message: 'Only unengaged sessions matched this cwd.',
+    };
+  }
+
+  // Sort winning pool by engagement signals first, then transcript weight, then
+  // mtime. This prevents freshly spawned bootstrap sessions from beating an
+  // idle but substantive human conversation.
+  const sorted = [...engagedPool].sort(compareCandidatePreference);
   const winner = sorted[0];
 
   // Annotate winner with active flag
@@ -191,13 +267,17 @@ export function rank(candidates, targetCwd, opts = {}) {
     active: winner.ageSec < ACTIVE_THRESHOLD_SEC,
   };
 
-  // Detect ties: all other candidates in the winning tier within tieWindowSec of winner
+  // Detect ties: other engaged candidates with effectively equivalent
+  // engagement/size signals and close mtimes.
   const ties = sorted
     .slice(1)
-    .filter(c => winner.mtime - c.mtime <= tieWindowSec);
+    .filter(c => closeEngagedTie(winner, c, tieWindowSec));
 
   // Fallbacks: remaining sorted candidates in the winning tier after winner
-  const fallbacks = sorted.slice(1);
+  const fallbacks = [
+    ...sorted.slice(1),
+    ...unengagedPool.sort(compareCandidatePreference),
+  ];
 
   return {
     winner: annotatedWinner,

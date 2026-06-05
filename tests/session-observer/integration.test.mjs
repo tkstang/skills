@@ -253,7 +253,7 @@ describe('integration: catch-up', () => {
 
       const transcriptPath = join(projectDir, 'session-boundary.jsonl');
       const records = [
-        { sessionId: 'boundary-session', message: { role: 'assistant', content: 'previous message' } },
+        { sessionId: 'boundary-session', message: { role: 'user', content: 'previous user message' } },
         { sessionId: 'boundary-session', message: { role: 'assistant', content: 'boundary message should not repeat' } },
         { sessionId: 'boundary-session', message: { role: 'assistant', content: 'new message only' } },
       ];
@@ -334,23 +334,20 @@ describe('integration: catch-up', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Test 6: review against empty fixture exits 2 with noCandidates/noMatch
+// Test 6: review against empty fixture exits 3 with unengagedOnly
 // ---------------------------------------------------------------------------
 
 describe('integration: empty fixture', () => {
-  test('review against empty fixture exits 2', async (t) => {
+  test('review against empty fixture exits 3', async (t) => {
     const { tmpDir, cwd, stateDir, cleanup } = await setupTempHome(EMPTY_CLAUDE);
     try {
       const result = spawnCli(
         ['review', '--runtime', 'claude-code', '--cwd', cwd],
         { HOME: tmpDir, STATE_DIR: stateDir }
       );
-      // Empty fixture: the file exists but has no records.
-      // The CLI should exit 0 (empty digest rendered) or exit 2 (no candidates/noMatch).
-      // Both are acceptable per the plan's "empty fixture → exit 2" guidance and
-      // the CLI's actual behavior (empty transcript is still a valid candidate found).
-      assert.ok(result.status === 0 || result.status === 2,
-        `Expected exit 0 or 2 for empty fixture, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`);
+      assert.equal(result.status, 3,
+        `Expected exit 3 for unengaged empty fixture\nstdout: ${result.stdout}\nstderr: ${result.stderr}`);
+      assert.ok(result.stdout.includes('has no user conversation yet'));
     } finally {
       await cleanup();
     }

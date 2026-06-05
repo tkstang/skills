@@ -43,7 +43,7 @@ async function writeClaudeTranscript(home, cwd, fileName, sessionId, messages) {
   const dir = join(home, '.claude', 'projects', claudeSlug(cwd));
   await mkdir(dir, { recursive: true });
   const transcriptPath = join(dir, fileName);
-  const records = messages.map(({ role = 'assistant', content }) => ({
+  const records = messages.map(({ role = 'user', content }) => ({
     sessionId,
     message: { role, content },
   }));

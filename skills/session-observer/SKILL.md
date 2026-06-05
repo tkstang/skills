@@ -93,6 +93,7 @@ Use this skill when any of the following applies:
 | `--runtime <r>` | `claude-code\|codex\|cursor\|auto\|both` | `auto` | Which runtime to watch. `both` watches Claude Code and Codex in one foreground process. |
 | `--debounce-sec N` | number | `2` | Seconds of quiet before emitting a catch-up digest. |
 | `--poll-sec N` | number | `2` | Poll interval in seconds. |
+| `--max-pending-sec N` | number | `30` | Maximum seconds to hold continuous transcript changes before emitting even if the file never goes quiet. |
 | `--max-runtime-min N` | number | `0` | Auto-exit after N minutes; `0` runs until stopped. |
 | `--event-log <path>` | path | — | Write metadata-only JSONL event records. Message content stays on stdout. |
 | `--json` | boolean | false | Emit each watch event as one JSON line instead of markdown. |
@@ -170,7 +171,7 @@ node <skill-dir>/scripts/session-observer.mjs state reset --runtime codex
 
 # Watch — foreground monitoring with debounced catch-up updates
 node <skill-dir>/scripts/session-observer.mjs watch \
-  --runtime codex --cwd "$PWD" --poll-sec 2 --debounce-sec 2
+  --runtime codex --cwd "$PWD" --poll-sec 2 --debounce-sec 2 --max-pending-sec 30
 
 # Top-level watch alias
 node <skill-dir>/scripts/session-observer.mjs --watch \
@@ -203,13 +204,15 @@ On exit 3 (ambiguousRuntime):
 
 **Watch mode operation:**
 
-Use `watch` when the user explicitly asks to keep monitoring a peer session, respond as new peer activity arrives, or watch another terminal while the current invocation remains active. `watch` is a foreground process: keep it running, poll its stdout, and respond to each emitted digest until the user asks you to stop, `watch-ctl stop` exits the watcher, `--max-runtime-min` expires, or the process exits for another reason.
+Use `watch` when the user explicitly asks to keep monitoring a peer session, respond as new peer activity arrives, or watch another terminal while the current invocation remains active. `watch` is a foreground process: keep it running, actively read or poll its stdout, and respond to each emitted digest until the user asks you to stop, `watch-ctl stop` exits the watcher, `--max-runtime-min` expires, or the process exits for another reason.
 
 For combined catch-up/watch requests, run `catch-up` first, then start `watch`. Starting `watch` alone establishes an initial baseline and does not emit already-unread transcript content.
 
-Each emitted watch digest is equivalent to a debounced `catch-up` result and advances the high-water mark for the consumed raw transcript records. If the watcher prints JSON lines, parse each line and respond to events that include digest content or metadata indicating new records. If it prints markdown, read each emitted digest before commenting.
+Each emitted watch digest is equivalent to a debounced `catch-up` result and advances the high-water mark for the consumed raw transcript records. The debounce waits for `--debounce-sec` seconds of quiet, but continuous writes are still emitted after `--max-pending-sec` seconds so a busy transcript cannot starve the watcher indefinitely. If the watcher prints JSON lines, parse each line and respond to events that include digest content or metadata indicating new records. If it prints markdown, read each emitted digest before commenting.
 
-Automatic responses are bounded to the active invocation that started and is polling the watcher. Provider hook integrations that would wake a new invocation after this one ends are deferred; do not imply that watch events will automatically summon an agent after the active invocation has stopped watching.
+Automatic responses are bounded to the active invocation that started and is polling the watcher. In Claude Code, Codex, Cursor, and similar yield-after-turn harnesses, a backgrounded watch command does not wake the agent when stdout receives a new digest; the caller must keep reading stdout, periodically call `watch-ctl status --json`, or poll the transcript directly. Provider hook integrations that would wake a new invocation after this one ends are deferred; do not imply that watch events will automatically summon an agent after the active invocation has stopped watching.
+
+`watch-ctl status --json` reports the resolved runtime/session/transcript for each target plus live drift fields such as `transcriptRecords`, `lastRecordIndex`, `consumedThrough`, `recordsBehind`, `secondsSinceLastEmit`, and `healthy`. Treat `recordsBehind > 0` with `healthy: false` as a watcher problem or unread backlog, not as peer idleness.
 
 ### Step 3: Present digest and comment
 

@@ -85,6 +85,7 @@ describe('CLI subcommand dispatch', () => {
     assert.equal(result.status, 0, `watch help should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`);
     assert.ok(result.stdout.includes('--debounce-sec'), 'watch help should include debounce flag');
     assert.ok(result.stdout.includes('--poll-sec'), 'watch help should include poll flag');
+    assert.ok(result.stdout.includes('--max-pending-sec'), 'watch help should include max pending flag');
     assert.ok(result.stdout.includes('--max-runtime-min'), 'watch help should include bounded runtime flag');
     assert.ok(result.stdout.includes('--event-log'), 'watch help should include event log flag');
     assert.ok(
@@ -229,7 +230,7 @@ describe('CLI subcommand dispatch', () => {
 // ---------------------------------------------------------------------------
 
 describe('exit codes', () => {
-  test('review against empty fixture exits 2 (noMatch)', async (t) => {
+  test('review against empty fixture exits 3 (unengagedOnly)', async (t) => {
     // We need a temp HOME with the empty fixture in the right location
     const tmpDir = await mkdtemp(join(tmpdir(), 'cli-test-'));
     try {
@@ -248,11 +249,9 @@ describe('exit codes', () => {
         { HOME: tmpDir, STATE_DIR: stateDir }
       );
 
-      // Empty fixture has no content, so it becomes a candidate that is found but with
-      // no messages → either exit 0 (empty digest) or exit 2 (no candidates)
-      // Plan says: "empty fixture → exit 2"
-      assert.ok(result.status === 0 || result.status === 2,
-        `Expected exit 0 or 2 for empty fixture, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`);
+      assert.equal(result.status, 3,
+        `Expected exit 3 for unengaged empty fixture\nstdout: ${result.stdout}\nstderr: ${result.stderr}`);
+      assert.ok(result.stdout.includes('has no user conversation yet'));
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -535,10 +534,16 @@ describe('--runtime auto', () => {
       const claudePath = join(claudeProjectDir, 'claude-dual.jsonl');
       await writeFile(
         claudePath,
-        JSON.stringify({
-          sessionId: 'cc-dual',
-          message: { role: 'assistant', content: 'Claude visible.' },
-        }) + '\n',
+        [
+          JSON.stringify({
+            sessionId: 'cc-dual',
+            message: { role: 'user', content: 'Please inspect this project.' },
+          }),
+          JSON.stringify({
+            sessionId: 'cc-dual',
+            message: { role: 'assistant', content: 'Claude visible.' },
+          }),
+        ].join('\n') + '\n',
         'utf8'
       );
 
@@ -568,8 +573,8 @@ describe('--runtime auto', () => {
               sessionId: 'cc-dual',
               transcriptPath: claudePath,
               recordedCwd: cwd,
-              lastRecordIndex: 0,
-              lastTotalRecords: 0,
+              lastRecordIndex: 1,
+              lastTotalRecords: 2,
               lastReadAt: '2026-05-17T12:00:00.000Z',
               watchedByPid: null,
             },
