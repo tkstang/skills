@@ -317,7 +317,7 @@ git diff --cached --quiet || git commit -m "chore(p03-t02): user-level skill syn
 | ------ | -------- | -------- | ---------- | ------------------------------------------------------ |
 | p01    | code     | passed   | 2026-06-05 | Tier 1 in-run review (structured, pass)                |
 | p02    | code     | passed   | 2026-06-05 | Tier 1 in-run review (fail→fix a1c24fb→pass)           |
-| p03    | code     | pending  | -          | -                                                      |
+| p03    | code     | passed   | 2026-06-05 | Tier 1 in-run review (p03-t01, pass)                   |
 | final  | code     | pending  | -          | -                                                      |
 | spec   | artifact | pending  | -          | -                                                      |
 | design | artifact | passed   | 2026-06-05 | reviews/archived/artifact-design-review-2026-06-05.md  |

@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-05
-oat_current_task_id: p03-t01
+oat_current_task_id: p03-t02
 oat_generated: false
 ---
 
@@ -28,9 +28,9 @@ oat_generated: false
 | -------------------------------------------------- | ------- | ----- | --------- |
 | Phase 1: Extract transcript-core + migrate observer | complete | 2     | 2/2       |
 | Phase 2: Build export-session-transcript skill      | complete | 3     | 3/3       |
-| Phase 3: Docs + repo invariants + verification      | pending  | 2     | 0/2       |
+| Phase 3: Docs + repo invariants + verification      | in_progress | 2  | 1/2       |
 
-**Total:** 5/7 tasks completed
+**Total:** 6/7 tasks completed
 
 ---
 
@@ -171,20 +171,29 @@ oat_generated: false
 
 ## Phase 3: Docs, repo invariants, and full verification
 
-**Status:** pending
-**Started:** -
+**Status:** in_progress
+**Started:** 2026-06-05
 
 ### Task p03-t01: Document the skill + shared-core convention; add repo-layout invariants
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** 79f8236
+
+**Notes:**
+
+- README gained export-skill section + Shared transcript-core convention; repo-layout test asserts `shared/transcript-core` + `skills/export-session-transcript`. Full gate green (npm test 321, validate, smoke). Reviewer: pass.
 
 ---
 
 ### Task p03-t02: User-level skill sync closeout
 
-**Status:** pending
+**Status:** pending (awaiting user decision — environment-level action on unmerged branch)
 **Commit:** -
+
+**Notes:**
+
+- Current state: `~/.agents/skills/session-observer/` exists; `~/.claude/skills/session-observer` + `~/.cursor/skills/session-observer` symlink to it. `export-session-transcript` not yet installed at user level.
+- Held for user decision: refresh user-level installs from this unmerged worktree now, vs. defer to post-merge (running it now installs pre-merge code globally).
 
 ---
 
@@ -211,6 +220,7 @@ _- Outstanding Items_
 | ----- | ------------------ | ------------- | -------------- | ----------- |
 | p01   | DONE_WITH_CONCERNS | pass          | 0/2            | merged      |
 | p02   | DONE               | fail → pass   | 1/2            | merged      |
+| p03   | DONE (t01)         | pass          | 0/2            | merged (t02 pending) |
 
 #### Parallel Groups
 
