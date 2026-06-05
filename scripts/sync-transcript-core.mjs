@@ -35,6 +35,7 @@ const BANNER = [
 // relative to the repository root.
 const CONSUMERS = [
   'skills/session-observer/scripts/lib/runtimes.mjs',
+  'skills/export-session-transcript/scripts/lib/runtimes.mjs',
 ];
 
 /**
