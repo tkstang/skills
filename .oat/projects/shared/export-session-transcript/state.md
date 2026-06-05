@@ -1,6 +1,6 @@
 ---
-oat_current_task: p03-t03
-oat_last_commit: a3cd13e
+oat_current_task: null
+oat_last_commit: a1267d2
 oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
@@ -12,7 +12,7 @@ oat_hill_checkpoints: [] # Configured: which phases require human-in-the-loop li
 oat_hill_completed: [] # Progress: which HiLL checkpoints have been completed
 oat_parallel_execution: false
 oat_phase: implement # Current phase: discovery | spec | design | plan | implement | decomposition
-oat_phase_status: in_progress # Status: in_progress | complete | pr_open
+oat_phase_status: complete # Status: in_progress | complete | pr_open
 # oat_orchestration_retry_limit: 2  # optional; override fix-loop retry limit (range 0-5)
 oat_dispatch_ceiling:
   preset: maximum
@@ -27,19 +27,19 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-06-04T00:39:09.356Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-06-05T22:56:25Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-06-05T23:01:11Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
 # Project State: export-session-transcript
 
-**Status:** Implementation tasks complete — awaiting final review
+**Status:** Implementation complete — final review passed
 **Started:** 2026-06-04
 **Last Updated:** 2026-06-05
 
 ## Current Phase
 
-Implementation - all 7 tasks complete across 3 phases (each phase reviewed and passed). Awaiting final lifecycle review.
+Implementation complete. All 9 tasks across 3 phases done; every phase + the final lifecycle review passed.
 
 ## Artifacts
 
@@ -47,15 +47,15 @@ Implementation - all 7 tasks complete across 3 phases (each phase reviewed and p
 - **Spec:** N/A (quick mode)
 - **Design:** `design.md` (complete — lightweight design, reviewed)
 - **Plan:** `plan.md` (complete)
-- **Implementation:** `implementation.md` (tasks complete; `oat_current_task_id: null`)
+- **Implementation:** `implementation.md` (complete; `oat_current_task_id: null`)
 
 ## Progress
 
 - ✓ Discovery complete
 - ✓ Design complete (reviewed)
 - ✓ Plan complete (reviewed)
-- ✓ Implementation tasks complete (p01 ✓, p02 ✓ [fix: closed system-reminder leak], p03 ✓)
-- ⧗ Awaiting final review
+- ✓ Implementation tasks complete (p01 ✓, p02 ✓ [fix: closed system-reminder leak], p03 ✓ + final-review minors fixed)
+- ✓ Final review passed (0 Critical/Important; 2 Minor converted + fixed)
 
 ## Blockers
 
@@ -63,4 +63,4 @@ None
 
 ## Next Milestone
 
-Final lifecycle review (auto-review at the p03 HiLL checkpoint, scope `final`), then PR via `oat-project-pr-final`.
+Open PR (see branch-scope caveat: branch contains pre-existing session-observer changes beyond this project). Then merge + post-merge session-observer user sync.

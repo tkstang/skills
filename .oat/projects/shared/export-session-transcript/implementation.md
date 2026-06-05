@@ -1,9 +1,9 @@
 ---
-oat_status: in_progress
+oat_status: complete
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-05
-oat_current_task_id: p03-t03
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -28,9 +28,9 @@ oat_generated: false
 | -------------------------------------------------- | ------- | ----- | --------- |
 | Phase 1: Extract transcript-core + migrate observer | complete | 2     | 2/2       |
 | Phase 2: Build export-session-transcript skill      | complete | 3     | 3/3       |
-| Phase 3: Docs + repo invariants + verification      | in_progress | 4  | 2/4       |
+| Phase 3: Docs + repo invariants + verification      | complete | 4     | 4/4       |
 
-**Total:** 7/9 tasks completed
+**Total:** 9/9 tasks completed
 
 ---
 
@@ -214,15 +214,23 @@ oat_generated: false
 
 ### Task p03-t03: (review) Skip Codex candidates with unresolved recordedCwd in --all (final review m1)
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** 1272693
+
+**Notes:**
+
+- Scoped via `requireCwd = !match && !session` threaded into Codex enumeration, so cwd-less Codex sessions are excluded from `--all`/newest only; `--match`/`--session` still include them (marker/id authoritative). New cli.test case asserts exclusion.
 
 ---
 
 ### Task p03-t04: (review) Document --all/--match mode precedence in SKILL.md (final review m2)
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** a1267d2
+
+**Notes:**
+
+- SKILL.md now documents precedence `--all` > `--session` > `--match` > default (verified against `selectSessions`).
 
 ---
 
@@ -237,7 +245,7 @@ oat_generated: false
 - m1 → p03-t03: exclude unresolved-`recordedCwd` Codex candidates from `--all`.
 - m2 → p03-t04: document `--all` > `--session` > `--match` mode precedence in SKILL.md.
 
-**Next:** Implement p03-t03/p03-t04, re-verify, then mark `final` review `passed`.
+**Next:** p03-t03 (1272693) + p03-t04 (a1267d2) implemented and verified (`npm test` 322, validate, sync `--check` exit 0). `final` review marked `passed`. Ready for PR.
 
 ---
 
@@ -338,8 +346,8 @@ Track test execution during implementation.
 
 **Verification performed:**
 
-- `npm test` (321 tests) green; `npm run validate` pass; `npm run smoke` pass. Drift guard green; sanitizer real-store scan (1,411 files / 41,281 entries) → 0 hidden-payload survivors.
-- Per-phase reviews: p01 pass, p02 fail→fix→pass (closed a `<system-reminder>` privacy leak), p03 pass.
+- `npm test` (322 tests) green; `npm run validate` pass; `npm run smoke` pass. Drift guard green; sanitizer real-store scan (1,411 files / 41,281 entries) → 0 hidden-payload survivors.
+- Per-phase reviews: p01 pass, p02 fail→fix→pass (closed a `<system-reminder>` privacy leak), p03 pass. Final review pass (2 Minor → fixed in p03-t03/p03-t04).
 - User-level dogfooding: `export-session-transcript` installed at `~/.agents/skills` + provider symlinks via `oat sync --scope user`; installed CLI `--help` runs.
 
 **Design deltas (if any):**
