@@ -28,7 +28,7 @@ Automatic agent responses only happen while the active invocation keeps the fore
 ```
 session-observer watch [--runtime <r>|both] [--cwd <path>]
                        [--debounce-sec 2] [--poll-sec 2]
-                       [--max-runtime-min 0]
+                       [--max-pending-sec 30] [--max-runtime-min 0]
                        [--event-log <path>] [--json]
 
 session-observer --watch [watch options]
@@ -40,6 +40,7 @@ session-observer --watch [watch options]
 | `--cwd <path>` | `process.cwd()` | Project directory to match sessions against. |
 | `--debounce-sec N` | 2 | Hold for N seconds of quiet before emitting an event. |
 | `--poll-sec N` | 2 | Poll interval in seconds. |
+| `--max-pending-sec N` | 30 | Maximum seconds to hold continuous transcript changes before emitting even if the file never goes quiet. |
 | `--max-runtime-min N` | 0 (unlimited) | Auto-exit after N minutes (0 = run until stopped). |
 | `--event-log <path>` | — | Mirror events to a JSONL file (metadata only, no content). Relative paths resolve inside `~/.local/state/session-observer/`; absolute paths must also stay inside that directory. |
 | `--json` | false | Emit each event as a JSON line to stdout instead of human-readable text. |
@@ -64,19 +65,23 @@ The watcher uses `setInterval`-based mtime polling rather than `fs.watch` / `fs.
 
 ```
 state: known = {}     // path → { mtime, size }
-       pending = {}   // path → { firstSeenAt, lastSeenMtime }
+       pending = {}   // path → { firstChangedAt, lastChangedAt }
 
 loop every poll-sec:
   candidates = locate.discover(runtime, cwd)
 
   for c in candidates:
     if c.mtime > (known[c.path]?.mtime ?? 0):
-      pending[c.path] = { firstSeenAt: now(), lastSeenMtime: c.mtime }
+      pending[c.path] = {
+        firstChangedAt: pending[c.path]?.firstChangedAt ?? now(),
+        lastChangedAt: now()
+      }
       known[c.path] = { mtime: c.mtime, size: c.size }
 
   for path, entry in pending:
-    age = now() - entry.firstSeenAt
-    if age >= debounce-sec:
+    quiet = now() - entry.lastChangedAt
+    age = now() - entry.firstChangedAt
+    if quiet >= debounce-sec or age >= max-pending-sec:
       emit(path)             // full locate → rank → catch-up → state.markRead pipeline
       pending.delete(path)
 
@@ -86,7 +91,7 @@ loop every poll-sec:
   sleep poll-sec
 ```
 
-**Debounce:** when a transcript's mtime first changes, hold for `debounce-sec`. Further changes reset the timer. Only emit when the file has been quiet for `debounce-sec`. This avoids emitting on half-formed turns while the peer runtime is still writing.
+**Debounce:** when a transcript's mtime first changes, hold for `debounce-sec`. Further changes reset the quiet timer. Emit when the file has been quiet for `debounce-sec`, or when the pending change has been held for `max-pending-sec`. This avoids emitting on half-formed turns while ensuring an actively written transcript cannot starve the watcher forever.
 
 ---
 
@@ -114,17 +119,42 @@ No new parsing code. Watch is a debounce-wrapped loop around the existing `catch
   "active": {
     "pid": 12345,
     "runtime": "codex",
+    "requestedRuntime": "auto",
     "cwd": "/Users/.../Code/foo",
+    "session": "codex:rollout-2026-06-04T21-42-00-abc123",
     "startedAt": "2026-05-14T16:42:09Z",
+    "pollSec": 3,
+    "debounceSec": 3,
+    "maxPendingSec": 30,
+    "staleAfterSec": 36,
+    "lastPollAt": "2026-05-14T16:48:14Z",
     "lastEventAt": "2026-05-14T16:48:11Z",
-    "eventCount": 4
+    "eventCount": 4,
+    "resolvedRuntime": "codex",
+    "sessionId": "rollout-2026-06-04T21-42-00-abc123",
+    "transcriptPath": "/Users/.../.codex/sessions/...jsonl",
+    "targets": [
+      {
+        "runtime": "codex",
+        "sessionId": "rollout-2026-06-04T21-42-00-abc123",
+        "transcriptPath": "/Users/.../.codex/sessions/...jsonl",
+        "cwd": "/Users/.../Code/foo",
+        "recordCount": 458,
+        "baselineRecordIndex": 458,
+        "engagementStatus": "engaged",
+        "lockedAt": "2026-05-14T16:42:09Z"
+      }
+    ],
+    "lastError": null
   }
 }
 ```
 
-**Locking:** same `state.json.lock`-style atomic temp+rename write protocol as `state.json`. Only one watcher per runtime; startup refuses if `active.pid` is a live process. Stale pids (no such process — `ESRCH` from `kill(pid, 0)`) are cleared on startup without user intervention.
+**Locking:** same `state.json.lock`-style atomic temp+rename write protocol as `state.json`. Only one watcher is active per state directory; startup refuses if `active.pid` is a live process. Stale pids (no such process — `ESRCH` from `kill(pid, 0)`) are cleared on startup without user intervention.
 
 **`--runtime both`:** one `active` entry covers both runtimes; `runtime` field is `"both"`. Each runtime has its own debounce timer and read offset inside the single process.
+
+`watch-ctl status --json` enriches this state with live transcript drift and health fields. For each target it reports current `transcriptRecords`, `lastRecordIndex`, `consumedThrough`, `recordsBehind`, `secondsSinceLastEmit`, `secondsSinceLastPoll`, `healthy`, and `healthReasons`. A watcher is unhealthy when transcript records are behind and no digest has emitted beyond the configured stale window, when the poll heartbeat is stale, or when the transcript cannot be read.
 
 ---
 
@@ -205,7 +235,7 @@ The race is benign — the offset advances; the watcher's next tick sees no new 
 
 Wiring the watcher into Claude Code's `UserPromptSubmit` hook or a Codex equivalent would let the host runtime automatically prompt an agent when fresh peer activity is available after the original invocation ends. That requires host-specific settings and lifecycle handling and remains deferred.
 
-The current automatic-response boundary is the active invocation: an agent starts `watch`, keeps the foreground process running, polls stdout, and responds to each emitted digest until the user stops watching or the process exits. Once the invocation stops polling, no provider hook will summon a new agent for later watch events.
+The current automatic-response boundary is the active invocation: an agent starts `watch`, keeps the foreground process running, polls stdout, and responds to each emitted digest until the user stops watching or the process exits. In yield-after-turn harnesses, a backgrounded watch process does not wake the agent when stdout changes; callers must actively read stdout, poll `watch-ctl status --json`, or use a host-specific wake hook. Once the invocation stops polling, no provider hook will summon a new agent for later watch events.
 
 ---
 

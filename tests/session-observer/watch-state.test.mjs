@@ -36,10 +36,22 @@ test('startWatcher writes watch.json atomically with active watcher metadata', a
     assert.deepEqual(active, {
       pid: process.pid,
       runtime: 'codex',
+      requestedRuntime: 'codex',
       cwd: '/repo',
+      session: null,
       startedAt,
+      pollSec: null,
+      debounceSec: null,
+      maxPendingSec: null,
+      staleAfterSec: null,
+      lastPollAt: null,
       lastEventAt: null,
       eventCount: 0,
+      resolvedRuntime: null,
+      sessionId: null,
+      transcriptPath: null,
+      targets: [],
+      lastError: null,
     });
 
     const raw = JSON.parse(await readFile(join(dir, 'watch.json'), 'utf8'));
@@ -128,5 +140,64 @@ test('control directives are written to and read from watch.control.json', async
 
     const directive = await watchState.readControlDirective();
     assert.deepEqual(directive, { directive: 'pause', issuedAt });
+  });
+});
+
+test('recordWatcherTarget stores resolved pinned target metadata', async () => {
+  await withTmpStateDir(async () => {
+    const watchState = await importWatchState();
+    await watchState.startWatcher({
+      runtime: 'auto',
+      cwd: '/repo',
+      session: 'codex:abc',
+      pid: process.pid,
+      startedAt: '2026-06-03T12:00:00.000Z',
+    });
+
+    const active = await watchState.recordWatcherTarget({
+      pid: process.pid,
+      target: {
+        runtime: 'codex',
+        sessionId: 'abc',
+        transcriptPath: '/tmp/abc.jsonl',
+        recordedCwd: '/repo',
+        recordCount: 5,
+        baselineRecordIndex: 5,
+        engagementStatus: 'engaged',
+        lockedAt: '2026-06-03T12:00:01.000Z',
+      },
+    });
+
+    assert.equal(active.requestedRuntime, 'auto');
+    assert.equal(active.resolvedRuntime, 'codex');
+    assert.equal(active.sessionId, 'abc');
+    assert.equal(active.transcriptPath, '/tmp/abc.jsonl');
+    assert.equal(active.targets.length, 1);
+    assert.equal(active.targets[0].baselineRecordIndex, 5);
+  });
+});
+
+test('recordWatcherPoll and recordWatcherError update active heartbeat fields', async () => {
+  await withTmpStateDir(async () => {
+    const watchState = await importWatchState();
+    await watchState.startWatcher({
+      runtime: 'codex',
+      cwd: '/repo',
+      pid: process.pid,
+      startedAt: '2026-06-03T12:00:00.000Z',
+    });
+
+    await watchState.recordWatcherPoll({
+      pid: process.pid,
+      lastPollAt: '2026-06-03T12:00:03.000Z',
+    });
+    const active = await watchState.recordWatcherError({
+      pid: process.pid,
+      error: new Error('poll failed'),
+      at: '2026-06-03T12:00:04.000Z',
+    });
+
+    assert.equal(active.lastPollAt, '2026-06-03T12:00:03.000Z');
+    assert.equal(active.lastError.message, 'poll failed');
   });
 });

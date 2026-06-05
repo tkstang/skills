@@ -18,7 +18,7 @@ See `plugins/consensus/README.md` for consensus prerequisites, usage, resume beh
 
 `skills/session-observer/` is a standalone Agent Skill for checking what another coding agent just did in the current project. It supports Claude Code, Codex, and Cursor agent transcript stores; renders tool-free digests by default; and tracks per-session read offsets so `catch-up` shows only new transcript records.
 
-It also supports foreground watch mode. `watch` and top-level `--watch` poll the active peer transcript, debounce settled changes, emit catch-up digests to stdout, and can be controlled with `watch-ctl status`, `pause`, `resume`, `flush`, and `stop`. Automatic responses are bounded to the active agent invocation that keeps the watcher running and reads its output; provider hooks that would wake a future invocation remain deferred.
+It also supports foreground watch mode. `watch` and top-level `--watch` poll the active peer transcript, debounce settled changes, emit catch-up digests to stdout, and can be controlled with `watch-ctl status`, `pause`, `resume`, `flush`, and `stop`. Continuous writes are emitted after `--max-pending-sec` even if the transcript never goes quiet. Automatic responses are bounded to the active agent invocation that keeps the watcher running and reads its output; backgrounded commands in yield-after-turn agent harnesses do not wake a future invocation.
 
 The canonical user-facing documentation is `skills/session-observer/SKILL.md`. Runtime format details live in `skills/session-observer/references/transcript-formats.md`; implemented watch behavior and design notes live in `skills/session-observer/references/watch-design.md`.
 
@@ -95,7 +95,7 @@ Consensus peer IDs come from `paseo provider ls --json`; the wrapper does not pr
 
 Session observer defaults to `--runtime auto`, which resolves by host hint, prior same-cwd state, or candidate availability. Use `--runtime claude-code|codex|cursor` or `--session <runtime>:<sessionId>` when multiple matching sessions exist.
 
-For watch mode, `--runtime both` watches Claude Code and Codex in one foreground process. Cursor remains supported through explicit `--runtime cursor` or `--runtime auto`.
+For watch mode, `--runtime both` watches Claude Code and Codex in one foreground process. Cursor remains supported through explicit `--runtime cursor` or `--runtime auto`. `watch-ctl status --json` includes the resolved session id, transcript path, current transcript record count, consumed offset, records behind, and health flags so consumers can distinguish peer idleness from watcher drift.
 
 ## Limitations
 
@@ -105,7 +105,7 @@ For watch mode, `--runtime both` watches Claude Code and Codex in one foreground
 - Consensus sections converge independently; there is no whole-document harmonization pass in v0.1.
 - Cursor is supported as a host runtime for the consensus plugin, not as a default Paseo peer.
 - Session observer supports Cursor agent transcript JSONL only; `~/.cursor/chats/*/store.db` SQLite chat history is out of scope.
-- Session observer watch mode only responds while the active agent invocation keeps the foreground watcher running and polls stdout; provider-hook automation for future self-triggered turns is out of scope.
+- Session observer watch mode only responds while the active agent invocation keeps the foreground watcher running and actively reads stdout or re-polls `watch-ctl status`; provider-hook automation for future self-triggered turns is out of scope. Starting `watch` in a backgrounded shell does not notify Claude Code/Codex/Cursor after the current invocation yields.
 - Codex public marketplace submission is not assumed; Git/local install is the v0.1 path.
 - skills.sh listing should not be claimed until indexing has been verified after publication.
 - Prompt injection inside input artifacts or transcripts is mitigated by prompt framing, filtering, and schema validation where applicable, but peer CLIs may still produce structurally valid bad advice. Review outputs before publishing them.

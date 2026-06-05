@@ -35,6 +35,7 @@ import { join, basename } from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { discoverPaths, encodeCwdVariants, extractMeta } from './runtimes.mjs';
+import { classifyTranscript, engagementCandidateFields } from './session-classifier.mjs';
 
 const execFileAsync = promisify(execFile);
 
@@ -43,6 +44,25 @@ const execFileAsync = promisify(execFile);
 // ---------------------------------------------------------------------------
 
 const LOOKBACK_DAYS = 7;
+
+async function candidateEngagementFields(runtime, transcriptPath) {
+  try {
+    return engagementCandidateFields(await classifyTranscript(runtime, transcriptPath));
+  } catch {
+    return engagementCandidateFields({
+      status: 'unknown',
+      engaged: true,
+      recordCount: null,
+      genuineUserMessages: 0,
+      syntheticUserMessages: 0,
+      assistantMessages: 0,
+      realMessageCount: 0,
+      hasAssistantAndUser: false,
+      bootstrapRecordIndexes: [],
+      bootstrapRecordCount: 0,
+    });
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Codex CWD cache helpers
@@ -159,6 +179,7 @@ async function discoverClaudeCode(targetCwd) {
           mtime,
           size: fileStat.size,
           ageSec,
+          ...(await candidateEngagementFields('claude-code', transcriptPath)),
         });
       }
       directHit = true;
@@ -225,6 +246,7 @@ async function discoverClaudeCode(targetCwd) {
           mtime,
           size: fileStat.size,
           ageSec,
+          ...(await candidateEngagementFields('claude-code', transcriptPath)),
         });
       }
     }
@@ -352,6 +374,7 @@ async function discoverCodex(targetCwd) {
       mtime,
       size: fileStat.size,
       ageSec,
+      ...(await candidateEngagementFields('codex', transcriptPath)),
     });
   }
 
@@ -444,6 +467,7 @@ async function cursorCandidate(transcriptPath, now, evidence, fileStat = null) {
     mtime,
     size: resolvedStat.size,
     ageSec,
+    ...(await candidateEngagementFields('cursor', transcriptPath)),
   };
 }
 

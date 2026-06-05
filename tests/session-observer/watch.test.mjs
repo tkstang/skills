@@ -66,7 +66,7 @@ async function writeClaudeTranscript(home, cwd, sessionId, messages) {
   const dir = join(home, '.claude', 'projects', claudeSlug(cwd));
   await mkdir(dir, { recursive: true });
   const transcriptPath = join(dir, `${sessionId}.jsonl`);
-  const records = messages.map(({ role = 'assistant', content }) => ({
+  const records = messages.map(({ role = 'user', content }) => ({
     sessionId,
     message: { role, content },
   }));
@@ -86,10 +86,33 @@ async function writeCursorTranscript(home, cwd, sessionId, messages) {
   return transcriptPath;
 }
 
+async function writeCodexTranscript(home, cwd, sessionId, messages) {
+  const dir = join(home, '.codex', 'sessions', '2026', '06', '03');
+  await mkdir(dir, { recursive: true });
+  const transcriptPath = join(dir, `${sessionId}.jsonl`);
+  const records = [
+    { sessionId, payload: { type: 'session_meta', cwd } },
+    ...messages.map(({ role = 'user', content }) => ({
+      sessionId,
+      payload: { type: 'message', role, content },
+    })),
+  ];
+  await writeFile(transcriptPath, records.map(record => JSON.stringify(record)).join('\n') + '\n', 'utf8');
+  return transcriptPath;
+}
+
 async function appendClaudeMessage(transcriptPath, sessionId, content, role = 'assistant') {
   await appendFile(
     transcriptPath,
     JSON.stringify({ sessionId, message: { role, content } }) + '\n',
+    'utf8'
+  );
+}
+
+async function appendCodexMessage(transcriptPath, sessionId, content, role = 'assistant') {
+  await appendFile(
+    transcriptPath,
+    JSON.stringify({ sessionId, payload: { type: 'message', role, content } }) + '\n',
     'utf8'
   );
 }
@@ -100,6 +123,21 @@ async function readJsonIfExists(path) {
   } catch {
     return null;
   }
+}
+
+async function runCli(args, env) {
+  const child = spawn('node', [CLI_PATH, ...args], {
+    env,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  let stdout = '';
+  let stderr = '';
+  child.stdout.setEncoding('utf8');
+  child.stderr.setEncoding('utf8');
+  child.stdout.on('data', chunk => { stdout += chunk; });
+  child.stderr.on('data', chunk => { stderr += chunk; });
+  const [status] = await once(child, 'exit');
+  return { status, stdout, stderr };
 }
 
 async function waitFor(predicate, { timeoutMs = 1500, intervalMs = 25 } = {}) {
@@ -134,7 +172,11 @@ describe('runWatchLoop', () => {
 
       assert.equal(result.reason, 'max-runtime');
       assert.equal(result.eventCount, 0);
-      assert.equal(stdout.join(''), '');
+      const output = stdout.join('');
+      assert.ok(output.includes('watching claude-code:watch-baseline'));
+      assert.ok(output.includes('baselineRecordIndex=1'));
+      assert.ok(output.includes('engagement=engaged'));
+      assert.ok(!output.includes('old message that should not be emitted'));
 
       const state = JSON.parse(await readFile(join(stateDir, 'state.json'), 'utf8'));
       assert.equal(state.sessions['claude-code:watch-baseline'].lastRecordIndex, 1);
@@ -188,6 +230,44 @@ describe('runWatchLoop', () => {
     });
   });
 
+  test('emits during continuous writes once max pending age is reached', async () => {
+    await withTempSessionHome(async (home) => {
+      const cwd = '/test/watch-max-pending';
+      const sessionId = 'watch-max-pending';
+      const transcriptPath = await writeClaudeTranscript(home, cwd, sessionId, [
+        { content: 'max pending baseline message' },
+      ]);
+      const { runWatchLoop } = await importWatch();
+      const stdout = [];
+      let nowMs = Date.UTC(2026, 5, 3, 12, 0, 0);
+      let sleepCount = 0;
+
+      const result = await runWatchLoop({
+        runtime: 'claude-code',
+        cwd,
+        pollSec: 0.03,
+        debounceSec: 1,
+        maxPendingSec: 0.09,
+        maxRuntimeMin: 0.004,
+      }, {
+        writeStdout: chunk => stdout.push(chunk),
+        now: () => nowMs,
+        sleep: async (ms) => {
+          nowMs += ms;
+          sleepCount++;
+          if (sleepCount <= 4) {
+            await appendClaudeMessage(transcriptPath, sessionId, `continuous update ${sleepCount}`);
+          }
+        },
+      });
+
+      const output = stdout.join('');
+      assert.equal(result.reason, 'max-runtime');
+      assert.ok(result.eventCount >= 1, 'max-pending should prevent indefinite debounce starvation');
+      assert.ok(output.includes('continuous update 1'));
+    });
+  });
+
   test('emits newline-delimited JSON events when json mode is enabled', async () => {
     await withTempSessionHome(async (home) => {
       const cwd = '/test/watch-json';
@@ -213,10 +293,12 @@ describe('runWatchLoop', () => {
       await appendClaudeMessage(transcriptPath, sessionId, 'json update payload');
       await watchPromise;
 
-      const lines = stdout.join('').trim().split('\n').filter(Boolean);
-      assert.equal(lines.length, 1);
-
-      const event = JSON.parse(lines[0]);
+      const lines = stdout.join('').trim().split('\n').filter(Boolean).map(line => JSON.parse(line));
+      const locked = lines.find(line => line.type === 'watch-locked');
+      const event = lines.find(line => line.type === 'catch-up');
+      assert.ok(locked, 'json watch should emit a startup lock event');
+      assert.ok(event, 'json watch should emit a catch-up event');
+      assert.equal(locked.sessionId, sessionId);
       assert.equal(event.type, 'catch-up');
       assert.equal(event.runtime, 'claude-code');
       assert.equal(event.sessionId, sessionId);
@@ -255,14 +337,152 @@ describe('runWatchLoop', () => {
       const result = await watchPromise;
       assert.equal(result.eventCount, 1);
 
-      const lines = stdout.join('').trim().split('\n').filter(Boolean);
-      assert.equal(lines.length, 1);
-      const event = JSON.parse(lines[0]);
+      const lines = stdout.join('').trim().split('\n').filter(Boolean).map(line => JSON.parse(line));
+      const locked = lines.find(line => line.type === 'watch-locked');
+      const event = lines.find(line => line.type === 'catch-up');
+      assert.ok(locked, 'runtime both should emit a startup lock event');
+      assert.ok(event, 'runtime both should emit a catch-up event');
       assert.equal(event.type, 'catch-up');
       assert.equal(event.runtime, 'claude-code');
       assert.equal(event.sessionId, sessionId);
       assert.equal(event.newRecords, 1);
       assert.equal(event.digest.entries[0].text, 'both runtime update payload');
+    });
+  });
+
+  test('watch-ctl status reports resolved pinned target and records-behind drift', async () => {
+    await withTempSessionHome(async (home, stateDir) => {
+      const cwd = '/test/watch-status-pinned-codex';
+      const sessionId = 'codex-pinned-status';
+      const transcriptPath = await writeCodexTranscript(home, cwd, sessionId, [
+        { content: 'status baseline message' },
+      ]);
+      const { runWatchLoop } = await importWatch();
+      const watchState = await importWatchState();
+
+      const watchPromise = runWatchLoop({
+        runtime: 'auto',
+        cwd,
+        session: `codex:${sessionId}`,
+        pollSec: 0.03,
+        debounceSec: 5,
+        maxPendingSec: 5,
+        maxRuntimeMin: 0.03,
+        json: true,
+      }, {
+        writeStdout: () => {},
+      });
+
+      await waitFor(async () => {
+        const state = await readJsonIfExists(join(stateDir, 'watch.json'));
+        return state?.active?.targets?.[0]?.sessionId === sessionId;
+      });
+      await appendCodexMessage(transcriptPath, sessionId, 'status drift update');
+
+      const statusPayload = await waitFor(async () => {
+        const result = await runCli(
+          ['watch-ctl', 'status', '--json'],
+          { ...process.env, HOME: home, STATE_DIR: stateDir }
+        );
+        assert.equal(result.status, 0, `status should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`);
+        const payload = JSON.parse(result.stdout);
+        const target = payload.targets?.[0];
+        return target?.recordsBehind === 1 ? payload : null;
+      });
+
+      assert.equal(statusPayload.requestedRuntime, 'auto');
+      assert.equal(statusPayload.resolvedRuntime, 'codex');
+      assert.equal(statusPayload.sessionId, sessionId);
+      assert.equal(statusPayload.transcriptPath, transcriptPath);
+      assert.equal(statusPayload.targets[0].transcriptRecords, 3);
+      assert.equal(statusPayload.targets[0].lastRecordIndex, 2);
+      assert.equal(statusPayload.targets[0].consumedThrough, 1);
+      assert.equal(statusPayload.targets[0].recordsBehind, 1);
+
+      await watchState.writeControlDirective('stop');
+      await watchPromise;
+    });
+  });
+
+  test('watch-ctl status marks stale drift unhealthy', async () => {
+    await withTempSessionHome(async (home, stateDir) => {
+      const cwd = '/test/watch-status-unhealthy';
+      const sessionId = 'codex-status-unhealthy';
+      const transcriptPath = await writeCodexTranscript(home, cwd, sessionId, [
+        { content: 'stale baseline message' },
+        { content: 'stale update one', role: 'assistant' },
+        { content: 'stale update two', role: 'assistant' },
+      ]);
+      const old = '2026-06-03T12:00:00.000Z';
+      await writeFile(
+        join(stateDir, 'watch.json'),
+        JSON.stringify({
+          schemaVersion: 1,
+          active: {
+            pid: process.pid,
+            runtime: 'auto',
+            requestedRuntime: 'auto',
+            cwd,
+            session: `codex:${sessionId}`,
+            startedAt: old,
+            pollSec: 3,
+            debounceSec: 3,
+            maxPendingSec: 30,
+            staleAfterSec: 1,
+            lastPollAt: old,
+            lastEventAt: old,
+            eventCount: 13,
+            resolvedRuntime: 'codex',
+            sessionId,
+            transcriptPath,
+            targets: [{
+              key: `codex:${sessionId}`,
+              runtime: 'codex',
+              sessionId,
+              transcriptPath,
+              cwd,
+              recordCount: 1,
+              baselineRecordIndex: 1,
+              engagementStatus: 'engaged',
+              lockedAt: old,
+            }],
+            lastError: null,
+          },
+        }),
+        'utf8'
+      );
+      await writeFile(
+        join(stateDir, 'state.json'),
+        JSON.stringify({
+          schemaVersion: 1,
+          sessions: {
+            [`codex:${sessionId}`]: {
+              runtime: 'codex',
+              sessionId,
+              transcriptPath,
+              recordedCwd: cwd,
+              lastRecordIndex: 1,
+              lastTotalRecords: 1,
+              lastReadAt: old,
+              watchedByPid: process.pid,
+            },
+          },
+        }),
+        'utf8'
+      );
+
+      const result = await runCli(
+        ['watch-ctl', 'status', '--json'],
+        { ...process.env, HOME: home, STATE_DIR: stateDir }
+      );
+      assert.equal(result.status, 0, `status should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`);
+      const payload = JSON.parse(result.stdout);
+
+      assert.equal(payload.active, true);
+      assert.equal(payload.healthy, false);
+      assert.equal(payload.targets[0].recordsBehind, 3);
+      assert.ok(payload.targets[0].healthReasons.includes('records-behind-stale'));
+      assert.ok(payload.targets[0].healthReasons.includes('poll-heartbeat-stale'));
     });
   });
 
@@ -473,7 +693,7 @@ describe('runWatchLoop', () => {
       await appendClaudeMessage(transcriptPath, sessionId, 'paused update');
       await sleep(180);
 
-      assert.equal(stdout.join(''), '', 'paused watcher should not emit settled updates');
+      assert.ok(!stdout.join('').includes('paused update'), 'paused watcher should not emit settled updates');
 
       await watchState.writeControlDirective('resume');
       const result = await watchPromise;

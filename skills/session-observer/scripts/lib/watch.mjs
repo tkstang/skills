@@ -3,6 +3,7 @@
  */
 
 import { appendFile, lstat, mkdir, realpath, stat } from 'node:fs/promises';
+import { once } from 'node:events';
 import { homedir } from 'node:os';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { renderMarkdown } from './digest.mjs';
@@ -12,6 +13,7 @@ import * as watchStateLib from './watch-state.mjs';
 
 const DEFAULT_POLL_SEC = 2;
 const DEFAULT_DEBOUNCE_SEC = 2;
+const DEFAULT_MAX_PENDING_SEC = 30;
 const BOTH_RUNTIMES = ['claude-code', 'codex'];
 const RESERVED_EVENT_LOG_NAMES = new Set([
   'state.json',
@@ -29,6 +31,10 @@ function maxRuntimeMs(value) {
   const numeric = Number(value);
   if (!Number.isFinite(numeric) || numeric <= 0) return null;
   return numeric * 60_000;
+}
+
+function maxPendingMs(value) {
+  return toPositiveMs(value, DEFAULT_MAX_PENDING_SEC);
 }
 
 function sleep(ms) {
@@ -101,6 +107,50 @@ function stdoutEvent(ts, digest, rendered) {
     ranges: eventRanges(digest),
     digest,
   };
+}
+
+async function writeProcessStdout(chunk) {
+  if (process.stdout.write(chunk)) return;
+  await once(process.stdout, 'drain');
+}
+
+async function writeStdoutChunk(deps, chunk) {
+  const result = deps.writeStdout(chunk);
+  if (result && typeof result.then === 'function') await result;
+}
+
+function lockedTargetEvent(target) {
+  return {
+    type: 'watch-locked',
+    runtime: target.runtime,
+    sessionId: target.sessionId,
+    transcriptPath: target.transcriptPath,
+    cwd: target.recordedCwd ?? null,
+    size: target.signature.size,
+    recordCount: target.recordCount,
+    baselineRecordIndex: target.baselineRecordIndex,
+    engagementStatus: target.engagementStatus,
+  };
+}
+
+function lockedTargetLine(target) {
+  return (
+    `[session-observer] watching ${target.runtime}:${target.sessionId} ` +
+    `transcript=${target.transcriptPath} ` +
+    `cwd=${target.recordedCwd ?? '(unknown)'} ` +
+    `size=${target.signature.size} ` +
+    `records=${target.recordCount} ` +
+    `baselineRecordIndex=${target.baselineRecordIndex} ` +
+    `engagement=${target.engagementStatus}\n`
+  );
+}
+
+async function emitLockedTarget(args, deps, target) {
+  if (args.json) {
+    await writeStdoutChunk(deps, JSON.stringify(lockedTargetEvent(target)) + '\n');
+    return;
+  }
+  await writeStdoutChunk(deps, lockedTargetLine(target));
 }
 
 function isWithinDir(dir, path) {
@@ -209,7 +259,7 @@ async function appendEventLog(eventLog, event) {
   await appendFile(eventLog, JSON.stringify(event) + '\n', 'utf8');
 }
 
-async function establishBaseline(runtime, args, targets, statFn, eventState) {
+async function establishBaseline(runtime, args, targets, deps, eventState) {
   const result = await observeCatchUp({ ...args, runtime });
   if (!result.ok) {
     if (result.kind === 'noMatch') return null;
@@ -219,28 +269,35 @@ async function establishBaseline(runtime, args, targets, statFn, eventState) {
   const key = targetKey(result.runtime, result.digest.sessionId);
   if (targets.has(key)) return targets.get(key);
 
-  const signature = await fileSignature(result.digest.transcriptPath, statFn);
+  const signature = await fileSignature(result.digest.transcriptPath, deps.stat);
   const target = {
     key,
     runtime: result.runtime,
     sessionId: result.digest.sessionId,
     transcriptPath: result.digest.transcriptPath,
+    recordedCwd: result.digest.recordedCwd,
     signature,
+    recordCount: result.digest.range.totalRecords,
+    baselineRecordIndex: result.digest.range.nextIndex,
+    engagementStatus: result.digest.engagement?.status ?? result.candidate.engagementStatus ?? 'unknown',
+    lockedAt: new Date(deps.now()).toISOString(),
   };
   targets.set(key, target);
+  await emitLockedTarget(args, deps, target);
+  await watchStateLib.recordWatcherTarget({ pid: eventState.pid, target }).catch(() => null);
   await stateLib.setWatchedByPid(target.runtime, target.sessionId, eventState.pid).catch(() => false);
   return target;
 }
 
-async function establishBaselines(args, targets, statFn, eventState) {
+async function establishBaselines(args, targets, deps, eventState) {
   if (args.runtime === 'auto') {
-    await establishBaseline('auto', args, targets, statFn, eventState);
+    await establishBaseline('auto', args, targets, deps, eventState);
     return;
   }
 
   for (const runtime of watchRuntimes(args.runtime)) {
     if (args.runtime === 'both' && hasTargetForRuntime(targets, runtime)) continue;
-    await establishBaseline(runtime, args, targets, statFn, eventState);
+    await establishBaseline(runtime, args, targets, deps, eventState);
   }
 }
 
@@ -255,10 +312,12 @@ async function pollTargets(targets, pending, nowMs, statFn) {
 
     if (!signatureChanged(target.signature, signature)) continue;
     target.signature = signature;
+    const existing = pending.get(target.key);
     pending.set(target.key, {
       key: target.key,
       runtime: target.runtime,
       sessionId: target.sessionId,
+      firstChangedAt: existing?.firstChangedAt ?? nowMs,
       lastChangedAt: nowMs,
     });
   }
@@ -284,9 +343,9 @@ async function emitPending(entry, args, deps, eventState) {
   const metadata = eventMetadata(ts, result.digest, rendered);
 
   if (args.json) {
-    deps.writeStdout(JSON.stringify(stdoutEvent(ts, result.digest, rendered)) + '\n');
+    await writeStdoutChunk(deps, JSON.stringify(stdoutEvent(ts, result.digest, rendered)) + '\n');
   } else {
-    deps.writeStdout(rendered + '\n');
+    await writeStdoutChunk(deps, rendered + '\n');
   }
   await appendEventLog(args.eventLog, metadata);
   eventState.eventCount++;
@@ -298,7 +357,10 @@ async function emitPending(entry, args, deps, eventState) {
 async function emitReadyPending(args, pending, deps, eventState, { force = false } = {}) {
   const nowMs = deps.now();
   for (const entry of [...pending.values()]) {
-    if (!force && nowMs - entry.lastChangedAt < eventState.debounceMs) continue;
+    const quietForMs = nowMs - entry.lastChangedAt;
+    const pendingForMs = nowMs - (entry.firstChangedAt ?? entry.lastChangedAt);
+    const ready = quietForMs >= eventState.debounceMs || pendingForMs >= eventState.maxPendingMs;
+    if (!force && !ready) continue;
     await emitPending(entry, args, deps, eventState);
     pending.delete(entry.key);
   }
@@ -352,11 +414,13 @@ export async function runWatchLoop(args, deps = {}) {
   const runtime = args.runtime ?? 'auto';
   const cwd = args.cwd ?? process.cwd();
   const eventLog = args.eventLog ? await resolveEventLogPath(args.eventLog) : undefined;
+  const resolvedMaxPendingMs = maxPendingMs(args.maxPendingSec);
   const normalizedArgs = {
     ...args,
     runtime,
     cwd,
     eventLog,
+    maxPendingSec: resolvedMaxPendingMs / 1000,
   };
   const pollMs = toPositiveMs(args.pollSec, DEFAULT_POLL_SEC);
   const debounceMs = toPositiveMs(args.debounceSec, DEFAULT_DEBOUNCE_SEC);
@@ -368,19 +432,25 @@ export async function runWatchLoop(args, deps = {}) {
     cwd,
     pid: deps.pid ?? process.pid,
     startedAt: new Date(startedAtMs).toISOString(),
+    session: args.session ?? null,
+    pollSec: pollMs / 1000,
+    debounceSec: debounceMs / 1000,
+    maxPendingSec: resolvedMaxPendingMs / 1000,
+    staleAfterSec: (pollMs + debounceMs + resolvedMaxPendingMs) / 1000,
   });
 
   const resolvedDeps = {
     now: deps.now ?? Date.now,
     sleep: deps.sleep ?? sleep,
     stat: deps.stat ?? stat,
-    writeStdout: deps.writeStdout ?? (chunk => process.stdout.write(chunk)),
+    writeStdout: deps.writeStdout ?? writeProcessStdout,
   };
   const targets = new Map();
   const pending = new Map();
   const eventState = {
     pid: active.pid,
     debounceMs,
+    maxPendingMs: resolvedMaxPendingMs,
     eventCount: 0,
     paused: false,
     stopRequested: false,
@@ -405,7 +475,7 @@ export async function runWatchLoop(args, deps = {}) {
       }
 
       if (targets.size === 0 || args.runtime === 'both') {
-        await establishBaselines(normalizedArgs, targets, resolvedDeps.stat, eventState);
+        await establishBaselines(normalizedArgs, targets, resolvedDeps, eventState);
       }
       await pollTargets(targets, pending, nowMs, resolvedDeps.stat);
       await applyControlDirective(normalizedArgs, pending, resolvedDeps, eventState);
@@ -416,6 +486,10 @@ export async function runWatchLoop(args, deps = {}) {
       if (!eventState.paused) {
         await emitReadyPending(normalizedArgs, pending, resolvedDeps, eventState);
       }
+      await watchStateLib.recordWatcherPoll({
+        pid: eventState.pid,
+        lastPollAt: new Date(resolvedDeps.now()).toISOString(),
+      }).catch(() => null);
 
       const afterTickMs = resolvedDeps.now();
       if (deadlineMs !== null && afterTickMs >= deadlineMs) {
@@ -429,6 +503,13 @@ export async function runWatchLoop(args, deps = {}) {
     }
 
     return { reason, eventCount: eventState.eventCount };
+  } catch (err) {
+    await watchStateLib.recordWatcherError({
+      pid: eventState.pid,
+      error: err,
+      at: new Date(resolvedDeps.now()).toISOString(),
+    }).catch(() => null);
+    throw err;
   } finally {
     removeSignalHandlers();
     for (const target of targets.values()) {

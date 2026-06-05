@@ -168,7 +168,17 @@ export async function loadWatchState() {
   }
 }
 
-export async function startWatcher({ runtime, cwd, pid = process.pid, startedAt } = {}) {
+export async function startWatcher({
+  runtime,
+  cwd,
+  pid = process.pid,
+  startedAt,
+  session = null,
+  pollSec = null,
+  debounceSec = null,
+  maxPendingSec = null,
+  staleAfterSec = null,
+} = {}) {
   if (!runtime) throw new Error('runtime is required to start a watcher');
   if (!cwd) throw new Error('cwd is required to start a watcher');
 
@@ -182,10 +192,22 @@ export async function startWatcher({ runtime, cwd, pid = process.pid, startedAt 
     const active = {
       pid,
       runtime,
+      requestedRuntime: runtime,
       cwd,
+      session,
       startedAt: toIsoTimestamp(startedAt),
+      pollSec,
+      debounceSec,
+      maxPendingSec,
+      staleAfterSec,
+      lastPollAt: null,
       lastEventAt: null,
       eventCount: 0,
+      resolvedRuntime: null,
+      sessionId: null,
+      transcriptPath: null,
+      targets: [],
+      lastError: null,
     };
     state.active = active;
     return active;
@@ -209,6 +231,70 @@ export async function recordWatcherEvent({ pid, lastEventAt } = {}) {
       ...state.active,
       lastEventAt: toIsoTimestamp(lastEventAt),
       eventCount: (state.active.eventCount ?? 0) + 1,
+    };
+    return state.active;
+  });
+}
+
+export async function recordWatcherPoll({ pid, lastPollAt } = {}) {
+  return mutateWatchState((state) => {
+    if (!state.active) return null;
+    if (pid !== undefined && state.active.pid !== pid) return null;
+    state.active = {
+      ...state.active,
+      lastPollAt: toIsoTimestamp(lastPollAt),
+    };
+    return state.active;
+  });
+}
+
+export async function recordWatcherTarget({ pid, target } = {}) {
+  if (!target?.runtime || !target?.sessionId || !target?.transcriptPath) {
+    throw new Error('runtime, sessionId, and transcriptPath are required to record a watcher target');
+  }
+
+  return mutateWatchState((state) => {
+    if (!state.active) return null;
+    if (pid !== undefined && state.active.pid !== pid) return null;
+    const targets = Array.isArray(state.active.targets) ? [...state.active.targets] : [];
+    const key = `${target.runtime}:${target.sessionId}`;
+    const existingIndex = targets.findIndex(existing => existing.key === key);
+    const targetRecord = {
+      key,
+      runtime: target.runtime,
+      sessionId: target.sessionId,
+      transcriptPath: target.transcriptPath,
+      cwd: target.recordedCwd ?? null,
+      recordCount: target.recordCount ?? null,
+      baselineRecordIndex: target.baselineRecordIndex ?? null,
+      engagementStatus: target.engagementStatus ?? null,
+      lockedAt: target.lockedAt ?? toIsoTimestamp(),
+    };
+
+    if (existingIndex === -1) targets.push(targetRecord);
+    else targets[existingIndex] = { ...targets[existingIndex], ...targetRecord };
+
+    state.active = {
+      ...state.active,
+      targets,
+      resolvedRuntime: targets.length === 1 ? targets[0].runtime : state.active.resolvedRuntime,
+      sessionId: targets.length === 1 ? targets[0].sessionId : state.active.sessionId,
+      transcriptPath: targets.length === 1 ? targets[0].transcriptPath : state.active.transcriptPath,
+    };
+    return state.active;
+  });
+}
+
+export async function recordWatcherError({ pid, error, at } = {}) {
+  return mutateWatchState((state) => {
+    if (!state.active) return null;
+    if (pid !== undefined && state.active.pid !== pid) return null;
+    state.active = {
+      ...state.active,
+      lastError: {
+        at: toIsoTimestamp(at),
+        message: error?.message ? String(error.message) : String(error ?? 'unknown error'),
+      },
     };
     return state.active;
   });

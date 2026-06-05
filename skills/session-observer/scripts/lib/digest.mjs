@@ -21,6 +21,7 @@
  */
 
 import { readRecords, normalizeEntries, extractMeta } from './runtimes.mjs';
+import { classifyTranscriptRecords } from './session-classifier.mjs';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -142,6 +143,7 @@ function formatHeader(digest) {
     if (filtered.toolCalls > 0) filterParts.push(`tool calls: ${filtered.toolCalls}`);
     if (filtered.toolResults > 0) filterParts.push(`tool results: ${filtered.toolResults}`);
     if (filtered.commandMessages > 0) filterParts.push(`command messages: ${filtered.commandMessages}`);
+    if (filtered.bootstrapRecords > 0) filterParts.push(`bootstrap records: ${filtered.bootstrapRecords}`);
     if (filtered.metadataRecords > 0) filterParts.push(`metadata/non-message records: ${filtered.metadataRecords}`);
     if (filtered.tailSliceEntries > 0) filterParts.push(`tail-sliced entries: ${filtered.tailSliceEntries}`);
     if (filterParts.length > 0) {
@@ -213,6 +215,8 @@ export async function buildDigest(runtime, transcriptPath, opts = {}) {
   // Read records
   const records = await readRecords(transcriptPath);
   const totalRecords = records.length;
+  const engagement = classifyTranscriptRecords(runtime, records);
+  const bootstrapRecordIndexes = new Set(engagement.bootstrapRecordIndexes);
 
   // Extract metadata
   let sessionId = opts.sessionId;
@@ -239,16 +243,20 @@ export async function buildDigest(runtime, transcriptPath, opts = {}) {
 
   // Normalize all records to entries. Keep an unfiltered view for accounting so
   // the digest can explain records consumed but omitted by default filters.
-  const allEntriesWithTools = normalizeEntries(runtime, records, {
+  const allEntriesWithToolsBeforeBootstrap = normalizeEntries(runtime, records, {
     includeToolCalls: true,
     includeToolResults: true,
     includeCommandMessages: true,
   });
-  const allEntries = normalizeEntries(runtime, records, {
+  const allEntriesBeforeBootstrap = normalizeEntries(runtime, records, {
     includeToolCalls,
     includeToolResults,
     includeCommandMessages,
   });
+  const allEntriesWithTools = allEntriesWithToolsBeforeBootstrap
+    .filter(e => !bootstrapRecordIndexes.has(e.recordIndex));
+  const allEntries = allEntriesBeforeBootstrap
+    .filter(e => !bootstrapRecordIndexes.has(e.recordIndex));
 
   // Filter to only entries with recordIndex >= effectiveFromIndex
   const entriesBeforeTailSlice = allEntries.filter(e => e.recordIndex >= effectiveFromIndex);
@@ -301,7 +309,11 @@ export async function buildDigest(runtime, transcriptPath, opts = {}) {
 
   const filters = { includeToolCalls, includeToolResults, includeCommandMessages };
   const fullEntriesInRawRange = allEntriesWithTools.filter(e => e.recordIndex >= rawFromIndex);
-  const rawRecordIndexesWithAnyEntry = new Set(fullEntriesInRawRange.map(e => e.recordIndex));
+  const fullEntriesInRawRangeBeforeBootstrap = allEntriesWithToolsBeforeBootstrap
+    .filter(e => e.recordIndex >= rawFromIndex);
+  const rawRecordIndexesWithAnyEntry = new Set(
+    fullEntriesInRawRangeBeforeBootstrap.map(e => e.recordIndex)
+  );
   const rawRecordIndexes = new Set();
   for (let i = rawFromIndex; i < totalRecords; i++) rawRecordIndexes.add(i);
 
@@ -323,6 +335,9 @@ export async function buildDigest(runtime, transcriptPath, opts = {}) {
       toolCalls: includeToolCalls ? 0 : fullEntriesInRawRange.filter(e => e.kind === 'tool_call').length,
       toolResults: includeToolResults ? 0 : fullEntriesInRawRange.filter(e => e.kind === 'tool_result').length,
       commandMessages: includeCommandMessages ? 0 : fullEntriesInRawRange.filter(e => e.kind === 'command_message').length,
+      bootstrapRecords: [...bootstrapRecordIndexes].filter(index => index >= rawFromIndex).length,
+      bootstrapMessages: fullEntriesInRawRangeBeforeBootstrap
+        .filter(e => bootstrapRecordIndexes.has(e.recordIndex)).length,
       metadataRecords: [...rawRecordIndexes].filter(index => !rawRecordIndexesWithAnyEntry.has(index)).length,
       tailSliceEntries: Math.max(0, entriesBeforeTailSlice.length - filteredEntries.length),
     },
@@ -338,6 +353,7 @@ export async function buildDigest(runtime, transcriptPath, opts = {}) {
     matchedTier: opts.matchedTier ?? null,
     widenedFrom: opts.widenedFrom ?? null,
     active: opts.active ?? false,
+    engagement,
     mode,
     range,
     accounting,
