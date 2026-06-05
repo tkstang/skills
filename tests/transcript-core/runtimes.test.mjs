@@ -13,11 +13,13 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const FIXTURES_CC = join(__dirname, 'fixtures/claude-code');
-const FIXTURES_CX = join(__dirname, 'fixtures/codex');
-const FIXTURES_CURSOR = join(__dirname, 'fixtures/cursor');
+// Fixtures remain in tests/session-observer/fixtures (shared with the
+// session-observer suite); reference them from the relocated location.
+const FIXTURES_CC = join(__dirname, '../session-observer/fixtures/claude-code');
+const FIXTURES_CX = join(__dirname, '../session-observer/fixtures/codex');
+const FIXTURES_CURSOR = join(__dirname, '../session-observer/fixtures/cursor');
 
-// Import the module under test — will fail RED until runtimes.mjs exists
+// Import the canonical module under test (single source of truth).
 const {
   discoverPaths,
   encodeCwd,
@@ -25,7 +27,7 @@ const {
   readRecords,
   normalizeEntries,
   encodeCwdVariants,
-} = await import('../../skills/session-observer/scripts/lib/runtimes.mjs');
+} = await import('../../shared/transcript-core/runtimes.mjs');
 
 // ---------------------------------------------------------------------------
 // Helpers
