@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-05
-oat_current_task_id: p02-t01
+oat_current_task_id: p03-t01
 oat_generated: false
 ---
 
@@ -27,10 +27,10 @@ oat_generated: false
 | Phase                                              | Status  | Tasks | Completed |
 | -------------------------------------------------- | ------- | ----- | --------- |
 | Phase 1: Extract transcript-core + migrate observer | complete | 2     | 2/2       |
-| Phase 2: Build export-session-transcript skill      | pending  | 3     | 0/3       |
+| Phase 2: Build export-session-transcript skill      | complete | 3     | 3/3       |
 | Phase 3: Docs + repo invariants + verification      | pending  | 2     | 0/2       |
 
-**Total:** 2/7 tasks completed
+**Total:** 5/7 tasks completed
 
 ---
 
@@ -109,27 +109,63 @@ oat_generated: false
 
 ## Phase 2: Build the export-session-transcript skill
 
-**Status:** pending
-**Started:** -
+**Status:** complete
+**Started:** 2026-06-05
+**Completed:** 2026-06-05
+
+### Phase Summary
+
+**Outcome (what changed):**
+
+- New `skills/export-session-transcript/` skill: SKILL.md (marker workflow + provider store locations + modes/exit codes), references doc, synced `runtimes.mjs`, an export-owned content sanitizer, and the export CLI.
+- Two-layer sanitization is live: structural `normalizeEntries` → content `sanitizeEntries` (privacy boundary) → marker-strip → render.
+- The sanitizer is evidence-driven (matchers verified against real Claude/Codex/Cursor stores): drops `<system-reminder>`, `<task-notification>`, `<local-command-*>`, `<environment_context>`, AGENTS.md/SKILL.md headings, system/developer instruction text, `<subagent_notification>`, `<turn_aborted>` — all leading-anchored.
+
+**Key files touched:**
+
+- `skills/export-session-transcript/SKILL.md`, `references/transcript-formats.md`
+- `skills/export-session-transcript/scripts/export-session-transcript.mjs` (CLI)
+- `skills/export-session-transcript/scripts/lib/sanitize.mjs` (content sanitizer)
+- `skills/export-session-transcript/scripts/lib/runtimes.mjs` (synced)
+- `scripts/sync-transcript-core.mjs` (export added to CONSUMERS)
+- `tests/export-session-transcript/{sanitize,cli}.test.mjs` + `fixtures/{claude-code,codex,cursor}/`
+
+**Verification:**
+
+- `node --test tests/export-session-transcript/sanitize.test.mjs` → 36/36; `cli.test.mjs` → 14/14; `sync --check` exit 0; `npm run validate` pass; `npm test` 321/321.
+- Real-store leak scan (normalize→sanitize): 1,411 files / 41,281 entries → 0 leading-anchored wrapper survivors.
+- Reviewer: **fail** (C1 system-reminder leak + I1 narrow matchers) → fix iteration 1 → re-review **pass**.
+
+**Notes / Decisions:**
+
+- C1 was a real privacy leak (`<system-reminder>` is the most common Claude Code wrapper). Fix expanded the matcher table to all leading-anchored wrapper classes found in real stores. m1 (role matcher dead-code) kept as defense-in-depth with a comment + explicit test.
 
 ### Task p02-t01: Scaffold skill + SKILL.md + sync runtimes into it
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** 9c3445a
+
+**Notes:**
+
+- Also wired export into sync CONSUMERS, resolving p01 reviewer Minor m1.
 
 ---
 
 ### Task p02-t02: Implement the export-owned content sanitizer (TDD)
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** ab94a66 (+ review fix a1c24fb)
+
+**Notes:**
+
+- Review fix a1c24fb closed C1 (`<system-reminder>` + other wrapper leaks) and broadened I1 matchers; evidence-driven against real stores.
 
 ---
 
 ### Task p02-t03: Implement the export CLI (TDD)
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** ac8a9e7
 
 ---
 
@@ -167,25 +203,27 @@ _- Outstanding Items_
 **Branch:** feat/export-session-transcript
 **Tier:** 1 (subagents)
 **Policy:** merge-strategy=sequential, retry-limit=2
-**Phases:** 1 executed, 1 passed, 0 failed, 0 stopped
+**Phases:** 2 executed, 2 passed, 0 failed, 0 stopped (p03 pending)
 
 #### Phase Outcomes
 
-| Phase | Implementer        | Review | Fix Iterations | Disposition |
-| ----- | ------------------ | ------ | -------------- | ----------- |
-| p01   | DONE_WITH_CONCERNS | pass   | 0/2            | merged      |
+| Phase | Implementer        | Review        | Fix Iterations | Disposition |
+| ----- | ------------------ | ------------- | -------------- | ----------- |
+| p01   | DONE_WITH_CONCERNS | pass          | 0/2            | merged      |
+| p02   | DONE               | fail → pass   | 1/2            | merged      |
 
 #### Parallel Groups
 
-- None; p01 ran sequentially on the orchestration branch.
+- None; phases ran sequentially on the orchestration branch.
 
 #### Dispatch Notes
 
-- Dispatch: p01 implementer + reviewer at model_axis=selected:opus (ceiling opus, project state). No escalation.
+- Dispatch: p01/p02 implementer + reviewer at model_axis=selected:opus (ceiling opus, project state). No escalation.
+- p02 review failed (C1 `<system-reminder>` privacy leak + I1 narrow matchers); 1 fix iteration (a1c24fb) → re-review pass.
 
 #### Outstanding Items
 
-- Pre-existing flake in `tests/session-observer/cli.test.mjs` under full-suite parallel execution (passes in isolation; not a p01 regression). Out of project scope.
+- Pre-existing flake in `tests/session-observer/cli.test.mjs` under full-suite parallel execution (passes in isolation; not a regression from this work). Out of project scope.
 
 #### Artifact / Design Deltas
 
