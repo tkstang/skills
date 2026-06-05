@@ -25,33 +25,35 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-06-04T00:39:09.356Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-06-05T02:33:34Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-06-05T02:47:09Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
 # Project State: export-session-transcript
 
-**Status:** Discovery
+**Status:** Design complete (quick mode)
 **Started:** 2026-06-04
-**Last Updated:** 2026-06-04
+**Last Updated:** 2026-06-05
 
 ## Current Phase
 
-Discovery - Gathering requirements for a quick workflow before planning
+Design complete — lightweight design reviewed (artifact review) and findings resolved.
+Next: generate the quick implementation plan.
 
 ## Artifacts
 
-- **Discovery:** `discovery.md` (in_progress)
+- **Discovery:** `discovery.md` (complete)
 - **Spec:** N/A (quick mode)
-- **Design:** N/A (quick mode unless lightweight design is needed)
-- **Plan:** `plan.md` (scaffolded template — not started)
+- **Design:** `design.md` (complete — lightweight design)
+- **Plan:** `plan.md` (scaffolded template — to be generated next)
 - **Implementation:** `implementation.md` (scaffolded template — not started)
 
 ## Progress
 
-- ✓ Discovery started
-- ✓ Execution artifacts scaffolded
-- ⧗ Awaiting user input
+- ✓ Discovery captured and committed
+- ✓ Lightweight design authored and committed
+- ✓ Design artifact review received; I1 (sanitization boundary) + M1 (artifact drift) resolved
+- ⧗ Plan generation pending
 
 ## Blockers
 
@@ -59,4 +61,5 @@ None
 
 ## Next Milestone
 
-Complete discovery and generate a quick implementation plan
+Generate `plan.md` from the quick design (resume `oat-project-quick-start`), then
+execute via `oat-project-implement`.

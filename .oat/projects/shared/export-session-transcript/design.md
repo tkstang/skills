@@ -46,8 +46,9 @@ shared/transcript-core/runtimes.mjs   ← CANONICAL (single source of truth)
 
 skills/export-session-transcript/
   SKILL.md                         user-facing trigger + workflow (announces marker)
-  scripts/export-session-transcript.mjs   CLI entry (locate → render → write)
-  scripts/lib/runtimes.mjs         synced copy (parse/locate primitives + sanitization)
+  scripts/export-session-transcript.mjs   CLI entry (locate → sanitize → render → write)
+  scripts/lib/runtimes.mjs         synced copy (parse/locate primitives + STRUCTURAL filtering)
+  scripts/lib/sanitize.mjs         export-owned CONTENT sanitizer (hidden-payload detectors)
   references/transcript-formats.md provider store locations + record shapes
 ```
 
@@ -55,7 +56,15 @@ skills/export-session-transcript/
 
 - **`shared/transcript-core/runtimes.mjs` (canonical):** per-provider primitives —
   `discoverPaths`, `encodeCwd`/`encodeCwdVariants`, `readRecords`, `extractMeta`,
-  `normalizeEntries` (default-filters tool calls/results + command/skill payloads).
+  `normalizeEntries`. **Structural** filtering only: it drops tool calls/results and
+  Claude command-message records. It does **not** classify injected instruction/context
+  that arrives as ordinary user/assistant **text** (Codex/Cursor text blocks are
+  returned as normal messages) — that is the content sanitizer's job, below.
+- **`scripts/lib/sanitize.mjs` (export-owned content sanitizer):** the privacy
+  boundary. Detects and drops hidden-payload messages that survive structural
+  filtering — environment-context wrappers, AGENTS.md/SKILL.md/skill-body payloads,
+  system/developer instruction records, subagent notifications, and `turn_aborted`
+  markers — across all three runtimes.
 - **`scripts/sync-transcript-core.mjs`:** copies canonical → each consumer's
   `scripts/lib/runtimes.mjs` with a generated banner; `--check` mode diffs without
   writing (drift guard).
@@ -80,9 +89,12 @@ skills/export-session-transcript/
      --all               → every cwd session (loop)
      --match <marker>    → the candidate whose raw text contains the marker
      (no match found)    → newest-for-cwd + warning   (flush fallback)
-5. CLI parses records → normalizeEntries (default filters) → visible msgs only,
-   strips the marker line.
-6. CLI resolves output path and writes Markdown (header + ## User / ## Assistant).
+5. CLI parses records → normalizeEntries (STRUCTURAL filter: drops tool
+   calls/results + Claude command-messages) → candidate user/assistant messages.
+6. CLI applies sanitize.mjs (CONTENT filter: drops env-context, AGENTS.md/SKILL.md
+   payloads, system/developer instructions, subagent notifications, turn_aborted) →
+   visible msgs only, then strips the marker line and empty entries.
+7. CLI resolves output path and writes Markdown (header + ## User / ## Assistant).
 ```
 
 ## Component Design
@@ -178,12 +190,53 @@ subagent notifications are excluded.
 
 **Design Decisions:**
 
-- Reuse `normalizeEntries`' default filtering as the sanitization engine (already
-  excludes tool calls/results + command/skill payloads). The renderer additionally
-  drops the session-marker line and any empty entries.
+- **Two-layer sanitization.** `normalizeEntries` is the *structural* layer (drops tool
+  calls/results + Claude command-messages) but is **not** the privacy boundary: on
+  Codex/Cursor, injected context recorded as ordinary user/assistant text passes
+  through. Export therefore owns a second *content* layer (`sanitize.mjs`, below) that
+  runs on the normalized entries before rendering. The renderer then drops the
+  session-marker line and any empty entries.
 - Runtime resolution precedence: `--runtime` > env hint > best-effort auto-detect.
 - Marker fallback (newest-for-cwd) guarantees the export never hard-fails on flush
   lag, with a visible warning so the agent can re-run with `--session` if needed.
+
+### sanitize.mjs (export-owned content sanitizer)
+
+**Purpose:** The privacy boundary. Given normalized user/assistant entries, drop any
+whose content is an injected/hidden payload rather than a genuine human/agent message.
+This closes the gap where `normalizeEntries` returns Codex/Cursor text blocks (and any
+text-form system/developer records) verbatim.
+
+**Responsibilities:**
+
+- Classify and drop entries matching hidden-payload patterns, for **all three
+  runtimes**, primarily by leading content markers (robust to provider differences):
+  - environment-context wrappers — e.g. `<environment_context>…</…>`
+  - AGENTS.md / SKILL.md / pasted skill-body payloads — e.g. `# AGENTS.md instructions`,
+    skill frontmatter/`<command-message>`-style blocks that survive as text
+  - system / developer instruction records (role `system`/`developer`, or text so
+    tagged) — never emit regardless of runtime
+  - subagent notifications — e.g. `<subagent_notification>…`
+  - turn-aborted markers — e.g. `<turn_aborted>`
+- Be conservative and **drop-on-match** at the start of a message; prefer false-drops
+  of hidden payloads over leaking. Keep the detector table data-driven so new markers
+  are cheap to add.
+- Operate after structural normalization and before marker-stripping/rendering.
+
+**Interfaces:**
+
+```
+// sanitize.mjs
+export function sanitizeEntries(entries, { runtime }) → entries   // drops hidden payloads
+export const HIDDEN_PAYLOAD_MATCHERS = [ /* { id, test(text, role) } ... */ ]
+```
+
+**Design Decisions:**
+
+- Detection is content/role based, not runtime-structural, so one matcher table covers
+  Claude/Codex/Cursor; runtime is passed only for the few provider-specific cases.
+- Lives in `export-session-transcript/scripts/lib/` (NOT in the shared core) — it is an
+  export-specific privacy policy, not shared transcript-format knowledge.
 
 ### SKILL.md (workflow)
 
@@ -235,8 +288,16 @@ subagent notifications are excluded.
 - **Export CLI (new, with fixtures per provider):**
   - session selection: `--match` marker hit; marker miss → newest fallback + warning;
     `--session`; `--all` enumerates every cwd session.
-  - sanitization: output contains no tool calls/results, system/developer text,
-    environment/AGENTS.md/skill payloads, subagent notifications, or the marker line.
+  - **content sanitizer (`sanitize.mjs`), per-runtime fixtures (Claude/Codex/Cursor):**
+    each hidden-payload class is recorded as an ordinary user/assistant **text** message
+    in a fixture and asserted absent from the export — environment-context wrappers,
+    AGENTS.md/SKILL.md/skill-body payloads, system/developer instruction records,
+    subagent notifications, and `turn_aborted`. Explicitly covers the Codex/Cursor path
+    where `normalizeEntries` would otherwise pass the text through. Negative tests assert
+    genuine messages that merely *mention* these tokens mid-text are NOT dropped.
+  - sanitization (end-to-end): output contains no tool calls/results, system/developer
+    text, environment/AGENTS.md/skill payloads, subagent notifications, or the marker
+    line.
   - output-path resolution: default `~/Downloads/<branch>.md`; dir → auto-name; file →
     verbatim; not-in-git fallback name; `--all` naming scheme.
   - exit codes 0/1/2/3 per documented conditions.
