@@ -73,6 +73,17 @@ function codexTranscript(marker, sessionId = 'codex-001', cwd = CWD) {
   return recs.map((r) => JSON.stringify(r)).join('\n') + '\n';
 }
 
+// A Codex transcript whose session_started record omits cwd → recordedCwd null.
+function codexTranscriptNoCwd(marker, sessionId = 'codex-nocwd') {
+  const recs = [
+    { type: 'session_started', sessionId, timestamp: '2026-06-05T10:00:00Z' },
+    { type: 'response_item', sessionId, payload: { type: 'message', role: 'user', content: `EXPORT_SESSION_MARKER=${marker}` } },
+    { type: 'response_item', sessionId, payload: { type: 'message', role: 'user', content: 'Unrelated cwd-less session.' } },
+    { type: 'response_item', sessionId, payload: { type: 'message', role: 'assistant', content: 'Reply.' } },
+  ];
+  return recs.map((r) => JSON.stringify(r)).join('\n') + '\n';
+}
+
 async function setupHome() {
   const home = await mkdtemp(join(tmpdir(), 'export-cli-'));
   await mkdir(join(home, 'Downloads'), { recursive: true });
@@ -152,6 +163,25 @@ describe('export CLI — session selection', () => {
     assert.ok(files.some((f) => f.includes('cc-a')));
     assert.ok(files.some((f) => f.includes('cc-b')));
     await rm(allHome, { recursive: true, force: true });
+  });
+
+  test('--all excludes a Codex candidate with unresolved (null) recordedCwd', async () => {
+    const cwdHome = await setupHome();
+    // One candidate with a matching recordedCwd, one cwd-less (corrupt/partial).
+    await writeCodex(cwdHome, codexTranscript('ok1', 'codex-ok'), 'codex-ok');
+    await writeCodex(cwdHome, codexTranscriptNoCwd('bad1', 'codex-nocwd'), 'codex-nocwd');
+    const outDir = join(cwdHome, 'codex-allout');
+    await mkdir(outDir, { recursive: true });
+    const r = spawnCli(
+      ['--runtime', 'codex', '--cwd', CWD, '--all', '--out', outDir],
+      { HOME: cwdHome }
+    );
+    assert.equal(r.status, 0, r.stderr);
+    const files = (await readdir(outDir)).filter((f) => f.endsWith('.md'));
+    assert.equal(files.length, 1, `expected only the cwd-matched session, got ${files.join(', ')}`);
+    assert.ok(files.some((f) => f.includes('codex-ok')), `expected codex-ok, got ${files.join(', ')}`);
+    assert.ok(!files.some((f) => f.includes('codex-nocwd')), `cwd-less session leaked into --all: ${files.join(', ')}`);
+    await rm(cwdHome, { recursive: true, force: true });
   });
 });
 

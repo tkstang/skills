@@ -188,7 +188,7 @@ async function enumerateClaudeCode(targetCwd) {
   return candidates;
 }
 
-async function enumerateCodex(targetCwd) {
+async function enumerateCodex(targetCwd, { requireCwd = false } = {}) {
   const [root] = discoverPaths('codex');
   const now = Date.now() / 1000;
   const cutoff = now - LOOKBACK_DAYS * 86400;
@@ -200,7 +200,12 @@ async function enumerateCodex(targetCwd) {
     if (st.mtime < cutoff) continue;
     let meta;
     try { meta = await extractMeta('codex', p); } catch { meta = null; }
+    // A resolved recordedCwd that differs from the target is always a non-match.
     if (meta?.recordedCwd && meta.recordedCwd !== targetCwd) continue;
+    // When enumerating without an authoritative selector (--all / no-selector),
+    // an unresolved (null/empty) recordedCwd cannot be tied to this cwd, so it
+    // is excluded. Marker/id selectors are authoritative and keep these.
+    if (requireCwd && !meta?.recordedCwd) continue;
     candidates.push({
       runtime: 'codex',
       transcriptPath: p,
@@ -253,9 +258,9 @@ async function enumerateCursor(targetCwd) {
   return candidates;
 }
 
-async function enumerateCandidates(runtime, targetCwd) {
+async function enumerateCandidates(runtime, targetCwd, { requireCwd = false } = {}) {
   if (runtime === 'claude-code') return enumerateClaudeCode(targetCwd);
-  if (runtime === 'codex') return enumerateCodex(targetCwd);
+  if (runtime === 'codex') return enumerateCodex(targetCwd, { requireCwd });
   if (runtime === 'cursor') return enumerateCursor(targetCwd);
   throw new Error(`Unknown runtime: ${runtime}`);
 }
@@ -494,9 +499,16 @@ async function main() {
     return 1;
   }
 
+  // When no authoritative selector (--match/--session) is active, enumeration
+  // must be able to tie each candidate to the cwd. In that mode (--all or the
+  // no-selector "newest"/single path) a candidate with an unresolved cwd is
+  // excluded. With --match/--session the marker/id is authoritative, so a
+  // missing cwd meta must not drop the session.
+  const requireCwd = !opts.match && !opts.session;
+
   let candidates;
   try {
-    candidates = await enumerateCandidates(runtime, opts.cwd);
+    candidates = await enumerateCandidates(runtime, opts.cwd, { requireCwd });
   } catch (err) {
     console.error(`[export-session-transcript] ${err.message}`);
     return 1;
