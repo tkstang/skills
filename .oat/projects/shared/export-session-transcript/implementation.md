@@ -2,7 +2,7 @@
 oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
-oat_last_updated: 2026-06-04
+oat_last_updated: 2026-06-05
 oat_current_task_id: p01-t01
 oat_generated: false
 ---
@@ -24,19 +24,20 @@ oat_generated: false
 
 ## Progress Overview
 
-| Phase   | Status      | Tasks | Completed |
-| ------- | ----------- | ----- | --------- |
-| Phase 1 | in_progress | N     | 0/N       |
-| Phase 2 | pending     | N     | 0/N       |
+| Phase                                              | Status  | Tasks | Completed |
+| -------------------------------------------------- | ------- | ----- | --------- |
+| Phase 1: Extract transcript-core + migrate observer | pending | 2     | 0/2       |
+| Phase 2: Build export-session-transcript skill      | pending | 3     | 0/3       |
+| Phase 3: Docs + repo invariants + verification      | pending | 1     | 0/1       |
 
-**Total:** 0/{N} tasks completed
+**Total:** 0/6 tasks completed
 
 ---
 
-## Phase 1: {Phase Name}
+## Phase 1: Extract canonical transcript-core + migrate session-observer
 
-**Status:** in_progress
-**Started:** 2026-06-04
+**Status:** pending
+**Started:** -
 
 ### Phase Summary (fill when phase is complete)
 
@@ -57,9 +58,9 @@ oat_generated: false
 
 - {trade-offs or deviations discovered during implementation}
 
-### Task p01-t01: {Task Name}
+### Task p01-t01: Establish canonical shared core and relocate runtimes tests
 
-**Status:** completed / in_progress / pending / blocked
+**Status:** pending
 **Commit:** {sha} (if completed)
 
 **Outcome (required when completed):**
@@ -85,7 +86,7 @@ oat_generated: false
 
 ---
 
-### Task p01-t02: {Task Name}
+### Task p01-t02: Add sync script + drift guard; migrate session-observer to synced copy
 
 **Status:** pending
 **Commit:** -
@@ -96,12 +97,38 @@ oat_generated: false
 
 ---
 
-## Phase 2: {Phase Name}
+## Phase 2: Build the export-session-transcript skill
 
 **Status:** pending
 **Started:** -
 
-### Task p02-t01: {Task Name}
+### Task p02-t01: Scaffold skill + SKILL.md + sync runtimes into it
+
+**Status:** pending
+**Commit:** -
+
+---
+
+### Task p02-t02: Implement the export-owned content sanitizer (TDD)
+
+**Status:** pending
+**Commit:** -
+
+---
+
+### Task p02-t03: Implement the export CLI (TDD)
+
+**Status:** pending
+**Commit:** -
+
+---
+
+## Phase 3: Docs, repo invariants, and full verification
+
+**Status:** pending
+**Started:** -
+
+### Task p03-t01: Document the skill + shared-core convention; add repo-layout invariants
 
 **Status:** pending
 **Commit:** -
