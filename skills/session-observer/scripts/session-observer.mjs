@@ -5,7 +5,7 @@
  * Usage:
  *   node session-observer.mjs <subcommand> [options]
  *
- * Subcommands: review, catch-up, locate, state
+ * Subcommands: review, catch-up, locate, state, watch, watch-ctl
  *
  * Exit codes:
  *   0 — success
@@ -33,7 +33,10 @@ const LIB = join(__dirname, 'lib');
 const { discover, gitWorktrees, claudeCodeLookupDiagnostics } = await import(join(LIB, 'locate.mjs'));
 const { rank } = await import(join(LIB, 'rank.mjs'));
 const { buildDigest, renderMarkdown, renderJson } = await import(join(LIB, 'digest.mjs'));
+const { observeCatchUp } = await import(join(LIB, 'observe.mjs'));
+const { runWatchLoop } = await import(join(LIB, 'watch.mjs'));
 const stateLib = await import(join(LIB, 'state.mjs'));
+const watchStateLib = await import(join(LIB, 'watch-state.mjs'));
 
 // ---------------------------------------------------------------------------
 // argv parsing
@@ -61,11 +64,20 @@ function parseCliArgs(argv) {
       session:              { type: 'string',  default: undefined },
       snippet:              { type: 'string',  default: undefined },
       'mark-read':          { type: 'boolean', default: false },
+      watch:                { type: 'boolean', default: false },
+      'debounce-sec':       { type: 'string',  default: undefined },
+      'poll-sec':           { type: 'string',  default: undefined },
+      'max-runtime-min':    { type: 'string',  default: undefined },
+      'event-log':          { type: 'string',  default: undefined },
       help:                 { type: 'boolean', default: false },
     },
   });
 
-  const [subcommand, ...rest] = positionals;
+  let [subcommand, ...rest] = positionals;
+  if (values.watch && !subcommand) {
+    subcommand = 'watch';
+    rest = [];
+  }
 
   // --debug is shorthand for --include-tools --include-tool-results
   const includeTools = values['include-tools'] || values.debug || false;
@@ -73,13 +85,18 @@ function parseCliArgs(argv) {
 
   const maxTurns = values['max-turns'] ? parseInt(values['max-turns'], 10) : undefined;
   const maxBytes = values['max-bytes'] ? parseInt(values['max-bytes'], 10) : undefined;
+  const debounceSec = values['debounce-sec'] ? parseFloat(values['debounce-sec']) : 2;
+  const pollSec = values['poll-sec'] ? parseFloat(values['poll-sec']) : 2;
+  const maxRuntimeMin = values['max-runtime-min'] ? parseFloat(values['max-runtime-min']) : 0;
 
   // For 'state' subcommand, the op is in rest[0]: get, reset, clear
   const stateOp = subcommand === 'state' ? rest[0] : undefined;
+  const watchCtlOp = subcommand === 'watch-ctl' ? rest[0] : undefined;
 
   return {
     subcommand,
     stateOp,
+    watchCtlOp,
     runtime: values.runtime,
     cwd: values.cwd,
     json: values.json,
@@ -92,6 +109,11 @@ function parseCliArgs(argv) {
     session: values.session,
     snippet: values.snippet,
     markRead: values['mark-read'],
+    watch: values.watch,
+    debounceSec,
+    pollSec,
+    maxRuntimeMin,
+    eventLog: values['event-log'],
     help: values.help,
   };
 }
@@ -102,6 +124,8 @@ function parseCliArgs(argv) {
 
 const VALID_RUNTIMES = ['claude-code', 'codex', 'cursor'];
 const VALID_RUNTIME_LABEL = VALID_RUNTIMES.join(', ');
+const VALID_WATCH_RUNTIMES = [...VALID_RUNTIMES, 'auto', 'both'];
+const VALID_WATCH_RUNTIME_LABEL = VALID_WATCH_RUNTIMES.join('|');
 
 async function preferredRuntimeFromState(withCandidates, targetCwd) {
   let state;
@@ -254,6 +278,8 @@ function printUsage() {
     '  catch-up   Incremental: only records added since the last read',
     '  locate     Diagnostic: ranked candidate list',
     '  state      Manage high-water marks: get, reset, clear',
+    '  watch      Foreground watcher for debounced catch-up updates',
+    '  watch-ctl  Inspect or control active watch state',
     '',
     'Options:',
     '  --runtime <claude-code|codex|cursor|auto>  (default: auto)',
@@ -267,6 +293,51 @@ function printUsage() {
     '  --session <runtime:id>              Pin to a specific session',
     '  --snippet <text>                    Prefer candidates containing this transcript excerpt',
     '  --mark-read                         Advance offset after review',
+    '  --watch                             Alias for the watch subcommand',
+    '',
+    'Watch options:',
+    '  --runtime <claude-code|codex|cursor|auto|both>  (default: auto)',
+    '  --debounce-sec <N>                  Seconds of quiet before emitting',
+    '  --poll-sec <N>                      Poll interval in seconds',
+    '  --max-runtime-min <N>               Auto-exit after N minutes (0 = unlimited)',
+    '  --event-log <path>                  Metadata-only JSONL event log',
+    '',
+  ].join('\n'));
+  process.exit(0);
+}
+
+function printWatchUsage() {
+  process.stdout.write([
+    'Usage: session-observer watch [options]',
+    '',
+    'Options:',
+    '  --runtime <claude-code|codex|cursor|auto|both>  (default: auto)',
+    '  --cwd <path>                        (default: process.cwd())',
+    '  --debounce-sec <N>                  Seconds of quiet before emitting (default: 2)',
+    '  --poll-sec <N>                      Poll interval in seconds (default: 2)',
+    '  --max-runtime-min <N>               Auto-exit after N minutes (0 = unlimited)',
+    '  --event-log <path>                  Metadata-only JSONL event log',
+    '  --json                              Emit JSON-line events instead of markdown',
+    '  --session <runtime:id>              Pin to a specific session',
+    '  --snippet <text>                    Prefer candidates containing this transcript excerpt',
+    '',
+  ].join('\n'));
+  process.exit(0);
+}
+
+function printWatchCtlUsage() {
+  process.stdout.write([
+    'Usage: session-observer watch-ctl <operation> [options]',
+    '',
+    'Operations:',
+    '  status     Print active watcher state',
+    '  pause      Pause event emission while polling continues',
+    '  resume     Resume event emission',
+    '  flush      Emit any pending debounced update immediately',
+    '  stop       Stop the active watcher',
+    '',
+    'Options:',
+    '  --json     Output JSON instead of text',
     '',
   ].join('\n'));
   process.exit(0);
@@ -472,191 +543,15 @@ async function runReview(args) {
 // ---------------------------------------------------------------------------
 
 async function runCatchUp(args) {
-  const { cwd, includeTools, includeToolResults, includeCommandMessages, maxTurns, maxBytes, json, session, snippet } = args;
-  let { runtime } = args;
-  const pinnedSession = parsePinnedSession(session);
-  if (pinnedSession?.error) return emitError(pinnedSession.error, 1);
-  if (pinnedSession) runtime = pinnedSession.runtime;
-
-  // Resolve auto runtime
-  if (runtime === 'auto') {
-    const resolved = await resolveAutoRuntime(cwd);
-    if (resolved.noMatch) {
-      const payload = { noMatch: true, cwd, message: 'No candidates found in any runtime for this cwd.' };
-      if (json) return emitJson(payload, 2);
-      return emit(`No peer-session candidates found for cwd: ${cwd}`, 2);
-    }
-    if (resolved.ambiguous) {
-      const payload = {
-        ambiguousRuntime: true,
-        runtimes: resolved.runtimes,
-        message: 'Candidates found in multiple runtimes. Use --runtime to specify.',
-      };
-      if (json) return emitJson(payload, 3);
-      return emit(
-        `Ambiguous runtime: candidates found in both ${resolved.runtimes.join(', ')}. ` +
-        `Specify --runtime <runtime>.`,
-        3
-      );
-    }
-    runtime = resolved.runtime;
+  const result = await observeCatchUp(args);
+  if (!result.ok) {
+    if (result.kind === 'error') return emitError(result.message, result.exitCode);
+    if (args.json) return emitJson(result.payload, result.exitCode);
+    return emit(result.message, result.exitCode);
   }
 
-  // Discover + rank
-  let candidates;
-  try {
-    candidates = await discover(runtime, cwd);
-  } catch (err) {
-    return emitError(`Failed to discover transcripts: ${err.message}`, 1);
-  }
-
-  if (candidates.length === 0) {
-    const payload = { noMatch: true, runtime, cwd };
-    if (json) return emitJson(payload, 2);
-    return emit(`No ${runtime} transcripts found for cwd: ${cwd}`, 2);
-  }
-
-  // Resolve pinned session override BEFORE tie/no-match checks.
-  if (pinnedSession) {
-    const pinnedRuntime = pinnedSession.runtime;
-    const pinnedId = pinnedSession.sessionId;
-    const pinned = candidates.find(c => c.runtime === pinnedRuntime && c.sessionId === pinnedId);
-    if (!pinned) {
-      return emitError(
-        `Pinned session not found: ${session}. Run locate to see available sessions.`,
-        1
-      );
-    }
-    // Get prior offset from state
-    let pinnedFromIndex = 0;
-    let pinnedSessionState = null;
-    try {
-      pinnedSessionState = await stateLib.getSession(pinnedRuntime, pinned.sessionId);
-      if (pinnedSessionState) pinnedFromIndex = pinnedSessionState.lastRecordIndex;
-    } catch {
-      pinnedFromIndex = 0;
-    }
-    // Build digest from the pinned candidate
-    let digest;
-    try {
-      digest = await buildDigest(pinnedRuntime, pinned.transcriptPath, {
-        fromIndex: pinnedFromIndex,
-        mode: 'catch-up',
-        includeToolCalls: includeTools,
-        includeToolResults,
-        includeCommandMessages,
-        maxTurns,
-        maxBytes,
-        sessionId: pinned.sessionId,
-        recordedCwd: pinned.recordedCwd,
-        matchedTier: null,
-        active: pinned.active ?? false,
-        fallbacks: [],
-      });
-    } catch (err) {
-      return emitError(`Failed to build digest: ${err.message}`, 1);
-    }
-    if (shouldMarkCatchUpRead(pinnedSessionState, digest)) {
-      try {
-        await stateLib.markRead(pinnedRuntime, pinned.sessionId, {
-          lastRecordIndex: digest.range.nextIndex,
-          lastTotalRecords: digest.range.totalRecords,
-          transcriptPath: pinned.transcriptPath,
-          recordedCwd: pinned.recordedCwd,
-        });
-      } catch {
-        // Non-fatal
-      }
-    }
-    if (json) return emitJson(digest, 0);
-    return emit(renderMarkdown(digest), 0);
-  }
-
-  if (snippet) {
-    const filtered = await applySnippetFilter(candidates, snippet);
-    candidates = filtered.candidates;
-    if (candidates.length === 0) {
-      const payload = {
-        noMatch: true,
-        runtime,
-        cwd,
-        snippet,
-        message: 'No candidate transcripts contained the provided snippet.',
-      };
-      if (json) return emitJson(payload, 2);
-      return emit(`No ${runtime} candidate transcripts contained the provided snippet.`, 2);
-    }
-  }
-
-  const worktrees = await gitWorktrees(cwd).catch(() => []);
-  const rankResult = rank(candidates, cwd, { gitWorktrees: worktrees });
-
-  if (rankResult.noMatch) {
-    const payload = { noMatch: true, runtime, cwd, sisters: rankResult.sisters, globalRecent: rankResult.globalRecent };
-    if (json) return emitJson(payload, 2);
-    return emit(`No ${runtime} transcripts matched cwd: ${cwd}`, 2);
-  }
-
-  if (rankResult.ties && rankResult.ties.length > 0) {
-    const payload = { ties: true, candidates: [rankResult.winner, ...rankResult.ties] };
-    if (json) return emitJson(payload, 3);
-    return emit(`Multiple sessions tied. Use --session to disambiguate.`, 3);
-  }
-
-  let winner = rankResult.winner;
-
-  // Get prior offset from state
-  let fromIndex = 0;
-  let sessionState = null;
-  try {
-    sessionState = await stateLib.getSession(runtime, winner.sessionId);
-    if (sessionState) {
-      fromIndex = sessionState.lastRecordIndex;
-    }
-  } catch {
-    fromIndex = 0;
-  }
-
-  // Build digest
-  let digest;
-  try {
-    digest = await buildDigest(runtime, winner.transcriptPath, {
-      fromIndex,
-      mode: 'catch-up',
-      includeToolCalls: includeTools,
-      includeToolResults,
-      includeCommandMessages,
-      maxTurns,
-      maxBytes,
-      sessionId: winner.sessionId,
-      recordedCwd: winner.recordedCwd,
-        matchedTier: rankResult.tier,
-        active: winner.active,
-        warnings: winner.snippetMatch
-          ? [`Selected session by snippet match: ${winner.sessionId} (${winner.recordedCwd ?? 'unknown cwd'})`]
-          : [],
-        fallbacks: rankResult.fallbacks,
-      });
-  } catch (err) {
-    return emitError(`Failed to build digest: ${err.message}`, 1);
-  }
-
-  // Advance the high-water mark on successful emit
-  if (shouldMarkCatchUpRead(sessionState, digest)) {
-    try {
-      await stateLib.markRead(runtime, winner.sessionId, {
-        lastRecordIndex: digest.range.nextIndex,
-        lastTotalRecords: digest.range.totalRecords,
-        transcriptPath: winner.transcriptPath,
-        recordedCwd: winner.recordedCwd,
-      });
-    } catch {
-      // Non-fatal
-    }
-  }
-
-  if (json) return emitJson(digest, 0);
-  return emit(renderMarkdown(digest), 0);
+  if (args.json) return emitJson(result.digest, 0);
+  return emit(renderMarkdown(result.digest), 0);
 }
 
 // ---------------------------------------------------------------------------
@@ -902,6 +797,118 @@ async function runState(args) {
 }
 
 // ---------------------------------------------------------------------------
+// runWatch / runWatchCtl
+// ---------------------------------------------------------------------------
+
+async function runWatch(args) {
+  if (args.help) return printWatchUsage();
+
+  if (!VALID_WATCH_RUNTIMES.includes(args.runtime)) {
+    return emitError(
+      `Unknown watch runtime: ${args.runtime}. Use one of: ${VALID_WATCH_RUNTIME_LABEL}.`,
+      1
+    );
+  }
+
+  try {
+    await runWatchLoop(args, {
+      writeStdout: chunk => process.stdout.write(chunk),
+    });
+  } catch (err) {
+    return emitError(`Watch failed: ${err.message}`, 1);
+  }
+}
+
+async function emitNoActiveWatcher(args) {
+  await watchStateLib.clearControlDirective().catch(() => false);
+  const payload = {
+    active: false,
+    noActiveWatcher: true,
+    watcher: null,
+    message: 'No active watcher.',
+  };
+  if (args.watchCtlOp && args.watchCtlOp !== 'status') {
+    payload.directive = args.watchCtlOp;
+    payload.control = null;
+  }
+  if (args.json) return emitJson(payload, 0);
+  return emit('No active watcher.', 0);
+}
+
+async function runWatchCtl(args) {
+  if (args.help || !args.watchCtlOp) return printWatchCtlUsage();
+
+  switch (args.watchCtlOp) {
+    case 'status': {
+      const state = await watchStateLib.loadWatchState();
+      const payload = state.active
+        ? {
+            active: true,
+            noActiveWatcher: false,
+            watcher: state.active,
+          }
+        : {
+            active: false,
+            noActiveWatcher: true,
+            watcher: null,
+            message: 'No active watcher.',
+          };
+      if (args.json) return emitJson(payload, 0);
+      return emit(state.active
+        ? `Watcher active: ${state.active.runtime} ${state.active.cwd} (pid ${state.active.pid})`
+        : 'No active watcher.', 0);
+    }
+
+    case 'pause':
+    case 'resume':
+    case 'flush': {
+      const state = await watchStateLib.loadWatchState();
+      if (!state.active) return emitNoActiveWatcher(args);
+
+      const control = await watchStateLib.writeControlDirective(args.watchCtlOp);
+      const payload = {
+        directive: args.watchCtlOp,
+        control,
+      };
+      if (args.json) return emitJson(payload, 0);
+      return emit(`Watcher directive written: ${args.watchCtlOp}`, 0);
+    }
+
+    case 'stop': {
+      const state = await watchStateLib.loadWatchState();
+      if (!state.active) return emitNoActiveWatcher(args);
+
+      const control = await watchStateLib.writeControlDirective('stop');
+      let signaled = false;
+      if (state.active?.pid) {
+        try {
+          process.kill(state.active.pid, 'SIGTERM');
+          signaled = true;
+        } catch {
+          signaled = false;
+        }
+      }
+      const payload = {
+        directive: 'stop',
+        control,
+        watcher: state.active ?? null,
+        signaled,
+      };
+      if (args.json) return emitJson(payload, 0);
+      return emit(signaled
+        ? `Watcher stop requested for pid ${state.active.pid}`
+        : 'Watcher stop directive written.', 0);
+    }
+
+    default:
+      return emitError(
+        `Unknown watch-ctl operation: ${args.watchCtlOp}. Valid operations: status, pause, resume, flush, stop`,
+        1
+      );
+  }
+}
+
+// ---------------------------------------------------------------------------
 // main
 // ---------------------------------------------------------------------------
 
@@ -917,11 +924,13 @@ async function main(argv) {
     case 'catch-up': return runCatchUp(args);
     case 'locate':   return runLocate(args);
     case 'state':    return runState(args);
+    case 'watch':    return runWatch(args);
+    case 'watch-ctl': return runWatchCtl(args);
     default:
       return emitError(
         args.subcommand
-          ? `Unknown subcommand: ${args.subcommand}. Use review, catch-up, locate, or state.`
-          : 'No subcommand specified. Use review, catch-up, locate, or state.',
+          ? `Unknown subcommand: ${args.subcommand}. Use review, catch-up, locate, state, watch, or watch-ctl.`
+          : 'No subcommand specified. Use review, catch-up, locate, state, watch, or watch-ctl.',
         1
       );
   }

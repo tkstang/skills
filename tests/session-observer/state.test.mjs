@@ -367,3 +367,38 @@ it('repeated corrupt backups produce unique filenames and do not clobber each ot
     assert.ok(bakFiles.length >= 2, `expected at least 2 backup files, got ${bakFiles.length}: ${bakFiles.join(', ')}`);
   });
 });
+
+it('setWatchedByPid and clearWatchedByPid preserve read offsets', async () => {
+  await withTmpStateDir(async (_dir) => {
+    const state = await importState();
+    await state.markRead('codex', 'sess-watch', {
+      lastRecordIndex: 12,
+      lastTotalRecords: 20,
+      transcriptPath: '/tmp/watch.jsonl',
+      recordedCwd: '/repo',
+    });
+
+    const before = await state.getSession('codex', 'sess-watch');
+    assert.ok(before);
+
+    const setResult = await state.setWatchedByPid('codex', 'sess-watch', 1234);
+    assert.equal(setResult, true);
+    const watched = await state.getSession('codex', 'sess-watch');
+    assert.equal(watched.watchedByPid, 1234);
+    assert.equal(watched.lastRecordIndex, before.lastRecordIndex);
+    assert.equal(watched.lastTotalRecords, before.lastTotalRecords);
+    assert.equal(watched.lastReadAt, before.lastReadAt);
+    assert.equal(watched.transcriptPath, before.transcriptPath);
+    assert.equal(watched.recordedCwd, before.recordedCwd);
+
+    const clearResult = await state.clearWatchedByPid('codex', 'sess-watch');
+    assert.equal(clearResult, true);
+    const cleared = await state.getSession('codex', 'sess-watch');
+    assert.equal(cleared.watchedByPid, null);
+    assert.equal(cleared.lastRecordIndex, before.lastRecordIndex);
+    assert.equal(cleared.lastTotalRecords, before.lastTotalRecords);
+    assert.equal(cleared.lastReadAt, before.lastReadAt);
+    assert.equal(cleared.transcriptPath, before.transcriptPath);
+    assert.equal(cleared.recordedCwd, before.recordedCwd);
+  });
+});

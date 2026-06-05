@@ -1,0 +1,377 @@
+/**
+ * observe.mjs — reusable catch-up observation pipeline.
+ *
+ * This module deliberately owns no output or process-exit behavior. Callers get
+ * exit-style outcomes they can render for CLI, watch, or future integrations.
+ */
+
+import { readFile } from 'node:fs/promises';
+import { discover, gitWorktrees } from './locate.mjs';
+import { rank } from './rank.mjs';
+import { buildDigest } from './digest.mjs';
+import * as stateLib from './state.mjs';
+
+export const VALID_RUNTIMES = ['claude-code', 'codex', 'cursor'];
+export const VALID_RUNTIME_LABEL = VALID_RUNTIMES.join(', ');
+
+export function parsePinnedSession(session) {
+  if (!session) return null;
+  const colonIndex = session.indexOf(':');
+  if (colonIndex === -1) {
+    return { error: '--session must be in <runtime>:<sessionId> format (e.g. codex:abc123)' };
+  }
+  const runtime = session.slice(0, colonIndex);
+  const sessionId = session.slice(colonIndex + 1);
+  if (!VALID_RUNTIMES.includes(runtime)) {
+    return {
+      error: `Unknown runtime in --session: ${runtime}. Use one of: ${VALID_RUNTIME_LABEL}.`,
+    };
+  }
+  return { runtime, sessionId };
+}
+
+export function shouldMarkCatchUpRead(sessionState, digest) {
+  if (digest.range.newRecords > 0) return true;
+  if (!sessionState) return true;
+  return (
+    sessionState.lastRecordIndex !== digest.range.nextIndex ||
+    sessionState.lastTotalRecords !== digest.range.totalRecords
+  );
+}
+
+async function preferredRuntimeFromState(withCandidates, targetCwd) {
+  let state;
+  try {
+    state = await stateLib.load();
+  } catch {
+    return null;
+  }
+
+  const runtimeSet = new Set(withCandidates.map(r => r.runtime));
+  const sessionIdsByRuntime = new Map(
+    withCandidates.map(r => [r.runtime, new Set(r.candidates.map(c => c.sessionId))])
+  );
+
+  const matches = Object.values(state.sessions ?? {})
+    .filter(s => runtimeSet.has(s.runtime))
+    .filter(s => s.recordedCwd === targetCwd)
+    .filter(s => sessionIdsByRuntime.get(s.runtime)?.has(s.sessionId))
+    .sort((a, b) => String(b.lastReadAt ?? '').localeCompare(String(a.lastReadAt ?? '')));
+
+  const runtimes = [...new Set(matches.map(s => s.runtime))];
+  if (runtimes.length !== 1) return null;
+  return { runtime: runtimes[0], reason: 'state-cwd-prior-session', sessionId: matches[0]?.sessionId };
+}
+
+export async function resolveAutoRuntime(targetCwd, { self = process.env.SESSION_OBSERVER_SELF } = {}) {
+  const results = await Promise.all(
+    VALID_RUNTIMES.map(async (rt) => {
+      try {
+        const candidates = await discover(rt, targetCwd);
+        return { runtime: rt, candidates };
+      } catch {
+        return { runtime: rt, candidates: [] };
+      }
+    })
+  );
+
+  const withCandidates = results.filter(r => r.candidates.length > 0);
+  const considered = VALID_RUNTIMES.includes(self)
+    ? withCandidates.filter(r => r.runtime !== self)
+    : withCandidates;
+
+  if (considered.length === 1) return { runtime: considered[0].runtime };
+  if (considered.length === 0) return { noMatch: true };
+
+  const preferred = await preferredRuntimeFromState(considered, targetCwd);
+  if (preferred) return preferred;
+
+  return {
+    ambiguous: true,
+    runtimes: considered.map(r => r.runtime),
+    candidates: Object.fromEntries(considered.map(r => [r.runtime, r.candidates])),
+  };
+}
+
+export async function applySnippetFilter(candidates, snippet) {
+  if (!snippet) return { candidates, matches: [] };
+  const needle = snippet.toLowerCase();
+  const matches = [];
+  for (const candidate of candidates) {
+    let raw;
+    try {
+      raw = await readFile(candidate.transcriptPath, 'utf8');
+    } catch {
+      continue;
+    }
+    const index = raw.toLowerCase().indexOf(needle);
+    if (index === -1) continue;
+    const start = Math.max(0, index - 80);
+    const end = Math.min(raw.length, index + snippet.length + 80);
+    const snippetMatch = {
+      excerpt: snippet,
+      context: raw.slice(start, end).replace(/\s+/g, ' ').trim(),
+    };
+    matches.push({ ...candidate, snippetMatch });
+  }
+  return { candidates: matches, matches };
+}
+
+function noMatchOutcome(payload, message) {
+  return { ok: false, kind: 'noMatch', exitCode: 2, payload, message };
+}
+
+function inputNeededOutcome(kind, payload, message) {
+  return { ok: false, kind, exitCode: 3, payload, message };
+}
+
+function errorOutcome(message) {
+  return { ok: false, kind: 'error', exitCode: 1, message };
+}
+
+async function sessionStateFor(runtime, sessionId) {
+  try {
+    return await stateLib.getSession(runtime, sessionId);
+  } catch {
+    return null;
+  }
+}
+
+async function markReadIfNeeded(runtime, candidate, sessionState, digest) {
+  if (!shouldMarkCatchUpRead(sessionState, digest)) return false;
+  try {
+    await stateLib.markRead(runtime, candidate.sessionId, {
+      lastRecordIndex: digest.range.nextIndex,
+      lastTotalRecords: digest.range.totalRecords,
+      transcriptPath: candidate.transcriptPath,
+      recordedCwd: candidate.recordedCwd,
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function watchedByPidWarnings(sessionState, suppressWatchedWarningPid) {
+  const watchedByPid = sessionState?.watchedByPid;
+  if (!watchedByPid || watchedByPid === suppressWatchedWarningPid) return [];
+  return [
+    `watcher pid ${watchedByPid} is also reading this session; offsets may interleave (benign)`,
+  ];
+}
+
+async function buildCatchUpDigest(runtime, candidate, {
+  fromIndex,
+  includeTools,
+  includeToolResults,
+  includeCommandMessages,
+  maxTurns,
+  maxBytes,
+  matchedTier = null,
+  active = false,
+  warnings = [],
+  fallbacks = [],
+}) {
+  return buildDigest(runtime, candidate.transcriptPath, {
+    fromIndex,
+    mode: 'catch-up',
+    includeToolCalls: includeTools,
+    includeToolResults,
+    includeCommandMessages,
+    maxTurns,
+    maxBytes,
+    sessionId: candidate.sessionId,
+    recordedCwd: candidate.recordedCwd,
+    matchedTier,
+    active,
+    warnings,
+    fallbacks,
+  });
+}
+
+async function observePinnedSession(runtime, cwd, pinnedSession, args) {
+  let candidates;
+  try {
+    candidates = await discover(runtime, cwd);
+  } catch (err) {
+    return errorOutcome(`Failed to discover transcripts: ${err.message}`);
+  }
+
+  if (candidates.length === 0) {
+    return noMatchOutcome(
+      { noMatch: true, runtime, cwd },
+      `No ${runtime} transcripts found for cwd: ${cwd}`
+    );
+  }
+
+  const pinned = candidates.find(
+    c => c.runtime === pinnedSession.runtime && c.sessionId === pinnedSession.sessionId
+  );
+  if (!pinned) {
+    return errorOutcome(`Pinned session not found: ${args.session}. Run locate to see available sessions.`);
+  }
+
+  const sessionState = await sessionStateFor(pinnedSession.runtime, pinned.sessionId);
+  const fromIndex = sessionState?.lastRecordIndex ?? 0;
+  const warnings = watchedByPidWarnings(sessionState, args.suppressWatchedWarningPid);
+
+  let digest;
+  try {
+    digest = await buildCatchUpDigest(pinnedSession.runtime, pinned, {
+      ...args,
+      fromIndex,
+      active: pinned.active ?? false,
+      warnings,
+      fallbacks: [],
+    });
+  } catch (err) {
+    return errorOutcome(`Failed to build digest: ${err.message}`);
+  }
+
+  const markedRead = await markReadIfNeeded(pinnedSession.runtime, pinned, sessionState, digest);
+  return {
+    ok: true,
+    runtime: pinnedSession.runtime,
+    candidate: pinned,
+    digest,
+    sessionState,
+    fromIndex,
+    markedRead,
+  };
+}
+
+/**
+ * Run the catch-up locate/rank/digest/state pipeline and return an outcome.
+ *
+ * @param {object} args CLI-like options.
+ * @returns {Promise<object>}
+ */
+export async function observeCatchUp(args) {
+  const {
+    cwd,
+    session,
+    snippet,
+  } = args;
+  let { runtime } = args;
+  const pinnedSession = parsePinnedSession(session);
+  if (pinnedSession?.error) return errorOutcome(pinnedSession.error);
+  if (pinnedSession) runtime = pinnedSession.runtime;
+
+  if (runtime === 'auto') {
+    const resolved = await resolveAutoRuntime(cwd);
+    if (resolved.noMatch) {
+      return noMatchOutcome(
+        { noMatch: true, cwd, message: 'No candidates found in any runtime for this cwd.' },
+        `No peer-session candidates found for cwd: ${cwd}`
+      );
+    }
+    if (resolved.ambiguous) {
+      return inputNeededOutcome(
+        'ambiguousRuntime',
+        {
+          ambiguousRuntime: true,
+          runtimes: resolved.runtimes,
+          message: 'Candidates found in multiple runtimes. Use --runtime to specify.',
+        },
+        `Ambiguous runtime: candidates found in both ${resolved.runtimes.join(', ')}. ` +
+          `Specify --runtime <runtime>.`
+      );
+    }
+    runtime = resolved.runtime;
+  }
+
+  if (pinnedSession) {
+    return observePinnedSession(runtime, cwd, pinnedSession, args);
+  }
+
+  let candidates;
+  try {
+    candidates = await discover(runtime, cwd);
+  } catch (err) {
+    return errorOutcome(`Failed to discover transcripts: ${err.message}`);
+  }
+
+  if (candidates.length === 0) {
+    return noMatchOutcome(
+      { noMatch: true, runtime, cwd },
+      `No ${runtime} transcripts found for cwd: ${cwd}`
+    );
+  }
+
+  if (snippet) {
+    const filtered = await applySnippetFilter(candidates, snippet);
+    candidates = filtered.candidates;
+    if (candidates.length === 0) {
+      return noMatchOutcome(
+        {
+          noMatch: true,
+          runtime,
+          cwd,
+          snippet,
+          message: 'No candidate transcripts contained the provided snippet.',
+        },
+        `No ${runtime} candidate transcripts contained the provided snippet.`
+      );
+    }
+  }
+
+  const worktrees = await gitWorktrees(cwd).catch(() => []);
+  const rankResult = rank(candidates, cwd, { gitWorktrees: worktrees });
+
+  if (rankResult.noMatch) {
+    return noMatchOutcome(
+      {
+        noMatch: true,
+        runtime,
+        cwd,
+        sisters: rankResult.sisters,
+        globalRecent: rankResult.globalRecent,
+      },
+      `No ${runtime} transcripts matched cwd: ${cwd}`
+    );
+  }
+
+  if (rankResult.ties && rankResult.ties.length > 0) {
+    return inputNeededOutcome(
+      'ties',
+      { ties: true, candidates: [rankResult.winner, ...rankResult.ties] },
+      'Multiple sessions tied. Use --session to disambiguate.'
+    );
+  }
+
+  const winner = rankResult.winner;
+  const sessionState = await sessionStateFor(runtime, winner.sessionId);
+  const fromIndex = sessionState?.lastRecordIndex ?? 0;
+  const warnings = [
+    ...watchedByPidWarnings(sessionState, args.suppressWatchedWarningPid),
+    ...(winner.snippetMatch
+    ? [`Selected session by snippet match: ${winner.sessionId} (${winner.recordedCwd ?? 'unknown cwd'})`]
+    : []),
+  ];
+
+  let digest;
+  try {
+    digest = await buildCatchUpDigest(runtime, winner, {
+      ...args,
+      fromIndex,
+      matchedTier: rankResult.tier,
+      active: winner.active,
+      warnings,
+      fallbacks: rankResult.fallbacks,
+    });
+  } catch (err) {
+    return errorOutcome(`Failed to build digest: ${err.message}`);
+  }
+
+  const markedRead = await markReadIfNeeded(runtime, winner, sessionState, digest);
+  return {
+    ok: true,
+    runtime,
+    candidate: winner,
+    rankResult,
+    digest,
+    sessionState,
+    fromIndex,
+    markedRead,
+  };
+}
