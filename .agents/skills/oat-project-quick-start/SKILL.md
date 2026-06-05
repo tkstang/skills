@@ -1,6 +1,6 @@
 ---
 name: oat-project-quick-start
-version: 2.1.4
+version: 2.1.6
 description: Use when a task is small enough for quick mode or rapid iteration is preferred. Scaffolds a lightweight OAT project from discovery directly to a runnable plan, with optional brainstorming and lightweight design.
 argument-hint: '<project-name> ["project description"]'
 disable-model-invocation: true
@@ -57,13 +57,14 @@ When executing this skill, provide lightweight progress feedback so the user can
   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 - Before multi-step work, print step indicators, e.g.:
-  - `[0/6] Checking inherited git state...`
-  - `[1/6] Scaffolding quick-mode project…`
-  - `[2/6] Exploring solution space + capturing discovery…`
-  - `[3/6] Decision point: design depth…`
-  - `[4/6] Generating execution plan…`
-  - `[5/6] Initializing implementation tracker…`
-  - `[6/6] Refreshing dashboard…`
+  - `[0/7] Checking inherited git state...`
+  - `[1/7] Scaffolding quick-mode project…`
+  - `[2/7] Exploring solution space + capturing discovery…`
+  - `[3/7] Decision point: design depth…`
+  - `[4/7] Generating execution plan…`
+  - `[5/7] Running plan artifact review…`
+  - `[6/7] Initializing implementation tracker…`
+  - `[7/7] Refreshing dashboard…`
   - _(If lightweight design is chosen, insert design steps between 3 and 4)_
 
 ## Artifact Persistence (Required)
@@ -423,6 +424,14 @@ git add "$PROJECT_PATH/design.md" "$PROJECT_PATH/state.md"
 git diff --cached --quiet || git commit -m "chore(oat): capture quick-start design for {project-name}"
 ```
 
+Complete discovery through the CLI validation boundary before proceeding to plan generation:
+
+```bash
+oat project complete-discovery "$PROJECT_PATH" --ready-for oat-project-quick-start
+git add "$PROJECT_PATH/discovery.md" "$PROJECT_PATH/state.md"
+git diff --cached --quiet || git commit -m "chore(oat): complete quick-start discovery for {project-name}"
+```
+
 ### Step 3: Generate Plan Directly
 
 Create/update `"$PROJECT_PATH/plan.md"` from `.oat/templates/plan.md`.
@@ -513,6 +522,27 @@ must block before work starts if it still cannot resolve a ceiling.
 Do not treat provider default effort as the OAT dispatch ceiling. Provider
 default is informational for base/unpinned roles only.
 
+### Step 3.6: Run Plan Artifact Review Loop
+
+Invoke the shared `Auto Artifact-Review Loop` from `oat-project-plan-writing` with target `plan` before syncing project state or handing off to implementation.
+
+Required payload:
+
+- `target: plan`
+- `type: artifact`
+- `scope: plan`
+- `artifact_path: "$PROJECT_PATH/plan.md"`
+- `oat_output_mode: structured`
+
+Apply the shared loop exactly:
+
+- Resolve `workflow.autoArtifactReview.plan`; only an explicit `false` skips the loop.
+- Resolve `oat_orchestration_retry_limit` from project state, defaulting to `2`.
+- Dispatch `oat-reviewer` in structured mode using Tier 1 subagent when available and Tier 2 inline fallback otherwise.
+- Apply Critical and Important artifact-local fixes when unambiguous; offer Medium and Minor fixes instead of silently applying them.
+- Re-dispatch after rewrites until clean or the retry bound is exhausted.
+- Update the `plan` artifact row in the `## Reviews` table to `passed` when clean. If residual findings remain, preserve the row and surface the residual findings before downstream handoff.
+
 ### Step 4: Sync Project State
 
 Update `"$PROJECT_PATH/state.md"`:
@@ -527,6 +557,7 @@ Recommended quick-mode gate defaults:
 
 - keep implementation phase checkpoints via `oat_plan_hill_phases`
 - do not require discovery/spec/design artifact review rows to be passed before implementation
+- record the `plan` artifact review row from Step 3.6 unless `workflow.autoArtifactReview.plan` was explicitly disabled
 
 ### Step 5: Initialize Implementation Tracking
 
@@ -577,5 +608,6 @@ Report:
 - ✅ `state.md` marks `oat_workflow_mode: quick`.
 - ✅ `discovery.md` contains synthesized or backfilled quick discovery decisions from the session context.
 - ✅ `plan.md` is complete and executable (`oat_ready_for: oat-project-implement`).
+- ✅ `plan.md` records the plan artifact review row unless `workflow.autoArtifactReview.plan` was explicitly disabled.
 - ✅ `implementation.md` is initialized for resumable execution.
 - ✅ Changed quick-start artifacts are committed before handoff or pause; `.oat/state.md` is refreshed locally when available.

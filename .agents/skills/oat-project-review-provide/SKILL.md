@@ -1,8 +1,8 @@
 ---
 name: oat-project-review-provide
-version: 1.3.5
-description: Use when completed work in an active OAT project needs a quality gate before merge. Performs a lifecycle-scoped review after a task, phase, or full implementation, unlike oat-review-provide.
-disable-model-invocation: true
+version: 1.3.7
+description: Use when the user explicitly asks to review an OAT project — e.g. "review project", "review the project", "run project review", or confirms a previously offered review. Do NOT auto-invoke on completed work alone. Resolves a project review scope and offers before running.
+disable-model-invocation: false
 user-invocable: true
 allowed-tools: Read, Glob, Grep, Bash(git:*), AskUserQuestion
 ---
@@ -19,9 +19,17 @@ Reviewers should distinguish implementation defects from artifact drift. If code
 
 ## Prerequisites
 
-**Required:** Active project with at least one completed task.
+**Required:** Active project or explicit user-provided project/review target that resolves to project state, with at least one completed task.
 
 **Required:** Core project artifacts are already committed before the review begins. Review should not be the first step that notices an untracked project tree or pending bookkeeping-only artifact edits.
+
+## Model Invocation Gate
+
+This skill is model-invokable only for explicit review asks such as "review project" or "review the project", or when the user confirms a previously offered project-review step. Do NOT auto-invoke merely because a task, phase, or implementation appears complete.
+
+Before acting, verify that there is an active OAT project or a user-provided review target that can be resolved to project state. If neither exists, do not run this skill; offer `oat-project-open` / `oat-project-quick-start` for project workflow setup, or `oat-review-provide` for a non-project ad-hoc review.
+
+When the gate passes, summarize the inferred review type and scope, then ask before running the review.
 
 ## Mode Assertion
 
@@ -84,7 +92,7 @@ Run the `oat-project-review-provide` skill and it will:
 
 ## Process
 
-### Step 0: Resolve Active Project (Hard Requirement)
+### Step 0: Resolve Project or Explicit Review Target
 
 OAT stores active project context in `.oat/config.local.json` (`activeProject`, local-only).
 
@@ -96,21 +104,26 @@ PROJECTS_ROOT="${PROJECTS_ROOT%/}"
 
 Validation rules:
 
-- `PROJECT_PATH` must be set and point to an existing directory.
-- `"$PROJECT_PATH/state.md"` must exist for mode-aware review validation.
+- Prefer `PROJECT_PATH` from `activeProject` when it is set and points to an existing directory.
+- If `activeProject` is missing or invalid, allow an explicit user-provided project/review target to resolve `PROJECT_PATH`:
+  - project path, e.g. `.oat/projects/shared/{project-name}`
+  - project name, resolved as `${PROJECTS_ROOT}/{project-name}`
+  - review target phrasing that includes a project name or project path
+- A resolved `PROJECT_PATH` must point to an existing directory.
+- `"$PROJECT_PATH/state.md"` must exist for mode-aware project review validation.
 
-If either check fails, **stop and route**. Do not create/guess project pointers in this skill.
+If neither an active project nor an explicit target resolves to a valid `PROJECT_PATH` with `state.md`, **stop and route**. Do not create or guess project pointers in this skill.
 
 Tell user:
 
-- This is a project-scoped skill and needs an initialized OAT project (`activeProject` in `.oat/config.local.json` + project `state.md`).
-- Without project state, review can still proceed via non-project skill: `oat-review-provide`.
+- This is a project-scoped skill and needs an initialized OAT project, either from `activeProject` or from a project/review target the user explicitly provided.
+- Without resolvable project state, review can still proceed via non-project skill: `oat-review-provide`.
 - To continue with project workflow instead, run one of:
   - `oat-project-open` (existing project)
   - `oat-project-quick-start` (new quick project)
   - `oat-project-import-plan` (external plan import)
 
-If validation passes, derive `{project-name}` as basename of `PROJECT_PATH`.
+If validation passes, derive `{project-name}` as basename of `PROJECT_PATH`. Summarize the resolved project/review target and ask before continuing to Step 1.
 
 ### Step 1: Parse Arguments or Ask
 

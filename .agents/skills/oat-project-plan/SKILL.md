@@ -1,6 +1,6 @@
 ---
 name: oat-project-plan
-version: 1.3.4
+version: 1.3.5
 description: Use when design.md is complete and executable implementation tasks are needed. Breaks design into bite-sized TDD tasks in canonical plan.md format.
 disable-model-invocation: true
 user-invocable: true
@@ -41,11 +41,12 @@ When executing this skill, provide lightweight progress feedback so the user can
   OAT ▸ PLAN
   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-- Before multi-step work (drafting/finalizing/committing), print 2–5 short step indicators, e.g.:
-  - `[1/4] Reading design + context…`
-  - `[2/4] Drafting phases + tasks…`
-  - `[3/4] Finalizing plan + rollups…`
-  - `[4/4] Updating state + committing…`
+- Before multi-step work (drafting/finalizing/reviewing/committing), print 2–5 short step indicators, e.g.:
+  - `[1/5] Reading design + context…`
+  - `[2/5] Drafting phases + tasks…`
+  - `[3/5] Finalizing plan + rollups…`
+  - `[4/5] Running plan artifact review…`
+  - `[5/5] Updating state + committing…`
 - For any operation that may take noticeable time (e.g., reading large artifacts), print a start line and a completion line (duration optional).
 - Keep it concise; don’t print a line for every shell command.
 
@@ -293,7 +294,7 @@ This creates traceability: Requirement → Tasks → Implementation
 ### Step 10.1: Keep Reviews Table Rows
 
 Follow the review table preservation rules from `oat-project-plan-writing`:
-- Include both **code** rows (p01/p02/…/final) and **artifact** rows (`spec`, `design`)
+- Include both **code** rows (p01/p02/…/final) and **artifact** rows (`spec`, `design`, `plan`)
 - Add additional rows as needed (e.g., p03), but never delete existing rows
 
 **Why stable IDs:** Using `p01-t03` instead of "Task 3" prevents broken references when tasks are inserted or reordered.
@@ -381,12 +382,34 @@ Ask: "Does this breakdown make sense? Any tasks missing?"
 
 Iterate until user confirms.
 
+### Step 12.5: Run Plan Artifact Review Loop
+
+Invoke the shared `Auto Artifact-Review Loop` from `oat-project-plan-writing` with target `plan` before setting `plan.md` to implementation-ready.
+
+Required payload:
+
+- `target: plan`
+- `type: artifact`
+- `scope: plan`
+- `artifact_path: "$PROJECT_PATH/plan.md"`
+- `oat_output_mode: structured`
+
+Apply the shared loop exactly:
+
+- Resolve `workflow.autoArtifactReview.plan`; only an explicit `false` skips the loop.
+- Resolve `oat_orchestration_retry_limit` from project state, defaulting to `2`.
+- Dispatch `oat-reviewer` in structured mode using Tier 1 subagent when available and Tier 2 inline fallback otherwise.
+- Apply Critical and Important artifact-local fixes when unambiguous; offer Medium and Minor fixes instead of silently applying them.
+- Re-dispatch after rewrites until clean or the retry bound is exhausted.
+- Update the `plan` artifact row in the `## Reviews` table to `passed` when clean. If residual findings remain, preserve the row and surface the residual findings before downstream handoff.
+
 ### Step 13: Mark Plan Complete
 
 Before setting `oat_status: complete`, verify:
 - `## Planning Checklist` exists
 - the checklist records that checkpoint confirmation is deferred to implementation
 - if `oat_plan_hill_phases` is already present, it is intentionally preserved and valid
+- the `plan` artifact review row has been recorded by Step 12.5, unless `workflow.autoArtifactReview.plan` was explicitly disabled
 
 Update frontmatter:
 ```yaml
