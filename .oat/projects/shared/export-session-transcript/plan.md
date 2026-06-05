@@ -311,6 +311,63 @@ git diff --cached --quiet || git commit -m "chore(p03-t02): user-level skill syn
 
 ---
 
+### Task p03-t03: (review) Skip Codex candidates with unresolved recordedCwd in --all (final review m1)
+
+**Files:**
+
+- Modify: `skills/export-session-transcript/scripts/export-session-transcript.mjs`
+- Modify: `tests/export-session-transcript/cli.test.mjs`
+
+**Step 1: Understand the issue**
+
+Review finding m1 (final review): the candidate filter `if (meta?.recordedCwd && meta.recordedCwd !== targetCwd) continue;` includes Codex transcripts whose `recordedCwd` is null (corrupt/partial files), so `--all`/no-selector enumeration can include a cwd-less session. Harmless in the default `--match` flow, but `--all` should not export unrelated/cwd-less sessions.
+
+**Step 2: Implement fix**
+
+For the `--all` (and no-selector) enumeration path, treat an unresolved `recordedCwd` as a non-match (exclude it), rather than including it. Keep the `--match` and `--session` paths unchanged (marker/id are authoritative there).
+
+**Step 3: Verify**
+
+Run: `node --test tests/export-session-transcript/cli.test.mjs`
+Expected: pass, including a new test asserting a Codex candidate with null `recordedCwd` is excluded from `--all`.
+
+**Step 4: Commit**
+
+```bash
+git add skills/export-session-transcript/scripts/export-session-transcript.mjs tests/export-session-transcript/cli.test.mjs
+git commit -m "fix(p03-t03): exclude unresolved-cwd Codex candidates from --all (review m1)"
+```
+
+---
+
+### Task p03-t04: (review) Document --all/--match mode precedence in SKILL.md (final review m2)
+
+**Files:**
+
+- Modify: `skills/export-session-transcript/SKILL.md`
+
+**Step 1: Understand the issue**
+
+Review finding m2 (final review): `--all` takes precedence and `--match` is ignored under `--all`. This is the correct, documented mode precedence, but the SKILL.md flag table does not state it.
+
+**Step 2: Implement fix**
+
+Add a short precedence note to the SKILL.md flag table / modes section: modes are mutually exclusive with precedence `--all` > `--session` > `--match` (default).
+
+**Step 3: Verify**
+
+Run: `npm run validate`
+Expected: pass (SKILL.md frontmatter still valid).
+
+**Step 4: Commit**
+
+```bash
+git add skills/export-session-transcript/SKILL.md
+git commit -m "docs(p03-t04): document --all/--match mode precedence (review m2)"
+```
+
+---
+
 ## Reviews
 
 | Scope  | Type     | Status   | Date       | Artifact                                               |
@@ -318,7 +375,7 @@ git diff --cached --quiet || git commit -m "chore(p03-t02): user-level skill syn
 | p01    | code     | passed   | 2026-06-05 | Tier 1 in-run review (structured, pass)                |
 | p02    | code     | passed   | 2026-06-05 | Tier 1 in-run review (fail→fix a1c24fb→pass)           |
 | p03    | code     | passed   | 2026-06-05 | Tier 1 in-run review (p03-t01, pass)                   |
-| final  | code     | pending  | -          | -                                                      |
+| final  | code     | fixes_added | 2026-06-05 | reviews/archived/final-review-2026-06-05.md          |
 | spec   | artifact | pending  | -          | -                                                      |
 | design | artifact | passed   | 2026-06-05 | reviews/archived/artifact-design-review-2026-06-05.md  |
 | plan   | artifact | passed   | 2026-06-05 | reviews/archived/artifact-plan-review-2026-06-05.md    |
@@ -340,9 +397,9 @@ git diff --cached --quiet || git commit -m "chore(p03-t02): user-level skill syn
 
 - Phase 1: 2 tasks — extract canonical `transcript-core`, add sync + drift guard, migrate `session-observer`
 - Phase 2: 3 tasks — scaffold export skill + SKILL.md, content sanitizer, export CLI
-- Phase 3: 2 tasks — docs/repo-layout invariants + full verification; user-level skill sync closeout
+- Phase 3: 4 tasks — docs/repo-layout invariants + full verification; user-level skill sync closeout; final-review fixes (m1 `--all` cwd guard, m2 SKILL.md precedence note)
 
-**Total: 7 tasks**
+**Total: 9 tasks**
 
 Ready for code review and merge.
 
@@ -353,4 +410,4 @@ Ready for code review and merge.
 - Design: `design.md` (lightweight design; reviewed + findings resolved)
 - Spec: `spec.md` (N/A — quick mode)
 - Discovery: `discovery.md`
-- Review history: `reviews/archived/artifact-design-review-2026-06-05.md`, `reviews/archived/artifact-plan-review-2026-06-05.md`
+- Review history: `reviews/archived/artifact-design-review-2026-06-05.md`, `reviews/archived/artifact-plan-review-2026-06-05.md`, `reviews/archived/final-review-2026-06-05.md`

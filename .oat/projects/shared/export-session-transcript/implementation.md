@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-05
-oat_current_task_id: null
+oat_current_task_id: p03-t03
 oat_generated: false
 ---
 
@@ -28,9 +28,9 @@ oat_generated: false
 | -------------------------------------------------- | ------- | ----- | --------- |
 | Phase 1: Extract transcript-core + migrate observer | complete | 2     | 2/2       |
 | Phase 2: Build export-session-transcript skill      | complete | 3     | 3/3       |
-| Phase 3: Docs + repo invariants + verification      | complete | 2     | 2/2       |
+| Phase 3: Docs + repo invariants + verification      | in_progress | 4  | 2/4       |
 
-**Total:** 7/7 tasks completed
+**Total:** 7/9 tasks completed
 
 ---
 
@@ -175,6 +175,8 @@ oat_generated: false
 **Started:** 2026-06-05
 **Completed:** 2026-06-05
 
+**Note:** Phase reopened after the final review to convert 2 Minor findings (m1, m2) into fix tasks p03-t03/p03-t04 (user chose "convert both").
+
 ### Phase Summary
 
 **Outcome (what changed):**
@@ -207,6 +209,35 @@ oat_generated: false
 
 - User decision: "Run now, export only." Installed `~/.agents/skills/export-session-transcript` from this worktree; ran `oat sync --scope user`, which created `~/.claude/skills/export-session-transcript` + `~/.cursor/skills/export-session-transcript` symlinks → canonical copy. session-observer global copy intentionally left untouched until this branch merges.
 - Follow-up (deferred): refresh `~/.agents/skills/session-observer` after merge so its global copy tracks released code.
+
+---
+
+### Task p03-t03: (review) Skip Codex candidates with unresolved recordedCwd in --all (final review m1)
+
+**Status:** pending
+**Commit:** -
+
+---
+
+### Task p03-t04: (review) Document --all/--match mode precedence in SKILL.md (final review m2)
+
+**Status:** pending
+**Commit:** -
+
+---
+
+### Review Received: final
+
+**Date:** 2026-06-05
+**Review artifact:** reviews/archived/final-review-2026-06-05.md
+
+**Findings:** 0 Critical, 0 Important, 0 Medium, 2 Minor
+
+**Disposition:** Both minors converted to fix tasks (user choice "convert both"):
+- m1 → p03-t03: exclude unresolved-`recordedCwd` Codex candidates from `--all`.
+- m2 → p03-t04: document `--all` > `--session` > `--match` mode precedence in SKILL.md.
+
+**Next:** Implement p03-t03/p03-t04, re-verify, then mark `final` review `passed`.
 
 ---
 
