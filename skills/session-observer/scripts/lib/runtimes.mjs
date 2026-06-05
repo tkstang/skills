@@ -1,3 +1,6 @@
+// GENERATED — do not edit. Source: shared/transcript-core/runtimes.mjs
+// Run: npm run sync:transcript-core
+
 /**
  * runtimes.mjs — Per-runtime transcript adapters for Claude Code, Codex, and Cursor.
  *

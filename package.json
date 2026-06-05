@@ -7,6 +7,7 @@
     "node": ">=22"
   },
   "scripts": {
+    "sync:transcript-core": "node scripts/sync-transcript-core.mjs",
     "test": "node --test",
     "validate": "node scripts/validate.mjs",
     "smoke": "node scripts/smoke-test.mjs"
