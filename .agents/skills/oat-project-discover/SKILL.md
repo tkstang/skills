@@ -1,8 +1,8 @@
 ---
 name: oat-project-discover
-version: 2.0.2
-description: Use when starting a project or when requirements are still unclear. Runs structured discovery to gather requirements, constraints, and context.
-disable-model-invocation: true
+version: 2.0.3
+description: Use when the user explicitly asks to continue discovery for an active spec-driven OAT project — e.g. "continue discovery", "run discovery", or confirms a previously offered discovery step. Do NOT auto-invoke for new ideas or quick-mode projects. Gathers requirements and context before spec/design.
+disable-model-invocation: false
 user-invocable: true
 allowed-tools: Read, Write, Bash(git:*), Bash(oat:*), Bash(pnpm:*), Glob, Grep, AskUserQuestion
 ---
@@ -14,6 +14,20 @@ Gather requirements and understand the problem space through natural collaborati
 ## Prerequisites
 
 **Required:** Knowledge base must exist. If missing, run the `oat-repo-knowledge-index` skill first.
+
+**Required for model invocation:** An active spec-driven OAT project must already exist. If no active project exists, route to `oat-project-new` for spec-driven setup or `oat-project-quick-start` for quick workflow. If the active project is quick or import mode, decline this skill and route to the current mode's next step instead.
+
+## Model Invocation Gate
+
+This skill is model-invokable only for explicit discovery-continuation asks on an active spec-driven project. Do NOT auto-invoke when the user mentions a new idea, asks for a quick workflow, or has an active quick/import project.
+
+Before acting:
+
+1. Resolve `activeProject`.
+2. Confirm `{PROJECT_PATH}/state.md` exists.
+3. Confirm `oat_workflow_mode` is `spec-driven` or absent only in a legacy spec-driven project.
+
+If any check fails, decline this skill. Offer `oat-project-new` for a new spec-driven project, `oat-project-quick-start` for a quick project, or `oat-project-open` for switching to an existing project. When the gate passes, summarize the active project and ask before continuing discovery.
 
 ## Mode Assertion
 
@@ -68,7 +82,7 @@ If you catch yourself:
 
 ## Process
 
-### Step 1: Resolve Active Project (or Create a New One)
+### Step 1: Resolve Active Spec-Driven Project
 
 OAT stores active project context in `.oat/config.local.json` (`activeProject`, local-only).
 
@@ -84,6 +98,10 @@ PROJECTS_ROOT="${PROJECTS_ROOT%/}"
 
 - Derive `project-name` from the directory name (basename of the path)
 - Read `{PROJECT_PATH}/state.md` (if it exists) and show current status
+- Read `oat_workflow_mode` from `{PROJECT_PATH}/state.md`
+- If `oat_workflow_mode` is present and not `spec-driven`, stop and route:
+  - quick project: continue with `oat-project-quick-start` / `oat-project-progress`
+  - import project: continue with `oat-project-import-plan` / `oat-project-progress`
 - Ask user:
   - **Continue** with active project, or
   - **Switch projects**:

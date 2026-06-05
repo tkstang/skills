@@ -311,6 +311,63 @@ test('Within a tier, candidates sorted by mtime DESC', () => {
   }
 });
 
+test('engaged same-cwd session beats newer unengaged bootstrap session', () => {
+  const bootstrap = mkCandidate({
+    recordedCwd: TARGET_CWD,
+    mtime: NOW - 1,
+    ageSec: 1,
+    sessionId: 'sess-bootstrap',
+    size: 120_000,
+    engagementStatus: 'unengaged',
+    engaged: false,
+    recordCount: 6,
+    genuineUserMessages: 0,
+    assistantMessages: 0,
+    realMessageCount: 0,
+    hasAssistantAndUser: false,
+  });
+  const human = mkCandidate({
+    recordedCwd: TARGET_CWD,
+    mtime: NOW - 3600,
+    ageSec: 3600,
+    sessionId: 'sess-human',
+    size: 80_000,
+    engagementStatus: 'engaged',
+    engaged: true,
+    recordCount: 200,
+    genuineUserMessages: 12,
+    assistantMessages: 12,
+    realMessageCount: 24,
+    hasAssistantAndUser: true,
+  });
+
+  const result = rank([bootstrap, human], TARGET_CWD);
+
+  assert.equal(result.winner.sessionId, 'sess-human');
+  assert.equal(result.tier, 'A');
+  assert.equal(result.fallbacks[0].sessionId, 'sess-bootstrap');
+});
+
+test('only unengaged same-cwd candidates surface unengagedOnly instead of a winner', () => {
+  const bootstrap = mkCandidate({
+    recordedCwd: TARGET_CWD,
+    sessionId: 'sess-bootstrap-only',
+    engagementStatus: 'unengaged',
+    engaged: false,
+    recordCount: 5,
+    genuineUserMessages: 0,
+    assistantMessages: 0,
+    realMessageCount: 0,
+    hasAssistantAndUser: false,
+  });
+
+  const result = rank([bootstrap], TARGET_CWD);
+
+  assert.equal(result.winner, null);
+  assert.equal(result.unengagedOnly, true);
+  assert.equal(result.candidates[0].sessionId, 'sess-bootstrap-only');
+});
+
 test('tierOf: Tier A for exact cwd match', () => {
   if (!tierOf) return; // tierOf export is optional per plan
   const candidate = mkCandidate({ recordedCwd: TARGET_CWD });

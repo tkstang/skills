@@ -221,6 +221,42 @@ export async function validateReadmeInstallMatrix(root) {
   return issues;
 }
 
+export async function validateSessionObserverWatchDocs(root) {
+  const issues = [];
+  const canonicalSkillPath = path.join(root, 'skills/session-observer/SKILL.md');
+  if (!(await pathExists(canonicalSkillPath))) {
+    return issues;
+  }
+
+  const docPaths = [
+    'skills/session-observer/SKILL.md',
+    'skills/session-observer/references/watch-design.md',
+    '.agents/skills/session-observer/SKILL.md',
+    '.agents/skills/session-observer/references/watch-design.md'
+  ];
+
+  for (const relativePath of docPaths) {
+    const docPath = path.join(root, relativePath);
+    if (!(await pathExists(docPath))) {
+      issues.push(`${relativePath} missing session-observer watch documentation`);
+      continue;
+    }
+
+    const content = await readFile(docPath, 'utf8');
+    if (/\bnot implemented\b/iu.test(content) || /\bdesign-only\b/iu.test(content)) {
+      issues.push(`${relativePath} contains stale watch-mode implementation status`);
+    }
+
+    for (const token of ['watch', 'watch-ctl', '--watch']) {
+      if (!content.includes(token)) {
+        issues.push(`${relativePath} missing watch command surface token: ${token}`);
+      }
+    }
+  }
+
+  return issues;
+}
+
 export async function validateVersionConsistency(root) {
   const versions = new Map();
   const issues = [];
@@ -327,6 +363,7 @@ async function validateDocs(root) {
   }
 
   issues.push(...(await validateReadmeInstallMatrix(root)));
+  issues.push(...(await validateSessionObserverWatchDocs(root)));
   return issues;
 }
 

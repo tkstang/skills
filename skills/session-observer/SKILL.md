@@ -3,7 +3,7 @@ name: session-observer
 description: Use when checking what another coding agent (Claude Code, Codex, or Cursor) just did in this project, reviewing a peer session, or catching up on new messages. Locates the active transcript, renders a tool-free digest, and tracks per-runtime read offsets.
 license: MIT
 compatibility: Agent Skills baseline; requires Node.js 22+. No third-party runtime dependencies.
-argument-hint: '[review|catch-up|locate|state] [--runtime <claude-code|codex|cursor|auto>] [--debug]'
+argument-hint: '[review|catch-up|locate|state|watch|watch-ctl|--watch] [--runtime <claude-code|codex|cursor|auto|both>] [--debug]'
 disable-model-invocation: false
 user-invocable: true
 allowed-tools: Bash, Read, AskUserQuestion
@@ -29,7 +29,9 @@ Use this skill when any of the following applies:
 | `check Cursor` / `summarize Cursor's agent session` | `review --runtime cursor` |
 | `check again` / `anything new?` | `catch-up` (auto runtime) |
 | `what do you think of what was just said?` | `catch-up`, then comment |
-| `get up to speed` / `start watching this session` | `review` once, `catch-up` thereafter |
+| `get up to speed` | `review` once, `catch-up` thereafter |
+| `start watching this session` / `keep watching Codex` / `respond when anything new appears` | `watch --runtime <peer>` or `--watch --runtime <peer>` |
+| `catch up and watch Claude` / `catch up, then keep watching <peer>` | `catch-up --runtime <peer>`, then `watch --runtime <peer>` |
 | `which sessions are available?` / `find the session` | `locate` |
 | `reset / start over watching Codex` | `state reset --runtime codex`, then `review` |
 
@@ -41,7 +43,7 @@ Use this skill when any of the following applies:
 
 - When you already know what the peer did (skip the check).
 - When you want to save findings to memory/vault (use `stoa-capture` instead — this skill is read-only).
-- When you want a continuous live feed. **Watch mode is designed but not implemented in v1.** See `references/watch-design.md` for the v2 design.
+- When you only need a one-time answer. Use `review` or `catch-up`; reserve `watch` for an active foreground monitoring session.
 - When the target runtime is your own. Use `--runtime <peer>` or let `auto` resolve the peer.
 
 ---
@@ -59,6 +61,12 @@ Use this skill when any of the following applies:
 | `state reset --runtime <r>` | Reset all offsets for runtime | Zeroes `lastRecordIndex` |
 | `state reset --session <r:id>` | Reset one session | Zeroes `lastRecordIndex` |
 | `state clear` | Clear all tracked sessions | Empties `sessions` map |
+| `watch` | Foreground watcher for debounced catch-up updates | Advances high-water marks as emitted digests are consumed |
+| `watch-ctl status` | Print active watcher state | None |
+| `watch-ctl pause` | Pause event emission while polling continues | Writes a control directive |
+| `watch-ctl resume` | Resume event emission | Writes a control directive |
+| `watch-ctl flush` | Emit pending debounced updates immediately | Writes a control directive |
+| `watch-ctl stop` | Stop the active watcher | Signals the watcher and clears watch metadata on exit |
 
 ### Flags (all subcommands accept these)
 
@@ -76,6 +84,19 @@ Use this skill when any of the following applies:
 | `--session <r:id>` | string | — | Pin to a specific `runtime:sessionId`. Overrides rank winner. |
 | `--snippet <text>` | string | — | Prefer candidate transcripts containing this excerpt. Use when the user identifies a session by its last message or a memorable phrase. |
 | `--mark-read` | boolean | false | Advance the high-water mark after a `review` run. |
+| `--watch` | boolean | false | Top-level alias for the `watch` subcommand. |
+
+### Watch-only flags
+
+| Flag | Type | Default | Description |
+|---|---|---|---|
+| `--runtime <r>` | `claude-code\|codex\|cursor\|auto\|both` | `auto` | Which runtime to watch. `both` watches Claude Code and Codex in one foreground process. |
+| `--debounce-sec N` | number | `2` | Seconds of quiet before emitting a catch-up digest. |
+| `--poll-sec N` | number | `2` | Poll interval in seconds. |
+| `--max-pending-sec N` | number | `30` | Maximum seconds to hold continuous transcript changes before emitting even if the file never goes quiet. |
+| `--max-runtime-min N` | number | `0` | Auto-exit after N minutes; `0` runs until stopped. |
+| `--event-log <path>` | path | — | Write metadata-only JSONL event records. Message content stays on stdout. |
+| `--json` | boolean | false | Emit each watch event as one JSON line instead of markdown. |
 
 ### Default content filter
 
@@ -147,6 +168,21 @@ node <skill-dir>/scripts/session-observer.mjs locate \
 # State — inspect or reset tracked offsets
 node <skill-dir>/scripts/session-observer.mjs state get
 node <skill-dir>/scripts/session-observer.mjs state reset --runtime codex
+
+# Watch — foreground monitoring with debounced catch-up updates
+node <skill-dir>/scripts/session-observer.mjs watch \
+  --runtime codex --cwd "$PWD" --poll-sec 2 --debounce-sec 2 --max-pending-sec 30
+
+# Top-level watch alias
+node <skill-dir>/scripts/session-observer.mjs --watch \
+  --runtime codex --cwd "$PWD"
+
+# Control an active watcher
+node <skill-dir>/scripts/session-observer.mjs watch-ctl status --json
+node <skill-dir>/scripts/session-observer.mjs watch-ctl pause
+node <skill-dir>/scripts/session-observer.mjs watch-ctl resume
+node <skill-dir>/scripts/session-observer.mjs watch-ctl flush
+node <skill-dir>/scripts/session-observer.mjs watch-ctl stop
 ```
 
 **JSON output for exit-2 / exit-3 payloads:**
@@ -165,6 +201,18 @@ On exit 3 (ambiguousRuntime):
 ```json
 { "ambiguousRuntime": true, "runtimes": ["claude-code", "codex", "cursor"] }
 ```
+
+**Watch mode operation:**
+
+Use `watch` when the user explicitly asks to keep monitoring a peer session, respond as new peer activity arrives, or watch another terminal while the current invocation remains active. `watch` is a foreground process: keep it running, actively read or poll its stdout, and respond to each emitted digest until the user asks you to stop, `watch-ctl stop` exits the watcher, `--max-runtime-min` expires, or the process exits for another reason.
+
+For combined catch-up/watch requests, run `catch-up` first, then start `watch`. Starting `watch` alone establishes an initial baseline and does not emit already-unread transcript content.
+
+Each emitted watch digest is equivalent to a debounced `catch-up` result and advances the high-water mark for the consumed raw transcript records. The debounce waits for `--debounce-sec` seconds of quiet, but continuous writes are still emitted after `--max-pending-sec` seconds so a busy transcript cannot starve the watcher indefinitely. If the watcher prints JSON lines, parse each line and respond to events that include digest content or metadata indicating new records. If it prints markdown, read each emitted digest before commenting.
+
+Automatic responses are bounded to the active invocation that started and is polling the watcher. In Claude Code, Codex, Cursor, and similar yield-after-turn harnesses, a backgrounded watch command does not wake the agent when stdout receives a new digest; the caller must keep reading stdout, periodically call `watch-ctl status --json`, or poll the transcript directly. Provider hook integrations that would wake a new invocation after this one ends are deferred; do not imply that watch events will automatically summon an agent after the active invocation has stopped watching.
+
+`watch-ctl status --json` reports the resolved runtime/session/transcript for each target plus live drift fields such as `transcriptRecords`, `lastRecordIndex`, `consumedThrough`, `recordsBehind`, `secondsSinceLastEmit`, and `healthy`. Treat `recordsBehind > 0` with `healthy: false` as a watcher problem or unread backlog, not as peer idleness.
 
 ### Step 3: Present digest and comment
 

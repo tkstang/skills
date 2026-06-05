@@ -1,6 +1,6 @@
 ---
 name: oat-project-plan-writing
-version: 1.2.4
+version: 1.2.5
 description: Use when authoring or mutating plan.md in any OAT workflow. Defines canonical format invariants — stable task IDs, required sections, review table rules, and resume guardrails.
 disable-model-invocation: true
 user-invocable: false
@@ -22,6 +22,49 @@ OAT ▸ PLAN WRITING
 This is a sub-phase indicator; the calling skill owns the top-level banner.
 
 - When invoked by a calling skill, print the sub-banner immediately before plan authoring begins.
+
+## Auto Artifact-Review Loop
+
+This is the canonical contract for bounded automated reviews of generated OAT artifacts. Calling skills own the concrete edits, progress indicators, and commits; this section defines the shared loop they must follow.
+
+Use this loop after an artifact has been written and before the calling skill hands off to the downstream consumer. Current targets:
+
+- `plan`: dispatch `oat-reviewer` with `type: artifact`, `scope: plan`, and `oat_output_mode: structured`.
+- `analysis`: dispatch `oat-reviewer` with `type: analysis`, `scope: docs` or `agent-instructions`, `analysis_artifact`, and `oat_output_mode: structured`.
+
+### Canonical Procedure
+
+1. **Resolve the gate**
+   - Read `workflow.autoArtifactReview.<target>` using the same config-resolution path as other `workflow.*` keys.
+   - Missing config means enabled. Only an explicit `false` disables the loop.
+   - If disabled, skip the review loop, note the skip in the calling skill's handoff/status output, and continue without pretending the artifact was reviewed.
+
+2. **Resolve the retry bound**
+   - Read `oat_orchestration_retry_limit` from the active project state.
+   - If absent, invalid, or unavailable, use default `2`.
+   - The bound controls rewrite/re-dispatch cycles after the initial review. A bound of `0` still permits the initial structured review, then surfaces residual findings without retrying.
+
+3. **Dispatch `oat-reviewer` in structured mode**
+   - Tier 1: use the configured `oat-reviewer` subagent when available and authorized.
+   - Tier 2: if Tier 1 is unavailable or declined, run the same reviewer prompt inline with the same payload and checklist.
+   - Always set `oat_output_mode: structured`; the loop consumes `StructuredFindings` in-memory and the reviewer writes no artifact.
+   - Do not downgrade the checklist when falling back inline. The fallback changes only execution tier, not review requirements.
+
+4. **Apply or offer fixes by severity**
+   - If the structured review is clean, proceed to outcome recording.
+   - Apply Critical and Important fixes by default when they are local to the reviewed artifact and the fix is unambiguous.
+   - Offer Medium and Minor fixes to the user instead of applying them silently.
+   - If a finding cannot be fixed within the artifact boundary, preserve it as residual and surface it before handoff.
+
+5. **Rewrite and re-dispatch within the bound**
+   - After applying fixes, rewrite the artifact and re-dispatch `oat-reviewer` with the same target payload.
+   - Each rewrite/re-dispatch cycle consumes one retry.
+   - Stop when the reviewer returns no findings or when the retry bound is exhausted.
+
+6. **Record the outcome**
+   - Record a clean pass or residual findings in the calling skill's lifecycle output before handoff.
+   - For `plan`, update the `plan` artifact row in the Reviews table without deleting any existing rows. Use `passed` when clean; if residual findings remain, preserve enough detail in the handoff for the next skill/user to act.
+   - For `analysis`, mark the analysis artifact as reviewed/verified using the calling skill's analysis-tracking convention, and surface any residual findings before the corresponding apply skill consumes it.
 
 ## Canonical Plan Format
 
@@ -98,7 +141,7 @@ If any required section is missing when a skill edits `plan.md`, it must be rest
 
 ### Review Table Preservation Rules
 
-- The `## Reviews` table includes both **code** rows (`p01`, `p02`, …, `final`) and **artifact** rows (`spec`, `design`).
+- The `## Reviews` table includes both **code** rows (`p01`, `p02`, …, `final`) and **artifact** rows (`spec`, `design`, `plan`).
 - Skills must **never delete** existing review rows.
 - New rows may be appended (e.g., `p03` for a newly added phase).
 - Status semantics: `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`.

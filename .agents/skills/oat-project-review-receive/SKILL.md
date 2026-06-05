@@ -1,10 +1,10 @@
 ---
 name: oat-project-review-receive
-version: 1.5.1
-description: Use when review findings from oat-project-review-provide need closure. Converts review artifacts into actionable plan tasks.
-disable-model-invocation: true
+version: 1.5.2
+description: Use when the user explicitly asks to receive review findings for an OAT project — e.g. "receive review", "process review", "process the project review", or confirms a previously offered review-receive step. Do NOT auto-invoke merely because a review file exists. Resolves the latest review and offers before acting.
+disable-model-invocation: false
 user-invocable: true
-allowed-tools: Read, Write, Bash(git:*), Glob, Grep, AskUserQuestion
+allowed-tools: Read, Write, Bash(git:*), Bash(oat:*), Glob, Grep, AskUserQuestion
 ---
 
 # Receive Review
@@ -17,9 +17,17 @@ Turn review output into plan changes and a clear next action. This closes the fe
 
 ## Prerequisites
 
-**Required:** An active review artifact exists in the top level of `{PROJECT_PATH}/reviews/` (not in `reviews/archived/`).
+**Required:** An active project review artifact can be resolved, usually from the top level of `{PROJECT_PATH}/reviews/`. Conversational entry may first discover the latest project or ad-hoc review with `oat review latest`; ad-hoc reviews should be routed to `oat-review-receive`.
 
 This skill assumes the reviewed project artifacts were already committed before the review ran. If you discover untracked core project artifacts here, treat that as earlier workflow drift and include them in the bookkeeping fix instead of leaving the project partially tracked.
+
+## Model Invocation Gate
+
+This skill is model-invokable only for explicit review-receive asks such as "receive review" or "process review", or when the user confirms a previously offered review-receive step. Do NOT auto-invoke just because a review artifact exists.
+
+Before acting, resolve either an active project review or a latest ad-hoc review target. If the latest target is ad-hoc, offer to route to `oat-review-receive` instead of processing it with this project lifecycle skill. If no target is resolvable, offer `oat-project-review-provide` for project reviews or `oat-review-provide` for ad-hoc reviews.
+
+When a project review target is resolvable, summarize the selected review path, scope, and generated date, then ask before updating artifacts.
 
 ## Mode Assertion
 
@@ -76,27 +84,39 @@ PROJECTS_ROOT="${PROJECTS_ROOT%/}"
 
 **If `PROJECT_PATH` is missing/invalid:**
 
-- Ask the user for `{project-name}`
-- Set `PROJECT_PATH` to `${PROJECTS_ROOT}/{project-name}`
-- Write it for future use:
-  ```bash
-  mkdir -p .oat
-  oat config set activeProject "$PROJECT_PATH"
-  ```
+- Continue to Step 1 without a project path so `oat review latest` can still discover ad-hoc review targets.
+- Do not guess or write `activeProject` during model-invoked target discovery.
+- If the user explicitly names a project, set `PROJECT_PATH` to `${PROJECTS_ROOT}/{project-name}` and validate it before Step 1.
 
 **If `PROJECT_PATH` is valid:** derive `{project-name}` as the directory name (basename of the path).
 
-### Step 1: Locate Active Review Artifact
+### Step 1: Locate Latest Review Artifact
+
+```bash
+if [ -n "${PROJECT_PATH:-}" ] && [ -d "$PROJECT_PATH" ]; then
+  oat review latest --project "$PROJECT_PATH" --json
+else
+  oat review latest --json
+fi
+```
+
+Selection rules:
+
+- Use `oat review latest` as the first-choice resolver. It scans project reviews (`reviews/` and `reviews/archived/`) plus ad-hoc review locations and orders candidates by `oat_generated_at` frontmatter rather than filesystem mtime.
+- Read the JSON result:
+  - `path: null` means no review target was found.
+  - `kind: "project"` means this skill can process the target when the path is an active top-level project review.
+  - `kind: "adhoc"` means route to `oat-review-receive` after offering that handoff to the user.
+- Only process active project review artifacts in the top level of `"$PROJECT_PATH/reviews/"`.
+- Treat archived project artifacts as history only; do not receive them automatically. If `oat review latest` returns an archived project review, tell the user no active project review is waiting and offer to run `oat-project-review-provide`.
+
+Fallback when the CLI is unavailable:
 
 ```bash
 ls -t "$PROJECT_PATH/reviews/"*.md 2>/dev/null | head -10
 ```
 
-Selection rules:
-
-- Only process active review artifacts in the top level of `"$PROJECT_PATH/reviews/"`.
-- Ignore anything already under `"$PROJECT_PATH/reviews/archived/"`.
-- Treat archived artifacts as history only; do not offer them as receive candidates.
+Use this fallback only for active project reviews. It cannot discover ad-hoc reviews and its filesystem ordering is less reliable than `oat_generated_at`, so state that limitation if fallback is used.
 
 **If no active review files:** Block and ask user to run the `oat-project-review-provide` skill first.
 

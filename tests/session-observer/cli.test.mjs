@@ -42,6 +42,14 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+async function readJsonIfExists(path) {
+  try {
+    return JSON.parse(await readFile(path, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
 async function copyCursorTranscript(home, cwd, sessionId = 'cursor-session-001') {
   const transcriptDir = join(home, '.cursor', 'projects', cursorSlug(cwd), 'agent-transcripts', sessionId);
   await mkdir(transcriptDir, { recursive: true });
@@ -62,6 +70,137 @@ describe('CLI subcommand dispatch', () => {
       result.stdout.includes('--runtime <claude-code|codex|cursor|auto>'),
       'help should include cursor in the runtime list'
     );
+  });
+
+  test('--help lists watch command surface', (t) => {
+    const result = spawnCli(['--help']);
+    assert.equal(result.status, 0, `help should exit 0\nstderr: ${result.stderr}`);
+    assert.ok(result.stdout.includes('watch'), 'help should list watch subcommand');
+    assert.ok(result.stdout.includes('watch-ctl'), 'help should list watch-ctl subcommand');
+    assert.ok(result.stdout.includes('--watch'), 'help should list top-level --watch alias');
+  });
+
+  test('watch --help lists watch flags', (t) => {
+    const result = spawnCli(['watch', '--help']);
+    assert.equal(result.status, 0, `watch help should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`);
+    assert.ok(result.stdout.includes('--debounce-sec'), 'watch help should include debounce flag');
+    assert.ok(result.stdout.includes('--poll-sec'), 'watch help should include poll flag');
+    assert.ok(result.stdout.includes('--max-pending-sec'), 'watch help should include max pending flag');
+    assert.ok(result.stdout.includes('--max-runtime-min'), 'watch help should include bounded runtime flag');
+    assert.ok(result.stdout.includes('--event-log'), 'watch help should include event log flag');
+    assert.ok(
+      result.stdout.includes('--runtime <claude-code|codex|cursor|auto|both>'),
+      'watch help should include both as a watch runtime option'
+    );
+  });
+
+  test('watch-ctl --help lists control operations', (t) => {
+    const result = spawnCli(['watch-ctl', '--help']);
+    assert.equal(result.status, 0, `watch-ctl help should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`);
+    for (const op of ['status', 'pause', 'resume', 'flush', 'stop']) {
+      assert.ok(result.stdout.includes(op), `watch-ctl help should include ${op}`);
+    }
+  });
+
+  test('--watch --help maps to watch help', (t) => {
+    const canonical = spawnCli(['watch', '--help']);
+    const alias = spawnCli(['--watch', '--help']);
+    assert.equal(alias.status, 0, `--watch help should exit 0\nstdout: ${alias.stdout}\nstderr: ${alias.stderr}`);
+    assert.equal(alias.stdout, canonical.stdout, '--watch --help should print the same help as watch --help');
+  });
+
+  test('watch-ctl status --json reports no active watcher', async (t) => {
+    const tmpDir = await mkdtemp(join(tmpdir(), 'cli-watch-status-'));
+    try {
+      const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
+      await mkdir(stateDir, { recursive: true });
+
+      const result = spawnCli(
+        ['watch-ctl', 'status', '--json'],
+        { HOME: tmpDir, STATE_DIR: stateDir }
+      );
+
+      assert.equal(result.status, 0,
+        `watch-ctl status should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`);
+      const parsed = JSON.parse(result.stdout);
+      assert.equal(parsed.noActiveWatcher, true);
+      assert.equal(parsed.active, false);
+      assert.equal(parsed.watcher, null);
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  test('watch-ctl pause resume and flush write control directives', async (t) => {
+    const tmpDir = await mkdtemp(join(tmpdir(), 'cli-watch-control-'));
+    try {
+      const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
+      await mkdir(stateDir, { recursive: true });
+      await writeFile(
+        join(stateDir, 'watch.json'),
+        JSON.stringify({
+          schemaVersion: 1,
+          active: {
+            pid: process.pid,
+            runtime: 'claude-code',
+            cwd: '/test/active-watch-control',
+            startedAt: new Date().toISOString(),
+            lastEventAt: null,
+            eventCount: 0,
+          },
+        }),
+        'utf8'
+      );
+
+      for (const op of ['pause', 'resume', 'flush']) {
+        const result = spawnCli(
+          ['watch-ctl', op, '--json'],
+          { HOME: tmpDir, STATE_DIR: stateDir }
+        );
+        assert.equal(result.status, 0,
+          `watch-ctl ${op} should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`);
+
+        const payload = JSON.parse(result.stdout);
+        assert.equal(payload.directive, op);
+        assert.equal(payload.control.directive, op);
+
+        const raw = JSON.parse(await readFile(join(stateDir, 'watch.control.json'), 'utf8'));
+        assert.equal(raw.directive, op);
+      }
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  test('watch-ctl inactive controls clear stale directives without writing a new one', async (t) => {
+    const tmpDir = await mkdtemp(join(tmpdir(), 'cli-watch-control-inactive-'));
+    try {
+      const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
+      await mkdir(stateDir, { recursive: true });
+
+      for (const op of ['pause', 'resume', 'flush', 'stop']) {
+        await writeFile(
+          join(stateDir, 'watch.control.json'),
+          JSON.stringify({ directive: 'pause', issuedAt: new Date().toISOString() }),
+          'utf8'
+        );
+
+        const result = spawnCli(
+          ['watch-ctl', op, '--json'],
+          { HOME: tmpDir, STATE_DIR: stateDir }
+        );
+
+        assert.equal(result.status, 0,
+          `watch-ctl ${op} should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`);
+        const payload = JSON.parse(result.stdout);
+        assert.equal(payload.noActiveWatcher, true);
+        assert.equal(payload.active, false);
+        assert.equal(payload.watcher, null);
+        assert.equal(await readJsonIfExists(join(stateDir, 'watch.control.json')), null);
+      }
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
   });
 
   test('review --help does not throw', (t) => {
@@ -91,7 +230,7 @@ describe('CLI subcommand dispatch', () => {
 // ---------------------------------------------------------------------------
 
 describe('exit codes', () => {
-  test('review against empty fixture exits 2 (noMatch)', async (t) => {
+  test('review against empty fixture exits 3 (unengagedOnly)', async (t) => {
     // We need a temp HOME with the empty fixture in the right location
     const tmpDir = await mkdtemp(join(tmpdir(), 'cli-test-'));
     try {
@@ -110,11 +249,9 @@ describe('exit codes', () => {
         { HOME: tmpDir, STATE_DIR: stateDir }
       );
 
-      // Empty fixture has no content, so it becomes a candidate that is found but with
-      // no messages → either exit 0 (empty digest) or exit 2 (no candidates)
-      // Plan says: "empty fixture → exit 2"
-      assert.ok(result.status === 0 || result.status === 2,
-        `Expected exit 0 or 2 for empty fixture, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`);
+      assert.equal(result.status, 3,
+        `Expected exit 3 for unengaged empty fixture\nstdout: ${result.stdout}\nstderr: ${result.stderr}`);
+      assert.ok(result.stdout.includes('has no user conversation yet'));
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -397,10 +534,16 @@ describe('--runtime auto', () => {
       const claudePath = join(claudeProjectDir, 'claude-dual.jsonl');
       await writeFile(
         claudePath,
-        JSON.stringify({
-          sessionId: 'cc-dual',
-          message: { role: 'assistant', content: 'Claude visible.' },
-        }) + '\n',
+        [
+          JSON.stringify({
+            sessionId: 'cc-dual',
+            message: { role: 'user', content: 'Please inspect this project.' },
+          }),
+          JSON.stringify({
+            sessionId: 'cc-dual',
+            message: { role: 'assistant', content: 'Claude visible.' },
+          }),
+        ].join('\n') + '\n',
         'utf8'
       );
 
@@ -430,8 +573,8 @@ describe('--runtime auto', () => {
               sessionId: 'cc-dual',
               transcriptPath: claudePath,
               recordedCwd: cwd,
-              lastRecordIndex: 0,
-              lastTotalRecords: 0,
+              lastRecordIndex: 1,
+              lastTotalRecords: 2,
               lastReadAt: '2026-05-17T12:00:00.000Z',
               watchedByPid: null,
             },
@@ -743,6 +886,61 @@ describe('--session override', () => {
 
       const after = JSON.parse(await readFile(statePath, 'utf8'));
       assert.deepEqual(after, before, 'pinned no-op catch-up should not rewrite matching state');
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  test('catch-up warns but succeeds when a watcher owns the same session', async (t) => {
+    const tmpDir = await mkdtemp(join(tmpdir(), 'cli-catchup-watched-'));
+    try {
+      const cwd = '/test/watched-catchup-project';
+      const encodedCwd = '-test-watched-catchup-project';
+      const projectDir = join(tmpDir, '.claude', 'projects', encodedCwd);
+      await mkdir(projectDir, { recursive: true });
+      const transcriptPath = join(projectDir, 'watched-catchup.jsonl');
+      await writeFile(
+        transcriptPath,
+        [
+          JSON.stringify({
+            sessionId: 'watched-catchup',
+            message: { role: 'assistant', content: 'watched session update' },
+          }),
+        ].join('\n') + '\n',
+        'utf8'
+      );
+
+      const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
+      await mkdir(stateDir, { recursive: true });
+      await writeFile(
+        join(stateDir, 'state.json'),
+        JSON.stringify({
+          schemaVersion: 1,
+          sessions: {
+            'claude-code:watched-catchup': {
+              runtime: 'claude-code',
+              sessionId: 'watched-catchup',
+              transcriptPath,
+              recordedCwd: cwd,
+              lastRecordIndex: 0,
+              lastTotalRecords: 0,
+              lastReadAt: '2026-06-03T12:00:00.000Z',
+              watchedByPid: 12345,
+            },
+          },
+        }),
+        'utf8'
+      );
+
+      const result = spawnCli(
+        ['catch-up', '--runtime', 'claude-code', '--cwd', cwd,
+          '--session', 'claude-code:watched-catchup'],
+        { HOME: tmpDir, STATE_DIR: stateDir }
+      );
+
+      assert.equal(result.status, 0,
+        `watched catch-up should still succeed\nstdout: ${result.stdout}\nstderr: ${result.stderr}`);
+      assert.ok(result.stdout.includes('watcher pid 12345 is also reading this session'));
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }

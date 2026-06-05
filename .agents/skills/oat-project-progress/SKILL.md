@@ -1,8 +1,8 @@
 ---
 name: oat-project-progress
-version: 1.2.4
-description: Use when resuming work, checking status, or unsure which OAT skill to run next. Evaluates project progress and routes to the appropriate next step.
-disable-model-invocation: true
+version: 1.2.5
+description: Use when the user explicitly asks to check OAT project progress — e.g. "check progress", "what's next", "where are we", or confirms a previously offered progress check. Do NOT auto-invoke just because a workflow step completed. Reads project status and offers the next route.
+disable-model-invocation: false
 user-invocable: true
 allowed-tools: Read, Glob, Grep, Bash(git:*), AskUserQuestion
 ---
@@ -34,6 +34,12 @@ Run `oat-project-progress` at any time to:
 - Check if knowledge base exists and is fresh
 - See current project status
 - Get recommended next skill
+
+## Model Invocation Routing
+
+This skill is model-invokable for explicit read-only status and routing asks such as "check progress" or "what's next". It has no active-project gate because it can safely report that no project is active.
+
+Do NOT auto-invoke only because another workflow step finished. If model-invoked, offer to check progress first when the user's intent is ambiguous. After reporting status, offer the recommended next skill before routing to it.
 
 ## Process
 

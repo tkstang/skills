@@ -1,6 +1,6 @@
 ---
 name: oat-project-import-plan
-version: 1.3.2
+version: 1.3.3
 description: Use when you have an external markdown plan to execute with OAT. Preserves the source plan and normalizes it into canonical plan.md format.
 argument-hint: '<path-to-plan.md> [--provider codex|cursor|claude] [--project <name>]'
 disable-model-invocation: true
@@ -56,13 +56,14 @@ When executing this skill, provide lightweight progress feedback so the user can
   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 - Before multi-step work, print step indicators, e.g.:
-  - `[0/6] Checking inherited git state...`
-  - `[1/6] Resolving project + source plan…`
-  - `[2/6] Preserving imported source…`
-  - `[3/6] Normalizing plan to OAT task structure…`
-  - `[4/6] Updating project metadata + state…`
-  - `[5/6] Refreshing dashboard…`
-  - `[6/6] Ensuring implementation tracker…`
+  - `[0/7] Checking inherited git state...`
+  - `[1/7] Resolving project + source plan…`
+  - `[2/7] Preserving imported source…`
+  - `[3/7] Normalizing plan to OAT task structure…`
+  - `[4/7] Updating plan metadata…`
+  - `[5/7] Running import-aware plan review…`
+  - `[6/7] Updating project state + dashboard…`
+  - `[7/7] Ensuring implementation tracker…`
 
 ## Process
 
@@ -180,13 +181,40 @@ Dispatch Profile import handling:
 Set frontmatter in `"$PROJECT_PATH/plan.md"`:
 
 - `oat_status: complete`
-- `oat_ready_for: oat-project-implement`
+- `oat_ready_for: null` (Step 4.5 sets this after the import-aware plan review)
 - `oat_phase: plan`
 - `oat_phase_status: complete`
 - `oat_plan_source: imported`
 - `oat_import_reference: references/imported-plan.md`
 - `oat_import_source_path: {source-path}`
 - `oat_import_provider: {codex|cursor|claude|null}`
+
+### Step 4.5: Run Import-Aware Plan Artifact Review Loop
+
+Invoke the shared `Auto Artifact-Review Loop` from `oat-project-plan-writing` with target `plan` before advancing project state or handing off to implementation.
+
+Required payload:
+
+- `target: plan`
+- `type: artifact`
+- `scope: plan`
+- `artifact_path: "$PROJECT_PATH/plan.md"`
+- `oat_output_mode: structured`
+- `import_aware: true`
+- `review_note: "Review for canonical OAT plan conformance, executable completeness, stable task IDs, required sections, review-row preservation, and verification clarity. Preserve the imported source's intent and ordering; do not rewrite the author's plan goals or product decisions unless required for OAT conformance or completeness."`
+
+Apply the shared loop exactly:
+
+- Resolve `workflow.autoArtifactReview.plan`; only an explicit `false` skips the loop.
+- Resolve `oat_orchestration_retry_limit` from project state, defaulting to `2`.
+- Dispatch `oat-reviewer` in structured mode using Tier 1 subagent when available and Tier 2 inline fallback otherwise.
+- Apply Critical and Important artifact-local fixes when unambiguous and limited to canonical conformance/completeness; offer Medium and Minor fixes instead of silently applying them.
+- Re-dispatch after rewrites until clean or the retry bound is exhausted.
+- Update the `plan` artifact row in the `## Reviews` table to `passed` when clean. If residual findings remain, preserve the row and surface the residual findings before downstream handoff.
+
+After the loop completes or is explicitly skipped, set `"$PROJECT_PATH/plan.md"` frontmatter:
+
+- `oat_ready_for: oat-project-implement`
 
 ### Step 5: Update Project State
 
@@ -245,6 +273,7 @@ Report:
 - ✅ Imported markdown preserved at `references/imported-plan.md`.
 - ✅ Canonical `plan.md` generated with OAT task structure.
 - ✅ `plan.md` metadata marks `oat_plan_source: imported`.
+- ✅ `plan.md` records the import-aware plan artifact review row unless `workflow.autoArtifactReview.plan` was explicitly disabled.
 - ✅ `state.md` marks `oat_workflow_mode: import`.
 - ✅ `implementation.md` is present and resumable.
 - ✅ `oat_plan_hill_phases` left unset in frontmatter (deferred to `oat-project-implement` Step 2.5).

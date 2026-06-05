@@ -18,7 +18,7 @@
     "utility": false,
     "project-management": false,
     "research": false,
-    "brainstorm": false
+    "brainstorm": true
   },
   "localPaths": [
     ".oat/**/analysis",

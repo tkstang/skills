@@ -1,22 +1,25 @@
-# Watch Mode — Design Reference (v2, not implemented in v1)
+# Watch Mode — Implementation Reference
 
-**Status:** designed, not implemented. This document commits the leading hypothesis so v2 doesn't re-litigate.
+**Status:** implemented. The `watch` and `watch-ctl` subcommands are available, and top-level `--watch` maps to the foreground watcher.
 
-**Scope:** Everything in this document is design-only. No `watch` or `watch-ctl` subcommand exists in v1. The v1 skill ships `review`, `catch-up`, `locate`, and `state`.
+**Scope:** This document records the watch-mode behavior, state contract, event stream, control surface, and deferred provider-hook boundary. The root `SKILL.md` stays operator-focused; keep detailed internals here.
 
 ---
 
-## Why design-only in v1?
+## What watch mode does
 
-`watch` is a foreground polling daemon — a fundamentally different execution model from the single-shot CLI subcommands in v1. Shipping it correctly requires:
+`watch` is a foreground polling process around the existing locate/rank/digest/state pipeline. It identifies the relevant peer transcript for the selected runtime/cwd, establishes an initial baseline, then emits debounced catch-up digests when settled transcript changes arrive.
 
-- Singleton enforcement (one watcher per runtime per machine).
-- Stale-pid detection at startup.
-- A durable event log (JSONL, metadata-only).
-- A control surface for `pause`/`resume`/`flush`/`stop`.
-- Graceful shutdown on SIGTERM/SIGINT with state-file cleanup.
+Implemented behavior includes:
 
-These add surface area and test complexity that are out of scope for the first iteration. The design is frozen here to avoid rediscovery work when v2 picks this up.
+- Singleton enforcement through `watch.json`.
+- Stale-pid cleanup at startup.
+- Metadata-only JSONL event logging with `--event-log`.
+- `watch-ctl` operations for `status`, `pause`, `resume`, `flush`, and `stop`.
+- Graceful shutdown on normal exit, `watch-ctl stop`, SIGTERM, and SIGINT.
+- `watchedByPid` ownership metadata on active session state.
+
+Automatic agent responses only happen while the active invocation keeps the foreground watch process running and polls its output. Host/provider hooks that would wake a future invocation after the current one ends are deferred.
 
 ---
 
@@ -25,8 +28,10 @@ These add surface area and test complexity that are out of scope for the first i
 ```
 session-observer watch [--runtime <r>|both] [--cwd <path>]
                        [--debounce-sec 2] [--poll-sec 2]
-                       [--max-runtime-min 0]
+                       [--max-pending-sec 30] [--max-runtime-min 0]
                        [--event-log <path>] [--json]
+
+session-observer --watch [watch options]
 ```
 
 | Flag | Default | Description |
@@ -35,11 +40,14 @@ session-observer watch [--runtime <r>|both] [--cwd <path>]
 | `--cwd <path>` | `process.cwd()` | Project directory to match sessions against. |
 | `--debounce-sec N` | 2 | Hold for N seconds of quiet before emitting an event. |
 | `--poll-sec N` | 2 | Poll interval in seconds. |
+| `--max-pending-sec N` | 30 | Maximum seconds to hold continuous transcript changes before emitting even if the file never goes quiet. |
 | `--max-runtime-min N` | 0 (unlimited) | Auto-exit after N minutes (0 = run until stopped). |
-| `--event-log <path>` | — | Mirror events to a JSONL file (metadata only, no content). |
+| `--event-log <path>` | — | Mirror events to a JSONL file (metadata only, no content). Relative paths resolve inside `~/.local/state/session-observer/`; absolute paths must also stay inside that directory. |
 | `--json` | false | Emit each event as a JSON line to stdout instead of human-readable text. |
 
 Foreground process. Quits on SIGINT or SIGTERM. Stdout is a human-readable event stream; `--event-log` mirrors events to a JSONL file for replay/introspection.
+
+`--watch` is a top-level alias for `watch` and accepts the same watch options.
 
 ---
 
@@ -57,19 +65,23 @@ The watcher uses `setInterval`-based mtime polling rather than `fs.watch` / `fs.
 
 ```
 state: known = {}     // path → { mtime, size }
-       pending = {}   // path → { firstSeenAt, lastSeenMtime }
+       pending = {}   // path → { firstChangedAt, lastChangedAt }
 
 loop every poll-sec:
   candidates = locate.discover(runtime, cwd)
 
   for c in candidates:
     if c.mtime > (known[c.path]?.mtime ?? 0):
-      pending[c.path] = { firstSeenAt: now(), lastSeenMtime: c.mtime }
+      pending[c.path] = {
+        firstChangedAt: pending[c.path]?.firstChangedAt ?? now(),
+        lastChangedAt: now()
+      }
       known[c.path] = { mtime: c.mtime, size: c.size }
 
   for path, entry in pending:
-    age = now() - entry.firstSeenAt
-    if age >= debounce-sec:
+    quiet = now() - entry.lastChangedAt
+    age = now() - entry.firstChangedAt
+    if quiet >= debounce-sec or age >= max-pending-sec:
       emit(path)             // full locate → rank → catch-up → state.markRead pipeline
       pending.delete(path)
 
@@ -79,7 +91,7 @@ loop every poll-sec:
   sleep poll-sec
 ```
 
-**Debounce:** when a transcript's mtime first changes, hold for `debounce-sec`. Further changes reset the timer. Only emit when the file has been quiet for `debounce-sec`. This avoids emitting on half-formed turns while the peer runtime is still writing.
+**Debounce:** when a transcript's mtime first changes, hold for `debounce-sec`. Further changes reset the quiet timer. Emit when the file has been quiet for `debounce-sec`, or when the pending change has been held for `max-pending-sec`. This avoids emitting on half-formed turns while ensuring an actively written transcript cannot starve the watcher forever.
 
 ---
 
@@ -107,17 +119,42 @@ No new parsing code. Watch is a debounce-wrapped loop around the existing `catch
   "active": {
     "pid": 12345,
     "runtime": "codex",
+    "requestedRuntime": "auto",
     "cwd": "/Users/.../Code/foo",
+    "session": "codex:rollout-2026-06-04T21-42-00-abc123",
     "startedAt": "2026-05-14T16:42:09Z",
+    "pollSec": 3,
+    "debounceSec": 3,
+    "maxPendingSec": 30,
+    "staleAfterSec": 36,
+    "lastPollAt": "2026-05-14T16:48:14Z",
     "lastEventAt": "2026-05-14T16:48:11Z",
-    "eventCount": 4
+    "eventCount": 4,
+    "resolvedRuntime": "codex",
+    "sessionId": "rollout-2026-06-04T21-42-00-abc123",
+    "transcriptPath": "/Users/.../.codex/sessions/...jsonl",
+    "targets": [
+      {
+        "runtime": "codex",
+        "sessionId": "rollout-2026-06-04T21-42-00-abc123",
+        "transcriptPath": "/Users/.../.codex/sessions/...jsonl",
+        "cwd": "/Users/.../Code/foo",
+        "recordCount": 458,
+        "baselineRecordIndex": 458,
+        "engagementStatus": "engaged",
+        "lockedAt": "2026-05-14T16:42:09Z"
+      }
+    ],
+    "lastError": null
   }
 }
 ```
 
-**Locking:** same `state.json.lock`-style atomic temp+rename write protocol as `state.json`. Only one watcher per runtime; startup refuses if `active.pid` is a live process. Stale pids (no such process — `ESRCH` from `kill(pid, 0)`) are cleared on startup without user intervention.
+**Locking:** same `state.json.lock`-style atomic temp+rename write protocol as `state.json`. Only one watcher is active per state directory; startup refuses if `active.pid` is a live process. Stale pids (no such process — `ESRCH` from `kill(pid, 0)`) are cleared on startup without user intervention.
 
 **`--runtime both`:** one `active` entry covers both runtimes; `runtime` field is `"both"`. Each runtime has its own debounce timer and read offset inside the single process.
+
+`watch-ctl status --json` enriches this state with live transcript drift and health fields. For each target it reports current `transcriptRecords`, `lastRecordIndex`, `consumedThrough`, `recordsBehind`, `secondsSinceLastEmit`, `secondsSinceLastPoll`, `healthy`, and `healthReasons`. A watcher is unhealthy when transcript records are behind and no digest has emitted beyond the configured stale window, when the poll heartbeat is stale, or when the transcript cannot be read.
 
 ---
 
@@ -137,6 +174,8 @@ Each line in the event log is metadata only — no message content:
 ```
 
 Content stays in the rendered stdout digest. The log is for introspection and replay.
+
+Event-log paths are constrained to the session-observer state directory. A relative path such as `events/watch.jsonl` writes under `~/.local/state/session-observer/`; absolute paths or `..` segments that escape that directory are rejected.
 
 ---
 
@@ -192,24 +231,26 @@ The race is benign — the offset advances; the watcher's next tick sees no new 
 
 ---
 
-## Future Hook Integration (post-v2, out of scope)
+## Deferred Provider Hook Integration
 
-Wiring the watcher into Claude Code's `UserPromptSubmit` hook or a Codex equivalent would let the host runtime automatically prompt the agent when fresh peer activity is available. This requires host-specific `settings.json` changes and is out of scope for the watcher itself.
+Wiring the watcher into Claude Code's `UserPromptSubmit` hook or a Codex equivalent would let the host runtime automatically prompt an agent when fresh peer activity is available after the original invocation ends. That requires host-specific settings and lifecycle handling and remains deferred.
+
+The current automatic-response boundary is the active invocation: an agent starts `watch`, keeps the foreground process running, polls stdout, and responds to each emitted digest until the user stops watching or the process exits. In yield-after-turn harnesses, a backgrounded watch process does not wake the agent when stdout changes; callers must actively read stdout, poll `watch-ctl status --json`, or use a host-specific wake hook. Once the invocation stops polling, no provider hook will summon a new agent for later watch events.
 
 ---
 
 ## Safety Rules
 
-These are binding even at design stage:
+These are binding for watch mode:
 
 - **Read-only on transcripts.** No writes to `~/.claude/` or `~/.codex/` ever.
 - **Writes only to** `~/.local/state/session-observer/`. No other filesystem mutations.
-- **No memory/vault writes from the watcher.** A future `--capture-notable` flag, if added, must be opt-in and must only write summarized findings (not per-event content). A v2 question.
+- **No memory/vault writes from the watcher.** A future `--capture-notable` flag, if added, must be opt-in and must only write summarized findings, not per-event content.
 - **No network calls.**
 
 ---
 
-## Decisions Locked (Not Open for v2 Re-litigaton)
+## Decisions Locked
 
 | Decision | Rationale |
 |---|---|
