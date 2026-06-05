@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-05
-oat_current_task_id: p03-t02
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -28,9 +28,9 @@ oat_generated: false
 | -------------------------------------------------- | ------- | ----- | --------- |
 | Phase 1: Extract transcript-core + migrate observer | complete | 2     | 2/2       |
 | Phase 2: Build export-session-transcript skill      | complete | 3     | 3/3       |
-| Phase 3: Docs + repo invariants + verification      | in_progress | 2  | 1/2       |
+| Phase 3: Docs + repo invariants + verification      | complete | 2     | 2/2       |
 
-**Total:** 6/7 tasks completed
+**Total:** 7/7 tasks completed
 
 ---
 
@@ -171,8 +171,21 @@ oat_generated: false
 
 ## Phase 3: Docs, repo invariants, and full verification
 
-**Status:** in_progress
+**Status:** complete
 **Started:** 2026-06-05
+**Completed:** 2026-06-05
+
+### Phase Summary
+
+**Outcome (what changed):**
+
+- README documents the export skill + the Shared transcript-core convention; repo-layout test asserts the new directories.
+- User-level dogfooding install refreshed (export only, per user decision): `~/.agents/skills/export-session-transcript` installed; `oat sync --scope user` wired `~/.claude/skills/export-session-transcript` and `~/.cursor/skills/export-session-transcript` symlinks to the canonical copy. session-observer's global copy left untouched until merge.
+
+**Verification:**
+
+- p03-t01: `npm test` 321, `npm run validate`, `npm run smoke` all pass; reviewer pass.
+- p03-t02: installed CLI `--help` runs (exit 0); export-session-transcript resolves as a user-level skill for Claude + Cursor.
 
 ### Task p03-t01: Document the skill + shared-core convention; add repo-layout invariants
 
@@ -187,13 +200,13 @@ oat_generated: false
 
 ### Task p03-t02: User-level skill sync closeout
 
-**Status:** pending (awaiting user decision — environment-level action on unmerged branch)
-**Commit:** -
+**Status:** completed (no repo commit — environmental; `oat sync --scope user` produced no in-repo manifest changes)
+**Commit:** - (n/a)
 
 **Notes:**
 
-- Current state: `~/.agents/skills/session-observer/` exists; `~/.claude/skills/session-observer` + `~/.cursor/skills/session-observer` symlink to it. `export-session-transcript` not yet installed at user level.
-- Held for user decision: refresh user-level installs from this unmerged worktree now, vs. defer to post-merge (running it now installs pre-merge code globally).
+- User decision: "Run now, export only." Installed `~/.agents/skills/export-session-transcript` from this worktree; ran `oat sync --scope user`, which created `~/.claude/skills/export-session-transcript` + `~/.cursor/skills/export-session-transcript` symlinks → canonical copy. session-observer global copy intentionally left untouched until this branch merges.
+- Follow-up (deferred): refresh `~/.agents/skills/session-observer` after merge so its global copy tracks released code.
 
 ---
 
@@ -212,7 +225,7 @@ _- Outstanding Items_
 **Branch:** feat/export-session-transcript
 **Tier:** 1 (subagents)
 **Policy:** merge-strategy=sequential, retry-limit=2
-**Phases:** 2 executed, 2 passed, 0 failed, 0 stopped (p03 pending)
+**Phases:** 3 executed, 3 passed, 0 failed, 0 stopped
 
 #### Phase Outcomes
 
@@ -220,7 +233,7 @@ _- Outstanding Items_
 | ----- | ------------------ | ------------- | -------------- | ----------- |
 | p01   | DONE_WITH_CONCERNS | pass          | 0/2            | merged      |
 | p02   | DONE               | fail → pass   | 1/2            | merged      |
-| p03   | DONE (t01)         | pass          | 0/2            | merged (t02 pending) |
+| p03   | DONE               | pass          | 0/2            | merged      |
 
 #### Parallel Groups
 
@@ -275,24 +288,37 @@ Track test execution during implementation.
 
 **What shipped:**
 
-- {capability 1}
-- {capability 2}
+- New standalone skill `skills/export-session-transcript/` that exports the **current** coding-agent conversation to a sanitized Markdown transcript (branch-named, default `~/Downloads`) for Claude Code, Codex, and Cursor.
+- A minimal canonical shared module `shared/transcript-core/runtimes.mjs` (single source of truth for per-provider transcript location/parsing), materialized into each consuming skill via `npm run sync:transcript-core` with a committed banner-stamped copy and a `--check` drift guard wired into `npm test`.
+- `session-observer` migrated to consume the synced copy with **no behavior change** (body byte-identical to baseline).
 
 **Behavioral changes (user-facing):**
 
-- {bullet}
+- Run the export skill to save the live session: it announces a unique session marker, content-matches the current transcript (newest-for-cwd fallback), and writes `~/Downloads/<branch>.md`. Flags: `--session`, `--all`, `--runtime`, `--out` (file or directory).
+- Output is sanitized in two layers: structural (`normalizeEntries` drops tool calls/results + command-messages) + content (`sanitize.mjs` drops `<system-reminder>`, `<task-notification>`, `<local-command-*>`, `<environment_context>`, AGENTS.md/SKILL.md payloads, system/developer instructions, `<subagent_notification>`, `<turn_aborted>`), then the marker line is stripped.
 
 **Key files / modules:**
 
-- `{path}` - {purpose}
+- `shared/transcript-core/runtimes.mjs` - canonical per-provider primitives
+- `scripts/sync-transcript-core.mjs` - sync + `--check` drift guard; `package.json` `sync:transcript-core`
+- `skills/export-session-transcript/{SKILL.md,scripts/export-session-transcript.mjs,scripts/lib/sanitize.mjs,scripts/lib/runtimes.mjs,references/transcript-formats.md}`
+- `skills/session-observer/scripts/lib/runtimes.mjs` - now generated synced copy
+- `tests/transcript-core/{runtimes,sync}.test.mjs`, `tests/export-session-transcript/{sanitize,cli}.test.mjs` + fixtures, `tests/repo-layout.test.mjs`
 
 **Verification performed:**
 
-- {tests/lint/typecheck/build/manual steps}
+- `npm test` (321 tests) green; `npm run validate` pass; `npm run smoke` pass. Drift guard green; sanitizer real-store scan (1,411 files / 41,281 entries) → 0 hidden-payload survivors.
+- Per-phase reviews: p01 pass, p02 fail→fix→pass (closed a `<system-reminder>` privacy leak), p03 pass.
+- User-level dogfooding: `export-session-transcript` installed at `~/.agents/skills` + provider symlinks via `oat sync --scope user`; installed CLI `--help` runs.
 
 **Design deltas (if any):**
 
-- {what changed vs design.md and why}
+- None. (Design was strengthened pre-implementation by the design review to require the export-owned content sanitizer; implementation matches the updated design.)
+
+**Known follow-ups:**
+
+- Pre-existing flake in `tests/session-observer/cli.test.mjs` under full-suite parallel execution only (passes in isolation; not introduced here).
+- Deferred: refresh `~/.agents/skills/session-observer` after this branch merges (export-only sync was chosen to avoid globally installing pre-merge session-observer changes).
 
 ## References
 
