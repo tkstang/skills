@@ -17,23 +17,23 @@ oat_phase_status: pr_open
 oat_workflow_mode: quick
 oat_workflow_origin: native
 oat_docs_updated: complete
-oat_pr_status: ready
-oat_pr_url: null
+oat_pr_status: open
+oat_pr_url: "https://github.com/tkstang/skills/pull/4"
 oat_project_created: "2026-06-03T02:16:48.641Z"
 oat_project_completed: null
-oat_project_state_updated: "2026-06-04T16:00:52Z"
+oat_project_state_updated: "2026-06-05T00:10:13Z"
 oat_generated: false
 ---
 
 # Project State: session-observer-watch
 
-**Status:** PR artifact ready; branch pushed
+**Status:** PR open, awaiting human review
 **Started:** 2026-06-03
-**Last Updated:** 2026-06-04
+**Last Updated:** 2026-06-05
 
 ## Current Phase
 
-Implementation — PR artifact ready and branch pushed. Automatic PR creation is blocked by expired GitHub authentication; open the PR manually from the pushed branch.
+Implementation — PR open, awaiting human review.
 
 ## Artifacts
 
@@ -58,7 +58,8 @@ Implementation — PR artifact ready and branch pushed. Automatic PR creation is
 - [x] Phase 7 implemented: Final Review Fixes v4
 - [x] PR artifact generated
 - [x] Branch pushed
-- [ ] PR opened
+- ✓ PR created
+- ⧗ Awaiting human review
 
 ## Verification
 
@@ -112,11 +113,9 @@ None
 
 ## Next Milestone
 
-Open the PR manually:
+PR is open for review.
 
-- https://github.com/tkstang/skills/pull/new/feat/session-observer-watch
-
-After the PR is open:
+- https://github.com/tkstang/skills/pull/4
 
 - To incorporate feedback: run `oat-project-revise`
 - When approved: run `oat-project-complete`
