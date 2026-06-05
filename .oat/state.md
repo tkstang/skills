@@ -1,28 +1,15 @@
 ---
 oat_generated: true
-oat_generated_at: 2026-06-03
+oat_generated_at: 2026-06-05
 ---
 
 # OAT Repo State Dashboard
 
-**Generated:** 2026-06-03
+**Generated:** 2026-06-05
 
 ## Active Project
 
-**session-observer-watch** (`.oat/projects/shared/session-observer-watch`)
-
-## Active Project Summary
-
-| Field | Value |
-|-------|-------|
-| Mode | quick |
-| Phase | implement |
-| Status | complete |
-| HiLL Gate | n/a |
-| Current Task | - |
-| Docs Updated | ⚠ not yet run |
-
-Details: `.oat/projects/shared/session-observer-watch/state.md`
+*(not set)*
 
 ## Knowledge Status
 
@@ -35,7 +22,7 @@ Details: `.oat/projects/shared/session-observer-watch/state.md`
 
 ## Recommended Next Step
 
-**oat-project-pr-final** - Generate final PR description (final review passed)
+**oat-project-new** - Create a new project to start work
 
 ## Quick Commands
 
@@ -50,7 +37,7 @@ Details: `.oat/projects/shared/session-observer-watch/state.md`
 
 ## Available Projects
 
-- **session-observer-watch** - implement
+*(No projects found)*
 
 ## Decompositions
 
