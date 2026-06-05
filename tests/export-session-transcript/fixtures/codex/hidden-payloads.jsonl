@@ -1,0 +1,11 @@
+{"type":"session_started","sessionId":"codex-hp","cwd":"/Users/alice/Code/app","timestamp":"2026-06-05T10:00:00Z"}
+{"type":"response_item","sessionId":"codex-hp","payload":{"type":"message","role":"user","content":"<environment_context>\n  <cwd>/Users/alice/Code/app</cwd>\n</environment_context>"}}
+{"type":"response_item","sessionId":"codex-hp","payload":{"type":"message","role":"user","content":"# AGENTS.md instructions\n\nUse Node 22 and stdlib only."}}
+{"type":"response_item","sessionId":"codex-hp","payload":{"type":"message","role":"user","content":"---\nname: pasted-skill\ndescription: skill body pasted as text\nlicense: MIT\n---\n\n# pasted-skill\n"}}
+{"type":"response_item","sessionId":"codex-hp","payload":{"type":"message","role":"user","content":"<subagent_notification>Worker completed.</subagent_notification>"}}
+{"type":"response_item","sessionId":"codex-hp","payload":{"type":"message","role":"user","content":"<turn_aborted>interrupted</turn_aborted>"}}
+{"type":"response_item","sessionId":"codex-hp","payload":{"type":"message","role":"system","content":"System: you must follow the developer instructions."}}
+{"type":"response_item","sessionId":"codex-hp","payload":{"type":"message","role":"developer","content":"Developer: keep responses concise."}}
+{"type":"response_item","sessionId":"codex-hp","payload":{"type":"message","role":"user","content":"Please summarize the build failure."}}
+{"type":"response_item","sessionId":"codex-hp","payload":{"type":"message","role":"assistant","content":"The build failed because of a missing import. Note the subagent_notification you mentioned is unrelated."}}
+{"type":"response_item","sessionId":"codex-hp","payload":{"type":"message","role":"user","content":"Why does my parser choke on <environment_context> tags inside user data?"}}

@@ -1,0 +1,10 @@
+{"role":"user","message":{"content":[{"type":"text","text":"<environment_context>\n  <cwd>/Users/alice/Code/app</cwd>\n</environment_context>"}]}}
+{"role":"user","message":{"content":[{"type":"text","text":"# AGENTS.md instructions\n\nRun the linter."}]}}
+{"role":"user","message":{"content":[{"type":"text","text":"---\nname: cursor-skill\ndescription: pasted skill\nlicense: MIT\n---\n\n# cursor-skill\n"}]}}
+{"role":"user","message":{"content":[{"type":"text","text":"<subagent_notification>Done.</subagent_notification>"}]}}
+{"role":"user","message":{"content":[{"type":"text","text":"<turn_aborted>aborted</turn_aborted>"}]}}
+{"role":"system","message":{"content":[{"type":"text","text":"System prompt: be terse."}]}}
+{"role":"developer","message":{"content":[{"type":"text","text":"Developer: avoid network calls."}]}}
+{"role":"user","message":{"content":[{"type":"text","text":"Help me fix the failing Cursor test."}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"I will check the test. By the way, an environment_context block in the logs is normal output, not a bug."}]}}
+{"role":"user","message":{"content":[{"type":"text","text":"Should I strip the <command-message> tag from my own parser output?"}]}}
