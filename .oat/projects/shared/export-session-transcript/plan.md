@@ -280,6 +280,7 @@ git commit -m "docs(p03-t01): document export skill + shared-core sync; add repo
 | final  | code     | pending  | -          | -                                                      |
 | spec   | artifact | pending  | -          | -                                                      |
 | design | artifact | received | 2026-06-05 | reviews/archived/artifact-design-review-2026-06-05.md  |
+| plan   | artifact | received | 2026-06-05 | reviews/artifact-plan-review-2026-06-05.md             |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 
