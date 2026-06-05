@@ -43,6 +43,7 @@ function claudeTranscript(marker, sessionId = 'cc-001') {
     { type: 'summary', sessionId, summary: 'start' },
     { type: 'user', sessionId, message: { role: 'user', content: `EXPORT_SESSION_MARKER=${marker}` } },
     { type: 'user', sessionId, message: { role: 'user', content: '<environment_context><cwd>/x</cwd></environment_context>' } },
+    { type: 'user', sessionId, message: { role: 'user', content: '<system-reminder>The user changed the working directory while you were working.</system-reminder>' } },
     { type: 'user', sessionId, message: { role: 'system', content: 'You are a helpful assistant.' } },
     { type: 'user', sessionId, message: { role: 'user', content: '# AGENTS.md instructions\n\nRun tests.' } },
     { type: 'user', sessionId, message: { role: 'user', content: 'Please refactor the auth module.' } },
@@ -230,6 +231,7 @@ describe('export CLI — end-to-end sanitization', () => {
     assert.ok(!md.includes('[Read]'), 'tool call leaked');
     assert.ok(!md.includes('tool_result'), 'tool result leaked');
     assert.ok(!md.includes('environment_context'), 'env context leaked');
+    assert.ok(!md.includes('system-reminder'), 'system-reminder wrapper leaked');
     assert.ok(!md.includes('AGENTS.md instructions'), 'AGENTS payload leaked');
     assert.ok(!md.includes('You are a helpful assistant'), 'system text leaked');
     assert.ok(!md.includes('EXPORT_SESSION_MARKER'), 'marker line leaked');

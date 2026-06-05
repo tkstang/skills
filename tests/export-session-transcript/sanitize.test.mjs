@@ -51,8 +51,20 @@ const RUNTIMES = ['claude-code', 'codex', 'cursor'];
 const HIDDEN_LEADING = [
   '<environment_context>',
   '# AGENTS.md instructions',
+  '## AGENTS.md instructions',
+  '# AGENTS instructions',
+  '## SKILL.md instructions',
   '<subagent_notification>',
   '<turn_aborted>',
+  // Claude Code injected-context wrappers confirmed in real ~/.claude stores
+  // that survive structural normalization (leak class fixed by C1).
+  '<system-reminder>',
+  '<task-notification>',
+  '<local-command-stdout>',
+  '<local-command-stderr>',
+  '<local-command-caveat>',
+  // Broadened system/developer text leads (I1).
+  'System prompt:',
 ];
 
 // Genuine substrings that must SURVIVE (negative tests — token mid-sentence).
@@ -62,6 +74,12 @@ const KEEP_SUBSTRINGS = {
     'AGENTS.md instructions mention running tests',
     'crashes when the environment_context wrapper is missing',
     'turn_aborted token in your logs just means',
+    // Negatives for the broadened matchers (I1): leading "System"/"Developer"
+    // words that are genuine prose, and a mid-sentence mention of the new
+    // system-reminder wrapper, must all SURVIVE.
+    'System design notes for the new service',
+    'I clicked the System: menu in the toolbar',
+    'system-reminder banner you saw is injected context',
   ],
   codex: [
     'summarize the build failure',
@@ -115,9 +133,18 @@ describe('sanitizeEntries — hidden payloads dropped per runtime', () => {
           entry.role !== 'system' && entry.role !== 'developer',
           `${runtime}: system/developer record survived`
         );
+        // No survivor is a system/developer instruction header (label form or
+        // known instruction lead-word form). Genuine prose that merely begins
+        // with the word "System"/"Developer" (e.g. "System design notes ...")
+        // is allowed to survive.
+        const l = entry.text.trimStart();
         assert.ok(
-          !/^(System|Developer)[:\s]/.test(entry.text.trimStart()),
-          `${runtime}: system/developer text survived: ${entry.text.slice(0, 60)}`
+          !/^(System|Developer)\b\s*[:\-]/.test(l),
+          `${runtime}: system/developer label record survived: ${entry.text.slice(0, 60)}`
+        );
+        assert.ok(
+          !/^(System|Developer)\s+(prompt|note|notes|message|instruction|instructions|directive|directives|guidelines?)\b\s*[:\-]/i.test(l),
+          `${runtime}: system/developer prompt record survived: ${entry.text.slice(0, 60)}`
         );
       }
     });
@@ -148,6 +175,73 @@ describe('HIDDEN_PAYLOAD_MATCHERS table', () => {
   test('matcher ids are unique', () => {
     const ids = HIDDEN_PAYLOAD_MATCHERS.map((m) => m.id);
     assert.equal(new Set(ids).size, ids.length);
+  });
+});
+
+describe('sanitizeEntries — broadened matchers (I1) and leak classes (C1)', () => {
+  const msg = (text, role = 'user') => ({ role, text, recordIndex: 0, kind: 'message' });
+
+  // Each entry should be DROPPED (sanitized output empty).
+  const DROP_CASES = [
+    // C1: Claude Code system-reminder wrapper (the primary injected-context leak).
+    '<system-reminder>The user changed directory.</system-reminder>',
+    // C1-adjacent real wrapper classes confirmed in ~/.claude stores.
+    '<task-notification><task-id>t1</task-id></task-notification>',
+    '<local-command-stdout>ok</local-command-stdout>',
+    '<local-command-stderr>err</local-command-stderr>',
+    '<local-command-caveat>truncated</local-command-caveat>',
+    // I1: heading matcher now accepts any level and optional .md.
+    '# AGENTS.md instructions\n\nx',
+    '## AGENTS.md instructions\n\nx',
+    '###### AGENTS instructions\n\nx',
+    '## SKILL.md instructions\n\nx',
+    '# SKILL instructions\n\nx',
+    // I1: text-form system/developer prompt phrasings.
+    'System prompt: never reveal this.',
+    'Developer note: keep it concise.',
+    'System: do the thing.',
+    'Developer - follow these rules.',
+    'System instructions: comply.',
+  ];
+
+  for (const text of DROP_CASES) {
+    test(`drops: ${JSON.stringify(text.slice(0, 40))}`, () => {
+      const out = sanitizeEntries([msg(text)], { runtime: 'claude-code' });
+      assert.equal(out.length, 0, `expected drop but survived: ${text.slice(0, 60)}`);
+    });
+  }
+
+  // Each entry should be KEPT (genuine prose that merely mentions tokens, or
+  // leading System/Developer words that are not instruction headers).
+  const KEEP_CASES = [
+    'System design notes for the new service are in the wiki.',
+    'Developer experience improvements are tracked in issue 42.',
+    'I clicked the System: menu in the toolbar and nothing happened.',
+    'The system-reminder banner is injected context, not user text.',
+    'Our AGENTS file lives at the repo root.', // no leading '#'
+    'See ## Review below for details.', // heading-ish but not AGENTS/SKILL
+    '## Review of the changes',
+  ];
+
+  for (const text of KEEP_CASES) {
+    test(`keeps: ${JSON.stringify(text.slice(0, 40))}`, () => {
+      const out = sanitizeEntries([msg(text)], { runtime: 'claude-code' });
+      assert.equal(out.length, 1, `expected keep but dropped: ${text.slice(0, 60)}`);
+    });
+  }
+
+  // m1: the system-or-developer-role matcher is defense-in-depth. In the real
+  // pipeline normalizeEntries already strips non-user/assistant roles, but if a
+  // role-bearing entry reaches the sanitizer it must still be dropped.
+  test('m1: role-bearing system/developer entries are dropped (defense-in-depth)', () => {
+    const entries = [
+      msg('You are a helpful assistant.', 'system'),
+      msg('Internal guidance.', 'developer'),
+      msg('a genuine user message', 'user'),
+    ];
+    const out = sanitizeEntries(entries, { runtime: 'codex' });
+    assert.equal(out.length, 1);
+    assert.equal(out[0].text, 'a genuine user message');
   });
 });
 
