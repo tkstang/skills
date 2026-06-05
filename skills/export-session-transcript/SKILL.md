@@ -95,6 +95,13 @@ The CLI prints the written path. By default it is `~/Downloads/<branch>.md` (wit
 | `--out <path>` | — | Output file or directory (also accepted positionally). |
 | `--help` | — | Usage. |
 
+**Selection-mode precedence:** the selection modes are mutually exclusive, with
+precedence `--all` > `--session` > `--match` > default (current session). The
+highest-precedence flag present wins and the lower ones are ignored — e.g.
+`--match` is ignored when `--all` is set, and `--session` is ignored when `--all`
+is set. With no selection flag, the CLI exports the current session (single
+candidate auto-selected; multiple candidates exit `3` as ambiguous).
+
 ### Output path resolution
 
 | Input | Output |
