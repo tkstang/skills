@@ -27,7 +27,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-06-04T00:39:09.356Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-06-05T20:12:57Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-06-05T22:01:27Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -57,7 +57,8 @@ sequential phases). First task: `p01-t01`.
 - ✓ Design artifact review received; I1 (sanitization boundary) + M1 (artifact drift) resolved
 - ✓ Plan generated and validated (`oat project validate-plan` passed)
 - ✓ Dispatch ceiling set: maximum (Codex xhigh · Claude opus)
-- ⧗ Implementation pending
+- ✓ Plan artifact review received; I1 (user-level sync closeout → p03-t02) + M1/M2 (review/log drift) resolved in-artifact
+- ⧗ Implementation pending (7 tasks across 3 phases)
 
 ## Blockers
 

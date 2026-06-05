@@ -28,9 +28,9 @@ oat_generated: false
 | -------------------------------------------------- | ------- | ----- | --------- |
 | Phase 1: Extract transcript-core + migrate observer | pending | 2     | 0/2       |
 | Phase 2: Build export-session-transcript skill      | pending | 3     | 0/3       |
-| Phase 3: Docs + repo invariants + verification      | pending | 1     | 0/1       |
+| Phase 3: Docs + repo invariants + verification      | pending | 2     | 0/2       |
 
-**Total:** 0/6 tasks completed
+**Total:** 0/7 tasks completed
 
 ---
 
@@ -135,6 +135,13 @@ oat_generated: false
 
 ---
 
+### Task p03-t02: User-level skill sync closeout
+
+**Status:** pending
+**Commit:** -
+
+---
+
 ## Orchestration Runs
 
 _Each run from `oat-project-implement` appends an entry below with:_
@@ -155,38 +162,8 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 
 Chronological log of implementation progress.
 
-### 2026-06-04
-
-**Session Start:** {time}
-
-- [x] p01-t01: {Task name} - {commit sha}
-- [ ] p01-t02: {Task name} - in progress
-
-**What changed (high level):**
-
-- {short bullets suitable for PR/docs}
-
-**Decisions:**
-
-- {Decision made and rationale}
-
-**Follow-ups / TODO:**
-
-- {anything discovered during implementation that should be captured for later}
-
-**Blockers:**
-
-- {Blocker description} - {status: resolved/pending}
-
-**Session End:** {time}
-
----
-
-### 2026-06-04
-
-**Session Start:** {time}
-
-{Continue log...}
+_Implementation has not started. Next task: `p01-t01`. Entries are appended here as
+tasks are executed via `oat-project-implement`._
 
 ---
 

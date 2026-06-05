@@ -270,6 +270,46 @@ git commit -m "docs(p03-t01): document export skill + shared-core sync; add repo
 
 ---
 
+### Task p03-t02: User-level skill sync closeout
+
+**Files:**
+
+- No repo files modified — this task refreshes the **user-level** skill installs and records the result. (If sync surfaces a needed repo fix, capture it as a follow-up rather than silently editing here.)
+
+**Step 1: Refresh the canonical user-level installs**
+
+For each affected standalone skill — `session-observer` (edited in Phase 1) and `export-session-transcript` (created in Phase 2) — refresh the canonical user copy at `~/.agents/skills/<skill-name>/` from this repo's `skills/<skill-name>/` so the dogfooding install matches the worktree.
+
+**Step 2: Verify provider skill entries**
+
+Check whether provider-specific user skill entries exist and resolve to the canonical copy:
+
+- `~/.claude/skills/session-observer`, `~/.claude/skills/export-session-transcript`
+- `~/.cursor/skills/session-observer`, `~/.cursor/skills/export-session-transcript`
+
+Only reconcile entries that already exist; do not create new provider entries the user hasn't opted into.
+
+**Step 3: Run user-scope sync**
+
+Run: `oat sync --scope user`
+Expected: completes without error; both skills resolve for the user-level providers.
+
+**Step 4: Verify**
+
+Run: `oat sync --scope user` (idempotent re-run) and confirm `~/.agents/skills/session-observer` and `~/.agents/skills/export-session-transcript` are present and current.
+Expected: no pending changes on the second run; both skills listed.
+
+**Step 5: Commit**
+
+No tracked repo files change in this task. If `oat sync --scope user` produced any in-repo manifest changes (e.g. `.oat/sync/manifest.json`), commit them:
+
+```bash
+git add -A -- .oat/sync 2>/dev/null || true
+git diff --cached --quiet || git commit -m "chore(p03-t02): user-level skill sync closeout"
+```
+
+---
+
 ## Reviews
 
 | Scope  | Type     | Status   | Date       | Artifact                                               |
@@ -279,17 +319,17 @@ git commit -m "docs(p03-t01): document export skill + shared-core sync; add repo
 | p03    | code     | pending  | -          | -                                                      |
 | final  | code     | pending  | -          | -                                                      |
 | spec   | artifact | pending  | -          | -                                                      |
-| design | artifact | received | 2026-06-05 | reviews/archived/artifact-design-review-2026-06-05.md  |
-| plan   | artifact | received | 2026-06-05 | reviews/artifact-plan-review-2026-06-05.md             |
+| design | artifact | passed   | 2026-06-05 | reviews/archived/artifact-design-review-2026-06-05.md  |
+| plan   | artifact | passed   | 2026-06-05 | reviews/archived/artifact-plan-review-2026-06-05.md    |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 
 **Meaning:**
 
-- `received`: review artifact exists (design review received; findings resolved directly in artifacts — see implementation/state notes)
-- `fixes_added`: fix tasks were added to the plan (work queued)
+- `received`: review artifact exists (not yet processed)
+- `fixes_added`: fix tasks were created and added to the plan (work queued)
 - `fixes_completed`: fix tasks implemented, awaiting re-review
-- `passed`: re-review run and recorded as passing (no Critical/Important)
+- `passed`: review processed and recorded as passing. For artifact reviews this means all findings were resolved directly in the artifacts (no Critical/Important left open); for code reviews it means a re-review ran and passed.
 
 ---
 
@@ -299,9 +339,9 @@ git commit -m "docs(p03-t01): document export skill + shared-core sync; add repo
 
 - Phase 1: 2 tasks — extract canonical `transcript-core`, add sync + drift guard, migrate `session-observer`
 - Phase 2: 3 tasks — scaffold export skill + SKILL.md, content sanitizer, export CLI
-- Phase 3: 1 task — docs, shared-core convention, repo-layout invariants, full verification
+- Phase 3: 2 tasks — docs/repo-layout invariants + full verification; user-level skill sync closeout
 
-**Total: 6 tasks**
+**Total: 7 tasks**
 
 Ready for code review and merge.
 
@@ -312,4 +352,4 @@ Ready for code review and merge.
 - Design: `design.md` (lightweight design; reviewed + findings resolved)
 - Spec: `spec.md` (N/A — quick mode)
 - Discovery: `discovery.md`
-- Review history: `reviews/archived/artifact-design-review-2026-06-05.md`
+- Review history: `reviews/archived/artifact-design-review-2026-06-05.md`, `reviews/archived/artifact-plan-review-2026-06-05.md`
