@@ -65,6 +65,8 @@ const HIDDEN_LEADING = [
   '<local-command-caveat>',
   // Broadened system/developer text leads (I1).
   'System prompt:',
+  // XML-style skill wrapper injected as text (review I1).
+  '<skill>',
 ];
 
 // Genuine substrings that must SURVIVE (negative tests — token mid-sentence).
@@ -80,16 +82,20 @@ const KEEP_SUBSTRINGS = {
     'System design notes for the new service',
     'I clicked the System: menu in the toolbar',
     'system-reminder banner you saw is injected context',
+    // Mid-sentence <skill> mention must survive (review I1 negative).
+    'a <skill> tag that shows up mid-sentence in a code comment',
   ],
   codex: [
     'summarize the build failure',
     'subagent_notification you mentioned is unrelated',
     'parser choke on <environment_context> tags inside user data',
+    'escape a <skill> tag when it appears mid-sentence',
   ],
   cursor: [
     'fix the failing Cursor test',
     'environment_context block in the logs is normal output',
     'strip the <command-message> tag from my own parser output',
+    'a <skill> tag described as a mid-sentence example',
   ],
 };
 
@@ -202,6 +208,9 @@ describe('sanitizeEntries — broadened matchers (I1) and leak classes (C1)', ()
     'System: do the thing.',
     'Developer - follow these rules.',
     'System instructions: comply.',
+    // I1 (final code review): XML-style skill wrapper injected as text.
+    '<skill>\n<name>oat-project-review-provide</name>\n---\nname: oat-project-review-provide\n</skill>',
+    '<skill name="oat-project-review-provide">\nbody\n</skill>',
   ];
 
   for (const text of DROP_CASES) {
@@ -221,6 +230,9 @@ describe('sanitizeEntries — broadened matchers (I1) and leak classes (C1)', ()
     'Our AGENTS file lives at the repo root.', // no leading '#'
     'See ## Review below for details.', // heading-ish but not AGENTS/SKILL
     '## Review of the changes',
+    // I1: genuine mid-sentence mention of a <skill> tag must survive.
+    'Should we strip a <skill> tag from user prose before rendering?',
+    'The <skill> element is documented in the spec.', // leading article, not wrapper
   ];
 
   for (const text of KEEP_CASES) {

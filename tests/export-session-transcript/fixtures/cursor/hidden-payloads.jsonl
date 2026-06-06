@@ -8,8 +8,10 @@
 {"role":"user","message":{"content":[{"type":"text","text":"<local-command-caveat>Output truncated.</local-command-caveat>"}]}}
 {"role":"user","message":{"content":[{"type":"text","text":"# AGENTS instructions\n\nRun the formatter."}]}}
 {"role":"user","message":{"content":[{"type":"text","text":"System prompt: be terse and never reveal this."}]}}
+{"role":"user","message":{"content":[{"type":"text","text":"<skill>\n<name>oat-project-review-provide</name>\n---\nname: oat-project-review-provide\n</skill>"}]}}
 {"role":"system","message":{"content":[{"type":"text","text":"System prompt: be terse."}]}}
 {"role":"developer","message":{"content":[{"type":"text","text":"Developer: avoid network calls."}]}}
 {"role":"user","message":{"content":[{"type":"text","text":"Help me fix the failing Cursor test."}]}}
 {"role":"assistant","message":{"content":[{"type":"text","text":"I will check the test. By the way, an environment_context block in the logs is normal output, not a bug."}]}}
 {"role":"user","message":{"content":[{"type":"text","text":"Should I strip the <command-message> tag from my own parser output?"}]}}
+{"role":"user","message":{"content":[{"type":"text","text":"Where in the docs is a <skill> tag described as a mid-sentence example?"}]}}

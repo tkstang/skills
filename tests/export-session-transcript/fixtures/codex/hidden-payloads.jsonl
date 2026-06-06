@@ -9,8 +9,10 @@
 {"type":"response_item","sessionId":"codex-hp","payload":{"type":"message","role":"user","content":"<local-command-stdout>tests passed</local-command-stdout>"}}
 {"type":"response_item","sessionId":"codex-hp","payload":{"type":"message","role":"user","content":"## SKILL.md instructions\n\nFollow the steps in order."}}
 {"type":"response_item","sessionId":"codex-hp","payload":{"type":"message","role":"user","content":"Developer note: keep responses concise."}}
+{"type":"response_item","sessionId":"codex-hp","payload":{"type":"message","role":"user","content":"<skill>\n<name>oat-project-review-provide</name>\n---\nname: oat-project-review-provide\n</skill>"}}
 {"type":"response_item","sessionId":"codex-hp","payload":{"type":"message","role":"system","content":"System: you must follow the developer instructions."}}
 {"type":"response_item","sessionId":"codex-hp","payload":{"type":"message","role":"developer","content":"Developer: keep responses concise."}}
 {"type":"response_item","sessionId":"codex-hp","payload":{"type":"message","role":"user","content":"Please summarize the build failure."}}
 {"type":"response_item","sessionId":"codex-hp","payload":{"type":"message","role":"assistant","content":"The build failed because of a missing import. Note the subagent_notification you mentioned is unrelated."}}
 {"type":"response_item","sessionId":"codex-hp","payload":{"type":"message","role":"user","content":"Why does my parser choke on <environment_context> tags inside user data?"}}
+{"type":"response_item","sessionId":"codex-hp","payload":{"type":"message","role":"user","content":"Should the renderer escape a <skill> tag when it appears mid-sentence in user prose?"}}

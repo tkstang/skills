@@ -94,6 +94,21 @@ export const HIDDEN_PAYLOAD_MATCHERS = [
     test: (text) => lead(text).startsWith('<turn_aborted>'),
   },
   {
+    // XML-style skill wrappers injected as ordinary text — e.g.
+    //   <skill>
+    //   <name>oat-project-review-provide</name>
+    //   ---
+    //   name: oat-project-review-provide
+    //   </skill>
+    // Leaked skill bodies recorded as plain user/assistant transcript text would
+    // otherwise survive normalization and render into the export, violating the
+    // privacy boundary. Leading-anchored so genuine mid-sentence mentions of
+    // "<skill>" in real conversation are PRESERVED. Accept either the bare
+    // opening tag or one carrying attributes (`<skill name="…">`).
+    id: 'skill-wrapper',
+    test: (text) => /^<skill(\s[^>]*)?>/.test(lead(text)),
+  },
+  {
     // Claude Code's primary injected-context wrapper. Carries environment
     // changes and "the user sent a new message while you were working"
     // subagent-style notifications. Confirmed present in real ~/.claude
