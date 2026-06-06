@@ -1,9 +1,9 @@
 ---
-oat_status: in_progress
+oat_status: complete
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-06
-oat_current_task_id: p03-t05
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -28,9 +28,9 @@ oat_generated: false
 | -------------------------------------------------- | ------- | ----- | --------- |
 | Phase 1: Extract transcript-core + migrate observer | complete | 2     | 2/2       |
 | Phase 2: Build export-session-transcript skill      | complete | 3     | 3/3       |
-| Phase 3: Docs + repo invariants + verification      | in_progress | 6  | 4/6       |
+| Phase 3: Docs + repo invariants + verification      | complete | 6     | 6/6       |
 
-**Total:** 9/11 tasks completed
+**Total:** 11/11 tasks completed
 
 ---
 
@@ -251,15 +251,23 @@ oat_generated: false
 
 ### Task p03-t05: (review) Drop leading `<skill>...</skill>` payloads in the sanitizer (final review I1)
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** 642d4a9
+
+**Notes:**
+
+- Added leading-anchored `skill-wrapper` matcher (`/^<skill(\s[^>]*)?>/`) + fixtures (3 runtimes) + negative test. Probe: `<skill>…</skill>` survivors 0 on all runtimes; mid-sentence mentions preserved.
 
 ---
 
 ### Task p03-t06: (review) Scope README Limitations to the consensus family (final review M1)
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** abf026e
+
+**Notes:**
+
+- README Limitations re-scoped to the consensus plugin family; `readme-scope.test.mjs` green.
 
 ---
 
@@ -274,7 +282,7 @@ oat_generated: false
 - I1 → p03-t05: add a leading-anchored `<skill>...</skill>` matcher to `sanitize.mjs` + per-runtime fixtures + negative test. (Same leak class as the p02 `<system-reminder>` finding; a different wrapper missed by the matcher table.)
 - M1 → p03-t06: scope the README Limitations "v0.1 ships `refine` only" note to the consensus plugin family.
 
-**Next:** Implement p03-t05/p03-t06, re-verify, re-run `oat-project-review-provide code final` → `oat-project-review-receive` to reach `passed`, then update PR #6.
+**Next:** p03-t05 (642d4a9) + p03-t06 (abf026e) implemented and verified (`npm test` 366, validate, sync `--check`, `<skill>` probe survivors 0). Re-review **passed**. `final` review marked `passed`. PR #6 updated.
 
 ---
 
@@ -363,7 +371,7 @@ Track test execution during implementation.
 **Behavioral changes (user-facing):**
 
 - Run the export skill to save the live session: it announces a unique session marker, content-matches the current transcript (newest-for-cwd fallback), and writes `~/Downloads/<branch>.md`. Flags: `--session`, `--all`, `--runtime`, `--out` (file or directory).
-- Output is sanitized in two layers: structural (`normalizeEntries` drops tool calls/results + command-messages) + content (`sanitize.mjs` drops `<system-reminder>`, `<task-notification>`, `<local-command-*>`, `<environment_context>`, AGENTS.md/SKILL.md payloads, system/developer instructions, `<subagent_notification>`, `<turn_aborted>`), then the marker line is stripped.
+- Output is sanitized in two layers: structural (`normalizeEntries` drops tool calls/results + command-messages) + content (`sanitize.mjs` drops `<system-reminder>`, `<task-notification>`, `<local-command-*>`, `<environment_context>`, `<skill>…</skill>`, AGENTS.md/SKILL.md payloads, system/developer instructions, `<subagent_notification>`, `<turn_aborted>`), then the marker line is stripped.
 
 **Key files / modules:**
 
@@ -375,8 +383,8 @@ Track test execution during implementation.
 
 **Verification performed:**
 
-- `npm test` (322 tests) green; `npm run validate` pass; `npm run smoke` pass. Drift guard green; sanitizer real-store scan (1,411 files / 41,281 entries) → 0 hidden-payload survivors.
-- Per-phase reviews: p01 pass, p02 fail→fix→pass (closed a `<system-reminder>` privacy leak), p03 pass. Final review pass (2 Minor → fixed in p03-t03/p03-t04).
+- `npm test` (366 tests, integrated with `main`'s session-observer watch-mode work) green; `npm run validate` pass; `npm run smoke` pass. Drift guard green; sanitizer real-store scan (1,411 files / 41,281 entries) → 0 hidden-payload survivors.
+- Per-phase reviews: p01 pass, p02 fail→fix→pass (closed a `<system-reminder>` privacy leak), p03 pass. Final review (cycle 1) pass (2 Minor → p03-t03/p03-t04). Final review (cycle 2) found I1 (`<skill>` leak, Important) + M1 (README drift) → fixed in p03-t05/p03-t06 → re-review pass.
 - User-level dogfooding: `export-session-transcript` installed at `~/.agents/skills` + provider symlinks via `oat sync --scope user`; installed CLI `--help` runs.
 
 **Design deltas (if any):**

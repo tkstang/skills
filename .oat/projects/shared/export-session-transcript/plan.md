@@ -433,7 +433,7 @@ git commit -m "docs(p03-t06): scope README limitations to consensus family (revi
 | p01    | code     | passed   | 2026-06-05 | Tier 1 in-run review (structured, pass)                |
 | p02    | code     | passed   | 2026-06-05 | Tier 1 in-run review (fail→fix a1c24fb→pass)           |
 | p03    | code     | passed   | 2026-06-05 | Tier 1 in-run review (p03-t01, pass)                   |
-| final  | code     | fixes_added | 2026-06-06 | reviews/archived/final-review-2026-06-06.md          |
+| final  | code     | passed   | 2026-06-06 | reviews/archived/final-review-2026-06-06.md            |
 | spec   | artifact | pending  | -          | -                                                      |
 | design | artifact | passed   | 2026-06-05 | reviews/archived/artifact-design-review-2026-06-05.md  |
 | plan   | artifact | passed   | 2026-06-05 | reviews/archived/artifact-plan-review-2026-06-05.md    |
