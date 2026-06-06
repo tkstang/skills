@@ -125,7 +125,7 @@ For watch mode, `--runtime both` watches Claude Code and Codex in one foreground
 
 ## Limitations
 
-- v0.1 ships the `refine` skill only.
+- The consensus plugin family ships the `refine` skill only in v0.1; the standalone `session-observer` and `export-session-transcript` skills (and the shared `transcript-core` module) ship alongside it but are not part of the consensus plugin.
 - The rest of the consensus family is deferred: `consensus-create`, `consensus-evaluate`, `consensus-decide`, `consensus-plan`, and `consensus-research`.
 - Consensus alternating iteration mode only; parallel-revision and parallel-synthesized modes are future work.
 - Consensus sections converge independently; there is no whole-document harmonization pass in v0.1.
