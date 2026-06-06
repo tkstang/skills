@@ -5,7 +5,7 @@ oat_blockers: []
 oat_last_updated: 2026-06-06
 oat_generated: false
 oat_template: false
-oat_summary_last_task: p03-t04
+oat_summary_last_task: p03-t06
 oat_summary_revision_count: 0
 oat_summary_includes_revisions: []
 ---
@@ -19,7 +19,7 @@ Coding-agent sessions hold useful conversation history, but there was no safe, c
 ## What Was Implemented
 
 - **`export-session-transcript` skill** (`skills/export-session-transcript/`): a CLI that selects the current session via an announced random-hex **session marker** (content-matched against the cwd's transcripts, newest-for-cwd fallback), then renders sanitized Markdown. Flags: `--match`, `--session`, `--all`, `--runtime`, `--out` (file or directory), `--cwd`. Output defaults to `~/Downloads/<branch>.md` (with a not-in-git fallback name). Selection-mode precedence is `--all` > `--session` > `--match` > default.
-- **Two-layer sanitization** — the privacy boundary. Structural filtering (`normalizeEntries`, from the shared core: drops tool calls/results + command-messages) followed by an export-owned **content sanitizer** (`sanitize.mjs`) that drops injected/hidden payloads recorded as ordinary text: `<system-reminder>`, `<task-notification>`, `<local-command-*>`, `<environment_context>`, AGENTS.md/SKILL.md payloads, system/developer instructions, `<subagent_notification>`, `<turn_aborted>`. The session marker line is stripped from output.
+- **Two-layer sanitization** — the privacy boundary. Structural filtering (`normalizeEntries`, from the shared core: drops tool calls/results + command-messages) followed by an export-owned **content sanitizer** (`sanitize.mjs`) that drops injected/hidden payloads recorded as ordinary text: `<system-reminder>`, `<task-notification>`, `<local-command-*>`, `<environment_context>`, `<skill>…</skill>`, AGENTS.md/SKILL.md payloads, system/developer instructions, `<subagent_notification>`, `<turn_aborted>`. The session marker line is stripped from output.
 - **Canonical shared core** (`shared/transcript-core/runtimes.mjs`): the per-provider transcript location/parsing primitives extracted as a single source of truth, materialized into each consuming skill's `scripts/lib/runtimes.mjs` via `npm run sync:transcript-core` (committed, banner-stamped copies) with a `--check` drift guard wired into `npm test`.
 - **`session-observer` migrated** to consume the synced copy with no behavior change (body byte-identical to baseline).
 
@@ -31,13 +31,13 @@ Coding-agent sessions hold useful conversation history, but there was no safe, c
 
 ## Notable Challenges
 
-- **A real privacy leak was caught in review.** The first sanitizer relied too much on structural filtering and missed `<system-reminder>` — Claude Code's most common injected-context wrapper — which a reviewer confirmed leaked into the export against real transcripts. The fix made the matcher table evidence-driven (grepping real `~/.claude`/`~/.codex`/`~/.cursor` stores), adding matchers for `<system-reminder>`, `<task-notification>`, and `<local-command-*>`; a real-store scan over 1,411 files / 41,281 entries then showed zero leading-anchored survivors.
+- **Privacy leaks were caught in review — twice, same class.** The first sanitizer relied too much on structural filtering and missed `<system-reminder>` (p02 review) — Claude Code's most common injected-context wrapper — which a reviewer confirmed leaked into the export against real transcripts. The fix made the matcher table evidence-driven (grepping real `~/.claude`/`~/.codex`/`~/.cursor` stores), adding matchers for `<system-reminder>`, `<task-notification>`, and `<local-command-*>`; a real-store scan over 1,411 files / 41,281 entries then showed zero leading-anchored survivors. A second final-review cycle then caught one more wrapper of the same class — `<skill>…</skill>` — fixed with a leading-anchored matcher (p03-t05). Lesson reinforced: the matcher table must be enumerated against real injected-wrapper forms, not just the obvious ones.
 
 ## Verification
 
-- `npm test` (362 tests, integrated with `main`'s session-observer watch-mode work) · `npm run validate` · `npm run smoke` — all pass.
+- `npm test` (366 tests, integrated with `main`'s session-observer watch-mode work) · `npm run validate` · `npm run smoke` — all pass.
 - Drift guard green; sanitizer real-store leak scan → 0 survivors.
-- Reviews: design (artifact) passed; plan (artifact) passed; p01/p02/p03 phase reviews passed (p02 fail→fix→pass closing the leak); final review passed (2 Minor → fixed in p03-t03/p03-t04).
+- Reviews: design (artifact) passed; plan (artifact) passed; p01/p02/p03 phase reviews passed (p02 fail→fix→pass closing the `<system-reminder>` leak); final review cycle 1 passed (2 Minor → p03-t03/p03-t04); final review cycle 2 found I1 `<skill>` leak (Important) + M1 README drift → fixed in p03-t05/p03-t06 → re-review passed.
 
 ## Integration Notes
 
