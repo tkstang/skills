@@ -22,6 +22,32 @@ It also supports foreground watch mode. `watch` and top-level `--watch` poll the
 
 The canonical user-facing documentation is `skills/session-observer/SKILL.md`. Runtime format details live in `skills/session-observer/references/transcript-formats.md`; implemented watch behavior and design notes live in `skills/session-observer/references/watch-design.md`.
 
+### Export session transcript skill
+
+`skills/export-session-transcript/` is a standalone Agent Skill that exports the current agent session to a sanitized Markdown transcript. The output is named after the current git branch (`/` replaced with `-`) and written by default to `~/Downloads`. It supports Claude Code, Codex, and Cursor transcript stores.
+
+To identify which transcript is the live conversation, the agent announces a unique random-hex session marker to the user; the marker lands in the transcript, and the export script greps cwd candidates for it to select the current session unambiguously. If the marker has not yet been flushed, it falls back to the newest transcript for the cwd with a warning.
+
+Modes:
+
+- `--match <marker>` selects the current session by the announced marker (with newest-for-cwd fallback).
+- `--session <id>` exports a specific session id.
+- `--all` exports every session for the cwd, one file each.
+- `--runtime <claude-code|codex|cursor|auto>` selects the runtime (default `auto`: env hint, then best-effort detection).
+- `--out <path>` overrides the output file or directory (also accepted positionally).
+
+Sanitization is two layers: a structural pass (`normalizeEntries` in the shared transcript-core, which drops tool calls/results and command-message records) followed by an export-owned content sanitizer (`scripts/lib/sanitize.mjs`, `sanitizeEntries`) that drops hidden-payload messages surviving as ordinary text — environment-context wrappers, AGENTS.md/SKILL.md/skill-body payloads, system/developer instruction records, subagent notifications, and `turn_aborted` markers. The session-marker line and empty entries are stripped before render.
+
+The canonical user-facing documentation is `skills/export-session-transcript/SKILL.md`; per-provider store locations and record shapes live in `skills/export-session-transcript/references/transcript-formats.md`.
+
+### Shared transcript-core
+
+Per-provider transcript knowledge (store locations, record parsing, structural filtering) has a single source of truth at `shared/transcript-core/runtimes.mjs`. Rather than cross-skill imports, each consuming skill ships a committed, byte-identical vendored copy under its own `scripts/lib/runtimes.mjs`, materialized by `npm run sync:transcript-core`. The synced copies carry a generated banner; the canonical source is banner-free.
+
+A `--check` drift guard (`node scripts/sync-transcript-core.mjs --check`) regenerates the expected banner-stamped content and diffs the committed copies, failing on any divergence. It runs as part of `npm test` via `tests/transcript-core/sync.test.mjs`, so editing the canonical module without re-syncing breaks the suite. Edit `shared/transcript-core/runtimes.mjs`, then run `npm run sync:transcript-core` to update consumers.
+
+Current consumers: `session-observer` and `export-session-transcript`.
+
 ## Local Git Repository Install
 
 The current v0.1 path is local marketplace installation from this checkout. The repo root contains provider marketplace entries, and `plugins/consensus/` contains the provider plugin manifests.
@@ -99,7 +125,7 @@ For watch mode, `--runtime both` watches Claude Code and Codex in one foreground
 
 ## Limitations
 
-- v0.1 ships the `refine` skill only.
+- The consensus plugin family ships the `refine` skill only in v0.1; the standalone `session-observer` and `export-session-transcript` skills (and the shared `transcript-core` module) ship alongside it but are not part of the consensus plugin.
 - The rest of the consensus family is deferred: `consensus-create`, `consensus-evaluate`, `consensus-decide`, `consensus-plan`, and `consensus-research`.
 - Consensus alternating iteration mode only; parallel-revision and parallel-synthesized modes are future work.
 - Consensus sections converge independently; there is no whole-document harmonization pass in v0.1.
@@ -115,6 +141,8 @@ For watch mode, `--runtime both` watches Claude Code and Codex in one foreground
 
 - `skills/` - standalone personal skills.
 - `skills/session-observer/` - standalone peer transcript review and catch-up skill.
+- `skills/export-session-transcript/` - standalone session transcript export skill.
+- `shared/transcript-core/` - canonical per-provider transcript module synced into each consuming skill.
 - `plugins/consensus/` - self-contained consensus plugin package.
 - `.claude-plugin/`, `.cursor-plugin/`, `.agents/plugins/` - repo-root marketplace entries.
 - `.oat/` and `.agents/` - project-management infrastructure, not required by plugin consumers.

@@ -24,6 +24,7 @@
 - Do not document provider support, marketplace availability, or skills.sh discovery as complete until the release checklist verifies the live provider path.
 - Keep plugin-facing documentation accurate to source code and manifests; do not preserve stale workaround notes when the implementation contract changes.
 - When editing a standalone skill under `skills/` for local dogfooding, keep the user-level install in sync before closeout. Refresh the canonical copy at `~/.agents/skills/<skill-name>/`, verify provider-specific user skill entries such as `~/.claude/skills/<skill-name>` and `~/.cursor/skills/<skill-name>` resolve to that canonical copy when present, then run `oat sync --scope user`.
+- Shared transcript-format logic has a single source of truth at `shared/transcript-core/runtimes.mjs`. Skills that need it (e.g. `session-observer`, `export-session-transcript`) carry a **generated** committed copy at `scripts/lib/runtimes.mjs`. Edit only the canonical file, then run `npm run sync:transcript-core` to regenerate every consumer copy; never hand-edit the generated copies (they carry a `// GENERATED` banner). A drift guard (`tests/transcript-core/sync.test.mjs`) fails `npm test` if any copy diverges from canonical.
 
 ## Verification
 

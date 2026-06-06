@@ -13,6 +13,8 @@ async function assertDirectory(relativePath) {
 test('repository exposes standalone and consensus plugin layout', async () => {
   const requiredDirectories = [
     'skills',
+    path.posix.join('shared', 'transcript-core'),
+    path.posix.join('skills', 'export-session-transcript'),
     path.posix.join('plugins', 'consensus'),
     path.posix.join('plugins', 'consensus', 'skills'),
     path.posix.join('plugins', 'consensus', 'skills', 'refine'),
