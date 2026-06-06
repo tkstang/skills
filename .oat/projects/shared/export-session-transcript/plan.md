@@ -375,7 +375,7 @@ git commit -m "docs(p03-t04): document --all/--match mode precedence (review m2)
 | p01    | code     | passed   | 2026-06-05 | Tier 1 in-run review (structured, pass)                |
 | p02    | code     | passed   | 2026-06-05 | Tier 1 in-run review (fail→fix a1c24fb→pass)           |
 | p03    | code     | passed   | 2026-06-05 | Tier 1 in-run review (p03-t01, pass)                   |
-| final  | code     | passed   | 2026-06-05 | reviews/archived/final-review-2026-06-05.md            |
+| final  | code     | received | 2026-06-06 | reviews/final-review-2026-06-06.md                     |
 | spec   | artifact | pending  | -          | -                                                      |
 | design | artifact | passed   | 2026-06-05 | reviews/archived/artifact-design-review-2026-06-05.md  |
 | plan   | artifact | passed   | 2026-06-05 | reviews/archived/artifact-plan-review-2026-06-05.md    |
