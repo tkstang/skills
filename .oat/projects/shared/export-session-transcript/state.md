@@ -1,5 +1,5 @@
 ---
-oat_current_task: null
+oat_current_task: p03-t05
 oat_last_commit: a1267d2
 oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
@@ -12,7 +12,7 @@ oat_hill_checkpoints: [] # Configured: which phases require human-in-the-loop li
 oat_hill_completed: [] # Progress: which HiLL checkpoints have been completed
 oat_parallel_execution: false
 oat_phase: implement # Current phase: discovery | spec | design | plan | implement | decomposition
-oat_phase_status: pr_open # Status: in_progress | complete | pr_open
+oat_phase_status: in_progress # Status: in_progress | complete | pr_open
 # oat_orchestration_retry_limit: 2  # optional; override fix-loop retry limit (range 0-5)
 oat_dispatch_ceiling:
   preset: maximum
@@ -27,19 +27,19 @@ oat_pr_status: open # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: "https://github.com/tkstang/skills/pull/6" # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-06-04T00:39:09.356Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-06-06T00:17:14Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-06-06T18:11:15Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
 # Project State: export-session-transcript
 
-**Status:** Implementation complete — final review passed
+**Status:** PR open — addressing 2nd final-review findings (I1 + M1)
 **Started:** 2026-06-04
-**Last Updated:** 2026-06-05
+**Last Updated:** 2026-06-06
 
 ## Current Phase
 
-Implementation — PR open, awaiting human review.
+Implementation — PR #6 open; addressing a 2nd final code review (I1 `<skill>` sanitizer gap + M1 README drift) via p03-t05/p03-t06.
 
 ## Artifacts
 
@@ -58,8 +58,8 @@ Implementation — PR open, awaiting human review.
 - ✓ Final review passed (0 Critical/Important; 2 Minor converted + fixed)
 - ✓ Synced with main (merge 536be85; integrated suite 362 tests green)
 - ✓ Docs synced (AGENTS.md transcript-core convention)
-- ✓ PR created
-- ⧗ Awaiting human review
+- ✓ PR created (#6)
+- ⧗ 2nd final review received (I1 `<skill>` leak + M1 README drift) → p03-t05/p03-t06 queued
 
 ## Blockers
 

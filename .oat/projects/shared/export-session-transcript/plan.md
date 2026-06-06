@@ -368,6 +368,64 @@ git commit -m "docs(p03-t04): document --all/--match mode precedence (review m2)
 
 ---
 
+### Task p03-t05: (review) Drop leading `<skill>...</skill>` payloads in the sanitizer (final review I1)
+
+**Files:**
+
+- Modify: `skills/export-session-transcript/scripts/lib/sanitize.mjs`
+- Modify: `tests/export-session-transcript/sanitize.test.mjs`
+- Modify: `tests/export-session-transcript/fixtures/{claude-code,codex,cursor}/hidden-payloads.jsonl`
+
+**Step 1: Understand the issue**
+
+Review finding I1 (final code review): the sanitizer has no matcher for the XML-style skill wrapper `<skill>...</skill>`. A leading entry like `<skill>\n<name>…</name>\n---\nname: …\n</skill>` survives `sanitizeEntries` unchanged, so injected skill bodies recorded as ordinary transcript text would leak into the exported Markdown — violating the privacy boundary (`SKILL.md:17`, `discovery.md:17`). Verified: `sanitizeEntries([{role:'user',text:'<skill>…</skill>',…}], {runtime:'codex'})` returns the entry unchanged.
+
+**Step 2: Implement fix**
+
+Add a leading-anchored hidden-payload matcher for `<skill>` blocks (consistent with the existing `lead(text).startsWith('<…>')` style; cover close variants if observed). Keep it conservative/leading-anchored so genuine mid-sentence mentions of `<skill>` are preserved.
+
+**Step 3: Verify**
+
+Run: `node --test tests/export-session-transcript/sanitize.test.mjs`
+Expected: pass — new positive drops for `<skill>` across all three runtime fixtures, plus a negative test proving a mid-sentence `<skill>` mention is kept. Re-run the I1 probe → entry dropped.
+
+**Step 4: Commit**
+
+```bash
+git add skills/export-session-transcript/scripts/lib/sanitize.mjs tests/export-session-transcript/sanitize.test.mjs tests/export-session-transcript/fixtures/
+git commit -m "fix(p03-t05): drop leading <skill> payloads in sanitizer (review I1)"
+```
+
+---
+
+### Task p03-t06: (review) Scope README Limitations to the consensus family (final review M1)
+
+**Files:**
+
+- Modify: `README.md`
+
+**Step 1: Understand the issue**
+
+Review finding M1 (final code review): the README Limitations section still says "v0.1 ships the `refine` skill only" (`README.md:128`), which is inconsistent now that the README documents `session-observer`, `export-session-transcript`, and `shared/transcript-core`.
+
+**Step 2: Implement fix**
+
+Scope that limitation explicitly to the **consensus plugin family** (its actual intent), so it no longer implies the whole repo ships only `refine`.
+
+**Step 3: Verify**
+
+Run: `npm run validate`
+Expected: pass (README scope test + structure invariants still hold).
+
+**Step 4: Commit**
+
+```bash
+git add README.md
+git commit -m "docs(p03-t06): scope README limitations to consensus family (review M1)"
+```
+
+---
+
 ## Reviews
 
 | Scope  | Type     | Status   | Date       | Artifact                                               |
@@ -375,7 +433,7 @@ git commit -m "docs(p03-t04): document --all/--match mode precedence (review m2)
 | p01    | code     | passed   | 2026-06-05 | Tier 1 in-run review (structured, pass)                |
 | p02    | code     | passed   | 2026-06-05 | Tier 1 in-run review (fail→fix a1c24fb→pass)           |
 | p03    | code     | passed   | 2026-06-05 | Tier 1 in-run review (p03-t01, pass)                   |
-| final  | code     | received | 2026-06-06 | reviews/final-review-2026-06-06.md                     |
+| final  | code     | fixes_added | 2026-06-06 | reviews/archived/final-review-2026-06-06.md          |
 | spec   | artifact | pending  | -          | -                                                      |
 | design | artifact | passed   | 2026-06-05 | reviews/archived/artifact-design-review-2026-06-05.md  |
 | plan   | artifact | passed   | 2026-06-05 | reviews/archived/artifact-plan-review-2026-06-05.md    |
@@ -397,9 +455,9 @@ git commit -m "docs(p03-t04): document --all/--match mode precedence (review m2)
 
 - Phase 1: 2 tasks — extract canonical `transcript-core`, add sync + drift guard, migrate `session-observer`
 - Phase 2: 3 tasks — scaffold export skill + SKILL.md, content sanitizer, export CLI
-- Phase 3: 4 tasks — docs/repo-layout invariants + full verification; user-level skill sync closeout; final-review fixes (m1 `--all` cwd guard, m2 SKILL.md precedence note)
+- Phase 3: 6 tasks — docs/repo-layout invariants + full verification; user-level skill sync closeout; final-review fixes (m1 `--all` cwd guard, m2 SKILL.md precedence note; I1 `<skill>` sanitizer matcher, M1 README limitations scope)
 
-**Total: 9 tasks**
+**Total: 11 tasks**
 
 Ready for code review and merge.
 
@@ -410,4 +468,4 @@ Ready for code review and merge.
 - Design: `design.md` (lightweight design; reviewed + findings resolved)
 - Spec: `spec.md` (N/A — quick mode)
 - Discovery: `discovery.md`
-- Review history: `reviews/archived/artifact-design-review-2026-06-05.md`, `reviews/archived/artifact-plan-review-2026-06-05.md`, `reviews/archived/final-review-2026-06-05.md`
+- Review history: `reviews/archived/artifact-design-review-2026-06-05.md`, `reviews/archived/artifact-plan-review-2026-06-05.md`, `reviews/archived/final-review-2026-06-05.md`, `reviews/archived/final-review-2026-06-06.md`

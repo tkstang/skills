@@ -1,9 +1,9 @@
 ---
-oat_status: complete
+oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
-oat_last_updated: 2026-06-05
-oat_current_task_id: null
+oat_last_updated: 2026-06-06
+oat_current_task_id: p03-t05
 oat_generated: false
 ---
 
@@ -28,9 +28,9 @@ oat_generated: false
 | -------------------------------------------------- | ------- | ----- | --------- |
 | Phase 1: Extract transcript-core + migrate observer | complete | 2     | 2/2       |
 | Phase 2: Build export-session-transcript skill      | complete | 3     | 3/3       |
-| Phase 3: Docs + repo invariants + verification      | complete | 4     | 4/4       |
+| Phase 3: Docs + repo invariants + verification      | in_progress | 6  | 4/6       |
 
-**Total:** 9/9 tasks completed
+**Total:** 9/11 tasks completed
 
 ---
 
@@ -245,7 +245,36 @@ oat_generated: false
 - m1 → p03-t03: exclude unresolved-`recordedCwd` Codex candidates from `--all`.
 - m2 → p03-t04: document `--all` > `--session` > `--match` mode precedence in SKILL.md.
 
-**Next:** p03-t03 (1272693) + p03-t04 (a1267d2) implemented and verified (`npm test` 322, validate, sync `--check` exit 0). `final` review marked `passed`. Ready for PR.
+**Next:** p03-t03 (1272693) + p03-t04 (a1267d2) implemented and verified (`npm test` 322, validate, sync `--check` exit 0). `final` review (2026-06-05) marked `passed`.
+
+---
+
+### Task p03-t05: (review) Drop leading `<skill>...</skill>` payloads in the sanitizer (final review I1)
+
+**Status:** pending
+**Commit:** -
+
+---
+
+### Task p03-t06: (review) Scope README Limitations to the consensus family (final review M1)
+
+**Status:** pending
+**Commit:** -
+
+---
+
+### Review Received: final (cycle 2)
+
+**Date:** 2026-06-06
+**Review artifact:** reviews/archived/final-review-2026-06-06.md
+
+**Findings:** 0 Critical, 1 Important, 0 Medium, 1 Minor
+
+**Disposition:** Both converted to fix tasks (user choice "convert both"):
+- I1 → p03-t05: add a leading-anchored `<skill>...</skill>` matcher to `sanitize.mjs` + per-runtime fixtures + negative test. (Same leak class as the p02 `<system-reminder>` finding; a different wrapper missed by the matcher table.)
+- M1 → p03-t06: scope the README Limitations "v0.1 ships `refine` only" note to the consensus plugin family.
+
+**Next:** Implement p03-t05/p03-t06, re-verify, re-run `oat-project-review-provide code final` → `oat-project-review-receive` to reach `passed`, then update PR #6.
 
 ---
 
