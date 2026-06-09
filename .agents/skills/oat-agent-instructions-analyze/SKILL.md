@@ -1,0 +1,530 @@
+---
+name: oat-agent-instructions-analyze
+version: 1.11.0
+description: Run when you need to evaluate agent instruction file coverage, quality, and drift. Produces a severity-rated analysis artifact. Run before oat-agent-instructions-apply to identify what needs improvement.
+disable-model-invocation: true
+user-invocable: true
+allowed-tools: Read, Write, Bash(git:*), Glob, Grep, AskUserQuestion, Task
+---
+
+# Agent Instructions Analysis
+
+Scan, evaluate, and report on agent instruction file coverage, quality, and drift across all detected providers.
+
+## Prerequisites
+
+- Git repository with at least one instruction file (AGENTS.md at root is the baseline).
+- `jq` available in PATH (used by helper scripts).
+
+## Mode Assertion
+
+**OAT MODE: Agent Instructions Analysis**
+
+**Purpose:** Evaluate instruction file quality and coverage, produce an actionable analysis artifact.
+
+**BLOCKED Activities:**
+
+- No modifying or creating instruction files (that's the apply skill's job).
+- No changing repo configuration.
+
+**ALLOWED Activities:**
+
+- Reading all instruction files and project configuration.
+- Running helper scripts for discovery.
+- Writing analysis artifact to `.oat/repo/analysis/`.
+- Reviewing and correcting the analysis artifact and companion bundle through the shared Auto Artifact-Review Loop.
+- Updating `.oat/tracking.json`.
+
+## Analyze vs Apply Boundary
+
+`oat-agent-instructions-analyze` owns discovery, evaluation, evidence gathering, and recommendation shaping.
+Its output now has two layers:
+
+- a human-readable review artifact (`agent-instructions-<timestamp>.md`)
+- a machine-oriented companion bundle (`agent-instructions-<timestamp>.bundle/`)
+
+The markdown artifact is for reviewers. The bundle is the generation contract that `oat-agent-instructions-apply`
+should consume when it exists.
+
+`oat-agent-instructions-apply` may verify that cited files still exist and may read those same cited
+sources while generating output, but it must not invent unsupported conventions, create new recommendations,
+or fill in missing evidence gaps on its own.
+
+## Progress Indicators (User-Facing)
+
+- Print a phase banner once at start:
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  OAT ▸ AGENT INSTRUCTIONS ANALYSIS
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+- Step indicators:
+  - `[1/11] Resolving providers + mode…`
+  - `[2/11] Discovering instruction files…`
+  - `[3/11] Discovering documentation surfaces…`
+  - `[4/11] Evaluating quality + validating existing rules…`
+  - `[5/11] Assessing directory coverage gaps…`
+  - `[6/11] Discovering file-type patterns…`
+  - `[7/11] Checking for drift…`
+  - `[8/11] Checking cross-format consistency…`
+  - `[9/11] Writing analysis artifact…`
+  - `[10/11] Reviewing artifact accuracy…`
+  - `[11/11] Updating verified tracking + summary…`
+
+## Process
+
+### Step 0: Resolve Providers and Mode
+
+**Resolve providers:**
+
+```bash
+SCRIPT_DIR=".agents/skills/oat-agent-instructions-analyze/scripts"
+TRACKING_SCRIPT=".oat/scripts/resolve-tracking.sh"
+PROVIDERS=$(bash "$SCRIPT_DIR/resolve-providers.sh" --non-interactive)
+# Or with explicit override:
+# PROVIDERS=$(bash "$SCRIPT_DIR/resolve-providers.sh" --providers claude,cursor)
+```
+
+If running interactively (user invoked the skill directly), omit `--non-interactive` to allow the user to confirm or add providers.
+
+**Resolve analysis mode (delta vs full):**
+
+```bash
+TRACKING=$(bash "$TRACKING_SCRIPT" read agentInstructions)
+```
+
+- If `TRACKING` is non-empty, extract `commitHash` from the JSON.
+- Verify the stored commit is resolvable:
+  ```bash
+  git rev-parse --verify "$STORED_HASH^{commit}" 2>/dev/null
+  ```
+- **If resolvable:** use delta mode — scope gap/drift analysis to directories containing files changed since that commit.
+- **If unresolvable or empty:** use full mode. Log: "Previous tracking commit not found — running full analysis."
+
+Delta mode scoping:
+
+```bash
+git diff --name-only "$STORED_HASH"..HEAD
+```
+
+Use the changed file list to limit coverage gap assessment (Step 5) and drift detection (Step 7) to affected directories. Quality evaluation (Step 4) always runs on ALL instruction files regardless of mode.
+
+### Step 1: Discover Instruction Files
+
+```bash
+echo "$PROVIDERS" | bash "$SCRIPT_DIR/resolve-instruction-files.sh"
+```
+
+This outputs tab-separated `provider\tpath` lines. Parse into an inventory for evaluation.
+
+If no instruction files are found at all (not even a root AGENTS.md), report this as a Critical finding and recommend creating one via `oat-agent-instructions-apply`.
+
+### Step 2: Discover Documentation Surfaces
+
+Scan the repository for documentation surfaces that instruction files could reference. This inventory feeds into
+quality evaluation (Criterion 14) and provides concrete link targets for `link_only` disclosure decisions.
+
+**Discovery sources (check all; none are required — this must work with or without OAT configuration):**
+
+**1. OAT docs config (if available):**
+
+```bash
+# Only if .oat/config.json exists
+cat .oat/config.json 2>/dev/null | jq -r '.documentation // empty'
+```
+
+If present, extract `root` and `index` paths. Use these as the primary docs surface, but do not skip other sources.
+
+**2. Docs directories:**
+
+Scan for directories named `docs/`, `doc/`, and `apps/*/docs/`. For each found directory:
+
+- Check for `index.md` files
+- If an `index.md` contains a `## Contents` section, parse the topic-to-path map (these follow the OAT docs index contract)
+- Record each docs directory with its topic coverage
+
+```bash
+# Example discovery
+find . -maxdepth 3 -type d -name 'docs' -not -path '*/node_modules/*' -not -path '*/.git/*' -not -path '*/.oat/*' -not -path '*/dist/*'
+```
+
+**3. READMEs:**
+
+Find `README.md` files at the root and in key subdirectories (packages, apps, modules, services).
+READMEs are often the only documentation for a package and are valuable link targets for scoped instruction files.
+
+```bash
+find . -maxdepth 3 -name 'README.md' -not -path '*/node_modules/*' -not -path '*/.git/*' -not -path '*/dist/*'
+```
+
+**4. Knowledge base (only if current):**
+
+Check if `.oat/repo/knowledge/` exists and contains files. If so:
+
+- Read `project-index.md` frontmatter for `oat_generated_at` and `oat_source_main_merge_base_sha`
+- Compare merge-base SHA against current HEAD to assess staleness:
+  ```bash
+  KNOWLEDGE_SHA=$(grep 'oat_source_main_merge_base_sha' .oat/repo/knowledge/project-index.md 2>/dev/null | awk '{print $2}')
+  if [ -n "$KNOWLEDGE_SHA" ]; then
+    FILES_CHANGED=$(git diff --name-only "$KNOWLEDGE_SHA"..HEAD 2>/dev/null | wc -l)
+    GENERATED_AT=$(grep 'oat_generated_at' .oat/repo/knowledge/project-index.md | awk '{print $2}')
+  fi
+  ```
+- **Include in inventory only if reasonably current** (≤20 files changed since merge-base AND ≤7 days old)
+- If stale, record as `stale` in the inventory but **do not recommend linking to stale knowledge files**
+- Available knowledge files: `architecture.md`, `conventions.md`, `stack.md`, `structure.md`, `testing.md`, `integrations.md`, `concerns.md`
+
+**5. Standalone documentation files:**
+
+Scan for common standalone docs:
+
+- `ARCHITECTURE.md`, `DESIGN.md`, `CONTRIBUTING.md` at repo root
+- `ADR/` or `decisions/` directories (architectural decision records)
+- `.github/*.md` files (excluding templates like `PULL_REQUEST_TEMPLATE.md`)
+
+```bash
+# Example discovery
+ls ARCHITECTURE.md DESIGN.md CONTRIBUTING.md 2>/dev/null
+find . -maxdepth 1 -type d \( -name 'ADR' -o -name 'decisions' \) 2>/dev/null
+find .github -maxdepth 1 -name '*.md' -not -name 'PULL_REQUEST_TEMPLATE*' -not -name 'ISSUE_TEMPLATE*' 2>/dev/null
+```
+
+**Output:**
+
+Build a Documentation Inventory for the analysis artifact. Each entry records:
+
+| Field        | Description                                                                 |
+| ------------ | --------------------------------------------------------------------------- |
+| Type         | `docs-app`, `readme`, `knowledge`, `standalone`                             |
+| Path         | Relative path from repo root                                                |
+| Topics/Scope | What the doc covers (e.g., "CLI usage", "architecture, conventions")        |
+| Current?     | `current`, `stale`, or `N/A` (for non-versioned docs like READMEs)          |
+| Notes        | Additional context (e.g., "OAT config root", "package-level", "thin index") |
+
+This inventory is used by:
+
+- **Step 3 (Evaluate Quality):** When checking Criterion 12 (Progressive Disclosure) and Criterion 14 (Available Documentation Is Referenced), use the inventory to identify whether instruction files reference available docs and whether content is duplicated that could use `link_only`.
+- **Step 4 (Coverage Gaps):** When recommending new AGENTS.md files, populate the `Link Targets` field with docs from this inventory that are topically relevant to the directory scope. Prefer scope-specific docs over project-wide docs.
+- **Step 8 (Write Artifact):** Include the full Documentation Inventory table in the artifact. Use inventory paths as link targets in the Progressive Disclosure Decisions table.
+
+### Step 3: Evaluate Quality
+
+For each discovered instruction file, evaluate against the quality checklist at `references/quality-checklist.md`.
+
+**Required context — read these bundled skill docs before evaluating:**
+
+These docs are bundled with this skill under `references/docs/` and should be read from that location,
+not from repo-root `.agents/docs/`.
+
+- `references/docs/agent-instruction.md` — full quality criteria and best practices
+- `references/docs/rules-files.md` — cross-provider rules file format reference
+- `references/docs/cursor-rules-files.md` — Cursor-specific `.mdc` format reference (if cursor provider is active)
+
+**Evidence standard:**
+
+- Every non-obvious convention, drift claim, or proposed rule must be backed by concrete evidence captured in the artifact.
+- Preferred evidence sources: formatter/linter/editor config (`.editorconfig`, oxlint, oxfmt, ESLint, Prettier, Ruff, etc.),
+  `package.json` scripts, existing checked-in instruction files, repo documentation, and repeated codebase patterns
+  with exact file references.
+- When config files contain file-type-specific overrides or scoped sections, read the relevant override blocks before
+  making claims about that file type.
+- Do **not** infer formatting or linting conventions from ecosystem defaults or a small code sample.
+- If a formatter or linter already enforces a rule, prefer recording the command and linking to the config/doc rather
+  than restating tabs/spaces, quote style, import ordering, or similar trivia as prose instructions.
+- Numeric claims are held to a higher bar: any count, ratio, "only N files", or named split that appears in the
+  artifact or a generated rule must be backed by an exhaustive repo-wide count, not just a sample.
+
+**Documentation inventory integration:**
+
+When evaluating Criterion 12 (Progressive Disclosure) and Criterion 14 (Available Documentation Is Referenced), use the
+documentation inventory from Step 2 to:
+
+- Check whether instruction files reference available project documentation in their References section
+- Check whether scoped instruction files reference docs topically relevant to their directory scope
+- Identify content in instruction files that duplicates information available in docs — recommend `link_only` with the specific doc path
+- Verify that any doc links in instruction files point to docs that still exist
+
+**For each file:**
+
+1. Read the file content.
+2. Read the local evidence sources needed to validate the file's claims.
+3. Check each applicable criterion from the quality checklist.
+4. Note findings with severity ratings, exact source refs, and a confidence rating.
+5. Record a disclosure decision for each recommendation: `inline`, `link_only`, `omit`, or `ask_user`.
+6. Record line count and quality assessment (pass / minor issues / significant issues / major issues).
+
+**Provider-specific validation:**
+
+- **AGENTS.md**: Check section structure, command accuracy, size budget.
+- **CLAUDE.md**: Verify `@AGENTS.md` import if present, check for content duplication with AGENTS.md.
+- **Claude rules** (`.claude/rules/*.md`): Validate `paths` frontmatter if conditional.
+- **Cursor rules** (`.cursor/rules/*.mdc`): Validate frontmatter fields (`alwaysApply`, `globs`, `description`).
+- **Copilot instructions** (`.github/instructions/*.instructions.md`): Validate `applyTo` frontmatter.
+- **Copilot shim** (`.github/copilot-instructions.md`): Verify it's a minimal pointer, not content duplication.
+
+**Instruction load budget assessment:**
+
+When checking Criterion 4 (Size Within Budget), compute and record:
+
+- **Always-on baseline load** — the files likely loaded at task start (typically root always-on files)
+- **Typical task load** — root always-on files + one realistic scoped file + matching rules
+- **Worst-case task load** — the heaviest realistic scoped file/rule combination an agent may load in one task
+- **Aggregate repo total** — report for awareness only; do not treat it as the operative session budget by itself
+
+Use these scenarios in the artifact's load-budget section so reviewers can distinguish normal operating cost from
+repo-wide totals.
+
+### Step 3.5: Validate Existing Rule Accuracy
+
+Existing instruction files are not pre-validated truth. For each existing glob-scoped rule:
+
+1. Read the rule body and list its factual claims.
+2. Verify each numeric claim with an exhaustive repo-wide count.
+3. Verify each named-file claim, import claim, or split-ratio claim against the matching files.
+4. If the analysis recommends removing or contradicting an existing rule claim, include the exhaustive verification
+   evidence that justifies the change.
+
+At minimum, validate:
+
+- file counts claimed in the rule body
+- split ratios such as "older vs newer" or "pattern A vs pattern B"
+- named examples like "only 3 files use X"
+- claims about which imports, wrappers, helpers, or setup APIs are preferred
+
+Record the outcome in the artifact's existing-rule validation section.
+Any discrepancy that would cause agents to follow the wrong pattern should be flagged as a High finding or higher.
+
+### Step 4: Assess Coverage Gaps
+
+Walk the directory tree and evaluate **each directory against `references/directory-assessment-criteria.md`, per-directory and at every depth**. The walk descends into subdirectories recursively — it is not limited to top-level apps and packages. A nested domain subdirectory such as `packages/<pkg>/src/<domain>/` is in scope and is assessed with the same primary indicators as a top-level package; the size of a directory's parent never gates whether that directory is evaluated.
+
+Before general coverage-gap analysis, assess **provider baseline gaps** for every active provider.
+These checks are mandatory even when the missing file does not appear in the discovered inventory.
+
+Provider baseline examples:
+
+- **Claude**: if a directory has `AGENTS.md` and the claude provider is active but the matching `CLAUDE.md` shim is missing, record an explicit recommendation to create `CLAUDE.md` with the canonical `@AGENTS.md` import. This applies to **every** directory with an `AGENTS.md` — root and nested alike (e.g., `packages/cli/AGENTS.md` → `packages/cli/CLAUDE.md`).
+- **Copilot**: if the copilot provider is active but `.github/copilot-instructions.md` is missing, record an explicit recommendation to create the minimal Copilot shim.
+- **agents_md / codex**: no extra always-on shim beyond `AGENTS.md`.
+
+Do not leave these as implied apply-time behavior. They must appear in the analysis artifact as explicit provider-baseline recommendations.
+
+**Chained recommendations for new AGENTS.md files:**
+
+When a coverage-gap recommendation proposes creating a **new** `AGENTS.md` in a subdirectory, also emit the corresponding provider-baseline recommendations for that directory in the same artifact. For example, if the analysis recommends creating `packages/cli/AGENTS.md` and the claude provider is active, it must also recommend creating `packages/cli/CLAUDE.md` with `@AGENTS.md`. Do not defer these to a follow-up analysis — they belong in the same artifact so `oat-agent-instructions-apply` can generate both files in one pass.
+
+**In delta mode:** Only assess directories that contain files changed since the last tracked commit. Skip unchanged directories.
+
+**In full mode:** Assess all directories (excluding `node_modules/`, `dist/`, `.git/`, `.oat/`, etc.).
+
+For each directory meeting 1+ primary indicators from the criteria doc:
+
+- Check if it's covered by an existing instruction file (either a direct AGENTS.md or a parent's scoped rule with matching globs).
+- If uncovered, add to the coverage gaps list with severity, evidence, and a recommendation.
+- For each recommendation, decide what belongs inline vs what should link to deeper documentation or config files.
+- When recommending new AGENTS.md files, use the documentation inventory from Step 2 to populate the `Link Targets`
+  field with docs topically relevant to the directory scope. Prefer scope-specific docs (e.g., a package README or
+  package-level docs directory) over project-wide docs. If the directory has a `README.md` or a nearby `docs/` tree,
+  include those paths as link targets for the new file's References section.
+
+### Step 5: File-Type Pattern Discovery
+
+Discover cross-cutting file-type patterns that warrant glob-scoped rules. These patterns often span multiple
+directories, but a concentrated pattern inside a single architectural area can still justify a glob-scoped rule when
+agents need a repeatable template for that file type.
+
+Follow the systematic process in `references/file-type-discovery-checklist.md`.
+
+The checklist is the canonical source for the detailed substeps in this phase. The summary below is intentionally
+shorter than the checklist on purpose. If wording ever diverges, follow the checklist.
+
+**Core principle:** The goal is not to prove consistency from file counts. The goal is to find non-obvious
+conventions, competing sub-patterns, and failure modes that would cause an agent to generate the wrong file.
+
+Emphasis points:
+
+- Start with repo-wide inventory, not just known suffixes. Primary extensions, repeated compound suffixes, and
+  co-located directory structures all count.
+- Reading sampled files is mandatory. Do not stop at counts; extract structural conventions, behavioral rules, and
+  what breaks when an agent copies the wrong example.
+- If many patterns qualify, prioritize by correctness impact, exception-to-rule risk, competing sub-patterns, and
+  security sensitivity before spending context on lower-value patterns.
+- Do not dismiss a pattern because it lives in one directory or because a directory `AGENTS.md` might also mention it.
+  Glob-scoped rules and directory instructions serve different purposes.
+- Splits matter. Patterns in the `40–60%` range are often more valuable than perfectly consistent patterns because
+  they represent active ambiguity in production code.
+- Prefer narrower rules when materially different activation targets or setup paths exist. If `*.spec.ts` and
+  `*.page.ts` need different guidance, they should usually be separate recommendations rather than one umbrella rule.
+
+**In delta mode:** Still run the full file-type scan. File-type patterns are repo-wide concerns that may not intersect with recently-changed directories but are still high-value for agent correctness.
+
+Record all discovered patterns in the artifact's Glob-Scoped Rule Opportunities table with consistency counts,
+competing sub-pattern notes, correctness impact, recommended action, and exception-to-rule flags.
+
+If a High/Medium glob opportunity warrants creating, updating, or splitting a rule, also emit it as an explicit item
+in Recommendations. Do not leave actionable rule work only in the opportunities table.
+
+### Step 6: Drift Detection (Delta Mode Only)
+
+**Skip this step entirely in full mode.**
+
+For files changed since the last tracked commit:
+
+1. Identify the nearest parent instruction file for each changed file.
+2. Check if the instruction file references the changed file's patterns, conventions, or commands.
+3. Flag instruction files that may be stale due to the changes.
+
+Common drift signals:
+
+- Changed file is in a directory whose AGENTS.md references removed/renamed paths.
+- New package.json scripts not reflected in instruction file commands.
+- New dependencies or framework changes not reflected in tech stack documentation.
+- Existing instructions claim formatting/style conventions that are not backed by current repo evidence.
+
+### Step 7: Cross-Format Consistency (Multi-Provider Only)
+
+**Skip if only one provider (agents_md) is active.**
+
+For glob-scoped rules that target the same file patterns across providers:
+
+1. Extract the body content (below frontmatter) from each provider's version.
+2. Compare bodies — they should be identical.
+3. Flag divergence as a Medium finding.
+
+### Step 8: Write Analysis Artifact
+
+Generate the analysis artifact using the template at `references/analysis-artifact-template.md`.
+
+```bash
+TIMESTAMP=$(date -u +"%Y-%m-%d-%H%M")
+ARTIFACT_PATH=".oat/repo/analysis/agent-instructions-${TIMESTAMP}.md"
+BUNDLE_DIR="${ARTIFACT_PATH%.md}.bundle"
+SUMMARY_PATH="${BUNDLE_DIR}/summary.md"
+MANIFEST_PATH="${BUNDLE_DIR}/recommendations.yaml"
+PACKS_DIR="${BUNDLE_DIR}/packs"
+mkdir -p "$PACKS_DIR"
+```
+
+Fill in all template sections with findings from Steps 2-7.
+
+Write the human-readable markdown artifact to `$ARTIFACT_PATH`.
+
+Also write the companion bundle to `$BUNDLE_DIR` with this layout:
+
+- `summary.md` — rendered from `references/bundle-summary-template.md`
+- `recommendations.yaml` — rendered from `references/recommendations-manifest-template.yaml`
+- `packs/<recommendation-id>.md` — rendered from `references/recommendation-pack-template.md`
+
+Bundle contract requirements:
+
+- every recommendation gets a stable `Recommendation ID` (for example, `rec-001`)
+- the markdown artifact, manifest, and pack filenames must agree on that ID
+- `recommendations.yaml` must include each recommendation's ID, target, action, disclosure, severity/confidence, and
+  relative `pack` path
+- each pack must preserve the recommendation's evidence refs, structural conventions, behavioral conventions,
+  counter-examples, new-file workflow, preferred default, and claim corrections
+- if the markdown artifact and bundle ever diverge, the bundle is the apply contract and the markdown artifact is the
+  review summary
+
+The markdown artifact and companion bundle together are the contract for apply. They must contain:
+
+- exact evidence references for each finding and recommendation
+- confidence for each recommendation
+- progressive disclosure decisions (`inline`, `link_only`, `omit`, `ask_user`)
+- canonical documentation/config links when deeper detail should stay out of always-on instructions
+- claim-correction details when updating or contradicting existing rules
+- content-guidance fields (`Must Include`, `Must Not Include`, `Preferred Default for New Files`) for any
+  recommendation that requires judgment during generation
+- stable recommendation IDs and pack references for any recommendation that apply may execute
+
+### Step 9: Review Analysis Artifact Accuracy
+
+Run the shared **Auto Artifact-Review Loop** from `oat-project-plan-writing` after `$ARTIFACT_PATH` and `$BUNDLE_DIR` are written and before tracking is updated or `oat-agent-instructions-apply` is recommended.
+
+Use the `analysis` target:
+
+- `type: analysis`
+- `scope: agent-instructions`
+- `analysis_artifact: $ARTIFACT_PATH`
+- `oat_output_mode: structured`
+
+Follow the canonical loop exactly:
+
+1. Resolve `workflow.autoArtifactReview.analysis`; missing config means enabled, and only explicit `false` skips the loop.
+2. Resolve `oat_orchestration_retry_limit`; default to `2` if unavailable.
+3. Dispatch `oat-reviewer` in structured mode via Tier 1 subagent when available, falling back to the same reviewer prompt inline when needed.
+4. Apply Critical and Important fixes when they are local to the analysis artifact, companion bundle, and unambiguous.
+5. Offer Medium and Minor fixes rather than applying them silently.
+6. Rewrite `$ARTIFACT_PATH` and any affected bundle files after applied fixes, then re-dispatch while retries remain.
+7. Stop when the reviewer is clean or the retry bound is exhausted.
+
+The review loop may only edit the markdown analysis artifact and its companion bundle. It must not modify or create instruction files, provider rules, repo configuration, or any other downstream apply target. If a finding cannot be fixed inside the analysis artifact or bundle, preserve it as a residual review finding and surface it in the summary before handoff.
+
+If the loop is disabled, note `Auto artifact review: skipped (workflow.autoArtifactReview.analysis=false)` in the summary and do not describe the artifact as verified.
+
+### Step 10: Update Verified Tracking and Output Summary
+
+**Update tracking:**
+
+```bash
+TRACKING_SCRIPT=".oat/scripts/resolve-tracking.sh"
+ROOT_TARGET=$(bash "$TRACKING_SCRIPT" root)
+ROOT_HASH=$(echo "$ROOT_TARGET" | jq -r '.commitHash')
+ROOT_BRANCH=$(echo "$ROOT_TARGET" | jq -r '.baseBranch')
+
+bash "$TRACKING_SCRIPT" write \
+  agentInstructions \
+  "$ROOT_HASH" \
+  "$ROOT_BRANCH" \
+  "{mode}" \
+  --artifact-path "$ARTIFACT_PATH" \
+  {providers...}
+```
+
+Only run this tracking write after Step 9 finishes. A tracked agent-instructions analysis artifact is therefore reviewed/verified unless the summary explicitly says the auto artifact-review loop was skipped.
+
+**Output summary to the user:**
+
+```
+Analysis complete.
+
+  Files evaluated:  {N}
+  Coverage:         {N}% of assessed directories
+  Mode:             {full|delta}
+  Providers:        {list}
+
+  Findings:
+    Critical:  {N}
+    High:      {N}
+    Medium:    {N}
+    Low:       {N}
+
+  Artifact: {artifact_path}
+  Bundle:   {bundle_dir}
+  Auto artifact review: {passed|passed with residual findings|skipped}
+
+Next step: Run oat-agent-instructions-apply to act on these findings.
+```
+
+## Deferred from v1
+
+- `AGENTS.override.md` discovery and evaluation
+- Subagent parallelization for large repos
+- Auto-fix mode (directly patching instruction files without apply workflow)
+
+## References
+
+- Bundled quality criteria source: `references/docs/agent-instruction.md`
+- Bundled cross-provider rules reference: `references/docs/rules-files.md`
+- Bundled Cursor-specific format reference: `references/docs/cursor-rules-files.md`
+- Copilot instruction system: `.oat/repo/reviews/github-copilot-instructions-research-2026-02-19.md`
+- Quality checklist: `references/quality-checklist.md`
+- Directory criteria: `references/directory-assessment-criteria.md`
+- File-type discovery: `references/file-type-discovery-checklist.md`
+- Artifact template: `references/analysis-artifact-template.md`
+- Bundle summary template: `references/bundle-summary-template.md`
+- Bundle manifest template: `references/recommendations-manifest-template.yaml`
+- Recommendation pack template: `references/recommendation-pack-template.md`
+- Tracking script: `.oat/scripts/resolve-tracking.sh`
+- Provider resolution: `scripts/resolve-providers.sh`
+- File discovery: `scripts/resolve-instruction-files.sh`

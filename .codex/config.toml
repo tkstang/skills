@@ -44,3 +44,7 @@ config_file = "agents/oat-reviewer-medium.toml"
 [agents.oat-reviewer-xhigh]
 description = "OAT reviewer pinned to xhigh reasoning effort for the highest configured Codex dispatch ceiling."
 config_file = "agents/oat-reviewer-xhigh.toml"
+
+[agents.skeptical-evaluator]
+description = "Adversarial claim evaluator — receives a context package and gathers evidence to disprove then support a claim. Returns structured findings with citations."
+config_file = "agents/skeptical-evaluator.toml"
