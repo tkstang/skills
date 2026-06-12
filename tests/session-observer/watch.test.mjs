@@ -173,7 +173,8 @@ describe('runWatchLoop', () => {
       assert.equal(result.reason, 'max-runtime');
       assert.equal(result.eventCount, 0);
       const output = stdout.join('');
-      assert.ok(output.includes('watching claude-code:watch-baseline'));
+      assert.ok(output.startsWith('[session-observer] Watcher is now active.'));
+      assert.ok(output.includes('baseline claude-code:watch-baseline'));
       assert.ok(output.includes('baselineRecordIndex=1'));
       assert.ok(output.includes('engagement=engaged'));
       assert.ok(!output.includes('old message that should not be emitted'));
@@ -183,6 +184,37 @@ describe('runWatchLoop', () => {
 
       const watchState = JSON.parse(await readFile(join(stateDir, 'watch.json'), 'utf8'));
       assert.equal(watchState.active, null);
+    });
+  });
+
+  test('catch-up-first emits unread backlog before watching', async () => {
+    await withTempSessionHome(async (home, stateDir) => {
+      const cwd = '/test/watch-catch-up-first';
+      await writeClaudeTranscript(home, cwd, 'watch-catch-up-first', [
+        { content: 'unread backlog should be emitted' },
+      ]);
+      const { runWatchLoop } = await importWatch();
+      const stdout = [];
+
+      const result = await runWatchLoop({
+        runtime: 'claude-code',
+        cwd,
+        pollSec: 0.02,
+        debounceSec: 0.02,
+        maxRuntimeMin: 0.004,
+        catchUpFirst: true,
+      }, {
+        writeStdout: chunk => stdout.push(chunk),
+      });
+
+      const output = stdout.join('');
+      assert.equal(result.reason, 'max-runtime');
+      assert.equal(result.eventCount, 1);
+      assert.ok(output.includes('baseline claude-code:watch-catch-up-first'));
+      assert.ok(output.includes('unread backlog should be emitted'));
+
+      const state = JSON.parse(await readFile(join(stateDir, 'state.json'), 'utf8'));
+      assert.equal(state.sessions['claude-code:watch-catch-up-first'].lastRecordIndex, 1);
     });
   });
 
@@ -294,16 +326,55 @@ describe('runWatchLoop', () => {
       await watchPromise;
 
       const lines = stdout.join('').trim().split('\n').filter(Boolean).map(line => JSON.parse(line));
-      const locked = lines.find(line => line.type === 'watch-locked');
-      const event = lines.find(line => line.type === 'catch-up');
+      const locked = lines.find(line => line.type === 'baseline');
+      const event = lines.find(line => line.type === 'delta');
+      const stopped = lines.find(line => line.type === 'stopped');
       assert.ok(locked, 'json watch should emit a startup lock event');
-      assert.ok(event, 'json watch should emit a catch-up event');
+      assert.ok(event, 'json watch should emit a delta event');
+      assert.ok(stopped, 'json watch should emit a stopped event');
       assert.equal(locked.sessionId, sessionId);
-      assert.equal(event.type, 'catch-up');
+      assert.equal(event.type, 'delta');
       assert.equal(event.runtime, 'claude-code');
       assert.equal(event.sessionId, sessionId);
       assert.equal(event.newRecords, 1);
       assert.equal(event.digest.entries[0].text, 'json update payload');
+    });
+  });
+
+  test('emits heartbeat status events while quiet', async () => {
+    await withTempSessionHome(async (home) => {
+      const cwd = '/test/watch-heartbeat';
+      const sessionId = 'watch-heartbeat';
+      await writeClaudeTranscript(home, cwd, sessionId, [
+        { content: 'heartbeat baseline message' },
+      ]);
+      const { runWatchLoop } = await importWatch();
+      const stdout = [];
+      let nowMs = Date.UTC(2026, 5, 3, 12, 0, 0);
+
+      const result = await runWatchLoop({
+        runtime: 'claude-code',
+        cwd,
+        pollSec: 0.03,
+        debounceSec: 0.04,
+        heartbeatSec: 0.06,
+        maxRuntimeMin: 0.004,
+        json: true,
+      }, {
+        writeStdout: chunk => stdout.push(chunk),
+        now: () => nowMs,
+        sleep: async (ms) => {
+          nowMs += ms;
+        },
+      });
+
+      assert.equal(result.reason, 'max-runtime');
+      const lines = stdout.join('').trim().split('\n').filter(Boolean).map(line => JSON.parse(line));
+      const heartbeat = lines.find(line => line.type === 'heartbeat');
+      assert.ok(heartbeat, 'quiet json watch should emit a heartbeat');
+      assert.equal(heartbeat.recordsBehind, 0);
+      assert.equal(heartbeat.healthy, true);
+      assert.equal(heartbeat.targets[0].sessionId, sessionId);
     });
   });
 
@@ -338,15 +409,178 @@ describe('runWatchLoop', () => {
       assert.equal(result.eventCount, 1);
 
       const lines = stdout.join('').trim().split('\n').filter(Boolean).map(line => JSON.parse(line));
-      const locked = lines.find(line => line.type === 'watch-locked');
-      const event = lines.find(line => line.type === 'catch-up');
+      const locked = lines.find(line => line.type === 'baseline');
+      const event = lines.find(line => line.type === 'delta');
       assert.ok(locked, 'runtime both should emit a startup lock event');
-      assert.ok(event, 'runtime both should emit a catch-up event');
-      assert.equal(event.type, 'catch-up');
+      assert.ok(event, 'runtime both should emit a delta event');
+      assert.equal(event.type, 'delta');
       assert.equal(event.runtime, 'claude-code');
       assert.equal(event.sessionId, sessionId);
       assert.equal(event.newRecords, 1);
       assert.equal(event.digest.entries[0].text, 'both runtime update payload');
+    });
+  });
+
+  test('allows concurrent same-cwd watchers for different peer runtimes', async (t) => {
+    await withTempSessionHome(async (home, stateDir) => {
+      const cwd = '/test/watch-same-cwd-reciprocal';
+      await writeClaudeTranscript(home, cwd, 'same-cwd-claude', [
+        { content: 'same cwd claude baseline' },
+      ]);
+      await writeCodexTranscript(home, cwd, 'same-cwd-codex', [
+        { content: 'same cwd codex baseline' },
+      ]);
+      const { runWatchLoop } = await importWatch();
+      const stdoutA = [];
+      const stdoutB = [];
+      t.mock.method(process, 'kill', (pid, signal) => {
+        if (signal === 0 && (pid === 111 || pid === 222)) return true;
+        return true;
+      });
+
+      const watcherA = runWatchLoop({
+        runtime: 'claude-code',
+        cwd,
+        pollSec: 0.03,
+        debounceSec: 0.04,
+        maxRuntimeMin: 0.02,
+      }, {
+        pid: 111,
+        handleSignals: false,
+        writeStdout: chunk => stdoutA.push(chunk),
+      });
+
+      await waitFor(async () => {
+        const state = await readJsonIfExists(join(stateDir, 'watch.json'));
+        return state?.watchers?.length === 1;
+      });
+
+      const watcherB = runWatchLoop({
+        runtime: 'codex',
+        cwd,
+        pollSec: 0.03,
+        debounceSec: 0.04,
+        maxRuntimeMin: 0.02,
+      }, {
+        pid: 222,
+        handleSignals: false,
+        writeStdout: chunk => stdoutB.push(chunk),
+      });
+
+      const activeState = await waitFor(async () => {
+        const state = await readJsonIfExists(join(stateDir, 'watch.json'));
+        if (state?.watchers?.length !== 2) return null;
+        if (!state.watchers.every(watcher => watcher.targets?.length === 1)) return null;
+        return state;
+      });
+      assert.deepEqual(activeState.watchers.map(watcher => watcher.pid), [111, 222]);
+      assert.deepEqual(activeState.watchers.map(watcher => watcher.targets[0]?.runtime), ['claude-code', 'codex']);
+
+      const results = await Promise.all([watcherA, watcherB]);
+      assert.deepEqual(results.map(result => result.reason), ['max-runtime', 'max-runtime']);
+      assert.ok(stdoutA.join('').includes('baseline claude-code:same-cwd-claude'));
+      assert.ok(stdoutB.join('').includes('baseline codex:same-cwd-codex'));
+    });
+  });
+
+  test('refuses a second watcher for the same target session', async (t) => {
+    await withTempSessionHome(async (home, stateDir) => {
+      const cwd = '/test/watch-duplicate-target';
+      await writeClaudeTranscript(home, cwd, 'duplicate-target', [
+        { content: 'duplicate target baseline message' },
+      ]);
+      const { runWatchLoop } = await importWatch();
+      t.mock.method(process, 'kill', (pid, signal) => {
+        if (signal === 0) return true;
+        return true;
+      });
+
+      const stdoutA = [];
+      const watcherA = runWatchLoop({
+        runtime: 'claude-code',
+        cwd,
+        pollSec: 0.03,
+        debounceSec: 0.04,
+        maxRuntimeMin: 0.02,
+      }, {
+        pid: 111,
+        handleSignals: false,
+        writeStdout: chunk => stdoutA.push(chunk),
+      });
+
+      await waitFor(async () => {
+        const state = await readJsonIfExists(join(stateDir, 'watch.json'));
+        return state?.watchers?.[0]?.targets?.length === 1 ? state : null;
+      });
+
+      const stdoutB = [];
+      await assert.rejects(
+        () => runWatchLoop({
+          runtime: 'claude-code',
+          cwd,
+          pollSec: 0.03,
+          debounceSec: 0.04,
+          maxRuntimeMin: 0.02,
+        }, {
+          pid: 222,
+          handleSignals: false,
+          writeStdout: chunk => stdoutB.push(chunk),
+        }),
+        /already watching claude-code:duplicate-target/
+      );
+      assert.ok(stdoutB.join('').includes('already watching'));
+
+      const watchJson = await readJsonIfExists(join(stateDir, 'watch.json'));
+      assert.deepEqual(watchJson.watchers.map(watcher => watcher.pid), [111]);
+
+      const result = await watcherA;
+      assert.equal(result.reason, 'max-runtime');
+    });
+  });
+
+  test('refuses concurrent same-target watchers racing before either records', async (t) => {
+    await withTempSessionHome(async (home, stateDir) => {
+      const cwd = '/test/watch-duplicate-target-race';
+      await writeClaudeTranscript(home, cwd, 'duplicate-target-race', [
+        { content: 'duplicate target race baseline message' },
+      ]);
+      const { runWatchLoop } = await importWatch();
+      t.mock.method(process, 'kill', (pid, signal) => {
+        if (signal === 0) return true;
+        return true;
+      });
+
+      // Start both watchers in the same tick so both can pass the unlocked
+      // pre-check before either has recorded its target; the locked write in
+      // recordWatcherTarget must still reject exactly one of them.
+      const stdoutA = [];
+      const stdoutB = [];
+      const startWatcher = (pid, sink) => runWatchLoop({
+        runtime: 'claude-code',
+        cwd,
+        pollSec: 0.03,
+        debounceSec: 0.04,
+        maxRuntimeMin: 0.02,
+      }, {
+        pid,
+        handleSignals: false,
+        writeStdout: chunk => sink.push(chunk),
+      });
+      const settled = await Promise.allSettled([
+        startWatcher(111, stdoutA),
+        startWatcher(222, stdoutB),
+      ]);
+
+      const rejected = settled.filter(result => result.status === 'rejected');
+      const fulfilled = settled.filter(result => result.status === 'fulfilled');
+      assert.equal(rejected.length, 1,
+        `exactly one watcher should lose the startup race: ${JSON.stringify(settled)}`);
+      assert.match(rejected[0].reason.message, /already watching claude-code:duplicate-target-race/);
+      assert.equal(fulfilled[0].value.reason, 'max-runtime');
+      assert.ok((stdoutA.join('') + stdoutB.join('')).includes('already watching'));
+
+      const watchJson = await readJsonIfExists(join(stateDir, 'watch.json'));
+      assert.deepEqual(watchJson?.watchers ?? [], []);
     });
   });
 
@@ -509,7 +743,10 @@ describe('runWatchLoop', () => {
 
       assert.equal(result.reason, 'max-runtime');
       assert.equal(result.eventCount, 0);
-      assert.equal(stdout.join(''), '');
+      const lines = stdout.join('').trim().split('\n').filter(Boolean).map(line => JSON.parse(line));
+      assert.ok(lines.some(line => line.type === 'stopped'));
+      assert.equal(lines.some(line => line.type === 'baseline'), false);
+      assert.equal(lines.some(line => line.type === 'delta'), false);
 
       const state = await readJsonIfExists(join(stateDir, 'state.json'));
       assert.equal(state?.sessions?.[`cursor:${sessionId}`], undefined);
@@ -552,6 +789,7 @@ describe('runWatchLoop', () => {
       const lines = raw.trim().split('\n').filter(Boolean);
       assert.equal(lines.length, 1);
       const event = JSON.parse(lines[0]);
+      assert.equal(event.type, 'delta');
       assert.equal(event.runtime, 'claude-code');
       assert.equal(event.sessionId, sessionId);
       assert.equal(event.newRecords, 1);
@@ -720,7 +958,7 @@ describe('runWatchLoop', () => {
         cwd,
         pollSec: 0.03,
         debounceSec: 2,
-        maxRuntimeMin: 0.008,
+        maxRuntimeMin: 0.02,
       }, {
         writeStdout: chunk => stdout.push(chunk),
       });
@@ -744,6 +982,7 @@ describe('runWatchLoop', () => {
       ]);
       const { runWatchLoop } = await importWatch();
       const watchState = await importWatchState();
+      const stdout = [];
 
       const watchPromise = runWatchLoop({
         runtime: 'claude-code',
@@ -752,7 +991,7 @@ describe('runWatchLoop', () => {
         debounceSec: 0.05,
         maxRuntimeMin: 0.02,
       }, {
-        writeStdout: () => {},
+        writeStdout: chunk => stdout.push(chunk),
       });
 
       await waitFor(async () => {
@@ -763,6 +1002,7 @@ describe('runWatchLoop', () => {
 
       const result = await watchPromise;
       assert.equal(result.reason, 'control-stop');
+      assert.ok(stdout.join('').includes('watch stopped reason=control-stop'));
 
       const watchJson = JSON.parse(await readFile(join(stateDir, 'watch.json'), 'utf8'));
       assert.equal(watchJson.active, null);
