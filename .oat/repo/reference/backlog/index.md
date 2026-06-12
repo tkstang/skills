@@ -19,6 +19,7 @@
 | bl-0cb8 | Add consensus-plan skill (structured plan from goal) | open | medium | feature | S |
 | bl-645c | Add consensus-research skill (investigate question, synthesized findings) | open | low | feature | M |
 | bl-9ed4 | Add deliberation metrics (tokens, wall-clock, rounds) to artifacts | open | low | feature | S |
+| bl-ef38 | Add similarity heuristic for near-converged deliberation states | open | low | feature | S |
 | bl-e39a | Add whole-document harmonization pass after section convergence | open | low | feature | M |
 <!-- END OAT BACKLOG-INDEX -->
 
