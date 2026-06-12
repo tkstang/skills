@@ -1,6 +1,12 @@
 ---
 name: oat-project-complete
+<<<<<<< Updated upstream
 version: 1.4.9
+||||||| Stash base
+version: 1.4.7
+=======
+version: 1.4.8
+>>>>>>> Stashed changes
 description: Use when all implementation work is finished and the project is ready to close. Marks the OAT project lifecycle as complete.
 disable-model-invocation: true
 user-invocable: true

@@ -1,6 +1,13 @@
 ---
 name: oat-reviewer
+<<<<<<< Updated upstream
 version: 1.1.2
+||||||| Stash base
+version: 1.0.1
+description: Unified reviewer for OAT projects - mode-aware verification of requirements/design alignment and code quality. Writes review artifact to disk.
+=======
+version: 1.1.0
+>>>>>>> Stashed changes
 description: Unified reviewer for OAT projects - mode-aware verification of requirements/design alignment and code quality. Writes a review artifact to disk by default, or returns structured findings in-memory when dispatched in structured-output mode.
 tools: Read, Bash, Grep, Glob, Write
 color: yellow
@@ -196,6 +203,7 @@ For each design decision relevant to scope:
    - When the implementation is defensible, write the finding as stale-artifact alignment guidance instead of a code defect.
    - Include enough rationale for `oat-project-review-receive` to convert the finding into an artifact-alignment task or explicit deferral.
 
+<<<<<<< Updated upstream
 ### Step 5.5: Verify Analysis Accuracy
 
 This step applies to **analysis reviews** only.
@@ -219,6 +227,9 @@ Review the analysis artifact as a fact-checking target, not as a rewrite request
    - If the analysis asserts a required section, schema field, version rule, provider behavior, or workflow invariant, verify that the contract exists in repo artifacts or authoritative cited sources.
    - If a recommendation is stylistic or optional, ensure the analysis labels it as such instead of treating it as a hard contract.
 
+||||||| Stash base
+=======
+>>>>>>> Stashed changes
 ### Step 6: Verify Code Quality
 
 This step applies to **code reviews** only.
@@ -389,8 +400,14 @@ Return to your main session and run the `oat-project-review-receive` skill.
 
 ## Structured-Output Mode
 
+<<<<<<< Updated upstream
 When the dispatch payload sets `oat_output_mode: structured`, the output sink changes — nothing else does. Run the full review (Steps 1-7, including Step 5.5 for `type: analysis`) exactly as in artifact mode, then:
+||||||| Stash base
+=======
+When the dispatch payload sets `oat_output_mode: structured`, the output sink changes — nothing else does. Run the full review (Steps 1-7) exactly as in artifact mode, then:
+>>>>>>> Stashed changes
 
+<<<<<<< Updated upstream
 1. **Do NOT write a review artifact.** Skip Step 8 entirely. In this mode you MUST NOT write to any path under `{project}/reviews/` (or anywhere else). The caller consumes your return value in-memory, whether that caller posts to GitHub, runs an auto artifact-review loop, or performs another structured workflow.
 2. **Instead of Step 9's confirmation, return a `StructuredFindings` object** as your response. Do not also return the artifact-mode confirmation block.
 
@@ -420,6 +437,38 @@ interface StructuredFindings {
 - `verification_commands` carries what Step 8's "Verification Commands" section would have carried, as an array of command strings.
 
 Default behavior is unaffected: when `oat_output_mode` is absent or set to anything other than `structured`, follow Steps 8-9 and write the artifact exactly as before. Analysis reviews MUST honor `oat_output_mode: structured` whenever supplied by an auto-review loop: return the `StructuredFindings` object and write no artifact.
+||||||| Stash base
+=======
+1. **Do NOT write a review artifact.** Skip Step 8 entirely. In this mode you MUST NOT write to any path under `{project}/reviews/` (or anywhere else). The caller — the project-rail `oat-project-review-provide-remote` skill's Tier 1 dispatch — consumes your return value in-memory and posts it to GitHub itself; GitHub is the source of truth on that rail, so a local artifact would be redundant and is explicitly disallowed.
+2. **Instead of Step 9's confirmation, return a `StructuredFindings` object** as your response. Do not also return the artifact-mode confirmation block.
+
+**`StructuredFindings` return shape** (canonical schema: `design.md` → Data Models → StructuredFindings):
+
+```typescript
+interface StructuredFindings {
+  summary: string; // 2-3 sentence review summary
+  findings: Array<{
+    id: string; // C1, I1, M1, m1 — stable per dispatch (C/I/M/m prefix matches the severity model)
+    severity: 'critical' | 'important' | 'medium' | 'minor';
+    title: string;
+    file: string | null; // repo-relative path
+    line: number | null; // 1-based line in the post-image (new file)
+    body: string; // finding description and rationale
+    fix_guidance: string | null; // suggested fix (may be null)
+  }>;
+  verification_commands: string[]; // commands the caller can run to verify fixes — returned as an array, NOT appended to a file
+}
+````
+
+**Rules for the structured return:**
+
+- `severity` MUST be one of the four enum values, mapped from the same Critical/Important/Medium/Minor buckets as Step 7.
+- `file` and `line` MUST both be set or both be `null`. A finding with a concrete location sets both; a reviewer-level finding without a specific location sets both to `null` and is conveyed via the `summary` / its own `body`, not as an inline location.
+- `id` prefixes follow the existing convention (`C`/`I`/`M`/`m`) and are stable within a single dispatch — no renumbering.
+- `verification_commands` carries what Step 8's "Verification Commands" section would have carried, as an array of command strings.
+
+Default behavior is unaffected: when `oat_output_mode` is absent or set to anything other than `structured`, follow Steps 8-9 and write the artifact exactly as before.
+>>>>>>> Stashed changes
 
 ## Critical Rules
 

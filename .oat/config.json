@@ -16,7 +16,7 @@
     "docs": true,
     "workflows": true,
     "utility": true,
-    "project-management": false,
+    "project-management": true,
     "research": true,
     "brainstorm": true
   },

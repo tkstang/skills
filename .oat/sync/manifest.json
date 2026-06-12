@@ -330,6 +330,7 @@
       "strategy": "symlink",
       "contentHash": null,
       "isFile": false,
+<<<<<<< Updated upstream
       "lastSynced": "2026-06-03T02:58:02.888Z"
     },
     {
@@ -1141,7 +1142,57 @@
       "contentHash": null,
       "isFile": true,
       "lastSynced": "2026-06-09T22:03:04.010Z"
+||||||| Stash base
+=======
+      "lastSynced": "2026-06-12T21:13:33.315Z"
+    },
+    {
+      "canonicalPath": ".agents/skills/oat-project-split",
+      "providerPath": ".claude/skills/oat-project-split",
+      "provider": "claude",
+      "contentType": "skill",
+      "strategy": "symlink",
+      "contentHash": null,
+      "isFile": false,
+      "lastSynced": "2026-06-12T21:13:33.319Z"
+    },
+    {
+      "canonicalPath": ".agents/skills/oat-pjm-add-backlog-item",
+      "providerPath": ".claude/skills/oat-pjm-add-backlog-item",
+      "provider": "claude",
+      "contentType": "skill",
+      "strategy": "symlink",
+      "contentHash": null,
+      "isFile": false,
+      "lastSynced": "2026-06-12T21:15:11.246Z"
+    },
+    {
+      "canonicalPath": ".agents/skills/oat-pjm-review-backlog",
+      "providerPath": ".claude/skills/oat-pjm-review-backlog",
+      "provider": "claude",
+      "contentType": "skill",
+      "strategy": "symlink",
+      "contentHash": null,
+      "isFile": false,
+      "lastSynced": "2026-06-12T21:15:11.246Z"
+    },
+    {
+      "canonicalPath": ".agents/skills/oat-pjm-update-repo-reference",
+      "providerPath": ".claude/skills/oat-pjm-update-repo-reference",
+      "provider": "claude",
+      "contentType": "skill",
+      "strategy": "symlink",
+      "contentHash": null,
+      "isFile": false,
+      "lastSynced": "2026-06-12T21:15:11.246Z"
+>>>>>>> Stashed changes
     }
   ],
+<<<<<<< Updated upstream
   "lastUpdated": "2026-06-09T22:03:04.010Z"
+||||||| Stash base
+  "lastUpdated": "2026-05-01T20:47:22.635Z"
+=======
+  "lastUpdated": "2026-06-12T21:15:11.246Z"
+>>>>>>> Stashed changes
 }

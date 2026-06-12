@@ -1,8 +1,18 @@
 ---
 name: oat-project-review-provide
+<<<<<<< Updated upstream
 version: 1.3.7
 description: Use when the user explicitly asks to review an OAT project — e.g. "review project", "review the project", "run project review", or confirms a previously offered review. Do NOT auto-invoke on completed work alone. Resolves a project review scope and offers before running.
 disable-model-invocation: false
+||||||| Stash base
+version: 1.3.3
+description: Use when completed work in an active OAT project needs a quality gate before merge. Performs a lifecycle-scoped review after a task, phase, or full implementation, unlike oat-review-provide.
+disable-model-invocation: true
+=======
+version: 1.3.5
+description: Use when completed work in an active OAT project needs a quality gate before merge. Performs a lifecycle-scoped review after a task, phase, or full implementation, unlike oat-review-provide.
+disable-model-invocation: true
+>>>>>>> Stashed changes
 user-invocable: true
 allowed-tools: Read, Glob, Grep, Bash(git:*), AskUserQuestion
 ---

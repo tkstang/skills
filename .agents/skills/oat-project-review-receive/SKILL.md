@@ -1,8 +1,18 @@
 ---
 name: oat-project-review-receive
+<<<<<<< Updated upstream
 version: 1.5.2
 description: Use when the user explicitly asks to receive review findings for an OAT project — e.g. "receive review", "process review", "process the project review", or confirms a previously offered review-receive step. Do NOT auto-invoke merely because a review file exists. Resolves the latest review and offers before acting.
 disable-model-invocation: false
+||||||| Stash base
+version: 1.4.1
+description: Use when review findings from oat-project-review-provide need closure. Converts review artifacts into actionable plan tasks.
+disable-model-invocation: true
+=======
+version: 1.5.1
+description: Use when review findings from oat-project-review-provide need closure. Converts review artifacts into actionable plan tasks.
+disable-model-invocation: true
+>>>>>>> Stashed changes
 user-invocable: true
 allowed-tools: Read, Write, Bash(git:*), Bash(oat:*), Glob, Grep, AskUserQuestion
 ---

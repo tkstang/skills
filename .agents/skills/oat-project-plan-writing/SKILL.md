@@ -1,6 +1,12 @@
 ---
 name: oat-project-plan-writing
+<<<<<<< Updated upstream
 version: 1.2.5
+||||||| Stash base
+version: 1.2.2
+=======
+version: 1.2.4
+>>>>>>> Stashed changes
 description: Use when authoring or mutating plan.md in any OAT workflow. Defines canonical format invariants — stable task IDs, required sections, review table rules, and resume guardrails.
 disable-model-invocation: true
 user-invocable: false

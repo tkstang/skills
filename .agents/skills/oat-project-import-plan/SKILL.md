@@ -1,6 +1,12 @@
 ---
 name: oat-project-import-plan
+<<<<<<< Updated upstream
 version: 1.3.3
+||||||| Stash base
+version: 1.2.2
+=======
+version: 1.3.2
+>>>>>>> Stashed changes
 description: Use when you have an external markdown plan to execute with OAT. Preserves the source plan and normalizes it into canonical plan.md format.
 argument-hint: '<path-to-plan.md> [--provider codex|cursor|claude] [--project <name>]'
 disable-model-invocation: true
@@ -56,6 +62,7 @@ When executing this skill, provide lightweight progress feedback so the user can
   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 - Before multi-step work, print step indicators, e.g.:
+<<<<<<< Updated upstream
   - `[0/7] Checking inherited git state...`
   - `[1/7] Resolving project + source plan…`
   - `[2/7] Preserving imported source…`
@@ -64,6 +71,21 @@ When executing this skill, provide lightweight progress feedback so the user can
   - `[5/7] Running import-aware plan review…`
   - `[6/7] Updating project state + dashboard…`
   - `[7/7] Ensuring implementation tracker…`
+||||||| Stash base
+  - `[1/5] Resolving project + source plan…`
+  - `[2/5] Preserving imported source…`
+  - `[3/5] Normalizing plan to OAT task structure…`
+  - `[4/5] Updating project metadata + state…`
+  - `[5/5] Refreshing dashboard…`
+=======
+  - `[0/6] Checking inherited git state...`
+  - `[1/6] Resolving project + source plan…`
+  - `[2/6] Preserving imported source…`
+  - `[3/6] Normalizing plan to OAT task structure…`
+  - `[4/6] Updating project metadata + state…`
+  - `[5/6] Refreshing dashboard…`
+  - `[6/6] Ensuring implementation tracker…`
+>>>>>>> Stashed changes
 
 ## Process
 
