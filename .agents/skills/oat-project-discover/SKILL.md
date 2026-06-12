@@ -1,18 +1,8 @@
 ---
 name: oat-project-discover
-<<<<<<< Updated upstream
 version: 2.0.3
 description: Use when the user explicitly asks to continue discovery for an active spec-driven OAT project — e.g. "continue discovery", "run discovery", or confirms a previously offered discovery step. Do NOT auto-invoke for new ideas or quick-mode projects. Gathers requirements and context before spec/design.
 disable-model-invocation: false
-||||||| Stash base
-version: 2.0.0
-description: Use when starting a project or when requirements are still unclear. Runs structured discovery to gather requirements, constraints, and context.
-disable-model-invocation: true
-=======
-version: 2.0.2
-description: Use when starting a project or when requirements are still unclear. Runs structured discovery to gather requirements, constraints, and context.
-disable-model-invocation: true
->>>>>>> Stashed changes
 user-invocable: true
 allowed-tools: Read, Write, Bash(git:*), Bash(oat:*), Bash(pnpm:*), Glob, Grep, AskUserQuestion
 ---

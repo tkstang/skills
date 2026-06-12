@@ -5,34 +5,17 @@
 - **Discover available skills:** scan `.agents/skills/*/SKILL.md`
 - **Refresh provider views:** `oat sync --scope all`
 - **Update skills to latest versions:** `oat tools update`
-<<<<<<< Updated upstream
-- **User-scoped skills:** `~/.agents/skills/` (core, brainstorm packs installed at user scope)
-||||||| Stash base
-=======
 - **User-scoped skills:** `~/.agents/skills/` (core, ideas, docs, utility, research, brainstorm packs installed at user scope)
->>>>>>> Stashed changes
 
 ### Installed Packs
 
 - **core** — Diagnostics and documentation (oat-doctor, oat-docs) _(user scope)_
-<<<<<<< Updated upstream
-- **ideas** — Idea capture and refinement
-- **docs** — Documentation and instruction governance workflows
-||||||| Stash base
-=======
 - **ideas** — Idea capture and refinement _(user scope)_
 - **docs** — Documentation and instruction governance workflows _(user scope)_
 - **project-management** — Local backlog, roadmap, and reference doc management (oat-pjm-* skills)
->>>>>>> Stashed changes
 - **workflows** — Project lifecycle (create, discover, plan, implement, review, complete)
-<<<<<<< Updated upstream
-- **utility** — Standalone utilities (skill authoring, maintainability review, code reviews)
-- **research** — Research, analysis, verification, and synthesis
-||||||| Stash base
-=======
 - **utility** — Standalone utilities (skill authoring, maintainability review, code reviews) _(user scope)_
 - **research** — Research, analysis, verification, and synthesis _(user scope)_
->>>>>>> Stashed changes
 - **brainstorm** — Always-on brainstorming entry point with visual companion _(user scope)_
 
 ### Workflow Execution Continuation

@@ -1,12 +1,6 @@
 ---
 name: oat-project-plan
-<<<<<<< Updated upstream
 version: 1.3.5
-||||||| Stash base
-version: 1.3.2
-=======
-version: 1.3.4
->>>>>>> Stashed changes
 description: Use when design.md is complete and executable implementation tasks are needed. Breaks design into bite-sized TDD tasks in canonical plan.md format.
 disable-model-invocation: true
 user-invocable: true
