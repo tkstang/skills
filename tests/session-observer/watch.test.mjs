@@ -301,7 +301,7 @@ describe('runWatchLoop', () => {
   });
 
   test('emits newline-delimited JSON events when json mode is enabled', async () => {
-    await withTempSessionHome(async (home) => {
+    await withTempSessionHome(async (home, stateDir) => {
       const cwd = '/test/watch-json';
       const sessionId = 'watch-json';
       const transcriptPath = await writeClaudeTranscript(home, cwd, sessionId, [
@@ -315,13 +315,19 @@ describe('runWatchLoop', () => {
         cwd,
         pollSec: 0.03,
         debounceSec: 0.04,
-        maxRuntimeMin: 0.01,
+        maxRuntimeMin: 0.02,
         json: true,
       }, {
         writeStdout: chunk => stdout.push(chunk),
       });
 
-      await sleep(80);
+      // Wait for the baseline target lock (recorded after the baseline
+      // signature is captured) so the append below is seen as a delta
+      // rather than being absorbed into a slow baseline observe.
+      await waitFor(async () => {
+        const state = await readJsonIfExists(join(stateDir, 'watch.json'));
+        return state?.watchers?.some(watcher => watcher.targets?.length >= 1);
+      });
       await appendClaudeMessage(transcriptPath, sessionId, 'json update payload');
       await watchPromise;
 
@@ -773,13 +779,18 @@ describe('runWatchLoop', () => {
         cwd,
         pollSec: 0.03,
         debounceSec: 0.04,
-        maxRuntimeMin: 0.01,
+        maxRuntimeMin: 0.02,
         eventLog,
       }, {
         writeStdout: () => {},
       });
 
-      await sleep(80);
+      // Wait for the baseline target lock so the append is a post-baseline
+      // delta even when baseline establishment is slow.
+      await waitFor(async () => {
+        const state = await readJsonIfExists(join(stateDir, 'watch.json'));
+        return state?.watchers?.some(watcher => watcher.targets?.length >= 1);
+      });
       await appendClaudeMessage(transcriptPath, sessionId, 'event log content must stay out');
       await watchPromise;
 
@@ -943,7 +954,7 @@ describe('runWatchLoop', () => {
   });
 
   test('flush emits a pending debounced update immediately', async () => {
-    await withTempSessionHome(async (home) => {
+    await withTempSessionHome(async (home, stateDir) => {
       const cwd = '/test/watch-flush';
       const sessionId = 'watch-flush';
       const transcriptPath = await writeClaudeTranscript(home, cwd, sessionId, [
@@ -957,15 +968,35 @@ describe('runWatchLoop', () => {
         runtime: 'claude-code',
         cwd,
         pollSec: 0.03,
-        debounceSec: 2,
+        debounceSec: 5,
         maxRuntimeMin: 0.02,
       }, {
         writeStdout: chunk => stdout.push(chunk),
       });
 
-      await sleep(80);
+      // Wait for the baseline target lock so the append is a post-baseline
+      // delta even when baseline establishment is slow.
+      await waitFor(async () => {
+        const state = await readJsonIfExists(join(stateDir, 'watch.json'));
+        return state?.watchers?.some(watcher => watcher.targets?.length >= 1);
+      });
+      const appendedAtMs = Date.now();
       await appendClaudeMessage(transcriptPath, sessionId, 'flush update');
-      await sleep(80);
+      // Two completed poll stamps after the append guarantee a pollTargets
+      // pass observed the appended record, so the flush below has a pending
+      // entry to force out (debounceSec is far beyond the runtime budget,
+      // so flush is the only emit path this test can take).
+      let firstStampAfterAppendMs = null;
+      await waitFor(async () => {
+        const state = await readJsonIfExists(join(stateDir, 'watch.json'));
+        const lastPollAtMs = Date.parse(state?.watchers?.[0]?.lastPollAt ?? '');
+        if (!Number.isFinite(lastPollAtMs) || lastPollAtMs <= appendedAtMs) return false;
+        if (firstStampAfterAppendMs === null) {
+          firstStampAfterAppendMs = lastPollAtMs;
+          return false;
+        }
+        return lastPollAtMs > firstStampAfterAppendMs;
+      });
       await watchState.writeControlDirective('flush');
 
       const result = await watchPromise;
