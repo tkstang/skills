@@ -1,12 +1,6 @@
 ---
 name: oat-project-quick-start
-<<<<<<< Updated upstream
 version: 2.1.6
-||||||| Stash base
-version: 2.0.2
-=======
-version: 2.1.4
->>>>>>> Stashed changes
 description: Use when a task is small enough for quick mode or rapid iteration is preferred. Scaffolds a lightweight OAT project from discovery directly to a runnable plan, with optional brainstorming and lightweight design.
 argument-hint: '<project-name> ["project description"]'
 disable-model-invocation: true
@@ -63,7 +57,6 @@ When executing this skill, provide lightweight progress feedback so the user can
   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 - Before multi-step work, print step indicators, e.g.:
-<<<<<<< Updated upstream
   - `[0/7] Checking inherited git state...`
   - `[1/7] Scaffolding quick-mode project…`
   - `[2/7] Exploring solution space + capturing discovery…`
@@ -72,22 +65,6 @@ When executing this skill, provide lightweight progress feedback so the user can
   - `[5/7] Running plan artifact review…`
   - `[6/7] Initializing implementation tracker…`
   - `[7/7] Refreshing dashboard…`
-||||||| Stash base
-  - `[1/6] Scaffolding quick-mode project…`
-  - `[2/6] Exploring solution space + capturing discovery…`
-  - `[3/6] Decision point: design depth…`
-  - `[4/6] Generating execution plan…`
-  - `[5/6] Initializing implementation tracker…`
-  - `[6/6] Refreshing dashboard…`
-=======
-  - `[0/6] Checking inherited git state...`
-  - `[1/6] Scaffolding quick-mode project…`
-  - `[2/6] Exploring solution space + capturing discovery…`
-  - `[3/6] Decision point: design depth…`
-  - `[4/6] Generating execution plan…`
-  - `[5/6] Initializing implementation tracker…`
-  - `[6/6] Refreshing dashboard…`
->>>>>>> Stashed changes
   - _(If lightweight design is chosen, insert design steps between 3 and 4)_
 
 ## Artifact Persistence (Required)
@@ -545,7 +522,6 @@ must block before work starts if it still cannot resolve a ceiling.
 Do not treat provider default effort as the OAT dispatch ceiling. Provider
 default is informational for base/unpinned roles only.
 
-<<<<<<< Updated upstream
 ### Step 3.6: Run Plan Artifact Review Loop
 
 Invoke the shared `Auto Artifact-Review Loop` from `oat-project-plan-writing` with target `plan` before syncing project state or handing off to implementation.
@@ -567,9 +543,6 @@ Apply the shared loop exactly:
 - Re-dispatch after rewrites until clean or the retry bound is exhausted.
 - Update the `plan` artifact row in the `## Reviews` table to `passed` when clean. If residual findings remain, preserve the row and surface the residual findings before downstream handoff.
 
-||||||| Stash base
-=======
->>>>>>> Stashed changes
 ### Step 4: Sync Project State
 
 Update `"$PROJECT_PATH/state.md"`:
