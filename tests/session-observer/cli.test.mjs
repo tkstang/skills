@@ -76,6 +76,7 @@ describe('CLI subcommand dispatch', () => {
     const result = spawnCli(['--help']);
     assert.equal(result.status, 0, `help should exit 0\nstderr: ${result.stderr}`);
     assert.ok(result.stdout.includes('watch'), 'help should list watch subcommand');
+    assert.ok(result.stdout.includes('catch-up-then-watch'), 'help should list catch-up-then-watch subcommand');
     assert.ok(result.stdout.includes('watch-ctl'), 'help should list watch-ctl subcommand');
     assert.ok(result.stdout.includes('--watch'), 'help should list top-level --watch alias');
   });
@@ -87,6 +88,9 @@ describe('CLI subcommand dispatch', () => {
     assert.ok(result.stdout.includes('--poll-sec'), 'watch help should include poll flag');
     assert.ok(result.stdout.includes('--max-pending-sec'), 'watch help should include max pending flag');
     assert.ok(result.stdout.includes('--max-runtime-min'), 'watch help should include bounded runtime flag');
+    assert.ok(result.stdout.includes('--heartbeat-sec'), 'watch help should include heartbeat flag');
+    assert.ok(result.stdout.includes('--until-stopped'), 'watch help should include until-stopped alias');
+    assert.ok(result.stdout.includes('--interactive'), 'watch help should include interactive alias');
     assert.ok(result.stdout.includes('--event-log'), 'watch help should include event log flag');
     assert.ok(
       result.stdout.includes('--runtime <claude-code|codex|cursor|auto|both>'),
@@ -107,6 +111,13 @@ describe('CLI subcommand dispatch', () => {
     const alias = spawnCli(['--watch', '--help']);
     assert.equal(alias.status, 0, `--watch help should exit 0\nstdout: ${alias.stdout}\nstderr: ${alias.stderr}`);
     assert.equal(alias.stdout, canonical.stdout, '--watch --help should print the same help as watch --help');
+  });
+
+  test('catch-up-then-watch --help maps to watch help with command name', (t) => {
+    const result = spawnCli(['catch-up-then-watch', '--help']);
+    assert.equal(result.status, 0, `catch-up-then-watch help should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`);
+    assert.ok(result.stdout.includes('Usage: session-observer catch-up-then-watch [options]'));
+    assert.ok(result.stdout.includes('--heartbeat-sec'));
   });
 
   test('watch-ctl status --json reports no active watcher', async (t) => {
@@ -154,7 +165,7 @@ describe('CLI subcommand dispatch', () => {
 
       for (const op of ['pause', 'resume', 'flush']) {
         const result = spawnCli(
-          ['watch-ctl', op, '--json'],
+          ['watch-ctl', op, '--cwd', '/test/active-watch-control', '--json'],
           { HOME: tmpDir, STATE_DIR: stateDir }
         );
         assert.equal(result.status, 0,
@@ -163,10 +174,124 @@ describe('CLI subcommand dispatch', () => {
         const payload = JSON.parse(result.stdout);
         assert.equal(payload.directive, op);
         assert.equal(payload.control.directive, op);
+        assert.equal(payload.control.pid, process.pid);
 
-        const raw = JSON.parse(await readFile(join(stateDir, 'watch.control.json'), 'utf8'));
+        const raw = JSON.parse(await readFile(join(stateDir, `watch.control.${process.pid}.json`), 'utf8'));
         assert.equal(raw.directive, op);
+        assert.equal(raw.pid, process.pid);
       }
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  test('watch-ctl controls fall back to the only matching watcher when cwd differs', async () => {
+    const tmpDir = await mkdtemp(join(tmpdir(), 'cli-watch-control-fallback-'));
+    try {
+      const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
+      await mkdir(stateDir, { recursive: true });
+      await writeFile(
+        join(stateDir, 'watch.json'),
+        JSON.stringify({
+          schemaVersion: 1,
+          active: null,
+          watchers: [
+            {
+              pid: process.pid,
+              runtime: 'claude-code',
+              cwd: '/test/somewhere-else-entirely',
+              startedAt: new Date().toISOString(),
+              targets: [],
+            },
+          ],
+        }),
+        'utf8'
+      );
+
+      // No --cwd: the implicit process.cwd() does not match the watcher's cwd,
+      // but the lone watcher must remain controllable.
+      const result = spawnCli(
+        ['watch-ctl', 'pause', '--json'],
+        { HOME: tmpDir, STATE_DIR: stateDir }
+      );
+      assert.equal(result.status, 0,
+        `lone-watcher control should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`);
+      const payload = JSON.parse(result.stdout);
+      assert.equal(payload.directive, 'pause');
+      assert.equal(payload.control.pid, process.pid);
+
+      // An explicit --cwd that matches nothing is a hard filter and must not
+      // fall back; it reports the active watchers instead.
+      const filtered = spawnCli(
+        ['watch-ctl', 'pause', '--cwd', '/test/not-a-watcher-cwd', '--json'],
+        { HOME: tmpDir, STATE_DIR: stateDir }
+      );
+      assert.equal(filtered.status, 3,
+        `explicit cwd miss should exit 3\nstdout: ${filtered.stdout}\nstderr: ${filtered.stderr}`);
+      const filteredPayload = JSON.parse(filtered.stdout);
+      assert.equal(filteredPayload.noMatchingWatcher, true);
+      assert.equal(filteredPayload.watchers.length, 1);
+      assert.equal(filteredPayload.watchers[0].pid, process.pid);
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  test('watch-ctl controls require disambiguation for multiple same-cwd watchers', async () => {
+    const tmpDir = await mkdtemp(join(tmpdir(), 'cli-watch-control-ambiguous-'));
+    try {
+      const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
+      await mkdir(stateDir, { recursive: true });
+      const cwd = '/test/ambiguous-watch-control';
+      const firstPid = process.pid;
+      const secondPid = process.ppid;
+      await writeFile(
+        join(stateDir, 'watch.json'),
+        JSON.stringify({
+          schemaVersion: 1,
+          active: null,
+          watchers: [
+            {
+              pid: firstPid,
+              runtime: 'auto',
+              requestedRuntime: 'auto',
+              resolvedRuntime: 'codex',
+              cwd,
+              startedAt: new Date().toISOString(),
+              targets: [{ runtime: 'codex', sessionId: 'codex-session' }],
+            },
+            {
+              pid: secondPid,
+              runtime: 'auto',
+              requestedRuntime: 'auto',
+              resolvedRuntime: 'claude-code',
+              cwd,
+              startedAt: new Date().toISOString(),
+              targets: [{ runtime: 'claude-code', sessionId: 'claude-session' }],
+            },
+          ],
+        }),
+        'utf8'
+      );
+
+      const ambiguous = spawnCli(
+        ['watch-ctl', 'pause', '--cwd', cwd, '--json'],
+        { HOME: tmpDir, STATE_DIR: stateDir }
+      );
+      assert.equal(ambiguous.status, 3,
+        `ambiguous control should exit 3\nstdout: ${ambiguous.stdout}\nstderr: ${ambiguous.stderr}`);
+      const ambiguousPayload = JSON.parse(ambiguous.stdout);
+      assert.equal(ambiguousPayload.ambiguousWatcher, true);
+      assert.equal(ambiguousPayload.watchers.length, 2);
+
+      const selected = spawnCli(
+        ['watch-ctl', 'pause', '--cwd', cwd, '--runtime', 'codex', '--json'],
+        { HOME: tmpDir, STATE_DIR: stateDir }
+      );
+      assert.equal(selected.status, 0,
+        `selected control should exit 0\nstdout: ${selected.stdout}\nstderr: ${selected.stderr}`);
+      const payload = JSON.parse(selected.stdout);
+      assert.equal(payload.control.pid, firstPid);
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -198,6 +323,38 @@ describe('CLI subcommand dispatch', () => {
         assert.equal(payload.watcher, null);
         assert.equal(await readJsonIfExists(join(stateDir, 'watch.control.json')), null);
       }
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  test('watch --json renders setup failures as a stable error event', async (t) => {
+    const tmpDir = await mkdtemp(join(tmpdir(), 'cli-watch-setup-error-'));
+    try {
+      const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
+      await mkdir(stateDir, { recursive: true });
+
+      // Event-log path validation throws before the watch loop's own error
+      // emitter is reachable; --json must still get a stdout error event.
+      const escape = spawnCli(
+        ['watch', '--json', '--event-log', '../escape.log', '--max-runtime-min', '0.01'],
+        { HOME: tmpDir, STATE_DIR: stateDir }
+      );
+      assert.equal(escape.status, 1,
+        `watch with escaping event log should exit 1\nstdout: ${escape.stdout}\nstderr: ${escape.stderr}`);
+      const escapeEvent = JSON.parse(escape.stdout.trim());
+      assert.equal(escapeEvent.type, 'error');
+      assert.ok(escapeEvent.ts, 'error event should carry a timestamp');
+      assert.ok(escapeEvent.message.length > 0, 'error event should carry a message');
+
+      const invalid = spawnCli(
+        ['watch', '--json', '--runtime', 'bogus'],
+        { HOME: tmpDir, STATE_DIR: stateDir }
+      );
+      assert.equal(invalid.status, 1);
+      const invalidEvent = JSON.parse(invalid.stdout.trim());
+      assert.equal(invalidEvent.type, 'error');
+      assert.match(invalidEvent.message, /Unknown watch runtime/);
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }

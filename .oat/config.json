@@ -12,12 +12,12 @@
   },
   "tools": {
     "core": true,
-    "ideas": false,
-    "docs": false,
+    "ideas": true,
+    "docs": true,
     "workflows": true,
-    "utility": false,
+    "utility": true,
     "project-management": false,
-    "research": false,
+    "research": true,
     "brainstorm": true
   },
   "localPaths": [
