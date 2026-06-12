@@ -12,7 +12,7 @@ oat_hill_checkpoints: [] # Configured: which phases require human-in-the-loop li
 oat_hill_completed: [] # Progress: which HiLL checkpoints have been completed
 oat_parallel_execution: false
 oat_phase: discovery # Current phase: discovery | spec | design | plan | implement | decomposition
-oat_phase_status: in_progress # Status: in_progress | complete | pr_open
+oat_phase_status: complete # Status: in_progress | complete | pr_open
 # oat_orchestration_retry_limit: 2  # optional; override fix-loop retry limit (range 0-5)
 # oat_dispatch_ceiling: # optional project override for provider-aware dispatch ceilings
 #   provider: codex # codex | claude
@@ -25,7 +25,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-06-12T21:57:32.365Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-06-12T21:57:32.365Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-06-12T23:46:57Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -37,11 +37,11 @@ oat_generated: false
 
 ## Current Phase
 
-Discovery - Gathering requirements and understanding the problem space
+Discovery complete — ready for design (oat-project-design)
 
 ## Artifacts
 
-- **Discovery:** `discovery.md` (in_progress)
+- **Discovery:** `discovery.md` (complete)
 - **Spec:** `spec.md` (scaffolded template — authored inline by `oat-project-design`)
 - **Design:** `design.md` (scaffolded template — not started)
 - **Plan:** `plan.md` (scaffolded template — not started)
@@ -51,7 +51,7 @@ Discovery - Gathering requirements and understanding the problem space
 
 - ✓ Discovery started
 - ✓ Downstream lifecycle files scaffolded
-- ⧗ Awaiting user input
+- ✓ Discovery complete (4 gray areas resolved; two-tier synthesis architecture chosen; scope check passed as one cohesive project)
 
 ## Blockers
 
@@ -59,4 +59,4 @@ None
 
 ## Next Milestone
 
-Complete discovery and move to design phase
+Design phase: run `oat-project-design` to confirm requirements and produce spec.md + design.md
