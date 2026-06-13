@@ -198,4 +198,117 @@ test('detectEscalation returns null when no trigger fires', () => {
   assert.equal(result, null);
 });
 
+// ---------------------------------------------------------------------------
+// p04-t02: routing table + genuinely-stuck promotion
+// ---------------------------------------------------------------------------
+
+// Design §5 routing table (trigger × agency → decide_via).
+const ROUTING_TABLE = {
+  persistent_disagreement: { minimal: 'user', moderate: 'host', maximum: 'host' },
+  oscillation: { minimal: 'user', moderate: 'user', maximum: 'host' },
+  budget_exhausted: { minimal: 'user', moderate: 'user', maximum: 'auto' },
+  near_done_drift: { minimal: 'user', moderate: 'host', maximum: 'auto' }
+};
+
+for (const [trigger, byAgency] of Object.entries(ROUTING_TABLE)) {
+  for (const [agency, expected] of Object.entries(byAgency)) {
+    test(`routeEscalation: ${trigger} @ ${agency} → ${expected}`, () => {
+      const route = routeEscalation(trigger, agency, []);
+      assert.equal(route.decide_via, expected);
+    });
+  }
+}
+
+test('host-routed escalation lists defer_to_user as an allowed decision kind', () => {
+  const route = routeEscalation(ESCALATION_TRIGGERS.persistent_disagreement, 'moderate', []);
+  assert.equal(route.decide_via, 'host');
+  assert.ok(route.decision_kinds.includes('defer_to_user'));
+});
+
+test('user-routed escalation does not list defer_to_user', () => {
+  const route = routeEscalation(ESCALATION_TRIGGERS.oscillation, 'minimal', []);
+  assert.equal(route.decide_via, 'user');
+  assert.ok(!route.decision_kinds.includes('defer_to_user'));
+});
+
+test('maximum budget_exhausted auto-resolves to declare-done (recorded as auto-resolved)', () => {
+  const route = routeEscalation(ESCALATION_TRIGGERS.budget_exhausted, 'maximum', []);
+  assert.equal(route.decide_via, 'auto');
+  assert.equal(route.auto_resolution, 'declare_done');
+});
+
+test('maximum near_done_drift auto-resolves via the existing near-match rule', () => {
+  const route = routeEscalation(ESCALATION_TRIGGERS.near_done_drift, 'maximum', []);
+  assert.equal(route.decide_via, 'auto');
+});
+
+test('promotion: trigger re-fires after a HOST_DECISION → decide_via user, promoted_from host', () => {
+  const records = [
+    ...synthesizedRound(1, ['x']),
+    ...synthesizedRound(2, ['x']),
+    ...synthesizedRound(3, ['x']),
+    interventionRecord({
+      round: 4,
+      agent: 'host-orchestrator',
+      verdict: 'HOST_DECISION',
+      decisionKind: 'blend',
+      trigger: ESCALATION_TRIGGERS.persistent_disagreement
+    }),
+    ...synthesizedRound(5, ['x']),
+    ...synthesizedRound(6, ['x']),
+    ...synthesizedRound(7, ['x'])
+  ];
+  const route = routeEscalation(ESCALATION_TRIGGERS.persistent_disagreement, 'moderate', records);
+  assert.equal(route.decide_via, 'user');
+  assert.equal(route.promoted_from, 'host');
+});
+
+test('promotion: explicit defer_to_user decline re-routes to user', () => {
+  const records = [
+    ...synthesizedRound(1, ['x']),
+    ...synthesizedRound(2, ['x']),
+    ...synthesizedRound(3, ['x']),
+    interventionRecord({
+      round: 4,
+      agent: 'host-orchestrator',
+      verdict: 'HOST_DECISION',
+      decisionKind: 'defer_to_user',
+      trigger: ESCALATION_TRIGGERS.persistent_disagreement
+    })
+  ];
+  const route = routeEscalation(ESCALATION_TRIGGERS.persistent_disagreement, 'moderate', records);
+  assert.equal(route.decide_via, 'user');
+  assert.equal(route.promoted_from, 'host');
+});
+
+test('a HOST_DECISION for a DIFFERENT trigger does not promote', () => {
+  const records = [
+    interventionRecord({
+      round: 4,
+      agent: 'host-orchestrator',
+      verdict: 'HOST_DECISION',
+      decisionKind: 'blend',
+      trigger: ESCALATION_TRIGGERS.oscillation
+    })
+  ];
+  const route = routeEscalation(ESCALATION_TRIGGERS.persistent_disagreement, 'moderate', records);
+  assert.equal(route.decide_via, 'host');
+  assert.ok(!route.promoted_from);
+});
+
+test('maximum budget_exhausted is exempt from promotion even after a HOST_DECISION', () => {
+  const records = [
+    interventionRecord({
+      round: 4,
+      agent: 'host-orchestrator',
+      verdict: 'HOST_DECISION',
+      decisionKind: 'extend_budget',
+      trigger: ESCALATION_TRIGGERS.budget_exhausted
+    })
+  ];
+  const route = routeEscalation(ESCALATION_TRIGGERS.budget_exhausted, 'maximum', records);
+  assert.equal(route.decide_via, 'auto');
+  assert.ok(!route.promoted_from);
+});
+
 export { peerRecord, synthesisRecord, interventionRecord, synthesizedRound };

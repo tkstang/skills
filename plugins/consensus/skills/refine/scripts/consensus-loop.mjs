@@ -2060,10 +2060,92 @@ export function detectEscalation(records, { mode = 'alternating', agency = 'mode
   return null;
 }
 
-// routeEscalation is implemented in p04-t02; exported here so the escalation
-// module surface is stable for importers.
-export function routeEscalation() {
-  throw new Error('routeEscalation not yet implemented');
+// Design §5 routing table (trigger × agency → base decide_via). Cells marked
+// 'auto' terminate deterministically (no decision request); host cells are
+// subject to genuinely-stuck promotion.
+const ESCALATION_ROUTING_TABLE = Object.freeze({
+  [ESCALATION_TRIGGERS.persistent_disagreement]: { minimal: 'user', moderate: 'host', maximum: 'host' },
+  [ESCALATION_TRIGGERS.oscillation]: { minimal: 'user', moderate: 'user', maximum: 'host' },
+  [ESCALATION_TRIGGERS.budget_exhausted]: { minimal: 'user', moderate: 'user', maximum: 'auto' },
+  [ESCALATION_TRIGGERS.near_done_drift]: { minimal: 'user', moderate: 'host', maximum: 'auto' }
+});
+
+const BASE_DECISION_KINDS = Object.freeze([
+  'pick_a',
+  'pick_b',
+  'blend',
+  'direct',
+  'accept_impasse',
+  'extend_budget'
+]);
+
+function decisionKindsFor(decideVia) {
+  return decideVia === 'host' ? [...BASE_DECISION_KINDS, 'defer_to_user'] : [...BASE_DECISION_KINDS];
+}
+
+function priorHostDecisionForTrigger(records, trigger) {
+  if (!Array.isArray(records)) return null;
+  for (let index = records.length - 1; index >= 0; index -= 1) {
+    const record = records[index];
+    if (record?.verdict === 'HOST_DECISION' && record?.escalation_trigger === trigger) {
+      return record;
+    }
+  }
+  return null;
+}
+
+/**
+ * routeEscalation (p04-t02): pure function over (trigger, agency, records).
+ * Applies the design §5 routing table, then genuinely-stuck promotion for
+ * host-routed cells:
+ *   (a) repeat-fire — the same trigger re-fires after a HOST_DECISION already
+ *       answered it (a prior HOST_DECISION round for this trigger exists), OR
+ *   (b) the host explicitly declined with decision_kind 'defer_to_user'.
+ * Both promote to decide_via: 'user' with promoted_from: 'host'.
+ * The maximum-agency budget_exhausted 'auto' cell is exempt (it terminates,
+ * never loops) and preserves regression-locked v0.1 declare-done behavior.
+ */
+export function routeEscalation(trigger, agency = 'moderate', records = []) {
+  const row = ESCALATION_ROUTING_TABLE[trigger];
+  if (!row) {
+    throw new ConsensusError(`unknown escalation trigger: ${trigger}`, {
+      code: 'ESCALATION_ROUTING',
+      exitCode: EXIT_CODES.CONFIG,
+      details: { trigger, agency }
+    });
+  }
+
+  const baseDecideVia = row[agency] ?? 'user';
+
+  if (baseDecideVia === 'auto') {
+    const route = { trigger, agency, decide_via: 'auto', decision_kinds: [] };
+    if (trigger === ESCALATION_TRIGGERS.budget_exhausted) {
+      route.auto_resolution = 'declare_done';
+    } else if (trigger === ESCALATION_TRIGGERS.near_done_drift) {
+      route.auto_resolution = 'near_match';
+    }
+    return route;
+  }
+
+  if (baseDecideVia === 'host') {
+    const priorHostDecision = priorHostDecisionForTrigger(records, trigger);
+    const deferred = priorHostDecision?.decision_kind === 'defer_to_user';
+    if (priorHostDecision) {
+      // Repeat-fire after a host decision (or an explicit defer) is genuinely
+      // stuck → promote to the user.
+      return {
+        trigger,
+        agency,
+        decide_via: 'user',
+        promoted_from: 'host',
+        promotion_reason: deferred ? 'defer_to_user' : 'repeat_fire',
+        decision_kinds: decisionKindsFor('user')
+      };
+    }
+    return { trigger, agency, decide_via: 'host', decision_kinds: decisionKindsFor('host') };
+  }
+
+  return { trigger, agency, decide_via: 'user', decision_kinds: decisionKindsFor('user') };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
