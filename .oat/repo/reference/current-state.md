@@ -1,6 +1,6 @@
 # Skills Repo Current State
 
-**Last updated:** 2026-06-12 (initial backfill from archived project artifacts and merged-PR review; covers consensus-plugin v0.1, session-observer + watch mode, export-session-transcript + shared transcript-core, and the OAT tooling user-scope move.)
+**Last updated:** 2026-06-13 (consensus Phase 2 — parallel iteration modes + escalation ladder + unified v1 schema — implemented on `feat/consensus-iteration-modes`, final review in progress, merge pending. Prior baseline 2026-06-12: initial backfill covering consensus-plugin v0.1, session-observer + watch mode, export-session-transcript + shared transcript-core, and the OAT tooling user-scope move.)
 
 ## Overview
 
@@ -12,15 +12,20 @@ This repository is a personal Agent Skills home: standalone skills under `skills
 
 One skill, `refine` (invoked as `consensus:refine`): two Paseo-backed AI peers (default Claude + Codex) deliberate on a markdown draft toward a converged artifact with a full audit trail.
 
-- **Engine:** alternating iteration mode; structured ACCEPT/REVISE/IMPASSE verdicts (`schema_version: "v0"`, post-receive byte caps); normalized-hash convergence with ACCEPT-twice-same-hash guard; oscillation detection; per-section round budgets (default 12).
-- **Orchestration:** sequential sections by default; opt-in host-mediated parallel dispatch (`--prepare-parallel` → host dispatches section runners per `agents/consensus-section-runner.md` → `--fan-in`); Codex subagent authorization fails closed.
-- **Control surface:** `--goal`, `--peers`, `--max-rounds`, `--agency minimal|moderate|maximum`, `--output`, `--allow-root`, `--run-dir`, `--fail-on-section-error`, `--resume`, `--user-direction`, corrupt-section skip flags.
-- **Resume:** deliberation artifact is the canonical state; fail-closed on corruption; user direction recorded as a `USER_INTERVENTION` round.
+- **Iteration modes (Phase 2, branch-implemented):** three modes selected with `--iteration` — `alternating` (default; one peer revises, the other responds), `parallel_revision` (both peers revise simultaneously each round with own/peer critique, emergent same-round convergence, 2× peer calls), and `parallel_synthesized` (parallel revision plus a wrapper-driven per-round synthesis merge, 2× peer calls + 1 synthesis call). Per-round cost multiplier disclosed on the `run_started` event; `peer_calls`/`synthesis_calls` totals reported at completion.
+- **Synthesizer:** `parallel_synthesized` synthesis defaults to the first peer; override with `--synthesizer <provider>` (must be in the peer inventory or preflight fails `SYNTHESIZER_UNAVAILABLE`; warned-and-ignored outside the mode). Synthesizer identity recorded per synthesis record and in the resolution block.
+- **Escalation ladder (FR5):** parallel modes can emit a structured `escalation_required` event on deterministic triggers (persistent disagreement, oscillation, budget exhaustion, near-done drift) routed by `--agency` to user or host. Host decisions re-enter via `--resume … --host-direction "<text>"` (optionally `--host-decision-kind pick_a|pick_b|blend|direct|accept_impasse|extend_budget|defer_to_user`) and record as attributed `HOST_DECISION` orchestrator rounds; user decisions re-enter via `--user-direction`. Genuinely-stuck promotion: a re-fired trigger after a prior host decision (or an explicit `defer_to_user`) promotes to the user (`promoted_from: host`). HOST_DECISION routing metadata (`decision_kind`, `escalation_trigger`) persists in the canonical artifact block so promotion stays restart-safe across resumes.
+- **Schema:** unified v1 verdict family across modes; per-record `schema_version: "v1"` plus an artifact-level `consensus_schema_version: "v1"`; OpenAI/codex strict structured output handled (draft-07 schemas, no `oneOf`, typed properties, verdict normalization that drops branch-disallowed fields); v0 artifacts rejected with no migration. Post-receive byte caps, normalized-hash convergence with ACCEPT-twice-same-hash guard, oscillation detection, per-section round budgets (default 12).
+- **Orchestration:** sequential sections by default; opt-in host-mediated parallel dispatch (`--prepare-parallel` → host dispatches section runners per `agents/consensus-section-runner.md` → `--fan-in`); Codex subagent authorization fails closed. Each run gets a unique default run directory (no cross-run contamination).
+- **Control surface:** `--goal`, `--peers`, `--max-rounds`, `--agency minimal|moderate|maximum`, `--iteration`, `--synthesizer`, `--host-direction`, `--host-decision-kind`, `--output`, `--allow-root`, `--run-dir`, `--fail-on-section-error`, `--resume`, `--user-direction`, corrupt-section skip flags.
+- **Resume:** deliberation artifact is the canonical state; fail-closed on corruption; user direction recorded as a `USER_INTERVENTION` round, host decision as a `HOST_DECISION` round.
 - **Safety:** four-domain path confinement with atomic writes; spawn-array subprocess hygiene; prompt-injection framing on untrusted input; JSONL stdout as the host coordination protocol, stderr for diagnostics.
 - **Distribution:** provider manifests under the plugin (`.claude-plugin/`, `.cursor-plugin/`, `.codex-plugin/`) plus repo-root marketplace entries; local marketplace install verified for Claude Code and Codex; Cursor loads session-scoped via `cursor agent --plugin-dir` (no marketplace/install commands in the Cursor CLI yet — fixed/documented 2026-05-24).
 - **Prerequisite:** Paseo CLI on PATH (tested range 0.1.0–0.9.0); opt-in install assist via `scripts/install-paseo.mjs`.
 
-Not yet implemented (see `roadmap.md`): parallel-revision and parallel-synthesized iteration modes, the other five family skills, whole-document harmonization, deliberation metrics.
+Verified live with claude+codex across all three modes and the escalation ladder; QA walkthrough in `skills/refine/references/operator-qa.md`. Cursor-as-peer remains opt-in (custom ACP provider) and unverified end-to-end.
+
+Not yet implemented (see `roadmap.md`): the other five family skills (`consensus-create|evaluate|decide|plan|research`), whole-document harmonization, deliberation metrics/cost caps, the deferred independent-draft cold-start strategy, a convergence similarity heuristic (deterministic-only triggers shipped; bl-ef38), tool-based verdict submission CLI (bl-3a88), and an in-house peer CLI (bl-bb7e).
 
 ### session-observer (`skills/session-observer/`)
 
