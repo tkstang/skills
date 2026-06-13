@@ -20,4 +20,7 @@ node_modules/
 tmp/
 temp/
 *.tmp
+# Consensus wrapper writes <input>.consensus.md beside its input; keep test-run
+# output leaks from the shared fixture out of git.
+tests/fixtures/*.consensus.md
 # END Node/runtime outputs
