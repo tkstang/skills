@@ -109,15 +109,17 @@ test('normalizeVerdict strips empty disallowed fields from strict structured out
   assert.deepEqual(validateVerdictShape(normConv, { mode: 'parallel_revision' }), { ok: true, errors: [] });
 });
 
-test('normalizeVerdict preserves required fields and genuine contradictions', () => {
-  // A REVISE keeps its (non-empty) proposed_artifact.
+test('normalizeVerdict keeps required fields and drops unused branch fields', () => {
+  // A REVISE keeps its required proposed_artifact.
   const revise = { schema_version: 'v1', verdict: 'REVISE', reasoning: 'tighten', proposed_artifact: 'New text.' };
   assert.deepEqual(normalizeVerdict(revise, 'alternating'), revise);
-  // An ACCEPT with a NON-empty proposed_artifact is a real contradiction — kept, then rejected.
-  const contradictory = { schema_version: 'v1', verdict: 'ACCEPT', reasoning: 'ok', proposed_artifact: 'actually change this' };
-  const norm = normalizeVerdict(contradictory, 'alternating');
-  assert.equal(norm.proposed_artifact, 'actually change this');
-  assert.equal(validateVerdictShape(norm, { mode: 'alternating' }).ok, false);
+  // An ACCEPT carrying a non-empty proposed_artifact (codex echoes content under
+  // strict output): the loop never applies it on ACCEPT, so it is dropped and the
+  // stated verdict (ACCEPT) is honored.
+  const acceptWithContent = { schema_version: 'v1', verdict: 'ACCEPT', reasoning: 'ok', proposed_artifact: 'echoed current text' };
+  const norm = normalizeVerdict(acceptWithContent, 'alternating');
+  assert.equal('proposed_artifact' in norm, false);
+  assert.deepEqual(validateVerdictShape(norm, { mode: 'alternating' }), { ok: true, errors: [] });
 });
 
 test('validateVerdictShape accepts ACCEPT, REVISE, and IMPASSE verdicts', () => {

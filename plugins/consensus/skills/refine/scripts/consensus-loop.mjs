@@ -436,22 +436,17 @@ export function validateVerdictShape(verdict, { mode = 'alternating' } = {}) {
   return { ok: errors.length === 0, errors };
 }
 
-function isEmptyValue(value) {
-  if (value === '' || value === null || value === undefined) return true;
-  if (Array.isArray(value)) return value.length === 0;
-  if (typeof value === 'object') return Object.keys(value).length === 0;
-  return false;
-}
-
 /**
  * Normalize a peer verdict before validation. Strict structured-output providers
  * (OpenAI/codex) emit *every* schema property in every response and cannot omit
- * "optional" fields, so a non-REVISE verdict arrives carrying an empty
- * `proposed_artifact` (and empty `concerns`/`critique`). Such empties are
- * semantically "absent": drop any field the verdict's branch table does not
- * permit when it is empty. A NON-empty disallowed field is a genuine
- * contradiction and is left in place so validateVerdictShape rejects it.
- * Pure function — preserves deterministic-engine semantics.
+ * "optional" fields, so a non-REVISE verdict arrives carrying a `proposed_artifact`
+ * (often with content) that its branch does not use. The loop only acts on the
+ * stated verdict — and, for REVISE/ACCEPT_PEER, the `proposed_artifact` — so drop
+ * any field the verdict's branch table does not permit. This honors the stated
+ * verdict and makes the contract provider-agnostic. Pure function — preserves
+ * deterministic-engine semantics. (A hand-built verdict passed directly to
+ * validateVerdictShape is still validated strictly; normalization cleans peer
+ * input at the loop boundary.)
  */
 export function normalizeVerdict(verdict, mode = 'alternating') {
   if (!verdict || typeof verdict !== 'object' || Array.isArray(verdict)) return verdict;
@@ -460,9 +455,7 @@ export function normalizeVerdict(verdict, mode = 'alternating') {
   const allowed = new Set([...branch.required, ...branch.optional]);
   const normalized = { ...verdict };
   for (const key of Object.keys(normalized)) {
-    if (!allowed.has(key) && isEmptyValue(normalized[key])) {
-      delete normalized[key];
-    }
+    if (!allowed.has(key)) delete normalized[key];
   }
   return normalized;
 }
