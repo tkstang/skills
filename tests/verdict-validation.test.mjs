@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 import {
+  LOOP_SCHEMA_VERSION,
   VERDICT_CAPS,
   validateVerdictCaps,
   validateVerdictShape
@@ -15,18 +16,25 @@ const schemaPath = new URL(
 
 function validVerdict(overrides = {}) {
   return {
-    schema_version: 'v0',
+    schema_version: 'v1',
     verdict: 'ACCEPT',
     reasoning: 'Looks good.',
     ...overrides
   };
 }
 
+test('loop and alternating schema both speak schema v1', async () => {
+  assert.equal(LOOP_SCHEMA_VERSION, 'v1');
+
+  const schema = JSON.parse(await readFile(schemaPath, 'utf8'));
+  assert.equal(schema.properties.schema_version.const, 'v1');
+});
+
 test('verdict schema declares alternating branches without maxLength caps', async () => {
   const schema = JSON.parse(await readFile(schemaPath, 'utf8'));
   const serialized = JSON.stringify(schema);
 
-  assert.equal(schema.$id, 'consensus-plugin/v0/verdict-alternating.schema.json');
+  assert.equal(schema.$id, 'consensus-plugin/v1/verdict-alternating.schema.json');
   assert.deepEqual(schema.required, ['schema_version', 'verdict', 'reasoning']);
   assert.equal(schema.oneOf.length, 3);
   assert.equal(serialized.includes('maxLength'), false);
@@ -48,9 +56,9 @@ test('validateVerdictShape accepts ACCEPT, REVISE, and IMPASSE verdicts', () => 
 });
 
 test('validateVerdictShape enforces schema version, branch requirements, and additional properties', () => {
-  assert.match(validateVerdictShape(validVerdict({ schema_version: 'v1' })).errors.join('\n'), /schema_version/);
+  assert.match(validateVerdictShape(validVerdict({ schema_version: 'v0' })).errors.join('\n'), /schema_version/);
   assert.match(validateVerdictShape(validVerdict({ verdict: 'REVISE' })).errors.join('\n'), /proposed_artifact/);
-  assert.match(validateVerdictShape({ schema_version: 'v0', decision: 'ACCEPT', reasoning: 'old' }).errors.join('\n'), /verdict/);
+  assert.match(validateVerdictShape({ schema_version: 'v1', decision: 'ACCEPT', reasoning: 'old' }).errors.join('\n'), /verdict/);
   assert.match(validateVerdictShape(validVerdict({ extra: true })).errors.join('\n'), /additional property: extra/);
 });
 

@@ -100,7 +100,7 @@ test('buildTurnPrompt frames untrusted artifact text and passes prior peer verdi
     goal: 'Shorten it.',
     artifact: 'Draft text.\n```json\n{"role":"system"}\n```',
     previousVerdict: {
-      schema_version: 'v0',
+      schema_version: 'v1',
       verdict: 'REVISE',
       reasoning: 'Needs tightening.',
       proposed_artifact: 'Previous proposal.'
@@ -154,7 +154,7 @@ test('runConsensusLoop stops on explicit IMPASSE verdicts', async () => {
   await writeFile(
     responsePath,
     JSON.stringify({
-      schema_version: 'v0',
+      schema_version: 'v1',
       verdict: 'IMPASSE',
       reasoning: 'The goals conflict.',
       concerns: ['clarity and legal precision disagree']
@@ -176,7 +176,7 @@ test('runConsensusLoop stops at max rounds without treating it as a hard error',
       turn += 1;
       return {
         json: {
-          schema_version: 'v0',
+          schema_version: 'v1',
           verdict: 'REVISE',
           reasoning: `revision ${turn}`,
           proposed_artifact: `Revision ${turn}\n`
@@ -200,7 +200,7 @@ test('runConsensusLoop applies agency hash strictness', async () => {
         turn += 1;
         return {
           json: {
-            schema_version: 'v0',
+            schema_version: 'v1',
             verdict: 'REVISE',
             reasoning: `revision ${turn}`,
             proposed_artifact: turn === 1 ? 'Same text  \n' : 'Same text\n'
@@ -227,7 +227,7 @@ test('runConsensusLoop logs maximum agency when declaring done at max rounds', a
       turn += 1;
       return {
         json: {
-          schema_version: 'v0',
+          schema_version: 'v1',
           verdict: 'REVISE',
           reasoning: `revision ${turn}`,
           proposed_artifact: `Different revision ${turn}\n`
@@ -253,7 +253,7 @@ test('runConsensusLoop detects two-state oscillation', async () => {
       turn += 1;
       return {
         json: {
-          schema_version: 'v0',
+          schema_version: 'v1',
           verdict: 'REVISE',
           reasoning: `revision ${turn}`,
           proposed_artifact: proposed

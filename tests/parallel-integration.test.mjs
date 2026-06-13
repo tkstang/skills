@@ -75,7 +75,7 @@ test('prepare, simulated host section loops, and fan-in work end-to-end', async 
       section.original_index === 2
         ? stubEnv({
             PASEO_STUB_RESPONSE_JSON: JSON.stringify({
-              schema_version: 'v0',
+              schema_version: 'v1',
               verdict: 'IMPASSE',
               reasoning: 'The closing section needs user direction.',
               concerns: ['tone and brevity conflict']

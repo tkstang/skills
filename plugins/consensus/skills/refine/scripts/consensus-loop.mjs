@@ -12,7 +12,7 @@ export const VERDICT_CAPS = Object.freeze({
   total_verdict_bytes: 512 * 1024
 });
 
-export const LOOP_SCHEMA_VERSION = 'v0';
+export const LOOP_SCHEMA_VERSION = 'v1';
 export const SUBPROCESS_OUTPUT_CAP_BYTES = 10 * 1024 * 1024;
 export const EXIT_CODES = Object.freeze({
   USAGE: 64,
@@ -297,8 +297,8 @@ export function validateVerdictShape(verdict) {
     return { ok: false, errors: ['verdict must be an object'] };
   }
 
-  if (verdict.schema_version !== 'v0') {
-    errors.push('schema_version must be "v0"');
+  if (verdict.schema_version !== LOOP_SCHEMA_VERSION) {
+    errors.push(`schema_version must be "${LOOP_SCHEMA_VERSION}"`);
   }
 
   const branch = VERDICT_BRANCHES[verdict.verdict];

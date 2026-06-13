@@ -183,9 +183,9 @@ test('resume adds a user intervention record and continues from the next peer tu
       prompts.push({ provider, prompt });
       return {
         provider,
-        stdout: '{"schema_version":"v0","verdict":"ACCEPT","reasoning":"Direction resolved the issue."}',
+        stdout: '{"schema_version":"v1","verdict":"ACCEPT","reasoning":"Direction resolved the issue."}',
         json: {
-          schema_version: 'v0',
+          schema_version: 'v1',
           verdict: 'ACCEPT',
           reasoning: 'Direction resolved the issue.'
         }
@@ -241,9 +241,9 @@ test('resume with user direction continues after max-rounds budget was already c
       prompts.push({ provider, round, turn, prompt });
       return {
         provider,
-        stdout: '{"schema_version":"v0","verdict":"ACCEPT","reasoning":"Direction resolved the issue."}',
+        stdout: '{"schema_version":"v1","verdict":"ACCEPT","reasoning":"Direction resolved the issue."}',
         json: {
-          schema_version: 'v0',
+          schema_version: 'v1',
           verdict: 'ACCEPT',
           reasoning: 'Direction resolved the issue.'
         }

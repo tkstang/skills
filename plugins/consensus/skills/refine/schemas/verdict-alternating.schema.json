@@ -1,11 +1,11 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "consensus-plugin/v0/verdict-alternating.schema.json",
+  "$id": "consensus-plugin/v1/verdict-alternating.schema.json",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "verdict", "reasoning"],
   "properties": {
-    "schema_version": { "const": "v0" },
+    "schema_version": { "const": "v1" },
     "verdict": { "enum": ["ACCEPT", "REVISE", "IMPASSE"] },
     "reasoning": { "type": "string" },
     "proposed_artifact": { "type": "string" },

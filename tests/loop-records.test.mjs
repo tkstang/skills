@@ -33,7 +33,7 @@ test('createRecordsWriter writes a valid JSON array after each append', async ()
 
   assert.deepEqual(await readJson(recordsPath), [
     {
-      schema_version: 'v0',
+      schema_version: 'v1',
       turn_index: 1,
       round_index: 1,
       agent: 'claude',
@@ -59,7 +59,7 @@ test('createRecordsWriter writes a valid JSON array after each append', async ()
 
   const records = await readJson(recordsPath);
   assert.equal(records.length, 2);
-  assert.equal(records[1].schema_version, 'v0');
+  assert.equal(records[1].schema_version, 'v1');
   assert.equal(records[1].timestamp, '2026-05-04T01:00:00.000Z');
 });
 
@@ -100,7 +100,7 @@ test('writeLoopStatus emits stable status fields and paseo cost metadata', async
   );
 
   assert.deepEqual(await readJson(statusPath), {
-    schema_version: 'v0',
+    schema_version: 'v1',
     status: 'converged',
     termination_reason: 'hash_match',
     turns: 2,

@@ -42,7 +42,7 @@ function sectionFailOnceInvoker() {
     }
     return {
       json: {
-        schema_version: 'v0',
+        schema_version: 'v1',
         verdict: 'ACCEPT',
         reasoning: 'accepted'
       }
@@ -57,7 +57,7 @@ function sectionPartialFailureInvoker() {
     if (calls === 1) {
       return {
         json: {
-          schema_version: 'v0',
+          schema_version: 'v1',
           verdict: 'REVISE',
           reasoning: 'partial edit landed',
           proposed_artifact: 'Partially revised intro.\n'
@@ -69,7 +69,7 @@ function sectionPartialFailureInvoker() {
     }
     return {
       json: {
-        schema_version: 'v0',
+        schema_version: 'v1',
         verdict: 'ACCEPT',
         reasoning: 'accepted'
       }
@@ -84,7 +84,7 @@ function impasseThenAcceptInvoker() {
     if (calls === 1) {
       return {
         json: {
-          schema_version: 'v0',
+          schema_version: 'v1',
           verdict: 'IMPASSE',
           reasoning: 'needs user direction',
           concerns: ['unclear scope']
@@ -93,7 +93,7 @@ function impasseThenAcceptInvoker() {
     }
     return {
       json: {
-        schema_version: 'v0',
+        schema_version: 'v1',
         verdict: 'ACCEPT',
         reasoning: 'accepted'
       }
