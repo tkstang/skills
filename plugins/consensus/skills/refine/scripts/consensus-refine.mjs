@@ -438,8 +438,33 @@ function collectResumeValidationErrors(sectionStates, logSections, unscopedError
     // fail-closed (p05-t01) like peer revisions so a tampered synthesis block is
     // detected on resume.
     const hashOptions = resumeHashOptionsForAgency(options.agency);
+    const peerCount = Array.isArray(options.peers) ? options.peers.length : 2;
+    const peerRoundCounts = new Map();
     for (const record of section.records) {
+      const isPeer =
+        record?.record_type !== 'synthesis' &&
+        record?.record_type !== 'synthesis-error' &&
+        record?.agent !== 'user' &&
+        record?.agent !== 'host-orchestrator' &&
+        record?.verdict !== 'USER_INTERVENTION' &&
+        record?.verdict !== 'HOST_DECISION';
+      if (isPeer && Number.isInteger(Number(record?.round_index))) {
+        const round = Number(record.round_index);
+        peerRoundCounts.set(round, (peerRoundCounts.get(round) ?? 0) + 1);
+      }
       if (record?.record_type !== 'synthesis') continue;
+      // A synthesis record requires a complete peer pair in its round (p05-t03):
+      // a half-missing pair is fail-closed corrupt state.
+      const round = Number(record?.round_index);
+      if (Number.isInteger(round) && (peerRoundCounts.get(round) ?? 0) < peerCount) {
+        errors.push({
+          code: 'RESUME_PAIR_INCOMPLETE',
+          section_id: section.id,
+          section_name: section.name,
+          section_index: index,
+          message: `incomplete peer pair for synthesized round ${round} in section ${section.id}: expected ${peerCount} peer records`
+        });
+      }
       if (typeof record.synthesized_artifact !== 'string' || !record.artifact_hash) continue;
       const recomputed = hashArtifact(record.synthesized_artifact, hashOptions);
       if (recomputed !== record.artifact_hash) {
