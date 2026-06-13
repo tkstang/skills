@@ -436,6 +436,37 @@ export function validateVerdictShape(verdict, { mode = 'alternating' } = {}) {
   return { ok: errors.length === 0, errors };
 }
 
+function isEmptyValue(value) {
+  if (value === '' || value === null || value === undefined) return true;
+  if (Array.isArray(value)) return value.length === 0;
+  if (typeof value === 'object') return Object.keys(value).length === 0;
+  return false;
+}
+
+/**
+ * Normalize a peer verdict before validation. Strict structured-output providers
+ * (OpenAI/codex) emit *every* schema property in every response and cannot omit
+ * "optional" fields, so a non-REVISE verdict arrives carrying an empty
+ * `proposed_artifact` (and empty `concerns`/`critique`). Such empties are
+ * semantically "absent": drop any field the verdict's branch table does not
+ * permit when it is empty. A NON-empty disallowed field is a genuine
+ * contradiction and is left in place so validateVerdictShape rejects it.
+ * Pure function — preserves deterministic-engine semantics.
+ */
+export function normalizeVerdict(verdict, mode = 'alternating') {
+  if (!verdict || typeof verdict !== 'object' || Array.isArray(verdict)) return verdict;
+  const branch = branchTableForMode(mode)[verdict.verdict];
+  if (!branch) return verdict; // unknown verdict — let validation report it
+  const allowed = new Set([...branch.required, ...branch.optional]);
+  const normalized = { ...verdict };
+  for (const key of Object.keys(normalized)) {
+    if (!allowed.has(key) && isEmptyValue(normalized[key])) {
+      delete normalized[key];
+    }
+  }
+  return normalized;
+}
+
 export function validateSynthesisShape(synthesis) {
   if (!synthesis || typeof synthesis !== 'object' || Array.isArray(synthesis)) {
     return { ok: false, errors: ['synthesis must be an object'] };
@@ -1147,7 +1178,7 @@ async function executeAlternatingTurn({ turnIndex, options, records, currentArti
     priorRecords: records
   });
   const peerResult = await invokePeer({ provider, peerIndex, round, turn, prompt, artifact: currentArtifact });
-  const verdict = peerResult.json;
+  const verdict = normalizeVerdict(peerResult.json, options.iteration);
   const shape = validateVerdictShape(verdict, { mode: options.iteration });
   if (!shape.ok) {
     throw new ConsensusError(`invalid verdict shape: ${shape.errors.join('; ')}`, {
@@ -1288,14 +1319,17 @@ async function executeParallelRound(context) {
   }
 
   const peerResults = settled.map((result) => result.value);
-  // Validate BOTH before materializing either record (atomic pair).
-  peerResults.forEach((peerResult, peerIndex) => {
-    validatePeerVerdict(peerResult.json, mode, peers[peerIndex]);
+  // Normalize each verdict (strip empty disallowed fields from strict
+  // structured-output providers), then validate BOTH before materializing
+  // either record (atomic pair).
+  const normalizedVerdicts = peerResults.map((peerResult) => normalizeVerdict(peerResult.json, mode));
+  normalizedVerdicts.forEach((verdict, peerIndex) => {
+    validatePeerVerdict(verdict, mode, peers[peerIndex]);
   });
 
   const recordsOut = peerResults.map((peerResult, peerIndex) => {
     const provider = peers[peerIndex];
-    const verdict = peerResult.json;
+    const verdict = normalizedVerdicts[peerIndex];
     const proposed = 'proposed_artifact' in verdict ? verdict.proposed_artifact : currentArtifact;
     const recordPayload = {
       turn_index: baseTurn + peerIndex + 1,

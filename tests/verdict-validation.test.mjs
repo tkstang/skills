@@ -9,7 +9,8 @@ import {
   validateSynthesisCaps,
   validateSynthesisShape,
   validateVerdictCaps,
-  validateVerdictShape
+  validateVerdictShape,
+  normalizeVerdict
 } from '../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
 
 const schemaPath = new URL(
@@ -84,6 +85,39 @@ test('verdict schema declares alternating branches without maxLength caps', asyn
   assert.equal(serialized.includes('maxLength'), false);
 
   assert.deepEqual(schema.properties.verdict.enum, ['ACCEPT', 'REVISE', 'IMPASSE']);
+});
+
+test('normalizeVerdict strips empty disallowed fields from strict structured output', () => {
+  // OpenAI/codex strict output emits every property; a non-REVISE verdict arrives
+  // carrying empty proposed_artifact/concerns. Those empties normalize away and
+  // the verdict validates cleanly.
+  const strictAccept = {
+    schema_version: 'v1', verdict: 'ACCEPT', reasoning: 'good as-is',
+    proposed_artifact: '', concerns: []
+  };
+  const normalized = normalizeVerdict(strictAccept, 'alternating');
+  assert.equal('proposed_artifact' in normalized, false);
+  assert.deepEqual(validateVerdictShape(normalized, { mode: 'alternating' }), { ok: true, errors: [] });
+
+  // Parallel CONVERGED with empty proposed_artifact + a real critique normalizes/validates.
+  const strictConverged = {
+    schema_version: 'v1', verdict: 'CONVERGED', reasoning: 'aligned',
+    critique: { own_previous: 'fine', peer_previous: 'fine' }, proposed_artifact: ''
+  };
+  const normConv = normalizeVerdict(strictConverged, 'parallel_revision');
+  assert.equal('proposed_artifact' in normConv, false);
+  assert.deepEqual(validateVerdictShape(normConv, { mode: 'parallel_revision' }), { ok: true, errors: [] });
+});
+
+test('normalizeVerdict preserves required fields and genuine contradictions', () => {
+  // A REVISE keeps its (non-empty) proposed_artifact.
+  const revise = { schema_version: 'v1', verdict: 'REVISE', reasoning: 'tighten', proposed_artifact: 'New text.' };
+  assert.deepEqual(normalizeVerdict(revise, 'alternating'), revise);
+  // An ACCEPT with a NON-empty proposed_artifact is a real contradiction — kept, then rejected.
+  const contradictory = { schema_version: 'v1', verdict: 'ACCEPT', reasoning: 'ok', proposed_artifact: 'actually change this' };
+  const norm = normalizeVerdict(contradictory, 'alternating');
+  assert.equal(norm.proposed_artifact, 'actually change this');
+  assert.equal(validateVerdictShape(norm, { mode: 'alternating' }).ok, false);
 });
 
 test('validateVerdictShape accepts ACCEPT, REVISE, and IMPASSE verdicts', () => {
