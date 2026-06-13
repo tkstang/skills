@@ -252,6 +252,10 @@ function schemaPath() {
   return fileURLToPath(new URL('../schemas/verdict-alternating.schema.json', import.meta.url));
 }
 
+export function synthesisSchemaPath() {
+  return fileURLToPath(new URL('../schemas/synthesis.schema.json', import.meta.url));
+}
+
 function hardErrorMessage(error) {
   return error?.message ?? String(error);
 }
@@ -1284,31 +1288,122 @@ async function executeParallelRound(context) {
   return { records: recordsOut, nextArtifact, verdicts: peerResults.map((result) => result.json) };
 }
 
+function priorUnresolvedDisagreements(records) {
+  for (let index = records.length - 1; index >= 0; index -= 1) {
+    const record = records[index];
+    if (record?.record_type === 'synthesis') {
+      return Array.isArray(record.unresolved_disagreements) ? record.unresolved_disagreements : [];
+    }
+  }
+  return [];
+}
+
+function validateSynthesisResponse(synthesis, synthesizer) {
+  const shape = validateSynthesisShape(synthesis);
+  if (!shape.ok) {
+    throw new ConsensusError(`invalid synthesis shape from ${synthesizer}: ${shape.errors.join('; ')}`, {
+      code: 'INVALID_SYNTHESIS_SHAPE',
+      exitCode: EXIT_CODES.DATA,
+      details: { synthesizer, errors: shape.errors }
+    });
+  }
+  const caps = validateSynthesisCaps(synthesis);
+  if (!caps.ok) {
+    throw new ConsensusError(`invalid synthesis caps from ${synthesizer}: ${JSON.stringify(caps.metadata)}`, {
+      code: 'INVALID_SYNTHESIS_CAPS',
+      exitCode: EXIT_CODES.DATA,
+      details: { synthesizer, ...caps.metadata }
+    });
+  }
+}
+
+/**
+ * Synthesis subround (p03-t03): a stateless third call after the committed peer pair.
+ * Builds the synthesis prompt from both revisions + critiques + prior unresolved
+ * disagreements, invokes the synthesizer seam, validates shape/caps, and returns a
+ * synthesis record (record_type: 'synthesis'). The synthesized text becomes the next
+ * round's shared artifact (p03-t04).
+ */
+async function executeSynthesis({ options, records, pairRecords, round, invokeSynthesizer }) {
+  const synthesizer = options.synthesizer ?? options.peers[0];
+  const [recordA, recordB] = pairRecords;
+  const prompt = buildSynthesisPrompt({
+    provider: synthesizer,
+    round,
+    goal: options.goal,
+    revisionA: { agent: recordA.agent, text: revisionTextFor(recordA) },
+    revisionB: { agent: recordB.agent, text: revisionTextFor(recordB) },
+    critiqueA: critiqueFor(recordA),
+    critiqueB: critiqueFor(recordB),
+    priorUnresolved: priorUnresolvedDisagreements(records)
+  });
+
+  const synthResult = await invokeSynthesizer({
+    provider: synthesizer,
+    schemaPath: synthesisSchemaPath(),
+    round,
+    prompt
+  });
+
+  const synthesis = synthResult.json;
+  validateSynthesisResponse(synthesis, synthesizer);
+
+  const synthesizedArtifact = synthesis.synthesized_artifact;
+  const recordPayload = {
+    record_type: 'synthesis',
+    round_index: round,
+    synthesizer,
+    synthesized_artifact: synthesizedArtifact,
+    synthesis_reasoning: synthesis.synthesis_reasoning,
+    unresolved_disagreements: synthesis.unresolved_disagreements,
+    artifact_hash: hashArtifact(synthesizedArtifact, hashOptionsForAgency(options.agency)),
+    iteration_mode: options.iteration,
+    raw_paseo_response: synthResult.stdout ?? JSON.stringify(synthResult.json)
+  };
+
+  return { synthesis: recordPayload, nextArtifact: synthesizedArtifact };
+}
+
 /**
  * Per-mode round executor. Alternating executes one peer turn per loop step;
  * parallel modes execute two concurrent peer calls per round (see executeParallelRound).
+ * In parallel_synthesized mode a synthesis call follows the committed peer pair, and the
+ * synthesized text becomes the next round's shared artifact.
  * Returns the record payloads to append (in fixed peer order) plus the next shared artifact.
  */
 export async function executeRound(context) {
   const { mode } = context;
   if (PARALLEL_MODES.has(mode)) {
-    return executeParallelRound(context);
+    const parallel = await executeParallelRound(context);
+    if (mode === 'parallel_synthesized') {
+      const round = parallel.records[0]?.round_index;
+      const { synthesis, nextArtifact } = await executeSynthesis({
+        options: context.options,
+        records: context.records,
+        pairRecords: parallel.records,
+        round,
+        invokeSynthesizer: context.invokeSynthesizer
+      });
+      return { ...parallel, synthesis, nextArtifact };
+    }
+    return parallel;
   }
   const { verdict, recordPayload, nextArtifact } = await executeAlternatingTurn(context);
   return { records: [recordPayload], nextArtifact, verdicts: [verdict] };
 }
 
-async function runParallelRounds({ options, records, writer, currentArtifact, invokePeer }) {
+async function runParallelRounds({ options, records, writer, currentArtifact, invokePeer, invokeSynthesizer }) {
   let artifact = currentArtifact;
   const startRound = Math.floor(peerTurnCount(records) / options.peers.length);
 
   for (let roundOffset = startRound; roundOffset < options.maxRounds; roundOffset += 1) {
-    const { records: pair, nextArtifact } = await executeRound({
+    const { records: pair, synthesis, nextArtifact } = await executeRound({
       mode: options.iteration,
       options,
       records,
       currentArtifact: artifact,
-      invokePeer
+      invokePeer,
+      invokeSynthesizer
     });
     artifact = nextArtifact;
 
@@ -1318,8 +1413,16 @@ async function runParallelRounds({ options, records, writer, currentArtifact, in
       records.push(record);
     }
 
-    const lastTwo = records.slice(-2);
-    const verdicts = lastTwo.map((record) => verdictDecision(record));
+    // Synthesis is a separate required record committed after the peer pair.
+    if (synthesis) {
+      const synthesisRecord = await writer.append({ ...synthesis });
+      records.push(synthesisRecord);
+    }
+
+    const lastTwoPeers = peerRecords(records)
+      .filter((record) => record?.record_type !== 'synthesis')
+      .slice(-2);
+    const verdicts = lastTwoPeers.map((record) => verdictDecision(record));
 
     if (verdicts.includes('IMPASSE')) {
       return {
@@ -1397,6 +1500,16 @@ export async function runConsensusLoop(argv, runOptions = {}) {
         env: runOptions.env ?? process.env,
         cwd: runOptions.cwd ?? process.cwd()
       }));
+  const invokeSynthesizer =
+    runOptions.invokeSynthesizer ??
+    ((call) =>
+      invokePaseo({
+        provider: call.provider,
+        schemaPath: call.schemaPath,
+        prompt: call.prompt,
+        env: runOptions.env ?? process.env,
+        cwd: runOptions.cwd ?? process.cwd()
+      }));
 
   try {
     if (PARALLEL_MODES.has(options.iteration)) {
@@ -1406,7 +1519,8 @@ export async function runConsensusLoop(argv, runOptions = {}) {
         records,
         writer,
         currentArtifact,
-        invokePeer
+        invokePeer,
+        invokeSynthesizer
       });
       return await writeTerminalArtifacts(options, terminal.status, terminal.artifact, records);
     }

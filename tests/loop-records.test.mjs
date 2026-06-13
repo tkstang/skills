@@ -10,6 +10,7 @@ import {
   createRecordsWriter,
   executeRound,
   hashArtifact,
+  synthesisSchemaPath,
   writeLoopStatus
 } from '../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
 
@@ -257,6 +258,69 @@ test('executeRound parallel validates both verdicts before committing either rec
     assert.match(error.message, /codex/);
     return true;
   });
+});
+
+function synthesizedContext({ invokePeer, invokeSynthesizer, currentArtifact = 'Shared input.\n', records = [] }) {
+  return {
+    mode: 'parallel_synthesized',
+    roundIndex: 0,
+    options: {
+      peers: ['claude', 'codex'],
+      goal: 'Tighten.',
+      iteration: 'parallel_synthesized',
+      synthesizer: 'claude',
+      agency: 'moderate'
+    },
+    records,
+    currentArtifact,
+    invokePeer,
+    invokeSynthesizer
+  };
+}
+
+function synthesisPayload(text, { reasoning = 'merged', disagreements = [] } = {}) {
+  return {
+    schema_version: 'v1',
+    synthesized_artifact: text,
+    synthesis_reasoning: reasoning,
+    unresolved_disagreements: disagreements
+  };
+}
+
+test('executeRound synthesized appends a synthesis record after the committed peer pair', async () => {
+  const invokePeer = ({ provider }) =>
+    Promise.resolve({ json: parallelVerdict(`${provider} text\n`), stdout: `{"id":"${provider}"}` });
+  let synthCalls = 0;
+  const invokeSynthesizer = (call) => {
+    synthCalls += 1;
+    // The seam must receive the resolved synthesizer provider and a prompt.
+    assert.equal(call.provider, 'claude');
+    assert.equal(typeof call.prompt, 'string');
+    return Promise.resolve({
+      json: synthesisPayload('Synthesized text\n', { disagreements: ['point A'] }),
+      stdout: '{"id":"synth"}'
+    });
+  };
+
+  const result = await executeRound(synthesizedContext({ invokePeer, invokeSynthesizer }));
+
+  assert.equal(synthCalls, 1);
+  assert.equal(result.records.length, 2, 'two peer records');
+  assert.ok(result.synthesis, 'a synthesis record is returned');
+  assert.equal(result.synthesis.record_type, 'synthesis');
+  assert.equal(result.synthesis.synthesizer, 'claude');
+  assert.equal(result.synthesis.synthesized_artifact, 'Synthesized text\n');
+  assert.equal(result.synthesis.synthesis_reasoning, 'merged');
+  assert.deepEqual(result.synthesis.unresolved_disagreements, ['point A']);
+  assert.equal(result.synthesis.artifact_hash, hashArtifact('Synthesized text\n'));
+  assert.equal(result.synthesis.iteration_mode, 'parallel_synthesized');
+  assert.equal(result.synthesis.raw_paseo_response, '{"id":"synth"}');
+  // The synthesized text becomes the next round's shared artifact.
+  assert.equal(result.nextArtifact, 'Synthesized text\n');
+});
+
+test('synthesisSchemaPath points at the v1 synthesis schema file', () => {
+  assert.match(synthesisSchemaPath(), /schemas\/synthesis\.schema\.json$/);
 });
 
 test('writeLoopStatus emits stable status fields and paseo cost metadata', async () => {

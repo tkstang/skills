@@ -325,6 +325,41 @@ test('runConsensusLoop detects two-state oscillation', async () => {
   assert.equal(result.status.turns, 4);
 });
 
+test('default synthesizer seam invokes paseo with the synthesis schema and resolved provider', async () => {
+  const files = await makeRunFiles('Seed text.\n');
+  const capturePath = path.join(files.tempRoot, 'capture.json');
+  // Both peers CONVERGED so the round converges; the synthesizer is the final paseo
+  // call, so the capture file reflects the synthesizer invocation.
+  const converged = JSON.stringify({
+    schema_version: 'v1',
+    verdict: 'CONVERGED',
+    reasoning: 'agree',
+    critique: { own_previous: 'o', peer_previous: 'p' }
+  });
+  const synthesis = JSON.stringify({
+    schema_version: 'v1',
+    synthesized_artifact: 'Seed text.\n',
+    synthesis_reasoning: 'merged',
+    unresolved_disagreements: []
+  });
+
+  // Peers use the default invokePaseo (verdict), the synthesizer uses the synthesis
+  // schema path. We capture the last paseo argv (the synthesizer call).
+  let synthCall = null;
+  await runConsensusLoop(argvFor(files, ['--iteration', 'parallel_synthesized', '--synthesizer', 'codex', '--max-rounds', '1']), {
+    env: stubEnv({ PASEO_STUB_RESPONSE_JSON: converged }),
+    invokePeer: async ({ provider }) => ({ json: JSON.parse(converged), stdout: converged }),
+    invokeSynthesizer: async (call) => {
+      synthCall = call;
+      return { json: JSON.parse(synthesis), stdout: synthesis };
+    }
+  });
+
+  assert.ok(synthCall, 'the synthesizer seam was invoked');
+  assert.equal(synthCall.provider, 'codex');
+  assert.match(synthCall.schemaPath ?? '', /synthesis\.schema\.json$/);
+});
+
 test('runConsensusLoop writes an error status and rejects hard Paseo failures', async () => {
   const files = await makeRunFiles();
 
