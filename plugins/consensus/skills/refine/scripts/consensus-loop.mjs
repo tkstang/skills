@@ -1906,6 +1906,166 @@ export function detectParallelOscillation(records, options = {}) {
   return { oscillating: false, reason: null };
 }
 
+// ---------------------------------------------------------------------------
+// Escalation layer (p04). Deterministic triggers + agency routing over the
+// record stream. Triggers are pure functions of recorded state; the only model
+// judgment is the host/user decision text supplied on resume.
+// ---------------------------------------------------------------------------
+
+export const ESCALATION_TRIGGERS = Object.freeze({
+  persistent_disagreement: 'persistent_disagreement',
+  oscillation: 'oscillation',
+  budget_exhausted: 'budget_exhausted',
+  near_done_drift: 'near_done_drift'
+});
+
+const PERSISTENT_DISAGREEMENT_WINDOW = 3;
+
+function synthesisRecords(records) {
+  return records.filter((record) => record?.record_type === 'synthesis');
+}
+
+function normalizedDisagreementSet(record) {
+  const list = Array.isArray(record?.unresolved_disagreements) ? record.unresolved_disagreements : [];
+  return new Set(list.map((entry) => String(entry).trim()).filter(Boolean));
+}
+
+function sameDisagreementSet(a, b) {
+  if (a.size !== b.size) return false;
+  for (const value of a) {
+    if (!b.has(value)) return false;
+  }
+  return true;
+}
+
+/**
+ * persistent_disagreement (synthesized only): the same trimmed, non-empty
+ * unresolved-disagreement set across the last PERSISTENT_DISAGREEMENT_WINDOW
+ * consecutive synthesis records (set equality on trimmed strings).
+ */
+function detectPersistentDisagreement(records) {
+  const synth = synthesisRecords(records);
+  if (synth.length < PERSISTENT_DISAGREEMENT_WINDOW) return null;
+  const window = synth.slice(-PERSISTENT_DISAGREEMENT_WINDOW);
+  const sets = window.map(normalizedDisagreementSet);
+  if (sets.some((set) => set.size === 0)) return null;
+  for (let index = 1; index < sets.length; index += 1) {
+    if (!sameDisagreementSet(sets[0], sets[index])) return null;
+  }
+  const latest = window.at(-1);
+  return {
+    trigger: ESCALATION_TRIGGERS.persistent_disagreement,
+    disagreements: [...sets[0]],
+    synthesis_round: latest.round_index ?? null,
+    divergent: {
+      synthesis: {
+        artifact_hash: recordHash(latest),
+        unresolved_disagreements: Array.isArray(latest.unresolved_disagreements)
+          ? latest.unresolved_disagreements
+          : []
+      }
+    }
+  };
+}
+
+function lastTwoParallelPeers(records) {
+  const peers = records.filter(
+    (record) =>
+      record?.agent !== 'user' &&
+      record?.agent !== 'host-orchestrator' &&
+      record?.verdict !== 'USER_INTERVENTION' &&
+      record?.verdict !== 'HOST_DECISION' &&
+      record?.record_type !== 'synthesis' &&
+      record?.record_type !== 'synthesis-error'
+  );
+  return peers.slice(-2);
+}
+
+function divergentPairRefs(left, right, options = {}) {
+  return {
+    a: { agent: left?.agent ?? null, artifact_hash: recordHash(left, options) },
+    b: { agent: right?.agent ?? null, artifact_hash: recordHash(right, options) }
+  };
+}
+
+/**
+ * near_done_drift: the loop is one step from done but the two latest peers
+ * declared agreement (double-ACCEPT alternating / mutual-CONVERGED parallel)
+ * while their hashes differ. Maximum agency keeps the existing auto near-match
+ * rule (handled by convergence), so this trigger is only consulted when
+ * convergence has already declined.
+ */
+function detectNearDoneDrift(records, options = {}) {
+  const [left, right] = lastTwoParallelPeers(records);
+  if (!left || !right) return null;
+  const leftDecision = verdictDecision(left);
+  const rightDecision = verdictDecision(right);
+  const doubleAccept = leftDecision === 'ACCEPT' && rightDecision === 'ACCEPT';
+  const mutualConverged = leftDecision === 'CONVERGED' && rightDecision === 'CONVERGED';
+  if (!doubleAccept && !mutualConverged) return null;
+  const leftHash = recordHash(left, options);
+  const rightHash = recordHash(right, options);
+  if (!leftHash || !rightHash || leftHash === rightHash) return null;
+  return {
+    trigger: ESCALATION_TRIGGERS.near_done_drift,
+    divergent: divergentPairRefs(left, right, options)
+  };
+}
+
+function detectBudgetExhausted(records, options = {}) {
+  const [left, right] = lastTwoParallelPeers(records);
+  return {
+    trigger: ESCALATION_TRIGGERS.budget_exhausted,
+    divergent: left && right ? divergentPairRefs(left, right, options) : undefined
+  };
+}
+
+function detectOscillationTrigger(records, mode, options = {}) {
+  const oscillation = PARALLEL_MODES.has(mode)
+    ? detectParallelOscillation(records, options)
+    : detectOscillation(records, options);
+  if (!oscillation.oscillating) return null;
+  const [left, right] = lastTwoParallelPeers(records);
+  return {
+    trigger: ESCALATION_TRIGGERS.oscillation,
+    divergent: left && right ? divergentPairRefs(left, right, options) : undefined
+  };
+}
+
+/**
+ * detectEscalation (p04-t01): deterministic trigger detection over the record
+ * stream. Returns `{ trigger, ... } | null`. Convergence/oscillation are checked
+ * by the loop BEFORE this; `budgetExhausted` is supplied by the loop when the
+ * round budget is spent without convergence.
+ */
+export function detectEscalation(records, { mode = 'alternating', agency = 'moderate', budgetExhausted = false } = {}) {
+  if (!Array.isArray(records) || records.length === 0) return null;
+  const options = convergenceOptionsForAgency(agency);
+
+  if (mode === 'parallel_synthesized') {
+    const persistent = detectPersistentDisagreement(records);
+    if (persistent) return persistent;
+  }
+
+  const oscillation = detectOscillationTrigger(records, mode, options);
+  if (oscillation) return oscillation;
+
+  const nearDone = detectNearDoneDrift(records, options);
+  if (nearDone) return nearDone;
+
+  if (budgetExhausted) {
+    return detectBudgetExhausted(records, options);
+  }
+
+  return null;
+}
+
+// routeEscalation is implemented in p04-t02; exported here so the escalation
+// module surface is stable for importers.
+export function routeEscalation() {
+  throw new Error('routeEscalation not yet implemented');
+}
+
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   runConsensusLoop(process.argv.slice(2)).catch((error) => {
     process.stderr.write(`${hardErrorMessage(error)}\n`);
