@@ -11,7 +11,8 @@
   ],
   "properties": {
     "schema_version": {
-      "const": "v1"
+      "const": "v1",
+      "type": "string"
     },
     "verdict": {
       "enum": [
@@ -19,7 +20,8 @@
         "ACCEPT_PEER",
         "CONVERGED",
         "IMPASSE"
-      ]
+      ],
+      "type": "string"
     },
     "reasoning": {
       "type": "string"

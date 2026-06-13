@@ -10,14 +10,16 @@
   ],
   "properties": {
     "schema_version": {
-      "const": "v1"
+      "const": "v1",
+      "type": "string"
     },
     "verdict": {
       "enum": [
         "ACCEPT",
         "REVISE",
         "IMPASSE"
-      ]
+      ],
+      "type": "string"
     },
     "reasoning": {
       "type": "string"

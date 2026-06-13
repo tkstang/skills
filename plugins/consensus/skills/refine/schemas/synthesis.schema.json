@@ -3,14 +3,28 @@
   "$id": "consensus-plugin/v1/synthesis.schema.json",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "synthesized_artifact", "synthesis_reasoning", "unresolved_disagreements"],
+  "required": [
+    "schema_version",
+    "synthesized_artifact",
+    "synthesis_reasoning",
+    "unresolved_disagreements"
+  ],
   "properties": {
-    "schema_version": { "const": "v1" },
-    "synthesized_artifact": { "type": "string" },
-    "synthesis_reasoning": { "type": "string" },
+    "schema_version": {
+      "const": "v1",
+      "type": "string"
+    },
+    "synthesized_artifact": {
+      "type": "string"
+    },
+    "synthesis_reasoning": {
+      "type": "string"
+    },
     "unresolved_disagreements": {
       "type": "array",
-      "items": { "type": "string" }
+      "items": {
+        "type": "string"
+      }
     }
   }
 }
