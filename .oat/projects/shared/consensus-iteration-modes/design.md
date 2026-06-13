@@ -91,7 +91,9 @@ executeRound({ mode, roundIndex, state, options, invokePeer, invokeSynthesizer }
 
 - Fixed peer-order record append (not completion order) keeps mocked runs byte-reproducible (NFR1) and resume deterministic.
 - Concurrency is per-round only (two in-flight peer calls); rounds remain strictly sequential, matching deliberation semantics.
-- A failed peer/synthesizer call in a parallel round aborts the round atomically: no partial records are committed; the section errors with metadata identifying which call failed (no half-rounds in the stream).
+- **Two-level transaction contract for parallel rounds:**
+  - **Peer subround atomicity:** the two peer records of a parallel round commit together or not at all. A failed peer call discards the surviving peer's response; the section errors with metadata naming the failed call. No half-pairs in the stream.
+  - **Synthesis is a separate required record** (synthesized mode): it commits independently after the peer pair. A complete peer pair without a following synthesis record is the deterministic **pending-synthesis** state — resume re-executes only the synthesis step. An invalid or oversized synthesis writes a metadata-only synthesis-error record and terminates the section as `error`.
 
 ### 2. Per-mode prompts (engine)
 
@@ -156,9 +158,12 @@ executeRound({ mode, roundIndex, state, options, invokePeer, invokeSynthesizer }
 | budget_exhausted | user | user | host (declare-done policy, recorded as auto-resolved escalation) |
 | near_done_drift | user | host | auto (existing near-match rule) |
 
+Host-routed cells are subject to genuinely-stuck promotion (see Mechanics): repeat-fire after a host decision, or an explicit host `defer_to_user`, re-routes to the user.
+
 **Mechanics:**
 
-- Engine returns a terminal `escalation` status containing a **decision packet**: trigger, divergent state references, round/turn indexes, allowed decision kinds (`pick_a`, `pick_b`, `blend`, `direct`, `accept_impasse`, `extend_budget`), and `decide_via`.
+- Engine returns a terminal `escalation` status containing a **decision packet**: trigger, divergent state references, round/turn indexes, allowed decision kinds (`pick_a`, `pick_b`, `blend`, `direct`, `accept_impasse`, `extend_budget`, and — for host-routed escalations — `defer_to_user`), and `decide_via`.
+- **Genuinely-stuck promotion (host-routed escalations):** a host-routed escalation promotes to `decide_via: user` when either (a) the same trigger re-fires on the same section after a `HOST_DECISION` round already answered it — repeat-fire: host judgment demonstrably failed to unstick the loop — or (b) the host explicitly declines with `decision_kind: 'defer_to_user'`, which re-emits the escalation routed to the user. Both conditions are pure functions of the record stream (presence of a prior `HOST_DECISION` for the trigger; the decline round itself). Promoted escalations carry `promoted_from: 'host'`. This satisfies FR5's "maximum reaches the user only on genuinely-stuck states": the stuck definition is *a host decision was tried (or declined) and the trigger persists*. The maximum-agency `budget_exhausted` auto-declare cell is exempt — it terminates rather than loops, preserving regression-locked v0.1 behavior.
 - Wrapper emits `escalation_required` JSONL with full divergent text resolved into the event (the only content-bearing routine event — NFR5 boundary).
 - Re-entry: `--resume <artifact> --host-direction "<text>"` (new) or `--user-direction "<text>"` (existing). Both append an intervention round (`agent: 'host-orchestrator'` or `'user'`) and refresh the round budget exactly like today's user-intervention path. `--host-direction` is rejected when the pending escalation's `decide_via` is `user` (fail-closed routing).
 - Trust model: identical to `--user-direction` — the wrapper trusts its invoker; attribution is recorded, not authenticated.
@@ -239,7 +244,7 @@ executeRound({ mode, roundIndex, state, options, invokePeer, invokeSynthesizer }
   turn_index, round_index,
   agent: 'user' | 'host-orchestrator',
   verdict: 'USER_INTERVENTION' | 'HOST_DECISION',
-  decision_kind: 'pick_a'|'pick_b'|'blend'|'direct'|'accept_impasse'|'extend_budget',
+  decision_kind: 'pick_a'|'pick_b'|'blend'|'direct'|'accept_impasse'|'extend_budget'|'defer_to_user',
   reasoning,                                 // the direction/decision text
   escalation_trigger,                        // which trigger this answers
   artifact_hash, iteration_mode, timestamp
@@ -279,7 +284,7 @@ CLI flags and JSONL events are the plugin's API surface.
 **JSONL events:**
 
 - `run_started` — adds `iteration_mode`, `synthesizer`, `calls_per_round: { peer, synthesis }`.
-- `escalation_required` — `{ section_id, trigger, decide_via, decision_kinds, divergent: { a: {agent, text}, b: {agent, text}, synthesis?: { text, unresolved_disagreements } }, resume: { artifact_path, flag } }`.
+- `escalation_required` — `{ section_id, trigger, decide_via, promoted_from?, decision_kinds, divergent: { a: {agent, text}, b: {agent, text}, synthesis?: { text, unresolved_disagreements } }, resume: { artifact_path, flag } }`; `promoted_from: 'host'` marks genuinely-stuck promotions.
 - `run_completed` — adds `peer_calls`, `synthesis_calls`, `sections_escalated`.
 
 **Error handling:** new codes `INVALID_ITERATION_MODE`, `SYNTHESIZER_UNAVAILABLE`, `INVALID_SYNTHESIS_SHAPE`, `INVALID_SYNTHESIS_CAPS`, `ESCALATION_ROUTING`, `SCHEMA_VERSION_MISMATCH` — all mapped onto the existing exit-code table (USAGE/DATA/CONFIG).
@@ -301,10 +306,10 @@ CLI flags and JSONL events are the plugin's API surface.
 
 ## Error Handling
 
-- **Atomic rounds:** a failed call in a parallel round commits no partial records; the section errors with details naming the failed call (peer index or synthesizer).
-- **Synthesis failures:** invalid shape/caps → section `error` with metadata-only record, after Paseo's schema-retry is exhausted — identical policy to peer verdicts.
+- **Peer subround atomicity:** a failed peer call in a parallel round commits no peer records (the surviving peer's response is discarded); the section errors with details naming the failed call.
+- **Synthesis failures:** synthesis is a separate record after the committed peer pair. A synthesis *process* failure (spawn/exit error) leaves the pair durable and the section resumable at pending-synthesis; an *invalid or oversized* synthesis (after Paseo's schema-retry is exhausted) writes a metadata-only synthesis-error record and terminates the section as `error` — identical cap policy to peer verdicts.
 - **Escalation lifecycle errors:** wrong direction flag for the pending escalation, direction with no pending escalation, or v0 artifact resume → fail-closed CONFIG/DATA errors with explicit messages.
-- **Interruption:** SIGINT mid-parallel-round behaves like today — write-through records up to the last committed round; resume re-executes the incomplete round. Interruption between the peer round and synthesis resumes at the synthesis step (the records stream makes pending-synthesis state derivable: last round has two peer records and no synthesis record).
+- **Interruption:** SIGINT mid-peer-subround re-executes the whole subround on resume (no committed pair). Interruption after the pair but before synthesis resumes at the synthesis step — pending-synthesis state is derivable, not separately stored: the last round has two peer records and no synthesis record.
 - **Logging:** JSONL coordination, stderr diagnostics, `CONSENSUS_LOG` levels — unchanged.
 
 ## Testing Strategy
@@ -314,12 +319,12 @@ CLI flags and JSONL events are the plugin's API surface.
 | ID | Verification | Key Scenarios |
 | --- | --- | --- |
 | FR1 | unit + integration | same-round hash convergence; mutual ACCEPT_PEER (same vs differing adopted text); mutual CONVERGED per agency; divergent-pair oscillation; fixed record order under stubbed out-of-order completion |
-| FR2 | unit + integration | synthesis record validation; stability convergence; unresolved-disagreement persistence feeding FR5; oversize synthesis aborts section |
+| FR2 | unit + integration | synthesis record validation; stability convergence; unresolved-disagreement persistence feeding FR5; synthesis process failure leaves resumable pending-synthesis; invalid/oversize synthesis terminates section with metadata-only record |
 | FR3 | unit + integration | flag parsing/validation; run_started disclosure fields; resolution call counts per mode |
 | FR4 | unit | v1 schema validation per payload; cap matrix incl. critique/synthesis fields; v0 resume rejection message |
-| FR5 | unit + integration | trigger×agency routing truth table; escalation packet content; --host-direction re-entry appends HOST_DECISION round; routing rejection; budget refresh on re-entry |
+| FR5 | unit + integration | trigger×agency routing truth table; escalation packet content; --host-direction re-entry appends HOST_DECISION round; routing rejection; budget refresh on re-entry; genuinely-stuck promotion (repeat-fire after HOST_DECISION; explicit defer_to_user decline) |
 | FR6 | unit | synthesizer default resolution; preflight inventory validation; identity in records/resolution |
-| FR7 | integration | resume matrix: each mode × interruption point (mid-round, pre-synthesis, post-synthesis, pending escalation); corrupt-section fail-closed unchanged |
+| FR7 | integration | resume matrix: each mode × interruption point (mid-peer-subround re-executes pair, pending-synthesis resumes at synthesis, post-synthesis, pending escalation); corrupt-section fail-closed unchanged |
 | FR8 | integration | packet metadata round-trip; fan-in ordering with parallel-mode sections; escalated section surfaces at fan-in |
 | FR9 | unit + integration | existing alternating suite green with v1-fixture-only updates; artifact diff limited to schema fields |
 | NFR1 | integration | repeated mocked runs byte-identical modulo timestamps/run-id |
