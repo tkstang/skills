@@ -5,6 +5,7 @@ import test from 'node:test';
 import {
   LOOP_SCHEMA_VERSION,
   VERDICT_CAPS,
+  validateSynthesisShape,
   validateVerdictCaps,
   validateVerdictShape
 } from '../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
@@ -18,6 +19,21 @@ const parallelSchemaPath = new URL(
   '../plugins/consensus/skills/refine/schemas/verdict-parallel.schema.json',
   import.meta.url
 );
+
+const synthesisSchemaPath = new URL(
+  '../plugins/consensus/skills/refine/schemas/synthesis.schema.json',
+  import.meta.url
+);
+
+function validSynthesis(overrides = {}) {
+  return {
+    schema_version: 'v1',
+    synthesized_artifact: 'Merged section.\n',
+    synthesis_reasoning: 'Took the stronger framing from peer A and the example from peer B.',
+    unresolved_disagreements: [],
+    ...overrides
+  };
+}
 
 function validVerdict(overrides = {}) {
   return {
@@ -164,6 +180,49 @@ test('validateVerdictShape rejects cross-mode vocabularies', () => {
     validateVerdictShape(parallelVerdict({ verdict: 'CONVERGED' }), { mode: 'alternating' }).errors.join('\n'),
     /verdict/
   );
+});
+
+test('synthesis schema declares the v1 payload shape', async () => {
+  const schema = JSON.parse(await readFile(synthesisSchemaPath, 'utf8'));
+
+  assert.equal(schema.$id, 'consensus-plugin/v1/synthesis.schema.json');
+  assert.equal(schema.properties.schema_version.const, 'v1');
+  assert.deepEqual(schema.required, [
+    'schema_version',
+    'synthesized_artifact',
+    'synthesis_reasoning',
+    'unresolved_disagreements'
+  ]);
+  assert.equal(schema.properties.unresolved_disagreements.type, 'array');
+  assert.equal(JSON.stringify(schema).includes('maxLength'), false);
+});
+
+test('validateSynthesisShape accepts a complete v1 synthesis payload', () => {
+  assert.deepEqual(validateSynthesisShape(validSynthesis()), { ok: true, errors: [] });
+  assert.deepEqual(
+    validateSynthesisShape(validSynthesis({ unresolved_disagreements: ['scope of section 2'] })),
+    { ok: true, errors: [] }
+  );
+});
+
+test('validateSynthesisShape rejects missing, mistyped, and extra fields', () => {
+  assert.match(validateSynthesisShape(validSynthesis({ schema_version: 'v0' })).errors.join('\n'), /schema_version/);
+  assert.match(validateSynthesisShape(validSynthesis({ synthesized_artifact: 42 })).errors.join('\n'), /synthesized_artifact/);
+  assert.match(validateSynthesisShape(validSynthesis({ synthesis_reasoning: undefined })).errors.join('\n'), /synthesis_reasoning/);
+  assert.match(
+    validateSynthesisShape({ schema_version: 'v1', synthesized_artifact: 'x', synthesis_reasoning: 'y' }).errors.join('\n'),
+    /unresolved_disagreements/
+  );
+  assert.match(
+    validateSynthesisShape(validSynthesis({ unresolved_disagreements: 'not an array' })).errors.join('\n'),
+    /unresolved_disagreements/
+  );
+  assert.match(
+    validateSynthesisShape(validSynthesis({ unresolved_disagreements: [1, 2] })).errors.join('\n'),
+    /unresolved_disagreements\[0\]/
+  );
+  assert.match(validateSynthesisShape(validSynthesis({ extra: true })).errors.join('\n'), /additional property: extra/);
+  assert.deepEqual(validateSynthesisShape(null), { ok: false, errors: ['synthesis must be an object'] });
 });
 
 test('validateVerdictCaps caps parallel critique fields like reasoning', () => {

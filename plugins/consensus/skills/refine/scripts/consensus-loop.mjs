@@ -405,6 +405,56 @@ export function validateVerdictShape(verdict, { mode = 'alternating' } = {}) {
   return { ok: errors.length === 0, errors };
 }
 
+export function validateSynthesisShape(synthesis) {
+  if (!synthesis || typeof synthesis !== 'object' || Array.isArray(synthesis)) {
+    return { ok: false, errors: ['synthesis must be an object'] };
+  }
+
+  const errors = [];
+  const allowed = new Set([
+    'schema_version',
+    'synthesized_artifact',
+    'synthesis_reasoning',
+    'unresolved_disagreements'
+  ]);
+
+  for (const key of Object.keys(synthesis)) {
+    if (!allowed.has(key)) {
+      errors.push(`additional property: ${key}`);
+    }
+  }
+
+  if (synthesis.schema_version !== LOOP_SCHEMA_VERSION) {
+    errors.push(`schema_version must be "${LOOP_SCHEMA_VERSION}"`);
+  }
+
+  if (!('synthesized_artifact' in synthesis)) {
+    errors.push('missing required property: synthesized_artifact');
+  } else if (typeof synthesis.synthesized_artifact !== 'string') {
+    pushTypeError(errors, 'synthesized_artifact', 'a string');
+  }
+
+  if (!('synthesis_reasoning' in synthesis)) {
+    errors.push('missing required property: synthesis_reasoning');
+  } else if (typeof synthesis.synthesis_reasoning !== 'string') {
+    pushTypeError(errors, 'synthesis_reasoning', 'a string');
+  }
+
+  if (!('unresolved_disagreements' in synthesis)) {
+    errors.push('missing required property: unresolved_disagreements');
+  } else if (!Array.isArray(synthesis.unresolved_disagreements)) {
+    pushTypeError(errors, 'unresolved_disagreements', 'an array');
+  } else {
+    synthesis.unresolved_disagreements.forEach((entry, index) => {
+      if (typeof entry !== 'string') {
+        pushTypeError(errors, `unresolved_disagreements[${index}]`, 'a string');
+      }
+    });
+  }
+
+  return { ok: errors.length === 0, errors };
+}
+
 export function validateVerdictCaps(verdict, { mode = 'alternating' } = {}) {
   const shape = validateVerdictShape(verdict, { mode });
   if (!shape.ok) return shape;
