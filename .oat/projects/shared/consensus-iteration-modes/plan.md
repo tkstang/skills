@@ -117,20 +117,7 @@ oat_generated: false
 
 **Step 4: Commit** — `git commit -m "feat(p01-t05): enforce synthesis byte caps"`
 
-### Task p01-t06: Fail-closed v0 artifact resume rejection
-
-**Files:**
-
-- Modify: `plugins/consensus/skills/refine/scripts/consensus-refine.mjs`
-- Modify: `tests/resume-parse.test.mjs`
-
-**Step 1: Write test (RED)** — resuming an artifact whose frontmatter/canonical blocks carry `schema_version: v0` (fixture from current v0 shape) fails with code `SCHEMA_VERSION_MISMATCH`, exit `DATA`, and a message naming v0, v1, and the no-migration policy.
-
-**Step 2: Implement (GREEN)** — version gate at the top of resume parsing, before section-state validation.
-
-**Step 3: Verify** — Run: `node --test tests/resume-parse.test.mjs`. Expected: rejection case green; existing v1 resume cases unaffected.
-
-**Step 4: Commit** — `git commit -m "feat(p01-t06): reject v0 artifacts on resume (no migration)"`
+> **Note (resequenced 2026-06-13):** the original p01-t06 ("fail-closed v0 artifact resume rejection") was moved to Phase 5 as **p05-t05**. Rationale: the engine has two distinct version fields — the per-record `schema_version` (bumped to v1 here in p01) and the artifact-level `consensus_schema_version` (still emitted as `v0` by the wrapper until the Phase 5 cutover). Rejecting v0 *artifacts* on resume only makes sense after the wrapper emits v1 artifacts (p05-t01), otherwise the wrapper produces artifacts it cannot itself resume and 6 existing resume test files break. See implementation.md Deviations.
 
 ---
 
@@ -464,11 +451,11 @@ oat_generated: false
 
 **Step 1: Write test (RED)** — artifacts from parallel runs round-trip: canonical blocks include peer pairs, synthesis records, intervention rounds; resume restores mode, agency, synthesizer, per-section state; hash validation covers synthesis hashes.
 
-**Step 2: Implement (GREEN)** — extend canonical block writer/parser + `normalizeResumeRecords` for new record types.
+**Step 2: Implement (GREEN)** — extend canonical block writer/parser + `normalizeResumeRecords` for new record types. **Also flip the artifact-level cutover:** change the 6 wrapper `consensus_schema_version` emitters (frontmatter, resolution block, parallel-manifest check, JSONL) from `'v0'` to `'v1'`, and update the resume version gate (`consensus-refine.mjs` ~1323) to accept `v1` (keep accepting `v0` transitionally — p05-t05 removes it). Migrate the existing v0 resume fixtures (`tests/resume-parse`, `resume-corruption`, `sequential-wrapper`, `user-intervention`, `error-handling`, `parallel-prepare`) to `consensus_schema_version: 'v1'`.
 
-**Step 3: Verify** — Run: `node --test tests/resume-parse.test.mjs`. Expected: green.
+**Step 3: Verify** — Run: `node --test tests/resume-parse.test.mjs && npm test`. Expected: green; resume happy-paths now use v1 artifacts.
 
-**Step 4: Commit** — `git commit -m "feat(p05-t01): resume parallel-mode artifacts from canonical v1 blocks"`
+**Step 4: Commit** — `git commit -m "feat(p05-t01): cut artifacts over to v1 and resume parallel-mode canonical blocks"`
 
 ### Task p05-t02: Interruption-point resume matrix
 
@@ -513,6 +500,23 @@ oat_generated: false
 **Step 3: Verify** — Run: `node --test tests/parallel-prepare.test.mjs tests/parallel-fan-in.test.mjs tests/parallel-integration.test.mjs`. Expected: green.
 
 **Step 4: Commit** — `git commit -m "feat(p05-t04): thread mode metadata through parallel-section orchestration"`
+
+### Task p05-t05: Fail-closed v0 artifact resume rejection (moved from p01-t06)
+
+**Files:**
+
+- Modify: `plugins/consensus/skills/refine/scripts/consensus-refine.mjs`
+- Modify: `tests/resume-parse.test.mjs`
+
+**Depends on p05-t01** (the wrapper must already emit v1 artifacts and the gate must already accept v1).
+
+**Step 1: Write test (RED)** — resuming an artifact whose `consensus_schema_version` is `v0` fails with code `SCHEMA_VERSION_MISMATCH`, exit `DATA`, and a message naming v0, v1, and the no-migration policy. (A purpose-built v0 fixture; all happy-path resume fixtures are now v1 after p05-t01.)
+
+**Step 2: Implement (GREEN)** — invert the resume version gate (`consensus-refine.mjs` ~1323): remove transitional v0 acceptance so only v1 resumes; v0 → `SCHEMA_VERSION_MISMATCH`.
+
+**Step 3: Verify** — Run: `node --test tests/resume-parse.test.mjs && npm test`. Expected: v0-rejection case green; all v1 resume happy-paths unaffected.
+
+**Step 4: Commit** — `git commit -m "feat(p05-t05): reject v0 artifacts on resume (no migration)"`
 
 ---
 
@@ -616,7 +620,7 @@ oat_generated: false
 
 | Scope  | Type     | Status          | Date       | Artifact                                              |
 | ------ | -------- | --------------- | ---------- | ----------------------------------------------------- |
-| p01    | code     | pending         | -          | -                                                      |
+| p01    | code     | passed          | 2026-06-13 | inline review (fable orchestrator; 0 crit/0 imp)       |
 | p02    | code     | pending         | -          | -                                                      |
 | p03    | code     | pending         | -          | -                                                      |
 | p04    | code     | pending         | -          | -                                                      |
@@ -631,11 +635,11 @@ oat_generated: false
 
 ## Implementation Complete
 
-- Phase 1: v1 schema family + validation substrate — 6 tasks
+- Phase 1: v1 schema family + validation substrate — 5 tasks (p01-t06 resequenced to p05-t05)
 - Phase 2: Round executor + parallel-revision mode — 8 tasks
 - Phase 3: Parallel-synthesized mode — 6 tasks
 - Phase 4: Escalation ladder — 6 tasks
-- Phase 5: Resume + parallel-section composition — 4 tasks
+- Phase 5: Resume + parallel-section composition — 5 tasks (+p05-t05 from p01-t06)
 - Phase 6: Host surface, docs, smoke, dogfood — 6 tasks
 
 **Total: 36 tasks**

@@ -2,8 +2,8 @@
 oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
-oat_last_updated: 2026-06-12
-oat_current_task_id: p01-t01
+oat_last_updated: 2026-06-13
+oat_current_task_id: p02-t01
 oat_generated: false
 ---
 
@@ -120,6 +120,27 @@ _- Outstanding Items_
 
 _Orchestration runs from `oat-project-implement` are appended here, most-recent-first within the file but append-only at the bottom of the log._
 
+### Run 1 — 2026-06-13
+
+**Branch:** feat/consensus-iteration-modes
+**Tier:** 1 (subagents)
+**Policy:** merge-strategy=sequential, retry-limit=2; implementer ceiling=opus, reviewer ceiling=fable
+**Phases:** p01 executed (5/6 tasks; t06 resequenced to p05-t05, not a failure)
+
+#### Phase Outcomes
+
+| Phase | Implementer | Review | Fix Iterations | Disposition |
+| ----- | ----------- | ------ | -------------- | ----------- |
+| p01   | DONE (t01–t05) | pass (inline/fable) | 0/2 | complete; t06 → p05-t05 |
+
+#### Dispatch Notes
+
+- Dispatch: p01 implementation via oat-phase-implementer at model_axis=selected:opus (dispatch ceiling opus, project state).
+
+#### Outstanding Items
+
+- None (p01-t06 resequenced into Phase 5 as p05-t05; see Deviations).
+
 <!-- orchestration-runs-end -->
 
 ---
@@ -169,7 +190,7 @@ Document any intentional deviations from the original plan, spec, or design. Inc
 
 | Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
 | ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
-| -             | -               | -                    | -                 | -      | -               | -         |
+| p01-t06 → p05-t05 | plan.md Phase 1/5 | p01-t06 rejects v0 artifacts on resume during Phase 1 | Resequenced to Phase 5 (p05-t05), after the artifact-level v1 cutover (p05-t01) | The engine has two version fields: per-record `schema_version` (bumped to v1 in p01) and artifact-level `consensus_schema_version` (wrapper still emits v0 until Phase 5). Rejecting v0 artifacts before the wrapper emits v1 would break 6 resume test files and make the wrapper unable to resume its own output. | plan.md (corrected) | p05-t01 flips the 6 emitters to v1 + migrates resume fixtures; p05-t05 then inverts the gate. FR4 mapping updated in spec.md. |
 
 ## Test Results
 

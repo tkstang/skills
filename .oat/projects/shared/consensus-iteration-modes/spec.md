@@ -225,7 +225,7 @@ _Design-related open questions are tracked in the [Open Questions](#open-questio
 | FR1  | Parallel-revision mode with emergent convergence                   | P0       | unit + integration: same-round convergence, oscillation   | p02-t03, p02-t04, p02-t05, p02-t06, p02-t08 |
 | FR2  | Parallel-synthesized mode with wrapper-driven synthesis            | P0       | unit + integration: synthesis records, stability converge | p03-t01, p03-t03, p03-t04, p03-t05, p03-t06 |
 | FR3  | Mode selection, disclosure, call-count reporting                   | P0       | unit + integration: flag parsing, disclosure events       | p02-t02, p02-t07, p03-t06, p06-t02, p06-t04 |
-| FR4  | Unified v1 schema family, v0 fail-closed                           | P0       | unit: schema validation, caps, version gate               | p01-t01, p01-t02, p01-t03, p01-t04, p01-t05, p01-t06 |
+| FR4  | Unified v1 schema family, v0 fail-closed                           | P0       | unit: schema validation, caps, version gate               | p01-t01, p01-t02, p01-t03, p01-t04, p01-t05, p05-t01, p05-t05 |
 | FR5  | Agency-gated escalation ladder with orchestrator rounds            | P0       | unit + integration: triggers per agency, decision re-entry | p04-t01, p04-t02, p04-t03, p04-t04, p04-t05, p04-t06 |
 | FR6  | Synthesizer default + override, identity recorded                  | P1       | unit: preflight resolution, record fields                 | p03-t02, p03-t03 |
 | FR7  | Resume for new modes incl. synthesis-step interruption             | P0       | integration: resume matrix per mode/phase                 | p05-t01, p05-t02, p05-t03 |
