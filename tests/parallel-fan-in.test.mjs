@@ -177,6 +177,96 @@ test('fanInParallelRun rejects manifest output paths outside cwd or allow-root',
   );
 });
 
+// --- p05-t04: fan-in aggregates an escalated section ---------------------
+
+async function writeMixedSectionOutputs(manifest) {
+  // Section 0 converges; section 1 escalates; section 2 converges. The escalated
+  // section must surface without blocking the converged ones.
+  const outcomes = ['converged', 'escalation', 'converged'];
+  for (const section of [...manifest.sections]) {
+    const outcome = outcomes[section.original_index] ?? 'converged';
+    await writeFile(section.output_section, `Final ${section.original_index}: ${section.name}\n`);
+    await writeFile(
+      section.output_records,
+      `${JSON.stringify(
+        [
+          {
+            schema_version: 'v1',
+            round_index: 1,
+            turn_index: 1,
+            agent: 'claude',
+            verdict: outcome === 'escalation' ? 'REVISE' : 'ACCEPT',
+            reasoning: `${outcome} ${section.name}`
+          }
+        ],
+        null,
+        2
+      )}\n`
+    );
+    const status =
+      outcome === 'escalation'
+        ? {
+            schema_version: 'v1',
+            status: 'escalation',
+            termination_reason: 'persistent_disagreement',
+            iteration_mode: 'parallel_synthesized',
+            turns: 2,
+            rounds: 1,
+            escalation: {
+              trigger: 'persistent_disagreement',
+              decide_via: 'host',
+              decision_kinds: ['blend']
+            },
+            final_artifact_hash: `sha256:${String(section.original_index).repeat(64).slice(0, 64)}`
+          }
+        : {
+            schema_version: 'v1',
+            status: 'converged',
+            termination_reason: 'double_accept',
+            turns: 2,
+            rounds: 1,
+            final_artifact_hash: `sha256:${String(section.original_index).repeat(64).slice(0, 64)}`
+          };
+    await writeFile(section.output_status, `${JSON.stringify(status, null, 2)}\n`);
+  }
+}
+
+test('fanInParallelRun aggregates an escalated section without blocking others', async () => {
+  const { tempRoot, prepared, manifest } = await prepareCompletedManifest();
+  await writeMixedSectionOutputs(manifest);
+
+  const result = await fanInParallelRun(prepared.manifestPath, { cwd: tempRoot, allowRoot: tempRoot });
+
+  // Two converged + one escalated → partial, not a hard error; ordering preserved.
+  assert.equal(result.status, 'partial');
+  assert.deepEqual(
+    result.sections.map((section) => section.original_index),
+    [0, 1, 2]
+  );
+  assert.equal(result.sections[1].status.status, 'escalation');
+
+  const artifact = await readFile(manifest.output_path, 'utf8');
+  // The escalated section joins impasse accounting and is surfaced in the summary.
+  const resolution = extractJsonBlock(artifact, 'consensus-resolution');
+  assert.equal(resolution.sections.escalation, 1);
+  assert.equal(resolution.sections.converged, 2);
+  assert.match(artifact, /1 escalation/);
+});
+
+test('fanInParallelRun with --fail-on-section-error does not fail solely on escalation', async () => {
+  const { tempRoot, prepared, manifest } = await prepareCompletedManifest();
+  await writeMixedSectionOutputs(manifest);
+
+  // Escalation is a partial outcome (like impasse re-presented to a host), not a
+  // hard section error: fan-in completes and surfaces it rather than throwing.
+  const result = await fanInParallelRun(prepared.manifestPath, {
+    cwd: tempRoot,
+    allowRoot: tempRoot,
+    failOnSectionError: true
+  });
+  assert.equal(result.status, 'partial');
+});
+
 test('runWrapperCli fans in a prepared manifest', async () => {
   const { tempRoot, prepared, manifest } = await prepareCompletedManifest();
   const stdout = captureWriter();

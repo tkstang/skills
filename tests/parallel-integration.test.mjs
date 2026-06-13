@@ -109,3 +109,81 @@ test('prepare, simulated host section loops, and fan-in work end-to-end', async 
   assert.equal(fanInEvents.at(-1).event, 'run_completed');
   assert.equal(fanInEvents.at(-1).status, 'partial');
 });
+
+// p05-t04: the prepared mode/synthesizer metadata must drive the real section
+// runner subprocess. A parallel_revision dispatch converges every section via the
+// stub and the fan-in artifact records the mode end-to-end.
+test('parallel_revision mode threads through prepare, section runners, and fan-in', async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-parallel-mode-integration-'));
+  const outputPath = path.join(tempRoot, 'sample.consensus.md');
+  const runDir = path.join(tempRoot, '.consensus/run');
+  const prepareStdout = captureWriter();
+  const prepareStderr = captureWriter();
+
+  const prepareExit = await runWrapperCli(
+    [
+      sampleInput,
+      '--prepare-parallel',
+      '--iteration',
+      'parallel_revision',
+      '--output',
+      outputPath,
+      '--run-dir',
+      runDir,
+      '--allow-root',
+      tempRoot,
+      '--goal',
+      'Exercise parallel-mode host dispatch.',
+      '--peers',
+      'claude,codex',
+      '--max-rounds',
+      '3'
+    ],
+    {
+      stdout: prepareStdout.stream,
+      stderr: prepareStderr.stream,
+      cwd: tempRoot,
+      preflight: async () => ({ peers: ['claude', 'codex'], warnings: [] })
+    }
+  );
+
+  assert.equal(prepareExit, 0, prepareStderr.value());
+  const dispatch = parseJsonl(prepareStdout.value()).find((event) => event.phase === 'parallel_dispatch_required');
+  assert.equal(dispatch.iteration_mode, 'parallel_revision');
+
+  const manifest = JSON.parse(await readFile(dispatch.manifest, 'utf8'));
+  assert.equal(manifest.iteration_mode, 'parallel_revision');
+
+  const convergedVerdict = JSON.stringify({
+    schema_version: 'v1',
+    verdict: 'CONVERGED',
+    reasoning: 'Both revisions already agree.',
+    critique: { own_previous: 'mine is fine', peer_previous: 'peer matches' }
+  });
+
+  for (const section of manifest.sections) {
+    assert.equal(section.iteration_mode, 'parallel_revision');
+    await runNodeScript(loopScript, section.loop_argv, {
+      cwd: tempRoot,
+      env: stubEnv({ PASEO_STUB_RESPONSE_JSON: convergedVerdict })
+    });
+  }
+
+  const fanInStdout = captureWriter();
+  const fanInStderr = captureWriter();
+  const fanInExit = await runWrapperCli(['--fan-in', dispatch.manifest], {
+    stdout: fanInStdout.stream,
+    stderr: fanInStderr.stream,
+    cwd: tempRoot
+  });
+
+  assert.equal(fanInExit, 0, fanInStderr.value());
+  const artifact = await readFile(outputPath, 'utf8');
+  const resolution = extractJsonBlock(artifact, 'consensus-resolution');
+  assert.equal(resolution.status, 'converged');
+  assert.equal(resolution.iteration, 'parallel_revision');
+  assert.equal(resolution.sections.converged, 3);
+
+  const fanInEvents = parseJsonl(fanInStdout.value());
+  assert.equal(fanInEvents.at(-1).status, 'converged');
+});

@@ -1153,7 +1153,7 @@ function renderResolutionSummary(resolution) {
     `- Parallel: ${resolution.parallel ? 'true' : 'false'}`,
     `- Agency: ${resolution.agency}`,
     `- Peers: ${resolution.peers.join(', ')}`,
-    `- Sections: ${resolution.sections.converged}/${resolution.sections.total} converged; ${resolution.sections.impasse} impasse; ${resolution.sections.error} error`,
+    `- Sections: ${resolution.sections.converged}/${resolution.sections.total} converged; ${resolution.sections.impasse} impasse; ${resolution.sections.escalation ?? 0} escalation; ${resolution.sections.error} error`,
     `- Turns: ${resolution.total_turns}; rounds: ${resolution.total_rounds}`,
     `- Calls: ${resolution.peer_calls} peer; ${resolution.synthesis_calls} synthesis`
   ];
@@ -1795,7 +1795,7 @@ function parallelismFor(sectionCount, requested) {
   return Math.min(sectionCount, 4);
 }
 
-function manifestSectionEntry({ section, paths, packetPath, loopArgv }) {
+function manifestSectionEntry({ section, paths, packetPath, loopArgv, iterationMode = 'alternating', synthesizer = null }) {
   return {
     section_id: section.id,
     name: section.name,
@@ -1806,6 +1806,8 @@ function manifestSectionEntry({ section, paths, packetPath, loopArgv }) {
     output_section: paths.output,
     output_status: paths.status,
     subagent_id: `section-runner-${String(section.original_index + 1).padStart(2, '0')}-${section.id}`,
+    iteration_mode: iterationMode,
+    synthesizer,
     loop_argv: loopArgv
   };
 }
@@ -1815,12 +1817,16 @@ function dispatchInstructions(manifest) {
     phase: 'parallel_dispatch_required',
     manifest: manifest.manifest_path,
     parallelism: manifest.parallelism,
+    iteration_mode: manifest.iteration_mode ?? 'alternating',
+    synthesizer: manifest.synthesizer ?? null,
     sections: manifest.sections.map((section) => ({
       section_id: section.section_id,
       name: section.name,
       original_index: section.original_index,
       packet_path: section.packet_path,
       subagent_id: section.subagent_id,
+      iteration_mode: section.iteration_mode ?? manifest.iteration_mode ?? 'alternating',
+      synthesizer: section.synthesizer ?? manifest.synthesizer ?? null,
       output_records: section.output_records,
       output_section: section.output_section,
       output_status: section.output_status
@@ -1856,6 +1862,7 @@ export function renderDeliberationArtifact(runResult) {
       total: sections.length,
       converged: countByStatus(sections, 'converged'),
       impasse: countByStatus(sections, 'impasse'),
+      escalation: countByStatus(sections, 'escalation'),
       max_rounds: countByStatus(sections, 'max-rounds'),
       oscillation: countByStatus(sections, 'oscillation'),
       error: countByStatus(sections, 'error')
@@ -2142,6 +2149,14 @@ export async function prepareParallelRun(options, runOptions = {}) {
       : await (normalized.preflight ?? preflightPaseo)({ ...normalized, env, cwd });
   const peers = normalized.peers ?? preflight.peers;
   const host = preflight.host ?? detectHost(env);
+  // Resolve the synthesizer (FR6) so parallel_synthesized section runners receive
+  // the same identity the sequential path would (p05-t04). Outside synthesized mode
+  // this is null and warn-and-ignored.
+  const { synthesizer } = resolveSynthesizer(
+    { ...normalized, peers },
+    preflight.providerInventory ?? normalized.providerInventory ?? []
+  );
+  const iterationMode = normalized.iteration ?? 'alternating';
   const parallelism = parallelismFor(parsedSections.length, normalized.parallelism);
   const sections = [];
 
@@ -2154,7 +2169,7 @@ export async function prepareParallelRun(options, runOptions = {}) {
       status: path.join(sectionDir, 'status.json')
     };
     const packetPath = path.join(sectionDir, 'packet.json');
-    const loopArgv = loopArgvForSection({ section, paths, options: normalized, peers });
+    const loopArgv = loopArgvForSection({ section, paths, options: normalized, peers, synthesizer });
 
     await Promise.all([
       confineWrite(paths.input, runWriteRoot),
@@ -2176,6 +2191,8 @@ export async function prepareParallelRun(options, runOptions = {}) {
       peers,
       max_rounds: normalized.maxRounds,
       agency: normalized.agency,
+      iteration_mode: iterationMode,
+      synthesizer,
       output_records: paths.records,
       output_section: paths.output,
       output_status: paths.status,
@@ -2184,7 +2201,7 @@ export async function prepareParallelRun(options, runOptions = {}) {
 
     await atomicWriteFile(paths.input, section.markdown, { rootPath: runWriteRoot });
     await atomicWriteFile(packetPath, `${JSON.stringify(packet, null, 2)}\n`, { rootPath: runWriteRoot });
-    sections.push(manifestSectionEntry({ section, paths, packetPath, loopArgv }));
+    sections.push(manifestSectionEntry({ section, paths, packetPath, loopArgv, iterationMode, synthesizer }));
   }
 
   const manifestPath = path.join(runDir, 'manifest.json');
@@ -2203,6 +2220,8 @@ export async function prepareParallelRun(options, runOptions = {}) {
     host,
     max_rounds: normalized.maxRounds,
     agency: normalized.agency,
+    iteration_mode: iterationMode,
+    synthesizer,
     parallelism,
     sections,
     manifest_path: manifestPath
@@ -2361,6 +2380,8 @@ export async function fanInParallelRun(manifestPath, options = {}) {
     peers: manifest.peers,
     host: manifest.host ?? 'unknown',
     agency: manifest.agency,
+    iteration: manifest.iteration_mode ?? 'alternating',
+    synthesizer: manifest.synthesizer ?? null,
     maxRounds: manifest.max_rounds,
     startedAt,
     endedAt,
