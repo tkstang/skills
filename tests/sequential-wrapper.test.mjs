@@ -380,3 +380,93 @@ test('renderDeliberationArtifact uses canonical containers and contains prose he
   assert.match(artifact, /<!-- consensus:consensus-verdict\n/);
   assert.match(artifact, /"proposed_artifact": "Draft with ``` fence\.\\n"/);
 });
+
+// --- p04-t04: escalation_required JSONL event -----------------------------
+
+function persistentSynthesizedStubs() {
+  let peerCall = 0;
+  const invokePeer = async () => {
+    peerCall += 1;
+    return {
+      json: {
+        schema_version: 'v1',
+        verdict: 'REVISE',
+        reasoning: `r${peerCall}`,
+        critique: { own_previous: 'o', peer_previous: 'p' },
+        proposed_artifact: `peer revision ${peerCall}.\n`
+      },
+      stdout: '{"id":"peer"}'
+    };
+  };
+  let synthCall = 0;
+  const invokeSynthesizer = async () => {
+    synthCall += 1;
+    return {
+      json: {
+        schema_version: 'v1',
+        synthesized_artifact: `merged ${synthCall}.\n`,
+        synthesis_reasoning: 'merged favoring stronger reasoning',
+        unresolved_disagreements: ['heading style unresolved']
+      },
+      stdout: '{"id":"synth"}'
+    };
+  };
+  return { invokePeer, invokeSynthesizer };
+}
+
+test('escalation_required event resolves divergent full text and resume vector, emitted before run end', async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-escalation-event-'));
+  const inputPath = path.join(tempRoot, 'draft.md');
+  const outputPath = path.join(tempRoot, 'out.consensus.md');
+  const runDir = path.join(tempRoot, '.consensus/run');
+  await writeFile(inputPath, '# Intro\n\nSeed.\n');
+
+  const { invokePeer, invokeSynthesizer } = persistentSynthesizedStubs();
+  const stdout = captureStdout();
+  const result = await runSequential(
+    {
+      inputPath,
+      output: outputPath,
+      runDir,
+      allowRoot: tempRoot,
+      cwd: tempRoot,
+      goal: 'Tighten it.',
+      peers: ['claude', 'codex'],
+      iteration: 'parallel_synthesized',
+      synthesizer: 'claude',
+      maxRounds: 8,
+      agency: 'moderate',
+      preflight: async () => ({
+        peers: ['claude', 'codex'],
+        providerInventory: [
+          { id: 'claude', available: true },
+          { id: 'codex', available: true }
+        ],
+        warnings: []
+      }),
+      invokePeer,
+      invokeSynthesizer
+    },
+    { stdout }
+  );
+
+  assert.equal(result.sections[0].status.status, 'escalation');
+
+  const events = stdout.events();
+  const escalation = events.find((event) => event.event === 'escalation_required');
+  assert.ok(escalation, 'expected escalation_required event');
+  assert.equal(escalation.trigger, 'persistent_disagreement');
+  assert.equal(escalation.decide_via, 'host');
+  assert.ok(Array.isArray(escalation.decision_kinds));
+  // Full divergent text resolved into the event (both revisions + synthesis).
+  assert.equal(typeof escalation.divergent.a.text, 'string');
+  assert.equal(typeof escalation.divergent.b.text, 'string');
+  assert.ok(escalation.divergent.a.text.length > 0);
+  assert.ok(escalation.divergent.synthesis, 'synthesis text present in synthesized mode');
+  assert.match(escalation.divergent.synthesis.text, /merged/);
+  assert.deepEqual(escalation.divergent.synthesis.unresolved_disagreements, ['heading style unresolved']);
+  // Resume vector names the artifact path and the host flag.
+  assert.equal(escalation.resume.artifact_path, outputPath);
+  assert.equal(escalation.resume.flag, '--host-direction');
+  assert.equal(escalation.section_id, result.sections[0].id);
+});

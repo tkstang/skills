@@ -791,7 +791,12 @@ function aggregateStatus(sections) {
   const statuses = sections.map((section) => section.status?.status ?? section.result?.status?.status ?? 'unknown');
   if (statuses.every((status) => status === 'converged')) return 'converged';
   if (statuses.some((status) => status === 'error')) return 'error';
-  if (statuses.some((status) => status === 'impasse' || status === 'max-rounds' || status === 'oscillation')) {
+  if (
+    statuses.some(
+      (status) =>
+        status === 'impasse' || status === 'max-rounds' || status === 'oscillation' || status === 'escalation'
+    )
+  ) {
     return 'partial';
   }
   return 'unknown';
@@ -823,6 +828,80 @@ function sectionStates(sections) {
 
 function countByStatus(sections, statusName) {
   return sections.filter((section) => section.status?.status === statusName).length;
+}
+
+function lastTwoPeerRevisionRecords(records) {
+  const peers = records.filter(
+    (record) =>
+      record?.agent !== 'user' &&
+      record?.agent !== 'host-orchestrator' &&
+      record?.verdict !== 'USER_INTERVENTION' &&
+      record?.verdict !== 'HOST_DECISION' &&
+      record?.record_type !== 'synthesis' &&
+      record?.record_type !== 'synthesis-error'
+  );
+  return peers.slice(-2);
+}
+
+function latestSynthesisRecord(records) {
+  for (let index = records.length - 1; index >= 0; index -= 1) {
+    if (records[index]?.record_type === 'synthesis') return records[index];
+  }
+  return null;
+}
+
+function revisionText(record) {
+  if (typeof record?.proposed_artifact === 'string') return record.proposed_artifact;
+  if (typeof record?.synthesized_artifact === 'string') return record.synthesized_artifact;
+  return '';
+}
+
+/**
+ * Build the escalation_required event payload for a section (p04-t04). Resolves
+ * the FULL divergent text from the section's records (both latest peer revisions,
+ * plus synthesis text + unresolved disagreements in synthesized mode) and the
+ * resume vector. This is the only content-bearing routine event (NFR5 boundary).
+ */
+export function buildEscalationEvent(section, { artifactPath } = {}) {
+  const escalation = section?.status?.escalation;
+  if (!escalation) return null;
+
+  const records = section.records ?? [];
+  const [left, right] = lastTwoPeerRevisionRecords(records);
+  const synthesis = latestSynthesisRecord(records);
+
+  const divergent = {
+    a: { agent: left?.agent ?? escalation.divergent?.a?.agent ?? null, text: revisionText(left) },
+    b: { agent: right?.agent ?? escalation.divergent?.b?.agent ?? null, text: revisionText(right) }
+  };
+  if (synthesis || escalation.divergent?.synthesis) {
+    divergent.synthesis = {
+      text: revisionText(synthesis),
+      unresolved_disagreements: Array.isArray(synthesis?.unresolved_disagreements)
+        ? synthesis.unresolved_disagreements
+        : escalation.divergent?.synthesis?.unresolved_disagreements ?? []
+    };
+  }
+
+  const flag = escalation.decide_via === 'user' ? '--user-direction' : '--host-direction';
+
+  const event = {
+    section_id: section.id,
+    section_name: section.name,
+    trigger: escalation.trigger,
+    decide_via: escalation.decide_via,
+    decision_kinds: escalation.decision_kinds ?? [],
+    divergent,
+    resume: { artifact_path: artifactPath ?? null, flag }
+  };
+  if (escalation.promoted_from) {
+    event.promoted_from = escalation.promoted_from;
+  }
+  return event;
+}
+
+function escalatedSections(sections) {
+  return sections.filter((section) => section.status?.status === 'escalation');
 }
 
 function failingSections(sections) {
@@ -1894,6 +1973,19 @@ export async function runSequential(options, runOptions = {}) {
 
   const artifact = renderDeliberationArtifact(runResult);
   await atomicWriteFile(outputPath, artifact, { rootPath: outputWriteRoot });
+
+  // Emit escalation_required for any escalated section. Escalation is a terminal
+  // status + resume (design §5): the wrapper resolves the full divergent text
+  // into the event and exits, mirroring impasse's success-with-partial semantics.
+  if (runOptions.stdout) {
+    for (const section of escalatedSections(sectionResults)) {
+      const event = buildEscalationEvent(section, { artifactPath: outputPath });
+      if (event) {
+        writeJsonl(runOptions.stdout, 'escalation_required', event);
+      }
+    }
+  }
+
   const failedSections = failingSections(sectionResults);
   if (normalized.failOnSectionError && failedSections.length > 0) {
     throw new ConsensusError(`section error or impasse in ${failedSections.length} section(s)`, {
@@ -2363,7 +2455,8 @@ export async function runWrapperCli(argv, options = {}) {
       status: result.status,
       output_path: result.outputPath,
       run_dir: result.runDir,
-      sections: result.sections.length
+      sections: result.sections.length,
+      sections_escalated: result.sections.filter((section) => section.status?.status === 'escalation').length
     });
     return 0;
   } catch (error) {
