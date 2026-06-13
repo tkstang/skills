@@ -1525,7 +1525,53 @@ export function detectParallelConvergence(records, options = {}) {
   return { converged: false, reason: null };
 }
 
-export function detectParallelOscillation() {
+function parallelRoundPairs(records, options = {}) {
+  const byRound = new Map();
+  for (const record of records) {
+    if (record?.agent === 'user' || record?.agent === 'host-orchestrator') continue;
+    if (record?.record_type === 'synthesis') continue;
+    const round = Number(record?.round_index);
+    if (!Number.isInteger(round)) continue;
+    if (!byRound.has(round)) byRound.set(round, []);
+    byRound.get(round).push(parallelRevisionHash(record, options));
+  }
+
+  return [...byRound.keys()]
+    .sort((a, b) => a - b)
+    .map((round) => {
+      const hashes = byRound.get(round).filter(Boolean).sort();
+      // Order-normalized pair signature for the round.
+      return hashes.length > 0 ? hashes.join('|') : null;
+    });
+}
+
+/**
+ * Parallel oscillation (p02-t06): the order-normalized per-round hash PAIR cycles
+ * alternately — pair(N) == pair(N-2) != pair(N-1) — across a 4-round window.
+ */
+export function detectParallelOscillation(records, options = {}) {
+  if (!Array.isArray(records)) {
+    return { oscillating: false, reason: null };
+  }
+
+  const pairs = parallelRoundPairs(records, options);
+  for (let end = pairs.length; end >= 4; end -= 1) {
+    const window = pairs.slice(end - 4, end);
+    if (
+      window.every(Boolean) &&
+      window[0] === window[2] &&
+      window[1] === window[3] &&
+      window[0] !== window[1]
+    ) {
+      return {
+        oscillating: true,
+        reason: 'oscillation_detected',
+        round_indexes: [end - 4, end - 3, end - 2, end - 1],
+        pairs: [window[0], window[1]]
+      };
+    }
+  }
+
   return { oscillating: false, reason: null };
 }
 

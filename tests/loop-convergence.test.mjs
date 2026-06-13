@@ -313,6 +313,60 @@ test('detectParallelConvergence converges on mutual CONVERGED at moderate and ma
   });
 });
 
-test('detectParallelOscillation is still a no-op placeholder before p02-t06', () => {
-  assert.deepEqual(detectParallelOscillation([], {}), { oscillating: false, reason: null });
+function parallelRound(round, claudeText, codexText) {
+  return [
+    parallelRecord('claude', { verdict: 'REVISE', text: claudeText, round }),
+    parallelRecord('codex', { verdict: 'REVISE', text: codexText, round })
+  ];
+}
+
+test('detectParallelOscillation detects pair-based A/B/A/B cycling over four rounds', () => {
+  // Order-normalized pairs: round1 = {A,B}, round2 = {C,D}, round3 = {A,B}, round4 = {C,D}
+  const records = [
+    ...parallelRound(1, 'A\n', 'B\n'),
+    ...parallelRound(2, 'C\n', 'D\n'),
+    // Order swapped within the round to prove order-normalization.
+    ...parallelRound(3, 'B\n', 'A\n'),
+    ...parallelRound(4, 'D\n', 'C\n')
+  ];
+
+  const result = detectParallelOscillation(records, { agency: 'moderate' });
+  assert.equal(result.oscillating, true);
+  assert.equal(result.reason, 'oscillation_detected');
+});
+
+test('detectParallelOscillation ignores stable-but-diverged pairs', () => {
+  const records = [
+    ...parallelRound(1, 'A\n', 'B\n'),
+    ...parallelRound(2, 'A\n', 'B\n'),
+    ...parallelRound(3, 'A\n', 'B\n'),
+    ...parallelRound(4, 'A\n', 'B\n')
+  ];
+
+  assert.deepEqual(detectParallelOscillation(records, { agency: 'moderate' }), {
+    oscillating: false,
+    reason: null
+  });
+});
+
+test('detectParallelOscillation does not fire when only three rounds are present', () => {
+  const records = [
+    ...parallelRound(1, 'A\n', 'B\n'),
+    ...parallelRound(2, 'C\n', 'D\n'),
+    ...parallelRound(3, 'A\n', 'B\n')
+  ];
+
+  assert.deepEqual(detectParallelOscillation(records, { agency: 'moderate' }), {
+    oscillating: false,
+    reason: null
+  });
+});
+
+test('detectOscillation (alternating) is untouched by parallel oscillation work', () => {
+  const a = hashArtifact('A');
+  const b = hashArtifact('B');
+  assert.deepEqual(
+    detectOscillation([{ artifact_hash: a }, { artifact_hash: b }, { artifact_hash: a }, { artifact_hash: b }]),
+    { oscillating: true, reason: 'oscillation_detected', record_indexes: [0, 1, 2, 3], hashes: [a, b] }
+  );
 });
