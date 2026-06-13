@@ -16,8 +16,29 @@ spend** — see the cost note in each scenario.
 # From the repo root
 node --version            # must be >= 22
 paseo --version           # must be present (tested range 0.1.0–0.9.0)
-paseo provider ls --json  # confirm 'claude' and 'codex' (or your peers) are available
+
+# The wrapper shells out to `paseo run`, which needs the paseo DAEMON running:
+paseo daemon status       # if not running:  paseo daemon start
+                          # (run these in your normal login shell so paseo can
+                          #  see your provider auth — a minimal/non-interactive
+                          #  shell may report providers as unavailable)
+
+# Confirm at least TWO peers are AVAILABLE (consensus needs two). Providers can
+# sit in 'loading' for a few seconds after a daemon (re)start, then resolve to
+# 'available' or 'unavailable'. 'unavailable' usually means that provider's CLI
+# is not logged in / has no token in the daemon's environment.
+paseo provider ls         # need >= 2 rows showing 'available' (e.g. claude + codex)
 ```
+
+> **Two real gotchas from dogfooding (2026-06-13), both surfaced as clean
+> errors in the artifact, not crashes):**
+> - `DAEMON_NOT_RUNNING` → run `paseo daemon start`.
+> - `Provider '<x>' is not available` / "Available providers: none" → start the
+>   daemon from your login shell and make sure the provider is authenticated;
+>   `paseo provider ls` must show it `available` (not `loading`/`unavailable`)
+>   before you run. If your canonical peer (e.g. `claude`) is unavailable, either
+>   authenticate it or substitute another available provider with
+>   `--peers <a>,<b>` (e.g. `--peers codex,copilot`).
 
 The wrapper lives at:
 
