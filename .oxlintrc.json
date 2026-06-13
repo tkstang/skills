@@ -1,0 +1,33 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error"
+  },
+  "env": {
+    "node": true,
+    "es2024": true
+  },
+  "rules": {
+    "eslint/prefer-const": "error",
+    "eslint/eqeqeq": ["error", "smart"],
+    "eslint/no-empty": "error"
+  },
+  "overrides": [
+    {
+      "files": ["**/*.test.mjs", "**/*.test.js", "tests/**"],
+      "rules": {
+        "eslint/no-unused-vars": "off"
+      }
+    }
+  ],
+  "ignorePatterns": [
+    "node_modules/",
+    ".oat/",
+    ".agents/",
+    "dist/",
+    "build/",
+    "coverage/",
+    "**/scripts/lib/runtimes.mjs"
+  ]
+}

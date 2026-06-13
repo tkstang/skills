@@ -1,0 +1,25 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "printWidth": 80,
+  "tabWidth": 2,
+  "useTabs": false,
+  "semi": true,
+  "singleQuote": true,
+  "trailingComma": "all",
+  "bracketSpacing": true,
+  "bracketSameLine": false,
+  "arrowParens": "always",
+  "quoteProps": "as-needed",
+  "endOfLine": "lf",
+  "proseWrap": "preserve",
+  "ignorePatterns": [
+    "node_modules/**",
+    ".oat/**",
+    ".agents/**",
+    ".claude/rules/**",
+    ".cursor/rules/**",
+    "**/scripts/lib/runtimes.mjs"
+  ],
+  "sortImports": {},
+  "sortPackageJson": {}
+}

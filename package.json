@@ -3,13 +3,33 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "engines": {
-    "node": ">=22"
-  },
   "scripts": {
     "sync:transcript-core": "node scripts/sync-transcript-core.mjs",
     "test": "node --test",
     "validate": "node scripts/validate.mjs",
-    "smoke": "node scripts/smoke-test.mjs"
-  }
+    "smoke": "node scripts/smoke-test.mjs",
+    "worktree:init": "bash scripts/worktree/init.sh",
+    "worktree:validate": "bash scripts/worktree/validate.sh",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "format": "oxfmt --write .",
+    "format:check": "oxfmt --check .",
+    "hooks": "node tools/git-hooks/manage-hooks.mjs",
+    "hooks:status": "node tools/git-hooks/manage-hooks.mjs status",
+    "hooks:enable-all": "node tools/git-hooks/manage-hooks.mjs enable-all",
+    "hooks:disable-all": "node tools/git-hooks/manage-hooks.mjs disable-all",
+    "prepare": "test \"$GIT_HOOKS\" = \"0\" && exit 0; node tools/git-hooks/manage-hooks.mjs setup 2>/dev/null || true"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^21.0.0",
+    "@commitlint/config-conventional": "^21.0.0",
+    "lint-staged": "^17.0.7",
+    "oxfmt": "^0.48.0",
+    "oxlint": "^1.69.0"
+  },
+  "engines": {
+    "node": ">=22",
+    "pnpm": ">=10.13.1"
+  },
+  "packageManager": "pnpm@10.13.1"
 }
