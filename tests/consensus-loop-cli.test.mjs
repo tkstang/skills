@@ -91,6 +91,56 @@ test('parseLoopArgs validates the alternating CLI surface', () => {
   assert.throws(() => parseLoopArgs(['--agency', 'reckless']), /agency/);
 });
 
+function baseLoopArgv(extra = []) {
+  return [
+    '--section-file',
+    'section.md',
+    '--peers',
+    'claude,codex',
+    '--output-records',
+    'records.json',
+    '--output-section',
+    'output.md',
+    '--output-status',
+    'status.json',
+    ...extra
+  ];
+}
+
+test('parseLoopArgs accepts the three iteration modes and defaults to alternating', () => {
+  assert.equal(parseLoopArgs(baseLoopArgv()).iteration, 'alternating');
+  assert.equal(
+    parseLoopArgs(baseLoopArgv(['--iteration', 'parallel_revision'])).iteration,
+    'parallel_revision'
+  );
+  assert.equal(
+    parseLoopArgs(baseLoopArgv(['--iteration', 'parallel_synthesized'])).iteration,
+    'parallel_synthesized'
+  );
+});
+
+test('parseLoopArgs rejects invalid iteration modes with INVALID_ITERATION_MODE and USAGE exit', () => {
+  let thrown;
+  try {
+    parseLoopArgs(baseLoopArgv(['--iteration', 'bogus']));
+  } catch (error) {
+    thrown = error;
+  }
+  assert.ok(thrown, 'expected an error');
+  assert.equal(thrown.code, 'INVALID_ITERATION_MODE');
+  assert.equal(exitCodeForError(thrown), EXIT_CODES.USAGE);
+  assert.match(thrown.message, /alternating/);
+  assert.match(thrown.message, /parallel_revision/);
+  assert.match(thrown.message, /parallel_synthesized/);
+});
+
+test('parseLoopArgs rejects independent_draft cold start as not yet supported', () => {
+  assert.throws(
+    () => parseLoopArgs(baseLoopArgv(['--cold-start', 'independent_draft'])),
+    /not yet supported/
+  );
+});
+
 test('buildTurnPrompt frames untrusted artifact text and passes prior peer verdict', () => {
   const prompt = buildTurnPrompt({
     provider: 'claude',

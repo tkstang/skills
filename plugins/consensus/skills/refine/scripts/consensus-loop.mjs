@@ -99,6 +99,19 @@ const VERDICT_BRANCHES = {
 
 const PARALLEL_MODES = new Set(['parallel_revision', 'parallel_synthesized']);
 
+export const ITERATION_MODES = Object.freeze(['alternating', 'parallel_revision', 'parallel_synthesized']);
+
+export function invalidIterationModeError(value) {
+  return new ConsensusError(
+    `--iteration must be one of ${ITERATION_MODES.join(', ')} (received: ${value})`,
+    {
+      code: 'INVALID_ITERATION_MODE',
+      exitCode: EXIT_CODES.USAGE,
+      details: { received: value ?? null, allowed: [...ITERATION_MODES] }
+    }
+  );
+}
+
 function branchTableForMode(mode = 'alternating') {
   return VERDICT_BRANCHES[mode] ?? ALTERNATING_VERDICT_BRANCHES;
 }
@@ -769,8 +782,11 @@ export function parseLoopArgs(argv) {
     }
   }
 
-  if (parsed.iteration !== 'alternating') {
-    throw new Error('--iteration must be alternating');
+  if (!ITERATION_MODES.includes(parsed.iteration)) {
+    throw invalidIterationModeError(parsed.iteration);
+  }
+  if (parsed.coldStart === 'independent_draft') {
+    throw new Error('--cold-start independent_draft is not yet supported');
   }
   if (parsed.coldStart !== 'shared_input') {
     throw new Error('--cold-start must be shared_input');

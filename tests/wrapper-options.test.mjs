@@ -50,6 +50,33 @@ test('parseWrapperArgs handles sequential options and defaults', () => {
   assert.equal(parsed.yesSkipCorrupt, true);
 });
 
+test('parseWrapperArgs accepts iteration modes, defaults to alternating, and rejects invalid', () => {
+  assert.equal(parseWrapperArgs(['draft.md']).iteration, 'alternating');
+  assert.equal(
+    parseWrapperArgs(['draft.md', '--iteration', 'parallel_revision']).iteration,
+    'parallel_revision'
+  );
+  assert.equal(
+    parseWrapperArgs(['draft.md', '--iteration', 'parallel_synthesized']).iteration,
+    'parallel_synthesized'
+  );
+
+  let thrown;
+  try {
+    parseWrapperArgs(['draft.md', '--iteration', 'bogus']);
+  } catch (error) {
+    thrown = error;
+  }
+  assert.ok(thrown, 'expected an error');
+  assert.equal(thrown.code, 'INVALID_ITERATION_MODE');
+  assert.match(thrown.message, /alternating.*parallel_revision.*parallel_synthesized/);
+
+  assert.throws(
+    () => parseWrapperArgs(['draft.md', '--cold-start', 'independent_draft']),
+    /not yet supported/
+  );
+});
+
 test('parseWrapperArgs handles prepare-parallel and fan-in modes', () => {
   const prepare = parseWrapperArgs(['draft.md', '--prepare-parallel', '--parallelism', '3']);
   assert.equal(prepare.mode, 'prepare_parallel');

@@ -6,7 +6,15 @@ import { createInterface } from 'node:readline/promises';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
-import { ConsensusError, EXIT_CODES, exitCodeForError, hashArtifact, runConsensusLoop } from './consensus-loop.mjs';
+import {
+  ConsensusError,
+  EXIT_CODES,
+  exitCodeForError,
+  hashArtifact,
+  invalidIterationModeError,
+  ITERATION_MODES,
+  runConsensusLoop
+} from './consensus-loop.mjs';
 
 const execFileAsync = promisify(execFile);
 
@@ -1198,6 +1206,8 @@ export function parseWrapperArgs(argv) {
     peers: null,
     maxRounds: 12,
     agency: 'moderate',
+    iteration: 'alternating',
+    coldStart: 'shared_input',
     output: null,
     resume: null,
     userDirection: null,
@@ -1237,6 +1247,14 @@ export function parseWrapperArgs(argv) {
         break;
       case '--agency':
         parsed.agency = requireValue(argv, index, token);
+        index += 1;
+        break;
+      case '--iteration':
+        parsed.iteration = requireValue(argv, index, token);
+        index += 1;
+        break;
+      case '--cold-start':
+        parsed.coldStart = requireValue(argv, index, token);
         index += 1;
         break;
       case '--output':
@@ -1296,6 +1314,17 @@ export function parseWrapperArgs(argv) {
 
   if (!['minimal', 'moderate', 'maximum'].includes(parsed.agency)) {
     throw new Error('--agency must be minimal, moderate, or maximum');
+  }
+
+  if (!ITERATION_MODES.includes(parsed.iteration)) {
+    throw invalidIterationModeError(parsed.iteration);
+  }
+
+  if (parsed.coldStart === 'independent_draft') {
+    throw new Error('--cold-start independent_draft is not yet supported');
+  }
+  if (parsed.coldStart !== 'shared_input') {
+    throw new Error('--cold-start must be shared_input');
   }
 
   if (parsed.fanIn) {
@@ -1437,6 +1466,8 @@ function normalizeSequentialOptions(options) {
     goal: '',
     maxRounds: 12,
     agency: 'moderate',
+    iteration: 'alternating',
+    coldStart: 'shared_input',
     failOnSectionError: false,
     ...parsed
   };
@@ -1485,6 +1516,8 @@ function loopArgvForSection({ section, paths, options, peers }) {
     String(options.maxRounds),
     '--agency',
     options.agency,
+    '--iteration',
+    options.iteration ?? 'alternating',
     '--output-records',
     paths.records,
     '--output-section',
@@ -1546,8 +1579,8 @@ export function renderDeliberationArtifact(runResult) {
     status,
     mode: runResult.mode ?? 'sequential',
     parallel: Boolean(runResult.parallel),
-    iteration: 'alternating',
-    cold_start: 'shared_input',
+    iteration: runResult.iteration ?? 'alternating',
+    cold_start: runResult.coldStart ?? 'shared_input',
     agency: runResult.agency,
     peers: runResult.peers,
     host: runResult.host ?? 'unknown',
@@ -1761,6 +1794,8 @@ export async function runSequential(options, runOptions = {}) {
     peers,
     host,
     agency: normalized.agency,
+    iteration: normalized.iteration ?? 'alternating',
+    coldStart: normalized.coldStart ?? 'shared_input',
     maxRounds: normalized.maxRounds,
     startedAt,
     endedAt,
@@ -2142,7 +2177,8 @@ export async function runWrapperCli(argv, options = {}) {
     writeJsonl(stdout, 'run_started', {
       mode: parsed.mode,
       input_path: parsed.inputPath,
-      manifest_path: parsed.manifestPath
+      manifest_path: parsed.manifestPath,
+      iteration_mode: parsed.iteration ?? 'alternating'
     });
 
     if (parsed.mode === 'prepare_parallel') {
