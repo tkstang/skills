@@ -26,20 +26,21 @@ oat_docs_updated: complete # null | skipped | complete — documentation sync st
 oat_pr_status: null # null | ready | open | closed | merged — actual PR state for the current project
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-06-12T21:57:32.365Z" # ISO 8601 UTC timestamp — set once at project creation
-oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-06-13T21:00:00Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_completed: "2026-06-13T22:34:12.986Z" # ISO 8601 UTC timestamp — set when project is completed/archived
+oat_project_state_updated: "2026-06-13T22:34:12.986Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
+oat_lifecycle: complete
 ---
 
 # Project State: consensus-iteration-modes
 
-**Status:** Discovery
+**Status:** Complete
 **Started:** 2026-06-12
-**Last Updated:** 2026-06-12
+**Last Updated:** 2026-06-13
 
 ## Current Phase
 
-Discovery complete — ready for design (oat-project-design)
+Lifecycle complete
 
 ## Artifacts
 
@@ -54,6 +55,7 @@ Discovery complete — ready for design (oat-project-design)
 - ✓ Discovery started
 - ✓ Downstream lifecycle files scaffolded
 - ✓ Discovery complete (4 gray areas resolved; two-tier synthesis architecture chosen; scope check passed as one cohesive project)
+- ✓ Project lifecycle complete
 
 ## Blockers
 
@@ -61,4 +63,4 @@ None
 
 ## Next Milestone
 
-Implementation: run `oat-project-implement` to begin execution
+None. Project complete.
