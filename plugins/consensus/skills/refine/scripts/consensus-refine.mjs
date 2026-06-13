@@ -846,6 +846,9 @@ function renderRecord(record) {
   if ('user_direction' in record) {
     verdictDocument.user_direction = record.user_direction;
   }
+  if ('critique' in record && record.critique) {
+    verdictDocument.critique = record.critique;
+  }
   if ('proposed_artifact' in record) {
     verdictDocument.proposed_artifact = record.proposed_artifact;
   }

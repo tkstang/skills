@@ -12,16 +12,16 @@ sections_total: 3
 sections_converged: 3
 sections_impasse: 0
 sections_error: 0
-total_turns: 60
-total_rounds: 30
-peer_calls: 60
+total_turns: 69
+total_rounds: 36
+peer_calls: 69
 synthesis_calls: 0
-wall_clock_ms: 440
+wall_clock_ms: 889
 cost_source: unavailable
 approximate_cost_usd: null
 input_path: "/Users/tstang/Code/skills/tests/fixtures/sample-input.md"
 run_id: run
-generated_at: "2026-06-13T02:50:47.143Z"
+generated_at: "2026-06-13T02:52:21.160Z"
 ---
 
 # Consensus Refine Artifact
@@ -51,8 +51,8 @@ This section is also used by the parallel integration fixture.
 - Agency: moderate
 - Peers: claude, codex
 - Sections: 3/3 converged; 0 impasse; 0 error
-- Turns: 60; rounds: 30
-- Calls: 60 peer; 0 synthesis
+- Turns: 69; rounds: 36
+- Calls: 69 peer; 0 synthesis
 
 <!-- consensus:consensus-resolution
 {
@@ -77,17 +77,17 @@ This section is also used by the parallel integration fixture.
     "oscillation": 0,
     "error": 0
   },
-  "total_rounds": 30,
-  "total_turns": 60,
-  "peer_calls": 60,
+  "total_rounds": 36,
+  "total_turns": 69,
+  "peer_calls": 69,
   "synthesis_calls": 0,
-  "wall_clock_ms": 440,
+  "wall_clock_ms": 889,
   "cost_source": "unavailable",
   "approximate_cost_usd": null,
   "input_path": "/Users/tstang/Code/skills/tests/fixtures/sample-input.md",
   "run_id": "run",
-  "started_at": "2026-06-13T02:50:46.703Z",
-  "ended_at": "2026-06-13T02:50:47.143Z",
+  "started_at": "2026-06-13T02:52:20.271Z",
+  "ended_at": "2026-06-13T02:52:21.160Z",
   "subagent_ids": []
 }
 -->
@@ -100,9 +100,9 @@ This section is also used by the parallel integration fixture.
 
 | Section | Status | Turns | Rounds |
 | --- | --- | ---: | ---: |
-| Intro | converged | 20 | 10 |
-| Details | converged | 20 | 10 |
-| Close | converged | 20 | 10 |
+| Intro | converged | 23 | 12 |
+| Details | converged | 23 | 12 |
+| Close | converged | 23 | 12 |
 
 <!-- consensus:consensus-section-states
 [
@@ -112,8 +112,8 @@ This section is also used by the parallel integration fixture.
     "original_index": 0,
     "status": "converged",
     "termination_reason": "parallel_hash_match",
-    "turns": 20,
-    "rounds": 10,
+    "turns": 23,
+    "rounds": 12,
     "final_artifact_hash": "sha256:a1c2ec3d00d614f8c25e5f6c366350eb069a6ff00943b804ac242d0c248b794a",
     "final_output": "# Intro\n\nThis is the opening.\n\n",
     "subagent_id": null
@@ -124,8 +124,8 @@ This section is also used by the parallel integration fixture.
     "original_index": 1,
     "status": "converged",
     "termination_reason": "parallel_hash_match",
-    "turns": 20,
-    "rounds": 10,
+    "turns": 23,
+    "rounds": 12,
     "final_artifact_hash": "sha256:a1e65c105e808eb43c2e05b8ce1d1ac0624013da3bda2cd5079090d0df19015e",
     "final_output": "## Details\n\nThese are the details.\n\n",
     "subagent_id": null
@@ -136,8 +136,8 @@ This section is also used by the parallel integration fixture.
     "original_index": 2,
     "status": "converged",
     "termination_reason": "parallel_hash_match",
-    "turns": 20,
-    "rounds": 10,
+    "turns": 23,
+    "rounds": 12,
     "final_artifact_hash": "sha256:7662ca87aa7f61634e8a4d47d98e069fe1c92959ccb2d7cb67a349b9a92079eb",
     "final_output": "## Close\n\nThis is the closing note.\nThis section is also used by the parallel integration fixture.\n",
     "subagent_id": null
@@ -154,12 +154,12 @@ This section is also used by the parallel integration fixture.
   "schema_version": "v1",
   "status": "converged",
   "termination_reason": "parallel_hash_match",
-  "turns": 20,
-  "rounds": 10,
+  "turns": 23,
+  "rounds": 12,
   "final_artifact_hash": "sha256:a1c2ec3d00d614f8c25e5f6c366350eb069a6ff00943b804ac242d0c248b794a",
   "agency": "moderate",
   "iteration_mode": "parallel_revision",
-  "peer_calls": 20,
+  "peer_calls": 23,
   "synthesis_calls": 0,
   "cost_source": "unavailable"
 }
@@ -213,7 +213,11 @@ agreed
 {
   "schema_version": "v1",
   "verdict": "CONVERGED",
-  "reasoning": "agreed"
+  "reasoning": "agreed",
+  "critique": {
+    "own_previous": "o",
+    "peer_previous": "p"
+  }
 }
 -->
 
@@ -226,7 +230,11 @@ agreed
 {
   "schema_version": "v1",
   "verdict": "CONVERGED",
-  "reasoning": "agreed"
+  "reasoning": "agreed",
+  "critique": {
+    "own_previous": "o",
+    "peer_previous": "p"
+  }
 }
 -->
 
@@ -252,7 +260,11 @@ agreed
 {
   "schema_version": "v1",
   "verdict": "CONVERGED",
-  "reasoning": "agreed"
+  "reasoning": "agreed",
+  "critique": {
+    "own_previous": "o",
+    "peer_previous": "p"
+  }
 }
 -->
 
@@ -265,7 +277,11 @@ agreed
 {
   "schema_version": "v1",
   "verdict": "CONVERGED",
-  "reasoning": "agreed"
+  "reasoning": "agreed",
+  "critique": {
+    "own_previous": "o",
+    "peer_previous": "p"
+  }
 }
 -->
 
@@ -291,7 +307,11 @@ agreed
 {
   "schema_version": "v1",
   "verdict": "CONVERGED",
-  "reasoning": "agreed"
+  "reasoning": "agreed",
+  "critique": {
+    "own_previous": "o",
+    "peer_previous": "p"
+  }
 }
 -->
 
@@ -304,7 +324,11 @@ agreed
 {
   "schema_version": "v1",
   "verdict": "CONVERGED",
-  "reasoning": "agreed"
+  "reasoning": "agreed",
+  "critique": {
+    "own_previous": "o",
+    "peer_previous": "p"
+  }
 }
 -->
 
@@ -330,7 +354,11 @@ agreed
 {
   "schema_version": "v1",
   "verdict": "CONVERGED",
-  "reasoning": "agreed"
+  "reasoning": "agreed",
+  "critique": {
+    "own_previous": "o",
+    "peer_previous": "p"
+  }
 }
 -->
 
@@ -343,7 +371,11 @@ agreed
 {
   "schema_version": "v1",
   "verdict": "CONVERGED",
-  "reasoning": "agreed"
+  "reasoning": "agreed",
+  "critique": {
+    "own_previous": "o",
+    "peer_previous": "p"
+  }
 }
 -->
 
@@ -369,7 +401,11 @@ agreed
 {
   "schema_version": "v1",
   "verdict": "CONVERGED",
-  "reasoning": "agreed"
+  "reasoning": "agreed",
+  "critique": {
+    "own_previous": "o",
+    "peer_previous": "p"
+  }
 }
 -->
 
@@ -382,7 +418,11 @@ agreed
 {
   "schema_version": "v1",
   "verdict": "CONVERGED",
-  "reasoning": "agreed"
+  "reasoning": "agreed",
+  "critique": {
+    "own_previous": "o",
+    "peer_previous": "p"
+  }
 }
 -->
 
@@ -408,7 +448,11 @@ agreed
 {
   "schema_version": "v1",
   "verdict": "CONVERGED",
-  "reasoning": "agreed"
+  "reasoning": "agreed",
+  "critique": {
+    "own_previous": "o",
+    "peer_previous": "p"
+  }
 }
 -->
 
@@ -421,7 +465,58 @@ agreed
 {
   "schema_version": "v1",
   "verdict": "CONVERGED",
-  "reasoning": "agreed"
+  "reasoning": "agreed",
+  "critique": {
+    "own_previous": "o",
+    "peer_previous": "p"
+  }
+}
+-->
+
+#### Round 11 - claude - ACCEPT
+
+Reasoning:
+fixture accepted
+
+<!-- consensus:consensus-verdict
+{
+  "schema_version": "v1",
+  "verdict": "ACCEPT",
+  "reasoning": "fixture accepted"
+}
+-->
+
+#### Round 11 - claude - CONVERGED
+
+Reasoning:
+agreed
+
+<!-- consensus:consensus-verdict
+{
+  "schema_version": "v1",
+  "verdict": "CONVERGED",
+  "reasoning": "agreed",
+  "critique": {
+    "own_previous": "o",
+    "peer_previous": "p"
+  }
+}
+-->
+
+#### Round 11 - codex - CONVERGED
+
+Reasoning:
+agreed
+
+<!-- consensus:consensus-verdict
+{
+  "schema_version": "v1",
+  "verdict": "CONVERGED",
+  "reasoning": "agreed",
+  "critique": {
+    "own_previous": "o",
+    "peer_previous": "p"
+  }
 }
 -->
 
@@ -433,12 +528,12 @@ agreed
   "schema_version": "v1",
   "status": "converged",
   "termination_reason": "parallel_hash_match",
-  "turns": 20,
-  "rounds": 10,
+  "turns": 23,
+  "rounds": 12,
   "final_artifact_hash": "sha256:a1e65c105e808eb43c2e05b8ce1d1ac0624013da3bda2cd5079090d0df19015e",
   "agency": "moderate",
   "iteration_mode": "parallel_revision",
-  "peer_calls": 20,
+  "peer_calls": 23,
   "synthesis_calls": 0,
   "cost_source": "unavailable"
 }
@@ -492,7 +587,11 @@ agreed
 {
   "schema_version": "v1",
   "verdict": "CONVERGED",
-  "reasoning": "agreed"
+  "reasoning": "agreed",
+  "critique": {
+    "own_previous": "o",
+    "peer_previous": "p"
+  }
 }
 -->
 
@@ -505,7 +604,11 @@ agreed
 {
   "schema_version": "v1",
   "verdict": "CONVERGED",
-  "reasoning": "agreed"
+  "reasoning": "agreed",
+  "critique": {
+    "own_previous": "o",
+    "peer_previous": "p"
+  }
 }
 -->
 
@@ -531,7 +634,11 @@ agreed
 {
   "schema_version": "v1",
   "verdict": "CONVERGED",
-  "reasoning": "agreed"
+  "reasoning": "agreed",
+  "critique": {
+    "own_previous": "o",
+    "peer_previous": "p"
+  }
 }
 -->
 
@@ -544,7 +651,11 @@ agreed
 {
   "schema_version": "v1",
   "verdict": "CONVERGED",
-  "reasoning": "agreed"
+  "reasoning": "agreed",
+  "critique": {
+    "own_previous": "o",
+    "peer_previous": "p"
+  }
 }
 -->
 
@@ -570,7 +681,11 @@ agreed
 {
   "schema_version": "v1",
   "verdict": "CONVERGED",
-  "reasoning": "agreed"
+  "reasoning": "agreed",
+  "critique": {
+    "own_previous": "o",
+    "peer_previous": "p"
+  }
 }
 -->
 
@@ -583,7 +698,11 @@ agreed
 {
   "schema_version": "v1",
   "verdict": "CONVERGED",
-  "reasoning": "agreed"
+  "reasoning": "agreed",
+  "critique": {
+    "own_previous": "o",
+    "peer_previous": "p"
+  }
 }
 -->
 
@@ -609,7 +728,11 @@ agreed
 {
   "schema_version": "v1",
   "verdict": "CONVERGED",
-  "reasoning": "agreed"
+  "reasoning": "agreed",
+  "critique": {
+    "own_previous": "o",
+    "peer_previous": "p"
+  }
 }
 -->
 
@@ -622,7 +745,11 @@ agreed
 {
   "schema_version": "v1",
   "verdict": "CONVERGED",
-  "reasoning": "agreed"
+  "reasoning": "agreed",
+  "critique": {
+    "own_previous": "o",
+    "peer_previous": "p"
+  }
 }
 -->
 
@@ -648,7 +775,11 @@ agreed
 {
   "schema_version": "v1",
   "verdict": "CONVERGED",
-  "reasoning": "agreed"
+  "reasoning": "agreed",
+  "critique": {
+    "own_previous": "o",
+    "peer_previous": "p"
+  }
 }
 -->
 
@@ -661,7 +792,11 @@ agreed
 {
   "schema_version": "v1",
   "verdict": "CONVERGED",
-  "reasoning": "agreed"
+  "reasoning": "agreed",
+  "critique": {
+    "own_previous": "o",
+    "peer_previous": "p"
+  }
 }
 -->
 
@@ -687,7 +822,11 @@ agreed
 {
   "schema_version": "v1",
   "verdict": "CONVERGED",
-  "reasoning": "agreed"
+  "reasoning": "agreed",
+  "critique": {
+    "own_previous": "o",
+    "peer_previous": "p"
+  }
 }
 -->
 
@@ -700,7 +839,58 @@ agreed
 {
   "schema_version": "v1",
   "verdict": "CONVERGED",
-  "reasoning": "agreed"
+  "reasoning": "agreed",
+  "critique": {
+    "own_previous": "o",
+    "peer_previous": "p"
+  }
+}
+-->
+
+#### Round 11 - claude - ACCEPT
+
+Reasoning:
+fixture accepted
+
+<!-- consensus:consensus-verdict
+{
+  "schema_version": "v1",
+  "verdict": "ACCEPT",
+  "reasoning": "fixture accepted"
+}
+-->
+
+#### Round 11 - claude - CONVERGED
+
+Reasoning:
+agreed
+
+<!-- consensus:consensus-verdict
+{
+  "schema_version": "v1",
+  "verdict": "CONVERGED",
+  "reasoning": "agreed",
+  "critique": {
+    "own_previous": "o",
+    "peer_previous": "p"
+  }
+}
+-->
+
+#### Round 11 - codex - CONVERGED
+
+Reasoning:
+agreed
+
+<!-- consensus:consensus-verdict
+{
+  "schema_version": "v1",
+  "verdict": "CONVERGED",
+  "reasoning": "agreed",
+  "critique": {
+    "own_previous": "o",
+    "peer_previous": "p"
+  }
 }
 -->
 
@@ -712,12 +902,12 @@ agreed
   "schema_version": "v1",
   "status": "converged",
   "termination_reason": "parallel_hash_match",
-  "turns": 20,
-  "rounds": 10,
+  "turns": 23,
+  "rounds": 12,
   "final_artifact_hash": "sha256:7662ca87aa7f61634e8a4d47d98e069fe1c92959ccb2d7cb67a349b9a92079eb",
   "agency": "moderate",
   "iteration_mode": "parallel_revision",
-  "peer_calls": 20,
+  "peer_calls": 23,
   "synthesis_calls": 0,
   "cost_source": "unavailable"
 }
@@ -771,7 +961,11 @@ agreed
 {
   "schema_version": "v1",
   "verdict": "CONVERGED",
-  "reasoning": "agreed"
+  "reasoning": "agreed",
+  "critique": {
+    "own_previous": "o",
+    "peer_previous": "p"
+  }
 }
 -->
 
@@ -784,7 +978,11 @@ agreed
 {
   "schema_version": "v1",
   "verdict": "CONVERGED",
-  "reasoning": "agreed"
+  "reasoning": "agreed",
+  "critique": {
+    "own_previous": "o",
+    "peer_previous": "p"
+  }
 }
 -->
 
@@ -810,7 +1008,11 @@ agreed
 {
   "schema_version": "v1",
   "verdict": "CONVERGED",
-  "reasoning": "agreed"
+  "reasoning": "agreed",
+  "critique": {
+    "own_previous": "o",
+    "peer_previous": "p"
+  }
 }
 -->
 
@@ -823,7 +1025,11 @@ agreed
 {
   "schema_version": "v1",
   "verdict": "CONVERGED",
-  "reasoning": "agreed"
+  "reasoning": "agreed",
+  "critique": {
+    "own_previous": "o",
+    "peer_previous": "p"
+  }
 }
 -->
 
@@ -849,7 +1055,11 @@ agreed
 {
   "schema_version": "v1",
   "verdict": "CONVERGED",
-  "reasoning": "agreed"
+  "reasoning": "agreed",
+  "critique": {
+    "own_previous": "o",
+    "peer_previous": "p"
+  }
 }
 -->
 
@@ -862,7 +1072,11 @@ agreed
 {
   "schema_version": "v1",
   "verdict": "CONVERGED",
-  "reasoning": "agreed"
+  "reasoning": "agreed",
+  "critique": {
+    "own_previous": "o",
+    "peer_previous": "p"
+  }
 }
 -->
 
@@ -888,7 +1102,11 @@ agreed
 {
   "schema_version": "v1",
   "verdict": "CONVERGED",
-  "reasoning": "agreed"
+  "reasoning": "agreed",
+  "critique": {
+    "own_previous": "o",
+    "peer_previous": "p"
+  }
 }
 -->
 
@@ -901,7 +1119,11 @@ agreed
 {
   "schema_version": "v1",
   "verdict": "CONVERGED",
-  "reasoning": "agreed"
+  "reasoning": "agreed",
+  "critique": {
+    "own_previous": "o",
+    "peer_previous": "p"
+  }
 }
 -->
 
@@ -927,7 +1149,11 @@ agreed
 {
   "schema_version": "v1",
   "verdict": "CONVERGED",
-  "reasoning": "agreed"
+  "reasoning": "agreed",
+  "critique": {
+    "own_previous": "o",
+    "peer_previous": "p"
+  }
 }
 -->
 
@@ -940,7 +1166,11 @@ agreed
 {
   "schema_version": "v1",
   "verdict": "CONVERGED",
-  "reasoning": "agreed"
+  "reasoning": "agreed",
+  "critique": {
+    "own_previous": "o",
+    "peer_previous": "p"
+  }
 }
 -->
 
@@ -966,7 +1196,11 @@ agreed
 {
   "schema_version": "v1",
   "verdict": "CONVERGED",
-  "reasoning": "agreed"
+  "reasoning": "agreed",
+  "critique": {
+    "own_previous": "o",
+    "peer_previous": "p"
+  }
 }
 -->
 
@@ -979,6 +1213,57 @@ agreed
 {
   "schema_version": "v1",
   "verdict": "CONVERGED",
-  "reasoning": "agreed"
+  "reasoning": "agreed",
+  "critique": {
+    "own_previous": "o",
+    "peer_previous": "p"
+  }
+}
+-->
+
+#### Round 11 - claude - ACCEPT
+
+Reasoning:
+fixture accepted
+
+<!-- consensus:consensus-verdict
+{
+  "schema_version": "v1",
+  "verdict": "ACCEPT",
+  "reasoning": "fixture accepted"
+}
+-->
+
+#### Round 11 - claude - CONVERGED
+
+Reasoning:
+agreed
+
+<!-- consensus:consensus-verdict
+{
+  "schema_version": "v1",
+  "verdict": "CONVERGED",
+  "reasoning": "agreed",
+  "critique": {
+    "own_previous": "o",
+    "peer_previous": "p"
+  }
+}
+-->
+
+#### Round 11 - codex - CONVERGED
+
+Reasoning:
+agreed
+
+<!-- consensus:consensus-verdict
+{
+  "schema_version": "v1",
+  "verdict": "CONVERGED",
+  "reasoning": "agreed",
+  "critique": {
+    "own_previous": "o",
+    "peer_previous": "p"
+  }
 }
 -->
