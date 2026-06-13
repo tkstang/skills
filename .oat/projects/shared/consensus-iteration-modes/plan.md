@@ -5,7 +5,7 @@ oat_blockers: []
 oat_last_updated: 2026-06-12
 oat_phase: plan
 oat_phase_status: in_progress
-oat_plan_hill_phases: ["p06"] # pause only after final phase (user directive 2026-06-13)
+oat_plan_hill_phases: ["p07"] # pause only after final phase (p07 added 2026-06-13 from dogfood fixes)
 oat_plan_parallel_groups: [] # groups of phases that run concurrently in worktrees; [] = fully sequential
 oat_auto_review_at_hill_checkpoints: true
 oat_plan_source: spec-driven # spec-driven | quick | imported
@@ -616,6 +616,67 @@ oat_generated: false
 
 ---
 
+## Phase 7: Dogfood fixes — live-peer compatibility (p07)
+
+**Goal:** The plugin actually works end-to-end against live peers, including codex (the canonical second model). Surfaced by the p06-t06 dogfood (2026-06-13): the output schemas and verdict model had never run against real paseo, and the default run directory is reused across runs. The project does not ship until codex works as a peer and reruns are isolated. (Closes the live half of NFR4.)
+
+### Task p07-t01: Output-schema provider compatibility (DONE — landed during dogfood)
+
+Already implemented and committed during the dogfood session; recorded here for traceability. paseo's `paseo run --output-schema` builds a provider `response_format` from the schema files, which failed for three reasons our stubbed suite never exercised:
+
+- draft 2020-12 → draft-07 (paseo's default Ajv) — commit `ea45752`.
+- `oneOf`/`not` forbidden by OpenAI structured output; removed (the per-verdict conditional is enforced by `validateVerdictShape` branch tables) — commit `fbc9e61`.
+- every property must declare `type`; added to all `const`/`enum` properties — commit `f680ad0`.
+
+**Verification:** `npm test` green (513); live codex now passes schema compilation (it failed our own validator next — see p07-t02).
+
+### Task p07-t02: Accept OpenAI/codex strict structured output (verdict normalization)
+
+**Files:**
+
+- Modify: `plugins/consensus/skills/refine/scripts/consensus-loop.mjs`
+- Modify: `tests/verdict-validation.test.mjs` (+ records/parallel tests as needed)
+
+**Step 1: Write test (RED)** — a verdict shaped like OpenAI strict output (every property present, optionals empty: e.g. `ACCEPT` with `proposed_artifact: ""` and `concerns: []`; parallel `CONVERGED` with empty `proposed_artifact`) must validate/normalize to the intended verdict rather than being rejected as `additional property`. A genuinely contradictory verdict (e.g. `ACCEPT` with a NON-empty `proposed_artifact`) must still be rejected.
+
+**Step 2: Implement (GREEN)** — normalize the peer verdict before shape validation: for a verdict whose branch table does not permit a field, drop that field when it is empty (`""` / `[]`); leave non-empty disallowed fields to fail validation. Apply in both alternating and parallel paths and to synthesis where analogous. Keep the deterministic engine semantics (normalization is a pure function).
+
+**Step 3: Verify** — `node --test tests/verdict-validation.test.mjs && npm test`. Expected: green; new strict-output cases pass.
+
+**Step 4: Commit** — `git commit -m "fix(p07-t02): normalize strict structured-output verdicts (codex compatibility)"`
+
+### Task p07-t03: Isolate run directories so reruns don't contaminate each other
+
+**Files:**
+
+- Modify: `plugins/consensus/skills/refine/scripts/consensus-refine.mjs`
+- Modify: `tests/sequential-wrapper.test.mjs` (or wrapper-options)
+
+**Step 1: Write test (RED)** — two consecutive fresh (non-`--resume`) runs on the same input in the same repo produce identical correct output; the second run does not inherit the first run's per-section records. (Today the default run dir is the constant `.consensus/run`.)
+
+**Step 2: Implement (GREEN)** — give the default run a unique id (timestamp/uuid) so each fresh run gets its own dir, and/or only seed prior records when `--resume` is set. Preserve `--resume` semantics (artifact-canonical state) and `--run-dir` override.
+
+**Step 3: Verify** — `node --test tests/sequential-wrapper.test.mjs && npm test`. Expected: green; rerun-isolation case passes.
+
+**Step 4: Commit** — `git commit -m "fix(p07-t03): isolate consensus run directories per run"`
+
+### Task p07-t04: Live end-to-end verification with claude+codex (closes NFR4)
+
+**Files:**
+
+- Modify: `.oat/projects/shared/consensus-iteration-modes/implementation.md` (record results)
+- Modify: `plugins/consensus/skills/refine/references/operator-qa.md` (drop the codex-unavailable workaround note once codex works)
+
+**Step 1** — with paseo + claude + codex available, run `refine` with `--peers claude,codex` across all three iteration modes plus the escalation scenario, cleaning the run dir between runs.
+
+**Step 2** — confirm each converges (or escalates) without `OUTPUT_SCHEMA_FAILED` or validator errors; confirm the artifacts are audit-trail-legible (NFR4); confirm the `--host-direction` escalation flow records a `HOST_DECISION` round.
+
+**Step 3** — record the mode-comparison findings in implementation.md (closes p06-t06) and update operator-qa.md.
+
+**Step 4: Commit** — `git commit -m "docs(p07-t04): record live claude+codex dogfood; close NFR4"`
+
+---
+
 ## Reviews
 
 | Scope  | Type     | Status          | Date       | Artifact                                              |
@@ -626,6 +687,7 @@ oat_generated: false
 | p04    | code     | passed          | 2026-06-13 | inline review (fable); 0 findings                      |
 | p05    | code     | passed          | 2026-06-13 | inline review (fable); 0 findings (incl. moved p05-t05)|
 | p06    | code     | passed          | 2026-06-13 | inline review (fable); 0 findings (t06 dogfood deferred)|
+| p07    | code     | pending         | -          | dogfood fixes (codex compat + run-dir isolation)        |
 | final  | code     | pending         | -          | -                                                      |
 | spec   | artifact | pending         | -          | -                                                      |
 | design | artifact | fixes_completed | 2026-06-12 | reviews/archived/artifact-design-review-2026-06-12.md |
@@ -641,8 +703,9 @@ oat_generated: false
 - Phase 4: Escalation ladder — 6 tasks
 - Phase 5: Resume + parallel-section composition — 5 tasks (+p05-t05 from p01-t06)
 - Phase 6: Host surface, docs, smoke, dogfood — 6 tasks
+- Phase 7: Dogfood fixes — live-peer compatibility — 4 tasks (codex schema compat [done], verdict normalization, run-dir isolation, live verification)
 
-**Total: 36 tasks**
+**Total: 40 tasks**
 
 ## References
 

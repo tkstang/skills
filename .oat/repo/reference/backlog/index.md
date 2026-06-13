@@ -13,12 +13,10 @@
 | bl-5d49 | Add parallel-revision iteration mode to consensus-loop | open | high | feature | M |
 | bl-7af0 | Add parallel-synthesized iteration mode (synthesis-mediation design gate) | open | high | feature | L |
 | bl-d85f | Complete v0.1 release verification and tag | open | high | task | M |
-| bl-0cff | Make consensus output schemas compatible with OpenAI/codex structured output | open | high | feature | M |
 | bl-b9b9 | Add consensus-create skill (artifact from brief) | open | medium | feature | M |
 | bl-87ef | Add consensus-decide skill (recommend among options) | open | medium | feature | S |
 | bl-5174 | Add consensus-evaluate skill (artifact vs rubric) | open | medium | feature | S |
 | bl-0cb8 | Add consensus-plan skill (structured plan from goal) | open | medium | feature | S |
-| bl-5966 | Consensus run dir uses constant id "run"; repeated runs contaminate each other | open | medium | feature | S |
 | bl-645c | Add consensus-research skill (investigate question, synthesized findings) | open | low | feature | M |
 | bl-9ed4 | Add deliberation metrics (tokens, wall-clock, rounds) to artifacts | open | low | feature | S |
 | bl-ef38 | Add similarity heuristic for near-converged deliberation states | open | low | feature | S |
