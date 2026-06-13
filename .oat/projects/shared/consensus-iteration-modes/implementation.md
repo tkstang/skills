@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-13
-oat_current_task_id: p07-t05
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -137,7 +137,7 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 | p04   | DONE (t01–t06) | pass (inline/fable) | 0 | complete |
 | p05   | DONE (t01–t05) | pass (inline/fable) | 0 | complete (v1 cutover + v0 gate) |
 | p06   | DONE (t01–t05) | pass (inline/fable) | 0 | complete; t06 rolled into p07 |
-| p07   | DONE (t01–t04) | live dogfood | n/a | live-peer compatibility fixes; all 3 modes + escalation verified with claude+codex |
+| p07   | DONE (t01–t05) | live dogfood + final-review fix | 1 fix (p07-t05) | live-peer compatibility fixes; all 3 modes + escalation verified with claude+codex; final-review Critical (HOST_DECISION metadata persistence) fixed |
 
 #### Dispatch Notes
 
@@ -270,9 +270,9 @@ candidate to harden the deliberation layer) and the deferred **bl-ef38** (simila
 **Review artifact:** reviews/archived/final-review-2026-06-13.md
 **Findings:** Critical 1, Important 0, Medium 0, Minor 0. (npm test 523, validate, smoke all green per the reviewer.)
 
-- **C1 (agreed, code_fix_required) → p07-t05:** `renderRecord` drops `decision_kind`/`escalation_trigger` from the canonical `consensus-verdict` block for HOST_DECISION rounds, so a twice-resumed artifact can't detect a prior host decision and FR5 genuinely-stuck promotion can fail (route back to host instead of escalating to user). The in-memory single-resume path works (smoke passes), but the persisted-then-resumed path doesn't — a real restart-safety gap our tests missed. Fix preserves the metadata in `renderRecord` + adds a render→parse→repeat-fire-promotion regression test.
+- **C1 (agreed, code_fix_required) → p07-t05 [FIXED — 9ba63d6]:** `renderRecord` dropped `decision_kind`/`escalation_trigger` from the canonical `consensus-verdict` block for HOST_DECISION rounds, so a twice-resumed artifact couldn't detect a prior host decision and FR5 genuinely-stuck promotion could fail (route back to host instead of escalating to user). The in-memory single-resume path worked (smoke passes), but the persisted-then-resumed path didn't — a real restart-safety gap our tests missed. **Fix:** `renderRecord` now emits both fields (mirroring `user_direction`), so they round-trip through `normalizeResumeRecords`'s spread. Added three regression tests in `tests/resume-parse.test.mjs` that render a HOST_DECISION artifact, rehydrate the canonical block, and confirm a re-fired trigger promotes to the user (`repeat_fire` and `defer_to_user` reasons). Full suite 526 green, validate + smoke pass.
 
-**Next:** execute p07-t05, then re-review the fix scope.
+**Next:** re-review the fix scope (`oat-project-review-provide code final`) to move the `final` row from `fixes_completed` → `passed`, then proceed to PR.
 
 ## Deviations from Plan / Design
 

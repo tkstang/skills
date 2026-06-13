@@ -675,7 +675,7 @@ Already implemented and committed during the dogfood session; recorded here for 
 
 **Step 4: Commit** — `git commit -m "docs(p07-t04): record live claude+codex dogfood; close NFR4"`
 
-### Task p07-t05: (review) Persist HOST_DECISION routing metadata in the canonical artifact block
+### Task p07-t05: (review) Persist HOST_DECISION routing metadata in the canonical artifact block (DONE — 9ba63d6)
 
 **Files:**
 
@@ -709,7 +709,7 @@ Render a `HOST_DECISION` artifact → parse via the resume parser → assert the
 | p05    | code     | passed          | 2026-06-13 | inline review (fable); 0 findings (incl. moved p05-t05)|
 | p06    | code     | passed          | 2026-06-13 | inline review (fable); 0 findings (t06 dogfood deferred)|
 | p07    | code     | fixes_completed | 2026-06-13 | live dogfood: all modes + codex verified; see implementation.md |
-| final  | code     | fixes_added     | 2026-06-13 | reviews/archived/final-review-2026-06-13.md (1 Critical → p07-t05) |
+| final  | code     | fixes_completed | 2026-06-13 | reviews/archived/final-review-2026-06-13.md (1 Critical → p07-t05, fixed; awaiting re-review) |
 | spec   | artifact | pending         | -          | -                                                      |
 | design | artifact | fixes_completed | 2026-06-12 | reviews/archived/artifact-design-review-2026-06-12.md |
 | plan   | artifact | received        | 2026-06-13 | reviews/artifact-plan-review-2026-06-13.md              |
