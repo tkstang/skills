@@ -1,6 +1,6 @@
 ---
-oat_status: in_progress
-oat_ready_for: null
+oat_status: complete
+oat_ready_for: oat-project-implement
 oat_blockers: []
 oat_last_updated: 2026-06-12
 oat_phase: plan
@@ -8,9 +8,9 @@ oat_phase_status: in_progress
 oat_plan_hill_phases: [] # phases to pause AFTER completing (empty = every phase)
 oat_plan_parallel_groups: [] # groups of phases that run concurrently in worktrees; [] = fully sequential
 oat_plan_source: spec-driven # spec-driven | quick | imported
-oat_import_reference: null # e.g., references/imported-plan.md
-oat_import_source_path: null # original source path provided by user
-oat_import_provider: null # codex | cursor | claude | null
+oat_import_reference: null
+oat_import_source_path: null
+oat_import_provider: null
 oat_generated: false
 ---
 
@@ -18,187 +18,631 @@ oat_generated: false
 
 > Execute this plan using `oat-project-implement` — sequential by default, parallel when `oat_plan_parallel_groups` is declared.
 
-**Goal:** {Brief goal statement from spec}
+**Goal:** Implement the parallel-revision and parallel-synthesized iteration modes in the consensus engine with a unified v1 record schema and an agency-gated escalation ladder, exposed through the refine skill.
 
-**Architecture:** {1-2 sentence architecture summary from design}
+**Architecture:** Round-executor abstraction over the existing deterministic loop engine; wrapper-driven mechanical synthesis with agency-routed host/user escalation re-entering via resume vectors (see `design.md`).
 
-**Tech Stack:** {Key technologies from design}
+**Tech Stack:** Node >= 22 ESM, stdlib only; Paseo CLI shell-out; `node --test` with stubbed peers/synthesizer.
 
-**Commit Convention:** `{type}({scope}): {description}` - e.g., `feat(p01-t01): add user auth endpoint`
+**Commit Convention:** `{type}(p{NN}-t{NN}): {description}` — e.g., `feat(p02-t04): add parallel-revision round executor`
 
 ## Planning Checklist
 
-- [ ] Confirmed HiLL checkpoints with user
-- [ ] Set `oat_plan_hill_phases` in frontmatter
-- [ ] Evaluated phases for parallelism opportunities
-- [ ] Set `oat_plan_parallel_groups` in frontmatter
+- [x] Defer HiLL checkpoint confirmation to oat-project-implement
+- [x] Evaluated phases for parallelism opportunities — all six phases modify `consensus-loop.mjs` and/or `consensus-refine.mjs`, so file boundaries overlap throughout and phases run strictly sequentially
+- [x] Set `oat_plan_parallel_groups` in frontmatter (empty = fully sequential)
 
 ---
 
-## Parallelism
+## Phase 1: v1 schema family + validation substrate (p01)
 
-Phases that have no overlapping file modifications may run concurrently. To declare parallelism:
+**Goal:** All record types speak schema v1; mode-aware verdict and synthesis validation exists; v0 artifacts are rejected on resume; alternating is regression-locked on v1 fixtures. (FR4, FR9 groundwork)
 
-```yaml
-oat_plan_parallel_groups: [['p02', 'p03']]
-```
-
-Each inner array is a group of phases that execute in parallel (each in its own worktree) and merge back in plan order after all pass. Groups themselves run sequentially.
-
-Default is `[]` (fully sequential, no worktrees). Only declare parallelism when phases are genuinely file-disjoint — overlap will produce merge conflicts that stop the run.
-
----
-
-## Dispatch Profile
-
-_Optional override surface. Use only for explicit user-authored constraints or preferences. Omit this section when runtime selection should choose the lowest confident tier._
-
-Blank or `auto` means there is no explicit constraint for that provider. Do not generate rows by default; a missing phase row uses runtime selection.
-
-| Phase | Claude model              | Codex effort                   | Rationale                     |
-| ----- | ------------------------- | ------------------------------ | ----------------------------- |
-| pNN   | haiku\|sonnet\|opus\|auto | low\|medium\|high\|xhigh\|auto | why this constraint is needed |
-
-Codex effort values are preferred controls. `oat-project-implement` caps them against the resolved OAT dispatch ceiling and maps selected efforts to pinned implementer variants. Codex provider default effort is informational for base/unpinned roles and is not an OAT ceiling.
-
----
-
-## Phase 1: {Phase Name}
-
-### Task p01-t01: {Task Name}
+### Task p01-t01: Bump loop schema version to v1 and relock alternating fixtures
 
 **Files:**
 
-- Create: `{path/to/file.ts}`
-- Modify: `{path/to/existing.ts}`
+- Modify: `plugins/consensus/skills/refine/scripts/consensus-loop.mjs`
+- Modify: `plugins/consensus/skills/refine/schemas/verdict-alternating.schema.json`
+- Modify: `tests/verdict-validation.test.mjs`, `tests/loop-records.test.mjs`, `tests/loop-convergence.test.mjs` (fixture `schema_version` values only)
 
-**Step 1: Write test (RED)**
+**Step 1: Write test (RED)** — update fixture expectations to `schema_version: 'v1'`; add a test asserting `LOOP_SCHEMA_VERSION === 'v1'` and that the alternating schema file's `schema_version` const is `v1`.
 
-```typescript
-// {path/to/file.test.ts}
-describe('{feature}', () => {
-  it('{test case}', () => {
-    // Test implementation
-  });
-});
-```
+**Step 2: Implement (GREEN)** — change `LOOP_SCHEMA_VERSION` to `'v1'`; update the alternating schema's `schema_version` const. No other behavior changes.
 
-Run: `pnpm --filter {package-name} exec vitest run {path/to/file.test.ts}`
-Expected: Test fails (RED)
+**Step 3: Verify** — Run: `node --test tests/verdict-validation.test.mjs tests/loop-records.test.mjs tests/loop-convergence.test.mjs` then `npm test`. Expected: green; only schema-version fixture diffs.
 
-**Step 2: Implement (GREEN)**
+**Step 4: Commit** — `git add plugins/consensus tests && git commit -m "feat(p01-t01): bump consensus record schema to v1"`
 
-```typescript
-// {path/to/file.ts}
-// Implementation code or interface signatures
-```
-
-Run: `pnpm --filter {package-name} exec vitest run {path/to/file.test.ts}`
-Expected: Test passes (GREEN)
-
-Use the actual runner command that scopes to the intended file or test target. Do not write a package-level shortcut unless it truly executes only the scope the task claims.
-
-**Step 3: Refactor**
-
-{Any cleanup or improvements while tests stay green}
-
-**Step 4: Verify**
-
-Run: `pnpm lint && pnpm type-check`
-Expected: No errors
-
-**Step 5: Commit**
-
-```bash
-git add {files}
-git commit -m "feat(p01-t01): {description}"
-```
-
----
-
-### Task p01-t02: {Task Name}
+### Task p01-t02: Mode-aware verdict shape validation (parallel vocabulary)
 
 **Files:**
 
-- {File list}
+- Modify: `plugins/consensus/skills/refine/scripts/consensus-loop.mjs`
+- Create: `plugins/consensus/skills/refine/schemas/verdict-parallel.schema.json`
+- Modify: `tests/verdict-validation.test.mjs`
 
-**Step 1: Write test (RED)**
+**Step 1: Write test (RED)** — cases: parallel REVISE requires `proposed_artifact` + `critique.own_previous` + `critique.peer_previous`; ACCEPT_PEER requires critique + `proposed_artifact` (copy of adopted text); CONVERGED/IMPASSE require critique + reasoning; alternating vocabulary rejected in parallel mode and vice versa.
 
-{Test code}
+**Step 2: Implement (GREEN)** — extend `VERDICT_BRANCHES` into per-mode branch tables; `validateVerdictShape(verdict, { mode })`; add the parallel schema file mirroring the branch table (Paseo-side enforcement).
 
-**Step 2: Implement (GREEN)**
+**Step 3: Verify** — Run: `node --test tests/verdict-validation.test.mjs`. Expected: all branch/vocabulary cases pass.
 
-{Implementation code or signatures}
+**Step 4: Commit** — `git commit -m "feat(p01-t02): add mode-aware parallel verdict validation"`
 
-**Step 3: Refactor**
+### Task p01-t03: Byte caps for critique fields
 
-{Optional cleanup}
+**Files:**
 
-**Step 4: Verify**
+- Modify: `plugins/consensus/skills/refine/scripts/consensus-loop.mjs`
+- Modify: `tests/verdict-validation.test.mjs`
 
-Run: `{verification command}`
-Expected: {output}
+**Step 1: Write test (RED)** — `critique.own_previous` / `critique.peer_previous` each capped at 16 KB (reasoning cap); oversize returns `OVERSIZE_REJECTED` metadata naming the field; total-verdict cap still enforced with critiques included.
 
-Verification commands should be behaviorally accurate. If the task claims a file-scoped or test-scoped check, use the concrete runner invocation that really scopes to that target.
+**Step 2: Implement (GREEN)** — extend `validateVerdictCaps` with critique fields in `VERDICT_CAPS` accounting.
 
-**Step 5: Commit**
+**Step 3: Verify** — Run: `node --test tests/verdict-validation.test.mjs`. Expected: cap matrix green.
 
-```bash
-git add {files}
-git commit -m "feat(p01-t02): {description}"
-```
+**Step 4: Commit** — `git commit -m "feat(p01-t03): enforce byte caps on parallel critique fields"`
+
+### Task p01-t04: Synthesis payload schema + shape validation
+
+**Files:**
+
+- Create: `plugins/consensus/skills/refine/schemas/synthesis.schema.json`
+- Modify: `plugins/consensus/skills/refine/scripts/consensus-loop.mjs`
+- Modify: `tests/verdict-validation.test.mjs`
+
+**Step 1: Write test (RED)** — `validateSynthesisShape`: requires `schema_version: 'v1'`, `synthesized_artifact` (string), `synthesis_reasoning` (string), `unresolved_disagreements` (string array, may be empty); rejects missing/mistyped fields.
+
+**Step 2: Implement (GREEN)** — add `validateSynthesisShape` + schema file.
+
+**Step 3: Verify** — Run: `node --test tests/verdict-validation.test.mjs`. Expected: green.
+
+**Step 4: Commit** — `git commit -m "feat(p01-t04): add synthesis payload schema and shape validation"`
+
+### Task p01-t05: Synthesis byte caps
+
+**Files:**
+
+- Modify: `plugins/consensus/skills/refine/scripts/consensus-loop.mjs`
+- Modify: `tests/verdict-validation.test.mjs`
+
+**Step 1: Write test (RED)** — `validateSynthesisCaps`: `synthesized_artifact` ≤ 256 KB; `synthesis_reasoning` ≤ 16 KB; each disagreement ≤ 4 KB, max 20; total ≤ 512 KB; metadata-only oversize results.
+
+**Step 2: Implement (GREEN)** — add `SYNTHESIS_CAPS` + `validateSynthesisCaps` mirroring verdict-caps structure.
+
+**Step 3: Verify** — Run: `node --test tests/verdict-validation.test.mjs`. Expected: green.
+
+**Step 4: Commit** — `git commit -m "feat(p01-t05): enforce synthesis byte caps"`
+
+### Task p01-t06: Fail-closed v0 artifact resume rejection
+
+**Files:**
+
+- Modify: `plugins/consensus/skills/refine/scripts/consensus-refine.mjs`
+- Modify: `tests/resume-parse.test.mjs`
+
+**Step 1: Write test (RED)** — resuming an artifact whose frontmatter/canonical blocks carry `schema_version: v0` (fixture from current v0 shape) fails with code `SCHEMA_VERSION_MISMATCH`, exit `DATA`, and a message naming v0, v1, and the no-migration policy.
+
+**Step 2: Implement (GREEN)** — version gate at the top of resume parsing, before section-state validation.
+
+**Step 3: Verify** — Run: `node --test tests/resume-parse.test.mjs`. Expected: rejection case green; existing v1 resume cases unaffected.
+
+**Step 4: Commit** — `git commit -m "feat(p01-t06): reject v0 artifacts on resume (no migration)"`
 
 ---
 
-## Phase 2: {Phase Name}
+## Phase 2: Round executor + parallel-revision mode (p02)
 
-### Task p02-t01: {Task Name}
+**Goal:** Executor abstraction lands with alternating unchanged; parallel-revision runs end-to-end with deterministic pair commits, per-mode predicates, mode flag, and disclosure. (FR1, FR3, NFR1)
 
-{Continue TDD pattern...}
+### Task p02-t01: Extract round-executor abstraction (alternating unchanged)
+
+**Files:**
+
+- Modify: `plugins/consensus/skills/refine/scripts/consensus-loop.mjs`
+- Modify: `tests/loop-convergence.test.mjs` (only if seams move)
+
+**Step 1: Write test (RED)** — characterization: run an alternating stubbed loop and snapshot the records stream; assert post-refactor stream is identical.
+
+**Step 2: Implement (GREEN)** — extract `executeRound({ mode, ... })` with the alternating body moved verbatim; `runConsensusLoop` iterates rounds via the executor. Pure refactor.
+
+**Step 3: Verify** — Run: `npm test`. Expected: full suite green, characterization snapshot identical.
+
+**Step 4: Commit** — `git commit -m "refactor(p02-t01): extract round executor abstraction"`
+
+### Task p02-t02: --iteration flag (engine args + wrapper passthrough)
+
+**Files:**
+
+- Modify: `plugins/consensus/skills/refine/scripts/consensus-loop.mjs` (`parseLoopArgs`)
+- Modify: `plugins/consensus/skills/refine/scripts/consensus-refine.mjs`
+- Modify: `tests/wrapper-options.test.mjs`, `tests/consensus-loop-cli.test.mjs`
+
+**Step 1: Write test (RED)** — `--iteration parallel_revision|parallel_synthesized|alternating` accepted; default alternating; invalid value → `INVALID_ITERATION_MODE`, exit USAGE, message lists allowed values; cold-start `independent_draft` rejected with "not yet supported".
+
+**Step 2: Implement (GREEN)** — parse + validate in both layers; thread mode into loop options and section packets context.
+
+**Step 3: Verify** — Run: `node --test tests/wrapper-options.test.mjs tests/consensus-loop-cli.test.mjs`. Expected: green.
+
+**Step 4: Commit** — `git commit -m "feat(p02-t02): add --iteration mode selection"`
+
+### Task p02-t03: Parallel peer prompt builder
+
+**Files:**
+
+- Modify: `plugins/consensus/skills/refine/scripts/consensus-loop.mjs`
+- Modify: `tests/loop-records.test.mjs` (or new prompt assertions in `tests/loop-convergence.test.mjs`)
+
+**Step 1: Write test (RED)** — `buildParallelTurnPrompt` includes: SECTION framing, mode line `parallel_revision`, own previous revision, peer previous revision, both prior critiques, vocabulary instruction (REVISE/ACCEPT_PEER/CONVERGED/IMPASSE + critique fields); round 1 states "previous revision: none" for both.
+
+**Step 2: Implement (GREEN)** — new builder alongside `buildTurnPrompt`, sharing the untrusted-content framing block.
+
+**Step 3: Verify** — Run: `node --test tests/loop-records.test.mjs`. Expected: prompt content assertions green.
+
+**Step 4: Commit** — `git commit -m "feat(p02-t03): add parallel peer prompt builder"`
+
+### Task p02-t04: Parallel-revision executor with atomic pair commit
+
+**Files:**
+
+- Modify: `plugins/consensus/skills/refine/scripts/consensus-loop.mjs`
+- Modify: `tests/loop-records.test.mjs`
+
+**Step 1: Write test (RED)** — stub both peers with controllable resolution order: records always append in fixed peer order regardless of completion order; one peer failing → no records committed for the round, section `error` with details naming the failed peer; both verdicts validated before either record commits.
+
+**Step 2: Implement (GREEN)** — concurrent `invokePeer` pair via `Promise.allSettled`; validate both; commit pair in peer order or abort.
+
+**Step 3: Verify** — Run: `node --test tests/loop-records.test.mjs`. Expected: ordering + atomicity cases green.
+
+**Step 4: Commit** — `git commit -m "feat(p02-t04): add parallel-revision round executor with atomic pair commit"`
+
+### Task p02-t05: Parallel-revision convergence predicate
+
+**Files:**
+
+- Modify: `plugins/consensus/skills/refine/scripts/consensus-loop.mjs`
+- Modify: `tests/loop-convergence.test.mjs`
+
+**Step 1: Write test (RED)** — converges on same-round normalized hash match; converges on mutual ACCEPT_PEER adopting identical prior text; does NOT converge on mutual ACCEPT_PEER adopting differing texts (swap); mutual CONVERGED converges at moderate/maximum, not at minimal; minimal agency uses strict hashing (existing agency option plumbing).
+
+**Step 2: Implement (GREEN)** — `detectParallelConvergence(records, options)` exported; dispatched per mode.
+
+**Step 3: Verify** — Run: `node --test tests/loop-convergence.test.mjs`. Expected: green.
+
+**Step 4: Commit** — `git commit -m "feat(p02-t05): add parallel-revision convergence predicate"`
+
+### Task p02-t06: Parallel oscillation predicate (pair-based)
+
+**Files:**
+
+- Modify: `plugins/consensus/skills/refine/scripts/consensus-loop.mjs`
+- Modify: `tests/loop-convergence.test.mjs`
+
+**Step 1: Write test (RED)** — order-normalized round hash pairs cycling pair(N)==pair(N-2)≠pair(N-1) over 4 rounds detect oscillation; stable-but-diverged pairs do not; alternating oscillation predicate untouched.
+
+**Step 2: Implement (GREEN)** — `detectParallelOscillation(records, options)` exported.
+
+**Step 3: Verify** — Run: `node --test tests/loop-convergence.test.mjs`. Expected: green.
+
+**Step 4: Commit** — `git commit -m "feat(p02-t06): add pair-based parallel oscillation detection"`
+
+### Task p02-t07: Mode disclosure + call counts (run_started / resolution)
+
+**Files:**
+
+- Modify: `plugins/consensus/skills/refine/scripts/consensus-refine.mjs`
+- Modify: `plugins/consensus/skills/refine/scripts/consensus-loop.mjs` (status `peer_calls`)
+- Modify: `tests/sequential-wrapper.test.mjs`
+
+**Step 1: Write test (RED)** — `run_started` carries `iteration_mode` and `calls_per_round: { peer: 2, synthesis: 0 }` for parallel_revision (peer 1/synthesis 0 alternating); loop status and artifact resolution block carry `peer_calls` totals.
+
+**Step 2: Implement (GREEN)** — extend event payload, `resultStatus` extras, resolution rendering, artifact frontmatter.
+
+**Step 3: Verify** — Run: `node --test tests/sequential-wrapper.test.mjs`. Expected: green.
+
+**Step 4: Commit** — `git commit -m "feat(p02-t07): disclose mode call multiplier and report call counts"`
+
+### Task p02-t08: Parallel-revision integration + reproducibility
+
+**Files:**
+
+- Create: `tests/parallel-modes.test.mjs`
+
+**Step 1: Write test (RED)** — wrapper end-to-end with paseo-stub: multi-section doc in parallel_revision converges; artifact contains per-round critiques for both peers; repeat the identical stubbed run and assert byte-identical records modulo timestamps/run-id (NFR1).
+
+**Step 2: Implement (GREEN)** — fix any determinism gaps surfaced.
+
+**Step 3: Verify** — Run: `node --test tests/parallel-modes.test.mjs && npm test`. Expected: green.
+
+**Step 4: Commit** — `git commit -m "test(p02-t08): parallel-revision integration + reproducibility coverage"`
+
+---
+
+## Phase 3: Parallel-synthesized mode (p03)
+
+**Goal:** Synthesized mode runs end-to-end: synthesis prompt/call/record, stability convergence, synthesizer configuration, two-level transaction contract. (FR2, FR6)
+
+### Task p03-t01: Synthesis prompt builder
+
+**Files:**
+
+- Modify: `plugins/consensus/skills/refine/scripts/consensus-loop.mjs`
+- Modify: `tests/loop-records.test.mjs`
+
+**Step 1: Write test (RED)** — `buildSynthesisPrompt` includes goal, both revisions (SECTION-framed), both critiques, prior unresolved disagreements, "prefer stronger reasoning" instruction, and the output contract fields.
+
+**Step 2: Implement (GREEN)** — builder per design §2 (v3 sketch).
+
+**Step 3: Verify** — Run: `node --test tests/loop-records.test.mjs`. Expected: green.
+
+**Step 4: Commit** — `git commit -m "feat(p03-t01): add synthesis prompt builder"`
+
+### Task p03-t02: --synthesizer flag, default resolution, preflight
+
+**Files:**
+
+- Modify: `plugins/consensus/skills/refine/scripts/consensus-refine.mjs`, `consensus-loop.mjs`
+- Modify: `tests/wrapper-options.test.mjs`, `tests/paseo-invocation.test.mjs`
+
+**Step 1: Write test (RED)** — default synthesizer = first peer; override accepted and validated against provider inventory (`SYNTHESIZER_UNAVAILABLE` on miss); warn-and-ignore outside synthesized mode; identity threaded into loop options. (Synthesizer `paseo run` argv construction is asserted later in p03-t03's seam tests, where it belongs.)
+
+**Step 2: Implement (GREEN)** — flag parse + preflight join with existing peer validation.
+
+**Step 3: Verify** — Run: `node --test tests/wrapper-options.test.mjs`. Expected: green.
+
+**Step 4: Commit** — `git commit -m "feat(p03-t02): add --synthesizer with first-peer default and preflight"`
+
+### Task p03-t03: invokeSynthesizer seam + synthesis record
+
+**Files:**
+
+- Modify: `plugins/consensus/skills/refine/scripts/consensus-loop.mjs`
+- Modify: `tests/loop-records.test.mjs`
+
+**Step 1: Write test (RED)** — synthesis record appends after the peer pair with `record_type: 'synthesis'`, synthesizer id, artifact hash of synthesized text, validated shape/caps; injectable `invokeSynthesizer` in runOptions (stub).
+
+**Step 2: Implement (GREEN)** — seam mirrors `invokePeer`; uses synthesis schema path for `paseo run`.
+
+**Step 3: Verify** — Run: `node --test tests/loop-records.test.mjs`. Expected: green.
+
+**Step 4: Commit** — `git commit -m "feat(p03-t03): add synthesizer invocation seam and synthesis records"`
+
+### Task p03-t04: Synthesized executor + stability convergence
+
+**Files:**
+
+- Modify: `plugins/consensus/skills/refine/scripts/consensus-loop.mjs`
+- Modify: `tests/loop-convergence.test.mjs`
+
+**Step 1: Write test (RED)** — synthesized round flow: pair → synthesis → synthesized text is next round's shared artifact; convergence when both peer revisions hash-match the previous synthesis; not converged when only one matches.
+
+**Step 2: Implement (GREEN)** — executor branch + `detectSynthesisStability` predicate (exported).
+
+**Step 3: Verify** — Run: `node --test tests/loop-convergence.test.mjs`. Expected: green.
+
+**Step 4: Commit** — `git commit -m "feat(p03-t04): add parallel-synthesized executor and stability convergence"`
+
+### Task p03-t05: Synthesis failure semantics (two-level contract)
+
+**Files:**
+
+- Modify: `plugins/consensus/skills/refine/scripts/consensus-loop.mjs`
+- Modify: `tests/error-handling.test.mjs`
+
+**Step 1: Write test (RED)** — synthesis *process* failure (stub rejects): peer pair remains durable, loop exits with a resumable state (pair without synthesis record); *invalid/oversized* synthesis: metadata-only synthesis-error record, section `error` (`INVALID_SYNTHESIS_SHAPE`/`INVALID_SYNTHESIS_CAPS`).
+
+**Step 2: Implement (GREEN)** — distinguish failure classes per design Error Handling.
+
+**Step 3: Verify** — Run: `node --test tests/error-handling.test.mjs`. Expected: green.
+
+**Step 4: Commit** — `git commit -m "feat(p03-t05): implement synthesis failure semantics"`
+
+### Task p03-t06: Synthesized integration + call counts
+
+**Files:**
+
+- Modify: `tests/parallel-modes.test.mjs`
+
+**Step 1: Write test (RED)** — wrapper end-to-end stubbed synthesized run: converges via stability; artifact shows synthesis records (text, reasoning, disagreements, synthesizer id); `calls_per_round: { peer: 2, synthesis: 1 }`; resolution `synthesis_calls` total correct.
+
+**Step 2: Implement (GREEN)** — wrapper rendering/count fixes as surfaced.
+
+**Step 3: Verify** — Run: `node --test tests/parallel-modes.test.mjs && npm test`. Expected: green.
+
+**Step 4: Commit** — `git commit -m "test(p03-t06): parallel-synthesized integration coverage"`
+
+---
+
+## Phase 4: Escalation ladder (p04)
+
+**Goal:** Deterministic triggers, agency routing with genuinely-stuck promotion, escalation status/event, and host-direction re-entry. (FR5)
+
+### Task p04-t01: Escalation trigger predicates
+
+**Files:**
+
+- Modify: `plugins/consensus/skills/refine/scripts/consensus-loop.mjs`
+- Modify: `tests/loop-convergence.test.mjs` (or create `tests/escalation.test.mjs`)
+
+**Step 1: Write test (RED)** — `persistent_disagreement`: same trimmed-set of unresolved disagreements across 3 consecutive synthesis records (non-empty); `near_done_drift`: double-ACCEPT / mutual-CONVERGED with differing hashes; `budget_exhausted` and per-mode oscillation feed the same trigger shape; named constants exported.
+
+**Step 2: Implement (GREEN)** — `detectEscalation(records, { mode, agency })` returning `{ trigger, ... } | null`.
+
+**Step 3: Verify** — Run: `node --test tests/escalation.test.mjs`. Expected: green.
+
+**Step 4: Commit** — `git commit -m "feat(p04-t01): add deterministic escalation trigger predicates"`
+
+### Task p04-t02: Routing table + genuinely-stuck promotion
+
+**Files:**
+
+- Modify: `plugins/consensus/skills/refine/scripts/consensus-loop.mjs`
+- Modify: `tests/escalation.test.mjs`
+
+**Step 1: Write test (RED)** — full trigger × agency truth table from design §5; promotion: trigger re-fires after a HOST_DECISION for the same trigger → `decide_via: user` + `promoted_from: 'host'`; `defer_to_user` decision round → re-emitted escalation routed to user; maximum `budget_exhausted` keeps auto declare-done (recorded as auto-resolved escalation).
+
+**Step 2: Implement (GREEN)** — `routeEscalation(trigger, agency, records)` pure function.
+
+**Step 3: Verify** — Run: `node --test tests/escalation.test.mjs`. Expected: truth table + promotion green.
+
+**Step 4: Commit** — `git commit -m "feat(p04-t02): add agency routing with genuinely-stuck promotion"`
+
+### Task p04-t03: Escalation terminal status + decision packet
+
+**Files:**
+
+- Modify: `plugins/consensus/skills/refine/scripts/consensus-loop.mjs`
+- Modify: `tests/escalation.test.mjs`
+
+**Step 1: Write test (RED)** — loop terminates with `status: 'escalation'`; packet carries trigger, decide_via, decision_kinds (incl. `defer_to_user` only when host-routed), divergent hash references, promoted_from when applicable; minimal-agency rows preserve v0.1 statuses (oscillation/max-rounds surface unchanged).
+
+**Step 2: Implement (GREEN)** — wire `detectEscalation` + `routeEscalation` into the loop after convergence/oscillation checks; status extras per design data model.
+
+**Step 3: Verify** — Run: `node --test tests/escalation.test.mjs && npm test`. Expected: green; alternating regression intact.
+
+**Step 4: Commit** — `git commit -m "feat(p04-t03): emit escalation terminal status with decision packet"`
+
+### Task p04-t04: escalation_required JSONL event
+
+**Files:**
+
+- Modify: `plugins/consensus/skills/refine/scripts/consensus-refine.mjs`
+- Modify: `tests/sequential-wrapper.test.mjs`
+
+**Step 1: Write test (RED)** — wrapper resolves divergent full text into the event (both revisions; synthesis + disagreements when present) with `resume: { artifact_path, flag }`; event emitted before run end; run exit code remains success-with-partial semantics (consistent with impasse).
+
+**Step 2: Implement (GREEN)** — event assembly from loop status + records.
+
+**Step 3: Verify** — Run: `node --test tests/sequential-wrapper.test.mjs`. Expected: green.
+
+**Step 4: Commit** — `git commit -m "feat(p04-t04): emit escalation_required with resolved decision packet"`
+
+### Task p04-t05: --host-direction re-entry + HOST_DECISION rounds
+
+**Files:**
+
+- Modify: `plugins/consensus/skills/refine/scripts/consensus-refine.mjs`, `consensus-loop.mjs`
+- Modify: `tests/user-intervention.test.mjs`
+
+**Step 1: Write test (RED)** — `--host-direction` on resume appends `agent: 'host-orchestrator'`, `verdict: 'HOST_DECISION'` with decision_kind + escalation_trigger; refreshes budget like user path; mutually exclusive with `--user-direction` (USAGE); rejected when pending escalation routes to user (`ESCALATION_ROUTING`) or when no escalation pending; `decision_kind: 'defer_to_user'` re-emits user-routed escalation without consuming budget.
+
+**Step 2: Implement (GREEN)** — extend intervention machinery (generalize `appendUserIntervention`); wrapper resume flag plumbing.
+
+**Step 3: Verify** — Run: `node --test tests/user-intervention.test.mjs`. Expected: green.
+
+**Step 4: Commit** — `git commit -m "feat(p04-t05): add --host-direction re-entry with attributed orchestrator rounds"`
+
+### Task p04-t06: Escalation lifecycle integration
+
+**Files:**
+
+- Modify: `tests/parallel-modes.test.mjs`
+
+**Step 1: Write test (RED)** — stubbed synthesized run hits persistent_disagreement at moderate → escalation_required (decide_via host) → resume with --host-direction → converges; promotion case: re-fired trigger after HOST_DECISION routes to user.
+
+**Step 2: Implement (GREEN)** — fixes surfaced by the scenario.
+
+**Step 3: Verify** — Run: `node --test tests/parallel-modes.test.mjs && npm test`. Expected: green.
+
+**Step 4: Commit** — `git commit -m "test(p04-t06): escalation lifecycle integration coverage"`
+
+---
+
+## Phase 5: Resume + parallel-section composition (p05)
+
+**Goal:** Artifact-canonical resume covers the new modes and interruption points; section packets and fan-in compose with parallel modes. (FR7, FR8)
+
+### Task p05-t01: v1 artifact canonical blocks + resume for parallel modes
+
+**Files:**
+
+- Modify: `plugins/consensus/skills/refine/scripts/consensus-refine.mjs`
+- Modify: `tests/resume-parse.test.mjs`
+
+**Step 1: Write test (RED)** — artifacts from parallel runs round-trip: canonical blocks include peer pairs, synthesis records, intervention rounds; resume restores mode, agency, synthesizer, per-section state; hash validation covers synthesis hashes.
+
+**Step 2: Implement (GREEN)** — extend canonical block writer/parser + `normalizeResumeRecords` for new record types.
+
+**Step 3: Verify** — Run: `node --test tests/resume-parse.test.mjs`. Expected: green.
+
+**Step 4: Commit** — `git commit -m "feat(p05-t01): resume parallel-mode artifacts from canonical v1 blocks"`
+
+### Task p05-t02: Interruption-point resume matrix
+
+**Files:**
+
+- Modify: `tests/resume-parse.test.mjs`
+- Modify: `tests/parallel-modes.test.mjs`
+
+**Step 1: Write test (RED)** — matrix per design: mid-peer-subround (no pair committed) → round re-executes; pending-synthesis (pair, no synthesis) → resumes at synthesis only; post-synthesis → next round; pending escalation → escalation re-presented, or consumed by a supplied direction flag.
+
+**Step 2: Implement (GREEN)** — resume entry-point dispatch per derived state.
+
+**Step 3: Verify** — Run: `node --test tests/resume-parse.test.mjs tests/parallel-modes.test.mjs`. Expected: matrix green.
+
+**Step 4: Commit** — `git commit -m "feat(p05-t02): implement interruption-point resume matrix for parallel modes"`
+
+### Task p05-t03: Corrupt-section fail-closed regression for v1 records
+
+**Files:**
+
+- Modify: `tests/resume-corruption.test.mjs`
+
+**Step 1: Write test (RED)** — corrupted synthesis record / intervention round / pair-half-missing states are detected; skip controls (`--skip-corrupt-section`, `--skip-all-corrupt`, `--yes-skip-corrupt`) behave as in v0.1.
+
+**Step 2: Implement (GREEN)** — extend corruption validators for new record types (likely covered by p05-t01 parser; fix gaps).
+
+**Step 3: Verify** — Run: `node --test tests/resume-corruption.test.mjs`. Expected: green.
+
+**Step 4: Commit** — `git commit -m "test(p05-t03): corrupt-section coverage for v1 record types"`
+
+### Task p05-t04: Parallel-section packets + fan-in with parallel modes
+
+**Files:**
+
+- Modify: `plugins/consensus/skills/refine/scripts/consensus-refine.mjs`
+- Modify: `tests/parallel-prepare.test.mjs`, `tests/parallel-fan-in.test.mjs`, `tests/parallel-integration.test.mjs`
+
+**Step 1: Write test (RED)** — prepare emits `iteration_mode` + `synthesizer` in manifest/packets; fan-in assembles parallel-mode section results in order; a section ending in `escalation` is aggregated (joins impasse accounting) and surfaced in the fan-in summary without blocking other sections.
+
+**Step 2: Implement (GREEN)** — manifest schema + aggregation extensions.
+
+**Step 3: Verify** — Run: `node --test tests/parallel-prepare.test.mjs tests/parallel-fan-in.test.mjs tests/parallel-integration.test.mjs`. Expected: green.
+
+**Step 4: Commit** — `git commit -m "feat(p05-t04): thread mode metadata through parallel-section orchestration"`
+
+---
+
+## Phase 6: Host surface, docs, smoke, dogfood (p06)
+
+**Goal:** Hosts know how to drive the new modes and answer escalations; docs and smoke reflect v0.2; mode comparison dogfooded. (FR3 docs, NFR4, NFR5)
+
+### Task p06-t01: Event payload inventory test (NFR5)
+
+**Files:**
+
+- Create: `tests/event-payload-inventory.test.mjs`
+
+**Step 1: Write test (RED)** — enumerate JSONL events from stubbed runs across all modes: assert no routine event (`run_started`, `run_completed`, `parallel_dispatch_required`) contains revision/synthesis text; `escalation_required` is the only content-bearing event.
+
+**Step 2: Implement (GREEN)** — fix any leaking payloads.
+
+**Step 3: Verify** — Run: `node --test tests/event-payload-inventory.test.mjs`. Expected: green.
+
+**Step 4: Commit** — `git commit -m "test(p06-t01): enforce host-context discipline via event payload inventory"`
+
+### Task p06-t02: SKILL.md — mode selection + escalation handling
+
+**Files:**
+
+- Modify: `plugins/consensus/skills/refine/SKILL.md`
+- Modify: `tests/docs-presence.test.mjs`, `tests/host-dispatch-docs.test.mjs` (assertions for new sections)
+
+**Step 1: Write test (RED)** — docs tests assert SKILL.md documents: `--iteration` modes with cost multipliers, `--synthesizer`, escalation_required handling branched on decide_via (host decides + disclose to user vs present options), `--host-direction` re-entry, defer_to_user.
+
+**Step 2: Implement (GREEN)** — author the sections per design §7.
+
+**Step 3: Verify** — Run: `node --test tests/docs-presence.test.mjs tests/host-dispatch-docs.test.mjs`. Expected: green.
+
+**Step 4: Commit** — `git commit -m "docs(p06-t02): document modes and escalation handling in refine SKILL.md"`
+
+### Task p06-t03: Section-runner contract update
+
+**Files:**
+
+- Modify: `plugins/consensus/agents/consensus-section-runner.md`
+- Modify: `tests/host-dispatch-docs.test.mjs`
+
+**Step 1: Write test (RED)** — contract documents mode/synthesizer passthrough from packets and "report escalations in section results; never self-decide".
+
+**Step 2: Implement (GREEN)** — author contract changes.
+
+**Step 3: Verify** — Run: `node --test tests/host-dispatch-docs.test.mjs`. Expected: green.
+
+**Step 4: Commit** — `git commit -m "docs(p06-t03): update section-runner contract for parallel modes"`
+
+### Task p06-t04: Plugin + repo README updates
+
+**Files:**
+
+- Modify: `plugins/consensus/README.md`, `README.md`, `CHANGELOG.md`
+- Modify: `tests/readme-scope.test.mjs`
+
+**Step 1: Write test (RED)** — readme-scope assertions updated: iteration modes no longer listed as future work; new flags documented; limitations section updated (harmonization/metrics still deferred); CHANGELOG v0.2 entries present.
+
+**Step 2: Implement (GREEN)** — author doc updates consistent with shipped behavior only.
+
+**Step 3: Verify** — Run: `node --test tests/readme-scope.test.mjs tests/docs-presence.test.mjs && npm run validate`. Expected: green.
+
+**Step 4: Commit** — `git commit -m "docs(p06-t04): document v0.2 iteration modes across READMEs and CHANGELOG"`
+
+### Task p06-t05: Smoke-flow extension
+
+**Files:**
+
+- Modify: `scripts/smoke-test.mjs`
+- Modify: `tests/smoke-test-script.test.mjs`
+
+**Step 1: Write test (RED)** — smoke covers a mocked parallel-synthesized run including one escalation + `--host-direction` resume to convergence.
+
+**Step 2: Implement (GREEN)** — extend smoke script scenario.
+
+**Step 3: Verify** — Run: `npm run smoke && node --test tests/smoke-test-script.test.mjs`. Expected: green.
+
+**Step 4: Commit** — `git commit -m "test(p06-t05): extend smoke flow with parallel-synthesized escalation scenario"`
+
+### Task p06-t06: Mode-comparison dogfood (manual, NFR4)
+
+**Files:**
+
+- Modify: `.oat/projects/shared/consensus-iteration-modes/implementation.md` (notes)
+
+**Step 1: Prepare** — requires a machine with `paseo` + peer CLIs (laptop). Pick one real multi-section markdown document.
+
+**Step 2: Execute** — run refine three times (alternating, parallel_revision, parallel_synthesized with default synthesizer), same goal and budget.
+
+**Step 3: Review** — verify every round's actor and rationale are attributable from the artifacts alone (NFR4); record escalation frequency observations against the chattiness risk; summarize comparison in implementation.md.
+
+**Step 4: Verify** — Expected: three publishable artifacts; notes recorded.
+
+**Step 5: Commit** — `git commit -m "docs(p06-t06): record mode-comparison dogfood findings"`
 
 ---
 
 ## Reviews
 
-{Track reviews here after running the oat-project-review-provide and oat-project-review-receive skills.}
-
-{Keep both code + artifact rows below. Add additional code rows (p03, p04, etc.) as needed, but do not delete `spec`/`design`.}
-
-| Scope  | Type     | Status  | Date | Artifact |
-| ------ | -------- | ------- | ---- | -------- |
-| p01    | code     | pending | -    | -        |
-| p02    | code     | pending | -    | -        |
-| final  | code     | pending | -    | -        |
-| spec   | artifact | pending | -    | -        |
-| design | artifact | received | 2026-06-12 | reviews/artifact-design-review-2026-06-12.md |
+| Scope  | Type     | Status          | Date       | Artifact                                              |
+| ------ | -------- | --------------- | ---------- | ----------------------------------------------------- |
+| p01    | code     | pending         | -          | -                                                      |
+| p02    | code     | pending         | -          | -                                                      |
+| p03    | code     | pending         | -          | -                                                      |
+| p04    | code     | pending         | -          | -                                                      |
+| p05    | code     | pending         | -          | -                                                      |
+| p06    | code     | pending         | -          | -                                                      |
+| final  | code     | pending         | -          | -                                                      |
+| spec   | artifact | pending         | -          | -                                                      |
+| design | artifact | fixes_completed | 2026-06-12 | reviews/archived/artifact-design-review-2026-06-12.md |
+| plan   | artifact | passed          | 2026-06-12 | structured review (no artifact; findings fixed inline) |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 
-**Meaning:**
-
-- `received`: review artifact exists (not yet converted into fix tasks)
-- `fixes_added`: fix tasks were added to the plan (work queued)
-- `fixes_completed`: fix tasks implemented, awaiting re-review
-- `passed`: re-review run and recorded as passing (no Critical/Important)
-
----
-
 ## Implementation Complete
 
-**Summary:**
+- Phase 1: v1 schema family + validation substrate — 6 tasks
+- Phase 2: Round executor + parallel-revision mode — 8 tasks
+- Phase 3: Parallel-synthesized mode — 6 tasks
+- Phase 4: Escalation ladder — 6 tasks
+- Phase 5: Resume + parallel-section composition — 4 tasks
+- Phase 6: Host surface, docs, smoke, dogfood — 6 tasks
 
-- Phase 1: {N} tasks - {Description}
-- Phase 2: {N} tasks - {Description}
-
-**Total: {N} tasks**
-
-Ready for code review and merge.
-
----
+**Total: 36 tasks**
 
 ## References
 
-- Design: `design.md` (required in spec-driven mode; optional in quick/import mode)
-- Spec: `spec.md` (required in spec-driven mode; optional in quick/import mode)
+- Spec: `spec.md` (Requirement Index maps FRs/NFRs → tasks)
+- Design: `design.md` (components, data models, escalation routing, transaction contract)
 - Discovery: `discovery.md`
-- Imported Source: `references/imported-plan.md` (when `oat_plan_source: imported`)
+- Architecture: `.oat/repo/reference/research/consensus/architecture-v3.md`
+- Engine source: `plugins/consensus/skills/refine/scripts/consensus-loop.mjs`, `consensus-refine.mjs`
