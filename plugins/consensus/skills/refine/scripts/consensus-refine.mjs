@@ -1071,6 +1071,18 @@ function renderRecord(record) {
   if ('user_direction' in record) {
     verdictDocument.user_direction = record.user_direction;
   }
+  // Intervention rounds (HOST_DECISION / USER_INTERVENTION) carry the routing
+  // metadata that genuinely-stuck promotion depends on across resumes:
+  // priorHostDecisionForTrigger() matches on escalation_trigger, and defer_to_user
+  // is recognized via decision_kind. Persist them so a twice-resumed artifact stays
+  // restart-safe (FR5) — without this the canonical block dropped them and a re-fired
+  // trigger could route back to the host instead of escalating to the user.
+  if ('decision_kind' in record) {
+    verdictDocument.decision_kind = record.decision_kind;
+  }
+  if ('escalation_trigger' in record) {
+    verdictDocument.escalation_trigger = record.escalation_trigger;
+  }
   if ('critique' in record && record.critique) {
     verdictDocument.critique = record.critique;
   }

@@ -5,9 +5,10 @@ import path from 'node:path';
 import test from 'node:test';
 
 import {
-  parseDeliberationArtifactForResume
+  parseDeliberationArtifactForResume,
+  renderDeliberationArtifact
 } from '../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
-import { EXIT_CODES, hashArtifact } from '../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
+import { EXIT_CODES, hashArtifact, routeEscalation } from '../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
 
 const revisedIntro = '# Intro\n\nClearer intro.\n';
 const stalledDetails = '## Details\n\nStill unresolved.\n';
@@ -568,4 +569,103 @@ test('parseDeliberationArtifactForResume derives pending-synthesis from a pair w
     false,
     'no synthesis record present (pending-synthesis)'
   );
+});
+
+// Regression (p07-t05): renderRecord must persist HOST_DECISION routing metadata so
+// genuinely-stuck promotion stays restart-safe across a resume. Previously the
+// canonical consensus-verdict block dropped decision_kind/escalation_trigger, so a
+// re-fired trigger after a host decision routed back to the host instead of the user.
+function hostDecisionRunResult() {
+  const revision = '# Section\n\nMerged revision.\n';
+  return {
+    goal: 'Resolve the contested section.',
+    agency: 'moderate',
+    peers: ['claude', 'codex'],
+    host: 'claude',
+    maxRounds: 12,
+    mode: 'sequential',
+    iteration: 'parallel_synthesized',
+    synthesizer: 'claude',
+    status: 'escalation',
+    sections: [
+      {
+        id: 's0',
+        name: 'Section',
+        original_index: 0,
+        output: revision,
+        subagent_id: null,
+        status: {
+          status: 'escalation',
+          rounds: 2,
+          turns: 4,
+          peer_calls: 4,
+          synthesis_calls: 2,
+          termination_reason: 'escalation',
+          final_artifact_hash: hashArtifact(revision)
+        },
+        records: [
+          {
+            schema_version: 'v1',
+            turn_index: 3,
+            round_index: 2,
+            agent: 'claude',
+            verdict: 'REVISE',
+            reasoning: 'Still diverging.',
+            proposed_artifact: revision
+          },
+          {
+            schema_version: 'v1',
+            turn_index: 4,
+            round_index: 2,
+            agent: 'host-orchestrator',
+            verdict: 'HOST_DECISION',
+            reasoning: 'Blend the two revisions and continue.',
+            decision_kind: 'blend',
+            escalation_trigger: 'persistent_disagreement',
+            iteration_mode: 'parallel_synthesized'
+          }
+        ]
+      }
+    ]
+  };
+}
+
+function extractVerdictBlocks(artifactText) {
+  return [...artifactText.matchAll(/<!-- consensus:consensus-verdict\n([\s\S]*?)\n-->/g)].map((match) =>
+    JSON.parse(match[1])
+  );
+}
+
+test('renderDeliberationArtifact persists HOST_DECISION routing metadata in the canonical block', () => {
+  const artifact = renderDeliberationArtifact(hostDecisionRunResult());
+  const hostBlock = extractVerdictBlocks(artifact).find((block) => block.verdict === 'HOST_DECISION');
+
+  assert.ok(hostBlock, 'HOST_DECISION verdict block is rendered');
+  assert.equal(hostBlock.decision_kind, 'blend');
+  assert.equal(hostBlock.escalation_trigger, 'persistent_disagreement');
+});
+
+test('rendered HOST_DECISION rehydrates so a re-fired trigger promotes to the user', () => {
+  const artifact = renderDeliberationArtifact(hostDecisionRunResult());
+  const hostBlock = extractVerdictBlocks(artifact).find((block) => block.verdict === 'HOST_DECISION');
+
+  // The rehydrated record (canonical block JSON, as normalizeResumeRecords spreads it)
+  // must carry escalation_trigger so priorHostDecisionForTrigger matches on repeat fire.
+  const route = routeEscalation('persistent_disagreement', 'moderate', [hostBlock]);
+
+  assert.equal(route.decide_via, 'user');
+  assert.equal(route.promoted_from, 'host');
+  assert.equal(route.promotion_reason, 'repeat_fire');
+});
+
+test('rendered defer_to_user HOST_DECISION promotes with a defer reason on re-fire', () => {
+  const runResult = hostDecisionRunResult();
+  runResult.sections[0].records[1].decision_kind = 'defer_to_user';
+  const artifact = renderDeliberationArtifact(runResult);
+  const hostBlock = extractVerdictBlocks(artifact).find((block) => block.verdict === 'HOST_DECISION');
+
+  assert.equal(hostBlock.decision_kind, 'defer_to_user');
+  const route = routeEscalation('persistent_disagreement', 'moderate', [hostBlock]);
+  assert.equal(route.decide_via, 'user');
+  assert.equal(route.promotion_reason, 'defer_to_user');
 });
