@@ -904,6 +904,36 @@ function escalatedSections(sections) {
   return sections.filter((section) => section.status?.status === 'escalation');
 }
 
+function escalationRoutingError(message, details = {}) {
+  return new ConsensusError(message, {
+    code: 'ESCALATION_ROUTING',
+    exitCode: EXIT_CODES.CONFIG,
+    details
+  });
+}
+
+/**
+ * Fail-closed routing guard for --host-direction (p04-t05). A host direction is
+ * only valid against a pending escalation whose decide_via is 'host'. It is
+ * rejected when no escalation is pending or when the pending escalation routes
+ * to the user (ESCALATION_ROUTING).
+ */
+function assertHostDirectionRoutable(resumeSection) {
+  const escalation = resumeSection?.status?.escalation;
+  if (resumeSection?.status?.status !== 'escalation' || !escalation) {
+    throw escalationRoutingError('--host-direction supplied but no escalation is pending for resume', {
+      section_status: resumeSection?.status?.status ?? null
+    });
+  }
+  if (escalation.decide_via !== 'host') {
+    throw escalationRoutingError(
+      `--host-direction rejected: pending escalation routes to ${escalation.decide_via}`,
+      { decide_via: escalation.decide_via, trigger: escalation.trigger }
+    );
+  }
+  return escalation;
+}
+
 function failingSections(sections) {
   return sections
     .filter((section) => ['error', 'impasse'].includes(section.status?.status))
@@ -1354,6 +1384,8 @@ export function parseWrapperArgs(argv) {
     output: null,
     resume: null,
     userDirection: null,
+    hostDirection: null,
+    hostDecisionKind: null,
     runDir: null,
     allowRoot: null,
     failOnSectionError: false,
@@ -1416,6 +1448,14 @@ export function parseWrapperArgs(argv) {
         parsed.userDirection = requireValue(argv, index, token);
         index += 1;
         break;
+      case '--host-direction':
+        parsed.hostDirection = requireValue(argv, index, token);
+        index += 1;
+        break;
+      case '--host-decision-kind':
+        parsed.hostDecisionKind = requireValue(argv, index, token);
+        index += 1;
+        break;
       case '--run-dir':
         parsed.runDir = requireValue(argv, index, token);
         index += 1;
@@ -1457,6 +1497,10 @@ export function parseWrapperArgs(argv) {
         }
         positionals.push(token);
     }
+  }
+
+  if (parsed.userDirection !== null && parsed.hostDirection !== null) {
+    throw new Error('--user-direction and --host-direction are mutually exclusive');
   }
 
   if (!['minimal', 'moderate', 'maximum'].includes(parsed.agency)) {
@@ -1908,6 +1952,19 @@ export async function runSequential(options, runOptions = {}) {
       continue;
     }
 
+    // Host-direction re-entry: validate routing against the pending escalation
+    // before re-invoking the loop (fail-closed). Only applied to the in-flight
+    // escalated section being resumed.
+    let hostDirection = null;
+    let hostDecisionKind = null;
+    let escalationTrigger = null;
+    if (normalized.hostDirection && resumeSection?.inFlight) {
+      const escalation = assertHostDirectionRoutable(resumeSection);
+      hostDirection = normalized.hostDirection;
+      hostDecisionKind = normalized.hostDecisionKind ?? 'direct';
+      escalationTrigger = escalation.trigger;
+    }
+
     try {
       const result = await runConsensusLoop(loopArgvForSection({ section, paths, options: normalized, peers, synthesizer }), {
         env,
@@ -1916,7 +1973,10 @@ export async function runSequential(options, runOptions = {}) {
         invokeSynthesizer: normalized.invokeSynthesizer ?? runOptions.invokeSynthesizer,
         initialRecords: resumeSection?.records ?? [],
         initialArtifact: sectionInput,
-        userDirection: resumeSection?.inFlight ? normalized.userDirection : null
+        userDirection: resumeSection?.inFlight ? normalized.userDirection : null,
+        hostDirection,
+        hostDecisionKind,
+        escalationTrigger
       });
       sectionResults.push({
         ...section,

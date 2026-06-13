@@ -1081,23 +1081,54 @@ async function seedRecordsFile(recordsPath, records, options = {}) {
   return normalizedRecords;
 }
 
-async function appendUserIntervention({ writer, records, options, currentArtifact, userDirection }) {
-  if (!userDirection) return null;
+/**
+ * Append an attributed intervention round (p04-t05). Generalizes the original
+ * user-intervention path to also cover host-orchestrator decisions:
+ *   - user (`USER_INTERVENTION`): direction text recorded as reasoning + user_direction.
+ *   - host (`HOST_DECISION`): adds decision_kind + escalation_trigger attribution.
+ * Both refresh the round budget identically (the caller extends maxTurns).
+ */
+async function appendIntervention({ writer, records, options, currentArtifact, intervention }) {
+  if (!intervention) return null;
 
-  const peerTurns = peerTurnCount(records);
-  const nextUserRound = Math.max(0, ...records.map((record) => Number(record.round_index) || 0)) + 1;
-  const record = await writer.append({
+  const isHost = intervention.agent === 'host-orchestrator';
+  const nextRound = Math.max(0, ...records.map((record) => Number(record.round_index) || 0)) + 1;
+  const payload = {
     turn_index: records.length + 1,
-    round_index: nextUserRound,
-    agent: 'user',
-    verdict: 'USER_INTERVENTION',
-    reasoning: userDirection,
-    user_direction: userDirection,
+    round_index: nextRound,
+    agent: isHost ? 'host-orchestrator' : 'user',
+    verdict: isHost ? 'HOST_DECISION' : 'USER_INTERVENTION',
+    reasoning: intervention.direction,
     artifact_hash: hashArtifact(currentArtifact, hashOptionsForAgency(options.agency)),
     iteration_mode: options.iteration
-  });
+  };
+  if (isHost) {
+    if (intervention.decisionKind) payload.decision_kind = intervention.decisionKind;
+    if (intervention.escalationTrigger) payload.escalation_trigger = intervention.escalationTrigger;
+  } else {
+    payload.user_direction = intervention.direction;
+  }
+
+  const record = await writer.append(payload);
   records.push(record);
   return record;
+}
+
+function resolveIntervention(runOptions, options) {
+  const userDirection = runOptions.userDirection ?? options.userDirection;
+  const hostDirection = runOptions.hostDirection ?? options.hostDirection;
+  if (hostDirection) {
+    return {
+      agent: 'host-orchestrator',
+      direction: hostDirection,
+      decisionKind: runOptions.hostDecisionKind ?? options.hostDecisionKind ?? 'direct',
+      escalationTrigger: runOptions.escalationTrigger ?? options.escalationTrigger ?? null
+    };
+  }
+  if (userDirection) {
+    return { agent: 'user', direction: userDirection };
+  }
+  return null;
 }
 
 async function executeAlternatingTurn({ turnIndex, options, records, currentArtifact, invokePeer }) {
@@ -1501,11 +1532,22 @@ function escalationTerminal({ trigger, detected, options, records, artifact }) {
   };
 }
 
-async function runParallelRounds({ options, records, writer, currentArtifact, invokePeer, invokeSynthesizer }) {
+async function runParallelRounds({
+  options,
+  records,
+  writer,
+  currentArtifact,
+  invokePeer,
+  invokeSynthesizer,
+  budgetRefreshed = false
+}) {
   let artifact = currentArtifact;
   const startRound = Math.floor(peerTurnCount(records) / options.peers.length);
+  // A re-entry (user or host intervention) refreshes the round budget exactly
+  // like the alternating path: maxRounds fresh rounds beyond the resumed point.
+  const roundBudget = budgetRefreshed ? startRound + options.maxRounds : options.maxRounds;
 
-  for (let roundOffset = startRound; roundOffset < options.maxRounds; roundOffset += 1) {
+  for (let roundOffset = startRound; roundOffset < roundBudget; roundOffset += 1) {
     // Phase 1 — peer subround: build and validate both peer records atomically.
     const { records: pair } = await executeParallelRound({
       mode: options.iteration,
@@ -1610,15 +1652,15 @@ export async function runConsensusLoop(argv, runOptions = {}) {
   const writer = await createRecordsWriter(options.outputRecords, runOptions);
   let currentArtifact = runOptions.initialArtifact ?? options.initialArtifact ?? (await readFile(options.sectionFile, 'utf8'));
   const initialPeerTurns = peerTurnCount(records);
-  const userIntervention = await appendUserIntervention({
+  const intervention = await appendIntervention({
     writer,
     records,
     options,
     currentArtifact,
-    userDirection: runOptions.userDirection ?? options.userDirection
+    intervention: resolveIntervention(runOptions, options)
   });
   const turnBudget = options.maxRounds * options.peers.length;
-  const maxTurns = userIntervention ? initialPeerTurns + turnBudget : turnBudget;
+  const maxTurns = intervention ? initialPeerTurns + turnBudget : turnBudget;
   const invokePeer =
     runOptions.invokePeer ??
     ((turn) =>
@@ -1649,7 +1691,8 @@ export async function runConsensusLoop(argv, runOptions = {}) {
         writer,
         currentArtifact,
         invokePeer,
-        invokeSynthesizer
+        invokeSynthesizer,
+        budgetRefreshed: Boolean(intervention)
       });
       return await writeTerminalArtifacts(options, terminal.status, terminal.artifact, records);
     }
