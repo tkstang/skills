@@ -776,6 +776,34 @@ export function invokePaseo({ provider, schemaPath, prompt, env = process.env, c
   });
 }
 
+function isRetryablePaseoError(error) {
+  // Transient: paseo ran but the agent failed to produce usable structured
+  // output (e.g. "finished without a structured output message", or unparseable
+  // JSON). Not retryable: missing binary / config / permission errors.
+  return error?.code === 'PASEO_EXIT' || error?.code === 'PASEO_INVALID_JSON';
+}
+
+/**
+ * Wrap a paseo invocation with a bounded retry on transient failures. Only the
+ * default (real-paseo) invokers use this; injected stubs are unaffected, so the
+ * deterministic test seams keep their exact call counts. A successful response
+ * is returned verbatim, so the recorded result stays deterministic.
+ */
+export async function invokePaseoWithRetry(args, { attempts = 3, delayMs = 750, sleep, invoke = invokePaseo } = {}) {
+  const wait = sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
+  let lastError;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return await invoke(args);
+    } catch (error) {
+      lastError = error;
+      if (!isRetryablePaseoError(error) || attempt === attempts) throw error;
+      await wait(delayMs);
+    }
+  }
+  throw lastError;
+}
+
 export function parseLoopArgs(argv) {
   const parsed = {
     goal: '',
@@ -1042,10 +1070,14 @@ export function buildSynthesisPrompt({
     '',
     'Your task: Produce one merged section against the goal. Where the two critiques',
     'agree, treat that as established; where they disagree, prefer the change',
-    'supported by stronger reasoning. Emit JSON conforming to the provided schema with',
-    'synthesized_artifact (the full merged section), synthesis_reasoning (why you',
-    'merged as you did), and unresolved_disagreements (a possibly-empty array of',
-    'points the merge could not settle).'
+    'supported by stronger reasoning. This is a single mechanical merge — do not use',
+    'tools, do not explore the workspace, and do not ask questions.',
+    '',
+    'Respond with ONLY a single JSON object conforming to the provided schema, with',
+    'these keys and nothing else: synthesized_artifact (the full merged section),',
+    'synthesis_reasoning (why you merged as you did), and unresolved_disagreements (a',
+    'possibly-empty array of points the merge could not settle). Output the JSON',
+    'object as your entire response — no surrounding prose, explanation, or markdown.'
   ].join('\n');
 }
 
@@ -1788,7 +1820,7 @@ export async function runConsensusLoop(argv, runOptions = {}) {
   const invokePeer =
     runOptions.invokePeer ??
     ((turn) =>
-      invokePaseo({
+      invokePaseoWithRetry({
         provider: turn.provider,
         schemaPath: peerSchemaPathForMode(options.iteration),
         prompt: turn.prompt,
@@ -1798,7 +1830,7 @@ export async function runConsensusLoop(argv, runOptions = {}) {
   const invokeSynthesizer =
     runOptions.invokeSynthesizer ??
     ((call) =>
-      invokePaseo({
+      invokePaseoWithRetry({
         provider: call.provider,
         schemaPath: call.schemaPath,
         prompt: call.prompt,

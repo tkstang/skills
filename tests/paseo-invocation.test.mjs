@@ -6,8 +6,68 @@ import test from 'node:test';
 
 import {
   SUBPROCESS_OUTPUT_CAP_BYTES,
-  invokePaseo
+  ConsensusError,
+  invokePaseo,
+  invokePaseoWithRetry
 } from '../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
+
+test('invokePaseoWithRetry retries transient paseo failures and returns the eventual success', async () => {
+  let calls = 0;
+  const sleeps = [];
+  const result = await invokePaseoWithRetry(
+    {},
+    {
+      sleep: async (ms) => { sleeps.push(ms); },
+      invoke: async () => {
+        calls += 1;
+        if (calls < 3) {
+          throw new ConsensusError('finished without a structured output message', { code: 'PASEO_EXIT' });
+        }
+        return { json: { ok: true } };
+      }
+    }
+  );
+  assert.deepEqual(result, { json: { ok: true } });
+  assert.equal(calls, 3);
+  assert.equal(sleeps.length, 2); // two waits between three attempts
+});
+
+test('invokePaseoWithRetry does not retry non-transient errors (e.g. missing binary)', async () => {
+  let calls = 0;
+  await assert.rejects(
+    invokePaseoWithRetry(
+      {},
+      {
+        sleep: async () => {},
+        invoke: async () => {
+          calls += 1;
+          throw new ConsensusError('paseo executable not found on PATH', { code: 'PASEO_MISSING' });
+        }
+      }
+    ),
+    /not found on PATH/
+  );
+  assert.equal(calls, 1);
+});
+
+test('invokePaseoWithRetry stops after the attempt budget on persistent transient failure', async () => {
+  let calls = 0;
+  await assert.rejects(
+    invokePaseoWithRetry(
+      {},
+      {
+        attempts: 3,
+        sleep: async () => {},
+        invoke: async () => {
+          calls += 1;
+          throw new ConsensusError('still failing', { code: 'PASEO_EXIT' });
+        }
+      }
+    ),
+    /still failing/
+  );
+  assert.equal(calls, 3);
+});
 
 const repoRoot = path.resolve(new URL('..', import.meta.url).pathname);
 const fixtureBin = path.join(repoRoot, 'tests/fixtures/bin');
