@@ -1532,6 +1532,72 @@ function escalationTerminal({ trigger, detected, options, records, artifact }) {
   };
 }
 
+/**
+ * Detect the deterministic pending-synthesis state (p05-t02): the latest peer round
+ * has a complete pair (peers.length peer records) and NO following synthesis record.
+ * Returns { round, pairRecords } when pending, else null. Derived purely from the
+ * record stream — pending-synthesis is never stored separately (design §1).
+ */
+function pendingSynthesisRound(records, peers) {
+  const peerOnly = peerRecords(records).filter((record) => record?.record_type !== 'synthesis');
+  if (peerOnly.length === 0) return null;
+  const latestRound = Math.max(...peerOnly.map((record) => Number(record.round_index) || 0));
+  if (latestRound < 1) return null;
+  const pairRecords = peerOnly.filter((record) => Number(record.round_index) === latestRound);
+  if (pairRecords.length < peers.length) return null;
+  const hasSynthesis = records.some(
+    (record) => record?.record_type === 'synthesis' && Number(record.round_index) === latestRound
+  );
+  if (hasSynthesis) return null;
+  return { round: latestRound, pairRecords: pairRecords.slice(-peers.length) };
+}
+
+/**
+ * Post-round terminal evaluation shared by the main parallel loop and the
+ * pending-synthesis resume step (p05-t02): impasse → convergence → escalation,
+ * in the order mandated by design §5. Returns a terminal { status, artifact } or null.
+ */
+function evaluateParallelTerminal({ records, options, artifact }) {
+  const lastTwoPeers = peerRecords(records)
+    .filter((record) => record?.record_type !== 'synthesis')
+    .slice(-2);
+  const verdicts = lastTwoPeers.map((record) => verdictDecision(record));
+
+  if (verdicts.includes('IMPASSE')) {
+    return {
+      status: resultStatus('impasse', 'explicit_impasse', records, options, {
+        final_artifact_hash: hashArtifact(artifact, hashOptionsForAgency(options.agency))
+      }),
+      artifact
+    };
+  }
+
+  const convergence =
+    options.iteration === 'parallel_synthesized'
+      ? detectSynthesisStability(records, convergenceOptionsForAgency(options.agency))
+      : detectParallelConvergence(records, convergenceOptionsForAgency(options.agency));
+  if (convergence.converged) {
+    const statusExtra = { final_artifact_hash: convergence.artifact_hash };
+    if (convergence.agency_decision) {
+      statusExtra.agency_decision = convergence.agency_decision;
+    }
+    return {
+      status: resultStatus('converged', convergence.reason, records, options, statusExtra),
+      artifact
+    };
+  }
+
+  // Escalation triggers run AFTER convergence/impasse declined (design §5):
+  // oscillation, persistent_disagreement, near_done_drift. budget_exhausted is
+  // evaluated after the round budget is spent (in runParallelRounds).
+  const detected = detectEscalation(records, { mode: options.iteration, agency: options.agency });
+  if (detected) {
+    return escalationTerminal({ trigger: detected.trigger, detected, options, records, artifact });
+  }
+
+  return null;
+}
+
 async function runParallelRounds({
   options,
   records,
@@ -1542,6 +1608,38 @@ async function runParallelRounds({
   budgetRefreshed = false
 }) {
   let artifact = currentArtifact;
+
+  // Pending-synthesis resume (p05-t02): a complete peer pair without a following
+  // synthesis record is the deterministic pending-synthesis state (design §1, two-level
+  // transaction contract). On resume, re-execute ONLY the synthesis step for that round
+  // before continuing — never re-run the durable peer pair. State is derived from the
+  // stream, not separately stored.
+  if (options.iteration === 'parallel_synthesized') {
+    const pending = pendingSynthesisRound(records, options.peers);
+    if (pending) {
+      const synthesisResult = await executeSynthesis({
+        options,
+        records,
+        pairRecords: pending.pairRecords,
+        round: pending.round,
+        invokeSynthesizer
+      });
+      if (synthesisResult.synthesisError) {
+        const errorRecord = await writer.append({ ...synthesisResult.synthesisError.record });
+        records.push(errorRecord);
+        throw synthesisResult.synthesisError.error;
+      }
+      const synthesisRecord = await writer.append({ ...synthesisResult.synthesis });
+      records.push(synthesisRecord);
+      artifact = synthesisResult.nextArtifact;
+
+      // The completed round may itself be terminal (convergence/escalation): re-run the
+      // post-synthesis predicates exactly as the main loop does before advancing.
+      const terminal = evaluateParallelTerminal({ records, options, artifact });
+      if (terminal) return terminal;
+    }
+  }
+
   const startRound = Math.floor(peerTurnCount(records) / options.peers.length);
   // A re-entry (user or host intervention) refreshes the round budget exactly
   // like the alternating path: maxRounds fresh rounds beyond the resumed point.
@@ -1592,42 +1690,8 @@ async function runParallelRounds({
       artifact = synthesisResult.nextArtifact;
     }
 
-    const lastTwoPeers = peerRecords(records)
-      .filter((record) => record?.record_type !== 'synthesis')
-      .slice(-2);
-    const verdicts = lastTwoPeers.map((record) => verdictDecision(record));
-
-    if (verdicts.includes('IMPASSE')) {
-      return {
-        status: resultStatus('impasse', 'explicit_impasse', records, options, {
-          final_artifact_hash: hashArtifact(artifact, hashOptionsForAgency(options.agency))
-        }),
-        artifact
-      };
-    }
-
-    const convergence =
-      options.iteration === 'parallel_synthesized'
-        ? detectSynthesisStability(records, convergenceOptionsForAgency(options.agency))
-        : detectParallelConvergence(records, convergenceOptionsForAgency(options.agency));
-    if (convergence.converged) {
-      const statusExtra = { final_artifact_hash: convergence.artifact_hash };
-      if (convergence.agency_decision) {
-        statusExtra.agency_decision = convergence.agency_decision;
-      }
-      return {
-        status: resultStatus('converged', convergence.reason, records, options, statusExtra),
-        artifact
-      };
-    }
-
-    // Escalation triggers run AFTER convergence/impasse declined (design §5):
-    // oscillation, persistent_disagreement, near_done_drift. budget_exhausted is
-    // evaluated after the round budget is spent (below).
-    const detected = detectEscalation(records, { mode: options.iteration, agency: options.agency });
-    if (detected) {
-      return escalationTerminal({ trigger: detected.trigger, detected, options, records, artifact });
-    }
+    const terminal = evaluateParallelTerminal({ records, options, artifact });
+    if (terminal) return terminal;
   }
 
   // Round budget spent without convergence → budget_exhausted escalation.

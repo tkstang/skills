@@ -457,3 +457,98 @@ test('parseDeliberationArtifactForResume fails closed on a tampered synthesis ha
     }
   );
 });
+
+// p05-t02: a pending-synthesis artifact (committed peer pair, no synthesis block)
+// round-trips with the pair preserved and the section in-flight, so the loop can
+// derive the pending-synthesis state from the resumed record stream.
+function pendingSynthesisArtifact() {
+  const pairHash = hashArtifact(peerRevisionB);
+  return [
+    '---',
+    'consensus_schema_version: v1',
+    'status: partial',
+    'mode: sequential',
+    'iteration: parallel_synthesized',
+    'synthesizer: claude',
+    'agency: moderate',
+    '---',
+    '',
+    '# Consensus Refine Artifact',
+    '',
+    '## Final Output',
+    '',
+    peerRevisionB,
+    '## Resolution',
+    '',
+    consensusBlock('consensus-resolution', {
+      consensus_schema_version: 'v1',
+      status: 'partial',
+      mode: 'sequential',
+      parallel: false,
+      iteration: 'parallel_synthesized',
+      synthesizer: 'claude',
+      agency: 'moderate',
+      peers: ['claude', 'codex']
+    }),
+    '',
+    '## Section States',
+    '',
+    consensusBlock('consensus-section-states', [
+      {
+        id: 'intro-0',
+        name: 'Intro',
+        original_index: 0,
+        status: 'max-rounds',
+        turns: 2,
+        rounds: 1,
+        final_artifact_hash: pairHash,
+        final_output: peerRevisionB
+      }
+    ]),
+    '',
+    '## Deliberation Log',
+    '',
+    '### 1. Intro (max-rounds)',
+    '',
+    consensusBlock('consensus-section-status', {
+      schema_version: 'v1',
+      status: 'max-rounds',
+      termination_reason: 'pending_synthesis',
+      turns: 2,
+      rounds: 1,
+      iteration_mode: 'parallel_synthesized',
+      final_artifact_hash: pairHash
+    }),
+    '',
+    consensusBlock('consensus-verdict', {
+      schema_version: 'v1',
+      verdict: 'REVISE',
+      reasoning: 'Peer A revises.',
+      critique: { own_previous: 'own A', peer_previous: 'peer A' },
+      proposed_artifact: peerRevisionA
+    }),
+    '',
+    consensusBlock('consensus-verdict', {
+      schema_version: 'v1',
+      verdict: 'REVISE',
+      reasoning: 'Peer B revises.',
+      critique: { own_previous: 'own B', peer_previous: 'peer B' },
+      proposed_artifact: peerRevisionB
+    }),
+    ''
+  ].join('\n');
+}
+
+test('parseDeliberationArtifactForResume derives pending-synthesis from a pair without synthesis', async () => {
+  const parsed = await parseDeliberationArtifactForResume(pendingSynthesisArtifact());
+  const [section] = parsed.sections;
+
+  assert.equal(section.inFlight, true);
+  const peerRevisions = section.records.filter((record) => record.record_type !== 'synthesis');
+  assert.equal(peerRevisions.length, 2, 'committed peer pair preserved');
+  assert.equal(
+    section.records.some((record) => record.record_type === 'synthesis'),
+    false,
+    'no synthesis record present (pending-synthesis)'
+  );
+});
