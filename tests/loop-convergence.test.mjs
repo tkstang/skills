@@ -7,10 +7,24 @@ import test from 'node:test';
 import {
   detectConvergence,
   detectOscillation,
+  detectParallelConvergence,
+  detectParallelOscillation,
   hashArtifact,
   normalizeForHash,
   runConsensusLoop
 } from '../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
+
+function parallelRecord(agent, { verdict, text, round = 1 }) {
+  return {
+    agent,
+    round_index: round,
+    iteration_mode: 'parallel_revision',
+    verdict,
+    proposed_artifact: text,
+    artifact_hash: hashArtifact(text),
+    critique: { own_previous: 'o', peer_previous: 'p' }
+  };
+}
 
 async function makeRunFiles(sectionText = 'Initial section.\n') {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-round-'));
@@ -231,4 +245,74 @@ test('alternating round execution produces a stable records stream (characteriza
   // Repeat run reproduces the identical stream (NFR1 / FR9 regression lock).
   const second = await runOnce();
   assert.deepEqual(stripVolatile(second.records), stripVolatile(result.records));
+});
+
+test('detectParallelConvergence converges on same-round normalized hash match', () => {
+  const records = [
+    parallelRecord('claude', { verdict: 'REVISE', text: 'Final text  \n' }),
+    parallelRecord('codex', { verdict: 'REVISE', text: 'Final text\n' })
+  ];
+
+  const result = detectParallelConvergence(records, { agency: 'moderate' });
+  assert.equal(result.converged, true);
+  assert.equal(result.reason, 'parallel_hash_match');
+  assert.deepEqual(result.record_indexes, [0, 1]);
+});
+
+test('detectParallelConvergence uses strict hashing at minimal agency', () => {
+  const records = [
+    parallelRecord('claude', { verdict: 'REVISE', text: 'Final text  \n' }),
+    parallelRecord('codex', { verdict: 'REVISE', text: 'Final text\n' })
+  ];
+
+  assert.equal(detectParallelConvergence(records, { agency: 'moderate' }).converged, true);
+  assert.deepEqual(detectParallelConvergence(records, { agency: 'minimal' }), {
+    converged: false,
+    reason: null
+  });
+});
+
+test('detectParallelConvergence converges on mutual ACCEPT_PEER adopting identical prior text', () => {
+  const shared = 'Agreed text.\n';
+  const records = [
+    parallelRecord('claude', { verdict: 'ACCEPT_PEER', text: shared }),
+    parallelRecord('codex', { verdict: 'ACCEPT_PEER', text: shared })
+  ];
+
+  const result = detectParallelConvergence(records, { agency: 'moderate' });
+  assert.equal(result.converged, true);
+  assert.equal(result.reason, 'mutual_accept_peer');
+});
+
+test('detectParallelConvergence does NOT converge on mutual ACCEPT_PEER adopting differing texts (swap)', () => {
+  const records = [
+    parallelRecord('claude', { verdict: 'ACCEPT_PEER', text: 'Codex version.\n' }),
+    parallelRecord('codex', { verdict: 'ACCEPT_PEER', text: 'Claude version.\n' })
+  ];
+
+  assert.deepEqual(detectParallelConvergence(records, { agency: 'moderate' }), {
+    converged: false,
+    reason: null
+  });
+});
+
+test('detectParallelConvergence converges on mutual CONVERGED at moderate and maximum but not minimal', () => {
+  const records = [
+    parallelRecord('claude', { verdict: 'CONVERGED', text: 'A version.\n' }),
+    parallelRecord('codex', { verdict: 'CONVERGED', text: 'B version.\n' })
+  ];
+
+  const moderate = detectParallelConvergence(records, { agency: 'moderate' });
+  assert.equal(moderate.converged, true);
+  assert.equal(moderate.reason, 'mutual_converged');
+
+  assert.equal(detectParallelConvergence(records, { agency: 'maximum' }).converged, true);
+  assert.deepEqual(detectParallelConvergence(records, { agency: 'minimal' }), {
+    converged: false,
+    reason: null
+  });
+});
+
+test('detectParallelOscillation is still a no-op placeholder before p02-t06', () => {
+  assert.deepEqual(detectParallelOscillation([], {}), { oscillating: false, reason: null });
 });

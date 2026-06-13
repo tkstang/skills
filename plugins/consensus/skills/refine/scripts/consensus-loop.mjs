@@ -1452,18 +1452,55 @@ export function detectOscillation(records, options = {}) {
   return { oscillating: false, reason: null };
 }
 
-// NOTE: minimal placeholders wired into the parallel loop (p02-t04). The full
-// same-round/mutual-ACCEPT_PEER/mutual-CONVERGED semantics land in p02-t05, and
-// pair-based oscillation lands in p02-t06.
+function parallelRevisionHash(record, options = {}) {
+  const hashOptions = options.hashOptions ?? hashOptionsForAgency(options.agency);
+  if (typeof record?.proposed_artifact === 'string') {
+    return hashArtifact(record.proposed_artifact, hashOptions);
+  }
+  return recordHash(record, options);
+}
+
+/**
+ * Parallel-revision convergence (p02-t05):
+ *   - same-round normalized-hash match between the two peer revisions, OR
+ *   - mutual ACCEPT_PEER adopting identical prior text (differing text = swap, not converged), OR
+ *   - mutual CONVERGED at moderate/maximum agency (at minimal, mutual CONVERGED escalates,
+ *     handled by the escalation layer in Phase 4; here it simply does not converge).
+ * Hash normalization follows agency (minimal = strict bytewise).
+ */
 export function detectParallelConvergence(records, options = {}) {
   if (!Array.isArray(records) || records.length < 2) {
     return { converged: false, reason: null };
   }
+
   const rightIndex = records.length - 1;
   const leftIndex = records.length - 2;
-  const leftHash = recordHash(records[leftIndex], options);
-  const rightHash = recordHash(records[rightIndex], options);
-  if (leftHash && rightHash && leftHash === rightHash) {
+  const left = records[leftIndex];
+  const right = records[rightIndex];
+  const agency = options.agency ?? 'moderate';
+
+  const leftDecision = verdictDecision(left);
+  const rightDecision = verdictDecision(right);
+  const leftHash = parallelRevisionHash(left, options);
+  const rightHash = parallelRevisionHash(right, options);
+  const hashMatch = Boolean(leftHash) && leftHash === rightHash;
+  const mutualAcceptPeer = leftDecision === 'ACCEPT_PEER' && rightDecision === 'ACCEPT_PEER';
+
+  if (mutualAcceptPeer) {
+    // Mutual adoption converges only when both adopt the SAME text (hash match);
+    // adopting differing texts is a swap, not convergence.
+    if (hashMatch) {
+      return {
+        converged: true,
+        reason: 'mutual_accept_peer',
+        record_indexes: [leftIndex, rightIndex],
+        artifact_hash: rightHash
+      };
+    }
+    return { converged: false, reason: null };
+  }
+
+  if (hashMatch) {
     return {
       converged: true,
       reason: 'parallel_hash_match',
@@ -1471,6 +1508,20 @@ export function detectParallelConvergence(records, options = {}) {
       artifact_hash: rightHash
     };
   }
+
+  if (leftDecision === 'CONVERGED' && rightDecision === 'CONVERGED') {
+    if (agency === 'moderate' || agency === 'maximum') {
+      return {
+        converged: true,
+        reason: 'mutual_converged',
+        record_indexes: [leftIndex, rightIndex],
+        artifact_hash: rightHash
+      };
+    }
+    // minimal: do not converge; mutual-CONVERGED without hash match escalates (Phase 4).
+    return { converged: false, reason: null };
+  }
+
   return { converged: false, reason: null };
 }
 
