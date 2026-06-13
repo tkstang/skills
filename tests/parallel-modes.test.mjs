@@ -1,11 +1,24 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile } from 'node:fs/promises';
+import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
 import { runSequential } from '../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
 import { callsPerRound } from '../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
+
+function captureStdout() {
+  const lines = [];
+  return {
+    write(chunk) {
+      lines.push(String(chunk));
+      return true;
+    },
+    events() {
+      return lines.join('').split('\n').filter(Boolean).map((line) => JSON.parse(line));
+    }
+  };
+}
 
 const repoRoot = path.resolve(new URL('..', import.meta.url).pathname);
 const fixtureBin = path.join(repoRoot, 'tests/fixtures/bin');
@@ -245,4 +258,212 @@ test('parallel_revision stubbed runs are byte-reproducible modulo timestamps and
     );
   }
   assert.deepEqual(recordsOf(first.result), recordsOf(second.result));
+});
+
+// --- p04-t06: escalation lifecycle integration ---------------------------
+
+// A synthesized scenario that escalates on persistent_disagreement, then either
+// resolves (disagreements cleared after the host decision) or stays stuck.
+function lifecycleStubs({ resolveAfterHostDecision = true } = {}) {
+  let hostDecided = false;
+  let peerCall = 0;
+  const mergedResolved = 'Resolved merge.\n';
+
+  const invokePeer = async () => {
+    peerCall += 1;
+    // While stuck, peers keep diverging (unique text per call) so synthesis
+    // stability never fires — the run stays alive until persistent_disagreement
+    // accumulates 3 synthesis records. After the host settles it, both peers
+    // adopt the resolved text so stability converges.
+    const text = hostDecided && resolveAfterHostDecision ? mergedResolved : `stuck-${peerCall}.\n`;
+    return {
+      json: {
+        schema_version: 'v1',
+        verdict: 'REVISE',
+        reasoning: 'revise',
+        critique: { own_previous: 'o', peer_previous: 'p' },
+        proposed_artifact: text
+      },
+      stdout: '{"id":"peer"}'
+    };
+  };
+
+  const invokeSynthesizer = async () => {
+    if (hostDecided && resolveAfterHostDecision) {
+      return {
+        json: {
+          schema_version: 'v1',
+          synthesized_artifact: mergedResolved,
+          synthesis_reasoning: 'host direction settled it',
+          unresolved_disagreements: []
+        },
+        stdout: '{"id":"synth"}'
+      };
+    }
+    return {
+      json: {
+        schema_version: 'v1',
+        synthesized_artifact: mergedResolved,
+        synthesis_reasoning: 'still merging',
+        unresolved_disagreements: ['scope boundary unresolved']
+      },
+      stdout: '{"id":"synth"}'
+    };
+  };
+
+  return {
+    invokePeer,
+    invokeSynthesizer,
+    markHostDecided() {
+      hostDecided = true;
+    }
+  };
+}
+
+function singleSectionInput() {
+  return '# Intro\n\nSeed text.\n';
+}
+
+const synthPreflight = async () => ({
+  peers: ['claude', 'codex'],
+  providerInventory: [
+    { id: 'claude', available: true },
+    { id: 'codex', available: true }
+  ],
+  warnings: []
+});
+
+test('synthesized run escalates on persistent_disagreement (host) then converges via --host-direction', async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-escalation-lifecycle-'));
+  const inputPath = path.join(tempRoot, 'draft.md');
+  const outputPath = path.join(tempRoot, 'draft.consensus.md');
+  await writeFile(inputPath, singleSectionInput());
+
+  const stubs = lifecycleStubs({ resolveAfterHostDecision: true });
+  const stdout = captureStdout();
+
+  // Pass 1: run until persistent_disagreement escalates to the host.
+  const first = await runSequential(
+    {
+      inputPath,
+      output: outputPath,
+      runDir: path.join(tempRoot, '.consensus/run1'),
+      allowRoot: tempRoot,
+      cwd: tempRoot,
+      goal: 'Tighten it.',
+      peers: ['claude', 'codex'],
+      iteration: 'parallel_synthesized',
+      synthesizer: 'claude',
+      maxRounds: 8,
+      agency: 'moderate',
+      preflight: synthPreflight,
+      invokePeer: stubs.invokePeer,
+      invokeSynthesizer: stubs.invokeSynthesizer
+    },
+    { stdout }
+  );
+
+  assert.equal(first.sections[0].status.status, 'escalation');
+  const event = stdout.events().find((entry) => entry.event === 'escalation_required');
+  assert.ok(event, 'escalation_required emitted');
+  assert.equal(event.trigger, 'persistent_disagreement');
+  assert.equal(event.decide_via, 'host');
+  assert.equal(event.resume.flag, '--host-direction');
+
+  // Pass 2: host answers via --host-direction; disagreements clear → converges.
+  stubs.markHostDecided();
+  const second = await runSequential({
+    inputPath,
+    resume: outputPath,
+    output: path.join(tempRoot, 'draft.resumed.consensus.md'),
+    runDir: path.join(tempRoot, '.consensus/run2'),
+    allowRoot: tempRoot,
+    cwd: tempRoot,
+    goal: 'Tighten it.',
+    peers: ['claude', 'codex'],
+    iteration: 'parallel_synthesized',
+    synthesizer: 'claude',
+    maxRounds: 8,
+    agency: 'moderate',
+    preflight: false,
+    hostDirection: 'Adopt the resolved merge.',
+    hostDecisionKind: 'blend',
+    invokePeer: stubs.invokePeer,
+    invokeSynthesizer: stubs.invokeSynthesizer
+  });
+
+  const records = second.sections[0].records;
+  const hostRound = records.find((record) => record.verdict === 'HOST_DECISION');
+  assert.ok(hostRound, 'HOST_DECISION round recorded on resume');
+  assert.equal(hostRound.agent, 'host-orchestrator');
+  assert.equal(hostRound.escalation_trigger, 'persistent_disagreement');
+  assert.equal(second.sections[0].status.status, 'converged');
+});
+
+test('promotion: re-fired trigger after a HOST_DECISION routes to the user', async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-escalation-promote-'));
+  const inputPath = path.join(tempRoot, 'draft.md');
+  const outputPath = path.join(tempRoot, 'draft.consensus.md');
+  await writeFile(inputPath, singleSectionInput());
+
+  // The host decision does NOT settle the disagreement → trigger re-fires.
+  const stubs = lifecycleStubs({ resolveAfterHostDecision: false });
+
+  const first = await runSequential(
+    {
+      inputPath,
+      output: outputPath,
+      runDir: path.join(tempRoot, '.consensus/run1'),
+      allowRoot: tempRoot,
+      cwd: tempRoot,
+      goal: 'Tighten it.',
+      peers: ['claude', 'codex'],
+      iteration: 'parallel_synthesized',
+      synthesizer: 'claude',
+      maxRounds: 8,
+      agency: 'moderate',
+      preflight: synthPreflight,
+      invokePeer: stubs.invokePeer,
+      invokeSynthesizer: stubs.invokeSynthesizer
+    },
+    { stdout: captureStdout() }
+  );
+  assert.equal(first.sections[0].status.status, 'escalation');
+  assert.equal(first.sections[0].status.escalation.decide_via, 'host');
+
+  // Host answers, but the trigger persists → promotion re-routes to the user.
+  const promoteStdout = captureStdout();
+  const second = await runSequential(
+    {
+      inputPath,
+      resume: outputPath,
+      output: path.join(tempRoot, 'draft.resumed.consensus.md'),
+      runDir: path.join(tempRoot, '.consensus/run2'),
+      allowRoot: tempRoot,
+      cwd: tempRoot,
+      goal: 'Tighten it.',
+      peers: ['claude', 'codex'],
+      iteration: 'parallel_synthesized',
+      synthesizer: 'claude',
+      maxRounds: 8,
+      agency: 'moderate',
+      preflight: false,
+      hostDirection: 'Keep the stuck merge.',
+      hostDecisionKind: 'blend',
+      invokePeer: stubs.invokePeer,
+      invokeSynthesizer: stubs.invokeSynthesizer
+    },
+    { stdout: promoteStdout }
+  );
+
+  const status = second.sections[0].status;
+  assert.equal(status.status, 'escalation');
+  assert.equal(status.escalation.decide_via, 'user');
+  assert.equal(status.escalation.promoted_from, 'host');
+
+  const event = promoteStdout.events().find((entry) => entry.event === 'escalation_required');
+  assert.ok(event, 'user-routed escalation re-emitted after promotion');
+  assert.equal(event.decide_via, 'user');
+  assert.equal(event.promoted_from, 'host');
+  assert.equal(event.resume.flag, '--user-direction');
 });
