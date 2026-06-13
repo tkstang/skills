@@ -837,7 +837,62 @@ function failingSections(sections) {
     }));
 }
 
+function renderSynthesisRecord(record) {
+  const roundLabel = record.round_index ?? record.round ?? '?';
+  const synthesizer = record.synthesizer ?? 'synthesizer';
+  const synthesisDocument = {
+    schema_version: record.schema_version ?? 'v1',
+    record_type: 'synthesis',
+    synthesizer,
+    synthesized_artifact: record.synthesized_artifact ?? '',
+    synthesis_reasoning: record.synthesis_reasoning ?? '',
+    unresolved_disagreements: Array.isArray(record.unresolved_disagreements)
+      ? record.unresolved_disagreements
+      : []
+  };
+
+  const parts = [`#### Round ${roundLabel} - ${synthesizer} - SYNTHESIS`];
+  if (synthesisDocument.synthesis_reasoning) {
+    parts.push('', 'Synthesis reasoning:', sanitizeLogProse(synthesisDocument.synthesis_reasoning));
+  }
+  if (synthesisDocument.synthesized_artifact) {
+    parts.push('', 'Synthesized Artifact:', dynamicFence(sanitizeProse(synthesisDocument.synthesized_artifact), 'markdown'));
+  }
+  if (synthesisDocument.unresolved_disagreements.length > 0) {
+    parts.push(
+      '',
+      'Unresolved disagreements:',
+      ...synthesisDocument.unresolved_disagreements.map((entry) => `- ${sanitizeLogProse(entry)}`)
+    );
+  }
+  parts.push('', canonicalJsonBlock('consensus-synthesis', synthesisDocument));
+  return parts.join('\n');
+}
+
+function renderSynthesisErrorRecord(record) {
+  const roundLabel = record.round_index ?? record.round ?? '?';
+  const synthesizer = record.synthesizer ?? 'synthesizer';
+  const errorDocument = {
+    schema_version: record.schema_version ?? 'v1',
+    record_type: 'synthesis-error',
+    synthesizer,
+    code: record.code ?? 'INVALID_SYNTHESIS',
+    metadata: record.metadata ?? null
+  };
+  return [
+    `#### Round ${roundLabel} - ${synthesizer} - SYNTHESIS_ERROR`,
+    '',
+    canonicalJsonBlock('consensus-synthesis-error', errorDocument)
+  ].join('\n');
+}
+
 function renderRecord(record) {
+  if (record.record_type === 'synthesis') {
+    return renderSynthesisRecord(record);
+  }
+  if (record.record_type === 'synthesis-error') {
+    return renderSynthesisErrorRecord(record);
+  }
   const verdictDocument = {
     schema_version: record.schema_version ?? 'v0',
     verdict: record.verdict ?? 'UNKNOWN',

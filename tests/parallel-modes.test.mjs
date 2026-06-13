@@ -5,6 +5,7 @@ import path from 'node:path';
 import test from 'node:test';
 
 import { runSequential } from '../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
+import { callsPerRound } from '../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
 
 const repoRoot = path.resolve(new URL('..', import.meta.url).pathname);
 const fixtureBin = path.join(repoRoot, 'tests/fixtures/bin');
@@ -104,6 +105,113 @@ test('parallel_revision artifact records per-round critiques for both peers', as
   }
   assert.match(artifact, /own_previous/);
   assert.match(artifact, /peer_previous/);
+});
+
+function synthesizedStubs(mergedText) {
+  const invokePeer = async () => ({
+    json: {
+      schema_version: 'v1',
+      verdict: 'REVISE',
+      reasoning: 'adopt the merge',
+      critique: { own_previous: 'own note', peer_previous: 'peer note' },
+      proposed_artifact: mergedText
+    },
+    stdout: '{"id":"peer"}'
+  });
+  const invokeSynthesizer = async () => ({
+    json: {
+      schema_version: 'v1',
+      synthesized_artifact: mergedText,
+      synthesis_reasoning: 'Merged both revisions favoring stronger reasoning.',
+      unresolved_disagreements: ['Heading capitalization left open.']
+    },
+    stdout: '{"id":"synth"}'
+  });
+  return { invokePeer, invokeSynthesizer };
+}
+
+async function runSynthesized(tempRoot, suffix, { synthesizer } = {}) {
+  const outputPath = path.join(tempRoot, `out-${suffix}.consensus.md`);
+  const runDir = path.join(tempRoot, `.consensus/run-${suffix}`);
+  const { invokePeer, invokeSynthesizer } = synthesizedStubs('Merged section.\n');
+  const result = await runSequential({
+    inputPath: sampleInput,
+    output: outputPath,
+    runDir,
+    allowRoot: tempRoot,
+    cwd: tempRoot,
+    goal: 'Tighten every section.',
+    peers: ['claude', 'codex'],
+    iteration: 'parallel_synthesized',
+    synthesizer,
+    maxRounds: 5,
+    agency: 'moderate',
+    preflight: async () => ({
+      peers: ['claude', 'codex'],
+      providerInventory: [
+        { id: 'claude', available: true },
+        { id: 'codex', available: true }
+      ],
+      warnings: []
+    }),
+    invokePeer,
+    invokeSynthesizer
+  });
+  const artifact = await readFile(outputPath, 'utf8');
+  return { result, artifact };
+}
+
+test('parallel_synthesized multi-section run converges via synthesis stability', async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-synth-'));
+  const { result, artifact } = await runSynthesized(tempRoot, 'converge');
+
+  assert.equal(result.sections.length, 3);
+  assert.equal(result.status, 'converged');
+  for (const section of result.sections) {
+    assert.equal(section.status.status, 'converged');
+    assert.equal(section.status.termination_reason, 'synthesis_stability');
+    assert.equal(section.status.iteration_mode, 'parallel_synthesized');
+    // Two rounds of two peer calls + a synthesis per round.
+    assert.equal(section.status.peer_calls, 4);
+    assert.equal(section.status.synthesis_calls, 2);
+  }
+
+  const resolution = extractJsonBlock(artifact, 'consensus-resolution');
+  assert.equal(resolution.iteration, 'parallel_synthesized');
+  assert.equal(resolution.synthesizer, 'claude');
+  assert.equal(resolution.sections.converged, 3);
+  assert.equal(resolution.peer_calls, 12);
+  assert.equal(resolution.synthesis_calls, 6);
+});
+
+test('parallel_synthesized artifact records synthesis text, reasoning, disagreements, and synthesizer id', async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-synth-records-'));
+  const { result, artifact } = await runSynthesized(tempRoot, 'records', { synthesizer: 'codex' });
+
+  // The resolution names the configured synthesizer.
+  const resolution = extractJsonBlock(artifact, 'consensus-resolution');
+  assert.equal(resolution.synthesizer, 'codex');
+
+  // Synthesis records are present in each section's record stream.
+  const synthesisRecords = result.sections.flatMap((section) =>
+    section.records.filter((record) => record.record_type === 'synthesis')
+  );
+  assert.ok(synthesisRecords.length >= 3, 'at least one synthesis record per section');
+  for (const record of synthesisRecords) {
+    assert.equal(record.synthesizer, 'codex');
+    assert.equal(record.synthesized_artifact, 'Merged section.\n');
+    assert.match(record.synthesis_reasoning, /stronger reasoning/i);
+    assert.deepEqual(record.unresolved_disagreements, ['Heading capitalization left open.']);
+  }
+
+  // The synthesis content also lands in the artifact text.
+  assert.match(artifact, /Merged both revisions/);
+  assert.match(artifact, /Heading capitalization left open\./);
+});
+
+test('parallel_synthesized run_started discloses the synthesis call multiplier', () => {
+  // calls_per_round must report { peer: 2, synthesis: 1 } for parallel_synthesized.
+  assert.deepEqual(callsPerRound('parallel_synthesized'), { peer: 2, synthesis: 1 });
 });
 
 test('parallel_revision stubbed runs are byte-reproducible modulo timestamps and run id', async () => {
