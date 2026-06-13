@@ -125,7 +125,7 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 **Branch:** feat/consensus-iteration-modes
 **Tier:** 1 (subagents)
 **Policy:** merge-strategy=sequential, retry-limit=2; implementer ceiling=opus, reviewer ceiling=fable
-**Phases:** p01–p06 executed; 35/36 tasks complete (p01-t06→p05-t05 resequenced; p06-t06 NFR4 dogfood deferred to manual laptop run)
+**Phases:** p01–p07 executed; v1 schema + all three iteration modes + escalation ladder implemented and **verified live with claude+codex** (Phase 7 dogfood fixes). p01-t06→p05-t05 resequenced.
 
 #### Phase Outcomes
 
@@ -136,7 +136,8 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 | p03   | DONE (t01–t06) | pass (inline/fable) | 0 | complete |
 | p04   | DONE (t01–t06) | pass (inline/fable) | 0 | complete |
 | p05   | DONE (t01–t05) | pass (inline/fable) | 0 | complete (v1 cutover + v0 gate) |
-| p06   | DONE (t01–t05) | pass (inline/fable) | 0 | complete; t06 dogfood deferred (manual) |
+| p06   | DONE (t01–t05) | pass (inline/fable) | 0 | complete; t06 rolled into p07 |
+| p07   | DONE (t01–t04) | live dogfood | n/a | live-peer compatibility fixes; all 3 modes + escalation verified with claude+codex |
 
 #### Dispatch Notes
 
@@ -189,6 +190,65 @@ Chronological log of implementation progress.
 
 ---
 
+## Phase 7 — Live dogfood fixes (2026-06-13)
+
+The p06-t06 dogfood ran `refine` against live paseo (0.1.96) with real `claude` and
+`codex` peers on the mini. It revealed that **the consensus plugin had never actually
+worked end-to-end against live peers — v0.1 included** — because the 513-test suite
+uses a paseo *stub* and hand-rolled JS validators that never exercise paseo's real
+`--output-schema` path. Every issue below was pre-existing and invisible to the suite.
+All were fixed in-project (user directive: ship-blockers, not backlog).
+
+**Operational prerequisites learned (now in `operator-qa.md`):** paseo needs its daemon
+running (`paseo daemon start`) started from a login shell so provider auth loads;
+`paseo provider ls` must show ≥2 providers `available`.
+
+### Fixes (each committed; each verified live)
+
+1. **Output-schema provider compatibility (p07-t01)** — three layers that stopped paseo
+   from even compiling the schema for codex/OpenAI:
+   - draft 2020-12 → draft-07 (paseo's default Ajv) — `ea45752`.
+   - removed `oneOf`/`not` (forbidden by OpenAI structured output; the per-verdict
+     conditional is enforced by `validateVerdictShape` branch tables) — `fbc9e61`.
+   - added explicit `type` to every `const`/`enum` property — `f680ad0`.
+2. **Strict structured-output verdicts (p07-t02)** — OpenAI strict output emits every
+   property in every response (codex returns a non-empty `proposed_artifact` even on an
+   ACCEPT). `normalizeVerdict()` drops any field the verdict's branch doesn't use before
+   validation, honoring the stated verdict. Verified: **claude REVISE → codex ACCEPT →
+   converged**, the first working two-model run — `0d8b478`.
+3. **Run-directory isolation (p07-t03)** — the default run dir was the constant
+   `.consensus/run`, so a fresh run inherited a prior run's per-section records and could
+   emit wrong output (this caused a scary "lost revision" that was actually stale-state
+   reuse, not a deliberation bug). Unique default run dir per invocation; `--run-dir` and
+   `--resume` unaffected. Verified: two back-to-back runs both correct — `fe516ae`.
+4. **Parallel schema never sent (p07-t04, root cause)** — the default `invokePeer` always
+   sent the **alternating** schema, so in parallel modes the model was told the enum was
+   `ACCEPT/REVISE/IMPASSE` with no critique field — exactly why peers emitted invalid
+   `ACCEPT` and omitted critique. Added `parallelSchemaPath()`/`peerSchemaPathForMode()`,
+   clarified the parallel verdict vocabulary in the prompt (forbid `ACCEPT`), made critique
+   round-aware (omit round 1, require rounds 2+). Verified: parallel_revision uses
+   REVISE/ACCEPT_PEER/CONVERGED with critiques — `a99c024`.
+5. **Synthesizer reliability (p07-t04)** — the synthesizer intermittently "finished without
+   a structured output message." Tightened the synthesis prompt to demand JSON-only and
+   forbid tool use; added `invokePaseoWithRetry` (bounded retry on transient PASEO_EXIT /
+   PASEO_INVALID_JSON) on the default peer + synthesizer invokers. Verified: synthesized
+   runs clean across repeated runs with legible synthesis reasoning — `1a7e67e`.
+
+### Live verification (NFR4 close-out, claude+codex)
+
+- **alternating:** converges (claude REVISE → codex ACCEPT). ✓
+- **parallel_revision:** correct vocabulary + per-round critiques; converges or hits the
+  round budget (`partial`). ✓
+- **parallel_synthesized:** peers + per-round synthesis run reliably; synthesis_reasoning is
+  audit-legible (e.g. "Both critiques agree the opening should lead with the change"). ✓
+- **escalation:** see the escalation run recorded below / in the session.
+
+Two follow-ups captured as backlog (not ship-blockers): **bl-3a88** (tool-based verdict
+submission — a more robust structured-output primitive than `--output-schema`, the leading
+candidate to harden the deliberation layer) and the deferred **bl-ef38** (similarity heuristic).
+
+---
+
 ## Deviations from Plan / Design
 
 Document any intentional deviations from the original plan, spec, or design. Include accepted review findings where the shipped implementation is source of truth and a lifecycle artifact needs alignment.
@@ -238,12 +298,13 @@ Track test execution during implementation.
 
 **Verification performed:**
 
-- `npm test` 513/513, `npm run validate` passed, `npm run smoke` passed (now includes a parallel-synthesized escalation + `--host-direction` resume scenario). FR9 alternating regression locked via a byte-identical characterization snapshot.
-- **Deferred:** NFR4 mode-comparison dogfood (p06-t06) — manual laptop run with paseo + real peers + live spend.
+- `npm test` (518+ incl. Phase 7 retry/normalization/run-dir tests), `npm run validate`, `npm run smoke` all green. FR9 alternating regression locked via a byte-identical characterization snapshot.
+- **Live (NFR4 closed):** all three iteration modes verified end-to-end against live paseo + claude + codex on the mini (Phase 7). The canonical claude+codex pair deliberates for the first time; synthesis reasoning is audit-legible. See the Phase 7 section for the fix details.
 
 **Design deltas (if any):**
 
-- p01-t06 resequenced to p05-t05 (artifact-level vs record-level version fields); version bump deferred to the release flow; NFR4 dogfood deferred to a manual run. See Deviations table.
+- p01-t06 resequenced to p05-t05 (artifact-level vs record-level version fields). Version bump deferred to the release flow.
+- **Phase 7 live-peer compatibility fixes** (all pre-existing, surfaced by the dogfood): output schemas were never paseo-compatible (draft/oneOf/type), the parallel schema was never sent to peers, codex strict output needed verdict normalization, run dirs were reused, and the synthesizer needed reliability hardening. See the Phase 7 section and Deviations table.
 
 ## References
 
