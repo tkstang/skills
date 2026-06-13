@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-13
-oat_current_task_id: p07-t02
+oat_current_task_id: p07-t05
 oat_generated: false
 ---
 
@@ -263,6 +263,16 @@ submission — a more robust structured-output primitive than `--output-schema`,
 candidate to harden the deliberation layer) and the deferred **bl-ef38** (similarity heuristic).
 
 ---
+
+
+## Review Received: final (Codex, 2026-06-13)
+
+**Review artifact:** reviews/archived/final-review-2026-06-13.md
+**Findings:** Critical 1, Important 0, Medium 0, Minor 0. (npm test 523, validate, smoke all green per the reviewer.)
+
+- **C1 (agreed, code_fix_required) → p07-t05:** `renderRecord` drops `decision_kind`/`escalation_trigger` from the canonical `consensus-verdict` block for HOST_DECISION rounds, so a twice-resumed artifact can't detect a prior host decision and FR5 genuinely-stuck promotion can fail (route back to host instead of escalating to user). The in-memory single-resume path works (smoke passes), but the persisted-then-resumed path doesn't — a real restart-safety gap our tests missed. Fix preserves the metadata in `renderRecord` + adds a render→parse→repeat-fire-promotion regression test.
+
+**Next:** execute p07-t05, then re-review the fix scope.
 
 ## Deviations from Plan / Design
 

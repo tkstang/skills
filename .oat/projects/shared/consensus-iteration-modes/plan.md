@@ -675,6 +675,27 @@ Already implemented and committed during the dogfood session; recorded here for 
 
 **Step 4: Commit** — `git commit -m "docs(p07-t04): record live claude+codex dogfood; close NFR4"`
 
+### Task p07-t05: (review) Persist HOST_DECISION routing metadata in the canonical artifact block
+
+**Files:**
+
+- Modify: `plugins/consensus/skills/refine/scripts/consensus-refine.mjs` (`renderRecord`)
+- Modify: `tests/resume-parse.test.mjs` (or `tests/escalation.test.mjs`)
+
+**Step 1: Understand the issue**
+
+Final-review Critical (Codex, 2026-06-13). `renderRecord` builds the canonical `consensus-verdict` block from only `schema_version/verdict/reasoning/(user_direction)/(critique)/(proposed_artifact)/(concerns)`, so a `HOST_DECISION` record loses `decision_kind` and `escalation_trigger` when written to the artifact. `priorHostDecisionForTrigger` matches on `record.escalation_trigger === trigger`, so a twice-resumed artifact can no longer detect a prior host decision → genuinely-stuck promotion (repeat-fire / `defer_to_user` → user) can fail and route back to host. FR5 is not restart-safe. Location: `consensus-refine.mjs:1066`, loop seam `consensus-loop.mjs:2398`.
+
+**Step 2: Implement fix**
+
+In `renderRecord`, when the record is a `HOST_DECISION` (or any intervention round), persist `decision_kind` and `escalation_trigger` into the canonical block (mirror the existing `user_direction` handling). Preserving `agent`/`iteration_mode` too makes the parsed record less inference-dependent. Ensure `parseDeliberationArtifactForResume`/`normalizeResumeRecords` round-trips these fields.
+
+**Step 3: Verify**
+
+Render a `HOST_DECISION` artifact → parse via the resume parser → assert the parsed record still carries `decision_kind` + `escalation_trigger`, and that a repeat-fire of the same trigger after that parsed resume routes to `user` (promotion). Run: `node --test tests/resume-parse.test.mjs tests/escalation.test.mjs && npm test`.
+
+**Step 4: Commit** — `git commit -m "fix(p07-t05): persist HOST_DECISION routing metadata for restart-safe promotion"`
+
 ---
 
 ## Reviews
@@ -688,7 +709,7 @@ Already implemented and committed during the dogfood session; recorded here for 
 | p05    | code     | passed          | 2026-06-13 | inline review (fable); 0 findings (incl. moved p05-t05)|
 | p06    | code     | passed          | 2026-06-13 | inline review (fable); 0 findings (t06 dogfood deferred)|
 | p07    | code     | fixes_completed | 2026-06-13 | live dogfood: all modes + codex verified; see implementation.md |
-| final  | code     | received        | 2026-06-13 | reviews/final-review-2026-06-13.md                    |
+| final  | code     | fixes_added     | 2026-06-13 | reviews/archived/final-review-2026-06-13.md (1 Critical → p07-t05) |
 | spec   | artifact | pending         | -          | -                                                      |
 | design | artifact | fixes_completed | 2026-06-12 | reviews/archived/artifact-design-review-2026-06-12.md |
 | plan   | artifact | received        | 2026-06-13 | reviews/artifact-plan-review-2026-06-13.md              |
@@ -703,9 +724,9 @@ Already implemented and committed during the dogfood session; recorded here for 
 - Phase 4: Escalation ladder — 6 tasks
 - Phase 5: Resume + parallel-section composition — 5 tasks (+p05-t05 from p01-t06)
 - Phase 6: Host surface, docs, smoke, dogfood — 6 tasks
-- Phase 7: Dogfood fixes — live-peer compatibility — 4 tasks (codex schema compat [done], verdict normalization, run-dir isolation, live verification)
+- Phase 7: Dogfood fixes — live-peer compatibility — 5 tasks (codex schema compat [done], verdict normalization, run-dir isolation, live verification, + p07-t05 final-review fix)
 
-**Total: 40 tasks**
+**Total: 41 tasks**
 
 ## References
 
