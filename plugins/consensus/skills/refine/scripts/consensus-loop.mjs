@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 export const VERDICT_CAPS = Object.freeze({
   reasoning_bytes: 16 * 1024,
+  critique_field_bytes: 16 * 1024,
   proposed_artifact_bytes: 256 * 1024,
   concern_bytes: 4 * 1024,
   max_concerns: 20,
@@ -422,6 +423,17 @@ export function validateVerdictCaps(verdict, { mode = 'alternating' } = {}) {
     const proposedBytes = byteLength(verdict.proposed_artifact);
     if (proposedBytes > VERDICT_CAPS.proposed_artifact_bytes) {
       return oversizedResult('proposed_artifact', VERDICT_CAPS.proposed_artifact_bytes, proposedBytes);
+    }
+  }
+
+  if (verdict.critique && typeof verdict.critique === 'object' && !Array.isArray(verdict.critique)) {
+    for (const key of ['own_previous', 'peer_previous']) {
+      if (key in verdict.critique) {
+        const critiqueBytes = byteLength(verdict.critique[key]);
+        if (critiqueBytes > VERDICT_CAPS.critique_field_bytes) {
+          return oversizedResult(`critique.${key}`, VERDICT_CAPS.critique_field_bytes, critiqueBytes);
+        }
+      }
     }
   }
 

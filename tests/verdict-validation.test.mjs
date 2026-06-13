@@ -166,6 +166,40 @@ test('validateVerdictShape rejects cross-mode vocabularies', () => {
   );
 });
 
+test('validateVerdictCaps caps parallel critique fields like reasoning', () => {
+  const ownOversize = validateVerdictCaps(
+    parallelVerdict({ critique: parallelCritique({ own_previous: 'x'.repeat(VERDICT_CAPS.reasoning_bytes + 1) }) }),
+    { mode: 'parallel_revision' }
+  );
+  assert.equal(ownOversize.ok, false);
+  assert.deepEqual(ownOversize.metadata, {
+    code: 'OVERSIZE_REJECTED',
+    field: 'critique.own_previous',
+    limit_bytes: VERDICT_CAPS.reasoning_bytes,
+    actual_bytes: VERDICT_CAPS.reasoning_bytes + 1
+  });
+
+  const peerOversize = validateVerdictCaps(
+    parallelVerdict({ critique: parallelCritique({ peer_previous: 'é'.repeat((VERDICT_CAPS.reasoning_bytes / 2) + 1) }) }),
+    { mode: 'parallel_revision' }
+  );
+  assert.equal(peerOversize.ok, false);
+  assert.equal(peerOversize.metadata.field, 'critique.peer_previous');
+  assert.equal(peerOversize.metadata.actual_bytes, VERDICT_CAPS.reasoning_bytes + 2);
+
+  const within = validateVerdictCaps(parallelVerdict(), { mode: 'parallel_revision' });
+  assert.equal(within.ok, true);
+});
+
+test('validateVerdictCaps total-verdict cap is enforced for parallel verdicts with critiques', () => {
+  const total = validateVerdictCaps(
+    parallelVerdict({ proposed_artifact: 'x'.repeat(VERDICT_CAPS.total_verdict_bytes) }),
+    { mode: 'parallel_revision' }
+  );
+  assert.equal(total.ok, false);
+  assert.equal(total.metadata.field, 'verdict');
+});
+
 test('validateVerdictCaps applies UTF-8 byte caps after shape validation', () => {
   const accepted = validateVerdictCaps(validVerdict({ reasoning: 'é'.repeat(4) }));
   assert.equal(accepted.ok, true);
