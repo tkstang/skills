@@ -5,7 +5,7 @@ oat_blockers: []
 oat_last_updated: 2026-06-12
 oat_phase: plan
 oat_phase_status: in_progress
-oat_plan_hill_phases: [] # phases to pause AFTER completing (empty = every phase)
+oat_plan_hill_phases: ["p06"] # pause only after final phase (user directive 2026-06-13)
 oat_plan_parallel_groups: [] # groups of phases that run concurrently in worktrees; [] = fully sequential
 oat_auto_review_at_hill_checkpoints: true
 oat_plan_source: spec-driven # spec-driven | quick | imported
