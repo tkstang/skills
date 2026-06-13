@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
 import {
+  callsPerRound,
   ConsensusError,
   EXIT_CODES,
   exitCodeForError,
@@ -903,6 +904,8 @@ function renderArtifactFrontmatter(resolution) {
     sections_error: resolution.sections.error,
     total_turns: resolution.total_turns,
     total_rounds: resolution.total_rounds,
+    peer_calls: resolution.peer_calls,
+    synthesis_calls: resolution.synthesis_calls,
     wall_clock_ms: resolution.wall_clock_ms,
     cost_source: resolution.cost_source,
     approximate_cost_usd: resolution.approximate_cost_usd,
@@ -922,7 +925,8 @@ function renderResolutionSummary(resolution) {
     `- Agency: ${resolution.agency}`,
     `- Peers: ${resolution.peers.join(', ')}`,
     `- Sections: ${resolution.sections.converged}/${resolution.sections.total} converged; ${resolution.sections.impasse} impasse; ${resolution.sections.error} error`,
-    `- Turns: ${resolution.total_turns}; rounds: ${resolution.total_rounds}`
+    `- Turns: ${resolution.total_turns}; rounds: ${resolution.total_rounds}`,
+    `- Calls: ${resolution.peer_calls} peer; ${resolution.synthesis_calls} synthesis`
   ];
 
   if (resolution.subagent_ids?.length > 0) {
@@ -1574,6 +1578,11 @@ export function renderDeliberationArtifact(runResult) {
   const finalOutput = sections.map(sectionOutput).join('\n\n').replace(/\n*$/u, '\n');
   const totalRounds = sections.reduce((sum, section) => sum + (section.status?.rounds ?? 0), 0);
   const totalTurns = sections.reduce((sum, section) => sum + (section.status?.turns ?? 0), 0);
+  const peerCalls = sections.reduce(
+    (sum, section) => sum + (section.status?.peer_calls ?? section.status?.turns ?? 0),
+    0
+  );
+  const synthesisCalls = sections.reduce((sum, section) => sum + (section.status?.synthesis_calls ?? 0), 0);
   const resolution = {
     consensus_schema_version: 'v0',
     status,
@@ -1595,6 +1604,8 @@ export function renderDeliberationArtifact(runResult) {
     },
     total_rounds: totalRounds,
     total_turns: totalTurns,
+    peer_calls: peerCalls,
+    synthesis_calls: synthesisCalls,
     wall_clock_ms: runResult.wallClockMs ?? null,
     cost_source: 'unavailable',
     approximate_cost_usd: null,
@@ -2178,7 +2189,8 @@ export async function runWrapperCli(argv, options = {}) {
       mode: parsed.mode,
       input_path: parsed.inputPath,
       manifest_path: parsed.manifestPath,
-      iteration_mode: parsed.iteration ?? 'alternating'
+      iteration_mode: parsed.iteration ?? 'alternating',
+      calls_per_round: callsPerRound(parsed.iteration ?? 'alternating')
     });
 
     if (parsed.mode === 'prepare_parallel') {

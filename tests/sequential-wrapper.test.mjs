@@ -6,9 +6,27 @@ import test from 'node:test';
 
 import {
   renderDeliberationArtifact,
-  runSequential
+  runSequential,
+  runWrapperCli
 } from '../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
 import { hashArtifact } from '../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
+
+function captureStdout() {
+  const lines = [];
+  return {
+    write(chunk) {
+      lines.push(String(chunk));
+      return true;
+    },
+    events() {
+      return lines
+        .join('')
+        .split('\n')
+        .filter(Boolean)
+        .map((line) => JSON.parse(line));
+    }
+  };
+}
 
 const repoRoot = path.resolve(new URL('..', import.meta.url).pathname);
 const fixtureBin = path.join(repoRoot, 'tests/fixtures/bin');
@@ -171,6 +189,69 @@ test('runSequential refines sections, creates run files, and writes an artifact'
     sectionStates.map((section) => section.original_index),
     [0, 1, 2]
   );
+});
+
+test('run_started discloses iteration mode and per-round call multiplier', async () => {
+  const alternating = captureStdout();
+  await runWrapperCli([sampleInput, '--peers', 'claude,codex'], {
+    stdout: alternating,
+    env: stubEnv(),
+    preflight: async () => ({ peers: ['claude', 'codex'], warnings: [] })
+  });
+  const altStart = alternating.events().find((event) => event.event === 'run_started');
+  assert.ok(altStart, 'expected run_started event');
+  assert.equal(altStart.iteration_mode, 'alternating');
+  assert.deepEqual(altStart.calls_per_round, { peer: 1, synthesis: 0 });
+
+  const parallel = captureStdout();
+  await runWrapperCli([sampleInput, '--peers', 'claude,codex', '--iteration', 'parallel_revision'], {
+    stdout: parallel,
+    env: stubEnv({ PASEO_STUB_RESPONSE_JSON: JSON.stringify({
+      schema_version: 'v1',
+      verdict: 'CONVERGED',
+      reasoning: 'agreed',
+      critique: { own_previous: 'o', peer_previous: 'p' }
+    }) }),
+    preflight: async () => ({ peers: ['claude', 'codex'], warnings: [] })
+  });
+  const parStart = parallel.events().find((event) => event.event === 'run_started');
+  assert.equal(parStart.iteration_mode, 'parallel_revision');
+  assert.deepEqual(parStart.calls_per_round, { peer: 2, synthesis: 0 });
+});
+
+test('parallel-revision artifact resolution reports peer_calls totals', async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-peer-calls-'));
+  const outputPath = path.join(tempRoot, 'out.consensus.md');
+  const runDir = path.join(tempRoot, '.consensus/run');
+  const converged = JSON.stringify({
+    schema_version: 'v1',
+    verdict: 'CONVERGED',
+    reasoning: 'agreed',
+    critique: { own_previous: 'o', peer_previous: 'p' }
+  });
+
+  const result = await runSequential({
+    inputPath: sampleInput,
+    output: outputPath,
+    runDir,
+    allowRoot: tempRoot,
+    cwd: tempRoot,
+    peers: ['claude', 'codex'],
+    iteration: 'parallel_revision',
+    maxRounds: 2,
+    agency: 'moderate',
+    preflight: async () => ({ peers: ['claude', 'codex'], warnings: [] }),
+    env: stubEnv({ PASEO_STUB_RESPONSE_JSON: converged })
+  });
+
+  const artifact = await readFile(outputPath, 'utf8');
+  const resolution = extractJsonBlock(artifact, 'consensus-resolution');
+  assert.equal(resolution.iteration, 'parallel_revision');
+  assert.ok(Number.isInteger(resolution.peer_calls), 'expected integer peer_calls');
+  assert.ok(resolution.peer_calls >= 2, 'expected at least one round of two peer calls');
+  // peer_calls equals the total peer turns across sections.
+  const totalTurns = result.sections.reduce((sum, section) => sum + (section.status?.turns ?? 0), 0);
+  assert.equal(resolution.peer_calls, totalTurns);
 });
 
 test('runSequential preserves completed resume section output when source input changes', async () => {

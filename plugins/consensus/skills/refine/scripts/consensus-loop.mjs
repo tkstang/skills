@@ -101,6 +101,12 @@ const PARALLEL_MODES = new Set(['parallel_revision', 'parallel_synthesized']);
 
 export const ITERATION_MODES = Object.freeze(['alternating', 'parallel_revision', 'parallel_synthesized']);
 
+export function callsPerRound(mode) {
+  if (mode === 'parallel_revision') return { peer: 2, synthesis: 0 };
+  if (mode === 'parallel_synthesized') return { peer: 2, synthesis: 1 };
+  return { peer: 1, synthesis: 0 };
+}
+
 export function invalidIterationModeError(value) {
   return new ConsensusError(
     `--iteration must be one of ${ITERATION_MODES.join(', ')} (received: ${value})`,
@@ -959,8 +965,14 @@ async function writeTerminalArtifacts(options, status, artifact, records) {
   };
 }
 
+function synthesisRecordCount(records) {
+  return records.filter((record) => record?.record_type === 'synthesis').length;
+}
+
 function resultStatus(status, terminationReason, records, options, extra = {}) {
-  const turns = peerTurnCount(records);
+  const peerCalls = peerRecords(records).filter((record) => record?.record_type !== 'synthesis').length;
+  const synthesisCalls = synthesisRecordCount(records);
+  const turns = peerCalls;
   return {
     status,
     termination_reason: terminationReason,
@@ -968,6 +980,8 @@ function resultStatus(status, terminationReason, records, options, extra = {}) {
     rounds: roundCount(turns, options.peers.length),
     agency: options.agency,
     iteration_mode: options.iteration,
+    peer_calls: peerCalls,
+    synthesis_calls: synthesisCalls,
     ...extra
   };
 }
