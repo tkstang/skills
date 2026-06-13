@@ -183,6 +183,45 @@ test('resolvePeers uses host-aware defaults and paseo inventory as source of tru
   );
 });
 
+test('resolvePeers reads real Paseo provider ls status/enabled shape', () => {
+  // `paseo provider ls --json` emits { provider, status, enabled: "Enabled"|"Disabled" },
+  // not the { id, available } booleans the synthetic inventory() helper uses.
+  const ready = [
+    { provider: 'claude', status: 'available', enabled: 'Enabled' },
+    { provider: 'codex', status: 'available', enabled: 'Enabled' }
+  ];
+  assert.deepEqual(resolvePeers({ peers: ['claude', 'codex'] }, 'claude', ready).peers, ['claude', 'codex']);
+
+  // A peer Paseo reports as errored (e.g. cursor when cursor-agent can't auth)
+  // must fail preflight rather than surface later as a paseo run timeout.
+  assert.throws(
+    () => resolvePeers({ peers: ['claude', 'cursor'] }, 'claude', [
+      { provider: 'claude', status: 'available', enabled: 'Enabled' },
+      { provider: 'cursor', status: 'error', enabled: 'Enabled' }
+    ]),
+    /unavailable.*cursor/i
+  );
+
+  // Paseo's "Disabled" display string means unavailable too.
+  assert.throws(
+    () => resolvePeers({ peers: ['claude', 'omp'] }, 'claude', [
+      { provider: 'claude', status: 'available', enabled: 'Enabled' },
+      { provider: 'omp', status: 'available', enabled: 'Disabled' }
+    ]),
+    /unavailable.*omp/i
+  );
+
+  // A cold-daemon snapshot can briefly report a healthy provider as loading;
+  // that must not false-fail preflight.
+  assert.deepEqual(
+    resolvePeers({ peers: ['claude', 'codex'] }, 'claude', [
+      { provider: 'claude', status: 'available', enabled: 'Enabled' },
+      { provider: 'codex', status: 'loading', enabled: 'Enabled' }
+    ]).peers,
+    ['claude', 'codex']
+  );
+});
+
 test('preflightPaseo reads version and providers and warns outside tested range', async () => {
   const calls = [];
   const result = await preflightPaseo({

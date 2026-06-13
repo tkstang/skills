@@ -6,6 +6,7 @@
 
 - **Consensus Phase 2 + family (seeded 2026-06-12):** the iteration-mode items (bl-5d49, bl-7af0) gate the five family-skill items — every unbuilt skill defaults to a mode that doesn't exist yet (see `../roadmap.md`, consensus lane). bl-7af0 carries the synthesis-mediation design gate. `consensus-evaluate` (bl-5174) can land right after parallel-revision; the other four wait on synthesized mode.
 - **Release:** bl-d85f (v0.1 verification + tag) is independent of consensus development and gates public announcements only.
+- **Paseo dependency / build-vs-buy (seeded 2026-06-13):** bl-bb7e investigates a thin in-house peer-invocation layer to reduce/replace the Paseo runtime dependency — we use a single Paseo capability (`paseo run --provider … --output-schema … --json`) per turn behind the already-injectable `invokePeer` seam. Pairs with bl-3a88 (tool-based verdict submission): both target more robust structured output, and the in-house spike would let us control that path directly rather than working around Paseo's soft ACP schema enforcement. Investigation note also covers the unverified cursor-as-peer path.
 
 <!-- OAT BACKLOG-INDEX -->
 | ID | Title | Status | Priority | Scope | Estimate |
@@ -17,6 +18,7 @@
 | bl-87ef | Add consensus-decide skill (recommend among options) | open | medium | feature | S |
 | bl-5174 | Add consensus-evaluate skill (artifact vs rubric) | open | medium | feature | S |
 | bl-0cb8 | Add consensus-plan skill (structured plan from goal) | open | medium | feature | S |
+| bl-bb7e | Investigate in-house peer-invocation CLI to reduce/replace the Paseo dependency | open | medium | initiative | L |
 | bl-3a88 | Tool-based verdict submission for consensus peers (robust structured output) | open | medium | feature | L |
 | bl-645c | Add consensus-research skill (investigate question, synthesized findings) | open | low | feature | M |
 | bl-9ed4 | Add deliberation metrics (tokens, wall-clock, rounds) to artifacts | open | low | feature | S |

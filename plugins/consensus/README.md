@@ -113,7 +113,17 @@ By default, host detection chooses `claude,codex` on Claude Code and Cursor, and
 node plugins/consensus/skills/refine/scripts/consensus-refine.mjs draft.md --peers claude,codex
 ```
 
-Peer IDs come from `paseo provider ls --json`; the wrapper does not probe executables directly. Custom ACP providers are supported when they are registered with Paseo and appear in that inventory. Cursor is not a built-in Paseo peer at v0.1, so cursor-as-peer is opt-in only through a user-configured custom ACP provider ID, for example `--peers cursor-acp,codex` if that provider exists locally.
+Peer IDs come from `paseo provider ls --json`; the wrapper does not probe executables directly. Preflight fails closed with `PEER_UNAVAILABLE` when a requested peer is missing from the inventory or reports a non-ready status (`error`, `unavailable`, `not found`, or a `Disabled` provider), so a misconfigured peer is flagged up front rather than surfacing as a mid-run `paseo run` timeout. Custom ACP providers are supported when they are registered with Paseo and appear in that inventory.
+
+Cursor is not a built-in Paseo peer at v0.1, so cursor-as-peer is opt-in. Register Cursor as a custom ACP provider — either through Paseo's one-click ACP catalog or by adding it to `~/.paseo/config.json`:
+
+```json
+{ "agents": { "providers": { "cursor": {
+  "extends": "acp", "label": "Cursor", "command": ["cursor-agent", "acp"]
+} } } }
+```
+
+Then authenticate `cursor-agent` (it stores credentials in the OS keychain — a locked keychain makes the provider report `error`) and pass `--peers cursor,codex`. Note that Cursor runs through Paseo's generic ACP path, where `--output-schema` is enforced by prompt injection plus validation/retry rather than the native structured output `claude` and `codex` expose; expect more schema-retry churn, and treat cursor-as-peer as unverified end-to-end until a full deliberation run is exercised against an authenticated `cursor-agent`.
 
 ## Limitations
 
@@ -121,7 +131,7 @@ Peer IDs come from `paseo provider ls --json`; the wrapper does not probe execut
 - The rest of the consensus family is deferred: `consensus-create`, `consensus-evaluate`, `consensus-decide`, `consensus-plan`, and `consensus-research`.
 - Ships three iteration modes (`alternating`, `parallel_revision`, `parallel_synthesized`); the independent-draft cold-start strategy is not exposed through `refine` (shared-input only).
 - Sections converge independently; whole-document harmonization and deliberation metrics/cost caps remain deferred.
-- Cursor is supported as a host runtime, not as a default Paseo peer.
+- Cursor is supported as a host runtime, and as a peer only via a user-configured custom ACP provider (not a default Paseo peer); its structured-output path is softer than claude/codex and is unverified end-to-end at v0.1.
 - Codex public marketplace submission is not assumed; Git/local install is the v0.1 path.
 - skills.sh listing should not be claimed until indexing has been verified after publication.
 - Prompt injection inside the input artifact is mitigated by prompt framing and schema validation, but peer CLIs may still produce structurally valid bad advice. Review the audit trail before publishing outputs.

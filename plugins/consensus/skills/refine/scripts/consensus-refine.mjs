@@ -1219,6 +1219,46 @@ function validateProviderId(providerId, label = 'provider id') {
   return providerId;
 }
 
+// `paseo provider ls --json` reports readiness via a `status` string
+// (available | loading | error | unavailable | not found) and exposes `enabled`
+// as a display string ("Enabled" | "Disabled") — NOT the booleans our injected
+// and test inventories use. A provider that errored (e.g. cursor when
+// cursor-agent cannot authenticate) carries status "error" while still looking
+// enabled, so keying availability off `available`/`enabled === false` alone let
+// every configured provider pass preflight and only fail later as a mid-loop
+// `paseo run` timeout. Treat known-bad statuses as unavailable so PEER_UNAVAILABLE
+// fires up front with remediation. "loading" is tolerated: a cold daemon snapshot
+// can momentarily report healthy providers as loading (observed in dogfooding:
+// providers report "loading" for ~10-30s after a daemon (re)start, then settle),
+// and a genuinely broken provider settles into a terminal unavailable status
+// ("error" or "unavailable" — e.g. cursor-agent / claude with no auth) rather
+// than loading forever. Residual risk: a provider still "loading" at preflight
+// that will settle to broken; the operator-qa guidance to confirm providers are
+// "available" before a run covers that window.
+const PROVIDER_UNAVAILABLE_STATUSES = new Set([
+  'error',
+  'unavailable',
+  'not found',
+  'notfound',
+  'disabled',
+  'offline'
+]);
+
+function providerEntryAvailable(entry) {
+  // Explicit boolean availability wins (injected/test inventories use this shape).
+  if (typeof entry.available === 'boolean') {
+    return entry.available;
+  }
+  // Disabled providers are never usable, in either boolean or Paseo's string form.
+  if (entry.enabled === false || entry.enabled === 'Disabled') {
+    return false;
+  }
+  if (typeof entry.status === 'string') {
+    return !PROVIDER_UNAVAILABLE_STATUSES.has(entry.status.trim().toLowerCase());
+  }
+  return true;
+}
+
 function normalizeProviderInventory(providerInventory) {
   const entries = Array.isArray(providerInventory)
     ? providerInventory
@@ -1230,7 +1270,7 @@ function normalizeProviderInventory(providerInventory) {
     }
 
     const id = validateProviderId(entry.id ?? entry.name ?? entry.provider, 'provider inventory id');
-    const available = entry.available === false || entry.enabled === false ? false : true;
+    const available = providerEntryAvailable(entry);
     return { ...entry, id, available };
   });
 }

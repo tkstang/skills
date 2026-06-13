@@ -17,6 +17,8 @@ Use this skill when the user wants a markdown draft refined through two-peer del
 
 Before a run, ensure Node.js 22 or newer and `paseo` are available. If `paseo` is missing, tell the user the wrapper will fail preflight and point them to the install-assist script documented by this plugin. Do not auto-install dependencies.
 
+Preflight resolves peers from `paseo provider ls --json` and fails closed with `PEER_UNAVAILABLE` when a requested peer is missing or reports a non-ready status (`error`, `unavailable`, `not found`, or a `Disabled` provider). When this fires, relay the named peer and the remediation hint (`paseo provider ls --json`) rather than retrying — a common cause is a custom ACP peer such as Cursor whose underlying CLI is not authenticated (e.g. `cursor-agent` with a locked OS keychain reports `error`).
+
 ## Sequential Invocation
 
 For the default one-shot path, run the wrapper from this skill directory:
