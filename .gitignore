@@ -21,6 +21,7 @@ tmp/
 temp/
 *.tmp
 # Consensus wrapper writes <input>.consensus.md beside its input; keep test-run
-# output leaks from the shared fixture out of git.
+# and operator-QA output leaks out of git.
 tests/fixtures/*.consensus.md
+plugins/consensus/skills/refine/references/examples/*.consensus.md
 # END Node/runtime outputs

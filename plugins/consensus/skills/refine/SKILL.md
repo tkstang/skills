@@ -102,3 +102,7 @@ A `promoted_from: 'host'` marker means a previously host-routed escalation has b
 ## Output Contract
 
 The wrapper writes a markdown deliberation artifact. Report the artifact path to the user and summarize the final status, section counts, impasses, and any release-time or provider warnings emitted by JSONL.
+
+## Operator QA
+
+For a hands-on walkthrough of the iteration modes and the escalation ladder against live peers — exact commands, example inputs, expected JSONL and artifact shapes, and the per-mode cost/quality comparison — see `references/operator-qa.md`. The runnable example documents live in `references/examples/`.

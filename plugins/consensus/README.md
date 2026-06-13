@@ -86,6 +86,8 @@ Parallel modes disclose their per-round call multiplier in the `run_started` JSO
 
 When a parallel-mode section gets stuck (persistent disagreement, oscillation, budget exhaustion, or near-done drift), the wrapper emits an `escalation_required` JSONL event routed by `--agency` to the user or the host. A host decision re-enters with `--resume <artifact> --host-direction "<text>"` (optionally `--host-decision-kind <kind>`) and records as an attributed orchestrator round; a user decision re-enters with `--user-direction` as before.
 
+For a hands-on QA walkthrough of all three modes and the escalation ladder against live peers — exact commands, example inputs, and expected output — see `skills/refine/references/operator-qa.md`.
+
 Parallel section orchestration is host mediated. Prepare packets first, dispatch section runners with the host runtime, then fan in the completed section outputs:
 
 ```bash
@@ -129,4 +131,5 @@ Peer IDs come from `paseo provider ls --json`; the wrapper does not probe execut
 
 - `.claude-plugin/`, `.cursor-plugin/`, `.codex-plugin/` - provider plugin manifests.
 - `skills/refine/` - implementation directory for the shipped `refine` skill.
+- `skills/refine/references/operator-qa.md` - manual QA walkthrough of the iteration modes and escalation ladder, with runnable example inputs under `references/examples/`.
 - `agents/consensus-section-runner.md` - task contract for host-mediated parallel section runners.
