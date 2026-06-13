@@ -256,6 +256,17 @@ function schemaPath() {
   return fileURLToPath(new URL('../schemas/verdict-alternating.schema.json', import.meta.url));
 }
 
+export function parallelSchemaPath() {
+  return fileURLToPath(new URL('../schemas/verdict-parallel.schema.json', import.meta.url));
+}
+
+/** The output schema a peer is shown for a given iteration mode. Parallel modes
+ *  MUST send the parallel schema (vocabulary REVISE/ACCEPT_PEER/CONVERGED/IMPASSE
+ *  + critique); alternating sends the alternating schema. */
+export function peerSchemaPathForMode(mode) {
+  return PARALLEL_MODES.has(mode) ? parallelSchemaPath() : schemaPath();
+}
+
 export function synthesisSchemaPath() {
   return fileURLToPath(new URL('../schemas/synthesis.schema.json', import.meta.url));
 }
@@ -899,6 +910,7 @@ function untrustedFramingLines() {
 
 export function buildParallelTurnPrompt({
   provider,
+  mode = 'parallel_revision',
   round,
   turn,
   goal,
@@ -915,13 +927,24 @@ export function buildParallelTurnPrompt({
   const ownCritiqueBlock = ownPreviousCritique ? JSON.stringify(ownPreviousCritique, null, 2) : 'None';
   const peerCritiqueBlock = peerPreviousCritique ? JSON.stringify(peerPreviousCritique, null, 2) : 'None';
 
+  const critiqueInstruction = isColdStart
+    ? [
+        'Critique: this is round 1 (cold start) — there is no previous revision to',
+        'critique, so OMIT the critique field entirely.'
+      ]
+    : [
+        'Critique (REQUIRED this round): include a critique object with own_previous',
+        '(your assessment of your own previous revision) and peer_previous (your',
+        "assessment of the other peer's previous revision)."
+      ];
+
   return [
     `You are ${provider} participating in consensus deliberation on a single`,
     'section of a markdown artifact.',
     '',
     `Goal: ${goal || '(no explicit goal provided)'}`,
     '',
-    'Iteration mode: parallel_revision',
+    `Iteration mode: ${mode}`,
     `Round: ${round}`,
     `Turn: ${turn}`,
     'Your role: deliberation peer (both peers revise simultaneously this round)',
@@ -944,12 +967,17 @@ export function buildParallelTurnPrompt({
     "The other peer's previous critique (round N-1):",
     peerCritiqueBlock,
     '',
-    'Your task: Independently revise the section against the goal, then emit one',
-    'verdict (REVISE, ACCEPT_PEER, CONVERGED, or IMPASSE) as JSON conforming to',
-    'the provided schema. Include a critique object with own_previous (your view',
-    'of your own previous revision) and peer_previous (your view of the other',
-    "peer's previous revision). If REVISE or ACCEPT_PEER, include the full",
-    'resulting section in proposed_artifact.'
+    'Your task: Independently revise the section against the goal, then emit exactly',
+    'one verdict as JSON conforming to the provided schema. The verdict MUST be one',
+    'of these four values (do NOT use "ACCEPT" or any other value):',
+    '  - REVISE: you changed the section. Put the full resulting section in proposed_artifact.',
+    "  - ACCEPT_PEER: the other peer's previous revision is better than yours; adopt it.",
+    "    Copy the other peer's previous revision verbatim into proposed_artifact.",
+    '  - CONVERGED: your revision and the peer\'s previous revision are essentially the',
+    '    same and you are satisfied — no further change is needed. Omit proposed_artifact.',
+    '  - IMPASSE: there is a fundamental disagreement that needs human tiebreaking.',
+    '    Omit proposed_artifact.',
+    ...critiqueInstruction
   ].join('\n');
 }
 
@@ -1287,6 +1315,7 @@ async function executeParallelRound(context) {
     const peerRecord = previous[peers[peerIndex === 0 ? 1 : 0]];
     const prompt = buildParallelTurnPrompt({
       provider,
+      mode,
       round,
       turn: baseTurn + peerIndex + 1,
       goal: options.goal,
@@ -1761,7 +1790,7 @@ export async function runConsensusLoop(argv, runOptions = {}) {
     ((turn) =>
       invokePaseo({
         provider: turn.provider,
-        schemaPath: schemaPath(),
+        schemaPath: peerSchemaPathForMode(options.iteration),
         prompt: turn.prompt,
         env: runOptions.env ?? process.env,
         cwd: runOptions.cwd ?? process.cwd()
