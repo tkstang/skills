@@ -4,7 +4,7 @@ Status: v0.1 pre-release.
 
 `plugins/consensus/` is a self-contained plugin package for consensus workflows. It currently ships one skill, `refine`, which refines markdown drafts by asking two Paseo-backed AI peers to deliberate toward a converged artifact with an audit trail.
 
-The v0.1 scope is intentionally narrow: the `refine` skill, alternating iteration mode, sequential sections by default, opt-in host-mediated parallel section orchestration, and the `--agency` flag. Future work may add the rest of the consensus skill family, additional iteration modes, and a whole-document harmonization pass.
+The scope is intentionally narrow: the `refine` skill, three iteration modes selected with `--iteration` (`alternating` default, `parallel_revision`, `parallel_synthesized`), a configurable synthesizer (`--synthesizer`), an agency-gated escalation ladder with host/user decision re-entry (`--host-direction`), sequential sections by default, opt-in host-mediated parallel section orchestration, and the `--agency` flag. Future work may add the rest of the consensus skill family, a whole-document harmonization pass, and deliberation metrics/cost caps.
 
 ## Local Git Repository Install
 
@@ -68,6 +68,24 @@ node plugins/consensus/skills/refine/scripts/consensus-refine.mjs draft.md \
   --user-direction "Prefer the shorter introduction."
 ```
 
+### Iteration modes
+
+Select how the two peers deliberate with `--iteration`. The default is `alternating`.
+
+```bash
+# Both peers revise in parallel each round; converge on emergent agreement (2x peer calls).
+node plugins/consensus/skills/refine/scripts/consensus-refine.mjs draft.md \
+  --goal "Tighten the draft." --iteration parallel_revision
+
+# Parallel revision plus a per-round synthesis merge (2x peer calls + 1 synthesis call).
+node plugins/consensus/skills/refine/scripts/consensus-refine.mjs draft.md \
+  --goal "Tighten the draft." --iteration parallel_synthesized --synthesizer claude
+```
+
+Parallel modes disclose their per-round call multiplier in the `run_started` JSONL event (`calls_per_round`) and report actual `peer_calls`/`synthesis_calls` totals at completion. The synthesizer defaults to the first peer and must be present in the peer inventory (`SYNTHESIZER_UNAVAILABLE` otherwise); it is warned-and-ignored outside `parallel_synthesized`.
+
+When a parallel-mode section gets stuck (persistent disagreement, oscillation, budget exhaustion, or near-done drift), the wrapper emits an `escalation_required` JSONL event routed by `--agency` to the user or the host. A host decision re-enters with `--resume <artifact> --host-direction "<text>"` (optionally `--host-decision-kind <kind>`) and records as an attributed orchestrator round; a user decision re-enters with `--user-direction` as before.
+
 Parallel section orchestration is host mediated. Prepare packets first, dispatch section runners with the host runtime, then fan in the completed section outputs:
 
 ```bash
@@ -99,8 +117,8 @@ Peer IDs come from `paseo provider ls --json`; the wrapper does not probe execut
 
 - v0.1 ships the `refine` skill only.
 - The rest of the consensus family is deferred: `consensus-create`, `consensus-evaluate`, `consensus-decide`, `consensus-plan`, and `consensus-research`.
-- Alternating iteration mode only; parallel-revision and parallel-synthesized modes are future work.
-- Sections converge independently; there is no whole-document harmonization pass in v0.1.
+- Ships three iteration modes (`alternating`, `parallel_revision`, `parallel_synthesized`); the independent-draft cold-start strategy is not exposed through `refine` (shared-input only).
+- Sections converge independently; whole-document harmonization and deliberation metrics/cost caps remain deferred.
 - Cursor is supported as a host runtime, not as a default Paseo peer.
 - Codex public marketplace submission is not assumed; Git/local install is the v0.1 path.
 - skills.sh listing should not be claimed until indexing has been verified after publication.
