@@ -119,6 +119,14 @@ test('parseLoopArgs accepts the three iteration modes and defaults to alternatin
   );
 });
 
+test('parseLoopArgs threads --synthesizer identity through loop options', () => {
+  assert.equal(parseLoopArgs(baseLoopArgv()).synthesizer, null);
+  assert.equal(
+    parseLoopArgs(baseLoopArgv(['--iteration', 'parallel_synthesized', '--synthesizer', 'codex'])).synthesizer,
+    'codex'
+  );
+});
+
 test('parseLoopArgs rejects invalid iteration modes with INVALID_ITERATION_MODE and USAGE exit', () => {
   let thrown;
   try {

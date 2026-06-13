@@ -7,7 +7,8 @@ import {
   detectHost,
   parseWrapperArgs,
   preflightPaseo,
-  resolvePeers
+  resolvePeers,
+  resolveSynthesizer
 } from '../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
 
 function inventory(ids) {
@@ -75,6 +76,56 @@ test('parseWrapperArgs accepts iteration modes, defaults to alternating, and rej
     () => parseWrapperArgs(['draft.md', '--cold-start', 'independent_draft']),
     /not yet supported/
   );
+});
+
+test('parseWrapperArgs parses --synthesizer and defaults it to null (resolved at run time)', () => {
+  assert.equal(parseWrapperArgs(['draft.md']).synthesizer, null);
+  assert.equal(
+    parseWrapperArgs(['draft.md', '--iteration', 'parallel_synthesized', '--synthesizer', 'codex']).synthesizer,
+    'codex'
+  );
+});
+
+test('resolveSynthesizer defaults to the first peer and validates against the inventory', () => {
+  // Default: first peer when unspecified.
+  assert.equal(
+    resolveSynthesizer({ peers: ['claude', 'codex'], iteration: 'parallel_synthesized' }, inventory(['claude', 'codex']))
+      .synthesizer,
+    'claude'
+  );
+
+  // Explicit override present in the inventory.
+  assert.equal(
+    resolveSynthesizer(
+      { peers: ['claude', 'codex'], iteration: 'parallel_synthesized', synthesizer: 'codex' },
+      inventory(['claude', 'codex'])
+    ).synthesizer,
+    'codex'
+  );
+});
+
+test('resolveSynthesizer rejects a synthesizer missing from the inventory with SYNTHESIZER_UNAVAILABLE', () => {
+  let thrown;
+  try {
+    resolveSynthesizer(
+      { peers: ['claude', 'codex'], iteration: 'parallel_synthesized', synthesizer: 'gemini' },
+      inventory(['claude', 'codex'])
+    );
+  } catch (error) {
+    thrown = error;
+  }
+  assert.ok(thrown, 'expected an error');
+  assert.equal(thrown.code, 'SYNTHESIZER_UNAVAILABLE');
+  assert.match(thrown.message, /gemini/);
+});
+
+test('resolveSynthesizer warns and ignores a synthesizer outside parallel_synthesized mode', () => {
+  const result = resolveSynthesizer(
+    { peers: ['claude', 'codex'], iteration: 'parallel_revision', synthesizer: 'codex' },
+    inventory(['claude', 'codex'])
+  );
+  assert.equal(result.synthesizer, null);
+  assert.ok(result.warnings.some((warning) => /synthesizer/i.test(warning.message)));
 });
 
 test('parseWrapperArgs handles prepare-parallel and fan-in modes', () => {

@@ -897,6 +897,7 @@ function renderArtifactFrontmatter(resolution) {
     mode: resolution.mode,
     parallel: resolution.parallel,
     iteration: resolution.iteration,
+    synthesizer: resolution.synthesizer,
     cold_start: resolution.cold_start,
     agency: resolution.agency,
     peers: resolution.peers,
@@ -1214,6 +1215,7 @@ export function parseWrapperArgs(argv) {
     maxRounds: 12,
     agency: 'moderate',
     iteration: 'alternating',
+    synthesizer: null,
     coldStart: 'shared_input',
     output: null,
     resume: null,
@@ -1258,6 +1260,10 @@ export function parseWrapperArgs(argv) {
         break;
       case '--iteration':
         parsed.iteration = requireValue(argv, index, token);
+        index += 1;
+        break;
+      case '--synthesizer':
+        parsed.synthesizer = validateProviderId(requireValue(argv, index, token), '--synthesizer');
         index += 1;
         break;
       case '--cold-start':
@@ -1511,8 +1517,8 @@ function sequentialRunSections(parsedSections, resumeState) {
   });
 }
 
-function loopArgvForSection({ section, paths, options, peers }) {
-  return [
+function loopArgvForSection({ section, paths, options, peers, synthesizer = null }) {
+  const argv = [
     '--section-file',
     paths.input,
     '--goal',
@@ -1524,14 +1530,20 @@ function loopArgvForSection({ section, paths, options, peers }) {
     '--agency',
     options.agency,
     '--iteration',
-    options.iteration ?? 'alternating',
+    options.iteration ?? 'alternating'
+  ];
+  if (synthesizer) {
+    argv.push('--synthesizer', synthesizer);
+  }
+  argv.push(
     '--output-records',
     paths.records,
     '--output-section',
     paths.output,
     '--output-status',
     paths.status
-  ];
+  );
+  return argv;
 }
 
 function parallelismFor(sectionCount, requested) {
@@ -1592,6 +1604,7 @@ export function renderDeliberationArtifact(runResult) {
     mode: runResult.mode ?? 'sequential',
     parallel: Boolean(runResult.parallel),
     iteration: runResult.iteration ?? 'alternating',
+    synthesizer: runResult.synthesizer ?? null,
     cold_start: runResult.coldStart ?? 'shared_input',
     agency: runResult.agency,
     peers: runResult.peers,
@@ -1693,6 +1706,10 @@ export async function runSequential(options, runOptions = {}) {
       : await (normalized.preflight ?? preflightPaseo)({ ...normalized, env, cwd });
   const peers = normalized.peers ?? preflight.peers;
   const host = preflight.host ?? detectHost(env);
+  const { synthesizer } = resolveSynthesizer(
+    { ...normalized, peers },
+    preflight.providerInventory ?? peers.map((id) => ({ id, available: true }))
+  );
   const resumeSections = sectionLookup(resumeState?.sections);
   const runSections = sequentialRunSections(parsedSections, resumeState);
   const sectionResults = [];
@@ -1758,10 +1775,11 @@ export async function runSequential(options, runOptions = {}) {
     }
 
     try {
-      const result = await runConsensusLoop(loopArgvForSection({ section, paths, options: normalized, peers }), {
+      const result = await runConsensusLoop(loopArgvForSection({ section, paths, options: normalized, peers, synthesizer }), {
         env,
         cwd,
         invokePeer: normalized.invokePeer ?? runOptions.invokePeer,
+        invokeSynthesizer: normalized.invokeSynthesizer ?? runOptions.invokeSynthesizer,
         initialRecords: resumeSection?.records ?? [],
         initialArtifact: sectionInput,
         userDirection: resumeSection?.inFlight ? normalized.userDirection : null
@@ -1809,6 +1827,7 @@ export async function runSequential(options, runOptions = {}) {
     host,
     agency: normalized.agency,
     iteration: normalized.iteration ?? 'alternating',
+    synthesizer,
     coldStart: normalized.coldStart ?? 'shared_input',
     maxRounds: normalized.maxRounds,
     startedAt,
@@ -2129,6 +2148,56 @@ export function resolvePeers(options = {}, host = 'unknown', providerInventory =
   }
 
   return { peers, inventory };
+}
+
+/**
+ * Resolve the per-run synthesizer (FR6). Meaningful only in parallel_synthesized
+ * mode: outside it, an explicit --synthesizer is warned-and-ignored. Inside it the
+ * synthesizer defaults to the first peer and any explicit override must be present
+ * in the provider inventory (SYNTHESIZER_UNAVAILABLE otherwise).
+ */
+export function resolveSynthesizer(options = {}, providerInventory = []) {
+  const warnings = [];
+  const requested = options.synthesizer ?? null;
+
+  if (options.iteration !== 'parallel_synthesized') {
+    if (requested) {
+      warnings.push({
+        code: 'SYNTHESIZER_IGNORED',
+        level: 'warning',
+        synthesizer: requested,
+        iteration: options.iteration ?? 'alternating',
+        message: `--synthesizer "${requested}" is ignored outside parallel_synthesized mode.`
+      });
+    }
+    return { synthesizer: null, warnings };
+  }
+
+  const peers = options.peers ?? [];
+  const synthesizer = requested ?? peers[0] ?? null;
+
+  if (!synthesizer) {
+    throw new ConsensusError('no synthesizer could be resolved (no peers available)', {
+      code: 'SYNTHESIZER_UNAVAILABLE',
+      exitCode: EXIT_CODES.CONFIG,
+      details: { requested, peers }
+    });
+  }
+
+  const inventory = normalizeProviderInventory(providerInventory);
+  const entry = inventory.find((candidate) => candidate.id === synthesizer);
+  if (!entry || entry.available === false) {
+    throw new ConsensusError(
+      `Synthesizer "${synthesizer}" is not an available provider in the Paseo inventory. Verify configured providers with "paseo provider ls --json".`,
+      {
+        code: 'SYNTHESIZER_UNAVAILABLE',
+        exitCode: EXIT_CODES.CONFIG,
+        details: { synthesizer }
+      }
+    );
+  }
+
+  return { synthesizer, warnings };
 }
 
 export async function preflightPaseo(options = {}) {

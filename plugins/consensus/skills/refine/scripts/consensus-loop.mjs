@@ -739,7 +739,8 @@ export function parseLoopArgs(argv) {
     maxRounds: 12,
     iteration: 'alternating',
     coldStart: 'shared_input',
-    agency: 'moderate'
+    agency: 'moderate',
+    synthesizer: null
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -767,6 +768,9 @@ export function parseLoopArgs(argv) {
         break;
       case '--iteration':
         parsed.iteration = next();
+        break;
+      case '--synthesizer':
+        parsed.synthesizer = next();
         break;
       case '--cold-start':
         parsed.coldStart = next();
