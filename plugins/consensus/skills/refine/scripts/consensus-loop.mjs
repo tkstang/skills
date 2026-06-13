@@ -804,6 +804,58 @@ export async function invokePaseoWithRetry(args, { attempts = 3, delayMs = 750, 
   throw lastError;
 }
 
+function peerVerdictError(verdict, mode) {
+  const shape = validateVerdictShape(verdict, { mode });
+  if (!shape.ok) {
+    return new ConsensusError(`invalid verdict shape: ${shape.errors.join('; ')}`, {
+      code: 'INVALID_VERDICT_SHAPE',
+      exitCode: EXIT_CODES.DATA,
+      details: { errors: shape.errors }
+    });
+  }
+  const caps = validateVerdictCaps(verdict, { mode });
+  if (!caps.ok) {
+    return new ConsensusError(`invalid verdict caps: ${JSON.stringify(caps.metadata)}`, {
+      code: 'INVALID_VERDICT_CAPS',
+      exitCode: EXIT_CODES.DATA,
+      details: caps.metadata
+    });
+  }
+  return null;
+}
+
+/**
+ * Invoke a peer and re-invoke when EITHER paseo fails transiently OR the returned
+ * verdict fails our validation (after normalization). The schema we send paseo can
+ * only express part of the contract (OpenAI forbids oneOf/not), so a model can
+ * return a schema-valid-but-contract-invalid verdict — e.g. a REVISE with no
+ * proposed_artifact — which paseo cannot retry. Treat those as retryable here so a
+ * single non-compliant generation does not hard-fail the section. Only the default
+ * (real-paseo) invoker uses this; injected test stubs are validated once in the
+ * executor and keep their exact call counts.
+ */
+export async function invokeValidatedPeer({ mode, attempts = 3, delayMs = 750, sleep, invoke = invokePaseo, ...args } = {}) {
+  const wait = sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
+  let lastError;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      const result = await invoke(args);
+      const verdictError = peerVerdictError(normalizeVerdict(result.json, mode), mode);
+      if (verdictError) throw verdictError;
+      return result;
+    } catch (error) {
+      lastError = error;
+      const retryable =
+        isRetryablePaseoError(error) ||
+        error?.code === 'INVALID_VERDICT_SHAPE' ||
+        error?.code === 'INVALID_VERDICT_CAPS';
+      if (!retryable || attempt === attempts) throw error;
+      await wait(delayMs);
+    }
+  }
+  throw lastError;
+}
+
 export function parseLoopArgs(argv) {
   const parsed = {
     goal: '',
@@ -1820,7 +1872,8 @@ export async function runConsensusLoop(argv, runOptions = {}) {
   const invokePeer =
     runOptions.invokePeer ??
     ((turn) =>
-      invokePaseoWithRetry({
+      invokeValidatedPeer({
+        mode: options.iteration,
         provider: turn.provider,
         schemaPath: peerSchemaPathForMode(options.iteration),
         prompt: turn.prompt,

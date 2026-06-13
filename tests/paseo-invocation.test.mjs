@@ -8,8 +8,57 @@ import {
   SUBPROCESS_OUTPUT_CAP_BYTES,
   ConsensusError,
   invokePaseo,
-  invokePaseoWithRetry
+  invokePaseoWithRetry,
+  invokeValidatedPeer
 } from '../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
+
+test('invokeValidatedPeer re-invokes when a verdict fails OUR validation, then returns a valid one', async () => {
+  // A REVISE without proposed_artifact is schema-valid (post-oneOf) but fails our
+  // branch-table validator; paseo cannot retry it, so invokeValidatedPeer does.
+  const responses = [
+    { json: { schema_version: 'v1', verdict: 'REVISE', reasoning: 'forgot the artifact' } },
+    { json: { schema_version: 'v1', verdict: 'ACCEPT', reasoning: 'good as-is' } }
+  ];
+  let calls = 0;
+  const result = await invokeValidatedPeer({
+    mode: 'alternating',
+    sleep: async () => {},
+    invoke: async () => responses[calls++]
+  });
+  assert.equal(result.json.verdict, 'ACCEPT');
+  assert.equal(calls, 2);
+});
+
+test('invokeValidatedPeer throws after the attempt budget when the verdict stays invalid', async () => {
+  let calls = 0;
+  await assert.rejects(
+    invokeValidatedPeer({
+      mode: 'alternating',
+      attempts: 3,
+      sleep: async () => {},
+      invoke: async () => {
+        calls += 1;
+        return { json: { schema_version: 'v1', verdict: 'REVISE', reasoning: 'still no artifact' } };
+      }
+    }),
+    /invalid verdict shape/
+  );
+  assert.equal(calls, 3);
+});
+
+test('invokeValidatedPeer returns immediately when the first verdict is valid (no retry)', async () => {
+  let calls = 0;
+  const result = await invokeValidatedPeer({
+    mode: 'parallel_revision',
+    sleep: async () => {},
+    invoke: async () => {
+      calls += 1;
+      return { json: { schema_version: 'v1', verdict: 'CONVERGED', reasoning: 'aligned' } };
+    }
+  });
+  assert.equal(result.json.verdict, 'CONVERGED');
+  assert.equal(calls, 1);
+});
 
 test('invokePaseoWithRetry retries transient paseo failures and returns the eventual success', async () => {
   let calls = 0;
