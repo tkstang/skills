@@ -912,6 +912,74 @@ export function buildParallelTurnPrompt({
   ].join('\n');
 }
 
+/**
+ * Synthesis prompt (p03-t01). The wrapper-driven synthesizer is a stateless third
+ * call: it merges both peer revisions using both critiques and the prior unresolved
+ * disagreements. Peer revisions derive from untrusted input, so the same SECTION
+ * untrusted-content framing applies. The output contract mirrors the synthesis
+ * schema (synthesized_artifact / synthesis_reasoning / unresolved_disagreements).
+ */
+export function buildSynthesisPrompt({
+  provider,
+  round,
+  goal,
+  revisionA,
+  revisionB,
+  critiqueA = null,
+  critiqueB = null,
+  priorUnresolved = []
+}) {
+  const blockFor = (revision) => String(revision?.text ?? '').replace(/\n*$/u, '\n');
+  const agentA = revisionA?.agent ?? 'peer A';
+  const agentB = revisionB?.agent ?? 'peer B';
+  const critiqueABlock = critiqueA ? JSON.stringify(critiqueA, null, 2) : 'None';
+  const critiqueBBlock = critiqueB ? JSON.stringify(critiqueB, null, 2) : 'None';
+  const unresolvedBlock =
+    Array.isArray(priorUnresolved) && priorUnresolved.length > 0
+      ? priorUnresolved.map((entry) => `- ${entry}`).join('\n')
+      : 'None';
+
+  return [
+    `You are ${provider} acting as the consensus synthesizer for a single section`,
+    'of a markdown artifact. You are not a deliberating peer; you mechanically merge',
+    'the two peer revisions into one synthesized section.',
+    '',
+    `Goal: ${goal || '(no explicit goal provided)'}`,
+    '',
+    'Iteration mode: parallel_synthesized',
+    `Round: ${round}`,
+    'Your role: stateless synthesizer (merge both revisions; do not re-deliberate)',
+    '',
+    ...untrustedFramingLines(),
+    '',
+    `Revision from ${agentA}:`,
+    '<SECTION>',
+    blockFor(revisionA),
+    '</SECTION>',
+    '',
+    `Revision from ${agentB}:`,
+    '<SECTION>',
+    blockFor(revisionB),
+    '</SECTION>',
+    '',
+    `Critique from ${agentA}:`,
+    critiqueABlock,
+    '',
+    `Critique from ${agentB}:`,
+    critiqueBBlock,
+    '',
+    'Prior unresolved disagreements:',
+    unresolvedBlock,
+    '',
+    'Your task: Produce one merged section against the goal. Where the two critiques',
+    'agree, treat that as established; where they disagree, prefer the change',
+    'supported by stronger reasoning. Emit JSON conforming to the provided schema with',
+    'synthesized_artifact (the full merged section), synthesis_reasoning (why you',
+    'merged as you did), and unresolved_disagreements (a possibly-empty array of',
+    'points the merge could not settle).'
+  ].join('\n');
+}
+
 export function buildTurnPrompt({ provider, round, turn, goal, artifact, previousVerdict = null, priorRecords = [] }) {
   const artifactBlock = String(artifact ?? '').replace(/\n*$/u, '\n');
   const previousVerdictBlock = previousVerdict ? JSON.stringify(previousVerdict) : 'None - you are first';
