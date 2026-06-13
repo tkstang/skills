@@ -233,6 +233,13 @@ running (`paseo daemon start`) started from a login shell so provider auth loads
    forbid tool use; added `invokePaseoWithRetry` (bounded retry on transient PASEO_EXIT /
    PASEO_INVALID_JSON) on the default peer + synthesizer invokers. Verified: synthesized
    runs clean across repeated runs with legible synthesis reasoning — `1a7e67e`.
+6. **Peer verdict validation retry (p07-t04)** — a live escalation run hit "invalid verdict
+   shape: missing required property: proposed_artifact" (claude returned a REVISE without
+   proposed_artifact). The schema can't enforce that conditional (OpenAI forbids oneOf/not),
+   so paseo accepts it and only our JS validator rejects it — with no retry → hard section
+   error. `invokeValidatedPeer` re-invokes the peer when OUR validation fails (and on
+   transient paseo errors), so a single non-compliant generation no longer fails the section;
+   injected test stubs validate once and keep deterministic call counts — `ec79c8e`.
 
 ### Live verification (NFR4 close-out, claude+codex)
 
@@ -241,7 +248,15 @@ running (`paseo daemon start`) started from a login shell so provider auth loads
   round budget (`partial`). ✓
 - **parallel_synthesized:** peers + per-round synthesis run reliably; synthesis_reasoning is
   audit-legible (e.g. "Both critiques agree the opening should lead with the change"). ✓
-- **escalation:** see the escalation run recorded below / in the session.
+- **escalation (FR5):** the host-decision flow — `escalation_required` (decide_via: host) →
+  `--host-direction` resume → HOST_DECISION round → convergence — is verified **deterministically**
+  by `scripts/smoke-test.mjs` (persistent_disagreement scenario) plus the routing/promotion
+  truth-table in `tests/escalation.test.mjs`. A live escalation run (contested doc, moderate
+  agency) did NOT fire a host escalation — `budget_exhausted` at moderate is user-routed by
+  design (= plain max-rounds terminal, correct), and `persistent_disagreement` never triggered
+  because the synthesizer reported `unresolved_disagreements: []`. *Triggering* a host escalation
+  from live models is genuinely flaky (depends on the synthesizer flagging disagreements); the
+  mechanics are proven. A real in-the-loop live run remains available to the operator. ✓ (logic)
 
 Two follow-ups captured as backlog (not ship-blockers): **bl-3a88** (tool-based verdict
 submission — a more robust structured-output primitive than `--output-schema`, the leading
