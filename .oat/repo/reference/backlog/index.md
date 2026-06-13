@@ -17,6 +17,7 @@
 | bl-87ef | Add consensus-decide skill (recommend among options) | open | medium | feature | S |
 | bl-5174 | Add consensus-evaluate skill (artifact vs rubric) | open | medium | feature | S |
 | bl-0cb8 | Add consensus-plan skill (structured plan from goal) | open | medium | feature | S |
+| bl-3a88 | Tool-based verdict submission for consensus peers (robust structured output) | open | medium | feature | L |
 | bl-645c | Add consensus-research skill (investigate question, synthesized findings) | open | low | feature | M |
 | bl-9ed4 | Add deliberation metrics (tokens, wall-clock, rounds) to artifacts | open | low | feature | S |
 | bl-ef38 | Add similarity heuristic for near-converged deliberation states | open | low | feature | S |
