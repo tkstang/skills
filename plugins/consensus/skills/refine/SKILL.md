@@ -25,9 +25,27 @@ For the default one-shot path, run the wrapper from this skill directory:
 node ./scripts/consensus-refine.mjs <input.md> --goal "<goal>"
 ```
 
-Pass through user-specified flags such as `--peers`, `--max-rounds`, `--agency`, `--output`, `--resume`, `--allow-root`, and `--fail-on-section-error` when the user asks for them. The default mode is sequential section processing.
+Pass through user-specified flags such as `--peers`, `--max-rounds`, `--agency`, `--iteration`, `--synthesizer`, `--output`, `--resume`, `--allow-root`, and `--fail-on-section-error` when the user asks for them. The default mode is sequential section processing with the `alternating` iteration mode. See [Iteration Modes](#iteration-modes) for the parallel modes and their cost multipliers.
 
 Read JSONL emitted on stdout. Treat each JSONL line as host coordination data: status updates, warnings, artifact paths, impasse summaries, or parallel dispatch instructions. Use stderr only as terminal diagnostics, not as the coordination protocol.
+
+## Iteration Modes
+
+Select how the two peers deliberate with `--iteration <mode>`. The default is `alternating`. Pass the flag through only when the user asks for a parallel mode or when their goal warrants the extra cost.
+
+- `alternating` (default): one peer revises and the other responds, turn by turn. Lowest cost — one peer call per round.
+- `parallel_revision`: both peers revise the same input simultaneously each round, each critiquing its own and the peer's previous revision; the run converges on emergent agreement. Costs **2x peer calls** per round (two peer calls instead of one).
+- `parallel_synthesized`: parallel revision plus a wrapper-driven synthesis call each round that merges both revisions into the next round's shared input. Costs **2x peer calls plus one synthesis call** per round.
+
+Cost disclosure rides the `run_started` event: read its `iteration_mode` and `calls_per_round: { peer, synthesis }` fields and relay the multiplier to the user before a long run. At completion, the `run_completed` event and the resolution block report the actual `peer_calls` and `synthesis_calls` totals.
+
+Pick the mode by what the document needs: `alternating` for routine tightening; `parallel_revision` when independent convergence is the signal you want; `parallel_synthesized` when you want a merged draft each round on contested material. The extra spend is the trade-off — disclose it.
+
+### Synthesizer selection
+
+In `parallel_synthesized` mode the synthesis call defaults to the first configured peer's provider. Override it with `--synthesizer <provider-id>` to run routine merging on a cheaper model; the provider must be present in the peer inventory or preflight fails (`SYNTHESIZER_UNAVAILABLE`). The flag is warned-and-ignored outside `parallel_synthesized` mode. The synthesizer identity is recorded with every synthesis record and in the resolution block.
+
+Invalid mode values fail preflight with `INVALID_ITERATION_MODE` and a message listing the allowed modes.
 
 ## Resume and Recovery
 
@@ -67,6 +85,19 @@ When running under Codex and host-native subagent dispatch requires user authori
 ## Impasse Handling
 
 If JSONL reports an impasse, surface the divergent options clearly: choose one revision, blend revisions, give new direction, change the budget or agency level, or accept the impasse. User direction must be captured by the wrapper as a user round entry in the deliberation artifact. Do not hide section impasses when summarizing a run.
+
+## Escalation Handling
+
+Parallel modes can produce a structured **escalation** when a section gets stuck — persistent unresolved disagreements, oscillation, budget exhaustion, or a declare-done-despite-drift state. The wrapper emits an `escalation_required` JSONL event and the run ends at that section (headless behavior, like impasse). The event carries the divergent state: `trigger`, `decide_via`, `decision_kinds`, the two divergent revisions (and synthesis text plus `unresolved_disagreements` in synthesized mode), an optional `promoted_from`, and a `resume` vector with the artifact path and the flag to use.
+
+Branch on `decide_via`:
+
+- **`decide_via: user`** — present the divergent options to the user exactly as you would an impasse (pick one revision, blend, give new direction, change budget/agency, or accept the impasse). The user's answer re-enters via `--resume <artifact> --user-direction "<text>"` and records as a user round. This is the only path at minimal agency.
+- **`decide_via: host`** — you decide using the conversation context, then re-invoke `--resume <artifact> --host-direction "<decision text>"` (optionally `--host-decision-kind <kind>` where kind is one of `pick_a`, `pick_b`, `blend`, `direct`, `accept_impasse`, `extend_budget`, or `defer_to_user`). The decision records as an attributed `HOST_DECISION` orchestrator round, distinct from user rounds. **Always disclose the decision you made to the user in conversation** — host-decided rounds are not silent; the user must be able to see what you chose and why.
+
+If you cannot responsibly make a host-routed call, decline with `--host-decision-kind defer_to_user`; the wrapper re-emits the escalation routed to the user without consuming budget. Never self-decide an escalation that the event routes to the user: `--host-direction` against a user-routed escalation is rejected fail-closed (`ESCALATION_ROUTING`).
+
+A `promoted_from: 'host'` marker means a previously host-routed escalation has been promoted to the user because a host decision was already tried and the trigger re-fired (genuinely stuck) — present it to the user.
 
 ## Output Contract
 

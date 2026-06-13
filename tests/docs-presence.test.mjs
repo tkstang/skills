@@ -4,6 +4,7 @@ import test from 'node:test';
 
 const repoRoot = new URL('..', import.meta.url);
 const requiredDocs = ['README.md', 'LICENSE', 'CHANGELOG.md', 'CONTRIBUTING.md', 'RELEASING.md'];
+const refineSkillPath = 'plugins/consensus/skills/refine/SKILL.md';
 
 async function read(relativePath) {
   return readFile(new URL(relativePath, repoRoot), 'utf8');
@@ -30,4 +31,11 @@ test('license, changelog, and provider docs contract are present', async () => {
 
   const claude = await lstat(new URL('CLAUDE.md', repoRoot));
   assert.equal(claude.isSymbolicLink(), true);
+});
+
+test('refine SKILL.md documents iteration-mode and escalation sections', async () => {
+  const skill = await read(refineSkillPath);
+
+  assert.match(skill, /^## Iteration Modes$/m);
+  assert.match(skill, /^## Escalation Handling$/m);
 });
