@@ -1436,6 +1436,71 @@ export async function executeRound(context) {
   return { records: [recordPayload], nextArtifact, verdicts: [verdict] };
 }
 
+// Triggers whose user-routed escalation preserves a v0.1 terminal status
+// (surface-and-stop). These are the `user`-routed rows that v0.1 already had.
+const LEGACY_USER_STATUS = Object.freeze({
+  oscillation: { status: 'oscillation', termination_reason: 'oscillation_detected' },
+  budget_exhausted: { status: 'max-rounds', termination_reason: 'max_rounds_exhausted' }
+});
+
+/**
+ * Build the terminal result for a fired escalation trigger (p04-t03). Routing
+ * decides the decision-maker:
+ *   - auto: terminate deterministically (declare-done / near-match) as converged.
+ *   - user + legacy trigger (oscillation/budget_exhausted): preserve the v0.1
+ *     terminal status unchanged (the minimal-agency surface-and-stop column).
+ *   - otherwise (host-routed, or user-routed persistent_disagreement/near_done_drift):
+ *     terminate with status 'escalation' carrying the decision packet.
+ */
+function escalationTerminal({ trigger, detected, options, records, artifact }) {
+  const route = routeEscalation(trigger, options.agency, records);
+  const finalHash = hashArtifact(artifact, hashOptionsForAgency(options.agency));
+
+  if (route.decide_via === 'auto') {
+    const agencyDecision =
+      trigger === ESCALATION_TRIGGERS.budget_exhausted
+        ? 'maximum_declared_done_at_max_rounds'
+        : 'maximum_near_match';
+    const reason = trigger === ESCALATION_TRIGGERS.budget_exhausted ? 'max_rounds_exhausted' : 'near_done_drift';
+    return {
+      status: resultStatus('converged', reason, records, options, {
+        final_artifact_hash: finalHash,
+        agency_decision: agencyDecision
+      }),
+      artifact
+    };
+  }
+
+  if (route.decide_via === 'user' && LEGACY_USER_STATUS[trigger]) {
+    const legacy = LEGACY_USER_STATUS[trigger];
+    return {
+      status: resultStatus(legacy.status, legacy.termination_reason, records, options, {
+        final_artifact_hash: finalHash
+      }),
+      artifact
+    };
+  }
+
+  const escalation = {
+    trigger,
+    decide_via: route.decide_via,
+    decision_kinds: route.decision_kinds
+  };
+  if (route.promoted_from) {
+    escalation.promoted_from = route.promoted_from;
+  }
+  if (detected?.divergent) {
+    escalation.divergent = detected.divergent;
+  }
+  return {
+    status: resultStatus('escalation', `escalation_${trigger}`, records, options, {
+      final_artifact_hash: finalHash,
+      escalation
+    }),
+    artifact
+  };
+}
+
 async function runParallelRounds({ options, records, writer, currentArtifact, invokePeer, invokeSynthesizer }) {
   let artifact = currentArtifact;
   const startRound = Math.floor(peerTurnCount(records) / options.peers.length);
@@ -1514,33 +1579,28 @@ async function runParallelRounds({ options, records, writer, currentArtifact, in
       };
     }
 
-    const oscillation = detectParallelOscillation(records, convergenceOptionsForAgency(options.agency));
-    if (oscillation.oscillating) {
-      return {
-        status: resultStatus('oscillation', 'oscillation_detected', records, options, {
-          final_artifact_hash: hashArtifact(artifact, hashOptionsForAgency(options.agency))
-        }),
-        artifact
-      };
+    // Escalation triggers run AFTER convergence/impasse declined (design §5):
+    // oscillation, persistent_disagreement, near_done_drift. budget_exhausted is
+    // evaluated after the round budget is spent (below).
+    const detected = detectEscalation(records, { mode: options.iteration, agency: options.agency });
+    if (detected) {
+      return escalationTerminal({ trigger: detected.trigger, detected, options, records, artifact });
     }
   }
 
-  if (options.agency === 'maximum') {
-    return {
-      status: resultStatus('converged', 'max_rounds_exhausted', records, options, {
-        final_artifact_hash: hashArtifact(artifact, hashOptionsForAgency(options.agency)),
-        agency_decision: 'maximum_declared_done_at_max_rounds'
-      }),
-      artifact
-    };
-  }
-
-  return {
-    status: resultStatus('max-rounds', 'max_rounds_exhausted', records, options, {
-      final_artifact_hash: hashArtifact(artifact, hashOptionsForAgency(options.agency))
-    }),
+  // Round budget spent without convergence → budget_exhausted escalation.
+  const budgetDetected = detectEscalation(records, {
+    mode: options.iteration,
+    agency: options.agency,
+    budgetExhausted: true
+  });
+  return escalationTerminal({
+    trigger: budgetDetected?.trigger ?? ESCALATION_TRIGGERS.budget_exhausted,
+    detected: budgetDetected,
+    options,
+    records,
     artifact
-  };
+  });
 }
 
 export async function runConsensusLoop(argv, runOptions = {}) {

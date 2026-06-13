@@ -1,12 +1,51 @@
 import assert from 'node:assert/strict';
+import { mkdtemp, writeFile } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 import test from 'node:test';
 
 import {
   detectEscalation,
   routeEscalation,
+  runConsensusLoop,
   ESCALATION_TRIGGERS,
   hashArtifact
 } from '../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
+
+async function makeRunFiles(sectionText = 'Initial section.\n') {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-escalation-'));
+  const sectionPath = path.join(tempRoot, 'section.md');
+  await writeFile(sectionPath, sectionText);
+  return {
+    tempRoot,
+    sectionPath,
+    recordsPath: path.join(tempRoot, 'records.json'),
+    outputPath: path.join(tempRoot, 'output.md'),
+    statusPath: path.join(tempRoot, 'status.json')
+  };
+}
+
+function loopArgv(files, extra = []) {
+  return [
+    '--section-file',
+    files.sectionPath,
+    '--goal',
+    'Tighten it.',
+    '--peers',
+    'claude,codex',
+    '--max-rounds',
+    '4',
+    '--agency',
+    'moderate',
+    '--output-records',
+    files.recordsPath,
+    '--output-section',
+    files.outputPath,
+    '--output-status',
+    files.statusPath,
+    ...extra
+  ];
+}
 
 // ---------------------------------------------------------------------------
 // Record builders (mirroring the v1 record stream shape the engine produces).
@@ -309,6 +348,159 @@ test('maximum budget_exhausted is exempt from promotion even after a HOST_DECISI
   const route = routeEscalation(ESCALATION_TRIGGERS.budget_exhausted, 'maximum', records);
   assert.equal(route.decide_via, 'auto');
   assert.ok(!route.promoted_from);
+});
+
+// ---------------------------------------------------------------------------
+// p04-t03: escalation terminal status + decision packet (loop-level)
+// ---------------------------------------------------------------------------
+
+// A synthesized stub whose peers keep diverging and whose synthesis always
+// reports the same unresolved-disagreement set → persistent_disagreement.
+function persistentSynthesizedStubs(disagreements = ['heading style']) {
+  let peerCall = 0;
+  const invokePeer = async () => {
+    peerCall += 1;
+    return {
+      json: {
+        schema_version: 'v1',
+        verdict: 'REVISE',
+        reasoning: `r${peerCall}`,
+        critique: { own_previous: 'o', peer_previous: 'p' },
+        proposed_artifact: `peer-${peerCall}.\n`
+      },
+      stdout: '{"id":"peer"}'
+    };
+  };
+  let synthCall = 0;
+  const invokeSynthesizer = async () => {
+    synthCall += 1;
+    return {
+      json: {
+        schema_version: 'v1',
+        synthesized_artifact: `merge-${synthCall}.\n`,
+        synthesis_reasoning: 'merged',
+        unresolved_disagreements: disagreements
+      },
+      stdout: '{"id":"synth"}'
+    };
+  };
+  return { invokePeer, invokeSynthesizer };
+}
+
+test('synthesized persistent_disagreement at moderate terminates with status escalation routed to host', async () => {
+  const files = await makeRunFiles('Seed.\n');
+  const { invokePeer, invokeSynthesizer } = persistentSynthesizedStubs();
+  const result = await runConsensusLoop(
+    loopArgv(files, ['--iteration', 'parallel_synthesized', '--synthesizer', 'claude', '--max-rounds', '8']),
+    { invokePeer, invokeSynthesizer }
+  );
+
+  assert.equal(result.status.status, 'escalation');
+  assert.equal(result.status.escalation.trigger, ESCALATION_TRIGGERS.persistent_disagreement);
+  assert.equal(result.status.escalation.decide_via, 'host');
+  assert.ok(result.status.escalation.decision_kinds.includes('defer_to_user'));
+  assert.ok(result.status.escalation.divergent);
+  assert.ok(result.status.escalation.divergent.synthesis);
+});
+
+test('user-routed escalation packet omits defer_to_user', async () => {
+  const files = await makeRunFiles('Seed.\n');
+  const { invokePeer, invokeSynthesizer } = persistentSynthesizedStubs();
+  const result = await runConsensusLoop(
+    loopArgv(files, [
+      '--iteration',
+      'parallel_synthesized',
+      '--synthesizer',
+      'claude',
+      '--agency',
+      'minimal',
+      '--max-rounds',
+      '8'
+    ]),
+    { invokePeer, invokeSynthesizer }
+  );
+
+  assert.equal(result.status.status, 'escalation');
+  assert.equal(result.status.escalation.decide_via, 'user');
+  assert.ok(!result.status.escalation.decision_kinds.includes('defer_to_user'));
+});
+
+// Minimal-agency oscillation must preserve the v0.1 'oscillation' status.
+test('minimal-agency parallel oscillation preserves the v0.1 oscillation status', async () => {
+  const files = await makeRunFiles('Seed.\n');
+  // Within a round the two peers differ; the order-normalized PAIR cycles
+  // {A,B} / {C,D} / {A,B} / {C,D} → pair oscillation. Strict (minimal) hashing.
+  const invokePeer = async ({ round, peerIndex }) => {
+    const odd = round % 2 === 1;
+    const text = odd ? (peerIndex === 0 ? 'A\n' : 'B\n') : peerIndex === 0 ? 'C\n' : 'D\n';
+    return {
+      json: {
+        schema_version: 'v1',
+        verdict: 'REVISE',
+        reasoning: `r${round}`,
+        critique: { own_previous: 'o', peer_previous: 'p' },
+        proposed_artifact: text
+      },
+      stdout: '{"id":"peer"}'
+    };
+  };
+  const result = await runConsensusLoop(
+    loopArgv(files, ['--iteration', 'parallel_revision', '--agency', 'minimal', '--max-rounds', '6']),
+    { invokePeer }
+  );
+
+  assert.equal(result.status.status, 'oscillation');
+});
+
+// Minimal-agency budget exhaustion must preserve the v0.1 'max-rounds' status.
+test('minimal-agency budget exhaustion preserves the v0.1 max-rounds status', async () => {
+  const files = await makeRunFiles('Seed.\n');
+  let call = 0;
+  const invokePeer = async () => {
+    call += 1;
+    return {
+      json: {
+        schema_version: 'v1',
+        verdict: 'REVISE',
+        reasoning: `r${call}`,
+        critique: { own_previous: 'o', peer_previous: 'p' },
+        proposed_artifact: `unique-${call}.\n`
+      },
+      stdout: '{"id":"peer"}'
+    };
+  };
+  const result = await runConsensusLoop(
+    loopArgv(files, ['--iteration', 'parallel_revision', '--agency', 'minimal', '--max-rounds', '3']),
+    { invokePeer }
+  );
+
+  assert.equal(result.status.status, 'max-rounds');
+});
+
+// Maximum-agency budget exhaustion keeps auto declare-done (converged).
+test('maximum-agency budget exhaustion auto-declares done (converged), not escalation', async () => {
+  const files = await makeRunFiles('Seed.\n');
+  let call = 0;
+  const invokePeer = async () => {
+    call += 1;
+    return {
+      json: {
+        schema_version: 'v1',
+        verdict: 'REVISE',
+        reasoning: `r${call}`,
+        critique: { own_previous: 'o', peer_previous: 'p' },
+        proposed_artifact: `unique-${call}.\n`
+      },
+      stdout: '{"id":"peer"}'
+    };
+  };
+  const result = await runConsensusLoop(
+    loopArgv(files, ['--iteration', 'parallel_revision', '--agency', 'maximum', '--max-rounds', '3']),
+    { invokePeer }
+  );
+
+  assert.equal(result.status.status, 'converged');
+  assert.equal(result.status.termination_reason, 'max_rounds_exhausted');
 });
 
 export { peerRecord, synthesisRecord, interventionRecord, synthesizedRound };
