@@ -1433,7 +1433,10 @@ async function runParallelRounds({ options, records, writer, currentArtifact, in
       };
     }
 
-    const convergence = detectParallelConvergence(records, convergenceOptionsForAgency(options.agency));
+    const convergence =
+      options.iteration === 'parallel_synthesized'
+        ? detectSynthesisStability(records, convergenceOptionsForAgency(options.agency))
+        : detectParallelConvergence(records, convergenceOptionsForAgency(options.agency));
     if (convergence.converged) {
       const statusExtra = { final_artifact_hash: convergence.artifact_hash };
       if (convergence.agency_decision) {
@@ -1723,6 +1726,68 @@ export function detectParallelConvergence(records, options = {}) {
   }
 
   return { converged: false, reason: null };
+}
+
+/**
+ * Parallel-synthesized convergence (p03-t04): synthesis stability. The loop has
+ * converged when both of the latest round's peer revisions hash-match the PREVIOUS
+ * round's synthesis hash — i.e. neither peer changed the synthesized text. Hash
+ * normalization follows agency (minimal = strict bytewise).
+ */
+export function detectSynthesisStability(records, options = {}) {
+  if (!Array.isArray(records) || records.length < 2) {
+    return { converged: false, reason: null };
+  }
+
+  const isPeer = (record) =>
+    record?.record_type !== 'synthesis' &&
+    record?.agent !== 'user' &&
+    record?.agent !== 'host-orchestrator';
+
+  // The latest peer round and its two revisions.
+  let latestPeerRound = null;
+  for (let index = records.length - 1; index >= 0; index -= 1) {
+    if (isPeer(records[index]) && Number.isInteger(Number(records[index].round_index))) {
+      latestPeerRound = Number(records[index].round_index);
+      break;
+    }
+  }
+  if (latestPeerRound === null || latestPeerRound < 2) {
+    // No prior synthesis round to stabilize on.
+    return { converged: false, reason: null };
+  }
+
+  const currentPeers = records.filter(
+    (record) => isPeer(record) && Number(record.round_index) === latestPeerRound
+  );
+  if (currentPeers.length < 2) {
+    return { converged: false, reason: null };
+  }
+
+  // The synthesis of the PREVIOUS round (latestPeerRound - 1).
+  const priorSynthesis = records.find(
+    (record) => record?.record_type === 'synthesis' && Number(record.round_index) === latestPeerRound - 1
+  );
+  if (!priorSynthesis) {
+    return { converged: false, reason: null };
+  }
+
+  const synthHash = parallelRevisionHash(priorSynthesis, options);
+  if (!synthHash) {
+    return { converged: false, reason: null };
+  }
+
+  const allMatch = currentPeers.every((record) => parallelRevisionHash(record, options) === synthHash);
+  if (!allMatch) {
+    return { converged: false, reason: null };
+  }
+
+  return {
+    converged: true,
+    reason: 'synthesis_stability',
+    synthesis_round: latestPeerRound - 1,
+    artifact_hash: synthHash
+  };
 }
 
 function parallelRoundPairs(records, options = {}) {

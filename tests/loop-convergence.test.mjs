@@ -9,6 +9,7 @@ import {
   detectOscillation,
   detectParallelConvergence,
   detectParallelOscillation,
+  detectSynthesisStability,
   hashArtifact,
   normalizeForHash,
   runConsensusLoop
@@ -360,6 +361,118 @@ test('detectParallelOscillation does not fire when only three rounds are present
     oscillating: false,
     reason: null
   });
+});
+
+function synthesizedRecord(agent, { verdict = 'REVISE', text, round }) {
+  return {
+    agent,
+    round_index: round,
+    iteration_mode: 'parallel_synthesized',
+    verdict,
+    proposed_artifact: text,
+    artifact_hash: hashArtifact(text),
+    critique: { own_previous: 'o', peer_previous: 'p' }
+  };
+}
+
+function synthesisRecord(text, { round, disagreements = [] }) {
+  return {
+    record_type: 'synthesis',
+    round_index: round,
+    synthesizer: 'claude',
+    synthesized_artifact: text,
+    synthesis_reasoning: 'merged',
+    unresolved_disagreements: disagreements,
+    artifact_hash: hashArtifact(text),
+    iteration_mode: 'parallel_synthesized'
+  };
+}
+
+test('detectSynthesisStability converges when both peer revisions match the prior synthesis hash', () => {
+  const synth = 'Stable synthesis.\n';
+  const records = [
+    synthesizedRecord('claude', { text: 'C1.\n', round: 1 }),
+    synthesizedRecord('codex', { text: 'X1.\n', round: 1 }),
+    synthesisRecord(synth, { round: 1 }),
+    // Round 2 peers both revise back to exactly the prior synthesis.
+    synthesizedRecord('claude', { text: synth, round: 2 }),
+    synthesizedRecord('codex', { text: synth, round: 2 })
+  ];
+
+  const result = detectSynthesisStability(records, { agency: 'moderate' });
+  assert.equal(result.converged, true);
+  assert.equal(result.reason, 'synthesis_stability');
+  assert.equal(result.artifact_hash, hashArtifact(synth));
+});
+
+test('detectSynthesisStability does not converge when only one peer matches the prior synthesis', () => {
+  const synth = 'Stable synthesis.\n';
+  const records = [
+    synthesizedRecord('claude', { text: 'C1.\n', round: 1 }),
+    synthesizedRecord('codex', { text: 'X1.\n', round: 1 }),
+    synthesisRecord(synth, { round: 1 }),
+    synthesizedRecord('claude', { text: synth, round: 2 }),
+    synthesizedRecord('codex', { text: 'Different.\n', round: 2 })
+  ];
+
+  assert.deepEqual(detectSynthesisStability(records, { agency: 'moderate' }), {
+    converged: false,
+    reason: null
+  });
+});
+
+test('detectSynthesisStability does not converge before a synthesis exists to stabilize on', () => {
+  const records = [
+    synthesizedRecord('claude', { text: 'C1.\n', round: 1 }),
+    synthesizedRecord('codex', { text: 'C1.\n', round: 1 })
+  ];
+
+  assert.deepEqual(detectSynthesisStability(records, { agency: 'moderate' }), {
+    converged: false,
+    reason: null
+  });
+});
+
+test('parallel_synthesized run converges via synthesis stability and records synthesis', async () => {
+  const files = await makeRunFiles('Seed.\n');
+  const synthText = 'Merged.\n';
+  // Round 1: peers diverge, synthesis = Merged. Round 2: both peers revise to Merged.
+  let peerCall = 0;
+  const result = await runConsensusLoop(
+    alternatingArgv(files, ['--iteration', 'parallel_synthesized', '--synthesizer', 'claude', '--max-rounds', '5']),
+    {
+      invokePeer: async ({ round }) => {
+        peerCall += 1;
+        const text = round === 1 ? `peer-${peerCall}.\n` : synthText;
+        return {
+          json: {
+            schema_version: 'v1',
+            verdict: 'REVISE',
+            reasoning: `r${peerCall}`,
+            critique: { own_previous: 'o', peer_previous: 'p' },
+            proposed_artifact: text
+          },
+          stdout: '{"id":"peer"}'
+        };
+      },
+      invokeSynthesizer: async () => ({
+        json: {
+          schema_version: 'v1',
+          synthesized_artifact: synthText,
+          synthesis_reasoning: 'merged',
+          unresolved_disagreements: []
+        },
+        stdout: '{"id":"synth"}'
+      })
+    }
+  );
+
+  assert.equal(result.status.status, 'converged');
+  assert.equal(result.status.termination_reason, 'synthesis_stability');
+  assert.equal(result.status.synthesis_calls, 2);
+  const synthesisRecords = result.records.filter((record) => record.record_type === 'synthesis');
+  assert.equal(synthesisRecords.length, 2);
+  assert.equal(synthesisRecords[0].synthesized_artifact, synthText);
 });
 
 test('detectOscillation (alternating) is untouched by parallel oscillation work', () => {
