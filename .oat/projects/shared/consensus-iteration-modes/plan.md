@@ -688,7 +688,7 @@ Already implemented and committed during the dogfood session; recorded here for 
 | p05    | code     | passed          | 2026-06-13 | inline review (fable); 0 findings (incl. moved p05-t05)|
 | p06    | code     | passed          | 2026-06-13 | inline review (fable); 0 findings (t06 dogfood deferred)|
 | p07    | code     | fixes_completed | 2026-06-13 | live dogfood: all modes + codex verified; see implementation.md |
-| final  | code     | pending         | -          | -                                                      |
+| final  | code     | received        | 2026-06-13 | reviews/final-review-2026-06-13.md                    |
 | spec   | artifact | pending         | -          | -                                                      |
 | design | artifact | fixes_completed | 2026-06-12 | reviews/archived/artifact-design-review-2026-06-12.md |
 | plan   | artifact | received        | 2026-06-13 | reviews/artifact-plan-review-2026-06-13.md              |
