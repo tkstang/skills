@@ -23,8 +23,8 @@ oat_dispatch_ceiling:
 oat_workflow_mode: spec-driven # spec-driven | quick | import
 oat_workflow_origin: native # native | imported
 oat_docs_updated: complete # null | skipped | complete — documentation sync status
-oat_pr_status: null # null | ready | open | closed | merged — actual PR state for the current project
-oat_pr_url: null # null | string — tracked PR URL when a PR exists
+oat_pr_status: open # null | ready | open | closed | merged — actual PR state for the current project
+oat_pr_url: "https://github.com/tkstang/skills/pull/9" # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-06-12T21:57:32.365Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: "2026-06-13T22:34:12.986Z" # ISO 8601 UTC timestamp — set when project is completed/archived
 oat_project_state_updated: "2026-06-13T22:34:12.986Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
