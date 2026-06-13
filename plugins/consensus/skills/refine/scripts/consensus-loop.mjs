@@ -847,7 +847,12 @@ function promptRecord(record) {
 }
 
 function peerRecords(records) {
-  return records.filter((record) => record?.agent !== 'user' && record?.verdict !== 'USER_INTERVENTION');
+  return records.filter(
+    (record) =>
+      record?.agent !== 'user' &&
+      record?.verdict !== 'USER_INTERVENTION' &&
+      record?.record_type !== 'synthesis-error'
+  );
 }
 
 function peerTurnCount(records) {
@@ -1298,23 +1303,33 @@ function priorUnresolvedDisagreements(records) {
   return [];
 }
 
-function validateSynthesisResponse(synthesis, synthesizer) {
+/**
+ * Validate a synthesis payload. On failure returns a discriminated descriptor used
+ * to (a) write a metadata-only synthesis-error record and (b) throw the matching
+ * ConsensusError — keeping the two-level transaction contract (p03-t05): invalid or
+ * oversized synthesis terminates the section as `error` with a metadata-only record,
+ * never leaking synthesized text.
+ */
+function classifySynthesisFailure(synthesis, synthesizer) {
   const shape = validateSynthesisShape(synthesis);
   if (!shape.ok) {
-    throw new ConsensusError(`invalid synthesis shape from ${synthesizer}: ${shape.errors.join('; ')}`, {
+    return {
       code: 'INVALID_SYNTHESIS_SHAPE',
-      exitCode: EXIT_CODES.DATA,
-      details: { synthesizer, errors: shape.errors }
-    });
+      message: `invalid synthesis shape from ${synthesizer}: ${shape.errors.join('; ')}`,
+      details: { synthesizer, errors: shape.errors },
+      metadata: { code: 'INVALID_SYNTHESIS_SHAPE', errors: shape.errors }
+    };
   }
   const caps = validateSynthesisCaps(synthesis);
   if (!caps.ok) {
-    throw new ConsensusError(`invalid synthesis caps from ${synthesizer}: ${JSON.stringify(caps.metadata)}`, {
+    return {
       code: 'INVALID_SYNTHESIS_CAPS',
-      exitCode: EXIT_CODES.DATA,
-      details: { synthesizer, ...caps.metadata }
-    });
+      message: `invalid synthesis caps from ${synthesizer}: ${JSON.stringify(caps.metadata)}`,
+      details: { synthesizer, ...caps.metadata },
+      metadata: caps.metadata
+    };
   }
+  return null;
 }
 
 /**
@@ -1338,6 +1353,9 @@ async function executeSynthesis({ options, records, pairRecords, round, invokeSy
     priorUnresolved: priorUnresolvedDisagreements(records)
   });
 
+  // A synthesis PROCESS failure (spawn/exit/reject) propagates without writing any
+  // synthesis record: the committed peer pair remains durable and the section is
+  // resumable at pending-synthesis (two-level transaction contract).
   const synthResult = await invokeSynthesizer({
     provider: synthesizer,
     schemaPath: synthesisSchemaPath(),
@@ -1346,7 +1364,30 @@ async function executeSynthesis({ options, records, pairRecords, round, invokeSy
   });
 
   const synthesis = synthResult.json;
-  validateSynthesisResponse(synthesis, synthesizer);
+
+  // An INVALID or OVERSIZED synthesis writes a metadata-only synthesis-error record
+  // (no synthesized text) and surfaces as a section error.
+  const failure = classifySynthesisFailure(synthesis, synthesizer);
+  if (failure) {
+    const errorRecord = {
+      record_type: 'synthesis-error',
+      round_index: round,
+      synthesizer,
+      code: failure.code,
+      metadata: failure.metadata,
+      iteration_mode: options.iteration
+    };
+    return {
+      synthesisError: {
+        record: errorRecord,
+        error: new ConsensusError(failure.message, {
+          code: failure.code,
+          exitCode: EXIT_CODES.DATA,
+          details: failure.details
+        })
+      }
+    };
+  }
 
   const synthesizedArtifact = synthesis.synthesized_artifact;
   const recordPayload = {
@@ -1377,14 +1418,17 @@ export async function executeRound(context) {
     const parallel = await executeParallelRound(context);
     if (mode === 'parallel_synthesized') {
       const round = parallel.records[0]?.round_index;
-      const { synthesis, nextArtifact } = await executeSynthesis({
+      const synthesisResult = await executeSynthesis({
         options: context.options,
         records: context.records,
         pairRecords: parallel.records,
         round,
         invokeSynthesizer: context.invokeSynthesizer
       });
-      return { ...parallel, synthesis, nextArtifact };
+      if (synthesisResult.synthesisError) {
+        return { ...parallel, synthesisError: synthesisResult.synthesisError };
+      }
+      return { ...parallel, synthesis: synthesisResult.synthesis, nextArtifact: synthesisResult.nextArtifact };
     }
     return parallel;
   }
@@ -1397,26 +1441,48 @@ async function runParallelRounds({ options, records, writer, currentArtifact, in
   const startRound = Math.floor(peerTurnCount(records) / options.peers.length);
 
   for (let roundOffset = startRound; roundOffset < options.maxRounds; roundOffset += 1) {
-    const { records: pair, synthesis, nextArtifact } = await executeRound({
+    // Phase 1 — peer subround: build and validate both peer records atomically.
+    const { records: pair } = await executeParallelRound({
       mode: options.iteration,
       options,
       records,
       currentArtifact: artifact,
-      invokePeer,
-      invokeSynthesizer
+      invokePeer
     });
-    artifact = nextArtifact;
 
-    // Atomic commit: append both peer records in fixed order.
+    // Commit both peer records in fixed order. The pair is durable BEFORE any
+    // synthesis step, so a synthesis process failure leaves it resumable
+    // (pending-synthesis) and an invalid synthesis still keeps the pair.
+    const committedPair = [];
     for (const payload of pair) {
       const record = await writer.append({ ...payload });
       records.push(record);
+      committedPair.push(record);
     }
+    artifact = revisionTextFor(committedPair.at(-1)) ?? artifact;
 
-    // Synthesis is a separate required record committed after the peer pair.
-    if (synthesis) {
-      const synthesisRecord = await writer.append({ ...synthesis });
+    // Phase 2 — synthesis subround (synthesized mode only): a separate required record
+    // after the committed peer pair. A process failure here propagates (pair durable,
+    // no synthesis record); invalid/oversized writes a metadata-only synthesis-error.
+    if (options.iteration === 'parallel_synthesized') {
+      const round = committedPair[0]?.round_index;
+      const synthesisResult = await executeSynthesis({
+        options,
+        records,
+        pairRecords: committedPair,
+        round,
+        invokeSynthesizer
+      });
+
+      if (synthesisResult.synthesisError) {
+        const errorRecord = await writer.append({ ...synthesisResult.synthesisError.record });
+        records.push(errorRecord);
+        throw synthesisResult.synthesisError.error;
+      }
+
+      const synthesisRecord = await writer.append({ ...synthesisResult.synthesis });
       records.push(synthesisRecord);
+      artifact = synthesisResult.nextArtifact;
     }
 
     const lastTwoPeers = peerRecords(records)
