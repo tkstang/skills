@@ -18,7 +18,7 @@ oat_dispatch_ceiling:
   preset: maximum
   providers:
     codex: xhigh
-    claude: opus
+    claude: opus # implementer ceiling; reviewer dispatches at fable per user directive (2026-06-13 run)
   source: project-state
 oat_workflow_mode: spec-driven # spec-driven | quick | import
 oat_workflow_origin: native # native | imported

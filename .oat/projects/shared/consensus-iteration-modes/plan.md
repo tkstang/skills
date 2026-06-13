@@ -7,6 +7,7 @@ oat_phase: plan
 oat_phase_status: in_progress
 oat_plan_hill_phases: [] # phases to pause AFTER completing (empty = every phase)
 oat_plan_parallel_groups: [] # groups of phases that run concurrently in worktrees; [] = fully sequential
+oat_auto_review_at_hill_checkpoints: true
 oat_plan_source: spec-driven # spec-driven | quick | imported
 oat_import_reference: null
 oat_import_source_path: null
