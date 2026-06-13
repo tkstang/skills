@@ -624,7 +624,7 @@ oat_generated: false
 | p02    | code     | passed          | 2026-06-13 | inline review (fable); 1 imp fixed (test-output leak)  |
 | p03    | code     | passed          | 2026-06-13 | inline review (fable); 0 findings                      |
 | p04    | code     | passed          | 2026-06-13 | inline review (fable); 0 findings                      |
-| p05    | code     | pending         | -          | -                                                      |
+| p05    | code     | passed          | 2026-06-13 | inline review (fable); 0 findings (incl. moved p05-t05)|
 | p06    | code     | pending         | -          | -                                                      |
 | final  | code     | pending         | -          | -                                                      |
 | spec   | artifact | pending         | -          | -                                                      |
