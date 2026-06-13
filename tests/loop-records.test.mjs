@@ -7,8 +7,36 @@ import test from 'node:test';
 import {
   buildParallelTurnPrompt,
   createRecordsWriter,
+  executeRound,
+  hashArtifact,
   writeLoopStatus
 } from '../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
+
+function parallelVerdict(text, { verdict = 'REVISE' } = {}) {
+  return {
+    schema_version: 'v1',
+    verdict,
+    reasoning: `revision for ${text}`,
+    critique: { own_previous: 'own note', peer_previous: 'peer note' },
+    proposed_artifact: text
+  };
+}
+
+function parallelContext({ invokePeer, currentArtifact = 'Shared input.\n', records = [] }) {
+  return {
+    mode: 'parallel_revision',
+    roundIndex: 0,
+    options: {
+      peers: ['claude', 'codex'],
+      goal: 'Tighten.',
+      iteration: 'parallel_revision',
+      agency: 'moderate'
+    },
+    records,
+    currentArtifact,
+    invokePeer
+  };
+}
 
 async function readJson(filePath) {
   return JSON.parse(await readFile(filePath, 'utf8'));
@@ -118,6 +146,68 @@ test('buildParallelTurnPrompt marks round 1 as having no previous revision for b
 
   assert.match(prompt, /Your previous revision:\nnone/);
   assert.match(prompt, /The other peer's previous revision:\nnone/);
+});
+
+test('executeRound parallel commits both peer records in fixed peer order regardless of completion order', async () => {
+  // codex (peer index 1) resolves before claude (peer index 0).
+  const invokePeer = ({ provider }) => {
+    if (provider === 'codex') {
+      return Promise.resolve({ json: parallelVerdict('codex text\n'), stdout: '{"id":"codex"}' });
+    }
+    return new Promise((resolve) =>
+      setTimeout(() => resolve({ json: parallelVerdict('claude text\n'), stdout: '{"id":"claude"}' }), 10)
+    );
+  };
+
+  const result = await executeRound(parallelContext({ invokePeer }));
+
+  assert.equal(result.records.length, 2);
+  assert.deepEqual(
+    result.records.map((record) => record.agent),
+    ['claude', 'codex']
+  );
+  assert.equal(result.records[0].turn_index, 1);
+  assert.equal(result.records[1].turn_index, 2);
+  assert.equal(result.records[0].round_index, 1);
+  assert.equal(result.records[1].round_index, 1);
+  assert.equal(result.records[0].iteration_mode, 'parallel_revision');
+  assert.equal(result.records[0].proposed_artifact, 'claude text\n');
+  assert.equal(result.records[1].proposed_artifact, 'codex text\n');
+  assert.equal(result.records[0].artifact_hash, hashArtifact('claude text\n'));
+  assert.equal(result.records[1].artifact_hash, hashArtifact('codex text\n'));
+  assert.ok(result.records[0].critique && result.records[1].critique);
+});
+
+test('executeRound parallel discards the surviving peer when one peer call fails (atomic pair)', async () => {
+  const invokePeer = ({ provider }) => {
+    if (provider === 'codex') {
+      return Promise.reject(new Error('codex spawn failed'));
+    }
+    return Promise.resolve({ json: parallelVerdict('claude text\n') });
+  };
+
+  await assert.rejects(executeRound(parallelContext({ invokePeer })), (error) => {
+    assert.equal(error.code, 'PEER_SUBROUND_FAILED');
+    assert.match(error.message, /codex/);
+    assert.equal(error.details?.failed_peer, 'codex');
+    return true;
+  });
+});
+
+test('executeRound parallel validates both verdicts before committing either record', async () => {
+  const invokePeer = ({ provider }) => {
+    if (provider === 'codex') {
+      // Invalid: alternating vocabulary in parallel mode.
+      return Promise.resolve({ json: { schema_version: 'v1', verdict: 'ACCEPT', reasoning: 'x' } });
+    }
+    return Promise.resolve({ json: parallelVerdict('claude text\n') });
+  };
+
+  await assert.rejects(executeRound(parallelContext({ invokePeer })), (error) => {
+    assert.equal(error.code, 'INVALID_VERDICT_SHAPE');
+    assert.match(error.message, /codex/);
+    return true;
+  });
 });
 
 test('writeLoopStatus emits stable status fields and paseo cost metadata', async () => {

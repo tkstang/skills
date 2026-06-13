@@ -1065,11 +1065,137 @@ async function executeAlternatingTurn({ turnIndex, options, records, currentArti
   return { verdict, recordPayload, nextArtifact };
 }
 
-async function executeParallelRound() {
-  throw new ConsensusError('parallel round executor is not yet implemented', {
-    code: 'MODE_NOT_IMPLEMENTED',
-    exitCode: EXIT_CODES.CONFIG
+function lastRoundPeerRecords(records, peers) {
+  const peers0 = peers[0];
+  const peers1 = peers[1];
+  let own = null;
+  let peer = null;
+  for (let index = records.length - 1; index >= 0; index -= 1) {
+    const record = records[index];
+    if (record?.agent === peers0 && !own) own = record;
+    if (record?.agent === peers1 && !peer) peer = record;
+    if (own && peer) break;
+  }
+  return { [peers0]: own, [peers1]: peer };
+}
+
+function revisionTextFor(record) {
+  if (!record) return null;
+  if (typeof record.proposed_artifact === 'string') return record.proposed_artifact;
+  return null;
+}
+
+function critiqueFor(record) {
+  if (record && record.critique && typeof record.critique === 'object') return record.critique;
+  return null;
+}
+
+function validatePeerVerdict(verdict, mode, provider) {
+  const shape = validateVerdictShape(verdict, { mode });
+  if (!shape.ok) {
+    throw new ConsensusError(`invalid verdict shape from ${provider}: ${shape.errors.join('; ')}`, {
+      code: 'INVALID_VERDICT_SHAPE',
+      exitCode: EXIT_CODES.DATA,
+      details: { peer: provider, errors: shape.errors }
+    });
+  }
+  const caps = validateVerdictCaps(verdict, { mode });
+  if (!caps.ok) {
+    throw new ConsensusError(`invalid verdict caps from ${provider}: ${JSON.stringify(caps.metadata)}`, {
+      code: 'INVALID_VERDICT_CAPS',
+      exitCode: EXIT_CODES.DATA,
+      details: { peer: provider, ...caps.metadata }
+    });
+  }
+}
+
+/**
+ * Parallel-revision round: two concurrent peer calls committed as an atomic pair.
+ *
+ * - Both calls run concurrently; a failed peer call discards the surviving peer's
+ *   response and aborts the round (PEER_SUBROUND_FAILED) — no half-pairs in the stream.
+ * - Both verdicts are validated (shape + caps) before either record is materialized.
+ * - Records are returned in FIXED peer order (peers[0] then peers[1]) regardless of
+ *   completion order, keeping the stream byte-reproducible (NFR1).
+ */
+async function executeParallelRound(context) {
+  const { options, records, currentArtifact, invokePeer } = context;
+  const mode = options.iteration;
+  const peers = options.peers;
+  const priorPeerTurns = peerTurnCount(records);
+  const round = Math.floor(priorPeerTurns / peers.length) + 1;
+  const baseTurn = priorPeerTurns;
+
+  const previous = lastRoundPeerRecords(records, peers);
+
+  const invocations = peers.map((provider, peerIndex) => {
+    const ownRecord = previous[provider];
+    const peerRecord = previous[peers[peerIndex === 0 ? 1 : 0]];
+    const prompt = buildParallelTurnPrompt({
+      provider,
+      round,
+      turn: baseTurn + peerIndex + 1,
+      goal: options.goal,
+      artifact: currentArtifact,
+      ownPreviousRevision: revisionTextFor(ownRecord),
+      peerPreviousRevision: revisionTextFor(peerRecord),
+      ownPreviousCritique: critiqueFor(ownRecord),
+      peerPreviousCritique: critiqueFor(peerRecord)
+    });
+    return Promise.resolve(
+      invokePeer({ provider, peerIndex, round, turn: baseTurn + peerIndex + 1, prompt, artifact: currentArtifact })
+    );
   });
+
+  const settled = await Promise.allSettled(invocations);
+
+  const failedIndex = settled.findIndex((result) => result.status === 'rejected');
+  if (failedIndex !== -1) {
+    const failedPeer = peers[failedIndex];
+    const cause = settled[failedIndex].reason;
+    throw new ConsensusError(`peer subround failed: ${failedPeer} (${hardErrorMessage(cause)})`, {
+      code: 'PEER_SUBROUND_FAILED',
+      exitCode: EXIT_CODES.CONFIG,
+      cause,
+      details: { failed_peer: failedPeer, round }
+    });
+  }
+
+  const peerResults = settled.map((result) => result.value);
+  // Validate BOTH before materializing either record (atomic pair).
+  peerResults.forEach((peerResult, peerIndex) => {
+    validatePeerVerdict(peerResult.json, mode, peers[peerIndex]);
+  });
+
+  const recordsOut = peerResults.map((peerResult, peerIndex) => {
+    const provider = peers[peerIndex];
+    const verdict = peerResult.json;
+    const proposed = 'proposed_artifact' in verdict ? verdict.proposed_artifact : currentArtifact;
+    const recordPayload = {
+      turn_index: baseTurn + peerIndex + 1,
+      round_index: round,
+      agent: provider,
+      verdict: verdict.verdict,
+      reasoning: verdict.reasoning,
+      critique: verdict.critique,
+      artifact_hash: hashArtifact(proposed, hashOptionsForAgency(options.agency)),
+      iteration_mode: mode,
+      raw_paseo_response: peerResult.stdout ?? JSON.stringify(peerResult.json)
+    };
+    if ('proposed_artifact' in verdict) {
+      recordPayload.proposed_artifact = verdict.proposed_artifact;
+    }
+    if ('concerns' in verdict) {
+      recordPayload.concerns = verdict.concerns;
+    }
+    return recordPayload;
+  });
+
+  // For parallel-revision the shared input is unchanged round-to-round; the terminal
+  // output artifact tracks the latest peer revision in fixed order (peers[1] last).
+  const nextArtifact = revisionTextFor(recordsOut.at(-1)) ?? currentArtifact;
+
+  return { records: recordsOut, nextArtifact, verdicts: peerResults.map((result) => result.json) };
 }
 
 /**
@@ -1084,6 +1210,79 @@ export async function executeRound(context) {
   }
   const { verdict, recordPayload, nextArtifact } = await executeAlternatingTurn(context);
   return { records: [recordPayload], nextArtifact, verdicts: [verdict] };
+}
+
+async function runParallelRounds({ options, records, writer, currentArtifact, invokePeer }) {
+  let artifact = currentArtifact;
+  const startRound = Math.floor(peerTurnCount(records) / options.peers.length);
+
+  for (let roundOffset = startRound; roundOffset < options.maxRounds; roundOffset += 1) {
+    const { records: pair, nextArtifact } = await executeRound({
+      mode: options.iteration,
+      options,
+      records,
+      currentArtifact: artifact,
+      invokePeer
+    });
+    artifact = nextArtifact;
+
+    // Atomic commit: append both peer records in fixed order.
+    for (const payload of pair) {
+      const record = await writer.append({ ...payload });
+      records.push(record);
+    }
+
+    const lastTwo = records.slice(-2);
+    const verdicts = lastTwo.map((record) => verdictDecision(record));
+
+    if (verdicts.includes('IMPASSE')) {
+      return {
+        status: resultStatus('impasse', 'explicit_impasse', records, options, {
+          final_artifact_hash: hashArtifact(artifact, hashOptionsForAgency(options.agency))
+        }),
+        artifact
+      };
+    }
+
+    const convergence = detectParallelConvergence(records, convergenceOptionsForAgency(options.agency));
+    if (convergence.converged) {
+      const statusExtra = { final_artifact_hash: convergence.artifact_hash };
+      if (convergence.agency_decision) {
+        statusExtra.agency_decision = convergence.agency_decision;
+      }
+      return {
+        status: resultStatus('converged', convergence.reason, records, options, statusExtra),
+        artifact
+      };
+    }
+
+    const oscillation = detectParallelOscillation(records, convergenceOptionsForAgency(options.agency));
+    if (oscillation.oscillating) {
+      return {
+        status: resultStatus('oscillation', 'oscillation_detected', records, options, {
+          final_artifact_hash: hashArtifact(artifact, hashOptionsForAgency(options.agency))
+        }),
+        artifact
+      };
+    }
+  }
+
+  if (options.agency === 'maximum') {
+    return {
+      status: resultStatus('converged', 'max_rounds_exhausted', records, options, {
+        final_artifact_hash: hashArtifact(artifact, hashOptionsForAgency(options.agency)),
+        agency_decision: 'maximum_declared_done_at_max_rounds'
+      }),
+      artifact
+    };
+  }
+
+  return {
+    status: resultStatus('max-rounds', 'max_rounds_exhausted', records, options, {
+      final_artifact_hash: hashArtifact(artifact, hashOptionsForAgency(options.agency))
+    }),
+    artifact
+  };
 }
 
 export async function runConsensusLoop(argv, runOptions = {}) {
@@ -1114,6 +1313,18 @@ export async function runConsensusLoop(argv, runOptions = {}) {
       }));
 
   try {
+    if (PARALLEL_MODES.has(options.iteration)) {
+      const terminal = await runParallelRounds({
+        options,
+        runOptions,
+        records,
+        writer,
+        currentArtifact,
+        invokePeer
+      });
+      return await writeTerminalArtifacts(options, terminal.status, terminal.artifact, records);
+    }
+
     for (let turnIndex = peerTurnCount(records); turnIndex < maxTurns; turnIndex += 1) {
       const { verdict, recordPayload, nextArtifact } = await executeAlternatingTurn({
         turnIndex,
@@ -1238,6 +1449,32 @@ export function detectOscillation(records, options = {}) {
     }
   }
 
+  return { oscillating: false, reason: null };
+}
+
+// NOTE: minimal placeholders wired into the parallel loop (p02-t04). The full
+// same-round/mutual-ACCEPT_PEER/mutual-CONVERGED semantics land in p02-t05, and
+// pair-based oscillation lands in p02-t06.
+export function detectParallelConvergence(records, options = {}) {
+  if (!Array.isArray(records) || records.length < 2) {
+    return { converged: false, reason: null };
+  }
+  const rightIndex = records.length - 1;
+  const leftIndex = records.length - 2;
+  const leftHash = recordHash(records[leftIndex], options);
+  const rightHash = recordHash(records[rightIndex], options);
+  if (leftHash && rightHash && leftHash === rightHash) {
+    return {
+      converged: true,
+      reason: 'parallel_hash_match',
+      record_indexes: [leftIndex, rightIndex],
+      artifact_hash: rightHash
+    };
+  }
+  return { converged: false, reason: null };
+}
+
+export function detectParallelOscillation() {
   return { oscillating: false, reason: null };
 }
 
