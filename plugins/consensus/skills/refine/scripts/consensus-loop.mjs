@@ -927,6 +927,87 @@ async function appendUserIntervention({ writer, records, options, currentArtifac
   return record;
 }
 
+async function executeAlternatingTurn({ turnIndex, options, records, currentArtifact, invokePeer }) {
+  const peerIndex = turnIndex % options.peers.length;
+  const provider = options.peers[peerIndex];
+  const turn = turnIndex + 1;
+  const round = Math.floor(turnIndex / options.peers.length) + 1;
+  const prompt = buildTurnPrompt({
+    provider,
+    peerIndex,
+    round,
+    turn,
+    goal: options.goal,
+    artifact: currentArtifact,
+    previousVerdict: verdictForPrompt(records.at(-1)),
+    priorRecords: records
+  });
+  const peerResult = await invokePeer({ provider, peerIndex, round, turn, prompt, artifact: currentArtifact });
+  const verdict = peerResult.json;
+  const shape = validateVerdictShape(verdict, { mode: options.iteration });
+  if (!shape.ok) {
+    throw new ConsensusError(`invalid verdict shape: ${shape.errors.join('; ')}`, {
+      code: 'INVALID_VERDICT_SHAPE',
+      exitCode: EXIT_CODES.DATA,
+      details: { errors: shape.errors }
+    });
+  }
+
+  const caps = validateVerdictCaps(verdict, { mode: options.iteration });
+  if (!caps.ok) {
+    throw new ConsensusError(`invalid verdict caps: ${JSON.stringify(caps.metadata)}`, {
+      code: 'INVALID_VERDICT_CAPS',
+      exitCode: EXIT_CODES.DATA,
+      details: caps.metadata
+    });
+  }
+
+  let nextArtifact = currentArtifact;
+  if (verdict.verdict === 'REVISE') {
+    nextArtifact = verdict.proposed_artifact;
+  }
+
+  const recordPayload = {
+    turn_index: turn,
+    round_index: round,
+    agent: provider,
+    verdict: verdict.verdict,
+    reasoning: verdict.reasoning,
+    artifact_hash: hashArtifact(nextArtifact, hashOptionsForAgency(options.agency)),
+    iteration_mode: options.iteration,
+    raw_paseo_response: peerResult.stdout ?? JSON.stringify(peerResult.json)
+  };
+  if ('proposed_artifact' in verdict) {
+    recordPayload.proposed_artifact = verdict.proposed_artifact;
+  }
+  if ('concerns' in verdict) {
+    recordPayload.concerns = verdict.concerns;
+  }
+
+  return { verdict, recordPayload, nextArtifact };
+}
+
+async function executeParallelRound() {
+  throw new ConsensusError('parallel round executor is not yet implemented', {
+    code: 'MODE_NOT_IMPLEMENTED',
+    exitCode: EXIT_CODES.CONFIG
+  });
+}
+
+/**
+ * Per-mode round executor. Alternating executes one peer turn per loop step;
+ * parallel modes execute two concurrent peer calls per round (see executeParallelRound).
+ * Returns the record payloads to append (in fixed peer order) plus the next shared artifact.
+ */
+export async function executeRound(context) {
+  const { mode } = context;
+  if (PARALLEL_MODES.has(mode)) {
+    return executeParallelRound(context);
+  }
+  const { verdict, recordPayload, nextArtifact } = await executeAlternatingTurn(context);
+  return { records: [recordPayload], nextArtifact, verdicts: [verdict] };
+}
+
 export async function runConsensusLoop(argv, runOptions = {}) {
   const options = Array.isArray(argv) ? parseLoopArgs(argv) : argv;
   const initialRecords = runOptions.initialRecords ?? options.initialRecords ?? [];
@@ -956,60 +1037,14 @@ export async function runConsensusLoop(argv, runOptions = {}) {
 
   try {
     for (let turnIndex = peerTurnCount(records); turnIndex < maxTurns; turnIndex += 1) {
-      const peerIndex = turnIndex % options.peers.length;
-      const provider = options.peers[peerIndex];
-      const turn = turnIndex + 1;
-      const round = Math.floor(turnIndex / options.peers.length) + 1;
-      const prompt = buildTurnPrompt({
-        provider,
-        peerIndex,
-        round,
-        turn,
-        goal: options.goal,
-        artifact: currentArtifact,
-        previousVerdict: verdictForPrompt(records.at(-1)),
-        priorRecords: records
+      const { verdict, recordPayload, nextArtifact } = await executeAlternatingTurn({
+        turnIndex,
+        options,
+        records,
+        currentArtifact,
+        invokePeer
       });
-      const peerResult = await invokePeer({ provider, peerIndex, round, turn, prompt, artifact: currentArtifact });
-      const verdict = peerResult.json;
-      const shape = validateVerdictShape(verdict, { mode: options.iteration });
-      if (!shape.ok) {
-        throw new ConsensusError(`invalid verdict shape: ${shape.errors.join('; ')}`, {
-          code: 'INVALID_VERDICT_SHAPE',
-          exitCode: EXIT_CODES.DATA,
-          details: { errors: shape.errors }
-        });
-      }
-
-      const caps = validateVerdictCaps(verdict, { mode: options.iteration });
-      if (!caps.ok) {
-        throw new ConsensusError(`invalid verdict caps: ${JSON.stringify(caps.metadata)}`, {
-          code: 'INVALID_VERDICT_CAPS',
-          exitCode: EXIT_CODES.DATA,
-          details: caps.metadata
-        });
-      }
-
-      if (verdict.verdict === 'REVISE') {
-        currentArtifact = verdict.proposed_artifact;
-      }
-
-      const recordPayload = {
-        turn_index: turn,
-        round_index: round,
-        agent: provider,
-        verdict: verdict.verdict,
-        reasoning: verdict.reasoning,
-        artifact_hash: hashArtifact(currentArtifact, hashOptionsForAgency(options.agency)),
-        iteration_mode: options.iteration,
-        raw_paseo_response: peerResult.stdout ?? JSON.stringify(peerResult.json)
-      };
-      if ('proposed_artifact' in verdict) {
-        recordPayload.proposed_artifact = verdict.proposed_artifact;
-      }
-      if ('concerns' in verdict) {
-        recordPayload.concerns = verdict.concerns;
-      }
+      currentArtifact = nextArtifact;
 
       const record = await writer.append({
         ...recordPayload

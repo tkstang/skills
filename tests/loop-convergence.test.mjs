@@ -1,12 +1,55 @@
 import assert from 'node:assert/strict';
+import { mkdtemp, writeFile } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 import test from 'node:test';
 
 import {
   detectConvergence,
   detectOscillation,
   hashArtifact,
-  normalizeForHash
+  normalizeForHash,
+  runConsensusLoop
 } from '../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
+
+async function makeRunFiles(sectionText = 'Initial section.\n') {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-round-'));
+  const sectionPath = path.join(tempRoot, 'section.md');
+  await writeFile(sectionPath, sectionText);
+  return {
+    tempRoot,
+    sectionPath,
+    recordsPath: path.join(tempRoot, 'records.json'),
+    outputPath: path.join(tempRoot, 'output.md'),
+    statusPath: path.join(tempRoot, 'status.json')
+  };
+}
+
+function alternatingArgv(files, extra = []) {
+  return [
+    '--section-file',
+    files.sectionPath,
+    '--goal',
+    'Make this clearer.',
+    '--peers',
+    'claude,codex',
+    '--max-rounds',
+    '3',
+    '--agency',
+    'moderate',
+    '--output-records',
+    files.recordsPath,
+    '--output-section',
+    files.outputPath,
+    '--output-status',
+    files.statusPath,
+    ...extra
+  ];
+}
+
+function stripVolatile(records) {
+  return records.map(({ timestamp, ...rest }) => rest);
+}
 
 test('normalizeForHash canonicalizes line endings, trailing whitespace, and EOF newlines', () => {
   assert.equal(normalizeForHash('Hello  \r\nworld\t\r\n\r\n'), 'Hello\nworld\n');
@@ -116,4 +159,76 @@ test('detectOscillation ignores non-alternating records', () => {
     detectOscillation([{ artifact_hash: a }, { artifact_hash: b }, { artifact_hash: c }, { artifact_hash: b }]),
     { oscillating: false, reason: null }
   );
+});
+
+test('alternating round execution produces a stable records stream (characterization)', async () => {
+  const revisions = ['Round one revision.\n', 'Round two revision.\n', 'Round two revision.\n'];
+  async function runOnce() {
+    const files = await makeRunFiles('Seed text.\n');
+    let turn = 0;
+    const result = await runConsensusLoop(alternatingArgv(files), {
+      invokePeer: async () => {
+        const proposed = revisions[turn] ?? revisions.at(-1);
+        turn += 1;
+        return {
+          json: {
+            schema_version: 'v1',
+            verdict: 'REVISE',
+            reasoning: `revision ${turn}`,
+            proposed_artifact: proposed
+          },
+          stdout: '{"id":"raw"}'
+        };
+      }
+    });
+    return result;
+  }
+
+  const result = await runOnce();
+  assert.equal(result.status.status, 'converged');
+  assert.equal(result.status.termination_reason, 'hash_match');
+
+  // Stream is a deterministic function of stubbed responses (timestamps aside).
+  assert.deepEqual(stripVolatile(result.records), [
+    {
+      schema_version: 'v1',
+      turn_index: 1,
+      round_index: 1,
+      agent: 'claude',
+      verdict: 'REVISE',
+      reasoning: 'revision 1',
+      artifact_hash: hashArtifact('Round one revision.\n'),
+      iteration_mode: 'alternating',
+      raw_paseo_response: '{"id":"raw"}',
+      proposed_artifact: 'Round one revision.\n'
+    },
+    {
+      schema_version: 'v1',
+      turn_index: 2,
+      round_index: 1,
+      agent: 'codex',
+      verdict: 'REVISE',
+      reasoning: 'revision 2',
+      artifact_hash: hashArtifact('Round two revision.\n'),
+      iteration_mode: 'alternating',
+      raw_paseo_response: '{"id":"raw"}',
+      proposed_artifact: 'Round two revision.\n'
+    },
+    {
+      schema_version: 'v1',
+      turn_index: 3,
+      round_index: 2,
+      agent: 'claude',
+      verdict: 'REVISE',
+      reasoning: 'revision 3',
+      artifact_hash: hashArtifact('Round two revision.\n'),
+      iteration_mode: 'alternating',
+      raw_paseo_response: '{"id":"raw"}',
+      proposed_artifact: 'Round two revision.\n'
+    }
+  ]);
+
+  // Repeat run reproduces the identical stream (NFR1 / FR9 regression lock).
+  const second = await runOnce();
+  assert.deepEqual(stripVolatile(second.records), stripVolatile(result.records));
 });
