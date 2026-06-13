@@ -625,7 +625,7 @@ oat_generated: false
 | p03    | code     | passed          | 2026-06-13 | inline review (fable); 0 findings                      |
 | p04    | code     | passed          | 2026-06-13 | inline review (fable); 0 findings                      |
 | p05    | code     | passed          | 2026-06-13 | inline review (fable); 0 findings (incl. moved p05-t05)|
-| p06    | code     | pending         | -          | -                                                      |
+| p06    | code     | passed          | 2026-06-13 | inline review (fable); 0 findings (t06 dogfood deferred)|
 | final  | code     | pending         | -          | -                                                      |
 | spec   | artifact | pending         | -          | -                                                      |
 | design | artifact | fixes_completed | 2026-06-12 | reviews/archived/artifact-design-review-2026-06-12.md |

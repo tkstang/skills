@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-13
-oat_current_task_id: p06-t01
+oat_current_task_id: p06-t06
 oat_generated: false
 ---
 
@@ -125,7 +125,7 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 **Branch:** feat/consensus-iteration-modes
 **Tier:** 1 (subagents)
 **Policy:** merge-strategy=sequential, retry-limit=2; implementer ceiling=opus, reviewer ceiling=fable
-**Phases:** p01 executed (5/6 tasks; t06 resequenced to p05-t05, not a failure)
+**Phases:** p01–p06 executed; 35/36 tasks complete (p01-t06→p05-t05 resequenced; p06-t06 NFR4 dogfood deferred to manual laptop run)
 
 #### Phase Outcomes
 
@@ -136,6 +136,7 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 | p03   | DONE (t01–t06) | pass (inline/fable) | 0 | complete |
 | p04   | DONE (t01–t06) | pass (inline/fable) | 0 | complete |
 | p05   | DONE (t01–t05) | pass (inline/fable) | 0 | complete (v1 cutover + v0 gate) |
+| p06   | DONE (t01–t05) | pass (inline/fable) | 0 | complete; t06 dogfood deferred (manual) |
 
 #### Dispatch Notes
 
@@ -195,6 +196,8 @@ Document any intentional deviations from the original plan, spec, or design. Inc
 | Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
 | ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
 | p01-t06 → p05-t05 | plan.md Phase 1/5 | p01-t06 rejects v0 artifacts on resume during Phase 1 | Resequenced to Phase 5 (p05-t05), after the artifact-level v1 cutover (p05-t01) | The engine has two version fields: per-record `schema_version` (bumped to v1 in p01) and artifact-level `consensus_schema_version` (wrapper still emits v0 until Phase 5). Rejecting v0 artifacts before the wrapper emits v1 would break 6 resume test files and make the wrapper unable to resume its own output. | plan.md (corrected) | p05-t01 flips the 6 emitters to v1 + migrates resume fixtures; p05-t05 then inverts the gate. FR4 mapping updated in spec.md. |
+| p06-t04 | plan.md Phase 6 / CHANGELOG | "CHANGELOG v0.2 entries"; bump version | Documented the v0.2 mode work under the existing `[0.1.0] - Unreleased` heading; did NOT bump SKILL.md/manifest version | `tests/skill-frontmatter.test.mjs` pins the skill version to 0.1.0 and `release-versioning` coordinates versions repo-wide; design's Deployment Strategy says the version bump follows the existing manifest+tag release flow. Bumping here would violate the release gate. | release flow (deferred) | The v0.1→v0.2 version bump happens in the release flow (bl-d85f area), not this project. |
+| p06-t06 | plan.md Phase 6 (NFR4) | Mode-comparison dogfood: run refine in all 3 modes on a real doc, review artifacts | DEFERRED to a manual laptop run | Requires `paseo` + real peer CLIs + live model spend, unavailable in the implementation environment. NFR4 (audit-trail legibility) is a manual verification, not a code deliverable. | manual follow-up | User runs on the laptop (paseo + claude/codex peers). Until then NFR4 is verified-by-construction (artifact rendering covered by automated tests) but not dogfood-confirmed. |
 
 ## Test Results
 
@@ -202,31 +205,44 @@ Track test execution during implementation.
 
 | Phase | Tests Run | Passed | Failed | Coverage |
 | ----- | --------- | ------ | ------ | -------- |
-| 1     | -         | -      | -      | -        |
-| 2     | -         | -      | -      | -        |
+| 1     | 395       | 395    | 0      | consensus surface green |
+| 2     | 419       | 419    | 0      | + parallel-revision |
+| 3     | 439       | 439    | 0      | + parallel-synthesized |
+| 4     | 484       | 484    | 0      | + escalation ladder |
+| 5     | 500       | 500    | 0      | + resume/composition, v1 cutover |
+| 6     | 513       | 513    | 0      | + docs, NFR5 event inventory, smoke |
 
 ## Final Summary (for PR/docs)
 
-**What shipped:**
+**What shipped:** v0.2 of the consensus deliberation engine — two new iteration modes plus an agency-gated escalation ladder, exposed through the `refine` skill.
 
-- {capability 1}
-- {capability 2}
+- **parallel-revision mode** (`--iteration parallel_revision`): both peers revise the same input concurrently each round with own/peer critiques; converges on emergent same-round hash agreement, mutual ACCEPT_PEER, or mutual CONVERGED. 2× peer calls/round.
+- **parallel-synthesized mode** (`--iteration parallel_synthesized`): parallel revision plus a wrapper-driven stateless synthesis call each round (the synthesizer merges both revisions); converges on synthesis stability. `--synthesizer <provider>` overrides the default (first peer). 2× peer + 1 synthesis call/round.
+- **Agency-gated escalation ladder**: deterministic triggers (persistent_disagreement, oscillation, budget_exhausted, near_done_drift) route to user or host per a per-agency table, with genuinely-stuck promotion (repeat-fire or `defer_to_user`). Host decisions re-enter via `--host-direction` as attributed `HOST_DECISION` orchestrator rounds, distinct from user rounds. Emitted as `escalation_required` JSONL.
+- **Unified v1 record schema** across all three modes (mode-aware verdicts, synthesis records, intervention rounds), with the artifact-level v0→v1 cutover and fail-closed v0-resume rejection (`SCHEMA_VERSION_MISMATCH`, no migration).
+- **Resume + parallel-section composition** extended to the new record types and interruption points (mid-pair, pending-synthesis, pending-escalation); parallel-section packets carry mode/synthesizer; fan-in aggregates escalation status.
 
 **Behavioral changes (user-facing):**
 
-- {bullet}
+- `refine` default is unchanged (alternating); parallel modes are explicit opt-ins that disclose their call multiplier (`run_started.calls_per_round`) and report actual counts (`peer_calls`/`synthesis_calls`).
+- New flags: `--iteration`, `--synthesizer`, `--host-direction`, `--host-decision-kind`. New event: `escalation_required` (the only content-bearing routine event). `run_completed` adds `sections_escalated`.
+- v0 artifacts no longer resume (must finish under v0.1 or restart).
 
 **Key files / modules:**
 
-- `{path}` - {purpose}
+- `plugins/consensus/skills/refine/scripts/consensus-loop.mjs` — round-executor abstraction, parallel/synthesized executors, per-mode convergence/oscillation/stability predicates, escalation triggers + routing, v1 validation.
+- `plugins/consensus/skills/refine/scripts/consensus-refine.mjs` — flags, JSONL events, v1 artifact emission, resume (incl. v0 rejection), parallel-section packets/fan-in.
+- `plugins/consensus/skills/refine/schemas/{verdict-parallel,synthesis}.schema.json` — new payload schemas.
+- `plugins/consensus/skills/refine/SKILL.md`, `agents/consensus-section-runner.md` — host instructions for modes + escalation.
 
 **Verification performed:**
 
-- {tests/lint/typecheck/build/manual steps}
+- `npm test` 513/513, `npm run validate` passed, `npm run smoke` passed (now includes a parallel-synthesized escalation + `--host-direction` resume scenario). FR9 alternating regression locked via a byte-identical characterization snapshot.
+- **Deferred:** NFR4 mode-comparison dogfood (p06-t06) — manual laptop run with paseo + real peers + live spend.
 
 **Design deltas (if any):**
 
-- {what changed vs design.md and why}
+- p01-t06 resequenced to p05-t05 (artifact-level vs record-level version fields); version bump deferred to the release flow; NFR4 dogfood deferred to a manual run. See Deviations table.
 
 ## References
 
