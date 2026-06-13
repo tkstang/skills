@@ -7,7 +7,9 @@ import {
   detectHost,
   parseWrapperArgs,
   preflightPaseo,
-  resolvePeers
+  resolvePeers,
+  resolveSynthesizer,
+  resolveRunDir
 } from '../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
 
 function inventory(ids) {
@@ -48,6 +50,83 @@ test('parseWrapperArgs handles sequential options and defaults', () => {
   assert.equal(parsed.failOnSectionError, true);
   assert.deepEqual(parsed.skipCorruptSections, ['intro']);
   assert.equal(parsed.yesSkipCorrupt, true);
+});
+
+test('parseWrapperArgs accepts iteration modes, defaults to alternating, and rejects invalid', () => {
+  assert.equal(parseWrapperArgs(['draft.md']).iteration, 'alternating');
+  assert.equal(
+    parseWrapperArgs(['draft.md', '--iteration', 'parallel_revision']).iteration,
+    'parallel_revision'
+  );
+  assert.equal(
+    parseWrapperArgs(['draft.md', '--iteration', 'parallel_synthesized']).iteration,
+    'parallel_synthesized'
+  );
+
+  let thrown;
+  try {
+    parseWrapperArgs(['draft.md', '--iteration', 'bogus']);
+  } catch (error) {
+    thrown = error;
+  }
+  assert.ok(thrown, 'expected an error');
+  assert.equal(thrown.code, 'INVALID_ITERATION_MODE');
+  assert.match(thrown.message, /alternating.*parallel_revision.*parallel_synthesized/);
+
+  assert.throws(
+    () => parseWrapperArgs(['draft.md', '--cold-start', 'independent_draft']),
+    /not yet supported/
+  );
+});
+
+test('parseWrapperArgs parses --synthesizer and defaults it to null (resolved at run time)', () => {
+  assert.equal(parseWrapperArgs(['draft.md']).synthesizer, null);
+  assert.equal(
+    parseWrapperArgs(['draft.md', '--iteration', 'parallel_synthesized', '--synthesizer', 'codex']).synthesizer,
+    'codex'
+  );
+});
+
+test('resolveSynthesizer defaults to the first peer and validates against the inventory', () => {
+  // Default: first peer when unspecified.
+  assert.equal(
+    resolveSynthesizer({ peers: ['claude', 'codex'], iteration: 'parallel_synthesized' }, inventory(['claude', 'codex']))
+      .synthesizer,
+    'claude'
+  );
+
+  // Explicit override present in the inventory.
+  assert.equal(
+    resolveSynthesizer(
+      { peers: ['claude', 'codex'], iteration: 'parallel_synthesized', synthesizer: 'codex' },
+      inventory(['claude', 'codex'])
+    ).synthesizer,
+    'codex'
+  );
+});
+
+test('resolveSynthesizer rejects a synthesizer missing from the inventory with SYNTHESIZER_UNAVAILABLE', () => {
+  let thrown;
+  try {
+    resolveSynthesizer(
+      { peers: ['claude', 'codex'], iteration: 'parallel_synthesized', synthesizer: 'gemini' },
+      inventory(['claude', 'codex'])
+    );
+  } catch (error) {
+    thrown = error;
+  }
+  assert.ok(thrown, 'expected an error');
+  assert.equal(thrown.code, 'SYNTHESIZER_UNAVAILABLE');
+  assert.match(thrown.message, /gemini/);
+});
+
+test('resolveSynthesizer warns and ignores a synthesizer outside parallel_synthesized mode', () => {
+  const result = resolveSynthesizer(
+    { peers: ['claude', 'codex'], iteration: 'parallel_revision', synthesizer: 'codex' },
+    inventory(['claude', 'codex'])
+  );
+  assert.equal(result.synthesizer, null);
+  assert.ok(result.warnings.some((warning) => /synthesizer/i.test(warning.message)));
 });
 
 test('parseWrapperArgs handles prepare-parallel and fan-in modes', () => {
@@ -104,6 +183,45 @@ test('resolvePeers uses host-aware defaults and paseo inventory as source of tru
   );
 });
 
+test('resolvePeers reads real Paseo provider ls status/enabled shape', () => {
+  // `paseo provider ls --json` emits { provider, status, enabled: "Enabled"|"Disabled" },
+  // not the { id, available } booleans the synthetic inventory() helper uses.
+  const ready = [
+    { provider: 'claude', status: 'available', enabled: 'Enabled' },
+    { provider: 'codex', status: 'available', enabled: 'Enabled' }
+  ];
+  assert.deepEqual(resolvePeers({ peers: ['claude', 'codex'] }, 'claude', ready).peers, ['claude', 'codex']);
+
+  // A peer Paseo reports as errored (e.g. cursor when cursor-agent can't auth)
+  // must fail preflight rather than surface later as a paseo run timeout.
+  assert.throws(
+    () => resolvePeers({ peers: ['claude', 'cursor'] }, 'claude', [
+      { provider: 'claude', status: 'available', enabled: 'Enabled' },
+      { provider: 'cursor', status: 'error', enabled: 'Enabled' }
+    ]),
+    /unavailable.*cursor/i
+  );
+
+  // Paseo's "Disabled" display string means unavailable too.
+  assert.throws(
+    () => resolvePeers({ peers: ['claude', 'omp'] }, 'claude', [
+      { provider: 'claude', status: 'available', enabled: 'Enabled' },
+      { provider: 'omp', status: 'available', enabled: 'Disabled' }
+    ]),
+    /unavailable.*omp/i
+  );
+
+  // A cold-daemon snapshot can briefly report a healthy provider as loading;
+  // that must not false-fail preflight.
+  assert.deepEqual(
+    resolvePeers({ peers: ['claude', 'codex'] }, 'claude', [
+      { provider: 'claude', status: 'available', enabled: 'Enabled' },
+      { provider: 'codex', status: 'loading', enabled: 'Enabled' }
+    ]).peers,
+    ['claude', 'codex']
+  );
+});
+
 test('preflightPaseo reads version and providers and warns outside tested range', async () => {
   const calls = [];
   const result = await preflightPaseo({
@@ -153,4 +271,17 @@ test('preflightPaseo surfaces missing paseo with install remediation', async () 
       return true;
     }
   );
+});
+
+test('resolveRunDir gives each fresh run a unique default dir (no rerun contamination)', async () => {
+  const cwd = process.cwd();
+  const a = await resolveRunDir({ cwd });
+  const b = await resolveRunDir({ cwd });
+  // Two consecutive fresh runs must not share a run dir (which is what let a
+  // prior run's stale per-section records leak into the next run).
+  assert.notEqual(a, b);
+  assert.match(a, /\.consensus\/run-/);
+  // An explicit --run-dir is honored verbatim (relative to cwd).
+  const explicit = await resolveRunDir({ cwd, runDir: '.consensus/run' });
+  assert.equal(explicit, `${cwd}/.consensus/run`);
 });

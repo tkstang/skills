@@ -55,7 +55,7 @@ test('prepareParallelRun writes section packets and a dispatch manifest', async 
   assert.equal((await stat(result.manifestPath)).isFile(), true);
 
   const manifest = await readJson(result.manifestPath);
-  assert.equal(manifest.consensus_schema_version, 'v0');
+  assert.equal(manifest.consensus_schema_version, 'v1');
   assert.equal(manifest.mode, 'parallel');
   assert.equal(manifest.input_path, sampleInput);
   assert.equal(manifest.output_path, outputPath);
@@ -80,7 +80,7 @@ test('prepareParallelRun writes section packets and a dispatch manifest', async 
     assert.equal(section.output_status.endsWith('status.json'), true);
 
     const packet = await readJson(section.packet_path);
-    assert.equal(packet.consensus_schema_version, 'v0');
+    assert.equal(packet.consensus_schema_version, 'v1');
     assert.equal(packet.manifest_path, result.manifestPath);
     assert.equal(packet.section_id, section.section_id);
     assert.equal(packet.section_file, section.section_file);
@@ -132,4 +132,53 @@ test('runWrapperCli emits parallel dispatch JSONL for prepare mode', async () =>
   assert.equal((await stat(dispatch.manifest)).isFile(), true);
   assert.equal(events.at(-1).event, 'run_completed');
   assert.equal(events.at(-1).status, 'prepared');
+});
+
+// --- p05-t04: parallel-section packets carry mode + synthesizer ----------
+
+test('prepareParallelRun threads iteration_mode and synthesizer through packets, manifest, and loop_argv', async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-prepare-mode-'));
+  const result = await prepareParallelRun({
+    inputPath: sampleInput,
+    output: path.join(tempRoot, 'sample.consensus.md'),
+    runDir: path.join(tempRoot, '.consensus/run'),
+    allowRoot: tempRoot,
+    cwd: tempRoot,
+    goal: 'Tighten each section.',
+    peers: ['claude', 'codex'],
+    iteration: 'parallel_synthesized',
+    synthesizer: 'codex',
+    maxRounds: 4,
+    agency: 'moderate',
+    preflight: async () => ({
+      peers: ['claude', 'codex'],
+      providerInventory: [
+        { id: 'claude', available: true },
+        { id: 'codex', available: true }
+      ],
+      warnings: []
+    })
+  });
+
+  const manifest = await readJson(result.manifestPath);
+  assert.equal(manifest.iteration_mode, 'parallel_synthesized');
+  assert.equal(manifest.synthesizer, 'codex');
+
+  for (const section of manifest.sections) {
+    assert.equal(section.iteration_mode, 'parallel_synthesized');
+    assert.equal(section.synthesizer, 'codex');
+    // The loop argv carries the synthesizer flag for the section runner.
+    assert.ok(section.loop_argv.includes('--iteration'));
+    assert.equal(section.loop_argv[section.loop_argv.indexOf('--iteration') + 1], 'parallel_synthesized');
+    assert.ok(section.loop_argv.includes('--synthesizer'));
+    assert.equal(section.loop_argv[section.loop_argv.indexOf('--synthesizer') + 1], 'codex');
+
+    const packet = await readJson(section.packet_path);
+    assert.equal(packet.iteration_mode, 'parallel_synthesized');
+    assert.equal(packet.synthesizer, 'codex');
+  }
+
+  // The dispatch event surfaces the mode for host visibility.
+  assert.equal(result.dispatchEvent.iteration_mode, 'parallel_synthesized');
+  assert.equal(result.dispatchEvent.synthesizer, 'codex');
 });

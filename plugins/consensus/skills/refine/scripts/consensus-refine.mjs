@@ -6,7 +6,16 @@ import { createInterface } from 'node:readline/promises';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
-import { ConsensusError, EXIT_CODES, exitCodeForError, hashArtifact, runConsensusLoop } from './consensus-loop.mjs';
+import {
+  callsPerRound,
+  ConsensusError,
+  EXIT_CODES,
+  exitCodeForError,
+  hashArtifact,
+  invalidIterationModeError,
+  ITERATION_MODES,
+  runConsensusLoop
+} from './consensus-loop.mjs';
 
 const execFileAsync = promisify(execFile);
 
@@ -70,7 +79,7 @@ function nowIso() {
 
 export function createJsonlEvent(event, payload = {}, options = {}) {
   return {
-    consensus_schema_version: 'v0',
+    consensus_schema_version: 'v1',
     event,
     timestamp: options.now?.() ?? nowIso(),
     ...payload
@@ -213,7 +222,11 @@ function extractConsensusJsonBlocks(markdown, label) {
 function extractLogSectionBlocks(markdown) {
   const logStart = String(markdown ?? '').match(/^## Deliberation Log\s*$/mu);
   const logText = logStart ? String(markdown).slice(logStart.index) : String(markdown ?? '');
-  const blockPattern = /<!-- consensus:(consensus-section-status|consensus-verdict)\n([\s\S]*?)\n-->/g;
+  // Resume canonical record stream (p05-t01): peer verdicts, synthesis records,
+  // and synthesis-error records all flow into the section's record array in
+  // document order so the loop can derive parallel-mode resume state.
+  const blockPattern =
+    /<!-- consensus:(consensus-section-status|consensus-verdict|consensus-synthesis|consensus-synthesis-error)\n([\s\S]*?)\n-->/g;
   const logSections = [];
   const unscopedErrors = [];
   let current = null;
@@ -235,7 +248,7 @@ function extractLogSectionBlocks(markdown) {
     if (!current) {
       unscopedErrors.push({
         code: 'RESUME_SECTION_STATE_MISSING',
-        message: 'resume artifact has verdict records before any section status block',
+        message: `resume artifact has ${label} records before any section status block`,
         block_label: label,
         block_index: index
       });
@@ -275,17 +288,32 @@ function normalizeResumeRecords(records, peers = ['claude', 'codex'], options = 
   let currentArtifact = null;
   const hashOptions = resumeHashOptionsForAgency(options.agency);
   return (records ?? []).map((record) => {
+    const isSynthesis = record?.record_type === 'synthesis';
+    const isSynthesisError = record?.record_type === 'synthesis-error';
+    const isHost = record?.verdict === 'HOST_DECISION' || record?.agent === 'host-orchestrator';
     const isUser = record?.verdict === 'USER_INTERVENTION' || record?.agent === 'user';
     const normalized = {
-      schema_version: 'v0',
+      schema_version: 'v1',
       ...record
     };
 
+    // The shared artifact tracks the latest peer revision OR the latest synthesis
+    // output (synthesized mode), so derived hashes stay consistent on resume.
     if (typeof normalized.proposed_artifact === 'string') {
       currentArtifact = normalized.proposed_artifact;
+    } else if (isSynthesis && typeof normalized.synthesized_artifact === 'string') {
+      currentArtifact = normalized.synthesized_artifact;
     }
 
-    if (isUser) {
+    if (isSynthesis || isSynthesisError) {
+      // Synthesis records are round-attributed, not peer-attributed: never consume
+      // a peer slot. round_index falls back to the current peer round.
+      normalized.round_index ??= Math.floor(Math.max(peerIndex - 1, 0) / peers.length) + 1;
+    } else if (isHost) {
+      normalized.agent = 'host-orchestrator';
+      normalized.round_index ??= Math.floor(peerIndex / peers.length) + 1;
+      normalized.turn_index ??= peerIndex + 1;
+    } else if (isUser) {
       normalized.agent = 'user';
       normalized.round_index ??= Math.floor(peerIndex / peers.length) + 1;
       normalized.turn_index ??= peerIndex + 1;
@@ -298,7 +326,7 @@ function normalizeResumeRecords(records, peers = ['claude', 'codex'], options = 
       peerIndex += 1;
     }
 
-    if (!normalized.artifact_hash && currentArtifact !== null) {
+    if (!normalized.artifact_hash && currentArtifact !== null && !isSynthesisError) {
       normalized.artifact_hash = hashArtifact(currentArtifact, hashOptions);
     }
 
@@ -406,6 +434,48 @@ function collectResumeValidationErrors(sectionStates, logSections, unscopedError
       errors.push(resumeHashError(section, stateHash, statusHash));
     }
 
+    // Synthesis records carry the hash of their synthesized text; validate it
+    // fail-closed (p05-t01) like peer revisions so a tampered synthesis block is
+    // detected on resume.
+    const hashOptions = resumeHashOptionsForAgency(options.agency);
+    const peerCount = Array.isArray(options.peers) ? options.peers.length : 2;
+    const peerRoundCounts = new Map();
+    for (const record of section.records) {
+      const isPeer =
+        record?.record_type !== 'synthesis' &&
+        record?.record_type !== 'synthesis-error' &&
+        record?.agent !== 'user' &&
+        record?.agent !== 'host-orchestrator' &&
+        record?.verdict !== 'USER_INTERVENTION' &&
+        record?.verdict !== 'HOST_DECISION';
+      if (isPeer && Number.isInteger(Number(record?.round_index))) {
+        const round = Number(record.round_index);
+        peerRoundCounts.set(round, (peerRoundCounts.get(round) ?? 0) + 1);
+      }
+      if (record?.record_type !== 'synthesis') continue;
+      // A synthesis record requires a complete peer pair in its round (p05-t03):
+      // a half-missing pair is fail-closed corrupt state.
+      const round = Number(record?.round_index);
+      if (Number.isInteger(round) && (peerRoundCounts.get(round) ?? 0) < peerCount) {
+        errors.push({
+          code: 'RESUME_PAIR_INCOMPLETE',
+          section_id: section.id,
+          section_name: section.name,
+          section_index: index,
+          message: `incomplete peer pair for synthesized round ${round} in section ${section.id}: expected ${peerCount} peer records`
+        });
+      }
+      if (typeof record.synthesized_artifact !== 'string' || !record.artifact_hash) continue;
+      const recomputed = hashArtifact(record.synthesized_artifact, hashOptions);
+      if (recomputed !== record.artifact_hash) {
+        errors.push({
+          ...resumeHashError(section, record.artifact_hash, recomputed),
+          code: 'RESUME_SYNTHESIS_HASH_MISMATCH',
+          message: `synthesis hash mismatch for section ${section.id}: expected ${record.artifact_hash}, recomputed ${recomputed}`
+        });
+      }
+    }
+
     const expectedHash = statusHash ?? stateHash;
     if (expectedHash && section.resumedArtifact === null) {
       errors.push({
@@ -435,7 +505,7 @@ async function writeResumeErrors(runDir, errors, skippedIds = []) {
     outputPath,
     `${JSON.stringify(
       {
-        consensus_schema_version: 'v0',
+        consensus_schema_version: 'v1',
         generated_at: nowIso(),
         errors,
         skipped_section_ids: skippedIds
@@ -590,8 +660,8 @@ function validateParallelManifestShape(manifest) {
   if (manifest === null || typeof manifest !== 'object' || Array.isArray(manifest)) {
     throw manifestError('parallel manifest must be a JSON object');
   }
-  if (manifest.consensus_schema_version !== 'v0') {
-    throw manifestError('parallel manifest consensus_schema_version must be v0');
+  if (manifest.consensus_schema_version !== 'v1') {
+    throw manifestError('parallel manifest consensus_schema_version must be v1');
   }
   if (manifest.manifest_type !== 'consensus-parallel-run') {
     throw manifestError('parallel manifest manifest_type must be consensus-parallel-run');
@@ -782,7 +852,12 @@ function aggregateStatus(sections) {
   const statuses = sections.map((section) => section.status?.status ?? section.result?.status?.status ?? 'unknown');
   if (statuses.every((status) => status === 'converged')) return 'converged';
   if (statuses.some((status) => status === 'error')) return 'error';
-  if (statuses.some((status) => status === 'impasse' || status === 'max-rounds' || status === 'oscillation')) {
+  if (
+    statuses.some(
+      (status) =>
+        status === 'impasse' || status === 'max-rounds' || status === 'oscillation' || status === 'escalation'
+    )
+  ) {
     return 'partial';
   }
   return 'unknown';
@@ -816,6 +891,110 @@ function countByStatus(sections, statusName) {
   return sections.filter((section) => section.status?.status === statusName).length;
 }
 
+function lastTwoPeerRevisionRecords(records) {
+  const peers = records.filter(
+    (record) =>
+      record?.agent !== 'user' &&
+      record?.agent !== 'host-orchestrator' &&
+      record?.verdict !== 'USER_INTERVENTION' &&
+      record?.verdict !== 'HOST_DECISION' &&
+      record?.record_type !== 'synthesis' &&
+      record?.record_type !== 'synthesis-error'
+  );
+  return peers.slice(-2);
+}
+
+function latestSynthesisRecord(records) {
+  for (let index = records.length - 1; index >= 0; index -= 1) {
+    if (records[index]?.record_type === 'synthesis') return records[index];
+  }
+  return null;
+}
+
+function revisionText(record) {
+  if (typeof record?.proposed_artifact === 'string') return record.proposed_artifact;
+  if (typeof record?.synthesized_artifact === 'string') return record.synthesized_artifact;
+  return '';
+}
+
+/**
+ * Build the escalation_required event payload for a section (p04-t04). Resolves
+ * the FULL divergent text from the section's records (both latest peer revisions,
+ * plus synthesis text + unresolved disagreements in synthesized mode) and the
+ * resume vector. This is the only content-bearing routine event (NFR5 boundary).
+ */
+export function buildEscalationEvent(section, { artifactPath } = {}) {
+  const escalation = section?.status?.escalation;
+  if (!escalation) return null;
+
+  const records = section.records ?? [];
+  const [left, right] = lastTwoPeerRevisionRecords(records);
+  const synthesis = latestSynthesisRecord(records);
+
+  const divergent = {
+    a: { agent: left?.agent ?? escalation.divergent?.a?.agent ?? null, text: revisionText(left) },
+    b: { agent: right?.agent ?? escalation.divergent?.b?.agent ?? null, text: revisionText(right) }
+  };
+  if (synthesis || escalation.divergent?.synthesis) {
+    divergent.synthesis = {
+      text: revisionText(synthesis),
+      unresolved_disagreements: Array.isArray(synthesis?.unresolved_disagreements)
+        ? synthesis.unresolved_disagreements
+        : escalation.divergent?.synthesis?.unresolved_disagreements ?? []
+    };
+  }
+
+  const flag = escalation.decide_via === 'user' ? '--user-direction' : '--host-direction';
+
+  const event = {
+    section_id: section.id,
+    section_name: section.name,
+    trigger: escalation.trigger,
+    decide_via: escalation.decide_via,
+    decision_kinds: escalation.decision_kinds ?? [],
+    divergent,
+    resume: { artifact_path: artifactPath ?? null, flag }
+  };
+  if (escalation.promoted_from) {
+    event.promoted_from = escalation.promoted_from;
+  }
+  return event;
+}
+
+function escalatedSections(sections) {
+  return sections.filter((section) => section.status?.status === 'escalation');
+}
+
+function escalationRoutingError(message, details = {}) {
+  return new ConsensusError(message, {
+    code: 'ESCALATION_ROUTING',
+    exitCode: EXIT_CODES.CONFIG,
+    details
+  });
+}
+
+/**
+ * Fail-closed routing guard for --host-direction (p04-t05). A host direction is
+ * only valid against a pending escalation whose decide_via is 'host'. It is
+ * rejected when no escalation is pending or when the pending escalation routes
+ * to the user (ESCALATION_ROUTING).
+ */
+function assertHostDirectionRoutable(resumeSection) {
+  const escalation = resumeSection?.status?.escalation;
+  if (resumeSection?.status?.status !== 'escalation' || !escalation) {
+    throw escalationRoutingError('--host-direction supplied but no escalation is pending for resume', {
+      section_status: resumeSection?.status?.status ?? null
+    });
+  }
+  if (escalation.decide_via !== 'host') {
+    throw escalationRoutingError(
+      `--host-direction rejected: pending escalation routes to ${escalation.decide_via}`,
+      { decide_via: escalation.decide_via, trigger: escalation.trigger }
+    );
+  }
+  return escalation;
+}
+
 function failingSections(sections) {
   return sections
     .filter((section) => ['error', 'impasse'].includes(section.status?.status))
@@ -828,7 +1007,62 @@ function failingSections(sections) {
     }));
 }
 
+function renderSynthesisRecord(record) {
+  const roundLabel = record.round_index ?? record.round ?? '?';
+  const synthesizer = record.synthesizer ?? 'synthesizer';
+  const synthesisDocument = {
+    schema_version: record.schema_version ?? 'v1',
+    record_type: 'synthesis',
+    synthesizer,
+    synthesized_artifact: record.synthesized_artifact ?? '',
+    synthesis_reasoning: record.synthesis_reasoning ?? '',
+    unresolved_disagreements: Array.isArray(record.unresolved_disagreements)
+      ? record.unresolved_disagreements
+      : []
+  };
+
+  const parts = [`#### Round ${roundLabel} - ${synthesizer} - SYNTHESIS`];
+  if (synthesisDocument.synthesis_reasoning) {
+    parts.push('', 'Synthesis reasoning:', sanitizeLogProse(synthesisDocument.synthesis_reasoning));
+  }
+  if (synthesisDocument.synthesized_artifact) {
+    parts.push('', 'Synthesized Artifact:', dynamicFence(sanitizeProse(synthesisDocument.synthesized_artifact), 'markdown'));
+  }
+  if (synthesisDocument.unresolved_disagreements.length > 0) {
+    parts.push(
+      '',
+      'Unresolved disagreements:',
+      ...synthesisDocument.unresolved_disagreements.map((entry) => `- ${sanitizeLogProse(entry)}`)
+    );
+  }
+  parts.push('', canonicalJsonBlock('consensus-synthesis', synthesisDocument));
+  return parts.join('\n');
+}
+
+function renderSynthesisErrorRecord(record) {
+  const roundLabel = record.round_index ?? record.round ?? '?';
+  const synthesizer = record.synthesizer ?? 'synthesizer';
+  const errorDocument = {
+    schema_version: record.schema_version ?? 'v1',
+    record_type: 'synthesis-error',
+    synthesizer,
+    code: record.code ?? 'INVALID_SYNTHESIS',
+    metadata: record.metadata ?? null
+  };
+  return [
+    `#### Round ${roundLabel} - ${synthesizer} - SYNTHESIS_ERROR`,
+    '',
+    canonicalJsonBlock('consensus-synthesis-error', errorDocument)
+  ].join('\n');
+}
+
 function renderRecord(record) {
+  if (record.record_type === 'synthesis') {
+    return renderSynthesisRecord(record);
+  }
+  if (record.record_type === 'synthesis-error') {
+    return renderSynthesisErrorRecord(record);
+  }
   const verdictDocument = {
     schema_version: record.schema_version ?? 'v0',
     verdict: record.verdict ?? 'UNKNOWN',
@@ -836,6 +1070,21 @@ function renderRecord(record) {
   };
   if ('user_direction' in record) {
     verdictDocument.user_direction = record.user_direction;
+  }
+  // Intervention rounds (HOST_DECISION / USER_INTERVENTION) carry the routing
+  // metadata that genuinely-stuck promotion depends on across resumes:
+  // priorHostDecisionForTrigger() matches on escalation_trigger, and defer_to_user
+  // is recognized via decision_kind. Persist them so a twice-resumed artifact stays
+  // restart-safe (FR5) — without this the canonical block dropped them and a re-fired
+  // trigger could route back to the host instead of escalating to the user.
+  if ('decision_kind' in record) {
+    verdictDocument.decision_kind = record.decision_kind;
+  }
+  if ('escalation_trigger' in record) {
+    verdictDocument.escalation_trigger = record.escalation_trigger;
+  }
+  if ('critique' in record && record.critique) {
+    verdictDocument.critique = record.critique;
   }
   if ('proposed_artifact' in record) {
     verdictDocument.proposed_artifact = record.proposed_artifact;
@@ -885,6 +1134,7 @@ function renderArtifactFrontmatter(resolution) {
     mode: resolution.mode,
     parallel: resolution.parallel,
     iteration: resolution.iteration,
+    synthesizer: resolution.synthesizer,
     cold_start: resolution.cold_start,
     agency: resolution.agency,
     peers: resolution.peers,
@@ -895,6 +1145,8 @@ function renderArtifactFrontmatter(resolution) {
     sections_error: resolution.sections.error,
     total_turns: resolution.total_turns,
     total_rounds: resolution.total_rounds,
+    peer_calls: resolution.peer_calls,
+    synthesis_calls: resolution.synthesis_calls,
     wall_clock_ms: resolution.wall_clock_ms,
     cost_source: resolution.cost_source,
     approximate_cost_usd: resolution.approximate_cost_usd,
@@ -913,8 +1165,9 @@ function renderResolutionSummary(resolution) {
     `- Parallel: ${resolution.parallel ? 'true' : 'false'}`,
     `- Agency: ${resolution.agency}`,
     `- Peers: ${resolution.peers.join(', ')}`,
-    `- Sections: ${resolution.sections.converged}/${resolution.sections.total} converged; ${resolution.sections.impasse} impasse; ${resolution.sections.error} error`,
-    `- Turns: ${resolution.total_turns}; rounds: ${resolution.total_rounds}`
+    `- Sections: ${resolution.sections.converged}/${resolution.sections.total} converged; ${resolution.sections.impasse} impasse; ${resolution.sections.escalation ?? 0} escalation; ${resolution.sections.error} error`,
+    `- Turns: ${resolution.total_turns}; rounds: ${resolution.total_rounds}`,
+    `- Calls: ${resolution.peer_calls} peer; ${resolution.synthesis_calls} synthesis`
   ];
 
   if (resolution.subagent_ids?.length > 0) {
@@ -978,6 +1231,46 @@ function validateProviderId(providerId, label = 'provider id') {
   return providerId;
 }
 
+// `paseo provider ls --json` reports readiness via a `status` string
+// (available | loading | error | unavailable | not found) and exposes `enabled`
+// as a display string ("Enabled" | "Disabled") — NOT the booleans our injected
+// and test inventories use. A provider that errored (e.g. cursor when
+// cursor-agent cannot authenticate) carries status "error" while still looking
+// enabled, so keying availability off `available`/`enabled === false` alone let
+// every configured provider pass preflight and only fail later as a mid-loop
+// `paseo run` timeout. Treat known-bad statuses as unavailable so PEER_UNAVAILABLE
+// fires up front with remediation. "loading" is tolerated: a cold daemon snapshot
+// can momentarily report healthy providers as loading (observed in dogfooding:
+// providers report "loading" for ~10-30s after a daemon (re)start, then settle),
+// and a genuinely broken provider settles into a terminal unavailable status
+// ("error" or "unavailable" — e.g. cursor-agent / claude with no auth) rather
+// than loading forever. Residual risk: a provider still "loading" at preflight
+// that will settle to broken; the operator-qa guidance to confirm providers are
+// "available" before a run covers that window.
+const PROVIDER_UNAVAILABLE_STATUSES = new Set([
+  'error',
+  'unavailable',
+  'not found',
+  'notfound',
+  'disabled',
+  'offline'
+]);
+
+function providerEntryAvailable(entry) {
+  // Explicit boolean availability wins (injected/test inventories use this shape).
+  if (typeof entry.available === 'boolean') {
+    return entry.available;
+  }
+  // Disabled providers are never usable, in either boolean or Paseo's string form.
+  if (entry.enabled === false || entry.enabled === 'Disabled') {
+    return false;
+  }
+  if (typeof entry.status === 'string') {
+    return !PROVIDER_UNAVAILABLE_STATUSES.has(entry.status.trim().toLowerCase());
+  }
+  return true;
+}
+
 function normalizeProviderInventory(providerInventory) {
   const entries = Array.isArray(providerInventory)
     ? providerInventory
@@ -989,7 +1282,7 @@ function normalizeProviderInventory(providerInventory) {
     }
 
     const id = validateProviderId(entry.id ?? entry.name ?? entry.provider, 'provider inventory id');
-    const available = entry.available === false || entry.enabled === false ? false : true;
+    const available = providerEntryAvailable(entry);
     return { ...entry, id, available };
   });
 }
@@ -1148,6 +1441,15 @@ export async function atomicWriteFile(targetPath, contents, options = {}) {
   return writePath;
 }
 
+let defaultRunDirCounter = 0;
+
+function defaultRunDirName() {
+  // Unique per invocation so a fresh run never inherits a prior run's
+  // intermediate per-section records (which would resume from stale state and
+  // can emit wrong output). An explicit --run-dir or --resume is unaffected.
+  return `run-${Date.now()}-${process.pid}-${defaultRunDirCounter++}`;
+}
+
 export async function resolveRunDir(options = {}) {
   const cwd = path.resolve(options.cwd ?? process.cwd());
   const root = path.resolve(options.allowRoot ?? cwd);
@@ -1155,7 +1457,7 @@ export async function resolveRunDir(options = {}) {
     ? path.isAbsolute(options.runDir)
       ? options.runDir
       : path.resolve(cwd, options.runDir)
-    : path.resolve(cwd, '.consensus', 'run');
+    : path.resolve(cwd, '.consensus', defaultRunDirName());
 
   return await confineWrite(target, root);
 }
@@ -1198,9 +1500,14 @@ export function parseWrapperArgs(argv) {
     peers: null,
     maxRounds: 12,
     agency: 'moderate',
+    iteration: 'alternating',
+    synthesizer: null,
+    coldStart: 'shared_input',
     output: null,
     resume: null,
     userDirection: null,
+    hostDirection: null,
+    hostDecisionKind: null,
     runDir: null,
     allowRoot: null,
     failOnSectionError: false,
@@ -1239,6 +1546,18 @@ export function parseWrapperArgs(argv) {
         parsed.agency = requireValue(argv, index, token);
         index += 1;
         break;
+      case '--iteration':
+        parsed.iteration = requireValue(argv, index, token);
+        index += 1;
+        break;
+      case '--synthesizer':
+        parsed.synthesizer = validateProviderId(requireValue(argv, index, token), '--synthesizer');
+        index += 1;
+        break;
+      case '--cold-start':
+        parsed.coldStart = requireValue(argv, index, token);
+        index += 1;
+        break;
       case '--output':
         parsed.output = requireValue(argv, index, token);
         index += 1;
@@ -1249,6 +1568,14 @@ export function parseWrapperArgs(argv) {
         break;
       case '--user-direction':
         parsed.userDirection = requireValue(argv, index, token);
+        index += 1;
+        break;
+      case '--host-direction':
+        parsed.hostDirection = requireValue(argv, index, token);
+        index += 1;
+        break;
+      case '--host-decision-kind':
+        parsed.hostDecisionKind = requireValue(argv, index, token);
         index += 1;
         break;
       case '--run-dir':
@@ -1294,8 +1621,23 @@ export function parseWrapperArgs(argv) {
     }
   }
 
+  if (parsed.userDirection !== null && parsed.hostDirection !== null) {
+    throw new Error('--user-direction and --host-direction are mutually exclusive');
+  }
+
   if (!['minimal', 'moderate', 'maximum'].includes(parsed.agency)) {
     throw new Error('--agency must be minimal, moderate, or maximum');
+  }
+
+  if (!ITERATION_MODES.includes(parsed.iteration)) {
+    throw invalidIterationModeError(parsed.iteration);
+  }
+
+  if (parsed.coldStart === 'independent_draft') {
+    throw new Error('--cold-start independent_draft is not yet supported');
+  }
+  if (parsed.coldStart !== 'shared_input') {
+    throw new Error('--cold-start must be shared_input');
   }
 
   if (parsed.fanIn) {
@@ -1321,11 +1663,17 @@ export async function parseDeliberationArtifactForResume(pathOrText, options = {
   const { text, sourcePath } = await readResumePathOrText(pathOrText);
   const frontmatter = parseFrontmatter(text);
   const consensusSchemaVersion = frontmatter.consensus_schema_version;
-  if (consensusSchemaVersion !== 'v0') {
-    throw resumeDataError(`unsupported consensus_schema_version for resume: ${consensusSchemaVersion ?? '(missing)'}`, {
-      code: 'RESUME_SCHEMA_UNSUPPORTED',
-      details: { consensus_schema_version: consensusSchemaVersion ?? null }
-    });
+  // Fail-closed version gate (p05-t05, FR4): only v1 artifacts resume. v0 artifacts
+  // are rejected with no migration — they must be completed under v0.1 or restarted.
+  if (consensusSchemaVersion !== 'v1') {
+    const found = consensusSchemaVersion ?? '(missing)';
+    throw resumeDataError(
+      `cannot resume consensus_schema_version ${found}: this build resumes only v1 artifacts, and there is no migration from v0. Complete in-flight v0 runs under consensus v0.1 or restart them under v1.`,
+      {
+        code: 'SCHEMA_VERSION_MISMATCH',
+        details: { found: consensusSchemaVersion ?? null, expected: 'v1' }
+      }
+    );
   }
 
   const resolutions = extractConsensusJsonBlocks(text, 'consensus-resolution');
@@ -1437,6 +1785,8 @@ function normalizeSequentialOptions(options) {
     goal: '',
     maxRounds: 12,
     agency: 'moderate',
+    iteration: 'alternating',
+    coldStart: 'shared_input',
     failOnSectionError: false,
     ...parsed
   };
@@ -1473,8 +1823,8 @@ function sequentialRunSections(parsedSections, resumeState) {
   });
 }
 
-function loopArgvForSection({ section, paths, options, peers }) {
-  return [
+function loopArgvForSection({ section, paths, options, peers, synthesizer = null }) {
+  const argv = [
     '--section-file',
     paths.input,
     '--goal',
@@ -1485,13 +1835,21 @@ function loopArgvForSection({ section, paths, options, peers }) {
     String(options.maxRounds),
     '--agency',
     options.agency,
+    '--iteration',
+    options.iteration ?? 'alternating'
+  ];
+  if (synthesizer) {
+    argv.push('--synthesizer', synthesizer);
+  }
+  argv.push(
     '--output-records',
     paths.records,
     '--output-section',
     paths.output,
     '--output-status',
     paths.status
-  ];
+  );
+  return argv;
 }
 
 function parallelismFor(sectionCount, requested) {
@@ -1501,7 +1859,7 @@ function parallelismFor(sectionCount, requested) {
   return Math.min(sectionCount, 4);
 }
 
-function manifestSectionEntry({ section, paths, packetPath, loopArgv }) {
+function manifestSectionEntry({ section, paths, packetPath, loopArgv, iterationMode = 'alternating', synthesizer = null }) {
   return {
     section_id: section.id,
     name: section.name,
@@ -1512,6 +1870,8 @@ function manifestSectionEntry({ section, paths, packetPath, loopArgv }) {
     output_section: paths.output,
     output_status: paths.status,
     subagent_id: `section-runner-${String(section.original_index + 1).padStart(2, '0')}-${section.id}`,
+    iteration_mode: iterationMode,
+    synthesizer,
     loop_argv: loopArgv
   };
 }
@@ -1521,12 +1881,16 @@ function dispatchInstructions(manifest) {
     phase: 'parallel_dispatch_required',
     manifest: manifest.manifest_path,
     parallelism: manifest.parallelism,
+    iteration_mode: manifest.iteration_mode ?? 'alternating',
+    synthesizer: manifest.synthesizer ?? null,
     sections: manifest.sections.map((section) => ({
       section_id: section.section_id,
       name: section.name,
       original_index: section.original_index,
       packet_path: section.packet_path,
       subagent_id: section.subagent_id,
+      iteration_mode: section.iteration_mode ?? manifest.iteration_mode ?? 'alternating',
+      synthesizer: section.synthesizer ?? manifest.synthesizer ?? null,
       output_records: section.output_records,
       output_section: section.output_section,
       output_status: section.output_status
@@ -1541,13 +1905,19 @@ export function renderDeliberationArtifact(runResult) {
   const finalOutput = sections.map(sectionOutput).join('\n\n').replace(/\n*$/u, '\n');
   const totalRounds = sections.reduce((sum, section) => sum + (section.status?.rounds ?? 0), 0);
   const totalTurns = sections.reduce((sum, section) => sum + (section.status?.turns ?? 0), 0);
+  const peerCalls = sections.reduce(
+    (sum, section) => sum + (section.status?.peer_calls ?? section.status?.turns ?? 0),
+    0
+  );
+  const synthesisCalls = sections.reduce((sum, section) => sum + (section.status?.synthesis_calls ?? 0), 0);
   const resolution = {
-    consensus_schema_version: 'v0',
+    consensus_schema_version: 'v1',
     status,
     mode: runResult.mode ?? 'sequential',
     parallel: Boolean(runResult.parallel),
-    iteration: 'alternating',
-    cold_start: 'shared_input',
+    iteration: runResult.iteration ?? 'alternating',
+    synthesizer: runResult.synthesizer ?? null,
+    cold_start: runResult.coldStart ?? 'shared_input',
     agency: runResult.agency,
     peers: runResult.peers,
     host: runResult.host ?? 'unknown',
@@ -1556,12 +1926,15 @@ export function renderDeliberationArtifact(runResult) {
       total: sections.length,
       converged: countByStatus(sections, 'converged'),
       impasse: countByStatus(sections, 'impasse'),
+      escalation: countByStatus(sections, 'escalation'),
       max_rounds: countByStatus(sections, 'max-rounds'),
       oscillation: countByStatus(sections, 'oscillation'),
       error: countByStatus(sections, 'error')
     },
     total_rounds: totalRounds,
     total_turns: totalTurns,
+    peer_calls: peerCalls,
+    synthesis_calls: synthesisCalls,
     wall_clock_ms: runResult.wallClockMs ?? null,
     cost_source: 'unavailable',
     approximate_cost_usd: null,
@@ -1646,6 +2019,10 @@ export async function runSequential(options, runOptions = {}) {
       : await (normalized.preflight ?? preflightPaseo)({ ...normalized, env, cwd });
   const peers = normalized.peers ?? preflight.peers;
   const host = preflight.host ?? detectHost(env);
+  const { synthesizer } = resolveSynthesizer(
+    { ...normalized, peers },
+    preflight.providerInventory ?? peers.map((id) => ({ id, available: true }))
+  );
   const resumeSections = sectionLookup(resumeState?.sections);
   const runSections = sequentialRunSections(parsedSections, resumeState);
   const sectionResults = [];
@@ -1671,7 +2048,7 @@ export async function runSequential(options, runOptions = {}) {
 
     if (resumeSection?.skipped) {
       const status = {
-        schema_version: 'v0',
+        schema_version: 'v1',
         status: 'skipped',
         termination_reason: 'corrupt_resume_skipped',
         turns: 0,
@@ -1710,14 +2087,31 @@ export async function runSequential(options, runOptions = {}) {
       continue;
     }
 
+    // Host-direction re-entry: validate routing against the pending escalation
+    // before re-invoking the loop (fail-closed). Only applied to the in-flight
+    // escalated section being resumed.
+    let hostDirection = null;
+    let hostDecisionKind = null;
+    let escalationTrigger = null;
+    if (normalized.hostDirection && resumeSection?.inFlight) {
+      const escalation = assertHostDirectionRoutable(resumeSection);
+      hostDirection = normalized.hostDirection;
+      hostDecisionKind = normalized.hostDecisionKind ?? 'direct';
+      escalationTrigger = escalation.trigger;
+    }
+
     try {
-      const result = await runConsensusLoop(loopArgvForSection({ section, paths, options: normalized, peers }), {
+      const result = await runConsensusLoop(loopArgvForSection({ section, paths, options: normalized, peers, synthesizer }), {
         env,
         cwd,
         invokePeer: normalized.invokePeer ?? runOptions.invokePeer,
+        invokeSynthesizer: normalized.invokeSynthesizer ?? runOptions.invokeSynthesizer,
         initialRecords: resumeSection?.records ?? [],
         initialArtifact: sectionInput,
-        userDirection: resumeSection?.inFlight ? normalized.userDirection : null
+        userDirection: resumeSection?.inFlight ? normalized.userDirection : null,
+        hostDirection,
+        hostDecisionKind,
+        escalationTrigger
       });
       sectionResults.push({
         ...section,
@@ -1761,6 +2155,9 @@ export async function runSequential(options, runOptions = {}) {
     peers,
     host,
     agency: normalized.agency,
+    iteration: normalized.iteration ?? 'alternating',
+    synthesizer,
+    coldStart: normalized.coldStart ?? 'shared_input',
     maxRounds: normalized.maxRounds,
     startedAt,
     endedAt,
@@ -1771,6 +2168,19 @@ export async function runSequential(options, runOptions = {}) {
 
   const artifact = renderDeliberationArtifact(runResult);
   await atomicWriteFile(outputPath, artifact, { rootPath: outputWriteRoot });
+
+  // Emit escalation_required for any escalated section. Escalation is a terminal
+  // status + resume (design §5): the wrapper resolves the full divergent text
+  // into the event and exits, mirroring impasse's success-with-partial semantics.
+  if (runOptions.stdout) {
+    for (const section of escalatedSections(sectionResults)) {
+      const event = buildEscalationEvent(section, { artifactPath: outputPath });
+      if (event) {
+        writeJsonl(runOptions.stdout, 'escalation_required', event);
+      }
+    }
+  }
+
   const failedSections = failingSections(sectionResults);
   if (normalized.failOnSectionError && failedSections.length > 0) {
     throw new ConsensusError(`section error or impasse in ${failedSections.length} section(s)`, {
@@ -1803,6 +2213,14 @@ export async function prepareParallelRun(options, runOptions = {}) {
       : await (normalized.preflight ?? preflightPaseo)({ ...normalized, env, cwd });
   const peers = normalized.peers ?? preflight.peers;
   const host = preflight.host ?? detectHost(env);
+  // Resolve the synthesizer (FR6) so parallel_synthesized section runners receive
+  // the same identity the sequential path would (p05-t04). Outside synthesized mode
+  // this is null and warn-and-ignored.
+  const { synthesizer } = resolveSynthesizer(
+    { ...normalized, peers },
+    preflight.providerInventory ?? normalized.providerInventory ?? []
+  );
+  const iterationMode = normalized.iteration ?? 'alternating';
   const parallelism = parallelismFor(parsedSections.length, normalized.parallelism);
   const sections = [];
 
@@ -1815,7 +2233,7 @@ export async function prepareParallelRun(options, runOptions = {}) {
       status: path.join(sectionDir, 'status.json')
     };
     const packetPath = path.join(sectionDir, 'packet.json');
-    const loopArgv = loopArgvForSection({ section, paths, options: normalized, peers });
+    const loopArgv = loopArgvForSection({ section, paths, options: normalized, peers, synthesizer });
 
     await Promise.all([
       confineWrite(paths.input, runWriteRoot),
@@ -1826,7 +2244,7 @@ export async function prepareParallelRun(options, runOptions = {}) {
     ]);
 
     const packet = {
-      consensus_schema_version: 'v0',
+      consensus_schema_version: 'v1',
       packet_type: 'consensus-section-runner',
       manifest_path: path.join(runDir, 'manifest.json'),
       section_id: section.id,
@@ -1837,6 +2255,8 @@ export async function prepareParallelRun(options, runOptions = {}) {
       peers,
       max_rounds: normalized.maxRounds,
       agency: normalized.agency,
+      iteration_mode: iterationMode,
+      synthesizer,
       output_records: paths.records,
       output_section: paths.output,
       output_status: paths.status,
@@ -1845,13 +2265,13 @@ export async function prepareParallelRun(options, runOptions = {}) {
 
     await atomicWriteFile(paths.input, section.markdown, { rootPath: runWriteRoot });
     await atomicWriteFile(packetPath, `${JSON.stringify(packet, null, 2)}\n`, { rootPath: runWriteRoot });
-    sections.push(manifestSectionEntry({ section, paths, packetPath, loopArgv }));
+    sections.push(manifestSectionEntry({ section, paths, packetPath, loopArgv, iterationMode, synthesizer }));
   }
 
   const manifestPath = path.join(runDir, 'manifest.json');
   await confineWrite(manifestPath, runWriteRoot);
   const manifest = {
-    consensus_schema_version: 'v0',
+    consensus_schema_version: 'v1',
     manifest_type: 'consensus-parallel-run',
     mode: 'parallel',
     status: 'prepared',
@@ -1864,6 +2284,8 @@ export async function prepareParallelRun(options, runOptions = {}) {
     host,
     max_rounds: normalized.maxRounds,
     agency: normalized.agency,
+    iteration_mode: iterationMode,
+    synthesizer,
     parallelism,
     sections,
     manifest_path: manifestPath
@@ -1973,7 +2395,7 @@ export async function fanInParallelRun(manifestPath, options = {}) {
     if (errors.length > 0) {
       const original = (await readTextIfPresent(entry.section_file)) ?? '';
       const marker = {
-        consensus_schema_version: 'v0',
+        consensus_schema_version: 'v1',
         section_id: entry.section_id,
         subagent_id: entry.subagent_id,
         status_path: entry.output_status,
@@ -1981,7 +2403,7 @@ export async function fanInParallelRun(manifestPath, options = {}) {
       };
       output = `${original.replace(/\n*$/u, '\n')}\n${canonicalJsonBlock('section-error', marker)}\n`;
       status = {
-        schema_version: 'v0',
+        schema_version: 'v1',
         ...(status ?? {}),
         status: 'error',
         termination_reason: status?.termination_reason ?? errors[0].code,
@@ -2022,6 +2444,8 @@ export async function fanInParallelRun(manifestPath, options = {}) {
     peers: manifest.peers,
     host: manifest.host ?? 'unknown',
     agency: manifest.agency,
+    iteration: manifest.iteration_mode ?? 'alternating',
+    synthesizer: manifest.synthesizer ?? null,
     maxRounds: manifest.max_rounds,
     startedAt,
     endedAt,
@@ -2080,6 +2504,56 @@ export function resolvePeers(options = {}, host = 'unknown', providerInventory =
   }
 
   return { peers, inventory };
+}
+
+/**
+ * Resolve the per-run synthesizer (FR6). Meaningful only in parallel_synthesized
+ * mode: outside it, an explicit --synthesizer is warned-and-ignored. Inside it the
+ * synthesizer defaults to the first peer and any explicit override must be present
+ * in the provider inventory (SYNTHESIZER_UNAVAILABLE otherwise).
+ */
+export function resolveSynthesizer(options = {}, providerInventory = []) {
+  const warnings = [];
+  const requested = options.synthesizer ?? null;
+
+  if (options.iteration !== 'parallel_synthesized') {
+    if (requested) {
+      warnings.push({
+        code: 'SYNTHESIZER_IGNORED',
+        level: 'warning',
+        synthesizer: requested,
+        iteration: options.iteration ?? 'alternating',
+        message: `--synthesizer "${requested}" is ignored outside parallel_synthesized mode.`
+      });
+    }
+    return { synthesizer: null, warnings };
+  }
+
+  const peers = options.peers ?? [];
+  const synthesizer = requested ?? peers[0] ?? null;
+
+  if (!synthesizer) {
+    throw new ConsensusError('no synthesizer could be resolved (no peers available)', {
+      code: 'SYNTHESIZER_UNAVAILABLE',
+      exitCode: EXIT_CODES.CONFIG,
+      details: { requested, peers }
+    });
+  }
+
+  const inventory = normalizeProviderInventory(providerInventory);
+  const entry = inventory.find((candidate) => candidate.id === synthesizer);
+  if (!entry || entry.available === false) {
+    throw new ConsensusError(
+      `Synthesizer "${synthesizer}" is not an available provider in the Paseo inventory. Verify configured providers with "paseo provider ls --json".`,
+      {
+        code: 'SYNTHESIZER_UNAVAILABLE',
+        exitCode: EXIT_CODES.CONFIG,
+        details: { synthesizer }
+      }
+    );
+  }
+
+  return { synthesizer, warnings };
 }
 
 export async function preflightPaseo(options = {}) {
@@ -2142,7 +2616,9 @@ export async function runWrapperCli(argv, options = {}) {
     writeJsonl(stdout, 'run_started', {
       mode: parsed.mode,
       input_path: parsed.inputPath,
-      manifest_path: parsed.manifestPath
+      manifest_path: parsed.manifestPath,
+      iteration_mode: parsed.iteration ?? 'alternating',
+      calls_per_round: callsPerRound(parsed.iteration ?? 'alternating')
     });
 
     if (parsed.mode === 'prepare_parallel') {
@@ -2188,7 +2664,8 @@ export async function runWrapperCli(argv, options = {}) {
       status: result.status,
       output_path: result.outputPath,
       run_dir: result.runDir,
-      sections: result.sections.length
+      sections: result.sections.length,
+      sections_escalated: result.sections.filter((section) => section.status?.status === 'escalation').length
     });
     return 0;
   } catch (error) {

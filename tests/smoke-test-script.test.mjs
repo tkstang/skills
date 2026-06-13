@@ -44,6 +44,23 @@ test('runSmokeTest runs validation, uses the Paseo stub, and verifies wrapper ou
   assert.match(result.artifact, /## Final Output/);
   assert.match(result.artifact, /<!-- consensus:consensus-resolution/);
   assert.match(stdout.value(), /smoke passed/);
+
+  // The smoke now also drives a parallel-synthesized escalation + host-direction
+  // resume to convergence.
+  assert.ok(result.parallelSynthesized, 'parallel-synthesized smoke scenario missing');
+  assert.equal(result.parallelSynthesized.status, 'converged');
+  assert.equal(result.parallelSynthesized.escalation.trigger, 'persistent_disagreement');
+  assert.equal(result.parallelSynthesized.escalation.decide_via, 'host');
+  assert.equal(result.parallelSynthesized.escalation.resume.flag, '--host-direction');
+});
+
+test('runParallelSynthesizedSmoke escalates once then converges via --host-direction', async () => {
+  const { runParallelSynthesizedSmoke } = await import('../scripts/smoke-test.mjs');
+  const result = await runParallelSynthesizedSmoke();
+
+  assert.equal(result.status, 'converged');
+  assert.equal(result.escalation.event, 'escalation_required');
+  assert.equal(result.escalation.trigger, 'persistent_disagreement');
 });
 
 test('smoke-test CLI exits zero on deterministic fixture run', async () => {

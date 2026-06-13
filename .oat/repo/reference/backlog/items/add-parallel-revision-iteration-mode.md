@@ -1,14 +1,14 @@
 ---
 id: bl-5d49
 title: 'Add parallel-revision iteration mode to consensus-loop'
-status: open
+status: done
 priority: high
 scope: feature
 scope_estimate: M
 labels: [consensus, iteration-modes]
 assignee: null
 created: '2026-06-12T21:33:26Z'
-updated: '2026-06-12T21:33:26Z'
+updated: '2026-06-13T20:30:00Z'
 associated_issues: []
 oat_template: true
 oat_template_name: backlog-item

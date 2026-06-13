@@ -16,14 +16,14 @@ Work is planned as **lanes**, not linear milestones. Sources of truth:
 
 ### Consensus plugin
 
-The v3 family architecture (`research/consensus/architecture-v3.md`) defines 6 skills × 3 iteration modes × 2 cold-start strategies × 3 agency levels over a shared `consensus-loop` primitive. v0.1 shipped Phase 1 **plus** most of Phase 3 (agency, impasse/user-direction flow, oscillation detection) and parts of Phases 4–5 (host-mediated parallel sections, resume).
+The v3 family architecture (`research/consensus/architecture-v3.md`) defines 6 skills × 3 iteration modes × 2 cold-start strategies × 3 agency levels over a shared `consensus-loop` primitive. v0.1 shipped Phase 1 **plus** most of Phase 3 (agency, impasse/user-direction flow, oscillation detection) and parts of Phases 4–5 (host-mediated parallel sections, resume). **Phase 2 — iteration modes — is now implemented** (`parallel_revision`, `parallel_synthesized`, synthesizer selection, agency-gated escalation ladder) on `feat/consensus-iteration-modes`, verified live with claude+codex, final review in progress (merge pending). The synthesis-mediation design question resolved as a two-tier model: deterministic wrapper-driven per-round synthesis plus agency-gated host/user escalation for judgment calls (DR-018).
 
 What remains, in dependency order:
 
-1. **Phase 2 — iteration modes** (`parallel_revision`, `parallel_synthesized`). Gating insight: every unbuilt family skill defaults to one of these modes (evaluate → parallel_revision; create/decide/plan/research → parallel_synthesized). Building wrappers first would ship them off-spec in alternating mode. Headline design question: synthesis mediation — v3 assumed a model orchestrator, but v0.1's orchestrator is a deterministic script, so synthesized mode needs either host-mediated synthesis turns (consistent with DR-003's dispatch pattern) or a third peer call (loses the broader-context rationale). Needs a design pass before build.
-2. **Family skills** — `consensus-evaluate`, `-create`, `-decide`, `-plan`, `-research` as thin wrappers with v3 defaults. `evaluate` only needs parallel_revision and can land earliest.
-3. **Harmonization pass** — whole-document coherence after independent section convergence.
-4. **Deliberation metrics** — tokens, wall-clock, rounds per section in the resolution block.
+1. **Family skills** — `consensus-evaluate`, `-create`, `-decide`, `-plan`, `-research` as thin wrappers with v3 defaults now that their default iteration modes exist. `evaluate` only needs `parallel_revision` and can land earliest (bl-5174).
+2. **Harmonization pass** — whole-document coherence after independent section convergence.
+3. **Deliberation metrics** — tokens, wall-clock, rounds per section in the resolution block.
+4. **Convergence quality follow-ons** — similarity heuristic for near-match convergence (bl-ef38), tool-based verdict submission CLI so peers self-validate schema (bl-3a88), and an in-house peer CLI (bl-bb7e). All deferred as nice-to-haves; deterministic-only escalation shipped.
 
 ### Release / distribution
 
@@ -36,11 +36,12 @@ Substantially shipped (see `current-state.md`). Deferred items recorded in the a
 
 ## Now
 
-- **Scope the next consensus project** — decide between: Phase 2 both modes (recommended); the smaller parallel-revision + `consensus-evaluate` increment; or one larger modes-plus-family project. The synthesis-mediation design question is the first artifact either way.
+- **Land the consensus Phase 2 PR** — `feat/consensus-iteration-modes` (parallel modes + escalation ladder + v1 schema) is implemented and in final review; clear the final review and merge.
+- **Scope the first family skill** — `consensus-evaluate` is the earliest fast-follow (needs only `parallel_revision`, now shipped; bl-5174).
 
 ## Next
 
-- **Consensus Phase 2 implementation** (per scoping above), then **family skills** as fast follow-ons.
+- **Family skills** — `consensus-evaluate` first, then `-create`, `-decide`, `-plan`, `-research` as thin wrappers with v3 defaults.
 - **v0.1 release verification** — can run in parallel with consensus work; it gates any public announcement, not development.
 
 ## Later

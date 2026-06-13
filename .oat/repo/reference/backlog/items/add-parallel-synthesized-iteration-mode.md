@@ -1,14 +1,14 @@
 ---
 id: bl-7af0
 title: 'Add parallel-synthesized iteration mode (synthesis-mediation design gate)'
-status: open
+status: done
 priority: high
 scope: feature
 scope_estimate: L
 labels: [consensus, iteration-modes, design-gate]
 assignee: null
 created: '2026-06-12T21:33:26Z'
-updated: '2026-06-12T21:33:26Z'
+updated: '2026-06-13T20:30:00Z'
 associated_issues: []
 oat_template: true
 oat_template_name: backlog-item

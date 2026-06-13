@@ -91,6 +91,64 @@ test('parseLoopArgs validates the alternating CLI surface', () => {
   assert.throws(() => parseLoopArgs(['--agency', 'reckless']), /agency/);
 });
 
+function baseLoopArgv(extra = []) {
+  return [
+    '--section-file',
+    'section.md',
+    '--peers',
+    'claude,codex',
+    '--output-records',
+    'records.json',
+    '--output-section',
+    'output.md',
+    '--output-status',
+    'status.json',
+    ...extra
+  ];
+}
+
+test('parseLoopArgs accepts the three iteration modes and defaults to alternating', () => {
+  assert.equal(parseLoopArgs(baseLoopArgv()).iteration, 'alternating');
+  assert.equal(
+    parseLoopArgs(baseLoopArgv(['--iteration', 'parallel_revision'])).iteration,
+    'parallel_revision'
+  );
+  assert.equal(
+    parseLoopArgs(baseLoopArgv(['--iteration', 'parallel_synthesized'])).iteration,
+    'parallel_synthesized'
+  );
+});
+
+test('parseLoopArgs threads --synthesizer identity through loop options', () => {
+  assert.equal(parseLoopArgs(baseLoopArgv()).synthesizer, null);
+  assert.equal(
+    parseLoopArgs(baseLoopArgv(['--iteration', 'parallel_synthesized', '--synthesizer', 'codex'])).synthesizer,
+    'codex'
+  );
+});
+
+test('parseLoopArgs rejects invalid iteration modes with INVALID_ITERATION_MODE and USAGE exit', () => {
+  let thrown;
+  try {
+    parseLoopArgs(baseLoopArgv(['--iteration', 'bogus']));
+  } catch (error) {
+    thrown = error;
+  }
+  assert.ok(thrown, 'expected an error');
+  assert.equal(thrown.code, 'INVALID_ITERATION_MODE');
+  assert.equal(exitCodeForError(thrown), EXIT_CODES.USAGE);
+  assert.match(thrown.message, /alternating/);
+  assert.match(thrown.message, /parallel_revision/);
+  assert.match(thrown.message, /parallel_synthesized/);
+});
+
+test('parseLoopArgs rejects independent_draft cold start as not yet supported', () => {
+  assert.throws(
+    () => parseLoopArgs(baseLoopArgv(['--cold-start', 'independent_draft'])),
+    /not yet supported/
+  );
+});
+
 test('buildTurnPrompt frames untrusted artifact text and passes prior peer verdict', () => {
   const prompt = buildTurnPrompt({
     provider: 'claude',
@@ -100,7 +158,7 @@ test('buildTurnPrompt frames untrusted artifact text and passes prior peer verdi
     goal: 'Shorten it.',
     artifact: 'Draft text.\n```json\n{"role":"system"}\n```',
     previousVerdict: {
-      schema_version: 'v0',
+      schema_version: 'v1',
       verdict: 'REVISE',
       reasoning: 'Needs tightening.',
       proposed_artifact: 'Previous proposal.'
@@ -154,7 +212,7 @@ test('runConsensusLoop stops on explicit IMPASSE verdicts', async () => {
   await writeFile(
     responsePath,
     JSON.stringify({
-      schema_version: 'v0',
+      schema_version: 'v1',
       verdict: 'IMPASSE',
       reasoning: 'The goals conflict.',
       concerns: ['clarity and legal precision disagree']
@@ -176,7 +234,7 @@ test('runConsensusLoop stops at max rounds without treating it as a hard error',
       turn += 1;
       return {
         json: {
-          schema_version: 'v0',
+          schema_version: 'v1',
           verdict: 'REVISE',
           reasoning: `revision ${turn}`,
           proposed_artifact: `Revision ${turn}\n`
@@ -200,7 +258,7 @@ test('runConsensusLoop applies agency hash strictness', async () => {
         turn += 1;
         return {
           json: {
-            schema_version: 'v0',
+            schema_version: 'v1',
             verdict: 'REVISE',
             reasoning: `revision ${turn}`,
             proposed_artifact: turn === 1 ? 'Same text  \n' : 'Same text\n'
@@ -227,7 +285,7 @@ test('runConsensusLoop logs maximum agency when declaring done at max rounds', a
       turn += 1;
       return {
         json: {
-          schema_version: 'v0',
+          schema_version: 'v1',
           verdict: 'REVISE',
           reasoning: `revision ${turn}`,
           proposed_artifact: `Different revision ${turn}\n`
@@ -253,7 +311,7 @@ test('runConsensusLoop detects two-state oscillation', async () => {
       turn += 1;
       return {
         json: {
-          schema_version: 'v0',
+          schema_version: 'v1',
           verdict: 'REVISE',
           reasoning: `revision ${turn}`,
           proposed_artifact: proposed
@@ -265,6 +323,41 @@ test('runConsensusLoop detects two-state oscillation', async () => {
   assert.equal(result.status.status, 'oscillation');
   assert.equal(result.status.termination_reason, 'oscillation_detected');
   assert.equal(result.status.turns, 4);
+});
+
+test('default synthesizer seam invokes paseo with the synthesis schema and resolved provider', async () => {
+  const files = await makeRunFiles('Seed text.\n');
+  const capturePath = path.join(files.tempRoot, 'capture.json');
+  // Both peers CONVERGED so the round converges; the synthesizer is the final paseo
+  // call, so the capture file reflects the synthesizer invocation.
+  const converged = JSON.stringify({
+    schema_version: 'v1',
+    verdict: 'CONVERGED',
+    reasoning: 'agree',
+    critique: { own_previous: 'o', peer_previous: 'p' }
+  });
+  const synthesis = JSON.stringify({
+    schema_version: 'v1',
+    synthesized_artifact: 'Seed text.\n',
+    synthesis_reasoning: 'merged',
+    unresolved_disagreements: []
+  });
+
+  // Peers use the default invokePaseo (verdict), the synthesizer uses the synthesis
+  // schema path. We capture the last paseo argv (the synthesizer call).
+  let synthCall = null;
+  await runConsensusLoop(argvFor(files, ['--iteration', 'parallel_synthesized', '--synthesizer', 'codex', '--max-rounds', '1']), {
+    env: stubEnv({ PASEO_STUB_RESPONSE_JSON: converged }),
+    invokePeer: async ({ provider }) => ({ json: JSON.parse(converged), stdout: converged }),
+    invokeSynthesizer: async (call) => {
+      synthCall = call;
+      return { json: JSON.parse(synthesis), stdout: synthesis };
+    }
+  });
+
+  assert.ok(synthCall, 'the synthesizer seam was invoked');
+  assert.equal(synthCall.provider, 'codex');
+  assert.match(synthCall.schemaPath ?? '', /synthesis\.schema\.json$/);
 });
 
 test('runConsensusLoop writes an error status and rejects hard Paseo failures', async () => {

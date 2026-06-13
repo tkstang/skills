@@ -6,9 +6,27 @@ import test from 'node:test';
 
 import {
   renderDeliberationArtifact,
-  runSequential
+  runSequential,
+  runWrapperCli
 } from '../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
 import { hashArtifact } from '../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
+
+function captureStdout() {
+  const lines = [];
+  return {
+    write(chunk) {
+      lines.push(String(chunk));
+      return true;
+    },
+    events() {
+      return lines
+        .join('')
+        .split('\n')
+        .filter(Boolean)
+        .map((line) => JSON.parse(line));
+    }
+  };
+}
 
 const repoRoot = path.resolve(new URL('..', import.meta.url).pathname);
 const fixtureBin = path.join(repoRoot, 'tests/fixtures/bin');
@@ -36,7 +54,7 @@ function consensusBlock(label, value) {
 function completedResumeArtifact(sections) {
   return [
     '---',
-    'consensus_schema_version: v0',
+    'consensus_schema_version: v1',
     'status: converged',
     'mode: sequential',
     '---',
@@ -49,7 +67,7 @@ function completedResumeArtifact(sections) {
     '## Resolution',
     '',
     consensusBlock('consensus-resolution', {
-      consensus_schema_version: 'v0',
+      consensus_schema_version: 'v1',
       status: 'converged',
       mode: 'sequential',
       parallel: false,
@@ -135,7 +153,7 @@ test('runSequential refines sections, creates run files, and writes an artifact'
   }
 
   const artifact = await readFile(outputPath, 'utf8');
-  assert.match(artifact, /^---\nconsensus_schema_version: v0\n/m);
+  assert.match(artifact, /^---\nconsensus_schema_version: v1\n/m);
   assert.match(artifact, /^iteration: alternating$/m);
   assert.match(artifact, /^cold_start: shared_input$/m);
   assert.match(artifact, /^peers: \["claude","codex"\]$/m);
@@ -158,7 +176,7 @@ test('runSequential refines sections, creates run files, and writes an artifact'
   assert.match(artifact, /<!-- consensus:consensus-resolution\n/);
 
   const resolution = extractJsonBlock(artifact, 'consensus-resolution');
-  assert.equal(resolution.consensus_schema_version, 'v0');
+  assert.equal(resolution.consensus_schema_version, 'v1');
   assert.equal(resolution.mode, 'sequential');
   assert.equal(resolution.host, 'cursor');
   assert.equal(resolution.sections.total, 3);
@@ -171,6 +189,69 @@ test('runSequential refines sections, creates run files, and writes an artifact'
     sectionStates.map((section) => section.original_index),
     [0, 1, 2]
   );
+});
+
+test('run_started discloses iteration mode and per-round call multiplier', async () => {
+  const alternating = captureStdout();
+  await runWrapperCli([sampleInput, '--peers', 'claude,codex'], {
+    stdout: alternating,
+    env: stubEnv(),
+    preflight: async () => ({ peers: ['claude', 'codex'], warnings: [] })
+  });
+  const altStart = alternating.events().find((event) => event.event === 'run_started');
+  assert.ok(altStart, 'expected run_started event');
+  assert.equal(altStart.iteration_mode, 'alternating');
+  assert.deepEqual(altStart.calls_per_round, { peer: 1, synthesis: 0 });
+
+  const parallel = captureStdout();
+  await runWrapperCli([sampleInput, '--peers', 'claude,codex', '--iteration', 'parallel_revision'], {
+    stdout: parallel,
+    env: stubEnv({ PASEO_STUB_RESPONSE_JSON: JSON.stringify({
+      schema_version: 'v1',
+      verdict: 'CONVERGED',
+      reasoning: 'agreed',
+      critique: { own_previous: 'o', peer_previous: 'p' }
+    }) }),
+    preflight: async () => ({ peers: ['claude', 'codex'], warnings: [] })
+  });
+  const parStart = parallel.events().find((event) => event.event === 'run_started');
+  assert.equal(parStart.iteration_mode, 'parallel_revision');
+  assert.deepEqual(parStart.calls_per_round, { peer: 2, synthesis: 0 });
+});
+
+test('parallel-revision artifact resolution reports peer_calls totals', async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-peer-calls-'));
+  const outputPath = path.join(tempRoot, 'out.consensus.md');
+  const runDir = path.join(tempRoot, '.consensus/run');
+  const converged = JSON.stringify({
+    schema_version: 'v1',
+    verdict: 'CONVERGED',
+    reasoning: 'agreed',
+    critique: { own_previous: 'o', peer_previous: 'p' }
+  });
+
+  const result = await runSequential({
+    inputPath: sampleInput,
+    output: outputPath,
+    runDir,
+    allowRoot: tempRoot,
+    cwd: tempRoot,
+    peers: ['claude', 'codex'],
+    iteration: 'parallel_revision',
+    maxRounds: 2,
+    agency: 'moderate',
+    preflight: async () => ({ peers: ['claude', 'codex'], warnings: [] }),
+    env: stubEnv({ PASEO_STUB_RESPONSE_JSON: converged })
+  });
+
+  const artifact = await readFile(outputPath, 'utf8');
+  const resolution = extractJsonBlock(artifact, 'consensus-resolution');
+  assert.equal(resolution.iteration, 'parallel_revision');
+  assert.ok(Number.isInteger(resolution.peer_calls), 'expected integer peer_calls');
+  assert.ok(resolution.peer_calls >= 2, 'expected at least one round of two peer calls');
+  // peer_calls equals the total peer turns across sections.
+  const totalTurns = result.sections.reduce((sum, section) => sum + (section.status?.turns ?? 0), 0);
+  assert.equal(resolution.peer_calls, totalTurns);
 });
 
 test('runSequential preserves completed resume section output when source input changes', async () => {
@@ -298,4 +379,94 @@ test('renderDeliberationArtifact uses canonical containers and contains prose he
   assert.match(artifact, /Reasoning:\n\\# Unexpected Heading\nRemove \[removed\] from prose\./);
   assert.match(artifact, /<!-- consensus:consensus-verdict\n/);
   assert.match(artifact, /"proposed_artifact": "Draft with ``` fence\.\\n"/);
+});
+
+// --- p04-t04: escalation_required JSONL event -----------------------------
+
+function persistentSynthesizedStubs() {
+  let peerCall = 0;
+  const invokePeer = async () => {
+    peerCall += 1;
+    return {
+      json: {
+        schema_version: 'v1',
+        verdict: 'REVISE',
+        reasoning: `r${peerCall}`,
+        critique: { own_previous: 'o', peer_previous: 'p' },
+        proposed_artifact: `peer revision ${peerCall}.\n`
+      },
+      stdout: '{"id":"peer"}'
+    };
+  };
+  let synthCall = 0;
+  const invokeSynthesizer = async () => {
+    synthCall += 1;
+    return {
+      json: {
+        schema_version: 'v1',
+        synthesized_artifact: `merged ${synthCall}.\n`,
+        synthesis_reasoning: 'merged favoring stronger reasoning',
+        unresolved_disagreements: ['heading style unresolved']
+      },
+      stdout: '{"id":"synth"}'
+    };
+  };
+  return { invokePeer, invokeSynthesizer };
+}
+
+test('escalation_required event resolves divergent full text and resume vector, emitted before run end', async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-escalation-event-'));
+  const inputPath = path.join(tempRoot, 'draft.md');
+  const outputPath = path.join(tempRoot, 'out.consensus.md');
+  const runDir = path.join(tempRoot, '.consensus/run');
+  await writeFile(inputPath, '# Intro\n\nSeed.\n');
+
+  const { invokePeer, invokeSynthesizer } = persistentSynthesizedStubs();
+  const stdout = captureStdout();
+  const result = await runSequential(
+    {
+      inputPath,
+      output: outputPath,
+      runDir,
+      allowRoot: tempRoot,
+      cwd: tempRoot,
+      goal: 'Tighten it.',
+      peers: ['claude', 'codex'],
+      iteration: 'parallel_synthesized',
+      synthesizer: 'claude',
+      maxRounds: 8,
+      agency: 'moderate',
+      preflight: async () => ({
+        peers: ['claude', 'codex'],
+        providerInventory: [
+          { id: 'claude', available: true },
+          { id: 'codex', available: true }
+        ],
+        warnings: []
+      }),
+      invokePeer,
+      invokeSynthesizer
+    },
+    { stdout }
+  );
+
+  assert.equal(result.sections[0].status.status, 'escalation');
+
+  const events = stdout.events();
+  const escalation = events.find((event) => event.event === 'escalation_required');
+  assert.ok(escalation, 'expected escalation_required event');
+  assert.equal(escalation.trigger, 'persistent_disagreement');
+  assert.equal(escalation.decide_via, 'host');
+  assert.ok(Array.isArray(escalation.decision_kinds));
+  // Full divergent text resolved into the event (both revisions + synthesis).
+  assert.equal(typeof escalation.divergent.a.text, 'string');
+  assert.equal(typeof escalation.divergent.b.text, 'string');
+  assert.ok(escalation.divergent.a.text.length > 0);
+  assert.ok(escalation.divergent.synthesis, 'synthesis text present in synthesized mode');
+  assert.match(escalation.divergent.synthesis.text, /merged/);
+  assert.deepEqual(escalation.divergent.synthesis.unresolved_disagreements, ['heading style unresolved']);
+  // Resume vector names the artifact path and the host flag.
+  assert.equal(escalation.resume.artifact_path, outputPath);
+  assert.equal(escalation.resume.flag, '--host-direction');
+  assert.equal(escalation.section_id, result.sections[0].id);
 });

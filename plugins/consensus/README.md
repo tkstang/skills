@@ -4,7 +4,7 @@ Status: v0.1 pre-release.
 
 `plugins/consensus/` is a self-contained plugin package for consensus workflows. It currently ships one skill, `refine`, which refines markdown drafts by asking two Paseo-backed AI peers to deliberate toward a converged artifact with an audit trail.
 
-The v0.1 scope is intentionally narrow: the `refine` skill, alternating iteration mode, sequential sections by default, opt-in host-mediated parallel section orchestration, and the `--agency` flag. Future work may add the rest of the consensus skill family, additional iteration modes, and a whole-document harmonization pass.
+The scope is intentionally narrow: the `refine` skill, three iteration modes selected with `--iteration` (`alternating` default, `parallel_revision`, `parallel_synthesized`), a configurable synthesizer (`--synthesizer`), an agency-gated escalation ladder with host/user decision re-entry (`--host-direction`), sequential sections by default, opt-in host-mediated parallel section orchestration, and the `--agency` flag. Future work may add the rest of the consensus skill family, a whole-document harmonization pass, and deliberation metrics/cost caps.
 
 ## Local Git Repository Install
 
@@ -68,6 +68,26 @@ node plugins/consensus/skills/refine/scripts/consensus-refine.mjs draft.md \
   --user-direction "Prefer the shorter introduction."
 ```
 
+### Iteration modes
+
+Select how the two peers deliberate with `--iteration`. The default is `alternating`.
+
+```bash
+# Both peers revise in parallel each round; converge on emergent agreement (2x peer calls).
+node plugins/consensus/skills/refine/scripts/consensus-refine.mjs draft.md \
+  --goal "Tighten the draft." --iteration parallel_revision
+
+# Parallel revision plus a per-round synthesis merge (2x peer calls + 1 synthesis call).
+node plugins/consensus/skills/refine/scripts/consensus-refine.mjs draft.md \
+  --goal "Tighten the draft." --iteration parallel_synthesized --synthesizer claude
+```
+
+Parallel modes disclose their per-round call multiplier in the `run_started` JSONL event (`calls_per_round`) and report actual `peer_calls`/`synthesis_calls` totals at completion. The synthesizer defaults to the first peer and must be present in the peer inventory (`SYNTHESIZER_UNAVAILABLE` otherwise); it is warned-and-ignored outside `parallel_synthesized`.
+
+When a parallel-mode section gets stuck (persistent disagreement, oscillation, budget exhaustion, or near-done drift), the wrapper emits an `escalation_required` JSONL event routed by `--agency` to the user or the host. A host decision re-enters with `--resume <artifact> --host-direction "<text>"` (optionally `--host-decision-kind <kind>`) and records as an attributed orchestrator round; a user decision re-enters with `--user-direction` as before.
+
+For a hands-on QA walkthrough of all three modes and the escalation ladder against live peers — exact commands, example inputs, and expected output — see `skills/refine/references/operator-qa.md`.
+
 Parallel section orchestration is host mediated. Prepare packets first, dispatch section runners with the host runtime, then fan in the completed section outputs:
 
 ```bash
@@ -93,15 +113,25 @@ By default, host detection chooses `claude,codex` on Claude Code and Cursor, and
 node plugins/consensus/skills/refine/scripts/consensus-refine.mjs draft.md --peers claude,codex
 ```
 
-Peer IDs come from `paseo provider ls --json`; the wrapper does not probe executables directly. Custom ACP providers are supported when they are registered with Paseo and appear in that inventory. Cursor is not a built-in Paseo peer at v0.1, so cursor-as-peer is opt-in only through a user-configured custom ACP provider ID, for example `--peers cursor-acp,codex` if that provider exists locally.
+Peer IDs come from `paseo provider ls --json`; the wrapper does not probe executables directly. Preflight fails closed with `PEER_UNAVAILABLE` when a requested peer is missing from the inventory or reports a non-ready status (`error`, `unavailable`, `not found`, or a `Disabled` provider), so a misconfigured peer is flagged up front rather than surfacing as a mid-run `paseo run` timeout. Custom ACP providers are supported when they are registered with Paseo and appear in that inventory.
+
+Cursor is not a built-in Paseo peer at v0.1, so cursor-as-peer is opt-in. Register Cursor as a custom ACP provider — either through Paseo's one-click ACP catalog or by adding it to `~/.paseo/config.json`:
+
+```json
+{ "agents": { "providers": { "cursor": {
+  "extends": "acp", "label": "Cursor", "command": ["cursor-agent", "acp"]
+} } } }
+```
+
+Then authenticate `cursor-agent` (it stores credentials in the OS keychain — a locked keychain makes the provider report `error`) and pass `--peers cursor,codex`. Note that Cursor runs through Paseo's generic ACP path, where `--output-schema` is enforced by prompt injection plus validation/retry rather than the native structured output `claude` and `codex` expose; expect more schema-retry churn, and treat cursor-as-peer as unverified end-to-end until a full deliberation run is exercised against an authenticated `cursor-agent`.
 
 ## Limitations
 
 - v0.1 ships the `refine` skill only.
 - The rest of the consensus family is deferred: `consensus-create`, `consensus-evaluate`, `consensus-decide`, `consensus-plan`, and `consensus-research`.
-- Alternating iteration mode only; parallel-revision and parallel-synthesized modes are future work.
-- Sections converge independently; there is no whole-document harmonization pass in v0.1.
-- Cursor is supported as a host runtime, not as a default Paseo peer.
+- Ships three iteration modes (`alternating`, `parallel_revision`, `parallel_synthesized`); the independent-draft cold-start strategy is not exposed through `refine` (shared-input only).
+- Sections converge independently; whole-document harmonization and deliberation metrics/cost caps remain deferred.
+- Cursor is supported as a host runtime, and as a peer only via a user-configured custom ACP provider (not a default Paseo peer); its structured-output path is softer than claude/codex and is unverified end-to-end at v0.1.
 - Codex public marketplace submission is not assumed; Git/local install is the v0.1 path.
 - skills.sh listing should not be claimed until indexing has been verified after publication.
 - Prompt injection inside the input artifact is mitigated by prompt framing and schema validation, but peer CLIs may still produce structurally valid bad advice. Review the audit trail before publishing outputs.
@@ -111,4 +141,5 @@ Peer IDs come from `paseo provider ls --json`; the wrapper does not probe execut
 
 - `.claude-plugin/`, `.cursor-plugin/`, `.codex-plugin/` - provider plugin manifests.
 - `skills/refine/` - implementation directory for the shipped `refine` skill.
+- `skills/refine/references/operator-qa.md` - manual QA walkthrough of the iteration modes and escalation ladder, with runnable example inputs under `references/examples/`.
 - `agents/consensus-section-runner.md` - task contract for host-mediated parallel section runners.

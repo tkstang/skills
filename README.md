@@ -10,7 +10,7 @@ This repository is a personal Agent Skills home. It contains standalone skills u
 
 `plugins/consensus/` is a self-contained plugin package for consensus workflows. Its first shipped skill is `refine`, a markdown refinement skill that uses two Paseo-backed AI peers to deliberate toward a converged artifact with an audit trail.
 
-The v0.1 consensus scope is intentionally narrow: the `refine` skill, alternating iteration mode, sequential sections by default, opt-in host-mediated parallel section orchestration, and the `--agency` flag. Future work may add the rest of the consensus skill family, additional iteration modes, and a whole-document harmonization pass.
+The consensus scope is intentionally narrow: the `refine` skill, three iteration modes (`alternating` default, `parallel_revision`, `parallel_synthesized`) selected with `--iteration`, an agency-gated escalation ladder (`--host-direction` re-entry), a configurable synthesizer (`--synthesizer`), sequential sections by default, opt-in host-mediated parallel section orchestration, and the `--agency` flag. Future work may add the rest of the consensus skill family, a whole-document harmonization pass, and deliberation metrics/cost caps.
 
 See `plugins/consensus/README.md` for consensus prerequisites, usage, resume behavior, parallel orchestration, permissions, advanced peer configuration, and limitations.
 
@@ -127,8 +127,8 @@ For watch mode, `--runtime both` watches Claude Code and Codex in one foreground
 
 - The consensus plugin family ships the `refine` skill only in v0.1; the standalone `session-observer` and `export-session-transcript` skills (and the shared `transcript-core` module) ship alongside it but are not part of the consensus plugin.
 - The rest of the consensus family is deferred: `consensus-create`, `consensus-evaluate`, `consensus-decide`, `consensus-plan`, and `consensus-research`.
-- Consensus alternating iteration mode only; parallel-revision and parallel-synthesized modes are future work.
-- Consensus sections converge independently; there is no whole-document harmonization pass in v0.1.
+- Consensus ships three iteration modes (`alternating`, `parallel-revision`, `parallel-synthesized`); parallel modes disclose their per-round call multiplier (2x peer calls, plus 1 synthesis call for synthesized) and escalate stuck states through the agency-gated ladder.
+- Consensus sections converge independently; whole-document harmonization and deliberation metrics/cost caps remain deferred.
 - Cursor is supported as a host runtime for the consensus plugin, not as a default Paseo peer.
 - Session observer supports Cursor agent transcript JSONL only; `~/.cursor/chats/*/store.db` SQLite chat history is out of scope.
 - Session observer watch mode only responds while the active agent invocation keeps the foreground watcher running and actively reads stdout or re-polls `watch-ctl status`; provider-hook automation for future self-triggered turns is out of scope. Starting `watch` in a backgrounded shell does not notify Claude Code/Codex/Cursor after the current invocation yields.

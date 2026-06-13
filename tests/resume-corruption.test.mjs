@@ -22,7 +22,7 @@ function baseArtifact() {
   const detailsHash = hashArtifact(details);
   return [
     '---',
-    'consensus_schema_version: v0',
+    'consensus_schema_version: v1',
     'status: partial',
     '---',
     '',
@@ -31,7 +31,7 @@ function baseArtifact() {
     '## Resolution',
     '',
     consensusBlock('consensus-resolution', {
-      consensus_schema_version: 'v0',
+      consensus_schema_version: 'v1',
       status: 'partial'
     }),
     '',
@@ -121,7 +121,7 @@ test('resume corruption exits as data error and writes diagnostics', async () =>
   );
 
   const diagnostics = JSON.parse(await readFile(path.join(runDir, 'resume-errors.json'), 'utf8'));
-  assert.equal(diagnostics.consensus_schema_version, 'v0');
+  assert.equal(diagnostics.consensus_schema_version, 'v1');
   assert.equal(diagnostics.errors[0].section_id, 'details-1');
   assert.equal(diagnostics.errors[0].code, 'RESUME_JSON_CORRUPT');
 });
@@ -175,4 +175,218 @@ test('resume supports interactive skip-all and non-interactive yes skip', async 
 test('parseWrapperArgs exposes skip-all-corrupt for resume flows', () => {
   const parsed = parseWrapperArgs(['draft.md', '--skip-all-corrupt']);
   assert.equal(parsed.skipAllCorrupt, true);
+});
+
+// --- p05-t03: corrupt-section fail-closed for v1 record types -----------
+
+const peerA = '# Intro\n\nPeer A revision.\n';
+const peerB = '# Intro\n\nPeer B revision.\n';
+const synthText = '# Intro\n\nSynthesized merge.\n';
+
+// A v1 parallel_synthesized two-section artifact: section 0 is a converged
+// good section; section 1 carries a peer pair + synthesis + intervention round.
+function synthesizedTwoSectionArtifact({
+  corruptSynthesis = false,
+  corruptIntervention = false,
+  dropOnePeer = false
+} = {}) {
+  const introHash = hashArtifact(intro);
+  const synthHash = hashArtifact(synthText);
+
+  const synthesisBlock = corruptSynthesis
+    ? '<!-- consensus:consensus-synthesis\n{ bad synthesis json\n-->'
+    : consensusBlock('consensus-synthesis', {
+        schema_version: 'v1',
+        record_type: 'synthesis',
+        synthesizer: 'claude',
+        synthesized_artifact: synthText,
+        synthesis_reasoning: 'Merged.',
+        unresolved_disagreements: [],
+        artifact_hash: synthHash
+      });
+
+  const interventionBlock = corruptIntervention
+    ? '<!-- consensus:consensus-verdict\n{ bad intervention json\n-->'
+    : consensusBlock('consensus-verdict', {
+        schema_version: 'v1',
+        verdict: 'HOST_DECISION',
+        reasoning: 'Adopt the merge.',
+        decision_kind: 'blend',
+        escalation_trigger: 'persistent_disagreement'
+      });
+
+  const peerBlocks = [
+    consensusBlock('consensus-verdict', {
+      schema_version: 'v1',
+      verdict: 'REVISE',
+      reasoning: 'Peer A.',
+      critique: { own_previous: 'oA', peer_previous: 'pA' },
+      proposed_artifact: peerA
+    })
+  ];
+  if (!dropOnePeer) {
+    peerBlocks.push(
+      consensusBlock('consensus-verdict', {
+        schema_version: 'v1',
+        verdict: 'REVISE',
+        reasoning: 'Peer B.',
+        critique: { own_previous: 'oB', peer_previous: 'pB' },
+        proposed_artifact: peerB
+      })
+    );
+  }
+
+  return [
+    '---',
+    'consensus_schema_version: v1',
+    'status: partial',
+    'mode: sequential',
+    'iteration: parallel_synthesized',
+    'synthesizer: claude',
+    'agency: moderate',
+    '---',
+    '',
+    '# Consensus Refine Artifact',
+    '',
+    '## Final Output',
+    '',
+    intro,
+    synthText,
+    '## Resolution',
+    '',
+    consensusBlock('consensus-resolution', {
+      consensus_schema_version: 'v1',
+      status: 'partial',
+      mode: 'sequential',
+      iteration: 'parallel_synthesized',
+      synthesizer: 'claude',
+      agency: 'moderate',
+      peers: ['claude', 'codex']
+    }),
+    '',
+    '## Section States',
+    '',
+    consensusBlock('consensus-section-states', [
+      {
+        id: 'intro-0',
+        name: 'Intro',
+        original_index: 0,
+        status: 'converged',
+        final_artifact_hash: introHash,
+        final_output: intro
+      },
+      {
+        id: 'details-1',
+        name: 'Details',
+        original_index: 1,
+        status: 'escalation',
+        final_artifact_hash: synthHash,
+        final_output: synthText
+      }
+    ]),
+    '',
+    '## Deliberation Log',
+    '',
+    '### 1. Intro (converged)',
+    '',
+    consensusBlock('consensus-section-status', {
+      schema_version: 'v1',
+      status: 'converged',
+      final_artifact_hash: introHash
+    }),
+    '',
+    consensusBlock('consensus-verdict', {
+      schema_version: 'v1',
+      verdict: 'REVISE',
+      reasoning: 'ok',
+      proposed_artifact: intro
+    }),
+    '',
+    '### 2. Details (escalation)',
+    '',
+    consensusBlock('consensus-section-status', {
+      schema_version: 'v1',
+      status: 'escalation',
+      termination_reason: 'persistent_disagreement',
+      iteration_mode: 'parallel_synthesized',
+      final_artifact_hash: synthHash
+    }),
+    '',
+    ...peerBlocks,
+    '',
+    synthesisBlock,
+    '',
+    interventionBlock,
+    ''
+  ].join('\n');
+}
+
+test('resume fails closed on a corrupt v1 synthesis record', async () => {
+  const runDir = await mkdtemp(path.join(os.tmpdir(), 'resume-v1-synth-'));
+  await assert.rejects(
+    parseDeliberationArtifactForResume(synthesizedTwoSectionArtifact({ corruptSynthesis: true }), { runDir }),
+    (error) => {
+      assert.equal(error.exitCode, EXIT_CODES.DATA);
+      assert.equal(error.code, 'RESUME_CORRUPT');
+      return true;
+    }
+  );
+});
+
+test('resume fails closed on a corrupt v1 intervention round', async () => {
+  const runDir = await mkdtemp(path.join(os.tmpdir(), 'resume-v1-intervention-'));
+  await assert.rejects(
+    parseDeliberationArtifactForResume(synthesizedTwoSectionArtifact({ corruptIntervention: true }), { runDir }),
+    (error) => {
+      assert.equal(error.code, 'RESUME_CORRUPT');
+      return true;
+    }
+  );
+});
+
+test('resume detects a half-missing peer pair before a synthesis record', async () => {
+  // A synthesized round whose peer pair is incomplete is fail-closed corrupt state.
+  const runDir = await mkdtemp(path.join(os.tmpdir(), 'resume-v1-halfpair-'));
+  await assert.rejects(
+    parseDeliberationArtifactForResume(synthesizedTwoSectionArtifact({ dropOnePeer: true }), { runDir }),
+    (error) => {
+      assert.equal(error.code, 'RESUME_CORRUPT');
+      return true;
+    }
+  );
+
+  const diagnostics = JSON.parse(await readFile(path.join(runDir, 'resume-errors.json'), 'utf8'));
+  assert.ok(
+    diagnostics.errors.some((entry) => entry.code === 'RESUME_PAIR_INCOMPLETE'),
+    'incomplete-pair error recorded'
+  );
+});
+
+test('skip controls behave as v0.1 for corrupt v1 record types', async () => {
+  const explicit = await parseDeliberationArtifactForResume(
+    synthesizedTwoSectionArtifact({ corruptSynthesis: true }),
+    { skipCorruptSections: ['details-1'] }
+  );
+  assert.deepEqual(explicit.skippedCorruptSections.map((section) => section.id), ['details-1']);
+  assert.deepEqual(explicit.completedSections.map((section) => section.id), ['intro-0']);
+
+  const yesSkip = await parseDeliberationArtifactForResume(
+    synthesizedTwoSectionArtifact({ corruptIntervention: true }),
+    { yesSkipCorrupt: true }
+  );
+  assert.deepEqual(yesSkip.skippedCorruptSections.map((section) => section.id), ['details-1']);
+
+  let prompted = false;
+  const skipAll = await parseDeliberationArtifactForResume(
+    synthesizedTwoSectionArtifact({ corruptSynthesis: true }),
+    {
+      skipAllCorrupt: true,
+      confirmSkipAllCorrupt: async () => {
+        prompted = true;
+        return true;
+      }
+    }
+  );
+  assert.equal(prompted, true);
+  assert.deepEqual(skipAll.skippedCorruptSections.map((section) => section.id), ['details-1']);
 });

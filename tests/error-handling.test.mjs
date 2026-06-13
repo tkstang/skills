@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, stat } from 'node:fs/promises';
+import { mkdtemp, readFile, stat, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -7,7 +7,8 @@ import test from 'node:test';
 import {
   ConsensusError,
   EXIT_CODES,
-  exitCodeForError
+  exitCodeForError,
+  runConsensusLoop
 } from '../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
 import {
   createJsonlEvent,
@@ -42,7 +43,7 @@ function sectionFailOnceInvoker() {
     }
     return {
       json: {
-        schema_version: 'v0',
+        schema_version: 'v1',
         verdict: 'ACCEPT',
         reasoning: 'accepted'
       }
@@ -57,7 +58,7 @@ function sectionPartialFailureInvoker() {
     if (calls === 1) {
       return {
         json: {
-          schema_version: 'v0',
+          schema_version: 'v1',
           verdict: 'REVISE',
           reasoning: 'partial edit landed',
           proposed_artifact: 'Partially revised intro.\n'
@@ -69,7 +70,7 @@ function sectionPartialFailureInvoker() {
     }
     return {
       json: {
-        schema_version: 'v0',
+        schema_version: 'v1',
         verdict: 'ACCEPT',
         reasoning: 'accepted'
       }
@@ -84,7 +85,7 @@ function impasseThenAcceptInvoker() {
     if (calls === 1) {
       return {
         json: {
-          schema_version: 'v0',
+          schema_version: 'v1',
           verdict: 'IMPASSE',
           reasoning: 'needs user direction',
           concerns: ['unclear scope']
@@ -93,7 +94,7 @@ function impasseThenAcceptInvoker() {
     }
     return {
       json: {
-        schema_version: 'v0',
+        schema_version: 'v1',
         verdict: 'ACCEPT',
         reasoning: 'accepted'
       }
@@ -110,11 +111,147 @@ function extractLabeledJson(markdown, label) {
   return JSON.parse(commented[1]);
 }
 
+async function makeSynthesizedRunFiles() {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-synth-fail-'));
+  const sectionPath = path.join(tempRoot, 'section.md');
+  await writeFile(sectionPath, 'Seed.\n');
+  return {
+    tempRoot,
+    sectionPath,
+    recordsPath: path.join(tempRoot, 'records.json'),
+    outputPath: path.join(tempRoot, 'output.md'),
+    statusPath: path.join(tempRoot, 'status.json')
+  };
+}
+
+function synthesizedArgv(files, extra = []) {
+  return [
+    '--section-file',
+    files.sectionPath,
+    '--goal',
+    'Tighten.',
+    '--peers',
+    'claude,codex',
+    '--iteration',
+    'parallel_synthesized',
+    '--synthesizer',
+    'claude',
+    '--max-rounds',
+    '3',
+    '--agency',
+    'moderate',
+    '--output-records',
+    files.recordsPath,
+    '--output-section',
+    files.outputPath,
+    '--output-status',
+    files.statusPath,
+    ...extra
+  ];
+}
+
+function divergentPeer() {
+  let call = 0;
+  return async () => {
+    call += 1;
+    return {
+      json: {
+        schema_version: 'v1',
+        verdict: 'REVISE',
+        reasoning: `r${call}`,
+        critique: { own_previous: 'o', peer_previous: 'p' },
+        proposed_artifact: `peer-${call}.\n`
+      },
+      stdout: '{"id":"peer"}'
+    };
+  };
+}
+
+test('synthesis process failure leaves the peer pair durable and resumable (pending-synthesis)', async () => {
+  const files = await makeSynthesizedRunFiles();
+
+  await assert.rejects(
+    runConsensusLoop(synthesizedArgv(files), {
+      invokePeer: divergentPeer(),
+      invokeSynthesizer: async () => {
+        throw new Error('synthesizer spawn failed');
+      }
+    })
+  );
+
+  const records = JSON.parse(await readFile(files.recordsPath, 'utf8'));
+  // The peer pair is durable; NO synthesis or synthesis-error record was written.
+  assert.equal(records.length, 2, 'exactly the peer pair is committed');
+  assert.deepEqual(records.map((record) => record.agent), ['claude', 'codex']);
+  assert.equal(records.some((record) => record.record_type === 'synthesis'), false);
+  assert.equal(records.some((record) => record.record_type === 'synthesis-error'), false);
+});
+
+test('invalid synthesis shape writes a metadata-only synthesis-error record and errors the section', async () => {
+  const files = await makeSynthesizedRunFiles();
+
+  await assert.rejects(
+    runConsensusLoop(synthesizedArgv(files), {
+      invokePeer: divergentPeer(),
+      invokeSynthesizer: async () => ({
+        // Missing synthesis_reasoning + unresolved_disagreements.
+        json: { schema_version: 'v1', synthesized_artifact: 'merged' },
+        stdout: '{"id":"synth"}'
+      })
+    }),
+    (error) => {
+      assert.equal(error.code, 'INVALID_SYNTHESIS_SHAPE');
+      return true;
+    }
+  );
+
+  const records = JSON.parse(await readFile(files.recordsPath, 'utf8'));
+  const synthError = records.find((record) => record.record_type === 'synthesis-error');
+  assert.ok(synthError, 'a synthesis-error record is written');
+  assert.equal(synthError.code, 'INVALID_SYNTHESIS_SHAPE');
+  assert.equal(synthError.synthesizer, 'claude');
+  // Metadata only: no synthesized text leaks into the record.
+  assert.equal('synthesized_artifact' in synthError, false);
+
+  const status = JSON.parse(await readFile(files.statusPath, 'utf8'));
+  assert.equal(status.status, 'error');
+});
+
+test('oversized synthesis writes a synthesis-error record with INVALID_SYNTHESIS_CAPS', async () => {
+  const files = await makeSynthesizedRunFiles();
+  const huge = 'x'.repeat(256 * 1024 + 1);
+
+  await assert.rejects(
+    runConsensusLoop(synthesizedArgv(files), {
+      invokePeer: divergentPeer(),
+      invokeSynthesizer: async () => ({
+        json: {
+          schema_version: 'v1',
+          synthesized_artifact: huge,
+          synthesis_reasoning: 'merged',
+          unresolved_disagreements: []
+        },
+        stdout: '{"id":"synth"}'
+      })
+    }),
+    (error) => {
+      assert.equal(error.code, 'INVALID_SYNTHESIS_CAPS');
+      return true;
+    }
+  );
+
+  const records = JSON.parse(await readFile(files.recordsPath, 'utf8'));
+  const synthError = records.find((record) => record.record_type === 'synthesis-error');
+  assert.ok(synthError);
+  assert.equal(synthError.code, 'INVALID_SYNTHESIS_CAPS');
+  assert.equal('synthesized_artifact' in synthError, false);
+});
+
 test('createJsonlEvent returns stdout-safe JSONL event shape', () => {
   const event = createJsonlEvent('run_started', { input_path: 'draft.md' }, { now: () => '2026-05-04T03:00:00.000Z' });
 
   assert.deepEqual(event, {
-    consensus_schema_version: 'v0',
+    consensus_schema_version: 'v1',
     event: 'run_started',
     timestamp: '2026-05-04T03:00:00.000Z',
     input_path: 'draft.md'

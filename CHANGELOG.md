@@ -15,6 +15,15 @@
 - Mocked smoke test coverage for dependency-free end-to-end validation.
 - Node.js 22+ runtime and CI baseline.
 
+### Iteration modes (v0.2)
+
+- Two parallel iteration modes selectable with `--iteration`: `parallel-revision` (both peers revise simultaneously each round, converging on emergent agreement; 2x peer calls) and `parallel-synthesized` (parallel revision plus a per-round wrapper-driven synthesis merge; 2x peer calls + 1 synthesis call). `alternating` remains the default and is regression-locked.
+- Configurable synthesizer via `--synthesizer` (defaults to the first peer; validated against the provider inventory) so routine merging can run on a cheaper model; synthesizer identity is recorded in every synthesis record and the resolution block.
+- Agency-gated escalation ladder: deterministic triggers (persistent disagreement, oscillation, budget exhaustion, near-done drift) emit a structured `escalation_required` event routed by `--agency` to the user or the host. Host decisions re-enter with `--resume --host-direction "<text>"` (and optional `--host-decision-kind`) as attributed orchestrator rounds; genuinely-stuck host escalations promote to the user.
+- Unified v1 deliberation record schema across all three modes (mode-aware verdicts, synthesis records, attributed intervention rounds, extended byte caps); v0 artifacts are rejected fail-closed on resume with no migration.
+- Cost disclosure: `run_started` carries `iteration_mode` and `calls_per_round`; `run_completed` and the resolution block report `peer_calls` and `synthesis_calls`. Routine events carry no deliberation content — `escalation_required` is the only content-bearing event.
+- Resume and host-mediated parallel-section orchestration extended to the new modes and interruption points (mid-pair, pending-synthesis, pending-escalation).
+
 ### Release validation
 
 - Local automated verification passed on 2026-05-04: `npm test`, `node scripts/validate.mjs`, and `node scripts/smoke-test.mjs`.
