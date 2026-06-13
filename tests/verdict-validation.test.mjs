@@ -14,11 +14,31 @@ const schemaPath = new URL(
   import.meta.url
 );
 
+const parallelSchemaPath = new URL(
+  '../plugins/consensus/skills/refine/schemas/verdict-parallel.schema.json',
+  import.meta.url
+);
+
 function validVerdict(overrides = {}) {
   return {
     schema_version: 'v1',
     verdict: 'ACCEPT',
     reasoning: 'Looks good.',
+    ...overrides
+  };
+}
+
+function parallelCritique(overrides = {}) {
+  return { own_previous: 'My prior draft was thin.', peer_previous: 'Peer prior draft over-claimed.', ...overrides };
+}
+
+function parallelVerdict(overrides = {}) {
+  return {
+    schema_version: 'v1',
+    verdict: 'REVISE',
+    reasoning: 'Tightened the argument.',
+    critique: parallelCritique(),
+    proposed_artifact: 'Revised section.\n',
     ...overrides
   };
 }
@@ -60,6 +80,90 @@ test('validateVerdictShape enforces schema version, branch requirements, and add
   assert.match(validateVerdictShape(validVerdict({ verdict: 'REVISE' })).errors.join('\n'), /proposed_artifact/);
   assert.match(validateVerdictShape({ schema_version: 'v1', decision: 'ACCEPT', reasoning: 'old' }).errors.join('\n'), /verdict/);
   assert.match(validateVerdictShape(validVerdict({ extra: true })).errors.join('\n'), /additional property: extra/);
+});
+
+test('parallel verdict schema declares the parallel vocabulary and critique fields', async () => {
+  const schema = JSON.parse(await readFile(parallelSchemaPath, 'utf8'));
+
+  assert.equal(schema.$id, 'consensus-plugin/v1/verdict-parallel.schema.json');
+  assert.equal(schema.properties.schema_version.const, 'v1');
+  assert.deepEqual(schema.properties.verdict.enum, ['REVISE', 'ACCEPT_PEER', 'CONVERGED', 'IMPASSE']);
+  assert.ok(schema.properties.critique);
+  assert.deepEqual(schema.properties.critique.required, ['own_previous', 'peer_previous']);
+  assert.equal(JSON.stringify(schema).includes('maxLength'), false);
+});
+
+test('validateVerdictShape accepts the parallel vocabulary in parallel mode', () => {
+  assert.deepEqual(validateVerdictShape(parallelVerdict(), { mode: 'parallel_revision' }), { ok: true, errors: [] });
+  assert.deepEqual(
+    validateVerdictShape(
+      parallelVerdict({ verdict: 'ACCEPT_PEER', proposed_artifact: 'Adopted peer text.\n' }),
+      { mode: 'parallel_synthesized' }
+    ),
+    { ok: true, errors: [] }
+  );
+  assert.deepEqual(
+    validateVerdictShape(
+      { schema_version: 'v1', verdict: 'CONVERGED', reasoning: 'We agree.', critique: parallelCritique() },
+      { mode: 'parallel_revision' }
+    ),
+    { ok: true, errors: [] }
+  );
+  assert.deepEqual(
+    validateVerdictShape(
+      { schema_version: 'v1', verdict: 'IMPASSE', reasoning: 'Cannot agree.', critique: parallelCritique() },
+      { mode: 'parallel_revision' }
+    ),
+    { ok: true, errors: [] }
+  );
+});
+
+test('validateVerdictShape enforces critique and artifact requirements per parallel branch', () => {
+  assert.match(
+    validateVerdictShape(parallelVerdict({ critique: undefined }), { mode: 'parallel_revision' }).errors.join('\n'),
+    /critique/
+  );
+  assert.match(
+    validateVerdictShape(parallelVerdict({ critique: { own_previous: 'only own' } }), { mode: 'parallel_revision' })
+      .errors.join('\n'),
+    /peer_previous/
+  );
+  assert.match(
+    validateVerdictShape(parallelVerdict({ proposed_artifact: undefined }), { mode: 'parallel_revision' })
+      .errors.join('\n'),
+    /proposed_artifact/
+  );
+  assert.match(
+    validateVerdictShape(
+      { schema_version: 'v1', verdict: 'ACCEPT_PEER', reasoning: 'Adopt.', critique: parallelCritique() },
+      { mode: 'parallel_revision' }
+    ).errors.join('\n'),
+    /proposed_artifact/
+  );
+  assert.match(
+    validateVerdictShape(
+      { schema_version: 'v1', verdict: 'CONVERGED', reasoning: 'Agree.' },
+      { mode: 'parallel_revision' }
+    ).errors.join('\n'),
+    /critique/
+  );
+});
+
+test('validateVerdictShape rejects cross-mode vocabularies', () => {
+  // Alternating vocabulary is invalid in parallel mode.
+  assert.match(
+    validateVerdictShape(validVerdict({ verdict: 'ACCEPT' }), { mode: 'parallel_revision' }).errors.join('\n'),
+    /verdict/
+  );
+  // Parallel vocabulary is invalid in alternating mode (default and explicit).
+  assert.match(
+    validateVerdictShape(parallelVerdict({ verdict: 'ACCEPT_PEER' })).errors.join('\n'),
+    /verdict/
+  );
+  assert.match(
+    validateVerdictShape(parallelVerdict({ verdict: 'CONVERGED' }), { mode: 'alternating' }).errors.join('\n'),
+    /verdict/
+  );
 });
 
 test('validateVerdictCaps applies UTF-8 byte caps after shape validation', () => {

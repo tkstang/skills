@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "consensus-plugin/v1/verdict-parallel.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "verdict", "reasoning", "critique"],
+  "properties": {
+    "schema_version": { "const": "v1" },
+    "verdict": { "enum": ["REVISE", "ACCEPT_PEER", "CONVERGED", "IMPASSE"] },
+    "reasoning": { "type": "string" },
+    "critique": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["own_previous", "peer_previous"],
+      "properties": {
+        "own_previous": { "type": "string" },
+        "peer_previous": { "type": "string" }
+      }
+    },
+    "proposed_artifact": { "type": "string" },
+    "concerns": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "oneOf": [
+    {
+      "properties": { "verdict": { "const": "REVISE" } },
+      "required": ["proposed_artifact"]
+    },
+    {
+      "properties": { "verdict": { "const": "ACCEPT_PEER" } },
+      "required": ["proposed_artifact"]
+    },
+    {
+      "properties": { "verdict": { "const": "CONVERGED" } },
+      "not": { "required": ["proposed_artifact"] }
+    },
+    {
+      "properties": { "verdict": { "const": "IMPASSE" } },
+      "not": { "required": ["proposed_artifact"] }
+    }
+  ]
+}

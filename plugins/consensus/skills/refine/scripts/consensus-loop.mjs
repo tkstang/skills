@@ -48,7 +48,7 @@ const STRICT_HASH_OPTIONS = {
   finalNewline: false
 };
 
-const VERDICT_BRANCHES = {
+const ALTERNATING_VERDICT_BRANCHES = {
   ACCEPT: {
     required: ['schema_version', 'verdict', 'reasoning'],
     optional: ['concerns']
@@ -62,6 +62,43 @@ const VERDICT_BRANCHES = {
     optional: ['concerns']
   }
 };
+
+const PARALLEL_VERDICT_BRANCHES = {
+  REVISE: {
+    required: ['schema_version', 'verdict', 'reasoning', 'critique', 'proposed_artifact'],
+    optional: ['concerns']
+  },
+  ACCEPT_PEER: {
+    required: ['schema_version', 'verdict', 'reasoning', 'critique', 'proposed_artifact'],
+    optional: ['concerns']
+  },
+  CONVERGED: {
+    required: ['schema_version', 'verdict', 'reasoning', 'critique'],
+    optional: ['concerns']
+  },
+  IMPASSE: {
+    required: ['schema_version', 'verdict', 'reasoning', 'critique'],
+    optional: ['concerns']
+  }
+};
+
+const VERDICT_BRANCHES = {
+  alternating: ALTERNATING_VERDICT_BRANCHES,
+  parallel_revision: PARALLEL_VERDICT_BRANCHES,
+  parallel_synthesized: PARALLEL_VERDICT_BRANCHES
+};
+
+const PARALLEL_MODES = new Set(['parallel_revision', 'parallel_synthesized']);
+
+function branchTableForMode(mode = 'alternating') {
+  return VERDICT_BRANCHES[mode] ?? ALTERNATING_VERDICT_BRANCHES;
+}
+
+function verdictVocabularyMessage(mode) {
+  return PARALLEL_MODES.has(mode)
+    ? 'verdict must be REVISE, ACCEPT_PEER, CONVERGED, or IMPASSE'
+    : 'verdict must be ACCEPT, REVISE, or IMPASSE';
+}
 
 function normalizeOptions(options = {}) {
   return { ...DEFAULT_NORMALIZE_OPTIONS, ...options };
@@ -290,7 +327,7 @@ export function hashArtifact(text, options = {}) {
   return `sha256:${createHash('sha256').update(normalizeForHash(text, options), 'utf8').digest('hex')}`;
 }
 
-export function validateVerdictShape(verdict) {
+export function validateVerdictShape(verdict, { mode = 'alternating' } = {}) {
   const errors = [];
 
   if (!verdict || typeof verdict !== 'object' || Array.isArray(verdict)) {
@@ -301,9 +338,10 @@ export function validateVerdictShape(verdict) {
     errors.push(`schema_version must be "${LOOP_SCHEMA_VERSION}"`);
   }
 
-  const branch = VERDICT_BRANCHES[verdict.verdict];
+  const branchTable = branchTableForMode(mode);
+  const branch = branchTable[verdict.verdict];
   if (!branch) {
-    errors.push('verdict must be ACCEPT, REVISE, or IMPASSE');
+    errors.push(verdictVocabularyMessage(mode));
   }
 
   if (!branch) {
@@ -331,6 +369,26 @@ export function validateVerdictShape(verdict) {
     pushTypeError(errors, 'proposed_artifact', 'a string');
   }
 
+  if ('critique' in verdict) {
+    const critique = verdict.critique;
+    if (!critique || typeof critique !== 'object' || Array.isArray(critique)) {
+      pushTypeError(errors, 'critique', 'an object');
+    } else {
+      for (const key of ['own_previous', 'peer_previous']) {
+        if (!(key in critique)) {
+          errors.push(`missing required property: critique.${key}`);
+        } else if (typeof critique[key] !== 'string') {
+          pushTypeError(errors, `critique.${key}`, 'a string');
+        }
+      }
+      for (const key of Object.keys(critique)) {
+        if (key !== 'own_previous' && key !== 'peer_previous') {
+          errors.push(`additional property: critique.${key}`);
+        }
+      }
+    }
+  }
+
   if ('concerns' in verdict) {
     if (!Array.isArray(verdict.concerns)) {
       pushTypeError(errors, 'concerns', 'an array');
@@ -346,8 +404,8 @@ export function validateVerdictShape(verdict) {
   return { ok: errors.length === 0, errors };
 }
 
-export function validateVerdictCaps(verdict) {
-  const shape = validateVerdictShape(verdict);
+export function validateVerdictCaps(verdict, { mode = 'alternating' } = {}) {
+  const shape = validateVerdictShape(verdict, { mode });
   if (!shape.ok) return shape;
 
   const totalBytes = byteLength(JSON.stringify(verdict));
@@ -799,7 +857,7 @@ export async function runConsensusLoop(argv, runOptions = {}) {
       });
       const peerResult = await invokePeer({ provider, peerIndex, round, turn, prompt, artifact: currentArtifact });
       const verdict = peerResult.json;
-      const shape = validateVerdictShape(verdict);
+      const shape = validateVerdictShape(verdict, { mode: options.iteration });
       if (!shape.ok) {
         throw new ConsensusError(`invalid verdict shape: ${shape.errors.join('; ')}`, {
           code: 'INVALID_VERDICT_SHAPE',
@@ -808,7 +866,7 @@ export async function runConsensusLoop(argv, runOptions = {}) {
         });
       }
 
-      const caps = validateVerdictCaps(verdict);
+      const caps = validateVerdictCaps(verdict, { mode: options.iteration });
       if (!caps.ok) {
         throw new ConsensusError(`invalid verdict caps: ${JSON.stringify(caps.metadata)}`, {
           code: 'INVALID_VERDICT_CAPS',
