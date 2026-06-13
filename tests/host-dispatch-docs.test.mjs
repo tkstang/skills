@@ -86,3 +86,19 @@ test('section runner documents the packet schema and bounded execution rules', a
   assert.match(runner, /do not assemble the final document/i);
   assert.match(runner, /SIGINT/i);
 });
+
+test('section runner passes mode/synthesizer through and never self-decides escalations', async () => {
+  const runner = await readFile(runnerPath, 'utf8');
+
+  // Mode/synthesizer are packet fields threaded into the loop invocation, not
+  // hardcoded to alternating.
+  assert.match(runner, /iteration_mode/);
+  assert.match(runner, /synthesizer/);
+  assert.match(runner, /--iteration <iteration_mode>/);
+  assert.match(runner, /--synthesizer/);
+
+  // Runners report escalations; they never decide them.
+  assert.match(runner, /report.*escalation.*section result/is);
+  assert.match(runner, /never self-decide|do not self-decide/i);
+  assert.match(runner, /escalation/i);
+});
