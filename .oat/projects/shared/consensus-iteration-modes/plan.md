@@ -621,7 +621,7 @@ oat_generated: false
 | Scope  | Type     | Status          | Date       | Artifact                                              |
 | ------ | -------- | --------------- | ---------- | ----------------------------------------------------- |
 | p01    | code     | passed          | 2026-06-13 | inline review (fable orchestrator; 0 crit/0 imp)       |
-| p02    | code     | pending         | -          | -                                                      |
+| p02    | code     | passed          | 2026-06-13 | inline review (fable); 1 imp fixed (test-output leak)  |
 | p03    | code     | pending         | -          | -                                                      |
 | p04    | code     | pending         | -          | -                                                      |
 | p05    | code     | pending         | -          | -                                                      |

@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-13
-oat_current_task_id: p02-t01
+oat_current_task_id: p03-t01
 oat_generated: false
 ---
 
@@ -132,6 +132,7 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 | Phase | Implementer | Review | Fix Iterations | Disposition |
 | ----- | ----------- | ------ | -------------- | ----------- |
 | p01   | DONE (t01–t05) | pass (inline/fable) | 0/2 | complete; t06 → p05-t05 |
+| p02   | DONE (t01–t08) | pass (inline/fable) | 1 fix (leak) | complete |
 
 #### Dispatch Notes
 
