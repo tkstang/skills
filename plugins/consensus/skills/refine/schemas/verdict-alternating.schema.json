@@ -3,29 +3,33 @@
   "$id": "consensus-plugin/v1/verdict-alternating.schema.json",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "verdict", "reasoning"],
+  "required": [
+    "schema_version",
+    "verdict",
+    "reasoning"
+  ],
   "properties": {
-    "schema_version": { "const": "v1" },
-    "verdict": { "enum": ["ACCEPT", "REVISE", "IMPASSE"] },
-    "reasoning": { "type": "string" },
-    "proposed_artifact": { "type": "string" },
+    "schema_version": {
+      "const": "v1"
+    },
+    "verdict": {
+      "enum": [
+        "ACCEPT",
+        "REVISE",
+        "IMPASSE"
+      ]
+    },
+    "reasoning": {
+      "type": "string"
+    },
+    "proposed_artifact": {
+      "type": "string"
+    },
     "concerns": {
       "type": "array",
-      "items": { "type": "string" }
+      "items": {
+        "type": "string"
+      }
     }
-  },
-  "oneOf": [
-    {
-      "properties": { "verdict": { "const": "ACCEPT" } },
-      "not": { "required": ["proposed_artifact"] }
-    },
-    {
-      "properties": { "verdict": { "const": "REVISE" } },
-      "required": ["proposed_artifact"]
-    },
-    {
-      "properties": { "verdict": { "const": "IMPASSE" } },
-      "not": { "required": ["proposed_artifact"] }
-    }
-  ]
+  }
 }

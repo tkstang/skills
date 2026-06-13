@@ -74,7 +74,13 @@ test('verdict schema declares alternating branches without maxLength caps', asyn
 
   assert.equal(schema.$id, 'consensus-plugin/v1/verdict-alternating.schema.json');
   assert.deepEqual(schema.required, ['schema_version', 'verdict', 'reasoning']);
-  assert.equal(schema.oneOf.length, 3);
+  // The schema is the Paseo-side (prompt+parse) shape only. It must stay
+  // compatible with OpenAI/codex structured output, which forbids `oneOf`/`not`;
+  // the per-verdict conditional requirements (proposed_artifact required for
+  // REVISE, forbidden for ACCEPT/IMPASSE) are enforced by validateVerdictShape's
+  // branch tables, not by the schema. See tests below.
+  assert.equal('oneOf' in schema, false);
+  assert.equal(serialized.includes('"not"'), false);
   assert.equal(serialized.includes('maxLength'), false);
 
   assert.deepEqual(schema.properties.verdict.enum, ['ACCEPT', 'REVISE', 'IMPASSE']);
