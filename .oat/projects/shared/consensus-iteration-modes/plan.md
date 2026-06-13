@@ -625,7 +625,7 @@ oat_generated: false
 | final  | code     | pending         | -          | -                                                      |
 | spec   | artifact | pending         | -          | -                                                      |
 | design | artifact | fixes_completed | 2026-06-12 | reviews/archived/artifact-design-review-2026-06-12.md |
-| plan   | artifact | passed          | 2026-06-12 | structured review (no artifact; findings fixed inline) |
+| plan   | artifact | received        | 2026-06-13 | reviews/artifact-plan-review-2026-06-13.md              |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 
