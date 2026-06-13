@@ -4,7 +4,9 @@ import test from 'node:test';
 
 import {
   LOOP_SCHEMA_VERSION,
+  SYNTHESIS_CAPS,
   VERDICT_CAPS,
+  validateSynthesisCaps,
   validateSynthesisShape,
   validateVerdictCaps,
   validateVerdictShape
@@ -223,6 +225,66 @@ test('validateSynthesisShape rejects missing, mistyped, and extra fields', () =>
   );
   assert.match(validateSynthesisShape(validSynthesis({ extra: true })).errors.join('\n'), /additional property: extra/);
   assert.deepEqual(validateSynthesisShape(null), { ok: false, errors: ['synthesis must be an object'] });
+});
+
+test('SYNTHESIS_CAPS declares the synthesis byte budget', () => {
+  assert.equal(SYNTHESIS_CAPS.synthesized_artifact_bytes, 256 * 1024);
+  assert.equal(SYNTHESIS_CAPS.synthesis_reasoning_bytes, 16 * 1024);
+  assert.equal(SYNTHESIS_CAPS.disagreement_bytes, 4 * 1024);
+  assert.equal(SYNTHESIS_CAPS.max_disagreements, 20);
+  assert.equal(SYNTHESIS_CAPS.total_synthesis_bytes, 512 * 1024);
+});
+
+test('validateSynthesisCaps enforces synthesis field byte caps with metadata-only results', () => {
+  assert.equal(validateSynthesisCaps(validSynthesis()).ok, true);
+
+  const artifact = validateSynthesisCaps(
+    validSynthesis({ synthesized_artifact: 'x'.repeat(SYNTHESIS_CAPS.synthesized_artifact_bytes + 1) })
+  );
+  assert.equal(artifact.ok, false);
+  assert.deepEqual(artifact.metadata, {
+    code: 'OVERSIZE_REJECTED',
+    field: 'synthesized_artifact',
+    limit_bytes: SYNTHESIS_CAPS.synthesized_artifact_bytes,
+    actual_bytes: SYNTHESIS_CAPS.synthesized_artifact_bytes + 1
+  });
+
+  const reasoning = validateSynthesisCaps(
+    validSynthesis({ synthesis_reasoning: 'x'.repeat(SYNTHESIS_CAPS.synthesis_reasoning_bytes + 1) })
+  );
+  assert.equal(reasoning.ok, false);
+  assert.equal(reasoning.metadata.field, 'synthesis_reasoning');
+
+  const disagreement = validateSynthesisCaps(
+    validSynthesis({ unresolved_disagreements: ['ok', 'x'.repeat(SYNTHESIS_CAPS.disagreement_bytes + 1)] })
+  );
+  assert.equal(disagreement.ok, false);
+  assert.equal(disagreement.metadata.field, 'unresolved_disagreements[1]');
+
+  const tooMany = validateSynthesisCaps(
+    validSynthesis({
+      unresolved_disagreements: Array.from({ length: SYNTHESIS_CAPS.max_disagreements + 1 }, () => 'small')
+    })
+  );
+  assert.equal(tooMany.ok, false);
+  assert.deepEqual(tooMany.metadata, {
+    code: 'OVERSIZE_REJECTED',
+    field: 'unresolved_disagreements',
+    limit_count: SYNTHESIS_CAPS.max_disagreements,
+    actual_count: SYNTHESIS_CAPS.max_disagreements + 1
+  });
+});
+
+test('validateSynthesisCaps enforces the total synthesis payload cap and runs shape first', () => {
+  const total = validateSynthesisCaps(
+    validSynthesis({ synthesized_artifact: 'x'.repeat(SYNTHESIS_CAPS.total_synthesis_bytes) })
+  );
+  assert.equal(total.ok, false);
+  assert.equal(total.metadata.field, 'synthesis');
+
+  const badShape = validateSynthesisCaps(validSynthesis({ schema_version: 'v0' }));
+  assert.equal(badShape.ok, false);
+  assert.match(badShape.errors.join('\n'), /schema_version/);
 });
 
 test('validateVerdictCaps caps parallel critique fields like reasoning', () => {

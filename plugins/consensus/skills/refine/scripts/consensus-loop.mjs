@@ -13,6 +13,14 @@ export const VERDICT_CAPS = Object.freeze({
   total_verdict_bytes: 512 * 1024
 });
 
+export const SYNTHESIS_CAPS = Object.freeze({
+  synthesized_artifact_bytes: 256 * 1024,
+  synthesis_reasoning_bytes: 16 * 1024,
+  disagreement_bytes: 4 * 1024,
+  max_disagreements: 20,
+  total_synthesis_bytes: 512 * 1024
+});
+
 export const LOOP_SCHEMA_VERSION = 'v1';
 export const SUBPROCESS_OUTPUT_CAP_BYTES = 10 * 1024 * 1024;
 export const EXIT_CODES = Object.freeze({
@@ -453,6 +461,51 @@ export function validateSynthesisShape(synthesis) {
   }
 
   return { ok: errors.length === 0, errors };
+}
+
+export function validateSynthesisCaps(synthesis) {
+  const shape = validateSynthesisShape(synthesis);
+  if (!shape.ok) return shape;
+
+  const totalBytes = byteLength(JSON.stringify(synthesis));
+  if (totalBytes > SYNTHESIS_CAPS.total_synthesis_bytes) {
+    return oversizedResult('synthesis', SYNTHESIS_CAPS.total_synthesis_bytes, totalBytes);
+  }
+
+  const artifactBytes = byteLength(synthesis.synthesized_artifact);
+  if (artifactBytes > SYNTHESIS_CAPS.synthesized_artifact_bytes) {
+    return oversizedResult('synthesized_artifact', SYNTHESIS_CAPS.synthesized_artifact_bytes, artifactBytes);
+  }
+
+  const reasoningBytes = byteLength(synthesis.synthesis_reasoning);
+  if (reasoningBytes > SYNTHESIS_CAPS.synthesis_reasoning_bytes) {
+    return oversizedResult('synthesis_reasoning', SYNTHESIS_CAPS.synthesis_reasoning_bytes, reasoningBytes);
+  }
+
+  if (synthesis.unresolved_disagreements.length > SYNTHESIS_CAPS.max_disagreements) {
+    return {
+      ok: false,
+      metadata: {
+        code: 'OVERSIZE_REJECTED',
+        field: 'unresolved_disagreements',
+        limit_count: SYNTHESIS_CAPS.max_disagreements,
+        actual_count: synthesis.unresolved_disagreements.length
+      }
+    };
+  }
+
+  for (const [index, disagreement] of synthesis.unresolved_disagreements.entries()) {
+    const disagreementBytes = byteLength(disagreement);
+    if (disagreementBytes > SYNTHESIS_CAPS.disagreement_bytes) {
+      return oversizedResult(
+        `unresolved_disagreements[${index}]`,
+        SYNTHESIS_CAPS.disagreement_bytes,
+        disagreementBytes
+      );
+    }
+  }
+
+  return { ok: true, errors: [] };
 }
 
 export function validateVerdictCaps(verdict, { mode = 'alternating' } = {}) {
