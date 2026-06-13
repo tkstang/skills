@@ -251,7 +251,7 @@ test('createJsonlEvent returns stdout-safe JSONL event shape', () => {
   const event = createJsonlEvent('run_started', { input_path: 'draft.md' }, { now: () => '2026-05-04T03:00:00.000Z' });
 
   assert.deepEqual(event, {
-    consensus_schema_version: 'v0',
+    consensus_schema_version: 'v1',
     event: 'run_started',
     timestamp: '2026-05-04T03:00:00.000Z',
     input_path: 'draft.md'

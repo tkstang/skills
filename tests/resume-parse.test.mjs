@@ -23,7 +23,7 @@ function consensusBlock(label, value) {
   return `<!-- consensus:${label}\n${JSON.stringify(value, null, 2)}\n-->`;
 }
 
-function artifact({ schemaVersion = 'v0' } = {}) {
+function artifact({ schemaVersion = 'v1' } = {}) {
   const introHash = hashArtifact(revisedIntro);
   const detailsHash = hashArtifact(stalledDetails);
   return [
@@ -42,7 +42,7 @@ function artifact({ schemaVersion = 'v0' } = {}) {
     '## Resolution',
     '',
     consensusBlock('consensus-resolution', {
-      consensus_schema_version: 'v0',
+      consensus_schema_version: 'v1',
       status: 'partial',
       mode: 'sequential',
       parallel: false,
@@ -123,7 +123,7 @@ function acceptOnlyArtifact() {
   const introHash = hashArtifact(acceptedIntro);
   return [
     '---',
-    'consensus_schema_version: v0',
+    'consensus_schema_version: v1',
     'status: converged',
     'mode: sequential',
     '---',
@@ -136,7 +136,7 @@ function acceptOnlyArtifact() {
     '## Resolution',
     '',
     consensusBlock('consensus-resolution', {
-      consensus_schema_version: 'v0',
+      consensus_schema_version: 'v1',
       status: 'converged',
       mode: 'sequential',
       parallel: false,
@@ -191,7 +191,7 @@ function minimalAgencyArtifactWithTrailingWhitespace() {
   const outputHash = hashArtifact(output, strictHashOptions);
   return [
     '---',
-    'consensus_schema_version: v0',
+    'consensus_schema_version: v1',
     'status: converged',
     'mode: sequential',
     'agency: minimal',
@@ -205,7 +205,7 @@ function minimalAgencyArtifactWithTrailingWhitespace() {
     '## Resolution',
     '',
     consensusBlock('consensus-resolution', {
-      consensus_schema_version: 'v0',
+      consensus_schema_version: 'v1',
       status: 'converged',
       mode: 'sequential',
       parallel: false,
@@ -260,7 +260,7 @@ function minimalAgencyArtifactWithTrailingWhitespace() {
 test('parseDeliberationArtifactForResume reads frontmatter and canonical state blocks from text', async () => {
   const parsed = await parseDeliberationArtifactForResume(artifact());
 
-  assert.equal(parsed.consensusSchemaVersion, 'v0');
+  assert.equal(parsed.consensusSchemaVersion, 'v1');
   assert.equal(parsed.frontmatter.status, 'partial');
   assert.equal(parsed.resolution.mode, 'sequential');
   assert.deepEqual(
@@ -313,5 +313,147 @@ test('parseDeliberationArtifactForResume rejects unsupported schema versions', a
   await assert.rejects(
     parseDeliberationArtifactForResume(artifact({ schemaVersion: 'v9' })),
     /unsupported consensus_schema_version/i
+  );
+});
+
+const peerRevisionA = '# Intro\n\nPeer A revision.\n';
+const peerRevisionB = '# Intro\n\nPeer B revision.\n';
+const synthesizedText = '# Intro\n\nSynthesized merge.\n';
+
+// A v1 parallel_synthesized artifact: a peer pair (with critiques), a synthesis
+// record carrying the synthesized text + its hash, then a host-orchestrator
+// intervention round. The section's canonical hash is the synthesized text.
+function synthesizedArtifact({ tamperSynthesisHash = false } = {}) {
+  const synthHash = hashArtifact(synthesizedText);
+  return [
+    '---',
+    'consensus_schema_version: v1',
+    'status: partial',
+    'mode: sequential',
+    'iteration: parallel_synthesized',
+    'synthesizer: claude',
+    'agency: moderate',
+    '---',
+    '',
+    '# Consensus Refine Artifact',
+    '',
+    '## Final Output',
+    '',
+    synthesizedText,
+    '## Resolution',
+    '',
+    consensusBlock('consensus-resolution', {
+      consensus_schema_version: 'v1',
+      status: 'partial',
+      mode: 'sequential',
+      parallel: false,
+      iteration: 'parallel_synthesized',
+      synthesizer: 'claude',
+      agency: 'moderate',
+      peers: ['claude', 'codex']
+    }),
+    '',
+    '## Section States',
+    '',
+    consensusBlock('consensus-section-states', [
+      {
+        id: 'intro-0',
+        name: 'Intro',
+        original_index: 0,
+        status: 'escalation',
+        turns: 2,
+        rounds: 1,
+        final_artifact_hash: synthHash,
+        final_output: synthesizedText
+      }
+    ]),
+    '',
+    '## Deliberation Log',
+    '',
+    '### 1. Intro (escalation)',
+    '',
+    consensusBlock('consensus-section-status', {
+      schema_version: 'v1',
+      status: 'escalation',
+      termination_reason: 'persistent_disagreement',
+      turns: 2,
+      rounds: 1,
+      iteration_mode: 'parallel_synthesized',
+      synthesizer: 'claude',
+      final_artifact_hash: synthHash
+    }),
+    '',
+    consensusBlock('consensus-verdict', {
+      schema_version: 'v1',
+      verdict: 'REVISE',
+      reasoning: 'Peer A revises.',
+      critique: { own_previous: 'own A', peer_previous: 'peer A' },
+      proposed_artifact: peerRevisionA
+    }),
+    '',
+    consensusBlock('consensus-verdict', {
+      schema_version: 'v1',
+      verdict: 'REVISE',
+      reasoning: 'Peer B revises.',
+      critique: { own_previous: 'own B', peer_previous: 'peer B' },
+      proposed_artifact: peerRevisionB
+    }),
+    '',
+    consensusBlock('consensus-synthesis', {
+      schema_version: 'v1',
+      record_type: 'synthesis',
+      synthesizer: 'claude',
+      synthesized_artifact: synthesizedText,
+      synthesis_reasoning: 'Merged both revisions.',
+      unresolved_disagreements: ['Heading capitalization unresolved.'],
+      artifact_hash: tamperSynthesisHash ? hashArtifact('tampered\n') : synthHash
+    }),
+    '',
+    consensusBlock('consensus-verdict', {
+      schema_version: 'v1',
+      verdict: 'HOST_DECISION',
+      reasoning: 'Adopt the merge.',
+      decision_kind: 'blend',
+      escalation_trigger: 'persistent_disagreement'
+    }),
+    ''
+  ].join('\n');
+}
+
+test('parseDeliberationArtifactForResume round-trips parallel_synthesized canonical blocks', async () => {
+  const parsed = await parseDeliberationArtifactForResume(synthesizedArtifact());
+
+  // Mode, synthesizer, and agency restored from the resolution block.
+  assert.equal(parsed.resolution.iteration, 'parallel_synthesized');
+  assert.equal(parsed.resolution.synthesizer, 'claude');
+  assert.equal(parsed.resolution.agency, 'moderate');
+
+  const [section] = parsed.sections;
+  assert.equal(section.inFlight, true);
+
+  // The record stream preserves the peer pair, the synthesis record, and the
+  // attributed intervention round so the loop can derive resume state.
+  const synthesis = section.records.find((record) => record.record_type === 'synthesis');
+  assert.ok(synthesis, 'synthesis record preserved in resume stream');
+  assert.equal(synthesis.synthesized_artifact, synthesizedText);
+  assert.equal(synthesis.schema_version, 'v1');
+
+  const hostRound = section.records.find((record) => record.verdict === 'HOST_DECISION');
+  assert.ok(hostRound, 'intervention round preserved in resume stream');
+  assert.equal(hostRound.agent, 'host-orchestrator');
+
+  // The synthesized text is the section's resumable artifact.
+  assert.equal(section.resumedArtifact, synthesizedText);
+  assert.equal(section.resumedArtifactHash, hashArtifact(synthesizedText));
+});
+
+test('parseDeliberationArtifactForResume fails closed on a tampered synthesis hash', async () => {
+  const runDir = await mkdtemp(path.join(os.tmpdir(), 'resume-synth-corrupt-'));
+  await assert.rejects(
+    parseDeliberationArtifactForResume(synthesizedArtifact({ tamperSynthesisHash: true }), { runDir }),
+    (error) => {
+      assert.equal(error.code, 'RESUME_CORRUPT');
+      return true;
+    }
   );
 });

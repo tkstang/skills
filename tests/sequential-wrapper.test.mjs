@@ -54,7 +54,7 @@ function consensusBlock(label, value) {
 function completedResumeArtifact(sections) {
   return [
     '---',
-    'consensus_schema_version: v0',
+    'consensus_schema_version: v1',
     'status: converged',
     'mode: sequential',
     '---',
@@ -67,7 +67,7 @@ function completedResumeArtifact(sections) {
     '## Resolution',
     '',
     consensusBlock('consensus-resolution', {
-      consensus_schema_version: 'v0',
+      consensus_schema_version: 'v1',
       status: 'converged',
       mode: 'sequential',
       parallel: false,
@@ -153,7 +153,7 @@ test('runSequential refines sections, creates run files, and writes an artifact'
   }
 
   const artifact = await readFile(outputPath, 'utf8');
-  assert.match(artifact, /^---\nconsensus_schema_version: v0\n/m);
+  assert.match(artifact, /^---\nconsensus_schema_version: v1\n/m);
   assert.match(artifact, /^iteration: alternating$/m);
   assert.match(artifact, /^cold_start: shared_input$/m);
   assert.match(artifact, /^peers: \["claude","codex"\]$/m);
@@ -176,7 +176,7 @@ test('runSequential refines sections, creates run files, and writes an artifact'
   assert.match(artifact, /<!-- consensus:consensus-resolution\n/);
 
   const resolution = extractJsonBlock(artifact, 'consensus-resolution');
-  assert.equal(resolution.consensus_schema_version, 'v0');
+  assert.equal(resolution.consensus_schema_version, 'v1');
   assert.equal(resolution.mode, 'sequential');
   assert.equal(resolution.host, 'cursor');
   assert.equal(resolution.sections.total, 3);

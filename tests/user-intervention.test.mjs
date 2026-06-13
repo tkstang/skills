@@ -80,7 +80,7 @@ function resumeArtifact() {
   const resumedHash = hashArtifact(resumed);
   return [
     '---',
-    'consensus_schema_version: v0',
+    'consensus_schema_version: v1',
     'status: partial',
     'mode: sequential',
     '---',
@@ -90,7 +90,7 @@ function resumeArtifact() {
     '## Resolution',
     '',
     consensusBlock('consensus-resolution', {
-      consensus_schema_version: 'v0',
+      consensus_schema_version: 'v1',
       status: 'partial',
       mode: 'sequential',
       peers: ['claude', 'codex']
@@ -164,7 +164,7 @@ function maxRoundsConsumedResumeArtifact() {
 
   return [
     '---',
-    'consensus_schema_version: v0',
+    'consensus_schema_version: v1',
     'status: partial',
     'mode: sequential',
     '---',
@@ -174,7 +174,7 @@ function maxRoundsConsumedResumeArtifact() {
     '## Resolution',
     '',
     consensusBlock('consensus-resolution', {
-      consensus_schema_version: 'v0',
+      consensus_schema_version: 'v1',
       status: 'partial',
       mode: 'sequential',
       peers: ['claude', 'codex']
@@ -393,7 +393,7 @@ function escalationResumeArtifact({ decideVia = 'host' } = {}) {
   };
   return [
     '---',
-    'consensus_schema_version: v0',
+    'consensus_schema_version: v1',
     'status: partial',
     'mode: sequential',
     '---',
@@ -403,7 +403,7 @@ function escalationResumeArtifact({ decideVia = 'host' } = {}) {
     '## Resolution',
     '',
     consensusBlock('consensus-resolution', {
-      consensus_schema_version: 'v0',
+      consensus_schema_version: 'v1',
       status: 'partial',
       mode: 'sequential',
       peers: ['claude', 'codex']

@@ -55,7 +55,7 @@ test('prepareParallelRun writes section packets and a dispatch manifest', async 
   assert.equal((await stat(result.manifestPath)).isFile(), true);
 
   const manifest = await readJson(result.manifestPath);
-  assert.equal(manifest.consensus_schema_version, 'v0');
+  assert.equal(manifest.consensus_schema_version, 'v1');
   assert.equal(manifest.mode, 'parallel');
   assert.equal(manifest.input_path, sampleInput);
   assert.equal(manifest.output_path, outputPath);
@@ -80,7 +80,7 @@ test('prepareParallelRun writes section packets and a dispatch manifest', async 
     assert.equal(section.output_status.endsWith('status.json'), true);
 
     const packet = await readJson(section.packet_path);
-    assert.equal(packet.consensus_schema_version, 'v0');
+    assert.equal(packet.consensus_schema_version, 'v1');
     assert.equal(packet.manifest_path, result.manifestPath);
     assert.equal(packet.section_id, section.section_id);
     assert.equal(packet.section_file, section.section_file);

@@ -22,7 +22,7 @@ function baseArtifact() {
   const detailsHash = hashArtifact(details);
   return [
     '---',
-    'consensus_schema_version: v0',
+    'consensus_schema_version: v1',
     'status: partial',
     '---',
     '',
@@ -31,7 +31,7 @@ function baseArtifact() {
     '## Resolution',
     '',
     consensusBlock('consensus-resolution', {
-      consensus_schema_version: 'v0',
+      consensus_schema_version: 'v1',
       status: 'partial'
     }),
     '',
@@ -121,7 +121,7 @@ test('resume corruption exits as data error and writes diagnostics', async () =>
   );
 
   const diagnostics = JSON.parse(await readFile(path.join(runDir, 'resume-errors.json'), 'utf8'));
-  assert.equal(diagnostics.consensus_schema_version, 'v0');
+  assert.equal(diagnostics.consensus_schema_version, 'v1');
   assert.equal(diagnostics.errors[0].section_id, 'details-1');
   assert.equal(diagnostics.errors[0].code, 'RESUME_JSON_CORRUPT');
 });

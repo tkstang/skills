@@ -79,7 +79,7 @@ function nowIso() {
 
 export function createJsonlEvent(event, payload = {}, options = {}) {
   return {
-    consensus_schema_version: 'v0',
+    consensus_schema_version: 'v1',
     event,
     timestamp: options.now?.() ?? nowIso(),
     ...payload
@@ -222,7 +222,11 @@ function extractConsensusJsonBlocks(markdown, label) {
 function extractLogSectionBlocks(markdown) {
   const logStart = String(markdown ?? '').match(/^## Deliberation Log\s*$/mu);
   const logText = logStart ? String(markdown).slice(logStart.index) : String(markdown ?? '');
-  const blockPattern = /<!-- consensus:(consensus-section-status|consensus-verdict)\n([\s\S]*?)\n-->/g;
+  // Resume canonical record stream (p05-t01): peer verdicts, synthesis records,
+  // and synthesis-error records all flow into the section's record array in
+  // document order so the loop can derive parallel-mode resume state.
+  const blockPattern =
+    /<!-- consensus:(consensus-section-status|consensus-verdict|consensus-synthesis|consensus-synthesis-error)\n([\s\S]*?)\n-->/g;
   const logSections = [];
   const unscopedErrors = [];
   let current = null;
@@ -244,7 +248,7 @@ function extractLogSectionBlocks(markdown) {
     if (!current) {
       unscopedErrors.push({
         code: 'RESUME_SECTION_STATE_MISSING',
-        message: 'resume artifact has verdict records before any section status block',
+        message: `resume artifact has ${label} records before any section status block`,
         block_label: label,
         block_index: index
       });
@@ -284,17 +288,32 @@ function normalizeResumeRecords(records, peers = ['claude', 'codex'], options = 
   let currentArtifact = null;
   const hashOptions = resumeHashOptionsForAgency(options.agency);
   return (records ?? []).map((record) => {
+    const isSynthesis = record?.record_type === 'synthesis';
+    const isSynthesisError = record?.record_type === 'synthesis-error';
+    const isHost = record?.verdict === 'HOST_DECISION' || record?.agent === 'host-orchestrator';
     const isUser = record?.verdict === 'USER_INTERVENTION' || record?.agent === 'user';
     const normalized = {
-      schema_version: 'v0',
+      schema_version: 'v1',
       ...record
     };
 
+    // The shared artifact tracks the latest peer revision OR the latest synthesis
+    // output (synthesized mode), so derived hashes stay consistent on resume.
     if (typeof normalized.proposed_artifact === 'string') {
       currentArtifact = normalized.proposed_artifact;
+    } else if (isSynthesis && typeof normalized.synthesized_artifact === 'string') {
+      currentArtifact = normalized.synthesized_artifact;
     }
 
-    if (isUser) {
+    if (isSynthesis || isSynthesisError) {
+      // Synthesis records are round-attributed, not peer-attributed: never consume
+      // a peer slot. round_index falls back to the current peer round.
+      normalized.round_index ??= Math.floor(Math.max(peerIndex - 1, 0) / peers.length) + 1;
+    } else if (isHost) {
+      normalized.agent = 'host-orchestrator';
+      normalized.round_index ??= Math.floor(peerIndex / peers.length) + 1;
+      normalized.turn_index ??= peerIndex + 1;
+    } else if (isUser) {
       normalized.agent = 'user';
       normalized.round_index ??= Math.floor(peerIndex / peers.length) + 1;
       normalized.turn_index ??= peerIndex + 1;
@@ -307,7 +326,7 @@ function normalizeResumeRecords(records, peers = ['claude', 'codex'], options = 
       peerIndex += 1;
     }
 
-    if (!normalized.artifact_hash && currentArtifact !== null) {
+    if (!normalized.artifact_hash && currentArtifact !== null && !isSynthesisError) {
       normalized.artifact_hash = hashArtifact(currentArtifact, hashOptions);
     }
 
@@ -415,6 +434,23 @@ function collectResumeValidationErrors(sectionStates, logSections, unscopedError
       errors.push(resumeHashError(section, stateHash, statusHash));
     }
 
+    // Synthesis records carry the hash of their synthesized text; validate it
+    // fail-closed (p05-t01) like peer revisions so a tampered synthesis block is
+    // detected on resume.
+    const hashOptions = resumeHashOptionsForAgency(options.agency);
+    for (const record of section.records) {
+      if (record?.record_type !== 'synthesis') continue;
+      if (typeof record.synthesized_artifact !== 'string' || !record.artifact_hash) continue;
+      const recomputed = hashArtifact(record.synthesized_artifact, hashOptions);
+      if (recomputed !== record.artifact_hash) {
+        errors.push({
+          ...resumeHashError(section, record.artifact_hash, recomputed),
+          code: 'RESUME_SYNTHESIS_HASH_MISMATCH',
+          message: `synthesis hash mismatch for section ${section.id}: expected ${record.artifact_hash}, recomputed ${recomputed}`
+        });
+      }
+    }
+
     const expectedHash = statusHash ?? stateHash;
     if (expectedHash && section.resumedArtifact === null) {
       errors.push({
@@ -444,7 +480,7 @@ async function writeResumeErrors(runDir, errors, skippedIds = []) {
     outputPath,
     `${JSON.stringify(
       {
-        consensus_schema_version: 'v0',
+        consensus_schema_version: 'v1',
         generated_at: nowIso(),
         errors,
         skipped_section_ids: skippedIds
@@ -599,8 +635,8 @@ function validateParallelManifestShape(manifest) {
   if (manifest === null || typeof manifest !== 'object' || Array.isArray(manifest)) {
     throw manifestError('parallel manifest must be a JSON object');
   }
-  if (manifest.consensus_schema_version !== 'v0') {
-    throw manifestError('parallel manifest consensus_schema_version must be v0');
+  if (manifest.consensus_schema_version !== 'v1') {
+    throw manifestError('parallel manifest consensus_schema_version must be v1');
   }
   if (manifest.manifest_type !== 'consensus-parallel-run') {
     throw manifestError('parallel manifest manifest_type must be consensus-parallel-run');
@@ -1541,7 +1577,10 @@ export async function parseDeliberationArtifactForResume(pathOrText, options = {
   const { text, sourcePath } = await readResumePathOrText(pathOrText);
   const frontmatter = parseFrontmatter(text);
   const consensusSchemaVersion = frontmatter.consensus_schema_version;
-  if (consensusSchemaVersion !== 'v0') {
+  // Transitional gate (p05-t01): the wrapper now emits v1 artifacts and resumes
+  // them. v0 is still accepted during the cutover window; p05-t05 inverts this to
+  // reject v0 with SCHEMA_VERSION_MISMATCH once all happy-path fixtures are v1.
+  if (consensusSchemaVersion !== 'v1' && consensusSchemaVersion !== 'v0') {
     throw resumeDataError(`unsupported consensus_schema_version for resume: ${consensusSchemaVersion ?? '(missing)'}`, {
       code: 'RESUME_SCHEMA_UNSUPPORTED',
       details: { consensus_schema_version: consensusSchemaVersion ?? null }
@@ -1777,7 +1816,7 @@ export function renderDeliberationArtifact(runResult) {
   );
   const synthesisCalls = sections.reduce((sum, section) => sum + (section.status?.synthesis_calls ?? 0), 0);
   const resolution = {
-    consensus_schema_version: 'v0',
+    consensus_schema_version: 'v1',
     status,
     mode: runResult.mode ?? 'sequential',
     parallel: Boolean(runResult.parallel),
@@ -1913,7 +1952,7 @@ export async function runSequential(options, runOptions = {}) {
 
     if (resumeSection?.skipped) {
       const status = {
-        schema_version: 'v0',
+        schema_version: 'v1',
         status: 'skipped',
         termination_reason: 'corrupt_resume_skipped',
         turns: 0,
@@ -2101,7 +2140,7 @@ export async function prepareParallelRun(options, runOptions = {}) {
     ]);
 
     const packet = {
-      consensus_schema_version: 'v0',
+      consensus_schema_version: 'v1',
       packet_type: 'consensus-section-runner',
       manifest_path: path.join(runDir, 'manifest.json'),
       section_id: section.id,
@@ -2126,7 +2165,7 @@ export async function prepareParallelRun(options, runOptions = {}) {
   const manifestPath = path.join(runDir, 'manifest.json');
   await confineWrite(manifestPath, runWriteRoot);
   const manifest = {
-    consensus_schema_version: 'v0',
+    consensus_schema_version: 'v1',
     manifest_type: 'consensus-parallel-run',
     mode: 'parallel',
     status: 'prepared',
@@ -2248,7 +2287,7 @@ export async function fanInParallelRun(manifestPath, options = {}) {
     if (errors.length > 0) {
       const original = (await readTextIfPresent(entry.section_file)) ?? '';
       const marker = {
-        consensus_schema_version: 'v0',
+        consensus_schema_version: 'v1',
         section_id: entry.section_id,
         subagent_id: entry.subagent_id,
         status_path: entry.output_status,
@@ -2256,7 +2295,7 @@ export async function fanInParallelRun(manifestPath, options = {}) {
       };
       output = `${original.replace(/\n*$/u, '\n')}\n${canonicalJsonBlock('section-error', marker)}\n`;
       status = {
-        schema_version: 'v0',
+        schema_version: 'v1',
         ...(status ?? {}),
         status: 'error',
         termination_reason: status?.termination_reason ?? errors[0].code,
