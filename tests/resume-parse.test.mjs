@@ -7,7 +7,7 @@ import test from 'node:test';
 import {
   parseDeliberationArtifactForResume
 } from '../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
-import { hashArtifact } from '../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
+import { EXIT_CODES, hashArtifact } from '../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
 
 const revisedIntro = '# Intro\n\nClearer intro.\n';
 const stalledDetails = '## Details\n\nStill unresolved.\n';
@@ -312,7 +312,24 @@ test('parseDeliberationArtifactForResume accepts a file path input', async () =>
 test('parseDeliberationArtifactForResume rejects unsupported schema versions', async () => {
   await assert.rejects(
     parseDeliberationArtifactForResume(artifact({ schemaVersion: 'v9' })),
-    /unsupported consensus_schema_version/i
+    /consensus_schema_version/i
+  );
+});
+
+// p05-t05: only v1 artifacts resume. A v0 artifact is rejected fail-closed with
+// SCHEMA_VERSION_MISMATCH (exit DATA) and a message naming v0, v1, and the
+// no-migration policy. v0 artifacts must be completed under v0.1 or restarted.
+test('parseDeliberationArtifactForResume rejects v0 artifacts with no migration', async () => {
+  await assert.rejects(
+    parseDeliberationArtifactForResume(artifact({ schemaVersion: 'v0' })),
+    (error) => {
+      assert.equal(error.code, 'SCHEMA_VERSION_MISMATCH');
+      assert.equal(error.exitCode, EXIT_CODES.DATA);
+      assert.match(error.message, /v0/);
+      assert.match(error.message, /v1/);
+      assert.match(error.message, /no migration|not migrat/i);
+      return true;
+    }
   );
 });
 

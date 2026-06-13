@@ -1602,14 +1602,17 @@ export async function parseDeliberationArtifactForResume(pathOrText, options = {
   const { text, sourcePath } = await readResumePathOrText(pathOrText);
   const frontmatter = parseFrontmatter(text);
   const consensusSchemaVersion = frontmatter.consensus_schema_version;
-  // Transitional gate (p05-t01): the wrapper now emits v1 artifacts and resumes
-  // them. v0 is still accepted during the cutover window; p05-t05 inverts this to
-  // reject v0 with SCHEMA_VERSION_MISMATCH once all happy-path fixtures are v1.
-  if (consensusSchemaVersion !== 'v1' && consensusSchemaVersion !== 'v0') {
-    throw resumeDataError(`unsupported consensus_schema_version for resume: ${consensusSchemaVersion ?? '(missing)'}`, {
-      code: 'RESUME_SCHEMA_UNSUPPORTED',
-      details: { consensus_schema_version: consensusSchemaVersion ?? null }
-    });
+  // Fail-closed version gate (p05-t05, FR4): only v1 artifacts resume. v0 artifacts
+  // are rejected with no migration — they must be completed under v0.1 or restarted.
+  if (consensusSchemaVersion !== 'v1') {
+    const found = consensusSchemaVersion ?? '(missing)';
+    throw resumeDataError(
+      `cannot resume consensus_schema_version ${found}: this build resumes only v1 artifacts, and there is no migration from v0. Complete in-flight v0 runs under consensus v0.1 or restart them under v1.`,
+      {
+        code: 'SCHEMA_VERSION_MISMATCH',
+        details: { found: consensusSchemaVersion ?? null, expected: 'v1' }
+      }
+    );
   }
 
   const resolutions = extractConsensusJsonBlocks(text, 'consensus-resolution');
