@@ -13,11 +13,7 @@
     "longDescription": "Consensus deliberation skills for refining markdown drafts with multiple AI peers and an audit trail.",
     "developerName": "Thomas Stang",
     "category": "Coding",
-    "capabilities": [
-      "Interactive",
-      "Read",
-      "Write"
-    ],
+    "capabilities": ["Interactive", "Read", "Write"],
     "defaultPrompt": [
       "Use the Consensus Refine skill to improve this markdown draft."
     ]

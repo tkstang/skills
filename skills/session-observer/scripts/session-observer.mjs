@@ -18,10 +18,10 @@
  * test files resolve it via fileURLToPath(new URL('./session-observer.mjs', import.meta.url)).
  */
 
-import { parseArgs } from 'node:util';
-import { fileURLToPath } from 'node:url';
-import { dirname, join, resolve } from 'node:path';
 import { readFile } from 'node:fs/promises';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { parseArgs } from 'node:util';
 
 // ---------------------------------------------------------------------------
 // Lib imports (resolved relative to this file)
@@ -30,9 +30,13 @@ import { readFile } from 'node:fs/promises';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const LIB = join(__dirname, 'lib');
 
-const { discover, gitWorktrees, claudeCodeLookupDiagnostics } = await import(join(LIB, 'locate.mjs'));
+const { discover, gitWorktrees, claudeCodeLookupDiagnostics } = await import(
+  join(LIB, 'locate.mjs')
+);
 const { rank } = await import(join(LIB, 'rank.mjs'));
-const { buildDigest, renderMarkdown, renderJson } = await import(join(LIB, 'digest.mjs'));
+const { buildDigest, renderMarkdown, renderJson } = await import(
+  join(LIB, 'digest.mjs')
+);
 const { observeCatchUp } = await import(join(LIB, 'observe.mjs'));
 const { runWatchLoop } = await import(join(LIB, 'watch.mjs'));
 const { readRecords } = await import(join(LIB, 'runtimes.mjs'));
@@ -53,29 +57,29 @@ function parseCliArgs(argv) {
     allowPositionals: true,
     strict: false,
     options: {
-      runtime:              { type: 'string',  default: 'auto' },
-      cwd:                  { type: 'string',  default: undefined },
-      json:                 { type: 'boolean', default: false },
-      'include-tools':      { type: 'boolean', default: false },
+      runtime: { type: 'string', default: 'auto' },
+      cwd: { type: 'string', default: undefined },
+      json: { type: 'boolean', default: false },
+      'include-tools': { type: 'boolean', default: false },
       'include-tool-results': { type: 'boolean', default: false },
       'include-command-messages': { type: 'boolean', default: false },
-      debug:                { type: 'boolean', default: false },
-      'max-turns':          { type: 'string',  default: undefined },
-      'max-bytes':          { type: 'string',  default: undefined },
-      session:              { type: 'string',  default: undefined },
-      snippet:              { type: 'string',  default: undefined },
-      'mark-read':          { type: 'boolean', default: false },
-      watch:                { type: 'boolean', default: false },
-      'debounce-sec':       { type: 'string',  default: undefined },
-      'poll-sec':           { type: 'string',  default: undefined },
-      'max-pending-sec':    { type: 'string',  default: undefined },
-      'max-runtime-min':    { type: 'string',  default: undefined },
-      'heartbeat-sec':      { type: 'string',  default: undefined },
-      'event-log':          { type: 'string',  default: undefined },
-      'until-stopped':      { type: 'boolean', default: false },
-      interactive:          { type: 'boolean', default: false },
-      pid:                  { type: 'string',  default: undefined },
-      help:                 { type: 'boolean', default: false },
+      debug: { type: 'boolean', default: false },
+      'max-turns': { type: 'string', default: undefined },
+      'max-bytes': { type: 'string', default: undefined },
+      session: { type: 'string', default: undefined },
+      snippet: { type: 'string', default: undefined },
+      'mark-read': { type: 'boolean', default: false },
+      watch: { type: 'boolean', default: false },
+      'debounce-sec': { type: 'string', default: undefined },
+      'poll-sec': { type: 'string', default: undefined },
+      'max-pending-sec': { type: 'string', default: undefined },
+      'max-runtime-min': { type: 'string', default: undefined },
+      'heartbeat-sec': { type: 'string', default: undefined },
+      'event-log': { type: 'string', default: undefined },
+      'until-stopped': { type: 'boolean', default: false },
+      interactive: { type: 'boolean', default: false },
+      pid: { type: 'string', default: undefined },
+      help: { type: 'boolean', default: false },
     },
   });
 
@@ -87,17 +91,31 @@ function parseCliArgs(argv) {
 
   // --debug is shorthand for --include-tools --include-tool-results
   const includeTools = values['include-tools'] || values.debug || false;
-  const includeToolResults = values['include-tool-results'] || values.debug || false;
+  const includeToolResults =
+    values['include-tool-results'] || values.debug || false;
 
-  const maxTurns = values['max-turns'] ? parseInt(values['max-turns'], 10) : undefined;
-  const maxBytes = values['max-bytes'] ? parseInt(values['max-bytes'], 10) : undefined;
-  const debounceSec = values['debounce-sec'] ? parseFloat(values['debounce-sec']) : 2;
+  const maxTurns = values['max-turns']
+    ? parseInt(values['max-turns'], 10)
+    : undefined;
+  const maxBytes = values['max-bytes']
+    ? parseInt(values['max-bytes'], 10)
+    : undefined;
+  const debounceSec = values['debounce-sec']
+    ? parseFloat(values['debounce-sec'])
+    : 2;
   const pollSec = values['poll-sec'] ? parseFloat(values['poll-sec']) : 2;
-  const maxPendingSec = values['max-pending-sec'] ? parseFloat(values['max-pending-sec']) : undefined;
-  const maxRuntimeMin = values['until-stopped'] || values.interactive
-    ? 0
-    : values['max-runtime-min'] ? parseFloat(values['max-runtime-min']) : 0;
-  const heartbeatSec = values['heartbeat-sec'] ? parseFloat(values['heartbeat-sec']) : undefined;
+  const maxPendingSec = values['max-pending-sec']
+    ? parseFloat(values['max-pending-sec'])
+    : undefined;
+  const maxRuntimeMin =
+    values['until-stopped'] || values.interactive
+      ? 0
+      : values['max-runtime-min']
+        ? parseFloat(values['max-runtime-min'])
+        : 0;
+  const heartbeatSec = values['heartbeat-sec']
+    ? parseFloat(values['heartbeat-sec'])
+    : undefined;
 
   // For 'state' subcommand, the op is in rest[0]: get, reset, clear
   const stateOp = subcommand === 'state' ? rest[0] : undefined;
@@ -151,20 +169,29 @@ async function preferredRuntimeFromState(withCandidates, targetCwd) {
     return null;
   }
 
-  const runtimeSet = new Set(withCandidates.map(r => r.runtime));
+  const runtimeSet = new Set(withCandidates.map((r) => r.runtime));
   const sessionIdsByRuntime = new Map(
-    withCandidates.map(r => [r.runtime, new Set(r.candidates.map(c => c.sessionId))])
+    withCandidates.map((r) => [
+      r.runtime,
+      new Set(r.candidates.map((c) => c.sessionId)),
+    ]),
   );
 
   const matches = Object.values(state.sessions ?? {})
-    .filter(s => runtimeSet.has(s.runtime))
-    .filter(s => s.recordedCwd === targetCwd)
-    .filter(s => sessionIdsByRuntime.get(s.runtime)?.has(s.sessionId))
-    .sort((a, b) => String(b.lastReadAt ?? '').localeCompare(String(a.lastReadAt ?? '')));
+    .filter((s) => runtimeSet.has(s.runtime))
+    .filter((s) => s.recordedCwd === targetCwd)
+    .filter((s) => sessionIdsByRuntime.get(s.runtime)?.has(s.sessionId))
+    .sort((a, b) =>
+      String(b.lastReadAt ?? '').localeCompare(String(a.lastReadAt ?? '')),
+    );
 
-  const runtimes = [...new Set(matches.map(s => s.runtime))];
+  const runtimes = [...new Set(matches.map((s) => s.runtime))];
   if (runtimes.length !== 1) return null;
-  return { runtime: runtimes[0], reason: 'state-cwd-prior-session', sessionId: matches[0]?.sessionId };
+  return {
+    runtime: runtimes[0],
+    reason: 'state-cwd-prior-session',
+    sessionId: matches[0]?.sessionId,
+  };
 }
 
 /**
@@ -188,12 +215,12 @@ async function resolveAutoRuntime(targetCwd) {
       } catch {
         return { runtime: rt, candidates: [] };
       }
-    })
+    }),
   );
 
-  const withCandidates = results.filter(r => r.candidates.length > 0);
+  const withCandidates = results.filter((r) => r.candidates.length > 0);
   const considered = VALID_RUNTIMES.includes(self)
-    ? withCandidates.filter(r => r.runtime !== self)
+    ? withCandidates.filter((r) => r.runtime !== self)
     : withCandidates;
 
   if (considered.length === 1) {
@@ -212,8 +239,10 @@ async function resolveAutoRuntime(targetCwd) {
   // Multiple runtimes have candidates → ambiguous
   return {
     ambiguous: true,
-    runtimes: considered.map(r => r.runtime),
-    candidates: Object.fromEntries(considered.map(r => [r.runtime, r.candidates])),
+    runtimes: considered.map((r) => r.runtime),
+    candidates: Object.fromEntries(
+      considered.map((r) => [r.runtime, r.candidates]),
+    ),
   };
 }
 
@@ -246,7 +275,10 @@ function unengagedOnlyMessage(runtime, cwd) {
 
 function renderCandidateList(candidates) {
   return candidates
-    .map(c => `  ${c.runtime}:${c.sessionId}  ${c.engagementStatus ?? 'unknown'}  records=${c.recordCount ?? '?'}  ${c.transcriptPath}`)
+    .map(
+      (c) =>
+        `  ${c.runtime}:${c.sessionId}  ${c.engagementStatus ?? 'unknown'}  records=${c.recordCount ?? '?'}  ${c.transcriptPath}`,
+    )
     .join('\n');
 }
 
@@ -254,7 +286,10 @@ function parsePinnedSession(session) {
   if (!session) return null;
   const colonIndex = session.indexOf(':');
   if (colonIndex === -1) {
-    return { error: '--session must be in <runtime>:<sessionId> format (e.g. codex:abc123)' };
+    return {
+      error:
+        '--session must be in <runtime>:<sessionId> format (e.g. codex:abc123)',
+    };
   }
   const runtime = session.slice(0, colonIndex);
   const sessionId = session.slice(colonIndex + 1);
@@ -300,89 +335,95 @@ async function applySnippetFilter(candidates, snippet) {
 }
 
 function printUsage() {
-  process.stdout.write([
-    'Usage: session-observer <subcommand> [options]',
-    '',
-    'Subcommands:',
-    '  review     One-shot full digest of the most relevant peer session',
-    '  catch-up   Incremental: only records added since the last read',
-    '  catch-up-then-watch  Emit unread backlog, then keep foreground watch active',
-    '  locate     Diagnostic: ranked candidate list',
-    '  state      Manage high-water marks: get, reset, clear',
-    '  watch      Foreground watcher for debounced catch-up updates',
-    '  watch-ctl  Inspect or control active watch state',
-    '',
-    'Options:',
-    '  --runtime <claude-code|codex|cursor|auto>  (default: auto)',
-    '  --cwd <path>                        (default: process.cwd())',
-    '  --include-tools                     Include tool call markers',
-    '  --include-command-messages          Include Claude slash-command payloads',
-    '  --debug                             Include tool calls and results',
-    '  --json                              Output JSON instead of markdown',
-    '  --max-turns <N>                     Limit to last N turn groups',
-    '  --max-bytes <N>                     Limit to last N bytes of content',
-    '  --session <runtime:id>              Pin to a specific session',
-    '  --snippet <text>                    Prefer candidates containing this transcript excerpt',
-    '  --mark-read                         Advance offset after review',
-    '  --watch                             Alias for the watch subcommand',
-    '',
-    'Watch options:',
-    '  --runtime <claude-code|codex|cursor|auto|both>  (default: auto)',
-    '  --debounce-sec <N>                  Seconds of quiet before emitting',
-    '  --poll-sec <N>                      Poll interval in seconds',
-    '  --max-pending-sec <N>               Max seconds to hold continuous changes before emitting',
-    '  --max-runtime-min <N>               Auto-exit after N minutes (0 = unlimited)',
-    '  --heartbeat-sec <N>                 Quiet status heartbeat interval in seconds (0 = disabled)',
-    '  --until-stopped                     Alias posture: run until explicitly stopped',
-    '  --interactive                       Alias posture: foreground collaboration watch',
-    '  --event-log <path>                  Metadata-only JSONL event log',
-    '',
-  ].join('\n'));
+  process.stdout.write(
+    [
+      'Usage: session-observer <subcommand> [options]',
+      '',
+      'Subcommands:',
+      '  review     One-shot full digest of the most relevant peer session',
+      '  catch-up   Incremental: only records added since the last read',
+      '  catch-up-then-watch  Emit unread backlog, then keep foreground watch active',
+      '  locate     Diagnostic: ranked candidate list',
+      '  state      Manage high-water marks: get, reset, clear',
+      '  watch      Foreground watcher for debounced catch-up updates',
+      '  watch-ctl  Inspect or control active watch state',
+      '',
+      'Options:',
+      '  --runtime <claude-code|codex|cursor|auto>  (default: auto)',
+      '  --cwd <path>                        (default: process.cwd())',
+      '  --include-tools                     Include tool call markers',
+      '  --include-command-messages          Include Claude slash-command payloads',
+      '  --debug                             Include tool calls and results',
+      '  --json                              Output JSON instead of markdown',
+      '  --max-turns <N>                     Limit to last N turn groups',
+      '  --max-bytes <N>                     Limit to last N bytes of content',
+      '  --session <runtime:id>              Pin to a specific session',
+      '  --snippet <text>                    Prefer candidates containing this transcript excerpt',
+      '  --mark-read                         Advance offset after review',
+      '  --watch                             Alias for the watch subcommand',
+      '',
+      'Watch options:',
+      '  --runtime <claude-code|codex|cursor|auto|both>  (default: auto)',
+      '  --debounce-sec <N>                  Seconds of quiet before emitting',
+      '  --poll-sec <N>                      Poll interval in seconds',
+      '  --max-pending-sec <N>               Max seconds to hold continuous changes before emitting',
+      '  --max-runtime-min <N>               Auto-exit after N minutes (0 = unlimited)',
+      '  --heartbeat-sec <N>                 Quiet status heartbeat interval in seconds (0 = disabled)',
+      '  --until-stopped                     Alias posture: run until explicitly stopped',
+      '  --interactive                       Alias posture: foreground collaboration watch',
+      '  --event-log <path>                  Metadata-only JSONL event log',
+      '',
+    ].join('\n'),
+  );
   process.exit(0);
 }
 
 function printWatchUsage(command = 'watch') {
-  process.stdout.write([
-    `Usage: session-observer ${command} [options]`,
-    '',
-    'Options:',
-    '  --runtime <claude-code|codex|cursor|auto|both>  (default: auto)',
-    '  --cwd <path>                        (default: process.cwd())',
-    '  --debounce-sec <N>                  Seconds of quiet before emitting (default: 2)',
-    '  --poll-sec <N>                      Poll interval in seconds (default: 2)',
-    '  --max-pending-sec <N>               Max seconds to hold continuous changes before emitting (default: 30)',
-    '  --max-runtime-min <N>               Auto-exit after N minutes (0 = unlimited)',
-    '  --heartbeat-sec <N>                 Quiet status heartbeat interval in seconds (default: 120; 0 = disabled)',
-    '  --until-stopped                     Alias posture: run until explicitly stopped',
-    '  --interactive                       Alias posture: foreground collaboration watch',
-    '  --event-log <path>                  Metadata-only JSONL event log',
-    '  --json                              Emit JSON-line events instead of markdown',
-    '  --session <runtime:id>              Pin to a specific session',
-    '  --snippet <text>                    Prefer candidates containing this transcript excerpt',
-    '',
-  ].join('\n'));
+  process.stdout.write(
+    [
+      `Usage: session-observer ${command} [options]`,
+      '',
+      'Options:',
+      '  --runtime <claude-code|codex|cursor|auto|both>  (default: auto)',
+      '  --cwd <path>                        (default: process.cwd())',
+      '  --debounce-sec <N>                  Seconds of quiet before emitting (default: 2)',
+      '  --poll-sec <N>                      Poll interval in seconds (default: 2)',
+      '  --max-pending-sec <N>               Max seconds to hold continuous changes before emitting (default: 30)',
+      '  --max-runtime-min <N>               Auto-exit after N minutes (0 = unlimited)',
+      '  --heartbeat-sec <N>                 Quiet status heartbeat interval in seconds (default: 120; 0 = disabled)',
+      '  --until-stopped                     Alias posture: run until explicitly stopped',
+      '  --interactive                       Alias posture: foreground collaboration watch',
+      '  --event-log <path>                  Metadata-only JSONL event log',
+      '  --json                              Emit JSON-line events instead of markdown',
+      '  --session <runtime:id>              Pin to a specific session',
+      '  --snippet <text>                    Prefer candidates containing this transcript excerpt',
+      '',
+    ].join('\n'),
+  );
   process.exit(0);
 }
 
 function printWatchCtlUsage() {
-  process.stdout.write([
-    'Usage: session-observer watch-ctl <operation> [options]',
-    '',
-    'Operations:',
-    '  status     Print active watcher state',
-    '  pause      Pause event emission while polling continues',
-    '  resume     Resume event emission',
-    '  flush      Emit any pending debounced update immediately',
-    '  stop       Stop the active watcher',
-    '',
-    'Options:',
-    '  --json             Output JSON instead of text',
-    '  --cwd <path>       Select watcher for cwd when controlling',
-    '  --runtime <r>      Select watcher by requested/resolved/target runtime',
-    '  --session <r:id>   Select watcher by target session',
-    '  --pid <pid>        Select watcher by process id',
-    '',
-  ].join('\n'));
+  process.stdout.write(
+    [
+      'Usage: session-observer watch-ctl <operation> [options]',
+      '',
+      'Operations:',
+      '  status     Print active watcher state',
+      '  pause      Pause event emission while polling continues',
+      '  resume     Resume event emission',
+      '  flush      Emit any pending debounced update immediately',
+      '  stop       Stop the active watcher',
+      '',
+      'Options:',
+      '  --json             Output JSON instead of text',
+      '  --cwd <path>       Select watcher for cwd when controlling',
+      '  --runtime <r>      Select watcher by requested/resolved/target runtime',
+      '  --session <r:id>   Select watcher by target session',
+      '  --pid <pid>        Select watcher by process id',
+      '',
+    ].join('\n'),
+  );
   process.exit(0);
 }
 
@@ -391,7 +432,18 @@ function printWatchCtlUsage() {
 // ---------------------------------------------------------------------------
 
 async function runReview(args) {
-  const { cwd, includeTools, includeToolResults, includeCommandMessages, maxTurns, maxBytes, json, markRead, session, snippet } = args;
+  const {
+    cwd,
+    includeTools,
+    includeToolResults,
+    includeCommandMessages,
+    maxTurns,
+    maxBytes,
+    json,
+    markRead,
+    session,
+    snippet,
+  } = args;
   let { runtime } = args;
   const pinnedSession = parsePinnedSession(session);
   if (pinnedSession?.error) return emitError(pinnedSession.error, 1);
@@ -401,7 +453,11 @@ async function runReview(args) {
   if (runtime === 'auto') {
     const resolved = await resolveAutoRuntime(cwd);
     if (resolved.noMatch) {
-      const payload = { noMatch: true, cwd, message: 'No candidates found in any runtime for this cwd.' };
+      const payload = {
+        noMatch: true,
+        cwd,
+        message: 'No candidates found in any runtime for this cwd.',
+      };
       if (json) return emitJson(payload, 2);
       return emit(`No peer-session candidates found for cwd: ${cwd}`, 2);
     }
@@ -409,13 +465,14 @@ async function runReview(args) {
       const payload = {
         ambiguousRuntime: true,
         runtimes: resolved.runtimes,
-        message: 'Candidates found in multiple runtimes. Use --runtime to specify.',
+        message:
+          'Candidates found in multiple runtimes. Use --runtime to specify.',
       };
       if (json) return emitJson(payload, 3);
       return emit(
         `Ambiguous runtime: candidates found in both ${resolved.runtimes.join(', ')}. ` +
-        `Specify --runtime <runtime>.`,
-        3
+          `Specify --runtime <runtime>.`,
+        3,
       );
     }
     runtime = resolved.runtime;
@@ -430,7 +487,12 @@ async function runReview(args) {
   }
 
   if (candidates.length === 0) {
-    const payload = { noMatch: true, runtime, cwd, message: 'No candidates found.' };
+    const payload = {
+      noMatch: true,
+      runtime,
+      cwd,
+      message: 'No candidates found.',
+    };
     if (json) return emitJson(payload, 2);
     return emit(`No ${runtime} transcripts found for cwd: ${cwd}`, 2);
   }
@@ -441,11 +503,13 @@ async function runReview(args) {
   if (pinnedSession) {
     const pinnedRuntime = pinnedSession.runtime;
     const pinnedId = pinnedSession.sessionId;
-    const pinned = candidates.find(c => c.runtime === pinnedRuntime && c.sessionId === pinnedId);
+    const pinned = candidates.find(
+      (c) => c.runtime === pinnedRuntime && c.sessionId === pinnedId,
+    );
     if (!pinned) {
       return emitError(
         `Pinned session not found: ${session}. Run locate to see available sessions.`,
-        1
+        1,
       );
     }
     // Build digest directly from the pinned candidate
@@ -497,7 +561,10 @@ async function runReview(args) {
         message: 'No candidate transcripts contained the provided snippet.',
       };
       if (json) return emitJson(payload, 2);
-      return emit(`No ${runtime} candidate transcripts contained the provided snippet.`, 2);
+      return emit(
+        `No ${runtime} candidate transcripts contained the provided snippet.`,
+        2,
+      );
     }
   }
 
@@ -525,13 +592,14 @@ async function runReview(args) {
       cwd,
       tier: rankResult.tier,
       candidates: rankResult.candidates,
-      message: 'Only bootstrap/unengaged sessions matched this cwd. Use --session to confirm one or specify a different runtime/cwd.',
+      message:
+        'Only bootstrap/unengaged sessions matched this cwd. Use --session to confirm one or specify a different runtime/cwd.',
     };
     if (json) return emitJson(payload, 3);
     return emit(
       `${unengagedOnlyMessage(runtime, cwd)}\n` +
-      renderCandidateList(rankResult.candidates),
-      3
+        renderCandidateList(rankResult.candidates),
+      3,
     );
   }
 
@@ -540,13 +608,16 @@ async function runReview(args) {
     const payload = {
       ties: true,
       candidates: [rankResult.winner, ...rankResult.ties],
-      message: 'Multiple sessions tied. Use --session <runtime:id> to pick one.',
+      message:
+        'Multiple sessions tied. Use --session <runtime:id> to pick one.',
     };
     if (json) return emitJson(payload, 3);
     return emit(
       `Multiple sessions tied. Specify --session to disambiguate:\n` +
-      [rankResult.winner, ...rankResult.ties].map(c => `  ${c.runtime}:${c.sessionId}  (${c.transcriptPath})`).join('\n'),
-      3
+        [rankResult.winner, ...rankResult.ties]
+          .map((c) => `  ${c.runtime}:${c.sessionId}  (${c.transcriptPath})`)
+          .join('\n'),
+      3,
     );
   }
 
@@ -572,7 +643,9 @@ async function runReview(args) {
       widenedFrom: null,
       active: winner.active,
       warnings: winner.snippetMatch
-        ? [`Selected session by snippet match: ${winner.sessionId} (${winner.recordedCwd ?? 'unknown cwd'})`]
+        ? [
+            `Selected session by snippet match: ${winner.sessionId} (${winner.recordedCwd ?? 'unknown cwd'})`,
+          ]
         : [],
       fallbacks: rankResult.fallbacks,
     });
@@ -605,7 +678,8 @@ async function runReview(args) {
 async function runCatchUp(args) {
   const result = await observeCatchUp(args);
   if (!result.ok) {
-    if (result.kind === 'error') return emitError(result.message, result.exitCode);
+    if (result.kind === 'error')
+      return emitError(result.message, result.exitCode);
     if (args.json) return emitJson(result.payload, result.exitCode);
     return emit(result.message, result.exitCode);
   }
@@ -646,9 +720,10 @@ async function runLocate(args) {
           snippet,
           message: 'No candidate transcripts contained the provided snippet.',
         };
-        if (debug) payload.lookupDiagnostics = {
-          claudeCode: await claudeCodeLookupDiagnostics(cwd),
-        };
+        if (debug)
+          payload.lookupDiagnostics = {
+            claudeCode: await claudeCodeLookupDiagnostics(cwd),
+          };
         if (json) return emitJson(payload, 2);
         return emit(`No transcripts contained the provided snippet.`, 2);
       }
@@ -658,10 +733,16 @@ async function runLocate(args) {
     const rankResult = rank(allCandidates, cwd, { gitWorktrees: worktrees });
 
     if (rankResult.noMatch) {
-      const payload = { noMatch: true, cwd, sisters: rankResult.sisters, globalRecent: rankResult.globalRecent };
-      if (debug) payload.lookupDiagnostics = {
-        claudeCode: await claudeCodeLookupDiagnostics(cwd),
+      const payload = {
+        noMatch: true,
+        cwd,
+        sisters: rankResult.sisters,
+        globalRecent: rankResult.globalRecent,
       };
+      if (debug)
+        payload.lookupDiagnostics = {
+          claudeCode: await claudeCodeLookupDiagnostics(cwd),
+        };
       if (json) return emitJson(payload, 2);
       return emit(`No transcripts found for cwd: ${cwd}`, 2);
     }
@@ -672,16 +753,18 @@ async function runLocate(args) {
         cwd,
         tier: rankResult.tier,
         candidates: rankResult.candidates,
-        message: 'Only bootstrap/unengaged sessions matched this cwd. Use --session to confirm one or specify a runtime/cwd.',
+        message:
+          'Only bootstrap/unengaged sessions matched this cwd. Use --session to confirm one or specify a runtime/cwd.',
       };
-      if (debug) payload.lookupDiagnostics = {
-        claudeCode: await claudeCodeLookupDiagnostics(cwd),
-      };
+      if (debug)
+        payload.lookupDiagnostics = {
+          claudeCode: await claudeCodeLookupDiagnostics(cwd),
+        };
       if (json) return emitJson(payload, 3);
       return emit(
         `${unengagedOnlyMessage('auto', cwd)}\n` +
-        renderCandidateList(rankResult.candidates),
-        3
+          renderCandidateList(rankResult.candidates),
+        3,
       );
     }
 
@@ -692,16 +775,17 @@ async function runLocate(args) {
       fallbacks: rankResult.fallbacks,
     };
     if (snippet) payload.snippet = { query: snippet, matches: snippetMatches };
-    if (debug) payload.lookupDiagnostics = {
-      claudeCode: await claudeCodeLookupDiagnostics(cwd),
-    };
+    if (debug)
+      payload.lookupDiagnostics = {
+        claudeCode: await claudeCodeLookupDiagnostics(cwd),
+      };
     if (json) return emitJson(payload, 0);
     return emit(
       `Winner: ${rankResult.winner.runtime}:${rankResult.winner.sessionId}\n` +
-      `  Tier: ${rankResult.tier}\n` +
-      `  Transcript: ${rankResult.winner.transcriptPath}\n` +
-      `  Fallbacks: ${rankResult.fallbacks.length}`,
-      0
+        `  Tier: ${rankResult.tier}\n` +
+        `  Transcript: ${rankResult.winner.transcriptPath}\n` +
+        `  Fallbacks: ${rankResult.fallbacks.length}`,
+      0,
     );
   }
 
@@ -743,7 +827,10 @@ async function runLocate(args) {
         };
       }
       if (json) return emitJson(payload, 2);
-      return emit(`No ${runtime} candidate transcripts contained the provided snippet.`, 2);
+      return emit(
+        `No ${runtime} candidate transcripts contained the provided snippet.`,
+        2,
+      );
     }
   }
 
@@ -751,7 +838,13 @@ async function runLocate(args) {
   const rankResult = rank(candidates, cwd, { gitWorktrees: worktrees });
 
   if (rankResult.noMatch) {
-    const payload = { noMatch: true, runtime, cwd, sisters: rankResult.sisters, globalRecent: rankResult.globalRecent };
+    const payload = {
+      noMatch: true,
+      runtime,
+      cwd,
+      sisters: rankResult.sisters,
+      globalRecent: rankResult.globalRecent,
+    };
     if (debug && runtime === 'claude-code') {
       payload.lookupDiagnostics = {
         claudeCode: await claudeCodeLookupDiagnostics(cwd),
@@ -768,7 +861,8 @@ async function runLocate(args) {
       cwd,
       tier: rankResult.tier,
       candidates: rankResult.candidates,
-      message: 'Only bootstrap/unengaged sessions matched this cwd. Use --session to confirm one or specify a different runtime/cwd.',
+      message:
+        'Only bootstrap/unengaged sessions matched this cwd. Use --session to confirm one or specify a different runtime/cwd.',
     };
     if (debug && runtime === 'claude-code') {
       payload.lookupDiagnostics = {
@@ -778,8 +872,8 @@ async function runLocate(args) {
     if (json) return emitJson(payload, 3);
     return emit(
       `${unengagedOnlyMessage(runtime, cwd)}\n` +
-      renderCandidateList(rankResult.candidates),
-      3
+        renderCandidateList(rankResult.candidates),
+      3,
     );
   }
 
@@ -798,10 +892,10 @@ async function runLocate(args) {
   if (json) return emitJson(payload, 0);
   return emit(
     `Winner: ${rankResult.winner.runtime}:${rankResult.winner.sessionId}\n` +
-    `  Tier: ${rankResult.tier}\n` +
-    `  Transcript: ${rankResult.winner.transcriptPath}\n` +
-    `  Fallbacks: ${rankResult.fallbacks.length}`,
-    0
+      `  Tier: ${rankResult.tier}\n` +
+      `  Transcript: ${rankResult.winner.transcriptPath}\n` +
+      `  Fallbacks: ${rankResult.fallbacks.length}`,
+    0,
   );
 }
 
@@ -822,9 +916,10 @@ async function runState(args) {
         if (sessions.length === 0) {
           return emit('No sessions tracked yet.', 0);
         }
-        const lines = sessions.map(s =>
-          `${s.runtime}:${s.sessionId}  offset=${s.lastRecordIndex}/${s.lastTotalRecords}  ` +
-          `lastReadAt=${s.lastReadAt}`
+        const lines = sessions.map(
+          (s) =>
+            `${s.runtime}:${s.sessionId}  offset=${s.lastRecordIndex}/${s.lastTotalRecords}  ` +
+            `lastReadAt=${s.lastReadAt}`,
         );
         return emit(lines.join('\n'), 0);
       } catch (err) {
@@ -839,7 +934,7 @@ async function runState(args) {
         if (sep === -1) {
           return emitError(
             '--session must be in <runtime>:<sessionId> format (e.g. codex:abc123)',
-            1
+            1,
           );
         }
         const sessionRuntime = args.session.slice(0, sep);
@@ -847,12 +942,16 @@ async function runState(args) {
         if (!VALID_RUNTIMES.includes(sessionRuntime)) {
           return emitError(
             `Unknown runtime in --session: ${sessionRuntime}. Use one of: ${VALID_RUNTIME_LABEL}.`,
-            1
+            1,
           );
         }
         try {
           await stateLib.resetBySession(sessionRuntime, sessionId);
-          if (json) return emitJson({ reset: true, runtime: sessionRuntime, sessionId }, 0);
+          if (json)
+            return emitJson(
+              { reset: true, runtime: sessionRuntime, sessionId },
+              0,
+            );
           return emit(`Reset session: ${sessionRuntime}:${sessionId}`, 0);
         } catch (err) {
           return emitError(`Failed to reset state: ${err.message}`, 1);
@@ -862,11 +961,14 @@ async function runState(args) {
       if (!runtime || runtime === 'auto') {
         return emitError(
           `--runtime is required for state reset (use one of: ${VALID_RUNTIME_LABEL}), or use --session <runtime>:<sessionId>`,
-          1
+          1,
         );
       }
       if (!VALID_RUNTIMES.includes(runtime)) {
-        return emitError(`Unknown runtime: ${runtime}. Use one of: ${VALID_RUNTIME_LABEL}.`, 1);
+        return emitError(
+          `Unknown runtime: ${runtime}. Use one of: ${VALID_RUNTIME_LABEL}.`,
+          1,
+        );
       }
       try {
         const count = await stateLib.resetByRuntime(runtime);
@@ -890,8 +992,8 @@ async function runState(args) {
     default: {
       emitError(
         `Unknown state operation: ${stateOp ?? '(none)'}. ` +
-        `Valid operations: get, reset, clear`,
-        1
+          `Valid operations: get, reset, clear`,
+        1,
       );
     }
   }
@@ -907,7 +1009,7 @@ async function runWatch(args) {
   if (!VALID_WATCH_RUNTIMES.includes(args.runtime)) {
     return emitWatchSetupError(
       args,
-      `Unknown watch runtime: ${args.runtime}. Use one of: ${VALID_WATCH_RUNTIME_LABEL}.`
+      `Unknown watch runtime: ${args.runtime}. Use one of: ${VALID_WATCH_RUNTIME_LABEL}.`,
     );
   }
 
@@ -929,11 +1031,13 @@ async function runWatch(args) {
 
 function emitWatchSetupError(args, message) {
   if (args.json) {
-    process.stdout.write(JSON.stringify({
-      type: 'error',
-      ts: new Date().toISOString(),
-      message,
-    }) + '\n');
+    process.stdout.write(
+      JSON.stringify({
+        type: 'error',
+        ts: new Date().toISOString(),
+        message,
+      }) + '\n',
+    );
     process.exit(1);
   }
   return emitError(message, 1);
@@ -1003,15 +1107,23 @@ async function singleWatcherStatusPayload(active) {
       recordError = err.message;
     }
 
-    const recordsBehind = transcriptRecords === null
-      ? null
-      : Math.max(0, transcriptRecords - lastRecordIndex);
+    const recordsBehind =
+      transcriptRecords === null
+        ? null
+        : Math.max(0, transcriptRecords - lastRecordIndex);
     const staleClockSec = secondsSinceLastEmit ?? secondsSinceStarted ?? 0;
     const reasons = [];
-    if (recordsBehind !== null && recordsBehind > 0 && staleClockSec > staleAfterSec) {
+    if (
+      recordsBehind !== null &&
+      recordsBehind > 0 &&
+      staleClockSec > staleAfterSec
+    ) {
       reasons.push('records-behind-stale');
     }
-    if (secondsSinceLastPoll !== null && secondsSinceLastPoll > Math.max(staleAfterSec, (active.pollSec ?? 2) * 3)) {
+    if (
+      secondsSinceLastPoll !== null &&
+      secondsSinceLastPoll > Math.max(staleAfterSec, (active.pollSec ?? 2) * 3)
+    ) {
       reasons.push('poll-heartbeat-stale');
     }
     if (recordError) reasons.push('transcript-read-error');
@@ -1035,7 +1147,7 @@ async function singleWatcherStatusPayload(active) {
     ...active,
     targets,
   };
-  const targetReasons = targets.flatMap(target => target.healthReasons ?? []);
+  const targetReasons = targets.flatMap((target) => target.healthReasons ?? []);
   const processReasons = [];
   if (active.lastError?.message) processReasons.push('watcher-error');
   const reasons = [...new Set([...targetReasons, ...processReasons])];
@@ -1072,10 +1184,12 @@ async function watcherStatusPayload(state) {
   for (const watcher of watchers) {
     statuses.push(await singleWatcherStatusPayload(watcher));
   }
-  const reasons = [...new Set(statuses.flatMap(status => status.health?.reasons ?? []))];
+  const reasons = [
+    ...new Set(statuses.flatMap((status) => status.health?.reasons ?? [])),
+  ];
   const healthy = reasons.length === 0;
   const primary = statuses[0];
-  const watchersWithHealth = statuses.map(status => ({
+  const watchersWithHealth = statuses.map((status) => ({
     ...status.watcher,
     healthy: status.healthy,
     healthReasons: status.health?.reasons ?? [],
@@ -1089,7 +1203,7 @@ async function watcherStatusPayload(state) {
     watcher: watchersWithHealth[0],
     watchers: watchersWithHealth,
     watcherCount: statuses.length,
-    targets: statuses.flatMap(status => status.targets),
+    targets: statuses.flatMap((status) => status.targets),
     requestedRuntime: primary.requestedRuntime,
     resolvedRuntime: primary.resolvedRuntime,
     sessionId: primary.sessionId,
@@ -1101,14 +1215,17 @@ async function watcherStatusPayload(state) {
 
 function formatWatcherStatus(payload) {
   if (!payload.active) return 'No active watcher.';
-  const watcherLines = (payload.watchers ?? [payload.watcher]).filter(Boolean).flatMap(watcher => {
-    const header = `Watcher active: ${watcher.runtime} ${watcher.cwd} (pid ${watcher.pid}) healthy=${watcher.healthy ?? payload.healthy}`;
-    const targets = (watcher.targets ?? []).map(target => {
-      const behind = target.recordsBehind === null ? '?' : target.recordsBehind;
-      return `  ${target.runtime}:${target.sessionId} recordsBehind=${behind} transcript=${target.transcriptPath}`;
+  const watcherLines = (payload.watchers ?? [payload.watcher])
+    .filter(Boolean)
+    .flatMap((watcher) => {
+      const header = `Watcher active: ${watcher.runtime} ${watcher.cwd} (pid ${watcher.pid}) healthy=${watcher.healthy ?? payload.healthy}`;
+      const targets = (watcher.targets ?? []).map((target) => {
+        const behind =
+          target.recordsBehind === null ? '?' : target.recordsBehind;
+        return `  ${target.runtime}:${target.sessionId} recordsBehind=${behind} transcript=${target.transcriptPath}`;
+      });
+      return [header, ...targets];
     });
-    return [header, ...targets];
-  });
   return watcherLines.join('\n');
 }
 
@@ -1126,16 +1243,22 @@ function watcherSummary(watcher) {
 
 function watcherMatchesRuntime(watcher, runtime) {
   if (!runtime || runtime === 'auto') return true;
-  if (watcher.runtime === runtime || watcher.requestedRuntime === runtime || watcher.resolvedRuntime === runtime) {
+  if (
+    watcher.runtime === runtime ||
+    watcher.requestedRuntime === runtime ||
+    watcher.resolvedRuntime === runtime
+  ) {
     return true;
   }
-  return (watcher.targets ?? []).some(target => target.runtime === runtime);
+  return (watcher.targets ?? []).some((target) => target.runtime === runtime);
 }
 
 function watcherMatchesSession(watcher, session) {
   if (!session) return true;
   if (watcher.session === session) return true;
-  return (watcher.targets ?? []).some(target => `${target.runtime}:${target.sessionId}` === session);
+  return (watcher.targets ?? []).some(
+    (target) => `${target.runtime}:${target.sessionId}` === session,
+  );
 }
 
 function sameCwd(a, b) {
@@ -1152,12 +1275,14 @@ function selectWatcherForControl(state, args) {
 
   let candidates = watchers;
   if (args.pid !== undefined) {
-    candidates = candidates.filter(watcher => watcher.pid === args.pid);
+    candidates = candidates.filter((watcher) => watcher.pid === args.pid);
   } else {
     candidates = candidates
-      .filter(watcher => watcherMatchesRuntime(watcher, args.runtime))
-      .filter(watcher => watcherMatchesSession(watcher, args.session));
-    const cwdMatches = candidates.filter(watcher => sameCwd(watcher.cwd, args.cwd));
+      .filter((watcher) => watcherMatchesRuntime(watcher, args.runtime))
+      .filter((watcher) => watcherMatchesSession(watcher, args.session));
+    const cwdMatches = candidates.filter((watcher) =>
+      sameCwd(watcher.cwd, args.cwd),
+    );
     // An explicit --cwd is a hard filter. The implicit process.cwd() default is
     // only a disambiguator: when it matches nothing, fall back to the
     // runtime/session matches so a lone watcher stays controllable from any cwd.
@@ -1176,18 +1301,20 @@ function emitNoMatchingWatcher(args, watchers) {
     active: true,
     noMatchingWatcher: true,
     watcher: null,
-    message: 'No watcher matched the given filters. Select one with --runtime, --session, or --pid.',
+    message:
+      'No watcher matched the given filters. Select one with --runtime, --session, or --pid.',
     watchers: watchers.map(watcherSummary),
   };
   if (args.json) return emitJson(payload, 3);
   return emit(
     [
       payload.message,
-      ...payload.watchers.map(watcher =>
-        `  pid=${watcher.pid} runtime=${watcher.runtime} cwd=${watcher.cwd}`
+      ...payload.watchers.map(
+        (watcher) =>
+          `  pid=${watcher.pid} runtime=${watcher.runtime} cwd=${watcher.cwd}`,
       ),
     ].join('\n'),
-    3
+    3,
   );
 }
 
@@ -1200,18 +1327,20 @@ function emitUnmatchedWatcherControl(args, selected) {
 function emitAmbiguousWatcher(args, candidates) {
   const payload = {
     ambiguousWatcher: true,
-    message: 'Multiple active watchers match. Select one with --runtime, --session, or --pid.',
+    message:
+      'Multiple active watchers match. Select one with --runtime, --session, or --pid.',
     watchers: candidates.map(watcherSummary),
   };
   if (args.json) return emitJson(payload, 3);
   return emit(
     [
       payload.message,
-      ...payload.watchers.map(watcher =>
-        `  pid=${watcher.pid} runtime=${watcher.runtime} cwd=${watcher.cwd}`
+      ...payload.watchers.map(
+        (watcher) =>
+          `  pid=${watcher.pid} runtime=${watcher.runtime} cwd=${watcher.cwd}`,
       ),
     ].join('\n'),
-    3
+    3,
   );
 }
 
@@ -1233,9 +1362,13 @@ async function runWatchCtl(args) {
       const selected = selectWatcherForControl(state, args);
       if (selected.error) return emitError(selected.error, 1);
       if (selected.none) return emitUnmatchedWatcherControl(args, selected);
-      if (selected.ambiguous) return emitAmbiguousWatcher(args, selected.watchers);
+      if (selected.ambiguous)
+        return emitAmbiguousWatcher(args, selected.watchers);
 
-      const control = await watchStateLib.writeControlDirective(args.watchCtlOp, { pid: selected.watcher.pid });
+      const control = await watchStateLib.writeControlDirective(
+        args.watchCtlOp,
+        { pid: selected.watcher.pid },
+      );
       const payload = {
         directive: args.watchCtlOp,
         watcher: watcherSummary(selected.watcher),
@@ -1250,9 +1383,12 @@ async function runWatchCtl(args) {
       const selected = selectWatcherForControl(state, args);
       if (selected.error) return emitError(selected.error, 1);
       if (selected.none) return emitUnmatchedWatcherControl(args, selected);
-      if (selected.ambiguous) return emitAmbiguousWatcher(args, selected.watchers);
+      if (selected.ambiguous)
+        return emitAmbiguousWatcher(args, selected.watchers);
 
-      const control = await watchStateLib.writeControlDirective('stop', { pid: selected.watcher.pid });
+      const control = await watchStateLib.writeControlDirective('stop', {
+        pid: selected.watcher.pid,
+      });
       let signaled = false;
       if (selected.watcher?.pid) {
         try {
@@ -1267,18 +1403,22 @@ async function runWatchCtl(args) {
         control,
         watcher: watcherSummary(selected.watcher),
         signaled,
-        message: 'Watcher stop requested. If continued monitoring is desired, restart catch-up-then-watch after your response.',
+        message:
+          'Watcher stop requested. If continued monitoring is desired, restart catch-up-then-watch after your response.',
       };
       if (args.json) return emitJson(payload, 0);
-      return emit(signaled
-        ? `Watcher stop requested for pid ${selected.watcher.pid}\nIf continued monitoring is desired, restart catch-up-then-watch after your response.`
-        : 'Watcher stop directive written.\nIf continued monitoring is desired, restart catch-up-then-watch after your response.', 0);
+      return emit(
+        signaled
+          ? `Watcher stop requested for pid ${selected.watcher.pid}\nIf continued monitoring is desired, restart catch-up-then-watch after your response.`
+          : 'Watcher stop directive written.\nIf continued monitoring is desired, restart catch-up-then-watch after your response.',
+        0,
+      );
     }
 
     default:
       return emitError(
         `Unknown watch-ctl operation: ${args.watchCtlOp}. Valid operations: status, pause, resume, flush, stop`,
-        1
+        1,
       );
   }
 }
@@ -1295,24 +1435,32 @@ async function main(argv) {
   }
 
   switch (args.subcommand) {
-    case 'review':   return runReview(args);
-    case 'catch-up': return runCatchUp(args);
-    case 'locate':   return runLocate(args);
-    case 'state':    return runState(args);
+    case 'review':
+      return runReview(args);
+    case 'catch-up':
+      return runCatchUp(args);
+    case 'locate':
+      return runLocate(args);
+    case 'state':
+      return runState(args);
     case 'watch':
-    case 'catch-up-then-watch': return runWatch(args);
-    case 'watch-ctl': return runWatchCtl(args);
+    case 'catch-up-then-watch':
+      return runWatch(args);
+    case 'watch-ctl':
+      return runWatchCtl(args);
     default:
       return emitError(
         args.subcommand
           ? `Unknown subcommand: ${args.subcommand}. Use review, catch-up, catch-up-then-watch, locate, state, watch, or watch-ctl.`
           : 'No subcommand specified. Use review, catch-up, catch-up-then-watch, locate, state, watch, or watch-ctl.',
-        1
+        1,
       );
   }
 }
 
 main(process.argv.slice(2)).catch((err) => {
-  process.stderr.write(`[session-observer] Unexpected error: ${err.message}\n${err.stack}\n`);
+  process.stderr.write(
+    `[session-observer] Unexpected error: ${err.message}\n${err.stack}\n`,
+  );
   process.exit(1);
 });

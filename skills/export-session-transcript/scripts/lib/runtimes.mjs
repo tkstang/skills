@@ -28,7 +28,8 @@ import { join, dirname, basename } from 'node:path';
 
 const TOOL_INPUT_LIMIT = 200;
 const TOOL_RESULT_LIMIT = 500;
-const COMMAND_MESSAGE_RE = /<(command-message|command-name|command-args)>[\s\S]*?<\/\1>/u;
+const COMMAND_MESSAGE_RE =
+  /<(command-message|command-name|command-args)>[\s\S]*?<\/\1>/u;
 
 // ---------------------------------------------------------------------------
 // Small helpers
@@ -160,10 +161,7 @@ export function encodeCwdVariants(runtime, cwd) {
   if (runtime === 'cursor') {
     return [cwd.split(/[/.]/u).filter(Boolean).join('-')];
   }
-  const variants = [
-    cwd.replace(/[/.]/g, '-'),
-    cwd.replace(/\//g, '-'),
-  ];
+  const variants = [cwd.replace(/[/.]/g, '-'), cwd.replace(/\//g, '-')];
   return [...new Set(variants)];
 }
 
@@ -213,11 +211,11 @@ export async function readRecords(transcriptPath) {
     const isLastToken = i === lastIndex;
     if (isLastToken && !fileEndsWithNewline) {
       console.warn(
-        `[runtimes] Partial trailing line dropped from ${transcriptPath} (line ${i + 1}): ${result.reason}`
+        `[runtimes] Partial trailing line dropped from ${transcriptPath} (line ${i + 1}): ${result.reason}`,
       );
     } else {
       console.warn(
-        `[runtimes] Malformed JSONL line ${i + 1} in ${transcriptPath} skipped: ${result.reason}`
+        `[runtimes] Malformed JSONL line ${i + 1} in ${transcriptPath} skipped: ${result.reason}`,
       );
     }
   }
@@ -324,7 +322,10 @@ export async function extractMeta(runtime, transcriptPath) {
     let sessionId;
     for (const record of records) {
       const id = claudeSessionIdFromRecord(record);
-      if (id) { sessionId = id; break; }
+      if (id) {
+        sessionId = id;
+        break;
+      }
     }
     if (!sessionId) {
       sessionId = basename(transcriptPath).replace(/\.jsonl$/u, '');
@@ -350,7 +351,9 @@ export async function extractMeta(runtime, transcriptPath) {
         // Check top-level cwd first, then fall back to payload.cwd
         // (current Codex session_meta records store cwd under payload.cwd)
         const topLevelCwd = asString(record.cwd);
-        const payloadCwd = isObject(record.payload) ? asString(record.payload.cwd) : undefined;
+        const payloadCwd = isObject(record.payload)
+          ? asString(record.payload.cwd)
+          : undefined;
         const cwd = topLevelCwd ?? payloadCwd;
         if (cwd) recordedCwd = cwd;
       }
@@ -368,7 +371,8 @@ export async function extractMeta(runtime, transcriptPath) {
     const transcriptBase = basename(transcriptPath).replace(/\.jsonl$/u, '');
     const parentDirName = basename(dirname(transcriptPath));
     const sessionId =
-      transcriptBase && !['transcript', 'conversation', 'messages'].includes(transcriptBase)
+      transcriptBase &&
+      !['transcript', 'conversation', 'messages'].includes(transcriptBase)
         ? transcriptBase
         : parentDirName;
 
@@ -409,14 +413,23 @@ function claudeEntriesFromContent(role, content, recordIndex, opts) {
       if (!opts.includeToolCalls) return [];
       const name = asString(block.name) ?? 'tool_use';
       const argsStr = stringifyArgs(block.input, TOOL_INPUT_LIMIT);
-      return [{ role, text: `[${name}] ${argsStr}`, recordIndex, kind: 'tool_call', toolName: name }];
+      return [
+        {
+          role,
+          text: `[${name}] ${argsStr}`,
+          recordIndex,
+          kind: 'tool_call',
+          toolName: name,
+        },
+      ];
     }
 
     if (block.type === 'tool_result') {
       if (!opts.includeToolResults) return [];
       // Resolve the tool name by correlating tool_use_id → tool name
       const toolUseId = asString(block.tool_use_id);
-      const name = (toolUseId && opts.toolNameById?.get(toolUseId)) ?? 'tool_result';
+      const name =
+        (toolUseId && opts.toolNameById?.get(toolUseId)) ?? 'tool_result';
       // Content of tool_result can be string or array
       let resultText = '';
       if (typeof block.content === 'string') {
@@ -424,11 +437,19 @@ function claudeEntriesFromContent(role, content, recordIndex, opts) {
       } else if (Array.isArray(block.content)) {
         const parts = block.content
           .filter(isObject)
-          .map(b => asString(b.text) ?? '')
+          .map((b) => asString(b.text) ?? '')
           .filter(Boolean);
         resultText = truncate(parts.join('\n'), TOOL_RESULT_LIMIT);
       }
-      return [{ role, text: `[${name} → result] ${resultText}`, recordIndex, kind: 'tool_result', toolName: name }];
+      return [
+        {
+          role,
+          text: `[${name} → result] ${resultText}`,
+          recordIndex,
+          kind: 'tool_result',
+          toolName: name,
+        },
+      ];
     }
 
     // text / content blocks
@@ -477,9 +498,7 @@ function normalizeClaudeCode(records, opts) {
     // Determine role
     const message = isObject(record.message) ? record.message : record;
     const role =
-      asString(message.role) ??
-      asString(record.role) ??
-      asString(record.type);
+      asString(message.role) ?? asString(record.role) ?? asString(record.type);
 
     if (role !== 'assistant' && role !== 'user') return [];
 
@@ -513,10 +532,19 @@ function normalizeCodex(records, opts) {
     // function_call records
     if (payloadType === 'function_call') {
       if (!includeToolCalls) return [];
-      const name = asString(payload.name) ?? asString(record.name) ?? 'function_call';
+      const name =
+        asString(payload.name) ?? asString(record.name) ?? 'function_call';
       const args = payload.arguments ?? record.arguments;
       const argsStr = stringifyArgs(args, TOOL_INPUT_LIMIT);
-      return [{ role: 'assistant', text: `[${name}] ${argsStr}`, recordIndex, kind: 'tool_call', toolName: name }];
+      return [
+        {
+          role: 'assistant',
+          text: `[${name}] ${argsStr}`,
+          recordIndex,
+          kind: 'tool_call',
+          toolName: name,
+        },
+      ];
     }
 
     // message records
@@ -527,7 +555,9 @@ function normalizeCodex(records, opts) {
 
     const content = payload.content;
     if (typeof content === 'string') {
-      return content ? [{ role, text: content, recordIndex, kind: 'message' }] : [];
+      return content
+        ? [{ role, text: content, recordIndex, kind: 'message' }]
+        : [];
     }
     if (!Array.isArray(content)) return [];
 
@@ -564,7 +594,9 @@ function normalizeCursor(records, opts) {
     const message = isObject(record.message) ? record.message : record;
     const content = message.content;
     if (typeof content === 'string') {
-      return content ? [{ role, text: content, recordIndex, kind: 'message' }] : [];
+      return content
+        ? [{ role, text: content, recordIndex, kind: 'message' }]
+        : [];
     }
     if (!Array.isArray(content)) return [];
 
@@ -575,7 +607,15 @@ function normalizeCursor(records, opts) {
         if (!includeToolCalls) return [];
         const name = asString(block.name) ?? 'tool_use';
         const argsStr = stringifyArgs(block.input, TOOL_INPUT_LIMIT);
-        return [{ role, text: `[${name}] ${argsStr}`, recordIndex, kind: 'tool_call', toolName: name }];
+        return [
+          {
+            role,
+            text: `[${name}] ${argsStr}`,
+            recordIndex,
+            kind: 'tool_call',
+            toolName: name,
+          },
+        ];
       }
 
       const text = asString(block.text) ?? asString(block.content);

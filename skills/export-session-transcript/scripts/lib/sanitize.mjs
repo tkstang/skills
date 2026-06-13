@@ -74,7 +74,7 @@ export const HIDDEN_PAYLOAD_MATCHERS = [
       // by ':' or '-'. Kept narrow so prose like "System design notes for X"
       // (no following ':'/'-') is NOT dropped.
       return /^(System|Developer)\s+(prompt|note|notes|message|instruction|instructions|directive|directives|guidelines?)\b\s*[:\-]/i.test(
-        l
+        l,
       );
     },
   },
@@ -129,15 +129,15 @@ export const HIDDEN_PAYLOAD_MATCHERS = [
     // and caveat banners) recorded as text. The structural layer only drops the
     // <command-*> request payloads, not these execution-result wrappers.
     id: 'local-command-output',
-    test: (text) =>
-      /^<local-command-(stdout|stderr|caveat)>/.test(lead(text)),
+    test: (text) => /^<local-command-(stdout|stderr|caveat)>/.test(lead(text)),
   },
   {
     // Claude slash-command payloads that survive as text (defense-in-depth: the
     // structural layer already drops these for Claude, but Codex/Cursor pasted
     // copies would not be caught there).
     id: 'command-message',
-    test: (text) => /^<(command-message|command-name|command-args)>/.test(lead(text)),
+    test: (text) =>
+      /^<(command-message|command-name|command-args)>/.test(lead(text)),
   },
   {
     // AGENTS.md / SKILL.md instruction headers pasted as text. Accept any
@@ -158,7 +158,7 @@ export const HIDDEN_PAYLOAD_MATCHERS = [
       // First non-fence line should be a skill frontmatter key.
       const firstKey = l.split(/\r?\n/, 2)[1] ?? '';
       return /^(name|description|license|compatibility|allowed-tools|argument-hint):/.test(
-        firstKey.trim()
+        firstKey.trim(),
       );
     },
   },

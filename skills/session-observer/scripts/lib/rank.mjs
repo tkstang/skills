@@ -110,11 +110,13 @@ export function tierOf(candidate, targetCwd) {
  */
 
 function cwdSlugVariants(cwd) {
-  return [...new Set([
-    cwd.split(/[/.]/u).filter(Boolean).join('-'),
-    cwd.replace(/[/.]/g, '-'),
-    cwd.replace(/\//g, '-'),
-  ])];
+  return [
+    ...new Set([
+      cwd.split(/[/.]/u).filter(Boolean).join('-'),
+      cwd.replace(/[/.]/g, '-'),
+      cwd.replace(/\//g, '-'),
+    ]),
+  ];
 }
 
 function slugFromTranscriptPath(transcriptPath) {
@@ -135,7 +137,8 @@ function slugFromTranscriptPath(transcriptPath) {
  * @returns {boolean}
  */
 function parentSlugMatches(candidate, targetCwd) {
-  const slug = candidate.cwdSlug ?? slugFromTranscriptPath(candidate.transcriptPath ?? '');
+  const slug =
+    candidate.cwdSlug ?? slugFromTranscriptPath(candidate.transcriptPath ?? '');
   if (!slug) return false;
   return cwdSlugVariants(targetCwd).includes(slug);
 }
@@ -155,7 +158,9 @@ function metric(candidate, key) {
 }
 
 function hasAssistantAndUser(candidate) {
-  return Boolean(candidate.hasAssistantAndUser ?? candidate.engagement?.hasAssistantAndUser);
+  return Boolean(
+    candidate.hasAssistantAndUser ?? candidate.engagement?.hasAssistantAndUser,
+  );
 }
 
 function compareCandidatePreference(a, b) {
@@ -164,13 +169,16 @@ function compareCandidatePreference(a, b) {
     return hasAssistantAndUser(a) ? -1 : 1;
   }
 
-  const realMessageDelta = metric(b, 'realMessageCount') - metric(a, 'realMessageCount');
+  const realMessageDelta =
+    metric(b, 'realMessageCount') - metric(a, 'realMessageCount');
   if (realMessageDelta !== 0) return realMessageDelta;
 
-  const userDelta = metric(b, 'genuineUserMessages') - metric(a, 'genuineUserMessages');
+  const userDelta =
+    metric(b, 'genuineUserMessages') - metric(a, 'genuineUserMessages');
   if (userDelta !== 0) return userDelta;
 
-  const assistantDelta = metric(b, 'assistantMessages') - metric(a, 'assistantMessages');
+  const assistantDelta =
+    metric(b, 'assistantMessages') - metric(a, 'assistantMessages');
   if (assistantDelta !== 0) return assistantDelta;
 
   const sizeDelta = (b.size ?? 0) - (a.size ?? 0);
@@ -192,8 +200,15 @@ function sizesClose(a, b) {
 
 function closeEngagedTie(winner, candidate, tieWindowSec) {
   if (!isEngaged(winner) || !isEngaged(candidate)) return false;
-  if (hasAssistantAndUser(winner) !== hasAssistantAndUser(candidate)) return false;
-  if (Math.abs(metric(winner, 'realMessageCount') - metric(candidate, 'realMessageCount')) > CLOSE_REAL_MESSAGE_DELTA) return false;
+  if (hasAssistantAndUser(winner) !== hasAssistantAndUser(candidate))
+    return false;
+  if (
+    Math.abs(
+      metric(winner, 'realMessageCount') -
+        metric(candidate, 'realMessageCount'),
+    ) > CLOSE_REAL_MESSAGE_DELTA
+  )
+    return false;
   if (!sizesClose(winner, candidate)) return false;
   return Math.abs((winner.mtime ?? 0) - (candidate.mtime ?? 0)) <= tieWindowSec;
 }
@@ -234,7 +249,9 @@ export function rank(candidates, targetCwd, opts = {}) {
   // No match case
   if (!winningTier) {
     const allByMtime = [...candidates].sort((a, b) => b.mtime - a.mtime);
-    const globalRecent = globalRecentProvider ? globalRecentProvider() : allByMtime.slice(0, 5);
+    const globalRecent = globalRecentProvider
+      ? globalRecentProvider()
+      : allByMtime.slice(0, 5);
     return {
       winner: null,
       noMatch: true,
@@ -244,7 +261,9 @@ export function rank(candidates, targetCwd, opts = {}) {
   }
 
   const engagedPool = winningPool.filter(isEngaged);
-  const unengagedPool = winningPool.filter(candidate => !isEngaged(candidate));
+  const unengagedPool = winningPool.filter(
+    (candidate) => !isEngaged(candidate),
+  );
   if (engagedPool.length === 0) {
     return {
       winner: null,
@@ -271,7 +290,7 @@ export function rank(candidates, targetCwd, opts = {}) {
   // engagement/size signals and close mtimes.
   const ties = sorted
     .slice(1)
-    .filter(c => closeEngagedTie(winner, c, tieWindowSec));
+    .filter((c) => closeEngagedTie(winner, c, tieWindowSec));
 
   // Fallbacks: remaining sorted candidates in the winning tier after winner
   const fallbacks = [

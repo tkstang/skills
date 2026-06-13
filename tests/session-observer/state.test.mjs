@@ -4,18 +4,21 @@
  * Each test uses a fresh temp STATE_DIR to ensure isolation.
  */
 
-import { describe, it, before, after, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, readdir, writeFile, access, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
-import { withTmpStateDir } from './helpers/tmpdir.mjs';
-
+import { dirname } from 'node:path';
+import { describe, it, before, after, beforeEach, afterEach } from 'node:test';
 // Resolve state.mjs path relative to this test file's location.
 import { fileURLToPath } from 'node:url';
-import { dirname } from 'node:path';
+
+import { withTmpStateDir } from './helpers/tmpdir.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const STATE_MJS = join(__dirname, '../../skills/session-observer/scripts/lib/state.mjs');
+const STATE_MJS = join(
+  __dirname,
+  '../../skills/session-observer/scripts/lib/state.mjs',
+);
 
 async function importState() {
   // Dynamic import so each test group can pick up a fresh module.
@@ -49,7 +52,11 @@ it('mutate writes atomically: no lingering .tmp file after success', async () =>
     await state.mutate((s) => s);
     const files = await readdir(dir);
     const tmpFiles = files.filter((f) => f.endsWith('.tmp'));
-    assert.deepEqual(tmpFiles, [], 'no .tmp files should remain after a successful mutate');
+    assert.deepEqual(
+      tmpFiles,
+      [],
+      'no .tmp files should remain after a successful mutate',
+    );
   });
 });
 
@@ -134,7 +141,10 @@ it('markRead updates lastRecordIndex, lastTotalRecords, lastReadAt, transcriptPa
     // lastReadAt must be a valid ISO 8601 date at or after `before`
     const readAt = new Date(entry.lastReadAt);
     assert.ok(!isNaN(readAt.getTime()), 'lastReadAt must be a valid date');
-    assert.ok(readAt.toISOString() >= before, 'lastReadAt must be >= before timestamp');
+    assert.ok(
+      readAt.toISOString() >= before,
+      'lastReadAt must be >= before timestamp',
+    );
     // reserved field
     assert.equal(entry.watchedByPid, null);
   });
@@ -297,7 +307,11 @@ it('load waits for the state lock before writing corrupt backups', async () => {
     });
 
     await sleep(75);
-    assert.equal(settled, false, 'load() should wait while the state lock exists');
+    assert.equal(
+      settled,
+      false,
+      'load() should wait while the state lock exists',
+    );
 
     await unlink(lock);
     const loaded = await pendingLoad;
@@ -305,7 +319,10 @@ it('load waits for the state lock before writing corrupt backups', async () => {
 
     const files = await readdir(dir);
     const bakFiles = files.filter((f) => f.startsWith('state.json.corrupt-'));
-    assert.ok(bakFiles.length > 0, 'a corrupt backup file must be created after lock release');
+    assert.ok(
+      bakFiles.length > 0,
+      'a corrupt backup file must be created after lock release',
+    );
   });
 });
 
@@ -337,10 +354,20 @@ it('migration via mutate(): re-load after mutate returns upgraded schema (schema
 
     // Re-read the raw file: it must now have schemaVersion: 1
     const raw = JSON.parse(await readFile(join(dir, 'state.json'), 'utf8'));
-    assert.equal(raw.schemaVersion, 1, 'state.json must be upgraded to schemaVersion 1 after mutate()');
+    assert.equal(
+      raw.schemaVersion,
+      1,
+      'state.json must be upgraded to schemaVersion 1 after mutate()',
+    );
     // Session data must be preserved
-    assert.ok(raw.sessions['claude-code:migrated-session'], 'session entry must survive migration');
-    assert.equal(raw.sessions['claude-code:migrated-session'].lastRecordIndex, 3);
+    assert.ok(
+      raw.sessions['claude-code:migrated-session'],
+      'session entry must survive migration',
+    );
+    assert.equal(
+      raw.sessions['claude-code:migrated-session'].lastRecordIndex,
+      3,
+    );
   });
 });
 
@@ -364,7 +391,10 @@ it('repeated corrupt backups produce unique filenames and do not clobber each ot
     const files = await readdir(dir);
     const bakFiles = files.filter((f) => f.startsWith('state.json.corrupt-'));
     // Both backups must exist as distinct files
-    assert.ok(bakFiles.length >= 2, `expected at least 2 backup files, got ${bakFiles.length}: ${bakFiles.join(', ')}`);
+    assert.ok(
+      bakFiles.length >= 2,
+      `expected at least 2 backup files, got ${bakFiles.length}: ${bakFiles.join(', ')}`,
+    );
   });
 });
 

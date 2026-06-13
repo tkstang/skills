@@ -7,7 +7,11 @@ const root = new URL('..', import.meta.url);
 
 async function assertDirectory(relativePath) {
   const details = await stat(new URL(`${relativePath}/`, root));
-  assert.equal(details.isDirectory(), true, `${relativePath} should be a directory`);
+  assert.equal(
+    details.isDirectory(),
+    true,
+    `${relativePath} should be a directory`,
+  );
 }
 
 test('repository exposes standalone and consensus plugin layout', async () => {
@@ -23,7 +27,7 @@ test('repository exposes standalone and consensus plugin layout', async () => {
     path.posix.join('plugins', 'consensus', '.claude-plugin'),
     path.posix.join('plugins', 'consensus', '.cursor-plugin'),
     path.posix.join('plugins', 'consensus', '.codex-plugin'),
-    'scripts'
+    'scripts',
   ];
 
   await Promise.all(requiredDirectories.map(assertDirectory));

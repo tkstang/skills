@@ -4,17 +4,20 @@
  * Each test uses a fresh temp STATE_DIR to ensure isolation.
  */
 
-import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { dirname } from 'node:path';
+import { test } from 'node:test';
+import { fileURLToPath } from 'node:url';
+
 import { withTmpStateDir } from './helpers/tmpdir.mjs';
 
-import { fileURLToPath } from 'node:url';
-import { dirname } from 'node:path';
-
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const WATCH_STATE_MJS = join(__dirname, '../../skills/session-observer/scripts/lib/watch-state.mjs');
+const WATCH_STATE_MJS = join(
+  __dirname,
+  '../../skills/session-observer/scripts/lib/watch-state.mjs',
+);
 
 async function importWatchState() {
   const cacheBust = `?t=${Date.now()}-${Math.random()}`;
@@ -61,7 +64,10 @@ test('startWatcher writes watch.json atomically with active watcher metadata', a
     assert.deepEqual(raw.watchers, [active]);
 
     const files = await readdir(dir);
-    assert.deepEqual(files.filter((file) => file.endsWith('.tmp')), []);
+    assert.deepEqual(
+      files.filter((file) => file.endsWith('.tmp')),
+      [],
+    );
   });
 });
 
@@ -76,13 +82,14 @@ test('startWatcher refuses a second watcher for the same pid when pid is live', 
     });
 
     await assert.rejects(
-      () => watchState.startWatcher({
-        runtime: 'codex',
-        cwd: '/repo',
-        pid: process.pid,
-        startedAt: '2026-06-03T12:01:00.000Z',
-      }),
-      /already active/i
+      () =>
+        watchState.startWatcher({
+          runtime: 'codex',
+          cwd: '/repo',
+          pid: process.pid,
+          startedAt: '2026-06-03T12:01:00.000Z',
+        }),
+      /already active/i,
     );
   });
 });
@@ -113,7 +120,10 @@ test('startWatcher allows concurrent live watchers in the same cwd for different
     const raw = JSON.parse(await readFile(join(dir, 'watch.json'), 'utf8'));
     assert.equal(raw.active.pid, 111);
     assert.equal(raw.watchers.length, 2);
-    assert.deepEqual(raw.watchers.map(watcher => watcher.pid), [111, 222]);
+    assert.deepEqual(
+      raw.watchers.map((watcher) => watcher.pid),
+      [111, 222],
+    );
   });
 });
 
@@ -133,7 +143,7 @@ test('startWatcher clears a stale active pid before registering the new watcher'
           eventCount: 0,
         },
       }),
-      'utf8'
+      'utf8',
     );
 
     t.mock.method(process, 'kill', (pid, signal) => {
@@ -169,7 +179,9 @@ test('control directives are written to and read from watch.control.json', async
 
     await watchState.writeControlDirective('pause', { issuedAt });
 
-    const raw = JSON.parse(await readFile(join(dir, 'watch.control.json'), 'utf8'));
+    const raw = JSON.parse(
+      await readFile(join(dir, 'watch.control.json'), 'utf8'),
+    );
     assert.deepEqual(raw, { directive: 'pause', issuedAt });
 
     const directive = await watchState.readControlDirective();
@@ -185,27 +197,34 @@ test('pid-targeted control directives use per-pid files and do not overwrite eac
     await watchState.writeControlDirective('pause', { issuedAt, pid: 111 });
     await watchState.writeControlDirective('stop', { issuedAt, pid: 222 });
 
-    const first = JSON.parse(await readFile(join(dir, 'watch.control.111.json'), 'utf8'));
-    const second = JSON.parse(await readFile(join(dir, 'watch.control.222.json'), 'utf8'));
+    const first = JSON.parse(
+      await readFile(join(dir, 'watch.control.111.json'), 'utf8'),
+    );
+    const second = JSON.parse(
+      await readFile(join(dir, 'watch.control.222.json'), 'utf8'),
+    );
     assert.deepEqual(first, { directive: 'pause', issuedAt, pid: 111 });
     assert.deepEqual(second, { directive: 'stop', issuedAt, pid: 222 });
 
-    assert.deepEqual(
-      await watchState.readControlDirective({ pid: 111 }),
-      { directive: 'pause', issuedAt, pid: 111 }
-    );
-    assert.deepEqual(
-      await watchState.readControlDirective({ pid: 222 }),
-      { directive: 'stop', issuedAt, pid: 222 }
-    );
+    assert.deepEqual(await watchState.readControlDirective({ pid: 111 }), {
+      directive: 'pause',
+      issuedAt,
+      pid: 111,
+    });
+    assert.deepEqual(await watchState.readControlDirective({ pid: 222 }), {
+      directive: 'stop',
+      issuedAt,
+      pid: 222,
+    });
 
     // Clearing one pid's directive leaves the other untouched.
     assert.equal(await watchState.clearControlDirective({ pid: 111 }), true);
     assert.equal(await watchState.readControlDirective({ pid: 111 }), null);
-    assert.deepEqual(
-      await watchState.readControlDirective({ pid: 222 }),
-      { directive: 'stop', issuedAt, pid: 222 }
-    );
+    assert.deepEqual(await watchState.readControlDirective({ pid: 222 }), {
+      directive: 'stop',
+      issuedAt,
+      pid: 222,
+    });
   });
 });
 
@@ -216,10 +235,10 @@ test('readControlDirective falls back to legacy pid-less directives', async () =
 
     await watchState.writeControlDirective('flush', { issuedAt });
 
-    assert.deepEqual(
-      await watchState.readControlDirective({ pid: 333 }),
-      { directive: 'flush', issuedAt }
-    );
+    assert.deepEqual(await watchState.readControlDirective({ pid: 333 }), {
+      directive: 'flush',
+      issuedAt,
+    });
 
     // A pid-scoped clear consumes a pid-less legacy directive too.
     assert.equal(await watchState.clearControlDirective({ pid: 333 }), true);
@@ -242,14 +261,17 @@ test('clearStaleControlDirectives removes directives for dead pids only', async 
     });
 
     await watchState.writeControlDirective('pause', { issuedAt, pid: 424242 });
-    await watchState.writeControlDirective('pause', { issuedAt, pid: process.pid });
+    await watchState.writeControlDirective('pause', {
+      issuedAt,
+      pid: process.pid,
+    });
 
     const cleared = await watchState.clearStaleControlDirectives();
     assert.equal(cleared, 1);
     assert.equal(await watchState.readControlDirective({ pid: 424242 }), null);
     assert.deepEqual(
       await watchState.readControlDirective({ pid: process.pid }),
-      { directive: 'pause', issuedAt, pid: process.pid }
+      { directive: 'pause', issuedAt, pid: process.pid },
     );
   });
 });
@@ -291,7 +313,7 @@ test('findLiveWatcherForTarget reports a conflicting live watcher for the same t
         sessionId: 'abc',
         excludePid: 111,
       }),
-      null
+      null,
     );
 
     // A different session is not a conflict.
@@ -301,7 +323,7 @@ test('findLiveWatcherForTarget reports a conflicting live watcher for the same t
         sessionId: 'other',
         excludePid: 222,
       }),
-      null
+      null,
     );
   });
 });
@@ -343,7 +365,7 @@ test('recordWatcherTarget rejects an overlapping live target under the lock', as
         assert.equal(err.code, 'DUPLICATE_WATCH_TARGET');
         assert.equal(err.conflictPid, 111);
         return true;
-      }
+      },
     );
 
     // Re-recording the same target for the owning pid stays allowed.
@@ -377,7 +399,7 @@ test('findLiveWatcherForTarget falls back to legacy top-level fields when target
           eventCount: 0,
         },
       }),
-      'utf8'
+      'utf8',
     );
 
     const conflict = await watchState.findLiveWatcherForTarget({
@@ -393,7 +415,7 @@ test('findLiveWatcherForTarget falls back to legacy top-level fields when target
         sessionId: 'other-session',
         excludePid: 222,
       }),
-      null
+      null,
     );
 
     // The locked recordWatcherTarget gate honors legacy records too.
@@ -404,15 +426,16 @@ test('findLiveWatcherForTarget falls back to legacy top-level fields when target
       startedAt: '2026-06-11T12:00:00.000Z',
     });
     await assert.rejects(
-      () => watchState.recordWatcherTarget({
-        pid: 222,
-        target: {
-          runtime: 'codex',
-          sessionId: 'legacy-session',
-          transcriptPath: '/tmp/legacy.jsonl',
-        },
-      }),
-      /already watching codex:legacy-session/
+      () =>
+        watchState.recordWatcherTarget({
+          pid: 222,
+          target: {
+            runtime: 'codex',
+            sessionId: 'legacy-session',
+            transcriptPath: '/tmp/legacy.jsonl',
+          },
+        }),
+      /already watching codex:legacy-session/,
     );
   });
 });

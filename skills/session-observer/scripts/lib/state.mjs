@@ -19,7 +19,14 @@
  * across retries.
  */
 
-import { open, rename, mkdir, readFile, writeFile, unlink } from 'node:fs/promises';
+import {
+  open,
+  rename,
+  mkdir,
+  readFile,
+  writeFile,
+  unlink,
+} from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
@@ -36,7 +43,10 @@ const LOCK_INTERVAL_MS = 50;
 // ---------------------------------------------------------------------------
 
 function stateDir() {
-  return process.env.STATE_DIR ?? join(homedir(), '.local', 'state', 'session-observer');
+  return (
+    process.env.STATE_DIR ??
+    join(homedir(), '.local', 'state', 'session-observer')
+  );
 }
 
 function statePath(dir) {
@@ -76,7 +86,9 @@ async function acquireLock(lock) {
       await sleep(LOCK_INTERVAL_MS);
     }
   }
-  throw new Error(`state.mjs: could not acquire lock after ${LOCK_RETRIES} retries`);
+  throw new Error(
+    `state.mjs: could not acquire lock after ${LOCK_RETRIES} retries`,
+  );
 }
 
 async function releaseLock(lock) {
@@ -121,9 +133,17 @@ async function writeBackup(dir, label, content) {
     // Backup is best-effort; ignore errors.
   } finally {
     if (fh) {
-      try { await fh.close(); } catch { /* ignore */ }
+      try {
+        await fh.close();
+      } catch {
+        /* ignore */
+      }
     }
-    try { await unlink(tmp); } catch { /* ignore ENOENT */ }
+    try {
+      await unlink(tmp);
+    } catch {
+      /* ignore ENOENT */
+    }
   }
 }
 
@@ -170,7 +190,10 @@ async function readState(dir) {
  * @returns {object}
  */
 async function migrateIfNeeded(parsed, dir, rawBackup) {
-  if (typeof parsed.schemaVersion === 'number' && parsed.schemaVersion >= SCHEMA_VERSION) {
+  if (
+    typeof parsed.schemaVersion === 'number' &&
+    parsed.schemaVersion >= SCHEMA_VERSION
+  ) {
     return parsed;
   }
   // v0 or unknown — write backup atomically, then return upgraded in-memory state.
@@ -200,10 +223,18 @@ async function writeState(dir, state) {
     await rename(tmp, dest);
   } finally {
     if (fh) {
-      try { await fh.close(); } catch { /* ignore */ }
+      try {
+        await fh.close();
+      } catch {
+        /* ignore */
+      }
     }
     // Clean up tmp if rename failed
-    try { await unlink(tmp); } catch { /* ignore ENOENT */ }
+    try {
+      await unlink(tmp);
+    } catch {
+      /* ignore ENOENT */
+    }
   }
 }
 
@@ -279,7 +310,11 @@ export async function getSession(runtime, sessionId) {
  * Record the exclusive next unread zero-based JSONL record index for a session.
  * The field name is retained as lastRecordIndex for state-file compatibility.
  */
-export async function markRead(runtime, sessionId, { lastRecordIndex, lastTotalRecords, transcriptPath, recordedCwd }) {
+export async function markRead(
+  runtime,
+  sessionId,
+  { lastRecordIndex, lastTotalRecords, transcriptPath, recordedCwd },
+) {
   const key = sessionKey(runtime, sessionId);
   await mutate((state) => {
     const existing = state.sessions[key] ?? {};

@@ -32,12 +32,12 @@
  * fileURLToPath(new URL('./export-session-transcript.mjs', import.meta.url)).
  */
 
-import { parseArgs } from 'node:util';
-import { fileURLToPath } from 'node:url';
-import { dirname, join, basename } from 'node:path';
+import { execFile } from 'node:child_process';
 import { readdir, stat, mkdir, writeFile, readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
-import { execFile } from 'node:child_process';
+import { dirname, join, basename } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { parseArgs } from 'node:util';
 import { promisify } from 'node:util';
 
 const execFileAsync = promisify(execFile);
@@ -111,12 +111,15 @@ Exit codes: 0 ok · 1 hard error · 2 no candidates · 3 ambiguous`;
 function resolveRuntime(requested) {
   if (requested && requested !== 'auto') {
     if (!VALID_RUNTIMES.includes(requested)) {
-      throw new Error(`Unknown runtime: ${requested}. Expected one of ${VALID_RUNTIMES.join(', ')}.`);
+      throw new Error(
+        `Unknown runtime: ${requested}. Expected one of ${VALID_RUNTIMES.join(', ')}.`,
+      );
     }
     return requested;
   }
   // env hint (SESSION_OBSERVER_SELF-style), then best-effort auto-detect.
-  const hint = process.env.EXPORT_SESSION_SELF ?? process.env.SESSION_OBSERVER_SELF;
+  const hint =
+    process.env.EXPORT_SESSION_SELF ?? process.env.SESSION_OBSERVER_SELF;
   if (hint && VALID_RUNTIMES.includes(hint)) return hint;
   if (process.env.CLAUDECODE || process.env.CLAUDE_CODE) return 'claude-code';
   if (process.env.CODEX_SANDBOX || process.env.CODEX_HOME) return 'codex';
@@ -176,7 +179,11 @@ async function enumerateClaudeCode(targetCwd) {
       const st = await statCandidate(p);
       if (!st) continue;
       let meta;
-      try { meta = await extractMeta('claude-code', p); } catch { meta = null; }
+      try {
+        meta = await extractMeta('claude-code', p);
+      } catch {
+        meta = null;
+      }
       candidates.push({
         runtime: 'claude-code',
         transcriptPath: p,
@@ -199,7 +206,11 @@ async function enumerateCodex(targetCwd, { requireCwd = false } = {}) {
     if (!st) continue;
     if (st.mtime < cutoff) continue;
     let meta;
-    try { meta = await extractMeta('codex', p); } catch { meta = null; }
+    try {
+      meta = await extractMeta('codex', p);
+    } catch {
+      meta = null;
+    }
     // A resolved recordedCwd that differs from the target is always a non-match.
     if (meta?.recordedCwd && meta.recordedCwd !== targetCwd) continue;
     // When enumerating without an authoritative selector (--all / no-selector),
@@ -234,7 +245,9 @@ async function enumerateCursor(targetCwd) {
       const sessionPath = join(transcriptsRoot, sd.name);
       let files;
       try {
-        files = (await readdir(sessionPath)).filter((f) => f.endsWith('.jsonl'));
+        files = (await readdir(sessionPath)).filter((f) =>
+          f.endsWith('.jsonl'),
+        );
       } catch {
         continue;
       }
@@ -245,7 +258,11 @@ async function enumerateCursor(targetCwd) {
         const st = await statCandidate(p);
         if (!st) continue;
         let meta;
-        try { meta = await extractMeta('cursor', p); } catch { meta = null; }
+        try {
+          meta = await extractMeta('cursor', p);
+        } catch {
+          meta = null;
+        }
         candidates.push({
           runtime: 'cursor',
           transcriptPath: p,
@@ -258,7 +275,11 @@ async function enumerateCursor(targetCwd) {
   return candidates;
 }
 
-async function enumerateCandidates(runtime, targetCwd, { requireCwd = false } = {}) {
+async function enumerateCandidates(
+  runtime,
+  targetCwd,
+  { requireCwd = false } = {},
+) {
   if (runtime === 'claude-code') return enumerateClaudeCode(targetCwd);
   if (runtime === 'codex') return enumerateCodex(targetCwd, { requireCwd });
   if (runtime === 'cursor') return enumerateCursor(targetCwd);
@@ -296,7 +317,10 @@ async function selectSessions(opts, candidates) {
   if (opts.session) {
     const hit = candidates.find((c) => c.sessionId === opts.session);
     if (!hit) {
-      return { exit: 2, message: `No transcript found for session id "${opts.session}" in this cwd.` };
+      return {
+        exit: 2,
+        message: `No transcript found for session id "${opts.session}" in this cwd.`,
+      };
     }
     return { selected: [hit], warnings };
   }
@@ -310,7 +334,7 @@ async function selectSessions(opts, candidates) {
     // marker miss → newest-for-cwd fallback + warning (not fatal)
     const fallback = newest(candidates);
     warnings.push(
-      `marker "${opts.match}" not found in any candidate; falling back to newest-for-cwd transcript (${fallback.sessionId}). Re-run with --session <id> if this is the wrong session.`
+      `marker "${opts.match}" not found in any candidate; falling back to newest-for-cwd transcript (${fallback.sessionId}). Re-run with --session <id> if this is the wrong session.`,
     );
     return { selected: [fallback], warnings };
   }
@@ -323,7 +347,9 @@ async function selectSessions(opts, candidates) {
     exit: 3,
     message:
       `Multiple candidate sessions for this cwd and no --match/--session/--all.\n` +
-      candidates.map((c) => `  - ${c.sessionId} (${c.transcriptPath})`).join('\n') +
+      candidates
+        .map((c) => `  - ${c.sessionId} (${c.transcriptPath})`)
+        .join('\n') +
       `\nRe-run with --match <marker>, --session <id>, or --all.`,
   };
 }
@@ -334,9 +360,13 @@ async function selectSessions(opts, candidates) {
 
 async function gitBranch(cwd) {
   try {
-    const { stdout } = await execFileAsync('git', ['-C', cwd, 'symbolic-ref', '--short', 'HEAD'], {
-      timeout: 5000,
-    });
+    const { stdout } = await execFileAsync(
+      'git',
+      ['-C', cwd, 'symbolic-ref', '--short', 'HEAD'],
+      {
+        timeout: 5000,
+      },
+    );
     const branch = stdout.trim();
     return branch || null;
   } catch {
@@ -453,7 +483,14 @@ function renderMarkdown({ branch, source, runtime, entries, branchFromGit }) {
 // export one session → write file
 // ---------------------------------------------------------------------------
 
-async function exportSession(opts, runtime, branch, branchFromGit, session, multi) {
+async function exportSession(
+  opts,
+  runtime,
+  branch,
+  branchFromGit,
+  session,
+  multi,
+) {
   const records = await readRecords(session.transcriptPath);
   const normalized = normalizeEntries(runtime, records, {});
   const sanitized = sanitizeEntries(normalized, { runtime });
@@ -494,7 +531,7 @@ async function main() {
   }
   if (!runtime) {
     console.error(
-      '[export-session-transcript] Could not resolve runtime. Pass --runtime <claude-code|codex|cursor>.'
+      '[export-session-transcript] Could not resolve runtime. Pass --runtime <claude-code|codex|cursor>.',
     );
     return 1;
   }
@@ -518,7 +555,7 @@ async function main() {
     const [root] = discoverPaths(runtime);
     console.error(
       `[export-session-transcript] No ${runtime} transcripts found for cwd ${opts.cwd}.\n` +
-      `Looked under: ${root}\nTry --cwd <path> or confirm ${runtime} has run in this project.`
+        `Looked under: ${root}\nTry --cwd <path> or confirm ${runtime} has run in this project.`,
     );
     return 2;
   }
@@ -540,10 +577,21 @@ async function main() {
   const written = [];
   try {
     for (const session of selection.selected) {
-      written.push(await exportSession(opts, runtime, branch, branchFromGit, session, multi));
+      written.push(
+        await exportSession(
+          opts,
+          runtime,
+          branch,
+          branchFromGit,
+          session,
+          multi,
+        ),
+      );
     }
   } catch (err) {
-    console.error(`[export-session-transcript] Failed to write output: ${err.message}`);
+    console.error(
+      `[export-session-transcript] Failed to write output: ${err.message}`,
+    );
     return 1;
   }
 
@@ -554,7 +602,9 @@ async function main() {
 }
 
 main()
-  .then((code) => { process.exit(code ?? 0); })
+  .then((code) => {
+    process.exit(code ?? 0);
+  })
   .catch((err) => {
     console.error(`[export-session-transcript] ${err.stack ?? err.message}`);
     process.exit(1);

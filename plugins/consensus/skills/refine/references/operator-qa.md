@@ -32,6 +32,7 @@ paseo provider ls         # need >= 2 rows showing 'available' (e.g. claude + co
 
 > **Two real gotchas from dogfooding (2026-06-13), both surfaced as clean
 > errors in the artifact, not crashes):**
+>
 > - `DAEMON_NOT_RUNNING` → run `paseo daemon start`.
 > - `Provider '<x>' is not available` / "Available providers: none" → start the
 >   daemon from your login shell and make sure the provider is authenticated;
@@ -74,7 +75,7 @@ Two surfaces matter:
 
 **The NFR4 question to keep in mind while reading:** can you attribute every
 content change to a specific actor — peer A, peer B, the synthesizer, the host,
-or you (a user/host intervention) — and follow *why* each section concluded the
+or you (a user/host intervention) — and follow _why_ each section concluded the
 way it did, without consulting any state outside the artifact?
 
 ---
@@ -92,6 +93,7 @@ node plugins/consensus/skills/refine/scripts/consensus-refine.mjs \
 ```
 
 **Expect:**
+
 - `run_started` shows `iteration_mode: "alternating"`, `calls_per_round: { peer: 1, synthesis: 0 }`.
 - The email is a single logical section, so it converges in a handful of rounds.
 - Resolution: `Mode: alternating`, `Parallel: false`, `Calls: N peer; 0 synthesis`.
@@ -114,6 +116,7 @@ node plugins/consensus/skills/refine/scripts/consensus-refine.mjs \
 ```
 
 **Expect:**
+
 - `run_started` shows `iteration_mode: "parallel_revision"`, `calls_per_round: { peer: 2, synthesis: 0 }`.
 - The note has five `##` sections, so the log has five section blocks, each converging independently.
 - Each round records **both** peers' revisions **and a critique** (`own_previous` / `peer_previous`) — this is the parallel signal. You should be able to see each peer assessing the other's prior revision.
@@ -137,6 +140,7 @@ node plugins/consensus/skills/refine/scripts/consensus-refine.mjs \
 ```
 
 **Expect:**
+
 - `run_started` shows `iteration_mode: "parallel_synthesized"`, `calls_per_round: { peer: 2, synthesis: 1 }`.
 - Each round: both peers revise, then a **synthesis** block appears (`synthesized_artifact`, `synthesis_reasoning`, `unresolved_disagreements`). The synthesized text becomes the next round's shared input.
 - The synthesizer defaults to the first peer's provider — confirm the resolution block names it. (Try `--synthesizer codex` on a second run to see the identity change, or a cheaper provider if you have one configured.)
@@ -163,12 +167,13 @@ node plugins/consensus/skills/refine/scripts/consensus-refine.mjs \
   --output tmp/rust-escalation.consensus.md
 ```
 
-This goal is deliberately adversarial — it asks the peers to *not* converge, so
+This goal is deliberately adversarial — it asks the peers to _not_ converge, so
 the run is likely to exhaust its small budget or accumulate persistent
 disagreements and emit an escalation. (Convergence is also a valid outcome; if it
 converges, raise the tension in the goal or lower `--max-rounds` to 3.)
 
 **Expect, if it escalates:**
+
 - An `escalation_required` JSONL line with `trigger` (e.g. `persistent_disagreement` or `budget_exhausted`), `decide_via: "host"`, `decision_kinds` (including `defer_to_user`), both divergent revisions, and a `resume` vector: `{ artifact_path, flag: "--host-direction" }`.
 - The run exits at that section (headless behavior, like impasse). The artifact is written with the section marked escalation.
 
@@ -182,11 +187,13 @@ node plugins/consensus/skills/refine/scripts/consensus-refine.mjs \
 ```
 
 **Expect:**
+
 - The decision records as a `HOST_DECISION` orchestrator round in the deliberation log — **distinct from a user round** — carrying your text and the trigger it answered.
 - The section continues from there (budget refreshed like the user path).
 - **NFR4 check:** in the final artifact, can you tell the host made this call (vs. a peer or the user), and see what was decided and why?
 
 **Variations worth one run each:**
+
 - **Decline as host** — resume with `--host-decision-kind defer_to_user` and no/empty direction; the wrapper re-emits the escalation routed to the **user** (`promoted_from: "host"`). This is the "genuinely stuck → kick it up" path.
 - **Minimal agency** — rerun Scenario 4 with `--agency minimal`. The same stuck state should surface to **you as the user** directly (`decide_via: "user"`); resume with `--user-direction "..."` instead. This is the v0.1-equivalent path and proves minimal agency preserves the old behavior.
 - **Routing guard** — on a `decide_via: "user"` escalation, try `--host-direction "..."`; expect a fail-closed `ESCALATION_ROUTING` rejection (a host may not answer a user-routed escalation).

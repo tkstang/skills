@@ -9,7 +9,7 @@ user-invocable: true
 allowed-tools: Bash, Read, AskUserQuestion
 metadata:
   author: thomas.stang
-  version: "1.0.0"
+  version: '1.0.0'
 ---
 
 # session-observer
@@ -22,20 +22,20 @@ Lets you (Claude Code, Codex, or Cursor) inspect another runtime's transcript fo
 
 Use this skill when any of the following applies:
 
-| Trigger phrase | What to run |
-|---|---|
-| `check Codex` / `review the other terminal` / `summarize Codex's session` | `review --runtime codex` |
-| `check Claude` / `check what Claude said` | `review --runtime claude-code` |
-| `check Cursor` / `summarize Cursor's agent session` | `review --runtime cursor` |
-| `check again` / `anything new?` | `catch-up` (auto runtime) |
-| `what do you think of what was just said?` | `catch-up`, then comment |
-| `get up to speed` | `review` once, `catch-up` thereafter |
+| Trigger phrase                                                                              | What to run                                                            |
+| ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `check Codex` / `review the other terminal` / `summarize Codex's session`                   | `review --runtime codex`                                               |
+| `check Claude` / `check what Claude said`                                                   | `review --runtime claude-code`                                         |
+| `check Cursor` / `summarize Cursor's agent session`                                         | `review --runtime cursor`                                              |
+| `check again` / `anything new?`                                                             | `catch-up` (auto runtime)                                              |
+| `what do you think of what was just said?`                                                  | `catch-up`, then comment                                               |
+| `get up to speed`                                                                           | `review` once, `catch-up` thereafter                                   |
 | `start watching this session` / `keep watching Codex` / `respond when anything new appears` | `watch --runtime <peer> --until-stopped` or `--watch --runtime <peer>` |
-| `catch up and watch Claude` / `catch up, then keep watching <peer>` | `catch-up-then-watch --runtime <peer> --until-stopped` |
-| `which sessions are available?` / `find the session` | `locate` |
-| `reset / start over watching Codex` | `state reset --runtime codex`, then `review` |
+| `catch up and watch Claude` / `catch up, then keep watching <peer>`                         | `catch-up-then-watch --runtime <peer> --until-stopped`                 |
+| `which sessions are available?` / `find the session`                                        | `locate`                                                               |
+| `reset / start over watching Codex`                                                         | `state reset --runtime codex`, then `review`                           |
 
-**You are responsible for choosing the right subcommand.** When the trigger phrase is ambiguous (e.g. `"can you check?"`), ask the user: *"Full review of the session, or just what's new since last time?"*
+**You are responsible for choosing the right subcommand.** When the trigger phrase is ambiguous (e.g. `"can you check?"`), ask the user: _"Full review of the session, or just what's new since last time?"_
 
 ---
 
@@ -52,55 +52,55 @@ Use this skill when any of the following applies:
 
 ### Subcommands
 
-| Subcommand | Purpose | State change |
-|---|---|---|
-| `review` | Full digest from the start | None (unless `--mark-read` passed) |
-| `catch-up` | Delta: records since last read | Advances high-water mark on success |
-| `catch-up-then-watch` | Emit unread backlog, then enter foreground watcher | Advances high-water marks as backlog/deltas are consumed |
-| `locate` | Ranked candidate list (diagnostic) | None |
-| `state get` | Print current state | None |
-| `state reset --runtime <r>` | Reset all offsets for runtime | Zeroes `lastRecordIndex` |
-| `state reset --session <r:id>` | Reset one session | Zeroes `lastRecordIndex` |
-| `state clear` | Clear all tracked sessions | Empties `sessions` map |
-| `watch` | Foreground watcher for debounced catch-up updates | Advances high-water marks as emitted digests are consumed |
-| `watch-ctl status` | Print active watcher state | None |
-| `watch-ctl pause` | Pause event emission while polling continues | Writes a control directive |
-| `watch-ctl resume` | Resume event emission | Writes a control directive |
-| `watch-ctl flush` | Emit pending debounced updates immediately | Writes a control directive |
-| `watch-ctl stop` | Stop the active watcher | Signals the watcher and clears watch metadata on exit |
+| Subcommand                     | Purpose                                            | State change                                              |
+| ------------------------------ | -------------------------------------------------- | --------------------------------------------------------- |
+| `review`                       | Full digest from the start                         | None (unless `--mark-read` passed)                        |
+| `catch-up`                     | Delta: records since last read                     | Advances high-water mark on success                       |
+| `catch-up-then-watch`          | Emit unread backlog, then enter foreground watcher | Advances high-water marks as backlog/deltas are consumed  |
+| `locate`                       | Ranked candidate list (diagnostic)                 | None                                                      |
+| `state get`                    | Print current state                                | None                                                      |
+| `state reset --runtime <r>`    | Reset all offsets for runtime                      | Zeroes `lastRecordIndex`                                  |
+| `state reset --session <r:id>` | Reset one session                                  | Zeroes `lastRecordIndex`                                  |
+| `state clear`                  | Clear all tracked sessions                         | Empties `sessions` map                                    |
+| `watch`                        | Foreground watcher for debounced catch-up updates  | Advances high-water marks as emitted digests are consumed |
+| `watch-ctl status`             | Print active watcher state                         | None                                                      |
+| `watch-ctl pause`              | Pause event emission while polling continues       | Writes a control directive                                |
+| `watch-ctl resume`             | Resume event emission                              | Writes a control directive                                |
+| `watch-ctl flush`              | Emit pending debounced updates immediately         | Writes a control directive                                |
+| `watch-ctl stop`               | Stop the active watcher                            | Signals the watcher and clears watch metadata on exit     |
 
 ### Flags (all subcommands accept these)
 
-| Flag | Type | Default | Description |
-|---|---|---|---|
-| `--runtime <r>` | `claude-code\|codex\|cursor\|auto` | `auto` | Which runtime to read. `auto` picks the peer via `SESSION_OBSERVER_SELF`, a prior same-cwd state entry, or tier-population fallback. |
-| `--cwd <path>` | path | `process.cwd()` | Project directory to match transcripts against. |
-| `--include-tools` | boolean | false | Include compact `[ToolName] args` tool-call markers. |
-| `--include-command-messages` | boolean | false | Include Claude Code slash-command payload records such as `<command-message>…</command-message>`. |
-| `--debug` | boolean | false | Shorthand for `--include-tools --include-tool-results`. Adds `[ToolName → result] output` entries. For `locate --json`, includes lookup diagnostics such as Claude's expected project-dir slugs. |
-| `--include-tool-results` | boolean | false | Include tool-result markers without tool-call markers (unusual; emits a note suggesting `--debug`). |
-| `--json` | boolean | false | Machine-readable JSON output (default is markdown). |
-| `--max-turns N` | integer | — | Tail-slice to last N turn groups. |
-| `--max-bytes N` | integer | — | Tail-slice to last N bytes of content. |
-| `--session <r:id>` | string | — | Pin to a specific `runtime:sessionId`. Overrides rank winner. |
-| `--snippet <text>` | string | — | Prefer candidate transcripts containing this excerpt. Use when the user identifies a session by its last message or a memorable phrase. |
-| `--mark-read` | boolean | false | Advance the high-water mark after a `review` run. |
-| `--watch` | boolean | false | Top-level alias for the `watch` subcommand. |
+| Flag                         | Type                               | Default         | Description                                                                                                                                                                                      |
+| ---------------------------- | ---------------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `--runtime <r>`              | `claude-code\|codex\|cursor\|auto` | `auto`          | Which runtime to read. `auto` picks the peer via `SESSION_OBSERVER_SELF`, a prior same-cwd state entry, or tier-population fallback.                                                             |
+| `--cwd <path>`               | path                               | `process.cwd()` | Project directory to match transcripts against.                                                                                                                                                  |
+| `--include-tools`            | boolean                            | false           | Include compact `[ToolName] args` tool-call markers.                                                                                                                                             |
+| `--include-command-messages` | boolean                            | false           | Include Claude Code slash-command payload records such as `<command-message>…</command-message>`.                                                                                                |
+| `--debug`                    | boolean                            | false           | Shorthand for `--include-tools --include-tool-results`. Adds `[ToolName → result] output` entries. For `locate --json`, includes lookup diagnostics such as Claude's expected project-dir slugs. |
+| `--include-tool-results`     | boolean                            | false           | Include tool-result markers without tool-call markers (unusual; emits a note suggesting `--debug`).                                                                                              |
+| `--json`                     | boolean                            | false           | Machine-readable JSON output (default is markdown).                                                                                                                                              |
+| `--max-turns N`              | integer                            | —               | Tail-slice to last N turn groups.                                                                                                                                                                |
+| `--max-bytes N`              | integer                            | —               | Tail-slice to last N bytes of content.                                                                                                                                                           |
+| `--session <r:id>`           | string                             | —               | Pin to a specific `runtime:sessionId`. Overrides rank winner.                                                                                                                                    |
+| `--snippet <text>`           | string                             | —               | Prefer candidate transcripts containing this excerpt. Use when the user identifies a session by its last message or a memorable phrase.                                                          |
+| `--mark-read`                | boolean                            | false           | Advance the high-water mark after a `review` run.                                                                                                                                                |
+| `--watch`                    | boolean                            | false           | Top-level alias for the `watch` subcommand.                                                                                                                                                      |
 
 ### Watch-only flags
 
-| Flag | Type | Default | Description |
-|---|---|---|---|
-| `--runtime <r>` | `claude-code\|codex\|cursor\|auto\|both` | `auto` | Which runtime to watch. `both` watches Claude Code and Codex in one foreground process. |
-| `--debounce-sec N` | number | `2` | Seconds of quiet before emitting a catch-up digest. |
-| `--poll-sec N` | number | `2` | Poll interval in seconds. |
-| `--max-pending-sec N` | number | `30` | Maximum seconds to hold continuous transcript changes before emitting even if the file never goes quiet. |
-| `--max-runtime-min N` | number | `0` | Auto-exit after N minutes; `0` runs until stopped. |
-| `--heartbeat-sec N` | number | `120` | Emit quiet metadata/status heartbeat lines every N seconds; `0` disables heartbeats. |
-| `--until-stopped` | boolean | false | Alias posture for unlimited foreground watching. Equivalent to `--max-runtime-min 0`. |
-| `--interactive` | boolean | false | Alias posture for live collaboration. Equivalent to `--max-runtime-min 0`. |
-| `--event-log <path>` | path | — | Write metadata-only JSONL event records. Message content stays on stdout. |
-| `--json` | boolean | false | Emit each watch event as one JSON line instead of markdown. |
+| Flag                  | Type                                     | Default | Description                                                                                              |
+| --------------------- | ---------------------------------------- | ------- | -------------------------------------------------------------------------------------------------------- |
+| `--runtime <r>`       | `claude-code\|codex\|cursor\|auto\|both` | `auto`  | Which runtime to watch. `both` watches Claude Code and Codex in one foreground process.                  |
+| `--debounce-sec N`    | number                                   | `2`     | Seconds of quiet before emitting a catch-up digest.                                                      |
+| `--poll-sec N`        | number                                   | `2`     | Poll interval in seconds.                                                                                |
+| `--max-pending-sec N` | number                                   | `30`    | Maximum seconds to hold continuous transcript changes before emitting even if the file never goes quiet. |
+| `--max-runtime-min N` | number                                   | `0`     | Auto-exit after N minutes; `0` runs until stopped.                                                       |
+| `--heartbeat-sec N`   | number                                   | `120`   | Emit quiet metadata/status heartbeat lines every N seconds; `0` disables heartbeats.                     |
+| `--until-stopped`     | boolean                                  | false   | Alias posture for unlimited foreground watching. Equivalent to `--max-runtime-min 0`.                    |
+| `--interactive`       | boolean                                  | false   | Alias posture for live collaboration. Equivalent to `--max-runtime-min 0`.                               |
+| `--event-log <path>`  | path                                     | —       | Write metadata-only JSONL event records. Message content stays on stdout.                                |
+| `--json`              | boolean                                  | false   | Emit each watch event as one JSON line instead of markdown.                                              |
 
 ### Default content filter
 
@@ -116,7 +116,7 @@ If a digest would exceed the large-output threshold, the CLI automatically falls
 
 Before running the CLI, resolve any ambiguity:
 
-1. **Mode ambiguous** (`"can you check?"` with no verb hint) → ask: *"Full review, or just what's new since last time?"*
+1. **Mode ambiguous** (`"can you check?"` with no verb hint) → ask: _"Full review, or just what's new since last time?"_
 2. **Runtime ambiguous** — default to `--runtime auto`. If multiple runtimes have matching transcripts, `auto` first checks whether the state file has exactly one previously read session for this cwd and reuses that runtime; otherwise it exits 3 with `ambiguousRuntime`.
 3. **User identifies a session by text** — run `locate --runtime <r> --cwd "$PWD" --json --snippet "<excerpt>"`, confirm the matched `sessionId`/`recordedCwd`, then re-run with `--session <runtime>:<id>` if needed.
 4. **Ties within winning tier** (exit 3 with `ties`) — present the top candidates; ask which to use; re-invoke with `--session <runtime>:<id>`.
@@ -142,13 +142,13 @@ node <skill-dir>/scripts/session-observer.mjs <subcommand> [flags]
 
 **Exit code handling:**
 
-| Exit code | Meaning | What to do |
-|---|---|---|
-| 0 | Success | Proceed to Step 3. |
-| 1 | Hard error | Surface the error; do not update state. |
-| 2 | No candidates (noMatch / noCandidates) | Offer widening options from the JSON payload (`sisters`, `globalRecent`). Do not silently jump to an unrelated globally recent transcript. |
-| 3 | Needs user input (ties / ambiguousRuntime) | Present options from the JSON payload; re-invoke with `--session` or `--runtime`. |
-| 4 | Schema mismatch | Auto-migrated (should not reach SKILL.md); report if seen. |
+| Exit code | Meaning                                    | What to do                                                                                                                                 |
+| --------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| 0         | Success                                    | Proceed to Step 3.                                                                                                                         |
+| 1         | Hard error                                 | Surface the error; do not update state.                                                                                                    |
+| 2         | No candidates (noMatch / noCandidates)     | Offer widening options from the JSON payload (`sisters`, `globalRecent`). Do not silently jump to an unrelated globally recent transcript. |
+| 3         | Needs user input (ties / ambiguousRuntime) | Present options from the JSON payload; re-invoke with `--session` or `--runtime`.                                                          |
+| 4         | Schema mismatch                            | Auto-migrated (should not reach SKILL.md); report if seen.                                                                                 |
 
 **Per-mode CLI templates:**
 
@@ -196,16 +196,19 @@ node <skill-dir>/scripts/session-observer.mjs watch-ctl stop
 **JSON output for exit-2 / exit-3 payloads:**
 
 Pass `--json` to get machine-readable output. On exit 2 (noMatch):
+
 ```json
 { "noMatch": true, "sisters": [...], "globalRecent": [...] }
 ```
 
 On exit 3 (ties):
+
 ```json
 { "ties": true, "candidates": [{ "runtime": "...", "sessionId": "...", ... }] }
 ```
 
 On exit 3 (ambiguousRuntime):
+
 ```json
 { "ambiguousRuntime": true, "runtimes": ["claude-code", "codex", "cursor"] }
 ```
@@ -295,7 +298,7 @@ node skills/session-observer/scripts/session-observer.mjs \
   review --runtime codex --cwd "$PWD"
 ```
 
-*(Reads digest output.)*
+_(Reads digest output.)_
 
 Codex has been working on the authentication module. The last few exchanges show it added `src/auth/token.ts` and ran a build check. No errors were reported. Want me to catch up on anything that arrives next?
 

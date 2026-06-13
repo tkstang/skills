@@ -29,13 +29,17 @@
  *        within LOOKBACK_DAYS and preserve cwdSlug as weak ranking evidence.
  */
 
+import { execFile } from 'node:child_process';
 import { readdir, stat, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join, basename } from 'node:path';
-import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+
 import { discoverPaths, encodeCwdVariants, extractMeta } from './runtimes.mjs';
-import { classifyTranscript, engagementCandidateFields } from './session-classifier.mjs';
+import {
+  classifyTranscript,
+  engagementCandidateFields,
+} from './session-classifier.mjs';
 
 const execFileAsync = promisify(execFile);
 
@@ -47,7 +51,9 @@ const LOOKBACK_DAYS = 7;
 
 async function candidateEngagementFields(runtime, transcriptPath) {
   try {
-    return engagementCandidateFields(await classifyTranscript(runtime, transcriptPath));
+    return engagementCandidateFields(
+      await classifyTranscript(runtime, transcriptPath),
+    );
   } catch {
     return engagementCandidateFields({
       status: 'unknown',
@@ -75,7 +81,8 @@ async function candidateEngagementFields(runtime, transcriptPath) {
  */
 function cwdCachePath() {
   const stateDir =
-    process.env.STATE_DIR ?? join(homedir(), '.local', 'state', 'session-observer');
+    process.env.STATE_DIR ??
+    join(homedir(), '.local', 'state', 'session-observer');
   return join(stateDir, 'codex-cwd-cache.json');
 }
 
@@ -142,7 +149,7 @@ async function discoverClaudeCode(targetCwd) {
     const encodedDir = join(projectsRoot, encoded);
     try {
       const entries = await readdir(encodedDir);
-      const jsonlFiles = entries.filter(e => e.endsWith('.jsonl'));
+      const jsonlFiles = entries.filter((e) => e.endsWith('.jsonl'));
 
       for (const file of jsonlFiles) {
         const transcriptPath = join(encodedDir, file);
@@ -166,7 +173,8 @@ async function discoverClaudeCode(targetCwd) {
           meta = null;
         }
 
-        const sessionId = meta?.sessionId ?? basename(transcriptPath).replace(/\.jsonl$/, '');
+        const sessionId =
+          meta?.sessionId ?? basename(transcriptPath).replace(/\.jsonl$/, '');
 
         candidates.push({
           runtime: 'claude-code',
@@ -209,7 +217,7 @@ async function discoverClaudeCode(targetCwd) {
         continue;
       }
 
-      const jsonlFiles = dirEntries.filter(e => e.endsWith('.jsonl'));
+      const jsonlFiles = dirEntries.filter((e) => e.endsWith('.jsonl'));
       for (const file of jsonlFiles) {
         const transcriptPath = join(projectDir, file);
         if (seenTranscripts.has(transcriptPath)) continue;
@@ -232,7 +240,8 @@ async function discoverClaudeCode(targetCwd) {
           meta = null;
         }
 
-        const sessionId = meta?.sessionId ?? basename(transcriptPath).replace(/\.jsonl$/, '');
+        const sessionId =
+          meta?.sessionId ?? basename(transcriptPath).replace(/\.jsonl$/, '');
         // Glob fallback: recordedCwd comes from the (approximate) decode
         const recordedCwd = meta?.recordedCwd ?? null;
 
@@ -359,7 +368,8 @@ async function discoverCodex(targetCwd) {
         meta = null;
       }
       recordedCwd = meta?.recordedCwd ?? null;
-      sessionId = meta?.sessionId ?? basename(transcriptPath).replace(/\.jsonl$/, '');
+      sessionId =
+        meta?.sessionId ?? basename(transcriptPath).replace(/\.jsonl$/, '');
 
       // Populate cache with both recordedCwd and sessionId
       cache[key] = { recordedCwd, sessionId };
@@ -460,7 +470,8 @@ async function cursorCandidate(transcriptPath, now, evidence, fileStat = null) {
   return {
     runtime: 'cursor',
     transcriptPath,
-    sessionId: meta?.sessionId ?? basename(transcriptPath).replace(/\.jsonl$/, ''),
+    sessionId:
+      meta?.sessionId ?? basename(transcriptPath).replace(/\.jsonl$/, ''),
     recordedCwd: evidence.recordedCwd,
     cwdSlug: evidence.cwdSlug,
     cwdEvidence: evidence.cwdEvidence,
@@ -492,7 +503,8 @@ async function discoverCursor(targetCwd) {
   // an empty direct dir should still fall through to the fallback project scan.
   for (const encoded of encodedVariants) {
     const transcriptsRoot = join(projectsRoot, encoded, 'agent-transcripts');
-    const transcriptPaths = await collectCursorAgentTranscripts(transcriptsRoot);
+    const transcriptPaths =
+      await collectCursorAgentTranscripts(transcriptsRoot);
     if (transcriptPaths.length === 0) continue;
 
     directHit = true;
@@ -522,8 +534,13 @@ async function discoverCursor(targetCwd) {
     if (!projectDir.isDirectory()) continue;
     if (encodedVariants.includes(projectDir.name)) continue;
 
-    const transcriptsRoot = join(projectsRoot, projectDir.name, 'agent-transcripts');
-    const transcriptPaths = await collectCursorAgentTranscripts(transcriptsRoot);
+    const transcriptsRoot = join(
+      projectsRoot,
+      projectDir.name,
+      'agent-transcripts',
+    );
+    const transcriptPaths =
+      await collectCursorAgentTranscripts(transcriptsRoot);
 
     for (const transcriptPath of transcriptPaths) {
       if (seenTranscripts.has(transcriptPath)) continue;
@@ -539,11 +556,16 @@ async function discoverCursor(targetCwd) {
       const mtime = Math.floor(fileStat.mtime.getTime() / 1000);
       if (mtime < cutoffSec) continue;
 
-      const candidate = await cursorCandidate(transcriptPath, now, {
-        recordedCwd: null,
-        cwdSlug: projectDir.name,
-        cwdEvidence: 'project-dir-slug',
-      }, fileStat);
+      const candidate = await cursorCandidate(
+        transcriptPath,
+        now,
+        {
+          recordedCwd: null,
+          cwdSlug: projectDir.name,
+          cwdEvidence: 'project-dir-slug',
+        },
+        fileStat,
+      );
       if (candidate) candidates.push(candidate);
     }
   }
@@ -579,9 +601,13 @@ export async function discover(runtime, targetCwd) {
  */
 export async function gitWorktrees(cwd) {
   try {
-    const { stdout } = await execFileAsync('git', ['-C', cwd, 'worktree', 'list', '--porcelain'], {
-      timeout: 5000,
-    });
+    const { stdout } = await execFileAsync(
+      'git',
+      ['-C', cwd, 'worktree', 'list', '--porcelain'],
+      {
+        timeout: 5000,
+      },
+    );
     const paths = [];
     for (const line of stdout.split('\n')) {
       if (line.startsWith('worktree ')) {

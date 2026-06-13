@@ -5,10 +5,14 @@ import path from 'node:path';
 import test from 'node:test';
 
 import {
+  EXIT_CODES,
+  hashArtifact,
+  routeEscalation,
+} from '../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
+import {
   parseDeliberationArtifactForResume,
-  renderDeliberationArtifact
+  renderDeliberationArtifact,
 } from '../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
-import { EXIT_CODES, hashArtifact, routeEscalation } from '../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
 
 const revisedIntro = '# Intro\n\nClearer intro.\n';
 const stalledDetails = '## Details\n\nStill unresolved.\n';
@@ -17,7 +21,7 @@ const strictHashOptions = {
   normalizeLineEndings: false,
   trimTrailingWhitespace: false,
   collapseEofNewlines: false,
-  finalNewline: false
+  finalNewline: false,
 };
 
 function consensusBlock(label, value) {
@@ -47,7 +51,7 @@ function artifact({ schemaVersion = 'v1' } = {}) {
       status: 'partial',
       mode: 'sequential',
       parallel: false,
-      peers: ['claude', 'codex']
+      peers: ['claude', 'codex'],
     }),
     '',
     '## Section States',
@@ -60,7 +64,7 @@ function artifact({ schemaVersion = 'v1' } = {}) {
         status: 'converged',
         turns: 2,
         rounds: 1,
-        final_artifact_hash: introHash
+        final_artifact_hash: introHash,
       },
       {
         id: 'details-1',
@@ -69,8 +73,8 @@ function artifact({ schemaVersion = 'v1' } = {}) {
         status: 'max-rounds',
         turns: 3,
         rounds: 2,
-        final_artifact_hash: detailsHash
-      }
+        final_artifact_hash: detailsHash,
+      },
     ]),
     '',
     '## Deliberation Log',
@@ -83,20 +87,20 @@ function artifact({ schemaVersion = 'v1' } = {}) {
       termination_reason: 'hash_match',
       turns: 2,
       rounds: 1,
-      final_artifact_hash: introHash
+      final_artifact_hash: introHash,
     }),
     '',
     consensusBlock('consensus-verdict', {
       schema_version: 'v0',
       verdict: 'REVISE',
       reasoning: 'Tightened.',
-      proposed_artifact: revisedIntro
+      proposed_artifact: revisedIntro,
     }),
     '',
     consensusBlock('consensus-verdict', {
       schema_version: 'v0',
       verdict: 'ACCEPT',
-      reasoning: 'Good.'
+      reasoning: 'Good.',
     }),
     '',
     '### 2. Details (max-rounds)',
@@ -107,16 +111,16 @@ function artifact({ schemaVersion = 'v1' } = {}) {
       termination_reason: 'max_rounds_exhausted',
       turns: 3,
       rounds: 2,
-      final_artifact_hash: detailsHash
+      final_artifact_hash: detailsHash,
     }),
     '',
     consensusBlock('consensus-verdict', {
       schema_version: 'v0',
       verdict: 'REVISE',
       reasoning: 'Needs more specificity.',
-      proposed_artifact: stalledDetails
+      proposed_artifact: stalledDetails,
     }),
-    ''
+    '',
   ].join('\n');
 }
 
@@ -141,7 +145,7 @@ function acceptOnlyArtifact() {
       status: 'converged',
       mode: 'sequential',
       parallel: false,
-      peers: ['claude', 'codex']
+      peers: ['claude', 'codex'],
     }),
     '',
     '## Section States',
@@ -155,8 +159,8 @@ function acceptOnlyArtifact() {
         turns: 2,
         rounds: 1,
         final_artifact_hash: introHash,
-        final_output: acceptedIntro
-      }
+        final_output: acceptedIntro,
+      },
     ]),
     '',
     '## Deliberation Log',
@@ -169,21 +173,21 @@ function acceptOnlyArtifact() {
       termination_reason: 'accept_twice',
       turns: 2,
       rounds: 1,
-      final_artifact_hash: introHash
+      final_artifact_hash: introHash,
     }),
     '',
     consensusBlock('consensus-verdict', {
       schema_version: 'v0',
       verdict: 'ACCEPT',
-      reasoning: 'Stable.'
+      reasoning: 'Stable.',
     }),
     '',
     consensusBlock('consensus-verdict', {
       schema_version: 'v0',
       verdict: 'ACCEPT',
-      reasoning: 'Still stable.'
+      reasoning: 'Still stable.',
     }),
-    ''
+    '',
   ].join('\n');
 }
 
@@ -211,7 +215,7 @@ function minimalAgencyArtifactWithTrailingWhitespace() {
       mode: 'sequential',
       parallel: false,
       agency: 'minimal',
-      peers: ['claude', 'codex']
+      peers: ['claude', 'codex'],
     }),
     '',
     '## Section States',
@@ -225,8 +229,8 @@ function minimalAgencyArtifactWithTrailingWhitespace() {
         turns: 2,
         rounds: 1,
         final_artifact_hash: outputHash,
-        final_output: output
-      }
+        final_output: output,
+      },
     ]),
     '',
     '## Deliberation Log',
@@ -239,22 +243,22 @@ function minimalAgencyArtifactWithTrailingWhitespace() {
       termination_reason: 'accept_twice',
       turns: 2,
       rounds: 1,
-      final_artifact_hash: outputHash
+      final_artifact_hash: outputHash,
     }),
     '',
     consensusBlock('consensus-verdict', {
       schema_version: 'v0',
       verdict: 'REVISE',
       reasoning: 'Preserve whitespace for strict mode.',
-      proposed_artifact: output
+      proposed_artifact: output,
     }),
     '',
     consensusBlock('consensus-verdict', {
       schema_version: 'v0',
       verdict: 'ACCEPT',
-      reasoning: 'Strict bytes match.'
+      reasoning: 'Strict bytes match.',
     }),
-    ''
+    '',
   ].join('\n');
 }
 
@@ -266,37 +270,48 @@ test('parseDeliberationArtifactForResume reads frontmatter and canonical state b
   assert.equal(parsed.resolution.mode, 'sequential');
   assert.deepEqual(
     parsed.sectionStates.map((section) => section.id),
-    ['intro-0', 'details-1']
+    ['intro-0', 'details-1'],
   );
   assert.deepEqual(
     parsed.sections.map((section) => ({
       id: section.id,
       completed: section.completed,
       inFlight: section.inFlight,
-      recordCount: section.records.length
+      recordCount: section.records.length,
     })),
     [
       { id: 'intro-0', completed: true, inFlight: false, recordCount: 2 },
-      { id: 'details-1', completed: false, inFlight: true, recordCount: 1 }
-    ]
+      { id: 'details-1', completed: false, inFlight: true, recordCount: 1 },
+    ],
   );
-  assert.deepEqual(parsed.inFlightSections.map((section) => section.id), ['details-1']);
+  assert.deepEqual(
+    parsed.inFlightSections.map((section) => section.id),
+    ['details-1'],
+  );
 });
 
 test('parseDeliberationArtifactForResume uses canonical final output for ACCEPT-only completed sections', async () => {
   const parsed = await parseDeliberationArtifactForResume(acceptOnlyArtifact());
 
   assert.equal(parsed.sections[0].resumedArtifact, acceptedIntro);
-  assert.equal(parsed.sections[0].resumedArtifactHash, hashArtifact(acceptedIntro));
+  assert.equal(
+    parsed.sections[0].resumedArtifactHash,
+    hashArtifact(acceptedIntro),
+  );
 });
 
 test('parseDeliberationArtifactForResume validates minimal-agency hashes bytewise', async () => {
   const output = '# Intro\n\nKeep trailing spaces here.  \n';
-  const parsed = await parseDeliberationArtifactForResume(minimalAgencyArtifactWithTrailingWhitespace());
+  const parsed = await parseDeliberationArtifactForResume(
+    minimalAgencyArtifactWithTrailingWhitespace(),
+  );
 
   assert.equal(parsed.resolution.agency, 'minimal');
   assert.equal(parsed.sections[0].resumedArtifact, output);
-  assert.equal(parsed.sections[0].resumedArtifactHash, hashArtifact(output, strictHashOptions));
+  assert.equal(
+    parsed.sections[0].resumedArtifactHash,
+    hashArtifact(output, strictHashOptions),
+  );
 });
 
 test('parseDeliberationArtifactForResume accepts a file path input', async () => {
@@ -313,7 +328,7 @@ test('parseDeliberationArtifactForResume accepts a file path input', async () =>
 test('parseDeliberationArtifactForResume rejects unsupported schema versions', async () => {
   await assert.rejects(
     parseDeliberationArtifactForResume(artifact({ schemaVersion: 'v9' })),
-    /consensus_schema_version/i
+    /consensus_schema_version/i,
   );
 });
 
@@ -330,7 +345,7 @@ test('parseDeliberationArtifactForResume rejects v0 artifacts with no migration'
       assert.match(error.message, /v1/);
       assert.match(error.message, /no migration|not migrat/i);
       return true;
-    }
+    },
   );
 });
 
@@ -368,7 +383,7 @@ function synthesizedArtifact({ tamperSynthesisHash = false } = {}) {
       iteration: 'parallel_synthesized',
       synthesizer: 'claude',
       agency: 'moderate',
-      peers: ['claude', 'codex']
+      peers: ['claude', 'codex'],
     }),
     '',
     '## Section States',
@@ -382,8 +397,8 @@ function synthesizedArtifact({ tamperSynthesisHash = false } = {}) {
         turns: 2,
         rounds: 1,
         final_artifact_hash: synthHash,
-        final_output: synthesizedText
-      }
+        final_output: synthesizedText,
+      },
     ]),
     '',
     '## Deliberation Log',
@@ -398,7 +413,7 @@ function synthesizedArtifact({ tamperSynthesisHash = false } = {}) {
       rounds: 1,
       iteration_mode: 'parallel_synthesized',
       synthesizer: 'claude',
-      final_artifact_hash: synthHash
+      final_artifact_hash: synthHash,
     }),
     '',
     consensusBlock('consensus-verdict', {
@@ -406,7 +421,7 @@ function synthesizedArtifact({ tamperSynthesisHash = false } = {}) {
       verdict: 'REVISE',
       reasoning: 'Peer A revises.',
       critique: { own_previous: 'own A', peer_previous: 'peer A' },
-      proposed_artifact: peerRevisionA
+      proposed_artifact: peerRevisionA,
     }),
     '',
     consensusBlock('consensus-verdict', {
@@ -414,7 +429,7 @@ function synthesizedArtifact({ tamperSynthesisHash = false } = {}) {
       verdict: 'REVISE',
       reasoning: 'Peer B revises.',
       critique: { own_previous: 'own B', peer_previous: 'peer B' },
-      proposed_artifact: peerRevisionB
+      proposed_artifact: peerRevisionB,
     }),
     '',
     consensusBlock('consensus-synthesis', {
@@ -424,7 +439,9 @@ function synthesizedArtifact({ tamperSynthesisHash = false } = {}) {
       synthesized_artifact: synthesizedText,
       synthesis_reasoning: 'Merged both revisions.',
       unresolved_disagreements: ['Heading capitalization unresolved.'],
-      artifact_hash: tamperSynthesisHash ? hashArtifact('tampered\n') : synthHash
+      artifact_hash: tamperSynthesisHash
+        ? hashArtifact('tampered\n')
+        : synthHash,
     }),
     '',
     consensusBlock('consensus-verdict', {
@@ -432,14 +449,16 @@ function synthesizedArtifact({ tamperSynthesisHash = false } = {}) {
       verdict: 'HOST_DECISION',
       reasoning: 'Adopt the merge.',
       decision_kind: 'blend',
-      escalation_trigger: 'persistent_disagreement'
+      escalation_trigger: 'persistent_disagreement',
     }),
-    ''
+    '',
   ].join('\n');
 }
 
 test('parseDeliberationArtifactForResume round-trips parallel_synthesized canonical blocks', async () => {
-  const parsed = await parseDeliberationArtifactForResume(synthesizedArtifact());
+  const parsed = await parseDeliberationArtifactForResume(
+    synthesizedArtifact(),
+  );
 
   // Mode, synthesizer, and agency restored from the resolution block.
   assert.equal(parsed.resolution.iteration, 'parallel_synthesized');
@@ -451,12 +470,16 @@ test('parseDeliberationArtifactForResume round-trips parallel_synthesized canoni
 
   // The record stream preserves the peer pair, the synthesis record, and the
   // attributed intervention round so the loop can derive resume state.
-  const synthesis = section.records.find((record) => record.record_type === 'synthesis');
+  const synthesis = section.records.find(
+    (record) => record.record_type === 'synthesis',
+  );
   assert.ok(synthesis, 'synthesis record preserved in resume stream');
   assert.equal(synthesis.synthesized_artifact, synthesizedText);
   assert.equal(synthesis.schema_version, 'v1');
 
-  const hostRound = section.records.find((record) => record.verdict === 'HOST_DECISION');
+  const hostRound = section.records.find(
+    (record) => record.verdict === 'HOST_DECISION',
+  );
   assert.ok(hostRound, 'intervention round preserved in resume stream');
   assert.equal(hostRound.agent, 'host-orchestrator');
 
@@ -468,11 +491,14 @@ test('parseDeliberationArtifactForResume round-trips parallel_synthesized canoni
 test('parseDeliberationArtifactForResume fails closed on a tampered synthesis hash', async () => {
   const runDir = await mkdtemp(path.join(os.tmpdir(), 'resume-synth-corrupt-'));
   await assert.rejects(
-    parseDeliberationArtifactForResume(synthesizedArtifact({ tamperSynthesisHash: true }), { runDir }),
+    parseDeliberationArtifactForResume(
+      synthesizedArtifact({ tamperSynthesisHash: true }),
+      { runDir },
+    ),
     (error) => {
       assert.equal(error.code, 'RESUME_CORRUPT');
       return true;
-    }
+    },
   );
 });
 
@@ -506,7 +532,7 @@ function pendingSynthesisArtifact() {
       iteration: 'parallel_synthesized',
       synthesizer: 'claude',
       agency: 'moderate',
-      peers: ['claude', 'codex']
+      peers: ['claude', 'codex'],
     }),
     '',
     '## Section States',
@@ -520,8 +546,8 @@ function pendingSynthesisArtifact() {
         turns: 2,
         rounds: 1,
         final_artifact_hash: pairHash,
-        final_output: peerRevisionB
-      }
+        final_output: peerRevisionB,
+      },
     ]),
     '',
     '## Deliberation Log',
@@ -535,7 +561,7 @@ function pendingSynthesisArtifact() {
       turns: 2,
       rounds: 1,
       iteration_mode: 'parallel_synthesized',
-      final_artifact_hash: pairHash
+      final_artifact_hash: pairHash,
     }),
     '',
     consensusBlock('consensus-verdict', {
@@ -543,7 +569,7 @@ function pendingSynthesisArtifact() {
       verdict: 'REVISE',
       reasoning: 'Peer A revises.',
       critique: { own_previous: 'own A', peer_previous: 'peer A' },
-      proposed_artifact: peerRevisionA
+      proposed_artifact: peerRevisionA,
     }),
     '',
     consensusBlock('consensus-verdict', {
@@ -551,23 +577,27 @@ function pendingSynthesisArtifact() {
       verdict: 'REVISE',
       reasoning: 'Peer B revises.',
       critique: { own_previous: 'own B', peer_previous: 'peer B' },
-      proposed_artifact: peerRevisionB
+      proposed_artifact: peerRevisionB,
     }),
-    ''
+    '',
   ].join('\n');
 }
 
 test('parseDeliberationArtifactForResume derives pending-synthesis from a pair without synthesis', async () => {
-  const parsed = await parseDeliberationArtifactForResume(pendingSynthesisArtifact());
+  const parsed = await parseDeliberationArtifactForResume(
+    pendingSynthesisArtifact(),
+  );
   const [section] = parsed.sections;
 
   assert.equal(section.inFlight, true);
-  const peerRevisions = section.records.filter((record) => record.record_type !== 'synthesis');
+  const peerRevisions = section.records.filter(
+    (record) => record.record_type !== 'synthesis',
+  );
   assert.equal(peerRevisions.length, 2, 'committed peer pair preserved');
   assert.equal(
     section.records.some((record) => record.record_type === 'synthesis'),
     false,
-    'no synthesis record present (pending-synthesis)'
+    'no synthesis record present (pending-synthesis)',
   );
 });
 
@@ -601,7 +631,7 @@ function hostDecisionRunResult() {
           peer_calls: 4,
           synthesis_calls: 2,
           termination_reason: 'escalation',
-          final_artifact_hash: hashArtifact(revision)
+          final_artifact_hash: hashArtifact(revision),
         },
         records: [
           {
@@ -611,7 +641,7 @@ function hostDecisionRunResult() {
             agent: 'claude',
             verdict: 'REVISE',
             reasoning: 'Still diverging.',
-            proposed_artifact: revision
+            proposed_artifact: revision,
           },
           {
             schema_version: 'v1',
@@ -622,23 +652,27 @@ function hostDecisionRunResult() {
             reasoning: 'Blend the two revisions and continue.',
             decision_kind: 'blend',
             escalation_trigger: 'persistent_disagreement',
-            iteration_mode: 'parallel_synthesized'
-          }
-        ]
-      }
-    ]
+            iteration_mode: 'parallel_synthesized',
+          },
+        ],
+      },
+    ],
   };
 }
 
 function extractVerdictBlocks(artifactText) {
-  return [...artifactText.matchAll(/<!-- consensus:consensus-verdict\n([\s\S]*?)\n-->/g)].map((match) =>
-    JSON.parse(match[1])
-  );
+  return [
+    ...artifactText.matchAll(
+      /<!-- consensus:consensus-verdict\n([\s\S]*?)\n-->/g,
+    ),
+  ].map((match) => JSON.parse(match[1]));
 }
 
 test('renderDeliberationArtifact persists HOST_DECISION routing metadata in the canonical block', () => {
   const artifact = renderDeliberationArtifact(hostDecisionRunResult());
-  const hostBlock = extractVerdictBlocks(artifact).find((block) => block.verdict === 'HOST_DECISION');
+  const hostBlock = extractVerdictBlocks(artifact).find(
+    (block) => block.verdict === 'HOST_DECISION',
+  );
 
   assert.ok(hostBlock, 'HOST_DECISION verdict block is rendered');
   assert.equal(hostBlock.decision_kind, 'blend');
@@ -647,11 +681,15 @@ test('renderDeliberationArtifact persists HOST_DECISION routing metadata in the 
 
 test('rendered HOST_DECISION rehydrates so a re-fired trigger promotes to the user', () => {
   const artifact = renderDeliberationArtifact(hostDecisionRunResult());
-  const hostBlock = extractVerdictBlocks(artifact).find((block) => block.verdict === 'HOST_DECISION');
+  const hostBlock = extractVerdictBlocks(artifact).find(
+    (block) => block.verdict === 'HOST_DECISION',
+  );
 
   // The rehydrated record (canonical block JSON, as normalizeResumeRecords spreads it)
   // must carry escalation_trigger so priorHostDecisionForTrigger matches on repeat fire.
-  const route = routeEscalation('persistent_disagreement', 'moderate', [hostBlock]);
+  const route = routeEscalation('persistent_disagreement', 'moderate', [
+    hostBlock,
+  ]);
 
   assert.equal(route.decide_via, 'user');
   assert.equal(route.promoted_from, 'host');
@@ -662,10 +700,14 @@ test('rendered defer_to_user HOST_DECISION promotes with a defer reason on re-fi
   const runResult = hostDecisionRunResult();
   runResult.sections[0].records[1].decision_kind = 'defer_to_user';
   const artifact = renderDeliberationArtifact(runResult);
-  const hostBlock = extractVerdictBlocks(artifact).find((block) => block.verdict === 'HOST_DECISION');
+  const hostBlock = extractVerdictBlocks(artifact).find(
+    (block) => block.verdict === 'HOST_DECISION',
+  );
 
   assert.equal(hostBlock.decision_kind, 'defer_to_user');
-  const route = routeEscalation('persistent_disagreement', 'moderate', [hostBlock]);
+  const route = routeEscalation('persistent_disagreement', 'moderate', [
+    hostBlock,
+  ]);
   assert.equal(route.decide_via, 'user');
   assert.equal(route.promotion_reason, 'defer_to_user');
 });

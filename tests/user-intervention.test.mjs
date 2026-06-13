@@ -5,10 +5,13 @@ import path from 'node:path';
 import test from 'node:test';
 
 import {
+  hashArtifact,
+  runConsensusLoop,
+} from '../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
+import {
   parseWrapperArgs,
-  runSequential
+  runSequential,
 } from '../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
-import { hashArtifact, runConsensusLoop } from '../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
 
 function loopArgvFor(files, extra = []) {
   return [
@@ -28,7 +31,7 @@ function loopArgvFor(files, extra = []) {
     files.outputPath,
     '--output-status',
     files.statusPath,
-    ...extra
+    ...extra,
   ];
 }
 
@@ -41,7 +44,7 @@ async function escalationRunFiles() {
     sectionPath,
     recordsPath: path.join(tempRoot, 'records.json'),
     outputPath: path.join(tempRoot, 'output.md'),
-    statusPath: path.join(tempRoot, 'status.json')
+    statusPath: path.join(tempRoot, 'status.json'),
   };
 }
 
@@ -53,18 +56,18 @@ function convergingSynthesizedStubs(mergedText = 'Merged.\n') {
       verdict: 'REVISE',
       reasoning: 'adopt the merge',
       critique: { own_previous: 'o', peer_previous: 'p' },
-      proposed_artifact: mergedText
+      proposed_artifact: mergedText,
     },
-    stdout: '{"id":"peer"}'
+    stdout: '{"id":"peer"}',
   });
   const invokeSynthesizer = async () => ({
     json: {
       schema_version: 'v1',
       synthesized_artifact: mergedText,
       synthesis_reasoning: 'merged',
-      unresolved_disagreements: []
+      unresolved_disagreements: [],
     },
-    stdout: '{"id":"synth"}'
+    stdout: '{"id":"synth"}',
   });
   return { invokePeer, invokeSynthesizer };
 }
@@ -93,7 +96,7 @@ function resumeArtifact() {
       consensus_schema_version: 'v1',
       status: 'partial',
       mode: 'sequential',
-      peers: ['claude', 'codex']
+      peers: ['claude', 'codex'],
     }),
     '',
     '## Section States',
@@ -106,8 +109,8 @@ function resumeArtifact() {
         status: 'max-rounds',
         turns: 1,
         rounds: 1,
-        final_artifact_hash: resumedHash
-      }
+        final_artifact_hash: resumedHash,
+      },
     ]),
     '',
     '## Deliberation Log',
@@ -120,16 +123,16 @@ function resumeArtifact() {
       termination_reason: 'max_rounds_exhausted',
       turns: 1,
       rounds: 1,
-      final_artifact_hash: resumedHash
+      final_artifact_hash: resumedHash,
     }),
     '',
     consensusBlock('consensus-verdict', {
       schema_version: 'v0',
       verdict: 'REVISE',
       reasoning: 'The intro needs a stronger verb.',
-      proposed_artifact: resumed
+      proposed_artifact: resumed,
     }),
-    ''
+    '',
   ].join('\n');
 }
 
@@ -140,26 +143,26 @@ function maxRoundsConsumedResumeArtifact() {
       schema_version: 'v0',
       verdict: 'REVISE',
       reasoning: 'Claude first pass asked for stronger language.',
-      proposed_artifact: '# Intro\n\nRevision one.\n'
+      proposed_artifact: '# Intro\n\nRevision one.\n',
     },
     {
       schema_version: 'v0',
       verdict: 'REVISE',
       reasoning: 'Codex first pass kept tightening.',
-      proposed_artifact: '# Intro\n\nRevision two.\n'
+      proposed_artifact: '# Intro\n\nRevision two.\n',
     },
     {
       schema_version: 'v0',
       verdict: 'REVISE',
       reasoning: 'Claude second pass still disagreed.',
-      proposed_artifact: '# Intro\n\nRevision three.\n'
+      proposed_artifact: '# Intro\n\nRevision three.\n',
     },
     {
       schema_version: 'v0',
       verdict: 'REVISE',
       reasoning: 'Codex second pass hit the configured ceiling.',
-      proposed_artifact: resumed
-    }
+      proposed_artifact: resumed,
+    },
   ];
 
   return [
@@ -177,7 +180,7 @@ function maxRoundsConsumedResumeArtifact() {
       consensus_schema_version: 'v1',
       status: 'partial',
       mode: 'sequential',
-      peers: ['claude', 'codex']
+      peers: ['claude', 'codex'],
     }),
     '',
     '## Section States',
@@ -190,8 +193,8 @@ function maxRoundsConsumedResumeArtifact() {
         status: 'max-rounds',
         turns: 4,
         rounds: 2,
-        final_artifact_hash: resumedHash
-      }
+        final_artifact_hash: resumedHash,
+      },
     ]),
     '',
     '## Deliberation Log',
@@ -204,15 +207,24 @@ function maxRoundsConsumedResumeArtifact() {
       termination_reason: 'max_rounds_exhausted',
       turns: 4,
       rounds: 2,
-      final_artifact_hash: resumedHash
+      final_artifact_hash: resumedHash,
     }),
     '',
-    ...priorVerdicts.flatMap((verdict) => [consensusBlock('consensus-verdict', verdict), ''])
+    ...priorVerdicts.flatMap((verdict) => [
+      consensusBlock('consensus-verdict', verdict),
+      '',
+    ]),
   ].join('\n');
 }
 
 test('parseWrapperArgs accepts user direction for resume intervention', () => {
-  const parsed = parseWrapperArgs(['draft.md', '--resume', 'draft.consensus.md', '--user-direction', 'Use the decisive version.']);
+  const parsed = parseWrapperArgs([
+    'draft.md',
+    '--resume',
+    'draft.consensus.md',
+    '--user-direction',
+    'Use the decisive version.',
+  ]);
   assert.equal(parsed.userDirection, 'Use the decisive version.');
 });
 
@@ -242,17 +254,21 @@ test('resume adds a user intervention record and continues from the next peer tu
       prompts.push({ provider, prompt });
       return {
         provider,
-        stdout: '{"schema_version":"v1","verdict":"ACCEPT","reasoning":"Direction resolved the issue."}',
+        stdout:
+          '{"schema_version":"v1","verdict":"ACCEPT","reasoning":"Direction resolved the issue."}',
         json: {
           schema_version: 'v1',
           verdict: 'ACCEPT',
-          reasoning: 'Direction resolved the issue.'
-        }
+          reasoning: 'Direction resolved the issue.',
+        },
       };
-    }
+    },
   });
 
-  assert.deepEqual(prompts.map((entry) => entry.provider), ['codex']);
+  assert.deepEqual(
+    prompts.map((entry) => entry.provider),
+    ['codex'],
+  );
   assert.match(prompts[0].prompt, /Prior deliberation records/);
   assert.match(prompts[0].prompt, /The intro needs a stronger verb/);
   assert.match(prompts[0].prompt, /Use the decisive version/);
@@ -260,11 +276,11 @@ test('resume adds a user intervention record and continues from the next peer tu
   const records = result.sections[0].records;
   assert.deepEqual(
     records.map((record) => record.verdict),
-    ['REVISE', 'USER_INTERVENTION', 'ACCEPT']
+    ['REVISE', 'USER_INTERVENTION', 'ACCEPT'],
   );
   assert.deepEqual(
     records.map((record) => record.agent),
-    ['claude', 'user', 'codex']
+    ['claude', 'user', 'codex'],
   );
   assert.equal(records[1].user_direction, 'Use the decisive version.');
 
@@ -275,7 +291,9 @@ test('resume adds a user intervention record and continues from the next peer tu
 });
 
 test('resume with user direction continues after max-rounds budget was already consumed', async () => {
-  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'user-intervention-budget-'));
+  const tempRoot = await mkdtemp(
+    path.join(os.tmpdir(), 'user-intervention-budget-'),
+  );
   const inputPath = path.join(tempRoot, 'draft.md');
   const resumePath = path.join(tempRoot, 'draft.consensus.md');
   const outputPath = path.join(tempRoot, 'draft.resumed.md');
@@ -300,26 +318,33 @@ test('resume with user direction continues after max-rounds budget was already c
       prompts.push({ provider, round, turn, prompt });
       return {
         provider,
-        stdout: '{"schema_version":"v1","verdict":"ACCEPT","reasoning":"Direction resolved the issue."}',
+        stdout:
+          '{"schema_version":"v1","verdict":"ACCEPT","reasoning":"Direction resolved the issue."}',
         json: {
           schema_version: 'v1',
           verdict: 'ACCEPT',
-          reasoning: 'Direction resolved the issue.'
-        }
+          reasoning: 'Direction resolved the issue.',
+        },
       };
-    }
+    },
   });
 
-  assert.deepEqual(prompts.map((entry) => entry.provider), ['claude']);
+  assert.deepEqual(
+    prompts.map((entry) => entry.provider),
+    ['claude'],
+  );
   assert.equal(prompts[0].round, 3);
   assert.equal(prompts[0].turn, 5);
-  assert.match(prompts[0].prompt, /Codex second pass hit the configured ceiling/);
+  assert.match(
+    prompts[0].prompt,
+    /Codex second pass hit the configured ceiling/,
+  );
   assert.match(prompts[0].prompt, /Use the decisive version/);
 
   const records = result.sections[0].records;
   assert.deepEqual(
     records.map((record) => record.agent),
-    ['claude', 'codex', 'claude', 'codex', 'user', 'claude']
+    ['claude', 'codex', 'claude', 'codex', 'user', 'claude'],
   );
   assert.equal(result.sections[0].status.status, 'converged');
   assert.equal(result.sections[0].status.turns, 5);
@@ -337,7 +362,7 @@ test('parseWrapperArgs accepts --host-direction for resume', () => {
     '--resume',
     'draft.consensus.md',
     '--host-direction',
-    'Blend both revisions.'
+    'Blend both revisions.',
   ]);
   assert.equal(parsed.hostDirection, 'Blend both revisions.');
 });
@@ -352,9 +377,9 @@ test('parseWrapperArgs rejects --host-direction together with --user-direction',
         '--user-direction',
         'a',
         '--host-direction',
-        'b'
+        'b',
       ]),
-    /mutually exclusive/i
+    /mutually exclusive/i,
   );
 });
 
@@ -362,17 +387,26 @@ test('--host-direction appends a HOST_DECISION round and converges with refreshe
   const files = await escalationRunFiles();
   const { invokePeer, invokeSynthesizer } = convergingSynthesizedStubs();
   const result = await runConsensusLoop(
-    loopArgvFor(files, ['--iteration', 'parallel_synthesized', '--synthesizer', 'claude', '--max-rounds', '4']),
+    loopArgvFor(files, [
+      '--iteration',
+      'parallel_synthesized',
+      '--synthesizer',
+      'claude',
+      '--max-rounds',
+      '4',
+    ]),
     {
       invokePeer,
       invokeSynthesizer,
       hostDirection: 'Blend both revisions.',
       hostDecisionKind: 'blend',
-      escalationTrigger: 'persistent_disagreement'
-    }
+      escalationTrigger: 'persistent_disagreement',
+    },
   );
 
-  const hostRound = result.records.find((record) => record.verdict === 'HOST_DECISION');
+  const hostRound = result.records.find(
+    (record) => record.verdict === 'HOST_DECISION',
+  );
   assert.ok(hostRound, 'expected a HOST_DECISION record');
   assert.equal(hostRound.agent, 'host-orchestrator');
   assert.equal(hostRound.decision_kind, 'blend');
@@ -388,8 +422,23 @@ function escalationResumeArtifact({ decideVia = 'host' } = {}) {
     decide_via: decideVia,
     decision_kinds:
       decideVia === 'host'
-        ? ['pick_a', 'pick_b', 'blend', 'direct', 'accept_impasse', 'extend_budget', 'defer_to_user']
-        : ['pick_a', 'pick_b', 'blend', 'direct', 'accept_impasse', 'extend_budget']
+        ? [
+            'pick_a',
+            'pick_b',
+            'blend',
+            'direct',
+            'accept_impasse',
+            'extend_budget',
+            'defer_to_user',
+          ]
+        : [
+            'pick_a',
+            'pick_b',
+            'blend',
+            'direct',
+            'accept_impasse',
+            'extend_budget',
+          ],
   };
   return [
     '---',
@@ -406,7 +455,7 @@ function escalationResumeArtifact({ decideVia = 'host' } = {}) {
       consensus_schema_version: 'v1',
       status: 'partial',
       mode: 'sequential',
-      peers: ['claude', 'codex']
+      peers: ['claude', 'codex'],
     }),
     '',
     '## Section States',
@@ -419,8 +468,8 @@ function escalationResumeArtifact({ decideVia = 'host' } = {}) {
         status: 'escalation',
         turns: 2,
         rounds: 1,
-        final_artifact_hash: seedHash
-      }
+        final_artifact_hash: seedHash,
+      },
     ]),
     '',
     '## Deliberation Log',
@@ -434,21 +483,23 @@ function escalationResumeArtifact({ decideVia = 'host' } = {}) {
       turns: 2,
       rounds: 1,
       final_artifact_hash: seedHash,
-      escalation
+      escalation,
     }),
     '',
     consensusBlock('consensus-verdict', {
       schema_version: 'v0',
       verdict: 'REVISE',
       reasoning: 'still drifting',
-      proposed_artifact: resumed
+      proposed_artifact: resumed,
     }),
-    ''
+    '',
   ].join('\n');
 }
 
 async function runHostDirectionResume(resumeText, overrides = {}) {
-  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'host-direction-resume-'));
+  const tempRoot = await mkdtemp(
+    path.join(os.tmpdir(), 'host-direction-resume-'),
+  );
   const inputPath = path.join(tempRoot, 'draft.md');
   const resumePath = path.join(tempRoot, 'draft.consensus.md');
   const outputPath = path.join(tempRoot, 'draft.resumed.md');
@@ -472,7 +523,7 @@ async function runHostDirectionResume(resumeText, overrides = {}) {
     preflight: false,
     invokePeer,
     invokeSynthesizer,
-    ...overrides
+    ...overrides,
   });
 }
 
@@ -481,12 +532,12 @@ test('--host-direction is rejected (ESCALATION_ROUTING) when the pending escalat
     () =>
       runHostDirectionResume(escalationResumeArtifact({ decideVia: 'user' }), {
         hostDirection: 'Blend both.',
-        hostDecisionKind: 'blend'
+        hostDecisionKind: 'blend',
       }),
     (error) => {
       assert.equal(error.code, 'ESCALATION_ROUTING');
       return true;
-    }
+    },
   );
 });
 
@@ -497,22 +548,27 @@ test('--host-direction is rejected (ESCALATION_ROUTING) when no escalation is pe
         iteration: 'alternating',
         synthesizer: undefined,
         hostDirection: 'Blend both.',
-        hostDecisionKind: 'blend'
+        hostDecisionKind: 'blend',
       }),
     (error) => {
       assert.equal(error.code, 'ESCALATION_ROUTING');
       return true;
-    }
+    },
   );
 });
 
 test('--host-direction resume appends an attributed HOST_DECISION round and continues', async () => {
-  const result = await runHostDirectionResume(escalationResumeArtifact({ decideVia: 'host' }), {
-    hostDirection: 'Blend both revisions.',
-    hostDecisionKind: 'blend'
-  });
+  const result = await runHostDirectionResume(
+    escalationResumeArtifact({ decideVia: 'host' }),
+    {
+      hostDirection: 'Blend both revisions.',
+      hostDecisionKind: 'blend',
+    },
+  );
   const records = result.sections[0].records;
-  const hostRound = records.find((record) => record.verdict === 'HOST_DECISION');
+  const hostRound = records.find(
+    (record) => record.verdict === 'HOST_DECISION',
+  );
   assert.ok(hostRound, 'expected HOST_DECISION record');
   assert.equal(hostRound.agent, 'host-orchestrator');
   assert.equal(hostRound.decision_kind, 'blend');

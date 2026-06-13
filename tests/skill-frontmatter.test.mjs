@@ -3,7 +3,10 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import test from 'node:test';
 
-const skillPath = new URL('../plugins/consensus/skills/refine/SKILL.md', import.meta.url);
+const skillPath = new URL(
+  '../plugins/consensus/skills/refine/SKILL.md',
+  import.meta.url,
+);
 
 function frontmatter(markdown) {
   const match = markdown.match(/^---\n([\s\S]*?)\n---\n/);
@@ -29,8 +32,16 @@ test('refine skill frontmatter is portable and versioned', async () => {
   assert.match(field(block, 'compatibility'), /Agent Skills baseline/);
 
   const allowedTools = field(block, 'allowed-tools');
-  for (const requiredTool of ['Bash(node:*)', 'Bash(paseo:*)', 'Read', 'Write']) {
-    assert.match(allowedTools, new RegExp(requiredTool.replace(/[()*]/g, '\\$&')));
+  for (const requiredTool of [
+    'Bash(node:*)',
+    'Bash(paseo:*)',
+    'Read',
+    'Write',
+  ]) {
+    assert.match(
+      allowedTools,
+      new RegExp(requiredTool.replace(/[()*]/g, '\\$&')),
+    );
   }
 
   assert.match(block, /^metadata:\n(?:  .+\n)*  version: ["']0\.1\.0["']$/m);
@@ -46,7 +57,7 @@ test('skill instructions cover host orchestration responsibilities', async () =>
     '--fan-in',
     'Codex',
     'fail closed',
-    'impasse'
+    'impasse',
   ]) {
     assert.match(markdown, new RegExp(requiredPhrase, 'i'));
   }

@@ -9,7 +9,7 @@ user-invocable: true
 allowed-tools: Bash, Read
 metadata:
   author: thomas.stang
-  version: "1.0.0"
+  version: '1.0.0'
 ---
 
 # export-session-transcript
@@ -24,13 +24,13 @@ marker line are all excluded — only visible user/assistant messages survive.
 
 ## When to Use
 
-| Trigger phrase | What to run |
-|---|---|
-| `export this session transcript` | the marker workflow below |
-| `save the conversation as markdown` / `save this chat` | the marker workflow below |
+| Trigger phrase                                            | What to run               |
+| --------------------------------------------------------- | ------------------------- |
+| `export this session transcript`                          | the marker workflow below |
+| `save the conversation as markdown` / `save this chat`    | the marker workflow below |
 | `download our conversation` / `export-session-transcript` | the marker workflow below |
-| `export all my sessions in this project` | add `--all` |
-| `export session <id>` | add `--session <id>` |
+| `export all my sessions in this project`                  | add `--all`               |
+| `export session <id>`                                     | add `--session <id>`      |
 
 ## When NOT to Use
 
@@ -42,7 +42,7 @@ marker line are all excluded — only visible user/assistant messages survive.
 
 ## Workflow (default: export the current session)
 
-The hard problem is identifying **which** transcript is *this* live conversation.
+The hard problem is identifying **which** transcript is _this_ live conversation.
 Solve it with a unique session marker that you write into the transcript and then
 grep for.
 
@@ -85,15 +85,15 @@ The CLI prints the written path. By default it is `~/Downloads/<branch>.md` (wit
 
 ## Modes and flags
 
-| Flag | Default | Description |
-|---|---|---|
-| `--runtime <r>` | `auto` | `claude-code\|codex\|cursor\|auto`. `auto` uses an env hint (`SESSION_OBSERVER_SELF`-style) then best-effort auto-detect. |
-| `--match <marker>` | — | Grep cwd candidates for this marker (selects the current session). |
-| `--session <id>` | — | Export a specific session id (bypasses `--match`). |
-| `--all` | false | Export every session for the cwd — one file each. |
-| `--cwd <path>` | `process.cwd()` | Project dir to match transcripts against. |
-| `--out <path>` | — | Output file or directory (also accepted positionally). |
-| `--help` | — | Usage. |
+| Flag               | Default         | Description                                                                                                               |
+| ------------------ | --------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `--runtime <r>`    | `auto`          | `claude-code\|codex\|cursor\|auto`. `auto` uses an env hint (`SESSION_OBSERVER_SELF`-style) then best-effort auto-detect. |
+| `--match <marker>` | —               | Grep cwd candidates for this marker (selects the current session).                                                        |
+| `--session <id>`   | —               | Export a specific session id (bypasses `--match`).                                                                        |
+| `--all`            | false           | Export every session for the cwd — one file each.                                                                         |
+| `--cwd <path>`     | `process.cwd()` | Project dir to match transcripts against.                                                                                 |
+| `--out <path>`     | —               | Output file or directory (also accepted positionally).                                                                    |
+| `--help`           | —               | Usage.                                                                                                                    |
 
 **Selection-mode precedence:** the selection modes are mutually exclusive, with
 precedence `--all` > `--session` > `--match` > default (current session). The
@@ -104,23 +104,23 @@ candidate auto-selected; multiple candidates exit `3` as ambiguous).
 
 ### Output path resolution
 
-| Input | Output |
-|---|---|
-| default | `~/Downloads/<branch>.md` (`/` → `-`) |
-| `--out DIR` / positional dir | `<DIR>/<branch>.md` |
-| `--out FILE` (file path) | `<FILE>` verbatim |
-| not a git repo / detached HEAD | `<cwd-basename>-<UTCstamp>.md` |
-| `--all` (+ optional DIR) | `<branch>-<sessionId>.md` per session |
+| Input                          | Output                                |
+| ------------------------------ | ------------------------------------- |
+| default                        | `~/Downloads/<branch>.md` (`/` → `-`) |
+| `--out DIR` / positional dir   | `<DIR>/<branch>.md`                   |
+| `--out FILE` (file path)       | `<FILE>` verbatim                     |
+| not a git repo / detached HEAD | `<cwd-basename>-<UTCstamp>.md`        |
+| `--all` (+ optional DIR)       | `<branch>-<sessionId>.md` per session |
 
 ---
 
 ## Per-provider transcript store locations
 
-| Runtime | Store root |
-|---|---|
-| Claude Code | `~/.claude/projects/<encoded-cwd>/<session-id>.jsonl` |
-| Codex | `~/.codex/sessions/<YYYY>/<MM>/<DD>/session-<id>.jsonl` |
-| Cursor | `~/.cursor/projects/<encoded-project>/agent-transcripts/<session-id>/<session-id>.jsonl` |
+| Runtime     | Store root                                                                               |
+| ----------- | ---------------------------------------------------------------------------------------- |
+| Claude Code | `~/.claude/projects/<encoded-cwd>/<session-id>.jsonl`                                    |
+| Codex       | `~/.codex/sessions/<YYYY>/<MM>/<DD>/session-<id>.jsonl`                                  |
+| Cursor      | `~/.cursor/projects/<encoded-project>/agent-transcripts/<session-id>/<session-id>.jsonl` |
 
 See `references/transcript-formats.md` for record shapes and cwd-encoding details.
 
@@ -128,12 +128,12 @@ See `references/transcript-formats.md` for record shapes and cwd-encoding detail
 
 ## Exit code handling
 
-| Exit code | Meaning | What to do |
-|---|---|---|
-| 0 | Success | Report the written path. |
-| 1 | Hard error | Surface the error message; nothing was written. |
-| 2 | No candidates | No transcript found for this cwd/runtime. Suggest `--cwd <path>` or confirm the runtime ran in this project. |
-| 3 | Ambiguous | Multiple candidates and no `--match`/`--session`. Re-run with a `--match <marker>` or `--session <id>` from the listed candidates. |
+| Exit code | Meaning       | What to do                                                                                                                         |
+| --------- | ------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| 0         | Success       | Report the written path.                                                                                                           |
+| 1         | Hard error    | Surface the error message; nothing was written.                                                                                    |
+| 2         | No candidates | No transcript found for this cwd/runtime. Suggest `--cwd <path>` or confirm the runtime ran in this project.                       |
+| 3         | Ambiguous     | Multiple candidates and no `--match`/`--session`. Re-run with a `--match <marker>` or `--session <id>` from the listed candidates. |
 
 ---
 

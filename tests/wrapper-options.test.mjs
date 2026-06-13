@@ -9,7 +9,7 @@ import {
   preflightPaseo,
   resolvePeers,
   resolveSynthesizer,
-  resolveRunDir
+  resolveRunDir,
 } from '../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
 
 function inventory(ids) {
@@ -36,7 +36,7 @@ test('parseWrapperArgs handles sequential options and defaults', () => {
     '--fail-on-section-error',
     '--skip-corrupt-section',
     'intro',
-    '--yes-skip-corrupt'
+    '--yes-skip-corrupt',
   ]);
 
   assert.equal(parsed.inputPath, 'draft.md');
@@ -55,12 +55,14 @@ test('parseWrapperArgs handles sequential options and defaults', () => {
 test('parseWrapperArgs accepts iteration modes, defaults to alternating, and rejects invalid', () => {
   assert.equal(parseWrapperArgs(['draft.md']).iteration, 'alternating');
   assert.equal(
-    parseWrapperArgs(['draft.md', '--iteration', 'parallel_revision']).iteration,
-    'parallel_revision'
+    parseWrapperArgs(['draft.md', '--iteration', 'parallel_revision'])
+      .iteration,
+    'parallel_revision',
   );
   assert.equal(
-    parseWrapperArgs(['draft.md', '--iteration', 'parallel_synthesized']).iteration,
-    'parallel_synthesized'
+    parseWrapperArgs(['draft.md', '--iteration', 'parallel_synthesized'])
+      .iteration,
+    'parallel_synthesized',
   );
 
   let thrown;
@@ -71,37 +73,52 @@ test('parseWrapperArgs accepts iteration modes, defaults to alternating, and rej
   }
   assert.ok(thrown, 'expected an error');
   assert.equal(thrown.code, 'INVALID_ITERATION_MODE');
-  assert.match(thrown.message, /alternating.*parallel_revision.*parallel_synthesized/);
+  assert.match(
+    thrown.message,
+    /alternating.*parallel_revision.*parallel_synthesized/,
+  );
 
   assert.throws(
     () => parseWrapperArgs(['draft.md', '--cold-start', 'independent_draft']),
-    /not yet supported/
+    /not yet supported/,
   );
 });
 
 test('parseWrapperArgs parses --synthesizer and defaults it to null (resolved at run time)', () => {
   assert.equal(parseWrapperArgs(['draft.md']).synthesizer, null);
   assert.equal(
-    parseWrapperArgs(['draft.md', '--iteration', 'parallel_synthesized', '--synthesizer', 'codex']).synthesizer,
-    'codex'
+    parseWrapperArgs([
+      'draft.md',
+      '--iteration',
+      'parallel_synthesized',
+      '--synthesizer',
+      'codex',
+    ]).synthesizer,
+    'codex',
   );
 });
 
 test('resolveSynthesizer defaults to the first peer and validates against the inventory', () => {
   // Default: first peer when unspecified.
   assert.equal(
-    resolveSynthesizer({ peers: ['claude', 'codex'], iteration: 'parallel_synthesized' }, inventory(['claude', 'codex']))
-      .synthesizer,
-    'claude'
+    resolveSynthesizer(
+      { peers: ['claude', 'codex'], iteration: 'parallel_synthesized' },
+      inventory(['claude', 'codex']),
+    ).synthesizer,
+    'claude',
   );
 
   // Explicit override present in the inventory.
   assert.equal(
     resolveSynthesizer(
-      { peers: ['claude', 'codex'], iteration: 'parallel_synthesized', synthesizer: 'codex' },
-      inventory(['claude', 'codex'])
+      {
+        peers: ['claude', 'codex'],
+        iteration: 'parallel_synthesized',
+        synthesizer: 'codex',
+      },
+      inventory(['claude', 'codex']),
     ).synthesizer,
-    'codex'
+    'codex',
   );
 });
 
@@ -109,8 +126,12 @@ test('resolveSynthesizer rejects a synthesizer missing from the inventory with S
   let thrown;
   try {
     resolveSynthesizer(
-      { peers: ['claude', 'codex'], iteration: 'parallel_synthesized', synthesizer: 'gemini' },
-      inventory(['claude', 'codex'])
+      {
+        peers: ['claude', 'codex'],
+        iteration: 'parallel_synthesized',
+        synthesizer: 'gemini',
+      },
+      inventory(['claude', 'codex']),
     );
   } catch (error) {
     thrown = error;
@@ -122,15 +143,26 @@ test('resolveSynthesizer rejects a synthesizer missing from the inventory with S
 
 test('resolveSynthesizer warns and ignores a synthesizer outside parallel_synthesized mode', () => {
   const result = resolveSynthesizer(
-    { peers: ['claude', 'codex'], iteration: 'parallel_revision', synthesizer: 'codex' },
-    inventory(['claude', 'codex'])
+    {
+      peers: ['claude', 'codex'],
+      iteration: 'parallel_revision',
+      synthesizer: 'codex',
+    },
+    inventory(['claude', 'codex']),
   );
   assert.equal(result.synthesizer, null);
-  assert.ok(result.warnings.some((warning) => /synthesizer/i.test(warning.message)));
+  assert.ok(
+    result.warnings.some((warning) => /synthesizer/i.test(warning.message)),
+  );
 });
 
 test('parseWrapperArgs handles prepare-parallel and fan-in modes', () => {
-  const prepare = parseWrapperArgs(['draft.md', '--prepare-parallel', '--parallelism', '3']);
+  const prepare = parseWrapperArgs([
+    'draft.md',
+    '--prepare-parallel',
+    '--parallelism',
+    '3',
+  ]);
   assert.equal(prepare.mode, 'prepare_parallel');
   assert.equal(prepare.parallelism, 3);
 
@@ -141,15 +173,42 @@ test('parseWrapperArgs handles prepare-parallel and fan-in modes', () => {
 });
 
 test('parseWrapperArgs validates peers, max-rounds bounds, agency, and positional shape', () => {
-  assert.throws(() => parseWrapperArgs(['draft.md', '--peers', 'claude']), /exactly two peers/);
-  assert.throws(() => parseWrapperArgs(['draft.md', '--peers', 'claude,Codex']), /must match/);
-  assert.throws(() => parseWrapperArgs(['draft.md', '--peers', '1claude,codex']), /must match/);
-  assert.throws(() => parseWrapperArgs(['draft.md', '--peers', 'claude,co.dex']), /must match/);
-  assert.throws(() => parseWrapperArgs(['draft.md', '--peers', `claude,${'a'.repeat(33)}`]), /must match/);
-  assert.throws(() => parseWrapperArgs(['draft.md', '--max-rounds', '0']), /between 1 and 100/);
-  assert.throws(() => parseWrapperArgs(['draft.md', '--max-rounds', '101']), /between 1 and 100/);
-  assert.throws(() => parseWrapperArgs(['draft.md', '--agency', 'reckless']), /agency/);
-  assert.throws(() => parseWrapperArgs(['one.md', 'two.md']), /unexpected positional/);
+  assert.throws(
+    () => parseWrapperArgs(['draft.md', '--peers', 'claude']),
+    /exactly two peers/,
+  );
+  assert.throws(
+    () => parseWrapperArgs(['draft.md', '--peers', 'claude,Codex']),
+    /must match/,
+  );
+  assert.throws(
+    () => parseWrapperArgs(['draft.md', '--peers', '1claude,codex']),
+    /must match/,
+  );
+  assert.throws(
+    () => parseWrapperArgs(['draft.md', '--peers', 'claude,co.dex']),
+    /must match/,
+  );
+  assert.throws(
+    () => parseWrapperArgs(['draft.md', '--peers', `claude,${'a'.repeat(33)}`]),
+    /must match/,
+  );
+  assert.throws(
+    () => parseWrapperArgs(['draft.md', '--max-rounds', '0']),
+    /between 1 and 100/,
+  );
+  assert.throws(
+    () => parseWrapperArgs(['draft.md', '--max-rounds', '101']),
+    /between 1 and 100/,
+  );
+  assert.throws(
+    () => parseWrapperArgs(['draft.md', '--agency', 'reckless']),
+    /agency/,
+  );
+  assert.throws(
+    () => parseWrapperArgs(['one.md', 'two.md']),
+    /unexpected positional/,
+  );
   assert.throws(() => parseWrapperArgs(['--prepare-parallel']), /input path/);
 });
 
@@ -161,25 +220,51 @@ test('detectHost recognizes Claude, Codex, Cursor, and unknown environments', ()
 });
 
 test('resolvePeers uses host-aware defaults and paseo inventory as source of truth', () => {
-  assert.deepEqual(resolvePeers({}, 'claude', inventory(['claude', 'codex'])).peers, ['claude', 'codex']);
-  assert.deepEqual(resolvePeers({}, 'codex', inventory(['claude', 'codex'])).peers, ['codex', 'claude']);
-  assert.deepEqual(resolvePeers({}, 'cursor', inventory(['claude', 'codex'])).peers, ['claude', 'codex']);
   assert.deepEqual(
-    resolvePeers({ peers: ['opencode', 'pi'] }, 'claude', inventory(['opencode', 'pi'])).peers,
-    ['opencode', 'pi']
+    resolvePeers({}, 'claude', inventory(['claude', 'codex'])).peers,
+    ['claude', 'codex'],
+  );
+  assert.deepEqual(
+    resolvePeers({}, 'codex', inventory(['claude', 'codex'])).peers,
+    ['codex', 'claude'],
+  );
+  assert.deepEqual(
+    resolvePeers({}, 'cursor', inventory(['claude', 'codex'])).peers,
+    ['claude', 'codex'],
+  );
+  assert.deepEqual(
+    resolvePeers(
+      { peers: ['opencode', 'pi'] },
+      'claude',
+      inventory(['opencode', 'pi']),
+    ).peers,
+    ['opencode', 'pi'],
   );
 
   assert.throws(
-    () => resolvePeers({ peers: ['claude', 'missing'] }, 'claude', inventory(['claude'])),
-    /missing.*paseo provider ls --json/i
+    () =>
+      resolvePeers(
+        { peers: ['claude', 'missing'] },
+        'claude',
+        inventory(['claude']),
+      ),
+    /missing.*paseo provider ls --json/i,
   );
   assert.throws(
-    () => resolvePeers({ peers: ['claude', 'codex'] }, 'claude', [{ id: 'claude', available: true }, { id: 'codex', available: false }]),
-    /unavailable.*codex/i
+    () =>
+      resolvePeers({ peers: ['claude', 'codex'] }, 'claude', [
+        { id: 'claude', available: true },
+        { id: 'codex', available: false },
+      ]),
+    /unavailable.*codex/i,
   );
   assert.throws(
-    () => resolvePeers({ peers: ['claude', 'codex'] }, 'claude', [{ id: 'claude', available: true }, { id: 'Codex', available: true }]),
-    /provider inventory id.*must match/
+    () =>
+      resolvePeers({ peers: ['claude', 'codex'] }, 'claude', [
+        { id: 'claude', available: true },
+        { id: 'Codex', available: true },
+      ]),
+    /provider inventory id.*must match/,
   );
 });
 
@@ -188,27 +273,32 @@ test('resolvePeers reads real Paseo provider ls status/enabled shape', () => {
   // not the { id, available } booleans the synthetic inventory() helper uses.
   const ready = [
     { provider: 'claude', status: 'available', enabled: 'Enabled' },
-    { provider: 'codex', status: 'available', enabled: 'Enabled' }
+    { provider: 'codex', status: 'available', enabled: 'Enabled' },
   ];
-  assert.deepEqual(resolvePeers({ peers: ['claude', 'codex'] }, 'claude', ready).peers, ['claude', 'codex']);
+  assert.deepEqual(
+    resolvePeers({ peers: ['claude', 'codex'] }, 'claude', ready).peers,
+    ['claude', 'codex'],
+  );
 
   // A peer Paseo reports as errored (e.g. cursor when cursor-agent can't auth)
   // must fail preflight rather than surface later as a paseo run timeout.
   assert.throws(
-    () => resolvePeers({ peers: ['claude', 'cursor'] }, 'claude', [
-      { provider: 'claude', status: 'available', enabled: 'Enabled' },
-      { provider: 'cursor', status: 'error', enabled: 'Enabled' }
-    ]),
-    /unavailable.*cursor/i
+    () =>
+      resolvePeers({ peers: ['claude', 'cursor'] }, 'claude', [
+        { provider: 'claude', status: 'available', enabled: 'Enabled' },
+        { provider: 'cursor', status: 'error', enabled: 'Enabled' },
+      ]),
+    /unavailable.*cursor/i,
   );
 
   // Paseo's "Disabled" display string means unavailable too.
   assert.throws(
-    () => resolvePeers({ peers: ['claude', 'omp'] }, 'claude', [
-      { provider: 'claude', status: 'available', enabled: 'Enabled' },
-      { provider: 'omp', status: 'available', enabled: 'Disabled' }
-    ]),
-    /unavailable.*omp/i
+    () =>
+      resolvePeers({ peers: ['claude', 'omp'] }, 'claude', [
+        { provider: 'claude', status: 'available', enabled: 'Enabled' },
+        { provider: 'omp', status: 'available', enabled: 'Disabled' },
+      ]),
+    /unavailable.*omp/i,
   );
 
   // A cold-daemon snapshot can briefly report a healthy provider as loading;
@@ -216,9 +306,9 @@ test('resolvePeers reads real Paseo provider ls status/enabled shape', () => {
   assert.deepEqual(
     resolvePeers({ peers: ['claude', 'codex'] }, 'claude', [
       { provider: 'claude', status: 'available', enabled: 'Enabled' },
-      { provider: 'codex', status: 'loading', enabled: 'Enabled' }
+      { provider: 'codex', status: 'loading', enabled: 'Enabled' },
     ]).peers,
-    ['claude', 'codex']
+    ['claude', 'codex'],
   );
 });
 
@@ -232,13 +322,16 @@ test('preflightPaseo reads version and providers and warns outside tested range'
       if (args[0] === '--version') {
         return { stdout: `paseo ${MAX_TESTED_PASEO_VERSION}\n`, stderr: '' };
       }
-      return { stdout: JSON.stringify(inventory(['claude', 'codex'])), stderr: '' };
-    }
+      return {
+        stdout: JSON.stringify(inventory(['claude', 'codex'])),
+        stderr: '',
+      };
+    },
   });
 
   assert.deepEqual(calls, [
     ['paseo', ['--version']],
-    ['paseo', ['provider', 'ls', '--json']]
+    ['paseo', ['provider', 'ls', '--json']],
   ]);
   assert.equal(result.ok, true);
   assert.equal(result.version, MAX_TESTED_PASEO_VERSION);
@@ -247,11 +340,18 @@ test('preflightPaseo reads version and providers and warns outside tested range'
 
   const old = await preflightPaseo({
     runCommand: async (_command, args) => {
-      if (args[0] === '--version') return { stdout: 'paseo 0.0.1\n', stderr: '' };
-      return { stdout: JSON.stringify(inventory(['claude', 'codex'])), stderr: '' };
-    }
+      if (args[0] === '--version')
+        return { stdout: 'paseo 0.0.1\n', stderr: '' };
+      return {
+        stdout: JSON.stringify(inventory(['claude', 'codex'])),
+        stderr: '',
+      };
+    },
   });
-  assert.match(old.warnings[0].message, new RegExp(`${MIN_PASEO_VERSION}.*${MAX_TESTED_PASEO_VERSION}`));
+  assert.match(
+    old.warnings[0].message,
+    new RegExp(`${MIN_PASEO_VERSION}.*${MAX_TESTED_PASEO_VERSION}`),
+  );
 });
 
 test('preflightPaseo surfaces missing paseo with install remediation', async () => {
@@ -261,15 +361,24 @@ test('preflightPaseo surfaces missing paseo with install remediation', async () 
         const error = new Error('spawn paseo ENOENT');
         error.code = 'ENOENT';
         throw error;
-      }
+      },
     }),
     (error) => {
       assert.match(error.message, /paseo.*missing/i);
-      assert.equal(error.remediation.install_command, 'npm install -g @getpaseo/cli');
-      assert.match(error.remediation.source_url, /github\.com\/getpaseo\/paseo/);
-      assert.equal(error.remediation.install_script, 'scripts/install-paseo.mjs');
+      assert.equal(
+        error.remediation.install_command,
+        'npm install -g @getpaseo/cli',
+      );
+      assert.match(
+        error.remediation.source_url,
+        /github\.com\/getpaseo\/paseo/,
+      );
+      assert.equal(
+        error.remediation.install_script,
+        'scripts/install-paseo.mjs',
+      );
       return true;
-    }
+    },
   );
 });
 

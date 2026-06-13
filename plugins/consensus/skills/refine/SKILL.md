@@ -6,7 +6,7 @@ compatibility: Agent Skills baseline; requires `paseo` CLI on PATH.
 allowed-tools: Bash(node:*), Bash(paseo:*), Read, Write
 metadata:
   author: thomas.stang
-  version: "0.1.0"
+  version: '0.1.0'
 ---
 
 # Refine

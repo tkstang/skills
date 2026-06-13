@@ -18,7 +18,10 @@
     ".agents/**",
     ".claude/rules/**",
     ".cursor/rules/**",
-    "**/scripts/lib/runtimes.mjs"
+    "**/scripts/lib/runtimes.mjs",
+    "**/fixtures/**",
+    "**/*.yml",
+    "**/*.yaml"
   ],
   "sortImports": {},
   "sortPackageJson": {}

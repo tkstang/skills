@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { spawn } from 'node:child_process';
-import { createInterface } from 'node:readline/promises';
 import path from 'node:path';
+import { createInterface } from 'node:readline/promises';
 import { fileURLToPath } from 'node:url';
 
 export const PASEO_PACKAGE = '@getpaseo/cli';
@@ -16,7 +16,7 @@ export function runCommand(command, args, options = {}) {
     const child = spawn(command, args, {
       cwd: options.cwd,
       env: options.env,
-      stdio: ['ignore', 'pipe', 'pipe']
+      stdio: ['ignore', 'pipe', 'pipe'],
     });
     const stdout = [];
     const stderr = [];
@@ -29,7 +29,7 @@ export function runCommand(command, args, options = {}) {
         stdout: Buffer.concat(stdout).toString('utf8'),
         stderr: Buffer.concat(stderr).toString('utf8'),
         code,
-        signal
+        signal,
       };
       if (code === 0) {
         resolve(result);
@@ -45,7 +45,9 @@ export function runCommand(command, args, options = {}) {
 async function confirmInstall({ stdin, stdout }) {
   const rl = createInterface({ input: stdin, output: stdout, terminal: false });
   try {
-    const answer = await rl.question(`About to run "${INSTALL_COMMAND}". Continue? [y/N] `);
+    const answer = await rl.question(
+      `About to run "${INSTALL_COMMAND}". Continue? [y/N] `,
+    );
     return /^y(?:es)?$/iu.test(answer.trim());
   } finally {
     rl.close();
@@ -64,14 +66,16 @@ export async function runInstallPaseo(options = {}) {
 
   const confirmed = await confirmInstall({ stdin, stdout });
   if (!confirmed) {
-    stdout.write('\nInstall cancelled. Install manually with "npm install -g @getpaseo/cli" or build from https://github.com/getpaseo/paseo.\n');
+    stdout.write(
+      '\nInstall cancelled. Install manually with "npm install -g @getpaseo/cli" or build from https://github.com/getpaseo/paseo.\n',
+    );
     return { status: 'declined', exitCode: 1 };
   }
 
   try {
     await execute('npm', ['install', '-g', PASEO_PACKAGE], {
       cwd: options.cwd,
-      env: options.env
+      env: options.env,
     });
   } catch (error) {
     stderr.write(`\n${errorText(error) || 'npm install failed'}\n`);
@@ -81,18 +85,23 @@ export async function runInstallPaseo(options = {}) {
   try {
     const version = await execute('paseo', ['--version'], {
       cwd: options.cwd,
-      env: options.env
+      env: options.env,
     });
     const versionText = version.stdout.trim();
     stdout.write(`\nPaseo install verified: ${versionText}\n`);
     return { status: 'installed', exitCode: 0, version: versionText };
   } catch (error) {
-    stderr.write(`\npaseo --version failed after install.\n${errorText(error)}\n`);
+    stderr.write(
+      `\npaseo --version failed after install.\n${errorText(error)}\n`,
+    );
     return { status: 'failed', exitCode: 1, error };
   }
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (
+  process.argv[1] &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+) {
   runInstallPaseo().then((result) => {
     process.exitCode = result.exitCode;
   });

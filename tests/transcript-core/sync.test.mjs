@@ -9,11 +9,11 @@
  * finally block so the working tree is left clean regardless of outcome.
  */
 
-import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
+import { describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -27,7 +27,7 @@ const CONSUMER = join(
   'session-observer',
   'scripts',
   'lib',
-  'runtimes.mjs'
+  'runtimes.mjs',
 );
 
 function runCheck() {
@@ -43,7 +43,7 @@ describe('sync-transcript-core --check (drift guard)', () => {
     assert.equal(
       result.status,
       0,
-      `--check should pass; stderr: ${result.stderr}`
+      `--check should pass; stderr: ${result.stderr}`,
     );
     assert.match(result.stdout, /all consumers in sync/);
   });
@@ -66,7 +66,7 @@ describe('sync-transcript-core --check (drift guard)', () => {
     assert.equal(
       restored.status,
       0,
-      `--check should pass after restore; stderr: ${restored.stderr}`
+      `--check should pass after restore; stderr: ${restored.stderr}`,
     );
   });
 });

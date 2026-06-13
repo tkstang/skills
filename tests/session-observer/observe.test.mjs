@@ -2,15 +2,15 @@
  * observe.test.mjs — tests for the reusable catch-up observation pipeline.
  */
 
-import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, rm, mkdir, readFile, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { test, describe } from 'node:test';
 
 const OBSERVE_MJS = new URL(
   '../../skills/session-observer/scripts/lib/observe.mjs',
-  import.meta.url
+  import.meta.url,
 );
 
 async function importObserve() {
@@ -47,7 +47,11 @@ async function writeClaudeTranscript(home, cwd, fileName, sessionId, messages) {
     sessionId,
     message: { role, content },
   }));
-  await writeFile(transcriptPath, records.map(record => JSON.stringify(record)).join('\n') + '\n', 'utf8');
+  await writeFile(
+    transcriptPath,
+    records.map((record) => JSON.stringify(record)).join('\n') + '\n',
+    'utf8',
+  );
   return transcriptPath;
 }
 
@@ -62,7 +66,11 @@ async function writeCodexTranscript(home, cwd, fileName, sessionId, messages) {
       payload: { type: 'message', role, content },
     })),
   ];
-  await writeFile(transcriptPath, records.map(record => JSON.stringify(record)).join('\n') + '\n', 'utf8');
+  await writeFile(
+    transcriptPath,
+    records.map((record) => JSON.stringify(record)).join('\n') + '\n',
+    'utf8',
+  );
   return transcriptPath;
 }
 
@@ -70,10 +78,16 @@ describe('observeCatchUp', () => {
   test('builds a catch-up digest from the prior offset and only rewrites changed state', async () => {
     await withTempSessionHome(async (home, stateDir) => {
       const cwd = '/test/observe-prior-offset';
-      const transcriptPath = await writeClaudeTranscript(home, cwd, 'observe-prior.jsonl', 'observe-prior', [
-        { role: 'user', content: 'first question' },
-        { role: 'assistant', content: 'first answer' },
-      ]);
+      const transcriptPath = await writeClaudeTranscript(
+        home,
+        cwd,
+        'observe-prior.jsonl',
+        'observe-prior',
+        [
+          { role: 'user', content: 'first question' },
+          { role: 'assistant', content: 'first answer' },
+        ],
+      );
       const { observeCatchUp } = await importObserve();
 
       const first = await observeCatchUp({
@@ -109,12 +123,20 @@ describe('observeCatchUp', () => {
   test('uses snippet filtering before ranking candidates', async () => {
     await withTempSessionHome(async (home) => {
       const cwd = '/test/observe-snippet';
-      await writeClaudeTranscript(home, cwd, 'observe-snippet-a.jsonl', 'observe-snippet-a', [
-        { content: 'ordinary candidate' },
-      ]);
-      await writeClaudeTranscript(home, cwd, 'observe-snippet-b.jsonl', 'observe-snippet-b', [
-        { content: 'needle phrase from the selected session' },
-      ]);
+      await writeClaudeTranscript(
+        home,
+        cwd,
+        'observe-snippet-a.jsonl',
+        'observe-snippet-a',
+        [{ content: 'ordinary candidate' }],
+      );
+      await writeClaudeTranscript(
+        home,
+        cwd,
+        'observe-snippet-b.jsonl',
+        'observe-snippet-b',
+        [{ content: 'needle phrase from the selected session' }],
+      );
       const { observeCatchUp } = await importObserve();
 
       const result = await observeCatchUp({
@@ -126,8 +148,10 @@ describe('observeCatchUp', () => {
       assert.equal(result.ok, true);
       assert.equal(result.digest.sessionId, 'observe-snippet-b');
       assert.ok(
-        result.digest.warnings.some(w => w.includes('Selected session by snippet match')),
-        'snippet-selected digest should retain the existing warning'
+        result.digest.warnings.some((w) =>
+          w.includes('Selected session by snippet match'),
+        ),
+        'snippet-selected digest should retain the existing warning',
       );
     });
   });
@@ -151,12 +175,20 @@ describe('observeCatchUp', () => {
   test('returns ties as an input-needed outcome', async () => {
     await withTempSessionHome(async (home) => {
       const cwd = '/test/observe-ties';
-      await writeClaudeTranscript(home, cwd, 'observe-tie-a.jsonl', 'observe-tie-a', [
-        { content: 'candidate a' },
-      ]);
-      await writeClaudeTranscript(home, cwd, 'observe-tie-b.jsonl', 'observe-tie-b', [
-        { content: 'candidate b' },
-      ]);
+      await writeClaudeTranscript(
+        home,
+        cwd,
+        'observe-tie-a.jsonl',
+        'observe-tie-a',
+        [{ content: 'candidate a' }],
+      );
+      await writeClaudeTranscript(
+        home,
+        cwd,
+        'observe-tie-b.jsonl',
+        'observe-tie-b',
+        [{ content: 'candidate b' }],
+      );
       const { observeCatchUp } = await importObserve();
 
       const result = await observeCatchUp({
@@ -175,12 +207,20 @@ describe('observeCatchUp', () => {
   test('returns ambiguous runtime details for auto runtime conflicts', async () => {
     await withTempSessionHome(async (home) => {
       const cwd = '/test/observe-auto-ambiguous';
-      await writeClaudeTranscript(home, cwd, 'observe-auto-claude.jsonl', 'observe-auto-claude', [
-        { content: 'claude candidate' },
-      ]);
-      await writeCodexTranscript(home, cwd, 'observe-auto-codex.jsonl', 'observe-auto-codex', [
-        { content: 'codex candidate' },
-      ]);
+      await writeClaudeTranscript(
+        home,
+        cwd,
+        'observe-auto-claude.jsonl',
+        'observe-auto-claude',
+        [{ content: 'claude candidate' }],
+      );
+      await writeCodexTranscript(
+        home,
+        cwd,
+        'observe-auto-codex.jsonl',
+        'observe-auto-codex',
+        [{ content: 'codex candidate' }],
+      );
       const { observeCatchUp } = await importObserve();
 
       const result = await observeCatchUp({
@@ -191,7 +231,10 @@ describe('observeCatchUp', () => {
       assert.equal(result.ok, false);
       assert.equal(result.kind, 'ambiguousRuntime');
       assert.equal(result.exitCode, 3);
-      assert.deepEqual(result.payload.runtimes.sort(), ['claude-code', 'codex']);
+      assert.deepEqual(result.payload.runtimes.sort(), [
+        'claude-code',
+        'codex',
+      ]);
     });
   });
 });

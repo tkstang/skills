@@ -2,10 +2,11 @@
  * watch.mjs — foreground polling watcher for debounced catch-up events.
  */
 
-import { appendFile, lstat, mkdir, realpath, stat } from 'node:fs/promises';
 import { once } from 'node:events';
+import { appendFile, lstat, mkdir, realpath, stat } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
+
 import { renderMarkdown } from './digest.mjs';
 import { observeCatchUp } from './observe.mjs';
 import { readRecords } from './runtimes.mjs';
@@ -40,18 +41,22 @@ function maxPendingMs(value) {
 }
 
 function heartbeatMs(value) {
-  if (value === undefined || value === null) return DEFAULT_HEARTBEAT_SEC * 1000;
+  if (value === undefined || value === null)
+    return DEFAULT_HEARTBEAT_SEC * 1000;
   const numeric = Number(value);
   if (!Number.isFinite(numeric) || numeric <= 0) return null;
   return Math.max(1, numeric * 1000);
 }
 
 function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function stateDir() {
-  return process.env.STATE_DIR ?? join(homedir(), '.local', 'state', 'session-observer');
+  return (
+    process.env.STATE_DIR ??
+    join(homedir(), '.local', 'state', 'session-observer')
+  );
 }
 
 function watchRuntimes(runtime) {
@@ -132,7 +137,8 @@ async function writeStdoutChunk(deps, chunk) {
 function lockedTargetEvent(target) {
   return {
     type: 'baseline',
-    message: 'Watcher is now active. Keep this process open and continue reading stdout. Do not treat baseline setup as a completed watch.',
+    message:
+      'Watcher is now active. Keep this process open and continue reading stdout. Do not treat baseline setup as a completed watch.',
     runtime: target.runtime,
     sessionId: target.sessionId,
     transcriptPath: target.transcriptPath,
@@ -158,7 +164,10 @@ function lockedTargetLine(target) {
 
 async function emitLockedTarget(args, deps, target) {
   if (args.json) {
-    await writeStdoutChunk(deps, JSON.stringify(lockedTargetEvent(target)) + '\n');
+    await writeStdoutChunk(
+      deps,
+      JSON.stringify(lockedTargetEvent(target)) + '\n',
+    );
     return;
   }
   await writeStdoutChunk(deps, lockedTargetLine(target));
@@ -168,7 +177,7 @@ async function emitWatchPosture(args, deps) {
   if (args.json) return;
   await writeStdoutChunk(
     deps,
-    '[session-observer] Watcher is now active. Keep this process open and continue reading stdout. Do not treat baseline setup as a completed watch.\n'
+    '[session-observer] Watcher is now active. Keep this process open and continue reading stdout. Do not treat baseline setup as a completed watch.\n',
   );
 }
 
@@ -188,7 +197,10 @@ function stoppedLine(reason, eventState) {
 async function emitStopped(args, deps, reason, eventState) {
   const ts = new Date(deps.now()).toISOString();
   if (args.json) {
-    await writeStdoutChunk(deps, JSON.stringify(stoppedEvent(ts, reason, eventState)) + '\n');
+    await writeStdoutChunk(
+      deps,
+      JSON.stringify(stoppedEvent(ts, reason, eventState)) + '\n',
+    );
     return;
   }
   await writeStdoutChunk(deps, stoppedLine(reason, eventState));
@@ -208,7 +220,10 @@ async function emitErrorEvent(args, deps, err) {
     await writeStdoutChunk(deps, JSON.stringify(errorEvent(ts, err)) + '\n');
     return;
   }
-  await writeStdoutChunk(deps, `[session-observer] watch error: ${err.message}\n`);
+  await writeStdoutChunk(
+    deps,
+    `[session-observer] watch error: ${err.message}\n`,
+  );
 }
 
 function consumedThrough(lastRecordIndex) {
@@ -229,9 +244,10 @@ async function targetHeartbeatStatus(target, sessionState) {
     error = err.message;
   }
 
-  const recordsBehind = transcriptRecords === null
-    ? null
-    : Math.max(0, transcriptRecords - lastRecordIndex);
+  const recordsBehind =
+    transcriptRecords === null
+      ? null
+      : Math.max(0, transcriptRecords - lastRecordIndex);
 
   return {
     runtime: target.runtime,
@@ -256,7 +272,7 @@ async function heartbeatPayload(targets, deps, eventState) {
     if (!Number.isFinite(target.recordsBehind)) return sum;
     return sum + target.recordsBehind;
   }, 0);
-  const healthy = targetStatuses.every(target => target.healthy);
+  const healthy = targetStatuses.every((target) => target.healthy);
   return {
     type: 'heartbeat',
     ts: new Date(deps.now()).toISOString(),
@@ -270,7 +286,8 @@ async function heartbeatPayload(targets, deps, eventState) {
 }
 
 function heartbeatLine(payload) {
-  const status = payload.recordsBehind === 0 ? 'no new records' : 'records pending';
+  const status =
+    payload.recordsBehind === 0 ? 'no new records' : 'records pending';
   return (
     `[session-observer] still watching, ${status}, ` +
     `recordsBehind=${payload.recordsBehind} healthy=${payload.healthy} targets=${payload.targetCount}\n`
@@ -292,20 +309,26 @@ function isWithinDir(dir, path) {
 }
 
 function eventLogBoundaryError(dir) {
-  return new Error(`--event-log must stay under the session-observer state directory: ${dir}`);
+  return new Error(
+    `--event-log must stay under the session-observer state directory: ${dir}`,
+  );
 }
 
 function eventLogReservedError() {
-  return new Error('--event-log cannot use session-observer state, lock, temp, or backup files');
+  return new Error(
+    '--event-log cannot use session-observer state, lock, temp, or backup files',
+  );
 }
 
 function isReservedEventLogSegment(segment) {
-  return RESERVED_EVENT_LOG_NAMES.has(segment)
-    || segment.endsWith('.lock')
-    || segment.endsWith('.tmp')
-    || segment.endsWith('.bak')
-    || segment.startsWith('watch.control.')
-    || [...RESERVED_EVENT_LOG_NAMES].some(name => segment.startsWith(`${name}.`));
+  return (
+    RESERVED_EVENT_LOG_NAMES.has(segment) ||
+    segment.endsWith('.lock') ||
+    segment.endsWith('.tmp') ||
+    segment.endsWith('.bak') ||
+    segment.startsWith('watch.control.') ||
+    [...RESERVED_EVENT_LOG_NAMES].some((name) => segment.startsWith(`${name}.`))
+  );
 }
 
 function eventLogSegments(dir, resolved) {
@@ -360,7 +383,9 @@ async function assertEventLogPathSafe(dir, resolved) {
     if (currentStat.isSymbolicLink()) {
       await assertRealPathWithinState(dir, realDir, current);
     } else if (!currentStat.isDirectory()) {
-      throw new Error(`--event-log parent path must be a directory: ${current}`);
+      throw new Error(
+        `--event-log parent path must be a directory: ${current}`,
+      );
     }
   }
 
@@ -371,7 +396,9 @@ async function assertEventLogPathSafe(dir, resolved) {
     return;
   }
   if (targetStat.isDirectory()) {
-    throw new Error(`--event-log must be a file path, not a directory: ${resolved}`);
+    throw new Error(
+      `--event-log must be a file path, not a directory: ${resolved}`,
+    );
   }
 }
 
@@ -398,19 +425,21 @@ async function restoreConsumedBaseline(result) {
   // so the watcher that owns this target does not silently lose those records.
   const range = result.digest.range;
   if ((range.newRecords ?? 0) > 0) {
-    await stateLib.markRead(result.runtime, result.digest.sessionId, {
-      lastRecordIndex: Math.max(0, (range.nextIndex ?? 0) - range.newRecords),
-      lastTotalRecords: range.totalRecords,
-      transcriptPath: result.digest.transcriptPath,
-      recordedCwd: result.digest.recordedCwd,
-    }).catch(() => null);
+    await stateLib
+      .markRead(result.runtime, result.digest.sessionId, {
+        lastRecordIndex: Math.max(0, (range.nextIndex ?? 0) - range.newRecords),
+        lastTotalRecords: range.totalRecords,
+        transcriptPath: result.digest.transcriptPath,
+        recordedCwd: result.digest.recordedCwd,
+      })
+      .catch(() => null);
   }
 }
 
 function duplicateTargetError(conflictPid, key) {
   return new Error(
     `watcher pid ${conflictPid} is already watching ${key}; ` +
-    `stop it with watch-ctl stop --pid ${conflictPid} or pin a different --session`
+      `stop it with watch-ctl stop --pid ${conflictPid} or pin a different --session`,
   );
 }
 
@@ -424,17 +453,22 @@ async function establishBaseline(runtime, args, targets, deps, eventState) {
   const key = targetKey(result.runtime, result.digest.sessionId);
   if (targets.has(key)) return targets.get(key);
 
-  const conflict = await watchStateLib.findLiveWatcherForTarget({
-    runtime: result.runtime,
-    sessionId: result.digest.sessionId,
-    excludePid: eventState.pid,
-  }).catch(() => null);
+  const conflict = await watchStateLib
+    .findLiveWatcherForTarget({
+      runtime: result.runtime,
+      sessionId: result.digest.sessionId,
+      excludePid: eventState.pid,
+    })
+    .catch(() => null);
   if (conflict) {
     await restoreConsumedBaseline(result);
     throw duplicateTargetError(conflict.pid, key);
   }
 
-  const signature = await fileSignature(result.digest.transcriptPath, deps.stat);
+  const signature = await fileSignature(
+    result.digest.transcriptPath,
+    deps.stat,
+  );
   const target = {
     key,
     runtime: result.runtime,
@@ -444,7 +478,10 @@ async function establishBaseline(runtime, args, targets, deps, eventState) {
     signature,
     recordCount: result.digest.range.totalRecords,
     baselineRecordIndex: result.digest.range.nextIndex,
-    engagementStatus: result.digest.engagement?.status ?? result.candidate.engagementStatus ?? 'unknown',
+    engagementStatus:
+      result.digest.engagement?.status ??
+      result.candidate.engagementStatus ??
+      'unknown',
     lockedAt: new Date(deps.now()).toISOString(),
   };
   try {
@@ -460,18 +497,25 @@ async function establishBaseline(runtime, args, targets, deps, eventState) {
   }
   targets.set(key, target);
   await emitLockedTarget(args, deps, target);
-  await stateLib.setWatchedByPid(target.runtime, target.sessionId, eventState.pid).catch(() => false);
+  await stateLib
+    .setWatchedByPid(target.runtime, target.sessionId, eventState.pid)
+    .catch(() => false);
   if (args.catchUpFirst) {
     await emitObservedDelta(result, args, deps, eventState);
     // Detect-then-consume: take the signature before the flush below so any
     // record appended after it is still seen as a change by the poll loop
     // (a zero-record re-observe is benign; a missed record is not).
     target.signature = await fileSignature(target.transcriptPath, deps.stat);
-    await emitPending({
-      key,
-      runtime: target.runtime,
-      sessionId: target.sessionId,
-    }, args, deps, eventState);
+    await emitPending(
+      {
+        key,
+        runtime: target.runtime,
+        sessionId: target.sessionId,
+      },
+      args,
+      deps,
+      eventState,
+    );
   }
   return target;
 }
@@ -483,7 +527,8 @@ async function establishBaselines(args, targets, deps, eventState) {
   }
 
   for (const runtime of watchRuntimes(args.runtime)) {
-    if (args.runtime === 'both' && hasTargetForRuntime(targets, runtime)) continue;
+    if (args.runtime === 'both' && hasTargetForRuntime(targets, runtime))
+      continue;
     await establishBaseline(runtime, args, targets, deps, eventState);
   }
 }
@@ -530,15 +575,23 @@ async function emitPending(entry, args, deps, eventState) {
   const metadata = eventMetadata(ts, result.digest, rendered);
 
   if (args.json) {
-    await writeStdoutChunk(deps, JSON.stringify(stdoutEvent(ts, result.digest, rendered)) + '\n');
+    await writeStdoutChunk(
+      deps,
+      JSON.stringify(stdoutEvent(ts, result.digest, rendered)) + '\n',
+    );
   } else {
     await writeStdoutChunk(deps, rendered + '\n');
   }
   await appendEventLog(args.eventLog, metadata);
   eventState.eventCount++;
   eventState.lastHeartbeatAt = deps.now();
-  await watchStateLib.recordWatcherEvent({ pid: eventState.pid, lastEventAt: ts });
-  await stateLib.setWatchedByPid(result.runtime, result.digest.sessionId, eventState.pid).catch(() => false);
+  await watchStateLib.recordWatcherEvent({
+    pid: eventState.pid,
+    lastEventAt: ts,
+  });
+  await stateLib
+    .setWatchedByPid(result.runtime, result.digest.sessionId, eventState.pid)
+    .catch(() => false);
   return true;
 }
 
@@ -551,24 +604,40 @@ async function emitObservedDelta(result, args, deps, eventState) {
   const metadata = eventMetadata(ts, result.digest, rendered);
 
   if (args.json) {
-    await writeStdoutChunk(deps, JSON.stringify(stdoutEvent(ts, result.digest, rendered)) + '\n');
+    await writeStdoutChunk(
+      deps,
+      JSON.stringify(stdoutEvent(ts, result.digest, rendered)) + '\n',
+    );
   } else {
     await writeStdoutChunk(deps, rendered + '\n');
   }
   await appendEventLog(args.eventLog, metadata);
   eventState.eventCount++;
   eventState.lastHeartbeatAt = deps.now();
-  await watchStateLib.recordWatcherEvent({ pid: eventState.pid, lastEventAt: ts });
-  await stateLib.setWatchedByPid(result.runtime, result.digest.sessionId, eventState.pid).catch(() => false);
+  await watchStateLib.recordWatcherEvent({
+    pid: eventState.pid,
+    lastEventAt: ts,
+  });
+  await stateLib
+    .setWatchedByPid(result.runtime, result.digest.sessionId, eventState.pid)
+    .catch(() => false);
   return true;
 }
 
-async function emitReadyPending(args, pending, deps, eventState, { force = false } = {}) {
+async function emitReadyPending(
+  args,
+  pending,
+  deps,
+  eventState,
+  { force = false } = {},
+) {
   const nowMs = deps.now();
   for (const entry of [...pending.values()]) {
     const quietForMs = nowMs - entry.lastChangedAt;
     const pendingForMs = nowMs - (entry.firstChangedAt ?? entry.lastChangedAt);
-    const ready = quietForMs >= eventState.debounceMs || pendingForMs >= eventState.maxPendingMs;
+    const ready =
+      quietForMs >= eventState.debounceMs ||
+      pendingForMs >= eventState.maxPendingMs;
     if (!force && !ready) continue;
     await emitPending(entry, args, deps, eventState);
     pending.delete(entry.key);
@@ -576,7 +645,9 @@ async function emitReadyPending(args, pending, deps, eventState, { force = false
 }
 
 async function applyControlDirective(args, pending, deps, eventState) {
-  const control = await watchStateLib.readControlDirective({ pid: eventState.pid });
+  const control = await watchStateLib.readControlDirective({
+    pid: eventState.pid,
+  });
   if (!control?.directive) return;
   if (control.pid !== undefined && control.pid !== eventState.pid) return;
 
@@ -623,7 +694,9 @@ function installSignalHandlers(eventState) {
 export async function runWatchLoop(args, deps = {}) {
   const runtime = args.runtime ?? 'auto';
   const cwd = args.cwd ?? process.cwd();
-  const eventLog = args.eventLog ? await resolveEventLogPath(args.eventLog) : undefined;
+  const eventLog = args.eventLog
+    ? await resolveEventLogPath(args.eventLog)
+    : undefined;
   const resolvedMaxPendingMs = maxPendingMs(args.maxPendingSec);
   const resolvedHeartbeatMs = heartbeatMs(args.heartbeatSec);
   const normalizedArgs = {
@@ -671,9 +744,8 @@ export async function runWatchLoop(args, deps = {}) {
     stopRequested: false,
     stopReason: 'stopped',
   };
-  const removeSignalHandlers = deps.handleSignals === false
-    ? () => {}
-    : installSignalHandlers(eventState);
+  const removeSignalHandlers =
+    deps.handleSignals === false ? () => {} : installSignalHandlers(eventState);
   let reason = 'stopped';
 
   try {
@@ -691,49 +763,70 @@ export async function runWatchLoop(args, deps = {}) {
       }
 
       if (targets.size === 0 || args.runtime === 'both') {
-        await establishBaselines(normalizedArgs, targets, resolvedDeps, eventState);
+        await establishBaselines(
+          normalizedArgs,
+          targets,
+          resolvedDeps,
+          eventState,
+        );
       }
       await pollTargets(targets, pending, nowMs, resolvedDeps.stat);
-      await applyControlDirective(normalizedArgs, pending, resolvedDeps, eventState);
+      await applyControlDirective(
+        normalizedArgs,
+        pending,
+        resolvedDeps,
+        eventState,
+      );
       if (eventState.stopRequested) {
         reason = eventState.stopReason;
         break;
       }
       if (!eventState.paused) {
-        await emitReadyPending(normalizedArgs, pending, resolvedDeps, eventState);
+        await emitReadyPending(
+          normalizedArgs,
+          pending,
+          resolvedDeps,
+          eventState,
+        );
       }
       if (
         eventState.heartbeatMs !== null &&
         targets.size > 0 &&
-        resolvedDeps.now() - eventState.lastHeartbeatAt >= eventState.heartbeatMs
+        resolvedDeps.now() - eventState.lastHeartbeatAt >=
+          eventState.heartbeatMs
       ) {
         await emitHeartbeat(normalizedArgs, targets, resolvedDeps, eventState);
         eventState.lastHeartbeatAt = resolvedDeps.now();
       }
-      await watchStateLib.recordWatcherPoll({
-        pid: eventState.pid,
-        lastPollAt: new Date(resolvedDeps.now()).toISOString(),
-      }).catch(() => null);
+      await watchStateLib
+        .recordWatcherPoll({
+          pid: eventState.pid,
+          lastPollAt: new Date(resolvedDeps.now()).toISOString(),
+        })
+        .catch(() => null);
 
       const afterTickMs = resolvedDeps.now();
       if (deadlineMs !== null && afterTickMs >= deadlineMs) {
         reason = 'max-runtime';
         break;
       }
-      const delayMs = deadlineMs === null
-        ? pollMs
-        : Math.max(0, Math.min(pollMs, deadlineMs - afterTickMs));
+      const delayMs =
+        deadlineMs === null
+          ? pollMs
+          : Math.max(0, Math.min(pollMs, deadlineMs - afterTickMs));
       if (delayMs > 0) await resolvedDeps.sleep(delayMs);
     }
 
     await emitStopped(normalizedArgs, resolvedDeps, reason, eventState);
     return { reason, eventCount: eventState.eventCount };
   } catch (err) {
-    await watchStateLib.recordWatcherError({
-      pid: eventState.pid,
-      error: err,
-      at: new Date(resolvedDeps.now()).toISOString(),
-    }).catch(() => null);
+    await watchStateLib
+      .recordWatcherError({
+        pid: eventState.pid,
+        error: err,
+        at: new Date(resolvedDeps.now()).toISOString(),
+      })
+      .catch(() => null);
     await emitErrorEvent(normalizedArgs, resolvedDeps, err);
     // Setup failures before this try block never reach emitErrorEvent; the
     // CLI uses this marker to emit a stable JSON error event exactly once.
@@ -742,9 +835,13 @@ export async function runWatchLoop(args, deps = {}) {
   } finally {
     removeSignalHandlers();
     for (const target of targets.values()) {
-      await stateLib.clearWatchedByPid(target.runtime, target.sessionId, active.pid).catch(() => false);
+      await stateLib
+        .clearWatchedByPid(target.runtime, target.sessionId, active.pid)
+        .catch(() => false);
     }
-    await watchStateLib.clearControlDirective({ pid: active.pid }).catch(() => false);
+    await watchStateLib
+      .clearControlDirective({ pid: active.pid })
+      .catch(() => false);
     await watchStateLib.clearWatcher({ pid: active.pid });
   }
 }
