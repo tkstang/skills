@@ -212,6 +212,34 @@ node plugins/consensus/skills/refine/scripts/consensus-refine.mjs \
 # old v0 artifact lying around, point --resume at it; otherwise skip.
 ```
 
+## Optional: verify cursor-as-peer (outstanding end-to-end)
+
+Cursor is supported only as a **custom ACP provider**, and it is **not yet verified
+end-to-end** — a full deliberation run against an authenticated `cursor-agent` is
+outstanding. Cursor runs through Paseo's generic ACP path, where `--output-schema`
+is enforced by prompt injection + validation/retry rather than the native structured
+output `claude`/`codex` expose, so expect more schema-retry churn (the wrapper's
+peer-validation retry, added in v0.2, helps absorb it). To verify:
+
+```bash
+# 1. Register Cursor as a custom ACP provider (see the plugin README "Advanced
+#    Configuration"): add it to ~/.paseo/config.json, then authenticate cursor-agent
+#    (it stores creds in the OS keychain — a locked keychain makes the provider
+#    report status "error", which preflight now catches as PEER_UNAVAILABLE).
+paseo provider ls            # confirm 'cursor' shows status 'available'
+
+# 2. Run a real alternating deliberation with cursor as a peer.
+node plugins/consensus/skills/refine/scripts/consensus-refine.mjs \
+  plugins/consensus/skills/refine/references/examples/email-announcement.md \
+  --goal "Tighten: lead with the change, keep it warm." \
+  --peers cursor,codex --output tmp/cursor-test.consensus.md
+```
+
+**What to check:** preflight passes (cursor reported `available`); the run converges
+(or hits budget) without `OUTPUT_SCHEMA_FAILED` / validator errors; the artifact's
+deliberation log attributes turns to `cursor` and `codex`. Note any elevated
+schema-retry churn. Until this passes, keep cursor-as-peer documented as unverified.
+
 ## Mode comparison (the actual NFR4 deliverable)
 
 Run Scenarios 1–3 on the **same** document (pick the architecture note or the
