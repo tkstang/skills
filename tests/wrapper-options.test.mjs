@@ -8,7 +8,8 @@ import {
   parseWrapperArgs,
   preflightPaseo,
   resolvePeers,
-  resolveSynthesizer
+  resolveSynthesizer,
+  resolveRunDir
 } from '../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
 
 function inventory(ids) {
@@ -231,4 +232,17 @@ test('preflightPaseo surfaces missing paseo with install remediation', async () 
       return true;
     }
   );
+});
+
+test('resolveRunDir gives each fresh run a unique default dir (no rerun contamination)', async () => {
+  const cwd = process.cwd();
+  const a = await resolveRunDir({ cwd });
+  const b = await resolveRunDir({ cwd });
+  // Two consecutive fresh runs must not share a run dir (which is what let a
+  // prior run's stale per-section records leak into the next run).
+  assert.notEqual(a, b);
+  assert.match(a, /\.consensus\/run-/);
+  // An explicit --run-dir is honored verbatim (relative to cwd).
+  const explicit = await resolveRunDir({ cwd, runDir: '.consensus/run' });
+  assert.equal(explicit, `${cwd}/.consensus/run`);
 });

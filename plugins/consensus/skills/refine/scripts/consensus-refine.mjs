@@ -1389,6 +1389,15 @@ export async function atomicWriteFile(targetPath, contents, options = {}) {
   return writePath;
 }
 
+let defaultRunDirCounter = 0;
+
+function defaultRunDirName() {
+  // Unique per invocation so a fresh run never inherits a prior run's
+  // intermediate per-section records (which would resume from stale state and
+  // can emit wrong output). An explicit --run-dir or --resume is unaffected.
+  return `run-${Date.now()}-${process.pid}-${defaultRunDirCounter++}`;
+}
+
 export async function resolveRunDir(options = {}) {
   const cwd = path.resolve(options.cwd ?? process.cwd());
   const root = path.resolve(options.allowRoot ?? cwd);
@@ -1396,7 +1405,7 @@ export async function resolveRunDir(options = {}) {
     ? path.isAbsolute(options.runDir)
       ? options.runDir
       : path.resolve(cwd, options.runDir)
-    : path.resolve(cwd, '.consensus', 'run');
+    : path.resolve(cwd, '.consensus', defaultRunDirName());
 
   return await confineWrite(target, root);
 }
