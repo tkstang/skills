@@ -6,8 +6,7 @@
   "required": [
     "schema_version",
     "verdict",
-    "reasoning",
-    "critique"
+    "reasoning"
   ],
   "properties": {
     "schema_version": {

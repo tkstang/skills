@@ -72,22 +72,26 @@ const ALTERNATING_VERDICT_BRANCHES = {
   }
 };
 
+// `critique` is optional: round 1 (cold start) has no prior revision to critique,
+// so peers legitimately omit it. Rounds 2+ supply it because the prompt asks for
+// it; when present it is structurally validated. Keeping it optional avoids
+// hard-failing a deliberation over a missing round-1 critique.
 const PARALLEL_VERDICT_BRANCHES = {
   REVISE: {
-    required: ['schema_version', 'verdict', 'reasoning', 'critique', 'proposed_artifact'],
-    optional: ['concerns']
+    required: ['schema_version', 'verdict', 'reasoning', 'proposed_artifact'],
+    optional: ['concerns', 'critique']
   },
   ACCEPT_PEER: {
-    required: ['schema_version', 'verdict', 'reasoning', 'critique', 'proposed_artifact'],
-    optional: ['concerns']
+    required: ['schema_version', 'verdict', 'reasoning', 'proposed_artifact'],
+    optional: ['concerns', 'critique']
   },
   CONVERGED: {
-    required: ['schema_version', 'verdict', 'reasoning', 'critique'],
-    optional: ['concerns']
+    required: ['schema_version', 'verdict', 'reasoning'],
+    optional: ['concerns', 'critique']
   },
   IMPASSE: {
-    required: ['schema_version', 'verdict', 'reasoning', 'critique'],
-    optional: ['concerns']
+    required: ['schema_version', 'verdict', 'reasoning'],
+    optional: ['concerns', 'critique']
   }
 };
 

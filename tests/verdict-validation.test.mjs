@@ -179,10 +179,16 @@ test('validateVerdictShape accepts the parallel vocabulary in parallel mode', ()
 });
 
 test('validateVerdictShape enforces critique and artifact requirements per parallel branch', () => {
-  assert.match(
-    validateVerdictShape(parallelVerdict({ critique: undefined }), { mode: 'parallel_revision' }).errors.join('\n'),
-    /critique/
+  // critique is OPTIONAL (round 1 has no prior revision to critique): a REVISE
+  // that omits the critique key is valid as long as it carries proposed_artifact.
+  assert.deepEqual(
+    validateVerdictShape(
+      { schema_version: 'v1', verdict: 'REVISE', reasoning: 'Round 1 revision.', proposed_artifact: 'Tightened.\n' },
+      { mode: 'parallel_revision' }
+    ),
+    { ok: true, errors: [] }
   );
+  // When critique IS present, its structure is still validated.
   assert.match(
     validateVerdictShape(parallelVerdict({ critique: { own_previous: 'only own' } }), { mode: 'parallel_revision' })
       .errors.join('\n'),
@@ -200,12 +206,13 @@ test('validateVerdictShape enforces critique and artifact requirements per paral
     ).errors.join('\n'),
     /proposed_artifact/
   );
-  assert.match(
+  // CONVERGED without critique is valid (critique optional).
+  assert.deepEqual(
     validateVerdictShape(
       { schema_version: 'v1', verdict: 'CONVERGED', reasoning: 'Agree.' },
       { mode: 'parallel_revision' }
-    ).errors.join('\n'),
-    /critique/
+    ),
+    { ok: true, errors: [] }
   );
 });
 
