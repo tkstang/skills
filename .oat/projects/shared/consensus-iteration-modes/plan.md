@@ -4,7 +4,7 @@ oat_ready_for: oat-project-implement
 oat_blockers: []
 oat_last_updated: 2026-06-12
 oat_phase: plan
-oat_phase_status: in_progress
+oat_phase_status: complete
 oat_plan_hill_phases: ["p07"] # pause only after final phase (p07 added 2026-06-13 from dogfood fixes)
 oat_plan_parallel_groups: [] # groups of phases that run concurrently in worktrees; [] = fully sequential
 oat_auto_review_at_hill_checkpoints: true
@@ -709,10 +709,10 @@ Render a `HOST_DECISION` artifact → parse via the resume parser → assert the
 | p05    | code     | passed          | 2026-06-13 | inline review (fable); 0 findings (incl. moved p05-t05)|
 | p06    | code     | passed          | 2026-06-13 | inline review (fable); 0 findings (t06 dogfood deferred)|
 | p07    | code     | fixes_completed | 2026-06-13 | live dogfood: all modes + codex verified; see implementation.md |
-| final  | code     | received        | 2026-06-13 | reviews/final-review-2026-06-13.md                  |
+| final  | code     | passed          | 2026-06-13 | reviews/archived/final-review-2026-06-13.md (re-review of p07-t05 fix: 0 findings; 526 tests + validate + smoke green) |
 | spec   | artifact | pending         | -          | -                                                      |
 | design | artifact | fixes_completed | 2026-06-12 | reviews/archived/artifact-design-review-2026-06-12.md |
-| plan   | artifact | received        | 2026-06-13 | reviews/artifact-plan-review-2026-06-13.md              |
+| plan   | artifact | passed          | 2026-06-13 | reviews/archived/artifact-plan-review-2026-06-13.md (1 Important: frontmatter phase_status drift, resolved in artifact) |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 

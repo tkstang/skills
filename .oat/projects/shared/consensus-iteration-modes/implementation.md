@@ -274,6 +274,21 @@ candidate to harden the deliberation layer) and the deferred **bl-ef38** (simila
 
 **Next:** re-review the fix scope (`oat-project-review-provide code final`) to move the `final` row from `fixes_completed` → `passed`, then proceed to PR.
 
+## Review Received: final re-review (Codex, 2026-06-13)
+
+**Review artifact:** reviews/archived/final-review-2026-06-13.md
+**Scope:** final, narrowed to the p07-t05 fix (`9ba63d6^..9ba63d6`).
+**Findings:** Critical 0, Important 0, Medium 0, Minor 0 — **CLEAN**. Deferred-medium ledger: 0; deferred-minor ledger: 0 (final-scope gates satisfied with nothing to disposition).
+
+The re-review confirmed the p07-t05 fix resolves the prior Critical: `renderRecord` persists `decision_kind`/`escalation_trigger` and the regression tests verify both repeat-fire and explicit `defer_to_user` promotion after render/rehydrate. FR5 and NFR4 reconfirmed implemented. Reviewer re-ran `node --test resume-parse+escalation` (48), `npm test` (526), `npm run validate`, `npm run smoke` — all green. `final` review row → **passed**.
+
+## Review Received: plan (artifact, Codex, 2026-06-13)
+
+**Review artifact:** reviews/archived/artifact-plan-review-2026-06-13.md
+**Findings:** Critical 0, Important 1, Medium 0, Minor 0.
+
+- **I1 (agreed, artifact_alignment_required → resolve_in_artifact):** plan frontmatter `oat_phase_status: in_progress` conflicted with the same file's `oat_status: complete` / `oat_ready_for: oat-project-implement` and the project state's `plan (complete)` — stale planning-phase leftover. **Resolved in artifact:** set `plan.md` `oat_phase_status: complete`. No code impact; plan content and Reviews table preserved. `plan` artifact review row → **passed**.
+
 ## Deviations from Plan / Design
 
 Document any intentional deviations from the original plan, spec, or design. Include accepted review findings where the shipped implementation is source of truth and a lifecycle artifact needs alignment.
