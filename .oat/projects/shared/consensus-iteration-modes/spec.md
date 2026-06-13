@@ -222,20 +222,20 @@ _Design-related open questions are tracked in the [Open Questions](#open-questio
 
 | ID   | Description                                                        | Priority | Verification                                              | Planned Tasks         |
 | ---- | ------------------------------------------------------------------ | -------- | --------------------------------------------------------- | --------------------- |
-| FR1  | Parallel-revision mode with emergent convergence                   | P0       | unit + integration: same-round convergence, oscillation   | TBD - see plan.md     |
-| FR2  | Parallel-synthesized mode with wrapper-driven synthesis            | P0       | unit + integration: synthesis records, stability converge | TBD - see plan.md     |
-| FR3  | Mode selection, disclosure, call-count reporting                   | P0       | unit + integration: flag parsing, disclosure events       | TBD - see plan.md     |
-| FR4  | Unified v1 schema family, v0 fail-closed                           | P0       | unit: schema validation, caps, version gate               | TBD - see plan.md     |
-| FR5  | Agency-gated escalation ladder with orchestrator rounds            | P0       | unit + integration: triggers per agency, decision re-entry | TBD - see plan.md     |
-| FR6  | Synthesizer default + override, identity recorded                  | P1       | unit: preflight resolution, record fields                 | TBD - see plan.md     |
-| FR7  | Resume for new modes incl. synthesis-step interruption             | P0       | integration: resume matrix per mode/phase                 | TBD - see plan.md     |
-| FR8  | Parallel-section orchestration with parallel modes                 | P1       | integration: packet metadata, fan-in ordering             | TBD - see plan.md     |
-| FR9  | Alternating regression lock                                        | P0       | unit + integration: existing suite passes (v1 fixtures)   | TBD - see plan.md     |
-| NFR1 | Deterministic engine                                               | P0       | integration: repeat-run reproducibility                   | TBD - see plan.md     |
-| NFR2 | Node 22+, stdlib-only, Paseo boundary                              | P0       | unit: structural validation                               | TBD - see plan.md     |
-| NFR3 | Verification coverage for both modes                               | P0       | unit + integration: full matrix green + smoke             | TBD - see plan.md     |
-| NFR4 | Audit-trail legibility                                             | P0       | manual: mode-comparison artifact review                   | TBD - see plan.md     |
-| NFR5 | Host-context discipline                                            | P1       | unit: event payload inventory                             | TBD - see plan.md     |
+| FR1  | Parallel-revision mode with emergent convergence                   | P0       | unit + integration: same-round convergence, oscillation   | p02-t03, p02-t04, p02-t05, p02-t06, p02-t08 |
+| FR2  | Parallel-synthesized mode with wrapper-driven synthesis            | P0       | unit + integration: synthesis records, stability converge | p03-t01, p03-t03, p03-t04, p03-t05, p03-t06 |
+| FR3  | Mode selection, disclosure, call-count reporting                   | P0       | unit + integration: flag parsing, disclosure events       | p02-t02, p02-t07, p03-t06, p06-t02, p06-t04 |
+| FR4  | Unified v1 schema family, v0 fail-closed                           | P0       | unit: schema validation, caps, version gate               | p01-t01, p01-t02, p01-t03, p01-t04, p01-t05, p01-t06 |
+| FR5  | Agency-gated escalation ladder with orchestrator rounds            | P0       | unit + integration: triggers per agency, decision re-entry | p04-t01, p04-t02, p04-t03, p04-t04, p04-t05, p04-t06 |
+| FR6  | Synthesizer default + override, identity recorded                  | P1       | unit: preflight resolution, record fields                 | p03-t02, p03-t03 |
+| FR7  | Resume for new modes incl. synthesis-step interruption             | P0       | integration: resume matrix per mode/phase                 | p05-t01, p05-t02, p05-t03 |
+| FR8  | Parallel-section orchestration with parallel modes                 | P1       | integration: packet metadata, fan-in ordering             | p05-t04 |
+| FR9  | Alternating regression lock                                        | P0       | unit + integration: existing suite passes (v1 fixtures)   | p01-t01, p02-t01, p04-t03 |
+| NFR1 | Deterministic engine                                               | P0       | integration: repeat-run reproducibility                   | p02-t04, p02-t08 |
+| NFR2 | Node 22+, stdlib-only, Paseo boundary                              | P0       | unit: structural validation                               | p06-t04 |
+| NFR3 | Verification coverage for both modes                               | P0       | unit + integration: full matrix green + smoke             | p02-t08, p03-t06, p04-t06, p06-t05 |
+| NFR4 | Audit-trail legibility                                             | P0       | manual: mode-comparison artifact review                   | p06-t06 |
+| NFR5 | Host-context discipline                                            | P1       | unit: event payload inventory                             | p06-t01 |
 
 **Notes:**
 
