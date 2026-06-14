@@ -50,7 +50,7 @@
 
 - JS and Markdown are linted with **oxlint** (`pnpm lint`) and formatted with **oxfmt** (`pnpm format`; `pnpm format:check` to verify). Config: `.oxlintrc.json`, `.oxfmtrc.json`.
 - Adoption is **incremental**: the `pre-commit` hook runs `lint-staged` over staged files only, and CI lints/format-checks only the files a PR changes. The repo has not yet been formatted wholesale; a one-time repo-wide `oxfmt` is a planned follow-up. Until then, do not run `pnpm format` across the whole tree in unrelated PRs.
-- Never lint/format generated or OAT-synced files: `**/scripts/lib/runtimes.mjs` (generated transcript-core copies), `.agents/**`, `.claude/rules/**`, `.cursor/rules/**`. These are excluded in the configs and in `.lintstagedrc.mjs`.
+- Never lint/format generated or OAT-synced files: `**/scripts/lib/runtimes.mjs` (generated transcript-core copies), `.agents/**`, `.claude/rules/**`, `.cursor/rules/**`. These are excluded by `.oxfmtrc.json` and `.lintstagedrc.mjs` (and not linted by oxlint, which only processes JS/MJS — the `.claude/rules/**` and `.cursor/rules/**` Markdown is never linted regardless).
 - oxlint/oxfmt are **dev tooling** — they do not touch what shipped skills run.
 
 ## Verification
@@ -58,3 +58,9 @@
 - Run `npm test` (or `pnpm run test`) for the full Node test suite.
 - Run `npm run validate` for repository structure, manifest, and docs invariants.
 - Run `npm run smoke` for the mocked end-to-end consensus wrapper flow.
+
+## References
+
+- `README.md` — repo overview, layout, and install paths.
+- `CONTRIBUTING.md` — contribution workflow.
+- `RELEASING.md` — release checklist and provider-path verification.
