@@ -19,14 +19,7 @@
  * across retries.
  */
 
-import {
-  open,
-  rename,
-  mkdir,
-  readFile,
-  writeFile,
-  unlink,
-} from 'node:fs/promises';
+import { open, rename, mkdir, readFile, unlink } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 

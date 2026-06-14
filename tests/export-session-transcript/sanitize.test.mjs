@@ -151,11 +151,11 @@ describe('sanitizeEntries — hidden payloads dropped per runtime', () => {
         // is allowed to survive.
         const l = entry.text.trimStart();
         assert.ok(
-          !/^(System|Developer)\b\s*[:\-]/.test(l),
+          !/^(System|Developer)\b\s*[:-]/.test(l),
           `${runtime}: system/developer label record survived: ${entry.text.slice(0, 60)}`,
         );
         assert.ok(
-          !/^(System|Developer)\s+(prompt|note|notes|message|instruction|instructions|directive|directives|guidelines?)\b\s*[:\-]/i.test(
+          !/^(System|Developer)\s+(prompt|note|notes|message|instruction|instructions|directive|directives|guidelines?)\b\s*[:-]/i.test(
             l,
           ),
           `${runtime}: system/developer prompt record survived: ${entry.text.slice(0, 60)}`,

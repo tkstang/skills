@@ -143,8 +143,7 @@ function escalationStubs() {
  * escalation_required event, host-decision re-entry, and v1 resume on top of the
  * default alternating smoke path. Deterministic and dependency-free.
  */
-export async function runParallelSynthesizedSmoke(options = {}) {
-  const root = path.resolve(options.root ?? repoRoot);
+export async function runParallelSynthesizedSmoke(_options = {}) {
   const tempRoot = await mkdtemp(
     path.join(os.tmpdir(), 'consensus-smoke-synth-'),
   );
@@ -236,7 +235,6 @@ export async function runParallelSynthesizedSmoke(options = {}) {
 export async function runSmokeTest(options = {}) {
   const root = path.resolve(options.root ?? repoRoot);
   const stdout = options.stdout ?? process.stdout;
-  const stderr = options.stderr ?? process.stderr;
   const runCommand = options.runCommand ?? defaultRunCommand;
   const env = smokeEnv(options.env ?? process.env);
   const expectedStatus = env.CONSENSUS_SMOKE_EXPECT_STATUS ?? 'converged';

@@ -63,7 +63,7 @@ async function preferredRuntimeFromState(withCandidates, targetCwd) {
     .filter((s) => runtimeSet.has(s.runtime))
     .filter((s) => s.recordedCwd === targetCwd)
     .filter((s) => sessionIdsByRuntime.get(s.runtime)?.has(s.sessionId))
-    .sort((a, b) =>
+    .toSorted((a, b) =>
       String(b.lastReadAt ?? '').localeCompare(String(a.lastReadAt ?? '')),
     );
 

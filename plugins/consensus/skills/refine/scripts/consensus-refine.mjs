@@ -2117,13 +2117,7 @@ function sequentialRunSections(parsedSections, resumeState) {
   });
 }
 
-function loopArgvForSection({
-  section,
-  paths,
-  options,
-  peers,
-  synthesizer = null,
-}) {
+function loopArgvForSection({ paths, options, peers, synthesizer = null }) {
   const argv = [
     '--section-file',
     paths.input,
@@ -2207,7 +2201,7 @@ function dispatchInstructions(manifest) {
 }
 
 export function renderDeliberationArtifact(runResult) {
-  const sections = [...runResult.sections].sort(
+  const sections = [...runResult.sections].toSorted(
     (left, right) => left.original_index - right.original_index,
   );
   const status = runResult.status ?? aggregateStatus(sections);
@@ -2498,7 +2492,7 @@ export async function runSequential(options, runOptions = {}) {
         latestRevisedOutput(records, section.markdown);
       const status = {
         ...fallbackErrorStatus(error, records, peers.length),
-        ...(persistedStatus ?? {}),
+        ...persistedStatus,
       };
       if (!status.error) {
         status.error = error.message;
@@ -2828,7 +2822,7 @@ export async function fanInParallelRun(manifestPath, options = {}) {
       output = `${original.replace(/\n*$/u, '\n')}\n${canonicalJsonBlock('section-error', marker)}\n`;
       status = {
         schema_version: 'v1',
-        ...(status ?? {}),
+        ...status,
         status: 'error',
         termination_reason: status?.termination_reason ?? errors[0].code,
         turns: status?.turns ?? records.length,
@@ -3024,6 +3018,7 @@ export async function preflightPaseo(options = {}) {
   } catch (error) {
     throw new Error(
       `paseo provider inventory was not valid JSON: ${error.message}`,
+      { cause: error },
     );
   }
 

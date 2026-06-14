@@ -632,6 +632,7 @@ async function emitReadyPending(
   { force = false } = {},
 ) {
   const nowMs = deps.now();
+  // oxlint-disable-next-line unicorn/no-useless-spread -- snapshot before pending.delete() mutates the Map during iteration
   for (const entry of [...pending.values()]) {
     const quietForMs = nowMs - entry.lastChangedAt;
     const pendingForMs = nowMs - (entry.firstChangedAt ?? entry.lastChangedAt);

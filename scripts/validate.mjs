@@ -52,7 +52,7 @@ async function listSubdirectories(directory) {
     return entries
       .filter((entry) => entry.isDirectory())
       .map((entry) => path.join(directory, entry.name))
-      .sort();
+      .toSorted();
   } catch (error) {
     if (error.code === 'ENOENT') return [];
     throw error;
@@ -80,7 +80,7 @@ async function discoverSkillDirectories(root) {
     }
   }
 
-  return [...skillDirectories].sort((left, right) =>
+  return [...skillDirectories].toSorted((left, right) =>
     path.relative(root, left).localeCompare(path.relative(root, right)),
   );
 }
@@ -126,7 +126,7 @@ export async function parseJsonFile(filePath) {
   try {
     return JSON.parse(await readFile(filePath, 'utf8'));
   } catch (error) {
-    throw new Error(`${filePath}: ${error.message}`);
+    throw new Error(`${filePath}: ${error.message}`, { cause: error });
   }
 }
 
@@ -326,7 +326,7 @@ async function validateProviderManifest(root, relativePath) {
   const manifestPath = path.join(root, relativePath);
   const pluginRoot = path.resolve(path.dirname(manifestPath), '..');
   const manifest = await parseJsonFile(manifestPath);
-  const provider = relativePath.match(/\.([^.\/]+)-plugin/u)?.[1];
+  const provider = relativePath.match(/\.([^./]+)-plugin/u)?.[1];
 
   if (manifest.name !== 'consensus') {
     issues.push(`${relativePath} name should be consensus`);
@@ -476,7 +476,7 @@ async function main() {
     return;
   }
 
-  for (const error of result.errors.sort()) {
+  for (const error of result.errors.toSorted()) {
     console.error(`validation error: ${error}`);
   }
   process.exitCode = 1;

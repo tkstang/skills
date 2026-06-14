@@ -231,7 +231,7 @@ describe('observeCatchUp', () => {
       assert.equal(result.ok, false);
       assert.equal(result.kind, 'ambiguousRuntime');
       assert.equal(result.exitCode, 3);
-      assert.deepEqual(result.payload.runtimes.sort(), [
+      assert.deepEqual(result.payload.runtimes.toSorted(), [
         'claude-code',
         'codex',
       ]);

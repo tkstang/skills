@@ -34,9 +34,7 @@ const { discover, gitWorktrees, claudeCodeLookupDiagnostics } = await import(
   join(LIB, 'locate.mjs')
 );
 const { rank } = await import(join(LIB, 'rank.mjs'));
-const { buildDigest, renderMarkdown, renderJson } = await import(
-  join(LIB, 'digest.mjs')
-);
+const { buildDigest, renderMarkdown } = await import(join(LIB, 'digest.mjs'));
 const { observeCatchUp } = await import(join(LIB, 'observe.mjs'));
 const { runWatchLoop } = await import(join(LIB, 'watch.mjs'));
 const { readRecords } = await import(join(LIB, 'runtimes.mjs'));
@@ -181,7 +179,7 @@ async function preferredRuntimeFromState(withCandidates, targetCwd) {
     .filter((s) => runtimeSet.has(s.runtime))
     .filter((s) => s.recordedCwd === targetCwd)
     .filter((s) => sessionIdsByRuntime.get(s.runtime)?.has(s.sessionId))
-    .sort((a, b) =>
+    .toSorted((a, b) =>
       String(b.lastReadAt ?? '').localeCompare(String(a.lastReadAt ?? '')),
     );
 
@@ -299,15 +297,6 @@ function parsePinnedSession(session) {
     };
   }
   return { runtime, sessionId };
-}
-
-function shouldMarkCatchUpRead(sessionState, digest) {
-  if (digest.range.newRecords > 0) return true;
-  if (!sessionState) return true;
-  return (
-    sessionState.lastRecordIndex !== digest.range.nextIndex ||
-    sessionState.lastTotalRecords !== digest.range.totalRecords
-  );
 }
 
 async function applySnippetFilter(candidates, snippet) {
@@ -621,7 +610,7 @@ async function runReview(args) {
     );
   }
 
-  let winner = rankResult.winner;
+  const winner = rankResult.winner;
 
   // Get prior offset (review uses fromIndex=0 unless --mark-read was used before)
   const fromIndex = 0; // review always starts from 0
@@ -694,7 +683,7 @@ async function runCatchUp(args) {
 
 async function runLocate(args) {
   const { cwd, json, debug, snippet } = args;
-  let { runtime } = args;
+  const { runtime } = args;
 
   if (runtime === 'auto') {
     // For locate, try both runtimes and show all
@@ -905,7 +894,7 @@ async function runLocate(args) {
 
 async function runState(args) {
   const { stateOp, json } = args;
-  let { runtime } = args;
+  const { runtime } = args;
 
   switch (stateOp) {
     case 'get': {

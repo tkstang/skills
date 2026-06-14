@@ -248,7 +248,7 @@ export function rank(candidates, targetCwd, opts = {}) {
 
   // No match case
   if (!winningTier) {
-    const allByMtime = [...candidates].sort((a, b) => b.mtime - a.mtime);
+    const allByMtime = [...candidates].toSorted((a, b) => b.mtime - a.mtime);
     const globalRecent = globalRecentProvider
       ? globalRecentProvider()
       : allByMtime.slice(0, 5);
@@ -269,7 +269,7 @@ export function rank(candidates, targetCwd, opts = {}) {
       winner: null,
       unengagedOnly: true,
       tier: winningTier,
-      candidates: [...unengagedPool].sort(compareCandidatePreference),
+      candidates: [...unengagedPool].toSorted(compareCandidatePreference),
       message: 'Only unengaged sessions matched this cwd.',
     };
   }
@@ -277,7 +277,7 @@ export function rank(candidates, targetCwd, opts = {}) {
   // Sort winning pool by engagement signals first, then transcript weight, then
   // mtime. This prevents freshly spawned bootstrap sessions from beating an
   // idle but substantive human conversation.
-  const sorted = [...engagedPool].sort(compareCandidatePreference);
+  const sorted = [...engagedPool].toSorted(compareCandidatePreference);
   const winner = sorted[0];
 
   // Annotate winner with active flag
@@ -295,7 +295,7 @@ export function rank(candidates, targetCwd, opts = {}) {
   // Fallbacks: remaining sorted candidates in the winning tier after winner
   const fallbacks = [
     ...sorted.slice(1),
-    ...unengagedPool.sort(compareCandidatePreference),
+    ...unengagedPool.toSorted(compareCandidatePreference),
   ];
 
   return {

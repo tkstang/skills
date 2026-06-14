@@ -889,7 +889,7 @@ describe('--runtime auto', () => {
       );
       const parsed = JSON.parse(result.stdout);
       assert.equal(parsed.ambiguousRuntime, true);
-      assert.deepEqual(parsed.runtimes.sort(), ['codex', 'cursor']);
+      assert.deepEqual(parsed.runtimes.toSorted(), ['codex', 'cursor']);
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }

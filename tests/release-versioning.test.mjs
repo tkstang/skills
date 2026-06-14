@@ -83,8 +83,8 @@ test('bumpVersion updates plugin manifests and present marketplace versions', as
   const result = await bumpVersion({ root, version: '0.2.0-beta.1' });
 
   assert.deepEqual(
-    [...result.updatedFiles].sort(),
-    [...jsonFiles, ...skillFiles].sort(),
+    [...result.updatedFiles].toSorted(),
+    [...jsonFiles, ...skillFiles].toSorted(),
   );
   for (const file of jsonFiles.slice(0, 3)) {
     assert.equal((await readJson(root, file)).version, '0.2.0-beta.1');

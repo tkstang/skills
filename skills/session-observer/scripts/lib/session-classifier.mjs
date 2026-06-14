@@ -39,7 +39,7 @@ function isSyntheticForEngagement(entry) {
 }
 
 function publicBootstrapIndexes(indexes) {
-  return [...indexes].sort((a, b) => a - b);
+  return [...indexes].toSorted((a, b) => a - b);
 }
 
 function entriesByRecordIndex(entries) {

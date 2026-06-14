@@ -11,7 +11,10 @@
   "rules": {
     "eslint/prefer-const": "error",
     "eslint/eqeqeq": ["error", "smart"],
-    "eslint/no-empty": "error"
+    "eslint/no-empty": "error",
+    "eslint/no-underscore-dangle": "off",
+    "eslint/no-shadow": "warn",
+    "unicorn/consistent-function-scoping": "off"
   },
   "overrides": [
     {

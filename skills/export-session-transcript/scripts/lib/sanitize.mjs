@@ -68,12 +68,12 @@ export const HIDDEN_PAYLOAD_MATCHERS = [
       const l = lead(text);
       // Classic label form: leading System/Developer immediately followed by
       // ':' or '-' punctuation.
-      if (/^(System|Developer)\b\s*[:\-]/.test(l)) return true;
+      if (/^(System|Developer)\b\s*[:-]/.test(l)) return true;
       // Lead-word form: "System prompt", "Developer note", "System instructions",
       // "Developer message", etc. — a known instruction-header phrasing followed
       // by ':' or '-'. Kept narrow so prose like "System design notes for X"
       // (no following ':'/'-') is NOT dropped.
-      return /^(System|Developer)\s+(prompt|note|notes|message|instruction|instructions|directive|directives|guidelines?)\b\s*[:\-]/i.test(
+      return /^(System|Developer)\s+(prompt|note|notes|message|instruction|instructions|directive|directives|guidelines?)\b\s*[:-]/i.test(
         l,
       );
     },

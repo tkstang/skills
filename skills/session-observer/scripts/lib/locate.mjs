@@ -324,7 +324,7 @@ async function collectJsonlFiles(dir) {
  * @param {string} targetCwd
  * @returns {Promise<object[]>} Candidate[]
  */
-async function discoverCodex(targetCwd) {
+async function discoverCodex(_targetCwd) {
   const [sessionsRoot] = discoverPaths('codex');
   const now = Date.now() / 1000;
   const cutoffSec = now - LOOKBACK_DAYS * 86400;

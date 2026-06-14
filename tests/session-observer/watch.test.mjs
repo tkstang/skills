@@ -1015,7 +1015,7 @@ describe('runWatchLoop', () => {
       assert.equal(event.sessionId, sessionId);
       assert.equal(event.newRecords, 1);
       assert.equal(typeof event.digestChars, 'number');
-      assert.deepEqual(Object.keys(event.ranges).sort(), [
+      assert.deepEqual(Object.keys(event.ranges).toSorted(), [
         'fromIndex',
         'nextIndex',
         'renderedFromIndex',

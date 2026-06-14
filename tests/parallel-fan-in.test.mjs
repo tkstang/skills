@@ -63,7 +63,7 @@ async function prepareCompletedManifest() {
 }
 
 async function writeCompletedSectionOutputs(manifest) {
-  for (const section of [...manifest.sections].reverse()) {
+  for (const section of [...manifest.sections].toReversed()) {
     await writeFile(
       section.output_section,
       `Final ${section.original_index}: ${section.name}\n`,
@@ -218,7 +218,7 @@ async function writeMixedSectionOutputs(manifest) {
   // Section 0 converges; section 1 escalates; section 2 converges. The escalated
   // section must surface without blocking the converged ones.
   const outcomes = ['converged', 'escalation', 'converged'];
-  for (const section of [...manifest.sections]) {
+  for (const section of manifest.sections) {
     const outcome = outcomes[section.original_index] ?? 'converged';
     await writeFile(
       section.output_section,

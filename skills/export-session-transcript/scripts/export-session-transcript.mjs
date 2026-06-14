@@ -300,7 +300,7 @@ async function candidateContainsMarker(transcriptPath, marker) {
 }
 
 function newest(candidates) {
-  return [...candidates].sort((a, b) => b.mtime - a.mtime)[0];
+  return [...candidates].toSorted((a, b) => b.mtime - a.mtime)[0];
 }
 
 /**

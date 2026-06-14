@@ -741,7 +741,7 @@ export async function createRecordsWriter(recordsPath, options = {}) {
   };
 }
 
-export async function writeLoopStatus(statusPath, status, options = {}) {
+export async function writeLoopStatus(statusPath, status, _options = {}) {
   await mkdir(path.dirname(statusPath), { recursive: true });
   const reserved = new Set([
     'schema_version',
@@ -2595,9 +2595,9 @@ function parallelRoundPairs(records, options = {}) {
   }
 
   return [...byRound.keys()]
-    .sort((a, b) => a - b)
+    .toSorted((a, b) => a - b)
     .map((round) => {
-      const hashes = byRound.get(round).filter(Boolean).sort();
+      const hashes = byRound.get(round).filter(Boolean).toSorted();
       // Order-normalized pair signature for the round.
       return hashes.length > 0 ? hashes.join('|') : null;
     });
