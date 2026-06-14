@@ -12,16 +12,15 @@
  *   8. Symlink-equivalent cwd paths rank as Tier A
  */
 
-import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, rm, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { test } from 'node:test';
 
 // Dynamic import so we get the live module once
-const { rank, realpathSafe, tierOf } = await import(
-  '../../skills/session-observer/scripts/lib/rank.mjs'
-);
+const { rank, realpathSafe, tierOf } =
+  await import('../../skills/session-observer/scripts/lib/rank.mjs');
 
 // ---------------------------------------------------------------------------
 // Helpers for building synthetic Candidate objects
@@ -95,7 +94,6 @@ test('Tier A exact cwd beats newer unrelated candidate', () => {
   assert.equal(result.tier, 'A');
 });
 
-
 test('Tier B wins when no Tier A; Tier C (no-match) candidates not in result', () => {
   const tierB = mkCandidate({
     recordedCwd: TARGET_CWD + '/sub',
@@ -116,8 +114,11 @@ test('Tier B wins when no Tier A; Tier C (no-match) candidates not in result', (
   assert.equal(result.winner.sessionId, 'sess-b', 'Tier B should win');
   assert.equal(result.tier, 'B', 'result tier should be B');
   // Tier C should not appear as winner or in fallbacks within the winning tier
-  const fallbackIds = (result.fallbacks ?? []).map(f => f.sessionId);
-  assert.ok(!fallbackIds.includes('sess-c'), 'Tier C should not appear in fallbacks');
+  const fallbackIds = (result.fallbacks ?? []).map((f) => f.sessionId);
+  assert.ok(
+    !fallbackIds.includes('sess-c'),
+    'Tier C should not appear in fallbacks',
+  );
 });
 
 test('No match → { winner: null, noMatch: true, sisters, globalRecent }', () => {
@@ -138,17 +139,31 @@ test('No match → { winner: null, noMatch: true, sisters, globalRecent }', () =
 
   assert.equal(result.winner, null, 'winner should be null on noMatch');
   assert.equal(result.noMatch, true, 'noMatch should be true');
-  assert.deepEqual(result.sisters, mockSisters, 'sisters should come from opts.gitWorktrees');
-  assert.ok(Array.isArray(result.globalRecent), 'globalRecent should be an array');
-  assert.ok(result.globalRecent.length >= 1, 'globalRecent should have at least one entry');
+  assert.deepEqual(
+    result.sisters,
+    mockSisters,
+    'sisters should come from opts.gitWorktrees',
+  );
+  assert.ok(
+    Array.isArray(result.globalRecent),
+    'globalRecent should be an array',
+  );
+  assert.ok(
+    result.globalRecent.length >= 1,
+    'globalRecent should have at least one entry',
+  );
 });
 
 test('Claude parent-dir slug match beats newer unrelated global candidate', () => {
-  const targetCwd = '/Users/thomas.stang/.superconductor/worktrees/stoa/sc-levitated-phonon-e8a5';
+  const targetCwd =
+    '/Users/thomas.stang/.superconductor/worktrees/stoa/sc-levitated-phonon-e8a5';
   const sameWorktree = mkCandidate({
-    recordedCwd: '/Users/thomas/stang/superconductor/worktrees/stoa/sc/levitated/phonon/e8a5',
-    cwdSlug: '-Users-thomas-stang--superconductor-worktrees-stoa-sc-levitated-phonon-e8a5',
-    transcriptPath: '/Users/thomas.stang/.claude/projects/-Users-thomas-stang--superconductor-worktrees-stoa-sc-levitated-phonon-e8a5/session.jsonl',
+    recordedCwd:
+      '/Users/thomas/stang/superconductor/worktrees/stoa/sc/levitated/phonon/e8a5',
+    cwdSlug:
+      '-Users-thomas-stang--superconductor-worktrees-stoa-sc-levitated-phonon-e8a5',
+    transcriptPath:
+      '/Users/thomas.stang/.claude/projects/-Users-thomas-stang--superconductor-worktrees-stoa-sc-levitated-phonon-e8a5/session.jsonl',
     mtime: NOW - 300,
     ageSec: 300,
     sessionId: 'sess-same-worktree',
@@ -156,7 +171,8 @@ test('Claude parent-dir slug match beats newer unrelated global candidate', () =
   const unrelatedRecent = mkCandidate({
     recordedCwd: '/Users/thomas.stang/Code/vault/night-tab',
     cwdSlug: '-Users-thomas-stang-Code-vault-night-tab',
-    transcriptPath: '/Users/thomas.stang/.claude/projects/-Users-thomas-stang-Code-vault-night-tab/session.jsonl',
+    transcriptPath:
+      '/Users/thomas.stang/.claude/projects/-Users-thomas-stang-Code-vault-night-tab/session.jsonl',
     mtime: NOW - 5,
     ageSec: 5,
     sessionId: 'sess-unrelated-recent',
@@ -170,13 +186,16 @@ test('Claude parent-dir slug match beats newer unrelated global candidate', () =
 });
 
 test('Cursor project-dir slug match beats newer unrelated global candidate', () => {
-  const targetCwd = '/Users/thomas.stang/.superconductor/worktrees/skills/sc-pinned-meissner-9974';
+  const targetCwd =
+    '/Users/thomas.stang/.superconductor/worktrees/skills/sc-pinned-meissner-9974';
   const sameWorktree = mkCandidate({
     runtime: 'cursor',
     recordedCwd: null,
-    cwdSlug: 'Users-thomas-stang-superconductor-worktrees-skills-sc-pinned-meissner-9974',
+    cwdSlug:
+      'Users-thomas-stang-superconductor-worktrees-skills-sc-pinned-meissner-9974',
     cwdEvidence: 'project-dir-slug',
-    transcriptPath: '/Users/thomas.stang/.cursor/projects/Users-thomas-stang-superconductor-worktrees-skills-sc-pinned-meissner-9974/agent-transcripts/session-a/transcript.jsonl',
+    transcriptPath:
+      '/Users/thomas.stang/.cursor/projects/Users-thomas-stang-superconductor-worktrees-skills-sc-pinned-meissner-9974/agent-transcripts/session-a/transcript.jsonl',
     mtime: NOW - 300,
     ageSec: 300,
     sessionId: 'cursor-same-worktree',
@@ -186,7 +205,8 @@ test('Cursor project-dir slug match beats newer unrelated global candidate', () 
     recordedCwd: null,
     cwdSlug: 'Users-thomas-stang-Code-vault-night-tab',
     cwdEvidence: 'project-dir-slug',
-    transcriptPath: '/Users/thomas.stang/.cursor/projects/Users-thomas-stang-Code-vault-night-tab/agent-transcripts/session-b/transcript.jsonl',
+    transcriptPath:
+      '/Users/thomas.stang/.cursor/projects/Users-thomas-stang-Code-vault-night-tab/agent-transcripts/session-b/transcript.jsonl',
     mtime: NOW - 5,
     ageSec: 5,
     sessionId: 'cursor-unrelated-recent',
@@ -205,7 +225,10 @@ test('No match with empty candidates → noMatch result', () => {
   assert.equal(result.winner, null, 'winner should be null with no candidates');
   assert.equal(result.noMatch, true, 'noMatch should be true');
   assert.deepEqual(result.sisters, [], 'sisters defaults to []');
-  assert.ok(Array.isArray(result.globalRecent), 'globalRecent should be an array');
+  assert.ok(
+    Array.isArray(result.globalRecent),
+    'globalRecent should be an array',
+  );
 });
 
 test('Ties: candidates within TIE_WINDOW_SEC (5s) of winner appear in ties[]', () => {
@@ -231,16 +254,27 @@ test('Ties: candidates within TIE_WINDOW_SEC (5s) of winner appear in ties[]', (
     sessionId: 'sess-far',
   });
 
-  const result = rank([winner, inWindow, farAway], TARGET_CWD, { tieWindowSec: 5 });
+  const result = rank([winner, inWindow, farAway], TARGET_CWD, {
+    tieWindowSec: 5,
+  });
 
   assert.ok(result.winner, 'should have a winner');
   assert.equal(result.winner.sessionId, 'sess-winner', 'newest should win');
   assert.ok(Array.isArray(result.ties), 'ties should be an array');
-  const tieIds = result.ties.map(t => t.sessionId);
-  assert.ok(tieIds.includes('sess-tie'), 'inWindow candidate should be in ties');
-  assert.ok(!tieIds.includes('sess-far'), 'farAway candidate should not be in ties');
+  const tieIds = result.ties.map((t) => t.sessionId);
+  assert.ok(
+    tieIds.includes('sess-tie'),
+    'inWindow candidate should be in ties',
+  );
+  assert.ok(
+    !tieIds.includes('sess-far'),
+    'farAway candidate should not be in ties',
+  );
   // Winner itself should not appear in its own ties array
-  assert.ok(!tieIds.includes('sess-winner'), 'winner should not appear in its own ties');
+  assert.ok(
+    !tieIds.includes('sess-winner'),
+    'winner should not appear in its own ties',
+  );
 });
 
 test('active: true set on winner when ageSec < 60', () => {
@@ -254,7 +288,11 @@ test('active: true set on winner when ageSec < 60', () => {
   const result = rank([activeCandidate], TARGET_CWD);
 
   assert.ok(result.winner, 'should have a winner');
-  assert.equal(result.winner.active, true, 'active should be true when ageSec < 60');
+  assert.equal(
+    result.winner.active,
+    true,
+    'active should be true when ageSec < 60',
+  );
 });
 
 test('active: false set on winner when ageSec >= 60', () => {
@@ -268,7 +306,11 @@ test('active: false set on winner when ageSec >= 60', () => {
   const result = rank([inactiveCandidate], TARGET_CWD);
 
   assert.ok(result.winner, 'should have a winner');
-  assert.equal(result.winner.active, false, 'active should be false when ageSec >= 60');
+  assert.equal(
+    result.winner.active,
+    false,
+    'active should be false when ageSec >= 60',
+  );
 });
 
 test('realpathSafe handles ENOENT without throwing', async () => {
@@ -299,13 +341,17 @@ test('Within a tier, candidates sorted by mtime DESC', () => {
 
   const result = rank([older, middle, newer], TARGET_CWD);
 
-  assert.equal(result.winner.sessionId, 'sess-newer', 'newest (highest mtime) should win');
+  assert.equal(
+    result.winner.sessionId,
+    'sess-newer',
+    'newest (highest mtime) should win',
+  );
   // fallbacks should be sorted by mtime DESC as well
   if (result.fallbacks && result.fallbacks.length > 0) {
     for (let i = 1; i < result.fallbacks.length; i++) {
       assert.ok(
         result.fallbacks[i - 1].mtime >= result.fallbacks[i].mtime,
-        'fallbacks should be sorted mtime DESC'
+        'fallbacks should be sorted mtime DESC',
       );
     }
   }
@@ -445,18 +491,21 @@ test('globalRecent: top-5 by mtime from all candidates', () => {
       mtime: NOW - (i + 1) * 10,
       ageSec: (i + 1) * 10,
       sessionId: `sess-${i}`,
-    })
+    }),
   );
 
   const result = rank(candidates, TARGET_CWD);
 
   assert.equal(result.noMatch, true, 'should be noMatch');
-  assert.ok(result.globalRecent.length <= 5, 'globalRecent should contain at most 5 entries');
+  assert.ok(
+    result.globalRecent.length <= 5,
+    'globalRecent should contain at most 5 entries',
+  );
   // Verify they are sorted by mtime DESC
   for (let i = 1; i < result.globalRecent.length; i++) {
     assert.ok(
       result.globalRecent[i - 1].mtime >= result.globalRecent[i].mtime,
-      'globalRecent should be sorted mtime DESC'
+      'globalRecent should be sorted mtime DESC',
     );
   }
   // First entry should be the most recent (mtime = NOW - 10)

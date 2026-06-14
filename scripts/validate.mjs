@@ -4,22 +4,32 @@ import { fileURLToPath } from 'node:url';
 
 import { isValidSemver } from './bump-version.mjs';
 
-const DEFAULT_ROOT = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
+const DEFAULT_ROOT = path.resolve(
+  fileURLToPath(new URL('..', import.meta.url)),
+);
 const PROVIDER_MANIFESTS = [
   'plugins/consensus/.claude-plugin/plugin.json',
   'plugins/consensus/.cursor-plugin/plugin.json',
-  'plugins/consensus/.codex-plugin/plugin.json'
+  'plugins/consensus/.codex-plugin/plugin.json',
 ];
 const MARKETPLACE_MANIFESTS = [
   '.claude-plugin/marketplace.json',
   '.cursor-plugin/marketplace.json',
-  '.agents/plugins/marketplace.json'
+  '.agents/plugins/marketplace.json',
 ];
-const REQUIRED_SKILL_FIELDS = ['name', 'description', 'license', 'compatibility'];
+const REQUIRED_SKILL_FIELDS = [
+  'name',
+  'description',
+  'license',
+  'compatibility',
+];
 
 function inside(root, target) {
   const relative = path.relative(root, target);
-  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
+  return (
+    relative === '' ||
+    (!relative.startsWith('..') && !path.isAbsolute(relative))
+  );
 }
 
 function stripQuotes(value) {
@@ -42,7 +52,7 @@ async function listSubdirectories(directory) {
     return entries
       .filter((entry) => entry.isDirectory())
       .map((entry) => path.join(directory, entry.name))
-      .sort();
+      .toSorted();
   } catch (error) {
     if (error.code === 'ENOENT') return [];
     throw error;
@@ -58,16 +68,20 @@ async function discoverSkillDirectories(root) {
     }
   }
 
-  for (const pluginPath of await listSubdirectories(path.join(root, 'plugins'))) {
-    for (const skillPath of await listSubdirectories(path.join(pluginPath, 'skills'))) {
+  for (const pluginPath of await listSubdirectories(
+    path.join(root, 'plugins'),
+  )) {
+    for (const skillPath of await listSubdirectories(
+      path.join(pluginPath, 'skills'),
+    )) {
       if (await pathExists(path.join(skillPath, 'SKILL.md'))) {
         skillDirectories.add(skillPath);
       }
     }
   }
 
-  return [...skillDirectories].sort((left, right) =>
-    path.relative(root, left).localeCompare(path.relative(root, right))
+  return [...skillDirectories].toSorted((left, right) =>
+    path.relative(root, left).localeCompare(path.relative(root, right)),
   );
 }
 
@@ -112,7 +126,7 @@ export async function parseJsonFile(filePath) {
   try {
     return JSON.parse(await readFile(filePath, 'utf8'));
   } catch (error) {
-    throw new Error(`${filePath}: ${error.message}`);
+    throw new Error(`${filePath}: ${error.message}`, { cause: error });
   }
 }
 
@@ -135,7 +149,9 @@ export async function validateSkillReference(root, skill, pluginRoot = root) {
   }
 
   if (!(await pathExists(resolvedPath))) {
-    issues.push(`skill path does not exist: ${path.relative(root, resolvedPath)}`);
+    issues.push(
+      `skill path does not exist: ${path.relative(root, resolvedPath)}`,
+    );
   }
 
   return issues;
@@ -151,14 +167,19 @@ async function validateSkillFrontmatter(root, skillPath) {
 
   let parsed;
   try {
-    parsed = parseFrontmatter(await readFile(skillFile, 'utf8'), path.relative(root, skillFile));
+    parsed = parseFrontmatter(
+      await readFile(skillFile, 'utf8'),
+      path.relative(root, skillFile),
+    );
   } catch (error) {
     return [error.message];
   }
 
   for (const field of REQUIRED_SKILL_FIELDS) {
     if (!parsed[field]) {
-      issues.push(`${path.relative(root, skillFile)} missing frontmatter field: ${field}`);
+      issues.push(
+        `${path.relative(root, skillFile)} missing frontmatter field: ${field}`,
+      );
     }
   }
 
@@ -167,7 +188,9 @@ async function validateSkillFrontmatter(root, skillPath) {
   }
 
   if (!isValidSemver(parsed.metadata?.version)) {
-    issues.push(`${path.relative(root, skillFile)} metadata.version must be valid semver`);
+    issues.push(
+      `${path.relative(root, skillFile)} metadata.version must be valid semver`,
+    );
   }
 
   return issues;
@@ -185,14 +208,19 @@ async function validateDiscoveredSkillDirectories(root) {
 
 export async function validateMarketplaceSource(root, entry) {
   const issues = [];
-  const sourcePath = typeof entry?.source === 'string' ? entry.source : entry?.source?.path;
+  const sourcePath =
+    typeof entry?.source === 'string' ? entry.source : entry?.source?.path;
 
   if (!sourcePath) {
-    return [`marketplace entry ${entry?.name ?? '<unknown>'} missing source.path`];
+    return [
+      `marketplace entry ${entry?.name ?? '<unknown>'} missing source.path`,
+    ];
   }
 
   if (sourcePath.includes('..')) {
-    issues.push(`marketplace source path may not escape repo root: ${sourcePath}`);
+    issues.push(
+      `marketplace source path may not escape repo root: ${sourcePath}`,
+    );
     return issues;
   }
 
@@ -223,7 +251,10 @@ export async function validateReadmeInstallMatrix(root) {
 
 export async function validateSessionObserverWatchDocs(root) {
   const issues = [];
-  const canonicalSkillPath = path.join(root, 'skills/session-observer/SKILL.md');
+  const canonicalSkillPath = path.join(
+    root,
+    'skills/session-observer/SKILL.md',
+  );
   if (!(await pathExists(canonicalSkillPath))) {
     return issues;
   }
@@ -232,24 +263,33 @@ export async function validateSessionObserverWatchDocs(root) {
     'skills/session-observer/SKILL.md',
     'skills/session-observer/references/watch-design.md',
     '.agents/skills/session-observer/SKILL.md',
-    '.agents/skills/session-observer/references/watch-design.md'
+    '.agents/skills/session-observer/references/watch-design.md',
   ];
 
   for (const relativePath of docPaths) {
     const docPath = path.join(root, relativePath);
     if (!(await pathExists(docPath))) {
-      issues.push(`${relativePath} missing session-observer watch documentation`);
+      issues.push(
+        `${relativePath} missing session-observer watch documentation`,
+      );
       continue;
     }
 
     const content = await readFile(docPath, 'utf8');
-    if (/\bnot implemented\b/iu.test(content) || /\bdesign-only\b/iu.test(content)) {
-      issues.push(`${relativePath} contains stale watch-mode implementation status`);
+    if (
+      /\bnot implemented\b/iu.test(content) ||
+      /\bdesign-only\b/iu.test(content)
+    ) {
+      issues.push(
+        `${relativePath} contains stale watch-mode implementation status`,
+      );
     }
 
     for (const token of ['watch', 'watch-ctl', '--watch']) {
       if (!content.includes(token)) {
-        issues.push(`${relativePath} missing watch command surface token: ${token}`);
+        issues.push(
+          `${relativePath} missing watch command surface token: ${token}`,
+        );
       }
     }
   }
@@ -274,7 +314,7 @@ export async function validateVersionConsistency(root) {
     issues.push(
       `plugin manifest versions differ: ${[...versions.entries()]
         .map(([relativePath, version]) => `${relativePath}=${version}`)
-        .join(', ')}`
+        .join(', ')}`,
     );
   }
 
@@ -286,7 +326,7 @@ async function validateProviderManifest(root, relativePath) {
   const manifestPath = path.join(root, relativePath);
   const pluginRoot = path.resolve(path.dirname(manifestPath), '..');
   const manifest = await parseJsonFile(manifestPath);
-  const provider = relativePath.match(/\.([^.\/]+)-plugin/u)?.[1];
+  const provider = relativePath.match(/\.([^./]+)-plugin/u)?.[1];
 
   if (manifest.name !== 'consensus') {
     issues.push(`${relativePath} name should be consensus`);
@@ -302,7 +342,9 @@ async function validateProviderManifest(root, relativePath) {
     }
   } else {
     if (manifest.skills !== undefined) {
-      issues.push(`${relativePath} should rely on skills/ directory discovery, not manifest.skills`);
+      issues.push(
+        `${relativePath} should rely on skills/ directory discovery, not manifest.skills`,
+      );
     }
   }
 
@@ -332,23 +374,38 @@ async function validateMarketplaceManifest(root, relativePath) {
     return [`${relativePath}: missing plugins array`];
   }
 
-  const consensus = manifest.plugins.find((plugin) => plugin.name === 'consensus');
+  const consensus = manifest.plugins.find(
+    (plugin) => plugin.name === 'consensus',
+  );
   if (!consensus) {
     return [`${relativePath}: missing consensus plugin entry`];
   }
 
   issues.push(...(await validateMarketplaceSource(root, consensus)));
-  const sourcePath = typeof consensus.source === 'string' ? consensus.source : consensus.source?.path;
+  const sourcePath =
+    typeof consensus.source === 'string'
+      ? consensus.source
+      : consensus.source?.path;
   if (sourcePath !== './plugins/consensus') {
-    issues.push(`${relativePath}: consensus source.path should be ./plugins/consensus`);
+    issues.push(
+      `${relativePath}: consensus source.path should be ./plugins/consensus`,
+    );
   }
 
-  return issues.map((issue) => (issue.startsWith(relativePath) ? issue : `${relativePath}: ${issue}`));
+  return issues.map((issue) =>
+    issue.startsWith(relativePath) ? issue : `${relativePath}: ${issue}`,
+  );
 }
 
 async function validateDocs(root) {
   const issues = [];
-  const docs = ['README.md', 'LICENSE', 'CHANGELOG.md', 'CONTRIBUTING.md', 'RELEASING.md'];
+  const docs = [
+    'README.md',
+    'LICENSE',
+    'CHANGELOG.md',
+    'CONTRIBUTING.md',
+    'RELEASING.md',
+  ];
 
   for (const doc of docs) {
     if (!(await pathExists(path.join(root, doc)))) {
@@ -375,7 +432,7 @@ async function validateDirectoryLayout(root) {
     'plugins/consensus/agents',
     'plugins/consensus/.claude-plugin',
     'plugins/consensus/.cursor-plugin',
-    'plugins/consensus/.codex-plugin'
+    'plugins/consensus/.codex-plugin',
   ];
 
   for (const directory of directories) {
@@ -407,7 +464,7 @@ export async function validateRepository(options = {}) {
 
   return {
     ok: errors.length === 0,
-    errors
+    errors,
   };
 }
 
@@ -419,7 +476,7 @@ async function main() {
     return;
   }
 
-  for (const error of result.errors.sort()) {
+  for (const error of result.errors.toSorted()) {
     console.error(`validation error: ${error}`);
   }
   process.exitCode = 1;

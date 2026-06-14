@@ -8,7 +8,14 @@
  *   STATE_DIR/watch.control.json        (legacy pid-less directives, still honored)
  */
 
-import { open, rename, mkdir, readdir, readFile, unlink } from 'node:fs/promises';
+import {
+  open,
+  rename,
+  mkdir,
+  readdir,
+  readFile,
+  unlink,
+} from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
@@ -21,7 +28,10 @@ const LOCK_INTERVAL_MS = 50;
 const CONTROL_DIRECTIVES = new Set(['flush', 'pause', 'resume', 'stop']);
 
 function stateDir() {
-  return process.env.STATE_DIR ?? join(homedir(), '.local', 'state', 'session-observer');
+  return (
+    process.env.STATE_DIR ??
+    join(homedir(), '.local', 'state', 'session-observer')
+  );
 }
 
 function watchPath(dir) {
@@ -69,7 +79,9 @@ async function acquireLock(lock) {
       await sleep(LOCK_INTERVAL_MS);
     }
   }
-  throw new Error(`watch-state.mjs: could not acquire lock after ${LOCK_RETRIES} retries`);
+  throw new Error(
+    `watch-state.mjs: could not acquire lock after ${LOCK_RETRIES} retries`,
+  );
 }
 
 async function releaseLock(lock) {
@@ -98,7 +110,9 @@ async function readWatchState(dir) {
 
   const watchers = Array.isArray(parsed.watchers)
     ? parsed.watchers.filter(Boolean)
-    : parsed.active ? [parsed.active] : [];
+    : parsed.active
+      ? [parsed.active]
+      : [];
 
   return {
     schemaVersion: SCHEMA_VERSION,
@@ -121,9 +135,17 @@ async function writeJsonAtomic(dir, basename, payload) {
     await rename(tmp, dest);
   } finally {
     if (fh) {
-      try { await fh.close(); } catch { /* ignore */ }
+      try {
+        await fh.close();
+      } catch {
+        /* ignore */
+      }
     }
-    try { await unlink(tmp); } catch { /* ignore ENOENT */ }
+    try {
+      await unlink(tmp);
+    } catch {
+      /* ignore ENOENT */
+    }
   }
 }
 
@@ -144,7 +166,9 @@ function isPidLive(pid) {
 }
 
 function syncPrimaryActive(state) {
-  state.watchers = Array.isArray(state.watchers) ? state.watchers.filter(Boolean) : [];
+  state.watchers = Array.isArray(state.watchers)
+    ? state.watchers.filter(Boolean)
+    : [];
   state.active = state.watchers[0] ?? null;
 }
 
@@ -155,8 +179,10 @@ function clearStaleWatchers(state) {
   });
   const watchers = Array.isArray(state.watchers)
     ? state.watchers
-    : state.active ? [state.active] : [];
-  state.watchers = watchers.filter(watcher => isPidLive(watcher.pid));
+    : state.active
+      ? [state.active]
+      : [];
+  state.watchers = watchers.filter((watcher) => isPidLive(watcher.pid));
   syncPrimaryActive(state);
   const after = JSON.stringify({
     active: state.active ?? null,
@@ -214,10 +240,12 @@ export async function startWatcher({
 
   return mutateWatchState((state) => {
     clearStaleWatchers(state);
-    const existingForPid = state.watchers.find(watcher => watcher.pid === pid && isPidLive(watcher.pid));
+    const existingForPid = state.watchers.find(
+      (watcher) => watcher.pid === pid && isPidLive(watcher.pid),
+    );
     if (existingForPid) {
       throw new Error(
-        `watcher already active for ${existingForPid.runtime} at ${existingForPid.cwd} (pid ${existingForPid.pid})`
+        `watcher already active for ${existingForPid.runtime} at ${existingForPid.cwd} (pid ${existingForPid.pid})`,
       );
     }
 
@@ -252,9 +280,10 @@ export async function clearWatcher({ pid } = {}) {
   return mutateWatchState((state) => {
     clearStaleWatchers(state);
     const beforeCount = state.watchers.length;
-    state.watchers = pid === undefined
-      ? []
-      : state.watchers.filter(watcher => watcher.pid !== pid);
+    state.watchers =
+      pid === undefined
+        ? []
+        : state.watchers.filter((watcher) => watcher.pid !== pid);
     syncPrimaryActive(state);
     return state.watchers.length !== beforeCount;
   });
@@ -262,7 +291,9 @@ export async function clearWatcher({ pid } = {}) {
 
 function mutateWatcherByPid(state, pid, update) {
   clearStaleWatchers(state);
-  const index = state.watchers.findIndex(watcher => pid === undefined || watcher.pid === pid);
+  const index = state.watchers.findIndex(
+    (watcher) => pid === undefined || watcher.pid === pid,
+  );
   if (index === -1) return null;
   const updated = update(state.watchers[index]);
   state.watchers[index] = updated;
@@ -272,7 +303,7 @@ function mutateWatcherByPid(state, pid, update) {
 
 export async function recordWatcherEvent({ pid, lastEventAt } = {}) {
   return mutateWatchState((state) => {
-    return mutateWatcherByPid(state, pid, watcher => ({
+    return mutateWatcherByPid(state, pid, (watcher) => ({
       ...watcher,
       lastEventAt: toIsoTimestamp(lastEventAt),
       eventCount: (watcher.eventCount ?? 0) + 1,
@@ -282,7 +313,7 @@ export async function recordWatcherEvent({ pid, lastEventAt } = {}) {
 
 export async function recordWatcherPoll({ pid, lastPollAt } = {}) {
   return mutateWatchState((state) => {
-    return mutateWatcherByPid(state, pid, watcher => ({
+    return mutateWatcherByPid(state, pid, (watcher) => ({
       ...watcher,
       lastPollAt: toIsoTimestamp(lastPollAt),
     }));
@@ -292,19 +323,24 @@ export async function recordWatcherPoll({ pid, lastPollAt } = {}) {
 function watcherHasTarget(watcher, key) {
   const targets = Array.isArray(watcher.targets) ? watcher.targets : [];
   if (targets.length > 0) {
-    return targets.some(target =>
-      (target.key ?? `${target.runtime}:${target.sessionId}`) === key
+    return targets.some(
+      (target) =>
+        (target.key ?? `${target.runtime}:${target.sessionId}`) === key,
     );
   }
   // Legacy single-`active` records lifted into watchers[] carry the resolved
   // target at the top level instead of in targets[].
   if (!watcher.sessionId) return false;
-  return `${watcher.resolvedRuntime ?? watcher.runtime}:${watcher.sessionId}` === key;
+  return (
+    `${watcher.resolvedRuntime ?? watcher.runtime}:${watcher.sessionId}` === key
+  );
 }
 
 export async function recordWatcherTarget({ pid, target } = {}) {
   if (!target?.runtime || !target?.sessionId || !target?.transcriptPath) {
-    throw new Error('runtime, sessionId, and transcriptPath are required to record a watcher target');
+    throw new Error(
+      'runtime, sessionId, and transcriptPath are required to record a watcher target',
+    );
   }
 
   return mutateWatchState((state) => {
@@ -313,20 +349,26 @@ export async function recordWatcherTarget({ pid, target } = {}) {
     // it before either has recorded its target. Re-check under the lock.
     clearStaleWatchers(state);
     const acquireKey = `${target.runtime}:${target.sessionId}`;
-    const conflict = state.watchers.find(watcher =>
-      watcher.pid !== pid && watcherHasTarget(watcher, acquireKey)
+    const conflict = state.watchers.find(
+      (watcher) => watcher.pid !== pid && watcherHasTarget(watcher, acquireKey),
     );
     if (conflict) {
-      const err = new Error(`watcher pid ${conflict.pid} is already watching ${acquireKey}`);
+      const err = new Error(
+        `watcher pid ${conflict.pid} is already watching ${acquireKey}`,
+      );
       err.code = 'DUPLICATE_WATCH_TARGET';
       err.conflictPid = conflict.pid;
       throw err;
     }
 
-    return mutateWatcherByPid(state, pid, watcher => {
-      const targets = Array.isArray(watcher.targets) ? [...watcher.targets] : [];
+    return mutateWatcherByPid(state, pid, (watcher) => {
+      const targets = Array.isArray(watcher.targets)
+        ? [...watcher.targets]
+        : [];
       const key = `${target.runtime}:${target.sessionId}`;
-      const existingIndex = targets.findIndex(existing => existing.key === key);
+      const existingIndex = targets.findIndex(
+        (existing) => existing.key === key,
+      );
       const targetRecord = {
         key,
         runtime: target.runtime,
@@ -340,14 +382,20 @@ export async function recordWatcherTarget({ pid, target } = {}) {
       };
 
       if (existingIndex === -1) targets.push(targetRecord);
-      else targets[existingIndex] = { ...targets[existingIndex], ...targetRecord };
+      else
+        targets[existingIndex] = { ...targets[existingIndex], ...targetRecord };
 
       return {
         ...watcher,
         targets,
-        resolvedRuntime: targets.length === 1 ? targets[0].runtime : watcher.resolvedRuntime,
-        sessionId: targets.length === 1 ? targets[0].sessionId : watcher.sessionId,
-        transcriptPath: targets.length === 1 ? targets[0].transcriptPath : watcher.transcriptPath,
+        resolvedRuntime:
+          targets.length === 1 ? targets[0].runtime : watcher.resolvedRuntime,
+        sessionId:
+          targets.length === 1 ? targets[0].sessionId : watcher.sessionId,
+        transcriptPath:
+          targets.length === 1
+            ? targets[0].transcriptPath
+            : watcher.transcriptPath,
       };
     });
   });
@@ -358,22 +406,30 @@ export async function recordWatcherTarget({ pid, target } = {}) {
  * given target session. Used to refuse duplicate watchers that would otherwise
  * race over the shared per-session read offset.
  */
-export async function findLiveWatcherForTarget({ runtime, sessionId, excludePid } = {}) {
+export async function findLiveWatcherForTarget({
+  runtime,
+  sessionId,
+  excludePid,
+} = {}) {
   if (!runtime || !sessionId) return null;
   const state = await loadWatchState();
   const key = `${runtime}:${sessionId}`;
-  return state.watchers.find(watcher =>
-    watcher.pid !== excludePid && watcherHasTarget(watcher, key)
-  ) ?? null;
+  return (
+    state.watchers.find(
+      (watcher) => watcher.pid !== excludePid && watcherHasTarget(watcher, key),
+    ) ?? null
+  );
 }
 
 export async function recordWatcherError({ pid, error, at } = {}) {
   return mutateWatchState((state) => {
-    return mutateWatcherByPid(state, pid, watcher => ({
+    return mutateWatcherByPid(state, pid, (watcher) => ({
       ...watcher,
       lastError: {
         at: toIsoTimestamp(at),
-        message: error?.message ? String(error.message) : String(error ?? 'unknown error'),
+        message: error?.message
+          ? String(error.message)
+          : String(error ?? 'unknown error'),
       },
     }));
   });
@@ -410,7 +466,8 @@ export async function writeControlDirective(directive, { issuedAt, pid } = {}) {
   const dir = stateDir();
   const payload = { directive, issuedAt: toIsoTimestamp(issuedAt) };
   if (pid !== undefined) payload.pid = pid;
-  const basename = pid === undefined ? 'watch.control.json' : `watch.control.${pid}.json`;
+  const basename =
+    pid === undefined ? 'watch.control.json' : `watch.control.${pid}.json`;
   await writeJsonAtomic(dir, basename, payload);
   return payload;
 }
@@ -456,12 +513,20 @@ export async function clearStaleControlDirectives() {
   for (const entry of entries) {
     const match = PID_CONTROL_FILE_RE.exec(entry);
     if (match) {
-      if (!isPidLive(Number(match[1])) && await unlinkIfExists(join(dir, entry))) cleared++;
+      if (
+        !isPidLive(Number(match[1])) &&
+        (await unlinkIfExists(join(dir, entry)))
+      )
+        cleared++;
       continue;
     }
     if (entry === 'watch.control.json') {
       const legacy = await readControlFile(join(dir, entry)).catch(() => null);
-      if (legacy?.pid !== undefined && !isPidLive(legacy.pid) && await unlinkIfExists(join(dir, entry))) {
+      if (
+        legacy?.pid !== undefined &&
+        !isPidLive(legacy.pid) &&
+        (await unlinkIfExists(join(dir, entry)))
+      ) {
         cleared++;
       }
     }

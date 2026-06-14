@@ -8,13 +8,13 @@ import {
   ConsensusError,
   EXIT_CODES,
   exitCodeForError,
-  runConsensusLoop
+  runConsensusLoop,
 } from '../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
 import {
   createJsonlEvent,
   renderHumanError,
   runSequential,
-  runWrapperCli
+  runWrapperCli,
 } from '../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
 
 const repoRoot = path.resolve(new URL('..', import.meta.url).pathname);
@@ -26,11 +26,11 @@ function captureWriter() {
     stream: {
       write(chunk) {
         value += chunk;
-      }
+      },
     },
     value() {
       return value;
-    }
+    },
   };
 }
 
@@ -45,8 +45,8 @@ function sectionFailOnceInvoker() {
       json: {
         schema_version: 'v1',
         verdict: 'ACCEPT',
-        reasoning: 'accepted'
-      }
+        reasoning: 'accepted',
+      },
     };
   };
 }
@@ -61,8 +61,8 @@ function sectionPartialFailureInvoker() {
           schema_version: 'v1',
           verdict: 'REVISE',
           reasoning: 'partial edit landed',
-          proposed_artifact: 'Partially revised intro.\n'
-        }
+          proposed_artifact: 'Partially revised intro.\n',
+        },
       };
     }
     if (calls === 2) {
@@ -72,8 +72,8 @@ function sectionPartialFailureInvoker() {
       json: {
         schema_version: 'v1',
         verdict: 'ACCEPT',
-        reasoning: 'accepted'
-      }
+        reasoning: 'accepted',
+      },
     };
   };
 }
@@ -88,31 +88,37 @@ function impasseThenAcceptInvoker() {
           schema_version: 'v1',
           verdict: 'IMPASSE',
           reasoning: 'needs user direction',
-          concerns: ['unclear scope']
-        }
+          concerns: ['unclear scope'],
+        },
       };
     }
     return {
       json: {
         schema_version: 'v1',
         verdict: 'ACCEPT',
-        reasoning: 'accepted'
-      }
+        reasoning: 'accepted',
+      },
     };
   };
 }
 
 function extractLabeledJson(markdown, label) {
-  const fenced = markdown.match(new RegExp('```json ' + label + '\\n([\\s\\S]*?)\\n```'));
+  const fenced = markdown.match(
+    new RegExp('```json ' + label + '\\n([\\s\\S]*?)\\n```'),
+  );
   if (fenced) return JSON.parse(fenced[1]);
 
-  const commented = markdown.match(new RegExp('<!-- consensus:' + label + '\\n([\\s\\S]*?)\\n-->'));
+  const commented = markdown.match(
+    new RegExp('<!-- consensus:' + label + '\\n([\\s\\S]*?)\\n-->'),
+  );
   assert.ok(commented, `missing ${label} JSON block`);
   return JSON.parse(commented[1]);
 }
 
 async function makeSynthesizedRunFiles() {
-  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-synth-fail-'));
+  const tempRoot = await mkdtemp(
+    path.join(os.tmpdir(), 'consensus-synth-fail-'),
+  );
   const sectionPath = path.join(tempRoot, 'section.md');
   await writeFile(sectionPath, 'Seed.\n');
   return {
@@ -120,7 +126,7 @@ async function makeSynthesizedRunFiles() {
     sectionPath,
     recordsPath: path.join(tempRoot, 'records.json'),
     outputPath: path.join(tempRoot, 'output.md'),
-    statusPath: path.join(tempRoot, 'status.json')
+    statusPath: path.join(tempRoot, 'status.json'),
   };
 }
 
@@ -146,7 +152,7 @@ function synthesizedArgv(files, extra = []) {
     files.outputPath,
     '--output-status',
     files.statusPath,
-    ...extra
+    ...extra,
   ];
 }
 
@@ -160,9 +166,9 @@ function divergentPeer() {
         verdict: 'REVISE',
         reasoning: `r${call}`,
         critique: { own_previous: 'o', peer_previous: 'p' },
-        proposed_artifact: `peer-${call}.\n`
+        proposed_artifact: `peer-${call}.\n`,
       },
-      stdout: '{"id":"peer"}'
+      stdout: '{"id":"peer"}',
     };
   };
 }
@@ -175,16 +181,25 @@ test('synthesis process failure leaves the peer pair durable and resumable (pend
       invokePeer: divergentPeer(),
       invokeSynthesizer: async () => {
         throw new Error('synthesizer spawn failed');
-      }
-    })
+      },
+    }),
   );
 
   const records = JSON.parse(await readFile(files.recordsPath, 'utf8'));
   // The peer pair is durable; NO synthesis or synthesis-error record was written.
   assert.equal(records.length, 2, 'exactly the peer pair is committed');
-  assert.deepEqual(records.map((record) => record.agent), ['claude', 'codex']);
-  assert.equal(records.some((record) => record.record_type === 'synthesis'), false);
-  assert.equal(records.some((record) => record.record_type === 'synthesis-error'), false);
+  assert.deepEqual(
+    records.map((record) => record.agent),
+    ['claude', 'codex'],
+  );
+  assert.equal(
+    records.some((record) => record.record_type === 'synthesis'),
+    false,
+  );
+  assert.equal(
+    records.some((record) => record.record_type === 'synthesis-error'),
+    false,
+  );
 });
 
 test('invalid synthesis shape writes a metadata-only synthesis-error record and errors the section', async () => {
@@ -196,17 +211,19 @@ test('invalid synthesis shape writes a metadata-only synthesis-error record and 
       invokeSynthesizer: async () => ({
         // Missing synthesis_reasoning + unresolved_disagreements.
         json: { schema_version: 'v1', synthesized_artifact: 'merged' },
-        stdout: '{"id":"synth"}'
-      })
+        stdout: '{"id":"synth"}',
+      }),
     }),
     (error) => {
       assert.equal(error.code, 'INVALID_SYNTHESIS_SHAPE');
       return true;
-    }
+    },
   );
 
   const records = JSON.parse(await readFile(files.recordsPath, 'utf8'));
-  const synthError = records.find((record) => record.record_type === 'synthesis-error');
+  const synthError = records.find(
+    (record) => record.record_type === 'synthesis-error',
+  );
   assert.ok(synthError, 'a synthesis-error record is written');
   assert.equal(synthError.code, 'INVALID_SYNTHESIS_SHAPE');
   assert.equal(synthError.synthesizer, 'claude');
@@ -229,32 +246,38 @@ test('oversized synthesis writes a synthesis-error record with INVALID_SYNTHESIS
           schema_version: 'v1',
           synthesized_artifact: huge,
           synthesis_reasoning: 'merged',
-          unresolved_disagreements: []
+          unresolved_disagreements: [],
         },
-        stdout: '{"id":"synth"}'
-      })
+        stdout: '{"id":"synth"}',
+      }),
     }),
     (error) => {
       assert.equal(error.code, 'INVALID_SYNTHESIS_CAPS');
       return true;
-    }
+    },
   );
 
   const records = JSON.parse(await readFile(files.recordsPath, 'utf8'));
-  const synthError = records.find((record) => record.record_type === 'synthesis-error');
+  const synthError = records.find(
+    (record) => record.record_type === 'synthesis-error',
+  );
   assert.ok(synthError);
   assert.equal(synthError.code, 'INVALID_SYNTHESIS_CAPS');
   assert.equal('synthesized_artifact' in synthError, false);
 });
 
 test('createJsonlEvent returns stdout-safe JSONL event shape', () => {
-  const event = createJsonlEvent('run_started', { input_path: 'draft.md' }, { now: () => '2026-05-04T03:00:00.000Z' });
+  const event = createJsonlEvent(
+    'run_started',
+    { input_path: 'draft.md' },
+    { now: () => '2026-05-04T03:00:00.000Z' },
+  );
 
   assert.deepEqual(event, {
     consensus_schema_version: 'v1',
     event: 'run_started',
     timestamp: '2026-05-04T03:00:00.000Z',
-    input_path: 'draft.md'
+    input_path: 'draft.md',
   });
   assert.doesNotThrow(() => JSON.parse(`${JSON.stringify(event)}\n`));
 });
@@ -264,27 +287,82 @@ test('renderHumanError omits stacks unless trace logging is requested', () => {
   error.stack = 'STACK SHOULD NOT LEAK';
 
   assert.equal(renderHumanError(error, {}), 'plain failure');
-  assert.match(renderHumanError(error, { CONSENSUS_LOG: 'trace' }), /STACK SHOULD NOT LEAK/);
+  assert.match(
+    renderHumanError(error, { CONSENSUS_LOG: 'trace' }),
+    /STACK SHOULD NOT LEAK/,
+  );
 });
 
 test('exitCodeForError maps unit-testable wrapper exit codes', () => {
-  assert.equal(exitCodeForError(new ConsensusError('usage', { exitCode: EXIT_CODES.USAGE })), 64);
-  assert.equal(exitCodeForError(new ConsensusError('data', { exitCode: EXIT_CODES.DATA })), 65);
-  assert.equal(exitCodeForError(Object.assign(new Error('io'), { code: 'ENOENT' })), 73);
-  assert.equal(exitCodeForError(Object.assign(new Error('permission'), { code: 'EACCES' })), 77);
-  assert.equal(exitCodeForError(Object.assign(new Error('permission'), { code: 'EPERM' })), 77);
-  assert.equal(exitCodeForError(new ConsensusError('section', { exitCode: EXIT_CODES.SECTION_ERROR })), 74);
-  assert.equal(exitCodeForError(Object.assign(new Error('missing'), { code: 'PASEO_MISSING' })), 78);
-  assert.equal(exitCodeForError(Object.assign(new Error('peer'), { code: 'PEER_UNAVAILABLE' })), 78);
-  assert.equal(exitCodeForError(Object.assign(new Error('node'), { code: 'NODE_TOO_OLD' })), 78);
-  assert.equal(exitCodeForError(new ConsensusError('config', { exitCode: EXIT_CODES.CONFIG })), 78);
-  assert.equal(exitCodeForError(Object.assign(new Error('interrupted'), { name: 'AbortError' })), 130);
+  assert.equal(
+    exitCodeForError(
+      new ConsensusError('usage', { exitCode: EXIT_CODES.USAGE }),
+    ),
+    64,
+  );
+  assert.equal(
+    exitCodeForError(new ConsensusError('data', { exitCode: EXIT_CODES.DATA })),
+    65,
+  );
+  assert.equal(
+    exitCodeForError(Object.assign(new Error('io'), { code: 'ENOENT' })),
+    73,
+  );
+  assert.equal(
+    exitCodeForError(
+      Object.assign(new Error('permission'), { code: 'EACCES' }),
+    ),
+    77,
+  );
+  assert.equal(
+    exitCodeForError(Object.assign(new Error('permission'), { code: 'EPERM' })),
+    77,
+  );
+  assert.equal(
+    exitCodeForError(
+      new ConsensusError('section', { exitCode: EXIT_CODES.SECTION_ERROR }),
+    ),
+    74,
+  );
+  assert.equal(
+    exitCodeForError(
+      Object.assign(new Error('missing'), { code: 'PASEO_MISSING' }),
+    ),
+    78,
+  );
+  assert.equal(
+    exitCodeForError(
+      Object.assign(new Error('peer'), { code: 'PEER_UNAVAILABLE' }),
+    ),
+    78,
+  );
+  assert.equal(
+    exitCodeForError(
+      Object.assign(new Error('node'), { code: 'NODE_TOO_OLD' }),
+    ),
+    78,
+  );
+  assert.equal(
+    exitCodeForError(
+      new ConsensusError('config', { exitCode: EXIT_CODES.CONFIG }),
+    ),
+    78,
+  );
+  assert.equal(
+    exitCodeForError(
+      Object.assign(new Error('interrupted'), { name: 'AbortError' }),
+    ),
+    130,
+  );
 });
 
 test('runWrapperCli writes JSONL to stdout and human errors to stderr', async () => {
   const stdout = captureWriter();
   const stderr = captureWriter();
-  const exitCode = await runWrapperCli(['--max-rounds', '0'], { stdout: stdout.stream, stderr: stderr.stream });
+  const exitCode = await runWrapperCli(['--max-rounds', '0'], {
+    stdout: stdout.stream,
+    stderr: stderr.stream,
+  });
 
   assert.equal(exitCode, EXIT_CODES.USAGE);
   const event = JSON.parse(stdout.value().trim());
@@ -300,7 +378,7 @@ test('runWrapperCli keeps trace stacks out of stdout JSONL', async () => {
   const exitCode = await runWrapperCli(['--max-rounds', '0'], {
     stdout: stdout.stream,
     stderr: stderr.stream,
-    env: { CONSENSUS_LOG: 'trace' }
+    env: { CONSENSUS_LOG: 'trace' },
   });
 
   assert.equal(exitCode, EXIT_CODES.USAGE);
@@ -323,7 +401,7 @@ test('runSequential aggregates section errors without aborting unrelated section
     maxRounds: 1,
     agency: 'moderate',
     preflight: async () => ({ peers: ['claude', 'codex'], warnings: [] }),
-    invokePeer: sectionFailOnceInvoker()
+    invokePeer: sectionFailOnceInvoker(),
   });
 
   assert.equal(result.status, 'error');
@@ -346,7 +424,7 @@ test('runSequential preserves partial records and status after a section hard er
     maxRounds: 2,
     agency: 'moderate',
     preflight: async () => ({ peers: ['claude', 'codex'], warnings: [] }),
-    invokePeer: sectionPartialFailureInvoker()
+    invokePeer: sectionPartialFailureInvoker(),
   });
 
   const failed = result.sections[0];
@@ -380,7 +458,7 @@ test('runSequential honors --fail-on-section-error with exit 74 semantics', asyn
       agency: 'moderate',
       failOnSectionError: true,
       preflight: async () => ({ peers: ['claude', 'codex'], warnings: [] }),
-      invokePeer: sectionFailOnceInvoker()
+      invokePeer: sectionFailOnceInvoker(),
     });
   } catch (error) {
     thrown = error;
@@ -394,10 +472,13 @@ test('runSequential honors --fail-on-section-error with exit 74 semantics', asyn
   assert.equal((await stat(outputPath)).isFile(), true);
 
   const artifact = await readFile(outputPath, 'utf8');
-  const sectionStates = extractLabeledJson(artifact, 'consensus-section-states');
+  const sectionStates = extractLabeledJson(
+    artifact,
+    'consensus-section-states',
+  );
   assert.deepEqual(
     sectionStates.map((section) => section.status),
-    ['error', 'converged', 'converged']
+    ['error', 'converged', 'converged'],
   );
   assert.match(artifact, /## Details/);
   assert.match(artifact, /## Close/);
@@ -421,7 +502,7 @@ test('runSequential treats impasse as a section error after writing the artifact
       agency: 'moderate',
       failOnSectionError: true,
       preflight: async () => ({ peers: ['claude', 'codex'], warnings: [] }),
-      invokePeer: impasseThenAcceptInvoker()
+      invokePeer: impasseThenAcceptInvoker(),
     });
   } catch (error) {
     thrown = error;
@@ -432,9 +513,12 @@ test('runSequential treats impasse as a section error after writing the artifact
   assert.equal((await stat(outputPath)).isFile(), true);
 
   const artifact = await readFile(outputPath, 'utf8');
-  const sectionStates = extractLabeledJson(artifact, 'consensus-section-states');
+  const sectionStates = extractLabeledJson(
+    artifact,
+    'consensus-section-states',
+  );
   assert.deepEqual(
     sectionStates.map((section) => section.status),
-    ['impasse', 'converged', 'converged']
+    ['impasse', 'converged', 'converged'],
   );
 });

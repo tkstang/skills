@@ -12,11 +12,72 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    env:
+      GIT_HOOKS: "0" # skip git-hook setup in CI
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - run: npm test
-      - run: npm run validate
-      - run: npm run smoke
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run test
+      - run: pnpm run validate
+      - run: pnpm run smoke
+
+  commitlint:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    env:
+      GIT_HOOKS: "0"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Lint PR commits (Conventional Commits)
+        run: >-
+          pnpm exec commitlint
+          --from "${{ github.event.pull_request.base.sha }}"
+          --to "${{ github.event.pull_request.head.sha }}"
+          --verbose
+
+  lint:
+    # Lint/format only the files changed by the PR. The repo is being formatted
+    # incrementally, so a whole-repo check would fail on the un-migrated backlog.
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    env:
+      GIT_HOOKS: "0"
+      BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: oxlint (changed JS)
+        run: |
+          exclude='^(node_modules|\.oat|\.agents)/|/scripts/lib/runtimes\.mjs$'
+          mapfile -t files < <(git diff --name-only --diff-filter=ACMR "$BASE_SHA" "$HEAD_SHA" -- '*.mjs' '*.js' | grep -vE "$exclude" || true)
+          if [ ${#files[@]} -eq 0 ]; then echo "no JS changed"; exit 0; fi
+          printf 'linting:\n%s\n' "${files[*]}"
+          pnpm exec oxlint "${files[@]}"
+      - name: oxfmt --check (changed files)
+        run: |
+          exclude='^(node_modules|\.oat|\.agents)/|/scripts/lib/runtimes\.mjs$|\.(claude|cursor)/rules/'
+          mapfile -t files < <(git diff --name-only --diff-filter=ACMR "$BASE_SHA" "$HEAD_SHA" -- '*.mjs' '*.js' '*.json' '*.md' | grep -vE "$exclude" || true)
+          if [ ${#files[@]} -eq 0 ]; then echo "no formattable files changed"; exit 0; fi
+          printf 'checking format:\n%s\n' "${files[*]}"
+          pnpm exec oxfmt --check "${files[@]}"

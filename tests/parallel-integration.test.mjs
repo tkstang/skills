@@ -5,30 +5,41 @@ import path from 'node:path';
 import test from 'node:test';
 
 import { runWrapperCli } from '../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
-import { captureWriter, parseJsonl, runNodeScript } from './helpers/process.mjs';
+import {
+  captureWriter,
+  parseJsonl,
+  runNodeScript,
+} from './helpers/process.mjs';
 
 const repoRoot = path.resolve(new URL('..', import.meta.url).pathname);
 const sampleInput = path.join(repoRoot, 'tests/fixtures/sample-input.md');
 const fixtureBin = path.join(repoRoot, 'tests/fixtures/bin');
-const loopScript = path.join(repoRoot, 'plugins/consensus/skills/refine/scripts/consensus-loop.mjs');
+const loopScript = path.join(
+  repoRoot,
+  'plugins/consensus/skills/refine/scripts/consensus-loop.mjs',
+);
 
 function stubEnv(overrides = {}) {
   return {
     ...process.env,
     PATH: `${fixtureBin}${path.delimiter}${process.env.PATH}`,
-    ...overrides
+    ...overrides,
   };
 }
 
 function extractJsonBlock(markdown, label) {
-  const pattern = new RegExp('<!-- consensus:' + label + '\\n([\\s\\S]*?)\\n-->');
+  const pattern = new RegExp(
+    '<!-- consensus:' + label + '\\n([\\s\\S]*?)\\n-->',
+  );
   const match = markdown.match(pattern);
   assert.ok(match, `missing ${label} JSON block`);
   return JSON.parse(match[1]);
 }
 
 test('prepare, simulated host section loops, and fan-in work end-to-end', async () => {
-  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-parallel-integration-'));
+  const tempRoot = await mkdtemp(
+    path.join(os.tmpdir(), 'consensus-parallel-integration-'),
+  );
   const outputPath = path.join(tempRoot, 'sample.consensus.md');
   const runDir = path.join(tempRoot, '.consensus/run');
   const prepareStdout = captureWriter();
@@ -49,25 +60,31 @@ test('prepare, simulated host section loops, and fan-in work end-to-end', async 
       '--peers',
       'claude,codex',
       '--max-rounds',
-      '2'
+      '2',
     ],
     {
       stdout: prepareStdout.stream,
       stderr: prepareStderr.stream,
       cwd: tempRoot,
-      preflight: async () => ({ peers: ['claude', 'codex'], warnings: [] })
-    }
+      preflight: async () => ({ peers: ['claude', 'codex'], warnings: [] }),
+    },
   );
 
   assert.equal(prepareExit, 0, prepareStderr.value());
-  const dispatch = parseJsonl(prepareStdout.value()).find((event) => event.phase === 'parallel_dispatch_required');
+  const dispatch = parseJsonl(prepareStdout.value()).find(
+    (event) => event.phase === 'parallel_dispatch_required',
+  );
   assert.ok(dispatch);
 
   const manifest = JSON.parse(await readFile(dispatch.manifest, 'utf8'));
-  const completionOrder = [manifest.sections[2], manifest.sections[0], manifest.sections[1]];
+  const completionOrder = [
+    manifest.sections[2],
+    manifest.sections[0],
+    manifest.sections[1],
+  ];
   assert.deepEqual(
     completionOrder.map((section) => section.original_index),
-    [2, 0, 1]
+    [2, 0, 1],
   );
 
   for (const section of completionOrder) {
@@ -78,8 +95,8 @@ test('prepare, simulated host section loops, and fan-in work end-to-end', async 
               schema_version: 'v1',
               verdict: 'IMPASSE',
               reasoning: 'The closing section needs user direction.',
-              concerns: ['tone and brevity conflict']
-            })
+              concerns: ['tone and brevity conflict'],
+            }),
           })
         : stubEnv();
     await runNodeScript(loopScript, section.loop_argv, { cwd: tempRoot, env });
@@ -90,7 +107,7 @@ test('prepare, simulated host section loops, and fan-in work end-to-end', async 
   const fanInExit = await runWrapperCli(['--fan-in', dispatch.manifest], {
     stdout: fanInStdout.stream,
     stderr: fanInStderr.stream,
-    cwd: tempRoot
+    cwd: tempRoot,
   });
 
   assert.equal(fanInExit, 0, fanInStderr.value());
@@ -114,7 +131,9 @@ test('prepare, simulated host section loops, and fan-in work end-to-end', async 
 // runner subprocess. A parallel_revision dispatch converges every section via the
 // stub and the fan-in artifact records the mode end-to-end.
 test('parallel_revision mode threads through prepare, section runners, and fan-in', async () => {
-  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-parallel-mode-integration-'));
+  const tempRoot = await mkdtemp(
+    path.join(os.tmpdir(), 'consensus-parallel-mode-integration-'),
+  );
   const outputPath = path.join(tempRoot, 'sample.consensus.md');
   const runDir = path.join(tempRoot, '.consensus/run');
   const prepareStdout = captureWriter();
@@ -137,18 +156,20 @@ test('parallel_revision mode threads through prepare, section runners, and fan-i
       '--peers',
       'claude,codex',
       '--max-rounds',
-      '3'
+      '3',
     ],
     {
       stdout: prepareStdout.stream,
       stderr: prepareStderr.stream,
       cwd: tempRoot,
-      preflight: async () => ({ peers: ['claude', 'codex'], warnings: [] })
-    }
+      preflight: async () => ({ peers: ['claude', 'codex'], warnings: [] }),
+    },
   );
 
   assert.equal(prepareExit, 0, prepareStderr.value());
-  const dispatch = parseJsonl(prepareStdout.value()).find((event) => event.phase === 'parallel_dispatch_required');
+  const dispatch = parseJsonl(prepareStdout.value()).find(
+    (event) => event.phase === 'parallel_dispatch_required',
+  );
   assert.equal(dispatch.iteration_mode, 'parallel_revision');
 
   const manifest = JSON.parse(await readFile(dispatch.manifest, 'utf8'));
@@ -158,14 +179,14 @@ test('parallel_revision mode threads through prepare, section runners, and fan-i
     schema_version: 'v1',
     verdict: 'CONVERGED',
     reasoning: 'Both revisions already agree.',
-    critique: { own_previous: 'mine is fine', peer_previous: 'peer matches' }
+    critique: { own_previous: 'mine is fine', peer_previous: 'peer matches' },
   });
 
   for (const section of manifest.sections) {
     assert.equal(section.iteration_mode, 'parallel_revision');
     await runNodeScript(loopScript, section.loop_argv, {
       cwd: tempRoot,
-      env: stubEnv({ PASEO_STUB_RESPONSE_JSON: convergedVerdict })
+      env: stubEnv({ PASEO_STUB_RESPONSE_JSON: convergedVerdict }),
     });
   }
 
@@ -174,7 +195,7 @@ test('parallel_revision mode threads through prepare, section runners, and fan-i
   const fanInExit = await runWrapperCli(['--fan-in', dispatch.manifest], {
     stdout: fanInStdout.stream,
     stderr: fanInStderr.stream,
-    cwd: tempRoot
+    cwd: tempRoot,
   });
 
   assert.equal(fanInExit, 0, fanInStderr.value());

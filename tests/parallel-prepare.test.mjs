@@ -6,7 +6,7 @@ import test from 'node:test';
 
 import {
   prepareParallelRun,
-  runWrapperCli
+  runWrapperCli,
 } from '../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
 
 const repoRoot = path.resolve(new URL('..', import.meta.url).pathname);
@@ -18,11 +18,11 @@ function captureWriter() {
     stream: {
       write(chunk) {
         value += chunk;
-      }
+      },
     },
     value() {
       return value;
-    }
+    },
   };
 }
 
@@ -45,7 +45,7 @@ test('prepareParallelRun writes section packets and a dispatch manifest', async 
     peers: ['claude', 'codex'],
     maxRounds: 5,
     agency: 'maximum',
-    preflight: async () => ({ peers: ['claude', 'codex'], warnings: [] })
+    preflight: async () => ({ peers: ['claude', 'codex'], warnings: [] }),
   });
 
   assert.equal(result.mode, 'prepare_parallel');
@@ -68,7 +68,7 @@ test('prepareParallelRun writes section packets and a dispatch manifest', async 
 
   assert.deepEqual(
     manifest.sections.map((section) => section.original_index),
-    [0, 1, 2]
+    [0, 1, 2],
   );
 
   for (const section of manifest.sections) {
@@ -96,7 +96,9 @@ test('prepareParallelRun writes section packets and a dispatch manifest', async 
 });
 
 test('runWrapperCli emits parallel dispatch JSONL for prepare mode', async () => {
-  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-prepare-cli-'));
+  const tempRoot = await mkdtemp(
+    path.join(os.tmpdir(), 'consensus-prepare-cli-'),
+  );
   const stdout = captureWriter();
   const stderr = captureWriter();
   const exitCode = await runWrapperCli(
@@ -112,20 +114,26 @@ test('runWrapperCli emits parallel dispatch JSONL for prepare mode', async () =>
       '--goal',
       'Prepare for host dispatch.',
       '--peers',
-      'claude,codex'
+      'claude,codex',
     ],
     {
       stdout: stdout.stream,
       stderr: stderr.stream,
       cwd: tempRoot,
-      preflight: async () => ({ peers: ['claude', 'codex'], warnings: [] })
-    }
+      preflight: async () => ({ peers: ['claude', 'codex'], warnings: [] }),
+    },
   );
 
   assert.equal(exitCode, 0, stderr.value());
-  const events = stdout.value().trim().split('\n').map((line) => JSON.parse(line));
+  const events = stdout
+    .value()
+    .trim()
+    .split('\n')
+    .map((line) => JSON.parse(line));
   assert.equal(events[0].event, 'run_started');
-  const dispatch = events.find((event) => event.phase === 'parallel_dispatch_required');
+  const dispatch = events.find(
+    (event) => event.phase === 'parallel_dispatch_required',
+  );
   assert.ok(dispatch);
   assert.equal(dispatch.parallelism, 3);
   assert.equal(dispatch.sections.length, 3);
@@ -137,7 +145,9 @@ test('runWrapperCli emits parallel dispatch JSONL for prepare mode', async () =>
 // --- p05-t04: parallel-section packets carry mode + synthesizer ----------
 
 test('prepareParallelRun threads iteration_mode and synthesizer through packets, manifest, and loop_argv', async () => {
-  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-prepare-mode-'));
+  const tempRoot = await mkdtemp(
+    path.join(os.tmpdir(), 'consensus-prepare-mode-'),
+  );
   const result = await prepareParallelRun({
     inputPath: sampleInput,
     output: path.join(tempRoot, 'sample.consensus.md'),
@@ -154,10 +164,10 @@ test('prepareParallelRun threads iteration_mode and synthesizer through packets,
       peers: ['claude', 'codex'],
       providerInventory: [
         { id: 'claude', available: true },
-        { id: 'codex', available: true }
+        { id: 'codex', available: true },
       ],
-      warnings: []
-    })
+      warnings: [],
+    }),
   });
 
   const manifest = await readJson(result.manifestPath);
@@ -169,9 +179,15 @@ test('prepareParallelRun threads iteration_mode and synthesizer through packets,
     assert.equal(section.synthesizer, 'codex');
     // The loop argv carries the synthesizer flag for the section runner.
     assert.ok(section.loop_argv.includes('--iteration'));
-    assert.equal(section.loop_argv[section.loop_argv.indexOf('--iteration') + 1], 'parallel_synthesized');
+    assert.equal(
+      section.loop_argv[section.loop_argv.indexOf('--iteration') + 1],
+      'parallel_synthesized',
+    );
     assert.ok(section.loop_argv.includes('--synthesizer'));
-    assert.equal(section.loop_argv[section.loop_argv.indexOf('--synthesizer') + 1], 'codex');
+    assert.equal(
+      section.loop_argv[section.loop_argv.indexOf('--synthesizer') + 1],
+      'codex',
+    );
 
     const packet = await readJson(section.packet_path);
     assert.equal(packet.iteration_mode, 'parallel_synthesized');

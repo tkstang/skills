@@ -13,7 +13,9 @@ function textStart(text) {
 }
 
 function isTitlePrompt(text) {
-  return textStart(text).startsWith('Generate a concise tab title for this coding chat.\nRules:');
+  return textStart(text).startsWith(
+    'Generate a concise tab title for this coding chat.\nRules:',
+  );
 }
 
 function isHiddenBootstrapUserText(text) {
@@ -31,11 +33,13 @@ function isHiddenBootstrapUserText(text) {
 
 function isSyntheticForEngagement(entry) {
   if (entry.role !== 'user') return false;
-  return entry.kind === 'command_message' || isHiddenBootstrapUserText(entry.text);
+  return (
+    entry.kind === 'command_message' || isHiddenBootstrapUserText(entry.text)
+  );
 }
 
 function publicBootstrapIndexes(indexes) {
-  return [...indexes].sort((a, b) => a - b);
+  return [...indexes].toSorted((a, b) => a - b);
 }
 
 function entriesByRecordIndex(entries) {
@@ -49,7 +53,9 @@ function entriesByRecordIndex(entries) {
 }
 
 function visibleConversationEntries(entries) {
-  return entries.filter(entry => entry.kind === 'message' || entry.kind === 'command_message');
+  return entries.filter(
+    (entry) => entry.kind === 'message' || entry.kind === 'command_message',
+  );
 }
 
 /**
@@ -80,7 +86,9 @@ export function classifyTranscriptRecords(runtime, records) {
 
     if (
       pendingTitleAssistant &&
-      entries.every(entry => entry.role === 'assistant' && entry.kind === 'message')
+      entries.every(
+        (entry) => entry.role === 'assistant' && entry.kind === 'message',
+      )
     ) {
       bootstrapRecordIndexes.add(recordIndex);
       pendingTitleAssistant = false;
@@ -88,16 +96,16 @@ export function classifyTranscriptRecords(runtime, records) {
     }
     pendingTitleAssistant = false;
 
-    const userEntries = entries.filter(entry => entry.role === 'user');
+    const userEntries = entries.filter((entry) => entry.role === 'user');
     const hiddenBootstrapUserRecord =
       userEntries.length > 0 &&
-      entries.every(entry => entry.role === 'user') &&
-      userEntries.every(entry => isHiddenBootstrapUserText(entry.text));
+      entries.every((entry) => entry.role === 'user') &&
+      userEntries.every((entry) => isHiddenBootstrapUserText(entry.text));
 
     if (hiddenBootstrapUserRecord) {
       bootstrapRecordIndexes.add(recordIndex);
       syntheticUserMessages += userEntries.length;
-      if (userEntries.some(entry => isTitlePrompt(entry.text))) {
+      if (userEntries.some((entry) => isTitlePrompt(entry.text))) {
         pendingTitleAssistant = true;
       }
       continue;

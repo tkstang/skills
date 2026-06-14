@@ -6,11 +6,11 @@ Short reference for the Claude Code, Codex, and Cursor JSONL record shapes that 
 
 ## File Location Patterns
 
-| Runtime | Store root | Pattern |
-|---|---|---|
-| Claude Code | `~/.claude/projects/` | `~/.claude/projects/<encoded-cwd>/<session-id>.jsonl` |
-| Codex | `~/.codex/sessions/` | `~/.codex/sessions/<YYYY>/<MM>/<DD>/session-<id>.jsonl` |
-| Cursor | `~/.cursor/projects/` | `~/.cursor/projects/<encoded-project>/agent-transcripts/<session-id>/<session-id>.jsonl` |
+| Runtime     | Store root            | Pattern                                                                                  |
+| ----------- | --------------------- | ---------------------------------------------------------------------------------------- |
+| Claude Code | `~/.claude/projects/` | `~/.claude/projects/<encoded-cwd>/<session-id>.jsonl`                                    |
+| Codex       | `~/.codex/sessions/`  | `~/.codex/sessions/<YYYY>/<MM>/<DD>/session-<id>.jsonl`                                  |
+| Cursor      | `~/.cursor/projects/` | `~/.cursor/projects/<encoded-project>/agent-transcripts/<session-id>/<session-id>.jsonl` |
 
 ---
 
@@ -49,7 +49,11 @@ Session ID appears in multiple fields across record types:
 **Summary / meta record** (first record in the file):
 
 ```json
-{ "sessionId": "cc-session-001", "type": "summary", "summary": "Session started" }
+{
+  "sessionId": "cc-session-001",
+  "type": "summary",
+  "summary": "Session started"
+}
 ```
 
 **User message:**
@@ -90,9 +94,7 @@ Claude Code also records slash-command payloads as user text, for example:
   "sessionId": "cc-session-001",
   "message": {
     "role": "assistant",
-    "content": [
-      { "type": "text", "text": "Sure! I'd be happy to help." }
-    ]
+    "content": [{ "type": "text", "text": "Sure! I'd be happy to help." }]
   }
 }
 ```
@@ -121,6 +123,7 @@ Claude Code also records slash-command payloads as user text, for example:
 ```
 
 When `includeToolCalls: true`, `normalizeEntries` produces:
+
 ```
 role: "assistant", kind: "tool_call", toolName: "Read",
 text: "[Read] {\"file_path\":\"/project/src/index.ts\"}"
@@ -167,8 +170,12 @@ Codex stores transcripts under `~/.codex/sessions/<YYYY>/<MM>/<DD>/session-<id>.
 The cwd is extracted from the **`session_started` record** at the top of the file:
 
 ```json
-{ "type": "session_started", "sessionId": "codex-session-001",
-  "cwd": "/Users/testuser/Code/my-project", "timestamp": "2026-05-14T10:00:00Z" }
+{
+  "type": "session_started",
+  "sessionId": "codex-session-001",
+  "cwd": "/Users/testuser/Code/my-project",
+  "timestamp": "2026-05-14T10:00:00Z"
+}
 ```
 
 `runtimes.extractMeta` reads `record.cwd` at the **record top level** first, then falls back to `record.payload.cwd` for Codex versions that nest metadata under `payload`.
@@ -232,6 +239,7 @@ Session ID appears at the record top level:
 ```
 
 When `includeToolCalls: true`, `normalizeEntries` produces:
+
 ```
 role: "assistant", kind: "tool_call", toolName: "shell",
 text: "[shell] {\"command\":\"ls -la\"}"
@@ -304,15 +312,15 @@ Observed Cursor block types in the local spike were `text` and `tool_use`; obser
 
 ## Summary of Key Differences
 
-| Aspect | Claude Code | Codex | Cursor |
-|---|---|---|---|
-| cwd source | Directory name (encoded, lossy) | `record.cwd` or `record.payload.cwd` | Encoded project dir slug |
-| Session ID source | `record.sessionId` or `message.sessionId` | `record.sessionId` (every record) | Transcript basename or parent dir |
-| Message wrapper | `record.message.role` / `record.message.content` | `record.payload.role` / `record.payload.content` | `record.role` / `record.message.content` |
-| Tool call format | `type: "tool_use"` in content array | `payload.type === "function_call"` | `type: "tool_use"` in content array |
-| Tool result format | `type: "tool_result"` with `tool_use_id` (user message) | None in v1 | None in v1 |
-| Name-to-result correlation | First-pass `tool_use_id → toolName` map | N/A | N/A |
-| Discovery | Direct encoded-dir lookup + glob fallback | Dated directory glob (7-day window) | Direct encoded-dir lookup + agent-transcript glob fallback |
+| Aspect                     | Claude Code                                             | Codex                                            | Cursor                                                     |
+| -------------------------- | ------------------------------------------------------- | ------------------------------------------------ | ---------------------------------------------------------- |
+| cwd source                 | Directory name (encoded, lossy)                         | `record.cwd` or `record.payload.cwd`             | Encoded project dir slug                                   |
+| Session ID source          | `record.sessionId` or `message.sessionId`               | `record.sessionId` (every record)                | Transcript basename or parent dir                          |
+| Message wrapper            | `record.message.role` / `record.message.content`        | `record.payload.role` / `record.payload.content` | `record.role` / `record.message.content`                   |
+| Tool call format           | `type: "tool_use"` in content array                     | `payload.type === "function_call"`               | `type: "tool_use"` in content array                        |
+| Tool result format         | `type: "tool_result"` with `tool_use_id` (user message) | None in v1                                       | None in v1                                                 |
+| Name-to-result correlation | First-pass `tool_use_id → toolName` map                 | N/A                                              | N/A                                                        |
+| Discovery                  | Direct encoded-dir lookup + glob fallback               | Dated directory glob (7-day window)              | Direct encoded-dir lookup + agent-transcript glob fallback |
 
 ---
 

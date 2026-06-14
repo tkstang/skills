@@ -3,7 +3,13 @@ import { lstat, readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 const repoRoot = new URL('..', import.meta.url);
-const requiredDocs = ['README.md', 'LICENSE', 'CHANGELOG.md', 'CONTRIBUTING.md', 'RELEASING.md'];
+const requiredDocs = [
+  'README.md',
+  'LICENSE',
+  'CHANGELOG.md',
+  'CONTRIBUTING.md',
+  'RELEASING.md',
+];
 const refineSkillPath = 'plugins/consensus/skills/refine/SKILL.md';
 
 async function read(relativePath) {

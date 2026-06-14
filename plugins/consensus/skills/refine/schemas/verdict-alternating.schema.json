@@ -3,22 +3,14 @@
   "$id": "consensus-plugin/v1/verdict-alternating.schema.json",
   "type": "object",
   "additionalProperties": false,
-  "required": [
-    "schema_version",
-    "verdict",
-    "reasoning"
-  ],
+  "required": ["schema_version", "verdict", "reasoning"],
   "properties": {
     "schema_version": {
       "const": "v1",
       "type": "string"
     },
     "verdict": {
-      "enum": [
-        "ACCEPT",
-        "REVISE",
-        "IMPASSE"
-      ],
+      "enum": ["ACCEPT", "REVISE", "IMPASSE"],
       "type": "string"
     },
     "reasoning": {

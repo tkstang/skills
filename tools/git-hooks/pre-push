@@ -1,0 +1,8 @@
+#!/bin/sh
+set -e
+
+# Run the full verification suite before pushing so breakage never leaves the
+# machine. Mirrors the commands CI runs (.github/workflows/validate.yml).
+pnpm run test
+pnpm run validate
+pnpm run smoke

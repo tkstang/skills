@@ -1,6 +1,16 @@
 import { execFile } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { lstat, mkdir, open, readFile, realpath, rename, stat, unlink, writeFile } from 'node:fs/promises';
+import {
+  lstat,
+  mkdir,
+  open,
+  readFile,
+  realpath,
+  rename,
+  stat,
+  unlink,
+  writeFile,
+} from 'node:fs/promises';
 import path from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import { fileURLToPath } from 'node:url';
@@ -14,7 +24,7 @@ import {
   hashArtifact,
   invalidIterationModeError,
   ITERATION_MODES,
-  runConsensusLoop
+  runConsensusLoop,
 } from './consensus-loop.mjs';
 
 const execFileAsync = promisify(execFile);
@@ -30,17 +40,20 @@ const STRICT_RESUME_HASH_OPTIONS = Object.freeze({
   normalizeLineEndings: false,
   trimTrailingWhitespace: false,
   collapseEofNewlines: false,
-  finalNewline: false
+  finalNewline: false,
 });
 const PASEO_REMEDIATION = Object.freeze({
   install_command: 'npm install -g @getpaseo/cli',
   source_url: 'https://github.com/getpaseo/paseo',
-  install_script: 'scripts/install-paseo.mjs'
+  install_script: 'scripts/install-paseo.mjs',
 });
 
 function inside(root, target) {
   const relative = path.relative(root, target);
-  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
+  return (
+    relative === '' ||
+    (!relative.startsWith('..') && !path.isAbsolute(relative))
+  );
 }
 
 async function pathExists(targetPath) {
@@ -82,7 +95,7 @@ export function createJsonlEvent(event, payload = {}, options = {}) {
     consensus_schema_version: 'v1',
     event,
     timestamp: options.now?.() ?? nowIso(),
-    ...payload
+    ...payload,
   };
 }
 
@@ -101,7 +114,10 @@ export function renderHumanError(error, env = process.env) {
 
 function dynamicFence(contents, info = '') {
   const text = String(contents ?? '');
-  const maxRun = Math.max(0, ...[...text.matchAll(/`+/g)].map((match) => match[0].length));
+  const maxRun = Math.max(
+    0,
+    ...[...text.matchAll(/`+/g)].map((match) => match[0].length),
+  );
   const ticks = '`'.repeat(Math.max(3, maxRun + 1));
   const opener = info ? `${ticks}${info}` : ticks;
   return `${opener}\n${text.replace(/\n*$/u, '\n')}${ticks}`;
@@ -119,7 +135,10 @@ function sanitizeProse(text) {
 }
 
 function containMarkdownHeadings(text) {
-  return String(text ?? '').replace(/^([ \t]{0,3})(#{1,6})([ \t]+.*)$/gmu, '$1\\$2$3');
+  return String(text ?? '').replace(
+    /^([ \t]{0,3})(#{1,6})([ \t]+.*)$/gmu,
+    '$1\\$2$3',
+  );
 }
 
 function sanitizeLogProse(text) {
@@ -134,7 +153,7 @@ function resumeDataError(message, details = {}) {
   return new ConsensusError(message, {
     code: details.code ?? 'RESUME_DATA_INVALID',
     exitCode: EXIT_CODES.DATA,
-    details: details.details
+    details: details.details,
   });
 }
 
@@ -166,7 +185,7 @@ function parseFrontmatter(markdown) {
   const endIndex = text.indexOf('\n---', 4);
   if (endIndex === -1) {
     throw resumeDataError('resume artifact frontmatter is unterminated', {
-      code: 'RESUME_FRONTMATTER_INVALID'
+      code: 'RESUME_FRONTMATTER_INVALID',
     });
   }
 
@@ -188,10 +207,13 @@ function parseConsensusJsonBlock(label, jsonText, index) {
   try {
     return JSON.parse(jsonText);
   } catch (error) {
-    throw resumeDataError(`corrupt consensus:${label} JSON block at index ${index}: ${error.message}`, {
-      code: 'RESUME_JSON_CORRUPT',
-      details: { label, index }
-    });
+    throw resumeDataError(
+      `corrupt consensus:${label} JSON block at index ${index}: ${error.message}`,
+      {
+        code: 'RESUME_JSON_CORRUPT',
+        details: { label, index },
+      },
+    );
   }
 }
 
@@ -205,15 +227,17 @@ function tryParseConsensusJsonBlock(label, jsonText, index) {
         code: 'RESUME_JSON_CORRUPT',
         message: `corrupt consensus:${label} JSON block at index ${index}: ${error.message}`,
         block_label: label,
-        block_index: index
-      }
+        block_index: index,
+      },
     };
   }
 }
 
 function extractConsensusJsonBlocks(markdown, label) {
   const blocks = [];
-  for (const [index, match] of [...String(markdown ?? '').matchAll(consensusBlockPattern(label))].entries()) {
+  for (const [index, match] of [
+    ...String(markdown ?? '').matchAll(consensusBlockPattern(label)),
+  ].entries()) {
     blocks.push(parseConsensusJsonBlock(label, match[1], index));
   }
   return blocks;
@@ -221,7 +245,9 @@ function extractConsensusJsonBlocks(markdown, label) {
 
 function extractLogSectionBlocks(markdown) {
   const logStart = String(markdown ?? '').match(/^## Deliberation Log\s*$/mu);
-  const logText = logStart ? String(markdown).slice(logStart.index) : String(markdown ?? '');
+  const logText = logStart
+    ? String(markdown).slice(logStart.index)
+    : String(markdown ?? '');
   // Resume canonical record stream (p05-t01): peer verdicts, synthesis records,
   // and synthesis-error records all flow into the section's record array in
   // document order so the loop can derive parallel-mode resume state.
@@ -250,7 +276,7 @@ function extractLogSectionBlocks(markdown) {
         code: 'RESUME_SECTION_STATE_MISSING',
         message: `resume artifact has ${label} records before any section status block`,
         block_label: label,
-        block_index: index
+        block_index: index,
       });
       continue;
     }
@@ -274,41 +300,59 @@ function lastProposedArtifact(records) {
   return null;
 }
 
-function resumeAgencyFromMetadata(resolution = {}, frontmatter = {}, options = {}) {
-  const agency = resolution.agency ?? frontmatter.agency ?? options.agency ?? 'moderate';
-  return ['minimal', 'moderate', 'maximum'].includes(agency) ? agency : 'moderate';
+function resumeAgencyFromMetadata(
+  resolution = {},
+  frontmatter = {},
+  options = {},
+) {
+  const agency =
+    resolution.agency ?? frontmatter.agency ?? options.agency ?? 'moderate';
+  return ['minimal', 'moderate', 'maximum'].includes(agency)
+    ? agency
+    : 'moderate';
 }
 
 function resumeHashOptionsForAgency(agency = 'moderate') {
   return agency === 'minimal' ? STRICT_RESUME_HASH_OPTIONS : {};
 }
 
-function normalizeResumeRecords(records, peers = ['claude', 'codex'], options = {}) {
+function normalizeResumeRecords(
+  records,
+  peers = ['claude', 'codex'],
+  options = {},
+) {
   let peerIndex = 0;
   let currentArtifact = null;
   const hashOptions = resumeHashOptionsForAgency(options.agency);
   return (records ?? []).map((record) => {
     const isSynthesis = record?.record_type === 'synthesis';
     const isSynthesisError = record?.record_type === 'synthesis-error';
-    const isHost = record?.verdict === 'HOST_DECISION' || record?.agent === 'host-orchestrator';
-    const isUser = record?.verdict === 'USER_INTERVENTION' || record?.agent === 'user';
+    const isHost =
+      record?.verdict === 'HOST_DECISION' ||
+      record?.agent === 'host-orchestrator';
+    const isUser =
+      record?.verdict === 'USER_INTERVENTION' || record?.agent === 'user';
     const normalized = {
       schema_version: 'v1',
-      ...record
+      ...record,
     };
 
     // The shared artifact tracks the latest peer revision OR the latest synthesis
     // output (synthesized mode), so derived hashes stay consistent on resume.
     if (typeof normalized.proposed_artifact === 'string') {
       currentArtifact = normalized.proposed_artifact;
-    } else if (isSynthesis && typeof normalized.synthesized_artifact === 'string') {
+    } else if (
+      isSynthesis &&
+      typeof normalized.synthesized_artifact === 'string'
+    ) {
       currentArtifact = normalized.synthesized_artifact;
     }
 
     if (isSynthesis || isSynthesisError) {
       // Synthesis records are round-attributed, not peer-attributed: never consume
       // a peer slot. round_index falls back to the current peer round.
-      normalized.round_index ??= Math.floor(Math.max(peerIndex - 1, 0) / peers.length) + 1;
+      normalized.round_index ??=
+        Math.floor(Math.max(peerIndex - 1, 0) / peers.length) + 1;
     } else if (isHost) {
       normalized.agent = 'host-orchestrator';
       normalized.round_index ??= Math.floor(peerIndex / peers.length) + 1;
@@ -320,13 +364,18 @@ function normalizeResumeRecords(records, peers = ['claude', 'codex'], options = 
       normalized.reasoning ??= normalized.user_direction ?? '';
       normalized.user_direction ??= normalized.reasoning;
     } else {
-      normalized.agent ??= peers[peerIndex % peers.length] ?? `peer-${peerIndex + 1}`;
+      normalized.agent ??=
+        peers[peerIndex % peers.length] ?? `peer-${peerIndex + 1}`;
       normalized.turn_index ??= peerIndex + 1;
       normalized.round_index ??= Math.floor(peerIndex / peers.length) + 1;
       peerIndex += 1;
     }
 
-    if (!normalized.artifact_hash && currentArtifact !== null && !isSynthesisError) {
+    if (
+      !normalized.artifact_hash &&
+      currentArtifact !== null &&
+      !isSynthesisError
+    ) {
       normalized.artifact_hash = hashArtifact(currentArtifact, hashOptions);
     }
 
@@ -335,10 +384,15 @@ function normalizeResumeRecords(records, peers = ['claude', 'codex'], options = 
 }
 
 function normalizeResumeSection(state, logSection, index, options = {}) {
-  const records = normalizeResumeRecords(logSection?.records ?? [], options.peers, {
-    agency: options.agency
-  });
-  const canonicalArtifact = typeof state?.final_output === 'string' ? state.final_output : null;
+  const records = normalizeResumeRecords(
+    logSection?.records ?? [],
+    options.peers,
+    {
+      agency: options.agency,
+    },
+  );
+  const canonicalArtifact =
+    typeof state?.final_output === 'string' ? state.final_output : null;
   const logArtifact = lastProposedArtifact(records);
   const resumedArtifact = canonicalArtifact ?? logArtifact;
   const status = logSection?.status ?? {};
@@ -358,9 +412,16 @@ function normalizeResumeSection(state, logSection, index, options = {}) {
     skipped: false,
     corruptErrors: [],
     resumedArtifact,
-    resumedArtifactHash: resumedArtifact === null ? null : hashArtifact(resumedArtifact, hashOptions),
+    resumedArtifactHash:
+      resumedArtifact === null
+        ? null
+        : hashArtifact(resumedArtifact, hashOptions),
     resumedArtifactSource:
-      canonicalArtifact !== null ? 'section_state.final_output' : logArtifact !== null ? 'deliberation_log.proposed_artifact' : null
+      canonicalArtifact !== null
+        ? 'section_state.final_output'
+        : logArtifact !== null
+          ? 'deliberation_log.proposed_artifact'
+          : null,
   };
 }
 
@@ -371,41 +432,64 @@ function resumeHashError(section, expectedHash, actualHash) {
     section_name: section.name,
     message: `hash mismatch for section ${section.id}: expected ${expectedHash}, recomputed ${actualHash}`,
     expected_hash: expectedHash,
-    actual_hash: actualHash
+    actual_hash: actualHash,
   };
 }
 
-function collectResumeValidationErrors(sectionStates, logSections, unscopedErrors, options = {}) {
+function collectResumeValidationErrors(
+  sectionStates,
+  logSections,
+  unscopedErrors,
+  options = {},
+) {
   const errors = [...unscopedErrors];
 
   if (logSections.length < sectionStates.length) {
-    for (let index = logSections.length; index < sectionStates.length; index += 1) {
+    for (
+      let index = logSections.length;
+      index < sectionStates.length;
+      index += 1
+    ) {
       const state = sectionStates[index] ?? {};
       errors.push({
         code: 'RESUME_SECTION_STATE_MISSING',
         section_id: state.id,
         section_name: state.name,
         section_index: index,
-        message: `missing section state for ${state.id ?? `section index ${index}`}`
+        message: `missing section state for ${state.id ?? `section index ${index}`}`,
       });
     }
   } else if (logSections.length > sectionStates.length) {
-    for (let index = sectionStates.length; index < logSections.length; index += 1) {
+    for (
+      let index = sectionStates.length;
+      index < logSections.length;
+      index += 1
+    ) {
       errors.push({
         code: 'RESUME_SECTION_STATE_MISSING',
         section_index: index,
-        message: `deliberation log has no canonical section state for section index ${index}`
+        message: `deliberation log has no canonical section state for section index ${index}`,
       });
     }
   }
 
   const sections = sectionStates.map((state, index) => {
-    const section = normalizeResumeSection(state, logSections[index], index, options);
-    if (!state || typeof state !== 'object' || Array.isArray(state) || !state.id) {
+    const section = normalizeResumeSection(
+      state,
+      logSections[index],
+      index,
+      options,
+    );
+    if (
+      !state ||
+      typeof state !== 'object' ||
+      Array.isArray(state) ||
+      !state.id
+    ) {
       errors.push({
         code: 'RESUME_SECTION_STATE_MISSING',
         section_index: index,
-        message: `missing section state for section index ${index}`
+        message: `missing section state for section index ${index}`,
       });
     }
 
@@ -414,7 +498,7 @@ function collectResumeValidationErrors(sectionStates, logSections, unscopedError
         ...error,
         section_id: section.id,
         section_name: section.name,
-        section_index: index
+        section_index: index,
       });
     }
 
@@ -424,7 +508,7 @@ function collectResumeValidationErrors(sectionStates, logSections, unscopedError
         section_id: section.id,
         section_name: section.name,
         section_index: index,
-        message: `missing section state for ${section.id}`
+        message: `missing section state for ${section.id}`,
       });
     }
 
@@ -456,22 +540,29 @@ function collectResumeValidationErrors(sectionStates, logSections, unscopedError
       // A synthesis record requires a complete peer pair in its round (p05-t03):
       // a half-missing pair is fail-closed corrupt state.
       const round = Number(record?.round_index);
-      if (Number.isInteger(round) && (peerRoundCounts.get(round) ?? 0) < peerCount) {
+      if (
+        Number.isInteger(round) &&
+        (peerRoundCounts.get(round) ?? 0) < peerCount
+      ) {
         errors.push({
           code: 'RESUME_PAIR_INCOMPLETE',
           section_id: section.id,
           section_name: section.name,
           section_index: index,
-          message: `incomplete peer pair for synthesized round ${round} in section ${section.id}: expected ${peerCount} peer records`
+          message: `incomplete peer pair for synthesized round ${round} in section ${section.id}: expected ${peerCount} peer records`,
         });
       }
-      if (typeof record.synthesized_artifact !== 'string' || !record.artifact_hash) continue;
+      if (
+        typeof record.synthesized_artifact !== 'string' ||
+        !record.artifact_hash
+      )
+        continue;
       const recomputed = hashArtifact(record.synthesized_artifact, hashOptions);
       if (recomputed !== record.artifact_hash) {
         errors.push({
           ...resumeHashError(section, record.artifact_hash, recomputed),
           code: 'RESUME_SYNTHESIS_HASH_MISMATCH',
-          message: `synthesis hash mismatch for section ${section.id}: expected ${record.artifact_hash}, recomputed ${recomputed}`
+          message: `synthesis hash mismatch for section ${section.id}: expected ${record.artifact_hash}, recomputed ${recomputed}`,
         });
       }
     }
@@ -483,11 +574,17 @@ function collectResumeValidationErrors(sectionStates, logSections, unscopedError
         section_id: section.id,
         section_name: section.name,
         section_index: index,
-        message: `missing canonical final output for section ${section.id}`
+        message: `missing canonical final output for section ${section.id}`,
       });
     }
-    if (section.resumedArtifact !== null && expectedHash && section.resumedArtifactHash !== expectedHash) {
-      errors.push(resumeHashError(section, expectedHash, section.resumedArtifactHash));
+    if (
+      section.resumedArtifact !== null &&
+      expectedHash &&
+      section.resumedArtifactHash !== expectedHash
+    ) {
+      errors.push(
+        resumeHashError(section, expectedHash, section.resumedArtifactHash),
+      );
     }
 
     return section;
@@ -508,22 +605,26 @@ async function writeResumeErrors(runDir, errors, skippedIds = []) {
         consensus_schema_version: 'v1',
         generated_at: nowIso(),
         errors,
-        skipped_section_ids: skippedIds
+        skipped_section_ids: skippedIds,
       },
       null,
-      2
-    )}\n`
+      2,
+    )}\n`,
   );
   await syncPathIfAvailable(outputPath);
   return outputPath;
 }
 
-async function defaultConfirmSkipAllCorrupt({ errors, stdin = process.stdin, stdout = process.stdout } = {}) {
+async function defaultConfirmSkipAllCorrupt({
+  errors,
+  stdin = process.stdin,
+  stdout = process.stdout,
+} = {}) {
   if (!stdin.isTTY) return false;
   const rl = createInterface({ input: stdin, output: stdout });
   try {
     const answer = await rl.question(
-      `Skip ${errors.length} corrupt resume section(s) and continue? [y/N] `
+      `Skip ${errors.length} corrupt resume section(s) and continue? [y/N] `,
     );
     return /^y(?:es)?$/iu.test(answer.trim());
   } finally {
@@ -537,11 +638,12 @@ async function applyResumeSkipPolicy(sections, errors, options = {}) {
   let skipAll = Boolean(options.yesSkipCorrupt);
 
   if (!skipAll && options.skipAllCorrupt && sectionErrors.length > 0) {
-    const confirm = options.confirmSkipAllCorrupt ?? defaultConfirmSkipAllCorrupt;
+    const confirm =
+      options.confirmSkipAllCorrupt ?? defaultConfirmSkipAllCorrupt;
     skipAll = await confirm({
       errors: sectionErrors,
       stdin: options.stdin,
-      stdout: options.stdout
+      stdout: options.stdout,
     });
   }
 
@@ -557,25 +659,32 @@ async function applyResumeSkipPolicy(sections, errors, options = {}) {
     section.skipped = true;
     section.inFlight = false;
     section.completed = false;
-    section.corruptErrors = errors.filter((error) => error.section_id === section.id);
+    section.corruptErrors = errors.filter(
+      (error) => error.section_id === section.id,
+    );
   }
 
   return {
     skippedIds,
-    unhandledErrors: errors.filter((error) => !error.section_id || !skippedIds.has(error.section_id))
+    unhandledErrors: errors.filter(
+      (error) => !error.section_id || !skippedIds.has(error.section_id),
+    ),
   };
 }
 
 function corruptResumeError(errors, diagnosticsPath) {
   const details = {
     errors,
-    ...(diagnosticsPath ? { resume_errors_path: diagnosticsPath } : {})
+    ...(diagnosticsPath ? { resume_errors_path: diagnosticsPath } : {}),
   };
   const firstMessage = errors[0]?.message ? `: ${errors[0].message}` : '';
-  return resumeDataError(`corrupt resume state${firstMessage}; resume is blocked until corrupt sections are skipped explicitly`, {
-    code: 'RESUME_CORRUPT',
-    details
-  });
+  return resumeDataError(
+    `corrupt resume state${firstMessage}; resume is blocked until corrupt sections are skipped explicitly`,
+    {
+      code: 'RESUME_CORRUPT',
+      details,
+    },
+  );
 }
 
 async function readResumePathOrText(pathOrText) {
@@ -586,7 +695,7 @@ async function readResumePathOrText(pathOrText) {
       if (fileStatus.isFile()) {
         return {
           text: await readFile(value, 'utf8'),
-          sourcePath: path.resolve(value)
+          sourcePath: path.resolve(value),
         };
       }
     } catch (error) {
@@ -624,7 +733,7 @@ function manifestError(message, details = {}) {
   return new ConsensusError(message, {
     code: details.code ?? 'INVALID_MANIFEST',
     exitCode: details.exitCode ?? EXIT_CODES.CONFIG,
-    details: details.details
+    details: details.details,
   });
 }
 
@@ -632,39 +741,54 @@ function pathConfinementError(field, target, root) {
   return manifestError(`${field} path is outside allowed root: ${target}`, {
     code: 'PATH_OUTSIDE_ROOT',
     exitCode: EXIT_CODES.NOPERM,
-    details: { field, path: target, root }
+    details: { field, path: target, root },
   });
 }
 
 function runDirConfinementError(field, target, runDir) {
-  return manifestError(`${field} path is outside prepared run directory: ${target}`, {
-    code: 'PATH_OUTSIDE_RUN_DIR',
-    exitCode: EXIT_CODES.NOPERM,
-    details: { field, path: target, run_dir: runDir }
-  });
+  return manifestError(
+    `${field} path is outside prepared run directory: ${target}`,
+    {
+      code: 'PATH_OUTSIDE_RUN_DIR',
+      exitCode: EXIT_CODES.NOPERM,
+      details: { field, path: target, run_dir: runDir },
+    },
+  );
 }
 
 function requiredManifestString(value, field) {
   if (typeof value !== 'string' || value.trim() === '') {
-    throw manifestError(`parallel manifest ${field} must be a non-empty string`);
+    throw manifestError(
+      `parallel manifest ${field} must be a non-empty string`,
+    );
   }
 }
 
 function requiredManifestInteger(value, field) {
   if (!Number.isInteger(value) || value < 0) {
-    throw manifestError(`parallel manifest ${field} must be a non-negative integer`);
+    throw manifestError(
+      `parallel manifest ${field} must be a non-negative integer`,
+    );
   }
 }
 
 function validateParallelManifestShape(manifest) {
-  if (manifest === null || typeof manifest !== 'object' || Array.isArray(manifest)) {
+  if (
+    manifest === null ||
+    typeof manifest !== 'object' ||
+    Array.isArray(manifest)
+  ) {
     throw manifestError('parallel manifest must be a JSON object');
   }
   if (manifest.consensus_schema_version !== 'v1') {
-    throw manifestError('parallel manifest consensus_schema_version must be v1');
+    throw manifestError(
+      'parallel manifest consensus_schema_version must be v1',
+    );
   }
   if (manifest.manifest_type !== 'consensus-parallel-run') {
-    throw manifestError('parallel manifest manifest_type must be consensus-parallel-run');
+    throw manifestError(
+      'parallel manifest manifest_type must be consensus-parallel-run',
+    );
   }
   if (manifest.mode !== 'parallel') {
     throw manifestError('parallel manifest mode must be parallel');
@@ -679,7 +803,9 @@ function validateParallelManifestShape(manifest) {
 
   for (const [index, entry] of manifest.sections.entries()) {
     if (entry === null || typeof entry !== 'object' || Array.isArray(entry)) {
-      throw manifestError(`parallel manifest sections[${index}] must be a JSON object`);
+      throw manifestError(
+        `parallel manifest sections[${index}] must be a JSON object`,
+      );
     }
     for (const field of [
       'section_id',
@@ -689,32 +815,48 @@ function validateParallelManifestShape(manifest) {
       'output_records',
       'output_section',
       'output_status',
-      'subagent_id'
+      'subagent_id',
     ]) {
       requiredManifestString(entry[field], `sections[${index}].${field}`);
     }
-    requiredManifestInteger(entry.original_index, `sections[${index}].original_index`);
+    requiredManifestInteger(
+      entry.original_index,
+      `sections[${index}].original_index`,
+    );
   }
 }
 
 function resolveManifestPathValue(value, basePath) {
-  return path.isAbsolute(value) ? path.resolve(value) : path.resolve(basePath, value);
+  return path.isAbsolute(value)
+    ? path.resolve(value)
+    : path.resolve(basePath, value);
 }
 
-async function assertPathResolvesInside(rootPath, targetPath, field, errorFactory) {
+async function assertPathResolvesInside(
+  rootPath,
+  targetPath,
+  field,
+  errorFactory,
+) {
   const root = path.resolve(rootPath);
   const target = path.resolve(targetPath);
   const realRoot = await realpath(root);
   const existing = await nearestExistingPath(target);
   const realExisting = await realpath(existing);
-  const realTarget = path.resolve(realExisting, path.relative(existing, target));
+  const realTarget = path.resolve(
+    realExisting,
+    path.relative(existing, target),
+  );
 
   if (!inside(realRoot, realTarget)) {
     throw errorFactory(field, target, root);
   }
 }
 
-async function resolveConfinedManifestPath(value, { root, base, field, errorFactory }) {
+async function resolveConfinedManifestPath(
+  value,
+  { root, base, field, errorFactory },
+) {
   requiredManifestString(value, field);
   const resolved = resolveManifestPathValue(value, base);
   const resolvedRoot = path.resolve(root);
@@ -732,7 +874,12 @@ async function resolveManifestOutputPath(manifest, { cwd, trustedRoot }) {
 
   if (outputPath === defaultOutputPath) {
     const outputWriteRoot = path.dirname(inputPath);
-    await assertPathResolvesInside(outputWriteRoot, outputPath, 'output_path', pathConfinementError);
+    await assertPathResolvesInside(
+      outputWriteRoot,
+      outputPath,
+      'output_path',
+      pathConfinementError,
+    );
     return { inputPath, outputPath, outputWriteRoot };
   }
 
@@ -742,9 +889,9 @@ async function resolveManifestOutputPath(manifest, { cwd, trustedRoot }) {
       root: trustedRoot,
       base: cwd,
       field: 'output_path',
-      errorFactory: pathConfinementError
+      errorFactory: pathConfinementError,
     }),
-    outputWriteRoot: trustedRoot
+    outputWriteRoot: trustedRoot,
   };
 }
 
@@ -758,26 +905,34 @@ async function normalizeParallelManifest(manifest, options) {
     root: trustedRoot,
     base: cwd,
     field: 'run_dir',
-    errorFactory: pathConfinementError
+    errorFactory: pathConfinementError,
   });
 
   if (runDir !== path.dirname(manifestPath)) {
-    throw manifestError('parallel manifest run_dir must match the manifest file directory');
+    throw manifestError(
+      'parallel manifest run_dir must match the manifest file directory',
+    );
   }
 
   if (manifest.manifest_path !== undefined) {
-    const declaredManifestPath = await resolveConfinedManifestPath(manifest.manifest_path, {
-      root: trustedRoot,
-      base: cwd,
-      field: 'manifest_path',
-      errorFactory: pathConfinementError
-    });
+    const declaredManifestPath = await resolveConfinedManifestPath(
+      manifest.manifest_path,
+      {
+        root: trustedRoot,
+        base: cwd,
+        field: 'manifest_path',
+        errorFactory: pathConfinementError,
+      },
+    );
     if (declaredManifestPath !== manifestPath) {
-      throw manifestError('parallel manifest manifest_path must match the fan-in manifest path');
+      throw manifestError(
+        'parallel manifest manifest_path must match the fan-in manifest path',
+      );
     }
   }
 
-  const { inputPath, outputPath, outputWriteRoot } = await resolveManifestOutputPath(manifest, { cwd, trustedRoot });
+  const { inputPath, outputPath, outputWriteRoot } =
+    await resolveManifestOutputPath(manifest, { cwd, trustedRoot });
 
   const sections = [];
   for (const entry of manifest.sections) {
@@ -787,32 +942,32 @@ async function normalizeParallelManifest(manifest, options) {
         root: runDir,
         base: runDir,
         field: 'packet_path',
-        errorFactory: runDirConfinementError
+        errorFactory: runDirConfinementError,
       }),
       section_file: await resolveConfinedManifestPath(entry.section_file, {
         root: runDir,
         base: runDir,
         field: 'section_file',
-        errorFactory: runDirConfinementError
+        errorFactory: runDirConfinementError,
       }),
       output_records: await resolveConfinedManifestPath(entry.output_records, {
         root: runDir,
         base: runDir,
         field: 'output_records',
-        errorFactory: runDirConfinementError
+        errorFactory: runDirConfinementError,
       }),
       output_section: await resolveConfinedManifestPath(entry.output_section, {
         root: runDir,
         base: runDir,
         field: 'output_section',
-        errorFactory: runDirConfinementError
+        errorFactory: runDirConfinementError,
       }),
       output_status: await resolveConfinedManifestPath(entry.output_status, {
         root: runDir,
         base: runDir,
         field: 'output_status',
-        errorFactory: runDirConfinementError
-      })
+        errorFactory: runDirConfinementError,
+      }),
     });
   }
 
@@ -823,7 +978,7 @@ async function normalizeParallelManifest(manifest, options) {
     output_write_root: outputWriteRoot,
     run_dir: runDir,
     manifest_path: manifestPath,
-    sections
+    sections,
   };
 }
 
@@ -844,18 +999,24 @@ function fallbackErrorStatus(error, records, peerCount) {
     termination_reason: 'hard_error',
     turns,
     rounds: turns === 0 ? 0 : Math.ceil(turns / peerCount),
-    error: error.message
+    error: error.message,
   };
 }
 
 function aggregateStatus(sections) {
-  const statuses = sections.map((section) => section.status?.status ?? section.result?.status?.status ?? 'unknown');
+  const statuses = sections.map(
+    (section) =>
+      section.status?.status ?? section.result?.status?.status ?? 'unknown',
+  );
   if (statuses.every((status) => status === 'converged')) return 'converged';
   if (statuses.some((status) => status === 'error')) return 'error';
   if (
     statuses.some(
       (status) =>
-        status === 'impasse' || status === 'max-rounds' || status === 'oscillation' || status === 'escalation'
+        status === 'impasse' ||
+        status === 'max-rounds' ||
+        status === 'oscillation' ||
+        status === 'escalation',
     )
   ) {
     return 'partial';
@@ -864,10 +1025,14 @@ function aggregateStatus(sections) {
 }
 
 function aggregateParallelStatus(sections) {
-  const statuses = sections.map((section) => section.status?.status ?? 'unknown');
+  const statuses = sections.map(
+    (section) => section.status?.status ?? 'unknown',
+  );
   if (statuses.every((status) => status === 'converged')) return 'converged';
   if (statuses.some((status) => ['error', 'impasse'].includes(status))) {
-    return statuses.some((status) => status === 'converged') ? 'partial' : 'error';
+    return statuses.some((status) => status === 'converged')
+      ? 'partial'
+      : 'error';
   }
   return aggregateStatus(sections);
 }
@@ -883,12 +1048,13 @@ function sectionStates(sections) {
     rounds: section.status?.rounds ?? 0,
     final_artifact_hash: section.status?.final_artifact_hash ?? null,
     final_output: sectionOutput(section),
-    subagent_id: section.subagent_id ?? null
+    subagent_id: section.subagent_id ?? null,
   }));
 }
 
 function countByStatus(sections, statusName) {
-  return sections.filter((section) => section.status?.status === statusName).length;
+  return sections.filter((section) => section.status?.status === statusName)
+    .length;
 }
 
 function lastTwoPeerRevisionRecords(records) {
@@ -899,7 +1065,7 @@ function lastTwoPeerRevisionRecords(records) {
       record?.verdict !== 'USER_INTERVENTION' &&
       record?.verdict !== 'HOST_DECISION' &&
       record?.record_type !== 'synthesis' &&
-      record?.record_type !== 'synthesis-error'
+      record?.record_type !== 'synthesis-error',
   );
   return peers.slice(-2);
 }
@@ -912,8 +1078,10 @@ function latestSynthesisRecord(records) {
 }
 
 function revisionText(record) {
-  if (typeof record?.proposed_artifact === 'string') return record.proposed_artifact;
-  if (typeof record?.synthesized_artifact === 'string') return record.synthesized_artifact;
+  if (typeof record?.proposed_artifact === 'string')
+    return record.proposed_artifact;
+  if (typeof record?.synthesized_artifact === 'string')
+    return record.synthesized_artifact;
   return '';
 }
 
@@ -932,19 +1100,28 @@ export function buildEscalationEvent(section, { artifactPath } = {}) {
   const synthesis = latestSynthesisRecord(records);
 
   const divergent = {
-    a: { agent: left?.agent ?? escalation.divergent?.a?.agent ?? null, text: revisionText(left) },
-    b: { agent: right?.agent ?? escalation.divergent?.b?.agent ?? null, text: revisionText(right) }
+    a: {
+      agent: left?.agent ?? escalation.divergent?.a?.agent ?? null,
+      text: revisionText(left),
+    },
+    b: {
+      agent: right?.agent ?? escalation.divergent?.b?.agent ?? null,
+      text: revisionText(right),
+    },
   };
   if (synthesis || escalation.divergent?.synthesis) {
     divergent.synthesis = {
       text: revisionText(synthesis),
-      unresolved_disagreements: Array.isArray(synthesis?.unresolved_disagreements)
+      unresolved_disagreements: Array.isArray(
+        synthesis?.unresolved_disagreements,
+      )
         ? synthesis.unresolved_disagreements
-        : escalation.divergent?.synthesis?.unresolved_disagreements ?? []
+        : (escalation.divergent?.synthesis?.unresolved_disagreements ?? []),
     };
   }
 
-  const flag = escalation.decide_via === 'user' ? '--user-direction' : '--host-direction';
+  const flag =
+    escalation.decide_via === 'user' ? '--user-direction' : '--host-direction';
 
   const event = {
     section_id: section.id,
@@ -953,7 +1130,7 @@ export function buildEscalationEvent(section, { artifactPath } = {}) {
     decide_via: escalation.decide_via,
     decision_kinds: escalation.decision_kinds ?? [],
     divergent,
-    resume: { artifact_path: artifactPath ?? null, flag }
+    resume: { artifact_path: artifactPath ?? null, flag },
   };
   if (escalation.promoted_from) {
     event.promoted_from = escalation.promoted_from;
@@ -969,7 +1146,7 @@ function escalationRoutingError(message, details = {}) {
   return new ConsensusError(message, {
     code: 'ESCALATION_ROUTING',
     exitCode: EXIT_CODES.CONFIG,
-    details
+    details,
   });
 }
 
@@ -982,14 +1159,17 @@ function escalationRoutingError(message, details = {}) {
 function assertHostDirectionRoutable(resumeSection) {
   const escalation = resumeSection?.status?.escalation;
   if (resumeSection?.status?.status !== 'escalation' || !escalation) {
-    throw escalationRoutingError('--host-direction supplied but no escalation is pending for resume', {
-      section_status: resumeSection?.status?.status ?? null
-    });
+    throw escalationRoutingError(
+      '--host-direction supplied but no escalation is pending for resume',
+      {
+        section_status: resumeSection?.status?.status ?? null,
+      },
+    );
   }
   if (escalation.decide_via !== 'host') {
     throw escalationRoutingError(
       `--host-direction rejected: pending escalation routes to ${escalation.decide_via}`,
-      { decide_via: escalation.decide_via, trigger: escalation.trigger }
+      { decide_via: escalation.decide_via, trigger: escalation.trigger },
     );
   }
   return escalation;
@@ -1003,7 +1183,7 @@ function failingSections(sections) {
       name: section.name,
       original_index: section.original_index,
       status: section.status.status,
-      termination_reason: section.status?.termination_reason ?? null
+      termination_reason: section.status?.termination_reason ?? null,
     }));
 }
 
@@ -1018,21 +1198,34 @@ function renderSynthesisRecord(record) {
     synthesis_reasoning: record.synthesis_reasoning ?? '',
     unresolved_disagreements: Array.isArray(record.unresolved_disagreements)
       ? record.unresolved_disagreements
-      : []
+      : [],
   };
 
   const parts = [`#### Round ${roundLabel} - ${synthesizer} - SYNTHESIS`];
   if (synthesisDocument.synthesis_reasoning) {
-    parts.push('', 'Synthesis reasoning:', sanitizeLogProse(synthesisDocument.synthesis_reasoning));
+    parts.push(
+      '',
+      'Synthesis reasoning:',
+      sanitizeLogProse(synthesisDocument.synthesis_reasoning),
+    );
   }
   if (synthesisDocument.synthesized_artifact) {
-    parts.push('', 'Synthesized Artifact:', dynamicFence(sanitizeProse(synthesisDocument.synthesized_artifact), 'markdown'));
+    parts.push(
+      '',
+      'Synthesized Artifact:',
+      dynamicFence(
+        sanitizeProse(synthesisDocument.synthesized_artifact),
+        'markdown',
+      ),
+    );
   }
   if (synthesisDocument.unresolved_disagreements.length > 0) {
     parts.push(
       '',
       'Unresolved disagreements:',
-      ...synthesisDocument.unresolved_disagreements.map((entry) => `- ${sanitizeLogProse(entry)}`)
+      ...synthesisDocument.unresolved_disagreements.map(
+        (entry) => `- ${sanitizeLogProse(entry)}`,
+      ),
     );
   }
   parts.push('', canonicalJsonBlock('consensus-synthesis', synthesisDocument));
@@ -1047,12 +1240,12 @@ function renderSynthesisErrorRecord(record) {
     record_type: 'synthesis-error',
     synthesizer,
     code: record.code ?? 'INVALID_SYNTHESIS',
-    metadata: record.metadata ?? null
+    metadata: record.metadata ?? null,
   };
   return [
     `#### Round ${roundLabel} - ${synthesizer} - SYNTHESIS_ERROR`,
     '',
-    canonicalJsonBlock('consensus-synthesis-error', errorDocument)
+    canonicalJsonBlock('consensus-synthesis-error', errorDocument),
   ].join('\n');
 }
 
@@ -1066,7 +1259,7 @@ function renderRecord(record) {
   const verdictDocument = {
     schema_version: record.schema_version ?? 'v0',
     verdict: record.verdict ?? 'UNKNOWN',
-    reasoning: record.reasoning ?? ''
+    reasoning: record.reasoning ?? '',
   };
   if ('user_direction' in record) {
     verdictDocument.user_direction = record.user_direction;
@@ -1101,7 +1294,11 @@ function renderRecord(record) {
   const parts = [heading];
 
   if (verdictDocument.verdict === 'USER_INTERVENTION') {
-    parts.push('', 'User direction:', sanitizeLogProse(record.user_direction ?? verdictDocument.reasoning));
+    parts.push(
+      '',
+      'User direction:',
+      sanitizeLogProse(record.user_direction ?? verdictDocument.reasoning),
+    );
     parts.push('', canonicalJsonBlock('consensus-verdict', verdictDocument));
     return parts.join('\n');
   }
@@ -1111,7 +1308,14 @@ function renderRecord(record) {
   }
 
   if (verdictDocument.proposed_artifact) {
-    parts.push('', 'Proposed Artifact:', dynamicFence(sanitizeProse(verdictDocument.proposed_artifact), 'markdown'));
+    parts.push(
+      '',
+      'Proposed Artifact:',
+      dynamicFence(
+        sanitizeProse(verdictDocument.proposed_artifact),
+        'markdown',
+      ),
+    );
   }
 
   parts.push('', canonicalJsonBlock('consensus-verdict', verdictDocument));
@@ -1122,7 +1326,8 @@ function yamlScalar(value) {
   if (value === null || value === undefined) return 'null';
   if (Array.isArray(value)) return JSON.stringify(value);
   if (typeof value === 'boolean') return value ? 'true' : 'false';
-  if (typeof value === 'number') return Number.isFinite(value) ? String(value) : 'null';
+  if (typeof value === 'number')
+    return Number.isFinite(value) ? String(value) : 'null';
   const text = String(value);
   return /^[A-Za-z0-9_.-]+$/u.test(text) ? text : JSON.stringify(text);
 }
@@ -1152,10 +1357,16 @@ function renderArtifactFrontmatter(resolution) {
     approximate_cost_usd: resolution.approximate_cost_usd,
     input_path: resolution.input_path,
     run_id: resolution.run_id,
-    generated_at: resolution.ended_at
+    generated_at: resolution.ended_at,
   };
 
-  return ['---', ...Object.entries(fields).map(([key, value]) => `${key}: ${yamlScalar(value)}`), '---'].join('\n');
+  return [
+    '---',
+    ...Object.entries(fields).map(
+      ([key, value]) => `${key}: ${yamlScalar(value)}`,
+    ),
+    '---',
+  ].join('\n');
 }
 
 function renderResolutionSummary(resolution) {
@@ -1167,7 +1378,7 @@ function renderResolutionSummary(resolution) {
     `- Peers: ${resolution.peers.join(', ')}`,
     `- Sections: ${resolution.sections.converged}/${resolution.sections.total} converged; ${resolution.sections.impasse} impasse; ${resolution.sections.escalation ?? 0} escalation; ${resolution.sections.error} error`,
     `- Turns: ${resolution.total_turns}; rounds: ${resolution.total_rounds}`,
-    `- Calls: ${resolution.peer_calls} peer; ${resolution.synthesis_calls} synthesis`
+    `- Calls: ${resolution.peer_calls} peer; ${resolution.synthesis_calls} synthesis`,
   ];
 
   if (resolution.subagent_ids?.length > 0) {
@@ -1184,10 +1395,12 @@ function tableCell(value) {
 function renderSectionStatesSummary(states) {
   const rows = [
     '| Section | Status | Turns | Rounds |',
-    '| --- | --- | ---: | ---: |'
+    '| --- | --- | ---: | ---: |',
   ];
   for (const state of states) {
-    rows.push(`| ${tableCell(state.name)} | ${tableCell(state.status)} | ${state.turns} | ${state.rounds} |`);
+    rows.push(
+      `| ${tableCell(state.name)} | ${tableCell(state.status)} | ${state.turns} | ${state.rounds} |`,
+    );
   }
   return rows.join('\n');
 }
@@ -1199,9 +1412,19 @@ function requireValue(argv, index, flag) {
   return argv[index + 1];
 }
 
-function parsePositiveInteger(value, label, min = 1, max = Number.MAX_SAFE_INTEGER) {
+function parsePositiveInteger(
+  value,
+  label,
+  min = 1,
+  max = Number.MAX_SAFE_INTEGER,
+) {
   const parsed = Number.parseInt(value, 10);
-  if (!Number.isInteger(parsed) || String(parsed) !== String(value) || parsed < min || parsed > max) {
+  if (
+    !Number.isInteger(parsed) ||
+    String(parsed) !== String(value) ||
+    parsed < min ||
+    parsed > max
+  ) {
     throw new Error(`${label} must be between ${min} and ${max}`);
   }
   return parsed;
@@ -1226,7 +1449,9 @@ function parsePeers(value) {
 
 function validateProviderId(providerId, label = 'provider id') {
   if (typeof providerId !== 'string' || !PROVIDER_ID_PATTERN.test(providerId)) {
-    throw new Error(`${label} "${providerId}" must match ^[a-z][a-z0-9-]{0,31}$`);
+    throw new Error(
+      `${label} "${providerId}" must match ^[a-z][a-z0-9-]{0,31}$`,
+    );
   }
   return providerId;
 }
@@ -1253,7 +1478,7 @@ const PROVIDER_UNAVAILABLE_STATUSES = new Set([
   'not found',
   'notfound',
   'disabled',
-  'offline'
+  'offline',
 ]);
 
 function providerEntryAvailable(entry) {
@@ -1266,7 +1491,9 @@ function providerEntryAvailable(entry) {
     return false;
   }
   if (typeof entry.status === 'string') {
-    return !PROVIDER_UNAVAILABLE_STATUSES.has(entry.status.trim().toLowerCase());
+    return !PROVIDER_UNAVAILABLE_STATUSES.has(
+      entry.status.trim().toLowerCase(),
+    );
   }
   return true;
 }
@@ -1274,14 +1501,20 @@ function providerEntryAvailable(entry) {
 function normalizeProviderInventory(providerInventory) {
   const entries = Array.isArray(providerInventory)
     ? providerInventory
-    : providerInventory?.providers ?? providerInventory?.data ?? [];
+    : (providerInventory?.providers ?? providerInventory?.data ?? []);
 
   return entries.map((entry) => {
     if (typeof entry === 'string') {
-      return { id: validateProviderId(entry, 'provider inventory id'), available: true };
+      return {
+        id: validateProviderId(entry, 'provider inventory id'),
+        available: true,
+      };
     }
 
-    const id = validateProviderId(entry.id ?? entry.name ?? entry.provider, 'provider inventory id');
+    const id = validateProviderId(
+      entry.id ?? entry.name ?? entry.provider,
+      'provider inventory id',
+    );
     const available = providerEntryAvailable(entry);
     return { ...entry, id, available };
   });
@@ -1316,21 +1549,23 @@ function buildSectionsFromBoundaries(lines, boundaries) {
         original_index: sections.length,
         start_line: 1,
         end_line: firstBoundary.lineIndex,
-        markdown: preamble
+        markdown: preamble,
       });
     }
   }
 
   for (const [boundaryIndex, boundary] of boundaries.entries()) {
     const nextBoundary = boundaries[boundaryIndex + 1];
-    const markdown = lines.slice(boundary.lineIndex, nextBoundary?.lineIndex ?? lines.length).join('');
+    const markdown = lines
+      .slice(boundary.lineIndex, nextBoundary?.lineIndex ?? lines.length)
+      .join('');
     sections.push({
       id: slugSectionId(boundary.name, sections.length),
       name: boundary.name,
       original_index: sections.length,
       start_line: boundary.lineIndex + 1,
       end_line: nextBoundary?.lineIndex ?? lines.length,
-      markdown
+      markdown,
     });
   }
 
@@ -1340,7 +1575,9 @@ function buildSectionsFromBoundaries(lines, boundaries) {
 function parseVersionText(text) {
   const match = String(text).match(/(\d+)\.(\d+)\.(\d+)/);
   if (!match) {
-    throw new Error(`could not parse paseo version from: ${String(text).trim()}`);
+    throw new Error(
+      `could not parse paseo version from: ${String(text).trim()}`,
+    );
   }
   return match[0];
 }
@@ -1357,7 +1594,7 @@ function compareVersions(left, right) {
 
 function missingPaseoError(cause) {
   const error = new Error(
-    `paseo appears to be missing or unavailable. Install with "${PASEO_REMEDIATION.install_command}", build from ${PASEO_REMEDIATION.source_url}, or run ${PASEO_REMEDIATION.install_script}.`
+    `paseo appears to be missing or unavailable. Install with "${PASEO_REMEDIATION.install_command}", build from ${PASEO_REMEDIATION.source_url}, or run ${PASEO_REMEDIATION.install_script}.`,
   );
   error.code = 'PASEO_MISSING';
   error.cause = cause;
@@ -1381,7 +1618,9 @@ export async function readInputFile(inputPath, options = {}) {
 
 export async function confineWrite(targetPath, rootPath) {
   const root = path.resolve(rootPath);
-  const target = path.isAbsolute(targetPath) ? path.resolve(targetPath) : path.resolve(root, targetPath);
+  const target = path.isAbsolute(targetPath)
+    ? path.resolve(targetPath)
+    : path.resolve(root, targetPath);
 
   if (!inside(root, target)) {
     throw new Error(`write path is outside allowed root: ${target}`);
@@ -1398,7 +1637,10 @@ export async function confineWrite(targetPath, rootPath) {
   const parent = path.dirname(target);
   const existing = await nearestExistingPath(parent);
   const realExisting = await realpath(existing);
-  const realParent = path.resolve(realExisting, path.relative(existing, parent));
+  const realParent = path.resolve(
+    realExisting,
+    path.relative(existing, parent),
+  );
   if (!inside(realRoot, realParent)) {
     throw new Error(`write path resolves outside allowed root: ${target}`);
   }
@@ -1407,7 +1649,9 @@ export async function confineWrite(targetPath, rootPath) {
 }
 
 export async function atomicWriteFile(targetPath, contents, options = {}) {
-  const writePath = options.rootPath ? await confineWrite(targetPath, options.rootPath) : path.resolve(targetPath);
+  const writePath = options.rootPath
+    ? await confineWrite(targetPath, options.rootPath)
+    : path.resolve(targetPath);
 
   if (await pathExists(writePath)) {
     const targetStat = await lstat(writePath);
@@ -1419,7 +1663,7 @@ export async function atomicWriteFile(targetPath, contents, options = {}) {
   await mkdir(path.dirname(writePath), { recursive: true });
   const tempPath = path.join(
     path.dirname(writePath),
-    `.${path.basename(writePath)}.tmp-${process.pid}-${randomBytes(8).toString('hex')}`
+    `.${path.basename(writePath)}.tmp-${process.pid}-${randomBytes(8).toString('hex')}`,
   );
 
   try {
@@ -1466,7 +1710,9 @@ export async function resolveOutputPath(options = {}, inputPath) {
   if (options.output) {
     const cwd = path.resolve(options.cwd ?? process.cwd());
     const root = path.resolve(options.allowRoot ?? cwd);
-    const target = path.isAbsolute(options.output) ? options.output : path.resolve(cwd, options.output);
+    const target = path.isAbsolute(options.output)
+      ? options.output
+      : path.resolve(cwd, options.output);
     return await confineWrite(target, root);
   }
 
@@ -1479,7 +1725,9 @@ export async function resolveResumePath(options = {}) {
 
   const cwd = path.resolve(options.cwd ?? process.cwd());
   const root = path.resolve(options.allowRoot ?? cwd);
-  const target = path.isAbsolute(options.resume) ? options.resume : path.resolve(cwd, options.resume);
+  const target = path.isAbsolute(options.resume)
+    ? options.resume
+    : path.resolve(cwd, options.resume);
   return await confineWrite(target, root);
 }
 
@@ -1487,7 +1735,7 @@ async function defaultRunCommand(command, args, options = {}) {
   const result = await execFileAsync(command, args, {
     cwd: options.cwd,
     env: options.env,
-    maxBuffer: 2 * 1024 * 1024
+    maxBuffer: 2 * 1024 * 1024,
   });
   return { stdout: result.stdout, stderr: result.stderr };
 }
@@ -1517,7 +1765,7 @@ export function parseWrapperArgs(argv) {
     prepareParallel: false,
     parallelism: null,
     fanIn: false,
-    manifestPath: null
+    manifestPath: null,
   };
   const positionals = [];
 
@@ -1538,7 +1786,7 @@ export function parseWrapperArgs(argv) {
           requireValue(argv, index, token),
           '--max-rounds',
           MAX_ROUNDS_MIN,
-          MAX_ROUNDS_MAX
+          MAX_ROUNDS_MAX,
         );
         index += 1;
         break;
@@ -1551,7 +1799,10 @@ export function parseWrapperArgs(argv) {
         index += 1;
         break;
       case '--synthesizer':
-        parsed.synthesizer = validateProviderId(requireValue(argv, index, token), '--synthesizer');
+        parsed.synthesizer = validateProviderId(
+          requireValue(argv, index, token),
+          '--synthesizer',
+        );
         index += 1;
         break;
       case '--cold-start':
@@ -1604,7 +1855,12 @@ export function parseWrapperArgs(argv) {
         parsed.mode = 'prepare_parallel';
         break;
       case '--parallelism':
-        parsed.parallelism = parsePositiveInteger(requireValue(argv, index, token), '--parallelism', 1, 64);
+        parsed.parallelism = parsePositiveInteger(
+          requireValue(argv, index, token),
+          '--parallelism',
+          1,
+          64,
+        );
         index += 1;
         break;
       case '--fan-in':
@@ -1622,7 +1878,9 @@ export function parseWrapperArgs(argv) {
   }
 
   if (parsed.userDirection !== null && parsed.hostDirection !== null) {
-    throw new Error('--user-direction and --host-direction are mutually exclusive');
+    throw new Error(
+      '--user-direction and --host-direction are mutually exclusive',
+    );
   }
 
   if (!['minimal', 'moderate', 'maximum'].includes(parsed.agency)) {
@@ -1659,7 +1917,10 @@ export function parseWrapperArgs(argv) {
   return parsed;
 }
 
-export async function parseDeliberationArtifactForResume(pathOrText, options = {}) {
+export async function parseDeliberationArtifactForResume(
+  pathOrText,
+  options = {},
+) {
   const { text, sourcePath } = await readResumePathOrText(pathOrText);
   const frontmatter = parseFrontmatter(text);
   const consensusSchemaVersion = frontmatter.consensus_schema_version;
@@ -1671,36 +1932,64 @@ export async function parseDeliberationArtifactForResume(pathOrText, options = {
       `cannot resume consensus_schema_version ${found}: this build resumes only v1 artifacts, and there is no migration from v0. Complete in-flight v0 runs under consensus v0.1 or restart them under v1.`,
       {
         code: 'SCHEMA_VERSION_MISMATCH',
-        details: { found: consensusSchemaVersion ?? null, expected: 'v1' }
-      }
+        details: { found: consensusSchemaVersion ?? null, expected: 'v1' },
+      },
     );
   }
 
   const resolutions = extractConsensusJsonBlocks(text, 'consensus-resolution');
-  const sectionStatesBlocks = extractConsensusJsonBlocks(text, 'consensus-section-states');
+  const sectionStatesBlocks = extractConsensusJsonBlocks(
+    text,
+    'consensus-section-states',
+  );
   if (resolutions.length !== 1) {
-    throw resumeDataError('resume artifact must contain exactly one consensus-resolution block', {
-      code: 'RESUME_RESOLUTION_MISSING',
-      details: { count: resolutions.length }
-    });
+    throw resumeDataError(
+      'resume artifact must contain exactly one consensus-resolution block',
+      {
+        code: 'RESUME_RESOLUTION_MISSING',
+        details: { count: resolutions.length },
+      },
+    );
   }
-  if (sectionStatesBlocks.length !== 1 || !Array.isArray(sectionStatesBlocks[0])) {
-    throw resumeDataError('resume artifact must contain one consensus-section-states array block', {
-      code: 'RESUME_SECTION_STATE_MISSING',
-      details: { count: sectionStatesBlocks.length }
-    });
+  if (
+    sectionStatesBlocks.length !== 1 ||
+    !Array.isArray(sectionStatesBlocks[0])
+  ) {
+    throw resumeDataError(
+      'resume artifact must contain one consensus-section-states array block',
+      {
+        code: 'RESUME_SECTION_STATE_MISSING',
+        details: { count: sectionStatesBlocks.length },
+      },
+    );
   }
 
   const resolution = resolutions[0];
   const sectionStates = sectionStatesBlocks[0];
   const { logSections, unscopedErrors } = extractLogSectionBlocks(text);
-  const resumeAgency = resumeAgencyFromMetadata(resolution, frontmatter, options);
-  const { sections, errors } = collectResumeValidationErrors(sectionStates, logSections, unscopedErrors, {
-    peers: resolution.peers,
-    agency: resumeAgency
-  });
-  const { skippedIds, unhandledErrors } = await applyResumeSkipPolicy(sections, errors, options);
-  const diagnosticsPath = errors.length > 0 ? await writeResumeErrors(options.runDir, errors, [...skippedIds]) : null;
+  const resumeAgency = resumeAgencyFromMetadata(
+    resolution,
+    frontmatter,
+    options,
+  );
+  const { sections, errors } = collectResumeValidationErrors(
+    sectionStates,
+    logSections,
+    unscopedErrors,
+    {
+      peers: resolution.peers,
+      agency: resumeAgency,
+    },
+  );
+  const { skippedIds, unhandledErrors } = await applyResumeSkipPolicy(
+    sections,
+    errors,
+    options,
+  );
+  const diagnosticsPath =
+    errors.length > 0
+      ? await writeResumeErrors(options.runDir, errors, [...skippedIds])
+      : null;
   if (unhandledErrors.length > 0) {
     throw corruptResumeError(unhandledErrors, diagnosticsPath);
   }
@@ -1716,7 +2005,7 @@ export async function parseDeliberationArtifactForResume(pathOrText, options = {
     inFlightSections: sections.filter((section) => section.inFlight),
     skippedCorruptSections: sections.filter((section) => section.skipped),
     resumeErrors: errors,
-    resumeErrorsPath: diagnosticsPath
+    resumeErrorsPath: diagnosticsPath,
   };
 }
 
@@ -1762,7 +2051,8 @@ export function parseSections(markdown) {
     }
   });
 
-  const boundaries = markerBoundaries.length > 0 ? markerBoundaries : headingBoundaries;
+  const boundaries =
+    markerBoundaries.length > 0 ? markerBoundaries : headingBoundaries;
   if (boundaries.length > 0) {
     return buildSectionsFromBoundaries(lines, boundaries);
   }
@@ -1774,8 +2064,8 @@ export function parseSections(markdown) {
       original_index: 0,
       start_line: 1,
       end_line: lines.length,
-      markdown: lines.join('')
-    }
+      markdown: lines.join(''),
+    },
   ];
 }
 
@@ -1788,20 +2078,24 @@ function normalizeSequentialOptions(options) {
     iteration: 'alternating',
     coldStart: 'shared_input',
     failOnSectionError: false,
-    ...parsed
+    ...parsed,
   };
 }
 
 function sectionRunDirectory(runDir, section) {
-  return path.join(runDir, 'sections', `${String(section.original_index + 1).padStart(2, '0')}-${section.id}`);
+  return path.join(
+    runDir,
+    'sections',
+    `${String(section.original_index + 1).padStart(2, '0')}-${section.id}`,
+  );
 }
 
 function sectionLookup(sections) {
   return new Map(
     (sections ?? []).flatMap((section) => [
       [`id:${section.id}`, section],
-      [`index:${section.original_index}`, section]
-    ])
+      [`index:${section.original_index}`, section],
+    ]),
   );
 }
 
@@ -1818,12 +2112,12 @@ function sequentialRunSections(parsedSections, resumeState) {
       id: resumeSection.id,
       name: resumeSection.name,
       original_index: resumeSection.original_index ?? index,
-      markdown: currentSection?.markdown ?? resumeSection.resumedArtifact ?? ''
+      markdown: currentSection?.markdown ?? resumeSection.resumedArtifact ?? '',
     };
   });
 }
 
-function loopArgvForSection({ section, paths, options, peers, synthesizer = null }) {
+function loopArgvForSection({ paths, options, peers, synthesizer = null }) {
   const argv = [
     '--section-file',
     paths.input,
@@ -1836,7 +2130,7 @@ function loopArgvForSection({ section, paths, options, peers, synthesizer = null
     '--agency',
     options.agency,
     '--iteration',
-    options.iteration ?? 'alternating'
+    options.iteration ?? 'alternating',
   ];
   if (synthesizer) {
     argv.push('--synthesizer', synthesizer);
@@ -1847,7 +2141,7 @@ function loopArgvForSection({ section, paths, options, peers, synthesizer = null
     '--output-section',
     paths.output,
     '--output-status',
-    paths.status
+    paths.status,
   );
   return argv;
 }
@@ -1859,7 +2153,14 @@ function parallelismFor(sectionCount, requested) {
   return Math.min(sectionCount, 4);
 }
 
-function manifestSectionEntry({ section, paths, packetPath, loopArgv, iterationMode = 'alternating', synthesizer = null }) {
+function manifestSectionEntry({
+  section,
+  paths,
+  packetPath,
+  loopArgv,
+  iterationMode = 'alternating',
+  synthesizer = null,
+}) {
   return {
     section_id: section.id,
     name: section.name,
@@ -1872,7 +2173,7 @@ function manifestSectionEntry({ section, paths, packetPath, loopArgv, iterationM
     subagent_id: `section-runner-${String(section.original_index + 1).padStart(2, '0')}-${section.id}`,
     iteration_mode: iterationMode,
     synthesizer,
-    loop_argv: loopArgv
+    loop_argv: loopArgv,
   };
 }
 
@@ -1889,27 +2190,43 @@ function dispatchInstructions(manifest) {
       original_index: section.original_index,
       packet_path: section.packet_path,
       subagent_id: section.subagent_id,
-      iteration_mode: section.iteration_mode ?? manifest.iteration_mode ?? 'alternating',
+      iteration_mode:
+        section.iteration_mode ?? manifest.iteration_mode ?? 'alternating',
       synthesizer: section.synthesizer ?? manifest.synthesizer ?? null,
       output_records: section.output_records,
       output_section: section.output_section,
-      output_status: section.output_status
-    }))
+      output_status: section.output_status,
+    })),
   };
 }
 
 export function renderDeliberationArtifact(runResult) {
-  const sections = [...runResult.sections].sort((left, right) => left.original_index - right.original_index);
+  const sections = [...runResult.sections].toSorted(
+    (left, right) => left.original_index - right.original_index,
+  );
   const status = runResult.status ?? aggregateStatus(sections);
   const states = sectionStates(sections);
-  const finalOutput = sections.map(sectionOutput).join('\n\n').replace(/\n*$/u, '\n');
-  const totalRounds = sections.reduce((sum, section) => sum + (section.status?.rounds ?? 0), 0);
-  const totalTurns = sections.reduce((sum, section) => sum + (section.status?.turns ?? 0), 0);
-  const peerCalls = sections.reduce(
-    (sum, section) => sum + (section.status?.peer_calls ?? section.status?.turns ?? 0),
-    0
+  const finalOutput = sections
+    .map(sectionOutput)
+    .join('\n\n')
+    .replace(/\n*$/u, '\n');
+  const totalRounds = sections.reduce(
+    (sum, section) => sum + (section.status?.rounds ?? 0),
+    0,
   );
-  const synthesisCalls = sections.reduce((sum, section) => sum + (section.status?.synthesis_calls ?? 0), 0);
+  const totalTurns = sections.reduce(
+    (sum, section) => sum + (section.status?.turns ?? 0),
+    0,
+  );
+  const peerCalls = sections.reduce(
+    (sum, section) =>
+      sum + (section.status?.peer_calls ?? section.status?.turns ?? 0),
+    0,
+  );
+  const synthesisCalls = sections.reduce(
+    (sum, section) => sum + (section.status?.synthesis_calls ?? 0),
+    0,
+  );
   const resolution = {
     consensus_schema_version: 'v1',
     status,
@@ -1929,7 +2246,7 @@ export function renderDeliberationArtifact(runResult) {
       escalation: countByStatus(sections, 'escalation'),
       max_rounds: countByStatus(sections, 'max-rounds'),
       oscillation: countByStatus(sections, 'oscillation'),
-      error: countByStatus(sections, 'error')
+      error: countByStatus(sections, 'error'),
     },
     total_rounds: totalRounds,
     total_turns: totalTurns,
@@ -1939,10 +2256,14 @@ export function renderDeliberationArtifact(runResult) {
     cost_source: 'unavailable',
     approximate_cost_usd: null,
     input_path: runResult.inputPath ?? null,
-    run_id: runResult.runId ?? (runResult.runDir ? path.basename(runResult.runDir) : null),
+    run_id:
+      runResult.runId ??
+      (runResult.runDir ? path.basename(runResult.runDir) : null),
     started_at: runResult.startedAt ?? null,
     ended_at: runResult.endedAt ?? null,
-    subagent_ids: sections.map((section) => section.subagent_id).filter(Boolean)
+    subagent_ids: sections
+      .map((section) => section.subagent_id)
+      .filter(Boolean),
   };
 
   const parts = [
@@ -1969,7 +2290,7 @@ export function renderDeliberationArtifact(runResult) {
     '',
     canonicalJsonBlock('consensus-section-states', states),
     '',
-    '## Deliberation Log'
+    '## Deliberation Log',
   ];
 
   for (const section of sections) {
@@ -1978,7 +2299,7 @@ export function renderDeliberationArtifact(runResult) {
       `### ${section.original_index + 1}. ${sanitizeProse(section.name)} (${section.status?.status ?? 'unknown'})`,
       '',
       canonicalJsonBlock('consensus-section-status', section.status ?? {}),
-      ''
+      '',
     );
 
     for (const record of section.records ?? []) {
@@ -1986,14 +2307,19 @@ export function renderDeliberationArtifact(runResult) {
     }
   }
 
-  return `${parts.join('\n').replace(/\n{4,}/g, '\n\n\n').replace(/\s+$/u, '')}\n`;
+  return `${parts
+    .join('\n')
+    .replace(/\n{4,}/g, '\n\n\n')
+    .replace(/\s+$/u, '')}\n`;
 }
 
 export async function runSequential(options, runOptions = {}) {
   const normalized = normalizeSequentialOptions(options);
   const cwd = path.resolve(normalized.cwd ?? runOptions.cwd ?? process.cwd());
   const env = normalized.env ?? runOptions.env ?? process.env;
-  const inputPath = path.isAbsolute(normalized.inputPath) ? normalized.inputPath : path.resolve(cwd, normalized.inputPath);
+  const inputPath = path.isAbsolute(normalized.inputPath)
+    ? normalized.inputPath
+    : path.resolve(cwd, normalized.inputPath);
   const startedAt = nowIso();
   const startMs = Date.now();
   const markdown = await readInputFile(inputPath);
@@ -2008,20 +2334,26 @@ export async function runSequential(options, runOptions = {}) {
         skipAllCorrupt: normalized.skipAllCorrupt,
         yesSkipCorrupt: normalized.yesSkipCorrupt,
         stdin: runOptions.stdin,
-        stdout: runOptions.stdout
+        stdout: runOptions.stdout,
       })
     : null;
   const runWriteRoot = path.resolve(normalized.allowRoot ?? cwd);
-  const outputWriteRoot = normalized.output ? path.resolve(normalized.allowRoot ?? cwd) : path.dirname(inputPath);
+  const outputWriteRoot = normalized.output
+    ? path.resolve(normalized.allowRoot ?? cwd)
+    : path.dirname(inputPath);
   const preflight =
     normalized.preflight === false
       ? { peers: normalized.peers ?? ['claude', 'codex'], warnings: [] }
-      : await (normalized.preflight ?? preflightPaseo)({ ...normalized, env, cwd });
+      : await (normalized.preflight ?? preflightPaseo)({
+          ...normalized,
+          env,
+          cwd,
+        });
   const peers = normalized.peers ?? preflight.peers;
   const host = preflight.host ?? detectHost(env);
   const { synthesizer } = resolveSynthesizer(
     { ...normalized, peers },
-    preflight.providerInventory ?? peers.map((id) => ({ id, available: true }))
+    preflight.providerInventory ?? peers.map((id) => ({ id, available: true })),
   );
   const resumeSections = sectionLookup(resumeState?.sections);
   const runSections = sequentialRunSections(parsedSections, resumeState);
@@ -2033,18 +2365,22 @@ export async function runSequential(options, runOptions = {}) {
       input: path.join(sectionDir, 'section.md'),
       records: path.join(sectionDir, 'records.json'),
       output: path.join(sectionDir, 'output.md'),
-      status: path.join(sectionDir, 'status.json')
+      status: path.join(sectionDir, 'status.json'),
     };
     const resumeSection =
-      resumeSections.get(`id:${section.id}`) ?? resumeSections.get(`index:${section.original_index}`) ?? null;
+      resumeSections.get(`id:${section.id}`) ??
+      resumeSections.get(`index:${section.original_index}`) ??
+      null;
     const sectionInput = resumeSection?.resumedArtifact ?? section.markdown;
 
     await Promise.all([
       confineWrite(paths.records, runWriteRoot),
       confineWrite(paths.output, runWriteRoot),
-      confineWrite(paths.status, runWriteRoot)
+      confineWrite(paths.status, runWriteRoot),
     ]);
-    await atomicWriteFile(paths.input, sectionInput, { rootPath: runWriteRoot });
+    await atomicWriteFile(paths.input, sectionInput, {
+      rootPath: runWriteRoot,
+    });
 
     if (resumeSection?.skipped) {
       const status = {
@@ -2054,35 +2390,51 @@ export async function runSequential(options, runOptions = {}) {
         turns: 0,
         rounds: 0,
         final_artifact_hash: hashArtifact(section.markdown),
-        resume_errors: resumeSection.corruptErrors
+        resume_errors: resumeSection.corruptErrors,
       };
       await Promise.all([
-        atomicWriteFile(paths.records, `${JSON.stringify(resumeSection.records, null, 2)}\n`, { rootPath: runWriteRoot }),
-        atomicWriteFile(paths.output, section.markdown, { rootPath: runWriteRoot }),
-        atomicWriteFile(paths.status, `${JSON.stringify(status, null, 2)}\n`, { rootPath: runWriteRoot })
+        atomicWriteFile(
+          paths.records,
+          `${JSON.stringify(resumeSection.records, null, 2)}\n`,
+          { rootPath: runWriteRoot },
+        ),
+        atomicWriteFile(paths.output, section.markdown, {
+          rootPath: runWriteRoot,
+        }),
+        atomicWriteFile(paths.status, `${JSON.stringify(status, null, 2)}\n`, {
+          rootPath: runWriteRoot,
+        }),
       ]);
       sectionResults.push({
         ...section,
         paths,
         output: section.markdown,
         status,
-        records: resumeSection.records
+        records: resumeSection.records,
       });
       continue;
     }
 
     if (resumeSection?.completed) {
       await Promise.all([
-        atomicWriteFile(paths.records, `${JSON.stringify(resumeSection.records, null, 2)}\n`, { rootPath: runWriteRoot }),
+        atomicWriteFile(
+          paths.records,
+          `${JSON.stringify(resumeSection.records, null, 2)}\n`,
+          { rootPath: runWriteRoot },
+        ),
         atomicWriteFile(paths.output, sectionInput, { rootPath: runWriteRoot }),
-        atomicWriteFile(paths.status, `${JSON.stringify(resumeSection.status, null, 2)}\n`, { rootPath: runWriteRoot })
+        atomicWriteFile(
+          paths.status,
+          `${JSON.stringify(resumeSection.status, null, 2)}\n`,
+          { rootPath: runWriteRoot },
+        ),
       ]);
       sectionResults.push({
         ...section,
         paths,
         output: sectionInput,
         status: resumeSection.status,
-        records: resumeSection.records
+        records: resumeSection.records,
       });
       continue;
     }
@@ -2101,33 +2453,46 @@ export async function runSequential(options, runOptions = {}) {
     }
 
     try {
-      const result = await runConsensusLoop(loopArgvForSection({ section, paths, options: normalized, peers, synthesizer }), {
-        env,
-        cwd,
-        invokePeer: normalized.invokePeer ?? runOptions.invokePeer,
-        invokeSynthesizer: normalized.invokeSynthesizer ?? runOptions.invokeSynthesizer,
-        initialRecords: resumeSection?.records ?? [],
-        initialArtifact: sectionInput,
-        userDirection: resumeSection?.inFlight ? normalized.userDirection : null,
-        hostDirection,
-        hostDecisionKind,
-        escalationTrigger
-      });
+      const result = await runConsensusLoop(
+        loopArgvForSection({
+          section,
+          paths,
+          options: normalized,
+          peers,
+          synthesizer,
+        }),
+        {
+          env,
+          cwd,
+          invokePeer: normalized.invokePeer ?? runOptions.invokePeer,
+          invokeSynthesizer:
+            normalized.invokeSynthesizer ?? runOptions.invokeSynthesizer,
+          initialRecords: resumeSection?.records ?? [],
+          initialArtifact: sectionInput,
+          userDirection: resumeSection?.inFlight
+            ? normalized.userDirection
+            : null,
+          hostDirection,
+          hostDecisionKind,
+          escalationTrigger,
+        },
+      );
       sectionResults.push({
         ...section,
         paths,
         output: result.output,
         status: result.status,
-        records: result.records
+        records: result.records,
       });
     } catch (error) {
       const records = await readJsonIfPresent(paths.records, []);
       const persistedStatus = await readJsonIfPresent(paths.status, null);
       const recoveredOutput =
-        (await readTextIfPresent(paths.output)) ?? latestRevisedOutput(records, section.markdown);
+        (await readTextIfPresent(paths.output)) ??
+        latestRevisedOutput(records, section.markdown);
       const status = {
         ...fallbackErrorStatus(error, records, peers.length),
-        ...(persistedStatus ?? {})
+        ...persistedStatus,
       };
       if (!status.error) {
         status.error = error.message;
@@ -2137,7 +2502,7 @@ export async function runSequential(options, runOptions = {}) {
         paths,
         output: recoveredOutput,
         status,
-        records
+        records,
       });
     }
   }
@@ -2162,7 +2527,7 @@ export async function runSequential(options, runOptions = {}) {
     startedAt,
     endedAt,
     wallClockMs: Date.now() - startMs,
-    sections: sectionResults
+    sections: sectionResults,
   };
   runResult.status = aggregateStatus(sectionResults);
 
@@ -2183,15 +2548,18 @@ export async function runSequential(options, runOptions = {}) {
 
   const failedSections = failingSections(sectionResults);
   if (normalized.failOnSectionError && failedSections.length > 0) {
-    throw new ConsensusError(`section error or impasse in ${failedSections.length} section(s)`, {
-      code: 'SECTION_ERROR',
-      exitCode: EXIT_CODES.SECTION_ERROR,
-      details: {
-        output_path: outputPath,
-        run_dir: runDir,
-        failing_sections: failedSections
-      }
-    });
+    throw new ConsensusError(
+      `section error or impasse in ${failedSections.length} section(s)`,
+      {
+        code: 'SECTION_ERROR',
+        exitCode: EXIT_CODES.SECTION_ERROR,
+        details: {
+          output_path: outputPath,
+          run_dir: runDir,
+          failing_sections: failedSections,
+        },
+      },
+    );
   }
   return { ...runResult, artifact };
 }
@@ -2200,7 +2568,9 @@ export async function prepareParallelRun(options, runOptions = {}) {
   const normalized = normalizeSequentialOptions(options);
   const cwd = path.resolve(normalized.cwd ?? runOptions.cwd ?? process.cwd());
   const env = normalized.env ?? runOptions.env ?? process.env;
-  const inputPath = path.isAbsolute(normalized.inputPath) ? normalized.inputPath : path.resolve(cwd, normalized.inputPath);
+  const inputPath = path.isAbsolute(normalized.inputPath)
+    ? normalized.inputPath
+    : path.resolve(cwd, normalized.inputPath);
   const startedAt = nowIso();
   const markdown = await readInputFile(inputPath);
   const parsedSections = parseSections(markdown);
@@ -2210,7 +2580,11 @@ export async function prepareParallelRun(options, runOptions = {}) {
   const preflight =
     normalized.preflight === false
       ? { peers: normalized.peers ?? ['claude', 'codex'], warnings: [] }
-      : await (normalized.preflight ?? preflightPaseo)({ ...normalized, env, cwd });
+      : await (normalized.preflight ?? preflightPaseo)({
+          ...normalized,
+          env,
+          cwd,
+        });
   const peers = normalized.peers ?? preflight.peers;
   const host = preflight.host ?? detectHost(env);
   // Resolve the synthesizer (FR6) so parallel_synthesized section runners receive
@@ -2218,10 +2592,13 @@ export async function prepareParallelRun(options, runOptions = {}) {
   // this is null and warn-and-ignored.
   const { synthesizer } = resolveSynthesizer(
     { ...normalized, peers },
-    preflight.providerInventory ?? normalized.providerInventory ?? []
+    preflight.providerInventory ?? normalized.providerInventory ?? [],
   );
   const iterationMode = normalized.iteration ?? 'alternating';
-  const parallelism = parallelismFor(parsedSections.length, normalized.parallelism);
+  const parallelism = parallelismFor(
+    parsedSections.length,
+    normalized.parallelism,
+  );
   const sections = [];
 
   for (const section of parsedSections) {
@@ -2230,17 +2607,23 @@ export async function prepareParallelRun(options, runOptions = {}) {
       input: path.join(sectionDir, 'section.md'),
       records: path.join(sectionDir, 'records.json'),
       output: path.join(sectionDir, 'output.md'),
-      status: path.join(sectionDir, 'status.json')
+      status: path.join(sectionDir, 'status.json'),
     };
     const packetPath = path.join(sectionDir, 'packet.json');
-    const loopArgv = loopArgvForSection({ section, paths, options: normalized, peers, synthesizer });
+    const loopArgv = loopArgvForSection({
+      section,
+      paths,
+      options: normalized,
+      peers,
+      synthesizer,
+    });
 
     await Promise.all([
       confineWrite(paths.input, runWriteRoot),
       confineWrite(paths.records, runWriteRoot),
       confineWrite(paths.output, runWriteRoot),
       confineWrite(paths.status, runWriteRoot),
-      confineWrite(packetPath, runWriteRoot)
+      confineWrite(packetPath, runWriteRoot),
     ]);
 
     const packet = {
@@ -2260,12 +2643,25 @@ export async function prepareParallelRun(options, runOptions = {}) {
       output_records: paths.records,
       output_section: paths.output,
       output_status: paths.status,
-      loop_argv: loopArgv
+      loop_argv: loopArgv,
     };
 
-    await atomicWriteFile(paths.input, section.markdown, { rootPath: runWriteRoot });
-    await atomicWriteFile(packetPath, `${JSON.stringify(packet, null, 2)}\n`, { rootPath: runWriteRoot });
-    sections.push(manifestSectionEntry({ section, paths, packetPath, loopArgv, iterationMode, synthesizer }));
+    await atomicWriteFile(paths.input, section.markdown, {
+      rootPath: runWriteRoot,
+    });
+    await atomicWriteFile(packetPath, `${JSON.stringify(packet, null, 2)}\n`, {
+      rootPath: runWriteRoot,
+    });
+    sections.push(
+      manifestSectionEntry({
+        section,
+        paths,
+        packetPath,
+        loopArgv,
+        iterationMode,
+        synthesizer,
+      }),
+    );
   }
 
   const manifestPath = path.join(runDir, 'manifest.json');
@@ -2288,10 +2684,14 @@ export async function prepareParallelRun(options, runOptions = {}) {
     synthesizer,
     parallelism,
     sections,
-    manifest_path: manifestPath
+    manifest_path: manifestPath,
   };
 
-  await atomicWriteFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, { rootPath: runWriteRoot });
+  await atomicWriteFile(
+    manifestPath,
+    `${JSON.stringify(manifest, null, 2)}\n`,
+    { rootPath: runWriteRoot },
+  );
   const dispatchEvent = dispatchInstructions(manifest);
 
   return {
@@ -2309,7 +2709,7 @@ export async function prepareParallelRun(options, runOptions = {}) {
     maxRounds: normalized.maxRounds,
     parallelism,
     sections,
-    dispatchEvent
+    dispatchEvent,
   };
 }
 
@@ -2318,16 +2718,28 @@ export async function fanInParallelRun(manifestPath, options = {}) {
   const trustedRoot = path.resolve(options.allowRoot ?? cwd);
   const resolvedManifestPath = resolveManifestPathValue(manifestPath, cwd);
   if (!inside(trustedRoot, resolvedManifestPath)) {
-    throw pathConfinementError('manifest_path', resolvedManifestPath, trustedRoot);
+    throw pathConfinementError(
+      'manifest_path',
+      resolvedManifestPath,
+      trustedRoot,
+    );
   }
-  await assertPathResolvesInside(trustedRoot, resolvedManifestPath, 'manifest_path', pathConfinementError);
+  await assertPathResolvesInside(
+    trustedRoot,
+    resolvedManifestPath,
+    'manifest_path',
+    pathConfinementError,
+  );
   const startedAt = nowIso();
   const startMs = Date.now();
-  const manifest = await normalizeParallelManifest(await readJsonFile(resolvedManifestPath), {
-    cwd,
-    trustedRoot,
-    manifestPath: resolvedManifestPath
-  });
+  const manifest = await normalizeParallelManifest(
+    await readJsonFile(resolvedManifestPath),
+    {
+      cwd,
+      trustedRoot,
+      manifestPath: resolvedManifestPath,
+    },
+  );
   const sections = [];
 
   for (const entry of manifest.sections ?? []) {
@@ -2342,7 +2754,7 @@ export async function fanInParallelRun(manifestPath, options = {}) {
       errors.push({
         code: 'missing output file',
         path: entry.output_section,
-        message: error.message
+        message: error.message,
       });
     }
 
@@ -2352,7 +2764,7 @@ export async function fanInParallelRun(manifestPath, options = {}) {
         errors.push({
           code: 'malformed result JSON',
           path: entry.output_records,
-          message: 'records file must contain a JSON array'
+          message: 'records file must contain a JSON array',
         });
         records = [];
       }
@@ -2360,7 +2772,7 @@ export async function fanInParallelRun(manifestPath, options = {}) {
       errors.push({
         code: 'malformed result JSON',
         path: entry.output_records,
-        message: error.message
+        message: error.message,
       });
       records = [];
     }
@@ -2371,16 +2783,19 @@ export async function fanInParallelRun(manifestPath, options = {}) {
       errors.push({
         code: 'malformed result JSON',
         path: entry.output_status,
-        message: error.message
+        message: error.message,
       });
       status = null;
     }
 
-    if (status?.status === 'timeout' || status?.termination_reason === 'section_timeout') {
+    if (
+      status?.status === 'timeout' ||
+      status?.termination_reason === 'section_timeout'
+    ) {
       errors.push({
         code: 'section_timeout',
         path: entry.output_status,
-        message: 'section runner reported timeout'
+        message: 'section runner reported timeout',
       });
     }
 
@@ -2388,7 +2803,10 @@ export async function fanInParallelRun(manifestPath, options = {}) {
       errors.push({
         code: 'section_error',
         path: entry.output_status,
-        message: status.error ?? status.termination_reason ?? 'section runner reported error'
+        message:
+          status.error ??
+          status.termination_reason ??
+          'section runner reported error',
       });
     }
 
@@ -2399,18 +2817,20 @@ export async function fanInParallelRun(manifestPath, options = {}) {
         section_id: entry.section_id,
         subagent_id: entry.subagent_id,
         status_path: entry.output_status,
-        errors
+        errors,
       };
       output = `${original.replace(/\n*$/u, '\n')}\n${canonicalJsonBlock('section-error', marker)}\n`;
       status = {
         schema_version: 'v1',
-        ...(status ?? {}),
+        ...status,
         status: 'error',
         termination_reason: status?.termination_reason ?? errors[0].code,
         turns: status?.turns ?? records.length,
         rounds: status?.rounds ?? 0,
-        error: errors.map((error) => `${error.code}: ${error.message}`).join('; '),
-        parallel_errors: errors
+        error: errors
+          .map((error) => `${error.code}: ${error.message}`)
+          .join('; '),
+        parallel_errors: errors,
       };
     }
 
@@ -2424,11 +2844,11 @@ export async function fanInParallelRun(manifestPath, options = {}) {
         records: entry.output_records,
         output: entry.output_section,
         status: entry.output_status,
-        packet: entry.packet_path
+        packet: entry.packet_path,
       },
       output,
       records,
-      status
+      status,
     });
   }
 
@@ -2450,30 +2870,40 @@ export async function fanInParallelRun(manifestPath, options = {}) {
     startedAt,
     endedAt,
     wallClockMs: Date.now() - startMs,
-    sections
+    sections,
   };
   runResult.status = aggregateParallelStatus(sections);
 
   const artifact = renderDeliberationArtifact(runResult);
-  await atomicWriteFile(manifest.output_path, artifact, { rootPath: manifest.output_write_root });
+  await atomicWriteFile(manifest.output_path, artifact, {
+    rootPath: manifest.output_write_root,
+  });
   const failedSections = failingSections(sections);
   if (options.failOnSectionError && failedSections.length > 0) {
-    throw new ConsensusError(`section error or impasse in ${failedSections.length} section(s)`, {
-      code: 'SECTION_ERROR',
-      exitCode: EXIT_CODES.SECTION_ERROR,
-      details: {
-        output_path: manifest.output_path,
-        run_dir: manifest.run_dir,
-        manifest_path: resolvedManifestPath,
-        failing_sections: failedSections
-      }
-    });
+    throw new ConsensusError(
+      `section error or impasse in ${failedSections.length} section(s)`,
+      {
+        code: 'SECTION_ERROR',
+        exitCode: EXIT_CODES.SECTION_ERROR,
+        details: {
+          output_path: manifest.output_path,
+          run_dir: manifest.run_dir,
+          manifest_path: resolvedManifestPath,
+          failing_sections: failedSections,
+        },
+      },
+    );
   }
   return { ...runResult, artifact };
 }
 
-export function resolvePeers(options = {}, host = 'unknown', providerInventory = []) {
-  const defaultPeers = host === 'codex' ? ['codex', 'claude'] : ['claude', 'codex'];
+export function resolvePeers(
+  options = {},
+  host = 'unknown',
+  providerInventory = [],
+) {
+  const defaultPeers =
+    host === 'codex' ? ['codex', 'claude'] : ['claude', 'codex'];
   const peers = options.peers ?? defaultPeers;
   const inventory = normalizeProviderInventory(providerInventory);
   const byId = new Map(inventory.map((entry) => [entry.id, entry]));
@@ -2491,14 +2921,16 @@ export function resolvePeers(options = {}, host = 'unknown', providerInventory =
 
   if (missing.length > 0) {
     const error = new Error(
-      `Missing peers in Paseo inventory: ${missing.join(', ')}. Verify configured providers with "paseo provider ls --json".`
+      `Missing peers in Paseo inventory: ${missing.join(', ')}. Verify configured providers with "paseo provider ls --json".`,
     );
     error.code = 'PEER_UNAVAILABLE';
     throw error;
   }
 
   if (unavailable.length > 0) {
-    const error = new Error(`Paseo providers are unavailable: ${unavailable.join(', ')}.`);
+    const error = new Error(
+      `Paseo providers are unavailable: ${unavailable.join(', ')}.`,
+    );
     error.code = 'PEER_UNAVAILABLE';
     throw error;
   }
@@ -2523,7 +2955,7 @@ export function resolveSynthesizer(options = {}, providerInventory = []) {
         level: 'warning',
         synthesizer: requested,
         iteration: options.iteration ?? 'alternating',
-        message: `--synthesizer "${requested}" is ignored outside parallel_synthesized mode.`
+        message: `--synthesizer "${requested}" is ignored outside parallel_synthesized mode.`,
       });
     }
     return { synthesizer: null, warnings };
@@ -2533,11 +2965,14 @@ export function resolveSynthesizer(options = {}, providerInventory = []) {
   const synthesizer = requested ?? peers[0] ?? null;
 
   if (!synthesizer) {
-    throw new ConsensusError('no synthesizer could be resolved (no peers available)', {
-      code: 'SYNTHESIZER_UNAVAILABLE',
-      exitCode: EXIT_CODES.CONFIG,
-      details: { requested, peers }
-    });
+    throw new ConsensusError(
+      'no synthesizer could be resolved (no peers available)',
+      {
+        code: 'SYNTHESIZER_UNAVAILABLE',
+        exitCode: EXIT_CODES.CONFIG,
+        details: { requested, peers },
+      },
+    );
   }
 
   const inventory = normalizeProviderInventory(providerInventory);
@@ -2548,8 +2983,8 @@ export function resolveSynthesizer(options = {}, providerInventory = []) {
       {
         code: 'SYNTHESIZER_UNAVAILABLE',
         exitCode: EXIT_CODES.CONFIG,
-        details: { synthesizer }
-      }
+        details: { synthesizer },
+      },
     );
   }
 
@@ -2565,7 +3000,10 @@ export async function preflightPaseo(options = {}) {
   let inventoryOutput;
   try {
     versionOutput = await runCommand('paseo', ['--version'], { env, cwd });
-    inventoryOutput = await runCommand('paseo', ['provider', 'ls', '--json'], { env, cwd });
+    inventoryOutput = await runCommand('paseo', ['provider', 'ls', '--json'], {
+      env,
+      cwd,
+    });
   } catch (error) {
     if (error.code === 'ENOENT' || /ENOENT|not found/i.test(error.message)) {
       throw missingPaseoError(error);
@@ -2578,20 +3016,26 @@ export async function preflightPaseo(options = {}) {
   try {
     providerInventory = JSON.parse(inventoryOutput.stdout);
   } catch (error) {
-    throw new Error(`paseo provider inventory was not valid JSON: ${error.message}`);
+    throw new Error(
+      `paseo provider inventory was not valid JSON: ${error.message}`,
+      { cause: error },
+    );
   }
 
   const host = detectHost(env);
   const resolved = resolvePeers(options, host, providerInventory);
   const warnings = [];
-  if (compareVersions(version, MIN_PASEO_VERSION) < 0 || compareVersions(version, MAX_TESTED_PASEO_VERSION) > 0) {
+  if (
+    compareVersions(version, MIN_PASEO_VERSION) < 0 ||
+    compareVersions(version, MAX_TESTED_PASEO_VERSION) > 0
+  ) {
     warnings.push({
       code: 'PASEO_VERSION_UNTESTED',
       level: 'warning',
       version,
       min: MIN_PASEO_VERSION,
       max: MAX_TESTED_PASEO_VERSION,
-      message: `Paseo ${version} is outside the tested range ${MIN_PASEO_VERSION} to ${MAX_TESTED_PASEO_VERSION}.`
+      message: `Paseo ${version} is outside the tested range ${MIN_PASEO_VERSION} to ${MAX_TESTED_PASEO_VERSION}.`,
     });
   }
 
@@ -2601,7 +3045,7 @@ export async function preflightPaseo(options = {}) {
     providerInventory: normalizeProviderInventory(providerInventory),
     host,
     peers: resolved.peers,
-    warnings
+    warnings,
   };
 }
 
@@ -2618,17 +3062,22 @@ export async function runWrapperCli(argv, options = {}) {
       input_path: parsed.inputPath,
       manifest_path: parsed.manifestPath,
       iteration_mode: parsed.iteration ?? 'alternating',
-      calls_per_round: callsPerRound(parsed.iteration ?? 'alternating')
+      calls_per_round: callsPerRound(parsed.iteration ?? 'alternating'),
     });
 
     if (parsed.mode === 'prepare_parallel') {
-      const result = await prepareParallelRun({ ...parsed, env, cwd, preflight: options.preflight });
+      const result = await prepareParallelRun({
+        ...parsed,
+        env,
+        cwd,
+        preflight: options.preflight,
+      });
       writeJsonl(stdout, 'parallel_dispatch_required', result.dispatchEvent);
       writeJsonl(stdout, 'run_completed', {
         status: result.status,
         manifest_path: result.manifestPath,
         run_dir: result.runDir,
-        sections: result.sections.length
+        sections: result.sections.length,
       });
       return 0;
     }
@@ -2638,34 +3087,39 @@ export async function runWrapperCli(argv, options = {}) {
         env,
         cwd,
         allowRoot: parsed.allowRoot,
-        failOnSectionError: parsed.failOnSectionError
+        failOnSectionError: parsed.failOnSectionError,
       });
       writeJsonl(stdout, 'run_completed', {
         status: result.status,
         output_path: result.outputPath,
         run_dir: result.runDir,
-        sections: result.sections.length
+        sections: result.sections.length,
       });
       return 0;
     }
 
     if (parsed.mode !== 'sequential') {
-      throw new ConsensusError(`${parsed.mode} is not implemented in Phase 3 prepare`, {
-        code: 'MODE_NOT_IMPLEMENTED',
-        exitCode: EXIT_CODES.CONFIG
-      });
+      throw new ConsensusError(
+        `${parsed.mode} is not implemented in Phase 3 prepare`,
+        {
+          code: 'MODE_NOT_IMPLEMENTED',
+          exitCode: EXIT_CODES.CONFIG,
+        },
+      );
     }
 
     const result = await runSequential(
       { ...parsed, env, cwd, preflight: options.preflight },
-      { stdin: options.stdin ?? process.stdin, stdout }
+      { stdin: options.stdin ?? process.stdin, stdout },
     );
     writeJsonl(stdout, 'run_completed', {
       status: result.status,
       output_path: result.outputPath,
       run_dir: result.runDir,
       sections: result.sections.length,
-      sections_escalated: result.sections.filter((section) => section.status?.status === 'escalation').length
+      sections_escalated: result.sections.filter(
+        (section) => section.status?.status === 'escalation',
+      ).length,
     });
     return 0;
   } catch (error) {
@@ -2674,14 +3128,17 @@ export async function runWrapperCli(argv, options = {}) {
       code: error.code ?? 'ERROR',
       exit_code: exitCode,
       message: error?.message ?? String(error),
-      ...(error.details === undefined ? {} : { details: error.details })
+      ...(error.details === undefined ? {} : { details: error.details }),
     });
     stderr.write(`${renderHumanError(error, env)}\n`);
     return exitCode;
   }
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (
+  process.argv[1] &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+) {
   runWrapperCli(process.argv.slice(2)).then((exitCode) => {
     process.exitCode = exitCode;
   });

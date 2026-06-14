@@ -14,11 +14,11 @@ function writer() {
     stream: {
       write(chunk) {
         value += chunk;
-      }
+      },
     },
     value() {
       return value;
-    }
+    },
   };
 }
 
@@ -31,14 +31,19 @@ test('runSmokeTest runs validation, uses the Paseo stub, and verifies wrapper ou
     runCommand: async (command, args, options) => {
       calls.push({ command, args, env: options.env });
       return { stdout: '', stderr: '' };
-    }
+    },
   });
 
   assert.equal(result.status, 'passed');
   assert.equal(calls.length, 1);
   assert.equal(calls[0].command, process.execPath);
-  assert.deepEqual(calls[0].args, [path.join(repoRoot, 'scripts/validate.mjs')]);
-  assert.match(result.env.PATH.split(path.delimiter)[0], /tests\/fixtures\/bin$/);
+  assert.deepEqual(calls[0].args, [
+    path.join(repoRoot, 'scripts/validate.mjs'),
+  ]);
+  assert.match(
+    result.env.PATH.split(path.delimiter)[0],
+    /tests\/fixtures\/bin$/,
+  );
   assert.equal(result.events.at(-1).event, 'run_completed');
   assert.equal(result.events.at(-1).status, 'converged');
   assert.match(result.artifact, /## Final Output/);
@@ -47,15 +52,25 @@ test('runSmokeTest runs validation, uses the Paseo stub, and verifies wrapper ou
 
   // The smoke now also drives a parallel-synthesized escalation + host-direction
   // resume to convergence.
-  assert.ok(result.parallelSynthesized, 'parallel-synthesized smoke scenario missing');
+  assert.ok(
+    result.parallelSynthesized,
+    'parallel-synthesized smoke scenario missing',
+  );
   assert.equal(result.parallelSynthesized.status, 'converged');
-  assert.equal(result.parallelSynthesized.escalation.trigger, 'persistent_disagreement');
+  assert.equal(
+    result.parallelSynthesized.escalation.trigger,
+    'persistent_disagreement',
+  );
   assert.equal(result.parallelSynthesized.escalation.decide_via, 'host');
-  assert.equal(result.parallelSynthesized.escalation.resume.flag, '--host-direction');
+  assert.equal(
+    result.parallelSynthesized.escalation.resume.flag,
+    '--host-direction',
+  );
 });
 
 test('runParallelSynthesizedSmoke escalates once then converges via --host-direction', async () => {
-  const { runParallelSynthesizedSmoke } = await import('../scripts/smoke-test.mjs');
+  const { runParallelSynthesizedSmoke } =
+    await import('../scripts/smoke-test.mjs');
   const result = await runParallelSynthesizedSmoke();
 
   assert.equal(result.status, 'converged');
@@ -74,9 +89,9 @@ test('smoke-test CLI exits non-zero on failed assertions', async () => {
       cwd: repoRoot,
       env: {
         ...process.env,
-        CONSENSUS_SMOKE_EXPECT_STATUS: 'partial'
-      }
+        CONSENSUS_SMOKE_EXPECT_STATUS: 'partial',
+      },
     }),
-    /expected smoke status partial/
+    /expected smoke status partial/,
   );
 });

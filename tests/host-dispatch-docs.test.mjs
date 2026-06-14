@@ -4,8 +4,14 @@ import path from 'node:path';
 import test from 'node:test';
 
 const repoRoot = path.resolve(new URL('..', import.meta.url).pathname);
-const skillPath = path.join(repoRoot, 'plugins/consensus/skills/refine/SKILL.md');
-const runnerPath = path.join(repoRoot, 'plugins/consensus/agents/consensus-section-runner.md');
+const skillPath = path.join(
+  repoRoot,
+  'plugins/consensus/skills/refine/SKILL.md',
+);
+const runnerPath = path.join(
+  repoRoot,
+  'plugins/consensus/agents/consensus-section-runner.md',
+);
 
 test('SKILL.md documents the host-mediated parallel dispatch contract', async () => {
   const skill = await readFile(skillPath, 'utf8');
@@ -59,7 +65,10 @@ test('SKILL.md documents escalation handling branched on decide_via', async () =
   assert.match(skill, /defer_to_user/);
 
   // The host never silently overrides routing.
-  assert.match(skill, /never self-decide|do not self-decide|routes to the user|fail closed/i);
+  assert.match(
+    skill,
+    /never self-decide|do not self-decide|routes to the user|fail closed/i,
+  );
 });
 
 test('section runner documents the packet schema and bounded execution rules', async () => {
@@ -75,7 +84,7 @@ test('section runner documents the packet schema and bounded execution rules', a
     'agency',
     'output_records',
     'output_section',
-    'output_status'
+    'output_status',
   ]) {
     assert.match(runner, new RegExp(field));
   }

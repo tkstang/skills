@@ -118,9 +118,17 @@ Peer IDs come from `paseo provider ls --json`; the wrapper does not probe execut
 Cursor is not a built-in Paseo peer at v0.1, so cursor-as-peer is opt-in. Register Cursor as a custom ACP provider — either through Paseo's one-click ACP catalog or by adding it to `~/.paseo/config.json`:
 
 ```json
-{ "agents": { "providers": { "cursor": {
-  "extends": "acp", "label": "Cursor", "command": ["cursor-agent", "acp"]
-} } } }
+{
+  "agents": {
+    "providers": {
+      "cursor": {
+        "extends": "acp",
+        "label": "Cursor",
+        "command": ["cursor-agent", "acp"]
+      }
+    }
+  }
+}
 ```
 
 Then authenticate `cursor-agent` (it stores credentials in the OS keychain — a locked keychain makes the provider report `error`) and pass `--peers cursor,codex`. Note that Cursor runs through Paseo's generic ACP path, where `--output-schema` is enforced by prompt injection plus validation/retry rather than the native structured output `claude` and `codex` expose; expect more schema-retry churn, and treat cursor-as-peer as unverified end-to-end until a full deliberation run is exercised against an authenticated `cursor-agent`.

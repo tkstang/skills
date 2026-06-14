@@ -1,0 +1,4 @@
+#!/bin/sh
+# Validate the commit message against Conventional Commits (commitlint).
+# Dev-only: does not affect shipped skills/plugins.
+pnpm exec commitlint --edit "$1"

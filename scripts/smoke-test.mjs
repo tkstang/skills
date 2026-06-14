@@ -7,7 +7,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
-import { runSequential, runWrapperCli } from '../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
+import {
+  runSequential,
+  runWrapperCli,
+} from '../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
 
 const execFileAsync = promisify(execFile);
 
@@ -19,11 +22,11 @@ function captureWriter() {
     stream: {
       write(chunk) {
         value += chunk;
-      }
+      },
     },
     value() {
       return value;
-    }
+    },
   };
 }
 
@@ -39,7 +42,7 @@ async function defaultRunCommand(command, args, options = {}) {
   const result = await execFileAsync(command, args, {
     cwd: options.cwd,
     env: options.env,
-    maxBuffer: 8 * 1024 * 1024
+    maxBuffer: 8 * 1024 * 1024,
   });
   return { stdout: result.stdout, stderr: result.stderr };
 }
@@ -48,7 +51,7 @@ function smokeEnv(env = process.env) {
   const fixtureBin = path.join(repoRoot, 'tests/fixtures/bin');
   return {
     ...env,
-    PATH: `${fixtureBin}${path.delimiter}${env.PATH ?? ''}`
+    PATH: `${fixtureBin}${path.delimiter}${env.PATH ?? ''}`,
   };
 }
 
@@ -69,11 +72,11 @@ function captureEventsWriter() {
       write(chunk) {
         lines.push(String(chunk));
         return true;
-      }
+      },
     },
     events() {
       return parseJsonl(lines.join(''));
-    }
+    },
   };
 }
 
@@ -81,9 +84,9 @@ const SYNTH_PREFLIGHT = async () => ({
   peers: ['claude', 'codex'],
   providerInventory: [
     { id: 'claude', available: true },
-    { id: 'codex', available: true }
+    { id: 'codex', available: true },
   ],
-  warnings: []
+  warnings: [],
 });
 
 /**
@@ -105,9 +108,9 @@ function escalationStubs() {
         verdict: 'REVISE',
         reasoning: 'revise',
         critique: { own_previous: 'o', peer_previous: 'p' },
-        proposed_artifact: text
+        proposed_artifact: text,
       },
-      stdout: '{"id":"peer"}'
+      stdout: '{"id":"peer"}',
     };
   };
 
@@ -115,10 +118,14 @@ function escalationStubs() {
     json: {
       schema_version: 'v1',
       synthesized_artifact: resolved,
-      synthesis_reasoning: hostDecided ? 'host direction settled it' : 'still merging',
-      unresolved_disagreements: hostDecided ? [] : ['scope boundary unresolved']
+      synthesis_reasoning: hostDecided
+        ? 'host direction settled it'
+        : 'still merging',
+      unresolved_disagreements: hostDecided
+        ? []
+        : ['scope boundary unresolved'],
     },
-    stdout: '{"id":"synth"}'
+    stdout: '{"id":"synth"}',
   });
 
   return {
@@ -126,7 +133,7 @@ function escalationStubs() {
     invokeSynthesizer,
     markHostDecided() {
       hostDecided = true;
-    }
+    },
   };
 }
 
@@ -136,9 +143,10 @@ function escalationStubs() {
  * escalation_required event, host-decision re-entry, and v1 resume on top of the
  * default alternating smoke path. Deterministic and dependency-free.
  */
-export async function runParallelSynthesizedSmoke(options = {}) {
-  const root = path.resolve(options.root ?? repoRoot);
-  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-smoke-synth-'));
+export async function runParallelSynthesizedSmoke(_options = {}) {
+  const tempRoot = await mkdtemp(
+    path.join(os.tmpdir(), 'consensus-smoke-synth-'),
+  );
   const inputPath = path.join(tempRoot, 'draft.md');
   await writeFile(inputPath, '# Intro\n\nSeed text.\n');
 
@@ -156,7 +164,7 @@ export async function runParallelSynthesizedSmoke(options = {}) {
     maxRounds: 8,
     agency: 'moderate',
     invokePeer: stubs.invokePeer,
-    invokeSynthesizer: stubs.invokeSynthesizer
+    invokeSynthesizer: stubs.invokeSynthesizer,
   };
 
   // Pass 1: run until persistent_disagreement escalates to the host.
@@ -166,17 +174,19 @@ export async function runParallelSynthesizedSmoke(options = {}) {
       ...baseOptions,
       output: escalateOutput,
       runDir: path.join(tempRoot, '.consensus/run1'),
-      preflight: SYNTH_PREFLIGHT
+      preflight: SYNTH_PREFLIGHT,
     },
-    { stdout: firstStdout.stream }
+    { stdout: firstStdout.stream },
   );
 
   assert.equal(
     first.sections[0].status.status,
     'escalation',
-    'parallel-synthesized smoke did not reach an escalation'
+    'parallel-synthesized smoke did not reach an escalation',
   );
-  const escalation = firstStdout.events().find((event) => event.event === 'escalation_required');
+  const escalation = firstStdout
+    .events()
+    .find((event) => event.event === 'escalation_required');
   assert.ok(escalation, 'escalation_required not emitted');
   assert.equal(escalation.trigger, 'persistent_disagreement');
   assert.equal(escalation.decide_via, 'host');
@@ -192,16 +202,21 @@ export async function runParallelSynthesizedSmoke(options = {}) {
     runDir: path.join(tempRoot, '.consensus/run2'),
     preflight: false,
     hostDirection: 'Adopt the resolved merge.',
-    hostDecisionKind: 'blend'
+    hostDecisionKind: 'blend',
   });
 
   assert.equal(
     second.sections[0].status.status,
     'converged',
-    'parallel-synthesized smoke did not converge after --host-direction'
+    'parallel-synthesized smoke did not converge after --host-direction',
   );
-  const hostRound = second.sections[0].records.find((record) => record.verdict === 'HOST_DECISION');
-  assert.ok(hostRound, 'HOST_DECISION orchestrator round not recorded on resume');
+  const hostRound = second.sections[0].records.find(
+    (record) => record.verdict === 'HOST_DECISION',
+  );
+  assert.ok(
+    hostRound,
+    'HOST_DECISION orchestrator round not recorded on resume',
+  );
   assert.equal(hostRound.agent, 'host-orchestrator');
   assert.equal(hostRound.escalation_trigger, 'persistent_disagreement');
 
@@ -213,22 +228,25 @@ export async function runParallelSynthesizedSmoke(options = {}) {
     escalationOutput: escalateOutput,
     resumeOutput,
     escalation,
-    status: second.sections[0].status.status
+    status: second.sections[0].status.status,
   };
 }
 
 export async function runSmokeTest(options = {}) {
   const root = path.resolve(options.root ?? repoRoot);
   const stdout = options.stdout ?? process.stdout;
-  const stderr = options.stderr ?? process.stderr;
   const runCommand = options.runCommand ?? defaultRunCommand;
   const env = smokeEnv(options.env ?? process.env);
   const expectedStatus = env.CONSENSUS_SMOKE_EXPECT_STATUS ?? 'converged';
 
-  await runCommand(process.execPath, [path.join(root, 'scripts/validate.mjs')], {
-    cwd: root,
-    env
-  });
+  await runCommand(
+    process.execPath,
+    [path.join(root, 'scripts/validate.mjs')],
+    {
+      cwd: root,
+      env,
+    },
+  );
 
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-smoke-'));
   const outputPath = path.join(tempRoot, 'sample.consensus.md');
@@ -251,22 +269,26 @@ export async function runSmokeTest(options = {}) {
       '--peers',
       'claude,codex',
       '--max-rounds',
-      '2'
+      '2',
     ],
     {
       stdout: wrapperStdout.stream,
       stderr: wrapperStderr.stream,
       cwd: tempRoot,
       env,
-      preflight: async () => ({ peers: ['claude', 'codex'], warnings: [] })
-    }
+      preflight: async () => ({ peers: ['claude', 'codex'], warnings: [] }),
+    },
   );
 
   assert.equal(exitCode, 0, wrapperStderr.value());
   const events = parseJsonl(wrapperStdout.value());
   const completed = events.find((event) => event.event === 'run_completed');
   assert.ok(completed, 'wrapper did not emit run_completed');
-  assert.equal(completed.status, expectedStatus, `expected smoke status ${expectedStatus}`);
+  assert.equal(
+    completed.status,
+    expectedStatus,
+    `expected smoke status ${expectedStatus}`,
+  );
 
   const artifact = await readFile(outputPath, 'utf8');
   assertArtifactShape(artifact);
@@ -284,11 +306,14 @@ export async function runSmokeTest(options = {}) {
     artifact,
     outputPath,
     runDir,
-    parallelSynthesized
+    parallelSynthesized,
   };
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (
+  process.argv[1] &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+) {
   runSmokeTest().catch((error) => {
     process.stderr.write(`${error.message}\n`);
     process.exitCode = 1;

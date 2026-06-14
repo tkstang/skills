@@ -11,24 +11,30 @@
  * injected text verbatim — sanitizeEntries is the privacy boundary.
  */
 
-import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
+import { test, describe } from 'node:test';
+import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-const RUNTIMES_PATH = fileURLToPath(new URL(
-  '../../skills/export-session-transcript/scripts/lib/runtimes.mjs',
-  import.meta.url
-));
-const SANITIZE_PATH = fileURLToPath(new URL(
-  '../../skills/export-session-transcript/scripts/lib/sanitize.mjs',
-  import.meta.url
-));
+const RUNTIMES_PATH = fileURLToPath(
+  new URL(
+    '../../skills/export-session-transcript/scripts/lib/runtimes.mjs',
+    import.meta.url,
+  ),
+);
+const SANITIZE_PATH = fileURLToPath(
+  new URL(
+    '../../skills/export-session-transcript/scripts/lib/sanitize.mjs',
+    import.meta.url,
+  ),
+);
 
 const { readRecords, normalizeEntries } = await import(RUNTIMES_PATH);
-const { sanitizeEntries, HIDDEN_PAYLOAD_MATCHERS } = await import(SANITIZE_PATH);
+const { sanitizeEntries, HIDDEN_PAYLOAD_MATCHERS } = await import(
+  SANITIZE_PATH
+);
 
 const FIXTURES = join(__dirname, 'fixtures');
 
@@ -108,7 +114,7 @@ describe('sanitizeEntries — hidden payloads dropped per runtime', () => {
       // sanitization (the structural layer passes injected text through).
       assert.ok(
         normalized.length > sanitized.length,
-        `expected sanitizer to drop entries (normalized=${normalized.length} sanitized=${sanitized.length})`
+        `expected sanitizer to drop entries (normalized=${normalized.length} sanitized=${sanitized.length})`,
       );
 
       const texts = sanitized.map((e) => e.text);
@@ -118,7 +124,7 @@ describe('sanitizeEntries — hidden payloads dropped per runtime', () => {
         for (const text of texts) {
           assert.ok(
             !text.trimStart().startsWith(token),
-            `${runtime}: hidden payload leaked (starts with ${token}): ${text.slice(0, 60)}`
+            `${runtime}: hidden payload leaked (starts with ${token}): ${text.slice(0, 60)}`,
           );
         }
       }
@@ -127,7 +133,7 @@ describe('sanitizeEntries — hidden payloads dropped per runtime', () => {
       for (const text of texts) {
         assert.ok(
           !text.trimStart().startsWith('---\nname:'),
-          `${runtime}: skill-body frontmatter leaked: ${text.slice(0, 60)}`
+          `${runtime}: skill-body frontmatter leaked: ${text.slice(0, 60)}`,
         );
       }
     });
@@ -137,7 +143,7 @@ describe('sanitizeEntries — hidden payloads dropped per runtime', () => {
       for (const entry of sanitized) {
         assert.ok(
           entry.role !== 'system' && entry.role !== 'developer',
-          `${runtime}: system/developer record survived`
+          `${runtime}: system/developer record survived`,
         );
         // No survivor is a system/developer instruction header (label form or
         // known instruction lead-word form). Genuine prose that merely begins
@@ -145,12 +151,14 @@ describe('sanitizeEntries — hidden payloads dropped per runtime', () => {
         // is allowed to survive.
         const l = entry.text.trimStart();
         assert.ok(
-          !/^(System|Developer)\b\s*[:\-]/.test(l),
-          `${runtime}: system/developer label record survived: ${entry.text.slice(0, 60)}`
+          !/^(System|Developer)\b\s*[:-]/.test(l),
+          `${runtime}: system/developer label record survived: ${entry.text.slice(0, 60)}`,
         );
         assert.ok(
-          !/^(System|Developer)\s+(prompt|note|notes|message|instruction|instructions|directive|directives|guidelines?)\b\s*[:\-]/i.test(l),
-          `${runtime}: system/developer prompt record survived: ${entry.text.slice(0, 60)}`
+          !/^(System|Developer)\s+(prompt|note|notes|message|instruction|instructions|directive|directives|guidelines?)\b\s*[:-]/i.test(
+            l,
+          ),
+          `${runtime}: system/developer prompt record survived: ${entry.text.slice(0, 60)}`,
         );
       }
     });
@@ -161,7 +169,7 @@ describe('sanitizeEntries — hidden payloads dropped per runtime', () => {
       for (const needle of KEEP_SUBSTRINGS[runtime]) {
         assert.ok(
           joined.includes(needle),
-          `${runtime}: genuine message wrongly dropped: "${needle}"`
+          `${runtime}: genuine message wrongly dropped: "${needle}"`,
         );
       }
     });
@@ -185,7 +193,12 @@ describe('HIDDEN_PAYLOAD_MATCHERS table', () => {
 });
 
 describe('sanitizeEntries — broadened matchers (I1) and leak classes (C1)', () => {
-  const msg = (text, role = 'user') => ({ role, text, recordIndex: 0, kind: 'message' });
+  const msg = (text, role = 'user') => ({
+    role,
+    text,
+    recordIndex: 0,
+    kind: 'message',
+  });
 
   // Each entry should be DROPPED (sanitized output empty).
   const DROP_CASES = [
@@ -216,7 +229,11 @@ describe('sanitizeEntries — broadened matchers (I1) and leak classes (C1)', ()
   for (const text of DROP_CASES) {
     test(`drops: ${JSON.stringify(text.slice(0, 40))}`, () => {
       const out = sanitizeEntries([msg(text)], { runtime: 'claude-code' });
-      assert.equal(out.length, 0, `expected drop but survived: ${text.slice(0, 60)}`);
+      assert.equal(
+        out.length,
+        0,
+        `expected drop but survived: ${text.slice(0, 60)}`,
+      );
     });
   }
 
@@ -238,7 +255,11 @@ describe('sanitizeEntries — broadened matchers (I1) and leak classes (C1)', ()
   for (const text of KEEP_CASES) {
     test(`keeps: ${JSON.stringify(text.slice(0, 40))}`, () => {
       const out = sanitizeEntries([msg(text)], { runtime: 'claude-code' });
-      assert.equal(out.length, 1, `expected keep but dropped: ${text.slice(0, 60)}`);
+      assert.equal(
+        out.length,
+        1,
+        `expected keep but dropped: ${text.slice(0, 60)}`,
+      );
     });
   }
 
@@ -264,7 +285,12 @@ describe('sanitizeEntries — input handling', () => {
 
   test('does not mutate the input array', () => {
     const input = [
-      { role: 'user', text: '<turn_aborted>x</turn_aborted>', recordIndex: 0, kind: 'message' },
+      {
+        role: 'user',
+        text: '<turn_aborted>x</turn_aborted>',
+        recordIndex: 0,
+        kind: 'message',
+      },
       { role: 'user', text: 'a real message', recordIndex: 1, kind: 'message' },
     ];
     const copy = input.slice();

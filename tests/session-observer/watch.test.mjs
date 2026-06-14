@@ -2,27 +2,37 @@
  * watch.test.mjs — tests for scripts/lib/watch.mjs
  */
 
-import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { once } from 'node:events';
-import { mkdtemp, rm, mkdir, readFile, writeFile, appendFile, symlink } from 'node:fs/promises';
-import { join } from 'node:path';
+import {
+  mkdtemp,
+  rm,
+  mkdir,
+  readFile,
+  writeFile,
+  appendFile,
+  symlink,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { test, describe } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 const WATCH_MJS = new URL(
   '../../skills/session-observer/scripts/lib/watch.mjs',
-  import.meta.url
+  import.meta.url,
 );
 const WATCH_STATE_MJS = new URL(
   '../../skills/session-observer/scripts/lib/watch-state.mjs',
-  import.meta.url
+  import.meta.url,
 );
-const CLI_PATH = fileURLToPath(new URL(
-  '../../skills/session-observer/scripts/session-observer.mjs',
-  import.meta.url
-));
+const CLI_PATH = fileURLToPath(
+  new URL(
+    '../../skills/session-observer/scripts/session-observer.mjs',
+    import.meta.url,
+  ),
+);
 
 async function importWatch() {
   return import(`${WATCH_MJS.href}?t=${Date.now()}-${Math.random()}`);
@@ -41,7 +51,7 @@ function cursorSlug(cwd) {
 }
 
 function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 async function withTempSessionHome(fn) {
@@ -70,19 +80,34 @@ async function writeClaudeTranscript(home, cwd, sessionId, messages) {
     sessionId,
     message: { role, content },
   }));
-  await writeFile(transcriptPath, records.map(record => JSON.stringify(record)).join('\n') + '\n', 'utf8');
+  await writeFile(
+    transcriptPath,
+    records.map((record) => JSON.stringify(record)).join('\n') + '\n',
+    'utf8',
+  );
   return transcriptPath;
 }
 
 async function writeCursorTranscript(home, cwd, sessionId, messages) {
-  const dir = join(home, '.cursor', 'projects', cursorSlug(cwd), 'agent-transcripts', sessionId);
+  const dir = join(
+    home,
+    '.cursor',
+    'projects',
+    cursorSlug(cwd),
+    'agent-transcripts',
+    sessionId,
+  );
   await mkdir(dir, { recursive: true });
   const transcriptPath = join(dir, `${sessionId}.jsonl`);
   const records = messages.map(({ role = 'assistant', content }) => ({
     role,
     message: { content: [{ type: 'text', text: content }] },
   }));
-  await writeFile(transcriptPath, records.map(record => JSON.stringify(record)).join('\n') + '\n', 'utf8');
+  await writeFile(
+    transcriptPath,
+    records.map((record) => JSON.stringify(record)).join('\n') + '\n',
+    'utf8',
+  );
   return transcriptPath;
 }
 
@@ -97,23 +122,38 @@ async function writeCodexTranscript(home, cwd, sessionId, messages) {
       payload: { type: 'message', role, content },
     })),
   ];
-  await writeFile(transcriptPath, records.map(record => JSON.stringify(record)).join('\n') + '\n', 'utf8');
+  await writeFile(
+    transcriptPath,
+    records.map((record) => JSON.stringify(record)).join('\n') + '\n',
+    'utf8',
+  );
   return transcriptPath;
 }
 
-async function appendClaudeMessage(transcriptPath, sessionId, content, role = 'assistant') {
+async function appendClaudeMessage(
+  transcriptPath,
+  sessionId,
+  content,
+  role = 'assistant',
+) {
   await appendFile(
     transcriptPath,
     JSON.stringify({ sessionId, message: { role, content } }) + '\n',
-    'utf8'
+    'utf8',
   );
 }
 
-async function appendCodexMessage(transcriptPath, sessionId, content, role = 'assistant') {
+async function appendCodexMessage(
+  transcriptPath,
+  sessionId,
+  content,
+  role = 'assistant',
+) {
   await appendFile(
     transcriptPath,
-    JSON.stringify({ sessionId, payload: { type: 'message', role, content } }) + '\n',
-    'utf8'
+    JSON.stringify({ sessionId, payload: { type: 'message', role, content } }) +
+      '\n',
+    'utf8',
   );
 }
 
@@ -134,8 +174,12 @@ async function runCli(args, env) {
   let stderr = '';
   child.stdout.setEncoding('utf8');
   child.stderr.setEncoding('utf8');
-  child.stdout.on('data', chunk => { stdout += chunk; });
-  child.stderr.on('data', chunk => { stderr += chunk; });
+  child.stdout.on('data', (chunk) => {
+    stdout += chunk;
+  });
+  child.stderr.on('data', (chunk) => {
+    stderr += chunk;
+  });
   const [status] = await once(child, 'exit');
   return { status, stdout, stderr };
 }
@@ -160,15 +204,18 @@ describe('runWatchLoop', () => {
       const { runWatchLoop } = await importWatch();
       const stdout = [];
 
-      const result = await runWatchLoop({
-        runtime: 'claude-code',
-        cwd,
-        pollSec: 0.02,
-        debounceSec: 0.02,
-        maxRuntimeMin: 0.004,
-      }, {
-        writeStdout: chunk => stdout.push(chunk),
-      });
+      const result = await runWatchLoop(
+        {
+          runtime: 'claude-code',
+          cwd,
+          pollSec: 0.02,
+          debounceSec: 0.02,
+          maxRuntimeMin: 0.004,
+        },
+        {
+          writeStdout: (chunk) => stdout.push(chunk),
+        },
+      );
 
       assert.equal(result.reason, 'max-runtime');
       assert.equal(result.eventCount, 0);
@@ -179,10 +226,17 @@ describe('runWatchLoop', () => {
       assert.ok(output.includes('engagement=engaged'));
       assert.ok(!output.includes('old message that should not be emitted'));
 
-      const state = JSON.parse(await readFile(join(stateDir, 'state.json'), 'utf8'));
-      assert.equal(state.sessions['claude-code:watch-baseline'].lastRecordIndex, 1);
+      const state = JSON.parse(
+        await readFile(join(stateDir, 'state.json'), 'utf8'),
+      );
+      assert.equal(
+        state.sessions['claude-code:watch-baseline'].lastRecordIndex,
+        1,
+      );
 
-      const watchState = JSON.parse(await readFile(join(stateDir, 'watch.json'), 'utf8'));
+      const watchState = JSON.parse(
+        await readFile(join(stateDir, 'watch.json'), 'utf8'),
+      );
       assert.equal(watchState.active, null);
     });
   });
@@ -196,16 +250,19 @@ describe('runWatchLoop', () => {
       const { runWatchLoop } = await importWatch();
       const stdout = [];
 
-      const result = await runWatchLoop({
-        runtime: 'claude-code',
-        cwd,
-        pollSec: 0.02,
-        debounceSec: 0.02,
-        maxRuntimeMin: 0.004,
-        catchUpFirst: true,
-      }, {
-        writeStdout: chunk => stdout.push(chunk),
-      });
+      const result = await runWatchLoop(
+        {
+          runtime: 'claude-code',
+          cwd,
+          pollSec: 0.02,
+          debounceSec: 0.02,
+          maxRuntimeMin: 0.004,
+          catchUpFirst: true,
+        },
+        {
+          writeStdout: (chunk) => stdout.push(chunk),
+        },
+      );
 
       const output = stdout.join('');
       assert.equal(result.reason, 'max-runtime');
@@ -213,8 +270,13 @@ describe('runWatchLoop', () => {
       assert.ok(output.includes('baseline claude-code:watch-catch-up-first'));
       assert.ok(output.includes('unread backlog should be emitted'));
 
-      const state = JSON.parse(await readFile(join(stateDir, 'state.json'), 'utf8'));
-      assert.equal(state.sessions['claude-code:watch-catch-up-first'].lastRecordIndex, 1);
+      const state = JSON.parse(
+        await readFile(join(stateDir, 'state.json'), 'utf8'),
+      );
+      assert.equal(
+        state.sessions['claude-code:watch-catch-up-first'].lastRecordIndex,
+        1,
+      );
     });
   });
 
@@ -230,35 +292,50 @@ describe('runWatchLoop', () => {
       let nowMs = Date.UTC(2026, 5, 3, 12, 0, 0);
       let sleepCount = 0;
 
-      const result = await runWatchLoop({
-        runtime: 'claude-code',
-        cwd,
-        pollSec: 0.03,
-        debounceSec: 0.06,
-        maxRuntimeMin: 0.003,
-      }, {
-        writeStdout: chunk => stdout.push(chunk),
-        now: () => nowMs,
-        sleep: async (ms) => {
-          nowMs += ms;
-          sleepCount++;
-          if (sleepCount === 1) {
-            await appendClaudeMessage(transcriptPath, sessionId, 'first debounced update');
-          } else if (sleepCount === 2) {
-            await appendClaudeMessage(transcriptPath, sessionId, 'second debounced update');
-          }
+      const result = await runWatchLoop(
+        {
+          runtime: 'claude-code',
+          cwd,
+          pollSec: 0.03,
+          debounceSec: 0.06,
+          maxRuntimeMin: 0.003,
         },
-      });
+        {
+          writeStdout: (chunk) => stdout.push(chunk),
+          now: () => nowMs,
+          sleep: async (ms) => {
+            nowMs += ms;
+            sleepCount++;
+            if (sleepCount === 1) {
+              await appendClaudeMessage(
+                transcriptPath,
+                sessionId,
+                'first debounced update',
+              );
+            } else if (sleepCount === 2) {
+              await appendClaudeMessage(
+                transcriptPath,
+                sessionId,
+                'second debounced update',
+              );
+            }
+          },
+        },
+      );
 
       const output = stdout.join('');
-      const digestCount = (output.match(/## session-observer digest/g) ?? []).length;
+      const digestCount = (output.match(/## session-observer digest/g) ?? [])
+        .length;
 
       assert.equal(result.reason, 'max-runtime');
       assert.equal(result.eventCount, 1);
       assert.equal(digestCount, 1);
       assert.ok(output.includes('first debounced update'));
       assert.ok(output.includes('second debounced update'));
-      assert.ok(sleepCount >= 4, 'fake clock should advance through debounce settling');
+      assert.ok(
+        sleepCount >= 4,
+        'fake clock should advance through debounce settling',
+      );
     });
   });
 
@@ -274,28 +351,38 @@ describe('runWatchLoop', () => {
       let nowMs = Date.UTC(2026, 5, 3, 12, 0, 0);
       let sleepCount = 0;
 
-      const result = await runWatchLoop({
-        runtime: 'claude-code',
-        cwd,
-        pollSec: 0.03,
-        debounceSec: 1,
-        maxPendingSec: 0.09,
-        maxRuntimeMin: 0.004,
-      }, {
-        writeStdout: chunk => stdout.push(chunk),
-        now: () => nowMs,
-        sleep: async (ms) => {
-          nowMs += ms;
-          sleepCount++;
-          if (sleepCount <= 4) {
-            await appendClaudeMessage(transcriptPath, sessionId, `continuous update ${sleepCount}`);
-          }
+      const result = await runWatchLoop(
+        {
+          runtime: 'claude-code',
+          cwd,
+          pollSec: 0.03,
+          debounceSec: 1,
+          maxPendingSec: 0.09,
+          maxRuntimeMin: 0.004,
         },
-      });
+        {
+          writeStdout: (chunk) => stdout.push(chunk),
+          now: () => nowMs,
+          sleep: async (ms) => {
+            nowMs += ms;
+            sleepCount++;
+            if (sleepCount <= 4) {
+              await appendClaudeMessage(
+                transcriptPath,
+                sessionId,
+                `continuous update ${sleepCount}`,
+              );
+            }
+          },
+        },
+      );
 
       const output = stdout.join('');
       assert.equal(result.reason, 'max-runtime');
-      assert.ok(result.eventCount >= 1, 'max-pending should prevent indefinite debounce starvation');
+      assert.ok(
+        result.eventCount >= 1,
+        'max-pending should prevent indefinite debounce starvation',
+      );
       assert.ok(output.includes('continuous update 1'));
     });
   });
@@ -310,31 +397,43 @@ describe('runWatchLoop', () => {
       const { runWatchLoop } = await importWatch();
       const stdout = [];
 
-      const watchPromise = runWatchLoop({
-        runtime: 'claude-code',
-        cwd,
-        pollSec: 0.03,
-        debounceSec: 0.04,
-        maxRuntimeMin: 0.02,
-        json: true,
-      }, {
-        writeStdout: chunk => stdout.push(chunk),
-      });
+      const watchPromise = runWatchLoop(
+        {
+          runtime: 'claude-code',
+          cwd,
+          pollSec: 0.03,
+          debounceSec: 0.04,
+          maxRuntimeMin: 0.02,
+          json: true,
+        },
+        {
+          writeStdout: (chunk) => stdout.push(chunk),
+        },
+      );
 
       // Wait for the baseline target lock (recorded after the baseline
       // signature is captured) so the append below is seen as a delta
       // rather than being absorbed into a slow baseline observe.
       await waitFor(async () => {
         const state = await readJsonIfExists(join(stateDir, 'watch.json'));
-        return state?.watchers?.some(watcher => watcher.targets?.length >= 1);
+        return state?.watchers?.some((watcher) => watcher.targets?.length >= 1);
       });
-      await appendClaudeMessage(transcriptPath, sessionId, 'json update payload');
+      await appendClaudeMessage(
+        transcriptPath,
+        sessionId,
+        'json update payload',
+      );
       await watchPromise;
 
-      const lines = stdout.join('').trim().split('\n').filter(Boolean).map(line => JSON.parse(line));
-      const locked = lines.find(line => line.type === 'baseline');
-      const event = lines.find(line => line.type === 'delta');
-      const stopped = lines.find(line => line.type === 'stopped');
+      const lines = stdout
+        .join('')
+        .trim()
+        .split('\n')
+        .filter(Boolean)
+        .map((line) => JSON.parse(line));
+      const locked = lines.find((line) => line.type === 'baseline');
+      const event = lines.find((line) => line.type === 'delta');
+      const stopped = lines.find((line) => line.type === 'stopped');
       assert.ok(locked, 'json watch should emit a startup lock event');
       assert.ok(event, 'json watch should emit a delta event');
       assert.ok(stopped, 'json watch should emit a stopped event');
@@ -358,25 +457,33 @@ describe('runWatchLoop', () => {
       const stdout = [];
       let nowMs = Date.UTC(2026, 5, 3, 12, 0, 0);
 
-      const result = await runWatchLoop({
-        runtime: 'claude-code',
-        cwd,
-        pollSec: 0.03,
-        debounceSec: 0.04,
-        heartbeatSec: 0.06,
-        maxRuntimeMin: 0.004,
-        json: true,
-      }, {
-        writeStdout: chunk => stdout.push(chunk),
-        now: () => nowMs,
-        sleep: async (ms) => {
-          nowMs += ms;
+      const result = await runWatchLoop(
+        {
+          runtime: 'claude-code',
+          cwd,
+          pollSec: 0.03,
+          debounceSec: 0.04,
+          heartbeatSec: 0.06,
+          maxRuntimeMin: 0.004,
+          json: true,
         },
-      });
+        {
+          writeStdout: (chunk) => stdout.push(chunk),
+          now: () => nowMs,
+          sleep: async (ms) => {
+            nowMs += ms;
+          },
+        },
+      );
 
       assert.equal(result.reason, 'max-runtime');
-      const lines = stdout.join('').trim().split('\n').filter(Boolean).map(line => JSON.parse(line));
-      const heartbeat = lines.find(line => line.type === 'heartbeat');
+      const lines = stdout
+        .join('')
+        .trim()
+        .split('\n')
+        .filter(Boolean)
+        .map((line) => JSON.parse(line));
+      const heartbeat = lines.find((line) => line.type === 'heartbeat');
       assert.ok(heartbeat, 'quiet json watch should emit a heartbeat');
       assert.equal(heartbeat.recordsBehind, 0);
       assert.equal(heartbeat.healthy, true);
@@ -394,29 +501,44 @@ describe('runWatchLoop', () => {
       const { runWatchLoop } = await importWatch();
       const stdout = [];
 
-      const watchPromise = runWatchLoop({
-        runtime: 'both',
-        cwd,
-        pollSec: 0.03,
-        debounceSec: 0.04,
-        maxRuntimeMin: 0.012,
-        json: true,
-      }, {
-        writeStdout: chunk => stdout.push(chunk),
-      });
+      const watchPromise = runWatchLoop(
+        {
+          runtime: 'both',
+          cwd,
+          pollSec: 0.03,
+          debounceSec: 0.04,
+          maxRuntimeMin: 0.012,
+          json: true,
+        },
+        {
+          writeStdout: (chunk) => stdout.push(chunk),
+        },
+      );
 
       await waitFor(async () => {
         const state = await readJsonIfExists(join(stateDir, 'state.json'));
-        return state?.sessions?.['claude-code:watch-runtime-both']?.lastRecordIndex === 1;
+        return (
+          state?.sessions?.['claude-code:watch-runtime-both']
+            ?.lastRecordIndex === 1
+        );
       });
-      await appendClaudeMessage(transcriptPath, sessionId, 'both runtime update payload');
+      await appendClaudeMessage(
+        transcriptPath,
+        sessionId,
+        'both runtime update payload',
+      );
 
       const result = await watchPromise;
       assert.equal(result.eventCount, 1);
 
-      const lines = stdout.join('').trim().split('\n').filter(Boolean).map(line => JSON.parse(line));
-      const locked = lines.find(line => line.type === 'baseline');
-      const event = lines.find(line => line.type === 'delta');
+      const lines = stdout
+        .join('')
+        .trim()
+        .split('\n')
+        .filter(Boolean)
+        .map((line) => JSON.parse(line));
+      const locked = lines.find((line) => line.type === 'baseline');
+      const event = lines.find((line) => line.type === 'delta');
       assert.ok(locked, 'runtime both should emit a startup lock event');
       assert.ok(event, 'runtime both should emit a delta event');
       assert.equal(event.type, 'delta');
@@ -444,47 +566,65 @@ describe('runWatchLoop', () => {
         return true;
       });
 
-      const watcherA = runWatchLoop({
-        runtime: 'claude-code',
-        cwd,
-        pollSec: 0.03,
-        debounceSec: 0.04,
-        maxRuntimeMin: 0.02,
-      }, {
-        pid: 111,
-        handleSignals: false,
-        writeStdout: chunk => stdoutA.push(chunk),
-      });
+      const watcherA = runWatchLoop(
+        {
+          runtime: 'claude-code',
+          cwd,
+          pollSec: 0.03,
+          debounceSec: 0.04,
+          maxRuntimeMin: 0.02,
+        },
+        {
+          pid: 111,
+          handleSignals: false,
+          writeStdout: (chunk) => stdoutA.push(chunk),
+        },
+      );
 
       await waitFor(async () => {
         const state = await readJsonIfExists(join(stateDir, 'watch.json'));
         return state?.watchers?.length === 1;
       });
 
-      const watcherB = runWatchLoop({
-        runtime: 'codex',
-        cwd,
-        pollSec: 0.03,
-        debounceSec: 0.04,
-        maxRuntimeMin: 0.02,
-      }, {
-        pid: 222,
-        handleSignals: false,
-        writeStdout: chunk => stdoutB.push(chunk),
-      });
+      const watcherB = runWatchLoop(
+        {
+          runtime: 'codex',
+          cwd,
+          pollSec: 0.03,
+          debounceSec: 0.04,
+          maxRuntimeMin: 0.02,
+        },
+        {
+          pid: 222,
+          handleSignals: false,
+          writeStdout: (chunk) => stdoutB.push(chunk),
+        },
+      );
 
       const activeState = await waitFor(async () => {
         const state = await readJsonIfExists(join(stateDir, 'watch.json'));
         if (state?.watchers?.length !== 2) return null;
-        if (!state.watchers.every(watcher => watcher.targets?.length === 1)) return null;
+        if (!state.watchers.every((watcher) => watcher.targets?.length === 1))
+          return null;
         return state;
       });
-      assert.deepEqual(activeState.watchers.map(watcher => watcher.pid), [111, 222]);
-      assert.deepEqual(activeState.watchers.map(watcher => watcher.targets[0]?.runtime), ['claude-code', 'codex']);
+      assert.deepEqual(
+        activeState.watchers.map((watcher) => watcher.pid),
+        [111, 222],
+      );
+      assert.deepEqual(
+        activeState.watchers.map((watcher) => watcher.targets[0]?.runtime),
+        ['claude-code', 'codex'],
+      );
 
       const results = await Promise.all([watcherA, watcherB]);
-      assert.deepEqual(results.map(result => result.reason), ['max-runtime', 'max-runtime']);
-      assert.ok(stdoutA.join('').includes('baseline claude-code:same-cwd-claude'));
+      assert.deepEqual(
+        results.map((result) => result.reason),
+        ['max-runtime', 'max-runtime'],
+      );
+      assert.ok(
+        stdoutA.join('').includes('baseline claude-code:same-cwd-claude'),
+      );
       assert.ok(stdoutB.join('').includes('baseline codex:same-cwd-codex'));
     });
   });
@@ -502,17 +642,20 @@ describe('runWatchLoop', () => {
       });
 
       const stdoutA = [];
-      const watcherA = runWatchLoop({
-        runtime: 'claude-code',
-        cwd,
-        pollSec: 0.03,
-        debounceSec: 0.04,
-        maxRuntimeMin: 0.02,
-      }, {
-        pid: 111,
-        handleSignals: false,
-        writeStdout: chunk => stdoutA.push(chunk),
-      });
+      const watcherA = runWatchLoop(
+        {
+          runtime: 'claude-code',
+          cwd,
+          pollSec: 0.03,
+          debounceSec: 0.04,
+          maxRuntimeMin: 0.02,
+        },
+        {
+          pid: 111,
+          handleSignals: false,
+          writeStdout: (chunk) => stdoutA.push(chunk),
+        },
+      );
 
       await waitFor(async () => {
         const state = await readJsonIfExists(join(stateDir, 'watch.json'));
@@ -521,23 +664,30 @@ describe('runWatchLoop', () => {
 
       const stdoutB = [];
       await assert.rejects(
-        () => runWatchLoop({
-          runtime: 'claude-code',
-          cwd,
-          pollSec: 0.03,
-          debounceSec: 0.04,
-          maxRuntimeMin: 0.02,
-        }, {
-          pid: 222,
-          handleSignals: false,
-          writeStdout: chunk => stdoutB.push(chunk),
-        }),
-        /already watching claude-code:duplicate-target/
+        () =>
+          runWatchLoop(
+            {
+              runtime: 'claude-code',
+              cwd,
+              pollSec: 0.03,
+              debounceSec: 0.04,
+              maxRuntimeMin: 0.02,
+            },
+            {
+              pid: 222,
+              handleSignals: false,
+              writeStdout: (chunk) => stdoutB.push(chunk),
+            },
+          ),
+        /already watching claude-code:duplicate-target/,
       );
       assert.ok(stdoutB.join('').includes('already watching'));
 
       const watchJson = await readJsonIfExists(join(stateDir, 'watch.json'));
-      assert.deepEqual(watchJson.watchers.map(watcher => watcher.pid), [111]);
+      assert.deepEqual(
+        watchJson.watchers.map((watcher) => watcher.pid),
+        [111],
+      );
 
       const result = await watcherA;
       assert.equal(result.reason, 'max-runtime');
@@ -561,29 +711,43 @@ describe('runWatchLoop', () => {
       // recordWatcherTarget must still reject exactly one of them.
       const stdoutA = [];
       const stdoutB = [];
-      const startWatcher = (pid, sink) => runWatchLoop({
-        runtime: 'claude-code',
-        cwd,
-        pollSec: 0.03,
-        debounceSec: 0.04,
-        maxRuntimeMin: 0.02,
-      }, {
-        pid,
-        handleSignals: false,
-        writeStdout: chunk => sink.push(chunk),
-      });
+      const startWatcher = (pid, sink) =>
+        runWatchLoop(
+          {
+            runtime: 'claude-code',
+            cwd,
+            pollSec: 0.03,
+            debounceSec: 0.04,
+            maxRuntimeMin: 0.02,
+          },
+          {
+            pid,
+            handleSignals: false,
+            writeStdout: (chunk) => sink.push(chunk),
+          },
+        );
       const settled = await Promise.allSettled([
         startWatcher(111, stdoutA),
         startWatcher(222, stdoutB),
       ]);
 
-      const rejected = settled.filter(result => result.status === 'rejected');
-      const fulfilled = settled.filter(result => result.status === 'fulfilled');
-      assert.equal(rejected.length, 1,
-        `exactly one watcher should lose the startup race: ${JSON.stringify(settled)}`);
-      assert.match(rejected[0].reason.message, /already watching claude-code:duplicate-target-race/);
+      const rejected = settled.filter((result) => result.status === 'rejected');
+      const fulfilled = settled.filter(
+        (result) => result.status === 'fulfilled',
+      );
+      assert.equal(
+        rejected.length,
+        1,
+        `exactly one watcher should lose the startup race: ${JSON.stringify(settled)}`,
+      );
+      assert.match(
+        rejected[0].reason.message,
+        /already watching claude-code:duplicate-target-race/,
+      );
       assert.equal(fulfilled[0].value.reason, 'max-runtime');
-      assert.ok((stdoutA.join('') + stdoutB.join('')).includes('already watching'));
+      assert.ok(
+        (stdoutA.join('') + stdoutB.join('')).includes('already watching'),
+      );
 
       const watchJson = await readJsonIfExists(join(stateDir, 'watch.json'));
       assert.deepEqual(watchJson?.watchers ?? [], []);
@@ -600,31 +764,43 @@ describe('runWatchLoop', () => {
       const { runWatchLoop } = await importWatch();
       const watchState = await importWatchState();
 
-      const watchPromise = runWatchLoop({
-        runtime: 'auto',
-        cwd,
-        session: `codex:${sessionId}`,
-        pollSec: 0.03,
-        debounceSec: 5,
-        maxPendingSec: 5,
-        maxRuntimeMin: 0.03,
-        json: true,
-      }, {
-        writeStdout: () => {},
-      });
+      const watchPromise = runWatchLoop(
+        {
+          runtime: 'auto',
+          cwd,
+          session: `codex:${sessionId}`,
+          pollSec: 0.03,
+          debounceSec: 5,
+          maxPendingSec: 5,
+          maxRuntimeMin: 0.03,
+          json: true,
+        },
+        {
+          writeStdout: () => {},
+        },
+      );
 
       await waitFor(async () => {
         const state = await readJsonIfExists(join(stateDir, 'watch.json'));
         return state?.active?.targets?.[0]?.sessionId === sessionId;
       });
-      await appendCodexMessage(transcriptPath, sessionId, 'status drift update');
+      await appendCodexMessage(
+        transcriptPath,
+        sessionId,
+        'status drift update',
+      );
 
       const statusPayload = await waitFor(async () => {
-        const result = await runCli(
-          ['watch-ctl', 'status', '--json'],
-          { ...process.env, HOME: home, STATE_DIR: stateDir }
+        const result = await runCli(['watch-ctl', 'status', '--json'], {
+          ...process.env,
+          HOME: home,
+          STATE_DIR: stateDir,
+        });
+        assert.equal(
+          result.status,
+          0,
+          `status should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
         );
-        assert.equal(result.status, 0, `status should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`);
         const payload = JSON.parse(result.stdout);
         const target = payload.targets?.[0];
         return target?.recordsBehind === 1 ? payload : null;
@@ -675,21 +851,23 @@ describe('runWatchLoop', () => {
             resolvedRuntime: 'codex',
             sessionId,
             transcriptPath,
-            targets: [{
-              key: `codex:${sessionId}`,
-              runtime: 'codex',
-              sessionId,
-              transcriptPath,
-              cwd,
-              recordCount: 1,
-              baselineRecordIndex: 1,
-              engagementStatus: 'engaged',
-              lockedAt: old,
-            }],
+            targets: [
+              {
+                key: `codex:${sessionId}`,
+                runtime: 'codex',
+                sessionId,
+                transcriptPath,
+                cwd,
+                recordCount: 1,
+                baselineRecordIndex: 1,
+                engagementStatus: 'engaged',
+                lockedAt: old,
+              },
+            ],
             lastError: null,
           },
         }),
-        'utf8'
+        'utf8',
       );
       await writeFile(
         join(stateDir, 'state.json'),
@@ -708,21 +886,30 @@ describe('runWatchLoop', () => {
             },
           },
         }),
-        'utf8'
+        'utf8',
       );
 
-      const result = await runCli(
-        ['watch-ctl', 'status', '--json'],
-        { ...process.env, HOME: home, STATE_DIR: stateDir }
+      const result = await runCli(['watch-ctl', 'status', '--json'], {
+        ...process.env,
+        HOME: home,
+        STATE_DIR: stateDir,
+      });
+      assert.equal(
+        result.status,
+        0,
+        `status should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
       );
-      assert.equal(result.status, 0, `status should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`);
       const payload = JSON.parse(result.stdout);
 
       assert.equal(payload.active, true);
       assert.equal(payload.healthy, false);
       assert.equal(payload.targets[0].recordsBehind, 3);
-      assert.ok(payload.targets[0].healthReasons.includes('records-behind-stale'));
-      assert.ok(payload.targets[0].healthReasons.includes('poll-heartbeat-stale'));
+      assert.ok(
+        payload.targets[0].healthReasons.includes('records-behind-stale'),
+      );
+      assert.ok(
+        payload.targets[0].healthReasons.includes('poll-heartbeat-stale'),
+      );
     });
   });
 
@@ -736,29 +923,45 @@ describe('runWatchLoop', () => {
       const { runWatchLoop } = await importWatch();
       const stdout = [];
 
-      const result = await runWatchLoop({
-        runtime: 'both',
-        cwd,
-        pollSec: 0.02,
-        debounceSec: 0.02,
-        maxRuntimeMin: 0.004,
-        json: true,
-      }, {
-        writeStdout: chunk => stdout.push(chunk),
-      });
+      const result = await runWatchLoop(
+        {
+          runtime: 'both',
+          cwd,
+          pollSec: 0.02,
+          debounceSec: 0.02,
+          maxRuntimeMin: 0.004,
+          json: true,
+        },
+        {
+          writeStdout: (chunk) => stdout.push(chunk),
+        },
+      );
 
       assert.equal(result.reason, 'max-runtime');
       assert.equal(result.eventCount, 0);
-      const lines = stdout.join('').trim().split('\n').filter(Boolean).map(line => JSON.parse(line));
-      assert.ok(lines.some(line => line.type === 'stopped'));
-      assert.equal(lines.some(line => line.type === 'baseline'), false);
-      assert.equal(lines.some(line => line.type === 'delta'), false);
+      const lines = stdout
+        .join('')
+        .trim()
+        .split('\n')
+        .filter(Boolean)
+        .map((line) => JSON.parse(line));
+      assert.ok(lines.some((line) => line.type === 'stopped'));
+      assert.equal(
+        lines.some((line) => line.type === 'baseline'),
+        false,
+      );
+      assert.equal(
+        lines.some((line) => line.type === 'delta'),
+        false,
+      );
 
       const state = await readJsonIfExists(join(stateDir, 'state.json'));
       assert.equal(state?.sessions?.[`cursor:${sessionId}`], undefined);
       assert.equal(
-        Object.keys(state?.sessions ?? {}).some(key => key.startsWith('cursor:')),
-        false
+        Object.keys(state?.sessions ?? {}).some((key) =>
+          key.startsWith('cursor:'),
+        ),
+        false,
       );
     });
   });
@@ -774,24 +977,31 @@ describe('runWatchLoop', () => {
       const resolvedEventLog = join(stateDir, eventLog);
       const { runWatchLoop } = await importWatch();
 
-      const watchPromise = runWatchLoop({
-        runtime: 'claude-code',
-        cwd,
-        pollSec: 0.03,
-        debounceSec: 0.04,
-        maxRuntimeMin: 0.02,
-        eventLog,
-      }, {
-        writeStdout: () => {},
-      });
+      const watchPromise = runWatchLoop(
+        {
+          runtime: 'claude-code',
+          cwd,
+          pollSec: 0.03,
+          debounceSec: 0.04,
+          maxRuntimeMin: 0.02,
+          eventLog,
+        },
+        {
+          writeStdout: () => {},
+        },
+      );
 
       // Wait for the baseline target lock so the append is a post-baseline
       // delta even when baseline establishment is slow.
       await waitFor(async () => {
         const state = await readJsonIfExists(join(stateDir, 'watch.json'));
-        return state?.watchers?.some(watcher => watcher.targets?.length >= 1);
+        return state?.watchers?.some((watcher) => watcher.targets?.length >= 1);
       });
-      await appendClaudeMessage(transcriptPath, sessionId, 'event log content must stay out');
+      await appendClaudeMessage(
+        transcriptPath,
+        sessionId,
+        'event log content must stay out',
+      );
       await watchPromise;
 
       const raw = await readFile(resolvedEventLog, 'utf8');
@@ -805,7 +1015,7 @@ describe('runWatchLoop', () => {
       assert.equal(event.sessionId, sessionId);
       assert.equal(event.newRecords, 1);
       assert.equal(typeof event.digestChars, 'number');
-      assert.deepEqual(Object.keys(event.ranges).sort(), [
+      assert.deepEqual(Object.keys(event.ranges).toSorted(), [
         'fromIndex',
         'nextIndex',
         'renderedFromIndex',
@@ -830,16 +1040,22 @@ describe('runWatchLoop', () => {
       };
 
       await assert.rejects(
-        runWatchLoop({ ...options, eventLog: join('..', 'outside.jsonl') }, {
-          writeStdout: () => {},
-        }),
-        /--event-log must stay under the session-observer state directory/
+        runWatchLoop(
+          { ...options, eventLog: join('..', 'outside.jsonl') },
+          {
+            writeStdout: () => {},
+          },
+        ),
+        /--event-log must stay under the session-observer state directory/,
       );
       await assert.rejects(
-        runWatchLoop({ ...options, eventLog: join(home, 'outside.jsonl') }, {
-          writeStdout: () => {},
-        }),
-        /--event-log must stay under the session-observer state directory/
+        runWatchLoop(
+          { ...options, eventLog: join(home, 'outside.jsonl') },
+          {
+            writeStdout: () => {},
+          },
+        ),
+        /--event-log must stay under the session-observer state directory/,
       );
     });
   });
@@ -863,16 +1079,22 @@ describe('runWatchLoop', () => {
       };
 
       await assert.rejects(
-        runWatchLoop({ ...options, eventLog: 'events.jsonl' }, {
-          writeStdout: () => {},
-        }),
-        /--event-log must stay under the session-observer state directory/
+        runWatchLoop(
+          { ...options, eventLog: 'events.jsonl' },
+          {
+            writeStdout: () => {},
+          },
+        ),
+        /--event-log must stay under the session-observer state directory/,
       );
       await assert.rejects(
-        runWatchLoop({ ...options, eventLog: join('linked-logs', 'events.jsonl') }, {
-          writeStdout: () => {},
-        }),
-        /--event-log must stay under the session-observer state directory/
+        runWatchLoop(
+          { ...options, eventLog: join('linked-logs', 'events.jsonl') },
+          {
+            writeStdout: () => {},
+          },
+        ),
+        /--event-log must stay under the session-observer state directory/,
       );
 
       assert.equal(await readFile(outsideLog, 'utf8'), '');
@@ -906,10 +1128,13 @@ describe('runWatchLoop', () => {
 
       for (const eventLog of reservedEventLogs) {
         await assert.rejects(
-          runWatchLoop({ ...options, eventLog }, {
-            writeStdout: () => {},
-          }),
-          /--event-log cannot use session-observer state, lock, temp, or backup files/
+          runWatchLoop(
+            { ...options, eventLog },
+            {
+              writeStdout: () => {},
+            },
+          ),
+          /--event-log cannot use session-observer state, lock, temp, or backup files/,
         );
       }
     });
@@ -926,15 +1151,18 @@ describe('runWatchLoop', () => {
       const watchState = await importWatchState();
       const stdout = [];
 
-      const watchPromise = runWatchLoop({
-        runtime: 'claude-code',
-        cwd,
-        pollSec: 0.03,
-        debounceSec: 0.05,
-        maxRuntimeMin: 0.02,
-      }, {
-        writeStdout: chunk => stdout.push(chunk),
-      });
+      const watchPromise = runWatchLoop(
+        {
+          runtime: 'claude-code',
+          cwd,
+          pollSec: 0.03,
+          debounceSec: 0.05,
+          maxRuntimeMin: 0.02,
+        },
+        {
+          writeStdout: (chunk) => stdout.push(chunk),
+        },
+      );
 
       await sleep(70);
       await watchState.writeControlDirective('pause');
@@ -942,7 +1170,10 @@ describe('runWatchLoop', () => {
       await appendClaudeMessage(transcriptPath, sessionId, 'paused update');
       await sleep(180);
 
-      assert.ok(!stdout.join('').includes('paused update'), 'paused watcher should not emit settled updates');
+      assert.ok(
+        !stdout.join('').includes('paused update'),
+        'paused watcher should not emit settled updates',
+      );
 
       await watchState.writeControlDirective('resume');
       const result = await watchPromise;
@@ -964,21 +1195,24 @@ describe('runWatchLoop', () => {
       const watchState = await importWatchState();
       const stdout = [];
 
-      const watchPromise = runWatchLoop({
-        runtime: 'claude-code',
-        cwd,
-        pollSec: 0.03,
-        debounceSec: 5,
-        maxRuntimeMin: 0.02,
-      }, {
-        writeStdout: chunk => stdout.push(chunk),
-      });
+      const watchPromise = runWatchLoop(
+        {
+          runtime: 'claude-code',
+          cwd,
+          pollSec: 0.03,
+          debounceSec: 5,
+          maxRuntimeMin: 0.02,
+        },
+        {
+          writeStdout: (chunk) => stdout.push(chunk),
+        },
+      );
 
       // Wait for the baseline target lock so the append is a post-baseline
       // delta even when baseline establishment is slow.
       await waitFor(async () => {
         const state = await readJsonIfExists(join(stateDir, 'watch.json'));
-        return state?.watchers?.some(watcher => watcher.targets?.length >= 1);
+        return state?.watchers?.some((watcher) => watcher.targets?.length >= 1);
       });
       const appendedAtMs = Date.now();
       await appendClaudeMessage(transcriptPath, sessionId, 'flush update');
@@ -990,7 +1224,8 @@ describe('runWatchLoop', () => {
       await waitFor(async () => {
         const state = await readJsonIfExists(join(stateDir, 'watch.json'));
         const lastPollAtMs = Date.parse(state?.watchers?.[0]?.lastPollAt ?? '');
-        if (!Number.isFinite(lastPollAtMs) || lastPollAtMs <= appendedAtMs) return false;
+        if (!Number.isFinite(lastPollAtMs) || lastPollAtMs <= appendedAtMs)
+          return false;
         if (firstStampAfterAppendMs === null) {
           firstStampAfterAppendMs = lastPollAtMs;
           return false;
@@ -1015,15 +1250,18 @@ describe('runWatchLoop', () => {
       const watchState = await importWatchState();
       const stdout = [];
 
-      const watchPromise = runWatchLoop({
-        runtime: 'claude-code',
-        cwd,
-        pollSec: 0.03,
-        debounceSec: 0.05,
-        maxRuntimeMin: 0.02,
-      }, {
-        writeStdout: chunk => stdout.push(chunk),
-      });
+      const watchPromise = runWatchLoop(
+        {
+          runtime: 'claude-code',
+          cwd,
+          pollSec: 0.03,
+          debounceSec: 0.05,
+          maxRuntimeMin: 0.02,
+        },
+        {
+          writeStdout: (chunk) => stdout.push(chunk),
+        },
+      );
 
       await waitFor(async () => {
         const state = await readJsonIfExists(join(stateDir, 'watch.json'));
@@ -1035,9 +1273,14 @@ describe('runWatchLoop', () => {
       assert.equal(result.reason, 'control-stop');
       assert.ok(stdout.join('').includes('watch stopped reason=control-stop'));
 
-      const watchJson = JSON.parse(await readFile(join(stateDir, 'watch.json'), 'utf8'));
+      const watchJson = JSON.parse(
+        await readFile(join(stateDir, 'watch.json'), 'utf8'),
+      );
       assert.equal(watchJson.active, null);
-      assert.equal(await readJsonIfExists(join(stateDir, 'watch.control.json')), null);
+      assert.equal(
+        await readJsonIfExists(join(stateDir, 'watch.control.json')),
+        null,
+      );
     });
   });
 
@@ -1050,43 +1293,68 @@ describe('runWatchLoop', () => {
       ]);
       await writeFile(
         join(stateDir, 'watch.control.json'),
-        JSON.stringify({ directive: 'stop', issuedAt: new Date().toISOString() }),
-        'utf8'
+        JSON.stringify({
+          directive: 'stop',
+          issuedAt: new Date().toISOString(),
+        }),
+        'utf8',
       );
 
-      const stopResult = spawnSync('node', [CLI_PATH, 'watch-ctl', 'stop', '--json'], {
-        encoding: 'utf8',
-        env: { ...process.env, HOME: home, STATE_DIR: stateDir },
-      });
-      assert.equal(stopResult.status, 0,
-        `inactive stop should exit 0\nstdout: ${stopResult.stdout}\nstderr: ${stopResult.stderr}`);
+      const stopResult = spawnSync(
+        'node',
+        [CLI_PATH, 'watch-ctl', 'stop', '--json'],
+        {
+          encoding: 'utf8',
+          env: { ...process.env, HOME: home, STATE_DIR: stateDir },
+        },
+      );
+      assert.equal(
+        stopResult.status,
+        0,
+        `inactive stop should exit 0\nstdout: ${stopResult.stdout}\nstderr: ${stopResult.stderr}`,
+      );
       const stopPayload = JSON.parse(stopResult.stdout);
       assert.equal(stopPayload.noActiveWatcher, true);
       assert.equal(stopPayload.active, false);
-      assert.equal(await readJsonIfExists(join(stateDir, 'watch.control.json')), null);
+      assert.equal(
+        await readJsonIfExists(join(stateDir, 'watch.control.json')),
+        null,
+      );
 
       const { runWatchLoop } = await importWatch();
       const stdout = [];
-      const watchPromise = runWatchLoop({
-        runtime: 'claude-code',
-        cwd,
-        pollSec: 0.03,
-        debounceSec: 0.04,
-        maxRuntimeMin: 0.012,
-      }, {
-        writeStdout: chunk => stdout.push(chunk),
-      });
+      const watchPromise = runWatchLoop(
+        {
+          runtime: 'claude-code',
+          cwd,
+          pollSec: 0.03,
+          debounceSec: 0.04,
+          maxRuntimeMin: 0.012,
+        },
+        {
+          writeStdout: (chunk) => stdout.push(chunk),
+        },
+      );
 
       await waitFor(async () => {
         const state = await readJsonIfExists(join(stateDir, 'state.json'));
-        return state?.sessions?.['claude-code:watch-inactive-stop']?.lastRecordIndex === 1;
+        return (
+          state?.sessions?.['claude-code:watch-inactive-stop']
+            ?.lastRecordIndex === 1
+        );
       });
-      await appendClaudeMessage(transcriptPath, sessionId, 'next watcher update after inactive stop');
+      await appendClaudeMessage(
+        transcriptPath,
+        sessionId,
+        'next watcher update after inactive stop',
+      );
 
       const result = await watchPromise;
       assert.equal(result.reason, 'max-runtime');
       assert.equal(result.eventCount, 1);
-      assert.ok(stdout.join('').includes('next watcher update after inactive stop'));
+      assert.ok(
+        stdout.join('').includes('next watcher update after inactive stop'),
+      );
     });
   });
 
@@ -1098,23 +1366,35 @@ describe('runWatchLoop', () => {
       ]);
       await writeFile(
         join(stateDir, 'watch.control.json'),
-        JSON.stringify({ directive: 'pause', issuedAt: new Date().toISOString() }),
-        'utf8'
+        JSON.stringify({
+          directive: 'pause',
+          issuedAt: new Date().toISOString(),
+        }),
+        'utf8',
       );
 
-      const child = spawn('node', [
-        CLI_PATH,
-        'watch',
-        '--runtime', 'claude-code',
-        '--cwd', cwd,
-        '--poll-sec', '0.05',
-        '--debounce-sec', '0.05',
-        '--max-runtime-min', '0',
-        '--json',
-      ], {
-        env: { ...process.env, HOME: home, STATE_DIR: stateDir },
-        stdio: ['ignore', 'pipe', 'pipe'],
-      });
+      const child = spawn(
+        'node',
+        [
+          CLI_PATH,
+          'watch',
+          '--runtime',
+          'claude-code',
+          '--cwd',
+          cwd,
+          '--poll-sec',
+          '0.05',
+          '--debounce-sec',
+          '0.05',
+          '--max-runtime-min',
+          '0',
+          '--json',
+        ],
+        {
+          env: { ...process.env, HOME: home, STATE_DIR: stateDir },
+          stdio: ['ignore', 'pipe', 'pipe'],
+        },
+      );
 
       try {
         await waitFor(async () => {
@@ -1128,9 +1408,14 @@ describe('runWatchLoop', () => {
         assert.equal(signal, null);
         assert.equal(code, 0);
 
-        const watchJson = JSON.parse(await readFile(join(stateDir, 'watch.json'), 'utf8'));
+        const watchJson = JSON.parse(
+          await readFile(join(stateDir, 'watch.json'), 'utf8'),
+        );
         assert.equal(watchJson.active, null);
-        assert.equal(await readJsonIfExists(join(stateDir, 'watch.control.json')), null);
+        assert.equal(
+          await readJsonIfExists(join(stateDir, 'watch.control.json')),
+          null,
+        );
       } finally {
         if (!child.killed) child.kill('SIGKILL');
       }

@@ -7,7 +7,7 @@ import test from 'node:test';
 import {
   prepareParallelRun,
   runSequential,
-  runWrapperCli
+  runWrapperCli,
 } from '../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
 
 // NFR5 — host-context discipline.
@@ -29,7 +29,11 @@ const sampleInput = path.join(repoRoot, 'tests/fixtures/sample-input.md');
 const PEER_REVISION_MARKER = 'PEER_REVISION_CONTENT_MARKER_7f3a';
 const SYNTHESIS_TEXT_MARKER = 'SYNTHESIS_TEXT_CONTENT_MARKER_9b2c';
 
-const ROUTINE_EVENTS = new Set(['run_started', 'run_completed', 'parallel_dispatch_required']);
+const ROUTINE_EVENTS = new Set([
+  'run_started',
+  'run_completed',
+  'parallel_dispatch_required',
+]);
 
 function captureStdout() {
   const lines = [];
@@ -44,7 +48,7 @@ function captureStdout() {
         .split('\n')
         .filter(Boolean)
         .map((line) => JSON.parse(line));
-    }
+    },
   };
 }
 
@@ -52,7 +56,7 @@ function stubEnv(responseJson) {
   return {
     ...process.env,
     PATH: `${fixtureBin}${path.delimiter}${process.env.PATH}`,
-    PASEO_STUB_RESPONSE_JSON: responseJson
+    PASEO_STUB_RESPONSE_JSON: responseJson,
   };
 }
 
@@ -61,7 +65,7 @@ const ALTERNATING_ACCEPT = JSON.stringify({
   schema_version: 'v1',
   verdict: 'ACCEPT',
   reasoning: 'Looks good as-is.',
-  proposed_artifact: `Accepted body. ${PEER_REVISION_MARKER}\n`
+  proposed_artifact: `Accepted body. ${PEER_REVISION_MARKER}\n`,
 });
 
 // A parallel CONVERGED verdict whose critique carries the marker.
@@ -71,17 +75,17 @@ const PARALLEL_CONVERGED = JSON.stringify({
   reasoning: 'Both revisions already agree.',
   critique: {
     own_previous: `own ${PEER_REVISION_MARKER}`,
-    peer_previous: `peer ${PEER_REVISION_MARKER}`
-  }
+    peer_previous: `peer ${PEER_REVISION_MARKER}`,
+  },
 });
 
 const synthPreflight = async () => ({
   peers: ['claude', 'codex'],
   providerInventory: [
     { id: 'claude', available: true },
-    { id: 'codex', available: true }
+    { id: 'codex', available: true },
   ],
-  warnings: []
+  warnings: [],
 });
 
 function synthesizedStubs(mergedText) {
@@ -90,19 +94,22 @@ function synthesizedStubs(mergedText) {
       schema_version: 'v1',
       verdict: 'REVISE',
       reasoning: 'adopt the merge',
-      critique: { own_previous: `own ${PEER_REVISION_MARKER}`, peer_previous: `peer ${PEER_REVISION_MARKER}` },
-      proposed_artifact: mergedText
+      critique: {
+        own_previous: `own ${PEER_REVISION_MARKER}`,
+        peer_previous: `peer ${PEER_REVISION_MARKER}`,
+      },
+      proposed_artifact: mergedText,
     },
-    stdout: '{"id":"peer"}'
+    stdout: '{"id":"peer"}',
   });
   const invokeSynthesizer = async () => ({
     json: {
       schema_version: 'v1',
       synthesized_artifact: mergedText,
       synthesis_reasoning: `Merged favoring stronger reasoning. ${SYNTHESIS_TEXT_MARKER}`,
-      unresolved_disagreements: []
+      unresolved_disagreements: [],
     },
-    stdout: '{"id":"synth"}'
+    stdout: '{"id":"synth"}',
   });
   return { invokePeer, invokeSynthesizer };
 }
@@ -119,10 +126,13 @@ function escalatingStubs() {
         schema_version: 'v1',
         verdict: 'REVISE',
         reasoning: 'revise',
-        critique: { own_previous: `own ${PEER_REVISION_MARKER}`, peer_previous: `peer ${PEER_REVISION_MARKER}` },
-        proposed_artifact: `stuck-${peerCall} ${PEER_REVISION_MARKER}\n`
+        critique: {
+          own_previous: `own ${PEER_REVISION_MARKER}`,
+          peer_previous: `peer ${PEER_REVISION_MARKER}`,
+        },
+        proposed_artifact: `stuck-${peerCall} ${PEER_REVISION_MARKER}\n`,
       },
-      stdout: '{"id":"peer"}'
+      stdout: '{"id":"peer"}',
     };
   };
   const invokeSynthesizer = async () => ({
@@ -130,9 +140,9 @@ function escalatingStubs() {
       schema_version: 'v1',
       synthesized_artifact: `merge ${SYNTHESIS_TEXT_MARKER}\n`,
       synthesis_reasoning: `still merging ${SYNTHESIS_TEXT_MARKER}`,
-      unresolved_disagreements: ['scope boundary unresolved']
+      unresolved_disagreements: ['scope boundary unresolved'],
     },
-    stdout: '{"id":"synth"}'
+    stdout: '{"id":"synth"}',
   });
   return { invokePeer, invokeSynthesizer };
 }
@@ -149,18 +159,20 @@ function assertRoutineEventsCarryNoContent(events) {
     assert.doesNotMatch(
       serialized,
       new RegExp(PEER_REVISION_MARKER),
-      `routine event ${event.event} leaked peer revision content`
+      `routine event ${event.event} leaked peer revision content`,
     );
     assert.doesNotMatch(
       serialized,
       new RegExp(SYNTHESIS_TEXT_MARKER),
-      `routine event ${event.event} leaked synthesis content`
+      `routine event ${event.event} leaked synthesis content`,
     );
   }
 }
 
 test('alternating run: full CLI emits run_started/run_completed with no revision content', async () => {
-  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-inventory-alt-'));
+  const tempRoot = await mkdtemp(
+    path.join(os.tmpdir(), 'consensus-inventory-alt-'),
+  );
   const stdout = captureStdout();
   await runWrapperCli(
     [
@@ -178,25 +190,33 @@ test('alternating run: full CLI emits run_started/run_completed with no revision
       '--run-dir',
       path.join(tempRoot, '.consensus/run'),
       '--allow-root',
-      tempRoot
+      tempRoot,
     ],
     {
       stdout,
       cwd: tempRoot,
       env: stubEnv(ALTERNATING_ACCEPT),
-      preflight: async () => ({ peers: ['claude', 'codex'], warnings: [] })
-    }
+      preflight: async () => ({ peers: ['claude', 'codex'], warnings: [] }),
+    },
   );
 
   const events = stdout.events();
-  assert.ok(events.some((event) => event.event === 'run_started'), 'run_started emitted');
-  assert.ok(events.some((event) => event.event === 'run_completed'), 'run_completed emitted');
+  assert.ok(
+    events.some((event) => event.event === 'run_started'),
+    'run_started emitted',
+  );
+  assert.ok(
+    events.some((event) => event.event === 'run_completed'),
+    'run_completed emitted',
+  );
   assertRoutineEventsCarryNoContent(events);
   assert.ok(!events.some((event) => event.event === 'escalation_required'));
 });
 
 test('parallel_revision run: full CLI routine events carry no revision content', async () => {
-  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-inventory-par-'));
+  const tempRoot = await mkdtemp(
+    path.join(os.tmpdir(), 'consensus-inventory-par-'),
+  );
   const stdout = captureStdout();
   await runWrapperCli(
     [
@@ -214,25 +234,35 @@ test('parallel_revision run: full CLI routine events carry no revision content',
       '--run-dir',
       path.join(tempRoot, '.consensus/run'),
       '--allow-root',
-      tempRoot
+      tempRoot,
     ],
     {
       stdout,
       cwd: tempRoot,
       env: stubEnv(PARALLEL_CONVERGED),
-      preflight: async () => ({ peers: ['claude', 'codex'], warnings: [] })
-    }
+      preflight: async () => ({ peers: ['claude', 'codex'], warnings: [] }),
+    },
   );
 
   const events = stdout.events();
-  assert.ok(events.some((event) => event.event === 'run_started'), 'run_started emitted');
-  assert.ok(events.some((event) => event.event === 'run_completed'), 'run_completed emitted');
+  assert.ok(
+    events.some((event) => event.event === 'run_started'),
+    'run_started emitted',
+  );
+  assert.ok(
+    events.some((event) => event.event === 'run_completed'),
+    'run_completed emitted',
+  );
   assertRoutineEventsCarryNoContent(events);
 });
 
 test('parallel_synthesized run: emitted events carry no revision or synthesis content', async () => {
-  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-inventory-synth-'));
-  const { invokePeer, invokeSynthesizer } = synthesizedStubs(`Merged. ${PEER_REVISION_MARKER}\n`);
+  const tempRoot = await mkdtemp(
+    path.join(os.tmpdir(), 'consensus-inventory-synth-'),
+  );
+  const { invokePeer, invokeSynthesizer } = synthesizedStubs(
+    `Merged. ${PEER_REVISION_MARKER}\n`,
+  );
   const stdout = captureStdout();
   await runSequential(
     {
@@ -249,9 +279,9 @@ test('parallel_synthesized run: emitted events carry no revision or synthesis co
       agency: 'moderate',
       preflight: synthPreflight,
       invokePeer,
-      invokeSynthesizer
+      invokeSynthesizer,
     },
-    { stdout }
+    { stdout },
   );
 
   // runSequential itself only emits escalation events; on a converging run it
@@ -263,7 +293,9 @@ test('parallel_synthesized run: emitted events carry no revision or synthesis co
 });
 
 test('parallel_dispatch_required event carries no revision or synthesis content', async () => {
-  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-inventory-prepare-'));
+  const tempRoot = await mkdtemp(
+    path.join(os.tmpdir(), 'consensus-inventory-prepare-'),
+  );
   const result = await prepareParallelRun({
     inputPath: sampleInput,
     runDir: path.join(tempRoot, '.consensus/run'),
@@ -276,7 +308,7 @@ test('parallel_dispatch_required event carries no revision or synthesis content'
     maxRounds: 5,
     agency: 'moderate',
     parallelism: 2,
-    preflight: synthPreflight
+    preflight: synthPreflight,
   });
 
   // The dispatch event is a routine coordination event: it carries manifest
@@ -287,7 +319,9 @@ test('parallel_dispatch_required event carries no revision or synthesis content'
 });
 
 test('escalation_required is the ONLY content-bearing event', async () => {
-  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-inventory-escalate-'));
+  const tempRoot = await mkdtemp(
+    path.join(os.tmpdir(), 'consensus-inventory-escalate-'),
+  );
   const inputPath = path.join(tempRoot, 'draft.md');
   await writeFile(inputPath, '# Intro\n\nSeed text.\n');
 
@@ -308,15 +342,17 @@ test('escalation_required is the ONLY content-bearing event', async () => {
       agency: 'moderate',
       preflight: synthPreflight,
       invokePeer,
-      invokeSynthesizer
+      invokeSynthesizer,
     },
-    { stdout }
+    { stdout },
   );
 
   assert.equal(result.sections[0].status.status, 'escalation');
   const events = stdout.events();
 
-  const escalation = events.find((event) => event.event === 'escalation_required');
+  const escalation = events.find(
+    (event) => event.event === 'escalation_required',
+  );
   assert.ok(escalation, 'escalation_required emitted');
 
   // The escalation event IS allowed to carry content — that is its purpose.
@@ -329,11 +365,11 @@ test('escalation_required is the ONLY content-bearing event', async () => {
   // Cross-check: escalation_required is the only event whose payload contains the
   // peer revision marker. No other event type leaks it.
   const contentBearing = events.filter((event) =>
-    new RegExp(PEER_REVISION_MARKER).test(JSON.stringify(event))
+    new RegExp(PEER_REVISION_MARKER).test(JSON.stringify(event)),
   );
   assert.deepEqual(
     [...new Set(contentBearing.map((event) => event.event))],
     ['escalation_required'],
-    'escalation_required must be the sole content-bearing event'
+    'escalation_required must be the sole content-bearing event',
   );
 });

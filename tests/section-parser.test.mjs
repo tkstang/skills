@@ -3,7 +3,7 @@ import test from 'node:test';
 
 import {
   parseSections,
-  slugSectionId
+  slugSectionId,
 } from '../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
 
 test('slugSectionId creates deterministic stable IDs', () => {
@@ -21,17 +21,21 @@ test('parseSections splits markdown by headings and preserves heading markdown',
     '',
     '- one',
     '- two',
-    ''
+    '',
   ].join('\n');
 
   const sections = parseSections(markdown);
 
   assert.deepEqual(
-    sections.map((section) => [section.id, section.name, section.original_index]),
+    sections.map((section) => [
+      section.id,
+      section.name,
+      section.original_index,
+    ]),
     [
       ['intro-0', 'Intro', 0],
-      ['details-1', 'Details', 1]
-    ]
+      ['details-1', 'Details', 1],
+    ],
   );
   assert.equal(sections[0].markdown, '# Intro\n\nOpening copy.\n\n');
   assert.equal(sections[1].markdown, '## Details\n\n- one\n- two\n');
@@ -54,28 +58,42 @@ test('explicit section markers override heading-based detection', () => {
     'Text A.',
     '<!-- section: second pass -->',
     'Text B.',
-    ''
+    '',
   ].join('\n');
 
   const sections = parseSections(markdown);
 
   assert.deepEqual(
-    sections.map((section) => [section.id, section.name, section.original_index]),
+    sections.map((section) => [
+      section.id,
+      section.name,
+      section.original_index,
+    ]),
     [
       ['first-pass-0', 'first pass', 0],
-      ['second-pass-1', 'second pass', 1]
-    ]
+      ['second-pass-1', 'second pass', 1],
+    ],
   );
-  assert.equal(sections[0].markdown, '<!-- section: first pass -->\n# Heading inside first\nText A.\n');
-  assert.equal(sections[1].markdown, '<!-- section: second pass -->\nText B.\n');
+  assert.equal(
+    sections[0].markdown,
+    '<!-- section: first pass -->\n# Heading inside first\nText A.\n',
+  );
+  assert.equal(
+    sections[1].markdown,
+    '<!-- section: second pass -->\nText B.\n',
+  );
 });
 
 test('parseSections falls back to one section for documents without section boundaries', () => {
   const sections = parseSections('Just a short note.\n\nNo headings.\n');
 
   assert.deepEqual(
-    sections.map((section) => [section.id, section.name, section.original_index]),
-    [['document-0', 'Document', 0]]
+    sections.map((section) => [
+      section.id,
+      section.name,
+      section.original_index,
+    ]),
+    [['document-0', 'Document', 0]],
   );
   assert.equal(sections[0].markdown, 'Just a short note.\n\nNo headings.\n');
 });

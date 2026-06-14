@@ -13,11 +13,11 @@ Claude slash-command records). The export-owned `scripts/lib/sanitize.mjs` adds 
 
 ## File location patterns
 
-| Runtime | Store root | Pattern |
-|---|---|---|
-| Claude Code | `~/.claude/projects/` | `~/.claude/projects/<encoded-cwd>/<session-id>.jsonl` |
-| Codex | `~/.codex/sessions/` | `~/.codex/sessions/<YYYY>/<MM>/<DD>/session-<id>.jsonl` |
-| Cursor | `~/.cursor/projects/` | `~/.cursor/projects/<encoded-project>/agent-transcripts/<session-id>/<session-id>.jsonl` |
+| Runtime     | Store root            | Pattern                                                                                  |
+| ----------- | --------------------- | ---------------------------------------------------------------------------------------- |
+| Claude Code | `~/.claude/projects/` | `~/.claude/projects/<encoded-cwd>/<session-id>.jsonl`                                    |
+| Codex       | `~/.codex/sessions/`  | `~/.codex/sessions/<YYYY>/<MM>/<DD>/session-<id>.jsonl`                                  |
+| Cursor      | `~/.cursor/projects/` | `~/.cursor/projects/<encoded-project>/agent-transcripts/<session-id>/<session-id>.jsonl` |
 
 - **Claude Code** encodes the cwd as the parent directory name, replacing `/` and `.`
   with `-` (e.g. `/Users/alice/Code/app` → `-Users-alice-Code-app`).
@@ -47,8 +47,11 @@ Claude slash-command records). The export-owned `scripts/lib/sanitize.mjs` adds 
 ### Codex
 
 ```json
-{ "type": "response_item", "sessionId": "codex-1",
-  "payload": { "type": "message", "role": "user", "content": "Hello" } }
+{
+  "type": "response_item",
+  "sessionId": "codex-1",
+  "payload": { "type": "message", "role": "user", "content": "Hello" }
+}
 ```
 
 `payload.type === "message"` carries the role/content; `payload.content` may be a
@@ -58,8 +61,10 @@ and are dropped structurally.
 ### Cursor
 
 ```json
-{ "role": "assistant",
-  "message": { "content": [ { "type": "text", "text": "Hi" } ] } }
+{
+  "role": "assistant",
+  "message": { "content": [{ "type": "text", "text": "Hi" }] }
+}
 ```
 
 Top-level `role` plus a `message.content` array of `text` / `tool_use` blocks; only
@@ -80,7 +85,7 @@ through verbatim). `sanitize.mjs` drops them by leading-content match:
 - `<subagent_notification>…` notifications
 - `<turn_aborted>` markers
 
-Negative rule: genuine messages that merely *mention* one of these tokens
+Negative rule: genuine messages that merely _mention_ one of these tokens
 mid-sentence are NOT dropped — only leading-content matches are removed.
 
 ---

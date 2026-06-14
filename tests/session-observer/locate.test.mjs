@@ -12,11 +12,18 @@
  *   8. gitWorktrees: returns [] when git exec fails
  */
 
-import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, rm, mkdir, writeFile, utimes, readFile } from 'node:fs/promises';
+import {
+  mkdtemp,
+  rm,
+  mkdir,
+  writeFile,
+  utimes,
+  readFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { test } from 'node:test';
 
 // ---------------------------------------------------------------------------
 // Test helper: temp HOME dir per test
@@ -44,9 +51,8 @@ async function importLocate() {
   // Cache buster via timestamp to force re-evaluation in case Node caches modules
   // Actually ESM caches by URL — we just import once and rely on the module reading
   // process.env at call time (which our implementation does).
-  const { discover, gitWorktrees } = await import(
-    '../../skills/session-observer/scripts/lib/locate.mjs'
-  );
+  const { discover, gitWorktrees } =
+    await import('../../skills/session-observer/scripts/lib/locate.mjs');
   return { discover, gitWorktrees };
 }
 
@@ -106,10 +112,20 @@ test('claude-code: discover returns one candidate with correct sessionId and rec
     assert.equal(c.sessionId, 'cc-session-001');
     // Because the transcript was found via the direct encodeCwd lookup, recordedCwd
     // must equal targetCwd exactly (not an approximation via decodeCwdDirName).
-    assert.equal(c.recordedCwd, targetCwd, 'recordedCwd must be the exact targetCwd for direct-lookup candidates');
+    assert.equal(
+      c.recordedCwd,
+      targetCwd,
+      'recordedCwd must be the exact targetCwd for direct-lookup candidates',
+    );
     assert.ok(c.mtime > 0, 'mtime should be a positive epoch-seconds value');
-    assert.ok(typeof c.size === 'number' && c.size >= 0, 'size should be a number');
-    assert.ok(typeof c.ageSec === 'number' && c.ageSec >= 0, 'ageSec should be a non-negative number');
+    assert.ok(
+      typeof c.size === 'number' && c.size >= 0,
+      'size should be a number',
+    );
+    assert.ok(
+      typeof c.ageSec === 'number' && c.ageSec >= 0,
+      'ageSec should be a non-negative number',
+    );
   });
 });
 
@@ -127,8 +143,12 @@ test('claude-code: glob fallback when encoded dir is missing — no throw, retur
     // No match under targetCwd, but must not throw
     assert.ok(Array.isArray(candidates), 'should return an array');
     // All returned candidates (if any from other dirs) should not have recordedCwd === targetCwd
-    const exactMatch = candidates.filter(c => c.recordedCwd === targetCwd);
-    assert.equal(exactMatch.length, 0, 'should find no exact-cwd match when encoded dir is absent');
+    const exactMatch = candidates.filter((c) => c.recordedCwd === targetCwd);
+    assert.equal(
+      exactMatch.length,
+      0,
+      'should find no exact-cwd match when encoded dir is absent',
+    );
   });
 });
 
@@ -136,7 +156,14 @@ test('claude-code: direct lookup uses dot-sanitized project dir slug', async () 
   await withTempHome(async (home) => {
     const { discover } = await importLocate();
 
-    const targetCwd = join(home, 'thomas.stang', '.superconductor', 'worktrees', 'stoa', 'sc-levitated-phonon-e8a5');
+    const targetCwd = join(
+      home,
+      'thomas.stang',
+      '.superconductor',
+      'worktrees',
+      'stoa',
+      'sc-levitated-phonon-e8a5',
+    );
     const encoded = encodeCwd(targetCwd);
 
     const projectDir = join(home, '.claude', 'projects', encoded);
@@ -145,7 +172,9 @@ test('claude-code: direct lookup uses dot-sanitized project dir slug', async () 
     await writeFile(transcriptPath, CLAUDE_CODE_TYPICAL, 'utf8');
 
     const candidates = await discover('claude-code', targetCwd);
-    const c = candidates.find(candidate => candidate.transcriptPath === transcriptPath);
+    const c = candidates.find(
+      (candidate) => candidate.transcriptPath === transcriptPath,
+    );
 
     assert.ok(c, 'should find the transcript via dot-sanitized direct lookup');
     assert.equal(c.recordedCwd, targetCwd);
@@ -159,14 +188,17 @@ test('claude-code: fallback candidates preserve parent cwdSlug as weak evidence'
     const { discover } = await importLocate();
 
     const targetCwd = join(home, 'Code', 'missing-project');
-    const otherSlug = '-Users-thomas-stang--superconductor-worktrees-stoa-sc-levitated-phonon-e8a5';
+    const otherSlug =
+      '-Users-thomas-stang--superconductor-worktrees-stoa-sc-levitated-phonon-e8a5';
     const projectDir = join(home, '.claude', 'projects', otherSlug);
     await mkdir(projectDir, { recursive: true });
     const transcriptPath = join(projectDir, 'typical.jsonl');
     await writeFile(transcriptPath, CLAUDE_CODE_TYPICAL, 'utf8');
 
     const candidates = await discover('claude-code', targetCwd);
-    const c = candidates.find(candidate => candidate.transcriptPath === transcriptPath);
+    const c = candidates.find(
+      (candidate) => candidate.transcriptPath === transcriptPath,
+    );
 
     assert.ok(c, 'fallback scan should include non-direct project dirs');
     assert.equal(c.cwdSlug, otherSlug);
@@ -181,7 +213,12 @@ test('codex: discover returns candidate with cwd from session-meta record', asyn
 
     const targetCwd = '/Users/testuser/Code/my-project';
     const sessionDate = '2026/05/14';
-    const sessionDir = join(home, '.codex', 'sessions', ...sessionDate.split('/'));
+    const sessionDir = join(
+      home,
+      '.codex',
+      'sessions',
+      ...sessionDate.split('/'),
+    );
     await mkdir(sessionDir, { recursive: true });
     const transcriptPath = join(sessionDir, 'session-abc.jsonl');
     await writeFile(transcriptPath, makeCodexTypical(targetCwd), 'utf8');
@@ -189,9 +226,13 @@ test('codex: discover returns candidate with cwd from session-meta record', asyn
     const candidates = await discover('codex', targetCwd);
 
     assert.ok(candidates.length >= 1, 'should find at least one candidate');
-    const c = candidates.find(x => x.sessionId === 'codex-sess-001');
+    const c = candidates.find((x) => x.sessionId === 'codex-sess-001');
     assert.ok(c, 'should find the session by id');
-    assert.equal(c.recordedCwd, targetCwd, 'recordedCwd should match session-meta cwd');
+    assert.equal(
+      c.recordedCwd,
+      targetCwd,
+      'recordedCwd should match session-meta cwd',
+    );
     assert.equal(c.runtime, 'codex');
   });
 });
@@ -209,7 +250,14 @@ test('codex: LOOKBACK_DAYS filter excludes files older than 7 days', async () =>
     const staleMonth = String(staleDate.getMonth() + 1).padStart(2, '0');
     const staleDay = String(staleDate.getDate()).padStart(2, '0');
 
-    const staleDir = join(home, '.codex', 'sessions', staleYear, staleMonth, staleDay);
+    const staleDir = join(
+      home,
+      '.codex',
+      'sessions',
+      staleYear,
+      staleMonth,
+      staleDay,
+    );
     await mkdir(staleDir, { recursive: true });
     const stalePath = join(staleDir, 'session-stale.jsonl');
     await writeFile(stalePath, makeCodexTypical(targetCwd), 'utf8');
@@ -220,8 +268,12 @@ test('codex: LOOKBACK_DAYS filter excludes files older than 7 days', async () =>
 
     const candidates = await discover('codex', targetCwd);
 
-    const staleFound = candidates.find(c => c.transcriptPath === stalePath);
-    assert.equal(staleFound, undefined, 'stale transcript should be excluded by LOOKBACK_DAYS filter');
+    const staleFound = candidates.find((c) => c.transcriptPath === stalePath);
+    assert.equal(
+      staleFound,
+      undefined,
+      'stale transcript should be excluded by LOOKBACK_DAYS filter',
+    );
   });
 });
 
@@ -231,7 +283,12 @@ test('codex cwd cache: cache hit proved by observable cache-file state', async (
 
     const targetCwd = '/Users/testuser/Code/cached-project';
     const sessionDate = '2026/05/14';
-    const sessionDir = join(home, '.codex', 'sessions', ...sessionDate.split('/'));
+    const sessionDir = join(
+      home,
+      '.codex',
+      'sessions',
+      ...sessionDate.split('/'),
+    );
     await mkdir(sessionDir, { recursive: true });
     const transcriptPath = join(sessionDir, 'session-cache-test.jsonl');
 
@@ -240,7 +297,10 @@ test('codex cwd cache: cache hit proved by observable cache-file state', async (
 
     // First discover: populates the cache
     const firstResult = await discover('codex', targetCwd);
-    assert.ok(firstResult.length >= 1, 'first discover should find the candidate');
+    assert.ok(
+      firstResult.length >= 1,
+      'first discover should find the candidate',
+    );
 
     // Read the original mtime
     const { stat } = await import('node:fs/promises');
@@ -255,8 +315,15 @@ test('codex cwd cache: cache hit proved by observable cache-file state', async (
     const cache = JSON.parse(cacheRaw);
     const mtimeSec = Math.floor(origMtime.getTime() / 1000);
     const cacheKey = `${transcriptPath}:${mtimeSec}`;
-    assert.ok(cache[cacheKey], `cache should contain an entry for key ${cacheKey}`);
-    assert.equal(cache[cacheKey].recordedCwd, targetCwd, 'cached entry should have the original cwd');
+    assert.ok(
+      cache[cacheKey],
+      `cache should contain an entry for key ${cacheKey}`,
+    );
+    assert.equal(
+      cache[cacheKey].recordedCwd,
+      targetCwd,
+      'cached entry should have the original cwd',
+    );
 
     // Overwrite transcript with a DIFFERENT cwd (but keep same mtime)
     const differentCwd = '/Users/testuser/Code/DIFFERENT-project';
@@ -269,12 +336,14 @@ test('codex cwd cache: cache hit proved by observable cache-file state', async (
 
     // The candidate for our transcript should still report targetCwd (from cache),
     // not differentCwd (from the rewritten content)
-    const cachedCandidate = secondResult.find(c => c.transcriptPath === transcriptPath);
+    const cachedCandidate = secondResult.find(
+      (c) => c.transcriptPath === transcriptPath,
+    );
     assert.ok(cachedCandidate, 'transcript should still be found');
     assert.equal(
       cachedCandidate.recordedCwd,
       targetCwd,
-      'recordedCwd should come from the cache, not the rewritten transcript'
+      'recordedCwd should come from the cache, not the rewritten transcript',
     );
   });
 });
@@ -285,13 +354,22 @@ test('cursor: direct lookup discovers agent transcript with exact cwd evidence',
 
     const targetCwd = join(home, 'Code', 'my.cursor-project');
     const encoded = encodeCursorCwd(targetCwd);
-    const transcriptDir = join(home, '.cursor', 'projects', encoded, 'agent-transcripts', 'session-123');
+    const transcriptDir = join(
+      home,
+      '.cursor',
+      'projects',
+      encoded,
+      'agent-transcripts',
+      'session-123',
+    );
     await mkdir(transcriptDir, { recursive: true });
     const transcriptPath = join(transcriptDir, 'transcript.jsonl');
     await writeFile(transcriptPath, CURSOR_TYPICAL, 'utf8');
 
     const candidates = await discover('cursor', targetCwd);
-    const c = candidates.find(candidate => candidate.transcriptPath === transcriptPath);
+    const c = candidates.find(
+      (candidate) => candidate.transcriptPath === transcriptPath,
+    );
 
     assert.ok(c, 'should find the direct Cursor transcript');
     assert.equal(c.runtime, 'cursor');
@@ -308,13 +386,22 @@ test('cursor: fallback scan preserves project cwdSlug evidence', async () => {
 
     const targetCwd = join(home, 'Code', 'missing-project');
     const fallbackSlug = 'Users-test-Code-real-project';
-    const transcriptDir = join(home, '.cursor', 'projects', fallbackSlug, 'agent-transcripts', 'session-abc');
+    const transcriptDir = join(
+      home,
+      '.cursor',
+      'projects',
+      fallbackSlug,
+      'agent-transcripts',
+      'session-abc',
+    );
     await mkdir(transcriptDir, { recursive: true });
     const transcriptPath = join(transcriptDir, 'conversation.jsonl');
     await writeFile(transcriptPath, CURSOR_TYPICAL, 'utf8');
 
     const candidates = await discover('cursor', targetCwd);
-    const c = candidates.find(candidate => candidate.transcriptPath === transcriptPath);
+    const c = candidates.find(
+      (candidate) => candidate.transcriptPath === transcriptPath,
+    );
 
     assert.ok(c, 'fallback scan should include Cursor project dirs');
     assert.equal(c.runtime, 'cursor');
@@ -331,19 +418,37 @@ test('cursor: empty direct transcript dir still allows fallback scan', async () 
 
     const targetCwd = join(home, 'Code', 'my.cursor-project');
     const encoded = encodeCursorCwd(targetCwd);
-    const directRoot = join(home, '.cursor', 'projects', encoded, 'agent-transcripts');
+    const directRoot = join(
+      home,
+      '.cursor',
+      'projects',
+      encoded,
+      'agent-transcripts',
+    );
     await mkdir(directRoot, { recursive: true });
 
     const fallbackSlug = 'Users-test-Code-other-cursor-project';
-    const transcriptDir = join(home, '.cursor', 'projects', fallbackSlug, 'agent-transcripts', 'session-fallback');
+    const transcriptDir = join(
+      home,
+      '.cursor',
+      'projects',
+      fallbackSlug,
+      'agent-transcripts',
+      'session-fallback',
+    );
     await mkdir(transcriptDir, { recursive: true });
     const transcriptPath = join(transcriptDir, 'conversation.jsonl');
     await writeFile(transcriptPath, CURSOR_TYPICAL, 'utf8');
 
     const candidates = await discover('cursor', targetCwd);
-    const c = candidates.find(candidate => candidate.transcriptPath === transcriptPath);
+    const c = candidates.find(
+      (candidate) => candidate.transcriptPath === transcriptPath,
+    );
 
-    assert.ok(c, 'empty direct Cursor dirs should not suppress fallback candidates');
+    assert.ok(
+      c,
+      'empty direct Cursor dirs should not suppress fallback candidates',
+    );
     assert.equal(c.recordedCwd, null);
     assert.equal(c.cwdSlug, fallbackSlug);
     assert.equal(c.cwdEvidence, 'project-dir-slug');
@@ -356,7 +461,14 @@ test('cursor: fallback scan excludes transcripts older than 7 days', async () =>
 
     const targetCwd = join(home, 'Code', 'missing-project');
     const fallbackSlug = 'Users-test-Code-real-project';
-    const transcriptDir = join(home, '.cursor', 'projects', fallbackSlug, 'agent-transcripts', 'session-old');
+    const transcriptDir = join(
+      home,
+      '.cursor',
+      'projects',
+      fallbackSlug,
+      'agent-transcripts',
+      'session-old',
+    );
     await mkdir(transcriptDir, { recursive: true });
     const transcriptPath = join(transcriptDir, 'conversation.jsonl');
     await writeFile(transcriptPath, CURSOR_TYPICAL, 'utf8');
@@ -367,9 +479,15 @@ test('cursor: fallback scan excludes transcripts older than 7 days', async () =>
     await utimes(transcriptPath, staleTime, staleTime);
 
     const candidates = await discover('cursor', targetCwd);
-    const staleFound = candidates.find(candidate => candidate.transcriptPath === transcriptPath);
+    const staleFound = candidates.find(
+      (candidate) => candidate.transcriptPath === transcriptPath,
+    );
 
-    assert.equal(staleFound, undefined, 'stale Cursor fallback transcript should be excluded');
+    assert.equal(
+      staleFound,
+      undefined,
+      'stale Cursor fallback transcript should be excluded',
+    );
   });
 });
 
@@ -383,8 +501,8 @@ test('gitWorktrees: parses real repo --porcelain output and returns worktree pat
   assert.ok(Array.isArray(worktrees), 'should return an array');
   // The main worktree should be included
   assert.ok(
-    worktrees.some(p => typeof p === 'string' && p.length > 0),
-    'should return at least one non-empty string path'
+    worktrees.some((p) => typeof p === 'string' && p.length > 0),
+    'should return at least one non-empty string path',
   );
 });
 

@@ -6,25 +6,36 @@
  * Never uses a bare relative 'scripts/...' path.
  */
 
-import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
-import { join, dirname } from 'node:path';
-import { mkdtemp, rm, mkdir, copyFile, writeFile, readFile } from 'node:fs/promises';
+import {
+  mkdtemp,
+  rm,
+  mkdir,
+  copyFile,
+  writeFile,
+  readFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
+import { join, dirname } from 'node:path';
+import { test, describe } from 'node:test';
+import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // Absolute path to the CLI — resolved from import.meta.url
-const CLI_PATH = fileURLToPath(new URL(
-  '../../skills/session-observer/scripts/session-observer.mjs',
-  import.meta.url
-));
-const PROBE_PATH = fileURLToPath(new URL(
-  '../../skills/session-observer/scripts/probe-local.mjs',
-  import.meta.url
-));
+const CLI_PATH = fileURLToPath(
+  new URL(
+    '../../skills/session-observer/scripts/session-observer.mjs',
+    import.meta.url,
+  ),
+);
+const PROBE_PATH = fileURLToPath(
+  new URL(
+    '../../skills/session-observer/scripts/probe-local.mjs',
+    import.meta.url,
+  ),
+);
 
 const FIXTURES = join(__dirname, 'fixtures');
 const TYPICAL_CLAUDE = join(FIXTURES, 'claude-code', 'typical.jsonl');
@@ -55,11 +66,22 @@ function cursorSlug(cwd) {
 }
 
 function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function copyCursorTranscript(home, cwd, sessionId = 'cursor-session-001') {
-  const transcriptDir = join(home, '.cursor', 'projects', cursorSlug(cwd), 'agent-transcripts', sessionId);
+async function copyCursorTranscript(
+  home,
+  cwd,
+  sessionId = 'cursor-session-001',
+) {
+  const transcriptDir = join(
+    home,
+    '.cursor',
+    'projects',
+    cursorSlug(cwd),
+    'agent-transcripts',
+    sessionId,
+  );
   await mkdir(transcriptDir, { recursive: true });
   const transcriptPath = join(transcriptDir, `${sessionId}.jsonl`);
   await copyFile(TYPICAL_CURSOR, transcriptPath);
@@ -96,20 +118,41 @@ describe('integration: review', () => {
     try {
       const result = spawnCli(
         ['review', '--runtime', 'claude-code', '--cwd', cwd],
-        { HOME: tmpDir, STATE_DIR: stateDir }
+        { HOME: tmpDir, STATE_DIR: stateDir },
       );
 
-      assert.equal(result.status, 0,
-        `Expected exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`);
-      assert.ok(result.stdout.includes('### User'), 'output should contain ### User');
-      assert.ok(result.stdout.includes('### Assistant'), 'output should contain ### Assistant');
+      assert.equal(
+        result.status,
+        0,
+        `Expected exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
+      );
+      assert.ok(
+        result.stdout.includes('### User'),
+        'output should contain ### User',
+      );
+      assert.ok(
+        result.stdout.includes('### Assistant'),
+        'output should contain ### Assistant',
+      );
 
       // Tool call markers should NOT appear by default
-      assert.ok(!result.stdout.includes('[Read]'), 'should not include [Read] tool marker');
-      assert.ok(!result.stdout.includes('[Bash]'), 'should not include [Bash] tool marker');
-      assert.ok(!result.stdout.includes('[Edit]'), 'should not include [Edit] tool marker');
+      assert.ok(
+        !result.stdout.includes('[Read]'),
+        'should not include [Read] tool marker',
+      );
+      assert.ok(
+        !result.stdout.includes('[Bash]'),
+        'should not include [Bash] tool marker',
+      );
+      assert.ok(
+        !result.stdout.includes('[Edit]'),
+        'should not include [Edit] tool marker',
+      );
       // Also confirm the tool from our fixture is excluded
-      assert.ok(!result.stdout.includes('[Read →'), 'should not include tool result markers');
+      assert.ok(
+        !result.stdout.includes('[Read →'),
+        'should not include tool result markers',
+      );
     } finally {
       await cleanup();
     }
@@ -124,20 +167,26 @@ describe('integration: review', () => {
     try {
       const result = spawnCli(
         ['review', '--runtime', 'claude-code', '--cwd', cwd, '--include-tools'],
-        { HOME: tmpDir, STATE_DIR: stateDir }
+        { HOME: tmpDir, STATE_DIR: stateDir },
       );
 
-      assert.equal(result.status, 0,
-        `Expected exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`);
+      assert.equal(
+        result.status,
+        0,
+        `Expected exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
+      );
 
       // The typical fixture has a tool_use (Read) — with --include-tools it should appear
       assert.ok(
-        result.stdout.includes('[Read]') || result.stdout.includes('[') ,
-        'output should contain at least some tool marker with --include-tools'
+        result.stdout.includes('[Read]') || result.stdout.includes('['),
+        'output should contain at least some tool marker with --include-tools',
       );
 
       // But tool results (→ result) should still be excluded
-      assert.ok(!result.stdout.includes('→ result]'), 'tool results should be excluded with --include-tools');
+      assert.ok(
+        !result.stdout.includes('→ result]'),
+        'tool results should be excluded with --include-tools',
+      );
     } finally {
       await cleanup();
     }
@@ -152,22 +201,25 @@ describe('integration: review', () => {
     try {
       const result = spawnCli(
         ['review', '--runtime', 'claude-code', '--cwd', cwd, '--debug'],
-        { HOME: tmpDir, STATE_DIR: stateDir }
+        { HOME: tmpDir, STATE_DIR: stateDir },
       );
 
-      assert.equal(result.status, 0,
-        `Expected exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`);
+      assert.equal(
+        result.status,
+        0,
+        `Expected exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
+      );
 
       // --debug = --include-tools --include-tool-results
       // The typical fixture has Read tool_use and tool_result
       assert.ok(
         result.stdout.includes('[Read]') || result.stdout.includes('['),
-        'output should contain tool marker with --debug'
+        'output should contain tool marker with --debug',
       );
       // Tool results should also appear
       assert.ok(
         result.stdout.includes('→ result]') || result.stdout.includes('result'),
-        'output should contain tool result marker with --debug'
+        'output should contain tool result marker with --debug',
       );
     } finally {
       await cleanup();
@@ -186,27 +238,36 @@ describe('integration: catch-up', () => {
       // First catch-up: should return content (offset starts at 0)
       const first = spawnCli(
         ['catch-up', '--runtime', 'claude-code', '--cwd', cwd],
-        { HOME: tmpDir, STATE_DIR: stateDir }
+        { HOME: tmpDir, STATE_DIR: stateDir },
       );
-      assert.equal(first.status, 0,
-        `First catch-up should exit 0\nstdout: ${first.stdout}\nstderr: ${first.stderr}`);
-      assert.ok(first.stdout.includes('### User') || first.stdout.includes('session-observer'),
-        'First catch-up should have content');
+      assert.equal(
+        first.status,
+        0,
+        `First catch-up should exit 0\nstdout: ${first.stdout}\nstderr: ${first.stderr}`,
+      );
+      assert.ok(
+        first.stdout.includes('### User') ||
+          first.stdout.includes('session-observer'),
+        'First catch-up should have content',
+      );
 
       // Second catch-up: offset now equals totalRecords → no new content
       const second = spawnCli(
         ['catch-up', '--runtime', 'claude-code', '--cwd', cwd],
-        { HOME: tmpDir, STATE_DIR: stateDir }
+        { HOME: tmpDir, STATE_DIR: stateDir },
       );
-      assert.equal(second.status, 0,
-        `Second catch-up should exit 0\nstdout: ${second.stdout}\nstderr: ${second.stderr}`);
+      assert.equal(
+        second.status,
+        0,
+        `Second catch-up should exit 0\nstdout: ${second.stdout}\nstderr: ${second.stderr}`,
+      );
       // Second catch-up should show 0 new records or "no new records" style header
       assert.ok(
         second.stdout.includes('new records: 0') ||
-        second.stdout.includes('No messages in range') ||
-        second.stdout.includes('0') ||
-        second.stdout.length > 0,
-        'Second catch-up should exit 0 (even with no new content)'
+          second.stdout.includes('No messages in range') ||
+          second.stdout.includes('0') ||
+          second.stdout.length > 0,
+        'Second catch-up should exit 0 (even with no new content)',
       );
     } finally {
       await cleanup();
@@ -218,10 +279,13 @@ describe('integration: catch-up', () => {
     try {
       const first = spawnCli(
         ['catch-up', '--runtime', 'claude-code', '--cwd', cwd, '--json'],
-        { HOME: tmpDir, STATE_DIR: stateDir }
+        { HOME: tmpDir, STATE_DIR: stateDir },
       );
-      assert.equal(first.status, 0,
-        `First catch-up should exit 0\nstdout: ${first.stdout}\nstderr: ${first.stderr}`);
+      assert.equal(
+        first.status,
+        0,
+        `First catch-up should exit 0\nstdout: ${first.stdout}\nstderr: ${first.stderr}`,
+      );
 
       const statePath = join(stateDir, 'state.json');
       const before = JSON.parse(await readFile(statePath, 'utf8'));
@@ -229,13 +293,20 @@ describe('integration: catch-up', () => {
 
       const second = spawnCli(
         ['catch-up', '--runtime', 'claude-code', '--cwd', cwd, '--json'],
-        { HOME: tmpDir, STATE_DIR: stateDir }
+        { HOME: tmpDir, STATE_DIR: stateDir },
       );
-      assert.equal(second.status, 0,
-        `Second catch-up should exit 0\nstdout: ${second.stdout}\nstderr: ${second.stderr}`);
+      assert.equal(
+        second.status,
+        0,
+        `Second catch-up should exit 0\nstdout: ${second.stdout}\nstderr: ${second.stderr}`,
+      );
 
       const after = JSON.parse(await readFile(statePath, 'utf8'));
-      assert.deepEqual(after, before, 'no-op catch-up should not rewrite matching state');
+      assert.deepEqual(
+        after,
+        before,
+        'no-op catch-up should not rewrite matching state',
+      );
     } finally {
       await cleanup();
     }
@@ -253,44 +324,83 @@ describe('integration: catch-up', () => {
 
       const transcriptPath = join(projectDir, 'session-boundary.jsonl');
       const records = [
-        { sessionId: 'boundary-session', message: { role: 'user', content: 'previous user message' } },
-        { sessionId: 'boundary-session', message: { role: 'assistant', content: 'boundary message should not repeat' } },
-        { sessionId: 'boundary-session', message: { role: 'assistant', content: 'new message only' } },
-      ];
-      await writeFile(transcriptPath, records.map(record => JSON.stringify(record)).join('\n') + '\n', 'utf8');
-
-      await writeFile(join(stateDir, 'state.json'), JSON.stringify({
-        schemaVersion: 1,
-        sessions: {
-          'claude-code:boundary-session': {
-            runtime: 'claude-code',
-            sessionId: 'boundary-session',
-            lastRecordIndex: 2,
-            lastTotalRecords: 3,
-            lastReadAt: new Date().toISOString(),
-            transcriptPath,
-            recordedCwd: cwd,
-            watchedByPid: null,
+        {
+          sessionId: 'boundary-session',
+          message: { role: 'user', content: 'previous user message' },
+        },
+        {
+          sessionId: 'boundary-session',
+          message: {
+            role: 'assistant',
+            content: 'boundary message should not repeat',
           },
         },
-      }, null, 2), 'utf8');
+        {
+          sessionId: 'boundary-session',
+          message: { role: 'assistant', content: 'new message only' },
+        },
+      ];
+      await writeFile(
+        transcriptPath,
+        records.map((record) => JSON.stringify(record)).join('\n') + '\n',
+        'utf8',
+      );
+
+      await writeFile(
+        join(stateDir, 'state.json'),
+        JSON.stringify(
+          {
+            schemaVersion: 1,
+            sessions: {
+              'claude-code:boundary-session': {
+                runtime: 'claude-code',
+                sessionId: 'boundary-session',
+                lastRecordIndex: 2,
+                lastTotalRecords: 3,
+                lastReadAt: new Date().toISOString(),
+                transcriptPath,
+                recordedCwd: cwd,
+                watchedByPid: null,
+              },
+            },
+          },
+          null,
+          2,
+        ),
+        'utf8',
+      );
 
       const result = spawnCli(
         ['catch-up', '--runtime', 'claude-code', '--cwd', cwd],
-        { HOME: tmpDir, STATE_DIR: stateDir }
+        { HOME: tmpDir, STATE_DIR: stateDir },
       );
 
-      assert.equal(result.status, 0,
-        `catch-up should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`);
-      assert.ok(result.stdout.includes('new message only'), 'should render the first unread record');
-      assert.ok(!result.stdout.includes('boundary message should not repeat'), 'must not re-render the previous boundary record');
-      assert.ok(result.stdout.includes('raw range (zero-based JSONL indices):** records 2–2 of 3'));
+      assert.equal(
+        result.status,
+        0,
+        `catch-up should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
+      );
+      assert.ok(
+        result.stdout.includes('new message only'),
+        'should render the first unread record',
+      );
+      assert.ok(
+        !result.stdout.includes('boundary message should not repeat'),
+        'must not re-render the previous boundary record',
+      );
+      assert.ok(
+        result.stdout.includes(
+          'raw range (zero-based JSONL indices):** records 2–2 of 3',
+        ),
+      );
 
-      const state = JSON.parse(await readFile(join(stateDir, 'state.json'), 'utf8'));
+      const state = JSON.parse(
+        await readFile(join(stateDir, 'state.json'), 'utf8'),
+      );
       assert.equal(
         state.sessions['claude-code:boundary-session'].lastRecordIndex,
         3,
-        'stored offset should advance to the next unread zero-based record index'
+        'stored offset should advance to the next unread zero-based record index',
       );
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
@@ -307,26 +417,39 @@ describe('integration: catch-up', () => {
       // First catch-up to advance offset
       const first = spawnCli(
         ['catch-up', '--runtime', 'claude-code', '--cwd', cwd],
-        { HOME: tmpDir, STATE_DIR: stateDir }
+        { HOME: tmpDir, STATE_DIR: stateDir },
       );
-      assert.equal(first.status, 0, `First catch-up should exit 0\nstderr: ${first.stderr}`);
+      assert.equal(
+        first.status,
+        0,
+        `First catch-up should exit 0\nstderr: ${first.stderr}`,
+      );
 
       // Reset state for claude-code
-      const reset = spawnCli(
-        ['state', 'reset', '--runtime', 'claude-code'],
-        { HOME: tmpDir, STATE_DIR: stateDir }
+      const reset = spawnCli(['state', 'reset', '--runtime', 'claude-code'], {
+        HOME: tmpDir,
+        STATE_DIR: stateDir,
+      });
+      assert.equal(
+        reset.status,
+        0,
+        `state reset should exit 0\nstderr: ${reset.stderr}`,
       );
-      assert.equal(reset.status, 0, `state reset should exit 0\nstderr: ${reset.stderr}`);
 
       // Second catch-up after reset: should re-emit full content
       const second = spawnCli(
         ['catch-up', '--runtime', 'claude-code', '--cwd', cwd],
-        { HOME: tmpDir, STATE_DIR: stateDir }
+        { HOME: tmpDir, STATE_DIR: stateDir },
       );
-      assert.equal(second.status, 0,
-        `Catch-up after reset should exit 0\nstdout: ${second.stdout}\nstderr: ${second.stderr}`);
-      assert.ok(second.stdout.includes('### User'),
-        'After reset, catch-up should re-emit full content');
+      assert.equal(
+        second.status,
+        0,
+        `Catch-up after reset should exit 0\nstdout: ${second.stdout}\nstderr: ${second.stderr}`,
+      );
+      assert.ok(
+        second.stdout.includes('### User'),
+        'After reset, catch-up should re-emit full content',
+      );
     } finally {
       await cleanup();
     }
@@ -339,14 +462,18 @@ describe('integration: catch-up', () => {
 
 describe('integration: empty fixture', () => {
   test('review against empty fixture exits 3', async (t) => {
-    const { tmpDir, cwd, stateDir, cleanup } = await setupTempHome(EMPTY_CLAUDE);
+    const { tmpDir, cwd, stateDir, cleanup } =
+      await setupTempHome(EMPTY_CLAUDE);
     try {
       const result = spawnCli(
         ['review', '--runtime', 'claude-code', '--cwd', cwd],
-        { HOME: tmpDir, STATE_DIR: stateDir }
+        { HOME: tmpDir, STATE_DIR: stateDir },
       );
-      assert.equal(result.status, 3,
-        `Expected exit 3 for unengaged empty fixture\nstdout: ${result.stdout}\nstderr: ${result.stderr}`);
+      assert.equal(
+        result.status,
+        3,
+        `Expected exit 3 for unengaged empty fixture\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
+      );
       assert.ok(result.stdout.includes('has no user conversation yet'));
     } finally {
       await cleanup();
@@ -367,16 +494,21 @@ describe('integration: probe-local', () => {
       await mkdir(stateDir, { recursive: true });
       await copyCursorTranscript(tmpDir, cwd, 'cursor-probe');
 
-      const result = spawnProbe(
-        ['--runtime', 'cursor', '--cwd', cwd],
-        { HOME: tmpDir, STATE_DIR: stateDir }
-      );
+      const result = spawnProbe(['--runtime', 'cursor', '--cwd', cwd], {
+        HOME: tmpDir,
+        STATE_DIR: stateDir,
+      });
 
-      assert.equal(result.status, 0,
-        `probe-local should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`);
+      assert.equal(
+        result.status,
+        0,
+        `probe-local should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
+      );
       assert.ok(
-        result.stdout.includes('[probe-local] transcript store: ~/.cursor/projects/'),
-        'probe-local should report Cursor transcript store'
+        result.stdout.includes(
+          '[probe-local] transcript store: ~/.cursor/projects/',
+        ),
+        'probe-local should report Cursor transcript store',
       );
     } finally {
       await rm(tmpDir, { recursive: true, force: true });

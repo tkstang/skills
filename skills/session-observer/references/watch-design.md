@@ -37,19 +37,19 @@ session-observer --watch [watch options]
 session-observer catch-up-then-watch [watch options]
 ```
 
-| Flag | Default | Description |
-|---|---|---|
-| `--runtime <r>\|both` | `auto` | Which runtime(s) to watch. `both` runs a single process that polls both stores. |
-| `--cwd <path>` | `process.cwd()` | Project directory to match sessions against. |
-| `--debounce-sec N` | 2 | Hold for N seconds of quiet before emitting an event. |
-| `--poll-sec N` | 2 | Poll interval in seconds. |
-| `--max-pending-sec N` | 30 | Maximum seconds to hold continuous transcript changes before emitting even if the file never goes quiet. |
-| `--max-runtime-min N` | 0 (unlimited) | Auto-exit after N minutes (0 = run until stopped). |
-| `--heartbeat-sec N` | 120 | Emit quiet metadata/status heartbeat lines every N seconds; 0 disables heartbeats. |
-| `--until-stopped` | false | Alias posture for unlimited foreground watching. Equivalent to `--max-runtime-min 0`. |
-| `--interactive` | false | Alias posture for live collaboration. Equivalent to `--max-runtime-min 0`. |
-| `--event-log <path>` | — | Mirror events to a JSONL file (metadata only, no content). Relative paths resolve inside `~/.local/state/session-observer/`; absolute paths must also stay inside that directory. |
-| `--json` | false | Emit each event as a JSON line to stdout instead of human-readable text. |
+| Flag                  | Default         | Description                                                                                                                                                                       |
+| --------------------- | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--runtime <r>\|both` | `auto`          | Which runtime(s) to watch. `both` runs a single process that polls both stores.                                                                                                   |
+| `--cwd <path>`        | `process.cwd()` | Project directory to match sessions against.                                                                                                                                      |
+| `--debounce-sec N`    | 2               | Hold for N seconds of quiet before emitting an event.                                                                                                                             |
+| `--poll-sec N`        | 2               | Poll interval in seconds.                                                                                                                                                         |
+| `--max-pending-sec N` | 30              | Maximum seconds to hold continuous transcript changes before emitting even if the file never goes quiet.                                                                          |
+| `--max-runtime-min N` | 0 (unlimited)   | Auto-exit after N minutes (0 = run until stopped).                                                                                                                                |
+| `--heartbeat-sec N`   | 120             | Emit quiet metadata/status heartbeat lines every N seconds; 0 disables heartbeats.                                                                                                |
+| `--until-stopped`     | false           | Alias posture for unlimited foreground watching. Equivalent to `--max-runtime-min 0`.                                                                                             |
+| `--interactive`       | false           | Alias posture for live collaboration. Equivalent to `--max-runtime-min 0`.                                                                                                        |
+| `--event-log <path>`  | —               | Mirror events to a JSONL file (metadata only, no content). Relative paths resolve inside `~/.local/state/session-observer/`; absolute paths must also stay inside that directory. |
+| `--json`              | false           | Emit each event as a JSON line to stdout instead of human-readable text.                                                                                                          |
 
 Foreground process. Quits on SIGINT or SIGTERM. Stdout is a human-readable event stream; `--event-log` mirrors metadata-only delta events to a JSONL file for replay/introspection.
 
@@ -151,14 +151,12 @@ No new parsing code. Watch is a debounce-wrapped loop around the existing `catch
         "recordCount": 458,
         "baselineRecordIndex": 458,
         "engagementStatus": "engaged",
-        "lockedAt": "2026-05-14T16:42:09Z"
-      }
+        "lockedAt": "2026-05-14T16:42:09Z",
+      },
     ],
-    "lastError": null
+    "lastError": null,
   },
-  "watchers": [
-    "..."
-  ]
+  "watchers": ["..."],
 }
 ```
 
@@ -182,7 +180,7 @@ Each line in the event log is metadata only — no message content. Delta event 
   "sessionId": "abc123…",
   "newRecords": 3,
   "digestChars": 482,
-  "ranges": { "fromIndex": 47, "toIndex": 50 }
+  "ranges": { "fromIndex": 47, "toIndex": 50 },
 }
 ```
 
@@ -194,13 +192,13 @@ Event-log paths are constrained to the session-observer state directory. A relat
 
 In `--json` mode, stdout events use these stable `type` values:
 
-| Type | Meaning | Agent behavior |
-|---|---|---|
-| `baseline` | Watcher locked onto a transcript and established its initial offset. | Stay quiet; this is setup, not a completed watch. |
-| `delta` | New transcript records were emitted as a catch-up digest. | Read the digest, respond if useful, then keep watching. |
-| `heartbeat` | Watcher is still active during a quiet period. | Stay quiet unless `healthy` is false or `recordsBehind` is unexpected. |
-| `stopped` | Watch loop exited normally, by timeout, signal, or `watch-ctl stop`. | If the user wanted continued monitoring, restart `catch-up-then-watch`. |
-| `error` | Watch setup or the watch loop hit an error before exiting. | Surface the error and decide whether to restart or ask for help. |
+| Type        | Meaning                                                              | Agent behavior                                                          |
+| ----------- | -------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `baseline`  | Watcher locked onto a transcript and established its initial offset. | Stay quiet; this is setup, not a completed watch.                       |
+| `delta`     | New transcript records were emitted as a catch-up digest.            | Read the digest, respond if useful, then keep watching.                 |
+| `heartbeat` | Watcher is still active during a quiet period.                       | Stay quiet unless `healthy` is false or `recordsBehind` is unexpected.  |
+| `stopped`   | Watch loop exited normally, by timeout, signal, or `watch-ctl stop`. | If the user wanted continued monitoring, restart `catch-up-then-watch`. |
+| `error`     | Watch setup or the watch loop hit an error before exiting.           | Surface the error and decide whether to restart or ask for help.        |
 
 Setup failures (invalid runtime, event-log path validation, `startWatcher` refusal) are also rendered as a single `error` event in `--json` mode, so the stdout stream is the complete contract — agents never need to fall back to stderr to learn why a watch exited.
 
@@ -284,10 +282,10 @@ These are binding for watch mode:
 
 ## Decisions Locked
 
-| Decision | Rationale |
-|---|---|
-| No SIGUSR1 | Control surface is more discoverable and scriptable via control file + `watch-ctl`. |
-| No `--notify` / macOS notification center | Expected usage is two terminals side-by-side; system notifications add noise. |
-| Polling over `fs.watch` | OS-agnostic; cheap for small candidate sets; predictable test behavior. |
-| Debounce before emit | Avoids half-formed turns during active writes. Default 2s is tunable. |
-| One process for `--runtime both` | Shared debounce loop and one event log for a combined watcher, while still allowing separate watcher processes for reciprocal sessions. |
+| Decision                                  | Rationale                                                                                                                               |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| No SIGUSR1                                | Control surface is more discoverable and scriptable via control file + `watch-ctl`.                                                     |
+| No `--notify` / macOS notification center | Expected usage is two terminals side-by-side; system notifications add noise.                                                           |
+| Polling over `fs.watch`                   | OS-agnostic; cheap for small candidate sets; predictable test behavior.                                                                 |
+| Debounce before emit                      | Avoids half-formed turns during active writes. Default 2s is tunable.                                                                   |
+| One process for `--runtime both`          | Shared debounce loop and one event log for a combined watcher, while still allowing separate watcher processes for reciprocal sessions. |

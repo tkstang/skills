@@ -4,12 +4,12 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
+import { hashArtifact } from '../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
 import {
   renderDeliberationArtifact,
   runSequential,
-  runWrapperCli
+  runWrapperCli,
 } from '../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
-import { hashArtifact } from '../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
 
 function captureStdout() {
   const lines = [];
@@ -24,7 +24,7 @@ function captureStdout() {
         .split('\n')
         .filter(Boolean)
         .map((line) => JSON.parse(line));
-    }
+    },
   };
 }
 
@@ -36,12 +36,14 @@ function stubEnv(overrides = {}) {
   return {
     ...process.env,
     PATH: `${fixtureBin}${path.delimiter}${process.env.PATH}`,
-    ...overrides
+    ...overrides,
   };
 }
 
 function extractJsonBlock(markdown, label) {
-  const pattern = new RegExp('<!-- consensus:' + label + '\\n([\\s\\S]*?)\\n-->');
+  const pattern = new RegExp(
+    '<!-- consensus:' + label + '\\n([\\s\\S]*?)\\n-->',
+  );
   const match = markdown.match(pattern);
   assert.ok(match, `missing ${label} JSON block`);
   return JSON.parse(match[1]);
@@ -63,7 +65,10 @@ function completedResumeArtifact(sections) {
     '',
     '## Final Output',
     '',
-    sections.map((section) => section.output).join('\n\n').replace(/\n*$/u, '\n'),
+    sections
+      .map((section) => section.output)
+      .join('\n\n')
+      .replace(/\n*$/u, '\n'),
     '## Resolution',
     '',
     consensusBlock('consensus-resolution', {
@@ -71,7 +76,7 @@ function completedResumeArtifact(sections) {
       status: 'converged',
       mode: 'sequential',
       parallel: false,
-      peers: ['claude', 'codex']
+      peers: ['claude', 'codex'],
     }),
     '',
     '## Section States',
@@ -86,8 +91,8 @@ function completedResumeArtifact(sections) {
         turns: 2,
         rounds: 1,
         final_artifact_hash: hashArtifact(section.output),
-        final_output: section.output
-      }))
+        final_output: section.output,
+      })),
     ),
     '',
     '## Deliberation Log',
@@ -101,32 +106,34 @@ function completedResumeArtifact(sections) {
         termination_reason: 'accept_twice',
         turns: 2,
         rounds: 1,
-        final_artifact_hash: hashArtifact(section.output)
+        final_artifact_hash: hashArtifact(section.output),
       }),
       '',
       consensusBlock('consensus-verdict', {
         schema_version: 'v0',
         verdict: 'ACCEPT',
-        reasoning: 'Stable.'
+        reasoning: 'Stable.',
       }),
       '',
       consensusBlock('consensus-verdict', {
         schema_version: 'v0',
         verdict: 'ACCEPT',
-        reasoning: 'Still stable.'
+        reasoning: 'Still stable.',
       }),
-      ''
-    ])
+      '',
+    ]),
   ].join('\n');
 }
 
 test('runSequential refines sections, creates run files, and writes an artifact', async () => {
-  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-sequential-'));
+  const tempRoot = await mkdtemp(
+    path.join(os.tmpdir(), 'consensus-sequential-'),
+  );
   const outputPath = path.join(tempRoot, 'sample.consensus.md');
   const runDir = path.join(tempRoot, '.consensus/run');
   const env = {
     PATH: `${fixtureBin}${path.delimiter}${process.env.PATH}`,
-    CURSOR_TRACE_ID: 'artifact-host-test'
+    CURSOR_TRACE_ID: 'artifact-host-test',
   };
   const result = await runSequential({
     inputPath: sampleInput,
@@ -139,7 +146,7 @@ test('runSequential refines sections, creates run files, and writes an artifact'
     maxRounds: 2,
     agency: 'moderate',
     preflight: async () => ({ peers: ['claude', 'codex'], warnings: [] }),
-    env
+    env,
   });
 
   assert.equal(result.sections.length, 3);
@@ -163,7 +170,13 @@ test('runSequential refines sections, creates run files, and writes an artifact'
   assert.match(artifact, /^wall_clock_ms: \d+$/m);
   assert.match(artifact, /^cost_source: unavailable$/m);
   assert.match(artifact, /^approximate_cost_usd: null$/m);
-  assert.match(artifact, new RegExp(`^input_path: ${JSON.stringify(sampleInput).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'm'));
+  assert.match(
+    artifact,
+    new RegExp(
+      `^input_path: ${JSON.stringify(sampleInput).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`,
+      'm',
+    ),
+  );
   assert.match(artifact, /^run_id: run$/m);
   assert.match(artifact, /\n---\n\n# Consensus Refine Artifact/m);
   assert.match(artifact, /## Final Output/);
@@ -184,10 +197,16 @@ test('runSequential refines sections, creates run files, and writes an artifact'
 
   const sectionStates = extractJsonBlock(artifact, 'consensus-section-states');
   assert.equal(sectionStates.length, 3);
-  assert.ok(sectionStates.every((section) => typeof section.final_output === 'string' && section.final_output.length > 0));
+  assert.ok(
+    sectionStates.every(
+      (section) =>
+        typeof section.final_output === 'string' &&
+        section.final_output.length > 0,
+    ),
+  );
   assert.deepEqual(
     sectionStates.map((section) => section.original_index),
-    [0, 1, 2]
+    [0, 1, 2],
   );
 });
 
@@ -196,38 +215,55 @@ test('run_started discloses iteration mode and per-round call multiplier', async
   await runWrapperCli([sampleInput, '--peers', 'claude,codex'], {
     stdout: alternating,
     env: stubEnv(),
-    preflight: async () => ({ peers: ['claude', 'codex'], warnings: [] })
+    preflight: async () => ({ peers: ['claude', 'codex'], warnings: [] }),
   });
-  const altStart = alternating.events().find((event) => event.event === 'run_started');
+  const altStart = alternating
+    .events()
+    .find((event) => event.event === 'run_started');
   assert.ok(altStart, 'expected run_started event');
   assert.equal(altStart.iteration_mode, 'alternating');
   assert.deepEqual(altStart.calls_per_round, { peer: 1, synthesis: 0 });
 
   const parallel = captureStdout();
-  await runWrapperCli([sampleInput, '--peers', 'claude,codex', '--iteration', 'parallel_revision'], {
-    stdout: parallel,
-    env: stubEnv({ PASEO_STUB_RESPONSE_JSON: JSON.stringify({
-      schema_version: 'v1',
-      verdict: 'CONVERGED',
-      reasoning: 'agreed',
-      critique: { own_previous: 'o', peer_previous: 'p' }
-    }) }),
-    preflight: async () => ({ peers: ['claude', 'codex'], warnings: [] })
-  });
-  const parStart = parallel.events().find((event) => event.event === 'run_started');
+  await runWrapperCli(
+    [
+      sampleInput,
+      '--peers',
+      'claude,codex',
+      '--iteration',
+      'parallel_revision',
+    ],
+    {
+      stdout: parallel,
+      env: stubEnv({
+        PASEO_STUB_RESPONSE_JSON: JSON.stringify({
+          schema_version: 'v1',
+          verdict: 'CONVERGED',
+          reasoning: 'agreed',
+          critique: { own_previous: 'o', peer_previous: 'p' },
+        }),
+      }),
+      preflight: async () => ({ peers: ['claude', 'codex'], warnings: [] }),
+    },
+  );
+  const parStart = parallel
+    .events()
+    .find((event) => event.event === 'run_started');
   assert.equal(parStart.iteration_mode, 'parallel_revision');
   assert.deepEqual(parStart.calls_per_round, { peer: 2, synthesis: 0 });
 });
 
 test('parallel-revision artifact resolution reports peer_calls totals', async () => {
-  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-peer-calls-'));
+  const tempRoot = await mkdtemp(
+    path.join(os.tmpdir(), 'consensus-peer-calls-'),
+  );
   const outputPath = path.join(tempRoot, 'out.consensus.md');
   const runDir = path.join(tempRoot, '.consensus/run');
   const converged = JSON.stringify({
     schema_version: 'v1',
     verdict: 'CONVERGED',
     reasoning: 'agreed',
-    critique: { own_previous: 'o', peer_previous: 'p' }
+    critique: { own_previous: 'o', peer_previous: 'p' },
   });
 
   const result = await runSequential({
@@ -241,21 +277,32 @@ test('parallel-revision artifact resolution reports peer_calls totals', async ()
     maxRounds: 2,
     agency: 'moderate',
     preflight: async () => ({ peers: ['claude', 'codex'], warnings: [] }),
-    env: stubEnv({ PASEO_STUB_RESPONSE_JSON: converged })
+    env: stubEnv({ PASEO_STUB_RESPONSE_JSON: converged }),
   });
 
   const artifact = await readFile(outputPath, 'utf8');
   const resolution = extractJsonBlock(artifact, 'consensus-resolution');
   assert.equal(resolution.iteration, 'parallel_revision');
-  assert.ok(Number.isInteger(resolution.peer_calls), 'expected integer peer_calls');
-  assert.ok(resolution.peer_calls >= 2, 'expected at least one round of two peer calls');
+  assert.ok(
+    Number.isInteger(resolution.peer_calls),
+    'expected integer peer_calls',
+  );
+  assert.ok(
+    resolution.peer_calls >= 2,
+    'expected at least one round of two peer calls',
+  );
   // peer_calls equals the total peer turns across sections.
-  const totalTurns = result.sections.reduce((sum, section) => sum + (section.status?.turns ?? 0), 0);
+  const totalTurns = result.sections.reduce(
+    (sum, section) => sum + (section.status?.turns ?? 0),
+    0,
+  );
   assert.equal(resolution.peer_calls, totalTurns);
 });
 
 test('runSequential preserves completed resume section output when source input changes', async () => {
-  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-resume-completed-'));
+  const tempRoot = await mkdtemp(
+    path.join(os.tmpdir(), 'consensus-resume-completed-'),
+  );
   const inputPath = path.join(tempRoot, 'draft.md');
   const resumePath = path.join(tempRoot, 'draft.old.consensus.md');
   const outputPath = path.join(tempRoot, 'draft.new.consensus.md');
@@ -267,12 +314,12 @@ test('runSequential preserves completed resume section output when source input 
     resumePath,
     completedResumeArtifact([
       { id: 'intro-0', name: 'Intro', output: oldIntro },
-      { id: 'details-1', name: 'Details', output: oldDetails }
-    ])
+      { id: 'details-1', name: 'Details', output: oldDetails },
+    ]),
   );
   await writeFile(
     inputPath,
-    '# Intro\n\nCHANGED INPUT SHOULD NOT BE RESUME STATE.\n\n## Details\n\nChanged details.\n'
+    '# Intro\n\nCHANGED INPUT SHOULD NOT BE RESUME STATE.\n\n## Details\n\nChanged details.\n',
   );
 
   const result = await runSequential({
@@ -284,7 +331,7 @@ test('runSequential preserves completed resume section output when source input 
     cwd: tempRoot,
     peers: ['claude', 'codex'],
     preflight: async () => ({ peers: ['claude', 'codex'], warnings: [] }),
-    env: stubEnv()
+    env: stubEnv(),
   });
 
   const artifact = await readFile(outputPath, 'utf8');
@@ -297,7 +344,9 @@ test('runSequential preserves completed resume section output when source input 
 });
 
 test('runSequential preserves artifact section inventory when source headings drift', async () => {
-  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-resume-inventory-'));
+  const tempRoot = await mkdtemp(
+    path.join(os.tmpdir(), 'consensus-resume-inventory-'),
+  );
   const inputPath = path.join(tempRoot, 'draft.md');
   const resumePath = path.join(tempRoot, 'draft.old.consensus.md');
   const outputPath = path.join(tempRoot, 'draft.new.consensus.md');
@@ -309,10 +358,13 @@ test('runSequential preserves artifact section inventory when source headings dr
     resumePath,
     completedResumeArtifact([
       { id: 'intro-0', name: 'Intro', output: oldIntro },
-      { id: 'details-1', name: 'Details', output: oldDetails }
-    ])
+      { id: 'details-1', name: 'Details', output: oldDetails },
+    ]),
   );
-  await writeFile(inputPath, '# Renamed Intro\n\nThe current source no longer has Details.\n');
+  await writeFile(
+    inputPath,
+    '# Renamed Intro\n\nThe current source no longer has Details.\n',
+  );
 
   const result = await runSequential({
     inputPath,
@@ -323,7 +375,7 @@ test('runSequential preserves artifact section inventory when source headings dr
     cwd: tempRoot,
     peers: ['claude', 'codex'],
     preflight: async () => ({ peers: ['claude', 'codex'], warnings: [] }),
-    env: stubEnv()
+    env: stubEnv(),
   });
 
   const artifact = await readFile(outputPath, 'utf8');
@@ -332,11 +384,11 @@ test('runSequential preserves artifact section inventory when source headings dr
   assert.equal(result.sections.length, 2);
   assert.deepEqual(
     result.sections.map((section) => section.name),
-    ['Intro', 'Details']
+    ['Intro', 'Details'],
   );
   assert.deepEqual(
     sectionStates.map((section) => section.id),
-    ['intro-0', 'details-1']
+    ['intro-0', 'details-1'],
   );
   assert.match(artifact, /Old stable text\./);
   assert.match(artifact, /Old stable details\./);
@@ -360,23 +412,32 @@ test('renderDeliberationArtifact uses canonical containers and contains prose he
         name: 'Tricky',
         original_index: 0,
         output: 'Final with ``` fenced content.\n',
-        status: { status: 'converged', termination_reason: 'hash_match', turns: 2, rounds: 1 },
+        status: {
+          status: 'converged',
+          termination_reason: 'hash_match',
+          turns: 2,
+          rounds: 1,
+        },
         records: [
           {
             round_index: 1,
             agent: 'claude',
             verdict: 'REVISE',
-            reasoning: '# Unexpected Heading\nRemove <script>alert(1)</script> from prose.',
-            proposed_artifact: 'Draft with ``` fence.\n'
-          }
-        ]
-      }
-    ]
+            reasoning:
+              '# Unexpected Heading\nRemove <script>alert(1)</script> from prose.',
+            proposed_artifact: 'Draft with ``` fence.\n',
+          },
+        ],
+      },
+    ],
   });
 
   assert.match(artifact, /````markdown\nDraft with ``` fence\.\n````/);
   assert.doesNotMatch(artifact, /Reasoning:\nRemove <script>/);
-  assert.match(artifact, /Reasoning:\n\\# Unexpected Heading\nRemove \[removed\] from prose\./);
+  assert.match(
+    artifact,
+    /Reasoning:\n\\# Unexpected Heading\nRemove \[removed\] from prose\./,
+  );
   assert.match(artifact, /<!-- consensus:consensus-verdict\n/);
   assert.match(artifact, /"proposed_artifact": "Draft with ``` fence\.\\n"/);
 });
@@ -393,9 +454,9 @@ function persistentSynthesizedStubs() {
         verdict: 'REVISE',
         reasoning: `r${peerCall}`,
         critique: { own_previous: 'o', peer_previous: 'p' },
-        proposed_artifact: `peer revision ${peerCall}.\n`
+        proposed_artifact: `peer revision ${peerCall}.\n`,
       },
-      stdout: '{"id":"peer"}'
+      stdout: '{"id":"peer"}',
     };
   };
   let synthCall = 0;
@@ -406,16 +467,18 @@ function persistentSynthesizedStubs() {
         schema_version: 'v1',
         synthesized_artifact: `merged ${synthCall}.\n`,
         synthesis_reasoning: 'merged favoring stronger reasoning',
-        unresolved_disagreements: ['heading style unresolved']
+        unresolved_disagreements: ['heading style unresolved'],
       },
-      stdout: '{"id":"synth"}'
+      stdout: '{"id":"synth"}',
     };
   };
   return { invokePeer, invokeSynthesizer };
 }
 
 test('escalation_required event resolves divergent full text and resume vector, emitted before run end', async () => {
-  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-escalation-event-'));
+  const tempRoot = await mkdtemp(
+    path.join(os.tmpdir(), 'consensus-escalation-event-'),
+  );
   const inputPath = path.join(tempRoot, 'draft.md');
   const outputPath = path.join(tempRoot, 'out.consensus.md');
   const runDir = path.join(tempRoot, '.consensus/run');
@@ -440,20 +503,22 @@ test('escalation_required event resolves divergent full text and resume vector, 
         peers: ['claude', 'codex'],
         providerInventory: [
           { id: 'claude', available: true },
-          { id: 'codex', available: true }
+          { id: 'codex', available: true },
         ],
-        warnings: []
+        warnings: [],
       }),
       invokePeer,
-      invokeSynthesizer
+      invokeSynthesizer,
     },
-    { stdout }
+    { stdout },
   );
 
   assert.equal(result.sections[0].status.status, 'escalation');
 
   const events = stdout.events();
-  const escalation = events.find((event) => event.event === 'escalation_required');
+  const escalation = events.find(
+    (event) => event.event === 'escalation_required',
+  );
   assert.ok(escalation, 'expected escalation_required event');
   assert.equal(escalation.trigger, 'persistent_disagreement');
   assert.equal(escalation.decide_via, 'host');
@@ -462,9 +527,14 @@ test('escalation_required event resolves divergent full text and resume vector, 
   assert.equal(typeof escalation.divergent.a.text, 'string');
   assert.equal(typeof escalation.divergent.b.text, 'string');
   assert.ok(escalation.divergent.a.text.length > 0);
-  assert.ok(escalation.divergent.synthesis, 'synthesis text present in synthesized mode');
+  assert.ok(
+    escalation.divergent.synthesis,
+    'synthesis text present in synthesized mode',
+  );
   assert.match(escalation.divergent.synthesis.text, /merged/);
-  assert.deepEqual(escalation.divergent.synthesis.unresolved_disagreements, ['heading style unresolved']);
+  assert.deepEqual(escalation.divergent.synthesis.unresolved_disagreements, [
+    'heading style unresolved',
+  ]);
   // Resume vector names the artifact path and the host flag.
   assert.equal(escalation.resume.artifact_path, outputPath);
   assert.equal(escalation.resume.flag, '--host-direction');

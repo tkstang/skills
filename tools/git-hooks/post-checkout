@@ -1,0 +1,16 @@
+#!/bin/sh
+set -e
+
+# Args: $1 = previous HEAD, $2 = new HEAD, $3 = 1 for branch checkout, 0 for file.
+# Only react to branch checkouts, and only reinstall when the lockfile changed
+# between the two refs (keeps node_modules in sync across branch switches).
+[ "$3" = "1" ] || exit 0
+
+if git diff --quiet "$1" "$2" -- pnpm-lock.yaml 2>/dev/null; then
+  exit 0
+fi
+
+if command -v pnpm >/dev/null 2>&1; then
+  echo "post-checkout: pnpm-lock.yaml changed — syncing dependencies"
+  pnpm install --frozen-lockfile
+fi

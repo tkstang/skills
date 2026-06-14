@@ -6,9 +6,10 @@
  */
 
 import { readFile } from 'node:fs/promises';
+
+import { buildDigest } from './digest.mjs';
 import { discover, gitWorktrees } from './locate.mjs';
 import { rank } from './rank.mjs';
-import { buildDigest } from './digest.mjs';
 import * as stateLib from './state.mjs';
 
 export const VALID_RUNTIMES = ['claude-code', 'codex', 'cursor'];
@@ -18,7 +19,10 @@ export function parsePinnedSession(session) {
   if (!session) return null;
   const colonIndex = session.indexOf(':');
   if (colonIndex === -1) {
-    return { error: '--session must be in <runtime>:<sessionId> format (e.g. codex:abc123)' };
+    return {
+      error:
+        '--session must be in <runtime>:<sessionId> format (e.g. codex:abc123)',
+    };
   }
   const runtime = session.slice(0, colonIndex);
   const sessionId = session.slice(colonIndex + 1);
@@ -47,23 +51,35 @@ async function preferredRuntimeFromState(withCandidates, targetCwd) {
     return null;
   }
 
-  const runtimeSet = new Set(withCandidates.map(r => r.runtime));
+  const runtimeSet = new Set(withCandidates.map((r) => r.runtime));
   const sessionIdsByRuntime = new Map(
-    withCandidates.map(r => [r.runtime, new Set(r.candidates.map(c => c.sessionId))])
+    withCandidates.map((r) => [
+      r.runtime,
+      new Set(r.candidates.map((c) => c.sessionId)),
+    ]),
   );
 
   const matches = Object.values(state.sessions ?? {})
-    .filter(s => runtimeSet.has(s.runtime))
-    .filter(s => s.recordedCwd === targetCwd)
-    .filter(s => sessionIdsByRuntime.get(s.runtime)?.has(s.sessionId))
-    .sort((a, b) => String(b.lastReadAt ?? '').localeCompare(String(a.lastReadAt ?? '')));
+    .filter((s) => runtimeSet.has(s.runtime))
+    .filter((s) => s.recordedCwd === targetCwd)
+    .filter((s) => sessionIdsByRuntime.get(s.runtime)?.has(s.sessionId))
+    .toSorted((a, b) =>
+      String(b.lastReadAt ?? '').localeCompare(String(a.lastReadAt ?? '')),
+    );
 
-  const runtimes = [...new Set(matches.map(s => s.runtime))];
+  const runtimes = [...new Set(matches.map((s) => s.runtime))];
   if (runtimes.length !== 1) return null;
-  return { runtime: runtimes[0], reason: 'state-cwd-prior-session', sessionId: matches[0]?.sessionId };
+  return {
+    runtime: runtimes[0],
+    reason: 'state-cwd-prior-session',
+    sessionId: matches[0]?.sessionId,
+  };
 }
 
-export async function resolveAutoRuntime(targetCwd, { self = process.env.SESSION_OBSERVER_SELF } = {}) {
+export async function resolveAutoRuntime(
+  targetCwd,
+  { self = process.env.SESSION_OBSERVER_SELF } = {},
+) {
   const results = await Promise.all(
     VALID_RUNTIMES.map(async (rt) => {
       try {
@@ -72,12 +88,12 @@ export async function resolveAutoRuntime(targetCwd, { self = process.env.SESSION
       } catch {
         return { runtime: rt, candidates: [] };
       }
-    })
+    }),
   );
 
-  const withCandidates = results.filter(r => r.candidates.length > 0);
+  const withCandidates = results.filter((r) => r.candidates.length > 0);
   const considered = VALID_RUNTIMES.includes(self)
-    ? withCandidates.filter(r => r.runtime !== self)
+    ? withCandidates.filter((r) => r.runtime !== self)
     : withCandidates;
 
   if (considered.length === 1) return { runtime: considered[0].runtime };
@@ -88,8 +104,10 @@ export async function resolveAutoRuntime(targetCwd, { self = process.env.SESSION
 
   return {
     ambiguous: true,
-    runtimes: considered.map(r => r.runtime),
-    candidates: Object.fromEntries(considered.map(r => [r.runtime, r.candidates])),
+    runtimes: considered.map((r) => r.runtime),
+    candidates: Object.fromEntries(
+      considered.map((r) => [r.runtime, r.candidates]),
+    ),
   };
 }
 
@@ -168,18 +186,22 @@ function watchedByPidWarnings(sessionState, suppressWatchedWarningPid) {
   ];
 }
 
-async function buildCatchUpDigest(runtime, candidate, {
-  fromIndex,
-  includeTools,
-  includeToolResults,
-  includeCommandMessages,
-  maxTurns,
-  maxBytes,
-  matchedTier = null,
-  active = false,
-  warnings = [],
-  fallbacks = [],
-}) {
+async function buildCatchUpDigest(
+  runtime,
+  candidate,
+  {
+    fromIndex,
+    includeTools,
+    includeToolResults,
+    includeCommandMessages,
+    maxTurns,
+    maxBytes,
+    matchedTier = null,
+    active = false,
+    warnings = [],
+    fallbacks = [],
+  },
+) {
   return buildDigest(runtime, candidate.transcriptPath, {
     fromIndex,
     mode: 'catch-up',
@@ -208,20 +230,30 @@ async function observePinnedSession(runtime, cwd, pinnedSession, args) {
   if (candidates.length === 0) {
     return noMatchOutcome(
       { noMatch: true, runtime, cwd },
-      `No ${runtime} transcripts found for cwd: ${cwd}`
+      `No ${runtime} transcripts found for cwd: ${cwd}`,
     );
   }
 
   const pinned = candidates.find(
-    c => c.runtime === pinnedSession.runtime && c.sessionId === pinnedSession.sessionId
+    (c) =>
+      c.runtime === pinnedSession.runtime &&
+      c.sessionId === pinnedSession.sessionId,
   );
   if (!pinned) {
-    return errorOutcome(`Pinned session not found: ${args.session}. Run locate to see available sessions.`);
+    return errorOutcome(
+      `Pinned session not found: ${args.session}. Run locate to see available sessions.`,
+    );
   }
 
-  const sessionState = await sessionStateFor(pinnedSession.runtime, pinned.sessionId);
+  const sessionState = await sessionStateFor(
+    pinnedSession.runtime,
+    pinned.sessionId,
+  );
   const fromIndex = sessionState?.lastRecordIndex ?? 0;
-  const warnings = watchedByPidWarnings(sessionState, args.suppressWatchedWarningPid);
+  const warnings = watchedByPidWarnings(
+    sessionState,
+    args.suppressWatchedWarningPid,
+  );
 
   let digest;
   try {
@@ -236,7 +268,12 @@ async function observePinnedSession(runtime, cwd, pinnedSession, args) {
     return errorOutcome(`Failed to build digest: ${err.message}`);
   }
 
-  const markedRead = await markReadIfNeeded(pinnedSession.runtime, pinned, sessionState, digest);
+  const markedRead = await markReadIfNeeded(
+    pinnedSession.runtime,
+    pinned,
+    sessionState,
+    digest,
+  );
   return {
     ok: true,
     runtime: pinnedSession.runtime,
@@ -255,11 +292,7 @@ async function observePinnedSession(runtime, cwd, pinnedSession, args) {
  * @returns {Promise<object>}
  */
 export async function observeCatchUp(args) {
-  const {
-    cwd,
-    session,
-    snippet,
-  } = args;
+  const { cwd, session, snippet } = args;
   let { runtime } = args;
   const pinnedSession = parsePinnedSession(session);
   if (pinnedSession?.error) return errorOutcome(pinnedSession.error);
@@ -269,8 +302,12 @@ export async function observeCatchUp(args) {
     const resolved = await resolveAutoRuntime(cwd);
     if (resolved.noMatch) {
       return noMatchOutcome(
-        { noMatch: true, cwd, message: 'No candidates found in any runtime for this cwd.' },
-        `No peer-session candidates found for cwd: ${cwd}`
+        {
+          noMatch: true,
+          cwd,
+          message: 'No candidates found in any runtime for this cwd.',
+        },
+        `No peer-session candidates found for cwd: ${cwd}`,
       );
     }
     if (resolved.ambiguous) {
@@ -279,10 +316,11 @@ export async function observeCatchUp(args) {
         {
           ambiguousRuntime: true,
           runtimes: resolved.runtimes,
-          message: 'Candidates found in multiple runtimes. Use --runtime to specify.',
+          message:
+            'Candidates found in multiple runtimes. Use --runtime to specify.',
         },
         `Ambiguous runtime: candidates found in both ${resolved.runtimes.join(', ')}. ` +
-          `Specify --runtime <runtime>.`
+          `Specify --runtime <runtime>.`,
       );
     }
     runtime = resolved.runtime;
@@ -302,7 +340,7 @@ export async function observeCatchUp(args) {
   if (candidates.length === 0) {
     return noMatchOutcome(
       { noMatch: true, runtime, cwd },
-      `No ${runtime} transcripts found for cwd: ${cwd}`
+      `No ${runtime} transcripts found for cwd: ${cwd}`,
     );
   }
 
@@ -318,7 +356,7 @@ export async function observeCatchUp(args) {
           snippet,
           message: 'No candidate transcripts contained the provided snippet.',
         },
-        `No ${runtime} candidate transcripts contained the provided snippet.`
+        `No ${runtime} candidate transcripts contained the provided snippet.`,
       );
     }
   }
@@ -335,7 +373,7 @@ export async function observeCatchUp(args) {
         sisters: rankResult.sisters,
         globalRecent: rankResult.globalRecent,
       },
-      `No ${runtime} transcripts matched cwd: ${cwd}`
+      `No ${runtime} transcripts matched cwd: ${cwd}`,
     );
   }
 
@@ -348,9 +386,10 @@ export async function observeCatchUp(args) {
         cwd,
         tier: rankResult.tier,
         candidates: rankResult.candidates,
-        message: 'Only bootstrap/unengaged sessions matched this cwd. Use --session to confirm one or specify a different runtime/cwd.',
+        message:
+          'Only bootstrap/unengaged sessions matched this cwd. Use --session to confirm one or specify a different runtime/cwd.',
       },
-      unengagedOnlyMessage(runtime, cwd)
+      unengagedOnlyMessage(runtime, cwd),
     );
   }
 
@@ -358,7 +397,7 @@ export async function observeCatchUp(args) {
     return inputNeededOutcome(
       'ties',
       { ties: true, candidates: [rankResult.winner, ...rankResult.ties] },
-      'Multiple sessions tied. Use --session to disambiguate.'
+      'Multiple sessions tied. Use --session to disambiguate.',
     );
   }
 
@@ -368,8 +407,10 @@ export async function observeCatchUp(args) {
   const warnings = [
     ...watchedByPidWarnings(sessionState, args.suppressWatchedWarningPid),
     ...(winner.snippetMatch
-    ? [`Selected session by snippet match: ${winner.sessionId} (${winner.recordedCwd ?? 'unknown cwd'})`]
-    : []),
+      ? [
+          `Selected session by snippet match: ${winner.sessionId} (${winner.recordedCwd ?? 'unknown cwd'})`,
+        ]
+      : []),
   ];
 
   let digest;
@@ -386,7 +427,12 @@ export async function observeCatchUp(args) {
     return errorOutcome(`Failed to build digest: ${err.message}`);
   }
 
-  const markedRead = await markReadIfNeeded(runtime, winner, sessionState, digest);
+  const markedRead = await markReadIfNeeded(
+    runtime,
+    winner,
+    sessionState,
+    digest,
+  );
   return {
     ok: true,
     runtime,

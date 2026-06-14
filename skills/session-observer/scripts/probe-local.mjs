@@ -11,9 +11,10 @@
  * Exit codes propagate from the CLI.
  */
 
-import { parseArgs } from 'node:util';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { parseArgs } from 'node:util';
+
 import { discover } from './lib/locate.mjs';
 import { rank } from './lib/rank.mjs';
 
@@ -26,7 +27,7 @@ const { values } = parseArgs({
   allowPositionals: false,
   options: {
     runtime: { type: 'string', default: 'claude-code' },
-    cwd:     { type: 'string', default: process.cwd() },
+    cwd: { type: 'string', default: process.cwd() },
   },
 });
 
@@ -37,7 +38,9 @@ const cwd = values.cwd;
 // Resolve sibling CLI via import.meta.url — never a bare relative path
 // ---------------------------------------------------------------------------
 
-const cliPath = fileURLToPath(new URL('./session-observer.mjs', import.meta.url));
+const cliPath = fileURLToPath(
+  new URL('./session-observer.mjs', import.meta.url),
+);
 
 // ---------------------------------------------------------------------------
 // Brief header: discover candidates and show summary
@@ -50,7 +53,9 @@ const transcriptStoreByRuntime = {
   codex: '~/.codex/sessions/',
   cursor: '~/.cursor/projects/',
 };
-process.stdout.write(`[probe-local] transcript store: ${transcriptStoreByRuntime[runtime] ?? '(unknown runtime)'}\n`);
+process.stdout.write(
+  `[probe-local] transcript store: ${transcriptStoreByRuntime[runtime] ?? '(unknown runtime)'}\n`,
+);
 
 let candidates = [];
 try {
@@ -64,8 +69,12 @@ process.stdout.write(`[probe-local] candidates found: ${candidates.length}\n`);
 if (candidates.length > 0) {
   const rankResult = rank(candidates, cwd);
   if (rankResult.winner) {
-    process.stdout.write(`[probe-local] winner: ${rankResult.winner.sessionId} (tier ${rankResult.tier})\n`);
-    process.stdout.write(`[probe-local] transcript: ${rankResult.winner.transcriptPath}\n`);
+    process.stdout.write(
+      `[probe-local] winner: ${rankResult.winner.sessionId} (tier ${rankResult.tier})\n`,
+    );
+    process.stdout.write(
+      `[probe-local] transcript: ${rankResult.winner.transcriptPath}\n`,
+    );
   } else if (rankResult.noMatch) {
     process.stdout.write(`[probe-local] no match in target cwd (noMatch)\n`);
   }
@@ -77,10 +86,14 @@ process.stdout.write(`[probe-local] --- spawning CLI review ---\n\n`);
 // Spawn the CLI and pipe output
 // ---------------------------------------------------------------------------
 
-const result = spawnSync('node', [cliPath, 'review', '--runtime', runtime, '--cwd', cwd], {
-  stdio: 'inherit',
-  timeout: 30000,
-});
+const result = spawnSync(
+  'node',
+  [cliPath, 'review', '--runtime', runtime, '--cwd', cwd],
+  {
+    stdio: 'inherit',
+    timeout: 30000,
+  },
+);
 
 // Propagate exit code from CLI
 process.exit(result.status ?? 1);
