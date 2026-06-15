@@ -35,6 +35,7 @@
 - Keep plugin-facing documentation accurate to source code and manifests; do not preserve stale workaround notes when the implementation contract changes.
 - When editing a standalone skill under `skills/` for local dogfooding, keep the user-level install in sync before closeout. Refresh the canonical copy at `~/.agents/skills/<skill-name>/`, verify provider-specific user skill entries such as `~/.claude/skills/<skill-name>` and `~/.cursor/skills/<skill-name>` resolve to that canonical copy when present, then run `oat sync --scope user`.
 - Shared transcript-format logic has a single source of truth at `shared/transcript-core/runtimes.mjs`. Skills that need it (e.g. `session-observer`, `export-session-transcript`) carry a **generated** committed copy at `scripts/lib/runtimes.mjs`. Edit only the canonical file, then run `npm run sync:transcript-core` to regenerate every consumer copy; never hand-edit the generated copies (they carry a `// GENERATED` banner). A drift guard (`tests/transcript-core/sync.test.mjs`) fails `npm test` if any copy diverges from canonical.
+- Generated runtime outputs may also come from canonical TypeScript source. Edit the canonical TypeScript source, run `pnpm run build` to regenerate the committed `.mjs` runtime output, and use `pnpm run build:check` or `tests/generated-output-sync.test.mjs` to catch drift. Never hand-edit generated `.mjs` outputs with a `// GENERATED` banner.
 
 ## Commits
 
@@ -50,12 +51,13 @@
 
 - JS and Markdown are linted with **oxlint** (`pnpm lint`) and formatted with **oxfmt** (`pnpm format`; `pnpm format:check` to verify). Config: `.oxlintrc.json`, `.oxfmtrc.json`.
 - Adoption is **incremental**: the `pre-commit` hook runs `lint-staged` over staged files only, and CI lints/format-checks only the files a PR changes. The repo has not yet been formatted wholesale; a one-time repo-wide `oxfmt` is a planned follow-up. Until then, do not run `pnpm format` across the whole tree in unrelated PRs.
-- Never lint/format generated, OAT-synced, or agent-instruction files: `**/scripts/lib/runtimes.mjs` (generated transcript-core copies), `.agents/**`, `.claude/rules/**`, `.cursor/rules/**`, and `AGENTS.md` / `CLAUDE.md` at every level. The root `AGENTS.md` carries an `oat sync`-regenerated `<!-- OAT tools -->` block that oat sync does not keep oxfmt-clean, so formatting it fights the generator. These are excluded in three places that must stay in sync: `.oxfmtrc.json`, `.lintstagedrc.mjs`, and the CI `oxfmt --check` step in `.github/workflows/validate.yml` (and not linted by oxlint, which only processes JS/MJS — the Markdown rule dirs and instruction files are never linted regardless).
+- Never lint/format generated, OAT-synced, or agent-instruction files: `**/scripts/lib/runtimes.mjs` (generated transcript-core copies), generated runtime outputs such as `plugins/consensus/skills/refine/scripts/consensus-loop.mjs`, `.agents/**`, `.claude/rules/**`, `.cursor/rules/**`, and `AGENTS.md` / `CLAUDE.md` at every level. The root `AGENTS.md` carries an `oat sync`-regenerated `<!-- OAT tools -->` block that oat sync does not keep oxfmt-clean, so formatting it fights the generator. These are excluded in three places that must stay in sync: `.oxfmtrc.json`, `.lintstagedrc.mjs`, and the CI `oxfmt --check` step in `.github/workflows/validate.yml` (and not linted by oxlint, which only processes JS/MJS — the Markdown rule dirs and instruction files are never linted regardless).
 - oxlint/oxfmt are **dev tooling** — they do not touch what shipped skills run.
 
 ## Verification
 
-- Run `npm test` (or `pnpm run test`) for the full Node test suite.
+- Run `npm test` (or `pnpm run test`) for the full Node plus Vitest suite.
+- Run `pnpm run build:check` to verify generated runtime outputs match canonical source.
 - Run `npm run validate` for repository structure, manifest, and docs invariants.
 - Run `npm run smoke` for the mocked end-to-end consensus wrapper flow.
 

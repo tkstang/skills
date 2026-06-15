@@ -48,6 +48,17 @@ A `--check` drift guard (`node scripts/sync-transcript-core.mjs --check`) regene
 
 Current consumers: `session-observer` and `export-session-transcript`.
 
+### Generated runtime outputs
+
+Some shipped runtime `.mjs` files are generated from canonical TypeScript source while staying committed at the same paths that provider manifests, docs, and users already execute. Edit the canonical TypeScript source, not generated `.mjs` output with a `// GENERATED` banner.
+
+The build contract is:
+
+- `pnpm run build` runs `node scripts/build-generated.mjs` and writes generated runtime output.
+- `pnpm run build:check` runs `node scripts/build-generated.mjs --check` without mutating tracked files.
+- `tests/generated-output-sync.test.mjs` runs the drift guard as part of `pnpm test`.
+- TypeScript, Vitest, and bundling are developer tooling only; shipped skills still run committed `.mjs` with no install step.
+
 ## Local Git Repository Install
 
 The current v0.1 path is local marketplace installation from this checkout. The repo root contains provider marketplace entries, and `plugins/consensus/` contains the provider plugin manifests.
@@ -152,9 +163,11 @@ For watch mode, `--runtime both` watches Claude Code and Codex in one foreground
 Run:
 
 ```bash
-npm test
-npm run validate
-npm run smoke
+pnpm run type-check
+pnpm test
+pnpm run build:check
+pnpm run validate
+pnpm run smoke
 ```
 
-The project uses Node ESM and the Node standard library only.
+Runtime plugin code uses Node ESM and the Node standard library only. Developer tooling uses pnpm-managed dev dependencies.

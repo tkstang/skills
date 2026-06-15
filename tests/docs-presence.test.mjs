@@ -45,3 +45,21 @@ test('refine SKILL.md documents iteration-mode and escalation sections', async (
   assert.match(skill, /^## Iteration Modes$/m);
   assert.match(skill, /^## Escalation Handling$/m);
 });
+
+test('documentation records the generated TypeScript runtime contract', async () => {
+  const readme = await read('README.md');
+  const rootAgents = await read('AGENTS.md');
+  const consensusAgents = await read('plugins/consensus/AGENTS.md');
+  const testAgents = await read('tests/AGENTS.md');
+  const decisions = await read('.oat/repo/reference/decision-record.md');
+
+  assert.match(readme, /^### Generated runtime outputs$/m);
+  assert.match(readme, /scripts\/build-generated\.mjs --check/);
+  assert.match(rootAgents, /canonical TypeScript source/);
+  assert.match(consensusAgents, /plugins\/consensus\/skills\/refine\/src\//);
+  assert.match(testAgents, /tests\/generated-output-sync\.test\.mjs/);
+  assert.match(
+    decisions,
+    /Canonical TypeScript sources build committed generated runtime outputs/,
+  );
+});

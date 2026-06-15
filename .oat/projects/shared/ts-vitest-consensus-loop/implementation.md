@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-15
-oat_current_task_id: p01-t01
+oat_current_task_id: p02-t01
 oat_generated: false
 ---
 
@@ -25,17 +25,17 @@ oat_generated: false
 
 | Phase   | Status  | Tasks | Completed |
 | ------- | ------- | ----- | --------- |
-| Phase 1 | in_progress | 3     | 2/3       |
+| Phase 1 | complete | 3     | 3/3       |
 | Phase 2 | pending | 3     | 0/3       |
 | Phase 3 | pending | 3     | 0/3       |
 
-**Total:** 2/9 tasks completed
+**Total:** 3/9 tasks completed
 
 ---
 
 ## Phase 1: Toolchain and Generated Runtime Contract
 
-**Status:** in_progress
+**Status:** complete
 
 ### Task p01-t01: Add TypeScript and Vitest Tooling
 
@@ -56,7 +56,7 @@ oat_generated: false
 ### Task p01-t02: Add Generated-Output Build and Drift Guard
 
 **Status:** complete
-**Commit:** pending
+**Commit:** 46cf863
 
 **Verification:**
 
@@ -72,8 +72,14 @@ oat_generated: false
 
 ### Task p01-t03: Record the Build Boundary Decision
 
-**Status:** pending
-**Commit:** -
+**Status:** complete
+**Commit:** pending
+
+**Verification:**
+
+- `node --test tests/docs-presence.test.mjs` failed after adding the docs-presence assertion because the generated TypeScript runtime contract was not documented (expected RED).
+- `node --test tests/docs-presence.test.mjs` passed after updating docs.
+- `pnpm test && pnpm run validate` passed.
 
 ---
 
