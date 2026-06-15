@@ -166,6 +166,67 @@ semantics, drive a single consensus loop, assemble the final evaluation document
 - Untrusted-content framing for both artifact and rubric — the safety reason goal-encoding was
   rejected.
 
+### Output & deliberation-log state contract
+
+**Purpose:** make explicit how loop state becomes the final evaluation artifact, so the
+"per-peer reasoning and dissent preserved in the deliberation log" acceptance criterion is
+verifiable rather than implied.
+
+**Loop state files:** the shared engine *requires* `--output-records`, `--output-section`,
+and `--output-status` (see `consensus-loop.mjs` arg validation). `consensus-evaluate.mjs`
+therefore allocates a run directory and passes all three, exactly as `consensus-refine.mjs`
+does:
+
+- `--output-records` → newline-delimited JSON records, one per peer turn (the raw
+  deliberation log: `agent`, `verdict`, `reasoning`, `critique`, `proposed_artifact`).
+- `--output-section` → the converged/last evaluation document (the unified findings body).
+- `--output-status` → terminal status (`CONVERGED` / `IMPASSE` / escalation) + round count.
+
+**Rendering contract:** the final evaluation artifact is **not** a prose summary alone. The
+wrapper renders each record into a canonical per-record block — the same `renderRecord`
+pattern refine uses to emit `consensus-verdict` JSON fences — so per-peer reasoning and the
+verbatim verdict survive in the artifact. The final document is therefore:
+
+1. **Unified findings** — the converged (or last-agreed) evaluation document from
+   `--output-section`.
+2. **Deliberation log** — the canonical per-record `consensus-verdict` blocks rendered from
+   `--output-records`, preserving each peer's reasoning/critique verbatim.
+3. **Dissent surface** — derived from the records + status:
+   - **CONVERGED:** a short `## Dissent` section listing any residual concerns from the final
+     records; empty/omitted when peers fully agreed.
+   - **IMPASSE / escalation (minimal-agency path):** an explicit `## Unresolved dissent`
+     section enumerating each peer's final position + reasoning, surfaced not editorialized.
+
+**Design Decisions:**
+
+- "Dissent preserved in the deliberation log" concretely means the canonical records are
+  embedded in the artifact, not merely summarized. Tests assert the presence of the canonical
+  per-record blocks (peer reasoning + verdict), not just the rendered summary text.
+- The wrapper reuses refine's record-rendering approach rather than inventing a new format, so
+  the deliberation log is consistent across the family.
+
+### Documentation & family status
+
+**Purpose:** satisfy the backlog AC "Plugin manifests, SKILL.md, and READMEs updated; family
+skill listed as shipped" — the part of the shipped-skill contract that lives outside the
+runtime code.
+
+**Responsibilities:**
+
+- **Skill surface:** `evaluate/SKILL.md` (frontmatter, allowed-tools, docs).
+- **Provider manifests:** register the skill in `plugins/consensus/.claude-plugin/`,
+  `.codex-plugin/`, and `.cursor-plugin/` plugin manifests as appropriate.
+- **READMEs / family status:** update root `README.md` and `plugins/consensus/README.md` to
+  list `consensus-evaluate` as **shipped**, removing/rewriting the current "deferred"
+  references (`README.md:129`, `plugins/consensus/README.md:139`).
+- **Repo reference:** reflect shipped status in `current-state.md`, `roadmap.md`, and the
+  bl-5174 backlog item.
+
+**Design Decisions:**
+
+- This is a first-class design responsibility, not incidental cleanup — `npm run validate`
+  enforces manifest/docs invariants, so missing it fails the build.
+
 ### `sync-consensus-core.mjs` + drift guard
 
 **Purpose:** keep every generated engine/schema copy byte-identical to canonical; fail CI on
@@ -197,10 +258,12 @@ use) — no live Paseo. Tests run under `node --test` (`npm test`).
 | Concern                          | Verification | Key Scenarios                                                                                                   |
 | -------------------------------- | ------------ | -------------------------------------------------------------------------------------------------------------- |
 | Wrapper defaults (AC #2)         | unit         | Asserts `parallel_revision` / `minimal` / `shared_input` applied; each overridable; `independent_draft` rejected |
-| Evaluation output contract (AC #1) | unit/integration | Final doc has unified findings; `verdict-parallel` reused unchanged; per-peer reasoning + dissent present in records; `proposed_artifact` carries the eval doc |
+| Evaluation output contract (AC #1) | unit/integration | Final doc has unified findings; `verdict-parallel` reused unchanged; **canonical per-record `consensus-verdict` blocks (peer reasoning + verdict) are embedded in the artifact**, not just a rendered summary; `proposed_artifact` carries the eval doc |
+| Deliberation-log state contract (AC #1) | integration | Wrapper passes `--output-records/-section/-status`; final artifact embeds the deliberation log; dissent surfaced per CONVERGED vs IMPASSE/escalation |
 | Impasse under minimal agency (AC #4) | integration | Inject IMPASSE/escalation verdicts → final doc surfaces an "Unresolved dissent" section enumerating positions; status reflects impasse |
 | Engine seam (default-preserving) | unit         | `runConsensusLoop` with no `promptProfile` produces identical prompts/behavior to today                          |
 | consensus-core drift guard       | unit         | Generated engine + schema copies match canonical (`sync-consensus-core --check`)                                |
+| Docs / family status shipped (AC #3) | validate     | `npm run validate` asserts the evaluate skill is registered in manifests/SKILL.md; READMEs list it as shipped, not deferred |
 | refine regression                | unit/integration | refine's existing full suite still passes (behavior-identical)                                                  |
 
 ### Notes

@@ -33,6 +33,30 @@ oat_generated: false
 
 ---
 
+## Reviews Received
+
+### Review Received: design (artifact)
+
+**Date:** 2026-06-15
+**Review artifact:** `reviews/archived/artifact-design-review-2026-06-15.md`
+
+**Findings:** Critical: 0 · Important: 2 · Medium: 0 · Minor: 0
+
+**Disposition:** both Important findings resolved directly in `design.md` (artifact review — no plan tasks created):
+
+- `I1` — README/family-status work missing from design responsibilities → added a
+  **Documentation & family status** component (root + plugin READMEs, SKILL.md, provider
+  manifests, deferred→shipped flip) plus a `validate` test row.
+- `I2` — loop-state → deliberation-log contract underspecified → added an **Output &
+  deliberation-log state contract** subsection (`--output-records/-section/-status`, canonical
+  `consensus-verdict` per-record blocks embedded in the artifact, dissent surface per
+  CONVERGED vs IMPASSE/escalation) plus tightened test rows.
+
+No design drift accepted against shipped code (pre-implementation); all findings strengthen
+the design artifact.
+
+---
+
 ## Phase 1: {Phase Name}
 
 **Status:** in_progress
