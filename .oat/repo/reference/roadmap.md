@@ -1,6 +1,6 @@
 # Skills Repo Roadmap
 
-**Last updated:** 2026-06-15 (TypeScript/Vitest generated-runtime toolchain delivered via bl-853a, with `consensus-loop` as the first bl-bfb4 slice. Prior: 2026-06-14 PR #9 merged consensus Phase 2 iteration modes to `main`; family lane unblocked, `consensus-evaluate` promoted to Now, v0.1 release verification surfaced as a parallel Now lane.)
+**Last updated:** 2026-06-15 (TypeScript/Vitest generated-runtime toolchain delivered via bl-853a, with `consensus-loop` as the first bl-bfb4 slice; release verification and `consensus-evaluate` are the next post-TS lanes, and PR #9 live-mode evidence should be reused for later release checks. Prior: 2026-06-14 post-PR #9 refresh; 2026-06-12 initial backfill.)
 
 ## Planning Model
 
@@ -44,14 +44,14 @@ slices include the `consensus-refine.mjs` wrapper, migration of the existing
 
 ## Now
 
-- **Ship the first family skill** — `consensus-evaluate` is the earliest fast-follow (needs only `parallel_revision`, now shipped and merged; bl-5174). Phase 2 iteration modes merged via PR #9, so the whole family lane is unblocked.
-- **v0.1 release verification** — bl-d85f can run as an independent parallel lane; it gates public announcements only, not development.
+- **v0.1 release verification** — run bl-d85f after this TypeScript/vitest branch lands. Reuse PR #9 dogfood as prior evidence; focus reruns on stale/gap behavior and the true release gates: provider install/permission checks, README install matrix, CHANGELOG/version/tag checks, release workflow, and post-tag skills.sh discovery before public claims.
+- **First family skill** — resume `consensus-evaluate` (bl-5174) after this TypeScript/vitest branch lands. Quick-start discovery is already captured in `/Users/tstang/Code/concensus-evaluate`; adapt implementation to the post-TS layout.
 
 ## Next
 
-- **Remaining family skills** — after `consensus-evaluate` (in flight, Now), `-create`, `-decide`, `-plan`, `-research` as thin wrappers with v3 defaults. `-create` front-loads the `independent_draft` cold-start + derived-sectioning design the next two reuse.
 - **Continue TypeScript migration slices** — bl-bfb4 can proceed module-by-module now that bl-853a delivered the toolchain/generated-output contract. Do not mark the initiative complete until the wrapper, test-suite migration, and `allowJs` tightening finish.
-- **Peer-invocation hardening** — tool-based verdict submission (bl-3a88) as the durable structured-output fix; design pass can run alongside the synthesized-mode family skills.
+- **Remaining family skills** — after `consensus-evaluate`, `-create`, `-decide`, `-plan`, `-research` as thin wrappers with v3 defaults. `-create` front-loads the `independent_draft` cold-start + derived-sectioning design the next two reuse.
+- **Peer-invocation ownership** — tool-based verdict submission (bl-3a88) and in-house peer CLI work (bl-bb7e) should be treated as one later design/spike around owning the narrow claude/codex/cursor path rather than depending on Paseo for one per-turn `run` capability.
 
 ## Later
 

@@ -20,6 +20,17 @@ v0.1 tagging is gated by `RELEASING.md`: manual provider runtime install and per
 
 Per repo conventions: do not document provider support, marketplace availability, or skills.sh discovery as complete until the checklist verifies the live provider path. Codex public Plugin Directory and skills.sh claims stay out until verified post-publication.
 
+## Prior Evidence to Reuse
+
+PR #9 (`feat: add parallel iteration modes and escalation ladder to consensus refine`, merged 2026-06-13) and `.oat/repo/reference/project-summaries/20260613-consensus-iteration-modes.md` already record release-relevant dogfood:
+
+- `npm test` passed with 526 tests, `npm run validate` passed, and `npm run smoke` passed.
+- Live claude+codex runs covered `alternating`, `parallel_revision`, and `parallel_synthesized`.
+- The escalation ladder was exercised, including host decision re-entry and genuinely-stuck promotion behavior; deterministic smoke/unit coverage backed the harder-to-trigger escalation cases.
+- Phase 7 live dogfood fixed provider/schema/run-dir issues that would otherwise have been release blockers.
+
+When this release item runs, treat that as prior evidence rather than starting from zero. Re-audit it after the TypeScript/vitest work lands, rerun stale or changed behavior, and focus the remaining checklist on true release gates: provider install/permission prompts, README install-matrix accuracy, CHANGELOG/version/tag checks, release workflow, and post-tag skills.sh discovery before public claims.
+
 ## Acceptance Criteria
 
 - `RELEASING.md` checklist executed and evidence recorded (install + permission prompts verified per provider).
