@@ -22,6 +22,11 @@ jobs:
           node-version: "22"
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
+      - name: Verify generated outputs are committed
+        run: git diff --exit-code -- plugins/consensus/skills/refine/scripts/consensus-loop.mjs
+      - run: pnpm run type-check
+      - run: pnpm run build:check
       - run: pnpm run test
       - run: pnpm run validate
       - run: pnpm run smoke
