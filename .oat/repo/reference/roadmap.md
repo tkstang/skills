@@ -1,6 +1,6 @@
 # Skills Repo Roadmap
 
-**Last updated:** 2026-06-14 (refreshed after PR #9 merged consensus Phase 2 iteration modes to `main`; family lane unblocked, `consensus-evaluate` promoted to Now, v0.1 release verification surfaced as a parallel Now lane. Prior: 2026-06-12 initial backfill.)
+**Last updated:** 2026-06-15 (sequenced around active TypeScript/vitest work: pause new consensus implementation until TS lands, defer final v0.1 release/tag verification until post-TS, and reuse PR #9 live-mode evidence for later release checks. Prior: 2026-06-14 post-PR #9 refresh; 2026-06-12 initial backfill.)
 
 ## Planning Model
 
@@ -36,13 +36,15 @@ Substantially shipped (see `current-state.md`). Deferred items recorded in the a
 
 ## Now
 
-- **Ship the first family skill** — `consensus-evaluate` is the earliest fast-follow (needs only `parallel_revision`, now shipped and merged; bl-5174). Phase 2 iteration modes merged via PR #9, so the whole family lane is unblocked.
-- **v0.1 release verification** — bl-d85f can run as an independent parallel lane; it gates public announcements only, not development.
+- **Let the TypeScript/vitest work land** — bl-853a/bl-bfb4 are active elsewhere and touch the consensus code/test substrate. Avoid new consensus implementation work until that branch lands.
+- **Keep release evidence warm, but do not tag yet** — PR #9 already records substantial live claude+codex coverage across alternating, `parallel_revision`, `parallel_synthesized`, and escalation-ladder flows. Final bl-d85f release/tag verification should run after TS lands so tag-time checks match the source/test substrate that will ship.
 
 ## Next
 
-- **Remaining family skills** — after `consensus-evaluate` (in flight, Now), `-create`, `-decide`, `-plan`, `-research` as thin wrappers with v3 defaults. `-create` front-loads the `independent_draft` cold-start + derived-sectioning design the next two reuse.
-- **Peer-invocation hardening** — tool-based verdict submission (bl-3a88) as the durable structured-output fix; design pass can run alongside the synthesized-mode family skills.
+- **v0.1 release verification** — run bl-d85f after TS/vitest lands. Reuse PR #9 dogfood as prior evidence; focus reruns on stale/gap behavior and the true release gates: provider install/permission checks, README install matrix, CHANGELOG/version/tag checks, release workflow, and post-tag skills.sh discovery before public claims.
+- **First family skill** — resume `consensus-evaluate` (bl-5174) after TS/vitest. Quick-start discovery is already captured in `/Users/tstang/Code/concensus-evaluate`; adapt implementation to the post-TS layout.
+- **Remaining family skills** — after `consensus-evaluate`, `-create`, `-decide`, `-plan`, `-research` as thin wrappers with v3 defaults. `-create` front-loads the `independent_draft` cold-start + derived-sectioning design the next two reuse.
+- **Peer-invocation ownership** — tool-based verdict submission (bl-3a88) and in-house peer CLI work (bl-bb7e) should be treated as one later design/spike around owning the narrow claude/codex/cursor path rather than depending on Paseo for one per-turn `run` capability.
 
 ## Later
 

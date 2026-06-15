@@ -118,14 +118,18 @@ The deciding question is **how many peer providers we want to support**:
   qwen, …) → Paseo's adapter catalog + cross-model fallback ladder is worth
   keeping.
 
-**Operator lean (2026-06-14, tentative — not yet a committed decision):** floor
-is **claude + codex + cursor**; broader ACP support is "nice to have" but not
-required. That lands on the modest-cost side of the pivot, *but* because cursor
-is soft-schema, the build includes the inject+validate+retry helper (it is not a
-pure "native modes only" build). Confirm or revise before committing; if broad
-ACP coverage becomes a product goal, the pivot flips back toward staying on
-Paseo. See [[bl-f0b6]] (cursor-as-peer verification) for the evidence that should
-firm this up.
+**Operator lean (2026-06-15 — directionally stronger, still not an active
+project):** floor is **claude + codex + cursor**; broader ACP support is "nice to
+have" but not required. The Stoa implementation already handled this same
+provider set directly (`provider-adapter.ts` + `final-json-contract.ts`), so the
+likely direction is to port/narrow that approach rather than keep depending on
+Paseo for one per-turn `run` capability. Because cursor is soft-schema, the
+build still includes the inject+validate+retry helper (it is not a pure "native
+modes only" build). Capture this as the preferred direction for a future
+design/spike, not as current implementation work; if broad ACP coverage becomes
+a product goal, the pivot can still flip back toward staying on Paseo. See
+[[bl-f0b6]] (cursor-as-peer verification) only if Paseo-path evidence is still
+needed.
 
 ## Acceptance Criteria
 
