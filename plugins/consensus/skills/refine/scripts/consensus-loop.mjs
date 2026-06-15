@@ -5,6 +5,18 @@ import { createHash } from "node:crypto";
 import { mkdir, open, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+function isJsonRecord(value) {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+function asErrorLike(error) {
+  return isJsonRecord(error) ? error : {};
+}
+function validationErrors(result) {
+  return result.errors ?? [];
+}
+function validationMetadata(result) {
+  return result.metadata ?? {};
+}
 const VERDICT_CAPS = Object.freeze({
   reasoning_bytes: 16 * 1024,
   critique_field_bytes: 16 * 1024,
@@ -32,6 +44,11 @@ const EXIT_CODES = Object.freeze({
   INTERRUPTED: 130
 });
 class ConsensusError extends Error {
+  code;
+  exitCode;
+  details;
+  paseoExitCode;
+  stderr;
   constructor(message, options = {}) {
     super(message, { cause: options.cause });
     this.name = "ConsensusError";
@@ -89,7 +106,10 @@ const VERDICT_BRANCHES = {
   parallel_revision: PARALLEL_VERDICT_BRANCHES,
   parallel_synthesized: PARALLEL_VERDICT_BRANCHES
 };
-const PARALLEL_MODES = /* @__PURE__ */ new Set(["parallel_revision", "parallel_synthesized"]);
+const PARALLEL_MODES = /* @__PURE__ */ new Set([
+  "parallel_revision",
+  "parallel_synthesized"
+]);
 const ITERATION_MODES = Object.freeze([
   "alternating",
   "parallel_revision",
@@ -127,6 +147,7 @@ function convergenceOptionsForAgency(agency = "moderate") {
 }
 function verdictDecision(record) {
   if (typeof record?.verdict === "string") return record.verdict;
+  if (!isJsonRecord(record?.verdict)) return record?.decision ?? null;
   return record?.verdict?.verdict ?? record?.verdict?.decision ?? record?.decision ?? null;
 }
 function byteLength(value) {
@@ -167,7 +188,7 @@ async function readExistingRecords(recordsPath) {
     }
     return parsed;
   } catch (error) {
-    if (error.code === "ENOENT") return [];
+    if (asErrorLike(error).code === "ENOENT") return [];
     throw error;
   }
 }
@@ -232,7 +253,7 @@ function synthesisSchemaPath() {
   );
 }
 function hardErrorMessage(error) {
-  return error?.message ?? String(error);
+  return asErrorLike(error).message ?? String(error);
 }
 function outputCapError(streamName, capBytes) {
   return new ConsensusError(
@@ -245,45 +266,48 @@ function outputCapError(streamName, capBytes) {
   );
 }
 function paseoMissingError(error) {
+  const cause = asErrorLike(error);
   return new ConsensusError("paseo executable not found on PATH", {
     code: "PASEO_MISSING",
     exitCode: EXIT_CODES.CONFIG,
     cause: error,
     details: {
-      path: error?.path,
-      syscall: error?.syscall
+      path: cause.path,
+      syscall: cause.syscall
     }
   });
 }
 function isMissingPaseoSpawnError(error) {
-  return error?.code === "ENOENT" && (error.path === "paseo" || error.syscall === "spawn paseo");
+  const candidate = asErrorLike(error);
+  return candidate.code === "ENOENT" && (candidate.path === "paseo" || candidate.syscall === "spawn paseo");
 }
 function exitCodeForError(error) {
-  if (error?.name === "AbortError" || error?.code === "SIGINT") {
+  const candidate = asErrorLike(error);
+  if (candidate.name === "AbortError" || candidate.code === "SIGINT") {
     return EXIT_CODES.INTERRUPTED;
   }
-  if (Number.isInteger(error?.exitCode)) {
-    return error.exitCode;
+  if (Number.isInteger(candidate.exitCode)) {
+    return Number(candidate.exitCode);
   }
   if ([
     "PASEO_MISSING",
     "PEER_UNAVAILABLE",
     "NODE_TOO_OLD",
     "NODE_VERSION_UNSUPPORTED"
-  ].includes(error?.code)) {
+  ].includes(candidate.code ?? "")) {
     return EXIT_CODES.CONFIG;
   }
-  if (["EACCES", "EPERM"].includes(error?.code)) {
+  if (["EACCES", "EPERM"].includes(candidate.code ?? "")) {
     return EXIT_CODES.NOPERM;
   }
-  if (["ENOENT", "ENOTDIR", "EISDIR"].includes(error?.code)) {
+  if (["ENOENT", "ENOTDIR", "EISDIR"].includes(candidate.code ?? "")) {
     return EXIT_CODES.IO;
   }
-  if (error instanceof SyntaxError || error?.code === "PASEO_INVALID_JSON") {
+  if (error instanceof SyntaxError || candidate.code === "PASEO_INVALID_JSON") {
     return EXIT_CODES.DATA;
   }
   if (/^(--|unknown option|missing required option|input path|unexpected positional)/i.test(
-    error?.message ?? ""
+    candidate.message ?? ""
   )) {
     return EXIT_CODES.USAGE;
   }
@@ -299,7 +323,7 @@ function recordHash(record, options = {}) {
     return hashArtifact(record.artifact, hashOptions);
   if (typeof record?.proposed_artifact === "string")
     return hashArtifact(record.proposed_artifact, hashOptions);
-  if (typeof record?.verdict?.proposed_artifact === "string") {
+  if (isJsonRecord(record?.verdict) && typeof record.verdict.proposed_artifact === "string") {
     return hashArtifact(record.verdict.proposed_artifact, hashOptions);
   }
   return null;
@@ -332,14 +356,15 @@ function hashArtifact(text, options = {}) {
 }
 function validateVerdictShape(verdict, { mode = "alternating" } = {}) {
   const errors = [];
-  if (!verdict || typeof verdict !== "object" || Array.isArray(verdict)) {
+  if (!isJsonRecord(verdict)) {
     return { ok: false, errors: ["verdict must be an object"] };
   }
   if (verdict.schema_version !== LOOP_SCHEMA_VERSION) {
     errors.push(`schema_version must be "${LOOP_SCHEMA_VERSION}"`);
   }
   const branchTable = branchTableForMode(mode);
-  const branch = branchTable[verdict.verdict];
+  const verdictValue = typeof verdict.verdict === "string" ? verdict.verdict : "";
+  const branch = branchTable[verdictValue];
   if (!branch) {
     errors.push(verdictVocabularyMessage(mode));
   }
@@ -365,7 +390,7 @@ function validateVerdictShape(verdict, { mode = "alternating" } = {}) {
   }
   if ("critique" in verdict) {
     const critique = verdict.critique;
-    if (!critique || typeof critique !== "object" || Array.isArray(critique)) {
+    if (!isJsonRecord(critique)) {
       pushTypeError(errors, "critique", "an object");
     } else {
       for (const key of ["own_previous", "peer_previous"]) {
@@ -396,9 +421,9 @@ function validateVerdictShape(verdict, { mode = "alternating" } = {}) {
   return { ok: errors.length === 0, errors };
 }
 function normalizeVerdict(verdict, mode = "alternating") {
-  if (!verdict || typeof verdict !== "object" || Array.isArray(verdict))
-    return verdict;
-  const branch = branchTableForMode(mode)[verdict.verdict];
+  if (!isJsonRecord(verdict)) return verdict;
+  const verdictValue = typeof verdict.verdict === "string" ? verdict.verdict : "";
+  const branch = branchTableForMode(mode)[verdictValue];
   if (!branch) return verdict;
   const allowed = /* @__PURE__ */ new Set([...branch.required, ...branch.optional]);
   const normalized = { ...verdict };
@@ -408,7 +433,7 @@ function normalizeVerdict(verdict, mode = "alternating") {
   return normalized;
 }
 function validateSynthesisShape(synthesis) {
-  if (!synthesis || typeof synthesis !== "object" || Array.isArray(synthesis)) {
+  if (!isJsonRecord(synthesis)) {
     return { ok: false, errors: ["synthesis must be an object"] };
   }
   const errors = [];
@@ -441,18 +466,25 @@ function validateSynthesisShape(synthesis) {
   } else if (!Array.isArray(synthesis.unresolved_disagreements)) {
     pushTypeError(errors, "unresolved_disagreements", "an array");
   } else {
-    synthesis.unresolved_disagreements.forEach((entry, index) => {
-      if (typeof entry !== "string") {
-        pushTypeError(errors, `unresolved_disagreements[${index}]`, "a string");
+    synthesis.unresolved_disagreements.forEach(
+      (entry, index) => {
+        if (typeof entry !== "string") {
+          pushTypeError(
+            errors,
+            `unresolved_disagreements[${index}]`,
+            "a string"
+          );
+        }
       }
-    });
+    );
   }
   return { ok: errors.length === 0, errors };
 }
 function validateSynthesisCaps(synthesis) {
   const shape = validateSynthesisShape(synthesis);
   if (!shape.ok) return shape;
-  const totalBytes = byteLength(JSON.stringify(synthesis));
+  const payload = synthesis;
+  const totalBytes = byteLength(JSON.stringify(payload));
   if (totalBytes > SYNTHESIS_CAPS.total_synthesis_bytes) {
     return oversizedResult(
       "synthesis",
@@ -460,7 +492,7 @@ function validateSynthesisCaps(synthesis) {
       totalBytes
     );
   }
-  const artifactBytes = byteLength(synthesis.synthesized_artifact);
+  const artifactBytes = byteLength(payload.synthesized_artifact);
   if (artifactBytes > SYNTHESIS_CAPS.synthesized_artifact_bytes) {
     return oversizedResult(
       "synthesized_artifact",
@@ -468,7 +500,7 @@ function validateSynthesisCaps(synthesis) {
       artifactBytes
     );
   }
-  const reasoningBytes = byteLength(synthesis.synthesis_reasoning);
+  const reasoningBytes = byteLength(payload.synthesis_reasoning);
   if (reasoningBytes > SYNTHESIS_CAPS.synthesis_reasoning_bytes) {
     return oversizedResult(
       "synthesis_reasoning",
@@ -476,21 +508,21 @@ function validateSynthesisCaps(synthesis) {
       reasoningBytes
     );
   }
-  if (synthesis.unresolved_disagreements.length > SYNTHESIS_CAPS.max_disagreements) {
+  if (payload.unresolved_disagreements.length > SYNTHESIS_CAPS.max_disagreements) {
     return {
       ok: false,
       metadata: {
         code: "OVERSIZE_REJECTED",
         field: "unresolved_disagreements",
         limit_count: SYNTHESIS_CAPS.max_disagreements,
-        actual_count: synthesis.unresolved_disagreements.length
+        actual_count: payload.unresolved_disagreements.length
       }
     };
   }
   for (const [
     index,
     disagreement
-  ] of synthesis.unresolved_disagreements.entries()) {
+  ] of payload.unresolved_disagreements.entries()) {
     const disagreementBytes = byteLength(disagreement);
     if (disagreementBytes > SYNTHESIS_CAPS.disagreement_bytes) {
       return oversizedResult(
@@ -505,7 +537,8 @@ function validateSynthesisCaps(synthesis) {
 function validateVerdictCaps(verdict, { mode = "alternating" } = {}) {
   const shape = validateVerdictShape(verdict, { mode });
   if (!shape.ok) return shape;
-  const totalBytes = byteLength(JSON.stringify(verdict));
+  const payload = verdict;
+  const totalBytes = byteLength(JSON.stringify(payload));
   if (totalBytes > VERDICT_CAPS.total_verdict_bytes) {
     return oversizedResult(
       "verdict",
@@ -513,7 +546,7 @@ function validateVerdictCaps(verdict, { mode = "alternating" } = {}) {
       totalBytes
     );
   }
-  const reasoningBytes = byteLength(verdict.reasoning);
+  const reasoningBytes = byteLength(payload.reasoning);
   if (reasoningBytes > VERDICT_CAPS.reasoning_bytes) {
     return oversizedResult(
       "reasoning",
@@ -521,8 +554,8 @@ function validateVerdictCaps(verdict, { mode = "alternating" } = {}) {
       reasoningBytes
     );
   }
-  if ("proposed_artifact" in verdict) {
-    const proposedBytes = byteLength(verdict.proposed_artifact);
+  if ("proposed_artifact" in payload) {
+    const proposedBytes = byteLength(payload.proposed_artifact);
     if (proposedBytes > VERDICT_CAPS.proposed_artifact_bytes) {
       return oversizedResult(
         "proposed_artifact",
@@ -531,10 +564,10 @@ function validateVerdictCaps(verdict, { mode = "alternating" } = {}) {
       );
     }
   }
-  if (verdict.critique && typeof verdict.critique === "object" && !Array.isArray(verdict.critique)) {
+  if (payload.critique && typeof payload.critique === "object" && !Array.isArray(payload.critique)) {
     for (const key of ["own_previous", "peer_previous"]) {
-      if (key in verdict.critique) {
-        const critiqueBytes = byteLength(verdict.critique[key]);
+      if (key in payload.critique) {
+        const critiqueBytes = byteLength(payload.critique[key]);
         if (critiqueBytes > VERDICT_CAPS.critique_field_bytes) {
           return oversizedResult(
             `critique.${key}`,
@@ -545,19 +578,19 @@ function validateVerdictCaps(verdict, { mode = "alternating" } = {}) {
       }
     }
   }
-  if (Array.isArray(verdict.concerns)) {
-    if (verdict.concerns.length > VERDICT_CAPS.max_concerns) {
+  if (Array.isArray(payload.concerns)) {
+    if (payload.concerns.length > VERDICT_CAPS.max_concerns) {
       return {
         ok: false,
         metadata: {
           code: "OVERSIZE_REJECTED",
           field: "concerns",
           limit_count: VERDICT_CAPS.max_concerns,
-          actual_count: verdict.concerns.length
+          actual_count: payload.concerns.length
         }
       };
     }
-    for (const [index, concern] of verdict.concerns.entries()) {
+    for (const [index, concern] of payload.concerns.entries()) {
       const concernBytes = byteLength(concern);
       if (concernBytes > VERDICT_CAPS.concern_bytes) {
         return oversizedResult(
@@ -672,8 +705,14 @@ function invokePaseo({
         stderrBytes = nextBytes;
       }
     }
-    child.stdout.on("data", (chunk) => capture("stdout", stdoutChunks, chunk));
-    child.stderr.on("data", (chunk) => capture("stderr", stderrChunks, chunk));
+    child.stdout.on(
+      "data",
+      (chunk) => capture("stdout", stdoutChunks, chunk)
+    );
+    child.stderr.on(
+      "data",
+      (chunk) => capture("stderr", stderrChunks, chunk)
+    );
     child.on("error", (error) => {
       reject(
         isMissingPaseoSpawnError(error) ? paseoMissingError(error) : error
@@ -715,21 +754,30 @@ function invokePaseo({
           return;
         }
         reject(
-          new ConsensusError(`paseo returned invalid JSON: ${error.message}`, {
-            code: "PASEO_INVALID_JSON",
-            exitCode: EXIT_CODES.DATA,
-            cause: error,
-            details: { stdout, stderr }
-          })
+          new ConsensusError(
+            `paseo returned invalid JSON: ${hardErrorMessage(error)}`,
+            {
+              code: "PASEO_INVALID_JSON",
+              exitCode: EXIT_CODES.DATA,
+              cause: error,
+              details: { stdout, stderr }
+            }
+          )
         );
       }
     });
   });
 }
 function isRetryablePaseoError(error) {
-  return error?.code === "PASEO_EXIT" || error?.code === "PASEO_INVALID_JSON";
+  const candidate = asErrorLike(error);
+  return candidate.code === "PASEO_EXIT" || candidate.code === "PASEO_INVALID_JSON";
 }
-async function invokePaseoWithRetry(args, { attempts = 3, delayMs = 750, sleep, invoke = invokePaseo } = {}) {
+async function invokePaseoWithRetry(args, {
+  attempts = 3,
+  delayMs = 750,
+  sleep,
+  invoke = invokePaseo
+} = {}) {
   const wait = sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
   let lastError;
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
@@ -747,22 +795,22 @@ function peerVerdictError(verdict, mode) {
   const shape = validateVerdictShape(verdict, { mode });
   if (!shape.ok) {
     return new ConsensusError(
-      `invalid verdict shape: ${shape.errors.join("; ")}`,
+      `invalid verdict shape: ${validationErrors(shape).join("; ")}`,
       {
         code: "INVALID_VERDICT_SHAPE",
         exitCode: EXIT_CODES.DATA,
-        details: { errors: shape.errors }
+        details: { errors: validationErrors(shape) }
       }
     );
   }
   const caps = validateVerdictCaps(verdict, { mode });
   if (!caps.ok) {
     return new ConsensusError(
-      `invalid verdict caps: ${JSON.stringify(caps.metadata)}`,
+      `invalid verdict caps: ${JSON.stringify(validationMetadata(caps))}`,
       {
         code: "INVALID_VERDICT_CAPS",
         exitCode: EXIT_CODES.DATA,
-        details: caps.metadata
+        details: validationMetadata(caps)
       }
     );
   }
@@ -782,14 +830,14 @@ async function invokeValidatedPeer({
     try {
       const result = await invoke(args);
       const verdictError = peerVerdictError(
-        normalizeVerdict(result.json, mode),
-        mode
+        normalizeVerdict(result.json, mode ?? "alternating"),
+        mode ?? "alternating"
       );
       if (verdictError) throw verdictError;
       return result;
     } catch (error) {
       lastError = error;
-      const retryable = isRetryablePaseoError(error) || error?.code === "INVALID_VERDICT_SHAPE" || error?.code === "INVALID_VERDICT_CAPS";
+      const retryable = isRetryablePaseoError(error) || asErrorLike(error).code === "INVALID_VERDICT_SHAPE" || asErrorLike(error).code === "INVALID_VERDICT_CAPS";
       if (!retryable || attempt === attempts) throw error;
       await wait(delayMs);
     }
@@ -869,7 +917,19 @@ function parseLoopArgs(argv) {
   required(parsed.outputRecords, "--output-records");
   required(parsed.outputSection, "--output-section");
   required(parsed.outputStatus, "--output-status");
-  return parsed;
+  return {
+    sectionFile: parsed.sectionFile,
+    goal: parsed.goal,
+    peers: parsed.peers,
+    maxRounds: parsed.maxRounds,
+    iteration: parsed.iteration,
+    coldStart: parsed.coldStart,
+    agency: parsed.agency,
+    synthesizer: parsed.synthesizer,
+    outputRecords: parsed.outputRecords,
+    outputSection: parsed.outputSection,
+    outputStatus: parsed.outputStatus
+  };
 }
 function verdictForPrompt(record) {
   if (!record) return null;
@@ -1213,26 +1273,29 @@ async function executeAlternatingTurn({
     prompt,
     artifact: currentArtifact
   });
-  const verdict = normalizeVerdict(peerResult.json, options.iteration);
+  const verdict = normalizeVerdict(
+    peerResult.json,
+    options.iteration
+  );
   const shape = validateVerdictShape(verdict, { mode: options.iteration });
   if (!shape.ok) {
     throw new ConsensusError(
-      `invalid verdict shape: ${shape.errors.join("; ")}`,
+      `invalid verdict shape: ${validationErrors(shape).join("; ")}`,
       {
         code: "INVALID_VERDICT_SHAPE",
         exitCode: EXIT_CODES.DATA,
-        details: { errors: shape.errors }
+        details: { errors: validationErrors(shape) }
       }
     );
   }
   const caps = validateVerdictCaps(verdict, { mode: options.iteration });
   if (!caps.ok) {
     throw new ConsensusError(
-      `invalid verdict caps: ${JSON.stringify(caps.metadata)}`,
+      `invalid verdict caps: ${JSON.stringify(validationMetadata(caps))}`,
       {
         code: "INVALID_VERDICT_CAPS",
         exitCode: EXIT_CODES.DATA,
-        details: caps.metadata
+        details: validationMetadata(caps)
       }
     );
   }
@@ -1253,10 +1316,10 @@ async function executeAlternatingTurn({
     iteration_mode: options.iteration,
     raw_paseo_response: peerResult.stdout ?? JSON.stringify(peerResult.json)
   };
-  if ("proposed_artifact" in verdict) {
+  if (typeof verdict.proposed_artifact === "string") {
     recordPayload.proposed_artifact = verdict.proposed_artifact;
   }
-  if ("concerns" in verdict) {
+  if (Array.isArray(verdict.concerns)) {
     recordPayload.concerns = verdict.concerns;
   }
   return { verdict, recordPayload, nextArtifact };
@@ -1289,22 +1352,22 @@ function validatePeerVerdict(verdict, mode, provider) {
   const shape = validateVerdictShape(verdict, { mode });
   if (!shape.ok) {
     throw new ConsensusError(
-      `invalid verdict shape from ${provider}: ${shape.errors.join("; ")}`,
+      `invalid verdict shape from ${provider}: ${validationErrors(shape).join("; ")}`,
       {
         code: "INVALID_VERDICT_SHAPE",
         exitCode: EXIT_CODES.DATA,
-        details: { peer: provider, errors: shape.errors }
+        details: { peer: provider, errors: validationErrors(shape) }
       }
     );
   }
   const caps = validateVerdictCaps(verdict, { mode });
   if (!caps.ok) {
     throw new ConsensusError(
-      `invalid verdict caps from ${provider}: ${JSON.stringify(caps.metadata)}`,
+      `invalid verdict caps from ${provider}: ${JSON.stringify(validationMetadata(caps))}`,
       {
         code: "INVALID_VERDICT_CAPS",
         exitCode: EXIT_CODES.DATA,
-        details: { peer: provider, ...caps.metadata }
+        details: { peer: provider, ...validationMetadata(caps) }
       }
     );
   }
@@ -1360,7 +1423,9 @@ async function executeParallelRound(context) {
       }
     );
   }
-  const peerResults = settled.map((result) => result.value);
+  const peerResults = settled.map(
+    (result) => result.value
+  );
   const normalizedVerdicts = peerResults.map(
     (peerResult) => normalizeVerdict(peerResult.json, mode)
   );
@@ -1385,10 +1450,10 @@ async function executeParallelRound(context) {
       iteration_mode: mode,
       raw_paseo_response: peerResult.stdout ?? JSON.stringify(peerResult.json)
     };
-    if ("proposed_artifact" in verdict) {
+    if (typeof verdict.proposed_artifact === "string") {
       recordPayload.proposed_artifact = verdict.proposed_artifact;
     }
-    if ("concerns" in verdict) {
+    if (Array.isArray(verdict.concerns)) {
       recordPayload.concerns = verdict.concerns;
     }
     return recordPayload;
@@ -1404,7 +1469,7 @@ function priorUnresolvedDisagreements(records) {
   for (let index = records.length - 1; index >= 0; index -= 1) {
     const record = records[index];
     if (record?.record_type === "synthesis") {
-      return Array.isArray(record.unresolved_disagreements) ? record.unresolved_disagreements : [];
+      return Array.isArray(record.unresolved_disagreements) ? record.unresolved_disagreements.map(String) : [];
     }
   }
   return [];
@@ -1414,18 +1479,21 @@ function classifySynthesisFailure(synthesis, synthesizer) {
   if (!shape.ok) {
     return {
       code: "INVALID_SYNTHESIS_SHAPE",
-      message: `invalid synthesis shape from ${synthesizer}: ${shape.errors.join("; ")}`,
-      details: { synthesizer, errors: shape.errors },
-      metadata: { code: "INVALID_SYNTHESIS_SHAPE", errors: shape.errors }
+      message: `invalid synthesis shape from ${synthesizer}: ${validationErrors(shape).join("; ")}`,
+      details: { synthesizer, errors: validationErrors(shape) },
+      metadata: {
+        code: "INVALID_SYNTHESIS_SHAPE",
+        errors: validationErrors(shape)
+      }
     };
   }
   const caps = validateSynthesisCaps(synthesis);
   if (!caps.ok) {
     return {
       code: "INVALID_SYNTHESIS_CAPS",
-      message: `invalid synthesis caps from ${synthesizer}: ${JSON.stringify(caps.metadata)}`,
-      details: { synthesizer, ...caps.metadata },
-      metadata: caps.metadata
+      message: `invalid synthesis caps from ${synthesizer}: ${JSON.stringify(validationMetadata(caps))}`,
+      details: { synthesizer, ...validationMetadata(caps) },
+      metadata: validationMetadata(caps)
     };
   }
   return null;
@@ -1496,7 +1564,7 @@ async function executeSynthesis({
 }
 async function executeRound(context) {
   const { mode } = context;
-  if (PARALLEL_MODES.has(mode)) {
+  if (mode && PARALLEL_MODES.has(mode)) {
     const parallel = await executeParallelRound(context);
     if (mode === "parallel_synthesized") {
       const round = parallel.records[0]?.round_index;
@@ -1504,7 +1572,7 @@ async function executeRound(context) {
         options: context.options,
         records: context.records,
         pairRecords: parallel.records,
-        round,
+        round: Number(round),
         invokeSynthesizer: context.invokeSynthesizer
       });
       if (synthesisResult.synthesisError) {
@@ -1518,7 +1586,9 @@ async function executeRound(context) {
     }
     return parallel;
   }
-  const { verdict, recordPayload, nextArtifact } = await executeAlternatingTurn(context);
+  const { verdict, recordPayload, nextArtifact } = await executeAlternatingTurn(
+    context
+  );
   return { records: [recordPayload], nextArtifact, verdicts: [verdict] };
 }
 const LEGACY_USER_STATUS = Object.freeze({
@@ -1531,7 +1601,13 @@ const LEGACY_USER_STATUS = Object.freeze({
     termination_reason: "max_rounds_exhausted"
   }
 });
-function escalationTerminal({ trigger, detected, options, records, artifact }) {
+function escalationTerminal({
+  trigger,
+  detected,
+  options,
+  records,
+  artifact
+}) {
   const route = routeEscalation(trigger, options.agency, records);
   const finalHash = hashArtifact(
     artifact,
@@ -1548,7 +1624,7 @@ function escalationTerminal({ trigger, detected, options, records, artifact }) {
       artifact
     };
   }
-  if (route.decide_via === "user" && LEGACY_USER_STATUS[trigger]) {
+  if (route.decide_via === "user" && trigger in LEGACY_USER_STATUS) {
     const legacy = LEGACY_USER_STATUS[trigger];
     return {
       status: resultStatus(
@@ -1607,7 +1683,11 @@ function pendingSynthesisRound(records, peers) {
   if (hasSynthesis) return null;
   return { round: latestRound, pairRecords: pairRecords.slice(-peers.length) };
 }
-function evaluateParallelTerminal({ records, options, artifact }) {
+function evaluateParallelTerminal({
+  records,
+  options,
+  artifact
+}) {
   const lastTwoPeers = peerRecords(records).filter((record) => record?.record_type !== "synthesis").slice(-2);
   const verdicts = lastTwoPeers.map((record) => verdictDecision(record));
   if (verdicts.includes("IMPASSE")) {
@@ -1629,7 +1709,9 @@ function evaluateParallelTerminal({ records, options, artifact }) {
     convergenceOptionsForAgency(options.agency)
   );
   if (convergence.converged) {
-    const statusExtra = { final_artifact_hash: convergence.artifact_hash };
+    const statusExtra = {
+      final_artifact_hash: convergence.artifact_hash
+    };
     if (convergence.agency_decision) {
       statusExtra.agency_decision = convergence.agency_decision;
     }
@@ -1718,7 +1800,7 @@ async function runParallelRounds({
         options,
         records,
         pairRecords: committedPair,
-        round,
+        round: Number(round),
         invokeSynthesizer
       });
       if (synthesisResult.synthesisError) {
@@ -1789,7 +1871,6 @@ async function runConsensusLoop(argv, runOptions = {}) {
     if (PARALLEL_MODES.has(options.iteration)) {
       const terminal = await runParallelRounds({
         options,
-        runOptions,
         records,
         writer,
         currentArtifact,
@@ -1842,7 +1923,9 @@ async function runConsensusLoop(argv, runOptions = {}) {
         convergenceOptionsForAgency(options.agency)
       );
       if (convergence.converged) {
-        const statusExtra = { final_artifact_hash: convergence.artifact_hash };
+        const statusExtra = {
+          final_artifact_hash: convergence.artifact_hash
+        };
         if (convergence.agency_decision) {
           statusExtra.agency_decision = convergence.agency_decision;
         }
@@ -2078,10 +2161,10 @@ function parallelRoundPairs(records, options = {}) {
     const round = Number(record?.round_index);
     if (!Number.isInteger(round)) continue;
     if (!byRound.has(round)) byRound.set(round, []);
-    byRound.get(round).push(parallelRevisionHash(record, options));
+    byRound.get(round)?.push(parallelRevisionHash(record, options));
   }
   return [...byRound.keys()].toSorted((a, b) => a - b).map((round) => {
-    const hashes = byRound.get(round).filter(Boolean).toSorted();
+    const hashes = (byRound.get(round) ?? []).filter(Boolean).toSorted();
     return hashes.length > 0 ? hashes.join("|") : null;
   });
 }
@@ -2115,7 +2198,9 @@ function synthesisRecords(records) {
 }
 function normalizedDisagreementSet(record) {
   const list = Array.isArray(record?.unresolved_disagreements) ? record.unresolved_disagreements : [];
-  return new Set(list.map((entry) => String(entry).trim()).filter(Boolean));
+  return new Set(
+    list.map((entry) => String(entry).trim()).filter(Boolean)
+  );
 }
 function sameDisagreementSet(a, b) {
   if (a.size !== b.size) return false;
@@ -2134,6 +2219,7 @@ function detectPersistentDisagreement(records) {
     if (!sameDisagreementSet(sets[0], sets[index])) return null;
   }
   const latest = window.at(-1);
+  if (!latest) return null;
   return {
     trigger: ESCALATION_TRIGGERS.persistent_disagreement,
     disagreements: [...sets[0]],
@@ -2193,7 +2279,11 @@ function detectOscillationTrigger(records, mode, options = {}) {
     divergent: left && right ? divergentPairRefs(left, right, options) : void 0
   };
 }
-function detectEscalation(records, { mode = "alternating", agency = "moderate", budgetExhausted = false } = {}) {
+function detectEscalation(records, {
+  mode = "alternating",
+  agency = "moderate",
+  budgetExhausted = false
+} = {}) {
   if (!Array.isArray(records) || records.length === 0) return null;
   const options = convergenceOptionsForAgency(agency);
   if (mode === "parallel_synthesized") {
@@ -2263,7 +2353,12 @@ function routeEscalation(trigger, agency = "moderate", records = []) {
   }
   const baseDecideVia = row[agency] ?? "user";
   if (baseDecideVia === "auto") {
-    const route = { trigger, agency, decide_via: "auto", decision_kinds: [] };
+    const route = {
+      trigger,
+      agency,
+      decide_via: "auto",
+      decision_kinds: []
+    };
     if (trigger === ESCALATION_TRIGGERS.budget_exhausted) {
       route.auto_resolution = "declare_done";
     } else if (trigger === ESCALATION_TRIGGERS.near_done_drift) {
