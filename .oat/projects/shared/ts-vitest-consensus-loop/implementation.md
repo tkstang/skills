@@ -1,9 +1,9 @@
 ---
-oat_status: in_progress
+oat_status: complete
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-15
-oat_current_task_id: p03-t01
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -26,10 +26,10 @@ oat_generated: false
 | Phase   | Status  | Tasks | Completed |
 | ------- | ------- | ----- | --------- |
 | Phase 1 | complete | 3     | 3/3       |
-| Phase 2 | implemented | 3     | 3/3       |
-| Phase 3 | pending | 3     | 0/3       |
+| Phase 2 | complete | 3     | 3/3       |
+| Phase 3 | complete | 3     | 3/3       |
 
-**Total:** 6/9 tasks completed
+**Total:** 9/9 tasks completed
 
 ---
 
@@ -105,6 +105,40 @@ Run-scoped snapshot only. The durable record is the task-level **Delta** notes b
 | ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
 | p02-t03       | plan.md         | RED test exposes wrapper path/export mismatch from generated output | Baseline wrapper command already passed; characterization tests were added instead | The generated output preserved the existing wrapper import contract, so there was no real failing behavior to expose | implementation.md | None |
 
+### Run 3 — 2026-06-15 15:59
+
+**Branch:** feat/ts-vitest-consensus-loop
+**Tier:** 1
+**Policy:** merge-strategy=sequential, retry-limit=2
+**Phases:** 1 executed, 1 implemented, 0 failed, 0 stopped
+
+#### Phase Outcomes
+
+| Phase | Implementer | Review | Fix Iterations | Disposition |
+| ----- | ----------- | ------ | -------------- | ----------- |
+| p03   | complete    | pending | 0/2            | awaiting orchestrator review |
+
+#### Parallel Groups
+
+- Singleton p03: sequential on orchestration branch.
+
+#### Dispatch Notes
+
+- p03 implementation used the Codex high phase implementer under the project xhigh ceiling because this phase was validation/reference work with meaningful blast radius but not core runtime migration.
+- p03 review was not run by this implementer. The orchestrator will run p03 and final reviews after this report.
+
+#### Outstanding Items
+
+- None. `pnpm run worktree:validate` initially hit the known `tests/session-observer/watch.test.mjs` timing flake during p03-t03, but the isolated watcher test and the final clean-tree `worktree:validate` rerun passed.
+
+#### Artifact / Design Deltas
+
+Run-scoped snapshot only. The durable record is the task-level **Delta** notes below.
+
+| Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
+| ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
+| p03-t03       | plan.md         | `pnpm run worktree:validate` expected to pass as the full clean-tree gate | The first clean-tree attempts reached the known session-observer watch timing flake; the isolated watcher test and final clean-tree `worktree:validate` rerun passed | The flake was transient and did not indicate generated-output drift or TypeScript migration failure | implementation.md | None |
+
 <!-- orchestration-runs-end -->
 
 ---
@@ -178,7 +212,7 @@ Run-scoped snapshot only. The durable record is the task-level **Delta** notes b
 
 ## Phase 2: Migrate `consensus-loop` to TypeScript Source
 
-**Status:** implemented; awaiting code review
+**Status:** complete
 
 ### Task p02-t01: Introduce Canonical TypeScript Source for the Loop
 
@@ -236,31 +270,90 @@ Run-scoped snapshot only. The durable record is the task-level **Delta** notes b
 - `pnpm test` passed on final rerun.
 - `pnpm run smoke` passed.
 
-**Review:** p02 code review is still pending and should be handled by the orchestrator.
+**Review:** p02 code review passed in `reviews/p02-review-2026-06-15.md`.
 
 ---
 
 ## Phase 3: CI, Documentation, and Final Validation
 
-**Status:** pending
+**Status:** complete; awaiting p03/final code review
 
 ### Task p03-t01: Wire CI and Worktree Validation to the New Build
 
-**Status:** pending
-**Commit:** -
+**Status:** complete
+**Commit:** 33d19ce
+
+**Verification:**
+
+- `node --test tests/validate-script.test.mjs` failed before wiring validation because CI did not run `pnpm run build` (expected RED).
+- `node --test tests/validate-script.test.mjs` passed after adding explicit CI/worktree command-order assertions.
+- `pnpm run build && git diff --exit-code -- plugins/consensus/skills/refine/scripts/consensus-loop.mjs && pnpm run type-check && pnpm run build:check` passed.
+- `pnpm test && pnpm run validate && pnpm run smoke` passed.
+- `pnpm run worktree:validate` initially hit the known session-observer watch timing assertion; `node --test tests/session-observer/watch.test.mjs` passed immediately afterward, and a final clean-tree `pnpm run worktree:validate` rerun passed.
+
+**Delta:**
+
+- Added `tests/validate-script.test.mjs` coverage for validation command order. The task file list allowed a focused validation test, and the existing validator test file was the narrowest place to lock the behavior.
+- Added `premerge` to `package.json` as a convenience composition of the same build/type/test/validate/smoke sequence; CI and `worktree:validate` still keep command order explicit.
 
 ### Task p03-t02: Refresh Backlog and Project References
 
-**Status:** pending
-**Commit:** -
+**Status:** complete
+**Commit:** 713d35a
+
+**Verification:**
+
+- `pnpm run validate` passed before edits; validation did not identify stale reference state automatically, so reference checks were manual.
+- `pnpm run validate && pnpm test && pnpm run validate` passed after edits.
+
+**Delta:**
+
+- Marked `bl-853a` delivered and `bl-bfb4` in progress rather than complete. Current-state and roadmap now describe the `consensus-loop` TypeScript conversion as one completed migration slice while keeping the wrapper/test-suite migration and `allowJs` tightening open.
+- Kept `consensus-evaluate` as the follow-on feature lane; the TypeScript work is substrate, not a replacement for that backlog item.
 
 ### Task p03-t03: Final Full Verification and Handoff
 
-**Status:** pending
-**Commit:** -
+**Status:** complete
+**Commit:** final tracking commit (`chore(p03-t03): record typescript loop migration completion`)
+
+**Verification:**
+
+- `pnpm run type-check` passed.
+- `pnpm run build:check` passed (`consensus-loop: in sync`).
+- `pnpm test` passed with 529 Node tests and 2 Vitest files / 3 Vitest tests.
+- `pnpm run validate` passed.
+- `pnpm run smoke` passed.
+- `pnpm run worktree:validate` initially hit `tests/session-observer/watch.test.mjs` timing assertions; `node --test tests/session-observer/watch.test.mjs` passed in isolation, and the final clean-tree `pnpm run worktree:validate` rerun passed.
+
+**Delta:**
+
+- No implementation/design behavior changed in p03-t03. The only caveat is that the aggregate clean-tree gate needed a retry because of the existing session-observer timing flake; the final clean-tree gate passed.
 
 ---
 
 ## Final Summary (for PR/docs)
 
-Fill this after implementation completes.
+Implemented the TypeScript/Vitest generated-runtime migration proof slice.
+
+What shipped:
+
+- Developer-only TypeScript, Vitest, type-check, generated-output build, and build-check scripts.
+- `scripts/build-generated.mjs` as the source-to-committed-runtime build tool, with a drift guard in Vitest and CI/worktree validation.
+- Canonical TypeScript source for `consensus-loop` at `plugins/consensus/skills/refine/src/consensus-loop.ts`, generated back to the existing provider-facing `plugins/consensus/skills/refine/scripts/consensus-loop.mjs` path.
+- Domain types for the loop’s iteration modes, agency, verdicts, synthesis payloads, records/status payloads, escalation routing, and peer invocation boundaries.
+- Wrapper compatibility tests proving `consensus-refine.mjs` and parallel section runners still use the generated loop runtime path.
+- Documentation, decision records, AGENTS guidance, backlog references, current-state, roadmap, CI, and worktree validation updates for the generated TypeScript source contract.
+
+Verification performed:
+
+- `pnpm run type-check` passed.
+- `pnpm run build:check` passed.
+- `pnpm test` passed.
+- `pnpm run validate` passed.
+- `pnpm run smoke` passed.
+- `pnpm run worktree:validate` passed from a clean tree after retry.
+
+Design deltas:
+
+- p02-t03 did not require a wrapper runtime fix because generated output preserved the existing import path/export contract; characterization tests were added instead.
+- p03-t03 records the transient aggregate `worktree:validate` flake and the final clean-tree pass rather than broadening this migration phase into session-observer timing work.

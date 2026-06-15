@@ -503,7 +503,8 @@ git commit -m "chore(p03-t03): record typescript loop migration completion"
 
 **Total: 9 tasks**
 
-Ready for implementation.
+Implementation tasks are complete. p03 and final review rows remain pending for
+the orchestrator to review and record.
 
 ## References
 
