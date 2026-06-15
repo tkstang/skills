@@ -3,6 +3,8 @@
 // touched. The repo-wide one-time format lands in a separate follow-up.
 
 // Files that must never be reformatted/linted here:
+//   - OAT project/reference artifacts (.oat) because repo formatter config
+//     ignores them and passing only ignored files makes oxfmt fail
 //   - generated transcript-core copies (drift-guarded against canonical source)
 //   - OAT-synced provider views (.agents, .claude/rules, .cursor/rules) kept
 //     byte-identical to their canonical sources by `oat sync`
@@ -11,6 +13,7 @@
 //     sync does not keep oxfmt-clean, so formatting fights the generator
 const isExcluded = (file) =>
   file.endsWith('/scripts/lib/runtimes.mjs') ||
+  /(^|\/)\.oat\//.test(file) ||
   /(^|\/)\.agents\//.test(file) ||
   /(^|\/)\.(claude|cursor)\/rules\//.test(file) ||
   /(^|\/)(AGENTS|CLAUDE)\.md$/.test(file);
