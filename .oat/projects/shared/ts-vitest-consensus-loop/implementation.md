@@ -25,22 +25,33 @@ oat_generated: false
 
 | Phase   | Status  | Tasks | Completed |
 | ------- | ------- | ----- | --------- |
-| Phase 1 | pending | 3     | 0/3       |
+| Phase 1 | in_progress | 3     | 1/3       |
 | Phase 2 | pending | 3     | 0/3       |
 | Phase 3 | pending | 3     | 0/3       |
 
-**Total:** 0/9 tasks completed
+**Total:** 1/9 tasks completed
 
 ---
 
 ## Phase 1: Toolchain and Generated Runtime Contract
 
-**Status:** pending
+**Status:** in_progress
 
 ### Task p01-t01: Add TypeScript and Vitest Tooling
 
-**Status:** pending
-**Commit:** -
+**Status:** complete
+**Commit:** pending
+
+**Verification:**
+
+- `pnpm exec vitest run tests/tooling/*.test.*` failed before Vitest wiring with `Command "vitest" not found` (expected RED).
+- `pnpm run type-check` passed.
+- `pnpm test` passed.
+
+**Delta:**
+
+- Added `tests/package-metadata.test.mjs` to the p01-t01 change set because the existing test asserted `test = node --test`, while the plan's source of truth requires `test` to compose the existing Node suite and new Vitest checks.
+- Follow-up artifact disposition: this note records the intentional file-list divergence; no plan change is required because the behavior is directly implied by p01-t01.
 
 ### Task p01-t02: Add Generated-Output Build and Drift Guard
 
