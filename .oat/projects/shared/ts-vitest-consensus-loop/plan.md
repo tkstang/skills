@@ -486,7 +486,7 @@ git commit -m "chore(p03-t03): record typescript loop migration completion"
 | p01    | code     | passed  | 2026-06-15 | reviews/p01-review-2026-06-15-r2.md     |
 | p02    | code     | passed  | 2026-06-15 | reviews/p02-review-2026-06-15.md        |
 | p03    | code     | passed  | 2026-06-15 | reviews/p03-review-2026-06-15.md        |
-| final  | code     | pending | -          | -                                       |
+| final  | code     | passed  | 2026-06-15 | reviews/final-review-2026-06-15.md      |
 | spec   | artifact | pending | -          | N/A quick mode                          |
 | design | artifact | pending | -          | N/A quick mode                          |
 | plan   | artifact | passed  | 2026-06-15 | inline quick-start review               |
@@ -503,8 +503,8 @@ git commit -m "chore(p03-t03): record typescript loop migration completion"
 
 **Total: 9 tasks**
 
-Implementation tasks are complete. p03 and final review rows remain pending for
-the orchestrator to review and record.
+Implementation tasks and final checkpoint review are complete. The project is
+ready for PR handoff after HiLL checkpoint approval.
 
 ## References
 
