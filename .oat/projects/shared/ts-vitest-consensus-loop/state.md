@@ -1,5 +1,5 @@
 ---
-oat_current_task: null
+oat_current_task: p01-t01
 oat_last_commit: null
 oat_blockers: []
 associated_issues:
@@ -17,7 +17,6 @@ oat_hill_completed: []
 oat_parallel_execution: false
 oat_phase: implement
 oat_phase_status: in_progress
-oat_current_task: p01-t01
 oat_workflow_mode: quick
 oat_workflow_origin: native
 oat_docs_updated: null
