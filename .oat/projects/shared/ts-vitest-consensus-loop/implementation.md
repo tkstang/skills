@@ -197,7 +197,7 @@ Run-scoped snapshot only. The durable record is the task-level **Delta** notes b
 **Artifacts:**
 
 - First review: `reviews/archived/p01-review-2026-06-15.md`
-- Passing review: `reviews/p01-review-2026-06-15-r2.md`
+- Passing review: `reviews/archived/p01-review-2026-06-15-r2.md`
 
 **Fix Commit:** 5658e63
 
@@ -270,7 +270,7 @@ Run-scoped snapshot only. The durable record is the task-level **Delta** notes b
 - `pnpm test` passed on final rerun.
 - `pnpm run smoke` passed.
 
-**Review:** p02 code review passed in `reviews/p02-review-2026-06-15.md`.
+**Review:** p02 code review passed in `reviews/archived/p02-review-2026-06-15.md`.
 
 ---
 
@@ -332,7 +332,7 @@ Run-scoped snapshot only. The durable record is the task-level **Delta** notes b
 ### Phase 3 Review
 
 **Status:** passed
-**Artifact:** `reviews/p03-review-2026-06-15.md`
+**Artifact:** `reviews/archived/p03-review-2026-06-15.md`
 
 **Verification:**
 
@@ -343,13 +343,24 @@ Run-scoped snapshot only. The durable record is the task-level **Delta** notes b
 ### Final Checkpoint Review
 
 **Status:** passed
-**Artifact:** `reviews/final-review-2026-06-15.md`
+**Artifact:** `reviews/archived/final-review-2026-06-15.md`
 
 **Verification:**
 
 - Final review found 0 Critical, 0 Important, 0 Medium, and 1 Minor finding.
 - The minor finding noted a stale plan sentence that still said the p03 review row was pending; this bookkeeping update rewrites that note to say implementation tasks and final checkpoint review are complete.
 - Final review verified the complete implementation range, prior phase reviews, generated-output drift checks, CI/worktree validation wiring, TypeScript runtime source contract, wrapper compatibility, and backlog/reference state.
+
+### Final Checkpoint Review: Second Opinion
+
+**Status:** passed
+**Artifact:** `reviews/archived/final-review-2026-06-15-v2.md`
+
+**Verification:**
+
+- Second-opinion final review found 0 Critical, 0 Important, 0 Medium, and 0 Minor findings.
+- Deferred Medium ledger is empty; no prior deferred Medium findings require final disposition.
+- No fix tasks were added. The project remains ready for HiLL approval and PR handoff.
 
 ---
 
