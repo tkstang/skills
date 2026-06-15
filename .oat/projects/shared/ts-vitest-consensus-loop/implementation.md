@@ -73,7 +73,7 @@ oat_generated: false
 ### Task p01-t03: Record the Build Boundary Decision
 
 **Status:** complete
-**Commit:** pending
+**Commit:** 7664646
 
 **Verification:**
 
