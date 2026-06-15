@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "agentInstructions": {
+    "lastRunAt": "2026-06-14T14:43:03Z",
+    "commitHash": "47cdaa14c04e08764baa72fc369fd33d176609f7",
+    "baseBranch": "main",
+    "mode": "full",
+    "formats": [
+      "agents_md",
+      "claude",
+      "codex",
+      "cursor"
+    ],
+    "artifactPath": ".oat/repo/analysis/agent-instructions-2026-06-14-1435.md"
+  },
+  "agentInstructionsApply": {
+    "lastRunAt": "2026-06-14T15:21:22Z",
+    "commitHash": "47cdaa14c04e08764baa72fc369fd33d176609f7",
+    "baseBranch": "main",
+    "mode": "apply",
+    "formats": [
+      "agents_md",
+      "claude",
+      "codex",
+      "cursor"
+    ]
+  }
+}

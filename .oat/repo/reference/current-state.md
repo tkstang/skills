@@ -1,6 +1,6 @@
 # Skills Repo Current State
 
-**Last updated:** 2026-06-13 (consensus Phase 2 — parallel iteration modes + escalation ladder + unified v1 schema — implemented on `feat/consensus-iteration-modes`, final review in progress, merge pending. Prior baseline 2026-06-12: initial backfill covering consensus-plugin v0.1, session-observer + watch mode, export-session-transcript + shared transcript-core, and the OAT tooling user-scope move.)
+**Last updated:** 2026-06-13 (consensus Phase 2 — parallel iteration modes + escalation ladder + unified v1 schema — merged to `main` via PR #9. Prior baseline 2026-06-12: initial backfill covering consensus-plugin v0.1, session-observer + watch mode, export-session-transcript + shared transcript-core, and the OAT tooling user-scope move.)
 
 ## Overview
 

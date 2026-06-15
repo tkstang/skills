@@ -72,28 +72,73 @@ Preflight additionally calls `paseo --version` and `paseo provider ls --json`.
 - Opaque failures and no ability to iterate internals when the abstraction
   doesn't fit (codex structured-output quirks; cursor's soft ACP schema path).
 
+### Reference implementations (confirmed from source, 2026-06-14)
+
+Two existing codebases de-risk this materially — we would be **porting and
+narrowing our own / proven code, not reverse-engineering Paseo from scratch**:
+
+- **`~/code/stoa`** already runs all three target providers *directly, with no
+  Paseo*, in TypeScript (on vitest):
+  - `apps/server/src/ai-workflows/provider-adapter.ts` builds the per-provider
+    commands — `claude --json-schema` (native), `codex exec --output-schema`
+    (native), and `cursor agent --print --output-format json` (envelope only).
+  - `final-json-contract.ts` holds the inject-vs-native decision
+    (`getSchemaDelivery`): claude with a constrained schema → native; codex →
+    native only when opted in; **everything else, including cursor, →
+    `prompt-only`** (inject schema into the prompt, parse + validate the final
+    JSON). This is essentially the adapter layer this item proposes, already
+    built and tested.
+- **`~/code/paseo`** confirms the "value to replace" precisely:
+  - Structured output is a single **prompt-inject + AJV/Zod validate + retry**
+    loop over an `AgentCaller = (prompt) => Promise<string>` abstraction
+    (`packages/server/src/server/agent/agent-response-loop.ts`:
+    `buildBasePrompt` injects the schema, `buildValidator` uses AJV/Zod,
+    `buildRetryPrompt` re-prompts with errors). ~50 lines; trivial to reproduce
+    (stoa already did).
+  - The real moat is the **adapter catalog**:
+    `providers/claude/`, `providers/codex/` (app-server protocol), and the ACP
+    family — `acp-agent.ts` / `generic-acp-agent.ts` plus `cursor-acp-agent.ts`,
+    `copilot-acp-agent.ts`, `opencode/`, etc. — plus a cross-provider/model
+    fallback ladder (`StructuredGenerationOutputError`). This churning adapter
+    work is what we keep paying for, and the only part expensive to rebuild.
+
+**Cursor is soft-schema in both implementations** — it has no native schema flag
+(confirmed: no `output-schema`/`json-schema` for cursor anywhere in stoa or
+paseo). So supporting cursor means we still need the inject+validate+retry helper
+regardless. This is the single strongest argument for the submit-tool approach
+([[bl-3a88]]): a verdict-submission tool normalizes claude/codex/cursor onto one
+mechanism and erases the native-vs-soft split entirely.
+
 ### Decision pivot
 
 The deciding question is **how many peer providers we want to support**:
-- 2–3 providers with native headless modes → building our own is modest-cost
-  and removes the daemon/install/version-drift friction.
-- "Whatever speaks ACP" (broad provider catalog) → Paseo's adapter + ACP catalog
-  maintenance is worth keeping.
+- 2–3 providers → building our own is modest-cost (stoa already has the three
+  direct adapters) and removes the daemon/install/version-drift friction.
+- "Whatever speaks ACP" (broad provider catalog: copilot, opencode, gemini,
+  qwen, …) → Paseo's adapter catalog + cross-model fallback ladder is worth
+  keeping.
 
-Related context: the cursor-as-peer path is supported by Paseo via a custom ACP
-provider (`cursor-agent acp`) but is unverified end-to-end and routes through the
-soft (prompt-inject + retry) schema path; see README "Advanced Configuration"
-and the cursor-as-peer verification follow-up.
+**Operator lean (2026-06-14, tentative — not yet a committed decision):** floor
+is **claude + codex + cursor**; broader ACP support is "nice to have" but not
+required. That lands on the modest-cost side of the pivot, *but* because cursor
+is soft-schema, the build includes the inject+validate+retry helper (it is not a
+pure "native modes only" build). Confirm or revise before committing; if broad
+ACP coverage becomes a product goal, the pivot flips back toward staying on
+Paseo. See [[bl-f0b6]] (cursor-as-peer verification) for the evidence that should
+firm this up.
 
 ## Acceptance Criteria
 
 - A written build-vs-buy recommendation lands in `.oat/repo/reference/research/`
   (or a successor decision record), covering: the exact Paseo surface we use,
   the value to replace, the cost of each option, and the provider-count pivot.
-- A spike validates a direct-CLI `invokePeer` backend for `claude` and `codex`
-  using their native structured-output modes, wired behind the existing
+- A spike validates a direct-CLI `invokePeer` backend wired behind the existing
   `invokePeer` injection seam (no change to `consensus-loop.mjs` control flow),
-  and benchmarked against `invokePaseo` for schema-retry rate and latency.
+  benchmarked against `invokePaseo` for schema-retry rate and latency. Cover the
+  operator-lean provider set — `claude` + `codex` (native structured-output
+  modes) and `cursor` (envelope + inject/validate/retry, since it has no native
+  schema flag). Port from the proven `~/code/stoa` adapters
+  (`provider-adapter.ts`, `final-json-contract.ts`) rather than starting fresh.
 - The required migration steps are enumerated and sequenced, including at least:
   provider adapter contract, structured-output inject+validate+retry helper,
   provider inventory/availability replacement for `paseo provider ls --json`,

@@ -1,6 +1,6 @@
 # Skills Repo Roadmap
 
-**Last updated:** 2026-06-12 (initial backfill; consensus lane sequencing reflects the 2026-06-12 planning discussion — Phase 2 iteration modes before family skills. Now/Next placement is provisional until the next consensus project is scoped.)
+**Last updated:** 2026-06-14 (refreshed after PR #9 merged consensus Phase 2 iteration modes to `main`; family lane unblocked, `consensus-evaluate` promoted to Now, v0.1 release verification surfaced as a parallel Now lane. Prior: 2026-06-12 initial backfill.)
 
 ## Planning Model
 
@@ -16,7 +16,7 @@ Work is planned as **lanes**, not linear milestones. Sources of truth:
 
 ### Consensus plugin
 
-The v3 family architecture (`research/consensus/architecture-v3.md`) defines 6 skills × 3 iteration modes × 2 cold-start strategies × 3 agency levels over a shared `consensus-loop` primitive. v0.1 shipped Phase 1 **plus** most of Phase 3 (agency, impasse/user-direction flow, oscillation detection) and parts of Phases 4–5 (host-mediated parallel sections, resume). **Phase 2 — iteration modes — is now implemented** (`parallel_revision`, `parallel_synthesized`, synthesizer selection, agency-gated escalation ladder) on `feat/consensus-iteration-modes`, verified live with claude+codex, final review in progress (merge pending). The synthesis-mediation design question resolved as a two-tier model: deterministic wrapper-driven per-round synthesis plus agency-gated host/user escalation for judgment calls (DR-018).
+The v3 family architecture (`research/consensus/architecture-v3.md`) defines 6 skills × 3 iteration modes × 2 cold-start strategies × 3 agency levels over a shared `consensus-loop` primitive. v0.1 shipped Phase 1 **plus** most of Phase 3 (agency, impasse/user-direction flow, oscillation detection) and parts of Phases 4–5 (host-mediated parallel sections, resume). **Phase 2 — iteration modes — is now shipped and merged to `main` (PR #9)** (`parallel_revision`, `parallel_synthesized`, synthesizer selection, agency-gated escalation ladder), verified live with claude+codex. The synthesis-mediation design question resolved as a two-tier model: deterministic wrapper-driven per-round synthesis plus agency-gated host/user escalation for judgment calls (DR-018).
 
 What remains, in dependency order:
 
@@ -36,13 +36,13 @@ Substantially shipped (see `current-state.md`). Deferred items recorded in the a
 
 ## Now
 
-- **Land the consensus Phase 2 PR** — `feat/consensus-iteration-modes` (parallel modes + escalation ladder + v1 schema) is implemented and in final review; clear the final review and merge.
-- **Scope the first family skill** — `consensus-evaluate` is the earliest fast-follow (needs only `parallel_revision`, now shipped; bl-5174).
+- **Ship the first family skill** — `consensus-evaluate` is the earliest fast-follow (needs only `parallel_revision`, now shipped and merged; bl-5174). Phase 2 iteration modes merged via PR #9, so the whole family lane is unblocked.
+- **v0.1 release verification** — bl-d85f can run as an independent parallel lane; it gates public announcements only, not development.
 
 ## Next
 
-- **Family skills** — `consensus-evaluate` first, then `-create`, `-decide`, `-plan`, `-research` as thin wrappers with v3 defaults.
-- **v0.1 release verification** — can run in parallel with consensus work; it gates any public announcement, not development.
+- **Remaining family skills** — after `consensus-evaluate` (in flight, Now), `-create`, `-decide`, `-plan`, `-research` as thin wrappers with v3 defaults. `-create` front-loads the `independent_draft` cold-start + derived-sectioning design the next two reuse.
+- **Peer-invocation hardening** — tool-based verdict submission (bl-3a88) as the durable structured-output fix; design pass can run alongside the synthesized-mode family skills.
 
 ## Later
 

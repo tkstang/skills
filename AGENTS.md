@@ -6,17 +6,17 @@
 - **Discover available skills:** scan `.agents/skills/*/SKILL.md`
 - **Refresh provider views:** `oat sync --scope all`
 - **Update skills to latest versions:** `oat tools update`
-- **User-scoped skills:** `~/.agents/skills/` (core, ideas, docs, utility, research, brainstorm packs installed at user scope)
+- **User-scoped skills:** `~/.agents/skills/` (core, brainstorm packs installed at user scope)
 
 ### Installed Packs
 
 - **core** — Diagnostics and documentation (oat-doctor, oat-docs) _(user scope)_
-- **ideas** — Idea capture and refinement _(user scope)_
-- **docs** — Documentation and instruction governance workflows _(user scope)_
+- **ideas** — Idea capture and refinement
+- **docs** — Documentation and instruction governance workflows
 - **project-management** — Local backlog, roadmap, and reference doc management (oat-pjm-\* skills)
 - **workflows** — Project lifecycle (create, discover, plan, implement, review, complete)
-- **utility** — Standalone utilities (skill authoring, maintainability review, code reviews) _(user scope)_
-- **research** — Research, analysis, verification, and synthesis _(user scope)_
+- **utility** — Standalone utilities (skill authoring, maintainability review, code reviews)
+- **research** — Research, analysis, verification, and synthesis
 - **brainstorm** — Always-on brainstorming entry point with visual companion _(user scope)_
 
 ### Workflow Execution Continuation
@@ -51,7 +51,7 @@
 
 - JS and Markdown are linted with **oxlint** (`pnpm lint`) and formatted with **oxfmt** (`pnpm format`; `pnpm format:check` to verify). Config: `.oxlintrc.json`, `.oxfmtrc.json`.
 - Adoption is **incremental**: the `pre-commit` hook runs `lint-staged` over staged files only, and CI lints/format-checks only the files a PR changes. The repo has not yet been formatted wholesale; a one-time repo-wide `oxfmt` is a planned follow-up. Until then, do not run `pnpm format` across the whole tree in unrelated PRs.
-- Never lint/format generated or OAT-synced files: `**/scripts/lib/runtimes.mjs` (generated transcript-core copies), `.agents/**`, `.claude/rules/**`, `.cursor/rules/**`. These are excluded in the configs and in `.lintstagedrc.mjs`.
+- Never lint/format generated, OAT-synced, or agent-instruction files: `**/scripts/lib/runtimes.mjs` (generated transcript-core copies), `.agents/**`, `.claude/rules/**`, `.cursor/rules/**`, and `AGENTS.md` / `CLAUDE.md` at every level. The root `AGENTS.md` carries an `oat sync`-regenerated `<!-- OAT tools -->` block that oat sync does not keep oxfmt-clean, so formatting it fights the generator. These are excluded in three places that must stay in sync: `.oxfmtrc.json`, `.lintstagedrc.mjs`, and the CI `oxfmt --check` step in `.github/workflows/validate.yml` (and not linted by oxlint, which only processes JS/MJS — the Markdown rule dirs and instruction files are never linted regardless).
 - oxlint/oxfmt are **dev tooling** — they do not touch what shipped skills run.
 
 ## Verification
@@ -59,3 +59,9 @@
 - Run `npm test` (or `pnpm run test`) for the full Node test suite.
 - Run `npm run validate` for repository structure, manifest, and docs invariants.
 - Run `npm run smoke` for the mocked end-to-end consensus wrapper flow.
+
+## References
+
+- `README.md` — repo overview, layout, and install paths.
+- `CONTRIBUTING.md` — contribution workflow.
+- `RELEASING.md` — release checklist and provider-path verification.

@@ -22,6 +22,8 @@ Replace (or augment) paseo's `--output-schema` "emit a final JSON message that m
 
 **Scope note:** this is a deliberate rework of the peer-invocation layer (how we drive paseo), touching the DR-002 "shell out to paseo" boundary, and deserves its own design pass — not a quick patch. Captured from a user idea during the consensus-iteration-modes dogfood; not a ship blocker for v0.2 (the schema+prompt approach was made to work), but the leading candidate to harden the deliberation primitive.
 
+**Cross-link (2026-06-14):** strongly coupled to [[bl-bb7e]] (in-house peer CLI). Source review confirmed that today *every* provider ultimately rides a prompt-inject + AJV/Zod validate + retry loop for structured output (paseo `agent-response-loop.ts`; stoa `final-json-contract.ts`), and that **cursor has no native schema flag at all** — so the operator-lean provider set (claude + codex + cursor) cannot avoid the soft path. A verdict-submission tool is the mechanism that normalizes all three onto one robust, self-correcting contract, which is why bl-3a88 and bl-bb7e are best treated as one "own the peer-invocation layer" initiative.
+
 ## Acceptance Criteria
 
 - A design pass evaluating: an MCP tool registered with paseo vs. a CLI the sandboxed agent runs; how the orchestrator captures the submitted verdict; how it composes with stateless-per-turn agents and the deterministic engine.
