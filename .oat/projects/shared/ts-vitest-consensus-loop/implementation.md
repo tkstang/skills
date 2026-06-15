@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-15
-oat_current_task_id: p02-t01
+oat_current_task_id: p03-t01
 oat_generated: false
 ---
 
@@ -26,10 +26,10 @@ oat_generated: false
 | Phase   | Status  | Tasks | Completed |
 | ------- | ------- | ----- | --------- |
 | Phase 1 | complete | 3     | 3/3       |
-| Phase 2 | pending | 3     | 0/3       |
+| Phase 2 | implemented | 3     | 3/3       |
 | Phase 3 | pending | 3     | 0/3       |
 
-**Total:** 3/9 tasks completed
+**Total:** 6/9 tasks completed
 
 ---
 
@@ -144,22 +144,65 @@ Run-scoped snapshot only. The durable record is the task-level **Delta** notes b
 
 ## Phase 2: Migrate `consensus-loop` to TypeScript Source
 
-**Status:** pending
+**Status:** implemented; awaiting code review
 
 ### Task p02-t01: Introduce Canonical TypeScript Source for the Loop
 
-**Status:** pending
-**Commit:** -
+**Status:** complete
+**Commit:** 15a6408
+
+**Verification:**
+
+- `pnpm exec vitest run tests/generated-output-sync.test.mjs` failed before the TypeScript source existed because `consensus-loop` was still a pending generated-output mapping (expected RED).
+- `pnpm run build && pnpm exec vitest run tests/generated-output-sync.test.mjs` passed after adding `src/consensus-loop.ts` and generating `scripts/consensus-loop.mjs`.
+- `node --test tests/consensus-loop-cli.test.mjs tests/verdict-validation.test.mjs tests/loop-records.test.mjs tests/paseo-invocation.test.mjs` passed.
+
+**Delta:**
+
+- Removed the temporary `pendingUntilSourceExists` flag from the generated-output mapping once `src/consensus-loop.ts` became the canonical source. This completes the planned p01-to-p02 handoff and does not change the source/output contract.
 
 ### Task p02-t02: Add Useful Domain Types to the Loop
 
-**Status:** pending
-**Commit:** -
+**Status:** complete
+**Commit:** bb8d6f8
+
+**Verification:**
+
+- `pnpm run type-check` failed before domain types were added due to implicit and unsafe loop source domains (expected RED).
+- `pnpm run type-check` passed after adding typed iteration modes, agency, verdicts, synthesis payloads, records/status payloads, escalation routing, and peer invocation boundaries.
+- `pnpm run build` and `pnpm run build:check` passed with generated output in sync.
+- `node --test tests/verdict-validation.test.mjs tests/escalation.test.mjs tests/loop-convergence.test.mjs tests/resume-parse.test.mjs` passed.
 
 ### Task p02-t03: Prove Wrapper Compatibility Against Generated Output
 
-**Status:** pending
-**Commit:** -
+**Status:** complete
+**Commit:** 69020fb
+
+**Verification:**
+
+- Initial `node --test tests/sequential-wrapper.test.mjs tests/parallel-modes.test.mjs tests/parallel-integration.test.mjs` passed before new assertions; no real path/export mismatch was present to expose as RED.
+- Added characterization tests that lock `consensus-refine.mjs` to `./consensus-loop.mjs` and lock the prepared parallel section runner to the generated `scripts/consensus-loop.mjs` path.
+- `node --test tests/sequential-wrapper.test.mjs tests/parallel-modes.test.mjs tests/parallel-integration.test.mjs` passed after the test additions.
+- `pnpm run smoke` passed.
+- Full `pnpm test` initially exposed unrelated `session-observer` concurrency flakes; both failing files passed in isolation, and the final rerun of `pnpm test` passed.
+
+**Delta:**
+
+- No wrapper runtime change was required; the generated output preserved the existing `./consensus-loop.mjs` import contract.
+
+### Phase 2 Verification
+
+**Status:** passed
+
+**Commands:**
+
+- `pnpm run type-check` passed.
+- `pnpm run build:check` passed.
+- `node --test tests/consensus-loop-cli.test.mjs tests/verdict-validation.test.mjs tests/loop-records.test.mjs tests/paseo-invocation.test.mjs tests/escalation.test.mjs tests/loop-convergence.test.mjs tests/resume-parse.test.mjs tests/sequential-wrapper.test.mjs tests/parallel-modes.test.mjs tests/parallel-integration.test.mjs` passed.
+- `pnpm test` passed on final rerun.
+- `pnpm run smoke` passed.
+
+**Review:** p02 code review is still pending and should be handled by the orchestrator.
 
 ---
 
