@@ -33,6 +33,48 @@ oat_generated: false
 
 ---
 
+## Orchestration Runs
+
+<!-- orchestration-runs-start -->
+
+### Run 1 — 2026-06-15 15:24
+
+**Branch:** feat/ts-vitest-consensus-loop
+**Tier:** 1
+**Policy:** merge-strategy=sequential, retry-limit=2
+**Phases:** 1 executed, 1 passed, 0 failed, 0 stopped
+
+#### Phase Outcomes
+
+| Phase | Implementer | Review | Fix Iterations | Disposition |
+| ----- | ----------- | ------ | -------------- | ----------- |
+| p01   | complete    | pass   | 1/2            | continued   |
+
+#### Parallel Groups
+
+- Singleton p01: sequential on orchestration branch.
+
+#### Dispatch Notes
+
+- p01 implementation used the Codex high phase implementer under the project xhigh ceiling because the phase established multi-file tooling but did not migrate runtime loop logic.
+- p01 review used the Codex xhigh reviewer at the configured ceiling. The first review found 0 Critical, 1 Important, and 1 Minor finding. Fix commit `5658e63` aligned `@types/node` to Node 22 and clarified generated-output lint/format exclusion documentation. Re-review passed with 0 findings.
+
+#### Outstanding Items
+
+- None.
+
+#### Artifact / Design Deltas
+
+Run-scoped snapshot only. The durable record is the task-level **Delta** notes below.
+
+| Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
+| ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
+| None          | N/A             | N/A                  | N/A               | N/A    | N/A             | N/A       |
+
+<!-- orchestration-runs-end -->
+
+---
+
 ## Phase 1: Toolchain and Generated Runtime Contract
 
 **Status:** complete
@@ -80,6 +122,23 @@ oat_generated: false
 - `node --test tests/docs-presence.test.mjs` failed after adding the docs-presence assertion because the generated TypeScript runtime contract was not documented (expected RED).
 - `node --test tests/docs-presence.test.mjs` passed after updating docs.
 - `pnpm test && pnpm run validate` passed.
+
+### Phase 1 Review
+
+**Status:** passed
+**Artifacts:**
+
+- First review: `reviews/archived/p01-review-2026-06-15.md`
+- Passing review: `reviews/p01-review-2026-06-15-r2.md`
+
+**Fix Commit:** 5658e63
+
+**Verification:**
+
+- First p01 review found 0 Critical, 1 Important, and 1 Minor finding.
+- `pnpm run type-check`, `pnpm run build:check`, `pnpm run validate`, `pnpm run smoke`, and `git diff --check` passed after the fix.
+- The first full `pnpm test` run failed in the known transient `session-observer` watch-control test while checks were running in parallel; standalone rerun passed with 526 Node tests and 2 Vitest files.
+- Re-review passed with 0 Critical, 0 Important, 0 Medium, and 0 Minor findings.
 
 ---
 
