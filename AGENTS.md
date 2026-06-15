@@ -1,4 +1,5 @@
 <!-- OAT tools -->
+
 ## Tool Packs
 
 - **Skills directory:** `.agents/skills/`
@@ -12,7 +13,7 @@
 - **core** — Diagnostics and documentation (oat-doctor, oat-docs) _(user scope)_
 - **ideas** — Idea capture and refinement
 - **docs** — Documentation and instruction governance workflows
-- **project-management** — Local backlog, roadmap, and reference doc management (oat-pjm-* skills)
+- **project-management** — Local backlog, roadmap, and reference doc management (oat-pjm-\* skills)
 - **workflows** — Project lifecycle (create, discover, plan, implement, review, complete)
 - **utility** — Standalone utilities (skill authoring, maintainability review, code reviews)
 - **research** — Research, analysis, verification, and synthesis
