@@ -487,6 +487,7 @@ git commit -m "chore(p03-t03): record typescript loop migration completion"
 | p02    | code     | passed  | 2026-06-15 | reviews/p02-review-2026-06-15.md        |
 | p03    | code     | passed  | 2026-06-15 | reviews/p03-review-2026-06-15.md        |
 | final  | code     | passed  | 2026-06-15 | reviews/final-review-2026-06-15.md      |
+| final  | code     | received | 2026-06-15 | reviews/final-review-2026-06-15-v2.md   |
 | spec   | artifact | pending | -          | N/A quick mode                          |
 | design | artifact | pending | -          | N/A quick mode                          |
 | plan   | artifact | passed  | 2026-06-15 | inline quick-start review               |
