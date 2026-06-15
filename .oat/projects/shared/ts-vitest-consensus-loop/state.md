@@ -14,18 +14,19 @@ oat_depends_on: []
 oat_children: []
 oat_hill_checkpoints:
   - p03
-oat_hill_completed: []
+oat_hill_completed:
+  - p03
 oat_parallel_execution: false
 oat_phase: implement
-oat_phase_status: complete
+oat_phase_status: pr_open
 oat_workflow_mode: quick
 oat_workflow_origin: native
 oat_docs_updated: complete
-oat_pr_status: null
-oat_pr_url: null
+oat_pr_status: open
+oat_pr_url: "https://github.com/tkstang/skills/pull/13"
 oat_project_created: "2026-06-15T19:22:23.043Z"
 oat_project_completed: null
-oat_project_state_updated: "2026-06-15T22:45:11Z"
+oat_project_state_updated: "2026-06-15T22:52:18Z"
 oat_dispatch_ceiling:
   preset: maximum
   providers:
@@ -43,7 +44,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation complete. Final checkpoint code review passed; awaiting HiLL approval for PR handoff.
+Implementation - PR open, awaiting human review.
 
 ## Artifacts
 
@@ -67,6 +68,9 @@ Implementation complete. Final checkpoint code review passed; awaiting HiLL appr
 - Final checkpoint review passed
 - Final second-opinion review passed and was received for lifecycle bookkeeping
 - Documentation sync complete; no additional documentation deltas were identified
+- Final HiLL checkpoint approved for PR handoff
+- PR created: https://github.com/tkstang/skills/pull/13
+- Awaiting human review
 
 ## Blockers
 
@@ -74,4 +78,7 @@ None.
 
 ## Next Milestone
 
-Await HiLL checkpoint approval, then run PR handoff.
+PR is open for review.
+
+- To incorporate feedback: run `oat-project-revise`
+- When approved: run `oat-project-complete`
