@@ -1,10 +1,10 @@
 # Skills Repo Current State
 
-**Last updated:** 2026-06-13 (consensus Phase 2 — parallel iteration modes + escalation ladder + unified v1 schema — merged to `main` via PR #9. Prior baseline 2026-06-12: initial backfill covering consensus-plugin v0.1, session-observer + watch mode, export-session-transcript + shared transcript-core, and the OAT tooling user-scope move.)
+**Last updated:** 2026-06-15 (TypeScript/Vitest generated-runtime toolchain landed as a dev-only build path, with `consensus-loop` as the first typed source slice. Prior: 2026-06-13 consensus Phase 2 — parallel iteration modes + escalation ladder + unified v1 schema — merged to `main` via PR #9.)
 
 ## Overview
 
-This repository is a personal Agent Skills home: standalone skills under `skills/`, packaged plugins under `plugins/<name>/`, shared libraries under `shared/`, and provider marketplace entries at the repo root. Runtime code is Node >= 22 ESM, standard library only, no build step. Status: v0.1 pre-release — local/Git install paths work; public marketplace claims are gated on the release checklist in `RELEASING.md`.
+This repository is a personal Agent Skills home: standalone skills under `skills/`, packaged plugins under `plugins/<name>/`, shared libraries under `shared/`, and provider marketplace entries at the repo root. Shipped runtime code remains Node >= 22 ESM, standard library only, and install-free for users; developer tooling now includes TypeScript, Vitest, and a generated-output build step for committed `.mjs` artifacts. Status: v0.1 pre-release — local/Git install paths work; public marketplace claims are gated on the release checklist in `RELEASING.md`.
 
 ## Shipped Capabilities
 
@@ -20,6 +20,7 @@ One skill, `refine` (invoked as `consensus:refine`): two Paseo-backed AI peers (
 - **Control surface:** `--goal`, `--peers`, `--max-rounds`, `--agency minimal|moderate|maximum`, `--iteration`, `--synthesizer`, `--host-direction`, `--host-decision-kind`, `--output`, `--allow-root`, `--run-dir`, `--fail-on-section-error`, `--resume`, `--user-direction`, corrupt-section skip flags.
 - **Resume:** deliberation artifact is the canonical state; fail-closed on corruption; user direction recorded as a `USER_INTERVENTION` round, host decision as a `HOST_DECISION` round.
 - **Safety:** four-domain path confinement with atomic writes; spawn-array subprocess hygiene; prompt-injection framing on untrusted input; JSONL stdout as the host coordination protocol, stderr for diagnostics.
+- **TypeScript/generated runtime slice (2026-06-15):** `consensus-loop` now has canonical TypeScript source at `skills/refine/src/consensus-loop.ts` with typed verdict, synthesis, record/status, agency, escalation, and peer-invocation domains. The committed provider-facing runtime remains `skills/refine/scripts/consensus-loop.mjs` with a generated banner and drift guard. The broader refine wrapper and test-suite migration remain follow-on work under bl-bfb4.
 - **Distribution:** provider manifests under the plugin (`.claude-plugin/`, `.cursor-plugin/`, `.codex-plugin/`) plus repo-root marketplace entries; local marketplace install verified for Claude Code and Codex; Cursor loads session-scoped via `cursor agent --plugin-dir` (no marketplace/install commands in the Cursor CLI yet — fixed/documented 2026-05-24).
 - **Prerequisite:** Paseo CLI on PATH (tested range 0.1.0–0.9.0); opt-in install assist via `scripts/install-paseo.mjs`.
 
@@ -51,10 +52,12 @@ Canonical per-provider transcript knowledge (store locations, record parsing, st
 
 ## Validation Posture
 
-- `npm test` — full Node test suite (≈370+ tests across consensus, session-observer, export, transcript-core, repo invariants).
-- `npm run validate` — repo structure, manifest, and docs invariants (including the plugin/OAT boundary from DR-001).
-- `npm run smoke` — mocked end-to-end consensus wrapper flow.
-- CI: `validate.yml` on PR/main push; `release.yml` on tag push.
+- `pnpm run type-check` — TypeScript source check.
+- `pnpm run build:check` — generated runtime drift guard.
+- `npm test` / `pnpm test` — full Node test suite plus Vitest checks.
+- `npm run validate` / `pnpm run validate` — repo structure, manifest, and docs invariants (including the plugin/OAT boundary from DR-001).
+- `npm run smoke` / `pnpm run smoke` — mocked end-to-end consensus wrapper flow.
+- CI: `validate.yml` on PR/main push now installs with a frozen lockfile, builds, type-checks, build-checks, tests, validates, and smokes; `release.yml` on tag push.
 
 ## Release Posture
 

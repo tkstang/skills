@@ -1,14 +1,14 @@
 ---
 id: bl-853a
 title: 'Stand up TypeScript + vitest build toolchain (bundle-to-mjs)'
-status: open # open | in_progress | closed | wont_do
+status: done # open | in_progress | closed | wont_do
 priority: medium # urgent | high | medium | low | none
 scope: feature # idea | task | feature | initiative
 scope_estimate: M # XS | S | M | L | XL | XXL
 labels: [tooling, typescript, testing, build, dx]
 assignee: null
 created: '2026-06-14T15:02:51Z'
-updated: '2026-06-14T15:02:51Z'
+updated: '2026-06-15T21:00:00Z'
 associated_issues: []
 oat_template: true
 oat_template_name: backlog-item
@@ -70,3 +70,22 @@ useful template for both the toolchain shape here and the peer-layer work
   build step, the edit-source-not-output rule, and the vitest commands.
 - A short DR is recorded for the durable build/output contract (canonical TS
   source + committed generated `.mjs` + drift guard as the shipped boundary).
+
+## Delivery Notes
+
+Delivered by the quick-mode OAT project
+`ts-vitest-consensus-loop` on branch `feat/ts-vitest-consensus-loop`.
+
+- Added pnpm-based TypeScript, Vitest, type-check, build, and build-check
+  scripts as developer tooling only.
+- Added `scripts/build-generated.mjs` with a generated-output drift guard and a
+  committed generated `.mjs` contract.
+- Converted `consensus-loop` as the proof-point module: canonical source now
+  lives at `plugins/consensus/skills/refine/src/consensus-loop.ts` and builds
+  to the existing provider-facing
+  `plugins/consensus/skills/refine/scripts/consensus-loop.mjs` path.
+- Wired CI and `worktree:validate` to install with a frozen lockfile, build,
+  type-check, build-check, test, validate, smoke, and assert generated output
+  remains clean.
+
+The broader TypeScript migration remains open under [[bl-bfb4]].

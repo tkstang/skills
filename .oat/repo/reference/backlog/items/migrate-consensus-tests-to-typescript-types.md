@@ -1,14 +1,14 @@
 ---
 id: bl-bfb4
 title: 'Migrate consensus + tests to real TypeScript types'
-status: open # open | in_progress | closed | wont_do
+status: in_progress # open | in_progress | closed | wont_do
 priority: medium # urgent | high | medium | low | none
 scope: initiative # idea | task | feature | initiative
 scope_estimate: L # XS | S | M | L | XL | XXL
 labels: [tooling, typescript, testing, dx, migration]
 assignee: null
 created: '2026-06-14T15:02:51Z'
-updated: '2026-06-14T15:02:51Z'
+updated: '2026-06-15T21:00:00Z'
 associated_issues: []
 oat_template: true
 oat_template_name: backlog-item
@@ -54,3 +54,16 @@ precondition.
 - `tsconfig` `allowJs` is tightened (or removed) for the migrated scope so new
   untyped `.mjs` cannot silently re-enter it.
 - Docs updated to reflect the now-TypeScript source layout.
+
+## Progress Notes
+
+One migration slice is complete via `ts-vitest-consensus-loop`:
+`consensus-loop` now has canonical TypeScript source with useful domain types
+for iteration mode, agency, verdicts, synthesis payloads, records/status
+payloads, escalation routing, and peer invocation boundaries. The generated
+`.mjs` runtime path remains the shipped compatibility boundary.
+
+This does **not** complete the initiative. Remaining work still includes the
+`consensus-refine.mjs` wrapper, migration of the existing `node:test` suite to
+Vitest, tightening `allowJs` for migrated scopes, and any additional consensus
+runtime/test modules selected for the long-tail migration.

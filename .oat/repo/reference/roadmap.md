@@ -1,6 +1,6 @@
 # Skills Repo Roadmap
 
-**Last updated:** 2026-06-14 (refreshed after PR #9 merged consensus Phase 2 iteration modes to `main`; family lane unblocked, `consensus-evaluate` promoted to Now, v0.1 release verification surfaced as a parallel Now lane. Prior: 2026-06-12 initial backfill.)
+**Last updated:** 2026-06-15 (TypeScript/Vitest generated-runtime toolchain delivered via bl-853a, with `consensus-loop` as the first bl-bfb4 slice. Prior: 2026-06-14 PR #9 merged consensus Phase 2 iteration modes to `main`; family lane unblocked, `consensus-evaluate` promoted to Now, v0.1 release verification surfaced as a parallel Now lane.)
 
 ## Planning Model
 
@@ -34,6 +34,14 @@ What remains, in dependency order:
 
 Substantially shipped (see `current-state.md`). Deferred items recorded in the archived projects, promotable to backlog on demand: Cursor SQLite chat-history store, provider-hook push integration, Gemini CLI runtime adapter, opt-in notable-event memory capture, richer export rendering options.
 
+### TypeScript / generated runtime tooling
+
+bl-853a is delivered: TypeScript, Vitest, generated `.mjs` output, drift guards,
+and CI/worktree validation are in place, with `consensus-loop` converted as the
+proof-point module. bl-bfb4 remains in progress rather than complete. Remaining
+slices include the `consensus-refine.mjs` wrapper, migration of the existing
+`node:test` suite to Vitest, and tightening `allowJs` for migrated scopes.
+
 ## Now
 
 - **Ship the first family skill** — `consensus-evaluate` is the earliest fast-follow (needs only `parallel_revision`, now shipped and merged; bl-5174). Phase 2 iteration modes merged via PR #9, so the whole family lane is unblocked.
@@ -42,6 +50,7 @@ Substantially shipped (see `current-state.md`). Deferred items recorded in the a
 ## Next
 
 - **Remaining family skills** — after `consensus-evaluate` (in flight, Now), `-create`, `-decide`, `-plan`, `-research` as thin wrappers with v3 defaults. `-create` front-loads the `independent_draft` cold-start + derived-sectioning design the next two reuse.
+- **Continue TypeScript migration slices** — bl-bfb4 can proceed module-by-module now that bl-853a delivered the toolchain/generated-output contract. Do not mark the initiative complete until the wrapper, test-suite migration, and `allowJs` tightening finish.
 - **Peer-invocation hardening** — tool-based verdict submission (bl-3a88) as the durable structured-output fix; design pass can run alongside the synthesized-mode family skills.
 
 ## Later
