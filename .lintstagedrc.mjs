@@ -6,10 +6,14 @@
 //   - generated transcript-core copies (drift-guarded against canonical source)
 //   - OAT-synced provider views (.agents, .claude/rules, .cursor/rules) kept
 //     byte-identical to their canonical sources by `oat sync`
+//   - agent-instruction files (AGENTS.md / CLAUDE.md) at every level: the root
+//     file carries an `oat sync`-regenerated <!-- OAT tools --> block that oat
+//     sync does not keep oxfmt-clean, so formatting fights the generator
 const isExcluded = (file) =>
   file.endsWith('/scripts/lib/runtimes.mjs') ||
   /(^|\/)\.agents\//.test(file) ||
-  /(^|\/)\.(claude|cursor)\/rules\//.test(file);
+  /(^|\/)\.(claude|cursor)\/rules\//.test(file) ||
+  /(^|\/)(AGENTS|CLAUDE)\.md$/.test(file);
 
 const quote = (files) => files.map((f) => `"${f}"`).join(' ');
 

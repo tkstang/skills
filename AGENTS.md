@@ -51,7 +51,7 @@
 
 - JS and Markdown are linted with **oxlint** (`pnpm lint`) and formatted with **oxfmt** (`pnpm format`; `pnpm format:check` to verify). Config: `.oxlintrc.json`, `.oxfmtrc.json`.
 - Adoption is **incremental**: the `pre-commit` hook runs `lint-staged` over staged files only, and CI lints/format-checks only the files a PR changes. The repo has not yet been formatted wholesale; a one-time repo-wide `oxfmt` is a planned follow-up. Until then, do not run `pnpm format` across the whole tree in unrelated PRs.
-- Never lint/format generated or OAT-synced files: `**/scripts/lib/runtimes.mjs` (generated transcript-core copies), `.agents/**`, `.claude/rules/**`, `.cursor/rules/**`. These are excluded by `.oxfmtrc.json` and `.lintstagedrc.mjs` (and not linted by oxlint, which only processes JS/MJS — the `.claude/rules/**` and `.cursor/rules/**` Markdown is never linted regardless).
+- Never lint/format generated, OAT-synced, or agent-instruction files: `**/scripts/lib/runtimes.mjs` (generated transcript-core copies), `.agents/**`, `.claude/rules/**`, `.cursor/rules/**`, and `AGENTS.md` / `CLAUDE.md` at every level. The root `AGENTS.md` carries an `oat sync`-regenerated `<!-- OAT tools -->` block that oat sync does not keep oxfmt-clean, so formatting it fights the generator. These are excluded in three places that must stay in sync: `.oxfmtrc.json`, `.lintstagedrc.mjs`, and the CI `oxfmt --check` step in `.github/workflows/validate.yml` (and not linted by oxlint, which only processes JS/MJS — the Markdown rule dirs and instruction files are never linted regardless).
 - oxlint/oxfmt are **dev tooling** — they do not touch what shipped skills run.
 
 ## Verification

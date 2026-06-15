@@ -76,7 +76,7 @@ jobs:
           pnpm exec oxlint "${files[@]}"
       - name: oxfmt --check (changed files)
         run: |
-          exclude='^(node_modules|\.oat|\.agents)/|/scripts/lib/runtimes\.mjs$|\.(claude|cursor)/rules/'
+          exclude='^(node_modules|\.oat|\.agents)/|/scripts/lib/runtimes\.mjs$|\.(claude|cursor)/rules/|(^|/)(AGENTS|CLAUDE)\.md$'
           mapfile -t files < <(git diff --name-only --diff-filter=ACMR "$BASE_SHA" "$HEAD_SHA" -- '*.mjs' '*.js' '*.json' '*.md' | grep -vE "$exclude" || true)
           if [ ${#files[@]} -eq 0 ]; then echo "no formattable files changed"; exit 0; fi
           printf 'checking format:\n%s\n' "${files[*]}"
