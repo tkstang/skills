@@ -24,7 +24,13 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: "2026-06-15T19:22:23.043Z"
 oat_project_completed: null
-oat_project_state_updated: "2026-06-15T19:23:23Z"
+oat_project_state_updated: "2026-06-15T19:35:00Z"
+oat_dispatch_ceiling:
+  preset: maximum
+  providers:
+    codex: xhigh
+    claude: opus
+  source: project-state
 oat_generated: false
 ---
 
@@ -36,7 +42,7 @@ oat_generated: false
 
 ## Current Phase
 
-Plan complete. Ready for `oat-project-implement` after confirming the dispatch ceiling.
+Plan complete. Ready for `oat-project-implement`.
 
 ## Artifacts
 
@@ -54,7 +60,7 @@ Plan complete. Ready for `oat-project-implement` after confirming the dispatch c
 
 ## Blockers
 
-None for planning. Confirm dispatch ceiling before implementation starts.
+None.
 
 ## Next Milestone
 

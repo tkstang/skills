@@ -43,7 +43,9 @@ This plan is intentionally sequential. The phases all touch the same fragile bou
 
 ## Dispatch Profile
 
-No project-level dispatch ceiling has been set. Confirm the ceiling before `oat-project-implement` starts; do not silently choose model/effort caps.
+Project dispatch ceiling is set to the maximum preset: Codex `xhigh`, Claude `opus`.
+
+Do not force every implementation phase to the maximum tier by default. Runtime dispatch should select the lowest appropriate effort/model for each phase, capped by this ceiling. Reviews run at the configured ceiling.
 
 ---
 
