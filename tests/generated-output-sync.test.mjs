@@ -33,7 +33,8 @@ describe('generated output drift guard', () => {
     const result = await runNode(['scripts/build-generated.mjs', '--check']);
 
     expect(result.stderr).toBe('');
-    expect(result.stdout).toContain('consensus-loop');
+    expect(result.stdout).toContain('consensus-loop: in sync');
+    expect(result.stdout).not.toContain('pending');
     expect(result.code).toBe(0);
   });
 

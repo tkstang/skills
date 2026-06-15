@@ -16,7 +16,6 @@ export const generatedOutputs = [
     id: 'consensus-loop',
     source: 'plugins/consensus/skills/refine/src/consensus-loop.ts',
     output: 'plugins/consensus/skills/refine/scripts/consensus-loop.mjs',
-    pendingUntilSourceExists: true,
   },
 ];
 
