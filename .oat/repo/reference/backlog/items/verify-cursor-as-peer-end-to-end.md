@@ -48,6 +48,16 @@ Related: bl-bb7e (in-house peer CLI investigation) — findings here feed the
 build-vs-buy decision on whether maintaining ACP-peer support is worth keeping
 Paseo for.
 
+Confirmed from source (2026-06-14): cursor has **no native schema flag** in
+either Paseo (`~/code/paseo` `providers/cursor-acp-agent.ts`, routed through the
+generic ACP soft-schema path) or stoa (`~/code/stoa`
+`apps/server/src/ai-workflows/provider-adapter.ts` invokes
+`cursor agent --print --output-format json` — an envelope only — and enforces the
+schema via `final-json-contract.ts` `prompt-only` delivery). So this verification
+is specifically characterizing the **prompt-inject + validate + retry** path for
+cursor, not a native structured-output path. stoa's working direct cursor adapter
+is a reference for both this run and bl-bb7e.
+
 ## Acceptance Criteria
 
 - A full `refine` deliberation run completes with `--peers cursor,codex` (and,
