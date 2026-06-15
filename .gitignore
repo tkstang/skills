@@ -12,6 +12,10 @@
 .oat/projects/**/reviews/archived/
 # END OAT local paths
 
+# OAT analysis artifacts (machine-local provenance; content is captured in PRs)
+.oat/repo/analysis/
+# END OAT analysis artifacts
+
 .superpowers/
 
 # Node/runtime outputs
