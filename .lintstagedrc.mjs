@@ -6,6 +6,7 @@
 //   - OAT project/reference artifacts (.oat) because repo formatter config
 //     ignores them and passing only ignored files makes oxfmt fail
 //   - generated transcript-core copies (drift-guarded against canonical source)
+//   - generated consensus runtime outputs (built from canonical TypeScript)
 //   - OAT-synced provider views (.agents, .claude/rules, .cursor/rules) kept
 //     byte-identical to their canonical sources by `oat sync`
 //   - agent-instruction files (AGENTS.md / CLAUDE.md) at every level: the root
@@ -13,6 +14,9 @@
 //     sync does not keep oxfmt-clean, so formatting fights the generator
 const isExcluded = (file) =>
   file.endsWith('/scripts/lib/runtimes.mjs') ||
+  file.endsWith(
+    '/plugins/consensus/skills/refine/scripts/consensus-loop.mjs',
+  ) ||
   /(^|\/)\.oat\//.test(file) ||
   /(^|\/)\.agents\//.test(file) ||
   /(^|\/)\.(claude|cursor)\/rules\//.test(file) ||

@@ -16,7 +16,7 @@ test('package metadata declares the test harness contract', async () => {
   );
   assert.equal(
     packageJson.scripts?.['test:node'],
-    'node --test tests/*.test.mjs tests/*/*.test.mjs',
+    "node --test $(find tests -name '*.test.mjs' ! -name 'generated-output-sync.test.mjs' -type f | sort)",
   );
   assert.equal(
     packageJson.scripts?.['test:vitest'],

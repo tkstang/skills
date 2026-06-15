@@ -25,11 +25,11 @@ oat_generated: false
 
 | Phase   | Status  | Tasks | Completed |
 | ------- | ------- | ----- | --------- |
-| Phase 1 | in_progress | 3     | 1/3       |
+| Phase 1 | in_progress | 3     | 2/3       |
 | Phase 2 | pending | 3     | 0/3       |
 | Phase 3 | pending | 3     | 0/3       |
 
-**Total:** 1/9 tasks completed
+**Total:** 2/9 tasks completed
 
 ---
 
@@ -40,7 +40,7 @@ oat_generated: false
 ### Task p01-t01: Add TypeScript and Vitest Tooling
 
 **Status:** complete
-**Commit:** pending
+**Commit:** b428327
 
 **Verification:**
 
@@ -55,8 +55,20 @@ oat_generated: false
 
 ### Task p01-t02: Add Generated-Output Build and Drift Guard
 
-**Status:** pending
-**Commit:** -
+**Status:** complete
+**Commit:** pending
+
+**Verification:**
+
+- `pnpm exec vitest run tests/generated-output-sync.test.mjs` failed after adding the test because `scripts/build-generated.mjs` was missing (expected RED).
+- `pnpm exec vitest run tests/generated-output-sync.test.mjs` passed after adding the build script and mapping.
+- `pnpm test && pnpm run validate` passed.
+
+**Delta:**
+
+- Updated `vitest.config.mjs` and the package metadata test in p01-t02 even though they were not in the task file list, because the planned drift guard file is `tests/generated-output-sync.test.mjs` and the p01-t01 Vitest config initially only included TypeScript tests.
+- Updated `test:node` to exclude the Vitest-owned generated-output `.mjs` test so `node --test` continues to run the existing Node suite without importing Vitest tests directly.
+- The `consensus-loop` generated-output mapping is present but pending until `plugins/consensus/skills/refine/src/consensus-loop.ts` exists. Source of truth: Phase 1 must establish the generated-runtime contract while p02 owns the actual `consensus-loop` migration. Follow-up artifact disposition: no plan change needed; p02 will activate the mapping by adding the source.
 
 ### Task p01-t03: Record the Build Boundary Decision
 
