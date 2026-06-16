@@ -538,7 +538,7 @@ git commit -m "docs(p03-t02): list consensus-refine.mjs as a generated runtime o
 | ------ | -------- | ------- | ---- | -------- |
 | p01    | code     | passed  | 2026-06-16 | reviews/p01-review-2026-06-16-v2.md |
 | p02    | code     | passed  | 2026-06-16 | reviews/p02-review-2026-06-16-v2.md |
-| p03    | code     | pending | -    | -        |
+| p03    | code     | passed  | 2026-06-16 | reviews/p03-review-2026-06-16-v2.md |
 | final  | code     | pending | -    | -        |
 | spec   | artifact | pending | -    | -        |
 | design | artifact | fixes_completed | 2026-06-16 | reviews/archived/artifact-design-review-2026-06-16.md |
