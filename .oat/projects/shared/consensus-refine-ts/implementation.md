@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-16
-oat_current_task_id: p01-t05
+oat_current_task_id: p02-t01
 oat_generated: false
 ---
 
@@ -26,37 +26,50 @@ oat_generated: false
 
 | Phase   | Status      | Tasks | Completed |
 | ------- | ----------- | ----- | --------- |
-| Phase 1 — Wrapper TS source + build import-rewrite | in_progress | 5 | 4/5 |
+| Phase 1 — Wrapper TS source + build import-rewrite | completed | 5 | 5/5 |
 | Phase 2 — Migrate consensus tests to Vitest        | pending     | 7 | 0/7 |
 | Phase 3 — Docs & reference updates                 | pending     | 2 | 0/2 |
 
-**Total:** 4/14 tasks completed
+**Total:** 5/14 tasks completed
 
 ---
 
 ## Phase 1: Wrapper TS source + build import-rewrite
 
-**Status:** in_progress
+**Status:** completed
 **Started:** 2026-06-16
 
 ### Phase Summary (fill when phase is complete)
 
 **Outcome (what changed):**
 
-- {2-5 bullets describing user-visible / behavior-level changes delivered in this phase}
+- Added the canonical TypeScript wrapper source under `src/consensus/refine/`.
+- Extended the generated-output build to rewrite the wrapper's type-time loop import
+  to the shipped sibling runtime import.
+- Regenerated the committed shipped wrapper from TypeScript while keeping the
+  provider-facing runtime path stable.
+- Added drift, import, layout, lint/format, and CI guard coverage for the generated
+  wrapper.
 
 **Key files touched:**
 
-- `{path}` - {why}
+- `src/consensus/refine/consensus-refine.ts` - canonical wrapper TypeScript source.
+- `plugins/consensus/skills/refine/scripts/consensus-refine.mjs` - regenerated
+  shipped runtime output.
+- `scripts/build-generated.mjs` - generated-output mapping and import rewrite
+  support.
+- `tests/generated-consensus-refine-import.test.ts` - generated import proof.
 
 **Verification:**
 
-- Run: `{command(s)}`
-- Result: {pass/fail + notes}
+- Run: p01 task-level commands, including `pnpm run build:check`,
+  `pnpm run type-check`, `pnpm run test`, `pnpm run validate`,
+  `pnpm run smoke`, generated-import Vitest checks, and repo-layout node test.
+- Result: pass.
 
 **Notes / Decisions:**
 
-- {trade-offs or deviations discovered during implementation}
+- No intentional deviations from plan/design/discovery.
 
 ### Task p01-t01: Add per-mapping `importRewrites` to the generated-output build
 
@@ -212,8 +225,36 @@ oat_generated: false
 
 ### Task p01-t05: Add generated-import + extend drift/layout guards
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** See phase implementation report
+
+**Outcome (required when completed):**
+
+- Added a Vitest proof that the committed generated wrapper imports
+  `./consensus-loop.mjs` and contains no `../core/` source specifier.
+- Extended generated-output drift coverage to require the wrapper in-sync output
+  and source/output mapping declaration.
+- Extended repo layout coverage to require `src/consensus/refine` while preserving
+  the no-TS-under-plugin-skills invariant.
+
+**Files changed:**
+
+- `tests/generated-consensus-refine-import.test.ts` - new generated import proof.
+- `tests/generated-output-sync.test.mjs` - extended drift and mapping assertions.
+- `tests/repo-layout.test.mjs` - required the canonical refine source directory.
+
+**Verification:**
+
+- Run: `pnpm exec vitest run tests/generated-consensus-refine-import.test.ts tests/generated-output-sync.test.mjs`
+- Result: pass; 2 files / 3 tests.
+- Run: `node --test tests/repo-layout.test.mjs`
+- Result: pass; 2 tests.
+- Run: `pnpm run type-check`
+- Result: pass.
+
+**Notes / Decisions:**
+
+- None.
 
 ---
 
@@ -309,7 +350,7 @@ Track test execution during implementation.
 
 | Phase | Tests Run | Passed | Failed | Coverage |
 | ----- | --------- | ------ | ------ | -------- |
-| 1     | -         | -      | -      | -        |
+| 1     | build:check, type-check, test, validate, smoke, p01 guard tests | pass | 0 | - |
 | 2     | -         | -      | -      | -        |
 
 ## Final Summary (for PR/docs)

@@ -34,6 +34,7 @@ describe('generated output drift guard', () => {
 
     expect(result.stderr).toBe('');
     expect(result.stdout).toContain('consensus-loop: in sync');
+    expect(result.stdout).toContain('consensus-refine: in sync');
     expect(result.stdout).not.toContain('pending');
     expect(result.code).toBe(0);
   });
@@ -47,6 +48,10 @@ describe('generated output drift guard', () => {
     expect(script).toContain('src/consensus/core/consensus-loop.ts');
     expect(script).toContain(
       'plugins/consensus/skills/refine/scripts/consensus-loop.mjs',
+    );
+    expect(script).toContain('src/consensus/refine/consensus-refine.ts');
+    expect(script).toContain(
+      'plugins/consensus/skills/refine/scripts/consensus-refine.mjs',
     );
   });
 });
