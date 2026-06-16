@@ -389,6 +389,9 @@ acceptance signal holds.
 | `tests/parallel-integration.test.mjs` | `tests/parallel-integration.test.ts` | 3 | 27 → 27 | No nested subtests; each top-level `test` maps to one `it`, and the manifest section loop preserves 3 realized section assertions. | `pnpm exec vitest run tests/parallel-integration.test.ts` | pass |
 | `tests/parallel-modes.test.mjs` | `tests/parallel-modes.test.ts` | 12 | 117 → 117 | No nested subtests; each top-level `test` maps to one `it`, and section/verdict/synthesis-record loops preserve their realized assertion counts. | `pnpm exec vitest run tests/parallel-modes.test.ts` | pass |
 | `tests/parallel-prepare.test.mjs` | `tests/parallel-prepare.test.ts` | 3 | 95 → 95 | No nested subtests; each top-level `test` maps to one `it`, and both manifest section loops preserve 3 realized iterations. | `pnpm exec vitest run tests/parallel-prepare.test.ts` | pass |
+| `tests/wrapper-options.test.mjs` | `tests/wrapper-options.test.ts` | 15 | 71 → 71 | No nested subtests or assertion-bearing dynamic cases; each top-level `test` maps to one `it`, rejection validator preserves outer and inner checks. | `pnpm exec vitest run tests/wrapper-options.test.ts` | pass |
+| `tests/sequential-wrapper.test.mjs` | `tests/sequential-wrapper.test.ts` | 8 | 85 → 85 | No nested subtests; each top-level `test` maps to one `it`, and the three-section file-stat loop preserves 9 realized assertions. | `pnpm exec vitest run tests/sequential-wrapper.test.ts` | pass |
+| `tests/verdict-validation.test.mjs` | `tests/verdict-validation.test.ts` | 21 | 95 → 95 | No nested subtests or assertion-bearing dynamic cases; each top-level `test` maps to one `it`. | `pnpm exec vitest run tests/verdict-validation.test.ts` | pass |
 
 ## Test Results
 

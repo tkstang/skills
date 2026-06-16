@@ -1,8 +1,11 @@
-import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import test from 'node:test';
 
-import {
+import { expect, it } from 'vitest';
+
+// @ts-expect-error The generated runtime is intentionally declaration-free; this test exercises the shipped artifact.
+import * as consensusLoop from '../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
+
+const {
   LOOP_SCHEMA_VERSION,
   SYNTHESIS_CAPS,
   VERDICT_CAPS,
@@ -11,7 +14,7 @@ import {
   validateVerdictCaps,
   validateVerdictShape,
   normalizeVerdict,
-} from '../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
+} = consensusLoop;
 
 const schemaPath = new URL(
   '../plugins/consensus/skills/refine/schemas/verdict-alternating.schema.json',
@@ -28,7 +31,7 @@ const synthesisSchemaPath = new URL(
   import.meta.url,
 );
 
-function validSynthesis(overrides = {}) {
+function validSynthesis(overrides: Record<string, any> = {}) {
   return {
     schema_version: 'v1',
     synthesized_artifact: 'Merged section.\n',
@@ -39,7 +42,7 @@ function validSynthesis(overrides = {}) {
   };
 }
 
-function validVerdict(overrides = {}) {
+function validVerdict(overrides: Record<string, any> = {}) {
   return {
     schema_version: 'v1',
     verdict: 'ACCEPT',
@@ -48,7 +51,7 @@ function validVerdict(overrides = {}) {
   };
 }
 
-function parallelCritique(overrides = {}) {
+function parallelCritique(overrides: Record<string, any> = {}) {
   return {
     own_previous: 'My prior draft was thin.',
     peer_previous: 'Peer prior draft over-claimed.',
@@ -56,7 +59,7 @@ function parallelCritique(overrides = {}) {
   };
 }
 
-function parallelVerdict(overrides = {}) {
+function parallelVerdict(overrides: Record<string, any> = {}) {
   return {
     schema_version: 'v1',
     verdict: 'REVISE',
@@ -67,39 +70,38 @@ function parallelVerdict(overrides = {}) {
   };
 }
 
-test('loop and alternating schema both speak schema v1', async () => {
-  assert.equal(LOOP_SCHEMA_VERSION, 'v1');
+it('loop and alternating schema both speak schema v1', async () => {
+  expect(LOOP_SCHEMA_VERSION).toBe('v1');
 
   const schema = JSON.parse(await readFile(schemaPath, 'utf8'));
-  assert.equal(schema.properties.schema_version.const, 'v1');
+  expect(schema.properties.schema_version.const).toBe('v1');
 });
 
-test('verdict schema declares alternating branches without maxLength caps', async () => {
+it('verdict schema declares alternating branches without maxLength caps', async () => {
   const schema = JSON.parse(await readFile(schemaPath, 'utf8'));
   const serialized = JSON.stringify(schema);
 
-  assert.equal(
-    schema.$id,
+  expect(schema.$id).toBe(
     'consensus-plugin/v1/verdict-alternating.schema.json',
   );
-  assert.deepEqual(schema.required, ['schema_version', 'verdict', 'reasoning']);
+  expect(schema.required).toEqual(['schema_version', 'verdict', 'reasoning']);
   // The schema is the Paseo-side (prompt+parse) shape only. It must stay
   // compatible with OpenAI/codex structured output, which forbids `oneOf`/`not`;
   // the per-verdict conditional requirements (proposed_artifact required for
   // REVISE, forbidden for ACCEPT/IMPASSE) are enforced by validateVerdictShape's
   // branch tables, not by the schema. See tests below.
-  assert.equal('oneOf' in schema, false);
-  assert.equal(serialized.includes('"not"'), false);
-  assert.equal(serialized.includes('maxLength'), false);
+  expect('oneOf' in schema).toBe(false);
+  expect(serialized.includes('"not"')).toBe(false);
+  expect(serialized.includes('maxLength')).toBe(false);
 
-  assert.deepEqual(schema.properties.verdict.enum, [
+  expect(schema.properties.verdict.enum).toEqual([
     'ACCEPT',
     'REVISE',
     'IMPASSE',
   ]);
 });
 
-test('normalizeVerdict strips empty disallowed fields from strict structured output', () => {
+it('normalizeVerdict strips empty disallowed fields from strict structured output', () => {
   // OpenAI/codex strict output emits every property; a non-REVISE verdict arrives
   // carrying empty proposed_artifact/concerns. Those empties normalize away and
   // the verdict validates cleanly.
@@ -111,8 +113,8 @@ test('normalizeVerdict strips empty disallowed fields from strict structured out
     concerns: [],
   };
   const normalized = normalizeVerdict(strictAccept, 'alternating');
-  assert.equal('proposed_artifact' in normalized, false);
-  assert.deepEqual(validateVerdictShape(normalized, { mode: 'alternating' }), {
+  expect('proposed_artifact' in normalized).toBe(false);
+  expect(validateVerdictShape(normalized, { mode: 'alternating' })).toEqual({
     ok: true,
     errors: [],
   });
@@ -126,14 +128,13 @@ test('normalizeVerdict strips empty disallowed fields from strict structured out
     proposed_artifact: '',
   };
   const normConv = normalizeVerdict(strictConverged, 'parallel_revision');
-  assert.equal('proposed_artifact' in normConv, false);
-  assert.deepEqual(
-    validateVerdictShape(normConv, { mode: 'parallel_revision' }),
+  expect('proposed_artifact' in normConv).toBe(false);
+  expect(validateVerdictShape(normConv, { mode: 'parallel_revision' })).toEqual(
     { ok: true, errors: [] },
   );
 });
 
-test('normalizeVerdict keeps required fields and drops unused branch fields', () => {
+it('normalizeVerdict keeps required fields and drops unused branch fields', () => {
   // A REVISE keeps its required proposed_artifact.
   const revise = {
     schema_version: 'v1',
@@ -141,7 +142,7 @@ test('normalizeVerdict keeps required fields and drops unused branch fields', ()
     reasoning: 'tighten',
     proposed_artifact: 'New text.',
   };
-  assert.deepEqual(normalizeVerdict(revise, 'alternating'), revise);
+  expect(normalizeVerdict(revise, 'alternating')).toEqual(revise);
   // An ACCEPT carrying a non-empty proposed_artifact (codex echoes content under
   // strict output): the loop never applies it on ACCEPT, so it is dropped and the
   // stated verdict (ACCEPT) is honored.
@@ -152,89 +153,82 @@ test('normalizeVerdict keeps required fields and drops unused branch fields', ()
     proposed_artifact: 'echoed current text',
   };
   const norm = normalizeVerdict(acceptWithContent, 'alternating');
-  assert.equal('proposed_artifact' in norm, false);
-  assert.deepEqual(validateVerdictShape(norm, { mode: 'alternating' }), {
+  expect('proposed_artifact' in norm).toBe(false);
+  expect(validateVerdictShape(norm, { mode: 'alternating' })).toEqual({
     ok: true,
     errors: [],
   });
 });
 
-test('validateVerdictShape accepts ACCEPT, REVISE, and IMPASSE verdicts', () => {
-  assert.deepEqual(validateVerdictShape(validVerdict()), {
+it('validateVerdictShape accepts ACCEPT, REVISE, and IMPASSE verdicts', () => {
+  expect(validateVerdictShape(validVerdict())).toEqual({
     ok: true,
     errors: [],
   });
-  assert.deepEqual(
+  expect(
     validateVerdictShape(
       validVerdict({
         verdict: 'REVISE',
         proposed_artifact: 'Updated section.',
       }),
     ),
-    { ok: true, errors: [] },
-  );
-  assert.deepEqual(
+  ).toEqual({ ok: true, errors: [] });
+  expect(
     validateVerdictShape(
       validVerdict({ verdict: 'IMPASSE', concerns: ['conflict remains'] }),
     ),
-    { ok: true, errors: [] },
-  );
-  assert.deepEqual(validateVerdictShape(validVerdict({ verdict: 'IMPASSE' })), {
+  ).toEqual({ ok: true, errors: [] });
+  expect(validateVerdictShape(validVerdict({ verdict: 'IMPASSE' }))).toEqual({
     ok: true,
     errors: [],
   });
 });
 
-test('validateVerdictShape enforces schema version, branch requirements, and additional properties', () => {
-  assert.match(
+it('validateVerdictShape enforces schema version, branch requirements, and additional properties', () => {
+  expect(
     validateVerdictShape(validVerdict({ schema_version: 'v0' })).errors.join(
       '\n',
     ),
-    /schema_version/,
-  );
-  assert.match(
+  ).toMatch(/schema_version/);
+  expect(
     validateVerdictShape(validVerdict({ verdict: 'REVISE' })).errors.join('\n'),
-    /proposed_artifact/,
-  );
-  assert.match(
+  ).toMatch(/proposed_artifact/);
+  expect(
     validateVerdictShape({
       schema_version: 'v1',
       decision: 'ACCEPT',
       reasoning: 'old',
     }).errors.join('\n'),
-    /verdict/,
-  );
-  assert.match(
+  ).toMatch(/verdict/);
+  expect(
     validateVerdictShape(validVerdict({ extra: true })).errors.join('\n'),
-    /additional property: extra/,
-  );
+  ).toMatch(/additional property: extra/);
 });
 
-test('parallel verdict schema declares the parallel vocabulary and critique fields', async () => {
+it('parallel verdict schema declares the parallel vocabulary and critique fields', async () => {
   const schema = JSON.parse(await readFile(parallelSchemaPath, 'utf8'));
 
-  assert.equal(schema.$id, 'consensus-plugin/v1/verdict-parallel.schema.json');
-  assert.equal(schema.properties.schema_version.const, 'v1');
-  assert.deepEqual(schema.properties.verdict.enum, [
+  expect(schema.$id).toBe('consensus-plugin/v1/verdict-parallel.schema.json');
+  expect(schema.properties.schema_version.const).toBe('v1');
+  expect(schema.properties.verdict.enum).toEqual([
     'REVISE',
     'ACCEPT_PEER',
     'CONVERGED',
     'IMPASSE',
   ]);
-  assert.ok(schema.properties.critique);
-  assert.deepEqual(schema.properties.critique.required, [
+  expect(schema.properties.critique).toBeTruthy();
+  expect(schema.properties.critique.required).toEqual([
     'own_previous',
     'peer_previous',
   ]);
-  assert.equal(JSON.stringify(schema).includes('maxLength'), false);
+  expect(JSON.stringify(schema).includes('maxLength')).toBe(false);
 });
 
-test('validateVerdictShape accepts the parallel vocabulary in parallel mode', () => {
-  assert.deepEqual(
+it('validateVerdictShape accepts the parallel vocabulary in parallel mode', () => {
+  expect(
     validateVerdictShape(parallelVerdict(), { mode: 'parallel_revision' }),
-    { ok: true, errors: [] },
-  );
-  assert.deepEqual(
+  ).toEqual({ ok: true, errors: [] });
+  expect(
     validateVerdictShape(
       parallelVerdict({
         verdict: 'ACCEPT_PEER',
@@ -242,9 +236,8 @@ test('validateVerdictShape accepts the parallel vocabulary in parallel mode', ()
       }),
       { mode: 'parallel_synthesized' },
     ),
-    { ok: true, errors: [] },
-  );
-  assert.deepEqual(
+  ).toEqual({ ok: true, errors: [] });
+  expect(
     validateVerdictShape(
       {
         schema_version: 'v1',
@@ -254,9 +247,8 @@ test('validateVerdictShape accepts the parallel vocabulary in parallel mode', ()
       },
       { mode: 'parallel_revision' },
     ),
-    { ok: true, errors: [] },
-  );
-  assert.deepEqual(
+  ).toEqual({ ok: true, errors: [] });
+  expect(
     validateVerdictShape(
       {
         schema_version: 'v1',
@@ -266,14 +258,13 @@ test('validateVerdictShape accepts the parallel vocabulary in parallel mode', ()
       },
       { mode: 'parallel_revision' },
     ),
-    { ok: true, errors: [] },
-  );
+  ).toEqual({ ok: true, errors: [] });
 });
 
-test('validateVerdictShape enforces critique and artifact requirements per parallel branch', () => {
+it('validateVerdictShape enforces critique and artifact requirements per parallel branch', () => {
   // critique is OPTIONAL (round 1 has no prior revision to critique): a REVISE
   // that omits the critique key is valid as long as it carries proposed_artifact.
-  assert.deepEqual(
+  expect(
     validateVerdictShape(
       {
         schema_version: 'v1',
@@ -283,23 +274,20 @@ test('validateVerdictShape enforces critique and artifact requirements per paral
       },
       { mode: 'parallel_revision' },
     ),
-    { ok: true, errors: [] },
-  );
+  ).toEqual({ ok: true, errors: [] });
   // When critique IS present, its structure is still validated.
-  assert.match(
+  expect(
     validateVerdictShape(
       parallelVerdict({ critique: { own_previous: 'only own' } }),
       { mode: 'parallel_revision' },
     ).errors.join('\n'),
-    /peer_previous/,
-  );
-  assert.match(
+  ).toMatch(/peer_previous/);
+  expect(
     validateVerdictShape(parallelVerdict({ proposed_artifact: undefined }), {
       mode: 'parallel_revision',
     }).errors.join('\n'),
-    /proposed_artifact/,
-  );
-  assert.match(
+  ).toMatch(/proposed_artifact/);
+  expect(
     validateVerdictShape(
       {
         schema_version: 'v1',
@@ -309,128 +297,115 @@ test('validateVerdictShape enforces critique and artifact requirements per paral
       },
       { mode: 'parallel_revision' },
     ).errors.join('\n'),
-    /proposed_artifact/,
-  );
+  ).toMatch(/proposed_artifact/);
   // CONVERGED without critique is valid (critique optional).
-  assert.deepEqual(
+  expect(
     validateVerdictShape(
       { schema_version: 'v1', verdict: 'CONVERGED', reasoning: 'Agree.' },
       { mode: 'parallel_revision' },
     ),
-    { ok: true, errors: [] },
-  );
+  ).toEqual({ ok: true, errors: [] });
 });
 
-test('validateVerdictShape rejects cross-mode vocabularies', () => {
+it('validateVerdictShape rejects cross-mode vocabularies', () => {
   // Alternating vocabulary is invalid in parallel mode.
-  assert.match(
+  expect(
     validateVerdictShape(validVerdict({ verdict: 'ACCEPT' }), {
       mode: 'parallel_revision',
     }).errors.join('\n'),
-    /verdict/,
-  );
+  ).toMatch(/verdict/);
   // Parallel vocabulary is invalid in alternating mode (default and explicit).
-  assert.match(
+  expect(
     validateVerdictShape(
       parallelVerdict({ verdict: 'ACCEPT_PEER' }),
     ).errors.join('\n'),
-    /verdict/,
-  );
-  assert.match(
+  ).toMatch(/verdict/);
+  expect(
     validateVerdictShape(parallelVerdict({ verdict: 'CONVERGED' }), {
       mode: 'alternating',
     }).errors.join('\n'),
-    /verdict/,
-  );
+  ).toMatch(/verdict/);
 });
 
-test('synthesis schema declares the v1 payload shape', async () => {
+it('synthesis schema declares the v1 payload shape', async () => {
   const schema = JSON.parse(await readFile(synthesisSchemaPath, 'utf8'));
 
-  assert.equal(schema.$id, 'consensus-plugin/v1/synthesis.schema.json');
-  assert.equal(schema.properties.schema_version.const, 'v1');
-  assert.deepEqual(schema.required, [
+  expect(schema.$id).toBe('consensus-plugin/v1/synthesis.schema.json');
+  expect(schema.properties.schema_version.const).toBe('v1');
+  expect(schema.required).toEqual([
     'schema_version',
     'synthesized_artifact',
     'synthesis_reasoning',
     'unresolved_disagreements',
   ]);
-  assert.equal(schema.properties.unresolved_disagreements.type, 'array');
-  assert.equal(JSON.stringify(schema).includes('maxLength'), false);
+  expect(schema.properties.unresolved_disagreements.type).toBe('array');
+  expect(JSON.stringify(schema).includes('maxLength')).toBe(false);
 });
 
-test('validateSynthesisShape accepts a complete v1 synthesis payload', () => {
-  assert.deepEqual(validateSynthesisShape(validSynthesis()), {
+it('validateSynthesisShape accepts a complete v1 synthesis payload', () => {
+  expect(validateSynthesisShape(validSynthesis())).toEqual({
     ok: true,
     errors: [],
   });
-  assert.deepEqual(
+  expect(
     validateSynthesisShape(
       validSynthesis({ unresolved_disagreements: ['scope of section 2'] }),
     ),
-    { ok: true, errors: [] },
-  );
+  ).toEqual({ ok: true, errors: [] });
 });
 
-test('validateSynthesisShape rejects missing, mistyped, and extra fields', () => {
-  assert.match(
+it('validateSynthesisShape rejects missing, mistyped, and extra fields', () => {
+  expect(
     validateSynthesisShape(
       validSynthesis({ schema_version: 'v0' }),
     ).errors.join('\n'),
-    /schema_version/,
-  );
-  assert.match(
+  ).toMatch(/schema_version/);
+  expect(
     validateSynthesisShape(
       validSynthesis({ synthesized_artifact: 42 }),
     ).errors.join('\n'),
-    /synthesized_artifact/,
-  );
-  assert.match(
+  ).toMatch(/synthesized_artifact/);
+  expect(
     validateSynthesisShape(
       validSynthesis({ synthesis_reasoning: undefined }),
     ).errors.join('\n'),
-    /synthesis_reasoning/,
-  );
-  assert.match(
+  ).toMatch(/synthesis_reasoning/);
+  expect(
     validateSynthesisShape({
       schema_version: 'v1',
       synthesized_artifact: 'x',
       synthesis_reasoning: 'y',
     }).errors.join('\n'),
-    /unresolved_disagreements/,
-  );
-  assert.match(
+  ).toMatch(/unresolved_disagreements/);
+  expect(
     validateSynthesisShape(
       validSynthesis({ unresolved_disagreements: 'not an array' }),
     ).errors.join('\n'),
-    /unresolved_disagreements/,
-  );
-  assert.match(
+  ).toMatch(/unresolved_disagreements/);
+  expect(
     validateSynthesisShape(
       validSynthesis({ unresolved_disagreements: [1, 2] }),
     ).errors.join('\n'),
-    /unresolved_disagreements\[0\]/,
-  );
-  assert.match(
+  ).toMatch(/unresolved_disagreements\[0\]/);
+  expect(
     validateSynthesisShape(validSynthesis({ extra: true })).errors.join('\n'),
-    /additional property: extra/,
-  );
-  assert.deepEqual(validateSynthesisShape(null), {
+  ).toMatch(/additional property: extra/);
+  expect(validateSynthesisShape(null)).toEqual({
     ok: false,
     errors: ['synthesis must be an object'],
   });
 });
 
-test('SYNTHESIS_CAPS declares the synthesis byte budget', () => {
-  assert.equal(SYNTHESIS_CAPS.synthesized_artifact_bytes, 256 * 1024);
-  assert.equal(SYNTHESIS_CAPS.synthesis_reasoning_bytes, 16 * 1024);
-  assert.equal(SYNTHESIS_CAPS.disagreement_bytes, 4 * 1024);
-  assert.equal(SYNTHESIS_CAPS.max_disagreements, 20);
-  assert.equal(SYNTHESIS_CAPS.total_synthesis_bytes, 512 * 1024);
+it('SYNTHESIS_CAPS declares the synthesis byte budget', () => {
+  expect(SYNTHESIS_CAPS.synthesized_artifact_bytes).toBe(256 * 1024);
+  expect(SYNTHESIS_CAPS.synthesis_reasoning_bytes).toBe(16 * 1024);
+  expect(SYNTHESIS_CAPS.disagreement_bytes).toBe(4 * 1024);
+  expect(SYNTHESIS_CAPS.max_disagreements).toBe(20);
+  expect(SYNTHESIS_CAPS.total_synthesis_bytes).toBe(512 * 1024);
 });
 
-test('validateSynthesisCaps enforces synthesis field byte caps with metadata-only results', () => {
-  assert.equal(validateSynthesisCaps(validSynthesis()).ok, true);
+it('validateSynthesisCaps enforces synthesis field byte caps with metadata-only results', () => {
+  expect(validateSynthesisCaps(validSynthesis()).ok).toBe(true);
 
   const artifact = validateSynthesisCaps(
     validSynthesis({
@@ -439,8 +414,8 @@ test('validateSynthesisCaps enforces synthesis field byte caps with metadata-onl
       ),
     }),
   );
-  assert.equal(artifact.ok, false);
-  assert.deepEqual(artifact.metadata, {
+  expect(artifact.ok).toBe(false);
+  expect(artifact.metadata).toEqual({
     code: 'OVERSIZE_REJECTED',
     field: 'synthesized_artifact',
     limit_bytes: SYNTHESIS_CAPS.synthesized_artifact_bytes,
@@ -454,8 +429,8 @@ test('validateSynthesisCaps enforces synthesis field byte caps with metadata-onl
       ),
     }),
   );
-  assert.equal(reasoning.ok, false);
-  assert.equal(reasoning.metadata.field, 'synthesis_reasoning');
+  expect(reasoning.ok).toBe(false);
+  expect(reasoning.metadata.field).toBe('synthesis_reasoning');
 
   const disagreement = validateSynthesisCaps(
     validSynthesis({
@@ -465,8 +440,8 @@ test('validateSynthesisCaps enforces synthesis field byte caps with metadata-onl
       ],
     }),
   );
-  assert.equal(disagreement.ok, false);
-  assert.equal(disagreement.metadata.field, 'unresolved_disagreements[1]');
+  expect(disagreement.ok).toBe(false);
+  expect(disagreement.metadata.field).toBe('unresolved_disagreements[1]');
 
   const tooMany = validateSynthesisCaps(
     validSynthesis({
@@ -476,8 +451,8 @@ test('validateSynthesisCaps enforces synthesis field byte caps with metadata-onl
       ),
     }),
   );
-  assert.equal(tooMany.ok, false);
-  assert.deepEqual(tooMany.metadata, {
+  expect(tooMany.ok).toBe(false);
+  expect(tooMany.metadata).toEqual({
     code: 'OVERSIZE_REJECTED',
     field: 'unresolved_disagreements',
     limit_count: SYNTHESIS_CAPS.max_disagreements,
@@ -485,23 +460,23 @@ test('validateSynthesisCaps enforces synthesis field byte caps with metadata-onl
   });
 });
 
-test('validateSynthesisCaps enforces the total synthesis payload cap and runs shape first', () => {
+it('validateSynthesisCaps enforces the total synthesis payload cap and runs shape first', () => {
   const total = validateSynthesisCaps(
     validSynthesis({
       synthesized_artifact: 'x'.repeat(SYNTHESIS_CAPS.total_synthesis_bytes),
     }),
   );
-  assert.equal(total.ok, false);
-  assert.equal(total.metadata.field, 'synthesis');
+  expect(total.ok).toBe(false);
+  expect(total.metadata.field).toBe('synthesis');
 
   const badShape = validateSynthesisCaps(
     validSynthesis({ schema_version: 'v0' }),
   );
-  assert.equal(badShape.ok, false);
-  assert.match(badShape.errors.join('\n'), /schema_version/);
+  expect(badShape.ok).toBe(false);
+  expect(badShape.errors.join('\n')).toMatch(/schema_version/);
 });
 
-test('validateVerdictCaps caps parallel critique fields like reasoning', () => {
+it('validateVerdictCaps caps parallel critique fields like reasoning', () => {
   const ownOversize = validateVerdictCaps(
     parallelVerdict({
       critique: parallelCritique({
@@ -510,8 +485,8 @@ test('validateVerdictCaps caps parallel critique fields like reasoning', () => {
     }),
     { mode: 'parallel_revision' },
   );
-  assert.equal(ownOversize.ok, false);
-  assert.deepEqual(ownOversize.metadata, {
+  expect(ownOversize.ok).toBe(false);
+  expect(ownOversize.metadata).toEqual({
     code: 'OVERSIZE_REJECTED',
     field: 'critique.own_previous',
     limit_bytes: VERDICT_CAPS.reasoning_bytes,
@@ -526,35 +501,34 @@ test('validateVerdictCaps caps parallel critique fields like reasoning', () => {
     }),
     { mode: 'parallel_revision' },
   );
-  assert.equal(peerOversize.ok, false);
-  assert.equal(peerOversize.metadata.field, 'critique.peer_previous');
-  assert.equal(
-    peerOversize.metadata.actual_bytes,
+  expect(peerOversize.ok).toBe(false);
+  expect(peerOversize.metadata.field).toBe('critique.peer_previous');
+  expect(peerOversize.metadata.actual_bytes).toBe(
     VERDICT_CAPS.reasoning_bytes + 2,
   );
 
   const within = validateVerdictCaps(parallelVerdict(), {
     mode: 'parallel_revision',
   });
-  assert.equal(within.ok, true);
+  expect(within.ok).toBe(true);
 });
 
-test('validateVerdictCaps total-verdict cap is enforced for parallel verdicts with critiques', () => {
+it('validateVerdictCaps total-verdict cap is enforced for parallel verdicts with critiques', () => {
   const total = validateVerdictCaps(
     parallelVerdict({
       proposed_artifact: 'x'.repeat(VERDICT_CAPS.total_verdict_bytes),
     }),
     { mode: 'parallel_revision' },
   );
-  assert.equal(total.ok, false);
-  assert.equal(total.metadata.field, 'verdict');
+  expect(total.ok).toBe(false);
+  expect(total.metadata.field).toBe('verdict');
 });
 
-test('validateVerdictCaps applies UTF-8 byte caps after shape validation', () => {
+it('validateVerdictCaps applies UTF-8 byte caps after shape validation', () => {
   const accepted = validateVerdictCaps(
     validVerdict({ reasoning: 'é'.repeat(4) }),
   );
-  assert.equal(accepted.ok, true);
+  expect(accepted.ok).toBe(true);
 
   const oversized = validateVerdictCaps(
     validVerdict({
@@ -563,8 +537,8 @@ test('validateVerdictCaps applies UTF-8 byte caps after shape validation', () =>
     }),
   );
 
-  assert.equal(oversized.ok, false);
-  assert.deepEqual(oversized.metadata, {
+  expect(oversized.ok).toBe(false);
+  expect(oversized.metadata).toEqual({
     code: 'OVERSIZE_REJECTED',
     field: 'proposed_artifact',
     limit_bytes: VERDICT_CAPS.proposed_artifact_bytes,
@@ -572,13 +546,13 @@ test('validateVerdictCaps applies UTF-8 byte caps after shape validation', () =>
   });
 });
 
-test('validateVerdictCaps reports oversized reasoning and concerns with byte counts', () => {
+it('validateVerdictCaps reports oversized reasoning and concerns with byte counts', () => {
   const reasoning = validateVerdictCaps(
     validVerdict({ reasoning: 'x'.repeat(VERDICT_CAPS.reasoning_bytes + 1) }),
   );
-  assert.equal(reasoning.ok, false);
-  assert.equal(reasoning.metadata.field, 'reasoning');
-  assert.equal(reasoning.metadata.code, 'OVERSIZE_REJECTED');
+  expect(reasoning.ok).toBe(false);
+  expect(reasoning.metadata.field).toBe('reasoning');
+  expect(reasoning.metadata.code).toBe('OVERSIZE_REJECTED');
 
   const concerns = validateVerdictCaps(
     validVerdict({
@@ -586,12 +560,12 @@ test('validateVerdictCaps reports oversized reasoning and concerns with byte cou
       concerns: ['é'.repeat(VERDICT_CAPS.concern_bytes / 2 + 1)],
     }),
   );
-  assert.equal(concerns.ok, false);
-  assert.equal(concerns.metadata.field, 'concerns[0]');
-  assert.equal(concerns.metadata.actual_bytes, VERDICT_CAPS.concern_bytes + 2);
+  expect(concerns.ok).toBe(false);
+  expect(concerns.metadata.field).toBe('concerns[0]');
+  expect(concerns.metadata.actual_bytes).toBe(VERDICT_CAPS.concern_bytes + 2);
 });
 
-test('validateVerdictCaps enforces max concern count and total JSON payload caps', () => {
+it('validateVerdictCaps enforces max concern count and total JSON payload caps', () => {
   const tooManyConcerns = validateVerdictCaps(
     validVerdict({
       concerns: Array.from(
@@ -600,8 +574,8 @@ test('validateVerdictCaps enforces max concern count and total JSON payload caps
       ),
     }),
   );
-  assert.equal(tooManyConcerns.ok, false);
-  assert.deepEqual(tooManyConcerns.metadata, {
+  expect(tooManyConcerns.ok).toBe(false);
+  expect(tooManyConcerns.metadata).toEqual({
     code: 'OVERSIZE_REJECTED',
     field: 'concerns',
     limit_count: VERDICT_CAPS.max_concerns,
@@ -614,6 +588,6 @@ test('validateVerdictCaps enforces max concern count and total JSON payload caps
       proposed_artifact: 'x'.repeat(VERDICT_CAPS.total_verdict_bytes),
     }),
   );
-  assert.equal(total.ok, false);
-  assert.equal(total.metadata.field, 'verdict');
+  expect(total.ok).toBe(false);
+  expect(total.metadata.field).toBe('verdict');
 });
