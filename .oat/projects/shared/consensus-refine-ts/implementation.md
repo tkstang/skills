@@ -399,6 +399,8 @@ acceptance signal holds.
 | `tests/event-payload-inventory.test.mjs` | `tests/event-payload-inventory.test.ts` | 6 | 14 → 14 | No nested subtests or dynamic cases; each top-level `test` maps to one `it`, and the routine-event content guard helper loop is preserved. | `pnpm exec vitest run tests/event-payload-inventory.test.ts` | pass |
 | `tests/user-intervention.test.mjs` | `tests/user-intervention.test.ts` | 9 | 37 → 37 | No nested subtests or assertion-bearing dynamic cases; each top-level `test` maps to one `it`, rejection validators preserve outer and inner checks. | `pnpm exec vitest run tests/user-intervention.test.ts` | pass |
 | `tests/paseo-invocation.test.mjs` | `tests/paseo-invocation.test.ts` | 11 | 22 → 22 | No nested subtests or assertion-bearing dynamic cases; each top-level `test` maps to one `it`, retry and rejection assertions are preserved. | `pnpm exec vitest run tests/paseo-invocation.test.ts` | pass |
+| `tests/path-safety.test.mjs` | `tests/path-safety.test.ts` | 7 | 18 → 18 | No nested subtests or assertion-bearing dynamic cases; each top-level `test` maps to one `it`. | `pnpm exec vitest run tests/path-safety.test.ts` | pass |
+| `tests/error-handling.test.mjs` | `tests/error-handling.test.ts` | 12 | 69 → 69 | No nested subtests or dynamic test cases; each top-level `test` maps to one `it`, rejection validators preserve outer and inner checks, and section-state map checks are preserved. | `pnpm exec vitest run tests/error-handling.test.ts` | pass |
 
 ## Test Results
 
@@ -407,7 +409,7 @@ Track test execution during implementation.
 | Phase | Tests Run | Passed | Failed | Coverage |
 | ----- | --------- | ------ | ------ | -------- |
 | 1     | build:check, type-check, test, validate, smoke, p01 guard tests | pass | 0 | - |
-| 2     | -         | -      | -      | -        |
+| 2     | targeted Vitest batches, type-check, full `pnpm test` | pass | 0 | - |
 
 ## Final Summary (for PR/docs)
 
