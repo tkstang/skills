@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-16
-oat_current_task_id: p02-t01
+oat_current_task_id: p03-t01
 oat_generated: false
 ---
 
@@ -27,10 +27,10 @@ oat_generated: false
 | Phase   | Status      | Tasks | Completed |
 | ------- | ----------- | ----- | --------- |
 | Phase 1 — Wrapper TS source + build import-rewrite | completed | 5 | 5/5 |
-| Phase 2 — Migrate consensus tests to Vitest        | pending     | 7 | 0/7 |
+| Phase 2 — Migrate consensus tests to Vitest        | completed   | 7 | 7/7 |
 | Phase 3 — Docs & reference updates                 | pending     | 2 | 0/2 |
 
-**Total:** 5/14 tasks completed
+**Total:** 12/14 tasks completed
 
 ---
 
@@ -262,15 +262,207 @@ oat_generated: false
 
 ---
 
-## Phase 2: {Phase Name}
+## Phase 2: Migrate consensus tests to Vitest
 
-**Status:** pending
-**Started:** -
+**Status:** completed
+**Started:** 2026-06-16
 
-### Task p02-t01: {Task Name}
+### Phase Summary (fill when phase is complete)
 
-**Status:** pending
-**Commit:** -
+**Outcome (what changed):**
+
+- Added the shared TypeScript declaration for `tests/helpers/process.mjs`.
+- Migrated the 20 in-scope consensus test files from `node:test` `.test.mjs`
+  modules to Vitest `.test.ts` modules.
+- Removed the active duplicate Node test runners for the migrated modules.
+- Recorded per-file assertion-parity inventory rows for the migrated suite.
+
+**Key files touched:**
+
+- `tests/helpers/process.d.mts` - ambient declaration for the shared process test
+  helper.
+- `tests/*.test.ts` - migrated p02 consensus tests.
+- `implementation.md` - p02 progress and assertion-parity inventory.
+
+**Verification:**
+
+- Run: p02 targeted Vitest batches, `pnpm run type-check`, and full `pnpm test`.
+- Result: pass.
+
+**Notes / Decisions:**
+
+- No intentional deviations from plan/design/discovery.
+
+### Task p02-t01: Add the shared test-helper type declaration
+
+**Status:** completed
+**Commit:** `4bffd6b`
+
+**Outcome (required when completed):**
+
+- Added an ambient declaration matching `tests/helpers/process.mjs` so migrated
+  TypeScript tests can import the runtime helper without implicit-any errors.
+
+**Files changed:**
+
+- `tests/helpers/process.d.mts`
+
+**Verification:**
+
+- Run: `pnpm run type-check`
+- Result: pass.
+
+---
+
+### Task p02-t02: Port loop tests to Vitest
+
+**Status:** completed
+**Commit:** `9ee5c7e`
+
+**Outcome (required when completed):**
+
+- Ported consensus loop CLI, convergence, and record tests to Vitest with
+  assertion-parity inventory rows.
+
+**Files changed:**
+
+- `tests/consensus-loop-cli.test.ts`
+- `tests/loop-convergence.test.ts`
+- `tests/loop-records.test.ts`
+- `implementation.md`
+
+**Verification:**
+
+- Run: `pnpm exec vitest run tests/consensus-loop-cli.test.ts tests/loop-convergence.test.ts tests/loop-records.test.ts`
+- Run: `pnpm run type-check`
+- Result: pass.
+
+---
+
+### Task p02-t03: Port parallel-orchestration tests to Vitest
+
+**Status:** completed
+**Commit:** `6014831`
+
+**Outcome (required when completed):**
+
+- Ported parallel errors, fan-in, integration, modes, and prepare tests to
+  Vitest with assertion-parity inventory rows.
+
+**Files changed:**
+
+- `tests/parallel-errors.test.ts`
+- `tests/parallel-fan-in.test.ts`
+- `tests/parallel-integration.test.ts`
+- `tests/parallel-modes.test.ts`
+- `tests/parallel-prepare.test.ts`
+- `implementation.md`
+
+**Verification:**
+
+- Run: `pnpm exec vitest run tests/parallel-errors.test.ts tests/parallel-fan-in.test.ts tests/parallel-integration.test.ts tests/parallel-modes.test.ts tests/parallel-prepare.test.ts`
+- Run: `pnpm run type-check`
+- Result: pass.
+
+---
+
+### Task p02-t04: Port wrapper/sequential/verdict tests to Vitest
+
+**Status:** completed
+**Commit:** `3486d90`
+
+**Outcome (required when completed):**
+
+- Ported wrapper options, sequential wrapper, and verdict validation tests to
+  Vitest with assertion-parity inventory rows.
+
+**Files changed:**
+
+- `tests/wrapper-options.test.ts`
+- `tests/sequential-wrapper.test.ts`
+- `tests/verdict-validation.test.ts`
+- `implementation.md`
+
+**Verification:**
+
+- Run: `pnpm exec vitest run tests/wrapper-options.test.ts tests/sequential-wrapper.test.ts tests/verdict-validation.test.ts`
+- Run: `pnpm run type-check`
+- Result: pass.
+
+---
+
+### Task p02-t05: Port resume/parse tests to Vitest
+
+**Status:** completed
+**Commit:** `85a0981`
+
+**Outcome (required when completed):**
+
+- Ported resume corruption, resume parse, and section parser tests to Vitest with
+  assertion-parity inventory rows.
+
+**Files changed:**
+
+- `tests/resume-corruption.test.ts`
+- `tests/resume-parse.test.ts`
+- `tests/section-parser.test.ts`
+- `implementation.md`
+
+**Verification:**
+
+- Run: `pnpm exec vitest run tests/resume-corruption.test.ts tests/resume-parse.test.ts tests/section-parser.test.ts`
+- Run: `pnpm run type-check`
+- Result: pass.
+
+---
+
+### Task p02-t06: Port event/escalation/intervention/paseo tests to Vitest
+
+**Status:** completed
+**Commit:** `aab4e5f`
+
+**Outcome (required when completed):**
+
+- Ported escalation, event payload inventory, user intervention, and Paseo
+  invocation tests to Vitest with assertion-parity inventory rows.
+
+**Files changed:**
+
+- `tests/escalation.test.ts`
+- `tests/event-payload-inventory.test.ts`
+- `tests/user-intervention.test.ts`
+- `tests/paseo-invocation.test.ts`
+- `implementation.md`
+
+**Verification:**
+
+- Run: `pnpm exec vitest run tests/escalation.test.ts tests/event-payload-inventory.test.ts tests/user-intervention.test.ts tests/paseo-invocation.test.ts`
+- Run: `pnpm run type-check`
+- Result: pass.
+
+---
+
+### Task p02-t07: Port path-safety and consensus error-handling tests to Vitest
+
+**Status:** completed
+**Commit:** `de4eac6`
+
+**Outcome (required when completed):**
+
+- Ported path-safety and consensus error-handling tests to Vitest with
+  assertion-parity inventory rows.
+
+**Files changed:**
+
+- `tests/path-safety.test.ts`
+- `tests/error-handling.test.ts`
+- `implementation.md`
+
+**Verification:**
+
+- Run: `pnpm exec vitest run tests/path-safety.test.ts tests/error-handling.test.ts`
+- Run: `pnpm test`
+- Result: pass.
 
 ---
 
@@ -331,36 +523,67 @@ Chronological log of implementation progress.
 
 ### 2026-06-16
 
-**Session Start:** {time}
+**Session Start:** p01 implementation
 
-- [x] p01-t01: {Task name} - {commit sha}
-- [ ] p01-t02: {Task name} - in progress
+- [x] p01-t01: Add per-mapping `importRewrites` to the generated-output build.
+- [x] p01-t02: Create canonical wrapper TypeScript source.
+- [x] p01-t03: Sync lint/format/CI exclusions for the generated wrapper.
+- [x] p01-t04: Wire the wrapper build mapping and regenerate the shipped runtime.
+- [x] p01-t05: Add generated-import + extend drift/layout guards.
 
 **What changed (high level):**
 
-- {short bullets suitable for PR/docs}
+- Established the canonical TypeScript wrapper source and generated shipped
+  runtime output with drift guards.
 
 **Decisions:**
 
-- {Decision made and rationale}
+- Keep shipped runtime output generated from canonical TypeScript and rewrite the
+  type-time loop import during the generated-output build.
 
 **Follow-ups / TODO:**
 
-- {anything discovered during implementation that should be captured for later}
+- Minor p01 review note remains in the orchestration run log.
 
 **Blockers:**
 
-- {Blocker description} - {status: resolved/pending}
+- None.
 
-**Session End:** {time}
+**Session End:** p01 complete
 
 ---
 
 ### 2026-06-16
 
-**Session Start:** {time}
+**Session Start:** p02 implementation
 
-{Continue log...}
+- [x] p02-t01: Add the shared test-helper type declaration - `4bffd6b`
+- [x] p02-t02: Port loop tests to Vitest - `9ee5c7e`
+- [x] p02-t03: Port parallel-orchestration tests to Vitest - `6014831`
+- [x] p02-t04: Port wrapper/sequential/verdict tests to Vitest - `3486d90`
+- [x] p02-t05: Port resume/parse tests to Vitest - `85a0981`
+- [x] p02-t06: Port event/escalation/intervention/paseo tests to Vitest - `aab4e5f`
+- [x] p02-t07: Port path-safety and consensus error-handling tests to Vitest - `de4eac6`
+
+**What changed (high level):**
+
+- Migrated the in-scope consensus tests to Vitest while preserving per-file
+  assertion-parity records.
+
+**Decisions:**
+
+- Keep `tests/helpers/process.mjs` as the runtime helper and add only the
+  TypeScript declaration needed by migrated tests.
+
+**Follow-ups / TODO:**
+
+- Continue with p03 documentation and reference updates.
+
+**Blockers:**
+
+- None.
+
+**Session End:** p02 complete
 
 ---
 
@@ -389,14 +612,14 @@ acceptance signal holds.
 | `tests/parallel-integration.test.mjs` | `tests/parallel-integration.test.ts` | 3 | 27 → 27 | No nested subtests; each top-level `test` maps to one `it`, and the manifest section loop preserves 3 realized section assertions. | `pnpm exec vitest run tests/parallel-integration.test.ts` | pass |
 | `tests/parallel-modes.test.mjs` | `tests/parallel-modes.test.ts` | 12 | 117 → 117 | No nested subtests; each top-level `test` maps to one `it`, and section/verdict/synthesis-record loops preserve their realized assertion counts. | `pnpm exec vitest run tests/parallel-modes.test.ts` | pass |
 | `tests/parallel-prepare.test.mjs` | `tests/parallel-prepare.test.ts` | 3 | 95 → 95 | No nested subtests; each top-level `test` maps to one `it`, and both manifest section loops preserve 3 realized iterations. | `pnpm exec vitest run tests/parallel-prepare.test.ts` | pass |
-| `tests/wrapper-options.test.mjs` | `tests/wrapper-options.test.ts` | 15 | 71 → 71 | No nested subtests or assertion-bearing dynamic cases; each top-level `test` maps to one `it`, rejection validator preserves outer and inner checks. | `pnpm exec vitest run tests/wrapper-options.test.ts` | pass |
+| `tests/wrapper-options.test.mjs` | `tests/wrapper-options.test.ts` | 14 | 71 → 71 | No nested subtests or assertion-bearing dynamic cases; each top-level `test` maps to one `it`, rejection validator preserves outer and inner checks. | `pnpm exec vitest run tests/wrapper-options.test.ts` | pass |
 | `tests/sequential-wrapper.test.mjs` | `tests/sequential-wrapper.test.ts` | 8 | 85 → 85 | No nested subtests; each top-level `test` maps to one `it`, and the three-section file-stat loop preserves 9 realized assertions. | `pnpm exec vitest run tests/sequential-wrapper.test.ts` | pass |
 | `tests/verdict-validation.test.mjs` | `tests/verdict-validation.test.ts` | 21 | 95 → 95 | No nested subtests or assertion-bearing dynamic cases; each top-level `test` maps to one `it`. | `pnpm exec vitest run tests/verdict-validation.test.ts` | pass |
 | `tests/resume-corruption.test.mjs` | `tests/resume-corruption.test.ts` | 9 | 31 → 31 | No nested subtests or assertion-bearing dynamic cases; each top-level `test` maps to one `it`, rejection validators preserve outer and inner checks. | `pnpm exec vitest run tests/resume-corruption.test.ts` | pass |
 | `tests/resume-parse.test.mjs` | `tests/resume-parse.test.ts` | 12 | 45 → 45 | No nested subtests or assertion-bearing dynamic cases; each top-level `test` maps to one `it`, rejection validators preserve outer and inner checks. | `pnpm exec vitest run tests/resume-parse.test.ts` | pass |
 | `tests/section-parser.test.mjs` | `tests/section-parser.test.ts` | 5 | 15 → 15 | No nested subtests or assertion-bearing dynamic cases; each top-level `test` maps to one `it`. | `pnpm exec vitest run tests/section-parser.test.ts` | pass |
 | `tests/escalation.test.mjs` | `tests/escalation.test.ts` | 36 | 59 → 59 | The 12 trigger × agency routing scenarios now run through `it.each`; all other top-level tests map to one `it`, and loop-level assertions are preserved. | `pnpm exec vitest run tests/escalation.test.ts` | pass |
-| `tests/event-payload-inventory.test.mjs` | `tests/event-payload-inventory.test.ts` | 6 | 14 → 14 | No nested subtests or dynamic cases; each top-level `test` maps to one `it`, and the routine-event content guard helper loop is preserved. | `pnpm exec vitest run tests/event-payload-inventory.test.ts` | pass |
+| `tests/event-payload-inventory.test.mjs` | `tests/event-payload-inventory.test.ts` | 5 | 14 → 14 | No nested subtests or dynamic cases; each top-level `test` maps to one `it`, and the routine-event content guard helper loop is preserved. | `pnpm exec vitest run tests/event-payload-inventory.test.ts` | pass |
 | `tests/user-intervention.test.mjs` | `tests/user-intervention.test.ts` | 9 | 37 → 37 | No nested subtests or assertion-bearing dynamic cases; each top-level `test` maps to one `it`, rejection validators preserve outer and inner checks. | `pnpm exec vitest run tests/user-intervention.test.ts` | pass |
 | `tests/paseo-invocation.test.mjs` | `tests/paseo-invocation.test.ts` | 11 | 22 → 22 | No nested subtests or assertion-bearing dynamic cases; each top-level `test` maps to one `it`, retry and rejection assertions are preserved. | `pnpm exec vitest run tests/paseo-invocation.test.ts` | pass |
 | `tests/path-safety.test.mjs` | `tests/path-safety.test.ts` | 7 | 18 → 18 | No nested subtests or assertion-bearing dynamic cases; each top-level `test` maps to one `it`. | `pnpm exec vitest run tests/path-safety.test.ts` | pass |
