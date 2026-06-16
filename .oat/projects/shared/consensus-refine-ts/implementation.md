@@ -392,6 +392,9 @@ acceptance signal holds.
 | `tests/wrapper-options.test.mjs` | `tests/wrapper-options.test.ts` | 15 | 71 → 71 | No nested subtests or assertion-bearing dynamic cases; each top-level `test` maps to one `it`, rejection validator preserves outer and inner checks. | `pnpm exec vitest run tests/wrapper-options.test.ts` | pass |
 | `tests/sequential-wrapper.test.mjs` | `tests/sequential-wrapper.test.ts` | 8 | 85 → 85 | No nested subtests; each top-level `test` maps to one `it`, and the three-section file-stat loop preserves 9 realized assertions. | `pnpm exec vitest run tests/sequential-wrapper.test.ts` | pass |
 | `tests/verdict-validation.test.mjs` | `tests/verdict-validation.test.ts` | 21 | 95 → 95 | No nested subtests or assertion-bearing dynamic cases; each top-level `test` maps to one `it`. | `pnpm exec vitest run tests/verdict-validation.test.ts` | pass |
+| `tests/resume-corruption.test.mjs` | `tests/resume-corruption.test.ts` | 9 | 31 → 31 | No nested subtests or assertion-bearing dynamic cases; each top-level `test` maps to one `it`, rejection validators preserve outer and inner checks. | `pnpm exec vitest run tests/resume-corruption.test.ts` | pass |
+| `tests/resume-parse.test.mjs` | `tests/resume-parse.test.ts` | 12 | 45 → 45 | No nested subtests or assertion-bearing dynamic cases; each top-level `test` maps to one `it`, rejection validators preserve outer and inner checks. | `pnpm exec vitest run tests/resume-parse.test.ts` | pass |
+| `tests/section-parser.test.mjs` | `tests/section-parser.test.ts` | 5 | 15 → 15 | No nested subtests or assertion-bearing dynamic cases; each top-level `test` maps to one `it`. | `pnpm exec vitest run tests/section-parser.test.ts` | pass |
 
 ## Test Results
 
