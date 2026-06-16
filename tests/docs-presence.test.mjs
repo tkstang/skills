@@ -56,7 +56,8 @@ test('documentation records the generated TypeScript runtime contract', async ()
   assert.match(readme, /^### Generated runtime outputs$/m);
   assert.match(readme, /scripts\/build-generated\.mjs --check/);
   assert.match(rootAgents, /canonical TypeScript source/);
-  assert.match(consensusAgents, /plugins\/consensus\/skills\/refine\/src\//);
+  assert.match(consensusAgents, /src\/consensus\//);
+  assert.match(consensusAgents, /plugins\/consensus\/skills\/\*\/scripts\//);
   assert.match(testAgents, /tests\/generated-output-sync\.test\.mjs/);
   assert.match(
     decisions,
