@@ -26,10 +26,11 @@ oat_generated: false
 
 | Phase   | Status      | Tasks | Completed |
 | ------- | ----------- | ----- | --------- |
-| Phase 1 | in_progress | N     | 0/N       |
-| Phase 2 | pending     | N     | 0/N       |
+| Phase 1 — Wrapper TS source + build import-rewrite | in_progress | 5 | 0/5 |
+| Phase 2 — Migrate consensus tests to Vitest        | pending     | 7 | 0/7 |
+| Phase 3 — Docs & reference updates                 | pending     | 2 | 0/2 |
 
-**Total:** 0/{N} tasks completed
+**Total:** 0/14 tasks completed
 
 ---
 
@@ -170,6 +171,17 @@ Document any intentional deviations from the original plan, spec, or design. Inc
 | Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
 | ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
 | -             | -               | -                    | -                 | -      | -               | -         |
+
+## Assertion-Parity Inventory (Phase 2)
+
+Per the design's assertion-parity audit, each ported consensus test file gets a row
+here (capture "before" counts from the `.mjs` source prior to deletion, "after"
+counts from the `.test.ts` port). A row is complete only when the 4-point per-file
+acceptance signal holds.
+
+| Source (`node:test`) | Vitest target | `node:test` cases | Assertion/scenario count (before → after) | Nested / dynamic-case handling | Per-file verification command | Status |
+| -------------------- | ------------- | ----------------- | ----------------------------------------- | ------------------------------ | ----------------------------- | ------ |
+| -                    | -             | -                 | -                                         | -                              | -                             | -      |
 
 ## Test Results
 
