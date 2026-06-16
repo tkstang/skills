@@ -93,7 +93,11 @@ function nowIso() {
   return new Date().toISOString();
 }
 
-export function createJsonlEvent(event: any, payload: any = {}, options: any = {}) {
+export function createJsonlEvent(
+  event: any,
+  payload: any = {},
+  options: any = {},
+) {
   return {
     consensus_schema_version: 'v1',
     event,
@@ -102,7 +106,12 @@ export function createJsonlEvent(event: any, payload: any = {}, options: any = {
   };
 }
 
-function writeJsonl(stream: any, event: any, payload: any = {}, options: any = {}) {
+function writeJsonl(
+  stream: any,
+  event: any,
+  payload: any = {},
+  options: any = {},
+) {
   const entry = createJsonlEvent(event, payload, options);
   stream.write(`${JSON.stringify(entry)}\n`);
   return entry;
@@ -390,7 +399,12 @@ function normalizeResumeRecords(
   });
 }
 
-function normalizeResumeSection(state: any, logSection: any, index: any, options: any = {}) {
+function normalizeResumeSection(
+  state: any,
+  logSection: any,
+  index: any,
+  options: any = {},
+) {
   const records = normalizeResumeRecords(
     logSection?.records ?? [],
     options.peers,
@@ -600,7 +614,11 @@ function collectResumeValidationErrors(
   return { sections, errors };
 }
 
-async function writeResumeErrors(runDir: any, errors: any, skippedIds: any = []) {
+async function writeResumeErrors(
+  runDir: any,
+  errors: any,
+  skippedIds: any = [],
+) {
   if (!runDir) return null;
 
   const outputPath = path.join(runDir, 'resume-errors.json');
@@ -639,7 +657,11 @@ async function defaultConfirmSkipAllCorrupt({
   }
 }
 
-async function applyResumeSkipPolicy(sections: any, errors: any, options: any = {}) {
+async function applyResumeSkipPolicy(
+  sections: any,
+  errors: any,
+  options: any = {},
+) {
   const sectionErrors = errors.filter((error: any) => error.section_id);
   const explicitSkipIds = new Set(options.skipCorruptSections ?? []);
   let skipAll = Boolean(options.yesSkipCorrupt);
@@ -874,7 +896,10 @@ async function resolveConfinedManifestPath(
   return resolved;
 }
 
-async function resolveManifestOutputPath(manifest: any, { cwd, trustedRoot }: any) {
+async function resolveManifestOutputPath(
+  manifest: any,
+  { cwd, trustedRoot }: any,
+) {
   const inputPath = resolveManifestPathValue(manifest.input_path, cwd);
   const outputPath = resolveManifestPathValue(manifest.output_path, cwd);
   const defaultOutputPath = path.resolve(`${inputPath}.consensus.md`);
@@ -1015,7 +1040,8 @@ function aggregateStatus(sections: any) {
     (section: any) =>
       section.status?.status ?? section.result?.status?.status ?? 'unknown',
   );
-  if (statuses.every((status: any) => status === 'converged')) return 'converged';
+  if (statuses.every((status: any) => status === 'converged'))
+    return 'converged';
   if (statuses.some((status: any) => status === 'error')) return 'error';
   if (
     statuses.some(
@@ -1035,7 +1061,8 @@ function aggregateParallelStatus(sections: any) {
   const statuses = sections.map(
     (section: any) => section.status?.status ?? 'unknown',
   );
-  if (statuses.every((status: any) => status === 'converged')) return 'converged';
+  if (statuses.every((status: any) => status === 'converged'))
+    return 'converged';
   if (statuses.some((status: any) => ['error', 'impasse'].includes(status))) {
     return statuses.some((status: any) => status === 'converged')
       ? 'partial'
@@ -1060,8 +1087,9 @@ function sectionStates(sections: any) {
 }
 
 function countByStatus(sections: any, statusName: any) {
-  return sections.filter((section: any) => section.status?.status === statusName)
-    .length;
+  return sections.filter(
+    (section: any) => section.status?.status === statusName,
+  ).length;
 }
 
 function lastTwoPeerRevisionRecords(records: any) {
@@ -1146,7 +1174,9 @@ export function buildEscalationEvent(section: any, { artifactPath }: any = {}) {
 }
 
 function escalatedSections(sections: any) {
-  return sections.filter((section: any) => section.status?.status === 'escalation');
+  return sections.filter(
+    (section: any) => section.status?.status === 'escalation',
+  );
 }
 
 function escalationRoutingError(message: any, details: any = {}) {
@@ -1184,7 +1214,9 @@ function assertHostDirectionRoutable(resumeSection: any) {
 
 function failingSections(sections: any) {
   return sections
-    .filter((section: any) => ['error', 'impasse'].includes(section.status?.status))
+    .filter((section: any) =>
+      ['error', 'impasse'].includes(section.status?.status),
+    )
     .map((section: any) => ({
       id: section.id,
       name: section.name,
@@ -1655,7 +1687,11 @@ export async function confineWrite(targetPath: any, rootPath: any) {
   return target;
 }
 
-export async function atomicWriteFile(targetPath: any, contents: any, options: any = {}) {
+export async function atomicWriteFile(
+  targetPath: any,
+  contents: any,
+  options: any = {},
+) {
   const writePath = options.rootPath
     ? await confineWrite(targetPath, options.rootPath)
     : path.resolve(targetPath);
@@ -2124,7 +2160,12 @@ function sequentialRunSections(parsedSections: any, resumeState: any) {
   });
 }
 
-function loopArgvForSection({ paths, options, peers, synthesizer = null }: any) {
+function loopArgvForSection({
+  paths,
+  options,
+  peers,
+  synthesizer = null,
+}: any) {
   const argv = [
     '--section-file',
     paths.input,
@@ -2363,7 +2404,8 @@ export async function runSequential(
   const host = preflight.host ?? detectHost(env);
   const { synthesizer } = resolveSynthesizer(
     { ...normalized, peers },
-    preflight.providerInventory ?? peers.map((id: any) => ({ id, available: true })),
+    preflight.providerInventory ??
+      peers.map((id: any) => ({ id, available: true })),
   );
   const resumeSections = sectionLookup(resumeState?.sections);
   const runSections = sequentialRunSections(parsedSections, resumeState);
@@ -2960,7 +3002,10 @@ export function resolvePeers(
  * synthesizer defaults to the first peer and any explicit override must be present
  * in the provider inventory (SYNTHESIZER_UNAVAILABLE otherwise).
  */
-export function resolveSynthesizer(options: any = {}, providerInventory: any = []) {
+export function resolveSynthesizer(
+  options: any = {},
+  providerInventory: any = [],
+) {
   const warnings: any[] = [];
   const requested = options.synthesizer ?? null;
 
@@ -2992,7 +3037,9 @@ export function resolveSynthesizer(options: any = {}, providerInventory: any = [
   }
 
   const inventory = normalizeProviderInventory(providerInventory);
-  const entry = inventory.find((candidate: any) => candidate.id === synthesizer);
+  const entry = inventory.find(
+    (candidate: any) => candidate.id === synthesizer,
+  );
   if (!entry || entry.available === false) {
     throw new ConsensusError(
       `Synthesizer "${synthesizer}" is not an available provider in the Paseo inventory. Verify configured providers with "paseo provider ls --json".`,

@@ -122,6 +122,11 @@ oat_generated: false
 - The source is a direct port of the current shipped `.mjs`; the shipped runtime
   remains unwired and unchanged until p01-t04.
 
+**Issues Encountered:**
+
+- Self-review found the new TS source was not `oxfmt` clean because lint-staged
+  did not format `.ts` files; fixed with a p01-t02 follow-up formatting commit.
+
 ---
 
 ### Task p01-t03: Sync lint/format/CI exclusions for the generated wrapper
