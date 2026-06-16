@@ -45,6 +45,27 @@ const PASEO_REMEDIATION = Object.freeze({
   source_url: "https://github.com/getpaseo/paseo",
   install_script: "scripts/install-paseo.mjs"
 });
+function isJsonRecord(value) {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+function asErrorLike(error) {
+  return isJsonRecord(error) ? error : {};
+}
+function asConsensusRecord(value) {
+  return isJsonRecord(value) ? value : {};
+}
+function asConsensusRecords(value) {
+  return Array.isArray(value) ? value.map(asConsensusRecord) : [];
+}
+function asSectionStatus(value) {
+  return isJsonRecord(value) ? value : {};
+}
+function asProviderInventoryEntry(value) {
+  return isJsonRecord(value) ? value : {};
+}
+function asLoopInitialRecords(records) {
+  return records ?? [];
+}
 function inside(root, target) {
   const relative = path.relative(root, target);
   return relative === "" || !relative.startsWith("..") && !path.isAbsolute(relative);
@@ -54,7 +75,7 @@ async function pathExists(targetPath) {
     await lstat(targetPath);
     return true;
   } catch (error) {
-    if (error.code === "ENOENT") return false;
+    if (asErrorLike(error).code === "ENOENT") return false;
     throw error;
   }
 }
@@ -94,10 +115,11 @@ function writeJsonl(stream, event, payload = {}, options = {}) {
   return entry;
 }
 function renderHumanError(error, env = process.env) {
-  if (env.CONSENSUS_LOG === "trace" && error?.stack) {
-    return error.stack;
+  const details = asErrorLike(error);
+  if (env.CONSENSUS_LOG === "trace" && details.stack) {
+    return details.stack;
   }
-  return error?.message ?? String(error);
+  return details.message ?? String(error);
 }
 function dynamicFence(contents, info = "") {
   const text = String(contents ?? "");
@@ -132,7 +154,7 @@ function sectionOutput(section) {
 }
 function resumeDataError(message, details = {}) {
   return new ConsensusError(message, {
-    code: details.code ?? "RESUME_DATA_INVALID",
+    code: typeof details.code === "string" ? details.code : "RESUME_DATA_INVALID",
     exitCode: EXIT_CODES.DATA,
     details: details.details
   });
@@ -180,7 +202,7 @@ function parseConsensusJsonBlock(label, jsonText, index) {
     return JSON.parse(jsonText);
   } catch (error) {
     throw resumeDataError(
-      `corrupt consensus:${label} JSON block at index ${index}: ${error.message}`,
+      `corrupt consensus:${label} JSON block at index ${index}: ${asErrorLike(error).message}`,
       {
         code: "RESUME_JSON_CORRUPT",
         details: { label, index }
@@ -196,7 +218,7 @@ function tryParseConsensusJsonBlock(label, jsonText, index) {
       ok: false,
       error: {
         code: "RESUME_JSON_CORRUPT",
-        message: `corrupt consensus:${label} JSON block at index ${index}: ${error.message}`,
+        message: `corrupt consensus:${label} JSON block at index ${index}: ${asErrorLike(error).message}`,
         block_label: label,
         block_index: index
       }
@@ -225,7 +247,7 @@ function extractLogSectionBlocks(markdown) {
     if (label === "consensus-section-status") {
       current = { status: null, records: [], errors: [] };
       if (parsed.ok) {
-        current.status = parsed.value;
+        current.status = asSectionStatus(parsed.value);
       } else {
         current.errors.push(parsed.error);
       }
@@ -242,7 +264,7 @@ function extractLogSectionBlocks(markdown) {
       continue;
     }
     if (parsed.ok) {
-      current.records.push(parsed.value);
+      current.records.push(asConsensusRecord(parsed.value));
     } else {
       current.errors.push(parsed.error);
     }
@@ -259,7 +281,7 @@ function lastProposedArtifact(records) {
 }
 function resumeAgencyFromMetadata(resolution = {}, frontmatter = {}, options = {}) {
   const agency = resolution.agency ?? frontmatter.agency ?? options.agency ?? "moderate";
-  return ["minimal", "moderate", "maximum"].includes(agency) ? agency : "moderate";
+  return typeof agency === "string" && ["minimal", "moderate", "maximum"].includes(agency) ? agency : "moderate";
 }
 function resumeHashOptionsForAgency(agency = "moderate") {
   return agency === "minimal" ? STRICT_RESUME_HASH_OPTIONS : {};
@@ -268,7 +290,7 @@ function normalizeResumeRecords(records, peers = ["claude", "codex"], options = 
   let peerIndex = 0;
   let currentArtifact = null;
   const hashOptions = resumeHashOptionsForAgency(options.agency);
-  return (records ?? []).map((record) => {
+  return asConsensusRecords(records).map((record) => {
     const isSynthesis = record?.record_type === "synthesis";
     const isSynthesisError = record?.record_type === "synthesis-error";
     const isHost = record?.verdict === "HOST_DECISION" || record?.agent === "host-orchestrator";
@@ -307,25 +329,26 @@ function normalizeResumeRecords(records, peers = ["claude", "codex"], options = 
   });
 }
 function normalizeResumeSection(state, logSection, index, options = {}) {
+  const stateRecord = isJsonRecord(state) ? state : {};
   const records = normalizeResumeRecords(
     logSection?.records ?? [],
-    options.peers,
+    options.peers ?? void 0,
     {
       agency: options.agency
     }
   );
-  const canonicalArtifact = typeof state?.final_output === "string" ? state.final_output : null;
+  const canonicalArtifact = typeof stateRecord.final_output === "string" ? stateRecord.final_output : null;
   const logArtifact = lastProposedArtifact(records);
   const resumedArtifact = canonicalArtifact ?? logArtifact;
   const status = logSection?.status ?? {};
-  const sectionStatus = state?.status ?? status.status ?? "unknown";
+  const sectionStatus = stateRecord.status ?? status.status ?? "unknown";
   const completed = sectionStatus === "converged";
   const hashOptions = resumeHashOptionsForAgency(options.agency);
   return {
-    id: state?.id,
-    name: state?.name,
-    original_index: state?.original_index ?? index,
-    state,
+    id: typeof stateRecord.id === "string" ? stateRecord.id : void 0,
+    name: typeof stateRecord.name === "string" ? stateRecord.name : void 0,
+    original_index: typeof stateRecord.original_index === "number" ? stateRecord.original_index : index,
+    state: stateRecord,
     status,
     records,
     completed,
@@ -347,21 +370,24 @@ function resumeHashError(section, expectedHash, actualHash) {
     actual_hash: actualHash
   };
 }
-function collectResumeValidationErrors(sectionStates2, logSections, unscopedErrors, options = {}) {
+function collectResumeValidationErrors(resumeSectionStates, logSections, unscopedErrors, options = {}) {
   const errors = [...unscopedErrors];
-  if (logSections.length < sectionStates2.length) {
-    for (let index = logSections.length; index < sectionStates2.length; index += 1) {
-      const state = sectionStates2[index] ?? {};
+  if (logSections.length < resumeSectionStates.length) {
+    for (let index = logSections.length; index < resumeSectionStates.length; index += 1) {
+      const candidate = resumeSectionStates[index];
+      const state = isJsonRecord(candidate) ? candidate : {};
+      const sectionId = typeof state.id === "string" ? state.id : void 0;
+      const sectionName = typeof state.name === "string" ? state.name : void 0;
       errors.push({
         code: "RESUME_SECTION_STATE_MISSING",
-        section_id: state.id,
-        section_name: state.name,
+        section_id: sectionId,
+        section_name: sectionName,
         section_index: index,
-        message: `missing section state for ${state.id ?? `section index ${index}`}`
+        message: `missing section state for ${sectionId ?? `section index ${index}`}`
       });
     }
-  } else if (logSections.length > sectionStates2.length) {
-    for (let index = sectionStates2.length; index < logSections.length; index += 1) {
+  } else if (logSections.length > resumeSectionStates.length) {
+    for (let index = resumeSectionStates.length; index < logSections.length; index += 1) {
       errors.push({
         code: "RESUME_SECTION_STATE_MISSING",
         section_index: index,
@@ -369,14 +395,14 @@ function collectResumeValidationErrors(sectionStates2, logSections, unscopedErro
       });
     }
   }
-  const sections = sectionStates2.map((state, index) => {
+  const sections = resumeSectionStates.map((state, index) => {
     const section = normalizeResumeSection(
       state,
       logSections[index],
       index,
       options
     );
-    if (!state || typeof state !== "object" || Array.isArray(state) || !state.id) {
+    if (!state || typeof state !== "object" || Array.isArray(state) || !isJsonRecord(state) || !state.id) {
       errors.push({
         code: "RESUME_SECTION_STATE_MISSING",
         section_index: index,
@@ -400,7 +426,8 @@ function collectResumeValidationErrors(sectionStates2, logSections, unscopedErro
         message: `missing section state for ${section.id}`
       });
     }
-    const stateHash = state?.final_artifact_hash ?? null;
+    const stateRecord = isJsonRecord(state) ? state : {};
+    const stateHash = typeof stateRecord.final_artifact_hash === "string" ? stateRecord.final_artifact_hash : null;
     const statusHash = logSections[index]?.status?.final_artifact_hash ?? null;
     if (stateHash && statusHash && stateHash !== statusHash) {
       errors.push(resumeHashError(section, stateHash, statusHash));
@@ -408,7 +435,7 @@ function collectResumeValidationErrors(sectionStates2, logSections, unscopedErro
     const hashOptions = resumeHashOptionsForAgency(options.agency);
     const peerCount = Array.isArray(options.peers) ? options.peers.length : 2;
     const peerRoundCounts = /* @__PURE__ */ new Map();
-    for (const record of section.records) {
+    for (const record of section.records ?? []) {
       const isPeer = record?.record_type !== "synthesis" && record?.record_type !== "synthesis-error" && record?.agent !== "user" && record?.agent !== "host-orchestrator" && record?.verdict !== "USER_INTERVENTION" && record?.verdict !== "HOST_DECISION";
       if (isPeer && Number.isInteger(Number(record?.round_index))) {
         const round2 = Number(record.round_index);
@@ -448,7 +475,11 @@ function collectResumeValidationErrors(sectionStates2, logSections, unscopedErro
     }
     if (section.resumedArtifact !== null && expectedHash && section.resumedArtifactHash !== expectedHash) {
       errors.push(
-        resumeHashError(section, expectedHash, section.resumedArtifactHash)
+        resumeHashError(
+          section,
+          expectedHash,
+          section.resumedArtifactHash ?? null
+        )
       );
     }
     return section;
@@ -480,7 +511,7 @@ async function defaultConfirmSkipAllCorrupt({
   errors,
   stdin = process.stdin,
   stdout = process.stdout
-} = {}) {
+}) {
   if (!stdin.isTTY) return false;
   const rl = createInterface({ input: stdin, output: stdout });
   try {
@@ -493,7 +524,9 @@ async function defaultConfirmSkipAllCorrupt({
   }
 }
 async function applyResumeSkipPolicy(sections, errors, options = {}) {
-  const sectionErrors = errors.filter((error) => error.section_id);
+  const sectionErrors = errors.filter(
+    (error) => typeof error.section_id === "string"
+  );
   const explicitSkipIds = new Set(options.skipCorruptSections ?? []);
   let skipAll = Boolean(options.yesSkipCorrupt);
   if (!skipAll && options.skipAllCorrupt && sectionErrors.length > 0) {
@@ -552,7 +585,7 @@ async function readResumePathOrText(pathOrText) {
         };
       }
     } catch (error) {
-      if (!["ENOENT", "ENOTDIR"].includes(error.code)) {
+      if (!["ENOENT", "ENOTDIR"].includes(asErrorLike(error).code ?? "")) {
         throw error;
       }
     }
@@ -566,7 +599,7 @@ async function readJsonIfPresent(filePath, fallback) {
   try {
     return await readJsonFile(filePath);
   } catch (error) {
-    if (error.code === "ENOENT") return fallback;
+    if (asErrorLike(error).code === "ENOENT") return fallback;
     return fallback;
   }
 }
@@ -574,14 +607,14 @@ async function readTextIfPresent(filePath) {
   try {
     return await readFile(filePath, "utf8");
   } catch (error) {
-    if (error.code === "ENOENT") return null;
+    if (asErrorLike(error).code === "ENOENT") return null;
     return null;
   }
 }
 function manifestError(message, details = {}) {
   return new ConsensusError(message, {
-    code: details.code ?? "INVALID_MANIFEST",
-    exitCode: details.exitCode ?? EXIT_CODES.CONFIG,
+    code: typeof details.code === "string" ? details.code : "INVALID_MANIFEST",
+    exitCode: typeof details.exitCode === "number" ? details.exitCode : EXIT_CODES.CONFIG,
     details: details.details
   });
 }
@@ -610,7 +643,7 @@ function requiredManifestString(value, field) {
   }
 }
 function requiredManifestInteger(value, field) {
-  if (!Number.isInteger(value) || value < 0) {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
     throw manifestError(
       `parallel manifest ${field} must be a non-negative integer`
     );
@@ -620,31 +653,33 @@ function validateParallelManifestShape(manifest) {
   if (manifest === null || typeof manifest !== "object" || Array.isArray(manifest)) {
     throw manifestError("parallel manifest must be a JSON object");
   }
-  if (manifest.consensus_schema_version !== "v1") {
+  const record = manifest;
+  if (record.consensus_schema_version !== "v1") {
     throw manifestError(
       "parallel manifest consensus_schema_version must be v1"
     );
   }
-  if (manifest.manifest_type !== "consensus-parallel-run") {
+  if (record.manifest_type !== "consensus-parallel-run") {
     throw manifestError(
       "parallel manifest manifest_type must be consensus-parallel-run"
     );
   }
-  if (manifest.mode !== "parallel") {
+  if (record.mode !== "parallel") {
     throw manifestError("parallel manifest mode must be parallel");
   }
   for (const field of ["input_path", "output_path", "run_dir"]) {
-    requiredManifestString(manifest[field], field);
+    requiredManifestString(record[field], field);
   }
-  if (!Array.isArray(manifest.sections)) {
+  if (!Array.isArray(record.sections)) {
     throw manifestError("parallel manifest sections must be an array");
   }
-  for (const [index, entry] of manifest.sections.entries()) {
+  for (const [index, entry] of record.sections.entries()) {
     if (entry === null || typeof entry !== "object" || Array.isArray(entry)) {
       throw manifestError(
         `parallel manifest sections[${index}] must be a JSON object`
       );
     }
+    const section = entry;
     for (const field of [
       "section_id",
       "name",
@@ -655,10 +690,10 @@ function validateParallelManifestShape(manifest) {
       "output_status",
       "subagent_id"
     ]) {
-      requiredManifestString(entry[field], `sections[${index}].${field}`);
+      requiredManifestString(section[field], `sections[${index}].${field}`);
     }
     requiredManifestInteger(
-      entry.original_index,
+      section.original_index,
       `sections[${index}].original_index`
     );
   }
@@ -680,7 +715,12 @@ async function assertPathResolvesInside(rootPath, targetPath, field, errorFactor
     throw errorFactory(field, target, root);
   }
 }
-async function resolveConfinedManifestPath(value, { root, base, field, errorFactory }) {
+async function resolveConfinedManifestPath(value, {
+  root,
+  base,
+  field,
+  errorFactory
+}) {
   requiredManifestString(value, field);
   const resolved = resolveManifestPathValue(value, base);
   const resolvedRoot = path.resolve(root);
@@ -810,15 +850,14 @@ function fallbackErrorStatus(error, records, peerCount) {
     termination_reason: "hard_error",
     turns,
     rounds: turns === 0 ? 0 : Math.ceil(turns / peerCount),
-    error: error.message
+    error: asErrorLike(error).message
   };
 }
 function aggregateStatus(sections) {
   const statuses = sections.map(
     (section) => section.status?.status ?? section.result?.status?.status ?? "unknown"
   );
-  if (statuses.every((status) => status === "converged"))
-    return "converged";
+  if (statuses.every((status) => status === "converged")) return "converged";
   if (statuses.some((status) => status === "error")) return "error";
   if (statuses.some(
     (status) => status === "impasse" || status === "max-rounds" || status === "oscillation" || status === "escalation"
@@ -831,8 +870,7 @@ function aggregateParallelStatus(sections) {
   const statuses = sections.map(
     (section) => section.status?.status ?? "unknown"
   );
-  if (statuses.every((status) => status === "converged"))
-    return "converged";
+  if (statuses.every((status) => status === "converged")) return "converged";
   if (statuses.some((status) => ["error", "impasse"].includes(status))) {
     return statuses.some((status) => status === "converged") ? "partial" : "error";
   }
@@ -853,9 +891,7 @@ function sectionStates(sections) {
   }));
 }
 function countByStatus(sections, statusName) {
-  return sections.filter(
-    (section) => section.status?.status === statusName
-  ).length;
+  return sections.filter((section) => section.status?.status === statusName).length;
 }
 function lastTwoPeerRevisionRecords(records) {
   const peers = records.filter(
@@ -916,9 +952,7 @@ function buildEscalationEvent(section, { artifactPath } = {}) {
   return event;
 }
 function escalatedSections(sections) {
-  return sections.filter(
-    (section) => section.status?.status === "escalation"
-  );
+  return sections.filter((section) => section.status?.status === "escalation");
 }
 function escalationRoutingError(message, details = {}) {
   return new ConsensusError(message, {
@@ -946,13 +980,14 @@ function assertHostDirectionRoutable(resumeSection) {
   return escalation;
 }
 function failingSections(sections) {
-  return sections.filter(
-    (section) => ["error", "impasse"].includes(section.status?.status)
-  ).map((section) => ({
+  return sections.filter((section) => {
+    const sectionStatus = section.status?.status;
+    return sectionStatus === "error" || sectionStatus === "impasse";
+  }).map((section) => ({
     id: section.id,
     name: section.name,
     original_index: section.original_index,
-    status: section.status.status,
+    status: section.status?.status ?? "unknown",
     termination_reason: section.status?.termination_reason ?? null
   }));
 }
@@ -1126,7 +1161,7 @@ function renderResolutionSummary(resolution) {
     `- Turns: ${resolution.total_turns}; rounds: ${resolution.total_rounds}`,
     `- Calls: ${resolution.peer_calls} peer; ${resolution.synthesis_calls} synthesis`
   ];
-  if (resolution.subagent_ids?.length > 0) {
+  if (resolution.subagent_ids.length > 0) {
     rows.push(`- Subagents: ${resolution.subagent_ids.join(", ")}`);
   }
   return rows.join("\n");
@@ -1200,20 +1235,21 @@ function providerEntryAvailable(entry) {
   return true;
 }
 function normalizeProviderInventory(providerInventory) {
-  const entries = Array.isArray(providerInventory) ? providerInventory : providerInventory?.providers ?? providerInventory?.data ?? [];
-  return entries.map((entry) => {
+  const entries = Array.isArray(providerInventory) ? providerInventory : isJsonRecord(providerInventory) ? providerInventory.providers ?? providerInventory.data ?? [] : [];
+  return (Array.isArray(entries) ? entries : []).map((entry) => {
     if (typeof entry === "string") {
       return {
         id: validateProviderId(entry, "provider inventory id"),
         available: true
       };
     }
+    const providerEntry = asProviderInventoryEntry(entry);
     const id = validateProviderId(
-      entry.id ?? entry.name ?? entry.provider,
+      providerEntry.id ?? providerEntry.name ?? providerEntry.provider,
       "provider inventory id"
     );
-    const available = providerEntryAvailable(entry);
-    return { ...entry, id, available };
+    const available = providerEntryAvailable(providerEntry);
+    return { ...providerEntry, id, available };
   });
 }
 function markdownLines(markdown) {
@@ -1342,14 +1378,15 @@ async function atomicWriteFile(targetPath, contents, options = {}) {
     await rename(tempPath, writePath);
     await syncPathIfAvailable(path.dirname(writePath));
   } catch (error) {
+    const annotatedError = error;
     try {
       await unlink(tempPath);
     } catch (cleanupError) {
-      if (cleanupError.code !== "ENOENT") {
-        error.cleanupError = cleanupError;
+      if (asErrorLike(cleanupError).code !== "ENOENT") {
+        annotatedError.cleanupError = cleanupError;
       }
     }
-    throw error;
+    throw annotatedError;
   }
   return writePath;
 }
@@ -1441,7 +1478,11 @@ function parseWrapperArgs(argv) {
         index += 1;
         break;
       case "--iteration":
-        parsed.iteration = requireValue(argv, index, token);
+        parsed.iteration = requireValue(
+          argv,
+          index,
+          token
+        );
         index += 1;
         break;
       case "--synthesizer":
@@ -1591,8 +1632,8 @@ async function parseDeliberationArtifactForResume(pathOrText, options = {}) {
       }
     );
   }
-  const resolution = resolutions[0];
-  const sectionStates2 = sectionStatesBlocks[0];
+  const resolution = isJsonRecord(resolutions[0]) ? resolutions[0] : {};
+  const resumeSectionStates = sectionStatesBlocks[0];
   const { logSections, unscopedErrors } = extractLogSectionBlocks(text);
   const resumeAgency = resumeAgencyFromMetadata(
     resolution,
@@ -1600,11 +1641,11 @@ async function parseDeliberationArtifactForResume(pathOrText, options = {}) {
     options
   );
   const { sections, errors } = collectResumeValidationErrors(
-    sectionStates2,
+    resumeSectionStates,
     logSections,
     unscopedErrors,
     {
-      peers: resolution.peers,
+      peers: Array.isArray(resolution.peers) ? resolution.peers.map(String) : void 0,
       agency: resumeAgency
     }
   );
@@ -1622,7 +1663,7 @@ async function parseDeliberationArtifactForResume(pathOrText, options = {}) {
     consensusSchemaVersion,
     frontmatter,
     resolution,
-    sectionStates: sectionStates2,
+    sectionStates: resumeSectionStates,
     sections,
     completedSections: sections.filter((section) => section.completed),
     inFlightSections: sections.filter((section) => section.inFlight),
@@ -1855,7 +1896,7 @@ function renderDeliberationArtifact(runResult) {
     run_id: runResult.runId ?? (runResult.runDir ? path.basename(runResult.runDir) : null),
     started_at: runResult.startedAt ?? null,
     ended_at: runResult.endedAt ?? null,
-    subagent_ids: sections.map((section) => section.subagent_id).filter(Boolean)
+    subagent_ids: sections.map((section) => section.subagent_id).filter((id) => Boolean(id))
   };
   const parts = [
     renderArtifactFrontmatter(resolution),
@@ -1902,7 +1943,8 @@ async function runSequential(options, runOptions = {}) {
   const normalized = normalizeSequentialOptions(options);
   const cwd = path.resolve(normalized.cwd ?? runOptions.cwd ?? process.cwd());
   const env = normalized.env ?? runOptions.env ?? process.env;
-  const inputPath = path.isAbsolute(normalized.inputPath) ? normalized.inputPath : path.resolve(cwd, normalized.inputPath);
+  const inputPathValue = normalized.inputPath;
+  const inputPath = path.isAbsolute(inputPathValue) ? inputPathValue : path.resolve(cwd, inputPathValue);
   const startedAt = nowIso();
   const startMs = Date.now();
   const markdown = await readInputFile(inputPath);
@@ -2011,8 +2053,8 @@ async function runSequential(options, runOptions = {}) {
       });
       continue;
     }
-    let hostDirection = null;
-    let hostDecisionKind = null;
+    let hostDirection;
+    let hostDecisionKind;
     let escalationTrigger = null;
     if (normalized.hostDirection && resumeSection?.inFlight) {
       const escalation = assertHostDirectionRoutable(resumeSection);
@@ -2021,6 +2063,18 @@ async function runSequential(options, runOptions = {}) {
       escalationTrigger = escalation.trigger;
     }
     try {
+      const loopRunOptions = {
+        env,
+        cwd,
+        invokePeer: normalized.invokePeer ?? runOptions.invokePeer,
+        invokeSynthesizer: normalized.invokeSynthesizer ?? runOptions.invokeSynthesizer,
+        initialRecords: asLoopInitialRecords(resumeSection?.records),
+        initialArtifact: sectionInput,
+        userDirection: resumeSection?.inFlight ? normalized.userDirection ?? void 0 : void 0,
+        hostDirection,
+        hostDecisionKind,
+        escalationTrigger
+      };
       const result = await runConsensusLoop(
         loopArgvForSection({
           section,
@@ -2029,18 +2083,7 @@ async function runSequential(options, runOptions = {}) {
           peers,
           synthesizer
         }),
-        {
-          env,
-          cwd,
-          invokePeer: normalized.invokePeer ?? runOptions.invokePeer,
-          invokeSynthesizer: normalized.invokeSynthesizer ?? runOptions.invokeSynthesizer,
-          initialRecords: resumeSection?.records ?? [],
-          initialArtifact: sectionInput,
-          userDirection: resumeSection?.inFlight ? normalized.userDirection : null,
-          hostDirection,
-          hostDecisionKind,
-          escalationTrigger
-        }
+        loopRunOptions
       );
       sectionResults.push({
         ...section,
@@ -2050,15 +2093,21 @@ async function runSequential(options, runOptions = {}) {
         records: result.records
       });
     } catch (error) {
-      const records = await readJsonIfPresent(paths.records, []);
-      const persistedStatus = await readJsonIfPresent(paths.status, null);
+      const records = await readJsonIfPresent(
+        paths.records,
+        []
+      );
+      const persistedStatus = await readJsonIfPresent(
+        paths.status,
+        null
+      );
       const recoveredOutput = await readTextIfPresent(paths.output) ?? latestRevisedOutput(records, section.markdown);
       const status = {
         ...fallbackErrorStatus(error, records, peers.length),
         ...persistedStatus
       };
       if (!status.error) {
-        status.error = error.message;
+        status.error = asErrorLike(error).message;
       }
       sectionResults.push({
         ...section,
@@ -2123,7 +2172,8 @@ async function prepareParallelRun(options, runOptions = {}) {
   const normalized = normalizeSequentialOptions(options);
   const cwd = path.resolve(normalized.cwd ?? runOptions.cwd ?? process.cwd());
   const env = normalized.env ?? runOptions.env ?? process.env;
-  const inputPath = path.isAbsolute(normalized.inputPath) ? normalized.inputPath : path.resolve(cwd, normalized.inputPath);
+  const inputPathValue = normalized.inputPath;
+  const inputPath = path.isAbsolute(inputPathValue) ? inputPathValue : path.resolve(cwd, inputPathValue);
   const startedAt = nowIso();
   const markdown = await readInputFile(inputPath);
   const parsedSections = parseSections(markdown);
@@ -2293,34 +2343,36 @@ async function fanInParallelRun(manifestPath, options = {}) {
       errors.push({
         code: "missing output file",
         path: entry.output_section,
-        message: error.message
+        message: asErrorLike(error).message ?? String(error)
       });
     }
     try {
-      records = await readJsonFile(entry.output_records);
-      if (!Array.isArray(records)) {
+      const parsedRecords = await readJsonFile(entry.output_records);
+      if (!Array.isArray(parsedRecords)) {
         errors.push({
           code: "malformed result JSON",
           path: entry.output_records,
           message: "records file must contain a JSON array"
         });
         records = [];
+      } else {
+        records = parsedRecords.map(asConsensusRecord);
       }
     } catch (error) {
       errors.push({
         code: "malformed result JSON",
         path: entry.output_records,
-        message: error.message
+        message: asErrorLike(error).message ?? String(error)
       });
       records = [];
     }
     try {
-      status = await readJsonFile(entry.output_status);
+      status = asSectionStatus(await readJsonFile(entry.output_status));
     } catch (error) {
       errors.push({
         code: "malformed result JSON",
         path: entry.output_status,
-        message: error.message
+        message: asErrorLike(error).message ?? String(error)
       });
       status = null;
     }
@@ -2480,9 +2532,7 @@ function resolveSynthesizer(options = {}, providerInventory = []) {
     );
   }
   const inventory = normalizeProviderInventory(providerInventory);
-  const entry = inventory.find(
-    (candidate) => candidate.id === synthesizer
-  );
+  const entry = inventory.find((candidate) => candidate.id === synthesizer);
   if (!entry || entry.available === false) {
     throw new ConsensusError(
       `Synthesizer "${synthesizer}" is not an available provider in the Paseo inventory. Verify configured providers with "paseo provider ls --json".`,
@@ -2508,7 +2558,8 @@ async function preflightPaseo(options = {}) {
       cwd
     });
   } catch (error) {
-    if (error.code === "ENOENT" || /ENOENT|not found/i.test(error.message)) {
+    const details = asErrorLike(error);
+    if (details.code === "ENOENT" || /ENOENT|not found/i.test(details.message ?? "")) {
       throw missingPaseoError(error);
     }
     throw error;
@@ -2519,7 +2570,7 @@ async function preflightPaseo(options = {}) {
     providerInventory = JSON.parse(inventoryOutput.stdout);
   } catch (error) {
     throw new Error(
-      `paseo provider inventory was not valid JSON: ${error.message}`,
+      `paseo provider inventory was not valid JSON: ${asErrorLike(error).message}`,
       { cause: error }
     );
   }
@@ -2617,11 +2668,12 @@ async function runWrapperCli(argv, options = {}) {
     return 0;
   } catch (error) {
     const exitCode = exitCodeForError(error);
+    const details = asErrorLike(error);
     writeJsonl(stdout, "error", {
-      code: error.code ?? "ERROR",
+      code: details.code ?? "ERROR",
       exit_code: exitCode,
-      message: error?.message ?? String(error),
-      ...error.details === void 0 ? {} : { details: error.details }
+      message: details.message ?? String(error),
+      ...details.details === void 0 ? {} : { details: details.details }
     });
     stderr.write(`${renderHumanError(error, env)}
 `);

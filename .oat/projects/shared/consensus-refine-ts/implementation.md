@@ -70,6 +70,10 @@ oat_generated: false
 **Notes / Decisions:**
 
 - No intentional deviations from plan/design/discovery.
+- Fix loop p01/I1: added focused wrapper-local TypeScript DTOs for public
+  options, run options, resume records/state, section results, provider
+  inventory, manifests, and loop invocation payloads; JSON parse boundaries now
+  narrow from `unknown` before use.
 
 ### Task p01-t01: Add per-mapping `importRewrites` to the generated-output build
 
