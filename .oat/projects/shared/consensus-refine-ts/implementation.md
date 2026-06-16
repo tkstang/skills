@@ -286,6 +286,41 @@ _- Outstanding Items_
 
 _Orchestration runs from `oat-project-implement` are appended here, most-recent-first within the file but append-only at the bottom of the log._
 
+### Run 1 — 2026-06-16 22:54
+
+**Branch:** consensus-refine-ts
+**Tier:** 1
+**Policy:** merge-strategy=sequential, retry-limit=2
+**Phases:** 1 executed, 1 passed, 0 failed, 0 stopped
+
+#### Phase Outcomes
+
+| Phase | Implementer | Review | Fix Iterations | Disposition |
+| ----- | ----------- | ------ | -------------- | ----------- |
+| p01 | DONE | pass | 1/2 | continued |
+
+#### Parallel Groups
+
+- p01: sequential
+
+#### Dispatch Notes
+
+- Dispatch: p01 implementation used Codex `oat-phase-implementer-xhigh` with model_axis=inherited, effort_axis=selected:xhigh, dispatch_ceiling=xhigh, ceiling_source=project state. Rationale: wrapper/generated-runtime migration touched build, CI/lint guards, generated output, and drift tests.
+- Dispatch: p01 review used Codex `oat-reviewer-xhigh` at the configured ceiling. Initial review found 0 Critical, 1 Important, 1 Minor.
+- Dispatch: p01 fix used Codex `oat-phase-implementer-xhigh` to address Important I1. Re-review found 0 Critical, 0 Important, 1 Minor and passed the phase gate.
+
+#### Outstanding Items
+
+- Minor p01 review note remains: `scripts/build-generated.mjs` import rewrite still replaces every matching quoted string rather than only static module specifiers. This is low-risk for current p01 behavior and does not block the phase.
+
+#### Artifact / Design Deltas
+
+Run-scoped snapshot only. The durable record is `## Deviations from Plan / Design`; consolidate any non-`None` entries there at the next phase boundary.
+
+| Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
+| ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
+| None | - | - | - | - | - | - |
+
 <!-- orchestration-runs-end -->
 
 ---
