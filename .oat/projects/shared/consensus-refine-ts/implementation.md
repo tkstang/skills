@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-16
-oat_current_task_id: p01-t01
+oat_current_task_id: p01-t02
 oat_generated: false
 ---
 
@@ -26,15 +26,15 @@ oat_generated: false
 
 | Phase   | Status      | Tasks | Completed |
 | ------- | ----------- | ----- | --------- |
-| Phase 1 — Wrapper TS source + build import-rewrite | in_progress | 5 | 0/5 |
+| Phase 1 — Wrapper TS source + build import-rewrite | in_progress | 5 | 1/5 |
 | Phase 2 — Migrate consensus tests to Vitest        | pending     | 7 | 0/7 |
 | Phase 3 — Docs & reference updates                 | pending     | 2 | 0/2 |
 
-**Total:** 0/14 tasks completed
+**Total:** 1/14 tasks completed
 
 ---
 
-## Phase 1: {Phase Name}
+## Phase 1: Wrapper TS source + build import-rewrite
 
 **Status:** in_progress
 **Started:** 2026-06-16
@@ -58,35 +58,42 @@ oat_generated: false
 
 - {trade-offs or deviations discovered during implementation}
 
-### Task p01-t01: {Task Name}
+### Task p01-t01: Add per-mapping `importRewrites` to the generated-output build
 
-**Status:** completed / in_progress / pending / blocked
-**Commit:** {sha} (if completed)
+**Status:** completed
+**Commit:** See phase implementation report
 
 **Outcome (required when completed):**
 
-- {what materially changed (not “did task”, but “system now does X”)}
+- `scripts/build-generated.mjs` now applies optional per-mapping import rewrites
+  after esbuild emits output and before write/check paths consume it.
+- Declared rewrite sources fail loudly when absent so future mappings cannot
+  silently skip an expected import rewrite.
 
 **Files changed:**
 
-- `{path}` - {why}
+- `scripts/build-generated.mjs` - added no-op-unless-declared import rewrite
+  support in the generated-output pipeline.
 
 **Verification:**
 
-- Run: `{command(s)}`
-- Result: {pass/fail + notes}
+- Run: `pnpm run build:check`
+- Result: pass; `consensus-loop: in sync`.
+- Run: `pnpm exec vitest run tests/generated-output-sync.test.mjs`
+- Result: pass; 1 file / 2 tests.
 
 **Notes / Decisions:**
 
-- {gotchas, trade-offs, design deltas, important context for future sessions}
+- No rewrite is declared for `consensus-loop`, so behavior is unchanged until
+  p01-t04 wires the wrapper mapping.
 
 **Issues Encountered:**
 
-- {Issue and resolution}
+- None.
 
 ---
 
-### Task p01-t02: {Task Name}
+### Task p01-t02: Create canonical wrapper TypeScript source
 
 **Status:** pending
 **Commit:** -
@@ -94,6 +101,27 @@ oat_generated: false
 **Notes:**
 
 - {Notes will be added during implementation}
+
+---
+
+### Task p01-t03: Sync lint/format/CI exclusions for the generated wrapper
+
+**Status:** pending
+**Commit:** -
+
+---
+
+### Task p01-t04: Wire the wrapper build mapping and regenerate the shipped runtime
+
+**Status:** pending
+**Commit:** -
+
+---
+
+### Task p01-t05: Add generated-import + extend drift/layout guards
+
+**Status:** pending
+**Commit:** -
 
 ---
 

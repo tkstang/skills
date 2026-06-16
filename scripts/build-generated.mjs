@@ -97,11 +97,21 @@ async function buildMapping(mapping) {
     throw new Error(`No generated output emitted for ${mapping.id}`);
   }
 
+  let text = outputFile.text;
+  for (const rewrite of mapping.importRewrites ?? []) {
+    if (!text.includes(rewrite.from)) {
+      throw new Error(
+        `Import rewrite for ${mapping.id} expected emitted output to contain ${rewrite.from}`,
+      );
+    }
+    text = text.replaceAll(rewrite.from, rewrite.to);
+  }
+
   return {
     mapping,
     status: 'built',
     outputPath,
-    text: outputFile.text,
+    text,
   };
 }
 
