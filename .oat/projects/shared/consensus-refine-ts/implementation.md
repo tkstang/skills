@@ -381,7 +381,9 @@ acceptance signal holds.
 
 | Source (`node:test`) | Vitest target | `node:test` cases | Assertion/scenario count (before → after) | Nested / dynamic-case handling | Per-file verification command | Status |
 | -------------------- | ------------- | ----------------- | ----------------------------------------- | ------------------------------ | ----------------------------- | ------ |
-| -                    | -             | -                 | -                                         | -                              | -                             | -      |
+| `tests/consensus-loop-cli.test.mjs` | `tests/consensus-loop-cli.test.ts` | 16 | 72 → 72 | No nested subtests or dynamic cases; each top-level `test` maps to one `it`, rejection validators keep outer rejection assertions plus inner checks. | `pnpm exec vitest run tests/consensus-loop-cli.test.ts` | pass |
+| `tests/loop-convergence.test.mjs` | `tests/loop-convergence.test.ts` | 24 | 51 → 51 | No nested subtests or dynamic cases; each top-level `test` maps to one `it`. | `pnpm exec vitest run tests/loop-convergence.test.ts` | pass |
+| `tests/loop-records.test.mjs` | `tests/loop-records.test.ts` | 13 | 78 → 78 | No nested subtests; each top-level `test` maps to one `it`, and the four-verdict assertion loop is preserved as four realized assertions. | `pnpm exec vitest run tests/loop-records.test.ts` | pass |
 
 ## Test Results
 
