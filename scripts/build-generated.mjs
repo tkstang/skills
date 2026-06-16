@@ -17,6 +17,14 @@ export const generatedOutputs = [
     source: 'src/consensus/core/consensus-loop.ts',
     output: 'plugins/consensus/skills/refine/scripts/consensus-loop.mjs',
   },
+  {
+    id: 'consensus-refine',
+    source: 'src/consensus/refine/consensus-refine.ts',
+    output: 'plugins/consensus/skills/refine/scripts/consensus-refine.mjs',
+    importRewrites: [
+      { from: '../core/consensus-loop.js', to: './consensus-loop.mjs' },
+    ],
+  },
 ];
 
 function usage() {
@@ -60,6 +68,10 @@ function bannerFor(mapping) {
 // Source: ${mapping.source}`;
 }
 
+function quotedSpecifiers(specifier) {
+  return [`'${specifier}'`, `"${specifier}"`];
+}
+
 async function buildMapping(mapping) {
   const sourcePath = path.join(repoRoot, mapping.source);
   const outputPath = path.join(repoRoot, mapping.output);
@@ -99,12 +111,17 @@ async function buildMapping(mapping) {
 
   let text = outputFile.text;
   for (const rewrite of mapping.importRewrites ?? []) {
-    if (!text.includes(rewrite.from)) {
+    let replaced = false;
+    for (const quotedFrom of quotedSpecifiers(rewrite.from)) {
+      if (!text.includes(quotedFrom)) continue;
+      text = text.replaceAll(quotedFrom, `'${rewrite.to}'`);
+      replaced = true;
+    }
+    if (!replaced) {
       throw new Error(
         `Import rewrite for ${mapping.id} expected emitted output to contain ${rewrite.from}`,
       );
     }
-    text = text.replaceAll(rewrite.from, rewrite.to);
   }
 
   return {

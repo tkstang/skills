@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-16
-oat_current_task_id: p01-t04
+oat_current_task_id: p01-t05
 oat_generated: false
 ---
 
@@ -26,11 +26,11 @@ oat_generated: false
 
 | Phase   | Status      | Tasks | Completed |
 | ------- | ----------- | ----- | --------- |
-| Phase 1 — Wrapper TS source + build import-rewrite | in_progress | 5 | 3/5 |
+| Phase 1 — Wrapper TS source + build import-rewrite | in_progress | 5 | 4/5 |
 | Phase 2 — Migrate consensus tests to Vitest        | pending     | 7 | 0/7 |
 | Phase 3 — Docs & reference updates                 | pending     | 2 | 0/2 |
 
-**Total:** 3/14 tasks completed
+**Total:** 4/14 tasks completed
 
 ---
 
@@ -168,8 +168,45 @@ oat_generated: false
 
 ### Task p01-t04: Wire the wrapper build mapping and regenerate the shipped runtime
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** See phase implementation report
+
+**Outcome (required when completed):**
+
+- `scripts/build-generated.mjs` now maps
+  `src/consensus/refine/consensus-refine.ts` to the shipped wrapper runtime with a
+  declared `../core/consensus-loop.js` -> `./consensus-loop.mjs` import rewrite.
+- `plugins/consensus/skills/refine/scripts/consensus-refine.mjs` is regenerated
+  from the canonical TypeScript source and imports the sibling loop runtime.
+
+**Files changed:**
+
+- `scripts/build-generated.mjs` - added the wrapper generated-output mapping and
+  tightened rewrite handling to replace quoted import specifiers.
+- `plugins/consensus/skills/refine/scripts/consensus-refine.mjs` - regenerated
+  shipped runtime from TypeScript source.
+
+**Verification:**
+
+- Run: `pnpm run build`
+- Result: pass; wrote both generated outputs.
+- Run: `pnpm run build:check`
+- Result: pass; `consensus-loop` and `consensus-refine` both in sync.
+- Run: `grep -n "consensus-loop" plugins/consensus/skills/refine/scripts/consensus-refine.mjs`
+- Result: pass; generated wrapper imports `./consensus-loop.mjs`.
+- Run: `pnpm run type-check && pnpm run test && pnpm run validate && pnpm run smoke`
+- Result: pass; full p01-t04 gate passed.
+
+**Notes / Decisions:**
+
+- The import rewrite emits the rewritten specifier with single quotes to preserve
+  the existing wrapper import characterization test while still being generated.
+
+**Issues Encountered:**
+
+- Initial full gate failed because esbuild emitted the rewritten import with
+  double quotes and an existing test asserted the single-quoted wrapper import;
+  resolved in `scripts/build-generated.mjs` and regenerated.
 
 ---
 
