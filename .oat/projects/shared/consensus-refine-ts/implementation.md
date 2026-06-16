@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-16
-oat_current_task_id: p01-t02
+oat_current_task_id: p01-t03
 oat_generated: false
 ---
 
@@ -26,11 +26,11 @@ oat_generated: false
 
 | Phase   | Status      | Tasks | Completed |
 | ------- | ----------- | ----- | --------- |
-| Phase 1 — Wrapper TS source + build import-rewrite | in_progress | 5 | 1/5 |
+| Phase 1 — Wrapper TS source + build import-rewrite | in_progress | 5 | 2/5 |
 | Phase 2 — Migrate consensus tests to Vitest        | pending     | 7 | 0/7 |
 | Phase 3 — Docs & reference updates                 | pending     | 2 | 0/2 |
 
-**Total:** 1/14 tasks completed
+**Total:** 2/14 tasks completed
 
 ---
 
@@ -95,12 +95,32 @@ oat_generated: false
 
 ### Task p01-t02: Create canonical wrapper TypeScript source
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** See phase implementation report
 
-**Notes:**
+**Outcome (required when completed):**
 
-- {Notes will be added during implementation}
+- `src/consensus/refine/consensus-refine.ts` now contains the canonical wrapper
+  source ported from the shipped runtime.
+- The canonical source imports the loop via `../core/consensus-loop.js` for
+  NodeNext type-checking against the real loop API.
+
+**Files changed:**
+
+- `src/consensus/refine/consensus-refine.ts` - new canonical TypeScript source for
+  the wrapper; behavior-preserving annotations only.
+
+**Verification:**
+
+- Run: `pnpm run type-check`
+- Result: pass.
+- Run: `node --test tests/wrapper-options.test.mjs`
+- Result: pass; 14 tests.
+
+**Notes / Decisions:**
+
+- The source is a direct port of the current shipped `.mjs`; the shipped runtime
+  remains unwired and unchanged until p01-t04.
 
 ---
 
