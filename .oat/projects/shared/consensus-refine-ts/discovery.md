@@ -94,7 +94,11 @@ correct." Verified preconditions: esbuild `bundle:false` preserves import
 specifiers verbatim (confirmed in the committed `consensus-loop.mjs`); all loop
 symbols the wrapper imports are exported from the canonical loop TS; the wrapper
 has exactly one relative import to reconcile.
-**User validated:** Pending design-depth decision point.
+**User validated:** Yes — the design-depth decision point was resolved on
+2026-06-16: the user chose "Lightweight design first" (draft-and-review), and
+Approach 1 was carried into `design.md` uncontested. The chosen direction was
+then exercised through the 2026-06-16 design artifact-review cycle, keeping the
+lifecycle artifacts in agreement.
 
 ## Key Decisions
 

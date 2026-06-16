@@ -37,6 +37,11 @@ source/build/import mechanism lands first (behavior unchanged, drift-checked), t
 the consensus tests are ported file-by-file off `node:test` and onto Vitest, then
 docs/reference artifacts are updated for the completed scope.
 
+> **Decision validation:** The import-rewrite mechanism (Approach 1 in
+> `discovery.md`) was validated at the 2026-06-16 design-depth decision point
+> (user chose lightweight design first) and confirmed through the 2026-06-16
+> design artifact-review cycle. Discovery and design agree on the chosen direction.
+
 ## Architecture
 
 ### System Context
@@ -204,8 +209,8 @@ remaining `node:test` importer is untouched) and add a sibling ambient declarati
    source and the migrated `.test.ts` files (tsconfig already includes
    `tests/**/*.ts`), proving the source types against the loop API.
 5. **Behavior parity (ported suite):** Each migrated file keeps its existing
-   assertions; the suite runs under `pnpm run test:vitest`. Parity is checked by
-   running the suite green and by diffing assertion coverage before/after the port.
+   assertions; the suite runs under `pnpm run test:vitest`. Parity is proven per
+   file via the **Assertion-parity audit** below, not by an informal eyeball.
 6. **Full gates:** `pnpm run build`, `build:check`, `type-check`, `test:vitest`,
    `validate`, `smoke`, and full `pnpm test` (node + vitest). Known non-consensus
    session-observer timing flakes are isolated and reported, not addressed here.
@@ -214,6 +219,42 @@ remaining `node:test` importer is untouched) and add a sibling ambient declarati
 moment it is renamed `*.test.mjs` → `*.test.ts` (the `test:node` glob only matches
 `*.test.mjs`; the Vitest `include` already matches `*.test.ts`), so there is no
 double-run and no window where a file runs under neither runner within a commit.
+
+### Assertion-parity audit (no coverage loss)
+
+"No coverage loss" is proven with a concrete, per-file audit rather than a holistic
+eyeball, so the plan can turn each row into a task check. For every migrated file
+the implementer records a row in an **assertion-parity inventory** kept in
+`implementation.md` (and referenced by the plan task that ports the file):
+
+| Source file (`node:test`) | Vitest target (`.test.ts`) | `node:test` cases | Assertion/scenario count | Nested / dynamic-case handling | Per-file verification command |
+| ------------------------- | -------------------------- | ----------------- | ------------------------ | ------------------------------ | ----------------------------- |
+| `tests/<name>.test.mjs`   | `tests/<name>.test.ts`     | _n_ before        | _k_ before → _k_ after   | how `t.test` / table-driven / loop-generated cases map to `describe`/`it`/`it.each` | `vitest run tests/<name>.test.ts` |
+
+**Counting method (deterministic):**
+
+- **`node:test` cases** = count of `test(...)` + `t.test(...)` (including nested
+  subtests) in the source file.
+- **Assertion/scenario count** = count of assertion calls (`assert*`, `t.assert*`)
+  in the source file; for table/loop-generated cases, count the realized
+  iterations, not the single literal call site.
+- Capture the "before" numbers from the `.mjs` source prior to deletion and the
+  "after" numbers from the `.test.ts` port.
+
+**Per-file acceptance signal (all must hold):**
+
+1. `node:test` case count and assertion/scenario count are **equal** before and
+   after (or the row explains any intentional consolidation, e.g. two identical
+   subtests merged into one `it.each` row, with the net scenario count preserved).
+2. Every nested `t.test` subtest and every loop/table-generated case is represented
+   as a distinct Vitest `it` / `it.each` row (no silent collapsing of scenarios).
+3. Helper-driven assertions (via `tests/helpers/process`) are preserved with the
+   same call sites and expectations.
+4. The per-file `vitest run tests/<name>.test.ts` command passes and reports a test
+   count consistent with the inventory row.
+
+The inventory is complete when every in-scope file has a row whose acceptance signal
+holds and no `*.test.mjs` consensus source remains for a migrated module.
 
 ## Error Handling
 
