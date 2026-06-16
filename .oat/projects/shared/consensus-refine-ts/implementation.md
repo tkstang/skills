@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-16
-oat_current_task_id: p01-t03
+oat_current_task_id: p01-t04
 oat_generated: false
 ---
 
@@ -26,11 +26,11 @@ oat_generated: false
 
 | Phase   | Status      | Tasks | Completed |
 | ------- | ----------- | ----- | --------- |
-| Phase 1 — Wrapper TS source + build import-rewrite | in_progress | 5 | 2/5 |
+| Phase 1 — Wrapper TS source + build import-rewrite | in_progress | 5 | 3/5 |
 | Phase 2 — Migrate consensus tests to Vitest        | pending     | 7 | 0/7 |
 | Phase 3 — Docs & reference updates                 | pending     | 2 | 0/2 |
 
-**Total:** 2/14 tasks completed
+**Total:** 3/14 tasks completed
 
 ---
 
@@ -131,8 +131,38 @@ oat_generated: false
 
 ### Task p01-t03: Sync lint/format/CI exclusions for the generated wrapper
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** See phase implementation report
+
+**Outcome (required when completed):**
+
+- Generated-output exclusions now include the soon-to-be-generated
+  `plugins/consensus/skills/refine/scripts/consensus-refine.mjs` path anywhere
+  `consensus-loop.mjs` was already exempted.
+- CI's generated-output diff check will verify both committed generated runtime
+  files after p01-t04.
+
+**Files changed:**
+
+- `.oxlintrc.json` - added generated wrapper path to lint ignores.
+- `.oxfmtrc.json` - added generated wrapper path to format ignores.
+- `.lintstagedrc.mjs` - excluded generated wrapper path from staged lint/format.
+- `.github/workflows/validate.yml` - added generated wrapper path to drift diff
+  and changed-file lint/format regex exclusions.
+
+**Verification:**
+
+- Run: `pnpm lint`
+- Result: pass; warnings only.
+- Run: `pnpm format:check`
+- Result: pass.
+- Run: `pnpm exec node --input-type=module -e "import('./.lintstagedrc.mjs').then(()=>console.log('ok'))"`
+- Result: pass; config loaded.
+
+**Notes / Decisions:**
+
+- `pnpm lint` reported non-failing `no-shadow` warnings; no p01-t03 config parse
+  or lint errors occurred.
 
 ---
 
