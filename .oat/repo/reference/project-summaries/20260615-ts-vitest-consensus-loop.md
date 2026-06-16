@@ -13,7 +13,7 @@ oat_summary_includes_revisions: []
 
 ## Overview
 
-This quick-mode project established the repository's TypeScript, Vitest, and generated-runtime build pattern, then proved it on the central `consensus-loop` runtime. The goal was not a full test-suite or wrapper migration; it was a durable first slice that keeps shipped skills dependency-free while giving developers canonical TypeScript source and drift-checked committed `.mjs` output.
+This quick-mode project established the repository's TypeScript, Vitest, and generated-runtime build pattern, then proved it on the central `consensus-loop` runtime. The goal was not a full test-suite or wrapper migration; it was a durable first slice that keeps shipped skills dependency-free while giving developers canonical TypeScript source and drift-checked committed `.mjs` output. A post-PR revision separated canonical consensus source under `src/consensus/` from the plugin distribution tree under `plugins/consensus/`.
 
 ## What Was Implemented
 
@@ -27,10 +27,13 @@ The validation pipeline now protects the generated-runtime contract in multiple 
 
 Documentation and reference artifacts were refreshed to describe the canonical TypeScript source plus committed `.mjs` output contract. `bl-853a` was marked delivered, while `bl-bfb4` remains in progress for the broader wrapper and test-suite migration.
 
+After PR review, the canonical loop source moved from the distributable refine skill tree to `src/consensus/core/consensus-loop.ts`. The build still writes the same provider-facing `plugins/consensus/skills/refine/scripts/consensus-loop.mjs` file, and layout tests now assert that `plugins/consensus/skills/` does not contain canonical TypeScript source.
+
 ## Key Decisions
 
 - Keep shipped skill runtime dependency-free. TypeScript, Vitest, and esbuild are dev-only tooling; generated `.mjs` output imports only Node standard library modules.
 - Build to the existing `consensus-loop.mjs` runtime path instead of changing provider-facing imports. This preserved `consensus-refine.mjs`, parallel section runners, and existing tests.
+- Treat `src/consensus/` as the canonical developer source tree and `plugins/consensus/` as the install/distribution surface. `SKILL.md`, schemas, references, manifests, and generated `.mjs` outputs remain under `plugins/`.
 - Run Vitest alongside `node:test` rather than replacing the Node suite. This avoided coverage loss while introducing Vitest for TS/build-focused tests.
 - Use `consensus-loop` as the proof slice instead of `consensus-evaluate`. The loop exercises the highest-value type boundaries and the generated-output contract more directly.
 - Keep implementation sequential. All phases touched package scripts, generated output, tests, and consensus runtime paths, so parallel worktrees would have created unnecessary merge risk.
@@ -38,6 +41,7 @@ Documentation and reference artifacts were refreshed to describe the canonical T
 ## Design Deltas
 
 - The p02-t03 wrapper compatibility task did not require a runtime fix. Baseline wrapper commands already passed after generated output preserved the existing import/export contract, so the project added characterization tests instead of changing wrapper behavior.
+- The source layout changed after PR discussion: `consensus-loop.ts` moved to `src/consensus/core/` so direct skill/plugin installs do not receive canonical TypeScript source by default.
 - The first aggregate `worktree:validate` attempts in p03-t03 hit an existing `tests/session-observer/watch.test.mjs` timing flake. The isolated watcher test and final clean-tree `worktree:validate` rerun passed, so the project recorded the caveat without broadening scope into session-observer timing work.
 
 ## Notable Challenges
