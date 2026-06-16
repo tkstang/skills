@@ -801,4 +801,5 @@ Track test execution during implementation.
 
 - Plan: `plan.md`
 - Design: `design.md`
-- Spec: `spec.md`
+- Discovery: `discovery.md`
+- Spec: N/A - quick mode
