@@ -7,11 +7,14 @@ Scoped guidance for the test suite. Inherits the root `AGENTS.md`; this file add
 - Tests use the Node built-in test runner and strict assertions:
   - `import test from 'node:test'` (or `import { test, describe } from 'node:test'`)
   - `import assert from 'node:assert/strict'`
-- Run the suite with `node --test` (or `npm test` / `pnpm run test`).
+- New TypeScript/build-contract checks may use Vitest, especially when they exercise developer-only tooling.
+- Run the full suite with `npm test` / `pnpm run test`; this runs the existing Node tests plus Vitest.
 - Both styles are in use and acceptable: bare `test(...)` and `describe(...)` / `it(...)`.
 - Import the unit under test by relative path from the source tree (e.g. `../plugins/...`, `../../skills/...`).
-- Filesystem-touching tests create temp dirs under `os.tmpdir()` (`mkdtemp`) and clean them up — the suite must leave a clean working tree (drift guards run in `npm run validate` / `pnpm run worktree:validate`).
+- Filesystem-touching tests create temp dirs under `os.tmpdir()` (`mkdtemp`) and clean them up — the suite must leave a clean working tree (drift guards run in `npm test` / `pnpm run worktree:validate`).
 
-## Planned direction
+## Generated-output checks
 
-A TypeScript + **vitest** developer toolchain is planned (backlog `bl-853a`), with a follow-on migration of the existing `node:test` suite to vitest (`bl-bfb4`). Test tooling here is expected to change; treat the conventions above as the current state, not a permanent constraint. Dev tooling (vitest, a TS toolchain) is in bounds — the dependency-free contract in the root `AGENTS.md` applies to **shipped** skills, not to developer tooling.
+- `tests/generated-output-sync.test.mjs` is a Vitest drift guard for committed generated runtime outputs.
+- If you edit canonical TypeScript source for a generated runtime, run `pnpm run build` and then `pnpm run build:check`.
+- Do not use Node's built-in test runner for Vitest-owned `.mjs` files; `pnpm run test` already routes each suite to the correct runner.

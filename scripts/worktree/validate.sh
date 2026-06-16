@@ -29,9 +29,15 @@ assert_clean_worktree() {
 }
 
 assert_clean_worktree "before validation"
+run_step "install" pnpm install --frozen-lockfile
+run_step "build generated outputs" pnpm run build
+assert_clean_worktree "after generated-output build"
+run_step "type-check" pnpm run type-check
+run_step "build:check" pnpm run build:check
 run_step "test" pnpm run test
 run_step "validate" pnpm run validate
 run_step "smoke" pnpm run smoke
+run_step "final build:check" pnpm run build:check
 
 assert_clean_worktree "after validation"
 echo "worktree validation passed"

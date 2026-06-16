@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, writeFile, mkdir, symlink } from 'node:fs/promises';
+import { mkdtemp, readFile, writeFile, mkdir, symlink } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -15,6 +15,14 @@ import {
 } from '../scripts/validate.mjs';
 
 const repoRoot = path.resolve(new URL('..', import.meta.url).pathname);
+const validateWorkflowPath = path.join(
+  repoRoot,
+  '.github/workflows/validate.yml',
+);
+const worktreeValidatePath = path.join(
+  repoRoot,
+  'scripts/worktree/validate.sh',
+);
 
 async function writeJson(filePath, value) {
   await writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`);
@@ -122,6 +130,17 @@ metadata:
   return tempRoot;
 }
 
+function assertOrdered(content, expected) {
+  let cursor = -1;
+
+  for (const text of expected) {
+    const index = content.indexOf(text, cursor + 1);
+    assert.notEqual(index, -1, `missing expected validation step: ${text}`);
+    assert.ok(index > cursor, `validation step appears out of order: ${text}`);
+    cursor = index;
+  }
+}
+
 test('parseFrontmatter reads skill metadata', () => {
   const parsed = parseFrontmatter(
     `---\nname: refine\nmetadata:\n  version: "0.1.0"\n---\n# Body\n`,
@@ -129,6 +148,36 @@ test('parseFrontmatter reads skill metadata', () => {
 
   assert.equal(parsed.name, 'refine');
   assert.deepEqual(parsed.metadata, { version: '0.1.0' });
+});
+
+test('CI and worktree validation run generated-output verification in order', async () => {
+  const workflow = await readFile(validateWorkflowPath, 'utf8');
+  const worktreeValidation = await readFile(worktreeValidatePath, 'utf8');
+
+  assertOrdered(workflow, [
+    'pnpm install --frozen-lockfile',
+    'pnpm run build',
+    'git diff --exit-code -- plugins/consensus/skills/refine/scripts/consensus-loop.mjs',
+    'pnpm run type-check',
+    'pnpm run build:check',
+    'pnpm run test',
+    'pnpm run validate',
+    'pnpm run smoke',
+  ]);
+
+  assertOrdered(worktreeValidation, [
+    'assert_clean_worktree "before validation"',
+    'run_step "install" pnpm install --frozen-lockfile',
+    'run_step "build generated outputs" pnpm run build',
+    'assert_clean_worktree "after generated-output build"',
+    'run_step "type-check" pnpm run type-check',
+    'run_step "build:check" pnpm run build:check',
+    'run_step "test" pnpm run test',
+    'run_step "validate" pnpm run validate',
+    'run_step "smoke" pnpm run smoke',
+    'run_step "final build:check" pnpm run build:check',
+    'assert_clean_worktree "after validation"',
+  ]);
 });
 
 test('parseJsonFile reports valid JSON path context', async () => {

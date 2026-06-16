@@ -4,8 +4,14 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "build": "node scripts/build-generated.mjs",
+    "build:check": "node scripts/build-generated.mjs --check",
     "sync:transcript-core": "node scripts/sync-transcript-core.mjs",
-    "test": "node --test",
+    "test": "pnpm run test:node && pnpm run test:vitest",
+    "test:node": "node --test $(find tests -name '*.test.mjs' ! -name 'generated-output-sync.test.mjs' -type f | sort)",
+    "test:vitest": "node scripts/run-vitest.mjs",
+    "type-check": "tsc --noEmit",
+    "premerge": "pnpm run build && pnpm run type-check && pnpm run build:check && pnpm run test && pnpm run validate && pnpm run smoke",
     "validate": "node scripts/validate.mjs",
     "smoke": "node scripts/smoke-test.mjs",
     "worktree:init": "bash scripts/worktree/init.sh",
@@ -23,9 +29,13 @@
   "devDependencies": {
     "@commitlint/cli": "^21.0.0",
     "@commitlint/config-conventional": "^21.0.0",
+    "@types/node": "^22.19.21",
+    "esbuild": "^0.28.1",
     "lint-staged": "^17.0.7",
     "oxfmt": "^0.48.0",
-    "oxlint": "^1.69.0"
+    "oxlint": "^1.69.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.9"
   },
   "engines": {
     "node": ">=22",
