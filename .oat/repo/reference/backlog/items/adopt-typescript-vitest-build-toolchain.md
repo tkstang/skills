@@ -81,7 +81,7 @@ Delivered by the quick-mode OAT project
 - Added `scripts/build-generated.mjs` with a generated-output drift guard and a
   committed generated `.mjs` contract.
 - Converted `consensus-loop` as the proof-point module: canonical source now
-  lives at `plugins/consensus/skills/refine/src/consensus-loop.ts` and builds
+  lives at `src/consensus/core/consensus-loop.ts` and builds
   to the existing provider-facing
   `plugins/consensus/skills/refine/scripts/consensus-loop.mjs` path.
 - Wired CI and `worktree:validate` to install with a frozen lockfile, build,

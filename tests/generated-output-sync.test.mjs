@@ -44,9 +44,7 @@ describe('generated output drift guard', () => {
       'utf8',
     );
 
-    expect(script).toContain(
-      'plugins/consensus/skills/refine/src/consensus-loop.ts',
-    );
+    expect(script).toContain('src/consensus/core/consensus-loop.ts');
     expect(script).toContain(
       'plugins/consensus/skills/refine/scripts/consensus-loop.mjs',
     );

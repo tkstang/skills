@@ -50,7 +50,7 @@ Current consumers: `session-observer` and `export-session-transcript`.
 
 ### Generated runtime outputs
 
-Some shipped runtime `.mjs` files are generated from canonical TypeScript source while staying committed at the same paths that provider manifests, docs, and users already execute. Edit the canonical TypeScript source, not generated `.mjs` output with a `// GENERATED` banner.
+Some shipped runtime `.mjs` files are generated from canonical TypeScript source under `src/` while staying committed at the same paths that provider manifests, docs, and users already execute under `plugins/`. Edit the canonical TypeScript source, not generated `.mjs` output with a `// GENERATED` banner.
 
 The build contract is:
 

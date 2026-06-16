@@ -152,6 +152,6 @@
 ### DR-020: Canonical TypeScript sources build committed generated runtime outputs (2026-06-15)
 
 **Context:** The repo is adding TypeScript and Vitest for developer feedback while shipped skills/plugins must remain dependency-free and runnable from committed `.mjs` paths.
-**Decision:** Canonical TypeScript source may live beside a skill under `src/`, but provider-facing runtime entry points remain committed generated `.mjs` files under the existing `scripts/` paths. Generated outputs carry a `// GENERATED` banner, are never hand-edited, and are checked by `node scripts/build-generated.mjs --check` through `tests/generated-output-sync.test.mjs`.
-**Rationale:** Keeping committed `.mjs` output preserves existing manifests, docs, tests, and user execution paths with no install step. TypeScript, Vitest, and bundling stay dev-only, while the drift guard prevents source/output divergence.
+**Decision:** Canonical TypeScript source lives under the repo-level `src/` tree (for example, `src/consensus/core/`), while provider-facing runtime entry points remain committed generated `.mjs` files under the existing `plugins/*/skills/*/scripts/` distribution paths. Generated outputs carry a `// GENERATED` banner, are never hand-edited, and are checked by `node scripts/build-generated.mjs --check` through `tests/generated-output-sync.test.mjs`.
+**Rationale:** Keeping committed `.mjs` output preserves existing manifests, docs, tests, install copies, and user execution paths with no install step. Keeping canonical TypeScript out of `plugins/` makes the plugin tree the distribution surface rather than the developer source tree. TypeScript, Vitest, and bundling stay dev-only, while the drift guard prevents source/output divergence.
 **Status:** Accepted.

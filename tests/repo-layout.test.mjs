@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { stat } from 'node:fs/promises';
+import { readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 import test from 'node:test';
 
@@ -12,6 +12,33 @@ async function assertDirectory(relativePath) {
     true,
     `${relativePath} should be a directory`,
   );
+}
+
+async function pathExists(relativePath) {
+  try {
+    await stat(new URL(relativePath, root));
+    return true;
+  } catch (error) {
+    if (error.code === 'ENOENT') return false;
+    throw error;
+  }
+}
+
+async function listFiles(relativePath) {
+  const directoryUrl = new URL(`${relativePath}/`, root);
+  const entries = await readdir(directoryUrl, { withFileTypes: true });
+  const files = [];
+
+  for (const entry of entries) {
+    const child = path.posix.join(relativePath, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...(await listFiles(child)));
+    } else {
+      files.push(child);
+    }
+  }
+
+  return files;
 }
 
 test('repository exposes standalone and consensus plugin layout', async () => {
@@ -27,8 +54,24 @@ test('repository exposes standalone and consensus plugin layout', async () => {
     path.posix.join('plugins', 'consensus', '.claude-plugin'),
     path.posix.join('plugins', 'consensus', '.cursor-plugin'),
     path.posix.join('plugins', 'consensus', '.codex-plugin'),
+    path.posix.join('src', 'consensus', 'core'),
     'scripts',
   ];
 
   await Promise.all(requiredDirectories.map(assertDirectory));
+});
+
+test('consensus distribution tree does not include canonical TypeScript source', async () => {
+  assert.equal(
+    await pathExists('plugins/consensus/skills/refine/src'),
+    false,
+    'refine skill distribution should not include a src directory',
+  );
+
+  const skillFiles = await listFiles('plugins/consensus/skills');
+  assert.deepEqual(
+    skillFiles.filter((file) => file.endsWith('.ts')),
+    [],
+    'plugin skill distribution should not include TypeScript source files',
+  );
 });

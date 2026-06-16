@@ -19,7 +19,7 @@ This quick-mode project established the repository's TypeScript, Vitest, and gen
 
 Phase 1 added developer-only TypeScript and Vitest tooling while preserving the existing `node:test` suite. `pnpm test` now runs both the Node suite and Vitest checks, `pnpm run type-check` runs strict TypeScript checking for TS sources, and package metadata tests lock the intended command composition.
 
-The project added `scripts/build-generated.mjs` as the source-to-committed-runtime build tool. It emits a generated banner, supports write and `--check` modes, and currently maps `plugins/consensus/skills/refine/src/consensus-loop.ts` to the provider-facing `plugins/consensus/skills/refine/scripts/consensus-loop.mjs` path.
+The project added `scripts/build-generated.mjs` as the source-to-committed-runtime build tool. It emits a generated banner, supports write and `--check` modes, and currently maps `src/consensus/core/consensus-loop.ts` to the provider-facing `plugins/consensus/skills/refine/scripts/consensus-loop.mjs` path.
 
 `consensus-loop` now has canonical TypeScript source with typed domains for iteration modes, agency, verdicts, synthesis payloads, records/status payloads, escalation routing, and peer invocation boundaries. The generated `.mjs` output remains committed at the same runtime path used by existing wrappers, manifests, docs, and tests.
 
@@ -53,7 +53,7 @@ Documentation and reference artifacts were refreshed to describe the canonical T
 
 ## Integration Notes
 
-- Edit `plugins/consensus/skills/refine/src/consensus-loop.ts`, then run `pnpm run build` to regenerate `plugins/consensus/skills/refine/scripts/consensus-loop.mjs`.
+- Edit `src/consensus/core/consensus-loop.ts`, then run `pnpm run build` to regenerate `plugins/consensus/skills/refine/scripts/consensus-loop.mjs`.
 - Use `pnpm run build:check` or `tests/generated-output-sync.test.mjs` to verify generated output is in sync.
 - Do not hand-edit generated `.mjs` outputs with the generated banner.
 - Generated runtime output must remain excluded from oxlint, oxfmt, lint-staged, and CI changed-file formatting/lint checks.
