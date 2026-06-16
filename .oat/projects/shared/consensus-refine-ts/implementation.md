@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-16
-oat_current_task_id: p03-t01
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -28,9 +28,9 @@ oat_generated: false
 | ------- | ----------- | ----- | --------- |
 | Phase 1 — Wrapper TS source + build import-rewrite | completed | 5 | 5/5 |
 | Phase 2 — Migrate consensus tests to Vitest        | completed   | 7 | 7/7 |
-| Phase 3 — Docs & reference updates                 | pending     | 2 | 0/2 |
+| Phase 3 — Docs & reference updates                 | completed   | 2 | 2/2 |
 
-**Total:** 12/14 tasks completed
+**Total:** 14/14 tasks completed
 
 ---
 
@@ -466,6 +466,96 @@ oat_generated: false
 
 ---
 
+## Phase 3: Documentation & reference updates
+
+**Status:** completed
+**Started:** 2026-06-16
+
+### Phase Summary (fill when phase is complete)
+
+**Outcome (what changed):**
+
+- Updated repo reference artifacts to record the completed refine wrapper
+  TypeScript source, generated-runtime import rewrite, and consensus Vitest test
+  migration.
+- Added DR-021 for the build-time import-rewrite mechanism extending DR-020.
+- Updated root agent/contributor guidance so both generated consensus runtime
+  outputs are named as generated files that must not be hand-edited.
+
+**Key files touched:**
+
+- `.oat/repo/reference/backlog/items/migrate-consensus-tests-to-typescript-types.md`
+- `.oat/repo/reference/decision-record.md`
+- `.oat/repo/reference/current-state.md`
+- `AGENTS.md` / `CLAUDE.md` - root instruction guidance; `CLAUDE.md` is a symlink
+  to `AGENTS.md`.
+
+**Verification:**
+
+- Run: `pnpm run validate`
+- Result: pass.
+- Run: `pnpm run validate && pnpm run build:check`
+- Result: pass; both generated consensus runtimes in sync.
+- Run: `grep -rn "consensus-refine.mjs" CLAUDE.md AGENTS.md`
+- Result: pass; both path names resolve to the new reference.
+
+**Notes / Decisions:**
+
+- No intentional deviations from plan/design/discovery.
+
+### Task p03-t01: Update repo reference artifacts
+
+**Status:** completed
+**Commit:** `6ef4c3e`
+
+**Outcome (required when completed):**
+
+- Recorded the completed `consensus-refine-ts` slice in the `bl-bfb4` backlog
+  item while keeping the broader initiative open for non-consensus `test:node`
+  retirement and any remaining long-tail modules.
+- Added DR-021 for build-time import rewrites.
+- Updated current-state test-runner and generated-runtime posture.
+
+**Files changed:**
+
+- `.oat/repo/reference/backlog/items/migrate-consensus-tests-to-typescript-types.md`
+- `.oat/repo/reference/decision-record.md`
+- `.oat/repo/reference/current-state.md`
+
+**Verification:**
+
+- Run: `oat backlog regenerate-index`
+- Result: pass.
+- Run: `pnpm run validate`
+- Result: pass.
+
+---
+
+### Task p03-t02: Update contributor/agent generated-output references
+
+**Status:** completed
+**Commit:** `355935a`
+
+**Outcome (required when completed):**
+
+- Added `plugins/consensus/skills/refine/scripts/consensus-refine.mjs` beside
+  `consensus-loop.mjs` in generated-runtime guidance.
+- Left the root `AGENTS.md` OAT-managed block untouched.
+
+**Files changed:**
+
+- `AGENTS.md`
+- `CLAUDE.md` - symlink to `AGENTS.md`
+
+**Verification:**
+
+- Run: `pnpm run validate && pnpm run build:check`
+- Result: pass.
+- Run: `grep -rn "consensus-refine.mjs" CLAUDE.md AGENTS.md`
+- Result: pass.
+
+---
+
 ## Orchestration Runs
 
 _Each run from `oat-project-implement` appends an entry below with:_
@@ -668,29 +758,44 @@ Track test execution during implementation.
 | ----- | --------- | ------ | ------ | -------- |
 | 1     | build:check, type-check, test, validate, smoke, p01 guard tests | pass | 0 | - |
 | 2     | targeted Vitest batches, type-check, full `pnpm test` | pass | 0 | - |
+| 3     | `pnpm run validate`; `pnpm run validate && pnpm run build:check`; grep proof | pass | 0 | - |
 
 ## Final Summary (for PR/docs)
 
 **What shipped:**
 
-- {capability 1}
-- {capability 2}
+- Canonical TypeScript source for the consensus refine wrapper, regenerated into
+  the stable provider-facing runtime path.
+- Build-time import rewrites for generated runtime outputs, with drift/import
+  guards.
+- In-scope consensus test suite migration from `node:test` `.mjs` files to Vitest
+  `.test.ts` files with assertion-parity tracking.
+- Repo reference and root agent/contributor documentation for the completed
+  wrapper/test migration slice.
 
 **Behavioral changes (user-facing):**
 
-- {bullet}
+- None intended; shipped runtime paths and consensus wrapper behavior remain
+  stable.
 
 **Key files / modules:**
 
-- `{path}` - {purpose}
+- `src/consensus/refine/consensus-refine.ts` - canonical wrapper TypeScript source.
+- `plugins/consensus/skills/refine/scripts/consensus-refine.mjs` - generated
+  provider-facing runtime.
+- `scripts/build-generated.mjs` - generated-output mappings and import rewrites.
+- `tests/*.test.ts` - migrated consensus Vitest tests.
+- `.oat/repo/reference/*` - updated repo reference state and DR-021.
 
 **Verification performed:**
 
-- {tests/lint/typecheck/build/manual steps}
+- p01/p02 targeted task checks, full `pnpm test`, `pnpm run type-check`,
+  `pnpm run validate`, `pnpm run smoke`, `pnpm run build:check`, and p03
+  documentation validation/build checks.
 
 **Design deltas (if any):**
 
-- {what changed vs design.md and why}
+- None.
 
 ## References
 
