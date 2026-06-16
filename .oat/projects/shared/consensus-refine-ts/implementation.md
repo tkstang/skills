@@ -395,6 +395,10 @@ acceptance signal holds.
 | `tests/resume-corruption.test.mjs` | `tests/resume-corruption.test.ts` | 9 | 31 → 31 | No nested subtests or assertion-bearing dynamic cases; each top-level `test` maps to one `it`, rejection validators preserve outer and inner checks. | `pnpm exec vitest run tests/resume-corruption.test.ts` | pass |
 | `tests/resume-parse.test.mjs` | `tests/resume-parse.test.ts` | 12 | 45 → 45 | No nested subtests or assertion-bearing dynamic cases; each top-level `test` maps to one `it`, rejection validators preserve outer and inner checks. | `pnpm exec vitest run tests/resume-parse.test.ts` | pass |
 | `tests/section-parser.test.mjs` | `tests/section-parser.test.ts` | 5 | 15 → 15 | No nested subtests or assertion-bearing dynamic cases; each top-level `test` maps to one `it`. | `pnpm exec vitest run tests/section-parser.test.ts` | pass |
+| `tests/escalation.test.mjs` | `tests/escalation.test.ts` | 36 | 59 → 59 | The 12 trigger × agency routing scenarios now run through `it.each`; all other top-level tests map to one `it`, and loop-level assertions are preserved. | `pnpm exec vitest run tests/escalation.test.ts` | pass |
+| `tests/event-payload-inventory.test.mjs` | `tests/event-payload-inventory.test.ts` | 6 | 14 → 14 | No nested subtests or dynamic cases; each top-level `test` maps to one `it`, and the routine-event content guard helper loop is preserved. | `pnpm exec vitest run tests/event-payload-inventory.test.ts` | pass |
+| `tests/user-intervention.test.mjs` | `tests/user-intervention.test.ts` | 9 | 37 → 37 | No nested subtests or assertion-bearing dynamic cases; each top-level `test` maps to one `it`, rejection validators preserve outer and inner checks. | `pnpm exec vitest run tests/user-intervention.test.ts` | pass |
+| `tests/paseo-invocation.test.mjs` | `tests/paseo-invocation.test.ts` | 11 | 22 → 22 | No nested subtests or assertion-bearing dynamic cases; each top-level `test` maps to one `it`, retry and rejection assertions are preserved. | `pnpm exec vitest run tests/paseo-invocation.test.ts` | pass |
 
 ## Test Results
 

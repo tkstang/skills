@@ -1,14 +1,15 @@
-import assert from 'node:assert/strict';
 import { mkdtemp, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import test from 'node:test';
 
-import {
-  prepareParallelRun,
-  runSequential,
-  runWrapperCli,
-} from '../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
+import { expect, it } from 'vitest';
+
+// @ts-expect-error The generated runtime is intentionally declaration-free; this test exercises the shipped artifact.
+import * as consensusRefine from '../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
+
+const { prepareParallelRun, runSequential, runWrapperCli } = consensusRefine;
+
+type JsonRecord = Record<string, any>;
 
 // NFR5 — host-context discipline.
 //
@@ -36,9 +37,9 @@ const ROUTINE_EVENTS = new Set([
 ]);
 
 function captureStdout() {
-  const lines = [];
+  const lines: string[] = [];
   return {
-    write(chunk) {
+    write(chunk: unknown) {
       lines.push(String(chunk));
       return true;
     },
@@ -52,7 +53,7 @@ function captureStdout() {
   };
 }
 
-function stubEnv(responseJson) {
+function stubEnv(responseJson: string) {
   return {
     ...process.env,
     PATH: `${fixtureBin}${path.delimiter}${process.env.PATH}`,
@@ -88,7 +89,7 @@ const synthPreflight = async () => ({
   warnings: [],
 });
 
-function synthesizedStubs(mergedText) {
+function synthesizedStubs(mergedText: string) {
   const invokePeer = async () => ({
     json: {
       schema_version: 'v1',
@@ -152,24 +153,22 @@ function escalatingStubs() {
  * events may carry section ids, statuses, counts, paths — never revision or
  * synthesis text.
  */
-function assertRoutineEventsCarryNoContent(events) {
+function assertRoutineEventsCarryNoContent(events: JsonRecord[]) {
   for (const event of events) {
     if (!ROUTINE_EVENTS.has(event.event)) continue;
     const serialized = JSON.stringify(event);
-    assert.doesNotMatch(
+    expect(
       serialized,
-      new RegExp(PEER_REVISION_MARKER),
       `routine event ${event.event} leaked peer revision content`,
-    );
-    assert.doesNotMatch(
+    ).not.toMatch(new RegExp(PEER_REVISION_MARKER));
+    expect(
       serialized,
-      new RegExp(SYNTHESIS_TEXT_MARKER),
       `routine event ${event.event} leaked synthesis content`,
-    );
+    ).not.toMatch(new RegExp(SYNTHESIS_TEXT_MARKER));
   }
 }
 
-test('alternating run: full CLI emits run_started/run_completed with no revision content', async () => {
+it('alternating run: full CLI emits run_started/run_completed with no revision content', async () => {
   const tempRoot = await mkdtemp(
     path.join(os.tmpdir(), 'consensus-inventory-alt-'),
   );
@@ -201,19 +200,21 @@ test('alternating run: full CLI emits run_started/run_completed with no revision
   );
 
   const events = stdout.events();
-  assert.ok(
+  expect(
     events.some((event) => event.event === 'run_started'),
     'run_started emitted',
-  );
-  assert.ok(
+  ).toBeTruthy();
+  expect(
     events.some((event) => event.event === 'run_completed'),
     'run_completed emitted',
-  );
+  ).toBeTruthy();
   assertRoutineEventsCarryNoContent(events);
-  assert.ok(!events.some((event) => event.event === 'escalation_required'));
+  expect(
+    !events.some((event) => event.event === 'escalation_required'),
+  ).toBeTruthy();
 });
 
-test('parallel_revision run: full CLI routine events carry no revision content', async () => {
+it('parallel_revision run: full CLI routine events carry no revision content', async () => {
   const tempRoot = await mkdtemp(
     path.join(os.tmpdir(), 'consensus-inventory-par-'),
   );
@@ -245,18 +246,18 @@ test('parallel_revision run: full CLI routine events carry no revision content',
   );
 
   const events = stdout.events();
-  assert.ok(
+  expect(
     events.some((event) => event.event === 'run_started'),
     'run_started emitted',
-  );
-  assert.ok(
+  ).toBeTruthy();
+  expect(
     events.some((event) => event.event === 'run_completed'),
     'run_completed emitted',
-  );
+  ).toBeTruthy();
   assertRoutineEventsCarryNoContent(events);
 });
 
-test('parallel_synthesized run: emitted events carry no revision or synthesis content', async () => {
+it('parallel_synthesized run: emitted events carry no revision or synthesis content', async () => {
   const tempRoot = await mkdtemp(
     path.join(os.tmpdir(), 'consensus-inventory-synth-'),
   );
@@ -289,10 +290,12 @@ test('parallel_synthesized run: emitted events carry no revision or synthesis co
   // a clean converging run produces no escalation_required.
   const events = stdout.events();
   assertRoutineEventsCarryNoContent(events);
-  assert.ok(!events.some((event) => event.event === 'escalation_required'));
+  expect(
+    !events.some((event) => event.event === 'escalation_required'),
+  ).toBeTruthy();
 });
 
-test('parallel_dispatch_required event carries no revision or synthesis content', async () => {
+it('parallel_dispatch_required event carries no revision or synthesis content', async () => {
   const tempRoot = await mkdtemp(
     path.join(os.tmpdir(), 'consensus-inventory-prepare-'),
   );
@@ -314,11 +317,11 @@ test('parallel_dispatch_required event carries no revision or synthesis content'
   // The dispatch event is a routine coordination event: it carries manifest
   // metadata and section packets, never deliberation content.
   const serialized = JSON.stringify(result.dispatchEvent);
-  assert.doesNotMatch(serialized, new RegExp(PEER_REVISION_MARKER));
-  assert.doesNotMatch(serialized, new RegExp(SYNTHESIS_TEXT_MARKER));
+  expect(serialized).not.toMatch(new RegExp(PEER_REVISION_MARKER));
+  expect(serialized).not.toMatch(new RegExp(SYNTHESIS_TEXT_MARKER));
 });
 
-test('escalation_required is the ONLY content-bearing event', async () => {
+it('escalation_required is the ONLY content-bearing event', async () => {
   const tempRoot = await mkdtemp(
     path.join(os.tmpdir(), 'consensus-inventory-escalate-'),
   );
@@ -347,17 +350,17 @@ test('escalation_required is the ONLY content-bearing event', async () => {
     { stdout },
   );
 
-  assert.equal(result.sections[0].status.status, 'escalation');
+  expect(result.sections[0].status.status).toBe('escalation');
   const events = stdout.events();
 
   const escalation = events.find(
     (event) => event.event === 'escalation_required',
   );
-  assert.ok(escalation, 'escalation_required emitted');
+  expect(escalation, 'escalation_required emitted').toBeTruthy();
 
   // The escalation event IS allowed to carry content — that is its purpose.
   const escalationSerialized = JSON.stringify(escalation);
-  assert.match(escalationSerialized, new RegExp(PEER_REVISION_MARKER));
+  expect(escalationSerialized).toMatch(new RegExp(PEER_REVISION_MARKER));
 
   // Routine events emitted on the same run carry no content.
   assertRoutineEventsCarryNoContent(events);
@@ -367,9 +370,8 @@ test('escalation_required is the ONLY content-bearing event', async () => {
   const contentBearing = events.filter((event) =>
     new RegExp(PEER_REVISION_MARKER).test(JSON.stringify(event)),
   );
-  assert.deepEqual(
+  expect(
     [...new Set(contentBearing.map((event) => event.event))],
-    ['escalation_required'],
     'escalation_required must be the sole content-bearing event',
-  );
+  ).toEqual(['escalation_required']);
 });
