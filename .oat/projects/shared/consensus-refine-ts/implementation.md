@@ -384,6 +384,11 @@ acceptance signal holds.
 | `tests/consensus-loop-cli.test.mjs` | `tests/consensus-loop-cli.test.ts` | 16 | 72 → 72 | No nested subtests or dynamic cases; each top-level `test` maps to one `it`, rejection validators keep outer rejection assertions plus inner checks. | `pnpm exec vitest run tests/consensus-loop-cli.test.ts` | pass |
 | `tests/loop-convergence.test.mjs` | `tests/loop-convergence.test.ts` | 24 | 51 → 51 | No nested subtests or dynamic cases; each top-level `test` maps to one `it`. | `pnpm exec vitest run tests/loop-convergence.test.ts` | pass |
 | `tests/loop-records.test.mjs` | `tests/loop-records.test.ts` | 13 | 78 → 78 | No nested subtests; each top-level `test` maps to one `it`, and the four-verdict assertion loop is preserved as four realized assertions. | `pnpm exec vitest run tests/loop-records.test.ts` | pass |
+| `tests/parallel-errors.test.mjs` | `tests/parallel-errors.test.ts` | 2 | 23 → 23 | No nested subtests or dynamic cases; each top-level `test` maps to one `it`. | `pnpm exec vitest run tests/parallel-errors.test.ts` | pass |
+| `tests/parallel-fan-in.test.mjs` | `tests/parallel-fan-in.test.ts` | 7 | 34 → 34 | No nested subtests or assertion-bearing dynamic cases; each top-level `test` maps to one `it`. | `pnpm exec vitest run tests/parallel-fan-in.test.ts` | pass |
+| `tests/parallel-integration.test.mjs` | `tests/parallel-integration.test.ts` | 3 | 27 → 27 | No nested subtests; each top-level `test` maps to one `it`, and the manifest section loop preserves 3 realized section assertions. | `pnpm exec vitest run tests/parallel-integration.test.ts` | pass |
+| `tests/parallel-modes.test.mjs` | `tests/parallel-modes.test.ts` | 12 | 117 → 117 | No nested subtests; each top-level `test` maps to one `it`, and section/verdict/synthesis-record loops preserve their realized assertion counts. | `pnpm exec vitest run tests/parallel-modes.test.ts` | pass |
+| `tests/parallel-prepare.test.mjs` | `tests/parallel-prepare.test.ts` | 3 | 95 → 95 | No nested subtests; each top-level `test` maps to one `it`, and both manifest section loops preserve 3 realized iterations. | `pnpm exec vitest run tests/parallel-prepare.test.ts` | pass |
 
 ## Test Results
 
