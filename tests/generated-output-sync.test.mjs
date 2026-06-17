@@ -120,6 +120,9 @@ describe('generated output drift guard', () => {
       ),
     ]);
 
+    // TODO(generated-output): If the config moves to globbed ignore patterns,
+    // replace this exact-entry assertion with a glob-match assertion so every
+    // generated output remains covered.
     for (const output of generatedOutputPaths) {
       expect(oxfmt.ignorePatterns).toContain(output);
       expect(oxlint.ignorePatterns).toContain(output);
