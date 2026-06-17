@@ -399,7 +399,7 @@ rows remain pending in `plan.md`; the orchestrator owns p03/final review disposi
 ### Task p03-t03: Run final verification and capture project completion state
 
 **Status:** completed
-**Commit:** this commit
+**Commit:** 21b538f
 
 **Outcome (required when completed):**
 
