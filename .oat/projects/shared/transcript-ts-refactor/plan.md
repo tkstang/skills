@@ -387,7 +387,7 @@ git commit -m "chore(p03-t02): record transcript ts verification summary"
 | final  | code     | pending | -          | -                                 |
 | spec   | artifact | pending | -          | not required in quick mode        |
 | design | artifact | pending | -          | not required in quick mode        |
-| plan   | artifact | passed  | 2026-06-17 | inline structured review          |
+| plan   | artifact | received | 2026-06-16 | reviews/artifact-plan-review-2026-06-16.md |
 
 **Status values:** `pending` -> `received` -> `fixes_added` ->
 `fixes_completed` -> `passed`
