@@ -1,9 +1,9 @@
 ---
-oat_status: in_progress
-oat_ready_for: null
+oat_status: complete
+oat_ready_for: oat-project-review-provide
 oat_blockers: []
 oat_last_updated: 2026-06-17
-oat_current_task_id: p03-t01
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -28,9 +28,9 @@ oat_generated: false
 | ------- | ----------- | ----- | --------- |
 | Phase 1 | complete    | 3     | 3/3       |
 | Phase 2 | complete    | 3     | 3/3       |
-| Phase 3 | in_progress | 3     | 0/3       |
+| Phase 3 | complete    | 3     | 3/3       |
 
-**Total:** 6/9 tasks completed
+**Total:** 9/9 tasks completed
 
 ---
 
@@ -315,14 +315,14 @@ No implementation drift accepted; artifact-only receive.
 
 ## Phase 3: Distribution, Documentation, And Verification
 
-**Status:** in_progress
+**Status:** complete
 **Started:** 2026-06-17
+**Completed:** 2026-06-17
 
 ### Phase Implementation Notes
 
-Phase 3 implementation is complete and pending OAT review/orchestrator bookkeeping. Lifecycle
-fields, phase rows, review rows, and `oat_current_task_id` are intentionally left for the
-orchestrator to update after review.
+Phase 3 implementation is complete and pending OAT review/orchestrator bookkeeping. Review
+rows remain pending in `plan.md`; the orchestrator owns p03/final review disposition.
 
 - `p03-t01` registered `evaluate` in the consensus plugin distribution surfaces with
   `SKILL.md`, operator QA reference docs, provider manifest metadata, and docs-presence tests.
@@ -332,8 +332,109 @@ orchestrator to update after review.
 
 ### Task p03-t01: Register consensus-evaluate in plugin distribution surfaces
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** 63d3f76
+
+**Outcome (required when completed):**
+
+- The evaluate skill is discoverable through provider plugin distribution surfaces and has
+  shipped skill/operator documentation.
+
+**Files changed:**
+
+- `plugins/consensus/skills/evaluate/SKILL.md`
+- `plugins/consensus/skills/evaluate/references/operator-qa.md`
+- `plugins/consensus/.claude-plugin/plugin.json`
+- `plugins/consensus/.codex-plugin/plugin.json`
+- `plugins/consensus/.cursor-plugin/plugin.json`
+- `tests/docs-presence.test.mjs`
+
+**Verification:**
+
+- Run: `node --test tests/docs-presence.test.mjs tests/package-metadata.test.mjs`
+- Result: pass.
+- Run: `pnpm run validate`
+- Result: pass.
+
+**Notes / Decisions:**
+
+- Provider manifests use directory discovery where supported; manifest text now explicitly
+  names both shipped skills.
+
+---
+
+### Task p03-t02: Update README and OAT reference status
+
+**Status:** completed
+**Commit:** 95d67b5
+
+**Outcome (required when completed):**
+
+- Root/plugin README and OAT reference artifacts mark `consensus-evaluate` / bl-5174 as
+  shipped.
+
+**Files changed:**
+
+- `README.md`
+- `plugins/consensus/README.md`
+- `.oat/repo/reference/current-state.md`
+- `.oat/repo/reference/roadmap.md`
+- `.oat/repo/reference/backlog/items/add-consensus-evaluate-skill.md`
+- `.oat/repo/reference/backlog/index.md`
+
+**Verification:**
+
+- Run: `pnpm run validate`
+- Result: pass.
+- Run: `rg -n "consensus-evaluate.*(paused|wait|open|next feature lane|not implemented)|other five family|ships the refine skill only|status: open" README.md plugins/consensus/README.md .oat/repo/reference/current-state.md .oat/repo/reference/roadmap.md .oat/repo/reference/backlog/index.md .oat/repo/reference/backlog/items/add-consensus-evaluate-skill.md`
+- Result: pass, no matches.
+
+**Notes / Decisions:**
+
+- Broader `deferred` searches still match unrelated future work and historical review
+  artifacts, not active evaluate status.
+
+---
+
+### Task p03-t03: Run final verification and capture project completion state
+
+**Status:** completed
+**Commit:** this commit
+
+**Outcome (required when completed):**
+
+- Final implementation gates passed and OAT completion artifacts record the shipped state.
+
+**Files changed:**
+
+- `.oat/projects/shared/consensus-evaluate/implementation.md`
+- `.oat/projects/shared/consensus-evaluate/state.md`
+- `.oat/projects/shared/consensus-evaluate/summary.md`
+
+**Verification:**
+
+- Run: `pnpm run build:check`
+- Result: pass.
+- Run: `pnpm run build`
+- Result: pass.
+- Run: `pnpm run build:check`
+- Result: pass.
+- Run: `pnpm run type-check`
+- Result: pass.
+- Run: `pnpm test`
+- Result: pass.
+- Run: `pnpm run validate`
+- Result: pass.
+- Run: `pnpm run smoke`
+- Result: pass.
+- Run: `git diff --check`
+- Result: pass.
+- Run: `git status --short`
+- Result: pass, only intentional OAT completion artifact edits before commit.
+
+**Notes / Decisions:**
+
+- No generated output drift remained after `pnpm run build`.
 
 ---
 
