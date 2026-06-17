@@ -583,10 +583,10 @@ git commit -m "fix(p04-t01): constrain generated import rewrites"
 
 | Scope  | Type     | Status  | Date | Artifact |
 | ------ | -------- | ------- | ---- | -------- |
-| p01    | code     | passed  | 2026-06-16 | reviews/p01-review-2026-06-16-v2.md |
-| p02    | code     | passed  | 2026-06-16 | reviews/p02-review-2026-06-16-v2.md |
-| p03    | code     | passed  | 2026-06-16 | reviews/p03-review-2026-06-16-v2.md |
-| final  | code     | passed  | 2026-06-16 | reviews/final-review-2026-06-16-v2.md |
+| p01    | code     | passed  | 2026-06-16 | reviews/archived/p01-review-2026-06-16-v2.md |
+| p02    | code     | passed  | 2026-06-16 | reviews/archived/p02-review-2026-06-16-v2.md |
+| p03    | code     | passed  | 2026-06-16 | reviews/archived/p03-review-2026-06-16-v2.md |
+| final  | code     | passed  | 2026-06-16 | reviews/archived/final-review-2026-06-16-v2.md |
 | spec   | artifact | pending | -    | -        |
 | design | artifact | fixes_completed | 2026-06-16 | reviews/archived/artifact-design-review-2026-06-16.md |
 | plan   | artifact | passed  | 2026-06-16 | structured (auto-review; I1/I2/M2 applied) |

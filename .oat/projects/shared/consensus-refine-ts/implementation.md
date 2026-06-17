@@ -595,7 +595,7 @@ oat_generated: false
 ### Review Received: final
 
 **Date:** 2026-06-16
-**Review artifact:** reviews/final-review-2026-06-16.md
+**Review artifact:** reviews/archived/final-review-2026-06-16.md
 
 **Findings:**
 
