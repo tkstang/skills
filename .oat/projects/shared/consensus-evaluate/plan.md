@@ -427,7 +427,7 @@ git commit -m "chore(consensus-evaluate): record implementation completion"
 
 | Scope  | Type     | Status  | Date | Artifact |
 | ------ | -------- | ------- | ---- | -------- |
-| p01    | code     | pending | -    | -        |
+| p01    | code     | passed | 2026-06-17 | reviews/archived/p01-review-2026-06-17.md |
 | p02    | code     | pending | -    | -        |
 | p03    | code     | pending | -    | -        |
 | final  | code     | pending | -    | -        |

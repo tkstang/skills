@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-17
-oat_current_task_id: p01-t01
+oat_current_task_id: p02-t01
 oat_generated: false
 ---
 
@@ -26,11 +26,11 @@ oat_generated: false
 
 | Phase   | Status      | Tasks | Completed |
 | ------- | ----------- | ----- | --------- |
-| Phase 1 | in_progress | 3     | 0/3       |
-| Phase 2 | pending     | 3     | 0/3       |
+| Phase 1 | complete    | 3     | 3/3       |
+| Phase 2 | in_progress | 3     | 0/3       |
 | Phase 3 | pending     | 3     | 0/3       |
 
-**Total:** 0/9 tasks completed
+**Total:** 3/9 tasks completed
 
 ---
 
@@ -76,77 +76,111 @@ the design artifact.
 
 No implementation drift accepted; artifact-only receive.
 
+### Review Received: p01 (code)
+
+**Date:** 2026-06-17
+**Review artifact:** `reviews/archived/p01-review-2026-06-17.md`
+
+**Findings:** Critical: 0 · Important: 0 · Medium: 0 · Minor: 0
+
+**Disposition:** Phase 1 passed. No fix tasks added.
+
 ---
 
-## Phase 1: {Phase Name}
+## Phase 1: Core And Generated Runtime Substrate
 
-**Status:** in_progress
-**Started:** 2026-06-15
+**Status:** complete
+**Started:** 2026-06-17
+**Completed:** 2026-06-17
 
-### Phase Summary (fill when phase is complete)
+### Phase Summary
 
 **Outcome (what changed):**
 
-- {2-5 bullets describing user-visible / behavior-level changes delivered in this phase}
+- Added a prompt-profile seam to the shared consensus loop while preserving default refine behavior.
+- Exported loop-facing TypeScript types for prompt builders, run options, loop records, and terminal status.
+- Added evaluate schema assets with parity coverage against refine distribution schemas.
+- Generated the evaluate loop runtime output and registered it in generated-output drift checks.
 
 **Key files touched:**
 
-- `{path}` - {why}
+- `src/consensus/core/consensus-loop.ts` - prompt-profile support and exported loop types.
+- `plugins/consensus/skills/evaluate/schemas/` - evaluate schema copies.
+- `plugins/consensus/skills/evaluate/scripts/consensus-loop.mjs` - generated evaluate loop runtime.
+- `plugins/consensus/skills/refine/scripts/consensus-loop.mjs` - regenerated refine loop runtime after canonical loop changes.
+- `scripts/build-generated.mjs` - evaluate loop output mapping.
+- `tests/consensus-evaluate-prompt-profile.test.ts` - prompt-profile and type coverage.
+- `tests/consensus-evaluate-schema-parity.test.ts` - schema parity guard.
+- `tests/generated-output-sync.test.mjs` and `tests/repo-layout.test.mjs` - generated output and layout guards.
 
 **Verification:**
 
-- Run: `{command(s)}`
-- Result: {pass/fail + notes}
+- Run: `pnpm run build:check && pnpm exec vitest run tests/consensus-evaluate-prompt-profile.test.ts tests/consensus-evaluate-schema-parity.test.ts tests/generated-output-sync.test.mjs && pnpm run type-check && node --test tests/repo-layout.test.mjs`
+- Result: pass.
+- Review verification also ran `pnpm run test`; result: pass.
 
 **Notes / Decisions:**
 
-- {trade-offs or deviations discovered during implementation}
+- Regenerating `plugins/consensus/skills/refine/scripts/consensus-loop.mjs` was required because the canonical loop source changed.
 
-### Task p01-t01: {Task Name}
+### Task p01-t01: Add prompt-profile seam and exported loop types
 
-**Status:** completed / in_progress / pending / blocked
-**Commit:** {sha} (if completed)
+**Status:** completed
+**Commit:** dbefc5e
 
 **Outcome (required when completed):**
 
-- {what materially changed (not “did task”, but “system now does X”)}
+- The shared consensus loop can accept a `promptProfile` for custom prompt builders while retaining existing defaults when none is provided.
 
 **Files changed:**
 
-- `{path}` - {why}
+- `src/consensus/core/consensus-loop.ts` - exported types and prompt-profile threading.
+- `tests/consensus-evaluate-prompt-profile.test.ts` - custom/default prompt builder coverage and type consumption.
 
 **Verification:**
 
-- Run: `{command(s)}`
-- Result: {pass/fail + notes}
+- Run: `pnpm exec vitest run tests/consensus-evaluate-prompt-profile.test.ts && pnpm run type-check`
+- Result: pass.
 
 **Notes / Decisions:**
 
-- {gotchas, trade-offs, design deltas, important context for future sessions}
+- Evaluation semantics remain outside the loop; callers supply prompt behavior through the profile seam.
 
 **Issues Encountered:**
 
-- {Issue and resolution}
+- None.
 
 ---
 
-### Task p01-t02: {Task Name}
+### Task p01-t02: Add evaluate schema assets with parity coverage
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** d72a818
 
 **Notes:**
 
-- {Notes will be added during implementation}
+- Evaluate distribution schemas are byte-for-byte guarded against refine distribution schemas.
 
 ---
 
-## Phase 2: {Phase Name}
+### Task p01-t03: Generate evaluate loop runtime output
 
-**Status:** pending
+**Status:** completed
+**Commit:** 307cfe6
+
+**Notes:**
+
+- Added the evaluate loop generated-output mapping and generated runtime.
+- Regenerated the refine loop runtime because it is another committed output from the same canonical source.
+
+---
+
+## Phase 2: Evaluate Wrapper Source And Output Contract
+
+**Status:** in_progress
 **Started:** -
 
-### Task p02-t01: {Task Name}
+### Task p02-t01: Add canonical evaluate wrapper argument and prompt behavior
 
 **Status:** pending
 **Commit:** -
@@ -164,6 +198,38 @@ _- Outstanding Items_
 <!-- orchestration-runs-start -->
 
 _Orchestration runs from `oat-project-implement` are appended here, most-recent-first within the file but append-only at the bottom of the log._
+
+### Run 1 — 2026-06-17 22:57 UTC
+
+**Branch:** concensus-evaluate
+**Tier:** 1
+**Policy:** merge-strategy=sequential, retry-limit=2
+**Phases:** 1 executed, 1 passed, 0 failed, 0 stopped
+
+#### Phase Outcomes
+
+| Phase | Implementer | Review | Fix Iterations | Disposition |
+| ----- | ----------- | ------ | -------------- | ----------- |
+| p01   | DONE        | pass   | 0/2            | passed      |
+
+#### Parallel Groups
+
+- None. Plan declares fully sequential execution.
+
+#### Dispatch Notes
+
+- Dispatch: p01 implementation used `model_axis=inherited`, `effort_axis=selected:xhigh`, `dispatch_ceiling=xhigh`, target `oat-phase-implementer-xhigh`.
+- Dispatch: p01 review used `model_axis=inherited`, `effort_axis=selected:xhigh`, `dispatch_ceiling=xhigh`, target `oat-reviewer-xhigh`.
+
+#### Outstanding Items
+
+- None.
+
+#### Artifact / Design Deltas
+
+| Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
+| ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
+| p01-t03       | plan.md p01-t03 Files | Generated evaluate loop output listed explicitly | Refine loop runtime was also regenerated and committed | Canonical loop source changed, and both refine/evaluate generated outputs must remain in sync | implementation/build output | None |
 
 <!-- orchestration-runs-end -->
 
@@ -214,7 +280,7 @@ Document any intentional deviations from the original plan, spec, or design. Inc
 
 | Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
 | ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
-| -             | -               | -                    | -                 | -      | -               | -         |
+| p01-t03       | plan.md p01-t03 Files | Generated evaluate loop output listed explicitly | Refine loop runtime was also regenerated and committed | Canonical loop source changed, and both refine/evaluate generated outputs must remain in sync | implementation/build output | None |
 
 ## Test Results
 
@@ -222,7 +288,7 @@ Track test execution during implementation.
 
 | Phase | Tests Run | Passed | Failed | Coverage |
 | ----- | --------- | ------ | ------ | -------- |
-| 1     | -         | -      | -      | -        |
+| 1     | `pnpm run build:check`; targeted Vitest p01 tests; `pnpm run type-check`; `node --test tests/repo-layout.test.mjs`; reviewer also ran `pnpm run test` | yes | 0 | not measured |
 | 2     | -         | -      | -      | -        |
 
 ## Final Summary (for PR/docs)
