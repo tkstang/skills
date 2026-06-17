@@ -270,7 +270,7 @@ runtime code.
   `.codex-plugin/`, and `.cursor-plugin/` plugin manifests as appropriate.
 - **READMEs / family status:** update root `README.md` and `plugins/consensus/README.md` to
   list `consensus-evaluate` as **shipped**, removing/rewriting the current "deferred"
-  references (`README.md:129`, `plugins/consensus/README.md:139`).
+  references (`README.md:147`, `plugins/consensus/README.md:139`).
 - **Repo reference:** reflect shipped status in `current-state.md`, `roadmap.md`, and the
   bl-5174 backlog item.
 

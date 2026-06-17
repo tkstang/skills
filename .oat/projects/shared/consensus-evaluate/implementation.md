@@ -55,6 +55,26 @@ oat_generated: false
 No design drift accepted against shipped code (pre-implementation); all findings strengthen
 the design artifact.
 
+### Review Received: plan (artifact)
+
+**Date:** 2026-06-17
+**Review artifact:** `reviews/archived/artifact-plan-review-2026-06-16.md`
+
+**Findings:** Critical: 0 · Important: 0 · Medium: 0 · Minor: 3
+
+**Disposition:** all Minor findings resolved directly in project artifacts (artifact review
+— no plan tasks created):
+
+- `m1` — wrapper-level `independent_draft` rejection could duplicate loop behavior → clarified
+  p02-t01 may use either an evaluate-level guard or the loop parser rejection, keeping the
+  clearest user-facing path with less duplicated mode logic.
+- `m2` — root README line citation drifted after PR #14 → refreshed the design reference from
+  `README.md:129` to `README.md:147`.
+- `m3` — docs validation task could understate the authoritative gate → clarified that targeted
+  docs tests prove local RED/GREEN and `pnpm run validate` remains the manifest/docs authority.
+
+No implementation drift accepted; artifact-only receive.
+
 ---
 
 ## Phase 1: {Phase Name}

@@ -170,6 +170,8 @@ git commit -m "build(p01-t03): generate evaluate consensus loop runtime"
 - Add Vitest coverage for parsing `<artifact> --rubric <path>` and standard consensus flags.
 - Assert defaults: `shared_input`, `parallel_revision`, `minimal`.
 - Assert unsupported `--cold-start independent_draft` is rejected with a clear message.
+- For `independent_draft` rejection, use either an evaluate-level guard or the loop parser
+  rejection, whichever gives a clear user-facing error with less duplicated mode logic.
 - Assert evaluation prompt builders frame artifact and rubric as untrusted content and ask peers to produce an evaluation, not an artifact edit.
 
 Run: `pnpm exec vitest run tests/consensus-evaluate-wrapper.test.ts`
@@ -319,6 +321,8 @@ Expected: Fails because evaluate is not registered.
 
 Run: `pnpm run validate`
 Expected: Manifest and docs invariants pass.
+Note: targeted docs-presence tests prove RED/GREEN locally; `pnpm run validate` remains the
+authoritative manifest/docs gate.
 
 **Step 5: Commit**
 
@@ -427,7 +431,7 @@ git commit -m "chore(consensus-evaluate): record implementation completion"
 | final  | code     | pending | -    | -        |
 | spec   | artifact | pending | -    | -        |
 | design | artifact | pending | -    | -        |
-| plan   | artifact | received | 2026-06-16 | reviews/artifact-plan-review-2026-06-16.md |
+| plan   | artifact | passed | 2026-06-17 | reviews/archived/artifact-plan-review-2026-06-16.md |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 
