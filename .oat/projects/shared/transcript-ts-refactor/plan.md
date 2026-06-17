@@ -389,7 +389,7 @@ git commit -m "chore(p03-t02): record transcript ts verification summary"
 | Scope  | Type     | Status  | Date       | Artifact                          |
 | ------ | -------- | ------- | ---------- | --------------------------------- |
 | p01    | code     | passed  | 2026-06-17 | reviews/p01-review-2026-06-17.md  |
-| p02    | code     | pending | -          | -                                 |
+| p02    | code     | passed  | 2026-06-17 | reviews/p02-review-2026-06-17.md  |
 | p03    | code     | pending | -          | -                                 |
 | final  | code     | pending | -          | -                                 |
 | spec   | artifact | pending | -          | not required in quick mode        |

@@ -260,6 +260,42 @@ Run-scoped snapshot only. The durable record is `## Deviations from Plan / Desig
 | ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
 | None          | -               | -                    | -                 | -      | -               | -         |
 
+### Run 2 — 2026-06-17 17:05
+
+**Branch:** transcript-ts-refactor
+**Tier:** 1
+**Policy:** merge-strategy=merge, retry-limit=2
+**Phases:** 1 executed, 1 passed, 0 failed, 0 stopped
+
+#### Phase Outcomes
+
+| Phase | Implementer | Review | Fix Iterations | Disposition |
+| ----- | ----------- | ------ | -------------- | ----------- |
+| p02   | DONE        | pass   | 1/2            | merged      |
+
+#### Parallel Groups
+
+- p02: sequential
+
+#### Dispatch Notes
+
+- Dispatch: p02 implementation used `model_axis=inherited`, `effort_axis=selected:xhigh`, `dispatch_ceiling=xhigh`; selected because the phase migrated export-session sanitizer and CLI source, generated output, import rewrites, and behavior tests under the maximum project ceiling.
+- Dispatch: p02 review used `model_axis=inherited`, `effort_axis=selected:xhigh`, `dispatch_ceiling=xhigh`; reviewer runs at the configured ceiling for deterministic quality gate behavior.
+- Dispatch: p02 fix used `model_axis=inherited`, `effort_axis=selected:xhigh`, `dispatch_ceiling=xhigh`; selected because the fix crossed hook config, CI validation, and generated-output guard tests.
+- Dispatch: p02 re-review used `model_axis=inherited`, `effort_axis=selected:xhigh`, `dispatch_ceiling=xhigh`; reviewer confirmed the prior Important finding was resolved.
+
+#### Outstanding Items
+
+- None
+
+#### Artifact / Design Deltas
+
+Run-scoped snapshot only. The durable record is `## Deviations from Plan / Design`; consolidate any non-`None` entries there at the next phase boundary.
+
+| Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
+| ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
+| None          | -               | -                    | -                 | -      | -               | -         |
+
 <!-- orchestration-runs-end -->
 
 ---
