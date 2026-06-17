@@ -5,6 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { build } from 'esbuild';
+import ts from 'typescript';
 
 const repoRoot = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 
@@ -68,8 +69,66 @@ function bannerFor(mapping) {
 // Source: ${mapping.source}`;
 }
 
-function quotedSpecifiers(specifier) {
-  return [`'${specifier}'`, `"${specifier}"`];
+function replacementFor(specifier) {
+  return `'${specifier}'`;
+}
+
+export function rewriteImportSpecifiers(text, rewrite, mappingId) {
+  const sourceFile = ts.createSourceFile(
+    `${mappingId}.mjs`,
+    text,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.JS,
+  );
+  const replacements = [];
+
+  function addModuleSpecifier(moduleSpecifier) {
+    if (!ts.isStringLiteral(moduleSpecifier)) return;
+    if (moduleSpecifier.text !== rewrite.from) return;
+
+    replacements.push({
+      start: moduleSpecifier.getStart(sourceFile),
+      end: moduleSpecifier.getEnd(),
+      text: replacementFor(rewrite.to),
+    });
+  }
+
+  function visit(node) {
+    if (ts.isImportDeclaration(node)) {
+      addModuleSpecifier(node.moduleSpecifier);
+    } else if (ts.isExportDeclaration(node) && node.moduleSpecifier) {
+      addModuleSpecifier(node.moduleSpecifier);
+    } else if (
+      ts.isCallExpression(node) &&
+      node.expression.kind === ts.SyntaxKind.ImportKeyword &&
+      node.arguments.length > 0
+    ) {
+      addModuleSpecifier(node.arguments[0]);
+    }
+
+    ts.forEachChild(node, visit);
+  }
+
+  visit(sourceFile);
+
+  if (replacements.length === 0) {
+    throw new Error(
+      `Import rewrite for ${mappingId} expected emitted output to contain module specifier ${rewrite.from}`,
+    );
+  }
+
+  let rewritten = text;
+  for (const replacement of replacements.toSorted(
+    (a, b) => b.start - a.start,
+  )) {
+    rewritten =
+      rewritten.slice(0, replacement.start) +
+      replacement.text +
+      rewritten.slice(replacement.end);
+  }
+
+  return rewritten;
 }
 
 async function buildMapping(mapping) {
@@ -111,17 +170,7 @@ async function buildMapping(mapping) {
 
   let text = outputFile.text;
   for (const rewrite of mapping.importRewrites ?? []) {
-    let replaced = false;
-    for (const quotedFrom of quotedSpecifiers(rewrite.from)) {
-      if (!text.includes(quotedFrom)) continue;
-      text = text.replaceAll(quotedFrom, `'${rewrite.to}'`);
-      replaced = true;
-    }
-    if (!replaced) {
-      throw new Error(
-        `Import rewrite for ${mapping.id} expected emitted output to contain ${rewrite.from}`,
-      );
-    }
+    text = rewriteImportSpecifiers(text, rewrite, mapping.id);
   }
 
   return {
@@ -200,7 +249,12 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error(error.message);
-  process.exitCode = 1;
-});
+if (
+  process.argv[1] &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+) {
+  main().catch((error) => {
+    console.error(error.message);
+    process.exitCode = 1;
+  });
+}

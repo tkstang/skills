@@ -54,4 +54,54 @@ describe('generated output drift guard', () => {
       'plugins/consensus/skills/refine/scripts/consensus-refine.mjs',
     );
   });
+
+  it('rewrites only emitted module specifiers', async () => {
+    const { rewriteImportSpecifiers } =
+      await import('../scripts/build-generated.mjs');
+    const rewrite = {
+      from: '../core/consensus-loop.js',
+      to: './consensus-loop.mjs',
+    };
+    const source = [
+      'import { runConsensusLoop } from "../core/consensus-loop.js";',
+      'import "../core/consensus-loop.js";',
+      'const dynamicLoop = () => import("../core/consensus-loop.js");',
+      'const diagnostic = "../core/consensus-loop.js";',
+      'const message = "from \'../core/consensus-loop.js\'";',
+    ].join('\n');
+
+    const rewritten = rewriteImportSpecifiers(source, rewrite, 'test-mapping');
+
+    expect(rewritten).toContain(
+      "import { runConsensusLoop } from './consensus-loop.mjs';",
+    );
+    expect(rewritten).toContain("import './consensus-loop.mjs';");
+    expect(rewritten).toContain(
+      "const dynamicLoop = () => import('./consensus-loop.mjs');",
+    );
+    expect(rewritten).toContain(
+      'const diagnostic = "../core/consensus-loop.js";',
+    );
+    expect(rewritten).toContain(
+      'const message = "from \'../core/consensus-loop.js\'";',
+    );
+  });
+
+  it('fails when a configured rewrite source is absent from module specifiers', async () => {
+    const { rewriteImportSpecifiers } =
+      await import('../scripts/build-generated.mjs');
+
+    expect(() =>
+      rewriteImportSpecifiers(
+        'const diagnostic = "../core/consensus-loop.js";',
+        {
+          from: '../core/consensus-loop.js',
+          to: './consensus-loop.mjs',
+        },
+        'test-mapping',
+      ),
+    ).toThrow(
+      'Import rewrite for test-mapping expected emitted output to contain module specifier ../core/consensus-loop.js',
+    );
+  });
 });

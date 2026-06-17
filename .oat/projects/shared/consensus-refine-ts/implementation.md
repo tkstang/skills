@@ -1,9 +1,9 @@
 ---
-oat_status: in_progress
+oat_status: complete
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-16
-oat_current_task_id: p04-t01
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -29,9 +29,9 @@ oat_generated: false
 | Phase 1 — Wrapper TS source + build import-rewrite | completed | 5 | 5/5 |
 | Phase 2 — Migrate consensus tests to Vitest        | completed   | 7 | 7/7 |
 | Phase 3 — Docs & reference updates                 | completed   | 2 | 2/2 |
-| Phase 4 — Final review fixes                       | in_progress | 1 | 0/1 |
+| Phase 4 — Final review fixes                       | completed   | 1 | 1/1 |
 
-**Total:** 14/15 tasks completed
+**Total:** 15/15 tasks completed
 
 ---
 
@@ -559,8 +559,38 @@ oat_generated: false
 
 ## Phase 4: Final review fixes
 
-**Status:** in_progress
+**Status:** completed
 **Started:** 2026-06-16
+
+### Phase Summary (fill when phase is complete)
+
+**Outcome (what changed):**
+
+- Constrained generated-output import rewrites to parsed module specifier
+  positions rather than all matching quoted strings.
+- Added focused regression coverage proving non-import quoted strings that equal
+  the source specifier are not rewritten.
+- Preserved fail-loud behavior when a configured rewrite source is absent from
+  module specifiers.
+
+**Key files touched:**
+
+- `scripts/build-generated.mjs` - module-specifier-only import rewrite helper.
+- `tests/generated-output-sync.test.mjs` - focused rewrite regression coverage.
+
+**Verification:**
+
+- Run: `pnpm run build:check`
+- Result: pass; both generated outputs in sync.
+- Run: `pnpm exec vitest run tests/generated-consensus-refine-import.test.ts tests/generated-output-sync.test.mjs`
+- Result: pass; 2 files / 5 tests.
+- Run: `pnpm run type-check`
+- Result: pass.
+
+**Notes / Decisions:**
+
+- `plugins/consensus/skills/refine/scripts/consensus-refine.mjs` did not require
+  regeneration; `pnpm run build:check` remained in sync.
 
 ### Review Received: final
 
@@ -590,24 +620,35 @@ oat_generated: false
 
 - None.
 
-**Next:** Execute `p04-t01` via the `oat-project-implement` skill.
+**Next:** Ready for final re-review / project closeout.
 
 ### Task p04-t01: (review) Constrain generated-output import rewrites to module specifiers
 
-**Status:** pending
-**Commit:** pending
+**Status:** completed
+**Commit:** See phase implementation report
 
 **Outcome (required when completed):**
 
-- Pending.
+- `scripts/build-generated.mjs` now parses emitted JavaScript and rewrites only
+  module specifier string literals on import declarations, export-from
+  declarations, and dynamic import calls.
+- Non-import quoted strings matching the configured source specifier remain
+  unchanged.
+- A missing configured source specifier still fails loudly.
 
 **Files changed:**
 
-- Pending.
+- `scripts/build-generated.mjs`
+- `tests/generated-output-sync.test.mjs`
 
 **Verification:**
 
-- Pending.
+- Run: `pnpm run build:check`
+- Result: pass; both generated outputs in sync.
+- Run: `pnpm exec vitest run tests/generated-consensus-refine-import.test.ts tests/generated-output-sync.test.mjs`
+- Result: pass; 2 files / 5 tests.
+- Run: `pnpm run type-check`
+- Result: pass.
 
 ---
 
@@ -814,7 +855,7 @@ Track test execution during implementation.
 | 1     | build:check, type-check, test, validate, smoke, p01 guard tests | pass | 0 | - |
 | 2     | targeted Vitest batches, type-check, full `pnpm test` | pass | 0 | - |
 | 3     | `pnpm run validate`; `pnpm run validate && pnpm run build:check`; grep proof | pass | 0 | - |
-| 4     | pending | pending | pending | - |
+| 4     | `pnpm run build:check`; targeted generated-output Vitest checks; `pnpm run type-check` | pass | 0 | - |
 
 ## Final Summary (for PR/docs)
 
