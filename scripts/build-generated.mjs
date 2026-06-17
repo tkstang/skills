@@ -31,6 +31,14 @@ export const generatedOutputs = [
       { from: '../core/consensus-loop.js', to: './consensus-loop.mjs' },
     ],
   },
+  {
+    id: 'consensus-evaluate',
+    source: 'src/consensus/evaluate/consensus-evaluate.ts',
+    output: 'plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs',
+    importRewrites: [
+      { from: '../core/consensus-loop.js', to: './consensus-loop.mjs' },
+    ],
+  },
 ];
 
 function usage() {
