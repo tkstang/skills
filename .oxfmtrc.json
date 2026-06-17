@@ -23,6 +23,7 @@
     "**/AGENTS.md",
     "**/CLAUDE.md",
     "plugins/consensus/skills/refine/scripts/consensus-loop.mjs",
+    "plugins/consensus/skills/evaluate/scripts/consensus-loop.mjs",
     "plugins/consensus/skills/refine/scripts/consensus-refine.mjs",
     "**/scripts/lib/runtimes.mjs",
     "**/fixtures/**",

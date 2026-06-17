@@ -24,7 +24,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build
       - name: Verify generated outputs are committed
-        run: git diff --exit-code -- plugins/consensus/skills/refine/scripts/consensus-loop.mjs plugins/consensus/skills/refine/scripts/consensus-refine.mjs
+        run: git diff --exit-code -- plugins/consensus/skills/refine/scripts/consensus-loop.mjs plugins/consensus/skills/evaluate/scripts/consensus-loop.mjs plugins/consensus/skills/refine/scripts/consensus-refine.mjs
       - run: pnpm run type-check
       - run: pnpm run build:check
       - run: pnpm run test
@@ -74,14 +74,14 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: oxlint (changed JS)
         run: |
-          exclude='^(node_modules|\.oat|\.agents)/|/scripts/lib/runtimes\.mjs$|^plugins/consensus/skills/refine/scripts/consensus-loop\.mjs$|^plugins/consensus/skills/refine/scripts/consensus-refine\.mjs$'
+          exclude='^(node_modules|\.oat|\.agents)/|/scripts/lib/runtimes\.mjs$|^plugins/consensus/skills/refine/scripts/consensus-loop\.mjs$|^plugins/consensus/skills/evaluate/scripts/consensus-loop\.mjs$|^plugins/consensus/skills/refine/scripts/consensus-refine\.mjs$'
           mapfile -t files < <(git diff --name-only --diff-filter=ACMR "$BASE_SHA" "$HEAD_SHA" -- '*.mjs' '*.js' | grep -vE "$exclude" || true)
           if [ ${#files[@]} -eq 0 ]; then echo "no JS changed"; exit 0; fi
           printf 'linting:\n%s\n' "${files[*]}"
           pnpm exec oxlint "${files[@]}"
       - name: oxfmt --check (changed files)
         run: |
-          exclude='^(node_modules|\.oat|\.agents)/|/scripts/lib/runtimes\.mjs$|^plugins/consensus/skills/refine/scripts/consensus-loop\.mjs$|^plugins/consensus/skills/refine/scripts/consensus-refine\.mjs$|\.(claude|cursor)/rules/|(^|/)(AGENTS|CLAUDE)\.md$'
+          exclude='^(node_modules|\.oat|\.agents)/|/scripts/lib/runtimes\.mjs$|^plugins/consensus/skills/refine/scripts/consensus-loop\.mjs$|^plugins/consensus/skills/evaluate/scripts/consensus-loop\.mjs$|^plugins/consensus/skills/refine/scripts/consensus-refine\.mjs$|\.(claude|cursor)/rules/|(^|/)(AGENTS|CLAUDE)\.md$'
           mapfile -t files < <(git diff --name-only --diff-filter=ACMR "$BASE_SHA" "$HEAD_SHA" -- '*.mjs' '*.js' '*.json' '*.md' | grep -vE "$exclude" || true)
           if [ ${#files[@]} -eq 0 ]; then echo "no formattable files changed"; exit 0; fi
           printf 'checking format:\n%s\n' "${files[*]}"

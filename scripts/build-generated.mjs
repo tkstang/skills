@@ -19,6 +19,11 @@ export const generatedOutputs = [
     output: 'plugins/consensus/skills/refine/scripts/consensus-loop.mjs',
   },
   {
+    id: 'consensus-evaluate-loop',
+    source: 'src/consensus/core/consensus-loop.ts',
+    output: 'plugins/consensus/skills/evaluate/scripts/consensus-loop.mjs',
+  },
+  {
     id: 'consensus-refine',
     source: 'src/consensus/refine/consensus-refine.ts',
     output: 'plugins/consensus/skills/refine/scripts/consensus-refine.mjs',

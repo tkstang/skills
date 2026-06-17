@@ -18,6 +18,9 @@ const isExcluded = (file) =>
     '/plugins/consensus/skills/refine/scripts/consensus-loop.mjs',
   ) ||
   file.endsWith(
+    '/plugins/consensus/skills/evaluate/scripts/consensus-loop.mjs',
+  ) ||
+  file.endsWith(
     '/plugins/consensus/skills/refine/scripts/consensus-refine.mjs',
   ) ||
   /(^|\/)\.oat\//.test(file) ||
