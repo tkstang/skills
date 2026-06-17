@@ -28,7 +28,7 @@ oat_generated: false
 | ------- | ----------- | ----- | --------- |
 | Phase 1 | complete    | 3     | 3/3       |
 | Phase 2 | complete    | 3     | 3/3       |
-| Phase 3 | pending     | 3     | 0/3       |
+| Phase 3 | in_progress | 3     | 0/3       |
 
 **Total:** 6/9 tasks completed
 
@@ -310,6 +310,18 @@ No implementation drift accepted; artifact-only receive.
 
 - `12f8f8d` restored generated output after the main-substrate merge; `71d84ad` and `09ee7e9`
   regenerated the wrapper for review fixes.
+
+---
+
+## Phase 3: Distribution, Documentation, And Verification
+
+**Status:** in_progress
+**Started:** 2026-06-17
+
+### Task p03-t01: Register consensus-evaluate in plugin distribution surfaces
+
+**Status:** pending
+**Commit:** -
 
 ---
 
