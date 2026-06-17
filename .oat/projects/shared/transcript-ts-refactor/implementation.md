@@ -258,6 +258,9 @@ oat_generated: false
 - Verification passed:
   `node --test tests/session-observer/watch.test.mjs` (24 tests), a 5x repeated
   watcher-file stress loop, and `pnpm test` (204 Node tests, 339 Vitest tests).
+- Final gate rerun passed after the fix: `pnpm test`, `pnpm lint`,
+  `pnpm type-check`, and `pnpm build`. `pnpm lint` exited 0 with existing
+  no-shadow warnings.
 
 ---
 
