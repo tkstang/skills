@@ -1,6 +1,6 @@
 # Skills Repo Current State
 
-**Last updated:** 2026-06-15 (TypeScript/Vitest generated-runtime toolchain landed as a dev-only build path, with `consensus-loop` as the first typed source slice. Prior: 2026-06-13 consensus Phase 2 — parallel iteration modes + escalation ladder + unified v1 schema — merged to `main` via PR #9.)
+**Last updated:** 2026-06-16 (consensus refine wrapper now has canonical TypeScript source, both consensus generated runtimes are drift-checked, and the in-scope consensus test suite has moved to Vitest. Prior: 2026-06-15 TypeScript/Vitest generated-runtime toolchain landed with `consensus-loop` as the first typed source slice.)
 
 ## Overview
 
@@ -20,7 +20,7 @@ One skill, `refine` (invoked as `consensus:refine`): two Paseo-backed AI peers (
 - **Control surface:** `--goal`, `--peers`, `--max-rounds`, `--agency minimal|moderate|maximum`, `--iteration`, `--synthesizer`, `--host-direction`, `--host-decision-kind`, `--output`, `--allow-root`, `--run-dir`, `--fail-on-section-error`, `--resume`, `--user-direction`, corrupt-section skip flags.
 - **Resume:** deliberation artifact is the canonical state; fail-closed on corruption; user direction recorded as a `USER_INTERVENTION` round, host decision as a `HOST_DECISION` round.
 - **Safety:** four-domain path confinement with atomic writes; spawn-array subprocess hygiene; prompt-injection framing on untrusted input; JSONL stdout as the host coordination protocol, stderr for diagnostics.
-- **TypeScript/generated runtime slice (2026-06-15):** `consensus-loop` now has canonical TypeScript source at `src/consensus/core/consensus-loop.ts` with typed verdict, synthesis, record/status, agency, escalation, and peer-invocation domains. The committed provider-facing runtime remains `plugins/consensus/skills/refine/scripts/consensus-loop.mjs` with a generated banner and drift guard. The broader refine wrapper and test-suite migration remain follow-on work under bl-bfb4.
+- **TypeScript/generated runtime slices (2026-06-15/16):** `consensus-loop` now has canonical TypeScript source at `src/consensus/core/consensus-loop.ts` with typed verdict, synthesis, record/status, agency, escalation, and peer-invocation domains. `consensus-refine` now has canonical TypeScript source at `src/consensus/refine/consensus-refine.ts`; the build rewrites its canonical loop module specifier to the shipped sibling `./consensus-loop.mjs` runtime without rewriting unrelated string literals. The committed provider-facing runtimes remain `plugins/consensus/skills/refine/scripts/consensus-loop.mjs` and `plugins/consensus/skills/refine/scripts/consensus-refine.mjs` with generated banners and drift guards.
 - **Distribution:** provider manifests under the plugin (`.claude-plugin/`, `.cursor-plugin/`, `.codex-plugin/`) plus repo-root marketplace entries; local marketplace install verified for Claude Code and Codex; Cursor loads session-scoped via `cursor agent --plugin-dir` (no marketplace/install commands in the Cursor CLI yet — fixed/documented 2026-05-24).
 - **Prerequisite:** Paseo CLI on PATH (tested range 0.1.0–0.9.0); opt-in install assist via `scripts/install-paseo.mjs`.
 
@@ -54,7 +54,7 @@ Canonical per-provider transcript knowledge (store locations, record parsing, st
 
 - `pnpm run type-check` — TypeScript source check.
 - `pnpm run build:check` — generated runtime drift guard.
-- `npm test` / `pnpm test` — full Node test suite plus Vitest checks.
+- `npm test` / `pnpm test` — remaining Node `node:test` files plus Vitest checks; consensus behavior tests are now on Vitest.
 - `npm run validate` / `pnpm run validate` — repo structure, manifest, and docs invariants (including the plugin/OAT boundary from DR-001).
 - `npm run smoke` / `pnpm run smoke` — mocked end-to-end consensus wrapper flow.
 - CI: `validate.yml` on PR/main push now installs with a frozen lockfile, builds, type-checks, build-checks, tests, validates, and smokes; `release.yml` on tag push.

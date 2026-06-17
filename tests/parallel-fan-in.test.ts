@@ -1,14 +1,15 @@
-import assert from 'node:assert/strict';
 import { mkdtemp, readFile, stat, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import test from 'node:test';
 
-import {
-  fanInParallelRun,
-  prepareParallelRun,
-  runWrapperCli,
-} from '../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
+import { expect, it } from 'vitest';
+
+// @ts-expect-error The generated runtime is intentionally declaration-free; this test exercises the shipped artifact.
+import * as consensusRefine from '../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
+
+const { fanInParallelRun, prepareParallelRun, runWrapperCli } = consensusRefine;
+
+type JsonRecord = Record<string, any>;
 
 const repoRoot = path.resolve(new URL('..', import.meta.url).pathname);
 const sampleInput = path.join(repoRoot, 'tests/fixtures/sample-input.md');
@@ -17,7 +18,7 @@ function captureWriter() {
   let value = '';
   return {
     stream: {
-      write(chunk) {
+      write(chunk: unknown) {
         value += chunk;
       },
     },
@@ -27,16 +28,17 @@ function captureWriter() {
   };
 }
 
-async function readJson(filePath) {
+async function readJson(filePath: string): Promise<any> {
   return JSON.parse(await readFile(filePath, 'utf8'));
 }
 
-function extractJsonBlock(markdown, label) {
+function extractJsonBlock(markdown: string, label: string): any {
   const pattern = new RegExp(
     '<!-- consensus:' + label + '\\n([\\s\\S]*?)\\n-->',
   );
   const match = markdown.match(pattern);
-  assert.ok(match, `missing ${label} JSON block`);
+  expect(match, `missing ${label} JSON block`).toBeTruthy();
+  if (!match) throw new Error(`missing ${label} JSON block`);
   return JSON.parse(match[1]);
 }
 
@@ -62,7 +64,7 @@ async function prepareCompletedManifest() {
   return { tempRoot, prepared, manifest };
 }
 
-async function writeCompletedSectionOutputs(manifest) {
+async function writeCompletedSectionOutputs(manifest: JsonRecord) {
   for (const section of [...manifest.sections].toReversed()) {
     await writeFile(
       section.output_section,
@@ -103,7 +105,7 @@ async function writeCompletedSectionOutputs(manifest) {
   }
 }
 
-test('fanInParallelRun accepts prepared default output next to an absolute input outside cwd', async () => {
+it('fanInParallelRun accepts prepared default output next to an absolute input outside cwd', async () => {
   const tempRoot = await mkdtemp(
     path.join(os.tmpdir(), 'consensus-fan-in-cwd-'),
   );
@@ -130,50 +132,48 @@ test('fanInParallelRun accepts prepared default output next to an absolute input
     cwd: tempRoot,
   });
 
-  assert.equal(result.status, 'converged');
-  assert.equal(manifest.output_path, `${inputPath}.consensus.md`);
-  assert.equal((await stat(manifest.output_path)).isFile(), true);
-  assert.match(await readFile(manifest.output_path, 'utf8'), /Final 0: A/);
+  expect(result.status).toBe('converged');
+  expect(manifest.output_path).toBe(`${inputPath}.consensus.md`);
+  expect((await stat(manifest.output_path)).isFile()).toBe(true);
+  expect(await readFile(manifest.output_path, 'utf8')).toMatch(/Final 0: A/);
 });
 
-test('fanInParallelRun assembles section outputs in original order with parallel metadata', async () => {
+it('fanInParallelRun assembles section outputs in original order with parallel metadata', async () => {
   const { tempRoot, prepared, manifest } = await prepareCompletedManifest();
   const result = await fanInParallelRun(prepared.manifestPath, {
     cwd: tempRoot,
     allowRoot: tempRoot,
   });
 
-  assert.equal(result.mode, 'parallel');
-  assert.equal(result.parallel, true);
-  assert.equal(result.sections.length, 3);
-  assert.equal(result.status, 'converged');
-  assert.equal((await stat(manifest.output_path)).isFile(), true);
-  assert.deepEqual(
-    result.sections.map((section) => section.original_index),
-    [0, 1, 2],
-  );
+  expect(result.mode).toBe('parallel');
+  expect(result.parallel).toBe(true);
+  expect(result.sections.length).toBe(3);
+  expect(result.status).toBe('converged');
+  expect((await stat(manifest.output_path)).isFile()).toBe(true);
+  expect(
+    result.sections.map((section: JsonRecord) => section.original_index),
+  ).toEqual([0, 1, 2]);
 
   const artifact = await readFile(manifest.output_path, 'utf8');
-  assert.match(artifact, /- Parallel: true/);
-  assert.match(artifact, /section-runner-01-intro-0/);
-  assert.match(artifact, /section-runner-02-details-1/);
-  assert.match(artifact, /section-runner-03-close-2/);
-  assert.ok(
+  expect(artifact).toMatch(/- Parallel: true/);
+  expect(artifact).toMatch(/section-runner-01-intro-0/);
+  expect(artifact).toMatch(/section-runner-02-details-1/);
+  expect(artifact).toMatch(/section-runner-03-close-2/);
+  expect(
     artifact.indexOf('Final 0: Intro') < artifact.indexOf('Final 1: Details'),
-  );
-  assert.ok(
+  ).toBeTruthy();
+  expect(
     artifact.indexOf('Final 1: Details') < artifact.indexOf('Final 2: Close'),
-  );
+  ).toBeTruthy();
 
   const resolution = extractJsonBlock(artifact, 'consensus-resolution');
-  assert.equal(resolution.parallel, true);
-  assert.deepEqual(
-    resolution.subagent_ids,
-    manifest.sections.map((section) => section.subagent_id),
+  expect(resolution.parallel).toBe(true);
+  expect(resolution.subagent_ids).toEqual(
+    manifest.sections.map((section: JsonRecord) => section.subagent_id),
   );
 });
 
-test('fanInParallelRun rejects manifest section paths that escape the prepared run directory', async () => {
+it('fanInParallelRun rejects manifest section paths that escape the prepared run directory', async () => {
   const { tempRoot, prepared, manifest } = await prepareCompletedManifest();
   const escapedRecords = path.join(tempRoot, 'escaped-records.json');
   await writeFile(escapedRecords, '[]\n');
@@ -183,16 +183,15 @@ test('fanInParallelRun rejects manifest section paths that escape the prepared r
     `${JSON.stringify(manifest, null, 2)}\n`,
   );
 
-  await assert.rejects(
+  await expect(
     fanInParallelRun(prepared.manifestPath, {
       cwd: tempRoot,
       allowRoot: tempRoot,
     }),
-    /output_records.*outside.*run/i,
-  );
+  ).rejects.toThrow(/output_records.*outside.*run/i);
 });
 
-test('fanInParallelRun rejects manifest output paths outside cwd or allow-root', async () => {
+it('fanInParallelRun rejects manifest output paths outside cwd or allow-root', async () => {
   const { tempRoot, prepared, manifest } = await prepareCompletedManifest();
   const escapedOutputRoot = await mkdtemp(
     path.join(os.tmpdir(), 'consensus-output-escape-'),
@@ -203,18 +202,17 @@ test('fanInParallelRun rejects manifest output paths outside cwd or allow-root',
     `${JSON.stringify(manifest, null, 2)}\n`,
   );
 
-  await assert.rejects(
+  await expect(
     fanInParallelRun(prepared.manifestPath, {
       cwd: tempRoot,
       allowRoot: tempRoot,
     }),
-    /output_path.*outside allowed root/i,
-  );
+  ).rejects.toThrow(/output_path.*outside allowed root/i);
 });
 
 // --- p05-t04: fan-in aggregates an escalated section ---------------------
 
-async function writeMixedSectionOutputs(manifest) {
+async function writeMixedSectionOutputs(manifest: JsonRecord) {
   // Section 0 converges; section 1 escalates; section 2 converges. The escalated
   // section must surface without blocking the converged ones.
   const outcomes = ['converged', 'escalation', 'converged'];
@@ -272,7 +270,7 @@ async function writeMixedSectionOutputs(manifest) {
   }
 }
 
-test('fanInParallelRun aggregates an escalated section without blocking others', async () => {
+it('fanInParallelRun aggregates an escalated section without blocking others', async () => {
   const { tempRoot, prepared, manifest } = await prepareCompletedManifest();
   await writeMixedSectionOutputs(manifest);
 
@@ -282,22 +280,21 @@ test('fanInParallelRun aggregates an escalated section without blocking others',
   });
 
   // Two converged + one escalated → partial, not a hard error; ordering preserved.
-  assert.equal(result.status, 'partial');
-  assert.deepEqual(
-    result.sections.map((section) => section.original_index),
-    [0, 1, 2],
-  );
-  assert.equal(result.sections[1].status.status, 'escalation');
+  expect(result.status).toBe('partial');
+  expect(
+    result.sections.map((section: JsonRecord) => section.original_index),
+  ).toEqual([0, 1, 2]);
+  expect(result.sections[1].status.status).toBe('escalation');
 
   const artifact = await readFile(manifest.output_path, 'utf8');
   // The escalated section joins impasse accounting and is surfaced in the summary.
   const resolution = extractJsonBlock(artifact, 'consensus-resolution');
-  assert.equal(resolution.sections.escalation, 1);
-  assert.equal(resolution.sections.converged, 2);
-  assert.match(artifact, /1 escalation/);
+  expect(resolution.sections.escalation).toBe(1);
+  expect(resolution.sections.converged).toBe(2);
+  expect(artifact).toMatch(/1 escalation/);
 });
 
-test('fanInParallelRun with --fail-on-section-error does not fail solely on escalation', async () => {
+it('fanInParallelRun with --fail-on-section-error does not fail solely on escalation', async () => {
   const { tempRoot, prepared, manifest } = await prepareCompletedManifest();
   await writeMixedSectionOutputs(manifest);
 
@@ -308,10 +305,10 @@ test('fanInParallelRun with --fail-on-section-error does not fail solely on esca
     allowRoot: tempRoot,
     failOnSectionError: true,
   });
-  assert.equal(result.status, 'partial');
+  expect(result.status).toBe('partial');
 });
 
-test('runWrapperCli fans in a prepared manifest', async () => {
+it('runWrapperCli fans in a prepared manifest', async () => {
   const { tempRoot, prepared, manifest } = await prepareCompletedManifest();
   const stdout = captureWriter();
   const stderr = captureWriter();
@@ -323,17 +320,17 @@ test('runWrapperCli fans in a prepared manifest', async () => {
     },
   );
 
-  assert.equal(exitCode, 0, stderr.value());
+  expect(exitCode, stderr.value()).toBe(0);
   const artifact = await readFile(manifest.output_path, 'utf8');
-  assert.match(artifact, /Final 0: Intro/);
+  expect(artifact).toMatch(/Final 0: Intro/);
 
   const events = stdout
     .value()
     .trim()
     .split('\n')
     .map((line) => JSON.parse(line));
-  assert.equal(events[0].event, 'run_started');
-  assert.equal(events.at(-1).event, 'run_completed');
-  assert.equal(events.at(-1).status, 'converged');
-  assert.equal(events.at(-1).output_path, manifest.output_path);
+  expect(events[0].event).toBe('run_started');
+  expect(events.at(-1).event).toBe('run_completed');
+  expect(events.at(-1).status).toBe('converged');
+  expect(events.at(-1).output_path).toBe(manifest.output_path);
 });

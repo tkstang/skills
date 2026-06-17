@@ -1,18 +1,21 @@
-import assert from 'node:assert/strict';
 import { mkdtemp, readFile, realpath, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import test from 'node:test';
 
-import {
+import { expect, it } from 'vitest';
+
+// @ts-expect-error The generated runtime is intentionally declaration-free; this test exercises the shipped artifact.
+import * as consensusLoop from '../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
+
+const {
   SUBPROCESS_OUTPUT_CAP_BYTES,
   ConsensusError,
   invokePaseo,
   invokePaseoWithRetry,
   invokeValidatedPeer,
-} from '../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
+} = consensusLoop;
 
-test('invokeValidatedPeer re-invokes when a verdict fails OUR validation, then returns a valid one', async () => {
+it('invokeValidatedPeer re-invokes when a verdict fails OUR validation, then returns a valid one', async () => {
   // A REVISE without proposed_artifact is schema-valid (post-oneOf) but fails our
   // branch-table validator; paseo cannot retry it, so invokeValidatedPeer does.
   const responses = [
@@ -37,13 +40,13 @@ test('invokeValidatedPeer re-invokes when a verdict fails OUR validation, then r
     sleep: async () => {},
     invoke: async () => responses[calls++],
   });
-  assert.equal(result.json.verdict, 'ACCEPT');
-  assert.equal(calls, 2);
+  expect(result.json.verdict).toBe('ACCEPT');
+  expect(calls).toBe(2);
 });
 
-test('invokeValidatedPeer throws after the attempt budget when the verdict stays invalid', async () => {
+it('invokeValidatedPeer throws after the attempt budget when the verdict stays invalid', async () => {
   let calls = 0;
-  await assert.rejects(
+  await expect(
     invokeValidatedPeer({
       mode: 'alternating',
       attempts: 3,
@@ -59,12 +62,11 @@ test('invokeValidatedPeer throws after the attempt budget when the verdict stays
         };
       },
     }),
-    /invalid verdict shape/,
-  );
-  assert.equal(calls, 3);
+  ).rejects.toThrow(/invalid verdict shape/);
+  expect(calls).toBe(3);
 });
 
-test('invokeValidatedPeer returns immediately when the first verdict is valid (no retry)', async () => {
+it('invokeValidatedPeer returns immediately when the first verdict is valid (no retry)', async () => {
   let calls = 0;
   const result = await invokeValidatedPeer({
     mode: 'parallel_revision',
@@ -80,17 +82,17 @@ test('invokeValidatedPeer returns immediately when the first verdict is valid (n
       };
     },
   });
-  assert.equal(result.json.verdict, 'CONVERGED');
-  assert.equal(calls, 1);
+  expect(result.json.verdict).toBe('CONVERGED');
+  expect(calls).toBe(1);
 });
 
-test('invokePaseoWithRetry retries transient paseo failures and returns the eventual success', async () => {
+it('invokePaseoWithRetry retries transient paseo failures and returns the eventual success', async () => {
   let calls = 0;
-  const sleeps = [];
+  const sleeps: number[] = [];
   const result = await invokePaseoWithRetry(
     {},
     {
-      sleep: async (ms) => {
+      sleep: async (ms: number) => {
         sleeps.push(ms);
       },
       invoke: async () => {
@@ -105,14 +107,14 @@ test('invokePaseoWithRetry retries transient paseo failures and returns the even
       },
     },
   );
-  assert.deepEqual(result, { json: { ok: true } });
-  assert.equal(calls, 3);
-  assert.equal(sleeps.length, 2); // two waits between three attempts
+  expect(result).toEqual({ json: { ok: true } });
+  expect(calls).toBe(3);
+  expect(sleeps.length).toBe(2); // two waits between three attempts
 });
 
-test('invokePaseoWithRetry does not retry non-transient errors (e.g. missing binary)', async () => {
+it('invokePaseoWithRetry does not retry non-transient errors (e.g. missing binary)', async () => {
   let calls = 0;
-  await assert.rejects(
+  await expect(
     invokePaseoWithRetry(
       {},
       {
@@ -125,14 +127,13 @@ test('invokePaseoWithRetry does not retry non-transient errors (e.g. missing bin
         },
       },
     ),
-    /not found on PATH/,
-  );
-  assert.equal(calls, 1);
+  ).rejects.toThrow(/not found on PATH/);
+  expect(calls).toBe(1);
 });
 
-test('invokePaseoWithRetry stops after the attempt budget on persistent transient failure', async () => {
+it('invokePaseoWithRetry stops after the attempt budget on persistent transient failure', async () => {
   let calls = 0;
-  await assert.rejects(
+  await expect(
     invokePaseoWithRetry(
       {},
       {
@@ -144,15 +145,14 @@ test('invokePaseoWithRetry stops after the attempt budget on persistent transien
         },
       },
     ),
-    /still failing/,
-  );
-  assert.equal(calls, 3);
+  ).rejects.toThrow(/still failing/);
+  expect(calls).toBe(3);
 });
 
 const repoRoot = path.resolve(new URL('..', import.meta.url).pathname);
 const fixtureBin = path.join(repoRoot, 'tests/fixtures/bin');
 
-function stubEnv(overrides = {}) {
+function stubEnv(overrides: NodeJS.ProcessEnv = {}) {
   return {
     ...process.env,
     PATH: `${fixtureBin}${path.delimiter}${process.env.PATH}`,
@@ -160,7 +160,7 @@ function stubEnv(overrides = {}) {
   };
 }
 
-test('invokePaseo shells out with array args for provider, schema, and JSON prompt', async () => {
+it('invokePaseo shells out with array args for provider, schema, and JSON prompt', async () => {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-paseo-'));
   const capturePath = path.join(tempRoot, 'capture.json');
   const result = await invokePaseo({
@@ -171,11 +171,11 @@ test('invokePaseo shells out with array args for provider, schema, and JSON prom
     env: stubEnv({ PASEO_STUB_CAPTURE_PATH: capturePath }),
   });
 
-  assert.equal(result.json.verdict, 'ACCEPT');
-  assert.equal(result.provider, 'codex');
+  expect(result.json.verdict).toBe('ACCEPT');
+  expect(result.provider).toBe('codex');
 
   const capture = JSON.parse(await readFile(capturePath, 'utf8'));
-  assert.deepEqual(capture.argv, [
+  expect(capture.argv).toEqual([
     'run',
     '--provider',
     'codex',
@@ -184,10 +184,10 @@ test('invokePaseo shells out with array args for provider, schema, and JSON prom
     '--json',
     'Review this section.',
   ]);
-  assert.equal(await realpath(capture.cwd), await realpath(tempRoot));
+  expect(await realpath(capture.cwd)).toBe(await realpath(tempRoot));
 });
 
-test('invokePaseo parses JSON output from the fixture response file', async () => {
+it('invokePaseo parses JSON output from the fixture response file', async () => {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-paseo-'));
   const responsePath = path.join(tempRoot, 'response.json');
   await writeFile(
@@ -207,12 +207,12 @@ test('invokePaseo parses JSON output from the fixture response file', async () =
     env: stubEnv({ PASEO_STUB_RESPONSE_FILE: responsePath }),
   });
 
-  assert.equal(result.json.verdict, 'REVISE');
-  assert.equal(result.json.proposed_artifact, 'New text');
+  expect(result.json.verdict).toBe('REVISE');
+  expect(result.json.proposed_artifact).toBe('New text');
 });
 
-test('invokePaseo rejects stdout beyond the 10 MB subprocess cap', async () => {
-  await assert.rejects(
+it('invokePaseo rejects stdout beyond the 10 MB subprocess cap', async () => {
+  await expect(
     invokePaseo({
       provider: 'claude',
       schemaPath: '/schema/verdict.json',
@@ -221,11 +221,10 @@ test('invokePaseo rejects stdout beyond the 10 MB subprocess cap', async () => {
         PASEO_STUB_STDOUT_BYTES: String(SUBPROCESS_OUTPUT_CAP_BYTES + 1),
       }),
     }),
-    /stdout exceeded subprocess output cap/,
-  );
+  ).rejects.toThrow(/stdout exceeded subprocess output cap/);
 });
 
-test('invokePaseo allows stdout at the 10 MB boundary', async () => {
+it('invokePaseo allows stdout at the 10 MB boundary', async () => {
   const payload = JSON.stringify({
     schema_version: 'v0',
     verdict: 'ACCEPT',
@@ -239,11 +238,11 @@ test('invokePaseo allows stdout at the 10 MB boundary', async () => {
     env: stubEnv({ PASEO_STUB_JSON_WITH_PADDING_BYTES: String(padding) }),
   });
 
-  assert.equal(result.json.verdict, 'ACCEPT');
+  expect(result.json.verdict).toBe('ACCEPT');
 });
 
-test('invokePaseo propagates non-zero exit as a hard error with stderr', async () => {
-  await assert.rejects(
+it('invokePaseo propagates non-zero exit as a hard error with stderr', async () => {
+  await expect(
     invokePaseo({
       provider: 'claude',
       schemaPath: '/schema/verdict.json',
@@ -253,6 +252,5 @@ test('invokePaseo propagates non-zero exit as a hard error with stderr', async (
         PASEO_STUB_STDERR: 'provider failed',
       }),
     }),
-    /paseo exited with code 42: provider failed/,
-  );
+  ).rejects.toThrow(/paseo exited with code 42: provider failed/);
 });

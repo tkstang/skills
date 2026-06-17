@@ -1,22 +1,24 @@
-import assert from 'node:assert/strict';
 import { mkdtemp, readFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import test from 'node:test';
 
-import {
-  EXIT_CODES,
-  hashArtifact,
-} from '../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
-import {
-  parseDeliberationArtifactForResume,
-  parseWrapperArgs,
-} from '../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
+import { expect, it } from 'vitest';
+
+// @ts-expect-error The generated runtime is intentionally declaration-free; this test exercises the shipped artifact.
+import * as consensusLoop from '../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
+// @ts-expect-error The generated runtime is intentionally declaration-free; this test exercises the shipped artifact.
+import * as consensusRefine from '../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
+
+const { EXIT_CODES, hashArtifact } = consensusLoop;
+const { parseDeliberationArtifactForResume, parseWrapperArgs } =
+  consensusRefine;
+
+type JsonRecord = Record<string, any>;
 
 const intro = '# Intro\n\nClear.\n';
 const details = '## Details\n\nStill unresolved.\n';
 
-function consensusBlock(label, value) {
+function consensusBlock(label: string, value: unknown) {
   return `<!-- consensus:${label}\n${JSON.stringify(value, null, 2)}\n-->`;
 }
 
@@ -113,41 +115,38 @@ function missingSectionStatusArtifact() {
   );
 }
 
-test('resume corruption exits as data error and writes diagnostics', async () => {
+it('resume corruption exits as data error and writes diagnostics', async () => {
   const runDir = await mkdtemp(path.join(os.tmpdir(), 'resume-corruption-'));
 
-  await assert.rejects(
+  await expect(
     parseDeliberationArtifactForResume(corruptDetailsStatusArtifact(), {
       runDir,
     }),
-    (error) => {
-      assert.equal(error.exitCode, EXIT_CODES.DATA);
-      assert.equal(error.code, 'RESUME_CORRUPT');
-      assert.match(error.message, /corrupt resume state/i);
-      return true;
-    },
-  );
+  ).rejects.toSatisfy((error: any) => {
+    expect(error.exitCode).toBe(EXIT_CODES.DATA);
+    expect(error.code).toBe('RESUME_CORRUPT');
+    expect(error.message).toMatch(/corrupt resume state/i);
+    return true;
+  });
 
   const diagnostics = JSON.parse(
     await readFile(path.join(runDir, 'resume-errors.json'), 'utf8'),
   );
-  assert.equal(diagnostics.consensus_schema_version, 'v1');
-  assert.equal(diagnostics.errors[0].section_id, 'details-1');
-  assert.equal(diagnostics.errors[0].code, 'RESUME_JSON_CORRUPT');
+  expect(diagnostics.consensus_schema_version).toBe('v1');
+  expect(diagnostics.errors[0].section_id).toBe('details-1');
+  expect(diagnostics.errors[0].code).toBe('RESUME_JSON_CORRUPT');
 });
 
-test('resume rejects final artifact hash mismatches and missing section state', async () => {
-  await assert.rejects(
+it('resume rejects final artifact hash mismatches and missing section state', async () => {
+  await expect(
     parseDeliberationArtifactForResume(hashMismatchArtifact()),
-    /hash mismatch/i,
-  );
-  await assert.rejects(
+  ).rejects.toThrow(/hash mismatch/i);
+  await expect(
     parseDeliberationArtifactForResume(missingSectionStatusArtifact()),
-    /missing section state/i,
-  );
+  ).rejects.toThrow(/missing section state/i);
 });
 
-test('resume can skip explicitly named corrupt sections', async () => {
+it('resume can skip explicitly named corrupt sections', async () => {
   const parsed = await parseDeliberationArtifactForResume(
     hashMismatchArtifact(),
     {
@@ -155,38 +154,35 @@ test('resume can skip explicitly named corrupt sections', async () => {
     },
   );
 
-  assert.deepEqual(
-    parsed.skippedCorruptSections.map((section) => section.id),
-    ['details-1'],
-  );
-  assert.deepEqual(
-    parsed.inFlightSections.map((section) => section.id),
-    [],
-  );
-  assert.equal(
-    parsed.sections.find((section) => section.id === 'details-1').skipped,
-    true,
-  );
+  expect(
+    parsed.skippedCorruptSections.map((section: JsonRecord) => section.id),
+  ).toEqual(['details-1']);
+  expect(
+    parsed.inFlightSections.map((section: JsonRecord) => section.id),
+  ).toEqual([]);
+  expect(
+    parsed.sections.find((section: JsonRecord) => section.id === 'details-1')
+      .skipped,
+  ).toBe(true);
 });
 
-test('resume supports interactive skip-all and non-interactive yes skip', async () => {
+it('resume supports interactive skip-all and non-interactive yes skip', async () => {
   let prompted = false;
   const interactive = await parseDeliberationArtifactForResume(
     hashMismatchArtifact(),
     {
       skipAllCorrupt: true,
-      confirmSkipAllCorrupt: async ({ errors }) => {
+      confirmSkipAllCorrupt: async ({ errors }: { errors: JsonRecord[] }) => {
         prompted = true;
-        assert.equal(errors.length, 1);
+        expect(errors.length).toBe(1);
         return true;
       },
     },
   );
-  assert.equal(prompted, true);
-  assert.deepEqual(
-    interactive.skippedCorruptSections.map((section) => section.id),
-    ['details-1'],
-  );
+  expect(prompted).toBe(true);
+  expect(
+    interactive.skippedCorruptSections.map((section: JsonRecord) => section.id),
+  ).toEqual(['details-1']);
 
   let yesPrompted = false;
   const nonInteractive = await parseDeliberationArtifactForResume(
@@ -199,16 +195,17 @@ test('resume supports interactive skip-all and non-interactive yes skip', async 
       },
     },
   );
-  assert.equal(yesPrompted, false);
-  assert.deepEqual(
-    nonInteractive.skippedCorruptSections.map((section) => section.id),
-    ['details-1'],
-  );
+  expect(yesPrompted).toBe(false);
+  expect(
+    nonInteractive.skippedCorruptSections.map(
+      (section: JsonRecord) => section.id,
+    ),
+  ).toEqual(['details-1']);
 });
 
-test('parseWrapperArgs exposes skip-all-corrupt for resume flows', () => {
+it('parseWrapperArgs exposes skip-all-corrupt for resume flows', () => {
   const parsed = parseWrapperArgs(['draft.md', '--skip-all-corrupt']);
-  assert.equal(parsed.skipAllCorrupt, true);
+  expect(parsed.skipAllCorrupt).toBe(true);
 });
 
 // --- p05-t03: corrupt-section fail-closed for v1 record types -----------
@@ -355,82 +352,78 @@ function synthesizedTwoSectionArtifact({
   ].join('\n');
 }
 
-test('resume fails closed on a corrupt v1 synthesis record', async () => {
+it('resume fails closed on a corrupt v1 synthesis record', async () => {
   const runDir = await mkdtemp(path.join(os.tmpdir(), 'resume-v1-synth-'));
-  await assert.rejects(
+  await expect(
     parseDeliberationArtifactForResume(
       synthesizedTwoSectionArtifact({ corruptSynthesis: true }),
       { runDir },
     ),
-    (error) => {
-      assert.equal(error.exitCode, EXIT_CODES.DATA);
-      assert.equal(error.code, 'RESUME_CORRUPT');
-      return true;
-    },
-  );
+  ).rejects.toSatisfy((error: any) => {
+    expect(error.exitCode).toBe(EXIT_CODES.DATA);
+    expect(error.code).toBe('RESUME_CORRUPT');
+    return true;
+  });
 });
 
-test('resume fails closed on a corrupt v1 intervention round', async () => {
+it('resume fails closed on a corrupt v1 intervention round', async () => {
   const runDir = await mkdtemp(
     path.join(os.tmpdir(), 'resume-v1-intervention-'),
   );
-  await assert.rejects(
+  await expect(
     parseDeliberationArtifactForResume(
       synthesizedTwoSectionArtifact({ corruptIntervention: true }),
       { runDir },
     ),
-    (error) => {
-      assert.equal(error.code, 'RESUME_CORRUPT');
-      return true;
-    },
-  );
+  ).rejects.toSatisfy((error: any) => {
+    expect(error.code).toBe('RESUME_CORRUPT');
+    return true;
+  });
 });
 
-test('resume detects a half-missing peer pair before a synthesis record', async () => {
+it('resume detects a half-missing peer pair before a synthesis record', async () => {
   // A synthesized round whose peer pair is incomplete is fail-closed corrupt state.
   const runDir = await mkdtemp(path.join(os.tmpdir(), 'resume-v1-halfpair-'));
-  await assert.rejects(
+  await expect(
     parseDeliberationArtifactForResume(
       synthesizedTwoSectionArtifact({ dropOnePeer: true }),
       { runDir },
     ),
-    (error) => {
-      assert.equal(error.code, 'RESUME_CORRUPT');
-      return true;
-    },
-  );
+  ).rejects.toSatisfy((error: any) => {
+    expect(error.code).toBe('RESUME_CORRUPT');
+    return true;
+  });
 
   const diagnostics = JSON.parse(
     await readFile(path.join(runDir, 'resume-errors.json'), 'utf8'),
   );
-  assert.ok(
-    diagnostics.errors.some((entry) => entry.code === 'RESUME_PAIR_INCOMPLETE'),
+  expect(
+    diagnostics.errors.some(
+      (entry: JsonRecord) => entry.code === 'RESUME_PAIR_INCOMPLETE',
+    ),
     'incomplete-pair error recorded',
-  );
+  ).toBeTruthy();
 });
 
-test('skip controls behave as v0.1 for corrupt v1 record types', async () => {
+it('skip controls behave as v0.1 for corrupt v1 record types', async () => {
   const explicit = await parseDeliberationArtifactForResume(
     synthesizedTwoSectionArtifact({ corruptSynthesis: true }),
     { skipCorruptSections: ['details-1'] },
   );
-  assert.deepEqual(
-    explicit.skippedCorruptSections.map((section) => section.id),
-    ['details-1'],
-  );
-  assert.deepEqual(
-    explicit.completedSections.map((section) => section.id),
-    ['intro-0'],
-  );
+  expect(
+    explicit.skippedCorruptSections.map((section: JsonRecord) => section.id),
+  ).toEqual(['details-1']);
+  expect(
+    explicit.completedSections.map((section: JsonRecord) => section.id),
+  ).toEqual(['intro-0']);
 
   const yesSkip = await parseDeliberationArtifactForResume(
     synthesizedTwoSectionArtifact({ corruptIntervention: true }),
     { yesSkipCorrupt: true },
   );
-  assert.deepEqual(
-    yesSkip.skippedCorruptSections.map((section) => section.id),
-    ['details-1'],
-  );
+  expect(
+    yesSkip.skippedCorruptSections.map((section: JsonRecord) => section.id),
+  ).toEqual(['details-1']);
 
   let prompted = false;
   const skipAll = await parseDeliberationArtifactForResume(
@@ -443,9 +436,8 @@ test('skip controls behave as v0.1 for corrupt v1 record types', async () => {
       },
     },
   );
-  assert.equal(prompted, true);
-  assert.deepEqual(
-    skipAll.skippedCorruptSections.map((section) => section.id),
-    ['details-1'],
-  );
+  expect(prompted).toBe(true);
+  expect(
+    skipAll.skippedCorruptSections.map((section: JsonRecord) => section.id),
+  ).toEqual(['details-1']);
 });

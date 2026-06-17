@@ -1,19 +1,28 @@
-import assert from 'node:assert/strict';
 import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import test from 'node:test';
 
-import {
-  hashArtifact,
-  runConsensusLoop,
-} from '../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
-import {
-  parseWrapperArgs,
-  runSequential,
-} from '../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
+import { expect, it } from 'vitest';
 
-function loopArgvFor(files, extra = []) {
+// @ts-expect-error The generated runtime is intentionally declaration-free; this test exercises the shipped artifact.
+import * as consensusLoop from '../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
+// @ts-expect-error The generated runtime is intentionally declaration-free; this test exercises the shipped artifact.
+import * as consensusRefine from '../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
+
+const { hashArtifact, runConsensusLoop } = consensusLoop;
+const { parseWrapperArgs, runSequential } = consensusRefine;
+
+type JsonRecord = Record<string, any>;
+
+type RunFiles = {
+  tempRoot: string;
+  sectionPath: string;
+  recordsPath: string;
+  outputPath: string;
+  statusPath: string;
+};
+
+function loopArgvFor(files: RunFiles, extra: string[] = []) {
   return [
     '--section-file',
     files.sectionPath,
@@ -75,7 +84,7 @@ function convergingSynthesizedStubs(mergedText = 'Merged.\n') {
 const original = '# Intro\n\nNeeds work.\n';
 const resumed = '# Intro\n\nUse decisive language.\n';
 
-function consensusBlock(label, value) {
+function consensusBlock(label: string, value: unknown) {
   return `<!-- consensus:${label}\n${JSON.stringify(value, null, 2)}\n-->`;
 }
 
@@ -217,7 +226,7 @@ function maxRoundsConsumedResumeArtifact() {
   ].join('\n');
 }
 
-test('parseWrapperArgs accepts user direction for resume intervention', () => {
+it('parseWrapperArgs accepts user direction for resume intervention', () => {
   const parsed = parseWrapperArgs([
     'draft.md',
     '--resume',
@@ -225,10 +234,10 @@ test('parseWrapperArgs accepts user direction for resume intervention', () => {
     '--user-direction',
     'Use the decisive version.',
   ]);
-  assert.equal(parsed.userDirection, 'Use the decisive version.');
+  expect(parsed.userDirection).toBe('Use the decisive version.');
 });
 
-test('resume adds a user intervention record and continues from the next peer turn', async () => {
+it('resume adds a user intervention record and continues from the next peer turn', async () => {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'user-intervention-'));
   const inputPath = path.join(tempRoot, 'draft.md');
   const resumePath = path.join(tempRoot, 'draft.consensus.md');
@@ -237,7 +246,7 @@ test('resume adds a user intervention record and continues from the next peer tu
   await writeFile(inputPath, original);
   await writeFile(resumePath, resumeArtifact());
 
-  const prompts = [];
+  const prompts: JsonRecord[] = [];
   const result = await runSequential({
     inputPath,
     resume: resumePath,
@@ -250,7 +259,7 @@ test('resume adds a user intervention record and continues from the next peer tu
     agency: 'moderate',
     userDirection: 'Use the decisive version.',
     preflight: false,
-    invokePeer: async ({ provider, prompt }) => {
+    invokePeer: async ({ provider, prompt }: JsonRecord) => {
       prompts.push({ provider, prompt });
       return {
         provider,
@@ -265,32 +274,31 @@ test('resume adds a user intervention record and continues from the next peer tu
     },
   });
 
-  assert.deepEqual(
-    prompts.map((entry) => entry.provider),
-    ['codex'],
-  );
-  assert.match(prompts[0].prompt, /Prior deliberation records/);
-  assert.match(prompts[0].prompt, /The intro needs a stronger verb/);
-  assert.match(prompts[0].prompt, /Use the decisive version/);
+  expect(prompts.map((entry) => entry.provider)).toEqual(['codex']);
+  expect(prompts[0].prompt).toMatch(/Prior deliberation records/);
+  expect(prompts[0].prompt).toMatch(/The intro needs a stronger verb/);
+  expect(prompts[0].prompt).toMatch(/Use the decisive version/);
 
   const records = result.sections[0].records;
-  assert.deepEqual(
-    records.map((record) => record.verdict),
-    ['REVISE', 'USER_INTERVENTION', 'ACCEPT'],
-  );
-  assert.deepEqual(
-    records.map((record) => record.agent),
-    ['claude', 'user', 'codex'],
-  );
-  assert.equal(records[1].user_direction, 'Use the decisive version.');
+  expect(records.map((record: JsonRecord) => record.verdict)).toEqual([
+    'REVISE',
+    'USER_INTERVENTION',
+    'ACCEPT',
+  ]);
+  expect(records.map((record: JsonRecord) => record.agent)).toEqual([
+    'claude',
+    'user',
+    'codex',
+  ]);
+  expect(records[1].user_direction).toBe('Use the decisive version.');
 
   const output = await readFile(outputPath, 'utf8');
-  assert.match(output, /#### <user round=2> - USER_INTERVENTION/);
-  assert.match(output, /Use the decisive version\./);
-  assert.match(output, /Direction resolved the issue\./);
+  expect(output).toMatch(/#### <user round=2> - USER_INTERVENTION/);
+  expect(output).toMatch(/Use the decisive version\./);
+  expect(output).toMatch(/Direction resolved the issue\./);
 });
 
-test('resume with user direction continues after max-rounds budget was already consumed', async () => {
+it('resume with user direction continues after max-rounds budget was already consumed', async () => {
   const tempRoot = await mkdtemp(
     path.join(os.tmpdir(), 'user-intervention-budget-'),
   );
@@ -301,7 +309,7 @@ test('resume with user direction continues after max-rounds budget was already c
   await writeFile(inputPath, original);
   await writeFile(resumePath, maxRoundsConsumedResumeArtifact());
 
-  const prompts = [];
+  const prompts: JsonRecord[] = [];
   const result = await runSequential({
     inputPath,
     resume: resumePath,
@@ -314,7 +322,7 @@ test('resume with user direction continues after max-rounds budget was already c
     agency: 'moderate',
     userDirection: 'Use the decisive version.',
     preflight: false,
-    invokePeer: async ({ provider, round, turn, prompt }) => {
+    invokePeer: async ({ provider, round, turn, prompt }: JsonRecord) => {
       prompts.push({ provider, round, turn, prompt });
       return {
         provider,
@@ -329,34 +337,34 @@ test('resume with user direction continues after max-rounds budget was already c
     },
   });
 
-  assert.deepEqual(
-    prompts.map((entry) => entry.provider),
-    ['claude'],
-  );
-  assert.equal(prompts[0].round, 3);
-  assert.equal(prompts[0].turn, 5);
-  assert.match(
-    prompts[0].prompt,
+  expect(prompts.map((entry) => entry.provider)).toEqual(['claude']);
+  expect(prompts[0].round).toBe(3);
+  expect(prompts[0].turn).toBe(5);
+  expect(prompts[0].prompt).toMatch(
     /Codex second pass hit the configured ceiling/,
   );
-  assert.match(prompts[0].prompt, /Use the decisive version/);
+  expect(prompts[0].prompt).toMatch(/Use the decisive version/);
 
   const records = result.sections[0].records;
-  assert.deepEqual(
-    records.map((record) => record.agent),
-    ['claude', 'codex', 'claude', 'codex', 'user', 'claude'],
-  );
-  assert.equal(result.sections[0].status.status, 'converged');
-  assert.equal(result.sections[0].status.turns, 5);
+  expect(records.map((record: JsonRecord) => record.agent)).toEqual([
+    'claude',
+    'codex',
+    'claude',
+    'codex',
+    'user',
+    'claude',
+  ]);
+  expect(result.sections[0].status.status).toBe('converged');
+  expect(result.sections[0].status.turns).toBe(5);
 
   const output = await readFile(outputPath, 'utf8');
-  assert.match(output, /#### <user round=3> - USER_INTERVENTION/);
-  assert.match(output, /Direction resolved the issue\./);
+  expect(output).toMatch(/#### <user round=3> - USER_INTERVENTION/);
+  expect(output).toMatch(/Direction resolved the issue\./);
 });
 
 // --- p04-t05: --host-direction re-entry + HOST_DECISION rounds ------------
 
-test('parseWrapperArgs accepts --host-direction for resume', () => {
+it('parseWrapperArgs accepts --host-direction for resume', () => {
   const parsed = parseWrapperArgs([
     'draft.md',
     '--resume',
@@ -364,26 +372,24 @@ test('parseWrapperArgs accepts --host-direction for resume', () => {
     '--host-direction',
     'Blend both revisions.',
   ]);
-  assert.equal(parsed.hostDirection, 'Blend both revisions.');
+  expect(parsed.hostDirection).toBe('Blend both revisions.');
 });
 
-test('parseWrapperArgs rejects --host-direction together with --user-direction', () => {
-  assert.throws(
-    () =>
-      parseWrapperArgs([
-        'draft.md',
-        '--resume',
-        'draft.consensus.md',
-        '--user-direction',
-        'a',
-        '--host-direction',
-        'b',
-      ]),
-    /mutually exclusive/i,
-  );
+it('parseWrapperArgs rejects --host-direction together with --user-direction', () => {
+  expect(() =>
+    parseWrapperArgs([
+      'draft.md',
+      '--resume',
+      'draft.consensus.md',
+      '--user-direction',
+      'a',
+      '--host-direction',
+      'b',
+    ]),
+  ).toThrow(/mutually exclusive/i);
 });
 
-test('--host-direction appends a HOST_DECISION round and converges with refreshed budget', async () => {
+it('--host-direction appends a HOST_DECISION round and converges with refreshed budget', async () => {
   const files = await escalationRunFiles();
   const { invokePeer, invokeSynthesizer } = convergingSynthesizedStubs();
   const result = await runConsensusLoop(
@@ -405,17 +411,19 @@ test('--host-direction appends a HOST_DECISION round and converges with refreshe
   );
 
   const hostRound = result.records.find(
-    (record) => record.verdict === 'HOST_DECISION',
+    (record: JsonRecord) => record.verdict === 'HOST_DECISION',
   );
-  assert.ok(hostRound, 'expected a HOST_DECISION record');
-  assert.equal(hostRound.agent, 'host-orchestrator');
-  assert.equal(hostRound.decision_kind, 'blend');
-  assert.equal(hostRound.escalation_trigger, 'persistent_disagreement');
-  assert.equal(hostRound.reasoning, 'Blend both revisions.');
-  assert.equal(result.status.status, 'converged');
+  expect(hostRound, 'expected a HOST_DECISION record').toBeTruthy();
+  expect(hostRound.agent).toBe('host-orchestrator');
+  expect(hostRound.decision_kind).toBe('blend');
+  expect(hostRound.escalation_trigger).toBe('persistent_disagreement');
+  expect(hostRound.reasoning).toBe('Blend both revisions.');
+  expect(result.status.status).toBe('converged');
 });
 
-function escalationResumeArtifact({ decideVia = 'host' } = {}) {
+function escalationResumeArtifact({
+  decideVia = 'host',
+}: { decideVia?: string } = {}) {
   const seedHash = hashArtifact(resumed);
   const escalation = {
     trigger: 'persistent_disagreement',
@@ -496,7 +504,10 @@ function escalationResumeArtifact({ decideVia = 'host' } = {}) {
   ].join('\n');
 }
 
-async function runHostDirectionResume(resumeText, overrides = {}) {
+async function runHostDirectionResume(
+  resumeText: string,
+  overrides: JsonRecord = {},
+) {
   const tempRoot = await mkdtemp(
     path.join(os.tmpdir(), 'host-direction-resume-'),
   );
@@ -527,37 +538,33 @@ async function runHostDirectionResume(resumeText, overrides = {}) {
   });
 }
 
-test('--host-direction is rejected (ESCALATION_ROUTING) when the pending escalation routes to user', async () => {
-  await assert.rejects(
-    () =>
-      runHostDirectionResume(escalationResumeArtifact({ decideVia: 'user' }), {
-        hostDirection: 'Blend both.',
-        hostDecisionKind: 'blend',
-      }),
-    (error) => {
-      assert.equal(error.code, 'ESCALATION_ROUTING');
-      return true;
-    },
-  );
+it('--host-direction is rejected (ESCALATION_ROUTING) when the pending escalation routes to user', async () => {
+  await expect(
+    runHostDirectionResume(escalationResumeArtifact({ decideVia: 'user' }), {
+      hostDirection: 'Blend both.',
+      hostDecisionKind: 'blend',
+    }),
+  ).rejects.toSatisfy((error: any) => {
+    expect(error.code).toBe('ESCALATION_ROUTING');
+    return true;
+  });
 });
 
-test('--host-direction is rejected (ESCALATION_ROUTING) when no escalation is pending', async () => {
-  await assert.rejects(
-    () =>
-      runHostDirectionResume(resumeArtifact(), {
-        iteration: 'alternating',
-        synthesizer: undefined,
-        hostDirection: 'Blend both.',
-        hostDecisionKind: 'blend',
-      }),
-    (error) => {
-      assert.equal(error.code, 'ESCALATION_ROUTING');
-      return true;
-    },
-  );
+it('--host-direction is rejected (ESCALATION_ROUTING) when no escalation is pending', async () => {
+  await expect(
+    runHostDirectionResume(resumeArtifact(), {
+      iteration: 'alternating',
+      synthesizer: undefined,
+      hostDirection: 'Blend both.',
+      hostDecisionKind: 'blend',
+    }),
+  ).rejects.toSatisfy((error: any) => {
+    expect(error.code).toBe('ESCALATION_ROUTING');
+    return true;
+  });
 });
 
-test('--host-direction resume appends an attributed HOST_DECISION round and continues', async () => {
+it('--host-direction resume appends an attributed HOST_DECISION round and continues', async () => {
   const result = await runHostDirectionResume(
     escalationResumeArtifact({ decideVia: 'host' }),
     {
@@ -567,10 +574,10 @@ test('--host-direction resume appends an attributed HOST_DECISION round and cont
   );
   const records = result.sections[0].records;
   const hostRound = records.find(
-    (record) => record.verdict === 'HOST_DECISION',
+    (record: JsonRecord) => record.verdict === 'HOST_DECISION',
   );
-  assert.ok(hostRound, 'expected HOST_DECISION record');
-  assert.equal(hostRound.agent, 'host-orchestrator');
-  assert.equal(hostRound.decision_kind, 'blend');
-  assert.equal(hostRound.escalation_trigger, 'persistent_disagreement');
+  expect(hostRound, 'expected HOST_DECISION record').toBeTruthy();
+  expect(hostRound.agent).toBe('host-orchestrator');
+  expect(hostRound.decision_kind).toBe('blend');
+  expect(hostRound.escalation_trigger).toBe('persistent_disagreement');
 });

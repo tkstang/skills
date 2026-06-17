@@ -5,6 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { build } from 'esbuild';
+import ts from 'typescript';
 
 const repoRoot = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 
@@ -16,6 +17,14 @@ export const generatedOutputs = [
     id: 'consensus-loop',
     source: 'src/consensus/core/consensus-loop.ts',
     output: 'plugins/consensus/skills/refine/scripts/consensus-loop.mjs',
+  },
+  {
+    id: 'consensus-refine',
+    source: 'src/consensus/refine/consensus-refine.ts',
+    output: 'plugins/consensus/skills/refine/scripts/consensus-refine.mjs',
+    importRewrites: [
+      { from: '../core/consensus-loop.js', to: './consensus-loop.mjs' },
+    ],
   },
 ];
 
@@ -60,6 +69,68 @@ function bannerFor(mapping) {
 // Source: ${mapping.source}`;
 }
 
+function replacementFor(specifier) {
+  return `'${specifier}'`;
+}
+
+export function rewriteImportSpecifiers(text, rewrite, mappingId) {
+  const sourceFile = ts.createSourceFile(
+    `${mappingId}.mjs`,
+    text,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.JS,
+  );
+  const replacements = [];
+
+  function addModuleSpecifier(moduleSpecifier) {
+    if (!ts.isStringLiteral(moduleSpecifier)) return;
+    if (moduleSpecifier.text !== rewrite.from) return;
+
+    replacements.push({
+      start: moduleSpecifier.getStart(sourceFile),
+      end: moduleSpecifier.getEnd(),
+      text: replacementFor(rewrite.to),
+    });
+  }
+
+  function visit(node) {
+    if (ts.isImportDeclaration(node)) {
+      addModuleSpecifier(node.moduleSpecifier);
+    } else if (ts.isExportDeclaration(node) && node.moduleSpecifier) {
+      addModuleSpecifier(node.moduleSpecifier);
+    } else if (
+      ts.isCallExpression(node) &&
+      node.expression.kind === ts.SyntaxKind.ImportKeyword &&
+      node.arguments.length > 0
+    ) {
+      addModuleSpecifier(node.arguments[0]);
+    }
+
+    ts.forEachChild(node, visit);
+  }
+
+  visit(sourceFile);
+
+  if (replacements.length === 0) {
+    throw new Error(
+      `Import rewrite for ${mappingId} expected emitted output to contain module specifier ${rewrite.from}`,
+    );
+  }
+
+  let rewritten = text;
+  for (const replacement of replacements.toSorted(
+    (a, b) => b.start - a.start,
+  )) {
+    rewritten =
+      rewritten.slice(0, replacement.start) +
+      replacement.text +
+      rewritten.slice(replacement.end);
+  }
+
+  return rewritten;
+}
+
 async function buildMapping(mapping) {
   const sourcePath = path.join(repoRoot, mapping.source);
   const outputPath = path.join(repoRoot, mapping.output);
@@ -97,11 +168,16 @@ async function buildMapping(mapping) {
     throw new Error(`No generated output emitted for ${mapping.id}`);
   }
 
+  let text = outputFile.text;
+  for (const rewrite of mapping.importRewrites ?? []) {
+    text = rewriteImportSpecifiers(text, rewrite, mapping.id);
+  }
+
   return {
     mapping,
     status: 'built',
     outputPath,
-    text: outputFile.text,
+    text,
   };
 }
 
@@ -173,7 +249,12 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error(error.message);
-  process.exitCode = 1;
-});
+if (
+  process.argv[1] &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+) {
+  main().catch((error) => {
+    console.error(error.message);
+    process.exitCode = 1;
+  });
+}

@@ -8,7 +8,7 @@ scope_estimate: L # XS | S | M | L | XL | XXL
 labels: [tooling, typescript, testing, dx, migration]
 assignee: null
 created: '2026-06-14T15:02:51Z'
-updated: '2026-06-15T21:00:00Z'
+updated: '2026-06-16T00:00:00Z'
 associated_issues: []
 oat_template: true
 oat_template_name: backlog-item
@@ -63,7 +63,16 @@ for iteration mode, agency, verdicts, synthesis payloads, records/status
 payloads, escalation routing, and peer invocation boundaries. The generated
 `.mjs` runtime path remains the shipped compatibility boundary.
 
-This does **not** complete the initiative. Remaining work still includes the
-`consensus-refine.mjs` wrapper, migration of the existing `node:test` suite to
-Vitest, tightening `allowJs` for migrated scopes, and any additional consensus
-runtime/test modules selected for the long-tail migration.
+The next slice is also complete via `consensus-refine-ts`: the refine wrapper now
+has canonical TypeScript source at `src/consensus/refine/consensus-refine.ts`,
+and the shipped provider-facing `consensus-refine.mjs` runtime is regenerated
+from that source with a build-time import rewrite back to the sibling
+`./consensus-loop.mjs` runtime. The in-scope consensus `node:test` suite has been
+migrated to Vitest `.test.ts` files with assertion-parity tracking in the project
+implementation log.
+
+This does **not** complete the initiative. Remaining work still includes
+non-consensus suites on `test:node`, any additional runtime/test modules selected
+for the long-tail migration, and eventual retirement of the `node:test`
+compatibility path once those suites move. `tsconfig` `allowJs` is already
+`false`, so there is no additional `allowJs` tightening left for this slice.

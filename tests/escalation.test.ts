@@ -1,16 +1,29 @@
-import assert from 'node:assert/strict';
 import { mkdtemp, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import test from 'node:test';
 
-import {
+import { expect, it } from 'vitest';
+
+// @ts-expect-error The generated runtime is intentionally declaration-free; this test exercises the shipped artifact.
+import * as consensusLoop from '../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
+
+const {
   detectEscalation,
   routeEscalation,
   runConsensusLoop,
   ESCALATION_TRIGGERS,
   hashArtifact,
-} from '../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
+} = consensusLoop;
+
+type JsonRecord = Record<string, any>;
+
+type RunFiles = {
+  tempRoot: string;
+  sectionPath: string;
+  recordsPath: string;
+  outputPath: string;
+  statusPath: string;
+};
 
 async function makeRunFiles(sectionText = 'Initial section.\n') {
   const tempRoot = await mkdtemp(
@@ -27,7 +40,7 @@ async function makeRunFiles(sectionText = 'Initial section.\n') {
   };
 }
 
-function loopArgv(files, extra = []) {
+function loopArgv(files: RunFiles, extra: string[] = []) {
   return [
     '--section-file',
     files.sectionPath,
@@ -53,7 +66,19 @@ function loopArgv(files, extra = []) {
 // Record builders (mirroring the v1 record stream shape the engine produces).
 // ---------------------------------------------------------------------------
 
-function peerRecord({ agent, round, verdict = 'REVISE', text, critique }) {
+function peerRecord({
+  agent,
+  round,
+  verdict = 'REVISE',
+  text,
+  critique,
+}: {
+  agent: string;
+  round: number;
+  verdict?: string;
+  text: string;
+  critique?: JsonRecord;
+}) {
   return {
     schema_version: 'v1',
     turn_index: round * 2,
@@ -68,7 +93,15 @@ function peerRecord({ agent, round, verdict = 'REVISE', text, critique }) {
   };
 }
 
-function synthesisRecord({ round, text, disagreements }) {
+function synthesisRecord({
+  round,
+  text,
+  disagreements,
+}: {
+  round: number;
+  text: string;
+  disagreements: string[];
+}) {
   return {
     schema_version: 'v1',
     record_type: 'synthesis',
@@ -82,7 +115,19 @@ function synthesisRecord({ round, text, disagreements }) {
   };
 }
 
-function interventionRecord({ round, agent, verdict, decisionKind, trigger }) {
+function interventionRecord({
+  round,
+  agent,
+  verdict,
+  decisionKind,
+  trigger,
+}: {
+  round: number;
+  agent: string;
+  verdict: string;
+  decisionKind: string;
+  trigger: string;
+}) {
   return {
     schema_version: 'v1',
     turn_index: round * 2,
@@ -98,8 +143,8 @@ function interventionRecord({ round, agent, verdict, decisionKind, trigger }) {
 
 // A synthesized round = pair + synthesis with the same disagreement set.
 function synthesizedRound(
-  round,
-  disagreements,
+  round: number,
+  disagreements: string[],
   { text = `round ${round}\n` } = {},
 ) {
   return [
@@ -113,17 +158,16 @@ function synthesizedRound(
 // p04-t01: trigger predicates
 // ---------------------------------------------------------------------------
 
-test('ESCALATION_TRIGGERS exports the named trigger constants', () => {
-  assert.equal(
-    ESCALATION_TRIGGERS.persistent_disagreement,
+it('ESCALATION_TRIGGERS exports the named trigger constants', () => {
+  expect(ESCALATION_TRIGGERS.persistent_disagreement).toBe(
     'persistent_disagreement',
   );
-  assert.equal(ESCALATION_TRIGGERS.near_done_drift, 'near_done_drift');
-  assert.equal(ESCALATION_TRIGGERS.budget_exhausted, 'budget_exhausted');
-  assert.equal(ESCALATION_TRIGGERS.oscillation, 'oscillation');
+  expect(ESCALATION_TRIGGERS.near_done_drift).toBe('near_done_drift');
+  expect(ESCALATION_TRIGGERS.budget_exhausted).toBe('budget_exhausted');
+  expect(ESCALATION_TRIGGERS.oscillation).toBe('oscillation');
 });
 
-test('persistent_disagreement fires when the same non-empty set repeats across 3 synthesis records', () => {
+it('persistent_disagreement fires when the same non-empty set repeats across 3 synthesis records', () => {
   const records = [
     ...synthesizedRound(1, ['  spacing rule  ', 'tone']),
     ...synthesizedRound(2, ['tone', 'spacing rule']),
@@ -133,11 +177,11 @@ test('persistent_disagreement fires when the same non-empty set repeats across 3
     mode: 'parallel_synthesized',
     agency: 'moderate',
   });
-  assert.ok(result);
-  assert.equal(result.trigger, ESCALATION_TRIGGERS.persistent_disagreement);
+  expect(result).toBeTruthy();
+  expect(result.trigger).toBe(ESCALATION_TRIGGERS.persistent_disagreement);
 });
 
-test('persistent_disagreement does not fire when the set changes across rounds', () => {
+it('persistent_disagreement does not fire when the set changes across rounds', () => {
   const records = [
     ...synthesizedRound(1, ['spacing rule', 'tone']),
     ...synthesizedRound(2, ['tone']),
@@ -147,10 +191,10 @@ test('persistent_disagreement does not fire when the set changes across rounds',
     mode: 'parallel_synthesized',
     agency: 'moderate',
   });
-  assert.equal(result, null);
+  expect(result).toBe(null);
 });
 
-test('persistent_disagreement does not fire on an empty disagreement set', () => {
+it('persistent_disagreement does not fire on an empty disagreement set', () => {
   const records = [
     ...synthesizedRound(1, []),
     ...synthesizedRound(2, []),
@@ -160,10 +204,10 @@ test('persistent_disagreement does not fire on an empty disagreement set', () =>
     mode: 'parallel_synthesized',
     agency: 'moderate',
   });
-  assert.equal(result, null);
+  expect(result).toBe(null);
 });
 
-test('persistent_disagreement requires 3 consecutive synthesis records', () => {
+it('persistent_disagreement requires 3 consecutive synthesis records', () => {
   const records = [
     ...synthesizedRound(1, ['spacing rule']),
     ...synthesizedRound(2, ['spacing rule']),
@@ -172,10 +216,10 @@ test('persistent_disagreement requires 3 consecutive synthesis records', () => {
     mode: 'parallel_synthesized',
     agency: 'moderate',
   });
-  assert.equal(result, null);
+  expect(result).toBe(null);
 });
 
-test('near_done_drift fires on mutual CONVERGED with differing hashes (parallel)', () => {
+it('near_done_drift fires on mutual CONVERGED with differing hashes (parallel)', () => {
   const records = [
     peerRecord({
       agent: 'claude',
@@ -194,11 +238,11 @@ test('near_done_drift fires on mutual CONVERGED with differing hashes (parallel)
     mode: 'parallel_revision',
     agency: 'moderate',
   });
-  assert.ok(result);
-  assert.equal(result.trigger, ESCALATION_TRIGGERS.near_done_drift);
+  expect(result).toBeTruthy();
+  expect(result.trigger).toBe(ESCALATION_TRIGGERS.near_done_drift);
 });
 
-test('near_done_drift fires on double-ACCEPT with differing hashes (alternating)', () => {
+it('near_done_drift fires on double-ACCEPT with differing hashes (alternating)', () => {
   const records = [
     {
       schema_version: 'v1',
@@ -225,11 +269,11 @@ test('near_done_drift fires on double-ACCEPT with differing hashes (alternating)
     mode: 'alternating',
     agency: 'moderate',
   });
-  assert.ok(result);
-  assert.equal(result.trigger, ESCALATION_TRIGGERS.near_done_drift);
+  expect(result).toBeTruthy();
+  expect(result.trigger).toBe(ESCALATION_TRIGGERS.near_done_drift);
 });
 
-test('near_done_drift does not fire when the two converged hashes match', () => {
+it('near_done_drift does not fire when the two converged hashes match', () => {
   const records = [
     peerRecord({
       agent: 'claude',
@@ -248,10 +292,10 @@ test('near_done_drift does not fire when the two converged hashes match', () => 
     mode: 'parallel_revision',
     agency: 'moderate',
   });
-  assert.equal(result, null);
+  expect(result).toBe(null);
 });
 
-test('budget_exhausted fires when max rounds reached without convergence', () => {
+it('budget_exhausted fires when max rounds reached without convergence', () => {
   const records = [
     ...synthesizedRound(1, ['a'], { text: 'r1\n' }),
     ...synthesizedRound(2, ['b'], { text: 'r2\n' }),
@@ -261,11 +305,11 @@ test('budget_exhausted fires when max rounds reached without convergence', () =>
     agency: 'moderate',
     budgetExhausted: true,
   });
-  assert.ok(result);
-  assert.equal(result.trigger, ESCALATION_TRIGGERS.budget_exhausted);
+  expect(result).toBeTruthy();
+  expect(result.trigger).toBe(ESCALATION_TRIGGERS.budget_exhausted);
 });
 
-test('oscillation feeds the same trigger shape (parallel pair cycling)', () => {
+it('oscillation feeds the same trigger shape (parallel pair cycling)', () => {
   const records = [
     peerRecord({ agent: 'claude', round: 1, text: 'A\n' }),
     peerRecord({ agent: 'codex', round: 1, text: 'A\n' }),
@@ -280,17 +324,17 @@ test('oscillation feeds the same trigger shape (parallel pair cycling)', () => {
     mode: 'parallel_revision',
     agency: 'moderate',
   });
-  assert.ok(result);
-  assert.equal(result.trigger, ESCALATION_TRIGGERS.oscillation);
+  expect(result).toBeTruthy();
+  expect(result.trigger).toBe(ESCALATION_TRIGGERS.oscillation);
 });
 
-test('detectEscalation returns null when no trigger fires', () => {
+it('detectEscalation returns null when no trigger fires', () => {
   const records = synthesizedRound(1, ['a']);
   const result = detectEscalation(records, {
     mode: 'parallel_synthesized',
     agency: 'moderate',
   });
-  assert.equal(result, null);
+  expect(result).toBe(null);
 });
 
 // ---------------------------------------------------------------------------
@@ -307,53 +351,61 @@ const ROUTING_TABLE = {
   oscillation: { minimal: 'user', moderate: 'user', maximum: 'host' },
   budget_exhausted: { minimal: 'user', moderate: 'user', maximum: 'auto' },
   near_done_drift: { minimal: 'user', moderate: 'host', maximum: 'auto' },
-};
+} as const;
 
-for (const [trigger, byAgency] of Object.entries(ROUTING_TABLE)) {
-  for (const [agency, expected] of Object.entries(byAgency)) {
-    test(`routeEscalation: ${trigger} @ ${agency} → ${expected}`, () => {
-      const route = routeEscalation(trigger, agency, []);
-      assert.equal(route.decide_via, expected);
-    });
-  }
-}
+const routingCases = Object.entries(ROUTING_TABLE).flatMap(
+  ([trigger, byAgency]) =>
+    Object.entries(byAgency).map(([agency, expected]) => ({
+      trigger,
+      agency,
+      expected,
+    })),
+);
 
-test('host-routed escalation lists defer_to_user as an allowed decision kind', () => {
+it.each(routingCases)(
+  'routeEscalation: $trigger @ $agency -> $expected',
+  ({ trigger, agency, expected }) => {
+    const route = routeEscalation(trigger, agency, []);
+    expect(route.decide_via).toBe(expected);
+  },
+);
+
+it('host-routed escalation lists defer_to_user as an allowed decision kind', () => {
   const route = routeEscalation(
     ESCALATION_TRIGGERS.persistent_disagreement,
     'moderate',
     [],
   );
-  assert.equal(route.decide_via, 'host');
-  assert.ok(route.decision_kinds.includes('defer_to_user'));
+  expect(route.decide_via).toBe('host');
+  expect(route.decision_kinds.includes('defer_to_user')).toBeTruthy();
 });
 
-test('user-routed escalation does not list defer_to_user', () => {
+it('user-routed escalation does not list defer_to_user', () => {
   const route = routeEscalation(ESCALATION_TRIGGERS.oscillation, 'minimal', []);
-  assert.equal(route.decide_via, 'user');
-  assert.ok(!route.decision_kinds.includes('defer_to_user'));
+  expect(route.decide_via).toBe('user');
+  expect(!route.decision_kinds.includes('defer_to_user')).toBeTruthy();
 });
 
-test('maximum budget_exhausted auto-resolves to declare-done (recorded as auto-resolved)', () => {
+it('maximum budget_exhausted auto-resolves to declare-done (recorded as auto-resolved)', () => {
   const route = routeEscalation(
     ESCALATION_TRIGGERS.budget_exhausted,
     'maximum',
     [],
   );
-  assert.equal(route.decide_via, 'auto');
-  assert.equal(route.auto_resolution, 'declare_done');
+  expect(route.decide_via).toBe('auto');
+  expect(route.auto_resolution).toBe('declare_done');
 });
 
-test('maximum near_done_drift auto-resolves via the existing near-match rule', () => {
+it('maximum near_done_drift auto-resolves via the existing near-match rule', () => {
   const route = routeEscalation(
     ESCALATION_TRIGGERS.near_done_drift,
     'maximum',
     [],
   );
-  assert.equal(route.decide_via, 'auto');
+  expect(route.decide_via).toBe('auto');
 });
 
-test('promotion: trigger re-fires after a HOST_DECISION → decide_via user, promoted_from host', () => {
+it('promotion: trigger re-fires after a HOST_DECISION → decide_via user, promoted_from host', () => {
   const records = [
     ...synthesizedRound(1, ['x']),
     ...synthesizedRound(2, ['x']),
@@ -374,11 +426,11 @@ test('promotion: trigger re-fires after a HOST_DECISION → decide_via user, pro
     'moderate',
     records,
   );
-  assert.equal(route.decide_via, 'user');
-  assert.equal(route.promoted_from, 'host');
+  expect(route.decide_via).toBe('user');
+  expect(route.promoted_from).toBe('host');
 });
 
-test('promotion: explicit defer_to_user decline re-routes to user', () => {
+it('promotion: explicit defer_to_user decline re-routes to user', () => {
   const records = [
     ...synthesizedRound(1, ['x']),
     ...synthesizedRound(2, ['x']),
@@ -396,11 +448,11 @@ test('promotion: explicit defer_to_user decline re-routes to user', () => {
     'moderate',
     records,
   );
-  assert.equal(route.decide_via, 'user');
-  assert.equal(route.promoted_from, 'host');
+  expect(route.decide_via).toBe('user');
+  expect(route.promoted_from).toBe('host');
 });
 
-test('a HOST_DECISION for a DIFFERENT trigger does not promote', () => {
+it('a HOST_DECISION for a DIFFERENT trigger does not promote', () => {
   const records = [
     interventionRecord({
       round: 4,
@@ -415,11 +467,11 @@ test('a HOST_DECISION for a DIFFERENT trigger does not promote', () => {
     'moderate',
     records,
   );
-  assert.equal(route.decide_via, 'host');
-  assert.ok(!route.promoted_from);
+  expect(route.decide_via).toBe('host');
+  expect(!route.promoted_from).toBeTruthy();
 });
 
-test('maximum budget_exhausted is exempt from promotion even after a HOST_DECISION', () => {
+it('maximum budget_exhausted is exempt from promotion even after a HOST_DECISION', () => {
   const records = [
     interventionRecord({
       round: 4,
@@ -434,8 +486,8 @@ test('maximum budget_exhausted is exempt from promotion even after a HOST_DECISI
     'maximum',
     records,
   );
-  assert.equal(route.decide_via, 'auto');
-  assert.ok(!route.promoted_from);
+  expect(route.decide_via).toBe('auto');
+  expect(!route.promoted_from).toBeTruthy();
 });
 
 // ---------------------------------------------------------------------------
@@ -475,7 +527,7 @@ function persistentSynthesizedStubs(disagreements = ['heading style']) {
   return { invokePeer, invokeSynthesizer };
 }
 
-test('synthesized persistent_disagreement at moderate terminates with status escalation routed to host', async () => {
+it('synthesized persistent_disagreement at moderate terminates with status escalation routed to host', async () => {
   const files = await makeRunFiles('Seed.\n');
   const { invokePeer, invokeSynthesizer } = persistentSynthesizedStubs();
   const result = await runConsensusLoop(
@@ -490,18 +542,19 @@ test('synthesized persistent_disagreement at moderate terminates with status esc
     { invokePeer, invokeSynthesizer },
   );
 
-  assert.equal(result.status.status, 'escalation');
-  assert.equal(
-    result.status.escalation.trigger,
+  expect(result.status.status).toBe('escalation');
+  expect(result.status.escalation.trigger).toBe(
     ESCALATION_TRIGGERS.persistent_disagreement,
   );
-  assert.equal(result.status.escalation.decide_via, 'host');
-  assert.ok(result.status.escalation.decision_kinds.includes('defer_to_user'));
-  assert.ok(result.status.escalation.divergent);
-  assert.ok(result.status.escalation.divergent.synthesis);
+  expect(result.status.escalation.decide_via).toBe('host');
+  expect(
+    result.status.escalation.decision_kinds.includes('defer_to_user'),
+  ).toBeTruthy();
+  expect(result.status.escalation.divergent).toBeTruthy();
+  expect(result.status.escalation.divergent.synthesis).toBeTruthy();
 });
 
-test('user-routed escalation packet omits defer_to_user', async () => {
+it('user-routed escalation packet omits defer_to_user', async () => {
   const files = await makeRunFiles('Seed.\n');
   const { invokePeer, invokeSynthesizer } = persistentSynthesizedStubs();
   const result = await runConsensusLoop(
@@ -518,17 +571,25 @@ test('user-routed escalation packet omits defer_to_user', async () => {
     { invokePeer, invokeSynthesizer },
   );
 
-  assert.equal(result.status.status, 'escalation');
-  assert.equal(result.status.escalation.decide_via, 'user');
-  assert.ok(!result.status.escalation.decision_kinds.includes('defer_to_user'));
+  expect(result.status.status).toBe('escalation');
+  expect(result.status.escalation.decide_via).toBe('user');
+  expect(
+    !result.status.escalation.decision_kinds.includes('defer_to_user'),
+  ).toBeTruthy();
 });
 
 // Minimal-agency oscillation must preserve the v0.1 'oscillation' status.
-test('minimal-agency parallel oscillation preserves the v0.1 oscillation status', async () => {
+it('minimal-agency parallel oscillation preserves the v0.1 oscillation status', async () => {
   const files = await makeRunFiles('Seed.\n');
   // Within a round the two peers differ; the order-normalized PAIR cycles
   // {A,B} / {C,D} / {A,B} / {C,D} → pair oscillation. Strict (minimal) hashing.
-  const invokePeer = async ({ round, peerIndex }) => {
+  const invokePeer = async ({
+    round,
+    peerIndex,
+  }: {
+    round: number;
+    peerIndex: number;
+  }) => {
     const odd = round % 2 === 1;
     const text = odd
       ? peerIndex === 0
@@ -560,11 +621,11 @@ test('minimal-agency parallel oscillation preserves the v0.1 oscillation status'
     { invokePeer },
   );
 
-  assert.equal(result.status.status, 'oscillation');
+  expect(result.status.status).toBe('oscillation');
 });
 
 // Minimal-agency budget exhaustion must preserve the v0.1 'max-rounds' status.
-test('minimal-agency budget exhaustion preserves the v0.1 max-rounds status', async () => {
+it('minimal-agency budget exhaustion preserves the v0.1 max-rounds status', async () => {
   const files = await makeRunFiles('Seed.\n');
   let call = 0;
   const invokePeer = async () => {
@@ -592,11 +653,11 @@ test('minimal-agency budget exhaustion preserves the v0.1 max-rounds status', as
     { invokePeer },
   );
 
-  assert.equal(result.status.status, 'max-rounds');
+  expect(result.status.status).toBe('max-rounds');
 });
 
 // Maximum-agency budget exhaustion keeps auto declare-done (converged).
-test('maximum-agency budget exhaustion auto-declares done (converged), not escalation', async () => {
+it('maximum-agency budget exhaustion auto-declares done (converged), not escalation', async () => {
   const files = await makeRunFiles('Seed.\n');
   let call = 0;
   const invokePeer = async () => {
@@ -624,8 +685,8 @@ test('maximum-agency budget exhaustion auto-declares done (converged), not escal
     { invokePeer },
   );
 
-  assert.equal(result.status.status, 'converged');
-  assert.equal(result.status.termination_reason, 'max_rounds_exhausted');
+  expect(result.status.status).toBe('converged');
+  expect(result.status.termination_reason).toBe('max_rounds_exhausted');
 });
 
 export { peerRecord, synthesisRecord, interventionRecord, synthesizedRound };

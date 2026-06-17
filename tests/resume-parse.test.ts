@@ -1,18 +1,19 @@
-import assert from 'node:assert/strict';
 import { mkdtemp, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import test from 'node:test';
 
-import {
-  EXIT_CODES,
-  hashArtifact,
-  routeEscalation,
-} from '../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
-import {
-  parseDeliberationArtifactForResume,
-  renderDeliberationArtifact,
-} from '../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
+import { expect, it } from 'vitest';
+
+// @ts-expect-error The generated runtime is intentionally declaration-free; this test exercises the shipped artifact.
+import * as consensusLoop from '../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
+// @ts-expect-error The generated runtime is intentionally declaration-free; this test exercises the shipped artifact.
+import * as consensusRefine from '../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
+
+const { EXIT_CODES, hashArtifact, routeEscalation } = consensusLoop;
+const { parseDeliberationArtifactForResume, renderDeliberationArtifact } =
+  consensusRefine;
+
+type JsonRecord = Record<string, any>;
 
 const revisedIntro = '# Intro\n\nClearer intro.\n';
 const stalledDetails = '## Details\n\nStill unresolved.\n';
@@ -24,7 +25,7 @@ const strictHashOptions = {
   finalNewline: false,
 };
 
-function consensusBlock(label, value) {
+function consensusBlock(label: string, value: unknown) {
   return `<!-- consensus:${label}\n${JSON.stringify(value, null, 2)}\n-->`;
 }
 
@@ -262,91 +263,84 @@ function minimalAgencyArtifactWithTrailingWhitespace() {
   ].join('\n');
 }
 
-test('parseDeliberationArtifactForResume reads frontmatter and canonical state blocks from text', async () => {
+it('parseDeliberationArtifactForResume reads frontmatter and canonical state blocks from text', async () => {
   const parsed = await parseDeliberationArtifactForResume(artifact());
 
-  assert.equal(parsed.consensusSchemaVersion, 'v1');
-  assert.equal(parsed.frontmatter.status, 'partial');
-  assert.equal(parsed.resolution.mode, 'sequential');
-  assert.deepEqual(
-    parsed.sectionStates.map((section) => section.id),
+  expect(parsed.consensusSchemaVersion).toBe('v1');
+  expect(parsed.frontmatter.status).toBe('partial');
+  expect(parsed.resolution.mode).toBe('sequential');
+  expect(parsed.sectionStates.map((section: JsonRecord) => section.id)).toEqual(
     ['intro-0', 'details-1'],
   );
-  assert.deepEqual(
-    parsed.sections.map((section) => ({
+  expect(
+    parsed.sections.map((section: JsonRecord) => ({
       id: section.id,
       completed: section.completed,
       inFlight: section.inFlight,
       recordCount: section.records.length,
     })),
-    [
-      { id: 'intro-0', completed: true, inFlight: false, recordCount: 2 },
-      { id: 'details-1', completed: false, inFlight: true, recordCount: 1 },
-    ],
-  );
-  assert.deepEqual(
-    parsed.inFlightSections.map((section) => section.id),
-    ['details-1'],
-  );
+  ).toEqual([
+    { id: 'intro-0', completed: true, inFlight: false, recordCount: 2 },
+    { id: 'details-1', completed: false, inFlight: true, recordCount: 1 },
+  ]);
+  expect(
+    parsed.inFlightSections.map((section: JsonRecord) => section.id),
+  ).toEqual(['details-1']);
 });
 
-test('parseDeliberationArtifactForResume uses canonical final output for ACCEPT-only completed sections', async () => {
+it('parseDeliberationArtifactForResume uses canonical final output for ACCEPT-only completed sections', async () => {
   const parsed = await parseDeliberationArtifactForResume(acceptOnlyArtifact());
 
-  assert.equal(parsed.sections[0].resumedArtifact, acceptedIntro);
-  assert.equal(
-    parsed.sections[0].resumedArtifactHash,
+  expect(parsed.sections[0].resumedArtifact).toBe(acceptedIntro);
+  expect(parsed.sections[0].resumedArtifactHash).toBe(
     hashArtifact(acceptedIntro),
   );
 });
 
-test('parseDeliberationArtifactForResume validates minimal-agency hashes bytewise', async () => {
+it('parseDeliberationArtifactForResume validates minimal-agency hashes bytewise', async () => {
   const output = '# Intro\n\nKeep trailing spaces here.  \n';
   const parsed = await parseDeliberationArtifactForResume(
     minimalAgencyArtifactWithTrailingWhitespace(),
   );
 
-  assert.equal(parsed.resolution.agency, 'minimal');
-  assert.equal(parsed.sections[0].resumedArtifact, output);
-  assert.equal(
-    parsed.sections[0].resumedArtifactHash,
+  expect(parsed.resolution.agency).toBe('minimal');
+  expect(parsed.sections[0].resumedArtifact).toBe(output);
+  expect(parsed.sections[0].resumedArtifactHash).toBe(
     hashArtifact(output, strictHashOptions),
   );
 });
 
-test('parseDeliberationArtifactForResume accepts a file path input', async () => {
+it('parseDeliberationArtifactForResume accepts a file path input', async () => {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'resume-parse-'));
   const artifactPath = path.join(tempRoot, 'draft.consensus.md');
   await writeFile(artifactPath, artifact());
 
   const parsed = await parseDeliberationArtifactForResume(artifactPath);
 
-  assert.equal(parsed.sourcePath, artifactPath);
-  assert.equal(parsed.sections.length, 2);
+  expect(parsed.sourcePath).toBe(artifactPath);
+  expect(parsed.sections.length).toBe(2);
 });
 
-test('parseDeliberationArtifactForResume rejects unsupported schema versions', async () => {
-  await assert.rejects(
+it('parseDeliberationArtifactForResume rejects unsupported schema versions', async () => {
+  await expect(
     parseDeliberationArtifactForResume(artifact({ schemaVersion: 'v9' })),
-    /consensus_schema_version/i,
-  );
+  ).rejects.toThrow(/consensus_schema_version/i);
 });
 
 // p05-t05: only v1 artifacts resume. A v0 artifact is rejected fail-closed with
 // SCHEMA_VERSION_MISMATCH (exit DATA) and a message naming v0, v1, and the
 // no-migration policy. v0 artifacts must be completed under v0.1 or restarted.
-test('parseDeliberationArtifactForResume rejects v0 artifacts with no migration', async () => {
-  await assert.rejects(
+it('parseDeliberationArtifactForResume rejects v0 artifacts with no migration', async () => {
+  await expect(
     parseDeliberationArtifactForResume(artifact({ schemaVersion: 'v0' })),
-    (error) => {
-      assert.equal(error.code, 'SCHEMA_VERSION_MISMATCH');
-      assert.equal(error.exitCode, EXIT_CODES.DATA);
-      assert.match(error.message, /v0/);
-      assert.match(error.message, /v1/);
-      assert.match(error.message, /no migration|not migrat/i);
-      return true;
-    },
-  );
+  ).rejects.toSatisfy((error: any) => {
+    expect(error.code).toBe('SCHEMA_VERSION_MISMATCH');
+    expect(error.exitCode).toBe(EXIT_CODES.DATA);
+    expect(error.message).toMatch(/v0/);
+    expect(error.message).toMatch(/v1/);
+    expect(error.message).toMatch(/no migration|not migrat/i);
+    return true;
+  });
 });
 
 const peerRevisionA = '# Intro\n\nPeer A revision.\n';
@@ -455,51 +449,53 @@ function synthesizedArtifact({ tamperSynthesisHash = false } = {}) {
   ].join('\n');
 }
 
-test('parseDeliberationArtifactForResume round-trips parallel_synthesized canonical blocks', async () => {
+it('parseDeliberationArtifactForResume round-trips parallel_synthesized canonical blocks', async () => {
   const parsed = await parseDeliberationArtifactForResume(
     synthesizedArtifact(),
   );
 
   // Mode, synthesizer, and agency restored from the resolution block.
-  assert.equal(parsed.resolution.iteration, 'parallel_synthesized');
-  assert.equal(parsed.resolution.synthesizer, 'claude');
-  assert.equal(parsed.resolution.agency, 'moderate');
+  expect(parsed.resolution.iteration).toBe('parallel_synthesized');
+  expect(parsed.resolution.synthesizer).toBe('claude');
+  expect(parsed.resolution.agency).toBe('moderate');
 
   const [section] = parsed.sections;
-  assert.equal(section.inFlight, true);
+  expect(section.inFlight).toBe(true);
 
   // The record stream preserves the peer pair, the synthesis record, and the
   // attributed intervention round so the loop can derive resume state.
   const synthesis = section.records.find(
-    (record) => record.record_type === 'synthesis',
+    (record: JsonRecord) => record.record_type === 'synthesis',
   );
-  assert.ok(synthesis, 'synthesis record preserved in resume stream');
-  assert.equal(synthesis.synthesized_artifact, synthesizedText);
-  assert.equal(synthesis.schema_version, 'v1');
+  expect(synthesis, 'synthesis record preserved in resume stream').toBeTruthy();
+  expect(synthesis.synthesized_artifact).toBe(synthesizedText);
+  expect(synthesis.schema_version).toBe('v1');
 
   const hostRound = section.records.find(
-    (record) => record.verdict === 'HOST_DECISION',
+    (record: JsonRecord) => record.verdict === 'HOST_DECISION',
   );
-  assert.ok(hostRound, 'intervention round preserved in resume stream');
-  assert.equal(hostRound.agent, 'host-orchestrator');
+  expect(
+    hostRound,
+    'intervention round preserved in resume stream',
+  ).toBeTruthy();
+  expect(hostRound.agent).toBe('host-orchestrator');
 
   // The synthesized text is the section's resumable artifact.
-  assert.equal(section.resumedArtifact, synthesizedText);
-  assert.equal(section.resumedArtifactHash, hashArtifact(synthesizedText));
+  expect(section.resumedArtifact).toBe(synthesizedText);
+  expect(section.resumedArtifactHash).toBe(hashArtifact(synthesizedText));
 });
 
-test('parseDeliberationArtifactForResume fails closed on a tampered synthesis hash', async () => {
+it('parseDeliberationArtifactForResume fails closed on a tampered synthesis hash', async () => {
   const runDir = await mkdtemp(path.join(os.tmpdir(), 'resume-synth-corrupt-'));
-  await assert.rejects(
+  await expect(
     parseDeliberationArtifactForResume(
       synthesizedArtifact({ tamperSynthesisHash: true }),
       { runDir },
     ),
-    (error) => {
-      assert.equal(error.code, 'RESUME_CORRUPT');
-      return true;
-    },
-  );
+  ).rejects.toSatisfy((error: any) => {
+    expect(error.code).toBe('RESUME_CORRUPT');
+    return true;
+  });
 });
 
 // p05-t02: a pending-synthesis artifact (committed peer pair, no synthesis block)
@@ -583,22 +579,23 @@ function pendingSynthesisArtifact() {
   ].join('\n');
 }
 
-test('parseDeliberationArtifactForResume derives pending-synthesis from a pair without synthesis', async () => {
+it('parseDeliberationArtifactForResume derives pending-synthesis from a pair without synthesis', async () => {
   const parsed = await parseDeliberationArtifactForResume(
     pendingSynthesisArtifact(),
   );
   const [section] = parsed.sections;
 
-  assert.equal(section.inFlight, true);
+  expect(section.inFlight).toBe(true);
   const peerRevisions = section.records.filter(
-    (record) => record.record_type !== 'synthesis',
+    (record: JsonRecord) => record.record_type !== 'synthesis',
   );
-  assert.equal(peerRevisions.length, 2, 'committed peer pair preserved');
-  assert.equal(
-    section.records.some((record) => record.record_type === 'synthesis'),
-    false,
+  expect(peerRevisions.length, 'committed peer pair preserved').toBe(2);
+  expect(
+    section.records.some(
+      (record: JsonRecord) => record.record_type === 'synthesis',
+    ),
     'no synthesis record present (pending-synthesis)',
-  );
+  ).toBe(false);
 });
 
 // Regression (p07-t05): renderRecord must persist HOST_DECISION routing metadata so
@@ -660,7 +657,7 @@ function hostDecisionRunResult() {
   };
 }
 
-function extractVerdictBlocks(artifactText) {
+function extractVerdictBlocks(artifactText: string) {
   return [
     ...artifactText.matchAll(
       /<!-- consensus:consensus-verdict\n([\s\S]*?)\n-->/g,
@@ -668,18 +665,18 @@ function extractVerdictBlocks(artifactText) {
   ].map((match) => JSON.parse(match[1]));
 }
 
-test('renderDeliberationArtifact persists HOST_DECISION routing metadata in the canonical block', () => {
+it('renderDeliberationArtifact persists HOST_DECISION routing metadata in the canonical block', () => {
   const artifact = renderDeliberationArtifact(hostDecisionRunResult());
   const hostBlock = extractVerdictBlocks(artifact).find(
     (block) => block.verdict === 'HOST_DECISION',
   );
 
-  assert.ok(hostBlock, 'HOST_DECISION verdict block is rendered');
-  assert.equal(hostBlock.decision_kind, 'blend');
-  assert.equal(hostBlock.escalation_trigger, 'persistent_disagreement');
+  expect(hostBlock, 'HOST_DECISION verdict block is rendered').toBeTruthy();
+  expect(hostBlock.decision_kind).toBe('blend');
+  expect(hostBlock.escalation_trigger).toBe('persistent_disagreement');
 });
 
-test('rendered HOST_DECISION rehydrates so a re-fired trigger promotes to the user', () => {
+it('rendered HOST_DECISION rehydrates so a re-fired trigger promotes to the user', () => {
   const artifact = renderDeliberationArtifact(hostDecisionRunResult());
   const hostBlock = extractVerdictBlocks(artifact).find(
     (block) => block.verdict === 'HOST_DECISION',
@@ -691,12 +688,12 @@ test('rendered HOST_DECISION rehydrates so a re-fired trigger promotes to the us
     hostBlock,
   ]);
 
-  assert.equal(route.decide_via, 'user');
-  assert.equal(route.promoted_from, 'host');
-  assert.equal(route.promotion_reason, 'repeat_fire');
+  expect(route.decide_via).toBe('user');
+  expect(route.promoted_from).toBe('host');
+  expect(route.promotion_reason).toBe('repeat_fire');
 });
 
-test('rendered defer_to_user HOST_DECISION promotes with a defer reason on re-fire', () => {
+it('rendered defer_to_user HOST_DECISION promotes with a defer reason on re-fire', () => {
   const runResult = hostDecisionRunResult();
   runResult.sections[0].records[1].decision_kind = 'defer_to_user';
   const artifact = renderDeliberationArtifact(runResult);
@@ -704,10 +701,10 @@ test('rendered defer_to_user HOST_DECISION promotes with a defer reason on re-fi
     (block) => block.verdict === 'HOST_DECISION',
   );
 
-  assert.equal(hostBlock.decision_kind, 'defer_to_user');
+  expect(hostBlock.decision_kind).toBe('defer_to_user');
   const route = routeEscalation('persistent_disagreement', 'moderate', [
     hostBlock,
   ]);
-  assert.equal(route.decide_via, 'user');
-  assert.equal(route.promotion_reason, 'defer_to_user');
+  expect(route.decide_via).toBe('user');
+  expect(route.promotion_reason).toBe('defer_to_user');
 });

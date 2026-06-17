@@ -1,20 +1,23 @@
-import assert from 'node:assert/strict';
 import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import test from 'node:test';
 
-import {
-  callsPerRound,
-  hashArtifact,
-  runConsensusLoop,
-} from '../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
-import { runSequential } from '../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
+import { expect, it } from 'vitest';
+
+// @ts-expect-error The generated runtime is intentionally declaration-free; this test exercises the shipped artifact.
+import * as consensusLoop from '../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
+// @ts-expect-error The generated runtime is intentionally declaration-free; this test exercises the shipped artifact.
+import * as consensusRefine from '../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
+
+const { callsPerRound, hashArtifact, runConsensusLoop } = consensusLoop;
+const { runSequential } = consensusRefine;
+
+type JsonRecord = Record<string, any>;
 
 function captureStdout() {
-  const lines = [];
+  const lines: string[] = [];
   return {
-    write(chunk) {
+    write(chunk: unknown) {
       lines.push(String(chunk));
       return true;
     },
@@ -44,7 +47,7 @@ const CONVERGED_VERDICT = JSON.stringify({
   },
 });
 
-function stubEnv(overrides = {}) {
+function stubEnv(overrides: NodeJS.ProcessEnv = {}) {
   return {
     PATH: `${fixtureBin}${path.delimiter}${process.env.PATH}`,
     PASEO_STUB_RESPONSE_JSON: CONVERGED_VERDICT,
@@ -52,7 +55,7 @@ function stubEnv(overrides = {}) {
   };
 }
 
-async function runParallel(tempRoot, suffix) {
+async function runParallel(tempRoot: string, suffix: string) {
   const outputPath = path.join(tempRoot, `out-${suffix}.consensus.md`);
   const runDir = path.join(tempRoot, `.consensus/run-${suffix}`);
   const result = await runSequential({
@@ -73,47 +76,48 @@ async function runParallel(tempRoot, suffix) {
   return { result, artifact };
 }
 
-function extractJsonBlock(markdown, label) {
+function extractJsonBlock(markdown: string, label: string): any {
   const pattern = new RegExp(
     '<!-- consensus:' + label + '\\n([\\s\\S]*?)\\n-->',
   );
   const match = markdown.match(pattern);
-  assert.ok(match, `missing ${label} JSON block`);
+  expect(match, `missing ${label} JSON block`).toBeTruthy();
+  if (!match) throw new Error(`missing ${label} JSON block`);
   return JSON.parse(match[1]);
 }
 
-function readRecords(artifact) {
+function readRecords(artifact: string): JsonRecord[] {
   // Pull all consensus-verdict blocks from the deliberation log.
   const pattern = /<!-- consensus:consensus-verdict\n([\s\S]*?)\n-->/g;
-  const verdicts = [];
-  let match;
+  const verdicts: JsonRecord[] = [];
+  let match: RegExpExecArray | null;
   while ((match = pattern.exec(artifact)) !== null) {
     verdicts.push(JSON.parse(match[1]));
   }
   return verdicts;
 }
 
-test('parallel_revision multi-section run converges end-to-end via the paseo stub', async () => {
+it('parallel_revision multi-section run converges end-to-end via the paseo stub', async () => {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-parallel-'));
   const { result, artifact } = await runParallel(tempRoot, 'converge');
 
-  assert.equal(result.sections.length, 3);
-  assert.equal(result.status, 'converged');
+  expect(result.sections.length).toBe(3);
+  expect(result.status).toBe('converged');
   for (const section of result.sections) {
-    assert.equal(section.status.status, 'converged');
-    assert.equal(section.status.iteration_mode, 'parallel_revision');
+    expect(section.status.status).toBe('converged');
+    expect(section.status.iteration_mode).toBe('parallel_revision');
     // Each converged section ran exactly one round of two peer calls.
-    assert.equal(section.status.peer_calls, 2);
+    expect(section.status.peer_calls).toBe(2);
   }
 
   const resolution = extractJsonBlock(artifact, 'consensus-resolution');
-  assert.equal(resolution.iteration, 'parallel_revision');
-  assert.equal(resolution.sections.converged, 3);
-  assert.equal(resolution.peer_calls, 6);
-  assert.equal(resolution.synthesis_calls, 0);
+  expect(resolution.iteration).toBe('parallel_revision');
+  expect(resolution.sections.converged).toBe(3);
+  expect(resolution.peer_calls).toBe(6);
+  expect(resolution.synthesis_calls).toBe(0);
 });
 
-test('parallel_revision artifact records per-round critiques for both peers', async () => {
+it('parallel_revision artifact records per-round critiques for both peers', async () => {
   const tempRoot = await mkdtemp(
     path.join(os.tmpdir(), 'consensus-parallel-critique-'),
   );
@@ -124,17 +128,20 @@ test('parallel_revision artifact records per-round critiques for both peers', as
   const parallelVerdicts = verdicts.filter(
     (verdict) => verdict.verdict === 'CONVERGED',
   );
-  assert.equal(parallelVerdicts.length, 6);
+  expect(parallelVerdicts.length).toBe(6);
   for (const verdict of parallelVerdicts) {
-    assert.ok(verdict.critique, 'each parallel verdict carries a critique');
-    assert.equal(typeof verdict.critique.own_previous, 'string');
-    assert.equal(typeof verdict.critique.peer_previous, 'string');
+    expect(
+      verdict.critique,
+      'each parallel verdict carries a critique',
+    ).toBeTruthy();
+    expect(typeof verdict.critique.own_previous).toBe('string');
+    expect(typeof verdict.critique.peer_previous).toBe('string');
   }
-  assert.match(artifact, /own_previous/);
-  assert.match(artifact, /peer_previous/);
+  expect(artifact).toMatch(/own_previous/);
+  expect(artifact).toMatch(/peer_previous/);
 });
 
-function synthesizedStubs(mergedText) {
+function synthesizedStubs(mergedText: string) {
   const invokePeer = async () => ({
     json: {
       schema_version: 'v1',
@@ -157,7 +164,11 @@ function synthesizedStubs(mergedText) {
   return { invokePeer, invokeSynthesizer };
 }
 
-async function runSynthesized(tempRoot, suffix, { synthesizer } = {}) {
+async function runSynthesized(
+  tempRoot: string,
+  suffix: string,
+  { synthesizer }: { synthesizer?: string } = {},
+) {
   const outputPath = path.join(tempRoot, `out-${suffix}.consensus.md`);
   const runDir = path.join(tempRoot, `.consensus/run-${suffix}`);
   const { invokePeer, invokeSynthesizer } =
@@ -189,30 +200,30 @@ async function runSynthesized(tempRoot, suffix, { synthesizer } = {}) {
   return { result, artifact };
 }
 
-test('parallel_synthesized multi-section run converges via synthesis stability', async () => {
+it('parallel_synthesized multi-section run converges via synthesis stability', async () => {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-synth-'));
   const { result, artifact } = await runSynthesized(tempRoot, 'converge');
 
-  assert.equal(result.sections.length, 3);
-  assert.equal(result.status, 'converged');
+  expect(result.sections.length).toBe(3);
+  expect(result.status).toBe('converged');
   for (const section of result.sections) {
-    assert.equal(section.status.status, 'converged');
-    assert.equal(section.status.termination_reason, 'synthesis_stability');
-    assert.equal(section.status.iteration_mode, 'parallel_synthesized');
+    expect(section.status.status).toBe('converged');
+    expect(section.status.termination_reason).toBe('synthesis_stability');
+    expect(section.status.iteration_mode).toBe('parallel_synthesized');
     // Two rounds of two peer calls + a synthesis per round.
-    assert.equal(section.status.peer_calls, 4);
-    assert.equal(section.status.synthesis_calls, 2);
+    expect(section.status.peer_calls).toBe(4);
+    expect(section.status.synthesis_calls).toBe(2);
   }
 
   const resolution = extractJsonBlock(artifact, 'consensus-resolution');
-  assert.equal(resolution.iteration, 'parallel_synthesized');
-  assert.equal(resolution.synthesizer, 'claude');
-  assert.equal(resolution.sections.converged, 3);
-  assert.equal(resolution.peer_calls, 12);
-  assert.equal(resolution.synthesis_calls, 6);
+  expect(resolution.iteration).toBe('parallel_synthesized');
+  expect(resolution.synthesizer).toBe('claude');
+  expect(resolution.sections.converged).toBe(3);
+  expect(resolution.peer_calls).toBe(12);
+  expect(resolution.synthesis_calls).toBe(6);
 });
 
-test('parallel_synthesized artifact records synthesis text, reasoning, disagreements, and synthesizer id', async () => {
+it('parallel_synthesized artifact records synthesis text, reasoning, disagreements, and synthesizer id', async () => {
   const tempRoot = await mkdtemp(
     path.join(os.tmpdir(), 'consensus-synth-records-'),
   );
@@ -222,46 +233,48 @@ test('parallel_synthesized artifact records synthesis text, reasoning, disagreem
 
   // The resolution names the configured synthesizer.
   const resolution = extractJsonBlock(artifact, 'consensus-resolution');
-  assert.equal(resolution.synthesizer, 'codex');
+  expect(resolution.synthesizer).toBe('codex');
 
   // Synthesis records are present in each section's record stream.
-  const synthesisRecords = result.sections.flatMap((section) =>
-    section.records.filter((record) => record.record_type === 'synthesis'),
+  const synthesisRecords = result.sections.flatMap((section: JsonRecord) =>
+    section.records.filter(
+      (record: JsonRecord) => record.record_type === 'synthesis',
+    ),
   );
-  assert.ok(
+  expect(
     synthesisRecords.length >= 3,
     'at least one synthesis record per section',
-  );
+  ).toBeTruthy();
   for (const record of synthesisRecords) {
-    assert.equal(record.synthesizer, 'codex');
-    assert.equal(record.synthesized_artifact, 'Merged section.\n');
-    assert.match(record.synthesis_reasoning, /stronger reasoning/i);
-    assert.deepEqual(record.unresolved_disagreements, [
+    expect(record.synthesizer).toBe('codex');
+    expect(record.synthesized_artifact).toBe('Merged section.\n');
+    expect(record.synthesis_reasoning).toMatch(/stronger reasoning/i);
+    expect(record.unresolved_disagreements).toEqual([
       'Heading capitalization left open.',
     ]);
   }
 
   // The synthesis content also lands in the artifact text.
-  assert.match(artifact, /Merged both revisions/);
-  assert.match(artifact, /Heading capitalization left open\./);
+  expect(artifact).toMatch(/Merged both revisions/);
+  expect(artifact).toMatch(/Heading capitalization left open\./);
 });
 
-test('parallel_synthesized run_started discloses the synthesis call multiplier', () => {
+it('parallel_synthesized run_started discloses the synthesis call multiplier', () => {
   // calls_per_round must report { peer: 2, synthesis: 1 } for parallel_synthesized.
-  assert.deepEqual(callsPerRound('parallel_synthesized'), {
+  expect(callsPerRound('parallel_synthesized')).toEqual({
     peer: 2,
     synthesis: 1,
   });
 });
 
-test('parallel_revision stubbed runs are byte-reproducible modulo timestamps and run id', async () => {
+it('parallel_revision stubbed runs are byte-reproducible modulo timestamps and run id', async () => {
   const tempRoot = await mkdtemp(
     path.join(os.tmpdir(), 'consensus-parallel-repro-'),
   );
   const first = await runParallel(tempRoot, 'one');
   const second = await runParallel(tempRoot, 'two');
 
-  function normalize(artifact) {
+  function normalize(artifact: string) {
     return artifact
       .replace(/^timestamp:.*$/gm, 'timestamp: <ts>')
       .replace(/"timestamp": "[^"]*"/g, '"timestamp": "<ts>"')
@@ -278,22 +291,24 @@ test('parallel_revision stubbed runs are byte-reproducible modulo timestamps and
       .replace(/out-(one|two)\.consensus\.md/g, 'out-<x>.consensus.md');
   }
 
-  assert.equal(normalize(first.artifact), normalize(second.artifact));
+  expect(normalize(first.artifact)).toBe(normalize(second.artifact));
 
   // Records streams (sections) are identical modulo per-record timestamps.
-  function recordsOf(result) {
-    return result.sections.map((section) =>
-      section.records.map(({ timestamp, ...rest }) => rest),
+  function recordsOf(result: JsonRecord) {
+    return result.sections.map((section: JsonRecord) =>
+      section.records.map(({ timestamp, ...rest }: JsonRecord) => rest),
     );
   }
-  assert.deepEqual(recordsOf(first.result), recordsOf(second.result));
+  expect(recordsOf(first.result)).toEqual(recordsOf(second.result));
 });
 
 // --- p04-t06: escalation lifecycle integration ---------------------------
 
 // A synthesized scenario that escalates on persistent_disagreement, then either
 // resolves (disagreements cleared after the host decision) or stays stuck.
-function lifecycleStubs({ resolveAfterHostDecision = true } = {}) {
+function lifecycleStubs({
+  resolveAfterHostDecision = true,
+}: { resolveAfterHostDecision?: boolean } = {}) {
   let hostDecided = false;
   let peerCall = 0;
   const mergedResolved = 'Resolved merge.\n';
@@ -365,7 +380,7 @@ const synthPreflight = async () => ({
   warnings: [],
 });
 
-test('synthesized run escalates on persistent_disagreement (host) then converges via --host-direction', async () => {
+it('synthesized run escalates on persistent_disagreement (host) then converges via --host-direction', async () => {
   const tempRoot = await mkdtemp(
     path.join(os.tmpdir(), 'consensus-escalation-lifecycle-'),
   );
@@ -397,14 +412,14 @@ test('synthesized run escalates on persistent_disagreement (host) then converges
     { stdout },
   );
 
-  assert.equal(first.sections[0].status.status, 'escalation');
+  expect(first.sections[0].status.status).toBe('escalation');
   const event = stdout
     .events()
     .find((entry) => entry.event === 'escalation_required');
-  assert.ok(event, 'escalation_required emitted');
-  assert.equal(event.trigger, 'persistent_disagreement');
-  assert.equal(event.decide_via, 'host');
-  assert.equal(event.resume.flag, '--host-direction');
+  expect(event, 'escalation_required emitted').toBeTruthy();
+  expect(event.trigger).toBe('persistent_disagreement');
+  expect(event.decide_via).toBe('host');
+  expect(event.resume.flag).toBe('--host-direction');
 
   // Pass 2: host answers via --host-direction; disagreements clear → converges.
   stubs.markHostDecided();
@@ -430,15 +445,15 @@ test('synthesized run escalates on persistent_disagreement (host) then converges
 
   const records = second.sections[0].records;
   const hostRound = records.find(
-    (record) => record.verdict === 'HOST_DECISION',
+    (record: JsonRecord) => record.verdict === 'HOST_DECISION',
   );
-  assert.ok(hostRound, 'HOST_DECISION round recorded on resume');
-  assert.equal(hostRound.agent, 'host-orchestrator');
-  assert.equal(hostRound.escalation_trigger, 'persistent_disagreement');
-  assert.equal(second.sections[0].status.status, 'converged');
+  expect(hostRound, 'HOST_DECISION round recorded on resume').toBeTruthy();
+  expect(hostRound.agent).toBe('host-orchestrator');
+  expect(hostRound.escalation_trigger).toBe('persistent_disagreement');
+  expect(second.sections[0].status.status).toBe('converged');
 });
 
-test('promotion: re-fired trigger after a HOST_DECISION routes to the user', async () => {
+it('promotion: re-fired trigger after a HOST_DECISION routes to the user', async () => {
   const tempRoot = await mkdtemp(
     path.join(os.tmpdir(), 'consensus-escalation-promote-'),
   );
@@ -468,8 +483,8 @@ test('promotion: re-fired trigger after a HOST_DECISION routes to the user', asy
     },
     { stdout: captureStdout() },
   );
-  assert.equal(first.sections[0].status.status, 'escalation');
-  assert.equal(first.sections[0].status.escalation.decide_via, 'host');
+  expect(first.sections[0].status.status).toBe('escalation');
+  expect(first.sections[0].status.escalation.decide_via).toBe('host');
 
   // Host answers, but the trigger persists → promotion re-routes to the user.
   const promoteStdout = captureStdout();
@@ -497,17 +512,20 @@ test('promotion: re-fired trigger after a HOST_DECISION routes to the user', asy
   );
 
   const status = second.sections[0].status;
-  assert.equal(status.status, 'escalation');
-  assert.equal(status.escalation.decide_via, 'user');
-  assert.equal(status.escalation.promoted_from, 'host');
+  expect(status.status).toBe('escalation');
+  expect(status.escalation.decide_via).toBe('user');
+  expect(status.escalation.promoted_from).toBe('host');
 
   const event = promoteStdout
     .events()
     .find((entry) => entry.event === 'escalation_required');
-  assert.ok(event, 'user-routed escalation re-emitted after promotion');
-  assert.equal(event.decide_via, 'user');
-  assert.equal(event.promoted_from, 'host');
-  assert.equal(event.resume.flag, '--user-direction');
+  expect(
+    event,
+    'user-routed escalation re-emitted after promotion',
+  ).toBeTruthy();
+  expect(event.decide_via).toBe('user');
+  expect(event.promoted_from).toBe('host');
+  expect(event.resume.flag).toBe('--user-direction');
 });
 
 // --- p05-t02: interruption-point resume matrix --------------------------
@@ -516,7 +534,7 @@ test('promotion: re-fired trigger after a HOST_DECISION routes to the user', asy
 // `initialRecords` and asserts the loop resumes at the correct entry point per the
 // design's two-level transaction contract (design Error Handling / §1).
 
-async function loopPaths(tempRoot, suffix, input) {
+async function loopPaths(tempRoot: string, suffix: string, input: string) {
   const dir = path.join(tempRoot, suffix);
   const sectionFile = path.join(dir, 'section.md');
   return {
@@ -548,7 +566,7 @@ async function loopPaths(tempRoot, suffix, input) {
   };
 }
 
-function peerRecord(round, agent, text) {
+function peerRecord(round: number, agent: string, text: string) {
   return {
     schema_version: 'v1',
     turn_index: (round - 1) * 2 + (agent === 'claude' ? 1 : 2),
@@ -563,7 +581,7 @@ function peerRecord(round, agent, text) {
   };
 }
 
-function synthesisRecord(round, text) {
+function synthesisRecord(round: number, text: string) {
   return {
     schema_version: 'v1',
     record_type: 'synthesis',
@@ -577,7 +595,7 @@ function synthesisRecord(round, text) {
   };
 }
 
-function countingStubs(convergeText) {
+function countingStubs(convergeText: string) {
   const calls = { peer: 0, synthesis: 0 };
   const invokePeer = async () => {
     calls.peer += 1;
@@ -609,7 +627,7 @@ function countingStubs(convergeText) {
 
 const seedInput = '# Intro\n\nSeed.\n';
 
-test('resume mid-peer-subround (no committed pair) re-executes the round', async () => {
+it('resume mid-peer-subround (no committed pair) re-executes the round', async () => {
   const tempRoot = await mkdtemp(
     path.join(os.tmpdir(), 'consensus-resume-midpeer-'),
   );
@@ -626,16 +644,17 @@ test('resume mid-peer-subround (no committed pair) re-executes the round', async
   });
 
   // Round 1 must run a fresh peer subround (2 peer calls) then synthesis.
-  assert.equal(stubs.calls.peer >= 2, true);
-  assert.equal(stubs.calls.synthesis >= 1, true);
+  expect(stubs.calls.peer >= 2).toBe(true);
+  expect(stubs.calls.synthesis >= 1).toBe(true);
   // Round 1 peers ran (turn_index 1 and 2 present in the stream).
   const round1Peers = result.records.filter(
-    (record) => record.round_index === 1 && record.record_type !== 'synthesis',
+    (record: JsonRecord) =>
+      record.round_index === 1 && record.record_type !== 'synthesis',
   );
-  assert.equal(round1Peers.length, 2);
+  expect(round1Peers.length).toBe(2);
 });
 
-test('resume pending-synthesis (pair without synthesis) resumes at synthesis only', async () => {
+it('resume pending-synthesis (pair without synthesis) resumes at synthesis only', async () => {
   const tempRoot = await mkdtemp(
     path.join(os.tmpdir(), 'consensus-resume-pending-'),
   );
@@ -658,21 +677,22 @@ test('resume pending-synthesis (pair without synthesis) resumes at synthesis onl
 
   // The pending synthesis for round 1 must run WITHOUT re-running round 1 peers.
   const synthesisForRound1 = result.records.filter(
-    (record) => record.record_type === 'synthesis' && record.round_index === 1,
+    (record: JsonRecord) =>
+      record.record_type === 'synthesis' && record.round_index === 1,
   );
-  assert.equal(
+  expect(
     synthesisForRound1.length,
-    1,
     'round 1 synthesis produced on resume',
-  );
+  ).toBe(1);
 
   const round1Peers = result.records.filter(
-    (record) => record.round_index === 1 && record.record_type !== 'synthesis',
+    (record: JsonRecord) =>
+      record.round_index === 1 && record.record_type !== 'synthesis',
   );
-  assert.equal(round1Peers.length, 2, 'round 1 peer pair not duplicated');
+  expect(round1Peers.length, 'round 1 peer pair not duplicated').toBe(2);
 });
 
-test('resume post-synthesis (complete round) continues at the next round', async () => {
+it('resume post-synthesis (complete round) continues at the next round', async () => {
   const tempRoot = await mkdtemp(
     path.join(os.tmpdir(), 'consensus-resume-postsynth-'),
   );
@@ -696,21 +716,21 @@ test('resume post-synthesis (complete round) continues at the next round', async
 
   // No additional synthesis for round 1; round 2 peers run next.
   const round1Synthesis = result.records.filter(
-    (record) => record.record_type === 'synthesis' && record.round_index === 1,
+    (record: JsonRecord) =>
+      record.record_type === 'synthesis' && record.round_index === 1,
   );
-  assert.equal(round1Synthesis.length, 1, 'round 1 synthesis not re-run');
+  expect(round1Synthesis.length, 'round 1 synthesis not re-run').toBe(1);
 
   const round2Peers = result.records.filter(
-    (record) => record.round_index === 2 && record.record_type !== 'synthesis',
+    (record: JsonRecord) =>
+      record.round_index === 2 && record.record_type !== 'synthesis',
   );
-  assert.equal(
-    round2Peers.length,
+  expect(round2Peers.length, 'round 2 peer subround executed on resume').toBe(
     2,
-    'round 2 peer subround executed on resume',
   );
 });
 
-test('pending escalation resume is consumed by a supplied --host-direction', async () => {
+it('pending escalation resume is consumed by a supplied --host-direction', async () => {
   // Covered end-to-end by the escalation lifecycle test above (resume + --host-direction
   // converges). Here we assert the matrix entry-point: a pending escalation artifact
   // resumed with a host direction appends the HOST_DECISION and proceeds.
@@ -764,6 +784,8 @@ test('pending escalation resume is consumed by a supplied --host-direction', asy
   });
 
   const records = second.sections[0].records;
-  assert.ok(records.some((record) => record.verdict === 'HOST_DECISION'));
-  assert.equal(second.sections[0].status.status, 'converged');
+  expect(
+    records.some((record: JsonRecord) => record.verdict === 'HOST_DECISION'),
+  ).toBeTruthy();
+  expect(second.sections[0].status.status).toBe('converged');
 });

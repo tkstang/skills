@@ -1,15 +1,18 @@
-import assert from 'node:assert/strict';
 import { mkdtemp, readFile, stat, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import test from 'node:test';
 
-import { EXIT_CODES } from '../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
-import {
-  fanInParallelRun,
-  prepareParallelRun,
-  runWrapperCli,
-} from '../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
+import { expect, it } from 'vitest';
+
+// @ts-expect-error The generated runtime is intentionally declaration-free; this test exercises the shipped artifact.
+import * as consensusLoop from '../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
+// @ts-expect-error The generated runtime is intentionally declaration-free; this test exercises the shipped artifact.
+import * as consensusRefine from '../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
+
+const { EXIT_CODES } = consensusLoop;
+const { fanInParallelRun, prepareParallelRun, runWrapperCli } = consensusRefine;
+
+type JsonRecord = Record<string, any>;
 
 const repoRoot = path.resolve(new URL('..', import.meta.url).pathname);
 const sampleInput = path.join(repoRoot, 'tests/fixtures/sample-input.md');
@@ -18,7 +21,7 @@ function captureWriter() {
   let value = '';
   return {
     stream: {
-      write(chunk) {
+      write(chunk: unknown) {
         value += chunk;
       },
     },
@@ -28,16 +31,17 @@ function captureWriter() {
   };
 }
 
-async function readJson(filePath) {
+async function readJson(filePath: string): Promise<any> {
   return JSON.parse(await readFile(filePath, 'utf8'));
 }
 
-function extractJsonBlock(markdown, label) {
+function extractJsonBlock(markdown: string, label: string): any {
   const pattern = new RegExp(
     '<!-- consensus:' + label + '\\n([\\s\\S]*?)\\n-->',
   );
   const match = markdown.match(pattern);
-  assert.ok(match, `missing ${label} JSON block`);
+  expect(match, `missing ${label} JSON block`).toBeTruthy();
+  if (!match) throw new Error(`missing ${label} JSON block`);
   return JSON.parse(match[1]);
 }
 
@@ -89,41 +93,42 @@ async function prepareBrokenManifest() {
   return { tempRoot, prepared, manifest };
 }
 
-test('fanInParallelRun writes partial artifacts for malformed, missing, and timeout sections', async () => {
+it('fanInParallelRun writes partial artifacts for malformed, missing, and timeout sections', async () => {
   const { tempRoot, prepared, manifest } = await prepareBrokenManifest();
   const result = await fanInParallelRun(prepared.manifestPath, {
     cwd: tempRoot,
     allowRoot: tempRoot,
   });
 
-  assert.equal(result.status, 'partial');
-  assert.equal(result.sections[0].status.status, 'converged');
-  assert.equal(result.sections[1].status.status, 'error');
-  assert.equal(result.sections[2].status.status, 'error');
+  expect(result.status).toBe('partial');
+  expect(result.sections[0].status.status).toBe('converged');
+  expect(result.sections[1].status.status).toBe('error');
+  expect(result.sections[2].status.status).toBe('error');
 
   const artifact = await readFile(manifest.output_path, 'utf8');
-  assert.match(artifact, /Successful parallel section/);
-  assert.match(artifact, /## Details/);
-  assert.match(artifact, /## Close/);
-  assert.match(artifact, /<!-- consensus:section-error/);
-  assert.match(artifact, /malformed result JSON/);
-  assert.match(artifact, /missing output file/);
-  assert.match(artifact, /section_timeout/);
-  assert.match(artifact, /status\.json/);
+  expect(artifact).toMatch(/Successful parallel section/);
+  expect(artifact).toMatch(/## Details/);
+  expect(artifact).toMatch(/## Close/);
+  expect(artifact).toMatch(/<!-- consensus:section-error/);
+  expect(artifact).toMatch(/malformed result JSON/);
+  expect(artifact).toMatch(/missing output file/);
+  expect(artifact).toMatch(/section_timeout/);
+  expect(artifact).toMatch(/status\.json/);
 
   const resolution = extractJsonBlock(artifact, 'consensus-resolution');
-  assert.equal(resolution.status, 'partial');
-  assert.equal(resolution.sections.converged, 1);
-  assert.equal(resolution.sections.error, 2);
+  expect(resolution.status).toBe('partial');
+  expect(resolution.sections.converged).toBe(1);
+  expect(resolution.sections.error).toBe(2);
 
   const states = extractJsonBlock(artifact, 'consensus-section-states');
-  assert.deepEqual(
-    states.map((section) => section.status),
-    ['converged', 'error', 'error'],
-  );
+  expect(states.map((section: JsonRecord) => section.status)).toEqual([
+    'converged',
+    'error',
+    'error',
+  ]);
 });
 
-test('runWrapperCli returns 74 for parallel section errors only after writing the artifact', async () => {
+it('runWrapperCli returns 74 for parallel section errors only after writing the artifact', async () => {
   const { tempRoot, prepared, manifest } = await prepareBrokenManifest();
   const stdout = captureWriter();
   const stderr = captureWriter();
@@ -141,16 +146,18 @@ test('runWrapperCli returns 74 for parallel section errors only after writing th
     },
   );
 
-  assert.equal(exitCode, EXIT_CODES.SECTION_ERROR);
-  assert.equal((await stat(manifest.output_path)).isFile(), true);
-  assert.match(await readFile(manifest.output_path, 'utf8'), /Status: partial/);
+  expect(exitCode).toBe(EXIT_CODES.SECTION_ERROR);
+  expect((await stat(manifest.output_path)).isFile()).toBe(true);
+  expect(await readFile(manifest.output_path, 'utf8')).toMatch(
+    /Status: partial/,
+  );
 
   const events = stdout
     .value()
     .trim()
     .split('\n')
     .map((line) => JSON.parse(line));
-  assert.equal(events.at(-1).event, 'error');
-  assert.equal(events.at(-1).exit_code, EXIT_CODES.SECTION_ERROR);
-  assert.match(stderr.value(), /section error or impasse/i);
+  expect(events.at(-1).event).toBe('error');
+  expect(events.at(-1).exit_code).toBe(EXIT_CODES.SECTION_ERROR);
+  expect(stderr.value()).toMatch(/section error or impasse/i);
 });

@@ -55,6 +55,7 @@ test('repository exposes standalone and consensus plugin layout', async () => {
     path.posix.join('plugins', 'consensus', '.cursor-plugin'),
     path.posix.join('plugins', 'consensus', '.codex-plugin'),
     path.posix.join('src', 'consensus', 'core'),
+    path.posix.join('src', 'consensus', 'refine'),
     'scripts',
   ];
 

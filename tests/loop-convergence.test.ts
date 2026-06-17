@@ -1,10 +1,13 @@
-import assert from 'node:assert/strict';
 import { mkdtemp, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import test from 'node:test';
 
-import {
+import { expect, it } from 'vitest';
+
+// @ts-expect-error The generated runtime is intentionally declaration-free; this test exercises the shipped artifact.
+import * as consensusLoop from '../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
+
+const {
   detectConvergence,
   detectOscillation,
   detectParallelConvergence,
@@ -13,9 +16,24 @@ import {
   hashArtifact,
   normalizeForHash,
   runConsensusLoop,
-} from '../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
+} = consensusLoop;
 
-function parallelRecord(agent, { verdict, text, round = 1 }) {
+type RunFiles = {
+  sectionPath: string;
+  recordsPath: string;
+  outputPath: string;
+  statusPath: string;
+};
+type JsonRecord = Record<string, any>;
+
+function parallelRecord(
+  agent: string,
+  {
+    verdict,
+    text,
+    round = 1,
+  }: { verdict: string; text: string; round?: number },
+) {
   return {
     agent,
     round_index: round,
@@ -40,7 +58,7 @@ async function makeRunFiles(sectionText = 'Initial section.\n') {
   };
 }
 
-function alternatingArgv(files, extra = []) {
+function alternatingArgv(files: RunFiles, extra: string[] = []) {
   return [
     '--section-file',
     files.sectionPath,
@@ -62,49 +80,43 @@ function alternatingArgv(files, extra = []) {
   ];
 }
 
-function stripVolatile(records) {
+function stripVolatile(records: JsonRecord[]) {
   return records.map(({ timestamp, ...rest }) => rest);
 }
 
-test('normalizeForHash canonicalizes line endings, trailing whitespace, and EOF newlines', () => {
-  assert.equal(
-    normalizeForHash('Hello  \r\nworld\t\r\n\r\n'),
-    'Hello\nworld\n',
-  );
-  assert.equal(
-    normalizeForHash('Hello\nworld\n'),
+it('normalizeForHash canonicalizes line endings, trailing whitespace, and EOF newlines', () => {
+  expect(normalizeForHash('Hello  \r\nworld\t\r\n\r\n')).toBe('Hello\nworld\n');
+  expect(normalizeForHash('Hello\nworld\n')).toBe(
     normalizeForHash('Hello\r\nworld\n\n'),
   );
-  assert.equal(normalizeForHash(''), '');
+  expect(normalizeForHash('')).toBe('');
 });
 
-test('normalizeForHash can be made strict through options', () => {
-  assert.notEqual(
+it('normalizeForHash can be made strict through options', () => {
+  expect(
     normalizeForHash('Hello  \n', { trimTrailingWhitespace: false }),
-    'Hello\n',
-  );
-  assert.equal(
-    normalizeForHash('Hello  \n', { trimTrailingWhitespace: false }),
+  ).not.toBe('Hello\n');
+  expect(normalizeForHash('Hello  \n', { trimTrailingWhitespace: false })).toBe(
     'Hello  \n',
   );
 });
 
-test('hashArtifact returns a prefixed SHA-256 digest over normalized text', () => {
+it('hashArtifact returns a prefixed SHA-256 digest over normalized text', () => {
   const first = hashArtifact('alpha\r\nbeta  \n\n');
   const second = hashArtifact('alpha\nbeta\n');
 
-  assert.match(first, /^sha256:[a-f0-9]{64}$/);
-  assert.equal(first, second);
+  expect(first).toMatch(/^sha256:[a-f0-9]{64}$/);
+  expect(first).toBe(second);
 });
 
-test('detectConvergence reports adjacent matching hashes', () => {
+it('detectConvergence reports adjacent matching hashes', () => {
   const hash = hashArtifact('same');
   const result = detectConvergence([
     { turn_index: 1, agent: 'claude', artifact_hash: hash, verdict: 'REVISE' },
     { turn_index: 2, agent: 'codex', artifact_hash: hash, verdict: 'REVISE' },
   ]);
 
-  assert.deepEqual(result, {
+  expect(result).toEqual({
     converged: true,
     reason: 'hash_match',
     record_indexes: [0, 1],
@@ -112,45 +124,43 @@ test('detectConvergence reports adjacent matching hashes', () => {
   });
 });
 
-test('detectConvergence reports double ACCEPT on the same hash', () => {
+it('detectConvergence reports double ACCEPT on the same hash', () => {
   const hash = hashArtifact('accepted');
   const result = detectConvergence([
     { turn_index: 1, artifact_hash: hash, verdict: 'ACCEPT' },
     { turn_index: 2, artifact_hash: hash, verdict: 'ACCEPT' },
   ]);
 
-  assert.equal(result.converged, true);
-  assert.equal(result.reason, 'double_accept');
-  assert.deepEqual(result.record_indexes, [0, 1]);
+  expect(result.converged).toBe(true);
+  expect(result.reason).toBe('double_accept');
+  expect(result.record_indexes).toEqual([0, 1]);
 });
 
-test('detectConvergence returns a stable non-converged shape', () => {
-  assert.deepEqual(
+it('detectConvergence returns a stable non-converged shape', () => {
+  expect(
     detectConvergence([
       { artifact_hash: hashArtifact('one'), verdict: 'REVISE' },
       { artifact_hash: hashArtifact('two'), verdict: 'REVISE' },
     ]),
-    { converged: false, reason: null },
-  );
+  ).toEqual({ converged: false, reason: null });
 });
 
-test('detectConvergence uses strict bytewise hashing for minimal agency', () => {
+it('detectConvergence uses strict bytewise hashing for minimal agency', () => {
   const records = [
     { artifact: 'same text  \n', verdict: 'REVISE' },
     { artifact: 'same text\n', verdict: 'REVISE' },
   ];
 
-  assert.equal(
-    detectConvergence(records, { agency: 'moderate' }).converged,
+  expect(detectConvergence(records, { agency: 'moderate' }).converged).toBe(
     true,
   );
-  assert.deepEqual(detectConvergence(records, { agency: 'minimal' }), {
+  expect(detectConvergence(records, { agency: 'minimal' })).toEqual({
     converged: false,
     reason: null,
   });
 });
 
-test('detectConvergence allows maximum agency double ACCEPT near matches', () => {
+it('detectConvergence allows maximum agency double ACCEPT near matches', () => {
   const result = detectConvergence(
     [
       { artifact_hash: hashArtifact('accepted one'), verdict: 'ACCEPT' },
@@ -159,13 +169,13 @@ test('detectConvergence allows maximum agency double ACCEPT near matches', () =>
     { agency: 'maximum' },
   );
 
-  assert.equal(result.converged, true);
-  assert.equal(result.reason, 'double_accept');
-  assert.equal(result.agency_decision, 'maximum_double_accept_near_match');
-  assert.deepEqual(result.record_indexes, [0, 1]);
+  expect(result.converged).toBe(true);
+  expect(result.reason).toBe('double_accept');
+  expect(result.agency_decision).toBe('maximum_double_accept_near_match');
+  expect(result.record_indexes).toEqual([0, 1]);
 });
 
-test('detectOscillation detects four-turn two-state alternation', () => {
+it('detectOscillation detects four-turn two-state alternation', () => {
   const a = hashArtifact('A');
   const b = hashArtifact('B');
   const result = detectOscillation([
@@ -175,7 +185,7 @@ test('detectOscillation detects four-turn two-state alternation', () => {
     { artifact_hash: b },
   ]);
 
-  assert.deepEqual(result, {
+  expect(result).toEqual({
     oscillating: true,
     reason: 'oscillation_detected',
     record_indexes: [0, 1, 2, 3],
@@ -183,23 +193,22 @@ test('detectOscillation detects four-turn two-state alternation', () => {
   });
 });
 
-test('detectOscillation ignores non-alternating records', () => {
+it('detectOscillation ignores non-alternating records', () => {
   const a = hashArtifact('A');
   const b = hashArtifact('B');
   const c = hashArtifact('C');
 
-  assert.deepEqual(
+  expect(
     detectOscillation([
       { artifact_hash: a },
       { artifact_hash: b },
       { artifact_hash: c },
       { artifact_hash: b },
     ]),
-    { oscillating: false, reason: null },
-  );
+  ).toEqual({ oscillating: false, reason: null });
 });
 
-test('alternating round execution produces a stable records stream (characterization)', async () => {
+it('alternating round execution produces a stable records stream (characterization)', async () => {
   const revisions = [
     'Round one revision.\n',
     'Round two revision.\n',
@@ -227,11 +236,11 @@ test('alternating round execution produces a stable records stream (characteriza
   }
 
   const result = await runOnce();
-  assert.equal(result.status.status, 'converged');
-  assert.equal(result.status.termination_reason, 'hash_match');
+  expect(result.status.status).toBe('converged');
+  expect(result.status.termination_reason).toBe('hash_match');
 
   // Stream is a deterministic function of stubbed responses (timestamps aside).
-  assert.deepEqual(stripVolatile(result.records), [
+  expect(stripVolatile(result.records)).toEqual([
     {
       schema_version: 'v1',
       turn_index: 1,
@@ -272,41 +281,37 @@ test('alternating round execution produces a stable records stream (characteriza
 
   // Repeat run reproduces the identical stream (NFR1 / FR9 regression lock).
   const second = await runOnce();
-  assert.deepEqual(
-    stripVolatile(second.records),
-    stripVolatile(result.records),
-  );
+  expect(stripVolatile(second.records)).toEqual(stripVolatile(result.records));
 });
 
-test('detectParallelConvergence converges on same-round normalized hash match', () => {
+it('detectParallelConvergence converges on same-round normalized hash match', () => {
   const records = [
     parallelRecord('claude', { verdict: 'REVISE', text: 'Final text  \n' }),
     parallelRecord('codex', { verdict: 'REVISE', text: 'Final text\n' }),
   ];
 
   const result = detectParallelConvergence(records, { agency: 'moderate' });
-  assert.equal(result.converged, true);
-  assert.equal(result.reason, 'parallel_hash_match');
-  assert.deepEqual(result.record_indexes, [0, 1]);
+  expect(result.converged).toBe(true);
+  expect(result.reason).toBe('parallel_hash_match');
+  expect(result.record_indexes).toEqual([0, 1]);
 });
 
-test('detectParallelConvergence uses strict hashing at minimal agency', () => {
+it('detectParallelConvergence uses strict hashing at minimal agency', () => {
   const records = [
     parallelRecord('claude', { verdict: 'REVISE', text: 'Final text  \n' }),
     parallelRecord('codex', { verdict: 'REVISE', text: 'Final text\n' }),
   ];
 
-  assert.equal(
+  expect(
     detectParallelConvergence(records, { agency: 'moderate' }).converged,
-    true,
-  );
-  assert.deepEqual(detectParallelConvergence(records, { agency: 'minimal' }), {
+  ).toBe(true);
+  expect(detectParallelConvergence(records, { agency: 'minimal' })).toEqual({
     converged: false,
     reason: null,
   });
 });
 
-test('detectParallelConvergence converges on mutual ACCEPT_PEER adopting identical prior text', () => {
+it('detectParallelConvergence converges on mutual ACCEPT_PEER adopting identical prior text', () => {
   const shared = 'Agreed text.\n';
   const records = [
     parallelRecord('claude', { verdict: 'ACCEPT_PEER', text: shared }),
@@ -314,11 +319,11 @@ test('detectParallelConvergence converges on mutual ACCEPT_PEER adopting identic
   ];
 
   const result = detectParallelConvergence(records, { agency: 'moderate' });
-  assert.equal(result.converged, true);
-  assert.equal(result.reason, 'mutual_accept_peer');
+  expect(result.converged).toBe(true);
+  expect(result.reason).toBe('mutual_accept_peer');
 });
 
-test('detectParallelConvergence does NOT converge on mutual ACCEPT_PEER adopting differing texts (swap)', () => {
+it('detectParallelConvergence does NOT converge on mutual ACCEPT_PEER adopting differing texts (swap)', () => {
   const records = [
     parallelRecord('claude', {
       verdict: 'ACCEPT_PEER',
@@ -330,40 +335,39 @@ test('detectParallelConvergence does NOT converge on mutual ACCEPT_PEER adopting
     }),
   ];
 
-  assert.deepEqual(detectParallelConvergence(records, { agency: 'moderate' }), {
+  expect(detectParallelConvergence(records, { agency: 'moderate' })).toEqual({
     converged: false,
     reason: null,
   });
 });
 
-test('detectParallelConvergence converges on mutual CONVERGED at moderate and maximum but not minimal', () => {
+it('detectParallelConvergence converges on mutual CONVERGED at moderate and maximum but not minimal', () => {
   const records = [
     parallelRecord('claude', { verdict: 'CONVERGED', text: 'A version.\n' }),
     parallelRecord('codex', { verdict: 'CONVERGED', text: 'B version.\n' }),
   ];
 
   const moderate = detectParallelConvergence(records, { agency: 'moderate' });
-  assert.equal(moderate.converged, true);
-  assert.equal(moderate.reason, 'mutual_converged');
+  expect(moderate.converged).toBe(true);
+  expect(moderate.reason).toBe('mutual_converged');
 
-  assert.equal(
+  expect(
     detectParallelConvergence(records, { agency: 'maximum' }).converged,
-    true,
-  );
-  assert.deepEqual(detectParallelConvergence(records, { agency: 'minimal' }), {
+  ).toBe(true);
+  expect(detectParallelConvergence(records, { agency: 'minimal' })).toEqual({
     converged: false,
     reason: null,
   });
 });
 
-function parallelRound(round, claudeText, codexText) {
+function parallelRound(round: number, claudeText: string, codexText: string) {
   return [
     parallelRecord('claude', { verdict: 'REVISE', text: claudeText, round }),
     parallelRecord('codex', { verdict: 'REVISE', text: codexText, round }),
   ];
 }
 
-test('detectParallelOscillation detects pair-based A/B/A/B cycling over four rounds', () => {
+it('detectParallelOscillation detects pair-based A/B/A/B cycling over four rounds', () => {
   // Order-normalized pairs: round1 = {A,B}, round2 = {C,D}, round3 = {A,B}, round4 = {C,D}
   const records = [
     ...parallelRound(1, 'A\n', 'B\n'),
@@ -374,11 +378,11 @@ test('detectParallelOscillation detects pair-based A/B/A/B cycling over four rou
   ];
 
   const result = detectParallelOscillation(records, { agency: 'moderate' });
-  assert.equal(result.oscillating, true);
-  assert.equal(result.reason, 'oscillation_detected');
+  expect(result.oscillating).toBe(true);
+  expect(result.reason).toBe('oscillation_detected');
 });
 
-test('detectParallelOscillation ignores stable-but-diverged pairs', () => {
+it('detectParallelOscillation ignores stable-but-diverged pairs', () => {
   const records = [
     ...parallelRound(1, 'A\n', 'B\n'),
     ...parallelRound(2, 'A\n', 'B\n'),
@@ -386,26 +390,33 @@ test('detectParallelOscillation ignores stable-but-diverged pairs', () => {
     ...parallelRound(4, 'A\n', 'B\n'),
   ];
 
-  assert.deepEqual(detectParallelOscillation(records, { agency: 'moderate' }), {
+  expect(detectParallelOscillation(records, { agency: 'moderate' })).toEqual({
     oscillating: false,
     reason: null,
   });
 });
 
-test('detectParallelOscillation does not fire when only three rounds are present', () => {
+it('detectParallelOscillation does not fire when only three rounds are present', () => {
   const records = [
     ...parallelRound(1, 'A\n', 'B\n'),
     ...parallelRound(2, 'C\n', 'D\n'),
     ...parallelRound(3, 'A\n', 'B\n'),
   ];
 
-  assert.deepEqual(detectParallelOscillation(records, { agency: 'moderate' }), {
+  expect(detectParallelOscillation(records, { agency: 'moderate' })).toEqual({
     oscillating: false,
     reason: null,
   });
 });
 
-function synthesizedRecord(agent, { verdict = 'REVISE', text, round }) {
+function synthesizedRecord(
+  agent: string,
+  {
+    verdict = 'REVISE',
+    text,
+    round,
+  }: { verdict?: string; text: string; round: number },
+) {
   return {
     agent,
     round_index: round,
@@ -417,7 +428,10 @@ function synthesizedRecord(agent, { verdict = 'REVISE', text, round }) {
   };
 }
 
-function synthesisRecord(text, { round, disagreements = [] }) {
+function synthesisRecord(
+  text: string,
+  { round, disagreements = [] }: { round: number; disagreements?: string[] },
+) {
   return {
     record_type: 'synthesis',
     round_index: round,
@@ -430,7 +444,7 @@ function synthesisRecord(text, { round, disagreements = [] }) {
   };
 }
 
-test('detectSynthesisStability converges when both peer revisions match the prior synthesis hash', () => {
+it('detectSynthesisStability converges when both peer revisions match the prior synthesis hash', () => {
   const synth = 'Stable synthesis.\n';
   const records = [
     synthesizedRecord('claude', { text: 'C1.\n', round: 1 }),
@@ -442,12 +456,12 @@ test('detectSynthesisStability converges when both peer revisions match the prio
   ];
 
   const result = detectSynthesisStability(records, { agency: 'moderate' });
-  assert.equal(result.converged, true);
-  assert.equal(result.reason, 'synthesis_stability');
-  assert.equal(result.artifact_hash, hashArtifact(synth));
+  expect(result.converged).toBe(true);
+  expect(result.reason).toBe('synthesis_stability');
+  expect(result.artifact_hash).toBe(hashArtifact(synth));
 });
 
-test('detectSynthesisStability does not converge when only one peer matches the prior synthesis', () => {
+it('detectSynthesisStability does not converge when only one peer matches the prior synthesis', () => {
   const synth = 'Stable synthesis.\n';
   const records = [
     synthesizedRecord('claude', { text: 'C1.\n', round: 1 }),
@@ -457,25 +471,25 @@ test('detectSynthesisStability does not converge when only one peer matches the 
     synthesizedRecord('codex', { text: 'Different.\n', round: 2 }),
   ];
 
-  assert.deepEqual(detectSynthesisStability(records, { agency: 'moderate' }), {
+  expect(detectSynthesisStability(records, { agency: 'moderate' })).toEqual({
     converged: false,
     reason: null,
   });
 });
 
-test('detectSynthesisStability does not converge before a synthesis exists to stabilize on', () => {
+it('detectSynthesisStability does not converge before a synthesis exists to stabilize on', () => {
   const records = [
     synthesizedRecord('claude', { text: 'C1.\n', round: 1 }),
     synthesizedRecord('codex', { text: 'C1.\n', round: 1 }),
   ];
 
-  assert.deepEqual(detectSynthesisStability(records, { agency: 'moderate' }), {
+  expect(detectSynthesisStability(records, { agency: 'moderate' })).toEqual({
     converged: false,
     reason: null,
   });
 });
 
-test('parallel_synthesized run converges via synthesis stability and records synthesis', async () => {
+it('parallel_synthesized run converges via synthesis stability and records synthesis', async () => {
   const files = await makeRunFiles('Seed.\n');
   const synthText = 'Merged.\n';
   // Round 1: peers diverge, synthesis = Merged. Round 2: both peers revise to Merged.
@@ -490,7 +504,7 @@ test('parallel_synthesized run converges via synthesis stability and records syn
       '5',
     ]),
     {
-      invokePeer: async ({ round }) => {
+      invokePeer: async ({ round }: { round: number }) => {
         peerCall += 1;
         const text = round === 1 ? `peer-${peerCall}.\n` : synthText;
         return {
@@ -516,31 +530,30 @@ test('parallel_synthesized run converges via synthesis stability and records syn
     },
   );
 
-  assert.equal(result.status.status, 'converged');
-  assert.equal(result.status.termination_reason, 'synthesis_stability');
-  assert.equal(result.status.synthesis_calls, 2);
+  expect(result.status.status).toBe('converged');
+  expect(result.status.termination_reason).toBe('synthesis_stability');
+  expect(result.status.synthesis_calls).toBe(2);
   const synthesisRecords = result.records.filter(
-    (record) => record.record_type === 'synthesis',
+    (record: JsonRecord) => record.record_type === 'synthesis',
   );
-  assert.equal(synthesisRecords.length, 2);
-  assert.equal(synthesisRecords[0].synthesized_artifact, synthText);
+  expect(synthesisRecords.length).toBe(2);
+  expect(synthesisRecords[0].synthesized_artifact).toBe(synthText);
 });
 
-test('detectOscillation (alternating) is untouched by parallel oscillation work', () => {
+it('detectOscillation (alternating) is untouched by parallel oscillation work', () => {
   const a = hashArtifact('A');
   const b = hashArtifact('B');
-  assert.deepEqual(
+  expect(
     detectOscillation([
       { artifact_hash: a },
       { artifact_hash: b },
       { artifact_hash: a },
       { artifact_hash: b },
     ]),
-    {
-      oscillating: true,
-      reason: 'oscillation_detected',
-      record_indexes: [0, 1, 2, 3],
-      hashes: [a, b],
-    },
-  );
+  ).toEqual({
+    oscillating: true,
+    reason: 'oscillation_detected',
+    record_indexes: [0, 1, 2, 3],
+    hashes: [a, b],
+  });
 });
