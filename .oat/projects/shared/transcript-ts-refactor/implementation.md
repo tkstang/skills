@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-17
-oat_current_task_id: p01-t02
+oat_current_task_id: p01-t03
 oat_generated: false
 ---
 
@@ -27,11 +27,11 @@ oat_generated: false
 
 | Phase   | Status      | Tasks | Completed |
 | ------- | ----------- | ----- | --------- |
-| Phase 1 | in_progress | 3     | 1/3       |
+| Phase 1 | in_progress | 3     | 2/3       |
 | Phase 2 | pending     | 3     | 0/3       |
 | Phase 3 | pending     | 2     | 0/2       |
 
-**Total:** 1/8 tasks completed
+**Total:** 2/8 tasks completed
 
 ---
 
@@ -56,8 +56,19 @@ oat_generated: false
 
 ### Task p01-t02: Generate transcript-core runtime copies through build-generated
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** `build(p01-t02): generate transcript core runtime copies`
+
+**Notes:**
+
+- Added transcript-core generated output mappings for session-observer and
+  export-session-transcript.
+- Replaced the legacy sync implementation with a compatibility wrapper around
+  `scripts/build-generated.mjs`.
+- Regenerated both committed transcript-core runtime copies with the standard
+  generated-output banner.
+- Verification passed: `pnpm run build`, `pnpm run build:check`,
+  `node scripts/sync-transcript-core.mjs --check`.
 
 ---
 
@@ -195,7 +206,7 @@ resolved directly in `plan.md`.
 
 | Phase | Tests Run | Passed | Failed | Coverage |
 | ----- | --------- | ------ | ------ | -------- |
-| 1     | `pnpm run type-check` | yes    | no     | task p01-t01 |
+| 1     | `pnpm run type-check`; `pnpm run build`; `pnpm run build:check`; `node scripts/sync-transcript-core.mjs --check` | yes    | no     | tasks p01-t01, p01-t02 |
 | 2     | -         | -      | -      | -        |
 | 3     | -         | -      | -      | -        |
 

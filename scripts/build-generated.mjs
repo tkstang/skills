@@ -26,6 +26,16 @@ export const generatedOutputs = [
       { from: '../core/consensus-loop.js', to: './consensus-loop.mjs' },
     ],
   },
+  {
+    id: 'transcript-core-session-observer',
+    source: 'src/transcript/core/runtimes.ts',
+    output: 'skills/session-observer/scripts/lib/runtimes.mjs',
+  },
+  {
+    id: 'transcript-core-export-session',
+    source: 'src/transcript/core/runtimes.ts',
+    output: 'skills/export-session-transcript/scripts/lib/runtimes.mjs',
+  },
 ];
 
 function usage() {
