@@ -1,14 +1,14 @@
 ---
 id: bl-5174
 title: 'Add consensus-evaluate skill (artifact vs rubric)'
-status: open
+status: done
 priority: medium
 scope: feature
 scope_estimate: S
 labels: [consensus, skill-family]
 assignee: null
 created: '2026-06-12T21:33:26Z'
-updated: '2026-06-12T21:33:26Z'
+updated: '2026-06-17T00:00:00Z'
 associated_issues: []
 oat_template: true
 oat_template_name: backlog-item
@@ -26,3 +26,11 @@ Add `consensus-evaluate` to the consensus plugin: peers judge an artifact agains
 - v3 defaults applied (shared_input / parallel_revision / minimal agency), all overridable by the standard flags.
 - Plugin manifests, SKILL.md, and READMEs updated; family skill listed as shipped rather than deferred.
 - Tests cover the wrapper defaults, evaluation-shaped output contract, and impasse surfacing under minimal agency.
+
+## Delivery Notes
+
+Delivered by the quick-mode OAT project `consensus-evaluate` on branch `concensus-evaluate`.
+
+- Added canonical TypeScript wrapper source at `src/consensus/evaluate/consensus-evaluate.ts`.
+- Generated committed plugin runtime output at `plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs` and `plugins/consensus/skills/evaluate/scripts/consensus-loop.mjs`.
+- Added evaluate schemas, skill documentation, provider manifest discovery text, README status updates, and Vitest/Node coverage for wrapper defaults, output rendering, schema parity, generated imports, and distribution docs.

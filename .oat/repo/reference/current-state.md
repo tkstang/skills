@@ -1,6 +1,6 @@
 # Skills Repo Current State
 
-**Last updated:** 2026-06-17 (transcript-core and export-session-transcript now have canonical TypeScript source under `src/transcript/`, generated `.mjs` shipped output under `skills/`, and Vitest coverage for the migrated transcript suites. Prior: 2026-06-16 consensus refine wrapper moved to canonical TypeScript source.)
+**Last updated:** 2026-06-17 (consensus-evaluate now ships as the first family skill after refine, using canonical TypeScript source plus generated plugin runtime output. Prior: 2026-06-17 transcript-core and export-session-transcript moved to canonical TypeScript source.)
 
 ## Overview
 
@@ -10,7 +10,10 @@ This repository is a personal Agent Skills home: standalone skills under `skills
 
 ### Consensus plugin (`plugins/consensus/`) — v0.1, unreleased
 
-One skill, `refine` (invoked as `consensus:refine`): two Paseo-backed AI peers (default Claude + Codex) deliberate on a markdown draft toward a converged artifact with a full audit trail.
+Two skills ship:
+
+- `refine` (invoked as `consensus:refine`): two Paseo-backed AI peers (default Claude + Codex) deliberate on a markdown draft toward a converged artifact with a full audit trail.
+- `evaluate` (invoked as `consensus:evaluate`): two Paseo-backed AI peers judge an artifact against a rubric/spec, defaulting to `shared_input` / `parallel_revision` / `minimal`, and produce a markdown evaluation with unified findings, embedded per-peer `consensus-verdict` records, and dissent or unresolved-dissent sections when disagreement remains.
 
 - **Iteration modes (Phase 2, branch-implemented):** three modes selected with `--iteration` — `alternating` (default; one peer revises, the other responds), `parallel_revision` (both peers revise simultaneously each round with own/peer critique, emergent same-round convergence, 2× peer calls), and `parallel_synthesized` (parallel revision plus a wrapper-driven per-round synthesis merge, 2× peer calls + 1 synthesis call). Per-round cost multiplier disclosed on the `run_started` event; `peer_calls`/`synthesis_calls` totals reported at completion.
 - **Synthesizer:** `parallel_synthesized` synthesis defaults to the first peer; override with `--synthesizer <provider>` (must be in the peer inventory or preflight fails `SYNTHESIZER_UNAVAILABLE`; warned-and-ignored outside the mode). Synthesizer identity recorded per synthesis record and in the resolution block.
@@ -20,13 +23,13 @@ One skill, `refine` (invoked as `consensus:refine`): two Paseo-backed AI peers (
 - **Control surface:** `--goal`, `--peers`, `--max-rounds`, `--agency minimal|moderate|maximum`, `--iteration`, `--synthesizer`, `--host-direction`, `--host-decision-kind`, `--output`, `--allow-root`, `--run-dir`, `--fail-on-section-error`, `--resume`, `--user-direction`, corrupt-section skip flags.
 - **Resume:** deliberation artifact is the canonical state; fail-closed on corruption; user direction recorded as a `USER_INTERVENTION` round, host decision as a `HOST_DECISION` round.
 - **Safety:** four-domain path confinement with atomic writes; spawn-array subprocess hygiene; prompt-injection framing on untrusted input; JSONL stdout as the host coordination protocol, stderr for diagnostics.
-- **TypeScript/generated runtime slices (2026-06-15/16):** `consensus-loop` now has canonical TypeScript source at `src/consensus/core/consensus-loop.ts` with typed verdict, synthesis, record/status, agency, escalation, and peer-invocation domains. `consensus-refine` now has canonical TypeScript source at `src/consensus/refine/consensus-refine.ts`; the build rewrites its canonical loop module specifier to the shipped sibling `./consensus-loop.mjs` runtime without rewriting unrelated string literals. The committed provider-facing runtimes remain `plugins/consensus/skills/refine/scripts/consensus-loop.mjs` and `plugins/consensus/skills/refine/scripts/consensus-refine.mjs` with generated banners and drift guards.
+- **TypeScript/generated runtime slices (2026-06-15/17):** `consensus-loop` now has canonical TypeScript source at `src/consensus/core/consensus-loop.ts` with typed verdict, synthesis, record/status, agency, escalation, prompt-profile, and peer-invocation domains. `consensus-refine` has canonical TypeScript source at `src/consensus/refine/consensus-refine.ts`; `consensus-evaluate` has canonical TypeScript source at `src/consensus/evaluate/consensus-evaluate.ts`. The build rewrites canonical loop module specifiers to shipped sibling `./consensus-loop.mjs` runtimes without rewriting unrelated string literals. The committed provider-facing runtimes are `plugins/consensus/skills/refine/scripts/consensus-loop.mjs`, `plugins/consensus/skills/refine/scripts/consensus-refine.mjs`, `plugins/consensus/skills/evaluate/scripts/consensus-loop.mjs`, and `plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs` with generated banners and drift guards.
 - **Distribution:** provider manifests under the plugin (`.claude-plugin/`, `.cursor-plugin/`, `.codex-plugin/`) plus repo-root marketplace entries; local marketplace install verified for Claude Code and Codex; Cursor loads session-scoped via `cursor agent --plugin-dir` (no marketplace/install commands in the Cursor CLI yet — fixed/documented 2026-05-24).
 - **Prerequisite:** Paseo CLI on PATH (tested range 0.1.0–0.9.0); opt-in install assist via `scripts/install-paseo.mjs`.
 
-Verified live with claude+codex across all three modes and the escalation ladder; QA walkthrough in `skills/refine/references/operator-qa.md`. Cursor-as-peer remains opt-in (custom ACP provider) and unverified end-to-end.
+Refine verified live with claude+codex across all three modes and the escalation ladder; QA walkthrough in `skills/refine/references/operator-qa.md`. Evaluate has mocked end-to-end coverage and operator QA docs in `skills/evaluate/references/operator-qa.md`; live provider verification remains part of v0.1 release checks. Cursor-as-peer remains opt-in (custom ACP provider) and unverified end-to-end.
 
-Not yet implemented (see `roadmap.md`): the other five family skills (`consensus-create|evaluate|decide|plan|research`), whole-document harmonization, deliberation metrics/cost caps, the deferred independent-draft cold-start strategy, a convergence similarity heuristic (deterministic-only triggers shipped; bl-ef38), tool-based verdict submission CLI (bl-3a88), and an in-house peer CLI (bl-bb7e).
+Not yet implemented (see `roadmap.md`): the other four family skills (`consensus-create|decide|plan|research`), whole-document harmonization, deliberation metrics/cost caps, the deferred independent-draft cold-start strategy, a convergence similarity heuristic (deterministic-only triggers shipped; bl-ef38), tool-based verdict submission CLI (bl-3a88), and an in-house peer CLI (bl-bb7e).
 
 ### session-observer (`skills/session-observer/`)
 
