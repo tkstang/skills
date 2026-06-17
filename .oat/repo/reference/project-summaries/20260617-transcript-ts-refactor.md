@@ -42,6 +42,12 @@ Vitest TypeScript coverage. Generated-output drift coverage now includes
 transcript-core, sanitizer, and export CLI mappings, including import-path
 assertions and stale-output detection.
 
+The final verification pass also fixed a `session-observer` `runtime: both`
+watcher race discovered by the required final `pnpm test` gate. The watcher now
+preserves records appended while selecting a transcript and flushes selected
+pending updates before `max-runtime` shutdown, with deterministic regression
+coverage.
+
 Documentation and reference artifacts now describe the current contract:
 canonical TypeScript source under `src/`, committed generated `.mjs` output under
 `skills/`, `build-generated` as the source of truth for generation, and
@@ -58,15 +64,20 @@ and is marked superseded by the generated-runtime contract.
   it through `scripts/build-generated.mjs`.
 - Keep the export CLI behavior tests pointed at the shipped generated entrypoint
   so the TypeScript migration proves runtime compatibility.
+- Treat generated-output lint/format and CI drift protection as part of the
+  generated-runtime contract; the generated output list now drives CI checks and
+  hook filtering.
 
 ## Verification
 
 - `pnpm run build` passed and wrote all generated outputs.
 - `pnpm run type-check` passed.
 - `pnpm run build:check` passed with all generated outputs in sync.
-- `pnpm run test` passed: 202 Node tests and 339 Vitest tests.
+- `pnpm run test` passed: 204 Node tests and 339 Vitest tests.
 - `pnpm run validate` passed.
 - `pnpm run smoke` passed.
+- After the watcher fix, the final gate rerun passed `pnpm test`, `pnpm lint`,
+  `pnpm type-check`, and `pnpm build`.
 
 ## Follow-up Items
 
