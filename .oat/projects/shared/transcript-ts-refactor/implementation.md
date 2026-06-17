@@ -445,6 +445,28 @@ resolved directly in `plan.md`.
 
 ---
 
+### Review Received: final
+
+**Date:** 2026-06-17
+**Review artifact:** reviews/final-review-2026-06-17.md
+
+**Findings:**
+
+- Critical: 0
+- Important: 0
+- Medium: 0
+- Minor: 1
+
+**Disposition:**
+
+- Final review passed. The remaining Minor wording drift in generated repo
+  knowledge is non-blocking and recorded in the review artifact for later
+  cleanup.
+
+**Next:** Continue to documentation/PR handoff.
+
+---
+
 ## Deviations from Plan / Design
 
 | Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
