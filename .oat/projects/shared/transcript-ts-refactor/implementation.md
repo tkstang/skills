@@ -154,6 +154,34 @@ _Orchestration runs from `oat-project-implement` are appended here._
 
 ---
 
+### Review Received: plan
+
+**Date:** 2026-06-17
+**Review artifact:** reviews/archived/artifact-plan-review-2026-06-16.md
+
+**Findings:**
+
+- Critical: 0
+- Important: 0
+- Medium: 0
+- Minor: 2
+
+**Artifact edits applied:**
+
+- m1: Clarified that p01-t01 deletes only `shared/transcript-core/runtimes.mjs`
+  while retaining `shared/transcript-core/README.md` for p03-t01 documentation
+  updates.
+- m2: Clarified that generated transcript-core consumer copies are
+  self-contained shipped `.mjs` files and remain runnable until p01-t02
+  regenerates them.
+
+**New tasks added:** None. This was an artifact review, so findings were
+resolved directly in `plan.md`.
+
+**Next:** Continue with `oat-project-implement` starting at p01-t01.
+
+---
+
 ## Deviations from Plan / Design
 
 | Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |

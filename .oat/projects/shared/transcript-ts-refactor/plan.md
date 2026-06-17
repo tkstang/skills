@@ -69,6 +69,11 @@ merge and drift-guard conflicts rather than useful parallelism.
    same named imports.
 4. Remove `shared/transcript-core/runtimes.mjs` so it cannot remain a second
    source of truth.
+5. Keep `shared/transcript-core/README.md` in place for this task; p03-t01
+   repoints that documentation to the new TypeScript source location.
+6. Do not change the generated consumer copies in this task. They are
+   self-contained shipped `.mjs` files and remain runnable until p01-t02
+   regenerates them with the new standard banner.
 
 **Verification:**
 
@@ -387,7 +392,7 @@ git commit -m "chore(p03-t02): record transcript ts verification summary"
 | final  | code     | pending | -          | -                                 |
 | spec   | artifact | pending | -          | not required in quick mode        |
 | design | artifact | pending | -          | not required in quick mode        |
-| plan   | artifact | received | 2026-06-16 | reviews/artifact-plan-review-2026-06-16.md |
+| plan   | artifact | passed  | 2026-06-17 | reviews/archived/artifact-plan-review-2026-06-16.md |
 
 **Status values:** `pending` -> `received` -> `fixes_added` ->
 `fixes_completed` -> `passed`
