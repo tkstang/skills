@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-17
-oat_current_task_id: p01-t03
+oat_current_task_id: p02-t01
 oat_generated: false
 ---
 
@@ -27,17 +27,17 @@ oat_generated: false
 
 | Phase   | Status      | Tasks | Completed |
 | ------- | ----------- | ----- | --------- |
-| Phase 1 | in_progress | 3     | 2/3       |
+| Phase 1 | completed   | 3     | 3/3       |
 | Phase 2 | pending     | 3     | 0/3       |
 | Phase 3 | pending     | 2     | 0/2       |
 
-**Total:** 2/8 tasks completed
+**Total:** 3/8 tasks completed
 
 ---
 
 ## Phase 1: Transcript-Core Generated Runtime Foundation
 
-**Status:** in_progress
+**Status:** completed
 **Started:** 2026-06-17
 
 ### Task p01-t01: Move transcript-core canonical source to TypeScript
@@ -74,8 +74,19 @@ oat_generated: false
 
 ### Task p01-t03: Move transcript-core drift and runtime tests to Vitest
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** `test(p01-t03): cover transcript core with vitest`
+
+**Notes:**
+
+- Renamed transcript-core runtime tests to Vitest TypeScript coverage against
+  `src/transcript/core/runtimes.ts`.
+- Removed the old sync-script drift test.
+- Extended generated-output drift coverage to assert transcript-core mappings
+  and stale output detection through `pnpm run build:check`.
+- Verification passed:
+  `pnpm exec vitest run tests/transcript-core/runtimes.test.ts tests/generated-output-sync.test.mjs`,
+  `pnpm run build:check`, and `pnpm run type-check`.
 
 ---
 
@@ -143,9 +154,9 @@ _Orchestration runs from `oat-project-implement` are appended here._
 
 **Session Start:** quick-start planning
 
-- [ ] p01-t01: Move transcript-core canonical source to TypeScript
-- [ ] p01-t02: Generate transcript-core runtime copies through build-generated
-- [ ] p01-t03: Move transcript-core drift and runtime tests to Vitest
+- [x] p01-t01: Move transcript-core canonical source to TypeScript
+- [x] p01-t02: Generate transcript-core runtime copies through build-generated
+- [x] p01-t03: Move transcript-core drift and runtime tests to Vitest
 - [ ] p02-t01: Migrate the export-session sanitizer to TypeScript
 - [ ] p02-t02: Migrate the export-session CLI to TypeScript
 - [ ] p02-t03: Move export-session CLI tests to Vitest
@@ -206,7 +217,7 @@ resolved directly in `plan.md`.
 
 | Phase | Tests Run | Passed | Failed | Coverage |
 | ----- | --------- | ------ | ------ | -------- |
-| 1     | `pnpm run type-check`; `pnpm run build`; `pnpm run build:check`; `node scripts/sync-transcript-core.mjs --check` | yes    | no     | tasks p01-t01, p01-t02 |
+| 1     | `pnpm run type-check`; `pnpm run build`; `pnpm run build:check`; `node scripts/sync-transcript-core.mjs --check`; `pnpm exec vitest run tests/transcript-core/runtimes.test.ts tests/generated-output-sync.test.mjs` | yes    | no     | tasks p01-t01 through p01-t03 |
 | 2     | -         | -      | -      | -        |
 | 3     | -         | -      | -      | -        |
 

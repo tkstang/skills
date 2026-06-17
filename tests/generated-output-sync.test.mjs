@@ -1,13 +1,13 @@
 import { spawn } from 'node:child_process';
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 
 import { describe, expect, it } from 'vitest';
 
 const repoRoot = new URL('..', import.meta.url);
 
-function runNode(args) {
+function runCommand(command, args) {
   return new Promise((resolve) => {
-    const child = spawn(process.execPath, args, {
+    const child = spawn(command, args, {
       cwd: repoRoot,
       stdio: ['ignore', 'pipe', 'pipe'],
     });
@@ -28,6 +28,14 @@ function runNode(args) {
   });
 }
 
+function runNode(args) {
+  return runCommand(process.execPath, args);
+}
+
+function runBuildCheck() {
+  return runCommand('pnpm', ['run', 'build:check']);
+}
+
 describe('generated output drift guard', () => {
   it('checks committed generated outputs without mutating tracked files', async () => {
     const result = await runNode(['scripts/build-generated.mjs', '--check']);
@@ -35,11 +43,15 @@ describe('generated output drift guard', () => {
     expect(result.stderr).toBe('');
     expect(result.stdout).toContain('consensus-loop: in sync');
     expect(result.stdout).toContain('consensus-refine: in sync');
+    expect(result.stdout).toContain(
+      'transcript-core-session-observer: in sync',
+    );
+    expect(result.stdout).toContain('transcript-core-export-session: in sync');
     expect(result.stdout).not.toContain('pending');
     expect(result.code).toBe(0);
   });
 
-  it('declares the consensus-loop source to generated-output mapping', async () => {
+  it('declares source to generated-output mappings', async () => {
     const script = await readFile(
       new URL('../scripts/build-generated.mjs', import.meta.url),
       'utf8',
@@ -53,6 +65,42 @@ describe('generated output drift guard', () => {
     expect(script).toContain(
       'plugins/consensus/skills/refine/scripts/consensus-refine.mjs',
     );
+    expect(script).toContain('src/transcript/core/runtimes.ts');
+    expect(script).toContain(
+      'skills/session-observer/scripts/lib/runtimes.mjs',
+    );
+    expect(script).toContain(
+      'skills/export-session-transcript/scripts/lib/runtimes.mjs',
+    );
+  });
+
+  it('fails build:check when transcript-core generated output is stale and restores it', async () => {
+    const target = new URL(
+      '../skills/session-observer/scripts/lib/runtimes.mjs',
+      import.meta.url,
+    );
+    const original = await readFile(target, 'utf8');
+
+    try {
+      await writeFile(
+        target,
+        `${original}\n// transcript-core drift\n`,
+        'utf8',
+      );
+      const result = await runBuildCheck();
+      const output = `${result.stdout}\n${result.stderr}`;
+
+      expect(result.code).not.toBe(0);
+      expect(output).toContain(
+        'skills/session-observer/scripts/lib/runtimes.mjs',
+      );
+      expect(output).toContain('generated output is stale');
+    } finally {
+      await writeFile(target, original, 'utf8');
+    }
+
+    const restored = await runBuildCheck();
+    expect(restored.code).toBe(0);
   });
 
   it('rewrites only emitted module specifiers', async () => {
