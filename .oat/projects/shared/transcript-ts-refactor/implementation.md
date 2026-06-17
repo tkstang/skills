@@ -1,5 +1,5 @@
 ---
-oat_status: in_progress
+oat_status: complete
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-17
@@ -313,6 +313,40 @@ Run-scoped snapshot only. The durable record is `## Deviations from Plan / Desig
 #### Outstanding Items
 
 - None
+
+#### Artifact / Design Deltas
+
+Run-scoped snapshot only. The durable record is `## Deviations from Plan / Design`; consolidate any non-`None` entries there at the next phase boundary.
+
+| Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
+| ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
+| None          | -               | -                    | -                 | -      | -               | -         |
+
+### Run 3 — 2026-06-17 17:18
+
+**Branch:** transcript-ts-refactor
+**Tier:** 1
+**Policy:** merge-strategy=merge, retry-limit=2
+**Phases:** 1 executed, 1 passed, 0 failed, 0 stopped
+
+#### Phase Outcomes
+
+| Phase | Implementer | Review | Fix Iterations | Disposition |
+| ----- | ----------- | ------ | -------------- | ----------- |
+| p03   | DONE        | pass   | 0/2            | merged      |
+
+#### Parallel Groups
+
+- p03: sequential
+
+#### Dispatch Notes
+
+- Dispatch: p03 implementation used `model_axis=inherited`, `effort_axis=selected:xhigh`, `dispatch_ceiling=xhigh`; selected because the phase updated repo docs/reference artifacts and ran full verification under the maximum project ceiling.
+- Dispatch: p03 review used `model_axis=inherited`, `effort_axis=selected:xhigh`, `dispatch_ceiling=xhigh`; reviewer runs at the configured ceiling for deterministic quality gate behavior.
+
+#### Outstanding Items
+
+- Minor, non-blocking: `.oat/repo/knowledge/structure.md` has one wording line that still credits `scripts/sync-transcript-core.mjs` as maintaining the single source of truth. Surrounding guidance is correct; clean up when convenient.
 
 #### Artifact / Design Deltas
 
