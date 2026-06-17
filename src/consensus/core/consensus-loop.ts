@@ -4,56 +4,62 @@ import { mkdir, open, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-type JsonRecord = Record<string, unknown>;
+export type JsonRecord = Record<string, unknown>;
 
-type IterationMode =
+export type IterationMode =
   | 'alternating'
   | 'parallel_revision'
   | 'parallel_synthesized';
-type Agency = 'minimal' | 'moderate' | 'maximum';
-type ColdStartMode = 'shared_input';
-type CostSource = 'paseo' | 'estimated' | 'unavailable';
+export type Agency = 'minimal' | 'moderate' | 'maximum';
+export type ColdStartMode = 'shared_input';
+export type CostSource = 'paseo' | 'estimated' | 'unavailable';
 
-type AlternatingVerdictValue = 'ACCEPT' | 'REVISE' | 'IMPASSE';
-type ParallelVerdictValue = 'REVISE' | 'ACCEPT_PEER' | 'CONVERGED' | 'IMPASSE';
-type VerdictValue = AlternatingVerdictValue | ParallelVerdictValue;
+export type AlternatingVerdictValue = 'ACCEPT' | 'REVISE' | 'IMPASSE';
+export type ParallelVerdictValue =
+  | 'REVISE'
+  | 'ACCEPT_PEER'
+  | 'CONVERGED'
+  | 'IMPASSE';
+export type VerdictValue = AlternatingVerdictValue | ParallelVerdictValue;
 
-interface CritiquePayload {
+export interface CritiquePayload {
   own_previous: string;
   peer_previous: string;
 }
 
-interface BaseVerdictPayload extends JsonRecord {
+export interface BaseVerdictPayload extends JsonRecord {
   schema_version: string;
   verdict: VerdictValue;
   reasoning: string;
   concerns?: string[];
 }
 
-interface RevisionVerdictPayload extends BaseVerdictPayload {
+export interface RevisionVerdictPayload extends BaseVerdictPayload {
   verdict: 'REVISE' | 'ACCEPT_PEER';
   proposed_artifact: string;
   critique?: CritiquePayload;
 }
 
-interface TerminalVerdictPayload extends BaseVerdictPayload {
+export interface TerminalVerdictPayload extends BaseVerdictPayload {
   verdict: 'ACCEPT' | 'CONVERGED' | 'IMPASSE';
   critique?: CritiquePayload;
 }
 
-type PeerVerdictPayload = RevisionVerdictPayload | TerminalVerdictPayload;
+export type PeerVerdictPayload =
+  | RevisionVerdictPayload
+  | TerminalVerdictPayload;
 
-interface SynthesisPayload extends JsonRecord {
+export interface SynthesisPayload extends JsonRecord {
   schema_version: string;
   synthesized_artifact: string;
   synthesis_reasoning: string;
   unresolved_disagreements: string[];
 }
 
-type LoopRecordType = 'synthesis' | 'synthesis-error' | string;
-type InterventionVerdict = 'USER_INTERVENTION' | 'HOST_DECISION';
+export type LoopRecordType = 'synthesis' | 'synthesis-error' | string;
+export type InterventionVerdict = 'USER_INTERVENTION' | 'HOST_DECISION';
 
-interface LoopRecord extends JsonRecord {
+export interface LoopRecord extends JsonRecord {
   schema_version?: string;
   timestamp?: string;
   turn_index?: number;
@@ -82,19 +88,19 @@ interface LoopRecord extends JsonRecord {
   code?: string;
 }
 
-interface NormalizeOptions {
+export interface NormalizeOptions {
   normalizeLineEndings?: boolean;
   trimTrailingWhitespace?: boolean;
   collapseEofNewlines?: boolean;
   finalNewline?: boolean;
 }
 
-interface HashOptions extends NormalizeOptions {
+export interface HashOptions extends NormalizeOptions {
   agency?: Agency;
   hashOptions?: NormalizeOptions;
 }
 
-interface LoopOptions {
+export interface LoopOptions {
   sectionFile: string;
   goal: string;
   peers: string[];
@@ -114,13 +120,14 @@ interface LoopOptions {
   escalationTrigger?: EscalationTrigger | null;
 }
 
-interface RunOptions {
+export interface RunOptions {
   initialRecords?: LoopRecord[];
   initialArtifact?: string;
   userDirection?: string;
   hostDirection?: string;
   hostDecisionKind?: string;
   escalationTrigger?: EscalationTrigger | null;
+  promptProfile?: PromptProfile;
   env?: NodeJS.ProcessEnv;
   cwd?: string;
   now?: () => string;
@@ -135,7 +142,7 @@ interface Intervention {
   escalationTrigger?: EscalationTrigger | null;
 }
 
-interface LoopStatus extends JsonRecord {
+export interface LoopStatus extends JsonRecord {
   status: string;
   termination_reason?: string | null;
   turns?: number;
@@ -157,7 +164,9 @@ interface RecordsWriter {
   close(): Promise<void>;
 }
 
-interface PaseoInvocationArgs {
+export type TerminalStatus = LoopStatus;
+
+export interface PaseoInvocationArgs {
   provider: string;
   schemaPath: string;
   prompt: string;
@@ -165,7 +174,7 @@ interface PaseoInvocationArgs {
   cwd?: string;
 }
 
-interface PaseoResult {
+export interface PaseoResult {
   provider?: string;
   args?: string[];
   stdout?: string;
@@ -180,7 +189,7 @@ interface RetryOptions {
   invoke?: (args: PaseoInvocationArgs) => Promise<PaseoResult>;
 }
 
-interface PeerInvocation {
+export interface PeerInvocation {
   provider: string;
   schemaPath?: string;
   prompt: string;
@@ -192,13 +201,68 @@ interface PeerInvocation {
   artifact?: string;
 }
 
-type PeerInvoker = (turn: PeerInvocation) => Promise<PaseoResult>;
+export type PeerInvoker = (turn: PeerInvocation) => Promise<PaseoResult>;
 
-type SynthesizerInvocation = PaseoInvocationArgs & {
+export type SynthesizerInvocation = PaseoInvocationArgs & {
   round: number;
 };
 
-type SynthesizerInvoker = (call: SynthesizerInvocation) => Promise<PaseoResult>;
+export type SynthesizerInvoker = (
+  call: SynthesizerInvocation,
+) => Promise<PaseoResult>;
+
+export interface ParallelTurnPromptInput {
+  provider: string;
+  mode?: IterationMode;
+  round: number;
+  turn: number;
+  goal: string;
+  artifact: string;
+  ownPreviousRevision?: string | null;
+  peerPreviousRevision?: string | null;
+  ownPreviousCritique?: CritiquePayload | JsonRecord | null;
+  peerPreviousCritique?: CritiquePayload | JsonRecord | null;
+}
+
+export interface SynthesisPromptInput {
+  provider: string;
+  round: number;
+  goal: string;
+  revisionA: { agent?: string | null; text?: string | null };
+  revisionB: { agent?: string | null; text?: string | null };
+  critiqueA?: CritiquePayload | JsonRecord | null;
+  critiqueB?: CritiquePayload | JsonRecord | null;
+  priorUnresolved?: string[];
+}
+
+export interface TurnPromptInput {
+  provider: string;
+  peerIndex?: number;
+  round: number;
+  turn: number;
+  goal: string;
+  artifact: string;
+  previousVerdict?: JsonRecord | null;
+  priorRecords?: LoopRecord[];
+}
+
+export type TurnPromptBuilder = (input: TurnPromptInput) => string;
+export type ParallelTurnPromptBuilder = (
+  input: ParallelTurnPromptInput,
+) => string;
+export type SynthesisPromptBuilder = (input: SynthesisPromptInput) => string;
+
+export interface PromptProfile {
+  buildTurnPrompt?: TurnPromptBuilder;
+  buildParallelTurnPrompt?: ParallelTurnPromptBuilder;
+  buildSynthesisPrompt?: SynthesisPromptBuilder;
+}
+
+interface ResolvedPromptProfile {
+  buildTurnPrompt: TurnPromptBuilder;
+  buildParallelTurnPrompt: ParallelTurnPromptBuilder;
+  buildSynthesisPrompt: SynthesisPromptBuilder;
+}
 
 interface BaseRoundContext {
   mode?: IterationMode;
@@ -207,19 +271,20 @@ interface BaseRoundContext {
   currentArtifact: string;
   invokePeer: PeerInvoker;
   invokeSynthesizer?: SynthesizerInvoker;
+  prompts?: ResolvedPromptProfile;
 }
 
 interface AlternatingTurnContext extends BaseRoundContext {
   turnIndex: number;
 }
 
-interface AlternatingTurnResult {
+export interface AlternatingTurnResult {
   verdict: PeerVerdictPayload;
   recordPayload: LoopRecord;
   nextArtifact: string;
 }
 
-interface ParallelRoundResult {
+export interface ParallelRoundResult {
   records: LoopRecord[];
   nextArtifact: string;
   verdicts: unknown[];
@@ -227,12 +292,12 @@ interface ParallelRoundResult {
   synthesisError?: SynthesisErrorResult;
 }
 
-interface SynthesisErrorResult {
+export interface SynthesisErrorResult {
   record: LoopRecord;
   error: ConsensusError;
 }
 
-type SynthesisResult =
+export type SynthesisResult =
   | { synthesis: LoopRecord; nextArtifact: string; synthesisError?: undefined }
   | {
       synthesisError: SynthesisErrorResult;
@@ -240,12 +305,12 @@ type SynthesisResult =
       nextArtifact?: undefined;
     };
 
-type EscalationTrigger =
+export type EscalationTrigger =
   | 'persistent_disagreement'
   | 'oscillation'
   | 'budget_exhausted'
   | 'near_done_drift';
-type DecideVia = 'auto' | 'host' | 'user';
+export type DecideVia = 'auto' | 'host' | 'user';
 
 interface EscalationDetection extends JsonRecord {
   trigger: EscalationTrigger;
@@ -1573,18 +1638,7 @@ export function buildParallelTurnPrompt({
   peerPreviousRevision = null,
   ownPreviousCritique = null,
   peerPreviousCritique = null,
-}: {
-  provider: string;
-  mode?: IterationMode;
-  round: number;
-  turn: number;
-  goal: string;
-  artifact: string;
-  ownPreviousRevision?: string | null;
-  peerPreviousRevision?: string | null;
-  ownPreviousCritique?: CritiquePayload | JsonRecord | null;
-  peerPreviousCritique?: CritiquePayload | JsonRecord | null;
-}): string {
+}: ParallelTurnPromptInput): string {
   const artifactBlock = String(artifact ?? '').replace(/\n*$/u, '\n');
   const isColdStart = round <= 1;
   const ownRevisionBlock = isColdStart
@@ -1670,16 +1724,7 @@ export function buildSynthesisPrompt({
   critiqueA = null,
   critiqueB = null,
   priorUnresolved = [],
-}: {
-  provider: string;
-  round: number;
-  goal: string;
-  revisionA: { agent?: string | null; text?: string | null };
-  revisionB: { agent?: string | null; text?: string | null };
-  critiqueA?: CritiquePayload | JsonRecord | null;
-  critiqueB?: CritiquePayload | JsonRecord | null;
-  priorUnresolved?: string[];
-}): string {
+}: SynthesisPromptInput): string {
   const blockFor = (revision: { text?: string | null }) =>
     String(revision?.text ?? '').replace(/\n*$/u, '\n');
   const agentA = revisionA?.agent ?? 'peer A';
@@ -1748,16 +1793,7 @@ export function buildTurnPrompt({
   artifact,
   previousVerdict = null,
   priorRecords = [],
-}: {
-  provider: string;
-  peerIndex?: number;
-  round: number;
-  turn: number;
-  goal: string;
-  artifact: string;
-  previousVerdict?: JsonRecord | null;
-  priorRecords?: LoopRecord[];
-}): string {
+}: TurnPromptInput): string {
   const artifactBlock = String(artifact ?? '').replace(/\n*$/u, '\n');
   const previousVerdictBlock = previousVerdict
     ? JSON.stringify(previousVerdict)
@@ -1794,6 +1830,17 @@ export function buildTurnPrompt({
     '(ACCEPT, REVISE, or IMPASSE) as JSON conforming to the provided schema.',
     'If REVISE, include the full revised section in proposed_artifact.',
   ].join('\n');
+}
+
+function resolvePromptProfile(
+  profile: PromptProfile | undefined = undefined,
+): ResolvedPromptProfile {
+  return {
+    buildTurnPrompt: profile?.buildTurnPrompt ?? buildTurnPrompt,
+    buildParallelTurnPrompt:
+      profile?.buildParallelTurnPrompt ?? buildParallelTurnPrompt,
+    buildSynthesisPrompt: profile?.buildSynthesisPrompt ?? buildSynthesisPrompt,
+  };
 }
 
 async function writeSectionOutput(
@@ -1952,12 +1999,13 @@ async function executeAlternatingTurn({
   records,
   currentArtifact,
   invokePeer,
+  prompts = resolvePromptProfile(),
 }: AlternatingTurnContext): Promise<AlternatingTurnResult> {
   const peerIndex = turnIndex % options.peers.length;
   const provider = options.peers[peerIndex];
   const turn = turnIndex + 1;
   const round = Math.floor(turnIndex / options.peers.length) + 1;
-  const prompt = buildTurnPrompt({
+  const prompt = prompts.buildTurnPrompt({
     provider,
     peerIndex,
     round,
@@ -2104,7 +2152,13 @@ function validatePeerVerdict(
 async function executeParallelRound(
   context: BaseRoundContext,
 ): Promise<ParallelRoundResult> {
-  const { options, records, currentArtifact, invokePeer } = context;
+  const {
+    options,
+    records,
+    currentArtifact,
+    invokePeer,
+    prompts = resolvePromptProfile(),
+  } = context;
   const mode = options.iteration;
   const peers = options.peers;
   const priorPeerTurns = peerTurnCount(records);
@@ -2116,7 +2170,7 @@ async function executeParallelRound(
   const invocations = peers.map((provider, peerIndex) => {
     const ownRecord = previous[provider];
     const peerRecord = previous[peers[peerIndex === 0 ? 1 : 0]];
-    const prompt = buildParallelTurnPrompt({
+    const prompt = prompts.buildParallelTurnPrompt({
       provider,
       mode,
       round,
@@ -2279,16 +2333,18 @@ async function executeSynthesis({
   pairRecords,
   round,
   invokeSynthesizer,
+  prompts = resolvePromptProfile(),
 }: {
   options: LoopOptions;
   records: LoopRecord[];
   pairRecords: LoopRecord[];
   round: number;
   invokeSynthesizer: SynthesizerInvoker;
+  prompts?: ResolvedPromptProfile;
 }): Promise<SynthesisResult> {
   const synthesizer = options.synthesizer ?? options.peers[0];
   const [recordA, recordB] = pairRecords;
-  const prompt = buildSynthesisPrompt({
+  const prompt = prompts.buildSynthesisPrompt({
     provider: synthesizer,
     round,
     goal: options.goal,
@@ -2375,6 +2431,7 @@ export async function executeRound(
         pairRecords: parallel.records,
         round: Number(round),
         invokeSynthesizer: context.invokeSynthesizer as SynthesizerInvoker,
+        prompts: context.prompts,
       });
       if (synthesisResult.synthesisError) {
         return { ...parallel, synthesisError: synthesisResult.synthesisError };
@@ -2615,6 +2672,7 @@ async function runParallelRounds({
   currentArtifact,
   invokePeer,
   invokeSynthesizer,
+  prompts = resolvePromptProfile(),
   budgetRefreshed = false,
 }: {
   options: LoopOptions;
@@ -2623,6 +2681,7 @@ async function runParallelRounds({
   currentArtifact: string;
   invokePeer: PeerInvoker;
   invokeSynthesizer: SynthesizerInvoker;
+  prompts?: ResolvedPromptProfile;
   budgetRefreshed?: boolean;
 }): Promise<{ status: LoopStatus; artifact: string }> {
   let artifact = currentArtifact;
@@ -2641,6 +2700,7 @@ async function runParallelRounds({
         pairRecords: pending.pairRecords,
         round: pending.round,
         invokeSynthesizer,
+        prompts,
       });
       if (synthesisResult.synthesisError) {
         const errorRecord = await writer.append({
@@ -2681,6 +2741,7 @@ async function runParallelRounds({
       records,
       currentArtifact: artifact,
       invokePeer,
+      prompts,
     });
 
     // Commit both peer records in fixed order. The pair is durable BEFORE any
@@ -2705,6 +2766,7 @@ async function runParallelRounds({
         pairRecords: committedPair,
         round: Number(round),
         invokeSynthesizer,
+        prompts,
       });
 
       if (synthesisResult.synthesisError) {
@@ -2789,6 +2851,7 @@ export async function runConsensusLoop(
         env: runOptions.env ?? process.env,
         cwd: runOptions.cwd ?? process.cwd(),
       }));
+  const prompts = resolvePromptProfile(runOptions.promptProfile);
 
   try {
     if (PARALLEL_MODES.has(options.iteration)) {
@@ -2799,6 +2862,7 @@ export async function runConsensusLoop(
         currentArtifact,
         invokePeer,
         invokeSynthesizer,
+        prompts,
         budgetRefreshed: Boolean(intervention),
       });
       return await writeTerminalArtifacts(
@@ -2821,6 +2885,7 @@ export async function runConsensusLoop(
           records,
           currentArtifact,
           invokePeer,
+          prompts,
         });
       currentArtifact = nextArtifact;
 
