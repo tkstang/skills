@@ -245,6 +245,22 @@ oat_generated: false
 
 ---
 
+### Final Verification Fix: session-observer runtime both watcher
+
+**Status:** completed
+**Commit:** `fix(session-observer): preserve pending runtime both updates`
+
+**Notes:**
+
+- Fixed the final `pnpm test` blocker by preserving records appended while
+  `runtime: both` is locking onto a selected transcript and by flushing selected
+  pending updates before `max-runtime` shutdown.
+- Verification passed:
+  `node --test tests/session-observer/watch.test.mjs` (24 tests), a 5x repeated
+  watcher-file stress loop, and `pnpm test` (204 Node tests, 339 Vitest tests).
+
+---
+
 ## Orchestration Runs
 
 _Each run from `oat-project-implement` appends an entry below with run metadata,
