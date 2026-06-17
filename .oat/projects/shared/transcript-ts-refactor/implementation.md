@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-17
-oat_current_task_id: p02-t03
+oat_current_task_id: p03-t01
 oat_generated: false
 ---
 
@@ -28,10 +28,10 @@ oat_generated: false
 | Phase   | Status      | Tasks | Completed |
 | ------- | ----------- | ----- | --------- |
 | Phase 1 | completed   | 3     | 3/3       |
-| Phase 2 | in_progress | 3     | 2/3       |
+| Phase 2 | completed   | 3     | 3/3       |
 | Phase 3 | pending     | 2     | 0/2       |
 
-**Total:** 5/8 tasks completed
+**Total:** 6/8 tasks completed
 
 ---
 
@@ -92,7 +92,7 @@ oat_generated: false
 
 ## Phase 2: Export-Session TypeScript Runtime
 
-**Status:** in_progress
+**Status:** completed
 **Started:** 2026-06-17
 
 ### Task p02-t01: Migrate the export-session sanitizer to TypeScript
@@ -143,8 +143,20 @@ oat_generated: false
 
 ### Task p02-t03: Move export-session CLI tests to Vitest
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** `test(p02-t03): migrate export transcript cli tests to vitest`
+
+**Notes:**
+
+- Renamed export-session CLI tests to
+  `tests/export-session-transcript/cli.test.ts`.
+- Ported the suite from `node:test` to Vitest while keeping behavior tests
+  spawning the generated shipped CLI entrypoint.
+- Preserved coverage for session selection, output paths, not-a-git fallback,
+  `--all`, sanitization, help output, and exit codes `0`, `1`, `2`, and `3`.
+- Verification passed:
+  `pnpm exec vitest run tests/export-session-transcript/cli.test.ts tests/export-session-transcript/sanitize.test.ts`.
+- Additional check passed: `pnpm run type-check`.
 
 ---
 
@@ -223,7 +235,7 @@ Run-scoped snapshot only. The durable record is `## Deviations from Plan / Desig
 - [x] p01-t03: Move transcript-core drift and runtime tests to Vitest
 - [x] p02-t01: Migrate the export-session sanitizer to TypeScript
 - [x] p02-t02: Migrate the export-session CLI to TypeScript
-- [ ] p02-t03: Move export-session CLI tests to Vitest
+- [x] p02-t03: Move export-session CLI tests to Vitest
 - [ ] p03-t01: Update docs and repo reference material for the new contract
 - [ ] p03-t02: Run final verification and record closeout summary
 
@@ -282,7 +294,7 @@ resolved directly in `plan.md`.
 | Phase | Tests Run | Passed | Failed | Coverage |
 | ----- | --------- | ------ | ------ | -------- |
 | 1     | `pnpm run type-check`; `pnpm run build`; `pnpm run build:check`; `node scripts/sync-transcript-core.mjs --check`; `pnpm exec vitest run tests/transcript-core/runtimes.test.ts tests/generated-output-sync.test.mjs` | yes    | no     | tasks p01-t01 through p01-t03 |
-| 2     | `pnpm run build`; `pnpm run build:check`; `pnpm exec vitest run tests/export-session-transcript/sanitize.test.ts`; `node skills/export-session-transcript/scripts/export-session-transcript.mjs --help`; `pnpm exec vitest run tests/generated-output-sync.test.mjs`; `pnpm run type-check` | yes    | no     | tasks p02-t01 through p02-t02 |
+| 2     | `pnpm run build`; `pnpm run build:check`; `pnpm exec vitest run tests/export-session-transcript/sanitize.test.ts`; `node skills/export-session-transcript/scripts/export-session-transcript.mjs --help`; `pnpm exec vitest run tests/generated-output-sync.test.mjs`; `pnpm exec vitest run tests/export-session-transcript/cli.test.ts tests/export-session-transcript/sanitize.test.ts`; `pnpm run type-check` | yes    | no     | tasks p02-t01 through p02-t03 |
 | 3     | -         | -      | -      | -        |
 
 ## Final Summary (for PR/docs)
