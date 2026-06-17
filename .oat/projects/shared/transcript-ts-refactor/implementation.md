@@ -448,7 +448,7 @@ resolved directly in `plan.md`.
 ### Review Received: final
 
 **Date:** 2026-06-17
-**Review artifact:** reviews/archived/final-review-2026-06-17.md
+**Review artifact:** reviews/archived/final-review-2026-06-17-v2.md
 
 **Findings:**
 
@@ -459,11 +459,19 @@ resolved directly in `plan.md`.
 
 **Disposition:**
 
-- Final review passed. The remaining Minor wording drift in generated repo
-  knowledge is non-blocking and recorded in the review artifact for later
-  cleanup.
+- Final review v2 passed. The remaining Minor artifact-alignment finding was
+  resolved by recording the accepted session-observer watcher fix in the
+  deviations ledger.
 
-**Next:** Continue to documentation/PR handoff.
+**New tasks added:** None. The finding was resolved directly in lifecycle
+artifacts.
+
+**Finding disposition map:**
+
+- m1 -> resolved in artifact: recorded the final-verification watcher fix as an
+  accepted deviation from the original quick-mode out-of-scope framing.
+
+**Next:** PR is open; continue human review.
 
 ---
 
@@ -471,7 +479,7 @@ resolved directly in `plan.md`.
 
 | Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
 | ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
-| -             | -               | -                    | -                 | -      | -               | -         |
+| final review m1 | discovery.md out-of-scope framing | Session-observer implementation/test work was out of scope except changes required to keep the generated transcript-core copy green. | `ea2495a` fixed `runtime: both` watcher behavior in `skills/session-observer/scripts/lib/watch.mjs` and added regression coverage in `tests/session-observer/watch.test.mjs`. | The full final verification gate exposed a real pending-update race; the bounded watcher fix was required to keep `pnpm test` green and preserve the session-observer consumer of generated transcript-core output. | implementation | Resolved in this ledger; no code change needed. |
 
 ## Test Results
 
