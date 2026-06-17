@@ -1,5 +1,5 @@
 ---
-oat_current_task: null
+oat_current_task: p01-t01
 oat_last_commit: null
 oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
@@ -11,13 +11,15 @@ oat_children: [] # optional coordination-parent child slugs
 oat_hill_checkpoints: [] # Configured: which phases require human-in-the-loop lifecycle approval
 oat_hill_completed: [] # Progress: which HiLL checkpoints have been completed
 oat_parallel_execution: false
-oat_phase: plan # Current phase: discovery | spec | design | plan | implement | decomposition
-oat_phase_status: complete # Status: in_progress | complete | pr_open
+oat_phase: implement # Current phase: discovery | spec | design | plan | implement | decomposition
+oat_phase_status: in_progress # Status: in_progress | complete | pr_open
 # oat_orchestration_retry_limit: 2  # optional; override fix-loop retry limit (range 0-5)
-# oat_dispatch_ceiling: # optional project override for provider-aware dispatch ceilings
-#   provider: codex # codex | claude
-#   value: high # codex: low|medium|high|xhigh; claude: haiku|sonnet|opus
-#   source: project-state
+oat_dispatch_ceiling:
+  preset: maximum
+  providers:
+    codex: xhigh
+    claude: opus
+  source: project-state
 oat_workflow_mode: quick # spec-driven | quick | import
 oat_workflow_origin: native # native | imported
 oat_docs_updated: null # null | skipped | complete — documentation sync status
@@ -25,20 +27,19 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-06-15T16:35:35.748Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-06-17T01:36:46Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-06-17T22:31:25Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
 # Project State: consensus-evaluate
 
-**Status:** Plan refreshed for PR #14
+**Status:** Implementation in progress
 **Started:** 2026-06-15
 **Last Updated:** 2026-06-17
 
 ## Current Phase
 
-Plan - Updated after PR #14 shipped the consensus/refine TypeScript wrapper convention. Ready
-for implementation once the refreshed plan is accepted.
+Implementation - Preflight configured for subagent execution. Current task: `p01-t01`.
 
 ## Artifacts
 
@@ -46,7 +47,7 @@ for implementation once the refreshed plan is accepted.
 - **Spec:** N/A (quick mode)
 - **Design:** `design.md` (complete; refreshed for PR #14)
 - **Plan:** `plan.md` (complete; refreshed for PR #14)
-- **Implementation:** `implementation.md` (scaffolded template — not started)
+- **Implementation:** `implementation.md` (in progress)
 
 ## Progress
 
@@ -54,7 +55,7 @@ for implementation once the refreshed plan is accepted.
 - ✓ Execution artifacts scaffolded
 - ✓ Design complete
 - ✓ Plan refreshed after PR #14
-- ⧗ Awaiting implementation
+- ⧗ Implementation in progress (`p01-t01`)
 
 ## Blockers
 
@@ -62,4 +63,4 @@ None
 
 ## Next Milestone
 
-Begin implementation with `oat-project-implement` after plan review/acceptance
+Execute Phase 1 with subagent implementer/reviewer dispatch.
