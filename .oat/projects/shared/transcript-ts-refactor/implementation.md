@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-17
-oat_current_task_id: p03-t01
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -29,9 +29,9 @@ oat_generated: false
 | ------- | ----------- | ----- | --------- |
 | Phase 1 | completed   | 3     | 3/3       |
 | Phase 2 | completed   | 3     | 3/3       |
-| Phase 3 | pending     | 2     | 0/2       |
+| Phase 3 | completed   | 2     | 2/2       |
 
-**Total:** 6/8 tasks completed
+**Total:** 8/8 tasks completed
 
 ---
 
@@ -202,20 +202,46 @@ oat_generated: false
 
 ## Phase 3: Documentation, Reference Cleanup, and Verification
 
-**Status:** pending
-**Started:** -
+**Status:** completed
+**Started:** 2026-06-17
 
 ### Task p03-t01: Update docs and repo reference material for the new contract
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** `cc34ff6 docs(p03-t01): document transcript generated runtime source`
+
+**Notes:**
+
+- Updated README, root AGENTS guidance, the shared transcript-core compatibility
+  README, export transcript format reference, OAT reference docs, and selected
+  repo knowledge snapshots to describe `src/transcript/` as canonical source and
+  generated `.mjs` output under `skills/`.
+- Marked DR-014 superseded while preserving its historical decision text, and
+  extended DR-020/DR-021 to cover transcript generated outputs and export CLI
+  import rewrites.
+- Added docs/layout assertions that current documentation points to
+  `src/transcript/core/runtimes.ts` and that
+  `shared/transcript-core/runtimes.mjs` does not return as canonical source.
+- Verification passed:
+  `node --test tests/docs-presence.test.mjs tests/repo-layout.test.mjs` and
+  `pnpm run validate`.
 
 ---
 
 ### Task p03-t02: Run final verification and record closeout summary
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** `chore(p03-t02): record transcript ts verification summary`
+
+**Notes:**
+
+- Created project-local and repo-reference closeout summaries for the transcript
+  TypeScript/Vitest/generated-runtime migration.
+- Ran the full required verification command set.
+- Verification passed: `pnpm run build`, `pnpm run type-check`,
+  `pnpm run build:check`, `pnpm run test`, `pnpm run validate`, and
+  `pnpm run smoke`.
+- `pnpm run test` passed with 202 Node tests and 339 Vitest tests.
 
 ---
 
@@ -312,12 +338,19 @@ Run-scoped snapshot only. The durable record is `## Deviations from Plan / Desig
 - [x] p02-t01: Migrate the export-session sanitizer to TypeScript
 - [x] p02-t02: Migrate the export-session CLI to TypeScript
 - [x] p02-t03: Move export-session CLI tests to Vitest
-- [ ] p03-t01: Update docs and repo reference material for the new contract
-- [ ] p03-t02: Run final verification and record closeout summary
+- [x] p03-t01: Update docs and repo reference material for the new contract
+- [x] p03-t02: Run final verification and record closeout summary
 
 **What changed (high level):**
 
-- Quick-start plan prepared only. Implementation has not started.
+- Moved transcript-core and export-session-transcript canonical source to
+  TypeScript under `src/transcript/`.
+- Generated committed `.mjs` skill runtime output through
+  `scripts/build-generated.mjs`, with `sync:transcript-core` retained as a
+  compatibility wrapper.
+- Migrated in-scope transcript-core and export-session tests to Vitest
+  TypeScript coverage.
+- Updated docs/reference material and recorded closeout summaries.
 
 **Decisions:**
 
@@ -371,11 +404,28 @@ resolved directly in `plan.md`.
 | ----- | --------- | ------ | ------ | -------- |
 | 1     | `pnpm run type-check`; `pnpm run build`; `pnpm run build:check`; `node scripts/sync-transcript-core.mjs --check`; `pnpm exec vitest run tests/transcript-core/runtimes.test.ts tests/generated-output-sync.test.mjs` | yes    | no     | tasks p01-t01 through p01-t03 |
 | 2     | `pnpm run build`; `pnpm run build:check`; `pnpm exec vitest run tests/export-session-transcript/sanitize.test.ts`; `node skills/export-session-transcript/scripts/export-session-transcript.mjs --help`; `pnpm exec vitest run tests/generated-output-sync.test.mjs`; `pnpm exec vitest run tests/export-session-transcript/cli.test.ts tests/export-session-transcript/sanitize.test.ts`; `pnpm run type-check` | yes    | no     | tasks p02-t01 through p02-t03 |
-| 3     | -         | -      | -      | -        |
+| 3     | `node --test tests/docs-presence.test.mjs tests/repo-layout.test.mjs`; `pnpm run validate`; `pnpm run build`; `pnpm run type-check`; `pnpm run build:check`; `pnpm run test`; `pnpm run smoke` | yes    | no     | docs/reference cleanup and full project verification |
 
 ## Final Summary (for PR/docs)
 
-To be filled after implementation.
+This project completed the transcript tooling slice of the TypeScript/Vitest
+generated-runtime migration. Transcript-core now has canonical TypeScript source
+at `src/transcript/core/runtimes.ts`, and export-session-transcript now has
+canonical TypeScript source at
+`src/transcript/export-session/export-session-transcript.ts` and
+`src/transcript/export-session/sanitize.ts`.
+
+Committed generated `.mjs` output remains at the existing skill runtime paths:
+session-observer and export-session transcript-core copies under
+`scripts/lib/runtimes.mjs`, plus the export CLI and sanitizer under
+`skills/export-session-transcript/scripts/`. `scripts/build-generated.mjs` owns
+the mappings, import rewrites keep shipped export CLI imports local, and
+`sync:transcript-core` now delegates as a compatibility wrapper.
+
+The transcript-core, export sanitizer, and export CLI tests moved to Vitest
+TypeScript coverage. Generated-output drift coverage now includes all transcript
+outputs. Documentation, AGENTS guidance, decision records, backlog/current-state
+references, and closeout summaries now describe the new source/output contract.
 
 ## References
 
