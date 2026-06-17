@@ -10,8 +10,7 @@
  * naming), end-to-end sanitization, and exit codes 0/1/2/3.
  */
 
-import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
+import { spawnSync, type SpawnSyncReturns } from 'node:child_process';
 import {
   mkdtemp,
   rm,
@@ -22,8 +21,9 @@ import {
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
-import { test, describe, before, after } from 'node:test';
 import { fileURLToPath } from 'node:url';
+
+import { afterAll, assert, beforeAll, describe, test } from 'vitest';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -38,7 +38,10 @@ const CWD = '/export-test/my-project';
 const CLAUDE_SLUG = '-export-test-my-project';
 const CURSOR_SLUG = 'export-test-my-project';
 
-function spawnCli(args, env = {}) {
+function spawnCli(
+  args: string[],
+  env: NodeJS.ProcessEnv = {},
+): SpawnSyncReturns<string> {
   return spawnSync('node', [CLI_PATH, ...args], {
     encoding: 'utf8',
     timeout: 20000,
@@ -47,7 +50,7 @@ function spawnCli(args, env = {}) {
 }
 
 // A Claude-code transcript with the full hidden-payload set + a marker line.
-function claudeTranscript(marker, sessionId = 'cc-001') {
+function claudeTranscript(marker: string, sessionId = 'cc-001'): string {
   const recs = [
     { type: 'summary', sessionId, summary: 'start' },
     {
@@ -128,7 +131,11 @@ function claudeTranscript(marker, sessionId = 'cc-001') {
   return recs.map((r) => JSON.stringify(r)).join('\n') + '\n';
 }
 
-function codexTranscript(marker, sessionId = 'codex-001', cwd = CWD) {
+function codexTranscript(
+  marker: string,
+  sessionId = 'codex-001',
+  cwd = CWD,
+): string {
   const recs = [
     {
       type: 'session_started',
@@ -187,7 +194,10 @@ function codexTranscript(marker, sessionId = 'codex-001', cwd = CWD) {
 }
 
 // A Codex transcript whose session_started record omits cwd → recordedCwd null.
-function codexTranscriptNoCwd(marker, sessionId = 'codex-nocwd') {
+function codexTranscriptNoCwd(
+  marker: string,
+  sessionId = 'codex-nocwd',
+): string {
   const recs = [
     { type: 'session_started', sessionId, timestamp: '2026-06-05T10:00:00Z' },
     {
@@ -217,13 +227,17 @@ function codexTranscriptNoCwd(marker, sessionId = 'codex-nocwd') {
   return recs.map((r) => JSON.stringify(r)).join('\n') + '\n';
 }
 
-async function setupHome() {
+async function setupHome(): Promise<string> {
   const home = await mkdtemp(join(tmpdir(), 'export-cli-'));
   await mkdir(join(home, 'Downloads'), { recursive: true });
   return home;
 }
 
-async function writeClaude(home, content, sessionId = 'cc-001') {
+async function writeClaude(
+  home: string,
+  content: string,
+  sessionId = 'cc-001',
+): Promise<string> {
   const dir = join(home, '.claude', 'projects', CLAUDE_SLUG);
   await mkdir(dir, { recursive: true });
   const p = join(dir, `${sessionId}.jsonl`);
@@ -232,11 +246,11 @@ async function writeClaude(home, content, sessionId = 'cc-001') {
 }
 
 async function writeCodex(
-  home,
-  content,
+  home: string,
+  content: string,
   sessionId = 'codex-001',
-  date = ['2026', '06', '05'],
-) {
+  date: [string, string, string] = ['2026', '06', '05'],
+): Promise<string> {
   const dir = join(home, '.codex', 'sessions', ...date);
   await mkdir(dir, { recursive: true });
   const p = join(dir, `session-${sessionId}.jsonl`);
@@ -245,11 +259,11 @@ async function writeCodex(
 }
 
 describe('export CLI — session selection', () => {
-  let home;
-  before(async () => {
+  let home = '';
+  beforeAll(async () => {
     home = await setupHome();
   });
-  after(async () => {
+  afterAll(async () => {
     await rm(home, { recursive: true, force: true });
   });
 

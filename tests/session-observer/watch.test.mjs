@@ -12,6 +12,7 @@ import {
   readFile,
   writeFile,
   appendFile,
+  stat as fsStat,
   symlink,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -546,6 +547,120 @@ describe('runWatchLoop', () => {
       assert.equal(event.sessionId, sessionId);
       assert.equal(event.newRecords, 1);
       assert.equal(event.digest.entries[0].text, 'both runtime update payload');
+    });
+  });
+
+  test('runtime both flushes selected transcript update at max runtime', async () => {
+    await withTempSessionHome(async (home) => {
+      const cwd = '/test/watch-runtime-both-final-flush';
+      const sessionId = 'watch-runtime-both-final-flush';
+      const transcriptPath = await writeClaudeTranscript(home, cwd, sessionId, [
+        { content: 'both final flush baseline message' },
+      ]);
+      const { runWatchLoop } = await importWatch();
+      const stdout = [];
+      let nowMs = Date.UTC(2026, 5, 3, 12, 0, 0);
+      let sleepCount = 0;
+
+      const result = await runWatchLoop(
+        {
+          runtime: 'both',
+          cwd,
+          pollSec: 0.03,
+          debounceSec: 5,
+          maxRuntimeMin: 0.0015,
+          json: true,
+        },
+        {
+          writeStdout: (chunk) => stdout.push(chunk),
+          now: () => nowMs,
+          sleep: async (ms) => {
+            nowMs += ms;
+            sleepCount++;
+            if (sleepCount === 3) {
+              await appendClaudeMessage(
+                transcriptPath,
+                sessionId,
+                'both final flush update',
+              );
+            }
+          },
+        },
+      );
+
+      assert.equal(result.reason, 'max-runtime');
+      assert.equal(result.eventCount, 1);
+
+      const lines = stdout
+        .join('')
+        .trim()
+        .split('\n')
+        .filter(Boolean)
+        .map((line) => JSON.parse(line));
+      const event = lines.find((line) => line.type === 'delta');
+      assert.ok(event, 'max runtime should flush the selected pending delta');
+      assert.equal(event.runtime, 'claude-code');
+      assert.equal(event.sessionId, sessionId);
+      assert.equal(event.digest.entries[0].text, 'both final flush update');
+    });
+  });
+
+  test('runtime both tracks records appended during baseline target lock', async () => {
+    await withTempSessionHome(async (home) => {
+      const cwd = '/test/watch-runtime-both-baseline-race';
+      const sessionId = 'watch-runtime-both-baseline-race';
+      const transcriptPath = await writeClaudeTranscript(home, cwd, sessionId, [
+        { content: 'both baseline race message' },
+      ]);
+      const { runWatchLoop } = await importWatch();
+      const stdout = [];
+      let nowMs = Date.UTC(2026, 5, 3, 12, 0, 0);
+      let appendedDuringSignature = false;
+
+      const result = await runWatchLoop(
+        {
+          runtime: 'both',
+          cwd,
+          pollSec: 0.03,
+          debounceSec: 0.03,
+          maxRuntimeMin: 0.0015,
+          json: true,
+        },
+        {
+          writeStdout: (chunk) => stdout.push(chunk),
+          now: () => nowMs,
+          sleep: async (ms) => {
+            nowMs += ms;
+          },
+          stat: async (path) => {
+            if (!appendedDuringSignature && path === transcriptPath) {
+              appendedDuringSignature = true;
+              await appendClaudeMessage(
+                transcriptPath,
+                sessionId,
+                'both baseline race update',
+              );
+            }
+            return fsStat(path);
+          },
+        },
+      );
+
+      assert.equal(appendedDuringSignature, true);
+      assert.equal(result.reason, 'max-runtime');
+      assert.equal(result.eventCount, 1);
+
+      const lines = stdout
+        .join('')
+        .trim()
+        .split('\n')
+        .filter(Boolean)
+        .map((line) => JSON.parse(line));
+      const event = lines.find((line) => line.type === 'delta');
+      assert.ok(event, 'baseline lock race should emit the appended delta');
+      assert.equal(event.runtime, 'claude-code');
+      assert.equal(event.sessionId, sessionId);
+      assert.equal(event.digest.entries[0].text, 'both baseline race update');
     });
   });
 

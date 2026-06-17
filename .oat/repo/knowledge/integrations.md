@@ -144,8 +144,8 @@ oat_warning: "GENERATED FILE - Do not edit manually. Regenerate with oat-repo-kn
 - Claude Code transcript store format (JSONL per session)
 - Codex transcript store format (JSONL per session)
 - Cursor Agent transcript store format (JSONL per session)
-- Canonical knowledge: `shared/transcript-core/runtimes.mjs` (single source of truth)
-- Synced copies: `skills/session-observer/scripts/lib/runtimes.mjs`, `skills/export-session-transcript/scripts/lib/runtimes.mjs`
+- Canonical knowledge: `src/transcript/core/runtimes.ts` (single source of truth)
+- Generated copies: `skills/session-observer/scripts/lib/runtimes.mjs`, `skills/export-session-transcript/scripts/lib/runtimes.mjs`
 - (See `skills/session-observer/references/transcript-formats.md` and `skills/export-session-transcript/references/transcript-formats.md`)
 
 ---

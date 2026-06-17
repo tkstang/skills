@@ -58,10 +58,38 @@ test('repository exposes standalone and consensus plugin layout', async () => {
     path.posix.join('plugins', 'consensus', '.codex-plugin'),
     path.posix.join('src', 'consensus', 'core'),
     path.posix.join('src', 'consensus', 'refine'),
+    path.posix.join('src', 'transcript', 'core'),
+    path.posix.join('src', 'transcript', 'export-session'),
     'scripts',
   ];
 
   await Promise.all(requiredDirectories.map(assertDirectory));
+});
+
+test('transcript runtime source lives under src and generated output stays in skills', async () => {
+  assert.equal(
+    await pathExists('shared/transcript-core/runtimes.mjs'),
+    false,
+    'shared transcript-core runtime should not remain a canonical source file',
+  );
+
+  assert.equal(
+    await pathExists('src/transcript/core/runtimes.ts'),
+    true,
+    'transcript-core canonical source should live under src/transcript/core',
+  );
+  assert.equal(
+    await pathExists(
+      'src/transcript/export-session/export-session-transcript.ts',
+    ),
+    true,
+    'export CLI canonical source should live under src/transcript/export-session',
+  );
+  assert.equal(
+    await pathExists('src/transcript/export-session/sanitize.ts'),
+    true,
+    'export sanitizer canonical source should live under src/transcript/export-session',
+  );
 });
 
 test('consensus distribution tree does not include canonical TypeScript source', async () => {

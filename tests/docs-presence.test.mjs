@@ -52,15 +52,36 @@ test('documentation records the generated TypeScript runtime contract', async ()
   const consensusAgents = await read('plugins/consensus/AGENTS.md');
   const testAgents = await read('tests/AGENTS.md');
   const decisions = await read('.oat/repo/reference/decision-record.md');
+  const sharedTranscriptCore = await read('shared/transcript-core/README.md');
+  const exportTranscriptFormats = await read(
+    'skills/export-session-transcript/references/transcript-formats.md',
+  );
 
   assert.match(readme, /^### Generated runtime outputs$/m);
+  assert.match(readme, /src\/transcript\/core\/runtimes\.ts/);
+  assert.match(readme, /pnpm run sync:transcript-core.*compatibility wrapper/);
   assert.match(readme, /scripts\/build-generated\.mjs --check/);
   assert.match(rootAgents, /canonical TypeScript source/);
+  assert.match(
+    rootAgents,
+    /pnpm run sync:transcript-core.*compatibility wrapper/,
+  );
   assert.match(consensusAgents, /src\/consensus\//);
   assert.match(consensusAgents, /plugins\/consensus\/skills\/\*\/scripts\//);
   assert.match(testAgents, /tests\/generated-output-sync\.test\.mjs/);
+  assert.match(sharedTranscriptCore, /src\/transcript\/core\/runtimes\.ts/);
+  assert.doesNotMatch(
+    sharedTranscriptCore,
+    /shared\/transcript-core\/runtimes\.mjs/,
+  );
+  assert.match(exportTranscriptFormats, /src\/transcript\/core\/runtimes\.ts/);
+  assert.doesNotMatch(
+    exportTranscriptFormats,
+    /shared\/transcript-core\/runtimes\.mjs/,
+  );
   assert.match(
     decisions,
     /Canonical TypeScript sources build committed generated runtime outputs/,
   );
+  assert.match(decisions, /DR-014[\s\S]+Superseded in implementation/);
 });

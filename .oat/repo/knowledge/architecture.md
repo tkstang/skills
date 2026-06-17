@@ -18,7 +18,7 @@ oat_warning: "GENERATED FILE - Do not edit manually. Regenerate with oat-repo-kn
 
 - CLI-driven Node.js skills (no third-party runtime dependencies)
 - Three distinct skills: consensus refinement, session observation, and transcript export
-- Canonical transcript-core module synced to consuming skills to maintain single source of truth
+- Canonical transcript-core TypeScript source generated to consuming skills to maintain single source of truth
 - Skills packaged as plugins (consensus) or standalone executables (session-observer, export-session-transcript)
 - JSONL-based coordination protocol between wrapper and host for parallel orchestration
 - Per-runtime transcript adapters (Claude Code, Codex, Cursor) shared across skills
@@ -44,7 +44,7 @@ oat_warning: "GENERATED FILE - Do not edit manually. Regenerate with oat-repo-kn
 **Adapter Layer:**
 
 - Purpose: Normalize per-provider transcript stores (store locations, record parsing, filtering)
-- Location: `shared/transcript-core/runtimes.mjs` (canonical), `skills/*/scripts/lib/runtimes.mjs` (synced copies)
+- Location: `src/transcript/core/runtimes.ts` (canonical), `skills/*/scripts/lib/runtimes.mjs` (generated copies)
 - Contains: Path discovery, metadata extraction, JSONL record normalization
 - Depends on: Node fs/path/os, provider-specific knowledge
 - Used by: locate.mjs, observe.mjs, export-session-transcript.mjs, sanitize.mjs
@@ -52,7 +52,7 @@ oat_warning: "GENERATED FILE - Do not edit manually. Regenerate with oat-repo-kn
 **Renderer and Formatter Layer:**
 
 - Purpose: Transform normalized records into user-visible output (Markdown digest, sanitized transcript)
-- Location: `skills/session-observer/scripts/lib/digest.mjs`, `skills/export-session-transcript/scripts/lib/sanitize.mjs`
+- Location: `skills/session-observer/scripts/lib/digest.mjs`, `src/transcript/export-session/sanitize.ts` (canonical), `skills/export-session-transcript/scripts/lib/sanitize.mjs` (generated)
 - Contains: Markdown generation, content filtering, tool/result truncation
 - Depends on: Normalized entries, output formatting logic
 - Used by: observe.mjs, export CLI
@@ -163,11 +163,11 @@ oat_warning: "GENERATED FILE - Do not edit manually. Regenerate with oat-repo-kn
 - Examples: `state.mjs` session map: `{ runtime, sessionId, recordedCwd, lastRecordIndex, lastTotalRecords, lastReadAt }`
 - Pattern: Load on read, advance only on successful digest emit, persist to JSON
 
-**Transcript-Core Module (Synced):**
+**Transcript-Core Module (Generated):**
 
 - Purpose: Single canonical source for per-runtime adapter logic, distributed as committed copies to consumers
-- Examples: `shared/transcript-core/runtimes.mjs` (canonical), `skills/*/scripts/lib/runtimes.mjs` (consumers)
-- Pattern: Banner-stamped generated copies via `scripts/sync-transcript-core.mjs`, verified in test suite (`tests/transcript-core/sync.test.mjs`)
+- Examples: `src/transcript/core/runtimes.ts` (canonical), `skills/*/scripts/lib/runtimes.mjs` (consumers)
+- Pattern: Banner-stamped generated copies via `scripts/build-generated.mjs`; `scripts/sync-transcript-core.mjs` delegates as a compatibility wrapper; drift verified by `tests/generated-output-sync.test.mjs`
 
 ## Entry Points
 

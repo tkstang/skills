@@ -26,12 +26,12 @@ oat_warning: 'GENERATED FILE - Do not edit manually. Regenerate with oat-repo-kn
 - **Impact:** As Paseo versions advance past 0.9.0, users will see warnings even if compatibility is maintained. No automatic compatibility reset mechanism.
 - **Fix approach:** Establish a process for testing against new Paseo versions and updating `MAX_TESTED_PASEO_VERSION` after verification. Consider a telemetry-optional feedback mechanism for users on newer versions.
 
-### Transcript-Core Vendoring Drift Risk
+### Generated Runtime Drift Risk
 
-- **Issue:** `shared/transcript-core/runtimes.mjs` is the single source of truth. Consumer skills (`session-observer`, `export-session-transcript`) carry committed, generated copies with a banner stamp. A drift guard test (`tests/transcript-core/sync.test.mjs`) enforces consistency, but manual edits to generated copies would break immediately.
-- **Files:** `shared/transcript-core/runtimes.mjs` (canonical), `skills/session-observer/scripts/lib/runtimes.mjs` (generated), `skills/export-session-transcript/scripts/lib/runtimes.mjs` (generated), `tests/transcript-core/sync.test.mjs` (drift guard)
-- **Impact:** If a developer edits a generated copy instead of the canonical file, the test suite will catch it, but this creates a local blocker and requires re-running `npm run sync:transcript-core`. Future developer onboarding must explain this constraint clearly.
-- **Fix approach:** Already mitigated by drift guard test and AGENTS.md documentation. Ensure README includes explicit warning about never editing generated copies.
+- **Issue:** Canonical TypeScript source under `src/` generates committed `.mjs` runtime output under `plugins/` and `skills/`. Consumer-facing files carry a banner stamp and must not be hand-edited. `tests/generated-output-sync.test.mjs`, `pnpm run build:check`, hook/CI generated-output filters, and config ignore lists enforce consistency, but manual edits to generated copies still create local drift.
+- **Files:** `src/transcript/core/runtimes.ts`, `src/transcript/export-session/export-session-transcript.ts`, `src/transcript/export-session/sanitize.ts`, generated transcript outputs under `skills/*/scripts/`, generated consensus outputs under `plugins/consensus/skills/refine/scripts/`, `scripts/build-generated.mjs`, `tests/generated-output-sync.test.mjs`
+- **Impact:** If a developer edits generated output instead of canonical TypeScript source, the test suite and build-check will catch it, but this creates a local blocker and requires re-running `pnpm run build`.
+- **Fix approach:** Already mitigated by generated-output drift guards and AGENTS.md documentation. Keep README and repo reference docs explicit about editing canonical TypeScript source only.
 
 ## Known Limitations (Design-Phase, Not Bugs)
 
@@ -157,7 +157,7 @@ oat_warning: 'GENERATED FILE - Do not edit manually. Regenerate with oat-repo-kn
 
 ### Overall Coverage Status
 
-- **Test suite:** 382 passing tests across 34 suites (as of 2026-06-12), covering consensus, session-observer, export-session-transcript, and transcript-core modules.
+- **Test suite:** Node plus Vitest suites cover consensus, session-observer, export-session-transcript, transcript-core modules, generated-output drift, manifests, validation, and smoke behavior.
 - **Test execution:** All tests pass via `npm test`. Validation pass via `npm run validate`. Smoke tests pass via `npm run smoke`.
 - **Coverage areas:** Consensus refine logic (resume, verdict, parallel), session observer (watch state, digest, locate), transcript parsing (Claude Code, Codex, Cursor), manifest validation, release versioning, error handling.
 - **Risk level:** Low. Comprehensive test suite covers main paths and error conditions.

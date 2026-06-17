@@ -520,16 +520,54 @@ async function establishBaseline(runtime, args, targets, deps, eventState) {
   return target;
 }
 
-async function establishBaselines(args, targets, deps, eventState) {
+async function enqueueRecordsAppendedDuringBaseline(target, pending, deps) {
+  let recordCount;
+  try {
+    recordCount = (await readRecords(target.transcriptPath)).length;
+  } catch {
+    return;
+  }
+
+  const baselineRecordIndex = Number(target.baselineRecordIndex ?? 0);
+  if (recordCount <= baselineRecordIndex) return;
+
+  target.recordCount = recordCount;
+  const nowMs = deps.now();
+  pending.set(target.key, {
+    key: target.key,
+    runtime: target.runtime,
+    sessionId: target.sessionId,
+    firstChangedAt: nowMs,
+    lastChangedAt: nowMs,
+  });
+}
+
+async function establishBaselines(args, targets, pending, deps, eventState) {
   if (args.runtime === 'auto') {
-    await establishBaseline('auto', args, targets, deps, eventState);
+    const target = await establishBaseline(
+      'auto',
+      args,
+      targets,
+      deps,
+      eventState,
+    );
+    if (target)
+      await enqueueRecordsAppendedDuringBaseline(target, pending, deps);
     return;
   }
 
   for (const runtime of watchRuntimes(args.runtime)) {
     if (args.runtime === 'both' && hasTargetForRuntime(targets, runtime))
       continue;
-    await establishBaseline(runtime, args, targets, deps, eventState);
+    const target = await establishBaseline(
+      runtime,
+      args,
+      targets,
+      deps,
+      eventState,
+    );
+    if (target)
+      await enqueueRecordsAppendedDuringBaseline(target, pending, deps);
   }
 }
 
@@ -643,6 +681,18 @@ async function emitReadyPending(
     await emitPending(entry, args, deps, eventState);
     pending.delete(entry.key);
   }
+}
+
+async function flushPendingBeforeMaxRuntime(
+  args,
+  targets,
+  pending,
+  deps,
+  eventState,
+) {
+  if (eventState.paused || targets.size === 0) return;
+  await pollTargets(targets, pending, deps.now(), deps.stat);
+  await emitReadyPending(args, pending, deps, eventState, { force: true });
 }
 
 async function applyControlDirective(args, pending, deps, eventState) {
@@ -760,6 +810,13 @@ export async function runWatchLoop(args, deps = {}) {
       const nowMs = resolvedDeps.now();
       if (deadlineMs !== null && nowMs >= deadlineMs) {
         reason = 'max-runtime';
+        await flushPendingBeforeMaxRuntime(
+          normalizedArgs,
+          targets,
+          pending,
+          resolvedDeps,
+          eventState,
+        );
         break;
       }
 
@@ -767,6 +824,7 @@ export async function runWatchLoop(args, deps = {}) {
         await establishBaselines(
           normalizedArgs,
           targets,
+          pending,
           resolvedDeps,
           eventState,
         );
@@ -809,6 +867,13 @@ export async function runWatchLoop(args, deps = {}) {
       const afterTickMs = resolvedDeps.now();
       if (deadlineMs !== null && afterTickMs >= deadlineMs) {
         reason = 'max-runtime';
+        await flushPendingBeforeMaxRuntime(
+          normalizedArgs,
+          targets,
+          pending,
+          resolvedDeps,
+          eventState,
+        );
         break;
       }
       const delayMs =

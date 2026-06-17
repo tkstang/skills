@@ -1,16 +1,27 @@
 /**
- * runtimes.test.mjs — Unit tests for scripts/lib/runtimes.mjs
+ * runtimes.test.ts — Unit tests for the canonical transcript runtime source.
  *
  * Tests are organized around the five public exports:
  *   discoverPaths, encodeCwd, extractMeta, readRecords, normalizeEntries
  */
 
-import assert from 'node:assert/strict';
-import { mkdtemp, rm, writeFile, mkdir } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join, dirname } from 'node:path';
-import { describe, it, before, after } from 'node:test';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+
+import type { JsonObject, Runtime } from '../../src/transcript/core/runtimes.js';
+
+import {
+  discoverPaths,
+  encodeCwd,
+  encodeCwdVariants,
+  extractMeta,
+  normalizeEntries,
+  readRecords,
+} from '../../src/transcript/core/runtimes.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 // Fixtures remain in tests/session-observer/fixtures (shared with the
@@ -19,21 +30,23 @@ const FIXTURES_CC = join(__dirname, '../session-observer/fixtures/claude-code');
 const FIXTURES_CX = join(__dirname, '../session-observer/fixtures/codex');
 const FIXTURES_CURSOR = join(__dirname, '../session-observer/fixtures/cursor');
 
-// Import the canonical module under test (single source of truth).
-const {
-  discoverPaths,
-  encodeCwd,
-  extractMeta,
-  readRecords,
-  normalizeEntries,
-  encodeCwdVariants,
-} = await import('../../shared/transcript-core/runtimes.mjs');
+function expectEqual<T>(actual: T, expected: T, message?: string) {
+  expect(actual, message).toBe(expected);
+}
+
+function expectDeepEqual(actual: unknown, expected: unknown, message?: string) {
+  expect(actual, message).toEqual(expected);
+}
+
+function expectOk(actual: unknown, message?: string): asserts actual {
+  expect(actual, message).toBeTruthy();
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-function fixturePath(runtime, name) {
+function fixturePath(runtime: Runtime, name: string): string {
   if (runtime === 'claude-code') return join(FIXTURES_CC, name);
   if (runtime === 'codex') return join(FIXTURES_CX, name);
   if (runtime === 'cursor') return join(FIXTURES_CURSOR, name);
@@ -50,36 +63,36 @@ describe('readRecords', () => {
       fixturePath('claude-code', 'typical.jsonl'),
     );
     // 13 lines in the fixture
-    assert.equal(records.length, 13);
-    assert.equal(typeof records[0], 'object');
-    assert.equal(records[0].sessionId, 'cc-session-001');
+    expectEqual(records.length, 13);
+    expectEqual(typeof records[0], 'object');
+    expectEqual(records[0].sessionId, 'cc-session-001');
   });
 
   it('typical.jsonl — returns expected count and parsed objects (codex)', async () => {
     const records = await readRecords(fixturePath('codex', 'typical.jsonl'));
     // 13 lines in the fixture
-    assert.equal(records.length, 13);
-    assert.equal(typeof records[0], 'object');
+    expectEqual(records.length, 13);
+    expectEqual(typeof records[0], 'object');
   });
 
   it('typical.jsonl — returns expected count and parsed objects (cursor)', async () => {
     const records = await readRecords(fixturePath('cursor', 'typical.jsonl'));
-    assert.equal(records.length, 3);
-    assert.equal(typeof records[0], 'object');
-    assert.equal(records[0].role, 'user');
+    expectEqual(records.length, 3);
+    expectEqual(typeof records[0], 'object');
+    expectEqual(records[0].role, 'user');
   });
 
   it('malformed.jsonl — returns valid records, warns, does not throw (claude-code)', async () => {
-    const warnings = [];
+    const warnings: string[] = [];
     const origWarn = console.warn;
-    console.warn = (...args) => warnings.push(args.join(' '));
+    console.warn = (...args: unknown[]) => warnings.push(args.join(' '));
     try {
       const records = await readRecords(
         fixturePath('claude-code', 'malformed.jsonl'),
       );
       // 5 valid JSON lines + 1 non-JSON → 5 records returned
-      assert.equal(records.length, 5);
-      assert.ok(
+      expectEqual(records.length, 5);
+      expectOk(
         warnings.length > 0,
         'expected a console.warn for the bad line',
       );
@@ -89,15 +102,15 @@ describe('readRecords', () => {
   });
 
   it('malformed.jsonl — returns valid records, warns, does not throw (codex)', async () => {
-    const warnings = [];
+    const warnings: string[] = [];
     const origWarn = console.warn;
-    console.warn = (...args) => warnings.push(args.join(' '));
+    console.warn = (...args: unknown[]) => warnings.push(args.join(' '));
     try {
       const records = await readRecords(
         fixturePath('codex', 'malformed.jsonl'),
       );
-      assert.equal(records.length, 5);
-      assert.ok(
+      expectEqual(records.length, 5);
+      expectOk(
         warnings.length > 0,
         'expected a console.warn for the bad line',
       );
@@ -107,15 +120,15 @@ describe('readRecords', () => {
   });
 
   it('malformed.jsonl — returns valid records, warns, does not throw (cursor)', async () => {
-    const warnings = [];
+    const warnings: string[] = [];
     const origWarn = console.warn;
-    console.warn = (...args) => warnings.push(args.join(' '));
+    console.warn = (...args: unknown[]) => warnings.push(args.join(' '));
     try {
       const records = await readRecords(
         fixturePath('cursor', 'malformed.jsonl'),
       );
-      assert.equal(records.length, 4);
-      assert.ok(
+      expectEqual(records.length, 4);
+      expectOk(
         warnings.length > 0,
         'expected a console.warn for the bad line',
       );
@@ -125,16 +138,16 @@ describe('readRecords', () => {
   });
 
   it('partial-tail.jsonl — drops the partial last line with a warning (claude-code)', async () => {
-    const warnings = [];
+    const warnings: string[] = [];
     const origWarn = console.warn;
-    console.warn = (...args) => warnings.push(args.join(' '));
+    console.warn = (...args: unknown[]) => warnings.push(args.join(' '));
     try {
       const records = await readRecords(
         fixturePath('claude-code', 'partial-tail.jsonl'),
       );
       // 4 good lines + 1 partial → 4 records returned
-      assert.equal(records.length, 4);
-      assert.ok(
+      expectEqual(records.length, 4);
+      expectOk(
         warnings.length > 0,
         'expected a console.warn for the partial tail',
       );
@@ -144,15 +157,15 @@ describe('readRecords', () => {
   });
 
   it('partial-tail.jsonl — drops the partial last line with a warning (codex)', async () => {
-    const warnings = [];
+    const warnings: string[] = [];
     const origWarn = console.warn;
-    console.warn = (...args) => warnings.push(args.join(' '));
+    console.warn = (...args: unknown[]) => warnings.push(args.join(' '));
     try {
       const records = await readRecords(
         fixturePath('codex', 'partial-tail.jsonl'),
       );
-      assert.equal(records.length, 4);
-      assert.ok(
+      expectEqual(records.length, 4);
+      expectOk(
         warnings.length > 0,
         'expected a console.warn for the partial tail',
       );
@@ -162,15 +175,15 @@ describe('readRecords', () => {
   });
 
   it('partial-tail.jsonl — drops the partial last line with a warning (cursor)', async () => {
-    const warnings = [];
+    const warnings: string[] = [];
     const origWarn = console.warn;
-    console.warn = (...args) => warnings.push(args.join(' '));
+    console.warn = (...args: unknown[]) => warnings.push(args.join(' '));
     try {
       const records = await readRecords(
         fixturePath('cursor', 'partial-tail.jsonl'),
       );
-      assert.equal(records.length, 4);
-      assert.ok(
+      expectEqual(records.length, 4);
+      expectOk(
         warnings.length > 0,
         'expected a console.warn for the partial tail',
       );
@@ -183,7 +196,7 @@ describe('readRecords', () => {
     const records = await readRecords(
       fixturePath('claude-code', 'empty.jsonl'),
     );
-    assert.deepEqual(records, []);
+    expectDeepEqual(records, []);
   });
 });
 
@@ -194,7 +207,7 @@ describe('readRecords', () => {
 describe('encodeCwd', () => {
   it('claude-code: encodes absolute path by replacing / and . with -', () => {
     const encoded = encodeCwd('claude-code', '/Users/x/Code/y');
-    assert.equal(encoded, '-Users-x-Code-y');
+    expectEqual(encoded, '-Users-x-Code-y');
   });
 
   it('claude-code: matches observed dot-sanitized project dirs', () => {
@@ -202,7 +215,7 @@ describe('encodeCwd', () => {
       'claude-code',
       '/Users/thomas.stang/.superconductor/worktrees/stoa/sc-levitated-phonon-e8a5',
     );
-    assert.equal(
+    expectEqual(
       encoded,
       '-Users-thomas-stang--superconductor-worktrees-stoa-sc-levitated-phonon-e8a5',
     );
@@ -213,7 +226,7 @@ describe('encodeCwd', () => {
       'claude-code',
       '/Users/thomas.stang/.superconductor/worktrees/stoa/sc-levitated-phonon-e8a5',
     );
-    assert.deepEqual(variants, [
+    expectDeepEqual(variants, [
       '-Users-thomas-stang--superconductor-worktrees-stoa-sc-levitated-phonon-e8a5',
       '-Users-thomas.stang-.superconductor-worktrees-stoa-sc-levitated-phonon-e8a5',
     ]);
@@ -221,12 +234,12 @@ describe('encodeCwd', () => {
 
   it('codex: returns null (no path encoding)', () => {
     const encoded = encodeCwd('codex', '/Users/x/Code/y');
-    assert.equal(encoded, null);
+    expectEqual(encoded, null);
   });
 
   it('cursor: encodes absolute path by joining slash and dot separated segments', () => {
     const encoded = encodeCwd('cursor', '/Users/thomas.stang/Code/vox/duet');
-    assert.equal(encoded, 'Users-thomas-stang-Code-vox-duet');
+    expectEqual(encoded, 'Users-thomas-stang-Code-vox-duet');
   });
 
   it('cursor: exposes the observed project slug variant', () => {
@@ -234,7 +247,7 @@ describe('encodeCwd', () => {
       'cursor',
       '/Users/thomas.stang/Code/vox/duet',
     );
-    assert.deepEqual(variants, ['Users-thomas-stang-Code-vox-duet']);
+    expectDeepEqual(variants, ['Users-thomas-stang-Code-vox-duet']);
   });
 });
 
@@ -243,13 +256,13 @@ describe('encodeCwd', () => {
 // ---------------------------------------------------------------------------
 
 describe('extractMeta (claude-code)', () => {
-  let tmpDir;
+  let tmpDir: string;
 
-  before(async () => {
+  beforeAll(async () => {
     tmpDir = await mkdtemp(join(tmpdir(), 'runtimes-test-'));
   });
 
-  after(async () => {
+  afterAll(async () => {
     await rm(tmpDir, { recursive: true, force: true });
   });
 
@@ -259,8 +272,8 @@ describe('extractMeta (claude-code)', () => {
       'claude-code',
       fixturePath('claude-code', 'typical.jsonl'),
     );
-    assert.ok(meta !== null, 'meta should not be null');
-    assert.equal(meta.sessionId, 'cc-session-001');
+    expectOk(meta !== null, 'meta should not be null');
+    expectEqual(meta.sessionId, 'cc-session-001');
   });
 
   it('returns recordedCwd decoded from the parent-directory name', async () => {
@@ -279,10 +292,10 @@ describe('extractMeta (claude-code)', () => {
     );
 
     const meta = await extractMeta('claude-code', transcriptPath);
-    assert.ok(meta !== null);
-    assert.equal(meta.sessionId, 'cc-test-session');
+    expectOk(meta !== null);
+    expectEqual(meta.sessionId, 'cc-test-session');
     // Decoded cwd: '-Users-testuser-Code-myproject' → '/Users/testuser/Code/myproject'
-    assert.equal(meta.recordedCwd, '/Users/testuser/Code/myproject');
+    expectEqual(meta.recordedCwd, '/Users/testuser/Code/myproject');
   });
 
   it('returns recordedCwd as null when dir name has no leading dash (not encoded)', async () => {
@@ -297,10 +310,10 @@ describe('extractMeta (claude-code)', () => {
     const meta = await extractMeta('claude-code', transcriptPath);
     // The parent dir name does not start with '-', so cwd is not decodeable
     // We accept null or an undefined-like value
-    assert.ok(meta !== null);
-    assert.equal(meta.sessionId, 'cc-plain');
+    expectOk(meta !== null);
+    expectEqual(meta.sessionId, 'cc-plain');
     // recordedCwd should be null when the dir name doesn't encode a cwd
-    assert.equal(meta.recordedCwd, null);
+    expectEqual(meta.recordedCwd, null);
   });
 });
 
@@ -310,9 +323,9 @@ describe('extractMeta (codex)', () => {
       'codex',
       fixturePath('codex', 'typical.jsonl'),
     );
-    assert.ok(meta !== null);
-    assert.equal(meta.sessionId, 'codex-session-001');
-    assert.equal(meta.recordedCwd, '/Users/testuser/Code/my-project');
+    expectOk(meta !== null);
+    expectEqual(meta.sessionId, 'codex-session-001');
+    expectEqual(meta.recordedCwd, '/Users/testuser/Code/my-project');
   });
 
   it('no-cwd-record: returns sessionId with recordedCwd null', async () => {
@@ -320,9 +333,9 @@ describe('extractMeta (codex)', () => {
       'codex',
       fixturePath('codex', 'no-cwd-record.jsonl'),
     );
-    assert.ok(meta !== null);
-    assert.equal(meta.sessionId, 'codex-session-003');
-    assert.equal(meta.recordedCwd, null);
+    expectOk(meta !== null);
+    expectEqual(meta.sessionId, 'codex-session-003');
+    expectEqual(meta.recordedCwd, null);
   });
 
   it('payload-cwd: extracts recordedCwd from payload.cwd when top-level cwd is absent', async () => {
@@ -330,20 +343,20 @@ describe('extractMeta (codex)', () => {
       'codex',
       fixturePath('codex', 'payload-cwd.jsonl'),
     );
-    assert.ok(meta !== null, 'meta should not be null');
-    assert.equal(meta.sessionId, 'codex-payload-cwd-001');
-    assert.equal(meta.recordedCwd, '/Users/testuser/Code/payload-project');
+    expectOk(meta !== null, 'meta should not be null');
+    expectEqual(meta.sessionId, 'codex-payload-cwd-001');
+    expectEqual(meta.recordedCwd, '/Users/testuser/Code/payload-project');
   });
 });
 
 describe('extractMeta (cursor)', () => {
-  let tmpDir;
+  let tmpDir: string;
 
-  before(async () => {
+  beforeAll(async () => {
     tmpDir = await mkdtemp(join(tmpdir(), 'runtimes-cursor-test-'));
   });
 
-  after(async () => {
+  afterAll(async () => {
     await rm(tmpDir, { recursive: true, force: true });
   });
 
@@ -352,9 +365,9 @@ describe('extractMeta (cursor)', () => {
       'cursor',
       fixturePath('cursor', 'typical.jsonl'),
     );
-    assert.ok(meta !== null);
-    assert.equal(meta.sessionId, 'typical');
-    assert.equal(meta.recordedCwd, null);
+    expectOk(meta !== null);
+    expectEqual(meta.sessionId, 'typical');
+    expectEqual(meta.recordedCwd, null);
   });
 
   it('returns sessionId from parent transcript directory for generic transcript files', async () => {
@@ -371,9 +384,9 @@ describe('extractMeta (cursor)', () => {
     );
 
     const meta = await extractMeta('cursor', transcriptPath);
-    assert.ok(meta !== null);
-    assert.equal(meta.sessionId, 'cursor-session-001');
-    assert.equal(meta.recordedCwd, null);
+    expectOk(meta !== null);
+    expectEqual(meta.sessionId, 'cursor-session-001');
+    expectEqual(meta.recordedCwd, null);
   });
 });
 
@@ -382,9 +395,9 @@ describe('extractMeta (cursor)', () => {
 // ---------------------------------------------------------------------------
 
 describe('normalizeEntries (claude-code)', () => {
-  let records;
+  let records: JsonObject[];
 
-  before(async () => {
+  beforeAll(async () => {
     records = await readRecords(fixturePath('claude-code', 'typical.jsonl'));
   });
 
@@ -393,20 +406,20 @@ describe('normalizeEntries (claude-code)', () => {
       includeToolCalls: false,
       includeToolResults: false,
     });
-    assert.ok(entries.length > 0, 'should have entries');
+    expectOk(entries.length > 0, 'should have entries');
     // All entries should be message kind
     for (const e of entries) {
-      assert.equal(e.kind, 'message', `expected kind=message, got ${e.kind}`);
-      assert.ok(
+      expectEqual(e.kind, 'message', `expected kind=message, got ${e.kind}`);
+      expectOk(
         e.role === 'user' || e.role === 'assistant',
         `unexpected role: ${e.role}`,
       );
-      assert.ok(typeof e.text === 'string');
-      assert.ok(typeof e.recordIndex === 'number');
+      expectOk(typeof e.text === 'string');
+      expectOk(typeof e.recordIndex === 'number');
     }
     // Should not include tool_use or tool_result entries
     const toolEntries = entries.filter((e) => e.kind !== 'message');
-    assert.equal(toolEntries.length, 0);
+    expectEqual(toolEntries.length, 0);
   });
 
   it('includeToolCalls: true — includes [ToolName] args entries (truncated to 200)', () => {
@@ -415,26 +428,26 @@ describe('normalizeEntries (claude-code)', () => {
       includeToolResults: false,
     });
     const toolCallEntries = entries.filter((e) => e.kind === 'tool_call');
-    assert.ok(
+    expectOk(
       toolCallEntries.length > 0,
       'should have at least one tool_call entry',
     );
     for (const e of toolCallEntries) {
       // Must match spec: [ToolName] args — no "Tool: " prefix
-      assert.ok(
+      expectOk(
         /^\[[^\]]+\] /.test(e.text),
         `tool_call text must match [ToolName] args, got: ${e.text}`,
       );
-      assert.ok(
+      expectOk(
         !e.text.startsWith('[Tool: '),
         `tool_call text must not have "Tool: " prefix, got: ${e.text}`,
       );
-      assert.ok(
+      expectOk(
         typeof e.toolName === 'string' && e.toolName.length > 0,
         `toolName must be set on tool_call entry`,
       );
       // Args should be truncated at 200 chars
-      assert.ok(e.text.length <= 300, 'text should not be excessively long'); // brackets + name + args
+      expectOk(e.text.length <= 300, 'text should not be excessively long'); // brackets + name + args
     }
   });
 
@@ -444,26 +457,26 @@ describe('normalizeEntries (claude-code)', () => {
       includeToolResults: true,
     });
     const toolResultEntries = entries.filter((e) => e.kind === 'tool_result');
-    assert.ok(
+    expectOk(
       toolResultEntries.length > 0,
       'should have at least one tool_result entry',
     );
     for (const e of toolResultEntries) {
       // Must match spec: [ToolName → result] output — with the tool name, not bare [Tool → result]
-      assert.ok(
+      expectOk(
         /^\[[^\]]+\s→\s+result\]/.test(e.text),
         `tool_result text must match [ToolName → result] output, got: ${e.text}`,
       );
-      assert.ok(
+      expectOk(
         !e.text.startsWith('[Tool →'),
         `tool_result text must not use bare "[Tool →", got: ${e.text}`,
       );
       // toolName must be set and match the name in the marker
-      assert.ok(
+      expectOk(
         typeof e.toolName === 'string' && e.toolName.length > 0,
         `toolName must be set on tool_result entry, got: ${e.toolName}`,
       );
-      assert.ok(
+      expectOk(
         e.text.startsWith(`[${e.toolName} →`),
         `text marker [${e.toolName} →] must match toolName field, got: ${e.text}`,
       );
@@ -491,18 +504,18 @@ describe('normalizeEntries (claude-code)', () => {
     const entries = normalizeEntries('claude-code', [testRecord], {
       includeToolCalls: true,
     });
-    assert.equal(entries.length, 1);
+    expectEqual(entries.length, 1);
     // The args portion should be truncated: 200 chars + '...' (3) = 203
     // The full text is `[EditFile] <truncated-args>`, so total can be up to ~220
     // Verify it ends with '...' when over limit
-    assert.ok(
+    expectOk(
       entries[0].text.endsWith('...'),
       `expected truncation, got: ${entries[0].text.slice(-10)}`,
     );
     // The args portion should not exceed 203 chars (200 + '...')
     const argsStart = entries[0].text.indexOf('] ') + 2;
     const argsStr = entries[0].text.slice(argsStart);
-    assert.ok(argsStr.length <= 203, `args too long: ${argsStr.length}`);
+    expectOk(argsStr.length <= 203, `args too long: ${argsStr.length}`);
   });
 
   it('entries have recordIndex set to the record position in the array', () => {
@@ -512,8 +525,8 @@ describe('normalizeEntries (claude-code)', () => {
     // Entries should have monotonically non-decreasing recordIndex
     let prevIndex = -1;
     for (const e of entries) {
-      assert.ok(e.recordIndex >= 0);
-      assert.ok(e.recordIndex >= prevIndex);
+      expectOk(e.recordIndex >= 0);
+      expectOk(e.recordIndex >= prevIndex);
       prevIndex = e.recordIndex;
     }
   });
@@ -541,8 +554,8 @@ describe('normalizeEntries (claude-code)', () => {
       {},
     );
 
-    assert.equal(entries.length, 1);
-    assert.equal(entries[0].text, 'Natural language response.');
+    expectEqual(entries.length, 1);
+    expectEqual(entries[0].text, 'Natural language response.');
   });
 
   it('can include Claude slash-command message payloads for debugging', () => {
@@ -559,9 +572,9 @@ describe('normalizeEntries (claude-code)', () => {
       includeCommandMessages: true,
     });
 
-    assert.equal(entries.length, 1);
-    assert.equal(entries[0].kind, 'command_message');
-    assert.ok(entries[0].text.includes('<command-message>'));
+    expectEqual(entries.length, 1);
+    expectEqual(entries[0].kind, 'command_message');
+    expectOk(entries[0].text.includes('<command-message>'));
   });
 
   it('with-tool-burst: multiple tool calls all included', async () => {
@@ -574,7 +587,7 @@ describe('normalizeEntries (claude-code)', () => {
     });
     const toolCallEntries = entries.filter((e) => e.kind === 'tool_call');
     // 3 tool_use blocks in the fixture
-    assert.ok(toolCallEntries.length >= 3);
+    expectOk(toolCallEntries.length >= 3);
   });
 });
 
@@ -583,10 +596,10 @@ describe('normalizeEntries (claude-code)', () => {
 // ---------------------------------------------------------------------------
 
 describe('normalizeEntries (codex)', () => {
-  let records;
-  let withFcRecords;
+  let records: JsonObject[];
+  let withFcRecords: JsonObject[];
 
-  before(async () => {
+  beforeAll(async () => {
     records = await readRecords(fixturePath('codex', 'typical.jsonl'));
     withFcRecords = await readRecords(
       fixturePath('codex', 'with-function-calls.jsonl'),
@@ -598,12 +611,12 @@ describe('normalizeEntries (codex)', () => {
       includeToolCalls: false,
       includeToolResults: false,
     });
-    assert.ok(entries.length > 0, 'should have entries');
+    expectOk(entries.length > 0, 'should have entries');
     for (const e of entries) {
-      assert.equal(e.kind, 'message');
+      expectEqual(e.kind, 'message');
     }
     // function_calls should be excluded
-    assert.equal(entries.filter((e) => e.kind !== 'message').length, 0);
+    expectEqual(entries.filter((e) => e.kind !== 'message').length, 0);
   });
 
   it('includeToolCalls: true — function_call records produce tool_call entries with [ToolName] format', () => {
@@ -612,21 +625,21 @@ describe('normalizeEntries (codex)', () => {
       includeToolResults: false,
     });
     const toolCallEntries = entries.filter((e) => e.kind === 'tool_call');
-    assert.ok(
+    expectOk(
       toolCallEntries.length > 0,
       'should have tool_call entries from function_calls',
     );
     for (const e of toolCallEntries) {
       // Must match spec: [ToolName] args — no "Tool: " prefix
-      assert.ok(
+      expectOk(
         /^\[[^\]]+\] /.test(e.text),
         `tool_call text must match [ToolName] args, got: ${e.text}`,
       );
-      assert.ok(
+      expectOk(
         !e.text.startsWith('[Tool: '),
         `tool_call text must not have "Tool: " prefix, got: ${e.text}`,
       );
-      assert.ok(
+      expectOk(
         typeof e.toolName === 'string' && e.toolName.length > 0,
         `toolName must be set on tool_call entry`,
       );
@@ -647,15 +660,15 @@ describe('normalizeEntries (codex)', () => {
     const entries = normalizeEntries('codex', [testRecord], {
       includeToolCalls: true,
     });
-    assert.equal(entries.length, 1);
-    assert.equal(entries[0].kind, 'tool_call');
-    assert.ok(
+    expectEqual(entries.length, 1);
+    expectEqual(entries[0].kind, 'tool_call');
+    expectOk(
       entries[0].text.endsWith('...'),
       `expected truncation, got: ${entries[0].text.slice(-10)}`,
     );
     const argsStart = entries[0].text.indexOf('] ') + 2;
     const argsStr = entries[0].text.slice(argsStart);
-    assert.ok(argsStr.length <= 203, `args too long: ${argsStr.length}`);
+    expectOk(argsStr.length <= 203, `args too long: ${argsStr.length}`);
   });
 
   it('entries have recordIndex set correctly', () => {
@@ -664,8 +677,8 @@ describe('normalizeEntries (codex)', () => {
     });
     let prevIndex = -1;
     for (const e of entries) {
-      assert.ok(e.recordIndex >= 0);
-      assert.ok(e.recordIndex >= prevIndex);
+      expectOk(e.recordIndex >= 0);
+      expectOk(e.recordIndex >= prevIndex);
       prevIndex = e.recordIndex;
     }
   });
@@ -677,7 +690,7 @@ describe('normalizeEntries (codex)', () => {
     const entries = normalizeEntries('codex', noCwdRecords, {
       includeToolCalls: false,
     });
-    assert.ok(entries.length > 0);
+    expectOk(entries.length > 0);
   });
 });
 
@@ -686,10 +699,10 @@ describe('normalizeEntries (codex)', () => {
 // ---------------------------------------------------------------------------
 
 describe('normalizeEntries (cursor)', () => {
-  let records;
-  let withToolUseRecords;
+  let records: JsonObject[];
+  let withToolUseRecords: JsonObject[];
 
-  before(async () => {
+  beforeAll(async () => {
     records = await readRecords(fixturePath('cursor', 'typical.jsonl'));
     withToolUseRecords = await readRecords(
       fixturePath('cursor', 'with-tool-use.jsonl'),
@@ -700,12 +713,12 @@ describe('normalizeEntries (cursor)', () => {
     const entries = normalizeEntries('cursor', records, {
       includeToolCalls: false,
     });
-    assert.equal(entries.length, 3);
+    expectEqual(entries.length, 3);
     for (const e of entries) {
-      assert.equal(e.kind, 'message');
-      assert.ok(e.role === 'user' || e.role === 'assistant');
-      assert.ok(typeof e.text === 'string');
-      assert.ok(typeof e.recordIndex === 'number');
+      expectEqual(e.kind, 'message');
+      expectOk(e.role === 'user' || e.role === 'assistant');
+      expectOk(typeof e.text === 'string');
+      expectOk(typeof e.recordIndex === 'number');
     }
   });
 
@@ -713,8 +726,8 @@ describe('normalizeEntries (cursor)', () => {
     const entries = normalizeEntries('cursor', withToolUseRecords, {
       includeToolCalls: false,
     });
-    assert.equal(entries.filter((e) => e.kind === 'tool_call').length, 0);
-    assert.deepEqual(
+    expectEqual(entries.filter((e) => e.kind === 'tool_call').length, 0);
+    expectDeepEqual(
       entries.map((e) => e.text),
       ['Please read the runtime adapter.', 'I will open the file.'],
     );
@@ -725,13 +738,13 @@ describe('normalizeEntries (cursor)', () => {
       includeToolCalls: true,
     });
     const toolCallEntries = entries.filter((e) => e.kind === 'tool_call');
-    assert.equal(toolCallEntries.length, 1);
-    assert.equal(toolCallEntries[0].toolName, 'read_file');
-    assert.ok(
+    expectEqual(toolCallEntries.length, 1);
+    expectEqual(toolCallEntries[0].toolName, 'read_file');
+    expectOk(
       toolCallEntries[0].text.startsWith('[read_file] '),
       `tool_call text must match [ToolName] args, got: ${toolCallEntries[0].text}`,
     );
-    assert.ok(toolCallEntries[0].text.includes('runtimes.mjs'));
+    expectOk(toolCallEntries[0].text.includes('runtimes.mjs'));
   });
 });
 
@@ -742,9 +755,9 @@ describe('normalizeEntries (cursor)', () => {
 describe('discoverPaths', () => {
   it('claude-code: returns array containing ~/.claude/projects/ path', () => {
     const paths = discoverPaths('claude-code');
-    assert.ok(Array.isArray(paths));
-    assert.ok(paths.length > 0);
-    assert.ok(
+    expectOk(Array.isArray(paths));
+    expectOk(paths.length > 0);
+    expectOk(
       paths[0].includes('.claude/projects'),
       `expected .claude/projects in path, got: ${paths[0]}`,
     );
@@ -752,9 +765,9 @@ describe('discoverPaths', () => {
 
   it('codex: returns array containing ~/.codex/sessions/ path', () => {
     const paths = discoverPaths('codex');
-    assert.ok(Array.isArray(paths));
-    assert.ok(paths.length > 0);
-    assert.ok(
+    expectOk(Array.isArray(paths));
+    expectOk(paths.length > 0);
+    expectOk(
       paths[0].includes('.codex/sessions'),
       `expected .codex/sessions in path, got: ${paths[0]}`,
     );
@@ -762,9 +775,9 @@ describe('discoverPaths', () => {
 
   it('cursor: returns array containing ~/.cursor/projects/ path', () => {
     const paths = discoverPaths('cursor');
-    assert.ok(Array.isArray(paths));
-    assert.ok(paths.length > 0);
-    assert.ok(
+    expectOk(Array.isArray(paths));
+    expectOk(paths.length > 0);
+    expectOk(
       paths[0].includes('.cursor/projects'),
       `expected .cursor/projects in path, got: ${paths[0]}`,
     );
