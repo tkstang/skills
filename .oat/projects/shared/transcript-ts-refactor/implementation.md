@@ -142,7 +142,39 @@ phase outcomes, parallel groups, and outstanding items._
 
 <!-- orchestration-runs-start -->
 
-_Orchestration runs from `oat-project-implement` are appended here._
+### Run 1 — 2026-06-17 16:41
+
+**Branch:** transcript-ts-refactor
+**Tier:** 1
+**Policy:** merge-strategy=merge, retry-limit=2
+**Phases:** 1 executed, 1 passed, 0 failed, 0 stopped
+
+#### Phase Outcomes
+
+| Phase | Implementer | Review | Fix Iterations | Disposition |
+| ----- | ----------- | ------ | -------------- | ----------- |
+| p01   | DONE        | pass   | 0/2            | merged      |
+
+#### Parallel Groups
+
+- p01: sequential
+
+#### Dispatch Notes
+
+- Dispatch: p01 implementation used `model_axis=inherited`, `effort_axis=selected:xhigh`, `dispatch_ceiling=xhigh`; selected because the phase migrated generated-runtime source, output mappings, and drift coverage under the maximum project ceiling.
+- Dispatch: p01 review used `model_axis=inherited`, `effort_axis=selected:xhigh`, `dispatch_ceiling=xhigh`; reviewer runs at the configured ceiling for deterministic quality gate behavior.
+
+#### Outstanding Items
+
+- None
+
+#### Artifact / Design Deltas
+
+Run-scoped snapshot only. The durable record is `## Deviations from Plan / Design`; consolidate any non-`None` entries there at the next phase boundary.
+
+| Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
+| ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
+| None          | -               | -                    | -                 | -      | -               | -         |
 
 <!-- orchestration-runs-end -->
 
