@@ -7,6 +7,7 @@ import { expect, it } from 'vitest';
 import {
   renderEvaluationArtifact,
   runConsensusEvaluate,
+  runEvaluateCli,
 } from '../src/consensus/evaluate/consensus-evaluate.js';
 
 type JsonRecord = Record<string, any>;
@@ -113,6 +114,69 @@ it('runs the evaluate wrapper with loop state files and renders unified findings
     'claude found release-readiness risks.',
     'codex found release-readiness risks.',
   ]);
+});
+
+it('writes a default sidecar evaluation for CLI runs without --output', async () => {
+  const files = await fixtureFiles('consensus-evaluate-default-output-');
+  let stdout = '';
+  let stderr = '';
+
+  const exitCode = await runEvaluateCli(
+    [
+      files.artifactPath,
+      '--rubric',
+      files.rubricPath,
+      '--run-dir',
+      files.runDir,
+      '--allow-root',
+      files.tempRoot,
+      '--peers',
+      'claude,codex',
+      '--max-rounds',
+      '1',
+    ],
+    {
+      cwd: files.tempRoot,
+      now: () => '2026-06-17T00:00:00.000Z',
+      stdout: {
+        write(chunk: string | Uint8Array) {
+          stdout += String(chunk);
+          return true;
+        },
+      },
+      stderr: {
+        write(chunk: string | Uint8Array) {
+          stderr += String(chunk);
+          return true;
+        },
+      },
+      invokePeer: async ({ provider }) => ({
+        stdout: JSON.stringify({ provider }),
+        json: {
+          schema_version: 'v1',
+          verdict: 'REVISE',
+          reasoning: `${provider} found release-readiness risks.`,
+          proposed_artifact: unifiedFindings,
+        },
+      }),
+    },
+  );
+
+  expect(exitCode).toBe(0);
+  expect(stderr).toBe('');
+  const events = stdout
+    .trim()
+    .split('\n')
+    .map((line) => JSON.parse(line) as JsonRecord);
+  const completed = events.find((event) => event.event === 'run_completed');
+  const defaultOutputPath = `${files.artifactPath}.evaluation.md`;
+
+  expect(completed?.output_path).toBe(defaultOutputPath);
+  expect(stdout).not.toContain('# Consensus Evaluate Artifact');
+
+  const artifact = await readFile(defaultOutputPath, 'utf8');
+  expect(artifact).toContain('# Consensus Evaluate Artifact');
+  expect(artifact).toContain('Release readiness is medium.');
 });
 
 it('renders unresolved dissent for impasse runs', async () => {

@@ -714,7 +714,10 @@ async function runConsensusEvaluate(input, runOptions = {}) {
   const startMs = Date.now();
   const loaded = await loadEvaluationInputs(normalized, { cwd });
   const runDir = await resolveRunDir({ ...normalized, cwd });
-  const outputPath = normalized.output ? await resolveOutputPath({ ...normalized, cwd }, loaded.artifactPath) : null;
+  const outputPath = await resolveOutputPath(
+    { ...normalized, cwd },
+    loaded.artifactPath
+  );
   const writeRoot = path.resolve(normalized.allowRoot ?? cwd);
   const paths = statePathsFor(runDir);
   const peers = normalized.peers ?? [...DEFAULT_PEERS];
@@ -766,13 +769,9 @@ async function runConsensusEvaluate(input, runOptions = {}) {
       wallClockMs
     }
   });
-  if (outputPath) {
-    await atomicWriteFile(outputPath, finalArtifact, {
-      rootPath: normalized.allowRoot ? writeRoot : path.dirname(outputPath)
-    });
-  } else {
-    runOptions.stdout?.write(finalArtifact);
-  }
+  await atomicWriteFile(outputPath, finalArtifact, {
+    rootPath: normalized.allowRoot ? writeRoot : path.dirname(outputPath)
+  });
   return {
     artifactPath: loaded.artifactPath,
     rubricPath: loaded.rubricPath,

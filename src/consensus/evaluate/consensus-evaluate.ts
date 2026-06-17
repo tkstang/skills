@@ -114,7 +114,7 @@ export interface EvaluationArtifactRenderInput {
 export interface EvaluationRunResult {
   artifactPath: string;
   rubricPath: string;
-  outputPath: string | null;
+  outputPath: string;
   runDir: string;
   paths: EvaluationStatePaths;
   loopArgv: string[];
@@ -986,9 +986,10 @@ export async function runConsensusEvaluate(
   const startMs = Date.now();
   const loaded = await loadEvaluationInputs(normalized, { cwd });
   const runDir = await resolveRunDir({ ...normalized, cwd });
-  const outputPath = normalized.output
-    ? await resolveOutputPath({ ...normalized, cwd }, loaded.artifactPath)
-    : null;
+  const outputPath = await resolveOutputPath(
+    { ...normalized, cwd },
+    loaded.artifactPath,
+  );
   const writeRoot = path.resolve(normalized.allowRoot ?? cwd);
   const paths = statePathsFor(runDir);
   const peers = normalized.peers ?? [...DEFAULT_PEERS];
@@ -1047,13 +1048,9 @@ export async function runConsensusEvaluate(
     },
   });
 
-  if (outputPath) {
-    await atomicWriteFile(outputPath, finalArtifact, {
-      rootPath: normalized.allowRoot ? writeRoot : path.dirname(outputPath),
-    });
-  } else {
-    runOptions.stdout?.write(finalArtifact);
-  }
+  await atomicWriteFile(outputPath, finalArtifact, {
+    rootPath: normalized.allowRoot ? writeRoot : path.dirname(outputPath),
+  });
 
   return {
     artifactPath: loaded.artifactPath,
