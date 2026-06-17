@@ -16,92 +16,96 @@ oat_generated: false
 >
 > Conventions:
 >
-> - `oat_current_task_id` always points at the **next plan task to do** (not the last completed task).
+> - `oat_current_task_id` always points at the next plan task to do.
 > - When all plan tasks are complete, set `oat_current_task_id: null`.
-> - Reviews are **not** plan tasks. Track review status in `plan.md` under `## Reviews` (e.g., `| final | code | passed | ... |`).
-> - Keep phase/task statuses consistent with the Progress Overview table so restarts resume correctly.
-> - Before running the `oat-project-pr-final` skill, ensure `## Final Summary (for PR/docs)` is filled with what was actually implemented.
+> - Reviews are tracked in `plan.md` under `## Reviews`.
+> - Before final PR handoff, fill `## Final Summary (for PR/docs)` with what actually shipped.
 
 ## Progress Overview
 
 | Phase   | Status      | Tasks | Completed |
 | ------- | ----------- | ----- | --------- |
-| Phase 1 | in_progress | N     | 0/N       |
-| Phase 2 | pending     | N     | 0/N       |
+| Phase 1 | in_progress | 3     | 0/3       |
+| Phase 2 | pending     | 4     | 0/4       |
+| Phase 3 | pending     | 2     | 0/2       |
+| Phase 4 | pending     | 1     | 0/1       |
 
-**Total:** 0/{N} tasks completed
+**Total:** 0/10 tasks completed
 
 ---
 
-## Phase 1: {Phase Name}
+## Phase 1: Canonical Session-Observer Runtime Source
 
 **Status:** in_progress
 **Started:** 2026-06-17
 
-### Phase Summary (fill when phase is complete)
-
-**Outcome (what changed):**
-
-- {2-5 bullets describing user-visible / behavior-level changes delivered in this phase}
-
-**Key files touched:**
-
-- `{path}` - {why}
-
-**Verification:**
-
-- Run: `{command(s)}`
-- Result: {pass/fail + notes}
-
-**Notes / Decisions:**
-
-- {trade-offs or deviations discovered during implementation}
-
-### Task p01-t01: {Task Name}
-
-**Status:** completed / in_progress / pending / blocked
-**Commit:** {sha} (if completed)
-
-**Outcome (required when completed):**
-
-- {what materially changed (not “did task”, but “system now does X”)}
-
-**Files changed:**
-
-- `{path}` - {why}
-
-**Verification:**
-
-- Run: `{command(s)}`
-- Result: {pass/fail + notes}
-
-**Notes / Decisions:**
-
-- {gotchas, trade-offs, design deltas, important context for future sessions}
-
-**Issues Encountered:**
-
-- {Issue and resolution}
-
----
-
-### Task p01-t02: {Task Name}
+### Task p01-t01: Lift Session-Observer Modules To TypeScript Source
 
 **Status:** pending
 **Commit:** -
 
-**Notes:**
+### Task p01-t02: Generate Shipped Session-Observer Runtime Outputs
 
-- {Notes will be added during implementation}
+**Status:** pending
+**Commit:** -
+
+### Task p01-t03: Confirm Behavior Parity Before Test Migration
+
+**Status:** pending
+**Commit:** -
 
 ---
 
-## Phase 2: {Phase Name}
+## Phase 2: Vitest Migration For Session-Observer Tests
 
 **Status:** pending
 **Started:** -
 
-### Task p02-t01: {Task Name}
+### Task p02-t01: Migrate Unit Test Helpers And Library Tests
+
+**Status:** pending
+**Commit:** -
+
+### Task p02-t02: Migrate CLI And Integration Tests
+
+**Status:** pending
+**Commit:** -
+
+### Task p02-t03: Migrate Watcher Tests Deterministically
+
+**Status:** pending
+**Commit:** -
+
+### Task p02-t04: Remove Session-Observer Node-Test Residue
+
+**Status:** pending
+**Commit:** -
+
+---
+
+## Phase 3: Documentation And OAT Reference Updates
+
+**Status:** pending
+**Started:** -
+
+### Task p03-t01: Update Public And Agent-Facing Runtime Documentation
+
+**Status:** pending
+**Commit:** -
+
+### Task p03-t02: Update OAT Reference And Backlog Progress Notes
+
+**Status:** pending
+**Commit:** -
+
+---
+
+## Phase 4: Final Verification And Closeout
+
+**Status:** pending
+**Started:** -
+
+### Task p04-t01: Run Required Verification Suite
 
 **Status:** pending
 **Commit:** -
@@ -110,15 +114,11 @@ oat_generated: false
 
 ## Orchestration Runs
 
-_Each run from `oat-project-implement` appends an entry below with:_
-_- Run header (number, timestamp, branch, tier, policy, phase counts)_
-_- Phase Outcomes table_
-_- Parallel Groups list_
-_- Outstanding Items_
+_Each run from `oat-project-implement` appends an entry below with run metadata, phase outcomes, parallel groups, and outstanding items._
 
 <!-- orchestration-runs-start -->
 
-_Orchestration runs from `oat-project-implement` are appended here, most-recent-first within the file but append-only at the bottom of the log._
+_Orchestration runs from `oat-project-implement` are appended here._
 
 <!-- orchestration-runs-end -->
 
@@ -126,46 +126,18 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 
 ## Implementation Log
 
-Chronological log of implementation progress.
-
 ### 2026-06-17
 
-**Session Start:** {time}
+**Quick-start planning:**
 
-- [x] p01-t01: {Task name} - {commit sha}
-- [ ] p01-t02: {Task name} - in progress
-
-**What changed (high level):**
-
-- {short bullets suitable for PR/docs}
-
-**Decisions:**
-
-- {Decision made and rationale}
-
-**Follow-ups / TODO:**
-
-- {anything discovered during implementation that should be captured for later}
-
-**Blockers:**
-
-- {Blocker description} - {status: resolved/pending}
-
-**Session End:** {time}
-
----
-
-### 2026-06-17
-
-**Session Start:** {time}
-
-{Continue log...}
+- [x] Discovery captured and committed.
+- [x] Plan generated for 4 sequential phases / 10 tasks.
+- [x] Dispatch ceiling selected as Maximum: Codex `xhigh`, Claude `opus`.
+- [ ] Implementation not started.
 
 ---
 
 ## Deviations from Plan / Design
-
-Document any intentional deviations from the original plan, spec, or design. Include accepted review findings where the shipped implementation is source of truth and a lifecycle artifact needs alignment.
 
 | Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
 | ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
@@ -173,38 +145,38 @@ Document any intentional deviations from the original plan, spec, or design. Inc
 
 ## Test Results
 
-Track test execution during implementation.
-
 | Phase | Tests Run | Passed | Failed | Coverage |
 | ----- | --------- | ------ | ------ | -------- |
 | 1     | -         | -      | -      | -        |
 | 2     | -         | -      | -      | -        |
+| 3     | -         | -      | -      | -        |
+| 4     | -         | -      | -      | -        |
 
 ## Final Summary (for PR/docs)
 
 **What shipped:**
 
-- {capability 1}
-- {capability 2}
+- TBD during implementation.
 
 **Behavioral changes (user-facing):**
 
-- {bullet}
+- Intended behavior change is none; this is a source/test migration preserving shipped session-observer behavior.
 
 **Key files / modules:**
 
-- `{path}` - {purpose}
+- `src/transcript/session-observer/` - canonical TypeScript source after implementation.
+- `skills/session-observer/scripts/` - generated shipped runtime output.
+- `tests/session-observer/` - Vitest TypeScript session-observer tests.
 
 **Verification performed:**
 
-- {tests/lint/typecheck/build/manual steps}
+- TBD during implementation.
 
 **Design deltas (if any):**
 
-- {what changed vs design.md and why}
+- No separate design artifact in quick mode.
 
 ## References
 
 - Plan: `plan.md`
-- Design: `design.md`
-- Spec: `spec.md`
+- Discovery: `discovery.md`
