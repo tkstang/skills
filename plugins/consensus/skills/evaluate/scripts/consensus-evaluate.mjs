@@ -24,6 +24,7 @@ const MAX_ROUNDS_MIN = 1;
 const MAX_ROUNDS_MAX = 100;
 const PROVIDER_ID_PATTERN = /^[a-z][a-z0-9_-]{0,31}$/u;
 const DEFAULT_PEERS = Object.freeze(["claude", "codex"]);
+const INPUT_SIZE_CAP_BYTES = 1024 * 1024;
 function requireValue(argv, index, token) {
   const value = argv[index + 1];
   if (value === void 0 || value.startsWith("--")) {
@@ -176,12 +177,24 @@ function parseEvaluateArgs(argv) {
 function resolveInputPath(inputPath, cwd) {
   return path.isAbsolute(inputPath) ? inputPath : path.resolve(cwd, inputPath);
 }
+async function readInputFile(inputPath, options = {}) {
+  const capBytes = options.sizeCapBytes ?? INPUT_SIZE_CAP_BYTES;
+  const fileStat = await stat(inputPath);
+  if (fileStat.size > capBytes) {
+    throw new Error(`input exceeds size cap of ${capBytes} bytes`);
+  }
+  const contents = await readFile(inputPath, "utf8");
+  if (Buffer.byteLength(contents, "utf8") > capBytes) {
+    throw new Error(`input exceeds size cap of ${capBytes} bytes`);
+  }
+  return contents;
+}
 async function loadEvaluationInputs(options, { cwd = process.cwd() } = {}) {
   const artifactPath = resolveInputPath(options.artifactPath, cwd);
   const rubricPath = resolveInputPath(options.rubricPath, cwd);
   const [artifact, rubric] = await Promise.all([
-    readFile(artifactPath, "utf8"),
-    readFile(rubricPath, "utf8")
+    readInputFile(artifactPath),
+    readInputFile(rubricPath)
   ]);
   return {
     artifactPath,
@@ -362,11 +375,14 @@ async function confineWrite(targetPath, rootPath) {
     path.relative(existing, parent)
   );
   if (!inside(realRoot, realParent)) {
-    throw new ConsensusError(`write path resolves outside allowed root: ${target}`, {
-      code: "WRITE_PATH_OUTSIDE_ROOT",
-      exitCode: EXIT_CODES.NOPERM,
-      details: { root, path: target }
-    });
+    throw new ConsensusError(
+      `write path resolves outside allowed root: ${target}`,
+      {
+        code: "WRITE_PATH_OUTSIDE_ROOT",
+        exitCode: EXIT_CODES.NOPERM,
+        details: { root, path: target }
+      }
+    );
   }
   return target;
 }
@@ -375,11 +391,14 @@ async function atomicWriteFile(targetPath, contents, options = {}) {
   if (await pathExists(writePath)) {
     const targetStat = await lstat(writePath);
     if (targetStat.isSymbolicLink()) {
-      throw new ConsensusError(`write target may not be a symlink: ${writePath}`, {
-        code: "WRITE_TARGET_SYMLINK",
-        exitCode: EXIT_CODES.NOPERM,
-        details: { path: writePath }
-      });
+      throw new ConsensusError(
+        `write target may not be a symlink: ${writePath}`,
+        {
+          code: "WRITE_TARGET_SYMLINK",
+          exitCode: EXIT_CODES.NOPERM,
+          details: { path: writePath }
+        }
+      );
     }
   }
   await mkdir(path.dirname(writePath), { recursive: true });
@@ -626,7 +645,9 @@ function renderDissentSection(records, status) {
       ""
     ];
   }
-  if (!["impasse", "escalation", "max-rounds", "oscillation"].includes(status.status)) {
+  if (!["impasse", "escalation", "max-rounds", "oscillation"].includes(
+    status.status
+  )) {
     return [];
   }
   const peers = latestPeerRecords(records);
@@ -687,9 +708,7 @@ function renderEvaluationArtifact({
 }
 async function runConsensusEvaluate(input, runOptions = {}) {
   const normalized = normalizeEvaluateOptions(input);
-  const cwd = path.resolve(
-    normalized.cwd ?? runOptions.cwd ?? process.cwd()
-  );
+  const cwd = path.resolve(normalized.cwd ?? runOptions.cwd ?? process.cwd());
   const env = normalized.env ?? runOptions.env ?? process.env;
   const startedAt = (runOptions.now ?? (() => (/* @__PURE__ */ new Date()).toISOString()))();
   const startMs = Date.now();
@@ -828,12 +847,14 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   });
 }
 export {
+  INPUT_SIZE_CAP_BYTES,
   atomicWriteFile,
   buildEvaluationPromptProfile,
   confineWrite,
   createEvaluationInitialArtifact,
   loadEvaluationInputs,
   parseEvaluateArgs,
+  readInputFile,
   renderEvaluationArtifact,
   resolveOutputPath,
   resolveRunDir,

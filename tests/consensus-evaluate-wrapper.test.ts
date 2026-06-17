@@ -6,6 +6,7 @@ import { expect, it } from 'vitest';
 
 import {
   buildEvaluationPromptProfile,
+  INPUT_SIZE_CAP_BYTES,
   loadEvaluationInputs,
   parseEvaluateArgs,
 } from '../src/consensus/evaluate/consensus-evaluate.js';
@@ -77,8 +78,14 @@ it('rejects independent_draft cold starts with a clear evaluate error', () => {
 
 it('loads artifact and rubric inputs relative to the invocation cwd', async () => {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-evaluate-'));
-  await writeFile(path.join(tempRoot, 'artifact.md'), '# Artifact\n\nShip it.\n');
-  await writeFile(path.join(tempRoot, 'rubric.md'), '# Rubric\n\nCheck risk.\n');
+  await writeFile(
+    path.join(tempRoot, 'artifact.md'),
+    '# Artifact\n\nShip it.\n',
+  );
+  await writeFile(
+    path.join(tempRoot, 'rubric.md'),
+    '# Rubric\n\nCheck risk.\n',
+  );
 
   const parsed = parseEvaluateArgs(['artifact.md', '--rubric', 'rubric.md']);
   const inputs = await loadEvaluationInputs(parsed, { cwd: tempRoot });
@@ -87,6 +94,42 @@ it('loads artifact and rubric inputs relative to the invocation cwd', async () =
   expect(inputs.rubricPath).toBe(path.join(tempRoot, 'rubric.md'));
   expect(inputs.artifact).toBe('# Artifact\n\nShip it.\n');
   expect(inputs.rubric).toBe('# Rubric\n\nCheck risk.\n');
+});
+
+it('rejects artifact inputs over the size cap before evaluation', async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-evaluate-'));
+  await writeFile(
+    path.join(tempRoot, 'artifact.md'),
+    'x'.repeat(INPUT_SIZE_CAP_BYTES + 1),
+  );
+  await writeFile(
+    path.join(tempRoot, 'rubric.md'),
+    '# Rubric\n\nCheck risk.\n',
+  );
+
+  const parsed = parseEvaluateArgs(['artifact.md', '--rubric', 'rubric.md']);
+
+  await expect(loadEvaluationInputs(parsed, { cwd: tempRoot })).rejects.toThrow(
+    /input exceeds size cap/,
+  );
+});
+
+it('rejects rubric inputs over the size cap before evaluation', async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-evaluate-'));
+  await writeFile(
+    path.join(tempRoot, 'artifact.md'),
+    '# Artifact\n\nShip it.\n',
+  );
+  await writeFile(
+    path.join(tempRoot, 'rubric.md'),
+    'x'.repeat(INPUT_SIZE_CAP_BYTES + 1),
+  );
+
+  const parsed = parseEvaluateArgs(['artifact.md', '--rubric', 'rubric.md']);
+
+  await expect(loadEvaluationInputs(parsed, { cwd: tempRoot })).rejects.toThrow(
+    /input exceeds size cap/,
+  );
 });
 
 it('builds evaluation prompts that frame artifact and rubric as untrusted content', () => {

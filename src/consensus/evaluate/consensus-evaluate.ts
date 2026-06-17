@@ -132,6 +132,7 @@ const MAX_ROUNDS_MIN = 1;
 const MAX_ROUNDS_MAX = 100;
 const PROVIDER_ID_PATTERN = /^[a-z][a-z0-9_-]{0,31}$/u;
 const DEFAULT_PEERS = Object.freeze(['claude', 'codex']);
+export const INPUT_SIZE_CAP_BYTES = 1024 * 1024;
 
 function requireValue(argv: readonly string[], index: number, token: string) {
   const value = argv[index + 1];
@@ -311,6 +312,23 @@ function resolveInputPath(inputPath: string, cwd: string) {
   return path.isAbsolute(inputPath) ? inputPath : path.resolve(cwd, inputPath);
 }
 
+export async function readInputFile(
+  inputPath: string,
+  options: { sizeCapBytes?: number } = {},
+) {
+  const capBytes = options.sizeCapBytes ?? INPUT_SIZE_CAP_BYTES;
+  const fileStat = await stat(inputPath);
+  if (fileStat.size > capBytes) {
+    throw new Error(`input exceeds size cap of ${capBytes} bytes`);
+  }
+
+  const contents = await readFile(inputPath, 'utf8');
+  if (Buffer.byteLength(contents, 'utf8') > capBytes) {
+    throw new Error(`input exceeds size cap of ${capBytes} bytes`);
+  }
+  return contents;
+}
+
 export async function loadEvaluationInputs(
   options: ParsedEvaluateOptions,
   { cwd = process.cwd() }: { cwd?: string } = {},
@@ -318,8 +336,8 @@ export async function loadEvaluationInputs(
   const artifactPath = resolveInputPath(options.artifactPath, cwd);
   const rubricPath = resolveInputPath(options.rubricPath, cwd);
   const [artifact, rubric] = await Promise.all([
-    readFile(artifactPath, 'utf8'),
-    readFile(rubricPath, 'utf8'),
+    readInputFile(artifactPath),
+    readInputFile(rubricPath),
   ]);
 
   return {
@@ -493,7 +511,10 @@ function pathExists(targetPath: string) {
 
 function inside(root: string, target: string) {
   const relative = path.relative(root, target);
-  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
+  return (
+    relative === '' ||
+    (!relative.startsWith('..') && !path.isAbsolute(relative))
+  );
 }
 
 async function nearestExistingPath(targetPath: string): Promise<string> {
@@ -538,11 +559,14 @@ export async function confineWrite(targetPath: string, rootPath: string) {
   );
 
   if (!inside(realRoot, realParent)) {
-    throw new ConsensusError(`write path resolves outside allowed root: ${target}`, {
-      code: 'WRITE_PATH_OUTSIDE_ROOT',
-      exitCode: EXIT_CODES.NOPERM,
-      details: { root, path: target },
-    });
+    throw new ConsensusError(
+      `write path resolves outside allowed root: ${target}`,
+      {
+        code: 'WRITE_PATH_OUTSIDE_ROOT',
+        exitCode: EXIT_CODES.NOPERM,
+        details: { root, path: target },
+      },
+    );
   }
 
   return target;
@@ -560,11 +584,14 @@ export async function atomicWriteFile(
   if (await pathExists(writePath)) {
     const targetStat = await lstat(writePath);
     if (targetStat.isSymbolicLink()) {
-      throw new ConsensusError(`write target may not be a symlink: ${writePath}`, {
-        code: 'WRITE_TARGET_SYMLINK',
-        exitCode: EXIT_CODES.NOPERM,
-        details: { path: writePath },
-      });
+      throw new ConsensusError(
+        `write target may not be a symlink: ${writePath}`,
+        {
+          code: 'WRITE_TARGET_SYMLINK',
+          exitCode: EXIT_CODES.NOPERM,
+          details: { path: writePath },
+        },
+      );
     }
   }
 
@@ -670,14 +697,13 @@ export function createEvaluationInitialArtifact({
   const criterionSections =
     criteria.length > 0
       ? criteria
-          .map(
-            (criterion) =>
-              [
-                `### ${criterion}`,
-                '',
-                '- Verdict: Pending peer evaluation.',
-                '- Findings: Pending peer evaluation.',
-              ].join('\n'),
+          .map((criterion) =>
+            [
+              `### ${criterion}`,
+              '',
+              '- Verdict: Pending peer evaluation.',
+              '- Findings: Pending peer evaluation.',
+            ].join('\n'),
           )
           .join('\n\n')
       : '- Pending peer evaluation against the rubric.';
@@ -874,7 +900,11 @@ function renderDissentSection(records: LoopRecord[], status: LoopStatus) {
     ];
   }
 
-  if (!['impasse', 'escalation', 'max-rounds', 'oscillation'].includes(status.status)) {
+  if (
+    !['impasse', 'escalation', 'max-rounds', 'oscillation'].includes(
+      status.status,
+    )
+  ) {
     return [];
   }
 
@@ -950,9 +980,7 @@ export async function runConsensusEvaluate(
   runOptions: EvaluationExecutionOptions = {},
 ): Promise<EvaluationRunResult> {
   const normalized = normalizeEvaluateOptions(input);
-  const cwd = path.resolve(
-    normalized.cwd ?? runOptions.cwd ?? process.cwd(),
-  );
+  const cwd = path.resolve(normalized.cwd ?? runOptions.cwd ?? process.cwd());
   const env = normalized.env ?? runOptions.env ?? process.env;
   const startedAt = (runOptions.now ?? (() => new Date().toISOString()))();
   const startMs = Date.now();
