@@ -1,176 +1,433 @@
 ---
-oat_status: in_progress
-oat_ready_for: null
+oat_status: complete
+oat_ready_for: oat-project-implement
 oat_blockers: []
-oat_last_updated: 2026-06-15
+oat_last_updated: 2026-06-17
 oat_phase: plan
-oat_phase_status: in_progress
-oat_plan_hill_phases: [] # phases to pause AFTER completing (empty = every phase)
-oat_plan_parallel_groups: [] # groups of phases that run concurrently in worktrees; [] = fully sequential
-oat_plan_source: spec-driven # spec-driven | quick | imported
-oat_import_reference: null # e.g., references/imported-plan.md
-oat_import_source_path: null # original source path provided by user
-oat_import_provider: null # codex | cursor | claude | null
+oat_phase_status: complete
+oat_plan_parallel_groups: [] # fully sequential; phases share generated-output/build surfaces
+oat_plan_source: quick
+oat_import_reference: null
+oat_import_source_path: null
+oat_import_provider: null
 oat_generated: false
 ---
 
 # Implementation Plan: consensus-evaluate
 
-> Execute this plan using `oat-project-implement` — sequential by default, parallel when `oat_plan_parallel_groups` is declared.
+> Execute this plan using `oat-project-implement`.
 
-**Goal:** {Brief goal statement from spec}
+**Goal:** Ship `consensus-evaluate`, a consensus plugin skill that evaluates an artifact against a rubric using the shared consensus loop, preserving per-peer reasoning and dissent in the final artifact.
 
-**Architecture:** {1-2 sentence architecture summary from design}
+**Architecture:** Canonical TypeScript lives under `src/consensus/`; provider-facing `.mjs` files under `plugins/consensus/skills/evaluate/scripts/` are generated committed runtime outputs. Evaluate mirrors PR #14 / DR-021: TypeScript imports the loop via `../core/consensus-loop.js`, and `scripts/build-generated.mjs` rewrites that module specifier to `./consensus-loop.mjs` in generated output.
 
-**Tech Stack:** {Key technologies from design}
+**Tech Stack:** Node 22, TypeScript, esbuild, Vitest, pnpm, generated dependency-free `.mjs` plugin runtimes.
 
-**Commit Convention:** `{type}({scope}): {description}` - e.g., `feat(p01-t01): add user auth endpoint`
-
-## Planning Checklist
-
-- [ ] Confirmed HiLL checkpoints with user
-- [ ] Set `oat_plan_hill_phases` in frontmatter
-- [ ] Evaluated phases for parallelism opportunities
-- [ ] Set `oat_plan_parallel_groups` in frontmatter
-
----
+**Commit Convention:** `{type}({scope}): {description}`.
 
 ## Parallelism
 
-Phases that have no overlapping file modifications may run concurrently. To declare parallelism:
+Run sequentially. The phases all touch shared generated-output/build surfaces (`scripts/build-generated.mjs`, generated runtime outputs, validation guards, and plugin docs), so parallel worktrees would create avoidable merge risk.
 
-```yaml
-oat_plan_parallel_groups: [['p02', 'p03']]
-```
+## Phase 1: Core And Generated Runtime Substrate
 
-Each inner array is a group of phases that execute in parallel (each in its own worktree) and merge back in plan order after all pass. Groups themselves run sequentially.
-
-Default is `[]` (fully sequential, no worktrees). Only declare parallelism when phases are genuinely file-disjoint — overlap will produce merge conflicts that stop the run.
-
----
-
-## Dispatch Profile
-
-_Optional override surface. Use only for explicit user-authored constraints or preferences. Omit this section when runtime selection should choose the lowest confident tier._
-
-Blank or `auto` means there is no explicit constraint for that provider. Do not generate rows by default; a missing phase row uses runtime selection.
-
-| Phase | Claude model              | Codex effort                   | Rationale                     |
-| ----- | ------------------------- | ------------------------------ | ----------------------------- |
-| pNN   | haiku\|sonnet\|opus\|auto | low\|medium\|high\|xhigh\|auto | why this constraint is needed |
-
-Codex effort values are preferred controls. `oat-project-implement` caps them against the resolved OAT dispatch ceiling and maps selected efforts to pinned implementer variants. Codex provider default effort is informational for base/unpinned roles and is not an OAT ceiling.
-
----
-
-## Phase 1: {Phase Name}
-
-### Task p01-t01: {Task Name}
+### Task p01-t01: Add prompt-profile seam and exported loop types
 
 **Files:**
 
-- Create: `{path/to/file.ts}`
-- Modify: `{path/to/existing.ts}`
+- Modify: `src/consensus/core/consensus-loop.ts`
+- Create/modify: `tests/consensus-evaluate-prompt-profile.test.ts`
 
 **Step 1: Write test (RED)**
 
-```typescript
-// {path/to/file.test.ts}
-describe('{feature}', () => {
-  it('{test case}', () => {
-    // Test implementation
-  });
-});
-```
+- Add a Vitest test that calls `runConsensusLoop` with mocked peer invocations and a `promptProfile`.
+- Assert the custom parallel prompt builder is used for `parallel_revision`.
+- Assert the no-profile path still uses the default prompt builders.
+- Add type-level coverage for exported `PromptProfile`, prompt builder input types, `RunOptions`, loop records, and terminal status types.
 
-Run: `pnpm --filter {package-name} exec vitest run {path/to/file.test.ts}`
-Expected: Test fails (RED)
+Run: `pnpm exec vitest run tests/consensus-evaluate-prompt-profile.test.ts`
+Expected: Fails because `promptProfile` and exported types do not exist yet.
 
 **Step 2: Implement (GREEN)**
 
-```typescript
-// {path/to/file.ts}
-// Implementation code or interface signatures
-```
-
-Run: `pnpm --filter {package-name} exec vitest run {path/to/file.test.ts}`
-Expected: Test passes (GREEN)
-
-Use the actual runner command that scopes to the intended file or test target. Do not write a package-level shortcut unless it truly executes only the scope the task claims.
+- Add `PromptProfile` and exported loop-facing types to the canonical loop source.
+- Thread resolved prompt builders through alternating, parallel, and synthesis execution paths.
+- Keep defaults equal to today's builders when no profile is supplied.
 
 **Step 3: Refactor**
 
-{Any cleanup or improvements while tests stay green}
+- Keep rubric/evaluation semantics out of the loop.
+- Avoid changing generated runtime output by hand; regeneration happens in later tasks.
 
 **Step 4: Verify**
 
-Run: `pnpm lint && pnpm type-check`
-Expected: No errors
+Run: `pnpm exec vitest run tests/consensus-evaluate-prompt-profile.test.ts && pnpm run type-check`
+Expected: Prompt-profile tests and type-check pass.
 
 **Step 5: Commit**
 
 ```bash
-git add {files}
-git commit -m "feat(p01-t01): {description}"
+git add src/consensus/core/consensus-loop.ts tests/consensus-evaluate-prompt-profile.test.ts
+git commit -m "feat(p01-t01): add consensus loop prompt profile seam"
 ```
 
 ---
 
-### Task p01-t02: {Task Name}
+### Task p01-t02: Add evaluate schema assets with parity coverage
 
 **Files:**
 
-- {File list}
+- Create: `plugins/consensus/skills/evaluate/schemas/verdict-alternating.schema.json`
+- Create: `plugins/consensus/skills/evaluate/schemas/verdict-parallel.schema.json`
+- Create: `plugins/consensus/skills/evaluate/schemas/synthesis.schema.json`
+- Create: `tests/consensus-evaluate-schema-parity.test.ts`
 
 **Step 1: Write test (RED)**
 
-{Test code}
+- Add a Vitest parity test comparing every evaluate schema asset to the canonical refine distribution schema asset.
+- Assert all three schema filenames exist in both distribution trees.
+
+Run: `pnpm exec vitest run tests/consensus-evaluate-schema-parity.test.ts`
+Expected: Fails because evaluate schema assets are missing.
 
 **Step 2: Implement (GREEN)**
 
-{Implementation code or signatures}
+- Copy the existing refine schema JSON assets into the evaluate distribution tree.
+- Keep refine distribution schemas canonical for this item; do not introduce `src/consensus/core/schemas/` yet.
 
 **Step 3: Refactor**
 
-{Optional cleanup}
+- Keep schema-copy behavior explicit in the test so manual drift cannot pass silently.
 
 **Step 4: Verify**
 
-Run: `{verification command}`
-Expected: {output}
-
-Verification commands should be behaviorally accurate. If the task claims a file-scoped or test-scoped check, use the concrete runner invocation that really scopes to that target.
+Run: `pnpm exec vitest run tests/consensus-evaluate-schema-parity.test.ts`
+Expected: Schema parity test passes.
 
 **Step 5: Commit**
 
 ```bash
-git add {files}
-git commit -m "feat(p01-t02): {description}"
+git add plugins/consensus/skills/evaluate/schemas tests/consensus-evaluate-schema-parity.test.ts
+git commit -m "test(p01-t02): guard evaluate schema parity"
 ```
 
 ---
 
-## Phase 2: {Phase Name}
+### Task p01-t03: Generate evaluate loop runtime output
 
-### Task p02-t01: {Task Name}
+**Files:**
 
-{Continue TDD pattern...}
+- Modify: `scripts/build-generated.mjs`
+- Modify: `tests/generated-output-sync.test.mjs`
+- Modify: `tests/repo-layout.test.mjs`
+- Modify as needed: `.oxfmtrc.json`, `.oxlintrc.json`, `.lintstagedrc.mjs`, `.github/workflows/validate.yml`
+- Create generated: `plugins/consensus/skills/evaluate/scripts/consensus-loop.mjs`
+
+**Step 1: Write test (RED)**
+
+- Extend generated-output tests to assert a `consensus-evaluate-loop` mapping from `src/consensus/core/consensus-loop.ts` to `plugins/consensus/skills/evaluate/scripts/consensus-loop.mjs`.
+- Extend layout tests to require `plugins/consensus/skills/evaluate/scripts` and to keep asserting no `.ts` files under `plugins/consensus/skills`.
+
+Run: `pnpm exec vitest run tests/generated-output-sync.test.mjs && node --test tests/repo-layout.test.mjs`
+Expected: Fails because the mapping and generated output do not exist.
+
+**Step 2: Implement (GREEN)**
+
+- Add the evaluate loop mapping to `generatedOutputs`.
+- Run `pnpm run build` to create the generated evaluate loop runtime.
+- Add generated `.mjs` exclusions wherever PR #14 excludes generated consensus runtimes.
+
+**Step 3: Refactor**
+
+- Keep the generated output banner intact.
+- Do not add a second sync script.
+
+**Step 4: Verify**
+
+Run: `pnpm run build:check && pnpm exec vitest run tests/generated-output-sync.test.mjs && node --test tests/repo-layout.test.mjs`
+Expected: Generated loop output is in sync and layout guards pass.
+
+**Step 5: Commit**
+
+```bash
+git add scripts/build-generated.mjs tests/generated-output-sync.test.mjs tests/repo-layout.test.mjs .oxfmtrc.json .oxlintrc.json .lintstagedrc.mjs .github/workflows/validate.yml plugins/consensus/skills/evaluate/scripts/consensus-loop.mjs
+git commit -m "build(p01-t03): generate evaluate consensus loop runtime"
+```
+
+---
+
+## Phase 2: Evaluate Wrapper Source And Output Contract
+
+### Task p02-t01: Add canonical evaluate wrapper argument and prompt behavior
+
+**Files:**
+
+- Create: `src/consensus/evaluate/consensus-evaluate.ts`
+- Create: `tests/consensus-evaluate-wrapper.test.ts`
+
+**Step 1: Write test (RED)**
+
+- Add Vitest coverage for parsing `<artifact> --rubric <path>` and standard consensus flags.
+- Assert defaults: `shared_input`, `parallel_revision`, `minimal`.
+- Assert unsupported `--cold-start independent_draft` is rejected with a clear message.
+- Assert evaluation prompt builders frame artifact and rubric as untrusted content and ask peers to produce an evaluation, not an artifact edit.
+
+Run: `pnpm exec vitest run tests/consensus-evaluate-wrapper.test.ts`
+Expected: Fails because the wrapper source does not exist.
+
+**Step 2: Implement (GREEN)**
+
+- Add canonical wrapper source under `src/consensus/evaluate/`.
+- Import loop APIs through `../core/consensus-loop.js`, matching PR #14.
+- Implement argument parsing, input reads, default resolution, and evaluation prompt builders.
+
+**Step 3: Refactor**
+
+- Keep wrapper-specific evaluation semantics out of `consensus-loop.ts`.
+- Reuse refine wrapper helpers or patterns where behavior matches, without importing generated refine runtime.
+
+**Step 4: Verify**
+
+Run: `pnpm exec vitest run tests/consensus-evaluate-wrapper.test.ts && pnpm run type-check`
+Expected: Wrapper behavior tests and type-check pass.
+
+**Step 5: Commit**
+
+```bash
+git add src/consensus/evaluate/consensus-evaluate.ts tests/consensus-evaluate-wrapper.test.ts
+git commit -m "feat(p02-t01): add consensus evaluate wrapper source"
+```
+
+---
+
+### Task p02-t02: Implement run-state and final evaluation rendering
+
+**Files:**
+
+- Modify: `src/consensus/evaluate/consensus-evaluate.ts`
+- Create: `tests/consensus-evaluate-output.test.ts`
+
+**Step 1: Write test (RED)**
+
+- Add Vitest tests with mocked peer invocations for:
+  - wrapper passes `--output-records`, `--output-section`, and `--output-status`
+  - final artifact includes unified findings
+  - final artifact embeds canonical per-record `consensus-verdict` blocks
+  - `IMPASSE` / escalation status renders `## Unresolved dissent`
+  - `CONVERGED` status renders or omits `## Dissent` based on residual concerns
+
+Run: `pnpm exec vitest run tests/consensus-evaluate-output.test.ts`
+Expected: Fails because output rendering is incomplete.
+
+**Step 2: Implement (GREEN)**
+
+- Allocate the evaluate run directory and state files using the same confinement/path-safety approach as refine.
+- Render final evaluation markdown from section output, records, and status.
+- Preserve peer reasoning, critique, and verdicts verbatim in embedded record blocks.
+
+**Step 3: Refactor**
+
+- Keep final rendering deterministic and testable with mocked loop records.
+
+**Step 4: Verify**
+
+Run: `pnpm exec vitest run tests/consensus-evaluate-output.test.ts tests/consensus-evaluate-wrapper.test.ts`
+Expected: Evaluate wrapper and output tests pass.
+
+**Step 5: Commit**
+
+```bash
+git add src/consensus/evaluate/consensus-evaluate.ts tests/consensus-evaluate-output.test.ts
+git commit -m "feat(p02-t02): render consensus evaluate output"
+```
+
+---
+
+### Task p02-t03: Generate evaluate wrapper runtime with PR #14 import rewrite
+
+**Files:**
+
+- Modify: `scripts/build-generated.mjs`
+- Modify: `tests/generated-output-sync.test.mjs`
+- Create: `tests/generated-consensus-evaluate-import.test.ts`
+- Create generated: `plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs`
+
+**Step 1: Write test (RED)**
+
+- Add a generated-import Vitest test asserting the generated evaluate wrapper imports `./consensus-loop.mjs` and does not contain `../core/`.
+- Extend generated-output sync tests to assert the evaluate wrapper source/output mapping.
+
+Run: `pnpm exec vitest run tests/generated-consensus-evaluate-import.test.ts tests/generated-output-sync.test.mjs`
+Expected: Fails because the mapping and generated wrapper do not exist.
+
+**Step 2: Implement (GREEN)**
+
+- Add the evaluate wrapper mapping:
+  - `source: 'src/consensus/evaluate/consensus-evaluate.ts'`
+  - `output: 'plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs'`
+  - `importRewrites: [{ from: '../core/consensus-loop.js', to: './consensus-loop.mjs' }]`
+- Run `pnpm run build`.
+
+**Step 3: Refactor**
+
+- Confirm rewrite behavior comes from the parser-based `rewriteImportSpecifiers` helper shipped in PR #14.
+
+**Step 4: Verify**
+
+Run: `pnpm run build:check && pnpm exec vitest run tests/generated-consensus-evaluate-import.test.ts tests/generated-output-sync.test.mjs`
+Expected: Generated evaluate wrapper imports the sibling loop runtime and drift checks pass.
+
+**Step 5: Commit**
+
+```bash
+git add scripts/build-generated.mjs tests/generated-output-sync.test.mjs tests/generated-consensus-evaluate-import.test.ts plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs
+git commit -m "build(p02-t03): generate consensus evaluate wrapper"
+```
+
+---
+
+## Phase 3: Distribution, Documentation, And Verification
+
+### Task p03-t01: Register consensus-evaluate in plugin distribution surfaces
+
+**Files:**
+
+- Create: `plugins/consensus/skills/evaluate/SKILL.md`
+- Create/modify: `plugins/consensus/skills/evaluate/references/*`
+- Modify: `plugins/consensus/.claude-plugin/*`
+- Modify: `plugins/consensus/.codex-plugin/*`
+- Modify: `plugins/consensus/.cursor-plugin/*`
+- Modify: validation tests as needed
+
+**Step 1: Write test (RED)**
+
+- Extend manifest/docs presence tests to require the evaluate skill directory, `SKILL.md`, generated scripts, schemas, and provider manifest entries.
+
+Run: `node --test tests/docs-presence.test.mjs tests/package-metadata.test.mjs`
+Expected: Fails because evaluate is not registered.
+
+**Step 2: Implement (GREEN)**
+
+- Add evaluate `SKILL.md`, references, and provider manifest registrations.
+- Keep shipped skill runtime dependency-free.
+
+**Step 3: Refactor**
+
+- Keep documentation user-facing and concise; avoid stale deferred-language once shipped.
+
+**Step 4: Verify**
+
+Run: `pnpm run validate`
+Expected: Manifest and docs invariants pass.
+
+**Step 5: Commit**
+
+```bash
+git add plugins/consensus/skills/evaluate plugins/consensus/.claude-plugin plugins/consensus/.codex-plugin plugins/consensus/.cursor-plugin tests
+git commit -m "docs(p03-t01): register consensus evaluate skill"
+```
+
+---
+
+### Task p03-t02: Update README and OAT reference status
+
+**Files:**
+
+- Modify: `README.md`
+- Modify: `plugins/consensus/README.md`
+- Modify: `.oat/repo/reference/current-state.md`
+- Modify: `.oat/repo/reference/roadmap.md`
+- Modify: `.oat/repo/reference/backlog/items/add-consensus-evaluate-skill.md`
+- Modify as needed: `.oat/repo/reference/backlog/index.md`
+
+**Step 1: Write test (RED)**
+
+- Extend docs/reference tests if they assert family skill status or backlog index consistency.
+- Otherwise record a targeted `rg` check for stale "deferred" references.
+
+Run: `rg -n "consensus-evaluate|deferred" README.md plugins/consensus/README.md .oat/repo/reference`
+Expected: Shows stale or incomplete evaluate status before edits.
+
+**Step 2: Implement (GREEN)**
+
+- List `consensus-evaluate` as shipped where the plugin family is documented.
+- Mark bl-5174 delivered and refresh current state / roadmap language.
+- Regenerate or manually align backlog index if the repo convention requires it.
+
+**Step 3: Refactor**
+
+- Remove stale workaround/waiting language tied to pre-PR #14 sequencing.
+
+**Step 4: Verify**
+
+Run: `pnpm run validate` and `rg -n "wait for|deferred|not shipped" README.md plugins/consensus/README.md .oat/repo/reference`
+Expected: Validation passes; any remaining `rg` matches are unrelated or intentionally historical.
+
+**Step 5: Commit**
+
+```bash
+git add README.md plugins/consensus/README.md .oat/repo/reference
+git commit -m "docs(p03-t02): mark consensus evaluate shipped"
+```
+
+---
+
+### Task p03-t03: Run final verification and capture project completion state
+
+**Files:**
+
+- Modify: `.oat/projects/shared/consensus-evaluate/implementation.md`
+- Modify: `.oat/projects/shared/consensus-evaluate/state.md`
+- Modify/create: `.oat/projects/shared/consensus-evaluate/summary.md`
+- Modify as needed: `CHANGELOG.md`
+
+**Step 1: Write test (RED)**
+
+- No new product test. Confirm all targeted tests from earlier phases are in the suite and fail if generated output is stale.
+
+Run: `pnpm run build:check`
+Expected: Passes only when generated outputs are current.
+
+**Step 2: Implement (GREEN)**
+
+- Run final gates:
+  - `pnpm run build`
+  - `pnpm run build:check`
+  - `pnpm run type-check`
+  - `pnpm test`
+  - `pnpm run validate`
+  - `pnpm run smoke`
+- Record implementation results, review status, docs status, and any known caveats in OAT artifacts.
+
+**Step 3: Refactor**
+
+- If generated files changed during verification, commit the source plus generated outputs together.
+
+**Step 4: Verify**
+
+Run: `git diff --check && git status --short`
+Expected: No whitespace errors; only intentional final OAT/docs changes remain before commit.
+
+**Step 5: Commit**
+
+```bash
+git add .oat/projects/shared/consensus-evaluate CHANGELOG.md
+git commit -m "chore(consensus-evaluate): record implementation completion"
+```
 
 ---
 
 ## Reviews
 
-{Track reviews here after running the oat-project-review-provide and oat-project-review-receive skills.}
-
-{Keep both code + artifact rows below. Add additional code rows (p03, p04, etc.) as needed, but do not delete `spec`/`design`.}
-
 | Scope  | Type     | Status  | Date | Artifact |
 | ------ | -------- | ------- | ---- | -------- |
 | p01    | code     | pending | -    | -        |
 | p02    | code     | pending | -    | -        |
+| p03    | code     | pending | -    | -        |
 | final  | code     | pending | -    | -        |
 | spec   | artifact | pending | -    | -        |
-| design | artifact | passed | 2026-06-15 | reviews/archived/artifact-design-review-2026-06-15.md |
+| design | artifact | pending | -    | -        |
+| plan   | artifact | pending | -    | -        |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 
@@ -187,18 +444,20 @@ git commit -m "feat(p01-t02): {description}"
 
 **Summary:**
 
-- Phase 1: {N} tasks - {Description}
-- Phase 2: {N} tasks - {Description}
+- Phase 1: 3 tasks - Core prompt-profile seam, schema parity, and generated evaluate loop runtime.
+- Phase 2: 3 tasks - Canonical evaluate wrapper, output rendering, and generated wrapper runtime.
+- Phase 3: 3 tasks - Plugin distribution registration, docs/reference updates, and final verification.
 
-**Total: {N} tasks**
+**Total: 9 tasks**
 
-Ready for code review and merge.
+Ready for implementation after plan review/acceptance.
 
 ---
 
 ## References
 
-- Design: `design.md` (required in spec-driven mode; optional in quick/import mode)
-- Spec: `spec.md` (required in spec-driven mode; optional in quick/import mode)
+- Design: `design.md`
 - Discovery: `discovery.md`
-- Imported Source: `references/imported-plan.md` (when `oat_plan_source: imported`)
+- Backlog item: `.oat/repo/reference/backlog/items/add-consensus-evaluate-skill.md`
+- PR #14 convention: `scripts/build-generated.mjs`, `src/consensus/refine/consensus-refine.ts`, `tests/generated-consensus-refine-import.test.ts`
+- Decision records: `.oat/repo/reference/decision-record.md` DR-020 and DR-021

@@ -1,8 +1,8 @@
 ---
 oat_status: complete
-oat_ready_for: null
+oat_ready_for: oat-project-plan
 oat_blockers: []
-oat_last_updated: 2026-06-15
+oat_last_updated: 2026-06-17
 oat_generated: false
 oat_template: false
 ---
@@ -26,59 +26,85 @@ byte-for-byte behavior-identical. `consensus-evaluate` injects evaluation-framed
 render the artifact and rubric as untrusted-content blocks and converge on an evaluation
 document carried in `proposed_artifact`.
 
-Because the seam requires the engine to be reused by two skills, the engine and its schemas
-are promoted to a canonical `shared/consensus-core/`, with **generated, byte-identical
-committed copies** in each consumer skill, a `sync:consensus-core` npm script, and a
-drift-guard test — mirroring the established `shared/transcript-core/` precedent. The
+PR #13 changed the packaging substrate this design should build on. The engine is now
+canonical TypeScript at `src/consensus/core/consensus-loop.ts`, and provider-facing `.mjs`
+runtime files under `plugins/` are committed generated outputs maintained by
+`scripts/build-generated.mjs`, `pnpm run build`, `pnpm run build:check`, and the Vitest
+generated-output guard. `consensus-evaluate` should extend that generated-runtime contract
+rather than introduce a parallel `shared/consensus-core/` sync path. The wrapper should also be
+TypeScript-first: canonical source at `src/consensus/evaluate/consensus-evaluate.ts`, generated
+runtime output at `plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs`. The
 evaluation output is **free-form markdown** seeded from a lightly structured, rubric-derived
-template; per-peer reasoning and dissent remain in the deliberation log as the source of
-truth. No new verdict schema or JSON contract is introduced.
+template; per-peer reasoning and dissent remain in the deliberation log as the source of truth.
+No new verdict schema or JSON contract is introduced.
+
+PR #14 has now shipped the consensus/refine TypeScript wrapper migration and settles the
+wrapper build/import convention. Evaluate should mirror that exact convention: TypeScript
+source imports the loop with the NodeNext-resolvable specifier `../core/consensus-loop.js`,
+and `scripts/build-generated.mjs` rewrites that emitted module specifier to the sibling
+runtime import `./consensus-loop.mjs` in the generated plugin output. The rewrite is
+parser-based and applies only to static imports, export-from declarations, and dynamic import
+module specifiers; unrelated string literals are not rewritten.
 
 ## Architecture
 
 ### System Context
 
-The consensus plugin ships a shared deliberation engine (`consensus-loop.mjs`) plus skills
-that wrap it for specific jobs. Today the engine lives only inside `refine/`. This project
-relocates the engine to a canonical shared home and adds a second consumer (`evaluate/`),
-establishing the engine as a true shared primitive.
+The consensus plugin ships generated runtime `.mjs` files plus TypeScript source under `src/`
+for developer-owned logic. After PR #13, the loop source of truth is
+`src/consensus/core/consensus-loop.ts`; `plugins/consensus/skills/refine/scripts/consensus-loop.mjs`
+is generated distribution output. PR #14 added
+`src/consensus/refine/consensus-refine.ts`, generated
+`plugins/consensus/skills/refine/scripts/consensus-refine.mjs`, and DR-021's parser-based
+`importRewrites` mechanism. This project adds a second wrapper consumer using the same
+source/import/build convention, with `src/consensus/evaluate/consensus-evaluate.ts` as
+canonical wrapper source and generated runtime output under the evaluate skill's `scripts/`
+directory.
 
 **Key Components:**
 
-- **`shared/consensus-core/` (new canonical engine):** the single source of truth for
-  `consensus-loop.mjs` and its `schemas/` (`verdict-parallel`, `verdict-alternating`,
-  `synthesis`). Plus a `promptProfile` seam added to `runConsensusLoop`.
-- **`scripts/sync-consensus-core.mjs` (new):** materializes byte-identical committed copies
-  of the engine + schemas into each consumer; `--check` mode powers the drift guard.
-- **`refine/` (existing, behavior-preserved):** its `scripts/consensus-loop.mjs` and
-  `schemas/` become generated copies of canonical. `consensus-refine.mjs` is untouched and
-  passes no prompt profile, so engine defaults apply.
-- **`evaluate/` (new skill):** `consensus-evaluate.mjs` wrapper + generated engine copy +
-  generated schema copies + `SKILL.md` + plugin/skill manifests.
-- **Drift guard test (new):** fails `npm test` if any generated engine/schema copy diverges
-  from canonical (same pattern as `tests/transcript-core/sync.test.mjs`).
+- **`src/consensus/core/consensus-loop.ts` (existing canonical engine):** the TypeScript
+  source of truth. This project adds `promptProfile` to `runConsensusLoop` here, then
+  regenerates committed `.mjs` outputs.
+- **`scripts/build-generated.mjs` (existing):** extend the generated-output mapping so the
+  canonical engine emits both the existing refine runtime copy and the new evaluate runtime
+  copy, and so the canonical evaluate wrapper emits its provider-facing runtime copy;
+  `--check` remains the drift-guard entry point.
+- **`refine/` (existing, behavior-preserved):** its generated
+  `scripts/consensus-loop.mjs` remains at the current provider-facing path.
+  `consensus-refine.mjs` is untouched and passes no prompt profile, so engine defaults apply.
+- **`src/consensus/evaluate/consensus-evaluate.ts` (new canonical wrapper):** typed wrapper
+  source that imports typed loop/profile APIs from `../core/consensus-loop.js`, matching the
+  PR #14 NodeNext-resolvable source convention.
+- **`evaluate/` (new distribution skill):** generated `scripts/consensus-evaluate.mjs`,
+  generated `scripts/consensus-loop.mjs`, local schema JSONs needed by module-relative schema
+  paths, `SKILL.md`, references, and plugin/skill manifests.
+- **Generated-output drift guard (existing, extended):** `tests/generated-output-sync.test.mjs`
+  and `pnpm run build:check` fail when committed generated runtime output diverges from
+  canonical TypeScript. Schema copies must also have explicit parity/drift coverage.
 
 ### Component Diagram
 
 ```
-                 shared/consensus-core/   (CANONICAL)
-                 ├── consensus-loop.mjs   (+ promptProfile seam)
-                 └── schemas/*.json
-                          │  sync-consensus-core.mjs  (generate / --check)
-            ┌─────────────┴──────────────┐
-            ▼                             ▼
- refine/scripts/consensus-loop.mjs   evaluate/scripts/consensus-loop.mjs   (GENERATED copies)
- refine/schemas/*.json               evaluate/schemas/*.json               (GENERATED copies)
-            │                             │
- consensus-refine.mjs              consensus-evaluate.mjs
- (no promptProfile →               (injects evaluation-framed
-  engine defaults)                  promptProfile + reads artifact/rubric)
+src/consensus/core/consensus-loop.ts        src/consensus/evaluate/consensus-evaluate.ts
+             │                                           │
+             └──────── scripts/build-generated.mjs ──────┘
+                         (build / --check)
+             │                                           │
+             ▼                                           ▼
+refine/scripts/consensus-loop.mjs       evaluate/scripts/consensus-evaluate.mjs
+evaluate/scripts/consensus-loop.mjs      (generated wrapper runtime)
+(generated loop runtimes)
+             │                                           │
+refine/schemas/*.json                    evaluate/schemas/*.json
+                                          SKILL.md / refs / manifests
 ```
 
 ### Data Flow
 
 ```
-1. Host invokes:  node evaluate/scripts/consensus-evaluate.mjs <artifact> --rubric <path> [flags]
+1. Host invokes generated runtime:
+   node evaluate/scripts/consensus-evaluate.mjs <artifact> --rubric <path> [flags]
 2. Wrapper reads artifact + rubric; resolves v3 defaults
    (shared_input / parallel_revision / minimal), all overridable.
 3. Wrapper seeds initialArtifact = rubric-derived markdown evaluation template
@@ -88,7 +114,8 @@ establishing the engine as a true shared primitive.
      - present the converging evaluation doc as the "artifact"/own+peer previous revisions
      - instruct peers to produce/revise an EVALUATION (not edit the artifact),
        emitting a verdict-parallel verdict whose proposed_artifact carries the eval doc.
-5. Wrapper calls runConsensusLoop(argv, { invokePeer, promptProfile, initialArtifact, ... }).
+5. The generated wrapper imports the local generated loop runtime and calls
+   runConsensusLoop(argv, { invokePeer, promptProfile, initialArtifact, ... }).
 6. Engine runs parallel_revision rounds; each record captures
    agent / verdict / reasoning / critique / proposed_artifact  → the deliberation log.
 7. After the loop, wrapper assembles the final evaluation markdown:
@@ -108,6 +135,8 @@ engine, while keeping refine behavior-identical.
 
 **Responsibilities:**
 
+- Export real TypeScript types for `PromptProfile`, prompt builder inputs, `RunOptions`,
+  terminal status, loop records, and render inputs that wrappers consume.
 - Accept `runOptions.promptProfile = { buildTurnPrompt?, buildParallelTurnPrompt?,
   buildSynthesisPrompt? }`, each optional.
 - At entry, resolve each builder as `profile.X ?? <existing module builder>` and thread the
@@ -117,32 +146,50 @@ engine, while keeping refine behavior-identical.
 
 **Interfaces:**
 
-```js
-// builder signatures are UNCHANGED from today's exported functions
-runConsensusLoop(argv, {
-  invokePeer,            // existing injection hook (used by tests)
-  invokeSynthesizer,     // existing
-  initialArtifact,       // existing
-  initialRecords,        // existing
-  promptProfile,         // NEW, optional: { buildTurnPrompt?, buildParallelTurnPrompt?, buildSynthesisPrompt? }
+```ts
+interface PromptProfile {
+  buildTurnPrompt?: typeof buildTurnPrompt;
+  buildParallelTurnPrompt?: typeof buildParallelTurnPrompt;
+  buildSynthesisPrompt?: typeof buildSynthesisPrompt;
+}
+
+interface RunOptions {
+  invokePeer?: PeerInvoker;
+  invokeSynthesizer?: SynthesizerInvoker;
+  initialArtifact?: string;
+  initialRecords?: LoopRecord[];
+  promptProfile?: PromptProfile;
   // ...other existing runOptions
-})
+}
 ```
 
 **Design Decisions:**
 
 - Default-preserving: refine passes no `promptProfile` → every builder resolves to the
-  existing module function → byte-identical behavior. Verified by re-running refine's full
-  suite + the drift guard.
+  existing module function → behavior-identical generated runtime. Verified by re-running
+  refine's full suite plus `pnpm run type-check`, `pnpm run build:check`, and the generated
+  output guard.
 - Seam is the **only** change to the canonical engine. No rubric knowledge enters the engine.
+- Evaluate should be a forcing function for typed loop APIs, not another implicit object-shape
+  consumer. PR #14's refine wrapper derives several loop-facing types from `runConsensusLoop`;
+  evaluate may use that pattern, but any new prompt-profile types added here should be exported
+  explicitly for future consensus wrappers.
 
-### `consensus-evaluate.mjs` (wrapper)
+### `src/consensus/evaluate/consensus-evaluate.ts` + generated wrapper runtime
 
 **Purpose:** the thin skill entry point. Parse flags, read inputs, inject evaluation
-semantics, drive a single consensus loop, assemble the final evaluation document.
+semantics, drive a single consensus loop, assemble the final evaluation document, and generate
+the provider-facing `.mjs` wrapper.
 
 **Responsibilities:**
 
+- Keep canonical wrapper logic in `src/consensus/evaluate/consensus-evaluate.ts`.
+- Generate `plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs`; do not hand-edit
+  the generated wrapper.
+- In TypeScript source, import loop APIs through `../core/consensus-loop.js`; TypeScript
+  resolves this to `src/consensus/core/consensus-loop.ts`.
+- In generated plugin output, import the co-located local runtime `./consensus-loop.mjs` via the
+  parser-based `importRewrites` mechanism shipped in PR #14.
 - Parse `<artifact>` positional + `--rubric <path>` (required) and standard flags.
 - Apply v3 defaults, all overridable: `--cold-start shared_input`, `--iteration
   parallel_revision`, `--agency minimal`; plus `--peers`, `--max-rounds`, `--output`,
@@ -155,8 +202,10 @@ semantics, drive a single consensus loop, assemble the final evaluation document
 
 **Dependencies:**
 
-- Internal: generated `evaluate/scripts/consensus-loop.mjs` (canonical engine copy),
-  generated `evaluate/schemas/verdict-parallel.schema.json`.
+- Internal source: `src/consensus/core/consensus-loop.ts` and exported loop/profile types.
+- Internal distribution: generated `evaluate/scripts/consensus-loop.mjs` and generated
+  `evaluate/scripts/consensus-evaluate.mjs`, plus co-located evaluate schema JSONs matching the
+  consensus verdict/synthesis schemas.
 - External: none (Node stdlib only; Paseo only via injected `invokePeer` at runtime).
 
 **Design Decisions:**
@@ -165,6 +214,9 @@ semantics, drive a single consensus loop, assemble the final evaluation document
   thinner than `consensus-refine.mjs`.
 - Untrusted-content framing for both artifact and rubric — the safety reason goal-encoding was
   rejected.
+- Do not implement a custom import/build rewrite for evaluate. Mirror PR #14 / DR-021 directly:
+  configure `importRewrites: [{ from: '../core/consensus-loop.js', to: './consensus-loop.mjs' }]`
+  on the evaluate wrapper mapping and rely on the shipped parser-based rewrite helper.
 
 ### Output & deliberation-log state contract
 
@@ -227,42 +279,64 @@ runtime code.
 - This is a first-class design responsibility, not incidental cleanup — `npm run validate`
   enforces manifest/docs invariants, so missing it fails the build.
 
-### `sync-consensus-core.mjs` + drift guard
+### Generated-runtime build mapping + drift guard
 
-**Purpose:** keep every generated engine/schema copy byte-identical to canonical; fail CI on
-drift.
+**Purpose:** keep committed runtime output in sync with canonical TypeScript source and make
+the new evaluate runtime copy part of the same generated-output contract PR #13 established.
 
 **Responsibilities:**
 
-- Generate: write `<banner>\n\n<canonical contents>` for `consensus-loop.mjs` and copy each
-  schema JSON into every consumer's `schemas/` dir.
-- `--check`: compare on-disk copies to expected; exit non-zero on any divergence.
-- Add `sync:consensus-core` to `package.json` scripts; mirror the transcript-core wiring.
+- Extend `scripts/build-generated.mjs` so `src/consensus/core/consensus-loop.ts` emits:
+  - `plugins/consensus/skills/refine/scripts/consensus-loop.mjs` (existing)
+  - `plugins/consensus/skills/evaluate/scripts/consensus-loop.mjs` (new)
+- Extend the same mapping for wrappers using the PR #14 convention:
+  - `src/consensus/refine/consensus-refine.ts` →
+    `plugins/consensus/skills/refine/scripts/consensus-refine.mjs`
+  - `src/consensus/evaluate/consensus-evaluate.ts` →
+    `plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs` with
+    `importRewrites: [{ from: '../core/consensus-loop.js', to: './consensus-loop.mjs' }]`
+- Preserve the generated banner and never hand-edit generated `.mjs` outputs.
+- Keep `pnpm run build:check` / `tests/generated-output-sync.test.mjs` as the drift guard.
+- Provide local `evaluate/schemas/*.json` assets because the generated engine resolves schemas
+  module-relative via `../schemas/...`.
+- Tighten schema handling with the explicit interim convention PR #14 left in place: keep the
+  existing distribution schemas under `plugins/consensus/skills/refine/schemas/` canonical for
+  now, copy the required schema assets into `evaluate/schemas/`, and add an explicit
+  parity/drift test so evaluate schemas cannot silently diverge from refine schemas. Moving
+  schemas under `src/consensus/core/schemas/` remains a future cleanup, not part of this item.
+- Keep generated `.mjs` outputs excluded from oxlint/oxfmt/lint-staged/CI formatting in the
+  same places PR #13 introduced.
 
 **Design Decisions:**
 
-- Sync unit = **engine + the schema JSONs it references**, because schema paths resolve
-  module-relative (`new URL('../schemas/...', import.meta.url)`); each consumer therefore
-  needs its own `schemas/` copy.
-- Generated copies carry the `// GENERATED` banner and are added to the oxfmt/oxlint
-  exclusion lists in all three places that must stay in sync (`.oxfmtrc.json`,
-  `.lintstagedrc.mjs`, CI `oxfmt --check`).
+- Generated-runtime unit = **canonical TypeScript source + committed `.mjs` output per
+  provider-facing runtime path** for both engine and wrapper outputs. Schema JSONs remain
+  local distribution assets because the current engine resolves them relative to the generated
+  `.mjs` file, but schema copying must be drift-checked.
+- Do not add `sync:consensus-core`; that would duplicate the generated-runtime substrate now
+  documented by DR-020.
+- PR #14 shipped the wrapper import/build convention evaluate should follow. No additional
+  sequencing blocker remains for planning.
 
 ## Testing Strategy
 
 All peer calls are mocked via the injected `invokePeer` hook (the same hook refine's tests
-use) — no live Paseo. Tests run under `node --test` (`npm test`).
+use) — no live Paseo. New consensus-evaluate coverage should be `.test.ts` and Vitest-first.
+`pnpm test` still includes the legacy Node suite, but this project should not add new
+`node:test` coverage.
 
 ### Key Test Levels and Scenarios
 
 | Concern                          | Verification | Key Scenarios                                                                                                   |
 | -------------------------------- | ------------ | -------------------------------------------------------------------------------------------------------------- |
-| Wrapper defaults (AC #2)         | unit         | Asserts `parallel_revision` / `minimal` / `shared_input` applied; each overridable; `independent_draft` rejected |
-| Evaluation output contract (AC #1) | unit/integration | Final doc has unified findings; `verdict-parallel` reused unchanged; **canonical per-record `consensus-verdict` blocks (peer reasoning + verdict) are embedded in the artifact**, not just a rendered summary; `proposed_artifact` carries the eval doc |
-| Deliberation-log state contract (AC #1) | integration | Wrapper passes `--output-records/-section/-status`; final artifact embeds the deliberation log; dissent surfaced per CONVERGED vs IMPASSE/escalation |
-| Impasse under minimal agency (AC #4) | integration | Inject IMPASSE/escalation verdicts → final doc surfaces an "Unresolved dissent" section enumerating positions; status reflects impasse |
-| Engine seam (default-preserving) | unit         | `runConsensusLoop` with no `promptProfile` produces identical prompts/behavior to today                          |
-| consensus-core drift guard       | unit         | Generated engine + schema copies match canonical (`sync-consensus-core --check`)                                |
+| Prompt profile selection        | Vitest       | Evaluate passes evaluation-framed builders; refine/no-profile path keeps default builders |
+| Wrapper defaults (AC #2)         | Vitest       | Asserts `parallel_revision` / `minimal` / `shared_input` applied; each overridable; `independent_draft` rejected |
+| Evaluation output contract (AC #1) | Vitest/integration | Final doc has unified findings; `verdict-parallel` reused unchanged; **canonical per-record `consensus-verdict` blocks (peer reasoning + verdict) are embedded in the artifact**, not just a rendered summary; `proposed_artifact` carries the eval doc |
+| Deliberation-log state contract (AC #1) | Vitest/integration | Wrapper passes `--output-records/-section/-status`; final artifact embeds the deliberation log; dissent surfaced per CONVERGED vs IMPASSE/escalation |
+| Impasse under minimal agency (AC #4) | Vitest/integration | Inject IMPASSE/escalation verdicts → final doc surfaces an "Unresolved dissent" section enumerating positions; status reflects impasse |
+| Engine seam (default-preserving) | unit/Vitest  | `runConsensusLoop` with no `promptProfile` produces identical prompts/behavior to today; TypeScript types cover the new run option |
+| Schema parity/copy behavior      | Vitest       | Evaluate schema assets are generated from canonical schemas or parity-checked against the canonical distribution schema set |
+| Generated-output drift guard     | Vitest/build | Engine and wrapper generated outputs match committed `.mjs` files (`pnpm run build:check`) |
 | Docs / family status shipped (AC #3) | validate     | `npm run validate` asserts the evaluate skill is registered in manifests/SKILL.md; READMEs list it as shipped, not deferred |
 | refine regression                | unit/integration | refine's existing full suite still passes (behavior-identical)                                                  |
 
@@ -271,16 +345,22 @@ use) — no live Paseo. Tests run under `node --test` (`npm test`).
 - `npm run validate` must pass (manifest/structure/docs invariants — evaluate skill must be
   registered as shipped).
 - `npm run smoke` (mocked end-to-end consensus wrapper flow) must pass.
+- `pnpm run type-check` and `pnpm run build:check` must pass before implementation is treated
+  as complete.
 
 ## Open Questions
 
-None — both design questions (engine reuse, output contract) were resolved with explicit user
-buy-in during discovery.
+The evaluate-specific design questions (engine reuse, output contract) are resolved. PR #14
+settled the source-to-distribution import/build convention, so planning can proceed against
+DR-021.
 
 ## References
 
 - Discovery: `discovery.md`
 - Backlog item: `.oat/repo/reference/backlog/items/add-consensus-evaluate-skill.md`
 - Template skill: `plugins/consensus/skills/refine/`
-- Precedent for shared-canonical + drift guard: `shared/transcript-core/`,
-  `scripts/sync-transcript-core.mjs`, `tests/transcript-core/sync.test.mjs`
+- Generated-runtime precedent from PR #13: `src/consensus/core/consensus-loop.ts`,
+  `scripts/build-generated.mjs`, `tests/generated-output-sync.test.mjs`
+- Wrapper import-rewrite precedent from PR #14: `src/consensus/refine/consensus-refine.ts`,
+  `tests/generated-consensus-refine-import.test.ts`
+- Decision records: `.oat/repo/reference/decision-record.md` DR-020 and DR-021
