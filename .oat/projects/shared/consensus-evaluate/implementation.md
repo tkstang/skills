@@ -318,6 +318,18 @@ No implementation drift accepted; artifact-only receive.
 **Status:** in_progress
 **Started:** 2026-06-17
 
+### Phase Implementation Notes
+
+Phase 3 implementation is complete and pending OAT review/orchestrator bookkeeping. Lifecycle
+fields, phase rows, review rows, and `oat_current_task_id` are intentionally left for the
+orchestrator to update after review.
+
+- `p03-t01` registered `evaluate` in the consensus plugin distribution surfaces with
+  `SKILL.md`, operator QA reference docs, provider manifest metadata, and docs-presence tests.
+- `p03-t02` updated root/plugin README shipped status and OAT repo references, including
+  current state, roadmap, backlog item, and backlog index.
+- `p03-t03` ran the final verification gates and recorded implementation completion notes.
+
 ### Task p03-t01: Register consensus-evaluate in plugin distribution surfaces
 
 **Status:** pending
@@ -465,29 +477,44 @@ Track test execution during implementation.
 | ----- | --------- | ------ | ------ | -------- |
 | 1     | `pnpm run build:check`; targeted Vitest p01 tests; `pnpm run type-check`; `node --test tests/repo-layout.test.mjs`; reviewer also ran `pnpm run test` | yes | 0 | not measured |
 | 2     | `pnpm exec vitest run tests/consensus-evaluate-wrapper.test.ts tests/consensus-evaluate-output.test.ts tests/generated-consensus-evaluate-import.test.ts tests/generated-output-sync.test.mjs`; `pnpm run build:check`; `pnpm run type-check`; generated-runtime no-`--output` sidecar probe | yes | 0 | not measured |
+| 3     | `node --test tests/docs-presence.test.mjs tests/package-metadata.test.mjs`; `pnpm run validate`; `rg -n "wait for|deferred|not shipped" README.md plugins/consensus/README.md .oat/repo/reference`; final gates: `pnpm run build`; `pnpm run build:check`; `pnpm run type-check`; `pnpm test`; `pnpm run validate`; `pnpm run smoke`; `git diff --check`; `git status --short` | yes | 0 | not measured |
 
 ## Final Summary (for PR/docs)
 
 **What shipped:**
 
-- {capability 1}
-- {capability 2}
+- `consensus-evaluate` as a shipped consensus plugin skill for artifact-vs-rubric evaluation.
+- Canonical TypeScript evaluate wrapper source with generated provider-facing runtime output.
+- Distribution docs and manifests for the evaluate skill.
+- README and OAT repo reference updates marking bl-5174 delivered.
 
 **Behavioral changes (user-facing):**
 
-- {bullet}
+- Users can run `plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs <artifact> --rubric <path>` to produce a markdown evaluation artifact.
+- Evaluate defaults to `shared_input`, `parallel_revision`, and `minimal` agency, preserving independent peer judgment and surfacing dissent.
+- Default no-`--output` runs write `<artifact>.evaluation.md`; stdout remains JSONL coordination output.
 
 **Key files / modules:**
 
-- `{path}` - {purpose}
+- `src/consensus/evaluate/consensus-evaluate.ts` - canonical evaluate wrapper source.
+- `plugins/consensus/skills/evaluate/` - shipped evaluate skill docs, schemas, and generated runtime output.
+- `tests/consensus-evaluate-*.test.ts` - wrapper, output, prompt, schema, and generated-import coverage.
+- `README.md`, `plugins/consensus/README.md`, `.oat/repo/reference/` - shipped-status and backlog/reference updates.
 
 **Verification performed:**
 
-- {tests/lint/typecheck/build/manual steps}
+- `pnpm run build`
+- `pnpm run build:check`
+- `pnpm run type-check`
+- `pnpm test`
+- `pnpm run validate`
+- `pnpm run smoke`
+- `git diff --check`
+- `git status --short`
 
 **Design deltas (if any):**
 
-- {what changed vs design.md and why}
+- None. Remaining `deferred` search matches are unrelated current limitations or historical/reference records, not stale evaluate shipped-status language.
 
 ## References
 
