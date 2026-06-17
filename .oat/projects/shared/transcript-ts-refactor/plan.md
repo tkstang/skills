@@ -1,204 +1,419 @@
 ---
-oat_status: in_progress
-oat_ready_for: null
+oat_status: complete
+oat_ready_for: oat-project-implement
 oat_blockers: []
 oat_last_updated: 2026-06-17
 oat_phase: plan
-oat_phase_status: in_progress
-oat_plan_hill_phases: [] # phases to pause AFTER completing (empty = every phase)
-oat_plan_parallel_groups: [] # groups of phases that run concurrently in worktrees; [] = fully sequential
-oat_plan_source: spec-driven # spec-driven | quick | imported
-oat_import_reference: null # e.g., references/imported-plan.md
-oat_import_source_path: null # original source path provided by user
-oat_import_provider: null # codex | cursor | claude | null
+oat_phase_status: complete
+oat_plan_parallel_groups: []
+oat_plan_source: quick
+oat_import_reference: null
+oat_import_source_path: null
+oat_import_provider: null
 oat_generated: false
 ---
 
 # Implementation Plan: transcript-ts-refactor
 
-> Execute this plan using `oat-project-implement` — sequential by default, parallel when `oat_plan_parallel_groups` is declared.
+> Execute this plan using `oat-project-implement`.
 
-**Goal:** {Brief goal statement from spec}
+**Goal:** Migrate shared transcript-core and export-session-transcript to
+canonical TypeScript source plus committed generated `.mjs` runtime output,
+using the generated-runtime and import-rewrite convention established by PR
+#14.
 
-**Architecture:** {1-2 sentence architecture summary from design}
+**Architecture:** Canonical developer source moves under `src/transcript/`.
+`scripts/build-generated.mjs` emits the existing shipped skill paths under
+`skills/`, and generated output remains dependency-free and committed.
 
-**Tech Stack:** {Key technologies from design}
+**Tech Stack:** Node >=22, TypeScript NodeNext, Vitest, esbuild, committed ESM
+`.mjs` skill runtime output.
 
-**Commit Convention:** `{type}({scope}): {description}` - e.g., `feat(p01-t01): add user auth endpoint`
+**Commit Convention:** `{type}({scope}): {description}` - for example,
+`refactor(p01-t01): move transcript core source to typescript`.
 
 ## Planning Checklist
 
-- [ ] Confirmed HiLL checkpoints with user
-- [ ] Set `oat_plan_hill_phases` in frontmatter
-- [ ] Evaluated phases for parallelism opportunities
-- [ ] Set `oat_plan_parallel_groups` in frontmatter
-
----
+- [x] Requirements confirmed with user on 2026-06-17
+- [x] Dispatch ceiling set to maximum in project state
+- [x] Evaluated phases for parallelism opportunities
+- [x] Set `oat_plan_parallel_groups: []`
 
 ## Parallelism
 
-Phases that have no overlapping file modifications may run concurrently. To declare parallelism:
+This plan is sequential. Phase 1 establishes the shared transcript-core source
+and generated-output mappings that Phase 2 imports. Phase 2 changes the export
+CLI and sanitizer generated outputs that Phase 3 documents and verifies. The
+phases share `scripts/build-generated.mjs`, generated `.mjs` outputs, and
+contract tests, so running phases in isolated worktrees would create fragile
+merge and drift-guard conflicts rather than useful parallelism.
 
-```yaml
-oat_plan_parallel_groups: [['p02', 'p03']]
-```
+## Phase 1: Transcript-Core Generated Runtime Foundation
 
-Each inner array is a group of phases that execute in parallel (each in its own worktree) and merge back in plan order after all pass. Groups themselves run sequentially.
-
-Default is `[]` (fully sequential, no worktrees). Only declare parallelism when phases are genuinely file-disjoint — overlap will produce merge conflicts that stop the run.
-
----
-
-## Dispatch Profile
-
-_Optional override surface. Use only for explicit user-authored constraints or preferences. Omit this section when runtime selection should choose the lowest confident tier._
-
-Blank or `auto` means there is no explicit constraint for that provider. Do not generate rows by default; a missing phase row uses runtime selection.
-
-| Phase | Claude model              | Codex effort                   | Rationale                     |
-| ----- | ------------------------- | ------------------------------ | ----------------------------- |
-| pNN   | haiku\|sonnet\|opus\|auto | low\|medium\|high\|xhigh\|auto | why this constraint is needed |
-
-Codex effort values are preferred controls. `oat-project-implement` caps them against the resolved OAT dispatch ceiling and maps selected efforts to pinned implementer variants. Codex provider default effort is informational for base/unpinned roles and is not an OAT ceiling.
-
----
-
-## Phase 1: {Phase Name}
-
-### Task p01-t01: {Task Name}
+### Task p01-t01: Move transcript-core canonical source to TypeScript
 
 **Files:**
 
-- Create: `{path/to/file.ts}`
-- Modify: `{path/to/existing.ts}`
+- Create: `src/transcript/core/runtimes.ts`
+- Delete: `shared/transcript-core/runtimes.mjs`
 
-**Step 1: Write test (RED)**
+**Steps:**
 
-```typescript
-// {path/to/file.test.ts}
-describe('{feature}', () => {
-  it('{test case}', () => {
-    // Test implementation
-  });
-});
-```
+1. Move the existing provider transcript runtime implementation into
+   `src/transcript/core/runtimes.ts`.
+2. Add TypeScript types for the public exports without changing runtime
+   behavior:
+   `discoverPaths`, `encodeCwd`, `encodeCwdVariants`, `extractMeta`,
+   `readRecords`, and `normalizeEntries`.
+3. Preserve the existing ESM public API so generated consumers can keep the
+   same named imports.
+4. Remove `shared/transcript-core/runtimes.mjs` so it cannot remain a second
+   source of truth.
 
-Run: `pnpm --filter {package-name} exec vitest run {path/to/file.test.ts}`
-Expected: Test fails (RED)
+**Verification:**
 
-**Step 2: Implement (GREEN)**
+Run: `pnpm run type-check`
 
-```typescript
-// {path/to/file.ts}
-// Implementation code or interface signatures
-```
+Expected: TypeScript accepts the new canonical transcript-core source.
 
-Run: `pnpm --filter {package-name} exec vitest run {path/to/file.test.ts}`
-Expected: Test passes (GREEN)
-
-Use the actual runner command that scopes to the intended file or test target. Do not write a package-level shortcut unless it truly executes only the scope the task claims.
-
-**Step 3: Refactor**
-
-{Any cleanup or improvements while tests stay green}
-
-**Step 4: Verify**
-
-Run: `pnpm lint && pnpm type-check`
-Expected: No errors
-
-**Step 5: Commit**
+**Commit:**
 
 ```bash
-git add {files}
-git commit -m "feat(p01-t01): {description}"
+git add src/transcript/core/runtimes.ts shared/transcript-core/runtimes.mjs
+git commit -m "refactor(p01-t01): move transcript core source to typescript"
 ```
 
----
-
-### Task p01-t02: {Task Name}
+### Task p01-t02: Generate transcript-core runtime copies through build-generated
 
 **Files:**
 
-- {File list}
+- Modify: `scripts/build-generated.mjs`
+- Modify: `scripts/sync-transcript-core.mjs`
+- Modify: `skills/session-observer/scripts/lib/runtimes.mjs`
+- Modify: `skills/export-session-transcript/scripts/lib/runtimes.mjs`
 
-**Step 1: Write test (RED)**
+**Steps:**
 
-{Test code}
+1. Add `generatedOutputs` mappings from `src/transcript/core/runtimes.ts` to
+   both existing consumer runtime paths.
+2. Ensure emitted transcript-core copies use the standard
+   `// GENERATED by scripts/build-generated.mjs. Do not edit directly.`
+   banner.
+3. Convert `scripts/sync-transcript-core.mjs` into a compatibility wrapper
+   around `scripts/build-generated.mjs`, passing through `--check` when
+   provided.
+4. Run the build so both consumer copies are regenerated from TypeScript.
 
-**Step 2: Implement (GREEN)**
+**Verification:**
 
-{Implementation code or signatures}
-
-**Step 3: Refactor**
-
-{Optional cleanup}
-
-**Step 4: Verify**
-
-Run: `{verification command}`
-Expected: {output}
-
-Verification commands should be behaviorally accurate. If the task claims a file-scoped or test-scoped check, use the concrete runner invocation that really scopes to that target.
-
-**Step 5: Commit**
+Run:
 
 ```bash
-git add {files}
-git commit -m "feat(p01-t02): {description}"
+pnpm run build
+pnpm run build:check
+node scripts/sync-transcript-core.mjs --check
 ```
 
----
+Expected: Build writes the transcript-core generated copies, both drift guards
+pass, and the compatibility wrapper delegates to the new build path.
 
-## Phase 2: {Phase Name}
+**Commit:**
 
-### Task p02-t01: {Task Name}
+```bash
+git add scripts/build-generated.mjs scripts/sync-transcript-core.mjs skills/session-observer/scripts/lib/runtimes.mjs skills/export-session-transcript/scripts/lib/runtimes.mjs
+git commit -m "build(p01-t02): generate transcript core runtime copies"
+```
 
-{Continue TDD pattern...}
+### Task p01-t03: Move transcript-core drift and runtime tests to Vitest
 
----
+**Files:**
+
+- Rename: `tests/transcript-core/runtimes.test.mjs` to
+  `tests/transcript-core/runtimes.test.ts`
+- Delete: `tests/transcript-core/sync.test.mjs`
+- Modify: `tests/generated-output-sync.test.mjs`
+
+**Steps:**
+
+1. Port transcript-core runtime tests from `node:test` and
+   `node:assert/strict` to Vitest.
+2. Point the runtime tests at the canonical TypeScript source.
+3. Replace the old sync-script drift test with generated-output coverage for
+   the transcript-core mappings in `scripts/build-generated.mjs`.
+4. Keep mutation-style drift coverage that proves `pnpm run build:check`
+   detects stale generated transcript-core output and restores the file before
+   the test exits.
+
+**Verification:**
+
+Run:
+
+```bash
+pnpm exec vitest run tests/transcript-core/runtimes.test.ts tests/generated-output-sync.test.mjs
+pnpm run build:check
+```
+
+Expected: Vitest passes, generated-output drift coverage includes
+transcript-core, and `build:check` remains green.
+
+**Commit:**
+
+```bash
+git add tests/transcript-core/runtimes.test.ts tests/transcript-core/runtimes.test.mjs tests/transcript-core/sync.test.mjs tests/generated-output-sync.test.mjs
+git commit -m "test(p01-t03): cover transcript core with vitest"
+```
+
+## Phase 2: Export-Session TypeScript Runtime
+
+### Task p02-t01: Migrate the export-session sanitizer to TypeScript
+
+**Files:**
+
+- Create: `src/transcript/export-session/sanitize.ts`
+- Modify: `scripts/build-generated.mjs`
+- Modify: `skills/export-session-transcript/scripts/lib/sanitize.mjs`
+- Rename: `tests/export-session-transcript/sanitize.test.mjs` to
+  `tests/export-session-transcript/sanitize.test.ts`
+
+**Steps:**
+
+1. Move sanitizer logic into
+   `src/transcript/export-session/sanitize.ts` with explicit matcher and entry
+   types.
+2. Add a generated-output mapping for
+   `skills/export-session-transcript/scripts/lib/sanitize.mjs`.
+3. Port sanitizer tests to Vitest while preserving the hidden-payload and
+   negative-token coverage.
+4. Point sanitizer unit tests at the TypeScript source directly, and rely on
+   `build:check` plus generated-output coverage to enforce source/output
+   parity.
+
+**Verification:**
+
+Run:
+
+```bash
+pnpm run build
+pnpm run build:check
+pnpm exec vitest run tests/export-session-transcript/sanitize.test.ts
+```
+
+Expected: Generated sanitizer output is in sync, and sanitizer behavior is
+unchanged.
+
+**Commit:**
+
+```bash
+git add src/transcript/export-session/sanitize.ts scripts/build-generated.mjs skills/export-session-transcript/scripts/lib/sanitize.mjs tests/export-session-transcript/sanitize.test.ts tests/export-session-transcript/sanitize.test.mjs
+git commit -m "refactor(p02-t01): migrate export sanitizer to typescript"
+```
+
+### Task p02-t02: Migrate the export-session CLI to TypeScript
+
+**Files:**
+
+- Create: `src/transcript/export-session/export-session-transcript.ts`
+- Modify: `scripts/build-generated.mjs`
+- Modify: `skills/export-session-transcript/scripts/export-session-transcript.mjs`
+
+**Steps:**
+
+1. Move the CLI implementation into TypeScript without changing command-line
+   behavior, output naming, selection precedence, or exit codes.
+2. Import canonical source modules using NodeNext-resolvable source
+   specifiers:
+   `../core/runtimes.js` and `./sanitize.js`.
+3. Add an output mapping for the shipped CLI path with explicit
+   `importRewrites`:
+   `../core/runtimes.js` -> `./lib/runtimes.mjs` and
+   `./sanitize.js` -> `./lib/sanitize.mjs`.
+4. Preserve `node skills/export-session-transcript/scripts/export-session-transcript.mjs`
+   invocation. If esbuild preserves the CLI shebang ahead of the banner, keep
+   the generated banner present immediately after the shebang and make tests
+   assert banner presence rather than first-line placement for that file.
+5. Add or extend generated import-path assertions so the generated CLI imports
+   only shipped local runtime files.
+
+**Verification:**
+
+Run:
+
+```bash
+pnpm run build
+pnpm run build:check
+node skills/export-session-transcript/scripts/export-session-transcript.mjs --help
+```
+
+Expected: Generated CLI output imports `./lib/runtimes.mjs` and
+`./lib/sanitize.mjs`, `build:check` passes, and `--help` exits successfully.
+
+**Commit:**
+
+```bash
+git add src/transcript/export-session/export-session-transcript.ts scripts/build-generated.mjs skills/export-session-transcript/scripts/export-session-transcript.mjs tests/generated-output-sync.test.mjs
+git commit -m "refactor(p02-t02): migrate export transcript cli to typescript"
+```
+
+### Task p02-t03: Move export-session CLI tests to Vitest
+
+**Files:**
+
+- Rename: `tests/export-session-transcript/cli.test.mjs` to
+  `tests/export-session-transcript/cli.test.ts`
+
+**Steps:**
+
+1. Port the end-to-end CLI tests from `node:test` to Vitest.
+2. Keep tests spawning the generated shipped entrypoint at
+   `skills/export-session-transcript/scripts/export-session-transcript.mjs`.
+3. Preserve coverage for session selection, default output paths,
+   not-a-git-repo fallback, `--all`, sanitization, help output, and exit codes
+   `0`, `1`, `2`, and `3`.
+
+**Verification:**
+
+Run:
+
+```bash
+pnpm exec vitest run tests/export-session-transcript/cli.test.ts tests/export-session-transcript/sanitize.test.ts
+```
+
+Expected: The generated CLI passes the migrated behavior tests with unchanged
+exit-code behavior.
+
+**Commit:**
+
+```bash
+git add tests/export-session-transcript/cli.test.ts tests/export-session-transcript/cli.test.mjs
+git commit -m "test(p02-t03): migrate export transcript cli tests to vitest"
+```
+
+## Phase 3: Documentation, Reference Cleanup, and Verification
+
+### Task p03-t01: Update docs and repo reference material for the new contract
+
+**Files:**
+
+- Modify: `README.md`
+- Modify: `AGENTS.md`
+- Modify: `shared/transcript-core/README.md`
+- Modify: `skills/export-session-transcript/references/transcript-formats.md`
+- Modify: `.oat/repo/reference/decision-record.md`
+- Modify: `.oat/repo/reference/current-state.md`
+- Modify: `.oat/repo/reference/backlog/index.md`
+- Modify: `.oat/repo/reference/backlog/items/migrate-consensus-tests-to-typescript-types.md`
+- Modify as needed: `.oat/repo/knowledge/*.md`
+- Modify as needed: `tests/docs-presence.test.mjs`,
+  `tests/repo-layout.test.mjs`
+
+**Steps:**
+
+1. Replace current-source references to
+   `shared/transcript-core/runtimes.mjs` with
+   `src/transcript/core/runtimes.ts`.
+2. Document that `sync:transcript-core` is now a compatibility wrapper around
+   the generated-output build.
+3. Update historical decision records by superseding or amending DR-014 rather
+   than pretending the old contract never existed.
+4. Update README, AGENTS, and repo reference docs so they consistently describe
+   TypeScript source under `src/` and generated `.mjs` output under `skills/`.
+5. Keep generated-output and lint/format exclusions accurate for all generated
+   transcript/export outputs.
+
+**Verification:**
+
+Run:
+
+```bash
+node --test tests/docs-presence.test.mjs tests/repo-layout.test.mjs
+pnpm run validate
+```
+
+Expected: Documentation presence/layout checks and repo validation pass, with
+no current guidance pointing developers to the deleted shared `.mjs` source as
+canonical.
+
+**Commit:**
+
+```bash
+git add README.md AGENTS.md shared/transcript-core/README.md skills/export-session-transcript/references/transcript-formats.md .oat/repo/reference .oat/repo/knowledge tests/docs-presence.test.mjs tests/repo-layout.test.mjs
+git commit -m "docs(p03-t01): document transcript generated runtime source"
+```
+
+### Task p03-t02: Run final verification and record closeout summary
+
+**Files:**
+
+- Create: `.oat/projects/shared/transcript-ts-refactor/summary.md`
+- Create: `.oat/repo/reference/project-summaries/20260617-transcript-ts-refactor.md`
+- Modify: `.oat/projects/shared/transcript-ts-refactor/implementation.md`
+
+**Steps:**
+
+1. Run the full required verification command set.
+2. Record the exact verification results in the implementation tracker.
+3. Add a concise project summary covering the source/output migration, test
+   migration, generated-output drift coverage, and remaining out-of-scope work.
+
+**Verification:**
+
+Run:
+
+```bash
+pnpm run build
+pnpm run type-check
+pnpm run build:check
+pnpm run test
+pnpm run validate
+pnpm run smoke
+```
+
+Expected: Every required verification command passes.
+
+**Commit:**
+
+```bash
+git add .oat/projects/shared/transcript-ts-refactor/summary.md .oat/repo/reference/project-summaries/20260617-transcript-ts-refactor.md .oat/projects/shared/transcript-ts-refactor/implementation.md
+git commit -m "chore(p03-t02): record transcript ts verification summary"
+```
 
 ## Reviews
 
-{Track reviews here after running the oat-project-review-provide and oat-project-review-receive skills.}
+| Scope  | Type     | Status  | Date       | Artifact                          |
+| ------ | -------- | ------- | ---------- | --------------------------------- |
+| p01    | code     | pending | -          | -                                 |
+| p02    | code     | pending | -          | -                                 |
+| p03    | code     | pending | -          | -                                 |
+| final  | code     | pending | -          | -                                 |
+| spec   | artifact | pending | -          | not required in quick mode        |
+| design | artifact | pending | -          | not required in quick mode        |
+| plan   | artifact | passed  | 2026-06-17 | inline structured review          |
 
-{Keep both code + artifact rows below. Add additional code rows (p03, p04, etc.) as needed, but do not delete `spec`/`design`.}
-
-| Scope  | Type     | Status  | Date | Artifact |
-| ------ | -------- | ------- | ---- | -------- |
-| p01    | code     | pending | -    | -        |
-| p02    | code     | pending | -    | -        |
-| final  | code     | pending | -    | -        |
-| spec   | artifact | pending | -    | -        |
-| design | artifact | pending | -    | -        |
-
-**Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
-
-**Meaning:**
-
-- `received`: review artifact exists (not yet converted into fix tasks)
-- `fixes_added`: fix tasks were added to the plan (work queued)
-- `fixes_completed`: fix tasks implemented, awaiting re-review
-- `passed`: re-review run and recorded as passing (no Critical/Important)
-
----
+**Status values:** `pending` -> `received` -> `fixes_added` ->
+`fixes_completed` -> `passed`
 
 ## Implementation Complete
 
 **Summary:**
 
-- Phase 1: {N} tasks - {Description}
-- Phase 2: {N} tasks - {Description}
+- Phase 1: 3 tasks - Move transcript-core to TypeScript and bring its
+  generated runtime copies under `build-generated`.
+- Phase 2: 3 tasks - Move export-session sanitizer and CLI to TypeScript while
+  keeping shipped generated `.mjs` behavior covered.
+- Phase 3: 2 tasks - Update docs/reference material, run full verification,
+  and record closeout summaries.
 
-**Total: {N} tasks**
+**Total: 8 tasks**
 
-Ready for code review and merge.
-
----
+Ready for `oat-project-implement`.
 
 ## References
 
-- Design: `design.md` (required in spec-driven mode; optional in quick/import mode)
-- Spec: `spec.md` (required in spec-driven mode; optional in quick/import mode)
 - Discovery: `discovery.md`
-- Imported Source: `references/imported-plan.md` (when `oat_plan_source: imported`)
+- PR #14: <https://github.com/tkstang/skills/pull/14>
+- Generated-output build: `scripts/build-generated.mjs`
+- Legacy compatibility command: `scripts/sync-transcript-core.mjs`
+- Existing transcript source: `shared/transcript-core/runtimes.mjs`
+- Existing export CLI: `skills/export-session-transcript/scripts/export-session-transcript.mjs`
+- Existing export sanitizer: `skills/export-session-transcript/scripts/lib/sanitize.mjs`
+- Generated-runtime decisions: `.oat/repo/reference/decision-record.md` DR-020 and DR-021
