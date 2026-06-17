@@ -113,6 +113,8 @@ oat_generated: false
 - Verification passed: `pnpm run build`, `pnpm run build:check`,
   `pnpm exec vitest run tests/export-session-transcript/sanitize.test.ts`.
 - Additional check passed: `pnpm run type-check`.
+- Self-review follow-up: restored generated sanitizer output after the commit
+  hook formatted the generated `.mjs` file and made `build:check` stale.
 
 ---
 
