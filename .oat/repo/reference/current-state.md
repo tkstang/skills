@@ -1,10 +1,10 @@
 # Skills Repo Current State
 
-**Last updated:** 2026-06-16 (consensus refine wrapper now has canonical TypeScript source, both consensus generated runtimes are drift-checked, and the in-scope consensus test suite has moved to Vitest. Prior: 2026-06-15 TypeScript/Vitest generated-runtime toolchain landed with `consensus-loop` as the first typed source slice.)
+**Last updated:** 2026-06-17 (transcript-core and export-session-transcript now have canonical TypeScript source under `src/transcript/`, generated `.mjs` shipped output under `skills/`, and Vitest coverage for the migrated transcript suites. Prior: 2026-06-16 consensus refine wrapper moved to canonical TypeScript source.)
 
 ## Overview
 
-This repository is a personal Agent Skills home: standalone skills under `skills/`, packaged plugins under `plugins/<name>/`, shared libraries under `shared/`, and provider marketplace entries at the repo root. Shipped runtime code remains Node >= 22 ESM, standard library only, and install-free for users; developer tooling now includes TypeScript, Vitest, and a generated-output build step for committed `.mjs` artifacts. Status: v0.1 pre-release — local/Git install paths work; public marketplace claims are gated on the release checklist in `RELEASING.md`.
+This repository is a personal Agent Skills home: standalone skills under `skills/`, packaged plugins under `plugins/<name>/`, canonical TypeScript source under `src/`, compatibility/reference material under `shared/`, and provider marketplace entries at the repo root. Shipped runtime code remains Node >= 22 ESM, standard library only, and install-free for users; developer tooling now includes TypeScript, Vitest, and a generated-output build step for committed `.mjs` artifacts. Status: v0.1 pre-release — local/Git install paths work; public marketplace claims are gated on the release checklist in `RELEASING.md`.
 
 ## Shipped Capabilities
 
@@ -43,12 +43,13 @@ Standalone skill for reviewing what a peer coding agent did in the same project.
 Standalone skill exporting the current (or selected) session to sanitized markdown.
 
 - **Selection:** announced random-hex session marker via `--match` (precedence `--all` > `--session` > `--match` > newest-for-cwd).
+- **TypeScript/generated runtime slice (2026-06-17):** canonical source now lives at `src/transcript/export-session/export-session-transcript.ts` and `src/transcript/export-session/sanitize.ts`; generated shipped output remains at `skills/export-session-transcript/scripts/export-session-transcript.mjs` and `skills/export-session-transcript/scripts/lib/sanitize.mjs`, with import rewrites to local `./lib/*.mjs` dependencies.
 - **Sanitization:** two layers — structural (`normalizeEntries`) plus export-owned content detectors (`sanitize.mjs`), drop-on-match; validated against 41k+ real store entries with zero hidden-payload survivors.
 - **Output:** defaults to `~/Downloads/<branch>.md`; `--all` writes one file per session; exit codes 0/1/2/3 (success / hard error / no candidates / ambiguous).
 
-### shared/transcript-core (`shared/transcript-core/`)
+### transcript-core (`src/transcript/core/`)
 
-Canonical per-provider transcript knowledge (store locations, record parsing, structural filtering) consumed by session-observer and export-session-transcript via committed `// GENERATED` copies. `npm run sync:transcript-core` regenerates; a drift-guard test in `npm test` fails on divergence. Edit only the canonical file.
+Canonical per-provider transcript knowledge (store locations, record parsing, structural filtering) lives at `src/transcript/core/runtimes.ts` and is consumed by session-observer and export-session-transcript via committed `// GENERATED` copies at each skill's `scripts/lib/runtimes.mjs`. `pnpm run build` regenerates the copies, `pnpm run build:check` and `tests/generated-output-sync.test.mjs` enforce drift, and `pnpm run sync:transcript-core` remains a compatibility wrapper around the same build path.
 
 ## Validation Posture
 

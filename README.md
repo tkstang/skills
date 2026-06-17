@@ -36,35 +36,41 @@ Modes:
 - `--runtime <claude-code|codex|cursor|auto>` selects the runtime (default `auto`: env hint, then best-effort detection).
 - `--out <path>` overrides the output file or directory (also accepted positionally).
 
-Sanitization is two layers: a structural pass (`normalizeEntries` in the shared transcript-core, which drops tool calls/results and command-message records) followed by an export-owned content sanitizer (`scripts/lib/sanitize.mjs`, `sanitizeEntries`) that drops hidden-payload messages surviving as ordinary text — environment-context wrappers, AGENTS.md/SKILL.md/skill-body payloads, system/developer instruction records, subagent notifications, and `turn_aborted` markers. The session-marker line and empty entries are stripped before render.
+Sanitization is two layers: a structural pass (`normalizeEntries` in transcript-core, which drops tool calls/results and command-message records) followed by an export-owned content sanitizer (`sanitizeEntries`) that drops hidden-payload messages surviving as ordinary text — environment-context wrappers, AGENTS.md/SKILL.md/skill-body payloads, system/developer instruction records, subagent notifications, and `turn_aborted` markers. The session-marker line and empty entries are stripped before render.
 
 The canonical user-facing documentation is `skills/export-session-transcript/SKILL.md`; per-provider store locations and record shapes live in `skills/export-session-transcript/references/transcript-formats.md`.
 
 ### Shared transcript-core
 
-Per-provider transcript knowledge (store locations, record parsing, structural filtering) has a single source of truth at `shared/transcript-core/runtimes.mjs`. Rather than cross-skill imports, each consuming skill ships a committed, byte-identical vendored copy under its own `scripts/lib/runtimes.mjs`, materialized by `npm run sync:transcript-core`. The synced copies carry a generated banner; the canonical source is banner-free.
+Per-provider transcript knowledge (store locations, record parsing, structural filtering) has a single source of truth at `src/transcript/core/runtimes.ts`. Rather than cross-skill imports, each consuming skill ships a committed generated copy under its own `scripts/lib/runtimes.mjs`, materialized by `pnpm run build`.
 
-A `--check` drift guard (`node scripts/sync-transcript-core.mjs --check`) regenerates the expected banner-stamped content and diffs the committed copies, failing on any divergence. It runs as part of `npm test` via `tests/transcript-core/sync.test.mjs`, so editing the canonical module without re-syncing breaks the suite. Edit `shared/transcript-core/runtimes.mjs`, then run `npm run sync:transcript-core` to update consumers.
+`pnpm run sync:transcript-core` remains as a compatibility command for existing habits and automation. It delegates to `scripts/build-generated.mjs`, and `node scripts/sync-transcript-core.mjs --check` delegates to `scripts/build-generated.mjs --check`.
+
+`pnpm run build:check` regenerates expected output in check mode and fails on any divergence. The same guard runs in `pnpm test` through `tests/generated-output-sync.test.mjs`, so editing the canonical module without rebuilding generated output breaks the suite. Edit `src/transcript/core/runtimes.ts`, then run `pnpm run build` to update consumers.
 
 Current consumers: `session-observer` and `export-session-transcript`.
 
 ### Generated runtime outputs
 
-Some shipped runtime `.mjs` files are generated from canonical TypeScript source under `src/` while staying committed at the same paths that provider manifests, docs, and users already execute under `plugins/`. Edit the canonical TypeScript source, not generated `.mjs` output with a `// GENERATED` banner.
+Some shipped runtime `.mjs` files are generated from canonical TypeScript source under `src/` while staying committed at the same paths that provider manifests, docs, and users already execute under `plugins/` and `skills/`. Edit the canonical TypeScript source, not generated `.mjs` output with a `// GENERATED` banner.
 
 The build contract is:
 
 - `pnpm run build` runs `node scripts/build-generated.mjs` and writes generated runtime output.
 - `pnpm run build:check` runs `node scripts/build-generated.mjs --check` without mutating tracked files.
 - `tests/generated-output-sync.test.mjs` runs the drift guard as part of `pnpm test`.
+- `pnpm run sync:transcript-core` is a compatibility wrapper around the same generated-output build.
 - TypeScript, Vitest, and bundling are developer tooling only; shipped skills still run committed `.mjs` with no install step.
 
-Current generated consensus runtimes:
+Current generated runtime outputs:
 
 - `src/consensus/core/consensus-loop.ts` builds to `plugins/consensus/skills/refine/scripts/consensus-loop.mjs`.
 - `src/consensus/refine/consensus-refine.ts` builds to `plugins/consensus/skills/refine/scripts/consensus-refine.mjs`.
+- `src/transcript/core/runtimes.ts` builds to `skills/session-observer/scripts/lib/runtimes.mjs` and `skills/export-session-transcript/scripts/lib/runtimes.mjs`.
+- `src/transcript/export-session/sanitize.ts` builds to `skills/export-session-transcript/scripts/lib/sanitize.mjs`.
+- `src/transcript/export-session/export-session-transcript.ts` builds to `skills/export-session-transcript/scripts/export-session-transcript.mjs`.
 
-The refine wrapper type-checks against the canonical loop import (`../core/consensus-loop.js`); the build rewrites that module specifier to the shipped sibling runtime import (`./consensus-loop.mjs`) and fails if the expected source specifier is absent.
+Wrappers type-check against canonical TypeScript imports such as `../core/consensus-loop.js`, `../core/runtimes.js`, and `./sanitize.js`; the build rewrites declared module specifiers to shipped local `.mjs` imports and fails if an expected source specifier is absent.
 
 ## Local Git Repository Install
 
@@ -143,7 +149,7 @@ For watch mode, `--runtime both` watches Claude Code and Codex in one foreground
 
 ## Limitations
 
-- The consensus plugin family ships the `refine` skill only in v0.1; the standalone `session-observer` and `export-session-transcript` skills (and the shared `transcript-core` module) ship alongside it but are not part of the consensus plugin.
+- The consensus plugin family ships the `refine` skill only in v0.1; the standalone `session-observer` and `export-session-transcript` skills (and the transcript-core generated runtime they use) ship alongside it but are not part of the consensus plugin.
 - The rest of the consensus family is deferred: `consensus-create`, `consensus-evaluate`, `consensus-decide`, `consensus-plan`, and `consensus-research`.
 - Consensus ships three iteration modes (`alternating`, `parallel-revision`, `parallel-synthesized`); parallel modes disclose their per-round call multiplier (2x peer calls, plus 1 synthesis call for synthesized) and escalate stuck states through the agency-gated ladder.
 - Consensus sections converge independently; whole-document harmonization and deliberation metrics/cost caps remain deferred.
@@ -160,7 +166,8 @@ For watch mode, `--runtime both` watches Claude Code and Codex in one foreground
 - `skills/` - standalone personal skills.
 - `skills/session-observer/` - standalone peer transcript review and catch-up skill.
 - `skills/export-session-transcript/` - standalone session transcript export skill.
-- `shared/transcript-core/` - canonical per-provider transcript module synced into each consuming skill.
+- `src/transcript/` - canonical TypeScript source for transcript-core and export-session runtime code.
+- `shared/transcript-core/` - compatibility documentation pointer for the former shared transcript-core source path.
 - `plugins/consensus/` - self-contained consensus plugin package.
 - `.claude-plugin/`, `.cursor-plugin/`, `.agents/plugins/` - repo-root marketplace entries.
 - `.oat/` and `.agents/` - project-management infrastructure, not required by plugin consumers.

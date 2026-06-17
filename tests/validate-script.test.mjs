@@ -156,8 +156,9 @@ test('CI and worktree validation run generated-output verification in order', as
 
   assertOrdered(workflow, [
     'pnpm install --frozen-lockfile',
+    'node scripts/build-generated.mjs --list-outputs > "$RUNNER_TEMP/generated-output-paths.txt"',
     'pnpm run build',
-    'git diff --exit-code -- plugins/consensus/skills/refine/scripts/consensus-loop.mjs',
+    'git diff --exit-code -- "${generated_outputs[@]}"',
     'pnpm run type-check',
     'pnpm run build:check',
     'pnpm run test',

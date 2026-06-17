@@ -76,3 +76,13 @@ non-consensus suites on `test:node`, any additional runtime/test modules selecte
 for the long-tail migration, and eventual retirement of the `node:test`
 compatibility path once those suites move. `tsconfig` `allowJs` is already
 `false`, so there is no additional `allowJs` tightening left for this slice.
+
+The transcript-ts-refactor slice also moved transcript-core and
+export-session-transcript source into TypeScript under `src/transcript/`.
+`src/transcript/core/runtimes.ts` now generates both transcript-core consumer
+copies, `src/transcript/export-session/sanitize.ts` generates the export
+sanitizer, and `src/transcript/export-session/export-session-transcript.ts`
+generates the shipped export CLI with import rewrites to local `./lib/*.mjs`
+runtime files. The in-scope transcript-core and export-session tests moved to
+Vitest TypeScript coverage, and `sync:transcript-core` remains only as a
+compatibility wrapper around `scripts/build-generated.mjs`.

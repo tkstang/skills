@@ -60,9 +60,17 @@ oat_warning: "GENERATED FILE - Do not edit manually. Regenerate with oat-repo-kn
 │       │       └── sanitize.mjs                # Content filtering
 │       ├── references/                         # Runtime documentation
 │       └── SKILL.md
-├── shared/                                     # Shared source (not shipped)
+├── src/                                        # Canonical TypeScript source
+│   ├── consensus/
+│   └── transcript/
+│       ├── core/
+│       │   └── runtimes.ts                     # Canonical transcript-core source
+│       └── export-session/
+│           ├── export-session-transcript.ts    # Canonical export CLI source
+│           └── sanitize.ts                     # Canonical sanitizer source
+├── shared/                                     # Compatibility/reference docs
 │   └── transcript-core/
-│       └── runtimes.mjs                        # Canonical module
+│       └── README.md                           # Pointer to src/transcript/core
 ├── tests/
 │   ├── consensus-loop-cli.test.mjs
 │   ├── consensus-*.test.mjs                    # Consensus tests
@@ -76,17 +84,17 @@ oat_warning: "GENERATED FILE - Do not edit manually. Regenerate with oat-repo-kn
 │   │   ├── watch.test.mjs
 │   │   └── integration.test.mjs
 │   ├── export-session-transcript/
-│   │   ├── cli.test.mjs
-│   │   └── sanitize.test.mjs
+│   │   ├── cli.test.ts
+│   │   └── sanitize.test.ts
 │   ├── transcript-core/
-│   │   ├── runtimes.test.mjs
-│   │   └── sync.test.mjs
+│   │   └── runtimes.test.ts
 │   ├── fixtures/                               # Test data
 │   ├── helpers/
 │   │   └── process.mjs
 │   └── *.test.mjs                              # Repository-level tests
 ├── scripts/
-│   ├── sync-transcript-core.mjs                # Syncs shared → consumers
+│   ├── build-generated.mjs                     # Generates committed .mjs output
+│   ├── sync-transcript-core.mjs                # Compatibility wrapper
 │   ├── validate.mjs                            # Invariant verification
 │   ├── smoke-test.mjs                          # E2E consensus check
 │   ├── install-paseo.mjs                       # Paseo helper
@@ -119,12 +127,19 @@ oat_warning: "GENERATED FILE - Do not edit manually. Regenerate with oat-repo-kn
 - Key files: `skills/session-observer/scripts/session-observer.mjs`, `skills/export-session-transcript/scripts/export-session-transcript.mjs`
 - Notes: Standalone skills are invoked directly; not registered in plugin marketplaces (v0.1)
 
+**`src/transcript/`:**
+
+- Purpose: Canonical TypeScript source for transcript-core and export-session runtime code
+- Contains: per-runtime transcript adapters, export CLI, and export content sanitizer
+- Key files: `src/transcript/core/runtimes.ts`, `src/transcript/export-session/export-session-transcript.ts`, `src/transcript/export-session/sanitize.ts`
+- Notes: Generated committed `.mjs` output remains under `skills/`; `sync-transcript-core.mjs` is only a compatibility wrapper
+
 **`shared/transcript-core/`:**
 
-- Purpose: Canonical per-runtime transcript adapter (single source of truth)
-- Contains: `runtimes.mjs` with discoverPaths, encodeCwd, extractMeta, readRecords, normalizeEntries exports
-- Key files: `shared/transcript-core/runtimes.mjs`
-- Notes: Canonical source; consumed skills receive byte-identical copies via `sync-transcript-core.mjs`
+- Purpose: Compatibility documentation pointer for the former transcript-core source path
+- Contains: `README.md`
+- Key files: `shared/transcript-core/README.md`
+- Notes: Do not add canonical runtime source here; edit `src/transcript/core/runtimes.ts`
 
 **`plugins/consensus/skills/refine/scripts/`:**
 
@@ -156,17 +171,17 @@ oat_warning: "GENERATED FILE - Do not edit manually. Regenerate with oat-repo-kn
 
 **`tests/`:**
 
-- Purpose: Node test suite using `node --test`
-- Contains: Unit tests per module, integration tests, fixture data
-- Key files: All `*.test.mjs` files; no special runner config
-- Notes: Run via `npm test`; includes transcript-core sync verification
+- Purpose: Node and Vitest test suites
+- Contains: Unit tests per module, integration tests, fixture data, generated-output drift coverage
+- Key files: `*.test.mjs` and `*.test.ts` files
+- Notes: Run via `npm test`; includes `tests/generated-output-sync.test.mjs` drift verification
 
 **`scripts/`:**
 
 - Purpose: Repository-level utilities
-- Contains: Module syncing, validation, smoke testing, version management
-- Key files: `sync-transcript-core.mjs` (drift guard), `validate.mjs` (invariants), `smoke-test.mjs` (E2E)
-- Notes: Run-time checks; `validate.mjs` runs as part of CI
+- Contains: generated-output build/check, compatibility transcript sync wrapper, validation, smoke testing, version management
+- Key files: `build-generated.mjs` (generated output), `sync-transcript-core.mjs` (compatibility wrapper), `validate.mjs` (invariants), `smoke-test.mjs` (E2E)
+- Notes: Build and validation checks run as part of CI
 
 ## Key File Locations
 
@@ -191,14 +206,18 @@ oat_warning: "GENERATED FILE - Do not edit manually. Regenerate with oat-repo-kn
 - `skills/session-observer/scripts/lib/locate.mjs`: Transcript path discovery per runtime
 - `skills/session-observer/scripts/lib/observe.mjs`: Delta detection and state tracking
 - `skills/export-session-transcript/scripts/lib/sanitize.mjs`: Content filtering (payload removal)
-- `shared/transcript-core/runtimes.mjs`: Provider adapter (canonical source)
+- `src/transcript/core/runtimes.ts`: Provider adapter (canonical source)
+- `src/transcript/export-session/export-session-transcript.ts`: Export CLI canonical source
+- `src/transcript/export-session/sanitize.ts`: Export content sanitizer canonical source
 
 **Testing:**
 
-- `tests/transcript-core/sync.test.mjs`: Verifies transcript-core copies are in sync (run as part of `npm test`)
+- `tests/generated-output-sync.test.mjs`: Verifies generated runtime outputs are in sync (run as part of `npm test`)
 - `tests/consensus-loop-cli.test.mjs`: Tests deliberation loop, verdicts, convergence
 - `tests/session-observer/cli.test.mjs`: Tests session-observer CLI argument parsing and subcommand dispatch
-- `tests/export-session-transcript/cli.test.mjs`: Tests export transcript CLI
+- `tests/export-session-transcript/cli.test.ts`: Tests export transcript CLI
+- `tests/export-session-transcript/sanitize.test.ts`: Tests export content sanitizer
+- `tests/transcript-core/runtimes.test.ts`: Tests transcript-core runtime helpers
 - `tests/session-observer/digest.test.mjs`: Tests Markdown rendering
 - `tests/session-observer/watch.test.mjs`: Tests watch polling and debounce logic
 
@@ -314,17 +333,19 @@ oat_warning: "GENERATED FILE - Do not edit manually. Regenerate with oat-repo-kn
 
 **Transcript-Core Module:**
 
-- Canonical: `shared/transcript-core/runtimes.mjs` (hand-edited, no banner)
+- Canonical: `src/transcript/core/runtimes.ts`
 - Consumers: `skills/session-observer/scripts/lib/runtimes.mjs`, `skills/export-session-transcript/scripts/lib/runtimes.mjs`
-- Sync: `scripts/sync-transcript-core.mjs --write` or `npm run sync:transcript-core`
-- Verification: `npm test` includes `tests/transcript-core/sync.test.mjs` (checks byte-identity)
-- Workflow: Edit canonical → run sync → test → commit synced copies
+- Generate: `pnpm run build`
+- Compatibility: `scripts/sync-transcript-core.mjs` delegates to `scripts/build-generated.mjs`
+- Verification: `pnpm run build:check` and `npm test` via `tests/generated-output-sync.test.mjs`
+- Workflow: Edit canonical TypeScript → run build → test → commit generated copies
 
 **Why Vendoring:**
 
 - Skills are distributed as standalone executables (no package.json dependencies)
 - Synced copies ensure consumers are never out of sync without breaking the repo
-- Single source of truth maintained by sync script and drift guard in tests
+- Single source of truth maintained by `scripts/build-generated.mjs` and drift
+  guards in tests
 
 ---
 
