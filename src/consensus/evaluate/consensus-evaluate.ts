@@ -1,18 +1,34 @@
-import { readFile } from 'node:fs/promises';
+import {
+  lstat,
+  mkdir,
+  readFile,
+  realpath,
+  rename,
+  stat,
+  unlink,
+  writeFile,
+} from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import {
   ConsensusError,
   EXIT_CODES,
+  exitCodeForError,
   ITERATION_MODES,
   invalidIterationModeError,
+  runConsensusLoop,
 } from '../core/consensus-loop.js';
 import type {
   Agency,
   IterationMode,
+  LoopRecord,
+  LoopStatus,
   ParallelTurnPromptInput,
+  PeerInvoker,
   PromptProfile,
   SynthesisPromptInput,
+  SynthesizerInvoker,
   TurnPromptInput,
 } from '../core/consensus-loop.js';
 
@@ -45,9 +61,77 @@ export interface EvaluationPromptInputs {
   rubric: string;
 }
 
+export interface EvaluationStatePaths {
+  input: string;
+  records: string;
+  output: string;
+  status: string;
+}
+
+export interface EvaluationRunInput extends Partial<ParsedEvaluateOptions> {
+  artifactPath: string;
+  rubricPath: string;
+  cwd?: string;
+  env?: NodeJS.ProcessEnv;
+}
+
+type NormalizedEvaluationRunInput = ParsedEvaluateOptions & {
+  cwd?: string;
+  env?: NodeJS.ProcessEnv;
+};
+
+export interface EvaluationExecutionOptions {
+  cwd?: string;
+  env?: NodeJS.ProcessEnv;
+  now?: () => string;
+  invokePeer?: PeerInvoker;
+  invokeSynthesizer?: SynthesizerInvoker;
+  stdout?: Pick<NodeJS.WritableStream, 'write'>;
+  stderr?: Pick<NodeJS.WritableStream, 'write'>;
+}
+
+export interface EvaluationArtifactMetadata {
+  artifactPath?: string | null;
+  rubricPath?: string | null;
+  runDir?: string | null;
+  peers?: string[];
+  iteration?: IterationMode;
+  agency?: Agency;
+  coldStart?: 'shared_input';
+  maxRounds?: number;
+  startedAt?: string | null;
+  endedAt?: string | null;
+  wallClockMs?: number | null;
+}
+
+export interface EvaluationArtifactRenderInput {
+  unifiedFindings: string;
+  records: LoopRecord[];
+  status: LoopStatus;
+  metadata?: EvaluationArtifactMetadata;
+}
+
+export interface EvaluationRunResult {
+  artifactPath: string;
+  rubricPath: string;
+  outputPath: string | null;
+  runDir: string;
+  paths: EvaluationStatePaths;
+  loopArgv: string[];
+  records: LoopRecord[];
+  status: LoopStatus;
+  unifiedFindings: string;
+  finalArtifact: string;
+  peers: string[];
+  startedAt: string;
+  endedAt: string;
+  wallClockMs: number;
+}
+
 const MAX_ROUNDS_MIN = 1;
 const MAX_ROUNDS_MAX = 100;
 const PROVIDER_ID_PATTERN = /^[a-z][a-z0-9_-]{0,31}$/u;
+const DEFAULT_PEERS = Object.freeze(['claude', 'codex']);
 
 function requireValue(argv: readonly string[], index: number, token: string) {
   const value = argv[index + 1];
@@ -396,4 +480,639 @@ export function buildEvaluationPromptProfile(
       ].join('\n');
     },
   };
+}
+
+function pathExists(targetPath: string) {
+  return stat(targetPath)
+    .then(() => true)
+    .catch((error: NodeJS.ErrnoException) => {
+      if (error.code === 'ENOENT') return false;
+      throw error;
+    });
+}
+
+function inside(root: string, target: string) {
+  const relative = path.relative(root, target);
+  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
+}
+
+async function nearestExistingPath(targetPath: string): Promise<string> {
+  if (await pathExists(targetPath)) return targetPath;
+  const parent = path.dirname(targetPath);
+  if (parent === targetPath) return targetPath;
+  return await nearestExistingPath(parent);
+}
+
+export async function confineWrite(targetPath: string, rootPath: string) {
+  const root = path.resolve(rootPath);
+  const target = path.isAbsolute(targetPath)
+    ? path.resolve(targetPath)
+    : path.resolve(root, targetPath);
+
+  if (!inside(root, target)) {
+    throw new ConsensusError(`write path is outside allowed root: ${target}`, {
+      code: 'WRITE_PATH_OUTSIDE_ROOT',
+      exitCode: EXIT_CODES.NOPERM,
+      details: { root, path: target },
+    });
+  }
+
+  if (await pathExists(target)) {
+    const targetStat = await lstat(target);
+    if (targetStat.isSymbolicLink()) {
+      throw new ConsensusError(`write target may not be a symlink: ${target}`, {
+        code: 'WRITE_TARGET_SYMLINK',
+        exitCode: EXIT_CODES.NOPERM,
+        details: { path: target },
+      });
+    }
+  }
+
+  const realRoot = await realpath(root);
+  const parent = path.dirname(target);
+  const existing = await nearestExistingPath(parent);
+  const realExisting = await realpath(existing);
+  const realParent = path.resolve(
+    realExisting,
+    path.relative(existing, parent),
+  );
+
+  if (!inside(realRoot, realParent)) {
+    throw new ConsensusError(`write path resolves outside allowed root: ${target}`, {
+      code: 'WRITE_PATH_OUTSIDE_ROOT',
+      exitCode: EXIT_CODES.NOPERM,
+      details: { root, path: target },
+    });
+  }
+
+  return target;
+}
+
+export async function atomicWriteFile(
+  targetPath: string,
+  contents: string,
+  options: { rootPath?: string } = {},
+) {
+  const writePath = options.rootPath
+    ? await confineWrite(targetPath, options.rootPath)
+    : path.resolve(targetPath);
+
+  if (await pathExists(writePath)) {
+    const targetStat = await lstat(writePath);
+    if (targetStat.isSymbolicLink()) {
+      throw new ConsensusError(`write target may not be a symlink: ${writePath}`, {
+        code: 'WRITE_TARGET_SYMLINK',
+        exitCode: EXIT_CODES.NOPERM,
+        details: { path: writePath },
+      });
+    }
+  }
+
+  await mkdir(path.dirname(writePath), { recursive: true });
+  const tempPath = path.join(
+    path.dirname(writePath),
+    `.${path.basename(writePath)}.tmp-${process.pid}-${Math.random().toString(16).slice(2)}`,
+  );
+
+  try {
+    await writeFile(tempPath, contents);
+    await rename(tempPath, writePath);
+  } catch (error) {
+    try {
+      await unlink(tempPath);
+    } catch (cleanupError) {
+      const code = (cleanupError as NodeJS.ErrnoException).code;
+      if (code !== 'ENOENT') {
+        (error as Error & { cleanupError?: unknown }).cleanupError =
+          cleanupError;
+      }
+    }
+    throw error;
+  }
+
+  return writePath;
+}
+
+let defaultRunDirCounter = 0;
+
+function defaultRunDirName() {
+  return `evaluate-${Date.now()}-${process.pid}-${defaultRunDirCounter++}`;
+}
+
+export async function resolveRunDir(
+  options: Pick<ParsedEvaluateOptions, 'runDir' | 'allowRoot'> & {
+    cwd?: string;
+  },
+) {
+  const cwd = path.resolve(options.cwd ?? process.cwd());
+  const root = path.resolve(options.allowRoot ?? cwd);
+  const target = options.runDir
+    ? path.isAbsolute(options.runDir)
+      ? options.runDir
+      : path.resolve(cwd, options.runDir)
+    : path.resolve(cwd, '.consensus', defaultRunDirName());
+
+  return await confineWrite(target, root);
+}
+
+export async function resolveOutputPath(
+  options: Pick<ParsedEvaluateOptions, 'output' | 'allowRoot'> & {
+    cwd?: string;
+  },
+  inputPath: string,
+) {
+  if (options.output) {
+    const cwd = path.resolve(options.cwd ?? process.cwd());
+    const root = path.resolve(options.allowRoot ?? cwd);
+    const target = path.isAbsolute(options.output)
+      ? options.output
+      : path.resolve(cwd, options.output);
+    return await confineWrite(target, root);
+  }
+
+  return await confineWrite(
+    path.resolve(`${inputPath}.evaluation.md`),
+    path.dirname(path.resolve(inputPath)),
+  );
+}
+
+function statePathsFor(runDir: string): EvaluationStatePaths {
+  return {
+    input: path.join(runDir, 'input.md'),
+    records: path.join(runDir, 'records.json'),
+    output: path.join(runDir, 'output.md'),
+    status: path.join(runDir, 'status.json'),
+  };
+}
+
+function extractRubricCriteria(rubric: string) {
+  const criteria: string[] = [];
+  for (const line of rubric.split(/\r?\n/u)) {
+    const heading = line.match(/^#{2,6}\s+(.+?)\s*$/u);
+    if (heading) {
+      criteria.push(heading[1]);
+      continue;
+    }
+    const bullet = line.match(/^\s*[-*]\s+(.+?)\s*$/u);
+    if (bullet) {
+      criteria.push(bullet[1]);
+    }
+  }
+  return [...new Set(criteria)].slice(0, 12);
+}
+
+export function createEvaluationInitialArtifact({
+  rubric,
+}: {
+  rubric: string;
+}) {
+  const criteria = extractRubricCriteria(rubric);
+  const criterionSections =
+    criteria.length > 0
+      ? criteria
+          .map(
+            (criterion) =>
+              [
+                `### ${criterion}`,
+                '',
+                '- Verdict: Pending peer evaluation.',
+                '- Findings: Pending peer evaluation.',
+              ].join('\n'),
+          )
+          .join('\n\n')
+      : '- Pending peer evaluation against the rubric.';
+
+  return [
+    '# Evaluation',
+    '',
+    '## Unified Findings',
+    '',
+    criterionSections,
+    '',
+    '## Overall Verdict',
+    '',
+    'Pending peer evaluation.',
+  ].join('\n');
+}
+
+function normalizeEvaluateOptions(
+  input: readonly string[] | EvaluationRunInput,
+): NormalizedEvaluationRunInput {
+  if (Array.isArray(input)) {
+    return parseEvaluateArgs(input);
+  }
+  const options = input as EvaluationRunInput;
+  return {
+    goal: 'Evaluate the artifact against the rubric.',
+    peers: null,
+    maxRounds: 12,
+    agency: 'minimal',
+    iteration: 'parallel_revision',
+    synthesizer: null,
+    coldStart: 'shared_input',
+    output: null,
+    runDir: null,
+    allowRoot: null,
+    ...options,
+  };
+}
+
+function loopArgvForEvaluation({
+  paths,
+  options,
+  peers,
+  synthesizer,
+}: {
+  paths: EvaluationStatePaths;
+  options: NormalizedEvaluationRunInput;
+  peers: string[];
+  synthesizer: string | null;
+}) {
+  const argv = [
+    '--section-file',
+    paths.input,
+    '--goal',
+    options.goal,
+    '--peers',
+    peers.join(','),
+    '--max-rounds',
+    String(options.maxRounds),
+    '--agency',
+    options.agency,
+    '--iteration',
+    options.iteration,
+    '--cold-start',
+    options.coldStart,
+  ];
+  if (synthesizer) {
+    argv.push('--synthesizer', synthesizer);
+  }
+  argv.push(
+    '--output-records',
+    paths.records,
+    '--output-section',
+    paths.output,
+    '--output-status',
+    paths.status,
+  );
+  return argv;
+}
+
+function yamlScalar(value: unknown) {
+  if (value === null || value === undefined) return 'null';
+  if (Array.isArray(value)) return JSON.stringify(value);
+  if (typeof value === 'boolean') return value ? 'true' : 'false';
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? String(value) : 'null';
+  }
+  const text = String(value);
+  return /^[A-Za-z0-9_.-]+$/u.test(text) ? text : JSON.stringify(text);
+}
+
+function canonicalJsonBlock(label: string, value: unknown) {
+  return `<!-- consensus:${label}\n${JSON.stringify(value, null, 2)}\n-->`;
+}
+
+function sanitizeProse(value: unknown) {
+  return String(value ?? '').replace(/\s+$/u, '');
+}
+
+function verdictValue(record: LoopRecord) {
+  if (typeof record.verdict === 'string') return record.verdict;
+  if (
+    record.verdict &&
+    typeof record.verdict === 'object' &&
+    'verdict' in record.verdict
+  ) {
+    return String(record.verdict.verdict);
+  }
+  return 'UNKNOWN';
+}
+
+function renderRecord(record: LoopRecord) {
+  if (record.record_type === 'synthesis') {
+    const synthesis = {
+      schema_version: record.schema_version ?? 'v1',
+      synthesizer: record.synthesizer ?? 'synthesizer',
+      synthesized_artifact: record.synthesized_artifact ?? '',
+      synthesis_reasoning: record.synthesis_reasoning ?? '',
+      unresolved_disagreements: record.unresolved_disagreements ?? [],
+    };
+    return [
+      `#### Round ${record.round_index ?? record.round ?? '?'} - ${synthesis.synthesizer} - SYNTHESIS`,
+      '',
+      canonicalJsonBlock('consensus-synthesis', synthesis),
+    ].join('\n');
+  }
+
+  const verdictDocument: Record<string, unknown> = {
+    schema_version: record.schema_version ?? 'v1',
+    verdict: verdictValue(record),
+    reasoning: record.reasoning ?? '',
+  };
+  if ('critique' in record && record.critique) {
+    verdictDocument.critique = record.critique;
+  }
+  if ('proposed_artifact' in record) {
+    verdictDocument.proposed_artifact = record.proposed_artifact;
+  }
+  if ('concerns' in record) {
+    verdictDocument.concerns = record.concerns;
+  }
+  if ('decision_kind' in record) {
+    verdictDocument.decision_kind = record.decision_kind;
+  }
+  if ('escalation_trigger' in record) {
+    verdictDocument.escalation_trigger = record.escalation_trigger;
+  }
+
+  const heading = `#### Round ${record.round_index ?? record.round ?? '?'} - ${
+    record.agent ?? record.provider ?? 'peer'
+  } - ${String(verdictDocument.verdict)}`;
+  const parts = [heading];
+
+  if (verdictDocument.reasoning) {
+    parts.push('', 'Reasoning:', sanitizeProse(verdictDocument.reasoning));
+  }
+
+  parts.push('', canonicalJsonBlock('consensus-verdict', verdictDocument));
+  return parts.join('\n');
+}
+
+function latestPeerRecords(records: LoopRecord[]) {
+  const peers = records.filter((record) => !record.record_type);
+  if (peers.length === 0) return [];
+  const latestRound = Math.max(
+    ...peers.map((record) => Number(record.round_index ?? record.round ?? 0)),
+  );
+  return peers.filter(
+    (record) => Number(record.round_index ?? record.round ?? 0) === latestRound,
+  );
+}
+
+function residualConcerns(records: LoopRecord[]) {
+  return latestPeerRecords(records).flatMap((record) => {
+    if (!Array.isArray(record.concerns)) return [];
+    return record.concerns.map((concern) => ({
+      agent: record.agent ?? record.provider ?? 'peer',
+      concern: String(concern),
+    }));
+  });
+}
+
+function renderDissentSection(records: LoopRecord[], status: LoopStatus) {
+  if (status.status === 'converged') {
+    const concerns = residualConcerns(records);
+    if (concerns.length === 0) return [];
+    return [
+      '## Dissent',
+      '',
+      ...concerns.map(
+        ({ agent, concern }) => `- ${agent}: ${sanitizeProse(concern)}`,
+      ),
+      '',
+    ];
+  }
+
+  if (!['impasse', 'escalation', 'max-rounds', 'oscillation'].includes(status.status)) {
+    return [];
+  }
+
+  const peers = latestPeerRecords(records);
+  return [
+    '## Unresolved dissent',
+    '',
+    ...peers.map((record) => {
+      const position =
+        typeof record.proposed_artifact === 'string'
+          ? ` Position: ${sanitizeProse(record.proposed_artifact)}`
+          : '';
+      return `- ${record.agent ?? record.provider ?? 'peer'} (${verdictValue(record)}): ${sanitizeProse(record.reasoning ?? '')}${position}`;
+    }),
+    '',
+  ];
+}
+
+export function renderEvaluationArtifact({
+  unifiedFindings,
+  records,
+  status,
+  metadata = {},
+}: EvaluationArtifactRenderInput) {
+  const frontmatter = [
+    '---',
+    'consensus_schema_version: v1',
+    'kind: consensus-evaluate',
+    `status: ${yamlScalar(status.status ?? 'unknown')}`,
+    `iteration: ${yamlScalar(metadata.iteration ?? null)}`,
+    `cold_start: ${yamlScalar(metadata.coldStart ?? null)}`,
+    `agency: ${yamlScalar(metadata.agency ?? null)}`,
+    `peers: ${yamlScalar(metadata.peers ?? [])}`,
+    `max_rounds: ${yamlScalar(metadata.maxRounds ?? null)}`,
+    `artifact_path: ${yamlScalar(metadata.artifactPath ?? null)}`,
+    `rubric_path: ${yamlScalar(metadata.rubricPath ?? null)}`,
+    `run_dir: ${yamlScalar(metadata.runDir ?? null)}`,
+    `started_at: ${yamlScalar(metadata.startedAt ?? null)}`,
+    `ended_at: ${yamlScalar(metadata.endedAt ?? null)}`,
+    `wall_clock_ms: ${yamlScalar(metadata.wallClockMs ?? null)}`,
+    '---',
+  ];
+
+  const parts = [
+    ...frontmatter,
+    '',
+    '# Consensus Evaluate Artifact',
+    '',
+    '## Unified findings',
+    '',
+    sanitizeProse(unifiedFindings) || '(empty evaluation)',
+    '',
+    '## Deliberation log',
+    '',
+    canonicalJsonBlock('consensus-section-status', status),
+    '',
+  ];
+
+  for (const record of records) {
+    parts.push(renderRecord(record), '');
+  }
+
+  parts.push(...renderDissentSection(records, status));
+
+  return `${parts
+    .join('\n')
+    .replace(/\n{4,}/gu, '\n\n\n')
+    .replace(/\s+$/u, '')}\n`;
+}
+
+export async function runConsensusEvaluate(
+  input: readonly string[] | EvaluationRunInput,
+  runOptions: EvaluationExecutionOptions = {},
+): Promise<EvaluationRunResult> {
+  const normalized = normalizeEvaluateOptions(input);
+  const cwd = path.resolve(
+    normalized.cwd ?? runOptions.cwd ?? process.cwd(),
+  );
+  const env = normalized.env ?? runOptions.env ?? process.env;
+  const startedAt = (runOptions.now ?? (() => new Date().toISOString()))();
+  const startMs = Date.now();
+  const loaded = await loadEvaluationInputs(normalized, { cwd });
+  const runDir = await resolveRunDir({ ...normalized, cwd });
+  const outputPath = normalized.output
+    ? await resolveOutputPath({ ...normalized, cwd }, loaded.artifactPath)
+    : null;
+  const writeRoot = path.resolve(normalized.allowRoot ?? cwd);
+  const paths = statePathsFor(runDir);
+  const peers = normalized.peers ?? [...DEFAULT_PEERS];
+  const synthesizer =
+    normalized.iteration === 'parallel_synthesized'
+      ? (normalized.synthesizer ?? peers[0])
+      : null;
+  const initialArtifact = createEvaluationInitialArtifact({
+    rubric: loaded.rubric,
+  });
+  const loopArgv = loopArgvForEvaluation({
+    paths,
+    options: normalized,
+    peers,
+    synthesizer,
+  });
+
+  await Promise.all([
+    confineWrite(paths.records, writeRoot),
+    confineWrite(paths.output, writeRoot),
+    confineWrite(paths.status, writeRoot),
+  ]);
+  await atomicWriteFile(paths.input, initialArtifact, { rootPath: writeRoot });
+
+  const result = await runConsensusLoop(loopArgv, {
+    env,
+    cwd,
+    now: runOptions.now,
+    initialArtifact,
+    promptProfile: buildEvaluationPromptProfile({
+      artifact: loaded.artifact,
+      rubric: loaded.rubric,
+    }),
+    invokePeer: runOptions.invokePeer,
+    invokeSynthesizer: runOptions.invokeSynthesizer,
+  });
+
+  const endedAt = (runOptions.now ?? (() => new Date().toISOString()))();
+  const wallClockMs = Date.now() - startMs;
+  const finalArtifact = renderEvaluationArtifact({
+    unifiedFindings: result.output,
+    records: result.records,
+    status: result.status,
+    metadata: {
+      artifactPath: loaded.artifactPath,
+      rubricPath: loaded.rubricPath,
+      runDir,
+      peers,
+      iteration: normalized.iteration,
+      agency: normalized.agency,
+      coldStart: normalized.coldStart,
+      maxRounds: normalized.maxRounds,
+      startedAt,
+      endedAt,
+      wallClockMs,
+    },
+  });
+
+  if (outputPath) {
+    await atomicWriteFile(outputPath, finalArtifact, {
+      rootPath: normalized.allowRoot ? writeRoot : path.dirname(outputPath),
+    });
+  } else {
+    runOptions.stdout?.write(finalArtifact);
+  }
+
+  return {
+    artifactPath: loaded.artifactPath,
+    rubricPath: loaded.rubricPath,
+    outputPath,
+    runDir,
+    paths,
+    loopArgv,
+    records: result.records,
+    status: result.status,
+    unifiedFindings: result.output,
+    finalArtifact,
+    peers,
+    startedAt,
+    endedAt,
+    wallClockMs,
+  };
+}
+
+function writeJsonl(
+  stream: Pick<NodeJS.WritableStream, 'write'>,
+  event: string,
+  payload: Record<string, unknown>,
+) {
+  stream.write(`${JSON.stringify({ event, ...payload })}\n`);
+}
+
+function errorDetails(error: unknown) {
+  if (error instanceof Error) {
+    const annotated = error as Error & {
+      code?: string;
+      details?: unknown;
+    };
+    return {
+      code: annotated.code ?? 'ERROR',
+      message: error.message,
+      details: annotated.details,
+    };
+  }
+  return {
+    code: 'ERROR',
+    message: String(error),
+    details: undefined,
+  };
+}
+
+export async function runEvaluateCli(
+  argv: readonly string[],
+  options: EvaluationExecutionOptions = {},
+) {
+  const stdout = options.stdout ?? process.stdout;
+  const stderr = options.stderr ?? process.stderr;
+
+  try {
+    const parsed = parseEvaluateArgs(argv);
+    writeJsonl(stdout, 'run_started', {
+      artifact_path: parsed.artifactPath,
+      rubric_path: parsed.rubricPath,
+      iteration_mode: parsed.iteration,
+    });
+    const result = await runConsensusEvaluate(parsed, options);
+    writeJsonl(stdout, 'run_completed', {
+      status: result.status.status,
+      output_path: result.outputPath,
+      run_dir: result.runDir,
+      records: result.records.length,
+    });
+    return 0;
+  } catch (error) {
+    const details = errorDetails(error);
+    const exitCode = exitCodeForError(error);
+    writeJsonl(stdout, 'error', {
+      code: details.code,
+      exit_code: exitCode,
+      message: details.message,
+      ...(details.details === undefined ? {} : { details: details.details }),
+    });
+    stderr.write(`${details.message}\n`);
+    return exitCode;
+  }
+}
+
+if (
+  process.argv[1] &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+) {
+  runEvaluateCli(process.argv.slice(2)).then((exitCode) => {
+    process.exitCode = exitCode;
+  });
 }
