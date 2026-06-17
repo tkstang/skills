@@ -164,7 +164,7 @@ oat_generated: false
 
 **Status:** completed
 **Commit:** `fix(p02): protect export generated outputs from formatting drift`
-**Review artifact:** `reviews/p02-review-2026-06-17.md`
+**Review artifact:** `reviews/archived/p02-review-2026-06-17.md`
 
 **Notes:**
 
@@ -448,7 +448,7 @@ resolved directly in `plan.md`.
 ### Review Received: final
 
 **Date:** 2026-06-17
-**Review artifact:** reviews/final-review-2026-06-17.md
+**Review artifact:** reviews/archived/final-review-2026-06-17.md
 
 **Findings:**
 
