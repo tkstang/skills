@@ -1,25 +1,29 @@
 # shared/transcript-core
 
-Canonical, skill-independent transcript primitives. **This is the single source of
-truth** for per-runtime transcript knowledge (Claude Code, Codex, Cursor).
+Compatibility documentation for the former shared transcript-core source path.
+The canonical source moved to `src/transcript/core/runtimes.ts`.
 
 ## Contract
 
-- `runtimes.mjs` here is the canonical module. It is a leaf module — Node standard
-  library only, no third-party dependencies, no banner.
-- Each consuming skill ships a **synced, committed copy** under its own
-  `scripts/lib/runtimes.mjs`. Those copies are **generated**: they carry a banner and
-  must stay byte-identical to `<banner>\n<canonical contents>`.
+- `src/transcript/core/runtimes.ts` is the single source of truth for
+  per-runtime transcript knowledge (Claude Code, Codex, Cursor).
+- Each consuming skill ships a committed generated copy under its own
+  `scripts/lib/runtimes.mjs`. Those copies carry a `// GENERATED` banner and
+  must not be hand-edited.
+- `pnpm run sync:transcript-core` remains as a compatibility wrapper around
+  `scripts/build-generated.mjs`.
 
 ## How to edit
 
-1. Edit `shared/transcript-core/runtimes.mjs` (the canonical file) — never the
-   vendored copies.
-2. Run `npm run sync:transcript-core` to regenerate every consumer copy.
-3. Commit the canonical change together with the regenerated copies.
+1. Edit `src/transcript/core/runtimes.ts` — never the generated copies.
+2. Run `pnpm run build` to regenerate every generated runtime output.
+3. Run `pnpm run build:check` or `node scripts/sync-transcript-core.mjs --check`
+   to verify drift checks.
+4. Commit the canonical change together with the regenerated copies.
 
-A drift guard (`node scripts/sync-transcript-core.mjs --check`, wired into
-`npm test`) fails if any vendored copy diverges from the canonical source.
+A drift guard (`node scripts/build-generated.mjs --check`, wired into
+`pnpm test` through `tests/generated-output-sync.test.mjs`) fails if any
+generated copy diverges from canonical source.
 
 ## Consumers
 

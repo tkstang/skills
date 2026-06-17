@@ -25,25 +25,26 @@ oat_warning: "GENERATED FILE - Do not edit manually. Regenerate with oat-repo-kn
 
 **Package Manager:**
 
-- npm
-- Lockfile: Not present in repository (dependency-free project — no external npm dependencies)
+- pnpm for developer dependencies (`packageManager` is pinned in `package.json`)
+- Lockfile: `pnpm-lock.yaml`
 
 ## Frameworks
 
 **Core:**
 
-- Node.js built-in modules only — Project uses only standard library APIs
-  - `node:test` — Test framework (see `tests/` directory)
+- Shipped runtime output uses Node.js built-in modules only
   - `node:child_process` — Process spawning and subprocess management
   - `node:fs/promises` — Async filesystem operations
   - `node:crypto` — SHA-256 hashing for artifact convergence detection
   - `node:util` — CLI argument parsing (`parseArgs`)
   - `node:path` — Path manipulation
   - `node:os` — System operations (homedir detection)
+- TypeScript, Vitest, and esbuild are developer tooling only; shipped skills run committed `.mjs` files with no install step
 
 **Testing:**
 
-- Node.js native `node:test` module — No external test dependencies (see `tests/*.test.mjs`)
+- Node.js native `node:test` module for remaining `.test.mjs` suites
+- Vitest for migrated TypeScript `.test.ts` suites
 
 **External Tools (shelled out, not npm deps):**
 
@@ -88,10 +89,11 @@ oat_warning: "GENERATED FILE - Do not edit manually. Regenerate with oat-repo-kn
 
 **Scripts (development/build):**
 
-- `npm test` — Run test suite via Node.js test runner
-- `npm run validate` — Repository structure, manifest, and docs validation (see `scripts/validate.mjs`)
-- `npm run smoke` — End-to-end consensus wrapper flow test (see `scripts/smoke-test.mjs`)
-- `npm run sync:transcript-core` — Sync canonical transcript-core module to consumer skills
+- `pnpm run test` / `npm test` — Run the full Node plus Vitest suite
+- `pnpm run validate` / `npm run validate` — Repository structure, manifest, and docs validation (see `scripts/validate.mjs`)
+- `pnpm run smoke` / `npm run smoke` — End-to-end consensus wrapper flow test (see `scripts/smoke-test.mjs`)
+- `pnpm run build` / `pnpm run build:check` — Generate or verify committed `.mjs` runtime outputs from canonical TypeScript source
+- `pnpm run sync:transcript-core` / `npm run sync:transcript-core` — Compatibility wrapper for regenerating transcript-core consumer outputs through `scripts/build-generated.mjs`
 
 ## Platform Requirements
 

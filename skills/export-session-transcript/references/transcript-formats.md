@@ -2,8 +2,8 @@
 
 Condensed reference for the Claude Code, Codex, and Cursor JSONL record shapes that
 `scripts/lib/runtimes.mjs` parses for export. The canonical parsing logic lives in
-the shared `transcript-core` module (synced into `scripts/lib/runtimes.mjs`); these
-formats may drift between runtime releases.
+`src/transcript/core/runtimes.ts` and is generated into
+`scripts/lib/runtimes.mjs`; these formats may drift between runtime releases.
 
 `runtimes.mjs` does **structural** filtering only (it drops tool calls/results and
 Claude slash-command records). The export-owned `scripts/lib/sanitize.mjs` adds the
@@ -92,7 +92,10 @@ mid-sentence are NOT dropped — only leading-content matches are removed.
 
 ## Adding a new runtime
 
-`runtimes.mjs` is the only file with structural knowledge of per-runtime formats. To
-add a runtime, extend `discoverPaths`, `encodeCwd`/`encodeCwdVariants`, `extractMeta`,
-and `normalizeEntries` in the canonical `shared/transcript-core/runtimes.mjs`, then
-run `npm run sync:transcript-core`. The export CLI and sanitizer need no changes.
+`src/transcript/core/runtimes.ts` is the only source file with structural knowledge
+of per-runtime formats. To add a runtime, extend `discoverPaths`,
+`encodeCwd`/`encodeCwdVariants`, `extractMeta`, and `normalizeEntries` there, then
+run `pnpm run build`. `pnpm run sync:transcript-core` remains available as a
+compatibility wrapper around the generated-output build. The export CLI and
+sanitizer need no changes unless their user-facing selection or content-sanitizing
+behavior changes.

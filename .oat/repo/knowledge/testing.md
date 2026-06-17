@@ -14,21 +14,23 @@ oat_warning: "GENERATED FILE - Do not edit manually. Regenerate with oat-repo-kn
 
 **Runner:**
 
-- Node.js built-in `node:test` module (no external test runner)
+- Node.js built-in `node:test` module for remaining `.test.mjs` suites
+- Vitest for migrated TypeScript `.test.ts` suites
 - Node >=22 required (see `package.json` line 7)
-- Config: None (uses Node.js defaults)
+- Vitest config lives in `vitest.config.ts`
 
 **Assertion Library:**
 
 - Node.js built-in `node:assert/strict` (see imports in all test files, e.g., `error-handling.test.mjs` line 1)
-- All test files import: `import assert from 'node:assert/strict'`
+- Vitest suites import assertions from `vitest`
 
 **Run Commands:**
 
 ```bash
-npm test                    # Run all tests (runs node --test)
-npm run validate            # Run validation script
-npm run smoke               # Run mocked end-to-end consensus wrapper flow
+pnpm run test               # Run Node and Vitest suites
+pnpm run validate           # Run validation script
+pnpm run smoke              # Run mocked end-to-end consensus wrapper flow
+pnpm run build:check        # Verify generated runtime output drift
 ```
 
 ## Test File Organization
@@ -45,8 +47,8 @@ npm run smoke               # Run mocked end-to-end consensus wrapper flow
 
 **Naming:**
 
-- Pattern: `{subject}.test.mjs` for test files
-- Examples: `error-handling.test.mjs`, `path-safety.test.mjs`, `loop-convergence.test.mjs`
+- Pattern: `{subject}.test.mjs` for Node tests and `{subject}.test.ts` for migrated Vitest tests
+- Examples: `error-handling.test.mjs`, `path-safety.test.ts`, `loop-convergence.test.ts`
 - Subdirectory tests follow same pattern: `tests/session-observer/observe.test.mjs`
 
 **Structure:**
@@ -57,6 +59,8 @@ tests/
 ├── loop-convergence.test.mjs
 ├── path-safety.test.mjs
 ├── parallel-integration.test.mjs
+├── generated-output-sync.test.mjs
+├── loop-convergence.test.ts
 ├── fixtures/
 │   ├── sample-input.md          # Sample markdown input for testing
 │   ├── bin/                     # Stub executables for testing
@@ -68,6 +72,11 @@ tests/
     ├── observe.test.mjs
     ├── cli.test.mjs
     └── ...
+└── transcript-core/
+    └── runtimes.test.ts
+└── export-session-transcript/
+    ├── cli.test.ts
+    └── sanitize.test.ts
 ```
 
 ## Test Structure
@@ -91,6 +100,9 @@ test('async test with async/await', async () => {
   // Test body
 });
 ```
+
+Vitest suites use the same flat behavior-oriented test naming with `test` and
+`expect` imported from `vitest`.
 
 **Patterns:**
 
@@ -242,7 +254,7 @@ function sectionFailOnceInvoker() {
 **View Coverage:**
 
 - Not supported by current test setup
-- Could be added via `node:test` experimental coverage flag or external tool, but not currently in use
+- Could be added via Node or Vitest coverage tooling, but not currently in use
 
 ## Test Types
 
