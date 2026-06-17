@@ -344,7 +344,8 @@ oat_warning: "GENERATED FILE - Do not edit manually. Regenerate with oat-repo-kn
 
 - Skills are distributed as standalone executables (no package.json dependencies)
 - Synced copies ensure consumers are never out of sync without breaking the repo
-- Single source of truth maintained by sync script and drift guard in tests
+- Single source of truth maintained by `scripts/build-generated.mjs` and drift
+  guards in tests
 
 ---
 
