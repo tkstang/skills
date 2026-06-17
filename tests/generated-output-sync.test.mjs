@@ -3,7 +3,11 @@ import { readFile, writeFile } from 'node:fs/promises';
 
 import { describe, expect, it } from 'vitest';
 
+import lintStagedConfig from '../.lintstagedrc.mjs';
+import { generatedOutputs } from '../scripts/build-generated.mjs';
+
 const repoRoot = new URL('..', import.meta.url);
+const generatedOutputPaths = generatedOutputs.map((mapping) => mapping.output);
 
 function runCommand(command, args) {
   return new Promise((resolve) => {
@@ -53,6 +57,17 @@ describe('generated output drift guard', () => {
     expect(result.code).toBe(0);
   });
 
+  it('lists generated output paths for hook and CI guards', async () => {
+    const result = await runNode([
+      'scripts/build-generated.mjs',
+      '--list-outputs',
+    ]);
+
+    expect(result.stderr).toBe('');
+    expect(result.stdout.trim().split('\n')).toEqual(generatedOutputPaths);
+    expect(result.code).toBe(0);
+  });
+
   it('declares source to generated-output mappings', async () => {
     const script = await readFile(
       new URL('../scripts/build-generated.mjs', import.meta.url),
@@ -84,6 +99,48 @@ describe('generated output drift guard', () => {
     expect(script).toContain(
       'skills/export-session-transcript/scripts/export-session-transcript.mjs',
     );
+  });
+
+  it('excludes generated outputs from static lint and format configs', async () => {
+    const [oxfmt, oxlint] = await Promise.all([
+      readFile(new URL('../.oxfmtrc.json', import.meta.url), 'utf8').then(
+        JSON.parse,
+      ),
+      readFile(new URL('../.oxlintrc.json', import.meta.url), 'utf8').then(
+        JSON.parse,
+      ),
+    ]);
+
+    for (const output of generatedOutputPaths) {
+      expect(oxfmt.ignorePatterns).toContain(output);
+      expect(oxlint.ignorePatterns).toContain(output);
+    }
+  });
+
+  it('excludes generated outputs from lint-staged tasks', () => {
+    const jsTask = lintStagedConfig['*.{mjs,js}'];
+
+    for (const output of generatedOutputPaths) {
+      expect(jsTask([output])).toEqual([]);
+      expect(jsTask([new URL(output, repoRoot).pathname])).toEqual([]);
+    }
+  });
+
+  it('derives CI generated-output guards from build-generated mappings', async () => {
+    const workflow = await readFile(
+      new URL('../.github/workflows/validate.yml', import.meta.url),
+      'utf8',
+    );
+
+    expect(workflow).toContain(
+      'node scripts/build-generated.mjs --list-outputs > "$RUNNER_TEMP/generated-output-paths.txt"',
+    );
+    expect(workflow).toContain('generated_outputs+=("$file")');
+    expect(
+      workflow.match(
+        /grep -vxF -f <\(node scripts\/build-generated\.mjs --list-outputs\)/g,
+      ),
+    ).toHaveLength(2);
   });
 
   it('rewrites generated export-session CLI imports to shipped runtime files', async () => {

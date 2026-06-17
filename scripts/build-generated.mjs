@@ -44,7 +44,8 @@ export const generatedOutputs = [
   {
     id: 'export-session-transcript-cli',
     source: 'src/transcript/export-session/export-session-transcript.ts',
-    output: 'skills/export-session-transcript/scripts/export-session-transcript.mjs',
+    output:
+      'skills/export-session-transcript/scripts/export-session-transcript.mjs',
     importRewrites: [
       { from: '../core/runtimes.js', to: './lib/runtimes.mjs' },
       { from: './sanitize.js', to: './lib/sanitize.mjs' },
@@ -53,27 +54,35 @@ export const generatedOutputs = [
 ];
 
 function usage() {
-  return `Usage: node scripts/build-generated.mjs [--check]
+  return `Usage: node scripts/build-generated.mjs [--check] [--list-outputs]
 
 Build committed generated runtime outputs from canonical TypeScript sources.
 
 Options:
   --check   Compare generated output with committed files without writing.
+  --list-outputs
+            Print generated output paths, one per line.
   --help    Show this help.
 `;
 }
 
 function parseArgs(argv) {
-  const options = { check: false, help: false };
+  const options = { check: false, help: false, listOutputs: false };
 
   for (const arg of argv) {
     if (arg === '--check') {
       options.check = true;
+    } else if (arg === '--list-outputs') {
+      options.listOutputs = true;
     } else if (arg === '--help' || arg === '-h') {
       options.help = true;
     } else {
       throw new Error(`Unknown argument: ${arg}`);
     }
+  }
+
+  if (options.check && options.listOutputs) {
+    throw new Error('Use only one of --check or --list-outputs');
   }
 
   return options;
@@ -266,7 +275,11 @@ async function main() {
     return;
   }
 
-  if (options.check) {
+  if (options.listOutputs) {
+    process.stdout.write(
+      generatedOutputs.map((mapping) => mapping.output).join('\n') + '\n',
+    );
+  } else if (options.check) {
     await checkGenerated();
   } else {
     await writeGenerated();

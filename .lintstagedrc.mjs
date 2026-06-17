@@ -5,21 +5,32 @@
 // Files that must never be reformatted/linted here:
 //   - OAT project/reference artifacts (.oat) because repo formatter config
 //     ignores them and passing only ignored files makes oxfmt fail
-//   - generated transcript-core copies (drift-guarded against canonical source)
-//   - generated consensus runtime outputs (built from canonical TypeScript)
+//   - generated runtime outputs from scripts/build-generated.mjs
 //   - OAT-synced provider views (.agents, .claude/rules, .cursor/rules) kept
 //     byte-identical to their canonical sources by `oat sync`
 //   - agent-instruction files (AGENTS.md / CLAUDE.md) at every level: the root
 //     file carries an `oat sync`-regenerated <!-- OAT tools --> block that oat
 //     sync does not keep oxfmt-clean, so formatting fights the generator
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+import { generatedOutputs } from './scripts/build-generated.mjs';
+
+const repoRoot = path.dirname(fileURLToPath(import.meta.url));
+const generatedOutputPaths = new Set(
+  generatedOutputs.map((mapping) => mapping.output),
+);
+
+function repoRelative(file) {
+  const relative = path.isAbsolute(file)
+    ? path.relative(repoRoot, file)
+    : file.replace(/^\.\//, '');
+
+  return relative.split(path.sep).join('/');
+}
+
 const isExcluded = (file) =>
-  file.endsWith('/scripts/lib/runtimes.mjs') ||
-  file.endsWith(
-    '/plugins/consensus/skills/refine/scripts/consensus-loop.mjs',
-  ) ||
-  file.endsWith(
-    '/plugins/consensus/skills/refine/scripts/consensus-refine.mjs',
-  ) ||
+  generatedOutputPaths.has(repoRelative(file)) ||
   /(^|\/)\.oat\//.test(file) ||
   /(^|\/)\.agents\//.test(file) ||
   /(^|\/)\.(claude|cursor)\/rules\//.test(file) ||

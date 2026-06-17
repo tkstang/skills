@@ -160,6 +160,46 @@ oat_generated: false
 
 ---
 
+### Review fix: generated-output guard coverage
+
+**Status:** completed
+**Commit:** `fix(p02): protect export generated outputs from formatting drift`
+**Review artifact:** `reviews/p02-review-2026-06-17.md`
+
+**Notes:**
+
+- Added `scripts/build-generated.mjs --list-outputs` so CI can derive the
+  generated-output diff guard from `generatedOutputs`.
+- Updated lint-staged and CI changed-file filters to exclude generated outputs
+  from the generated-output mapping, and added explicit oxlint/oxfmt ignore
+  entries for every current generated output.
+- Added regression tests requiring static lint/format ignores and CI/hook
+  guards to cover all generated output mappings.
+
+**Verification passed:**
+
+- `pnpm exec vitest run tests/generated-output-sync.test.mjs`
+- `node --test tests/validate-script.test.mjs`
+- `pnpm run build` plus derived generated-output `git diff --exit-code`
+- `pnpm run build:check`
+- `pnpm run type-check`
+- `pnpm exec vitest run tests/export-session-transcript/cli.test.ts tests/export-session-transcript/sanitize.test.ts tests/generated-output-sync.test.mjs`
+- `node skills/export-session-transcript/scripts/export-session-transcript.mjs --help`
+- Generated-only CI format-filter simulation: `no formattable files changed`
+- `pnpm run test`
+- `pnpm run validate`
+- `pnpm exec oxfmt --check .lintstagedrc.mjs .oxfmtrc.json .oxlintrc.json scripts/build-generated.mjs tests/generated-output-sync.test.mjs tests/validate-script.test.mjs`
+- `pnpm exec oxlint .lintstagedrc.mjs scripts/build-generated.mjs tests/generated-output-sync.test.mjs tests/validate-script.test.mjs`
+
+**Review evidence command:**
+
+- `pnpm exec oxfmt --check skills/export-session-transcript/scripts/lib/sanitize.mjs skills/export-session-transcript/scripts/export-session-transcript.mjs`
+  now exits with `Expected at least one target file` because both generated
+  paths are ignored by formatter config. The hook/CI changed-file filters
+  remove these generated paths before invoking `oxfmt`.
+
+---
+
 ## Phase 3: Documentation, Reference Cleanup, and Verification
 
 **Status:** pending

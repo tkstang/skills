@@ -33,6 +33,10 @@
     "coverage/",
     "plugins/consensus/skills/refine/scripts/consensus-loop.mjs",
     "plugins/consensus/skills/refine/scripts/consensus-refine.mjs",
+    "skills/session-observer/scripts/lib/runtimes.mjs",
+    "skills/export-session-transcript/scripts/lib/runtimes.mjs",
+    "skills/export-session-transcript/scripts/lib/sanitize.mjs",
+    "skills/export-session-transcript/scripts/export-session-transcript.mjs",
     "**/scripts/lib/runtimes.mjs"
   ]
 }
