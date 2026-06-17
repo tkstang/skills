@@ -5,7 +5,7 @@ oat_blockers: []
 oat_last_updated: 2026-06-16
 oat_phase: plan
 oat_phase_status: complete
-oat_plan_hill_phases: ['p03'] # phases to pause AFTER completing (empty = every phase)
+oat_plan_hill_phases: ['p04'] # phases to pause AFTER completing (empty = every phase)
 oat_auto_review_at_hill_checkpoints: true
 oat_plan_parallel_groups: [] # groups of phases that run concurrently in worktrees; [] = fully sequential
 oat_plan_source: quick # spec-driven | quick | imported
@@ -528,6 +528,53 @@ git commit -m "docs(p03-t02): list consensus-refine.mjs as a generated runtime o
 
 ---
 
+## Phase 4: Final review fixes
+
+### Task p04-t01: (review) Constrain generated-output import rewrites to module specifiers
+
+**Files:**
+
+- Modify: `scripts/build-generated.mjs`
+- Modify: `plugins/consensus/skills/refine/scripts/consensus-refine.mjs` (regenerated only if output changes)
+- Modify: `tests/generated-output-sync.test.mjs`
+
+**Step 1: Understand the issue**
+
+Review finding: the generated-output build currently rewrites every quoted string
+matching a configured `importRewrites.from` value. For the current wrapper this only
+matches the static loop import, but a future emitted diagnostic string or data literal
+containing the same quoted value would be rewritten silently even though it is not a
+module specifier.
+
+Location: `scripts/build-generated.mjs:113`
+
+**Step 2: Implement fix**
+
+Constrain rewrites to static module specifier syntax only, covering named/default
+imports, namespace imports, dynamic imports if emitted, and side-effect imports. Keep
+the fail-loud behavior when a configured source specifier is absent, and add a focused
+test proving non-import quoted strings are not rewritten.
+
+**Step 3: Verify**
+
+Run: `pnpm run build:check`
+Expected: both generated outputs are in sync.
+
+Run: `pnpm exec vitest run tests/generated-consensus-refine-import.test.ts tests/generated-output-sync.test.mjs`
+Expected: generated import and drift/rewrite guard tests pass.
+
+Run: `pnpm run type-check`
+Expected: TypeScript passes.
+
+**Step 4: Commit**
+
+```bash
+git add scripts/build-generated.mjs plugins/consensus/skills/refine/scripts/consensus-refine.mjs tests/generated-output-sync.test.mjs
+git commit -m "fix(p04-t01): constrain generated import rewrites"
+```
+
+---
+
 ## Reviews
 
 {Track reviews here after running the oat-project-review-provide and oat-project-review-receive skills.}
@@ -539,7 +586,7 @@ git commit -m "docs(p03-t02): list consensus-refine.mjs as a generated runtime o
 | p01    | code     | passed  | 2026-06-16 | reviews/p01-review-2026-06-16-v2.md |
 | p02    | code     | passed  | 2026-06-16 | reviews/p02-review-2026-06-16-v2.md |
 | p03    | code     | passed  | 2026-06-16 | reviews/p03-review-2026-06-16-v2.md |
-| final  | code     | pending | -    | -        |
+| final  | code     | fixes_added | 2026-06-16 | reviews/final-review-2026-06-16.md |
 | spec   | artifact | pending | -    | -        |
 | design | artifact | fixes_completed | 2026-06-16 | reviews/archived/artifact-design-review-2026-06-16.md |
 | plan   | artifact | passed  | 2026-06-16 | structured (auto-review; I1/I2/M2 applied) |
@@ -562,10 +609,11 @@ git commit -m "docs(p03-t02): list consensus-refine.mjs as a generated runtime o
 - Phase 1: 5 tasks - Wrapper TypeScript source + build import-rewrite mechanism + guards
 - Phase 2: 7 tasks - Migrate the consensus test suite to Vitest with assertion parity
 - Phase 3: 2 tasks - Documentation & reference updates for completed scope
+- Phase 4: 1 task - Final review fix for module-specifier import rewrites
 
-**Total: 14 tasks**
+**Total: 15 tasks**
 
-Ready for code review and merge.
+Ready for review-fix execution.
 
 ---
 

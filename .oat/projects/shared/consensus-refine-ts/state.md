@@ -1,6 +1,6 @@
 ---
-oat_current_task: null
-oat_last_commit: 7a49599
+oat_current_task: p04-t01
+oat_last_commit: 5a6d5e7
 oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
@@ -27,7 +27,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-06-16T19:24:17.136Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-06-16T23:57:16Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-06-17T00:05:58Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -39,7 +39,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation - Tasks complete; awaiting final review.
+Implementation - Final review fix task queued at p04-t01.
 
 ## Artifacts
 
@@ -47,7 +47,7 @@ Implementation - Tasks complete; awaiting final review.
 - **Spec:** N/A (quick mode)
 - **Design:** `design.md` (complete; design + plan artifact reviews passed)
 - **Plan:** `plan.md` (complete — `oat_ready_for: oat-project-implement`)
-- **Implementation:** `implementation.md` (tasks complete; awaiting final review)
+- **Implementation:** `implementation.md` (final review fix task queued)
 
 ## Progress
 
@@ -58,8 +58,7 @@ Implementation - Tasks complete; awaiting final review.
 - ✓ Phase 1 complete and review passed
 - ✓ Phase 2 complete and review passed
 - ✓ Phase 3 complete and review passed
-- ✓ Implementation tasks complete
-- ⧗ Awaiting final review
+- ⧗ Final review fix task queued (current task: p04-t01)
 
 ## Blockers
 
@@ -67,4 +66,4 @@ None
 
 ## Next Milestone
 
-Run final verification and final code review before PR handoff.
+Execute final review fix task p04-t01, then rerun final verification/review.

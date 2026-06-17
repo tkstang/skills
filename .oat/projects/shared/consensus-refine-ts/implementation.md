@@ -1,9 +1,9 @@
 ---
-oat_status: complete
+oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-16
-oat_current_task_id: null
+oat_current_task_id: p04-t01
 oat_generated: false
 ---
 
@@ -29,8 +29,9 @@ oat_generated: false
 | Phase 1 — Wrapper TS source + build import-rewrite | completed | 5 | 5/5 |
 | Phase 2 — Migrate consensus tests to Vitest        | completed   | 7 | 7/7 |
 | Phase 3 — Docs & reference updates                 | completed   | 2 | 2/2 |
+| Phase 4 — Final review fixes                       | in_progress | 1 | 0/1 |
 
-**Total:** 14/14 tasks completed
+**Total:** 14/15 tasks completed
 
 ---
 
@@ -556,6 +557,60 @@ oat_generated: false
 
 ---
 
+## Phase 4: Final review fixes
+
+**Status:** in_progress
+**Started:** 2026-06-16
+
+### Review Received: final
+
+**Date:** 2026-06-16
+**Review artifact:** reviews/final-review-2026-06-16.md
+
+**Findings:**
+
+- Critical: 0
+- Important: 0
+- Medium: 0
+- Minor: 1
+
+**New tasks added:** p04-t01
+
+**Minor findings disposition:**
+
+- m1 converted to `p04-t01`: the final review carried forward the p01 import-rewrite
+  robustness note. Although non-blocking, it touches changed implementation code and
+  is small enough to fix while context is fresh.
+
+**Deferred Findings (Medium):**
+
+- None.
+
+**Design drift / artifact alignment notes:**
+
+- None.
+
+**Next:** Execute `p04-t01` via the `oat-project-implement` skill.
+
+### Task p04-t01: (review) Constrain generated-output import rewrites to module specifiers
+
+**Status:** pending
+**Commit:** pending
+
+**Outcome (required when completed):**
+
+- Pending.
+
+**Files changed:**
+
+- Pending.
+
+**Verification:**
+
+- Pending.
+
+---
+
 ## Orchestration Runs
 
 _Each run from `oat-project-implement` appends an entry below with:_
@@ -759,6 +814,7 @@ Track test execution during implementation.
 | 1     | build:check, type-check, test, validate, smoke, p01 guard tests | pass | 0 | - |
 | 2     | targeted Vitest batches, type-check, full `pnpm test` | pass | 0 | - |
 | 3     | `pnpm run validate`; `pnpm run validate && pnpm run build:check`; grep proof | pass | 0 | - |
+| 4     | pending | pending | pending | - |
 
 ## Final Summary (for PR/docs)
 
