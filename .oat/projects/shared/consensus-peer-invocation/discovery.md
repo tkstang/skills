@@ -1,6 +1,6 @@
 ---
-oat_status: complete
-oat_ready_for: oat-project-design
+oat_status: in_progress
+oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-17
 oat_generated: false
@@ -50,49 +50,74 @@ generated-runtime constraints, and migration sequencing.
 artifact should be produced by `oat-project-design`, which will confirm
 requirements and produce formal `spec.md` + `design.md` in one pass.
 
+### Question 2: CLI Boundary
+
+**Q:** Is the goal primarily an internal consensus-plugin adapter, or should the
+initiative define a reusable `consensus` CLI surface?
+**A:** The user increasingly sees value in owning peer-invocation CLI tooling as
+a `consensus` CLI. If it does the job Stoa needs too — executing providers with
+structured output and reliable error messages — Stoa could consume it later
+instead of repeating mostly the same provider logic.
+**Decision:** Reframe the preferred direction around one reusable CLI boundary:
+the consensus plugin uses it first, but the contract should be clean enough that
+Stoa or future tools can call the same surface.
+
 ## Solution Space
 
 _Include this section only when the request is exploratory or multiple viable approaches exist. For well-understood requests with an obvious approach, omit or replace with a single sentence stating the chosen direction._
 
-Discovery reviewed three materially different strategies. Recommendation:
-continue as a spec-driven design/spike for an owned peer-invocation layer, with
-a phased design that can preserve the current `invokePeer` seam while deciding
-whether direct final-JSON invocation is sufficient or whether verdict submission
-should become the primary contract.
+Discovery reviewed three materially different strategies. Updated
+recommendation: continue as a spec-driven design/spike for a small reusable
+`consensus` CLI that owns peer invocation, structured output normalization,
+provider readiness diagnostics, and consensus verdict submission. The consensus
+plugin should be the first consumer, but the boundary should be general enough
+that Stoa can later reuse it for provider execution with structured output and
+reliable errors.
 
-### Approach 1: Direct Provider Adapter Behind `invokePeer` _(Recommended Baseline)_
+### Approach 1: Reusable `consensus` CLI Boundary _(Recommended)_
 
-**Description:** Replace the default Paseo-backed invoker with a dependency-free
-TypeScript provider adapter that builds direct one-shot commands for the narrow
-provider set. Stoa is the main source material: Claude supports inline native
-schema delivery when the schema is constrained; Codex can use
-`--output-schema` plus an output-last-message file; Cursor runs in print JSON
-mode but still requires prompt-injected schema instructions and post-run
-validation.
-**When this is the right choice:** Best when the project goal is to remove
-daemon/global-Paseo friction while preserving the existing consensus loop,
-artifact records, retry semantics, schema files, and current peer-turn prompt
-contract.
-**Tradeoffs:** It still inherits the "model must emit valid final JSON" class of
-failure for soft-schema providers, especially Cursor. It also requires owning
-provider CLI drift for the supported floor.
+**Description:** Define a small `consensus` CLI as the owned peer-invocation
+control surface. It would cover provider inventory/preflight, one-shot provider
+execution, structured-output delivery and validation, normalized diagnostics,
+and eventually validated verdict submission. The consensus plugin would call it
+through the existing `invokePeer` seam, while Stoa could later replace its local
+provider adapter with the same CLI if the contract fits.
+**When this is the right choice:** Best when the real goal is to avoid repeating
+provider command, structured-output, and error-normalization logic across
+multiple repos. It also gives the consensus plugin a clean replacement for
+Paseo without hiding the new primitive inside one skill wrapper.
+**Tradeoffs:** The CLI boundary must avoid becoming a broad provider platform.
+The first contract should remain narrow enough to serve the consensus plugin and
+Stoa's shared need: provider execution with structured output and reliable
+errors.
 
-### Approach 2: Verdict Submission Tool as the Primary Contract
+### Approach 2: Plugin-Local Direct Adapter
 
-**Description:** Give each deliberating peer an explicit CLI or MCP tool such as
-`consensus submit` that validates the verdict against the mode-specific schema
-and returns actionable errors in context. The orchestrator would collect a
-submitted verdict rather than only parsing the final assistant message.
+**Description:** Replace the default Paseo-backed invoker with a
+dependency-free TypeScript provider adapter that lives inside the consensus
+plugin codebase and builds direct one-shot commands for the narrow provider set.
+**When this is the right choice:** Best if minimizing first-implementation scope
+is more important than reuse. It preserves the existing consensus loop and
+artifact shape with the smallest new runtime surface.
+**Tradeoffs:** This repeats the same class of provider logic Stoa already owns
+and future tools may need. It removes Paseo from the plugin but does not solve
+the broader duplication problem.
+
+### Approach 3: Verdict Submission as a Dedicated Primitive
+
+**Description:** Center the design on `consensus submit` as the mechanism peers
+use to validate and submit verdicts, with provider execution as supporting
+plumbing.
 **When this is the right choice:** Best if reliability against structured-output
-flakiness is more important than minimizing migration size. This normalizes
-Claude, Codex, and Cursor because even providers with soft schema behavior can
-self-correct through a tool call.
-**Tradeoffs:** Larger design surface. The design must answer how stateless
+flakiness is more important than the provider execution abstraction itself. It
+normalizes Claude, Codex, and Cursor because even providers with soft schema
+behavior can self-correct through a validated tool call.
+**Tradeoffs:** Larger first design surface. The design must answer how stateless
 per-turn peers receive tool access, whether CLI or MCP is available in each
 provider sandbox, how the orchestrator captures submissions, and how audit
 records map to the current artifact contract.
 
-### Approach 3: Keep Paseo as the Runtime Backend
+### Approach 4: Keep Paseo as the Runtime Backend
 
 **Description:** Stay with `paseo run --provider ... --output-schema ... --json`
 and invest only in wrappers, tests, and documentation around the current
@@ -106,50 +131,51 @@ structured-output issues already observed with strict or soft schema paths.
 
 ### Chosen Direction
 
-**Approach:** Spec-driven design for an owned peer-invocation layer, likely
-phased around Approach 1 with Approach 2 evaluated as the reliability target.
-**Rationale:** The repo already has typed seams (`invokePeer`, injected
-preflight, provider inventory normalization, schema validation, generated output
-drift guards) that make a staged design feasible, but the decision space is too
-large for a quick plan. Cursor's soft schema behavior means "just use native
-schemas" is not a complete strategy.
-**User validated:** Yes. The user explicitly requested spec-driven preference
-unless discovery proved quick design sufficient; discovery did not.
+**Approach:** Spec-driven design for a reusable `consensus` CLI boundary, with
+provider execution and structured-output reliability as the first jobs and
+verdict submission evaluated as a likely first-class CLI capability.
+**Rationale:** A plugin-local adapter would remove Paseo but still duplicate the
+same provider logic Stoa needs. A reusable CLI gives the consensus plugin a
+clean migration target while creating one owned surface for provider execution,
+structured output, and reliable diagnostics.
+**User validated:** In progress. The user has confirmed the CLI direction; the
+remaining discovery question is how public/reusable that boundary should be in
+the first implementation.
 
 ## Options Considered
 
 Specific options that need to be resolved in `spec.md`/`design.md`:
 
-### Option A: Direct Final-JSON Backend First
+### Option A: Shared `consensus` CLI Boundary
 
-**Description:** Build a direct provider adapter that returns the same shape the
-loop expects today (`json`, `stdout`, `stderr`, provider metadata), preserving
-the existing final JSON validation and retry behavior around `invokePeer`.
+**Description:** Build the design around a small CLI boundary that can execute a
+provider with a structured-output contract and return reliable normalized
+results or errors. The consensus plugin is the first consumer; Stoa compatibility
+is a contract pressure, not a requirement to migrate Stoa in this project.
 
 **Pros:**
 
-- Smallest migration from `invokePaseo` because it keeps the loop contract and
-  artifact shape intact.
-- Easy to A/B against the current Paseo backend through the existing injection
-  seam.
-- Can reuse Stoa command construction and output normalization patterns.
+- Prevents repeating provider invocation logic in consensus, Stoa, and future
+  tools.
+- Creates a clear owned replacement for the single Paseo capability consensus
+  uses.
+- Can still integrate with the existing `invokePeer` seam as the first
+  migration point.
 
 **Cons:**
 
-- Does not fully eliminate final-message JSON fragility for Cursor and other
-  soft-schema paths.
-- Requires an in-house replacement for provider inventory, availability checks,
-  and error taxonomy now handled by Paseo.
+- Requires stronger boundary design than a plugin-local helper.
+- Needs careful scope control so it does not grow into a broad provider platform.
 
-**Chosen:** Candidate baseline; design must validate before implementation.
+**Chosen:** Preferred direction.
 
-**Summary:** This is likely the first migration slice if the design prioritizes
-small, reversible changes.
+**Summary:** The design should treat the CLI as the durable primitive and the
+consensus plugin as its first consumer.
 
 ### Option B: Submit-Tool Backend First
 
-**Description:** Make a verdict submission tool the contract before or during
-the provider-adapter migration.
+**Description:** Make a validated verdict-submission command part of the CLI
+contract before or during the provider-execution migration.
 
 **Pros:**
 
@@ -164,7 +190,7 @@ the provider-adapter migration.
   and failure/audit semantics.
 - Larger first migration and more risk of changing runtime behavior.
 
-**Chosen:** Open for spec-driven design.
+**Chosen:** Open as a core design question.
 
 **Summary:** This may be the right target contract, but discovery is not enough
 to declare it as the first implementation slice.
@@ -206,6 +232,9 @@ owning the narrow provider path.
 6. **Generated Runtime:** Implementation must edit canonical TypeScript under
    `src/`, then regenerate committed `.mjs` outputs through
    `scripts/build-generated.mjs`. Generated files must not be hand-edited.
+7. **CLI Boundary:** Prefer one owned `consensus` CLI surface over duplicating
+   direct provider invocation, structured-output delivery, and diagnostics logic
+   across consensus and Stoa.
 
 ## Constraints
 
@@ -222,13 +251,18 @@ owning the narrow provider path.
   records a migration.
 - Cursor must be treated as a soft-schema provider unless new live evidence
   proves a native schema flag exists.
+- Stoa compatibility should influence the CLI contract, but this project should
+  not require migrating Stoa as part of the first implementation.
 
 ## Success Criteria
 
 - A spec/design pass defines the owned peer-invocation architecture for the
   narrow provider floor.
-- The design chooses or phases direct final-JSON invocation vs. submit-tool
-  verdict submission with explicit tradeoffs.
+- The design defines the `consensus` CLI boundary clearly enough that consensus
+  can use it first and Stoa can evaluate it later without copying provider
+  logic again.
+- The design chooses or phases provider execution vs. submit-tool verdict
+  submission with explicit tradeoffs.
 - The design defines provider adapter contracts, provider inventory/preflight,
   schema delivery, validation/retry, and error taxonomy parity with current
   Paseo-backed behavior.
@@ -263,6 +297,9 @@ owning the narrow provider path.
   `claude`/`codex`/`cursor` and map them internally to Stoa-style
   `claude-cli`/`codex-exec`/`cursor-agent`, or introduce a new normalized
   adapter ID layer?
+- **CLI Reuse Boundary:** Should the first `consensus` CLI contract be treated
+  as internal-to-this-repo but intentionally reusable, or should it be packaged
+  as a stable cross-repo tool from the start?
 - **Schema Delivery:** Which schemas should use provider-native delivery, and
   which should use prompt-only delivery plus post-run validation?
 - **Codex Native Mode:** Should Codex always use `--output-schema`, or only when
@@ -297,6 +334,9 @@ owning the narrow provider path.
   Stoa depends on workspace packages and server-specific logging/config types.
 - The narrow provider floor is acceptable even though it gives up Paseo's broad
   ACP adapter catalog.
+- Owning one CLI surface is preferable to repeating mostly identical provider
+  invocation logic in consensus, Stoa, and future tools, provided the first CLI
+  contract stays narrow.
 
 ## Risks
 
@@ -332,6 +372,12 @@ owning the narrow provider path.
   - **Mitigation Ideas:** Keep `claude` + `codex` + `cursor` as the floor and
     document broad ACP support as explicitly out of scope unless product goals
     change.
+- **Reusable CLI Overreach:** Designing for Stoa and future tools could make the
+  first consensus migration too broad.
+  - **Likelihood:** Medium
+  - **Impact:** Medium
+  - **Mitigation Ideas:** Treat Stoa as a contract-shaping future consumer, not
+    as an implementation requirement for this project.
 
 ## Next Steps
 

@@ -16,7 +16,7 @@ oat_hill_checkpoints: [] # Configured: which phases require human-in-the-loop li
 oat_hill_completed: [] # Progress: which HiLL checkpoints have been completed
 oat_parallel_execution: false
 oat_phase: discovery # Current phase: discovery | spec | design | plan | implement | decomposition
-oat_phase_status: complete # Status: in_progress | complete | pr_open
+oat_phase_status: in_progress # Status: in_progress | complete | pr_open
 # oat_orchestration_retry_limit: 2  # optional; override fix-loop retry limit (range 0-5)
 # oat_dispatch_ceiling: # optional project override for provider-aware dispatch ceilings
 #   provider: codex # codex | claude
@@ -29,23 +29,23 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-06-17T01:27:39.580Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-06-17T01:28:59Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-06-17T01:41:51Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
 # Project State: consensus-peer-invocation
 
-**Status:** Discovery Complete
+**Status:** Discovery In Progress
 **Started:** 2026-06-17
 **Last Updated:** 2026-06-17
 
 ## Current Phase
 
-Discovery complete - promoted from quick-start discovery to spec-driven design
+Discovery reopened - refining the peer-invocation CLI boundary before design
 
 ## Artifacts
 
-- **Discovery:** `discovery.md` (complete; ready for `oat-project-design`)
+- **Discovery:** `discovery.md` (in_progress; refining CLI boundary)
 - **Spec:** pending (`oat-project-design`)
 - **Design:** pending (`oat-project-design`)
 - **Plan:** `plan.md` (scaffolded template — not started)
@@ -53,9 +53,10 @@ Discovery complete - promoted from quick-start discovery to spec-driven design
 
 ## Progress
 
-- ✓ Discovery complete
+- ⧗ Discovery reopened
 - ✓ Solution-space exploration captured
 - ✓ Promoted to spec-driven workflow
+- ⧗ Reframing around reusable `consensus` CLI
 - ⧗ Awaiting `oat-project-design`
 
 ## Blockers
@@ -64,4 +65,4 @@ None
 
 ## Next Milestone
 
-Run `oat-project-design` to confirm requirements and produce `spec.md` plus `design.md`
+Finish discovery convergence, then run `oat-project-design`
