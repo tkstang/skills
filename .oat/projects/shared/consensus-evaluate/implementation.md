@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-17
-oat_current_task_id: p02-t01
+oat_current_task_id: p03-t01
 oat_generated: false
 ---
 
@@ -27,10 +27,10 @@ oat_generated: false
 | Phase   | Status      | Tasks | Completed |
 | ------- | ----------- | ----- | --------- |
 | Phase 1 | complete    | 3     | 3/3       |
-| Phase 2 | in_progress | 3     | 0/3       |
+| Phase 2 | complete    | 3     | 3/3       |
 | Phase 3 | pending     | 3     | 0/3       |
 
-**Total:** 3/9 tasks completed
+**Total:** 6/9 tasks completed
 
 ---
 
@@ -84,6 +84,21 @@ No implementation drift accepted; artifact-only receive.
 **Findings:** Critical: 0 · Important: 0 · Medium: 0 · Minor: 0
 
 **Disposition:** Phase 1 passed. No fix tasks added.
+
+### Review Received: p02 (code)
+
+**Date:** 2026-06-17
+**Review artifact:** `reviews/archived/p02-review-2026-06-17-v4.md`
+
+**Findings:** Critical: 0 · Important: 0 · Medium: 0 · Minor: 0
+
+**Disposition:** Phase 2 passed after two bounded fix iterations. No remaining fix tasks.
+
+- `p02-review-2026-06-17.md` found an uncapped artifact/rubric input read; fixed in
+  `71d84ad` with capped artifact and rubric reads plus regression coverage.
+- `p02-review-2026-06-17-v2.md` and `p02-review-2026-06-17-v3.md` found default
+  no-`--output` runs could drop the evaluation document; fixed in `09ee7e9` by writing
+  the default `<artifact>.evaluation.md` sidecar and reporting a non-null `output_path`.
 
 ---
 
@@ -177,13 +192,124 @@ No implementation drift accepted; artifact-only receive.
 
 ## Phase 2: Evaluate Wrapper Source And Output Contract
 
-**Status:** in_progress
-**Started:** -
+**Status:** complete
+**Started:** 2026-06-17
+**Completed:** 2026-06-17
+
+### Phase Summary
+
+**Outcome (what changed):**
+
+- Added the canonical `consensus-evaluate` wrapper source with artifact/rubric argument
+  parsing, default consensus settings, unsupported cold-start rejection, and evaluation
+  prompt builders.
+- Implemented deterministic evaluate run-state paths and final evaluation rendering,
+  including unified findings, embedded `consensus-verdict` blocks, dissent, and unresolved
+  dissent surfaces.
+- Generated the provider-facing evaluate wrapper runtime and registered it in generated-output
+  drift checks.
+- Fixed review-found regressions for capped artifact/rubric input reads and default
+  no-`--output` sidecar output behavior.
+
+**Key files touched:**
+
+- `src/consensus/evaluate/consensus-evaluate.ts` - canonical evaluate wrapper implementation.
+- `plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs` - generated evaluate wrapper runtime.
+- `scripts/build-generated.mjs` - evaluate wrapper generated-output mapping.
+- `tests/consensus-evaluate-wrapper.test.ts` - argument, prompt, and input-size coverage.
+- `tests/consensus-evaluate-output.test.ts` - output rendering and CLI sidecar coverage.
+- `tests/generated-consensus-evaluate-import.test.ts` and `tests/generated-output-sync.test.mjs` - generated import/output guards.
+
+**Verification:**
+
+- Run: `pnpm exec vitest run tests/consensus-evaluate-wrapper.test.ts tests/consensus-evaluate-output.test.ts tests/generated-consensus-evaluate-import.test.ts tests/generated-output-sync.test.mjs && pnpm run build:check && pnpm run type-check`
+- Result: pass.
+- Review verification also ran a generated-runtime no-`--output` sidecar probe; result: pass.
+
+**Notes / Decisions:**
+
+- Default CLI runs without `--output` now write `<artifact>.evaluation.md` and keep stdout
+  reserved for coordination JSON events.
 
 ### Task p02-t01: Add canonical evaluate wrapper argument and prompt behavior
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** 3fa4d4c
+
+**Outcome (required when completed):**
+
+- The evaluate wrapper parses artifact and rubric inputs, applies v3 consensus defaults,
+  rejects unsupported `independent_draft`, frames inputs as untrusted content, and caps
+  artifact/rubric file reads.
+
+**Files changed:**
+
+- `src/consensus/evaluate/consensus-evaluate.ts` - wrapper parsing, input loading, and prompt builders.
+- `tests/consensus-evaluate-wrapper.test.ts` - wrapper defaults, rejection, prompt, and capped-read coverage.
+
+**Verification:**
+
+- Run: `pnpm exec vitest run tests/consensus-evaluate-wrapper.test.ts && pnpm run type-check`
+- Result: pass.
+
+**Notes / Decisions:**
+
+- The capped-read review fix landed later in `71d84ad`.
+
+---
+
+### Task p02-t02: Implement run-state and final evaluation rendering
+
+**Status:** completed
+**Commit:** 1916825
+
+**Outcome (required when completed):**
+
+- The evaluate wrapper writes run-state artifacts, renders the final evaluation markdown,
+  embeds canonical consensus records, and surfaces dissent based on terminal status.
+
+**Files changed:**
+
+- `src/consensus/evaluate/consensus-evaluate.ts` - output path, run-state, rendering, and CLI behavior.
+- `tests/consensus-evaluate-output.test.ts` - rendering, state, and default sidecar output coverage.
+
+**Verification:**
+
+- Run: `pnpm exec vitest run tests/consensus-evaluate-output.test.ts tests/consensus-evaluate-wrapper.test.ts`
+- Result: pass.
+
+**Notes / Decisions:**
+
+- The default no-`--output` review fix landed later in `09ee7e9`.
+
+---
+
+### Task p02-t03: Generate evaluate wrapper runtime with PR #14 import rewrite
+
+**Status:** completed
+**Commit:** e88af5e
+
+**Outcome (required when completed):**
+
+- The committed generated evaluate wrapper runtime is built from canonical TypeScript and
+  imports the sibling generated loop runtime.
+
+**Files changed:**
+
+- `scripts/build-generated.mjs` - evaluate wrapper mapping and import rewrite.
+- `tests/generated-output-sync.test.mjs` - generated-output drift guard.
+- `tests/generated-consensus-evaluate-import.test.ts` - generated import guard.
+- `plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs` - generated wrapper runtime.
+
+**Verification:**
+
+- Run: `pnpm run build:check && pnpm exec vitest run tests/generated-consensus-evaluate-import.test.ts tests/generated-output-sync.test.mjs`
+- Result: pass.
+
+**Notes / Decisions:**
+
+- `12f8f8d` restored generated output after the main-substrate merge; `71d84ad` and `09ee7e9`
+  regenerated the wrapper for review fixes.
 
 ---
 
@@ -230,6 +356,43 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 | Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
 | ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
 | p01-t03       | plan.md p01-t03 Files | Generated evaluate loop output listed explicitly | Refine loop runtime was also regenerated and committed | Canonical loop source changed, and both refine/evaluate generated outputs must remain in sync | implementation/build output | None |
+
+### Run 2 — 2026-06-17 23:41 UTC
+
+**Branch:** concensus-evaluate
+**Tier:** 1
+**Policy:** merge-strategy=sequential, retry-limit=2
+**Phases:** 1 executed, 1 passed, 0 failed, 0 stopped
+
+#### Phase Outcomes
+
+| Phase | Implementer | Review | Fix Iterations | Disposition |
+| ----- | ----------- | ------ | -------------- | ----------- |
+| p02   | DONE        | pass   | 2/2            | passed      |
+
+#### Parallel Groups
+
+- None. Plan declares fully sequential execution.
+
+#### Dispatch Notes
+
+- Dispatch: p02 resumed from committed implementation work and re-ran phase review with
+  `model_axis=inherited`, `effort_axis=selected:xhigh`, `dispatch_ceiling=xhigh`, target
+  `oat-reviewer-xhigh`.
+- Dispatch: p02 review fixes used `model_axis=inherited`, `effort_axis=selected:xhigh`,
+  `dispatch_ceiling=xhigh`, target `oat-phase-implementer-xhigh`.
+- Dispatch: final p02 review used `model_axis=inherited`, `effort_axis=selected:xhigh`,
+  `dispatch_ceiling=xhigh`, target `oat-reviewer-xhigh`.
+
+#### Outstanding Items
+
+- None.
+
+#### Artifact / Design Deltas
+
+| Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
+| ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
+| None          | None            | None                 | None              | None   | None            | None      |
 
 <!-- orchestration-runs-end -->
 
@@ -289,7 +452,7 @@ Track test execution during implementation.
 | Phase | Tests Run | Passed | Failed | Coverage |
 | ----- | --------- | ------ | ------ | -------- |
 | 1     | `pnpm run build:check`; targeted Vitest p01 tests; `pnpm run type-check`; `node --test tests/repo-layout.test.mjs`; reviewer also ran `pnpm run test` | yes | 0 | not measured |
-| 2     | -         | -      | -      | -        |
+| 2     | `pnpm exec vitest run tests/consensus-evaluate-wrapper.test.ts tests/consensus-evaluate-output.test.ts tests/generated-consensus-evaluate-import.test.ts tests/generated-output-sync.test.mjs`; `pnpm run build:check`; `pnpm run type-check`; generated-runtime no-`--output` sidecar probe | yes | 0 | not measured |
 
 ## Final Summary (for PR/docs)
 
