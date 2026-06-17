@@ -17,7 +17,47 @@
 
 import { readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
-import { join, dirname, basename } from 'node:path';
+import { basename, dirname, join } from 'node:path';
+
+export type Runtime = 'claude-code' | 'codex' | 'cursor';
+export type JsonObject = Record<string, unknown>;
+
+export interface TranscriptMeta {
+  sessionId: string;
+  recordedCwd: string | null;
+}
+
+export type DigestEntryRole = 'user' | 'assistant';
+export type DigestEntryKind =
+  | 'message'
+  | 'tool_call'
+  | 'tool_result'
+  | 'command_message';
+
+export interface DigestEntry {
+  role: DigestEntryRole;
+  text: string;
+  recordIndex: number;
+  kind: DigestEntryKind;
+  toolName?: string;
+}
+
+export interface NormalizeEntriesOptions {
+  includeToolCalls?: boolean;
+  includeToolResults?: boolean;
+  includeCommandMessages?: boolean;
+}
+
+interface ClaudeContentOptions {
+  includeToolCalls: boolean;
+  includeToolResults: boolean;
+  includeCommandMessages: boolean;
+  toolNameById: Map<string, string>;
+}
+
+type SafeParseResult =
+  | { ok: true; value: JsonObject }
+  | { ok: false; reason: string };
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -37,7 +77,7 @@ const COMMAND_MESSAGE_RE =
  * @param {unknown} value
  * @returns {boolean}
  */
-function isObject(value) {
+function isObject(value: unknown): value is JsonObject {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
@@ -46,7 +86,7 @@ function isObject(value) {
  * @param {unknown} value
  * @returns {string | undefined}
  */
-function asString(value) {
+function asString(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined;
 }
 
@@ -56,7 +96,7 @@ function asString(value) {
  * @param {number} limit
  * @returns {string}
  */
-function truncate(str, limit) {
+function truncate(str: string, limit: number): string {
   if (str.length <= limit) return str;
   return str.slice(0, limit) + '...';
 }
@@ -69,7 +109,7 @@ function truncate(str, limit) {
  * @param {string} text
  * @returns {boolean}
  */
-function isClaudeCommandMessageText(text) {
+function isClaudeCommandMessageText(text: string): boolean {
   return COMMAND_MESSAGE_RE.test(text);
 }
 
@@ -79,7 +119,7 @@ function isClaudeCommandMessageText(text) {
  * @param {number} limit
  * @returns {string}
  */
-function stringifyArgs(value, limit) {
+function stringifyArgs(value: unknown, limit: number): string {
   if (typeof value === 'string') return truncate(value, limit);
   return truncate(JSON.stringify(value ?? {}) ?? '{}', limit);
 }
@@ -90,13 +130,16 @@ function stringifyArgs(value, limit) {
  * @param {string} line
  * @returns {{ ok: boolean, value?: object, reason?: unknown }}
  */
-function safeParseLine(line) {
+function safeParseLine(line: string): SafeParseResult {
   try {
     const parsed = JSON.parse(line);
     if (!isObject(parsed)) return { ok: false, reason: 'not a JSON object' };
     return { ok: true, value: parsed };
   } catch (err) {
-    return { ok: false, reason: err.message };
+    return {
+      ok: false,
+      reason: err instanceof Error ? err.message : String(err),
+    };
   }
 }
 
@@ -110,7 +153,7 @@ function safeParseLine(line) {
  * @param {'claude-code' | 'codex' | 'cursor'} runtime
  * @returns {string[]}
  */
-export function discoverPaths(runtime) {
+export function discoverPaths(runtime: Runtime): string[] {
   const home = homedir();
   if (runtime === 'claude-code') {
     return [join(home, '.claude', 'projects')];
@@ -139,7 +182,7 @@ export function discoverPaths(runtime) {
  * @param {string} cwd
  * @returns {string | null}
  */
-export function encodeCwd(runtime, cwd) {
+export function encodeCwd(runtime: Runtime, cwd: string): string | null {
   if (runtime === 'codex') return null;
   return encodeCwdVariants(runtime, cwd)[0];
 }
@@ -153,7 +196,7 @@ export function encodeCwd(runtime, cwd) {
  * @param {string} cwd
  * @returns {string[]}
  */
-export function encodeCwdVariants(runtime, cwd) {
+export function encodeCwdVariants(runtime: Runtime, cwd: string): string[] {
   if (runtime === 'codex') return [];
   if (runtime === 'cursor') {
     return [cwd.split(/[/.]/u).filter(Boolean).join('-')];
@@ -177,7 +220,7 @@ export function encodeCwdVariants(runtime, cwd) {
  * @param {string} transcriptPath
  * @returns {Promise<object[]>}
  */
-export async function readRecords(transcriptPath) {
+export async function readRecords(transcriptPath: string): Promise<JsonObject[]> {
   const raw = await readFile(transcriptPath, 'utf8');
   if (!raw) return [];
 
@@ -231,7 +274,7 @@ export async function readRecords(transcriptPath) {
  * @param {object} record
  * @returns {string | undefined}
  */
-function claudeSessionIdFromRecord(record) {
+function claudeSessionIdFromRecord(record: JsonObject): string | undefined {
   const message = isObject(record.message) ? record.message : record;
   return (
     asString(record.sessionId) ??
@@ -253,7 +296,7 @@ function claudeSessionIdFromRecord(record) {
  * @param {string} dirName
  * @returns {string | null}
  */
-function decodeCwdDirName(dirName) {
+function decodeCwdDirName(dirName: string): string | null {
   if (!dirName.startsWith('-')) return null;
   // Replace all '-' with '/' to get back the path
   return dirName.replace(/-/g, '/');
@@ -276,7 +319,7 @@ function decodeCwdDirName(dirName) {
  * @param {object} record
  * @returns {string | undefined}
  */
-function codexSessionIdFromRecord(record) {
+function codexSessionIdFromRecord(record: JsonObject): string | undefined {
   const payload = isObject(record.payload) ? record.payload : record;
   return (
     asString(record.sessionId) ??
@@ -312,11 +355,14 @@ function codexSessionIdFromRecord(record) {
  * @param {string} transcriptPath
  * @returns {Promise<{ sessionId: string, recordedCwd: string | null } | null>}
  */
-export async function extractMeta(runtime, transcriptPath) {
+export async function extractMeta(
+  runtime: Runtime,
+  transcriptPath: string,
+): Promise<TranscriptMeta | null> {
   const records = await readRecords(transcriptPath);
 
   if (runtime === 'claude-code') {
-    let sessionId;
+    let sessionId: string | undefined;
     for (const record of records) {
       const id = claudeSessionIdFromRecord(record);
       if (id) {
@@ -336,8 +382,8 @@ export async function extractMeta(runtime, transcriptPath) {
   }
 
   if (runtime === 'codex') {
-    let sessionId;
-    let recordedCwd = null;
+    let sessionId: string | undefined;
+    let recordedCwd: string | null = null;
 
     for (const record of records) {
       if (!sessionId) {
@@ -392,7 +438,12 @@ export async function extractMeta(runtime, transcriptPath) {
  * @param {{ includeToolCalls: boolean, includeToolResults: boolean, includeCommandMessages: boolean, toolNameById: Map<string,string> }} opts
  * @returns {object[]}
  */
-function claudeEntriesFromContent(role, content, recordIndex, opts) {
+function claudeEntriesFromContent(
+  role: DigestEntryRole,
+  content: unknown,
+  recordIndex: number,
+  opts: ClaudeContentOptions,
+): DigestEntry[] {
   if (typeof content === 'string') {
     if (!content) return [];
     if (isClaudeCommandMessageText(content)) {
@@ -403,7 +454,7 @@ function claudeEntriesFromContent(role, content, recordIndex, opts) {
   }
   if (!Array.isArray(content)) return [];
 
-  return content.flatMap((block) => {
+  return content.flatMap((block): DigestEntry[] => {
     if (!isObject(block)) return [];
 
     if (block.type === 'tool_use') {
@@ -470,14 +521,16 @@ function claudeEntriesFromContent(role, content, recordIndex, opts) {
  * @param {{ includeToolCalls?: boolean, includeToolResults?: boolean, includeCommandMessages?: boolean }} opts
  * @returns {object[]}
  */
-function normalizeClaudeCode(records, opts) {
+function normalizeClaudeCode(
+  records: JsonObject[],
+  opts: NormalizeEntriesOptions,
+): DigestEntry[] {
   const includeToolCalls = opts.includeToolCalls ?? false;
   const includeToolResults = opts.includeToolResults ?? false;
   const includeCommandMessages = opts.includeCommandMessages ?? false;
 
   // First pass: build tool_use_id → tool name correlation map
-  /** @type {Map<string, string>} */
-  const toolNameById = new Map();
+  const toolNameById = new Map<string, string>();
   for (const record of records) {
     const message = isObject(record.message) ? record.message : record;
     const content = message.content;
@@ -491,7 +544,7 @@ function normalizeClaudeCode(records, opts) {
     }
   }
 
-  return records.flatMap((record, recordIndex) => {
+  return records.flatMap((record, recordIndex): DigestEntry[] => {
     // Determine role
     const message = isObject(record.message) ? record.message : record;
     const role =
@@ -519,10 +572,13 @@ function normalizeClaudeCode(records, opts) {
  * @param {{ includeToolCalls?: boolean, includeToolResults?: boolean, includeCommandMessages?: boolean }} opts
  * @returns {object[]}
  */
-function normalizeCodex(records, opts) {
+function normalizeCodex(
+  records: JsonObject[],
+  opts: NormalizeEntriesOptions,
+): DigestEntry[] {
   const includeToolCalls = opts.includeToolCalls ?? false;
 
-  return records.flatMap((record, recordIndex) => {
+  return records.flatMap((record, recordIndex): DigestEntry[] => {
     const payload = isObject(record.payload) ? record.payload : record;
     const payloadType = asString(payload.type) ?? asString(record.type);
 
@@ -558,7 +614,7 @@ function normalizeCodex(records, opts) {
     }
     if (!Array.isArray(content)) return [];
 
-    return content.flatMap((block) => {
+    return content.flatMap((block): DigestEntry[] => {
       if (!isObject(block)) return [];
       const text = asString(block.text) ?? asString(block.content);
       return text ? [{ role, text, recordIndex, kind: 'message' }] : [];
@@ -581,10 +637,13 @@ function normalizeCodex(records, opts) {
  * @param {{ includeToolCalls?: boolean }} opts
  * @returns {object[]}
  */
-function normalizeCursor(records, opts) {
+function normalizeCursor(
+  records: JsonObject[],
+  opts: NormalizeEntriesOptions,
+): DigestEntry[] {
   const includeToolCalls = opts.includeToolCalls ?? false;
 
-  return records.flatMap((record, recordIndex) => {
+  return records.flatMap((record, recordIndex): DigestEntry[] => {
     const role = asString(record.role);
     if (role !== 'assistant' && role !== 'user') return [];
 
@@ -597,7 +656,7 @@ function normalizeCursor(records, opts) {
     }
     if (!Array.isArray(content)) return [];
 
-    return content.flatMap((block) => {
+    return content.flatMap((block): DigestEntry[] => {
       if (!isObject(block)) return [];
 
       if (block.type === 'tool_use') {
@@ -637,7 +696,11 @@ function normalizeCursor(records, opts) {
  *   { role: 'user' | 'assistant', text: string, recordIndex: number,
  *     kind: 'message' | 'tool_call' | 'tool_result' | 'command_message', toolName?: string }
  */
-export function normalizeEntries(runtime, records, opts = {}) {
+export function normalizeEntries(
+  runtime: Runtime,
+  records: JsonObject[],
+  opts: NormalizeEntriesOptions = {},
+): DigestEntry[] {
   if (runtime === 'claude-code') return normalizeClaudeCode(records, opts);
   if (runtime === 'codex') return normalizeCodex(records, opts);
   if (runtime === 'cursor') return normalizeCursor(records, opts);

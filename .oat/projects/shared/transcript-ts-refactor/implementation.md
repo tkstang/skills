@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-17
-oat_current_task_id: p01-t01
+oat_current_task_id: p01-t02
 oat_generated: false
 ---
 
@@ -27,11 +27,11 @@ oat_generated: false
 
 | Phase   | Status      | Tasks | Completed |
 | ------- | ----------- | ----- | --------- |
-| Phase 1 | in_progress | 3     | 0/3       |
+| Phase 1 | in_progress | 3     | 1/3       |
 | Phase 2 | pending     | 3     | 0/3       |
 | Phase 3 | pending     | 2     | 0/2       |
 
-**Total:** 0/8 tasks completed
+**Total:** 1/8 tasks completed
 
 ---
 
@@ -42,12 +42,15 @@ oat_generated: false
 
 ### Task p01-t01: Move transcript-core canonical source to TypeScript
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** `refactor(p01-t01): move transcript core source to typescript`
 
 **Notes:**
 
-- First implementation task. See `plan.md`.
+- Moved canonical transcript runtime source to
+  `src/transcript/core/runtimes.ts`.
+- Deleted `shared/transcript-core/runtimes.mjs` as a second source of truth.
+- Verification passed: `pnpm run type-check`.
 
 ---
 
@@ -192,7 +195,7 @@ resolved directly in `plan.md`.
 
 | Phase | Tests Run | Passed | Failed | Coverage |
 | ----- | --------- | ------ | ------ | -------- |
-| 1     | -         | -      | -      | -        |
+| 1     | `pnpm run type-check` | yes    | no     | task p01-t01 |
 | 2     | -         | -      | -      | -        |
 | 3     | -         | -      | -      | -        |
 
