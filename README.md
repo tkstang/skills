@@ -59,6 +59,13 @@ The build contract is:
 - `tests/generated-output-sync.test.mjs` runs the drift guard as part of `pnpm test`.
 - TypeScript, Vitest, and bundling are developer tooling only; shipped skills still run committed `.mjs` with no install step.
 
+Current generated consensus runtimes:
+
+- `src/consensus/core/consensus-loop.ts` builds to `plugins/consensus/skills/refine/scripts/consensus-loop.mjs`.
+- `src/consensus/refine/consensus-refine.ts` builds to `plugins/consensus/skills/refine/scripts/consensus-refine.mjs`.
+
+The refine wrapper type-checks against the canonical loop import (`../core/consensus-loop.js`); the build rewrites that module specifier to the shipped sibling runtime import (`./consensus-loop.mjs`) and fails if the expected source specifier is absent.
+
 ## Local Git Repository Install
 
 The current v0.1 path is local marketplace installation from this checkout. The repo root contains provider marketplace entries, and `plugins/consensus/` contains the provider plugin manifests.
