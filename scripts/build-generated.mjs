@@ -41,6 +41,15 @@ export const generatedOutputs = [
     source: 'src/transcript/export-session/sanitize.ts',
     output: 'skills/export-session-transcript/scripts/lib/sanitize.mjs',
   },
+  {
+    id: 'export-session-transcript-cli',
+    source: 'src/transcript/export-session/export-session-transcript.ts',
+    output: 'skills/export-session-transcript/scripts/export-session-transcript.mjs',
+    importRewrites: [
+      { from: '../core/runtimes.js', to: './lib/runtimes.mjs' },
+      { from: './sanitize.js', to: './lib/sanitize.mjs' },
+    ],
+  },
 ];
 
 function usage() {
