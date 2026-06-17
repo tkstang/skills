@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-17
-oat_current_task_id: p02-t01
+oat_current_task_id: p02-t02
 oat_generated: false
 ---
 
@@ -28,10 +28,10 @@ oat_generated: false
 | Phase   | Status      | Tasks | Completed |
 | ------- | ----------- | ----- | --------- |
 | Phase 1 | completed   | 3     | 3/3       |
-| Phase 2 | pending     | 3     | 0/3       |
+| Phase 2 | in_progress | 3     | 1/3       |
 | Phase 3 | pending     | 2     | 0/2       |
 
-**Total:** 3/8 tasks completed
+**Total:** 4/8 tasks completed
 
 ---
 
@@ -92,13 +92,27 @@ oat_generated: false
 
 ## Phase 2: Export-Session TypeScript Runtime
 
-**Status:** pending
-**Started:** -
+**Status:** in_progress
+**Started:** 2026-06-17
 
 ### Task p02-t01: Migrate the export-session sanitizer to TypeScript
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** `refactor(p02-t01): migrate export sanitizer to typescript`
+
+**Notes:**
+
+- Moved the export-session content sanitizer to
+  `src/transcript/export-session/sanitize.ts` with explicit matcher, option,
+  runtime, and entry types.
+- Added the generated-output mapping for
+  `skills/export-session-transcript/scripts/lib/sanitize.mjs` and regenerated
+  the committed shipped output.
+- Renamed sanitizer tests to Vitest TypeScript coverage against canonical
+  TypeScript source.
+- Verification passed: `pnpm run build`, `pnpm run build:check`,
+  `pnpm exec vitest run tests/export-session-transcript/sanitize.test.ts`.
+- Additional check passed: `pnpm run type-check`.
 
 ---
 
@@ -189,7 +203,7 @@ Run-scoped snapshot only. The durable record is `## Deviations from Plan / Desig
 - [x] p01-t01: Move transcript-core canonical source to TypeScript
 - [x] p01-t02: Generate transcript-core runtime copies through build-generated
 - [x] p01-t03: Move transcript-core drift and runtime tests to Vitest
-- [ ] p02-t01: Migrate the export-session sanitizer to TypeScript
+- [x] p02-t01: Migrate the export-session sanitizer to TypeScript
 - [ ] p02-t02: Migrate the export-session CLI to TypeScript
 - [ ] p02-t03: Move export-session CLI tests to Vitest
 - [ ] p03-t01: Update docs and repo reference material for the new contract
@@ -250,7 +264,7 @@ resolved directly in `plan.md`.
 | Phase | Tests Run | Passed | Failed | Coverage |
 | ----- | --------- | ------ | ------ | -------- |
 | 1     | `pnpm run type-check`; `pnpm run build`; `pnpm run build:check`; `node scripts/sync-transcript-core.mjs --check`; `pnpm exec vitest run tests/transcript-core/runtimes.test.ts tests/generated-output-sync.test.mjs` | yes    | no     | tasks p01-t01 through p01-t03 |
-| 2     | -         | -      | -      | -        |
+| 2     | `pnpm run build`; `pnpm run build:check`; `pnpm exec vitest run tests/export-session-transcript/sanitize.test.ts`; `pnpm run type-check` | yes    | no     | task p02-t01 |
 | 3     | -         | -      | -      | -        |
 
 ## Final Summary (for PR/docs)

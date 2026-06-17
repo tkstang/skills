@@ -36,6 +36,11 @@ export const generatedOutputs = [
     source: 'src/transcript/core/runtimes.ts',
     output: 'skills/export-session-transcript/scripts/lib/runtimes.mjs',
   },
+  {
+    id: 'export-session-sanitize',
+    source: 'src/transcript/export-session/sanitize.ts',
+    output: 'skills/export-session-transcript/scripts/lib/sanitize.mjs',
+  },
 ];
 
 function usage() {

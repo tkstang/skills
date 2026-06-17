@@ -11,38 +11,31 @@
  * injected text verbatim — sanitizeEntries is the privacy boundary.
  */
 
-import assert from 'node:assert/strict';
 import { join, dirname } from 'node:path';
-import { test, describe } from 'node:test';
 import { fileURLToPath } from 'node:url';
+
+import { describe, expect, test } from 'vitest';
+
+import type { DigestEntry, Runtime } from '../../src/transcript/core/runtimes.js';
+import type { SanitizableEntry } from '../../src/transcript/export-session/sanitize.js';
+
+import {
+  normalizeEntries,
+  readRecords,
+} from '../../src/transcript/core/runtimes.js';
+import {
+  HIDDEN_PAYLOAD_MATCHERS,
+  sanitizeEntries,
+} from '../../src/transcript/export-session/sanitize.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-const RUNTIMES_PATH = fileURLToPath(
-  new URL(
-    '../../skills/export-session-transcript/scripts/lib/runtimes.mjs',
-    import.meta.url,
-  ),
-);
-const SANITIZE_PATH = fileURLToPath(
-  new URL(
-    '../../skills/export-session-transcript/scripts/lib/sanitize.mjs',
-    import.meta.url,
-  ),
-);
-
-const { readRecords, normalizeEntries } = await import(RUNTIMES_PATH);
-const { sanitizeEntries, HIDDEN_PAYLOAD_MATCHERS } = await import(
-  SANITIZE_PATH
-);
-
 const FIXTURES = join(__dirname, 'fixtures');
 
-/**
- * Read a fixture, normalize structurally, then sanitize.
- * @returns {Promise<{ normalized: object[], sanitized: object[] }>}
- */
-async function pipeline(runtime, fixtureFile) {
+async function pipeline(
+  runtime: Runtime,
+  fixtureFile: string,
+): Promise<{ normalized: DigestEntry[]; sanitized: DigestEntry[] }> {
   const records = await readRecords(join(FIXTURES, runtime, fixtureFile));
   const normalized = normalizeEntries(runtime, records, {});
   const sanitized = sanitizeEntries(normalized, { runtime });
@@ -51,7 +44,7 @@ async function pipeline(runtime, fixtureFile) {
 
 const FIXTURE = 'hidden-payloads.jsonl';
 
-const RUNTIMES = ['claude-code', 'codex', 'cursor'];
+const RUNTIMES = ['claude-code', 'codex', 'cursor'] as const;
 
 // Hidden-payload leading tokens that must be absent from sanitized text.
 const HIDDEN_LEADING = [
@@ -76,7 +69,7 @@ const HIDDEN_LEADING = [
 ];
 
 // Genuine substrings that must SURVIVE (negative tests — token mid-sentence).
-const KEEP_SUBSTRINGS = {
+const KEEP_SUBSTRINGS: Record<Runtime, string[]> = {
   'claude-code': [
     'help me refactor the auth module',
     'AGENTS.md instructions mention running tests',
@@ -112,54 +105,55 @@ describe('sanitizeEntries — hidden payloads dropped per runtime', () => {
 
       // Sanity: normalization should have produced more entries than survive
       // sanitization (the structural layer passes injected text through).
-      assert.ok(
+      expect(
         normalized.length > sanitized.length,
         `expected sanitizer to drop entries (normalized=${normalized.length} sanitized=${sanitized.length})`,
-      );
+      ).toBe(true);
 
       const texts = sanitized.map((e) => e.text);
 
       // No surviving entry STARTS WITH a hidden-payload leading token.
       for (const token of HIDDEN_LEADING) {
         for (const text of texts) {
-          assert.ok(
+          expect(
             !text.trimStart().startsWith(token),
             `${runtime}: hidden payload leaked (starts with ${token}): ${text.slice(0, 60)}`,
-          );
+          ).toBe(true);
         }
       }
 
       // No surviving entry is a pasted skill-body frontmatter block.
       for (const text of texts) {
-        assert.ok(
+        expect(
           !text.trimStart().startsWith('---\nname:'),
           `${runtime}: skill-body frontmatter leaked: ${text.slice(0, 60)}`,
-        );
+        ).toBe(true);
       }
     });
 
     test(`${runtime}: drops system/developer instruction records`, async () => {
       const { sanitized } = await pipeline(runtime, FIXTURE);
       for (const entry of sanitized) {
-        assert.ok(
-          entry.role !== 'system' && entry.role !== 'developer',
+        const role = entry.role as string;
+        expect(
+          role !== 'system' && role !== 'developer',
           `${runtime}: system/developer record survived`,
-        );
+        ).toBe(true);
         // No survivor is a system/developer instruction header (label form or
         // known instruction lead-word form). Genuine prose that merely begins
         // with the word "System"/"Developer" (e.g. "System design notes ...")
         // is allowed to survive.
         const l = entry.text.trimStart();
-        assert.ok(
+        expect(
           !/^(System|Developer)\b\s*[:-]/.test(l),
           `${runtime}: system/developer label record survived: ${entry.text.slice(0, 60)}`,
-        );
-        assert.ok(
+        ).toBe(true);
+        expect(
           !/^(System|Developer)\s+(prompt|note|notes|message|instruction|instructions|directive|directives|guidelines?)\b\s*[:-]/i.test(
             l,
           ),
           `${runtime}: system/developer prompt record survived: ${entry.text.slice(0, 60)}`,
-        );
+        ).toBe(true);
       }
     });
 
@@ -167,10 +161,10 @@ describe('sanitizeEntries — hidden payloads dropped per runtime', () => {
       const { sanitized } = await pipeline(runtime, FIXTURE);
       const joined = sanitized.map((e) => e.text).join('\n---\n');
       for (const needle of KEEP_SUBSTRINGS[runtime]) {
-        assert.ok(
-          joined.includes(needle),
+        expect(
+          joined,
           `${runtime}: genuine message wrongly dropped: "${needle}"`,
-        );
+        ).toContain(needle);
       }
     });
   }
@@ -178,22 +172,29 @@ describe('sanitizeEntries — hidden payloads dropped per runtime', () => {
 
 describe('HIDDEN_PAYLOAD_MATCHERS table', () => {
   test('is a non-empty array of { id, test } entries', () => {
-    assert.ok(Array.isArray(HIDDEN_PAYLOAD_MATCHERS));
-    assert.ok(HIDDEN_PAYLOAD_MATCHERS.length > 0);
+    expect(Array.isArray(HIDDEN_PAYLOAD_MATCHERS)).toBe(true);
+    expect(HIDDEN_PAYLOAD_MATCHERS.length).toBeGreaterThan(0);
     for (const matcher of HIDDEN_PAYLOAD_MATCHERS) {
-      assert.equal(typeof matcher.id, 'string');
-      assert.equal(typeof matcher.test, 'function');
+      expect(typeof matcher.id).toBe('string');
+      expect(typeof matcher.test).toBe('function');
     }
   });
 
   test('matcher ids are unique', () => {
     const ids = HIDDEN_PAYLOAD_MATCHERS.map((m) => m.id);
-    assert.equal(new Set(ids).size, ids.length);
+    expect(new Set(ids).size).toBe(ids.length);
   });
 });
 
 describe('sanitizeEntries — broadened matchers (I1) and leak classes (C1)', () => {
-  const msg = (text, role = 'user') => ({
+  type TestEntry = SanitizableEntry & {
+    role: string;
+    text: string;
+    recordIndex: number;
+    kind: string;
+  };
+
+  const msg = (text: string, role = 'user'): TestEntry => ({
     role,
     text,
     recordIndex: 0,
@@ -229,11 +230,10 @@ describe('sanitizeEntries — broadened matchers (I1) and leak classes (C1)', ()
   for (const text of DROP_CASES) {
     test(`drops: ${JSON.stringify(text.slice(0, 40))}`, () => {
       const out = sanitizeEntries([msg(text)], { runtime: 'claude-code' });
-      assert.equal(
-        out.length,
-        0,
+      expect(
+        out,
         `expected drop but survived: ${text.slice(0, 60)}`,
-      );
+      ).toHaveLength(0);
     });
   }
 
@@ -255,11 +255,10 @@ describe('sanitizeEntries — broadened matchers (I1) and leak classes (C1)', ()
   for (const text of KEEP_CASES) {
     test(`keeps: ${JSON.stringify(text.slice(0, 40))}`, () => {
       const out = sanitizeEntries([msg(text)], { runtime: 'claude-code' });
-      assert.equal(
-        out.length,
-        1,
+      expect(
+        out,
         `expected keep but dropped: ${text.slice(0, 60)}`,
-      );
+      ).toHaveLength(1);
     });
   }
 
@@ -273,14 +272,14 @@ describe('sanitizeEntries — broadened matchers (I1) and leak classes (C1)', ()
       msg('a genuine user message', 'user'),
     ];
     const out = sanitizeEntries(entries, { runtime: 'codex' });
-    assert.equal(out.length, 1);
-    assert.equal(out[0].text, 'a genuine user message');
+    expect(out).toHaveLength(1);
+    expect(out[0]?.text).toBe('a genuine user message');
   });
 });
 
 describe('sanitizeEntries — input handling', () => {
   test('empty input returns empty array', () => {
-    assert.deepEqual(sanitizeEntries([], { runtime: 'codex' }), []);
+    expect(sanitizeEntries([], { runtime: 'codex' })).toEqual([]);
   });
 
   test('does not mutate the input array', () => {
@@ -295,8 +294,8 @@ describe('sanitizeEntries — input handling', () => {
     ];
     const copy = input.slice();
     const out = sanitizeEntries(input, { runtime: 'codex' });
-    assert.deepEqual(input, copy);
-    assert.equal(out.length, 1);
-    assert.equal(out[0].text, 'a real message');
+    expect(input).toEqual(copy);
+    expect(out).toHaveLength(1);
+    expect(out[0]?.text).toBe('a real message');
   });
 });
