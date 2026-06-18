@@ -698,7 +698,7 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 
 | Phase | Implementer | Review | Fix Iterations | Disposition |
 | ----- | ----------- | ------ | -------------- | ----------- |
-| p04   | DONE        | pending final re-review | 0/2 | fixes_completed |
+| p04   | DONE        | pass   | 0/2 | passed |
 
 #### Parallel Groups
 
@@ -711,7 +711,7 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 
 #### Outstanding Items
 
-- Final re-review pending for fixes from `reviews/archived/final-review-2026-06-17.md`.
+- None. Final re-review passed with `reviews/archived/final-review-2026-06-18.md`.
 
 #### Artifact / Design Deltas
 
