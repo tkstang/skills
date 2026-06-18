@@ -127,7 +127,7 @@ By default, host detection chooses `claude,codex` on Claude Code and Cursor, and
 node plugins/consensus/skills/refine/scripts/consensus-refine.mjs draft.md --peers claude,codex
 ```
 
-Peer IDs come from `paseo provider ls --json`; the wrapper does not probe executables directly. Preflight fails closed with `PEER_UNAVAILABLE` when a requested peer is missing from the inventory or reports a non-ready status (`error`, `unavailable`, `not found`, or a `Disabled` provider), so a misconfigured peer is flagged up front rather than surfacing as a mid-run `paseo run` timeout. Custom ACP providers are supported when they are registered with Paseo and appear in that inventory.
+Peer IDs come from `paseo provider ls --json`; the wrappers do not probe executables directly. The `refine` wrapper performs provider-inventory preflight and fails closed with `PEER_UNAVAILABLE` when a requested peer is missing from the inventory or reports a non-ready status (`error`, `unavailable`, `not found`, or a `Disabled` provider). For `evaluate`, provider inventory checking is a host/operator step before invocation; the wrapper validates provider ID syntax and surfaces Paseo/runtime failures from peer invocation. Custom ACP providers are supported when they are registered with Paseo and appear in that inventory.
 
 Cursor is not a built-in Paseo peer at v0.1, so cursor-as-peer is opt-in. Register Cursor as a custom ACP provider — either through Paseo's one-click ACP catalog or by adding it to `~/.paseo/config.json`:
 

@@ -15,9 +15,9 @@ Use this skill when the user wants an artifact judged against a rubric, spec, ch
 
 ## Prerequisites
 
-Before a run, ensure Node.js 22 or newer and `paseo` are available. If `paseo` is missing, tell the user the wrapper will fail preflight and point them to the install-assist script documented by this plugin. Do not auto-install dependencies.
+Before a run, ensure Node.js 22 or newer and `paseo` are available. If `paseo` is missing, tell the user the wrapper cannot invoke peers and point them to the install-assist script documented by this plugin. Do not auto-install dependencies.
 
-Preflight resolves peers from `paseo provider ls --json` and fails closed with `PEER_UNAVAILABLE` when a requested peer is missing or reports a non-ready status (`error`, `unavailable`, `not found`, or a `Disabled` provider). Relay the named peer and the remediation hint (`paseo provider ls --json`) rather than retrying.
+Before invoking the evaluate wrapper with explicit peers or a synthesizer, the host/operator should run `paseo provider ls --json` and verify each requested provider is registered and ready. This evaluate wrapper validates provider ID syntax and surfaces Paseo/runtime failures from peer invocation, but it does not perform provider-inventory preflight or emit `PEER_UNAVAILABLE`.
 
 ## Evaluation Invocation
 
