@@ -506,7 +506,7 @@ If only lifecycle artifacts changed and hooks reject ignored `.oat/**` markdown,
 | ------ | -------- | ------- | ---------- | -------- |
 | p01    | code     | passed  | 2026-06-18 | reviews/archived/code-p01-rereview-2026-06-18.md |
 | p02    | code     | passed  | 2026-06-18 | reviews/archived/code-p02-review-2026-06-18.md |
-| p03    | code     | pending | -          | -        |
+| p03    | code     | passed  | 2026-06-18 | reviews/archived/code-p03-review-2026-06-18.md |
 | p04    | code     | pending | -          | -        |
 | final  | code     | pending | -          | -        |
 | plan   | artifact | passed  | 2026-06-17 | reviews/archived/artifact-plan-review-2026-06-17.md |
