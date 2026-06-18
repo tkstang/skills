@@ -3,13 +3,15 @@ import { readFile, writeFile } from 'node:fs/promises';
 
 import { describe, expect, it } from 'vitest';
 
+// @ts-expect-error No type declarations; this test exercises the shipped artifact.
 import lintStagedConfig from '../.lintstagedrc.mjs';
+// @ts-expect-error No type declarations; this test exercises the shipped artifact.
 import { generatedOutputs } from '../scripts/build-generated.mjs';
 
 const repoRoot = new URL('..', import.meta.url);
-const generatedOutputPaths = generatedOutputs.map((mapping) => mapping.output);
+const generatedOutputPaths = generatedOutputs.map((mapping: any) => mapping.output);
 
-function runCommand(command, args) {
+function runCommand(command: string, args: string[]): Promise<{ code: number | null; stdout: string; stderr: string }> {
   return new Promise((resolve) => {
     const child = spawn(command, args, {
       cwd: repoRoot,
@@ -32,7 +34,7 @@ function runCommand(command, args) {
   });
 }
 
-function runNode(args) {
+function runNode(args: string[]) {
   return runCommand(process.execPath, args);
 }
 
@@ -294,8 +296,8 @@ describe('generated output drift guard', () => {
   });
 
   it('rewrites only emitted module specifiers', async () => {
-    const { rewriteImportSpecifiers } =
-      await import('../scripts/build-generated.mjs');
+    // @ts-expect-error No type declarations; this test exercises the shipped artifact.
+    const { rewriteImportSpecifiers } = await import('../scripts/build-generated.mjs');
     const rewrite = {
       from: '../core/consensus-loop.js',
       to: './consensus-loop.mjs',
@@ -326,8 +328,8 @@ describe('generated output drift guard', () => {
   });
 
   it('fails when a configured rewrite source is absent from module specifiers', async () => {
-    const { rewriteImportSpecifiers } =
-      await import('../scripts/build-generated.mjs');
+    // @ts-expect-error No type declarations; this test exercises the shipped artifact.
+    const { rewriteImportSpecifiers } = await import('../scripts/build-generated.mjs');
 
     expect(() =>
       rewriteImportSpecifiers(

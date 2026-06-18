@@ -6,7 +6,6 @@ export default defineConfig({
     include: [
       'tests/**/*.test.ts',
       'tests/**/*.test.mts',
-      'tests/generated-output-sync.test.mjs',
     ],
   },
 });
