@@ -565,7 +565,7 @@ No code change. If `worktree:validate` surfaced generated drift, fix it under th
 | p02    | code     | passed  | 2026-06-18 | in-memory (oat-reviewer, opus); 0 Crit/0 Imp; m1/m2 minor (non-blocking) |
 | p03    | code     | passed  | 2026-06-18 | in-memory (oat-reviewer, opus); 0 Crit/0 Imp; guard fail-on-reintroduction independently verified; m1 minor |
 | p04    | code     | passed  | 2026-06-18 | covered by final review (oat-reviewer, opus) |
-| final  | code     | passed  | 2026-06-18 | reviews/archived/final-review-2026-06-18.md (0 Crit/0 Imp; 2 minor deferred, out of scope) |
+| final  | code     | received | 2026-06-18 | reviews/final-review-2026-06-18-v2.md |
 | plan   | artifact | passed   | 2026-06-18 | reviews/archived/artifact-plan-review-2026-06-18.md (I1 + M1 + M2 resolved in artifacts) |
 | spec   | artifact | n/a     | -          | quick mode — no spec |
 | design | artifact | n/a     | -          | quick mode — no design |
