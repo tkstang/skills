@@ -1,6 +1,6 @@
 # Transcript Formats Reference
 
-Short reference for the Claude Code, Codex, and Cursor JSONL record shapes that `<skill-dir>/scripts/lib/runtimes.mjs` parses. These formats may drift between runtime releases; the canonical parsing logic lives in `runtimes.mjs`.
+Short reference for the Claude Code, Codex, and Cursor JSONL record shapes that `<skill-dir>/scripts/lib/runtimes.mjs` parses. These formats may drift between runtime releases; the canonical parsing source lives in `src/transcript/core/runtimes.ts`, while `<skill-dir>/scripts/lib/runtimes.mjs` is this skill's generated shipped copy.
 
 ---
 
@@ -326,7 +326,7 @@ Observed Cursor block types in the local spike were `text` and `tool_use`; obser
 
 ## Adding a New Runtime
 
-`runtimes.mjs` is the only file with structural knowledge of per-runtime formats. Adding another runtime (e.g. Gemini CLI) requires:
+`src/transcript/core/runtimes.ts` is the only source file with structural knowledge of per-runtime formats. Adding another runtime (e.g. Gemini CLI) requires:
 
 1. Add a case to `discoverPaths(runtime)`.
 2. Add a case to `encodeCwd(runtime, cwd)`.

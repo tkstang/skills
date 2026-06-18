@@ -22,6 +22,8 @@ It also supports foreground watch mode. `watch` and top-level `--watch` poll the
 
 The canonical user-facing documentation is `skills/session-observer/SKILL.md`. Runtime format details live in `skills/session-observer/references/transcript-formats.md`; implemented watch behavior and design notes live in `skills/session-observer/references/watch-design.md`.
 
+Canonical implementation source now lives under `src/transcript/session-observer/`. The committed files under `skills/session-observer/scripts/` remain the generated, dependency-free `.mjs` runtime output that manifests, docs, and users execute.
+
 ### Export session transcript skill
 
 `skills/export-session-transcript/` is a standalone Agent Skill that exports the current agent session to a sanitized Markdown transcript. The output is named after the current git branch (`/` replaced with `-`) and written by default to `~/Downloads`. It supports Claude Code, Codex, and Cursor transcript stores.
@@ -68,6 +70,7 @@ Current generated runtime outputs:
 - `src/consensus/refine/consensus-refine.ts` builds to `plugins/consensus/skills/refine/scripts/consensus-refine.mjs`.
 - `src/consensus/evaluate/consensus-evaluate.ts` builds to `plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs`.
 - `src/transcript/core/runtimes.ts` builds to `skills/session-observer/scripts/lib/runtimes.mjs` and `skills/export-session-transcript/scripts/lib/runtimes.mjs`.
+- `src/transcript/session-observer/` builds to the generated session-observer CLI, probe, and library files under `skills/session-observer/scripts/`.
 - `src/transcript/export-session/sanitize.ts` builds to `skills/export-session-transcript/scripts/lib/sanitize.mjs`.
 - `src/transcript/export-session/export-session-transcript.ts` builds to `skills/export-session-transcript/scripts/export-session-transcript.mjs`.
 
@@ -173,7 +176,7 @@ For watch mode, `--runtime both` watches Claude Code and Codex in one foreground
 - `skills/` - standalone personal skills.
 - `skills/session-observer/` - standalone peer transcript review and catch-up skill.
 - `skills/export-session-transcript/` - standalone session transcript export skill.
-- `src/transcript/` - canonical TypeScript source for transcript-core and export-session runtime code.
+- `src/transcript/` - canonical TypeScript source for transcript-core, session-observer, and export-session runtime code.
 - `shared/transcript-core/` - compatibility documentation pointer for the former shared transcript-core source path.
 - `plugins/consensus/` - self-contained consensus plugin package.
 - `.claude-plugin/`, `.cursor-plugin/`, `.agents/plugins/` - repo-root marketplace entries.
