@@ -6,6 +6,7 @@ oat_last_updated: 2026-06-17
 oat_phase: plan
 oat_phase_status: complete
 oat_plan_hill_phases: ['p04'] # pause AFTER the final phase (docs + verification) before PR/closeout; the p01 PR3 gate is already satisfied
+oat_auto_review_at_hill_checkpoints: true # from workflow.autoReviewAtHillCheckpoints
 oat_plan_parallel_groups: [] # fully sequential — see ## Parallelism
 oat_plan_source: quick # spec-driven | quick | imported
 oat_import_reference: null
