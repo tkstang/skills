@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-18
-oat_current_task_id: p03-t01
+oat_current_task_id: p04-t01
 oat_generated: false
 ---
 
@@ -27,10 +27,10 @@ oat_generated: false
 | ------- | ----------- | ----- | --------- |
 | Phase 1 | complete    | 3     | 3/3       |
 | Phase 2 | complete    | 4     | 4/4       |
-| Phase 3 | pending     | 2     | 0/2       |
+| Phase 3 | complete    | 2     | 2/2       |
 | Phase 4 | pending     | 1     | 0/1       |
 
-**Total:** 7/10 tasks completed
+**Total:** 9/10 tasks completed
 
 ---
 
@@ -85,18 +85,18 @@ oat_generated: false
 
 ## Phase 3: Documentation And OAT Reference Updates
 
-**Status:** pending
-**Started:** -
+**Status:** complete
+**Started:** 2026-06-18
 
 ### Task p03-t01: Update Public And Agent-Facing Runtime Documentation
 
-**Status:** pending
-**Commit:** -
+**Status:** complete
+**Commit:** `12178e1` - `docs(p03): document session-observer TypeScript source`
 
 ### Task p03-t02: Update OAT Reference And Backlog Progress Notes
 
-**Status:** pending
-**Commit:** -
+**Status:** complete
+**Commit:** this commit - `docs(p03): record session-observer TypeScript migration`
 
 ---
 
@@ -282,6 +282,23 @@ _Orchestration runs from `oat-project-implement` are appended here._
 
 **Next:** Stop for p02 review; the orchestrator will advance project state after review.
 
+**Phase p03 implementation:**
+
+- [x] p03-t01 updated public and agent-facing docs to describe `src/transcript/session-observer/` as canonical TypeScript source and `skills/session-observer/scripts/` as generated shipped `.mjs` output.
+- [x] p03-t02 updated OAT current-state, backlog progress/index notes, and added the PR3 project summary for the session-observer TypeScript/Vitest slice.
+- [x] State routing and plan review rows were left unchanged for the orchestrator/reviewer handoff.
+
+**Commits:**
+
+- `12178e1` - `docs(p03): document session-observer TypeScript source`
+- This commit - `docs(p03): record session-observer TypeScript migration`
+
+**Verification:**
+
+- `pnpm run validate` - passed
+- `pnpm run build:check` - passed
+- `git diff --check -- .oat/repo/reference` - passed
+
 ---
 
 ## Deviations from Plan / Design
@@ -296,7 +313,7 @@ _Orchestration runs from `oat-project-implement` are appended here._
 | ----- | --------- | ------ | ------ | -------- |
 | 1     | p01 required verification | pass   | 0      | Existing session-observer node:test parity suite: 160 tests |
 | 2     | p02 required verification | pass   | 0      | Session-observer Vitest suite: 500 tests; remaining node:test suite: 44 tests |
-| 3     | -         | -      | -      | -        |
+| 3     | p03 required documentation/reference verification | pass   | 0      | Docs/reference invariants plus generated-output drift checks |
 | 4     | -         | -      | -      | -        |
 
 ## Final Summary (for PR/docs)

@@ -8,7 +8,7 @@ scope_estimate: L # XS | S | M | L | XL | XXL
 labels: [tooling, typescript, testing, dx, migration]
 assignee: null
 created: '2026-06-14T15:02:51Z'
-updated: '2026-06-16T00:00:00Z'
+updated: '2026-06-18T00:00:00Z'
 associated_issues: []
 oat_template: true
 oat_template_name: backlog-item
@@ -86,3 +86,14 @@ generates the shipped export CLI with import rewrites to local `./lib/*.mjs`
 runtime files. The in-scope transcript-core and export-session tests moved to
 Vitest TypeScript coverage, and `sync:transcript-core` remains only as a
 compatibility wrapper around `scripts/build-generated.mjs`.
+
+The PR3 `session-observer-ts-migration` slice has moved session-observer
+implementation source to `src/transcript/session-observer/`, with
+`scripts/build-generated.mjs` preserving the shipped dependency-free `.mjs`
+outputs under `skills/session-observer/scripts/`. The session-observer test suite
+has moved from `node:test` `.mjs` files to Vitest `.test.ts` coverage, including
+generated-entrypoint checks against the committed skill runtime paths.
+
+This still does **not** complete the initiative. PR4 remains for final
+`node:test` runner retirement, remaining non-migrated suites, and any selected
+long-tail cleanup needed before the compatibility path can be removed.
