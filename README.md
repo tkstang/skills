@@ -158,7 +158,7 @@ For watch mode, `--runtime both` watches Claude Code and Codex in one foreground
 
 - The consensus plugin family ships the `refine` and `evaluate` skills in v0.1; the standalone `session-observer` and `export-session-transcript` skills (and the transcript-core generated runtime they use) ship alongside it but are not part of the consensus plugin.
 - Remaining consensus family skills are future work: `consensus-create`, `consensus-decide`, `consensus-plan`, and `consensus-research`.
-- Consensus ships three iteration modes (`alternating`, `parallel-revision`, `parallel-synthesized`); parallel modes disclose their per-round call multiplier (2x peer calls, plus 1 synthesis call for synthesized) and escalate stuck states through the agency-gated ladder.
+- Consensus ships three iteration modes (`alternating`, `parallel_revision`, `parallel_synthesized`); parallel modes disclose their per-round call multiplier (2x peer calls, plus 1 synthesis call for synthesized) and escalate stuck states through the agency-gated ladder.
 - Consensus sections converge independently; whole-document harmonization and deliberation metrics/cost caps remain deferred.
 - Cursor is supported as a host runtime for the consensus plugin, not as a default Paseo peer.
 - Session observer supports Cursor agent transcript JSONL only; `~/.cursor/chats/*/store.db` SQLite chat history is out of scope.
