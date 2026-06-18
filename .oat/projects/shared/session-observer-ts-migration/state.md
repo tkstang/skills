@@ -1,6 +1,6 @@
 ---
-oat_current_task: null
-oat_last_commit: e305213
+oat_current_task: p05-t01
+oat_last_commit: e4bab6a
 oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
@@ -8,11 +8,11 @@ oat_parent: null # optional child-only coordination parent slug
 oat_siblings: [] # optional child-only sibling slugs
 oat_depends_on: [] # optional child-only sibling dependencies
 oat_children: [] # optional coordination-parent child slugs
-oat_hill_checkpoints: [p04] # Configured: which phases require human-in-the-loop lifecycle approval
-oat_hill_completed: [p04] # Progress: which HiLL checkpoints have been completed
+oat_hill_checkpoints: [p05] # Configured: which phases require human-in-the-loop lifecycle approval
+oat_hill_completed: [] # Progress: which HiLL checkpoints have been completed
 oat_parallel_execution: false
 oat_phase: implement # Current phase: discovery | spec | design | plan | implement | decomposition
-oat_phase_status: complete # Status: in_progress | complete | pr_open
+oat_phase_status: in_progress # Status: in_progress | complete | pr_open
 # oat_orchestration_retry_limit: 2  # optional; override fix-loop retry limit (range 0-5)
 oat_dispatch_ceiling:
   preset: maximum
@@ -27,19 +27,19 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-06-17T23:15:59.616Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-06-18T01:52:17Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-06-18T02:50:16Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
 # Project State: session-observer-ts-migration
 
-**Status:** Implementation Complete - Final Checkpoint Reached
+**Status:** Implementation In Progress - Final Review Fix Queued
 **Started:** 2026-06-17
 **Last Updated:** 2026-06-18
 
 ## Current Phase
 
-Implementation - Tasks complete; p04/final review passed.
+Implementation - Final review received; review fix task `p05-t01` queued.
 
 ## Artifacts
 
@@ -65,7 +65,8 @@ Implementation - Tasks complete; p04/final review passed.
 - ✓ Phase p03 code review passed
 - ✓ Phase p04 verification and closeout complete
 - ✓ Phase p04/final review passed
-- ✓ Final checkpoint `p04` completed
+- ✓ Final review received and converted to tracked fix task `p05-t01`
+- ⧗ Phase p05 review fix in progress
 
 ## Blockers
 
@@ -73,4 +74,4 @@ None
 
 ## Next Milestone
 
-Stop at the final checkpoint as requested. Final repo-wide `node:test` retirement and test runner simplification remain PR4 work and are out of scope for this migration slice.
+Execute `p05-t01`, re-review the final-review fix, and stop at the final checkpoint. Final repo-wide `node:test` retirement and test runner simplification remain PR4 work and are out of scope for this migration slice.

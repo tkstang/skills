@@ -5,7 +5,7 @@ oat_blockers: []
 oat_last_updated: 2026-06-17
 oat_phase: plan
 oat_phase_status: complete
-oat_plan_hill_phases: ["p04"]
+oat_plan_hill_phases: ["p05"]
 oat_auto_review_at_hill_checkpoints: true
 oat_plan_parallel_groups: []
 oat_plan_source: quick
@@ -500,6 +500,51 @@ If only lifecycle artifacts changed and hooks reject ignored `.oat/**` markdown,
 
 ---
 
+## Phase 5: Review Fixes
+
+Address final-review follow-up while preserving the already verified runtime behavior.
+
+### Task p05-t01: (review) Tighten Session-Observer TypeScript Boundaries
+
+**Files:**
+
+- Modify: `src/transcript/session-observer/**/*.ts`
+- Generated if source changes: `skills/session-observer/scripts/**/*.mjs`
+- Modify if needed: `tests/session-observer/**/*.test.ts`
+
+**Step 1: Narrow the broad `any` surfaces**
+
+Review finding: final review noted broad `any` usage across migrated TypeScript source, especially in `src/transcript/session-observer/lib/state.ts`, `src/transcript/session-observer/lib/rank.ts`, and sibling modules.
+
+Focus on meaningful exported and cross-module boundaries: state-file structures, session entries, rank/locate candidates, digest records/results, observe results, watch options/events, CLI/probe options, and transcript-core interactions. Keep runtime behavior unchanged and avoid broad watcher redesign.
+
+**Step 2: Preserve defensive runtime handling**
+
+Keep defensive JSON parsing, filesystem guards, and `catch` behavior intact. It is acceptable for `catch` bindings and unknown external JSON to remain `unknown` until narrowed.
+
+**Step 3: Verify**
+
+Run:
+
+```bash
+pnpm run build
+pnpm run type-check
+pnpm run build:check
+pnpm exec vitest run tests/session-observer
+pnpm run test
+```
+
+Expected: TypeScript boundaries are tighter, generated outputs remain in sync, and session-observer/runtime behavior stays covered by the existing test suite.
+
+**Step 4: Commit**
+
+```bash
+git add src/transcript/session-observer skills/session-observer/scripts tests/session-observer
+git commit -m "fix(p05-t01): tighten session-observer TypeScript boundaries"
+```
+
+---
+
 ## Reviews
 
 | Scope  | Type     | Status  | Date       | Artifact |
@@ -508,7 +553,7 @@ If only lifecycle artifacts changed and hooks reject ignored `.oat/**` markdown,
 | p02    | code     | passed  | 2026-06-18 | reviews/archived/code-p02-review-2026-06-18.md |
 | p03    | code     | passed  | 2026-06-18 | reviews/archived/code-p03-review-2026-06-18.md |
 | p04    | code     | passed  | 2026-06-18 | reviews/archived/code-p04-final-review-2026-06-18.md |
-| final  | code     | received | 2026-06-17 | reviews/final-review-2026-06-17.md |
+| final  | code     | fixes_added | 2026-06-18 | reviews/archived/final-review-2026-06-17.md |
 | plan   | artifact | passed  | 2026-06-17 | reviews/archived/artifact-plan-review-2026-06-17.md |
 | spec   | artifact | pending | -          | N/A - quick mode |
 | design | artifact | pending | -          | N/A - quick mode |
@@ -525,8 +570,9 @@ If only lifecycle artifacts changed and hooks reject ignored `.oat/**` markdown,
 - Phase 2: 4 tasks - Convert session-observer tests to Vitest TypeScript while keeping generated-entrypoint coverage and mixed runner behavior.
 - Phase 3: 2 tasks - Update public docs and OAT reference/backlog/project-summary records.
 - Phase 4: 1 task - Run full required verification and record closeout.
+- Phase 5: 1 task - Tighten session-observer TypeScript boundaries raised by final review.
 
-**Total: 10 tasks**
+**Total: 11 tasks**
 
 Ready for `oat-project-implement`.
 

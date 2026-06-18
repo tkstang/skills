@@ -1,9 +1,9 @@
 ---
-oat_status: complete
+oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-18
-oat_current_task_id: null
+oat_current_task_id: p05-t01
 oat_generated: false
 ---
 
@@ -29,8 +29,9 @@ oat_generated: false
 | Phase 2 | complete    | 4     | 4/4       |
 | Phase 3 | complete    | 2     | 2/2       |
 | Phase 4 | complete    | 1     | 1/1       |
+| Phase 5 | in_progress | 1     | 0/1       |
 
-**Total:** 10/10 tasks completed
+**Total:** 10/11 tasks completed
 
 ---
 
@@ -109,6 +110,18 @@ oat_generated: false
 
 **Status:** complete
 **Commit:** this commit - `chore(p04): record session-observer migration verification`
+
+---
+
+## Phase 5: Review Fixes
+
+**Status:** in_progress
+**Started:** 2026-06-18
+
+### Task p05-t01: (review) Tighten Session-Observer TypeScript Boundaries
+
+**Status:** pending
+**Commit:** pending
 
 ---
 
@@ -378,6 +391,28 @@ _Orchestration runs from `oat-project-implement` are appended here._
 - Generated-output cleanliness check - passed with no diff
 
 **Next:** Stop at the final checkpoint as requested; do not continue to PR automation in this run.
+
+### Review Received: final code
+
+**Date:** 2026-06-18
+**Review artifact:** `reviews/archived/final-review-2026-06-17.md`
+
+**Findings:**
+
+- Critical: 0
+- Important: 0
+- Medium: 0
+- Minor: 1
+
+**New tasks added:** `p05-t01`
+
+**Finding disposition:**
+
+- m1: Broad `any` typing across migrated TypeScript source converted to task `p05-t01` at the user's request so the cleanup does not slip into an untracked follow-up.
+
+**Deferred Medium ledger:** none.
+
+**Next:** Execute `p05-t01` via the `oat-project-implement` skill, then re-review the final-review fix before closeout.
 
 ---
 
