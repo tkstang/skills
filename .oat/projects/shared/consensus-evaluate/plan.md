@@ -6,7 +6,7 @@ oat_last_updated: 2026-06-17
 oat_phase: plan
 oat_phase_status: complete
 oat_plan_parallel_groups: [] # fully sequential; phases share generated-output/build surfaces
-oat_plan_hill_phases: ["p03"] # stop only after final implementation phase
+oat_plan_hill_phases: ["p04"] # stop only after final implementation/review-fix phase
 oat_auto_review_at_hill_checkpoints: true
 oat_plan_source: quick
 oat_import_reference: null
@@ -423,6 +423,111 @@ git commit -m "chore(consensus-evaluate): record implementation completion"
 
 ---
 
+## Phase 4: Final Review Fixes
+
+### Task p04-t01: (review) Escape evaluation draft prompt data
+
+**Files:**
+
+- Modify: `src/consensus/evaluate/consensus-evaluate.ts`
+- Modify: `tests/consensus-evaluate-wrapper.test.ts`
+- Regenerate: `plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs`
+
+**Step 1: Understand the issue**
+
+Review finding: rubric-derived headings/bullets can include delimiter text such as
+`</EVALUATION_DRAFT>` and later appear inside the evaluation-draft prompt block, weakening the
+untrusted-content boundary.
+Location: `src/consensus/evaluate/consensus-evaluate.ts:702`
+
+**Step 2: Implement fix**
+
+Sanitize or delimiter-escape evaluation draft data before it is embedded in prompt blocks,
+including rubric-derived seed content and previous peer drafts. Preserve reviewer-visible text
+as data rather than executable prompt markup.
+
+**Step 3: Verify**
+
+Run: `pnpm exec vitest run tests/consensus-evaluate-wrapper.test.ts && pnpm run build && pnpm run build:check`
+Expected: prompt delimiter regression coverage passes and generated output remains in sync.
+
+**Step 4: Commit**
+
+```bash
+git add src/consensus/evaluate/consensus-evaluate.ts tests/consensus-evaluate-wrapper.test.ts plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs
+git commit -m "fix(p04-t01): escape evaluation draft prompt data"
+```
+
+---
+
+### Task p04-t02: (review) Align evaluate provider preflight docs
+
+**Files:**
+
+- Modify: `plugins/consensus/skills/evaluate/SKILL.md`
+
+**Step 1: Understand the issue**
+
+Review finding: evaluate skill docs claim wrapper-level `paseo provider ls --json` preflight and
+`PEER_UNAVAILABLE` behavior, but the evaluate wrapper does not implement the refine preflight
+path.
+Location: `plugins/consensus/skills/evaluate/SKILL.md:20`
+
+**Step 2: Implement fix**
+
+Either implement refine-equivalent provider/synthesizer preflight for evaluate, or revise the
+evaluate skill docs so provider inventory checks are described as host/operator setup rather
+than wrapper behavior. Prefer the smallest accurate fix unless implementation needs the
+behavioral preflight for product correctness.
+
+**Step 3: Verify**
+
+Run: `pnpm run validate && rg -n "PEER_UNAVAILABLE|provider ls" plugins/consensus/skills/evaluate/SKILL.md`
+Expected: validation passes and any remaining preflight wording accurately reflects shipped
+evaluate behavior.
+
+**Step 4: Commit**
+
+```bash
+git add plugins/consensus/skills/evaluate/SKILL.md
+git commit -m "docs(p04-t02): align evaluate preflight docs"
+```
+
+---
+
+### Task p04-t03: (review) Add evaluate path-confinement negative coverage
+
+**Files:**
+
+- Modify: `tests/path-safety.test.ts`
+
+**Step 1: Understand the issue**
+
+Review finding: path-safety tests import only the shipped refine runtime, while evaluate ships
+its own path-confinement helpers. Evaluate can regress outside-root and symlink rejection
+without failing the existing suite.
+Location: `tests/path-safety.test.ts:16`
+
+**Step 2: Implement fix**
+
+Parameterize path-safety coverage over refine and evaluate generated runtimes, or add
+evaluate-specific tests for outside-root output paths, symlink targets, and symlink parent
+escapes.
+
+**Step 3: Verify**
+
+Run: `pnpm test && pnpm run build:check`
+Expected: path-safety coverage passes for evaluate and generated output remains in sync.
+
+**Step 4: Commit**
+
+```bash
+git add tests/path-safety.test.ts
+git commit -m "test(p04-t03): cover evaluate path confinement"
+```
+
+---
+
 ## Reviews
 
 | Scope  | Type     | Status  | Date | Artifact |
@@ -430,7 +535,7 @@ git commit -m "chore(consensus-evaluate): record implementation completion"
 | p01    | code     | passed | 2026-06-17 | reviews/archived/p01-review-2026-06-17.md |
 | p02    | code     | passed | 2026-06-17 | reviews/archived/p02-review-2026-06-17-v4.md |
 | p03    | code     | passed | 2026-06-17 | reviews/archived/p03-review-2026-06-17-v2.md |
-| final  | code     | pending | -    | -        |
+| final  | code     | fixes_added | 2026-06-17 | reviews/archived/final-review-2026-06-17.md |
 | spec   | artifact | pending | -    | -        |
 | design | artifact | pending | -    | -        |
 | plan   | artifact | passed | 2026-06-17 | reviews/archived/artifact-plan-review-2026-06-16.md |
@@ -453,10 +558,11 @@ git commit -m "chore(consensus-evaluate): record implementation completion"
 - Phase 1: 3 tasks - Core prompt-profile seam, schema parity, and generated evaluate loop runtime.
 - Phase 2: 3 tasks - Canonical evaluate wrapper, output rendering, and generated wrapper runtime.
 - Phase 3: 3 tasks - Plugin distribution registration, docs/reference updates, and final verification.
+- Phase 4: 3 tasks - Final review fixes for prompt safety, docs accuracy, and path-safety coverage.
 
-**Total: 9 tasks**
+**Total: 12 tasks**
 
-Ready for implementation after plan review/acceptance.
+Final review fixes are queued for implementation.
 
 ---
 

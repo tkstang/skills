@@ -1,6 +1,6 @@
 # consensus-evaluate Implementation Summary
 
-**Status:** Implementation complete; final review pending
+**Status:** Final review fixes queued
 **Updated:** 2026-06-17
 
 ## What Shipped
@@ -36,6 +36,6 @@
 - p01 code review: passed
 - p02 code review: passed
 - p03 code review: passed; the non-blocking README wording Minor was resolved in `e551a12`
-- final code review: pending
+- final code review: failed; fix tasks `p04-t01` through `p04-t03` are queued
 
 No final review pass or PR handoff state has been recorded by this implementation task.

@@ -1,9 +1,9 @@
 ---
-oat_status: complete
-oat_ready_for: oat-project-review-provide
+oat_status: in_progress
+oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-17
-oat_current_task_id: null
+oat_current_task_id: p04-t01
 oat_generated: false
 ---
 
@@ -29,8 +29,9 @@ oat_generated: false
 | Phase 1 | complete    | 3     | 3/3       |
 | Phase 2 | complete    | 3     | 3/3       |
 | Phase 3 | complete    | 3     | 3/3       |
+| Phase 4 | in_progress | 3     | 0/3       |
 
-**Total:** 9/9 tasks completed
+**Total:** 9/12 tasks completed
 
 ---
 
@@ -112,6 +113,26 @@ before final review.
 
 - Minor: `plugins/consensus/README.md` framed the `independent_draft` limitation as
   refine-only even though evaluate also rejects it. Resolved in `e551a12`.
+
+### Review Received: final (code)
+
+**Date:** 2026-06-17
+**Review artifact:** `reviews/archived/final-review-2026-06-17.md`
+
+**Findings:** Critical: 0 · Important: 2 · Medium: 1 · Minor: 0
+
+**New tasks added:** `p04-t01`, `p04-t02`, `p04-t03`
+
+**Disposition:** auto checkpoint review converted all Important and Medium findings into
+review-fix tasks.
+
+- `I1` — Rubric-derived draft text can escape the evaluation-draft prompt block:
+  `p04-t01`.
+- `I2` — Evaluate docs claim provider preflight behavior the wrapper does not implement:
+  `p04-t02`.
+- `M1` — Evaluate path-confinement helpers lack direct negative coverage: `p04-t03`.
+
+**Next:** Execute final review fix tasks, then re-run final review.
 
 ---
 
@@ -448,6 +469,32 @@ PR handoff.
 **Notes / Decisions:**
 
 - No generated output drift remained after `pnpm run build`.
+
+---
+
+## Phase 4: Final Review Fixes
+
+**Status:** in_progress
+**Started:** 2026-06-18
+
+### Task p04-t01: (review) Escape evaluation draft prompt data
+
+**Status:** pending
+**Commit:** -
+
+---
+
+### Task p04-t02: (review) Align evaluate provider preflight docs
+
+**Status:** pending
+**Commit:** -
+
+---
+
+### Task p04-t03: (review) Add evaluate path-confinement negative coverage
+
+**Status:** pending
+**Commit:** -
 
 ---
 
