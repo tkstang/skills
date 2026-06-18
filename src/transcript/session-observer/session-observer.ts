@@ -32,18 +32,21 @@ import {
 import { observeCatchUp } from './lib/observe.js';
 import { rank } from './lib/rank.js';
 import * as stateLib from './lib/state.js';
-import * as watchStateLib from './lib/watch-state.js';
-import { runWatchLoop } from './lib/watch.js';
 import type {
   CliArgs,
   ObservedRuntimeResolution,
   PinnedSessionParseResult,
   RuntimeCandidateSet,
+  SessionObserverState,
   SnippetMatch,
   TranscriptCandidate,
+  WatchControlDirective,
   WatcherRecord,
   WatchState,
+  WatchTargetRecord,
 } from './lib/types.js';
+import * as watchStateLib from './lib/watch-state.js';
+import { runWatchLoop } from './lib/watch.js';
 
 // ---------------------------------------------------------------------------
 // argv parsing
@@ -215,9 +218,7 @@ async function preferredRuntimeFromState(
   const matches = Object.values(state.sessions ?? {})
     .filter((s) => runtimeSet.has(s.runtime))
     .filter((s) => s.recordedCwd === targetCwd)
-    .filter((s) =>
-      sessionIdsByRuntime.get(s.runtime)?.has(s.sessionId),
-    )
+    .filter((s) => sessionIdsByRuntime.get(s.runtime)?.has(s.sessionId))
     .toSorted((a, b) =>
       String(b.lastReadAt ?? '').localeCompare(String(a.lastReadAt ?? '')),
     );
@@ -257,9 +258,7 @@ async function resolveAutoRuntime(
     }),
   );
 
-  const withCandidates = results.filter(
-    (r) => r.candidates.length > 0,
-  );
+  const withCandidates = results.filter((r) => r.candidates.length > 0);
   const considered = isRuntime(self)
     ? withCandidates.filter((r) => r.runtime !== self)
     : withCandidates;
@@ -345,7 +344,10 @@ function parsePinnedSession(session?: string): PinnedSessionParseResult {
 async function applySnippetFilter(
   candidates: TranscriptCandidate[],
   snippet?: string,
-): Promise<{ candidates: TranscriptCandidate[]; matches: TranscriptCandidate[] }> {
+): Promise<{
+  candidates: TranscriptCandidate[];
+  matches: TranscriptCandidate[];
+}> {
   if (!snippet) return { candidates, matches: [] };
   const needle = snippet.toLowerCase();
   const matches: TranscriptCandidate[] = [];
@@ -660,10 +662,7 @@ async function runReview(args: CliArgs): Promise<void> {
     return emit(
       `Multiple sessions tied. Specify --session to disambiguate:\n` +
         [rankResult.winner, ...rankResult.ties]
-          .map(
-            (c) =>
-              `  ${c.runtime}:${c.sessionId}  (${c.transcriptPath})`,
-          )
+          .map((c) => `  ${c.runtime}:${c.sessionId}  (${c.transcriptPath})`)
           .join('\n'),
       3,
     );
@@ -1105,9 +1104,113 @@ function emitWatchSetupError(args: CliArgs, message: string): never {
   return emitError(message, 1);
 }
 
-async function emitNoActiveWatcher(args: any): Promise<any> {
-  await watchStateLib.clearControlDirective().catch((): any => false);
-  const payload: any = {
+type WatcherHealth = {
+  healthy: boolean;
+  reasons: string[];
+};
+
+type WatchTargetStatus = WatchTargetRecord & {
+  transcriptRecords: number | null;
+  lastRecordIndex: number;
+  consumedThrough: number | null;
+  recordsBehind: number | null;
+  secondsSinceLastEmit: number | null;
+  secondsSinceLastPoll: number | null;
+  staleAfterSec: number;
+  healthy: boolean;
+  healthReasons: string[];
+  error: string | null | undefined;
+};
+
+type WatcherStatusRecord = Omit<WatcherRecord, 'targets'> & {
+  targets: WatchTargetStatus[];
+  healthy?: boolean;
+  healthReasons?: string[];
+};
+
+type NoActiveWatcherPayload = {
+  active: false;
+  noActiveWatcher: true;
+  watcher: null;
+  message: string;
+  directive?: string;
+  control?: null;
+};
+
+type SingleWatcherStatusPayload = {
+  active: true;
+  noActiveWatcher: false;
+  healthy: boolean;
+  health: WatcherHealth;
+  watcher: WatcherStatusRecord;
+  targets: WatchTargetStatus[];
+  requestedRuntime: WatcherRecord['requestedRuntime'];
+  resolvedRuntime: Runtime | null;
+  sessionId: string | null;
+  transcriptPath: string | null;
+  secondsSinceLastEmit: number | null;
+  secondsSinceLastPoll: number | null;
+};
+
+type ActiveWatcherStatusPayload = SingleWatcherStatusPayload & {
+  watchers: WatcherStatusRecord[];
+  watcherCount: number;
+};
+
+type WatcherStatusPayload =
+  | NoActiveWatcherPayload
+  | SingleWatcherStatusPayload
+  | ActiveWatcherStatusPayload;
+
+type WatcherSummary = {
+  pid: number;
+  runtime: WatcherRecord['runtime'];
+  requestedRuntime: WatcherRecord['requestedRuntime'];
+  resolvedRuntime: Runtime | null;
+  cwd: string;
+  session: string | null;
+  targets: WatchTargetRecord[];
+};
+
+type WatchControlPayload = {
+  directive: WatchControlDirective;
+  watcher: WatcherSummary;
+  control: Awaited<ReturnType<typeof watchStateLib.writeControlDirective>>;
+};
+
+type WatchStopPayload = WatchControlPayload & {
+  directive: 'stop';
+  signaled: boolean;
+  message: string;
+};
+
+type WatchCtlSelection =
+  | { error: string; none?: never; ambiguous?: never; watcher?: never }
+  | {
+      none: true;
+      watchers: WatcherRecord[];
+      error?: never;
+      ambiguous?: never;
+      watcher?: never;
+    }
+  | {
+      ambiguous: true;
+      watchers: WatcherRecord[];
+      error?: never;
+      none?: never;
+      watcher?: never;
+    }
+  | {
+      watcher: WatcherRecord;
+      watchers: WatcherRecord[];
+      error?: never;
+      none?: never;
+      ambiguous?: never;
+    };
+
+async function emitNoActiveWatcher(args: CliArgs): Promise<never> {
+  await watchStateLib.clearControlDirective().catch((): boolean => false);
+  const payload: NoActiveWatcherPayload = {
     active: false,
     noActiveWatcher: true,
     watcher: null,
@@ -1121,41 +1224,69 @@ async function emitNoActiveWatcher(args: any): Promise<any> {
   return emit('No active watcher.', 0);
 }
 
-function secondsSince(value: any, now: any = Date.now()): any {
+function secondsSince(
+  value: string | null | undefined,
+  now = Date.now(),
+): number | null {
   if (!value) return null;
   const parsed = Date.parse(value);
   if (!Number.isFinite(parsed)) return null;
   return Math.max(0, Math.floor((now - parsed) / 1000));
 }
 
-function consumedThrough(lastRecordIndex: any): any {
-  if (!Number.isFinite(lastRecordIndex) || lastRecordIndex <= 0) return null;
+function consumedThrough(
+  lastRecordIndex: number | null | undefined,
+): number | null {
+  if (
+    typeof lastRecordIndex !== 'number' ||
+    !Number.isFinite(lastRecordIndex) ||
+    lastRecordIndex <= 0
+  ) {
+    return null;
+  }
   return lastRecordIndex - 1;
 }
 
-async function transcriptRecordCount(transcriptPath: any): Promise<any> {
+async function transcriptRecordCount(transcriptPath: string): Promise<number> {
   return (await readRecords(transcriptPath)).length;
 }
 
-function activeWatchersFromState(state: any): any {
-  if (Array.isArray(state.watchers) && state.watchers.length > 0) {
-    return state.watchers.filter(Boolean);
-  }
-  return state.active ? [state.active] : [];
+function stateObject(value: unknown): Record<string, unknown> {
+  return value !== null && typeof value === 'object'
+    ? (value as Record<string, unknown>)
+    : {};
 }
 
-async function singleWatcherStatusPayload(active: any): Promise<any> {
+function activeWatchersFromState(state: WatchState | unknown): WatcherRecord[] {
+  const record = stateObject(state);
+  if (Array.isArray(record.watchers) && record.watchers.length > 0) {
+    return record.watchers.filter(Boolean) as WatcherRecord[];
+  }
+  return record.active ? [record.active as WatcherRecord] : [];
+}
+
+function errorMessageProperty(err: unknown): string | undefined {
+  if (err === null || typeof err !== 'object' || !('message' in err)) {
+    return undefined;
+  }
+  const message = (err as { message?: unknown }).message;
+  return message === undefined ? undefined : String(message);
+}
+
+async function singleWatcherStatusPayload(
+  active: WatcherRecord,
+): Promise<SingleWatcherStatusPayload> {
   const now = Date.now();
-  const sessionState = await stateLib
+  const sessionState: Pick<SessionObserverState, 'sessions'> = await stateLib
     .load()
-    .catch((): any => ({ sessions: {} }));
+    .catch((): Pick<SessionObserverState, 'sessions'> => ({ sessions: {} }));
   const staleAfterSec = Number.isFinite(Number(active.staleAfterSec))
     ? Number(active.staleAfterSec)
     : 30;
   const secondsSinceLastEmit = secondsSince(active.lastEventAt, now);
   const secondsSinceLastPoll = secondsSince(active.lastPollAt, now);
   const secondsSinceStarted = secondsSince(active.startedAt, now);
-  const targets: any[] = [];
+  const targets: WatchTargetStatus[] = [];
 
   for (const target of active.targets ?? []) {
     const stateKey = `${target.runtime}:${target.sessionId}`;
@@ -1164,11 +1295,11 @@ async function singleWatcherStatusPayload(active: any): Promise<any> {
       ? Number(stored.lastRecordIndex)
       : Number(target.baselineRecordIndex ?? 0);
     let transcriptRecords = null;
-    let recordError = null;
+    let recordError: string | null | undefined = null;
     try {
       transcriptRecords = await transcriptRecordCount(target.transcriptPath);
-    } catch (err: any) {
-      recordError = err.message;
+    } catch (err) {
+      recordError = errorMessageProperty(err);
     }
 
     const recordsBehind =
@@ -1176,7 +1307,7 @@ async function singleWatcherStatusPayload(active: any): Promise<any> {
         ? null
         : Math.max(0, transcriptRecords - lastRecordIndex);
     const staleClockSec = secondsSinceLastEmit ?? secondsSinceStarted ?? 0;
-    const reasons: any[] = [];
+    const reasons: string[] = [];
     if (
       recordsBehind !== null &&
       recordsBehind > 0 &&
@@ -1207,14 +1338,12 @@ async function singleWatcherStatusPayload(active: any): Promise<any> {
     });
   }
 
-  const activeWithStatus: any = {
+  const activeWithStatus: WatcherStatusRecord = {
     ...active,
     targets,
   };
-  const targetReasons = targets.flatMap(
-    (target: any): any => target.healthReasons ?? [],
-  );
-  const processReasons: any[] = [];
+  const targetReasons = targets.flatMap((target) => target.healthReasons ?? []);
+  const processReasons: string[] = [];
   if (active.lastError?.message) processReasons.push('watcher-error');
   const reasons = [...new Set([...targetReasons, ...processReasons])];
   const healthy = reasons.length === 0;
@@ -1235,7 +1364,9 @@ async function singleWatcherStatusPayload(active: any): Promise<any> {
   };
 }
 
-async function watcherStatusPayload(state: any): Promise<any> {
+async function watcherStatusPayload(
+  state: WatchState,
+): Promise<WatcherStatusPayload> {
   const watchers = activeWatchersFromState(state);
   if (watchers.length === 0) {
     return {
@@ -1246,18 +1377,24 @@ async function watcherStatusPayload(state: any): Promise<any> {
     };
   }
 
-  const statuses: any[] = [];
+  const statuses: SingleWatcherStatusPayload[] = [];
   for (const watcher of watchers) {
     statuses.push(await singleWatcherStatusPayload(watcher));
   }
   const reasons = [
-    ...new Set(
-      statuses.flatMap((status: any): any => status.health?.reasons ?? []),
-    ),
+    ...new Set(statuses.flatMap((status) => status.health?.reasons ?? [])),
   ];
   const healthy = reasons.length === 0;
   const primary = statuses[0];
-  const watchersWithHealth = statuses.map((status: any): any => ({
+  if (!primary) {
+    return {
+      active: false,
+      noActiveWatcher: true,
+      watcher: null,
+      message: 'No active watcher.',
+    };
+  }
+  const watchersWithHealth: WatcherStatusRecord[] = statuses.map((status) => ({
     ...status.watcher,
     healthy: status.healthy,
     healthReasons: status.health?.reasons ?? [],
@@ -1271,7 +1408,7 @@ async function watcherStatusPayload(state: any): Promise<any> {
     watcher: watchersWithHealth[0],
     watchers: watchersWithHealth,
     watcherCount: statuses.length,
-    targets: statuses.flatMap((status: any): any => status.targets),
+    targets: statuses.flatMap((status) => status.targets),
     requestedRuntime: primary.requestedRuntime,
     resolvedRuntime: primary.resolvedRuntime,
     sessionId: primary.sessionId,
@@ -1281,13 +1418,15 @@ async function watcherStatusPayload(state: any): Promise<any> {
   };
 }
 
-function formatWatcherStatus(payload: any): any {
+function formatWatcherStatus(payload: WatcherStatusPayload): string {
   if (!payload.active) return 'No active watcher.';
-  const watcherLines = (payload.watchers ?? [payload.watcher])
+  const watcherLines = (
+    'watchers' in payload ? payload.watchers : [payload.watcher]
+  )
     .filter(Boolean)
-    .flatMap((watcher: any): any => {
+    .flatMap((watcher): string[] => {
       const header = `Watcher active: ${watcher.runtime} ${watcher.cwd} (pid ${watcher.pid}) healthy=${watcher.healthy ?? payload.healthy}`;
-      const targets = (watcher.targets ?? []).map((target: any): any => {
+      const targets = (watcher.targets ?? []).map((target): string => {
         const behind =
           target.recordsBehind === null ? '?' : target.recordsBehind;
         return `  ${target.runtime}:${target.sessionId} recordsBehind=${behind} transcript=${target.transcriptPath}`;
@@ -1297,7 +1436,7 @@ function formatWatcherStatus(payload: any): any {
   return watcherLines.join('\n');
 }
 
-function watcherSummary(watcher: any): any {
+function watcherSummary(watcher: WatcherRecord): WatcherSummary {
   return {
     pid: watcher.pid,
     runtime: watcher.runtime,
@@ -1309,7 +1448,10 @@ function watcherSummary(watcher: any): any {
   };
 }
 
-function watcherMatchesRuntime(watcher: any, runtime: any): any {
+function watcherMatchesRuntime(
+  watcher: WatcherRecord,
+  runtime: string,
+): boolean {
   if (!runtime || runtime === 'auto') return true;
   if (
     watcher.runtime === runtime ||
@@ -1318,25 +1460,29 @@ function watcherMatchesRuntime(watcher: any, runtime: any): any {
   ) {
     return true;
   }
-  return (watcher.targets ?? []).some(
-    (target: any): any => target.runtime === runtime,
-  );
+  return (watcher.targets ?? []).some((target) => target.runtime === runtime);
 }
 
-function watcherMatchesSession(watcher: any, session: any): any {
+function watcherMatchesSession(
+  watcher: WatcherRecord,
+  session: string | undefined,
+): boolean {
   if (!session) return true;
   if (watcher.session === session) return true;
   return (watcher.targets ?? []).some(
-    (target: any): any => `${target.runtime}:${target.sessionId}` === session,
+    (target) => `${target.runtime}:${target.sessionId}` === session,
   );
 }
 
-function sameCwd(a: any, b: any): any {
+function sameCwd(a: unknown, b: unknown): boolean {
   if (!a || !b) return false;
   return resolve(String(a)) === resolve(String(b));
 }
 
-function selectWatcherForControl(state: any, args: any): any {
+function selectWatcherForControl(
+  state: WatchState,
+  args: CliArgs,
+): WatchCtlSelection {
   const watchers = activeWatchersFromState(state);
   if (watchers.length === 0) return { none: true, watchers };
   if (args.pid !== undefined && !Number.isInteger(args.pid)) {
@@ -1345,18 +1491,12 @@ function selectWatcherForControl(state: any, args: any): any {
 
   let candidates = watchers;
   if (args.pid !== undefined) {
-    candidates = candidates.filter(
-      (watcher: any): any => watcher.pid === args.pid,
-    );
+    candidates = candidates.filter((watcher) => watcher.pid === args.pid);
   } else {
     candidates = candidates
-      .filter((watcher: any): any =>
-        watcherMatchesRuntime(watcher, args.runtime),
-      )
-      .filter((watcher: any): any =>
-        watcherMatchesSession(watcher, args.session),
-      );
-    const cwdMatches = candidates.filter((watcher: any): any =>
+      .filter((watcher) => watcherMatchesRuntime(watcher, args.runtime))
+      .filter((watcher) => watcherMatchesSession(watcher, args.session));
+    const cwdMatches = candidates.filter((watcher) =>
       sameCwd(watcher.cwd, args.cwd),
     );
     // An explicit --cwd is a hard filter. The implicit process.cwd() default is
@@ -1369,11 +1509,16 @@ function selectWatcherForControl(state: any, args: any): any {
 
   if (candidates.length === 0) return { none: true, watchers };
   if (candidates.length > 1) return { ambiguous: true, watchers: candidates };
-  return { watcher: candidates[0], watchers };
+  const watcher = candidates[0];
+  if (!watcher) return { none: true, watchers };
+  return { watcher, watchers };
 }
 
-function emitNoMatchingWatcher(args: any, watchers: any): any {
-  const payload: any = {
+function emitNoMatchingWatcher(
+  args: CliArgs,
+  watchers: WatcherRecord[],
+): never {
+  const payload = {
     active: true,
     noMatchingWatcher: true,
     watcher: null,
@@ -1386,7 +1531,7 @@ function emitNoMatchingWatcher(args: any, watchers: any): any {
     [
       payload.message,
       ...payload.watchers.map(
-        (watcher: any): any =>
+        (watcher): string =>
           `  pid=${watcher.pid} runtime=${watcher.runtime} cwd=${watcher.cwd}`,
       ),
     ].join('\n'),
@@ -1394,14 +1539,20 @@ function emitNoMatchingWatcher(args: any, watchers: any): any {
   );
 }
 
-function emitUnmatchedWatcherControl(args: any, selected: any): any {
+async function emitUnmatchedWatcherControl(
+  args: CliArgs,
+  selected: { watchers: WatcherRecord[] },
+): Promise<never> {
   return selected.watchers.length > 0
     ? emitNoMatchingWatcher(args, selected.watchers)
     : emitNoActiveWatcher(args);
 }
 
-function emitAmbiguousWatcher(args: any, candidates: any): any {
-  const payload: any = {
+function emitAmbiguousWatcher(
+  args: CliArgs,
+  candidates: WatcherRecord[],
+): never {
+  const payload = {
     ambiguousWatcher: true,
     message:
       'Multiple active watchers match. Select one with --runtime, --session, or --pid.',
@@ -1412,7 +1563,7 @@ function emitAmbiguousWatcher(args: any, candidates: any): any {
     [
       payload.message,
       ...payload.watchers.map(
-        (watcher: any): any =>
+        (watcher): string =>
           `  pid=${watcher.pid} runtime=${watcher.runtime} cwd=${watcher.cwd}`,
       ),
     ].join('\n'),
@@ -1420,7 +1571,7 @@ function emitAmbiguousWatcher(args: any, candidates: any): any {
   );
 }
 
-async function runWatchCtl(args: any): Promise<any> {
+async function runWatchCtl(args: CliArgs): Promise<void> {
   if (args.help || !args.watchCtlOp) return printWatchCtlUsage();
 
   switch (args.watchCtlOp) {
@@ -1440,14 +1591,16 @@ async function runWatchCtl(args: any): Promise<any> {
       if (selected.none) return emitUnmatchedWatcherControl(args, selected);
       if (selected.ambiguous)
         return emitAmbiguousWatcher(args, selected.watchers);
+      const watcher = selected.watcher;
+      if (!watcher) return emitError('No watcher selected.', 1);
 
       const control = await watchStateLib.writeControlDirective(
         args.watchCtlOp,
-        { pid: selected.watcher.pid },
+        { pid: watcher.pid },
       );
-      const payload: any = {
+      const payload: WatchControlPayload = {
         directive: args.watchCtlOp,
-        watcher: watcherSummary(selected.watcher),
+        watcher: watcherSummary(watcher),
         control,
       };
       if (args.json) return emitJson(payload, 0);
@@ -1461,23 +1614,25 @@ async function runWatchCtl(args: any): Promise<any> {
       if (selected.none) return emitUnmatchedWatcherControl(args, selected);
       if (selected.ambiguous)
         return emitAmbiguousWatcher(args, selected.watchers);
+      const watcher = selected.watcher;
+      if (!watcher) return emitError('No watcher selected.', 1);
 
       const control = await watchStateLib.writeControlDirective('stop', {
-        pid: selected.watcher.pid,
+        pid: watcher.pid,
       });
       let signaled = false;
-      if (selected.watcher?.pid) {
+      if (watcher.pid) {
         try {
-          process.kill(selected.watcher.pid, 'SIGTERM');
+          process.kill(watcher.pid, 'SIGTERM');
           signaled = true;
         } catch {
           signaled = false;
         }
       }
-      const payload: any = {
+      const payload: WatchStopPayload = {
         directive: 'stop',
         control,
-        watcher: watcherSummary(selected.watcher),
+        watcher: watcherSummary(watcher),
         signaled,
         message:
           'Watcher stop requested. If continued monitoring is desired, restart catch-up-then-watch after your response.',
@@ -1485,7 +1640,7 @@ async function runWatchCtl(args: any): Promise<any> {
       if (args.json) return emitJson(payload, 0);
       return emit(
         signaled
-          ? `Watcher stop requested for pid ${selected.watcher.pid}\nIf continued monitoring is desired, restart catch-up-then-watch after your response.`
+          ? `Watcher stop requested for pid ${watcher.pid}\nIf continued monitoring is desired, restart catch-up-then-watch after your response.`
           : 'Watcher stop directive written.\nIf continued monitoring is desired, restart catch-up-then-watch after your response.',
         0,
       );
