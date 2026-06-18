@@ -1,6 +1,6 @@
 ---
-oat_current_task: p05-t01
-oat_last_commit: e4bab6a
+oat_current_task: null
+oat_last_commit: 3d93c49
 oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
@@ -12,7 +12,7 @@ oat_hill_checkpoints: [p05] # Configured: which phases require human-in-the-loop
 oat_hill_completed: [] # Progress: which HiLL checkpoints have been completed
 oat_parallel_execution: false
 oat_phase: implement # Current phase: discovery | spec | design | plan | implement | decomposition
-oat_phase_status: in_progress # Status: in_progress | complete | pr_open
+oat_phase_status: complete # Status: in_progress | complete | pr_open
 # oat_orchestration_retry_limit: 2  # optional; override fix-loop retry limit (range 0-5)
 oat_dispatch_ceiling:
   preset: maximum
@@ -27,19 +27,19 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-06-17T23:15:59.616Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-06-18T02:50:16Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-06-18T03:14:53Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
 # Project State: session-observer-ts-migration
 
-**Status:** Implementation In Progress - Final Review Fix Queued
+**Status:** Implementation Complete - Final Review Fix Applied
 **Started:** 2026-06-17
 **Last Updated:** 2026-06-18
 
 ## Current Phase
 
-Implementation - Final review received; review fix task `p05-t01` queued.
+Implementation complete; final review fix task `p05-t01` applied and ready for re-review / final checkpoint handling.
 
 ## Artifacts
 
@@ -66,7 +66,7 @@ Implementation - Final review received; review fix task `p05-t01` queued.
 - ✓ Phase p04 verification and closeout complete
 - ✓ Phase p04/final review passed
 - ✓ Final review received and converted to tracked fix task `p05-t01`
-- ⧗ Phase p05 review fix in progress
+- ✓ Phase p05 review fix complete
 
 ## Blockers
 
@@ -74,4 +74,4 @@ None
 
 ## Next Milestone
 
-Execute `p05-t01`, re-review the final-review fix, and stop at the final checkpoint. Final repo-wide `node:test` retirement and test runner simplification remain PR4 work and are out of scope for this migration slice.
+Re-review the final-review fix and stop at the final checkpoint. Final repo-wide `node:test` retirement and test runner simplification remain PR4 work and are out of scope for this migration slice.

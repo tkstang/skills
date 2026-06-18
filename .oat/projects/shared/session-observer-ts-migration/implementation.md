@@ -1,9 +1,9 @@
 ---
-oat_status: in_progress
+oat_status: complete
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-18
-oat_current_task_id: p05-t01
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -29,9 +29,9 @@ oat_generated: false
 | Phase 2 | complete    | 4     | 4/4       |
 | Phase 3 | complete    | 2     | 2/2       |
 | Phase 4 | complete    | 1     | 1/1       |
-| Phase 5 | in_progress | 1     | 0/1       |
+| Phase 5 | complete    | 1     | 1/1       |
 
-**Total:** 10/11 tasks completed
+**Total:** 11/11 tasks completed
 
 ---
 
@@ -115,13 +115,23 @@ oat_generated: false
 
 ## Phase 5: Review Fixes
 
-**Status:** in_progress
+**Status:** complete
 **Started:** 2026-06-18
 
 ### Task p05-t01: (review) Tighten Session-Observer TypeScript Boundaries
 
-**Status:** pending
-**Commit:** pending
+**Status:** complete
+**Commit:** `3d93c49` - `fix(p05-t01): tighten session-observer TypeScript boundaries`
+
+**Verification:**
+
+- `pnpm run build` - passed
+- `pnpm run type-check` - passed
+- `pnpm run build:check` - passed
+- `pnpm exec vitest run tests/session-observer` - passed, 9 files / 160 tests
+- `pnpm run test` - passed, Node 44 tests and Vitest 35 files / 500 tests
+
+**Delta recording:** none. The implementation followed the final-review fix task scope: tightened meaningful TypeScript boundaries for session-observer state, candidates/ranking, digest/observe results, watch state/events/options, CLI/probe parsing, and transcript-core interactions while preserving defensive parsing, filesystem guards, catch behavior, and generated-output ownership.
 
 ---
 
