@@ -24,19 +24,23 @@ oat_generated: false
 
 ## Progress Overview
 
-| Phase   | Status      | Tasks | Completed |
-| ------- | ----------- | ----- | --------- |
-| Phase 1 | in_progress | N     | 0/N       |
-| Phase 2 | pending     | N     | 0/N       |
+| Phase                                 | Status  | Tasks | Completed |
+| ------------------------------------- | ------- | ----- | --------- |
+| Phase 1 — Post-PR3 gate & recatalog   | pending | 2     | 0/2       |
+| Phase 2 — Convert suites to Vitest TS | pending | 3     | 0/3       |
+| Phase 3 — Retire runner + add guard   | pending | 2     | 0/2       |
+| Phase 4 — Docs & final verification   | pending | 3     | 0/3       |
 
-**Total:** 0/{N} tasks completed
+**Total:** 0/10 tasks completed
+
+> ⛔ **GATED:** Phase 1 cannot start until PR3 (`session-observer-ts-migration`) merges to `main` and this branch is rebased. HiLL checkpoint after `p01`.
 
 ---
 
-## Phase 1: {Phase Name}
+## Phase 1: Post-PR3 Gate & Recatalog
 
-**Status:** in_progress
-**Started:** 2026-06-18
+**Status:** pending (blocked on PR3 merge)
+**Started:** -
 
 ### Phase Summary (fill when phase is complete)
 

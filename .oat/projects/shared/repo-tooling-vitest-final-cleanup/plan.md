@@ -1,16 +1,16 @@
 ---
-oat_status: in_progress
-oat_ready_for: null
+oat_status: complete
+oat_ready_for: oat-project-implement
 oat_blockers: []
-oat_last_updated: 2026-06-18
+oat_last_updated: 2026-06-17
 oat_phase: plan
-oat_phase_status: in_progress
-oat_plan_hill_phases: [] # phases to pause AFTER completing (empty = every phase)
-oat_plan_parallel_groups: [] # groups of phases that run concurrently in worktrees; [] = fully sequential
-oat_plan_source: spec-driven # spec-driven | quick | imported
-oat_import_reference: null # e.g., references/imported-plan.md
-oat_import_source_path: null # original source path provided by user
-oat_import_provider: null # codex | cursor | claude | null
+oat_phase_status: complete
+oat_plan_hill_phases: ['p01'] # pause AFTER the post-PR3 gate so a human confirms PR3 landed + rebase is clean before any edit
+oat_plan_parallel_groups: [] # fully sequential — see ## Parallelism
+oat_plan_source: quick # spec-driven | quick | imported
+oat_import_reference: null
+oat_import_source_path: null
+oat_import_provider: null
 oat_generated: false
 ---
 
@@ -18,168 +18,441 @@ oat_generated: false
 
 > Execute this plan using `oat-project-implement` — sequential by default, parallel when `oat_plan_parallel_groups` is declared.
 
-**Goal:** {Brief goal statement from spec}
+**Goal:** Finish the TypeScript/Vitest migration (PR4): convert the remaining repo/tooling `.test.mjs` suites to Vitest `.test.ts`, retire the `node:test` compatibility runner, simplify `pnpm test` to Vitest-only, and add a guard that blocks new `node:test` / `.test.mjs` tests — all while preserving existing behavioral coverage.
 
-**Architecture:** {1-2 sentence architecture summary from design}
+**Architecture:** Dev-tooling-only change. Tests move from Node's built-in runner (`node --test`, `node:assert/strict`) to Vitest (`describe`/`it`/`expect`) under the existing `vitest.config.mjs`. Shipped runtime code is untouched.
 
-**Tech Stack:** {Key technologies from design}
+**Tech Stack:** Node >= 22, Vitest, TypeScript, pnpm, oxlint/oxfmt (dev tooling).
 
-**Commit Convention:** `{type}({scope}): {description}` - e.g., `feat(p01-t01): add user auth endpoint`
+**Commit Convention:** `{type}({scope}): {description}` — e.g. `test(p02-t01): convert manifest tooling suites to Vitest`. Conventional Commits enforced by the `commit-msg` hook.
 
 ## Planning Checklist
 
-- [ ] Confirmed HiLL checkpoints with user
-- [ ] Set `oat_plan_hill_phases` in frontmatter
-- [ ] Evaluated phases for parallelism opportunities
-- [ ] Set `oat_plan_parallel_groups` in frontmatter
+- [x] Confirmed HiLL checkpoints with user (gate after p01)
+- [x] Set `oat_plan_hill_phases` in frontmatter (`['p01']`)
+- [x] Evaluated phases for parallelism opportunities
+- [x] Set `oat_plan_parallel_groups` in frontmatter (`[]`)
+
+---
+
+## ⛔ Implementation Gate (read before starting)
+
+**Do not begin Phase 2 until Phase 1 completes.** Implementation is blocked until:
+
+1. PR3 (`session-observer-ts-migration`) is **merged to `main`**.
+2. This branch is **rebased onto latest `main`**.
+3. The `.test.mjs` catalog is **re-run against the real post-PR3 tree** and reconciled with this plan.
+4. Any assumption that PR3 invalidated is updated here before edits.
+
+Phase 1 is the hard gate and carries a HiLL checkpoint (`oat_plan_hill_phases: ['p01']`): `oat-project-implement` pauses after Phase 1 for human confirmation before any conversion edit.
 
 ---
 
 ## Parallelism
 
-Phases that have no overlapping file modifications may run concurrently. To declare parallelism:
+**Fully sequential (`oat_plan_parallel_groups: []`).** Reasoning:
 
-```yaml
-oat_plan_parallel_groups: [['p02', 'p03']]
-```
-
-Each inner array is a group of phases that execute in parallel (each in its own worktree) and merge back in plan order after all pass. Groups themselves run sequentially.
-
-Default is `[]` (fully sequential, no worktrees). Only declare parallelism when phases are genuinely file-disjoint — overlap will produce merge conflicts that stop the run.
+- **Phase 1 → everything:** the gate must complete (PR3 merged, rebase, recatalog) before any edit; nothing may run alongside it.
+- **Phase 2 → Phase 3:** the runner retirement and the guard depend on *zero* `.test.mjs` remaining. The guard would fail and `test:node` removal would be unsafe if any conversion were still outstanding.
+- **Phase 3 → Phase 4:** the docs/reference updates must describe the *final* `package.json` script shape, so they follow runner retirement.
+- Within Phase 2 the per-file conversions are file-disjoint, but they share one worktree and one test config; running them as sequential tasks (not parallel worktree phases) avoids worktree overhead with no real wall-clock loss. No fragile shared migration, generated artifact, or cross-phase test dependency justifies declaring parallel groups.
 
 ---
 
 ## Dispatch Profile
 
-_Optional override surface. Use only for explicit user-authored constraints or preferences. Omit this section when runtime selection should choose the lowest confident tier._
-
-Blank or `auto` means there is no explicit constraint for that provider. Do not generate rows by default; a missing phase row uses runtime selection.
-
-| Phase | Claude model              | Codex effort                   | Rationale                     |
-| ----- | ------------------------- | ------------------------------ | ----------------------------- |
-| pNN   | haiku\|sonnet\|opus\|auto | low\|medium\|high\|xhigh\|auto | why this constraint is needed |
-
-Codex effort values are preferred controls. `oat-project-implement` caps them against the resolved OAT dispatch ceiling and maps selected efforts to pinned implementer variants. Codex provider default effort is informational for base/unpinned roles and is not an OAT ceiling.
+_No per-phase overrides. Runtime selection applies, capped by the resolved OAT dispatch ceiling in `state.md`._
 
 ---
 
-## Phase 1: {Phase Name}
+## Phase 1: Post-PR3 Gate & Recatalog (HARD FIRST — blocking)
 
-### Task p01-t01: {Task Name}
+No conversion edits in this phase. This phase reconciles the plan with reality after PR3 lands.
+
+### Task p01-t01: Confirm PR3 merged and rebase onto latest main
 
 **Files:**
 
-- Create: `{path/to/file.ts}`
-- Modify: `{path/to/existing.ts}`
+- None (git + verification only)
 
-**Step 1: Write test (RED)**
+**Step 1: Confirm PR3 landed**
+
+```bash
+git fetch origin
+# PR3 = session-observer-ts-migration. Confirm its commits are on main:
+git log origin/main --oneline | grep -i "session-observer" | head
+```
+
+Expected: session-observer TypeScript/Vitest migration commit(s) present on `origin/main`. If absent, **STOP** — the gate is not satisfied; PR3 has not landed.
+
+**Step 2: Rebase this branch onto latest main**
+
+```bash
+git rebase origin/main
+```
+
+Expected: clean rebase. Resolve any conflicts (most likely in `package.json` test scripts, `vitest.config.mjs`, `tests/AGENTS.md`, or `.oat/repo/reference/*`), preferring the landed PR3 state, then continue.
+
+**Step 3: Verify post-rebase baseline is green**
+
+Run: `pnpm install && pnpm run test`
+Expected: full suite passes on the rebased baseline (session-observer now under Vitest; repo/tooling suites still under `test:node`).
+
+**Step 4: Commit**
+
+No code change to commit; the rebase updates branch state. If conflict resolutions were made, they are captured by the rebase. Do not create an empty commit.
+
+---
+
+### Task p01-t02: Recatalog `.test.mjs` and reconcile assumptions
+
+**Files:**
+
+- Modify (only if drift found): `discovery.md`, `plan.md`
+
+**Step 1: Recatalog remaining `.test.mjs`**
+
+```bash
+find tests -name '*.test.mjs' -type f | sort
+find tests/session-observer -name '*.test.mjs' -type f   # MUST be empty
+grep -rl "node:test" tests/ scripts/ tools/ | sort
+```
+
+Expected:
+
+- `tests/session-observer/**/*.test.mjs` → **empty**. If any remain, this is a **BLOCKER** for retiring `test:node`; record it in `state.md` `oat_blockers` and stop.
+- Remaining `.test.mjs` should be exactly the 13 repo/tooling files (the 12 `node:test` suites + `generated-output-sync.test.mjs`). Confirm none unexpectedly appeared or disappeared.
+- No `node:test` import outside `tests/**`.
+
+**Step 2: Reconcile assumptions**
+
+Compare the live catalog against `discovery.md` "Assumptions". For any drift (PR3 touched `package.json` test scripts, renamed `generated-output-sync`, left a `.mjs`, changed `vitest.config.mjs`), update this plan's later tasks before proceeding.
+
+**Step 3: Verify**
+
+Run: `git status --porcelain` (clean except any plan/discovery reconciliation edits)
+Expected: catalog matches plan; assumptions reconciled.
+
+**Step 4: Commit (only if reconciliation edits were made)**
+
+```bash
+git add discovery.md plan.md
+git commit -m "docs(p01-t02): reconcile PR4 plan with post-PR3 test layout"
+```
+
+> **HiLL checkpoint:** implementation pauses here for human confirmation that the gate is satisfied before Phase 2.
+
+---
+
+## Phase 2: Convert repo/tooling suites to Vitest TypeScript
+
+Uniform transform per file: rename `*.test.mjs` → `*.test.ts`; replace `import test from 'node:test'` / `import { test, describe } from 'node:test'` with `import { describe, it, test, expect, beforeAll, afterAll } from 'vitest'` (import only what each file uses); replace `node:assert/strict` assertions with Vitest `expect`; keep all relative import paths, subprocess spawns, and `mkdtemp` fixture behavior byte-for-byte equivalent. Use `git mv` so history is preserved.
+
+### Task p02-t01: Convert manifest/structure tooling suites (9 files)
+
+**Files (rename `.test.mjs` → `.test.ts`):**
+
+- `tests/docs-presence.test.{mjs→ts}`
+- `tests/host-dispatch-docs.test.{mjs→ts}`
+- `tests/marketplace-manifests.test.{mjs→ts}`
+- `tests/package-metadata.test.{mjs→ts}`
+- `tests/plugin-manifests.test.{mjs→ts}`
+- `tests/readme-scope.test.{mjs→ts}`
+- `tests/release-versioning.test.{mjs→ts}`
+- `tests/repo-layout.test.{mjs→ts}`
+- `tests/skill-frontmatter.test.{mjs→ts}`
+
+**Step 1: Convert (RED→GREEN per file)**
+
+For each file: `git mv` to `.test.ts`, swap `node:test`/`node:assert` imports for Vitest, translate assertions (`assert.equal`→`expect(x).toBe(y)`, `assert.ok`→`expect(x).toBeTruthy()`, `assert.deepEqual`→`expect(x).toEqual(y)`, `assert.match`→`expect(x).toMatch(y)`, `assert.throws`→`expect(fn).toThrow()`). Preserve test names and structure 1:1.
+
+Run (scoped): `pnpm run test:vitest -- tests/docs-presence.test.ts tests/host-dispatch-docs.test.ts tests/marketplace-manifests.test.ts tests/package-metadata.test.ts tests/plugin-manifests.test.ts tests/readme-scope.test.ts tests/release-versioning.test.ts tests/repo-layout.test.ts tests/skill-frontmatter.test.ts`
+Expected: all converted suites pass; assertion counts/cases match the originals.
+
+**Step 2: Verify**
+
+Run: `pnpm run type-check && pnpm exec oxlint tests/docs-presence.test.ts tests/host-dispatch-docs.test.ts tests/marketplace-manifests.test.ts tests/package-metadata.test.ts tests/plugin-manifests.test.ts tests/readme-scope.test.ts tests/release-versioning.test.ts tests/repo-layout.test.ts tests/skill-frontmatter.test.ts`
+Expected: no type or lint errors.
+
+**Step 3: Commit**
+
+```bash
+git add tests/docs-presence.test.ts tests/host-dispatch-docs.test.ts tests/marketplace-manifests.test.ts tests/package-metadata.test.ts tests/plugin-manifests.test.ts tests/readme-scope.test.ts tests/release-versioning.test.ts tests/repo-layout.test.ts tests/skill-frontmatter.test.ts
+git commit -m "test(p02-t01): convert manifest/structure tooling suites to Vitest"
+```
+
+---
+
+### Task p02-t02: Convert script-behavior tooling suites (3 files)
+
+**Files (rename `.test.mjs` → `.test.ts`):**
+
+- `tests/install-paseo.test.{mjs→ts}`
+- `tests/smoke-test-script.test.{mjs→ts}`
+- `tests/validate-script.test.{mjs→ts}`
+
+**Step 1: Convert**
+
+Same uniform transform. These exercise repo scripts (`install`, `smoke-test`, `validate`); keep any process/exit-code and filesystem fixture assertions behaviorally identical — translate the *assertion* surface only, never the *behavior* under test.
+
+Run (scoped): `pnpm run test:vitest -- tests/install-paseo.test.ts tests/smoke-test-script.test.ts tests/validate-script.test.ts`
+Expected: all three pass with identical coverage.
+
+**Step 2: Verify**
+
+Run: `pnpm run type-check && pnpm exec oxlint tests/install-paseo.test.ts tests/smoke-test-script.test.ts tests/validate-script.test.ts`
+Expected: no type or lint errors.
+
+**Step 3: Commit**
+
+```bash
+git add tests/install-paseo.test.ts tests/smoke-test-script.test.ts tests/validate-script.test.ts
+git commit -m "test(p02-t02): convert script-behavior tooling suites to Vitest"
+```
+
+---
+
+### Task p02-t03: Convert `generated-output-sync` and drop its special config include
+
+**Files:**
+
+- Rename: `tests/generated-output-sync.test.{mjs→ts}` (already uses Vitest imports — rename + type-clean only; no node:test to remove)
+- Modify: `vitest.config.mjs` (remove the special-cased `tests/generated-output-sync.test.mjs` entry from `include`; `tests/**/*.test.ts` now covers it)
+
+**Step 1: Convert**
+
+`git mv tests/generated-output-sync.test.mjs tests/generated-output-sync.test.ts`. Resolve any TypeScript-only issues (typed `spawnSync` results, etc.). Remove the `'tests/generated-output-sync.test.mjs'` line from `vitest.config.mjs` `include`.
+
+Run (scoped): `pnpm run test:vitest -- tests/generated-output-sync.test.ts`
+Expected: drift guard passes and is now discovered via the standard glob.
+
+**Step 2: Verify discovery + no stray `.test.mjs`**
+
+Run: `find tests -name '*.test.mjs' -type f` → expected **empty**. Then `pnpm run type-check`.
+Expected: zero `.test.mjs` remain anywhere under `tests/`; no type errors. A non-empty result means either a file from this phase wasn't converted, or an uncataloged stray slipped through — in the latter case stop and revisit the p01-t02 recatalog/reconcile step rather than blindly converting a surprise file.
+
+**Step 3: Commit**
+
+```bash
+git add tests/generated-output-sync.test.ts vitest.config.mjs
+git commit -m "test(p02-t03): convert generated-output-sync to Vitest TS and drop config special-case"
+```
+
+---
+
+## Phase 3: Retire `node:test` runner, add guard, simplify `pnpm test`
+
+### Task p03-t01: Add the no-new-`node:test` guard (Vitest meta-test)
+
+**Files:**
+
+- Create: `tests/tooling/no-node-test-runner.test.ts`
+
+**Step 1: Write the guard (GREEN — zero `.test.mjs` now remain)**
 
 ```typescript
-// {path/to/file.test.ts}
-describe('{feature}', () => {
-  it('{test case}', () => {
-    // Test implementation
+// tests/tooling/no-node-test-runner.test.ts
+import { readFileSync } from 'node:fs';
+import { glob } from 'node:fs/promises'; // or a small recursive walk if glob unavailable on Node 22
+import { describe, expect, it } from 'vitest';
+
+// Documented allowlist. Expected empty — any addition must be justified here.
+const ALLOWED_MJS_TESTS: string[] = [];
+
+describe('test-runner policy', () => {
+  it('has no tests/**/*.test.mjs (Vitest-only)', async () => {
+    const stray: string[] = [];
+    for await (const f of glob('tests/**/*.test.mjs')) {
+      if (!ALLOWED_MJS_TESTS.includes(f)) stray.push(f);
+    }
+    expect(stray).toEqual([]);
+  });
+
+  it('no test source imports node:test', async () => {
+    const offenders: string[] = [];
+    for await (const f of glob('tests/**/*.test.{ts,mts,mjs}')) {
+      const src = readFileSync(f, 'utf8');
+      if (/from\s+['"]node:test['"]/.test(src)) offenders.push(f);
+    }
+    expect(offenders).toEqual([]);
   });
 });
 ```
 
-Run: `pnpm --filter {package-name} exec vitest run {path/to/file.test.ts}`
-Expected: Test fails (RED)
+> **Prefer a small `readdir` recursion over `node:fs/promises` `glob`** for the committed guard — `fs.glob` is still experimental on Node 22 and emits an `ExperimentalWarning` under `pnpm test`. Follow the existing `tests/tooling/vitest-config.test.ts` style. Scope the `node:test` scan to actual `from 'node:test'` import statements so doc snippets / fixture strings never trip it.
 
-**Step 2: Implement (GREEN)**
+Run (scoped): `pnpm run test:vitest -- tests/tooling/no-node-test-runner.test.ts`
+Expected: both assertions pass (no `.test.mjs`, no `node:test` imports).
 
-```typescript
-// {path/to/file.ts}
-// Implementation code or interface signatures
-```
+**Step 2: Verify the guard actually fails on reintroduction**
 
-Run: `pnpm --filter {package-name} exec vitest run {path/to/file.test.ts}`
-Expected: Test passes (GREEN)
+Temporarily create a throwaway `tests/_guard-probe.test.mjs` containing `import test from 'node:test'`, rerun the guard, confirm **both** assertions fail, then delete the probe. (Manual sanity check — do not commit the probe.)
 
-Use the actual runner command that scopes to the intended file or test target. Do not write a package-level shortcut unless it truly executes only the scope the task claims.
+**Step 3: Verify**
 
-**Step 3: Refactor**
+Run: `pnpm run type-check && pnpm exec oxlint tests/tooling/no-node-test-runner.test.ts`
+Expected: no errors.
 
-{Any cleanup or improvements while tests stay green}
-
-**Step 4: Verify**
-
-Run: `pnpm lint && pnpm type-check`
-Expected: No errors
-
-**Step 5: Commit**
+**Step 4: Commit**
 
 ```bash
-git add {files}
-git commit -m "feat(p01-t01): {description}"
+git add tests/tooling/no-node-test-runner.test.ts
+git commit -m "test(p03-t01): guard against new node:test / .test.mjs tests"
 ```
 
 ---
 
-### Task p01-t02: {Task Name}
+### Task p03-t02: Remove `test:node` and simplify `pnpm test` to Vitest-only
 
 **Files:**
 
-- {File list}
+- Modify: `package.json` (remove `test:node`; set `test` to the Vitest runner; keep `test:vitest` or inline it)
 
-**Step 1: Write test (RED)**
+**Step 1: Edit scripts**
 
-{Test code}
+Set:
 
-**Step 2: Implement (GREEN)**
+```json
+"test": "pnpm run test:vitest",
+"test:vitest": "node scripts/run-vitest.mjs"
+```
 
-{Implementation code or signatures}
+Remove the `test:node` line entirely. (Keep `test:vitest` as the single source of the Vitest invocation; `test` delegates to it. Do not alter `scripts/run-vitest.mjs` behavior.)
 
-**Step 3: Refactor**
+Run: `pnpm run test`
+Expected: Vitest runs the entire suite (all converted repo/tooling suites + session-observer + consensus/transcript) and passes; `test:node` no longer referenced.
 
-{Optional cleanup}
+**Step 2: Verify no dangling references**
 
-**Step 4: Verify**
+Run: `grep -rn "test:node\|node --test" package.json .github/ scripts/ tools/ README.md AGENTS.md tests/AGENTS.md`
+Expected: no remaining references to `test:node` / `node --test`. Note: the **only** references in the repo today are the two `package.json` lines being removed — CI `.github/workflows/validate.yml` invokes `pnpm run test` (not `test:node`), and the git hooks under `tools/` don't reference the runner. A clean grep after the `package.json` edit is the expected terminal state, not a signal to edit CI/hooks. Fix any unexpected straggler if one appears.
 
-Run: `{verification command}`
-Expected: {output}
+**Step 3: Verify full premerge slice**
 
-Verification commands should be behaviorally accurate. If the task claims a file-scoped or test-scoped check, use the concrete runner invocation that really scopes to that target.
+Run: `pnpm run build && pnpm run type-check && pnpm run build:check && pnpm run test && pnpm run validate && pnpm run smoke`
+Expected: all green.
 
-**Step 5: Commit**
+**Step 4: Commit**
 
 ```bash
-git add {files}
-git commit -m "feat(p01-t02): {description}"
+git add package.json
+git commit -m "build(p03-t02): retire node:test runner; pnpm test runs Vitest only"
 ```
 
 ---
 
-## Phase 2: {Phase Name}
+## Phase 4: Docs & reference updates
 
-### Task p02-t01: {Task Name}
+### Task p04-t01: Update test guidance docs
 
-{Continue TDD pattern...}
+**Files:**
+
+- Modify: `tests/AGENTS.md` (rewrite "How tests are written today" to Vitest-only — `import { describe, it, expect } from 'vitest'`; drop the `node:test`/`node:assert/strict` guidance; note the guard and that all suites run under one Vitest runner)
+- Modify (if PR3 left stale references): `AGENTS.md`, `README.md` (ensure no `test:node` / "Node built-in runner" language; `pnpm test` described as Vitest-only)
+
+**Step 1: Edit docs**
+
+Reconcile with whatever PR3 already updated — do not duplicate or contradict landed PR3 wording; only remove now-stale `node:test` references and describe the final single-runner setup.
+
+**Step 2: Verify**
+
+Run: `pnpm run test:vitest -- tests/docs-presence.test.ts tests/readme-scope.test.ts` (the doc/readme invariant suites) and `pnpm exec oxfmt --check tests/AGENTS.md README.md` only if these paths are not in the format-exclusion set.
+Expected: doc-presence/readme suites pass; no stale references.
+
+> Note: `AGENTS.md` (every level) is excluded from oxfmt/oxlint per repo conventions — do **not** format it. Only `README.md` (and other non-excluded docs) may be format-checked.
+
+**Step 3: Commit**
+
+```bash
+git add tests/AGENTS.md AGENTS.md README.md
+git commit -m "docs(p04-t01): document Vitest-only test runner"
+```
+
+---
+
+### Task p04-t02: Update repo reference + backlog progress
+
+**Files:**
+
+- Modify: `.oat/repo/reference/current-state.md` (replace "remaining Node `node:test` files plus Vitest" language with Vitest-only; bump "Last updated" with a one-line PR4 note)
+- Modify: `.oat/repo/reference/backlog/items/adopt-typescript-vitest-build-toolchain.md` + `.oat/repo/reference/backlog/index.md` (record the runner-retirement milestone as done; regenerate index if the item's status changed)
+
+**Step 1: Edit reference artifacts**
+
+Use `oat-pjm-update-repo-reference` if available to keep the backlog index regeneration consistent; otherwise edit the item file and regenerate the index per repo convention.
+
+**Step 2: Verify**
+
+Run: `pnpm run validate`
+Expected: structure/manifest/docs invariants pass (reference docs well-formed).
+
+**Step 3: Commit**
+
+```bash
+git add .oat/repo/reference/current-state.md .oat/repo/reference/backlog/
+git commit -m "docs(p04-t02): record Vitest runner retirement in repo reference"
+```
+
+---
+
+### Task p04-t03: Final full verification
+
+**Files:**
+
+- None (verification only)
+
+**Step 1: Run the full verification plan**
+
+Full-tree checks (safe to run unscoped):
+
+```bash
+pnpm run build
+pnpm run type-check
+pnpm run build:check
+pnpm run test
+pnpm run validate
+pnpm run smoke
+```
+
+Lint/format are **scoped to this PR's changed files only** — `pnpm run lint` (`oxlint`) and `pnpm run format:check` (`oxfmt --check .`) operate over the whole tree, and per `CLAUDE.md` adoption is incremental (CI lints/format-checks only changed files; do not run repo-wide oxfmt on the not-yet-formatted tree). Mirror CI by scoping:
+
+```bash
+# Changed files this PR: converted tests/*.test.ts, the new guard, vitest.config.mjs,
+# README.md, and non-excluded reference docs. Exclude AGENTS.md (oxfmt/oxlint-excluded at every level).
+pnpm exec oxlint <changed .ts / .mjs paths>
+pnpm exec oxfmt --check <changed non-excluded paths>
+```
+
+Expected: all green. Then assert acceptance criteria mechanically:
+
+```bash
+find tests -name '*.test.mjs' -type f          # empty
+grep -rn "node:test" tests/                      # no import matches
+grep -n "test:node" package.json                 # no match
+```
+
+Expected: empty / no matches.
+
+**Step 2: Commit**
+
+No code change. If `worktree:validate` surfaced generated drift, fix it under the appropriate task instead of here.
 
 ---
 
 ## Reviews
 
-{Track reviews here after running the oat-project-review-provide and oat-project-review-receive skills.}
-
-{Keep both code + artifact rows below. Add additional code rows (p03, p04, etc.) as needed, but do not delete `spec`/`design`.}
-
-| Scope  | Type     | Status  | Date | Artifact |
-| ------ | -------- | ------- | ---- | -------- |
-| p01    | code     | pending | -    | -        |
-| p02    | code     | pending | -    | -        |
-| final  | code     | pending | -    | -        |
-| spec   | artifact | pending | -    | -        |
-| design | artifact | pending | -    | -        |
+| Scope  | Type     | Status  | Date       | Artifact |
+| ------ | -------- | ------- | ---------- | -------- |
+| p01    | code     | pending | -          | -        |
+| p02    | code     | pending | -          | -        |
+| p03    | code     | pending | -          | -        |
+| p04    | code     | pending | -          | -        |
+| final  | code     | pending | -          | -        |
+| plan   | artifact | passed  | 2026-06-17 | in-memory (oat-reviewer); I1 Important applied, M1–M3 clarifications applied |
+| spec   | artifact | n/a     | -          | quick mode — no spec |
+| design | artifact | n/a     | -          | quick mode — no design |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
-
-**Meaning:**
-
-- `received`: review artifact exists (not yet converted into fix tasks)
-- `fixes_added`: fix tasks were added to the plan (work queued)
-- `fixes_completed`: fix tasks implemented, awaiting re-review
-- `passed`: re-review run and recorded as passing (no Critical/Important)
 
 ---
 
@@ -187,10 +460,12 @@ git commit -m "feat(p01-t02): {description}"
 
 **Summary:**
 
-- Phase 1: {N} tasks - {Description}
-- Phase 2: {N} tasks - {Description}
+- Phase 1: 2 tasks — post-PR3 gate, rebase, recatalog, reconcile assumptions (HiLL checkpoint).
+- Phase 2: 3 tasks — convert all 13 repo/tooling `.test.mjs` to Vitest `.test.ts`; drop the `generated-output-sync` config special-case.
+- Phase 3: 2 tasks — add the no-`node:test` guard; retire `test:node`; `pnpm test` runs Vitest only.
+- Phase 4: 3 tasks — docs (`tests/AGENTS.md`/README), repo reference + backlog, final full verification.
 
-**Total: {N} tasks**
+**Total: 10 tasks**
 
 Ready for code review and merge.
 
@@ -198,7 +473,8 @@ Ready for code review and merge.
 
 ## References
 
-- Design: `design.md` (required in spec-driven mode; optional in quick/import mode)
-- Spec: `spec.md` (required in spec-driven mode; optional in quick/import mode)
 - Discovery: `discovery.md`
-- Imported Source: `references/imported-plan.md` (when `oat_plan_source: imported`)
+- PR3 (dependency) artifacts: `/Users/tstang/Code/session-observer-ts/.oat/projects/shared/session-observer-ts-migration/plan.md`
+- Repo conventions: `CLAUDE.md`, `tests/AGENTS.md`, `.oat/repo/reference/current-state.md`
+- Design: `design.md` (not used — quick mode)
+- Spec: `spec.md` (not used — quick mode)
