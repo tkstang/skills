@@ -1,5 +1,5 @@
 ---
-oat_status: in_progress
+oat_status: complete
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-18
@@ -262,26 +262,48 @@ Track test execution during implementation.
 
 ## Final Summary (for PR/docs)
 
-**What shipped:**
+**What shipped (PR4 — final TypeScript/Vitest cleanup):**
 
-- {capability 1}
-- {capability 2}
+- Converted the remaining 13 repo/tooling `.test.mjs` suites to Vitest `.test.ts` (incl. `generated-output-sync`, dropping its `vitest.config.mjs` special-case include).
+- Harmonized the 9 session-observer `.test.ts` suites from `node:assert/strict` to Vitest `expect`, so the entire `tests/**` suite now uses one assertion convention.
+- Retired the `node:test` compatibility runner: removed `test:node` from `package.json`; `pnpm test` now runs Vitest only (`pnpm run test:vitest`).
+- Added a guard (`tests/tooling/no-node-test-runner.test.ts`) that fails if any `tests/**/*.test.mjs` reappears or any test source imports `node:test`/`node:assert` — enforced as part of `pnpm test`.
+- Updated docs/reference to the Vitest-only reality: `tests/AGENTS.md` (flipped from mixed-runner to single-runner), root `AGENTS.md`, `README.md`, `.oat/repo/reference/current-state.md`, and the TS/Vitest backlog item (runner-retirement milestone marked done).
 
 **Behavioral changes (user-facing):**
 
-- {bullet}
+- Developer workflow: `pnpm test` is a single Vitest run (previously `test:node && test:vitest`). No behavior change to shipped skills/plugins — this is dev tooling only.
+- New CI/local guardrail: reintroducing a `node:test` runner, a `node:assert` import in tests, or a `.test.mjs` test file now fails the suite.
 
 **Key files / modules:**
 
-- `{path}` - {purpose}
+- `tests/*.test.ts` (13 converted) + `tests/session-observer/*.test.ts` (9 harmonized) — assertion/runner surface only; behavior preserved 1:1.
+- `tests/tooling/no-node-test-runner.test.ts` — new guard.
+- `package.json`, `vitest.config.mjs` — runner retirement + config cleanup.
+- `tests/AGENTS.md`, `AGENTS.md`, `README.md`, `.oat/repo/reference/{current-state.md,backlog/*}` — docs.
 
 **Verification performed:**
 
-- {tests/lint/typecheck/build/manual steps}
+- Full gate green: `pnpm run build`, `type-check`, `build:check` (15/15 in sync), `test` (53 files / 572 tests under Vitest), `validate`, `smoke`; scoped `oxlint`/`oxfmt --check` on changed files.
+- Acceptance criteria confirmed: zero `.test.mjs`, zero actual `node:test`/`node:assert` imports in tests, no `test:node` in `package.json`.
+- Guard fail-on-reintroduction independently verified twice (p03 review + final review) via throwaway probe.
+- Final review (scope `final`, opus): PASS — 0 Critical / 0 Important; 2 Minor deferred (out of PR4 scope).
 
-**Design deltas (if any):**
+**Design deltas:** None vs plan approach. Two in-scope task-boundary deltas (test-contract updates that accompanied source changes) recorded in `## Deviations from Plan / Design`: `tests/package-metadata.test.ts` (p03-t02) and `tests/docs-presence.test.ts` (p04-t01).
 
-- {what changed vs design.md and why}
+---
+
+### Review Received: final (code, auto)
+
+**Date:** 2026-06-18
+**Review artifact:** reviews/archived/final-review-2026-06-18.md
+**Findings:** Critical 0 · Important 0 · Medium 0 · Minor 2 → **PASS**
+
+**Disposition (auto-review at p04 HiLL checkpoint):** No fix tasks. Both minors deferred with rationale (clearly out of PR4 scope):
+- `m1` — three `assert.notEqual`→`not.toBe` sites on same-typed primitives (loose vs strict identical here); non-defect, recorded for completeness.
+- `m2` — harmonization added `as any` casts on nullable API returns; pragmatic, truthiness-guarded shims masking no defect. Future typing pass (out of scope) could tighten to `api(...)!` + real return types.
+
+**Next:** Implementation complete; final review passed. Paused at the `p04` HiLL checkpoint awaiting user direction (summary / docs / PR).
 
 ## References
 
