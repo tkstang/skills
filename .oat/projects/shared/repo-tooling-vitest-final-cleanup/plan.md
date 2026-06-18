@@ -552,7 +552,7 @@ No code change. If `worktree:validate` surfaced generated drift, fix it under th
 | p03    | code     | pending | -          | -        |
 | p04    | code     | pending | -          | -        |
 | final  | code     | pending | -          | -        |
-| plan   | artifact | passed  | 2026-06-17 | in-memory (oat-reviewer); I1 Important + M1–M3 applied. Scope later expanded (session-observer `expect` harmonization, p02-t04/t05) by user direction after review — mechanical assertion-only change, same gate/risk profile. |
+| plan   | artifact | received | 2026-06-18 | reviews/artifact-plan-review-2026-06-18.md |
 | spec   | artifact | n/a     | -          | quick mode — no spec |
 | design | artifact | n/a     | -          | quick mode — no design |
 
