@@ -59,7 +59,7 @@ This plan was reconciled against PR3's **merged** implementation (the branch is 
 - 🔄 **CORRECTION — PR3 DID rewrite `tests/AGENTS.md`** (earlier pre-merge worktree diff showed it untouched; the merged PR includes the change). It is **no longer** the stale "node:test is primary" doc — it now describes the **mixed-runner interim contract** and explicitly says *"Do not simplify `pnpm test` to Vitest-only or remove `test:node` until the remaining legacy suites are migrated."* PR4's p04-t01 is therefore **still required but refined**: it *completes* the migration this doc anticipates (flip the "don't remove test:node yet" guidance to the final Vitest-only state) rather than rewriting a stale doc. See p04-t01 for the exact edits.
 - ✅ **Assertion-style harmonization (IN scope):** PR3 kept `node:assert/strict` in the 9 session-observer suites; the rest of the repo uses `expect`. PR4 harmonizes those 9 to `expect` (p02-t04/t05); the guard (p03-t01) enforces it. _Confirmed: exactly 9 `node:assert` `.test.ts` files, all under `tests/session-observer/`._
 
-**Gate status:** rebase clean, recatalog matches, assumptions reconciled (one corrected). Phase 1 reconciliation is satisfied. The HiLL checkpoint is now configured for the **final phase only** (`p04`); the project is currently awaiting user go-ahead to begin Phase 2, after which Phases 2–4 run through to the single `p04` checkpoint.
+**Gate status (historical):** rebase clean, recatalog matched, assumptions reconciled (one corrected). Phase 1 reconciliation was satisfied; the HiLL checkpoint was configured for the final phase only (`p04`). Phases 2–4 subsequently ran to completion and the final review passed — see `## Reviews` and `## Implementation Complete`. PR #18 is open.
 
 ---
 
@@ -565,7 +565,7 @@ No code change. If `worktree:validate` surfaced generated drift, fix it under th
 | p02    | code     | passed  | 2026-06-18 | in-memory (oat-reviewer, opus); 0 Crit/0 Imp; m1/m2 minor (non-blocking) |
 | p03    | code     | passed  | 2026-06-18 | in-memory (oat-reviewer, opus); 0 Crit/0 Imp; guard fail-on-reintroduction independently verified; m1 minor |
 | p04    | code     | passed  | 2026-06-18 | covered by final review (oat-reviewer, opus) |
-| final  | code     | received | 2026-06-18 | reviews/final-review-2026-06-18-v2.md |
+| final  | code     | passed   | 2026-06-18 | reviews/archived/final-review-2026-06-18-v2.md (re-review: 0 Crit/0 Imp; M1 medium — stale plan text — resolved via artifact alignment). Prior: reviews/archived/final-review-2026-06-18.md |
 | plan   | artifact | passed   | 2026-06-18 | reviews/archived/artifact-plan-review-2026-06-18.md (I1 + M1 + M2 resolved in artifacts) |
 | spec   | artifact | n/a     | -          | quick mode — no spec |
 | design | artifact | n/a     | -          | quick mode — no design |
@@ -585,7 +585,7 @@ No code change. If `worktree:validate` surfaced generated drift, fix it under th
 
 **Total: 12 tasks**
 
-Ready for implementation once the Phase 1 PR3 gate and HiLL checkpoint conditions are satisfied (PR3 merged → rebase → recatalog).
+Implementation complete (2026-06-18): all 12 tasks across 4 phases done, final code review re-run and passed (0 Critical / 0 Important). PR #18 is open against `main` and awaiting human review.
 
 ---
 

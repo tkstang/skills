@@ -305,6 +305,21 @@ Track test execution during implementation.
 
 **Next:** Implementation complete; final review passed. Paused at the `p04` HiLL checkpoint awaiting user direction (summary / docs / PR).
 
+---
+
+### Review Received: final (code, manual re-review — post-PR)
+
+**Date:** 2026-06-18
+**Review artifact:** reviews/archived/final-review-2026-06-18-v2.md
+**Findings:** Critical 0 · Important 0 · Medium 1 · Minor 0 → **PASS** (after alignment)
+
+Independent re-review of the full PR4 branch with fresh `type-check`/`build:check`/`test`/`validate`/`smoke` and a live guard probe. No code defects. Prior deferred minors `m1`/`m2` re-evaluated and re-confirmed acceptable (no action).
+
+**Design drift / artifact alignment note:**
+- `M1` (Medium) — `plan.md` "Implementation Complete" readiness line (and the paired "Gate status" line) still said the project was awaiting Phase 2 / ready-for-implementation. This was stale lifecycle text relative to the shipped state (implementation complete, final review passed, PR #18 open). **Disposition:** `artifact_alignment_required` — the implementation + `state.md` are source of truth; the stale `plan.md` text was aligned directly (no code change). Applied this session, not deferred. Confirmed by the reviewer's own recommendation to apply the fix.
+
+**Next:** PR #18 remains open for human review. Use `oat-project-revise` for feedback or `oat-project-complete` when approved.
+
 ## References
 
 - Plan: `plan.md`
