@@ -554,6 +554,7 @@ git commit -m "fix(p05-t01): tighten session-observer TypeScript boundaries"
 | p03    | code     | passed  | 2026-06-18 | reviews/archived/code-p03-review-2026-06-18.md |
 | p04    | code     | passed  | 2026-06-18 | reviews/archived/code-p04-final-review-2026-06-18.md |
 | final  | code     | passed | 2026-06-18 | reviews/archived/final-review-2026-06-18.md |
+| final  | code     | received | 2026-06-17 | reviews/final-review-2026-06-17.md |
 | plan   | artifact | passed  | 2026-06-17 | reviews/archived/artifact-plan-review-2026-06-17.md |
 | spec   | artifact | pending | -          | N/A - quick mode |
 | design | artifact | pending | -          | N/A - quick mode |
