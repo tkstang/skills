@@ -117,13 +117,23 @@ Runs under `pnpm validate` / `premerge`. Centralizes repo invariants but is fart
 - Repo-wide formatting sweep.
 - Re-architecting `scripts/run-vitest.mjs` beyond what Vitest-only `test` requires.
 
-## Assumptions (to validate at post-PR3 refresh)
+## Assumptions — reconciled against PR3's *actual* implementation (2026-06-17)
 
-- PR3 converts all 9 session-observer suites to `.test.ts` and deletes the `.mjs` originals (verified in PR3 `plan.md`, but must be re-confirmed against landed `main`).
-- PR3 does **not** modify `package.json` test scripts (verified: PR3 plan explicitly defers `test:node` removal to PR4).
-- PR3 leaves `generated-output-sync.test.mjs` as `.mjs` (verified in PR3 plan).
-- After PR3, the only remaining `.test.mjs` are the 13 repo/tooling files above.
-- `tests/AGENTS.md` still documents `node:test` as the primary style and needs rewriting for Vitest-only.
+Cross-checked against the `session-observer-ts` worktree diff (`origin/main...HEAD`), i.e. PR3's committed code, not just its plan:
+
+- ✅ PR3 converts all 9 session-observer suites to `.test.ts` and deletes the `.mjs` originals — **confirmed in the diff** (renames + `test(p02): retire session-observer node-test files`).
+- ✅ PR3 does **not** modify `package.json` — **confirmed** (not in diff); the mixed runner is intact for PR4 to retire.
+- ✅ PR3 does **not** modify `vitest.config.mjs` — **confirmed** (not in diff); the `generated-output-sync` special-case include remains for PR4 to remove.
+- ✅ `tests/AGENTS.md` is **untouched** by PR3 — **confirmed** (empty diff); still documents `node:test`, so PR4's rewrite is required.
+- ⚠️ PR3 **modified** `tests/generated-output-sync.test.mjs` (+~87 lines for session-observer mappings) — PR4 converts the *post-PR3* version. Re-confirm at the gate.
+- ⚠️ PR3 already edited root `AGENTS.md`, `README.md`, `current-state.md`, `roadmap.md`, backlog — PR4 docs layer on top, not restate.
+- After PR3, the only remaining `.test.mjs` are the 13 repo/tooling files above (still must re-confirm none stray in post-rebase tree).
+
+### New findings from the PR3 implementation review (folded into the plan)
+
+- **Shared helper `tests/helpers/process.mjs`** (typed via `tests/helpers/process.d.mts`) is imported by `smoke-test-script` and already by `tests/parallel-integration.test.ts` — proving a `.test.ts` can import this `.mjs` helper via its `.d.mts` shim. **Decision:** keep the helper as `.mjs` (the guard only targets `*.test.mjs`); converting `smoke-test-script.test.ts` leaves the import unchanged. No new helper-conversion work.
+- **Assertion convention:** existing `.test.ts` are unanimous — 0 use `node:assert`, 45 use Vitest `expect`. PR4 uses `expect` (matches brief + dominant convention). PR3 kept `node:assert/strict` in session-observer suites, creating a transient two-style split; **harmonizing session-observer is out of PR4 scope** (deferred-ideas candidate).
+- **Module-specifier convention:** PR3 imports TS source with `.js` specifiers (e.g. `../../src/.../state.js`) and helpers as `./helpers/x.js`. Repo/tooling tests import real `.mjs` runtime/scripts, which stay `.mjs` — no specifier rewrites needed there.
 
 ## Risks
 

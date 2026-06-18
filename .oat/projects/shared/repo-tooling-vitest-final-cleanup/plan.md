@@ -46,6 +46,19 @@ oat_generated: false
 
 Phase 1 is the hard gate and carries a HiLL checkpoint (`oat_plan_hill_phases: ['p01']`): `oat-project-implement` pauses after Phase 1 for human confirmation before any conversion edit.
 
+### Pre-reconciliation vs landed PR3 implementation (reviewed 2026-06-17, against the `session-observer-ts` worktree diff `origin/main...HEAD`)
+
+This plan was already cross-checked against PR3's **actual** committed implementation (not just its plan). Phase 1's recatalog should *confirm* the following rather than discover it:
+
+- ✅ **PR3 did not touch `package.json`** — the `test:node`/`test:vitest` mixed runner is intact; PR4 owns its removal as planned.
+- ✅ **PR3 did not touch `vitest.config.mjs`** — the `generated-output-sync.test.mjs` special-case include is still present; PR4 removes it in p02-t03.
+- ✅ **PR3 did not touch `tests/AGENTS.md`** — it still documents `node:test` as the primary style; PR4's p04-t01 rewrite is required and non-duplicative.
+- ⚠️ **PR3 modified `tests/generated-output-sync.test.mjs`** (+~87 lines adding session-observer generated-mapping coverage). After rebase, p02-t03 converts **that** post-PR3 version — re-confirm content before converting.
+- ⚠️ **PR3 already edited `AGENTS.md` (root), `README.md`, `.oat/repo/reference/current-state.md`, `roadmap.md`, and the backlog** — PR4's p04-t01/p04-t02 must *layer onto* PR3's wording (remove only now-stale `node:test` references), not restate or contradict it.
+- ⚠️ **Assertion-style divergence:** PR3 kept `node:assert/strict` in session-observer suites; the rest of the repo (and PR4) uses `expect`. Not a blocker — see the Phase 2 preamble.
+
+If the rebased tree contradicts any ✅ above (e.g. PR3 was amended to touch `package.json`), update the affected task before proceeding.
+
 ---
 
 ## Parallelism
@@ -148,6 +161,10 @@ git commit -m "docs(p01-t02): reconcile PR4 plan with post-PR3 test layout"
 
 Uniform transform per file: rename `*.test.mjs` → `*.test.ts`; replace `import test from 'node:test'` / `import { test, describe } from 'node:test'` with `import { describe, it, test, expect, beforeAll, afterAll } from 'vitest'` (import only what each file uses); replace `node:assert/strict` assertions with Vitest `expect`; keep all relative import paths, subprocess spawns, and `mkdtemp` fixture behavior byte-for-byte equivalent. Use `git mv` so history is preserved.
 
+**Assertion convention — use Vitest `expect` (verified dominant):** the already-migrated repo suites are unanimous — `0` `.test.ts` files import `node:assert`, `45` import `expect` from `vitest`. This matches the original brief ("replace `node:assert/strict` with Vitest `expect`"). Note: landed PR3 chose to *keep* `node:assert/strict` in the session-observer suites (runner-only swap) to minimize diff on a large conversion, so the repo will briefly hold two styles. PR4 follows the dominant `expect` convention; **harmonizing session-observer to `expect` is out of scope** (those are PR3's files) — captured as a deferred cleanup, not a PR4 task.
+
+**Shared helper stays `.mjs` (do not convert, do not break):** `tests/helpers/process.mjs` is a typed (`tests/helpers/process.d.mts`) helper imported by `tests/smoke-test-script` and already by `tests/parallel-integration.test.ts` — so a `.test.ts` importing this `.mjs` helper via the `.d.mts` shim is a proven, working pattern in this repo. Leave `tests/helpers/process.mjs` as-is; the guard targets `*.test.mjs` only, so a non-test `.mjs` helper is correctly never flagged.
+
 ### Task p02-t01: Convert manifest/structure tooling suites (9 files)
 
 **Files (rename `.test.mjs` → `.test.ts`):**
@@ -193,7 +210,7 @@ git commit -m "test(p02-t01): convert manifest/structure tooling suites to Vites
 
 **Step 1: Convert**
 
-Same uniform transform. These exercise repo scripts (`install`, `smoke-test`, `validate`); keep any process/exit-code and filesystem fixture assertions behaviorally identical — translate the *assertion* surface only, never the *behavior* under test.
+Same uniform transform. These exercise repo scripts (`install`, `smoke-test`, `validate`); keep any process/exit-code and filesystem fixture assertions behaviorally identical — translate the *assertion* surface only, never the *behavior* under test. **`smoke-test-script` imports `{ runNodeScript } from './helpers/process.mjs'` — keep that import exactly as-is** (the `.mjs` helper stays; it is typed by `process.d.mts` and already consumed by `.test.ts` files). Its other imports (`../scripts/smoke-test.mjs`, `../scripts/validate.mjs`, `../.lintstagedrc.mjs`) are real `.mjs` runtime/config files that also stay `.mjs` — do not rewrite those specifiers.
 
 Run (scoped): `pnpm run test:vitest -- tests/install-paseo.test.ts tests/smoke-test-script.test.ts tests/validate-script.test.ts`
 Expected: all three pass with identical coverage.
