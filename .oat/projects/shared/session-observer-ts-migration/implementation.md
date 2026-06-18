@@ -201,7 +201,30 @@ _Orchestration runs from `oat-project-implement` are appended here._
 
 - The p01 reviewer noted broad `any` usage in the newly lifted TypeScript source. Runtime/build parity passed, so this remains non-blocking for p01 and should be reduced opportunistically while p02 moves unit tests onto canonical source imports.
 
-**Next:** Re-run the p01 code review gate before starting p02.
+### Review Passed: p01 code
+
+**Date:** 2026-06-18
+**Review artifact:** `reviews/archived/code-p01-rereview-2026-06-18.md`
+
+**Findings:**
+
+- Critical: 0
+- Important: 0
+- Medium: 0
+- Minor: 0
+
+**Verification rerun by reviewer:**
+
+- `pnpm run build:check` - passed
+- `pnpm run type-check` - passed
+- `pnpm run sync:transcript-core --check` - passed
+- `pnpm exec vitest run tests/generated-output-sync.test.mjs` - passed
+- `node skills/session-observer/scripts/session-observer.mjs --help` - passed
+- `node skills/session-observer/scripts/probe-local.mjs --runtime codex --cwd /Users/tstang/Code/session-observer-ts` - passed
+- `node --test tests/session-observer/*.test.mjs` - passed, 160 tests
+- `oat project status --project-path .oat/projects/shared/session-observer-ts-migration --json` - routing confirmed at `p02-t01`
+
+**Next:** Continue with `p02-t01`.
 
 ---
 

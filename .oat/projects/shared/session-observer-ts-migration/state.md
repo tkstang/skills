@@ -1,6 +1,6 @@
 ---
 oat_current_task: p02-t01
-oat_last_commit: 2bb0665
+oat_last_commit: 9c84dfe
 oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
@@ -27,7 +27,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-06-17T23:15:59.616Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-06-18T00:37:50Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-06-18T00:44:10Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -39,7 +39,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation - Phase p01 complete; p01 review fixes applied; next task `p02-t01`
+Implementation - Phase p01 passed review; next task `p02-t01`
 
 ## Artifacts
 
@@ -58,6 +58,7 @@ Implementation - Phase p01 complete; p01 review fixes applied; next task `p02-t0
 - ✓ Implementation plan generated
 - ✓ Phase p01 implementation complete
 - ✓ p01 review lifecycle fixes applied
+- ✓ Phase p01 code review passed
 - ⧗ Next implementation task is `p02-t01`
 
 ## Blockers
@@ -66,4 +67,4 @@ None
 
 ## Next Milestone
 
-Pass the p01 re-review, then continue with phase p02 through the final-phase checkpoint at p04
+Continue with phase p02 through the final-phase checkpoint at p04
