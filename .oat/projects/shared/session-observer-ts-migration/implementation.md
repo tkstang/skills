@@ -440,12 +440,14 @@ _Orchestration runs from `oat-project-implement` are appended here._
 | 2     | p02 required verification | pass   | 0      | Session-observer Vitest suite: 500 tests; remaining node:test suite: 44 tests |
 | 3     | p03 required documentation/reference verification | pass   | 0      | Docs/reference invariants plus generated-output drift checks |
 | 4     | p04 final verification suite | pass   | 0      | Full build/type/generated/test/validate/smoke suite; direct session-observer Vitest acceptance: 160 tests |
+| 5     | p05 review-fix verification | pass   | 0      | Type-check/build/build-check/full mixed test suite plus direct session-observer Vitest acceptance: 160 tests |
 
 ## Final Summary (for PR/docs)
 
 **What shipped:**
 
 - Session-observer runtime implementation now has canonical TypeScript source under `src/transcript/session-observer/`.
+- Session-observer TypeScript source now has typed state, candidate/ranking, digest/observe, watch, CLI/probe, and transcript-core interaction boundaries from the final review fix.
 - Shipped dependency-free `.mjs` runtime outputs under `skills/session-observer/scripts/` are generated from canonical TypeScript through `scripts/build-generated.mjs`.
 - Session-observer tests now run as Vitest TypeScript tests while preserving generated shipped entrypoint coverage.
 - Public docs, agent-facing guidance, OAT reference state, backlog notes, and the PR3 project summary describe the new source/generated-output contract.
@@ -457,6 +459,7 @@ _Orchestration runs from `oat-project-implement` are appended here._
 **Key files / modules:**
 
 - `src/transcript/session-observer/` - canonical TypeScript source after implementation.
+- `src/transcript/session-observer/lib/types.ts` - shared session-observer domain types introduced by the final review fix.
 - `skills/session-observer/scripts/` - generated shipped runtime output.
 - `tests/session-observer/` - Vitest TypeScript session-observer tests.
 - `scripts/build-generated.mjs` and `tests/generated-output-sync.test.mjs` - generated-output mapping and drift coverage.
@@ -475,6 +478,7 @@ _Orchestration runs from `oat-project-implement` are appended here._
 - `pnpm run test:node` - passed; 44 remaining Node tests
 - `find tests/session-observer -name '*.test.mjs' -type f` - passed with no output
 - Generated-output cleanliness check passed after `pnpm run build`: `git diff --exit-code -- skills/session-observer/scripts scripts/build-generated.mjs tests/generated-output-sync.test.mjs`
+- `pnpm exec vitest run tests/session-observer` - passed after p05; 9 files / 160 tests
 
 **Design deltas (if any):**
 
