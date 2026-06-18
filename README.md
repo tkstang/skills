@@ -8,9 +8,9 @@ This repository is a personal Agent Skills home. It contains standalone skills u
 
 ### Consensus plugin
 
-`plugins/consensus/` is a self-contained plugin package for consensus workflows. Its first shipped skill is `refine`, a markdown refinement skill that uses two Paseo-backed AI peers to deliberate toward a converged artifact with an audit trail.
+`plugins/consensus/` is a self-contained plugin package for consensus workflows. It ships `refine`, a markdown refinement skill that uses two Paseo-backed AI peers to deliberate toward a converged artifact with an audit trail, and `evaluate`, an artifact-vs-rubric evaluation skill that preserves unified findings, per-peer reasoning, and dissent.
 
-The consensus scope is intentionally narrow: the `refine` skill, three iteration modes (`alternating` default, `parallel_revision`, `parallel_synthesized`) selected with `--iteration`, an agency-gated escalation ladder (`--host-direction` re-entry), a configurable synthesizer (`--synthesizer`), sequential sections by default, opt-in host-mediated parallel section orchestration, and the `--agency` flag. Future work may add the rest of the consensus skill family, a whole-document harmonization pass, and deliberation metrics/cost caps.
+The consensus scope is intentionally narrow: the `refine` and `evaluate` skills, three iteration modes (`alternating` default for refine, `parallel_revision` default for evaluate, `parallel_synthesized`) selected with `--iteration`, an agency-gated escalation ladder (`--host-direction` re-entry), a configurable synthesizer (`--synthesizer`), sequential sections by default for refine, opt-in host-mediated parallel section orchestration for refine, and the `--agency` flag. Future work may add the rest of the consensus skill family, a whole-document harmonization pass, and deliberation metrics/cost caps.
 
 See `plugins/consensus/README.md` for consensus prerequisites, usage, resume behavior, parallel orchestration, permissions, advanced peer configuration, and limitations.
 
@@ -64,8 +64,9 @@ The build contract is:
 
 Current generated runtime outputs:
 
-- `src/consensus/core/consensus-loop.ts` builds to `plugins/consensus/skills/refine/scripts/consensus-loop.mjs`.
+- `src/consensus/core/consensus-loop.ts` builds to `plugins/consensus/skills/refine/scripts/consensus-loop.mjs` and `plugins/consensus/skills/evaluate/scripts/consensus-loop.mjs`.
 - `src/consensus/refine/consensus-refine.ts` builds to `plugins/consensus/skills/refine/scripts/consensus-refine.mjs`.
+- `src/consensus/evaluate/consensus-evaluate.ts` builds to `plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs`.
 - `src/transcript/core/runtimes.ts` builds to `skills/session-observer/scripts/lib/runtimes.mjs` and `skills/export-session-transcript/scripts/lib/runtimes.mjs`.
 - `src/transcript/export-session/sanitize.ts` builds to `skills/export-session-transcript/scripts/lib/sanitize.mjs`.
 - `src/transcript/export-session/export-session-transcript.ts` builds to `skills/export-session-transcript/scripts/export-session-transcript.mjs`.
@@ -124,6 +125,12 @@ Consensus refinement:
 node plugins/consensus/skills/refine/scripts/consensus-refine.mjs draft.md --goal "Make this clearer."
 ```
 
+Consensus evaluation:
+
+```bash
+node plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs artifact.md --rubric rubric.md
+```
+
 Session observer:
 
 ```bash
@@ -135,7 +142,7 @@ node skills/session-observer/scripts/session-observer.mjs watch-ctl status --jso
 
 ## Permissions
 
-The consensus `refine` skill needs permission to run `node` for wrapper scripts, `paseo` for peer invocation, and read/write access to the input markdown file, generated `.consensus/` run state, and the output deliberation artifact. Parallel mode additionally requires host-native subagent dispatch.
+The consensus `refine` and `evaluate` skills need permission to run `node` for wrapper scripts, `paseo` for peer invocation, and read/write access to input files, generated `.consensus/` run state, and output artifacts. Refine parallel section mode additionally requires host-native subagent dispatch.
 
 `session-observer` needs permission to run `node`, read transcript stores under `~/.claude/projects/`, `~/.codex/sessions/`, and `~/.cursor/projects/`, and write read-offset, watcher, control, and optional metadata-only event-log state under `~/.local/state/session-observer/`. It does not write to peer transcripts.
 
@@ -149,9 +156,9 @@ For watch mode, `--runtime both` watches Claude Code and Codex in one foreground
 
 ## Limitations
 
-- The consensus plugin family ships the `refine` skill only in v0.1; the standalone `session-observer` and `export-session-transcript` skills (and the transcript-core generated runtime they use) ship alongside it but are not part of the consensus plugin.
-- The rest of the consensus family is deferred: `consensus-create`, `consensus-evaluate`, `consensus-decide`, `consensus-plan`, and `consensus-research`.
-- Consensus ships three iteration modes (`alternating`, `parallel-revision`, `parallel-synthesized`); parallel modes disclose their per-round call multiplier (2x peer calls, plus 1 synthesis call for synthesized) and escalate stuck states through the agency-gated ladder.
+- The consensus plugin family ships the `refine` and `evaluate` skills in v0.1; the standalone `session-observer` and `export-session-transcript` skills (and the transcript-core generated runtime they use) ship alongside it but are not part of the consensus plugin.
+- Remaining consensus family skills are future work: `consensus-create`, `consensus-decide`, `consensus-plan`, and `consensus-research`.
+- Consensus ships three iteration modes (`alternating`, `parallel_revision`, `parallel_synthesized`); the parallel-revision and parallel-synthesized capabilities disclose their per-round call multiplier (2x peer calls, plus 1 synthesis call for synthesized) and escalate stuck states through the agency-gated ladder.
 - Consensus sections converge independently; whole-document harmonization and deliberation metrics/cost caps remain deferred.
 - Cursor is supported as a host runtime for the consensus plugin, not as a default Paseo peer.
 - Session observer supports Cursor agent transcript JSONL only; `~/.cursor/chats/*/store.db` SQLite chat history is out of scope.

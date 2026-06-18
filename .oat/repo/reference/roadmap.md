@@ -1,6 +1,6 @@
 # Skills Repo Roadmap
 
-**Last updated:** 2026-06-15 (TypeScript/Vitest generated-runtime toolchain delivered via bl-853a, with `consensus-loop` as the first bl-bfb4 slice; release verification and `consensus-evaluate` are the next post-TS lanes, and PR #9 live-mode evidence should be reused for later release checks. Prior: 2026-06-14 post-PR #9 refresh; 2026-06-12 initial backfill.)
+**Last updated:** 2026-06-17 (consensus-evaluate bl-5174 delivered as the first post-refine family skill; release verification remains the next release lane, and the remaining family skills follow the evaluate wrapper pattern. Prior: 2026-06-15 TypeScript/Vitest generated-runtime toolchain refresh.)
 
 ## Planning Model
 
@@ -20,7 +20,7 @@ The v3 family architecture (`research/consensus/architecture-v3.md`) defines 6 s
 
 What remains, in dependency order:
 
-1. **Family skills** — `consensus-evaluate`, `-create`, `-decide`, `-plan`, `-research` as thin wrappers with v3 defaults now that their default iteration modes exist. `evaluate` only needs `parallel_revision` and can land earliest (bl-5174).
+1. **Remaining family skills** — `consensus-create`, `-decide`, `-plan`, `-research` as thin wrappers with v3 defaults now that `consensus-evaluate` has proved the post-TS wrapper pattern.
 2. **Harmonization pass** — whole-document coherence after independent section convergence.
 3. **Deliberation metrics** — tokens, wall-clock, rounds per section in the resolution block.
 4. **Convergence quality follow-ons** — similarity heuristic for near-match convergence (bl-ef38), tool-based verdict submission CLI so peers self-validate schema (bl-3a88), and an in-house peer CLI (bl-bb7e). All deferred as nice-to-haves; deterministic-only escalation shipped.
@@ -45,12 +45,12 @@ slices include the `consensus-refine.mjs` wrapper, migration of the existing
 ## Now
 
 - **v0.1 release verification** — run bl-d85f after this TypeScript/vitest branch lands. Reuse PR #9 dogfood as prior evidence; focus reruns on stale/gap behavior and the true release gates: provider install/permission checks, README install matrix, CHANGELOG/version/tag checks, release workflow, and post-tag skills.sh discovery before public claims.
-- **First family skill** — resume `consensus-evaluate` (bl-5174) after this TypeScript/vitest branch lands. Quick-start discovery is already captured in `/Users/tstang/Code/concensus-evaluate`; adapt implementation to the post-TS layout.
+- **Package the current consensus feature set for release** — now that `consensus-evaluate` has landed, refresh release notes and provider QA around both shipped consensus skills before tagging.
 
 ## Next
 
 - **Continue TypeScript migration slices** — bl-bfb4 can proceed module-by-module now that bl-853a delivered the toolchain/generated-output contract. Do not mark the initiative complete until the wrapper, test-suite migration, and `allowJs` tightening finish.
-- **Remaining family skills** — after `consensus-evaluate`, `-create`, `-decide`, `-plan`, `-research` as thin wrappers with v3 defaults. `-create` front-loads the `independent_draft` cold-start + derived-sectioning design the next two reuse.
+- **Remaining family skills** — `consensus-create`, `-decide`, `-plan`, `-research` as thin wrappers with v3 defaults. `-create` front-loads the `independent_draft` cold-start + derived-sectioning design the next two reuse.
 - **Peer-invocation ownership** — tool-based verdict submission (bl-3a88) and in-house peer CLI work (bl-bb7e) should be treated as one later design/spike around owning the narrow claude/codex/cursor path rather than depending on Paseo for one per-turn `run` capability.
 
 ## Later

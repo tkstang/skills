@@ -14,6 +14,8 @@
 - Paseo install assist via `scripts/install-paseo.mjs`; tested Paseo range 0.1.0 to 0.9.0.
 - Mocked smoke test coverage for dependency-free end-to-end validation.
 - Node.js 22+ runtime and CI baseline.
+- `consensus-evaluate` skill for judging an artifact against a rubric/spec with v3 defaults (`shared_input`, `parallel_revision`, `minimal`), unified findings, embedded per-peer `consensus-verdict` records, and dissent/unresolved-dissent surfacing.
+- Generated TypeScript runtime outputs for `consensus-evaluate` and its shared consensus loop copy, with plugin manifests, skill docs, README status, and generated-output drift guards updated.
 
 ### Iteration modes (v0.2)
 

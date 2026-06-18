@@ -2,9 +2,9 @@
 
 Status: v0.1 pre-release.
 
-`plugins/consensus/` is a self-contained plugin package for consensus workflows. It currently ships one skill, `refine`, which refines markdown drafts by asking two Paseo-backed AI peers to deliberate toward a converged artifact with an audit trail.
+`plugins/consensus/` is a self-contained plugin package for consensus workflows. It ships `refine`, which refines markdown drafts by asking two Paseo-backed AI peers to deliberate toward a converged artifact with an audit trail, and `evaluate`, which judges an artifact against a rubric with unified findings, per-peer reasoning, and dissent preserved in the deliberation log.
 
-The scope is intentionally narrow: the `refine` skill, three iteration modes selected with `--iteration` (`alternating` default, `parallel_revision`, `parallel_synthesized`), a configurable synthesizer (`--synthesizer`), an agency-gated escalation ladder with host/user decision re-entry (`--host-direction`), sequential sections by default, opt-in host-mediated parallel section orchestration, and the `--agency` flag. Future work may add the rest of the consensus skill family, a whole-document harmonization pass, and deliberation metrics/cost caps.
+The scope is intentionally narrow: the `refine` and `evaluate` skills, three iteration modes selected with `--iteration` (`alternating` default for refine, `parallel_revision` default for evaluate, `parallel_synthesized`), a configurable synthesizer (`--synthesizer`), an agency-gated escalation ladder with host/user decision re-entry (`--host-direction`), sequential sections by default for refine, opt-in host-mediated parallel section orchestration for refine, and the `--agency` flag. Future work may add the rest of the consensus skill family, a whole-document harmonization pass, and deliberation metrics/cost caps.
 
 ## Local Git Repository Install
 
@@ -52,6 +52,8 @@ The helper prompts before running `npm install -g @getpaseo/cli`; declining leav
 
 ## Usage
 
+### Refine
+
 For the default sequential flow, run the wrapper against a markdown file:
 
 ```bash
@@ -95,15 +97,27 @@ node plugins/consensus/skills/refine/scripts/consensus-refine.mjs draft.md --pre
 node plugins/consensus/skills/refine/scripts/consensus-refine.mjs --fan-in .consensus/<run-id>/manifest.json
 ```
 
+### Evaluate
+
+Evaluate an artifact against a rubric:
+
+```bash
+node plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs artifact.md --rubric rubric.md
+```
+
+The evaluate wrapper defaults to `shared_input` cold start, `parallel_revision` iteration, and `minimal` agency. Without `--output`, it writes `<artifact>.evaluation.md`; with `--output <path>`, it writes the evaluation there. The artifact contains unified findings, embedded `consensus-verdict` records for each peer turn, and either `## Dissent` or `## Unresolved dissent` when peer disagreement remains.
+
+For an operator walkthrough of evaluation inputs, expected JSONL, sidecar output, and dissent review, see `skills/evaluate/references/operator-qa.md`.
+
 ## Permissions
 
-The consensus `refine` skill needs permission to run:
+The consensus `refine` and `evaluate` skills need permission to run:
 
 - `node` for the wrapper and loop scripts.
 - `paseo` for peer invocation.
-- read/write access to the input markdown file, generated `.consensus/` run state, and the output deliberation artifact.
+- read/write access to input files, generated `.consensus/` run state, and output artifacts.
 
-Parallel mode additionally requires host-native subagent dispatch. Codex authorization must fail closed: if dispatch approval is unavailable or denied, the host should report that parallel mode did not run.
+Refine parallel section mode additionally requires host-native subagent dispatch. Codex authorization must fail closed: if dispatch approval is unavailable or denied, the host should report that parallel mode did not run.
 
 ## Advanced Configuration
 
@@ -113,7 +127,7 @@ By default, host detection chooses `claude,codex` on Claude Code and Cursor, and
 node plugins/consensus/skills/refine/scripts/consensus-refine.mjs draft.md --peers claude,codex
 ```
 
-Peer IDs come from `paseo provider ls --json`; the wrapper does not probe executables directly. Preflight fails closed with `PEER_UNAVAILABLE` when a requested peer is missing from the inventory or reports a non-ready status (`error`, `unavailable`, `not found`, or a `Disabled` provider), so a misconfigured peer is flagged up front rather than surfacing as a mid-run `paseo run` timeout. Custom ACP providers are supported when they are registered with Paseo and appear in that inventory.
+Peer IDs come from `paseo provider ls --json`; the wrappers do not probe executables directly. The `refine` wrapper performs provider-inventory preflight and fails closed with `PEER_UNAVAILABLE` when a requested peer is missing from the inventory or reports a non-ready status (`error`, `unavailable`, `not found`, or a `Disabled` provider). For `evaluate`, provider inventory checking is a host/operator step before invocation; the wrapper validates provider ID syntax and surfaces Paseo/runtime failures from peer invocation. Custom ACP providers are supported when they are registered with Paseo and appear in that inventory.
 
 Cursor is not a built-in Paseo peer at v0.1, so cursor-as-peer is opt-in. Register Cursor as a custom ACP provider — either through Paseo's one-click ACP catalog or by adding it to `~/.paseo/config.json`:
 
@@ -135,9 +149,9 @@ Then authenticate `cursor-agent` (it stores credentials in the OS keychain — a
 
 ## Limitations
 
-- v0.1 ships the `refine` skill only.
-- The rest of the consensus family is deferred: `consensus-create`, `consensus-evaluate`, `consensus-decide`, `consensus-plan`, and `consensus-research`.
-- Ships three iteration modes (`alternating`, `parallel_revision`, `parallel_synthesized`); the independent-draft cold-start strategy is not exposed through `refine` (shared-input only).
+- v0.1 ships the `refine` and `evaluate` skills.
+- Remaining consensus family skills are future work: `consensus-create`, `consensus-decide`, `consensus-plan`, and `consensus-research`.
+- Ships three iteration modes (`alternating`, `parallel_revision`, `parallel_synthesized`); the independent-draft cold-start strategy is not exposed through `refine` or `evaluate` (shared-input only).
 - Sections converge independently; whole-document harmonization and deliberation metrics/cost caps remain deferred.
 - Cursor is supported as a host runtime, and as a peer only via a user-configured custom ACP provider (not a default Paseo peer); its structured-output path is softer than claude/codex and is unverified end-to-end at v0.1.
 - Codex public marketplace submission is not assumed; Git/local install is the v0.1 path.
@@ -150,4 +164,6 @@ Then authenticate `cursor-agent` (it stores credentials in the OS keychain — a
 - `.claude-plugin/`, `.cursor-plugin/`, `.codex-plugin/` - provider plugin manifests.
 - `skills/refine/` - implementation directory for the shipped `refine` skill.
 - `skills/refine/references/operator-qa.md` - manual QA walkthrough of the iteration modes and escalation ladder, with runnable example inputs under `references/examples/`.
+- `skills/evaluate/` - implementation directory for the shipped `evaluate` skill.
+- `skills/evaluate/references/operator-qa.md` - manual QA walkthrough of artifact/rubric evaluation and dissent review.
 - `agents/consensus-section-runner.md` - task contract for host-mediated parallel section runners.

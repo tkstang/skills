@@ -11,6 +11,7 @@ const requiredDocs = [
   'RELEASING.md',
 ];
 const refineSkillPath = 'plugins/consensus/skills/refine/SKILL.md';
+const evaluateSkillPath = 'plugins/consensus/skills/evaluate/SKILL.md';
 
 async function read(relativePath) {
   return readFile(new URL(relativePath, repoRoot), 'utf8');
@@ -44,6 +45,54 @@ test('refine SKILL.md documents iteration-mode and escalation sections', async (
 
   assert.match(skill, /^## Iteration Modes$/m);
   assert.match(skill, /^## Escalation Handling$/m);
+});
+
+test('evaluate skill is documented and registered in distribution surfaces', async () => {
+  const requiredEvaluateFiles = [
+    evaluateSkillPath,
+    'plugins/consensus/skills/evaluate/references/operator-qa.md',
+    'plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs',
+    'plugins/consensus/skills/evaluate/scripts/consensus-loop.mjs',
+    'plugins/consensus/skills/evaluate/schemas/verdict-alternating.schema.json',
+    'plugins/consensus/skills/evaluate/schemas/verdict-parallel.schema.json',
+    'plugins/consensus/skills/evaluate/schemas/synthesis.schema.json',
+  ];
+
+  for (const relativePath of requiredEvaluateFiles) {
+    const contents = await read(relativePath);
+    assert.ok(
+      contents.trim().length > 0,
+      `${relativePath} should not be empty`,
+    );
+  }
+
+  const skill = await read(evaluateSkillPath);
+  assert.match(skill, /^name: evaluate$/m);
+  assert.match(skill, /^## Evaluation Invocation$/m);
+  assert.match(skill, /^## Output Contract$/m);
+  assert.match(skill, /--rubric <path>/);
+  assert.match(skill, /parallel_revision/);
+  assert.match(skill, /minimal/);
+  assert.match(skill, /consensus-verdict/);
+
+  const qa = await read(
+    'plugins/consensus/skills/evaluate/references/operator-qa.md',
+  );
+  assert.match(qa, /consensus-evaluate\.mjs/);
+  assert.match(qa, /--rubric/);
+  assert.match(qa, /Unresolved dissent/);
+
+  const providerManifests = [
+    'plugins/consensus/.claude-plugin/plugin.json',
+    'plugins/consensus/.codex-plugin/plugin.json',
+    'plugins/consensus/.cursor-plugin/plugin.json',
+  ];
+  for (const manifestPath of providerManifests) {
+    const manifest = JSON.parse(await read(manifestPath));
+    const searchable = JSON.stringify(manifest);
+    assert.match(searchable, /refine/);
+    assert.match(searchable, /evaluate/);
+  }
 });
 
 test('documentation records the generated TypeScript runtime contract', async () => {

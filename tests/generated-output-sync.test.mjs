@@ -47,6 +47,8 @@ describe('generated output drift guard', () => {
     expect(result.stderr).toBe('');
     expect(result.stdout).toContain('consensus-loop: in sync');
     expect(result.stdout).toContain('consensus-refine: in sync');
+    expect(result.stdout).toContain('consensus-evaluate-loop: in sync');
+    expect(result.stdout).toContain('consensus-evaluate: in sync');
     expect(result.stdout).toContain(
       'transcript-core-session-observer: in sync',
     );
@@ -78,9 +80,16 @@ describe('generated output drift guard', () => {
     expect(script).toContain(
       'plugins/consensus/skills/refine/scripts/consensus-loop.mjs',
     );
+    expect(script).toContain(
+      'plugins/consensus/skills/evaluate/scripts/consensus-loop.mjs',
+    );
     expect(script).toContain('src/consensus/refine/consensus-refine.ts');
     expect(script).toContain(
       'plugins/consensus/skills/refine/scripts/consensus-refine.mjs',
+    );
+    expect(script).toContain('src/consensus/evaluate/consensus-evaluate.ts');
+    expect(script).toContain(
+      'plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs',
     );
     expect(script).toContain('src/transcript/core/runtimes.ts');
     expect(script).toContain(
@@ -111,6 +120,9 @@ describe('generated output drift guard', () => {
       ),
     ]);
 
+    // TODO(generated-output): If the config moves to globbed ignore patterns,
+    // replace this exact-entry assertion with a glob-match assertion so every
+    // generated output remains covered.
     for (const output of generatedOutputPaths) {
       expect(oxfmt.ignorePatterns).toContain(output);
       expect(oxlint.ignorePatterns).toContain(output);
