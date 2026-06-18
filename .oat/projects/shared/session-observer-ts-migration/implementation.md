@@ -41,18 +41,18 @@ oat_generated: false
 
 ### Task p01-t01: Lift Session-Observer Modules To TypeScript Source
 
-**Status:** pending
-**Commit:** -
+**Status:** complete
+**Commit:** `d83c0b3` - `refactor(p01): add session-observer TypeScript source`
 
 ### Task p01-t02: Generate Shipped Session-Observer Runtime Outputs
 
-**Status:** pending
-**Commit:** -
+**Status:** complete
+**Commit:** `dd111c0` - `build(p01): generate session-observer runtime outputs from TypeScript`
 
 ### Task p01-t03: Confirm Behavior Parity Before Test Migration
 
-**Status:** pending
-**Commit:** -
+**Status:** complete
+**Commit:** none; parity checks passed without migration fixes
 
 ---
 
@@ -157,6 +157,29 @@ _Orchestration runs from `oat-project-implement` are appended here._
 
 **Next:** Run `oat-project-implement` starting from `p01-t01`.
 
+**Phase p01 implementation:**
+
+- [x] p01-t01 created canonical session-observer TypeScript source under `src/transcript/session-observer/`.
+- [x] p01-t02 extended `scripts/build-generated.mjs` mappings and generated shipped `skills/session-observer/scripts/**/*.mjs` outputs from TypeScript.
+- [x] p01-t03 confirmed generated-output behavior parity with existing `node:test` session-observer coverage.
+- [x] p01-t03 required no separate `fix(p01)` commit.
+
+**Commits:**
+
+- `d83c0b3` - `refactor(p01): add session-observer TypeScript source`
+- `dd111c0` - `build(p01): generate session-observer runtime outputs from TypeScript`
+
+**Verification:**
+
+- `pnpm run type-check` - passed
+- `pnpm run build` - passed
+- `pnpm run build:check` - passed
+- `pnpm run sync:transcript-core --check` - passed
+- `pnpm exec vitest run tests/generated-output-sync.test.mjs` - passed
+- `node skills/session-observer/scripts/session-observer.mjs --help` - passed
+- `node skills/session-observer/scripts/probe-local.mjs --runtime codex --cwd "$PWD"` - passed with accepted exit code 0
+- `node --test tests/session-observer/*.test.mjs` - passed, 160 tests
+
 ---
 
 ## Deviations from Plan / Design
@@ -169,7 +192,7 @@ _Orchestration runs from `oat-project-implement` are appended here._
 
 | Phase | Tests Run | Passed | Failed | Coverage |
 | ----- | --------- | ------ | ------ | -------- |
-| 1     | -         | -      | -      | -        |
+| 1     | p01 required verification | pass   | 0      | Existing session-observer node:test parity suite: 160 tests |
 | 2     | -         | -      | -      | -        |
 | 3     | -         | -      | -      | -        |
 | 4     | -         | -      | -      | -        |
