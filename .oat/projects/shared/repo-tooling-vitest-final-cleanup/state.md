@@ -1,5 +1,5 @@
 ---
-oat_current_task: null
+oat_current_task: p02-t01
 oat_last_commit: null
 oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
@@ -11,8 +11,8 @@ oat_children: [] # optional coordination-parent child slugs
 oat_hill_checkpoints: ['p01'] # Configured: pause after the post-PR3 gate (matches plan oat_plan_hill_phases)
 oat_hill_completed: [] # Progress: which HiLL checkpoints have been completed
 oat_parallel_execution: false
-oat_phase: plan # Current phase: discovery | spec | design | plan | implement | decomposition
-oat_phase_status: complete # Status: in_progress | complete | pr_open
+oat_phase: implement # Current phase: discovery | spec | design | plan | implement | decomposition
+oat_phase_status: in_progress # Status: in_progress | complete | pr_open
 # oat_orchestration_retry_limit: 2  # optional; override fix-loop retry limit (range 0-5)
 oat_dispatch_ceiling:
   preset: maximum
@@ -27,19 +27,19 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-06-18T00:26:15.855Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-06-18T01:30:00Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-06-18T13:00:00Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
 # Project State: repo-tooling-vitest-final-cleanup
 
-**Status:** Plan complete — implementation GATED on PR3
+**Status:** Phase 1 complete — paused at `p01` HiLL checkpoint
 **Started:** 2026-06-18
 **Last Updated:** 2026-06-18
 
 ## Current Phase
 
-Plan complete (`oat_ready_for: oat-project-implement`). Implementation is **blocked** until PR3 (`session-observer-ts-migration`) merges to `main` and this branch is rebased + recatalogued (Phase 1 is the hard gate, HiLL checkpoint after `p01`).
+Implement / Phase 1 (gate) **complete**. PR #17 merged; branch rebased onto `origin/main` (`adbb05b`); recatalog confirms plan alignment (one assumption corrected — PR3 rewrote `tests/AGENTS.md`; p04-t01 refined). **Paused at the `p01` HiLL checkpoint** awaiting go-ahead before Phase 2 conversions (`p02-t01`).
 
 ## Artifacts
 
@@ -54,13 +54,15 @@ Plan complete (`oat_ready_for: oat-project-implement`). Implementation is **bloc
 - ✓ Discovery captured + validated
 - ✓ Requirements gate confirmed; guard = Vitest meta-test
 - ✓ Plan generated (sequential; HiLL checkpoint after `p01`)
+- ✓ Plan artifact review received + resolved (I1/M1/M2)
 - ✓ Dispatch ceiling set (maximum)
-- ⧗ Awaiting PR3 merge before implementation
+- ✓ Phase 1: PR #17 merged → rebased → recatalogued + reconciled
+- ⏸️ Paused at `p01` HiLL checkpoint (awaiting go-ahead for Phase 2)
 
 ## Blockers
 
-- **PR3 not landed:** session-observer suites are still `.test.mjs` on `main`/this branch. Phase 2+ cannot start until PR3 merges and the branch is rebased.
+None. PR3 gate cleared.
 
 ## Next Milestone
 
-PR3 merges → rebase onto `main` → run Phase 1 (recatalog + reconcile) → `oat-project-implement`.
+Authorize Phase 2 → convert the 13 repo/tooling suites + harmonize 9 session-observer suites to `expect` (`p02-t01`…`p02-t05`).

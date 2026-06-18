@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-18
-oat_current_task_id: p01-t01
+oat_current_task_id: p02-t01
 oat_generated: false
 ---
 
@@ -26,14 +26,14 @@ oat_generated: false
 
 | Phase                                 | Status  | Tasks | Completed |
 | ------------------------------------- | ------- | ----- | --------- |
-| Phase 1 — Post-PR3 gate & recatalog          | pending | 2     | 0/2       |
-| Phase 2 — Convert + harmonize suites (expect) | pending | 5     | 0/5       |
-| Phase 3 — Retire runner + add guard          | pending | 2     | 0/2       |
-| Phase 4 — Docs & final verification          | pending | 3     | 0/3       |
+| Phase 1 — Post-PR3 gate & recatalog          | complete    | 2     | 2/2       |
+| Phase 2 — Convert + harmonize suites (expect) | pending     | 5     | 0/5       |
+| Phase 3 — Retire runner + add guard          | pending     | 2     | 0/2       |
+| Phase 4 — Docs & final verification          | pending     | 3     | 0/3       |
 
-**Total:** 0/12 tasks completed
+**Total:** 2/12 tasks completed
 
-> ⛔ **GATED:** Phase 1 cannot start until PR3 (`session-observer-ts-migration`) merges to `main` and this branch is rebased. HiLL checkpoint after `p01`.
+> ⏸️ **Paused at the `p01` HiLL checkpoint.** PR #17 (session-observer) merged to `main`; branch rebased onto `origin/main` (`adbb05b`), recatalog confirms alignment (one assumption corrected: PR3 rewrote `tests/AGENTS.md` — see Phase 1 notes). Phase 2 (conversions) awaits go-ahead.
 
 ---
 
@@ -56,8 +56,35 @@ oat_generated: false
 
 ## Phase 1: Post-PR3 Gate & Recatalog
 
-**Status:** pending (blocked on PR3 merge)
-**Started:** -
+**Status:** complete
+**Started:** 2026-06-18
+
+### Phase Summary
+
+**Outcome:** PR #17 (session-observer → TS/Vitest) merged to `main`. Branch rebased cleanly onto `origin/main` (`adbb05b`), no conflicts. Recatalog against the merged tree confirms the plan's scope; one assumption corrected (PR3 rewrote `tests/AGENTS.md` to a mixed-runner doc — p04-t01 refined accordingly). Gate satisfied; paused at the `p01` HiLL checkpoint before Phase 2.
+
+**Verification (recatalog on merged main):**
+- `find tests/session-observer -name '*.test.mjs'` → empty ✓ (gate blocker clear)
+- 13 repo/tooling `.test.mjs` remain (incl. `generated-output-sync.test.mjs`) ✓
+- 9 session-observer `.test.ts`, all importing `node:assert/strict` → exact harmonization scope ✓
+- `package.json` (`test:node` intact) and `vitest.config.mjs` (special-case present) untouched by PR3 ✓
+- `tests/AGENTS.md`, root `AGENTS.md`, `README.md`, `current-state.md` touched by PR3 → p04 layers on top ✓
+
+### Task p01-t01: Confirm PR3 merged and rebase onto latest main
+
+**Status:** completed
+
+**Outcome:** `origin/main` advanced to `adbb05b` (PR #17). Rebased the 6 PR4 artifact commits onto it cleanly (no conflicts). Post-rebase tree clean.
+
+### Task p01-t02: Recatalog `.test.mjs` and reconcile assumptions
+
+**Status:** completed
+
+**Outcome:** Recatalog matches the plan. Reconciled assumptions in `plan.md` + `discovery.md`; corrected the `tests/AGENTS.md` assumption (PR3 rewrote it) and refined p04-t01. No new tasks needed; approach unchanged.
+
+---
+
+### (original task templates below retained for reference)
 
 ### Phase Summary (fill when phase is complete)
 

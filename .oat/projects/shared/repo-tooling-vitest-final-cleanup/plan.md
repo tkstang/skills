@@ -46,18 +46,19 @@ oat_generated: false
 
 Phase 1 is the hard gate and carries a HiLL checkpoint (`oat_plan_hill_phases: ['p01']`): `oat-project-implement` pauses after Phase 1 for human confirmation before any conversion edit.
 
-### Pre-reconciliation vs landed PR3 implementation (reviewed 2026-06-17, against the `session-observer-ts` worktree diff `origin/main...HEAD`)
+### Reconciled vs landed PR3 — verified against MERGED `origin/main` (2026-06-18, PR #17 `adbb05b`)
 
-This plan was already cross-checked against PR3's **actual** committed implementation (not just its plan). Phase 1's recatalog should *confirm* the following rather than discover it:
+This plan was reconciled against PR3's **merged** implementation (the branch is now rebased onto `origin/main` containing #17). Verified state:
 
-- ✅ **PR3 did not touch `package.json`** — the `test:node`/`test:vitest` mixed runner is intact; PR4 owns its removal as planned.
-- ✅ **PR3 did not touch `vitest.config.mjs`** — the `generated-output-sync.test.mjs` special-case include is still present; PR4 removes it in p02-t03.
-- ✅ **PR3 did not touch `tests/AGENTS.md`** — it still documents `node:test` as the primary style; PR4's p04-t01 rewrite is required and non-duplicative.
-- ⚠️ **PR3 modified `tests/generated-output-sync.test.mjs`** (+~87 lines adding session-observer generated-mapping coverage). After rebase, p02-t03 converts **that** post-PR3 version — re-confirm content before converting.
-- ⚠️ **PR3 already edited `AGENTS.md` (root), `README.md`, `.oat/repo/reference/current-state.md`, `roadmap.md`, and the backlog** — PR4's p04-t01/p04-t02 must *layer onto* PR3's wording (remove only now-stale `node:test` references), not restate or contradict it.
-- ⚠️ **Assertion-style divergence (now IN scope):** PR3 kept `node:assert/strict` in the 9 session-observer suites; the rest of the repo uses `expect`. PR4 **harmonizes** those suites to `expect` (Phase 2, p02-t04/t05) so the whole repo lands on one convention, and the guard (p03-t01) enforces it going forward.
+- ✅ **PR3 did not touch `package.json`** — the `test:node`/`test:vitest` mixed runner is intact; PR4 owns its removal (p03-t02). _Confirmed on merged main._
+- ✅ **PR3 did not touch `vitest.config.mjs`** — the `generated-output-sync.test.mjs` special-case include is still present; PR4 removes it (p02-t03). _Confirmed on merged main._
+- ✅ **All 9 session-observer suites are `.test.ts` and import `node:assert/strict`; zero `tests/session-observer/**/*.test.mjs` remain.** Harmonization scope (p02-t04/t05) is exactly these 9 files — verified the repo-wide `node:assert` `.test.ts` set is precisely this set. _Confirmed on merged main._
+- ⚠️ **`generated-output-sync.test.mjs` remains `.mjs` with Vitest imports** (PR3 extended it for session-observer mappings). p02-t03 converts this merged version.
+- ⚠️ **PR3 edited `AGENTS.md` (root), `README.md`, `.oat/repo/reference/current-state.md`, `roadmap.md`, backlog** — PR4's p04-t01/p04-t02 *layer onto* PR3's wording, not restate it.
+- 🔄 **CORRECTION — PR3 DID rewrite `tests/AGENTS.md`** (earlier pre-merge worktree diff showed it untouched; the merged PR includes the change). It is **no longer** the stale "node:test is primary" doc — it now describes the **mixed-runner interim contract** and explicitly says *"Do not simplify `pnpm test` to Vitest-only or remove `test:node` until the remaining legacy suites are migrated."* PR4's p04-t01 is therefore **still required but refined**: it *completes* the migration this doc anticipates (flip the "don't remove test:node yet" guidance to the final Vitest-only state) rather than rewriting a stale doc. See p04-t01 for the exact edits.
+- ✅ **Assertion-style harmonization (IN scope):** PR3 kept `node:assert/strict` in the 9 session-observer suites; the rest of the repo uses `expect`. PR4 harmonizes those 9 to `expect` (p02-t04/t05); the guard (p03-t01) enforces it. _Confirmed: exactly 9 `node:assert` `.test.ts` files, all under `tests/session-observer/`._
 
-If the rebased tree contradicts any ✅ above (e.g. PR3 was amended to touch `package.json`), update the affected task before proceeding.
+**Gate status:** rebase clean, recatalog matches, assumptions reconciled (one corrected). Phase 1 reconciliation is satisfied — paused at the `p01` HiLL checkpoint awaiting go-ahead for Phase 2.
 
 ---
 
@@ -455,12 +456,17 @@ git commit -m "build(p03-t02): retire node:test runner; pnpm test runs Vitest on
 
 **Files:**
 
-- Modify: `tests/AGENTS.md` (rewrite "How tests are written today" to Vitest-only — `import { describe, it, expect } from 'vitest'`; drop the `node:test`/`node:assert/strict` guidance; note the guard and that all suites run under one Vitest runner)
-- Modify (if PR3 left stale references): `AGENTS.md`, `README.md` (ensure no `test:node` / "Node built-in runner" language; `pnpm test` described as Vitest-only)
+- Modify: `tests/AGENTS.md` — PR3 already rewrote this to describe a **mixed-runner interim contract**. PR4 flips it to the final Vitest-only state. Specific edits to the current post-PR3 text:
+  - Replace the "mixed runner contract" bullet (`Legacy .test.mjs ... node:test and node:assert/strict` / `Migrated and new TypeScript tests use Vitest`) with a single statement that **all** suites are Vitest `.test.ts` using `import { describe, it, expect } from 'vitest'`.
+  - **Remove** the line `Do not simplify pnpm test to Vitest-only or remove test:node until the remaining legacy suites are migrated.` — PR4 *is* that completion.
+  - Update `Run the full suite with npm test / pnpm run test; this runs test:node first and then test:vitest` → describe `pnpm run test` as the single Vitest runner.
+  - In "Generated-output checks", update `tests/generated-output-sync.test.mjs` → `tests/generated-output-sync.test.ts` and drop the now-moot `Do not use Node's built-in test runner for Vitest-owned .mjs files` line.
+  - Add a one-line pointer that the no-`node:test`/`node:assert`/`.test.mjs` guard (p03-t01) enforces the convention.
+- Modify (if PR3 left stale references): `AGENTS.md` (root), `README.md` — ensure no `test:node` / "Node built-in runner" / "runs test:node first" language; `pnpm test` described as Vitest-only.
 
 **Step 1: Edit docs**
 
-Reconcile with whatever PR3 already updated — do not duplicate or contradict landed PR3 wording; only remove now-stale `node:test` references and describe the final single-runner setup.
+Layer onto PR3's wording — `tests/AGENTS.md`, root `AGENTS.md`, `README.md`, and `current-state.md` were all touched by PR3; remove only the now-stale `test:node`/mixed-runner references and describe the final single-runner setup. Do not restate or contradict PR3's session-observer wording.
 
 **Step 2: Verify**
 

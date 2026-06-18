@@ -126,7 +126,7 @@ Cross-checked against the `session-observer-ts` worktree diff (`origin/main...HE
 - ✅ PR3 converts all 9 session-observer suites to `.test.ts` and deletes the `.mjs` originals — **confirmed in the diff** (renames + `test(p02): retire session-observer node-test files`).
 - ✅ PR3 does **not** modify `package.json` — **confirmed** (not in diff); the mixed runner is intact for PR4 to retire.
 - ✅ PR3 does **not** modify `vitest.config.mjs` — **confirmed** (not in diff); the `generated-output-sync` special-case include remains for PR4 to remove.
-- ✅ `tests/AGENTS.md` is **untouched** by PR3 — **confirmed** (empty diff); still documents `node:test`, so PR4's rewrite is required.
+- 🔄 `tests/AGENTS.md` — **CORRECTED on merged main:** PR3 (#17) **did** rewrite it (the earlier pre-merge worktree diff was stale). It now documents the **mixed-runner interim contract** with explicit "do not remove `test:node` until the remaining legacy suites are migrated" guidance. PR4's p04-t01 is still required but now *completes* the migration this doc anticipates (flips the guidance to final Vitest-only) rather than rewriting a stale node:test-primary doc.
 - ⚠️ PR3 **modified** `tests/generated-output-sync.test.mjs` (+~87 lines for session-observer mappings) — PR4 converts the *post-PR3* version. Re-confirm at the gate.
 - ⚠️ PR3 already edited root `AGENTS.md`, `README.md`, `current-state.md`, `roadmap.md`, backlog — PR4 docs layer on top, not restate.
 - After PR3, the only remaining `.test.mjs` are the 13 repo/tooling files above (still must re-confirm none stray in post-rebase tree).
