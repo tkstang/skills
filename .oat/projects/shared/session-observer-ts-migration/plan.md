@@ -545,6 +545,47 @@ git commit -m "fix(p05-t01): tighten session-observer TypeScript boundaries"
 
 ---
 
+### Task p05-t02: (review) Narrow CLI Watcher-Status Presentation Types
+
+**Files:**
+
+- Modify: `src/transcript/session-observer/session-observer.ts`
+- Generated if source changes: `skills/session-observer/scripts/session-observer.mjs`
+- Modify if needed: `tests/session-observer/cli.test.ts`
+- Modify if needed: `tests/session-observer/watch.test.ts`
+
+**Step 1: Understand the issue**
+
+Review finding: final re-review found that the remaining `any` annotations in session-observer TypeScript source are concentrated in internal CLI watcher health/status presentation helpers.
+Location: `src/transcript/session-observer/session-observer.ts:1108`
+
+**Step 2: Implement fix**
+
+Narrow the watcher-status presentation helpers against the existing `WatcherRecord`, `WatchTargetRecord`, and `WatchState` types where practical. Preserve defensive runtime handling for unknown state-file data and avoid redesigning watcher behavior.
+
+**Step 3: Verify**
+
+Run:
+
+```bash
+pnpm run build
+pnpm run type-check
+pnpm run build:check
+pnpm exec vitest run tests/session-observer
+pnpm run test
+```
+
+Expected: CLI watcher-status behavior stays covered, generated output remains in sync, and TypeScript compilation no longer depends on broad `any` in the watcher-status presentation helpers.
+
+**Step 4: Commit**
+
+```bash
+git add src/transcript/session-observer/session-observer.ts skills/session-observer/scripts/session-observer.mjs tests/session-observer
+git commit -m "fix(p05-t02): narrow watcher status presentation types"
+```
+
+---
+
 ## Reviews
 
 | Scope  | Type     | Status  | Date       | Artifact |
@@ -554,7 +595,7 @@ git commit -m "fix(p05-t01): tighten session-observer TypeScript boundaries"
 | p03    | code     | passed  | 2026-06-18 | reviews/archived/code-p03-review-2026-06-18.md |
 | p04    | code     | passed  | 2026-06-18 | reviews/archived/code-p04-final-review-2026-06-18.md |
 | final  | code     | passed | 2026-06-18 | reviews/archived/final-review-2026-06-18.md |
-| final  | code     | received | 2026-06-17 | reviews/final-review-2026-06-17.md |
+| final  | code     | fixes_added | 2026-06-18 | reviews/archived/final-review-2026-06-17-received-20260618T055025Z.md |
 | plan   | artifact | passed  | 2026-06-17 | reviews/archived/artifact-plan-review-2026-06-17.md |
 | spec   | artifact | pending | -          | N/A - quick mode |
 | design | artifact | pending | -          | N/A - quick mode |
@@ -571,9 +612,9 @@ git commit -m "fix(p05-t01): tighten session-observer TypeScript boundaries"
 - Phase 2: 4 tasks - Convert session-observer tests to Vitest TypeScript while keeping generated-entrypoint coverage and mixed runner behavior.
 - Phase 3: 2 tasks - Update public docs and OAT reference/backlog/project-summary records.
 - Phase 4: 1 task - Run full required verification and record closeout.
-- Phase 5: 1 task - Tighten session-observer TypeScript boundaries raised by final review.
+- Phase 5: 2 tasks - Tighten session-observer TypeScript boundaries raised by final review and narrow residual CLI watcher-status presentation helper types.
 
-**Total: 11 tasks**
+**Total: 12 tasks**
 
 Ready for `oat-project-implement`.
 

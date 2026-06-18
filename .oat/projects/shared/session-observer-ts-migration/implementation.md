@@ -1,9 +1,9 @@
 ---
-oat_status: complete
+oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-18
-oat_current_task_id: null
+oat_current_task_id: p05-t02
 oat_generated: false
 ---
 
@@ -29,9 +29,9 @@ oat_generated: false
 | Phase 2 | complete    | 4     | 4/4       |
 | Phase 3 | complete    | 2     | 2/2       |
 | Phase 4 | complete    | 1     | 1/1       |
-| Phase 5 | complete    | 1     | 1/1       |
+| Phase 5 | in_progress | 2     | 1/2       |
 
-**Total:** 11/11 tasks completed
+**Total:** 11/12 tasks completed
 
 ---
 
@@ -115,7 +115,7 @@ oat_generated: false
 
 ## Phase 5: Review Fixes
 
-**Status:** complete
+**Status:** in_progress
 **Started:** 2026-06-18
 
 ### Task p05-t01: (review) Tighten Session-Observer TypeScript Boundaries
@@ -132,6 +132,13 @@ oat_generated: false
 - `pnpm run test` - passed, Node 44 tests and Vitest 35 files / 500 tests
 
 **Delta recording:** none. The implementation followed the final-review fix task scope: tightened meaningful TypeScript boundaries for session-observer state, candidates/ranking, digest/observe results, watch state/events/options, CLI/probe parsing, and transcript-core interactions while preserving defensive parsing, filesystem guards, catch behavior, and generated-output ownership.
+
+### Task p05-t02: (review) Narrow CLI Watcher-Status Presentation Types
+
+**Status:** pending
+**Commit:** pending
+
+**Review source:** `reviews/archived/final-review-2026-06-17-received-20260618T055025Z.md`
 
 ---
 
@@ -447,6 +454,28 @@ _Orchestration runs from `oat-project-implement` are appended here._
 - `git diff --check 9e94e00..HEAD` - passed
 
 **Next:** Stop at the final checkpoint as requested; do not continue to PR automation in this run.
+
+### Review Received: final code (watcher-status typing follow-up)
+
+**Date:** 2026-06-18
+**Review artifact:** `reviews/archived/final-review-2026-06-17-received-20260618T055025Z.md`
+
+**Findings:**
+
+- Critical: 0
+- Important: 0
+- Medium: 0
+- Minor: 1
+
+**New tasks added:** `p05-t02`
+
+**Finding disposition:**
+
+- m1: Residual `any` in internal CLI watcher-status presentation helpers converted to task `p05-t02` at the user's request.
+
+**Deferred Medium ledger:** none.
+
+**Next:** Execute `p05-t02` via the `oat-project-implement` skill, then re-review the focused final-review fix before closeout.
 
 ---
 
