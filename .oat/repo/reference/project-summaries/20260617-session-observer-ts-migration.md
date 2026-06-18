@@ -1,10 +1,10 @@
 ---
-oat_status: in_progress
-oat_ready_for: p03-review
+oat_status: complete
+oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-18
 oat_generated: false
-oat_summary_last_task: p03-t02
+oat_summary_last_task: p04-t01
 oat_summary_revision_count: 0
 oat_summary_includes_revisions: []
 ---
@@ -39,19 +39,24 @@ edit canonical TypeScript under `src/transcript/session-observer/`, regenerate
 with `pnpm run build`, and do not hand-edit generated `.mjs` files under
 `skills/session-observer/scripts/`.
 
-## Verification So Far
+## Final Verification
 
-- `pnpm run type-check` passed during source migration.
-- `pnpm run build`, `pnpm run build:check`, and
-  `pnpm run sync:transcript-core --check` passed with generated outputs in sync.
-- `pnpm run test:vitest -- tests/session-observer` passed after the test
-  migration.
-- `pnpm run test:node` and `pnpm run test` passed with the mixed runner contract
-  still intact.
-- `pnpm run validate` passed during documentation/reference updates.
+- `pnpm run build` passed.
+- `pnpm run type-check` passed.
+- `pnpm run build:check` passed.
+- `pnpm run sync:transcript-core --check` passed.
+- `pnpm run test` passed with 44 remaining Node tests and 500 Vitest tests.
+- `pnpm run validate` passed.
+- `pnpm run smoke` passed.
+- `pnpm exec vitest run tests/session-observer` passed with 9 files / 160 tests.
+- `pnpm run test:node` passed with the mixed runner contract still intact.
+- `find tests/session-observer -name '*.test.mjs' -type f` returned no files.
+- Generated-output cleanliness passed after `pnpm run build` with no scoped diff
+  under `skills/session-observer/scripts`, `scripts/build-generated.mjs`, or
+  `tests/generated-output-sync.test.mjs`.
 
 ## Remaining PR4 Work
 
-PR4 still owns final verification and closeout. The broader `bl-bfb4` initiative
-also still has final `node:test` runner retirement, remaining non-migrated suites,
-and any selected long-tail cleanup before the compatibility path can be removed.
+PR4 still owns final repo-wide `node:test` runner retirement, remaining
+non-migrated suites, test runner simplification, and any selected long-tail
+cleanup before the compatibility path can be removed.

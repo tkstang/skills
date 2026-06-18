@@ -348,6 +348,37 @@ _Orchestration runs from `oat-project-implement` are appended here._
 - `git diff --exit-code -- skills/session-observer/scripts scripts/build-generated.mjs tests/generated-output-sync.test.mjs` - passed with no output
 - `pnpm run build:check` - passed
 
+### Review Passed: p04/final code
+
+**Date:** 2026-06-18
+**Review artifact:** `reviews/archived/code-p04-final-review-2026-06-18.md`
+
+**Findings:**
+
+- Critical: 0
+- Important: 0
+- Medium: 0
+- Minor: 1
+
+**Review receive:**
+
+- Fixed the non-blocking Minor by refreshing `.oat/repo/reference/project-summaries/20260617-session-observer-ts-migration.md` from p03-era metadata to p04-complete metadata and final verification wording.
+
+**Verification rerun by reviewer:**
+
+- `pnpm run build:check` - passed
+- `pnpm run type-check` - passed
+- `pnpm exec vitest run tests/session-observer` - passed
+- `pnpm run test:node` - passed
+- `pnpm run validate` - passed
+- `pnpm run sync:transcript-core --check` - passed
+- `pnpm run smoke` - passed
+- `pnpm run test` - passed
+- Session-observer `.test.mjs` and `.mjs` residue checks - no stale files
+- Generated-output cleanliness check - passed with no diff
+
+**Next:** Stop at the final checkpoint as requested; do not continue to PR automation in this run.
+
 ---
 
 ## Deviations from Plan / Design
