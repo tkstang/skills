@@ -135,6 +135,28 @@ _Orchestration runs from `oat-project-implement` are appended here._
 - [x] Dispatch ceiling selected as Maximum: Codex `xhigh`, Claude `opus`.
 - [ ] Implementation not started.
 
+### Review Received: plan
+
+**Date:** 2026-06-17
+**Review artifact:** `reviews/archived/artifact-plan-review-2026-06-17.md`
+
+**Findings:**
+
+- Critical: 0
+- Important: 0
+- Medium: 0
+- Minor: 3
+
+**Artifact edits applied:**
+
+- m1: clarified p02-t04 so `package.json` is not a normal modify target and the mixed-runner contract remains explicit.
+- m2: updated the `plan` review row to `passed` and pointed it at the archived review artifact.
+- m3: added `pnpm run sync:transcript-core --check` to generated-output/final verification so the compatibility wrapper remains covered after mapping changes.
+
+**New tasks added:** none; this was an artifact review.
+
+**Next:** Run `oat-project-implement` starting from `p01-t01`.
+
 ---
 
 ## Deviations from Plan / Design

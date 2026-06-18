@@ -134,12 +134,13 @@ Run:
 
 ```bash
 pnpm run build:check
+pnpm run sync:transcript-core --check
 pnpm exec vitest run tests/generated-output-sync.test.mjs
 node skills/session-observer/scripts/session-observer.mjs --help
 set +e; node skills/session-observer/scripts/probe-local.mjs --runtime codex --cwd "$PWD"; code=$?; set -e; test "$code" -eq 0 -o "$code" -eq 2 -o "$code" -eq 3
 ```
 
-Expected: generated output is in sync; entrypoints execute from shipped `.mjs` paths. `probe-local` may return a documented non-hard-error code when no local transcript candidate exists.
+Expected: generated output is in sync; the compatibility wrapper still delegates to the same generated-output check; entrypoints execute from shipped `.mjs` paths. `probe-local` may return a documented non-hard-error code when no local transcript candidate exists.
 
 **Step 5: Commit**
 
@@ -321,7 +322,7 @@ git commit -m "test(p02): migrate session-observer watcher tests to Vitest"
 
 - Delete: remaining `tests/session-observer/**/*.test.mjs`
 - Modify if needed: `tests/session-observer/**/*.test.ts`
-- Modify if needed: `package.json` only if session-observer-specific test targeting requires no script changes
+- Do not modify `package.json` test scripts; the `test:node` / `test:vitest` mixed-runner contract must remain intact. Only touch `package.json` if a session-observer-specific issue genuinely requires it, and justify the change.
 
 **Step 1: Confirm no session-observer `.test.mjs` remains**
 
@@ -348,7 +349,7 @@ Expected: session-observer runs under Vitest, remaining Node suites still pass u
 **Step 4: Commit**
 
 ```bash
-git add tests/session-observer package.json
+git add tests/session-observer
 git commit -m "test(p02): retire session-observer node-test files"
 ```
 
@@ -451,6 +452,7 @@ Run:
 pnpm run build
 pnpm run type-check
 pnpm run build:check
+pnpm run sync:transcript-core --check
 pnpm run test
 pnpm run validate
 pnpm run smoke
@@ -506,7 +508,7 @@ If only lifecycle artifacts changed and hooks reject ignored `.oat/**` markdown,
 | p03    | code     | pending | -          | -        |
 | p04    | code     | pending | -          | -        |
 | final  | code     | pending | -          | -        |
-| plan   | artifact | received | 2026-06-17 | reviews/artifact-plan-review-2026-06-17.md |
+| plan   | artifact | passed  | 2026-06-17 | reviews/archived/artifact-plan-review-2026-06-17.md |
 | spec   | artifact | pending | -          | N/A - quick mode |
 | design | artifact | pending | -          | N/A - quick mode |
 
