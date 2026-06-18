@@ -33,7 +33,7 @@ oat_generated: false
 
 **Total:** 2/12 tasks completed
 
-> ⏸️ **Paused at the `p01` HiLL checkpoint.** PR #17 (session-observer) merged to `main`; branch rebased onto `origin/main` (`adbb05b`), recatalog confirms alignment (one assumption corrected: PR3 rewrote `tests/AGENTS.md` — see Phase 1 notes). Phase 2 (conversions) awaits go-ahead.
+> ✓ **Phase 1 gate satisfied.** PR #17 (session-observer) merged to `main`; branch rebased onto `origin/main` (`adbb05b`), recatalog confirms alignment (one assumption corrected: PR3 rewrote `tests/AGENTS.md` — see Phase 1 notes). HiLL checkpoint reconfigured to the **final phase only** (`p04`). Phase 2 (conversions) awaits go-ahead, then runs through to the `p04` checkpoint.
 
 ---
 

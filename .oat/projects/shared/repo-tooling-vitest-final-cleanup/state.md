@@ -8,7 +8,7 @@ oat_parent: null # optional child-only coordination parent slug
 oat_siblings: [] # optional child-only sibling slugs
 oat_depends_on: [] # optional child-only sibling dependencies
 oat_children: [] # optional coordination-parent child slugs
-oat_hill_checkpoints: ['p01'] # Configured: pause after the post-PR3 gate (matches plan oat_plan_hill_phases)
+oat_hill_checkpoints: ['p04'] # Configured: pause after the final phase only (matches plan oat_plan_hill_phases)
 oat_hill_completed: [] # Progress: which HiLL checkpoints have been completed
 oat_parallel_execution: false
 oat_phase: implement # Current phase: discovery | spec | design | plan | implement | decomposition
@@ -27,19 +27,19 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-06-18T00:26:15.855Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-06-18T13:00:00Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-06-18T13:20:00Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
 # Project State: repo-tooling-vitest-final-cleanup
 
-**Status:** Phase 1 complete — paused at `p01` HiLL checkpoint
+**Status:** Phase 1 complete — awaiting go-ahead for Phase 2 (HiLL checkpoint now `p04`)
 **Started:** 2026-06-18
 **Last Updated:** 2026-06-18
 
 ## Current Phase
 
-Implement / Phase 1 (gate) **complete**. PR #17 merged; branch rebased onto `origin/main` (`adbb05b`); recatalog confirms plan alignment (one assumption corrected — PR3 rewrote `tests/AGENTS.md`; p04-t01 refined). **Paused at the `p01` HiLL checkpoint** awaiting go-ahead before Phase 2 conversions (`p02-t01`).
+Implement / Phase 1 (gate) **complete**. PR #17 merged; branch rebased onto `origin/main` (`adbb05b`); recatalog confirms plan alignment (one assumption corrected — PR3 rewrote `tests/AGENTS.md`; p04-t01 refined). HiLL checkpoint moved to the **final phase only** (`p04`): once Phase 2 is authorized, Phases 2–4 run through to completion and pause after `p04` before PR/closeout. Awaiting go-ahead for `p02-t01`.
 
 ## Artifacts
 
@@ -57,7 +57,8 @@ Implement / Phase 1 (gate) **complete**. PR #17 merged; branch rebased onto `ori
 - ✓ Plan artifact review received + resolved (I1/M1/M2)
 - ✓ Dispatch ceiling set (maximum)
 - ✓ Phase 1: PR #17 merged → rebased → recatalogued + reconciled
-- ⏸️ Paused at `p01` HiLL checkpoint (awaiting go-ahead for Phase 2)
+- ✓ HiLL checkpoint reconfigured to final phase only (`p04`)
+- ⧗ Awaiting go-ahead for Phase 2 (then runs through to the `p04` checkpoint)
 
 ## Blockers
 

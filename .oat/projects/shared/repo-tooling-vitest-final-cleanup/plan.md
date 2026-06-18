@@ -5,7 +5,7 @@ oat_blockers: []
 oat_last_updated: 2026-06-17
 oat_phase: plan
 oat_phase_status: complete
-oat_plan_hill_phases: ['p01'] # pause AFTER the post-PR3 gate so a human confirms PR3 landed + rebase is clean before any edit
+oat_plan_hill_phases: ['p04'] # pause AFTER the final phase (docs + verification) before PR/closeout; the p01 PR3 gate is already satisfied
 oat_plan_parallel_groups: [] # fully sequential — see ## Parallelism
 oat_plan_source: quick # spec-driven | quick | imported
 oat_import_reference: null
@@ -28,8 +28,8 @@ oat_generated: false
 
 ## Planning Checklist
 
-- [x] Confirmed HiLL checkpoints with user (gate after p01)
-- [x] Set `oat_plan_hill_phases` in frontmatter (`['p01']`)
+- [x] Confirmed HiLL checkpoints with user (final phase only — `p04`)
+- [x] Set `oat_plan_hill_phases` in frontmatter (`['p04']`)
 - [x] Evaluated phases for parallelism opportunities
 - [x] Set `oat_plan_parallel_groups` in frontmatter (`[]`)
 
@@ -44,7 +44,7 @@ oat_generated: false
 3. The `.test.mjs` catalog is **re-run against the real post-PR3 tree** and reconciled with this plan.
 4. Any assumption that PR3 invalidated is updated here before edits.
 
-Phase 1 is the hard gate and carries a HiLL checkpoint (`oat_plan_hill_phases: ['p01']`): `oat-project-implement` pauses after Phase 1 for human confirmation before any conversion edit.
+Phase 1 is the hard gate (PR3 must be merged + rebased + recatalogued before any edit). **This gate is now satisfied** (see reconciliation below). The HiLL checkpoint has been moved to the **final phase only** (`oat_plan_hill_phases: ['p04']`): once Phase 2 is authorized, `oat-project-implement` runs Phases 2–4 through to completion and pauses after Phase 4 (final verification) before PR/closeout.
 
 ### Reconciled vs landed PR3 — verified against MERGED `origin/main` (2026-06-18, PR #17 `adbb05b`)
 
@@ -58,7 +58,7 @@ This plan was reconciled against PR3's **merged** implementation (the branch is 
 - 🔄 **CORRECTION — PR3 DID rewrite `tests/AGENTS.md`** (earlier pre-merge worktree diff showed it untouched; the merged PR includes the change). It is **no longer** the stale "node:test is primary" doc — it now describes the **mixed-runner interim contract** and explicitly says *"Do not simplify `pnpm test` to Vitest-only or remove `test:node` until the remaining legacy suites are migrated."* PR4's p04-t01 is therefore **still required but refined**: it *completes* the migration this doc anticipates (flip the "don't remove test:node yet" guidance to the final Vitest-only state) rather than rewriting a stale doc. See p04-t01 for the exact edits.
 - ✅ **Assertion-style harmonization (IN scope):** PR3 kept `node:assert/strict` in the 9 session-observer suites; the rest of the repo uses `expect`. PR4 harmonizes those 9 to `expect` (p02-t04/t05); the guard (p03-t01) enforces it. _Confirmed: exactly 9 `node:assert` `.test.ts` files, all under `tests/session-observer/`._
 
-**Gate status:** rebase clean, recatalog matches, assumptions reconciled (one corrected). Phase 1 reconciliation is satisfied — paused at the `p01` HiLL checkpoint awaiting go-ahead for Phase 2.
+**Gate status:** rebase clean, recatalog matches, assumptions reconciled (one corrected). Phase 1 reconciliation is satisfied. The HiLL checkpoint is now configured for the **final phase only** (`p04`); the project is currently awaiting user go-ahead to begin Phase 2, after which Phases 2–4 run through to the single `p04` checkpoint.
 
 ---
 
@@ -154,7 +154,7 @@ git add discovery.md plan.md
 git commit -m "docs(p01-t02): reconcile PR4 plan with post-PR3 test layout"
 ```
 
-> **HiLL checkpoint:** implementation pauses here for human confirmation that the gate is satisfied before Phase 2.
+> **Gate satisfied (no pause here).** This was the PR3 gate; it is now reconciled. The HiLL checkpoint has been moved to the final phase (`p04`) — implementation proceeds from here through Phases 2–4 without pausing.
 
 ---
 
@@ -552,6 +552,8 @@ Expected: empty / no matches.
 
 No code change. If `worktree:validate` surfaced generated drift, fix it under the appropriate task instead of here.
 
+> ⏸️ **HiLL checkpoint (`p04`, the only configured pause):** after Phase 4 completes, `oat-project-implement` pauses for human review of the full PR4 result before PR/closeout.
+
 ---
 
 ## Reviews
@@ -575,10 +577,10 @@ No code change. If `worktree:validate` surfaced generated drift, fix it under th
 
 **Summary:**
 
-- Phase 1: 2 tasks — post-PR3 gate, rebase, recatalog, reconcile assumptions (HiLL checkpoint).
+- Phase 1: 2 tasks — post-PR3 gate, rebase, recatalog, reconcile assumptions (gate satisfied).
 - Phase 2: 5 tasks — convert all 13 repo/tooling `.test.mjs` to Vitest `.test.ts` (drop the `generated-output-sync` config special-case); harmonize the 9 session-observer suites from `node:assert/strict` to `expect`. Whole repo lands on one `expect` convention.
 - Phase 3: 2 tasks — add the guard (no `node:test`, no `node:assert`, no `.test.mjs`); retire `test:node`; `pnpm test` runs Vitest only.
-- Phase 4: 3 tasks — docs (`tests/AGENTS.md`/README), repo reference + backlog, final full verification.
+- Phase 4: 3 tasks — docs (`tests/AGENTS.md`/README), repo reference + backlog, final full verification (HiLL checkpoint after this phase).
 
 **Total: 12 tasks**
 
