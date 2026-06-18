@@ -2,15 +2,15 @@
 oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
-oat_last_updated: 2026-06-17
-oat_current_task_id: p01-t01
+oat_last_updated: 2026-06-18
+oat_current_task_id: p02-t01
 oat_generated: false
 ---
 
 # Implementation: session-observer-ts-migration
 
 **Started:** 2026-06-17
-**Last Updated:** 2026-06-17
+**Last Updated:** 2026-06-18
 
 > This document is used to resume interrupted implementation sessions.
 >
@@ -25,18 +25,18 @@ oat_generated: false
 
 | Phase   | Status      | Tasks | Completed |
 | ------- | ----------- | ----- | --------- |
-| Phase 1 | in_progress | 3     | 0/3       |
+| Phase 1 | complete    | 3     | 3/3       |
 | Phase 2 | pending     | 4     | 0/4       |
 | Phase 3 | pending     | 2     | 0/2       |
 | Phase 4 | pending     | 1     | 0/1       |
 
-**Total:** 0/10 tasks completed
+**Total:** 3/10 tasks completed
 
 ---
 
 ## Phase 1: Canonical Session-Observer Runtime Source
 
-**Status:** in_progress
+**Status:** complete
 **Started:** 2026-06-17
 
 ### Task p01-t01: Lift Session-Observer Modules To TypeScript Source
@@ -179,6 +179,29 @@ _Orchestration runs from `oat-project-implement` are appended here._
 - `node skills/session-observer/scripts/session-observer.mjs --help` - passed
 - `node skills/session-observer/scripts/probe-local.mjs --runtime codex --cwd "$PWD"` - passed with accepted exit code 0
 - `node --test tests/session-observer/*.test.mjs` - passed, 160 tests
+
+### Review Received: p01 code
+
+**Date:** 2026-06-18
+**Review artifact:** `reviews/archived/code-p01-review-2026-06-18.md`
+
+**Findings:**
+
+- Critical: 0
+- Important: 1
+- Medium: 1
+- Minor: 0
+
+**Fixes applied:**
+
+- Updated lifecycle bookkeeping so p01 is complete, total progress is 3/10, and the next task is `p02-t01`.
+- Updated `state.md` to stop routing implementation back to `p01-t01` and to preserve the final-only HiLL checkpoint at `p04`.
+
+**Accepted follow-up:**
+
+- The p01 reviewer noted broad `any` usage in the newly lifted TypeScript source. Runtime/build parity passed, so this remains non-blocking for p01 and should be reduced opportunistically while p02 moves unit tests onto canonical source imports.
+
+**Next:** Re-run the p01 code review gate before starting p02.
 
 ---
 

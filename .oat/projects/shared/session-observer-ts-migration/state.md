@@ -1,6 +1,6 @@
 ---
-oat_current_task: p01-t01
-oat_last_commit: null
+oat_current_task: p02-t01
+oat_last_commit: 2bb0665
 oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
@@ -8,7 +8,7 @@ oat_parent: null # optional child-only coordination parent slug
 oat_siblings: [] # optional child-only sibling slugs
 oat_depends_on: [] # optional child-only sibling dependencies
 oat_children: [] # optional coordination-parent child slugs
-oat_hill_checkpoints: [] # Configured: which phases require human-in-the-loop lifecycle approval
+oat_hill_checkpoints: [p04] # Configured: which phases require human-in-the-loop lifecycle approval
 oat_hill_completed: [] # Progress: which HiLL checkpoints have been completed
 oat_parallel_execution: false
 oat_phase: implement # Current phase: discovery | spec | design | plan | implement | decomposition
@@ -27,7 +27,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-06-17T23:15:59.616Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-06-18T00:17:47Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-06-18T00:37:50Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -35,11 +35,11 @@ oat_generated: false
 
 **Status:** Implementation In Progress
 **Started:** 2026-06-17
-**Last Updated:** 2026-06-17
+**Last Updated:** 2026-06-18
 
 ## Current Phase
 
-Implementation - Starting phase p01 from `p01-t01`
+Implementation - Phase p01 complete; p01 review fixes applied; next task `p02-t01`
 
 ## Artifacts
 
@@ -56,7 +56,9 @@ Implementation - Starting phase p01 from `p01-t01`
 - ✓ Requirements confirmed
 - ✓ Dispatch ceiling set to Maximum (Codex `xhigh`, Claude `opus`)
 - ✓ Implementation plan generated
-- ⧗ Implementation started at `p01-t01`
+- ✓ Phase p01 implementation complete
+- ✓ p01 review lifecycle fixes applied
+- ⧗ Next implementation task is `p02-t01`
 
 ## Blockers
 
@@ -64,4 +66,4 @@ None
 
 ## Next Milestone
 
-Complete phase p01 and continue through the final-phase checkpoint
+Pass the p01 re-review, then continue with phase p02 through the final-phase checkpoint at p04
