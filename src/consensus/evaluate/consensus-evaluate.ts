@@ -509,7 +509,7 @@ export function buildEvaluationPromptProfile(
 }
 
 function pathExists(targetPath: string) {
-  return stat(targetPath)
+  return lstat(targetPath)
     .then(() => true)
     .catch((error: NodeJS.ErrnoException) => {
       if (error.code === 'ENOENT') return false;

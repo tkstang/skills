@@ -337,7 +337,7 @@ function buildEvaluationPromptProfile(inputs) {
   };
 }
 function pathExists(targetPath) {
-  return stat(targetPath).then(() => true).catch((error) => {
+  return lstat(targetPath).then(() => true).catch((error) => {
     if (error.code === "ENOENT") return false;
     throw error;
   });
