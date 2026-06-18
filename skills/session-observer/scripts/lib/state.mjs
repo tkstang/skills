@@ -6,6 +6,9 @@ import { join } from "node:path";
 const SCHEMA_VERSION = 1;
 const LOCK_RETRIES = 100;
 const LOCK_INTERVAL_MS = 50;
+function isErrnoException(err) {
+  return err instanceof Error && "code" in err;
+}
 function stateDir() {
   return process.env.STATE_DIR ?? join(homedir(), ".local", "state", "session-observer");
 }
@@ -28,7 +31,7 @@ async function acquireLock(lock) {
       await fh.close();
       return;
     } catch (err) {
-      if (err.code !== "EEXIST") throw err;
+      if (!isErrnoException(err) || err.code !== "EEXIST") throw err;
       await sleep(LOCK_INTERVAL_MS);
     }
   }
@@ -43,7 +46,7 @@ async function releaseLock(lock) {
   }
 }
 function sleep(ms) {
-  return new Promise((r) => setTimeout(r, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 function emptyState() {
   return { schemaVersion: SCHEMA_VERSION, sessions: {} };
@@ -79,7 +82,7 @@ async function readState(dir) {
   try {
     raw = await readFile(file, "utf8");
   } catch (err) {
-    if (err.code === "ENOENT") return emptyState();
+    if (isErrnoException(err) && err.code === "ENOENT") return emptyState();
     throw err;
   }
   let parsed;
@@ -92,13 +95,14 @@ async function readState(dir) {
   return migrateIfNeeded(parsed, dir, raw);
 }
 async function migrateIfNeeded(parsed, dir, rawBackup) {
-  if (typeof parsed.schemaVersion === "number" && parsed.schemaVersion >= SCHEMA_VERSION) {
-    return parsed;
+  const state = parsed;
+  if (typeof state.schemaVersion === "number" && state.schemaVersion >= SCHEMA_VERSION) {
+    return state;
   }
   await writeBackup(dir, "v0", rawBackup ?? JSON.stringify(parsed));
   return {
     schemaVersion: SCHEMA_VERSION,
-    sessions: parsed.sessions ?? {}
+    sessions: state.sessions ?? {}
   };
 }
 async function writeState(dir, state) {
@@ -154,7 +158,7 @@ async function mutate(fn) {
   await acquireLock(lock);
   try {
     const current = await readState(dir);
-    const next = fn(current);
+    const next = fn(current) ?? current;
     await writeState(dir, next);
     return next;
   } finally {

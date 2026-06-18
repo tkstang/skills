@@ -7,6 +7,9 @@ import { rank } from './rank.mjs';
 import * as stateLib from './state.mjs';
 const VALID_RUNTIMES = ["claude-code", "codex", "cursor"];
 const VALID_RUNTIME_LABEL = VALID_RUNTIMES.join(", ");
+function isRuntime(value) {
+  return typeof value === "string" && VALID_RUNTIMES.includes(value);
+}
 function parsePinnedSession(session) {
   if (!session) return null;
   const colonIndex = session.indexOf(":");
@@ -17,7 +20,7 @@ function parsePinnedSession(session) {
   }
   const runtime = session.slice(0, colonIndex);
   const sessionId = session.slice(colonIndex + 1);
-  if (!VALID_RUNTIMES.includes(runtime)) {
+  if (!isRuntime(runtime)) {
     return {
       error: `Unknown runtime in --session: ${runtime}. Use one of: ${VALID_RUNTIME_LABEL}.`
     };
@@ -36,9 +39,7 @@ async function preferredRuntimeFromState(withCandidates, targetCwd) {
   } catch {
     return null;
   }
-  const runtimeSet = new Set(
-    withCandidates.map((r) => r.runtime)
-  );
+  const runtimeSet = new Set(withCandidates.map((r) => r.runtime));
   const sessionIdsByRuntime = new Map(
     withCandidates.map((r) => [
       r.runtime,
@@ -72,7 +73,7 @@ async function resolveAutoRuntime(targetCwd, { self = process.env.SESSION_OBSERV
   const withCandidates = results.filter(
     (r) => r.candidates.length > 0
   );
-  const considered = VALID_RUNTIMES.includes(self) ? withCandidates.filter((r) => r.runtime !== self) : withCandidates;
+  const considered = isRuntime(self) ? withCandidates.filter((r) => r.runtime !== self) : withCandidates;
   if (considered.length === 1) return { runtime: considered[0].runtime };
   if (considered.length === 0) return { noMatch: true };
   const preferred = await preferredRuntimeFromState(considered, targetCwd);
@@ -115,7 +116,7 @@ function inputNeededOutcome(kind, payload, message) {
   return { ok: false, kind, exitCode: 3, payload, message };
 }
 function errorOutcome(message) {
-  return { ok: false, kind: "error", exitCode: 1, message };
+  return { ok: false, kind: "error", exitCode: 1, payload: {}, message };
 }
 function unengagedOnlyMessage(runtime, cwd) {
   return `The only ${runtime} session for this cwd has no user conversation yet: ${cwd}. It looks like a freshly spawned/bootstrap session you have not engaged with. Did you mean a different session (another runtime, a sister worktree, or a specific session id)?`;
@@ -181,7 +182,8 @@ async function observePinnedSession(runtime, cwd, pinnedSession, args) {
   try {
     candidates = await discover(runtime, cwd);
   } catch (err) {
-    return errorOutcome(`Failed to discover transcripts: ${err.message}`);
+    const message = err instanceof Error ? err.message : String(err);
+    return errorOutcome(`Failed to discover transcripts: ${message}`);
   }
   if (candidates.length === 0) {
     return noMatchOutcome(
@@ -216,7 +218,8 @@ async function observePinnedSession(runtime, cwd, pinnedSession, args) {
       fallbacks: []
     });
   } catch (err) {
-    return errorOutcome(`Failed to build digest: ${err.message}`);
+    const message = err instanceof Error ? err.message : String(err);
+    return errorOutcome(`Failed to build digest: ${message}`);
   }
   const markedRead = await markReadIfNeeded(
     pinnedSession.runtime,
@@ -238,7 +241,8 @@ async function observeCatchUp(args) {
   const { cwd, session, snippet } = args;
   let { runtime } = args;
   const pinnedSession = parsePinnedSession(session);
-  if (pinnedSession?.error) return errorOutcome(pinnedSession.error);
+  if (pinnedSession && "error" in pinnedSession)
+    return errorOutcome(pinnedSession.error);
   if (pinnedSession) runtime = pinnedSession.runtime;
   if (runtime === "auto") {
     const resolved = await resolveAutoRuntime(cwd);
@@ -260,19 +264,26 @@ async function observeCatchUp(args) {
           runtimes: resolved.runtimes,
           message: "Candidates found in multiple runtimes. Use --runtime to specify."
         },
-        `Ambiguous runtime: candidates found in both ${resolved.runtimes.join(", ")}. Specify --runtime <runtime>.`
+        `Ambiguous runtime: candidates found in both ${resolved.runtimes?.join(", ")}. Specify --runtime <runtime>.`
       );
     }
     runtime = resolved.runtime;
   }
   if (pinnedSession) {
+    if (!isRuntime(runtime)) {
+      return errorOutcome(`Unknown runtime: ${runtime}`);
+    }
     return observePinnedSession(runtime, cwd, pinnedSession, args);
+  }
+  if (!isRuntime(runtime)) {
+    return errorOutcome(`Unknown runtime: ${runtime}`);
   }
   let candidates;
   try {
     candidates = await discover(runtime, cwd);
   } catch (err) {
-    return errorOutcome(`Failed to discover transcripts: ${err.message}`);
+    const message = err instanceof Error ? err.message : String(err);
+    return errorOutcome(`Failed to discover transcripts: ${message}`);
   }
   if (candidates.length === 0) {
     return noMatchOutcome(
@@ -351,7 +362,8 @@ async function observeCatchUp(args) {
       fallbacks: rankResult.fallbacks
     });
   } catch (err) {
-    return errorOutcome(`Failed to build digest: ${err.message}`);
+    const message = err instanceof Error ? err.message : String(err);
+    return errorOutcome(`Failed to build digest: ${message}`);
   }
   const markedRead = await markReadIfNeeded(
     runtime,

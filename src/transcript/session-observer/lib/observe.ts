@@ -7,15 +7,38 @@
 
 import { readFile } from 'node:fs/promises';
 
+import type { Runtime } from '../../core/runtimes.js';
 import { buildDigest } from './digest.js';
 import { discover, gitWorktrees } from './locate.js';
 import { rank } from './rank.js';
 import * as stateLib from './state.js';
+import type {
+  BuildDigestOptions,
+  Digest,
+  ObserveArgs,
+  ObserveFailure,
+  ObserveFailureKind,
+  ObserveFailurePayload,
+  ObserveOutcome,
+  ObservedRuntimeResolution,
+  PinnedSession,
+  PinnedSessionParseResult,
+  RankTier,
+  RuntimeCandidateSet,
+  SessionStateEntry,
+  TranscriptCandidate,
+} from './types.js';
 
-export const VALID_RUNTIMES = ['claude-code', 'codex', 'cursor'];
+export const VALID_RUNTIMES: Runtime[] = ['claude-code', 'codex', 'cursor'];
 export const VALID_RUNTIME_LABEL = VALID_RUNTIMES.join(', ');
 
-export function parsePinnedSession(session: any): any {
+function isRuntime(value: unknown): value is Runtime {
+  return typeof value === 'string' && VALID_RUNTIMES.includes(value as Runtime);
+}
+
+export function parsePinnedSession(
+  session?: string,
+): PinnedSessionParseResult {
   if (!session) return null;
   const colonIndex = session.indexOf(':');
   if (colonIndex === -1) {
@@ -26,7 +49,7 @@ export function parsePinnedSession(session: any): any {
   }
   const runtime = session.slice(0, colonIndex);
   const sessionId = session.slice(colonIndex + 1);
-  if (!VALID_RUNTIMES.includes(runtime)) {
+  if (!isRuntime(runtime)) {
     return {
       error: `Unknown runtime in --session: ${runtime}. Use one of: ${VALID_RUNTIME_LABEL}.`,
     };
@@ -34,7 +57,10 @@ export function parsePinnedSession(session: any): any {
   return { runtime, sessionId };
 }
 
-export function shouldMarkCatchUpRead(sessionState: any, digest: any): any {
+export function shouldMarkCatchUpRead(
+  sessionState: SessionStateEntry | null,
+  digest: Digest,
+): boolean {
   if (digest.range.newRecords > 0) return true;
   if (!sessionState) return true;
   return (
@@ -44,9 +70,9 @@ export function shouldMarkCatchUpRead(sessionState: any, digest: any): any {
 }
 
 async function preferredRuntimeFromState(
-  withCandidates: any,
-  targetCwd: any,
-): Promise<any> {
+  withCandidates: RuntimeCandidateSet[],
+  targetCwd: string,
+): Promise<ObservedRuntimeResolution | null> {
   let state;
   try {
     state = await stateLib.load();
@@ -54,27 +80,25 @@ async function preferredRuntimeFromState(
     return null;
   }
 
-  const runtimeSet: any = new Set(
-    withCandidates.map((r: any): any => r.runtime),
-  );
-  const sessionIdsByRuntime: any = new Map(
-    withCandidates.map((r: any): any => [
+  const runtimeSet = new Set(withCandidates.map((r) => r.runtime));
+  const sessionIdsByRuntime = new Map(
+    withCandidates.map((r) => [
       r.runtime,
-      new Set(r.candidates.map((c: any): any => c.sessionId)),
+      new Set(r.candidates.map((c) => c.sessionId)),
     ]),
   );
 
-  const matches: any[] = Object.values(state.sessions ?? {})
-    .filter((s: any): any => runtimeSet.has(s.runtime))
-    .filter((s: any): any => s.recordedCwd === targetCwd)
-    .filter((s: any): any =>
+  const matches = Object.values(state.sessions ?? {})
+    .filter((s) => runtimeSet.has(s.runtime))
+    .filter((s) => s.recordedCwd === targetCwd)
+    .filter((s) =>
       sessionIdsByRuntime.get(s.runtime)?.has(s.sessionId),
     )
-    .toSorted((a: any, b: any): any =>
+    .toSorted((a, b) =>
       String(b.lastReadAt ?? '').localeCompare(String(a.lastReadAt ?? '')),
     );
 
-  const runtimes = [...new Set(matches.map((s: any): any => s.runtime))];
+  const runtimes = [...new Set(matches.map((s) => s.runtime))];
   if (runtimes.length !== 1) return null;
   return {
     runtime: runtimes[0],
@@ -84,11 +108,11 @@ async function preferredRuntimeFromState(
 }
 
 export async function resolveAutoRuntime(
-  targetCwd: any,
-  { self = process.env.SESSION_OBSERVER_SELF }: any = {},
-): Promise<any> {
+  targetCwd: string,
+  { self = process.env.SESSION_OBSERVER_SELF }: { self?: string } = {},
+): Promise<ObservedRuntimeResolution> {
   const results = await Promise.all(
-    VALID_RUNTIMES.map(async (rt: any): Promise<any> => {
+    VALID_RUNTIMES.map(async (rt): Promise<RuntimeCandidateSet> => {
       try {
         const candidates = await discover(rt, targetCwd);
         return { runtime: rt, candidates };
@@ -99,10 +123,10 @@ export async function resolveAutoRuntime(
   );
 
   const withCandidates = results.filter(
-    (r: any): any => r.candidates.length > 0,
+    (r) => r.candidates.length > 0,
   );
-  const considered = VALID_RUNTIMES.includes(self)
-    ? withCandidates.filter((r: any): any => r.runtime !== self)
+  const considered = isRuntime(self)
+    ? withCandidates.filter((r) => r.runtime !== self)
     : withCandidates;
 
   if (considered.length === 1) return { runtime: considered[0].runtime };
@@ -113,20 +137,20 @@ export async function resolveAutoRuntime(
 
   return {
     ambiguous: true,
-    runtimes: considered.map((r: any): any => r.runtime),
+    runtimes: considered.map((r) => r.runtime),
     candidates: Object.fromEntries(
-      considered.map((r: any): any => [r.runtime, r.candidates]),
+      considered.map((r) => [r.runtime, r.candidates]),
     ),
   };
 }
 
 export async function applySnippetFilter(
-  candidates: any,
-  snippet: any,
-): Promise<any> {
+  candidates: TranscriptCandidate[],
+  snippet?: string,
+): Promise<{ candidates: TranscriptCandidate[]; matches: TranscriptCandidate[] }> {
   if (!snippet) return { candidates, matches: [] };
   const needle = snippet.toLowerCase();
-  const matches: any[] = [];
+  const matches: TranscriptCandidate[] = [];
   for (const candidate of candidates) {
     let raw;
     try {
@@ -138,7 +162,7 @@ export async function applySnippetFilter(
     if (index === -1) continue;
     const start = Math.max(0, index - 80);
     const end = Math.min(raw.length, index + snippet.length + 80);
-    const snippetMatch: any = {
+    const snippetMatch = {
       excerpt: snippet,
       context: raw.slice(start, end).replace(/\s+/g, ' ').trim(),
     };
@@ -147,19 +171,26 @@ export async function applySnippetFilter(
   return { candidates: matches, matches };
 }
 
-function noMatchOutcome(payload: any, message: any): any {
+function noMatchOutcome(
+  payload: ObserveFailurePayload,
+  message: string,
+): ObserveFailure {
   return { ok: false, kind: 'noMatch', exitCode: 2, payload, message };
 }
 
-function inputNeededOutcome(kind: any, payload: any, message: any): any {
+function inputNeededOutcome(
+  kind: Exclude<ObserveFailureKind, 'noMatch' | 'error'>,
+  payload: ObserveFailurePayload,
+  message: string,
+): ObserveFailure {
   return { ok: false, kind, exitCode: 3, payload, message };
 }
 
-function errorOutcome(message: any): any {
-  return { ok: false, kind: 'error', exitCode: 1, message };
+function errorOutcome(message: string): ObserveFailure {
+  return { ok: false, kind: 'error', exitCode: 1, payload: {}, message };
 }
 
-function unengagedOnlyMessage(runtime: any, cwd: any): any {
+function unengagedOnlyMessage(runtime: string, cwd: string): string {
   return (
     `The only ${runtime} session for this cwd has no user conversation yet: ${cwd}. ` +
     'It looks like a freshly spawned/bootstrap session you have not engaged with. ' +
@@ -167,7 +198,10 @@ function unengagedOnlyMessage(runtime: any, cwd: any): any {
   );
 }
 
-async function sessionStateFor(runtime: any, sessionId: any): Promise<any> {
+async function sessionStateFor(
+  runtime: Runtime,
+  sessionId: string,
+): Promise<SessionStateEntry | null> {
   try {
     return await stateLib.getSession(runtime, sessionId);
   } catch {
@@ -176,11 +210,11 @@ async function sessionStateFor(runtime: any, sessionId: any): Promise<any> {
 }
 
 async function markReadIfNeeded(
-  runtime: any,
-  candidate: any,
-  sessionState: any,
-  digest: any,
-): Promise<any> {
+  runtime: Runtime,
+  candidate: TranscriptCandidate,
+  sessionState: SessionStateEntry | null,
+  digest: Digest,
+): Promise<boolean> {
   if (!shouldMarkCatchUpRead(sessionState, digest)) return false;
   try {
     await stateLib.markRead(runtime, candidate.sessionId, {
@@ -196,9 +230,9 @@ async function markReadIfNeeded(
 }
 
 function watchedByPidWarnings(
-  sessionState: any,
-  suppressWatchedWarningPid: any,
-): any {
+  sessionState: SessionStateEntry | null,
+  suppressWatchedWarningPid?: number,
+): string[] {
   const watchedByPid = sessionState?.watchedByPid;
   if (!watchedByPid || watchedByPid === suppressWatchedWarningPid) return [];
   return [
@@ -207,8 +241,8 @@ function watchedByPidWarnings(
 }
 
 async function buildCatchUpDigest(
-  runtime: any,
-  candidate: any,
+  runtime: Runtime,
+  candidate: TranscriptCandidate,
   {
     fromIndex,
     includeTools,
@@ -220,8 +254,11 @@ async function buildCatchUpDigest(
     active = false,
     warnings = [],
     fallbacks = [],
-  }: any,
-): Promise<any> {
+  }: BuildDigestOptions & {
+    includeTools?: boolean;
+    matchedTier?: RankTier | null;
+  },
+): Promise<Digest> {
   return buildDigest(runtime, candidate.transcriptPath, {
     fromIndex,
     mode: 'catch-up',
@@ -240,16 +277,17 @@ async function buildCatchUpDigest(
 }
 
 async function observePinnedSession(
-  runtime: any,
-  cwd: any,
-  pinnedSession: any,
-  args: any,
-): Promise<any> {
+  runtime: Runtime,
+  cwd: string,
+  pinnedSession: PinnedSession,
+  args: ObserveArgs,
+): Promise<ObserveOutcome> {
   let candidates;
   try {
     candidates = await discover(runtime, cwd);
-  } catch (err: any) {
-    return errorOutcome(`Failed to discover transcripts: ${err.message}`);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return errorOutcome(`Failed to discover transcripts: ${message}`);
   }
 
   if (candidates.length === 0) {
@@ -260,7 +298,7 @@ async function observePinnedSession(
   }
 
   const pinned = candidates.find(
-    (c: any): any =>
+    (c) =>
       c.runtime === pinnedSession.runtime &&
       c.sessionId === pinnedSession.sessionId,
   );
@@ -289,8 +327,9 @@ async function observePinnedSession(
       warnings,
       fallbacks: [],
     });
-  } catch (err: any) {
-    return errorOutcome(`Failed to build digest: ${err.message}`);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return errorOutcome(`Failed to build digest: ${message}`);
   }
 
   const markedRead = await markReadIfNeeded(
@@ -316,11 +355,12 @@ async function observePinnedSession(
  * @param {object} args CLI-like options.
  * @returns {Promise<object>}
  */
-export async function observeCatchUp(args: any): Promise<any> {
+export async function observeCatchUp(args: ObserveArgs): Promise<ObserveOutcome> {
   const { cwd, session, snippet } = args;
   let { runtime } = args;
   const pinnedSession = parsePinnedSession(session);
-  if (pinnedSession?.error) return errorOutcome(pinnedSession.error);
+  if (pinnedSession && 'error' in pinnedSession)
+    return errorOutcome(pinnedSession.error);
   if (pinnedSession) runtime = pinnedSession.runtime;
 
   if (runtime === 'auto') {
@@ -344,7 +384,7 @@ export async function observeCatchUp(args: any): Promise<any> {
           message:
             'Candidates found in multiple runtimes. Use --runtime to specify.',
         },
-        `Ambiguous runtime: candidates found in both ${resolved.runtimes.join(', ')}. ` +
+          `Ambiguous runtime: candidates found in both ${resolved.runtimes?.join(', ')}. ` +
           `Specify --runtime <runtime>.`,
       );
     }
@@ -352,14 +392,22 @@ export async function observeCatchUp(args: any): Promise<any> {
   }
 
   if (pinnedSession) {
+    if (!isRuntime(runtime)) {
+      return errorOutcome(`Unknown runtime: ${runtime}`);
+    }
     return observePinnedSession(runtime, cwd, pinnedSession, args);
   }
 
-  let candidates;
+  if (!isRuntime(runtime)) {
+    return errorOutcome(`Unknown runtime: ${runtime}`);
+  }
+
+  let candidates: TranscriptCandidate[];
   try {
     candidates = await discover(runtime, cwd);
-  } catch (err: any) {
-    return errorOutcome(`Failed to discover transcripts: ${err.message}`);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return errorOutcome(`Failed to discover transcripts: ${message}`);
   }
 
   if (candidates.length === 0) {
@@ -386,7 +434,7 @@ export async function observeCatchUp(args: any): Promise<any> {
     }
   }
 
-  const worktrees = await gitWorktrees(cwd).catch((): any => []);
+  const worktrees = await gitWorktrees(cwd).catch(() => []);
   const rankResult = rank(candidates, cwd, { gitWorktrees: worktrees });
 
   if (rankResult.noMatch) {
@@ -448,8 +496,9 @@ export async function observeCatchUp(args: any): Promise<any> {
       warnings,
       fallbacks: rankResult.fallbacks,
     });
-  } catch (err: any) {
-    return errorOutcome(`Failed to build digest: ${err.message}`);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return errorOutcome(`Failed to build digest: ${message}`);
   }
 
   const markedRead = await markReadIfNeeded(

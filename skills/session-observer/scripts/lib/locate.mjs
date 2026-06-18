@@ -125,9 +125,7 @@ async function discoverClaudeCode(targetCwd) {
       } catch {
         continue;
       }
-      const jsonlFiles = dirEntries.filter(
-        (e) => e.endsWith(".jsonl")
-      );
+      const jsonlFiles = dirEntries.filter((e) => e.endsWith(".jsonl"));
       for (const file of jsonlFiles) {
         const transcriptPath = join(projectDir, file);
         if (seenTranscripts.has(transcriptPath)) continue;

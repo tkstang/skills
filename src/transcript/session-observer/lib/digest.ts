@@ -21,11 +21,20 @@
  */
 
 import {
+  type DigestEntry,
+  type Runtime,
   readRecords,
   normalizeEntries,
   extractMeta,
 } from '../../core/runtimes.js';
 import { classifyTranscriptRecords } from './session-classifier.js';
+import type {
+  BuildDigestOptions,
+  Digest,
+  DigestAccounting,
+  DigestFilters,
+  DigestRange,
+} from './types.js';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -46,13 +55,16 @@ const AUTO_LARGE_DIGEST_TURNS = 8;
  * @param {{ maxTurns?: number, maxBytes?: number }} opts
  * @returns {object[]}
  */
-function applyTailSlice(entries: any, opts: any): any {
+function applyTailSlice(
+  entries: DigestEntry[],
+  opts: Pick<BuildDigestOptions, 'maxTurns' | 'maxBytes'>,
+): DigestEntry[] {
   const { maxTurns, maxBytes } = opts;
 
   if (maxBytes && maxBytes > 0) {
     // Walk from the tail, accumulate byte count, include entries until we exceed maxBytes
     let cumBytes = 0;
-    const result: any[] = [];
+    const result: DigestEntry[] = [];
     for (let i = entries.length - 1; i >= 0; i--) {
       const entryBytes = Buffer.byteLength(entries[i].text || '', 'utf8');
       if (cumBytes + entryBytes > maxBytes && result.length > 0) break;
@@ -72,9 +84,9 @@ function applyTailSlice(entries: any, opts: any): any {
   return entries;
 }
 
-function renderedCharCount(entries: any): any {
+function renderedCharCount(entries: DigestEntry[]): number {
   return entries.reduce(
-    (sum: any, entry: any): any => sum + (entry.text?.length ?? 0),
+    (sum, entry) => sum + (entry.text?.length ?? 0),
     0,
   );
 }
@@ -90,10 +102,10 @@ function renderedCharCount(entries: any): any {
  * @param {object[]} entries
  * @returns {object[][]}
  */
-function groupByRole(entries: any): any {
+function groupByRole(entries: DigestEntry[]): DigestEntry[][] {
   if (entries.length === 0) return [];
-  const groups: any[] = [];
-  let currentGroup = [entries[0]];
+  const groups: DigestEntry[][] = [];
+  let currentGroup = [entries[0]!];
 
   for (let i = 1; i < entries.length; i++) {
     if (entries[i].role === currentGroup[0].role) {
@@ -117,7 +129,7 @@ function groupByRole(entries: any): any {
  * @param {object} digest
  * @returns {string}
  */
-function formatHeader(digest: any): any {
+function formatHeader(digest: Digest): string {
   const {
     runtime,
     transcriptPath,
@@ -129,7 +141,7 @@ function formatHeader(digest: any): any {
     active,
     warnings,
   } = digest;
-  const lines: any[] = [];
+  const lines: string[] = [];
   lines.push(`## session-observer digest`);
   lines.push('');
   lines.push(`**runtime:** ${runtime}`);
@@ -161,7 +173,7 @@ function formatHeader(digest: any): any {
   }
   if (accounting?.filtered) {
     const filtered = accounting.filtered;
-    const filterParts: any[] = [];
+    const filterParts: string[] = [];
     if (filtered.toolCalls > 0)
       filterParts.push(`tool calls: ${filtered.toolCalls}`);
     if (filtered.toolResults > 0)
@@ -182,7 +194,7 @@ function formatHeader(digest: any): any {
   }
 
   // Filters
-  const filterParts: any[] = [];
+  const filterParts: string[] = [];
   if (!filters.includeToolCalls) filterParts.push('tool calls excluded');
   if (!filters.includeToolResults) filterParts.push('tool results excluded');
   if (!filters.includeCommandMessages)
@@ -230,10 +242,10 @@ function formatHeader(digest: any): any {
  * @returns {Promise<object>}  Digest
  */
 export async function buildDigest(
-  runtime: any,
-  transcriptPath: any,
-  opts: any = {},
-): Promise<any> {
+  runtime: Runtime,
+  transcriptPath: string,
+  opts: BuildDigestOptions = {},
+): Promise<Digest> {
   const {
     fromIndex = 0,
     mode = 'review',
@@ -245,7 +257,7 @@ export async function buildDigest(
     fallbacks = [],
   } = opts;
 
-  const warnings = [...(opts.warnings ?? [])];
+  const warnings: string[] = [...(opts.warnings ?? [])];
 
   // Read records
   const records = await readRecords(transcriptPath);
@@ -255,7 +267,7 @@ export async function buildDigest(
 
   // Extract metadata
   let sessionId = opts.sessionId;
-  let recordedCwd = opts.recordedCwd ?? null;
+  let recordedCwd: string | null = opts.recordedCwd ?? null;
   if (!sessionId || recordedCwd === undefined) {
     try {
       const meta = await extractMeta(runtime, transcriptPath);
@@ -266,6 +278,7 @@ export async function buildDigest(
       if (!sessionId) sessionId = 'unknown';
     }
   }
+  sessionId ??= 'unknown';
 
   // Check for transcript shrinkage
   const effectiveFromIndex = fromIndex > totalRecords ? 0 : fromIndex;
@@ -297,22 +310,22 @@ export async function buildDigest(
     includeCommandMessages,
   });
   const allEntriesWithTools = allEntriesWithToolsBeforeBootstrap.filter(
-    (e: any): any => !bootstrapRecordIndexes.has(e.recordIndex),
+    (e) => !bootstrapRecordIndexes.has(e.recordIndex),
   );
   const allEntries = allEntriesBeforeBootstrap.filter(
-    (e: any): any => !bootstrapRecordIndexes.has(e.recordIndex),
+    (e) => !bootstrapRecordIndexes.has(e.recordIndex),
   );
 
   // Filter to only entries with recordIndex >= effectiveFromIndex
   const entriesBeforeTailSlice = allEntries.filter(
-    (e: any): any => e.recordIndex >= effectiveFromIndex,
+    (e) => e.recordIndex >= effectiveFromIndex,
   );
   let filteredEntries = entriesBeforeTailSlice;
 
   // Apply explicit tail-slice first. If the caller did not request a slice and
   // the digest is still huge, fall back to the last few role turns automatically.
   filteredEntries = applyTailSlice(filteredEntries, { maxTurns, maxBytes });
-  let autoLargeDigest = null;
+  let autoLargeDigest: DigestAccounting['autoLargeDigest'] = null;
   const explicitTailSlice = Boolean(
     (maxTurns && maxTurns > 0) || (maxBytes && maxBytes > 0),
   );
@@ -343,14 +356,14 @@ export async function buildDigest(
 
   const renderedFromIndex =
     filteredEntries.length > 0
-      ? Math.min(...filteredEntries.map((e: any): any => e.recordIndex))
+      ? Math.min(...filteredEntries.map((e) => e.recordIndex))
       : null;
   const renderedToIndex =
     filteredEntries.length > 0
-      ? Math.max(...filteredEntries.map((e: any): any => e.recordIndex))
+      ? Math.max(...filteredEntries.map((e) => e.recordIndex))
       : null;
 
-  const range: any = {
+  const range: DigestRange = {
     indexBase: 'zero-based-jsonl-record-index',
     fromIndex: rawFromIndex,
     toIndex: rawToIndex,
@@ -358,33 +371,28 @@ export async function buildDigest(
     totalRecords,
     renderedFromIndex,
     renderedToIndex,
+    newRecords: rawCount,
   };
 
-  if (mode === 'catch-up') {
-    range.newRecords = rawCount;
-  } else {
-    range.newRecords = rawCount;
-  }
-
-  const filters: any = {
+  const filters: DigestFilters = {
     includeToolCalls,
     includeToolResults,
     includeCommandMessages,
   };
   const fullEntriesInRawRange = allEntriesWithTools.filter(
-    (e: any): any => e.recordIndex >= rawFromIndex,
+    (e) => e.recordIndex >= rawFromIndex,
   );
   const fullEntriesInRawRangeBeforeBootstrap =
     allEntriesWithToolsBeforeBootstrap.filter(
-      (e: any): any => e.recordIndex >= rawFromIndex,
+      (e) => e.recordIndex >= rawFromIndex,
     );
   const rawRecordIndexesWithAnyEntry = new Set(
-    fullEntriesInRawRangeBeforeBootstrap.map((e: any): any => e.recordIndex),
+    fullEntriesInRawRangeBeforeBootstrap.map((e) => e.recordIndex),
   );
-  const rawRecordIndexes = new Set();
+  const rawRecordIndexes = new Set<number>();
   for (let i = rawFromIndex; i < totalRecords; i++) rawRecordIndexes.add(i);
 
-  const accounting: any = {
+  const accounting: DigestAccounting = {
     indexBase: 'zero-based-jsonl-record-index',
     raw: {
       fromIndex: rawFromIndex,
@@ -401,26 +409,25 @@ export async function buildDigest(
     filtered: {
       toolCalls: includeToolCalls
         ? 0
-        : fullEntriesInRawRange.filter((e: any): any => e.kind === 'tool_call')
-            .length,
+        : fullEntriesInRawRange.filter((e) => e.kind === 'tool_call').length,
       toolResults: includeToolResults
         ? 0
         : fullEntriesInRawRange.filter(
-            (e: any): any => e.kind === 'tool_result',
+            (e) => e.kind === 'tool_result',
           ).length,
       commandMessages: includeCommandMessages
         ? 0
         : fullEntriesInRawRange.filter(
-            (e: any): any => e.kind === 'command_message',
+            (e) => e.kind === 'command_message',
           ).length,
       bootstrapRecords: [...bootstrapRecordIndexes].filter(
-        (index: any): any => index >= rawFromIndex,
+        (index) => index >= rawFromIndex,
       ).length,
       bootstrapMessages: fullEntriesInRawRangeBeforeBootstrap.filter(
-        (e: any): any => bootstrapRecordIndexes.has(e.recordIndex),
+        (e) => bootstrapRecordIndexes.has(e.recordIndex),
       ).length,
       metadataRecords: [...rawRecordIndexes].filter(
-        (index: any): any => !rawRecordIndexesWithAnyEntry.has(index),
+        (index) => !rawRecordIndexesWithAnyEntry.has(index),
       ).length,
       tailSliceEntries: Math.max(
         0,
@@ -462,8 +469,8 @@ export async function buildDigest(
  * @param {object} digest
  * @returns {string}
  */
-export function renderMarkdown(digest: any): any {
-  const parts: any[] = [];
+export function renderMarkdown(digest: Digest): string {
+  const parts: string[] = [];
 
   // Header
   parts.push(formatHeader(digest));
@@ -509,6 +516,6 @@ export function renderMarkdown(digest: any): any {
  * @param {object} digest
  * @returns {string}
  */
-export function renderJson(digest: any): any {
+export function renderJson(digest: Digest): string {
   return JSON.stringify(digest, null, 2);
 }

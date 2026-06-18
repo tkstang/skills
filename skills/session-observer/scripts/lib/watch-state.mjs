@@ -14,6 +14,9 @@ const SCHEMA_VERSION = 1;
 const LOCK_RETRIES = 100;
 const LOCK_INTERVAL_MS = 50;
 const CONTROL_DIRECTIVES = /* @__PURE__ */ new Set(["flush", "pause", "resume", "stop"]);
+function isErrnoException(err) {
+  return err instanceof Error && "code" in err;
+}
 function stateDir() {
   return process.env.STATE_DIR ?? join(homedir(), ".local", "state", "session-observer");
 }
@@ -48,7 +51,7 @@ async function acquireLock(lock) {
       await fh.close();
       return;
     } catch (err) {
-      if (err.code !== "EEXIST") throw err;
+      if (!isErrnoException(err) || err.code !== "EEXIST") throw err;
       await sleep(LOCK_INTERVAL_MS);
     }
   }
@@ -67,7 +70,8 @@ async function readWatchState(dir) {
   try {
     raw = await readFile(watchPath(dir), "utf8");
   } catch (err) {
-    if (err.code === "ENOENT") return emptyWatchState();
+    if (isErrnoException(err) && err.code === "ENOENT")
+      return emptyWatchState();
     throw err;
   }
   let parsed;
@@ -112,13 +116,14 @@ async function writeWatchState(dir, state) {
   await writeJsonAtomic(dir, "watch.json", state);
 }
 function isPidLive(pid) {
-  if (!Number.isInteger(pid) || pid <= 0) return false;
+  if (typeof pid !== "number" || !Number.isInteger(pid) || pid <= 0)
+    return false;
   try {
     process.kill(pid, 0);
     return true;
   } catch (err) {
-    if (err.code === "ESRCH") return false;
-    if (err.code === "EPERM") return true;
+    if (isErrnoException(err) && err.code === "ESRCH") return false;
+    if (isErrnoException(err) && err.code === "EPERM") return true;
     throw err;
   }
 }
@@ -132,9 +137,7 @@ function clearStaleWatchers(state) {
     watchers: state.watchers ?? []
   });
   const watchers = Array.isArray(state.watchers) ? state.watchers : state.active ? [state.active] : [];
-  state.watchers = watchers.filter(
-    (watcher) => isPidLive(watcher.pid)
-  );
+  state.watchers = watchers.filter((watcher) => isPidLive(watcher.pid));
   syncPrimaryActive(state);
   const after = JSON.stringify({
     active: state.active ?? null,
@@ -222,7 +225,9 @@ async function startWatcher({
     return active;
   });
 }
-async function clearWatcher({ pid } = {}) {
+async function clearWatcher({
+  pid
+} = {}) {
   return mutateWatchState((state) => {
     clearStaleWatchers(state);
     const beforeCount = state.watchers.length;
@@ -251,7 +256,7 @@ async function recordWatcherEvent({
       ...watcher,
       lastEventAt: toIsoTimestamp(lastEventAt),
       eventCount: (watcher.eventCount ?? 0) + 1
-    }));
+    })) ?? state;
   });
 }
 async function recordWatcherPoll({
@@ -262,7 +267,7 @@ async function recordWatcherPoll({
     return mutateWatcherByPid(state, pid, (watcher) => ({
       ...watcher,
       lastPollAt: toIsoTimestamp(lastPollAt)
-    }));
+    })) ?? state;
   });
 }
 function watcherHasTarget(watcher, key) {
@@ -313,11 +318,14 @@ async function recordWatcherTarget({
         recordCount: target.recordCount ?? null,
         baselineRecordIndex: target.baselineRecordIndex ?? null,
         engagementStatus: target.engagementStatus ?? null,
-        lockedAt: target.lockedAt ?? toIsoTimestamp()
+        lockedAt: toIsoTimestamp(target.lockedAt)
       };
       if (existingIndex === -1) targets.push(targetRecord);
       else
-        targets[existingIndex] = { ...targets[existingIndex], ...targetRecord };
+        targets[existingIndex] = {
+          ...targets[existingIndex],
+          ...targetRecord
+        };
       return {
         ...watcher,
         targets,
@@ -325,7 +333,7 @@ async function recordWatcherTarget({
         sessionId: targets.length === 1 ? targets[0].sessionId : watcher.sessionId,
         transcriptPath: targets.length === 1 ? targets[0].transcriptPath : watcher.transcriptPath
       };
-    });
+    }) ?? state;
   });
 }
 async function findLiveWatcherForTarget({
@@ -350,16 +358,16 @@ async function recordWatcherError({
       ...watcher,
       lastError: {
         at: toIsoTimestamp(at),
-        message: error?.message ? String(error.message) : String(error ?? "unknown error")
+        message: error instanceof Error ? error.message : String(error ?? "unknown error")
       }
-    }));
+    })) ?? state;
   });
 }
 async function readControlFile(path) {
   try {
     return JSON.parse(await readFile(path, "utf8"));
   } catch (err) {
-    if (err.code === "ENOENT") return null;
+    if (isErrnoException(err) && err.code === "ENOENT") return null;
     throw err;
   }
 }
@@ -368,7 +376,7 @@ async function unlinkIfExists(path) {
     await unlink(path);
     return true;
   } catch (err) {
-    if (err.code === "ENOENT") return false;
+    if (isErrnoException(err) && err.code === "ENOENT") return false;
     throw err;
   }
 }
@@ -383,7 +391,9 @@ async function writeControlDirective(directive, { issuedAt, pid } = {}) {
   await writeJsonAtomic(dir, basename, payload);
   return payload;
 }
-async function readControlDirective({ pid } = {}) {
+async function readControlDirective({
+  pid
+} = {}) {
   const dir = stateDir();
   if (pid !== void 0) {
     const own = await readControlFile(controlPath(dir, pid));
@@ -391,7 +401,9 @@ async function readControlDirective({ pid } = {}) {
   }
   return readControlFile(controlPath(dir));
 }
-async function clearControlDirective({ pid } = {}) {
+async function clearControlDirective({
+  pid
+} = {}) {
   const dir = stateDir();
   if (pid === void 0) {
     return unlinkIfExists(controlPath(dir));
@@ -409,7 +421,7 @@ async function clearStaleControlDirectives() {
   try {
     entries = await readdir(dir);
   } catch (err) {
-    if (err.code === "ENOENT") return 0;
+    if (isErrnoException(err) && err.code === "ENOENT") return 0;
     throw err;
   }
   let cleared = 0;

@@ -344,6 +344,7 @@ test('Within a tier, candidates sorted by mtime DESC', () => {
 
   const result = rank([older, middle, newer], TARGET_CWD);
 
+  assert.ok(result.winner, 'should have a winner');
   assert.equal(
     result.winner.sessionId,
     'sess-newer',
@@ -392,6 +393,7 @@ test('engaged same-cwd session beats newer unengaged bootstrap session', () => {
 
   const result = rank([bootstrap, human], TARGET_CWD);
 
+  assert.ok(result.winner, 'should have a winner');
   assert.equal(result.winner.sessionId, 'sess-human');
   assert.equal(result.tier, 'A');
   assert.equal(result.fallbacks[0].sessionId, 'sess-bootstrap');

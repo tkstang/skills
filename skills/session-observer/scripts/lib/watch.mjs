@@ -108,7 +108,8 @@ async function writeProcessStdout(chunk) {
 }
 async function writeStdoutChunk(deps, chunk) {
   const result = deps.writeStdout(chunk);
-  if (result && typeof result.then === "function") await result;
+  if (result && typeof result === "object" && "then" in result)
+    await result;
 }
 function lockedTargetEvent(target) {
   return {
@@ -188,8 +189,9 @@ async function emitErrorEvent(args, deps, err) {
   );
 }
 function consumedThrough(lastRecordIndex) {
-  if (!Number.isFinite(lastRecordIndex) || lastRecordIndex <= 0) return null;
-  return lastRecordIndex - 1;
+  const numeric = Number(lastRecordIndex);
+  if (!Number.isFinite(numeric) || numeric <= 0) return null;
+  return numeric - 1;
 }
 async function targetHeartbeatStatus(target, sessionState) {
   const stored = sessionState.sessions?.[target.key] ?? null;
@@ -199,7 +201,7 @@ async function targetHeartbeatStatus(target, sessionState) {
   try {
     transcriptRecords = (await readRecords(target.transcriptPath)).length;
   } catch (err) {
-    error = err.message;
+    error = err instanceof Error ? err.message : String(err);
   }
   const recordsBehind = transcriptRecords === null ? null : Math.max(0, transcriptRecords - lastRecordIndex);
   return {
@@ -215,14 +217,15 @@ async function targetHeartbeatStatus(target, sessionState) {
   };
 }
 async function heartbeatPayload(targets, deps, eventState) {
-  const sessionState = await stateLib.load().catch(() => ({ sessions: {} }));
+  const sessionState = await stateLib.load().catch(() => ({ schemaVersion: 1, sessions: {} }));
   const targetStatuses = [];
   for (const target of targets.values()) {
     targetStatuses.push(await targetHeartbeatStatus(target, sessionState));
   }
   const totalRecordsBehind = targetStatuses.reduce(
     (sum, target) => {
-      if (!Number.isFinite(target.recordsBehind)) return sum;
+      if (target.recordsBehind === null || !Number.isFinite(target.recordsBehind))
+        return sum;
       return sum + target.recordsBehind;
     },
     0
@@ -280,7 +283,8 @@ async function lstatIfExists(path) {
   try {
     return await lstat(path);
   } catch (err) {
-    if (err.code === "ENOENT") return null;
+    if (err instanceof Error && "code" in err && err.code === "ENOENT")
+      return null;
     throw err;
   }
 }
@@ -335,7 +339,8 @@ async function assertEventLogPathSafe(dir, resolved) {
 async function resolveEventLogPath(eventLog) {
   if (!eventLog) return void 0;
   const dir = resolve(stateDir());
-  const resolved = isAbsolute(eventLog) ? resolve(eventLog) : resolve(dir, eventLog);
+  const eventLogPath = String(eventLog);
+  const resolved = isAbsolute(eventLogPath) ? resolve(eventLogPath) : resolve(dir, eventLogPath);
   await assertEventLogPathSafe(dir, resolved);
   return resolved;
 }
@@ -369,7 +374,7 @@ async function establishBaseline(runtime, args, targets, deps, eventState) {
     throw new Error(result.message);
   }
   const key = targetKey(result.runtime, result.digest.sessionId);
-  if (targets.has(key)) return targets.get(key);
+  if (targets.has(key)) return targets.get(key) ?? null;
   const conflict = await watchStateLib.findLiveWatcherForTarget({
     runtime: result.runtime,
     sessionId: result.digest.sessionId,
@@ -398,9 +403,10 @@ async function establishBaseline(runtime, args, targets, deps, eventState) {
   try {
     await watchStateLib.recordWatcherTarget({ pid: eventState.pid, target });
   } catch (err) {
-    if (err?.code === "DUPLICATE_WATCH_TARGET") {
+    const duplicate = err;
+    if (duplicate?.code === "DUPLICATE_WATCH_TARGET") {
       await restoreConsumedBaseline(result);
-      throw duplicateTargetError(err.conflictPid, key);
+      throw duplicateTargetError(duplicate.conflictPid, key);
     }
   }
   targets.set(key, target);
@@ -413,7 +419,9 @@ async function establishBaseline(runtime, args, targets, deps, eventState) {
       {
         key,
         runtime: target.runtime,
-        sessionId: target.sessionId
+        sessionId: target.sessionId,
+        firstChangedAt: deps.now(),
+        lastChangedAt: deps.now()
       },
       args,
       deps,
@@ -725,14 +733,15 @@ async function runWatchLoop(args, deps = {}) {
     await emitStopped(normalizedArgs, resolvedDeps, reason, eventState);
     return { reason, eventCount: eventState.eventCount };
   } catch (err) {
+    const error = err instanceof Error ? err : new Error(String(err));
     await watchStateLib.recordWatcherError({
       pid: eventState.pid,
-      error: err,
+      error,
       at: new Date(resolvedDeps.now()).toISOString()
     }).catch(() => null);
-    await emitErrorEvent(normalizedArgs, resolvedDeps, err);
-    err.watchErrorEventEmitted = true;
-    throw err;
+    await emitErrorEvent(normalizedArgs, resolvedDeps, error);
+    error.watchErrorEventEmitted = true;
+    throw error;
   } finally {
     removeSignalHandlers();
     for (const target of targets.values()) {

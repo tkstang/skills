@@ -23,6 +23,14 @@ import { open, rename, mkdir, readFile, unlink } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
+import type { Runtime } from '../../core/runtimes.js';
+import type {
+  MarkReadInput,
+  SessionObserverState,
+  SessionStateEntry,
+  StateMutator,
+} from './types.js';
+
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
@@ -35,22 +43,26 @@ const LOCK_INTERVAL_MS = 50;
 // State dir resolution
 // ---------------------------------------------------------------------------
 
-function stateDir(): any {
+function isErrnoException(err: unknown): err is NodeJS.ErrnoException {
+  return err instanceof Error && 'code' in err;
+}
+
+function stateDir(): string {
   return (
     process.env.STATE_DIR ??
     join(homedir(), '.local', 'state', 'session-observer')
   );
 }
 
-function statePath(dir: any): any {
+function statePath(dir: string): string {
   return join(dir, 'state.json');
 }
 
-function lockPath(dir: any): any {
+function lockPath(dir: string): string {
   return join(dir, 'state.json.lock');
 }
 
-function tmpPath(dir: any): any {
+function tmpPath(dir: string): string {
   return join(dir, `state.json.${process.pid}.tmp`);
 }
 
@@ -60,7 +72,7 @@ function tmpPath(dir: any): any {
  * @param {string} label  — e.g. 'corrupt' or 'v0'
  * @returns {string}
  */
-function bakPath(dir: any, label: any): any {
+function bakPath(dir: string, label: string): string {
   return join(dir, `state.json.${label}-${Date.now()}-${process.pid}.bak`);
 }
 
@@ -68,14 +80,14 @@ function bakPath(dir: any, label: any): any {
 // Lock helpers
 // ---------------------------------------------------------------------------
 
-async function acquireLock(lock: any): Promise<any> {
+async function acquireLock(lock: string): Promise<void> {
   for (let i = 0; i < LOCK_RETRIES; i++) {
     try {
       const fh = await open(lock, 'wx');
       await fh.close();
       return;
-    } catch (err: any) {
-      if (err.code !== 'EEXIST') throw err;
+    } catch (err) {
+      if (!isErrnoException(err) || err.code !== 'EEXIST') throw err;
       await sleep(LOCK_INTERVAL_MS);
     }
   }
@@ -84,7 +96,7 @@ async function acquireLock(lock: any): Promise<any> {
   );
 }
 
-async function releaseLock(lock: any): Promise<any> {
+async function releaseLock(lock: string): Promise<void> {
   try {
     await unlink(lock);
   } catch {
@@ -92,15 +104,15 @@ async function releaseLock(lock: any): Promise<any> {
   }
 }
 
-function sleep(ms: any): any {
-  return new Promise((r: any): any => setTimeout(r, ms));
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 // ---------------------------------------------------------------------------
 // Serialization / deserialization
 // ---------------------------------------------------------------------------
 
-function emptyState(): any {
+function emptyState(): SessionObserverState {
   return { schemaVersion: SCHEMA_VERSION, sessions: {} };
 }
 
@@ -111,7 +123,11 @@ function emptyState(): any {
  * @param {string} label — used in the backup filename (e.g. 'corrupt', 'v0')
  * @param {string} content — raw content to write
  */
-async function writeBackup(dir: any, label: any, content: any): Promise<any> {
+async function writeBackup(
+  dir: string,
+  label: string,
+  content: string,
+): Promise<void> {
   const bak = bakPath(dir, label);
   const tmp = bak + '.tmp';
   let fh;
@@ -149,17 +165,17 @@ async function writeBackup(dir: any, label: any, content: any): Promise<any> {
  * NOTE: caller MUST hold the lock before calling readState because corrupt JSON
  * and v0 migration reads can write backup files.
  */
-async function readState(dir: any): Promise<any> {
+async function readState(dir: string): Promise<SessionObserverState> {
   const file = statePath(dir);
-  let raw;
+  let raw: string;
   try {
     raw = await readFile(file, 'utf8');
-  } catch (err: any) {
-    if (err.code === 'ENOENT') return emptyState();
+  } catch (err) {
+    if (isErrnoException(err) && err.code === 'ENOENT') return emptyState();
     throw err;
   }
 
-  let parsed;
+  let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
   } catch {
@@ -183,15 +199,16 @@ async function readState(dir: any): Promise<any> {
  * @returns {object}
  */
 async function migrateIfNeeded(
-  parsed: any,
-  dir: any,
-  rawBackup: any,
-): Promise<any> {
+  parsed: unknown,
+  dir: string,
+  rawBackup: string,
+): Promise<SessionObserverState> {
+  const state = parsed as Partial<SessionObserverState>;
   if (
-    typeof parsed.schemaVersion === 'number' &&
-    parsed.schemaVersion >= SCHEMA_VERSION
+    typeof state.schemaVersion === 'number' &&
+    state.schemaVersion >= SCHEMA_VERSION
   ) {
-    return parsed;
+    return state as SessionObserverState;
   }
   // v0 or unknown — write backup atomically, then return upgraded in-memory state.
   // The backup write is lock-safe when called from readState() inside mutate().
@@ -199,14 +216,17 @@ async function migrateIfNeeded(
 
   return {
     schemaVersion: SCHEMA_VERSION,
-    sessions: parsed.sessions ?? {},
+    sessions: state.sessions ?? {},
   };
 }
 
 /**
  * Write state atomically: write to tmp, fsync, rename.
  */
-async function writeState(dir: any, state: any): Promise<any> {
+async function writeState(
+  dir: string,
+  state: SessionObserverState,
+): Promise<void> {
   await mkdir(dir, { recursive: true });
   const tmp = tmpPath(dir);
   const dest = statePath(dir);
@@ -239,11 +259,11 @@ async function writeState(dir: any, state: any): Promise<any> {
 // Key helper
 // ---------------------------------------------------------------------------
 
-function sessionKey(runtime: any, sessionId: any): any {
+function sessionKey(runtime: Runtime, sessionId: string): string {
   return `${runtime}:${sessionId}`;
 }
 
-function zeroSession(entry: any): any {
+function zeroSession(entry: SessionStateEntry): SessionStateEntry {
   return {
     ...entry,
     lastRecordIndex: 0,
@@ -259,7 +279,7 @@ function zeroSession(entry: any): any {
  * Load and return the current state without any mutation.
  * Acquires the lock because reading can create corrupt/v0 backup files.
  */
-export async function load(): Promise<any> {
+export async function load(): Promise<SessionObserverState> {
   const dir = stateDir();
   await mkdir(dir, { recursive: true });
   const lock = lockPath(dir);
@@ -279,14 +299,14 @@ export async function load(): Promise<any> {
  *
  * @param {(state: object) => object} fn
  */
-export async function mutate(fn: any): Promise<any> {
+export async function mutate(fn: StateMutator): Promise<SessionObserverState> {
   const dir = stateDir();
   await mkdir(dir, { recursive: true });
   const lock = lockPath(dir);
-  await acquireLock(lock);
+    await acquireLock(lock);
   try {
     const current = await readState(dir);
-    const next = fn(current);
+    const next = fn(current) ?? current;
     await writeState(dir, next);
     return next;
   } finally {
@@ -297,7 +317,10 @@ export async function mutate(fn: any): Promise<any> {
 /**
  * Return the SessionState for (runtime, sessionId), or null if not found.
  */
-export async function getSession(runtime: any, sessionId: any): Promise<any> {
+export async function getSession(
+  runtime: Runtime,
+  sessionId: string,
+): Promise<SessionStateEntry | null> {
   const state = await load();
   const key = sessionKey(runtime, sessionId);
   return state.sessions[key] ?? null;
@@ -308,12 +331,12 @@ export async function getSession(runtime: any, sessionId: any): Promise<any> {
  * The field name is retained as lastRecordIndex for state-file compatibility.
  */
 export async function markRead(
-  runtime: any,
-  sessionId: any,
-  { lastRecordIndex, lastTotalRecords, transcriptPath, recordedCwd }: any,
-): Promise<any> {
+  runtime: Runtime,
+  sessionId: string,
+  { lastRecordIndex, lastTotalRecords, transcriptPath, recordedCwd }: MarkReadInput,
+): Promise<void> {
   const key = sessionKey(runtime, sessionId);
-  await mutate((state: any): any => {
+  await mutate((state) => {
     const existing = state.sessions[key] ?? {};
     state.sessions[key] = {
       ...existing,
@@ -335,13 +358,13 @@ export async function markRead(
  * read offsets or lastReadAt. Returns true when the session existed.
  */
 export async function setWatchedByPid(
-  runtime: any,
-  sessionId: any,
-  pid: any,
-): Promise<any> {
+  runtime: Runtime,
+  sessionId: string,
+  pid: number,
+): Promise<boolean> {
   const key = sessionKey(runtime, sessionId);
   let updated = false;
-  await mutate((state: any): any => {
+  await mutate((state) => {
     const existing = state.sessions[key];
     if (!existing) return state;
     state.sessions[key] = {
@@ -359,13 +382,13 @@ export async function setWatchedByPid(
  * read offsets or lastReadAt. If pid is provided, only clear matching owners.
  */
 export async function clearWatchedByPid(
-  runtime: any,
-  sessionId: any,
-  pid?: any,
-): Promise<any> {
+  runtime: Runtime,
+  sessionId: string,
+  pid?: number,
+): Promise<boolean> {
   const key = sessionKey(runtime, sessionId);
   let updated = false;
-  await mutate((state: any): any => {
+  await mutate((state) => {
     const existing = state.sessions[key];
     if (!existing) return state;
     if (pid !== undefined && existing.watchedByPid !== pid) return state;
@@ -382,10 +405,10 @@ export async function clearWatchedByPid(
 /**
  * Zero all entries for a given runtime. Returns the count of entries zeroed.
  */
-export async function resetByRuntime(runtime: any): Promise<any> {
+export async function resetByRuntime(runtime: Runtime): Promise<number> {
   let count = 0;
-  await mutate((state: any): any => {
-    for (const [key, entry] of Object.entries(state.sessions) as any) {
+  await mutate((state) => {
+    for (const [key, entry] of Object.entries(state.sessions)) {
       if (entry.runtime === runtime) {
         state.sessions[key] = zeroSession(entry);
         count++;
@@ -400,11 +423,11 @@ export async function resetByRuntime(runtime: any): Promise<any> {
  * Zero a single session entry identified by (runtime, sessionId).
  */
 export async function resetBySession(
-  runtime: any,
-  sessionId: any,
-): Promise<any> {
+  runtime: Runtime,
+  sessionId: string,
+): Promise<void> {
   const key = sessionKey(runtime, sessionId);
-  await mutate((state: any): any => {
+  await mutate((state) => {
     if (state.sessions[key]) {
       state.sessions[key] = zeroSession(state.sessions[key]);
     }
@@ -415,8 +438,8 @@ export async function resetBySession(
 /**
  * Empty the sessions map while preserving schemaVersion.
  */
-export async function clear(): Promise<any> {
-  await mutate((state: any): any => {
+export async function clear(): Promise<void> {
+  await mutate((state) => {
     state.sessions = {};
     return state;
   });

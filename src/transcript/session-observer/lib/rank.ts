@@ -20,6 +20,13 @@
 
 import { realpathSync } from 'node:fs';
 
+import type {
+  RankOptions,
+  RankResult,
+  RankTier,
+  TranscriptCandidate,
+} from './types.js';
+
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
@@ -34,12 +41,12 @@ const CLOSE_SIZE_ABS = 4096;
 // Path normalization
 // ---------------------------------------------------------------------------
 
-function stripTrailingSlashes(path: any): any {
+function stripTrailingSlashes(path: string): string {
   if (path === '/') return path;
   return path.replace(/\/+$/u, '');
 }
 
-export function realpathSafe(path: any): any {
+export function realpathSafe(path: string): string {
   try {
     return realpathSync.native(path);
   } catch {
@@ -47,7 +54,7 @@ export function realpathSafe(path: any): any {
   }
 }
 
-function normalizeCwdPath(path: any): any {
+function normalizeCwdPath(path: string): string {
   return stripTrailingSlashes(realpathSafe(path));
 }
 
@@ -73,7 +80,10 @@ function normalizeCwdPath(path: any): any {
  * @param {string} targetCwd
  * @returns {'A' | 'B' | 'C'}
  */
-export function tierOf(candidate: any, targetCwd: any): any {
+export function tierOf(
+  candidate: Pick<TranscriptCandidate, 'recordedCwd'>,
+  targetCwd: string,
+): RankTier {
   const { recordedCwd } = candidate;
   if (!recordedCwd) return 'C';
   const normalizedRecordedCwd = normalizeCwdPath(recordedCwd);
@@ -109,7 +119,7 @@ export function tierOf(candidate: any, targetCwd: any): any {
  *   { winner: null, noMatch: true, sisters: string[], globalRecent: Candidate[] }
  */
 
-function cwdSlugVariants(cwd: any): any {
+function cwdSlugVariants(cwd: string): string[] {
   return [
     ...new Set([
       cwd.split(/[/.]/u).filter(Boolean).join('-'),
@@ -119,7 +129,7 @@ function cwdSlugVariants(cwd: any): any {
   ];
 }
 
-function slugFromTranscriptPath(transcriptPath: any): any {
+function slugFromTranscriptPath(transcriptPath: string): string | null {
   const marker = '/.claude/projects/';
   const index = transcriptPath.indexOf(marker);
   if (index === -1) return null;
@@ -136,34 +146,45 @@ function slugFromTranscriptPath(transcriptPath: any): any {
  * @param {string} targetCwd
  * @returns {boolean}
  */
-function parentSlugMatches(candidate: any, targetCwd: any): any {
+function parentSlugMatches(
+  candidate: TranscriptCandidate,
+  targetCwd: string,
+): boolean {
   const slug =
     candidate.cwdSlug ?? slugFromTranscriptPath(candidate.transcriptPath ?? '');
   if (!slug) return false;
   return cwdSlugVariants(targetCwd).includes(slug);
 }
 
-function engagementStatus(candidate: any): any {
+function engagementStatus(candidate: TranscriptCandidate): string {
   const status = candidate.engagementStatus ?? candidate.engagement?.status;
   return status === 'unengaged' ? 'unengaged' : 'engaged';
 }
 
-function isEngaged(candidate: any): any {
+function isEngaged(candidate: TranscriptCandidate): boolean {
   return engagementStatus(candidate) !== 'unengaged';
 }
 
-function metric(candidate: any, key: any): any {
+type CandidateMetricKey =
+  | 'realMessageCount'
+  | 'genuineUserMessages'
+  | 'assistantMessages';
+
+function metric(candidate: TranscriptCandidate, key: CandidateMetricKey): number {
   const value = candidate[key] ?? candidate.engagement?.[key];
   return Number.isFinite(Number(value)) ? Number(value) : 0;
 }
 
-function hasAssistantAndUser(candidate: any): any {
+function hasAssistantAndUser(candidate: TranscriptCandidate): boolean {
   return Boolean(
     candidate.hasAssistantAndUser ?? candidate.engagement?.hasAssistantAndUser,
   );
 }
 
-function compareCandidatePreference(a: any, b: any): any {
+function compareCandidatePreference(
+  a: TranscriptCandidate,
+  b: TranscriptCandidate,
+): number {
   if (isEngaged(a) !== isEngaged(b)) return isEngaged(a) ? -1 : 1;
   if (hasAssistantAndUser(a) !== hasAssistantAndUser(b)) {
     return hasAssistantAndUser(a) ? -1 : 1;
@@ -187,7 +208,7 @@ function compareCandidatePreference(a: any, b: any): any {
   return (b.mtime ?? 0) - (a.mtime ?? 0);
 }
 
-function sizesClose(a: any, b: any): any {
+function sizesClose(a: TranscriptCandidate, b: TranscriptCandidate): boolean {
   const aSize = Number(a.size ?? 0);
   const bSize = Number(b.size ?? 0);
   const diff = Math.abs(aSize - bSize);
@@ -198,7 +219,11 @@ function sizesClose(a: any, b: any): any {
   return smaller / larger >= CLOSE_SIZE_RATIO;
 }
 
-function closeEngagedTie(winner: any, candidate: any, tieWindowSec: any): any {
+function closeEngagedTie(
+  winner: TranscriptCandidate,
+  candidate: TranscriptCandidate,
+  tieWindowSec: number,
+): boolean {
   if (!isEngaged(winner) || !isEngaged(candidate)) return false;
   if (hasAssistantAndUser(winner) !== hasAssistantAndUser(candidate))
     return false;
@@ -213,7 +238,11 @@ function closeEngagedTie(winner: any, candidate: any, tieWindowSec: any): any {
   return Math.abs((winner.mtime ?? 0) - (candidate.mtime ?? 0)) <= tieWindowSec;
 }
 
-export function rank(candidates: any, targetCwd: any, opts: any = {}): any {
+export function rank(
+  candidates: TranscriptCandidate[],
+  targetCwd: string,
+  opts: RankOptions = {},
+): RankResult {
   const {
     tieWindowSec = TIE_WINDOW_SEC,
     gitWorktrees = [],
@@ -222,7 +251,11 @@ export function rank(candidates: any, targetCwd: any, opts: any = {}): any {
 
   // Classify all candidates into tiers. Tier C is weak Claude slug evidence,
   // not "any no-match candidate"; global recency remains diagnostic only.
-  const byTier: any = { A: [], B: [], C: [] };
+  const byTier: Record<RankTier, TranscriptCandidate[]> = {
+    A: [],
+    B: [],
+    C: [],
+  };
   for (const c of candidates) {
     const tier = tierOf(c, targetCwd);
     if (tier === 'A' || tier === 'B') {
@@ -233,8 +266,8 @@ export function rank(candidates: any, targetCwd: any, opts: any = {}): any {
   }
 
   // Find the best non-empty tier (A > B > C)
-  let winningTier = null;
-  let winningPool = null;
+  let winningTier: RankTier | null = null;
+  let winningPool: TranscriptCandidate[] | null = null;
   if (byTier.A.length > 0) {
     winningTier = 'A';
     winningPool = byTier.A;
@@ -249,7 +282,7 @@ export function rank(candidates: any, targetCwd: any, opts: any = {}): any {
   // No match case
   if (!winningTier) {
     const allByMtime = [...candidates].toSorted(
-      (a: any, b: any): any => b.mtime - a.mtime,
+      (a, b) => b.mtime - a.mtime,
     );
     const globalRecent = globalRecentProvider
       ? globalRecentProvider()
@@ -262,16 +295,17 @@ export function rank(candidates: any, targetCwd: any, opts: any = {}): any {
     };
   }
 
-  const engagedPool = winningPool.filter(isEngaged);
-  const unengagedPool = winningPool.filter(
-    (candidate: any): any => !isEngaged(candidate),
+  const pool = winningPool ?? [];
+  const engagedPool = pool.filter(isEngaged);
+  const unengagedPool = pool.filter(
+    (candidate) => !isEngaged(candidate),
   );
   if (engagedPool.length === 0) {
     return {
       winner: null,
       unengagedOnly: true,
       tier: winningTier,
-      candidates: [...unengagedPool].toSorted(compareCandidatePreference),
+      candidates: [...pool].toSorted(compareCandidatePreference),
       message: 'Only unengaged sessions matched this cwd.',
     };
   }
@@ -280,10 +314,10 @@ export function rank(candidates: any, targetCwd: any, opts: any = {}): any {
   // mtime. This prevents freshly spawned bootstrap sessions from beating an
   // idle but substantive human conversation.
   const sorted = [...engagedPool].toSorted(compareCandidatePreference);
-  const winner = sorted[0];
+  const winner = sorted[0]!;
 
   // Annotate winner with active flag
-  const annotatedWinner: any = {
+  const annotatedWinner: TranscriptCandidate & { active: boolean } = {
     ...winner,
     active: winner.ageSec < ACTIVE_THRESHOLD_SEC,
   };
@@ -292,7 +326,7 @@ export function rank(candidates: any, targetCwd: any, opts: any = {}): any {
   // engagement/size signals and close mtimes.
   const ties = sorted
     .slice(1)
-    .filter((c: any): any => closeEngagedTie(winner, c, tieWindowSec));
+    .filter((c) => closeEngagedTie(winner, c, tieWindowSec));
 
   // Fallbacks: remaining sorted candidates in the winning tier after winner
   const fallbacks = [

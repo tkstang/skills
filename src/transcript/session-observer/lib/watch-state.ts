@@ -19,6 +19,17 @@ import {
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
+import type {
+  DuplicateWatchTargetError,
+  StartWatcherOptions,
+  WatchControlDirective,
+  WatchControlFile,
+  WatcherRecord,
+  WatcherTargetInput,
+  WatchState,
+  WatchTargetRecord,
+} from './types.js';
+
 // Version 1 covers both the legacy single-`active` shape and the current
 // `watchers[]` shape: readWatchState lifts a lone `active` into `watchers`,
 // and `active` is maintained as a mirror of `watchers[0]` for old readers.
@@ -27,22 +38,26 @@ const LOCK_RETRIES = 100;
 const LOCK_INTERVAL_MS = 50;
 const CONTROL_DIRECTIVES = new Set(['flush', 'pause', 'resume', 'stop']);
 
-function stateDir(): any {
+function isErrnoException(err: unknown): err is NodeJS.ErrnoException {
+  return err instanceof Error && 'code' in err;
+}
+
+function stateDir(): string {
   return (
     process.env.STATE_DIR ??
     join(homedir(), '.local', 'state', 'session-observer')
   );
 }
 
-function watchPath(dir: any): any {
+function watchPath(dir: string): string {
   return join(dir, 'watch.json');
 }
 
-function lockPath(dir: any): any {
+function lockPath(dir: string): string {
   return join(dir, 'watch.json.lock');
 }
 
-function controlPath(dir: any, pid: any = undefined): any {
+function controlPath(dir: string, pid: number | undefined = undefined): string {
   return pid === undefined
     ? join(dir, 'watch.control.json')
     : join(dir, `watch.control.${pid}.json`);
@@ -50,32 +65,32 @@ function controlPath(dir: any, pid: any = undefined): any {
 
 const PID_CONTROL_FILE_RE = /^watch\.control\.(\d+)\.json$/;
 
-function tmpPath(dir: any, basename: any): any {
+function tmpPath(dir: string, basename: string): string {
   return join(dir, `${basename}.${process.pid}.${Date.now()}.tmp`);
 }
 
-function emptyWatchState(): any {
+function emptyWatchState(): WatchState {
   return { schemaVersion: SCHEMA_VERSION, active: null, watchers: [] };
 }
 
-function toIsoTimestamp(value: any = undefined): any {
+function toIsoTimestamp(value: unknown = undefined): string {
   if (!value) return new Date().toISOString();
   if (value instanceof Date) return value.toISOString();
   return String(value);
 }
 
-function sleep(ms: any): any {
-  return new Promise((resolve: any): any => setTimeout(resolve, ms));
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function acquireLock(lock: any): Promise<any> {
+async function acquireLock(lock: string): Promise<void> {
   for (let i = 0; i < LOCK_RETRIES; i++) {
     try {
       const fh = await open(lock, 'wx');
       await fh.close();
       return;
-    } catch (err: any) {
-      if (err.code !== 'EEXIST') throw err;
+    } catch (err) {
+      if (!isErrnoException(err) || err.code !== 'EEXIST') throw err;
       await sleep(LOCK_INTERVAL_MS);
     }
   }
@@ -84,7 +99,7 @@ async function acquireLock(lock: any): Promise<any> {
   );
 }
 
-async function releaseLock(lock: any): Promise<any> {
+async function releaseLock(lock: string): Promise<void> {
   try {
     await unlink(lock);
   } catch {
@@ -92,18 +107,21 @@ async function releaseLock(lock: any): Promise<any> {
   }
 }
 
-async function readWatchState(dir: any): Promise<any> {
-  let raw;
+async function readWatchState(dir: string): Promise<WatchState> {
+  let raw: string;
   try {
     raw = await readFile(watchPath(dir), 'utf8');
-  } catch (err: any) {
-    if (err.code === 'ENOENT') return emptyWatchState();
+  } catch (err) {
+    if (isErrnoException(err) && err.code === 'ENOENT')
+      return emptyWatchState();
     throw err;
   }
 
-  let parsed;
+  let parsed: Partial<WatchState> & { active?: WatcherRecord | null };
   try {
-    parsed = JSON.parse(raw);
+    parsed = JSON.parse(raw) as Partial<WatchState> & {
+      active?: WatcherRecord | null;
+    };
   } catch {
     return emptyWatchState();
   }
@@ -122,10 +140,10 @@ async function readWatchState(dir: any): Promise<any> {
 }
 
 async function writeJsonAtomic(
-  dir: any,
-  basename: any,
-  payload: any,
-): Promise<any> {
+  dir: string,
+  basename: string,
+  payload: unknown,
+): Promise<void> {
   await mkdir(dir, { recursive: true });
   const tmp = tmpPath(dir, basename);
   const dest = join(dir, basename);
@@ -153,30 +171,31 @@ async function writeJsonAtomic(
   }
 }
 
-async function writeWatchState(dir: any, state: any): Promise<any> {
+async function writeWatchState(dir: string, state: WatchState): Promise<void> {
   await writeJsonAtomic(dir, 'watch.json', state);
 }
 
-function isPidLive(pid: any): any {
-  if (!Number.isInteger(pid) || pid <= 0) return false;
+function isPidLive(pid: unknown): boolean {
+  if (typeof pid !== 'number' || !Number.isInteger(pid) || pid <= 0)
+    return false;
   try {
     process.kill(pid, 0);
     return true;
-  } catch (err: any) {
-    if (err.code === 'ESRCH') return false;
-    if (err.code === 'EPERM') return true;
+  } catch (err) {
+    if (isErrnoException(err) && err.code === 'ESRCH') return false;
+    if (isErrnoException(err) && err.code === 'EPERM') return true;
     throw err;
   }
 }
 
-function syncPrimaryActive(state: any): any {
+function syncPrimaryActive(state: WatchState): void {
   state.watchers = Array.isArray(state.watchers)
     ? state.watchers.filter(Boolean)
     : [];
   state.active = state.watchers[0] ?? null;
 }
 
-function clearStaleWatchers(state: any): any {
+function clearStaleWatchers(state: WatchState): boolean {
   const before = JSON.stringify({
     active: state.active ?? null,
     watchers: state.watchers ?? [],
@@ -186,9 +205,7 @@ function clearStaleWatchers(state: any): any {
     : state.active
       ? [state.active]
       : [];
-  state.watchers = watchers.filter((watcher: any): any =>
-    isPidLive(watcher.pid),
-  );
+  state.watchers = watchers.filter((watcher) => isPidLive(watcher.pid));
   syncPrimaryActive(state);
   const after = JSON.stringify({
     active: state.active ?? null,
@@ -197,7 +214,9 @@ function clearStaleWatchers(state: any): any {
   return before !== after;
 }
 
-async function mutateWatchState(fn: any): Promise<any> {
+async function mutateWatchState<T>(
+  fn: (state: WatchState) => T | Promise<T>,
+): Promise<T> {
   const dir = stateDir();
   await mkdir(dir, { recursive: true });
   const lock = lockPath(dir);
@@ -206,13 +225,13 @@ async function mutateWatchState(fn: any): Promise<any> {
     const state = await readWatchState(dir);
     const result = await fn(state);
     await writeWatchState(dir, state);
-    return result ?? state;
+    return (result ?? state) as T;
   } finally {
     await releaseLock(lock);
   }
 }
 
-export async function loadWatchState(): Promise<any> {
+export async function loadWatchState(): Promise<WatchState> {
   const dir = stateDir();
   await mkdir(dir, { recursive: true });
   const lock = lockPath(dir);
@@ -222,7 +241,7 @@ export async function loadWatchState(): Promise<any> {
     if (clearStaleWatchers(state)) {
       await writeWatchState(dir, state);
     }
-    await clearStaleControlDirectives().catch((): any => 0);
+    await clearStaleControlDirectives().catch(() => 0);
     return state;
   } finally {
     await releaseLock(lock);
@@ -240,14 +259,14 @@ export async function startWatcher({
   maxPendingSec = null,
   heartbeatSec = null,
   staleAfterSec = null,
-}: any = {}): Promise<any> {
+}: StartWatcherOptions = {}): Promise<WatcherRecord> {
   if (!runtime) throw new Error('runtime is required to start a watcher');
   if (!cwd) throw new Error('cwd is required to start a watcher');
 
-  return mutateWatchState((state: any): any => {
+  return mutateWatchState((state) => {
     clearStaleWatchers(state);
     const existingForPid = state.watchers.find(
-      (watcher: any): any => watcher.pid === pid && isPidLive(watcher.pid),
+      (watcher) => watcher.pid === pid && isPidLive(watcher.pid),
     );
     if (existingForPid) {
       throw new Error(
@@ -255,7 +274,7 @@ export async function startWatcher({
       );
     }
 
-    const active: any = {
+    const active: WatcherRecord = {
       pid,
       runtime,
       requestedRuntime: runtime,
@@ -282,23 +301,29 @@ export async function startWatcher({
   });
 }
 
-export async function clearWatcher({ pid }: any = {}): Promise<any> {
-  return mutateWatchState((state: any): any => {
+export async function clearWatcher({
+  pid,
+}: { pid?: number } = {}): Promise<boolean> {
+  return mutateWatchState((state) => {
     clearStaleWatchers(state);
     const beforeCount = state.watchers.length;
     state.watchers =
       pid === undefined
         ? []
-        : state.watchers.filter((watcher: any): any => watcher.pid !== pid);
+        : state.watchers.filter((watcher) => watcher.pid !== pid);
     syncPrimaryActive(state);
     return state.watchers.length !== beforeCount;
   });
 }
 
-function mutateWatcherByPid(state: any, pid: any, update: any): any {
+function mutateWatcherByPid(
+  state: WatchState,
+  pid: number | undefined,
+  update: (watcher: WatcherRecord) => WatcherRecord,
+): WatcherRecord | null {
   clearStaleWatchers(state);
   const index = state.watchers.findIndex(
-    (watcher: any): any => pid === undefined || watcher.pid === pid,
+    (watcher) => pid === undefined || watcher.pid === pid,
   );
   if (index === -1) return null;
   const updated = update(state.watchers[index]);
@@ -310,33 +335,41 @@ function mutateWatcherByPid(state: any, pid: any, update: any): any {
 export async function recordWatcherEvent({
   pid,
   lastEventAt,
-}: any = {}): Promise<any> {
-  return mutateWatchState((state: any): any => {
-    return mutateWatcherByPid(state, pid, (watcher: any): any => ({
+}: { pid?: number; lastEventAt?: string | Date } = {}): Promise<
+  WatcherRecord | WatchState
+> {
+  return mutateWatchState((state) => {
+    return (
+      mutateWatcherByPid(state, pid, (watcher) => ({
       ...watcher,
       lastEventAt: toIsoTimestamp(lastEventAt),
       eventCount: (watcher.eventCount ?? 0) + 1,
-    }));
+      })) ?? state
+    );
   });
 }
 
 export async function recordWatcherPoll({
   pid,
   lastPollAt,
-}: any = {}): Promise<any> {
-  return mutateWatchState((state: any): any => {
-    return mutateWatcherByPid(state, pid, (watcher: any): any => ({
-      ...watcher,
-      lastPollAt: toIsoTimestamp(lastPollAt),
-    }));
+}: { pid?: number; lastPollAt?: string | Date } = {}): Promise<
+  WatcherRecord | WatchState
+> {
+  return mutateWatchState((state) => {
+    return (
+      mutateWatcherByPid(state, pid, (watcher) => ({
+        ...watcher,
+        lastPollAt: toIsoTimestamp(lastPollAt),
+      })) ?? state
+    );
   });
 }
 
-function watcherHasTarget(watcher: any, key: any): any {
+function watcherHasTarget(watcher: WatcherRecord, key: string): boolean {
   const targets = Array.isArray(watcher.targets) ? watcher.targets : [];
   if (targets.length > 0) {
     return targets.some(
-      (target: any): any =>
+      (target) =>
         (target.key ?? `${target.runtime}:${target.sessionId}`) === key,
     );
   }
@@ -351,25 +384,28 @@ function watcherHasTarget(watcher: any, key: any): any {
 export async function recordWatcherTarget({
   pid,
   target,
-}: any = {}): Promise<any> {
+}: {
+  pid?: number;
+  target?: WatcherTargetInput;
+} = {}): Promise<WatcherRecord | WatchState> {
   if (!target?.runtime || !target?.sessionId || !target?.transcriptPath) {
     throw new Error(
       'runtime, sessionId, and transcriptPath are required to record a watcher target',
     );
   }
 
-  return mutateWatchState((state: any): any => {
+  return mutateWatchState((state): WatcherRecord | WatchState => {
     // Authoritative duplicate-target gate: the pre-check in watch.mjs runs
     // outside this lock, so two watchers starting concurrently can both pass
     // it before either has recorded its target. Re-check under the lock.
     clearStaleWatchers(state);
     const acquireKey = `${target.runtime}:${target.sessionId}`;
     const conflict = state.watchers.find(
-      (watcher: any): any =>
+      (watcher) =>
         watcher.pid !== pid && watcherHasTarget(watcher, acquireKey),
     );
     if (conflict) {
-      const err: any = new Error(
+      const err: DuplicateWatchTargetError = new Error(
         `watcher pid ${conflict.pid} is already watching ${acquireKey}`,
       );
       err.code = 'DUPLICATE_WATCH_TARGET';
@@ -377,43 +413,48 @@ export async function recordWatcherTarget({
       throw err;
     }
 
-    return mutateWatcherByPid(state, pid, (watcher: any): any => {
-      const targets = Array.isArray(watcher.targets)
-        ? [...watcher.targets]
-        : [];
-      const key = `${target.runtime}:${target.sessionId}`;
-      const existingIndex = targets.findIndex(
-        (existing: any): any => existing.key === key,
-      );
-      const targetRecord: any = {
-        key,
-        runtime: target.runtime,
-        sessionId: target.sessionId,
-        transcriptPath: target.transcriptPath,
-        cwd: target.recordedCwd ?? null,
-        recordCount: target.recordCount ?? null,
-        baselineRecordIndex: target.baselineRecordIndex ?? null,
-        engagementStatus: target.engagementStatus ?? null,
-        lockedAt: target.lockedAt ?? toIsoTimestamp(),
-      };
+    return (
+      mutateWatcherByPid(state, pid, (watcher) => {
+        const targets = Array.isArray(watcher.targets)
+          ? [...watcher.targets]
+          : [];
+        const key = `${target.runtime}:${target.sessionId}`;
+        const existingIndex = targets.findIndex(
+          (existing) => existing.key === key,
+        );
+        const targetRecord: WatchTargetRecord = {
+          key,
+          runtime: target.runtime,
+          sessionId: target.sessionId,
+          transcriptPath: target.transcriptPath,
+          cwd: target.recordedCwd ?? null,
+          recordCount: target.recordCount ?? null,
+          baselineRecordIndex: target.baselineRecordIndex ?? null,
+          engagementStatus: target.engagementStatus ?? null,
+          lockedAt: toIsoTimestamp(target.lockedAt),
+        };
 
-      if (existingIndex === -1) targets.push(targetRecord);
-      else
-        targets[existingIndex] = { ...targets[existingIndex], ...targetRecord };
+        if (existingIndex === -1) targets.push(targetRecord);
+        else
+          targets[existingIndex] = {
+            ...targets[existingIndex],
+            ...targetRecord,
+          };
 
-      return {
-        ...watcher,
-        targets,
-        resolvedRuntime:
-          targets.length === 1 ? targets[0].runtime : watcher.resolvedRuntime,
-        sessionId:
-          targets.length === 1 ? targets[0].sessionId : watcher.sessionId,
-        transcriptPath:
-          targets.length === 1
-            ? targets[0].transcriptPath
-            : watcher.transcriptPath,
-      };
-    });
+        return {
+          ...watcher,
+          targets,
+          resolvedRuntime:
+            targets.length === 1 ? targets[0].runtime : watcher.resolvedRuntime,
+          sessionId:
+            targets.length === 1 ? targets[0].sessionId : watcher.sessionId,
+          transcriptPath:
+            targets.length === 1
+              ? targets[0].transcriptPath
+              : watcher.transcriptPath,
+        };
+      }) ?? state
+    );
   });
 }
 
@@ -426,13 +467,17 @@ export async function findLiveWatcherForTarget({
   runtime,
   sessionId,
   excludePid,
-}: any = {}): Promise<any> {
+}: {
+  runtime?: string;
+  sessionId?: string;
+  excludePid?: number;
+} = {}): Promise<WatcherRecord | null> {
   if (!runtime || !sessionId) return null;
   const state = await loadWatchState();
   const key = `${runtime}:${sessionId}`;
   return (
     state.watchers.find(
-      (watcher: any): any =>
+      (watcher) =>
         watcher.pid !== excludePid && watcherHasTarget(watcher, key),
     ) ?? null
   );
@@ -442,35 +487,40 @@ export async function recordWatcherError({
   pid,
   error,
   at,
-}: any = {}): Promise<any> {
-  return mutateWatchState((state: any): any => {
-    return mutateWatcherByPid(state, pid, (watcher: any): any => ({
-      ...watcher,
-      lastError: {
-        at: toIsoTimestamp(at),
-        message: error?.message
-          ? String(error.message)
-          : String(error ?? 'unknown error'),
-      },
-    }));
+}: { pid?: number; error?: unknown; at?: string | Date } = {}): Promise<
+  WatcherRecord | WatchState
+> {
+  return mutateWatchState((state) => {
+    return (
+      mutateWatcherByPid(state, pid, (watcher) => ({
+        ...watcher,
+        lastError: {
+          at: toIsoTimestamp(at),
+          message:
+            error instanceof Error
+              ? error.message
+              : String(error ?? 'unknown error'),
+        },
+      })) ?? state
+    );
   });
 }
 
-async function readControlFile(path: any): Promise<any> {
+async function readControlFile(path: string): Promise<WatchControlFile | null> {
   try {
-    return JSON.parse(await readFile(path, 'utf8'));
-  } catch (err: any) {
-    if (err.code === 'ENOENT') return null;
+    return JSON.parse(await readFile(path, 'utf8')) as WatchControlFile;
+  } catch (err) {
+    if (isErrnoException(err) && err.code === 'ENOENT') return null;
     throw err;
   }
 }
 
-async function unlinkIfExists(path: any): Promise<any> {
+async function unlinkIfExists(path: string): Promise<boolean> {
   try {
     await unlink(path);
     return true;
-  } catch (err: any) {
-    if (err.code === 'ENOENT') return false;
+  } catch (err) {
+    if (isErrnoException(err) && err.code === 'ENOENT') return false;
     throw err;
   }
 }
@@ -481,14 +531,14 @@ async function unlinkIfExists(path: any): Promise<any> {
  * poll interval. Pid-less directives use the legacy watch.control.json.
  */
 export async function writeControlDirective(
-  directive: any,
-  { issuedAt, pid }: any = {},
-): Promise<any> {
+  directive: WatchControlDirective,
+  { issuedAt, pid }: { issuedAt?: unknown; pid?: number } = {},
+): Promise<WatchControlFile> {
   if (!CONTROL_DIRECTIVES.has(directive)) {
     throw new Error(`unknown watch control directive: ${directive}`);
   }
   const dir = stateDir();
-  const payload: any = { directive, issuedAt: toIsoTimestamp(issuedAt) };
+  const payload: WatchControlFile = { directive, issuedAt: toIsoTimestamp(issuedAt) };
   if (pid !== undefined) payload.pid = pid;
   const basename =
     pid === undefined ? 'watch.control.json' : `watch.control.${pid}.json`;
@@ -496,7 +546,9 @@ export async function writeControlDirective(
   return payload;
 }
 
-export async function readControlDirective({ pid }: any = {}): Promise<any> {
+export async function readControlDirective({
+  pid,
+}: { pid?: number } = {}): Promise<WatchControlFile | null> {
   const dir = stateDir();
   if (pid !== undefined) {
     const own = await readControlFile(controlPath(dir, pid));
@@ -505,7 +557,9 @@ export async function readControlDirective({ pid }: any = {}): Promise<any> {
   return readControlFile(controlPath(dir));
 }
 
-export async function clearControlDirective({ pid }: any = {}): Promise<any> {
+export async function clearControlDirective({
+  pid,
+}: { pid?: number } = {}): Promise<boolean> {
   const dir = stateDir();
   if (pid === undefined) {
     return unlinkIfExists(controlPath(dir));
@@ -523,13 +577,13 @@ export async function clearControlDirective({ pid }: any = {}): Promise<any> {
  * Remove control directives addressed to pids that are no longer alive, so a
  * directive written for a watcher that died before consuming it cannot linger.
  */
-export async function clearStaleControlDirectives(): Promise<any> {
+export async function clearStaleControlDirectives(): Promise<number> {
   const dir = stateDir();
   let entries;
   try {
     entries = await readdir(dir);
-  } catch (err: any) {
-    if (err.code === 'ENOENT') return 0;
+  } catch (err) {
+    if (isErrnoException(err) && err.code === 'ENOENT') return 0;
     throw err;
   }
 
@@ -546,7 +600,7 @@ export async function clearStaleControlDirectives(): Promise<any> {
     }
     if (entry === 'watch.control.json') {
       const legacy = await readControlFile(join(dir, entry)).catch(
-        (): any => null,
+        () => null,
       );
       if (
         legacy?.pid !== undefined &&

@@ -31,10 +31,12 @@
 
 import { execFile } from 'node:child_process';
 import { readdir, stat, mkdir, readFile, writeFile } from 'node:fs/promises';
+import type { Dirent, Stats } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, basename } from 'node:path';
 import { promisify } from 'node:util';
 
+import type { Runtime } from '../../core/runtimes.js';
 import {
   discoverPaths,
   encodeCwdVariants,
@@ -44,6 +46,10 @@ import {
   classifyTranscript,
   engagementCandidateFields,
 } from './session-classifier.js';
+import type {
+  EngagementCandidateFields,
+  TranscriptCandidate,
+} from './types.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -54,9 +60,9 @@ const execFileAsync = promisify(execFile);
 const LOOKBACK_DAYS = 7;
 
 async function candidateEngagementFields(
-  runtime: any,
-  transcriptPath: any,
-): Promise<any> {
+  runtime: Runtime,
+  transcriptPath: string,
+): Promise<EngagementCandidateFields> {
   try {
     return engagementCandidateFields(
       await classifyTranscript(runtime, transcriptPath),
@@ -81,12 +87,31 @@ async function candidateEngagementFields(
 // Codex CWD cache helpers
 // ---------------------------------------------------------------------------
 
+interface CwdCacheEntry {
+  recordedCwd: string | null;
+  sessionId?: string;
+}
+
+type CwdCache = Record<string, CwdCacheEntry>;
+
+interface ClaudeLookupDiagnostic {
+  encoded: string;
+  path: string;
+  exists: boolean;
+}
+
+interface CursorCandidateEvidence {
+  recordedCwd: string | null;
+  cwdSlug: string;
+  cwdEvidence: string;
+}
+
 /**
  * Returns the path to the codex-cwd-cache.json file.
  * Reads STATE_DIR from environment (same convention as state.mjs).
  * @returns {string}
  */
-function cwdCachePath(): any {
+function cwdCachePath(): string {
   const stateDir =
     process.env.STATE_DIR ??
     join(homedir(), '.local', 'state', 'session-observer');
@@ -98,10 +123,10 @@ function cwdCachePath(): any {
  * Returns an empty object on any read/parse error.
  * @returns {Promise<Record<string, { recordedCwd: string | null, sessionId?: string }>>}
  */
-async function loadCwdCache(): Promise<any> {
+async function loadCwdCache(): Promise<CwdCache> {
   try {
     const raw = await readFile(cwdCachePath(), 'utf8');
-    return JSON.parse(raw);
+    return JSON.parse(raw) as CwdCache;
   } catch {
     return {};
   }
@@ -112,7 +137,7 @@ async function loadCwdCache(): Promise<any> {
  * Creates the state dir if needed. Silently drops errors.
  * @param {Record<string, { recordedCwd: string }>} cache
  */
-async function saveCwdCache(cache: any): Promise<any> {
+async function saveCwdCache(cache: CwdCache): Promise<void> {
   try {
     const path = cwdCachePath();
     const stateDir = path.replace(/\/[^/]+$/, '');
@@ -129,7 +154,7 @@ async function saveCwdCache(cache: any): Promise<any> {
  * @param {number} mtimeSec  — epoch seconds (integer)
  * @returns {string}
  */
-function cwdCacheKey(transcriptPath: any, mtimeSec: any): any {
+function cwdCacheKey(transcriptPath: string, mtimeSec: number): string {
   return `${transcriptPath}:${mtimeSec}`;
 }
 
@@ -143,20 +168,22 @@ function cwdCacheKey(transcriptPath: any, mtimeSec: any): any {
  * @param {string} targetCwd
  * @returns {Promise<object[]>} Candidate[]
  */
-async function discoverClaudeCode(targetCwd: any): Promise<any> {
+async function discoverClaudeCode(
+  targetCwd: string,
+): Promise<TranscriptCandidate[]> {
   const [projectsRoot] = discoverPaths('claude-code');
   const encodedVariants = encodeCwdVariants('claude-code', targetCwd);
 
   const now = Date.now() / 1000;
-  const candidates: any[] = [];
-  const seenTranscripts = new Set();
+  const candidates: TranscriptCandidate[] = [];
+  const seenTranscripts = new Set<string>();
 
   let directHit = false;
   for (const encoded of encodedVariants) {
     const encodedDir = join(projectsRoot, encoded);
     try {
       const entries = await readdir(encodedDir);
-      const jsonlFiles = entries.filter((e: any): any => e.endsWith('.jsonl'));
+      const jsonlFiles = entries.filter((e) => e.endsWith('.jsonl'));
 
       for (const file of jsonlFiles) {
         const transcriptPath = join(encodedDir, file);
@@ -205,7 +232,7 @@ async function discoverClaudeCode(targetCwd: any): Promise<any> {
 
   if (!directHit) {
     // Glob fallback: scan all project dirs
-    let projectDirs: any[] = [];
+    let projectDirs: string[] = [];
     try {
       projectDirs = await readdir(projectsRoot);
     } catch {
@@ -224,9 +251,7 @@ async function discoverClaudeCode(targetCwd: any): Promise<any> {
         continue;
       }
 
-      const jsonlFiles = dirEntries.filter((e: any): any =>
-        e.endsWith('.jsonl'),
-      );
+      const jsonlFiles = dirEntries.filter((e) => e.endsWith('.jsonl'));
       for (const file of jsonlFiles) {
         const transcriptPath = join(projectDir, file);
         if (seenTranscripts.has(transcriptPath)) continue;
@@ -280,10 +305,10 @@ async function discoverClaudeCode(targetCwd: any): Promise<any> {
  * @returns {Promise<Array<{ encoded: string, path: string, exists: boolean }>>}
  */
 export async function claudeCodeLookupDiagnostics(
-  targetCwd: any,
-): Promise<any> {
+  targetCwd: string,
+): Promise<ClaudeLookupDiagnostic[]> {
   const [projectsRoot] = discoverPaths('claude-code');
-  const diagnostics: any[] = [];
+  const diagnostics: ClaudeLookupDiagnostic[] = [];
   for (const encoded of encodeCwdVariants('claude-code', targetCwd)) {
     const path = join(projectsRoot, encoded);
     let exists = false;
@@ -307,8 +332,8 @@ export async function claudeCodeLookupDiagnostics(
  * @param {string} dir
  * @returns {Promise<string[]>}
  */
-async function collectJsonlFiles(dir: any): Promise<any> {
-  const results: any[] = [];
+async function collectJsonlFiles(dir: string): Promise<string[]> {
+  const results: string[] = [];
   let entries;
   try {
     entries = await readdir(dir, { withFileTypes: true });
@@ -335,7 +360,7 @@ async function collectJsonlFiles(dir: any): Promise<any> {
  * @param {string} targetCwd
  * @returns {Promise<object[]>} Candidate[]
  */
-async function discoverCodex(_targetCwd: any): Promise<any> {
+async function discoverCodex(_targetCwd: string): Promise<TranscriptCandidate[]> {
   const [sessionsRoot] = discoverPaths('codex');
   const now = Date.now() / 1000;
   const cutoffSec = now - LOOKBACK_DAYS * 86400;
@@ -346,7 +371,7 @@ async function discoverCodex(_targetCwd: any): Promise<any> {
   const cache = await loadCwdCache();
   let cacheModified = false;
 
-  const candidates: any[] = [];
+  const candidates: TranscriptCandidate[] = [];
 
   for (const transcriptPath of allFiles) {
     let fileStat;
@@ -364,8 +389,8 @@ async function discoverCodex(_targetCwd: any): Promise<any> {
     const ageSec = now - mtime;
     const key = cwdCacheKey(transcriptPath, mtime);
 
-    let recordedCwd;
-    let sessionId;
+    let recordedCwd: string | null;
+    let sessionId: string;
     if (cache[key] && cache[key].sessionId !== undefined) {
       // Cache hit: use cached values for both recordedCwd and sessionId
       recordedCwd = cache[key].recordedCwd;
@@ -417,10 +442,10 @@ async function discoverCodex(_targetCwd: any): Promise<any> {
  * @returns {Promise<string[]>}
  */
 async function collectCursorAgentTranscripts(
-  transcriptsRoot: any,
-): Promise<any> {
-  const results: any[] = [];
-  let sessionDirs;
+  transcriptsRoot: string,
+): Promise<string[]> {
+  const results: string[] = [];
+  let sessionDirs: Dirent[];
   try {
     sessionDirs = await readdir(transcriptsRoot, { withFileTypes: true });
   } catch {
@@ -431,7 +456,7 @@ async function collectCursorAgentTranscripts(
     if (!sessionDir.isDirectory()) continue;
     const sessionPath = join(transcriptsRoot, sessionDir.name);
 
-    let entries;
+    let entries: Dirent[];
     try {
       entries = await readdir(sessionPath, { withFileTypes: true });
     } catch {
@@ -461,11 +486,11 @@ async function collectCursorAgentTranscripts(
  * @returns {Promise<object | null>}
  */
 async function cursorCandidate(
-  transcriptPath: any,
-  now: any,
-  evidence: any,
-  fileStat: any = null,
-): Promise<any> {
+  transcriptPath: string,
+  now: number,
+  evidence: CursorCandidateEvidence,
+  fileStat: Stats | null = null,
+): Promise<TranscriptCandidate | null> {
   let resolvedStat = fileStat;
   if (!resolvedStat) {
     try {
@@ -506,14 +531,14 @@ async function cursorCandidate(
  * @param {string} targetCwd
  * @returns {Promise<object[]>} Candidate[]
  */
-async function discoverCursor(targetCwd: any): Promise<any> {
+async function discoverCursor(targetCwd: string): Promise<TranscriptCandidate[]> {
   const [projectsRoot] = discoverPaths('cursor');
   const encodedVariants = encodeCwdVariants('cursor', targetCwd);
   const now = Date.now() / 1000;
   const cutoffSec = now - LOOKBACK_DAYS * 86400;
 
-  const candidates: any[] = [];
-  const seenTranscripts = new Set();
+  const candidates: TranscriptCandidate[] = [];
+  const seenTranscripts = new Set<string>();
   let directHit = false;
 
   // Cursor direct lookup is intentionally transcript-based, not directory-based:
@@ -541,7 +566,7 @@ async function discoverCursor(targetCwd: any): Promise<any> {
 
   if (directHit) return candidates;
 
-  let projectDirs: any[] = [];
+  let projectDirs: Dirent[] = [];
   try {
     projectDirs = await readdir(projectsRoot, { withFileTypes: true });
   } catch {
@@ -602,7 +627,10 @@ async function discoverCursor(targetCwd: any): Promise<any> {
  * @param {string} targetCwd
  * @returns {Promise<object[]>} Candidate[]
  */
-export async function discover(runtime: any, targetCwd: any): Promise<any> {
+export async function discover(
+  runtime: Runtime,
+  targetCwd: string,
+): Promise<TranscriptCandidate[]> {
   if (runtime === 'claude-code') return discoverClaudeCode(targetCwd);
   if (runtime === 'codex') return discoverCodex(targetCwd);
   if (runtime === 'cursor') return discoverCursor(targetCwd);
@@ -617,7 +645,7 @@ export async function discover(runtime: any, targetCwd: any): Promise<any> {
  * @param {string} cwd
  * @returns {Promise<string[]>}
  */
-export async function gitWorktrees(cwd: any): Promise<any> {
+export async function gitWorktrees(cwd: string): Promise<string[]> {
   try {
     const { stdout } = await execFileAsync(
       'git',
@@ -626,7 +654,7 @@ export async function gitWorktrees(cwd: any): Promise<any> {
         timeout: 5000,
       },
     );
-    const paths: any[] = [];
+    const paths: string[] = [];
     for (const line of stdout.split('\n')) {
       if (line.startsWith('worktree ')) {
         paths.push(line.slice('worktree '.length).trim());

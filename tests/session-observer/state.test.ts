@@ -118,6 +118,7 @@ it('markRead updates lastRecordIndex, lastTotalRecords, lastReadAt, transcriptPa
     assert.equal(entry.transcriptPath, '/tmp/m.jsonl');
     assert.equal(entry.recordedCwd, '/home/user/code');
     // lastReadAt must be a valid ISO 8601 date at or after `before`
+    assert.ok(entry.lastReadAt);
     const readAt = new Date(entry.lastReadAt);
     assert.ok(!isNaN(readAt.getTime()), 'lastReadAt must be a valid date');
     assert.ok(
@@ -384,6 +385,7 @@ it('setWatchedByPid and clearWatchedByPid preserve read offsets', async () => {
     const setResult = await state.setWatchedByPid('codex', 'sess-watch', 1234);
     assert.equal(setResult, true);
     const watched = await state.getSession('codex', 'sess-watch');
+    assert.ok(watched);
     assert.equal(watched.watchedByPid, 1234);
     assert.equal(watched.lastRecordIndex, before.lastRecordIndex);
     assert.equal(watched.lastTotalRecords, before.lastTotalRecords);
@@ -394,6 +396,7 @@ it('setWatchedByPid and clearWatchedByPid preserve read offsets', async () => {
     const clearResult = await state.clearWatchedByPid('codex', 'sess-watch');
     assert.equal(clearResult, true);
     const cleared = await state.getSession('codex', 'sess-watch');
+    assert.ok(cleared);
     assert.equal(cleared.watchedByPid, null);
     assert.equal(cleared.lastRecordIndex, before.lastRecordIndex);
     assert.equal(cleared.lastTotalRecords, before.lastTotalRecords);

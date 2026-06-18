@@ -69,36 +69,39 @@ function parseCliArgs(argv) {
     subcommand,
     stateOp,
     watchCtlOp,
-    runtime: values.runtime,
+    runtime: values.runtime ?? "auto",
     cwd: values.cwd ?? process.cwd(),
     cwdProvided: values.cwd !== void 0,
-    json: values.json,
+    json: values.json ?? false,
     includeTools,
     includeToolResults,
     includeCommandMessages: values["include-command-messages"] || false,
-    debug: values.debug,
+    debug: values.debug ?? false,
     maxTurns,
     maxBytes,
     session: values.session,
     snippet: values.snippet,
-    markRead: values["mark-read"],
-    watch: values.watch,
+    markRead: values["mark-read"] ?? false,
+    watch: values.watch ?? false,
     debounceSec,
     pollSec,
     maxPendingSec,
     maxRuntimeMin,
     heartbeatSec,
     eventLog: values["event-log"],
-    untilStopped: values["until-stopped"],
-    interactive: values.interactive,
+    untilStopped: values["until-stopped"] ?? false,
+    interactive: values.interactive ?? false,
     pid: values.pid ? parseInt(values.pid, 10) : void 0,
-    help: values.help
+    help: values.help ?? false
   };
 }
 const VALID_RUNTIMES = ["claude-code", "codex", "cursor"];
 const VALID_RUNTIME_LABEL = VALID_RUNTIMES.join(", ");
 const VALID_WATCH_RUNTIMES = [...VALID_RUNTIMES, "auto", "both"];
 const VALID_WATCH_RUNTIME_LABEL = VALID_WATCH_RUNTIMES.join("|");
+function isRuntime(value) {
+  return typeof value === "string" && VALID_RUNTIMES.includes(value);
+}
 async function preferredRuntimeFromState(withCandidates, targetCwd) {
   let state;
   try {
@@ -106,9 +109,7 @@ async function preferredRuntimeFromState(withCandidates, targetCwd) {
   } catch {
     return null;
   }
-  const runtimeSet = new Set(
-    withCandidates.map((r) => r.runtime)
-  );
+  const runtimeSet = new Set(withCandidates.map((r) => r.runtime));
   const sessionIdsByRuntime = new Map(
     withCandidates.map((r) => [
       r.runtime,
@@ -143,7 +144,7 @@ async function resolveAutoRuntime(targetCwd) {
   const withCandidates = results.filter(
     (r) => r.candidates.length > 0
   );
-  const considered = VALID_RUNTIMES.includes(self) ? withCandidates.filter((r) => r.runtime !== self) : withCandidates;
+  const considered = isRuntime(self) ? withCandidates.filter((r) => r.runtime !== self) : withCandidates;
   if (considered.length === 1) {
     return { runtime: considered[0].runtime };
   }
@@ -191,7 +192,7 @@ function parsePinnedSession(session) {
   }
   const runtime = session.slice(0, colonIndex);
   const sessionId = session.slice(colonIndex + 1);
-  if (!VALID_RUNTIMES.includes(runtime)) {
+  if (!isRuntime(runtime)) {
     return {
       error: `Unknown runtime in --session: ${runtime}. Use one of: ${VALID_RUNTIME_LABEL}.`
     };
@@ -326,7 +327,8 @@ async function runReview(args) {
   } = args;
   let { runtime } = args;
   const pinnedSession = parsePinnedSession(session);
-  if (pinnedSession?.error) return emitError(pinnedSession.error, 1);
+  if (pinnedSession && "error" in pinnedSession)
+    return emitError(pinnedSession.error, 1);
   if (pinnedSession) runtime = pinnedSession.runtime;
   if (runtime === "auto") {
     const resolved = await resolveAutoRuntime(cwd);
@@ -347,17 +349,24 @@ async function runReview(args) {
       };
       if (json) return emitJson(payload, 3);
       return emit(
-        `Ambiguous runtime: candidates found in both ${resolved.runtimes.join(", ")}. Specify --runtime <runtime>.`,
+        `Ambiguous runtime: candidates found in both ${resolved.runtimes?.join(", ")}. Specify --runtime <runtime>.`,
         3
       );
     }
-    runtime = resolved.runtime;
+    runtime = resolved.runtime ?? runtime;
+  }
+  if (!isRuntime(runtime)) {
+    return emitError(
+      `Unknown runtime: ${runtime}. Use one of: ${VALID_RUNTIME_LABEL}.`,
+      1
+    );
   }
   let candidates;
   try {
     candidates = await discover(runtime, cwd);
   } catch (err) {
-    return emitError(`Failed to discover transcripts: ${err.message}`, 1);
+    const message = err instanceof Error ? err.message : String(err);
+    return emitError(`Failed to discover transcripts: ${message}`, 1);
   }
   if (candidates.length === 0) {
     const payload = {
@@ -399,7 +408,8 @@ async function runReview(args) {
         fallbacks: []
       });
     } catch (err) {
-      return emitError(`Failed to build digest: ${err.message}`, 1);
+      const message = err instanceof Error ? err.message : String(err);
+      return emitError(`Failed to build digest: ${message}`, 1);
     }
     if (markRead) {
       try {
@@ -501,7 +511,8 @@ async function runReview(args) {
       fallbacks: rankResult.fallbacks
     });
   } catch (err) {
-    return emitError(`Failed to build digest: ${err.message}`, 1);
+    const message = err instanceof Error ? err.message : String(err);
+    return emitError(`Failed to build digest: ${message}`, 1);
   }
   if (markRead) {
     try {
@@ -615,11 +626,18 @@ async function runLocate(args) {
       0
     );
   }
+  if (!isRuntime(runtime)) {
+    return emitError(
+      `Unknown runtime: ${runtime}. Use one of: ${VALID_RUNTIME_LABEL}.`,
+      1
+    );
+  }
   let candidates;
   try {
     candidates = await discover(runtime, cwd);
   } catch (err) {
-    return emitError(`Failed to discover transcripts: ${err.message}`, 1);
+    const message = err instanceof Error ? err.message : String(err);
+    return emitError(`Failed to discover transcripts: ${message}`, 1);
   }
   if (candidates.length === 0) {
     const payload2 = { noMatch: true, runtime, cwd };
@@ -733,7 +751,8 @@ async function runState(args) {
         );
         return emit(lines.join("\n"), 0);
       } catch (err) {
-        return emitError(`Failed to load state: ${err.message}`, 1);
+        const message = err instanceof Error ? err.message : String(err);
+        return emitError(`Failed to load state: ${message}`, 1);
       }
     }
     case "reset": {
@@ -747,7 +766,7 @@ async function runState(args) {
         }
         const sessionRuntime = args.session.slice(0, sep);
         const sessionId = args.session.slice(sep + 1);
-        if (!VALID_RUNTIMES.includes(sessionRuntime)) {
+        if (!isRuntime(sessionRuntime)) {
           return emitError(
             `Unknown runtime in --session: ${sessionRuntime}. Use one of: ${VALID_RUNTIME_LABEL}.`,
             1
@@ -762,7 +781,8 @@ async function runState(args) {
             );
           return emit(`Reset session: ${sessionRuntime}:${sessionId}`, 0);
         } catch (err) {
-          return emitError(`Failed to reset state: ${err.message}`, 1);
+          const message = err instanceof Error ? err.message : String(err);
+          return emitError(`Failed to reset state: ${message}`, 1);
         }
       }
       if (!runtime || runtime === "auto") {
@@ -771,7 +791,7 @@ async function runState(args) {
           1
         );
       }
-      if (!VALID_RUNTIMES.includes(runtime)) {
+      if (!isRuntime(runtime)) {
         return emitError(
           `Unknown runtime: ${runtime}. Use one of: ${VALID_RUNTIME_LABEL}.`,
           1
@@ -782,7 +802,8 @@ async function runState(args) {
         if (json) return emitJson({ reset: true, runtime, count }, 0);
         return emit(`Reset ${count} session(s) for runtime: ${runtime}`, 0);
       } catch (err) {
-        return emitError(`Failed to reset state: ${err.message}`, 1);
+        const message = err instanceof Error ? err.message : String(err);
+        return emitError(`Failed to reset state: ${message}`, 1);
       }
     }
     case "clear": {
@@ -791,7 +812,8 @@ async function runState(args) {
         if (json) return emitJson({ cleared: true }, 0);
         return emit("State cleared.", 0);
       } catch (err) {
-        return emitError(`Failed to clear state: ${err.message}`, 1);
+        const message = err instanceof Error ? err.message : String(err);
+        return emitError(`Failed to clear state: ${message}`, 1);
       }
     }
     default: {
@@ -816,10 +838,11 @@ async function runWatch(args) {
       catchUpFirst: args.subcommand === "catch-up-then-watch"
     });
   } catch (err) {
-    if (args.json && !err.watchErrorEventEmitted) {
-      return emitWatchSetupError(args, err.message);
+    const error = err instanceof Error ? err : new Error(String(err));
+    if (args.json && !("watchErrorEventEmitted" in error)) {
+      return emitWatchSetupError(args, error.message);
     }
-    return emitError(`Watch failed: ${err.message}`, 1);
+    return emitError(`Watch failed: ${error.message}`, 1);
   }
 }
 function emitWatchSetupError(args, message) {

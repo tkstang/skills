@@ -22,7 +22,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 
-import { readRecords } from '../core/runtimes.js';
+import { type Runtime, readRecords } from '../core/runtimes.js';
 import { buildDigest, renderMarkdown } from './lib/digest.js';
 import {
   discover,
@@ -34,6 +34,16 @@ import { rank } from './lib/rank.js';
 import * as stateLib from './lib/state.js';
 import * as watchStateLib from './lib/watch-state.js';
 import { runWatchLoop } from './lib/watch.js';
+import type {
+  CliArgs,
+  ObservedRuntimeResolution,
+  PinnedSessionParseResult,
+  RuntimeCandidateSet,
+  SnippetMatch,
+  TranscriptCandidate,
+  WatcherRecord,
+  WatchState,
+} from './lib/types.js';
 
 // ---------------------------------------------------------------------------
 // argv parsing
@@ -43,7 +53,7 @@ import { runWatchLoop } from './lib/watch.js';
  * Parse process.argv[2...] into { subcommand, stateOp, ...flags }.
  * Uses node:util parseArgs.
  */
-function parseCliArgs(argv: any): any {
+function parseCliArgs(argv: string[]): CliArgs {
   const parsed = parseArgs({
     args: argv,
     allowPositionals: true,
@@ -74,7 +84,31 @@ function parseCliArgs(argv: any): any {
       help: { type: 'boolean', default: false },
     },
   });
-  const values: any = parsed.values;
+  const values = parsed.values as {
+    runtime?: string;
+    cwd?: string;
+    json?: boolean;
+    'include-tools'?: boolean;
+    'include-tool-results'?: boolean;
+    'include-command-messages'?: boolean;
+    debug?: boolean;
+    'max-turns'?: string;
+    'max-bytes'?: string;
+    session?: string;
+    snippet?: string;
+    'mark-read'?: boolean;
+    watch?: boolean;
+    'debounce-sec'?: string;
+    'poll-sec'?: string;
+    'max-pending-sec'?: string;
+    'max-runtime-min'?: string;
+    'heartbeat-sec'?: string;
+    'event-log'?: string;
+    'until-stopped'?: boolean;
+    interactive?: boolean;
+    pid?: string;
+    help?: boolean;
+  };
   const positionals = parsed.positionals;
 
   let [subcommand, ...rest] = positionals;
@@ -119,30 +153,30 @@ function parseCliArgs(argv: any): any {
     subcommand,
     stateOp,
     watchCtlOp,
-    runtime: values.runtime,
+    runtime: values.runtime ?? 'auto',
     cwd: values.cwd ?? process.cwd(),
     cwdProvided: values.cwd !== undefined,
-    json: values.json,
+    json: values.json ?? false,
     includeTools,
     includeToolResults,
     includeCommandMessages: values['include-command-messages'] || false,
-    debug: values.debug,
+    debug: values.debug ?? false,
     maxTurns,
     maxBytes,
     session: values.session,
     snippet: values.snippet,
-    markRead: values['mark-read'],
-    watch: values.watch,
+    markRead: values['mark-read'] ?? false,
+    watch: values.watch ?? false,
     debounceSec,
     pollSec,
     maxPendingSec,
     maxRuntimeMin,
     heartbeatSec,
     eventLog: values['event-log'],
-    untilStopped: values['until-stopped'],
-    interactive: values.interactive,
+    untilStopped: values['until-stopped'] ?? false,
+    interactive: values.interactive ?? false,
     pid: values.pid ? parseInt(values.pid, 10) : undefined,
-    help: values.help,
+    help: values.help ?? false,
   };
 }
 
@@ -150,15 +184,19 @@ function parseCliArgs(argv: any): any {
 // Runtime resolution
 // ---------------------------------------------------------------------------
 
-const VALID_RUNTIMES = ['claude-code', 'codex', 'cursor'];
+const VALID_RUNTIMES: Runtime[] = ['claude-code', 'codex', 'cursor'];
 const VALID_RUNTIME_LABEL = VALID_RUNTIMES.join(', ');
 const VALID_WATCH_RUNTIMES = [...VALID_RUNTIMES, 'auto', 'both'];
 const VALID_WATCH_RUNTIME_LABEL = VALID_WATCH_RUNTIMES.join('|');
 
+function isRuntime(value: unknown): value is Runtime {
+  return typeof value === 'string' && VALID_RUNTIMES.includes(value as Runtime);
+}
+
 async function preferredRuntimeFromState(
-  withCandidates: any,
-  targetCwd: any,
-): Promise<any> {
+  withCandidates: RuntimeCandidateSet[],
+  targetCwd: string,
+): Promise<ObservedRuntimeResolution | null> {
   let state;
   try {
     state = await stateLib.load();
@@ -166,27 +204,25 @@ async function preferredRuntimeFromState(
     return null;
   }
 
-  const runtimeSet: any = new Set(
-    withCandidates.map((r: any): any => r.runtime),
-  );
-  const sessionIdsByRuntime: any = new Map(
-    withCandidates.map((r: any): any => [
+  const runtimeSet = new Set(withCandidates.map((r) => r.runtime));
+  const sessionIdsByRuntime = new Map(
+    withCandidates.map((r) => [
       r.runtime,
-      new Set(r.candidates.map((c: any): any => c.sessionId)),
+      new Set(r.candidates.map((c) => c.sessionId)),
     ]),
   );
 
-  const matches: any[] = Object.values(state.sessions ?? {})
-    .filter((s: any): any => runtimeSet.has(s.runtime))
-    .filter((s: any): any => s.recordedCwd === targetCwd)
-    .filter((s: any): any =>
+  const matches = Object.values(state.sessions ?? {})
+    .filter((s) => runtimeSet.has(s.runtime))
+    .filter((s) => s.recordedCwd === targetCwd)
+    .filter((s) =>
       sessionIdsByRuntime.get(s.runtime)?.has(s.sessionId),
     )
-    .toSorted((a: any, b: any): any =>
+    .toSorted((a, b) =>
       String(b.lastReadAt ?? '').localeCompare(String(a.lastReadAt ?? '')),
     );
 
-  const runtimes = [...new Set(matches.map((s: any): any => s.runtime))];
+  const runtimes = [...new Set(matches.map((s) => s.runtime))];
   if (runtimes.length !== 1) return null;
   return {
     runtime: runtimes[0],
@@ -206,10 +242,12 @@ async function preferredRuntimeFromState(
  * @param {string} targetCwd
  * @returns {Promise<{ runtime: string } | { ambiguous: true, candidates: object } | { noMatch: true }>}
  */
-async function resolveAutoRuntime(targetCwd: any): Promise<any> {
+async function resolveAutoRuntime(
+  targetCwd: string,
+): Promise<ObservedRuntimeResolution> {
   const self = process.env.SESSION_OBSERVER_SELF;
   const results = await Promise.all(
-    VALID_RUNTIMES.map(async (rt: any): Promise<any> => {
+    VALID_RUNTIMES.map(async (rt): Promise<RuntimeCandidateSet> => {
       try {
         const candidates = await discover(rt, targetCwd);
         return { runtime: rt, candidates };
@@ -220,10 +258,10 @@ async function resolveAutoRuntime(targetCwd: any): Promise<any> {
   );
 
   const withCandidates = results.filter(
-    (r: any): any => r.candidates.length > 0,
+    (r) => r.candidates.length > 0,
   );
-  const considered = VALID_RUNTIMES.includes(self as any)
-    ? withCandidates.filter((r: any): any => r.runtime !== self)
+  const considered = isRuntime(self)
+    ? withCandidates.filter((r) => r.runtime !== self)
     : withCandidates;
 
   if (considered.length === 1) {
@@ -242,9 +280,9 @@ async function resolveAutoRuntime(targetCwd: any): Promise<any> {
   // Multiple runtimes have candidates → ambiguous
   return {
     ambiguous: true,
-    runtimes: considered.map((r: any): any => r.runtime),
+    runtimes: considered.map((r) => r.runtime),
     candidates: Object.fromEntries(
-      considered.map((r: any): any => [r.runtime, r.candidates]),
+      considered.map((r) => [r.runtime, r.candidates]),
     ),
   };
 }
@@ -253,22 +291,22 @@ async function resolveAutoRuntime(targetCwd: any): Promise<any> {
 // Output helpers
 // ---------------------------------------------------------------------------
 
-function emit(content: any, exitCode: any = 0): any {
+function emit(content: string, exitCode = 0): never {
   process.stdout.write(content + '\n');
   process.exit(exitCode);
 }
 
-function emitJson(obj: any, exitCode: any = 0): any {
+function emitJson(obj: unknown, exitCode = 0): never {
   process.stdout.write(JSON.stringify(obj, null, 2) + '\n');
   process.exit(exitCode);
 }
 
-function emitError(message: any, exitCode: any = 1): any {
+function emitError(message: string, exitCode = 1): never {
   process.stderr.write(`[session-observer] ${message}\n`);
   process.exit(exitCode);
 }
 
-function unengagedOnlyMessage(runtime: any, cwd: any): any {
+function unengagedOnlyMessage(runtime: string, cwd: string): string {
   return (
     `The only ${runtime} session for this cwd has no user conversation yet: ${cwd}. ` +
     'It looks like a freshly spawned/bootstrap session you have not engaged with. ' +
@@ -276,16 +314,16 @@ function unengagedOnlyMessage(runtime: any, cwd: any): any {
   );
 }
 
-function renderCandidateList(candidates: any): any {
+function renderCandidateList(candidates: TranscriptCandidate[]): string {
   return candidates
     .map(
-      (c: any): any =>
+      (c) =>
         `  ${c.runtime}:${c.sessionId}  ${c.engagementStatus ?? 'unknown'}  records=${c.recordCount ?? '?'}  ${c.transcriptPath}`,
     )
     .join('\n');
 }
 
-function parsePinnedSession(session: any): any {
+function parsePinnedSession(session?: string): PinnedSessionParseResult {
   if (!session) return null;
   const colonIndex = session.indexOf(':');
   if (colonIndex === -1) {
@@ -296,7 +334,7 @@ function parsePinnedSession(session: any): any {
   }
   const runtime = session.slice(0, colonIndex);
   const sessionId = session.slice(colonIndex + 1);
-  if (!VALID_RUNTIMES.includes(runtime)) {
+  if (!isRuntime(runtime)) {
     return {
       error: `Unknown runtime in --session: ${runtime}. Use one of: ${VALID_RUNTIME_LABEL}.`,
     };
@@ -304,10 +342,13 @@ function parsePinnedSession(session: any): any {
   return { runtime, sessionId };
 }
 
-async function applySnippetFilter(candidates: any, snippet: any): Promise<any> {
+async function applySnippetFilter(
+  candidates: TranscriptCandidate[],
+  snippet?: string,
+): Promise<{ candidates: TranscriptCandidate[]; matches: TranscriptCandidate[] }> {
   if (!snippet) return { candidates, matches: [] };
   const needle = snippet.toLowerCase();
-  const matches: any[] = [];
+  const matches: TranscriptCandidate[] = [];
   for (const candidate of candidates) {
     let raw;
     try {
@@ -319,7 +360,7 @@ async function applySnippetFilter(candidates: any, snippet: any): Promise<any> {
     if (index === -1) continue;
     const start = Math.max(0, index - 80);
     const end = Math.min(raw.length, index + snippet.length + 80);
-    const snippetMatch: any = {
+    const snippetMatch: SnippetMatch = {
       excerpt: snippet,
       context: raw.slice(start, end).replace(/\s+/g, ' ').trim(),
     };
@@ -328,7 +369,7 @@ async function applySnippetFilter(candidates: any, snippet: any): Promise<any> {
   return { candidates: matches, matches };
 }
 
-function printUsage(): any {
+function printUsage(): never {
   process.stdout.write(
     [
       'Usage: session-observer <subcommand> [options]',
@@ -372,7 +413,7 @@ function printUsage(): any {
   process.exit(0);
 }
 
-function printWatchUsage(command: any = 'watch'): any {
+function printWatchUsage(command = 'watch'): never {
   process.stdout.write(
     [
       `Usage: session-observer ${command} [options]`,
@@ -397,7 +438,7 @@ function printWatchUsage(command: any = 'watch'): any {
   process.exit(0);
 }
 
-function printWatchCtlUsage(): any {
+function printWatchCtlUsage(): never {
   process.stdout.write(
     [
       'Usage: session-observer watch-ctl <operation> [options]',
@@ -425,7 +466,7 @@ function printWatchCtlUsage(): any {
 // runReview
 // ---------------------------------------------------------------------------
 
-async function runReview(args: any): Promise<any> {
+async function runReview(args: CliArgs): Promise<void> {
   const {
     cwd,
     includeTools,
@@ -440,14 +481,15 @@ async function runReview(args: any): Promise<any> {
   } = args;
   let { runtime } = args;
   const pinnedSession = parsePinnedSession(session);
-  if (pinnedSession?.error) return emitError(pinnedSession.error, 1);
+  if (pinnedSession && 'error' in pinnedSession)
+    return emitError(pinnedSession.error, 1);
   if (pinnedSession) runtime = pinnedSession.runtime;
 
   // Resolve auto runtime
   if (runtime === 'auto') {
     const resolved = await resolveAutoRuntime(cwd);
     if (resolved.noMatch) {
-      const payload: any = {
+      const payload = {
         noMatch: true,
         cwd,
         message: 'No candidates found in any runtime for this cwd.',
@@ -456,7 +498,7 @@ async function runReview(args: any): Promise<any> {
       return emit(`No peer-session candidates found for cwd: ${cwd}`, 2);
     }
     if (resolved.ambiguous) {
-      const payload: any = {
+      const payload = {
         ambiguousRuntime: true,
         runtimes: resolved.runtimes,
         message:
@@ -464,24 +506,32 @@ async function runReview(args: any): Promise<any> {
       };
       if (json) return emitJson(payload, 3);
       return emit(
-        `Ambiguous runtime: candidates found in both ${resolved.runtimes.join(', ')}. ` +
+        `Ambiguous runtime: candidates found in both ${resolved.runtimes?.join(', ')}. ` +
           `Specify --runtime <runtime>.`,
         3,
       );
     }
-    runtime = resolved.runtime;
+    runtime = resolved.runtime ?? runtime;
+  }
+
+  if (!isRuntime(runtime)) {
+    return emitError(
+      `Unknown runtime: ${runtime}. Use one of: ${VALID_RUNTIME_LABEL}.`,
+      1,
+    );
   }
 
   // Discover candidates
-  let candidates;
+  let candidates: TranscriptCandidate[];
   try {
     candidates = await discover(runtime, cwd);
-  } catch (err: any) {
-    return emitError(`Failed to discover transcripts: ${err.message}`, 1);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return emitError(`Failed to discover transcripts: ${message}`, 1);
   }
 
   if (candidates.length === 0) {
-    const payload: any = {
+    const payload = {
       noMatch: true,
       runtime,
       cwd,
@@ -498,7 +548,7 @@ async function runReview(args: any): Promise<any> {
     const pinnedRuntime = pinnedSession.runtime;
     const pinnedId = pinnedSession.sessionId;
     const pinned = candidates.find(
-      (c: any): any => c.runtime === pinnedRuntime && c.sessionId === pinnedId,
+      (c) => c.runtime === pinnedRuntime && c.sessionId === pinnedId,
     );
     if (!pinned) {
       return emitError(
@@ -524,8 +574,9 @@ async function runReview(args: any): Promise<any> {
         active: pinned.active ?? false,
         fallbacks: [],
       });
-    } catch (err: any) {
-      return emitError(`Failed to build digest: ${err.message}`, 1);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return emitError(`Failed to build digest: ${message}`, 1);
     }
     if (markRead) {
       try {
@@ -547,7 +598,7 @@ async function runReview(args: any): Promise<any> {
     const filtered = await applySnippetFilter(candidates, snippet);
     candidates = filtered.candidates;
     if (candidates.length === 0) {
-      const payload: any = {
+      const payload = {
         noMatch: true,
         runtime,
         cwd,
@@ -563,11 +614,11 @@ async function runReview(args: any): Promise<any> {
   }
 
   // Rank candidates
-  const worktrees = await gitWorktrees(cwd).catch((): any => []);
+  const worktrees = await gitWorktrees(cwd).catch(() => []);
   const rankResult = rank(candidates, cwd, { gitWorktrees: worktrees });
 
   if (rankResult.noMatch) {
-    const payload: any = {
+    const payload = {
       noMatch: true,
       runtime,
       cwd,
@@ -580,7 +631,7 @@ async function runReview(args: any): Promise<any> {
   }
 
   if (rankResult.unengagedOnly) {
-    const payload: any = {
+    const payload = {
       unengagedOnly: true,
       runtime,
       cwd,
@@ -599,7 +650,7 @@ async function runReview(args: any): Promise<any> {
 
   // Check for ties
   if (rankResult.ties && rankResult.ties.length > 0) {
-    const payload: any = {
+    const payload = {
       ties: true,
       candidates: [rankResult.winner, ...rankResult.ties],
       message:
@@ -610,7 +661,7 @@ async function runReview(args: any): Promise<any> {
       `Multiple sessions tied. Specify --session to disambiguate:\n` +
         [rankResult.winner, ...rankResult.ties]
           .map(
-            (c: any): any =>
+            (c) =>
               `  ${c.runtime}:${c.sessionId}  (${c.transcriptPath})`,
           )
           .join('\n'),
@@ -646,8 +697,9 @@ async function runReview(args: any): Promise<any> {
         : [],
       fallbacks: rankResult.fallbacks,
     });
-  } catch (err: any) {
-    return emitError(`Failed to build digest: ${err.message}`, 1);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return emitError(`Failed to build digest: ${message}`, 1);
   }
 
   // Optionally mark read
@@ -672,7 +724,7 @@ async function runReview(args: any): Promise<any> {
 // runCatchUp
 // ---------------------------------------------------------------------------
 
-async function runCatchUp(args: any): Promise<any> {
+async function runCatchUp(args: CliArgs): Promise<void> {
   const result = await observeCatchUp(args);
   if (!result.ok) {
     if (result.kind === 'error')
@@ -689,13 +741,13 @@ async function runCatchUp(args: any): Promise<any> {
 // runLocate
 // ---------------------------------------------------------------------------
 
-async function runLocate(args: any): Promise<any> {
+async function runLocate(args: CliArgs): Promise<void> {
   const { cwd, json, debug, snippet } = args;
   const { runtime } = args;
 
   if (runtime === 'auto') {
     // For locate, try both runtimes and show all
-    const allCandidates: any[] = [];
+    const allCandidates: TranscriptCandidate[] = [];
     for (const rt of VALID_RUNTIMES) {
       try {
         const candidates = await discover(rt, cwd);
@@ -705,13 +757,13 @@ async function runLocate(args: any): Promise<any> {
       }
     }
 
-    let snippetMatches: any[] = [];
+    let snippetMatches: TranscriptCandidate[] = [];
     if (snippet) {
       const filtered = await applySnippetFilter(allCandidates, snippet);
       snippetMatches = filtered.matches;
       allCandidates.splice(0, allCandidates.length, ...filtered.candidates);
       if (allCandidates.length === 0) {
-        const payload: any = {
+        const payload: Record<string, unknown> = {
           noMatch: true,
           cwd,
           snippet,
@@ -726,11 +778,11 @@ async function runLocate(args: any): Promise<any> {
       }
     }
 
-    const worktrees = await gitWorktrees(cwd).catch((): any => []);
+    const worktrees = await gitWorktrees(cwd).catch(() => []);
     const rankResult = rank(allCandidates, cwd, { gitWorktrees: worktrees });
 
     if (rankResult.noMatch) {
-      const payload: any = {
+      const payload: Record<string, unknown> = {
         noMatch: true,
         cwd,
         sisters: rankResult.sisters,
@@ -745,7 +797,7 @@ async function runLocate(args: any): Promise<any> {
     }
 
     if (rankResult.unengagedOnly) {
-      const payload: any = {
+      const payload: Record<string, unknown> = {
         unengagedOnly: true,
         cwd,
         tier: rankResult.tier,
@@ -765,7 +817,7 @@ async function runLocate(args: any): Promise<any> {
       );
     }
 
-    const payload: any = {
+    const payload: Record<string, unknown> = {
       winner: rankResult.winner,
       tier: rankResult.tier,
       ties: rankResult.ties,
@@ -787,15 +839,23 @@ async function runLocate(args: any): Promise<any> {
   }
 
   // Single runtime
-  let candidates;
+  if (!isRuntime(runtime)) {
+    return emitError(
+      `Unknown runtime: ${runtime}. Use one of: ${VALID_RUNTIME_LABEL}.`,
+      1,
+    );
+  }
+
+  let candidates: TranscriptCandidate[];
   try {
     candidates = await discover(runtime, cwd);
-  } catch (err: any) {
-    return emitError(`Failed to discover transcripts: ${err.message}`, 1);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return emitError(`Failed to discover transcripts: ${message}`, 1);
   }
 
   if (candidates.length === 0) {
-    const payload: any = { noMatch: true, runtime, cwd };
+    const payload: Record<string, unknown> = { noMatch: true, runtime, cwd };
     if (debug && runtime === 'claude-code') {
       payload.lookupDiagnostics = {
         claudeCode: await claudeCodeLookupDiagnostics(cwd),
@@ -805,13 +865,13 @@ async function runLocate(args: any): Promise<any> {
     return emit(`No ${runtime} transcripts found for cwd: ${cwd}`, 2);
   }
 
-  let snippetMatches: any[] = [];
+  let snippetMatches: TranscriptCandidate[] = [];
   if (snippet) {
     const filtered = await applySnippetFilter(candidates, snippet);
     snippetMatches = filtered.matches;
     candidates = filtered.candidates;
     if (candidates.length === 0) {
-      const payload: any = {
+      const payload: Record<string, unknown> = {
         noMatch: true,
         runtime,
         cwd,
@@ -831,11 +891,11 @@ async function runLocate(args: any): Promise<any> {
     }
   }
 
-  const worktrees = await gitWorktrees(cwd).catch((): any => []);
+  const worktrees = await gitWorktrees(cwd).catch(() => []);
   const rankResult = rank(candidates, cwd, { gitWorktrees: worktrees });
 
   if (rankResult.noMatch) {
-    const payload: any = {
+    const payload: Record<string, unknown> = {
       noMatch: true,
       runtime,
       cwd,
@@ -852,7 +912,7 @@ async function runLocate(args: any): Promise<any> {
   }
 
   if (rankResult.unengagedOnly) {
-    const payload: any = {
+    const payload: Record<string, unknown> = {
       unengagedOnly: true,
       runtime,
       cwd,
@@ -874,7 +934,7 @@ async function runLocate(args: any): Promise<any> {
     );
   }
 
-  const payload: any = {
+  const payload: Record<string, unknown> = {
     winner: rankResult.winner,
     tier: rankResult.tier,
     ties: rankResult.ties,
@@ -900,7 +960,7 @@ async function runLocate(args: any): Promise<any> {
 // runState
 // ---------------------------------------------------------------------------
 
-async function runState(args: any): Promise<any> {
+async function runState(args: CliArgs): Promise<void> {
   const { stateOp, json } = args;
   const { runtime } = args;
 
@@ -914,13 +974,14 @@ async function runState(args: any): Promise<any> {
           return emit('No sessions tracked yet.', 0);
         }
         const lines = sessions.map(
-          (s: any): any =>
+          (s) =>
             `${s.runtime}:${s.sessionId}  offset=${s.lastRecordIndex}/${s.lastTotalRecords}  ` +
             `lastReadAt=${s.lastReadAt}`,
         );
         return emit(lines.join('\n'), 0);
-      } catch (err: any) {
-        return emitError(`Failed to load state: ${err.message}`, 1);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return emitError(`Failed to load state: ${message}`, 1);
       }
     }
 
@@ -936,7 +997,7 @@ async function runState(args: any): Promise<any> {
         }
         const sessionRuntime = args.session.slice(0, sep);
         const sessionId = args.session.slice(sep + 1);
-        if (!VALID_RUNTIMES.includes(sessionRuntime)) {
+        if (!isRuntime(sessionRuntime)) {
           return emitError(
             `Unknown runtime in --session: ${sessionRuntime}. Use one of: ${VALID_RUNTIME_LABEL}.`,
             1,
@@ -950,8 +1011,9 @@ async function runState(args: any): Promise<any> {
               0,
             );
           return emit(`Reset session: ${sessionRuntime}:${sessionId}`, 0);
-        } catch (err: any) {
-          return emitError(`Failed to reset state: ${err.message}`, 1);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          return emitError(`Failed to reset state: ${message}`, 1);
         }
       }
 
@@ -961,7 +1023,7 @@ async function runState(args: any): Promise<any> {
           1,
         );
       }
-      if (!VALID_RUNTIMES.includes(runtime)) {
+      if (!isRuntime(runtime)) {
         return emitError(
           `Unknown runtime: ${runtime}. Use one of: ${VALID_RUNTIME_LABEL}.`,
           1,
@@ -971,8 +1033,9 @@ async function runState(args: any): Promise<any> {
         const count = await stateLib.resetByRuntime(runtime);
         if (json) return emitJson({ reset: true, runtime, count }, 0);
         return emit(`Reset ${count} session(s) for runtime: ${runtime}`, 0);
-      } catch (err: any) {
-        return emitError(`Failed to reset state: ${err.message}`, 1);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return emitError(`Failed to reset state: ${message}`, 1);
       }
     }
 
@@ -981,8 +1044,9 @@ async function runState(args: any): Promise<any> {
         await stateLib.clear();
         if (json) return emitJson({ cleared: true }, 0);
         return emit('State cleared.', 0);
-      } catch (err: any) {
-        return emitError(`Failed to clear state: ${err.message}`, 1);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return emitError(`Failed to clear state: ${message}`, 1);
       }
     }
 
@@ -1000,7 +1064,7 @@ async function runState(args: any): Promise<any> {
 // runWatch / runWatchCtl
 // ---------------------------------------------------------------------------
 
-async function runWatch(args: any): Promise<any> {
+async function runWatch(args: CliArgs): Promise<void> {
   if (args.help) return printWatchUsage(args.subcommand);
 
   if (!VALID_WATCH_RUNTIMES.includes(args.runtime)) {
@@ -1015,18 +1079,19 @@ async function runWatch(args: any): Promise<any> {
       ...args,
       catchUpFirst: args.subcommand === 'catch-up-then-watch',
     });
-  } catch (err: any) {
+  } catch (err) {
+    const error = err instanceof Error ? err : new Error(String(err));
     // Loop-phase failures already emitted a JSON error event; setup failures
     // (event-log validation, startWatcher refusal) have not, so render them
     // on the stable stdout event stream when --json was requested.
-    if (args.json && !err.watchErrorEventEmitted) {
-      return emitWatchSetupError(args, err.message);
+    if (args.json && !('watchErrorEventEmitted' in error)) {
+      return emitWatchSetupError(args, error.message);
     }
-    return emitError(`Watch failed: ${err.message}`, 1);
+    return emitError(`Watch failed: ${error.message}`, 1);
   }
 }
 
-function emitWatchSetupError(args: any, message: any): any {
+function emitWatchSetupError(args: CliArgs, message: string): never {
   if (args.json) {
     process.stdout.write(
       JSON.stringify({
@@ -1438,7 +1503,7 @@ async function runWatchCtl(args: any): Promise<any> {
 // main
 // ---------------------------------------------------------------------------
 
-async function main(argv: any): Promise<any> {
+async function main(argv: string[]): Promise<void> {
   const args = parseCliArgs(argv);
 
   if (args.help && !args.subcommand) {
@@ -1469,7 +1534,7 @@ async function main(argv: any): Promise<any> {
   }
 }
 
-main(process.argv.slice(2)).catch((err: any): any => {
+main(process.argv.slice(2)).catch((err) => {
   process.stderr.write(
     `[session-observer] Unexpected error: ${err.message}\n${err.stack}\n`,
   );

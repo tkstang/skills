@@ -15,8 +15,10 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
+import type { Runtime } from '../core/runtimes.js';
 import { discover } from './lib/locate.js';
 import { rank } from './lib/rank.js';
+import type { TranscriptCandidate } from './lib/types.js';
 
 // ---------------------------------------------------------------------------
 // Parse args
@@ -30,10 +32,13 @@ const parsed = parseArgs({
     cwd: { type: 'string', default: process.cwd() },
   },
 });
-const values: any = parsed.values;
+const values = parsed.values as {
+  runtime?: string;
+  cwd?: string;
+};
 
-const runtime = values.runtime;
-const cwd = values.cwd;
+const runtime = String(values.runtime ?? 'claude-code') as Runtime;
+const cwd = String(values.cwd ?? process.cwd());
 
 // ---------------------------------------------------------------------------
 // Resolve sibling CLI via import.meta.url — never a bare relative path
@@ -49,7 +54,7 @@ const cliPath = fileURLToPath(
 
 process.stdout.write(`[probe-local] runtime: ${runtime}\n`);
 process.stdout.write(`[probe-local] cwd: ${cwd}\n`);
-const transcriptStoreByRuntime: any = {
+const transcriptStoreByRuntime: Record<string, string> = {
   'claude-code': '~/.claude/projects/',
   codex: '~/.codex/sessions/',
   cursor: '~/.cursor/projects/',
@@ -58,11 +63,12 @@ process.stdout.write(
   `[probe-local] transcript store: ${transcriptStoreByRuntime[runtime] ?? '(unknown runtime)'}\n`,
 );
 
-let candidates: any[] = [];
+let candidates: TranscriptCandidate[] = [];
 try {
   candidates = await discover(runtime, cwd);
-} catch (err: any) {
-  process.stderr.write(`[probe-local] discover failed: ${err.message}\n`);
+} catch (err) {
+  const message = err instanceof Error ? err.message : String(err);
+  process.stderr.write(`[probe-local] discover failed: ${message}\n`);
 }
 
 process.stdout.write(`[probe-local] candidates found: ${candidates.length}\n`);

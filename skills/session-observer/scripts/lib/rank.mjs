@@ -110,7 +110,11 @@ function rank(candidates, targetCwd, opts = {}) {
     gitWorktrees = [],
     globalRecentProvider
   } = opts;
-  const byTier = { A: [], B: [], C: [] };
+  const byTier = {
+    A: [],
+    B: [],
+    C: []
+  };
   for (const c of candidates) {
     const tier = tierOf(c, targetCwd);
     if (tier === "A" || tier === "B") {
@@ -143,8 +147,9 @@ function rank(candidates, targetCwd, opts = {}) {
       globalRecent
     };
   }
-  const engagedPool = winningPool.filter(isEngaged);
-  const unengagedPool = winningPool.filter(
+  const pool = winningPool ?? [];
+  const engagedPool = pool.filter(isEngaged);
+  const unengagedPool = pool.filter(
     (candidate) => !isEngaged(candidate)
   );
   if (engagedPool.length === 0) {
@@ -152,7 +157,7 @@ function rank(candidates, targetCwd, opts = {}) {
       winner: null,
       unengagedOnly: true,
       tier: winningTier,
-      candidates: [...unengagedPool].toSorted(compareCandidatePreference),
+      candidates: [...pool].toSorted(compareCandidatePreference),
       message: "Only unengaged sessions matched this cwd."
     };
   }

@@ -200,6 +200,7 @@ describe('observeCatchUp', () => {
       assert.equal(result.kind, 'ties');
       assert.equal(result.exitCode, 3);
       assert.equal(result.payload.ties, true);
+      assert.ok(result.payload.candidates);
       assert.equal(result.payload.candidates.length, 2);
     });
   });
@@ -229,6 +230,7 @@ describe('observeCatchUp', () => {
       assert.equal(result.ok, false);
       assert.equal(result.kind, 'ambiguousRuntime');
       assert.equal(result.exitCode, 3);
+      assert.ok(result.payload.runtimes);
       assert.deepEqual(result.payload.runtimes.toSorted(), [
         'claude-code',
         'codex',

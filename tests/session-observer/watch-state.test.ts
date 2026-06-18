@@ -11,7 +11,12 @@ import { join } from 'node:path';
 import { afterEach, test, vi } from 'vitest';
 
 import * as watchState from '../../src/transcript/session-observer/lib/watch-state.js';
+import type { WatcherRecord } from '../../src/transcript/session-observer/lib/types.js';
 import { withTmpStateDir } from './helpers/tmpdir.js';
+
+function assertWatcherRecord(value: unknown): asserts value is WatcherRecord {
+  assert.ok(value && typeof value === 'object' && 'pid' in value);
+}
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -336,7 +341,7 @@ test('recordWatcherTarget rejects an overlapping live target under the lock', as
       runtime: 'codex',
       sessionId: 'abc',
       transcriptPath: '/tmp/abc.jsonl',
-    };
+    } as const;
     await watchState.recordWatcherTarget({ pid: 111, target });
 
     // Both watchers passed the pre-check before either recorded; the locked
@@ -353,6 +358,7 @@ test('recordWatcherTarget rejects an overlapping live target under the lock', as
 
     // Re-recording the same target for the owning pid stays allowed.
     const updated = await watchState.recordWatcherTarget({ pid: 111, target });
+    assertWatcherRecord(updated);
     assert.equal(updated.targets.length, 1);
   });
 });
@@ -446,6 +452,7 @@ test('recordWatcherTarget stores resolved pinned target metadata', async () => {
       },
     });
 
+    assertWatcherRecord(active);
     assert.equal(active.requestedRuntime, 'auto');
     assert.equal(active.resolvedRuntime, 'codex');
     assert.equal(active.sessionId, 'abc');
@@ -474,7 +481,9 @@ test('recordWatcherPoll and recordWatcherError update active heartbeat fields', 
       at: '2026-06-03T12:00:04.000Z',
     });
 
+    assertWatcherRecord(active);
     assert.equal(active.lastPollAt, '2026-06-03T12:00:03.000Z');
+    assert.ok(active.lastError);
     assert.equal(active.lastError.message, 'poll failed');
   });
 });

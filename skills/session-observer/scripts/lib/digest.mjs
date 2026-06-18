@@ -154,6 +154,7 @@ async function buildDigest(runtime, transcriptPath, opts = {}) {
       if (!sessionId) sessionId = "unknown";
     }
   }
+  sessionId ??= "unknown";
   const effectiveFromIndex = fromIndex > totalRecords ? 0 : fromIndex;
   if (fromIndex > totalRecords && totalRecords > 0) {
     warnings.push(
@@ -220,13 +221,9 @@ async function buildDigest(runtime, transcriptPath, opts = {}) {
     nextIndex: totalRecords,
     totalRecords,
     renderedFromIndex,
-    renderedToIndex
+    renderedToIndex,
+    newRecords: rawCount
   };
-  if (mode === "catch-up") {
-    range.newRecords = rawCount;
-  } else {
-    range.newRecords = rawCount;
-  }
   const filters = {
     includeToolCalls,
     includeToolResults,

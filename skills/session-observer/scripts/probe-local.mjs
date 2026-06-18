@@ -15,8 +15,8 @@ const parsed = parseArgs({
   }
 });
 const values = parsed.values;
-const runtime = values.runtime;
-const cwd = values.cwd;
+const runtime = String(values.runtime ?? "claude-code");
+const cwd = String(values.cwd ?? process.cwd());
 const cliPath = fileURLToPath(
   new URL("./session-observer.mjs", import.meta.url)
 );
@@ -37,7 +37,8 @@ let candidates = [];
 try {
   candidates = await discover(runtime, cwd);
 } catch (err) {
-  process.stderr.write(`[probe-local] discover failed: ${err.message}
+  const message = err instanceof Error ? err.message : String(err);
+  process.stderr.write(`[probe-local] discover failed: ${message}
 `);
 }
 process.stdout.write(`[probe-local] candidates found: ${candidates.length}

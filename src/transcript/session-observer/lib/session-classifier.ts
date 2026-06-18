@@ -6,19 +6,24 @@
  * user messages, but they are not human-authored conversation turns.
  */
 
+import type { DigestEntry, JsonObject, Runtime } from '../../core/runtimes.js';
 import { readRecords, normalizeEntries } from '../../core/runtimes.js';
+import type {
+  EngagementCandidateFields,
+  TranscriptClassification,
+} from './types.js';
 
-function textStart(text: any): any {
+function textStart(text: unknown): string {
   return String(text ?? '').trimStart();
 }
 
-function isTitlePrompt(text: any): any {
+function isTitlePrompt(text: unknown): boolean {
   return textStart(text).startsWith(
     'Generate a concise tab title for this coding chat.\nRules:',
   );
 }
 
-function isHiddenBootstrapUserText(text: any): any {
+function isHiddenBootstrapUserText(text: unknown): boolean {
   const normalized = textStart(text);
   return (
     normalized.startsWith('# AGENTS.md instructions for ') ||
@@ -31,19 +36,19 @@ function isHiddenBootstrapUserText(text: any): any {
   );
 }
 
-function isSyntheticForEngagement(entry: any): any {
+function isSyntheticForEngagement(entry: DigestEntry): boolean {
   if (entry.role !== 'user') return false;
   return (
     entry.kind === 'command_message' || isHiddenBootstrapUserText(entry.text)
   );
 }
 
-function publicBootstrapIndexes(indexes: any): any {
-  return [...indexes].toSorted((a: any, b: any): any => a - b);
+function publicBootstrapIndexes(indexes: Set<number>): number[] {
+  return [...indexes].toSorted((a, b) => a - b);
 }
 
-function entriesByRecordIndex(entries: any): any {
-  const byRecord = new Map();
+function entriesByRecordIndex(entries: DigestEntry[]): Map<number, DigestEntry[]> {
+  const byRecord = new Map<number, DigestEntry[]>();
   for (const entry of entries) {
     const existing = byRecord.get(entry.recordIndex) ?? [];
     existing.push(entry);
@@ -52,9 +57,9 @@ function entriesByRecordIndex(entries: any): any {
   return byRecord;
 }
 
-function visibleConversationEntries(entries: any): any {
+function visibleConversationEntries(entries: DigestEntry[]): DigestEntry[] {
   return entries.filter(
-    (entry: any): any =>
+    (entry) =>
       entry.kind === 'message' || entry.kind === 'command_message',
   );
 }
@@ -66,14 +71,17 @@ function visibleConversationEntries(entries: any): any {
  * @param {object[]} records
  * @returns {object}
  */
-export function classifyTranscriptRecords(runtime: any, records: any): any {
+export function classifyTranscriptRecords(
+  runtime: Runtime,
+  records: JsonObject[],
+): TranscriptClassification {
   const allEntries = normalizeEntries(runtime, records, {
     includeToolCalls: false,
     includeToolResults: false,
     includeCommandMessages: true,
   });
   const byRecord = entriesByRecordIndex(allEntries);
-  const bootstrapRecordIndexes = new Set();
+  const bootstrapRecordIndexes = new Set<number>();
 
   let genuineUserMessages = 0;
   let syntheticUserMessages = 0;
@@ -88,7 +96,7 @@ export function classifyTranscriptRecords(runtime: any, records: any): any {
     if (
       pendingTitleAssistant &&
       entries.every(
-        (entry: any): any =>
+        (entry) =>
           entry.role === 'assistant' && entry.kind === 'message',
       )
     ) {
@@ -99,19 +107,19 @@ export function classifyTranscriptRecords(runtime: any, records: any): any {
     pendingTitleAssistant = false;
 
     const userEntries = entries.filter(
-      (entry: any): any => entry.role === 'user',
+      (entry) => entry.role === 'user',
     );
     const hiddenBootstrapUserRecord =
       userEntries.length > 0 &&
-      entries.every((entry: any): any => entry.role === 'user') &&
-      userEntries.every((entry: any): any =>
+      entries.every((entry) => entry.role === 'user') &&
+      userEntries.every((entry) =>
         isHiddenBootstrapUserText(entry.text),
       );
 
     if (hiddenBootstrapUserRecord) {
       bootstrapRecordIndexes.add(recordIndex);
       syntheticUserMessages += userEntries.length;
-      if (userEntries.some((entry: any): any => isTitlePrompt(entry.text))) {
+      if (userEntries.some((entry) => isTitlePrompt(entry.text))) {
         pendingTitleAssistant = true;
       }
       continue;
@@ -157,9 +165,9 @@ export function classifyTranscriptRecords(runtime: any, records: any): any {
  * @returns {Promise<object>}
  */
 export async function classifyTranscript(
-  runtime: any,
-  transcriptPath: any,
-): Promise<any> {
+  runtime: Runtime,
+  transcriptPath: string,
+): Promise<TranscriptClassification> {
   const records = await readRecords(transcriptPath);
   return classifyTranscriptRecords(runtime, records);
 }
@@ -171,7 +179,9 @@ export async function classifyTranscript(
  * @param {object} classification
  * @returns {object}
  */
-export function engagementCandidateFields(classification: any): any {
+export function engagementCandidateFields(
+  classification: TranscriptClassification,
+): EngagementCandidateFields {
   return {
     engagement: classification,
     engagementStatus: classification.status,
