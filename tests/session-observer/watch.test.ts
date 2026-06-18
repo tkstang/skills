@@ -1,5 +1,5 @@
 /**
- * watch.test.mjs — tests for scripts/lib/watch.mjs
+ * watch.test.ts — tests for src/transcript/session-observer/lib/watch.ts
  */
 
 import assert from 'node:assert/strict';
@@ -17,17 +17,13 @@ import {
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { test, describe } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-const WATCH_MJS = new URL(
-  '../../skills/session-observer/scripts/lib/watch.mjs',
-  import.meta.url,
-);
-const WATCH_STATE_MJS = new URL(
-  '../../skills/session-observer/scripts/lib/watch-state.mjs',
-  import.meta.url,
-);
+import { afterEach, describe, test, vi } from 'vitest';
+
+import * as watchState from '../../src/transcript/session-observer/lib/watch-state.js';
+import { runWatchLoop } from '../../src/transcript/session-observer/lib/watch.js';
+
 const CLI_PATH = fileURLToPath(
   new URL(
     '../../skills/session-observer/scripts/session-observer.mjs',
@@ -35,27 +31,25 @@ const CLI_PATH = fileURLToPath(
   ),
 );
 
-async function importWatch() {
-  return import(`${WATCH_MJS.href}?t=${Date.now()}-${Math.random()}`);
-}
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
-async function importWatchState() {
-  return import(`${WATCH_STATE_MJS.href}?t=${Date.now()}-${Math.random()}`);
-}
-
-function claudeSlug(cwd) {
+function claudeSlug(cwd: string): string {
   return cwd.replace(/[/.]/g, '-');
 }
 
-function cursorSlug(cwd) {
+function cursorSlug(cwd: string): string {
   return cwd.split(/[/.]/u).filter(Boolean).join('-');
 }
 
-function sleep(ms) {
+function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function withTempSessionHome(fn) {
+async function withTempSessionHome(
+  fn: (home: string, stateDir: string) => Promise<void>,
+): Promise<void> {
   const home = await mkdtemp(join(tmpdir(), 'watch-test-home-'));
   const previousHome = process.env.HOME;
   const previousStateDir = process.env.STATE_DIR;
@@ -73,7 +67,12 @@ async function withTempSessionHome(fn) {
   }
 }
 
-async function writeClaudeTranscript(home, cwd, sessionId, messages) {
+async function writeClaudeTranscript(
+  home: string,
+  cwd: string,
+  sessionId: string,
+  messages: Array<{ role?: string; content: unknown }>,
+): Promise<string> {
   const dir = join(home, '.claude', 'projects', claudeSlug(cwd));
   await mkdir(dir, { recursive: true });
   const transcriptPath = join(dir, `${sessionId}.jsonl`);
@@ -89,7 +88,12 @@ async function writeClaudeTranscript(home, cwd, sessionId, messages) {
   return transcriptPath;
 }
 
-async function writeCursorTranscript(home, cwd, sessionId, messages) {
+async function writeCursorTranscript(
+  home: string,
+  cwd: string,
+  sessionId: string,
+  messages: Array<{ role?: string; content: string }>,
+): Promise<string> {
   const dir = join(
     home,
     '.cursor',
@@ -112,7 +116,12 @@ async function writeCursorTranscript(home, cwd, sessionId, messages) {
   return transcriptPath;
 }
 
-async function writeCodexTranscript(home, cwd, sessionId, messages) {
+async function writeCodexTranscript(
+  home: string,
+  cwd: string,
+  sessionId: string,
+  messages: Array<{ role?: string; content: unknown }>,
+): Promise<string> {
   const dir = join(home, '.codex', 'sessions', '2026', '06', '03');
   await mkdir(dir, { recursive: true });
   const transcriptPath = join(dir, `${sessionId}.jsonl`);
@@ -132,11 +141,11 @@ async function writeCodexTranscript(home, cwd, sessionId, messages) {
 }
 
 async function appendClaudeMessage(
-  transcriptPath,
-  sessionId,
-  content,
+  transcriptPath: string,
+  sessionId: string,
+  content: unknown,
   role = 'assistant',
-) {
+): Promise<void> {
   await appendFile(
     transcriptPath,
     JSON.stringify({ sessionId, message: { role, content } }) + '\n',
@@ -145,11 +154,11 @@ async function appendClaudeMessage(
 }
 
 async function appendCodexMessage(
-  transcriptPath,
-  sessionId,
-  content,
+  transcriptPath: string,
+  sessionId: string,
+  content: unknown,
   role = 'assistant',
-) {
+): Promise<void> {
   await appendFile(
     transcriptPath,
     JSON.stringify({ sessionId, payload: { type: 'message', role, content } }) +
@@ -158,7 +167,7 @@ async function appendCodexMessage(
   );
 }
 
-async function readJsonIfExists(path) {
+async function readJsonIfExists(path: string): Promise<any> {
   try {
     return JSON.parse(await readFile(path, 'utf8'));
   } catch {
@@ -166,7 +175,10 @@ async function readJsonIfExists(path) {
   }
 }
 
-async function runCli(args, env) {
+async function runCli(
+  args: string[],
+  env: NodeJS.ProcessEnv,
+): Promise<{ status: number | null; stdout: string; stderr: string }> {
   const child = spawn('node', [CLI_PATH, ...args], {
     env,
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -185,7 +197,13 @@ async function runCli(args, env) {
   return { status, stdout, stderr };
 }
 
-async function waitFor(predicate, { timeoutMs = 1500, intervalMs = 25 } = {}) {
+async function waitFor(
+  predicate: () => Promise<any> | any,
+  {
+    timeoutMs = 1500,
+    intervalMs = 25,
+  }: { timeoutMs?: number; intervalMs?: number } = {},
+): Promise<any> {
   const started = Date.now();
   while (Date.now() - started < timeoutMs) {
     const value = await predicate();
@@ -202,8 +220,7 @@ describe('runWatchLoop', () => {
       await writeClaudeTranscript(home, cwd, 'watch-baseline', [
         { content: 'old message that should not be emitted' },
       ]);
-      const { runWatchLoop } = await importWatch();
-      const stdout = [];
+      const stdout: string[] = [];
 
       const result = await runWatchLoop(
         {
@@ -214,7 +231,7 @@ describe('runWatchLoop', () => {
           maxRuntimeMin: 0.004,
         },
         {
-          writeStdout: (chunk) => stdout.push(chunk),
+          writeStdout: (chunk: string) => stdout.push(chunk),
         },
       );
 
@@ -248,8 +265,7 @@ describe('runWatchLoop', () => {
       await writeClaudeTranscript(home, cwd, 'watch-catch-up-first', [
         { content: 'unread backlog should be emitted' },
       ]);
-      const { runWatchLoop } = await importWatch();
-      const stdout = [];
+      const stdout: string[] = [];
 
       const result = await runWatchLoop(
         {
@@ -261,7 +277,7 @@ describe('runWatchLoop', () => {
           catchUpFirst: true,
         },
         {
-          writeStdout: (chunk) => stdout.push(chunk),
+          writeStdout: (chunk: string) => stdout.push(chunk),
         },
       );
 
@@ -288,8 +304,7 @@ describe('runWatchLoop', () => {
       const transcriptPath = await writeClaudeTranscript(home, cwd, sessionId, [
         { content: 'baseline message' },
       ]);
-      const { runWatchLoop } = await importWatch();
-      const stdout = [];
+      const stdout: string[] = [];
       let nowMs = Date.UTC(2026, 5, 3, 12, 0, 0);
       let sleepCount = 0;
 
@@ -302,9 +317,9 @@ describe('runWatchLoop', () => {
           maxRuntimeMin: 0.003,
         },
         {
-          writeStdout: (chunk) => stdout.push(chunk),
+          writeStdout: (chunk: string) => stdout.push(chunk),
           now: () => nowMs,
-          sleep: async (ms) => {
+          sleep: async (ms: number) => {
             nowMs += ms;
             sleepCount++;
             if (sleepCount === 1) {
@@ -347,8 +362,7 @@ describe('runWatchLoop', () => {
       const transcriptPath = await writeClaudeTranscript(home, cwd, sessionId, [
         { content: 'max pending baseline message' },
       ]);
-      const { runWatchLoop } = await importWatch();
-      const stdout = [];
+      const stdout: string[] = [];
       let nowMs = Date.UTC(2026, 5, 3, 12, 0, 0);
       let sleepCount = 0;
 
@@ -362,9 +376,9 @@ describe('runWatchLoop', () => {
           maxRuntimeMin: 0.004,
         },
         {
-          writeStdout: (chunk) => stdout.push(chunk),
+          writeStdout: (chunk: string) => stdout.push(chunk),
           now: () => nowMs,
-          sleep: async (ms) => {
+          sleep: async (ms: number) => {
             nowMs += ms;
             sleepCount++;
             if (sleepCount <= 4) {
@@ -395,8 +409,7 @@ describe('runWatchLoop', () => {
       const transcriptPath = await writeClaudeTranscript(home, cwd, sessionId, [
         { content: 'json baseline message' },
       ]);
-      const { runWatchLoop } = await importWatch();
-      const stdout = [];
+      const stdout: string[] = [];
 
       const watchPromise = runWatchLoop(
         {
@@ -408,7 +421,7 @@ describe('runWatchLoop', () => {
           json: true,
         },
         {
-          writeStdout: (chunk) => stdout.push(chunk),
+          writeStdout: (chunk: string) => stdout.push(chunk),
         },
       );
 
@@ -417,7 +430,9 @@ describe('runWatchLoop', () => {
       // rather than being absorbed into a slow baseline observe.
       await waitFor(async () => {
         const state = await readJsonIfExists(join(stateDir, 'watch.json'));
-        return state?.watchers?.some((watcher) => watcher.targets?.length >= 1);
+        return state?.watchers?.some(
+          (watcher: any) => watcher.targets?.length >= 1,
+        );
       });
       await appendClaudeMessage(
         transcriptPath,
@@ -454,8 +469,7 @@ describe('runWatchLoop', () => {
       await writeClaudeTranscript(home, cwd, sessionId, [
         { content: 'heartbeat baseline message' },
       ]);
-      const { runWatchLoop } = await importWatch();
-      const stdout = [];
+      const stdout: string[] = [];
       let nowMs = Date.UTC(2026, 5, 3, 12, 0, 0);
 
       const result = await runWatchLoop(
@@ -469,9 +483,9 @@ describe('runWatchLoop', () => {
           json: true,
         },
         {
-          writeStdout: (chunk) => stdout.push(chunk),
+          writeStdout: (chunk: string) => stdout.push(chunk),
           now: () => nowMs,
-          sleep: async (ms) => {
+          sleep: async (ms: number) => {
             nowMs += ms;
           },
         },
@@ -499,8 +513,7 @@ describe('runWatchLoop', () => {
       const transcriptPath = await writeClaudeTranscript(home, cwd, sessionId, [
         { content: 'both baseline message' },
       ]);
-      const { runWatchLoop } = await importWatch();
-      const stdout = [];
+      const stdout: string[] = [];
 
       const watchPromise = runWatchLoop(
         {
@@ -512,7 +525,7 @@ describe('runWatchLoop', () => {
           json: true,
         },
         {
-          writeStdout: (chunk) => stdout.push(chunk),
+          writeStdout: (chunk: string) => stdout.push(chunk),
         },
       );
 
@@ -557,8 +570,7 @@ describe('runWatchLoop', () => {
       const transcriptPath = await writeClaudeTranscript(home, cwd, sessionId, [
         { content: 'both final flush baseline message' },
       ]);
-      const { runWatchLoop } = await importWatch();
-      const stdout = [];
+      const stdout: string[] = [];
       let nowMs = Date.UTC(2026, 5, 3, 12, 0, 0);
       let sleepCount = 0;
 
@@ -572,9 +584,9 @@ describe('runWatchLoop', () => {
           json: true,
         },
         {
-          writeStdout: (chunk) => stdout.push(chunk),
+          writeStdout: (chunk: string) => stdout.push(chunk),
           now: () => nowMs,
-          sleep: async (ms) => {
+          sleep: async (ms: number) => {
             nowMs += ms;
             sleepCount++;
             if (sleepCount === 3) {
@@ -612,8 +624,7 @@ describe('runWatchLoop', () => {
       const transcriptPath = await writeClaudeTranscript(home, cwd, sessionId, [
         { content: 'both baseline race message' },
       ]);
-      const { runWatchLoop } = await importWatch();
-      const stdout = [];
+      const stdout: string[] = [];
       let nowMs = Date.UTC(2026, 5, 3, 12, 0, 0);
       let appendedDuringSignature = false;
 
@@ -627,12 +638,12 @@ describe('runWatchLoop', () => {
           json: true,
         },
         {
-          writeStdout: (chunk) => stdout.push(chunk),
+          writeStdout: (chunk: string) => stdout.push(chunk),
           now: () => nowMs,
-          sleep: async (ms) => {
+          sleep: async (ms: number) => {
             nowMs += ms;
           },
-          stat: async (path) => {
+          stat: async (path: string) => {
             if (!appendedDuringSignature && path === transcriptPath) {
               appendedDuringSignature = true;
               await appendClaudeMessage(
@@ -664,7 +675,7 @@ describe('runWatchLoop', () => {
     });
   });
 
-  test('allows concurrent same-cwd watchers for different peer runtimes', async (t) => {
+  test('allows concurrent same-cwd watchers for different peer runtimes', async () => {
     await withTempSessionHome(async (home, stateDir) => {
       const cwd = '/test/watch-same-cwd-reciprocal';
       await writeClaudeTranscript(home, cwd, 'same-cwd-claude', [
@@ -673,10 +684,9 @@ describe('runWatchLoop', () => {
       await writeCodexTranscript(home, cwd, 'same-cwd-codex', [
         { content: 'same cwd codex baseline' },
       ]);
-      const { runWatchLoop } = await importWatch();
-      const stdoutA = [];
-      const stdoutB = [];
-      t.mock.method(process, 'kill', (pid, signal) => {
+      const stdoutA: string[] = [];
+      const stdoutB: string[] = [];
+      vi.spyOn(process, 'kill').mockImplementation((pid, signal) => {
         if (signal === 0 && (pid === 111 || pid === 222)) return true;
         return true;
       });
@@ -692,7 +702,7 @@ describe('runWatchLoop', () => {
         {
           pid: 111,
           handleSignals: false,
-          writeStdout: (chunk) => stdoutA.push(chunk),
+          writeStdout: (chunk: string) => stdoutA.push(chunk),
         },
       );
 
@@ -712,29 +722,31 @@ describe('runWatchLoop', () => {
         {
           pid: 222,
           handleSignals: false,
-          writeStdout: (chunk) => stdoutB.push(chunk),
+          writeStdout: (chunk: string) => stdoutB.push(chunk),
         },
       );
 
       const activeState = await waitFor(async () => {
         const state = await readJsonIfExists(join(stateDir, 'watch.json'));
         if (state?.watchers?.length !== 2) return null;
-        if (!state.watchers.every((watcher) => watcher.targets?.length === 1))
+        if (
+          !state.watchers.every((watcher: any) => watcher.targets?.length === 1)
+        )
           return null;
         return state;
       });
       assert.deepEqual(
-        activeState.watchers.map((watcher) => watcher.pid),
+        activeState.watchers.map((watcher: any) => watcher.pid),
         [111, 222],
       );
       assert.deepEqual(
-        activeState.watchers.map((watcher) => watcher.targets[0]?.runtime),
+        activeState.watchers.map((watcher: any) => watcher.targets[0]?.runtime),
         ['claude-code', 'codex'],
       );
 
       const results = await Promise.all([watcherA, watcherB]);
       assert.deepEqual(
-        results.map((result) => result.reason),
+        results.map((result: any) => result.reason),
         ['max-runtime', 'max-runtime'],
       );
       assert.ok(
@@ -744,19 +756,18 @@ describe('runWatchLoop', () => {
     });
   });
 
-  test('refuses a second watcher for the same target session', async (t) => {
+  test('refuses a second watcher for the same target session', async () => {
     await withTempSessionHome(async (home, stateDir) => {
       const cwd = '/test/watch-duplicate-target';
       await writeClaudeTranscript(home, cwd, 'duplicate-target', [
         { content: 'duplicate target baseline message' },
       ]);
-      const { runWatchLoop } = await importWatch();
-      t.mock.method(process, 'kill', (pid, signal) => {
+      vi.spyOn(process, 'kill').mockImplementation((pid, signal) => {
         if (signal === 0) return true;
         return true;
       });
 
-      const stdoutA = [];
+      const stdoutA: string[] = [];
       const watcherA = runWatchLoop(
         {
           runtime: 'claude-code',
@@ -768,7 +779,7 @@ describe('runWatchLoop', () => {
         {
           pid: 111,
           handleSignals: false,
-          writeStdout: (chunk) => stdoutA.push(chunk),
+          writeStdout: (chunk: string) => stdoutA.push(chunk),
         },
       );
 
@@ -777,7 +788,7 @@ describe('runWatchLoop', () => {
         return state?.watchers?.[0]?.targets?.length === 1 ? state : null;
       });
 
-      const stdoutB = [];
+      const stdoutB: string[] = [];
       await assert.rejects(
         () =>
           runWatchLoop(
@@ -791,7 +802,7 @@ describe('runWatchLoop', () => {
             {
               pid: 222,
               handleSignals: false,
-              writeStdout: (chunk) => stdoutB.push(chunk),
+              writeStdout: (chunk: string) => stdoutB.push(chunk),
             },
           ),
         /already watching claude-code:duplicate-target/,
@@ -800,7 +811,7 @@ describe('runWatchLoop', () => {
 
       const watchJson = await readJsonIfExists(join(stateDir, 'watch.json'));
       assert.deepEqual(
-        watchJson.watchers.map((watcher) => watcher.pid),
+        watchJson.watchers.map((watcher: any) => watcher.pid),
         [111],
       );
 
@@ -809,14 +820,13 @@ describe('runWatchLoop', () => {
     });
   });
 
-  test('refuses concurrent same-target watchers racing before either records', async (t) => {
+  test('refuses concurrent same-target watchers racing before either records', async () => {
     await withTempSessionHome(async (home, stateDir) => {
       const cwd = '/test/watch-duplicate-target-race';
       await writeClaudeTranscript(home, cwd, 'duplicate-target-race', [
         { content: 'duplicate target race baseline message' },
       ]);
-      const { runWatchLoop } = await importWatch();
-      t.mock.method(process, 'kill', (pid, signal) => {
+      vi.spyOn(process, 'kill').mockImplementation((pid, signal) => {
         if (signal === 0) return true;
         return true;
       });
@@ -824,9 +834,9 @@ describe('runWatchLoop', () => {
       // Start both watchers in the same tick so both can pass the unlocked
       // pre-check before either has recorded its target; the locked write in
       // recordWatcherTarget must still reject exactly one of them.
-      const stdoutA = [];
-      const stdoutB = [];
-      const startWatcher = (pid, sink) =>
+      const stdoutA: string[] = [];
+      const stdoutB: string[] = [];
+      const startWatcher = (pid: number, sink: string[]) =>
         runWatchLoop(
           {
             runtime: 'claude-code',
@@ -838,7 +848,7 @@ describe('runWatchLoop', () => {
           {
             pid,
             handleSignals: false,
-            writeStdout: (chunk) => sink.push(chunk),
+            writeStdout: (chunk: string) => sink.push(chunk),
           },
         );
       const settled = await Promise.allSettled([
@@ -846,9 +856,13 @@ describe('runWatchLoop', () => {
         startWatcher(222, stdoutB),
       ]);
 
-      const rejected = settled.filter((result) => result.status === 'rejected');
+      const rejected = settled.filter(
+        (result): result is PromiseRejectedResult =>
+          result.status === 'rejected',
+      );
       const fulfilled = settled.filter(
-        (result) => result.status === 'fulfilled',
+        (result): result is PromiseFulfilledResult<any> =>
+          result.status === 'fulfilled',
       );
       assert.equal(
         rejected.length,
@@ -876,8 +890,6 @@ describe('runWatchLoop', () => {
       const transcriptPath = await writeCodexTranscript(home, cwd, sessionId, [
         { content: 'status baseline message' },
       ]);
-      const { runWatchLoop } = await importWatch();
-      const watchState = await importWatchState();
 
       const watchPromise = runWatchLoop(
         {
@@ -1035,8 +1047,7 @@ describe('runWatchLoop', () => {
       await writeCursorTranscript(home, cwd, sessionId, [
         { content: 'cursor baseline message should stay unread' },
       ]);
-      const { runWatchLoop } = await importWatch();
-      const stdout = [];
+      const stdout: string[] = [];
 
       const result = await runWatchLoop(
         {
@@ -1048,7 +1059,7 @@ describe('runWatchLoop', () => {
           json: true,
         },
         {
-          writeStdout: (chunk) => stdout.push(chunk),
+          writeStdout: (chunk: string) => stdout.push(chunk),
         },
       );
 
@@ -1090,7 +1101,6 @@ describe('runWatchLoop', () => {
       ]);
       const eventLog = join('logs', 'events.jsonl');
       const resolvedEventLog = join(stateDir, eventLog);
-      const { runWatchLoop } = await importWatch();
 
       const watchPromise = runWatchLoop(
         {
@@ -1110,7 +1120,9 @@ describe('runWatchLoop', () => {
       // delta even when baseline establishment is slow.
       await waitFor(async () => {
         const state = await readJsonIfExists(join(stateDir, 'watch.json'));
-        return state?.watchers?.some((watcher) => watcher.targets?.length >= 1);
+        return state?.watchers?.some(
+          (watcher: any) => watcher.targets?.length >= 1,
+        );
       });
       await appendClaudeMessage(
         transcriptPath,
@@ -1145,7 +1157,6 @@ describe('runWatchLoop', () => {
 
   test('rejects event log paths outside the session-observer state directory', async () => {
     await withTempSessionHome(async (home) => {
-      const { runWatchLoop } = await importWatch();
       const options = {
         runtime: 'claude-code',
         cwd: '/test/watch-event-log-reject',
@@ -1184,7 +1195,6 @@ describe('runWatchLoop', () => {
       await symlink(outsideLog, join(stateDir, 'events.jsonl'));
       await symlink(outsideDir, join(stateDir, 'linked-logs'));
 
-      const { runWatchLoop } = await importWatch();
       const options = {
         runtime: 'claude-code',
         cwd: '/test/watch-event-log-symlink-reject',
@@ -1219,7 +1229,6 @@ describe('runWatchLoop', () => {
 
   test('rejects event log paths reserved for session-observer state files', async () => {
     await withTempSessionHome(async () => {
-      const { runWatchLoop } = await importWatch();
       const options = {
         runtime: 'claude-code',
         cwd: '/test/watch-event-log-reserved-reject',
@@ -1256,15 +1265,13 @@ describe('runWatchLoop', () => {
   });
 
   test('pause prevents emission until resume while polling continues', async () => {
-    await withTempSessionHome(async (home) => {
+    await withTempSessionHome(async (home, stateDir) => {
       const cwd = '/test/watch-pause-resume';
       const sessionId = 'watch-pause-resume';
       const transcriptPath = await writeClaudeTranscript(home, cwd, sessionId, [
         { content: 'pause baseline message' },
       ]);
-      const { runWatchLoop } = await importWatch();
-      const watchState = await importWatchState();
-      const stdout = [];
+      const stdout: string[] = [];
 
       const watchPromise = runWatchLoop(
         {
@@ -1275,15 +1282,38 @@ describe('runWatchLoop', () => {
           maxRuntimeMin: 0.02,
         },
         {
-          writeStdout: (chunk) => stdout.push(chunk),
+          writeStdout: (chunk: string) => stdout.push(chunk),
         },
       );
 
-      await sleep(70);
+      await waitFor(async () => {
+        const state = await readJsonIfExists(join(stateDir, 'watch.json'));
+        return state?.watchers?.some(
+          (watcher: any) => watcher.targets?.length >= 1,
+        );
+      });
       await watchState.writeControlDirective('pause');
-      await sleep(70);
+      await waitFor(async () => {
+        return (
+          (await readJsonIfExists(join(stateDir, 'watch.control.json'))) ===
+          null
+        );
+      });
+      const appendedAtMs = Date.now();
       await appendClaudeMessage(transcriptPath, sessionId, 'paused update');
-      await sleep(180);
+      let firstStampAfterAppendMs: number | null = null;
+      await waitFor(async () => {
+        const state = await readJsonIfExists(join(stateDir, 'watch.json'));
+        const lastPollAtMs = Date.parse(state?.watchers?.[0]?.lastPollAt ?? '');
+        if (!Number.isFinite(lastPollAtMs) || lastPollAtMs <= appendedAtMs) {
+          return false;
+        }
+        if (firstStampAfterAppendMs === null) {
+          firstStampAfterAppendMs = lastPollAtMs;
+          return false;
+        }
+        return lastPollAtMs > firstStampAfterAppendMs;
+      });
 
       assert.ok(
         !stdout.join('').includes('paused update'),
@@ -1306,9 +1336,7 @@ describe('runWatchLoop', () => {
       const transcriptPath = await writeClaudeTranscript(home, cwd, sessionId, [
         { content: 'flush baseline message' },
       ]);
-      const { runWatchLoop } = await importWatch();
-      const watchState = await importWatchState();
-      const stdout = [];
+      const stdout: string[] = [];
 
       const watchPromise = runWatchLoop(
         {
@@ -1319,7 +1347,7 @@ describe('runWatchLoop', () => {
           maxRuntimeMin: 0.02,
         },
         {
-          writeStdout: (chunk) => stdout.push(chunk),
+          writeStdout: (chunk: string) => stdout.push(chunk),
         },
       );
 
@@ -1327,7 +1355,9 @@ describe('runWatchLoop', () => {
       // delta even when baseline establishment is slow.
       await waitFor(async () => {
         const state = await readJsonIfExists(join(stateDir, 'watch.json'));
-        return state?.watchers?.some((watcher) => watcher.targets?.length >= 1);
+        return state?.watchers?.some(
+          (watcher: any) => watcher.targets?.length >= 1,
+        );
       });
       const appendedAtMs = Date.now();
       await appendClaudeMessage(transcriptPath, sessionId, 'flush update');
@@ -1335,7 +1365,7 @@ describe('runWatchLoop', () => {
       // pass observed the appended record, so the flush below has a pending
       // entry to force out (debounceSec is far beyond the runtime budget,
       // so flush is the only emit path this test can take).
-      let firstStampAfterAppendMs = null;
+      let firstStampAfterAppendMs: number | null = null;
       await waitFor(async () => {
         const state = await readJsonIfExists(join(stateDir, 'watch.json'));
         const lastPollAtMs = Date.parse(state?.watchers?.[0]?.lastPollAt ?? '');
@@ -1361,9 +1391,7 @@ describe('runWatchLoop', () => {
       await writeClaudeTranscript(home, cwd, 'watch-stop', [
         { content: 'stop baseline message' },
       ]);
-      const { runWatchLoop } = await importWatch();
-      const watchState = await importWatchState();
-      const stdout = [];
+      const stdout: string[] = [];
 
       const watchPromise = runWatchLoop(
         {
@@ -1374,7 +1402,7 @@ describe('runWatchLoop', () => {
           maxRuntimeMin: 0.02,
         },
         {
-          writeStdout: (chunk) => stdout.push(chunk),
+          writeStdout: (chunk: string) => stdout.push(chunk),
         },
       );
 
@@ -1436,8 +1464,7 @@ describe('runWatchLoop', () => {
         null,
       );
 
-      const { runWatchLoop } = await importWatch();
-      const stdout = [];
+      const stdout: string[] = [];
       const watchPromise = runWatchLoop(
         {
           runtime: 'claude-code',
@@ -1447,7 +1474,7 @@ describe('runWatchLoop', () => {
           maxRuntimeMin: 0.012,
         },
         {
-          writeStdout: (chunk) => stdout.push(chunk),
+          writeStdout: (chunk: string) => stdout.push(chunk),
         },
       );
 
