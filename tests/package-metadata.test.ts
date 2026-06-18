@@ -10,12 +10,8 @@ describe('package-metadata', () => {
     expect(packageJson.private).toBe(true);
     expect(packageJson.type).toBe('module');
     expect(packageJson.engines?.node ?? '').toMatch(/>=\s*22/);
-    expect(packageJson.scripts?.test).toBe(
-      'pnpm run test:node && pnpm run test:vitest',
-    );
-    expect(packageJson.scripts?.['test:node']).toBe(
-      "node --test $(find tests -name '*.test.mjs' ! -name 'generated-output-sync.test.mjs' -type f | sort)",
-    );
+    expect(packageJson.scripts?.test).toBe('pnpm run test:vitest');
+    expect(packageJson.scripts?.['test:node']).toBeUndefined();
     expect(packageJson.scripts?.['test:vitest']).toBe(
       'node scripts/run-vitest.mjs',
     );
