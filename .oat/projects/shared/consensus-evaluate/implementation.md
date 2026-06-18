@@ -134,6 +134,23 @@ review-fix tasks. Fixes are implemented; final re-review remains pending.
 
 **Next:** Re-run final review.
 
+### Review Received: final re-review (code)
+
+**Date:** 2026-06-18
+**Review artifact:** `reviews/archived/final-review-2026-06-18.md`
+
+**Findings:** Critical: 0 · Important: 0 · Medium: 0 · Minor: 0
+
+**Disposition:** final re-review passed. No fix tasks added.
+
+- The prior prompt-delimiter, provider-preflight documentation, and evaluate path-safety
+  findings were verified closed.
+- Reviewer-run verification passed `pnpm run build:check`, `pnpm run type-check`,
+  `pnpm test`, `pnpm run validate`, `pnpm run smoke`, targeted evaluate/path/generated
+  Vitest tests, docs/layout/package tests, and `git diff --check origin/main..HEAD`.
+
+**Next:** PR handoff.
+
 ---
 
 ## Phase 1: Core And Generated Runtime Substrate

@@ -1,6 +1,6 @@
 # consensus-evaluate Implementation Summary
 
-**Status:** Final review fixes complete; awaiting final re-review
+**Status:** Implementation complete; final review passed
 **Updated:** 2026-06-18
 
 ## What Shipped
@@ -38,7 +38,6 @@
 - p01 code review: passed
 - p02 code review: passed
 - p03 code review: passed; the non-blocking README wording Minor was resolved in `e551a12`
-- final code review: failed on 2026-06-17; fix tasks `p04-t01` through `p04-t03`
-  are implemented and awaiting final re-review
+- final code review: passed on 2026-06-18 after final review fixes
 
-No final review pass or PR handoff state has been recorded yet.
+PR handoff is the next lifecycle step.
