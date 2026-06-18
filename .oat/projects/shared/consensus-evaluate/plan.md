@@ -544,7 +544,7 @@ git commit -m "test(p04-t03): cover evaluate path confinement"
 | p01    | code     | passed | 2026-06-17 | reviews/archived/p01-review-2026-06-17.md |
 | p02    | code     | passed | 2026-06-17 | reviews/archived/p02-review-2026-06-17-v4.md |
 | p03    | code     | passed | 2026-06-17 | reviews/archived/p03-review-2026-06-17-v2.md |
-| final  | code     | passed | 2026-06-18 | reviews/archived/final-review-2026-06-18.md |
+| final  | code     | received | 2026-06-17 | reviews/final-review-2026-06-17-v2.md |
 | spec   | artifact | pending | -    | -        |
 | design | artifact | pending | -    | -        |
 | plan   | artifact | passed | 2026-06-17 | reviews/archived/artifact-plan-review-2026-06-16.md |
