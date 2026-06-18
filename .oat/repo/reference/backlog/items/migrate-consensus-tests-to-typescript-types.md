@@ -95,8 +95,8 @@ has moved from `node:test` `.mjs` files to Vitest `.test.ts` coverage, including
 generated-entrypoint checks against the committed skill runtime paths. Its final
 review follow-up also tightened meaningful TypeScript boundaries for state files,
 locate/rank candidates, digest and observe results, watch state/events/options,
-CLI/probe parsing, and transcript-core interactions while preserving shipped
-runtime behavior.
+CLI/probe parsing, transcript-core interactions, and internal watcher-status
+presentation helpers while preserving shipped runtime behavior.
 
 This still does **not** complete the initiative. PR4 remains for final
 `node:test` runner retirement, remaining non-migrated suites, and any selected

@@ -4,7 +4,7 @@ oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-18
 oat_generated: false
-oat_summary_last_task: p05-t01
+oat_summary_last_task: p05-t02
 oat_summary_revision_count: 0
 oat_summary_includes_revisions: []
 ---
@@ -39,6 +39,10 @@ state files, locate/rank candidates, digest and observe results, watch
 state/events/options, CLI/probe parsing, and transcript-core interactions while
 preserving shipped runtime behavior.
 
+The final focused follow-up then narrowed the internal CLI watcher-status and
+watch-control presentation helpers against the same watcher domain types, leaving
+only comment/prose hits for the word `any` in `session-observer.ts`.
+
 Public and agent-facing documentation now describes the ownership boundary:
 edit canonical TypeScript under `src/transcript/session-observer/`, regenerate
 with `pnpm run build`, and do not hand-edit generated `.mjs` files under
@@ -60,6 +64,8 @@ with `pnpm run build`, and do not hand-edit generated `.mjs` files under
   under `skills/session-observer/scripts`, `scripts/build-generated.mjs`, or
   `tests/generated-output-sync.test.mjs`.
 - Final re-review after `p05-t01` passed with no Critical, Important, Medium, or
+  Minor findings.
+- Focused review after `p05-t02` passed with no Critical, Important, Medium, or
   Minor findings.
 
 ## Remaining PR4 Work
