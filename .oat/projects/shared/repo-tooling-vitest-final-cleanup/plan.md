@@ -562,7 +562,7 @@ No code change. If `worktree:validate` surfaced generated drift, fix it under th
 | Scope  | Type     | Status  | Date       | Artifact |
 | ------ | -------- | ------- | ---------- | -------- |
 | p01    | code     | pending | -          | -        |
-| p02    | code     | pending | -          | -        |
+| p02    | code     | passed  | 2026-06-18 | in-memory (oat-reviewer, opus); 0 Crit/0 Imp; m1/m2 minor (non-blocking) |
 | p03    | code     | pending | -          | -        |
 | p04    | code     | pending | -          | -        |
 | final  | code     | pending | -          | -        |

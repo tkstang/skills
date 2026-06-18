@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-18
-oat_current_task_id: p02-t01
+oat_current_task_id: p03-t01
 oat_generated: false
 ---
 
@@ -27,11 +27,11 @@ oat_generated: false
 | Phase                                 | Status  | Tasks | Completed |
 | ------------------------------------- | ------- | ----- | --------- |
 | Phase 1 — Post-PR3 gate & recatalog          | complete    | 2     | 2/2       |
-| Phase 2 — Convert + harmonize suites (expect) | pending     | 5     | 0/5       |
+| Phase 2 — Convert + harmonize suites (expect) | complete    | 5     | 5/5       |
 | Phase 3 — Retire runner + add guard          | pending     | 2     | 0/2       |
 | Phase 4 — Docs & final verification          | pending     | 3     | 0/3       |
 
-**Total:** 2/12 tasks completed
+**Total:** 7/12 tasks completed
 
 > ✓ **Phase 1 gate satisfied.** PR #17 (session-observer) merged to `main`; branch rebased onto `origin/main` (`adbb05b`), recatalog confirms alignment (one assumption corrected: PR3 rewrote `tests/AGENTS.md` — see Phase 1 notes). HiLL checkpoint reconfigured to the **final phase only** (`p04`). Phase 2 (conversions) awaits go-ahead, then runs through to the `p04` checkpoint.
 
@@ -165,6 +165,34 @@ _- Parallel Groups list_
 _- Outstanding Items_
 
 <!-- orchestration-runs-start -->
+
+### Run 1 — 2026-06-18
+
+**Branch:** repo-tooling-vitest-final-cleanup
+**Tier:** 1 (subagents — Claude Code)
+**Policy:** merge-strategy=sequential, retry-limit=2
+**Phases:** p02 executed, 1 passed, 0 failed, 0 stopped
+
+#### Phase Outcomes
+
+| Phase | Implementer | Review | Fix Iterations | Disposition |
+| ----- | ----------- | ------ | -------------- | ----------- |
+| p02   | DONE (sonnet) | pass (opus) | 0/2 | committed |
+
+#### Dispatch Notes
+
+- Dispatch: p02 implementation — model_axis=selected:sonnet (mechanical conversion, capped by opus ceiling). Review — model_axis=opus (reviewer targets ceiling). Both Tier 1.
+
+#### Outstanding Items
+
+- None blocking. Minor (non-blocking, recorded): m1 — three `assert.notEqual`→`not.toBe` sites are same-typed primitives (loose vs strict identical here). m2 — harmonization added `as any` casts on nullable API returns (rank/observe/state/watch-state/digest); pragmatic shim, loses type-checking on asserted shapes. A future typing pass (out of PR4 scope) could tighten to `api(...)!` + real return types.
+
+#### Artifact / Design Deltas
+
+| Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
+| ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
+| None          | -               | -                    | -                 | -      | -               | -         |
+
 
 _Orchestration runs from `oat-project-implement` are appended here, most-recent-first within the file but append-only at the bottom of the log._
 
