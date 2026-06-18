@@ -151,7 +151,7 @@ Then authenticate `cursor-agent` (it stores credentials in the OS keychain — a
 
 - v0.1 ships the `refine` and `evaluate` skills.
 - Remaining consensus family skills are future work: `consensus-create`, `consensus-decide`, `consensus-plan`, and `consensus-research`.
-- Ships three iteration modes (`alternating`, `parallel_revision`, `parallel_synthesized`); the independent-draft cold-start strategy is not exposed through `refine` (shared-input only).
+- Ships three iteration modes (`alternating`, `parallel_revision`, `parallel_synthesized`); the independent-draft cold-start strategy is not exposed through `refine` or `evaluate` (shared-input only).
 - Sections converge independently; whole-document harmonization and deliberation metrics/cost caps remain deferred.
 - Cursor is supported as a host runtime, and as a peer only via a user-configured custom ACP provider (not a default Paseo peer); its structured-output path is softer than claude/codex and is unverified end-to-end at v0.1.
 - Codex public marketplace submission is not assumed; Git/local install is the v0.1 path.
