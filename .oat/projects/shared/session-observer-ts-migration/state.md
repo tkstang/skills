@@ -12,7 +12,7 @@ oat_hill_checkpoints: [p05] # Configured: which phases require human-in-the-loop
 oat_hill_completed: [p05] # Progress: which HiLL checkpoints have been completed
 oat_parallel_execution: false
 oat_phase: implement # Current phase: discovery | spec | design | plan | implement | decomposition
-oat_phase_status: complete # Status: in_progress | complete | pr_open
+oat_phase_status: pr_open # Status: in_progress | complete | pr_open
 # oat_orchestration_retry_limit: 2  # optional; override fix-loop retry limit (range 0-5)
 oat_dispatch_ceiling:
   preset: maximum
@@ -23,23 +23,23 @@ oat_dispatch_ceiling:
 oat_workflow_mode: quick # spec-driven | quick | import
 oat_workflow_origin: native # native | imported
 oat_docs_updated: complete # null | skipped | complete — documentation sync status
-oat_pr_status: null # null | ready | open | closed | merged — actual PR state for the current project
-oat_pr_url: null # null | string — tracked PR URL when a PR exists
+oat_pr_status: open # null | ready | open | closed | merged — actual PR state for the current project
+oat_pr_url: "https://github.com/tkstang/skills/pull/17" # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-06-17T23:15:59.616Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-06-18T06:18:12Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-06-18T06:27:57Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
 # Project State: session-observer-ts-migration
 
-**Status:** Implementation Complete - Final Checkpoint Reached
+**Status:** PR Open - Awaiting Human Review
 **Started:** 2026-06-17
 **Last Updated:** 2026-06-18
 
 ## Current Phase
 
-Implementation complete; final follow-up task `p05-t02` passed focused review and final checkpoint `p05` is complete.
+Implementation - PR open, awaiting human review.
 
 ## Artifacts
 
@@ -72,6 +72,8 @@ Implementation complete; final follow-up task `p05-t02` passed focused review an
 - ✓ Task `p05-t02` completed
 - ✓ Focused p05-t02 review passed with no findings
 - ✓ Final checkpoint `p05` completed
+- ✓ PR created
+- ⧗ Awaiting human review
 
 ## Blockers
 
@@ -79,4 +81,7 @@ None
 
 ## Next Milestone
 
-Stop at the final checkpoint as requested. Final repo-wide `node:test` retirement and test runner simplification remain PR4 work and are out of scope for this migration slice.
+PR is open for review.
+
+- To incorporate feedback: run `oat-project-revise`
+- When approved: run `oat-project-complete`
