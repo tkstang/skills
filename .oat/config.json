@@ -32,6 +32,7 @@
   ],
   "autoReviewAtCheckpoints": true,
   "workflow": {
+    "hillCheckpointDefault": "final",
     "archiveOnComplete": true,
     "postImplementSequence": "docs-pr"
   }
