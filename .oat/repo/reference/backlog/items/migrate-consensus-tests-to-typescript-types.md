@@ -92,7 +92,11 @@ implementation source to `src/transcript/session-observer/`, with
 `scripts/build-generated.mjs` preserving the shipped dependency-free `.mjs`
 outputs under `skills/session-observer/scripts/`. The session-observer test suite
 has moved from `node:test` `.mjs` files to Vitest `.test.ts` coverage, including
-generated-entrypoint checks against the committed skill runtime paths.
+generated-entrypoint checks against the committed skill runtime paths. Its final
+review follow-up also tightened meaningful TypeScript boundaries for state files,
+locate/rank candidates, digest and observe results, watch state/events/options,
+CLI/probe parsing, and transcript-core interactions while preserving shipped
+runtime behavior.
 
 This still does **not** complete the initiative. PR4 remains for final
 `node:test` runner retirement, remaining non-migrated suites, and any selected
