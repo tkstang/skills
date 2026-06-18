@@ -1,9 +1,9 @@
 ---
-oat_status: in_progress
+oat_status: complete
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-18
-oat_current_task_id: p04-t01
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -28,9 +28,9 @@ oat_generated: false
 | Phase 1 | complete    | 3     | 3/3       |
 | Phase 2 | complete    | 4     | 4/4       |
 | Phase 3 | complete    | 2     | 2/2       |
-| Phase 4 | pending     | 1     | 0/1       |
+| Phase 4 | complete    | 1     | 1/1       |
 
-**Total:** 9/10 tasks completed
+**Total:** 10/10 tasks completed
 
 ---
 
@@ -102,13 +102,13 @@ oat_generated: false
 
 ## Phase 4: Final Verification And Closeout
 
-**Status:** pending
-**Started:** -
+**Status:** complete
+**Started:** 2026-06-18
 
 ### Task p04-t01: Run Required Verification Suite
 
-**Status:** pending
-**Commit:** -
+**Status:** complete
+**Commit:** this commit - `chore(p04): record session-observer migration verification`
 
 ---
 
@@ -318,7 +318,35 @@ _Orchestration runs from `oat-project-implement` are appended here._
 - `git diff --check -- .oat/repo/reference` - passed
 - Session-observer `.test.mjs` residue check - no stale test files
 
-**Next:** Continue with `p04-t01`.
+**Next:** Phase p04 verification is complete; proceed to final review/receive.
+
+**Phase p04 implementation:**
+
+- [x] Ran the full required verification suite for build, types, generated-output drift, transcript-core sync compatibility, tests, validation, and smoke coverage.
+- [x] Re-ran targeted session-observer acceptance checks and confirmed no session-observer `.test.mjs` files remain.
+- [x] Verified generated-output idempotence with a second build, scoped diff check, and final `build:check`.
+- [x] Recorded PR/docs closeout and kept final repo-wide `node:test` retirement / test runner simplification as explicit PR4 follow-up, out of scope for this PR3 slice.
+
+**Commits:**
+
+- This commit - `chore(p04): record session-observer migration verification`
+
+**Verification:**
+
+- `pnpm run build` - passed
+- `pnpm run type-check` - passed
+- `pnpm run build:check` - passed
+- `pnpm run sync:transcript-core --check` - passed
+- `pnpm run test` - passed; 44 Node tests and 500 Vitest tests
+- `pnpm run validate` - passed
+- `pnpm run smoke` - passed
+- `pnpm run test:vitest -- tests/session-observer` - passed; wrapper did not narrow precisely and ran 35 files / 500 tests
+- `pnpm exec vitest run tests/session-observer` - passed; direct Vitest path narrowed to 9 files / 160 tests
+- `pnpm run test:node` - passed; 44 tests
+- `find tests/session-observer -name '*.test.mjs' -type f` - passed with no output
+- `pnpm run build` - passed for generated-output idempotence
+- `git diff --exit-code -- skills/session-observer/scripts scripts/build-generated.mjs tests/generated-output-sync.test.mjs` - passed with no output
+- `pnpm run build:check` - passed
 
 ---
 
@@ -335,13 +363,16 @@ _Orchestration runs from `oat-project-implement` are appended here._
 | 1     | p01 required verification | pass   | 0      | Existing session-observer node:test parity suite: 160 tests |
 | 2     | p02 required verification | pass   | 0      | Session-observer Vitest suite: 500 tests; remaining node:test suite: 44 tests |
 | 3     | p03 required documentation/reference verification | pass   | 0      | Docs/reference invariants plus generated-output drift checks |
-| 4     | -         | -      | -      | -        |
+| 4     | p04 final verification suite | pass   | 0      | Full build/type/generated/test/validate/smoke suite; direct session-observer Vitest acceptance: 160 tests |
 
 ## Final Summary (for PR/docs)
 
 **What shipped:**
 
-- TBD during implementation.
+- Session-observer runtime implementation now has canonical TypeScript source under `src/transcript/session-observer/`.
+- Shipped dependency-free `.mjs` runtime outputs under `skills/session-observer/scripts/` are generated from canonical TypeScript through `scripts/build-generated.mjs`.
+- Session-observer tests now run as Vitest TypeScript tests while preserving generated shipped entrypoint coverage.
+- Public docs, agent-facing guidance, OAT reference state, backlog notes, and the PR3 project summary describe the new source/generated-output contract.
 
 **Behavioral changes (user-facing):**
 
@@ -352,14 +383,30 @@ _Orchestration runs from `oat-project-implement` are appended here._
 - `src/transcript/session-observer/` - canonical TypeScript source after implementation.
 - `skills/session-observer/scripts/` - generated shipped runtime output.
 - `tests/session-observer/` - Vitest TypeScript session-observer tests.
+- `scripts/build-generated.mjs` and `tests/generated-output-sync.test.mjs` - generated-output mapping and drift coverage.
+- `README.md`, `AGENTS.md`, `skills/session-observer/SKILL.md`, and `.oat/repo/reference/` - durable documentation/reference updates.
 
 **Verification performed:**
 
-- TBD during implementation.
+- `pnpm run build` - passed
+- `pnpm run type-check` - passed
+- `pnpm run build:check` - passed
+- `pnpm run sync:transcript-core --check` - passed
+- `pnpm run test` - passed; mixed runner contract preserved
+- `pnpm run validate` - passed
+- `pnpm run smoke` - passed
+- `pnpm exec vitest run tests/session-observer` - passed; 9 files / 160 tests
+- `pnpm run test:node` - passed; 44 remaining Node tests
+- `find tests/session-observer -name '*.test.mjs' -type f` - passed with no output
+- Generated-output cleanliness check passed after `pnpm run build`: `git diff --exit-code -- skills/session-observer/scripts scripts/build-generated.mjs tests/generated-output-sync.test.mjs`
 
 **Design deltas (if any):**
 
 - No separate design artifact in quick mode.
+
+**Remaining PR4 work:**
+
+- Final repo-wide `node:test` retirement and test runner simplification remain out of scope. `test:node` and the mixed `pnpm test` contract are intentionally preserved in this PR3 slice.
 
 ## References
 

@@ -1,6 +1,6 @@
 ---
-oat_current_task: p02-t01
-oat_last_commit: 3748bd5
+oat_current_task: null
+oat_last_commit: 632f331
 oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
@@ -27,7 +27,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-06-17T23:15:59.616Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-06-18T01:19:32Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-06-18T01:24:58Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -39,7 +39,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation - Phase p03 passed review; next task `p04-t01`
+Implementation - Tasks complete; awaiting final review.
 
 ## Artifacts
 
@@ -63,7 +63,8 @@ Implementation - Phase p03 passed review; next task `p04-t01`
 - ✓ Phase p02 code review passed
 - ✓ Phase p03 implementation complete
 - ✓ Phase p03 code review passed
-- ⧗ Next implementation task is `p04-t01`
+- ✓ Phase p04 verification and closeout complete
+- ⧗ Awaiting final review
 
 ## Blockers
 
@@ -71,4 +72,4 @@ None
 
 ## Next Milestone
 
-Continue with phase p02 through the final-phase checkpoint at p04
+Run final review/receive for the implementation. Final repo-wide `node:test` retirement and test runner simplification remain PR4 work and are out of scope for this migration slice.
