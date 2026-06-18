@@ -21,6 +21,7 @@ PR4 of the TypeScript/Vitest migration in `tkstang/skills`. Finish the test-runn
 - Simplify `pnpm test` to a Vitest-only invocation.
 - Add a guard that prevents new `node:test` tests (or new `tests/**/*.test.mjs`) from re-entering the repo.
 - Preserve all existing behavioral coverage; do not change subprocess or filesystem fixture behavior.
+- **Harmonize the assertion convention repo-wide:** convert the 9 session-observer suites (which PR3 left on `node:assert/strict`) to Vitest `expect`, so every `tests/**` suite uses one style; the guard also forbids new `node:assert` imports in tests. _(Added during planning after reviewing PR3's implementation.)_
 
 **Hard gate:** Do discovery/design/plan only now. Do not implement until (1) PR3 lands on `main`, (2) the branch is rebased onto latest `main`, (3) discovery is re-run against the actual post-PR3 layout, and (4) the plan is reconciled if PR3 changed assumptions.
 
@@ -87,7 +88,7 @@ Runs under `pnpm validate` / `premerge`. Centralizes repo invariants but is fart
 
 ## Key Decisions
 
-1. **Scope boundary:** PR4 touches only repo/tooling test files, `package.json` test scripts, `vitest.config.mjs`, the new guard, and docs/reference. No runtime source, no session-observer/consensus/transcript implementation, no feature behavior.
+1. **Scope boundary:** PR4 touches repo/tooling test files, the 9 session-observer test files (assertion harmonization only), `package.json` test scripts, `vitest.config.mjs`, the new guard, and docs/reference. No runtime/source code, no session-observer/consensus/transcript *implementation*, no feature behavior. (Session-observer *test* files are in scope for the `node:assert`→`expect` swap only — not their `.test.ts` structure or the code under test.)
 2. **`generated-output-sync.test.mjs`:** convert to `.ts` and remove its special-case entry from `vitest.config.mjs` so the standard `tests/**/*.test.ts` glob covers it.
 3. **Runner retirement ordering:** remove `test:node` and simplify `test` to Vitest-only **only after** zero `.test.mjs` / `node:test` tests remain (verified by recatalog).
 4. **Guard:** Option A Vitest meta-test.
@@ -104,6 +105,7 @@ Runs under `pnpm validate` / `premerge`. Centralizes repo invariants but is fart
 ## Success Criteria
 
 - No repo test imports `node:test`.
+- No repo test imports `node:assert` — every `tests/**` suite asserts via Vitest `expect`.
 - No `tests/**/*.test.mjs` remain (except an explicitly justified + guarded allowlist; expected to be empty).
 - `package.json` has no `test:node`; `test` runs Vitest only.
 - All prior behavioral coverage preserved (subprocess + fixture behavior unchanged).
@@ -132,7 +134,7 @@ Cross-checked against the `session-observer-ts` worktree diff (`origin/main...HE
 ### New findings from the PR3 implementation review (folded into the plan)
 
 - **Shared helper `tests/helpers/process.mjs`** (typed via `tests/helpers/process.d.mts`) is imported by `smoke-test-script` and already by `tests/parallel-integration.test.ts` — proving a `.test.ts` can import this `.mjs` helper via its `.d.mts` shim. **Decision:** keep the helper as `.mjs` (the guard only targets `*.test.mjs`); converting `smoke-test-script.test.ts` leaves the import unchanged. No new helper-conversion work.
-- **Assertion convention:** existing `.test.ts` are unanimous — 0 use `node:assert`, 45 use Vitest `expect`. PR4 uses `expect` (matches brief + dominant convention). PR3 kept `node:assert/strict` in session-observer suites, creating a transient two-style split; **harmonizing session-observer is out of PR4 scope** (deferred-ideas candidate).
+- **Assertion convention:** existing `.test.ts` are unanimous — 0 use `node:assert`, 45 use Vitest `expect`. PR4 uses `expect` (matches brief + dominant convention). PR3 kept `node:assert/strict` in session-observer suites, creating a transient two-style split; **PR4 now harmonizes those 9 suites to `expect`** (p02-t04/t05) and the guard forbids new `node:assert` imports. _(Originally scoped out; pulled in by user direction after the PR3 implementation review — "final cleanup should own this.")_
 - **Module-specifier convention:** PR3 imports TS source with `.js` specifiers (e.g. `../../src/.../state.js`) and helpers as `./helpers/x.js`. Repo/tooling tests import real `.mjs` runtime/scripts, which stay `.mjs` — no specifier rewrites needed there.
 
 ## Risks

@@ -55,7 +55,7 @@ This plan was already cross-checked against PR3's **actual** committed implement
 - ✅ **PR3 did not touch `tests/AGENTS.md`** — it still documents `node:test` as the primary style; PR4's p04-t01 rewrite is required and non-duplicative.
 - ⚠️ **PR3 modified `tests/generated-output-sync.test.mjs`** (+~87 lines adding session-observer generated-mapping coverage). After rebase, p02-t03 converts **that** post-PR3 version — re-confirm content before converting.
 - ⚠️ **PR3 already edited `AGENTS.md` (root), `README.md`, `.oat/repo/reference/current-state.md`, `roadmap.md`, and the backlog** — PR4's p04-t01/p04-t02 must *layer onto* PR3's wording (remove only now-stale `node:test` references), not restate or contradict it.
-- ⚠️ **Assertion-style divergence:** PR3 kept `node:assert/strict` in session-observer suites; the rest of the repo (and PR4) uses `expect`. Not a blocker — see the Phase 2 preamble.
+- ⚠️ **Assertion-style divergence (now IN scope):** PR3 kept `node:assert/strict` in the 9 session-observer suites; the rest of the repo uses `expect`. PR4 **harmonizes** those suites to `expect` (Phase 2, p02-t04/t05) so the whole repo lands on one convention, and the guard (p03-t01) enforces it going forward.
 
 If the rebased tree contradicts any ✅ above (e.g. PR3 was amended to touch `package.json`), update the affected task before proceeding.
 
@@ -157,11 +157,11 @@ git commit -m "docs(p01-t02): reconcile PR4 plan with post-PR3 test layout"
 
 ---
 
-## Phase 2: Convert repo/tooling suites to Vitest TypeScript
+## Phase 2: Convert repo/tooling suites + harmonize session-observer to `expect`
 
 Uniform transform per file: rename `*.test.mjs` → `*.test.ts`; replace `import test from 'node:test'` / `import { test, describe } from 'node:test'` with `import { describe, it, test, expect, beforeAll, afterAll } from 'vitest'` (import only what each file uses); replace `node:assert/strict` assertions with Vitest `expect`; keep all relative import paths, subprocess spawns, and `mkdtemp` fixture behavior byte-for-byte equivalent. Use `git mv` so history is preserved.
 
-**Assertion convention — use Vitest `expect` (verified dominant):** the already-migrated repo suites are unanimous — `0` `.test.ts` files import `node:assert`, `45` import `expect` from `vitest`. This matches the original brief ("replace `node:assert/strict` with Vitest `expect`"). Note: landed PR3 chose to *keep* `node:assert/strict` in the session-observer suites (runner-only swap) to minimize diff on a large conversion, so the repo will briefly hold two styles. PR4 follows the dominant `expect` convention; **harmonizing session-observer to `expect` is out of scope** (those are PR3's files) — captured as a deferred cleanup, not a PR4 task.
+**Assertion convention — Vitest `expect`, repo-wide (verified dominant):** the already-migrated suites are unanimous — `0` `.test.ts` files import `node:assert`, `45` import `expect` from `vitest`. This matches the original brief. PR4 puts the **entire** repo on `expect`: the 13 converted repo/tooling suites (p02-t01/t02/t03) **and** the 9 session-observer suites PR3 left on `node:assert/strict` (p02-t04/t05). Result: every `tests/**` suite uses `expect`, and the guard (p03-t01) forbids new `node:assert` imports in tests to keep it that way.
 
 **Shared helper stays `.mjs` (do not convert, do not break):** `tests/helpers/process.mjs` is a typed (`tests/helpers/process.d.mts`) helper imported by `tests/smoke-test-script` and already by `tests/parallel-integration.test.ts` — so a `.test.ts` importing this `.mjs` helper via the `.d.mts` shim is a proven, working pattern in this repo. Leave `tests/helpers/process.mjs` as-is; the guard targets `*.test.mjs` only, so a non-test `.mjs` helper is correctly never flagged.
 
@@ -257,6 +257,81 @@ git commit -m "test(p02-t03): convert generated-output-sync to Vitest TS and dro
 
 ---
 
+### Task p02-t04: Harmonize session-observer library suites to `expect`
+
+> These files already exist as `.test.ts` (landed by PR3) and already run under Vitest. This task **only** swaps their `node:assert/strict` assertions to Vitest `expect` — no rename, no runner change, no behavior change. File set mirrors PR3's `test(p02): migrate session-observer library tests` grouping.
+
+**Files (modify in place):**
+
+- `tests/session-observer/digest.test.ts`
+- `tests/session-observer/locate.test.ts`
+- `tests/session-observer/observe.test.ts`
+- `tests/session-observer/rank.test.ts`
+- `tests/session-observer/state.test.ts`
+
+**Step 1: Translate assertions**
+
+Remove `import assert from 'node:assert/strict'`; add `expect` to the existing `from 'vitest'` import. Map 1:1, preserving every assertion's meaning and order:
+
+- `assert.equal(a, b)` / `assert.strictEqual` → `expect(a).toBe(b)`
+- `assert.deepEqual(a, b)` → `expect(a).toEqual(b)`
+- `assert.ok(x)` → `expect(x).toBeTruthy()`
+- `assert.match(s, re)` → `expect(s).toMatch(re)`
+- `assert.throws(fn)` → `expect(fn).toThrow()`
+- `await assert.rejects(p)` → `await expect(p).rejects.toThrow()`
+- `assert.equal(arr.length, n)` → `expect(arr).toHaveLength(n)` (where it reads naturally)
+
+Keep all `withTmpStateDir` / fixture / `node:fs` usage and test names exactly as-is. Do not touch the `../../src/...js` source-import specifiers.
+
+Run (scoped): `pnpm run test:vitest -- tests/session-observer/digest.test.ts tests/session-observer/locate.test.ts tests/session-observer/observe.test.ts tests/session-observer/rank.test.ts tests/session-observer/state.test.ts`
+Expected: all pass with identical case counts; no remaining `node:assert` import in these files.
+
+**Step 2: Verify**
+
+Run: `pnpm run type-check && pnpm exec oxlint tests/session-observer/digest.test.ts tests/session-observer/locate.test.ts tests/session-observer/observe.test.ts tests/session-observer/rank.test.ts tests/session-observer/state.test.ts`
+Expected: no type or lint errors.
+
+**Step 3: Commit**
+
+```bash
+git add tests/session-observer/digest.test.ts tests/session-observer/locate.test.ts tests/session-observer/observe.test.ts tests/session-observer/rank.test.ts tests/session-observer/state.test.ts
+git commit -m "test(p02-t04): harmonize session-observer library suites to expect"
+```
+
+---
+
+### Task p02-t05: Harmonize session-observer CLI + watcher suites to `expect`
+
+> Same assertion-only transform as p02-t04, for the remaining 4 session-observer suites (PR3's `CLI tests` + `watcher tests` groupings). The watcher suites are timing/async-heavy — translate `assert.rejects`/async assertions with care and keep all `await` / fake-timer / fixture behavior identical.
+
+**Files (modify in place):**
+
+- `tests/session-observer/cli.test.ts`
+- `tests/session-observer/integration.test.ts`
+- `tests/session-observer/watch.test.ts`
+- `tests/session-observer/watch-state.test.ts`
+
+**Step 1: Translate assertions**
+
+Same mapping table as p02-t04. Pay extra attention to async assertions in `watch`/`watch-state` (`await expect(...).rejects...`, `expect(...).resolves...`) so no awaited assertion silently becomes synchronous.
+
+Run (scoped): `pnpm run test:vitest -- tests/session-observer/cli.test.ts tests/session-observer/integration.test.ts tests/session-observer/watch.test.ts tests/session-observer/watch-state.test.ts`
+Expected: all pass; no remaining `node:assert` import.
+
+**Step 2: Verify whole session-observer suite + repo-wide assertion convention**
+
+Run: `pnpm run test:vitest -- tests/session-observer` then `grep -rl "node:assert" tests/` (expected: **empty** — every test now uses `expect`).
+Expected: full session-observer suite green; zero `node:assert` importers under `tests/`.
+
+**Step 3: Commit**
+
+```bash
+git add tests/session-observer/cli.test.ts tests/session-observer/integration.test.ts tests/session-observer/watch.test.ts tests/session-observer/watch-state.test.ts
+git commit -m "test(p02-t05): harmonize session-observer CLI and watcher suites to expect"
+```
+
+---
+
 ## Phase 3: Retire `node:test` runner, add guard, simplify `pnpm test`
 
 ### Task p03-t01: Add the no-new-`node:test` guard (Vitest meta-test)
@@ -293,17 +368,28 @@ describe('test-runner policy', () => {
     }
     expect(offenders).toEqual([]);
   });
+
+  it('no test source imports node:assert (use Vitest expect)', async () => {
+    const offenders: string[] = [];
+    for await (const f of glob('tests/**/*.test.{ts,mts,mjs}')) {
+      const src = readFileSync(f, 'utf8');
+      if (/from\s+['"]node:assert(\/strict)?['"]/.test(src)) offenders.push(f);
+    }
+    expect(offenders).toEqual([]);
+  });
 });
 ```
 
-> **Prefer a small `readdir` recursion over `node:fs/promises` `glob`** for the committed guard — `fs.glob` is still experimental on Node 22 and emits an `ExperimentalWarning` under `pnpm test`. Follow the existing `tests/tooling/vitest-config.test.ts` style. Scope the `node:test` scan to actual `from 'node:test'` import statements so doc snippets / fixture strings never trip it.
+> **Prefer a small `readdir` recursion over `node:fs/promises` `glob`** for the committed guard — `fs.glob` is still experimental on Node 22 and emits an `ExperimentalWarning` under `pnpm test`. Follow the existing `tests/tooling/vitest-config.test.ts` style. Scope the import scans to actual `from 'node:test'` / `from 'node:assert'` import statements so doc snippets / fixture strings never trip them.
+>
+> The `node:assert` assertion (third `it`) is the enforcement arm of the session-observer harmonization (p02-t04/t05): it only goes green once every `tests/**` suite is on `expect`, which is why the guard lands in Phase 3 after Phase 2 completes. If you later want to relax the `node:assert` ban (e.g. allow it in a specific helper), prefer a narrow documented allowlist over deleting the check.
 
 Run (scoped): `pnpm run test:vitest -- tests/tooling/no-node-test-runner.test.ts`
-Expected: both assertions pass (no `.test.mjs`, no `node:test` imports).
+Expected: all three assertions pass (no `.test.mjs`, no `node:test`, no `node:assert`).
 
 **Step 2: Verify the guard actually fails on reintroduction**
 
-Temporarily create a throwaway `tests/_guard-probe.test.mjs` containing `import test from 'node:test'`, rerun the guard, confirm **both** assertions fail, then delete the probe. (Manual sanity check — do not commit the probe.)
+Temporarily create a throwaway `tests/_guard-probe.test.mjs` containing `import test from 'node:test'` and `import assert from 'node:assert/strict'`, rerun the guard, confirm the relevant assertions fail, then delete the probe. (Manual sanity check — do not commit the probe.)
 
 **Step 3: Verify**
 
@@ -314,7 +400,7 @@ Expected: no errors.
 
 ```bash
 git add tests/tooling/no-node-test-runner.test.ts
-git commit -m "test(p03-t01): guard against new node:test / .test.mjs tests"
+git commit -m "test(p03-t01): guard against new node:test / node:assert / .test.mjs tests"
 ```
 
 ---
@@ -444,7 +530,8 @@ Expected: all green. Then assert acceptance criteria mechanically:
 
 ```bash
 find tests -name '*.test.mjs' -type f          # empty
-grep -rn "node:test" tests/                      # no import matches
+grep -rln "node:test" tests/                     # no import matches
+grep -rln "node:assert" tests/                   # no import matches (repo-wide expect)
 grep -n "test:node" package.json                 # no match
 ```
 
@@ -465,7 +552,7 @@ No code change. If `worktree:validate` surfaced generated drift, fix it under th
 | p03    | code     | pending | -          | -        |
 | p04    | code     | pending | -          | -        |
 | final  | code     | pending | -          | -        |
-| plan   | artifact | passed  | 2026-06-17 | in-memory (oat-reviewer); I1 Important applied, M1–M3 clarifications applied |
+| plan   | artifact | passed  | 2026-06-17 | in-memory (oat-reviewer); I1 Important + M1–M3 applied. Scope later expanded (session-observer `expect` harmonization, p02-t04/t05) by user direction after review — mechanical assertion-only change, same gate/risk profile. |
 | spec   | artifact | n/a     | -          | quick mode — no spec |
 | design | artifact | n/a     | -          | quick mode — no design |
 
@@ -478,11 +565,11 @@ No code change. If `worktree:validate` surfaced generated drift, fix it under th
 **Summary:**
 
 - Phase 1: 2 tasks — post-PR3 gate, rebase, recatalog, reconcile assumptions (HiLL checkpoint).
-- Phase 2: 3 tasks — convert all 13 repo/tooling `.test.mjs` to Vitest `.test.ts`; drop the `generated-output-sync` config special-case.
-- Phase 3: 2 tasks — add the no-`node:test` guard; retire `test:node`; `pnpm test` runs Vitest only.
+- Phase 2: 5 tasks — convert all 13 repo/tooling `.test.mjs` to Vitest `.test.ts` (drop the `generated-output-sync` config special-case); harmonize the 9 session-observer suites from `node:assert/strict` to `expect`. Whole repo lands on one `expect` convention.
+- Phase 3: 2 tasks — add the guard (no `node:test`, no `node:assert`, no `.test.mjs`); retire `test:node`; `pnpm test` runs Vitest only.
 - Phase 4: 3 tasks — docs (`tests/AGENTS.md`/README), repo reference + backlog, final full verification.
 
-**Total: 10 tasks**
+**Total: 12 tasks**
 
 Ready for code review and merge.
 
