@@ -1,6 +1,6 @@
 ---
-oat_current_task: p03-t01
-oat_last_commit: 1f35cd0
+oat_current_task: p04-t01
+oat_last_commit: 57f3502
 oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
@@ -27,13 +27,13 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-06-18T00:26:15.855Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-06-18T14:00:00Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-06-18T14:30:00Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
 # Project State: repo-tooling-vitest-final-cleanup
 
-**Status:** Phase 1 complete — awaiting go-ahead for Phase 2 (HiLL checkpoint now `p04`)
+**Status:** Implementing — Phases 1–3 complete; Phase 4 (docs + final verification) next
 **Started:** 2026-06-18
 **Last Updated:** 2026-06-18
 

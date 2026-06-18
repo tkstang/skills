@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-18
-oat_current_task_id: p03-t01
+oat_current_task_id: p04-t01
 oat_generated: false
 ---
 
@@ -28,10 +28,10 @@ oat_generated: false
 | ------------------------------------- | ------- | ----- | --------- |
 | Phase 1 — Post-PR3 gate & recatalog          | complete    | 2     | 2/2       |
 | Phase 2 — Convert + harmonize suites (expect) | complete    | 5     | 5/5       |
-| Phase 3 — Retire runner + add guard          | pending     | 2     | 0/2       |
+| Phase 3 — Retire runner + add guard          | complete    | 2     | 2/2       |
 | Phase 4 — Docs & final verification          | pending     | 3     | 0/3       |
 
-**Total:** 7/12 tasks completed
+**Total:** 9/12 tasks completed
 
 > ✓ **Phase 1 gate satisfied.** PR #17 (session-observer) merged to `main`; branch rebased onto `origin/main` (`adbb05b`), recatalog confirms alignment (one assumption corrected: PR3 rewrote `tests/AGENTS.md` — see Phase 1 notes). HiLL checkpoint reconfigured to the **final phase only** (`p04`). Phase 2 (conversions) awaits go-ahead, then runs through to the `p04` checkpoint.
 
@@ -171,17 +171,18 @@ _- Outstanding Items_
 **Branch:** repo-tooling-vitest-final-cleanup
 **Tier:** 1 (subagents — Claude Code)
 **Policy:** merge-strategy=sequential, retry-limit=2
-**Phases:** p02 executed, 1 passed, 0 failed, 0 stopped
+**Phases:** p02, p03 executed, 2 passed, 0 failed, 0 stopped
 
 #### Phase Outcomes
 
 | Phase | Implementer | Review | Fix Iterations | Disposition |
 | ----- | ----------- | ------ | -------------- | ----------- |
 | p02   | DONE (sonnet) | pass (opus) | 0/2 | committed |
+| p03   | DONE (sonnet) | pass (opus) | 0/2 | committed |
 
 #### Dispatch Notes
 
-- Dispatch: p02 implementation — model_axis=selected:sonnet (mechanical conversion, capped by opus ceiling). Review — model_axis=opus (reviewer targets ceiling). Both Tier 1.
+- Dispatch: p02/p03 implementation — model_axis=selected:sonnet (mechanical conversion + guard/runner edits, capped by opus ceiling). Reviews — model_axis=opus (reviewer targets ceiling). Both Tier 1.
 
 #### Outstanding Items
 
@@ -245,7 +246,7 @@ Document any intentional deviations from the original plan, spec, or design. Inc
 
 | Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
 | ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
-| -             | -               | -                    | -                 | -      | -               | -         |
+| p03-t02 | plan.md p03-t02 (Files: `package.json` only) | Modify only `package.json` to retire `test:node` | Also updated `tests/package-metadata.test.ts` to assert the new test-script contract (`test: 'pnpm run test:vitest'`, `test:node` absent) | That test pins the exact `package.json` test-script strings; changing the scripts without updating it would permanently fail the suite. Assertion-contract update, no behavior-under-test change. | implementation (the test now reflects shipped `package.json`) | None — plan boundary was too narrow; coverage strengthened, not weakened. Confirmed correct by p03 review. |
 
 ## Test Results
 
