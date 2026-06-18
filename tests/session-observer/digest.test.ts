@@ -1,13 +1,14 @@
 /**
- * digest.test.mjs — Tests for scripts/lib/digest.mjs
+ * digest.test.ts — Tests for src/transcript/session-observer/lib/digest.ts
  */
 
 import assert from 'node:assert/strict';
 import { readFile, writeFile, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
-import { test, describe } from 'node:test';
 import { fileURLToPath } from 'node:url';
+
+import { describe, test } from 'vitest';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const FIXTURES = join(__dirname, 'fixtures');
@@ -17,39 +18,18 @@ const withToolBurst = join(FIXTURES, 'claude-code', 'with-tool-burst.jsonl');
 const typicalCodex = join(FIXTURES, 'codex', 'typical.jsonl');
 const typicalCursor = join(FIXTURES, 'cursor', 'typical.jsonl');
 
-const digestMjs = join(
-  __dirname,
-  '../../skills/session-observer/scripts/lib/digest.mjs',
-);
-
-let buildDigest, renderMarkdown, renderJson;
-try {
-  const mod = await import(digestMjs);
-  buildDigest = mod.buildDigest;
-  renderMarkdown = mod.renderMarkdown;
-  renderJson = mod.renderJson;
-} catch (e) {
-  // Module doesn't exist yet (RED phase)
-  buildDigest = null;
-  renderMarkdown = null;
-  renderJson = null;
-}
-
-function skipIfMissing(t) {
-  if (!buildDigest) {
-    t.skip('digest.mjs not yet implemented');
-    return true;
-  }
-  return false;
-}
+import {
+  buildDigest,
+  renderJson,
+  renderMarkdown,
+} from '../../src/transcript/session-observer/lib/digest.js';
 
 // ---------------------------------------------------------------------------
 // buildDigest
 // ---------------------------------------------------------------------------
 
 describe('buildDigest', () => {
-  test('returns correct entry count and range for fromIndex=0 (claude-code)', async (t) => {
-    if (skipIfMissing(t)) return;
+  test('returns correct entry count and range for fromIndex=0 (claude-code)', async () => {
     const digest = await buildDigest('claude-code', typicalClaude, {
       fromIndex: 0,
       includeToolCalls: false,
@@ -61,13 +41,12 @@ describe('buildDigest', () => {
     assert.ok(digest.range.totalRecords > 0, 'totalRecords should be > 0');
     assert.ok(digest.entries.length > 0, 'entries should be non-empty');
     assert.ok(
-      digest.entries.every((e) => e.kind === 'message'),
+      digest.entries.every((e: any) => e.kind === 'message'),
       'default filter: only message entries',
     );
   });
 
-  test('returns only entries with recordIndex >= fromIndex (mid-stream)', async (t) => {
-    if (skipIfMissing(t)) return;
+  test('returns only entries with recordIndex >= fromIndex (mid-stream)', async () => {
     // Read the file to know how many records there are
     const fullDigest = await buildDigest('claude-code', typicalClaude, {
       fromIndex: 0,
@@ -83,7 +62,7 @@ describe('buildDigest', () => {
     });
 
     assert.ok(
-      partial.entries.every((e) => e.recordIndex >= midIndex),
+      partial.entries.every((e: any) => e.recordIndex >= midIndex),
       'all entries should have recordIndex >= fromIndex',
     );
     assert.equal(
@@ -93,8 +72,7 @@ describe('buildDigest', () => {
     );
   });
 
-  test('newRecords set correctly in catch-up mode', async (t) => {
-    if (skipIfMissing(t)) return;
+  test('newRecords set correctly in catch-up mode', async () => {
     const fullDigest = await buildDigest('claude-code', typicalClaude, {
       fromIndex: 0,
       mode: 'review',
@@ -115,9 +93,7 @@ describe('buildDigest', () => {
     assert.ok(catchUp.range.newRecords >= 0, 'newRecords should be >= 0');
   });
 
-  test('catch-up separates raw records consumed from rendered messages', async (t) => {
-    if (skipIfMissing(t)) return;
-
+  test('catch-up separates raw records consumed from rendered messages', async () => {
     const tmpDir = await mkdtemp(join(tmpdir(), 'digest-filter-test-'));
     try {
       const transcriptPath = join(tmpDir, 'filtered.jsonl');
@@ -286,9 +262,7 @@ describe('buildDigest', () => {
     }
   });
 
-  test('catch-up accounts for default command-message filtering', async (t) => {
-    if (skipIfMissing(t)) return;
-
+  test('catch-up accounts for default command-message filtering', async () => {
     const tmpDir = await mkdtemp(join(tmpdir(), 'digest-command-test-'));
     try {
       const transcriptPath = join(tmpDir, 'command.jsonl');
@@ -348,9 +322,7 @@ describe('buildDigest', () => {
     }
   });
 
-  test('filters Codex bootstrap records out of rendered digests and engagement', async (t) => {
-    if (skipIfMissing(t)) return;
-
+  test('filters Codex bootstrap records out of rendered digests and engagement', async () => {
     const tmpDir = await mkdtemp(join(tmpdir(), 'digest-codex-bootstrap-'));
     try {
       const transcriptPath = join(tmpDir, 'codex-bootstrap.jsonl');
@@ -455,7 +427,9 @@ describe('buildDigest', () => {
         fromIndex: 0,
         mode: 'catch-up',
       });
-      const renderedText = digest.entries.map((entry) => entry.text).join('\n');
+      const renderedText = digest.entries
+        .map((entry: any) => entry.text)
+        .join('\n');
       const md = renderMarkdown(digest);
 
       assert.equal(digest.engagement.status, 'engaged');
@@ -475,9 +449,7 @@ describe('buildDigest', () => {
     }
   });
 
-  test('large digest fallback keeps the last turn groups automatically', async (t) => {
-    if (skipIfMissing(t)) return;
-
+  test('large digest fallback keeps the last turn groups automatically', async () => {
     const tmpDir = await mkdtemp(join(tmpdir(), 'digest-large-fallback-'));
     try {
       const transcriptPath = join(tmpDir, 'large.jsonl');
@@ -513,15 +485,16 @@ describe('buildDigest', () => {
       assert.equal(digest.entries[0].recordIndex, 4);
       assert.equal(digest.accounting.filtered.tailSliceEntries, 4);
       assert.ok(
-        digest.warnings.some((w) => w.includes('Large digest fallback')),
+        digest.warnings.some((w: string) =>
+          w.includes('Large digest fallback'),
+        ),
       );
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
   });
 
-  test('buildDigest works for codex runtime', async (t) => {
-    if (skipIfMissing(t)) return;
+  test('buildDigest works for codex runtime', async () => {
     const digest = await buildDigest('codex', typicalCodex, {
       fromIndex: 0,
       mode: 'review',
@@ -530,8 +503,7 @@ describe('buildDigest', () => {
     assert.equal(digest.runtime, 'codex');
   });
 
-  test('buildDigest works for cursor runtime', async (t) => {
-    if (skipIfMissing(t)) return;
+  test('buildDigest works for cursor runtime', async () => {
     const digest = await buildDigest('cursor', typicalCursor, {
       fromIndex: 0,
       mode: 'review',
@@ -540,7 +512,7 @@ describe('buildDigest', () => {
     assert.ok(digest.range.totalRecords > 0, 'should parse cursor fixture');
     assert.equal(digest.runtime, 'cursor');
     assert.ok(
-      digest.entries.some((entry) => entry.role === 'assistant'),
+      digest.entries.some((entry: any) => entry.role === 'assistant'),
       'should include assistant messages',
     );
   });
@@ -551,8 +523,7 @@ describe('buildDigest', () => {
 // ---------------------------------------------------------------------------
 
 describe('renderMarkdown', () => {
-  test('groups consecutive same-role entries under single ### header', async (t) => {
-    if (skipIfMissing(t)) return;
+  test('groups consecutive same-role entries under single ### header', async () => {
     const digest = await buildDigest('claude-code', typicalClaude, {
       fromIndex: 0,
       mode: 'review',
@@ -584,8 +555,7 @@ describe('renderMarkdown', () => {
     }
   });
 
-  test('header contains filter line', async (t) => {
-    if (skipIfMissing(t)) return;
+  test('header contains filter line', async () => {
     const digest = await buildDigest('claude-code', typicalClaude, {
       fromIndex: 0,
       mode: 'review',
@@ -601,8 +571,7 @@ describe('renderMarkdown', () => {
     );
   });
 
-  test('header contains active flag when digest.active is true', async (t) => {
-    if (skipIfMissing(t)) return;
+  test('header contains active flag when digest.active is true', async () => {
     // Build a digest with active=true by patching after build
     const digest = await buildDigest('claude-code', typicalClaude, {
       fromIndex: 0,
@@ -617,8 +586,7 @@ describe('renderMarkdown', () => {
     );
   });
 
-  test('header contains range metadata', async (t) => {
-    if (skipIfMissing(t)) return;
+  test('header contains range metadata', async () => {
     const digest = await buildDigest('claude-code', typicalClaude, {
       fromIndex: 0,
       mode: 'review',
@@ -633,8 +601,7 @@ describe('renderMarkdown', () => {
     );
   });
 
-  test('no tool markers by default', async (t) => {
-    if (skipIfMissing(t)) return;
+  test('no tool markers by default', async () => {
     const digest = await buildDigest('claude-code', withToolBurst, {
       fromIndex: 0,
       mode: 'review',
@@ -649,8 +616,7 @@ describe('renderMarkdown', () => {
     );
   });
 
-  test('--max-turns slices from the tail', async (t) => {
-    if (skipIfMissing(t)) return;
+  test('--max-turns slices from the tail', async () => {
     const fullDigest = await buildDigest('claude-code', typicalClaude, {
       fromIndex: 0,
       mode: 'review',
@@ -675,8 +641,7 @@ describe('renderMarkdown', () => {
     );
   });
 
-  test('--max-bytes slices from the tail by byte count', async (t) => {
-    if (skipIfMissing(t)) return;
+  test('--max-bytes slices from the tail by byte count', async () => {
     const fullDigest = await buildDigest('claude-code', typicalClaude, {
       fromIndex: 0,
       mode: 'review',
@@ -701,9 +666,7 @@ describe('renderMarkdown', () => {
 // ---------------------------------------------------------------------------
 
 describe('20K warning', () => {
-  test('prepends 20K-char warning when rendered output exceeds threshold', async (t) => {
-    if (skipIfMissing(t)) return;
-
+  test('prepends 20K-char warning when rendered output exceeds threshold', async () => {
     // Build a large fixture by writing a temp file with many long records
     const tmpDir = await mkdtemp(join(tmpdir(), 'digest-test-'));
     try {
@@ -758,15 +721,14 @@ describe('20K warning', () => {
 // ---------------------------------------------------------------------------
 
 describe('renderJson', () => {
-  test('returns valid JSON that round-trips via JSON.parse', async (t) => {
-    if (skipIfMissing(t)) return;
+  test('returns valid JSON that round-trips via JSON.parse', async () => {
     const digest = await buildDigest('claude-code', typicalClaude, {
       fromIndex: 0,
       mode: 'review',
     });
     const jsonStr = renderJson(digest);
     assert.ok(typeof jsonStr === 'string', 'renderJson returns a string');
-    let parsed;
+    let parsed: any;
     assert.doesNotThrow(() => {
       parsed = JSON.parse(jsonStr);
     }, 'output should be valid JSON');

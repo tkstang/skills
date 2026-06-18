@@ -1,5 +1,5 @@
 /**
- * rank.test.mjs — Tests for scripts/lib/rank.mjs
+ * rank.test.ts — Tests for src/transcript/session-observer/lib/rank.ts
  *
  * Test cases:
  *   1. Tier A wins over Tier B and Tier C; non-A candidates filtered out
@@ -16,11 +16,14 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, rm, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { test } from 'node:test';
 
-// Dynamic import so we get the live module once
-const { rank, realpathSafe, tierOf } =
-  await import('../../skills/session-observer/scripts/lib/rank.mjs');
+import { test } from 'vitest';
+
+import {
+  rank,
+  realpathSafe,
+  tierOf,
+} from '../../src/transcript/session-observer/lib/rank.js';
 
 // ---------------------------------------------------------------------------
 // Helpers for building synthetic Candidate objects
@@ -32,7 +35,7 @@ const NOW = Math.floor(Date.now() / 1000);
  * Build a minimal Candidate.
  * @param {object} overrides
  */
-function mkCandidate(overrides = {}) {
+function mkCandidate(overrides: Record<string, unknown> = {}): any {
   return {
     runtime: 'claude-code',
     transcriptPath: '/tmp/fake/session.jsonl',
@@ -114,7 +117,7 @@ test('Tier B wins when no Tier A; Tier C (no-match) candidates not in result', (
   assert.equal(result.winner.sessionId, 'sess-b', 'Tier B should win');
   assert.equal(result.tier, 'B', 'result tier should be B');
   // Tier C should not appear as winner or in fallbacks within the winning tier
-  const fallbackIds = (result.fallbacks ?? []).map((f) => f.sessionId);
+  const fallbackIds = (result.fallbacks ?? []).map((f: any) => f.sessionId);
   assert.ok(
     !fallbackIds.includes('sess-c'),
     'Tier C should not appear in fallbacks',
@@ -261,7 +264,7 @@ test('Ties: candidates within TIE_WINDOW_SEC (5s) of winner appear in ties[]', (
   assert.ok(result.winner, 'should have a winner');
   assert.equal(result.winner.sessionId, 'sess-winner', 'newest should win');
   assert.ok(Array.isArray(result.ties), 'ties should be an array');
-  const tieIds = result.ties.map((t) => t.sessionId);
+  const tieIds = result.ties.map((t: any) => t.sessionId);
   assert.ok(
     tieIds.includes('sess-tie'),
     'inWindow candidate should be in ties',

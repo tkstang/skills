@@ -1,5 +1,5 @@
 /**
- * state.test.mjs — tests for scripts/lib/state.mjs
+ * state.test.ts — tests for src/transcript/session-observer/lib/state.ts
  *
  * Each test uses a fresh temp STATE_DIR to ensure isolation.
  */
@@ -7,27 +7,13 @@
 import assert from 'node:assert/strict';
 import { readFile, readdir, writeFile, access, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
-import { dirname } from 'node:path';
-import { describe, it, before, after, beforeEach, afterEach } from 'node:test';
-// Resolve state.mjs path relative to this test file's location.
-import { fileURLToPath } from 'node:url';
 
-import { withTmpStateDir } from './helpers/tmpdir.mjs';
+import { it } from 'vitest';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const STATE_MJS = join(
-  __dirname,
-  '../../skills/session-observer/scripts/lib/state.mjs',
-);
+import * as state from '../../src/transcript/session-observer/lib/state.js';
+import { withTmpStateDir } from './helpers/tmpdir.js';
 
-async function importState() {
-  // Dynamic import so each test group can pick up a fresh module.
-  // We clear the module cache by appending a query to bust Node's ESM cache.
-  const cacheBust = `?t=${Date.now()}-${Math.random()}`;
-  return import(`${STATE_MJS}${cacheBust}`);
-}
-
-function sleep(ms) {
+function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
@@ -36,8 +22,7 @@ function sleep(ms) {
 // ---------------------------------------------------------------------------
 it('mutate creates state.json on first write', async () => {
   await withTmpStateDir(async (dir) => {
-    const state = await importState();
-    await state.mutate((s) => s);
+    await state.mutate((s: any) => s);
     const stateFile = join(dir, 'state.json');
     await assert.doesNotReject(() => access(stateFile));
   });
@@ -48,8 +33,7 @@ it('mutate creates state.json on first write', async () => {
 // ---------------------------------------------------------------------------
 it('mutate writes atomically: no lingering .tmp file after success', async () => {
   await withTmpStateDir(async (dir) => {
-    const state = await importState();
-    await state.mutate((s) => s);
+    await state.mutate((s: any) => s);
     const files = await readdir(dir);
     const tmpFiles = files.filter((f) => f.endsWith('.tmp'));
     assert.deepEqual(
@@ -65,8 +49,6 @@ it('mutate writes atomically: no lingering .tmp file after success', async () =>
 // ---------------------------------------------------------------------------
 it('two concurrent mutate calls both succeed and final state contains both mutations', async () => {
   await withTmpStateDir(async (_dir) => {
-    const state = await importState();
-
     // Both mutations write a different session entry; both must land.
     await Promise.all([
       state.markRead('claude-code', 'sess-a', {
@@ -95,7 +77,6 @@ it('two concurrent mutate calls both succeed and final state contains both mutat
 // ---------------------------------------------------------------------------
 it('getSession returns null when missing', async () => {
   await withTmpStateDir(async (_dir) => {
-    const state = await importState();
     const result = await state.getSession('claude-code', 'nonexistent');
     assert.equal(result, null);
   });
@@ -103,7 +84,6 @@ it('getSession returns null when missing', async () => {
 
 it('getSession returns stored entry when present', async () => {
   await withTmpStateDir(async (_dir) => {
-    const state = await importState();
     await state.markRead('claude-code', 'sess-x', {
       lastRecordIndex: 5,
       lastTotalRecords: 10,
@@ -124,7 +104,6 @@ it('getSession returns stored entry when present', async () => {
 // ---------------------------------------------------------------------------
 it('markRead updates lastRecordIndex, lastTotalRecords, lastReadAt, transcriptPath, recordedCwd', async () => {
   await withTmpStateDir(async (_dir) => {
-    const state = await importState();
     const before = new Date().toISOString();
     await state.markRead('codex', 'sess-m', {
       lastRecordIndex: 7,
@@ -155,7 +134,6 @@ it('markRead updates lastRecordIndex, lastTotalRecords, lastReadAt, transcriptPa
 // ---------------------------------------------------------------------------
 it("resetByRuntime('codex') zeros only codex entries; leaves claude-code untouched", async () => {
   await withTmpStateDir(async (_dir) => {
-    const state = await importState();
     // Set up two runtimes
     await state.markRead('claude-code', 'sess-cc', {
       lastRecordIndex: 3,
@@ -190,7 +168,6 @@ it("resetByRuntime('codex') zeros only codex entries; leaves claude-code untouch
 // ---------------------------------------------------------------------------
 it("resetBySession('codex', 'abc') zeros only that entry", async () => {
   await withTmpStateDir(async (_dir) => {
-    const state = await importState();
     await state.markRead('codex', 'abc', {
       lastRecordIndex: 5,
       lastTotalRecords: 10,
@@ -222,7 +199,6 @@ it("resetBySession('codex', 'abc') zeros only that entry", async () => {
 // ---------------------------------------------------------------------------
 it('clear empties sessions but preserves schemaVersion', async () => {
   await withTmpStateDir(async (dir) => {
-    const state = await importState();
     await state.markRead('claude-code', 'sess-1', {
       lastRecordIndex: 1,
       lastTotalRecords: 5,
@@ -259,7 +235,6 @@ it('migrateIfNeeded writes a v0 backup and upgrades in memory on older schema', 
     await writeFile(join(dir, 'state.json'), JSON.stringify(v0State));
 
     // Loading should trigger migration (backup filenames now use timestamp+pid)
-    const state = await importState();
     const loaded = await state.load();
 
     // A backup file with 'v0' in the name must exist (unique timestamped name)
@@ -280,7 +255,6 @@ it('corrupt state.json is backed up and subsequent load returns empty state', as
     // Write corrupt JSON
     await writeFile(join(dir, 'state.json'), '{ this is not valid json !!!');
 
-    const state = await importState();
     const loaded = await state.load();
 
     // Should return empty valid state
@@ -300,7 +274,6 @@ it('load waits for the state lock before writing corrupt backups', async () => {
     const lock = join(dir, 'state.json.lock');
     await writeFile(lock, String(process.pid));
 
-    const state = await importState();
     let settled = false;
     const pendingLoad = state.load().finally(() => {
       settled = true;
@@ -349,8 +322,7 @@ it('migration via mutate(): re-load after mutate returns upgraded schema (schema
 
     // Go through mutate() — this forces a readState+writeState cycle under the lock,
     // which persists the migrated state (schemaVersion: 1) to disk.
-    const state = await importState();
-    await state.mutate((s) => s); // identity mutation — just triggers read+persist
+    await state.mutate((s: any) => s); // identity mutation — just triggers read+persist
 
     // Re-read the raw file: it must now have schemaVersion: 1
     const raw = JSON.parse(await readFile(join(dir, 'state.json'), 'utf8'));
@@ -378,7 +350,6 @@ it('repeated corrupt backups produce unique filenames and do not clobber each ot
   await withTmpStateDir(async (dir) => {
     // Simulate two consecutive corrupt-state loads.
     // We do them sequentially with a tiny delay to get distinct timestamps.
-    const state = await importState();
 
     await writeFile(join(dir, 'state.json'), '{ bad json 1 }');
     await state.load(); // triggers first backup
@@ -400,7 +371,6 @@ it('repeated corrupt backups produce unique filenames and do not clobber each ot
 
 it('setWatchedByPid and clearWatchedByPid preserve read offsets', async () => {
   await withTmpStateDir(async (_dir) => {
-    const state = await importState();
     await state.markRead('codex', 'sess-watch', {
       lastRecordIndex: 12,
       lastTotalRecords: 20,

@@ -361,7 +361,7 @@ export async function setWatchedByPid(
 export async function clearWatchedByPid(
   runtime: any,
   sessionId: any,
-  pid: any,
+  pid?: any,
 ): Promise<any> {
   const key = sessionKey(runtime, sessionId);
   let updated = false;

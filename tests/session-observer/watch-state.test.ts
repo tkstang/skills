@@ -1,5 +1,5 @@
 /**
- * watch-state.test.mjs — tests for scripts/lib/watch-state.mjs
+ * watch-state.test.ts — tests for src/transcript/session-observer/lib/watch-state.ts
  *
  * Each test uses a fresh temp STATE_DIR to ensure isolation.
  */
@@ -7,26 +7,18 @@
 import assert from 'node:assert/strict';
 import { readFile, readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { dirname } from 'node:path';
-import { test } from 'node:test';
-import { fileURLToPath } from 'node:url';
 
-import { withTmpStateDir } from './helpers/tmpdir.mjs';
+import { afterEach, test, vi } from 'vitest';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const WATCH_STATE_MJS = join(
-  __dirname,
-  '../../skills/session-observer/scripts/lib/watch-state.mjs',
-);
+import * as watchState from '../../src/transcript/session-observer/lib/watch-state.js';
+import { withTmpStateDir } from './helpers/tmpdir.js';
 
-async function importWatchState() {
-  const cacheBust = `?t=${Date.now()}-${Math.random()}`;
-  return import(`${WATCH_STATE_MJS}${cacheBust}`);
-}
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 test('startWatcher writes watch.json atomically with active watcher metadata', async () => {
   await withTmpStateDir(async (dir) => {
-    const watchState = await importWatchState();
     const startedAt = '2026-06-03T12:00:00.000Z';
 
     const active = await watchState.startWatcher({
@@ -73,7 +65,6 @@ test('startWatcher writes watch.json atomically with active watcher metadata', a
 
 test('startWatcher refuses a second watcher for the same pid when pid is live', async () => {
   await withTmpStateDir(async () => {
-    const watchState = await importWatchState();
     await watchState.startWatcher({
       runtime: 'codex',
       cwd: '/repo',
@@ -94,10 +85,9 @@ test('startWatcher refuses a second watcher for the same pid when pid is live', 
   });
 });
 
-test('startWatcher allows concurrent live watchers in the same cwd for different pids', async (t) => {
+test('startWatcher allows concurrent live watchers in the same cwd for different pids', async () => {
   await withTmpStateDir(async (dir) => {
-    const watchState = await importWatchState();
-    t.mock.method(process, 'kill', (pid, signal) => {
+    vi.spyOn(process, 'kill').mockImplementation((pid, signal) => {
       assert.equal(signal, 0);
       if (pid === 111 || pid === 222) return true;
       return true;
@@ -121,15 +111,14 @@ test('startWatcher allows concurrent live watchers in the same cwd for different
     assert.equal(raw.active.pid, 111);
     assert.equal(raw.watchers.length, 2);
     assert.deepEqual(
-      raw.watchers.map((watcher) => watcher.pid),
+      raw.watchers.map((watcher: any) => watcher.pid),
       [111, 222],
     );
   });
 });
 
-test('startWatcher clears a stale active pid before registering the new watcher', async (t) => {
+test('startWatcher clears a stale active pid before registering the new watcher', async () => {
   await withTmpStateDir(async (dir) => {
-    const watchState = await importWatchState();
     await writeFile(
       join(dir, 'watch.json'),
       JSON.stringify({
@@ -146,10 +135,10 @@ test('startWatcher clears a stale active pid before registering the new watcher'
       'utf8',
     );
 
-    t.mock.method(process, 'kill', (pid, signal) => {
+    vi.spyOn(process, 'kill').mockImplementation((pid, signal) => {
       assert.equal(signal, 0);
       if (pid === 424242) {
-        const err = new Error('no such process');
+        const err = new Error('no such process') as NodeJS.ErrnoException;
         err.code = 'ESRCH';
         throw err;
       }
@@ -174,7 +163,6 @@ test('startWatcher clears a stale active pid before registering the new watcher'
 
 test('control directives are written to and read from watch.control.json', async () => {
   await withTmpStateDir(async (dir) => {
-    const watchState = await importWatchState();
     const issuedAt = '2026-06-03T12:02:00.000Z';
 
     await watchState.writeControlDirective('pause', { issuedAt });
@@ -191,7 +179,6 @@ test('control directives are written to and read from watch.control.json', async
 
 test('pid-targeted control directives use per-pid files and do not overwrite each other', async () => {
   await withTmpStateDir(async (dir) => {
-    const watchState = await importWatchState();
     const issuedAt = '2026-06-03T12:02:00.000Z';
 
     await watchState.writeControlDirective('pause', { issuedAt, pid: 111 });
@@ -230,7 +217,6 @@ test('pid-targeted control directives use per-pid files and do not overwrite eac
 
 test('readControlDirective falls back to legacy pid-less directives', async () => {
   await withTmpStateDir(async () => {
-    const watchState = await importWatchState();
     const issuedAt = '2026-06-03T12:02:00.000Z';
 
     await watchState.writeControlDirective('flush', { issuedAt });
@@ -246,14 +232,13 @@ test('readControlDirective falls back to legacy pid-less directives', async () =
   });
 });
 
-test('clearStaleControlDirectives removes directives for dead pids only', async (t) => {
+test('clearStaleControlDirectives removes directives for dead pids only', async () => {
   await withTmpStateDir(async (dir) => {
-    const watchState = await importWatchState();
     const issuedAt = '2026-06-03T12:02:00.000Z';
-    t.mock.method(process, 'kill', (pid, signal) => {
+    vi.spyOn(process, 'kill').mockImplementation((pid, signal) => {
       assert.equal(signal, 0);
       if (pid === 424242) {
-        const err = new Error('no such process');
+        const err = new Error('no such process') as NodeJS.ErrnoException;
         err.code = 'ESRCH';
         throw err;
       }
@@ -276,10 +261,9 @@ test('clearStaleControlDirectives removes directives for dead pids only', async 
   });
 });
 
-test('findLiveWatcherForTarget reports a conflicting live watcher for the same target', async (t) => {
+test('findLiveWatcherForTarget reports a conflicting live watcher for the same target', async () => {
   await withTmpStateDir(async () => {
-    const watchState = await importWatchState();
-    t.mock.method(process, 'kill', (pid, signal) => {
+    vi.spyOn(process, 'kill').mockImplementation((pid, signal) => {
       assert.equal(signal, 0);
       return true;
     });
@@ -328,10 +312,9 @@ test('findLiveWatcherForTarget reports a conflicting live watcher for the same t
   });
 });
 
-test('recordWatcherTarget rejects an overlapping live target under the lock', async (t) => {
+test('recordWatcherTarget rejects an overlapping live target under the lock', async () => {
   await withTmpStateDir(async () => {
-    const watchState = await importWatchState();
-    t.mock.method(process, 'kill', (pid, signal) => {
+    vi.spyOn(process, 'kill').mockImplementation((pid, signal) => {
       assert.equal(signal, 0);
       return true;
     });
@@ -360,7 +343,7 @@ test('recordWatcherTarget rejects an overlapping live target under the lock', as
     // write is the authoritative gate for the loser.
     await assert.rejects(
       () => watchState.recordWatcherTarget({ pid: 222, target }),
-      (err) => {
+      (err: any) => {
         assert.match(err.message, /already watching codex:abc/);
         assert.equal(err.code, 'DUPLICATE_WATCH_TARGET');
         assert.equal(err.conflictPid, 111);
@@ -374,10 +357,9 @@ test('recordWatcherTarget rejects an overlapping live target under the lock', as
   });
 });
 
-test('findLiveWatcherForTarget falls back to legacy top-level fields when targets[] is absent', async (t) => {
+test('findLiveWatcherForTarget falls back to legacy top-level fields when targets[] is absent', async () => {
   await withTmpStateDir(async (dir) => {
-    const watchState = await importWatchState();
-    t.mock.method(process, 'kill', (pid, signal) => {
+    vi.spyOn(process, 'kill').mockImplementation((pid, signal) => {
       assert.equal(signal, 0);
       return true;
     });
@@ -442,7 +424,6 @@ test('findLiveWatcherForTarget falls back to legacy top-level fields when target
 
 test('recordWatcherTarget stores resolved pinned target metadata', async () => {
   await withTmpStateDir(async () => {
-    const watchState = await importWatchState();
     await watchState.startWatcher({
       runtime: 'auto',
       cwd: '/repo',
@@ -476,7 +457,6 @@ test('recordWatcherTarget stores resolved pinned target metadata', async () => {
 
 test('recordWatcherPoll and recordWatcherError update active heartbeat fields', async () => {
   await withTmpStateDir(async () => {
-    const watchState = await importWatchState();
     await watchState.startWatcher({
       runtime: 'codex',
       cwd: '/repo',
