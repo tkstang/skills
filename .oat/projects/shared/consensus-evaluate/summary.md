@@ -35,7 +35,7 @@
 
 - p01 code review: passed
 - p02 code review: passed
-- p03 code review: passed, with one non-blocking README wording Minor
+- p03 code review: passed; the non-blocking README wording Minor was resolved in `e551a12`
 - final code review: pending
 
 No final review pass or PR handoff state has been recorded by this implementation task.

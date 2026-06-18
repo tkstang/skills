@@ -107,11 +107,11 @@ No implementation drift accepted; artifact-only receive.
 
 **Findings:** Critical: 0 · Important: 0 · Medium: 0 · Minor: 1
 
-**Disposition:** Phase 3 passed. No blocking fix tasks added.
+**Disposition:** Phase 3 passed. The non-blocking Minor was resolved in `e551a12`
+before final review.
 
-- Minor: `plugins/consensus/README.md` still frames the `independent_draft`
-  limitation as refine-only even though evaluate also rejects it. This is non-blocking and
-  remains visible for final review / PR polish.
+- Minor: `plugins/consensus/README.md` framed the `independent_draft` limitation as
+  refine-only even though evaluate also rejects it. Resolved in `e551a12`.
 
 ---
 
@@ -558,8 +558,7 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 
 #### Outstanding Items
 
-- Non-blocking Minor from p03 review: `plugins/consensus/README.md` independent-draft
-  limitation should mention both `refine` and `evaluate` when next touching docs.
+- None. The p03 review Minor was resolved in `e551a12` before final review.
 
 #### Artifact / Design Deltas
 
