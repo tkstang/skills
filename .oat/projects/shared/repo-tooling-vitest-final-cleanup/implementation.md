@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-18
-oat_current_task_id: p04-t01
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -29,9 +29,9 @@ oat_generated: false
 | Phase 1 — Post-PR3 gate & recatalog          | complete    | 2     | 2/2       |
 | Phase 2 — Convert + harmonize suites (expect) | complete    | 5     | 5/5       |
 | Phase 3 — Retire runner + add guard          | complete    | 2     | 2/2       |
-| Phase 4 — Docs & final verification          | pending     | 3     | 0/3       |
+| Phase 4 — Docs & final verification          | complete    | 3     | 3/3       |
 
-**Total:** 9/12 tasks completed
+**Total:** 12/12 tasks completed
 
 > ✓ **Phase 1 gate satisfied.** PR #17 (session-observer) merged to `main`; branch rebased onto `origin/main` (`adbb05b`), recatalog confirms alignment (one assumption corrected: PR3 rewrote `tests/AGENTS.md` — see Phase 1 notes). HiLL checkpoint reconfigured to the **final phase only** (`p04`). Phase 2 (conversions) awaits go-ahead, then runs through to the `p04` checkpoint.
 
