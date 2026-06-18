@@ -2,12 +2,11 @@
  * observe.test.ts — tests for the reusable catch-up observation pipeline.
  */
 
-import assert from 'node:assert/strict';
 import { mkdtemp, rm, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { describe, test } from 'vitest';
+import { expect, describe, test } from 'vitest';
 
 import { observeCatchUp } from '../../src/transcript/session-observer/lib/observe.js';
 
@@ -96,33 +95,33 @@ describe('observeCatchUp', () => {
           { role: 'assistant', content: 'first answer' },
         ],
       );
-      const first = await observeCatchUp({
+      const first: any = await observeCatchUp({
         runtime: 'claude-code',
         cwd,
         session: 'claude-code:observe-prior',
       });
 
-      assert.equal(first.ok, true);
-      assert.equal(first.digest.mode, 'catch-up');
-      assert.equal(first.digest.range.fromIndex, 0);
-      assert.equal(first.digest.range.nextIndex, 2);
-      assert.equal(first.markedRead, true);
+      expect(first.ok).toBe(true);
+      expect(first.digest.mode).toBe('catch-up');
+      expect(first.digest.range.fromIndex).toBe(0);
+      expect(first.digest.range.nextIndex).toBe(2);
+      expect(first.markedRead).toBe(true);
 
       const statePath = join(stateDir, 'state.json');
       const afterFirst = await readFile(statePath, 'utf8');
 
-      const second = await observeCatchUp({
+      const second: any = await observeCatchUp({
         runtime: 'claude-code',
         cwd,
         session: 'claude-code:observe-prior',
       });
 
-      assert.equal(second.ok, true);
-      assert.equal(second.digest.transcriptPath, transcriptPath);
-      assert.equal(second.digest.range.fromIndex, 2);
-      assert.equal(second.digest.range.newRecords, 0);
-      assert.equal(second.markedRead, false);
-      assert.equal(await readFile(statePath, 'utf8'), afterFirst);
+      expect(second.ok).toBe(true);
+      expect(second.digest.transcriptPath).toBe(transcriptPath);
+      expect(second.digest.range.fromIndex).toBe(2);
+      expect(second.digest.range.newRecords).toBe(0);
+      expect(second.markedRead).toBe(false);
+      expect(await readFile(statePath, 'utf8')).toBe(afterFirst);
     });
   });
 
@@ -143,34 +142,34 @@ describe('observeCatchUp', () => {
         'observe-snippet-b',
         [{ content: 'needle phrase from the selected session' }],
       );
-      const result = await observeCatchUp({
+      const result: any = await observeCatchUp({
         runtime: 'claude-code',
         cwd,
         snippet: 'needle phrase',
       });
 
-      assert.equal(result.ok, true);
-      assert.equal(result.digest.sessionId, 'observe-snippet-b');
-      assert.ok(
+      expect(result.ok).toBe(true);
+      expect(result.digest.sessionId).toBe('observe-snippet-b');
+      expect(
         result.digest.warnings.some((w: string) =>
           w.includes('Selected session by snippet match'),
         ),
         'snippet-selected digest should retain the existing warning',
-      );
+      ).toBeTruthy();
     });
   });
 
   test('returns a no-match outcome without exiting the process', async () => {
     await withTempSessionHome(async () => {
-      const result = await observeCatchUp({
+      const result: any = await observeCatchUp({
         runtime: 'claude-code',
         cwd: '/test/no-transcripts',
       });
 
-      assert.equal(result.ok, false);
-      assert.equal(result.kind, 'noMatch');
-      assert.equal(result.exitCode, 2);
-      assert.equal(result.payload.noMatch, true);
+      expect(result.ok).toBe(false);
+      expect(result.kind).toBe('noMatch');
+      expect(result.exitCode).toBe(2);
+      expect(result.payload.noMatch).toBe(true);
     });
   });
 
@@ -191,17 +190,17 @@ describe('observeCatchUp', () => {
         'observe-tie-b',
         [{ content: 'candidate b' }],
       );
-      const result = await observeCatchUp({
+      const result: any = await observeCatchUp({
         runtime: 'claude-code',
         cwd,
       });
 
-      assert.equal(result.ok, false);
-      assert.equal(result.kind, 'ties');
-      assert.equal(result.exitCode, 3);
-      assert.equal(result.payload.ties, true);
-      assert.ok(result.payload.candidates);
-      assert.equal(result.payload.candidates.length, 2);
+      expect(result.ok).toBe(false);
+      expect(result.kind).toBe('ties');
+      expect(result.exitCode).toBe(3);
+      expect(result.payload.ties).toBe(true);
+      expect(result.payload.candidates).toBeTruthy();
+      expect(result.payload.candidates.length).toBe(2);
     });
   });
 
@@ -222,16 +221,16 @@ describe('observeCatchUp', () => {
         'observe-auto-codex',
         [{ content: 'codex candidate' }],
       );
-      const result = await observeCatchUp({
+      const result: any = await observeCatchUp({
         runtime: 'auto',
         cwd,
       });
 
-      assert.equal(result.ok, false);
-      assert.equal(result.kind, 'ambiguousRuntime');
-      assert.equal(result.exitCode, 3);
-      assert.ok(result.payload.runtimes);
-      assert.deepEqual(result.payload.runtimes.toSorted(), [
+      expect(result.ok).toBe(false);
+      expect(result.kind).toBe('ambiguousRuntime');
+      expect(result.exitCode).toBe(3);
+      expect(result.payload.runtimes).toBeTruthy();
+      expect(result.payload.runtimes.toSorted()).toEqual([
         'claude-code',
         'codex',
       ]);
