@@ -4,7 +4,7 @@ oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-18
 oat_generated: false
-oat_summary_last_task: p04-t01
+oat_summary_last_task: p05-t01
 oat_summary_revision_count: 0
 oat_summary_includes_revisions: []
 ---
@@ -34,6 +34,11 @@ coverage continues to execute the shipped generated entrypoints:
 `skills/session-observer/scripts/session-observer.mjs` and
 `skills/session-observer/scripts/probe-local.mjs`.
 
+The final review follow-up tightened the migrated TypeScript boundary types for
+state files, locate/rank candidates, digest and observe results, watch
+state/events/options, CLI/probe parsing, and transcript-core interactions while
+preserving shipped runtime behavior.
+
 Public and agent-facing documentation now describes the ownership boundary:
 edit canonical TypeScript under `src/transcript/session-observer/`, regenerate
 with `pnpm run build`, and do not hand-edit generated `.mjs` files under
@@ -54,6 +59,8 @@ with `pnpm run build`, and do not hand-edit generated `.mjs` files under
 - Generated-output cleanliness passed after `pnpm run build` with no scoped diff
   under `skills/session-observer/scripts`, `scripts/build-generated.mjs`, or
   `tests/generated-output-sync.test.mjs`.
+- Final re-review after `p05-t01` passed with no Critical, Important, Medium, or
+  Minor findings.
 
 ## Remaining PR4 Work
 
