@@ -12,7 +12,7 @@ oat_hill_checkpoints: ['p04'] # Configured: pause after the final phase only (ma
 oat_hill_completed: ['p04'] # Progress: which HiLL checkpoints have been completed
 oat_parallel_execution: false
 oat_phase: implement # Current phase: discovery | spec | design | plan | implement | decomposition
-oat_phase_status: complete # Status: in_progress | complete | pr_open
+oat_phase_status: pr_open # Status: in_progress | complete | pr_open
 # oat_orchestration_retry_limit: 2  # optional; override fix-loop retry limit (range 0-5)
 oat_dispatch_ceiling:
   preset: maximum
@@ -23,23 +23,23 @@ oat_dispatch_ceiling:
 oat_workflow_mode: quick # spec-driven | quick | import
 oat_workflow_origin: native # native | imported
 oat_docs_updated: complete # null | skipped | complete — documentation sync status
-oat_pr_status: null # null | ready | open | closed | merged — actual PR state for the current project
-oat_pr_url: null # null | string — tracked PR URL when a PR exists
+oat_pr_status: open # null | ready | open | closed | merged — actual PR state for the current project
+oat_pr_url: "https://github.com/tkstang/skills/pull/18" # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-06-18T00:26:15.855Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-06-18T16:00:00Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-06-18T16:30:00Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
 # Project State: repo-tooling-vitest-final-cleanup
 
-**Status:** Implementation complete — final review passed; paused at `p04` HiLL checkpoint
+**Status:** PR open — awaiting human review (#18)
 **Started:** 2026-06-18
 **Last Updated:** 2026-06-18
 
 ## Current Phase
 
-Implementation **complete** (all 12 tasks across 4 phases). Phases 2–4 implemented Tier 1 (sonnet implementers, opus reviews); every phase passed first try (0 fix iterations). Final review (scope `final`, opus) **PASSED** — 0 Critical/0 Important, 2 Minor deferred (out of scope). Paused at the `p04` HiLL checkpoint awaiting user direction (summary / docs / PR).
+Implementation — PR open, awaiting human review. All 12 tasks across 4 phases complete; final review passed (0 Crit/0 Imp). Docs + reference synced (incl. bl-bfb4 marked delivered). PR #18 opened against `main`: https://github.com/tkstang/skills/pull/18
 
 ## Artifacts
 
@@ -61,7 +61,9 @@ Implementation **complete** (all 12 tasks across 4 phases). Phases 2–4 impleme
 - ✓ Phase 3: `node:test` runner retired; `pnpm test` Vitest-only; guard added
 - ✓ Phase 4: docs + reference updated; full verification green
 - ✓ Final review passed (0 Crit/0 Imp)
-- ⏸️ Paused at `p04` HiLL checkpoint — awaiting user direction (summary / docs / PR)
+- ✓ Docs + reference synced; summary generated
+- ✓ PR created (#18)
+- ⧗ Awaiting human review
 
 ## Blockers
 
@@ -69,4 +71,7 @@ None.
 
 ## Next Milestone
 
-User direction at `p04` checkpoint: generate summary (`oat-project-summary`), sync docs (`oat-project-document`), and/or open the final PR (`oat-project-pr-final`).
+PR is open for review.
+
+- To incorporate feedback: run `oat-project-revise`
+- When approved: run `oat-project-complete`
