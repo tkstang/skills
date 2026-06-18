@@ -100,6 +100,19 @@ No implementation drift accepted; artifact-only receive.
   no-`--output` runs could drop the evaluation document; fixed in `09ee7e9` by writing
   the default `<artifact>.evaluation.md` sidecar and reporting a non-null `output_path`.
 
+### Review Received: p03 (code)
+
+**Date:** 2026-06-17
+**Review artifact:** `reviews/archived/p03-review-2026-06-17.md`
+
+**Findings:** Critical: 0 · Important: 0 · Medium: 0 · Minor: 1
+
+**Disposition:** Phase 3 passed. No blocking fix tasks added.
+
+- Minor: `plugins/consensus/README.md` still frames the `independent_draft`
+  limitation as refine-only even though evaluate also rejects it. This is non-blocking and
+  remains visible for final review / PR polish.
+
 ---
 
 ## Phase 1: Core And Generated Runtime Substrate
@@ -474,7 +487,8 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 
 #### Outstanding Items
 
-- None.
+- Non-blocking Minor from p03 review: `plugins/consensus/README.md` independent-draft
+  limitation should mention both `refine` and `evaluate` when next touching docs.
 
 #### Artifact / Design Deltas
 
