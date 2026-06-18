@@ -1,5 +1,5 @@
 /**
- * locate.test.mjs — Tests for scripts/lib/locate.mjs
+ * locate.test.ts — Tests for src/transcript/session-observer/lib/locate.ts
  *
  * Test cases:
  *   1. claude-code: direct encoded-dir lookup returns candidate with correct metadata
@@ -23,13 +23,14 @@ import {
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { test } from 'node:test';
+
+import { test } from 'vitest';
 
 // ---------------------------------------------------------------------------
 // Test helper: temp HOME dir per test
 // ---------------------------------------------------------------------------
 
-async function withTempHome(fn) {
+async function withTempHome(fn: (dir: string) => Promise<void>): Promise<void> {
   const dir = await mkdtemp(join(tmpdir(), 'locate-test-'));
   const prevHome = process.env.HOME;
   const prevStateDir = process.env.STATE_DIR;
@@ -46,15 +47,10 @@ async function withTempHome(fn) {
   }
 }
 
-// Lazy import so we re-import after env changes; use dynamic import each time.
-async function importLocate() {
-  // Cache buster via timestamp to force re-evaluation in case Node caches modules
-  // Actually ESM caches by URL — we just import once and rely on the module reading
-  // process.env at call time (which our implementation does).
-  const { discover, gitWorktrees } =
-    await import('../../skills/session-observer/scripts/lib/locate.mjs');
-  return { discover, gitWorktrees };
-}
+import {
+  discover,
+  gitWorktrees,
+} from '../../src/transcript/session-observer/lib/locate.js';
 
 // ---------------------------------------------------------------------------
 // Fixture helpers
@@ -66,7 +62,7 @@ const CLAUDE_CODE_TYPICAL = `{"sessionId":"cc-session-001","type":"summary","sum
 `;
 
 // For Codex: session-started record contains cwd
-function makeCodexTypical(cwd) {
+function makeCodexTypical(cwd: string): string {
   return `{"type":"session_started","sessionId":"codex-sess-001","cwd":"${cwd}","timestamp":"2026-05-14T10:00:00Z"}
 {"type":"response_item","sessionId":"codex-sess-001","payload":{"type":"message","role":"user","content":"Hello","id":"msg-001"}}
 {"type":"response_item","sessionId":"codex-sess-001","payload":{"type":"message","role":"assistant","content":"Hi!","id":"msg-002"}}
@@ -78,12 +74,12 @@ const CURSOR_TYPICAL = `{"role":"user","message":{"content":"Hello"}}
 `;
 
 // Encode cwd the way Claude Code currently does: replace '/' and '.' with '-'
-function encodeCwd(cwd) {
+function encodeCwd(cwd: string): string {
   return cwd.replace(/[/.]/g, '-');
 }
 
 // Encode cwd the way Cursor project dirs do: slash/dot path segments joined by '-'
-function encodeCursorCwd(cwd) {
+function encodeCursorCwd(cwd: string): string {
   return cwd.split(/[/.]/u).filter(Boolean).join('-');
 }
 
@@ -93,8 +89,6 @@ function encodeCursorCwd(cwd) {
 
 test('claude-code: discover returns one candidate with correct sessionId and recordedCwd', async () => {
   await withTempHome(async (home) => {
-    const { discover } = await importLocate();
-
     const targetCwd = join(home, 'Code', 'my-project');
     const encoded = encodeCwd(targetCwd);
 
@@ -131,8 +125,6 @@ test('claude-code: discover returns one candidate with correct sessionId and rec
 
 test('claude-code: glob fallback when encoded dir is missing — no throw, returns []', async () => {
   await withTempHome(async (home) => {
-    const { discover } = await importLocate();
-
     const targetCwd = join(home, 'Code', 'nonexistent-project');
     // Do NOT create the encoded dir — test the fallback path
     const projectsRoot = join(home, '.claude', 'projects');
@@ -154,8 +146,6 @@ test('claude-code: glob fallback when encoded dir is missing — no throw, retur
 
 test('claude-code: direct lookup uses dot-sanitized project dir slug', async () => {
   await withTempHome(async (home) => {
-    const { discover } = await importLocate();
-
     const targetCwd = join(
       home,
       'thomas.stang',
@@ -173,7 +163,7 @@ test('claude-code: direct lookup uses dot-sanitized project dir slug', async () 
 
     const candidates = await discover('claude-code', targetCwd);
     const c = candidates.find(
-      (candidate) => candidate.transcriptPath === transcriptPath,
+      (candidate: any) => candidate.transcriptPath === transcriptPath,
     );
 
     assert.ok(c, 'should find the transcript via dot-sanitized direct lookup');
@@ -185,8 +175,6 @@ test('claude-code: direct lookup uses dot-sanitized project dir slug', async () 
 
 test('claude-code: fallback candidates preserve parent cwdSlug as weak evidence', async () => {
   await withTempHome(async (home) => {
-    const { discover } = await importLocate();
-
     const targetCwd = join(home, 'Code', 'missing-project');
     const otherSlug =
       '-Users-thomas-stang--superconductor-worktrees-stoa-sc-levitated-phonon-e8a5';
@@ -197,7 +185,7 @@ test('claude-code: fallback candidates preserve parent cwdSlug as weak evidence'
 
     const candidates = await discover('claude-code', targetCwd);
     const c = candidates.find(
-      (candidate) => candidate.transcriptPath === transcriptPath,
+      (candidate: any) => candidate.transcriptPath === transcriptPath,
     );
 
     assert.ok(c, 'fallback scan should include non-direct project dirs');
@@ -209,8 +197,6 @@ test('claude-code: fallback candidates preserve parent cwdSlug as weak evidence'
 
 test('codex: discover returns candidate with cwd from session-meta record', async () => {
   await withTempHome(async (home) => {
-    const { discover } = await importLocate();
-
     const targetCwd = '/Users/testuser/Code/my-project';
     const sessionDate = '2026/05/14';
     const sessionDir = join(
@@ -226,7 +212,7 @@ test('codex: discover returns candidate with cwd from session-meta record', asyn
     const candidates = await discover('codex', targetCwd);
 
     assert.ok(candidates.length >= 1, 'should find at least one candidate');
-    const c = candidates.find((x) => x.sessionId === 'codex-sess-001');
+    const c = candidates.find((x: any) => x.sessionId === 'codex-sess-001');
     assert.ok(c, 'should find the session by id');
     assert.equal(
       c.recordedCwd,
@@ -239,8 +225,6 @@ test('codex: discover returns candidate with cwd from session-meta record', asyn
 
 test('codex: LOOKBACK_DAYS filter excludes files older than 7 days', async () => {
   await withTempHome(async (home) => {
-    const { discover } = await importLocate();
-
     const targetCwd = '/Users/testuser/Code/my-project';
 
     // Create a "stale" transcript dated 30 days ago
@@ -268,7 +252,9 @@ test('codex: LOOKBACK_DAYS filter excludes files older than 7 days', async () =>
 
     const candidates = await discover('codex', targetCwd);
 
-    const staleFound = candidates.find((c) => c.transcriptPath === stalePath);
+    const staleFound = candidates.find(
+      (c: any) => c.transcriptPath === stalePath,
+    );
     assert.equal(
       staleFound,
       undefined,
@@ -279,8 +265,6 @@ test('codex: LOOKBACK_DAYS filter excludes files older than 7 days', async () =>
 
 test('codex cwd cache: cache hit proved by observable cache-file state', async () => {
   await withTempHome(async (home) => {
-    const { discover } = await importLocate();
-
     const targetCwd = '/Users/testuser/Code/cached-project';
     const sessionDate = '2026/05/14';
     const sessionDir = join(
@@ -308,7 +292,7 @@ test('codex cwd cache: cache hit proved by observable cache-file state', async (
     const origMtime = statResult.mtime;
 
     // Assert cache file now exists with an entry keyed by `${transcriptPath}:${mtime}`
-    const stateDir = process.env.STATE_DIR;
+    const stateDir = process.env.STATE_DIR!;
     const cacheFilePath = join(stateDir, 'codex-cwd-cache.json');
 
     const cacheRaw = await readFile(cacheFilePath, 'utf8');
@@ -337,7 +321,7 @@ test('codex cwd cache: cache hit proved by observable cache-file state', async (
     // The candidate for our transcript should still report targetCwd (from cache),
     // not differentCwd (from the rewritten content)
     const cachedCandidate = secondResult.find(
-      (c) => c.transcriptPath === transcriptPath,
+      (c: any) => c.transcriptPath === transcriptPath,
     );
     assert.ok(cachedCandidate, 'transcript should still be found');
     assert.equal(
@@ -350,8 +334,6 @@ test('codex cwd cache: cache hit proved by observable cache-file state', async (
 
 test('cursor: direct lookup discovers agent transcript with exact cwd evidence', async () => {
   await withTempHome(async (home) => {
-    const { discover } = await importLocate();
-
     const targetCwd = join(home, 'Code', 'my.cursor-project');
     const encoded = encodeCursorCwd(targetCwd);
     const transcriptDir = join(
@@ -368,7 +350,7 @@ test('cursor: direct lookup discovers agent transcript with exact cwd evidence',
 
     const candidates = await discover('cursor', targetCwd);
     const c = candidates.find(
-      (candidate) => candidate.transcriptPath === transcriptPath,
+      (candidate: any) => candidate.transcriptPath === transcriptPath,
     );
 
     assert.ok(c, 'should find the direct Cursor transcript');
@@ -382,8 +364,6 @@ test('cursor: direct lookup discovers agent transcript with exact cwd evidence',
 
 test('cursor: fallback scan preserves project cwdSlug evidence', async () => {
   await withTempHome(async (home) => {
-    const { discover } = await importLocate();
-
     const targetCwd = join(home, 'Code', 'missing-project');
     const fallbackSlug = 'Users-test-Code-real-project';
     const transcriptDir = join(
@@ -400,7 +380,7 @@ test('cursor: fallback scan preserves project cwdSlug evidence', async () => {
 
     const candidates = await discover('cursor', targetCwd);
     const c = candidates.find(
-      (candidate) => candidate.transcriptPath === transcriptPath,
+      (candidate: any) => candidate.transcriptPath === transcriptPath,
     );
 
     assert.ok(c, 'fallback scan should include Cursor project dirs');
@@ -414,8 +394,6 @@ test('cursor: fallback scan preserves project cwdSlug evidence', async () => {
 
 test('cursor: empty direct transcript dir still allows fallback scan', async () => {
   await withTempHome(async (home) => {
-    const { discover } = await importLocate();
-
     const targetCwd = join(home, 'Code', 'my.cursor-project');
     const encoded = encodeCursorCwd(targetCwd);
     const directRoot = join(
@@ -442,7 +420,7 @@ test('cursor: empty direct transcript dir still allows fallback scan', async () 
 
     const candidates = await discover('cursor', targetCwd);
     const c = candidates.find(
-      (candidate) => candidate.transcriptPath === transcriptPath,
+      (candidate: any) => candidate.transcriptPath === transcriptPath,
     );
 
     assert.ok(
@@ -457,8 +435,6 @@ test('cursor: empty direct transcript dir still allows fallback scan', async () 
 
 test('cursor: fallback scan excludes transcripts older than 7 days', async () => {
   await withTempHome(async (home) => {
-    const { discover } = await importLocate();
-
     const targetCwd = join(home, 'Code', 'missing-project');
     const fallbackSlug = 'Users-test-Code-real-project';
     const transcriptDir = join(
@@ -480,7 +456,7 @@ test('cursor: fallback scan excludes transcripts older than 7 days', async () =>
 
     const candidates = await discover('cursor', targetCwd);
     const staleFound = candidates.find(
-      (candidate) => candidate.transcriptPath === transcriptPath,
+      (candidate: any) => candidate.transcriptPath === transcriptPath,
     );
 
     assert.equal(
@@ -494,8 +470,6 @@ test('cursor: fallback scan excludes transcripts older than 7 days', async () =>
 test('gitWorktrees: parses real repo --porcelain output and returns worktree paths', async () => {
   // We need a real git repo for this; use the repo itself.
   // The real repo should have at least one worktree (the current checkout).
-  const { gitWorktrees } = await importLocate();
-
   const worktrees = await gitWorktrees(process.cwd());
 
   assert.ok(Array.isArray(worktrees), 'should return an array');
@@ -507,8 +481,6 @@ test('gitWorktrees: parses real repo --porcelain output and returns worktree pat
 });
 
 test('gitWorktrees: returns [] when git exec fails (bad path)', async () => {
-  const { gitWorktrees } = await importLocate();
-
   // Pass a path that does not exist / is not a git repo
   const result = await gitWorktrees('/nonexistent/path/that/is/not/a/git/repo');
 

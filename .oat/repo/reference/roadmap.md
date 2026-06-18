@@ -1,6 +1,6 @@
 # Skills Repo Roadmap
 
-**Last updated:** 2026-06-17 (consensus-evaluate bl-5174 delivered as the first post-refine family skill; release verification remains the next release lane, and the remaining family skills follow the evaluate wrapper pattern. Prior: 2026-06-15 TypeScript/Vitest generated-runtime toolchain refresh.)
+**Last updated:** 2026-06-18 (session-observer joined the TypeScript/Vitest generated-runtime substrate; bl-bfb4 remains open only for remaining non-migrated suites and eventual `node:test` runner retirement. Prior: 2026-06-17 consensus-evaluate delivered as the first post-refine family skill; 2026-06-15 toolchain and `consensus-loop` proof slice.)
 
 ## Planning Model
 
@@ -38,9 +38,13 @@ Substantially shipped (see `current-state.md`). Deferred items recorded in the a
 
 bl-853a is delivered: TypeScript, Vitest, generated `.mjs` output, drift guards,
 and CI/worktree validation are in place, with `consensus-loop` converted as the
-proof-point module. bl-bfb4 remains in progress rather than complete. Remaining
-slices include the `consensus-refine.mjs` wrapper, migration of the existing
-`node:test` suite to Vitest, and tightening `allowJs` for migrated scopes.
+proof-point module. bl-bfb4 remains in progress rather than complete, but the
+major generated-runtime slices are now done: consensus refine, transcript-core,
+export-session-transcript, and session-observer all have canonical TypeScript
+source and migrated Vitest coverage for their in-scope tests. Remaining work is
+PR4/follow-up cleanup: final repo-wide `node:test` compatibility retirement,
+remaining non-migrated suites, and any selected long-tail typed migration needed
+before simplifying the mixed runner contract.
 
 ## Now
 
@@ -49,8 +53,8 @@ slices include the `consensus-refine.mjs` wrapper, migration of the existing
 
 ## Next
 
-- **Continue TypeScript migration slices** — bl-bfb4 can proceed module-by-module now that bl-853a delivered the toolchain/generated-output contract. Do not mark the initiative complete until the wrapper, test-suite migration, and `allowJs` tightening finish.
-- **Remaining family skills** — `consensus-create`, `-decide`, `-plan`, `-research` as thin wrappers with v3 defaults. `-create` front-loads the `independent_draft` cold-start + derived-sectioning design the next two reuse.
+- **Finish TypeScript migration cleanup** — bl-bfb4 should stay open until the remaining non-migrated suites leave `test:node` and the mixed `pnpm test` runner can be simplified. The generated-runtime migration pattern itself is now proven across consensus refine, transcript-core/export-session, and session-observer.
+- **Remaining family skills** — after `consensus-evaluate`, `-create`, `-decide`, `-plan`, `-research` as thin wrappers with v3 defaults. `-create` front-loads the `independent_draft` cold-start + derived-sectioning design the next two reuse.
 - **Peer-invocation ownership** — tool-based verdict submission (bl-3a88) and in-house peer CLI work (bl-bb7e) should be treated as one later design/spike around owning the narrow claude/codex/cursor path rather than depending on Paseo for one per-turn `run` capability.
 
 ## Later

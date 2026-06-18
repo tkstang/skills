@@ -1,8 +1,8 @@
 /**
- * tmpdir.mjs — shared test helper for per-test temp STATE_DIR.
+ * tmpdir.ts — shared test helper for per-test temp STATE_DIR.
  *
  * Usage:
- *   import { withTmpStateDir } from './helpers/tmpdir.mjs';
+ *   import { withTmpStateDir } from './helpers/tmpdir.js';
  *
  *   // Inside a test:
  *   await withTmpStateDir(async (dir) => {
@@ -18,9 +18,10 @@ import { join } from 'node:path';
  * Creates a fresh temp directory, sets process.env.STATE_DIR to it,
  * runs fn(dir), then cleans up regardless of whether fn throws.
  *
- * @param {(dir: string) => Promise<void>} fn
  */
-export async function withTmpStateDir(fn) {
+export async function withTmpStateDir(
+  fn: (dir: string) => Promise<void>,
+): Promise<void> {
   const dir = await mkdtemp(join(tmpdir(), 'session-observer-test-'));
   const prev = process.env.STATE_DIR;
   process.env.STATE_DIR = dir;

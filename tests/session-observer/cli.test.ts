@@ -1,9 +1,9 @@
 /**
- * cli.test.mjs — Tests for scripts/session-observer.mjs CLI
+ * cli.test.ts — Tests for scripts/session-observer.mjs CLI
  */
 
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
+import { spawnSync, type SpawnSyncReturns } from 'node:child_process';
 import {
   mkdtemp,
   rm,
@@ -14,8 +14,9 @@ import {
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
-import { test, describe } from 'node:test';
 import { fileURLToPath } from 'node:url';
+
+import { describe, test } from 'vitest';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -35,7 +36,10 @@ const typicalCursor = join(FIXTURES, 'cursor', 'typical.jsonl');
 /**
  * Spawn the CLI with the given args and env.
  */
-function spawnCli(args, env = {}) {
+function spawnCli(
+  args: string[],
+  env: NodeJS.ProcessEnv = {},
+): SpawnSyncReturns<string> {
   return spawnSync('node', [CLI_PATH, ...args], {
     encoding: 'utf8',
     timeout: 15000,
@@ -43,15 +47,15 @@ function spawnCli(args, env = {}) {
   });
 }
 
-function cursorSlug(cwd) {
+function cursorSlug(cwd: string): string {
   return cwd.split(/[/.]/u).filter(Boolean).join('-');
 }
 
-function sleep(ms) {
+function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function readJsonIfExists(path) {
+async function readJsonIfExists(path: string): Promise<any> {
   try {
     return JSON.parse(await readFile(path, 'utf8'));
   } catch {
@@ -60,10 +64,10 @@ async function readJsonIfExists(path) {
 }
 
 async function copyCursorTranscript(
-  home,
-  cwd,
+  home: string,
+  cwd: string,
   sessionId = 'cursor-session-001',
-) {
+): Promise<string> {
   const transcriptDir = join(
     home,
     '.cursor',
@@ -83,7 +87,7 @@ async function copyCursorTranscript(
 // ---------------------------------------------------------------------------
 
 describe('CLI subcommand dispatch', () => {
-  test('--help lists cursor as a runtime option', (t) => {
+  test('--help lists cursor as a runtime option', () => {
     const result = spawnCli(['--help']);
     assert.equal(
       result.status,
@@ -96,7 +100,7 @@ describe('CLI subcommand dispatch', () => {
     );
   });
 
-  test('--help lists watch command surface', (t) => {
+  test('--help lists watch command surface', () => {
     const result = spawnCli(['--help']);
     assert.equal(
       result.status,
@@ -121,7 +125,7 @@ describe('CLI subcommand dispatch', () => {
     );
   });
 
-  test('watch --help lists watch flags', (t) => {
+  test('watch --help lists watch flags', () => {
     const result = spawnCli(['watch', '--help']);
     assert.equal(
       result.status,
@@ -166,7 +170,7 @@ describe('CLI subcommand dispatch', () => {
     );
   });
 
-  test('watch-ctl --help lists control operations', (t) => {
+  test('watch-ctl --help lists control operations', () => {
     const result = spawnCli(['watch-ctl', '--help']);
     assert.equal(
       result.status,
@@ -181,7 +185,7 @@ describe('CLI subcommand dispatch', () => {
     }
   });
 
-  test('--watch --help maps to watch help', (t) => {
+  test('--watch --help maps to watch help', () => {
     const canonical = spawnCli(['watch', '--help']);
     const alias = spawnCli(['--watch', '--help']);
     assert.equal(
@@ -196,7 +200,7 @@ describe('CLI subcommand dispatch', () => {
     );
   });
 
-  test('catch-up-then-watch --help maps to watch help with command name', (t) => {
+  test('catch-up-then-watch --help maps to watch help with command name', () => {
     const result = spawnCli(['catch-up-then-watch', '--help']);
     assert.equal(
       result.status,
@@ -211,7 +215,7 @@ describe('CLI subcommand dispatch', () => {
     assert.ok(result.stdout.includes('--heartbeat-sec'));
   });
 
-  test('watch-ctl status --json reports no active watcher', async (t) => {
+  test('watch-ctl status --json reports no active watcher', async () => {
     const tmpDir = await mkdtemp(join(tmpdir(), 'cli-watch-status-'));
     try {
       const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
@@ -236,7 +240,7 @@ describe('CLI subcommand dispatch', () => {
     }
   });
 
-  test('watch-ctl pause resume and flush write control directives', async (t) => {
+  test('watch-ctl pause resume and flush write control directives', async () => {
     const tmpDir = await mkdtemp(join(tmpdir(), 'cli-watch-control-'));
     try {
       const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
@@ -415,7 +419,7 @@ describe('CLI subcommand dispatch', () => {
     }
   });
 
-  test('watch-ctl inactive controls clear stale directives without writing a new one', async (t) => {
+  test('watch-ctl inactive controls clear stale directives without writing a new one', async () => {
     const tmpDir = await mkdtemp(join(tmpdir(), 'cli-watch-control-inactive-'));
     try {
       const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
@@ -455,7 +459,7 @@ describe('CLI subcommand dispatch', () => {
     }
   });
 
-  test('watch --json renders setup failures as a stable error event', async (t) => {
+  test('watch --json renders setup failures as a stable error event', async () => {
     const tmpDir = await mkdtemp(join(tmpdir(), 'cli-watch-setup-error-'));
     try {
       const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
@@ -500,7 +504,7 @@ describe('CLI subcommand dispatch', () => {
     }
   });
 
-  test('review --help does not throw', (t) => {
+  test('review --help does not throw', () => {
     const result = spawnCli(['review', '--help']);
     // --help exits 0 or 1; should not crash with code 127 or similar
     // (exits 2 or 3 are also valid if runtime auto-resolution kicks in first)
@@ -514,12 +518,12 @@ describe('CLI subcommand dispatch', () => {
     );
   });
 
-  test('unknown subcommand exits with code 1', (t) => {
+  test('unknown subcommand exits with code 1', () => {
     const result = spawnCli(['not-a-command']);
     assert.equal(result.status, 1, 'unknown subcommand should exit 1');
   });
 
-  test('no arguments exits with code 1', (t) => {
+  test('no arguments exits with code 1', () => {
     const result = spawnCli([]);
     assert.equal(result.status, 1, 'no arguments should exit 1');
   });
@@ -530,7 +534,7 @@ describe('CLI subcommand dispatch', () => {
 // ---------------------------------------------------------------------------
 
 describe('exit codes', () => {
-  test('review against empty fixture exits 3 (unengagedOnly)', async (t) => {
+  test('review against empty fixture exits 3 (unengagedOnly)', async () => {
     // We need a temp HOME with the empty fixture in the right location
     const tmpDir = await mkdtemp(join(tmpdir(), 'cli-test-'));
     try {
@@ -560,7 +564,7 @@ describe('exit codes', () => {
     }
   });
 
-  test('review against typical fixture exits 0', async (t) => {
+  test('review against typical fixture exits 0', async () => {
     const tmpDir = await mkdtemp(join(tmpdir(), 'cli-test-'));
     try {
       const cwd = '/test/my-project';
@@ -598,7 +602,7 @@ describe('exit codes', () => {
 // ---------------------------------------------------------------------------
 
 describe('locate --json', () => {
-  test('locate --json outputs parseable JSON with winner/fallbacks', async (t) => {
+  test('locate --json outputs parseable JSON with winner/fallbacks', async () => {
     const tmpDir = await mkdtemp(join(tmpdir(), 'cli-test-'));
     try {
       const cwd = '/test/locate-project';
@@ -621,7 +625,7 @@ describe('locate --json', () => {
       );
 
       if (result.status === 0) {
-        let parsed;
+        let parsed: any;
         assert.doesNotThrow(() => {
           parsed = JSON.parse(result.stdout);
         }, 'stdout should be valid JSON');
@@ -639,7 +643,7 @@ describe('locate --json', () => {
     }
   });
 
-  test('locate --debug --json includes Claude lookup diagnostics', async (t) => {
+  test('locate --debug --json includes Claude lookup diagnostics', async () => {
     const tmpDir = await mkdtemp(join(tmpdir(), 'cli-test-'));
     try {
       const cwd =
@@ -679,7 +683,7 @@ describe('locate --json', () => {
       );
       assert.ok(
         parsed.lookupDiagnostics.claudeCode.some(
-          (d) => d.encoded === encodedCwd && d.exists === true,
+          (d: any) => d.encoded === encodedCwd && d.exists === true,
         ),
         'diagnostics should include the expected encoded dir and existence',
       );
@@ -688,7 +692,7 @@ describe('locate --json', () => {
     }
   });
 
-  test('locate --snippet reports matched session before use', async (t) => {
+  test('locate --snippet reports matched session before use', async () => {
     const tmpDir = await mkdtemp(join(tmpdir(), 'cli-test-'));
     try {
       const cwd = '/test/snippet-project';
@@ -739,7 +743,7 @@ describe('locate --json', () => {
 // ---------------------------------------------------------------------------
 
 describe('--runtime auto', () => {
-  test('auto with SESSION_OBSERVER_SELF=claude-code resolves to codex', async (t) => {
+  test('auto with SESSION_OBSERVER_SELF=claude-code resolves to codex', async () => {
     // If self is claude-code, auto should try to read codex's transcript.
     // With no codex transcripts, this should exit 2 (noMatch).
     const tmpDir = await mkdtemp(join(tmpdir(), 'cli-test-'));
@@ -766,7 +770,7 @@ describe('--runtime auto', () => {
     }
   });
 
-  test('auto with SESSION_OBSERVER_SELF=codex resolves to claude-code', async (t) => {
+  test('auto with SESSION_OBSERVER_SELF=codex resolves to claude-code', async () => {
     const tmpDir = await mkdtemp(join(tmpdir(), 'cli-test-'));
     try {
       const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
@@ -791,7 +795,7 @@ describe('--runtime auto', () => {
     }
   });
 
-  test('auto with no env hint and no candidates in either runtime → exit 2', async (t) => {
+  test('auto with no env hint and no candidates in either runtime → exit 2', async () => {
     const tmpDir = await mkdtemp(join(tmpdir(), 'cli-test-'));
     try {
       const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
@@ -814,7 +818,7 @@ describe('--runtime auto', () => {
     }
   });
 
-  test('auto with SESSION_OBSERVER_SELF chooses the only other runtime with candidates', async (t) => {
+  test('auto with SESSION_OBSERVER_SELF chooses the only other runtime with candidates', async () => {
     const tmpDir = await mkdtemp(join(tmpdir(), 'cli-auto-self-cursor-'));
     try {
       const cwd = '/test/cursor-peer-project';
@@ -844,7 +848,7 @@ describe('--runtime auto', () => {
     }
   });
 
-  test('auto with SESSION_OBSERVER_SELF returns ambiguousRuntime when multiple other runtimes match', async (t) => {
+  test('auto with SESSION_OBSERVER_SELF returns ambiguousRuntime when multiple other runtimes match', async () => {
     const tmpDir = await mkdtemp(join(tmpdir(), 'cli-auto-self-ambiguous-'));
     try {
       const cwd = '/test/multi-peer-project';
@@ -895,7 +899,7 @@ describe('--runtime auto', () => {
     }
   });
 
-  test('auto prefers a previously read runtime for the same cwd when both runtimes match', async (t) => {
+  test('auto prefers a previously read runtime for the same cwd when both runtimes match', async () => {
     const tmpDir = await mkdtemp(join(tmpdir(), 'cli-auto-state-'));
     try {
       const cwd = '/test/dual-runtime-project';
@@ -981,7 +985,7 @@ describe('--runtime auto', () => {
     }
   });
 
-  test('auto prefers the only previously read same-cwd runtime across three matching runtimes', async (t) => {
+  test('auto prefers the only previously read same-cwd runtime across three matching runtimes', async () => {
     const tmpDir = await mkdtemp(join(tmpdir(), 'cli-auto-three-state-'));
     try {
       const cwd = '/test/three-runtime-project';
@@ -1072,7 +1076,7 @@ describe('--runtime auto', () => {
 // ---------------------------------------------------------------------------
 
 describe('--session override', () => {
-  test('review: --runtime auto uses pinned cursor runtime before ambiguity checks', async (t) => {
+  test('review: --runtime auto uses pinned cursor runtime before ambiguity checks', async () => {
     const tmpDir = await mkdtemp(join(tmpdir(), 'cli-session-auto-cursor-'));
     try {
       const cwd = '/test/auto-pinned-cursor-project';
@@ -1128,7 +1132,7 @@ describe('--session override', () => {
     }
   });
 
-  test('catch-up: --runtime auto uses pinned cursor runtime before ambiguity checks', async (t) => {
+  test('catch-up: --runtime auto uses pinned cursor runtime before ambiguity checks', async () => {
     const tmpDir = await mkdtemp(
       join(tmpdir(), 'cli-session-auto-cursor-catchup-'),
     );
@@ -1186,7 +1190,7 @@ describe('--session override', () => {
     }
   });
 
-  test('review: --session accepts cursor runtime', async (t) => {
+  test('review: --session accepts cursor runtime', async () => {
     const tmpDir = await mkdtemp(join(tmpdir(), 'cli-session-cursor-'));
     try {
       const cwd = '/test/cursor-session-project';
@@ -1221,7 +1225,9 @@ describe('--session override', () => {
     }
   });
 
-  test('review: --session resolves tie to a digest (exit 0)', async (t) => {
+  test('review: --session resolves tie to a digest (exit 0)', async ({
+    skip,
+  }) => {
     // Build two same-mtime candidates in the same encoded dir.
     // Without --session this causes a tie (exit 3). With --session it should exit 0.
     const tmpDir = await mkdtemp(join(tmpdir(), 'cli-session-tie-'));
@@ -1254,7 +1260,7 @@ describe('--session override', () => {
 
       if (locateResult.status !== 0) {
         // No match or error — skip the session pinning test
-        t.skip(
+        skip(
           'locate did not return a winner; skipping --session tie recovery sub-test',
         );
         return;
@@ -1295,7 +1301,9 @@ describe('--session override', () => {
     }
   });
 
-  test('catch-up: --session resolves to a digest (exit 0)', async (t) => {
+  test('catch-up: --session resolves to a digest (exit 0)', async ({
+    skip,
+  }) => {
     const tmpDir = await mkdtemp(join(tmpdir(), 'cli-session-catchup-'));
     try {
       const cwd = '/test/catchup-session-project';
@@ -1315,7 +1323,7 @@ describe('--session override', () => {
       );
 
       if (locateResult.status !== 0) {
-        t.skip(
+        skip(
           'locate did not return a winner; skipping --session catch-up sub-test',
         );
         return;
@@ -1380,7 +1388,7 @@ describe('--session override', () => {
     }
   });
 
-  test('catch-up warns but succeeds when a watcher owns the same session', async (t) => {
+  test('catch-up warns but succeeds when a watcher owns the same session', async () => {
     const tmpDir = await mkdtemp(join(tmpdir(), 'cli-catchup-watched-'));
     try {
       const cwd = '/test/watched-catchup-project';
@@ -1449,7 +1457,7 @@ describe('--session override', () => {
     }
   });
 
-  test('review: --session with invalid session exits 1', async (t) => {
+  test('review: --session with invalid session exits 1', async () => {
     const tmpDir = await mkdtemp(join(tmpdir(), 'cli-session-bad-'));
     try {
       const cwd = '/test/bad-session-project';
@@ -1484,7 +1492,7 @@ describe('--session override', () => {
     }
   });
 
-  test('review: --session with wrong-format exits 1', async (t) => {
+  test('review: --session with wrong-format exits 1', async () => {
     const tmpDir = await mkdtemp(join(tmpdir(), 'cli-session-fmt-'));
     try {
       const cwd = '/test/fmt-session-project';
@@ -1525,7 +1533,7 @@ describe('--session override', () => {
 // ---------------------------------------------------------------------------
 
 describe('state subcommand', () => {
-  test('state get exits 0 with empty state', async (t) => {
+  test('state get exits 0 with empty state', async () => {
     const tmpDir = await mkdtemp(join(tmpdir(), 'cli-test-'));
     try {
       const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
@@ -1545,7 +1553,7 @@ describe('state subcommand', () => {
     }
   });
 
-  test('state clear exits 0', async (t) => {
+  test('state clear exits 0', async () => {
     const tmpDir = await mkdtemp(join(tmpdir(), 'cli-test-'));
     try {
       const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
@@ -1565,7 +1573,7 @@ describe('state subcommand', () => {
     }
   });
 
-  test('state reset --runtime codex exits 0', async (t) => {
+  test('state reset --runtime codex exits 0', async () => {
     const tmpDir = await mkdtemp(join(tmpdir(), 'cli-test-'));
     try {
       const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
@@ -1585,7 +1593,7 @@ describe('state subcommand', () => {
     }
   });
 
-  test('state reset --runtime cursor exits 0', async (t) => {
+  test('state reset --runtime cursor exits 0', async () => {
     const tmpDir = await mkdtemp(join(tmpdir(), 'cli-test-'));
     try {
       const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
@@ -1605,7 +1613,7 @@ describe('state subcommand', () => {
     }
   });
 
-  test('state reset --session <r>:<id> resets one entry and leaves others intact', async (t) => {
+  test('state reset --session <r>:<id> resets one entry and leaves others intact', async () => {
     const tmpDir = await mkdtemp(join(tmpdir(), 'cli-test-'));
     try {
       const stateDir = join(tmpDir, '.local', 'state', 'session-observer');

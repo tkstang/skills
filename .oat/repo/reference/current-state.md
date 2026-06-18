@@ -1,6 +1,6 @@
 # Skills Repo Current State
 
-**Last updated:** 2026-06-17 (consensus-evaluate now ships as the first family skill after refine, using canonical TypeScript source plus generated plugin runtime output. Prior: 2026-06-17 transcript-core and export-session-transcript moved to canonical TypeScript source.)
+**Last updated:** 2026-06-18 (session-observer now has canonical TypeScript source under `src/transcript/session-observer/`, generated `.mjs` shipped output preserved under `skills/session-observer/scripts/`, and Vitest coverage for the migrated session-observer suite. Prior: 2026-06-17 consensus-evaluate shipped as the first family skill after refine, and transcript-core/export-session-transcript moved to canonical TypeScript source under `src/transcript/`.)
 
 ## Overview
 
@@ -38,6 +38,7 @@ Standalone skill for reviewing what a peer coding agent did in the same project.
 - **One-shot:** `review` (tool-free digest of the most relevant peer session), `catch-up` (only records since the per-session high-water mark), `locate` (ranked candidates as JSON), `state get/reset/clear`.
 - **Selection:** deterministic tier ranking (exact cwd → bidirectional ancestor/descendant → explicit no-match widening), tie surfacing, `--session <runtime:id>` pinning.
 - **Watch mode (shipped 2026-06-04, PRs #4/#5/#7):** foreground stat-polling watcher with debounce coalescing; emits catch-up digests to stdout for the active agent; `watch-ctl status|pause|resume|flush|stop`; lock-protected state with stale-PID cleanup; multi-watcher and duplicate-target safety; metadata-only `--event-log` hardened to the state directory; `--runtime both` (Claude Code + Codex).
+- **TypeScript/generated runtime slice (2026-06-18):** canonical implementation source now lives under `src/transcript/session-observer/`, including typed state, candidate/ranking, digest/observe, watch, CLI/probe, and transcript-core interaction boundaries. The shipped dependency-free CLI, probe, and library `.mjs` files remain generated and committed under `skills/session-observer/scripts/`; session-observer tests now run as Vitest TypeScript while generated-entrypoint coverage still executes the shipped `.mjs` paths.
 - **State:** `~/.local/state/session-observer/` (XDG), keyed `runtime:sessionId`, locked atomic writes.
 - **Digests:** natural-language-only by default; `--include-tools` / `--debug` opt-ins; filter header always present.
 
@@ -58,7 +59,7 @@ Canonical per-provider transcript knowledge (store locations, record parsing, st
 
 - `pnpm run type-check` — TypeScript source check.
 - `pnpm run build:check` — generated runtime drift guard.
-- `npm test` / `pnpm test` — remaining Node `node:test` files plus Vitest checks; consensus behavior tests are now on Vitest.
+- `npm test` / `pnpm test` — remaining Node `node:test` files plus Vitest checks; consensus, transcript-core/export-session, and session-observer migrated suites are now on Vitest.
 - `npm run validate` / `pnpm run validate` — repo structure, manifest, and docs invariants (including the plugin/OAT boundary from DR-001).
 - `npm run smoke` / `pnpm run smoke` — mocked end-to-end consensus wrapper flow.
 - CI: `validate.yml` on PR/main push now installs with a frozen lockfile, builds, type-checks, build-checks, tests, validates, and smokes; `release.yml` on tag push.
