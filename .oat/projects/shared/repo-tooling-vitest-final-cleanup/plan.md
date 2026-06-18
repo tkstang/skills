@@ -344,43 +344,48 @@ git commit -m "test(p02-t05): harmonize session-observer CLI and watcher suites 
 
 ```typescript
 // tests/tooling/no-node-test-runner.test.ts
-import { readFileSync } from 'node:fs';
-import { glob } from 'node:fs/promises'; // or a small recursive walk if glob unavailable on Node 22
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 // Documented allowlist. Expected empty — any addition must be justified here.
 const ALLOWED_MJS_TESTS: string[] = [];
 
+// Small recursive walk (no experimental fs.glob on Node 22 — see vitest-config.test.ts style).
+function walk(dir: string): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
+    const p = join(dir, e.name);
+    return e.isDirectory() ? walk(p) : [p];
+  });
+}
+
+const TEST_FILES = walk('tests').filter((f) => /\.test\.(ts|mts|mjs)$/.test(f));
+
 describe('test-runner policy', () => {
-  it('has no tests/**/*.test.mjs (Vitest-only)', async () => {
-    const stray: string[] = [];
-    for await (const f of glob('tests/**/*.test.mjs')) {
-      if (!ALLOWED_MJS_TESTS.includes(f)) stray.push(f);
-    }
+  it('has no tests/**/*.test.mjs (Vitest-only)', () => {
+    const stray = TEST_FILES.filter(
+      (f) => f.endsWith('.test.mjs') && !ALLOWED_MJS_TESTS.includes(f),
+    );
     expect(stray).toEqual([]);
   });
 
-  it('no test source imports node:test', async () => {
-    const offenders: string[] = [];
-    for await (const f of glob('tests/**/*.test.{ts,mts,mjs}')) {
-      const src = readFileSync(f, 'utf8');
-      if (/from\s+['"]node:test['"]/.test(src)) offenders.push(f);
-    }
+  it('no test source imports node:test', () => {
+    const offenders = TEST_FILES.filter((f) =>
+      /from\s+['"]node:test['"]/.test(readFileSync(f, 'utf8')),
+    );
     expect(offenders).toEqual([]);
   });
 
-  it('no test source imports node:assert (use Vitest expect)', async () => {
-    const offenders: string[] = [];
-    for await (const f of glob('tests/**/*.test.{ts,mts,mjs}')) {
-      const src = readFileSync(f, 'utf8');
-      if (/from\s+['"]node:assert(\/strict)?['"]/.test(src)) offenders.push(f);
-    }
+  it('no test source imports node:assert (use Vitest expect)', () => {
+    const offenders = TEST_FILES.filter((f) =>
+      /from\s+['"]node:assert(\/strict)?['"]/.test(readFileSync(f, 'utf8')),
+    );
     expect(offenders).toEqual([]);
   });
 });
 ```
 
-> **Prefer a small `readdir` recursion over `node:fs/promises` `glob`** for the committed guard — `fs.glob` is still experimental on Node 22 and emits an `ExperimentalWarning` under `pnpm test`. Follow the existing `tests/tooling/vitest-config.test.ts` style. Scope the import scans to actual `from 'node:test'` / `from 'node:assert'` import statements so doc snippets / fixture strings never trip them.
+> The committed guard uses a small synchronous `readdir` recursion (above) rather than `node:fs/promises` `glob`, which is still experimental on Node 22 and emits an `ExperimentalWarning` under `pnpm test`. Follow the existing `tests/tooling/vitest-config.test.ts` style. The import scans match actual `from 'node:test'` / `from 'node:assert'` import statements so doc snippets / fixture strings never trip them.
 >
 > The `node:assert` assertion (third `it`) is the enforcement arm of the session-observer harmonization (p02-t04/t05): it only goes green once every `tests/**` suite is on `expect`, which is why the guard lands in Phase 3 after Phase 2 completes. If you later want to relax the `node:assert` ban (e.g. allow it in a specific helper), prefer a narrow documented allowlist over deleting the check.
 
@@ -552,7 +557,7 @@ No code change. If `worktree:validate` surfaced generated drift, fix it under th
 | p03    | code     | pending | -          | -        |
 | p04    | code     | pending | -          | -        |
 | final  | code     | pending | -          | -        |
-| plan   | artifact | received | 2026-06-18 | reviews/artifact-plan-review-2026-06-18.md |
+| plan   | artifact | passed   | 2026-06-18 | reviews/archived/artifact-plan-review-2026-06-18.md (I1 + M1 + M2 resolved in artifacts) |
 | spec   | artifact | n/a     | -          | quick mode — no spec |
 | design | artifact | n/a     | -          | quick mode — no design |
 
@@ -571,7 +576,7 @@ No code change. If `worktree:validate` surfaced generated drift, fix it under th
 
 **Total: 12 tasks**
 
-Ready for code review and merge.
+Ready for implementation once the Phase 1 PR3 gate and HiLL checkpoint conditions are satisfied (PR3 merged → rebase → recatalog).
 
 ---
 

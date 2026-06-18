@@ -37,6 +37,23 @@ oat_generated: false
 
 ---
 
+### Review Received: plan (artifact)
+
+**Date:** 2026-06-18
+**Review artifact:** reviews/archived/artifact-plan-review-2026-06-18.md
+
+**Findings:** Critical 0 · Important 1 · Medium 2 · Minor 0
+
+**Disposition (artifact review — resolved in artifacts, no plan tasks):**
+
+- `I1` (Important) — `state.md` `oat_hill_checkpoints` was `[]` while the plan requires a HiLL pause after `p01`. **resolve_in_artifact:** set `oat_hill_checkpoints: ['p01']` (keeps `oat_hill_completed: []`), aligning state with `oat_plan_hill_phases` so the PR3 gate pause fires regardless of which field routing reads.
+- `M1` (Medium) — stale "Ready for code review and merge" line contradicted the gate. **resolve_in_artifact:** reworded to "Ready for implementation once the Phase 1 PR3 gate and HiLL checkpoint conditions are satisfied."
+- `M2` (Medium) — guard code sample used experimental `node:fs/promises` glob against its own "prefer readdir" guidance. **resolve_in_artifact:** rewrote the sample to a small synchronous `readdir` recursion (copy-paste-safe, no `ExperimentalWarning`).
+
+**Next:** No fix tasks added (artifact review). Plan review row → `passed`. Implementation remains gated on PR3.
+
+---
+
 ## Phase 1: Post-PR3 Gate & Recatalog
 
 **Status:** pending (blocked on PR3 merge)
