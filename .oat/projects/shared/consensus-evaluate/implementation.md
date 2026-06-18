@@ -103,7 +103,7 @@ No implementation drift accepted; artifact-only receive.
 ### Review Received: p03 (code)
 
 **Date:** 2026-06-17
-**Review artifact:** `reviews/archived/p03-review-2026-06-17.md`
+**Review artifact:** `reviews/archived/p03-review-2026-06-17-v2.md`
 
 **Findings:** Critical: 0 · Important: 0 · Medium: 0 · Minor: 1
 
@@ -334,8 +334,8 @@ No implementation drift accepted; artifact-only receive.
 
 ### Phase Implementation Notes
 
-Phase 3 implementation is complete and pending OAT review/orchestrator bookkeeping. Review
-rows remain pending in `plan.md`; the orchestrator owns p03/final review disposition.
+Phase 3 implementation and p03 phase review are complete. Final review remains pending before
+PR handoff.
 
 - `p03-t01` registered `evaluate` in the consensus plugin distribution surfaces with
   `SKILL.md`, operator QA reference docs, provider manifest metadata, and docs-presence tests.
@@ -487,8 +487,7 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 
 #### Outstanding Items
 
-- Non-blocking Minor from p03 review: `plugins/consensus/README.md` independent-draft
-  limitation should mention both `refine` and `evaluate` when next touching docs.
+- None.
 
 #### Artifact / Design Deltas
 
@@ -526,6 +525,41 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 #### Outstanding Items
 
 - None.
+
+#### Artifact / Design Deltas
+
+| Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
+| ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
+| None          | None            | None                 | None              | None   | None            | None      |
+
+### Run 3 — 2026-06-18 00:04 UTC
+
+**Branch:** concensus-evaluate
+**Tier:** 1
+**Policy:** merge-strategy=sequential, retry-limit=2
+**Phases:** 1 executed, 1 passed, 0 failed, 0 stopped
+
+#### Phase Outcomes
+
+| Phase | Implementer | Review | Fix Iterations | Disposition |
+| ----- | ----------- | ------ | -------------- | ----------- |
+| p03   | DONE_WITH_CONCERNS | pass | 0/2 | passed |
+
+#### Parallel Groups
+
+- None. Plan declares fully sequential execution.
+
+#### Dispatch Notes
+
+- Dispatch: p03 implementation used `model_axis=inherited`, `effort_axis=selected:xhigh`,
+  `dispatch_ceiling=xhigh`, target `oat-phase-implementer-xhigh`.
+- Dispatch: p03 review used `model_axis=inherited`, `effort_axis=selected:xhigh`,
+  `dispatch_ceiling=xhigh`, target `oat-reviewer-xhigh`.
+
+#### Outstanding Items
+
+- Non-blocking Minor from p03 review: `plugins/consensus/README.md` independent-draft
+  limitation should mention both `refine` and `evaluate` when next touching docs.
 
 #### Artifact / Design Deltas
 
