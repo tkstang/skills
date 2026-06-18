@@ -1,5 +1,5 @@
 /**
- * integration.test.mjs — End-to-end integration tests for session-observer CLI.
+ * integration.test.ts — End-to-end integration tests for session-observer CLI.
  *
  * Builds a synthetic temp HOME, populates Claude Code transcript fixtures,
  * and spawns the real CLI by absolute path resolved from import.meta.url.
@@ -7,7 +7,7 @@
  */
 
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
+import { spawnSync, type SpawnSyncReturns } from 'node:child_process';
 import {
   mkdtemp,
   rm,
@@ -18,8 +18,9 @@ import {
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
-import { test, describe } from 'node:test';
 import { fileURLToPath } from 'node:url';
+
+import { describe, test } from 'vitest';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -45,7 +46,10 @@ const TYPICAL_CURSOR = join(FIXTURES, 'cursor', 'typical.jsonl');
 /**
  * Spawn the CLI with given args and env.
  */
-function spawnCli(args, env = {}) {
+function spawnCli(
+  args: string[],
+  env: NodeJS.ProcessEnv = {},
+): SpawnSyncReturns<string> {
   return spawnSync('node', [CLI_PATH, ...args], {
     encoding: 'utf8',
     timeout: 20000,
@@ -53,7 +57,10 @@ function spawnCli(args, env = {}) {
   });
 }
 
-function spawnProbe(args, env = {}) {
+function spawnProbe(
+  args: string[],
+  env: NodeJS.ProcessEnv = {},
+): SpawnSyncReturns<string> {
   return spawnSync('node', [PROBE_PATH, ...args], {
     encoding: 'utf8',
     timeout: 20000,
@@ -61,19 +68,19 @@ function spawnProbe(args, env = {}) {
   });
 }
 
-function cursorSlug(cwd) {
+function cursorSlug(cwd: string): string {
   return cwd.split(/[/.]/u).filter(Boolean).join('-');
 }
 
-function sleep(ms) {
+function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 async function copyCursorTranscript(
-  home,
-  cwd,
+  home: string,
+  cwd: string,
   sessionId = 'cursor-session-001',
-) {
+): Promise<string> {
   const transcriptDir = join(
     home,
     '.cursor',
@@ -92,7 +99,14 @@ async function copyCursorTranscript(
  * Set up a temp HOME directory with a Claude Code transcript.
  * Returns { tmpDir, cwd, stateDir, cleanup }.
  */
-async function setupTempHome(fixture = TYPICAL_CLAUDE) {
+async function setupTempHome(
+  fixture = TYPICAL_CLAUDE,
+): Promise<{
+  tmpDir: string;
+  cwd: string;
+  stateDir: string;
+  cleanup: () => Promise<void>;
+}> {
   const tmpDir = await mkdtemp(join(tmpdir(), 'integration-test-'));
   const cwd = '/integration-test/my-project';
   // Claude Code encodes '/' → '-'
@@ -113,7 +127,7 @@ async function setupTempHome(fixture = TYPICAL_CLAUDE) {
 // ---------------------------------------------------------------------------
 
 describe('integration: review', () => {
-  test('review exits 0 and contains User/Assistant sections (no tool noise by default)', async (t) => {
+  test('review exits 0 and contains User/Assistant sections (no tool noise by default)', async () => {
     const { tmpDir, cwd, stateDir, cleanup } = await setupTempHome();
     try {
       const result = spawnCli(
@@ -162,7 +176,7 @@ describe('integration: review', () => {
   // Test 2: review --include-tools exits 0; stdout contains compact tool markers; results excluded
   // ---------------------------------------------------------------------------
 
-  test('review --include-tools exits 0; compact tool markers present; results excluded', async (t) => {
+  test('review --include-tools exits 0; compact tool markers present; results excluded', async () => {
     const { tmpDir, cwd, stateDir, cleanup } = await setupTempHome();
     try {
       const result = spawnCli(
@@ -196,7 +210,7 @@ describe('integration: review', () => {
   // Test 3: review --debug exits 0; both tool markers and result markers present
   // ---------------------------------------------------------------------------
 
-  test('review --debug exits 0; tool markers and result markers present', async (t) => {
+  test('review --debug exits 0; tool markers and result markers present', async () => {
     const { tmpDir, cwd, stateDir, cleanup } = await setupTempHome();
     try {
       const result = spawnCli(
@@ -232,7 +246,7 @@ describe('integration: review', () => {
 // ---------------------------------------------------------------------------
 
 describe('integration: catch-up', () => {
-  test('catch-up twice: first full delta, second no new records', async (t) => {
+  test('catch-up twice: first full delta, second no new records', async () => {
     const { tmpDir, cwd, stateDir, cleanup } = await setupTempHome();
     try {
       // First catch-up: should return content (offset starts at 0)
@@ -274,7 +288,7 @@ describe('integration: catch-up', () => {
     }
   });
 
-  test('catch-up no-op leaves existing state unchanged', async (t) => {
+  test('catch-up no-op leaves existing state unchanged', async () => {
     const { tmpDir, cwd, stateDir, cleanup } = await setupTempHome();
     try {
       const first = spawnCli(
@@ -312,7 +326,7 @@ describe('integration: catch-up', () => {
     }
   });
 
-  test('catch-up treats stored offset as exclusive next record index', async (t) => {
+  test('catch-up treats stored offset as exclusive next record index', async () => {
     const tmpDir = await mkdtemp(join(tmpdir(), 'integration-test-'));
     const cwd = '/integration-test/boundary-project';
     const encodedCwd = '-integration-test-boundary-project';
@@ -411,7 +425,7 @@ describe('integration: catch-up', () => {
   // Test 5: state reset followed by catch-up re-emits full content
   // ---------------------------------------------------------------------------
 
-  test('state reset --runtime claude-code followed by catch-up re-emits full content', async (t) => {
+  test('state reset --runtime claude-code followed by catch-up re-emits full content', async () => {
     const { tmpDir, cwd, stateDir, cleanup } = await setupTempHome();
     try {
       // First catch-up to advance offset
@@ -461,7 +475,7 @@ describe('integration: catch-up', () => {
 // ---------------------------------------------------------------------------
 
 describe('integration: empty fixture', () => {
-  test('review against empty fixture exits 3', async (t) => {
+  test('review against empty fixture exits 3', async () => {
     const { tmpDir, cwd, stateDir, cleanup } =
       await setupTempHome(EMPTY_CLAUDE);
     try {
@@ -486,7 +500,7 @@ describe('integration: empty fixture', () => {
 // ---------------------------------------------------------------------------
 
 describe('integration: probe-local', () => {
-  test('probe-local --runtime cursor reports ~/.cursor/projects/', async (t) => {
+  test('probe-local --runtime cursor reports ~/.cursor/projects/', async () => {
     const tmpDir = await mkdtemp(join(tmpdir(), 'integration-probe-cursor-'));
     try {
       const cwd = '/integration-test/cursor-project';
