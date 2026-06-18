@@ -427,6 +427,9 @@ git commit -m "chore(consensus-evaluate): record implementation completion"
 
 ### Task p04-t01: (review) Escape evaluation draft prompt data
 
+**Status:** completed
+**Commit:** 5c2e1cc
+
 **Files:**
 
 - Modify: `src/consensus/evaluate/consensus-evaluate.ts`
@@ -462,6 +465,9 @@ git commit -m "fix(p04-t01): escape evaluation draft prompt data"
 
 ### Task p04-t02: (review) Align evaluate provider preflight docs
 
+**Status:** completed
+**Commit:** b793cee
+
 **Files:**
 
 - Modify: `plugins/consensus/skills/evaluate/SKILL.md`
@@ -496,6 +502,9 @@ git commit -m "docs(p04-t02): align evaluate preflight docs"
 ---
 
 ### Task p04-t03: (review) Add evaluate path-confinement negative coverage
+
+**Status:** completed
+**Commit:** 415cb51
 
 **Files:**
 
@@ -535,7 +544,7 @@ git commit -m "test(p04-t03): cover evaluate path confinement"
 | p01    | code     | passed | 2026-06-17 | reviews/archived/p01-review-2026-06-17.md |
 | p02    | code     | passed | 2026-06-17 | reviews/archived/p02-review-2026-06-17-v4.md |
 | p03    | code     | passed | 2026-06-17 | reviews/archived/p03-review-2026-06-17-v2.md |
-| final  | code     | fixes_added | 2026-06-17 | reviews/archived/final-review-2026-06-17.md |
+| final  | code     | fixes_completed | 2026-06-18 | reviews/archived/final-review-2026-06-17.md |
 | spec   | artifact | pending | -    | -        |
 | design | artifact | pending | -    | -        |
 | plan   | artifact | passed | 2026-06-17 | reviews/archived/artifact-plan-review-2026-06-16.md |

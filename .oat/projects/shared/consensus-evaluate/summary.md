@@ -1,7 +1,7 @@
 # consensus-evaluate Implementation Summary
 
-**Status:** Final review fixes queued
-**Updated:** 2026-06-17
+**Status:** Final review fixes complete; awaiting final re-review
+**Updated:** 2026-06-18
 
 ## What Shipped
 
@@ -12,6 +12,8 @@
   `consensus-verdict` records, and dissent or unresolved-dissent sections.
 - Provider manifests, root/plugin READMEs, and OAT backlog/reference status now mark
   bl-5174 as delivered.
+- Final review fixes close prompt-block escaping, provider-preflight documentation, and
+  evaluate path-safety coverage findings.
 
 ## Key Implementation Surfaces
 
@@ -36,6 +38,7 @@
 - p01 code review: passed
 - p02 code review: passed
 - p03 code review: passed; the non-blocking README wording Minor was resolved in `e551a12`
-- final code review: failed; fix tasks `p04-t01` through `p04-t03` are queued
+- final code review: failed on 2026-06-17; fix tasks `p04-t01` through `p04-t03`
+  are implemented and awaiting final re-review
 
-No final review pass or PR handoff state has been recorded by this implementation task.
+No final review pass or PR handoff state has been recorded yet.

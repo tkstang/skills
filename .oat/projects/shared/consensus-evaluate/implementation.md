@@ -1,16 +1,16 @@
 ---
-oat_status: in_progress
+oat_status: complete
 oat_ready_for: null
 oat_blockers: []
-oat_last_updated: 2026-06-17
-oat_current_task_id: p04-t01
+oat_last_updated: 2026-06-18
+oat_current_task_id: null
 oat_generated: false
 ---
 
 # Implementation: consensus-evaluate
 
 **Started:** 2026-06-15
-**Last Updated:** 2026-06-17
+**Last Updated:** 2026-06-18
 
 > This document is used to resume interrupted implementation sessions.
 >
@@ -29,9 +29,9 @@ oat_generated: false
 | Phase 1 | complete    | 3     | 3/3       |
 | Phase 2 | complete    | 3     | 3/3       |
 | Phase 3 | complete    | 3     | 3/3       |
-| Phase 4 | in_progress | 3     | 0/3       |
+| Phase 4 | complete    | 3     | 3/3       |
 
-**Total:** 9/12 tasks completed
+**Total:** 12/12 tasks completed
 
 ---
 
@@ -124,7 +124,7 @@ before final review.
 **New tasks added:** `p04-t01`, `p04-t02`, `p04-t03`
 
 **Disposition:** auto checkpoint review converted all Important and Medium findings into
-review-fix tasks.
+review-fix tasks. Fixes are implemented; final re-review remains pending.
 
 - `I1` — Rubric-derived draft text can escape the evaluation-draft prompt block:
   `p04-t01`.
@@ -132,7 +132,7 @@ review-fix tasks.
   `p04-t02`.
 - `M1` — Evaluate path-confinement helpers lack direct negative coverage: `p04-t03`.
 
-**Next:** Execute final review fix tasks, then re-run final review.
+**Next:** Re-run final review.
 
 ---
 
@@ -474,27 +474,84 @@ PR handoff.
 
 ## Phase 4: Final Review Fixes
 
-**Status:** in_progress
+**Status:** complete
 **Started:** 2026-06-18
+**Completed:** 2026-06-18
+
+### Phase Summary
+
+**Outcome (what changed):**
+
+- Escaped prompt-block data for artifact, rubric, and evaluation-draft content so delimiter-like input remains untrusted data.
+- Corrected evaluate documentation to describe provider inventory checks as host/operator setup rather than wrapper preflight behavior.
+- Expanded path-safety coverage to exercise both generated refine and evaluate runtimes, including symlink target and symlink-parent escapes.
+
+**Key files touched:**
+
+- `src/consensus/evaluate/consensus-evaluate.ts` - prompt-block encoding and evaluate symlink path check.
+- `plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs` - regenerated evaluate runtime output.
+- `tests/consensus-evaluate-wrapper.test.ts` - delimiter-regression coverage.
+- `tests/path-safety.test.ts` - generated runtime path-safety matrix for refine and evaluate.
+- `plugins/consensus/skills/evaluate/SKILL.md` and `plugins/consensus/README.md` - provider-preflight wording alignment.
+
+**Verification:**
+
+- Run: `pnpm exec vitest run tests/consensus-evaluate-wrapper.test.ts tests/path-safety.test.ts tests/generated-output-sync.test.mjs`
+- Result: pass.
+- Run: `pnpm run build:check`
+- Result: pass.
+- Run: `git diff --check`
+- Result: pass.
+
+**Notes / Decisions:**
+
+- Evaluate keeps provider inventory checks as an operator/setup responsibility; the wrapper validates provider ID syntax and reports Paseo/runtime invocation failures.
 
 ### Task p04-t01: (review) Escape evaluation draft prompt data
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** 5c2e1cc
+
+**Outcome (required when completed):**
+
+- Prompt-block data is HTML-escaped before embedding, preventing rubric-derived delimiter text from closing the evaluation-draft block.
+
+**Verification:**
+
+- Run: `pnpm exec vitest run tests/consensus-evaluate-wrapper.test.ts`
+- Result: pass.
 
 ---
 
 ### Task p04-t02: (review) Align evaluate provider preflight docs
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** b793cee
+
+**Outcome (required when completed):**
+
+- Evaluate docs no longer claim wrapper-level provider inventory preflight or `PEER_UNAVAILABLE` behavior.
+
+**Verification:**
+
+- Run: `pnpm run validate`
+- Result: pass.
 
 ---
 
 ### Task p04-t03: (review) Add evaluate path-confinement negative coverage
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** 415cb51
+
+**Outcome (required when completed):**
+
+- Path-safety tests now cover both generated refine and evaluate runtimes; evaluate uses `lstat` when checking existing output paths so symlink targets are rejected.
+
+**Verification:**
+
+- Run: `pnpm exec vitest run tests/path-safety.test.ts`
+- Result: pass.
 
 ---
 
@@ -613,6 +670,38 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 | ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
 | None          | None            | None                 | None              | None   | None            | None      |
 
+### Run 4 — 2026-06-18 00:25 UTC
+
+**Branch:** concensus-evaluate
+**Tier:** 1
+**Policy:** merge-strategy=sequential, retry-limit=2
+**Phases:** 1 executed, 1 passed, 0 failed, 0 stopped
+
+#### Phase Outcomes
+
+| Phase | Implementer | Review | Fix Iterations | Disposition |
+| ----- | ----------- | ------ | -------------- | ----------- |
+| p04   | DONE        | pending final re-review | 0/2 | fixes_completed |
+
+#### Parallel Groups
+
+- None. Plan declares fully sequential execution.
+
+#### Dispatch Notes
+
+- Dispatch: p04 final-review fixes used `model_axis=inherited`, `effort_axis=selected:xhigh`,
+  `dispatch_ceiling=xhigh`, target `oat-phase-implementer-xhigh`.
+
+#### Outstanding Items
+
+- Final re-review pending for fixes from `reviews/archived/final-review-2026-06-17.md`.
+
+#### Artifact / Design Deltas
+
+| Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
+| ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
+| None          | None            | None                 | None              | None   | None            | None      |
+
 <!-- orchestration-runs-end -->
 
 ---
@@ -673,6 +762,7 @@ Track test execution during implementation.
 | 1     | `pnpm run build:check`; targeted Vitest p01 tests; `pnpm run type-check`; `node --test tests/repo-layout.test.mjs`; reviewer also ran `pnpm run test` | yes | 0 | not measured |
 | 2     | `pnpm exec vitest run tests/consensus-evaluate-wrapper.test.ts tests/consensus-evaluate-output.test.ts tests/generated-consensus-evaluate-import.test.ts tests/generated-output-sync.test.mjs`; `pnpm run build:check`; `pnpm run type-check`; generated-runtime no-`--output` sidecar probe | yes | 0 | not measured |
 | 3     | `node --test tests/docs-presence.test.mjs tests/package-metadata.test.mjs`; `pnpm run validate`; `rg -n "wait for|deferred|not shipped" README.md plugins/consensus/README.md .oat/repo/reference`; final gates: `pnpm run build`; `pnpm run build:check`; `pnpm run type-check`; `pnpm test`; `pnpm run validate`; `pnpm run smoke`; `git diff --check`; `git status --short` | yes | 0 | not measured |
+| 4     | `pnpm exec vitest run tests/consensus-evaluate-wrapper.test.ts tests/path-safety.test.ts tests/generated-output-sync.test.mjs`; `pnpm run build:check`; `git diff --check` | yes | 0 | not measured |
 
 ## Final Summary (for PR/docs)
 
@@ -682,6 +772,7 @@ Track test execution during implementation.
 - Canonical TypeScript evaluate wrapper source with generated provider-facing runtime output.
 - Distribution docs and manifests for the evaluate skill.
 - README and OAT repo reference updates marking bl-5174 delivered.
+- Final-review fixes for prompt-block escaping, provider-preflight documentation accuracy, and evaluate runtime path-safety coverage.
 
 **Behavioral changes (user-facing):**
 
