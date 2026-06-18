@@ -171,7 +171,7 @@ _- Outstanding Items_
 **Branch:** repo-tooling-vitest-final-cleanup
 **Tier:** 1 (subagents — Claude Code)
 **Policy:** merge-strategy=sequential, retry-limit=2
-**Phases:** p02, p03 executed, 2 passed, 0 failed, 0 stopped
+**Phases:** p02, p03, p04 executed, 3 passed, 0 failed, 0 stopped
 
 #### Phase Outcomes
 
@@ -179,10 +179,12 @@ _- Outstanding Items_
 | ----- | ----------- | ------ | -------------- | ----------- |
 | p02   | DONE (sonnet) | pass (opus) | 0/2 | committed |
 | p03   | DONE (sonnet) | pass (opus) | 0/2 | committed |
+| p04   | DONE (sonnet) | via final review (opus) | 0/2 | committed |
 
 #### Dispatch Notes
 
-- Dispatch: p02/p03 implementation — model_axis=selected:sonnet (mechanical conversion + guard/runner edits, capped by opus ceiling). Reviews — model_axis=opus (reviewer targets ceiling). Both Tier 1.
+- Dispatch: p02/p03/p04 implementation — model_axis=selected:sonnet (mechanical conversion + guard/runner + docs edits, capped by opus ceiling). Reviews — model_axis=opus (reviewer targets ceiling). Both Tier 1.
+- p04 is the terminal phase; its phase-gate review was collapsed into the comprehensive `final`-scope review (which covers the full PR4 branch incl. p04 docs) to avoid reviewing the docs diff twice.
 
 #### Outstanding Items
 
@@ -192,7 +194,8 @@ _- Outstanding Items_
 
 | Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
 | ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
-| None          | -               | -                    | -                 | -      | -               | -         |
+| p03-t02 | plan p03-t02 (`package.json` only) | Modify only `package.json` | Also updated `tests/package-metadata.test.ts` to the new script contract | Test pins the exact test-script strings; would fail otherwise | implementation | None — coverage strengthened |
+| p04-t01 | plan p04-t01 (`tests/AGENTS.md`, `AGENTS.md`, `README.md`) | Doc edits only | Also updated `tests/docs-presence.test.ts` assertion | Test asserts `tests/AGENTS.md` content the task edits | implementation | None — coverage preserved |
 
 
 _Orchestration runs from `oat-project-implement` are appended here, most-recent-first within the file but append-only at the bottom of the log._
