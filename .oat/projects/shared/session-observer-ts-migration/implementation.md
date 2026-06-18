@@ -1,9 +1,9 @@
 ---
-oat_status: in_progress
+oat_status: complete
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-18
-oat_current_task_id: p05-t02
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -29,9 +29,9 @@ oat_generated: false
 | Phase 2 | complete    | 4     | 4/4       |
 | Phase 3 | complete    | 2     | 2/2       |
 | Phase 4 | complete    | 1     | 1/1       |
-| Phase 5 | in_progress | 2     | 1/2       |
+| Phase 5 | complete    | 2     | 2/2       |
 
-**Total:** 11/12 tasks completed
+**Total:** 12/12 tasks completed
 
 ---
 
@@ -115,7 +115,7 @@ oat_generated: false
 
 ## Phase 5: Review Fixes
 
-**Status:** in_progress
+**Status:** complete
 **Started:** 2026-06-18
 
 ### Task p05-t01: (review) Tighten Session-Observer TypeScript Boundaries
@@ -135,10 +135,20 @@ oat_generated: false
 
 ### Task p05-t02: (review) Narrow CLI Watcher-Status Presentation Types
 
-**Status:** pending
-**Commit:** pending
+**Status:** complete
+**Commit:** `30263da` - `fix(p05-t02): narrow watcher status presentation types`
 
 **Review source:** `reviews/archived/final-review-2026-06-17-received-20260618T055025Z.md`
+
+**Verification:**
+
+- `pnpm run build` - passed
+- `pnpm run type-check` - passed
+- `pnpm run build:check` - passed
+- `pnpm exec vitest run tests/session-observer` - passed, 9 files / 160 tests
+- `pnpm run test` - passed, Node 44 tests and Vitest 35 files / 500 tests
+
+**Delta recording:** none. The implementation stayed within the final follow-up scope: it narrowed the internal CLI watcher-status/status-control helper payloads against existing watcher domain types while preserving JSON-boundary defensive handling and generated-output ownership.
 
 ---
 
@@ -475,7 +485,31 @@ _Orchestration runs from `oat-project-implement` are appended here._
 
 **Deferred Medium ledger:** none.
 
-**Next:** Execute `p05-t02` via the `oat-project-implement` skill, then re-review the focused final-review fix before closeout.
+**Next:** `p05-t02` completed and passed focused review; stop at the final checkpoint as requested.
+
+### Review Passed: p05-t02 code
+
+**Date:** 2026-06-18
+**Review artifact:** `reviews/archived/p05-t02-review-2026-06-18.md`
+
+**Findings:**
+
+- Critical: 0
+- Important: 0
+- Medium: 0
+- Minor: 0
+
+**Verification rerun by reviewer:**
+
+- `git diff --name-status 49448e0..HEAD` - passed; only scoped TypeScript source and generated CLI output changed
+- `git diff --check 49448e0..HEAD` - passed
+- Residual `any` annotation check - passed; remaining hits are comments/prose only
+- `pnpm run type-check` - passed
+- `pnpm run build:check` - passed
+- `pnpm exec vitest run tests/session-observer` - passed, 9 files / 160 tests
+- `pnpm run test` - passed, Node 44 tests and Vitest 35 files / 500 tests
+
+**Next:** Final checkpoint `p05` is complete; stop here as requested before PR automation.
 
 ---
 
@@ -501,6 +535,7 @@ _Orchestration runs from `oat-project-implement` are appended here._
 
 - Session-observer runtime implementation now has canonical TypeScript source under `src/transcript/session-observer/`.
 - Session-observer TypeScript source now has typed state, candidate/ranking, digest/observe, watch, CLI/probe, and transcript-core interaction boundaries from the final review fix.
+- Session-observer CLI watcher-status presentation helpers now use typed watcher payloads instead of broad `any`.
 - Shipped dependency-free `.mjs` runtime outputs under `skills/session-observer/scripts/` are generated from canonical TypeScript through `scripts/build-generated.mjs`.
 - Session-observer tests now run as Vitest TypeScript tests while preserving generated shipped entrypoint coverage.
 - Public docs, agent-facing guidance, OAT reference state, backlog notes, and the PR3 project summary describe the new source/generated-output contract.
@@ -532,6 +567,7 @@ _Orchestration runs from `oat-project-implement` are appended here._
 - `find tests/session-observer -name '*.test.mjs' -type f` - passed with no output
 - Generated-output cleanliness check passed after `pnpm run build`: `git diff --exit-code -- skills/session-observer/scripts scripts/build-generated.mjs tests/generated-output-sync.test.mjs`
 - `pnpm exec vitest run tests/session-observer` - passed after p05; 9 files / 160 tests
+- Focused p05-t02 review - passed with no findings
 
 **Design deltas (if any):**
 

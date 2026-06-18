@@ -595,7 +595,7 @@ git commit -m "fix(p05-t02): narrow watcher status presentation types"
 | p03    | code     | passed  | 2026-06-18 | reviews/archived/code-p03-review-2026-06-18.md |
 | p04    | code     | passed  | 2026-06-18 | reviews/archived/code-p04-final-review-2026-06-18.md |
 | final  | code     | passed | 2026-06-18 | reviews/archived/final-review-2026-06-18.md |
-| final  | code     | fixes_added | 2026-06-18 | reviews/archived/final-review-2026-06-17-received-20260618T055025Z.md |
+| final  | code     | passed | 2026-06-18 | reviews/archived/p05-t02-review-2026-06-18.md |
 | plan   | artifact | passed  | 2026-06-17 | reviews/archived/artifact-plan-review-2026-06-17.md |
 | spec   | artifact | pending | -          | N/A - quick mode |
 | design | artifact | pending | -          | N/A - quick mode |
