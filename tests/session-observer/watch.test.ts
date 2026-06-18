@@ -2,7 +2,6 @@
  * watch.test.ts — tests for src/transcript/session-observer/lib/watch.ts
  */
 
-import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { once } from 'node:events';
 import {
@@ -19,7 +18,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { afterEach, describe, test, vi } from 'vitest';
+import { expect, afterEach, describe, test, vi } from 'vitest';
 
 import * as watchState from '../../src/transcript/session-observer/lib/watch-state.js';
 import { runWatchLoop } from '../../src/transcript/session-observer/lib/watch.js';
@@ -235,27 +234,24 @@ describe('runWatchLoop', () => {
         },
       );
 
-      assert.equal(result.reason, 'max-runtime');
-      assert.equal(result.eventCount, 0);
+      expect(result.reason).toBe('max-runtime');
+      expect(result.eventCount).toBe(0);
       const output = stdout.join('');
-      assert.ok(output.startsWith('[session-observer] Watcher is now active.'));
-      assert.ok(output.includes('baseline claude-code:watch-baseline'));
-      assert.ok(output.includes('baselineRecordIndex=1'));
-      assert.ok(output.includes('engagement=engaged'));
-      assert.ok(!output.includes('old message that should not be emitted'));
+      expect(output.startsWith('[session-observer] Watcher is now active.')).toBeTruthy();
+      expect(output.includes('baseline claude-code:watch-baseline')).toBeTruthy();
+      expect(output.includes('baselineRecordIndex=1')).toBeTruthy();
+      expect(output.includes('engagement=engaged')).toBeTruthy();
+      expect(!output.includes('old message that should not be emitted')).toBeTruthy();
 
       const state = JSON.parse(
         await readFile(join(stateDir, 'state.json'), 'utf8'),
       );
-      assert.equal(
-        state.sessions['claude-code:watch-baseline'].lastRecordIndex,
-        1,
-      );
+      expect(state.sessions['claude-code:watch-baseline'].lastRecordIndex).toBe(1);
 
       const watchState = JSON.parse(
         await readFile(join(stateDir, 'watch.json'), 'utf8'),
       );
-      assert.equal(watchState.active, null);
+      expect(watchState.active).toBe(null);
     });
   });
 
@@ -282,18 +278,15 @@ describe('runWatchLoop', () => {
       );
 
       const output = stdout.join('');
-      assert.equal(result.reason, 'max-runtime');
-      assert.equal(result.eventCount, 1);
-      assert.ok(output.includes('baseline claude-code:watch-catch-up-first'));
-      assert.ok(output.includes('unread backlog should be emitted'));
+      expect(result.reason).toBe('max-runtime');
+      expect(result.eventCount).toBe(1);
+      expect(output.includes('baseline claude-code:watch-catch-up-first')).toBeTruthy();
+      expect(output.includes('unread backlog should be emitted')).toBeTruthy();
 
       const state = JSON.parse(
         await readFile(join(stateDir, 'state.json'), 'utf8'),
       );
-      assert.equal(
-        state.sessions['claude-code:watch-catch-up-first'].lastRecordIndex,
-        1,
-      );
+      expect(state.sessions['claude-code:watch-catch-up-first'].lastRecordIndex).toBe(1);
     });
   });
 
@@ -343,15 +336,12 @@ describe('runWatchLoop', () => {
       const digestCount = (output.match(/## session-observer digest/g) ?? [])
         .length;
 
-      assert.equal(result.reason, 'max-runtime');
-      assert.equal(result.eventCount, 1);
-      assert.equal(digestCount, 1);
-      assert.ok(output.includes('first debounced update'));
-      assert.ok(output.includes('second debounced update'));
-      assert.ok(
-        sleepCount >= 4,
-        'fake clock should advance through debounce settling',
-      );
+      expect(result.reason).toBe('max-runtime');
+      expect(result.eventCount).toBe(1);
+      expect(digestCount).toBe(1);
+      expect(output.includes('first debounced update')).toBeTruthy();
+      expect(output.includes('second debounced update')).toBeTruthy();
+      expect(sleepCount >= 4, 'fake clock should advance through debounce settling').toBeTruthy();
     });
   });
 
@@ -393,12 +383,9 @@ describe('runWatchLoop', () => {
       );
 
       const output = stdout.join('');
-      assert.equal(result.reason, 'max-runtime');
-      assert.ok(
-        result.eventCount >= 1,
-        'max-pending should prevent indefinite debounce starvation',
-      );
-      assert.ok(output.includes('continuous update 1'));
+      expect(result.reason).toBe('max-runtime');
+      expect(result.eventCount >= 1, 'max-pending should prevent indefinite debounce starvation').toBeTruthy();
+      expect(output.includes('continuous update 1')).toBeTruthy();
     });
   });
 
@@ -450,15 +437,15 @@ describe('runWatchLoop', () => {
       const locked = lines.find((line) => line.type === 'baseline');
       const event = lines.find((line) => line.type === 'delta');
       const stopped = lines.find((line) => line.type === 'stopped');
-      assert.ok(locked, 'json watch should emit a startup lock event');
-      assert.ok(event, 'json watch should emit a delta event');
-      assert.ok(stopped, 'json watch should emit a stopped event');
-      assert.equal(locked.sessionId, sessionId);
-      assert.equal(event.type, 'delta');
-      assert.equal(event.runtime, 'claude-code');
-      assert.equal(event.sessionId, sessionId);
-      assert.equal(event.newRecords, 1);
-      assert.equal(event.digest.entries[0].text, 'json update payload');
+      expect(locked, 'json watch should emit a startup lock event').toBeTruthy();
+      expect(event, 'json watch should emit a delta event').toBeTruthy();
+      expect(stopped, 'json watch should emit a stopped event').toBeTruthy();
+      expect(locked.sessionId).toBe(sessionId);
+      expect(event.type).toBe('delta');
+      expect(event.runtime).toBe('claude-code');
+      expect(event.sessionId).toBe(sessionId);
+      expect(event.newRecords).toBe(1);
+      expect(event.digest.entries[0].text).toBe('json update payload');
     });
   });
 
@@ -491,7 +478,7 @@ describe('runWatchLoop', () => {
         },
       );
 
-      assert.equal(result.reason, 'max-runtime');
+      expect(result.reason).toBe('max-runtime');
       const lines = stdout
         .join('')
         .trim()
@@ -499,10 +486,10 @@ describe('runWatchLoop', () => {
         .filter(Boolean)
         .map((line) => JSON.parse(line));
       const heartbeat = lines.find((line) => line.type === 'heartbeat');
-      assert.ok(heartbeat, 'quiet json watch should emit a heartbeat');
-      assert.equal(heartbeat.recordsBehind, 0);
-      assert.equal(heartbeat.healthy, true);
-      assert.equal(heartbeat.targets[0].sessionId, sessionId);
+      expect(heartbeat, 'quiet json watch should emit a heartbeat').toBeTruthy();
+      expect(heartbeat.recordsBehind).toBe(0);
+      expect(heartbeat.healthy).toBe(true);
+      expect(heartbeat.targets[0].sessionId).toBe(sessionId);
     });
   });
 
@@ -543,7 +530,7 @@ describe('runWatchLoop', () => {
       );
 
       const result = await watchPromise;
-      assert.equal(result.eventCount, 1);
+      expect(result.eventCount).toBe(1);
 
       const lines = stdout
         .join('')
@@ -553,13 +540,13 @@ describe('runWatchLoop', () => {
         .map((line) => JSON.parse(line));
       const locked = lines.find((line) => line.type === 'baseline');
       const event = lines.find((line) => line.type === 'delta');
-      assert.ok(locked, 'runtime both should emit a startup lock event');
-      assert.ok(event, 'runtime both should emit a delta event');
-      assert.equal(event.type, 'delta');
-      assert.equal(event.runtime, 'claude-code');
-      assert.equal(event.sessionId, sessionId);
-      assert.equal(event.newRecords, 1);
-      assert.equal(event.digest.entries[0].text, 'both runtime update payload');
+      expect(locked, 'runtime both should emit a startup lock event').toBeTruthy();
+      expect(event, 'runtime both should emit a delta event').toBeTruthy();
+      expect(event.type).toBe('delta');
+      expect(event.runtime).toBe('claude-code');
+      expect(event.sessionId).toBe(sessionId);
+      expect(event.newRecords).toBe(1);
+      expect(event.digest.entries[0].text).toBe('both runtime update payload');
     });
   });
 
@@ -600,8 +587,8 @@ describe('runWatchLoop', () => {
         },
       );
 
-      assert.equal(result.reason, 'max-runtime');
-      assert.equal(result.eventCount, 1);
+      expect(result.reason).toBe('max-runtime');
+      expect(result.eventCount).toBe(1);
 
       const lines = stdout
         .join('')
@@ -610,10 +597,10 @@ describe('runWatchLoop', () => {
         .filter(Boolean)
         .map((line) => JSON.parse(line));
       const event = lines.find((line) => line.type === 'delta');
-      assert.ok(event, 'max runtime should flush the selected pending delta');
-      assert.equal(event.runtime, 'claude-code');
-      assert.equal(event.sessionId, sessionId);
-      assert.equal(event.digest.entries[0].text, 'both final flush update');
+      expect(event, 'max runtime should flush the selected pending delta').toBeTruthy();
+      expect(event.runtime).toBe('claude-code');
+      expect(event.sessionId).toBe(sessionId);
+      expect(event.digest.entries[0].text).toBe('both final flush update');
     });
   });
 
@@ -657,9 +644,9 @@ describe('runWatchLoop', () => {
         },
       );
 
-      assert.equal(appendedDuringSignature, true);
-      assert.equal(result.reason, 'max-runtime');
-      assert.equal(result.eventCount, 1);
+      expect(appendedDuringSignature).toBe(true);
+      expect(result.reason).toBe('max-runtime');
+      expect(result.eventCount).toBe(1);
 
       const lines = stdout
         .join('')
@@ -668,10 +655,10 @@ describe('runWatchLoop', () => {
         .filter(Boolean)
         .map((line) => JSON.parse(line));
       const event = lines.find((line) => line.type === 'delta');
-      assert.ok(event, 'baseline lock race should emit the appended delta');
-      assert.equal(event.runtime, 'claude-code');
-      assert.equal(event.sessionId, sessionId);
-      assert.equal(event.digest.entries[0].text, 'both baseline race update');
+      expect(event, 'baseline lock race should emit the appended delta').toBeTruthy();
+      expect(event.runtime).toBe('claude-code');
+      expect(event.sessionId).toBe(sessionId);
+      expect(event.digest.entries[0].text).toBe('both baseline race update');
     });
   });
 
@@ -735,24 +722,13 @@ describe('runWatchLoop', () => {
           return null;
         return state;
       });
-      assert.deepEqual(
-        activeState.watchers.map((watcher: any) => watcher.pid),
-        [111, 222],
-      );
-      assert.deepEqual(
-        activeState.watchers.map((watcher: any) => watcher.targets[0]?.runtime),
-        ['claude-code', 'codex'],
-      );
+      expect(activeState.watchers.map((watcher: any) => watcher.pid)).toEqual([111, 222]);
+      expect(activeState.watchers.map((watcher: any) => watcher.targets[0]?.runtime)).toEqual(['claude-code', 'codex']);
 
       const results = await Promise.all([watcherA, watcherB]);
-      assert.deepEqual(
-        results.map((result: any) => result.reason),
-        ['max-runtime', 'max-runtime'],
-      );
-      assert.ok(
-        stdoutA.join('').includes('baseline claude-code:same-cwd-claude'),
-      );
-      assert.ok(stdoutB.join('').includes('baseline codex:same-cwd-codex'));
+      expect(results.map((result: any) => result.reason)).toEqual(['max-runtime', 'max-runtime']);
+      expect(stdoutA.join('').includes('baseline claude-code:same-cwd-claude')).toBeTruthy();
+      expect(stdoutB.join('').includes('baseline codex:same-cwd-codex')).toBeTruthy();
     });
   });
 
@@ -789,7 +765,7 @@ describe('runWatchLoop', () => {
       });
 
       const stdoutB: string[] = [];
-      await assert.rejects(
+      await expect(
         () =>
           runWatchLoop(
             {
@@ -805,18 +781,14 @@ describe('runWatchLoop', () => {
               writeStdout: (chunk: string) => stdoutB.push(chunk),
             },
           ),
-        /already watching claude-code:duplicate-target/,
-      );
-      assert.ok(stdoutB.join('').includes('already watching'));
+      ).rejects.toThrow(/already watching claude-code:duplicate-target/);
+      expect(stdoutB.join('').includes('already watching')).toBeTruthy();
 
       const watchJson = await readJsonIfExists(join(stateDir, 'watch.json'));
-      assert.deepEqual(
-        watchJson.watchers.map((watcher: any) => watcher.pid),
-        [111],
-      );
+      expect(watchJson.watchers.map((watcher: any) => watcher.pid)).toEqual([111]);
 
       const result = await watcherA;
-      assert.equal(result.reason, 'max-runtime');
+      expect(result.reason).toBe('max-runtime');
     });
   });
 
@@ -864,22 +836,13 @@ describe('runWatchLoop', () => {
         (result): result is PromiseFulfilledResult<any> =>
           result.status === 'fulfilled',
       );
-      assert.equal(
-        rejected.length,
-        1,
-        `exactly one watcher should lose the startup race: ${JSON.stringify(settled)}`,
-      );
-      assert.match(
-        rejected[0].reason.message,
-        /already watching claude-code:duplicate-target-race/,
-      );
-      assert.equal(fulfilled[0].value.reason, 'max-runtime');
-      assert.ok(
-        (stdoutA.join('') + stdoutB.join('')).includes('already watching'),
-      );
+      expect(rejected.length, `exactly one watcher should lose the startup race: ${JSON.stringify(settled)}`).toBe(1);
+      expect(rejected[0].reason.message).toMatch(/already watching claude-code:duplicate-target-race/);
+      expect(fulfilled[0].value.reason).toBe('max-runtime');
+      expect((stdoutA.join('') + stdoutB.join('')).includes('already watching')).toBeTruthy();
 
       const watchJson = await readJsonIfExists(join(stateDir, 'watch.json'));
-      assert.deepEqual(watchJson?.watchers ?? [], []);
+      expect(watchJson?.watchers ?? []).toEqual([]);
     });
   });
 
@@ -923,24 +886,20 @@ describe('runWatchLoop', () => {
           HOME: home,
           STATE_DIR: stateDir,
         });
-        assert.equal(
-          result.status,
-          0,
-          `status should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
-        );
+        expect(result.status, `status should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(0);
         const payload = JSON.parse(result.stdout);
         const target = payload.targets?.[0];
         return target?.recordsBehind === 1 ? payload : null;
       });
 
-      assert.equal(statusPayload.requestedRuntime, 'auto');
-      assert.equal(statusPayload.resolvedRuntime, 'codex');
-      assert.equal(statusPayload.sessionId, sessionId);
-      assert.equal(statusPayload.transcriptPath, transcriptPath);
-      assert.equal(statusPayload.targets[0].transcriptRecords, 3);
-      assert.equal(statusPayload.targets[0].lastRecordIndex, 2);
-      assert.equal(statusPayload.targets[0].consumedThrough, 1);
-      assert.equal(statusPayload.targets[0].recordsBehind, 1);
+      expect(statusPayload.requestedRuntime).toBe('auto');
+      expect(statusPayload.resolvedRuntime).toBe('codex');
+      expect(statusPayload.sessionId).toBe(sessionId);
+      expect(statusPayload.transcriptPath).toBe(transcriptPath);
+      expect(statusPayload.targets[0].transcriptRecords).toBe(3);
+      expect(statusPayload.targets[0].lastRecordIndex).toBe(2);
+      expect(statusPayload.targets[0].consumedThrough).toBe(1);
+      expect(statusPayload.targets[0].recordsBehind).toBe(1);
 
       await watchState.writeControlDirective('stop');
       await watchPromise;
@@ -1021,22 +980,14 @@ describe('runWatchLoop', () => {
         HOME: home,
         STATE_DIR: stateDir,
       });
-      assert.equal(
-        result.status,
-        0,
-        `status should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
-      );
+      expect(result.status, `status should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(0);
       const payload = JSON.parse(result.stdout);
 
-      assert.equal(payload.active, true);
-      assert.equal(payload.healthy, false);
-      assert.equal(payload.targets[0].recordsBehind, 3);
-      assert.ok(
-        payload.targets[0].healthReasons.includes('records-behind-stale'),
-      );
-      assert.ok(
-        payload.targets[0].healthReasons.includes('poll-heartbeat-stale'),
-      );
+      expect(payload.active).toBe(true);
+      expect(payload.healthy).toBe(false);
+      expect(payload.targets[0].recordsBehind).toBe(3);
+      expect(payload.targets[0].healthReasons.includes('records-behind-stale')).toBeTruthy();
+      expect(payload.targets[0].healthReasons.includes('poll-heartbeat-stale')).toBeTruthy();
     });
   });
 
@@ -1063,32 +1014,23 @@ describe('runWatchLoop', () => {
         },
       );
 
-      assert.equal(result.reason, 'max-runtime');
-      assert.equal(result.eventCount, 0);
+      expect(result.reason).toBe('max-runtime');
+      expect(result.eventCount).toBe(0);
       const lines = stdout
         .join('')
         .trim()
         .split('\n')
         .filter(Boolean)
         .map((line) => JSON.parse(line));
-      assert.ok(lines.some((line) => line.type === 'stopped'));
-      assert.equal(
-        lines.some((line) => line.type === 'baseline'),
-        false,
-      );
-      assert.equal(
-        lines.some((line) => line.type === 'delta'),
-        false,
-      );
+      expect(lines.some((line) => line.type === 'stopped')).toBeTruthy();
+      expect(lines.some((line) => line.type === 'baseline')).toBe(false);
+      expect(lines.some((line) => line.type === 'delta')).toBe(false);
 
       const state = await readJsonIfExists(join(stateDir, 'state.json'));
-      assert.equal(state?.sessions?.[`cursor:${sessionId}`], undefined);
-      assert.equal(
-        Object.keys(state?.sessions ?? {}).some((key) =>
+      expect(state?.sessions?.[`cursor:${sessionId}`]).toBe(undefined);
+      expect(Object.keys(state?.sessions ?? {}).some((key) =>
           key.startsWith('cursor:'),
-        ),
-        false,
-      );
+        )).toBe(false);
     });
   });
 
@@ -1132,17 +1074,17 @@ describe('runWatchLoop', () => {
       await watchPromise;
 
       const raw = await readFile(resolvedEventLog, 'utf8');
-      assert.equal(raw.includes('event log content must stay out'), false);
+      expect(raw.includes('event log content must stay out')).toBe(false);
 
       const lines = raw.trim().split('\n').filter(Boolean);
-      assert.equal(lines.length, 1);
+      expect(lines.length).toBe(1);
       const event = JSON.parse(lines[0]);
-      assert.equal(event.type, 'delta');
-      assert.equal(event.runtime, 'claude-code');
-      assert.equal(event.sessionId, sessionId);
-      assert.equal(event.newRecords, 1);
-      assert.equal(typeof event.digestChars, 'number');
-      assert.deepEqual(Object.keys(event.ranges).toSorted(), [
+      expect(event.type).toBe('delta');
+      expect(event.runtime).toBe('claude-code');
+      expect(event.sessionId).toBe(sessionId);
+      expect(event.newRecords).toBe(1);
+      expect(typeof event.digestChars).toBe('number');
+      expect(Object.keys(event.ranges).toSorted()).toEqual([
         'fromIndex',
         'nextIndex',
         'renderedFromIndex',
@@ -1150,8 +1092,8 @@ describe('runWatchLoop', () => {
         'toIndex',
         'totalRecords',
       ]);
-      assert.equal('digest' in event, false);
-      assert.equal('entries' in event, false);
+      expect('digest' in event).toBe(false);
+      expect('entries' in event).toBe(false);
     });
   });
 
@@ -1165,24 +1107,22 @@ describe('runWatchLoop', () => {
         maxRuntimeMin: 0.001,
       };
 
-      await assert.rejects(
+      await expect(
         runWatchLoop(
           { ...options, eventLog: join('..', 'outside.jsonl') },
           {
             writeStdout: () => {},
           },
         ),
-        /--event-log must stay under the session-observer state directory/,
-      );
-      await assert.rejects(
+      ).rejects.toThrow(/--event-log must stay under the session-observer state directory/);
+      await expect(
         runWatchLoop(
           { ...options, eventLog: join(home, 'outside.jsonl') },
           {
             writeStdout: () => {},
           },
         ),
-        /--event-log must stay under the session-observer state directory/,
-      );
+      ).rejects.toThrow(/--event-log must stay under the session-observer state directory/);
     });
   });
 
@@ -1203,27 +1143,25 @@ describe('runWatchLoop', () => {
         maxRuntimeMin: 0.001,
       };
 
-      await assert.rejects(
+      await expect(
         runWatchLoop(
           { ...options, eventLog: 'events.jsonl' },
           {
             writeStdout: () => {},
           },
         ),
-        /--event-log must stay under the session-observer state directory/,
-      );
-      await assert.rejects(
+      ).rejects.toThrow(/--event-log must stay under the session-observer state directory/);
+      await expect(
         runWatchLoop(
           { ...options, eventLog: join('linked-logs', 'events.jsonl') },
           {
             writeStdout: () => {},
           },
         ),
-        /--event-log must stay under the session-observer state directory/,
-      );
+      ).rejects.toThrow(/--event-log must stay under the session-observer state directory/);
 
-      assert.equal(await readFile(outsideLog, 'utf8'), '');
-      assert.equal(await readJsonIfExists(join(stateDir, 'watch.json')), null);
+      expect(await readFile(outsideLog, 'utf8')).toBe('');
+      expect(await readJsonIfExists(join(stateDir, 'watch.json'))).toBe(null);
     });
   });
 
@@ -1251,15 +1189,14 @@ describe('runWatchLoop', () => {
       ];
 
       for (const eventLog of reservedEventLogs) {
-        await assert.rejects(
+        await expect(
           runWatchLoop(
             { ...options, eventLog },
             {
               writeStdout: () => {},
             },
           ),
-          /--event-log cannot use session-observer state, lock, temp, or backup files/,
-        );
+        ).rejects.toThrow(/--event-log cannot use session-observer state, lock, temp, or backup files/);
       }
     });
   });
@@ -1315,17 +1252,14 @@ describe('runWatchLoop', () => {
         return lastPollAtMs > firstStampAfterAppendMs;
       });
 
-      assert.ok(
-        !stdout.join('').includes('paused update'),
-        'paused watcher should not emit settled updates',
-      );
+      expect(!stdout.join('').includes('paused update'), 'paused watcher should not emit settled updates').toBeTruthy();
 
       await watchState.writeControlDirective('resume');
       const result = await watchPromise;
 
-      assert.equal(result.reason, 'max-runtime');
-      assert.equal(result.eventCount, 1);
-      assert.ok(stdout.join('').includes('paused update'));
+      expect(result.reason).toBe('max-runtime');
+      expect(result.eventCount).toBe(1);
+      expect(stdout.join('').includes('paused update')).toBeTruthy();
     });
   });
 
@@ -1380,8 +1314,8 @@ describe('runWatchLoop', () => {
       await watchState.writeControlDirective('flush');
 
       const result = await watchPromise;
-      assert.equal(result.eventCount, 1);
-      assert.ok(stdout.join('').includes('flush update'));
+      expect(result.eventCount).toBe(1);
+      expect(stdout.join('').includes('flush update')).toBeTruthy();
     });
   });
 
@@ -1413,17 +1347,14 @@ describe('runWatchLoop', () => {
       await watchState.writeControlDirective('stop');
 
       const result = await watchPromise;
-      assert.equal(result.reason, 'control-stop');
-      assert.ok(stdout.join('').includes('watch stopped reason=control-stop'));
+      expect(result.reason).toBe('control-stop');
+      expect(stdout.join('').includes('watch stopped reason=control-stop')).toBeTruthy();
 
       const watchJson = JSON.parse(
         await readFile(join(stateDir, 'watch.json'), 'utf8'),
       );
-      assert.equal(watchJson.active, null);
-      assert.equal(
-        await readJsonIfExists(join(stateDir, 'watch.control.json')),
-        null,
-      );
+      expect(watchJson.active).toBe(null);
+      expect(await readJsonIfExists(join(stateDir, 'watch.control.json'))).toBe(null);
     });
   });
 
@@ -1451,18 +1382,11 @@ describe('runWatchLoop', () => {
           env: { ...process.env, HOME: home, STATE_DIR: stateDir },
         },
       );
-      assert.equal(
-        stopResult.status,
-        0,
-        `inactive stop should exit 0\nstdout: ${stopResult.stdout}\nstderr: ${stopResult.stderr}`,
-      );
+      expect(stopResult.status, `inactive stop should exit 0\nstdout: ${stopResult.stdout}\nstderr: ${stopResult.stderr}`).toBe(0);
       const stopPayload = JSON.parse(stopResult.stdout);
-      assert.equal(stopPayload.noActiveWatcher, true);
-      assert.equal(stopPayload.active, false);
-      assert.equal(
-        await readJsonIfExists(join(stateDir, 'watch.control.json')),
-        null,
-      );
+      expect(stopPayload.noActiveWatcher).toBe(true);
+      expect(stopPayload.active).toBe(false);
+      expect(await readJsonIfExists(join(stateDir, 'watch.control.json'))).toBe(null);
 
       const stdout: string[] = [];
       const watchPromise = runWatchLoop(
@@ -1492,11 +1416,9 @@ describe('runWatchLoop', () => {
       );
 
       const result = await watchPromise;
-      assert.equal(result.reason, 'max-runtime');
-      assert.equal(result.eventCount, 1);
-      assert.ok(
-        stdout.join('').includes('next watcher update after inactive stop'),
-      );
+      expect(result.reason).toBe('max-runtime');
+      expect(result.eventCount).toBe(1);
+      expect(stdout.join('').includes('next watcher update after inactive stop')).toBeTruthy();
     });
   });
 
@@ -1547,17 +1469,14 @@ describe('runWatchLoop', () => {
         child.kill('SIGTERM');
         const [code, signal] = await once(child, 'exit');
 
-        assert.equal(signal, null);
-        assert.equal(code, 0);
+        expect(signal).toBe(null);
+        expect(code).toBe(0);
 
         const watchJson = JSON.parse(
           await readFile(join(stateDir, 'watch.json'), 'utf8'),
         );
-        assert.equal(watchJson.active, null);
-        assert.equal(
-          await readJsonIfExists(join(stateDir, 'watch.control.json')),
-          null,
-        );
+        expect(watchJson.active).toBe(null);
+        expect(await readJsonIfExists(join(stateDir, 'watch.control.json'))).toBe(null);
       } finally {
         if (!child.killed) child.kill('SIGKILL');
       }
