@@ -100,7 +100,8 @@ informs the guided-flow design):
 - **Rubric parsing is intentionally loose.** `extractRubricCriteria` reads only
   level-2 through level-6 headings and `-`/`*` bullets, dedupes matches, and caps
   the initial criteria list at 12. It does not interpret weights, numeric
-  scales, or pass/fail markers structurally.
+  scales, or pass/fail markers structurally. The cap is silent, so example
+  rubrics must keep the load-bearing criteria at 12 or fewer.
 - **The raw wrapper still hard-requires `--rubric`.** Missing `--rubric <path>`
   throws before evaluation starts. Guided creation therefore belongs in
   host-model SKILL.md instructions unless a later design explicitly changes the
@@ -123,8 +124,9 @@ informs the guided-flow design):
 
 - Add `## When NOT to Use`, `## Examples` (Basic + Conversational), and
   `## Success Criteria` to `refine/SKILL.md` and `evaluate/SKILL.md`.
-- Frontmatter: add `argument-hint`; promote `version` to top-level (retain the
-  `metadata` block / author).
+- Frontmatter: add `argument-hint`; promote `version` to top-level while
+  retaining the `metadata` block / author, and update validation so the promoted
+  field is meaningful rather than decorative.
 - Preserve sibling parity and the existing topical-section style where it is
   more appropriate than rigid "Step N" naming (the skills are contract/reference
   skills, not linear workflows).
@@ -145,7 +147,22 @@ informs the guided-flow design):
    avoid divergence (current strongest local norm is refine↔evaluate symmetry).
 3. **Bundled, not repo-root, references:** Example rubrics ship inside the
    skill's `references/` so they resolve wherever the skill is installed.
-4. **Mode:** Quick.
+4. **Rubric authoring convention:** Use parser-aligned rich prose. Headings and
+   bullets are the machine-visible criteria; optional weights, scales, examples,
+   or pass/fail notes are peer-facing guidance. Keep each bundled rubric to 12 or
+   fewer load-bearing criteria because the wrapper silently ignores later
+   criteria.
+5. **Guided trigger:** The agent path offers rubric creation both when the user
+   explicitly asks for rubric help and when the user asks to evaluate without a
+   rubric. The raw wrapper still hard-requires `--rubric`.
+6. **Drafted rubric location:** The host-model flow writes rubric drafts only to
+   a user-approved workspace path, with a sensible default near the evaluated
+   artifact or run directory. The deterministic wrapper does not become
+   interactive.
+7. **Frontmatter version:** Add top-level `version` and update validation to
+   recognize it so the best-practice field is backed by tooling. Retain
+   `metadata.version` during the compatibility transition.
+8. **Mode:** Quick.
 
 ## Constraints
 
@@ -159,6 +176,9 @@ informs the guided-flow design):
   the 1 MiB input cap. Host-model rubric drafts should be written only to a
   user-approved path within the active workspace unless the user explicitly asks
   otherwise.
+- **Rubric criteria cap:** Bundled examples and generated rubric drafts must keep
+  their load-bearing criteria at 12 or fewer, because the current wrapper derives
+  initial evaluation sections from the first 12 distinct headings/bullets.
 - **Branch reality:** This placeholder lives on the `concensus-evaluate` working
   branch, where the `evaluate` skill is already present, so implementation can
   build on it directly once discovery is revalidated.
@@ -168,10 +188,14 @@ informs the guided-flow design):
 ## Success Criteria
 
 - Both skills carry `## When NOT to Use`, `## Examples` (both styles),
-  `## Success Criteria`, `argument-hint`, and top-level `version`, consistently.
-- `evaluate/references/` ships the four example rubrics, bundled.
+  `## Success Criteria`, `argument-hint`, and top-level `version`, consistently;
+  validation recognizes the promoted version field while preserving compatibility
+  with existing `metadata.version`.
+- `evaluate/references/` ships the four example rubrics, bundled, with no more
+  than 12 load-bearing criteria per rubric.
 - `evaluate/SKILL.md` documents a guided rubric-creation flow that produces a
-  rubric file and runs the wrapper; the raw-CLI `--rubric` path still works.
+  rubric file in a user-approved workspace path and runs the wrapper; the raw-CLI
+  `--rubric` path still works.
 - Skills-validation / build / validate / smoke suites pass; no runtime deps
   added; no generated `.mjs` hand-edited.
 
@@ -184,22 +208,11 @@ informs the guided-flow design):
 - New iteration modes or scoring engines.
 - Bundling example rubrics into `refine` (rubrics are an evaluate concept).
 
-## Open Questions (resolve before planning)
+## Open Questions
 
-- **Rubric authoring convention:** Given the parser extracts headings and
-  bullets only, should bundled rubrics standardize on 12 or fewer visible
-  criteria with optional weights/scales treated as peer-facing guidance rather
-  than machine-parsed structure?
-- **Guided trigger:** Should the agent path offer rubric creation whenever the
-  user wants evaluation but has no rubric yet, or only when the user explicitly
-  asks for help building a rubric? The raw wrapper remains hard-require
-  `--rubric`.
-- **Where the drafted rubric is written:** alongside the artifact, in a run-dir,
-  or a user-chosen path.
-- **Frontmatter `version` promotion:** Should implementation add top-level
-  `version` as a compatibility/documentation field while retaining
-  `metadata.version`, or update validation semantics so the promoted field is
-  meaningful?
+No discovery questions are currently blocking planning. The next workflow
+decision is whether this quick project should go straight to an implementation
+plan or produce a lightweight design note first.
 
 ## Assumptions (to validate)
 
@@ -208,7 +221,8 @@ informs the guided-flow design):
   branch is the basis for the work.
 - Host-model-driven guidance is sufficient for "collaborative rubric creation"
   without new runtime code.
-- Other providers safely ignore the added Claude-specific frontmatter fields.
+- Other providers safely ignore the added frontmatter fields, or validation
+  changes identify any provider-specific compatibility work before release.
 
 ## Risks
 
@@ -217,14 +231,16 @@ informs the guided-flow design):
     a parity check if cheap.
 - **Validation surprises:** `version` promotion / `argument-hint` tripping the
   skills-validation or generated-output suites.
-  - Likelihood: Low/Medium · Impact: Low · Mitigation: run `pnpm test`,
-    `pnpm run validate`, and skills validation early in implementation.
+  - Likelihood: Low/Medium · Impact: Low · Mitigation: update validator tests
+    with the version change, then run `pnpm test`, `pnpm run validate`, and
+    skills validation early in implementation.
 
 ## Next Steps
 
-**Do not plan yet.** Before generating the quick implementation plan:
+**Discovery decisions are captured.** Before generating the quick implementation
+plan:
 
-1. Confirm the remaining Open Questions above.
+1. Choose straight-to-plan or lightweight design first.
 2. Mark discovery complete and ready for quick planning.
 3. Replace the scaffolded `plan.md` with concrete implementation tasks, or add a
    lightweight design note first only if the rubric authoring convention needs
