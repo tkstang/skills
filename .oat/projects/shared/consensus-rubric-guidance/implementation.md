@@ -158,7 +158,8 @@ Document any intentional deviations from the original plan, spec, or design. Inc
 
 | Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
 | ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
-| -             | -               | -                    | -                 | -      | -               | -         |
+| p03-t02 | plan.md (optional polish) | Optional: remove unreachable `isValidSemver(effective)` branch in `scripts/validate.mjs` | Applied | Branch is provably dead: both top-level and metadata versions are semver-validated earlier, so `effective` is always valid by that point | `scripts/validate.mjs` | None; all gates green |
+| p03-t02 | plan.md (optional polish) | Optional: demote `## How to adapt this rubric` heading in rubric examples so it is not parsed as a spurious criterion | Applied (demoted to bold `**How to adapt this rubric**`) in all four example files | Keeps examples at <=12 machine-visible heading/bullet criteria; no test asserts on the heading text | `plugins/consensus/skills/evaluate/references/examples/*.md` | None; all gates green |
 
 ## Test Results
 

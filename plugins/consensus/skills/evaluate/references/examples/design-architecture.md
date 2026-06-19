@@ -68,7 +68,7 @@ _Weight: low._
 
 ---
 
-## How to adapt this rubric
+**How to adapt this rubric**
 
 1. For an ADR evaluating a specific technology choice, weight Decision Rationale and Alternatives Considered most heavily.
 2. For a system design covering a user-facing product, add a User Experience Impact criterion.

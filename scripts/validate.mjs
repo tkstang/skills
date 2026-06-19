@@ -180,10 +180,6 @@ function resolveEffectiveSkillVersion(parsed, sourceLabel) {
     return `${sourceLabel} version mismatch: top-level version "${topLevel}" does not match metadata.version "${metaVersion}"`;
   }
 
-  if (!isValidSemver(effective)) {
-    return `${sourceLabel} metadata.version must be valid semver`;
-  }
-
   return null;
 }
 

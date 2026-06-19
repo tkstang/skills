@@ -68,7 +68,7 @@ _Weight: low._
 
 ---
 
-## How to adapt this rubric
+**How to adapt this rubric**
 
 1. Remove criteria irrelevant to the PR type (e.g., omit Backwards Compatibility for a pure internal refactor).
 2. Add project-specific criteria such as migration safety, feature-flag discipline, or observability requirements.

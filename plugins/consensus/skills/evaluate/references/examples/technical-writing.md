@@ -68,7 +68,7 @@ _Weight: low._
 
 ---
 
-## How to adapt this rubric
+**How to adapt this rubric**
 
 1. For API reference, weight Accuracy and Code Sample Quality highest.
 2. For tutorials, weight Task Orientation and Error Guidance highest.

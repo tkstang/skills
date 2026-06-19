@@ -68,7 +68,7 @@ _Weight: low._
 
 ---
 
-## How to adapt this rubric
+**How to adapt this rubric**
 
 1. Remove criteria that do not apply to your artifact type.
 2. Add domain-specific criteria (keep the total at 12 or fewer headings/bullets).
