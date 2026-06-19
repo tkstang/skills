@@ -22,8 +22,12 @@ import {
   EXIT_CODES,
   exitCodeForError,
   hashArtifact,
+  invokeConsensusProviderCli,
+  invokeProviderCliWithRetry,
   invalidIterationModeError,
   ITERATION_MODES,
+  peerSchemaPathForMode,
+  resolveConsensusCliPath,
   runConsensusLoop,
 } from '../core/consensus-loop.js';
 
@@ -33,6 +37,7 @@ type AgencyValue = 'minimal' | 'moderate' | 'maximum';
 type ColdStartValue = 'shared_input' | 'independent_draft';
 type WrapperMode = 'sequential' | 'prepare_parallel' | 'fan_in';
 type HostId = 'claude' | 'codex' | 'cursor' | 'unknown';
+type ProviderBackend = 'paseo' | 'provider-cli';
 type LoopRunOptions = NonNullable<Parameters<typeof runConsensusLoop>[1]>;
 type LoopPeerInvoker = NonNullable<LoopRunOptions['invokePeer']>;
 type LoopSynthesizerInvoker = NonNullable<LoopRunOptions['invokeSynthesizer']>;
@@ -318,6 +323,7 @@ interface WrapperOptions extends JsonRecord {
   invokeSynthesizer?: LoopSynthesizerInvoker;
   runCommand?: CommandRunner;
   sizeCapBytes?: number;
+  providerBackend?: ProviderBackend;
 }
 
 interface ParsedWrapperOptions extends WrapperOptions {
@@ -1988,12 +1994,15 @@ function validateProviderId(providerId: unknown, label = 'provider id') {
 // that will settle to broken; the operator-qa guidance to confirm providers are
 // "available" before a run covers that window.
 const PROVIDER_UNAVAILABLE_STATUSES = new Set([
+  'auth_required',
   'error',
+  'missing',
   'unavailable',
   'not found',
   'notfound',
   'disabled',
   'offline',
+  'unsupported',
 ]);
 
 function providerEntryAvailable(entry: ProviderInventoryEntry) {
@@ -2123,6 +2132,18 @@ function missingPaseoError(cause: unknown) {
   error.cause = cause;
   error.remediation = PASEO_REMEDIATION;
   return error;
+}
+
+function missingConsensusProviderCliError(command: string, cause: unknown) {
+  return new ConsensusError(
+    `consensus provider CLI appears to be missing or unavailable at ${command}. Set CONSENSUS_CLI_PATH or run pnpm run build before selecting the provider CLI backend.`,
+    {
+      code: 'CONSENSUS_PROVIDER_CLI_MISSING',
+      exitCode: EXIT_CODES.CONFIG,
+      cause,
+      details: { command },
+    },
+  );
 }
 
 export async function readInputFile(
@@ -2881,6 +2902,38 @@ export function renderDeliberationArtifact(runResult: WrapperRunResult) {
     .replace(/\s+$/u, '')}\n`;
 }
 
+function providerCliLoopInvokers({
+  env,
+  cwd,
+  iteration,
+}: {
+  env: NodeJS.ProcessEnv;
+  cwd: string;
+  iteration: IterationModeValue;
+}): Pick<LoopRunOptions, 'invokePeer' | 'invokeSynthesizer'> {
+  return {
+    invokePeer: (turn) =>
+      invokeProviderCliWithRetry(
+        {
+          provider: turn.provider,
+          schemaPath: turn.schemaPath ?? peerSchemaPathForMode(iteration),
+          prompt: turn.prompt,
+          env,
+          cwd,
+        },
+        { mode: iteration },
+      ),
+    invokeSynthesizer: (call) =>
+      invokeConsensusProviderCli({
+        provider: call.provider,
+        schemaPath: call.schemaPath,
+        prompt: call.prompt,
+        env,
+        cwd,
+      }),
+  };
+}
+
 export async function runSequential(
   options: readonly string[] | WrapperOptions,
   runOptions: WrapperRunOptions = {},
@@ -2896,6 +2949,7 @@ export async function runSequential(
   const startMs = Date.now();
   const markdown = await readInputFile(inputPath);
   const parsedSections = parseSections(markdown);
+  const providerBackend = selectProviderBackend(normalized, env);
   const runDir = await resolveRunDir({ ...normalized, cwd });
   const outputPath = await resolveOutputPath({ ...normalized, cwd }, inputPath);
   const resumePath = await resolveResumePath({ ...normalized, cwd });
@@ -2916,7 +2970,7 @@ export async function runSequential(
   const preflight =
     normalized.preflight === false
       ? { peers: normalized.peers ?? ['claude', 'codex'], warnings: [] }
-      : await (normalized.preflight ?? preflightPaseo)({
+      : await (normalized.preflight ?? preflightForBackend(providerBackend))({
           ...normalized,
           env,
           cwd,
@@ -2930,6 +2984,10 @@ export async function runSequential(
   const resumeSections = sectionLookup(resumeState?.sections);
   const runSections = sequentialRunSections(parsedSections, resumeState);
   const sectionResults: SectionResult[] = [];
+  const providerCliInvokers =
+    providerBackend === 'provider-cli'
+      ? providerCliLoopInvokers({ env, cwd, iteration: normalized.iteration })
+      : {};
 
   for (const section of runSections) {
     const sectionDir = sectionRunDirectory(runDir, section);
@@ -3028,9 +3086,14 @@ export async function runSequential(
       const loopRunOptions = {
         env,
         cwd,
-        invokePeer: normalized.invokePeer ?? runOptions.invokePeer,
+        invokePeer:
+          normalized.invokePeer ??
+          runOptions.invokePeer ??
+          providerCliInvokers.invokePeer,
         invokeSynthesizer:
-          normalized.invokeSynthesizer ?? runOptions.invokeSynthesizer,
+          normalized.invokeSynthesizer ??
+          runOptions.invokeSynthesizer ??
+          providerCliInvokers.invokeSynthesizer,
         initialRecords: asLoopInitialRecords(resumeSection?.records),
         initialArtifact: sectionInput,
         userDirection: resumeSection?.inFlight
@@ -3157,13 +3220,14 @@ export async function prepareParallelRun(
   const startedAt = nowIso();
   const markdown = await readInputFile(inputPath);
   const parsedSections = parseSections(markdown);
+  const providerBackend = selectProviderBackend(normalized, env);
   const runDir = await resolveRunDir({ ...normalized, cwd });
   const outputPath = await resolveOutputPath({ ...normalized, cwd }, inputPath);
   const runWriteRoot = path.resolve(normalized.allowRoot ?? cwd);
   const preflight =
     normalized.preflight === false
       ? { peers: normalized.peers ?? ['claude', 'codex'], warnings: [] }
-      : await (normalized.preflight ?? preflightPaseo)({
+      : await (normalized.preflight ?? preflightForBackend(providerBackend))({
           ...normalized,
           env,
           cwd,
@@ -3580,6 +3644,149 @@ export function resolveSynthesizer(
   }
 
   return { synthesizer, warnings };
+}
+
+function providerBackendFromEnv(env: NodeJS.ProcessEnv): ProviderBackend {
+  const value = env.CONSENSUS_PROVIDER_BACKEND?.trim().toLowerCase();
+  if (value === 'provider-cli' || value === 'cli') return 'provider-cli';
+  return 'paseo';
+}
+
+export function selectProviderBackend(
+  options: Pick<WrapperOptions, 'providerBackend'> = {},
+  env: NodeJS.ProcessEnv = process.env,
+): ProviderBackend {
+  return options.providerBackend ?? providerBackendFromEnv(env);
+}
+
+function preflightForBackend(backend: ProviderBackend) {
+  return backend === 'provider-cli'
+    ? preflightConsensusProviderCli
+    : preflightPaseo;
+}
+
+function providerCliUnavailableError(
+  providers: NormalizedProviderInventoryEntry[],
+  selected: string[],
+) {
+  const byId = new Map(providers.map((entry) => [entry.id, entry]));
+  const details = selected.map((id) => {
+    const entry = byId.get(id);
+    return {
+      id,
+      status: String(entry?.status ?? (entry ? 'unavailable' : 'missing')),
+    };
+  });
+  const summary = details
+    .map((entry) => `${entry.id} (${entry.status})`)
+    .join(', ');
+  return new ConsensusError(
+    `Consensus providers are unavailable: ${summary}. Run "consensus preflight --json --provider <id>" and resolve provider authentication or availability before retrying.`,
+    {
+      code: 'PEER_UNAVAILABLE',
+      exitCode: EXIT_CODES.CONFIG,
+      details: { providers: details },
+    },
+  );
+}
+
+function resolveProviderCliPeers(
+  options: Pick<WrapperOptions, 'peers'> = {},
+  host: HostId = 'unknown',
+  providerInventory: ProviderInventoryInput = [],
+) {
+  const defaultPeers =
+    host === 'codex' ? ['codex', 'claude'] : ['claude', 'codex'];
+  const peers = options.peers ?? defaultPeers;
+  const inventory = normalizeProviderInventory(providerInventory);
+  const byId = new Map(inventory.map((entry) => [entry.id, entry]));
+  const unavailable = peers.filter((peer) => byId.get(peer)?.available !== true);
+
+  if (unavailable.length > 0) {
+    throw providerCliUnavailableError(inventory, unavailable);
+  }
+
+  return { peers, inventory };
+}
+
+function parseProviderCliEnvelope(stdout: string, label: string): JsonRecord {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(stdout) as unknown;
+  } catch (error) {
+    throw new Error(
+      `consensus ${label} output was not valid JSON: ${asErrorLike(error).message}`,
+      { cause: error },
+    );
+  }
+
+  if (!isJsonRecord(parsed) || parsed.schema_version !== 'v1') {
+    throw new Error(`consensus ${label} output was not a v1 JSON envelope`);
+  }
+  return parsed;
+}
+
+export async function preflightConsensusProviderCli(
+  options: Pick<WrapperOptions, 'runCommand' | 'env' | 'cwd' | 'peers'> = {},
+): Promise<PreflightResult> {
+  const runCommand: CommandRunner = options.runCommand ?? defaultRunCommand;
+  const env = options.env ?? process.env;
+  const cwd = options.cwd ?? process.cwd();
+  const command = resolveConsensusCliPath({ env });
+
+  let inventoryOutput: CommandRunnerResult;
+  try {
+    inventoryOutput = await runCommand(command, ['provider', 'ls', '--json'], {
+      env,
+      cwd,
+    });
+  } catch (error) {
+    const details = asErrorLike(error);
+    if (
+      details.code === 'ENOENT' ||
+      /ENOENT|not found/i.test(details.message ?? '')
+    ) {
+      throw missingConsensusProviderCliError(command, error);
+    }
+    throw error;
+  }
+
+  const inventoryEnvelope = parseProviderCliEnvelope(
+    inventoryOutput.stdout,
+    'provider inventory',
+  );
+  const providerInventory = normalizeProviderInventory(
+    inventoryEnvelope.providers,
+  );
+  const host = detectHost(env);
+  const resolved = resolveProviderCliPeers(options, host, providerInventory);
+
+  for (const peer of resolved.peers) {
+    const preflightOutput = await runCommand(
+      command,
+      ['preflight', '--json', '--provider', peer],
+      { env, cwd },
+    );
+    const preflightEnvelope = parseProviderCliEnvelope(
+      preflightOutput.stdout,
+      `${peer} preflight`,
+    );
+    if (preflightEnvelope.usable !== true) {
+      throw providerCliUnavailableError(
+        normalizeProviderInventory(preflightEnvelope.providers),
+        [peer],
+      );
+    }
+  }
+
+  return {
+    ok: true,
+    version: 'provider-cli',
+    providerInventory: resolved.inventory,
+    host,
+    peers: resolved.peers,
+    warnings: [],
+  };
 }
 
 export async function preflightPaseo(

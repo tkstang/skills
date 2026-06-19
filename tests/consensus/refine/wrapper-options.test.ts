@@ -1,3 +1,7 @@
+import { chmod, mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+
 import { expect, it } from 'vitest';
 
 // @ts-expect-error The generated runtime is intentionally declaration-free; this test exercises the shipped artifact.
@@ -8,10 +12,12 @@ const {
   MIN_PASEO_VERSION,
   detectHost,
   parseWrapperArgs,
+  preflightConsensusProviderCli,
   preflightPaseo,
   resolvePeers,
   resolveSynthesizer,
   resolveRunDir,
+  runSequential,
 } = consensusRefine;
 
 function inventory(ids: string[]) {
@@ -347,6 +353,142 @@ it('preflightPaseo surfaces missing paseo with install remediation', async () =>
     expect(error.remediation.install_script).toBe('scripts/install-paseo.mjs');
     return true;
   });
+});
+
+it('preflightConsensusProviderCli uses provider inventory and selected-provider preflight', async () => {
+  const calls: Array<[string, string[]]> = [];
+  const result = await preflightConsensusProviderCli({
+    peers: ['claude', 'codex'],
+    env: { CONSENSUS_CLI_PATH: '/tmp/bin/consensus' },
+    runCommand: async (command: string, args: string[]) => {
+      calls.push([command, args]);
+      if (args[0] === 'provider') {
+        return {
+          stdout: JSON.stringify({
+            schema_version: 'v1',
+            ok: true,
+            providers: [
+              { id: 'claude', status: 'ready' },
+              { id: 'codex', status: 'ready' },
+            ],
+          }),
+          stderr: '',
+        };
+      }
+      return {
+        stdout: JSON.stringify({
+          schema_version: 'v1',
+          ok: true,
+          usable: true,
+          providers: [{ id: args.at(-1), status: 'ready' }],
+        }),
+        stderr: '',
+      };
+    },
+  });
+
+  expect(calls).toEqual([
+    ['/tmp/bin/consensus', ['provider', 'ls', '--json']],
+    ['/tmp/bin/consensus', ['preflight', '--json', '--provider', 'claude']],
+    ['/tmp/bin/consensus', ['preflight', '--json', '--provider', 'codex']],
+  ]);
+  expect(result.peers).toEqual(['claude', 'codex']);
+  expect(result.providerInventory).toEqual([
+    expect.objectContaining({ id: 'claude', available: true }),
+    expect.objectContaining({ id: 'codex', available: true }),
+  ]);
+});
+
+it('preflightConsensusProviderCli reports auth-required providers without Paseo remediation', async () => {
+  await expect(
+    preflightConsensusProviderCli({
+      peers: ['cursor'],
+      env: { CONSENSUS_CLI_PATH: '/tmp/bin/consensus' },
+      runCommand: async (_command: string, args: string[]) => {
+        if (args[0] === 'provider') {
+          return {
+            stdout: JSON.stringify({
+              schema_version: 'v1',
+              ok: true,
+              providers: [{ id: 'cursor', status: 'auth_required' }],
+            }),
+            stderr: '',
+          };
+        }
+        return {
+          stdout: JSON.stringify({
+            schema_version: 'v1',
+            ok: true,
+            usable: false,
+            providers: [{ id: 'cursor', status: 'auth_required' }],
+          }),
+          stderr: '',
+        };
+      },
+    }),
+  ).rejects.toSatisfy((error: { code?: string; message: string }) => {
+    expect(error.code).toBe('PEER_UNAVAILABLE');
+    expect(error.message).toMatch(/cursor/);
+    expect(error.message).toMatch(/auth_required/);
+    expect(error.message).not.toMatch(/Paseo/);
+    return true;
+  });
+});
+
+it('runSequential selects the provider CLI backend with CONSENSUS_CLI_PATH override', async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-cli-refine-'));
+  const consensusPath = path.join(tempRoot, 'consensus');
+  const inputPath = path.join(tempRoot, 'draft.md');
+  const outputPath = path.join(tempRoot, 'draft.consensus.md');
+  const runDir = path.join(tempRoot, '.consensus/run');
+
+  await writeFile(inputPath, '# Intro\n\nStable text.\n');
+  await writeFile(
+    consensusPath,
+    [
+      '#!/usr/bin/env node',
+      'const args = process.argv.slice(2);',
+      'const readStdin = () => new Promise((resolve) => { let data = ""; process.stdin.setEncoding("utf8"); process.stdin.on("data", (chunk) => { data += chunk; }); process.stdin.on("end", () => resolve(data)); });',
+      'async function main() {',
+      '  if (args[0] === "provider") { console.log(JSON.stringify({ schema_version: "v1", ok: true, providers: [{ id: "claude", status: "ready" }, { id: "codex", status: "ready" }] })); return; }',
+      '  if (args[0] === "preflight") { console.log(JSON.stringify({ schema_version: "v1", ok: true, usable: true, providers: [{ id: args.at(-1), status: "ready" }] })); return; }',
+      '  const request = JSON.parse(await readStdin());',
+      '  const payload = { schema_version: "v1", verdict: "ACCEPT", reasoning: `${request.provider} accepts` };',
+      '  console.log(JSON.stringify({ schema_version: "v1", ok: true, provider: request.provider, args: ["stub"], stdout: JSON.stringify(payload), json: payload, attempts: { cli_attempts: 1, terminal_reason: "success", retryable: false }, diagnostics: { strategy_used: "prompt_only" } }));',
+      '}',
+      'main().catch((error) => { console.error(error.message); process.exitCode = 1; });',
+      '',
+    ].join('\n'),
+  );
+  await chmod(consensusPath, 0o755);
+
+  const result = await runSequential({
+    inputPath,
+    output: outputPath,
+    runDir,
+    allowRoot: tempRoot,
+    cwd: tempRoot,
+    env: {
+      ...process.env,
+      CONSENSUS_PROVIDER_BACKEND: 'provider-cli',
+      CONSENSUS_CLI_PATH: consensusPath,
+    },
+    goal: 'Run through the provider CLI backend.',
+    peers: ['claude', 'codex'],
+    maxRounds: 1,
+    agency: 'moderate',
+  });
+
+  expect(result.status).toBe('converged');
+  const records = JSON.parse(
+    await readFile(result.sections[0].paths.records, 'utf8'),
+  );
+  expect(records[0]).toMatchObject({
+    raw_provider_response: expect.stringContaining('"verdict":"ACCEPT"'),
+    provider_diagnostics: { strategy_used: 'prompt_only' },
+    attempts: { cli_attempts: 1, terminal_reason: 'success' },
+  });
+  expect(records[0]).not.toHaveProperty('raw_paseo_response');
 });
 
 it('resolveRunDir gives each fresh run a unique default dir (no rerun contamination)', async () => {

@@ -768,6 +768,193 @@ function invokePaseo({
     });
   });
 }
+function resolveConsensusCliPath({
+  consensusCliPath,
+  env = process.env
+} = {}) {
+  return consensusCliPath ?? env.CONSENSUS_CLI_PATH ?? fileURLToPath(new URL("../../../scripts/consensus.mjs", import.meta.url));
+}
+function runProviderCliCommand(command, args, options = {}) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, {
+      cwd: options.cwd,
+      env: options.env,
+      stdio: ["pipe", "pipe", "pipe"]
+    });
+    const stdoutChunks = [];
+    const stderrChunks = [];
+    let stdoutBytes = 0;
+    let stderrBytes = 0;
+    let capError = null;
+    function capture(streamName, chunks, chunk) {
+      if (capError) return;
+      const nextBytes = streamName === "stdout" ? stdoutBytes + chunk.length : stderrBytes + chunk.length;
+      if (nextBytes > SUBPROCESS_OUTPUT_CAP_BYTES) {
+        capError = outputCapError(streamName, SUBPROCESS_OUTPUT_CAP_BYTES);
+        child.kill("SIGKILL");
+        return;
+      }
+      chunks.push(chunk);
+      if (streamName === "stdout") {
+        stdoutBytes = nextBytes;
+      } else {
+        stderrBytes = nextBytes;
+      }
+    }
+    child.stdout.on(
+      "data",
+      (chunk) => capture("stdout", stdoutChunks, chunk)
+    );
+    child.stderr.on(
+      "data",
+      (chunk) => capture("stderr", stderrChunks, chunk)
+    );
+    child.on("error", reject);
+    child.on("close", (code, signal) => {
+      if (capError) {
+        reject(capError);
+        return;
+      }
+      resolve({
+        code,
+        signal,
+        stdout: Buffer.concat(stdoutChunks).toString("utf8"),
+        stderr: Buffer.concat(stderrChunks).toString("utf8")
+      });
+    });
+    child.stdin.end(options.input ?? "");
+  });
+}
+async function invokeConsensusProviderCli({
+  provider,
+  schemaPath: schemaPath2,
+  prompt,
+  env = process.env,
+  cwd = process.cwd(),
+  consensusCliPath,
+  runCommand = runProviderCliCommand
+}) {
+  const command = resolveConsensusCliPath({ consensusCliPath, env });
+  const request = {
+    schema_version: "v1",
+    provider,
+    schema_path: schemaPath2,
+    prompt,
+    cwd
+  };
+  const result = await runCommand(
+    command,
+    ["run", "--request-json", "-", "--json"],
+    {
+      env,
+      cwd,
+      input: JSON.stringify(request)
+    }
+  );
+  const envelope = parseConsensusCliRunEnvelope(result);
+  if (!envelope.ok) {
+    throw providerCliEnvelopeError(envelope);
+  }
+  return {
+    provider: envelope.provider,
+    args: envelope.args,
+    stdout: envelope.stdout,
+    stderr: envelope.stderr,
+    json: envelope.json,
+    raw_provider_response: envelope.stdout ?? JSON.stringify(envelope.json),
+    provider_diagnostics: envelope.diagnostics,
+    attempts: envelope.attempts
+  };
+}
+async function invokeProviderCliWithRetry(args, {
+  attempts = 3,
+  delayMs = 750,
+  sleep,
+  invoke = invokeConsensusProviderCli,
+  mode = "alternating"
+} = {}) {
+  const wait = sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
+  let lastError;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      const result = await invoke(args);
+      const verdictError = peerVerdictError(
+        normalizeVerdict(result.json, mode),
+        mode
+      );
+      if (verdictError) throw verdictError;
+      return result;
+    } catch (error) {
+      lastError = error;
+      const retryable = asErrorLike(error).code === "INVALID_VERDICT_SHAPE" || asErrorLike(error).code === "INVALID_VERDICT_CAPS";
+      if (!retryable || attempt === attempts) throw error;
+      await wait(delayMs);
+    }
+  }
+  throw lastError;
+}
+function parseConsensusCliRunEnvelope(result) {
+  let parsed;
+  try {
+    parsed = JSON.parse(result.stdout);
+  } catch (error) {
+    throw new ConsensusError(
+      `consensus provider CLI returned invalid JSON: ${hardErrorMessage(error)}`,
+      {
+        code: result.code && result.code !== 0 ? "CONSENSUS_CLI_USAGE" : "PROVIDER_INVALID_JSON",
+        exitCode: result.code && result.code !== 0 ? EXIT_CODES.USAGE : EXIT_CODES.DATA,
+        cause: error,
+        details: {
+          exit_code: result.code,
+          signal: result.signal ?? null,
+          stdout: result.stdout,
+          stderr: result.stderr ?? ""
+        }
+      }
+    );
+  }
+  if (!isConsensusCliRunEnvelope(parsed)) {
+    throw new ConsensusError(
+      "consensus provider CLI returned an invalid envelope",
+      {
+        code: "PROVIDER_INVALID_JSON",
+        exitCode: EXIT_CODES.DATA,
+        details: {
+          exit_code: result.code,
+          signal: result.signal ?? null,
+          stdout: result.stdout,
+          stderr: result.stderr ?? ""
+        }
+      }
+    );
+  }
+  return parsed;
+}
+function isConsensusCliRunEnvelope(value) {
+  if (!isJsonRecord(value)) return false;
+  return value.schema_version === "v1" && typeof value.ok === "boolean";
+}
+function providerCliEnvelopeError(envelope) {
+  return new ConsensusError(envelope.message, {
+    code: envelope.code,
+    exitCode: exitCodeForProviderError(envelope.code),
+    details: {
+      provider: envelope.provider ?? null,
+      retryable: envelope.retryable,
+      attempts: envelope.attempts,
+      diagnostics: envelope.diagnostics,
+      stdout: envelope.stdout,
+      stderr: envelope.stderr
+    }
+  });
+}
+function exitCodeForProviderError(code) {
+  if (code === "CONSENSUS_CLI_USAGE") return EXIT_CODES.USAGE;
+  if (code === "PROVIDER_INVALID_JSON" || code === "PROVIDER_SCHEMA_VALIDATION") {
+    return EXIT_CODES.DATA;
+  }
+  return EXIT_CODES.CONFIG;
+}
 function isRetryablePaseoError(error) {
   const candidate = asErrorLike(error);
   return candidate.code === "PASEO_EXIT" || candidate.code === "PASEO_INVALID_JSON";
@@ -815,6 +1002,18 @@ function peerVerdictError(verdict, mode) {
     );
   }
   return null;
+}
+function providerAuditFields(result) {
+  const hasProviderNeutralAudit = result.raw_provider_response !== void 0 || result.provider_diagnostics !== void 0 || result.attempts !== void 0;
+  const rawResponse = result.raw_provider_response ?? result.stdout ?? JSON.stringify(result.json);
+  if (!hasProviderNeutralAudit) {
+    return { raw_paseo_response: rawResponse };
+  }
+  return {
+    raw_provider_response: rawResponse,
+    ...result.provider_diagnostics ? { provider_diagnostics: result.provider_diagnostics } : {},
+    ...result.attempts ? { attempts: result.attempts } : {}
+  };
 }
 async function invokeValidatedPeer({
   mode,
@@ -1322,7 +1521,7 @@ async function executeAlternatingTurn({
       hashOptionsForAgency(options.agency)
     ),
     iteration_mode: options.iteration,
-    raw_paseo_response: peerResult.stdout ?? JSON.stringify(peerResult.json)
+    ...providerAuditFields(peerResult)
   };
   if (typeof verdict.proposed_artifact === "string") {
     recordPayload.proposed_artifact = verdict.proposed_artifact;
@@ -1462,7 +1661,7 @@ async function executeParallelRound(context) {
         hashOptionsForAgency(options.agency)
       ),
       iteration_mode: mode,
-      raw_paseo_response: peerResult.stdout ?? JSON.stringify(peerResult.json)
+      ...providerAuditFields(peerResult)
     };
     if (typeof verdict.proposed_artifact === "string") {
       recordPayload.proposed_artifact = verdict.proposed_artifact;
@@ -1573,7 +1772,7 @@ async function executeSynthesis({
       hashOptionsForAgency(options.agency)
     ),
     iteration_mode: options.iteration,
-    raw_paseo_response: synthResult.stdout ?? JSON.stringify(synthResult.json)
+    ...providerAuditFields(synthResult)
   };
   return { synthesis: recordPayload, nextArtifact: synthesizedArtifact };
 }
@@ -2447,16 +2646,20 @@ export {
   exitCodeForError,
   hashArtifact,
   invalidIterationModeError,
+  invokeConsensusProviderCli,
   invokePaseo,
   invokePaseoWithRetry,
+  invokeProviderCliWithRetry,
   invokeValidatedPeer,
   normalizeForHash,
   normalizeVerdict,
   parallelSchemaPath,
   parseLoopArgs,
   peerSchemaPathForMode,
+  resolveConsensusCliPath,
   routeEscalation,
   runConsensusLoop,
+  runProviderCliCommand,
   synthesisSchemaPath,
   validateSynthesisCaps,
   validateSynthesisShape,
