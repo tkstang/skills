@@ -2,106 +2,206 @@
 oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
-oat_last_updated: 2026-06-17
+oat_last_updated: 2026-06-19
 oat_current_task_id: p01-t01
 oat_generated: false
 ---
 
 # Implementation: consensus-peer-invocation
 
-**Started:** 2026-06-17
-**Last Updated:** 2026-06-17
+**Started:** 2026-06-19
+**Last Updated:** 2026-06-19
 
 > This document is used to resume interrupted implementation sessions.
 >
-> Conventions:
->
-> - `oat_current_task_id` always points at the **next plan task to do** (not the last completed task).
-> - When all plan tasks are complete, set `oat_current_task_id: null`.
-> - Reviews are **not** plan tasks. Track review status in `plan.md` under `## Reviews` (e.g., `| final | code | passed | ... |`).
-> - Keep phase/task statuses consistent with the Progress Overview table so restarts resume correctly.
-> - Before running the `oat-project-pr-final` skill, ensure `## Final Summary (for PR/docs)` is filled with what was actually implemented.
+> `oat_current_task_id` points at the next plan task to do. Reviews are tracked in `plan.md` under `## Reviews`.
 
 ## Progress Overview
 
 | Phase   | Status      | Tasks | Completed |
 | ------- | ----------- | ----- | --------- |
-| Phase 1 | in_progress | N     | 0/N       |
-| Phase 2 | pending     | N     | 0/N       |
+| Phase 1 | in_progress | 6     | 0/6       |
+| Phase 2 | pending     | 7     | 0/7       |
+| Phase 3 | pending     | 7     | 0/7       |
+| Phase 4 | pending     | 7     | 0/7       |
 
-**Total:** 0/{N} tasks completed
+**Total:** 0/27 tasks completed
 
 ---
 
-## Phase 1: {Phase Name}
+## Phase 1: CLI Contract and Generated Entrypoint
 
 **Status:** in_progress
-**Started:** 2026-06-17
+**Started:** 2026-06-19
 
-### Phase Summary (fill when phase is complete)
+### Phase Summary
 
-**Outcome (what changed):**
+Pending.
 
-- {2-5 bullets describing user-visible / behavior-level changes delivered in this phase}
-
-**Key files touched:**
-
-- `{path}` - {why}
-
-**Verification:**
-
-- Run: `{command(s)}`
-- Result: {pass/fail + notes}
-
-**Notes / Decisions:**
-
-- {trade-offs or deviations discovered during implementation}
-
-### Task p01-t01: {Task Name}
-
-**Status:** completed / in_progress / pending / blocked
-**Commit:** {sha} (if completed)
-
-**Outcome (required when completed):**
-
-- {what materially changed (not “did task”, but “system now does X”)}
-
-**Files changed:**
-
-- `{path}` - {why}
-
-**Verification:**
-
-- Run: `{command(s)}`
-- Result: {pass/fail + notes}
-
-**Notes / Decisions:**
-
-- {gotchas, trade-offs, design deltas, important context for future sessions}
-
-**Issues Encountered:**
-
-- {Issue and resolution}
-
----
-
-### Task p01-t02: {Task Name}
+### Task p01-t01: Add Provider CLI Model Types
 
 **Status:** pending
 **Commit:** -
 
-**Notes:**
+### Task p01-t02: Parse CLI Arguments and Prompt Sources
 
-- {Notes will be added during implementation}
+**Status:** pending
+**Commit:** -
+
+### Task p01-t03: Add Envelope and Exit-Code Helpers
+
+**Status:** pending
+**Commit:** -
+
+### Task p01-t04: Wire Generated CLI Entrypoint
+
+**Status:** pending
+**Commit:** -
+
+### Task p01-t05: Implement Provider List and Preflight Skeleton
+
+**Status:** pending
+**Commit:** -
+
+### Task p01-t06: Add CLI Process Contract Tests
+
+**Status:** pending
+**Commit:** -
 
 ---
 
-## Phase 2: {Phase Name}
+## Phase 2: Provider Adapter Floor and Execution Reliability
 
 **Status:** pending
 **Started:** -
 
-### Task p02-t01: {Task Name}
+### Phase Summary
+
+Pending.
+
+### Task p02-t01: Add Adapter Registry and Capability Objects
+
+**Status:** pending
+**Commit:** -
+
+### Task p02-t02: Implement Provider Readiness Probes
+
+**Status:** pending
+**Commit:** -
+
+### Task p02-t03: Add Host Runtime Guard
+
+**Status:** pending
+**Commit:** -
+
+### Task p02-t04: Validate Runtime Policy and Child Environment
+
+**Status:** pending
+**Commit:** -
+
+### Task p02-t05: Build Provider Invocation Arguments
+
+**Status:** pending
+**Commit:** -
+
+### Task p02-t06: Add Bounded Subprocess Runner
+
+**Status:** pending
+**Commit:** -
+
+### Task p02-t07: Add Structured Output Coordinator and CLI Run Retries
+
+**Status:** pending
+**Commit:** -
+
+---
+
+## Phase 3: Refine and Evaluate Integration
+
+**Status:** pending
+**Started:** -
+
+### Phase Summary
+
+Pending.
+
+### Task p03-t01: Add Consensus CLI Invoker Seam
+
+**Status:** pending
+**Commit:** -
+
+### Task p03-t02: Write Provider-Neutral Audit and Resume Fields
+
+**Status:** pending
+**Commit:** -
+
+### Task p03-t03: Shrink Loop Retry Responsibility
+
+**Status:** pending
+**Commit:** -
+
+### Task p03-t04: Add Refine Wrapper Backend Switch and Preflight
+
+**Status:** pending
+**Commit:** -
+
+### Task p03-t05: Add Evaluate Wrapper Backend Switch and Preflight
+
+**Status:** pending
+**Commit:** -
+
+### Task p03-t06: Add Refine and Evaluate CLI Backend Integration Tests
+
+**Status:** pending
+**Commit:** -
+
+### Task p03-t07: Extend Smoke Coverage for the CLI Backend
+
+**Status:** pending
+**Commit:** -
+
+---
+
+## Phase 4: Dogfood, Default Cutover, and Source Cleanup
+
+**Status:** pending
+**Started:** -
+
+### Phase Summary
+
+Pending.
+
+### Task p04-t01: Update Consensus Skill Instructions and Operator Docs
+
+**Status:** pending
+**Commit:** -
+
+### Task p04-t02: Record Cursor Submit-Tool Spike Outcome
+
+**Status:** pending
+**Commit:** -
+
+### Task p04-t03: Record Provider CLI Dogfood Parity Evidence
+
+**Status:** pending
+**Commit:** -
+
+### Task p04-t04: Switch Default Backend and Remove Dogfood Fallback
+
+**Status:** pending
+**Commit:** -
+
+### Task p04-t05: Remove Old Backend Helpers, Fixtures, and Test Names
+
+**Status:** pending
+**Commit:** -
+
+### Task p04-t06: Add Provider-Neutral Identifier Scan
+
+**Status:** pending
+**Commit:** -
+
+### Task p04-t07: Run Final Validation and Update Release Docs
 
 **Status:** pending
 **Commit:** -
@@ -110,15 +210,9 @@ oat_generated: false
 
 ## Orchestration Runs
 
-_Each run from `oat-project-implement` appends an entry below with:_
-_- Run header (number, timestamp, branch, tier, policy, phase counts)_
-_- Phase Outcomes table_
-_- Parallel Groups list_
-_- Outstanding Items_
+Each run from `oat-project-implement` appends an entry below.
 
 <!-- orchestration-runs-start -->
-
-_Orchestration runs from `oat-project-implement` are appended here, most-recent-first within the file but append-only at the bottom of the log._
 
 <!-- orchestration-runs-end -->
 
@@ -128,38 +222,17 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 
 Chronological log of implementation progress.
 
-### 2026-06-17
+### 2026-06-19
 
-**Session Start:** {time}
+**Session Start:** Implementation preflight initialized with Tier 1 subagents, Codex xhigh dispatch ceiling, final-phase HiLL checkpoint, and auto-review at HiLL checkpoints enabled.
 
-- [x] p01-t01: {Task name} - {commit sha}
-- [ ] p01-t02: {Task name} - in progress
+**What changed:**
 
-**What changed (high level):**
-
-- {short bullets suitable for PR/docs}
-
-**Decisions:**
-
-- {Decision made and rationale}
-
-**Follow-ups / TODO:**
-
-- {anything discovered during implementation that should be captured for later}
+- Implementation tracking initialized from the completed 27-task plan.
 
 **Blockers:**
 
-- {Blocker description} - {status: resolved/pending}
-
-**Session End:** {time}
-
----
-
-### 2026-06-17
-
-**Session Start:** {time}
-
-{Continue log...}
+- None.
 
 ---
 
@@ -175,36 +248,20 @@ Document any intentional deviations from the original plan, spec, or design. Inc
 
 Track test execution during implementation.
 
-| Phase | Tests Run | Passed | Failed | Coverage |
-| ----- | --------- | ------ | ------ | -------- |
-| 1     | -         | -      | -      | -        |
-| 2     | -         | -      | -      | -        |
+| Phase | Tests Run | Passed | Failed | Notes |
+| ----- | --------- | ------ | ------ | ----- |
+| p01   | -         | -      | -      | Pending |
+| p02   | -         | -      | -      | Pending |
+| p03   | -         | -      | -      | Pending |
+| p04   | -         | -      | -      | Pending |
 
 ## Final Summary (for PR/docs)
 
-**What shipped:**
-
-- {capability 1}
-- {capability 2}
-
-**Behavioral changes (user-facing):**
-
-- {bullet}
-
-**Key files / modules:**
-
-- `{path}` - {purpose}
-
-**Verification performed:**
-
-- {tests/lint/typecheck/build/manual steps}
-
-**Design deltas (if any):**
-
-- {what changed vs design.md and why}
+Pending implementation completion.
 
 ## References
 
 - Plan: `plan.md`
 - Design: `design.md`
 - Spec: `spec.md`
+- Discovery: `discovery.md`
