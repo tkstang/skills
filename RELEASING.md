@@ -4,8 +4,12 @@ v0.1 is not ready to tag until the full project validation and provider smoke te
 
 ## Checklist
 
-- Run `npm test`.
-- Run `npm run validate`.
+- Run `pnpm run build`.
+- Run `pnpm run type-check`.
+- Run `pnpm run build:check`.
+- Run `pnpm run test`.
+- Run `pnpm run validate`.
+- Run `pnpm run smoke`.
 - Verify sequential `consensus-refine` on a real markdown artifact.
 - Verify resume from a generated deliberation artifact.
 - Verify user-direction continuation after an impasse or max-rounds stop.
@@ -20,17 +24,21 @@ v0.1 is not ready to tag until the full project validation and provider smoke te
 
 ## v0.1 Readiness Snapshot
 
-Last updated: 2026-05-04.
+Last updated: 2026-06-19.
 
 ### Automated checks
 
-| Check                         | Status | Evidence                                                              |
-| ----------------------------- | ------ | --------------------------------------------------------------------- |
-| `npm test`                    | passed | 124 tests passed locally                                              |
-| `node scripts/validate.mjs`   | passed | `validation passed`                                                   |
-| `node scripts/smoke-test.mjs` | passed | `smoke passed`                                                        |
-| Paseo availability            | passed | `paseo --version` -> `0.1.63`                                         |
-| Default peers                 | passed | `paseo provider ls --json` reported `claude` and `codex` as available |
+| Check                  | Status  | Evidence                                                                                                 |
+| ---------------------- | ------- | -------------------------------------------------------------------------------------------------------- |
+| `pnpm run build`       | passed  | Generated all committed runtime outputs from canonical TypeScript source                                 |
+| `pnpm run type-check`  | passed  | `tsc --noEmit` completed                                                                                 |
+| `pnpm run build:check` | passed  | All generated outputs reported `in sync`                                                                 |
+| `pnpm run test`        | passed  | Vitest-only suite: 53 test files passed, 572 tests passed                                                |
+| `pnpm run validate`    | passed  | `validation passed`                                                                                      |
+| `pnpm run smoke`       | passed  | `smoke passed`                                                                                           |
+| Prior live dogfood     | reused  | PR #9 verified `consensus-refine` with live Claude+Codex across all iteration modes and escalation flows |
+| Paseo availability     | pending | Re-run during provider checks                                                                            |
+| Default peers          | pending | Re-run during provider checks                                                                            |
 
 ### Manual provider checks
 

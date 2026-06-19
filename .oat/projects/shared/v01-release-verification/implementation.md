@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-19
-oat_current_task_id: p01-t02
+oat_current_task_id: p02-t01
 oat_generated: false
 ---
 
@@ -16,15 +16,15 @@ oat_generated: false
 
 | Phase | Status | Tasks | Completed |
 | ----- | ------ | ----- | --------- |
-| Phase 1 | in_progress | 2 | 1/2 |
+| Phase 1 | completed | 2 | 2/2 |
 | Phase 2 | pending | 2 | 0/2 |
 | Phase 3 | pending | 2 | 0/2 |
 
-**Total:** 1/6 tasks completed
+**Total:** 2/6 tasks completed
 
 ## Phase 1: Establish Current Evidence Baseline
 
-**Status:** in_progress
+**Status:** completed
 
 ### Task p01-t01: Verify checkout, release scope, and prior evidence
 
@@ -53,8 +53,34 @@ oat_generated: false
 
 ### Task p01-t02: Rerun required automated release gates
 
-**Status:** pending
-**Commit:** null
+**Status:** completed
+**Commit:** pending bookkeeping commit
+
+**Outcome:**
+
+- Reran the required automated gates on the current TypeScript/Vitest substrate.
+- Updated `RELEASING.md` automated checklist and readiness snapshot to record current evidence rather than the stale 2026-05-04 `npm`/node-test era results.
+- Confirmed `pnpm run build` caused no uncommitted generated-output drift after `pnpm run build:check`.
+
+**Verification:**
+
+- Run: `pnpm run build`
+- Result: pass; generated all committed runtime outputs from canonical TypeScript source.
+- Run: `pnpm run type-check`
+- Result: pass; `tsc --noEmit` completed.
+- Run: `pnpm run build:check`
+- Result: pass; all generated outputs reported `in sync`.
+- Run: `pnpm run test`
+- Result: pass; Vitest-only suite reported 53 test files passed and 572 tests passed.
+- Run: `pnpm run validate`
+- Result: pass; `validation passed`.
+- Run: `pnpm run smoke`
+- Result: pass; `smoke passed`.
+
+**Notes:**
+
+- The automated evidence is current as of 2026-06-19 and supersedes the older automated results reused from PR #9.
+- Release workflow parity remains a Phase 2 task because `.github/workflows/release.yml` still lags the full validation workflow.
 
 ## Phase 2: Verify Provider and Release Documentation Gates
 
