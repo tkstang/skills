@@ -39,6 +39,18 @@ process.stdin.on('end', () => {
     return;
   }
 
+  if (mode === 'ignore-sigterm-output') {
+    process.on('SIGTERM', () => {});
+    process.stdout.on('error', () => {});
+    process.stderr.on('error', () => {});
+    const chunk = 'x'.repeat(Number(args[0] ?? 1024));
+    setInterval(() => {
+      process.stdout.write(chunk);
+      process.stderr.write(chunk);
+    }, 1);
+    return;
+  }
+
   if (mode === 'big-output') {
     process.stdout.write('x'.repeat(Number(args[0] ?? 1024)));
     return;

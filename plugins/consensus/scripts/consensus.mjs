@@ -1005,6 +1005,7 @@ function runProviderSubprocess(invocation2, options = {}) {
     let stderr = "";
     let stdoutBytes = 0;
     let stderrBytes = 0;
+    let outputCaptureClosed = false;
     let exitCode = null;
     let exitSignal = null;
     let settled = false;
@@ -1022,19 +1023,15 @@ function runProviderSubprocess(invocation2, options = {}) {
     }, timeoutSec * 1e3);
     child.stdout.setEncoding("utf8");
     child.stderr.setEncoding("utf8");
+    child.stdout.on("error", () => {
+    });
+    child.stderr.on("error", () => {
+    });
     child.stdout.on("data", (chunk) => {
-      stdout += chunk;
-      stdoutBytes += Buffer.byteLength(chunk);
-      if (stdoutBytes + stderrBytes > maxOutputBytes) {
-        terminate("output_cap");
-      }
+      captureOutput("stdout", chunk);
     });
     child.stderr.on("data", (chunk) => {
-      stderr += chunk;
-      stderrBytes += Buffer.byteLength(chunk);
-      if (stdoutBytes + stderrBytes > maxOutputBytes) {
-        terminate("output_cap");
-      }
+      captureOutput("stderr", chunk);
     });
     child.on("error", () => {
       terminal = terminal ?? "spawn_error";
@@ -1048,6 +1045,9 @@ function runProviderSubprocess(invocation2, options = {}) {
     child.stdin.end(invocation2.stdin);
     function terminate(reason) {
       terminal = terminal ?? reason;
+      if (reason === "output_cap") {
+        closeOutputCapture();
+      }
       child.kill("SIGTERM");
       if (!killEscalation) {
         killEscalation = setTimeout(() => {
@@ -1057,6 +1057,39 @@ function runProviderSubprocess(invocation2, options = {}) {
           }, finalResolutionMs);
         }, terminationGraceMs);
       }
+    }
+    function captureOutput(stream, chunk) {
+      if (outputCaptureClosed) return;
+      const remaining = maxOutputBytes - stdoutBytes - stderrBytes;
+      if (remaining <= 0) {
+        terminate("output_cap");
+        return;
+      }
+      const chunkBytes = Buffer.byteLength(chunk);
+      if (chunkBytes <= remaining) {
+        appendOutput(stream, chunk, chunkBytes);
+        return;
+      }
+      const retained = takeUtf8Prefix(chunk, remaining);
+      if (retained.bytes > 0) {
+        appendOutput(stream, retained.text, retained.bytes);
+      }
+      terminate("output_cap");
+    }
+    function appendOutput(stream, chunk, chunkBytes) {
+      if (stream === "stdout") {
+        stdout += chunk;
+        stdoutBytes += chunkBytes;
+      } else {
+        stderr += chunk;
+        stderrBytes += chunkBytes;
+      }
+    }
+    function closeOutputCapture() {
+      if (outputCaptureClosed) return;
+      outputCaptureClosed = true;
+      child.stdout.destroy();
+      child.stderr.destroy();
     }
     function finish(closeExitCode = exitCode, closeSignal = exitSignal) {
       if (settled) return;
@@ -1145,6 +1178,17 @@ function runProviderSubprocess(invocation2, options = {}) {
       });
     }
   });
+}
+function takeUtf8Prefix(input, maxBytes) {
+  let bytes = 0;
+  let text = "";
+  for (const character of input) {
+    const characterBytes = Buffer.byteLength(character);
+    if (bytes + characterBytes > maxBytes) break;
+    text += character;
+    bytes += characterBytes;
+  }
+  return { text, bytes };
 }
 function diagnosticsFor(input) {
   return {

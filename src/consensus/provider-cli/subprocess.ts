@@ -1,10 +1,7 @@
 import { spawn } from 'node:child_process';
 
 import type { ProviderInvocation } from './invocation.js';
-import type {
-  ProviderDiagnostics,
-  ProviderErrorCode,
-} from './types.js';
+import type { ProviderDiagnostics, ProviderErrorCode } from './types.js';
 
 export interface RunProviderSubprocessOptions {
   env?: NodeJS.ProcessEnv;
@@ -54,8 +51,7 @@ export function runProviderSubprocess(
   invocation: ProviderInvocation,
   options: RunProviderSubprocessOptions = {},
 ): Promise<ProviderProcessResult> {
-  const maxOutputBytes =
-    options.maxOutputBytes ?? DEFAULT_MAX_OUTPUT_BYTES;
+  const maxOutputBytes = options.maxOutputBytes ?? DEFAULT_MAX_OUTPUT_BYTES;
   const timeoutSec = options.timeoutSec ?? DEFAULT_TIMEOUT_SEC;
   const terminationGraceMs =
     options.terminationGraceMs ?? DEFAULT_TERMINATION_GRACE_MS;
@@ -67,14 +63,11 @@ export function runProviderSubprocess(
     let stderr = '';
     let stdoutBytes = 0;
     let stderrBytes = 0;
+    let outputCaptureClosed = false;
     let exitCode: number | null = null;
     let exitSignal: NodeJS.Signals | null = null;
     let settled = false;
-    let terminal:
-      | 'timeout'
-      | 'output_cap'
-      | 'spawn_error'
-      | undefined;
+    let terminal: 'timeout' | 'output_cap' | 'spawn_error' | undefined;
 
     const child = spawn(invocation.executable, invocation.argv, {
       cwd: invocation.cwd,
@@ -91,19 +84,13 @@ export function runProviderSubprocess(
 
     child.stdout.setEncoding('utf8');
     child.stderr.setEncoding('utf8');
+    child.stdout.on('error', () => {});
+    child.stderr.on('error', () => {});
     child.stdout.on('data', (chunk) => {
-      stdout += chunk;
-      stdoutBytes += Buffer.byteLength(chunk);
-      if (stdoutBytes + stderrBytes > maxOutputBytes) {
-        terminate('output_cap');
-      }
+      captureOutput('stdout', chunk);
     });
     child.stderr.on('data', (chunk) => {
-      stderr += chunk;
-      stderrBytes += Buffer.byteLength(chunk);
-      if (stdoutBytes + stderrBytes > maxOutputBytes) {
-        terminate('output_cap');
-      }
+      captureOutput('stderr', chunk);
     });
 
     child.on('error', () => {
@@ -120,6 +107,9 @@ export function runProviderSubprocess(
 
     function terminate(reason: 'timeout' | 'output_cap') {
       terminal = terminal ?? reason;
+      if (reason === 'output_cap') {
+        closeOutputCapture();
+      }
       child.kill('SIGTERM');
       if (!killEscalation) {
         killEscalation = setTimeout(() => {
@@ -129,6 +119,49 @@ export function runProviderSubprocess(
           }, finalResolutionMs);
         }, terminationGraceMs);
       }
+    }
+
+    function captureOutput(stream: 'stdout' | 'stderr', chunk: string) {
+      if (outputCaptureClosed) return;
+
+      const remaining = maxOutputBytes - stdoutBytes - stderrBytes;
+      if (remaining <= 0) {
+        terminate('output_cap');
+        return;
+      }
+
+      const chunkBytes = Buffer.byteLength(chunk);
+      if (chunkBytes <= remaining) {
+        appendOutput(stream, chunk, chunkBytes);
+        return;
+      }
+
+      const retained = takeUtf8Prefix(chunk, remaining);
+      if (retained.bytes > 0) {
+        appendOutput(stream, retained.text, retained.bytes);
+      }
+      terminate('output_cap');
+    }
+
+    function appendOutput(
+      stream: 'stdout' | 'stderr',
+      chunk: string,
+      chunkBytes: number,
+    ) {
+      if (stream === 'stdout') {
+        stdout += chunk;
+        stdoutBytes += chunkBytes;
+      } else {
+        stderr += chunk;
+        stderrBytes += chunkBytes;
+      }
+    }
+
+    function closeOutputCapture() {
+      if (outputCaptureClosed) return;
+      outputCaptureClosed = true;
+      child.stdout.destroy();
+      child.stderr.destroy();
     }
 
     function finish(
@@ -227,6 +260,21 @@ export function runProviderSubprocess(
       });
     }
   });
+}
+
+function takeUtf8Prefix(
+  input: string,
+  maxBytes: number,
+): { text: string; bytes: number } {
+  let bytes = 0;
+  let text = '';
+  for (const character of input) {
+    const characterBytes = Buffer.byteLength(character);
+    if (bytes + characterBytes > maxBytes) break;
+    text += character;
+    bytes += characterBytes;
+  }
+  return { text, bytes };
 }
 
 function diagnosticsFor(input: {

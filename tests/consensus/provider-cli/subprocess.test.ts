@@ -2,12 +2,9 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { runProviderSubprocess } from '../../../src/consensus/provider-cli/subprocess.js';
-import {
-  fixtureBin,
-  repoRoot,
-} from '../../helpers/process.mjs';
 import type { ProviderInvocation } from '../../../src/consensus/provider-cli/invocation.js';
+import { runProviderSubprocess } from '../../../src/consensus/provider-cli/subprocess.js';
+import { fixtureBin, repoRoot } from '../../helpers/process.mjs';
 
 const stubExecutable = path.join(fixtureBin, 'consensus-provider-stub');
 
@@ -94,10 +91,13 @@ describe('bounded provider subprocess runner', () => {
   });
 
   it('enforces stdout and stderr output caps', async () => {
-    const result = await runProviderSubprocess(invocation(['big-output', '64']), {
-      maxOutputBytes: 16,
-      timeoutSec: 5,
-    });
+    const result = await runProviderSubprocess(
+      invocation(['big-output', '64']),
+      {
+        maxOutputBytes: 16,
+        timeoutSec: 5,
+      },
+    );
 
     expect(result).toMatchObject({
       ok: false,
@@ -109,6 +109,57 @@ describe('bounded provider subprocess runner', () => {
         },
       },
     });
+    expect(
+      Buffer.byteLength(result.stdout) + Buffer.byteLength(result.stderr),
+    ).toBeLessThanOrEqual(16);
+    expect(result.diagnostics.output_bytes?.stdout ?? 0).toBeLessThanOrEqual(
+      16,
+    );
+    expect(result.diagnostics.output_bytes?.stderr ?? 0).toBeLessThanOrEqual(
+      16,
+    );
+    expect(
+      (result.diagnostics.output_bytes?.stdout ?? 0) +
+        (result.diagnostics.output_bytes?.stderr ?? 0),
+    ).toBeLessThanOrEqual(16);
+  });
+
+  it('keeps captured output bounded when cap-terminated subprocesses ignore SIGTERM', async () => {
+    const startedAt = Date.now();
+    const result = await runProviderSubprocess(
+      invocation(['ignore-sigterm-output', '1024']),
+      {
+        maxOutputBytes: 16,
+        timeoutSec: 5,
+        terminationGraceMs: 25,
+        finalResolutionMs: 25,
+      },
+    );
+
+    expect(Date.now() - startedAt).toBeLessThan(1000);
+    expect(result).toMatchObject({
+      ok: false,
+      code: 'PROVIDER_OUTPUT_CAP_EXCEEDED',
+      retryable: false,
+      diagnostics: {
+        output_bytes: {
+          max: 16,
+        },
+      },
+    });
+    expect(
+      Buffer.byteLength(result.stdout) + Buffer.byteLength(result.stderr),
+    ).toBeLessThanOrEqual(16);
+    expect(result.diagnostics.output_bytes?.stdout ?? 0).toBeLessThanOrEqual(
+      16,
+    );
+    expect(result.diagnostics.output_bytes?.stderr ?? 0).toBeLessThanOrEqual(
+      16,
+    );
+    expect(
+      (result.diagnostics.output_bytes?.stdout ?? 0) +
+        (result.diagnostics.output_bytes?.stderr ?? 0),
+    ).toBeLessThanOrEqual(16);
   });
 
   it('reports redacted command diagnostics without prompt content', async () => {
