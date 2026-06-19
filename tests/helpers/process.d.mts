@@ -8,12 +8,18 @@ export interface CapturedWriter {
 export interface RunNodeScriptOptions {
   cwd?: string | URL;
   env?: NodeJS.ProcessEnv;
+  input?: string;
   maxBuffer?: number;
 }
 
 export interface RunNodeScriptResult {
   stdout: string;
   stderr: string;
+}
+
+export interface RunNodeScriptProcessResult extends RunNodeScriptResult {
+  code: number | null;
+  signal: NodeJS.Signals | null;
 }
 
 /** Absolute path to the repository root (parent of tests/). */
@@ -45,3 +51,9 @@ export function runNodeScript(
   args?: readonly string[],
   options?: RunNodeScriptOptions,
 ): Promise<RunNodeScriptResult>;
+
+export function runNodeScriptResult(
+  scriptPath: string,
+  args?: readonly string[],
+  options?: RunNodeScriptOptions,
+): Promise<RunNodeScriptProcessResult>;
