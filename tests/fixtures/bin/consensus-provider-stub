@@ -1,0 +1,48 @@
+#!/usr/bin/env node
+
+process.stdin.setEncoding('utf8');
+
+let stdin = '';
+process.stdin.on('data', (chunk) => {
+  stdin += chunk;
+});
+process.stdin.on('end', () => {
+  const [mode, ...args] = process.argv.slice(2);
+
+  if (mode === 'echo-stdin') {
+    process.stdout.write(stdin);
+    return;
+  }
+
+  if (mode === 'stdout-stderr') {
+    process.stdout.write('stdout text');
+    process.stderr.write('stderr text');
+    return;
+  }
+
+  if (mode === 'exit-code') {
+    process.stderr.write('provider failed');
+    process.exitCode = 7;
+    return;
+  }
+
+  if (mode === 'sleep') {
+    setTimeout(() => {
+      process.stdout.write('late output');
+    }, Number(args[0] ?? 1000));
+    return;
+  }
+
+  if (mode === 'big-output') {
+    process.stdout.write('x'.repeat(Number(args[0] ?? 1024)));
+    return;
+  }
+
+  if (mode === 'argv-json') {
+    process.stdout.write(JSON.stringify(args));
+    return;
+  }
+
+  process.stderr.write(`unknown mode: ${mode ?? ''}`);
+  process.exitCode = 64;
+});
