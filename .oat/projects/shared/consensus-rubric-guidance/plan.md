@@ -356,7 +356,7 @@ git diff --cached --quiet || git commit -m "chore(consensus): verify rubric guid
 | final | code     | pending | -    | -        |
 | spec  | artifact | passed  | 2026-06-19 | N/A (quick mode; no spec artifact) |
 | design | artifact | passed  | 2026-06-19 | N/A (quick mode; no design artifact) |
-| plan  | artifact | passed  | 2026-06-19 | Inline structured review |
+| plan  | artifact | received | 2026-06-19 | reviews/artifact-plan-review-2026-06-19.md |
 
 **Status values:** `pending` -> `received` -> `fixes_added` -> `fixes_completed` -> `passed`
 
