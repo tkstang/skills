@@ -539,7 +539,7 @@ Run-scoped snapshot only. The durable record is `## Deviations from Plan / Desig
 
 #### Outstanding Items
 
-- Critical blocker: generated `provider ls` / `preflight` never wire the implemented default Node probe runner, so the actual CLI reports installed providers as `missing`. Review artifact: `.oat/projects/shared/consensus-peer-invocation/reviews/p02-review-2026-06-19-v3.md`.
+- Critical blocker: generated `provider ls` / `preflight` never wire the implemented default Node probe runner, so the actual CLI reports installed providers as `missing`. Review artifact: `.oat/projects/shared/consensus-peer-invocation/reviews/archived/p02-review-2026-06-19-v3.md`.
 
 #### Artifact / Design Deltas
 
