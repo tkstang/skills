@@ -426,12 +426,12 @@ oat_generated: false
 ### Task p05-t01: (review) Add stdin prompt marker to design example
 
 **Status:** completed
-**Commit:** pending
+**Commit:** 66be44c
 
 ### Task p05-t02: (review) Add max-depth to request-json conflict example
 
 **Status:** completed
-**Commit:** pending
+**Commit:** 66be44c
 
 ---
 
