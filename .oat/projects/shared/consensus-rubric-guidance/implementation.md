@@ -156,7 +156,7 @@ Chronological log of implementation progress.
 
 **Review Received:** Final code review (scope final, p01–p03).
 
-**Review artifact:** `reviews/final-review-2026-06-19.md` (verdict PASS; 0 Critical, 0 Important, 2 Minor)
+**Review artifact:** `reviews/archived/final-review-2026-06-19.md` (verdict PASS; 0 Critical, 0 Important, 2 Minor)
 
 **Disposition:**
 

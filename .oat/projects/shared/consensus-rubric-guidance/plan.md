@@ -371,10 +371,10 @@ git diff --cached --quiet || git commit -m "chore(consensus): verify rubric guid
 
 | Scope | Type     | Status  | Date | Artifact |
 | ----- | -------- | ------- | ---- | -------- |
-| p01   | code     | passed  | 2026-06-19 | reviews/p01-review-2026-06-19.md |
-| p02   | code     | passed  | 2026-06-19 | reviews/p02-review-2026-06-19.md |
-| p03   | code     | passed  | 2026-06-19 | reviews/final-review-2026-06-19.md |
-| final | code     | passed  | 2026-06-19 | reviews/final-review-2026-06-19.md |
+| p01   | code     | passed  | 2026-06-19 | reviews/archived/p01-review-2026-06-19.md |
+| p02   | code     | passed  | 2026-06-19 | reviews/archived/p02-review-2026-06-19.md |
+| p03   | code     | passed  | 2026-06-19 | reviews/archived/final-review-2026-06-19.md |
+| final | code     | passed  | 2026-06-19 | reviews/archived/final-review-2026-06-19.md |
 | spec  | artifact | passed  | 2026-06-19 | N/A (quick mode; no spec artifact) |
 | design | artifact | passed  | 2026-06-19 | N/A (quick mode; no design artifact) |
 | plan  | artifact | passed | 2026-06-19 | reviews/archived/artifact-plan-review-2026-06-19.md |
