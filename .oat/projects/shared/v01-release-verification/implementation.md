@@ -1,9 +1,9 @@
 ---
-oat_status: in_progress
-oat_ready_for: oat-project-implement
+oat_status: complete
+oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-19
-oat_current_task_id: p03-t04
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -18,9 +18,9 @@ oat_generated: false
 | ----- | ------ | ----- | --------- |
 | Phase 1 | completed | 2 | 2/2 |
 | Phase 2 | completed | 2 | 2/2 |
-| Phase 3 | in_progress | 4 | 3/4 |
+| Phase 3 | completed | 4 | 4/4 |
 
-**Total:** 7/8 tasks completed
+**Total:** 8/8 tasks completed
 
 ## Phase 1: Establish Current Evidence Baseline
 
@@ -148,7 +148,7 @@ oat_generated: false
 
 ## Phase 3: Capture Remaining Gates and PR Package
 
-**Status:** in_progress
+**Status:** completed
 
 ### Task p03-t01: Record release blockers and post-tag discovery gates
 
@@ -199,7 +199,7 @@ oat_generated: false
 ### Task p03-t03: (review) Rename refine QA example output path
 
 **Status:** completed
-**Commit:** pending task commit
+**Commit:** 55195b7
 
 **Outcome:**
 
@@ -211,9 +211,33 @@ oat_generated: false
 - Run: `rg -n "arch-parallel-revision|parallel-revision|parallel-synthesized" plugins/consensus/skills/refine/references/operator-qa.md README.md plugins/consensus/README.md CHANGELOG.md`
 - Result: pass; no stale hyphenated mode/output spelling matched in the scoped docs.
 
+### Task p03-t04: (review) Align implementation lifecycle frontmatter
+
+**Status:** completed
+**Commit:** pending task commit
+
+**Outcome:**
+
+- Marked all eight release-verification and review-fix tasks complete.
+- Updated final-review bookkeeping to reflect the explicit `m1` deferral and completed `m2`/`m3` fixes.
+- Restored project state to PR-ready after the review-fix pass.
+
+**Verification:**
+
+- Run: `oat project status --project-path .oat/projects/shared/v01-release-verification`
+- Result: pass; project reports `implement (complete)`, `8/8`, and no current task.
+- Run: `oat review latest --project .oat/projects/shared/v01-release-verification --json`
+- Result: pass; latest review is archived and non-actionable.
+- Run: `oat state refresh`
+- Result: pass; dashboard recommends `oat-project-pr-final`.
+
 ## Final Summary (for PR/docs)
 
-See `summary.md`.
+- Shipped release-verification packaging for v0.1: automated gate evidence, provider/install posture, release workflow parity, version/tag readiness, provider QA notes for `consensus:refine` and `consensus:evaluate`, and PR handoff summary.
+- Review-fix work completed: aligned the refine QA example filename with `parallel_revision` spelling and restored lifecycle metadata to complete/PR-ready.
+- Key files touched include `RELEASING.md`, `CHANGELOG.md`, `README.md`, `plugins/consensus/README.md`, provider QA references, `.github/workflows/release.yml`, `scripts/bump-version.mjs`, release-versioning/readme tests, and OAT project/reference artifacts.
+- Verification performed includes the full release gate set recorded earlier (`build`, `type-check`, `build:check`, `test`, `validate`, `smoke`, `check-tag`, `git diff --check`) plus the targeted review-fix spelling check.
+- Design deltas: none. Quick-mode project has no spec/design artifact; review finding `m3` was lifecycle metadata drift and is now resolved.
 
 ## Review Received: final
 
@@ -239,9 +263,9 @@ See `summary.md`.
 
 - `m3`: the review found lifecycle artifact drift, not implementation drift. The release-verification evidence remains authoritative; `p03-t04` will align project metadata after `p03-t03` is complete.
 
-**Next:** Execute review-fix tasks via the `oat-project-implement` skill, starting with `p03-t03`.
+**Next:** Project is ready for PR handoff.
 
-After the fix tasks are complete:
+After PR handoff:
 
-- Update the review row status to `fixes_completed` or `passed`, depending on whether a re-review is requested.
-- Re-run `oat-project-review-provide code final` then `oat-project-review-receive` if another final review pass is needed.
+- Clear remaining pre-tag provider gates before tagging v0.1.0.
+- Keep public skills.sh/marketplace discovery claims gated until post-tag verification.

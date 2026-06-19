@@ -43,7 +43,7 @@ Keep the plan sequential. The release checklist, README/CHANGELOG edits, provide
 | ------ | ---- | ------ | ----- |
 | plan | artifact | passed | Inline review confirmed scope, release gates, verification coverage, and public-claim gating. |
 | final | code | passed | Inline final diff review found no release-blocking issues; final verification passed. |
-| final | code | fixes_added | Independent fresh-context final review; 0 critical/important/medium, 3 minor. `m2` and `m3` queued as review-fix tasks; `m1` explicitly deferred as optional hardening. Artifact: `reviews/archived/final-review-2026-06-18.md`. |
+| final | code | passed | Independent fresh-context final review; 0 critical/important/medium, 3 minor. `m2` and `m3` review fixes completed inline; `m1` explicitly deferred as optional hardening. Artifact: `reviews/archived/final-review-2026-06-18.md`. |
 
 ## Phase 1: Establish Current Evidence Baseline
 
