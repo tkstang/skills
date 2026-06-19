@@ -1,6 +1,6 @@
 ---
 oat_current_task: p04-t01
-oat_last_commit: 43c4288
+oat_last_commit: 18cf70f
 oat_blockers: []
 associated_issues:
   - type: backlog
