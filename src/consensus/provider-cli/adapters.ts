@@ -71,6 +71,7 @@ export const DEFAULT_PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [
         model: true,
         effort: 'reasoning_effort',
         runtime_policy: {
+          permission_modes: ['non-interactive'],
           sandboxes: ['read-only', 'workspace-write'],
           approval_policies: ['never', 'on-request'],
           env_allowlist: true,
