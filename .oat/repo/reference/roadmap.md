@@ -1,6 +1,6 @@
 # Skills Repo Roadmap
 
-**Last updated:** 2026-06-17 (consensus-evaluate bl-5174 delivered as the first post-refine family skill; release verification remains the next release lane, and the remaining family skills follow the evaluate wrapper pattern. Prior: 2026-06-15 TypeScript/Vitest generated-runtime toolchain refresh.)
+**Last updated:** 2026-06-19 (consensus-rubric-guidance: `refine` + `evaluate` brought to authoring-best-practice parity with a validator-backed top-level skill `version` (DR-022), and `evaluate` gained guided rubric creation plus four bundled example rubrics — strengthens the release-packaging lane. Prior: 2026-06-17 consensus-evaluate bl-5174 delivered as the first post-refine family skill.)
 
 ## Planning Model
 
