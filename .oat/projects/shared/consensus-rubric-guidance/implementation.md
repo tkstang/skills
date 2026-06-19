@@ -1,16 +1,16 @@
 ---
 oat_status: in_progress
-oat_ready_for: null
+oat_ready_for: oat-project-implement
 oat_blockers: []
-oat_last_updated: 2026-06-18
-oat_current_task_id: null
+oat_last_updated: 2026-06-19
+oat_current_task_id: p01-t01
 oat_generated: false
 ---
 
 # Implementation: consensus-rubric-guidance
 
 **Started:** 2026-06-18
-**Last Updated:** 2026-06-18
+**Last Updated:** 2026-06-19
 
 > This document is used to resume interrupted implementation sessions.
 >
@@ -24,11 +24,13 @@ oat_generated: false
 
 ## Progress Overview
 
-No implementation tasks have been generated yet. Complete discovery and replace
-`plan.md` with a concrete quick implementation plan before starting
-implementation.
+| Phase | Status | Completed | Total | Current / Next Task |
+| ----- | ------ | --------- | ----- | ------------------- |
+| p01   | pending | 0 | 2 | `p01-t01` |
+| p02   | pending | 0 | 3 | - |
+| p03   | pending | 0 | 2 | - |
 
-**Total:** 0/0 tasks completed
+**Total:** 0/7 tasks completed
 
 ---
 
@@ -74,6 +76,32 @@ Chronological log of implementation progress.
 
 **Session End:** Not started.
 
+### 2026-06-19
+
+**Planning Update:** Quick implementation plan generated.
+
+**What changed (high level):**
+
+- Discovery was marked complete for the straight-to-plan quick workflow.
+- `plan.md` now defines three sequential phases and seven implementation tasks.
+- The dispatch ceiling is recorded as maximum: Codex `xhigh`, Claude `opus`.
+- The next implementation task is `p01-t01`.
+
+**Decisions:**
+
+- Keep this project sequential because the phases touch the same skill files,
+  docs-presence tests, and validation/versioning expectations.
+
+**Follow-ups / TODO:**
+
+- Start `oat-project-implement` at `p01-t01`.
+
+**Blockers:**
+
+- None.
+
+**Session End:** Ready for implementation.
+
 ---
 
 ## Deviations from Plan / Design
@@ -92,32 +120,32 @@ Track test execution during implementation.
 | ----- | --------- | ------ | ------ | -------- |
 | 1     | -         | -      | -      | -        |
 | 2     | -         | -      | -      | -        |
+| 3     | -         | -      | -      | -        |
 
 ## Final Summary (for PR/docs)
 
 **What shipped:**
 
-- {capability 1}
-- {capability 2}
+- Pending implementation.
 
 **Behavioral changes (user-facing):**
 
-- {bullet}
+- Pending implementation.
 
 **Key files / modules:**
 
-- `{path}` - {purpose}
+- Pending implementation.
 
 **Verification performed:**
 
-- {tests/lint/typecheck/build/manual steps}
+- Pending implementation.
 
 **Design deltas (if any):**
 
-- {what changed vs design.md and why}
+- N/A (quick mode; no design artifact produced).
 
 ## References
 
 - Plan: `plan.md`
-- Design: `design.md`
-- Spec: `spec.md`
+- Design: N/A (quick mode)
+- Spec: N/A (quick mode)
