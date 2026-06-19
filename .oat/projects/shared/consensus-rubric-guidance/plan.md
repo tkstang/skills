@@ -371,7 +371,7 @@ git diff --cached --quiet || git commit -m "chore(consensus): verify rubric guid
 
 | Scope | Type     | Status  | Date | Artifact |
 | ----- | -------- | ------- | ---- | -------- |
-| p01   | code     | pending | -    | -        |
+| p01   | code     | passed  | 2026-06-19 | reviews/p01-review-2026-06-19.md |
 | p02   | code     | pending | -    | -        |
 | p03   | code     | pending | -    | -        |
 | final | code     | pending | -    | -        |
