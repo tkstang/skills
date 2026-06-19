@@ -22,7 +22,7 @@ The canonical source moved to `src/transcript/core/runtimes.ts`.
 4. Commit the canonical change together with the regenerated copies.
 
 A drift guard (`node scripts/build-generated.mjs --check`, wired into
-`pnpm test` through `tests/generated-output-sync.test.mjs`) fails if any
+`pnpm test` through `tests/tooling/generated-output-sync.test.ts`) fails if any
 generated copy diverges from canonical source.
 
 ## Consumers
