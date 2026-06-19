@@ -1,0 +1,186 @@
+#!/usr/bin/env node
+
+import { appendFileSync } from 'node:fs';
+
+process.stdin.setEncoding('utf8');
+
+const args = process.argv.slice(2);
+
+function csv(name, fallback = '') {
+  return String(process.env[name] ?? fallback)
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+}
+
+function appendCall(entry) {
+  const callsPath = process.env.CONSENSUS_STUB_CALLS_JSONL;
+  if (!callsPath) return;
+  appendFileSync(callsPath, `${JSON.stringify({ args, ...entry })}\n`);
+}
+
+function providerIds() {
+  return csv('CONSENSUS_STUB_PROVIDERS', 'claude,codex,cursor');
+}
+
+function providerStatus(provider) {
+  if (csv('CONSENSUS_STUB_AUTH_REQUIRED').includes(provider)) {
+    return 'auth_required';
+  }
+  if (csv('CONSENSUS_STUB_UNAVAILABLE').includes(provider)) {
+    return 'unavailable';
+  }
+  return 'ready';
+}
+
+function providerInventory() {
+  const omitted = new Set(csv('CONSENSUS_STUB_MISSING'));
+  return providerIds()
+    .filter((provider) => !omitted.has(provider))
+    .map((provider) => ({ id: provider, status: providerStatus(provider) }));
+}
+
+function print(value) {
+  process.stdout.write(`${JSON.stringify(value)}\n`);
+}
+
+function providerFromArgs() {
+  const index = args.indexOf('--provider');
+  return index >= 0 ? args[index + 1] : args.at(-1);
+}
+
+function readStdin() {
+  return new Promise((resolve) => {
+    let data = '';
+    process.stdin.on('data', (chunk) => {
+      data += chunk;
+    });
+    process.stdin.on('end', () => resolve(data));
+  });
+}
+
+function requestPayload(request) {
+  const verdict = process.env.CONSENSUS_STUB_VERDICT ?? 'ACCEPT';
+  const isSynthesis = String(request.schema_path ?? '').includes(
+    'synthesis.schema.json',
+  );
+
+  if (isSynthesis) {
+    return {
+      schema_version: 'v1',
+      synthesized_artifact:
+        process.env.CONSENSUS_STUB_SYNTHESIZED_ARTIFACT ??
+        '# Synthesized Artifact\n\nFixture synthesis.\n',
+      synthesis_reasoning: 'fixture synthesis',
+      unresolved_disagreements: [],
+    };
+  }
+
+  const payload = {
+    schema_version: 'v1',
+    verdict,
+    reasoning: `${request.provider} fixture ${verdict.toLowerCase()}`,
+  };
+
+  if (verdict !== 'ACCEPT') {
+    payload.proposed_artifact =
+      process.env.CONSENSUS_STUB_PROPOSED_ARTIFACT ??
+      '# Proposed Artifact\n\nFixture revision.\n';
+  }
+
+  if (verdict === 'CONVERGED') {
+    payload.critique = {
+      own_previous: 'fixture own previous',
+      peer_previous: 'fixture peer previous',
+    };
+  }
+
+  return payload;
+}
+
+async function main() {
+  if (args[0] === 'provider' && args[1] === 'ls') {
+    appendCall({ event: 'provider_ls' });
+    print({
+      schema_version: 'v1',
+      ok: true,
+      providers: providerInventory(),
+    });
+    return;
+  }
+
+  if (args[0] === 'preflight') {
+    const provider = providerFromArgs();
+    const status = providerStatus(provider);
+    appendCall({ event: 'preflight', provider, status });
+    print({
+      schema_version: 'v1',
+      ok: true,
+      usable: status === 'ready',
+      providers: [{ id: provider, status }],
+    });
+    return;
+  }
+
+  if (args[0] === 'run') {
+    const request = JSON.parse(await readStdin());
+    const provider = request.provider;
+    appendCall({
+      event: 'run',
+      provider,
+      schema_path: request.schema_path,
+    });
+
+    const failureCode = process.env.CONSENSUS_STUB_RUN_FAILURE_CODE;
+    if (failureCode) {
+      const retryable = process.env.CONSENSUS_STUB_RUN_FAILURE_RETRYABLE === '1';
+      print({
+        schema_version: 'v1',
+        ok: false,
+        provider,
+        code: failureCode,
+        message: `fixture ${failureCode.toLowerCase()}`,
+        retryable,
+        attempts: {
+          cli_attempts: Number(process.env.CONSENSUS_STUB_CLI_ATTEMPTS ?? 1),
+          terminal_reason: failureCode.toLowerCase(),
+          retryable,
+        },
+        diagnostics: {
+          strategy_used: 'fixture_consensus_cli',
+          fixture_failure: true,
+        },
+      });
+      return;
+    }
+
+    const payload = requestPayload(request);
+    print({
+      schema_version: 'v1',
+      ok: true,
+      provider,
+      args: ['fixture-consensus-cli'],
+      stdout: JSON.stringify(payload),
+      stderr: '',
+      json: payload,
+      attempts: {
+        cli_attempts: Number(process.env.CONSENSUS_STUB_CLI_ATTEMPTS ?? 1),
+        terminal_reason: 'success',
+        retryable: false,
+      },
+      diagnostics: {
+        strategy_used: 'fixture_consensus_cli',
+        fixture_backend: 'provider-cli',
+      },
+    });
+    return;
+  }
+
+  process.stderr.write(`unknown consensus fixture command: ${args.join(' ')}\n`);
+  process.exitCode = 64;
+}
+
+main().catch((error) => {
+  process.stderr.write(`${error.stack ?? error.message}\n`);
+  process.exitCode = 1;
+});

@@ -28,6 +28,9 @@ export const repoRoot: string;
 /** Absolute path to the fixture stub binaries directory. */
 export const fixtureBin: string;
 
+/** Absolute path to the shared consensus CLI fixture. */
+export const consensusCliFixture: string;
+
 /** Absolute path to the shared sample-input fixture. */
 export const sampleInput: string;
 
@@ -36,6 +39,14 @@ export const sampleInput: string;
  * Consensus tests use this to inject the paseo stub without touching real PATH.
  */
 export function makeStubEnv(
+  overrides?: NodeJS.ProcessEnv,
+): NodeJS.ProcessEnv;
+
+/**
+ * Build a stub process env that routes wrappers through the owned consensus CLI
+ * fixture instead of the legacy Paseo fixture.
+ */
+export function makeProviderCliEnv(
   overrides?: NodeJS.ProcessEnv,
 ): NodeJS.ProcessEnv;
 

@@ -10,6 +10,9 @@ export const repoRoot = path.resolve(
 /** Absolute path to the fixture stub binaries directory. */
 export const fixtureBin = path.join(repoRoot, 'tests/fixtures/bin');
 
+/** Absolute path to the shared consensus CLI fixture. */
+export const consensusCliFixture = path.join(fixtureBin, 'consensus');
+
 /** Absolute path to the shared sample-input fixture. */
 export const sampleInput = path.join(
   repoRoot,
@@ -26,6 +29,18 @@ export function makeStubEnv(overrides = {}) {
     PATH: `${fixtureBin}${path.delimiter}${process.env.PATH}`,
     ...overrides,
   };
+}
+
+/**
+ * Build a stub process env that routes wrappers through the owned consensus CLI
+ * fixture instead of the legacy Paseo fixture.
+ */
+export function makeProviderCliEnv(overrides = {}) {
+  return makeStubEnv({
+    CONSENSUS_PROVIDER_BACKEND: 'provider-cli',
+    CONSENSUS_CLI_PATH: consensusCliFixture,
+    ...overrides,
+  });
 }
 
 export function captureWriter() {
