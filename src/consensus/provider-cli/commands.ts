@@ -8,12 +8,14 @@ import {
   processExitForEnvelope,
   usageFailure,
 } from './envelope.js';
+import { probeProviderRegistry } from './probe.js';
 
 import type {
   ProviderCapabilities,
   ProviderId,
   ProviderInventoryEntry,
 } from './types.js';
+import type { ProbeCommandRunner } from './probe.js';
 
 export interface ConsensusCliIo {
   stdout: WritableLike;
@@ -50,6 +52,7 @@ export interface CommandDiagnostics {
 
 export interface ProviderCommandOptions {
   registry?: ProviderInventoryEntry[] | ProviderRegistryLoader;
+  probeRunner?: ProbeCommandRunner;
 }
 
 export interface PreflightCommandOptions extends ProviderCommandOptions {
@@ -82,14 +85,14 @@ export async function runProviderList(
   return {
     schema_version: 'v1',
     ok: true,
-    providers: await resolveRegistry(options.registry),
+    providers: await resolveRegistry(options.registry, options),
   };
 }
 
 export async function runPreflight(
   options: PreflightCommandOptions = {},
 ): Promise<PreflightEnvelope> {
-  const registry = await resolveRegistry(options.registry);
+  const registry = await resolveRegistry(options.registry, options);
   const providers = selectProviders(registry, options.provider);
   const usable = providers.every((provider) => provider.status === 'ready');
   const diagnostics =
@@ -181,9 +184,16 @@ function selectProviders(
 
 async function resolveRegistry(
   registry: ProviderCommandOptions['registry'],
+  options: Pick<ProviderCommandOptions, 'probeRunner'> = {},
 ) {
   if (Array.isArray(registry)) return registry;
   if (typeof registry === 'function') return registry();
+  if (options.probeRunner) {
+    return probeProviderRegistry({
+      registry: providerRegistry(),
+      runner: options.probeRunner,
+    });
+  }
   return defaultProviderRegistry();
 }
 

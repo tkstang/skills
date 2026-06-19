@@ -4,11 +4,13 @@ import type {
   ProviderId,
   StructuredOutputStrategy,
 } from './types.js';
+import type { ProviderProbeDefinition } from './probe.js';
 
 export interface ProviderAdapter {
   id: FirstScopeProviderId;
   display_name: string;
   executable: string;
+  probe: ProviderProbeDefinition;
   capabilities: ProviderCapabilities;
 }
 
@@ -22,6 +24,16 @@ export const DEFAULT_PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [
     id: 'claude',
     display_name: 'Claude',
     executable: 'claude',
+    probe: {
+      version_args: ['--version'],
+      auth_required_patterns: [
+        /auth(?:entication)? required/i,
+        /not logged in/i,
+        /login required/i,
+        /keychain.*locked/i,
+      ],
+      unavailable_patterns: [/unsupported platform/i, /not configured/i],
+    },
     capabilities: {
       schema_strategies: ['provider_validated', 'prompt_only'],
       output_modes: ['stdout_json'],
@@ -42,6 +54,16 @@ export const DEFAULT_PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [
     id: 'codex',
     display_name: 'Codex',
     executable: 'codex',
+    probe: {
+      version_args: ['--version'],
+      auth_required_patterns: [
+        /auth(?:entication)? required/i,
+        /not logged in/i,
+        /login required/i,
+        /keychain.*locked/i,
+      ],
+      unavailable_patterns: [/unsupported platform/i, /not configured/i],
+    },
     capabilities: {
       schema_strategies: ['constrained_native', 'prompt_only'],
       output_modes: ['stdout_json'],
@@ -63,6 +85,17 @@ export const DEFAULT_PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [
     id: 'cursor',
     display_name: 'Cursor',
     executable: 'cursor-agent',
+    probe: {
+      version_args: ['--version'],
+      auth_required_patterns: [
+        /auth(?:entication)? required/i,
+        /not logged in/i,
+        /login required/i,
+        /keychain.*locked/i,
+        /credential.*locked/i,
+      ],
+      unavailable_patterns: [/unsupported platform/i, /not configured/i],
+    },
     capabilities: {
       schema_strategies: ['prompt_only', 'submit_tool_candidate'],
       output_modes: ['stdout_json'],
