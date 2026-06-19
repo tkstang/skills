@@ -2,13 +2,12 @@
  * digest.test.ts — Tests for src/transcript/session-observer/lib/digest.ts
  */
 
-import assert from 'node:assert/strict';
 import { readFile, writeFile, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { describe, test } from 'vitest';
+import { describe, expect, test } from 'vitest';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const FIXTURES = join(__dirname, 'fixtures');
@@ -37,13 +36,13 @@ describe('buildDigest', () => {
       mode: 'review',
     });
 
-    assert.equal(digest.range.fromIndex, 0, 'fromIndex should be 0');
-    assert.ok(digest.range.totalRecords > 0, 'totalRecords should be > 0');
-    assert.ok(digest.entries.length > 0, 'entries should be non-empty');
-    assert.ok(
+    expect(digest.range.fromIndex, 'fromIndex should be 0').toBe(0);
+    expect(digest.range.totalRecords > 0, 'totalRecords should be > 0').toBeTruthy();
+    expect(digest.entries.length > 0, 'entries should be non-empty').toBeTruthy();
+    expect(
       digest.entries.every((e: any) => e.kind === 'message'),
       'default filter: only message entries',
-    );
+    ).toBeTruthy();
   });
 
   test('returns only entries with recordIndex >= fromIndex (mid-stream)', async () => {
@@ -61,15 +60,14 @@ describe('buildDigest', () => {
       mode: 'catch-up',
     });
 
-    assert.ok(
+    expect(
       partial.entries.every((e: any) => e.recordIndex >= midIndex),
       'all entries should have recordIndex >= fromIndex',
-    );
-    assert.equal(
+    ).toBeTruthy();
+    expect(
       partial.range.fromIndex,
-      midIndex,
       'range.fromIndex should match',
-    );
+    ).toBe(midIndex);
   });
 
   test('newRecords set correctly in catch-up mode', async () => {
@@ -85,12 +83,11 @@ describe('buildDigest', () => {
       mode: 'catch-up',
     });
 
-    assert.equal(
+    expect(
       typeof catchUp.range.newRecords,
-      'number',
       'newRecords should be a number in catch-up mode',
-    );
-    assert.ok(catchUp.range.newRecords >= 0, 'newRecords should be >= 0');
+    ).toBe('number');
+    expect(catchUp.range.newRecords >= 0, 'newRecords should be >= 0').toBeTruthy();
   });
 
   test('catch-up separates raw records consumed from rendered messages', async () => {
@@ -213,50 +210,45 @@ describe('buildDigest', () => {
         mode: 'catch-up',
       });
 
-      assert.equal(digest.range.fromIndex, 0);
-      assert.equal(digest.range.indexBase, 'zero-based-jsonl-record-index');
-      assert.equal(
-        digest.accounting.indexBase,
-        'zero-based-jsonl-record-index',
-      );
-      assert.equal(
+      expect(digest.range.fromIndex).toBe(0);
+      expect(digest.range.indexBase).toBe('zero-based-jsonl-record-index');
+      expect(digest.accounting.indexBase).toBe('zero-based-jsonl-record-index');
+      expect(
         digest.range.toIndex,
-        7,
         'raw toIndex should be the last consumed raw record',
-      );
-      assert.equal(
+      ).toBe(7);
+      expect(
         digest.range.nextIndex,
-        8,
         'nextIndex should advance past all raw consumed records',
-      );
-      assert.equal(digest.range.newRecords, 8);
-      assert.equal(digest.accounting.rendered.count, 1);
-      assert.equal(digest.accounting.rendered.fromIndex, 4);
-      assert.equal(digest.accounting.rendered.toIndex, 4);
-      assert.equal(digest.accounting.filtered.toolCalls, 3);
-      assert.equal(digest.accounting.filtered.toolResults, 4);
+      ).toBe(8);
+      expect(digest.range.newRecords).toBe(8);
+      expect(digest.accounting.rendered.count).toBe(1);
+      expect(digest.accounting.rendered.fromIndex).toBe(4);
+      expect(digest.accounting.rendered.toIndex).toBe(4);
+      expect(digest.accounting.filtered.toolCalls).toBe(3);
+      expect(digest.accounting.filtered.toolResults).toBe(4);
 
       const md = renderMarkdown(digest);
-      assert.ok(
+      expect(
         md.includes('raw range (zero-based JSONL indices):** records 0–7 of 8'),
         'header should show raw range',
-      );
-      assert.ok(
+      ).toBeTruthy();
+      expect(
         md.includes('raw records consumed:** 8'),
         'header should show raw consumed count',
-      );
-      assert.ok(
+      ).toBeTruthy();
+      expect(
         md.includes('rendered messages:** 1 (zero-based records 4–4)'),
         'header should show rendered range separately',
-      );
-      assert.ok(
+      ).toBeTruthy();
+      expect(
         md.includes('tool calls: 3'),
         'header should explain filtered tool calls',
-      );
-      assert.ok(
+      ).toBeTruthy();
+      expect(
         md.includes('tool results: 4'),
         'header should explain filtered tool results',
-      );
+      ).toBeTruthy();
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -294,29 +286,29 @@ describe('buildDigest', () => {
         mode: 'catch-up',
       });
 
-      assert.equal(digest.entries.length, 1);
-      assert.equal(digest.entries[0].text, 'Visible response.');
-      assert.equal(digest.accounting.filtered.commandMessages, 1);
-      assert.equal(digest.filters.includeCommandMessages, false);
+      expect(digest.entries.length).toBe(1);
+      expect(digest.entries[0].text).toBe('Visible response.');
+      expect(digest.accounting.filtered.commandMessages).toBe(1);
+      expect(digest.filters.includeCommandMessages).toBe(false);
 
       const md = renderMarkdown(digest);
-      assert.ok(
+      expect(
         md.includes('command messages: 1'),
         'header should explain command-message filtering',
-      );
-      assert.ok(
+      ).toBeTruthy();
+      expect(
         md.includes('command messages excluded'),
         'filters should include command messages excluded',
-      );
+      ).toBeTruthy();
 
       const debugDigest = await buildDigest('claude-code', transcriptPath, {
         fromIndex: 0,
         mode: 'catch-up',
         includeCommandMessages: true,
       });
-      assert.equal(debugDigest.entries.length, 2);
-      assert.equal(debugDigest.entries[0].kind, 'command_message');
-      assert.equal(debugDigest.accounting.filtered.commandMessages, 0);
+      expect(debugDigest.entries.length).toBe(2);
+      expect(debugDigest.entries[0].kind).toBe('command_message');
+      expect(debugDigest.accounting.filtered.commandMessages).toBe(0);
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -432,18 +424,16 @@ describe('buildDigest', () => {
         .join('\n');
       const md = renderMarkdown(digest);
 
-      assert.equal(digest.engagement.status, 'engaged');
-      assert.equal(digest.engagement.genuineUserMessages, 1);
-      assert.equal(digest.engagement.bootstrapRecordCount, 4);
-      assert.equal(digest.accounting.filtered.bootstrapRecords, 4);
-      assert.ok(
-        renderedText.includes('Please inspect the actual design conversation.'),
-      );
-      assert.ok(renderedText.includes('Actual assistant response.'));
-      assert.ok(!renderedText.includes('AGENTS.md instructions'));
-      assert.ok(!renderedText.includes('Bootstrap Title'));
-      assert.ok(!renderedText.includes('<skill>'));
-      assert.ok(md.includes('bootstrap records: 4'));
+      expect(digest.engagement.status).toBe('engaged');
+      expect(digest.engagement.genuineUserMessages).toBe(1);
+      expect(digest.engagement.bootstrapRecordCount).toBe(4);
+      expect(digest.accounting.filtered.bootstrapRecords).toBe(4);
+      expect(renderedText.includes('Please inspect the actual design conversation.')).toBeTruthy();
+      expect(renderedText.includes('Actual assistant response.')).toBeTruthy();
+      expect(!renderedText.includes('AGENTS.md instructions')).toBeTruthy();
+      expect(!renderedText.includes('Bootstrap Title')).toBeTruthy();
+      expect(!renderedText.includes('<skill>')).toBeTruthy();
+      expect(md.includes('bootstrap records: 4')).toBeTruthy();
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -475,20 +465,20 @@ describe('buildDigest', () => {
         mode: 'catch-up',
       });
 
-      assert.equal(digest.range.newRecords, 12);
-      assert.ok(
+      expect(digest.range.newRecords).toBe(12);
+      expect(
         digest.accounting.autoLargeDigest,
         'autoLargeDigest accounting should be present',
-      );
-      assert.equal(digest.accounting.autoLargeDigest.retainedTurnGroups, 8);
-      assert.equal(digest.entries.length, 8);
-      assert.equal(digest.entries[0].recordIndex, 4);
-      assert.equal(digest.accounting.filtered.tailSliceEntries, 4);
-      assert.ok(
+      ).toBeTruthy();
+      expect((digest.accounting.autoLargeDigest as any).retainedTurnGroups).toBe(8);
+      expect(digest.entries.length).toBe(8);
+      expect(digest.entries[0].recordIndex).toBe(4);
+      expect(digest.accounting.filtered.tailSliceEntries).toBe(4);
+      expect(
         digest.warnings.some((w: string) =>
           w.includes('Large digest fallback'),
         ),
-      );
+      ).toBeTruthy();
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -499,8 +489,8 @@ describe('buildDigest', () => {
       fromIndex: 0,
       mode: 'review',
     });
-    assert.ok(digest.range.totalRecords > 0, 'should parse codex fixture');
-    assert.equal(digest.runtime, 'codex');
+    expect(digest.range.totalRecords > 0, 'should parse codex fixture').toBeTruthy();
+    expect(digest.runtime).toBe('codex');
   });
 
   test('buildDigest works for cursor runtime', async () => {
@@ -509,12 +499,12 @@ describe('buildDigest', () => {
       mode: 'review',
     });
 
-    assert.ok(digest.range.totalRecords > 0, 'should parse cursor fixture');
-    assert.equal(digest.runtime, 'cursor');
-    assert.ok(
+    expect(digest.range.totalRecords > 0, 'should parse cursor fixture').toBeTruthy();
+    expect(digest.runtime).toBe('cursor');
+    expect(
       digest.entries.some((entry: any) => entry.role === 'assistant'),
       'should include assistant messages',
-    );
+    ).toBeTruthy();
   });
 });
 
@@ -530,26 +520,25 @@ describe('renderMarkdown', () => {
     });
 
     const md = renderMarkdown(digest);
-    assert.ok(typeof md === 'string', 'renderMarkdown returns a string');
+    expect(typeof md === 'string', 'renderMarkdown returns a string').toBeTruthy();
 
     // Should contain ### User and ### Assistant headers
-    assert.ok(md.includes('### User'), 'should contain ### User header');
-    assert.ok(
+    expect(md.includes('### User'), 'should contain ### User header').toBeTruthy();
+    expect(
       md.includes('### Assistant'),
       'should contain ### Assistant header',
-    );
+    ).toBeTruthy();
 
     // Headers should NOT repeat consecutively for the same role
     // (i.e., we don't see "### User\n...\n### User\n..." without an assistant in between)
     const lines = md.split('\n');
-    let prevHeader = null;
+    let prevHeader: string | null = null;
     for (const line of lines) {
       if (line.startsWith('### User') || line.startsWith('### Assistant')) {
-        assert.notEqual(
+        expect(
           line,
-          prevHeader,
           `Consecutive duplicate header found: ${line}`,
-        );
+        ).not.toBe(prevHeader);
         prevHeader = line;
       }
     }
@@ -565,10 +554,10 @@ describe('renderMarkdown', () => {
 
     const md = renderMarkdown(digest);
     // Filter line should mention tool calls excluded
-    assert.ok(
+    expect(
       md.includes('tool') || md.includes('filter'),
       'header should mention tool filtering',
-    );
+    ).toBeTruthy();
   });
 
   test('header contains active flag when digest.active is true', async () => {
@@ -580,10 +569,10 @@ describe('renderMarkdown', () => {
     digest.active = true;
 
     const md = renderMarkdown(digest);
-    assert.ok(
+    expect(
       md.includes('active') || md.includes('ACTIVE'),
       'header should include active flag',
-    );
+    ).toBeTruthy();
   });
 
   test('header contains range metadata', async () => {
@@ -594,11 +583,11 @@ describe('renderMarkdown', () => {
 
     const md = renderMarkdown(digest);
     // Should contain fromIndex and totalRecords info
-    assert.ok(md.includes('0'), 'header should contain fromIndex value');
-    assert.ok(
+    expect(md.includes('0'), 'header should contain fromIndex value').toBeTruthy();
+    expect(
       md.includes(String(digest.range.totalRecords)),
       'header should contain totalRecords',
-    );
+    ).toBeTruthy();
   });
 
   test('no tool markers by default', async () => {
@@ -610,10 +599,10 @@ describe('renderMarkdown', () => {
     });
     const md = renderMarkdown(digest);
     // Should not contain tool-call markers like [Read] or [Bash]
-    assert.ok(
+    expect(
       !md.includes('[Read]') && !md.includes('[Bash]'),
       'should not include tool markers by default',
-    );
+    ).toBeTruthy();
   });
 
   test('--max-turns slices from the tail', async () => {
@@ -630,15 +619,15 @@ describe('renderMarkdown', () => {
     });
     const slicedMd = renderMarkdown(slicedDigest);
 
-    assert.ok(
+    expect(
       slicedMd.length < fullMd.length ||
         slicedDigest.entries.length <= fullDigest.entries.length,
       '--max-turns should produce a smaller or equal digest',
-    );
-    assert.ok(
+    ).toBeTruthy();
+    expect(
       slicedDigest.entries.length <= fullDigest.entries.length,
       'sliced entries <= full entries',
-    );
+    ).toBeTruthy();
   });
 
   test('--max-bytes slices from the tail by byte count', async () => {
@@ -654,10 +643,10 @@ describe('renderMarkdown', () => {
       maxBytes: 100,
     });
 
-    assert.ok(
+    expect(
       slicedDigest.entries.length <= fullDigest.entries.length,
       '--max-bytes slices entries',
-    );
+    ).toBeTruthy();
   });
 });
 
@@ -702,13 +691,13 @@ describe('20K warning', () => {
 
       // Should contain 20K warning
       if (md.length > 20000) {
-        assert.ok(
+        expect(
           md.includes('20') ||
             md.includes('large') ||
             md.includes('warning') ||
             md.includes('Warning'),
           '20K-char digest should prepend a warning',
-        );
+        ).toBeTruthy();
       }
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
@@ -727,13 +716,13 @@ describe('renderJson', () => {
       mode: 'review',
     });
     const jsonStr = renderJson(digest);
-    assert.ok(typeof jsonStr === 'string', 'renderJson returns a string');
+    expect(typeof jsonStr === 'string', 'renderJson returns a string').toBeTruthy();
     let parsed: any;
-    assert.doesNotThrow(() => {
+    expect(() => {
       parsed = JSON.parse(jsonStr);
-    }, 'output should be valid JSON');
-    assert.equal(parsed.schemaVersion, 1, 'schemaVersion should be 1');
-    assert.ok(Array.isArray(parsed.entries), 'entries should be an array');
-    assert.equal(parsed.runtime, 'claude-code', 'runtime should be preserved');
+    }, 'output should be valid JSON').not.toThrow();
+    expect(parsed.schemaVersion, 'schemaVersion should be 1').toBe(1);
+    expect(Array.isArray(parsed.entries), 'entries should be an array').toBeTruthy();
+    expect(parsed.runtime, 'runtime should be preserved').toBe('claude-code');
   });
 });

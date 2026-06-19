@@ -4,18 +4,17 @@
  * Each test uses a fresh temp STATE_DIR to ensure isolation.
  */
 
-import assert from 'node:assert/strict';
 import { readFile, readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import { afterEach, test, vi } from 'vitest';
+import { expect, afterEach, test, vi } from 'vitest';
 
 import * as watchState from '../../src/transcript/session-observer/lib/watch-state.js';
 import type { WatcherRecord } from '../../src/transcript/session-observer/lib/types.js';
 import { withTmpStateDir } from './helpers/tmpdir.js';
 
 function assertWatcherRecord(value: unknown): asserts value is WatcherRecord {
-  assert.ok(value && typeof value === 'object' && 'pid' in value);
+  expect(value && typeof value === 'object' && 'pid' in value).toBeTruthy();
 }
 
 afterEach(() => {
@@ -33,7 +32,7 @@ test('startWatcher writes watch.json atomically with active watcher metadata', a
       startedAt,
     });
 
-    assert.deepEqual(active, {
+    expect(active).toEqual({
       pid: process.pid,
       runtime: 'codex',
       requestedRuntime: 'codex',
@@ -56,15 +55,12 @@ test('startWatcher writes watch.json atomically with active watcher metadata', a
     });
 
     const raw = JSON.parse(await readFile(join(dir, 'watch.json'), 'utf8'));
-    assert.equal(raw.schemaVersion, 1);
-    assert.deepEqual(raw.active, active);
-    assert.deepEqual(raw.watchers, [active]);
+    expect(raw.schemaVersion).toBe(1);
+    expect(raw.active).toEqual(active);
+    expect(raw.watchers).toEqual([active]);
 
     const files = await readdir(dir);
-    assert.deepEqual(
-      files.filter((file) => file.endsWith('.tmp')),
-      [],
-    );
+    expect(files.filter((file) => file.endsWith('.tmp'))).toEqual([]);
   });
 });
 
@@ -77,7 +73,7 @@ test('startWatcher refuses a second watcher for the same pid when pid is live', 
       startedAt: '2026-06-03T12:00:00.000Z',
     });
 
-    await assert.rejects(
+    await expect(
       () =>
         watchState.startWatcher({
           runtime: 'codex',
@@ -85,15 +81,14 @@ test('startWatcher refuses a second watcher for the same pid when pid is live', 
           pid: process.pid,
           startedAt: '2026-06-03T12:01:00.000Z',
         }),
-      /already active/i,
-    );
+    ).rejects.toThrow(/already active/i);
   });
 });
 
 test('startWatcher allows concurrent live watchers in the same cwd for different pids', async () => {
   await withTmpStateDir(async (dir) => {
     vi.spyOn(process, 'kill').mockImplementation((pid, signal) => {
-      assert.equal(signal, 0);
+      expect(signal).toBe(0);
       if (pid === 111 || pid === 222) return true;
       return true;
     });
@@ -111,14 +106,11 @@ test('startWatcher allows concurrent live watchers in the same cwd for different
       startedAt: '2026-06-03T12:00:01.000Z',
     });
 
-    assert.equal(second.pid, 222);
+    expect(second.pid).toBe(222);
     const raw = JSON.parse(await readFile(join(dir, 'watch.json'), 'utf8'));
-    assert.equal(raw.active.pid, 111);
-    assert.equal(raw.watchers.length, 2);
-    assert.deepEqual(
-      raw.watchers.map((watcher: any) => watcher.pid),
-      [111, 222],
-    );
+    expect(raw.active.pid).toBe(111);
+    expect(raw.watchers.length).toBe(2);
+    expect(raw.watchers.map((watcher: any) => watcher.pid)).toEqual([111, 222]);
   });
 });
 
@@ -141,7 +133,7 @@ test('startWatcher clears a stale active pid before registering the new watcher'
     );
 
     vi.spyOn(process, 'kill').mockImplementation((pid, signal) => {
-      assert.equal(signal, 0);
+      expect(signal).toBe(0);
       if (pid === 424242) {
         const err = new Error('no such process') as NodeJS.ErrnoException;
         err.code = 'ESRCH';
@@ -157,12 +149,12 @@ test('startWatcher clears a stale active pid before registering the new watcher'
       startedAt: '2026-06-03T12:00:00.000Z',
     });
 
-    assert.equal(active.pid, process.pid);
+    expect(active.pid).toBe(process.pid);
     const raw = JSON.parse(await readFile(join(dir, 'watch.json'), 'utf8'));
-    assert.equal(raw.active.pid, process.pid);
-    assert.equal(raw.active.startedAt, '2026-06-03T12:00:00.000Z');
-    assert.equal(raw.watchers.length, 1);
-    assert.equal(raw.watchers[0].pid, process.pid);
+    expect(raw.active.pid).toBe(process.pid);
+    expect(raw.active.startedAt).toBe('2026-06-03T12:00:00.000Z');
+    expect(raw.watchers.length).toBe(1);
+    expect(raw.watchers[0].pid).toBe(process.pid);
   });
 });
 
@@ -175,10 +167,10 @@ test('control directives are written to and read from watch.control.json', async
     const raw = JSON.parse(
       await readFile(join(dir, 'watch.control.json'), 'utf8'),
     );
-    assert.deepEqual(raw, { directive: 'pause', issuedAt });
+    expect(raw).toEqual({ directive: 'pause', issuedAt });
 
     const directive = await watchState.readControlDirective();
-    assert.deepEqual(directive, { directive: 'pause', issuedAt });
+    expect(directive).toEqual({ directive: 'pause', issuedAt });
   });
 });
 
@@ -195,24 +187,24 @@ test('pid-targeted control directives use per-pid files and do not overwrite eac
     const second = JSON.parse(
       await readFile(join(dir, 'watch.control.222.json'), 'utf8'),
     );
-    assert.deepEqual(first, { directive: 'pause', issuedAt, pid: 111 });
-    assert.deepEqual(second, { directive: 'stop', issuedAt, pid: 222 });
+    expect(first).toEqual({ directive: 'pause', issuedAt, pid: 111 });
+    expect(second).toEqual({ directive: 'stop', issuedAt, pid: 222 });
 
-    assert.deepEqual(await watchState.readControlDirective({ pid: 111 }), {
+    expect(await watchState.readControlDirective({ pid: 111 })).toEqual({
       directive: 'pause',
       issuedAt,
       pid: 111,
     });
-    assert.deepEqual(await watchState.readControlDirective({ pid: 222 }), {
+    expect(await watchState.readControlDirective({ pid: 222 })).toEqual({
       directive: 'stop',
       issuedAt,
       pid: 222,
     });
 
     // Clearing one pid's directive leaves the other untouched.
-    assert.equal(await watchState.clearControlDirective({ pid: 111 }), true);
-    assert.equal(await watchState.readControlDirective({ pid: 111 }), null);
-    assert.deepEqual(await watchState.readControlDirective({ pid: 222 }), {
+    expect(await watchState.clearControlDirective({ pid: 111 })).toBe(true);
+    expect(await watchState.readControlDirective({ pid: 111 })).toBe(null);
+    expect(await watchState.readControlDirective({ pid: 222 })).toEqual({
       directive: 'stop',
       issuedAt,
       pid: 222,
@@ -226,14 +218,14 @@ test('readControlDirective falls back to legacy pid-less directives', async () =
 
     await watchState.writeControlDirective('flush', { issuedAt });
 
-    assert.deepEqual(await watchState.readControlDirective({ pid: 333 }), {
+    expect(await watchState.readControlDirective({ pid: 333 })).toEqual({
       directive: 'flush',
       issuedAt,
     });
 
     // A pid-scoped clear consumes a pid-less legacy directive too.
-    assert.equal(await watchState.clearControlDirective({ pid: 333 }), true);
-    assert.equal(await watchState.readControlDirective({ pid: 333 }), null);
+    expect(await watchState.clearControlDirective({ pid: 333 })).toBe(true);
+    expect(await watchState.readControlDirective({ pid: 333 })).toBe(null);
   });
 });
 
@@ -241,7 +233,7 @@ test('clearStaleControlDirectives removes directives for dead pids only', async 
   await withTmpStateDir(async (dir) => {
     const issuedAt = '2026-06-03T12:02:00.000Z';
     vi.spyOn(process, 'kill').mockImplementation((pid, signal) => {
-      assert.equal(signal, 0);
+      expect(signal).toBe(0);
       if (pid === 424242) {
         const err = new Error('no such process') as NodeJS.ErrnoException;
         err.code = 'ESRCH';
@@ -257,19 +249,16 @@ test('clearStaleControlDirectives removes directives for dead pids only', async 
     });
 
     const cleared = await watchState.clearStaleControlDirectives();
-    assert.equal(cleared, 1);
-    assert.equal(await watchState.readControlDirective({ pid: 424242 }), null);
-    assert.deepEqual(
-      await watchState.readControlDirective({ pid: process.pid }),
-      { directive: 'pause', issuedAt, pid: process.pid },
-    );
+    expect(cleared).toBe(1);
+    expect(await watchState.readControlDirective({ pid: 424242 })).toBe(null);
+    expect(await watchState.readControlDirective({ pid: process.pid })).toEqual({ directive: 'pause', issuedAt, pid: process.pid });
   });
 });
 
 test('findLiveWatcherForTarget reports a conflicting live watcher for the same target', async () => {
   await withTmpStateDir(async () => {
     vi.spyOn(process, 'kill').mockImplementation((pid, signal) => {
-      assert.equal(signal, 0);
+      expect(signal).toBe(0);
       return true;
     });
 
@@ -293,34 +282,28 @@ test('findLiveWatcherForTarget reports a conflicting live watcher for the same t
       sessionId: 'abc',
       excludePid: 222,
     });
-    assert.equal(conflict?.pid, 111);
+    expect(conflict?.pid).toBe(111);
 
     // The owning watcher itself is excluded.
-    assert.equal(
-      await watchState.findLiveWatcherForTarget({
+    expect(await watchState.findLiveWatcherForTarget({
         runtime: 'codex',
         sessionId: 'abc',
         excludePid: 111,
-      }),
-      null,
-    );
+      })).toBe(null);
 
     // A different session is not a conflict.
-    assert.equal(
-      await watchState.findLiveWatcherForTarget({
+    expect(await watchState.findLiveWatcherForTarget({
         runtime: 'codex',
         sessionId: 'other',
         excludePid: 222,
-      }),
-      null,
-    );
+      })).toBe(null);
   });
 });
 
 test('recordWatcherTarget rejects an overlapping live target under the lock', async () => {
   await withTmpStateDir(async () => {
     vi.spyOn(process, 'kill').mockImplementation((pid, signal) => {
-      assert.equal(signal, 0);
+      expect(signal).toBe(0);
       return true;
     });
 
@@ -346,27 +329,26 @@ test('recordWatcherTarget rejects an overlapping live target under the lock', as
 
     // Both watchers passed the pre-check before either recorded; the locked
     // write is the authoritative gate for the loser.
-    await assert.rejects(
-      () => watchState.recordWatcherTarget({ pid: 222, target }),
-      (err: any) => {
-        assert.match(err.message, /already watching codex:abc/);
-        assert.equal(err.code, 'DUPLICATE_WATCH_TARGET');
-        assert.equal(err.conflictPid, 111);
-        return true;
-      },
-    );
+    const dupErr: any = await watchState
+      .recordWatcherTarget({ pid: 222, target })
+      .then(() => null)
+      .catch((e) => e);
+    expect(dupErr).not.toBe(null);
+    expect(dupErr.message).toMatch(/already watching codex:abc/);
+    expect(dupErr.code).toBe('DUPLICATE_WATCH_TARGET');
+    expect(dupErr.conflictPid).toBe(111);
 
     // Re-recording the same target for the owning pid stays allowed.
     const updated = await watchState.recordWatcherTarget({ pid: 111, target });
     assertWatcherRecord(updated);
-    assert.equal(updated.targets.length, 1);
+    expect(updated.targets.length).toBe(1);
   });
 });
 
 test('findLiveWatcherForTarget falls back to legacy top-level fields when targets[] is absent', async () => {
   await withTmpStateDir(async (dir) => {
     vi.spyOn(process, 'kill').mockImplementation((pid, signal) => {
-      assert.equal(signal, 0);
+      expect(signal).toBe(0);
       return true;
     });
 
@@ -395,16 +377,13 @@ test('findLiveWatcherForTarget falls back to legacy top-level fields when target
       sessionId: 'legacy-session',
       excludePid: 222,
     });
-    assert.equal(conflict?.pid, 111);
+    expect(conflict?.pid).toBe(111);
 
-    assert.equal(
-      await watchState.findLiveWatcherForTarget({
+    expect(await watchState.findLiveWatcherForTarget({
         runtime: 'codex',
         sessionId: 'other-session',
         excludePid: 222,
-      }),
-      null,
-    );
+      })).toBe(null);
 
     // The locked recordWatcherTarget gate honors legacy records too.
     await watchState.startWatcher({
@@ -413,7 +392,7 @@ test('findLiveWatcherForTarget falls back to legacy top-level fields when target
       pid: 222,
       startedAt: '2026-06-11T12:00:00.000Z',
     });
-    await assert.rejects(
+    await expect(
       () =>
         watchState.recordWatcherTarget({
           pid: 222,
@@ -423,8 +402,7 @@ test('findLiveWatcherForTarget falls back to legacy top-level fields when target
             transcriptPath: '/tmp/legacy.jsonl',
           },
         }),
-      /already watching codex:legacy-session/,
-    );
+    ).rejects.toThrow(/already watching codex:legacy-session/);
   });
 });
 
@@ -453,12 +431,12 @@ test('recordWatcherTarget stores resolved pinned target metadata', async () => {
     });
 
     assertWatcherRecord(active);
-    assert.equal(active.requestedRuntime, 'auto');
-    assert.equal(active.resolvedRuntime, 'codex');
-    assert.equal(active.sessionId, 'abc');
-    assert.equal(active.transcriptPath, '/tmp/abc.jsonl');
-    assert.equal(active.targets.length, 1);
-    assert.equal(active.targets[0].baselineRecordIndex, 5);
+    expect(active.requestedRuntime).toBe('auto');
+    expect(active.resolvedRuntime).toBe('codex');
+    expect(active.sessionId).toBe('abc');
+    expect(active.transcriptPath).toBe('/tmp/abc.jsonl');
+    expect(active.targets.length).toBe(1);
+    expect(active.targets[0].baselineRecordIndex).toBe(5);
   });
 });
 
@@ -482,8 +460,8 @@ test('recordWatcherPoll and recordWatcherError update active heartbeat fields', 
     });
 
     assertWatcherRecord(active);
-    assert.equal(active.lastPollAt, '2026-06-03T12:00:03.000Z');
-    assert.ok(active.lastError);
-    assert.equal(active.lastError.message, 'poll failed');
+    expect(active.lastPollAt).toBe('2026-06-03T12:00:03.000Z');
+    expect(active.lastError).toBeTruthy();
+    expect((active.lastError as any).message).toBe('poll failed');
   });
 });

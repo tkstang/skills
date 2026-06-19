@@ -12,7 +12,6 @@
  *   8. gitWorktrees: returns [] when git exec fails
  */
 
-import assert from 'node:assert/strict';
 import {
   mkdtemp,
   rm,
@@ -24,7 +23,7 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { test } from 'vitest';
+import { expect, test } from 'vitest';
 
 // ---------------------------------------------------------------------------
 // Test helper: temp HOME dir per test
@@ -100,26 +99,25 @@ test('claude-code: discover returns one candidate with correct sessionId and rec
 
     const candidates = await discover('claude-code', targetCwd);
 
-    assert.equal(candidates.length, 1, 'should find exactly one candidate');
+    expect(candidates.length, 'should find exactly one candidate').toBe(1);
     const c = candidates[0];
-    assert.equal(c.runtime, 'claude-code');
-    assert.equal(c.sessionId, 'cc-session-001');
+    expect(c.runtime).toBe('claude-code');
+    expect(c.sessionId).toBe('cc-session-001');
     // Because the transcript was found via the direct encodeCwd lookup, recordedCwd
     // must equal targetCwd exactly (not an approximation via decodeCwdDirName).
-    assert.equal(
+    expect(
       c.recordedCwd,
-      targetCwd,
       'recordedCwd must be the exact targetCwd for direct-lookup candidates',
-    );
-    assert.ok(c.mtime > 0, 'mtime should be a positive epoch-seconds value');
-    assert.ok(
+    ).toBe(targetCwd);
+    expect(c.mtime > 0, 'mtime should be a positive epoch-seconds value').toBeTruthy();
+    expect(
       typeof c.size === 'number' && c.size >= 0,
       'size should be a number',
-    );
-    assert.ok(
+    ).toBeTruthy();
+    expect(
       typeof c.ageSec === 'number' && c.ageSec >= 0,
       'ageSec should be a non-negative number',
-    );
+    ).toBeTruthy();
   });
 });
 
@@ -133,14 +131,13 @@ test('claude-code: glob fallback when encoded dir is missing — no throw, retur
     const candidates = await discover('claude-code', targetCwd);
 
     // No match under targetCwd, but must not throw
-    assert.ok(Array.isArray(candidates), 'should return an array');
+    expect(Array.isArray(candidates), 'should return an array').toBeTruthy();
     // All returned candidates (if any from other dirs) should not have recordedCwd === targetCwd
     const exactMatch = candidates.filter((c) => c.recordedCwd === targetCwd);
-    assert.equal(
+    expect(
       exactMatch.length,
-      0,
       'should find no exact-cwd match when encoded dir is absent',
-    );
+    ).toBe(0);
   });
 });
 
@@ -162,14 +159,14 @@ test('claude-code: direct lookup uses dot-sanitized project dir slug', async () 
     await writeFile(transcriptPath, CLAUDE_CODE_TYPICAL, 'utf8');
 
     const candidates = await discover('claude-code', targetCwd);
-    const c = candidates.find(
+    const c: any = candidates.find(
       (candidate: any) => candidate.transcriptPath === transcriptPath,
     );
 
-    assert.ok(c, 'should find the transcript via dot-sanitized direct lookup');
-    assert.equal(c.recordedCwd, targetCwd);
-    assert.equal(c.cwdSlug, encoded);
-    assert.equal(c.cwdEvidence, 'direct-parent-dir');
+    expect(c, 'should find the transcript via dot-sanitized direct lookup').toBeTruthy();
+    expect(c.recordedCwd).toBe(targetCwd);
+    expect(c.cwdSlug).toBe(encoded);
+    expect(c.cwdEvidence).toBe('direct-parent-dir');
   });
 });
 
@@ -184,14 +181,14 @@ test('claude-code: fallback candidates preserve parent cwdSlug as weak evidence'
     await writeFile(transcriptPath, CLAUDE_CODE_TYPICAL, 'utf8');
 
     const candidates = await discover('claude-code', targetCwd);
-    const c = candidates.find(
+    const c: any = candidates.find(
       (candidate: any) => candidate.transcriptPath === transcriptPath,
     );
 
-    assert.ok(c, 'fallback scan should include non-direct project dirs');
-    assert.equal(c.cwdSlug, otherSlug);
-    assert.equal(c.cwdEvidence, 'decoded-parent-dir');
-    assert.notEqual(c.recordedCwd, targetCwd);
+    expect(c, 'fallback scan should include non-direct project dirs').toBeTruthy();
+    expect(c.cwdSlug).toBe(otherSlug);
+    expect(c.cwdEvidence).toBe('decoded-parent-dir');
+    expect(c.recordedCwd).not.toBe(targetCwd);
   });
 });
 
@@ -211,15 +208,14 @@ test('codex: discover returns candidate with cwd from session-meta record', asyn
 
     const candidates = await discover('codex', targetCwd);
 
-    assert.ok(candidates.length >= 1, 'should find at least one candidate');
-    const c = candidates.find((x: any) => x.sessionId === 'codex-sess-001');
-    assert.ok(c, 'should find the session by id');
-    assert.equal(
+    expect(candidates.length >= 1, 'should find at least one candidate').toBeTruthy();
+    const c: any = candidates.find((x: any) => x.sessionId === 'codex-sess-001');
+    expect(c, 'should find the session by id').toBeTruthy();
+    expect(
       c.recordedCwd,
-      targetCwd,
       'recordedCwd should match session-meta cwd',
-    );
-    assert.equal(c.runtime, 'codex');
+    ).toBe(targetCwd);
+    expect(c.runtime).toBe('codex');
   });
 });
 
@@ -255,11 +251,10 @@ test('codex: LOOKBACK_DAYS filter excludes files older than 7 days', async () =>
     const staleFound = candidates.find(
       (c: any) => c.transcriptPath === stalePath,
     );
-    assert.equal(
+    expect(
       staleFound,
-      undefined,
       'stale transcript should be excluded by LOOKBACK_DAYS filter',
-    );
+    ).toBe(undefined);
   });
 });
 
@@ -281,10 +276,10 @@ test('codex cwd cache: cache hit proved by observable cache-file state', async (
 
     // First discover: populates the cache
     const firstResult = await discover('codex', targetCwd);
-    assert.ok(
+    expect(
       firstResult.length >= 1,
       'first discover should find the candidate',
-    );
+    ).toBeTruthy();
 
     // Read the original mtime
     const { stat } = await import('node:fs/promises');
@@ -299,15 +294,14 @@ test('codex cwd cache: cache hit proved by observable cache-file state', async (
     const cache = JSON.parse(cacheRaw);
     const mtimeSec = Math.floor(origMtime.getTime() / 1000);
     const cacheKey = `${transcriptPath}:${mtimeSec}`;
-    assert.ok(
+    expect(
       cache[cacheKey],
       `cache should contain an entry for key ${cacheKey}`,
-    );
-    assert.equal(
+    ).toBeTruthy();
+    expect(
       cache[cacheKey].recordedCwd,
-      targetCwd,
       'cached entry should have the original cwd',
-    );
+    ).toBe(targetCwd);
 
     // Overwrite transcript with a DIFFERENT cwd (but keep same mtime)
     const differentCwd = '/Users/testuser/Code/DIFFERENT-project';
@@ -320,15 +314,14 @@ test('codex cwd cache: cache hit proved by observable cache-file state', async (
 
     // The candidate for our transcript should still report targetCwd (from cache),
     // not differentCwd (from the rewritten content)
-    const cachedCandidate = secondResult.find(
+    const cachedCandidate: any = secondResult.find(
       (c: any) => c.transcriptPath === transcriptPath,
     );
-    assert.ok(cachedCandidate, 'transcript should still be found');
-    assert.equal(
+    expect(cachedCandidate, 'transcript should still be found').toBeTruthy();
+    expect(
       cachedCandidate.recordedCwd,
-      targetCwd,
       'recordedCwd should come from the cache, not the rewritten transcript',
-    );
+    ).toBe(targetCwd);
   });
 });
 
@@ -349,16 +342,16 @@ test('cursor: direct lookup discovers agent transcript with exact cwd evidence',
     await writeFile(transcriptPath, CURSOR_TYPICAL, 'utf8');
 
     const candidates = await discover('cursor', targetCwd);
-    const c = candidates.find(
+    const c: any = candidates.find(
       (candidate: any) => candidate.transcriptPath === transcriptPath,
     );
 
-    assert.ok(c, 'should find the direct Cursor transcript');
-    assert.equal(c.runtime, 'cursor');
-    assert.equal(c.sessionId, 'session-123');
-    assert.equal(c.recordedCwd, targetCwd);
-    assert.equal(c.cwdSlug, encoded);
-    assert.equal(c.cwdEvidence, 'direct-parent-dir');
+    expect(c, 'should find the direct Cursor transcript').toBeTruthy();
+    expect(c.runtime).toBe('cursor');
+    expect(c.sessionId).toBe('session-123');
+    expect(c.recordedCwd).toBe(targetCwd);
+    expect(c.cwdSlug).toBe(encoded);
+    expect(c.cwdEvidence).toBe('direct-parent-dir');
   });
 });
 
@@ -379,16 +372,16 @@ test('cursor: fallback scan preserves project cwdSlug evidence', async () => {
     await writeFile(transcriptPath, CURSOR_TYPICAL, 'utf8');
 
     const candidates = await discover('cursor', targetCwd);
-    const c = candidates.find(
+    const c: any = candidates.find(
       (candidate: any) => candidate.transcriptPath === transcriptPath,
     );
 
-    assert.ok(c, 'fallback scan should include Cursor project dirs');
-    assert.equal(c.runtime, 'cursor');
-    assert.equal(c.sessionId, 'session-abc');
-    assert.equal(c.recordedCwd, null);
-    assert.equal(c.cwdSlug, fallbackSlug);
-    assert.equal(c.cwdEvidence, 'project-dir-slug');
+    expect(c, 'fallback scan should include Cursor project dirs').toBeTruthy();
+    expect(c.runtime).toBe('cursor');
+    expect(c.sessionId).toBe('session-abc');
+    expect(c.recordedCwd).toBe(null);
+    expect(c.cwdSlug).toBe(fallbackSlug);
+    expect(c.cwdEvidence).toBe('project-dir-slug');
   });
 });
 
@@ -419,17 +412,17 @@ test('cursor: empty direct transcript dir still allows fallback scan', async () 
     await writeFile(transcriptPath, CURSOR_TYPICAL, 'utf8');
 
     const candidates = await discover('cursor', targetCwd);
-    const c = candidates.find(
+    const c: any = candidates.find(
       (candidate: any) => candidate.transcriptPath === transcriptPath,
     );
 
-    assert.ok(
+    expect(
       c,
       'empty direct Cursor dirs should not suppress fallback candidates',
-    );
-    assert.equal(c.recordedCwd, null);
-    assert.equal(c.cwdSlug, fallbackSlug);
-    assert.equal(c.cwdEvidence, 'project-dir-slug');
+    ).toBeTruthy();
+    expect(c.recordedCwd).toBe(null);
+    expect(c.cwdSlug).toBe(fallbackSlug);
+    expect(c.cwdEvidence).toBe('project-dir-slug');
   });
 });
 
@@ -459,11 +452,10 @@ test('cursor: fallback scan excludes transcripts older than 7 days', async () =>
       (candidate: any) => candidate.transcriptPath === transcriptPath,
     );
 
-    assert.equal(
+    expect(
       staleFound,
-      undefined,
       'stale Cursor fallback transcript should be excluded',
-    );
+    ).toBe(undefined);
   });
 });
 
@@ -472,17 +464,17 @@ test('gitWorktrees: parses real repo --porcelain output and returns worktree pat
   // The real repo should have at least one worktree (the current checkout).
   const worktrees = await gitWorktrees(process.cwd());
 
-  assert.ok(Array.isArray(worktrees), 'should return an array');
+  expect(Array.isArray(worktrees), 'should return an array').toBeTruthy();
   // The main worktree should be included
-  assert.ok(
+  expect(
     worktrees.some((p) => typeof p === 'string' && p.length > 0),
     'should return at least one non-empty string path',
-  );
+  ).toBeTruthy();
 });
 
 test('gitWorktrees: returns [] when git exec fails (bad path)', async () => {
   // Pass a path that does not exist / is not a git repo
   const result = await gitWorktrees('/nonexistent/path/that/is/not/a/git/repo');
 
-  assert.deepEqual(result, [], 'should return [] when git fails');
+  expect(result, 'should return [] when git fails').toEqual([]);
 });

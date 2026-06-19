@@ -2,7 +2,6 @@
  * cli.test.ts — Tests for scripts/session-observer.mjs CLI
  */
 
-import assert from 'node:assert/strict';
 import { spawnSync, type SpawnSyncReturns } from 'node:child_process';
 import {
   mkdtemp,
@@ -16,7 +15,7 @@ import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { describe, test } from 'vitest';
+import { expect, describe, test } from 'vitest';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -89,130 +88,55 @@ async function copyCursorTranscript(
 describe('CLI subcommand dispatch', () => {
   test('--help lists cursor as a runtime option', () => {
     const result = spawnCli(['--help']);
-    assert.equal(
-      result.status,
-      0,
-      `help should exit 0\nstderr: ${result.stderr}`,
-    );
-    assert.ok(
-      result.stdout.includes('--runtime <claude-code|codex|cursor|auto>'),
-      'help should include cursor in the runtime list',
-    );
+    expect(result.status, `help should exit 0\nstderr: ${result.stderr}`).toBe(0);
+    expect(result.stdout.includes('--runtime <claude-code|codex|cursor|auto>'), 'help should include cursor in the runtime list').toBeTruthy();
   });
 
   test('--help lists watch command surface', () => {
     const result = spawnCli(['--help']);
-    assert.equal(
-      result.status,
-      0,
-      `help should exit 0\nstderr: ${result.stderr}`,
-    );
-    assert.ok(
-      result.stdout.includes('watch'),
-      'help should list watch subcommand',
-    );
-    assert.ok(
-      result.stdout.includes('catch-up-then-watch'),
-      'help should list catch-up-then-watch subcommand',
-    );
-    assert.ok(
-      result.stdout.includes('watch-ctl'),
-      'help should list watch-ctl subcommand',
-    );
-    assert.ok(
-      result.stdout.includes('--watch'),
-      'help should list top-level --watch alias',
-    );
+    expect(result.status, `help should exit 0\nstderr: ${result.stderr}`).toBe(0);
+    expect(result.stdout.includes('watch'), 'help should list watch subcommand').toBeTruthy();
+    expect(result.stdout.includes('catch-up-then-watch'), 'help should list catch-up-then-watch subcommand').toBeTruthy();
+    expect(result.stdout.includes('watch-ctl'), 'help should list watch-ctl subcommand').toBeTruthy();
+    expect(result.stdout.includes('--watch'), 'help should list top-level --watch alias').toBeTruthy();
   });
 
   test('watch --help lists watch flags', () => {
     const result = spawnCli(['watch', '--help']);
-    assert.equal(
-      result.status,
-      0,
-      `watch help should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
-    );
-    assert.ok(
-      result.stdout.includes('--debounce-sec'),
-      'watch help should include debounce flag',
-    );
-    assert.ok(
-      result.stdout.includes('--poll-sec'),
-      'watch help should include poll flag',
-    );
-    assert.ok(
-      result.stdout.includes('--max-pending-sec'),
-      'watch help should include max pending flag',
-    );
-    assert.ok(
-      result.stdout.includes('--max-runtime-min'),
-      'watch help should include bounded runtime flag',
-    );
-    assert.ok(
-      result.stdout.includes('--heartbeat-sec'),
-      'watch help should include heartbeat flag',
-    );
-    assert.ok(
-      result.stdout.includes('--until-stopped'),
-      'watch help should include until-stopped alias',
-    );
-    assert.ok(
-      result.stdout.includes('--interactive'),
-      'watch help should include interactive alias',
-    );
-    assert.ok(
-      result.stdout.includes('--event-log'),
-      'watch help should include event log flag',
-    );
-    assert.ok(
-      result.stdout.includes('--runtime <claude-code|codex|cursor|auto|both>'),
-      'watch help should include both as a watch runtime option',
-    );
+    expect(result.status, `watch help should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(0);
+    expect(result.stdout.includes('--debounce-sec'), 'watch help should include debounce flag').toBeTruthy();
+    expect(result.stdout.includes('--poll-sec'), 'watch help should include poll flag').toBeTruthy();
+    expect(result.stdout.includes('--max-pending-sec'), 'watch help should include max pending flag').toBeTruthy();
+    expect(result.stdout.includes('--max-runtime-min'), 'watch help should include bounded runtime flag').toBeTruthy();
+    expect(result.stdout.includes('--heartbeat-sec'), 'watch help should include heartbeat flag').toBeTruthy();
+    expect(result.stdout.includes('--until-stopped'), 'watch help should include until-stopped alias').toBeTruthy();
+    expect(result.stdout.includes('--interactive'), 'watch help should include interactive alias').toBeTruthy();
+    expect(result.stdout.includes('--event-log'), 'watch help should include event log flag').toBeTruthy();
+    expect(result.stdout.includes('--runtime <claude-code|codex|cursor|auto|both>'), 'watch help should include both as a watch runtime option').toBeTruthy();
   });
 
   test('watch-ctl --help lists control operations', () => {
     const result = spawnCli(['watch-ctl', '--help']);
-    assert.equal(
-      result.status,
-      0,
-      `watch-ctl help should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
-    );
+    expect(result.status, `watch-ctl help should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(0);
     for (const op of ['status', 'pause', 'resume', 'flush', 'stop']) {
-      assert.ok(
-        result.stdout.includes(op),
-        `watch-ctl help should include ${op}`,
-      );
+      expect(result.stdout.includes(op), `watch-ctl help should include ${op}`).toBeTruthy();
     }
   });
 
   test('--watch --help maps to watch help', () => {
     const canonical = spawnCli(['watch', '--help']);
     const alias = spawnCli(['--watch', '--help']);
-    assert.equal(
-      alias.status,
-      0,
-      `--watch help should exit 0\nstdout: ${alias.stdout}\nstderr: ${alias.stderr}`,
-    );
-    assert.equal(
-      alias.stdout,
-      canonical.stdout,
-      '--watch --help should print the same help as watch --help',
-    );
+    expect(alias.status, `--watch help should exit 0\nstdout: ${alias.stdout}\nstderr: ${alias.stderr}`).toBe(0);
+    expect(alias.stdout, '--watch --help should print the same help as watch --help').toBe(canonical.stdout);
   });
 
   test('catch-up-then-watch --help maps to watch help with command name', () => {
     const result = spawnCli(['catch-up-then-watch', '--help']);
-    assert.equal(
-      result.status,
-      0,
-      `catch-up-then-watch help should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
-    );
-    assert.ok(
-      result.stdout.includes(
+    expect(result.status, `catch-up-then-watch help should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(0);
+    expect(result.stdout.includes(
         'Usage: session-observer catch-up-then-watch [options]',
-      ),
-    );
-    assert.ok(result.stdout.includes('--heartbeat-sec'));
+      )).toBeTruthy();
+    expect(result.stdout.includes('--heartbeat-sec')).toBeTruthy();
   });
 
   test('watch-ctl status --json reports no active watcher', async () => {
@@ -226,15 +150,11 @@ describe('CLI subcommand dispatch', () => {
         STATE_DIR: stateDir,
       });
 
-      assert.equal(
-        result.status,
-        0,
-        `watch-ctl status should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
-      );
+      expect(result.status, `watch-ctl status should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(0);
       const parsed = JSON.parse(result.stdout);
-      assert.equal(parsed.noActiveWatcher, true);
-      assert.equal(parsed.active, false);
-      assert.equal(parsed.watcher, null);
+      expect(parsed.noActiveWatcher).toBe(true);
+      expect(parsed.active).toBe(false);
+      expect(parsed.watcher).toBe(null);
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -266,16 +186,12 @@ describe('CLI subcommand dispatch', () => {
           ['watch-ctl', op, '--cwd', '/test/active-watch-control', '--json'],
           { HOME: tmpDir, STATE_DIR: stateDir },
         );
-        assert.equal(
-          result.status,
-          0,
-          `watch-ctl ${op} should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
-        );
+        expect(result.status, `watch-ctl ${op} should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(0);
 
         const payload = JSON.parse(result.stdout);
-        assert.equal(payload.directive, op);
-        assert.equal(payload.control.directive, op);
-        assert.equal(payload.control.pid, process.pid);
+        expect(payload.directive).toBe(op);
+        expect(payload.control.directive).toBe(op);
+        expect(payload.control.pid).toBe(process.pid);
 
         const raw = JSON.parse(
           await readFile(
@@ -283,8 +199,8 @@ describe('CLI subcommand dispatch', () => {
             'utf8',
           ),
         );
-        assert.equal(raw.directive, op);
-        assert.equal(raw.pid, process.pid);
+        expect(raw.directive).toBe(op);
+        expect(raw.pid).toBe(process.pid);
       }
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
@@ -320,14 +236,10 @@ describe('CLI subcommand dispatch', () => {
         HOME: tmpDir,
         STATE_DIR: stateDir,
       });
-      assert.equal(
-        result.status,
-        0,
-        `lone-watcher control should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
-      );
+      expect(result.status, `lone-watcher control should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(0);
       const payload = JSON.parse(result.stdout);
-      assert.equal(payload.directive, 'pause');
-      assert.equal(payload.control.pid, process.pid);
+      expect(payload.directive).toBe('pause');
+      expect(payload.control.pid).toBe(process.pid);
 
       // An explicit --cwd that matches nothing is a hard filter and must not
       // fall back; it reports the active watchers instead.
@@ -335,15 +247,11 @@ describe('CLI subcommand dispatch', () => {
         ['watch-ctl', 'pause', '--cwd', '/test/not-a-watcher-cwd', '--json'],
         { HOME: tmpDir, STATE_DIR: stateDir },
       );
-      assert.equal(
-        filtered.status,
-        3,
-        `explicit cwd miss should exit 3\nstdout: ${filtered.stdout}\nstderr: ${filtered.stderr}`,
-      );
+      expect(filtered.status, `explicit cwd miss should exit 3\nstdout: ${filtered.stdout}\nstderr: ${filtered.stderr}`).toBe(3);
       const filteredPayload = JSON.parse(filtered.stdout);
-      assert.equal(filteredPayload.noMatchingWatcher, true);
-      assert.equal(filteredPayload.watchers.length, 1);
-      assert.equal(filteredPayload.watchers[0].pid, process.pid);
+      expect(filteredPayload.noMatchingWatcher).toBe(true);
+      expect(filteredPayload.watchers.length).toBe(1);
+      expect(filteredPayload.watchers[0].pid).toBe(process.pid);
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -394,26 +302,18 @@ describe('CLI subcommand dispatch', () => {
         ['watch-ctl', 'pause', '--cwd', cwd, '--json'],
         { HOME: tmpDir, STATE_DIR: stateDir },
       );
-      assert.equal(
-        ambiguous.status,
-        3,
-        `ambiguous control should exit 3\nstdout: ${ambiguous.stdout}\nstderr: ${ambiguous.stderr}`,
-      );
+      expect(ambiguous.status, `ambiguous control should exit 3\nstdout: ${ambiguous.stdout}\nstderr: ${ambiguous.stderr}`).toBe(3);
       const ambiguousPayload = JSON.parse(ambiguous.stdout);
-      assert.equal(ambiguousPayload.ambiguousWatcher, true);
-      assert.equal(ambiguousPayload.watchers.length, 2);
+      expect(ambiguousPayload.ambiguousWatcher).toBe(true);
+      expect(ambiguousPayload.watchers.length).toBe(2);
 
       const selected = spawnCli(
         ['watch-ctl', 'pause', '--cwd', cwd, '--runtime', 'codex', '--json'],
         { HOME: tmpDir, STATE_DIR: stateDir },
       );
-      assert.equal(
-        selected.status,
-        0,
-        `selected control should exit 0\nstdout: ${selected.stdout}\nstderr: ${selected.stderr}`,
-      );
+      expect(selected.status, `selected control should exit 0\nstdout: ${selected.stdout}\nstderr: ${selected.stderr}`).toBe(0);
       const payload = JSON.parse(selected.stdout);
-      assert.equal(payload.control.pid, firstPid);
+      expect(payload.control.pid).toBe(firstPid);
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -440,19 +340,12 @@ describe('CLI subcommand dispatch', () => {
           STATE_DIR: stateDir,
         });
 
-        assert.equal(
-          result.status,
-          0,
-          `watch-ctl ${op} should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
-        );
+        expect(result.status, `watch-ctl ${op} should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(0);
         const payload = JSON.parse(result.stdout);
-        assert.equal(payload.noActiveWatcher, true);
-        assert.equal(payload.active, false);
-        assert.equal(payload.watcher, null);
-        assert.equal(
-          await readJsonIfExists(join(stateDir, 'watch.control.json')),
-          null,
-        );
+        expect(payload.noActiveWatcher).toBe(true);
+        expect(payload.active).toBe(false);
+        expect(payload.watcher).toBe(null);
+        expect(await readJsonIfExists(join(stateDir, 'watch.control.json'))).toBe(null);
       }
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
@@ -478,27 +371,20 @@ describe('CLI subcommand dispatch', () => {
         ],
         { HOME: tmpDir, STATE_DIR: stateDir },
       );
-      assert.equal(
-        escape.status,
-        1,
-        `watch with escaping event log should exit 1\nstdout: ${escape.stdout}\nstderr: ${escape.stderr}`,
-      );
+      expect(escape.status, `watch with escaping event log should exit 1\nstdout: ${escape.stdout}\nstderr: ${escape.stderr}`).toBe(1);
       const escapeEvent = JSON.parse(escape.stdout.trim());
-      assert.equal(escapeEvent.type, 'error');
-      assert.ok(escapeEvent.ts, 'error event should carry a timestamp');
-      assert.ok(
-        escapeEvent.message.length > 0,
-        'error event should carry a message',
-      );
+      expect(escapeEvent.type).toBe('error');
+      expect(escapeEvent.ts, 'error event should carry a timestamp').toBeTruthy();
+      expect(escapeEvent.message.length > 0, 'error event should carry a message').toBeTruthy();
 
       const invalid = spawnCli(['watch', '--json', '--runtime', 'bogus'], {
         HOME: tmpDir,
         STATE_DIR: stateDir,
       });
-      assert.equal(invalid.status, 1);
+      expect(invalid.status).toBe(1);
       const invalidEvent = JSON.parse(invalid.stdout.trim());
-      assert.equal(invalidEvent.type, 'error');
-      assert.match(invalidEvent.message, /Unknown watch runtime/);
+      expect(invalidEvent.type).toBe('error');
+      expect(invalidEvent.message).toMatch(/Unknown watch runtime/);
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -508,24 +394,21 @@ describe('CLI subcommand dispatch', () => {
     const result = spawnCli(['review', '--help']);
     // --help exits 0 or 1; should not crash with code 127 or similar
     // (exits 2 or 3 are also valid if runtime auto-resolution kicks in first)
-    assert.ok(result.status !== null, 'should have an exit code');
-    assert.ok(
-      result.status === 0 ||
+    expect(result.status !== null, 'should have an exit code').toBeTruthy();
+    expect(result.status === 0 ||
         result.status === 1 ||
         result.status === 2 ||
-        result.status === 3,
-      `unexpected exit code: ${result.status}`,
-    );
+        result.status === 3, `unexpected exit code: ${result.status}`).toBeTruthy();
   });
 
   test('unknown subcommand exits with code 1', () => {
     const result = spawnCli(['not-a-command']);
-    assert.equal(result.status, 1, 'unknown subcommand should exit 1');
+    expect(result.status, 'unknown subcommand should exit 1').toBe(1);
   });
 
   test('no arguments exits with code 1', () => {
     const result = spawnCli([]);
-    assert.equal(result.status, 1, 'no arguments should exit 1');
+    expect(result.status, 'no arguments should exit 1').toBe(1);
   });
 });
 
@@ -553,12 +436,8 @@ describe('exit codes', () => {
         { HOME: tmpDir, STATE_DIR: stateDir },
       );
 
-      assert.equal(
-        result.status,
-        3,
-        `Expected exit 3 for unengaged empty fixture\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
-      );
-      assert.ok(result.stdout.includes('has no user conversation yet'));
+      expect(result.status, `Expected exit 3 for unengaged empty fixture\nstdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(3);
+      expect(result.stdout.includes('has no user conversation yet')).toBeTruthy();
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -581,16 +460,9 @@ describe('exit codes', () => {
         { HOME: tmpDir, STATE_DIR: stateDir },
       );
 
-      assert.equal(
-        result.status,
-        0,
-        `Expected exit 0, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
-      );
-      assert.ok(
-        result.stdout.includes('### User') ||
-          result.stdout.includes('session-observer'),
-        'output should contain markdown content',
-      );
+      expect(result.status, `Expected exit 0, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(0);
+      expect(result.stdout.includes('### User') ||
+          result.stdout.includes('session-observer'), 'output should contain markdown content').toBeTruthy();
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -619,24 +491,15 @@ describe('locate --json', () => {
         { HOME: tmpDir, STATE_DIR: stateDir },
       );
 
-      assert.ok(
-        result.status === 0 || result.status === 2,
-        `Expected exit 0 or 2 for locate, got ${result.status}\nstderr: ${result.stderr}`,
-      );
+      expect(result.status === 0 || result.status === 2, `Expected exit 0 or 2 for locate, got ${result.status}\nstderr: ${result.stderr}`).toBeTruthy();
 
       if (result.status === 0) {
         let parsed: any;
-        assert.doesNotThrow(() => {
+        expect(() => {
           parsed = JSON.parse(result.stdout);
-        }, 'stdout should be valid JSON');
-        assert.ok(
-          'winner' in parsed || 'noMatch' in parsed,
-          'JSON should contain winner or noMatch key',
-        );
-        assert.ok(
-          'fallbacks' in parsed || 'noMatch' in parsed,
-          'JSON should contain fallbacks or noMatch',
-        );
+        }, 'stdout should be valid JSON').not.toThrow();
+        expect('winner' in parsed || 'noMatch' in parsed, 'JSON should contain winner or noMatch key').toBeTruthy();
+        expect('fallbacks' in parsed || 'noMatch' in parsed, 'JSON should contain fallbacks or noMatch').toBeTruthy();
       }
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
@@ -670,23 +533,13 @@ describe('locate --json', () => {
         { HOME: tmpDir, STATE_DIR: stateDir },
       );
 
-      assert.equal(
-        result.status,
-        0,
-        `Expected exit 0 for locate debug, got ${result.status}\nstderr: ${result.stderr}`,
-      );
+      expect(result.status, `Expected exit 0 for locate debug, got ${result.status}\nstderr: ${result.stderr}`).toBe(0);
 
       const parsed = JSON.parse(result.stdout);
-      assert.ok(
-        parsed.lookupDiagnostics?.claudeCode,
-        'lookupDiagnostics.claudeCode should be present',
-      );
-      assert.ok(
-        parsed.lookupDiagnostics.claudeCode.some(
+      expect(parsed.lookupDiagnostics?.claudeCode, 'lookupDiagnostics.claudeCode should be present').toBeTruthy();
+      expect(parsed.lookupDiagnostics.claudeCode.some(
           (d: any) => d.encoded === encodedCwd && d.exists === true,
-        ),
-        'diagnostics should include the expected encoded dir and existence',
-      );
+        ), 'diagnostics should include the expected encoded dir and existence').toBeTruthy();
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -718,20 +571,14 @@ describe('locate --json', () => {
         { HOME: tmpDir, STATE_DIR: stateDir },
       );
 
-      assert.equal(
-        result.status,
-        0,
-        `Expected exit 0 for locate snippet, got ${result.status}\nstderr: ${result.stderr}`,
-      );
+      expect(result.status, `Expected exit 0 for locate snippet, got ${result.status}\nstderr: ${result.stderr}`).toBe(0);
 
       const parsed = JSON.parse(result.stdout);
-      assert.equal(parsed.winner.sessionId, 'cc-session-001');
-      assert.equal(parsed.snippet.query, 'Hello');
-      assert.equal(parsed.snippet.matches.length, 1);
-      assert.equal(parsed.snippet.matches[0].sessionId, 'cc-session-001');
-      assert.ok(
-        parsed.snippet.matches[0].snippetMatch.context.includes('Hello'),
-      );
+      expect(parsed.winner.sessionId).toBe('cc-session-001');
+      expect(parsed.snippet.query).toBe('Hello');
+      expect(parsed.snippet.matches.length).toBe(1);
+      expect(parsed.snippet.matches[0].sessionId).toBe('cc-session-001');
+      expect(parsed.snippet.matches[0].snippetMatch.context.includes('Hello')).toBeTruthy();
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -760,11 +607,7 @@ describe('--runtime auto', () => {
         },
       );
       // Should try codex (the peer), find no transcripts → exit 2
-      assert.equal(
-        result.status,
-        2,
-        `Expected exit 2 (noMatch) when peer runtime has no transcripts, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
-      );
+      expect(result.status, `Expected exit 2 (noMatch) when peer runtime has no transcripts, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(2);
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -785,11 +628,7 @@ describe('--runtime auto', () => {
         },
       );
       // Should try claude-code (the peer), find no transcripts → exit 2
-      assert.equal(
-        result.status,
-        2,
-        `Expected exit 2 (noMatch) when peer runtime has no transcripts, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
-      );
+      expect(result.status, `Expected exit 2 (noMatch) when peer runtime has no transcripts, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(2);
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -809,10 +648,7 @@ describe('--runtime auto', () => {
         },
       );
       // No candidates in either runtime → exit 2 or 3
-      assert.ok(
-        result.status === 2 || result.status === 3,
-        `Expected exit 2 or 3 when no candidates in either runtime, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
-      );
+      expect(result.status === 2 || result.status === 3, `Expected exit 2 or 3 when no candidates in either runtime, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`).toBeTruthy();
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -835,14 +671,10 @@ describe('--runtime auto', () => {
         },
       );
 
-      assert.equal(
-        result.status,
-        0,
-        `Expected auto runtime to choose cursor, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
-      );
+      expect(result.status, `Expected auto runtime to choose cursor, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(0);
       const parsed = JSON.parse(result.stdout);
-      assert.equal(parsed.runtime, 'cursor');
-      assert.equal(parsed.sessionId, 'cursor-peer');
+      expect(parsed.runtime).toBe('cursor');
+      expect(parsed.sessionId).toBe('cursor-peer');
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -886,14 +718,10 @@ describe('--runtime auto', () => {
         },
       );
 
-      assert.equal(
-        result.status,
-        3,
-        `Expected ambiguousRuntime, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
-      );
+      expect(result.status, `Expected ambiguousRuntime, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(3);
       const parsed = JSON.parse(result.stdout);
-      assert.equal(parsed.ambiguousRuntime, true);
-      assert.deepEqual(parsed.runtimes.toSorted(), ['codex', 'cursor']);
+      expect(parsed.ambiguousRuntime).toBe(true);
+      expect(parsed.runtimes.toSorted()).toEqual(['codex', 'cursor']);
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -971,15 +799,11 @@ describe('--runtime auto', () => {
         { HOME: tmpDir, STATE_DIR: stateDir },
       );
 
-      assert.equal(
-        result.status,
-        0,
-        `Expected auto runtime to use state preference, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
-      );
+      expect(result.status, `Expected auto runtime to use state preference, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(0);
       const parsed = JSON.parse(result.stdout);
-      assert.equal(parsed.runtime, 'claude-code');
-      assert.equal(parsed.sessionId, 'cc-dual');
-      assert.equal(parsed.entries[0].text, 'Claude visible.');
+      expect(parsed.runtime).toBe('claude-code');
+      expect(parsed.sessionId).toBe('cc-dual');
+      expect(parsed.entries[0].text).toBe('Claude visible.');
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -1056,15 +880,11 @@ describe('--runtime auto', () => {
         { HOME: tmpDir, STATE_DIR: stateDir },
       );
 
-      assert.equal(
-        result.status,
-        0,
-        `Expected auto runtime to use cursor state preference, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
-      );
+      expect(result.status, `Expected auto runtime to use cursor state preference, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(0);
       const parsed = JSON.parse(result.stdout);
-      assert.equal(parsed.runtime, 'cursor');
-      assert.equal(parsed.sessionId, 'cursor-three');
-      assert.equal(parsed.entries[0].text, 'Can you inspect the failing test?');
+      expect(parsed.runtime).toBe('cursor');
+      expect(parsed.sessionId).toBe('cursor-three');
+      expect(parsed.entries[0].text).toBe('Can you inspect the failing test?');
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -1119,14 +939,10 @@ describe('--session override', () => {
         { HOME: tmpDir, STATE_DIR: stateDir },
       );
 
-      assert.equal(
-        result.status,
-        0,
-        `auto + pinned cursor session should bypass runtime ambiguity\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
-      );
+      expect(result.status, `auto + pinned cursor session should bypass runtime ambiguity\nstdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(0);
       const parsed = JSON.parse(result.stdout);
-      assert.equal(parsed.runtime, 'cursor');
-      assert.equal(parsed.sessionId, 'cursor-pinned-auto');
+      expect(parsed.runtime).toBe('cursor');
+      expect(parsed.sessionId).toBe('cursor-pinned-auto');
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -1177,14 +993,10 @@ describe('--session override', () => {
         { HOME: tmpDir, STATE_DIR: stateDir },
       );
 
-      assert.equal(
-        result.status,
-        0,
-        `auto + pinned cursor catch-up should bypass runtime ambiguity\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
-      );
+      expect(result.status, `auto + pinned cursor catch-up should bypass runtime ambiguity\nstdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(0);
       const parsed = JSON.parse(result.stdout);
-      assert.equal(parsed.runtime, 'cursor');
-      assert.equal(parsed.sessionId, 'cursor-pinned-catchup');
+      expect(parsed.runtime).toBe('cursor');
+      expect(parsed.sessionId).toBe('cursor-pinned-catchup');
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -1212,14 +1024,10 @@ describe('--session override', () => {
         { HOME: tmpDir, STATE_DIR: stateDir },
       );
 
-      assert.equal(
-        result.status,
-        0,
-        `--session should accept cursor, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
-      );
+      expect(result.status, `--session should accept cursor, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(0);
       const parsed = JSON.parse(result.stdout);
-      assert.equal(parsed.runtime, 'cursor');
-      assert.equal(parsed.sessionId, 'cursor-pinned');
+      expect(parsed.runtime).toBe('cursor');
+      expect(parsed.sessionId).toBe('cursor-pinned');
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -1268,7 +1076,7 @@ describe('--session override', () => {
 
       const locateData = JSON.parse(locateResult.stdout);
       const winner = locateData.winner;
-      assert.ok(winner, 'locate should return a winner');
+      expect(winner, 'locate should return a winner').toBeTruthy();
 
       // Pin to the winner's session — should always exit 0
       const pinnedResult = spawnCli(
@@ -1285,17 +1093,10 @@ describe('--session override', () => {
         { HOME: tmpDir, STATE_DIR: stateDir },
       );
 
-      assert.equal(
-        pinnedResult.status,
-        0,
-        `--session should resolve to exit 0, got ${pinnedResult.status}\nstdout: ${pinnedResult.stdout}\nstderr: ${pinnedResult.stderr}`,
-      );
+      expect(pinnedResult.status, `--session should resolve to exit 0, got ${pinnedResult.status}\nstdout: ${pinnedResult.stdout}\nstderr: ${pinnedResult.stderr}`).toBe(0);
 
       const digestData = JSON.parse(pinnedResult.stdout);
-      assert.ok(
-        digestData.entries || digestData.range,
-        'should return a digest object',
-      );
+      expect(digestData.entries || digestData.range, 'should return a digest object').toBeTruthy();
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -1331,7 +1132,7 @@ describe('--session override', () => {
 
       const locateData = JSON.parse(locateResult.stdout);
       const winner = locateData.winner;
-      assert.ok(winner, 'locate should return a winner');
+      expect(winner, 'locate should return a winner').toBeTruthy();
 
       // catch-up with --session should exit 0
       const pinnedResult = spawnCli(
@@ -1348,11 +1149,7 @@ describe('--session override', () => {
         { HOME: tmpDir, STATE_DIR: stateDir },
       );
 
-      assert.equal(
-        pinnedResult.status,
-        0,
-        `catch-up --session should resolve to exit 0, got ${pinnedResult.status}\nstdout: ${pinnedResult.stdout}\nstderr: ${pinnedResult.stderr}`,
-      );
+      expect(pinnedResult.status, `catch-up --session should resolve to exit 0, got ${pinnedResult.status}\nstdout: ${pinnedResult.stdout}\nstderr: ${pinnedResult.stderr}`).toBe(0);
 
       const statePath = join(stateDir, 'state.json');
       const before = JSON.parse(await readFile(statePath, 'utf8'));
@@ -1371,18 +1168,10 @@ describe('--session override', () => {
         ],
         { HOME: tmpDir, STATE_DIR: stateDir },
       );
-      assert.equal(
-        secondPinnedResult.status,
-        0,
-        `second pinned catch-up should exit 0\nstdout: ${secondPinnedResult.stdout}\nstderr: ${secondPinnedResult.stderr}`,
-      );
+      expect(secondPinnedResult.status, `second pinned catch-up should exit 0\nstdout: ${secondPinnedResult.stdout}\nstderr: ${secondPinnedResult.stderr}`).toBe(0);
 
       const after = JSON.parse(await readFile(statePath, 'utf8'));
-      assert.deepEqual(
-        after,
-        before,
-        'pinned no-op catch-up should not rewrite matching state',
-      );
+      expect(after, 'pinned no-op catch-up should not rewrite matching state').toEqual(before);
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -1442,16 +1231,10 @@ describe('--session override', () => {
         { HOME: tmpDir, STATE_DIR: stateDir },
       );
 
-      assert.equal(
-        result.status,
-        0,
-        `watched catch-up should still succeed\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
-      );
-      assert.ok(
-        result.stdout.includes(
+      expect(result.status, `watched catch-up should still succeed\nstdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(0);
+      expect(result.stdout.includes(
           'watcher pid 12345 is also reading this session',
-        ),
-      );
+        )).toBeTruthy();
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -1482,11 +1265,7 @@ describe('--session override', () => {
         { HOME: tmpDir, STATE_DIR: stateDir },
       );
 
-      assert.equal(
-        result.status,
-        1,
-        `--session with non-existent id should exit 1, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
-      );
+      expect(result.status, `--session with non-existent id should exit 1, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(1);
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -1517,11 +1296,7 @@ describe('--session override', () => {
         { HOME: tmpDir, STATE_DIR: stateDir },
       );
 
-      assert.equal(
-        result.status,
-        1,
-        `--session without colon should exit 1, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
-      );
+      expect(result.status, `--session without colon should exit 1, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(1);
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -1543,11 +1318,7 @@ describe('state subcommand', () => {
         HOME: tmpDir,
         STATE_DIR: stateDir,
       });
-      assert.equal(
-        result.status,
-        0,
-        `state get should exit 0\nstderr: ${result.stderr}`,
-      );
+      expect(result.status, `state get should exit 0\nstderr: ${result.stderr}`).toBe(0);
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -1563,11 +1334,7 @@ describe('state subcommand', () => {
         HOME: tmpDir,
         STATE_DIR: stateDir,
       });
-      assert.equal(
-        result.status,
-        0,
-        `state clear should exit 0\nstderr: ${result.stderr}`,
-      );
+      expect(result.status, `state clear should exit 0\nstderr: ${result.stderr}`).toBe(0);
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -1583,11 +1350,7 @@ describe('state subcommand', () => {
         HOME: tmpDir,
         STATE_DIR: stateDir,
       });
-      assert.equal(
-        result.status,
-        0,
-        `state reset should exit 0\nstderr: ${result.stderr}`,
-      );
+      expect(result.status, `state reset should exit 0\nstderr: ${result.stderr}`).toBe(0);
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -1603,11 +1366,7 @@ describe('state subcommand', () => {
         HOME: tmpDir,
         STATE_DIR: stateDir,
       });
-      assert.equal(
-        result.status,
-        0,
-        `state reset should exit 0\nstderr: ${result.stderr}`,
-      );
+      expect(result.status, `state reset should exit 0\nstderr: ${result.stderr}`).toBe(0);
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -1654,51 +1413,25 @@ describe('state subcommand', () => {
         HOME: tmpDir,
         STATE_DIR: stateDir,
       });
-      assert.equal(
-        result.status,
-        0,
-        `state reset --session should exit 0\nstderr: ${result.stderr}`,
-      );
+      expect(result.status, `state reset --session should exit 0\nstderr: ${result.stderr}`).toBe(0);
 
       // Verify via state get --json that codex:abc123 is zeroed and claude-code:xyz789 is untouched.
       const getResult = spawnCli(['state', 'get', '--json'], {
         HOME: tmpDir,
         STATE_DIR: stateDir,
       });
-      assert.equal(
-        getResult.status,
-        0,
-        `state get should exit 0\nstderr: ${getResult.stderr}`,
-      );
+      expect(getResult.status, `state get should exit 0\nstderr: ${getResult.stderr}`).toBe(0);
 
       const state = JSON.parse(getResult.stdout);
       const codexSession = state.sessions['codex:abc123'];
       const claudeSession = state.sessions['claude-code:xyz789'];
 
-      assert.ok(
-        codexSession,
-        'codex:abc123 session should still exist in state',
-      );
-      assert.equal(
-        codexSession.lastRecordIndex,
-        0,
-        'codex:abc123 lastRecordIndex should be reset to 0',
-      );
-      assert.equal(
-        codexSession.lastTotalRecords,
-        0,
-        'codex:abc123 lastTotalRecords should be reset to 0',
-      );
+      expect(codexSession, 'codex:abc123 session should still exist in state').toBeTruthy();
+      expect(codexSession.lastRecordIndex, 'codex:abc123 lastRecordIndex should be reset to 0').toBe(0);
+      expect(codexSession.lastTotalRecords, 'codex:abc123 lastTotalRecords should be reset to 0').toBe(0);
 
-      assert.ok(
-        claudeSession,
-        'claude-code:xyz789 session should still exist in state',
-      );
-      assert.equal(
-        claudeSession.lastRecordIndex,
-        17,
-        'claude-code:xyz789 lastRecordIndex should be unchanged',
-      );
+      expect(claudeSession, 'claude-code:xyz789 session should still exist in state').toBeTruthy();
+      expect(claudeSession.lastRecordIndex, 'claude-code:xyz789 lastRecordIndex should be unchanged').toBe(17);
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }

@@ -1,6 +1,6 @@
 # Skills Repo Roadmap
 
-**Last updated:** 2026-06-18 (session-observer joined the TypeScript/Vitest generated-runtime substrate; bl-bfb4 remains open only for remaining non-migrated suites and eventual `node:test` runner retirement. Prior: 2026-06-17 consensus-evaluate delivered as the first post-refine family skill; 2026-06-15 toolchain and `consensus-loop` proof slice.)
+**Last updated:** 2026-06-18 (PR4 retired the `node:test` runner — all repo/tooling + session-observer suites now run as Vitest `.test.ts` using `expect`, `pnpm test` is Vitest-only, and a guard blocks regressions — completing **bl-bfb4**. Prior: session-observer joined the TypeScript/Vitest generated-runtime substrate; 2026-06-17 consensus-evaluate delivered as the first post-refine family skill; 2026-06-15 toolchain and `consensus-loop` proof slice.)
 
 ## Planning Model
 
@@ -36,15 +36,16 @@ Substantially shipped (see `current-state.md`). Deferred items recorded in the a
 
 ### TypeScript / generated runtime tooling
 
-bl-853a is delivered: TypeScript, Vitest, generated `.mjs` output, drift guards,
-and CI/worktree validation are in place, with `consensus-loop` converted as the
-proof-point module. bl-bfb4 remains in progress rather than complete, but the
-major generated-runtime slices are now done: consensus refine, transcript-core,
-export-session-transcript, and session-observer all have canonical TypeScript
-source and migrated Vitest coverage for their in-scope tests. Remaining work is
-PR4/follow-up cleanup: final repo-wide `node:test` compatibility retirement,
-remaining non-migrated suites, and any selected long-tail typed migration needed
-before simplifying the mixed runner contract.
+bl-853a and bl-bfb4 are both delivered. TypeScript, Vitest, generated `.mjs`
+output, drift guards, and CI/worktree validation are in place, with the
+generated-runtime slices done across consensus refine, transcript-core,
+export-session-transcript, and session-observer. PR4 completed the final
+cleanup: every repo/tooling and session-observer suite now runs as Vitest
+`.test.ts` using `expect`, the `node:test` compatibility runner is retired,
+`pnpm test` is Vitest-only, and a guard (`tests/tooling/no-node-test-runner.test.ts`)
+blocks any reintroduction of `node:test`/`node:assert`/`.test.mjs`. No remaining
+runner-migration work; future typed-API tightening (e.g. removing `as any` test
+shims) is optional long-tail polish, not a tracked migration item.
 
 ## Now
 
@@ -53,7 +54,6 @@ before simplifying the mixed runner contract.
 
 ## Next
 
-- **Finish TypeScript migration cleanup** — bl-bfb4 should stay open until the remaining non-migrated suites leave `test:node` and the mixed `pnpm test` runner can be simplified. The generated-runtime migration pattern itself is now proven across consensus refine, transcript-core/export-session, and session-observer.
 - **Remaining family skills** — after `consensus-evaluate`, `-create`, `-decide`, `-plan`, `-research` as thin wrappers with v3 defaults. `-create` front-loads the `independent_draft` cold-start + derived-sectioning design the next two reuse.
 - **Peer-invocation ownership** — tool-based verdict submission (bl-3a88) and in-house peer CLI work (bl-bb7e) should be treated as one later design/spike around owning the narrow claude/codex/cursor path rather than depending on Paseo for one per-turn `run` capability.
 

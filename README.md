@@ -48,7 +48,7 @@ Per-provider transcript knowledge (store locations, record parsing, structural f
 
 `pnpm run sync:transcript-core` remains as a compatibility command for existing habits and automation. It delegates to `scripts/build-generated.mjs`, and `node scripts/sync-transcript-core.mjs --check` delegates to `scripts/build-generated.mjs --check`.
 
-`pnpm run build:check` regenerates expected output in check mode and fails on any divergence. The same guard runs in `pnpm test` through `tests/generated-output-sync.test.mjs`, so editing the canonical module without rebuilding generated output breaks the suite. Edit `src/transcript/core/runtimes.ts`, then run `pnpm run build` to update consumers.
+`pnpm run build:check` regenerates expected output in check mode and fails on any divergence. The same guard runs in `pnpm test` through `tests/generated-output-sync.test.ts`, so editing the canonical module without rebuilding generated output breaks the suite. Edit `src/transcript/core/runtimes.ts`, then run `pnpm run build` to update consumers.
 
 Current consumers: `session-observer` and `export-session-transcript`.
 
@@ -60,7 +60,7 @@ The build contract is:
 
 - `pnpm run build` runs `node scripts/build-generated.mjs` and writes generated runtime output.
 - `pnpm run build:check` runs `node scripts/build-generated.mjs --check` without mutating tracked files.
-- `tests/generated-output-sync.test.mjs` runs the drift guard as part of `pnpm test`.
+- `tests/generated-output-sync.test.ts` runs the drift guard as part of `pnpm test`.
 - `pnpm run sync:transcript-core` is a compatibility wrapper around the same generated-output build.
 - TypeScript, Vitest, and bundling are developer tooling only; shipped skills still run committed `.mjs` with no install step.
 

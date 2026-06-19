@@ -4,11 +4,10 @@
  * Each test uses a fresh temp STATE_DIR to ensure isolation.
  */
 
-import assert from 'node:assert/strict';
 import { readFile, readdir, writeFile, access, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import { it } from 'vitest';
+import { expect, it } from 'vitest';
 
 import * as state from '../../src/transcript/session-observer/lib/state.js';
 import { withTmpStateDir } from './helpers/tmpdir.js';
@@ -24,7 +23,7 @@ it('mutate creates state.json on first write', async () => {
   await withTmpStateDir(async (dir) => {
     await state.mutate((s: any) => s);
     const stateFile = join(dir, 'state.json');
-    await assert.doesNotReject(() => access(stateFile));
+    await expect(access(stateFile)).resolves.not.toThrow();
   });
 });
 
@@ -36,11 +35,10 @@ it('mutate writes atomically: no lingering .tmp file after success', async () =>
     await state.mutate((s: any) => s);
     const files = await readdir(dir);
     const tmpFiles = files.filter((f) => f.endsWith('.tmp'));
-    assert.deepEqual(
+    expect(
       tmpFiles,
-      [],
       'no .tmp files should remain after a successful mutate',
-    );
+    ).toEqual([]);
   });
 });
 
@@ -65,10 +63,10 @@ it('two concurrent mutate calls both succeed and final state contains both mutat
       }),
     ]);
 
-    const a = await state.getSession('claude-code', 'sess-a');
-    const b = await state.getSession('codex', 'sess-b');
-    assert.ok(a, 'sess-a must exist');
-    assert.ok(b, 'sess-b must exist');
+    const a: any = await state.getSession('claude-code', 'sess-a');
+    const b: any = await state.getSession('codex', 'sess-b');
+    expect(a, 'sess-a must exist').toBeTruthy();
+    expect(b, 'sess-b must exist').toBeTruthy();
   });
 });
 
@@ -78,7 +76,7 @@ it('two concurrent mutate calls both succeed and final state contains both mutat
 it('getSession returns null when missing', async () => {
   await withTmpStateDir(async (_dir) => {
     const result = await state.getSession('claude-code', 'nonexistent');
-    assert.equal(result, null);
+    expect(result).toBe(null);
   });
 });
 
@@ -90,12 +88,12 @@ it('getSession returns stored entry when present', async () => {
       transcriptPath: '/tmp/x.jsonl',
       recordedCwd: '/my/project',
     });
-    const entry = await state.getSession('claude-code', 'sess-x');
-    assert.ok(entry, 'entry should be found');
-    assert.equal(entry.lastRecordIndex, 5);
-    assert.equal(entry.lastTotalRecords, 10);
-    assert.equal(entry.transcriptPath, '/tmp/x.jsonl');
-    assert.equal(entry.recordedCwd, '/my/project');
+    const entry: any = await state.getSession('claude-code', 'sess-x');
+    expect(entry, 'entry should be found').toBeTruthy();
+    expect(entry.lastRecordIndex).toBe(5);
+    expect(entry.lastTotalRecords).toBe(10);
+    expect(entry.transcriptPath).toBe('/tmp/x.jsonl');
+    expect(entry.recordedCwd).toBe('/my/project');
   });
 });
 
@@ -111,22 +109,22 @@ it('markRead updates lastRecordIndex, lastTotalRecords, lastReadAt, transcriptPa
       transcriptPath: '/tmp/m.jsonl',
       recordedCwd: '/home/user/code',
     });
-    const entry = await state.getSession('codex', 'sess-m');
-    assert.ok(entry);
-    assert.equal(entry.lastRecordIndex, 7);
-    assert.equal(entry.lastTotalRecords, 15);
-    assert.equal(entry.transcriptPath, '/tmp/m.jsonl');
-    assert.equal(entry.recordedCwd, '/home/user/code');
+    const entry: any = await state.getSession('codex', 'sess-m');
+    expect(entry).toBeTruthy();
+    expect(entry.lastRecordIndex).toBe(7);
+    expect(entry.lastTotalRecords).toBe(15);
+    expect(entry.transcriptPath).toBe('/tmp/m.jsonl');
+    expect(entry.recordedCwd).toBe('/home/user/code');
     // lastReadAt must be a valid ISO 8601 date at or after `before`
-    assert.ok(entry.lastReadAt);
+    expect(entry.lastReadAt).toBeTruthy();
     const readAt = new Date(entry.lastReadAt);
-    assert.ok(!isNaN(readAt.getTime()), 'lastReadAt must be a valid date');
-    assert.ok(
+    expect(!isNaN(readAt.getTime()), 'lastReadAt must be a valid date').toBeTruthy();
+    expect(
       readAt.toISOString() >= before,
       'lastReadAt must be >= before timestamp',
-    );
+    ).toBeTruthy();
     // reserved field
-    assert.equal(entry.watchedByPid, null);
+    expect(entry.watchedByPid).toBe(null);
   });
 });
 
@@ -152,15 +150,15 @@ it("resetByRuntime('codex') zeros only codex entries; leaves claude-code untouch
     await state.resetByRuntime('codex');
 
     // codex entry should be zeroed
-    const cxEntry = await state.getSession('codex', 'sess-cx');
-    assert.ok(cxEntry, 'codex entry should still exist (just zeroed)');
-    assert.equal(cxEntry.lastRecordIndex, 0);
-    assert.equal(cxEntry.lastTotalRecords, 0);
+    const cxEntry: any = await state.getSession('codex', 'sess-cx');
+    expect(cxEntry, 'codex entry should still exist (just zeroed)').toBeTruthy();
+    expect(cxEntry.lastRecordIndex).toBe(0);
+    expect(cxEntry.lastTotalRecords).toBe(0);
 
     // claude-code entry should be untouched
-    const ccEntry = await state.getSession('claude-code', 'sess-cc');
-    assert.ok(ccEntry, 'claude-code entry should be untouched');
-    assert.equal(ccEntry.lastRecordIndex, 3);
+    const ccEntry: any = await state.getSession('claude-code', 'sess-cc');
+    expect(ccEntry, 'claude-code entry should be untouched').toBeTruthy();
+    expect(ccEntry.lastRecordIndex).toBe(3);
   });
 });
 
@@ -184,14 +182,14 @@ it("resetBySession('codex', 'abc') zeros only that entry", async () => {
 
     await state.resetBySession('codex', 'abc');
 
-    const abc = await state.getSession('codex', 'abc');
-    assert.ok(abc);
-    assert.equal(abc.lastRecordIndex, 0);
-    assert.equal(abc.lastTotalRecords, 0);
+    const abc: any = await state.getSession('codex', 'abc');
+    expect(abc).toBeTruthy();
+    expect(abc.lastRecordIndex).toBe(0);
+    expect(abc.lastTotalRecords).toBe(0);
 
-    const xyz = await state.getSession('codex', 'xyz');
-    assert.ok(xyz);
-    assert.equal(xyz.lastRecordIndex, 6, 'xyz entry must remain untouched');
+    const xyz: any = await state.getSession('codex', 'xyz');
+    expect(xyz).toBeTruthy();
+    expect(xyz.lastRecordIndex, 'xyz entry must remain untouched').toBe(6);
   });
 });
 
@@ -209,8 +207,8 @@ it('clear empties sessions but preserves schemaVersion', async () => {
     await state.clear();
 
     const raw = JSON.parse(await readFile(join(dir, 'state.json'), 'utf8'));
-    assert.equal(raw.schemaVersion, 1);
-    assert.deepEqual(raw.sessions, {});
+    expect(raw.schemaVersion).toBe(1);
+    expect(raw.sessions).toEqual({});
   });
 });
 
@@ -241,10 +239,10 @@ it('migrateIfNeeded writes a v0 backup and upgrades in memory on older schema', 
     // A backup file with 'v0' in the name must exist (unique timestamped name)
     const files = await readdir(dir);
     const bakFiles = files.filter((f) => f.startsWith('state.json.v0-'));
-    assert.ok(bakFiles.length > 0, 'a v0 backup file must be created');
+    expect(bakFiles.length > 0, 'a v0 backup file must be created').toBeTruthy();
 
     // Migrated state must have schemaVersion: 1
-    assert.equal(loaded.schemaVersion, 1);
+    expect(loaded.schemaVersion).toBe(1);
   });
 });
 
@@ -259,13 +257,13 @@ it('corrupt state.json is backed up and subsequent load returns empty state', as
     const loaded = await state.load();
 
     // Should return empty valid state
-    assert.equal(loaded.schemaVersion, 1);
-    assert.deepEqual(loaded.sessions, {});
+    expect(loaded.schemaVersion).toBe(1);
+    expect(loaded.sessions).toEqual({});
 
     // A .bak file with 'corrupt' in the name must exist
     const files = await readdir(dir);
     const bakFiles = files.filter((f) => f.startsWith('state.json.corrupt-'));
-    assert.ok(bakFiles.length > 0, 'a corrupt backup file must be created');
+    expect(bakFiles.length > 0, 'a corrupt backup file must be created').toBeTruthy();
   });
 });
 
@@ -281,22 +279,21 @@ it('load waits for the state lock before writing corrupt backups', async () => {
     });
 
     await sleep(75);
-    assert.equal(
+    expect(
       settled,
-      false,
       'load() should wait while the state lock exists',
-    );
+    ).toBe(false);
 
     await unlink(lock);
     const loaded = await pendingLoad;
-    assert.equal(loaded.schemaVersion, 1);
+    expect(loaded.schemaVersion).toBe(1);
 
     const files = await readdir(dir);
     const bakFiles = files.filter((f) => f.startsWith('state.json.corrupt-'));
-    assert.ok(
+    expect(
       bakFiles.length > 0,
       'a corrupt backup file must be created after lock release',
-    );
+    ).toBeTruthy();
   });
 });
 
@@ -327,20 +324,16 @@ it('migration via mutate(): re-load after mutate returns upgraded schema (schema
 
     // Re-read the raw file: it must now have schemaVersion: 1
     const raw = JSON.parse(await readFile(join(dir, 'state.json'), 'utf8'));
-    assert.equal(
+    expect(
       raw.schemaVersion,
-      1,
       'state.json must be upgraded to schemaVersion 1 after mutate()',
-    );
+    ).toBe(1);
     // Session data must be preserved
-    assert.ok(
+    expect(
       raw.sessions['claude-code:migrated-session'],
       'session entry must survive migration',
-    );
-    assert.equal(
-      raw.sessions['claude-code:migrated-session'].lastRecordIndex,
-      3,
-    );
+    ).toBeTruthy();
+    expect(raw.sessions['claude-code:migrated-session'].lastRecordIndex).toBe(3);
   });
 });
 
@@ -363,10 +356,10 @@ it('repeated corrupt backups produce unique filenames and do not clobber each ot
     const files = await readdir(dir);
     const bakFiles = files.filter((f) => f.startsWith('state.json.corrupt-'));
     // Both backups must exist as distinct files
-    assert.ok(
+    expect(
       bakFiles.length >= 2,
       `expected at least 2 backup files, got ${bakFiles.length}: ${bakFiles.join(', ')}`,
-    );
+    ).toBeTruthy();
   });
 });
 
@@ -379,29 +372,29 @@ it('setWatchedByPid and clearWatchedByPid preserve read offsets', async () => {
       recordedCwd: '/repo',
     });
 
-    const before = await state.getSession('codex', 'sess-watch');
-    assert.ok(before);
+    const before: any = await state.getSession('codex', 'sess-watch');
+    expect(before).toBeTruthy();
 
     const setResult = await state.setWatchedByPid('codex', 'sess-watch', 1234);
-    assert.equal(setResult, true);
-    const watched = await state.getSession('codex', 'sess-watch');
-    assert.ok(watched);
-    assert.equal(watched.watchedByPid, 1234);
-    assert.equal(watched.lastRecordIndex, before.lastRecordIndex);
-    assert.equal(watched.lastTotalRecords, before.lastTotalRecords);
-    assert.equal(watched.lastReadAt, before.lastReadAt);
-    assert.equal(watched.transcriptPath, before.transcriptPath);
-    assert.equal(watched.recordedCwd, before.recordedCwd);
+    expect(setResult).toBe(true);
+    const watched: any = await state.getSession('codex', 'sess-watch');
+    expect(watched).toBeTruthy();
+    expect(watched.watchedByPid).toBe(1234);
+    expect(watched.lastRecordIndex).toBe(before.lastRecordIndex);
+    expect(watched.lastTotalRecords).toBe(before.lastTotalRecords);
+    expect(watched.lastReadAt).toBe(before.lastReadAt);
+    expect(watched.transcriptPath).toBe(before.transcriptPath);
+    expect(watched.recordedCwd).toBe(before.recordedCwd);
 
     const clearResult = await state.clearWatchedByPid('codex', 'sess-watch');
-    assert.equal(clearResult, true);
-    const cleared = await state.getSession('codex', 'sess-watch');
-    assert.ok(cleared);
-    assert.equal(cleared.watchedByPid, null);
-    assert.equal(cleared.lastRecordIndex, before.lastRecordIndex);
-    assert.equal(cleared.lastTotalRecords, before.lastTotalRecords);
-    assert.equal(cleared.lastReadAt, before.lastReadAt);
-    assert.equal(cleared.transcriptPath, before.transcriptPath);
-    assert.equal(cleared.recordedCwd, before.recordedCwd);
+    expect(clearResult).toBe(true);
+    const cleared: any = await state.getSession('codex', 'sess-watch');
+    expect(cleared).toBeTruthy();
+    expect(cleared.watchedByPid).toBe(null);
+    expect(cleared.lastRecordIndex).toBe(before.lastRecordIndex);
+    expect(cleared.lastTotalRecords).toBe(before.lastTotalRecords);
+    expect(cleared.lastReadAt).toBe(before.lastReadAt);
+    expect(cleared.transcriptPath).toBe(before.transcriptPath);
+    expect(cleared.recordedCwd).toBe(before.recordedCwd);
   });
 });

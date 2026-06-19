@@ -34,7 +34,7 @@
 - Do not document provider support, marketplace availability, or skills.sh discovery as complete until the release checklist verifies the live provider path.
 - Keep plugin-facing documentation accurate to source code and manifests; do not preserve stale workaround notes when the implementation contract changes.
 - When editing a standalone skill under `skills/` for local dogfooding, keep the user-level install in sync before closeout. Refresh the canonical copy at `~/.agents/skills/<skill-name>/`, verify provider-specific user skill entries such as `~/.claude/skills/<skill-name>` and `~/.cursor/skills/<skill-name>` resolve to that canonical copy when present, then run `oat sync --scope user`.
-- Generated runtime outputs come from canonical TypeScript source under `src/`. Edit the canonical TypeScript source, run `pnpm run build` to regenerate committed `.mjs` runtime output under `plugins/` and `skills/`, and use `pnpm run build:check` or `tests/generated-output-sync.test.mjs` to catch drift. `pnpm run sync:transcript-core` is a compatibility wrapper around the same generated-output build. Never hand-edit generated `.mjs` outputs with a `// GENERATED` banner, including `plugins/consensus/skills/refine/scripts/consensus-loop.mjs`, `plugins/consensus/skills/refine/scripts/consensus-refine.mjs`, `plugins/consensus/skills/evaluate/scripts/consensus-loop.mjs`, `plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs`, `skills/session-observer/scripts/session-observer.mjs`, `skills/session-observer/scripts/probe-local.mjs`, `skills/session-observer/scripts/lib/*.mjs`, `skills/export-session-transcript/scripts/lib/runtimes.mjs`, `skills/export-session-transcript/scripts/lib/sanitize.mjs`, and `skills/export-session-transcript/scripts/export-session-transcript.mjs`.
+- Generated runtime outputs come from canonical TypeScript source under `src/`. Edit the canonical TypeScript source, run `pnpm run build` to regenerate committed `.mjs` runtime output under `plugins/` and `skills/`, and use `pnpm run build:check` or `tests/generated-output-sync.test.ts` to catch drift. `pnpm run sync:transcript-core` is a compatibility wrapper around the same generated-output build. Never hand-edit generated `.mjs` outputs with a `// GENERATED` banner, including `plugins/consensus/skills/refine/scripts/consensus-loop.mjs`, `plugins/consensus/skills/refine/scripts/consensus-refine.mjs`, `plugins/consensus/skills/evaluate/scripts/consensus-loop.mjs`, `plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs`, `skills/session-observer/scripts/session-observer.mjs`, `skills/session-observer/scripts/probe-local.mjs`, `skills/session-observer/scripts/lib/*.mjs`, `skills/export-session-transcript/scripts/lib/runtimes.mjs`, `skills/export-session-transcript/scripts/lib/sanitize.mjs`, and `skills/export-session-transcript/scripts/export-session-transcript.mjs`.
 
 ## Commits
 
@@ -55,7 +55,7 @@
 
 ## Verification
 
-- Run `npm test` (or `pnpm run test`) for the full Node plus Vitest suite.
+- Run `npm test` (or `pnpm run test`) for the full Vitest suite.
 - Run `pnpm run build:check` to verify generated runtime outputs match canonical source.
 - Run `npm run validate` for repository structure, manifest, and docs invariants.
 - Run `npm run smoke` for the mocked end-to-end consensus wrapper flow.

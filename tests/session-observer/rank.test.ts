@@ -12,12 +12,11 @@
  *   8. Symlink-equivalent cwd paths rank as Tier A
  */
 
-import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, rm, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { test } from 'vitest';
+import { expect, test } from 'vitest';
 
 import {
   rank,
@@ -67,13 +66,13 @@ test('Tier A wins over Tier B and non-A candidates are not in fallbacks', () => 
     sessionId: 'sess-002',
   });
 
-  const result = rank([tierA, tierB], TARGET_CWD);
+  const result: any = rank([tierA, tierB], TARGET_CWD);
 
-  assert.ok(result.winner, 'should have a winner');
-  assert.equal(result.winner.sessionId, tierA.sessionId, 'Tier A should win');
-  assert.equal(result.tier, 'A', 'result tier should be A');
+  expect(result.winner, 'should have a winner').toBeTruthy();
+  expect(result.winner.sessionId, 'Tier A should win').toBe(tierA.sessionId);
+  expect(result.tier, 'result tier should be A').toBe('A');
   // Tier B should appear in fallbacks, not bumped to winner
-  assert.ok(Array.isArray(result.fallbacks), 'fallbacks should be an array');
+  expect(Array.isArray(result.fallbacks), 'fallbacks should be an array').toBeTruthy();
 });
 
 test('Tier A exact cwd beats newer unrelated candidate', () => {
@@ -90,11 +89,11 @@ test('Tier A exact cwd beats newer unrelated candidate', () => {
     sessionId: 'sess-newer-unrelated',
   });
 
-  const result = rank([newerUnrelated, exact], TARGET_CWD);
+  const result: any = rank([newerUnrelated, exact], TARGET_CWD);
 
-  assert.ok(result.winner, 'should have a winner');
-  assert.equal(result.winner.sessionId, 'sess-exact');
-  assert.equal(result.tier, 'A');
+  expect(result.winner, 'should have a winner').toBeTruthy();
+  expect(result.winner.sessionId).toBe('sess-exact');
+  expect(result.tier).toBe('A');
 });
 
 test('Tier B wins when no Tier A; Tier C (no-match) candidates not in result', () => {
@@ -111,17 +110,17 @@ test('Tier B wins when no Tier A; Tier C (no-match) candidates not in result', (
     sessionId: 'sess-c',
   });
 
-  const result = rank([tierB, tierC], TARGET_CWD);
+  const result: any = rank([tierB, tierC], TARGET_CWD);
 
-  assert.ok(result.winner, 'should have a winner');
-  assert.equal(result.winner.sessionId, 'sess-b', 'Tier B should win');
-  assert.equal(result.tier, 'B', 'result tier should be B');
+  expect(result.winner, 'should have a winner').toBeTruthy();
+  expect(result.winner.sessionId, 'Tier B should win').toBe('sess-b');
+  expect(result.tier, 'result tier should be B').toBe('B');
   // Tier C should not appear as winner or in fallbacks within the winning tier
   const fallbackIds = (result.fallbacks ?? []).map((f: any) => f.sessionId);
-  assert.ok(
+  expect(
     !fallbackIds.includes('sess-c'),
     'Tier C should not appear in fallbacks',
-  );
+  ).toBeTruthy();
 });
 
 test('No match → { winner: null, noMatch: true, sisters, globalRecent }', () => {
@@ -135,26 +134,25 @@ test('No match → { winner: null, noMatch: true, sisters, globalRecent }', () =
   const mockSisters = ['/Users/test/project-worktree'];
   const mockGlobalRecent = [noMatchCandidate];
 
-  const result = rank([noMatchCandidate], TARGET_CWD, {
+  const result: any = rank([noMatchCandidate], TARGET_CWD, {
     gitWorktrees: mockSisters,
     globalRecentProvider: () => mockGlobalRecent,
   });
 
-  assert.equal(result.winner, null, 'winner should be null on noMatch');
-  assert.equal(result.noMatch, true, 'noMatch should be true');
-  assert.deepEqual(
+  expect(result.winner, 'winner should be null on noMatch').toBe(null);
+  expect(result.noMatch, 'noMatch should be true').toBe(true);
+  expect(
     result.sisters,
-    mockSisters,
     'sisters should come from opts.gitWorktrees',
-  );
-  assert.ok(
+  ).toEqual(mockSisters);
+  expect(
     Array.isArray(result.globalRecent),
     'globalRecent should be an array',
-  );
-  assert.ok(
+  ).toBeTruthy();
+  expect(
     result.globalRecent.length >= 1,
     'globalRecent should have at least one entry',
-  );
+  ).toBeTruthy();
 });
 
 test('Claude parent-dir slug match beats newer unrelated global candidate', () => {
@@ -181,11 +179,11 @@ test('Claude parent-dir slug match beats newer unrelated global candidate', () =
     sessionId: 'sess-unrelated-recent',
   });
 
-  const result = rank([unrelatedRecent, sameWorktree], targetCwd);
+  const result: any = rank([unrelatedRecent, sameWorktree], targetCwd);
 
-  assert.ok(result.winner, 'slug match should produce a winner');
-  assert.equal(result.winner.sessionId, 'sess-same-worktree');
-  assert.equal(result.tier, 'C');
+  expect(result.winner, 'slug match should produce a winner').toBeTruthy();
+  expect(result.winner.sessionId).toBe('sess-same-worktree');
+  expect(result.tier).toBe('C');
 });
 
 test('Cursor project-dir slug match beats newer unrelated global candidate', () => {
@@ -215,23 +213,23 @@ test('Cursor project-dir slug match beats newer unrelated global candidate', () 
     sessionId: 'cursor-unrelated-recent',
   });
 
-  const result = rank([unrelatedRecent, sameWorktree], targetCwd);
+  const result: any = rank([unrelatedRecent, sameWorktree], targetCwd);
 
-  assert.ok(result.winner, 'Cursor slug match should produce a winner');
-  assert.equal(result.winner.sessionId, 'cursor-same-worktree');
-  assert.equal(result.tier, 'C');
+  expect(result.winner, 'Cursor slug match should produce a winner').toBeTruthy();
+  expect(result.winner.sessionId).toBe('cursor-same-worktree');
+  expect(result.tier).toBe('C');
 });
 
 test('No match with empty candidates → noMatch result', () => {
-  const result = rank([], TARGET_CWD);
+  const result: any = rank([], TARGET_CWD);
 
-  assert.equal(result.winner, null, 'winner should be null with no candidates');
-  assert.equal(result.noMatch, true, 'noMatch should be true');
-  assert.deepEqual(result.sisters, [], 'sisters defaults to []');
-  assert.ok(
+  expect(result.winner, 'winner should be null with no candidates').toBe(null);
+  expect(result.noMatch, 'noMatch should be true').toBe(true);
+  expect(result.sisters, 'sisters defaults to []').toEqual([]);
+  expect(
     Array.isArray(result.globalRecent),
     'globalRecent should be an array',
-  );
+  ).toBeTruthy();
 });
 
 test('Ties: candidates within TIE_WINDOW_SEC (5s) of winner appear in ties[]', () => {
@@ -257,27 +255,27 @@ test('Ties: candidates within TIE_WINDOW_SEC (5s) of winner appear in ties[]', (
     sessionId: 'sess-far',
   });
 
-  const result = rank([winner, inWindow, farAway], TARGET_CWD, {
+  const result: any = rank([winner, inWindow, farAway], TARGET_CWD, {
     tieWindowSec: 5,
   });
 
-  assert.ok(result.winner, 'should have a winner');
-  assert.equal(result.winner.sessionId, 'sess-winner', 'newest should win');
-  assert.ok(Array.isArray(result.ties), 'ties should be an array');
+  expect(result.winner, 'should have a winner').toBeTruthy();
+  expect(result.winner.sessionId, 'newest should win').toBe('sess-winner');
+  expect(Array.isArray(result.ties), 'ties should be an array').toBeTruthy();
   const tieIds = result.ties.map((t: any) => t.sessionId);
-  assert.ok(
+  expect(
     tieIds.includes('sess-tie'),
     'inWindow candidate should be in ties',
-  );
-  assert.ok(
+  ).toBeTruthy();
+  expect(
     !tieIds.includes('sess-far'),
     'farAway candidate should not be in ties',
-  );
+  ).toBeTruthy();
   // Winner itself should not appear in its own ties array
-  assert.ok(
+  expect(
     !tieIds.includes('sess-winner'),
     'winner should not appear in its own ties',
-  );
+  ).toBeTruthy();
 });
 
 test('active: true set on winner when ageSec < 60', () => {
@@ -288,14 +286,13 @@ test('active: true set on winner when ageSec < 60', () => {
     sessionId: 'sess-active',
   });
 
-  const result = rank([activeCandidate], TARGET_CWD);
+  const result: any = rank([activeCandidate], TARGET_CWD);
 
-  assert.ok(result.winner, 'should have a winner');
-  assert.equal(
+  expect(result.winner, 'should have a winner').toBeTruthy();
+  expect(
     result.winner.active,
-    true,
     'active should be true when ageSec < 60',
-  );
+  ).toBe(true);
 });
 
 test('active: false set on winner when ageSec >= 60', () => {
@@ -306,20 +303,19 @@ test('active: false set on winner when ageSec >= 60', () => {
     sessionId: 'sess-inactive',
   });
 
-  const result = rank([inactiveCandidate], TARGET_CWD);
+  const result: any = rank([inactiveCandidate], TARGET_CWD);
 
-  assert.ok(result.winner, 'should have a winner');
-  assert.equal(
+  expect(result.winner, 'should have a winner').toBeTruthy();
+  expect(
     result.winner.active,
-    false,
     'active should be false when ageSec >= 60',
-  );
+  ).toBe(false);
 });
 
 test('realpathSafe handles ENOENT without throwing', async () => {
   const missingPath = '/nonexistent/path/that/does/not/exist';
 
-  assert.equal(realpathSafe(missingPath), missingPath);
+  expect(realpathSafe(missingPath)).toBe(missingPath);
 });
 
 test('Within a tier, candidates sorted by mtime DESC', () => {
@@ -342,21 +338,20 @@ test('Within a tier, candidates sorted by mtime DESC', () => {
     sessionId: 'sess-middle',
   });
 
-  const result = rank([older, middle, newer], TARGET_CWD);
+  const result: any = rank([older, middle, newer], TARGET_CWD);
 
-  assert.ok(result.winner, 'should have a winner');
-  assert.equal(
+  expect(result.winner, 'should have a winner').toBeTruthy();
+  expect(
     result.winner.sessionId,
-    'sess-newer',
     'newest (highest mtime) should win',
-  );
+  ).toBe('sess-newer');
   // fallbacks should be sorted by mtime DESC as well
   if (result.fallbacks && result.fallbacks.length > 0) {
     for (let i = 1; i < result.fallbacks.length; i++) {
-      assert.ok(
+      expect(
         result.fallbacks[i - 1].mtime >= result.fallbacks[i].mtime,
         'fallbacks should be sorted mtime DESC',
-      );
+      ).toBeTruthy();
     }
   }
 });
@@ -391,12 +386,12 @@ test('engaged same-cwd session beats newer unengaged bootstrap session', () => {
     hasAssistantAndUser: true,
   });
 
-  const result = rank([bootstrap, human], TARGET_CWD);
+  const result: any = rank([bootstrap, human], TARGET_CWD);
 
-  assert.ok(result.winner, 'should have a winner');
-  assert.equal(result.winner.sessionId, 'sess-human');
-  assert.equal(result.tier, 'A');
-  assert.equal(result.fallbacks[0].sessionId, 'sess-bootstrap');
+  expect(result.winner, 'should have a winner').toBeTruthy();
+  expect(result.winner.sessionId).toBe('sess-human');
+  expect(result.tier).toBe('A');
+  expect(result.fallbacks[0].sessionId).toBe('sess-bootstrap');
 });
 
 test('only unengaged same-cwd candidates surface unengagedOnly instead of a winner', () => {
@@ -412,17 +407,17 @@ test('only unengaged same-cwd candidates surface unengagedOnly instead of a winn
     hasAssistantAndUser: false,
   });
 
-  const result = rank([bootstrap], TARGET_CWD);
+  const result: any = rank([bootstrap], TARGET_CWD);
 
-  assert.equal(result.winner, null);
-  assert.equal(result.unengagedOnly, true);
-  assert.equal(result.candidates[0].sessionId, 'sess-bootstrap-only');
+  expect(result.winner).toBe(null);
+  expect(result.unengagedOnly).toBe(true);
+  expect(result.candidates[0].sessionId).toBe('sess-bootstrap-only');
 });
 
 test('tierOf: Tier A for exact cwd match', () => {
   if (!tierOf) return; // tierOf export is optional per plan
   const candidate = mkCandidate({ recordedCwd: TARGET_CWD });
-  assert.equal(tierOf(candidate, TARGET_CWD), 'A');
+  expect(tierOf(candidate, TARGET_CWD)).toBe('A');
 });
 
 test('tierOf: Tier A for symlink-equivalent cwd match', async () => {
@@ -435,7 +430,7 @@ test('tierOf: Tier A for symlink-equivalent cwd match', async () => {
 
     const candidate = mkCandidate({ recordedCwd: linkDir });
 
-    assert.equal(tierOf(candidate, realDir), 'A');
+    expect(tierOf(candidate, realDir)).toBe('A');
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -444,7 +439,7 @@ test('tierOf: Tier A for symlink-equivalent cwd match', async () => {
 test('tierOf: Tier B for descendant cwd (recordedCwd under targetCwd)', () => {
   if (!tierOf) return;
   const candidate = mkCandidate({ recordedCwd: TARGET_CWD + '/subdir/nested' });
-  assert.equal(tierOf(candidate, TARGET_CWD), 'B');
+  expect(tierOf(candidate, TARGET_CWD)).toBe('B');
 });
 
 test('tierOf: Tier B for ancestor cwd (targetCwd under recordedCwd)', () => {
@@ -452,14 +447,14 @@ test('tierOf: Tier B for ancestor cwd (targetCwd under recordedCwd)', () => {
   // e.g. tierOf({ recordedCwd: '/tmp/project' }, '/tmp/project/src') → 'B'
   if (!tierOf) return;
   const candidate = mkCandidate({ recordedCwd: '/tmp/project' });
-  assert.equal(tierOf(candidate, '/tmp/project/src'), 'B');
+  expect(tierOf(candidate, '/tmp/project/src')).toBe('B');
 });
 
 test('tierOf: Tier C when recordedCwd is a prefix of targetCwd but not path-boundary-safe', () => {
   // /foo/barbaz should NOT match /foo/bar — the '/foo/bar' + '/' check prevents this
   if (!tierOf) return;
   const candidate = mkCandidate({ recordedCwd: '/foo/bar' });
-  assert.equal(tierOf(candidate, '/foo/barbaz'), 'C');
+  expect(tierOf(candidate, '/foo/barbaz')).toBe('C');
 });
 
 test('rank: Tier B bidirectional — ancestor recordedCwd yields a winner', () => {
@@ -470,22 +465,22 @@ test('rank: Tier B bidirectional — ancestor recordedCwd yields a winner', () =
     ageSec: 10,
     sessionId: 'sess-ancestor',
   });
-  const result = rank([ancestorCandidate], '/tmp/project/src');
-  assert.ok(result.winner, 'should have a winner');
-  assert.equal(result.winner.sessionId, 'sess-ancestor');
-  assert.equal(result.tier, 'B');
+  const result: any = rank([ancestorCandidate], '/tmp/project/src');
+  expect(result.winner, 'should have a winner').toBeTruthy();
+  expect(result.winner.sessionId).toBe('sess-ancestor');
+  expect(result.tier).toBe('B');
 });
 
 test('tierOf: Tier C for no match', () => {
   if (!tierOf) return;
   const candidate = mkCandidate({ recordedCwd: '/some/other/project' });
-  assert.equal(tierOf(candidate, TARGET_CWD), 'C');
+  expect(tierOf(candidate, TARGET_CWD)).toBe('C');
 });
 
 test('tierOf: null recordedCwd → Tier C', () => {
   if (!tierOf) return;
   const candidate = mkCandidate({ recordedCwd: null });
-  assert.equal(tierOf(candidate, TARGET_CWD), 'C');
+  expect(tierOf(candidate, TARGET_CWD)).toBe('C');
 });
 
 test('globalRecent: top-5 by mtime from all candidates', () => {
@@ -499,20 +494,20 @@ test('globalRecent: top-5 by mtime from all candidates', () => {
     }),
   );
 
-  const result = rank(candidates, TARGET_CWD);
+  const result: any = rank(candidates, TARGET_CWD);
 
-  assert.equal(result.noMatch, true, 'should be noMatch');
-  assert.ok(
+  expect(result.noMatch, 'should be noMatch').toBe(true);
+  expect(
     result.globalRecent.length <= 5,
     'globalRecent should contain at most 5 entries',
-  );
+  ).toBeTruthy();
   // Verify they are sorted by mtime DESC
   for (let i = 1; i < result.globalRecent.length; i++) {
-    assert.ok(
+    expect(
       result.globalRecent[i - 1].mtime >= result.globalRecent[i].mtime,
       'globalRecent should be sorted mtime DESC',
-    );
+    ).toBeTruthy();
   }
   // First entry should be the most recent (mtime = NOW - 10)
-  assert.equal(result.globalRecent[0].sessionId, 'sess-0');
+  expect(result.globalRecent[0].sessionId).toBe('sess-0');
 });
