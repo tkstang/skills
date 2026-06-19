@@ -3,6 +3,7 @@ import {
   normalizeRunRequest,
   parseConsensusCliArgs,
 } from './args.js';
+import { providerRegistry } from './adapters.js';
 import {
   processExitForEnvelope,
   usageFailure,
@@ -187,10 +188,10 @@ async function resolveRegistry(
 }
 
 function defaultProviderRegistry(): ProviderInventoryEntry[] {
-  return ['claude', 'codex', 'cursor'].map((id) => ({
-    id,
+  return providerRegistry().list().map((adapter) => ({
+    id: adapter.id,
     status: 'missing',
-    capabilities: placeholderCapabilities(),
+    capabilities: adapter.capabilities,
   }));
 }
 
@@ -199,14 +200,14 @@ function placeholderCapabilities(): ProviderCapabilities {
     schema_strategies: ['prompt_only'],
     output_modes: ['stdout_json'],
     options: {
-      model: true,
+      model: false,
       effort: null,
       runtime_policy: {
-        env_allowlist: true,
+        env_allowlist: false,
       },
     },
     supports_submit_tool: false,
-    supports_same_host_subprocess: true,
+    supports_same_host_subprocess: false,
     supports_host_native_dispatch: false,
   };
 }
