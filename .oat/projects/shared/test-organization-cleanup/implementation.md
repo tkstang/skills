@@ -62,7 +62,7 @@ oat_generated: false
   sequential-wrapper:148 not migrated to `makeStubEnv`; note that
   session-observer/export-transcript helper adoption was intentionally skipped
   because those suites use `fileURLToPath`-based paths). Artifact:
-  `reviews/p01-review-2026-06-18.md`.
+  `reviews/archived/p01-review-2026-06-18.md`.
 
 ### Task p01-t01: Inventory repeated setup and define helper boundaries
 
@@ -112,7 +112,7 @@ oat_generated: false
   step 2: update tests that enumerate the test tree).
 - **Review (p02):** PASS — 0 Critical, 0 Important, 1 Minor (Phase 2 summary
   placeholder — resolved by this entry). Artifact:
-  `reviews/p02-review-2026-06-18.md`.
+  `reviews/archived/p02-review-2026-06-18.md`.
 
 ### Task p02-t01: Move consensus core/refine/evaluate tests into domain directories
 
@@ -157,7 +157,7 @@ oat_generated: false
   commit (verification-only); the orchestrator owns the tracking artifacts and
   records final validation here.
 - **Review (p03):** PASS — 0 Critical, 0 Important, 0 Minor. Artifact:
-  `reviews/p03-review-2026-06-18.md`.
+  `reviews/archived/p03-review-2026-06-18.md`.
 
 ### Task p03-t01: Split oversized consensus suites only where it improves navigation
 
@@ -254,7 +254,7 @@ recorded in the per-phase summaries and the Artifact / Design Deltas table above
 
 ## Review Received (final)
 
-**Final review:** PASS — `reviews/final-review-2026-06-18.md` (auto-invoked at the
+**Final review:** PASS — `reviews/archived/final-review-2026-06-18.md` (auto-invoked at the
 p03 HiLL checkpoint; `oat_review_invocation: auto`).
 
 - **Findings:** 0 Critical, 0 Important, 1 Minor.
