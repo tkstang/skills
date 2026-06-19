@@ -1,7 +1,7 @@
 import { lstat, readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 
-const repoRoot = new URL('..', import.meta.url);
+const repoRoot = new URL('../..', import.meta.url);
 const requiredDocs = [
   'README.md',
   'LICENSE',

@@ -2,7 +2,7 @@ import { Readable } from 'node:stream';
 import { describe, expect, it } from 'vitest';
 
 // @ts-expect-error No type declarations for script helpers; importing for runtime behavior.
-import { INSTALL_COMMAND, PASEO_PACKAGE, runInstallPaseo } from '../scripts/install-paseo.mjs';
+import { INSTALL_COMMAND, PASEO_PACKAGE, runInstallPaseo } from '../../scripts/install-paseo.mjs';
 
 function input(text: string) {
   return Readable.from([text]);

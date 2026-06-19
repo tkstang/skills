@@ -2,9 +2,9 @@ import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 
 // @ts-expect-error The generated runtime is intentionally declaration-free; this test exercises the shipped artifact.
-import { MIN_PASEO_VERSION, MAX_TESTED_PASEO_VERSION } from '../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
+import { MIN_PASEO_VERSION, MAX_TESTED_PASEO_VERSION } from '../../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
 
-const repoRoot = new URL('..', import.meta.url);
+const repoRoot = new URL('../..', import.meta.url);
 
 async function read(relativePath: string) {
   return readFile(new URL(relativePath, repoRoot), 'utf8');

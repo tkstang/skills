@@ -4,11 +4,11 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 
 // @ts-expect-error No type declarations; this test exercises the shipped artifact.
-import lintStagedConfig from '../.lintstagedrc.mjs';
+import lintStagedConfig from '../../.lintstagedrc.mjs';
 // @ts-expect-error No type declarations; this test exercises the shipped artifact.
-import { generatedOutputs } from '../scripts/build-generated.mjs';
+import { generatedOutputs } from '../../scripts/build-generated.mjs';
 
-const repoRoot = new URL('..', import.meta.url);
+const repoRoot = new URL('../..', import.meta.url);
 const generatedOutputPaths = generatedOutputs.map((mapping: any) => mapping.output);
 
 function runCommand(command: string, args: string[]): Promise<{ code: number | null; stdout: string; stderr: string }> {
@@ -86,7 +86,7 @@ describe('generated output drift guard', () => {
 
   it('declares source to generated-output mappings', async () => {
     const script = await readFile(
-      new URL('../scripts/build-generated.mjs', import.meta.url),
+      new URL('../../scripts/build-generated.mjs', import.meta.url),
       'utf8',
     );
 
@@ -158,10 +158,10 @@ describe('generated output drift guard', () => {
 
   it('excludes generated outputs from static lint and format configs', async () => {
     const [oxfmt, oxlint] = await Promise.all([
-      readFile(new URL('../.oxfmtrc.json', import.meta.url), 'utf8').then(
+      readFile(new URL('../../.oxfmtrc.json', import.meta.url), 'utf8').then(
         JSON.parse,
       ),
-      readFile(new URL('../.oxlintrc.json', import.meta.url), 'utf8').then(
+      readFile(new URL('../../.oxlintrc.json', import.meta.url), 'utf8').then(
         JSON.parse,
       ),
     ]);
@@ -186,7 +186,7 @@ describe('generated output drift guard', () => {
 
   it('derives CI generated-output guards from build-generated mappings', async () => {
     const workflow = await readFile(
-      new URL('../.github/workflows/validate.yml', import.meta.url),
+      new URL('../../.github/workflows/validate.yml', import.meta.url),
       'utf8',
     );
 
@@ -204,7 +204,7 @@ describe('generated output drift guard', () => {
   it('rewrites generated export-session CLI imports to shipped runtime files', async () => {
     const cli = await readFile(
       new URL(
-        '../skills/export-session-transcript/scripts/export-session-transcript.mjs',
+        '../../skills/export-session-transcript/scripts/export-session-transcript.mjs',
         import.meta.url,
       ),
       'utf8',
@@ -226,21 +226,21 @@ describe('generated output drift guard', () => {
   it('rewrites generated session-observer imports to shipped runtime files', async () => {
     const cli = await readFile(
       new URL(
-        '../skills/session-observer/scripts/session-observer.mjs',
+        '../../skills/session-observer/scripts/session-observer.mjs',
         import.meta.url,
       ),
       'utf8',
     );
     const digest = await readFile(
       new URL(
-        '../skills/session-observer/scripts/lib/digest.mjs',
+        '../../skills/session-observer/scripts/lib/digest.mjs',
         import.meta.url,
       ),
       'utf8',
     );
     const watch = await readFile(
       new URL(
-        '../skills/session-observer/scripts/lib/watch.mjs',
+        '../../skills/session-observer/scripts/lib/watch.mjs',
         import.meta.url,
       ),
       'utf8',
@@ -268,7 +268,7 @@ describe('generated output drift guard', () => {
 
   it('fails build:check when transcript-core generated output is stale and restores it', async () => {
     const target = new URL(
-      '../skills/session-observer/scripts/lib/runtimes.mjs',
+      '../../skills/session-observer/scripts/lib/runtimes.mjs',
       import.meta.url,
     );
     const original = await readFile(target, 'utf8');
@@ -297,7 +297,7 @@ describe('generated output drift guard', () => {
 
   it('rewrites only emitted module specifiers', async () => {
     // @ts-expect-error No type declarations; this test exercises the shipped artifact.
-    const { rewriteImportSpecifiers } = await import('../scripts/build-generated.mjs');
+    const { rewriteImportSpecifiers } = await import('../../scripts/build-generated.mjs');
     const rewrite = {
       from: '../core/consensus-loop.js',
       to: './consensus-loop.mjs',
@@ -329,7 +329,7 @@ describe('generated output drift guard', () => {
 
   it('fails when a configured rewrite source is absent from module specifiers', async () => {
     // @ts-expect-error No type declarations; this test exercises the shipped artifact.
-    const { rewriteImportSpecifiers } = await import('../scripts/build-generated.mjs');
+    const { rewriteImportSpecifiers } = await import('../../scripts/build-generated.mjs');
 
     expect(() =>
       rewriteImportSpecifiers(

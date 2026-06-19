@@ -2,7 +2,7 @@ import { readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-const root = new URL('..', import.meta.url);
+const root = new URL('../..', import.meta.url);
 
 async function assertDirectory(relativePath: string) {
   const details = await stat(new URL(`${relativePath}/`, root));

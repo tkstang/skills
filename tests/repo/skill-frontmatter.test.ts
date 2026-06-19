@@ -3,7 +3,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const skillPath = new URL(
-  '../plugins/consensus/skills/refine/SKILL.md',
+  '../../plugins/consensus/skills/refine/SKILL.md',
   import.meta.url,
 );
 

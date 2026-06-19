@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 describe('package-metadata', () => {
   it('package metadata declares the test harness contract', async () => {
     const packageJson = JSON.parse(
-      await readFile(new URL('../package.json', import.meta.url), 'utf8'),
+      await readFile(new URL('../../package.json', import.meta.url), 'utf8'),
     );
 
     expect(packageJson.private).toBe(true);

@@ -2,10 +2,10 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 // @ts-expect-error No type declarations for script helpers; importing for runtime behavior.
-import { runSmokeTest } from '../scripts/smoke-test.mjs';
-import { runNodeScript } from './helpers/process.mjs';
+import { runSmokeTest } from '../../scripts/smoke-test.mjs';
+import { runNodeScript } from '../helpers/process.mjs';
 
-const repoRoot = path.resolve(new URL('..', import.meta.url).pathname);
+const repoRoot = path.resolve(new URL('../..', import.meta.url).pathname);
 const smokeScript = path.join(repoRoot, 'scripts/smoke-test.mjs');
 
 function writer() {
@@ -69,7 +69,7 @@ describe('smoke-test-script', () => {
 
   it('runParallelSynthesizedSmoke escalates once then converges via --host-direction', async () => {
     // @ts-expect-error No type declarations for script helpers; importing for runtime behavior.
-    const { runParallelSynthesizedSmoke } = await import('../scripts/smoke-test.mjs');
+    const { runParallelSynthesizedSmoke } = await import('../../scripts/smoke-test.mjs');
     const result = await runParallelSynthesizedSmoke();
 
     expect(result.status).toBe('converged');

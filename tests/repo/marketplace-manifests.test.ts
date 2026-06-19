@@ -2,7 +2,7 @@ import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-const repoRoot = new URL('..', import.meta.url);
+const repoRoot = new URL('../..', import.meta.url);
 
 const marketplaces = [
   {
