@@ -1,6 +1,6 @@
 # Skills Repo Current State
 
-**Last updated:** 2026-06-18 (PR4: all repo/tooling test suites converted to Vitest `.test.ts`; `node:test` runner retired; `pnpm test` runs Vitest only; node:assert harmonized to `expect` repo-wide. Prior: session-observer canonical TypeScript source under `src/transcript/session-observer/`, generated `.mjs` shipped output preserved under `skills/session-observer/scripts/`, and Vitest coverage for the migrated session-observer suite.)
+**Last updated:** 2026-06-19 (test-organization cleanup, branch-implemented: shared test helpers under `tests/helpers/` and the test tree reorganized into domain directories — `tests/consensus/{core,refine,evaluate}/`, `tests/repo/`, `tests/release/`, `tests/tooling/` — with two oversized suites split; behavior-preserving, no runtime/generated `.mjs` changes; pending its cleanup PR. Prior: PR4 converted all repo/tooling test suites to Vitest `.test.ts`, retired the `node:test` runner, made `pnpm test` Vitest-only, and harmonized node:assert to `expect` repo-wide; session-observer canonical TypeScript source under `src/transcript/session-observer/` with generated `.mjs` shipped output preserved under `skills/session-observer/scripts/`.)
 
 ## Overview
 
@@ -53,13 +53,13 @@ Standalone skill exporting the current (or selected) session to sanitized markdo
 
 ### transcript-core (`src/transcript/core/`)
 
-Canonical per-provider transcript knowledge (store locations, record parsing, structural filtering) lives at `src/transcript/core/runtimes.ts` and is consumed by session-observer and export-session-transcript via committed `// GENERATED` copies at each skill's `scripts/lib/runtimes.mjs`. `pnpm run build` regenerates the copies, `pnpm run build:check` and `tests/generated-output-sync.test.ts` enforce drift, and `pnpm run sync:transcript-core` remains a compatibility wrapper around the same build path.
+Canonical per-provider transcript knowledge (store locations, record parsing, structural filtering) lives at `src/transcript/core/runtimes.ts` and is consumed by session-observer and export-session-transcript via committed `// GENERATED` copies at each skill's `scripts/lib/runtimes.mjs`. `pnpm run build` regenerates the copies, `pnpm run build:check` and `tests/tooling/generated-output-sync.test.ts` enforce drift, and `pnpm run sync:transcript-core` remains a compatibility wrapper around the same build path.
 
 ## Validation Posture
 
 - `pnpm run type-check` — TypeScript source check.
 - `pnpm run build:check` — generated runtime drift guard.
-- `npm test` / `pnpm test` — Vitest-only; all suites are `.test.ts` using `expect`. The `node:test` runner is retired.
+- `npm test` / `pnpm test` — Vitest-only; all suites are `.test.ts` using `expect`. The `node:test` runner is retired. Tests are organized by domain: `tests/consensus/{core,refine,evaluate}/`, `tests/repo/`, `tests/release/`, `tests/tooling/`, `tests/session-observer/`, `tests/export-session-transcript/`, `tests/transcript-core/`, with shared setup helpers in `tests/helpers/`.
 - `npm run validate` / `pnpm run validate` — repo structure, manifest, and docs invariants (including the plugin/OAT boundary from DR-001).
 - `npm run smoke` / `pnpm run smoke` — mocked end-to-end consensus wrapper flow.
 - CI: `validate.yml` on PR/main push now installs with a frozen lockfile, builds, type-checks, build-checks, tests, validates, and smokes; `release.yml` on tag push.
