@@ -1,9 +1,11 @@
 ---
 name: refine
 description: Use when refining a draft and you want two AI peers to deliberate to convergence with structured verdicts, a final artifact, and a readable audit trail.
+version: '0.1.0'
 license: MIT
 compatibility: Agent Skills baseline; requires `paseo` CLI on PATH.
 allowed-tools: Bash(node:*), Bash(paseo:*), Read, Write
+argument-hint: <input-artifact.md> [--goal "<refinement goal>"]
 metadata:
   author: thomas.stang
   version: '0.1.0'

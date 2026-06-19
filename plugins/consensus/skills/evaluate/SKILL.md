@@ -1,9 +1,11 @@
 ---
 name: evaluate
 description: Use when evaluating an artifact against a rubric with two AI peers, unified findings, per-peer reasoning, and dissent preserved in the deliberation log.
+version: '0.1.0'
 license: MIT
 compatibility: Agent Skills baseline; requires `paseo` CLI on PATH.
 allowed-tools: Bash(node:*), Bash(paseo:*), Read, Write
+argument-hint: <artifact.md> [--rubric <rubric.md>]
 metadata:
   author: thomas.stang
   version: '0.1.0'
