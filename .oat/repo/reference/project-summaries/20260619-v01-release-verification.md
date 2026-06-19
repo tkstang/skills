@@ -39,7 +39,7 @@ The release remains a gated pre-release: local install and automated release che
 - `pnpm run build`
 - `pnpm run type-check`
 - `pnpm run build:check`
-- `pnpm run test` (53 files / 572 tests)
+- `pnpm run test` (56 files / 572 tests after rebasing onto current `origin/main`)
 - `pnpm run validate`
 - `pnpm run smoke`
 - `node scripts/bump-version.mjs --check-tag v0.1.0`
