@@ -330,7 +330,7 @@ git commit -m "chore(oat): record test organization cleanup"
 | plan  | artifact | passed  | inline   | Inline artifact review passed 2026-06-19. |
 | p01   | code     | passed  | reviews/p01-review-2026-06-18.md | Passed 2026-06-19; 2 Minor, non-blocking. |
 | p02   | code     | passed  | reviews/p02-review-2026-06-18.md | Passed 2026-06-19; 1 Minor, resolved. |
-| p03   | code     | pending | -        | Review after suite splits and final gate.  |
+| p03   | code     | passed  | reviews/p03-review-2026-06-18.md | Passed 2026-06-19; 0 findings. |
 | final | code     | pending | -        | Final branch review before PR.             |
 
 ## Implementation Complete

@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-19
-oat_current_task_id: p03-t01
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -27,9 +27,9 @@ oat_generated: false
 | ------- | ----------- | ----- | --------- |
 | Phase 1 | complete    | 3     | 3/3       |
 | Phase 2 | complete    | 3     | 3/3       |
-| Phase 3 | in_progress | 3     | 0/3       |
+| Phase 3 | complete    | 3     | 3/3       |
 
-**Total:** 6/9 tasks completed
+**Total:** 9/9 tasks completed
 
 ---
 
@@ -133,31 +133,46 @@ oat_generated: false
 
 ## Phase 3: Oversized Suite Splits And Final Guard Checks
 
-**Status:** in_progress
+**Status:** complete
 **Started:** 2026-06-19
 
 ### Phase Summary
 
-_Fill when phase is complete._
+- **Outcome:** Conservatively split two genuinely oversized suites by behavior and
+  ran the full final guard set green. Suite count rose to 56 files with the test
+  count unchanged at 572 (exact test preservation across splits).
+- **Key files:** `tests/consensus/refine/parallel-modes.test.ts` (791→286 lines)
+  split into `parallel-modes.test.ts` (convergence), `escalation-lifecycle.test.ts`
+  (two-pass lifecycle), `resume-matrix.test.ts` (interruption-point matrix);
+  `tests/session-observer/cli.test.ts` (1439→1022 lines) split into `cli.test.ts`
+  + `cli-session-override.test.ts` (`--session` override block).
+- **Verification:** `pnpm run type-check` PASS, `pnpm run build:check` PASS (no
+  generated `.mjs` drift), `pnpm run test` 572/572 PASS, `pnpm run validate` PASS,
+  `pnpm run smoke` PASS, `git diff --check` clean. no-node-test-runner guard still
+  scans the whole tree (3/3).
+- **Notable decisions / deltas:** `watch.test.ts` (single timing-sensitive
+  describe, no safe sub-axis) and `transcript-core/runtimes.test.ts` (785 lines,
+  well-organized, no behavior-level split axis) intentionally left unsplit per the
+  plan's conservatism mandate; neither was modified. p03-t03 produced no code
+  commit (verification-only); the orchestrator owns the tracking artifacts and
+  records final validation here.
+- **Review (p03):** PASS — 0 Critical, 0 Important, 0 Minor. Artifact:
+  `reviews/p03-review-2026-06-18.md`.
 
 ### Task p03-t01: Split oversized consensus suites only where it improves navigation
 
-**Status:** pending
-**Commit:** -
-
----
+**Status:** completed
+**Commit:** 4179ca7
 
 ### Task p03-t02: Split oversized transcript suites only where low risk
 
-**Status:** pending
-**Commit:** -
-
----
+**Status:** completed
+**Commit:** ff1b857
 
 ### Task p03-t03: Run final validation and update project tracking
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** (verification-only; tracking recorded by orchestrator bookkeeping)
 
 ---
 
@@ -168,7 +183,7 @@ _Fill when phase is complete._
 **Branch:** test-followups
 **Tier:** 1
 **Policy:** merge-strategy=merge, retry-limit=2
-**Phases:** 2 executed so far, 2 passed, 0 failed, 0 stopped
+**Phases:** 3 executed, 3 passed, 0 failed, 0 stopped
 
 #### Phase Outcomes
 
@@ -176,6 +191,7 @@ _Fill when phase is complete._
 | ----- | ----------- | ------ | -------------- | ----------- |
 | p01   | DONE        | pass   | 0/2            | merged      |
 | p02   | DONE        | pass   | 0/2            | merged      |
+| p03   | DONE        | pass   | 0/2            | merged      |
 
 #### Parallel Groups
 
@@ -185,6 +201,7 @@ _Fill when phase is complete._
 
 - Dispatch: p01 implementation + review on Claude Code, model=sonnet (ceiling), effort not-applicable. No escalation needed.
 - Dispatch: p02 implementation + review on Claude Code, model=sonnet (ceiling), effort not-applicable. No escalation needed.
+- Dispatch: p03 implementation + review on Claude Code, model=sonnet (ceiling), effort not-applicable. No escalation needed.
 
 #### Outstanding Items
 
@@ -196,3 +213,39 @@ _Fill when phase is complete._
 | ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
 | p01-t01..t03 | plan.md helper tasks | shared helpers reduce duplication | `readJson`/`extractJsonBlock` typed `any` not `unknown`; session-observer/export-transcript suites intentionally not migrated | avoid caller type-guard rewrites (out of scope) and those suites use `fileURLToPath` paths with no real cross-domain reuse | implementation | none — accepted, documented in Phase 1 summary |
 | p02-t01..t03 | plan.md move tasks | move tests into domain dirs | `repo-layout.test.ts` → `tests/repo/layout.test.ts`; `generated-output-sync.test.ts` → `tests/tooling/`; `docs-presence` path assertion updated | domain prefix redundant under domain dir; file is a build guard not consensus; assertion update required by the move (p02-t02 step 2) | implementation | none — accepted, documented in Phase 2 summary |
+| p03-t02 | plan.md split tasks | split oversized transcript suites | `watch.test.ts` and `transcript-core/runtimes.test.ts` left unsplit | plan mandates conservatism; no low-risk behavior-level split axis (timing-sensitive describe / well-organized single file) | implementation | none — accepted, documented in Phase 3 summary |
+
+---
+
+## Final Summary (for PR/docs)
+
+**What shipped:** A behavior-preserving reorganization of the Vitest test suite
+around clear domain boundaries plus shared test helpers. Runtime behavior and all
+generated shipped `.mjs` outputs are unchanged.
+
+- **Shared helpers:** `tests/helpers/process.mjs` (+`.d.mts`) gained `repoRoot`,
+  `fixtureBin`, `sampleInput`, `makeStubEnv`, `readJson`; new
+  `tests/helpers/consensus.ts` provides `extractJsonBlock`. Adopted across
+  consensus, transcript, and tooling suites where it removes real duplication.
+- **Domain layout:** consensus tests under `tests/consensus/{core,refine,evaluate}/`
+  with generated-entrypoint tests kept visibly separate at `tests/consensus/`;
+  repo invariants under `tests/repo/`, release/versioning under `tests/release/`,
+  build/tooling guards under `tests/tooling/`. `tests/AGENTS.md` documents the
+  layout; stale paths fixed in root `AGENTS.md`, `README.md`, `CLAUDE.md`.
+- **Suite splits:** `parallel-modes.test.ts` split into convergence /
+  escalation-lifecycle / resume-matrix; `session-observer/cli.test.ts` split out a
+  `--session` override file. `watch.test.ts` and `transcript-core/runtimes.test.ts`
+  intentionally left intact.
+
+**Key modules touched:** `tests/helpers/`, `tests/consensus/**`, `tests/repo/`,
+`tests/release/`, `tests/tooling/`, `tests/session-observer/`, `tests/AGENTS.md`,
+plus stale-path fixes in `AGENTS.md` / `README.md` / `CLAUDE.md`.
+
+**Verification performed:** `pnpm run type-check`, `pnpm run build:check` (no
+generated drift), `pnpm run test` (572/572 across 56 files), `pnpm run validate`,
+`pnpm run smoke`, `git diff --check` — all green. Per-phase reviews p01/p02/p03 all
+passed.
+
+**Design deltas:** None blocking. Accepted minor deltas (helper return types as
+`any`; a few suites/helpers left local; two transcript suites left unsplit) are
+recorded in the per-phase summaries and the Artifact / Design Deltas table above.
