@@ -1,6 +1,6 @@
 ---
 oat_current_task: p02-t01
-oat_last_commit: 196251c
+oat_last_commit: 332d46e
 oat_blockers:
   - task_id: p02
     reason: "Fix loop exhausted: generated provider ls/preflight do not wire the implemented default Node probe runner; see reviews/p02-review-2026-06-19-v3.md"
@@ -34,7 +34,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-06-17T01:27:39.580Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-06-19T19:58:47Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-06-19T20:00:24Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
