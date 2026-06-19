@@ -1,14 +1,14 @@
 ---
 id: bl-bfb4
 title: 'Migrate consensus + tests to real TypeScript types'
-status: in_progress # open | in_progress | closed | wont_do
+status: done # open | in_progress | closed | wont_do
 priority: medium # urgent | high | medium | low | none
 scope: initiative # idea | task | feature | initiative
 scope_estimate: L # XS | S | M | L | XL | XXL
 labels: [tooling, typescript, testing, dx, migration]
 assignee: null
 created: '2026-06-14T15:02:51Z'
-updated: '2026-06-16T00:00:00Z'
+updated: '2026-06-18T12:00:00Z'
 associated_issues: []
 oat_template: true
 oat_template_name: backlog-item
@@ -86,3 +86,21 @@ generates the shipped export CLI with import rewrites to local `./lib/*.mjs`
 runtime files. The in-scope transcript-core and export-session tests moved to
 Vitest TypeScript coverage, and `sync:transcript-core` remains only as a
 compatibility wrapper around `scripts/build-generated.mjs`.
+
+The PR3 `session-observer-ts-migration` slice has moved session-observer
+implementation source to `src/transcript/session-observer/`, with
+`scripts/build-generated.mjs` preserving the shipped dependency-free `.mjs`
+outputs under `skills/session-observer/scripts/`. The session-observer test suite
+has moved from `node:test` `.mjs` files to Vitest `.test.ts` coverage, including
+generated-entrypoint checks against the committed skill runtime paths. Its final
+review follow-up also tightened meaningful TypeScript boundaries for state files,
+locate/rank candidates, digest and observe results, watch state/events/options,
+CLI/probe parsing, transcript-core interactions, and internal watcher-status
+presentation helpers while preserving shipped runtime behavior.
+
+PR4 (`repo-tooling-vitest-final-cleanup`) completes the initiative: all remaining
+repo/tooling `.test.mjs` suites converted to Vitest `.test.ts`, `node:assert`
+harmonized to `expect` across all session-observer suites, the `node:test`
+compatibility runner retired from `package.json`, and `pnpm test` simplified to
+Vitest-only. A guard (`tests/tooling/no-node-test-runner.test.ts`) enforces the
+single-runner policy going forward.

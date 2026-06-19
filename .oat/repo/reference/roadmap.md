@@ -1,6 +1,6 @@
 # Skills Repo Roadmap
 
-**Last updated:** 2026-06-19 (consensus-rubric-guidance: `refine` + `evaluate` brought to authoring-best-practice parity with a validator-backed top-level skill `version` (DR-022), and `evaluate` gained guided rubric creation plus four bundled example rubrics — strengthens the release-packaging lane. Prior: 2026-06-17 consensus-evaluate bl-5174 delivered as the first post-refine family skill.)
+**Last updated:** 2026-06-19 (consensus-rubric-guidance: `refine` + `evaluate` brought to authoring-best-practice parity with a validator-backed top-level skill `version` (DR-022), plus guided rubric creation and four bundled example rubrics. Also 2026-06-19: v0.1 release verification refreshed automated gates, provider install evidence, release notes, version/tag checks, and release workflow parity; test-organization cleanup landed shared `tests/helpers/`, a domain-organized test tree, and two oversized suites split. Prior: PR4 retired the `node:test` runner and completed **bl-bfb4**.)
 
 ## Planning Model
 
@@ -27,7 +27,7 @@ What remains, in dependency order:
 
 ### Release / distribution
 
-- v0.1 tag gated on `RELEASING.md` manual provider verification (install + permission smoke checks on Claude Code, Cursor, Codex, Agent Skills baseline).
+- v0.1 tag gated on `RELEASING.md` manual provider verification: automated gates and local Claude/Codex installs are current, but interactive permission prompts, Cursor locked-keychain/provider-error resolution, and post-tag Agent Skills / skills.sh discovery remain.
 - Public marketplace submission (Claude/Cursor), Codex Plugin Directory, and skills.sh verification follow the tag; no public claims until verified.
 
 ### Transcript tooling (session-observer, export-session-transcript, transcript-core)
@@ -36,21 +36,34 @@ Substantially shipped (see `current-state.md`). Deferred items recorded in the a
 
 ### TypeScript / generated runtime tooling
 
-bl-853a is delivered: TypeScript, Vitest, generated `.mjs` output, drift guards,
-and CI/worktree validation are in place, with `consensus-loop` converted as the
-proof-point module. bl-bfb4 remains in progress rather than complete. Remaining
-slices include the `consensus-refine.mjs` wrapper, migration of the existing
-`node:test` suite to Vitest, and tightening `allowJs` for migrated scopes.
+bl-853a and bl-bfb4 are both delivered. TypeScript, Vitest, generated `.mjs`
+output, drift guards, and CI/worktree validation are in place, with the
+generated-runtime slices done across consensus refine, transcript-core,
+export-session-transcript, and session-observer. PR4 completed the final
+cleanup: every repo/tooling and session-observer suite now runs as Vitest
+`.test.ts` using `expect`, the `node:test` compatibility runner is retired,
+`pnpm test` is Vitest-only, and a guard (`tests/tooling/no-node-test-runner.test.ts`)
+blocks any reintroduction of `node:test`/`node:assert`/`.test.mjs`. No remaining
+runner-migration work; future typed-API tightening (e.g. removing `as any` test
+shims) is optional long-tail polish, not a tracked migration item.
+
+A follow-on **test-organization cleanup** (branch-implemented, pending its PR)
+reorganized the now-Vitest suite for maintainability: shared setup helpers under
+`tests/helpers/`, domain directories (`tests/consensus/{core,refine,evaluate}/`,
+`tests/repo/`, `tests/release/`, `tests/tooling/`), and conservative splits of two
+oversized suites — behavior-preserving, no runtime/generated `.mjs` changes.
+Deferred from that cleanup and promotable on demand: a deeper typed-test-fixture
+pass for residual `as any` shims, and per-domain Vitest projects / coverage
+reporting if the suite grows enough to justify it.
 
 ## Now
 
-- **v0.1 release verification** — run bl-d85f after this TypeScript/vitest branch lands. Reuse PR #9 dogfood as prior evidence; focus reruns on stale/gap behavior and the true release gates: provider install/permission checks, README install matrix, CHANGELOG/version/tag checks, release workflow, and post-tag skills.sh discovery before public claims.
-- **Package the current consensus feature set for release** — now that `consensus-evaluate` has landed, refresh release notes and provider QA around both shipped consensus skills before tagging.
+- **v0.1 release verification** — bl-d85f is in progress on the release-verification branch. Completed so far: current automated gates, README/CHANGELOG/version/tag checks, release workflow parity, and local Claude/Codex install evidence. Remaining before tag: interactive provider permission prompts and Cursor keychain/provider-error resolution or explicit unsupported-path release note.
+- **Post-tag discovery verification** — after the tag/release, verify Agent Skills / skills.sh and any public provider directory discovery paths before making public listing claims.
 
 ## Next
 
-- **Continue TypeScript migration slices** — bl-bfb4 can proceed module-by-module now that bl-853a delivered the toolchain/generated-output contract. Do not mark the initiative complete until the wrapper, test-suite migration, and `allowJs` tightening finish.
-- **Remaining family skills** — `consensus-create`, `-decide`, `-plan`, `-research` as thin wrappers with v3 defaults. `-create` front-loads the `independent_draft` cold-start + derived-sectioning design the next two reuse.
+- **Remaining family skills** — after `consensus-evaluate`, `-create`, `-decide`, `-plan`, `-research` as thin wrappers with v3 defaults. `-create` front-loads the `independent_draft` cold-start + derived-sectioning design the next two reuse.
 - **Peer-invocation ownership** — tool-based verdict submission (bl-3a88) and in-house peer CLI work (bl-bb7e) should be treated as one later design/spike around owning the narrow claude/codex/cursor path rather than depending on Paseo for one per-turn `run` capability.
 
 ## Later

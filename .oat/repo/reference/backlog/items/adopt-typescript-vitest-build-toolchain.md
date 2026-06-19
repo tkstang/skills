@@ -88,4 +88,4 @@ Delivered by the quick-mode OAT project
   type-check, build-check, test, validate, smoke, and assert generated output
   remains clean.
 
-The broader TypeScript migration remains open under [[bl-bfb4]].
+The broader TypeScript migration completed under [[bl-bfb4]] (PR4 retired the `node:test` runner, 2026-06-18).

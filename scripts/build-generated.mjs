@@ -45,6 +45,92 @@ export const generatedOutputs = [
     output: 'skills/session-observer/scripts/lib/runtimes.mjs',
   },
   {
+    id: 'session-observer-digest',
+    source: 'src/transcript/session-observer/lib/digest.ts',
+    output: 'skills/session-observer/scripts/lib/digest.mjs',
+    importRewrites: [
+      { from: '../../core/runtimes.js', to: './runtimes.mjs' },
+      { from: './session-classifier.js', to: './session-classifier.mjs' },
+    ],
+  },
+  {
+    id: 'session-observer-locate',
+    source: 'src/transcript/session-observer/lib/locate.ts',
+    output: 'skills/session-observer/scripts/lib/locate.mjs',
+    importRewrites: [
+      { from: '../../core/runtimes.js', to: './runtimes.mjs' },
+      { from: './session-classifier.js', to: './session-classifier.mjs' },
+    ],
+  },
+  {
+    id: 'session-observer-observe',
+    source: 'src/transcript/session-observer/lib/observe.ts',
+    output: 'skills/session-observer/scripts/lib/observe.mjs',
+    importRewrites: [
+      { from: './digest.js', to: './digest.mjs' },
+      { from: './locate.js', to: './locate.mjs' },
+      { from: './rank.js', to: './rank.mjs' },
+      { from: './state.js', to: './state.mjs' },
+    ],
+  },
+  {
+    id: 'session-observer-rank',
+    source: 'src/transcript/session-observer/lib/rank.ts',
+    output: 'skills/session-observer/scripts/lib/rank.mjs',
+  },
+  {
+    id: 'session-observer-session-classifier',
+    source: 'src/transcript/session-observer/lib/session-classifier.ts',
+    output: 'skills/session-observer/scripts/lib/session-classifier.mjs',
+    importRewrites: [{ from: '../../core/runtimes.js', to: './runtimes.mjs' }],
+  },
+  {
+    id: 'session-observer-state',
+    source: 'src/transcript/session-observer/lib/state.ts',
+    output: 'skills/session-observer/scripts/lib/state.mjs',
+  },
+  {
+    id: 'session-observer-watch-state',
+    source: 'src/transcript/session-observer/lib/watch-state.ts',
+    output: 'skills/session-observer/scripts/lib/watch-state.mjs',
+  },
+  {
+    id: 'session-observer-watch',
+    source: 'src/transcript/session-observer/lib/watch.ts',
+    output: 'skills/session-observer/scripts/lib/watch.mjs',
+    importRewrites: [
+      { from: '../../core/runtimes.js', to: './runtimes.mjs' },
+      { from: './digest.js', to: './digest.mjs' },
+      { from: './observe.js', to: './observe.mjs' },
+      { from: './state.js', to: './state.mjs' },
+      { from: './watch-state.js', to: './watch-state.mjs' },
+    ],
+  },
+  {
+    id: 'session-observer-cli',
+    source: 'src/transcript/session-observer/session-observer.ts',
+    output: 'skills/session-observer/scripts/session-observer.mjs',
+    importRewrites: [
+      { from: '../core/runtimes.js', to: './lib/runtimes.mjs' },
+      { from: './lib/digest.js', to: './lib/digest.mjs' },
+      { from: './lib/locate.js', to: './lib/locate.mjs' },
+      { from: './lib/observe.js', to: './lib/observe.mjs' },
+      { from: './lib/rank.js', to: './lib/rank.mjs' },
+      { from: './lib/state.js', to: './lib/state.mjs' },
+      { from: './lib/watch-state.js', to: './lib/watch-state.mjs' },
+      { from: './lib/watch.js', to: './lib/watch.mjs' },
+    ],
+  },
+  {
+    id: 'session-observer-probe-local',
+    source: 'src/transcript/session-observer/probe-local.ts',
+    output: 'skills/session-observer/scripts/probe-local.mjs',
+    importRewrites: [
+      { from: './lib/locate.js', to: './lib/locate.mjs' },
+      { from: './lib/rank.js', to: './lib/rank.mjs' },
+    ],
+  },
+  {
     id: 'transcript-core-export-session',
     source: 'src/transcript/core/runtimes.ts',
     output: 'skills/export-session-transcript/scripts/lib/runtimes.mjs',

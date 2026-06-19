@@ -22,6 +22,8 @@ It also supports foreground watch mode. `watch` and top-level `--watch` poll the
 
 The canonical user-facing documentation is `skills/session-observer/SKILL.md`. Runtime format details live in `skills/session-observer/references/transcript-formats.md`; implemented watch behavior and design notes live in `skills/session-observer/references/watch-design.md`.
 
+Canonical implementation source now lives under `src/transcript/session-observer/`. The committed files under `skills/session-observer/scripts/` remain the generated, dependency-free `.mjs` runtime output that manifests, docs, and users execute.
+
 ### Export session transcript skill
 
 `skills/export-session-transcript/` is a standalone Agent Skill that exports the current agent session to a sanitized Markdown transcript. The output is named after the current git branch (`/` replaced with `-`) and written by default to `~/Downloads`. It supports Claude Code, Codex, and Cursor transcript stores.
@@ -46,7 +48,7 @@ Per-provider transcript knowledge (store locations, record parsing, structural f
 
 `pnpm run sync:transcript-core` remains as a compatibility command for existing habits and automation. It delegates to `scripts/build-generated.mjs`, and `node scripts/sync-transcript-core.mjs --check` delegates to `scripts/build-generated.mjs --check`.
 
-`pnpm run build:check` regenerates expected output in check mode and fails on any divergence. The same guard runs in `pnpm test` through `tests/generated-output-sync.test.mjs`, so editing the canonical module without rebuilding generated output breaks the suite. Edit `src/transcript/core/runtimes.ts`, then run `pnpm run build` to update consumers.
+`pnpm run build:check` regenerates expected output in check mode and fails on any divergence. The same guard runs in `pnpm test` through `tests/tooling/generated-output-sync.test.ts`, so editing the canonical module without rebuilding generated output breaks the suite. Edit `src/transcript/core/runtimes.ts`, then run `pnpm run build` to update consumers.
 
 Current consumers: `session-observer` and `export-session-transcript`.
 
@@ -58,7 +60,7 @@ The build contract is:
 
 - `pnpm run build` runs `node scripts/build-generated.mjs` and writes generated runtime output.
 - `pnpm run build:check` runs `node scripts/build-generated.mjs --check` without mutating tracked files.
-- `tests/generated-output-sync.test.mjs` runs the drift guard as part of `pnpm test`.
+- `tests/tooling/generated-output-sync.test.ts` runs the drift guard as part of `pnpm test`.
 - `pnpm run sync:transcript-core` is a compatibility wrapper around the same generated-output build.
 - TypeScript, Vitest, and bundling are developer tooling only; shipped skills still run committed `.mjs` with no install step.
 
@@ -68,6 +70,7 @@ Current generated runtime outputs:
 - `src/consensus/refine/consensus-refine.ts` builds to `plugins/consensus/skills/refine/scripts/consensus-refine.mjs`.
 - `src/consensus/evaluate/consensus-evaluate.ts` builds to `plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs`.
 - `src/transcript/core/runtimes.ts` builds to `skills/session-observer/scripts/lib/runtimes.mjs` and `skills/export-session-transcript/scripts/lib/runtimes.mjs`.
+- `src/transcript/session-observer/` builds to the generated session-observer CLI, probe, and library files under `skills/session-observer/scripts/`.
 - `src/transcript/export-session/sanitize.ts` builds to `skills/export-session-transcript/scripts/lib/sanitize.mjs`.
 - `src/transcript/export-session/export-session-transcript.ts` builds to `skills/export-session-transcript/scripts/export-session-transcript.mjs`.
 
@@ -102,6 +105,8 @@ cursor agent --plugin-dir "$PWD/plugins/consensus"
 The Cursor CLI does not currently expose `cursor plugin marketplace` or `cursor plugin install`; local plugin loading is session-scoped through Cursor Agent's `--plugin-dir` option.
 
 Published Git and marketplace install flows are not yet release claims. Re-check provider CLIs and marketplace flows before tagging v0.1.
+
+If `skills` is already configured as a marketplace from a different local checkout, provider CLIs may reject adding this checkout under the same marketplace name. Remove or update the existing local marketplace before using the commands above as release-candidate install evidence.
 
 ## Prerequisites
 
@@ -158,7 +163,7 @@ For watch mode, `--runtime both` watches Claude Code and Codex in one foreground
 
 - The consensus plugin family ships the `refine` and `evaluate` skills in v0.1; the standalone `session-observer` and `export-session-transcript` skills (and the transcript-core generated runtime they use) ship alongside it but are not part of the consensus plugin.
 - Remaining consensus family skills are future work: `consensus-create`, `consensus-decide`, `consensus-plan`, and `consensus-research`.
-- Consensus ships three iteration modes (`alternating`, `parallel_revision`, `parallel_synthesized`); the parallel-revision and parallel-synthesized capabilities disclose their per-round call multiplier (2x peer calls, plus 1 synthesis call for synthesized) and escalate stuck states through the agency-gated ladder.
+- Consensus ships three iteration modes (`alternating`, `parallel_revision`, `parallel_synthesized`); the `parallel_revision` and `parallel_synthesized` capabilities disclose their per-round call multiplier (2x peer calls, plus 1 synthesis call for synthesized) and escalate stuck states through the agency-gated ladder.
 - Consensus sections converge independently; whole-document harmonization and deliberation metrics/cost caps remain deferred.
 - Cursor is supported as a host runtime for the consensus plugin, not as a default Paseo peer.
 - Session observer supports Cursor agent transcript JSONL only; `~/.cursor/chats/*/store.db` SQLite chat history is out of scope.
@@ -173,7 +178,7 @@ For watch mode, `--runtime both` watches Claude Code and Codex in one foreground
 - `skills/` - standalone personal skills.
 - `skills/session-observer/` - standalone peer transcript review and catch-up skill.
 - `skills/export-session-transcript/` - standalone session transcript export skill.
-- `src/transcript/` - canonical TypeScript source for transcript-core and export-session runtime code.
+- `src/transcript/` - canonical TypeScript source for transcript-core, session-observer, and export-session runtime code.
 - `shared/transcript-core/` - compatibility documentation pointer for the former shared transcript-core source path.
 - `plugins/consensus/` - self-contained consensus plugin package.
 - `.claude-plugin/`, `.cursor-plugin/`, `.agents/plugins/` - repo-root marketplace entries.

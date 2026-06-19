@@ -3,10 +3,6 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     environment: 'node',
-    include: [
-      'tests/**/*.test.ts',
-      'tests/**/*.test.mts',
-      'tests/generated-output-sync.test.mjs',
-    ],
+    include: ['tests/**/*.test.ts', 'tests/**/*.test.mts'],
   },
 });
