@@ -4,6 +4,14 @@ import { mkdir, open, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import type {
+  AttemptSummary,
+  ConsensusCliRunEnvelope,
+  ConsensusCliRunFailure,
+  ProviderDiagnostics,
+  ProviderErrorCode,
+} from '../provider-cli/types.js';
+
 export type JsonRecord = Record<string, unknown>;
 
 export type IterationMode =
@@ -166,28 +174,56 @@ interface RecordsWriter {
 
 export type TerminalStatus = LoopStatus;
 
-export interface PaseoInvocationArgs {
+export interface ProviderInvocationArgs {
   provider: string;
   schemaPath: string;
   prompt: string;
   env?: NodeJS.ProcessEnv;
   cwd?: string;
+  consensusCliPath?: string;
+  runCommand?: ProviderCliCommandRunner;
 }
 
-export interface PaseoResult {
+export type PaseoInvocationArgs = ProviderInvocationArgs;
+
+export interface ProviderResult {
   provider?: string;
   args?: string[];
   stdout?: string;
   stderr?: string;
   json: unknown;
+  raw_provider_response?: string;
+  provider_diagnostics?: ProviderDiagnostics;
+  attempts?: AttemptSummary;
 }
+
+export type PaseoResult = ProviderResult;
 
 interface RetryOptions {
   attempts?: number;
   delayMs?: number;
   sleep?: (ms: number) => Promise<void>;
-  invoke?: (args: PaseoInvocationArgs) => Promise<PaseoResult>;
+  invoke?: (args: ProviderInvocationArgs) => Promise<ProviderResult>;
 }
+
+export interface ProviderCliCommandRunnerOptions {
+  env?: NodeJS.ProcessEnv;
+  cwd?: string;
+  input?: string;
+}
+
+export interface ProviderCliCommandRunnerResult {
+  code: number | null;
+  signal?: NodeJS.Signals | null;
+  stdout: string;
+  stderr?: string;
+}
+
+export type ProviderCliCommandRunner = (
+  command: string,
+  args: string[],
+  options: ProviderCliCommandRunnerOptions,
+) => Promise<ProviderCliCommandRunnerResult>;
 
 export interface PeerInvocation {
   provider: string;
@@ -1352,6 +1388,216 @@ export function invokePaseo({
       }
     });
   });
+}
+
+export function resolveConsensusCliPath({
+  consensusCliPath,
+  env = process.env,
+}: Pick<ProviderInvocationArgs, 'consensusCliPath' | 'env'> = {}): string {
+  return (
+    consensusCliPath ??
+    env.CONSENSUS_CLI_PATH ??
+    fileURLToPath(new URL('../../../scripts/consensus.mjs', import.meta.url))
+  );
+}
+
+export function runProviderCliCommand(
+  command: string,
+  args: string[],
+  options: ProviderCliCommandRunnerOptions = {},
+): Promise<ProviderCliCommandRunnerResult> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, {
+      cwd: options.cwd,
+      env: options.env,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+
+    const stdoutChunks: Buffer[] = [];
+    const stderrChunks: Buffer[] = [];
+    let stdoutBytes = 0;
+    let stderrBytes = 0;
+    let capError: ConsensusError | null = null;
+
+    function capture(
+      streamName: 'stdout' | 'stderr',
+      chunks: Buffer[],
+      chunk: Buffer,
+    ) {
+      if (capError) return;
+
+      const nextBytes =
+        streamName === 'stdout'
+          ? stdoutBytes + chunk.length
+          : stderrBytes + chunk.length;
+      if (nextBytes > SUBPROCESS_OUTPUT_CAP_BYTES) {
+        capError = outputCapError(streamName, SUBPROCESS_OUTPUT_CAP_BYTES);
+        child.kill('SIGKILL');
+        return;
+      }
+
+      chunks.push(chunk);
+      if (streamName === 'stdout') {
+        stdoutBytes = nextBytes;
+      } else {
+        stderrBytes = nextBytes;
+      }
+    }
+
+    child.stdout.on('data', (chunk: Buffer) =>
+      capture('stdout', stdoutChunks, chunk),
+    );
+    child.stderr.on('data', (chunk: Buffer) =>
+      capture('stderr', stderrChunks, chunk),
+    );
+    child.on('error', reject);
+    child.on('close', (code, signal) => {
+      if (capError) {
+        reject(capError);
+        return;
+      }
+      resolve({
+        code,
+        signal,
+        stdout: Buffer.concat(stdoutChunks).toString('utf8'),
+        stderr: Buffer.concat(stderrChunks).toString('utf8'),
+      });
+    });
+
+    child.stdin.end(options.input ?? '');
+  });
+}
+
+export async function invokeConsensusProviderCli({
+  provider,
+  schemaPath,
+  prompt,
+  env = process.env,
+  cwd = process.cwd(),
+  consensusCliPath,
+  runCommand = runProviderCliCommand,
+}: ProviderInvocationArgs): Promise<ProviderResult> {
+  const command = resolveConsensusCliPath({ consensusCliPath, env });
+  const request = {
+    schema_version: 'v1',
+    provider,
+    schema_path: schemaPath,
+    prompt,
+    cwd,
+  };
+  const result = await runCommand(
+    command,
+    ['run', '--request-json', '-', '--json'],
+    {
+      env,
+      cwd,
+      input: JSON.stringify(request),
+    },
+  );
+  const envelope = parseConsensusCliRunEnvelope(result);
+
+  if (!envelope.ok) {
+    throw providerCliEnvelopeError(envelope);
+  }
+
+  return {
+    provider: envelope.provider,
+    args: envelope.args,
+    stdout: envelope.stdout,
+    stderr: envelope.stderr,
+    json: envelope.json,
+    raw_provider_response: envelope.stdout ?? JSON.stringify(envelope.json),
+    provider_diagnostics: envelope.diagnostics,
+    attempts: envelope.attempts,
+  };
+}
+
+export async function invokeProviderCliWithRetry(
+  args: ProviderInvocationArgs,
+  { invoke = invokeConsensusProviderCli }: RetryOptions = {},
+): Promise<ProviderResult> {
+  return invoke(args);
+}
+
+function parseConsensusCliRunEnvelope(
+  result: ProviderCliCommandRunnerResult,
+): ConsensusCliRunEnvelope {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(result.stdout);
+  } catch (error) {
+    throw new ConsensusError(
+      `consensus provider CLI returned invalid JSON: ${hardErrorMessage(error)}`,
+      {
+        code:
+          result.code && result.code !== 0
+            ? 'CONSENSUS_CLI_USAGE'
+            : 'PROVIDER_INVALID_JSON',
+        exitCode:
+          result.code && result.code !== 0
+            ? EXIT_CODES.USAGE
+            : EXIT_CODES.DATA,
+        cause: error,
+        details: {
+          exit_code: result.code,
+          signal: result.signal ?? null,
+          stdout: result.stdout,
+          stderr: result.stderr ?? '',
+        },
+      },
+    );
+  }
+
+  if (!isConsensusCliRunEnvelope(parsed)) {
+    throw new ConsensusError(
+      'consensus provider CLI returned an invalid envelope',
+      {
+        code: 'PROVIDER_INVALID_JSON',
+        exitCode: EXIT_CODES.DATA,
+        details: {
+          exit_code: result.code,
+          signal: result.signal ?? null,
+          stdout: result.stdout,
+          stderr: result.stderr ?? '',
+        },
+      },
+    );
+  }
+
+  return parsed;
+}
+
+function isConsensusCliRunEnvelope(
+  value: unknown,
+): value is ConsensusCliRunEnvelope {
+  if (!isJsonRecord(value)) return false;
+  return value.schema_version === 'v1' && typeof value.ok === 'boolean';
+}
+
+function providerCliEnvelopeError(envelope: ConsensusCliRunFailure) {
+  return new ConsensusError(envelope.message, {
+    code: envelope.code,
+    exitCode: exitCodeForProviderError(envelope.code),
+    details: {
+      provider: envelope.provider ?? null,
+      retryable: envelope.retryable,
+      attempts: envelope.attempts,
+      diagnostics: envelope.diagnostics,
+      stdout: envelope.stdout,
+      stderr: envelope.stderr,
+    },
+  });
+}
+
+function exitCodeForProviderError(code: ProviderErrorCode) {
+  if (code === 'CONSENSUS_CLI_USAGE') return EXIT_CODES.USAGE;
+  if (
+    code === 'PROVIDER_INVALID_JSON' ||
+    code === 'PROVIDER_SCHEMA_VALIDATION'
+  ) {
+    return EXIT_CODES.DATA;
+  }
+  return EXIT_CODES.CONFIG;
 }
 
 function isRetryablePaseoError(error: unknown): boolean {
