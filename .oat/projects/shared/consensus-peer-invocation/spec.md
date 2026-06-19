@@ -28,7 +28,7 @@ invocation boundary.
 The project needs an owned `consensus` CLI boundary that can replace or reduce
 the Paseo runtime dependency while preserving the consensus loop's existing
 strengths: local verdict validation, byte caps, retry behavior, provider
-diagnostics, audit records, and resume compatibility.
+diagnostics, audit records, and resume behavior for new CLI-backed runs.
 
 The first implementation must stay narrow. It should target the provider floor
 of Claude, Codex, and Cursor, use Stoa and Paseo as source material, and design
@@ -44,9 +44,9 @@ compatibility is a contract pressure, not a required migration in this project.
 - Support the provider floor of Claude, Codex, and Cursor without requiring
   broad ACP provider catalog work.
 - Preserve the consensus loop's validation, caps, retry, audit, and resume
-  semantics during migration.
+  semantics for CLI-backed runs.
 - Define how provider execution, schema delivery, preflight, and error taxonomy
-  replace the current Paseo-backed path.
+  replace the current provider backend and support a clean source-code cutover.
 - Keep shipped runtime outputs dependency-free and generated from canonical
   TypeScript source.
 
@@ -150,24 +150,26 @@ compatibility is a contract pressure, not a required migration in this project.
 
 **FR6: Backend-Neutral Error Taxonomy**
 
-- **Description:** Replace Paseo-shaped runtime errors with backend-neutral
-  consensus errors while preserving useful compatibility aliases where needed.
+- **Description:** Replace old provider-shaped runtime errors with
+  backend-neutral consensus errors and remove old backend identifiers from
+  implementation source during cleanup.
 - **Acceptance Criteria:**
-  - The design maps old Paseo-related error families to new provider-neutral
-    categories.
+  - The design maps current provider-backend error families to new
+    provider-neutral categories.
   - The design defines which errors retry and which fail immediately.
   - The design preserves actionable remediation messages.
 - **Priority:** P0
 
-**FR7: Audit and Resume Compatibility**
+**FR7: Audit and Resume Contract**
 
-- **Description:** Preserve existing consensus artifact, audit, and resume
-  semantics while changing the provider backend.
+- **Description:** Preserve consensus artifact, audit, and resume semantics for
+  new CLI-backed runs while changing the provider backend.
 - **Acceptance Criteria:**
-  - The design defines the raw provider response fields and any compatibility
-    aliases for old run artifacts.
-  - Existing resume flows remain readable or have an explicit migration path.
-  - Tests are planned for audit record compatibility and resume behavior.
+  - The design defines provider-neutral raw provider response fields for new
+    run artifacts.
+  - Resume behavior is verified for new CLI-backed records.
+  - Historical `.oat` artifacts do not need to be rewritten or kept readable by
+    new source as part of this project.
 - **Priority:** P0
 
 **FR8: Generated Runtime Packaging**
@@ -247,15 +249,17 @@ compatibility is a contract pressure, not a required migration in this project.
     exits all have explicit handling.
 - **Priority:** P0
 
-**NFR3: Backward Compatibility**
+**NFR3: Clean Source Cutover**
 
-- **Description:** Existing consensus behavior, artifacts, and user workflows
-  should continue to work during migration unless the design records a specific
-  compatibility break.
+- **Description:** Once the CLI-backed path is tested and dogfooded, source
+  code, generated runtime outputs, tests, and maintained documentation should
+  use provider-neutral naming and contain no old provider-backend identifiers.
 - **Acceptance Criteria:**
-  - Existing Paseo-backed behavior has a fallback or dogfood switch during
-    migration.
-  - Existing artifacts remain readable by resume logic.
+  - Migration can use a temporary dogfood switch, but the final source state has
+    no old backend command paths, env vars, error names, fixture names, or
+    public-facing messages.
+  - Historical `.oat` artifacts and research files are excluded from the
+    cleanup requirement.
 - **Priority:** P0
 
 **NFR4: Testability**
@@ -297,7 +301,7 @@ compatibility is a contract pressure, not a required migration in this project.
 - Canonical source for generated runtime outputs lives under TypeScript source;
   generated `.mjs` outputs must be produced through the build pipeline.
 - Existing consensus validation, byte caps, resume/audit trail behavior, and
-  structured record formats remain compatible unless explicitly migrated.
+  structured record semantics remain intact for new CLI-backed runs.
 - Cursor remains a soft-schema provider until live evidence proves a stronger
   mechanism.
 - Stoa compatibility informs the CLI contract but does not require Stoa
@@ -309,7 +313,7 @@ compatibility is a contract pressure, not a required migration in this project.
 - Existing generated-runtime build and drift-check infrastructure.
 - Existing consensus test suite, smoke test, and validation scripts.
 - Local provider CLIs for Claude, Codex, and Cursor.
-- Current Paseo-backed behavior as the migration baseline.
+- Current provider-backend behavior as the migration baseline.
 - Stoa provider adapter and final JSON contract as design source material.
 - Research artifacts under `research/`, especially the synthesized report.
 
@@ -344,7 +348,7 @@ then plan drift checks and shipped-entrypoint tests around that choice.
 - Structured output coordinator - constrained native schema, submit-tool, and
   prompt-plus-validation strategy selection.
 - Consensus integration layer - migration through the existing peer invocation
-  seam with audit/resume compatibility.
+  seam with provider-neutral audit/resume records.
 - Packaging and verification layer - canonical source, generated runtime output,
   drift checks, and shipped-entrypoint tests.
 
@@ -366,10 +370,10 @@ _Design-related open questions are tracked in the Open Questions section below._
 - The design specifies a narrow CLI contract that can replace the current
   Paseo-backed invocation path for Claude, Codex, and Cursor.
 - The design preserves consensus validation, caps, retry, audit, and resume
-  behavior or documents an explicit compatibility migration.
+  behavior for new CLI-backed runs.
 - The design defines preflight, provider inventory, structured output strategy,
   and backend-neutral error taxonomy.
-- The design includes a migration and fallback plan from current Paseo behavior.
+- The design includes a migration, dogfood, and final source-cleanup plan.
 - The design includes generated-runtime build, drift-check, and shipped-entrypoint
   verification requirements.
 - The design keeps broad future provider support out of first implementation
@@ -385,14 +389,14 @@ _Design-related open questions are tracked in the Open Questions section below._
 | FR4 | Integrate through existing consensus peer seam | P0 | integration + e2e: consensus backend switch and wrapper flow | See plan.md |
 | FR5 | Replace Paseo-specific preflight | P0 | unit + integration: executable readiness and capability diagnostics | See plan.md |
 | FR6 | Define backend-neutral error taxonomy | P0 | unit: error mapping and retry classification | See plan.md |
-| FR7 | Preserve audit and resume compatibility | P0 | integration: artifact record compatibility and resume | See plan.md |
+| FR7 | Preserve provider-neutral audit and resume contract | P0 | integration: provider-neutral audit records and resume | See plan.md |
 | FR8 | Define generated runtime packaging | P0 | unit + integration: build drift and shipped-entrypoint smoke | See plan.md |
 | FR9 | Prevent unsafe host-native self-spawn | P0 | unit + integration: host identity, provider status, and dispatch guard | See plan.md |
 | FR10 | Bound Cursor submit-tool evaluation | P1 | manual + integration: Cursor SDK spike acceptance criteria | See plan.md |
 | FR11 | Define future provider extension boundary | P1 | manual: design review of capability flags and deferred scope | See plan.md |
 | NFR1 | Keep shipped runtime dependency-free | P0 | integration: dependency and generated-runtime checks | See plan.md |
 | NFR2 | Preserve reliability and validation discipline | P0 | unit + integration: invalid output, caps, exits, retries | See plan.md |
-| NFR3 | Preserve backward compatibility | P0 | integration: fallback path and old artifact readability | See plan.md |
+| NFR3 | Clean source cutover with no old backend identifiers | P0 | integration + static: fallback removal and identifier scan | See plan.md |
 | NFR4 | Keep provider boundary testable without live calls | P0 | unit + integration: stubs and injected invokers | See plan.md |
 | NFR5 | Maintain subprocess and diagnostic safety | P0 | unit: argv construction, redaction, caps, file safety | See plan.md |
 | NFR6 | Prevent provider-platform scope creep | P0 | manual: plan review against provider floor and non-goals | See plan.md |
@@ -415,8 +419,9 @@ _Design-related open questions are tracked in the Open Questions section below._
   collapse for OpenAI-compatible providers?
 - **Migration Switch:** Should backend selection be controlled by config, an
   environment variable, a CLI flag, or a compile-time default?
-- **Error Compatibility:** Which old Paseo-specific errors need compatibility
-  aliases in artifact or user-facing output?
+- **Source Cleanup:** Which implementation, generated runtime, test, and
+  maintained documentation paths need an identifier scan before the cleanup
+  phase is complete?
 - **Submission Capture:** If submit-tool support is adopted, does the
   orchestrator read a sidecar file, stdout envelope, temp directory, or
   structured event stream?
@@ -454,12 +459,12 @@ _Design-related open questions are tracked in the Open Questions section below._
   - **Impact:** High
   - **Mitigation:** Preserve local validation/retry and evaluate submit-tool
     capture as a bounded reliability improvement.
-- **Audit Regression:** Changing provider capture could break resume or
+- **Audit Regression:** Changing provider capture could break new resume or
   provenance records.
   - **Likelihood:** Medium
   - **Impact:** High
-  - **Mitigation:** Design around current audit fields and add compatibility
-    tests before switching defaults.
+  - **Mitigation:** Design provider-neutral audit fields and add CLI-backed
+    resume tests before switching defaults.
 - **Generated Runtime Drift:** New canonical source or CLI entrypoints could
   leave shipped `.mjs` outputs stale.
   - **Likelihood:** Medium
