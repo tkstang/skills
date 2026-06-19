@@ -331,7 +331,7 @@ git commit -m "chore(oat): record test organization cleanup"
 | p01   | code     | passed  | reviews/p01-review-2026-06-18.md | Passed 2026-06-19; 2 Minor, non-blocking. |
 | p02   | code     | passed  | reviews/p02-review-2026-06-18.md | Passed 2026-06-19; 1 Minor, resolved. |
 | p03   | code     | passed  | reviews/p03-review-2026-06-18.md | Passed 2026-06-19; 0 findings. |
-| final | code     | pending | -        | Final branch review before PR.             |
+| final | code     | passed  | reviews/final-review-2026-06-18.md | Auto-review passed 2026-06-19; 1 Minor (pre-existing, out of scope). |
 
 ## Implementation Complete
 
