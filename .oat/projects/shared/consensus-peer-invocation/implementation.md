@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-19
-oat_current_task_id: p03-t01
+oat_current_task_id: p04-t01
 oat_generated: false
 ---
 
@@ -22,10 +22,10 @@ oat_generated: false
 | ------- | ----------- | ----- | --------- |
 | Phase 1 | passed      | 6     | 6/6       |
 | Phase 2 | passed      | 7     | 7/7       |
-| Phase 3 | pending     | 7     | 0/7       |
+| Phase 3 | passed      | 7     | 7/7       |
 | Phase 4 | pending     | 7     | 0/7       |
 
-**Total:** 13/27 tasks completed
+**Total:** 20/27 tasks completed
 
 ---
 
@@ -225,47 +225,88 @@ oat_generated: false
 
 ## Phase 3: Refine and Evaluate Integration
 
-**Status:** pending
-**Started:** -
+**Status:** passed
+**Started:** 2026-06-19
 
 ### Phase Summary
 
-Pending.
+**Outcome:**
+
+- Added the consensus-loop provider CLI invocation seam, including default generated CLI resolution and structured provider envelope handling.
+- Wrote provider-neutral audit/resume fields for CLI-backed records, including `raw_provider_response`, provider diagnostics, and attempt summaries.
+- Kept provider-tier retry exhaustion inside the provider CLI path while preserving loop-owned verdict shape/cap retries.
+- Added Refine and Evaluate provider CLI backend switches, selected-provider preflight, integration coverage, and smoke coverage.
+- Fixed p03 re-review findings by routing default generated `.mjs` execution through Node, carrying provider backend selection through prepared parallel section runners, and preflighting explicit synthesized-mode synthesizers outside the peer pair.
+
+**Key files touched:**
+
+- `src/consensus/core/consensus-loop.ts` - provider CLI invocation seam, backend selection, provider-neutral audit writes, and retry-boundary integration.
+- `src/consensus/refine/consensus-refine.ts` - Refine provider CLI backend switch, preflight, prepared parallel backend propagation, and synthesizer preflight union.
+- `src/consensus/evaluate/consensus-evaluate.ts` - Evaluate provider CLI backend switch and preflight.
+- `plugins/consensus/skills/refine/scripts/consensus-loop.mjs`, `plugins/consensus/skills/evaluate/scripts/consensus-loop.mjs`, `plugins/consensus/skills/refine/scripts/consensus-refine.mjs`, `plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs` - generated runtime outputs.
+- `tests/consensus/core/`, `tests/consensus/refine/`, `tests/consensus/evaluate/`, `tests/release/smoke-test-script.test.ts` - p03 integration, retry-boundary, wrapper, record, and smoke coverage.
+
+**Verification:**
+
+- Run: `pnpm exec vitest run tests/consensus/core/provider-cli-invocation.test.ts tests/consensus/core/provider-retry-boundary.test.ts tests/consensus/core/loop-records.test.ts tests/consensus/refine/provider-cli-integration.test.ts tests/consensus/evaluate/provider-cli-integration.test.ts tests/consensus/refine/wrapper-options.test.ts tests/consensus/refine/error-handling.test.ts tests/consensus/evaluate/wrapper.test.ts tests/consensus/evaluate/output.test.ts tests/release/smoke-test-script.test.ts`
+- Result: passed during p03 implementation, fix, and re-review.
+- Run: `pnpm run type-check`
+- Result: passed.
+- Run: `pnpm run build:check`
+- Result: passed.
+- Run: `pnpm run smoke`
+- Result: passed.
+
+**Notes / Decisions:**
+
+- The initial p03 review found two Critical issues and one Important issue; fix commit `43c4288` resolved them and p03 passed re-review with no findings.
+- Prepared parallel provider CLI runs now propagate backend selection through `loop_argv` so section runners do not fall back to the old backend.
 
 ### Task p03-t01: Add Consensus CLI Invoker Seam
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** 41f61a9
 
 ### Task p03-t02: Write Provider-Neutral Audit and Resume Fields
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** 6903f3b
 
 ### Task p03-t03: Shrink Loop Retry Responsibility
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** aade99b
 
 ### Task p03-t04: Add Refine Wrapper Backend Switch and Preflight
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** de84167
 
 ### Task p03-t05: Add Evaluate Wrapper Backend Switch and Preflight
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** a16867c
 
 ### Task p03-t06: Add Refine and Evaluate CLI Backend Integration Tests
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** ab01679
 
 ### Task p03-t07: Extend Smoke Coverage for the CLI Backend
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** ed22381
+
+### Review Fix: Propagate Provider Backend for Prepared Runs
+
+**Status:** completed
+**Commit:** 43c4288
+
+**Changes:**
+
+- Routed default generated provider CLI `.mjs` execution through `process.execPath` while preserving direct execution for explicit CLI overrides.
+- Propagated provider backend selection through prepared parallel Refine section packets and loop argument parsing.
+- Added Refine provider CLI preflight coverage for an explicit synthesized-mode synthesizer outside the peer pair.
 
 ---
 
@@ -320,6 +361,41 @@ Pending.
 Each run from `oat-project-implement` appends an entry below.
 
 <!-- orchestration-runs-start -->
+
+### Run 4 — 2026-06-19 21:17
+
+**Branch:** consensus-cli
+**Tier:** 1
+**Policy:** merge-strategy=sequential, retry-limit=2
+**Phases:** 1 executed, 1 passed, 0 failed, 0 stopped
+
+#### Phase Outcomes
+
+| Phase | Implementer | Review | Fix Iterations | Disposition |
+| ----- | ----------- | ------ | -------------- | ----------- |
+| p03   | DONE | pass | 1/2 | passed |
+
+#### Parallel Groups
+
+- p03: sequential
+
+#### Dispatch Notes
+
+- Dispatch: p03 implementation used Codex `oat-phase-implementer-xhigh` with `effort_axis=selected:xhigh`.
+- Dispatch: p03 review and re-review used Codex `oat-reviewer-xhigh` with `effort_axis=selected:xhigh`.
+- Dispatch: p03 fix used Codex `oat-phase-implementer-xhigh` with `effort_axis=selected:xhigh`.
+
+#### Outstanding Items
+
+- None.
+
+#### Artifact / Design Deltas
+
+Run-scoped snapshot only. The durable record is `## Deviations from Plan / Design`; consolidate any non-`None` entries there at the next phase boundary.
+
+| Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
+| ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
+| None | - | - | - | - | - | - |
 
 ### Run 3 — 2026-06-19 20:18
 
@@ -442,6 +518,7 @@ Chronological log of implementation progress.
 - Implementation tracking initialized from the completed 27-task plan.
 - p01 completed and passed re-review after fix commit `90f19d4`.
 - p02 completed and passed new-cycle re-review after fix commit `6fffefe`.
+- p03 completed and passed re-review after fix commit `43c4288`.
 
 **Blockers:**
 
@@ -466,7 +543,7 @@ Track test execution during implementation.
 | ----- | --------- | ------ | ------ | ----- |
 | p01   | focused p01 Vitest suite; type-check; build:check; validate; smoke | yes | 0 | `pnpm exec vitest run <p01 files>` used for focused suite; `pnpm run test:vitest -- <files>` broadened to unrelated session-observer tests |
 | p02   | focused provider-cli Vitest suite; type-check; build:check; generated provider/preflight smoke | yes | 0 | p02 passed new-cycle re-review after generated provider probe wiring fix |
-| p03   | -         | -      | -      | Pending |
+| p03   | focused provider-cli/refine/evaluate Vitest suite; type-check; build:check; smoke | yes | 0 | p03 passed re-review after provider backend propagation fix |
 | p04   | -         | -      | -      | Pending |
 
 ## Final Summary (for PR/docs)
