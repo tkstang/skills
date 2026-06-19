@@ -11,7 +11,7 @@
 - Alternating-mode deliberation loop with hash convergence, impasse handling, section parsing, and publishable deliberation artifacts.
 - Sequential wrapper flow plus host-mediated parallel prepare/fan-in orchestration.
 - Resume support for canonical artifact state, corrupt-section fail-closed handling, skip flags, and user intervention records.
-- Paseo install assist via `scripts/install-paseo.mjs`; tested Paseo range 0.1.0 to 0.9.0.
+- Provider CLI setup and verification guidance for local provider availability.
 - Mocked smoke test coverage for dependency-free end-to-end validation.
 - Node.js 22+ runtime and CI baseline.
 - `consensus-evaluate` skill for judging an artifact against a rubric/spec with v3 defaults (`shared_input`, `parallel_revision`, `minimal`), unified findings, embedded per-peer `consensus-verdict` records, and dissent/unresolved-dissent surfacing.
@@ -29,6 +29,6 @@
 ### Release validation
 
 - Local automated verification passed on 2026-06-19: `pnpm run build`, `pnpm run type-check`, `pnpm run build:check`, `pnpm run test` (53 files / 572 tests), `pnpm run validate`, and `pnpm run smoke`.
-- Paseo local check passed with `paseo 0.1.96`; `paseo provider ls --json` reported `claude` and `codex` available.
+- Provider CLI local check passed; `consensus provider ls --json` reported `claude` and `codex` available.
 - Claude Code local marketplace install from the release-candidate checkout passed and exposed both shipped consensus skills (`evaluate`, `refine`) plus the section runner; Codex local install passed from the configured local `skills` marketplace.
 - Public v0.1 tagging remains blocked until interactive provider permission prompts are completed for Claude Code, Codex, and Cursor, and until Cursor's locked-keychain provider error is resolved or explicitly documented as unsupported for the tag.

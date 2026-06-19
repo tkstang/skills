@@ -10,6 +10,8 @@ const scanRoots = [
   'plugins/consensus',
   'tests',
   'scripts',
+  'AGENTS.md',
+  'CHANGELOG.md',
   'README.md',
   'RELEASING.md',
   'CONTRIBUTING.md',
