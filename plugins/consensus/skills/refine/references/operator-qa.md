@@ -44,6 +44,20 @@ uses provider-neutral statuses:
 > - Cursor `auth_required` often means the macOS login keychain is locked or the
 >   Cursor CLI has not completed authentication in this user session.
 
+## Provider CLI dogfood checklist
+
+Before a release cutover, capture these checks in the parity note or release
+checklist:
+
+- `pnpm run build:check`
+- `pnpm run test`
+- `pnpm run smoke`
+- `CONSENSUS_SMOKE_PROVIDER_BACKEND=provider-cli pnpm run smoke`
+- `node plugins/consensus/scripts/consensus.mjs provider ls --json`
+- `node plugins/consensus/scripts/consensus.mjs preflight --json`
+- Per-provider preflight for `claude`, `codex`, and `cursor`, noting
+  `auth_required` separately from implementation failures.
+
 The wrapper lives at:
 
 ```

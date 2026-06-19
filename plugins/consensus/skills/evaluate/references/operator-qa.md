@@ -22,6 +22,20 @@ The evaluate wrapper validates provider ID syntax and surfaces provider-neutral
 diagnostics from peer invocation. Provider inventory checking is still a useful
 operator preflight step before an expensive live run.
 
+## Provider CLI dogfood checklist
+
+Before a release cutover, capture these checks in the parity note or release
+checklist:
+
+- `pnpm run build:check`
+- `pnpm run test`
+- Focused Evaluate provider CLI integration tests:
+  `pnpm exec vitest run tests/consensus/evaluate/provider-cli-integration.test.ts tests/consensus/evaluate/wrapper.test.ts tests/consensus/evaluate/output.test.ts`
+- `node plugins/consensus/scripts/consensus.mjs provider ls --json`
+- `node plugins/consensus/scripts/consensus.mjs preflight --json`
+- Per-provider preflight for `claude`, `codex`, and `cursor`, noting
+  `auth_required` separately from implementation failures.
+
 ```bash
 node plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs \
   path/to/artifact.md \
