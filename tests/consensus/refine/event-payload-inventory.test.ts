@@ -5,11 +5,11 @@ import path from 'node:path';
 import { expect, it } from 'vitest';
 
 // @ts-expect-error The generated runtime is intentionally declaration-free; this test exercises the shipped artifact.
-import * as consensusRefine from '../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
+import * as consensusRefine from '../../../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
 import {
   makeStubEnv,
   sampleInput,
-} from './helpers/process.mjs';
+} from '../../helpers/process.mjs';
 
 const { prepareParallelRun, runSequential, runWrapperCli } = consensusRefine;
 

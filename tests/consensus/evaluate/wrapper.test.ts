@@ -10,7 +10,7 @@ import {
   INPUT_SIZE_CAP_BYTES,
   loadEvaluationInputs,
   parseEvaluateArgs,
-} from '../src/consensus/evaluate/consensus-evaluate.js';
+} from '../../../src/consensus/evaluate/consensus-evaluate.js';
 
 function extractTaggedBlock(prompt: string, label: string, tag: string) {
   const labelIndex = prompt.indexOf(label);

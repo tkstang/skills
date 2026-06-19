@@ -3,7 +3,7 @@ import path from 'node:path';
 
 import { expect, it } from 'vitest';
 
-const repoRoot = path.resolve(new URL('..', import.meta.url).pathname);
+const repoRoot = path.resolve(new URL('../../..', import.meta.url).pathname);
 const refineSchemasDir = path.join(
   repoRoot,
   'plugins/consensus/skills/refine/schemas',

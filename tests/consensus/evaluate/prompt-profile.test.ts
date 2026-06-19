@@ -4,7 +4,7 @@ import path from 'node:path';
 
 import { expect, it } from 'vitest';
 
-import { runConsensusLoop } from '../src/consensus/core/consensus-loop.js';
+import { runConsensusLoop } from '../../../src/consensus/core/consensus-loop.js';
 import type {
   LoopOptions,
   LoopRecord,
@@ -15,7 +15,7 @@ import type {
   SynthesisPromptInput,
   TerminalStatus,
   TurnPromptInput,
-} from '../src/consensus/core/consensus-loop.js';
+} from '../../../src/consensus/core/consensus-loop.js';
 
 const typedPromptProfile: PromptProfile = {
   buildTurnPrompt(input: TurnPromptInput) {

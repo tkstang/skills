@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-const repoRoot = path.resolve(new URL('..', import.meta.url).pathname);
+const repoRoot = path.resolve(new URL('../../..', import.meta.url).pathname);
 const skillPath = path.join(
   repoRoot,
   'plugins/consensus/skills/refine/SKILL.md',

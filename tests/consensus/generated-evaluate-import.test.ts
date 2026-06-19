@@ -6,7 +6,7 @@ describe('generated consensus-evaluate import', () => {
   it('imports the sibling generated consensus-loop runtime', async () => {
     const source = await readFile(
       new URL(
-        '../plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs',
+        '../../plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs',
         import.meta.url,
       ),
       'utf8',

@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { expect, it } from 'vitest';
 
 // @ts-expect-error The generated runtime is intentionally declaration-free; this test exercises the shipped artifact.
-import * as consensusLoop from '../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
+import * as consensusLoop from '../../../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
 
 const {
   LOOP_SCHEMA_VERSION,
@@ -17,17 +17,17 @@ const {
 } = consensusLoop;
 
 const schemaPath = new URL(
-  '../plugins/consensus/skills/refine/schemas/verdict-alternating.schema.json',
+  '../../../plugins/consensus/skills/refine/schemas/verdict-alternating.schema.json',
   import.meta.url,
 );
 
 const parallelSchemaPath = new URL(
-  '../plugins/consensus/skills/refine/schemas/verdict-parallel.schema.json',
+  '../../../plugins/consensus/skills/refine/schemas/verdict-parallel.schema.json',
   import.meta.url,
 );
 
 const synthesisSchemaPath = new URL(
-  '../plugins/consensus/skills/refine/schemas/synthesis.schema.json',
+  '../../../plugins/consensus/skills/refine/schemas/synthesis.schema.json',
   import.meta.url,
 );
 

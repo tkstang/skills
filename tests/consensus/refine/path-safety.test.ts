@@ -13,9 +13,9 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 // @ts-expect-error The generated runtime is intentionally declaration-free; this test exercises the shipped artifact.
-import * as consensusRefine from '../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
+import * as consensusRefine from '../../../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
 // @ts-expect-error The generated runtime is intentionally declaration-free; this test exercises the shipped artifact.
-import * as consensusEvaluate from '../plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs';
+import * as consensusEvaluate from '../../../plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs';
 
 const runtimes = [
   {

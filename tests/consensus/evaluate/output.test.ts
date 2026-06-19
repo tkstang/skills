@@ -8,7 +8,7 @@ import {
   renderEvaluationArtifact,
   runConsensusEvaluate,
   runEvaluateCli,
-} from '../src/consensus/evaluate/consensus-evaluate.js';
+} from '../../../src/consensus/evaluate/consensus-evaluate.js';
 
 type JsonRecord = Record<string, any>;
 
