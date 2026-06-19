@@ -14,6 +14,7 @@ function nodeIo(): ConsensusCliIo {
     stderr: process.stderr,
     stdin: process.stdin,
     cwd: process.cwd(),
+    env: process.env,
     readFile: (filePath) => readFile(filePath, 'utf8'),
     readStdin: () => readAllStdin(process.stdin),
   };

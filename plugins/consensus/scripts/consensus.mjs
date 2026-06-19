@@ -62,6 +62,11 @@ async function normalizeRunRequest(command, io) {
   if (command.cwd) request.cwd = command.cwd;
   if (command.model) request.model = command.model;
   if (command.effort) request.effort = command.effort;
+  const runtimePolicy = normalizeRuntimePolicy(command);
+  if (runtimePolicy) request.runtime_policy = runtimePolicy;
+  if (command.maxDepth !== void 0) {
+    request.host = normalizeHostContext(command.maxDepth, command, io);
+  }
   if (command.maxAttempts !== void 0) {
     request.max_attempts = command.maxAttempts;
   }
@@ -121,7 +126,12 @@ function parseRunCommand(tokens) {
       "--max-output-bytes",
       "--model",
       "--effort",
-      "--cwd"
+      "--cwd",
+      "--permission-mode",
+      "--sandbox",
+      "--approval-policy",
+      "--env-allow",
+      "--max-depth"
     ]),
     valueFlags: /* @__PURE__ */ new Set([
       "--provider",
@@ -134,7 +144,12 @@ function parseRunCommand(tokens) {
       "--max-output-bytes",
       "--model",
       "--effort",
-      "--cwd"
+      "--cwd",
+      "--permission-mode",
+      "--sandbox",
+      "--approval-policy",
+      "--env-allow",
+      "--max-depth"
     ])
   });
   requireJson(parsed.flags);
@@ -142,12 +157,33 @@ function parseRunCommand(tokens) {
     kind: "run",
     json: true
   };
-  command.provider = singleValue(parsed.flags, "--provider");
-  command.schemaPath = singleValue(parsed.flags, "--schema");
-  command.requestJson = singleValue(parsed.flags, "--request-json");
-  command.model = singleValue(parsed.flags, "--model");
-  command.effort = singleValue(parsed.flags, "--effort");
-  command.cwd = singleValue(parsed.flags, "--cwd");
+  assignIfDefined(command, "provider", singleValue(parsed.flags, "--provider"));
+  assignIfDefined(
+    command,
+    "schemaPath",
+    singleValue(parsed.flags, "--schema")
+  );
+  assignIfDefined(
+    command,
+    "requestJson",
+    singleValue(parsed.flags, "--request-json")
+  );
+  assignIfDefined(command, "model", singleValue(parsed.flags, "--model"));
+  assignIfDefined(command, "effort", singleValue(parsed.flags, "--effort"));
+  assignIfDefined(command, "cwd", singleValue(parsed.flags, "--cwd"));
+  assignIfDefined(
+    command,
+    "permissionMode",
+    singleValue(parsed.flags, "--permission-mode")
+  );
+  assignIfDefined(command, "sandbox", singleValue(parsed.flags, "--sandbox"));
+  assignIfDefined(
+    command,
+    "approvalPolicy",
+    singleValue(parsed.flags, "--approval-policy")
+  );
+  const envAllow = valuesFor(parsed.flags, "--env-allow");
+  if (envAllow.length > 0) command.envAllow = envAllow;
   const prompt = singleValue(parsed.flags, "--prompt");
   const promptFile = singleValue(parsed.flags, "--prompt-file");
   const stdinMarkers = parsed.positionals.filter((value) => value === "-");
@@ -181,6 +217,10 @@ function parseRunCommand(tokens) {
       maxOutputBytes
     );
   }
+  const maxDepth = singleValue(parsed.flags, "--max-depth");
+  if (maxDepth) {
+    command.maxDepth = parsePositiveInteger("--max-depth", maxDepth);
+  }
   if (command.requestJson) {
     assertNoRequestJsonConflicts(command, parsed.positionals.length);
   }
@@ -197,6 +237,11 @@ function assertNoRequestJsonConflicts(command, positionalCount) {
     command.model ? "--model" : void 0,
     command.effort ? "--effort" : void 0,
     command.cwd ? "--cwd" : void 0,
+    command.permissionMode ? "--permission-mode" : void 0,
+    command.sandbox ? "--sandbox" : void 0,
+    command.approvalPolicy ? "--approval-policy" : void 0,
+    command.envAllow && command.envAllow.length > 0 ? "--env-allow" : void 0,
+    command.maxDepth !== void 0 ? "--max-depth" : void 0,
     positionalCount > 0 ? "positional prompt" : void 0
   ].filter(Boolean);
   if (conflicts.length > 0) {
@@ -204,6 +249,39 @@ function assertNoRequestJsonConflicts(command, positionalCount) {
       `--request-json cannot be combined with request-shaping flags: ${conflicts.join(", ")}`
     );
   }
+}
+function normalizeRuntimePolicy(command) {
+  const runtimePolicy = {};
+  if (command.permissionMode) {
+    runtimePolicy.permission_mode = command.permissionMode;
+  }
+  if (command.sandbox) runtimePolicy.sandbox = command.sandbox;
+  if (command.approvalPolicy) {
+    runtimePolicy.approval_policy = command.approvalPolicy;
+  }
+  if (command.envAllow && command.envAllow.length > 0) {
+    runtimePolicy.env_allowlist = command.envAllow;
+  }
+  return Object.keys(runtimePolicy).length > 0 ? runtimePolicy : void 0;
+}
+function assignIfDefined(target, key, value) {
+  if (value !== void 0) target[key] = value;
+}
+function normalizeHostContext(maxDepth, command, io) {
+  return {
+    runtime: normalizeHostRuntime(io.env?.CONSENSUS_PARENT_HOST),
+    cwd: command.cwd ?? io.cwd ?? process.cwd(),
+    run_id: io.env?.CONSENSUS_RUN_ID ?? "local",
+    depth: parseNonNegativeInteger(io.env?.CONSENSUS_DEPTH) ?? 0,
+    max_depth: maxDepth
+  };
+}
+function normalizeHostRuntime(value) {
+  return value === "claude" || value === "codex" || value === "cursor" ? value : "unknown";
+}
+function parseNonNegativeInteger(value) {
+  if (value === void 0 || !/^\d+$/.test(value)) return void 0;
+  return Number(value);
 }
 async function readPromptSource(source, io) {
   if (source.kind === "stdin") return io.readStdin();
@@ -286,6 +364,9 @@ function singleValue(flags, flag) {
     throw new ConsensusCliUsageError(`${flag} can only be provided once`);
   }
   return values[0];
+}
+function valuesFor(flags, flag) {
+  return flags.get(flag) ?? [];
 }
 function requireJson(flags) {
   if (!flags.has("--json")) {
@@ -371,6 +452,10 @@ Commands:
   provider ls --json
   preflight --json [--provider <id>] [--max-depth <n>]
   run --provider <id> --schema <path> --json [-|--prompt <text>|--prompt-file <path>]
+      [--model <name>] [--effort <level>]
+      [--permission-mode <mode>] [--sandbox <name>] [--approval-policy <policy>]
+      [--env-allow <name>] [--max-attempts <n>] [--timeout-sec <n>]
+      [--max-output-bytes <n>] [--cwd <path>] [--max-depth <n>]
   run --request-json <path|-> --json
 `;
 }
@@ -488,6 +573,7 @@ function nodeIo() {
     stderr: process.stderr,
     stdin: process.stdin,
     cwd: process.cwd(),
+    env: process.env,
     readFile: (filePath) => readFile(filePath, "utf8"),
     readStdin: () => readAllStdin(process.stdin)
   };

@@ -19,6 +19,7 @@ export interface ConsensusCliIo {
   stderr: WritableLike;
   stdin: NodeJS.ReadStream;
   cwd: string;
+  env?: Record<string, string | undefined>;
   readFile(path: string): Promise<string>;
   readStdin(): Promise<string>;
 }
@@ -66,6 +67,10 @@ Commands:
   provider ls --json
   preflight --json [--provider <id>] [--max-depth <n>]
   run --provider <id> --schema <path> --json [-|--prompt <text>|--prompt-file <path>]
+      [--model <name>] [--effort <level>]
+      [--permission-mode <mode>] [--sandbox <name>] [--approval-policy <policy>]
+      [--env-allow <name>] [--max-attempts <n>] [--timeout-sec <n>]
+      [--max-output-bytes <n>] [--cwd <path>] [--max-depth <n>]
   run --request-json <path|-> --json
 `;
 }

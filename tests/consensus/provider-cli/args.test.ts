@@ -74,6 +74,58 @@ describe('provider CLI argument parsing', () => {
     );
   });
 
+  it('normalizes runtime policy and host max-depth flags', async () => {
+    const command = parseConsensusCliArgs([
+      'run',
+      '--provider',
+      'codex',
+      '--schema',
+      'schema.json',
+      '--json',
+      '--prompt',
+      'Return JSON.',
+      '--permission-mode',
+      'read-only',
+      '--sandbox',
+      'workspace-write',
+      '--approval-policy',
+      'never',
+      '--env-allow',
+      'OPENAI_API_KEY',
+      '--env-allow',
+      'ANTHROPIC_API_KEY',
+      '--max-depth',
+      '2',
+    ]);
+
+    const request = await normalizeRunRequest(
+      command,
+      testIo({
+        env: {
+          CONSENSUS_PARENT_HOST: 'codex',
+          CONSENSUS_RUN_ID: 'run-123',
+          CONSENSUS_DEPTH: '1',
+        },
+      }),
+    );
+
+    expect(request).toMatchObject({
+      runtime_policy: {
+        permission_mode: 'read-only',
+        sandbox: 'workspace-write',
+        approval_policy: 'never',
+        env_allowlist: ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY'],
+      },
+      host: {
+        runtime: 'codex',
+        cwd: '/workspace',
+        run_id: 'run-123',
+        depth: 1,
+        max_depth: 2,
+      },
+    });
+  });
+
   it('normalizes prompt files', async () => {
     const command = parseConsensusCliArgs([
       'run',
@@ -155,11 +207,11 @@ describe('provider CLI argument parsing', () => {
         'run',
         '--request-json',
         'request.json',
-        '--provider',
-        'claude',
+        '--permission-mode',
+        'read-only',
         '--json',
       ]),
-    ).toThrow(ConsensusCliUsageError);
+    ).toThrow(/--permission-mode/);
   });
 
   it.each([
@@ -168,21 +220,18 @@ describe('provider CLI argument parsing', () => {
     ['--max-output-bytes', '1.5'],
     ['--max-depth', 'many'],
   ])('rejects invalid positive integers for %s', (flag, value) => {
-    const argv =
-      flag === '--max-depth'
-        ? ['preflight', '--json', flag, value]
-        : [
-            'run',
-            '--provider',
-            'claude',
-            '--schema',
-            'schema.json',
-            '--json',
-            '--prompt',
-            'prompt',
-            flag,
-            value,
-          ];
+    const argv = [
+      'run',
+      '--provider',
+      'claude',
+      '--schema',
+      'schema.json',
+      '--json',
+      '--prompt',
+      'prompt',
+      flag,
+      value,
+    ];
 
     expect(() => parseConsensusCliArgs(argv)).toThrow(
       `${flag} must be a positive integer`,
@@ -193,9 +242,11 @@ describe('provider CLI argument parsing', () => {
 function testIo(options?: {
   files?: Record<string, string>;
   stdin?: string;
+  env?: Record<string, string | undefined>;
 }) {
   return {
     cwd: '/workspace',
+    env: options?.env,
     async readFile(filePath: string) {
       const contents = options?.files?.[filePath];
       if (contents === undefined) {

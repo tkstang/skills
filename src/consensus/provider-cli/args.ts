@@ -1,4 +1,8 @@
-import type { ConsensusCliRunRequest, ProviderId } from './types.js';
+import type {
+  ConsensusCliRunRequest,
+  HostRuntime,
+  ProviderId,
+} from './types.js';
 
 export class ConsensusCliUsageError extends Error {
   readonly code = 'CONSENSUS_CLI_USAGE' as const;
@@ -48,13 +52,19 @@ export interface ParsedRunCommand {
   maxAttempts?: number;
   timeoutSec?: number;
   maxOutputBytes?: number;
+  maxDepth?: number;
   model?: string;
   effort?: string;
   cwd?: string;
+  permissionMode?: string;
+  sandbox?: string;
+  approvalPolicy?: string;
+  envAllow?: string[];
 }
 
 export interface NormalizeRunRequestIo {
   cwd?: string;
+  env?: Record<string, string | undefined>;
   readFile(path: string): Promise<string>;
   readStdin(): Promise<string>;
 }
@@ -124,6 +134,11 @@ export async function normalizeRunRequest(
   if (command.cwd) request.cwd = command.cwd;
   if (command.model) request.model = command.model;
   if (command.effort) request.effort = command.effort;
+  const runtimePolicy = normalizeRuntimePolicy(command);
+  if (runtimePolicy) request.runtime_policy = runtimePolicy;
+  if (command.maxDepth !== undefined) {
+    request.host = normalizeHostContext(command.maxDepth, command, io);
+  }
   if (command.maxAttempts !== undefined) {
     request.max_attempts = command.maxAttempts;
   }
@@ -196,6 +211,11 @@ function parseRunCommand(tokens: readonly string[]): ParsedRunCommand {
       '--model',
       '--effort',
       '--cwd',
+      '--permission-mode',
+      '--sandbox',
+      '--approval-policy',
+      '--env-allow',
+      '--max-depth',
     ]),
     valueFlags: new Set([
       '--provider',
@@ -209,6 +229,11 @@ function parseRunCommand(tokens: readonly string[]): ParsedRunCommand {
       '--model',
       '--effort',
       '--cwd',
+      '--permission-mode',
+      '--sandbox',
+      '--approval-policy',
+      '--env-allow',
+      '--max-depth',
     ]),
   });
   requireJson(parsed.flags);
@@ -218,12 +243,33 @@ function parseRunCommand(tokens: readonly string[]): ParsedRunCommand {
     json: true,
   };
 
-  command.provider = singleValue(parsed.flags, '--provider');
-  command.schemaPath = singleValue(parsed.flags, '--schema');
-  command.requestJson = singleValue(parsed.flags, '--request-json');
-  command.model = singleValue(parsed.flags, '--model');
-  command.effort = singleValue(parsed.flags, '--effort');
-  command.cwd = singleValue(parsed.flags, '--cwd');
+  assignIfDefined(command, 'provider', singleValue(parsed.flags, '--provider'));
+  assignIfDefined(
+    command,
+    'schemaPath',
+    singleValue(parsed.flags, '--schema'),
+  );
+  assignIfDefined(
+    command,
+    'requestJson',
+    singleValue(parsed.flags, '--request-json'),
+  );
+  assignIfDefined(command, 'model', singleValue(parsed.flags, '--model'));
+  assignIfDefined(command, 'effort', singleValue(parsed.flags, '--effort'));
+  assignIfDefined(command, 'cwd', singleValue(parsed.flags, '--cwd'));
+  assignIfDefined(
+    command,
+    'permissionMode',
+    singleValue(parsed.flags, '--permission-mode'),
+  );
+  assignIfDefined(command, 'sandbox', singleValue(parsed.flags, '--sandbox'));
+  assignIfDefined(
+    command,
+    'approvalPolicy',
+    singleValue(parsed.flags, '--approval-policy'),
+  );
+  const envAllow = valuesFor(parsed.flags, '--env-allow');
+  if (envAllow.length > 0) command.envAllow = envAllow;
 
   const prompt = singleValue(parsed.flags, '--prompt');
   const promptFile = singleValue(parsed.flags, '--prompt-file');
@@ -261,6 +307,10 @@ function parseRunCommand(tokens: readonly string[]): ParsedRunCommand {
       maxOutputBytes,
     );
   }
+  const maxDepth = singleValue(parsed.flags, '--max-depth');
+  if (maxDepth) {
+    command.maxDepth = parsePositiveInteger('--max-depth', maxDepth);
+  }
 
   if (command.requestJson) {
     assertNoRequestJsonConflicts(command, parsed.positionals.length);
@@ -283,6 +333,11 @@ function assertNoRequestJsonConflicts(
     command.model ? '--model' : undefined,
     command.effort ? '--effort' : undefined,
     command.cwd ? '--cwd' : undefined,
+    command.permissionMode ? '--permission-mode' : undefined,
+    command.sandbox ? '--sandbox' : undefined,
+    command.approvalPolicy ? '--approval-policy' : undefined,
+    command.envAllow && command.envAllow.length > 0 ? '--env-allow' : undefined,
+    command.maxDepth !== undefined ? '--max-depth' : undefined,
     positionalCount > 0 ? 'positional prompt' : undefined,
   ].filter(Boolean);
 
@@ -291,6 +346,55 @@ function assertNoRequestJsonConflicts(
       `--request-json cannot be combined with request-shaping flags: ${conflicts.join(', ')}`,
     );
   }
+}
+
+function normalizeRuntimePolicy(command: ParsedRunCommand) {
+  const runtimePolicy: NonNullable<ConsensusCliRunRequest['runtime_policy']> =
+    {};
+  if (command.permissionMode) {
+    runtimePolicy.permission_mode = command.permissionMode;
+  }
+  if (command.sandbox) runtimePolicy.sandbox = command.sandbox;
+  if (command.approvalPolicy) {
+    runtimePolicy.approval_policy = command.approvalPolicy;
+  }
+  if (command.envAllow && command.envAllow.length > 0) {
+    runtimePolicy.env_allowlist = command.envAllow;
+  }
+
+  return Object.keys(runtimePolicy).length > 0 ? runtimePolicy : undefined;
+}
+
+function assignIfDefined<
+  T extends object,
+  K extends keyof T,
+>(target: T, key: K, value: T[K] | undefined) {
+  if (value !== undefined) target[key] = value;
+}
+
+function normalizeHostContext(
+  maxDepth: number,
+  command: ParsedRunCommand,
+  io: NormalizeRunRequestIo,
+): NonNullable<ConsensusCliRunRequest['host']> {
+  return {
+    runtime: normalizeHostRuntime(io.env?.CONSENSUS_PARENT_HOST),
+    cwd: command.cwd ?? io.cwd ?? process.cwd(),
+    run_id: io.env?.CONSENSUS_RUN_ID ?? 'local',
+    depth: parseNonNegativeInteger(io.env?.CONSENSUS_DEPTH) ?? 0,
+    max_depth: maxDepth,
+  };
+}
+
+function normalizeHostRuntime(value: string | undefined): HostRuntime {
+  return value === 'claude' || value === 'codex' || value === 'cursor'
+    ? value
+    : 'unknown';
+}
+
+function parseNonNegativeInteger(value: string | undefined) {
+  if (value === undefined || !/^\d+$/.test(value)) return undefined;
+  return Number(value);
 }
 
 async function readPromptSource(
@@ -405,6 +509,10 @@ function singleValue(flags: Map<string, string[]>, flag: string) {
     throw new ConsensusCliUsageError(`${flag} can only be provided once`);
   }
   return values[0];
+}
+
+function valuesFor(flags: Map<string, string[]>, flag: string) {
+  return flags.get(flag) ?? [];
 }
 
 function requireJson(flags: Map<string, string[]>) {

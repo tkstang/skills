@@ -77,14 +77,55 @@ describe('generated consensus provider CLI process contract', () => {
     });
   });
 
+  it('accepts runtime-policy and max-depth flags for run commands', async () => {
+    const result = await runConsensusCli([
+      'run',
+      '--provider',
+      'codex',
+      '--schema',
+      'schema.json',
+      '--json',
+      '--prompt',
+      'Prompt.',
+      '--permission-mode',
+      'read-only',
+      '--sandbox',
+      'workspace-write',
+      '--approval-policy',
+      'never',
+      '--env-allow',
+      'OPENAI_API_KEY',
+      '--max-depth',
+      '2',
+    ]);
+
+    expect(result.code).toBe(2);
+    expect(parseSingleJsonDocument(result.stdout)).toMatchObject({
+      ok: false,
+      code: 'CONSENSUS_CLI_USAGE',
+      message: 'Command is not implemented yet: run',
+    });
+  });
+
+  it('documents runtime-policy and max-depth run flags in help text', async () => {
+    const result = await runConsensusCli(['--help']);
+
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain('--permission-mode <mode>');
+    expect(result.stdout).toContain('--sandbox <name>');
+    expect(result.stdout).toContain('--approval-policy <policy>');
+    expect(result.stdout).toContain('--env-allow <name>');
+    expect(result.stdout).toContain('--max-depth <n>');
+  });
+
   it('rejects request JSON mixed with conflicting flags', async () => {
     const result = await runConsensusCli(
       [
         'run',
         '--request-json',
         '-',
-        '--provider',
-        'claude',
+        '--max-depth',
+        '2',
         '--json',
       ],
       {
