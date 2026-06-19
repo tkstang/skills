@@ -126,6 +126,67 @@ describe('provider CLI argument parsing', () => {
     });
   });
 
+  it('normalizes run host context from native runtime markers', async () => {
+    const command = parseConsensusCliArgs([
+      'run',
+      '--provider',
+      'codex',
+      '--schema',
+      'schema.json',
+      '--json',
+      '--prompt',
+      'Return JSON.',
+      '--max-depth',
+      '1',
+    ]);
+
+    const request = await normalizeRunRequest(
+      command,
+      testIo({
+        env: {
+          CODEX_SESSION_ID: 'session',
+          CONSENSUS_DEPTH: '1',
+        },
+      }),
+    );
+
+    expect(request.host).toMatchObject({
+      runtime: 'codex',
+      depth: 1,
+      max_depth: 1,
+    });
+  });
+
+  it('adds default host guard context for request JSON when native markers are present', async () => {
+    const command = parseConsensusCliArgs([
+      'run',
+      '--request-json',
+      '-',
+      '--json',
+    ]);
+
+    const request = await normalizeRunRequest(
+      command,
+      testIo({
+        stdin: JSON.stringify({
+          schema_version: 'v1',
+          provider: 'codex',
+          schema_path: 'schema.json',
+          prompt: 'Prompt from stdin.',
+        }),
+        env: {
+          CODEX_SESSION_ID: 'session',
+        },
+      }),
+    );
+
+    expect(request.host).toMatchObject({
+      runtime: 'codex',
+      depth: 0,
+      max_depth: 1,
+    });
+  });
+
   it('normalizes prompt files', async () => {
     const command = parseConsensusCliArgs([
       'run',

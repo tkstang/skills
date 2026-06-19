@@ -73,6 +73,26 @@ describe('bounded provider subprocess runner', () => {
     });
   });
 
+  it('escalates timed-out subprocesses that ignore SIGTERM', async () => {
+    const startedAt = Date.now();
+    const result = await runProviderSubprocess(invocation(['ignore-sigterm']), {
+      maxOutputBytes: 1024,
+      timeoutSec: 0.01,
+      terminationGraceMs: 25,
+      finalResolutionMs: 25,
+    });
+
+    expect(Date.now() - startedAt).toBeLessThan(1000);
+    expect(result).toMatchObject({
+      ok: false,
+      code: 'PROVIDER_TIMEOUT',
+      retryable: false,
+      diagnostics: {
+        timeout_sec: 0.01,
+      },
+    });
+  });
+
   it('enforces stdout and stderr output caps', async () => {
     const result = await runProviderSubprocess(invocation(['big-output', '64']), {
       maxOutputBytes: 16,

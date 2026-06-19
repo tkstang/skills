@@ -80,18 +80,71 @@ describe('provider runtime policy validation', () => {
     });
   });
 
-  it('builds an allowlisted child environment and excludes unrelated secrets', () => {
+  it.each([
+    [
+      'claude',
+      ['ANTHROPIC_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN'],
+      ['OPENAI_API_KEY', 'CURSOR_API_KEY'],
+    ],
+    ['codex', ['OPENAI_API_KEY'], ['ANTHROPIC_API_KEY', 'CURSOR_API_KEY']],
+    ['cursor', ['CURSOR_API_KEY'], ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY']],
+  ] as const)(
+    'passes only %s provider credentials plus base and host environment',
+    (provider, expectedProviderKeys, omittedProviderKeys) => {
+      const env = buildChildEnvironment({
+        parentEnv: {
+          PATH: '/usr/bin',
+          HOME: '/Users/test',
+          ANTHROPIC_API_KEY: 'anthropic-secret',
+          CLAUDE_CODE_OAUTH_TOKEN: 'claude-token',
+          OPENAI_API_KEY: 'openai-secret',
+          CURSOR_API_KEY: 'cursor-secret',
+          SECRET_TOKEN: 'do-not-pass',
+        },
+        request: request({ provider }),
+        hostEnv: {
+          CONSENSUS_RUN_ID: 'run-123',
+          CONSENSUS_PARENT_HOST: provider,
+          CONSENSUS_DEPTH: '1',
+        },
+      });
+
+      expect(env).toMatchObject({
+        PATH: '/usr/bin',
+        HOME: '/Users/test',
+        CONSENSUS_RUN_ID: 'run-123',
+        CONSENSUS_PARENT_HOST: provider,
+        CONSENSUS_DEPTH: '1',
+      });
+      for (const key of expectedProviderKeys) {
+        expect(env).toHaveProperty(key);
+      }
+      for (const key of omittedProviderKeys) {
+        expect(env).not.toHaveProperty(key);
+      }
+      expect(env).not.toHaveProperty('SECRET_TOKEN');
+    },
+  );
+
+  it('allows explicit env allowlist variables even when unrelated to the selected provider', () => {
     const env = buildChildEnvironment({
       parentEnv: {
         PATH: '/usr/bin',
         HOME: '/Users/test',
+        ANTHROPIC_API_KEY: 'anthropic-secret',
         OPENAI_API_KEY: 'openai-secret',
+        CUSTOM_OPENAI_COMPATIBLE_KEY: 'custom-secret',
         SECRET_TOKEN: 'do-not-pass',
       },
-      request: request({ provider: 'codex' }),
+      request: request({
+        provider: 'claude',
+        runtime_policy: {
+          env_allowlist: ['CUSTOM_OPENAI_COMPATIBLE_KEY'],
+        },
+      }),
       hostEnv: {
         CONSENSUS_RUN_ID: 'run-123',
-        CONSENSUS_PARENT_HOST: 'codex',
+        CONSENSUS_PARENT_HOST: 'claude',
         CONSENSUS_DEPTH: '1',
       },
     });
@@ -99,11 +152,13 @@ describe('provider runtime policy validation', () => {
     expect(env).toMatchObject({
       PATH: '/usr/bin',
       HOME: '/Users/test',
-      OPENAI_API_KEY: 'openai-secret',
+      ANTHROPIC_API_KEY: 'anthropic-secret',
+      CUSTOM_OPENAI_COMPATIBLE_KEY: 'custom-secret',
       CONSENSUS_RUN_ID: 'run-123',
-      CONSENSUS_PARENT_HOST: 'codex',
+      CONSENSUS_PARENT_HOST: 'claude',
       CONSENSUS_DEPTH: '1',
     });
+    expect(env).not.toHaveProperty('OPENAI_API_KEY');
     expect(env).not.toHaveProperty('SECRET_TOKEN');
   });
 

@@ -5,6 +5,79 @@
 // src/consensus/provider-cli/cli.ts
 import { readFile as readFile2 } from "node:fs/promises";
 
+// src/consensus/provider-cli/host-guard.ts
+function detectHostRuntime(env) {
+  if (env.CONSENSUS_PARENT_HOST === "claude" || env.CLAUDECODE || env.CLAUDE_CODE_ENTRYPOINT || env.CLAUDE_CODE_SESSION_ID || env.CLAUDE_SESSION_ID) {
+    return "claude";
+  }
+  if (env.CONSENSUS_PARENT_HOST === "codex" || env.CODEX_SESSION_ID || env.CODEX_SANDBOX || env.OPENAI_CODEX_SESSION_ID) {
+    return "codex";
+  }
+  if (env.CONSENSUS_PARENT_HOST === "cursor" || env.CURSOR_TRACE_ID || env.CURSOR_AGENT || env.CURSOR_SESSION_ID || env.CURSOR) {
+    return "cursor";
+  }
+  return "unknown";
+}
+function hostContextFromEnv(env, cwd, maxDepth = 1) {
+  return {
+    runtime: detectHostRuntime(env),
+    cwd,
+    run_id: env.CONSENSUS_RUN_ID ?? "local",
+    depth: parseNonNegativeInteger(env.CONSENSUS_DEPTH) ?? 0,
+    max_depth: maxDepth
+  };
+}
+function buildChildHostEnv(context) {
+  return {
+    CONSENSUS_RUN_ID: context.run_id,
+    CONSENSUS_PARENT_HOST: context.runtime,
+    CONSENSUS_DEPTH: String(context.depth + 1)
+  };
+}
+function evaluateHostGuard(input) {
+  const { host, provider } = input;
+  if (!host || host.runtime === "unknown") {
+    return allowed("unknown", "none");
+  }
+  if (host.runtime !== provider) {
+    return allowed("different_host", "none");
+  }
+  const childDepth = host.depth + 1;
+  if (childDepth > host.max_depth) {
+    return {
+      allowed: false,
+      code: "HOST_RECURSION_BLOCKED",
+      message: `Blocked recursive ${provider} peer spawn at depth ${childDepth}; max_depth is ${host.max_depth}.`,
+      host_relation: "same_host",
+      guard: "blocked",
+      diagnostics: {
+        host_relation: "same_host",
+        guard: "blocked",
+        warnings: [
+          `HOST_RECURSION_BLOCKED: ${provider} peer would exceed max_depth ${host.max_depth}`
+        ]
+      }
+    };
+  }
+  return allowed("same_host", "subprocess_isolated", buildChildHostEnv(host));
+}
+function allowed(hostRelation, guard, childEnv) {
+  return {
+    allowed: true,
+    host_relation: hostRelation,
+    guard,
+    ...childEnv ? { child_env: childEnv } : {},
+    diagnostics: {
+      host_relation: hostRelation,
+      guard
+    }
+  };
+}
+function parseNonNegativeInteger(value) {
+  if (value === void 0 || !/^\d+$/.test(value)) return void 0;
+  return Number(value);
+}
+
 // src/consensus/provider-cli/args.ts
 var ConsensusCliUsageError = class extends Error {
   code = "CONSENSUS_CLI_USAGE";
@@ -39,7 +112,7 @@ async function normalizeRunRequest(command, io) {
   }
   if (command.requestJson) {
     const source = command.requestJson === "-" ? await io.readStdin() : await io.readFile(command.requestJson);
-    return parseRequestJson(source);
+    return attachHostContextWhenDetected(parseRequestJson(source), io);
   }
   if (!command.provider) {
     throw new ConsensusCliUsageError("Missing required --provider");
@@ -64,7 +137,7 @@ async function normalizeRunRequest(command, io) {
   if (command.effort) request.effort = command.effort;
   const runtimePolicy = normalizeRuntimePolicy(command);
   if (runtimePolicy) request.runtime_policy = runtimePolicy;
-  if (command.maxDepth !== void 0) {
+  if (command.maxDepth !== void 0 || shouldAttachHostContext(io.env)) {
     request.host = normalizeHostContext(command.maxDepth, command, io);
   }
   if (command.maxAttempts !== void 0) {
@@ -268,20 +341,25 @@ function assignIfDefined(target, key, value) {
   if (value !== void 0) target[key] = value;
 }
 function normalizeHostContext(maxDepth, command, io) {
+  return hostContextFromEnv(
+    io.env ?? {},
+    command.cwd ?? io.cwd ?? process.cwd(),
+    maxDepth ?? 1
+  );
+}
+function attachHostContextWhenDetected(request, io) {
+  if (request.host || !shouldAttachHostContext(io.env)) return request;
   return {
-    runtime: normalizeHostRuntime(io.env?.CONSENSUS_PARENT_HOST),
-    cwd: command.cwd ?? io.cwd ?? process.cwd(),
-    run_id: io.env?.CONSENSUS_RUN_ID ?? "local",
-    depth: parseNonNegativeInteger(io.env?.CONSENSUS_DEPTH) ?? 0,
-    max_depth: maxDepth
+    ...request,
+    host: hostContextFromEnv(
+      io.env ?? {},
+      request.cwd ?? io.cwd ?? process.cwd(),
+      1
+    )
   };
 }
-function normalizeHostRuntime(value) {
-  return value === "claude" || value === "codex" || value === "cursor" ? value : "unknown";
-}
-function parseNonNegativeInteger(value) {
-  if (value === void 0 || !/^\d+$/.test(value)) return void 0;
-  return Number(value);
+function shouldAttachHostContext(env = {}) {
+  return detectHostRuntime(env) !== "unknown" || env.CONSENSUS_RUN_ID !== void 0 || env.CONSENSUS_DEPTH !== void 0 || env.CONSENSUS_PARENT_HOST !== void 0;
 }
 async function readPromptSource(source, io) {
   if (source.kind === "stdin") return io.readStdin();
@@ -409,6 +487,9 @@ var buildClaudeInvocation = (request, options = {}) => {
   }
   if (request.model) argv.push("--model", request.model);
   if (request.effort) argv.push("--effort", request.effort);
+  if (request.runtime_policy?.permission_mode) {
+    argv.push("--permission-mode", request.runtime_policy.permission_mode);
+  }
   return invocation({
     executable: "claude",
     argv,
@@ -430,6 +511,8 @@ var buildCodexInvocation = (request, options = {}) => {
   }
   if (request.runtime_policy?.approval_policy) {
     argv.push("--approval-policy", request.runtime_policy.approval_policy);
+  } else if (request.runtime_policy?.permission_mode === "non-interactive") {
+    argv.push("--approval-policy", "never");
   }
   return invocation({
     executable: "codex",
@@ -469,21 +552,46 @@ function defaultStrategy(adapter) {
 }
 
 // src/consensus/provider-cli/adapters.ts
+var COMMON_AUTH_REQUIRED_PATTERNS = [
+  /auth(?:entication)? required/i,
+  /not logged in/i,
+  /login required/i,
+  /keychain.*locked/i
+];
+var COMMON_UNAVAILABLE_PATTERNS = [
+  /unsupported platform/i,
+  /not configured/i
+];
+var COMMON_UNSUPPORTED_OPTION_PATTERNS = [
+  /unknown (?:option|flag|argument)/i,
+  /unrecognized (?:option|flag|argument)/i,
+  /unsupported (?:option|flag|argument)/i,
+  /invalid (?:option|flag|argument)/i
+];
+var COMMON_TRANSIENT_EXIT_PATTERNS = [
+  /\b429\b/i,
+  /rate limit/i,
+  /temporar(?:y|ily) unavailable/i,
+  /try again/i,
+  /econnreset/i,
+  /etimedout/i
+];
 var DEFAULT_PROVIDER_ADAPTERS = [
   {
     id: "claude",
     display_name: "Claude",
     executable: "claude",
     buildInvocation: buildClaudeInvocation,
+    classifyRunFailure: defaultRunFailureClassifier({
+      auth_required_patterns: COMMON_AUTH_REQUIRED_PATTERNS,
+      unavailable_patterns: COMMON_UNAVAILABLE_PATTERNS,
+      unsupported_option_patterns: COMMON_UNSUPPORTED_OPTION_PATTERNS,
+      transient_exit_patterns: COMMON_TRANSIENT_EXIT_PATTERNS
+    }),
     probe: {
       version_args: ["--version"],
-      auth_required_patterns: [
-        /auth(?:entication)? required/i,
-        /not logged in/i,
-        /login required/i,
-        /keychain.*locked/i
-      ],
-      unavailable_patterns: [/unsupported platform/i, /not configured/i]
+      auth_required_patterns: COMMON_AUTH_REQUIRED_PATTERNS,
+      unavailable_patterns: COMMON_UNAVAILABLE_PATTERNS
     },
     capabilities: {
       schema_strategies: ["provider_validated", "prompt_only"],
@@ -506,15 +614,16 @@ var DEFAULT_PROVIDER_ADAPTERS = [
     display_name: "Codex",
     executable: "codex",
     buildInvocation: buildCodexInvocation,
+    classifyRunFailure: defaultRunFailureClassifier({
+      auth_required_patterns: COMMON_AUTH_REQUIRED_PATTERNS,
+      unavailable_patterns: COMMON_UNAVAILABLE_PATTERNS,
+      unsupported_option_patterns: COMMON_UNSUPPORTED_OPTION_PATTERNS,
+      transient_exit_patterns: COMMON_TRANSIENT_EXIT_PATTERNS
+    }),
     probe: {
       version_args: ["--version"],
-      auth_required_patterns: [
-        /auth(?:entication)? required/i,
-        /not logged in/i,
-        /login required/i,
-        /keychain.*locked/i
-      ],
-      unavailable_patterns: [/unsupported platform/i, /not configured/i]
+      auth_required_patterns: COMMON_AUTH_REQUIRED_PATTERNS,
+      unavailable_patterns: COMMON_UNAVAILABLE_PATTERNS
     },
     capabilities: {
       schema_strategies: ["constrained_native", "prompt_only"],
@@ -539,16 +648,22 @@ var DEFAULT_PROVIDER_ADAPTERS = [
     display_name: "Cursor",
     executable: "cursor-agent",
     buildInvocation: buildCursorInvocation,
+    classifyRunFailure: defaultRunFailureClassifier({
+      auth_required_patterns: [
+        ...COMMON_AUTH_REQUIRED_PATTERNS,
+        /credential.*locked/i
+      ],
+      unavailable_patterns: COMMON_UNAVAILABLE_PATTERNS,
+      unsupported_option_patterns: COMMON_UNSUPPORTED_OPTION_PATTERNS,
+      transient_exit_patterns: COMMON_TRANSIENT_EXIT_PATTERNS
+    }),
     probe: {
       version_args: ["--version"],
       auth_required_patterns: [
-        /auth(?:entication)? required/i,
-        /not logged in/i,
-        /login required/i,
-        /keychain.*locked/i,
+        ...COMMON_AUTH_REQUIRED_PATTERNS,
         /credential.*locked/i
       ],
-      unavailable_patterns: [/unsupported platform/i, /not configured/i]
+      unavailable_patterns: COMMON_UNAVAILABLE_PATTERNS
     },
     capabilities: {
       schema_strategies: ["prompt_only", "submit_tool_candidate"],
@@ -578,6 +693,71 @@ function providerRegistry(adapters = DEFAULT_PROVIDER_ADAPTERS) {
       return byId.get(id);
     }
   };
+}
+function defaultRunFailureClassifier(patterns) {
+  return (failure2) => {
+    if (failure2.code !== "PROVIDER_EXIT") {
+      return {
+        code: failure2.code,
+        message: failure2.message,
+        retryable: failure2.retryable,
+        terminal_reason: terminalReasonForNonExitFailure(failure2.code)
+      };
+    }
+    const output = `${failure2.stdout}
+${failure2.stderr}
+${failure2.message}`;
+    const outputLine = firstNonEmptyLine(output);
+    if (matchesAny(output, patterns.auth_required_patterns)) {
+      return {
+        code: "PROVIDER_AUTH_REQUIRED",
+        message: outputLine ?? "Provider authentication is required.",
+        retryable: false,
+        terminal_reason: "provider_auth_required"
+      };
+    }
+    if (matchesAny(output, patterns.unsupported_option_patterns)) {
+      return {
+        code: "PROVIDER_UNSUPPORTED_OPTION",
+        message: outputLine ?? "Provider rejected an unsupported option.",
+        retryable: false,
+        terminal_reason: "provider_unsupported_option"
+      };
+    }
+    if (matchesAny(output, patterns.unavailable_patterns)) {
+      return {
+        code: "PROVIDER_EXIT",
+        message: outputLine ?? failure2.message,
+        retryable: false,
+        terminal_reason: "provider_unavailable_exit"
+      };
+    }
+    if (matchesAny(output, patterns.transient_exit_patterns)) {
+      return {
+        code: "PROVIDER_EXIT",
+        message: outputLine ?? failure2.message,
+        retryable: true,
+        terminal_reason: "provider_exit_transient"
+      };
+    }
+    return {
+      code: "PROVIDER_EXIT",
+      message: outputLine ?? failure2.message,
+      retryable: false,
+      terminal_reason: "provider_exit_terminal"
+    };
+  };
+}
+function terminalReasonForNonExitFailure(code) {
+  if (code === "PROVIDER_MISSING") return "provider_missing";
+  if (code === "PROVIDER_TIMEOUT") return "provider_timeout";
+  return "output_cap_exceeded";
+}
+function matchesAny(value, patterns) {
+  return patterns.some((pattern) => pattern.test(value));
+}
+function firstNonEmptyLine(value) {
+  return value.split(/\r?\n/).map((line) => line.trim()).find(Boolean);
 }
 
 // src/consensus/provider-cli/envelope.ts
@@ -643,79 +823,6 @@ function buildAttemptSummary(attempts, retryable) {
   };
 }
 
-// src/consensus/provider-cli/host-guard.ts
-function detectHostRuntime(env) {
-  if (env.CONSENSUS_PARENT_HOST === "claude" || env.CLAUDECODE || env.CLAUDE_CODE_ENTRYPOINT || env.CLAUDE_CODE_SESSION_ID || env.CLAUDE_SESSION_ID) {
-    return "claude";
-  }
-  if (env.CONSENSUS_PARENT_HOST === "codex" || env.CODEX_SESSION_ID || env.CODEX_SANDBOX || env.OPENAI_CODEX_SESSION_ID) {
-    return "codex";
-  }
-  if (env.CONSENSUS_PARENT_HOST === "cursor" || env.CURSOR_TRACE_ID || env.CURSOR_AGENT || env.CURSOR_SESSION_ID || env.CURSOR) {
-    return "cursor";
-  }
-  return "unknown";
-}
-function hostContextFromEnv(env, cwd, maxDepth = 1) {
-  return {
-    runtime: detectHostRuntime(env),
-    cwd,
-    run_id: env.CONSENSUS_RUN_ID ?? "local",
-    depth: parseNonNegativeInteger2(env.CONSENSUS_DEPTH) ?? 0,
-    max_depth: maxDepth
-  };
-}
-function buildChildHostEnv(context) {
-  return {
-    CONSENSUS_RUN_ID: context.run_id,
-    CONSENSUS_PARENT_HOST: context.runtime,
-    CONSENSUS_DEPTH: String(context.depth + 1)
-  };
-}
-function evaluateHostGuard(input) {
-  const { host, provider } = input;
-  if (!host || host.runtime === "unknown") {
-    return allowed("unknown", "none");
-  }
-  if (host.runtime !== provider) {
-    return allowed("different_host", "none");
-  }
-  const childDepth = host.depth + 1;
-  if (childDepth > host.max_depth) {
-    return {
-      allowed: false,
-      code: "HOST_RECURSION_BLOCKED",
-      message: `Blocked recursive ${provider} peer spawn at depth ${childDepth}; max_depth is ${host.max_depth}.`,
-      host_relation: "same_host",
-      guard: "blocked",
-      diagnostics: {
-        host_relation: "same_host",
-        guard: "blocked",
-        warnings: [
-          `HOST_RECURSION_BLOCKED: ${provider} peer would exceed max_depth ${host.max_depth}`
-        ]
-      }
-    };
-  }
-  return allowed("same_host", "subprocess_isolated", buildChildHostEnv(host));
-}
-function allowed(hostRelation, guard, childEnv) {
-  return {
-    allowed: true,
-    host_relation: hostRelation,
-    guard,
-    ...childEnv ? { child_env: childEnv } : {},
-    diagnostics: {
-      host_relation: hostRelation,
-      guard
-    }
-  };
-}
-function parseNonNegativeInteger2(value) {
-  if (value === void 0 || !/^\d+$/.test(value)) return void 0;
-  return Number(value);
-}
-
 // src/consensus/provider-cli/probe.ts
 async function probeProviderRegistry({
   registry,
@@ -742,21 +849,21 @@ async function probeProviderReadiness(adapter, options) {
   );
   const output = `${result.stdout}
 ${result.stderr}`;
-  if (matchesAny(output, adapter.probe.auth_required_patterns)) {
+  if (matchesAny2(output, adapter.probe.auth_required_patterns)) {
     return providerEntry(adapter, "auth_required", {
       executable,
-      warnings: [`PROVIDER_AUTH_REQUIRED: ${firstNonEmptyLine(output)}`]
+      warnings: [`PROVIDER_AUTH_REQUIRED: ${firstNonEmptyLine2(output)}`]
     });
   }
-  if (result.code !== 0 || matchesAny(output, adapter.probe.unavailable_patterns)) {
+  if (result.code !== 0 || matchesAny2(output, adapter.probe.unavailable_patterns)) {
     return providerEntry(adapter, "unavailable", {
       executable,
-      warnings: [`PROVIDER_UNAVAILABLE: ${firstNonEmptyLine(output)}`]
+      warnings: [`PROVIDER_UNAVAILABLE: ${firstNonEmptyLine2(output)}`]
     });
   }
   return providerEntry(adapter, "ready", {
     executable,
-    version: firstNonEmptyLine(output)
+    version: firstNonEmptyLine2(output)
   });
 }
 function providerEntry(adapter, status, options = {}) {
@@ -769,10 +876,10 @@ function providerEntry(adapter, status, options = {}) {
     ...options.warnings ? { diagnostics: { warnings: options.warnings } } : {}
   };
 }
-function matchesAny(value, patterns) {
+function matchesAny2(value, patterns) {
   return patterns?.some((pattern) => pattern.test(value)) ?? false;
 }
-function firstNonEmptyLine(value) {
+function firstNonEmptyLine2(value) {
   return value.split(/\r?\n/).map((line) => line.trim()).find(Boolean);
 }
 
@@ -795,10 +902,9 @@ var BASE_ENV_ALLOWLIST = [
   "LANG"
 ];
 var PROVIDER_ENV_ALLOWLIST = [
-  "ANTHROPIC_API_KEY",
-  "CLAUDE_CODE_OAUTH_TOKEN",
-  "OPENAI_API_KEY",
-  "CURSOR_API_KEY"
+  ["claude", ["ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN"]],
+  ["codex", ["OPENAI_API_KEY"]],
+  ["cursor", ["CURSOR_API_KEY"]]
 ];
 function validateProviderOptions(request, capabilities) {
   if (request.model && !capabilities.options.model) {
@@ -850,7 +956,7 @@ function buildChildEnvironment({
 }) {
   const allowedNames = /* @__PURE__ */ new Set([
     ...BASE_ENV_ALLOWLIST,
-    ...PROVIDER_ENV_ALLOWLIST,
+    ...providerEnvAllowlist(request.provider),
     ...request.runtime_policy?.env_allowlist ?? []
   ]);
   const childEnv = {};
@@ -862,6 +968,9 @@ function buildChildEnvironment({
     ...childEnv,
     ...hostEnv
   };
+}
+function providerEnvAllowlist(provider) {
+  return PROVIDER_ENV_ALLOWLIST.find(([id]) => id === provider)?.[1] ?? [];
 }
 function validateOptionValue(option, value, supportedValues) {
   if (!value) return void 0;
@@ -884,14 +993,21 @@ function unsupported(option, message) {
 import { spawn } from "node:child_process";
 var DEFAULT_MAX_OUTPUT_BYTES = 1024 * 1024 * 10;
 var DEFAULT_TIMEOUT_SEC = 300;
+var DEFAULT_TERMINATION_GRACE_MS = 250;
+var DEFAULT_FINAL_RESOLUTION_MS = 1e3;
 function runProviderSubprocess(invocation2, options = {}) {
   const maxOutputBytes = options.maxOutputBytes ?? DEFAULT_MAX_OUTPUT_BYTES;
   const timeoutSec = options.timeoutSec ?? DEFAULT_TIMEOUT_SEC;
+  const terminationGraceMs = options.terminationGraceMs ?? DEFAULT_TERMINATION_GRACE_MS;
+  const finalResolutionMs = options.finalResolutionMs ?? DEFAULT_FINAL_RESOLUTION_MS;
   return new Promise((resolve) => {
     let stdout = "";
     let stderr = "";
     let stdoutBytes = 0;
     let stderrBytes = 0;
+    let exitCode = null;
+    let exitSignal = null;
+    let settled = false;
     let terminal;
     const child = spawn(invocation2.executable, invocation2.argv, {
       cwd: invocation2.cwd,
@@ -899,9 +1015,10 @@ function runProviderSubprocess(invocation2, options = {}) {
       shell: false,
       stdio: ["pipe", "pipe", "pipe"]
     });
+    let killEscalation;
+    let finalResolution;
     const timeout = setTimeout(() => {
-      terminal = terminal ?? "timeout";
-      child.kill("SIGTERM");
+      terminate("timeout");
     }, timeoutSec * 1e3);
     child.stdout.setEncoding("utf8");
     child.stderr.setEncoding("utf8");
@@ -909,23 +1026,46 @@ function runProviderSubprocess(invocation2, options = {}) {
       stdout += chunk;
       stdoutBytes += Buffer.byteLength(chunk);
       if (stdoutBytes + stderrBytes > maxOutputBytes) {
-        terminal = terminal ?? "output_cap";
-        child.kill("SIGTERM");
+        terminate("output_cap");
       }
     });
     child.stderr.on("data", (chunk) => {
       stderr += chunk;
       stderrBytes += Buffer.byteLength(chunk);
       if (stdoutBytes + stderrBytes > maxOutputBytes) {
-        terminal = terminal ?? "output_cap";
-        child.kill("SIGTERM");
+        terminate("output_cap");
       }
     });
     child.on("error", () => {
       terminal = terminal ?? "spawn_error";
+      finish();
     });
-    child.on("close", (exitCode, signal) => {
+    child.on("close", (exitCode2, signal) => {
+      finish(exitCode2, signal);
+    });
+    child.stdin.on("error", () => {
+    });
+    child.stdin.end(invocation2.stdin);
+    function terminate(reason) {
+      terminal = terminal ?? reason;
+      child.kill("SIGTERM");
+      if (!killEscalation) {
+        killEscalation = setTimeout(() => {
+          child.kill("SIGKILL");
+          finalResolution = setTimeout(() => {
+            finish(null, "SIGKILL");
+          }, finalResolutionMs);
+        }, terminationGraceMs);
+      }
+    }
+    function finish(closeExitCode = exitCode, closeSignal = exitSignal) {
+      if (settled) return;
+      settled = true;
+      exitCode = closeExitCode;
+      exitSignal = closeSignal;
       clearTimeout(timeout);
+      if (killEscalation) clearTimeout(killEscalation);
+      if (finalResolution) clearTimeout(finalResolution);
       const diagnostics = diagnosticsFor({
         invocation: invocation2,
         stdoutBytes,
@@ -933,7 +1073,7 @@ function runProviderSubprocess(invocation2, options = {}) {
         maxOutputBytes,
         timeoutSec,
         exitCode,
-        signal
+        signal: exitSignal
       });
       if (terminal === "spawn_error") {
         resolve(
@@ -944,7 +1084,7 @@ function runProviderSubprocess(invocation2, options = {}) {
             stdout,
             stderr,
             exitCode,
-            signal,
+            signal: exitSignal,
             diagnostics
           })
         );
@@ -959,7 +1099,7 @@ function runProviderSubprocess(invocation2, options = {}) {
             stdout,
             stderr,
             exitCode,
-            signal,
+            signal: exitSignal,
             diagnostics
           })
         );
@@ -974,7 +1114,7 @@ function runProviderSubprocess(invocation2, options = {}) {
             stdout,
             stderr,
             exitCode,
-            signal,
+            signal: exitSignal,
             diagnostics
           })
         );
@@ -989,7 +1129,7 @@ function runProviderSubprocess(invocation2, options = {}) {
             stdout,
             stderr,
             exitCode,
-            signal,
+            signal: exitSignal,
             diagnostics
           })
         );
@@ -1000,11 +1140,10 @@ function runProviderSubprocess(invocation2, options = {}) {
         stdout,
         stderr,
         exit_code: exitCode,
-        signal,
+        signal: exitSignal,
         diagnostics
       });
-    });
-    child.stdin.end(invocation2.stdin);
+    }
   });
 }
 function diagnosticsFor(input) {
@@ -1094,26 +1233,30 @@ async function runProviderTurn(request, dependencies = {}) {
       terminalReason: "schema_read_failed"
     });
   }
-  const maxAttempts = request.max_attempts ?? 1;
+  const effectiveRequest = {
+    ...request,
+    runtime_policy: defaultRuntimePolicy(request.runtime_policy)
+  };
+  const maxAttempts = effectiveRequest.max_attempts ?? 1;
   const strategy = selectStructuredOutputStrategy(adapter);
   const runSubprocess = dependencies.runSubprocess ?? runProviderSubprocess;
   const parentEnv = dependencies.parentEnv ?? process.env;
   const childEnv = buildChildEnvironment({
     parentEnv,
-    request,
+    request: effectiveRequest,
     hostEnv: hostGuard.child_env ?? {}
   });
   let validationFeedback;
   let lastInvocation;
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-    const attemptRequest = validationFeedback === void 0 ? request : {
-      ...request,
+    const invocationRequest = validationFeedback === void 0 ? effectiveRequest : {
+      ...effectiveRequest,
       prompt: `${request.prompt}
 
 Schema validation failed: ${validationFeedback}
 Return only JSON matching the schema.`
     };
-    const invocation2 = buildProviderInvocation(adapter, attemptRequest, {
+    const invocation2 = buildProviderInvocation(adapter, invocationRequest, {
       strategy
     });
     lastInvocation = invocation2;
@@ -1132,20 +1275,21 @@ Return only JSON matching the schema.`
       processResult.diagnostics
     );
     if (!processResult.ok) {
-      if (processResult.retryable && attempt < maxAttempts) {
-        validationFeedback = processResult.message;
+      const classification = adapter.classifyRunFailure(processResult);
+      if (classification.retryable && attempt < maxAttempts) {
+        validationFeedback = classification.message;
         continue;
       }
       return failureEnvelope({
         provider: request.provider,
-        code: processResult.code,
-        message: processResult.message,
+        code: classification.code,
+        message: classification.message,
         retryable: false,
         stdout: processResult.stdout,
         stderr: processResult.stderr,
         attempts: {
           cli_attempts: attempt,
-          terminal_reason: terminalReasonForProcess(processResult.code)
+          terminal_reason: classification.terminal_reason
         },
         diagnostics
       });
@@ -1285,12 +1429,6 @@ function matchesJsonType(value, type) {
   if (type === "object") return isRecord2(value);
   if (type === "integer") return Number.isInteger(value);
   return typeof value === type;
-}
-function terminalReasonForProcess(code) {
-  if (code === "PROVIDER_EXIT") return "provider_exit";
-  if (code === "PROVIDER_TIMEOUT") return "provider_timeout";
-  if (code === "PROVIDER_OUTPUT_CAP_EXCEEDED") return "output_cap_exceeded";
-  return "provider_missing";
 }
 function mergeDiagnostics(...diagnostics) {
   const merged = {};

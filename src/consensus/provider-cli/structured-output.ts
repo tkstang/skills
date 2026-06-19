@@ -6,6 +6,7 @@ import { evaluateHostGuard } from './host-guard.js';
 import { buildProviderInvocation } from './invocation.js';
 import {
   buildChildEnvironment,
+  defaultRuntimePolicy,
   validateProviderOptions,
 } from './runtime-policy.js';
 import { runProviderSubprocess } from './subprocess.js';
@@ -102,27 +103,31 @@ export async function runProviderTurn(
     });
   }
 
-  const maxAttempts = request.max_attempts ?? 1;
+  const effectiveRequest: ConsensusCliRunRequest = {
+    ...request,
+    runtime_policy: defaultRuntimePolicy(request.runtime_policy),
+  };
+  const maxAttempts = effectiveRequest.max_attempts ?? 1;
   const strategy = selectStructuredOutputStrategy(adapter);
   const runSubprocess = dependencies.runSubprocess ?? runProviderSubprocess;
   const parentEnv = dependencies.parentEnv ?? process.env;
   const childEnv = buildChildEnvironment({
     parentEnv,
-    request,
+    request: effectiveRequest,
     hostEnv: hostGuard.child_env ?? {},
   });
   let validationFeedback: string | undefined;
   let lastInvocation: ProviderInvocation | undefined;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-    const attemptRequest =
+    const invocationRequest =
       validationFeedback === undefined
-        ? request
+        ? effectiveRequest
         : {
-            ...request,
+            ...effectiveRequest,
             prompt: `${request.prompt}\n\nSchema validation failed: ${validationFeedback}\nReturn only JSON matching the schema.`,
           };
-    const invocation = buildProviderInvocation(adapter, attemptRequest, {
+    const invocation = buildProviderInvocation(adapter, invocationRequest, {
       strategy,
     });
     lastInvocation = invocation;
@@ -142,21 +147,22 @@ export async function runProviderTurn(
     );
 
     if (!processResult.ok) {
-      if (processResult.retryable && attempt < maxAttempts) {
-        validationFeedback = processResult.message;
+      const classification = adapter.classifyRunFailure(processResult);
+      if (classification.retryable && attempt < maxAttempts) {
+        validationFeedback = classification.message;
         continue;
       }
 
       return failureEnvelope({
         provider: request.provider,
-        code: processResult.code,
-        message: processResult.message,
+        code: classification.code,
+        message: classification.message,
         retryable: false,
         stdout: processResult.stdout,
         stderr: processResult.stderr,
         attempts: {
           cli_attempts: attempt,
-          terminal_reason: terminalReasonForProcess(processResult.code),
+          terminal_reason: classification.terminal_reason,
         },
         diagnostics,
       });
@@ -329,18 +335,6 @@ function matchesJsonType(value: unknown, type: string) {
   if (type === 'integer') return Number.isInteger(value);
   return typeof value === type;
 }
-
-function terminalReasonForProcess(code: ProviderProcessResultFailureCode) {
-  if (code === 'PROVIDER_EXIT') return 'provider_exit';
-  if (code === 'PROVIDER_TIMEOUT') return 'provider_timeout';
-  if (code === 'PROVIDER_OUTPUT_CAP_EXCEEDED') return 'output_cap_exceeded';
-  return 'provider_missing';
-}
-
-type ProviderProcessResultFailureCode = Extract<
-  ProviderProcessResult,
-  { ok: false }
->['code'];
 
 function mergeDiagnostics(
   ...diagnostics: Array<ProviderDiagnostics | undefined>

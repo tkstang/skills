@@ -52,10 +52,9 @@ const BASE_ENV_ALLOWLIST = [
 ] as const;
 
 const PROVIDER_ENV_ALLOWLIST = [
-  'ANTHROPIC_API_KEY',
-  'CLAUDE_CODE_OAUTH_TOKEN',
-  'OPENAI_API_KEY',
-  'CURSOR_API_KEY',
+  ['claude', ['ANTHROPIC_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN']],
+  ['codex', ['OPENAI_API_KEY']],
+  ['cursor', ['CURSOR_API_KEY']],
 ] as const;
 
 export function validateProviderOptions(
@@ -129,7 +128,7 @@ export function buildChildEnvironment({
 }: BuildChildEnvironmentInput): Record<string, string> {
   const allowedNames = new Set<string>([
     ...BASE_ENV_ALLOWLIST,
-    ...PROVIDER_ENV_ALLOWLIST,
+    ...providerEnvAllowlist(request.provider),
     ...(request.runtime_policy?.env_allowlist ?? []),
   ]);
   const childEnv: Record<string, string> = {};
@@ -143,6 +142,12 @@ export function buildChildEnvironment({
     ...childEnv,
     ...hostEnv,
   };
+}
+
+function providerEnvAllowlist(provider: string): readonly string[] {
+  return (
+    PROVIDER_ENV_ALLOWLIST.find(([id]) => id === provider)?.[1] ?? []
+  );
 }
 
 export function redactedRuntimePolicyDiagnostics(

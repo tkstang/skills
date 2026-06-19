@@ -7,9 +7,9 @@ import type { ProviderAdapter, ProviderAdapterRegistry } from './adapters.js';
 import type { ProviderInventoryEntry } from './types.js';
 
 export interface ProviderProbeDefinition {
-  version_args: string[];
-  auth_required_patterns?: RegExp[];
-  unavailable_patterns?: RegExp[];
+  version_args: readonly string[];
+  auth_required_patterns?: readonly RegExp[];
+  unavailable_patterns?: readonly RegExp[];
 }
 
 export interface ProbeCommandResult {
@@ -171,7 +171,7 @@ function providerEntry(
   };
 }
 
-function matchesAny(value: string, patterns: RegExp[] | undefined) {
+function matchesAny(value: string, patterns: readonly RegExp[] | undefined) {
   return patterns?.some((pattern) => pattern.test(value)) ?? false;
 }
 

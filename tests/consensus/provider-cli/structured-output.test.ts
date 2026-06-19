@@ -78,7 +78,9 @@ describe('structured provider output coordinator', () => {
 
   it('retries retryable provider exits and stops on timeout classifications', async () => {
     const subprocess = fakeSubprocess([
-      processFailure('PROVIDER_EXIT', true),
+      processFailure('PROVIDER_EXIT', true, {
+        stderr: 'temporary unavailable, try again',
+      }),
       processSuccess('{"verdict":"accept"}'),
     ]);
 
@@ -105,6 +107,82 @@ describe('structured provider output coordinator', () => {
       code: 'PROVIDER_TIMEOUT',
       attempts: { cli_attempts: 1 },
     });
+  });
+
+  it('does not retry adapter-classified terminal provider exits', async () => {
+    await expect(
+      runProviderTurn(request({ provider: 'claude' }), {
+        readSchema: async () => schema(),
+        runSubprocess: fakeSubprocess([
+          processFailure('PROVIDER_EXIT', true, {
+            stderr: 'authentication required',
+          }),
+          processSuccess('{"verdict":"accept"}'),
+        ]).run,
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      code: 'PROVIDER_AUTH_REQUIRED',
+      attempts: {
+        cli_attempts: 1,
+        terminal_reason: 'provider_auth_required',
+      },
+    });
+
+    await expect(
+      runProviderTurn(request({ provider: 'codex' }), {
+        readSchema: async () => schema(),
+        runSubprocess: fakeSubprocess([
+          processFailure('PROVIDER_EXIT', true, {
+            stderr: 'unknown option: --approval-policy',
+          }),
+          processSuccess('{"verdict":"accept"}'),
+        ]).run,
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      code: 'PROVIDER_UNSUPPORTED_OPTION',
+      attempts: {
+        cli_attempts: 1,
+        terminal_reason: 'provider_unsupported_option',
+      },
+    });
+
+    await expect(
+      runProviderTurn(request({ provider: 'cursor' }), {
+        readSchema: async () => schema(),
+        runSubprocess: fakeSubprocess([
+          processFailure('PROVIDER_EXIT', true, {
+            stderr: 'fatal local configuration error',
+          }),
+          processSuccess('{"verdict":"accept"}'),
+        ]).run,
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      code: 'PROVIDER_EXIT',
+      attempts: {
+        cli_attempts: 1,
+        terminal_reason: 'provider_exit_terminal',
+      },
+    });
+  });
+
+  it('applies the default non-interactive runtime policy before invocation', async () => {
+    const subprocess = fakeSubprocess([
+      processSuccess('{"verdict":"accept"}'),
+    ]);
+
+    await expect(
+      runProviderTurn(request({ provider: 'codex' }), {
+        readSchema: async () => schema(),
+        runSubprocess: subprocess.run,
+      }),
+    ).resolves.toMatchObject({ ok: true });
+
+    expect(subprocess.invocations[0]?.argv).toEqual(
+      expect.arrayContaining(['--approval-policy', 'never']),
+    );
   });
 
   it('emits terminal ok:false envelopes that still exit process 0', async () => {
@@ -151,11 +229,14 @@ function schema() {
 
 function fakeSubprocess(results: ProviderProcessResult[]) {
   const prompts: string[] = [];
+  const invocations: Array<{ argv: string[]; stdin: string }> = [];
 
   return {
     prompts,
-    async run(invocation: { stdin: string }) {
+    invocations,
+    async run(invocation: { argv: string[]; stdin: string }) {
       prompts.push(invocation.stdin);
+      invocations.push(invocation);
       const result = results.shift();
       if (!result) throw new Error('Unexpected subprocess invocation');
       return result;
@@ -184,6 +265,7 @@ function processFailure(
     { ok: false }
   >['code'],
   retryable: boolean,
+  overrides: Partial<Extract<ProviderProcessResult, { ok: false }>> = {},
 ): ProviderProcessResult {
   return {
     ok: false,
@@ -199,5 +281,6 @@ function processFailure(
       output_mode: 'stdout_json',
       redacted_command: ['provider'],
     },
+    ...overrides,
   };
 }

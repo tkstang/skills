@@ -46,6 +46,9 @@ export const buildClaudeInvocation: ProviderInvocationBuilder = (
   }
   if (request.model) argv.push('--model', request.model);
   if (request.effort) argv.push('--effort', request.effort);
+  if (request.runtime_policy?.permission_mode) {
+    argv.push('--permission-mode', request.runtime_policy.permission_mode);
+  }
 
   return invocation({
     executable: 'claude',
@@ -72,6 +75,8 @@ export const buildCodexInvocation: ProviderInvocationBuilder = (
   }
   if (request.runtime_policy?.approval_policy) {
     argv.push('--approval-policy', request.runtime_policy.approval_policy);
+  } else if (request.runtime_policy?.permission_mode === 'non-interactive') {
+    argv.push('--approval-policy', 'never');
   }
 
   return invocation({

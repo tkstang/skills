@@ -1,3 +1,5 @@
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -108,6 +110,80 @@ describe('generated consensus provider CLI process contract', () => {
     });
   });
 
+  it('uses native host markers for same-host run guard metadata', async () => {
+    const schemaPath = await writeSchemaFixture();
+    try {
+      const result = await runConsensusCli(
+        [
+          'run',
+          '--provider',
+          'codex',
+          '--schema',
+          schemaPath,
+          '--json',
+          '--prompt',
+          'Prompt.',
+          '--max-depth',
+          '1',
+        ],
+        {
+          env: {
+            PATH: '',
+            CODEX_SESSION_ID: 'session',
+          },
+        },
+      );
+
+      expect(result.code).toBe(0);
+      expect(parseSingleJsonDocument(result.stdout)).toMatchObject({
+        ok: false,
+        code: 'PROVIDER_MISSING',
+        provider: 'codex',
+        diagnostics: {
+          host_relation: 'same_host',
+          guard: 'subprocess_isolated',
+        },
+      });
+    } finally {
+      await rm(path.dirname(schemaPath), { recursive: true, force: true });
+    }
+  });
+
+  it('blocks depth-1 same-host run recursion from native host markers', async () => {
+    const result = await runConsensusCli(
+      [
+        'run',
+        '--provider',
+        'codex',
+        '--schema',
+        'schema.json',
+        '--json',
+        '--prompt',
+        'Prompt.',
+        '--max-depth',
+        '1',
+      ],
+      {
+        env: {
+          PATH: '',
+          CODEX_SESSION_ID: 'session',
+          CONSENSUS_DEPTH: '1',
+        },
+      },
+    );
+
+    expect(result.code).toBe(0);
+    expect(parseSingleJsonDocument(result.stdout)).toMatchObject({
+      ok: false,
+      code: 'HOST_RECURSION_BLOCKED',
+      provider: 'codex',
+      diagnostics: {
+        host_relation: 'same_host',
+        guard: 'blocked',
+      },
+    });
+  });
+
   it('documents runtime-policy and max-depth run flags in help text', async () => {
     const result = await runConsensusCli(['--help']);
 
@@ -152,11 +228,12 @@ describe('generated consensus provider CLI process contract', () => {
 
 function runConsensusCli(
   args: string[],
-  options: { input?: string } = {},
+  options: { input?: string; env?: Record<string, string | undefined> } = {},
 ) {
   return runNodeScriptResult(consensusCli, args, {
     cwd: repoRoot,
     input: options.input,
+    env: options.env,
   });
 }
 
@@ -164,4 +241,20 @@ function parseSingleJsonDocument(stdout: string) {
   const lines = stdout.trim().split('\n');
   expect(lines).toHaveLength(1);
   return JSON.parse(lines[0]);
+}
+
+async function writeSchemaFixture() {
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'consensus-schema-'));
+  const schemaPath = path.join(dir, 'schema.json');
+  await writeFile(
+    schemaPath,
+    JSON.stringify({
+      type: 'object',
+      required: ['verdict'],
+      properties: {
+        verdict: { type: 'string' },
+      },
+    }),
+  );
+  return schemaPath;
 }

@@ -10,6 +10,8 @@ export interface RunProviderSubprocessOptions {
   env?: NodeJS.ProcessEnv;
   maxOutputBytes?: number;
   timeoutSec?: number;
+  terminationGraceMs?: number;
+  finalResolutionMs?: number;
 }
 
 export type ProviderProcessResult =
@@ -45,6 +47,8 @@ export interface ProviderProcessFailure {
 
 const DEFAULT_MAX_OUTPUT_BYTES = 1024 * 1024 * 10;
 const DEFAULT_TIMEOUT_SEC = 300;
+const DEFAULT_TERMINATION_GRACE_MS = 250;
+const DEFAULT_FINAL_RESOLUTION_MS = 1000;
 
 export function runProviderSubprocess(
   invocation: ProviderInvocation,
@@ -53,12 +57,19 @@ export function runProviderSubprocess(
   const maxOutputBytes =
     options.maxOutputBytes ?? DEFAULT_MAX_OUTPUT_BYTES;
   const timeoutSec = options.timeoutSec ?? DEFAULT_TIMEOUT_SEC;
+  const terminationGraceMs =
+    options.terminationGraceMs ?? DEFAULT_TERMINATION_GRACE_MS;
+  const finalResolutionMs =
+    options.finalResolutionMs ?? DEFAULT_FINAL_RESOLUTION_MS;
 
   return new Promise((resolve) => {
     let stdout = '';
     let stderr = '';
     let stdoutBytes = 0;
     let stderrBytes = 0;
+    let exitCode: number | null = null;
+    let exitSignal: NodeJS.Signals | null = null;
+    let settled = false;
     let terminal:
       | 'timeout'
       | 'output_cap'
@@ -72,9 +83,10 @@ export function runProviderSubprocess(
       stdio: ['pipe', 'pipe', 'pipe'],
     });
 
+    let killEscalation: NodeJS.Timeout | undefined;
+    let finalResolution: NodeJS.Timeout | undefined;
     const timeout = setTimeout(() => {
-      terminal = terminal ?? 'timeout';
-      child.kill('SIGTERM');
+      terminate('timeout');
     }, timeoutSec * 1000);
 
     child.stdout.setEncoding('utf8');
@@ -83,25 +95,54 @@ export function runProviderSubprocess(
       stdout += chunk;
       stdoutBytes += Buffer.byteLength(chunk);
       if (stdoutBytes + stderrBytes > maxOutputBytes) {
-        terminal = terminal ?? 'output_cap';
-        child.kill('SIGTERM');
+        terminate('output_cap');
       }
     });
     child.stderr.on('data', (chunk) => {
       stderr += chunk;
       stderrBytes += Buffer.byteLength(chunk);
       if (stdoutBytes + stderrBytes > maxOutputBytes) {
-        terminal = terminal ?? 'output_cap';
-        child.kill('SIGTERM');
+        terminate('output_cap');
       }
     });
 
     child.on('error', () => {
       terminal = terminal ?? 'spawn_error';
+      finish();
     });
 
     child.on('close', (exitCode, signal) => {
+      finish(exitCode, signal);
+    });
+
+    child.stdin.on('error', () => {});
+    child.stdin.end(invocation.stdin);
+
+    function terminate(reason: 'timeout' | 'output_cap') {
+      terminal = terminal ?? reason;
+      child.kill('SIGTERM');
+      if (!killEscalation) {
+        killEscalation = setTimeout(() => {
+          child.kill('SIGKILL');
+          finalResolution = setTimeout(() => {
+            finish(null, 'SIGKILL');
+          }, finalResolutionMs);
+        }, terminationGraceMs);
+      }
+    }
+
+    function finish(
+      closeExitCode: number | null = exitCode,
+      closeSignal: NodeJS.Signals | null = exitSignal,
+    ) {
+      if (settled) return;
+      settled = true;
+      exitCode = closeExitCode;
+      exitSignal = closeSignal;
       clearTimeout(timeout);
+      if (killEscalation) clearTimeout(killEscalation);
+      if (finalResolution) clearTimeout(finalResolution);
+
       const diagnostics = diagnosticsFor({
         invocation,
         stdoutBytes,
@@ -109,7 +150,7 @@ export function runProviderSubprocess(
         maxOutputBytes,
         timeoutSec,
         exitCode,
-        signal,
+        signal: exitSignal,
       });
 
       if (terminal === 'spawn_error') {
@@ -121,7 +162,7 @@ export function runProviderSubprocess(
             stdout,
             stderr,
             exitCode,
-            signal,
+            signal: exitSignal,
             diagnostics,
           }),
         );
@@ -137,7 +178,7 @@ export function runProviderSubprocess(
             stdout,
             stderr,
             exitCode,
-            signal,
+            signal: exitSignal,
             diagnostics,
           }),
         );
@@ -153,7 +194,7 @@ export function runProviderSubprocess(
             stdout,
             stderr,
             exitCode,
-            signal,
+            signal: exitSignal,
             diagnostics,
           }),
         );
@@ -169,7 +210,7 @@ export function runProviderSubprocess(
             stdout,
             stderr,
             exitCode,
-            signal,
+            signal: exitSignal,
             diagnostics,
           }),
         );
@@ -181,12 +222,10 @@ export function runProviderSubprocess(
         stdout,
         stderr,
         exit_code: exitCode,
-        signal,
+        signal: exitSignal,
         diagnostics,
       });
-    });
-
-    child.stdin.end(invocation.stdin);
+    }
   });
 }
 

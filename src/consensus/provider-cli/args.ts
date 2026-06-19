@@ -1,8 +1,11 @@
 import type {
   ConsensusCliRunRequest,
-  HostRuntime,
   ProviderId,
 } from './types.js';
+import {
+  detectHostRuntime,
+  hostContextFromEnv,
+} from './host-guard.js';
 
 export class ConsensusCliUsageError extends Error {
   readonly code = 'CONSENSUS_CLI_USAGE' as const;
@@ -108,7 +111,7 @@ export async function normalizeRunRequest(
       command.requestJson === '-'
         ? await io.readStdin()
         : await io.readFile(command.requestJson);
-    return parseRequestJson(source);
+    return attachHostContextWhenDetected(parseRequestJson(source), io);
   }
 
   if (!command.provider) {
@@ -136,7 +139,7 @@ export async function normalizeRunRequest(
   if (command.effort) request.effort = command.effort;
   const runtimePolicy = normalizeRuntimePolicy(command);
   if (runtimePolicy) request.runtime_policy = runtimePolicy;
-  if (command.maxDepth !== undefined) {
+  if (command.maxDepth !== undefined || shouldAttachHostContext(io.env)) {
     request.host = normalizeHostContext(command.maxDepth, command, io);
   }
   if (command.maxAttempts !== undefined) {
@@ -373,28 +376,39 @@ function assignIfDefined<
 }
 
 function normalizeHostContext(
-  maxDepth: number,
+  maxDepth: number | undefined,
   command: ParsedRunCommand,
   io: NormalizeRunRequestIo,
 ): NonNullable<ConsensusCliRunRequest['host']> {
+  return hostContextFromEnv(
+    io.env ?? {},
+    command.cwd ?? io.cwd ?? process.cwd(),
+    maxDepth ?? 1,
+  );
+}
+
+function attachHostContextWhenDetected(
+  request: ConsensusCliRunRequest,
+  io: NormalizeRunRequestIo,
+): ConsensusCliRunRequest {
+  if (request.host || !shouldAttachHostContext(io.env)) return request;
   return {
-    runtime: normalizeHostRuntime(io.env?.CONSENSUS_PARENT_HOST),
-    cwd: command.cwd ?? io.cwd ?? process.cwd(),
-    run_id: io.env?.CONSENSUS_RUN_ID ?? 'local',
-    depth: parseNonNegativeInteger(io.env?.CONSENSUS_DEPTH) ?? 0,
-    max_depth: maxDepth,
+    ...request,
+    host: hostContextFromEnv(
+      io.env ?? {},
+      request.cwd ?? io.cwd ?? process.cwd(),
+      1,
+    ),
   };
 }
 
-function normalizeHostRuntime(value: string | undefined): HostRuntime {
-  return value === 'claude' || value === 'codex' || value === 'cursor'
-    ? value
-    : 'unknown';
-}
-
-function parseNonNegativeInteger(value: string | undefined) {
-  if (value === undefined || !/^\d+$/.test(value)) return undefined;
-  return Number(value);
+function shouldAttachHostContext(env: Record<string, string | undefined> = {}) {
+  return (
+    detectHostRuntime(env) !== 'unknown' ||
+    env.CONSENSUS_RUN_ID !== undefined ||
+    env.CONSENSUS_DEPTH !== undefined ||
+    env.CONSENSUS_PARENT_HOST !== undefined
+  );
 }
 
 async function readPromptSource(

@@ -5,6 +5,7 @@ import {
   buildProviderInvocation,
   type ProviderInvocation,
 } from '../../../src/consensus/provider-cli/invocation.js';
+import { defaultRuntimePolicy } from '../../../src/consensus/provider-cli/runtime-policy.js';
 import type {
   ConsensusCliRunRequest,
   StructuredOutputStrategy,
@@ -75,6 +76,24 @@ describe('provider invocation builders', () => {
       '--approval-policy',
       'never',
     ]);
+  });
+
+  it('maps effective non-interactive runtime policies to provider controls', () => {
+    const claude = buildInvocation('claude', 'provider_validated', {
+      runtime_policy: defaultRuntimePolicy(),
+    });
+    const codex = buildInvocation('codex', 'constrained_native', {
+      runtime_policy: defaultRuntimePolicy(),
+    });
+    const cursor = buildInvocation('cursor', 'prompt_only', {
+      runtime_policy: defaultRuntimePolicy(),
+    });
+
+    expect(claude.argv).toContain('--permission-mode');
+    expect(claude.argv).toContain('non-interactive');
+    expect(codex.argv).toContain('--approval-policy');
+    expect(codex.argv).toContain('never');
+    expect(cursor.argv).toContain('--force');
   });
 
   it('keeps Cursor on prompt-only argv shape unless submit-tool is explicitly implemented later', () => {

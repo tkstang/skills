@@ -33,6 +33,12 @@ process.stdin.on('end', () => {
     return;
   }
 
+  if (mode === 'ignore-sigterm') {
+    process.on('SIGTERM', () => {});
+    setInterval(() => {}, 1000);
+    return;
+  }
+
   if (mode === 'big-output') {
     process.stdout.write('x'.repeat(Number(args[0] ?? 1024)));
     return;
