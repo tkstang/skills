@@ -5,12 +5,19 @@ import type {
   StructuredOutputStrategy,
 } from './types.js';
 import type { ProviderProbeDefinition } from './probe.js';
+import {
+  buildClaudeInvocation,
+  buildCodexInvocation,
+  buildCursorInvocation,
+} from './invocation.js';
+import type { ProviderInvocationBuilder } from './invocation.js';
 
 export interface ProviderAdapter {
   id: FirstScopeProviderId;
   display_name: string;
   executable: string;
   probe: ProviderProbeDefinition;
+  buildInvocation: ProviderInvocationBuilder;
   capabilities: ProviderCapabilities;
 }
 
@@ -24,6 +31,7 @@ export const DEFAULT_PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [
     id: 'claude',
     display_name: 'Claude',
     executable: 'claude',
+    buildInvocation: buildClaudeInvocation,
     probe: {
       version_args: ['--version'],
       auth_required_patterns: [
@@ -54,6 +62,7 @@ export const DEFAULT_PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [
     id: 'codex',
     display_name: 'Codex',
     executable: 'codex',
+    buildInvocation: buildCodexInvocation,
     probe: {
       version_args: ['--version'],
       auth_required_patterns: [
@@ -86,6 +95,7 @@ export const DEFAULT_PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [
     id: 'cursor',
     display_name: 'Cursor',
     executable: 'cursor-agent',
+    buildInvocation: buildCursorInvocation,
     probe: {
       version_args: ['--version'],
       auth_required_patterns: [
