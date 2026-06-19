@@ -14,4 +14,8 @@ describe('vitest tooling', () => {
       'tests/**/*.test.mts',
     ]);
   });
+
+  it('allows integration tests enough time for subprocess fixtures', () => {
+    expect(vitestConfig.test?.testTimeout).toBe(10_000);
+  });
 });

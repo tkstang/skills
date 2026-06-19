@@ -44,6 +44,8 @@ If `skills` is already configured as a marketplace from another local checkout, 
 - The generated consensus CLI from this plugin, used for provider inventory, preflight, and peer invocation.
 - Local provider CLIs for the requested peers. The first supported provider floor is `claude`, `codex`, and `cursor`.
 
+The wrappers always invoke peers through the generated provider CLI. There is no alternate backend selector in v0.1.
+
 Check provider inventory and readiness from the repository root:
 
 ```bash
@@ -139,7 +141,7 @@ consensus preflight --json --provider claude
 
 The first supported provider floor is `claude`, `codex`, and `cursor`; future providers are extension points, not v0.1 support claims. Requested peers must be present and usable in provider inventory/preflight before live use. The wrappers surface provider-neutral diagnostics such as `PROVIDER_MISSING`, `PROVIDER_AUTH_REQUIRED`, `PROVIDER_UNAVAILABLE`, and `PROVIDER_UNSUPPORTED_OPTION`.
 
-Cursor is included in the provider floor, but local auth state is still operator-owned. If inventory or preflight reports Cursor as `auth_required`, unlock the OS keychain or authenticate the Cursor CLI in the current user session before retrying. Cursor uses provider-output validation rather than a default submit-tool transport.
+Cursor is included in the provider floor, but local auth state is still operator-owned. If inventory or preflight reports Cursor as `auth_required`, unlock the OS keychain or authenticate the Cursor CLI in the current user session before retrying. Cursor submit-tool support is reserved for a later acceptance path and is not selected by default.
 
 ## Limitations
 

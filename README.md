@@ -114,6 +114,8 @@ If `skills` is already configured as a marketplace from a different local checko
 - Consensus plugin only: the generated consensus CLI from this plugin, used for provider inventory, preflight, and peer invocation.
 - Consensus plugin only: local provider CLIs for the requested peers. The first supported provider floor is `claude`, `codex`, and `cursor`.
 
+The consensus wrappers always invoke peers through the generated provider CLI. There is no alternate backend selector in v0.1.
+
 Check provider inventory and readiness before an expensive run:
 
 ```bash
@@ -156,7 +158,7 @@ The consensus `refine` and `evaluate` skills need permission to run `node` for w
 
 Consensus peer IDs come from provider inventory (`consensus provider ls --json`). The first supported provider floor is `claude`, `codex`, and `cursor`; future providers are extension points, not v0.1 support claims. Requested peers must pass provider-neutral preflight (`consensus preflight --json --provider <id>`) before live use.
 
-Cursor is included in the provider floor, but local auth state is still operator-owned. If inventory or preflight reports Cursor as `auth_required`, unlock the OS keychain or authenticate the Cursor CLI in the current user session before retrying. Cursor uses provider-output validation rather than a default submit-tool transport.
+Cursor is included in the provider floor, but local auth state is still operator-owned. If inventory or preflight reports Cursor as `auth_required`, unlock the OS keychain or authenticate the Cursor CLI in the current user session before retrying. Cursor submit-tool support is reserved for a later acceptance path and is not selected by default.
 
 Session observer defaults to `--runtime auto`, which resolves by host hint, prior same-cwd state, or candidate availability. Use `--runtime claude-code|codex|cursor` or `--session <runtime>:<sessionId>` when multiple matching sessions exist.
 
