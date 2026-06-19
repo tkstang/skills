@@ -75,6 +75,15 @@ test('evaluate SKILL.md documents guided rubric creation flow', async () => {
   assert.match(skill, /12/);
 });
 
+test('evaluate SKILL.md links to bundled rubric examples', async () => {
+  const skill = await read(evaluateSkillPath);
+
+  assert.match(skill, /general-purpose\.md/);
+  assert.match(skill, /code-review\.md/);
+  assert.match(skill, /technical-writing\.md/);
+  assert.match(skill, /design-architecture\.md/);
+});
+
 test('evaluate skill is documented and registered in distribution surfaces', async () => {
   const requiredEvaluateFiles = [
     evaluateSkillPath,

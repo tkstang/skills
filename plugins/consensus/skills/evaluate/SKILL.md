@@ -123,7 +123,11 @@ Use this path when the user explicitly asks for help creating a rubric, or when 
 **Steps:**
 
 1. **Elicit goals.** Ask the user what the evaluation is trying to determine. One or two focused questions are enough — do not over-elicit.
-2. **Select or adapt an example.** Choose a starting point from the bundled rubric examples in `references/examples/` that best fits the artifact type. Show the user what you are starting from and why.
+2. **Select or adapt an example.** Choose a starting point from the bundled rubric examples in `references/examples/` that best fits the artifact type. Show the user what you are starting from and why. Available examples:
+   - [`references/examples/general-purpose.md`](references/examples/general-purpose.md) — annotated template for any written artifact
+   - [`references/examples/code-review.md`](references/examples/code-review.md) — pull request descriptions and implementation proposals
+   - [`references/examples/technical-writing.md`](references/examples/technical-writing.md) — documentation, tutorials, and API reference
+   - [`references/examples/design-architecture.md`](references/examples/design-architecture.md) — ADRs, system designs, and RFCs
 3. **Draft the rubric.** Adapt the selected example to the user's goals. Keep the load-bearing criteria (headings and bullets) at 12 or fewer — the wrapper silently ignores criteria beyond the first 12 distinct headings and bullets it finds. Weights, scoring scales, and pass/fail notes are welcome as peer-facing guidance but are not parsed by the wrapper.
 4. **Confirm the output path.** Before writing, tell the user where the rubric file will be saved and ask for approval. Write the rubric only to a user-approved path within the active workspace. A sensible default is a file named `rubric.md` alongside the artifact being evaluated.
 5. **Invoke the wrapper.** After writing the rubric file, run:

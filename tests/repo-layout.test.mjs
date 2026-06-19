@@ -92,6 +92,31 @@ test('transcript runtime source lives under src and generated output stays in sk
   );
 });
 
+test('evaluate skill ships bundled rubric examples', async () => {
+  const examplesDir = path.posix.join(
+    'plugins',
+    'consensus',
+    'skills',
+    'evaluate',
+    'references',
+    'examples',
+  );
+
+  await assertDirectory(examplesDir);
+
+  const requiredExamples = [
+    path.posix.join(examplesDir, 'general-purpose.md'),
+    path.posix.join(examplesDir, 'code-review.md'),
+    path.posix.join(examplesDir, 'technical-writing.md'),
+    path.posix.join(examplesDir, 'design-architecture.md'),
+  ];
+
+  for (const examplePath of requiredExamples) {
+    const exists = await pathExists(examplePath);
+    assert.equal(exists, true, `${examplePath} should exist`);
+  }
+});
+
 test('consensus distribution tree does not include canonical TypeScript source', async () => {
   assert.equal(
     await pathExists('plugins/consensus/skills/refine/src'),
