@@ -6,6 +6,10 @@ import { expect, it } from 'vitest';
 
 // @ts-expect-error The generated runtime is intentionally declaration-free; this test exercises the shipped artifact.
 import * as consensusLoop from '../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
+import {
+  makeStubEnv,
+  readJson,
+} from './helpers/process.mjs';
 
 const {
   buildTurnPrompt,
@@ -24,17 +28,6 @@ type RunFiles = {
 };
 type JsonRecord = Record<string, any>;
 
-const repoRoot = path.resolve(new URL('..', import.meta.url).pathname);
-const fixtureBin = path.join(repoRoot, 'tests/fixtures/bin');
-
-function stubEnv(overrides: NodeJS.ProcessEnv = {}) {
-  return {
-    ...process.env,
-    PATH: `${fixtureBin}${path.delimiter}${process.env.PATH}`,
-    ...overrides,
-  };
-}
-
 async function makeRunFiles(sectionText = 'Initial section.\n') {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-loop-'));
   const sectionPath = path.join(tempRoot, 'section.md');
@@ -43,10 +36,6 @@ async function makeRunFiles(sectionText = 'Initial section.\n') {
   const statusPath = path.join(tempRoot, 'status.json');
   await writeFile(sectionPath, sectionText);
   return { tempRoot, sectionPath, recordsPath, outputPath, statusPath };
-}
-
-async function readJson(filePath: string): Promise<any> {
-  return JSON.parse(await readFile(filePath, 'utf8'));
 }
 
 function argvFor(files: RunFiles, extra: string[] = []) {
@@ -213,7 +202,7 @@ it('buildTurnPrompt marks the first turn when no prior verdict exists', () => {
 
 it('runConsensusLoop converges on two ACCEPT turns with the Paseo stub', async () => {
   const files = await makeRunFiles('Stable text.\n');
-  const result = await runConsensusLoop(argvFor(files), { env: stubEnv() });
+  const result = await runConsensusLoop(argvFor(files), { env: makeStubEnv() });
 
   expect(result.status.status).toBe('converged');
   expect(result.status.termination_reason).toBe('double_accept');
@@ -250,7 +239,7 @@ it('runConsensusLoop stops on explicit IMPASSE verdicts', async () => {
   );
 
   const result = await runConsensusLoop(argvFor(files), {
-    env: stubEnv({ PASEO_STUB_RESPONSE_FILE: responsePath }),
+    env: makeStubEnv({ PASEO_STUB_RESPONSE_FILE: responsePath }),
   });
 
   expect(result.status.status).toBe('impasse');
@@ -398,7 +387,7 @@ it('default synthesizer seam invokes paseo with the synthesis schema and resolve
       '1',
     ]),
     {
-      env: stubEnv({ PASEO_STUB_RESPONSE_JSON: converged }),
+      env: makeStubEnv({ PASEO_STUB_RESPONSE_JSON: converged }),
       invokePeer: async ({ provider }: { provider: string }) => ({
         json: JSON.parse(converged),
         stdout: converged,
@@ -420,7 +409,7 @@ it('runConsensusLoop writes an error status and rejects hard Paseo failures', as
 
   await expect(
     runConsensusLoop(argvFor(files), {
-      env: stubEnv({
+      env: makeStubEnv({
         PASEO_STUB_EXIT_CODE: '42',
         PASEO_STUB_STDERR: 'provider failed',
       }),

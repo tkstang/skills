@@ -6,41 +6,24 @@ import { expect, it } from 'vitest';
 
 // @ts-expect-error The generated runtime is intentionally declaration-free; this test exercises the shipped artifact.
 import * as consensusRefine from '../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
+import { extractJsonBlock } from './helpers/consensus.js';
 import {
   captureWriter,
+  makeStubEnv,
   parseJsonl,
+  repoRoot,
   runNodeScript,
+  sampleInput,
 } from './helpers/process.mjs';
 
 const { runWrapperCli } = consensusRefine;
 
 type JsonRecord = Record<string, any>;
 
-const repoRoot = path.resolve(new URL('..', import.meta.url).pathname);
-const sampleInput = path.join(repoRoot, 'tests/fixtures/sample-input.md');
-const fixtureBin = path.join(repoRoot, 'tests/fixtures/bin');
 const loopScript = path.join(
   repoRoot,
   'plugins/consensus/skills/refine/scripts/consensus-loop.mjs',
 );
-
-function stubEnv(overrides: NodeJS.ProcessEnv = {}) {
-  return {
-    ...process.env,
-    PATH: `${fixtureBin}${path.delimiter}${process.env.PATH}`,
-    ...overrides,
-  };
-}
-
-function extractJsonBlock(markdown: string, label: string): any {
-  const pattern = new RegExp(
-    '<!-- consensus:' + label + '\\n([\\s\\S]*?)\\n-->',
-  );
-  const match = markdown.match(pattern);
-  expect(match, `missing ${label} JSON block`).toBeTruthy();
-  if (!match) throw new Error(`missing ${label} JSON block`);
-  return JSON.parse(match[1]);
-}
 
 it('parallel section runner target is the generated consensus-loop runtime', async () => {
   expect(loopScript).toBe(
@@ -108,7 +91,7 @@ it('prepare, simulated host section loops, and fan-in work end-to-end', async ()
   for (const section of completionOrder) {
     const env =
       section.original_index === 2
-        ? stubEnv({
+        ? makeStubEnv({
             PASEO_STUB_RESPONSE_JSON: JSON.stringify({
               schema_version: 'v1',
               verdict: 'IMPASSE',
@@ -116,7 +99,7 @@ it('prepare, simulated host section loops, and fan-in work end-to-end', async ()
               concerns: ['tone and brevity conflict'],
             }),
           })
-        : stubEnv();
+        : makeStubEnv();
     await runNodeScript(loopScript, section.loop_argv, { cwd: tempRoot, env });
   }
 
@@ -209,7 +192,7 @@ it('parallel_revision mode threads through prepare, section runners, and fan-in'
     expect(section.iteration_mode).toBe('parallel_revision');
     await runNodeScript(loopScript, section.loop_argv, {
       cwd: tempRoot,
-      env: stubEnv({ PASEO_STUB_RESPONSE_JSON: convergedVerdict }),
+      env: makeStubEnv({ PASEO_STUB_RESPONSE_JSON: convergedVerdict }),
     });
   }
 

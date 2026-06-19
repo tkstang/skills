@@ -8,6 +8,13 @@ import { expect, it } from 'vitest';
 import * as consensusLoop from '../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
 // @ts-expect-error The generated runtime is intentionally declaration-free; this test exercises the shipped artifact.
 import * as consensusRefine from '../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
+import { extractJsonBlock } from './helpers/consensus.js';
+import {
+  fixtureBin,
+  makeStubEnv,
+  repoRoot,
+  sampleInput,
+} from './helpers/process.mjs';
 
 const { hashArtifact } = consensusLoop;
 const { renderDeliberationArtifact, runSequential, runWrapperCli } =
@@ -15,6 +22,7 @@ const { renderDeliberationArtifact, runSequential, runWrapperCli } =
 
 type JsonRecord = Record<string, any>;
 
+// JSONL-event capturer: buffers streaming writes and parses each line as JSON.
 function captureStdout() {
   const lines: string[] = [];
   return {
@@ -32,7 +40,6 @@ function captureStdout() {
   };
 }
 
-const repoRoot = path.resolve(new URL('..', import.meta.url).pathname);
 const refineScript = path.join(
   repoRoot,
   'plugins/consensus/skills/refine/scripts/consensus-refine.mjs',
@@ -41,26 +48,6 @@ const generatedLoopScript = path.join(
   repoRoot,
   'plugins/consensus/skills/refine/scripts/consensus-loop.mjs',
 );
-const fixtureBin = path.join(repoRoot, 'tests/fixtures/bin');
-const sampleInput = path.join(repoRoot, 'tests/fixtures/sample-input.md');
-
-function stubEnv(overrides: NodeJS.ProcessEnv = {}) {
-  return {
-    ...process.env,
-    PATH: `${fixtureBin}${path.delimiter}${process.env.PATH}`,
-    ...overrides,
-  };
-}
-
-function extractJsonBlock(markdown: string, label: string): any {
-  const pattern = new RegExp(
-    '<!-- consensus:' + label + '\\n([\\s\\S]*?)\\n-->',
-  );
-  const match = markdown.match(pattern);
-  expect(match, `missing ${label} JSON block`).toBeTruthy();
-  if (!match) throw new Error(`missing ${label} JSON block`);
-  return JSON.parse(match[1]);
-}
 
 function consensusBlock(label: string, value: unknown) {
   return `<!-- consensus:${label}\n${JSON.stringify(value, null, 2)}\n-->`;
@@ -239,7 +226,7 @@ it('run_started discloses iteration mode and per-round call multiplier', async (
   const alternating = captureStdout();
   await runWrapperCli([sampleInput, '--peers', 'claude,codex'], {
     stdout: alternating,
-    env: stubEnv(),
+    env: makeStubEnv(),
     preflight: async () => ({ peers: ['claude', 'codex'], warnings: [] }),
   });
   const altStart = alternating
@@ -260,7 +247,7 @@ it('run_started discloses iteration mode and per-round call multiplier', async (
     ],
     {
       stdout: parallel,
-      env: stubEnv({
+      env: makeStubEnv({
         PASEO_STUB_RESPONSE_JSON: JSON.stringify({
           schema_version: 'v1',
           verdict: 'CONVERGED',
@@ -302,7 +289,7 @@ it('parallel-revision artifact resolution reports peer_calls totals', async () =
     maxRounds: 2,
     agency: 'moderate',
     preflight: async () => ({ peers: ['claude', 'codex'], warnings: [] }),
-    env: stubEnv({ PASEO_STUB_RESPONSE_JSON: converged }),
+    env: makeStubEnv({ PASEO_STUB_RESPONSE_JSON: converged }),
   });
 
   const artifact = await readFile(outputPath, 'utf8');
@@ -356,7 +343,7 @@ it('runSequential preserves completed resume section output when source input ch
     cwd: tempRoot,
     peers: ['claude', 'codex'],
     preflight: async () => ({ peers: ['claude', 'codex'], warnings: [] }),
-    env: stubEnv(),
+    env: makeStubEnv(),
   });
 
   const artifact = await readFile(outputPath, 'utf8');
@@ -400,7 +387,7 @@ it('runSequential preserves artifact section inventory when source headings drif
     cwd: tempRoot,
     peers: ['claude', 'codex'],
     preflight: async () => ({ peers: ['claude', 'codex'], warnings: [] }),
-    env: stubEnv(),
+    env: makeStubEnv(),
   });
 
   const artifact = await readFile(outputPath, 'utf8');
