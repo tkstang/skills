@@ -394,7 +394,125 @@ function parseRequestJson(contents) {
   if (typeof parsed.prompt !== "string") {
     throw new ConsensusCliUsageError("Request JSON prompt must be a string");
   }
+  validateOptionalStringField(parsed, "cwd", "Request JSON cwd");
+  validateOptionalStringField(parsed, "model", "Request JSON model");
+  validateOptionalStringField(parsed, "effort", "Request JSON effort");
+  validateOptionalPositiveInteger(
+    parsed,
+    "max_attempts",
+    "Request JSON max_attempts"
+  );
+  validateOptionalPositiveInteger(
+    parsed,
+    "max_runtime_sec",
+    "Request JSON max_runtime_sec"
+  );
+  validateOptionalPositiveInteger(
+    parsed,
+    "max_output_bytes",
+    "Request JSON max_output_bytes"
+  );
+  validateRuntimePolicy(parsed.runtime_policy);
+  validateHostContext(parsed.host);
+  validateRedaction(parsed.redaction);
   return parsed;
+}
+function validateRuntimePolicy(value) {
+  if (value === void 0) return;
+  if (!isRecord(value)) {
+    throw new ConsensusCliUsageError(
+      "Request JSON runtime_policy must be an object"
+    );
+  }
+  validateOptionalStringField(
+    value,
+    "permission_mode",
+    "Request JSON runtime_policy.permission_mode"
+  );
+  validateOptionalStringField(
+    value,
+    "sandbox",
+    "Request JSON runtime_policy.sandbox"
+  );
+  validateOptionalStringField(
+    value,
+    "approval_policy",
+    "Request JSON runtime_policy.approval_policy"
+  );
+  if (value.env_allowlist !== void 0 && !isStringArray(value.env_allowlist)) {
+    throw new ConsensusCliUsageError(
+      "Request JSON runtime_policy.env_allowlist must be a string array"
+    );
+  }
+}
+function validateHostContext(value) {
+  if (value === void 0) return;
+  if (!isRecord(value)) {
+    throw new ConsensusCliUsageError("Request JSON host must be an object");
+  }
+  validateRequiredStringField(value, "runtime", "Request JSON host.runtime");
+  validateRequiredStringField(value, "cwd", "Request JSON host.cwd");
+  validateRequiredStringField(value, "run_id", "Request JSON host.run_id");
+  validateRequiredNonNegativeInteger(
+    value,
+    "depth",
+    "Request JSON host.depth"
+  );
+  validateRequiredPositiveInteger(
+    value,
+    "max_depth",
+    "Request JSON host.max_depth"
+  );
+}
+function validateRedaction(value) {
+  if (value === void 0) return;
+  if (!isRecord(value)) {
+    throw new ConsensusCliUsageError("Request JSON redaction must be an object");
+  }
+  validateOptionalBooleanField(
+    value,
+    "include_args",
+    "Request JSON redaction.include_args"
+  );
+  validateOptionalBooleanField(
+    value,
+    "include_stderr",
+    "Request JSON redaction.include_stderr"
+  );
+}
+function validateRequiredStringField(record, key, label) {
+  if (typeof record[key] !== "string" || record[key].length === 0) {
+    throw new ConsensusCliUsageError(`${label} must be a string`);
+  }
+}
+function validateOptionalStringField(record, key, label) {
+  if (record[key] === void 0) return;
+  validateRequiredStringField(record, key, label);
+}
+function validateOptionalBooleanField(record, key, label) {
+  if (record[key] === void 0) return;
+  if (typeof record[key] !== "boolean") {
+    throw new ConsensusCliUsageError(`${label} must be a boolean`);
+  }
+}
+function validateOptionalPositiveInteger(record, key, label) {
+  if (record[key] === void 0) return;
+  validateRequiredPositiveInteger(record, key, label);
+}
+function validateRequiredPositiveInteger(record, key, label) {
+  if (!Number.isInteger(record[key]) || Number(record[key]) < 1) {
+    throw new ConsensusCliUsageError(`${label} must be a positive integer`);
+  }
+}
+function validateRequiredNonNegativeInteger(record, key, label) {
+  if (!Number.isInteger(record[key]) || Number(record[key]) < 0) {
+    throw new ConsensusCliUsageError(
+      `${label} must be a non-negative integer`
+    );
+  }
+}
+function isStringArray(value) {
+  return Array.isArray(value) && value.every((item) => typeof item === "string" && item.length > 0);
 }
 function parseOptionTokens(tokens, spec) {
   const flags = /* @__PURE__ */ new Map();

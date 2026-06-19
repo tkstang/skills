@@ -262,6 +262,120 @@ describe('provider CLI argument parsing', () => {
     expect(request.prompt).toBe('Prompt from stdin.');
   });
 
+  it('normalizes valid optional request JSON fields', async () => {
+    await expect(
+      normalizeRequestJson({
+        cwd: '/workspace/project',
+        model: 'gpt-5.1-codex',
+        effort: 'xhigh',
+        runtime_policy: {
+          permission_mode: 'non-interactive',
+          sandbox: 'workspace-write',
+          approval_policy: 'never',
+          env_allowlist: ['OPENAI_API_KEY'],
+        },
+        host: {
+          runtime: 'codex',
+          cwd: '/workspace/project',
+          run_id: 'run-123',
+          depth: 0,
+          max_depth: 1,
+        },
+        max_attempts: 2,
+        max_runtime_sec: 30,
+        max_output_bytes: 4096,
+        redaction: {
+          include_args: true,
+          include_stderr: false,
+        },
+      }),
+    ).resolves.toMatchObject({
+      cwd: '/workspace/project',
+      model: 'gpt-5.1-codex',
+      effort: 'xhigh',
+      runtime_policy: {
+        env_allowlist: ['OPENAI_API_KEY'],
+      },
+      host: {
+        runtime: 'codex',
+        max_depth: 1,
+      },
+      max_attempts: 2,
+      max_runtime_sec: 30,
+      max_output_bytes: 4096,
+      redaction: {
+        include_args: true,
+        include_stderr: false,
+      },
+    });
+  });
+
+  it.each([
+    [{ model: 123 }, 'Request JSON model must be a string'],
+    [
+      { max_attempts: 0 },
+      'Request JSON max_attempts must be a positive integer',
+    ],
+    [
+      { max_runtime_sec: '30' },
+      'Request JSON max_runtime_sec must be a positive integer',
+    ],
+    [
+      { max_output_bytes: 1.5 },
+      'Request JSON max_output_bytes must be a positive integer',
+    ],
+    [
+      { runtime_policy: [] },
+      'Request JSON runtime_policy must be an object',
+    ],
+    [
+      { runtime_policy: { sandbox: false } },
+      'Request JSON runtime_policy.sandbox must be a string',
+    ],
+    [
+      { runtime_policy: { env_allowlist: 'OPENAI_API_KEY' } },
+      'Request JSON runtime_policy.env_allowlist must be a string array',
+    ],
+    [
+      { runtime_policy: { env_allowlist: ['OPENAI_API_KEY', 42] } },
+      'Request JSON runtime_policy.env_allowlist must be a string array',
+    ],
+    [{ host: [] }, 'Request JSON host must be an object'],
+    [
+      {
+        host: {
+          runtime: 'codex',
+          cwd: '/workspace',
+          run_id: 'run-123',
+          depth: 0,
+          max_depth: 0,
+        },
+      },
+      'Request JSON host.max_depth must be a positive integer',
+    ],
+    [
+      {
+        host: {
+          runtime: 'codex',
+          cwd: '/workspace',
+          run_id: 'run-123',
+          depth: -1,
+          max_depth: 1,
+        },
+      },
+      'Request JSON host.depth must be a non-negative integer',
+    ],
+    [
+      { redaction: { include_args: 'yes' } },
+      'Request JSON redaction.include_args must be a boolean',
+    ],
+  ])(
+    'rejects invalid optional request JSON value %#',
+    async (overrides, error) => {
+      await expect(normalizeRequestJson(overrides)).rejects.toThrow(error);
+    },
+  );
+
   it('rejects request JSON mixed with request-shaping flags', () => {
     expect(() =>
       parseConsensusCliArgs([
@@ -299,6 +413,28 @@ describe('provider CLI argument parsing', () => {
     );
   });
 });
+
+function normalizeRequestJson(overrides: Record<string, unknown>) {
+  const command = parseConsensusCliArgs([
+    'run',
+    '--request-json',
+    '-',
+    '--json',
+  ]);
+
+  return normalizeRunRequest(
+    command,
+    testIo({
+      stdin: JSON.stringify({
+        schema_version: 'v1',
+        provider: 'codex',
+        schema_path: 'schema.json',
+        prompt: 'Prompt from request.',
+        ...overrides,
+      }),
+    }),
+  );
+}
 
 function testIo(options?: {
   files?: Record<string, string>;

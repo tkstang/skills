@@ -195,6 +195,32 @@ describe('generated consensus provider CLI process contract', () => {
     });
   });
 
+  it('rejects malformed optional request JSON fields', async () => {
+    const result = await runConsensusCli(
+      ['run', '--request-json', '-', '--json'],
+      {
+        input: JSON.stringify({
+          schema_version: 'v1',
+          provider: 'claude',
+          schema_path: 'schema.json',
+          prompt: 'Prompt from stdin.',
+          runtime_policy: {
+            env_allowlist: 'ANTHROPIC_API_KEY',
+          },
+        }),
+      },
+    );
+
+    expect(result.code).toBe(2);
+    expect(parseSingleJsonDocument(result.stdout)).toMatchObject({
+      ok: false,
+      code: 'CONSENSUS_CLI_USAGE',
+      message: expect.stringContaining(
+        'Request JSON runtime_policy.env_allowlist must be a string array',
+      ),
+    });
+  });
+
   it('accepts runtime-policy and max-depth flags for run commands', async () => {
     const result = await runConsensusCli([
       'run',
