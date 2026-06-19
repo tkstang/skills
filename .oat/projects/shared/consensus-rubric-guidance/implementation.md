@@ -1,6 +1,6 @@
 ---
 oat_status: in_progress
-oat_ready_for: oat-project-review-provide
+oat_ready_for: oat-project-implement
 oat_blockers: []
 oat_last_updated: 2026-06-19
 oat_current_task_id: p01-t01
@@ -116,7 +116,7 @@ Chronological log of implementation progress.
 **Disposition:**
 
 - Resolved directly in `plan.md`; no implementation tasks were added.
-- Next step is a plan artifact re-review before starting `p01-t01`.
+- Plan re-review waived by user; plan marked passed and ready for implementation at `p01-t01`.
 
 ---
 

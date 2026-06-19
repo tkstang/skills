@@ -1,6 +1,6 @@
 ---
 oat_status: complete
-oat_ready_for: oat-project-review-provide
+oat_ready_for: oat-project-implement
 oat_blockers: []
 oat_last_updated: 2026-06-19
 oat_phase: plan
@@ -375,7 +375,7 @@ git diff --cached --quiet || git commit -m "chore(consensus): verify rubric guid
 | final | code     | pending | -    | -        |
 | spec  | artifact | passed  | 2026-06-19 | N/A (quick mode; no spec artifact) |
 | design | artifact | passed  | 2026-06-19 | N/A (quick mode; no design artifact) |
-| plan  | artifact | fixes_completed | 2026-06-19 | reviews/archived/artifact-plan-review-2026-06-19.md |
+| plan  | artifact | passed | 2026-06-19 | reviews/archived/artifact-plan-review-2026-06-19.md |
 
 **Status values:** `pending` -> `received` -> `fixes_added` -> `fixes_completed` -> `passed`
 
