@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-19
-oat_current_task_id: p02-t01
+oat_current_task_id: p03-t01
 oat_generated: false
 ---
 
@@ -27,10 +27,10 @@ oat_generated: false
 | Phase | Status | Completed | Total | Current / Next Task |
 | ----- | ------ | --------- | ----- | ------------------- |
 | p01   | complete | 2 | 2 | done |
-| p02   | pending | 0 | 3 | `p02-t01` |
-| p03   | pending | 0 | 2 | - |
+| p02   | complete | 3 | 3 | done |
+| p03   | pending | 0 | 2 | `p03-t01` |
 
-**Total:** 2/7 tasks completed
+**Total:** 5/7 tasks completed
 
 ---
 
@@ -51,13 +51,14 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 **Branch:** consensus-rubric-guidance
 **Tier:** 1 (subagents)
 **Policy:** merge-strategy=sequential, retry-limit=2
-**Phases:** 1 executed, 1 passed, 0 failed, 0 stopped
+**Phases:** 2 executed, 2 passed, 0 failed, 0 stopped
 
 #### Phase Outcomes
 
 | Phase | Implementer | Review | Fix Iterations | Disposition |
 | ----- | ----------- | ------ | -------------- | ----------- |
 | p01   | DONE (sonnet) | pass (opus) | 0/2 | merged (sequential) |
+| p02   | DONE (sonnet) | pass (opus) | 0/2 | merged (sequential) |
 
 #### Parallel Groups
 
@@ -66,10 +67,12 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 #### Dispatch Notes
 
 - p01 implementer: model_axis=selected:sonnet, effort_axis=not-applicable; reviewer at ceiling (opus).
+- p02 implementer: model_axis=selected:sonnet (documentation authoring); reviewer at ceiling (opus).
 
-#### Outstanding Items
+#### Outstanding Items (non-blocking Minors, candidates for p03-t02 polish)
 
-- p01 review Minor (non-blocking, recorded for later cleanup): `scripts/validate.mjs` has an unreachable final `isValidSemver(effective)` branch (dead code); malformed-top-level message takes precedence over mismatch message when both versions are malformed. Neither blocks; candidates for a p03 polish or future cleanup.
+- p01: `scripts/validate.mjs` has an unreachable final `isValidSemver(effective)` branch (dead code); malformed-top-level message takes precedence over the mismatch message when both versions are malformed.
+- p02: each rubric example's `## How to adapt this rubric` meta-heading is parsed as a spurious 11th criterion if run verbatim (cosmetic; examples are explicitly adaptation templates). Optional fix: demote to a non-heading.
 
 #### Artifact / Design Deltas
 
