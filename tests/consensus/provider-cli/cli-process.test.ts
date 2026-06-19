@@ -117,11 +117,19 @@ describe('generated consensus provider CLI process contract', () => {
       );
 
       expect(claudeResult.code).toBe(0);
-      expect(parseSingleJsonDocument(claudeResult.stdout)).toMatchObject({
+      const claudeEnvelope = parseSingleJsonDocument(claudeResult.stdout);
+      expect(claudeEnvelope).toMatchObject({
         ok: true,
         provider: 'claude',
         json: { verdict: 'accept' },
+        diagnostics: {
+          redacted_command: expect.arrayContaining([
+            '--json-schema',
+            '<inline-json-schema>',
+          ]),
+        },
       });
+      expect(JSON.stringify(claudeEnvelope)).not.toContain('"properties"');
 
       const codexResult = await runConsensusCli(
         [
@@ -414,12 +422,37 @@ async function writeExecutableFixture(
 
 function strictClaudeFixture() {
   return `#!/bin/sh
+seen_schema=0
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --print)
       shift
       ;;
-    --output-format|--json-schema|--model|--effort)
+    --output-format|--model|--effort)
+      shift 2
+      ;;
+    --json-schema)
+      case "$2" in
+        /*|*.json|*schema.json)
+          printf 'schema path passed to --json-schema: %s\\n' "$2" >&2
+          exit 64
+          ;;
+        '{'*'}')
+          ;;
+        *)
+          printf 'schema argument is not inline JSON: %s\\n' "$2" >&2
+          exit 64
+          ;;
+      esac
+      case "$2" in
+        *'"verdict"'*)
+          seen_schema=1
+          ;;
+        *)
+          printf 'schema argument missing verdict property\\n' >&2
+          exit 64
+          ;;
+      esac
       shift 2
       ;;
     --permission-mode)
@@ -439,6 +472,10 @@ while [ "$#" -gt 0 ]; do
       ;;
   esac
 done
+if [ "$seen_schema" != "1" ]; then
+  printf 'missing --json-schema\\n' >&2
+  exit 64
+fi
 printf '{"verdict":"accept"}\\n'
 `;
 }

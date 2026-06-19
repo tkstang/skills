@@ -208,6 +208,42 @@ describe('structured provider output coordinator', () => {
     );
   });
 
+  it('passes inline schema JSON to Claude while redacting diagnostics', async () => {
+    const subprocess = fakeSubprocess([
+      processSuccess('{"verdict":"accept"}'),
+    ]);
+
+    const envelope = await runProviderTurn(
+      request({
+        provider: 'claude',
+        schema_path: '/tmp/consensus-schema/schema.json',
+      }),
+      {
+        readSchema: async () => schema(),
+        runSubprocess: subprocess.run,
+      },
+    );
+
+    expect(envelope).toMatchObject({
+      ok: true,
+      provider: 'claude',
+      diagnostics: {
+        redacted_command: expect.arrayContaining([
+          '--json-schema',
+          '<inline-json-schema>',
+        ]),
+      },
+    });
+    const schemaArgument = argumentAfter(
+      subprocess.invocations[0]?.argv ?? [],
+      '--json-schema',
+    );
+    expect(schemaArgument).not.toBe('/tmp/consensus-schema/schema.json');
+    expect(schemaArgument).not.toMatch(/(?:^|\/)schema\.json$/);
+    expect(JSON.parse(schemaArgument)).toEqual(schema());
+    expect(JSON.stringify(envelope)).not.toContain('"properties"');
+  });
+
   it('emits terminal ok:false envelopes that still exit process 0', async () => {
     const envelope = await runProviderTurn(request({ max_attempts: 1 }), {
       readSchema: async () => schema(),
@@ -279,6 +315,14 @@ function fakeSubprocess(results: ProviderProcessResult[]) {
       return result;
     },
   };
+}
+
+function argumentAfter(argv: string[], flag: string): string {
+  const index = argv.indexOf(flag);
+  if (index === -1 || argv[index + 1] === undefined) {
+    throw new Error(`Missing argument after ${flag}`);
+  }
+  return argv[index + 1];
 }
 
 function processSuccess(

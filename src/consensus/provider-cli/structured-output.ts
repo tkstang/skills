@@ -102,6 +102,15 @@ export async function runProviderTurn(
       terminalReason: 'schema_read_failed',
     });
   }
+  const inlineJsonSchema = JSON.stringify(schema);
+  if (inlineJsonSchema === undefined) {
+    return preInvocationFailure({
+      provider: request.provider,
+      code: 'CONSENSUS_CLI_USAGE',
+      message: 'Schema must be JSON-serializable.',
+      terminalReason: 'schema_read_failed',
+    });
+  }
 
   const effectiveRequest: ConsensusCliRunRequest = {
     ...request,
@@ -129,6 +138,7 @@ export async function runProviderTurn(
           };
     const invocation = buildProviderInvocation(adapter, invocationRequest, {
       strategy,
+      inlineJsonSchema,
     });
     lastInvocation = invocation;
     const processResult = await runSubprocess(invocation, {

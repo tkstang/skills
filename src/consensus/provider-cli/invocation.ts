@@ -23,6 +23,7 @@ export interface ProviderInvocation {
 
 export interface BuildProviderInvocationOptions {
   strategy?: StructuredOutputStrategy;
+  inlineJsonSchema?: string;
 }
 
 export type ProviderInvocationBuilder = (
@@ -37,6 +38,7 @@ export function buildProviderInvocation(
 ): ProviderInvocation {
   return adapter.buildInvocation(request, {
     strategy: options.strategy ?? defaultStrategy(adapter),
+    inlineJsonSchema: options.inlineJsonSchema,
   });
 }
 
@@ -46,21 +48,36 @@ export const buildClaudeInvocation: ProviderInvocationBuilder = (
 ) => {
   const strategy = options.strategy ?? 'prompt_only';
   const argv = ['--print', '--output-format', 'json'];
+  const redactedArgv = ['--print', '--output-format', 'json'];
   if (strategy === 'provider_validated') {
-    argv.push('--json-schema', request.schema_path);
+    if (!options.inlineJsonSchema) {
+      throw new Error(
+        'Claude provider-validated invocation requires an inline JSON schema.',
+      );
+    }
+    argv.push('--json-schema', options.inlineJsonSchema);
+    redactedArgv.push('--json-schema', '<inline-json-schema>');
   }
-  if (request.model) argv.push('--model', request.model);
-  if (request.effort) argv.push('--effort', request.effort);
+  if (request.model) {
+    argv.push('--model', request.model);
+    redactedArgv.push('--model', request.model);
+  }
+  if (request.effort) {
+    argv.push('--effort', request.effort);
+    redactedArgv.push('--effort', request.effort);
+  }
   const claudePermissionMode = mapClaudePermissionMode(
     request.runtime_policy?.permission_mode,
   );
   if (claudePermissionMode) {
     argv.push('--permission-mode', claudePermissionMode);
+    redactedArgv.push('--permission-mode', claudePermissionMode);
   }
 
   return invocation({
     executable: 'claude',
     argv,
+    redactedArgv,
     request,
     strategy,
     outputMode: 'stdout_json',
@@ -128,6 +145,7 @@ export const buildCursorInvocation: ProviderInvocationBuilder = (
 function invocation(input: {
   executable: string;
   argv: string[];
+  redactedArgv?: string[];
   request: ConsensusCliRunRequest;
   strategy: StructuredOutputStrategy;
   outputMode: OutputMode;
@@ -140,7 +158,10 @@ function invocation(input: {
     ...(input.request.cwd ? { cwd: input.request.cwd } : {}),
     output_mode: input.outputMode,
     strategy: input.strategy,
-    redacted_command: [input.executable, ...input.argv],
+    redacted_command: [
+      input.executable,
+      ...(input.redactedArgv ?? input.argv),
+    ],
     ...(input.lastMessageFile
       ? { last_message_file: input.lastMessageFile }
       : {}),

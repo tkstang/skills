@@ -44,12 +44,33 @@ describe('provider invocation builders', () => {
       '--output-format',
       'json',
       '--json-schema',
-      'schema.json',
+      schemaJson(),
       '--model',
       'claude-sonnet',
       '--effort',
       'high',
     ]);
+    expect(argumentAfter(invocation.argv, '--json-schema')).not.toMatch(
+      /(?:^|\/)schema\.json$/,
+    );
+    expect(JSON.parse(argumentAfter(invocation.argv, '--json-schema'))).toEqual(
+      schema(),
+    );
+    expect(invocation.redacted_command).toEqual([
+      'claude',
+      '--print',
+      '--output-format',
+      'json',
+      '--json-schema',
+      '<inline-json-schema>',
+      '--model',
+      'claude-sonnet',
+      '--effort',
+      'high',
+    ]);
+    expect(JSON.stringify(invocation.redacted_command)).not.toContain(
+      'properties',
+    );
   });
 
   it('reflects Codex constrained-native schema and reasoning effort in argv', () => {
@@ -157,5 +178,31 @@ function buildInvocation(
     ...overrides,
   }, {
     strategy,
+    inlineJsonSchema:
+      id === 'claude' && strategy === 'provider_validated'
+        ? schemaJson()
+        : undefined,
   });
+}
+
+function argumentAfter(argv: string[], flag: string): string {
+  const index = argv.indexOf(flag);
+  if (index === -1 || argv[index + 1] === undefined) {
+    throw new Error(`Missing argument after ${flag}`);
+  }
+  return argv[index + 1];
+}
+
+function schemaJson() {
+  return JSON.stringify(schema());
+}
+
+function schema() {
+  return {
+    type: 'object',
+    required: ['verdict'],
+    properties: {
+      verdict: { type: 'string' },
+    },
+  };
 }
