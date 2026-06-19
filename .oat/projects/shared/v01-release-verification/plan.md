@@ -43,7 +43,7 @@ Keep the plan sequential. The release checklist, README/CHANGELOG edits, provide
 | ------ | ---- | ------ | ----- |
 | plan | artifact | passed | Inline review confirmed scope, release gates, verification coverage, and public-claim gating. |
 | final | code | passed | Inline final diff review found no release-blocking issues; final verification passed. |
-| final | code | received | Independent fresh-context final review (oat-reviewer); 0 critical/important, 2 minor. Artifact: `reviews/final-review-2026-06-18.md`. |
+| final | code | fixes_added | Independent fresh-context final review; 0 critical/important/medium, 3 minor. `m2` and `m3` queued as review-fix tasks; `m1` explicitly deferred as optional hardening. Artifact: `reviews/archived/final-review-2026-06-18.md`. |
 
 ## Phase 1: Establish Current Evidence Baseline
 
@@ -193,9 +193,65 @@ Keep the plan sequential. The release checklist, README/CHANGELOG edits, provide
 
 **Commit:** `chore(release): prepare v0.1 verification handoff`
 
+### Task p03-t03: (review) Rename refine QA example output path
+
+**Files:**
+
+- Modify: `plugins/consensus/skills/refine/references/operator-qa.md`
+
+**Step 1: Understand the issue**
+
+Review finding: The sample output filename at `plugins/consensus/skills/refine/references/operator-qa.md:115` uses a hyphenated `arch-parallel-revision.consensus.md` spelling. This is not a CLI mode-name defect, but it is cosmetically inconsistent with the shipped `parallel_revision` spelling.
+
+**Step 2: Implement fix**
+
+Rename the example output path to use underscore-style mode spelling, such as `tmp/arch_parallel_revision.consensus.md`. Do not change actual `--iteration` values unless a stale spelling is found.
+
+**Step 3: Verify**
+
+Run: `rg -n "arch-parallel-revision|parallel-revision|parallel-synthesized" plugins/consensus/skills/refine/references/operator-qa.md README.md plugins/consensus/README.md CHANGELOG.md`
+
+Expected: No stale hyphenated mode spelling remains except intentionally unrelated prose or negative-test fixtures outside this review scope.
+
+**Step 4: Commit**
+
+```bash
+git add plugins/consensus/skills/refine/references/operator-qa.md .oat/projects/shared/v01-release-verification/implementation.md .oat/projects/shared/v01-release-verification/state.md
+git commit -m "docs(release): align refine QA example filename"
+```
+
+### Task p03-t04: (review) Align implementation lifecycle frontmatter
+
+**Files:**
+
+- Modify: `.oat/projects/shared/v01-release-verification/implementation.md`
+- Modify: `.oat/projects/shared/v01-release-verification/state.md`
+- Modify as needed: `.oat/projects/shared/v01-release-verification/plan.md`
+
+**Step 1: Understand the issue**
+
+Review finding: `.oat/projects/shared/v01-release-verification/implementation.md` reported all original release-verification tasks complete, but its frontmatter still had `oat_status: in_progress` and `oat_current_task_id: null`. Receiving this review intentionally moved the project back to in-progress for review-fix tasks; after those tasks are complete, the lifecycle metadata should be aligned again.
+
+**Step 2: Implement fix**
+
+After `p03-t03` is complete, mark review-fix task tracking complete: update implementation frontmatter/body, state frontmatter/body, and the final review row so the project again reports ready for PR.
+
+**Step 3: Verify**
+
+Run: `oat project status --project-path .oat/projects/shared/v01-release-verification`
+
+Expected: The project reports implementation complete with no current task and no unprocessed review artifact.
+
+**Step 4: Commit**
+
+```bash
+git add .oat/projects/shared/v01-release-verification/plan.md .oat/projects/shared/v01-release-verification/implementation.md .oat/projects/shared/v01-release-verification/state.md
+git commit -m "chore(oat): complete final review fix tracking"
+```
+
 ## Implementation Complete
 
-Completion requires all plan tasks to be marked complete in `implementation.md`, final verification evidence recorded, and the PR body updated or ready to paste with reused-versus-rerun evidence clearly separated.
+Completion requires all plan tasks, including final review-fix tasks, to be marked complete in `implementation.md`, final verification evidence recorded, and the PR body updated or ready to paste with reused-versus-rerun evidence clearly separated.
 
 ## References
 

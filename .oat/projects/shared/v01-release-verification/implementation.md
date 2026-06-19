@@ -1,9 +1,9 @@
 ---
 oat_status: in_progress
-oat_ready_for: null
+oat_ready_for: oat-project-implement
 oat_blockers: []
 oat_last_updated: 2026-06-19
-oat_current_task_id: null
+oat_current_task_id: p03-t03
 oat_generated: false
 ---
 
@@ -18,9 +18,9 @@ oat_generated: false
 | ----- | ------ | ----- | --------- |
 | Phase 1 | completed | 2 | 2/2 |
 | Phase 2 | completed | 2 | 2/2 |
-| Phase 3 | completed | 2 | 2/2 |
+| Phase 3 | in_progress | 4 | 2/4 |
 
-**Total:** 6/6 tasks completed
+**Total:** 6/8 tasks completed
 
 ## Phase 1: Establish Current Evidence Baseline
 
@@ -148,7 +148,7 @@ oat_generated: false
 
 ## Phase 3: Capture Remaining Gates and PR Package
 
-**Status:** completed
+**Status:** in_progress
 
 ### Task p03-t01: Record release blockers and post-tag discovery gates
 
@@ -199,3 +199,34 @@ oat_generated: false
 ## Final Summary (for PR/docs)
 
 See `summary.md`.
+
+## Review Received: final
+
+**Date:** 2026-06-19
+**Review artifact:** `reviews/archived/final-review-2026-06-18.md`
+
+**Findings:**
+
+- Critical: 0
+- Important: 0
+- Medium: 0
+- Minor: 3
+
+**New tasks added:** `p03-t03`, `p03-t04`
+
+**Finding disposition map:**
+
+- `m1`: deferred with rationale. Pre-tag version equality is intentionally enforced by `scripts/bump-version.mjs --check-tag` in the release/tag workflow, not by day-to-day `pnpm run validate`; optional pre-tag drift hardening is not required for v0.1.
+- `m2`: converted to `p03-t03` to align the refine QA example output filename with underscore-style mode spelling.
+- `m3`: converted to `p03-t04` to realign implementation/state frontmatter after review-fix tasks are complete.
+
+**Design drift / artifact alignment notes:**
+
+- `m3`: the review found lifecycle artifact drift, not implementation drift. The release-verification evidence remains authoritative; `p03-t04` will align project metadata after `p03-t03` is complete.
+
+**Next:** Execute review-fix tasks via the `oat-project-implement` skill, starting with `p03-t03`.
+
+After the fix tasks are complete:
+
+- Update the review row status to `fixes_completed` or `passed`, depending on whether a re-review is requested.
+- Re-run `oat-project-review-provide code final` then `oat-project-review-receive` if another final review pass is needed.
