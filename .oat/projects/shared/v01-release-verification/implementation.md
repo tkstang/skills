@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-19
-oat_current_task_id: p01-t01
+oat_current_task_id: p01-t02
 oat_generated: false
 ---
 
@@ -16,20 +16,40 @@ oat_generated: false
 
 | Phase | Status | Tasks | Completed |
 | ----- | ------ | ----- | --------- |
-| Phase 1 | pending | 2 | 0/2 |
+| Phase 1 | in_progress | 2 | 1/2 |
 | Phase 2 | pending | 2 | 0/2 |
 | Phase 3 | pending | 2 | 0/2 |
 
-**Total:** 0/6 tasks completed
+**Total:** 1/6 tasks completed
 
 ## Phase 1: Establish Current Evidence Baseline
 
-**Status:** pending
+**Status:** in_progress
 
 ### Task p01-t01: Verify checkout, release scope, and prior evidence
 
-**Status:** pending
-**Commit:** null
+**Status:** completed
+**Commit:** pending bookkeeping commit
+
+**Outcome:**
+
+- Confirmed this checkout is the existing release-verification worktree at `/Users/tstang/Code/consensus-release`; no new worktree was created.
+- Fetched `origin/main` before work. The release branch started from `origin/main` commit `d1bb916eef45a270d15c9f22ad1fbb5374f9e362`; project bookkeeping commits now sit on top.
+- Confirmed PR #9 was merged on 2026-06-13 and remains reusable for `consensus-refine` live Claude+Codex dogfood across `alternating`, `parallel_revision`, `parallel_synthesized`, and escalation flows.
+- Identified stale/gap evidence that must be rerun in this project: current automated gates after TypeScript/Vitest migration, `consensus-evaluate` release/provider QA, live provider install/permission checks, version/tag readiness, and post-tag public discovery checks.
+
+**Verification:**
+
+- Run: `git status --short --branch`
+- Result: clean before task execution; project bookkeeping commits added intentionally.
+- Run: `git rev-parse HEAD origin/main`
+- Result: branch began from `origin/main` at `d1bb916eef45a270d15c9f22ad1fbb5374f9e362`; current HEAD advanced with OAT artifact commits.
+- Run: `gh pr view 9 --json number,title,state,mergedAt,url,body,headRefName,baseRefName`
+- Result: PR #9 is merged into `main`; body records 526-test, validate, smoke, and live Claude+Codex mode/escalation evidence.
+
+**Notes:**
+
+- PR #9 evidence is reused only for `consensus-refine` behavior that did not need to be repeated from zero. It does not replace current post-migration automated verification or `consensus-evaluate` release checks.
 
 ### Task p01-t02: Rerun required automated release gates
 
