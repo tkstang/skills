@@ -36,6 +36,8 @@ The Cursor CLI does not currently expose `cursor plugin marketplace` or `cursor 
 
 Published Git and provider marketplace install flows are not release claims yet. Re-check provider CLIs and marketplace flows before tagging v0.1.
 
+If `skills` is already configured as a marketplace from another local checkout, provider CLIs may reject adding this checkout under the same marketplace name. Remove or update the existing local marketplace before using the commands above as release-candidate install evidence.
+
 ## Prerequisites
 
 - Node.js 22 or newer.

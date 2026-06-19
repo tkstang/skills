@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-19
-oat_current_task_id: p02-t02
+oat_current_task_id: p03-t01
 oat_generated: false
 ---
 
@@ -17,10 +17,10 @@ oat_generated: false
 | Phase | Status | Tasks | Completed |
 | ----- | ------ | ----- | --------- |
 | Phase 1 | completed | 2 | 2/2 |
-| Phase 2 | in_progress | 2 | 1/2 |
+| Phase 2 | completed | 2 | 2/2 |
 | Phase 3 | pending | 2 | 0/2 |
 
-**Total:** 3/6 tasks completed
+**Total:** 4/6 tasks completed
 
 ## Phase 1: Establish Current Evidence Baseline
 
@@ -84,7 +84,7 @@ oat_generated: false
 
 ## Phase 2: Verify Provider and Release Documentation Gates
 
-**Status:** in_progress
+**Status:** completed
 
 ### Task p02-t01: Check provider install and permission surfaces
 
@@ -120,8 +120,31 @@ oat_generated: false
 
 ### Task p02-t02: Refresh README, CHANGELOG, version, and tag readiness
 
-**Status:** pending
-**Commit:** null
+**Status:** completed
+**Commit:** pending bookkeeping commit
+
+**Outcome:**
+
+- Updated release workflow parity: tag pushes now install with pnpm, build generated outputs, verify generated files are committed, type-check, run build-check, test, validate, smoke, and check tag/version consistency.
+- Added `consensus-evaluate` to `scripts/bump-version.mjs` so both shipped consensus skill metadata files are updated and checked for release tags.
+- Refreshed CHANGELOG release-validation evidence with current 2026-06-19 automated/provider results and removed stale v0.2 iteration-mode wording from v0.1 release notes.
+- Updated README/plugin README install notes with the local marketplace name-collision behavior seen during verification.
+- Updated provider QA notes so `refine` and `evaluate` both describe the v0.1 release posture and provider preflight expectations accurately.
+
+**Verification:**
+
+- Run: `node scripts/bump-version.mjs --check-tag v0.1.0`
+- Result: pass; `tag v0.1.0 matches manifest version 0.1.0`.
+- Run: `pnpm exec vitest run tests/release-versioning.test.ts tests/readme-scope.test.ts`
+- Result: pass; 2 files, 10 tests.
+- Run: `pnpm run validate`
+- Result: pass; `validation passed`.
+- Run: `rg -n 'v0\\.2|parallel-revision|parallel-synthesized|2026-05-04|npm test|node scripts/validate|0\\.1\\.63|consensus-refine skill metadata' ...`
+- Result: no stale release-claim hits; remaining matches are intentional example filenames, negative semver fixtures, generic `pnpm test` docs, and absent-future-work assertions.
+
+**Notes:**
+
+- The release workflow is now stricter than before and aligned with the PR validation build/test substrate.
 
 ## Phase 3: Capture Remaining Gates and PR Package
 

@@ -1,7 +1,7 @@
 # Operator QA: consensus refine iteration modes
 
-Manual dogfood guide for the v0.2 iteration-mode work (parallel-revision,
-parallel-synthesized, and the agency-gated escalation ladder). This is the
+Manual dogfood guide for the v0.1 iteration-mode work (`parallel_revision`,
+`parallel_synthesized`, and the agency-gated escalation ladder). This is the
 NFR4 "audit-trail legibility" verification for the `consensus-iteration-modes`
 project: the automated suite proves the mechanics; this guide is the human pass
 that confirms the three modes produce artifacts a reader can actually follow.
@@ -62,7 +62,7 @@ Two surfaces matter:
 
 1. **stdout JSONL** — one JSON object per line, the host-coordination protocol.
    The lines you care about:
-   - `run_started` — carries `iteration_mode` and `calls_per_round: { peer, synthesis }`. This is the **cost disclosure**: `{ peer: 1, synthesis: 0 }` for alternating, `{ peer: 2, synthesis: 0 }` for parallel-revision, `{ peer: 2, synthesis: 1 }` for parallel-synthesized.
+   - `run_started` — carries `iteration_mode` and `calls_per_round: { peer, synthesis }`. This is the **cost disclosure**: `{ peer: 1, synthesis: 0 }` for `alternating`, `{ peer: 2, synthesis: 0 }` for `parallel_revision`, `{ peer: 2, synthesis: 1 }` for `parallel_synthesized`.
    - `escalation_required` — only emitted when a section gets stuck; the **only** event that carries divergent revision/synthesis text. Has `trigger`, `decide_via`, `decision_kinds`, the divergent revisions, an optional `promoted_from`, and a `resume` vector.
    - `run_completed` — carries `peer_calls`, `synthesis_calls`, `sections_escalated`.
    - stderr is human diagnostics only — ignore it for coordination.
@@ -82,7 +82,7 @@ way it did, without consulting any state outside the artifact?
 
 ## Scenario 1 — Alternating (baseline / regression sanity)
 
-Cheapest run; confirms v0.2 didn't regress the v0.1 path.
+Cheapest run; confirms the parallel-mode work did not regress the baseline path.
 
 ```bash
 mkdir -p tmp
@@ -150,7 +150,7 @@ node plugins/consensus/skills/refine/scripts/consensus-refine.mjs \
 
 ---
 
-## Scenario 4 — Escalation ladder (the headline v0.2 behavior)
+## Scenario 4 — Escalation ladder
 
 The contested doc is the best escalation trigger. At **moderate** agency, a
 persistent disagreement routes to the **host** (you); at **minimal** agency it
@@ -226,7 +226,7 @@ end-to-end** — a full deliberation run against an authenticated `cursor-agent`
 outstanding. Cursor runs through Paseo's generic ACP path, where `--output-schema`
 is enforced by prompt injection + validation/retry rather than the native structured
 output `claude`/`codex` expose, so expect more schema-retry churn (the wrapper's
-peer-validation retry, added in v0.2, helps absorb it). To verify:
+peer-validation retry helps absorb it). To verify:
 
 ```bash
 # 1. Register Cursor as a custom ACP provider (see the plugin README "Advanced

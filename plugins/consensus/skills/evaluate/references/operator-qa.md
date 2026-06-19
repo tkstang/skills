@@ -4,6 +4,16 @@ Use this walkthrough when validating the shipped `evaluate` skill against live p
 
 ## Minimal Evaluation
 
+Before running live peers, verify the shared prerequisites:
+
+```bash
+node --version            # must be >= 22
+paseo --version           # must be present (tested range 0.1.0-0.9.0)
+paseo provider ls --json  # requested peers should report status "available"
+```
+
+The evaluate wrapper validates provider ID syntax and surfaces Paseo/runtime failures from peer invocation. Unlike `refine`, provider inventory checking is an operator preflight step before invocation.
+
 ```bash
 node plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs \
   path/to/artifact.md \
