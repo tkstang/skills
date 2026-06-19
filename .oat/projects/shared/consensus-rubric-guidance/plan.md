@@ -1,6 +1,6 @@
 ---
 oat_status: complete
-oat_ready_for: oat-project-implement
+oat_ready_for: oat-project-review-provide
 oat_blockers: []
 oat_last_updated: 2026-06-19
 oat_phase: plan
@@ -73,6 +73,8 @@ Make top-level `version` a real validator-backed field while retaining
 - When both fields exist, require them to match so the transition does not create
   dual-source drift.
 - Keep existing required frontmatter fields unchanged.
+- Keep metadata-only frontmatter passing after this task so the repository stays
+  green before `p01-t02` adds top-level `version` to the consensus skills.
 - Extend `tests/validate-script.test.mjs` with temp-repository cases for:
   - top-level `version` plus matching `metadata.version` passes;
   - metadata-only legacy frontmatter still passes;
@@ -159,6 +161,8 @@ them into Step-N workflow structure.
 - For `evaluate`, examples should cover a basic explicit-rubric invocation and a
   conversational evaluation request.
 - Update docs-presence coverage to assert both skills expose the new sections.
+- Preserve existing `tests/docs-presence.test.mjs` heading and token assertions;
+  only add coverage for the new sections.
 
 **Verification:**
 
@@ -247,6 +251,9 @@ has concrete local references.
 - Link the examples from `evaluate/SKILL.md`.
 - Add tests that assert the example directory and all four files exist and that
   evaluate documentation points to them.
+- Keep test ownership split cleanly: directory existence belongs in
+  `tests/repo-layout.test.mjs`; example file/link/content assertions belong in
+  `tests/docs-presence.test.mjs`.
 
 **Verification:**
 
@@ -282,9 +289,21 @@ sync after the validator starts recognizing the promoted field.
 
 - Update skill-version read/write helpers in `scripts/bump-version.mjs` so they
   update top-level `version` when present and still update `metadata.version`.
+- Add `plugins/consensus/skills/evaluate/SKILL.md` to the production
+  `SKILL_FILES` list. Today release tooling only tracks
+  `plugins/consensus/skills/refine/SKILL.md`, so evaluate must be added before
+  the new evaluate frontmatter can be kept in sync.
+- Add top-level `version` read/replace logic; the current release helpers only
+  read and write the nested `metadata.version` field. Treat a present top-level
+  `version` as authoritative while keeping `metadata.version` synchronized,
+  mirroring the validator rule from `p01-t01`.
 - Make tag consistency checks report both fields clearly when either drifts.
 - Extend release-versioning tests so a version bump updates both skill version
   locations.
+- Update `tests/release-versioning.test.mjs` so its local `skillFiles` fixture
+  list and `tempReleaseRoot()` copy both `refine/SKILL.md` and
+  `evaluate/SKILL.md`; otherwise the test temp repo will not contain every file
+  that production `SKILL_FILES` reads.
 
 **Verification:**
 
@@ -356,7 +375,7 @@ git diff --cached --quiet || git commit -m "chore(consensus): verify rubric guid
 | final | code     | pending | -    | -        |
 | spec  | artifact | passed  | 2026-06-19 | N/A (quick mode; no spec artifact) |
 | design | artifact | passed  | 2026-06-19 | N/A (quick mode; no design artifact) |
-| plan  | artifact | received | 2026-06-19 | reviews/artifact-plan-review-2026-06-19.md |
+| plan  | artifact | fixes_completed | 2026-06-19 | reviews/archived/artifact-plan-review-2026-06-19.md |
 
 **Status values:** `pending` -> `received` -> `fixes_added` -> `fixes_completed` -> `passed`
 
@@ -375,7 +394,7 @@ git diff --cached --quiet || git commit -m "chore(consensus): verify rubric guid
 
 **Total:** 7 tasks
 
-Ready for implementation after the plan artifact review passes.
+Ready for implementation after the plan artifact re-review passes.
 
 ---
 
