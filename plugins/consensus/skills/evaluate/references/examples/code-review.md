@@ -2,7 +2,7 @@
 
 Use when evaluating a pull request description, code diff summary, or implementation proposal. Adapt criteria to the language and project conventions.
 
-> **Authoring note:** The 12 headings below are the machine-parsed criteria. The wrapper extracts `##`–`######` headings and `-`/`*` bullets, dedupes, and caps at 12. Scoring scales, examples, and guidance paragraphs are peer-facing only.
+> **Authoring note:** The headings below are the machine-parsed criteria. The wrapper extracts `##`–`######` headings and `-`/`*` bullets, dedupes, and caps at 12. Scoring scales, examples, and guidance paragraphs are peer-facing only.
 
 ---
 

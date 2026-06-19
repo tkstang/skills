@@ -2,7 +2,7 @@
 
 Use when evaluating technical documentation, API reference, runbooks, tutorials, or developer guides.
 
-> **Authoring note:** The 12 headings below are the machine-parsed criteria. The wrapper extracts `##`–`######` headings and `-`/`*` bullets, dedupes, and caps at 12. Scoring scales and guidance paragraphs are peer-facing only.
+> **Authoring note:** The headings below are the machine-parsed criteria. The wrapper extracts `##`–`######` headings and `-`/`*` bullets, dedupes, and caps at 12. Scoring scales and guidance paragraphs are peer-facing only.
 
 ---
 

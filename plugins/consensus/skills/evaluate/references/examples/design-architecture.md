@@ -2,7 +2,7 @@
 
 Use when evaluating architecture decision records (ADRs), system design documents, RFCs, or technical proposals.
 
-> **Authoring note:** The 12 headings below are the machine-parsed criteria. The wrapper extracts `##`–`######` headings and `-`/`*` bullets, dedupes, and caps at 12. Scoring scales and guidance paragraphs are peer-facing only.
+> **Authoring note:** The headings below are the machine-parsed criteria. The wrapper extracts `##`–`######` headings and `-`/`*` bullets, dedupes, and caps at 12. Scoring scales and guidance paragraphs are peer-facing only.
 
 ---
 

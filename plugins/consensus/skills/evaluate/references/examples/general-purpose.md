@@ -2,7 +2,7 @@
 
 Use this template as a starting point for evaluating most written artifacts. Adapt the criteria and weights to the specific artifact type and goals before running the wrapper.
 
-> **Authoring note:** The 12 headings below are the machine-parsed criteria. The wrapper extracts `##`–`######` headings and `-`/`*` bullets, dedupes, and caps at 12. Scoring scales and guidance paragraphs are peer-facing only.
+> **Authoring note:** The headings below are the machine-parsed criteria. The wrapper extracts `##`–`######` headings and `-`/`*` bullets, dedupes, and caps at 12. Scoring scales and guidance paragraphs are peer-facing only.
 
 ---
 
