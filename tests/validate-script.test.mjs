@@ -282,3 +282,88 @@ name: bad-skill
     /skills\/bad-skill\/SKILL\.md missing frontmatter field: description/,
   );
 });
+
+test('validation accepts skill with matching top-level and metadata versions', async () => {
+  const tempRoot = await createValidTempRepository();
+  await writeFile(
+    path.join(tempRoot, 'plugins/consensus/skills/refine/SKILL.md'),
+    `---
+name: refine
+description: Test skill
+license: MIT
+compatibility: codex
+version: '0.1.0'
+metadata:
+  version: '0.1.0'
+---
+# Consensus Refine
+`,
+  );
+
+  const result = await validateRepository({ root: tempRoot });
+  assert.equal(result.ok, true, result.errors.join('\n'));
+});
+
+test('validation accepts legacy metadata-only skill frontmatter', async () => {
+  const tempRoot = await createValidTempRepository();
+  await writeFile(
+    path.join(tempRoot, 'plugins/consensus/skills/refine/SKILL.md'),
+    `---
+name: refine
+description: Test skill
+license: MIT
+compatibility: codex
+metadata:
+  version: '0.1.0'
+---
+# Consensus Refine
+`,
+  );
+
+  const result = await validateRepository({ root: tempRoot });
+  assert.equal(result.ok, true, result.errors.join('\n'));
+});
+
+test('validation rejects mismatched top-level and metadata versions', async () => {
+  const tempRoot = await createValidTempRepository();
+  await writeFile(
+    path.join(tempRoot, 'plugins/consensus/skills/refine/SKILL.md'),
+    `---
+name: refine
+description: Test skill
+license: MIT
+compatibility: codex
+version: '0.2.0'
+metadata:
+  version: '0.1.0'
+---
+# Consensus Refine
+`,
+  );
+
+  const result = await validateRepository({ root: tempRoot });
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join('\n'), /version mismatch/i);
+});
+
+test('validation rejects malformed top-level version with a clear message', async () => {
+  const tempRoot = await createValidTempRepository();
+  await writeFile(
+    path.join(tempRoot, 'plugins/consensus/skills/refine/SKILL.md'),
+    `---
+name: refine
+description: Test skill
+license: MIT
+compatibility: codex
+version: not-a-version
+metadata:
+  version: '0.1.0'
+---
+# Consensus Refine
+`,
+  );
+
+  const result = await validateRepository({ root: tempRoot });
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join('\n'), /version must be valid semver/i);
+});
