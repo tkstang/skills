@@ -1,7 +1,10 @@
 ---
 oat_status: in_progress
 oat_ready_for: null
-oat_blockers: []
+oat_blockers:
+  - task_id: p02
+    reason: "Fix loop exhausted: generated provider ls/preflight do not wire the implemented default Node probe runner; see reviews/p02-review-2026-06-19-v3.md"
+    since: 2026-06-19
 oat_last_updated: 2026-06-19
 oat_current_task_id: p02-t01
 oat_generated: false
@@ -21,11 +24,11 @@ oat_generated: false
 | Phase   | Status      | Tasks | Completed |
 | ------- | ----------- | ----- | --------- |
 | Phase 1 | passed      | 6     | 6/6       |
-| Phase 2 | pending     | 7     | 0/7       |
+| Phase 2 | blocked     | 7     | 7/7       |
 | Phase 3 | pending     | 7     | 0/7       |
 | Phase 4 | pending     | 7     | 0/7       |
 
-**Total:** 6/27 tasks completed
+**Total:** 13/27 tasks completed
 
 ---
 
@@ -115,47 +118,110 @@ oat_generated: false
 
 ## Phase 2: Provider Adapter Floor and Execution Reliability
 
-**Status:** pending
-**Started:** -
+**Status:** blocked
+**Started:** 2026-06-19
 
 ### Phase Summary
 
-Pending.
+**Outcome:**
+
+- Added Claude, Codex, and Cursor adapter capability objects, including schema strategies, provider option support, submit-tool reservation, and future-provider extension fields.
+- Added readiness probes and provider inventory/preflight behavior for injected runners.
+- Added host recursion guard helpers and same-provider depth propagation for `run`.
+- Added runtime policy validation, provider-specific child environment allowlisting, invocation argv builders, bounded subprocess execution, adapter-owned failure classification, and structured-output retry coordination.
+- Fixed review findings for same-host run detection, effective non-interactive runtime policy, provider-specific env scoping, terminal exit classification, timeout escalation, and retained output caps.
+
+**Key files touched:**
+
+- `src/consensus/provider-cli/adapters.ts` - provider capabilities, argv metadata, and run-failure classifiers.
+- `src/consensus/provider-cli/probe.ts` - provider executable/readiness probing.
+- `src/consensus/provider-cli/host-guard.ts` - host runtime and depth guard.
+- `src/consensus/provider-cli/runtime-policy.ts` - provider option validation and child env construction.
+- `src/consensus/provider-cli/invocation.ts` - provider invocation argument builders.
+- `src/consensus/provider-cli/subprocess.ts` - bounded subprocess runner.
+- `src/consensus/provider-cli/structured-output.ts` - CLI-owned structured output attempts/retries.
+- `plugins/consensus/scripts/consensus.mjs` - generated runtime output.
+- `tests/consensus/provider-cli/` - p02 unit/process coverage.
+- `tests/fixtures/bin/consensus-provider-stub` - provider subprocess fixture behavior.
+
+**Verification:**
+
+- Run: `pnpm exec vitest run tests/consensus/provider-cli/*.test.ts`
+- Result: passed during p02 implementation.
+- Run: `pnpm exec vitest run tests/consensus/provider-cli/adapters.test.ts tests/consensus/provider-cli/probe.test.ts tests/consensus/provider-cli/host-guard.test.ts tests/consensus/provider-cli/runtime-policy.test.ts tests/consensus/provider-cli/invocation.test.ts tests/consensus/provider-cli/subprocess.test.ts tests/consensus/provider-cli/structured-output.test.ts tests/consensus/provider-cli/cli-process.test.ts tests/tooling/generated-output-sync.test.ts`
+- Result: passed during p02 reviews/fixes.
+- Run: `pnpm run type-check`
+- Result: passed.
+- Run: `pnpm run build:check`
+- Result: passed.
+
+**Notes / Decisions:**
+
+- p02-t07 updated `tests/consensus/provider-cli/cli-process.test.ts` even though the task file list omitted it. This is accepted because the p02-t07 verification command included that file and the p01 placeholder process assertions became stale once `run` was implemented.
+- p02-t06 did not modify `tests/helpers/process.mjs`; existing helper exports were sufficient for the fixture-based subprocess tests.
+- Phase review fix-loop exhausted after two fix iterations. Remaining blocker: generated `provider ls` / `preflight` command path does not wire `nodeProbeCommandRunner(io.env)`, so installed providers are reported as `missing` by the actual generated CLI.
 
 ### Task p02-t01: Add Adapter Registry and Capability Objects
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** 07bede1
 
 ### Task p02-t02: Implement Provider Readiness Probes
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** 59947d8
 
 ### Task p02-t03: Add Host Runtime Guard
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** f15fb6a
 
 ### Task p02-t04: Validate Runtime Policy and Child Environment
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** 377709a
 
 ### Task p02-t05: Build Provider Invocation Arguments
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** 728a8d2
 
 ### Task p02-t06: Add Bounded Subprocess Runner
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** bea63ab
 
 ### Task p02-t07: Add Structured Output Coordinator and CLI Run Retries
 
-**Status:** pending
+**Status:** completed
+**Commit:** 0816295
+
+### Review Fix: Enforce Provider Execution Safety
+
+**Status:** completed
+**Commit:** 1d656b8
+
+**Outcome:**
+
+- Fixed same-host run-path guard, effective runtime policy enforcement, provider-specific child environment scoping, adapter-owned nonzero exit classification, and timeout SIGKILL escalation.
+
+### Review Fix: Bound Retained Provider Output
+
+**Status:** completed
+**Commit:** 280cd76
+
+**Outcome:**
+
+- Fixed retained stdout/stderr capture so output-cap failures do not retain provider output beyond `max_output_bytes`.
+
+### Review Blocker: Wire Default Provider Probes
+
+**Status:** blocked
 **Commit:** -
+
+**Blocker:**
+
+- p02 final re-review found generated `provider ls` / `preflight` still use placeholder missing registry entries instead of `nodeProbeCommandRunner(io.env)` when no test injection is supplied.
 
 ---
 
@@ -257,6 +323,41 @@ Each run from `oat-project-implement` appends an entry below.
 
 <!-- orchestration-runs-start -->
 
+### Run 2 — 2026-06-19 19:58
+
+**Branch:** consensus-cli
+**Tier:** 1
+**Policy:** merge-strategy=sequential, retry-limit=2
+**Phases:** 1 executed, 0 passed, 1 failed, 1 stopped
+
+#### Phase Outcomes
+
+| Phase | Implementer | Review | Fix Iterations | Disposition |
+| ----- | ----------- | ------ | -------------- | ----------- |
+| p02   | DONE_WITH_CONCERNS | fail | 2/2 | stopped |
+
+#### Parallel Groups
+
+- p02: sequential
+
+#### Dispatch Notes
+
+- Dispatch: p02 implementation used Codex `oat-phase-implementer-xhigh` with `effort_axis=selected:xhigh`.
+- Dispatch: p02 reviews used Codex `oat-reviewer-xhigh` with `effort_axis=selected:xhigh`.
+- Dispatch: p02 fixes used Codex `oat-phase-implementer-xhigh` with `effort_axis=selected:xhigh`.
+
+#### Outstanding Items
+
+- Critical blocker: generated `provider ls` / `preflight` never wire the implemented default Node probe runner, so the actual CLI reports installed providers as `missing`. Review artifact: `.oat/projects/shared/consensus-peer-invocation/reviews/p02-review-2026-06-19-v3.md`.
+
+#### Artifact / Design Deltas
+
+Run-scoped snapshot only. The durable record is `## Deviations from Plan / Design`; consolidate any non-`None` entries there at the next phase boundary.
+
+| Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
+| ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
+| p02-t07 | plan.md file list | p02-t07 did not list `tests/consensus/provider-cli/cli-process.test.ts` | p02-t07 updated the process contract test | The p02-t07 verification command included this file, and p01 placeholder assertions became stale when `run` was implemented | implementation | None |
+
 ### Run 1 — 2026-06-19 18:59
 
 **Branch:** consensus-cli
@@ -322,6 +423,7 @@ Document any intentional deviations from the original plan, spec, or design. Inc
 | Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
 | ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
 | -             | -               | -                    | -                 | -      | -               | -         |
+| p02-t07 | plan.md file list | p02-t07 omitted `tests/consensus/provider-cli/cli-process.test.ts` | implementation updated that test | Required to keep the generated CLI process contract current once `run` became implemented | implementation | None |
 
 ## Test Results
 
@@ -330,7 +432,7 @@ Track test execution during implementation.
 | Phase | Tests Run | Passed | Failed | Notes |
 | ----- | --------- | ------ | ------ | ----- |
 | p01   | focused p01 Vitest suite; type-check; build:check; validate; smoke | yes | 0 | `pnpm exec vitest run <p01 files>` used for focused suite; `pnpm run test:vitest -- <files>` broadened to unrelated session-observer tests |
-| p02   | -         | -      | -      | Pending |
+| p02   | focused provider-cli Vitest suite; type-check; build:check | yes | 0 | Code tests passed, but p02 review failed after fix-loop exhaustion on generated provider probe wiring |
 | p03   | -         | -      | -      | Pending |
 | p04   | -         | -      | -      | Pending |
 

@@ -1340,7 +1340,7 @@ git commit -m "docs(p04-t07): finish provider cli cutover verification"
 | Scope  | Type     | Status  | Date | Artifact |
 | ------ | -------- | ------- | ---- | -------- |
 | p01    | code     | passed  | 2026-06-19 | `.oat/projects/shared/consensus-peer-invocation/reviews/p01-review-2026-06-19-v2.md` |
-| p02    | code     | pending | -    | -        |
+| p02    | code     | fixes_added | 2026-06-19 | `.oat/projects/shared/consensus-peer-invocation/reviews/p02-review-2026-06-19-v3.md` (fix-loop exhausted; blocked) |
 | p03    | code     | pending | -    | -        |
 | p04    | code     | pending | -    | -        |
 | final  | code     | pending | -    | -        |
