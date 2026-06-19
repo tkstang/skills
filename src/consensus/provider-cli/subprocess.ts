@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { readFile, rm } from 'node:fs/promises';
 
 import type { ProviderInvocation } from './invocation.js';
 import type { ProviderDiagnostics, ProviderErrorCode } from './types.js';
@@ -19,6 +20,7 @@ export interface ProviderProcessSuccess {
   ok: true;
   stdout: string;
   stderr: string;
+  last_message?: string;
   exit_code: number | null;
   signal: string | null;
   diagnostics: ProviderDiagnostics;
@@ -95,11 +97,11 @@ export function runProviderSubprocess(
 
     child.on('error', () => {
       terminal = terminal ?? 'spawn_error';
-      finish();
+      void finish();
     });
 
     child.on('close', (exitCode, signal) => {
-      finish(exitCode, signal);
+      void finish(exitCode, signal);
     });
 
     child.stdin.on('error', () => {});
@@ -115,7 +117,7 @@ export function runProviderSubprocess(
         killEscalation = setTimeout(() => {
           child.kill('SIGKILL');
           finalResolution = setTimeout(() => {
-            finish(null, 'SIGKILL');
+            void finish(null, 'SIGKILL');
           }, finalResolutionMs);
         }, terminationGraceMs);
       }
@@ -164,7 +166,7 @@ export function runProviderSubprocess(
       child.stderr.destroy();
     }
 
-    function finish(
+    async function finish(
       closeExitCode: number | null = exitCode,
       closeSignal: NodeJS.Signals | null = exitSignal,
     ) {
@@ -187,6 +189,7 @@ export function runProviderSubprocess(
       });
 
       if (terminal === 'spawn_error') {
+        await cleanupInvocationFiles(invocation);
         resolve(
           failure({
             code: 'PROVIDER_MISSING',
@@ -203,6 +206,7 @@ export function runProviderSubprocess(
       }
 
       if (terminal === 'timeout') {
+        await cleanupInvocationFiles(invocation);
         resolve(
           failure({
             code: 'PROVIDER_TIMEOUT',
@@ -219,6 +223,7 @@ export function runProviderSubprocess(
       }
 
       if (terminal === 'output_cap') {
+        await cleanupInvocationFiles(invocation);
         resolve(
           failure({
             code: 'PROVIDER_OUTPUT_CAP_EXCEEDED',
@@ -235,6 +240,7 @@ export function runProviderSubprocess(
       }
 
       if (exitCode !== 0) {
+        await cleanupInvocationFiles(invocation);
         resolve(
           failure({
             code: 'PROVIDER_EXIT',
@@ -250,16 +256,51 @@ export function runProviderSubprocess(
         return;
       }
 
+      const lastMessage = await readLastMessage(invocation);
+      await cleanupInvocationFiles(invocation);
       resolve({
         ok: true,
         stdout,
         stderr,
+        ...(lastMessage.contents !== undefined
+          ? { last_message: lastMessage.contents }
+          : {}),
         exit_code: exitCode,
         signal: exitSignal,
-        diagnostics,
+        diagnostics: lastMessage.warning
+          ? {
+              ...diagnostics,
+              warnings: [
+                ...(diagnostics.warnings ?? []),
+                lastMessage.warning,
+              ],
+            }
+          : diagnostics,
       });
     }
   });
+}
+
+async function readLastMessage(invocation: ProviderInvocation) {
+  if (!invocation.last_message_file) return {};
+  try {
+    return {
+      contents: await readFile(invocation.last_message_file, 'utf8'),
+    };
+  } catch (error) {
+    return {
+      warning: `Could not read provider last-message file: ${error instanceof Error ? error.message : String(error)}`,
+    };
+  }
+}
+
+async function cleanupInvocationFiles(invocation: ProviderInvocation) {
+  if (!invocation.last_message_file) return;
+  try {
+    await rm(invocation.last_message_file, { force: true });
+  } catch {
+    // Best effort cleanup only; read/validation remains authoritative.
+  }
 }
 
 function takeUtf8Prefix(

@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+import { writeFileSync } from 'node:fs';
+
 process.stdin.setEncoding('utf8');
 
 let stdin = '';
@@ -53,6 +55,20 @@ process.stdin.on('end', () => {
 
   if (mode === 'big-output') {
     process.stdout.write('x'.repeat(Number(args[0] ?? 1024)));
+    return;
+  }
+
+  if (mode === 'last-message') {
+    const [outputPath] = args;
+    if (!outputPath) {
+      process.stderr.write('missing output path');
+      process.exitCode = 64;
+      return;
+    }
+    writeFileSync(outputPath, '{"verdict":"accept"}\n');
+    process.stdout.write(
+      '{"type":"session.started"}\n{"type":"turn.completed"}\n',
+    );
     return;
   }
 

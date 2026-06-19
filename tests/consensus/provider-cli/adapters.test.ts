@@ -48,6 +48,9 @@ describe('provider adapter registry', () => {
         env_allowlist: true,
       },
     });
+    expect(registry.get('codex')?.capabilities.output_modes).toEqual([
+      'last_message_file',
+    ]);
     expect(registry.get('cursor')?.capabilities.options).toMatchObject({
       model: false,
       effort: null,

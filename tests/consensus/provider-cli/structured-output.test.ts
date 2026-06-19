@@ -169,6 +169,28 @@ describe('structured provider output coordinator', () => {
     });
   });
 
+  it('extracts Codex last-message-file output before schema validation', async () => {
+    const envelope = await runProviderTurn(request({ provider: 'codex' }), {
+      readSchema: async () => schema(),
+      runSubprocess: fakeSubprocess([
+        processSuccess(
+          '{"type":"session.started"}\n{"type":"turn.completed"}\n',
+          { last_message: '{"verdict":"accept"}' },
+        ),
+      ]).run,
+    });
+
+    expect(envelope).toMatchObject({
+      ok: true,
+      provider: 'codex',
+      stdout: '{"verdict":"accept"}',
+      json: { verdict: 'accept' },
+      diagnostics: {
+        output_mode: 'last_message_file',
+      },
+    });
+  });
+
   it('applies the default non-interactive runtime policy before invocation', async () => {
     const subprocess = fakeSubprocess([
       processSuccess('{"verdict":"accept"}'),
@@ -182,7 +204,7 @@ describe('structured provider output coordinator', () => {
     ).resolves.toMatchObject({ ok: true });
 
     expect(subprocess.invocations[0]?.argv).toEqual(
-      expect.arrayContaining(['--approval-policy', 'never']),
+      expect.arrayContaining(['-c', 'approval_policy="never"']),
     );
   });
 
@@ -235,28 +257,42 @@ function fakeSubprocess(results: ProviderProcessResult[]) {
   return {
     prompts,
     invocations,
-    async run(invocation: { argv: string[]; stdin: string }) {
+    async run(invocation: {
+      argv: string[];
+      stdin: string;
+      output_mode?: string;
+    }) {
       prompts.push(invocation.stdin);
       invocations.push(invocation);
       const result = results.shift();
       if (!result) throw new Error('Unexpected subprocess invocation');
+      if (
+        result.ok &&
+        invocation.output_mode === 'last_message_file' &&
+        result.last_message === undefined
+      ) {
+        return {
+          ...result,
+          last_message: result.stdout,
+        };
+      }
       return result;
     },
   };
 }
 
-function processSuccess(stdout: string): ProviderProcessResult {
+function processSuccess(
+  stdout: string,
+  overrides: Partial<Extract<ProviderProcessResult, { ok: true }>> = {},
+): ProviderProcessResult {
   return {
     ok: true,
     stdout,
     stderr: '',
     exit_code: 0,
     signal: null,
-    diagnostics: {
-      strategy_used: 'prompt_only',
-      output_mode: 'stdout_json',
-      redacted_command: ['provider'],
-    },
+    diagnostics: {},
+    ...overrides,
   };
 }
 

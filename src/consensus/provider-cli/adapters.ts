@@ -134,7 +134,7 @@ export const DEFAULT_PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [
     },
     capabilities: {
       schema_strategies: ['constrained_native', 'prompt_only'],
-      output_modes: ['stdout_json'],
+      output_modes: ['last_message_file'],
       options: {
         model: true,
         effort: 'reasoning_effort',

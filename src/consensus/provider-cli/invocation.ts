@@ -1,3 +1,7 @@
+import { randomUUID } from 'node:crypto';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+
 import type { ProviderAdapter } from './adapters.js';
 import type {
   ConsensusCliRunRequest,
@@ -13,6 +17,7 @@ export interface ProviderInvocation {
   output_mode: OutputMode;
   strategy: StructuredOutputStrategy;
   redacted_command: string[];
+  last_message_file?: string;
   shell: false;
 }
 
@@ -67,7 +72,8 @@ export const buildCodexInvocation: ProviderInvocationBuilder = (
   options = {},
 ) => {
   const strategy = options.strategy ?? 'prompt_only';
-  const argv = ['exec', '--json'];
+  const lastMessageFile = codexLastMessageFile();
+  const argv = ['exec', '--json', '--output-last-message', lastMessageFile];
   if (strategy === 'constrained_native') {
     argv.push('--output-schema', request.schema_path);
   }
@@ -95,7 +101,8 @@ export const buildCodexInvocation: ProviderInvocationBuilder = (
     argv,
     request,
     strategy,
-    outputMode: 'stdout_json',
+    outputMode: 'last_message_file',
+    lastMessageFile,
   });
 };
 
@@ -124,6 +131,7 @@ function invocation(input: {
   request: ConsensusCliRunRequest;
   strategy: StructuredOutputStrategy;
   outputMode: OutputMode;
+  lastMessageFile?: string;
 }): ProviderInvocation {
   return {
     executable: input.executable,
@@ -133,6 +141,9 @@ function invocation(input: {
     output_mode: input.outputMode,
     strategy: input.strategy,
     redacted_command: [input.executable, ...input.argv],
+    ...(input.lastMessageFile
+      ? { last_message_file: input.lastMessageFile }
+      : {}),
     shell: false,
   };
 }
@@ -149,6 +160,13 @@ function mapClaudePermissionMode(permissionMode: string | undefined) {
 
 function codexConfigOverride(key: string, value: string) {
   return `${key}=${JSON.stringify(value)}`;
+}
+
+function codexLastMessageFile() {
+  return path.join(
+    tmpdir(),
+    `consensus-codex-last-message-${randomUUID()}.txt`,
+  );
 }
 
 function defaultStrategy(adapter: ProviderAdapter): StructuredOutputStrategy {

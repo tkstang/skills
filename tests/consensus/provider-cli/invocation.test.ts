@@ -62,9 +62,15 @@ describe('provider invocation builders', () => {
       },
     });
 
+    expect(invocation.output_mode).toBe('last_message_file');
+    expect(invocation.last_message_file).toMatch(
+      /consensus-codex-last-message-.*\.txt$/,
+    );
     expect(invocation.argv).toEqual([
       'exec',
       '--json',
+      '--output-last-message',
+      invocation.last_message_file,
       '--output-schema',
       'schema.json',
       '--model',

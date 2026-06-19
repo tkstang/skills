@@ -3,7 +3,7 @@
 // Source: src/consensus/provider-cli/cli.ts
 
 // src/consensus/provider-cli/cli.ts
-import { readFile as readFile2 } from "node:fs/promises";
+import { readFile as readFile3 } from "node:fs/promises";
 
 // src/consensus/provider-cli/host-guard.ts
 function detectHostRuntime(env) {
@@ -474,6 +474,9 @@ function isRecord(value) {
 }
 
 // src/consensus/provider-cli/invocation.ts
+import { randomUUID } from "node:crypto";
+import { tmpdir } from "node:os";
+import path from "node:path";
 function buildProviderInvocation(adapter, request, options = {}) {
   return adapter.buildInvocation(request, {
     strategy: options.strategy ?? defaultStrategy(adapter)
@@ -503,7 +506,8 @@ var buildClaudeInvocation = (request, options = {}) => {
 };
 var buildCodexInvocation = (request, options = {}) => {
   const strategy = options.strategy ?? "prompt_only";
-  const argv = ["exec", "--json"];
+  const lastMessageFile = codexLastMessageFile();
+  const argv = ["exec", "--json", "--output-last-message", lastMessageFile];
   if (strategy === "constrained_native") {
     argv.push("--output-schema", request.schema_path);
   }
@@ -526,7 +530,8 @@ var buildCodexInvocation = (request, options = {}) => {
     argv,
     request,
     strategy,
-    outputMode: "stdout_json"
+    outputMode: "last_message_file",
+    lastMessageFile
   });
 };
 var buildCursorInvocation = (request, options = {}) => {
@@ -549,6 +554,7 @@ function invocation(input) {
     output_mode: input.outputMode,
     strategy: input.strategy,
     redacted_command: [input.executable, ...input.argv],
+    ...input.lastMessageFile ? { last_message_file: input.lastMessageFile } : {},
     shell: false
   };
 }
@@ -563,6 +569,12 @@ function mapClaudePermissionMode(permissionMode) {
 }
 function codexConfigOverride(key, value) {
   return `${key}=${JSON.stringify(value)}`;
+}
+function codexLastMessageFile() {
+  return path.join(
+    tmpdir(),
+    `consensus-codex-last-message-${randomUUID()}.txt`
+  );
 }
 function defaultStrategy(adapter) {
   return adapter.capabilities.schema_strategies.find(
@@ -646,7 +658,7 @@ var DEFAULT_PROVIDER_ADAPTERS = [
     },
     capabilities: {
       schema_strategies: ["constrained_native", "prompt_only"],
-      output_modes: ["stdout_json"],
+      output_modes: ["last_message_file"],
       options: {
         model: true,
         effort: "reasoning_effort",
@@ -846,7 +858,7 @@ function buildAttemptSummary(attempts, retryable) {
 import { spawn } from "node:child_process";
 import { constants } from "node:fs";
 import { access } from "node:fs/promises";
-import path from "node:path";
+import path2 from "node:path";
 async function probeProviderRegistry({
   registry,
   runner
@@ -900,13 +912,13 @@ function nodeProbeCommandRunner(env = process.env) {
   };
 }
 async function findExecutable(command, env) {
-  if (command.includes(path.sep)) {
+  if (command.includes(path2.sep)) {
     return canExecute(command).then((ok) => ok ? command : void 0);
   }
   const pathValue = env.PATH ?? "";
-  for (const searchPath of pathValue.split(path.delimiter)) {
+  for (const searchPath of pathValue.split(path2.delimiter)) {
     if (!searchPath) continue;
-    const candidate = path.join(searchPath, command);
+    const candidate = path2.join(searchPath, command);
     if (await canExecute(candidate)) return candidate;
   }
   return void 0;
@@ -959,7 +971,7 @@ function firstNonEmptyLine2(value) {
 }
 
 // src/consensus/provider-cli/structured-output.ts
-import { readFile } from "node:fs/promises";
+import { readFile as readFile2 } from "node:fs/promises";
 
 // src/consensus/provider-cli/runtime-policy.ts
 var DEFAULT_RUNTIME_POLICY = {
@@ -1066,6 +1078,7 @@ function unsupported(option, message) {
 
 // src/consensus/provider-cli/subprocess.ts
 import { spawn as spawn2 } from "node:child_process";
+import { readFile, rm } from "node:fs/promises";
 var DEFAULT_MAX_OUTPUT_BYTES = 1024 * 1024 * 10;
 var DEFAULT_TIMEOUT_SEC = 300;
 var DEFAULT_TERMINATION_GRACE_MS = 250;
@@ -1110,10 +1123,10 @@ function runProviderSubprocess(invocation2, options = {}) {
     });
     child.on("error", () => {
       terminal = terminal ?? "spawn_error";
-      finish();
+      void finish();
     });
     child.on("close", (exitCode2, signal) => {
-      finish(exitCode2, signal);
+      void finish(exitCode2, signal);
     });
     child.stdin.on("error", () => {
     });
@@ -1128,7 +1141,7 @@ function runProviderSubprocess(invocation2, options = {}) {
         killEscalation = setTimeout(() => {
           child.kill("SIGKILL");
           finalResolution = setTimeout(() => {
-            finish(null, "SIGKILL");
+            void finish(null, "SIGKILL");
           }, finalResolutionMs);
         }, terminationGraceMs);
       }
@@ -1166,7 +1179,7 @@ function runProviderSubprocess(invocation2, options = {}) {
       child.stdout.destroy();
       child.stderr.destroy();
     }
-    function finish(closeExitCode = exitCode, closeSignal = exitSignal) {
+    async function finish(closeExitCode = exitCode, closeSignal = exitSignal) {
       if (settled) return;
       settled = true;
       exitCode = closeExitCode;
@@ -1184,6 +1197,7 @@ function runProviderSubprocess(invocation2, options = {}) {
         signal: exitSignal
       });
       if (terminal === "spawn_error") {
+        await cleanupInvocationFiles(invocation2);
         resolve(
           failure({
             code: "PROVIDER_MISSING",
@@ -1199,6 +1213,7 @@ function runProviderSubprocess(invocation2, options = {}) {
         return;
       }
       if (terminal === "timeout") {
+        await cleanupInvocationFiles(invocation2);
         resolve(
           failure({
             code: "PROVIDER_TIMEOUT",
@@ -1214,6 +1229,7 @@ function runProviderSubprocess(invocation2, options = {}) {
         return;
       }
       if (terminal === "output_cap") {
+        await cleanupInvocationFiles(invocation2);
         resolve(
           failure({
             code: "PROVIDER_OUTPUT_CAP_EXCEEDED",
@@ -1229,6 +1245,7 @@ function runProviderSubprocess(invocation2, options = {}) {
         return;
       }
       if (exitCode !== 0) {
+        await cleanupInvocationFiles(invocation2);
         resolve(
           failure({
             code: "PROVIDER_EXIT",
@@ -1243,16 +1260,44 @@ function runProviderSubprocess(invocation2, options = {}) {
         );
         return;
       }
+      const lastMessage = await readLastMessage(invocation2);
+      await cleanupInvocationFiles(invocation2);
       resolve({
         ok: true,
         stdout,
         stderr,
+        ...lastMessage.contents !== void 0 ? { last_message: lastMessage.contents } : {},
         exit_code: exitCode,
         signal: exitSignal,
-        diagnostics
+        diagnostics: lastMessage.warning ? {
+          ...diagnostics,
+          warnings: [
+            ...diagnostics.warnings ?? [],
+            lastMessage.warning
+          ]
+        } : diagnostics
       });
     }
   });
+}
+async function readLastMessage(invocation2) {
+  if (!invocation2.last_message_file) return {};
+  try {
+    return {
+      contents: await readFile(invocation2.last_message_file, "utf8")
+    };
+  } catch (error) {
+    return {
+      warning: `Could not read provider last-message file: ${error instanceof Error ? error.message : String(error)}`
+    };
+  }
+}
+async function cleanupInvocationFiles(invocation2) {
+  if (!invocation2.last_message_file) return;
+  try {
+    await rm(invocation2.last_message_file, { force: true });
+  } catch {
+  }
 }
 function takeUtf8Prefix(input, maxBytes) {
   let bytes = 0;
@@ -1413,7 +1458,27 @@ Return only JSON matching the schema.`
         diagnostics
       });
     }
-    const parsed = parseProviderJson(processResult.stdout);
+    const providerOutput = extractProviderOutput(invocation2, processResult);
+    if (!providerOutput.ok) {
+      if (attempt < maxAttempts) {
+        validationFeedback = providerOutput.message;
+        continue;
+      }
+      return failureEnvelope({
+        provider: request.provider,
+        code: "PROVIDER_INVALID_JSON",
+        message: providerOutput.message,
+        retryable: false,
+        stdout: processResult.stdout,
+        stderr: processResult.stderr,
+        attempts: {
+          cli_attempts: attempt,
+          terminal_reason: "missing_provider_output"
+        },
+        diagnostics
+      });
+    }
+    const parsed = parseProviderJson(providerOutput.value);
     if (!parsed.ok) {
       if (attempt < maxAttempts) {
         validationFeedback = parsed.message;
@@ -1424,7 +1489,7 @@ Return only JSON matching the schema.`
         code: "PROVIDER_INVALID_JSON",
         message: parsed.message,
         retryable: false,
-        stdout: processResult.stdout,
+        stdout: providerOutput.value,
         stderr: processResult.stderr,
         attempts: {
           cli_attempts: attempt,
@@ -1444,7 +1509,7 @@ Return only JSON matching the schema.`
         code: "PROVIDER_SCHEMA_VALIDATION",
         message: validation.message,
         retryable: false,
-        stdout: processResult.stdout,
+        stdout: providerOutput.value,
         stderr: processResult.stderr,
         attempts: {
           cli_attempts: attempt,
@@ -1456,7 +1521,7 @@ Return only JSON matching the schema.`
     return successEnvelope({
       provider: request.provider,
       args: invocation2.redacted_command,
-      stdout: processResult.stdout,
+      stdout: providerOutput.value,
       stderr: processResult.stderr,
       json: parsed.value,
       attempts: {
@@ -1483,7 +1548,7 @@ Return only JSON matching the schema.`
   });
 }
 async function readJsonSchema(schemaPath) {
-  return JSON.parse(await readFile(schemaPath, "utf8"));
+  return JSON.parse(await readFile2(schemaPath, "utf8"));
 }
 function preInvocationFailure(input) {
   return failureEnvelope({
@@ -1497,6 +1562,18 @@ function preInvocationFailure(input) {
     },
     diagnostics: input.diagnostics
   });
+}
+function extractProviderOutput(invocation2, result) {
+  if (invocation2.output_mode !== "last_message_file") {
+    return { ok: true, value: result.stdout };
+  }
+  if (result.ok && result.last_message?.trim()) {
+    return { ok: true, value: result.last_message };
+  }
+  return {
+    ok: false,
+    message: "Provider did not write a last-message file response."
+  };
 }
 function parseProviderJson(stdout) {
   try {
@@ -1749,7 +1826,7 @@ function nodeIo() {
     stdin: process.stdin,
     cwd: process.cwd(),
     env: process.env,
-    readFile: (filePath) => readFile2(filePath, "utf8"),
+    readFile: (filePath) => readFile3(filePath, "utf8"),
     readStdin: () => readAllStdin(process.stdin)
   };
 }

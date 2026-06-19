@@ -168,7 +168,29 @@ export async function runProviderTurn(
       });
     }
 
-    const parsed = parseProviderJson(processResult.stdout);
+    const providerOutput = extractProviderOutput(invocation, processResult);
+    if (!providerOutput.ok) {
+      if (attempt < maxAttempts) {
+        validationFeedback = providerOutput.message;
+        continue;
+      }
+
+      return failureEnvelope({
+        provider: request.provider,
+        code: 'PROVIDER_INVALID_JSON',
+        message: providerOutput.message,
+        retryable: false,
+        stdout: processResult.stdout,
+        stderr: processResult.stderr,
+        attempts: {
+          cli_attempts: attempt,
+          terminal_reason: 'missing_provider_output',
+        },
+        diagnostics,
+      });
+    }
+
+    const parsed = parseProviderJson(providerOutput.value);
     if (!parsed.ok) {
       if (attempt < maxAttempts) {
         validationFeedback = parsed.message;
@@ -180,7 +202,7 @@ export async function runProviderTurn(
         code: 'PROVIDER_INVALID_JSON',
         message: parsed.message,
         retryable: false,
-        stdout: processResult.stdout,
+        stdout: providerOutput.value,
         stderr: processResult.stderr,
         attempts: {
           cli_attempts: attempt,
@@ -202,7 +224,7 @@ export async function runProviderTurn(
         code: 'PROVIDER_SCHEMA_VALIDATION',
         message: validation.message,
         retryable: false,
-        stdout: processResult.stdout,
+        stdout: providerOutput.value,
         stderr: processResult.stderr,
         attempts: {
           cli_attempts: attempt,
@@ -215,7 +237,7 @@ export async function runProviderTurn(
     return successEnvelope({
       provider: request.provider,
       args: invocation.redacted_command,
-      stdout: processResult.stdout,
+      stdout: providerOutput.value,
       stderr: processResult.stderr,
       json: parsed.value,
       attempts: {
@@ -272,6 +294,28 @@ function preInvocationFailure(input: {
 type ParseResult =
   | { ok: true; value: unknown }
   | { ok: false; message: string };
+
+type ExtractOutputResult =
+  | { ok: true; value: string }
+  | { ok: false; message: string };
+
+function extractProviderOutput(
+  invocation: ProviderInvocation,
+  result: ProviderProcessResult,
+): ExtractOutputResult {
+  if (invocation.output_mode !== 'last_message_file') {
+    return { ok: true, value: result.stdout };
+  }
+
+  if (result.ok && result.last_message?.trim()) {
+    return { ok: true, value: result.last_message };
+  }
+
+  return {
+    ok: false,
+    message: 'Provider did not write a last-message file response.',
+  };
+}
 
 function parseProviderJson(stdout: string): ParseResult {
   try {

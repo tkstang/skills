@@ -1,3 +1,5 @@
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -122,6 +124,36 @@ describe('bounded provider subprocess runner', () => {
       (result.diagnostics.output_bytes?.stdout ?? 0) +
         (result.diagnostics.output_bytes?.stderr ?? 0),
     ).toBeLessThanOrEqual(16);
+  });
+
+  it('reads and cleans last-message-file provider output', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'consensus-last-message-'));
+    const outputPath = path.join(dir, 'last-message.json');
+
+    try {
+      const result = await runProviderSubprocess(
+        {
+          ...invocation(['last-message', outputPath]),
+          output_mode: 'last_message_file',
+          last_message_file: outputPath,
+        },
+        {
+          maxOutputBytes: 1024,
+          timeoutSec: 5,
+        },
+      );
+
+      expect(result).toMatchObject({
+        ok: true,
+        stdout: '{"type":"session.started"}\n{"type":"turn.completed"}\n',
+        last_message: '{"verdict":"accept"}\n',
+      });
+      await expect(readFile(outputPath, 'utf8')).rejects.toMatchObject({
+        code: 'ENOENT',
+      });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 
   it('keeps captured output bounded when cap-terminated subprocesses ignore SIGTERM', async () => {
