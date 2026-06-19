@@ -33,6 +33,46 @@ function parseConsensusCliArgs(argv) {
   }
   throw new ConsensusCliUsageError(`Unknown command: ${command}`);
 }
+async function normalizeRunRequest(command, io) {
+  if (command.kind !== "run") {
+    throw new ConsensusCliUsageError("Expected a run command");
+  }
+  if (command.requestJson) {
+    const source = command.requestJson === "-" ? await io.readStdin() : await io.readFile(command.requestJson);
+    return parseRequestJson(source);
+  }
+  if (!command.provider) {
+    throw new ConsensusCliUsageError("Missing required --provider");
+  }
+  if (!command.schemaPath) {
+    throw new ConsensusCliUsageError("Missing required --schema");
+  }
+  if (!command.promptSource) {
+    throw new ConsensusCliUsageError(
+      "Missing prompt source: use -, --prompt, --prompt-file, or --request-json"
+    );
+  }
+  const prompt = await readPromptSource(command.promptSource, io);
+  const request = {
+    schema_version: "v1",
+    provider: command.provider,
+    schema_path: command.schemaPath,
+    prompt
+  };
+  if (command.cwd) request.cwd = command.cwd;
+  if (command.model) request.model = command.model;
+  if (command.effort) request.effort = command.effort;
+  if (command.maxAttempts !== void 0) {
+    request.max_attempts = command.maxAttempts;
+  }
+  if (command.timeoutSec !== void 0) {
+    request.max_runtime_sec = command.timeoutSec;
+  }
+  if (command.maxOutputBytes !== void 0) {
+    request.max_output_bytes = command.maxOutputBytes;
+  }
+  return request;
+}
 function parseProviderCommand(tokens) {
   const [subcommand, ...rest] = tokens;
   if (subcommand !== "ls") {
@@ -165,6 +205,41 @@ function assertNoRequestJsonConflicts(command, positionalCount) {
     );
   }
 }
+async function readPromptSource(source, io) {
+  if (source.kind === "stdin") return io.readStdin();
+  if (source.kind === "file") return io.readFile(source.path);
+  return source.value;
+}
+function parseRequestJson(contents) {
+  let parsed;
+  try {
+    parsed = JSON.parse(contents);
+  } catch (error) {
+    throw new ConsensusCliUsageError("Invalid request JSON", {
+      cause: String(error)
+    });
+  }
+  if (!isRecord(parsed)) {
+    throw new ConsensusCliUsageError("Request JSON must be an object");
+  }
+  if (parsed.schema_version !== "v1") {
+    throw new ConsensusCliUsageError(
+      'Request JSON schema_version must be "v1"'
+    );
+  }
+  if (typeof parsed.provider !== "string" || parsed.provider.length === 0) {
+    throw new ConsensusCliUsageError("Request JSON provider must be a string");
+  }
+  if (typeof parsed.schema_path !== "string" || parsed.schema_path.length === 0) {
+    throw new ConsensusCliUsageError(
+      "Request JSON schema_path must be a string"
+    );
+  }
+  if (typeof parsed.prompt !== "string") {
+    throw new ConsensusCliUsageError("Request JSON prompt must be a string");
+  }
+  return parsed;
+}
 function parseOptionTokens(tokens, spec) {
   const flags = /* @__PURE__ */ new Map();
   const positionals = [];
@@ -235,6 +310,9 @@ function parsePositiveInteger(flag, value) {
   }
   return Number(value);
 }
+function isRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
 
 // src/consensus/provider-cli/envelope.ts
 function failureEnvelope(input) {
@@ -285,7 +363,7 @@ function buildAttemptSummary(attempts, retryable) {
   };
 }
 
-// src/consensus/provider-cli/cli.ts
+// src/consensus/provider-cli/commands.ts
 function helpText() {
   return `Usage: consensus <command> --json
 
@@ -296,22 +374,59 @@ Commands:
   run --request-json <path|-> --json
 `;
 }
-async function runConsensusCli(argv = process.argv.slice(2), io = nodeIo()) {
+async function runProviderList(options = {}) {
+  return {
+    schema_version: "v1",
+    ok: true,
+    providers: await resolveRegistry(options.registry)
+  };
+}
+async function runPreflight(options = {}) {
+  const registry = await resolveRegistry(options.registry);
+  const providers = selectProviders(registry, options.provider);
+  const usable = providers.every((provider) => provider.status === "ready");
+  const diagnostics = options.provider && providers[0]?.status === "unsupported" ? {
+    warnings: [
+      `Requested provider is not registered: ${options.provider}`
+    ]
+  } : void 0;
+  return {
+    schema_version: "v1",
+    ok: true,
+    usable,
+    providers,
+    ...diagnostics ? { diagnostics } : {}
+  };
+}
+async function runConsensusCli(argv, io, options = {}) {
   try {
     const command = parseConsensusCliArgs(argv);
     if (command.kind === "help") {
       io.stdout.write(helpText());
       return 0;
     }
-    const envelope = usageFailure(
-      `Command is not implemented yet: ${command.kind}`
-    );
-    writeEnvelope(io, envelope);
+    if (command.kind === "provider-list") {
+      writeJson(io, await runProviderList(options));
+      return 0;
+    }
+    if (command.kind === "preflight") {
+      writeJson(
+        io,
+        await runPreflight({
+          ...options,
+          provider: command.provider
+        })
+      );
+      return 0;
+    }
+    await normalizeRunRequest(command, io);
+    const envelope = usageFailure("Command is not implemented yet: run");
+    writeJson(io, envelope);
     return processExitForEnvelope(envelope);
   } catch (error) {
     if (error instanceof ConsensusCliUsageError) {
       const envelope = usageFailure(error.message, error.details);
-      writeEnvelope(io, envelope);
+      writeJson(io, envelope);
       return processExitForEnvelope(envelope);
     }
     io.stderr.write(
@@ -321,10 +436,52 @@ async function runConsensusCli(argv = process.argv.slice(2), io = nodeIo()) {
     return 1;
   }
 }
-function writeEnvelope(io, envelope) {
-  io.stdout.write(`${JSON.stringify(envelope)}
+function writeJson(io, value) {
+  io.stdout.write(`${JSON.stringify(value)}
 `);
 }
+function selectProviders(registry, provider) {
+  if (!provider) return registry;
+  const selected = registry.find((entry) => entry.id === provider);
+  if (selected) return [selected];
+  return [
+    {
+      id: provider,
+      status: "unsupported",
+      capabilities: placeholderCapabilities()
+    }
+  ];
+}
+async function resolveRegistry(registry) {
+  if (Array.isArray(registry)) return registry;
+  if (typeof registry === "function") return registry();
+  return defaultProviderRegistry();
+}
+function defaultProviderRegistry() {
+  return ["claude", "codex", "cursor"].map((id) => ({
+    id,
+    status: "missing",
+    capabilities: placeholderCapabilities()
+  }));
+}
+function placeholderCapabilities() {
+  return {
+    schema_strategies: ["prompt_only"],
+    output_modes: ["stdout_json"],
+    options: {
+      model: true,
+      effort: null,
+      runtime_policy: {
+        env_allowlist: true
+      }
+    },
+    supports_submit_tool: false,
+    supports_same_host_subprocess: true,
+    supports_host_native_dispatch: false
+  };
+}
+
+// src/consensus/provider-cli/cli.ts
 function nodeIo() {
   return {
     stdout: process.stdout,
@@ -350,12 +507,11 @@ function readAllStdin(stdin) {
   });
 }
 if (process.argv[1] && import.meta.url === new URL(process.argv[1], "file:").href) {
-  runConsensusCli().then((code) => {
+  runConsensusCli(process.argv.slice(2), nodeIo()).then((code) => {
     process.exitCode = code;
   });
 }
 export {
   helpText,
-  runConsensusCli,
-  writeEnvelope
+  runConsensusCli
 };
