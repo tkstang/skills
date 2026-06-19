@@ -250,7 +250,7 @@ it('alternating round execution produces a stable records stream (characterizati
       reasoning: 'revision 1',
       artifact_hash: hashArtifact('Round one revision.\n'),
       iteration_mode: 'alternating',
-      raw_paseo_response: '{"id":"raw"}',
+      raw_provider_response: '{"id":"raw"}',
       proposed_artifact: 'Round one revision.\n',
     },
     {
@@ -262,7 +262,7 @@ it('alternating round execution produces a stable records stream (characterizati
       reasoning: 'revision 2',
       artifact_hash: hashArtifact('Round two revision.\n'),
       iteration_mode: 'alternating',
-      raw_paseo_response: '{"id":"raw"}',
+      raw_provider_response: '{"id":"raw"}',
       proposed_artifact: 'Round two revision.\n',
     },
     {
@@ -274,7 +274,7 @@ it('alternating round execution produces a stable records stream (characterizati
       reasoning: 'revision 3',
       artifact_hash: hashArtifact('Round two revision.\n'),
       iteration_mode: 'alternating',
-      raw_paseo_response: '{"id":"raw"}',
+      raw_provider_response: '{"id":"raw"}',
       proposed_artifact: 'Round two revision.\n',
     },
   ]);

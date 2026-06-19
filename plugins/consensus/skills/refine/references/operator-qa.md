@@ -52,7 +52,6 @@ checklist:
 - `pnpm run build:check`
 - `pnpm run test`
 - `pnpm run smoke`
-- `CONSENSUS_SMOKE_PROVIDER_BACKEND=provider-cli pnpm run smoke`
 - `node plugins/consensus/scripts/consensus.mjs provider ls --json`
 - `node plugins/consensus/scripts/consensus.mjs preflight --json`
 - Per-provider preflight for `claude`, `codex`, and `cursor`, noting

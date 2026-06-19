@@ -8,34 +8,18 @@ import { expect, it } from 'vitest';
 import * as consensusLoop from '../../../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
 // @ts-expect-error The generated runtime is intentionally declaration-free; this test exercises the shipped artifact.
 import * as consensusRefine from '../../../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
+import { makeProviderCliEnv, sampleInput } from '../../helpers/process.mjs';
 
 const { callsPerRound } = consensusLoop;
 const { runSequential } = consensusRefine;
 
 type JsonRecord = Record<string, any>;
 
-const repoRoot = path.resolve(new URL('../../..', import.meta.url).pathname);
-const fixtureBin = path.join(repoRoot, 'tests/fixtures/bin');
-const sampleInput = path.join(repoRoot, 'tests/fixtures/sample-input.md');
-
-// A parallel-mode CONVERGED verdict from the paseo stub: both peers emit it each
-// round, so every section converges in round 1 (mutual_converged at moderate).
-const CONVERGED_VERDICT = JSON.stringify({
-  schema_version: 'v1',
-  verdict: 'CONVERGED',
-  reasoning: 'Both revisions already agree.',
-  critique: {
-    own_previous: 'My prior revision reads well.',
-    peer_previous: "The peer's prior revision is equivalent.",
-  },
-});
-
 function stubEnv(overrides: NodeJS.ProcessEnv = {}) {
-  return {
-    PATH: `${fixtureBin}${path.delimiter}${process.env.PATH}`,
-    PASEO_STUB_RESPONSE_JSON: CONVERGED_VERDICT,
+  return makeProviderCliEnv({
+    CONSENSUS_STUB_VERDICT: 'CONVERGED',
     ...overrides,
-  };
+  });
 }
 
 async function runParallel(tempRoot: string, suffix: string) {
@@ -80,7 +64,7 @@ function readRecords(artifact: string): JsonRecord[] {
   return verdicts;
 }
 
-it('parallel_revision multi-section run converges end-to-end via the paseo stub', async () => {
+it('parallel_revision multi-section run converges end-to-end via the provider CLI fixture', async () => {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-parallel-'));
   const { result, artifact } = await runParallel(tempRoot, 'converge');
 

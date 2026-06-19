@@ -8,12 +8,9 @@ import { expect, it } from 'vitest';
 import * as consensusRefine from '../../../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
 
 const {
-  MAX_TESTED_PASEO_VERSION,
-  MIN_PASEO_VERSION,
   detectHost,
   parseWrapperArgs,
   preflightConsensusProviderCli,
-  preflightPaseo,
   resolvePeers,
   resolveSynthesizer,
   resolveRunDir,
@@ -213,7 +210,7 @@ it('detectHost recognizes Claude, Codex, Cursor, and unknown environments', () =
   expect(detectHost({})).toBe('unknown');
 });
 
-it('resolvePeers uses host-aware defaults and paseo inventory as source of truth', () => {
+it('resolvePeers uses host-aware defaults and provider inventory as source of truth', () => {
   expect(
     resolvePeers({}, 'claude', inventory(['claude', 'codex'])).peers,
   ).toEqual(['claude', 'codex']);
@@ -237,7 +234,7 @@ it('resolvePeers uses host-aware defaults and paseo inventory as source of truth
       'claude',
       inventory(['claude']),
     ),
-  ).toThrow(/missing.*paseo provider ls --json/i);
+  ).toThrow(/missing.*consensus provider ls --json/i);
   expect(() =>
     resolvePeers({ peers: ['claude', 'codex'] }, 'claude', [
       { id: 'claude', available: true },
@@ -252,9 +249,9 @@ it('resolvePeers uses host-aware defaults and paseo inventory as source of truth
   ).toThrow(/provider inventory id.*must match/);
 });
 
-it('resolvePeers reads real Paseo provider ls status/enabled shape', () => {
-  // `paseo provider ls --json` emits { provider, status, enabled: "Enabled"|"Disabled" },
-  // not the { id, available } booleans the synthetic inventory() helper uses.
+it('resolvePeers reads provider status/enabled inventory shape', () => {
+  // Provider inventories can emit { provider, status, enabled: "Enabled"|"Disabled" },
+  // not only the { id, available } booleans the synthetic inventory() helper uses.
   const ready = [
     { provider: 'claude', status: 'available', enabled: 'Enabled' },
     { provider: 'codex', status: 'available', enabled: 'Enabled' },
@@ -263,8 +260,8 @@ it('resolvePeers reads real Paseo provider ls status/enabled shape', () => {
     resolvePeers({ peers: ['claude', 'codex'] }, 'claude', ready).peers,
   ).toEqual(['claude', 'codex']);
 
-  // A peer Paseo reports as errored (e.g. cursor when cursor-agent can't auth)
-  // must fail preflight rather than surface later as a paseo run timeout.
+  // A provider reported as errored (for example, cursor auth failure) must fail
+  // preflight before any mid-loop invocation.
   expect(() =>
     resolvePeers({ peers: ['claude', 'cursor'] }, 'claude', [
       { provider: 'claude', status: 'available', enabled: 'Enabled' },
@@ -272,7 +269,7 @@ it('resolvePeers reads real Paseo provider ls status/enabled shape', () => {
     ]),
   ).toThrow(/unavailable.*cursor/i);
 
-  // Paseo's "Disabled" display string means unavailable too.
+  // The "Disabled" display string means unavailable too.
   expect(() =>
     resolvePeers({ peers: ['claude', 'omp'] }, 'claude', [
       { provider: 'claude', status: 'available', enabled: 'Enabled' },
@@ -288,71 +285,6 @@ it('resolvePeers reads real Paseo provider ls status/enabled shape', () => {
       { provider: 'codex', status: 'loading', enabled: 'Enabled' },
     ]).peers,
   ).toEqual(['claude', 'codex']);
-});
-
-it('preflightPaseo reads version and providers and warns outside tested range', async () => {
-  const calls: Array<[string, string[]]> = [];
-  const result = await preflightPaseo({
-    peers: ['claude', 'codex'],
-    env: { CLAUDECODE: '1' },
-    runCommand: async (command: string, args: string[]) => {
-      calls.push([command, args]);
-      if (args[0] === '--version') {
-        return { stdout: `paseo ${MAX_TESTED_PASEO_VERSION}\n`, stderr: '' };
-      }
-      return {
-        stdout: JSON.stringify(inventory(['claude', 'codex'])),
-        stderr: '',
-      };
-    },
-  });
-
-  expect(calls).toEqual([
-    ['paseo', ['--version']],
-    ['paseo', ['provider', 'ls', '--json']],
-  ]);
-  expect(result.ok).toBe(true);
-  expect(result.version).toBe(MAX_TESTED_PASEO_VERSION);
-  expect(result.peers).toEqual(['claude', 'codex']);
-  expect(result.warnings).toEqual([]);
-
-  const old = await preflightPaseo({
-    runCommand: async (_command: string, args: string[]) => {
-      if (args[0] === '--version')
-        return { stdout: 'paseo 0.0.1\n', stderr: '' };
-      return {
-        stdout: JSON.stringify(inventory(['claude', 'codex'])),
-        stderr: '',
-      };
-    },
-  });
-  expect(old.warnings[0].message).toMatch(
-    new RegExp(`${MIN_PASEO_VERSION}.*${MAX_TESTED_PASEO_VERSION}`),
-  );
-});
-
-it('preflightPaseo surfaces missing paseo with install remediation', async () => {
-  await expect(
-    preflightPaseo({
-      runCommand: async () => {
-        const error = new Error('spawn paseo ENOENT') as Error & {
-          code?: string;
-        };
-        error.code = 'ENOENT';
-        throw error;
-      },
-    }),
-  ).rejects.toSatisfy((error: any) => {
-    expect(error.message).toMatch(/paseo.*missing/i);
-    expect(error.remediation.install_command).toBe(
-      'npm install -g @getpaseo/cli',
-    );
-    expect(error.remediation.source_url).toMatch(
-      /github\.com\/getpaseo\/paseo/,
-    );
-    expect(error.remediation.install_script).toBe('scripts/install-paseo.mjs');
-    return true;
-  });
 });
 
 it('preflightConsensusProviderCli uses provider inventory and selected-provider preflight', async () => {
@@ -399,7 +331,7 @@ it('preflightConsensusProviderCli uses provider inventory and selected-provider 
   ]);
 });
 
-it('preflightConsensusProviderCli reports auth-required providers without Paseo remediation', async () => {
+it('preflightConsensusProviderCli reports auth-required providers without install remediation', async () => {
   await expect(
     preflightConsensusProviderCli({
       peers: ['cursor'],
@@ -430,7 +362,7 @@ it('preflightConsensusProviderCli reports auth-required providers without Paseo 
     expect(error.code).toBe('PEER_UNAVAILABLE');
     expect(error.message).toMatch(/cursor/);
     expect(error.message).toMatch(/auth_required/);
-    expect(error.message).not.toMatch(/Paseo/);
+    expect(error.message).not.toMatch(/install/i);
     return true;
   });
 });
@@ -562,7 +494,6 @@ it('runSequential uses the provider CLI backend with CONSENSUS_CLI_PATH override
     provider_diagnostics: { strategy_used: 'prompt_only' },
     attempts: { cli_attempts: 1, terminal_reason: 'success' },
   });
-  expect(records[0]).not.toHaveProperty('raw_paseo_response');
 });
 
 it('resolveRunDir gives each fresh run a unique default dir (no rerun contamination)', async () => {

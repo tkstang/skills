@@ -25,8 +25,6 @@ function writer() {
 function cleanSmokeEnv(overrides: NodeJS.ProcessEnv = {}) {
   const {
     CONSENSUS_CLI_PATH: _consensusCliPath,
-    CONSENSUS_PROVIDER_BACKEND: _consensusProviderBackend,
-    CONSENSUS_SMOKE_PROVIDER_BACKEND: _consensusSmokeProviderBackend,
     ...env
   } = process.env;
   return { ...env, ...overrides };
@@ -81,17 +79,14 @@ describe('smoke-test-script', () => {
     );
   });
 
-  it('runSmokeTest ignores removed backend switches and keeps the consensus CLI path', async () => {
+  it('runSmokeTest keeps the consensus CLI path for wrapper execution', async () => {
     const stdout = writer();
     const calls: { command: string; args: string[]; env: NodeJS.ProcessEnv }[] =
       [];
 
     const result = await runSmokeTest({
       stdout: stdout.stream,
-      env: cleanSmokeEnv({
-        CONSENSUS_PROVIDER_BACKEND: 'paseo',
-        CONSENSUS_SMOKE_PROVIDER_BACKEND: 'paseo',
-      }),
+      env: cleanSmokeEnv(),
       runCommand: async (command: string, args: string[], options: { env: NodeJS.ProcessEnv }) => {
         calls.push({ command, args, env: options.env });
         return { stdout: '', stderr: '' };
@@ -105,7 +100,6 @@ describe('smoke-test-script', () => {
     expect(result.events.at(-1).event).toBe('run_completed');
     expect(result.events.at(-1).status).toBe('converged');
     expect(result.artifact).toMatch(/## Final Output/);
-    expect(result.artifact).not.toContain('raw_paseo_response');
     expect(stdout.value()).toMatch(/smoke passed/);
   });
 
@@ -121,17 +115,6 @@ describe('smoke-test-script', () => {
 
   it('smoke-test CLI exits zero on deterministic fixture run', async () => {
     const result = await runNodeScript(smokeScript, [], { cwd: repoRoot });
-    expect(result.stdout).toMatch(/smoke passed/);
-  });
-
-  it('smoke-test CLI exits zero when removed backend switches are present', async () => {
-    const result = await runNodeScript(smokeScript, [], {
-      cwd: repoRoot,
-      env: cleanSmokeEnv({
-        CONSENSUS_PROVIDER_BACKEND: 'paseo',
-        CONSENSUS_SMOKE_PROVIDER_BACKEND: 'paseo',
-      }),
-    });
     expect(result.stdout).toMatch(/smoke passed/);
   });
 

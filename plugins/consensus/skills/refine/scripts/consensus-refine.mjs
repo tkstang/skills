@@ -33,8 +33,6 @@ import {
   runConsensusLoop
 } from './consensus-loop.mjs';
 const execFileAsync = promisify(execFile);
-const MIN_PASEO_VERSION = "0.1.0";
-const MAX_TESTED_PASEO_VERSION = "0.9.0";
 const INPUT_SIZE_CAP_BYTES = 1024 * 1024;
 const PROVIDER_ID_PATTERN = /^[a-z][a-z0-9-]{0,31}$/u;
 const MAX_ROUNDS_MIN = 1;
@@ -44,11 +42,6 @@ const STRICT_RESUME_HASH_OPTIONS = Object.freeze({
   trimTrailingWhitespace: false,
   collapseEofNewlines: false,
   finalNewline: false
-});
-const PASEO_REMEDIATION = Object.freeze({
-  install_command: "npm install -g @getpaseo/cli",
-  source_url: "https://github.com/getpaseo/paseo",
-  install_script: "scripts/install-paseo.mjs"
 });
 function isJsonRecord(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -1303,33 +1296,6 @@ function buildSectionsFromBoundaries(lines, boundaries) {
   }
   return sections;
 }
-function parseVersionText(text) {
-  const match = String(text).match(/(\d+)\.(\d+)\.(\d+)/);
-  if (!match) {
-    throw new Error(
-      `could not parse paseo version from: ${String(text).trim()}`
-    );
-  }
-  return match[0];
-}
-function compareVersions(left, right) {
-  const leftParts = left.split(".").map(Number);
-  const rightParts = right.split(".").map(Number);
-  for (let index = 0; index < 3; index += 1) {
-    if (leftParts[index] < rightParts[index]) return -1;
-    if (leftParts[index] > rightParts[index]) return 1;
-  }
-  return 0;
-}
-function missingPaseoError(cause) {
-  const error = new Error(
-    `paseo appears to be missing or unavailable. Install with "${PASEO_REMEDIATION.install_command}", build from ${PASEO_REMEDIATION.source_url}, or run ${PASEO_REMEDIATION.install_script}.`
-  );
-  error.code = "PASEO_MISSING";
-  error.cause = cause;
-  error.remediation = PASEO_REMEDIATION;
-  return error;
-}
 function missingConsensusProviderCliError(command, cause) {
   return new ConsensusError(
     `consensus provider CLI appears to be missing or unavailable at ${command}. Set CONSENSUS_CLI_PATH or run pnpm run build before selecting the provider CLI backend.`,
@@ -2540,14 +2506,14 @@ function resolvePeers(options = {}, host = "unknown", providerInventory = []) {
   }
   if (missing.length > 0) {
     const error = new Error(
-      `Missing peers in Paseo inventory: ${missing.join(", ")}. Verify configured providers with "paseo provider ls --json".`
+      `Missing peers in provider inventory: ${missing.join(", ")}. Verify configured providers with "consensus provider ls --json".`
     );
     error.code = "PEER_UNAVAILABLE";
     throw error;
   }
   if (unavailable.length > 0) {
     const error = new Error(
-      `Paseo providers are unavailable: ${unavailable.join(", ")}.`
+      `Consensus providers are unavailable: ${unavailable.join(", ")}.`
     );
     error.code = "PEER_UNAVAILABLE";
     throw error;
@@ -2585,7 +2551,7 @@ function resolveSynthesizer(options = {}, providerInventory = []) {
   const entry = inventory.find((candidate) => candidate.id === synthesizer);
   if (!entry || entry.available === false) {
     throw new ConsensusError(
-      `Synthesizer "${synthesizer}" is not an available provider in the Paseo inventory. Verify configured providers with "paseo provider ls --json".`,
+      `Synthesizer "${synthesizer}" is not an available provider in the provider CLI inventory. Verify configured providers with "consensus provider ls --json".`,
       {
         code: "SYNTHESIZER_UNAVAILABLE",
         exitCode: EXIT_CODES.CONFIG,
@@ -2706,57 +2672,6 @@ async function preflightConsensusProviderCli(options = {}) {
     warnings: []
   };
 }
-async function preflightPaseo(options = {}) {
-  const runCommand = options.runCommand ?? defaultRunCommand;
-  const env = options.env ?? process.env;
-  const cwd = options.cwd ?? process.cwd();
-  let versionOutput;
-  let inventoryOutput;
-  try {
-    versionOutput = await runCommand("paseo", ["--version"], { env, cwd });
-    inventoryOutput = await runCommand("paseo", ["provider", "ls", "--json"], {
-      env,
-      cwd
-    });
-  } catch (error) {
-    const details = asErrorLike(error);
-    if (details.code === "ENOENT" || /ENOENT|not found/i.test(details.message ?? "")) {
-      throw missingPaseoError(error);
-    }
-    throw error;
-  }
-  const version = parseVersionText(versionOutput.stdout);
-  let providerInventory;
-  try {
-    providerInventory = JSON.parse(inventoryOutput.stdout);
-  } catch (error) {
-    throw new Error(
-      `paseo provider inventory was not valid JSON: ${asErrorLike(error).message}`,
-      { cause: error }
-    );
-  }
-  const host = detectHost(env);
-  const resolved = resolvePeers(options, host, providerInventory);
-  const warnings = [];
-  if (compareVersions(version, MIN_PASEO_VERSION) < 0 || compareVersions(version, MAX_TESTED_PASEO_VERSION) > 0) {
-    warnings.push({
-      code: "PASEO_VERSION_UNTESTED",
-      level: "warning",
-      version,
-      min: MIN_PASEO_VERSION,
-      max: MAX_TESTED_PASEO_VERSION,
-      message: `Paseo ${version} is outside the tested range ${MIN_PASEO_VERSION} to ${MAX_TESTED_PASEO_VERSION}.`
-    });
-  }
-  return {
-    ok: true,
-    version,
-    providerInventory: normalizeProviderInventory(providerInventory),
-    host,
-    peers: resolved.peers,
-    warnings
-  };
-}
 async function runWrapperCli(argv, options = {}) {
   const stdout = options.stdout ?? process.stdout;
   const stderr = options.stderr ?? process.stderr;
@@ -2848,8 +2763,6 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
 }
 export {
   INPUT_SIZE_CAP_BYTES,
-  MAX_TESTED_PASEO_VERSION,
-  MIN_PASEO_VERSION,
   PROVIDER_ID_PATTERN,
   atomicWriteFile,
   buildEscalationEvent,
@@ -2861,7 +2774,6 @@ export {
   parseSections,
   parseWrapperArgs,
   preflightConsensusProviderCli,
-  preflightPaseo,
   prepareParallelRun,
   readInputFile,
   renderDeliberationArtifact,

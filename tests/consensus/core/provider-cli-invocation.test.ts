@@ -224,7 +224,6 @@ describe('consensus provider CLI invocation seam', () => {
       {
         env: {
           ...process.env,
-          CONSENSUS_PROVIDER_BACKEND: 'provider-cli',
           CONSENSUS_CLI_PATH: consensusPath,
         },
         cwd: tempRoot,
@@ -238,6 +237,5 @@ describe('consensus provider CLI invocation seam', () => {
       provider_diagnostics: { strategy_used: 'fixture_consensus_cli' },
       attempts: { cli_attempts: 1, terminal_reason: 'success' },
     });
-    expect(records[0]).not.toHaveProperty('raw_paseo_response');
   });
 });

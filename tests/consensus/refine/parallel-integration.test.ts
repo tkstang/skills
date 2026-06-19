@@ -9,7 +9,7 @@ import * as consensusRefine from '../../../plugins/consensus/skills/refine/scrip
 import { extractJsonBlock } from '../../helpers/consensus.js';
 import {
   captureWriter,
-  makeStubEnv,
+  makeProviderCliEnv,
   parseJsonl,
   repoRoot,
   runNodeScript,
@@ -91,15 +91,10 @@ it('prepare, simulated host section loops, and fan-in work end-to-end', async ()
   for (const section of completionOrder) {
     const env =
       section.original_index === 2
-        ? makeStubEnv({
-            PASEO_STUB_RESPONSE_JSON: JSON.stringify({
-              schema_version: 'v1',
-              verdict: 'IMPASSE',
-              reasoning: 'The closing section needs user direction.',
-              concerns: ['tone and brevity conflict'],
-            }),
+        ? makeProviderCliEnv({
+            CONSENSUS_STUB_VERDICT: 'IMPASSE',
           })
-        : makeStubEnv();
+        : makeProviderCliEnv();
     await runNodeScript(loopScript, section.loop_argv, { cwd: tempRoot, env });
   }
 
@@ -119,7 +114,7 @@ it('prepare, simulated host section loops, and fan-in work end-to-end', async ()
   expect(
     artifact.indexOf('## Details') < artifact.indexOf('## Close'),
   ).toBeTruthy();
-  expect(artifact).toMatch(/The closing section needs user direction/);
+  expect(artifact).toMatch(/fixture impasse/);
 
   const resolution = extractJsonBlock(artifact, 'consensus-resolution');
   expect(resolution.status).toBe('partial');
@@ -181,18 +176,11 @@ it('parallel_revision mode threads through prepare, section runners, and fan-in'
   const manifest = JSON.parse(await readFile(dispatch.manifest, 'utf8'));
   expect(manifest.iteration_mode).toBe('parallel_revision');
 
-  const convergedVerdict = JSON.stringify({
-    schema_version: 'v1',
-    verdict: 'CONVERGED',
-    reasoning: 'Both revisions already agree.',
-    critique: { own_previous: 'mine is fine', peer_previous: 'peer matches' },
-  });
-
   for (const section of manifest.sections) {
     expect(section.iteration_mode).toBe('parallel_revision');
     await runNodeScript(loopScript, section.loop_argv, {
       cwd: tempRoot,
-      env: makeStubEnv({ PASEO_STUB_RESPONSE_JSON: convergedVerdict }),
+      env: makeProviderCliEnv({ CONSENSUS_STUB_VERDICT: 'CONVERGED' }),
     });
   }
 

@@ -47,7 +47,6 @@ class ConsensusError extends Error {
   code;
   exitCode;
   details;
-  paseoExitCode;
   stderr;
   constructor(message, options = {}) {
     super(message, { cause: options.cause });
@@ -203,7 +202,9 @@ async function syncFileIfAvailable(filePath) {
 }
 function normalizeCost(status) {
   const source = status.cost_source ?? status.cost?.source ?? "unavailable";
-  const normalized = ["paseo", "estimated", "unavailable"].includes(source) ? source : "unavailable";
+  const normalized = ["provider_cli", "estimated", "unavailable"].includes(
+    source
+  ) ? source : "unavailable";
   const costUsd = status.approximate_cost_usd ?? status.cost_usd ?? status.cost?.usd;
   if (normalized === "unavailable" || typeof costUsd !== "number") {
     return { cost_source: normalized };
@@ -265,22 +266,6 @@ function outputCapError(streamName, capBytes) {
     }
   );
 }
-function paseoMissingError(error) {
-  const cause = asErrorLike(error);
-  return new ConsensusError("paseo executable not found on PATH", {
-    code: "PASEO_MISSING",
-    exitCode: EXIT_CODES.CONFIG,
-    cause: error,
-    details: {
-      path: cause.path,
-      syscall: cause.syscall
-    }
-  });
-}
-function isMissingPaseoSpawnError(error) {
-  const candidate = asErrorLike(error);
-  return candidate.code === "ENOENT" && (candidate.path === "paseo" || candidate.syscall === "spawn paseo");
-}
 function exitCodeForError(error) {
   const candidate = asErrorLike(error);
   if (candidate.name === "AbortError" || candidate.code === "SIGINT") {
@@ -290,10 +275,13 @@ function exitCodeForError(error) {
     return Number(candidate.exitCode);
   }
   if ([
-    "PASEO_MISSING",
     "PEER_UNAVAILABLE",
     "NODE_TOO_OLD",
-    "NODE_VERSION_UNSUPPORTED"
+    "NODE_VERSION_UNSUPPORTED",
+    "PROVIDER_MISSING",
+    "PROVIDER_UNAVAILABLE",
+    "PROVIDER_AUTH_REQUIRED",
+    "HOST_RECURSION_BLOCKED"
   ].includes(candidate.code ?? "")) {
     return EXIT_CODES.CONFIG;
   }
@@ -303,7 +291,7 @@ function exitCodeForError(error) {
   if (["ENOENT", "ENOTDIR", "EISDIR"].includes(candidate.code ?? "")) {
     return EXIT_CODES.IO;
   }
-  if (error instanceof SyntaxError || candidate.code === "PASEO_INVALID_JSON") {
+  if (error instanceof SyntaxError || candidate.code === "PROVIDER_INVALID_JSON") {
     return EXIT_CODES.DATA;
   }
   if (/^(--|unknown option|missing required option|input path|unexpected positional)/i.test(
@@ -663,111 +651,6 @@ async function writeLoopStatus(statusPath, status, _options = {}) {
   await syncFileIfAvailable(statusPath);
   return normalizedStatus;
 }
-function invokePaseo({
-  provider,
-  schemaPath: schemaPath2,
-  prompt,
-  env = process.env,
-  cwd = process.cwd()
-}) {
-  return new Promise((resolve, reject) => {
-    const args = [
-      "run",
-      "--provider",
-      provider,
-      "--output-schema",
-      schemaPath2,
-      "--json",
-      prompt
-    ];
-    const child = spawn("paseo", args, {
-      cwd,
-      env,
-      stdio: ["ignore", "pipe", "pipe"]
-    });
-    const stdoutChunks = [];
-    const stderrChunks = [];
-    let stdoutBytes = 0;
-    let stderrBytes = 0;
-    let capError = null;
-    function capture(streamName, chunks, chunk) {
-      if (capError) return;
-      const nextBytes = streamName === "stdout" ? stdoutBytes + chunk.length : stderrBytes + chunk.length;
-      if (nextBytes > SUBPROCESS_OUTPUT_CAP_BYTES) {
-        capError = outputCapError(streamName, SUBPROCESS_OUTPUT_CAP_BYTES);
-        child.kill("SIGKILL");
-        return;
-      }
-      chunks.push(chunk);
-      if (streamName === "stdout") {
-        stdoutBytes = nextBytes;
-      } else {
-        stderrBytes = nextBytes;
-      }
-    }
-    child.stdout.on(
-      "data",
-      (chunk) => capture("stdout", stdoutChunks, chunk)
-    );
-    child.stderr.on(
-      "data",
-      (chunk) => capture("stderr", stderrChunks, chunk)
-    );
-    child.on("error", (error) => {
-      reject(
-        isMissingPaseoSpawnError(error) ? paseoMissingError(error) : error
-      );
-    });
-    child.on("close", (code, signal) => {
-      if (capError) {
-        reject(capError);
-        return;
-      }
-      const stdout = Buffer.concat(stdoutChunks).toString("utf8");
-      const stderr = Buffer.concat(stderrChunks).toString("utf8");
-      if (code !== 0) {
-        const detail = stderr.trim() ? `: ${stderr.trim()}` : signal ? ` (signal ${signal})` : "";
-        const error = new ConsensusError(
-          `paseo exited with code ${code}${detail}`,
-          {
-            code: "PASEO_EXIT",
-            exitCode: EXIT_CODES.CONFIG,
-            details: { paseo_exit_code: code, stderr }
-          }
-        );
-        error.paseoExitCode = code;
-        error.stderr = stderr;
-        reject(error);
-        return;
-      }
-      try {
-        resolve({
-          provider,
-          args,
-          stdout,
-          stderr,
-          json: JSON.parse(stdout)
-        });
-      } catch (error) {
-        if (stdoutBytes >= SUBPROCESS_OUTPUT_CAP_BYTES) {
-          reject(outputCapError("stdout", SUBPROCESS_OUTPUT_CAP_BYTES));
-          return;
-        }
-        reject(
-          new ConsensusError(
-            `paseo returned invalid JSON: ${hardErrorMessage(error)}`,
-            {
-              code: "PASEO_INVALID_JSON",
-              exitCode: EXIT_CODES.DATA,
-              cause: error,
-              details: { stdout, stderr }
-            }
-          )
-        );
-      }
-    });
-  });
-}
 function resolveConsensusCliPath({
   consensusCliPath,
   env = process.env
@@ -967,29 +850,6 @@ function exitCodeForProviderError(code) {
   }
   return EXIT_CODES.CONFIG;
 }
-function isRetryablePaseoError(error) {
-  const candidate = asErrorLike(error);
-  return candidate.code === "PASEO_EXIT" || candidate.code === "PASEO_INVALID_JSON";
-}
-async function invokePaseoWithRetry(args, {
-  attempts = 3,
-  delayMs = 750,
-  sleep,
-  invoke = invokePaseo
-} = {}) {
-  const wait = sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
-  let lastError;
-  for (let attempt = 1; attempt <= attempts; attempt += 1) {
-    try {
-      return await invoke(args);
-    } catch (error) {
-      lastError = error;
-      if (!isRetryablePaseoError(error) || attempt === attempts) throw error;
-      await wait(delayMs);
-    }
-  }
-  throw lastError;
-}
 function peerVerdictError(verdict, mode) {
   const shape = validateVerdictShape(verdict, { mode });
   if (!shape.ok) {
@@ -1016,11 +876,7 @@ function peerVerdictError(verdict, mode) {
   return null;
 }
 function providerAuditFields(result) {
-  const hasProviderNeutralAudit = result.raw_provider_response !== void 0 || result.provider_diagnostics !== void 0 || result.attempts !== void 0;
   const rawResponse = result.raw_provider_response ?? result.stdout ?? JSON.stringify(result.json);
-  if (!hasProviderNeutralAudit) {
-    return { raw_paseo_response: rawResponse };
-  }
   return {
     raw_provider_response: rawResponse,
     ...result.provider_diagnostics ? { provider_diagnostics: result.provider_diagnostics } : {},
@@ -1032,7 +888,7 @@ async function invokeValidatedPeer({
   attempts = 3,
   delayMs = 750,
   sleep,
-  invoke = invokePaseo,
+  invoke = invokeConsensusProviderCli,
   ...args
 } = {}) {
   const wait = sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
@@ -1048,7 +904,7 @@ async function invokeValidatedPeer({
       return result;
     } catch (error) {
       lastError = error;
-      const retryable = isRetryablePaseoError(error) || asErrorLike(error).code === "INVALID_VERDICT_SHAPE" || asErrorLike(error).code === "INVALID_VERDICT_CAPS";
+      const retryable = asErrorLike(error).code === "INVALID_VERDICT_SHAPE" || asErrorLike(error).code === "INVALID_VERDICT_CAPS";
       if (!retryable || attempt === attempts) throw error;
       await wait(delayMs);
     }
@@ -2663,8 +2519,6 @@ export {
   hashArtifact,
   invalidIterationModeError,
   invokeConsensusProviderCli,
-  invokePaseo,
-  invokePaseoWithRetry,
   invokeProviderCliWithRetry,
   invokeValidatedPeer,
   normalizeForHash,

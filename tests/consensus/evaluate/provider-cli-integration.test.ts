@@ -85,9 +85,7 @@ it('runs Evaluate through the consensus CLI backend with provider-neutral record
       terminal_reason: 'success',
     },
   });
-  expect(result.records[0]).not.toHaveProperty('raw_paseo_response');
 
   const artifact = await readFile(files.outputPath, 'utf8');
   expect(artifact).toContain('Release readiness is medium.');
-  expect(artifact).not.toContain('raw_paseo_response');
 });

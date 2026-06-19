@@ -23,7 +23,6 @@ describe('readme-scope', () => {
     expect(readme).toMatch(/consensus CLI/i);
     expect(readme).toMatch(/consensus provider ls --json/);
     expect(readme).toMatch(/consensus preflight --json/);
-    expect(readme).not.toMatch(/install-paseo/i);
   });
 
   it('README names permissions, limitations, no telemetry, prompt injection, and advanced peer config', async () => {
@@ -73,7 +72,6 @@ describe('readme-scope', () => {
       /parallel-revision and parallel-synthesized modes are future work/i,
     );
     expect(readme).toMatch(/whole-document harmonization/i);
-    expect(readme).not.toMatch(/Paseo/i);
   });
 
   it('CHANGELOG records the v0.1 iteration-mode work under Unreleased', async () => {

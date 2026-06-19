@@ -80,7 +80,7 @@ it('createRecordsWriter writes a valid JSON array after each append', async () =
     artifact_hash:
       'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
     iteration_mode: 'alternating',
-    raw_paseo_response: '{"id":"raw"}',
+    raw_provider_response: '{"id":"raw"}',
   });
 
   expect(await readJson(recordsPath)).toEqual([
@@ -94,7 +94,7 @@ it('createRecordsWriter writes a valid JSON array after each append', async () =
       artifact_hash:
         'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
       iteration_mode: 'alternating',
-      raw_paseo_response: '{"id":"raw"}',
+      raw_provider_response: '{"id":"raw"}',
       timestamp: '2026-05-04T01:00:00.000Z',
     },
   ]);
@@ -416,7 +416,7 @@ it('executeRound synthesized appends a synthesis record after the committed peer
     hashArtifact('Synthesized text\n'),
   );
   expect(synthesis.iteration_mode).toBe('parallel_synthesized');
-  expect(synthesis.raw_paseo_response).toBe('{"id":"synth"}');
+  expect(synthesis.raw_provider_response).toBe('{"id":"synth"}');
   // The synthesized text becomes the next round's shared artifact.
   expect(result.nextArtifact).toBe('Synthesized text\n');
 });
@@ -456,20 +456,18 @@ it('executeRound writes provider-neutral audit fields for CLI-backed results', a
     provider_diagnostics: { strategy_used: 'prompt_only' },
     attempts: { cli_attempts: 2, terminal_reason: 'success' },
   });
-  expect(result.records[0]).not.toHaveProperty('raw_paseo_response');
   expect(result.synthesis!).toMatchObject({
     raw_provider_response: '{"provider":"synth"}',
     provider_diagnostics: { strategy_used: 'constrained_native' },
     attempts: { cli_attempts: 1, terminal_reason: 'success' },
   });
-  expect(result.synthesis!).not.toHaveProperty('raw_paseo_response');
 });
 
 it('synthesisSchemaPath points at the v1 synthesis schema file', () => {
   expect(synthesisSchemaPath()).toMatch(/schemas\/synthesis\.schema\.json$/);
 });
 
-it('writeLoopStatus emits stable status fields and paseo cost metadata', async () => {
+it('writeLoopStatus emits stable status fields and provider cost metadata', async () => {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-status-'));
   const statusPath = path.join(tempRoot, 'status.json');
 
@@ -484,7 +482,7 @@ it('writeLoopStatus emits stable status fields and paseo cost metadata', async (
         'sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
       iteration_mode: 'alternating',
       agency: 'moderate',
-      cost: { source: 'paseo', usd: 0.0123 },
+      cost: { source: 'provider_cli', usd: 0.0123 },
     },
     { now: () => '2026-05-04T01:02:00.000Z' },
   );
@@ -499,7 +497,7 @@ it('writeLoopStatus emits stable status fields and paseo cost metadata', async (
       'sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
     iteration_mode: 'alternating',
     agency: 'moderate',
-    cost_source: 'paseo',
+    cost_source: 'provider_cli',
     approximate_cost_usd: 0.0123,
   });
 });

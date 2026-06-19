@@ -55,7 +55,6 @@ interface ErrorLike {
 interface AnnotatedError extends Error {
   code?: string;
   cleanupError?: unknown;
-  remediation?: typeof PASEO_REMEDIATION;
 }
 
 interface JsonBlockParseResult {
@@ -409,8 +408,6 @@ interface LoopInvocationPayload {
 
 const execFileAsync = promisify(execFile);
 
-export const MIN_PASEO_VERSION = '0.1.0';
-export const MAX_TESTED_PASEO_VERSION = '0.9.0';
 export const INPUT_SIZE_CAP_BYTES = 1024 * 1024;
 export const PROVIDER_ID_PATTERN = /^[a-z][a-z0-9-]{0,31}$/u;
 
@@ -422,12 +419,6 @@ const STRICT_RESUME_HASH_OPTIONS = Object.freeze({
   collapseEofNewlines: false,
   finalNewline: false,
 });
-const PASEO_REMEDIATION = Object.freeze({
-  install_command: 'npm install -g @getpaseo/cli',
-  source_url: 'https://github.com/getpaseo/paseo',
-  install_script: 'scripts/install-paseo.mjs',
-});
-
 function isJsonRecord(value: unknown): value is JsonRecord {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
@@ -1976,22 +1967,11 @@ function validateProviderId(providerId: unknown, label = 'provider id') {
   return providerId;
 }
 
-// `paseo provider ls --json` reports readiness via a `status` string
-// (available | loading | error | unavailable | not found) and exposes `enabled`
-// as a display string ("Enabled" | "Disabled") — NOT the booleans our injected
-// and test inventories use. A provider that errored (e.g. cursor when
-// cursor-agent cannot authenticate) carries status "error" while still looking
-// enabled, so keying availability off `available`/`enabled === false` alone let
-// every configured provider pass preflight and only fail later as a mid-loop
-// `paseo run` timeout. Treat known-bad statuses as unavailable so PEER_UNAVAILABLE
-// fires up front with remediation. "loading" is tolerated: a cold daemon snapshot
-// can momentarily report healthy providers as loading (observed in dogfooding:
-// providers report "loading" for ~10-30s after a daemon (re)start, then settle),
-// and a genuinely broken provider settles into a terminal unavailable status
-// ("error" or "unavailable" — e.g. cursor-agent / claude with no auth) rather
-// than loading forever. Residual risk: a provider still "loading" at preflight
-// that will settle to broken; the operator-qa guidance to confirm providers are
-// "available" before a run covers that window.
+// Provider inventory readiness is reported through status strings. Treat
+// known-bad statuses as unavailable so PEER_UNAVAILABLE fires during preflight
+// with actionable provider CLI guidance. "loading" is tolerated because provider
+// CLIs can briefly report a warming state before settling to ready or a terminal
+// unavailable status.
 const PROVIDER_UNAVAILABLE_STATUSES = new Set([
   'auth_required',
   'error',
@@ -2009,7 +1989,7 @@ function providerEntryAvailable(entry: ProviderInventoryEntry) {
   if (typeof entry.available === 'boolean') {
     return entry.available;
   }
-  // Disabled providers are never usable, in either boolean or Paseo's string form.
+  // Disabled providers are never usable, in either boolean or display-string form.
   if (entry.enabled === false || entry.enabled === 'Disabled') {
     return false;
   }
@@ -2101,36 +2081,6 @@ function buildSectionsFromBoundaries(
   }
 
   return sections;
-}
-
-function parseVersionText(text: unknown) {
-  const match = String(text).match(/(\d+)\.(\d+)\.(\d+)/);
-  if (!match) {
-    throw new Error(
-      `could not parse paseo version from: ${String(text).trim()}`,
-    );
-  }
-  return match[0];
-}
-
-function compareVersions(left: string, right: string) {
-  const leftParts = left.split('.').map(Number);
-  const rightParts = right.split('.').map(Number);
-  for (let index = 0; index < 3; index += 1) {
-    if (leftParts[index] < rightParts[index]) return -1;
-    if (leftParts[index] > rightParts[index]) return 1;
-  }
-  return 0;
-}
-
-function missingPaseoError(cause: unknown) {
-  const error: AnnotatedError = new Error(
-    `paseo appears to be missing or unavailable. Install with "${PASEO_REMEDIATION.install_command}", build from ${PASEO_REMEDIATION.source_url}, or run ${PASEO_REMEDIATION.install_script}.`,
-  );
-  error.code = 'PASEO_MISSING';
-  error.cause = cause;
-  error.remediation = PASEO_REMEDIATION;
-  return error;
 }
 
 function missingConsensusProviderCliError(command: string, cause: unknown) {
@@ -3572,7 +3522,7 @@ export function resolvePeers(
 
   if (missing.length > 0) {
     const error: AnnotatedError = new Error(
-      `Missing peers in Paseo inventory: ${missing.join(', ')}. Verify configured providers with "paseo provider ls --json".`,
+      `Missing peers in provider inventory: ${missing.join(', ')}. Verify configured providers with "consensus provider ls --json".`,
     );
     error.code = 'PEER_UNAVAILABLE';
     throw error;
@@ -3580,7 +3530,7 @@ export function resolvePeers(
 
   if (unavailable.length > 0) {
     const error: AnnotatedError = new Error(
-      `Paseo providers are unavailable: ${unavailable.join(', ')}.`,
+      `Consensus providers are unavailable: ${unavailable.join(', ')}.`,
     );
     error.code = 'PEER_UNAVAILABLE';
     throw error;
@@ -3633,7 +3583,7 @@ export function resolveSynthesizer(
   const entry = inventory.find((candidate) => candidate.id === synthesizer);
   if (!entry || entry.available === false) {
     throw new ConsensusError(
-      `Synthesizer "${synthesizer}" is not an available provider in the Paseo inventory. Verify configured providers with "paseo provider ls --json".`,
+      `Synthesizer "${synthesizer}" is not an available provider in the provider CLI inventory. Verify configured providers with "consensus provider ls --json".`,
       {
         code: 'SYNTHESIZER_UNAVAILABLE',
         exitCode: EXIT_CODES.CONFIG,
@@ -3785,69 +3735,6 @@ export async function preflightConsensusProviderCli(
   };
 }
 
-export async function preflightPaseo(
-  options: Pick<WrapperOptions, 'runCommand' | 'env' | 'cwd' | 'peers'> = {},
-): Promise<PreflightResult> {
-  const runCommand: CommandRunner = options.runCommand ?? defaultRunCommand;
-  const env = options.env ?? process.env;
-  const cwd = options.cwd ?? process.cwd();
-
-  let versionOutput: CommandRunnerResult;
-  let inventoryOutput: CommandRunnerResult;
-  try {
-    versionOutput = await runCommand('paseo', ['--version'], { env, cwd });
-    inventoryOutput = await runCommand('paseo', ['provider', 'ls', '--json'], {
-      env,
-      cwd,
-    });
-  } catch (error) {
-    const details = asErrorLike(error);
-    if (
-      details.code === 'ENOENT' ||
-      /ENOENT|not found/i.test(details.message ?? '')
-    ) {
-      throw missingPaseoError(error);
-    }
-    throw error;
-  }
-
-  const version = parseVersionText(versionOutput.stdout);
-  let providerInventory: unknown;
-  try {
-    providerInventory = JSON.parse(inventoryOutput.stdout) as unknown;
-  } catch (error) {
-    throw new Error(
-      `paseo provider inventory was not valid JSON: ${asErrorLike(error).message}`,
-      { cause: error },
-    );
-  }
-
-  const host = detectHost(env);
-  const resolved = resolvePeers(options, host, providerInventory);
-  const warnings = [];
-  if (
-    compareVersions(version, MIN_PASEO_VERSION) < 0 ||
-    compareVersions(version, MAX_TESTED_PASEO_VERSION) > 0
-  ) {
-    warnings.push({
-      code: 'PASEO_VERSION_UNTESTED',
-      level: 'warning',
-      version,
-      min: MIN_PASEO_VERSION,
-      max: MAX_TESTED_PASEO_VERSION,
-      message: `Paseo ${version} is outside the tested range ${MIN_PASEO_VERSION} to ${MAX_TESTED_PASEO_VERSION}.`,
-    });
-  }
-
-  return {
-    ok: true,
-    version,
-    providerInventory: normalizeProviderInventory(providerInventory),
-    host,
-    peers: resolved.peers,
-    warnings,
-  };
-}
 
 export async function runWrapperCli(
   argv: readonly string[],

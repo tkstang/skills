@@ -334,7 +334,7 @@ it('exitCodeForError maps unit-testable wrapper exit codes', () => {
   ).toBe(74);
   expect(
     exitCodeForError(
-      Object.assign(new Error('missing'), { code: 'PASEO_MISSING' }),
+      Object.assign(new Error('missing'), { code: 'PROVIDER_MISSING' }),
     ),
   ).toBe(78);
   expect(
@@ -542,7 +542,6 @@ it('runSequential reports provider CLI auth failures with provider-neutral remed
       cwd: tempRoot,
       env: {
         ...process.env,
-        CONSENSUS_PROVIDER_BACKEND: 'provider-cli',
         CONSENSUS_CLI_PATH: '/tmp/bin/consensus',
       },
       peers: ['cursor', 'claude'],
@@ -577,7 +576,7 @@ it('runSequential reports provider CLI auth failures with provider-neutral remed
     expect(error.code).toBe('PEER_UNAVAILABLE');
     expect(error.message).toMatch(/cursor/);
     expect(error.message).toMatch(/auth_required/);
-    expect(renderHumanError(error)).not.toMatch(/Paseo/);
+    expect(renderHumanError(error)).not.toMatch(/install/i);
     return true;
   });
 });

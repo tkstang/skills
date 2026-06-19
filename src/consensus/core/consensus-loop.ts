@@ -20,7 +20,7 @@ export type IterationMode =
   | 'parallel_synthesized';
 export type Agency = 'minimal' | 'moderate' | 'maximum';
 export type ColdStartMode = 'shared_input';
-export type CostSource = 'paseo' | 'estimated' | 'unavailable';
+export type CostSource = 'provider_cli' | 'estimated' | 'unavailable';
 
 export type AlternatingVerdictValue = 'ACCEPT' | 'REVISE' | 'IMPASSE';
 export type ParallelVerdictValue =
@@ -88,7 +88,6 @@ export interface LoopRecord extends JsonRecord {
   artifactHash?: string;
   artifact?: string;
   record_type?: LoopRecordType;
-  raw_paseo_response?: string;
   user_direction?: string;
   decision_kind?: string;
   escalation_trigger?: EscalationTrigger;
@@ -187,8 +186,6 @@ export interface ProviderInvocationArgs {
   runCommand?: ProviderCliCommandRunner;
 }
 
-export type PaseoInvocationArgs = ProviderInvocationArgs;
-
 export interface ProviderResult {
   provider?: string;
   args?: string[];
@@ -199,8 +196,6 @@ export interface ProviderResult {
   provider_diagnostics?: ProviderDiagnostics;
   attempts?: AttemptSummary;
 }
-
-export type PaseoResult = ProviderResult;
 
 interface RetryOptions {
   attempts?: number;
@@ -241,15 +236,15 @@ export interface PeerInvocation {
   artifact?: string;
 }
 
-export type PeerInvoker = (turn: PeerInvocation) => Promise<PaseoResult>;
+export type PeerInvoker = (turn: PeerInvocation) => Promise<ProviderResult>;
 
-export type SynthesizerInvocation = PaseoInvocationArgs & {
+export type SynthesizerInvocation = ProviderInvocationArgs & {
   round: number;
 };
 
 export type SynthesizerInvoker = (
   call: SynthesizerInvocation,
-) => Promise<PaseoResult>;
+) => Promise<ProviderResult>;
 
 export interface ParallelTurnPromptInput {
   provider: string;
@@ -456,7 +451,6 @@ export class ConsensusError extends Error {
   code: string;
   exitCode: number;
   details: unknown;
-  paseoExitCode?: number | null;
   stderr?: string;
 
   constructor(message: string, options: ConsensusErrorOptions = {}) {
@@ -670,7 +664,9 @@ function normalizeCost(
 ): Pick<LoopStatus, 'cost_source'> &
   Partial<Pick<LoopStatus, 'approximate_cost_usd'>> {
   const source = status.cost_source ?? status.cost?.source ?? 'unavailable';
-  const normalized = ['paseo', 'estimated', 'unavailable'].includes(source)
+  const normalized = ['provider_cli', 'estimated', 'unavailable'].includes(
+    source,
+  )
     ? source
     : 'unavailable';
   const costUsd =
@@ -760,27 +756,6 @@ function outputCapError(streamName: 'stdout' | 'stderr', capBytes: number) {
   );
 }
 
-function paseoMissingError(error: unknown) {
-  const cause = asErrorLike(error);
-  return new ConsensusError('paseo executable not found on PATH', {
-    code: 'PASEO_MISSING',
-    exitCode: EXIT_CODES.CONFIG,
-    cause: error,
-    details: {
-      path: cause.path,
-      syscall: cause.syscall,
-    },
-  });
-}
-
-function isMissingPaseoSpawnError(error: unknown): boolean {
-  const candidate = asErrorLike(error);
-  return (
-    candidate.code === 'ENOENT' &&
-    (candidate.path === 'paseo' || candidate.syscall === 'spawn paseo')
-  );
-}
-
 export function exitCodeForError(error: unknown): number {
   const candidate = asErrorLike(error);
   if (candidate.name === 'AbortError' || candidate.code === 'SIGINT') {
@@ -791,10 +766,13 @@ export function exitCodeForError(error: unknown): number {
   }
   if (
     [
-      'PASEO_MISSING',
       'PEER_UNAVAILABLE',
       'NODE_TOO_OLD',
       'NODE_VERSION_UNSUPPORTED',
+      'PROVIDER_MISSING',
+      'PROVIDER_UNAVAILABLE',
+      'PROVIDER_AUTH_REQUIRED',
+      'HOST_RECURSION_BLOCKED',
     ].includes(candidate.code ?? '')
   ) {
     return EXIT_CODES.CONFIG;
@@ -805,7 +783,10 @@ export function exitCodeForError(error: unknown): number {
   if (['ENOENT', 'ENOTDIR', 'EISDIR'].includes(candidate.code ?? '')) {
     return EXIT_CODES.IO;
   }
-  if (error instanceof SyntaxError || candidate.code === 'PASEO_INVALID_JSON') {
+  if (
+    error instanceof SyntaxError ||
+    candidate.code === 'PROVIDER_INVALID_JSON'
+  ) {
     return EXIT_CODES.DATA;
   }
   if (
@@ -1271,129 +1252,6 @@ export async function writeLoopStatus(
   return normalizedStatus;
 }
 
-export function invokePaseo({
-  provider,
-  schemaPath,
-  prompt,
-  env = process.env,
-  cwd = process.cwd(),
-}: PaseoInvocationArgs): Promise<PaseoResult> {
-  return new Promise((resolve, reject) => {
-    const args = [
-      'run',
-      '--provider',
-      provider,
-      '--output-schema',
-      schemaPath,
-      '--json',
-      prompt,
-    ];
-    const child = spawn('paseo', args, {
-      cwd,
-      env,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-
-    const stdoutChunks: Buffer[] = [];
-    const stderrChunks: Buffer[] = [];
-    let stdoutBytes = 0;
-    let stderrBytes = 0;
-    let capError: ConsensusError | null = null;
-
-    function capture(
-      streamName: 'stdout' | 'stderr',
-      chunks: Buffer[],
-      chunk: Buffer,
-    ) {
-      if (capError) return;
-
-      const nextBytes =
-        streamName === 'stdout'
-          ? stdoutBytes + chunk.length
-          : stderrBytes + chunk.length;
-      if (nextBytes > SUBPROCESS_OUTPUT_CAP_BYTES) {
-        capError = outputCapError(streamName, SUBPROCESS_OUTPUT_CAP_BYTES);
-        child.kill('SIGKILL');
-        return;
-      }
-
-      chunks.push(chunk);
-      if (streamName === 'stdout') {
-        stdoutBytes = nextBytes;
-      } else {
-        stderrBytes = nextBytes;
-      }
-    }
-
-    child.stdout.on('data', (chunk: Buffer) =>
-      capture('stdout', stdoutChunks, chunk),
-    );
-    child.stderr.on('data', (chunk: Buffer) =>
-      capture('stderr', stderrChunks, chunk),
-    );
-    child.on('error', (error) => {
-      reject(
-        isMissingPaseoSpawnError(error) ? paseoMissingError(error) : error,
-      );
-    });
-    child.on('close', (code, signal) => {
-      if (capError) {
-        reject(capError);
-        return;
-      }
-
-      const stdout = Buffer.concat(stdoutChunks).toString('utf8');
-      const stderr = Buffer.concat(stderrChunks).toString('utf8');
-
-      if (code !== 0) {
-        const detail = stderr.trim()
-          ? `: ${stderr.trim()}`
-          : signal
-            ? ` (signal ${signal})`
-            : '';
-        const error = new ConsensusError(
-          `paseo exited with code ${code}${detail}`,
-          {
-            code: 'PASEO_EXIT',
-            exitCode: EXIT_CODES.CONFIG,
-            details: { paseo_exit_code: code, stderr },
-          },
-        );
-        error.paseoExitCode = code;
-        error.stderr = stderr;
-        reject(error);
-        return;
-      }
-
-      try {
-        resolve({
-          provider,
-          args,
-          stdout,
-          stderr,
-          json: JSON.parse(stdout),
-        });
-      } catch (error) {
-        if (stdoutBytes >= SUBPROCESS_OUTPUT_CAP_BYTES) {
-          reject(outputCapError('stdout', SUBPROCESS_OUTPUT_CAP_BYTES));
-          return;
-        }
-        reject(
-          new ConsensusError(
-            `paseo returned invalid JSON: ${hardErrorMessage(error)}`,
-            {
-              code: 'PASEO_INVALID_JSON',
-              exitCode: EXIT_CODES.DATA,
-              cause: error,
-              details: { stdout, stderr },
-            },
-          ),
-        );
-      }
-    });
-  });
-}
-
 export function resolveConsensusCliPath({
   consensusCliPath,
   env = process.env,
@@ -1649,47 +1507,6 @@ function exitCodeForProviderError(code: ProviderErrorCode) {
   return EXIT_CODES.CONFIG;
 }
 
-function isRetryablePaseoError(error: unknown): boolean {
-  // Transient: paseo ran but the agent failed to produce usable structured
-  // output (e.g. "finished without a structured output message", or unparseable
-  // JSON). Not retryable: missing binary / config / permission errors.
-  const candidate = asErrorLike(error);
-  return (
-    candidate.code === 'PASEO_EXIT' || candidate.code === 'PASEO_INVALID_JSON'
-  );
-}
-
-/**
- * Wrap a paseo invocation with a bounded retry on transient failures. Only the
- * default (real-paseo) invokers use this; injected stubs are unaffected, so the
- * deterministic test seams keep their exact call counts. A successful response
- * is returned verbatim, so the recorded result stays deterministic.
- */
-export async function invokePaseoWithRetry(
-  args: PaseoInvocationArgs,
-  {
-    attempts = 3,
-    delayMs = 750,
-    sleep,
-    invoke = invokePaseo,
-  }: RetryOptions = {},
-): Promise<PaseoResult> {
-  const wait =
-    sleep ??
-    ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
-  let lastError: unknown;
-  for (let attempt = 1; attempt <= attempts; attempt += 1) {
-    try {
-      return await invoke(args);
-    } catch (error) {
-      lastError = error;
-      if (!isRetryablePaseoError(error) || attempt === attempts) throw error;
-      await wait(delayMs);
-    }
-  }
-  throw lastError;
-}
-
 function peerVerdictError(
   verdict: unknown,
   mode: IterationMode,
@@ -1720,18 +1537,10 @@ function peerVerdictError(
 }
 
 function providerAuditFields(result: ProviderResult): Partial<LoopRecord> {
-  const hasProviderNeutralAudit =
-    result.raw_provider_response !== undefined ||
-    result.provider_diagnostics !== undefined ||
-    result.attempts !== undefined;
   const rawResponse =
     result.raw_provider_response ??
     result.stdout ??
     JSON.stringify(result.json);
-
-  if (!hasProviderNeutralAudit) {
-    return { raw_paseo_response: rawResponse };
-  }
 
   return {
     raw_provider_response: rawResponse,
@@ -1743,31 +1552,28 @@ function providerAuditFields(result: ProviderResult): Partial<LoopRecord> {
 }
 
 /**
- * Invoke a peer and re-invoke when EITHER paseo fails transiently OR the returned
- * verdict fails our validation (after normalization). The schema we send paseo can
- * only express part of the contract (OpenAI forbids oneOf/not), so a model can
- * return a schema-valid-but-contract-invalid verdict — e.g. a REVISE with no
- * proposed_artifact — which paseo cannot retry. Treat those as retryable here so a
- * single non-compliant generation does not hard-fail the section. Only the default
- * (real-paseo) invoker uses this; injected test stubs are validated once in the
- * executor and keep their exact call counts.
+ * Invoke a peer and re-invoke when the returned verdict fails our validation
+ * after normalization. The provider CLI schema can express only part of the
+ * contract, so a model can return a schema-valid-but-contract-invalid verdict.
+ * Treat those as retryable here so a single non-compliant generation does not
+ * hard-fail the section. Injected test stubs keep their exact call counts.
  */
 export async function invokeValidatedPeer({
   mode,
   attempts = 3,
   delayMs = 750,
   sleep,
-  invoke = invokePaseo,
+  invoke = invokeConsensusProviderCli,
   ...args
 }: Partial<PeerInvocation> &
-  RetryOptions & { mode?: IterationMode } = {}): Promise<PaseoResult> {
+  RetryOptions & { mode?: IterationMode } = {}): Promise<ProviderResult> {
   const wait =
     sleep ??
     ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
   let lastError: unknown;
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     try {
-      const result = await invoke(args as PaseoInvocationArgs);
+      const result = await invoke(args as ProviderInvocationArgs);
       const verdictError = peerVerdictError(
         normalizeVerdict(result.json, mode ?? 'alternating'),
         mode ?? 'alternating',
@@ -1777,7 +1583,6 @@ export async function invokeValidatedPeer({
     } catch (error) {
       lastError = error;
       const retryable =
-        isRetryablePaseoError(error) ||
         asErrorLike(error).code === 'INVALID_VERDICT_SHAPE' ||
         asErrorLike(error).code === 'INVALID_VERDICT_CAPS';
       if (!retryable || attempt === attempts) throw error;
@@ -2532,7 +2337,7 @@ async function executeParallelRound(
   }
 
   const peerResults = settled.map(
-    (result) => (result as PromiseFulfilledResult<PaseoResult>).value,
+    (result) => (result as PromiseFulfilledResult<ProviderResult>).value,
   );
   // Normalize each verdict (strip empty disallowed fields from strict
   // structured-output providers), then validate BOTH before materializing

@@ -104,7 +104,6 @@ it('runs Refine through the consensus CLI backend and resumes provider-neutral r
       terminal_reason: 'success',
     },
   });
-  expect(firstRecords[0]).not.toHaveProperty('raw_paseo_response');
 
   const callsAfterFirstRun = await readCalls(callsPath);
   const providerCalls = callsAfterFirstRun.filter(
@@ -150,7 +149,6 @@ it('runs Refine through the consensus CLI backend and resumes provider-neutral r
     path.join(tempRoot, 'sample.resumed.consensus.md'),
     'utf8',
   );
-  expect(resumedArtifact).not.toContain('raw_paseo_response');
 });
 
 it('runs the generated default provider CLI path without CONSENSUS_CLI_PATH', async () => {
@@ -166,7 +164,6 @@ it('runs the generated default provider CLI path without CONSENSUS_CLI_PATH', as
   const env = scrubHostEnv(
     makeStubEnv({
       PATH: `${binDir}${path.delimiter}${process.env.PATH ?? ''}`,
-      CONSENSUS_PROVIDER_BACKEND: 'provider-cli',
     }),
   );
   delete env.CONSENSUS_CLI_PATH;
@@ -195,7 +192,6 @@ it('runs the generated default provider CLI path without CONSENSUS_CLI_PATH', as
     }),
     attempts: { cli_attempts: 1, terminal_reason: 'success' },
   });
-  expect(records[0]).not.toHaveProperty('raw_paseo_response');
 });
 
 it('runs prepared parallel section packets through the provider CLI backend', async () => {
@@ -227,16 +223,7 @@ it('runs prepared parallel section packets through the provider CLI backend', as
   });
   const manifest = JSON.parse(await readFile(prepared.manifestPath, 'utf8'));
   const [section] = manifest.sections;
-  expect(manifest.provider_backend).toBe('provider-cli');
-  expect(section.provider_backend).toBe('provider-cli');
-  expect(section.provider_env).toMatchObject({
-    CONSENSUS_PROVIDER_BACKEND: 'provider-cli',
-    CONSENSUS_CLI_PATH: expect.stringContaining('tests/fixtures/bin/consensus'),
-  });
-  expect(section.loop_argv).toContain('--provider-backend');
-  expect(
-    section.loop_argv[section.loop_argv.indexOf('--provider-backend') + 1],
-  ).toBe('provider-cli');
+  expect(section.provider_env).toBeUndefined();
 
   await runNodeScript(
     path.join(
@@ -259,11 +246,6 @@ it('runs prepared parallel section packets through the provider CLI backend', as
           strategy_used: 'fixture_consensus_cli',
         }),
       }),
-    ]),
-  );
-  expect(records).not.toEqual(
-    expect.arrayContaining([
-      expect.objectContaining({ raw_paseo_response: expect.any(String) }),
     ]),
   );
 });

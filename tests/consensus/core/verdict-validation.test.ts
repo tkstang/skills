@@ -85,7 +85,7 @@ it('verdict schema declares alternating branches without maxLength caps', async 
     'consensus-plugin/v1/verdict-alternating.schema.json',
   );
   expect(schema.required).toEqual(['schema_version', 'verdict', 'reasoning']);
-  // The schema is the Paseo-side (prompt+parse) shape only. It must stay
+  // The schema is the provider-side (prompt+parse) shape only. It must stay
   // compatible with OpenAI/codex structured output, which forbids `oneOf`/`not`;
   // the per-verdict conditional requirements (proposed_artifact required for
   // REVISE, forbidden for ACCEPT/IMPASSE) are enforced by validateVerdictShape's

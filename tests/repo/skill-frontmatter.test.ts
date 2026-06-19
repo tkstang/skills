@@ -33,7 +33,6 @@ describe('skill-frontmatter', () => {
       expect(field(block, 'license')).toBe('MIT');
       expect(field(block, 'compatibility')).toMatch(/Agent Skills baseline/);
       expect(field(block, 'compatibility')).toMatch(/consensus CLI/);
-      expect(field(block, 'compatibility')).not.toMatch(/paseo/i);
 
       const allowedTools = field(block, 'allowed-tools');
       for (const requiredTool of [
