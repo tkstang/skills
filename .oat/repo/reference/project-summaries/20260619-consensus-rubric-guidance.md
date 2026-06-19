@@ -5,6 +5,9 @@ oat_project: consensus-rubric-guidance
 oat_workflow_mode: quick
 oat_phase: implement
 oat_phase_status: pr_open
+oat_summary_last_task: p03-t02
+oat_summary_revision_count: 0
+oat_summary_includes_revisions: false
 ---
 
 # Project Summary: consensus-rubric-guidance
