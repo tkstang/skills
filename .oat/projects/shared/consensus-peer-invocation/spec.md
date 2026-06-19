@@ -383,23 +383,23 @@ _Design-related open questions are tracked in the Open Questions section below._
 
 | ID | Description | Priority | Verification | Planned Tasks |
 | --- | --- | --- | --- | --- |
-| FR1 | Define owned peer invocation CLI boundary | P0 | integration: CLI result and error envelopes | See plan.md |
-| FR2 | Define provider floor and adapter capabilities | P0 | unit + integration: adapter registry and provider inventory | See plan.md |
-| FR3 | Define structured output strategy | P0 | unit + integration: schema strategy selection and validation retry | See plan.md |
-| FR4 | Integrate through existing consensus peer seam | P0 | integration + e2e: consensus backend switch and wrapper flow | See plan.md |
-| FR5 | Replace Paseo-specific preflight | P0 | unit + integration: executable readiness and capability diagnostics | See plan.md |
-| FR6 | Define backend-neutral error taxonomy | P0 | unit: error mapping and retry classification | See plan.md |
-| FR7 | Preserve provider-neutral audit and resume contract | P0 | integration: provider-neutral audit records and resume | See plan.md |
-| FR8 | Define generated runtime packaging | P0 | unit + integration: build drift and shipped-entrypoint smoke | See plan.md |
-| FR9 | Prevent unsafe host-native self-spawn | P0 | unit + integration: host identity, provider status, and dispatch guard | See plan.md |
-| FR10 | Bound Cursor submit-tool evaluation | P1 | manual + integration: Cursor SDK spike acceptance criteria | See plan.md |
-| FR11 | Define future provider extension boundary | P1 | manual: design review of capability flags and deferred scope | See plan.md |
-| NFR1 | Keep shipped runtime dependency-free | P0 | integration: dependency and generated-runtime checks | See plan.md |
-| NFR2 | Preserve reliability and validation discipline | P0 | unit + integration: invalid output, caps, exits, retries | See plan.md |
-| NFR3 | Clean source cutover with no old backend identifiers | P0 | integration + static: fallback removal and identifier scan | See plan.md |
-| NFR4 | Keep provider boundary testable without live calls | P0 | unit + integration: stubs and injected invokers | See plan.md |
-| NFR5 | Maintain subprocess and diagnostic safety | P0 | unit: argv construction, redaction, caps, file safety | See plan.md |
-| NFR6 | Prevent provider-platform scope creep | P0 | manual: plan review against provider floor and non-goals | See plan.md |
+| FR1 | Define owned peer invocation CLI boundary | P0 | integration: CLI result and error envelopes | p01-t01, p01-t02, p01-t03, p01-t04, p01-t05, p01-t06 |
+| FR2 | Define provider floor and adapter capabilities | P0 | unit + integration: adapter registry and provider inventory | p02-t01, p02-t02, p02-t05 |
+| FR3 | Define structured output strategy | P0 | unit + integration: schema strategy selection and validation retry | p02-t01, p02-t05, p02-t07, p03-t03 |
+| FR4 | Integrate through existing consensus peer seam | P0 | integration + e2e: consensus backend switch and wrapper flow | p03-t01, p03-t04, p03-t05, p03-t06, p03-t07, p04-t03, p04-t04 |
+| FR5 | Replace Paseo-specific preflight | P0 | unit + integration: executable readiness and capability diagnostics | p01-t05, p02-t02, p02-t03, p03-t04, p03-t05 |
+| FR6 | Define backend-neutral error taxonomy | P0 | unit: error mapping and retry classification | p01-t01, p01-t03, p02-t02, p02-t07, p03-t03 |
+| FR7 | Preserve provider-neutral audit and resume contract | P0 | integration: provider-neutral audit records and resume | p03-t02, p03-t06 |
+| FR8 | Define generated runtime packaging | P0 | unit + integration: build drift and shipped-entrypoint smoke | p01-t04, p01-t06, p04-t07 |
+| FR9 | Prevent unsafe host-native self-spawn | P0 | unit + integration: host identity, provider status, and dispatch guard | p02-t03, p02-t05, p03-t06 |
+| FR10 | Bound Cursor submit-tool evaluation | P1 | manual + integration: Cursor SDK spike acceptance criteria | p02-t01, p02-t07, p04-t02 |
+| FR11 | Define future provider extension boundary | P1 | manual: design review of capability flags and deferred scope | p02-t01, p02-t07, p04-t02 |
+| NFR1 | Keep shipped runtime dependency-free | P0 | integration: dependency and generated-runtime checks | p01-t04, p02-t06, p04-t07 |
+| NFR2 | Preserve reliability and validation discipline | P0 | unit + integration: invalid output, caps, exits, retries | p02-t06, p02-t07, p03-t03, p03-t06 |
+| NFR3 | Clean source cutover with no old backend identifiers | P0 | integration + static: fallback removal and identifier scan | p04-t01, p04-t03, p04-t04, p04-t05, p04-t06, p04-t07 |
+| NFR4 | Keep provider boundary testable without live calls | P0 | unit + integration: stubs and injected invokers | p02-t01, p02-t02, p02-t06, p03-t06 |
+| NFR5 | Maintain subprocess and diagnostic safety | P0 | unit: argv construction, redaction, caps, file safety | p01-t02, p02-t04, p02-t05, p02-t06 |
+| NFR6 | Prevent provider-platform scope creep | P0 | manual: plan review against provider floor and non-goals | p02-t01, p04-t02, p04-t06 |
 
 ## Open Questions
 

@@ -15,13 +15,15 @@ oat_children: [] # optional coordination-parent child slugs
 oat_hill_checkpoints: [] # Configured: which phases require human-in-the-loop lifecycle approval
 oat_hill_completed: [] # Progress: which HiLL checkpoints have been completed
 oat_parallel_execution: false
-oat_phase: design # Current phase: discovery | spec | design | plan | implement | decomposition
+oat_phase: plan # Current phase: discovery | spec | design | plan | implement | decomposition
 oat_phase_status: complete # Status: in_progress | complete | pr_open
 # oat_orchestration_retry_limit: 2  # optional; override fix-loop retry limit (range 0-5)
-# oat_dispatch_ceiling: # optional project override for provider-aware dispatch ceilings
-#   provider: codex # codex | claude
-#   value: high # codex: low|medium|high|xhigh; claude: haiku|sonnet|opus
-#   source: project-state
+oat_dispatch_ceiling:
+  preset: maximum
+  providers:
+    codex: xhigh
+    claude: opus
+  source: project-state
 oat_workflow_mode: spec-driven # spec-driven | quick | import
 oat_workflow_origin: native # native | imported
 oat_docs_updated: null # null | skipped | complete — documentation sync status
@@ -29,26 +31,26 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-06-17T01:27:39.580Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-06-19T17:51:40Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-06-19T18:18:49Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
 # Project State: consensus-peer-invocation
 
-**Status:** Design Complete
+**Status:** Planning Complete
 **Started:** 2026-06-17
 **Last Updated:** 2026-06-19
 
 ## Current Phase
 
-Design - Ready for implementation planning
+Planning - Ready for implementation
 
 ## Artifacts
 
 - **Discovery:** `discovery.md` (complete; reusable CLI boundary selected)
 - **Spec:** `spec.md` (complete; folded into design)
 - **Design:** `design.md` (complete)
-- **Plan:** `plan.md` (scaffolded template — not started)
+- **Plan:** `plan.md` (complete; ready for implementation)
 - **Implementation:** `implementation.md` (scaffolded template — not started)
 
 ## Progress
@@ -56,7 +58,8 @@ Design - Ready for implementation planning
 - ✓ Discovery complete
 - ✓ Specification complete (folded into design)
 - ✓ Design complete
-- ⧗ Awaiting implementation plan
+- ✓ Plan complete
+- ⧗ Awaiting implementation
 
 ## Blockers
 
@@ -64,4 +67,4 @@ None
 
 ## Next Milestone
 
-Run `oat-project-plan`
+Run `oat-project-implement`
