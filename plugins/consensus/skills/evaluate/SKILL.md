@@ -111,6 +111,31 @@ Ask what goals the evaluation should serve. Then either:
 - Residual dissent (`## Dissent`) and unresolved impasses (`## Unresolved dissent`) are surfaced explicitly — never hidden.
 - If evaluation ends at impasse, divergent positions are presented and the user is asked how to proceed.
 
+## Guided Rubric Creation
+
+Use this path when the user explicitly asks for help creating a rubric, or when the user asks to evaluate an artifact but provides no rubric.
+
+**When to enter the guided path:**
+
+- The user asks to evaluate something but does not provide or mention a rubric file.
+- The user says something like "help me write a rubric" or "I'm not sure what criteria to use."
+
+**Steps:**
+
+1. **Elicit goals.** Ask the user what the evaluation is trying to determine. One or two focused questions are enough — do not over-elicit.
+2. **Select or adapt an example.** Choose a starting point from the bundled rubric examples in `references/examples/` that best fits the artifact type. Show the user what you are starting from and why.
+3. **Draft the rubric.** Adapt the selected example to the user's goals. Keep the load-bearing criteria (headings and bullets) at 12 or fewer — the wrapper silently ignores criteria beyond the first 12 distinct headings and bullets it finds. Weights, scoring scales, and pass/fail notes are welcome as peer-facing guidance but are not parsed by the wrapper.
+4. **Confirm the output path.** Before writing, tell the user where the rubric file will be saved and ask for approval. Write the rubric only to a user-approved path within the active workspace. A sensible default is a file named `rubric.md` alongside the artifact being evaluated.
+5. **Invoke the wrapper.** After writing the rubric file, run:
+
+   ```bash
+   node ./scripts/consensus-evaluate.mjs <artifact.md> --rubric <approved-rubric-path>
+   ```
+
+**Rubric authoring convention:** Headings (`##` through `######`) and bullet items (`-` / `*`) are the machine-visible criteria the wrapper extracts. Prose paragraphs, numbered lists, and nested indentation are treated as peer-facing context, not as criteria. Keep the 12 highest-priority criteria as headings or bullets; put scoring guidance, examples, and notes in prose beneath them.
+
+**Raw wrapper contract (unchanged):** The deterministic wrapper always requires `--rubric <path>`. Guided creation is a host-model-driven flow that produces that file; it does not modify the wrapper's CLI surface.
+
 ## Operator QA
 
 For a hands-on walkthrough of artifact/rubric inputs, expected JSONL, sidecar output, and dissent review, see `references/operator-qa.md`.

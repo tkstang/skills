@@ -63,6 +63,18 @@ test('evaluate SKILL.md contains usage guidance sections', async () => {
   assert.match(skill, /^## Success Criteria$/m);
 });
 
+test('evaluate SKILL.md documents guided rubric creation flow', async () => {
+  const skill = await read(evaluateSkillPath);
+
+  assert.match(skill, /^## Guided Rubric Creation$/m);
+  // no-rubric evaluation trigger
+  assert.match(skill, /no rubric|provides no rubric|without a rubric/i);
+  // user-approved paths
+  assert.match(skill, /user-approved/i);
+  // 12-criteria cap
+  assert.match(skill, /12/);
+});
+
 test('evaluate skill is documented and registered in distribution surfaces', async () => {
   const requiredEvaluateFiles = [
     evaluateSkillPath,
