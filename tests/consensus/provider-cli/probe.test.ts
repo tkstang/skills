@@ -1,6 +1,11 @@
+import { chmod, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import {
+  nodeProbeCommandRunner,
   probeProviderReadiness,
   probeProviderRegistry,
   type ProbeCommandRunner,
@@ -112,6 +117,85 @@ describe('provider readiness probes', () => {
     ]);
   });
 
+  it('bounds sleeping provider probes as unavailable timeouts', async () => {
+    const binDir = await mkdtemp(path.join(os.tmpdir(), 'consensus-probe-'));
+    await writeExecutableFixture(
+      binDir,
+      'claude',
+      '#!/bin/sh\n/bin/sleep 5\n',
+    );
+
+    const startedAt = Date.now();
+    try {
+      const entry = await probeProviderReadiness(adapter('claude'), {
+        runner: nodeProbeCommandRunner(
+          {
+            ...process.env,
+            PATH: `${binDir}${path.delimiter}${process.env.PATH}`,
+          },
+          {
+            timeoutSec: 0.01,
+            terminationGraceMs: 25,
+            finalResolutionMs: 25,
+          },
+        ),
+      });
+
+      expect(Date.now() - startedAt).toBeLessThan(1000);
+      expect(entry).toMatchObject({
+        id: 'claude',
+        status: 'unavailable',
+        diagnostics: {
+          timeout_sec: 0.01,
+          warnings: [expect.stringContaining('PROVIDER_TIMEOUT')],
+        },
+      });
+    } finally {
+      await rm(binDir, { recursive: true, force: true });
+    }
+  });
+
+  it('bounds oversized provider probe output as unavailable', async () => {
+    const binDir = await mkdtemp(path.join(os.tmpdir(), 'consensus-probe-'));
+    await writeExecutableFixture(
+      binDir,
+      'codex',
+      `#!/bin/sh\nprintf '${'x'.repeat(4096)}'\n`,
+    );
+
+    try {
+      const entry = await probeProviderReadiness(adapter('codex'), {
+        runner: nodeProbeCommandRunner(
+          {
+            ...process.env,
+            PATH: `${binDir}${path.delimiter}${process.env.PATH}`,
+          },
+          {
+            maxOutputBytes: 16,
+            timeoutSec: 5,
+            terminationGraceMs: 25,
+            finalResolutionMs: 25,
+          },
+        ),
+      });
+
+      expect(entry).toMatchObject({
+        id: 'codex',
+        status: 'unavailable',
+        diagnostics: {
+          output_bytes: {
+            max: 16,
+          },
+          warnings: [
+            expect.stringContaining('PROVIDER_OUTPUT_CAP_EXCEEDED'),
+          ],
+        },
+      });
+    } finally {
+      await rm(binDir, { recursive: true, force: true });
+    }
+  });
+
   it('returns an unsupported entry for unsupported requested provider IDs', async () => {
     await expect(
       runPreflight({
@@ -133,6 +217,17 @@ function adapter(id: 'claude' | 'codex' | 'cursor') {
   const selected = providerRegistry().get(id);
   if (!selected) throw new Error(`Missing adapter fixture: ${id}`);
   return selected;
+}
+
+async function writeExecutableFixture(
+  dir: string,
+  name: string,
+  contents: string,
+) {
+  const executablePath = path.join(dir, name);
+  await writeFile(executablePath, contents);
+  await chmod(executablePath, 0o755);
+  return executablePath;
 }
 
 function fakeRunner(options: {

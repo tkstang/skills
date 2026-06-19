@@ -1,10 +1,11 @@
-import { spawn } from 'node:child_process';
 import { constants } from 'node:fs';
 import { access } from 'node:fs/promises';
 import path from 'node:path';
 
 import type { ProviderAdapter, ProviderAdapterRegistry } from './adapters.js';
-import type { ProviderInventoryEntry } from './types.js';
+import { runProviderSubprocess } from './subprocess.js';
+import type { ProviderInventoryEntry, ProviderDiagnostics } from './types.js';
+import type { RunProviderSubprocessOptions } from './subprocess.js';
 
 export interface ProviderProbeDefinition {
   version_args: readonly string[];
@@ -17,6 +18,12 @@ export interface ProbeCommandResult {
   signal: string | null;
   stdout: string;
   stderr: string;
+  failure_code?:
+    | 'PROVIDER_MISSING'
+    | 'PROVIDER_TIMEOUT'
+    | 'PROVIDER_OUTPUT_CAP_EXCEEDED'
+    | 'PROVIDER_EXIT';
+  diagnostics?: ProviderDiagnostics;
 }
 
 export interface ProbeCommandRunner {
@@ -31,6 +38,16 @@ export interface ProviderProbeOptions {
 export interface ProviderRegistryProbeOptions extends ProviderProbeOptions {
   registry: ProviderAdapterRegistry;
 }
+
+export interface NodeProbeCommandRunnerOptions {
+  timeoutSec?: number;
+  maxOutputBytes?: number;
+  terminationGraceMs?: number;
+  finalResolutionMs?: number;
+}
+
+const DEFAULT_PROBE_TIMEOUT_SEC = 10;
+const DEFAULT_PROBE_MAX_OUTPUT_BYTES = 64 * 1024;
 
 export async function probeProviderRegistry({
   registry,
@@ -60,6 +77,9 @@ export async function probeProviderReadiness(
     adapter.executable,
     adapter.probe.version_args,
   );
+  const probeFailure = probeFailureEntry(adapter, executable, result);
+  if (probeFailure) return probeFailure;
+
   const output = `${result.stdout}\n${result.stderr}`;
 
   if (matchesAny(output, adapter.probe.auth_required_patterns)) {
@@ -87,13 +107,14 @@ export async function probeProviderReadiness(
 
 export function nodeProbeCommandRunner(
   env: NodeJS.ProcessEnv = process.env,
+  options: NodeProbeCommandRunnerOptions = {},
 ): ProbeCommandRunner {
   return {
     findExecutable(command) {
       return findExecutable(command, env);
     },
     run(command, args) {
-      return runProbeCommand(command, args, env);
+      return runProbeCommand(command, args, env, options);
     },
   };
 }
@@ -128,28 +149,79 @@ function runProbeCommand(
   command: string,
   args: readonly string[],
   env: NodeJS.ProcessEnv,
+  options: NodeProbeCommandRunnerOptions,
 ): Promise<ProbeCommandResult> {
-  return new Promise((resolve, reject) => {
-    const child = spawn(command, [...args], {
-      env,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-    let stdout = '';
-    let stderr = '';
+  const subprocessOptions: RunProviderSubprocessOptions = {
+    env,
+    timeoutSec: options.timeoutSec ?? DEFAULT_PROBE_TIMEOUT_SEC,
+    maxOutputBytes: options.maxOutputBytes ?? DEFAULT_PROBE_MAX_OUTPUT_BYTES,
+    ...(options.terminationGraceMs !== undefined
+      ? { terminationGraceMs: options.terminationGraceMs }
+      : {}),
+    ...(options.finalResolutionMs !== undefined
+      ? { finalResolutionMs: options.finalResolutionMs }
+      : {}),
+  };
 
-    child.stdout.setEncoding('utf8');
-    child.stderr.setEncoding('utf8');
-    child.stdout.on('data', (chunk) => {
-      stdout += chunk;
+  return runProviderSubprocess(
+    {
+      executable: command,
+      argv: [...args],
+      stdin: '',
+      output_mode: 'stdout_json',
+      strategy: 'prompt_only',
+      redacted_command: [command, ...args],
+      shell: false,
+    },
+    subprocessOptions,
+  ).then((result) => ({
+    code: result.exit_code,
+    signal: result.signal,
+    stdout: result.stdout,
+    stderr: result.stderr,
+    ...(result.ok ? {} : { failure_code: result.code }),
+    diagnostics: result.diagnostics,
+  }));
+}
+
+function probeFailureEntry(
+  adapter: ProviderAdapter,
+  executable: string,
+  result: ProbeCommandResult,
+): ProviderInventoryEntry | undefined {
+  if (!result.failure_code) return undefined;
+
+  if (result.failure_code === 'PROVIDER_MISSING') {
+    return providerEntry(adapter, 'missing', {
+      executable,
+      diagnostics: result.diagnostics,
+      warnings: [
+        `PROVIDER_MISSING: executable failed to start for ${adapter.id}`,
+      ],
     });
-    child.stderr.on('data', (chunk) => {
-      stderr += chunk;
+  }
+
+  if (result.failure_code === 'PROVIDER_TIMEOUT') {
+    return providerEntry(adapter, 'unavailable', {
+      executable,
+      diagnostics: result.diagnostics,
+      warnings: [
+        `PROVIDER_TIMEOUT: readiness probe timed out after ${result.diagnostics?.timeout_sec ?? 'the configured'} seconds`,
+      ],
     });
-    child.on('error', reject);
-    child.on('close', (code, signal) => {
-      resolve({ code, signal, stdout, stderr });
+  }
+
+  if (result.failure_code === 'PROVIDER_OUTPUT_CAP_EXCEEDED') {
+    return providerEntry(adapter, 'unavailable', {
+      executable,
+      diagnostics: result.diagnostics,
+      warnings: [
+        `PROVIDER_OUTPUT_CAP_EXCEEDED: readiness probe exceeded output cap of ${result.diagnostics?.output_bytes?.max ?? 'the configured limit'} bytes`,
+      ],
     });
-  });
+  }
+
+  return undefined;
 }
 
 function providerEntry(
@@ -158,16 +230,37 @@ function providerEntry(
   options: {
     executable?: string;
     version?: string;
+    diagnostics?: ProviderDiagnostics;
     warnings?: string[];
   } = {},
 ): ProviderInventoryEntry {
+  const diagnostics = mergeProviderDiagnostics(
+    options.diagnostics,
+    options.warnings,
+  );
+
   return {
     id: adapter.id,
     status,
     capabilities: adapter.capabilities,
     ...(options.executable ? { executable: options.executable } : {}),
     ...(options.version ? { version: options.version } : {}),
-    ...(options.warnings ? { diagnostics: { warnings: options.warnings } } : {}),
+    ...(diagnostics ? { diagnostics } : {}),
+  };
+}
+
+function mergeProviderDiagnostics(
+  diagnostics: ProviderDiagnostics | undefined,
+  warnings: string[] | undefined,
+): ProviderDiagnostics | undefined {
+  if (!diagnostics && !warnings) return undefined;
+  const mergedWarnings = [
+    ...(diagnostics?.warnings ?? []),
+    ...(warnings ?? []),
+  ];
+  return {
+    ...(diagnostics ?? {}),
+    ...(mergedWarnings.length > 0 ? { warnings: mergedWarnings } : {}),
   };
 }
 
