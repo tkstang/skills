@@ -17,14 +17,133 @@ import {
   EXIT_CODES,
   exitCodeForError,
   ITERATION_MODES,
+  invokeConsensusProviderCli,
+  invokeProviderCliWithRetry,
   invalidIterationModeError,
-  runConsensusLoop
+  peerSchemaPathForMode,
+  resolveConsensusCliPath,
+  runConsensusLoop,
+  runProviderCliCommand
 } from './consensus-loop.mjs';
 const MAX_ROUNDS_MIN = 1;
 const MAX_ROUNDS_MAX = 100;
 const PROVIDER_ID_PATTERN = /^[a-z][a-z0-9_-]{0,31}$/u;
 const DEFAULT_PEERS = Object.freeze(["claude", "codex"]);
 const INPUT_SIZE_CAP_BYTES = 1024 * 1024;
+function isJsonRecord(value) {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+function providerBackendFromEnv(env) {
+  const value = env.CONSENSUS_PROVIDER_BACKEND?.trim().toLowerCase();
+  if (value === "provider-cli" || value === "cli") return "provider-cli";
+  return "paseo";
+}
+function providerCliUnavailableError(providers) {
+  const summary = providers.map((provider) => `${provider.id} (${provider.status})`).join(", ");
+  return new ConsensusError(
+    `Consensus providers are unavailable: ${summary}. Run "consensus preflight --json --provider <id>" and resolve provider authentication or availability before retrying.`,
+    {
+      code: "PEER_UNAVAILABLE",
+      exitCode: EXIT_CODES.CONFIG,
+      details: { providers }
+    }
+  );
+}
+function parseProviderCliEnvelope(stdout, label) {
+  let parsed;
+  try {
+    parsed = JSON.parse(stdout);
+  } catch (error) {
+    throw new Error(
+      `consensus ${label} output was not valid JSON: ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error }
+    );
+  }
+  if (!isJsonRecord(parsed) || parsed.schema_version !== "v1") {
+    throw new Error(`consensus ${label} output was not a v1 JSON envelope`);
+  }
+  return parsed;
+}
+function providerStatusMap(envelope) {
+  const providers = Array.isArray(envelope.providers) ? envelope.providers : [];
+  const entries = [];
+  for (const provider of providers) {
+    if (!isJsonRecord(provider)) continue;
+    const id = String(provider.id ?? provider.provider ?? provider.name ?? "");
+    if (!id) continue;
+    entries.push([id, String(provider.status ?? "unavailable")]);
+  }
+  return new Map(entries);
+}
+async function preflightEvaluateProviderCli({
+  env,
+  cwd,
+  providers
+}) {
+  const command = resolveConsensusCliPath({ env });
+  const inventoryResult = await runProviderCliCommand(
+    command,
+    ["provider", "ls", "--json"],
+    { env, cwd }
+  );
+  const inventory = parseProviderCliEnvelope(
+    inventoryResult.stdout,
+    "provider inventory"
+  );
+  const statuses = providerStatusMap(inventory);
+  const unavailable = providers.filter((provider) => statuses.get(provider) !== "ready").map((provider) => ({
+    id: provider,
+    status: statuses.get(provider) ?? "missing"
+  }));
+  if (unavailable.length > 0) {
+    throw providerCliUnavailableError(unavailable);
+  }
+  for (const provider of providers) {
+    const preflightResult = await runProviderCliCommand(
+      command,
+      ["preflight", "--json", "--provider", provider],
+      { env, cwd }
+    );
+    const preflight = parseProviderCliEnvelope(
+      preflightResult.stdout,
+      `${provider} preflight`
+    );
+    if (preflight.usable !== true) {
+      const preflightStatuses = providerStatusMap(preflight);
+      throw providerCliUnavailableError([
+        {
+          id: provider,
+          status: preflightStatuses.get(provider) ?? "unavailable"
+        }
+      ]);
+    }
+  }
+}
+function providerCliLoopInvokers({
+  env,
+  cwd,
+  iteration
+}) {
+  return {
+    invokePeer: (turn) => invokeProviderCliWithRetry(
+      {
+        provider: turn.provider,
+        schemaPath: turn.schemaPath ?? peerSchemaPathForMode(iteration),
+        prompt: turn.prompt,
+        env,
+        cwd
+      },
+      { mode: iteration }
+    ),
+    invokeSynthesizer: (call) => invokeConsensusProviderCli({
+      provider: call.provider,
+      schemaPath: call.schemaPath,
+      prompt: call.prompt,
+      env,
+      cwd
+    })
+  };
+}
 function requireValue(argv, index, token) {
   const value = argv[index + 1];
   if (value === void 0 || value.startsWith("--")) {
@@ -728,6 +847,15 @@ async function runConsensusEvaluate(input, runOptions = {}) {
   const paths = statePathsFor(runDir);
   const peers = normalized.peers ?? [...DEFAULT_PEERS];
   const synthesizer = normalized.iteration === "parallel_synthesized" ? normalized.synthesizer ?? peers[0] : null;
+  const providerBackend = providerBackendFromEnv(env);
+  const providerCliInvokers = providerBackend === "provider-cli" ? providerCliLoopInvokers({ env, cwd, iteration: normalized.iteration }) : {};
+  if (providerBackend === "provider-cli") {
+    await preflightEvaluateProviderCli({
+      env,
+      cwd,
+      providers: [.../* @__PURE__ */ new Set([...peers, ...synthesizer ? [synthesizer] : []])]
+    });
+  }
   const initialArtifact = createEvaluationInitialArtifact({
     rubric: loaded.rubric
   });
@@ -752,8 +880,8 @@ async function runConsensusEvaluate(input, runOptions = {}) {
       artifact: loaded.artifact,
       rubric: loaded.rubric
     }),
-    invokePeer: runOptions.invokePeer,
-    invokeSynthesizer: runOptions.invokeSynthesizer
+    invokePeer: runOptions.invokePeer ?? providerCliInvokers.invokePeer,
+    invokeSynthesizer: runOptions.invokeSynthesizer ?? providerCliInvokers.invokeSynthesizer
   });
   const endedAt = (runOptions.now ?? (() => (/* @__PURE__ */ new Date()).toISOString()))();
   const wallClockMs = Date.now() - startMs;

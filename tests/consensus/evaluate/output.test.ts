@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, stat, writeFile } from 'node:fs/promises';
+import { chmod, mkdtemp, readFile, stat, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -177,6 +177,75 @@ it('writes a default sidecar evaluation for CLI runs without --output', async ()
   const artifact = await readFile(defaultOutputPath, 'utf8');
   expect(artifact).toContain('# Consensus Evaluate Artifact');
   expect(artifact).toContain('Release readiness is medium.');
+});
+
+it('reports provider CLI auth failures through Evaluate CLI JSONL', async () => {
+  const files = await fixtureFiles('consensus-evaluate-auth-');
+  const consensusPath = path.join(files.tempRoot, 'consensus');
+  await writeFile(
+    consensusPath,
+    [
+      '#!/usr/bin/env node',
+      'const args = process.argv.slice(2);',
+      'if (args[0] === "provider") { console.log(JSON.stringify({ schema_version: "v1", ok: true, providers: [{ id: "cursor", status: "auth_required" }, { id: "claude", status: "ready" }] })); process.exit(0); }',
+      'console.log(JSON.stringify({ schema_version: "v1", ok: true, usable: false, providers: [{ id: args.at(-1), status: "auth_required" }] }));',
+      '',
+    ].join('\n'),
+  );
+  await chmod(consensusPath, 0o755);
+  let stdout = '';
+  let stderr = '';
+
+  const exitCode = await runEvaluateCli(
+    [
+      files.artifactPath,
+      '--rubric',
+      files.rubricPath,
+      '--run-dir',
+      files.runDir,
+      '--allow-root',
+      files.tempRoot,
+      '--peers',
+      'cursor,claude',
+      '--max-rounds',
+      '1',
+    ],
+    {
+      cwd: files.tempRoot,
+      env: {
+        ...process.env,
+        CONSENSUS_PROVIDER_BACKEND: 'provider-cli',
+        CONSENSUS_CLI_PATH: consensusPath,
+      },
+      stdout: {
+        write(chunk: string | Uint8Array) {
+          stdout += String(chunk);
+          return true;
+        },
+      },
+      stderr: {
+        write(chunk: string | Uint8Array) {
+          stderr += String(chunk);
+          return true;
+        },
+      },
+    },
+  );
+
+  expect(exitCode).toBe(78);
+  const events = stdout
+    .trim()
+    .split('\n')
+    .map((line) => JSON.parse(line) as JsonRecord);
+  const error = events.find((event) => event.event === 'error');
+  expect(error).toMatchObject({
+    code: 'PEER_UNAVAILABLE',
+    exit_code: 78,
+  });
+  expect(error?.message).toMatch(/cursor/);
+  expect(error?.message).toMatch(/auth_required/);
+  expect(stderr).toMatch(/cursor/);
+  expect(stderr).not.toMatch(/Paseo/);
 });
 
 it('renders unresolved dissent for impasse runs', async () => {
