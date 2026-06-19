@@ -116,7 +116,7 @@ describe('docs-presence', () => {
     );
     expect(consensusAgents).toMatch(/src\/consensus\//);
     expect(consensusAgents).toMatch(/plugins\/consensus\/skills\/\*\/scripts\//);
-    expect(testAgents).toMatch(/tests\/generated-output-sync\.test\.ts/);
+    expect(testAgents).toMatch(/tests\/tooling\/generated-output-sync\.test\.ts/);
     expect(sharedTranscriptCore).toMatch(/src\/transcript\/core\/runtimes\.ts/);
     expect(sharedTranscriptCore).not.toMatch(
       /shared\/transcript-core\/runtimes\.mjs/,
