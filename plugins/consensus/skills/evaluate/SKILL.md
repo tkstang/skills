@@ -68,6 +68,49 @@ In `parallel_synthesized` mode the synthesis call defaults to the first configur
 
 At minimal agency, unresolved peer disagreement is surfaced rather than silently decided. If JSONL reports an impasse or the final artifact contains `## Unresolved dissent`, present the divergent positions and ask the user how to proceed: accept the impasse, give new direction, change the budget or agency level, or rerun with a different peer set.
 
+## When NOT to Use
+
+- You need to _improve_ an artifact through deliberation — use the `refine` skill instead.
+- No rubric, spec, checklist, or acceptance criteria exists and you are not willing to collaboratively create one — the wrapper requires `--rubric <path>`.
+- The artifact exceeds 1 MiB — the wrapper rejects oversized input before evaluation starts.
+- You want a single quick opinion rather than structured peer judgment — a direct host-model review is cheaper and faster.
+- The rubric has more than 12 distinct heading or bullet criteria — the wrapper silently drops criteria beyond the first 12; trim or prioritize before running.
+
+## Examples
+
+### Basic explicit-rubric invocation
+
+```
+Please evaluate this design doc against the attached rubric.
+```
+
+The host model invokes the wrapper from the skill directory:
+
+```bash
+node ./scripts/consensus-evaluate.mjs design-doc.md --rubric rubric.md
+```
+
+After the run, report the evaluation artifact path and summarize the key findings, peer disagreements, and any provider warnings.
+
+### Conversational evaluation request
+
+When the user does not provide a rubric upfront:
+
+> "Can you evaluate this pull request description? I care most about clarity and completeness."
+
+Ask what goals the evaluation should serve. Then either:
+
+- Ask the user to point to an existing rubric file, or
+- Offer to collaboratively create a rubric together before running the wrapper (see [Guided Rubric Creation](#guided-rubric-creation)).
+
+## Success Criteria
+
+- The wrapper exits cleanly and produces an evaluation artifact at the reported path.
+- Unified findings from the converged or last-agreed evaluation are present in the artifact.
+- Final status, key findings, peer disagreements, and any provider warnings from JSONL are relayed to the user.
+- Residual dissent (`## Dissent`) and unresolved impasses (`## Unresolved dissent`) are surfaced explicitly — never hidden.
+- If evaluation ends at impasse, divergent positions are presented and the user is asked how to proceed.
+
 ## Operator QA
 
 For a hands-on walkthrough of artifact/rubric inputs, expected JSONL, sidecar output, and dissent review, see `references/operator-qa.md`.

@@ -47,6 +47,22 @@ test('refine SKILL.md documents iteration-mode and escalation sections', async (
   assert.match(skill, /^## Escalation Handling$/m);
 });
 
+test('refine SKILL.md contains usage guidance sections', async () => {
+  const skill = await read(refineSkillPath);
+
+  assert.match(skill, /^## When NOT to Use$/m);
+  assert.match(skill, /^## Examples$/m);
+  assert.match(skill, /^## Success Criteria$/m);
+});
+
+test('evaluate SKILL.md contains usage guidance sections', async () => {
+  const skill = await read(evaluateSkillPath);
+
+  assert.match(skill, /^## When NOT to Use$/m);
+  assert.match(skill, /^## Examples$/m);
+  assert.match(skill, /^## Success Criteria$/m);
+});
+
 test('evaluate skill is documented and registered in distribution surfaces', async () => {
   const requiredEvaluateFiles = [
     evaluateSkillPath,
