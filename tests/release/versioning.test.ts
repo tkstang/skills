@@ -23,7 +23,10 @@ const jsonFiles = [
   '.cursor-plugin/marketplace.json',
   '.agents/plugins/marketplace.json',
 ];
-const skillFiles = ['plugins/consensus/skills/refine/SKILL.md'];
+const skillFiles = [
+  'plugins/consensus/skills/refine/SKILL.md',
+  'plugins/consensus/skills/evaluate/SKILL.md',
+];
 const requiredDocs = [
   'README.md',
   'LICENSE',
@@ -96,9 +99,11 @@ describe('release-versioning', () => {
     expect(
       'version' in (await readJson(root, cursorMarketplacePath)).plugins[0],
     ).toBe(false);
-    expect(
-      await readFile(path.join(root, skillFiles[0]), 'utf8'),
-    ).toMatch(/version: "0\.2\.0-beta\.1"/);
+    for (const file of skillFiles) {
+      expect(await readFile(path.join(root, file), 'utf8')).toMatch(
+        /version: "0\.2\.0-beta\.1"/,
+      );
+    }
   });
 
   it('bumpVersion rejects malformed semver before modifying files', async () => {

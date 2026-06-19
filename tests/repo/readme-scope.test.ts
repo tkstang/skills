@@ -42,8 +42,8 @@ describe('readme-scope', () => {
     expect(readme).toMatch(/custom ACP providers/i);
     expect(readme).toMatch(/cursor-as-peer/i);
     expect(readme).toMatch(/consensus-create/);
-    expect(readme).toMatch(/parallel-revision/);
-    expect(readme).toMatch(/parallel-synthesized/);
+    expect(readme).toMatch(/parallel_revision/);
+    expect(readme).toMatch(/parallel_synthesized/);
     expect(readme).toMatch(/whole-document harmonization/);
   });
 
@@ -77,12 +77,11 @@ describe('readme-scope', () => {
     expect(readme).toMatch(/whole-document harmonization/i);
   });
 
-  it('CHANGELOG records the v0.2 iteration-mode work under Unreleased', async () => {
+  it('CHANGELOG records the v0.1 iteration-mode work under Unreleased', async () => {
     const changelog = await read('CHANGELOG.md');
 
-    // The v0.2 mode work is documented in the Unreleased changelog.
-    expect(changelog).toMatch(/parallel-revision/i);
-    expect(changelog).toMatch(/parallel-synthesized/i);
+    expect(changelog).toMatch(/parallel_revision/i);
+    expect(changelog).toMatch(/parallel_synthesized/i);
     expect(changelog).toMatch(/escalation/i);
     expect(changelog).toMatch(/v1.*schema|schema.*v1/i);
     expect(changelog).toMatch(/--iteration/);

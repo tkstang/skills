@@ -15,7 +15,10 @@ export const MARKETPLACE_MANIFESTS = [
   '.agents/plugins/marketplace.json',
 ];
 
-export const SKILL_FILES = ['plugins/consensus/skills/refine/SKILL.md'];
+export const SKILL_FILES = [
+  'plugins/consensus/skills/refine/SKILL.md',
+  'plugins/consensus/skills/evaluate/SKILL.md',
+];
 
 const SEMVER_PATTERN =
   /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/u;

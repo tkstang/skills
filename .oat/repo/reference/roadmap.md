@@ -1,6 +1,6 @@
 # Skills Repo Roadmap
 
-**Last updated:** 2026-06-19 (test-organization cleanup, branch-implemented: shared `tests/helpers/`, domain-organized test tree, two oversized suites split — a behavior-preserving maintainability follow-on to PR4, pending its cleanup PR. Prior: PR4 retired the `node:test` runner — all repo/tooling + session-observer suites now run as Vitest `.test.ts` using `expect`, `pnpm test` is Vitest-only, and a guard blocks regressions — completing **bl-bfb4**; 2026-06-17 consensus-evaluate delivered as the first post-refine family skill; 2026-06-15 toolchain and `consensus-loop` proof slice.)
+**Last updated:** 2026-06-19 (v0.1 release verification refreshed automated gates, provider install evidence, release notes, version/tag checks, and release workflow parity. Test-organization cleanup is also branch-implemented on main context: shared `tests/helpers/`, domain-organized test tree, and two oversized suites split as a behavior-preserving maintainability follow-on to PR4. Prior: PR4 retired the `node:test` runner and completed **bl-bfb4**.)
 
 ## Planning Model
 
@@ -27,7 +27,7 @@ What remains, in dependency order:
 
 ### Release / distribution
 
-- v0.1 tag gated on `RELEASING.md` manual provider verification (install + permission smoke checks on Claude Code, Cursor, Codex, Agent Skills baseline).
+- v0.1 tag gated on `RELEASING.md` manual provider verification: automated gates and local Claude/Codex installs are current, but interactive permission prompts, Cursor locked-keychain/provider-error resolution, and post-tag Agent Skills / skills.sh discovery remain.
 - Public marketplace submission (Claude/Cursor), Codex Plugin Directory, and skills.sh verification follow the tag; no public claims until verified.
 
 ### Transcript tooling (session-observer, export-session-transcript, transcript-core)
@@ -58,8 +58,8 @@ reporting if the suite grows enough to justify it.
 
 ## Now
 
-- **v0.1 release verification** — run bl-d85f after this TypeScript/vitest branch lands. Reuse PR #9 dogfood as prior evidence; focus reruns on stale/gap behavior and the true release gates: provider install/permission checks, README install matrix, CHANGELOG/version/tag checks, release workflow, and post-tag skills.sh discovery before public claims.
-- **Package the current consensus feature set for release** — now that `consensus-evaluate` has landed, refresh release notes and provider QA around both shipped consensus skills before tagging.
+- **v0.1 release verification** — bl-d85f is in progress on the release-verification branch. Completed so far: current automated gates, README/CHANGELOG/version/tag checks, release workflow parity, and local Claude/Codex install evidence. Remaining before tag: interactive provider permission prompts and Cursor keychain/provider-error resolution or explicit unsupported-path release note.
+- **Post-tag discovery verification** — after the tag/release, verify Agent Skills / skills.sh and any public provider directory discovery paths before making public listing claims.
 
 ## Next
 

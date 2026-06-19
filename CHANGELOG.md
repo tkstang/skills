@@ -17,9 +17,9 @@
 - `consensus-evaluate` skill for judging an artifact against a rubric/spec with v3 defaults (`shared_input`, `parallel_revision`, `minimal`), unified findings, embedded per-peer `consensus-verdict` records, and dissent/unresolved-dissent surfacing.
 - Generated TypeScript runtime outputs for `consensus-evaluate` and its shared consensus loop copy, with plugin manifests, skill docs, README status, and generated-output drift guards updated.
 
-### Iteration modes (v0.2)
+### Iteration modes
 
-- Two parallel iteration modes selectable with `--iteration`: `parallel-revision` (both peers revise simultaneously each round, converging on emergent agreement; 2x peer calls) and `parallel-synthesized` (parallel revision plus a per-round wrapper-driven synthesis merge; 2x peer calls + 1 synthesis call). `alternating` remains the default and is regression-locked.
+- Two parallel iteration modes selectable with `--iteration`: `parallel_revision` (both peers revise simultaneously each round, converging on emergent agreement; 2x peer calls) and `parallel_synthesized` (parallel revision plus a per-round wrapper-driven synthesis merge; 2x peer calls + 1 synthesis call). `alternating` remains the default and is regression-locked.
 - Configurable synthesizer via `--synthesizer` (defaults to the first peer; validated against the provider inventory) so routine merging can run on a cheaper model; synthesizer identity is recorded in every synthesis record and the resolution block.
 - Agency-gated escalation ladder: deterministic triggers (persistent disagreement, oscillation, budget exhaustion, near-done drift) emit a structured `escalation_required` event routed by `--agency` to the user or the host. Host decisions re-enter with `--resume --host-direction "<text>"` (and optional `--host-decision-kind`) as attributed orchestrator rounds; genuinely-stuck host escalations promote to the user.
 - Unified v1 deliberation record schema across all three modes (mode-aware verdicts, synthesis records, attributed intervention rounds, extended byte caps); v0 artifacts are rejected fail-closed on resume with no migration.
@@ -28,6 +28,7 @@
 
 ### Release validation
 
-- Local automated verification passed on 2026-05-04: `npm test`, `node scripts/validate.mjs`, and `node scripts/smoke-test.mjs`.
-- Paseo local check passed with `paseo 0.1.63`; `paseo provider ls --json` reported `claude` and `codex` available.
-- Public v0.1 tagging remains blocked until manual provider runtime install and permission checks are completed for Claude Code, Cursor, and Codex Git/local paths.
+- Local automated verification passed on 2026-06-19: `pnpm run build`, `pnpm run type-check`, `pnpm run build:check`, `pnpm run test` (53 files / 572 tests), `pnpm run validate`, and `pnpm run smoke`.
+- Paseo local check passed with `paseo 0.1.96`; `paseo provider ls --json` reported `claude` and `codex` available.
+- Claude Code local marketplace install from the release-candidate checkout passed and exposed both shipped consensus skills (`evaluate`, `refine`) plus the section runner; Codex local install passed from the configured local `skills` marketplace.
+- Public v0.1 tagging remains blocked until interactive provider permission prompts are completed for Claude Code, Codex, and Cursor, and until Cursor's locked-keychain provider error is resolved or explicitly documented as unsupported for the tag.

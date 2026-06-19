@@ -11,11 +11,29 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    env:
+      GIT_HOOKS: "0"
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - run: npm test
-      - run: npm run validate
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Capture generated output paths
+        run: node scripts/build-generated.mjs --list-outputs > "$RUNNER_TEMP/generated-output-paths.txt"
+      - run: pnpm run build
+      - name: Verify generated outputs are committed
+        run: |
+          generated_outputs=()
+          while IFS= read -r file; do
+            generated_outputs+=("$file")
+          done < "$RUNNER_TEMP/generated-output-paths.txt"
+          git diff --exit-code -- "${generated_outputs[@]}"
+      - run: pnpm run type-check
+      - run: pnpm run build:check
+      - run: pnpm run test
+      - run: pnpm run validate
+      - run: pnpm run smoke
       - run: node scripts/bump-version.mjs --check-tag "$GITHUB_REF_NAME"
