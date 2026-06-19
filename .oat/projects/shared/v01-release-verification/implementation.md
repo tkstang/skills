@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: oat-project-implement
 oat_blockers: []
 oat_last_updated: 2026-06-19
-oat_current_task_id: p03-t03
+oat_current_task_id: p03-t04
 oat_generated: false
 ---
 
@@ -18,9 +18,9 @@ oat_generated: false
 | ----- | ------ | ----- | --------- |
 | Phase 1 | completed | 2 | 2/2 |
 | Phase 2 | completed | 2 | 2/2 |
-| Phase 3 | in_progress | 4 | 2/4 |
+| Phase 3 | in_progress | 4 | 3/4 |
 
-**Total:** 6/8 tasks completed
+**Total:** 7/8 tasks completed
 
 ## Phase 1: Establish Current Evidence Baseline
 
@@ -195,6 +195,21 @@ oat_generated: false
 - Result: pass.
 - Run: `git diff --check`
 - Result: pass.
+
+### Task p03-t03: (review) Rename refine QA example output path
+
+**Status:** completed
+**Commit:** pending task commit
+
+**Outcome:**
+
+- Renamed the refine operator QA sample output path from `tmp/arch-parallel-revision.consensus.md` to `tmp/arch_parallel_revision.consensus.md`.
+- Kept actual `--iteration parallel_revision` values unchanged.
+
+**Verification:**
+
+- Run: `rg -n "arch-parallel-revision|parallel-revision|parallel-synthesized" plugins/consensus/skills/refine/references/operator-qa.md README.md plugins/consensus/README.md CHANGELOG.md`
+- Result: pass; no stale hyphenated mode/output spelling matched in the scoped docs.
 
 ## Final Summary (for PR/docs)
 

@@ -112,7 +112,7 @@ node plugins/consensus/skills/refine/scripts/consensus-refine.mjs \
   plugins/consensus/skills/refine/references/examples/architecture-note.md \
   --goal "Make this rate-limiter note precise and skimmable for senior engineers; keep all five sections." \
   --iteration parallel_revision \
-  --output tmp/arch-parallel-revision.consensus.md
+  --output tmp/arch_parallel_revision.consensus.md
 ```
 
 **Expect:**
