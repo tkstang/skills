@@ -73,7 +73,7 @@ describe('generated consensus provider CLI process contract', () => {
     expect(parseSingleJsonDocument(result.stdout)).toMatchObject({
       ok: false,
       code: 'CONSENSUS_CLI_USAGE',
-      message: 'Command is not implemented yet: run',
+      message: expect.stringContaining('Could not read schema'),
     });
   });
 
@@ -99,11 +99,12 @@ describe('generated consensus provider CLI process contract', () => {
       '2',
     ]);
 
-    expect(result.code).toBe(2);
+    expect(result.code).toBe(0);
     expect(parseSingleJsonDocument(result.stdout)).toMatchObject({
       ok: false,
-      code: 'CONSENSUS_CLI_USAGE',
-      message: 'Command is not implemented yet: run',
+      code: 'PROVIDER_UNSUPPORTED_OPTION',
+      provider: 'codex',
+      message: expect.stringContaining('runtime_policy.permission_mode'),
     });
   });
 

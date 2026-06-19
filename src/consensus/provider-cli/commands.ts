@@ -10,6 +10,7 @@ import {
 } from './envelope.js';
 import { evaluateHostGuard, hostContextFromEnv } from './host-guard.js';
 import { probeProviderRegistry } from './probe.js';
+import { runProviderTurn } from './structured-output.js';
 
 import type {
   HostContext,
@@ -150,8 +151,12 @@ export async function runConsensusCli(
       return 0;
     }
 
-    await normalizeRunRequest(command, io);
-    const envelope = usageFailure('Command is not implemented yet: run');
+    const request = await normalizeRunRequest(command, io);
+    const envelope = await runProviderTurn(request, {
+      readSchema: async (schemaPath) =>
+        JSON.parse(await io.readFile(schemaPath)),
+      parentEnv: io.env,
+    });
     writeJson(io, envelope);
     return processExitForEnvelope(envelope);
   } catch (error) {

@@ -3,7 +3,7 @@
 // Source: src/consensus/provider-cli/cli.ts
 
 // src/consensus/provider-cli/cli.ts
-import { readFile } from "node:fs/promises";
+import { readFile as readFile2 } from "node:fs/promises";
 
 // src/consensus/provider-cli/args.ts
 var ConsensusCliUsageError = class extends Error {
@@ -395,7 +395,206 @@ function isRecord(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+// src/consensus/provider-cli/invocation.ts
+function buildProviderInvocation(adapter, request, options = {}) {
+  return adapter.buildInvocation(request, {
+    strategy: options.strategy ?? defaultStrategy(adapter)
+  });
+}
+var buildClaudeInvocation = (request, options = {}) => {
+  const strategy = options.strategy ?? "prompt_only";
+  const argv = ["--print", "--output-format", "json"];
+  if (strategy === "provider_validated") {
+    argv.push("--json-schema", request.schema_path);
+  }
+  if (request.model) argv.push("--model", request.model);
+  if (request.effort) argv.push("--effort", request.effort);
+  return invocation({
+    executable: "claude",
+    argv,
+    request,
+    strategy,
+    outputMode: "stdout_json"
+  });
+};
+var buildCodexInvocation = (request, options = {}) => {
+  const strategy = options.strategy ?? "prompt_only";
+  const argv = ["exec", "--json"];
+  if (strategy === "constrained_native") {
+    argv.push("--output-schema", request.schema_path);
+  }
+  if (request.model) argv.push("--model", request.model);
+  if (request.effort) argv.push("--reasoning-effort", request.effort);
+  if (request.runtime_policy?.sandbox) {
+    argv.push("--sandbox", request.runtime_policy.sandbox);
+  }
+  if (request.runtime_policy?.approval_policy) {
+    argv.push("--approval-policy", request.runtime_policy.approval_policy);
+  }
+  return invocation({
+    executable: "codex",
+    argv,
+    request,
+    strategy,
+    outputMode: "stdout_json"
+  });
+};
+var buildCursorInvocation = (request, options = {}) => {
+  const strategy = options.strategy === "submit_tool_candidate" ? "prompt_only" : options.strategy ?? "prompt_only";
+  const argv = ["--output-format", "json", "--force"];
+  return invocation({
+    executable: "cursor-agent",
+    argv,
+    request,
+    strategy,
+    outputMode: "stdout_json"
+  });
+};
+function invocation(input) {
+  return {
+    executable: input.executable,
+    argv: input.argv,
+    stdin: input.request.prompt,
+    ...input.request.cwd ? { cwd: input.request.cwd } : {},
+    output_mode: input.outputMode,
+    strategy: input.strategy,
+    redacted_command: [input.executable, ...input.argv],
+    shell: false
+  };
+}
+function defaultStrategy(adapter) {
+  return adapter.capabilities.schema_strategies.find(
+    (strategy) => strategy !== "submit_tool_candidate"
+  ) ?? "prompt_only";
+}
+
+// src/consensus/provider-cli/adapters.ts
+var DEFAULT_PROVIDER_ADAPTERS = [
+  {
+    id: "claude",
+    display_name: "Claude",
+    executable: "claude",
+    buildInvocation: buildClaudeInvocation,
+    probe: {
+      version_args: ["--version"],
+      auth_required_patterns: [
+        /auth(?:entication)? required/i,
+        /not logged in/i,
+        /login required/i,
+        /keychain.*locked/i
+      ],
+      unavailable_patterns: [/unsupported platform/i, /not configured/i]
+    },
+    capabilities: {
+      schema_strategies: ["provider_validated", "prompt_only"],
+      output_modes: ["stdout_json"],
+      options: {
+        model: true,
+        effort: "effort",
+        runtime_policy: {
+          permission_modes: ["non-interactive", "read-only"],
+          env_allowlist: true
+        }
+      },
+      supports_submit_tool: false,
+      supports_same_host_subprocess: true,
+      supports_host_native_dispatch: false
+    }
+  },
+  {
+    id: "codex",
+    display_name: "Codex",
+    executable: "codex",
+    buildInvocation: buildCodexInvocation,
+    probe: {
+      version_args: ["--version"],
+      auth_required_patterns: [
+        /auth(?:entication)? required/i,
+        /not logged in/i,
+        /login required/i,
+        /keychain.*locked/i
+      ],
+      unavailable_patterns: [/unsupported platform/i, /not configured/i]
+    },
+    capabilities: {
+      schema_strategies: ["constrained_native", "prompt_only"],
+      output_modes: ["stdout_json"],
+      options: {
+        model: true,
+        effort: "reasoning_effort",
+        runtime_policy: {
+          permission_modes: ["non-interactive"],
+          sandboxes: ["read-only", "workspace-write"],
+          approval_policies: ["never", "on-request"],
+          env_allowlist: true
+        }
+      },
+      supports_submit_tool: false,
+      supports_same_host_subprocess: true,
+      supports_host_native_dispatch: false
+    }
+  },
+  {
+    id: "cursor",
+    display_name: "Cursor",
+    executable: "cursor-agent",
+    buildInvocation: buildCursorInvocation,
+    probe: {
+      version_args: ["--version"],
+      auth_required_patterns: [
+        /auth(?:entication)? required/i,
+        /not logged in/i,
+        /login required/i,
+        /keychain.*locked/i,
+        /credential.*locked/i
+      ],
+      unavailable_patterns: [/unsupported platform/i, /not configured/i]
+    },
+    capabilities: {
+      schema_strategies: ["prompt_only", "submit_tool_candidate"],
+      output_modes: ["stdout_json"],
+      options: {
+        model: false,
+        effort: null,
+        runtime_policy: {
+          permission_modes: ["non-interactive"],
+          env_allowlist: true
+        }
+      },
+      supports_submit_tool: false,
+      supports_same_host_subprocess: true,
+      supports_host_native_dispatch: false
+    }
+  }
+];
+function providerRegistry(adapters = DEFAULT_PROVIDER_ADAPTERS) {
+  const byId = /* @__PURE__ */ new Map();
+  for (const adapter of adapters) byId.set(adapter.id, adapter);
+  return {
+    list() {
+      return [...adapters];
+    },
+    get(id) {
+      return byId.get(id);
+    }
+  };
+}
+
 // src/consensus/provider-cli/envelope.ts
+function successEnvelope(input) {
+  const envelope = {
+    schema_version: "v1",
+    ok: true,
+    provider: input.provider,
+    args: input.args,
+    stdout: input.stdout,
+    json: input.json,
+    attempts: buildAttemptSummary(input.attempts, false)
+  };
+  if (input.stderr !== void 0) envelope.stderr = input.stderr;
+  if (input.diagnostics) envelope.diagnostics = input.diagnostics;
+  return envelope;
+}
 function failureEnvelope(input) {
   const envelope = {
     schema_version: "v1",
@@ -444,6 +643,670 @@ function buildAttemptSummary(attempts, retryable) {
   };
 }
 
+// src/consensus/provider-cli/host-guard.ts
+function detectHostRuntime(env) {
+  if (env.CONSENSUS_PARENT_HOST === "claude" || env.CLAUDECODE || env.CLAUDE_CODE_ENTRYPOINT || env.CLAUDE_CODE_SESSION_ID || env.CLAUDE_SESSION_ID) {
+    return "claude";
+  }
+  if (env.CONSENSUS_PARENT_HOST === "codex" || env.CODEX_SESSION_ID || env.CODEX_SANDBOX || env.OPENAI_CODEX_SESSION_ID) {
+    return "codex";
+  }
+  if (env.CONSENSUS_PARENT_HOST === "cursor" || env.CURSOR_TRACE_ID || env.CURSOR_AGENT || env.CURSOR_SESSION_ID || env.CURSOR) {
+    return "cursor";
+  }
+  return "unknown";
+}
+function hostContextFromEnv(env, cwd, maxDepth = 1) {
+  return {
+    runtime: detectHostRuntime(env),
+    cwd,
+    run_id: env.CONSENSUS_RUN_ID ?? "local",
+    depth: parseNonNegativeInteger2(env.CONSENSUS_DEPTH) ?? 0,
+    max_depth: maxDepth
+  };
+}
+function buildChildHostEnv(context) {
+  return {
+    CONSENSUS_RUN_ID: context.run_id,
+    CONSENSUS_PARENT_HOST: context.runtime,
+    CONSENSUS_DEPTH: String(context.depth + 1)
+  };
+}
+function evaluateHostGuard(input) {
+  const { host, provider } = input;
+  if (!host || host.runtime === "unknown") {
+    return allowed("unknown", "none");
+  }
+  if (host.runtime !== provider) {
+    return allowed("different_host", "none");
+  }
+  const childDepth = host.depth + 1;
+  if (childDepth > host.max_depth) {
+    return {
+      allowed: false,
+      code: "HOST_RECURSION_BLOCKED",
+      message: `Blocked recursive ${provider} peer spawn at depth ${childDepth}; max_depth is ${host.max_depth}.`,
+      host_relation: "same_host",
+      guard: "blocked",
+      diagnostics: {
+        host_relation: "same_host",
+        guard: "blocked",
+        warnings: [
+          `HOST_RECURSION_BLOCKED: ${provider} peer would exceed max_depth ${host.max_depth}`
+        ]
+      }
+    };
+  }
+  return allowed("same_host", "subprocess_isolated", buildChildHostEnv(host));
+}
+function allowed(hostRelation, guard, childEnv) {
+  return {
+    allowed: true,
+    host_relation: hostRelation,
+    guard,
+    ...childEnv ? { child_env: childEnv } : {},
+    diagnostics: {
+      host_relation: hostRelation,
+      guard
+    }
+  };
+}
+function parseNonNegativeInteger2(value) {
+  if (value === void 0 || !/^\d+$/.test(value)) return void 0;
+  return Number(value);
+}
+
+// src/consensus/provider-cli/probe.ts
+async function probeProviderRegistry({
+  registry,
+  runner
+}) {
+  return Promise.all(
+    registry.list().map(
+      (adapter) => probeProviderReadiness(adapter, { runner })
+    )
+  );
+}
+async function probeProviderReadiness(adapter, options) {
+  const executable = await options.runner.findExecutable(adapter.executable);
+  if (!executable) {
+    return providerEntry(adapter, "missing", {
+      warnings: [
+        `PROVIDER_MISSING: executable not found for ${adapter.id} (${adapter.executable})`
+      ]
+    });
+  }
+  const result = await options.runner.run(
+    adapter.executable,
+    adapter.probe.version_args
+  );
+  const output = `${result.stdout}
+${result.stderr}`;
+  if (matchesAny(output, adapter.probe.auth_required_patterns)) {
+    return providerEntry(adapter, "auth_required", {
+      executable,
+      warnings: [`PROVIDER_AUTH_REQUIRED: ${firstNonEmptyLine(output)}`]
+    });
+  }
+  if (result.code !== 0 || matchesAny(output, adapter.probe.unavailable_patterns)) {
+    return providerEntry(adapter, "unavailable", {
+      executable,
+      warnings: [`PROVIDER_UNAVAILABLE: ${firstNonEmptyLine(output)}`]
+    });
+  }
+  return providerEntry(adapter, "ready", {
+    executable,
+    version: firstNonEmptyLine(output)
+  });
+}
+function providerEntry(adapter, status, options = {}) {
+  return {
+    id: adapter.id,
+    status,
+    capabilities: adapter.capabilities,
+    ...options.executable ? { executable: options.executable } : {},
+    ...options.version ? { version: options.version } : {},
+    ...options.warnings ? { diagnostics: { warnings: options.warnings } } : {}
+  };
+}
+function matchesAny(value, patterns) {
+  return patterns?.some((pattern) => pattern.test(value)) ?? false;
+}
+function firstNonEmptyLine(value) {
+  return value.split(/\r?\n/).map((line) => line.trim()).find(Boolean);
+}
+
+// src/consensus/provider-cli/structured-output.ts
+import { readFile } from "node:fs/promises";
+
+// src/consensus/provider-cli/runtime-policy.ts
+var DEFAULT_RUNTIME_POLICY = {
+  permission_mode: "non-interactive"
+};
+var BASE_ENV_ALLOWLIST = [
+  "PATH",
+  "HOME",
+  "TMPDIR",
+  "TEMP",
+  "TMP",
+  "USER",
+  "LOGNAME",
+  "SHELL",
+  "LANG"
+];
+var PROVIDER_ENV_ALLOWLIST = [
+  "ANTHROPIC_API_KEY",
+  "CLAUDE_CODE_OAUTH_TOKEN",
+  "OPENAI_API_KEY",
+  "CURSOR_API_KEY"
+];
+function validateProviderOptions(request, capabilities) {
+  if (request.model && !capabilities.options.model) {
+    return unsupported("model", "Provider does not support model selection.");
+  }
+  if (request.effort && capabilities.options.effort === null) {
+    return unsupported("effort", "Provider does not support effort selection.");
+  }
+  const policy = defaultRuntimePolicy(request.runtime_policy);
+  const runtimeCapabilities = capabilities.options.runtime_policy;
+  const permissionResult = validateOptionValue(
+    "runtime_policy.permission_mode",
+    policy.permission_mode,
+    runtimeCapabilities.permission_modes
+  );
+  if (permissionResult) return permissionResult;
+  const sandboxResult = validateOptionValue(
+    "runtime_policy.sandbox",
+    policy.sandbox,
+    runtimeCapabilities.sandboxes
+  );
+  if (sandboxResult) return sandboxResult;
+  const approvalResult = validateOptionValue(
+    "runtime_policy.approval_policy",
+    policy.approval_policy,
+    runtimeCapabilities.approval_policies
+  );
+  if (approvalResult) return approvalResult;
+  if (policy.env_allowlist && policy.env_allowlist.length > 0 && !runtimeCapabilities.env_allowlist) {
+    return unsupported(
+      "runtime_policy.env_allowlist",
+      "Provider does not support child environment allowlist extension."
+    );
+  }
+  return { ok: true };
+}
+function defaultRuntimePolicy(policy = {}) {
+  return {
+    permission_mode: policy.permission_mode ?? DEFAULT_RUNTIME_POLICY.permission_mode,
+    ...policy.sandbox ? { sandbox: policy.sandbox } : {},
+    ...policy.approval_policy ? { approval_policy: policy.approval_policy } : {},
+    ...policy.env_allowlist ? { env_allowlist: policy.env_allowlist } : {}
+  };
+}
+function buildChildEnvironment({
+  parentEnv,
+  request,
+  hostEnv
+}) {
+  const allowedNames = /* @__PURE__ */ new Set([
+    ...BASE_ENV_ALLOWLIST,
+    ...PROVIDER_ENV_ALLOWLIST,
+    ...request.runtime_policy?.env_allowlist ?? []
+  ]);
+  const childEnv = {};
+  for (const name of allowedNames) {
+    const value = parentEnv[name];
+    if (value !== void 0) childEnv[name] = value;
+  }
+  return {
+    ...childEnv,
+    ...hostEnv
+  };
+}
+function validateOptionValue(option, value, supportedValues) {
+  if (!value) return void 0;
+  if (supportedValues?.includes(value)) return void 0;
+  return unsupported(
+    option,
+    supportedValues ? `Unsupported ${option}: ${value}.` : `Provider does not support ${option}.`
+  );
+}
+function unsupported(option, message) {
+  return {
+    ok: false,
+    code: "PROVIDER_UNSUPPORTED_OPTION",
+    option,
+    message
+  };
+}
+
+// src/consensus/provider-cli/subprocess.ts
+import { spawn } from "node:child_process";
+var DEFAULT_MAX_OUTPUT_BYTES = 1024 * 1024 * 10;
+var DEFAULT_TIMEOUT_SEC = 300;
+function runProviderSubprocess(invocation2, options = {}) {
+  const maxOutputBytes = options.maxOutputBytes ?? DEFAULT_MAX_OUTPUT_BYTES;
+  const timeoutSec = options.timeoutSec ?? DEFAULT_TIMEOUT_SEC;
+  return new Promise((resolve) => {
+    let stdout = "";
+    let stderr = "";
+    let stdoutBytes = 0;
+    let stderrBytes = 0;
+    let terminal;
+    const child = spawn(invocation2.executable, invocation2.argv, {
+      cwd: invocation2.cwd,
+      env: options.env,
+      shell: false,
+      stdio: ["pipe", "pipe", "pipe"]
+    });
+    const timeout = setTimeout(() => {
+      terminal = terminal ?? "timeout";
+      child.kill("SIGTERM");
+    }, timeoutSec * 1e3);
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk;
+      stdoutBytes += Buffer.byteLength(chunk);
+      if (stdoutBytes + stderrBytes > maxOutputBytes) {
+        terminal = terminal ?? "output_cap";
+        child.kill("SIGTERM");
+      }
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk;
+      stderrBytes += Buffer.byteLength(chunk);
+      if (stdoutBytes + stderrBytes > maxOutputBytes) {
+        terminal = terminal ?? "output_cap";
+        child.kill("SIGTERM");
+      }
+    });
+    child.on("error", () => {
+      terminal = terminal ?? "spawn_error";
+    });
+    child.on("close", (exitCode, signal) => {
+      clearTimeout(timeout);
+      const diagnostics = diagnosticsFor({
+        invocation: invocation2,
+        stdoutBytes,
+        stderrBytes,
+        maxOutputBytes,
+        timeoutSec,
+        exitCode,
+        signal
+      });
+      if (terminal === "spawn_error") {
+        resolve(
+          failure({
+            code: "PROVIDER_MISSING",
+            message: `Provider executable not found: ${invocation2.executable}`,
+            retryable: false,
+            stdout,
+            stderr,
+            exitCode,
+            signal,
+            diagnostics
+          })
+        );
+        return;
+      }
+      if (terminal === "timeout") {
+        resolve(
+          failure({
+            code: "PROVIDER_TIMEOUT",
+            message: `Provider subprocess timed out after ${timeoutSec} seconds.`,
+            retryable: false,
+            stdout,
+            stderr,
+            exitCode,
+            signal,
+            diagnostics
+          })
+        );
+        return;
+      }
+      if (terminal === "output_cap") {
+        resolve(
+          failure({
+            code: "PROVIDER_OUTPUT_CAP_EXCEEDED",
+            message: `Provider subprocess exceeded output cap of ${maxOutputBytes} bytes.`,
+            retryable: false,
+            stdout,
+            stderr,
+            exitCode,
+            signal,
+            diagnostics
+          })
+        );
+        return;
+      }
+      if (exitCode !== 0) {
+        resolve(
+          failure({
+            code: "PROVIDER_EXIT",
+            message: `Provider subprocess exited with code ${exitCode ?? "null"}.`,
+            retryable: true,
+            stdout,
+            stderr,
+            exitCode,
+            signal,
+            diagnostics
+          })
+        );
+        return;
+      }
+      resolve({
+        ok: true,
+        stdout,
+        stderr,
+        exit_code: exitCode,
+        signal,
+        diagnostics
+      });
+    });
+    child.stdin.end(invocation2.stdin);
+  });
+}
+function diagnosticsFor(input) {
+  return {
+    strategy_used: input.invocation.strategy,
+    output_mode: input.invocation.output_mode,
+    redacted_command: input.invocation.redacted_command,
+    provider_exit_code: input.exitCode,
+    provider_signal: input.signal,
+    output_bytes: {
+      stdout: input.stdoutBytes,
+      stderr: input.stderrBytes,
+      max: input.maxOutputBytes
+    },
+    timeout_sec: input.timeoutSec
+  };
+}
+function failure(input) {
+  return {
+    ok: false,
+    code: input.code,
+    message: input.message,
+    retryable: input.retryable,
+    stdout: input.stdout,
+    stderr: input.stderr,
+    exit_code: input.exitCode,
+    signal: input.signal,
+    diagnostics: input.diagnostics
+  };
+}
+
+// src/consensus/provider-cli/structured-output.ts
+function selectStructuredOutputStrategy(adapter) {
+  if (adapter.capabilities.schema_strategies.includes("constrained_native")) {
+    return "constrained_native";
+  }
+  if (adapter.capabilities.schema_strategies.includes("provider_validated")) {
+    return "provider_validated";
+  }
+  return "prompt_only";
+}
+async function runProviderTurn(request, dependencies = {}) {
+  const registry = dependencies.registry ?? providerRegistry();
+  const adapter = registry.get(request.provider);
+  if (!adapter) {
+    return preInvocationFailure({
+      provider: request.provider,
+      code: "PROVIDER_UNSUPPORTED",
+      message: `Provider is not supported: ${request.provider}`,
+      terminalReason: "unsupported_provider"
+    });
+  }
+  const optionValidation = validateProviderOptions(
+    request,
+    adapter.capabilities
+  );
+  if (!optionValidation.ok) {
+    return preInvocationFailure({
+      provider: request.provider,
+      code: optionValidation.code,
+      message: optionValidation.message,
+      terminalReason: optionValidation.option
+    });
+  }
+  const hostGuard = evaluateHostGuard({
+    host: request.host,
+    provider: request.provider
+  });
+  if (!hostGuard.allowed) {
+    return preInvocationFailure({
+      provider: request.provider,
+      code: hostGuard.code,
+      message: hostGuard.message,
+      terminalReason: "host_recursion_blocked",
+      diagnostics: hostGuard.diagnostics
+    });
+  }
+  const readSchema = dependencies.readSchema ?? readJsonSchema;
+  let schema;
+  try {
+    schema = await readSchema(request.schema_path);
+  } catch (error) {
+    return preInvocationFailure({
+      provider: request.provider,
+      code: "CONSENSUS_CLI_USAGE",
+      message: `Could not read schema: ${error instanceof Error ? error.message : String(error)}`,
+      terminalReason: "schema_read_failed"
+    });
+  }
+  const maxAttempts = request.max_attempts ?? 1;
+  const strategy = selectStructuredOutputStrategy(adapter);
+  const runSubprocess = dependencies.runSubprocess ?? runProviderSubprocess;
+  const parentEnv = dependencies.parentEnv ?? process.env;
+  const childEnv = buildChildEnvironment({
+    parentEnv,
+    request,
+    hostEnv: hostGuard.child_env ?? {}
+  });
+  let validationFeedback;
+  let lastInvocation;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const attemptRequest = validationFeedback === void 0 ? request : {
+      ...request,
+      prompt: `${request.prompt}
+
+Schema validation failed: ${validationFeedback}
+Return only JSON matching the schema.`
+    };
+    const invocation2 = buildProviderInvocation(adapter, attemptRequest, {
+      strategy
+    });
+    lastInvocation = invocation2;
+    const processResult = await runSubprocess(invocation2, {
+      env: childEnv,
+      maxOutputBytes: request.max_output_bytes,
+      timeoutSec: request.max_runtime_sec
+    });
+    const diagnostics = mergeDiagnostics(
+      {
+        strategy_used: strategy,
+        output_mode: invocation2.output_mode,
+        redacted_command: invocation2.redacted_command
+      },
+      hostGuard.diagnostics,
+      processResult.diagnostics
+    );
+    if (!processResult.ok) {
+      if (processResult.retryable && attempt < maxAttempts) {
+        validationFeedback = processResult.message;
+        continue;
+      }
+      return failureEnvelope({
+        provider: request.provider,
+        code: processResult.code,
+        message: processResult.message,
+        retryable: false,
+        stdout: processResult.stdout,
+        stderr: processResult.stderr,
+        attempts: {
+          cli_attempts: attempt,
+          terminal_reason: terminalReasonForProcess(processResult.code)
+        },
+        diagnostics
+      });
+    }
+    const parsed = parseProviderJson(processResult.stdout);
+    if (!parsed.ok) {
+      if (attempt < maxAttempts) {
+        validationFeedback = parsed.message;
+        continue;
+      }
+      return failureEnvelope({
+        provider: request.provider,
+        code: "PROVIDER_INVALID_JSON",
+        message: parsed.message,
+        retryable: false,
+        stdout: processResult.stdout,
+        stderr: processResult.stderr,
+        attempts: {
+          cli_attempts: attempt,
+          terminal_reason: "invalid_json"
+        },
+        diagnostics
+      });
+    }
+    const validation = validateSchemaSubset(parsed.value, schema);
+    if (!validation.ok) {
+      if (attempt < maxAttempts) {
+        validationFeedback = validation.message;
+        continue;
+      }
+      return failureEnvelope({
+        provider: request.provider,
+        code: "PROVIDER_SCHEMA_VALIDATION",
+        message: validation.message,
+        retryable: false,
+        stdout: processResult.stdout,
+        stderr: processResult.stderr,
+        attempts: {
+          cli_attempts: attempt,
+          terminal_reason: "schema_validation"
+        },
+        diagnostics
+      });
+    }
+    return successEnvelope({
+      provider: request.provider,
+      args: invocation2.redacted_command,
+      stdout: processResult.stdout,
+      stderr: processResult.stderr,
+      json: parsed.value,
+      attempts: {
+        cli_attempts: attempt,
+        terminal_reason: "success"
+      },
+      diagnostics
+    });
+  }
+  return failureEnvelope({
+    provider: request.provider,
+    code: "PROVIDER_EXIT",
+    message: "Provider run ended without a terminal result.",
+    retryable: false,
+    attempts: {
+      cli_attempts: maxAttempts,
+      terminal_reason: "attempt_budget_exhausted"
+    },
+    diagnostics: lastInvocation ? {
+      strategy_used: strategy,
+      output_mode: lastInvocation.output_mode,
+      redacted_command: lastInvocation.redacted_command
+    } : void 0
+  });
+}
+async function readJsonSchema(schemaPath) {
+  return JSON.parse(await readFile(schemaPath, "utf8"));
+}
+function preInvocationFailure(input) {
+  return failureEnvelope({
+    provider: input.provider,
+    code: input.code,
+    message: input.message,
+    retryable: false,
+    attempts: {
+      cli_attempts: 0,
+      terminal_reason: input.terminalReason
+    },
+    diagnostics: input.diagnostics
+  });
+}
+function parseProviderJson(stdout) {
+  try {
+    return { ok: true, value: JSON.parse(stdout.trim()) };
+  } catch (error) {
+    return {
+      ok: false,
+      message: `Provider returned invalid JSON: ${error instanceof Error ? error.message : String(error)}`
+    };
+  }
+}
+function validateSchemaSubset(value, schema) {
+  if (!isRecord2(schema)) return { ok: true };
+  if (schema.type === "object" && !isRecord2(value)) {
+    return { ok: false, message: "Expected provider JSON to be an object." };
+  }
+  if (Array.isArray(schema.required)) {
+    if (!isRecord2(value)) {
+      return {
+        ok: false,
+        message: "Expected provider JSON to be an object with required fields."
+      };
+    }
+    for (const field of schema.required) {
+      if (typeof field === "string" && !(field in value)) {
+        return {
+          ok: false,
+          message: `Missing required JSON field: ${field}`
+        };
+      }
+    }
+  }
+  if (isRecord2(schema.properties) && isRecord2(value)) {
+    for (const [field, fieldSchema] of Object.entries(schema.properties)) {
+      if (!(field in value) || !isRecord2(fieldSchema)) continue;
+      const type = fieldSchema.type;
+      if (typeof type === "string" && !matchesJsonType(value[field], type)) {
+        return {
+          ok: false,
+          message: `Field ${field} must be ${type}.`
+        };
+      }
+    }
+  }
+  return { ok: true };
+}
+function matchesJsonType(value, type) {
+  if (type === "array") return Array.isArray(value);
+  if (type === "object") return isRecord2(value);
+  if (type === "integer") return Number.isInteger(value);
+  return typeof value === type;
+}
+function terminalReasonForProcess(code) {
+  if (code === "PROVIDER_EXIT") return "provider_exit";
+  if (code === "PROVIDER_TIMEOUT") return "provider_timeout";
+  if (code === "PROVIDER_OUTPUT_CAP_EXCEEDED") return "output_cap_exceeded";
+  return "provider_missing";
+}
+function mergeDiagnostics(...diagnostics) {
+  const merged = {};
+  const warnings = [];
+  for (const item of diagnostics) {
+    if (!item) continue;
+    Object.assign(merged, item);
+    if (item.warnings) warnings.push(...item.warnings);
+  }
+  if (warnings.length > 0) merged.warnings = warnings;
+  return merged;
+}
+function isRecord2(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 // src/consensus/provider-cli/commands.ts
 function helpText() {
   return `Usage: consensus <command> --json
@@ -463,12 +1326,15 @@ async function runProviderList(options = {}) {
   return {
     schema_version: "v1",
     ok: true,
-    providers: await resolveRegistry(options.registry)
+    providers: await resolveRegistry(options.registry, options)
   };
 }
 async function runPreflight(options = {}) {
-  const registry = await resolveRegistry(options.registry);
-  const providers = selectProviders(registry, options.provider);
+  const registry = await resolveRegistry(options.registry, options);
+  const providers = applyHostGuardToProviders(
+    selectProviders(registry, options.provider),
+    options.host
+  );
   const usable = providers.every((provider) => provider.status === "ready");
   const diagnostics = options.provider && providers[0]?.status === "unsupported" ? {
     warnings: [
@@ -499,13 +1365,17 @@ async function runConsensusCli(argv, io, options = {}) {
         io,
         await runPreflight({
           ...options,
-          provider: command.provider
+          provider: command.provider,
+          host: command.maxDepth === void 0 ? void 0 : hostContextFromEnv(io.env ?? {}, io.cwd, command.maxDepth)
         })
       );
       return 0;
     }
-    await normalizeRunRequest(command, io);
-    const envelope = usageFailure("Command is not implemented yet: run");
+    const request = await normalizeRunRequest(command, io);
+    const envelope = await runProviderTurn(request, {
+      readSchema: async (schemaPath) => JSON.parse(await io.readFile(schemaPath)),
+      parentEnv: io.env
+    });
     writeJson(io, envelope);
     return processExitForEnvelope(envelope);
   } catch (error) {
@@ -537,16 +1407,54 @@ function selectProviders(registry, provider) {
     }
   ];
 }
-async function resolveRegistry(registry) {
+function applyHostGuardToProviders(providers, host) {
+  if (!host) return providers;
+  return providers.map((provider) => {
+    const result = evaluateHostGuard({ host, provider: provider.id });
+    if (result.allowed) {
+      return {
+        ...provider,
+        host_relation: result.host_relation,
+        guard: result.guard,
+        diagnostics: mergeDiagnostics2(provider.diagnostics, result.diagnostics)
+      };
+    }
+    return {
+      ...provider,
+      status: "unavailable",
+      host_relation: result.host_relation,
+      guard: result.guard,
+      diagnostics: mergeDiagnostics2(provider.diagnostics, result.diagnostics)
+    };
+  });
+}
+function mergeDiagnostics2(current, next) {
+  const warnings = [
+    ...current?.warnings ?? [],
+    ...next.warnings ?? []
+  ];
+  return {
+    ...current,
+    ...next,
+    ...warnings.length > 0 ? { warnings } : {}
+  };
+}
+async function resolveRegistry(registry, options = {}) {
   if (Array.isArray(registry)) return registry;
   if (typeof registry === "function") return registry();
+  if (options.probeRunner) {
+    return probeProviderRegistry({
+      registry: providerRegistry(),
+      runner: options.probeRunner
+    });
+  }
   return defaultProviderRegistry();
 }
 function defaultProviderRegistry() {
-  return ["claude", "codex", "cursor"].map((id) => ({
-    id,
+  return providerRegistry().list().map((adapter) => ({
+    id: adapter.id,
     status: "missing",
-    capabilities: placeholderCapabilities()
+    capabilities: adapter.capabilities
   }));
 }
 function placeholderCapabilities() {
@@ -554,14 +1462,14 @@ function placeholderCapabilities() {
     schema_strategies: ["prompt_only"],
     output_modes: ["stdout_json"],
     options: {
-      model: true,
+      model: false,
       effort: null,
       runtime_policy: {
-        env_allowlist: true
+        env_allowlist: false
       }
     },
     supports_submit_tool: false,
-    supports_same_host_subprocess: true,
+    supports_same_host_subprocess: false,
     supports_host_native_dispatch: false
   };
 }
@@ -574,7 +1482,7 @@ function nodeIo() {
     stdin: process.stdin,
     cwd: process.cwd(),
     env: process.env,
-    readFile: (filePath) => readFile(filePath, "utf8"),
+    readFile: (filePath) => readFile2(filePath, "utf8"),
     readStdin: () => readAllStdin(process.stdin)
   };
 }
