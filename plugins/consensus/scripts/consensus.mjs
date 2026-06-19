@@ -824,6 +824,10 @@ function buildAttemptSummary(attempts, retryable) {
 }
 
 // src/consensus/provider-cli/probe.ts
+import { spawn } from "node:child_process";
+import { constants } from "node:fs";
+import { access } from "node:fs/promises";
+import path from "node:path";
 async function probeProviderRegistry({
   registry,
   runner
@@ -864,6 +868,58 @@ ${result.stderr}`;
   return providerEntry(adapter, "ready", {
     executable,
     version: firstNonEmptyLine2(output)
+  });
+}
+function nodeProbeCommandRunner(env = process.env) {
+  return {
+    findExecutable(command) {
+      return findExecutable(command, env);
+    },
+    run(command, args) {
+      return runProbeCommand(command, args, env);
+    }
+  };
+}
+async function findExecutable(command, env) {
+  if (command.includes(path.sep)) {
+    return canExecute(command).then((ok) => ok ? command : void 0);
+  }
+  const pathValue = env.PATH ?? "";
+  for (const searchPath of pathValue.split(path.delimiter)) {
+    if (!searchPath) continue;
+    const candidate = path.join(searchPath, command);
+    if (await canExecute(candidate)) return candidate;
+  }
+  return void 0;
+}
+async function canExecute(filePath) {
+  try {
+    await access(filePath, constants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+function runProbeCommand(command, args, env) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, [...args], {
+      env,
+      stdio: ["ignore", "pipe", "pipe"]
+    });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk;
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk;
+    });
+    child.on("error", reject);
+    child.on("close", (code, signal) => {
+      resolve({ code, signal, stdout, stderr });
+    });
   });
 }
 function providerEntry(adapter, status, options = {}) {
@@ -990,7 +1046,7 @@ function unsupported(option, message) {
 }
 
 // src/consensus/provider-cli/subprocess.ts
-import { spawn } from "node:child_process";
+import { spawn as spawn2 } from "node:child_process";
 var DEFAULT_MAX_OUTPUT_BYTES = 1024 * 1024 * 10;
 var DEFAULT_TIMEOUT_SEC = 300;
 var DEFAULT_TERMINATION_GRACE_MS = 250;
@@ -1010,7 +1066,7 @@ function runProviderSubprocess(invocation2, options = {}) {
     let exitSignal = null;
     let settled = false;
     let terminal;
-    const child = spawn(invocation2.executable, invocation2.argv, {
+    const child = spawn2(invocation2.executable, invocation2.argv, {
       cwd: invocation2.cwd,
       env: options.env,
       shell: false,
@@ -1539,14 +1595,17 @@ async function runConsensusCli(argv, io, options = {}) {
       return 0;
     }
     if (command.kind === "provider-list") {
-      writeJson(io, await runProviderList(options));
+      writeJson(
+        io,
+        await runProviderList(defaultProbeOptions(options, io.env))
+      );
       return 0;
     }
     if (command.kind === "preflight") {
       writeJson(
         io,
         await runPreflight({
-          ...options,
+          ...defaultProbeOptions(options, io.env),
           provider: command.provider,
           host: command.maxDepth === void 0 ? void 0 : hostContextFromEnv(io.env ?? {}, io.cwd, command.maxDepth)
         })
@@ -1572,6 +1631,13 @@ async function runConsensusCli(argv, io, options = {}) {
     );
     return 1;
   }
+}
+function defaultProbeOptions(options, env) {
+  if (options.registry || options.probeRunner) return options;
+  return {
+    ...options,
+    probeRunner: nodeProbeCommandRunner(env ?? {})
+  };
 }
 function writeJson(io, value) {
   io.stdout.write(`${JSON.stringify(value)}

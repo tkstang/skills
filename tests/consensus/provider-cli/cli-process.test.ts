@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { chmod, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -31,6 +31,68 @@ describe('generated consensus provider CLI process contract', () => {
     });
   });
 
+  it('probes generated provider inventory and preflight with the default Node runner', async () => {
+    const binDir = await mkdtemp(path.join(os.tmpdir(), 'consensus-bin-'));
+    const codexPath = await writeExecutableFixture(
+      binDir,
+      'codex',
+      '#!/bin/sh\nprintf "codex 9.9.9\\n"\n',
+    );
+    const env = { ...process.env, PATH: binDir };
+
+    try {
+      const inventoryResult = await runConsensusCli(
+        ['provider', 'ls', '--json'],
+        { env },
+      );
+
+      expect(inventoryResult.code).toBe(0);
+      expect(parseSingleJsonDocument(inventoryResult.stdout)).toMatchObject({
+        ok: true,
+        providers: [
+          { id: 'claude', status: 'missing' },
+          {
+            id: 'codex',
+            status: 'ready',
+            executable: codexPath,
+            version: 'codex 9.9.9',
+          },
+          { id: 'cursor', status: 'missing' },
+        ],
+      });
+
+      const codexPreflightResult = await runConsensusCli(
+        ['preflight', '--json', '--provider', 'codex'],
+        { env },
+      );
+
+      expect(codexPreflightResult.code).toBe(0);
+      expect(parseSingleJsonDocument(codexPreflightResult.stdout)).toMatchObject(
+        {
+          ok: true,
+          usable: true,
+          providers: [{ id: 'codex', status: 'ready' }],
+        },
+      );
+
+      const cursorPreflightResult = await runConsensusCli(
+        ['preflight', '--json', '--provider', 'cursor'],
+        { env },
+      );
+
+      expect(cursorPreflightResult.code).toBe(0);
+      expect(parseSingleJsonDocument(cursorPreflightResult.stdout)).toMatchObject(
+        {
+          ok: true,
+          usable: false,
+          providers: [{ id: 'cursor', status: 'missing' }],
+        },
+      );
+    } finally {
+      await rm(binDir, { recursive: true, force: true });
+    }
+  });
+
   it('exits nonzero for bad flags', async () => {
     const result = await runConsensusCli(['provider', 'ls', '--bad-flag']);
 
@@ -43,12 +105,10 @@ describe('generated consensus provider CLI process contract', () => {
   });
 
   it('exits zero for structured provider absence', async () => {
-    const result = await runConsensusCli([
-      'preflight',
-      '--json',
-      '--provider',
-      'cursor',
-    ]);
+    const result = await runConsensusCli(
+      ['preflight', '--json', '--provider', 'cursor'],
+      { env: { PATH: '' } },
+    );
 
     expect(result.code).toBe(0);
     expect(parseSingleJsonDocument(result.stdout)).toMatchObject({
@@ -257,4 +317,15 @@ async function writeSchemaFixture() {
     }),
   );
   return schemaPath;
+}
+
+async function writeExecutableFixture(
+  dir: string,
+  name: string,
+  contents: string,
+) {
+  const executablePath = path.join(dir, name);
+  await writeFile(executablePath, contents);
+  await chmod(executablePath, 0o755);
+  return executablePath;
 }

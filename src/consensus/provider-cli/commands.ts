@@ -9,7 +9,10 @@ import {
   usageFailure,
 } from './envelope.js';
 import { evaluateHostGuard, hostContextFromEnv } from './host-guard.js';
-import { probeProviderRegistry } from './probe.js';
+import {
+  nodeProbeCommandRunner,
+  probeProviderRegistry,
+} from './probe.js';
 import { runProviderTurn } from './structured-output.js';
 
 import type {
@@ -133,14 +136,17 @@ export async function runConsensusCli(
       return 0;
     }
     if (command.kind === 'provider-list') {
-      writeJson(io, await runProviderList(options));
+      writeJson(
+        io,
+        await runProviderList(defaultProbeOptions(options, io.env)),
+      );
       return 0;
     }
     if (command.kind === 'preflight') {
       writeJson(
         io,
         await runPreflight({
-          ...options,
+          ...defaultProbeOptions(options, io.env),
           provider: command.provider,
           host:
             command.maxDepth === undefined
@@ -171,6 +177,17 @@ export async function runConsensusCli(
     );
     return 1;
   }
+}
+
+function defaultProbeOptions(
+  options: ConsensusCliCommandOptions,
+  env: ConsensusCliIo['env'],
+): ConsensusCliCommandOptions {
+  if (options.registry || options.probeRunner) return options;
+  return {
+    ...options,
+    probeRunner: nodeProbeCommandRunner(env ?? {}),
+  };
 }
 
 export function writeJson(
