@@ -3,6 +3,9 @@ oat_generated: true
 oat_generated_at: 2026-06-18
 oat_project: repo-tooling-vitest-final-cleanup
 oat_workflow_mode: quick
+oat_summary_last_task: p04-t03
+oat_summary_revision_count: 0
+oat_summary_includes_revisions: []
 ---
 
 # Project Summary: repo-tooling-vitest-final-cleanup
@@ -36,8 +39,14 @@ Full gate green: `build`, `type-check`, `build:check` (15/15 in sync), `test` (5
 - **Two in-scope task-boundary deltas:** `tests/package-metadata.test.ts` (p03-t02) and `tests/docs-presence.test.ts` (p04-t01) were updated alongside the `package.json` / `tests/AGENTS.md` changes they assert — test-contract updates, coverage preserved.
 - **Deferred (out of scope):** a future typed-API pass to remove the `as any` shims added during harmonization; recorded as optional long-tail polish, not a tracked item.
 
+## Post-PR Notes
+
+- **Final review re-run (v2):** an independent manual `final` code review re-verified the full branch (fresh `type-check`/`build:check`/`test`/`validate`/`smoke` + live guard probe) — 0 Critical / 0 Important. Its one Medium (M1) was stale lifecycle text in `plan.md`, resolved via artifact alignment (no code change).
+- **CI fix:** the PR's `lint` job (oxfmt `--check` on changed files) flagged `vitest.config.mjs` — removing the special-case `include` entry shortened the array enough that oxfmt wants it inline. Reformatted (`style: oxfmt vitest.config.mjs`), pushed; PR #18 CI green (lint/commitlint/validate), merge state CLEAN.
+
 ## References
 
 - Plan: `plan.md` · Discovery: `discovery.md` · Implementation: `implementation.md`
-- Final review: `reviews/archived/final-review-2026-06-18.md`
+- Final reviews: `reviews/archived/final-review-2026-06-18-v2.md` (latest), `reviews/archived/final-review-2026-06-18.md`
+- PR: https://github.com/tkstang/skills/pull/18
 - Backlog initiative: bl-bfb4 (`.oat/repo/reference/backlog/items/migrate-consensus-tests-to-typescript-types.md`)
