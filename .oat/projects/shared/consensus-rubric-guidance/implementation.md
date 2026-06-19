@@ -1,9 +1,9 @@
 ---
-oat_status: in_progress
+oat_status: complete
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-19
-oat_current_task_id: p03-t01
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -28,9 +28,9 @@ oat_generated: false
 | ----- | ------ | --------- | ----- | ------------------- |
 | p01   | complete | 2 | 2 | done |
 | p02   | complete | 3 | 3 | done |
-| p03   | pending | 0 | 2 | `p03-t01` |
+| p03   | complete | 2 | 2 | done |
 
-**Total:** 5/7 tasks completed
+**Total:** 7/7 tasks completed
 
 ---
 
@@ -51,7 +51,7 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 **Branch:** consensus-rubric-guidance
 **Tier:** 1 (subagents)
 **Policy:** merge-strategy=sequential, retry-limit=2
-**Phases:** 2 executed, 2 passed, 0 failed, 0 stopped
+**Phases:** 3 executed, 3 passed, 0 failed, 0 stopped
 
 #### Phase Outcomes
 
@@ -59,6 +59,7 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 | ----- | ----------- | ------ | -------------- | ----------- |
 | p01   | DONE (sonnet) | pass (opus) | 0/2 | merged (sequential) |
 | p02   | DONE (sonnet) | pass (opus) | 0/2 | merged (sequential) |
+| p03   | DONE (opus) | pass (opus, final scope) | 0/2 | merged (sequential) |
 
 #### Parallel Groups
 
@@ -68,11 +69,14 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 
 - p01 implementer: model_axis=selected:sonnet, effort_axis=not-applicable; reviewer at ceiling (opus).
 - p02 implementer: model_axis=selected:sonnet (documentation authoring); reviewer at ceiling (opus).
+- p03 implementer: model_axis=selected:opus (release-tooling subtlety flagged by plan review); final-scope review at ceiling (opus).
 
-#### Outstanding Items (non-blocking Minors, candidates for p03-t02 polish)
+#### Outstanding Items
 
-- p01: `scripts/validate.mjs` has an unreachable final `isValidSemver(effective)` branch (dead code); malformed-top-level message takes precedence over the mismatch message when both versions are malformed.
-- p02: each rubric example's `## How to adapt this rubric` meta-heading is parsed as a spurious 11th criterion if run verbatim (cosmetic; examples are explicitly adaptation templates). Optional fix: demote to a non-heading.
+- p01 Minor (dead-code branch in `scripts/validate.mjs`) — **resolved** in p03-t02 polish (commit f61f082).
+- p02 Minor (`## How to adapt this rubric` parsed as spurious criterion) — **resolved** in p03-t02 polish (demoted to bold, commit f61f082).
+- Final-review Minor #1 (examples' authoring note said "The 12 headings" but ship 10) — **resolved** (commit 1c55956).
+- Final-review Minor #2 (no automated guard asserts examples stay ≤12 parser-visible criteria) — **deferred**, ship-safe future-proofing. Backlog candidate: add a test that runs `extractRubricCriteria` over each bundled example and asserts ≤12.
 
 #### Artifact / Design Deltas
 
@@ -150,6 +154,16 @@ Chronological log of implementation progress.
 - Resolved directly in `plan.md`; no implementation tasks were added.
 - Plan re-review waived by user; plan marked passed and ready for implementation at `p01-t01`.
 
+**Review Received:** Final code review (scope final, p01–p03).
+
+**Review artifact:** `reviews/final-review-2026-06-19.md` (verdict PASS; 0 Critical, 0 Important, 2 Minor)
+
+**Disposition:**
+
+- Minor #1 (authoring-note count) fixed inline (commit 1c55956).
+- Minor #2 (no automated ≤12-criteria guard) deferred as a ship-safe backlog candidate.
+- All gates green: `build:check` in sync, `test` 582 pass, `validate` pass, `smoke` pass.
+
 ---
 
 ## Deviations from Plan / Design
@@ -175,23 +189,31 @@ Track test execution during implementation.
 
 **What shipped:**
 
-- Pending implementation.
+- **Best-practice conformance (both consensus skills).** `refine` and `evaluate` SKILL.md each gained `## When NOT to Use`, `## Examples` (basic + conversational), and `## Success Criteria`, plus `argument-hint` and a top-level `version` (kept `metadata.version`), in the existing topical style.
+- **Validator support for promoted versions.** `scripts/validate.mjs` resolves the effective skill version from top-level `version` else `metadata.version`, validates semver, and requires the two to match when both are present (no dual-source drift). Legacy metadata-only skills still pass.
+- **Release tooling alignment.** `scripts/bump-version.mjs` now lists BOTH skills in `SKILL_FILES` and reads/writes BOTH the top-level and `metadata.version` fields; tag-consistency reporting covers both.
+- **Guided rubric creation (evaluate only).** New `## Guided Rubric Creation` host-model flow: triggers on an explicit ask OR a no-rubric evaluation request; elicits goals, adapts a bundled example, writes the draft only to a user-approved path, then invokes the unchanged `--rubric` wrapper. Documents the silent first-12-criteria cap; weights/scales are peer-facing only.
+- **Four bundled rubric examples** under `plugins/consensus/skills/evaluate/references/examples/` (general-purpose, code-review, technical-writing, design-architecture), each ≤12 parser-visible criteria, linked from the skill.
 
 **Behavioral changes (user-facing):**
 
-- Pending implementation.
+- `evaluate` users without a rubric now get a guided authoring path and four ready-to-adapt example rubrics; the raw `node ./scripts/consensus-evaluate.mjs <artifact> --rubric <rubric>` contract is unchanged.
+- Both skills expose `argument-hint` and a top-level `version` to provider/host tooling.
 
 **Key files / modules:**
 
-- Pending implementation.
+- `scripts/validate.mjs`, `scripts/bump-version.mjs`
+- `plugins/consensus/skills/refine/SKILL.md`, `plugins/consensus/skills/evaluate/SKILL.md`
+- `plugins/consensus/skills/evaluate/references/examples/{general-purpose,code-review,technical-writing,design-architecture}.md`
+- `tests/validate-script.test.mjs`, `tests/skill-frontmatter.test.mjs`, `tests/docs-presence.test.mjs`, `tests/repo-layout.test.mjs`, `tests/release-versioning.test.mjs`
 
 **Verification performed:**
 
-- Pending implementation.
+- `pnpm run build:check` (8 generated outputs in sync — no runtime/generated edits), `pnpm run test` (582 pass: 219 node + 363 vitest), `pnpm run validate` (pass), `pnpm run smoke` (pass). Final code review verdict PASS.
 
 **Design deltas (if any):**
 
-- N/A (quick mode; no design artifact produced).
+- N/A (quick mode; no design artifact). Two non-blocking review Minors fixed as in-scope polish (validator dead-code removal; rubric-example heading demotion); see `## Deviations from Plan / Design`.
 
 ## References
 
