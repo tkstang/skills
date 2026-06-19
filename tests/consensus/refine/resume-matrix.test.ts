@@ -12,10 +12,11 @@ import path from 'node:path';
 
 import { expect, it } from 'vitest';
 
-// @ts-expect-error The generated runtime is intentionally declaration-free; this test exercises the shipped artifact.
-import * as consensusLoop from '../../../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
-
-const { hashArtifact, runConsensusLoop } = consensusLoop;
+import {
+  hashArtifact,
+  runConsensusLoop,
+} from '../../../src/consensus/core/consensus-loop.js';
+import type { LoopRecord } from '../../../src/consensus/core/consensus-loop.js';
 
 type JsonRecord = Record<string, any>;
 
@@ -51,22 +52,25 @@ async function loopPaths(tempRoot: string, suffix: string, input: string) {
   };
 }
 
-function peerRecord(round: number, agent: string, text: string) {
+function peerRecord(round: number, agent: string, text: string): LoopRecord {
   return {
     schema_version: 'v1',
     turn_index: (round - 1) * 2 + (agent === 'claude' ? 1 : 2),
     round_index: round,
     agent,
-    verdict: 'REVISE',
+    verdict: 'REVISE' as const,
     reasoning: 'revise',
     critique: { own_previous: 'o', peer_previous: 'p' },
     proposed_artifact: text,
     artifact_hash: hashArtifact(text),
     iteration_mode: 'parallel_synthesized',
+    raw_provider_response: JSON.stringify({ provider: agent, text }),
+    provider_diagnostics: { strategy_used: 'prompt_only' },
+    attempts: { cli_attempts: 1, terminal_reason: 'success', retryable: false },
   };
 }
 
-function synthesisRecord(round: number, text: string) {
+function synthesisRecord(round: number, text: string): LoopRecord {
   return {
     schema_version: 'v1',
     record_type: 'synthesis',
@@ -77,6 +81,9 @@ function synthesisRecord(round: number, text: string) {
     unresolved_disagreements: [],
     artifact_hash: hashArtifact(text),
     iteration_mode: 'parallel_synthesized',
+    raw_provider_response: JSON.stringify({ provider: 'claude', text }),
+    provider_diagnostics: { strategy_used: 'prompt_only' },
+    attempts: { cli_attempts: 1, terminal_reason: 'success', retryable: false },
   };
 }
 

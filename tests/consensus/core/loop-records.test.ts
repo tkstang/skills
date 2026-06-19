@@ -4,10 +4,7 @@ import path from 'node:path';
 
 import { expect, it } from 'vitest';
 
-// @ts-expect-error The generated runtime is intentionally declaration-free; this test exercises the shipped artifact.
-import * as consensusLoop from '../../../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
-
-const {
+import {
   buildParallelTurnPrompt,
   buildSynthesisPrompt,
   createRecordsWriter,
@@ -15,7 +12,7 @@ const {
   hashArtifact,
   synthesisSchemaPath,
   writeLoopStatus,
-} = consensusLoop;
+} from '../../../src/consensus/core/consensus-loop.js';
 
 type JsonRecord = Record<string, any>;
 
@@ -42,13 +39,20 @@ function parallelContext({
   records?: JsonRecord[];
 }) {
   return {
-    mode: 'parallel_revision',
+    mode: 'parallel_revision' as const,
     roundIndex: 0,
     options: {
+      sectionFile: 'section.md',
       peers: ['claude', 'codex'],
       goal: 'Tighten.',
-      iteration: 'parallel_revision',
-      agency: 'moderate',
+      maxRounds: 1,
+      iteration: 'parallel_revision' as const,
+      coldStart: 'shared_input' as const,
+      agency: 'moderate' as const,
+      synthesizer: null,
+      outputRecords: 'records.json',
+      outputSection: 'output.md',
+      outputStatus: 'status.json',
     },
     records,
     currentArtifact,
@@ -338,14 +342,20 @@ function synthesizedContext({
   records?: JsonRecord[];
 }) {
   return {
-    mode: 'parallel_synthesized',
+    mode: 'parallel_synthesized' as const,
     roundIndex: 0,
     options: {
+      sectionFile: 'section.md',
       peers: ['claude', 'codex'],
       goal: 'Tighten.',
-      iteration: 'parallel_synthesized',
+      maxRounds: 1,
+      iteration: 'parallel_synthesized' as const,
       synthesizer: 'claude',
-      agency: 'moderate',
+      coldStart: 'shared_input' as const,
+      agency: 'moderate' as const,
+      outputRecords: 'records.json',
+      outputSection: 'output.md',
+      outputStatus: 'status.json',
     },
     records,
     currentArtifact,
@@ -396,18 +406,63 @@ it('executeRound synthesized appends a synthesis record after the committed peer
   expect(synthCalls).toBe(1);
   expect(result.records.length, 'two peer records').toBe(2);
   expect(result.synthesis, 'a synthesis record is returned').toBeTruthy();
-  expect(result.synthesis.record_type).toBe('synthesis');
-  expect(result.synthesis.synthesizer).toBe('claude');
-  expect(result.synthesis.synthesized_artifact).toBe('Synthesized text\n');
-  expect(result.synthesis.synthesis_reasoning).toBe('merged');
-  expect(result.synthesis.unresolved_disagreements).toEqual(['point A']);
-  expect(result.synthesis.artifact_hash).toBe(
+  const synthesis = result.synthesis!;
+  expect(synthesis.record_type).toBe('synthesis');
+  expect(synthesis.synthesizer).toBe('claude');
+  expect(synthesis.synthesized_artifact).toBe('Synthesized text\n');
+  expect(synthesis.synthesis_reasoning).toBe('merged');
+  expect(synthesis.unresolved_disagreements).toEqual(['point A']);
+  expect(synthesis.artifact_hash).toBe(
     hashArtifact('Synthesized text\n'),
   );
-  expect(result.synthesis.iteration_mode).toBe('parallel_synthesized');
-  expect(result.synthesis.raw_paseo_response).toBe('{"id":"synth"}');
+  expect(synthesis.iteration_mode).toBe('parallel_synthesized');
+  expect(synthesis.raw_paseo_response).toBe('{"id":"synth"}');
   // The synthesized text becomes the next round's shared artifact.
   expect(result.nextArtifact).toBe('Synthesized text\n');
+});
+
+it('executeRound writes provider-neutral audit fields for CLI-backed results', async () => {
+  const invokePeer = ({ provider }: { provider: string }) =>
+    Promise.resolve({
+      json: parallelVerdict(`${provider} text\n`),
+      stdout: `{"legacy":"${provider}"}`,
+      raw_provider_response: `{"provider":"${provider}"}`,
+      provider_diagnostics: { strategy_used: 'prompt_only' },
+      attempts: {
+        cli_attempts: 2,
+        terminal_reason: 'success',
+        retryable: false,
+      },
+    });
+  const invokeSynthesizer = () =>
+    Promise.resolve({
+      json: synthesisPayload('Synthesized text\n'),
+      stdout: '{"legacy":"synth"}',
+      raw_provider_response: '{"provider":"synth"}',
+      provider_diagnostics: { strategy_used: 'constrained_native' },
+      attempts: {
+        cli_attempts: 1,
+        terminal_reason: 'success',
+        retryable: false,
+      },
+    });
+
+  const result = await executeRound(
+    synthesizedContext({ invokePeer, invokeSynthesizer }),
+  );
+
+  expect(result.records[0]).toMatchObject({
+    raw_provider_response: '{"provider":"claude"}',
+    provider_diagnostics: { strategy_used: 'prompt_only' },
+    attempts: { cli_attempts: 2, terminal_reason: 'success' },
+  });
+  expect(result.records[0]).not.toHaveProperty('raw_paseo_response');
+  expect(result.synthesis!).toMatchObject({
+    raw_provider_response: '{"provider":"synth"}',
+    provider_diagnostics: { strategy_used: 'constrained_native' },
+    attempts: { cli_attempts: 1, terminal_reason: 'success' },
+  });
+  expect(result.synthesis!).not.toHaveProperty('raw_paseo_response');
 });
 
 it('synthesisSchemaPath points at the v1 synthesis schema file', () => {

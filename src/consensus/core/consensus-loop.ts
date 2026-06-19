@@ -94,6 +94,9 @@ export interface LoopRecord extends JsonRecord {
   escalation_trigger?: EscalationTrigger;
   metadata?: JsonRecord;
   code?: string;
+  raw_provider_response?: string;
+  provider_diagnostics?: ProviderDiagnostics;
+  attempts?: AttemptSummary;
 }
 
 export interface NormalizeOptions {
@@ -1670,6 +1673,27 @@ function peerVerdictError(
   return null;
 }
 
+function providerAuditFields(result: ProviderResult): Partial<LoopRecord> {
+  const hasProviderNeutralAudit =
+    result.raw_provider_response !== undefined ||
+    result.provider_diagnostics !== undefined ||
+    result.attempts !== undefined;
+  const rawResponse =
+    result.raw_provider_response ?? result.stdout ?? JSON.stringify(result.json);
+
+  if (!hasProviderNeutralAudit) {
+    return { raw_paseo_response: rawResponse };
+  }
+
+  return {
+    raw_provider_response: rawResponse,
+    ...(result.provider_diagnostics
+      ? { provider_diagnostics: result.provider_diagnostics }
+      : {}),
+    ...(result.attempts ? { attempts: result.attempts } : {}),
+  };
+}
+
 /**
  * Invoke a peer and re-invoke when EITHER paseo fails transiently OR the returned
  * verdict fails our validation (after normalization). The schema we send paseo can
@@ -2313,7 +2337,7 @@ async function executeAlternatingTurn({
       hashOptionsForAgency(options.agency),
     ),
     iteration_mode: options.iteration,
-    raw_paseo_response: peerResult.stdout ?? JSON.stringify(peerResult.json),
+    ...providerAuditFields(peerResult),
   };
   if (typeof verdict.proposed_artifact === 'string') {
     recordPayload.proposed_artifact = verdict.proposed_artifact;
@@ -2492,7 +2516,7 @@ async function executeParallelRound(
         hashOptionsForAgency(options.agency),
       ),
       iteration_mode: mode,
-      raw_paseo_response: peerResult.stdout ?? JSON.stringify(peerResult.json),
+      ...providerAuditFields(peerResult),
     };
     if (typeof verdict.proposed_artifact === 'string') {
       recordPayload.proposed_artifact = verdict.proposed_artifact;
@@ -2650,7 +2674,7 @@ async function executeSynthesis({
       hashOptionsForAgency(options.agency),
     ),
     iteration_mode: options.iteration,
-    raw_paseo_response: synthResult.stdout ?? JSON.stringify(synthResult.json),
+    ...providerAuditFields(synthResult),
   };
 
   return { synthesis: recordPayload, nextArtifact: synthesizedArtifact };
