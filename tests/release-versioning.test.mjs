@@ -27,7 +27,10 @@ const jsonFiles = [
   '.cursor-plugin/marketplace.json',
   '.agents/plugins/marketplace.json',
 ];
-const skillFiles = ['plugins/consensus/skills/refine/SKILL.md'];
+const skillFiles = [
+  'plugins/consensus/skills/refine/SKILL.md',
+  'plugins/consensus/skills/evaluate/SKILL.md',
+];
 const requiredDocs = [
   'README.md',
   'LICENSE',
@@ -103,10 +106,21 @@ test('bumpVersion updates plugin manifests and present marketplace versions', as
     'version' in (await readJson(root, cursorMarketplacePath)).plugins[0],
     false,
   );
-  assert.match(
-    await readFile(path.join(root, skillFiles[0]), 'utf8'),
-    /version: "0\.2\.0-beta\.1"/,
-  );
+  for (const skillFile of skillFiles) {
+    const skillMarkdown = await readFile(path.join(root, skillFile), 'utf8');
+    const frontmatterMatch = skillMarkdown.match(/^---\n([\s\S]*?)\n---/);
+    const frontmatter = frontmatterMatch[1];
+    assert.match(
+      frontmatter,
+      /^version: "0\.2\.0-beta\.1"$/m,
+      `${skillFile} top-level version should be bumped`,
+    );
+    assert.match(
+      frontmatter,
+      /^metadata:\n(?:  .+\n)*?  version: "0\.2\.0-beta\.1"$/m,
+      `${skillFile} metadata.version should be bumped`,
+    );
+  }
 });
 
 test('bumpVersion rejects malformed semver before modifying files', async () => {
