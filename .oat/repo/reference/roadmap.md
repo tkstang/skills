@@ -1,6 +1,6 @@
 # Skills Repo Roadmap
 
-**Last updated:** 2026-06-19 (v0.1 release verification refreshed automated gates, provider install evidence, release notes, version/tag checks, and release workflow parity. Test-organization cleanup is also branch-implemented on main context: shared `tests/helpers/`, domain-organized test tree, and two oversized suites split as a behavior-preserving maintainability follow-on to PR4. Prior: PR4 retired the `node:test` runner and completed **bl-bfb4**.)
+**Last updated:** 2026-06-19 (consensus peer invocation now defaults to the owned provider CLI for Refine/Evaluate, completing **bl-bb7e** and superseding the old external peer-run boundary. Prior: v0.1 release verification refreshed automated gates, provider install evidence, release notes, version/tag checks, and release workflow parity; test-organization cleanup is branch-implemented on main context.)
 
 ## Planning Model
 
@@ -23,7 +23,7 @@ What remains, in dependency order:
 1. **Remaining family skills** — `consensus-create`, `-decide`, `-plan`, `-research` as thin wrappers with v3 defaults now that `consensus-evaluate` has proved the post-TS wrapper pattern.
 2. **Harmonization pass** — whole-document coherence after independent section convergence.
 3. **Deliberation metrics** — tokens, wall-clock, rounds per section in the resolution block.
-4. **Convergence quality follow-ons** — similarity heuristic for near-match convergence (bl-ef38), tool-based verdict submission CLI so peers self-validate schema (bl-3a88), and an in-house peer CLI (bl-bb7e). All deferred as nice-to-haves; deterministic-only escalation shipped.
+4. **Convergence quality follow-ons** — similarity heuristic for near-match convergence (bl-ef38), tool-based verdict submission so peers self-validate schema (bl-3a88), and Cursor authenticated end-to-end provider CLI verification (bl-f0b6). The owned provider CLI is now shipped; deterministic-only escalation shipped.
 
 ### Release / distribution
 
@@ -64,7 +64,7 @@ reporting if the suite grows enough to justify it.
 ## Next
 
 - **Remaining family skills** — after `consensus-evaluate`, `-create`, `-decide`, `-plan`, `-research` as thin wrappers with v3 defaults. `-create` front-loads the `independent_draft` cold-start + derived-sectioning design the next two reuse.
-- **Peer-invocation ownership** — tool-based verdict submission (bl-3a88) and in-house peer CLI work (bl-bb7e) should be treated as one later design/spike around owning the narrow claude/codex/cursor path rather than depending on Paseo for one per-turn `run` capability.
+- **Peer-invocation hardening** — tool-based verdict submission (bl-3a88) remains a later reliability design now that the provider CLI owns the claude/codex/cursor path. Cursor-as-peer verification (bl-f0b6) should rerun against the provider CLI once the local Cursor keychain/auth state is usable.
 
 ## Later
 

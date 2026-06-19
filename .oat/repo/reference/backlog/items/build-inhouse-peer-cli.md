@@ -1,20 +1,29 @@
 ---
 id: bl-bb7e
-title: 'Investigate in-house peer-invocation CLI to reduce/replace the Paseo dependency'
-status: open
+title: 'Investigate in-house peer-invocation CLI to reduce/replace the external peer-run dependency'
+status: done
 priority: medium
 scope: initiative
 scope_estimate: L
-labels: [consensus, architecture, paseo, build-vs-buy]
+labels: [consensus, architecture, provider-cli, build-vs-buy]
 assignee: null
 created: '2026-06-13T17:44:50Z'
-updated: '2026-06-13T17:44:50Z'
+updated: '2026-06-19T23:16:53Z'
 associated_issues: []
 oat_template: true
 oat_template_name: backlog-item
 ---
 
 ## Description
+
+**Status update (2026-06-19): done.** The `consensus-peer-invocation`
+project completed the investigation, design, implementation, cleanup, and final
+review. The consensus plugin now owns a generated `consensus` provider CLI for
+provider inventory, preflight, and one-shot structured peer runs. Refine and
+Evaluate new runs route through that CLI by default; maintained
+source/runtime/docs/tests no longer keep the old backend path. Cursor
+submit-tool support remains deferred ([[bl-3a88]]) and authenticated
+Cursor-as-peer verification remains open ([[bl-f0b6]]).
 
 Evaluate building a thin in-house peer-invocation layer to reduce or replace the
 runtime dependency on the Paseo CLI (`@getpaseo/cli`) for the consensus `refine`
@@ -132,6 +141,18 @@ a product goal, the pivot can still flip back toward staying on Paseo. See
 needed.
 
 ## Acceptance Criteria
+
+**Completion evidence (2026-06-19):**
+
+- Discovery, synthesized research, design, plan, and implementation artifacts
+  live under `.oat/projects/shared/consensus-peer-invocation/`.
+- Provider CLI implementation landed under `src/consensus/provider-cli/` with
+  generated runtime output at `plugins/consensus/scripts/consensus.mjs`.
+- Refine/Evaluate default cutover, provider-neutral audit fields, bounded
+  probes/subprocesses, request JSON validation, source cleanup scan, and release
+  docs were implemented and final-reviewed.
+- Final review passed in
+  `.oat/projects/shared/consensus-peer-invocation/reviews/final-review-2026-06-19-v3.md`.
 
 - A written build-vs-buy recommendation lands in `.oat/repo/reference/research/`
   (or a successor decision record), covering: the exact Paseo surface we use,
