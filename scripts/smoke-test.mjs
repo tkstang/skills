@@ -47,33 +47,14 @@ async function defaultRunCommand(command, args, options = {}) {
   return { stdout: result.stdout, stderr: result.stderr };
 }
 
-function resolveSmokeProviderBackend(options = {}, env = process.env) {
-  const backend =
-    options.providerBackend ??
-    env.CONSENSUS_SMOKE_PROVIDER_BACKEND ??
-    env.CONSENSUS_PROVIDER_BACKEND ??
-    'paseo';
-  if (backend !== 'paseo' && backend !== 'provider-cli') {
-    throw new Error(
-      `unsupported smoke provider backend ${JSON.stringify(backend)}`,
-    );
-  }
-  return backend;
-}
-
-function smokeEnv(env = process.env, options = {}) {
+function smokeEnv(env = process.env) {
   const fixtureBin = path.join(repoRoot, 'tests/fixtures/bin');
-  const providerBackend = resolveSmokeProviderBackend(options, env);
-  const next = {
+  return {
     ...env,
     PATH: `${fixtureBin}${path.delimiter}${env.PATH ?? ''}`,
+    CONSENSUS_CLI_PATH:
+      env.CONSENSUS_CLI_PATH ?? path.join(fixtureBin, 'consensus'),
   };
-  if (providerBackend === 'provider-cli') {
-    next.CONSENSUS_PROVIDER_BACKEND = 'provider-cli';
-    next.CONSENSUS_CLI_PATH =
-      env.CONSENSUS_CLI_PATH ?? path.join(fixtureBin, 'consensus');
-  }
-  return next;
 }
 
 function assertArtifactShape(artifact) {
@@ -258,8 +239,7 @@ export async function runSmokeTest(options = {}) {
   const stdout = options.stdout ?? process.stdout;
   const runCommand = options.runCommand ?? defaultRunCommand;
   const inputEnv = options.env ?? process.env;
-  const providerBackend = resolveSmokeProviderBackend(options, inputEnv);
-  const env = smokeEnv(inputEnv, { providerBackend });
+  const env = smokeEnv(inputEnv);
   const expectedStatus = env.CONSENSUS_SMOKE_EXPECT_STATUS ?? 'converged';
 
   await runCommand(
@@ -284,13 +264,6 @@ export async function runSmokeTest(options = {}) {
     cwd: tempRoot,
     env,
   };
-  if (providerBackend !== 'provider-cli') {
-    wrapperOptions.preflight = async () => ({
-      peers: ['claude', 'codex'],
-      warnings: [],
-    });
-  }
-
   const exitCode = await runWrapperCli(
     [
       sampleInput,
@@ -331,7 +304,6 @@ export async function runSmokeTest(options = {}) {
   stdout.write('smoke passed\n');
   return {
     status: 'passed',
-    providerBackend,
     env,
     events,
     artifact,

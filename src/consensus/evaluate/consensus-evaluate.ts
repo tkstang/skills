@@ -38,7 +38,6 @@ import type {
 } from '../core/consensus-loop.js';
 
 type ColdStartValue = 'shared_input' | 'independent_draft';
-type ProviderBackend = 'paseo' | 'provider-cli';
 
 export interface ParsedEvaluateOptions {
   artifactPath: string;
@@ -142,12 +141,6 @@ export const INPUT_SIZE_CAP_BYTES = 1024 * 1024;
 
 function isJsonRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
-}
-
-function providerBackendFromEnv(env: NodeJS.ProcessEnv): ProviderBackend {
-  const value = env.CONSENSUS_PROVIDER_BACKEND?.trim().toLowerCase();
-  if (value === 'provider-cli' || value === 'cli') return 'provider-cli';
-  return 'paseo';
 }
 
 function providerCliUnavailableError(
@@ -1151,18 +1144,16 @@ export async function runConsensusEvaluate(
     normalized.iteration === 'parallel_synthesized'
       ? (normalized.synthesizer ?? peers[0])
       : null;
-  const providerBackend = providerBackendFromEnv(env);
-  const providerCliInvokers =
-    providerBackend === 'provider-cli'
-      ? providerCliLoopInvokers({ env, cwd, iteration: normalized.iteration })
-      : {};
-  if (providerBackend === 'provider-cli') {
-    await preflightEvaluateProviderCli({
-      env,
-      cwd,
-      providers: [...new Set([...peers, ...(synthesizer ? [synthesizer] : [])])],
-    });
-  }
+  const providerCliInvokers = providerCliLoopInvokers({
+    env,
+    cwd,
+    iteration: normalized.iteration,
+  });
+  await preflightEvaluateProviderCli({
+    env,
+    cwd,
+    providers: [...new Set([...peers, ...(synthesizer ? [synthesizer] : [])])],
+  });
   const initialArtifact = createEvaluationInitialArtifact({
     rubric: loaded.rubric,
   });

@@ -33,7 +33,7 @@ function cleanSmokeEnv(overrides: NodeJS.ProcessEnv = {}) {
 }
 
 describe('smoke-test-script', () => {
-  it('runSmokeTest runs validation, uses the Paseo stub, and verifies wrapper output', async () => {
+  it('runSmokeTest runs validation, uses the consensus CLI stub, and verifies wrapper output', async () => {
     const stdout = writer();
     const calls: { command: string; args: string[]; env: NodeJS.ProcessEnv }[] =
       [];
@@ -56,7 +56,9 @@ describe('smoke-test-script', () => {
     expect(result.env.PATH.split(path.delimiter)[0]).toMatch(
       /tests\/fixtures\/bin$/,
     );
-    expect(result.providerBackend).toBe('paseo');
+    expect(calls[0].env.CONSENSUS_CLI_PATH).toBe(
+      path.join(repoRoot, 'tests/fixtures/bin/consensus'),
+    );
     expect(result.events.at(-1).event).toBe('run_completed');
     expect(result.events.at(-1).status).toBe('converged');
     expect(result.artifact).toMatch(/## Final Output/);
@@ -79,7 +81,7 @@ describe('smoke-test-script', () => {
     );
   });
 
-  it('runSmokeTest can route the wrapper path through the consensus CLI backend', async () => {
+  it('runSmokeTest ignores removed backend switches and keeps the consensus CLI path', async () => {
     const stdout = writer();
     const calls: { command: string; args: string[]; env: NodeJS.ProcessEnv }[] =
       [];
@@ -87,7 +89,8 @@ describe('smoke-test-script', () => {
     const result = await runSmokeTest({
       stdout: stdout.stream,
       env: cleanSmokeEnv({
-        CONSENSUS_SMOKE_PROVIDER_BACKEND: 'provider-cli',
+        CONSENSUS_PROVIDER_BACKEND: 'paseo',
+        CONSENSUS_SMOKE_PROVIDER_BACKEND: 'paseo',
       }),
       runCommand: async (command: string, args: string[], options: { env: NodeJS.ProcessEnv }) => {
         calls.push({ command, args, env: options.env });
@@ -96,8 +99,6 @@ describe('smoke-test-script', () => {
     });
 
     expect(result.status).toBe('passed');
-    expect(result.providerBackend).toBe('provider-cli');
-    expect(calls[0].env.CONSENSUS_PROVIDER_BACKEND).toBe('provider-cli');
     expect(calls[0].env.CONSENSUS_CLI_PATH).toBe(
       path.join(repoRoot, 'tests/fixtures/bin/consensus'),
     );
@@ -123,11 +124,12 @@ describe('smoke-test-script', () => {
     expect(result.stdout).toMatch(/smoke passed/);
   });
 
-  it('smoke-test CLI exits zero with the consensus CLI backend fixture', async () => {
+  it('smoke-test CLI exits zero when removed backend switches are present', async () => {
     const result = await runNodeScript(smokeScript, [], {
       cwd: repoRoot,
       env: cleanSmokeEnv({
-        CONSENSUS_SMOKE_PROVIDER_BACKEND: 'provider-cli',
+        CONSENSUS_PROVIDER_BACKEND: 'paseo',
+        CONSENSUS_SMOKE_PROVIDER_BACKEND: 'paseo',
       }),
     });
     expect(result.stdout).toMatch(/smoke passed/);

@@ -33,11 +33,6 @@ const INPUT_SIZE_CAP_BYTES = 1024 * 1024;
 function isJsonRecord(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
-function providerBackendFromEnv(env) {
-  const value = env.CONSENSUS_PROVIDER_BACKEND?.trim().toLowerCase();
-  if (value === "provider-cli" || value === "cli") return "provider-cli";
-  return "paseo";
-}
 function providerCliUnavailableError(providers) {
   const summary = providers.map((provider) => `${provider.id} (${provider.status})`).join(", ");
   return new ConsensusError(
@@ -847,15 +842,16 @@ async function runConsensusEvaluate(input, runOptions = {}) {
   const paths = statePathsFor(runDir);
   const peers = normalized.peers ?? [...DEFAULT_PEERS];
   const synthesizer = normalized.iteration === "parallel_synthesized" ? normalized.synthesizer ?? peers[0] : null;
-  const providerBackend = providerBackendFromEnv(env);
-  const providerCliInvokers = providerBackend === "provider-cli" ? providerCliLoopInvokers({ env, cwd, iteration: normalized.iteration }) : {};
-  if (providerBackend === "provider-cli") {
-    await preflightEvaluateProviderCli({
-      env,
-      cwd,
-      providers: [.../* @__PURE__ */ new Set([...peers, ...synthesizer ? [synthesizer] : []])]
-    });
-  }
+  const providerCliInvokers = providerCliLoopInvokers({
+    env,
+    cwd,
+    iteration: normalized.iteration
+  });
+  await preflightEvaluateProviderCli({
+    env,
+    cwd,
+    providers: [.../* @__PURE__ */ new Set([...peers, ...synthesizer ? [synthesizer] : []])]
+  });
   const initialArtifact = createEvaluationInitialArtifact({
     rubric: loaded.rubric
   });

@@ -38,7 +38,6 @@ type AgencyValue = 'minimal' | 'moderate' | 'maximum';
 type ColdStartValue = 'shared_input' | 'independent_draft';
 type WrapperMode = 'sequential' | 'prepare_parallel' | 'fan_in';
 type HostId = 'claude' | 'codex' | 'cursor' | 'unknown';
-type ProviderBackend = 'paseo' | 'provider-cli';
 type LoopRunOptions = NonNullable<Parameters<typeof runConsensusLoop>[1]>;
 type LoopPeerInvoker = NonNullable<LoopRunOptions['invokePeer']>;
 type LoopSynthesizerInvoker = NonNullable<LoopRunOptions['invokeSynthesizer']>;
@@ -324,7 +323,6 @@ interface WrapperOptions extends JsonRecord {
   invokeSynthesizer?: LoopSynthesizerInvoker;
   runCommand?: CommandRunner;
   sizeCapBytes?: number;
-  providerBackend?: ProviderBackend;
 }
 
 interface ParsedWrapperOptions extends WrapperOptions {
@@ -377,8 +375,6 @@ interface ParallelManifestEntry extends JsonRecord {
   subagent_id: string;
   iteration_mode?: IterationModeValue;
   synthesizer?: string | null;
-  provider_backend?: ProviderBackend;
-  provider_env?: Record<string, string>;
   loop_argv?: string[];
 }
 
@@ -399,8 +395,6 @@ interface ParallelManifest extends JsonRecord {
   agency: AgencyValue;
   iteration_mode: IterationModeValue;
   synthesizer?: string | null;
-  provider_backend?: ProviderBackend;
-  provider_env?: Record<string, string>;
   parallelism: number;
   sections: ParallelManifestEntry[];
 }
@@ -411,7 +405,6 @@ interface LoopInvocationPayload {
   options: ParsedWrapperOptions;
   peers: string[];
   synthesizer?: string | null;
-  providerBackend?: ProviderBackend;
 }
 
 const execFileAsync = promisify(execFile);
@@ -2706,7 +2699,6 @@ function loopArgvForSection({
   options,
   peers,
   synthesizer = null,
-  providerBackend,
 }: LoopInvocationPayload) {
   const argv = [
     '--section-file',
@@ -2725,9 +2717,6 @@ function loopArgvForSection({
   if (synthesizer) {
     argv.push('--synthesizer', synthesizer);
   }
-  if (providerBackend) {
-    argv.push('--provider-backend', providerBackend);
-  }
   argv.push(
     '--output-records',
     paths.records,
@@ -2737,19 +2726,6 @@ function loopArgvForSection({
     paths.status,
   );
   return argv;
-}
-
-function providerBackendEnv(
-  providerBackend: ProviderBackend,
-  env: NodeJS.ProcessEnv,
-): Record<string, string> | undefined {
-  if (providerBackend !== 'provider-cli') return undefined;
-  return {
-    CONSENSUS_PROVIDER_BACKEND: 'provider-cli',
-    ...(env.CONSENSUS_CLI_PATH
-      ? { CONSENSUS_CLI_PATH: env.CONSENSUS_CLI_PATH }
-      : {}),
-  };
 }
 
 function parallelismFor(sectionCount: number, requested: number | null) {
@@ -2766,8 +2742,6 @@ function manifestSectionEntry({
   loopArgv,
   iterationMode = 'alternating',
   synthesizer = null,
-  providerBackend,
-  providerEnv,
 }: {
   section: ParsedSection;
   paths: SectionPaths;
@@ -2775,8 +2749,6 @@ function manifestSectionEntry({
   loopArgv: string[];
   iterationMode?: IterationModeValue;
   synthesizer?: string | null;
-  providerBackend?: ProviderBackend;
-  providerEnv?: Record<string, string>;
 }): ParallelManifestEntry {
   return {
     section_id: section.id,
@@ -2790,8 +2762,6 @@ function manifestSectionEntry({
     subagent_id: `section-runner-${String(section.original_index + 1).padStart(2, '0')}-${section.id}`,
     iteration_mode: iterationMode,
     synthesizer,
-    ...(providerBackend ? { provider_backend: providerBackend } : {}),
-    ...(providerEnv ? { provider_env: providerEnv } : {}),
     loop_argv: loopArgv,
   };
 }
@@ -2812,9 +2782,6 @@ function dispatchInstructions(manifest: ParallelManifest) {
       iteration_mode:
         section.iteration_mode ?? manifest.iteration_mode ?? 'alternating',
       synthesizer: section.synthesizer ?? manifest.synthesizer ?? null,
-      provider_backend:
-        section.provider_backend ?? manifest.provider_backend ?? 'paseo',
-      provider_env: section.provider_env ?? manifest.provider_env,
       output_records: section.output_records,
       output_section: section.output_section,
       output_status: section.output_status,
@@ -2982,7 +2949,6 @@ export async function runSequential(
   const startMs = Date.now();
   const markdown = await readInputFile(inputPath);
   const parsedSections = parseSections(markdown);
-  const providerBackend = selectProviderBackend(normalized, env);
   const runDir = await resolveRunDir({ ...normalized, cwd });
   const outputPath = await resolveOutputPath({ ...normalized, cwd }, inputPath);
   const resumePath = await resolveResumePath({ ...normalized, cwd });
@@ -3003,7 +2969,7 @@ export async function runSequential(
   const preflight =
     normalized.preflight === false
       ? { peers: normalized.peers ?? ['claude', 'codex'], warnings: [] }
-      : await (normalized.preflight ?? preflightForBackend(providerBackend))({
+      : await (normalized.preflight ?? preflightConsensusProviderCli)({
           ...normalized,
           env,
           cwd,
@@ -3017,10 +2983,11 @@ export async function runSequential(
   const resumeSections = sectionLookup(resumeState?.sections);
   const runSections = sequentialRunSections(parsedSections, resumeState);
   const sectionResults: SectionResult[] = [];
-  const providerCliInvokers =
-    providerBackend === 'provider-cli'
-      ? providerCliLoopInvokers({ env, cwd, iteration: normalized.iteration })
-      : {};
+  const providerCliInvokers = providerCliLoopInvokers({
+    env,
+    cwd,
+    iteration: normalized.iteration,
+  });
 
   for (const section of runSections) {
     const sectionDir = sectionRunDirectory(runDir, section);
@@ -3253,14 +3220,13 @@ export async function prepareParallelRun(
   const startedAt = nowIso();
   const markdown = await readInputFile(inputPath);
   const parsedSections = parseSections(markdown);
-  const providerBackend = selectProviderBackend(normalized, env);
   const runDir = await resolveRunDir({ ...normalized, cwd });
   const outputPath = await resolveOutputPath({ ...normalized, cwd }, inputPath);
   const runWriteRoot = path.resolve(normalized.allowRoot ?? cwd);
   const preflight =
     normalized.preflight === false
       ? { peers: normalized.peers ?? ['claude', 'codex'], warnings: [] }
-      : await (normalized.preflight ?? preflightForBackend(providerBackend))({
+      : await (normalized.preflight ?? preflightConsensusProviderCli)({
           ...normalized,
           env,
           cwd,
@@ -3279,7 +3245,6 @@ export async function prepareParallelRun(
     parsedSections.length,
     normalized.parallelism,
   );
-  const providerEnv = providerBackendEnv(providerBackend, env);
   const sections: ParallelManifestEntry[] = [];
 
   for (const section of parsedSections) {
@@ -3297,7 +3262,6 @@ export async function prepareParallelRun(
       options: normalized,
       peers,
       synthesizer,
-      providerBackend,
     });
 
     await Promise.all([
@@ -3322,8 +3286,6 @@ export async function prepareParallelRun(
       agency: normalized.agency,
       iteration_mode: iterationMode,
       synthesizer,
-      provider_backend: providerBackend,
-      ...(providerEnv ? { provider_env: providerEnv } : {}),
       output_records: paths.records,
       output_section: paths.output,
       output_status: paths.status,
@@ -3344,8 +3306,6 @@ export async function prepareParallelRun(
         loopArgv,
         iterationMode,
         synthesizer,
-        providerBackend,
-        providerEnv,
       }),
     );
   }
@@ -3368,8 +3328,6 @@ export async function prepareParallelRun(
     agency: normalized.agency,
     iteration_mode: iterationMode,
     synthesizer,
-    provider_backend: providerBackend,
-    ...(providerEnv ? { provider_env: providerEnv } : {}),
     parallelism,
     sections,
     manifest_path: manifestPath,
@@ -3685,25 +3643,6 @@ export function resolveSynthesizer(
   }
 
   return { synthesizer, warnings };
-}
-
-function providerBackendFromEnv(env: NodeJS.ProcessEnv): ProviderBackend {
-  const value = env.CONSENSUS_PROVIDER_BACKEND?.trim().toLowerCase();
-  if (value === 'provider-cli' || value === 'cli') return 'provider-cli';
-  return 'paseo';
-}
-
-export function selectProviderBackend(
-  options: Pick<WrapperOptions, 'providerBackend'> = {},
-  env: NodeJS.ProcessEnv = process.env,
-): ProviderBackend {
-  return options.providerBackend ?? providerBackendFromEnv(env);
-}
-
-function preflightForBackend(backend: ProviderBackend) {
-  return backend === 'provider-cli'
-    ? preflightConsensusProviderCli
-    : preflightPaseo;
 }
 
 function providerCliUnavailableError(

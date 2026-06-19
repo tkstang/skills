@@ -452,7 +452,6 @@ it('runSequential preflights an explicit synthesized-mode synthesizer outside th
       cwd: tempRoot,
       env: {
         ...process.env,
-        CONSENSUS_PROVIDER_BACKEND: 'provider-cli',
         CONSENSUS_CLI_PATH: '/tmp/bin/consensus',
       },
       goal: 'Run synthesized mode.',
@@ -509,7 +508,7 @@ it('runSequential preflights an explicit synthesized-mode synthesizer outside th
   ]);
 });
 
-it('runSequential selects the provider CLI backend with CONSENSUS_CLI_PATH override', async () => {
+it('runSequential uses the provider CLI backend with CONSENSUS_CLI_PATH override', async () => {
   const tempRoot = await mkdtemp(
     path.join(os.tmpdir(), 'consensus-cli-refine-'),
   );
@@ -546,7 +545,6 @@ it('runSequential selects the provider CLI backend with CONSENSUS_CLI_PATH overr
     cwd: tempRoot,
     env: {
       ...process.env,
-      CONSENSUS_PROVIDER_BACKEND: 'provider-cli',
       CONSENSUS_CLI_PATH: consensusPath,
     },
     goal: 'Run through the provider CLI backend.',

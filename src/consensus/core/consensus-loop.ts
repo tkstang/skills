@@ -18,7 +18,6 @@ export type IterationMode =
   | 'alternating'
   | 'parallel_revision'
   | 'parallel_synthesized';
-export type ProviderBackend = 'paseo' | 'provider-cli';
 export type Agency = 'minimal' | 'moderate' | 'maximum';
 export type ColdStartMode = 'shared_input';
 export type CostSource = 'paseo' | 'estimated' | 'unavailable';
@@ -121,7 +120,6 @@ export interface LoopOptions {
   coldStart: ColdStartMode;
   agency: Agency;
   synthesizer: string | null;
-  providerBackend?: ProviderBackend;
   outputRecords: string;
   outputSection: string;
   outputStatus: string;
@@ -720,23 +718,6 @@ function parsePeers(value: unknown): string[] {
   }
 
   return peers;
-}
-
-function providerBackendFromEnv(env: NodeJS.ProcessEnv): ProviderBackend {
-  const value = env.CONSENSUS_PROVIDER_BACKEND?.trim().toLowerCase();
-  if (value === 'provider-cli' || value === 'cli') return 'provider-cli';
-  return 'paseo';
-}
-
-function parseProviderBackend(value: string): ProviderBackend {
-  const normalized = value.trim().toLowerCase();
-  if (normalized === 'provider-cli' || normalized === 'cli') {
-    return 'provider-cli';
-  }
-  if (normalized === 'paseo') return 'paseo';
-  throw new Error(
-    `invalid provider backend: ${value}. Expected paseo or provider-cli.`,
-  );
 }
 
 function schemaPath() {
@@ -1819,7 +1800,6 @@ export function parseLoopArgs(argv: string[]): LoopOptions {
     coldStart: string;
     agency: string;
     synthesizer: string | null;
-    providerBackend?: ProviderBackend;
   } = {
     goal: '',
     maxRounds: 12,
@@ -1857,9 +1837,6 @@ export function parseLoopArgs(argv: string[]): LoopOptions {
         break;
       case '--synthesizer':
         parsed.synthesizer = next();
-        break;
-      case '--provider-backend':
-        parsed.providerBackend = parseProviderBackend(next());
         break;
       case '--cold-start':
         parsed.coldStart = next();
@@ -1909,7 +1886,6 @@ export function parseLoopArgs(argv: string[]): LoopOptions {
     coldStart: parsed.coldStart as ColdStartMode,
     agency: parsed.agency as Agency,
     synthesizer: parsed.synthesizer,
-    providerBackend: parsed.providerBackend,
     outputRecords: parsed.outputRecords,
     outputSection: parsed.outputSection,
     outputStatus: parsed.outputStatus,
@@ -3174,50 +3150,29 @@ export async function runConsensusLoop(
   const maxTurns = intervention ? initialPeerTurns + turnBudget : turnBudget;
   const env = runOptions.env ?? process.env;
   const cwd = runOptions.cwd ?? process.cwd();
-  const providerBackend =
-    options.providerBackend ?? providerBackendFromEnv(env);
   const invokePeer =
     runOptions.invokePeer ??
-    (providerBackend === 'provider-cli'
-      ? (turn: PeerInvocation) =>
-          invokeProviderCliWithRetry(
-            {
-              provider: turn.provider,
-              schemaPath: peerSchemaPathForMode(options.iteration),
-              prompt: turn.prompt,
-              env,
-              cwd,
-            },
-            { mode: options.iteration },
-          )
-      : (turn: PeerInvocation) =>
-          invokeValidatedPeer({
-            mode: options.iteration,
-            provider: turn.provider,
-            schemaPath: peerSchemaPathForMode(options.iteration),
-            prompt: turn.prompt,
-            env,
-            cwd,
-          }));
+    ((turn: PeerInvocation) =>
+      invokeProviderCliWithRetry(
+        {
+          provider: turn.provider,
+          schemaPath: peerSchemaPathForMode(options.iteration),
+          prompt: turn.prompt,
+          env,
+          cwd,
+        },
+        { mode: options.iteration },
+      ));
   const invokeSynthesizer =
     runOptions.invokeSynthesizer ??
-    (providerBackend === 'provider-cli'
-      ? (call: SynthesizerInvocation) =>
-          invokeConsensusProviderCli({
-            provider: call.provider,
-            schemaPath: call.schemaPath,
-            prompt: call.prompt,
-            env,
-            cwd,
-          })
-      : (call: SynthesizerInvocation) =>
-          invokePaseoWithRetry({
-            provider: call.provider,
-            schemaPath: call.schemaPath,
-            prompt: call.prompt,
-            env,
-            cwd,
-          }));
+    ((call: SynthesizerInvocation) =>
+      invokeConsensusProviderCli({
+        provider: call.provider,
+        schemaPath: call.schemaPath,
+        prompt: call.prompt,
+        env,
+        cwd,
+      }));
   const prompts = resolvePromptProfile(runOptions.promptProfile);
 
   try {

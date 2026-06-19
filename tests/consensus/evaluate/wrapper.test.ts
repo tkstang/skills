@@ -296,7 +296,6 @@ it('runs Evaluate through the provider CLI backend with explicit peers and synth
       cwd: tempRoot,
       env: {
         ...process.env,
-        CONSENSUS_PROVIDER_BACKEND: 'provider-cli',
         CONSENSUS_CLI_PATH: consensusPath,
       },
     },
