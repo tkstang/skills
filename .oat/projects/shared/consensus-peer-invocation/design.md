@@ -140,6 +140,8 @@ interface ProviderAdapter {
 
 The CLI validator must be a strict subset of the loop's `normalizeVerdict`, branch validation, and verdict-cap contract. It should validate that the provider returned parseable JSON matching the selected schema subset; it must not become the authority for consensus branch semantics.
 
+`submit_tool_candidate` is a reserved candidate strategy until the bounded Cursor SDK spike proves its reliability, audit behavior, local/cloud execution mode, and dependency posture. First-scope selection should use constrained-native, provider-validated, or prompt-only paths; submit-tool selection is not enabled by default.
+
 ### Host Runtime Guard
 
 **Purpose:** Avoid unsafe recursive or host-native self-spawn behavior while allowing intentional same-provider peer subprocesses.
@@ -153,6 +155,8 @@ The CLI validator must be a strict subset of the loop's `normalizeVerdict`, bran
 - Report safe same-host availability as `host_relation: 'same_host'` and `guard: 'subprocess_isolated'`.
 
 This guard does not forbid same-provider peers. A Codex host can spawn a Codex peer when the peer is isolated as a subprocess and the depth guard remains within bounds.
+
+Host-native dispatch is reserved for a future project. The first implementation does not define a Codex full-history fork or safe-packet protocol, and adapters must report `supports_host_native_dispatch: false`. The `host_native_safe_packet_required` guard value remains a reserved vocabulary item only; first-scope adapters should not emit it. If a future adapter needs host-native dispatch, that project must define the packet contents, history boundary, execution contract, audit fields, and safety checks before setting `supports_host_native_dispatch: true`.
 
 ### Consensus Integration Adapter
 
@@ -250,6 +254,7 @@ interface ProviderCapabilities {
   options: ProviderOptionCapabilities;
   supports_submit_tool: boolean;
   supports_same_host_subprocess: boolean;
+  // Reserved for future host-native safe-packet dispatch; false in first scope.
   supports_host_native_dispatch: boolean;
   future_extension_kind?: 'custom_command' | 'openai_compatible_base_url' | 'acp_like';
 }
@@ -267,6 +272,8 @@ interface ProviderInventoryEntry {
 ```
 
 `schema_strategies` is intentionally plural. The Coordinator chooses per request/schema. For example, Claude can support both `provider_validated` and `prompt_only`, while permissive schemas should avoid a provider-validated path known to produce placeholder-shaped output.
+
+`supports_host_native_dispatch` is intentionally present as an extension point, not an implementation commitment. First-scope Claude, Codex, and Cursor adapters should report `false`; subprocess-isolated same-host execution is the only same-provider path implemented by this project.
 
 `options` makes model, effort, permission/sandbox posture, and environment passthrough explicit and capability-gated. Stoa-style provider differences fit this shape: Claude may support an `effort` flag and permission modes, Codex may support `reasoning_effort`, sandbox, and approval-policy settings, and Cursor may support a narrower set. Unsupported options should be rejected with a provider-neutral unsupported-option error rather than silently ignored.
 
@@ -354,6 +361,8 @@ interface AttemptSummary {
 
 `cli_attempts` counts retries owned by the consensus CLI. `provider_internal_attempts` is populated only when the provider exposes it; otherwise it is omitted or set to `'unknown'`. Loop-level retry remains visible in consensus records and is not counted here.
 
+`ConsensusCliRunFailure.retryable` is the caller-facing authority. `attempts.retryable` mirrors the same value so attempt summaries remain self-contained in audit records. `terminal_reason` records the adapter or coordinator classification basis for terminal failures, including terminal `PROVIDER_EXIT` decisions.
+
 ### Provider Diagnostics
 
 ```ts
@@ -436,7 +445,7 @@ interface ProviderListEnvelope {
 }
 ```
 
-Provider absence is represented in each provider entry, not as command failure.
+Provider absence is represented in each provider entry, not as command failure. Envelope-level `diagnostics` is reserved for command-level warnings such as config parse issues or inventory degradation; provider-specific diagnostics remain on each `ProviderInventoryEntry`.
 
 ### `consensus preflight`
 
@@ -457,6 +466,8 @@ interface PreflightEnvelope {
 ```
 
 Preflight reports missing executables, auth-required states, unsupported capabilities, and same-host guard status. It exits nonzero only for CLI usage or internal failures, not because an optional provider is unavailable.
+
+Envelope-level `diagnostics` follows the same command-level rule as `provider ls`; per-provider details stay attached to provider entries.
 
 ### `consensus run`
 
@@ -552,6 +563,8 @@ The CLI emits structured `ok: false` envelopes for provider-level failures and e
 
 `PROVIDER_EXIT` classification is adapter-owned. First implementation can match current broad retry behavior by retrying nonzero provider exits within `max_attempts`, except for adapter-recognized terminal cases such as unsupported options, auth-required states, missing executables, recursion guard failures, output caps, and usage errors. Later refinements can add stderr/signature matching for rate limits, 429s, interrupted runs, and provider-specific transient classes.
 
+`PROVIDER_UNAVAILABLE` is reserved for terminal readiness failures discovered before invocation, such as a provider CLI that exists but cannot be used because required local configuration, login state, or platform support is absent. A provider that starts and exits nonzero during a run is classified as `PROVIDER_EXIT`, with `terminal_reason` explaining whether the adapter treated it as retryable or terminal.
+
 Retry action differs by code. `PROVIDER_INVALID_JSON`, transient `PROVIDER_EXIT`, and explicitly retryable `PROVIDER_TIMEOUT` re-invoke the provider. `PROVIDER_SCHEMA_VALIDATION` re-prompts with the validation error appended so the peer can self-correct against the same schema. These retries share the same `max_attempts` budget and are reflected in `attempts.cli_attempts`.
 
 The consensus loop's retryable provider set should shrink after migration. The loop treats terminal `ok: false` envelopes as already exhausted at the provider tier and should not retry them again. Loop-owned retry remains for verdict-contract failures after normalization, specifically `INVALID_VERDICT_SHAPE` and `INVALID_VERDICT_CAPS`, plus existing section/convergence controls.
@@ -568,7 +581,7 @@ Human remediation messages should stay actionable and provider-neutral: missing 
 | --- | --- | --- |
 | FR1 | integration | `provider ls`, `preflight`, and `run` emit stable JSON envelopes; structured failures exit `0`; usage failures exit nonzero |
 | FR2 | unit + integration | Claude, Codex, and Cursor adapters report capabilities, build argv arrays, probe readiness, and normalize output modes |
-| FR3 | unit + integration | Strategy selection distinguishes `constrained_native`, `provider_validated`, `prompt_only`, and `submit_tool_candidate`; invalid JSON and schema-subset failures retry correctly |
+| FR3 | unit + integration | Strategy selection distinguishes `constrained_native`, `provider_validated`, `prompt_only`, and reserved `submit_tool_candidate`; first scope does not select submit-tool by default; invalid JSON and schema-subset failures retry correctly |
 | FR4 | integration + e2e | Refine and Evaluate invoke peers through the CLI seam without changing consensus loop behavior, convergence, section control, or wrapper output |
 | FR5 | unit + integration | Provider inventory distinguishes missing executable, unavailable provider, auth required, unsupported capability, and transient provider failure |
 | FR6 | unit | Provider-neutral error codes map to retry classification, remediation messages, and structured envelopes without backend-specific aliases |
