@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-19
-oat_current_task_id: p03-t01
+oat_current_task_id: p03-t02
 oat_generated: false
 ---
 
@@ -18,9 +18,9 @@ oat_generated: false
 | ----- | ------ | ----- | --------- |
 | Phase 1 | completed | 2 | 2/2 |
 | Phase 2 | completed | 2 | 2/2 |
-| Phase 3 | pending | 2 | 0/2 |
+| Phase 3 | in_progress | 2 | 1/2 |
 
-**Total:** 4/6 tasks completed
+**Total:** 5/6 tasks completed
 
 ## Phase 1: Establish Current Evidence Baseline
 
@@ -148,12 +148,25 @@ oat_generated: false
 
 ## Phase 3: Capture Remaining Gates and PR Package
 
-**Status:** pending
+**Status:** in_progress
 
 ### Task p03-t01: Record release blockers and post-tag discovery gates
 
-**Status:** pending
-**Commit:** null
+**Status:** completed
+**Commit:** pending bookkeeping commit
+
+**Outcome:**
+
+- Updated durable repo reference state for the release-verification results and remaining gates.
+- Made release blockers explicit: interactive provider permission prompts, Cursor locked-keychain/provider error, and post-tag skills.sh/public discovery verification.
+- Preserved public-claim gating: source discovery and local installs are recorded as evidence, not as public marketplace or skills.sh availability.
+
+**Verification:**
+
+- Run: `pnpm run validate`
+- Result: pass; `validation passed`.
+- Run: `rg -n "skills\\.sh|Plugin Directory|marketplace|blocked before tag|post-tag" README.md RELEASING.md CHANGELOG.md .oat/repo/reference`
+- Result: public discovery claims remain gated; remaining blockers are explicit in release docs and repo references.
 
 ### Task p03-t02: Final verification and PR-ready summary
 

@@ -1,6 +1,6 @@
 # Skills Repo Current State
 
-**Last updated:** 2026-06-19 (test-organization cleanup, branch-implemented: shared test helpers under `tests/helpers/` and the test tree reorganized into domain directories — `tests/consensus/{core,refine,evaluate}/`, `tests/repo/`, `tests/release/`, `tests/tooling/` — with two oversized suites split; behavior-preserving, no runtime/generated `.mjs` changes; pending its cleanup PR. Prior: PR4 converted all repo/tooling test suites to Vitest `.test.ts`, retired the `node:test` runner, made `pnpm test` Vitest-only, and harmonized node:assert to `expect` repo-wide; session-observer canonical TypeScript source under `src/transcript/session-observer/` with generated `.mjs` shipped output preserved under `skills/session-observer/scripts/`.)
+**Last updated:** 2026-06-19 (v0.1 release verification refreshed automated gates, provider install evidence, release workflow parity, version/tag checks, and release notes. Test-organization cleanup is also branch-implemented on main context: shared test helpers under `tests/helpers/`, domain-organized test directories, and two oversized suites split; behavior-preserving, no runtime/generated `.mjs` changes. Prior: PR4 converted all repo/tooling test suites to Vitest `.test.ts`, retired `node:test`, and made `pnpm test` Vitest-only.)
 
 ## Overview
 
@@ -24,7 +24,7 @@ Two skills ship:
 - **Resume:** deliberation artifact is the canonical state; fail-closed on corruption; user direction recorded as a `USER_INTERVENTION` round, host decision as a `HOST_DECISION` round.
 - **Safety:** four-domain path confinement with atomic writes; spawn-array subprocess hygiene; prompt-injection framing on untrusted input; JSONL stdout as the host coordination protocol, stderr for diagnostics.
 - **TypeScript/generated runtime slices (2026-06-15/17):** `consensus-loop` now has canonical TypeScript source at `src/consensus/core/consensus-loop.ts` with typed verdict, synthesis, record/status, agency, escalation, prompt-profile, and peer-invocation domains. `consensus-refine` has canonical TypeScript source at `src/consensus/refine/consensus-refine.ts`; `consensus-evaluate` has canonical TypeScript source at `src/consensus/evaluate/consensus-evaluate.ts`. The build rewrites canonical loop module specifiers to shipped sibling `./consensus-loop.mjs` runtimes without rewriting unrelated string literals. The committed provider-facing runtimes are `plugins/consensus/skills/refine/scripts/consensus-loop.mjs`, `plugins/consensus/skills/refine/scripts/consensus-refine.mjs`, `plugins/consensus/skills/evaluate/scripts/consensus-loop.mjs`, and `plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs` with generated banners and drift guards.
-- **Distribution:** provider manifests under the plugin (`.claude-plugin/`, `.cursor-plugin/`, `.codex-plugin/`) plus repo-root marketplace entries; local marketplace install verified for Claude Code and Codex; Cursor loads session-scoped via `cursor agent --plugin-dir` (no marketplace/install commands in the Cursor CLI yet — fixed/documented 2026-05-24).
+- **Distribution:** provider manifests under the plugin (`.claude-plugin/`, `.cursor-plugin/`, `.codex-plugin/`) plus repo-root marketplace entries; local marketplace install verified for Claude Code and Codex; Cursor loads session-scoped via `cursor agent --plugin-dir` when Cursor Agent is available, but the 2026-06-19 release-verification run could not verify Cursor because the macOS login keychain was locked and Paseo reported the Cursor provider as `error`.
 - **Prerequisite:** Paseo CLI on PATH (tested range 0.1.0–0.9.0); opt-in install assist via `scripts/install-paseo.mjs`.
 
 Refine verified live with claude+codex across all three modes and the escalation ladder; QA walkthrough in `skills/refine/references/operator-qa.md`. Evaluate has mocked end-to-end coverage and operator QA docs in `skills/evaluate/references/operator-qa.md`; live provider verification remains part of v0.1 release checks. Cursor-as-peer remains opt-in (custom ACP provider) and unverified end-to-end.
@@ -66,9 +66,10 @@ Canonical per-provider transcript knowledge (store locations, record parsing, st
 
 ## Release Posture
 
-- v0.1 tagging is gated by `RELEASING.md`: manual provider runtime install + permission smoke checks (Claude Code, Cursor, Codex, Agent Skills baseline) are still outstanding.
+- v0.1 automated gates passed locally on 2026-06-19: `pnpm run build`, `pnpm run type-check`, `pnpm run build:check`, `pnpm run test` (53 files / 572 tests), `pnpm run validate`, and `pnpm run smoke`.
+- `node scripts/bump-version.mjs --check-tag v0.1.0` passed on 2026-06-19, and release tag workflow parity was updated to install with pnpm, build, type-check, build-check, test, validate, smoke, and check tag/manifest consistency.
+- v0.1 tagging is still gated by `RELEASING.md`: Claude Code and Codex local installs are verified, but interactive permission prompts remain unverified; Cursor is blocked by locked keychain / provider `error`; Agent Skills source listing works but post-tag skills.sh indexing is not verified.
 - Codex public Plugin Directory and skills.sh listing are explicitly not claimed until verified post-publication.
-- Local automated verification last recorded green 2026-05-04 (and continuously via CI since).
 
 ## Project Management Surfaces
 
