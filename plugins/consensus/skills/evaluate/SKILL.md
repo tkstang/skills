@@ -1,9 +1,11 @@
 ---
 name: evaluate
 description: Use when evaluating an artifact against a rubric with two AI peers, unified findings, per-peer reasoning, and dissent preserved in the deliberation log.
+version: '0.1.0'
 license: MIT
 compatibility: Agent Skills baseline; requires `paseo` CLI on PATH.
 allowed-tools: Bash(node:*), Bash(paseo:*), Read, Write
+argument-hint: <artifact.md> [--rubric <rubric.md>]
 metadata:
   author: thomas.stang
   version: '0.1.0'
@@ -65,6 +67,78 @@ In `parallel_synthesized` mode the synthesis call defaults to the first configur
 ## Impasse Handling
 
 At minimal agency, unresolved peer disagreement is surfaced rather than silently decided. If JSONL reports an impasse or the final artifact contains `## Unresolved dissent`, present the divergent positions and ask the user how to proceed: accept the impasse, give new direction, change the budget or agency level, or rerun with a different peer set.
+
+## When NOT to Use
+
+- You need to _improve_ an artifact through deliberation — use the `refine` skill instead.
+- No rubric, spec, checklist, or acceptance criteria exists and you are not willing to collaboratively create one — the wrapper requires `--rubric <path>`.
+- The artifact exceeds 1 MiB — the wrapper rejects oversized input before evaluation starts.
+- You want a single quick opinion rather than structured peer judgment — a direct host-model review is cheaper and faster.
+- The rubric has more than 12 distinct heading or bullet criteria — the wrapper silently drops criteria beyond the first 12; trim or prioritize before running.
+
+## Examples
+
+### Basic explicit-rubric invocation
+
+```
+Please evaluate this design doc against the attached rubric.
+```
+
+The host model invokes the wrapper from the skill directory:
+
+```bash
+node ./scripts/consensus-evaluate.mjs design-doc.md --rubric rubric.md
+```
+
+After the run, report the evaluation artifact path and summarize the key findings, peer disagreements, and any provider warnings.
+
+### Conversational evaluation request
+
+When the user does not provide a rubric upfront:
+
+> "Can you evaluate this pull request description? I care most about clarity and completeness."
+
+Ask what goals the evaluation should serve. Then either:
+
+- Ask the user to point to an existing rubric file, or
+- Offer to collaboratively create a rubric together before running the wrapper (see [Guided Rubric Creation](#guided-rubric-creation)).
+
+## Success Criteria
+
+- The wrapper exits cleanly and produces an evaluation artifact at the reported path.
+- Unified findings from the converged or last-agreed evaluation are present in the artifact.
+- Final status, key findings, peer disagreements, and any provider warnings from JSONL are relayed to the user.
+- Residual dissent (`## Dissent`) and unresolved impasses (`## Unresolved dissent`) are surfaced explicitly — never hidden.
+- If evaluation ends at impasse, divergent positions are presented and the user is asked how to proceed.
+
+## Guided Rubric Creation
+
+Use this path when the user explicitly asks for help creating a rubric, or when the user asks to evaluate an artifact but provides no rubric.
+
+**When to enter the guided path:**
+
+- The user asks to evaluate something but does not provide or mention a rubric file.
+- The user says something like "help me write a rubric" or "I'm not sure what criteria to use."
+
+**Steps:**
+
+1. **Elicit goals.** Ask the user what the evaluation is trying to determine. One or two focused questions are enough — do not over-elicit.
+2. **Select or adapt an example.** Choose a starting point from the bundled rubric examples in `references/examples/` that best fits the artifact type. Show the user what you are starting from and why. Available examples:
+   - [`references/examples/general-purpose.md`](references/examples/general-purpose.md) — annotated template for any written artifact
+   - [`references/examples/code-review.md`](references/examples/code-review.md) — pull request descriptions and implementation proposals
+   - [`references/examples/technical-writing.md`](references/examples/technical-writing.md) — documentation, tutorials, and API reference
+   - [`references/examples/design-architecture.md`](references/examples/design-architecture.md) — ADRs, system designs, and RFCs
+3. **Draft the rubric.** Adapt the selected example to the user's goals. Keep the load-bearing criteria (headings and bullets) at 12 or fewer — the wrapper silently ignores criteria beyond the first 12 distinct headings and bullets it finds. Weights, scoring scales, and pass/fail notes are welcome as peer-facing guidance but are not parsed by the wrapper.
+4. **Confirm the output path.** Before writing, tell the user where the rubric file will be saved and ask for approval. Write the rubric only to a user-approved path within the active workspace. A sensible default is a file named `rubric.md` alongside the artifact being evaluated.
+5. **Invoke the wrapper.** After writing the rubric file, run:
+
+   ```bash
+   node ./scripts/consensus-evaluate.mjs <artifact.md> --rubric <approved-rubric-path>
+   ```
+
+**Rubric authoring convention:** Headings (`##` through `######`) and bullet items (`-` / `*`) are the machine-visible criteria the wrapper extracts. Prose paragraphs, numbered lists, and nested indentation are treated as peer-facing context, not as criteria. Keep the 12 highest-priority criteria as headings or bullets; put scoring guidance, examples, and notes in prose beneath them.
+
+**Raw wrapper contract (unchanged):** The deterministic wrapper always requires `--rubric <path>`. Guided creation is a host-model-driven flow that produces that file; it does not modify the wrapper's CLI surface.
 
 ## Operator QA
 

@@ -1,6 +1,6 @@
 # Skills Repo Roadmap
 
-**Last updated:** 2026-06-19 (v0.1 release verification refreshed automated gates, provider install evidence, release notes, version/tag checks, and release workflow parity. Test-organization cleanup is also branch-implemented on main context: shared `tests/helpers/`, domain-organized test tree, and two oversized suites split as a behavior-preserving maintainability follow-on to PR4. Prior: PR4 retired the `node:test` runner and completed **bl-bfb4**.)
+**Last updated:** 2026-06-19 (consensus-rubric-guidance: `refine` + `evaluate` brought to authoring-best-practice parity with a validator-backed top-level skill `version` (DR-022), plus guided rubric creation and four bundled example rubrics. Also 2026-06-19: v0.1 release verification refreshed automated gates, provider install evidence, release notes, version/tag checks, and release workflow parity; test-organization cleanup landed shared `tests/helpers/`, a domain-organized test tree, and two oversized suites split. Prior: PR4 retired the `node:test` runner and completed **bl-bfb4**.)
 
 ## Planning Model
 

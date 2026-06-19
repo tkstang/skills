@@ -1,9 +1,11 @@
 ---
 name: refine
 description: Use when refining a draft and you want two AI peers to deliberate to convergence with structured verdicts, a final artifact, and a readable audit trail.
+version: '0.1.0'
 license: MIT
 compatibility: Agent Skills baseline; requires `paseo` CLI on PATH.
 allowed-tools: Bash(node:*), Bash(paseo:*), Read, Write
+argument-hint: <input-artifact.md> [--goal "<refinement goal>"]
 metadata:
   author: thomas.stang
   version: '0.1.0'
@@ -104,6 +106,46 @@ A `promoted_from: 'host'` marker means a previously host-routed escalation has b
 ## Output Contract
 
 The wrapper writes a markdown deliberation artifact. Report the artifact path to the user and summarize the final status, section counts, impasses, and any release-time or provider warnings emitted by JSONL.
+
+## When NOT to Use
+
+- The document does not need structured peer deliberation — quick edits or single-pass rewriting do not justify the peer-call cost.
+- You need fast, low-cost feedback: use a single peer review or the host model's own editing capability instead.
+- The input artifact exceeds 1 MiB — the wrapper rejects oversized inputs before evaluation starts.
+- The goal is to _evaluate_ an artifact against a rubric, not to improve it through deliberation — use the `evaluate` skill instead.
+- You are looking for a yes/no acceptance decision rather than a converged revision — again, `evaluate` is the better fit.
+
+## Examples
+
+### Basic one-shot refinement
+
+```
+Please refine this draft using the consensus skill.
+```
+
+The host model invokes the wrapper from the skill directory:
+
+```bash
+node ./scripts/consensus-refine.mjs proposal.md --goal "Tighten the argument and cut filler prose"
+```
+
+After the run, report the output artifact path and summarize the key changes made.
+
+### Conversational invocation
+
+When the user describes what they want in natural language:
+
+> "Can you clean up this RFC? The structure is fine but the wording is too wordy."
+
+Translate the request: the goal is conciseness-focused tightening. Run the sequential wrapper with an explicit goal flag matching the user's intent, then summarize the result inline.
+
+## Success Criteria
+
+- The wrapper exits cleanly and produces a deliberation artifact at the reported path.
+- The artifact contains a converged revision (not just an impasse record) for every section.
+- Final status, section counts, impasses, and any provider warnings from JSONL are relayed to the user.
+- If the run ends at impasse or max rounds, the divergent options are presented and the user is asked how to proceed.
+- Parallel runs disclose the cost multiplier before dispatching section runners.
 
 ## Operator QA
 

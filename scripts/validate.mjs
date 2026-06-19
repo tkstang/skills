@@ -157,6 +157,32 @@ export async function validateSkillReference(root, skill, pluginRoot = root) {
   return issues;
 }
 
+function resolveEffectiveSkillVersion(parsed, sourceLabel) {
+  const topLevel = parsed.version != null ? String(parsed.version) : null;
+  const metaVersion =
+    parsed.metadata?.version != null ? String(parsed.metadata.version) : null;
+
+  const effective = topLevel ?? metaVersion;
+
+  if (!effective) {
+    return `${sourceLabel} metadata.version must be valid semver`;
+  }
+
+  if (topLevel && !isValidSemver(topLevel)) {
+    return `${sourceLabel} version must be valid semver (got "${topLevel}")`;
+  }
+
+  if (metaVersion && !isValidSemver(metaVersion)) {
+    return `${sourceLabel} metadata.version must be valid semver`;
+  }
+
+  if (topLevel && metaVersion && topLevel !== metaVersion) {
+    return `${sourceLabel} version mismatch: top-level version "${topLevel}" does not match metadata.version "${metaVersion}"`;
+  }
+
+  return null;
+}
+
 async function validateSkillFrontmatter(root, skillPath) {
   const issues = [];
   const skillFile = path.join(skillPath, 'SKILL.md');
@@ -187,10 +213,12 @@ async function validateSkillFrontmatter(root, skillPath) {
     issues.push(`${path.relative(root, skillFile)} name does not match folder`);
   }
 
-  if (!isValidSemver(parsed.metadata?.version)) {
-    issues.push(
-      `${path.relative(root, skillFile)} metadata.version must be valid semver`,
-    );
+  const versionIssue = resolveEffectiveSkillVersion(
+    parsed,
+    path.relative(root, skillFile),
+  );
+  if (versionIssue) {
+    issues.push(versionIssue);
   }
 
   return issues;
