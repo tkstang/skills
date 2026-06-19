@@ -1,9 +1,9 @@
 ---
-oat_status: in_progress
+oat_status: complete
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-19
-oat_current_task_id: p04-t01
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -23,9 +23,9 @@ oat_generated: false
 | Phase 1 | passed      | 6     | 6/6       |
 | Phase 2 | passed      | 7     | 7/7       |
 | Phase 3 | passed      | 7     | 7/7       |
-| Phase 4 | pending     | 7     | 0/7       |
+| Phase 4 | passed      | 7     | 7/7       |
 
-**Total:** 20/27 tasks completed
+**Total:** 27/27 tasks completed
 
 ---
 
@@ -312,47 +312,94 @@ oat_generated: false
 
 ## Phase 4: Dogfood, Default Cutover, and Source Cleanup
 
-**Status:** pending
-**Started:** -
+**Status:** passed
+**Started:** 2026-06-19
 
 ### Phase Summary
 
-Pending.
+**Outcome:**
+
+- Updated consensus skill instructions, operator QA references, README, release notes, and root maintained docs to describe the provider CLI backend and provider-neutral diagnostics.
+- Recorded Cursor submit-tool as deferred and unselected by default, with Cursor currently surfaced as `auth_required` on this machine.
+- Recorded provider CLI dogfood parity evidence and accepted the source-level cutover for new runs.
+- Switched Refine, Evaluate, and smoke flows to the provider CLI backend as the default runtime path and removed temporary backend fallback switches.
+- Removed old backend helper scripts, fixtures, install tests, and old test names.
+- Added a provider-neutral source cleanup scan that covers maintained source/runtime/tests/scripts/docs plus root instruction docs, excluding historical `.oat` artifacts and the scan's own pattern list.
+- Updated release verification docs and added a Vitest timeout guard so `pnpm run premerge` passes reliably.
+
+**Key files touched:**
+
+- `src/consensus/core/consensus-loop.ts`, `src/consensus/refine/consensus-refine.ts`, `src/consensus/evaluate/consensus-evaluate.ts` - provider CLI default cutover and fallback removal.
+- `plugins/consensus/skills/refine/`, `plugins/consensus/skills/evaluate/`, and generated plugin scripts - updated shipped runtime and operator-facing instructions.
+- `README.md`, `RELEASING.md`, `AGENTS.md`, `CHANGELOG.md`, `plugins/consensus/README.md` - maintained docs cleanup and provider CLI wording.
+- `.oat/projects/shared/consensus-peer-invocation/research/cursor-submit-tool-spike.md` - Cursor submit-tool deferral.
+- `.oat/projects/shared/consensus-peer-invocation/research/provider-cli-dogfood-parity.md` - dogfood parity and cutover evidence.
+- `tests/consensus/provider-cli/source-cleanup.test.ts` - static cleanup scan.
+- `tests/consensus/refine/provider-subprocess.test.ts` - renamed provider subprocess coverage.
+- `vitest.config.mjs`, `tests/tooling/vitest-config.test.ts` - explicit full-suite timeout budget.
+
+**Verification:**
+
+- Run: `pnpm exec vitest run tests/consensus/provider-cli/source-cleanup.test.ts`
+- Result: passed during p04 implementation, fix, and re-review.
+- Run: `pnpm run build:check`
+- Result: passed.
+- Run: `pnpm run premerge`
+- Result: passed during p04 implementation and fix; p04 re-review saw one unrelated `session-observer` timeout on first attempt, then the isolated test and full `premerge` rerun passed.
+- Run: targeted stale-backend scans excluding `.git` and `.oat`
+- Result: only the cleanup scan's own retired-identifier pattern literals remain outside `.oat`.
+
+**Notes / Decisions:**
+
+- Cursor submit-tool remains deferred; `submit_tool_candidate` stays reserved and unselected by default.
+- Cutover is acceptable for new consensus runs based on automated parity, generated-output sync, smoke, provider inventory/preflight, and local Claude/Codex readiness.
+- Cursor currently reports `auth_required` because the local macOS keychain is locked; this is a provider-neutral diagnostic, not a runtime fallback blocker.
 
 ### Task p04-t01: Update Consensus Skill Instructions and Operator Docs
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** 13eeded
 
 ### Task p04-t02: Record Cursor Submit-Tool Spike Outcome
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** 50f32be, 916a02b
 
 ### Task p04-t03: Record Provider CLI Dogfood Parity Evidence
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** 5e89475
 
 ### Task p04-t04: Switch Default Backend and Remove Dogfood Fallback
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** f72d88c
 
 ### Task p04-t05: Remove Old Backend Helpers, Fixtures, and Test Names
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** 5c640b1
 
 ### Task p04-t06: Add Provider-Neutral Identifier Scan
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** 921a43b
 
 ### Task p04-t07: Run Final Validation and Update Release Docs
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** 13fb9f1
+
+### Review Fix: Extend Provider Cleanup Scan
+
+**Status:** completed
+**Commit:** 7fe2b58
+
+**Changes:**
+
+- Added maintained root docs/instructions including `AGENTS.md` and `CHANGELOG.md` to the cleanup scan.
+- Replaced stale maintained-doc old-backend references with provider CLI wording.
+- Confirmed only the cleanup scan's self-excluded pattern list retains retired identifiers outside `.oat`.
 
 ---
 
@@ -361,6 +408,42 @@ Pending.
 Each run from `oat-project-implement` appends an entry below.
 
 <!-- orchestration-runs-start -->
+
+### Run 5 — 2026-06-19 22:25
+
+**Branch:** consensus-cli
+**Tier:** 1
+**Policy:** merge-strategy=sequential, retry-limit=2
+**Phases:** 1 executed, 1 passed, 0 failed, 0 stopped
+
+#### Phase Outcomes
+
+| Phase | Implementer | Review | Fix Iterations | Disposition |
+| ----- | ----------- | ------ | -------------- | ----------- |
+| p04   | DONE | pass | 1/2 | passed |
+
+#### Parallel Groups
+
+- p04: sequential
+
+#### Dispatch Notes
+
+- Dispatch: p04 implementation used Codex `oat-phase-implementer-xhigh` with `effort_axis=selected:xhigh`.
+- Dispatch: p04 review and re-review used Codex `oat-reviewer-xhigh` with `effort_axis=selected:xhigh`.
+- Dispatch: p04 fix used Codex `oat-phase-implementer-xhigh` with `effort_axis=selected:xhigh`.
+
+#### Outstanding Items
+
+- None.
+
+#### Artifact / Design Deltas
+
+Run-scoped snapshot only. The durable record is `## Deviations from Plan / Design`; consolidate any non-`None` entries there at the next phase boundary.
+
+| Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
+| ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
+| p04-t06 | plan.md file list | Cleanup scan initially listed `src/`, `plugins/consensus/`, `tests/`, `scripts/`, and selected docs | Scan also covers maintained root docs/instructions including `AGENTS.md` and `CHANGELOG.md` | p04 review found stale maintained-doc references outside the original scan scope | implementation | None |
+| p04-t07 | plan.md verification | Final validation via `pnpm run premerge` | Added explicit Vitest timeout budget and guard so the exact premerge command passes reliably | Full-suite subprocess tests exceeded the default 5000 ms timeout under concurrency while focused tests passed | implementation | None |
 
 ### Run 4 — 2026-06-19 21:17
 
@@ -519,6 +602,7 @@ Chronological log of implementation progress.
 - p01 completed and passed re-review after fix commit `90f19d4`.
 - p02 completed and passed new-cycle re-review after fix commit `6fffefe`.
 - p03 completed and passed re-review after fix commit `43c4288`.
+- p04 completed and passed re-review after fix commit `7fe2b58`.
 
 **Blockers:**
 
@@ -534,6 +618,8 @@ Document any intentional deviations from the original plan, spec, or design. Inc
 | ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
 | -             | -               | -                    | -                 | -      | -               | -         |
 | p02-t07 | plan.md file list | p02-t07 omitted `tests/consensus/provider-cli/cli-process.test.ts` | implementation updated that test | Required to keep the generated CLI process contract current once `run` became implemented | implementation | None |
+| p04-t06 | plan.md file list | Cleanup scan initially listed `src/`, `plugins/consensus/`, `tests/`, `scripts/`, and selected docs | implementation expanded the scan to maintained root docs/instructions including `AGENTS.md` and `CHANGELOG.md` | Required to satisfy the clean source/docs cutover requirement after review found stale maintained-doc references | implementation | None |
+| p04-t07 | plan.md verification | Final validation expected `pnpm run premerge` to pass | implementation added a guarded 10s Vitest test timeout so exact `premerge` passes reliably | Full-suite subprocess tests were intermittently exceeding Vitest's default 5000 ms timeout; focused reruns passed | implementation | None |
 
 ## Test Results
 
@@ -544,11 +630,27 @@ Track test execution during implementation.
 | p01   | focused p01 Vitest suite; type-check; build:check; validate; smoke | yes | 0 | `pnpm exec vitest run <p01 files>` used for focused suite; `pnpm run test:vitest -- <files>` broadened to unrelated session-observer tests |
 | p02   | focused provider-cli Vitest suite; type-check; build:check; generated provider/preflight smoke | yes | 0 | p02 passed new-cycle re-review after generated provider probe wiring fix |
 | p03   | focused provider-cli/refine/evaluate Vitest suite; type-check; build:check; smoke | yes | 0 | p03 passed re-review after provider backend propagation fix |
-| p04   | -         | -      | -      | Pending |
+| p04   | source cleanup scan; build:check; premerge; targeted stale-backend scans | yes | 0 | p04 passed re-review after cleanup scan widened to root maintained docs |
 
 ## Final Summary (for PR/docs)
 
-Pending implementation completion.
+Implementation replaced the old external peer-invocation backend with an owned provider-neutral `consensus` CLI path for Refine and Evaluate. The shipped runtime now defaults to provider CLI invocation for new runs, records provider-neutral audit fields, owns provider-tier validation/retry/cap/timeout boundaries, preflights selected providers, and keeps Cursor submit-tool support reserved and deferred.
+
+Key implementation areas:
+
+- Provider CLI contract, argument parsing, envelopes, generated entrypoint, inventory/preflight, adapter registry, readiness probes, host recursion guard, runtime policy validation, subprocess runner, and structured-output retry coordinator.
+- Refine and Evaluate wrapper integration, provider-neutral loop records, retry-boundary separation, prepared parallel backend propagation, smoke coverage, and default runtime cutover.
+- Source cleanup: removed old helper scripts/fixtures/tests/names, updated maintained docs, added static cleanup coverage, and left historical `.oat` artifacts/research untouched by design.
+- Research artifacts: Cursor submit-tool spike deferred; provider CLI dogfood parity accepted for source-level cutover with Claude/Codex ready locally and Cursor surfaced as `auth_required`.
+
+Verification performed:
+
+- Focused provider CLI, Refine, Evaluate, smoke, cleanup, and wrapper Vitest suites across phases.
+- `pnpm run type-check`, `pnpm run build:check`, `pnpm run validate`, `pnpm run smoke`, and `pnpm run premerge`.
+- Provider inventory/preflight checks for Claude, Codex, and Cursor.
+- Targeted stale-backend scans excluding `.git` and historical `.oat` artifacts.
+
+Design deltas are limited to accepted implementation-scope refinements recorded in `## Deviations from Plan / Design`.
 
 ## References
 
