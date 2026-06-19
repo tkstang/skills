@@ -22,6 +22,16 @@ function writer() {
   };
 }
 
+function cleanSmokeEnv(overrides: NodeJS.ProcessEnv = {}) {
+  const {
+    CONSENSUS_CLI_PATH: _consensusCliPath,
+    CONSENSUS_PROVIDER_BACKEND: _consensusProviderBackend,
+    CONSENSUS_SMOKE_PROVIDER_BACKEND: _consensusSmokeProviderBackend,
+    ...env
+  } = process.env;
+  return { ...env, ...overrides };
+}
+
 describe('smoke-test-script', () => {
   it('runSmokeTest runs validation, uses the Paseo stub, and verifies wrapper output', async () => {
     const stdout = writer();
@@ -30,6 +40,7 @@ describe('smoke-test-script', () => {
 
     const result = await runSmokeTest({
       stdout: stdout.stream,
+      env: cleanSmokeEnv(),
       runCommand: async (command: string, args: string[], options: { env: NodeJS.ProcessEnv }) => {
         calls.push({ command, args, env: options.env });
         return { stdout: '', stderr: '' };
@@ -45,6 +56,7 @@ describe('smoke-test-script', () => {
     expect(result.env.PATH.split(path.delimiter)[0]).toMatch(
       /tests\/fixtures\/bin$/,
     );
+    expect(result.providerBackend).toBe('paseo');
     expect(result.events.at(-1).event).toBe('run_completed');
     expect(result.events.at(-1).status).toBe('converged');
     expect(result.artifact).toMatch(/## Final Output/);
@@ -67,6 +79,35 @@ describe('smoke-test-script', () => {
     );
   });
 
+  it('runSmokeTest can route the wrapper path through the consensus CLI backend', async () => {
+    const stdout = writer();
+    const calls: { command: string; args: string[]; env: NodeJS.ProcessEnv }[] =
+      [];
+
+    const result = await runSmokeTest({
+      stdout: stdout.stream,
+      env: cleanSmokeEnv({
+        CONSENSUS_SMOKE_PROVIDER_BACKEND: 'provider-cli',
+      }),
+      runCommand: async (command: string, args: string[], options: { env: NodeJS.ProcessEnv }) => {
+        calls.push({ command, args, env: options.env });
+        return { stdout: '', stderr: '' };
+      },
+    });
+
+    expect(result.status).toBe('passed');
+    expect(result.providerBackend).toBe('provider-cli');
+    expect(calls[0].env.CONSENSUS_PROVIDER_BACKEND).toBe('provider-cli');
+    expect(calls[0].env.CONSENSUS_CLI_PATH).toBe(
+      path.join(repoRoot, 'tests/fixtures/bin/consensus'),
+    );
+    expect(result.events.at(-1).event).toBe('run_completed');
+    expect(result.events.at(-1).status).toBe('converged');
+    expect(result.artifact).toMatch(/## Final Output/);
+    expect(result.artifact).not.toContain('raw_paseo_response');
+    expect(stdout.value()).toMatch(/smoke passed/);
+  });
+
   it('runParallelSynthesizedSmoke escalates once then converges via --host-direction', async () => {
     // @ts-expect-error No type declarations for script helpers; importing for runtime behavior.
     const { runParallelSynthesizedSmoke } = await import('../../scripts/smoke-test.mjs');
@@ -79,6 +120,16 @@ describe('smoke-test-script', () => {
 
   it('smoke-test CLI exits zero on deterministic fixture run', async () => {
     const result = await runNodeScript(smokeScript, [], { cwd: repoRoot });
+    expect(result.stdout).toMatch(/smoke passed/);
+  });
+
+  it('smoke-test CLI exits zero with the consensus CLI backend fixture', async () => {
+    const result = await runNodeScript(smokeScript, [], {
+      cwd: repoRoot,
+      env: cleanSmokeEnv({
+        CONSENSUS_SMOKE_PROVIDER_BACKEND: 'provider-cli',
+      }),
+    });
     expect(result.stdout).toMatch(/smoke passed/);
   });
 
