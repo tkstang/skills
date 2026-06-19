@@ -1,12 +1,9 @@
 ---
 oat_status: in_progress
 oat_ready_for: null
-oat_blockers:
-  - task_id: p02
-    reason: "Fix loop exhausted: generated provider ls/preflight do not wire the implemented default Node probe runner; see reviews/p02-review-2026-06-19-v3.md"
-    since: 2026-06-19
+oat_blockers: []
 oat_last_updated: 2026-06-19
-oat_current_task_id: p02-t01
+oat_current_task_id: p03-t01
 oat_generated: false
 ---
 
@@ -24,7 +21,7 @@ oat_generated: false
 | Phase   | Status      | Tasks | Completed |
 | ------- | ----------- | ----- | --------- |
 | Phase 1 | passed      | 6     | 6/6       |
-| Phase 2 | blocked     | 7     | 7/7       |
+| Phase 2 | passed      | 7     | 7/7       |
 | Phase 3 | pending     | 7     | 0/7       |
 | Phase 4 | pending     | 7     | 0/7       |
 
@@ -118,7 +115,7 @@ oat_generated: false
 
 ## Phase 2: Provider Adapter Floor and Execution Reliability
 
-**Status:** blocked
+**Status:** passed
 **Started:** 2026-06-19
 
 ### Phase Summary
@@ -159,7 +156,7 @@ oat_generated: false
 
 - p02-t07 updated `tests/consensus/provider-cli/cli-process.test.ts` even though the task file list omitted it. This is accepted because the p02-t07 verification command included that file and the p01 placeholder process assertions became stale once `run` was implemented.
 - p02-t06 did not modify `tests/helpers/process.mjs`; existing helper exports were sufficient for the fixture-based subprocess tests.
-- Phase review fix-loop exhausted after two fix iterations. Remaining blocker: generated `provider ls` / `preflight` command path does not wire `nodeProbeCommandRunner(io.env)`, so installed providers are reported as `missing` by the actual generated CLI.
+- The original p02 fix loop exhausted on generated provider probe wiring. A user-approved new fix/review cycle resolved the blocker in commit `6fffefe`, and p02 passed re-review with no findings.
 
 ### Task p02-t01: Add Adapter Registry and Capability Objects
 
@@ -214,14 +211,15 @@ oat_generated: false
 
 - Fixed retained stdout/stderr capture so output-cap failures do not retain provider output beyond `max_output_bytes`.
 
-### Review Blocker: Wire Default Provider Probes
+### Review Fix: Wire Default Provider Probes
 
-**Status:** blocked
-**Commit:** -
+**Status:** completed
+**Commit:** 6fffefe
 
-**Blocker:**
+**Outcome:**
 
-- p02 final re-review found generated `provider ls` / `preflight` still use placeholder missing registry entries instead of `nodeProbeCommandRunner(io.env)` when no test injection is supplied.
+- Fixed the generated `provider ls` / `preflight` default command path so it wires `nodeProbeCommandRunner(io.env)` when no test registry/probe runner is injected.
+- p02 new-cycle re-review verified generated provider inventory reports local Claude/Codex ready and Cursor auth-required, and Codex preflight is usable.
 
 ---
 
@@ -323,6 +321,40 @@ Each run from `oat-project-implement` appends an entry below.
 
 <!-- orchestration-runs-start -->
 
+### Run 3 — 2026-06-19 20:18
+
+**Branch:** consensus-cli
+**Tier:** 1
+**Policy:** merge-strategy=sequential, retry-limit=new user-approved fix cycle
+**Phases:** 1 executed, 1 passed, 0 failed, 0 stopped
+
+#### Phase Outcomes
+
+| Phase | Implementer | Review | Fix Iterations | Disposition |
+| ----- | ----------- | ------ | -------------- | ----------- |
+| p02   | DONE | pass | 1/new-cycle | passed |
+
+#### Parallel Groups
+
+- p02 new fix/review cycle: sequential
+
+#### Dispatch Notes
+
+- Dispatch: p02 new-cycle fix used Codex `oat-phase-implementer-high` with `effort_axis=selected:high`.
+- Dispatch: p02 new-cycle review used Codex `oat-reviewer-xhigh` with `effort_axis=selected:xhigh`.
+
+#### Outstanding Items
+
+- None.
+
+#### Artifact / Design Deltas
+
+Run-scoped snapshot only. The durable record is `## Deviations from Plan / Design`; consolidate any non-`None` entries there at the next phase boundary.
+
+| Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
+| ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
+| None | - | - | - | - | - | - |
+
 ### Run 2 — 2026-06-19 19:58
 
 **Branch:** consensus-cli
@@ -409,6 +441,7 @@ Chronological log of implementation progress.
 
 - Implementation tracking initialized from the completed 27-task plan.
 - p01 completed and passed re-review after fix commit `90f19d4`.
+- p02 completed and passed new-cycle re-review after fix commit `6fffefe`.
 
 **Blockers:**
 
@@ -432,7 +465,7 @@ Track test execution during implementation.
 | Phase | Tests Run | Passed | Failed | Notes |
 | ----- | --------- | ------ | ------ | ----- |
 | p01   | focused p01 Vitest suite; type-check; build:check; validate; smoke | yes | 0 | `pnpm exec vitest run <p01 files>` used for focused suite; `pnpm run test:vitest -- <files>` broadened to unrelated session-observer tests |
-| p02   | focused provider-cli Vitest suite; type-check; build:check | yes | 0 | Code tests passed, but p02 review failed after fix-loop exhaustion on generated provider probe wiring |
+| p02   | focused provider-cli Vitest suite; type-check; build:check; generated provider/preflight smoke | yes | 0 | p02 passed new-cycle re-review after generated provider probe wiring fix |
 | p03   | -         | -      | -      | Pending |
 | p04   | -         | -      | -      | Pending |
 
