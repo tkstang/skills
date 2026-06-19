@@ -18,7 +18,7 @@ oat_template_name: backlog-item
 
 Add `consensus-create`: peers produce a new artifact from a brief/spec through deliberation. Thin wrapper with v3 defaults: `independent_draft` cold start (each peer drafts independently from the brief), `parallel_synthesized` iteration, `maximum` agency (the orchestrator drives toward a produced artifact). Mode-specific inputs: `--brief <text>` / `--brief-file <path>`, optional `--template <path>`.
 
-**Blocked by:** bl-7af0 (parallel-synthesized mode) — its default iteration mode. Also the first skill to exercise the `independent_draft` cold-start strategy, which v0.1's shared-input refine never needed; sectioning from derived (not input) structure is a design question for this item.
+**Blocked by:** bl-7af0 (parallel-synthesized mode) — its default iteration mode. Also blocked by [[bl-2ed7]] (`independent_draft` cold-start strategy), now tracked as its own shared-`consensus-loop` item because `decide` and `plan` need it too; this skill is its natural first consumer. Sectioning from derived (not input) structure remains a design question for this item.
 
 ## Acceptance Criteria
 

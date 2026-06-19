@@ -71,4 +71,5 @@ reporting if the suite grows enough to justify it.
 - Harmonization pass and deliberation metrics (after the family ships, per v3 Phase 4).
 - Cursor-as-peer documentation/dogfooding (custom ACP provider path).
 - Transcript-tooling deferrals (promote individually if needed).
+- **Multi-agent collaboration substrate** — a proposed lane beneath the deliberation engine: how agents observe and message each other on one project, extending `session-observer`. Foundation is the become-observable daemon + merged shared session log (bl-4e2e), then addressable inter-agent messaging (bl-f59f); orchestration (work-claiming, message bus) stays a vault stub until messaging hits real limits. Source: `02 - Projects/Skills/Ideas/2026-06-19-*` (vault) with `cass` prior-art assessed. Explicitly sequenced **after** the TypeScript/test foundation hardening lands — promote off "Later" at that point.
 - Additional plugin groups (`plugins/<name>/`) as new skill families mature — the DR-001 layout already supports this.
