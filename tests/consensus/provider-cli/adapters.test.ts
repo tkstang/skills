@@ -65,10 +65,14 @@ describe('provider adapter registry', () => {
       'prompt_only',
       'submit_tool_candidate',
     ]);
+    expect(registry.get('cursor')?.capabilities.supports_submit_tool).toBe(
+      false,
+    );
     expect(defaultSchemaStrategy(registry.get('cursor')!)).toBe('prompt_only');
 
     for (const adapter of registry.list()) {
       expect(defaultSchemaStrategy(adapter)).not.toBe('submit_tool_candidate');
+      expect(adapter.capabilities.supports_submit_tool).toBe(false);
     }
   });
 

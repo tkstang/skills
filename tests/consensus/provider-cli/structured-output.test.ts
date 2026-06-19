@@ -33,6 +33,7 @@ describe('structured provider output coordinator', () => {
     expect(cursor.capabilities.schema_strategies).toContain(
       'submit_tool_candidate',
     );
+    expect(cursor.capabilities.supports_submit_tool).toBe(false);
     expect(selectStructuredOutputStrategy(cursor)).not.toBe(
       'submit_tool_candidate',
     );

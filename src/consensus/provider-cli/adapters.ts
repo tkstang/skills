@@ -145,6 +145,9 @@ export const DEFAULT_PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [
           env_allowlist: true,
         },
       },
+      // Reserved by the p04 submit-tool spike; default selection remains
+      // prompt-only until reliability, audit, local/cloud, and dependency
+      // evidence justify enabling tool submission.
       supports_submit_tool: false,
       supports_same_host_subprocess: true,
       supports_host_native_dispatch: false,
