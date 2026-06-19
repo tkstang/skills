@@ -2,24 +2,17 @@
 oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
-oat_last_updated: 2026-06-17
+oat_last_updated: 2026-06-18
 oat_generated: false
 ---
 
 # Discovery: consensus-rubric-guidance
 
-> ⚠️ **INCOMPLETE — PLACEHOLDER DISCOVERY.** This artifact was seeded from a
-> live conversation during the `consensus-evaluate` work, **before** a real
-> discovery pass. It captures intent and provisional decisions so the work is
-> not lost, but it has **not** been validated end-to-end. **Re-run / revalidate
-> discovery (`oat-project-discover` or quick-start discovery) before planning.**
-> Treat every decision below as provisional until reconfirmed. In particular,
-> re-verify the rubric format/schema, the guided-flow trigger model, and the
-> frontmatter `version` promotion against the skills-validation suite.
->
-> This placeholder lives on the `concensus-evaluate` working branch (the
-> `evaluate` skill is present here), tracked as a separate follow-up OAT project
-> that has not been opened/activated.
+> **Discovery revalidation in progress.** This artifact began as a placeholder
+> seeded from the `consensus-evaluate` work. On 2026-06-18, the code-facing
+> assumptions were rechecked against the current source and the project state was
+> repaired to quick mode. The remaining open questions are product decisions to
+> confirm before generating a quick implementation plan.
 
 ## Initial Request
 
@@ -46,7 +39,7 @@ project, the user raised two improvements for the consensus skills:
   merges to `main`; the project is then picked up from a **new worktree created
   off `main`**, where discovery is revalidated and the work planned/implemented.
 
-## Clarifying Questions (answered in conversation — confirm in revalidation)
+## Clarifying Questions (seeded earlier)
 
 ### Question 1: Which best-practice elements to apply to both skills?
 
@@ -102,7 +95,29 @@ informs the guided-flow design):
   lives on the agent path (host-model-driven in SKILL.md). The raw-CLI path
   stays as the deterministic "I already have a rubric" entry point.
 
-## Provisional Scope (two workstreams)
+## Revalidation Findings (2026-06-18)
+
+- **Rubric parsing is intentionally loose.** `extractRubricCriteria` reads only
+  level-2 through level-6 headings and `-`/`*` bullets, dedupes matches, and caps
+  the initial criteria list at 12. It does not interpret weights, numeric
+  scales, or pass/fail markers structurally.
+- **The raw wrapper still hard-requires `--rubric`.** Missing `--rubric <path>`
+  throws before evaluation starts. Guided creation therefore belongs in
+  host-model SKILL.md instructions unless a later design explicitly changes the
+  runtime contract.
+- **Topical sections match the existing skill style.** Both consensus skills use
+  topical invocation sections rather than literal Step-N workflow sections, so
+  best-practice additions should preserve that style while adding the missing
+  guidance.
+- **`metadata.version` is the validator-backed version field today.** The repo
+  validator checks `metadata.version`; a new top-level `version` field would be
+  compatibility/documentation surface unless validation semantics are also
+  changed.
+- **`argument-hint` is already recognized by transcript sanitization.** Adding
+  it to skill frontmatter is consistent with the local tooling surface and does
+  not require generated runtime edits.
+
+## Current Scope (two workstreams)
 
 **W1 — Best-practice conformance (both skills):**
 
@@ -122,7 +137,7 @@ informs the guided-flow design):
   select/adapt an example rubric → draft a rubric file → invoke the wrapper with
   `--rubric`.
 
-## Key Decisions (provisional)
+## Key Decisions
 
 1. **Implementation seam:** Host-model-driven guided flow; deterministic runtime
    unchanged and dependency-free (DR-002).
@@ -139,16 +154,18 @@ informs the guided-flow design):
 - **Generated output is not source:** Any runtime `.mjs` comes from canonical TS
   under `src/consensus/`; regenerate via `pnpm run build`, verify with
   `pnpm run build:check`. Do not hand-edit generated `.mjs`.
-- **Path safety:** Any file the guided flow writes must go through the
-  confinement helpers (`confineWrite` / `resolveOutputPath` / `resolveRunDir`)
-  and respect the 1 MiB input cap.
+- **Path safety:** Runtime output paths must continue to use the confinement
+  helpers (`confineWrite` / `resolveOutputPath` / `resolveRunDir`) and respect
+  the 1 MiB input cap. Host-model rubric drafts should be written only to a
+  user-approved path within the active workspace unless the user explicitly asks
+  otherwise.
 - **Branch reality:** This placeholder lives on the `concensus-evaluate` working
   branch, where the `evaluate` skill is already present, so implementation can
   build on it directly once discovery is revalidated.
 - **Lint/format exclusions:** Agent-instruction and generated files stay out of
   oxlint/oxfmt; don't format the whole tree.
 
-## Success Criteria (provisional)
+## Success Criteria
 
 - Both skills carry `## When NOT to Use`, `## Examples` (both styles),
   `## Success Criteria`, `argument-hint`, and top-level `version`, consistently.
@@ -158,7 +175,7 @@ informs the guided-flow design):
 - Skills-validation / build / validate / smoke suites pass; no runtime deps
   added; no generated `.mjs` hand-edited.
 
-## Out of Scope (provisional)
+## Out of Scope
 
 - Changing the deterministic wrapper's evaluation logic or output contract
   (unless design proves a change is required).
@@ -167,24 +184,22 @@ informs the guided-flow design):
 - New iteration modes or scoring engines.
 - Bundling example rubrics into `refine` (rubrics are an evaluate concept).
 
-## Open Questions (resolve in revalidation / design)
+## Open Questions (resolve before planning)
 
-- **Rubric format:** What structure should the bundled rubrics and the
-  guided-flow output use (criteria, weights, scoring scale, pass/fail vs graded)?
-  Does the wrapper already parse rubric structure (note `extractRubricCriteria`
-  in the source) in a way the examples must match?
-- **Guided trigger:** Should the flow auto-offer when `--rubric` is absent, or
-  only on explicit "help me build a rubric" intent? How does it interact with
-  the wrapper's hard `--rubric` requirement?
+- **Rubric authoring convention:** Given the parser extracts headings and
+  bullets only, should bundled rubrics standardize on 12 or fewer visible
+  criteria with optional weights/scales treated as peer-facing guidance rather
+  than machine-parsed structure?
+- **Guided trigger:** Should the agent path offer rubric creation whenever the
+  user wants evaluation but has no rubric yet, or only when the user explicitly
+  asks for help building a rubric? The raw wrapper remains hard-require
+  `--rubric`.
 - **Where the drafted rubric is written:** alongside the artifact, in a run-dir,
-  or a user-chosen path — and how confinement applies.
-- **Frontmatter `version` promotion:** Does promoting `version` to top-level
-  (while keeping `metadata.version`) conflict with any schema/validation, the
-  generated-output build, or `pnpm oat:validate-skills`? Verify before relying on
-  it.
-- **"Step N" vs topical sections:** Confirm the template's intent is satisfied
-  by topical sections for these contract-style skills, or whether reviewers want
-  literal Step naming.
+  or a user-chosen path.
+- **Frontmatter `version` promotion:** Should implementation add top-level
+  `version` as a compatibility/documentation field while retaining
+  `metadata.version`, or update validation semantics so the promoted field is
+  meaningful?
 
 ## Assumptions (to validate)
 
@@ -207,11 +222,10 @@ informs the guided-flow design):
 
 ## Next Steps
 
-**Do not plan yet.** After the `concensus-evaluate` PR merges to `main`:
+**Do not plan yet.** Before generating the quick implementation plan:
 
-1. Create a new worktree off `main` and open this project there.
-2. Revalidate this discovery (`oat-project-discover` or quick-start discovery) —
-   confirm decisions, resolve the Open Questions, and clear the placeholder
-   banner.
-3. Then proceed to `plan.md` (quick mode → straight to plan), or produce a
-   lightweight `design.md` first if the rubric-format question warrants it.
+1. Confirm the remaining Open Questions above.
+2. Mark discovery complete and ready for quick planning.
+3. Replace the scaffolded `plan.md` with concrete implementation tasks, or add a
+   lightweight design note first only if the rubric authoring convention needs
+   more structure.
