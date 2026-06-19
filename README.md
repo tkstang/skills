@@ -8,7 +8,7 @@ This repository is a personal Agent Skills home. It contains standalone skills u
 
 ### Consensus plugin
 
-`plugins/consensus/` is a self-contained plugin package for consensus workflows. It ships `refine`, a markdown refinement skill that uses two Paseo-backed AI peers to deliberate toward a converged artifact with an audit trail, and `evaluate`, an artifact-vs-rubric evaluation skill that preserves unified findings, per-peer reasoning, and dissent.
+`plugins/consensus/` is a self-contained plugin package for consensus workflows. It ships `refine`, a markdown refinement skill that uses two provider CLI-backed AI peers to deliberate toward a converged artifact with an audit trail, and `evaluate`, an artifact-vs-rubric evaluation skill that preserves unified findings, per-peer reasoning, and dissent.
 
 The consensus scope is intentionally narrow: the `refine` and `evaluate` skills, three iteration modes (`alternating` default for refine, `parallel_revision` default for evaluate, `parallel_synthesized`) selected with `--iteration`, an agency-gated escalation ladder (`--host-direction` re-entry), a configurable synthesizer (`--synthesizer`), sequential sections by default for refine, opt-in host-mediated parallel section orchestration for refine, and the `--agency` flag. Future work may add the rest of the consensus skill family, a whole-document harmonization pass, and deliberation metrics/cost caps.
 
@@ -111,16 +111,17 @@ If `skills` is already configured as a marketplace from a different local checko
 ## Prerequisites
 
 - Node.js 22 or newer.
-- Consensus plugin only: Paseo CLI on `PATH`: `npm install -g @getpaseo/cli`. v0.1 validates against tested range 0.1.0 to 0.9.0 and emits a warning outside that range.
-- Consensus plugin only: peer CLIs configured in Paseo, usually `claude` and `codex`.
+- Consensus plugin only: the generated consensus CLI from this plugin, used for provider inventory, preflight, and peer invocation.
+- Consensus plugin only: local provider CLIs for the requested peers. The first supported provider floor is `claude`, `codex`, and `cursor`.
 
-The consensus plugin shells out to Paseo. It does not vendor Paseo and does not auto-install it. To use the opt-in helper, run:
+Check provider inventory and readiness before an expensive run:
 
 ```bash
-node scripts/install-paseo.mjs
+node plugins/consensus/scripts/consensus.mjs provider ls --json
+node plugins/consensus/scripts/consensus.mjs preflight --json
 ```
 
-The helper prompts before running `npm install -g @getpaseo/cli`; declining leaves your machine unchanged.
+In an installed plugin environment, the same provider CLI may be exposed as `consensus`, for example `consensus provider ls --json` and `consensus preflight --json`.
 
 ## Usage
 
@@ -147,13 +148,15 @@ node skills/session-observer/scripts/session-observer.mjs watch-ctl status --jso
 
 ## Permissions
 
-The consensus `refine` and `evaluate` skills need permission to run `node` for wrapper scripts, `paseo` for peer invocation, and read/write access to input files, generated `.consensus/` run state, and output artifacts. Refine parallel section mode additionally requires host-native subagent dispatch.
+The consensus `refine` and `evaluate` skills need permission to run `node` for wrapper scripts, `consensus` for provider inventory/preflight when exposed as a command, and read/write access to input files, generated `.consensus/` run state, and output artifacts. Refine parallel section mode additionally requires host-native subagent dispatch.
 
 `session-observer` needs permission to run `node`, read transcript stores under `~/.claude/projects/`, `~/.codex/sessions/`, and `~/.cursor/projects/`, and write read-offset, watcher, control, and optional metadata-only event-log state under `~/.local/state/session-observer/`. It does not write to peer transcripts.
 
 ## Advanced Configuration
 
-Consensus peer IDs come from `paseo provider ls --json`; the wrapper does not probe executables directly. Custom ACP providers are supported when they are registered with Paseo and appear in that inventory. Cursor is not a built-in Paseo peer at v0.1, so cursor-as-peer is opt-in only through a user-configured custom ACP provider ID, for example `--peers cursor-acp,codex` if that provider exists locally.
+Consensus peer IDs come from provider inventory (`consensus provider ls --json`). The first supported provider floor is `claude`, `codex`, and `cursor`; future providers are extension points, not v0.1 support claims. Requested peers must pass provider-neutral preflight (`consensus preflight --json --provider <id>`) before live use.
+
+Cursor is included in the provider floor, but local auth state is still operator-owned. If inventory or preflight reports Cursor as `auth_required`, unlock the OS keychain or authenticate the Cursor CLI in the current user session before retrying. Cursor uses provider-output validation rather than a default submit-tool transport.
 
 Session observer defaults to `--runtime auto`, which resolves by host hint, prior same-cwd state, or candidate availability. Use `--runtime claude-code|codex|cursor` or `--session <runtime>:<sessionId>` when multiple matching sessions exist.
 
@@ -165,13 +168,13 @@ For watch mode, `--runtime both` watches Claude Code and Codex in one foreground
 - Remaining consensus family skills are future work: `consensus-create`, `consensus-decide`, `consensus-plan`, and `consensus-research`.
 - Consensus ships three iteration modes (`alternating`, `parallel_revision`, `parallel_synthesized`); the `parallel_revision` and `parallel_synthesized` capabilities disclose their per-round call multiplier (2x peer calls, plus 1 synthesis call for synthesized) and escalate stuck states through the agency-gated ladder.
 - Consensus sections converge independently; whole-document harmonization and deliberation metrics/cost caps remain deferred.
-- Cursor is supported as a host runtime for the consensus plugin, not as a default Paseo peer.
+- Cursor is supported as a host runtime and as a first-floor peer when its local CLI is authenticated. Treat `auth_required` inventory/preflight results as a local setup issue, not a retryable consensus failure.
 - Session observer supports Cursor agent transcript JSONL only; `~/.cursor/chats/*/store.db` SQLite chat history is out of scope.
 - Session observer watch mode only responds while the active agent invocation keeps the foreground watcher running and actively reads stdout or re-polls `watch-ctl status`; provider-hook automation for future self-triggered turns is out of scope. Starting `watch` in a backgrounded shell does not notify Claude Code/Codex/Cursor after the current invocation yields.
 - Codex public marketplace submission is not assumed; Git/local install is the v0.1 path.
 - skills.sh listing should not be claimed until indexing has been verified after publication.
 - Prompt injection inside input artifacts or transcripts is mitigated by prompt framing, filtering, and schema validation where applicable, but peer CLIs may still produce structurally valid bad advice. Review outputs before publishing them.
-- This repository adds no telemetry. Paseo and configured peer CLIs may have their own behavior; review those tools separately.
+- This repository adds no telemetry. Configured provider CLIs may have their own behavior; review those tools separately.
 
 ## Repository Layout
 

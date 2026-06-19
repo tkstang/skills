@@ -1,45 +1,48 @@
 # Operator QA: consensus refine iteration modes
 
 Manual dogfood guide for the v0.1 iteration-mode work (`parallel_revision`,
-`parallel_synthesized`, and the agency-gated escalation ladder). This is the
-NFR4 "audit-trail legibility" verification for the `consensus-iteration-modes`
-project: the automated suite proves the mechanics; this guide is the human pass
-that confirms the three modes produce artifacts a reader can actually follow.
+`parallel_synthesized`, and the agency-gated escalation ladder). The automated
+suite proves the mechanics; this guide is the human pass that confirms the three
+modes produce artifacts a reader can actually follow.
 
-Run it on a machine that has `paseo` on `PATH` and real peer CLIs configured
-(usually `claude` and `codex`). It exercises live models and **costs real API
-spend** — see the cost note in each scenario.
+Run it on a machine that has Node.js 22 or newer, the generated `consensus` CLI,
+and real peer CLIs configured (usually `claude` and `codex`). It exercises live
+models and **costs real API spend** — see the cost note in each scenario.
 
 ## Prerequisites
 
 ```bash
 # From the repo root
 node --version            # must be >= 22
-paseo --version           # must be present (tested range 0.1.0–0.9.0)
-
-# The wrapper shells out to `paseo run`, which needs the paseo DAEMON running:
-paseo daemon status       # if not running:  paseo daemon start
-                          # (run these in your normal login shell so paseo can
-                          #  see your provider auth — a minimal/non-interactive
-                          #  shell may report providers as unavailable)
-
-# Confirm at least TWO peers are AVAILABLE (consensus needs two). Providers can
-# sit in 'loading' for a few seconds after a daemon (re)start, then resolve to
-# 'available' or 'unavailable'. 'unavailable' usually means that provider's CLI
-# is not logged in / has no token in the daemon's environment.
-paseo provider ls         # need >= 2 rows showing 'available' (e.g. claude + codex)
+node plugins/consensus/scripts/consensus.mjs provider ls --json
+node plugins/consensus/scripts/consensus.mjs preflight --json
 ```
 
-> **Two real gotchas from dogfooding (2026-06-13), both surfaced as clean
-> errors in the artifact, not crashes):**
+For an installed plugin, the same checks may be exposed as:
+
+```bash
+consensus provider ls --json
+consensus preflight --json
+```
+
+Confirm at least two peers are `ready` (consensus needs two). Provider inventory
+uses provider-neutral statuses:
+
+- `missing` - the provider executable is not on `PATH`.
+- `auth_required` - the provider CLI exists but is not authenticated, or local
+  credentials are locked.
+- `unavailable` - the provider exists but local configuration/platform state
+  prevents use.
+- `unsupported` - the requested provider ID is outside the configured adapter
+  floor.
+
+> **Common gotchas surfaced as clean provider diagnostics, not crashes:**
 >
-> - `DAEMON_NOT_RUNNING` → run `paseo daemon start`.
-> - `Provider '<x>' is not available` / "Available providers: none" → start the
->   daemon from your login shell and make sure the provider is authenticated;
->   `paseo provider ls` must show it `available` (not `loading`/`unavailable`)
->   before you run. If your canonical peer (e.g. `claude`) is unavailable, either
->   authenticate it or substitute another available provider with
->   `--peers <a>,<b>` (e.g. `--peers codex,copilot`).
+> - `PROVIDER_MISSING` → install or add the named provider CLI to `PATH`.
+> - `PROVIDER_AUTH_REQUIRED` → authenticate the named provider in your normal
+>   login shell, then rerun `consensus preflight --json --provider <id>`.
+> - Cursor `auth_required` often means the macOS login keychain is locked or the
+>   Cursor CLI has not completed authentication in this user session.
 
 The wrapper lives at:
 
@@ -219,21 +222,17 @@ node plugins/consensus/skills/refine/scripts/consensus-refine.mjs \
 # old v0 artifact lying around, point --resume at it; otherwise skip.
 ```
 
-## Optional: verify cursor-as-peer (outstanding end-to-end)
+## Optional: verify Cursor as a peer
 
-Cursor is supported only as a **custom ACP provider**, and it is **not yet verified
-end-to-end** — a full deliberation run against an authenticated `cursor-agent` is
-outstanding. Cursor runs through Paseo's generic ACP path, where `--output-schema`
-is enforced by prompt injection + validation/retry rather than the native structured
-output `claude`/`codex` expose, so expect more schema-retry churn (the wrapper's
-peer-validation retry helps absorb it). To verify:
+Cursor is part of the first provider floor, but its structured-output posture is
+prompt/output validation rather than a default submit-tool path. A full
+deliberation run against an authenticated Cursor CLI is still useful dogfood
+evidence. To verify:
 
 ```bash
-# 1. Register Cursor as a custom ACP provider (see the plugin README "Advanced
-#    Configuration"): add it to ~/.paseo/config.json, then authenticate cursor-agent
-#    (it stores creds in the OS keychain — a locked keychain makes the provider
-#    report status "error", which preflight now catches as PEER_UNAVAILABLE).
-paseo provider ls            # confirm 'cursor' shows status 'available'
+# 1. Confirm Cursor inventory/preflight is ready. If it reports auth_required,
+#    unlock the OS keychain or authenticate the Cursor CLI, then rerun this check.
+node plugins/consensus/scripts/consensus.mjs preflight --json --provider cursor
 
 # 2. Run a real alternating deliberation with cursor as a peer.
 node plugins/consensus/skills/refine/scripts/consensus-refine.mjs \
@@ -242,10 +241,10 @@ node plugins/consensus/skills/refine/scripts/consensus-refine.mjs \
   --peers cursor,codex --output tmp/cursor-test.consensus.md
 ```
 
-**What to check:** preflight passes (cursor reported `available`); the run converges
-(or hits budget) without `OUTPUT_SCHEMA_FAILED` / validator errors; the artifact's
-deliberation log attributes turns to `cursor` and `codex`. Note any elevated
-schema-retry churn. Until this passes, keep cursor-as-peer documented as unverified.
+**What to check:** preflight passes (`cursor` reports `ready`); the run converges
+(or hits budget) without repeated provider-output validation errors; the
+artifact's deliberation log attributes turns to `cursor` and `codex`. Note any
+elevated schema-retry churn.
 
 ## Mode comparison (the actual NFR4 deliverable)
 
@@ -257,8 +256,7 @@ their deliberation logs side by side. Capture, in a sentence or two each:
 - Did the synthesized mode's `synthesis_reasoning` read as legible editorial judgment, or as filler?
 - Roughly what did each mode cost (from `run_completed` `peer_calls`/`synthesis_calls`) vs. the quality of its output?
 
-Record the findings in the project's `implementation.md` under the p06-t06
-notes (or paste them back to the assistant to record). That closes NFR4.
+Record the findings in the current dogfood parity note or release checklist.
 
 ## Pass criteria
 

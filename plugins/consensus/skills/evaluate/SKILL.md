@@ -2,8 +2,8 @@
 name: evaluate
 description: Use when evaluating an artifact against a rubric with two AI peers, unified findings, per-peer reasoning, and dissent preserved in the deliberation log.
 license: MIT
-compatibility: Agent Skills baseline; requires `paseo` CLI on PATH.
-allowed-tools: Bash(node:*), Bash(paseo:*), Read, Write
+compatibility: Agent Skills baseline; requires Node.js 22+ and the generated consensus CLI.
+allowed-tools: Bash(node:*), Bash(consensus:*), Read, Write
 metadata:
   author: thomas.stang
   version: '0.1.0'
@@ -15,9 +15,16 @@ Use this skill when the user wants an artifact judged against a rubric, spec, ch
 
 ## Prerequisites
 
-Before a run, ensure Node.js 22 or newer and `paseo` are available. If `paseo` is missing, tell the user the wrapper cannot invoke peers and point them to the install-assist script documented by this plugin. Do not auto-install dependencies.
+Before a run, ensure Node.js 22 or newer is available and the generated `consensus` CLI can run. From an installed plugin this may be exposed as `consensus`; from a repository checkout the same provider CLI lives at `plugins/consensus/scripts/consensus.mjs` and can be run with `node`.
 
-Before invoking the evaluate wrapper with explicit peers or a synthesizer, the host/operator should run `paseo provider ls --json` and verify each requested provider is registered and ready. This evaluate wrapper validates provider ID syntax and surfaces Paseo/runtime failures from peer invocation, but it does not perform provider-inventory preflight or emit `PEER_UNAVAILABLE`.
+Before invoking the evaluate wrapper with explicit peers or a synthesizer, check provider inventory and preflight:
+
+```bash
+consensus provider ls --json
+consensus preflight --json
+```
+
+The wrapper validates provider ID syntax and surfaces provider-neutral diagnostics from peer invocation. Requested providers must be present and usable in the provider inventory; Cursor auth problems should be described through `auth_required` inventory/preflight diagnostics, commonly caused by a locked OS keychain or an unauthenticated Cursor CLI.
 
 ## Evaluation Invocation
 
