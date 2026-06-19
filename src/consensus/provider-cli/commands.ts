@@ -8,10 +8,13 @@ import {
   processExitForEnvelope,
   usageFailure,
 } from './envelope.js';
+import { evaluateHostGuard, hostContextFromEnv } from './host-guard.js';
 import { probeProviderRegistry } from './probe.js';
 
 import type {
+  HostContext,
   ProviderCapabilities,
+  ProviderDiagnostics,
   ProviderId,
   ProviderInventoryEntry,
 } from './types.js';
@@ -57,6 +60,7 @@ export interface ProviderCommandOptions {
 
 export interface PreflightCommandOptions extends ProviderCommandOptions {
   provider?: ProviderId;
+  host?: HostContext;
 }
 
 export interface ConsensusCliCommandOptions extends ProviderCommandOptions {}
@@ -93,7 +97,10 @@ export async function runPreflight(
   options: PreflightCommandOptions = {},
 ): Promise<PreflightEnvelope> {
   const registry = await resolveRegistry(options.registry, options);
-  const providers = selectProviders(registry, options.provider);
+  const providers = applyHostGuardToProviders(
+    selectProviders(registry, options.provider),
+    options.host,
+  );
   const usable = providers.every((provider) => provider.status === 'ready');
   const diagnostics =
     options.provider && providers[0]?.status === 'unsupported'
@@ -134,6 +141,10 @@ export async function runConsensusCli(
         await runPreflight({
           ...options,
           provider: command.provider,
+          host:
+            command.maxDepth === undefined
+              ? undefined
+              : hostContextFromEnv(io.env ?? {}, io.cwd, command.maxDepth),
         }),
       );
       return 0;
@@ -180,6 +191,49 @@ function selectProviders(
       capabilities: placeholderCapabilities(),
     } satisfies ProviderInventoryEntry,
   ];
+}
+
+function applyHostGuardToProviders(
+  providers: ProviderInventoryEntry[],
+  host: HostContext | undefined,
+) {
+  if (!host) return providers;
+
+  return providers.map((provider) => {
+    const result = evaluateHostGuard({ host, provider: provider.id });
+    if (result.allowed) {
+      return {
+        ...provider,
+        host_relation: result.host_relation,
+        guard: result.guard,
+        diagnostics: mergeDiagnostics(provider.diagnostics, result.diagnostics),
+      };
+    }
+
+    return {
+      ...provider,
+      status: 'unavailable' as const,
+      host_relation: result.host_relation,
+      guard: result.guard,
+      diagnostics: mergeDiagnostics(provider.diagnostics, result.diagnostics),
+    };
+  });
+}
+
+function mergeDiagnostics(
+  current: ProviderDiagnostics | undefined,
+  next: ProviderDiagnostics,
+): ProviderDiagnostics {
+  const warnings = [
+    ...(current?.warnings ?? []),
+    ...(next.warnings ?? []),
+  ];
+
+  return {
+    ...current,
+    ...next,
+    ...(warnings.length > 0 ? { warnings } : {}),
+  };
 }
 
 async function resolveRegistry(
