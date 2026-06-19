@@ -234,6 +234,21 @@ function parsePeers(value) {
   }
   return peers;
 }
+function providerBackendFromEnv(env) {
+  const value = env.CONSENSUS_PROVIDER_BACKEND?.trim().toLowerCase();
+  if (value === "provider-cli" || value === "cli") return "provider-cli";
+  return "paseo";
+}
+function parseProviderBackend(value) {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "provider-cli" || normalized === "cli") {
+    return "provider-cli";
+  }
+  if (normalized === "paseo") return "paseo";
+  throw new Error(
+    `invalid provider backend: ${value}. Expected paseo or provider-cli.`
+  );
+}
 function schemaPath() {
   return fileURLToPath(
     new URL("../schemas/verdict-alternating.schema.json", import.meta.url)
@@ -774,9 +789,21 @@ function resolveConsensusCliPath({
 } = {}) {
   return consensusCliPath ?? env.CONSENSUS_CLI_PATH ?? fileURLToPath(new URL("../../../scripts/consensus.mjs", import.meta.url));
 }
+function isDefaultConsensusCliPath(command) {
+  return path.resolve(command) === path.resolve(
+    fileURLToPath(new URL("../../../scripts/consensus.mjs", import.meta.url))
+  );
+}
+function providerCliSpawnTarget(command, args) {
+  if (isDefaultConsensusCliPath(command) && path.extname(command) === ".mjs") {
+    return { command: process.execPath, args: [command, ...args] };
+  }
+  return { command, args };
+}
 function runProviderCliCommand(command, args, options = {}) {
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, {
+    const spawnTarget = providerCliSpawnTarget(command, args);
+    const child = spawn(spawnTarget.command, spawnTarget.args, {
       cwd: options.cwd,
       env: options.env,
       stdio: ["pipe", "pipe", "pipe"]
@@ -1080,6 +1107,9 @@ function parseLoopArgs(argv) {
       case "--synthesizer":
         parsed.synthesizer = next();
         break;
+      case "--provider-backend":
+        parsed.providerBackend = parseProviderBackend(next());
+        break;
       case "--cold-start":
         parsed.coldStart = next();
         break;
@@ -1125,6 +1155,7 @@ function parseLoopArgs(argv) {
     coldStart: parsed.coldStart,
     agency: parsed.agency,
     synthesizer: parsed.synthesizer,
+    providerBackend: parsed.providerBackend,
     outputRecords: parsed.outputRecords,
     outputSection: parsed.outputSection,
     outputStatus: parsed.outputStatus
@@ -2071,20 +2102,38 @@ async function runConsensusLoop(argv, runOptions = {}) {
   });
   const turnBudget = options.maxRounds * options.peers.length;
   const maxTurns = intervention ? initialPeerTurns + turnBudget : turnBudget;
-  const invokePeer = runOptions.invokePeer ?? ((turn) => invokeValidatedPeer({
+  const env = runOptions.env ?? process.env;
+  const cwd = runOptions.cwd ?? process.cwd();
+  const providerBackend = options.providerBackend ?? providerBackendFromEnv(env);
+  const invokePeer = runOptions.invokePeer ?? (providerBackend === "provider-cli" ? (turn) => invokeProviderCliWithRetry(
+    {
+      provider: turn.provider,
+      schemaPath: peerSchemaPathForMode(options.iteration),
+      prompt: turn.prompt,
+      env,
+      cwd
+    },
+    { mode: options.iteration }
+  ) : (turn) => invokeValidatedPeer({
     mode: options.iteration,
     provider: turn.provider,
     schemaPath: peerSchemaPathForMode(options.iteration),
     prompt: turn.prompt,
-    env: runOptions.env ?? process.env,
-    cwd: runOptions.cwd ?? process.cwd()
+    env,
+    cwd
   }));
-  const invokeSynthesizer = runOptions.invokeSynthesizer ?? ((call) => invokePaseoWithRetry({
+  const invokeSynthesizer = runOptions.invokeSynthesizer ?? (providerBackend === "provider-cli" ? (call) => invokeConsensusProviderCli({
     provider: call.provider,
     schemaPath: call.schemaPath,
     prompt: call.prompt,
-    env: runOptions.env ?? process.env,
-    cwd: runOptions.cwd ?? process.cwd()
+    env,
+    cwd
+  }) : (call) => invokePaseoWithRetry({
+    provider: call.provider,
+    schemaPath: call.schemaPath,
+    prompt: call.prompt,
+    env,
+    cwd
   }));
   const prompts = resolvePromptProfile(runOptions.promptProfile);
   try {
@@ -2656,6 +2705,7 @@ export {
   parallelSchemaPath,
   parseLoopArgs,
   peerSchemaPathForMode,
+  providerCliSpawnTarget,
   resolveConsensusCliPath,
   routeEscalation,
   runConsensusLoop,

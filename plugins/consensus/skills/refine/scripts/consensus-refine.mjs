@@ -28,6 +28,7 @@ import {
   invalidIterationModeError,
   ITERATION_MODES,
   peerSchemaPathForMode,
+  providerCliSpawnTarget,
   resolveConsensusCliPath,
   runConsensusLoop
 } from './consensus-loop.mjs';
@@ -1436,7 +1437,8 @@ async function resolveResumePath(options = {}) {
   return await confineWrite(target, root);
 }
 async function defaultRunCommand(command, args, options = {}) {
-  const result = await execFileAsync(command, args, {
+  const spawnTarget = providerCliSpawnTarget(command, args);
+  const result = await execFileAsync(spawnTarget.command, spawnTarget.args, {
     cwd: options.cwd,
     env: options.env,
     maxBuffer: 2 * 1024 * 1024
@@ -1780,7 +1782,8 @@ function loopArgvForSection({
   paths,
   options,
   peers,
-  synthesizer = null
+  synthesizer = null,
+  providerBackend
 }) {
   const argv = [
     "--section-file",
@@ -1799,6 +1802,9 @@ function loopArgvForSection({
   if (synthesizer) {
     argv.push("--synthesizer", synthesizer);
   }
+  if (providerBackend) {
+    argv.push("--provider-backend", providerBackend);
+  }
   argv.push(
     "--output-records",
     paths.records,
@@ -1808,6 +1814,13 @@ function loopArgvForSection({
     paths.status
   );
   return argv;
+}
+function providerBackendEnv(providerBackend, env) {
+  if (providerBackend !== "provider-cli") return void 0;
+  return {
+    CONSENSUS_PROVIDER_BACKEND: "provider-cli",
+    ...env.CONSENSUS_CLI_PATH ? { CONSENSUS_CLI_PATH: env.CONSENSUS_CLI_PATH } : {}
+  };
 }
 function parallelismFor(sectionCount, requested) {
   if (requested !== null && requested !== void 0) {
@@ -1821,7 +1834,9 @@ function manifestSectionEntry({
   packetPath,
   loopArgv,
   iterationMode = "alternating",
-  synthesizer = null
+  synthesizer = null,
+  providerBackend,
+  providerEnv
 }) {
   return {
     section_id: section.id,
@@ -1835,6 +1850,8 @@ function manifestSectionEntry({
     subagent_id: `section-runner-${String(section.original_index + 1).padStart(2, "0")}-${section.id}`,
     iteration_mode: iterationMode,
     synthesizer,
+    ...providerBackend ? { provider_backend: providerBackend } : {},
+    ...providerEnv ? { provider_env: providerEnv } : {},
     loop_argv: loopArgv
   };
 }
@@ -1853,6 +1870,8 @@ function dispatchInstructions(manifest) {
       subagent_id: section.subagent_id,
       iteration_mode: section.iteration_mode ?? manifest.iteration_mode ?? "alternating",
       synthesizer: section.synthesizer ?? manifest.synthesizer ?? null,
+      provider_backend: section.provider_backend ?? manifest.provider_backend ?? "paseo",
+      provider_env: section.provider_env ?? manifest.provider_env,
       output_records: section.output_records,
       output_section: section.output_section,
       output_status: section.output_status
@@ -2242,6 +2261,7 @@ async function prepareParallelRun(options, runOptions = {}) {
     parsedSections.length,
     normalized.parallelism
   );
+  const providerEnv = providerBackendEnv(providerBackend, env);
   const sections = [];
   for (const section of parsedSections) {
     const sectionDir = sectionRunDirectory(runDir, section);
@@ -2257,7 +2277,8 @@ async function prepareParallelRun(options, runOptions = {}) {
       paths,
       options: normalized,
       peers,
-      synthesizer
+      synthesizer,
+      providerBackend
     });
     await Promise.all([
       confineWrite(paths.input, runWriteRoot),
@@ -2280,6 +2301,8 @@ async function prepareParallelRun(options, runOptions = {}) {
       agency: normalized.agency,
       iteration_mode: iterationMode,
       synthesizer,
+      provider_backend: providerBackend,
+      ...providerEnv ? { provider_env: providerEnv } : {},
       output_records: paths.records,
       output_section: paths.output,
       output_status: paths.status,
@@ -2299,7 +2322,9 @@ async function prepareParallelRun(options, runOptions = {}) {
         packetPath,
         loopArgv,
         iterationMode,
-        synthesizer
+        synthesizer,
+        providerBackend,
+        providerEnv
       })
     );
   }
@@ -2321,6 +2346,8 @@ async function prepareParallelRun(options, runOptions = {}) {
     agency: normalized.agency,
     iteration_mode: iterationMode,
     synthesizer,
+    provider_backend: providerBackend,
+    ...providerEnv ? { provider_env: providerEnv } : {},
     parallelism,
     sections,
     manifest_path: manifestPath
@@ -2626,7 +2653,9 @@ function resolveProviderCliPeers(options = {}, host = "unknown", providerInvento
   const peers = options.peers ?? defaultPeers;
   const inventory = normalizeProviderInventory(providerInventory);
   const byId = new Map(inventory.map((entry) => [entry.id, entry]));
-  const unavailable = peers.filter((peer) => byId.get(peer)?.available !== true);
+  const unavailable = peers.filter(
+    (peer) => byId.get(peer)?.available !== true
+  );
   if (unavailable.length > 0) {
     throw providerCliUnavailableError(inventory, unavailable);
   }
@@ -2674,7 +2703,18 @@ async function preflightConsensusProviderCli(options = {}) {
   );
   const host = detectHost(env);
   const resolved = resolveProviderCliPeers(options, host, providerInventory);
-  for (const peer of resolved.peers) {
+  const { synthesizer } = resolveSynthesizer(
+    {
+      iteration: options.iteration ?? "alternating",
+      synthesizer: options.synthesizer ?? null,
+      peers: resolved.peers
+    },
+    resolved.inventory
+  );
+  const providersToPreflight = [
+    .../* @__PURE__ */ new Set([...resolved.peers, ...synthesizer ? [synthesizer] : []])
+  ];
+  for (const peer of providersToPreflight) {
     const preflightOutput = await runCommand(
       command,
       ["preflight", "--json", "--provider", peer],

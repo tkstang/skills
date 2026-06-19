@@ -435,8 +435,84 @@ it('preflightConsensusProviderCli reports auth-required providers without Paseo 
   });
 });
 
+it('runSequential preflights an explicit synthesized-mode synthesizer outside the peer set', async () => {
+  const tempRoot = await mkdtemp(
+    path.join(os.tmpdir(), 'consensus-cli-refine-synth-preflight-'),
+  );
+  const inputPath = path.join(tempRoot, 'draft.md');
+  const calls: Array<[string, string[]]> = [];
+  await writeFile(inputPath, '# Intro\n\nStable text.\n');
+
+  await expect(
+    runSequential({
+      inputPath,
+      output: path.join(tempRoot, 'draft.consensus.md'),
+      runDir: path.join(tempRoot, '.consensus/run'),
+      allowRoot: tempRoot,
+      cwd: tempRoot,
+      env: {
+        ...process.env,
+        CONSENSUS_PROVIDER_BACKEND: 'provider-cli',
+        CONSENSUS_CLI_PATH: '/tmp/bin/consensus',
+      },
+      goal: 'Run synthesized mode.',
+      peers: ['claude', 'codex'],
+      iteration: 'parallel_synthesized',
+      synthesizer: 'cursor',
+      maxRounds: 1,
+      agency: 'moderate',
+      runCommand: async (command: string, args: string[]) => {
+        calls.push([command, args]);
+        if (args[0] === 'provider') {
+          return {
+            stdout: JSON.stringify({
+              schema_version: 'v1',
+              ok: true,
+              providers: [
+                { id: 'claude', status: 'ready' },
+                { id: 'codex', status: 'ready' },
+                { id: 'cursor', status: 'ready' },
+              ],
+            }),
+            stderr: '',
+          };
+        }
+        const provider = args.at(-1);
+        return {
+          stdout: JSON.stringify({
+            schema_version: 'v1',
+            ok: true,
+            usable: provider !== 'cursor',
+            providers: [
+              {
+                id: provider,
+                status: provider === 'cursor' ? 'auth_required' : 'ready',
+              },
+            ],
+          }),
+          stderr: '',
+        };
+      },
+    }),
+  ).rejects.toSatisfy((error: { code?: string; message: string }) => {
+    expect(error.code).toBe('PEER_UNAVAILABLE');
+    expect(error.message).toMatch(/cursor/);
+    expect(error.message).toMatch(/auth_required/);
+    return true;
+  });
+
+  expect(calls).toEqual([
+    ['/tmp/bin/consensus', ['provider', 'ls', '--json']],
+    ['/tmp/bin/consensus', ['preflight', '--json', '--provider', 'claude']],
+    ['/tmp/bin/consensus', ['preflight', '--json', '--provider', 'codex']],
+    ['/tmp/bin/consensus', ['preflight', '--json', '--provider', 'cursor']],
+  ]);
+});
+
 it('runSequential selects the provider CLI backend with CONSENSUS_CLI_PATH override', async () => {
-  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-cli-refine-'));
+  const tempRoot = await mkdtemp(
+    path.join(os.tmpdir(), 'consensus-cli-refine-'),
+  );
   const consensusPath = path.join(tempRoot, 'consensus');
   const inputPath = path.join(tempRoot, 'draft.md');
   const outputPath = path.join(tempRoot, 'draft.consensus.md');
