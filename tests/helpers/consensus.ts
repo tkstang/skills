@@ -12,7 +12,8 @@ import { expect } from 'vitest';
  * Extract and parse a `<!-- consensus:<label>\n...\n-->` JSON block from a
  * markdown deliberation artifact. Fails the calling test if the block is absent.
  */
-export function extractJsonBlock(markdown: string, label: string): unknown {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function extractJsonBlock(markdown: string, label: string): any {
   const pattern = new RegExp(
     '<!-- consensus:' + label + '\\n([\\s\\S]*?)\\n-->',
   );

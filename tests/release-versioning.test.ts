@@ -14,8 +14,7 @@ import { describe, expect, it } from 'vitest';
 import { bumpVersion, checkTagVersion, isValidSemver } from '../scripts/bump-version.mjs';
 // @ts-expect-error No type declarations for script helpers; importing for runtime behavior.
 import { validateRepository } from '../scripts/validate.mjs';
-
-const repoRoot = path.resolve(new URL('..', import.meta.url).pathname);
+import { repoRoot } from './helpers/process.mjs';
 const jsonFiles = [
   'plugins/consensus/.claude-plugin/plugin.json',
   'plugins/consensus/.cursor-plugin/plugin.json',

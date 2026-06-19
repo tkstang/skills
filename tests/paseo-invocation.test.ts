@@ -6,6 +6,7 @@ import { expect, it } from 'vitest';
 
 // @ts-expect-error The generated runtime is intentionally declaration-free; this test exercises the shipped artifact.
 import * as consensusLoop from '../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
+import { makeStubEnv } from './helpers/process.mjs';
 
 const {
   SUBPROCESS_OUTPUT_CAP_BYTES,
@@ -149,15 +150,8 @@ it('invokePaseoWithRetry stops after the attempt budget on persistent transient 
   expect(calls).toBe(3);
 });
 
-const repoRoot = path.resolve(new URL('..', import.meta.url).pathname);
-const fixtureBin = path.join(repoRoot, 'tests/fixtures/bin');
-
 function stubEnv(overrides: NodeJS.ProcessEnv = {}) {
-  return {
-    ...process.env,
-    PATH: `${fixtureBin}${path.delimiter}${process.env.PATH}`,
-    ...overrides,
-  };
+  return makeStubEnv(overrides);
 }
 
 it('invokePaseo shells out with array args for provider, schema, and JSON prompt', async () => {

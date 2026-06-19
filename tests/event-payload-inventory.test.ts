@@ -6,6 +6,10 @@ import { expect, it } from 'vitest';
 
 // @ts-expect-error The generated runtime is intentionally declaration-free; this test exercises the shipped artifact.
 import * as consensusRefine from '../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
+import {
+  makeStubEnv,
+  sampleInput,
+} from './helpers/process.mjs';
 
 const { prepareParallelRun, runSequential, runWrapperCli } = consensusRefine;
 
@@ -19,10 +23,6 @@ type JsonRecord = Record<string, any>;
 // points: escalation_required is the only content-bearing event in the
 // protocol. This test enumerates the JSONL events emitted across every mode
 // (including an escalation) and asserts that boundary structurally.
-
-const repoRoot = path.resolve(new URL('..', import.meta.url).pathname);
-const fixtureBin = path.join(repoRoot, 'tests/fixtures/bin');
-const sampleInput = path.join(repoRoot, 'tests/fixtures/sample-input.md');
 
 // Distinctive content markers. If any of these strings leak into a routine
 // event payload, host-context discipline is broken. They are intentionally
@@ -54,11 +54,7 @@ function captureStdout() {
 }
 
 function stubEnv(responseJson: string) {
-  return {
-    ...process.env,
-    PATH: `${fixtureBin}${path.delimiter}${process.env.PATH}`,
-    PASEO_STUB_RESPONSE_JSON: responseJson,
-  };
+  return makeStubEnv({ PASEO_STUB_RESPONSE_JSON: responseJson });
 }
 
 // An alternating ACCEPT verdict whose proposed_artifact carries the marker.

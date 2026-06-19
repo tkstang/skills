@@ -37,7 +37,8 @@ export function captureWriter(): CapturedWriter;
 export function parseJsonl<T = unknown>(contents: unknown): T[];
 
 /** Read a JSON file and parse it. */
-export function readJson<T = unknown>(filePath: string): Promise<T>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function readJson(filePath: string): Promise<any>;
 
 export function runNodeScript(
   scriptPath: string,

@@ -5,8 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 // @ts-expect-error No type declarations for script helpers; importing for runtime behavior.
 import { parseFrontmatter, parseJsonFile, validateMarketplaceSource, validateReadmeInstallMatrix, validateRepository, validateSkillReference, validateVersionConsistency } from '../scripts/validate.mjs';
-
-const repoRoot = path.resolve(new URL('..', import.meta.url).pathname);
+import { repoRoot } from './helpers/process.mjs';
 const validateWorkflowPath = path.join(
   repoRoot,
   '.github/workflows/validate.yml',
