@@ -1343,7 +1343,7 @@ git commit -m "docs(p04-t07): finish provider cli cutover verification"
 | p02    | code     | passed  | 2026-06-19 | `.oat/projects/shared/consensus-peer-invocation/reviews/p02-review-2026-06-19-v4.md` |
 | p03    | code     | passed  | 2026-06-19 | `.oat/projects/shared/consensus-peer-invocation/reviews/p03-review-2026-06-19-v2.md` |
 | p04    | code     | passed  | 2026-06-19 | `.oat/projects/shared/consensus-peer-invocation/reviews/p04-review-2026-06-19-v2.md` |
-| final  | code     | pending | -    | -        |
+| final  | code     | passed  | 2026-06-19 | `.oat/projects/shared/consensus-peer-invocation/reviews/final-review-2026-06-19-v3.md` |
 | spec   | artifact | pending | -    | -        |
 | design | artifact | pending | -    | -        |
 | plan   | artifact | passed  | 2026-06-19 | inline plan artifact review |

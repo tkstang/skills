@@ -603,6 +603,7 @@ Chronological log of implementation progress.
 - p02 completed and passed new-cycle re-review after fix commit `6fffefe`.
 - p03 completed and passed re-review after fix commit `43c4288`.
 - p04 completed and passed re-review after fix commit `7fe2b58`.
+- Final review initially found live provider CLI contract gaps. Fix commits `745eac8`, `8eb9b91`, `2eb3173`, `3799cf9`, `e4508fd`, and `15f9cee` aligned Claude/Codex run flags and output contracts, bounded probes, validated request JSON, and passed final re-review with no findings.
 
 **Blockers:**
 
@@ -631,6 +632,7 @@ Track test execution during implementation.
 | p02   | focused provider-cli Vitest suite; type-check; build:check; generated provider/preflight smoke | yes | 0 | p02 passed new-cycle re-review after generated provider probe wiring fix |
 | p03   | focused provider-cli/refine/evaluate Vitest suite; type-check; build:check; smoke | yes | 0 | p03 passed re-review after provider backend propagation fix |
 | p04   | source cleanup scan; build:check; premerge; targeted stale-backend scans | yes | 0 | p04 passed re-review after cleanup scan widened to root maintained docs |
+| final | focused provider CLI suite; type-check; build:check; premerge; targeted stale-backend scans; provider help/preflight checks | yes | 0 | final review passed after live provider CLI contract fixes |
 
 ## Final Summary (for PR/docs)
 
@@ -640,6 +642,7 @@ Key implementation areas:
 
 - Provider CLI contract, argument parsing, envelopes, generated entrypoint, inventory/preflight, adapter registry, readiness probes, host recursion guard, runtime policy validation, subprocess runner, and structured-output retry coordinator.
 - Refine and Evaluate wrapper integration, provider-neutral loop records, retry-boundary separation, prepared parallel backend propagation, smoke coverage, and default runtime cutover.
+- Final provider contract hardening: Claude uses inline JSON schema with redacted diagnostics, Codex uses file-path schema plus last-message extraction, provider probes are bounded, and `--request-json` validates optional fields.
 - Source cleanup: removed old helper scripts/fixtures/tests/names, updated maintained docs, added static cleanup coverage, and left historical `.oat` artifacts/research untouched by design.
 - Research artifacts: Cursor submit-tool spike deferred; provider CLI dogfood parity accepted for source-level cutover with Claude/Codex ready locally and Cursor surfaced as `auth_required`.
 
