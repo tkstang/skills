@@ -19,11 +19,11 @@ Tests are organized by domain. Add new tests under the matching domain directory
 | Directory | What lives here |
 | --------- | --------------- |
 | `tests/consensus/core/` | Core loop behavior: alternating iteration, convergence detection, escalation detection, records, verdict validation. Import the generated `consensus-loop.mjs` shipped artifact. |
-| `tests/consensus/refine/` | Refine wrapper behavior: sequential and parallel orchestration, parallel prepare/fan-in, wrapper CLI options, section parsing, resume/corruption handling, path safety, host-dispatch docs, paseo invocation. Import the generated `consensus-refine.mjs` / `consensus-loop.mjs` shipped artifacts. |
+| `tests/consensus/refine/` | Refine wrapper behavior: sequential and parallel orchestration, parallel prepare/fan-in, wrapper CLI options, section parsing, resume/corruption handling, path safety, host-dispatch docs, provider subprocess invocation. Import the generated `consensus-refine.mjs` / `consensus-loop.mjs` shipped artifacts. |
 | `tests/consensus/evaluate/` | Evaluate skill behavior: output rendering, prompt profiles, schema parity, wrapper arg parsing. Import from canonical TypeScript source under `src/consensus/evaluate/`. |
 | `tests/consensus/` | Generated-entrypoint import checks: verify that the generated refine and evaluate runtimes import the correct sibling loop file, not the canonical TypeScript source. |
 | `tests/repo/` | Repository invariants: layout, docs presence, plugin manifests, marketplace manifests, package metadata, skill frontmatter, README scope. |
-| `tests/release/` | Release and versioning: version bump scripts, validate script behavior, install-paseo script, smoke-test script. |
+| `tests/release/` | Release and versioning: version bump scripts, validate script behavior, smoke-test script. |
 | `tests/tooling/` | Test tooling and build guards: no-node-test-runner policy, vitest config check, generated-output drift guard. |
 | `tests/session-observer/` | Session-observer skill behavior (existing directory). |
 | `tests/export-session-transcript/` | Export-session-transcript skill behavior (existing directory). |

@@ -1,4 +1,5 @@
 import {
+  access,
   cp,
   mkdir,
   readFile,
@@ -35,6 +36,22 @@ const requiredDocs = [
   'RELEASING.md',
   'AGENTS.md',
 ];
+const retiredProviderHelperPaths = [
+  'scripts/install-paseo.mjs',
+  'tests/release/install-paseo.test.ts',
+  'tests/fixtures/bin/paseo',
+  'tests/consensus/refine/paseo-invocation.test.ts',
+];
+
+async function pathExists(relativePath: string) {
+  try {
+    await access(path.join(repoRoot, relativePath));
+    return true;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;
+    throw error;
+  }
+}
 
 async function tempReleaseRoot() {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'release-versioning-'));
@@ -129,5 +146,11 @@ describe('release-versioning', () => {
       version: '0.1.1',
       ok: true,
     });
+  });
+
+  it('does not keep retired provider install helpers or fixtures', async () => {
+    for (const relativePath of retiredProviderHelperPaths) {
+      expect(await pathExists(relativePath), relativePath).toBe(false);
+    }
   });
 });

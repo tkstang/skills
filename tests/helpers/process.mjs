@@ -21,7 +21,7 @@ export const sampleInput = path.join(
 
 /**
  * Build a stub process env that prepends the fixture bin directory to PATH.
- * Consensus tests use this to inject the paseo stub without touching real PATH.
+ * Consensus tests use this to inject fixture binaries without touching real PATH.
  */
 export function makeStubEnv(overrides = {}) {
   return {
@@ -33,11 +33,10 @@ export function makeStubEnv(overrides = {}) {
 
 /**
  * Build a stub process env that routes wrappers through the owned consensus CLI
- * fixture instead of the legacy Paseo fixture.
+ * fixture.
  */
 export function makeProviderCliEnv(overrides = {}) {
   return makeStubEnv({
-    CONSENSUS_PROVIDER_BACKEND: 'provider-cli',
     CONSENSUS_CLI_PATH: consensusCliFixture,
     ...overrides,
   });
