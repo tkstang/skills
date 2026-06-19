@@ -6,6 +6,7 @@ import { expect, it } from 'vitest';
 
 // @ts-expect-error The generated runtime is intentionally declaration-free; this test exercises the shipped artifact.
 import * as consensusLoop from '../../../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
+import { invokeProviderCliWithRetry } from '../../../src/consensus/core/consensus-loop.js';
 import { makeStubEnv } from '../../helpers/process.mjs';
 
 const {
@@ -148,6 +149,41 @@ it('invokePaseoWithRetry stops after the attempt budget on persistent transient 
     ),
   ).rejects.toThrow(/still failing/);
   expect(calls).toBe(3);
+});
+
+it('invokeProviderCliWithRetry does not double-retry exhausted provider CLI failures', async () => {
+  let calls = 0;
+  await expect(
+    invokeProviderCliWithRetry(
+      {
+        provider: 'codex',
+        schemaPath: '/schema/verdict.json',
+        prompt: 'prompt',
+      },
+      {
+        mode: 'alternating',
+        attempts: 3,
+        sleep: async () => {},
+        invoke: async () => {
+          calls += 1;
+          throw new ConsensusError('provider retries exhausted', {
+            code: 'PROVIDER_INVALID_JSON',
+            details: {
+              attempts: {
+                cli_attempts: 3,
+                terminal_reason: 'invalid_json',
+                retryable: false,
+              },
+            },
+          });
+        },
+      },
+    ),
+  ).rejects.toSatisfy((error: { code?: string }) => {
+    expect(error.code).toBe('PROVIDER_INVALID_JSON');
+    return true;
+  });
+  expect(calls).toBe(1);
 });
 
 function stubEnv(overrides: NodeJS.ProcessEnv = {}) {

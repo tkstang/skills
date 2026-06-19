@@ -207,6 +207,7 @@ interface RetryOptions {
   delayMs?: number;
   sleep?: (ms: number) => Promise<void>;
   invoke?: (args: ProviderInvocationArgs) => Promise<ProviderResult>;
+  mode?: IterationMode;
 }
 
 export interface ProviderCliCommandRunnerOptions {
@@ -1517,9 +1518,39 @@ export async function invokeConsensusProviderCli({
 
 export async function invokeProviderCliWithRetry(
   args: ProviderInvocationArgs,
-  { invoke = invokeConsensusProviderCli }: RetryOptions = {},
+  {
+    attempts = 3,
+    delayMs = 750,
+    sleep,
+    invoke = invokeConsensusProviderCli,
+    mode = 'alternating',
+  }: RetryOptions = {},
 ): Promise<ProviderResult> {
-  return invoke(args);
+  const wait =
+    sleep ??
+    ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      const result = await invoke(args);
+      const verdictError = peerVerdictError(
+        normalizeVerdict(result.json, mode),
+        mode,
+      );
+      if (verdictError) throw verdictError;
+      return result;
+    } catch (error) {
+      lastError = error;
+      const retryable =
+        asErrorLike(error).code === 'INVALID_VERDICT_SHAPE' ||
+        asErrorLike(error).code === 'INVALID_VERDICT_CAPS';
+      if (!retryable || attempt === attempts) throw error;
+      await wait(delayMs);
+    }
+  }
+
+  throw lastError;
 }
 
 function parseConsensusCliRunEnvelope(
