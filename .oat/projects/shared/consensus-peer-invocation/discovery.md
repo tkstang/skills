@@ -1,8 +1,8 @@
 ---
-oat_status: in_progress
-oat_ready_for: null
+oat_status: complete
+oat_ready_for: oat-project-design
 oat_blockers: []
-oat_last_updated: 2026-06-17
+oat_last_updated: 2026-06-19
 oat_generated: false
 ---
 
@@ -107,15 +107,19 @@ the broader duplication problem.
 
 **Description:** Center the design on `consensus submit` as the mechanism peers
 use to validate and submit verdicts, with provider execution as supporting
-plumbing.
+plumbing. For Cursor specifically, the Cursor Agent SDK is a candidate channel
+for this shape: a local SDK run can expose a custom verdict-submission tool with
+an input schema, which may be a stronger contract than asking Cursor to end its
+ordinary response with JSON.
 **When this is the right choice:** Best if reliability against structured-output
 flakiness is more important than the provider execution abstraction itself. It
 normalizes Claude, Codex, and Cursor because even providers with soft schema
 behavior can self-correct through a validated tool call.
 **Tradeoffs:** Larger first design surface. The design must answer how stateless
 per-turn peers receive tool access, whether CLI or MCP is available in each
-provider sandbox, how the orchestrator captures submissions, and how audit
-records map to the current artifact contract.
+provider sandbox, how Cursor SDK custom tools compare with CLI/MCP submission,
+how the orchestrator captures submissions, and how audit records map to the
+current artifact contract.
 
 ### Approach 4: Keep Paseo as the Runtime Backend
 
@@ -175,7 +179,11 @@ consensus plugin as its first consumer.
 ### Option B: Submit-Tool Backend First
 
 **Description:** Make a validated verdict-submission command part of the CLI
-contract before or during the provider-execution migration.
+contract before or during the provider-execution migration. Cursor Agent SDK
+custom tools should be evaluated as one concrete Cursor path for this option:
+the SDK appears to provide programmable agent runs and custom tool schemas, but
+not a first-class schema-constrained final-result API, so its value is likely as
+a submit-tool transport rather than as native structured output.
 
 **Pros:**
 
@@ -215,6 +223,37 @@ adapter or submit-tool path proves itself.
 **Summary:** Useful for migration sequencing, but the initiative's goal remains
 owning the narrow provider path.
 
+### Option D: Cursor SDK Submit-Tool Path
+
+**Description:** Use Cursor Agent SDK for Cursor peers specifically, exposing a
+validated verdict-submission custom tool during the peer run instead of relying
+on Cursor's final text/JSON response. The rest of the provider floor could still
+use native provider schema delivery, the shared `consensus` CLI, or the same
+submit-tool contract if that proves cleaner.
+
+**Pros:**
+
+- Gives Cursor a tool-call-shaped validation path instead of the current
+  prompt-inject plus parse/validate/retry path.
+- Fits the broader verdict-submission direction without requiring Cursor to
+  grow a native final-output schema flag.
+- May reduce Cursor-specific schema-retry churn while preserving the current
+  audit requirement that verdicts be captured as structured records.
+
+**Cons:**
+
+- SDK support is a new runtime dependency and integration surface for the
+  consensus plugin.
+- Needs proof that a stateless one-turn Cursor peer reliably discovers and uses
+  the custom verdict tool.
+- May only be available for local SDK runs; cloud/custom-tool behavior and
+  credential handling need confirmation before it can be a general peer path.
+
+**Chosen:** Open as a design candidate under submit-tool backend first.
+
+**Summary:** Treat Cursor SDK as a possible submit-tool transport, not as proof
+that Cursor has native schema-constrained final output.
+
 ## Key Decisions
 
 1. **Workflow Mode:** Promote to spec-driven design because quick lightweight
@@ -235,6 +274,29 @@ owning the narrow provider path.
 7. **CLI Boundary:** Prefer one owned `consensus` CLI surface over duplicating
    direct provider invocation, structured-output delivery, and diagnostics logic
    across consensus and Stoa.
+
+## Research Artifacts
+
+Additional discovery research is captured under `research/`:
+
+- `research/peer-invocation-structured-output-comparison.md` compares the
+  current consensus/Paseo path, Paseo latest main, Stoa's direct provider
+  adapter, and the proposed reusable `consensus` CLI plus submit-tool direction.
+- `research/local-prior-art-survey.md` surveys local prior art in Paseo, Stoa,
+  Claude Octopus, llm-council, and quorum-cli, including code examples and
+  scoped lessons.
+- `research/tooling-landscape.md` captures the web scan across Claude Agent SDK,
+  Codex CLI, Cursor CLI/SDK, MCP, ACP, structured-output libraries, and
+  multi-agent frameworks.
+- `research/session-observer-ts-migration-analysis.md` analyzes Opus's
+  session-observer TypeScript migration research as implementation-substrate
+  precedent for canonical TypeScript, generated dependency-free `.mjs` outputs,
+  drift checks, and shipped-entrypoint verification.
+- `research/opus/` contains Opus-authored source artifacts covering the local
+  codebase comparison, web/tools scan, and recommendation that informed the
+  synthesis.
+- `research/synthesized/consensus-peer-invocation-research-synthesis-gpt-5.md`
+  reconciles the GPT and Opus artifacts into one provenance-tracked report.
 
 ## Constraints
 
@@ -309,6 +371,16 @@ owning the narrow provider path.
   errors?
 - **Verdict Submission:** Should submit-tool be a CLI, MCP tool, or both? How is
   it made available to stateless per-turn peer invocations?
+- **Cursor SDK Submit Tool:** Should Cursor peers use Cursor Agent SDK custom
+  tools as the verdict-submission path, and can that be made compatible with
+  the dependency-free shipped-plugin constraint?
+- **Prior-Art Boundary:** Which lessons from Octopus, llm-council, and
+  quorum-cli should be kept as future orchestration/audit ideas rather than
+  imported into the first peer-invocation contract?
+- **CLI Packaging Boundary:** If the owned `consensus` CLI is meant to serve
+  both the shipped consensus plugin and future Stoa reuse, should it be a
+  generated plugin entrypoint, a package-level bin, or both sharing canonical
+  TypeScript source?
 - **Submission Capture:** If a submit-tool exists, does the orchestrator read a
   sidecar file, stdout envelope, temp directory, or structured event stream?
 - **Retry Semantics:** Which failures retry inside the provider adapter vs.
