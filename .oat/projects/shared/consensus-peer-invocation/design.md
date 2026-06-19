@@ -477,12 +477,12 @@ Envelope-level `diagnostics` follows the same command-level rule as `provider ls
 
 Prompt input does not default to argv because consensus prompts can include large diffs and artifacts. Supported prompt inputs are:
 
-- stdin prompt: `consensus run --provider <id> --schema <path> --json < prompt.txt`
+- stdin prompt: `consensus run --provider <id> --schema <path> --json - < prompt.txt`
 - prompt file: `consensus run --provider <id> --schema <path> --prompt-file <path> --json`
 - short-prompt convenience: `--prompt <text>` for small manual invocations only
 - JSON request: `--request-json <path|->`, where `-` means stdin contains the full `ConsensusCliRunRequest`
 
-`--request-json -` consumes stdin for the request JSON, so it cannot be combined with stdin prompt input. `--request-json` also cannot be combined with request-shaping flags for the same fields, such as `--provider`, `--schema`, `--prompt-file`, `--prompt`, `--model`, `--effort`, `--permission-mode`, `--sandbox`, `--approval-policy`, `--env-allow`, `--timeout-sec`, or `--max-attempts`; conflicts fail as `CONSENSUS_CLI_USAGE`.
+`--request-json -` consumes stdin for the request JSON, so it cannot be combined with stdin prompt input. `--request-json` also cannot be combined with request-shaping flags for the same fields, such as `--provider`, `--schema`, `--prompt-file`, `--prompt`, `--model`, `--effort`, `--permission-mode`, `--sandbox`, `--approval-policy`, `--env-allow`, `--timeout-sec`, `--max-attempts`, or `--max-depth`; conflicts fail as `CONSENSUS_CLI_USAGE`.
 
 Optional flags include `--model`, `--effort`, `--permission-mode`, `--sandbox`, `--approval-policy`, `--env-allow`, `--max-attempts`, `--timeout-sec`, `--max-output-bytes`, `--cwd`, and `--max-depth`. These are validated against provider capabilities before invocation. The default runtime policy must be non-interactive: it must not select a provider mode that waits for an approval prompt during a one-shot run.
 

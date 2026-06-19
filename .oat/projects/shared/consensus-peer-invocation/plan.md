@@ -1335,6 +1335,66 @@ git commit -m "docs(p04-t07): finish provider cli cutover verification"
 
 ---
 
+## Phase 5: Final Review Artifact Alignment
+
+Goal: resolve final-review Minor artifact-alignment findings without changing runtime behavior.
+
+### Task p05-t01: (review) Add stdin prompt marker to design example
+
+**Files:**
+
+- Modify: `design.md`
+
+**Step 1: Understand the issue**
+
+Review finding: The `consensus run` stdin prompt example omitted the explicit `-` prompt marker required by the implemented parser.
+Location: `design.md:480`
+
+**Step 2: Implement fix**
+
+Update the stdin prompt example to include `--json - < prompt.txt`, preserving the distinction between prompt stdin and `--request-json -`.
+
+**Step 3: Verify**
+
+Run: `git diff --check`
+Expected: no whitespace errors.
+
+**Step 4: Commit**
+
+```bash
+git add .oat/projects/shared/consensus-peer-invocation/design.md
+git commit -m "fix(p05-t01): align stdin prompt design example"
+```
+
+### Task p05-t02: (review) Add max-depth to request-json conflict example
+
+**Files:**
+
+- Modify: `design.md`
+
+**Step 1: Understand the issue**
+
+Review finding: The implementation treats `--max-depth` as a request-shaping conflict with `--request-json`, while the design's enumerated conflict example omitted it.
+Location: `design.md:485`
+
+**Step 2: Implement fix**
+
+Add `--max-depth` to the design's request-json conflict list.
+
+**Step 3: Verify**
+
+Run: `git diff --check`
+Expected: no whitespace errors.
+
+**Step 4: Commit**
+
+```bash
+git add .oat/projects/shared/consensus-peer-invocation/design.md
+git commit -m "fix(p05-t02): align request json conflict design example"
+```
+
+---
+
 ## Reviews
 
 | Scope  | Type     | Status  | Date | Artifact |
@@ -1343,7 +1403,7 @@ git commit -m "docs(p04-t07): finish provider cli cutover verification"
 | p02    | code     | passed  | 2026-06-19 | `.oat/projects/shared/consensus-peer-invocation/reviews/archived/p02-review-2026-06-19-v4.md` |
 | p03    | code     | passed  | 2026-06-19 | `.oat/projects/shared/consensus-peer-invocation/reviews/archived/p03-review-2026-06-19-v2.md` |
 | p04    | code     | passed  | 2026-06-19 | `.oat/projects/shared/consensus-peer-invocation/reviews/archived/p04-review-2026-06-19-v2.md` |
-| final  | code     | received | 2026-06-19 | `.oat/projects/shared/consensus-peer-invocation/reviews/final-review-2026-06-19-v4.md` |
+| final  | code     | passed  | 2026-06-19 | `.oat/projects/shared/consensus-peer-invocation/reviews/archived/final-review-2026-06-19-v4.md` |
 | spec   | artifact | pending | -    | -        |
 | design | artifact | pending | -    | -        |
 | plan   | artifact | passed  | 2026-06-19 | inline plan artifact review |
@@ -1367,8 +1427,9 @@ git commit -m "docs(p04-t07): finish provider cli cutover verification"
 - Phase 2: 7 tasks - provider adapters, readiness probes, host guard, runtime policy, invocation builders, subprocess runner, and structured-output retries.
 - Phase 3: 7 tasks - consensus-loop invoker seam, provider-neutral audit/resume, retry boundary, Refine/Evaluate backend switches, integration tests, and smoke coverage.
 - Phase 4: 7 tasks - docs update, Cursor submit-tool spike outcome, dogfood parity evidence, default cutover, old backend cleanup, identifier scan, and final verification.
+- Phase 5: 2 tasks - final-review artifact alignment for provider CLI design examples.
 
-**Total: 27 tasks**
+**Total: 29 tasks**
 
 Ready for implementation after plan review passes and `oat-project-implement` confirms HiLL checkpoints.
 

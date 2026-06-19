@@ -28,6 +28,7 @@ The implementation keeps shipped runtime code dependency-free and generated from
 - Switched Refine, Evaluate, and smoke flows to the provider CLI backend by default for new runs and removed temporary fallback switches.
 - Updated maintained docs and release/operator QA references, removed old helper scripts/fixtures/test names, and added a provider-neutral cleanup scan.
 - Added repo-reference updates after implementation: DR-022, bl-bb7e completion, and narrowed follow-ups for submit-tool hardening and authenticated Cursor verification.
+- Resolved final-review v4 Minor artifact-alignment findings in `design.md` without changing runtime behavior.
 
 ## Key Decisions
 
@@ -55,7 +56,7 @@ The implementation keeps shipped runtime code dependency-free and generated from
 - `pnpm run type-check`, `pnpm run build:check`, `npm run validate`, `npm run smoke`, and `pnpm run premerge` passed during the implementation/review cycle.
 - Provider inventory/preflight checks covered Claude, Codex, and Cursor; Cursor currently reports `auth_required` due to local macOS keychain/auth state.
 - Targeted stale-backend scans passed outside `.git` and historical `.oat` artifacts.
-- Final review passed in `reviews/archived/final-review-2026-06-19-v3.md`.
+- Final review v4 passed after Minor artifact-alignment fixes in `design.md`.
 
 ## Follow-up Items
 

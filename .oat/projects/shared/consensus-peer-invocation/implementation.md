@@ -24,8 +24,9 @@ oat_generated: false
 | Phase 2 | passed      | 7     | 7/7       |
 | Phase 3 | passed      | 7     | 7/7       |
 | Phase 4 | passed      | 7     | 7/7       |
+| Phase 5 | passed      | 2     | 2/2       |
 
-**Total:** 27/27 tasks completed
+**Total:** 29/29 tasks completed
 
 ---
 
@@ -403,6 +404,37 @@ oat_generated: false
 
 ---
 
+## Phase 5: Final Review Artifact Alignment
+
+**Status:** passed
+**Started:** 2026-06-19
+
+### Phase Summary
+
+**Outcome:**
+
+- Resolved the final-review v4 Minor artifact-alignment findings in `design.md`.
+- Updated the `consensus run` stdin prompt example to include the implemented explicit `-` prompt marker.
+- Added `--max-depth` to the `--request-json` request-shaping conflict example.
+- No runtime behavior changed.
+
+**Verification:**
+
+- Run: `git diff --check`
+- Result: passed.
+
+### Task p05-t01: (review) Add stdin prompt marker to design example
+
+**Status:** completed
+**Commit:** pending
+
+### Task p05-t02: (review) Add max-depth to request-json conflict example
+
+**Status:** completed
+**Commit:** pending
+
+---
+
 ## Orchestration Runs
 
 Each run from `oat-project-implement` appends an entry below.
@@ -604,6 +636,28 @@ Chronological log of implementation progress.
 - p03 completed and passed re-review after fix commit `43c4288`.
 - p04 completed and passed re-review after fix commit `7fe2b58`.
 - Final review initially found live provider CLI contract gaps. Fix commits `745eac8`, `8eb9b91`, `2eb3173`, `3799cf9`, `e4508fd`, and `15f9cee` aligned Claude/Codex run flags and output contracts, bounded probes, validated request JSON, and passed final re-review with no findings.
+- Final review v4 found two Minor artifact-alignment notes in `design.md`. The user chose to convert both to tasks and resolve them without follow-up review; p05 completed those edits and the final review row is recorded as passed.
+
+### Review Received: final
+
+**Date:** 2026-06-19
+**Review artifact:** `reviews/archived/final-review-2026-06-19-v4.md`
+
+**Findings:**
+
+- Critical: 0
+- Important: 0
+- Medium: 0
+- Minor: 2
+
+**New tasks added:** `p05-t01`, `p05-t02`
+
+**Minor disposition:**
+
+- `m1`: converted and resolved in `p05-t01`; `design.md` now shows the explicit `-` marker for stdin prompt input.
+- `m2`: converted and resolved in `p05-t02`; `design.md` now includes `--max-depth` in the `--request-json` conflict example.
+
+**Next:** No follow-up review requested; both findings were artifact-only Minor alignment fixes and final remains passed.
 
 **Blockers:**
 
@@ -633,6 +687,7 @@ Track test execution during implementation.
 | p03   | focused provider-cli/refine/evaluate Vitest suite; type-check; build:check; smoke | yes | 0 | p03 passed re-review after provider backend propagation fix |
 | p04   | source cleanup scan; build:check; premerge; targeted stale-backend scans | yes | 0 | p04 passed re-review after cleanup scan widened to root maintained docs |
 | final | focused provider CLI suite; type-check; build:check; premerge; targeted stale-backend scans; provider help/preflight checks | yes | 0 | final review passed after live provider CLI contract fixes |
+| p05   | `git diff --check` | yes | 0 | final-review v4 Minor artifact-alignment fixes only touched `design.md` and OAT tracking |
 
 ## Final Summary (for PR/docs)
 
@@ -653,7 +708,7 @@ Verification performed:
 - Provider inventory/preflight checks for Claude, Codex, and Cursor.
 - Targeted stale-backend scans excluding `.git` and historical `.oat` artifacts.
 
-Design deltas are limited to accepted implementation-scope refinements recorded in `## Deviations from Plan / Design`.
+Design deltas are limited to accepted implementation-scope refinements recorded in `## Deviations from Plan / Design`; final-review v4 artifact drift was resolved directly in `design.md`.
 
 ## References
 
