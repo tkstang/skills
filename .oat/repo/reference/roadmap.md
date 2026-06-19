@@ -1,6 +1,6 @@
 # Skills Repo Roadmap
 
-**Last updated:** 2026-06-18 (PR4 retired the `node:test` runner — all repo/tooling + session-observer suites now run as Vitest `.test.ts` using `expect`, `pnpm test` is Vitest-only, and a guard blocks regressions — completing **bl-bfb4**. Prior: session-observer joined the TypeScript/Vitest generated-runtime substrate; 2026-06-17 consensus-evaluate delivered as the first post-refine family skill; 2026-06-15 toolchain and `consensus-loop` proof slice.)
+**Last updated:** 2026-06-19 (test-organization cleanup, branch-implemented: shared `tests/helpers/`, domain-organized test tree, two oversized suites split — a behavior-preserving maintainability follow-on to PR4, pending its cleanup PR. Prior: PR4 retired the `node:test` runner — all repo/tooling + session-observer suites now run as Vitest `.test.ts` using `expect`, `pnpm test` is Vitest-only, and a guard blocks regressions — completing **bl-bfb4**; 2026-06-17 consensus-evaluate delivered as the first post-refine family skill; 2026-06-15 toolchain and `consensus-loop` proof slice.)
 
 ## Planning Model
 
@@ -46,6 +46,15 @@ cleanup: every repo/tooling and session-observer suite now runs as Vitest
 blocks any reintroduction of `node:test`/`node:assert`/`.test.mjs`. No remaining
 runner-migration work; future typed-API tightening (e.g. removing `as any` test
 shims) is optional long-tail polish, not a tracked migration item.
+
+A follow-on **test-organization cleanup** (branch-implemented, pending its PR)
+reorganized the now-Vitest suite for maintainability: shared setup helpers under
+`tests/helpers/`, domain directories (`tests/consensus/{core,refine,evaluate}/`,
+`tests/repo/`, `tests/release/`, `tests/tooling/`), and conservative splits of two
+oversized suites — behavior-preserving, no runtime/generated `.mjs` changes.
+Deferred from that cleanup and promotable on demand: a deeper typed-test-fixture
+pass for residual `as any` shims, and per-domain Vitest projects / coverage
+reporting if the suite grows enough to justify it.
 
 ## Now
 
