@@ -69,12 +69,12 @@ describe('provider invocation builders', () => {
       'schema.json',
       '--model',
       'gpt-5.1-codex',
-      '--reasoning-effort',
-      'xhigh',
+      '-c',
+      'model_reasoning_effort="xhigh"',
       '--sandbox',
       'workspace-write',
-      '--approval-policy',
-      'never',
+      '-c',
+      'approval_policy="never"',
     ]);
   });
 
@@ -89,11 +89,21 @@ describe('provider invocation builders', () => {
       runtime_policy: defaultRuntimePolicy(),
     });
 
-    expect(claude.argv).toContain('--permission-mode');
-    expect(claude.argv).toContain('non-interactive');
-    expect(codex.argv).toContain('--approval-policy');
-    expect(codex.argv).toContain('never');
+    expect(claude.argv).not.toContain('--permission-mode');
+    expect(codex.argv).toEqual(
+      expect.arrayContaining(['-c', 'approval_policy="never"']),
+    );
     expect(cursor.argv).toContain('--force');
+  });
+
+  it('maps provider-neutral Claude read-only policy to a supported permission mode', () => {
+    const claude = buildInvocation('claude', 'provider_validated', {
+      runtime_policy: { permission_mode: 'read-only' },
+    });
+
+    expect(claude.argv).toEqual(
+      expect.arrayContaining(['--permission-mode', 'plan']),
+    );
   });
 
   it('keeps Cursor on prompt-only argv shape unless submit-tool is explicitly implemented later', () => {

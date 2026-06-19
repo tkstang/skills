@@ -487,8 +487,11 @@ var buildClaudeInvocation = (request, options = {}) => {
   }
   if (request.model) argv.push("--model", request.model);
   if (request.effort) argv.push("--effort", request.effort);
-  if (request.runtime_policy?.permission_mode) {
-    argv.push("--permission-mode", request.runtime_policy.permission_mode);
+  const claudePermissionMode = mapClaudePermissionMode(
+    request.runtime_policy?.permission_mode
+  );
+  if (claudePermissionMode) {
+    argv.push("--permission-mode", claudePermissionMode);
   }
   return invocation({
     executable: "claude",
@@ -505,14 +508,18 @@ var buildCodexInvocation = (request, options = {}) => {
     argv.push("--output-schema", request.schema_path);
   }
   if (request.model) argv.push("--model", request.model);
-  if (request.effort) argv.push("--reasoning-effort", request.effort);
+  if (request.effort) {
+    argv.push(
+      "-c",
+      codexConfigOverride("model_reasoning_effort", request.effort)
+    );
+  }
   if (request.runtime_policy?.sandbox) {
     argv.push("--sandbox", request.runtime_policy.sandbox);
   }
-  if (request.runtime_policy?.approval_policy) {
-    argv.push("--approval-policy", request.runtime_policy.approval_policy);
-  } else if (request.runtime_policy?.permission_mode === "non-interactive") {
-    argv.push("--approval-policy", "never");
+  const approvalPolicy = request.runtime_policy?.approval_policy ?? (request.runtime_policy?.permission_mode === "non-interactive" ? "never" : void 0);
+  if (approvalPolicy) {
+    argv.push("-c", codexConfigOverride("approval_policy", approvalPolicy));
   }
   return invocation({
     executable: "codex",
@@ -544,6 +551,18 @@ function invocation(input) {
     redacted_command: [input.executable, ...input.argv],
     shell: false
   };
+}
+function mapClaudePermissionMode(permissionMode) {
+  if (!permissionMode || permissionMode === "non-interactive") {
+    return void 0;
+  }
+  if (permissionMode === "read-only") {
+    return "plan";
+  }
+  return permissionMode;
+}
+function codexConfigOverride(key, value) {
+  return `${key}=${JSON.stringify(value)}`;
 }
 function defaultStrategy(adapter) {
   return adapter.capabilities.schema_strategies.find(

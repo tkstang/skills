@@ -46,8 +46,11 @@ export const buildClaudeInvocation: ProviderInvocationBuilder = (
   }
   if (request.model) argv.push('--model', request.model);
   if (request.effort) argv.push('--effort', request.effort);
-  if (request.runtime_policy?.permission_mode) {
-    argv.push('--permission-mode', request.runtime_policy.permission_mode);
+  const claudePermissionMode = mapClaudePermissionMode(
+    request.runtime_policy?.permission_mode,
+  );
+  if (claudePermissionMode) {
+    argv.push('--permission-mode', claudePermissionMode);
   }
 
   return invocation({
@@ -69,14 +72,22 @@ export const buildCodexInvocation: ProviderInvocationBuilder = (
     argv.push('--output-schema', request.schema_path);
   }
   if (request.model) argv.push('--model', request.model);
-  if (request.effort) argv.push('--reasoning-effort', request.effort);
+  if (request.effort) {
+    argv.push(
+      '-c',
+      codexConfigOverride('model_reasoning_effort', request.effort),
+    );
+  }
   if (request.runtime_policy?.sandbox) {
     argv.push('--sandbox', request.runtime_policy.sandbox);
   }
-  if (request.runtime_policy?.approval_policy) {
-    argv.push('--approval-policy', request.runtime_policy.approval_policy);
-  } else if (request.runtime_policy?.permission_mode === 'non-interactive') {
-    argv.push('--approval-policy', 'never');
+  const approvalPolicy =
+    request.runtime_policy?.approval_policy ??
+    (request.runtime_policy?.permission_mode === 'non-interactive'
+      ? 'never'
+      : undefined);
+  if (approvalPolicy) {
+    argv.push('-c', codexConfigOverride('approval_policy', approvalPolicy));
   }
 
   return invocation({
@@ -124,6 +135,20 @@ function invocation(input: {
     redacted_command: [input.executable, ...input.argv],
     shell: false,
   };
+}
+
+function mapClaudePermissionMode(permissionMode: string | undefined) {
+  if (!permissionMode || permissionMode === 'non-interactive') {
+    return undefined;
+  }
+  if (permissionMode === 'read-only') {
+    return 'plan';
+  }
+  return permissionMode;
+}
+
+function codexConfigOverride(key: string, value: string) {
+  return `${key}=${JSON.stringify(value)}`;
 }
 
 function defaultStrategy(adapter: ProviderAdapter): StructuredOutputStrategy {

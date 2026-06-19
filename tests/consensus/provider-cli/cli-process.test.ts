@@ -93,6 +93,62 @@ describe('generated consensus provider CLI process contract', () => {
     }
   });
 
+  it('runs generated Claude and Codex argv against strict provider flag fixtures', async () => {
+    const binDir = await mkdtemp(path.join(os.tmpdir(), 'consensus-bin-'));
+    const schemaPath = await writeSchemaFixture();
+    const env = { ...process.env, PATH: binDir };
+
+    await writeExecutableFixture(binDir, 'claude', strictClaudeFixture());
+    await writeExecutableFixture(binDir, 'codex', strictCodexFixture());
+
+    try {
+      const claudeResult = await runConsensusCli(
+        [
+          'run',
+          '--provider',
+          'claude',
+          '--schema',
+          schemaPath,
+          '--json',
+          '--prompt',
+          'Return JSON.',
+        ],
+        { env },
+      );
+
+      expect(claudeResult.code).toBe(0);
+      expect(parseSingleJsonDocument(claudeResult.stdout)).toMatchObject({
+        ok: true,
+        provider: 'claude',
+        json: { verdict: 'accept' },
+      });
+
+      const codexResult = await runConsensusCli(
+        [
+          'run',
+          '--provider',
+          'codex',
+          '--schema',
+          schemaPath,
+          '--json',
+          '--prompt',
+          'Return JSON.',
+        ],
+        { env },
+      );
+
+      expect(codexResult.code).toBe(0);
+      expect(parseSingleJsonDocument(codexResult.stdout)).toMatchObject({
+        ok: true,
+        provider: 'codex',
+        json: { verdict: 'accept' },
+      });
+    } finally {
+      await rm(binDir, { recursive: true, force: true });
+      await rm(path.dirname(schemaPath), { recursive: true, force: true });
+    }
+  });
+
   it('exits nonzero for bad flags', async () => {
     const result = await runConsensusCli(['provider', 'ls', '--bad-flag']);
 
@@ -328,4 +384,70 @@ async function writeExecutableFixture(
   await writeFile(executablePath, contents);
   await chmod(executablePath, 0o755);
   return executablePath;
+}
+
+function strictClaudeFixture() {
+  return `#!/bin/sh
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --print)
+      shift
+      ;;
+    --output-format|--json-schema|--model|--effort)
+      shift 2
+      ;;
+    --permission-mode)
+      case "$2" in
+        acceptEdits|auto|bypassPermissions|default|dontAsk|plan)
+          shift 2
+          ;;
+        *)
+          printf 'invalid permission mode: %s\\n' "$2" >&2
+          exit 64
+          ;;
+      esac
+      ;;
+    *)
+      printf 'unknown option: %s\\n' "$1" >&2
+      exit 64
+      ;;
+  esac
+done
+printf '{"verdict":"accept"}\\n'
+`;
+}
+
+function strictCodexFixture() {
+  return `#!/bin/sh
+if [ "$1" != "exec" ]; then
+  printf 'expected exec subcommand\\n' >&2
+  exit 64
+fi
+shift
+output_file=''
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --json)
+      shift
+      ;;
+    --output-schema|--model|-m|--sandbox|-s|-c|--config)
+      shift 2
+      ;;
+    -o|--output-last-message)
+      output_file="$2"
+      shift 2
+      ;;
+    *)
+      printf 'unknown option: %s\\n' "$1" >&2
+      exit 64
+      ;;
+  esac
+done
+if [ -n "$output_file" ]; then
+  printf '{"verdict":"accept"}\\n' > "$output_file"
+  printf '{"type":"session.started"}\\n{"type":"turn.completed"}\\n'
+else
+  printf '{"verdict":"accept"}\\n'
+fi
+`;
 }
