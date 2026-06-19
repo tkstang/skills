@@ -40,6 +40,12 @@ export const generatedOutputs = [
     ],
   },
   {
+    id: 'consensus-provider-cli',
+    source: 'src/consensus/provider-cli/cli.ts',
+    output: 'plugins/consensus/scripts/consensus.mjs',
+    bundle: true,
+  },
+  {
     id: 'transcript-core-session-observer',
     source: 'src/transcript/core/runtimes.ts',
     output: 'skills/session-observer/scripts/lib/runtimes.mjs',
@@ -283,7 +289,7 @@ async function buildMapping(mapping) {
   const result = await build({
     entryPoints: [sourcePath],
     outfile: outputPath,
-    bundle: false,
+    bundle: mapping.bundle ?? false,
     platform: 'node',
     format: 'esm',
     target: 'node22',
