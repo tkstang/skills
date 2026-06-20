@@ -10,6 +10,7 @@
 - **Provider CLI / peer invocation (seeded 2026-06-13; shipped 2026-06-19):** bl-bb7e is now **done**. Refine/Evaluate new runs use the owned `consensus` provider CLI for provider inventory, preflight, bounded subprocess execution, provider-neutral diagnostics, schema delivery, and retry/cap/timeout ownership. Remaining follow-ups are narrower: bl-3a88 for a future submit-tool/self-validation path and bl-f0b6 for authenticated Cursor end-to-end verification through the provider CLI. Two further follow-ups were seeded 2026-06-19 from the project's design deferrals: **bl-3291** (refine `PROVIDER_EXIT` retry classification — transient vs terminal via stderr/signature matching, `design.md:564`) and **bl-3ca6** (low-priority seed to define the reserved host-native dispatch / safe-packet protocol before any adapter sets `supports_host_native_dispatch: true`, `design.md:159`).
 - **Multi-agent collaboration substrate (vault Ideas cluster, 2026-06-19; seeded to backlog 2026-06-19):** a proposed lane *beneath* the consensus deliberation engine — how agents observe and talk to each other on one project, extending the shipped `session-observer` skill. **bl-4e2e** (foundation: become-observable daemon + merged shared session log) → **bl-f59f** (inter-agent direct messaging, depends on bl-4e2e). Orchestration (work-claiming, dependency DAGs, message bus) stays a vault stub until messaging hits real limits. Source notes live under `02 - Projects/Skills/Ideas/2026-06-19-*` with `cass` prior-art in `…/Research/`. Sequenced **after** TS/test foundation hardening — promote priority when that lands. See `../roadmap.md` Later lane.
 - **v3 cold-start prerequisite + reserved extension (seeded 2026-06-19):** **bl-2ed7** pulls the deferred `independent_draft` cold-start strategy out of bl-b9b9 into its own shared-`consensus-loop` item because create/decide/plan (bl-b9b9/bl-87ef/bl-0cb8) all default to it and it gates all three. **bl-f8cb** is a low-priority seed for the parked v3 "3+ peer" extension so the two-peer constraint is explicit.
+- **v3 "for discussion" seeds (2026-06-19):** two minor v3 open questions parked as undecided-if-needed so they are not lost — **bl-58b3** (first-class `type=edit` mid-loop user artifact edits vs the existing artifact-edit-then-resume path) and **bl-db5d** (opt-in `--sections auto-llm` LLM section auto-chunking vs the deterministic heading/marker fallback). Both may resolve `wont_do`; decide before building.
 
 <!-- OAT BACKLOG-INDEX -->
 | ID | Title | Status | Priority | Scope | Estimate |
@@ -35,6 +36,8 @@
 | bl-ef38 | Add similarity heuristic for near-converged deliberation states | open | low | feature | S |
 | bl-e39a | Add whole-document harmonization pass after section convergence | open | low | feature | M |
 | bl-3ca6 | Define host-native dispatch / safe-packet protocol (reserved seam) | open | low | initiative | L |
+| bl-db5d | LLM section auto-chunking fallback (--sections auto-llm) — for discussion | open | low | idea | S |
+| bl-58b3 | Mid-loop user artifact edits (type=edit intervention) — for discussion | open | low | idea | S |
 | bl-f8cb | Multi-peer (3+) deliberation extension (reserved / v3+ concern) | open | low | idea | L |
 <!-- END OAT BACKLOG-INDEX -->
 
