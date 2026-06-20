@@ -59,7 +59,7 @@ async function listSubdirectories(directory) {
   }
 }
 
-async function discoverSkillDirectories(root) {
+export async function discoverSkillDirectories(root) {
   const skillDirectories = new Set();
 
   for (const skillPath of await listSubdirectories(path.join(root, 'skills'))) {

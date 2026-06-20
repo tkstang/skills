@@ -6,3 +6,7 @@ set -e
 pnpm run test
 pnpm run validate
 pnpm run smoke
+
+# Require a version bump for any skill whose directory changed against main.
+base_ref="$(git merge-base HEAD origin/main 2>/dev/null || git merge-base HEAD main 2>/dev/null || echo main)"
+node scripts/validate-skill-versions.mjs --base-ref "$base_ref"
