@@ -10,8 +10,27 @@ import { validateChangedSkillVersions } from '../../scripts/validate-skill-versi
 
 const execFile = promisify(execFileCallback);
 
+// Strip inherited git env vars (set when tests run inside a git hook) so the
+// temp-repo git commands resolve the temp repo via cwd, not the ambient repo.
+function gitEnv(): NodeJS.ProcessEnv {
+  const env = { ...process.env };
+  for (const key of [
+    'GIT_DIR',
+    'GIT_WORK_TREE',
+    'GIT_INDEX_FILE',
+    'GIT_COMMON_DIR',
+    'GIT_PREFIX',
+    'GIT_NAMESPACE',
+    'GIT_OBJECT_DIRECTORY',
+    'GIT_ALTERNATE_OBJECT_DIRECTORIES',
+  ]) {
+    delete env[key];
+  }
+  return env;
+}
+
 async function git(root: string, args: string[]): Promise<string> {
-  const { stdout } = await execFile('git', args, { cwd: root });
+  const { stdout } = await execFile('git', args, { cwd: root, env: gitEnv() });
   return stdout;
 }
 

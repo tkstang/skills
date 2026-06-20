@@ -14,10 +14,36 @@ const DEFAULT_ROOT = path.resolve(
 
 const execFileAsync = promisify(execFileCallback);
 
+// Git exports these into the environment of any hook it runs (pre-push, etc.).
+// If inherited, they pin git to the ambient repo/index and override `cwd`, so
+// the check (or a temp-repo test) would resolve the wrong repository. Strip
+// them so git discovers the repo from `cwd` instead.
+const GIT_ENV_VARS = [
+  'GIT_DIR',
+  'GIT_WORK_TREE',
+  'GIT_INDEX_FILE',
+  'GIT_COMMON_DIR',
+  'GIT_PREFIX',
+  'GIT_NAMESPACE',
+  'GIT_OBJECT_DIRECTORY',
+  'GIT_ALTERNATE_OBJECT_DIRECTORIES',
+];
+
+function gitEnv() {
+  const env = { ...process.env };
+  for (const key of GIT_ENV_VARS) {
+    delete env[key];
+  }
+  return env;
+}
+
 /** Default git runner; returns stdout for `git <args>` executed at `root`. */
 function defaultGitExecFile(root) {
   return async (args) => {
-    const { stdout } = await execFileAsync('git', args, { cwd: root });
+    const { stdout } = await execFileAsync('git', args, {
+      cwd: root,
+      env: gitEnv(),
+    });
     return stdout;
   };
 }
