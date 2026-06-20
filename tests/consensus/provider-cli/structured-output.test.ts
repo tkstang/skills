@@ -77,6 +77,22 @@ describe('structured provider output coordinator', () => {
     expect(envelope.attempts.cli_attempts).toBe(2);
   });
 
+  it('adds schema instructions to prompt-only provider prompts', async () => {
+    const subprocess = fakeSubprocess([
+      processSuccess('{"verdict":"accept"}'),
+    ]);
+
+    const envelope = await runProviderTurn(request({ provider: 'cursor' }), {
+      readSchema: async () => schema(),
+      runSubprocess: subprocess.run,
+    });
+
+    expect(envelope.ok).toBe(true);
+    expect(subprocess.prompts[0]).toContain('Structured output requirements');
+    expect(subprocess.prompts[0]).toContain('<JSON_SCHEMA>');
+    expect(subprocess.prompts[0]).toContain('"required":["verdict"]');
+  });
+
   it('retries retryable provider exits and stops on timeout classifications', async () => {
     const subprocess = fakeSubprocess([
       processFailure('PROVIDER_EXIT', true, {
@@ -282,6 +298,28 @@ describe('structured provider output coordinator', () => {
     expect(envelope).toMatchObject({
       ok: true,
       provider: 'claude',
+      stdout: providerStdout,
+      json: { verdict: 'accept' },
+    });
+  });
+
+  it('extracts embedded JSON from prompt-only provider result prose', async () => {
+    const providerStdout = JSON.stringify({
+      type: 'result',
+      subtype: 'success',
+      is_error: false,
+      result:
+        'I checked the schema. {"verdict":"accept"} This is the final answer.',
+    });
+
+    const envelope = await runProviderTurn(request({ provider: 'cursor' }), {
+      readSchema: async () => schema(),
+      runSubprocess: fakeSubprocess([processSuccess(providerStdout)]).run,
+    });
+
+    expect(envelope).toMatchObject({
+      ok: true,
+      provider: 'cursor',
       stdout: providerStdout,
       json: { verdict: 'accept' },
     });

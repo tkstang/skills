@@ -172,18 +172,17 @@ Target provider smoke result:
 - If the first Cursor response is malformed but retry succeeds, record the
   retry count; this is useful supportability evidence.
 
-Current observed failure to capture under bl-f0b6: Cursor can return a successful
-wrapper whose `result` field contains prose plus an embedded JSON object. The
-provider CLI treats that as `PROVIDER_SCHEMA_VALIDATION` because the parsed
-payload does not expose top-level `schema_version`. That is prompt-only
-structured-output reliability work, not an auth/keychain failure.
+Observed 2026-06-20 before the fix: after unlocking the login keychain in the
+SSH session, Cursor preflight reported `ready`, and a direct provider CLI smoke
+passed only when the prompt explicitly required "one JSON object and no prose."
+A live Refine run with `--peers cursor,codex` failed before the first recorded
+turn with `Missing required JSON field: schema_version`.
 
-Observed 2026-06-20: after unlocking the login keychain in the SSH session,
-Cursor preflight reported `ready`, and a direct provider CLI smoke passed when
-the prompt explicitly required "one JSON object and no prose." A live Refine run
-with `--peers cursor,codex` still failed before the first recorded turn with
-`Missing required JSON field: schema_version`. Do not claim Cursor peer E2E
-support until this full-wrapper path is green.
+Observed 2026-06-20 after the provider CLI prompt-only fix: Cursor received the
+schema in prompt-only structured-output instructions, and the provider CLI can
+extract embedded JSON objects from Cursor wrapper prose before schema
+validation. The direct provider smoke emitted `ok: true` with
+`strategy_used: "prompt_only"` and `cli_attempts: 1`.
 
 Then run the live skill paths with Cursor as one peer:
 
@@ -213,6 +212,19 @@ Expected Cursor skill evidence:
 - Any `PROVIDER_INVALID_JSON` / `PROVIDER_SCHEMA_VALIDATION` retries are
   recorded with the final disposition.
 
+Current 2026-06-20 Cursor evidence:
+
+- Refine with `--peers cursor,codex --max-rounds 2` converged at
+  `tmp/e2e-provider-cli/refine-email-cursor-after-fix.consensus.md`.
+- Evaluate with `--peers cursor,codex --max-rounds 2` converged at
+  `tmp/e2e-provider-cli/evaluate-release-cursor.evaluation.md`.
+- Refine records used strategies `prompt_only`, `constrained_native`,
+  `prompt_only` with all three provider CLI calls succeeding on the first
+  attempt.
+- Evaluate records used strategies `prompt_only`, `constrained_native`,
+  `prompt_only`, `constrained_native` with all four provider CLI calls
+  succeeding on the first attempt.
+
 ## Known Provider-Specific Failure Modes
 
 These are useful regression clues:
@@ -227,8 +239,8 @@ These are useful regression clues:
   property to appear in `required`. The consensus loop still owns
   branch-specific verdict validation after normalization.
 - Cursor may report `auth_required` when the macOS login keychain is locked.
-  Treat that as local operator state unless the provider CLI is authenticated
-  and still fails.
+  Treat that as local operator state. When testing over SSH, unlock the keychain
+  in the same SSH shell that invokes `cursor-agent` and the provider CLI.
 
 ## Cleanup
 

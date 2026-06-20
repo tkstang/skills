@@ -1619,12 +1619,14 @@ async function runProviderTurn(request, dependencies = {}) {
   let validationFeedback;
   let lastInvocation;
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-    const invocationRequest = validationFeedback === void 0 ? effectiveRequest : {
+    const invocationRequest = {
       ...effectiveRequest,
-      prompt: `${request.prompt}
-
-Schema validation failed: ${validationFeedback}
-Return only JSON matching the schema.`
+      prompt: promptForStrategy({
+        prompt: request.prompt,
+        strategy,
+        inlineJsonSchema,
+        validationFeedback
+      })
     };
     const invocation2 = buildProviderInvocation(adapter, invocationRequest, {
       strategy,
@@ -1803,8 +1805,74 @@ function extractStructuredJsonValue(value) {
   try {
     return JSON.parse(result.trim());
   } catch {
-    return value;
+    return extractFirstJsonObject(result) ?? value;
   }
+}
+function promptForStrategy(input) {
+  const parts = [input.prompt];
+  if (input.validationFeedback) {
+    parts.push(
+      `Schema validation failed: ${input.validationFeedback}`,
+      "Return only JSON matching the schema."
+    );
+  }
+  if (input.strategy === "prompt_only") {
+    parts.push(
+      "Structured output requirements:",
+      "Return only one JSON object matching this JSON Schema.",
+      "Do not wrap the JSON in Markdown.",
+      "Do not include prose before or after the JSON object.",
+      "<JSON_SCHEMA>",
+      input.inlineJsonSchema,
+      "</JSON_SCHEMA>"
+    );
+  }
+  return parts.join("\n\n");
+}
+function extractFirstJsonObject(text) {
+  let start = -1;
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    if (start === -1) {
+      if (char === "{") {
+        start = index;
+        depth = 1;
+      }
+      continue;
+    }
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (char === "\\") {
+        escaped = true;
+      } else if (char === '"') {
+        inString = false;
+      }
+      continue;
+    }
+    if (char === '"') {
+      inString = true;
+      continue;
+    }
+    if (char === "{") {
+      depth += 1;
+      continue;
+    }
+    if (char !== "}") continue;
+    depth -= 1;
+    if (depth !== 0) continue;
+    const candidate = text.slice(start, index + 1);
+    try {
+      return JSON.parse(candidate);
+    } catch {
+      start = -1;
+      depth = 0;
+    }
+  }
+  return void 0;
 }
 function validateSchemaSubset(value, schema) {
   if (!isRecord2(schema)) return { ok: true };

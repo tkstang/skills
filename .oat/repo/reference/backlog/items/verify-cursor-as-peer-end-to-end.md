@@ -1,14 +1,14 @@
 ---
 id: bl-f0b6
 title: 'Verify cursor-as-peer end-to-end through provider CLI (authenticated cursor-agent)'
-status: open
+status: done
 priority: medium
 scope: task
 scope_estimate: S
 labels: [consensus, provider-cli, cursor, verification]
 assignee: null
 created: '2026-06-13T19:12:43Z'
-updated: '2026-06-20T19:52:17Z'
+updated: '2026-06-20T20:36:06Z'
 associated_issues: []
 oat_template: true
 oat_template_name: backlog-item
@@ -16,15 +16,27 @@ oat_template_name: backlog-item
 
 ## Description
 
-**Status update (2026-06-20): auth can be cleared, full E2E still fails.**
-After unlocking the login keychain in the same SSH session that runs the
-provider CLI, `cursor-agent --version` and
-`consensus preflight --json --provider cursor` report Cursor as ready. A direct
-provider CLI smoke with a very strict "JSON object and no prose" prompt can
-return `ok: true` using `strategy_used: "prompt_only"`. However, a live Refine
-run with `--peers cursor,codex` still fails before the first recorded turn with
-`Missing required JSON field: schema_version`, indicating the real wrapper
-prompt path is not yet reliable enough for Cursor prompt-only structured output.
+**Status update (2026-06-20): completed.** After unlocking the login keychain in
+the same SSH session that runs the provider CLI, `cursor-agent --version` and
+`consensus preflight --json --provider cursor` report Cursor as ready. The
+provider CLI now sends the schema in prompt-only structured-output instructions
+and extracts embedded JSON objects from Cursor wrapper prose before schema
+validation.
+
+Cursor live evidence after the fix:
+
+- Direct provider smoke returned `ok: true` with
+  `diagnostics.strategy_used: "prompt_only"` and `cli_attempts: 1`.
+- Refine with `--peers cursor,codex --max-rounds 2` converged at
+  `tmp/e2e-provider-cli/refine-email-cursor-after-fix.consensus.md`.
+- Evaluate with `--peers cursor,codex --max-rounds 2` converged at
+  `tmp/e2e-provider-cli/evaluate-release-cursor.evaluation.md`.
+- Refine recorded Cursor/Codex/Cursor strategies
+  `prompt_only` / `constrained_native` / `prompt_only`, all first-attempt
+  successes.
+- Evaluate recorded Cursor/Codex/Cursor/Codex strategies
+  `prompt_only` / `constrained_native` / `prompt_only` /
+  `constrained_native`, all first-attempt successes.
 
 **Prior status update (2026-06-19): still open, reframed for the provider CLI.**
 Cursor is now represented by the generated `consensus` provider CLI inventory
@@ -36,9 +48,10 @@ and a live Refine/Evaluate peer run once local auth is usable.
 Cursor is represented in the provider CLI's first provider floor and can be
 targeted via `--peers cursor,codex` once it reports usable in
 `consensus provider ls --json` / `consensus preflight --json --provider cursor`.
-This path has **not** been exercised end-to-end with authenticated local Cursor
-credentials, so cursor-as-peer remains documented as auth-sensitive and
-unverified for live use.
+This path has been exercised end-to-end with authenticated local Cursor
+credentials. Cursor-as-peer remains auth-sensitive because credentials are
+backed by local OS keychain/session state, but the provider CLI path is now live
+verified.
 
 Two specific unknowns motivate this:
 

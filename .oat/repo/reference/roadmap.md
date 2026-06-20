@@ -1,6 +1,6 @@
 # Skills Repo Roadmap
 
-**Last updated:** 2026-06-19 (consensus peer invocation now defaults to the owned provider CLI for Refine/Evaluate, completing **bl-bb7e** and superseding the old external peer-run boundary (DR-023). consensus-rubric-guidance brought `refine` + `evaluate` to authoring-best-practice parity with a validator-backed top-level skill `version` (DR-022), plus guided rubric creation and four bundled example rubrics. Also 2026-06-19: v0.1 release verification refreshed automated gates, provider install evidence, release notes, version/tag checks, and release workflow parity; test-organization cleanup landed shared `tests/helpers/`, a domain-organized test tree, and two oversized suites split. Prior: PR4 retired the `node:test` runner and completed **bl-bfb4**.)
+**Last updated:** 2026-06-20 (Cursor authenticated peer E2E through the provider CLI is verified for Refine and Evaluate with `cursor,codex`, completing **bl-f0b6**. Prior: consensus peer invocation now defaults to the owned provider CLI for Refine/Evaluate, completing **bl-bb7e** and superseding the old external peer-run boundary (DR-023). consensus-rubric-guidance brought `refine` + `evaluate` to authoring-best-practice parity with a validator-backed top-level skill `version` (DR-022), plus guided rubric creation and four bundled example rubrics. Also 2026-06-19: v0.1 release verification refreshed automated gates, provider install evidence, release notes, version/tag checks, and release workflow parity; test-organization cleanup landed shared `tests/helpers/`, a domain-organized test tree, and two oversized suites split. Prior: PR4 retired the `node:test` runner and completed **bl-bfb4**.)
 
 ## Planning Model
 
@@ -23,11 +23,11 @@ What remains, in dependency order:
 1. **Remaining family skills** — `consensus-create`, `-decide`, `-plan`, `-research` as thin wrappers with v3 defaults now that `consensus-evaluate` has proved the post-TS wrapper pattern.
 2. **Harmonization pass** — whole-document coherence after independent section convergence.
 3. **Deliberation metrics** — tokens, wall-clock, rounds per section in the resolution block.
-4. **Convergence quality follow-ons** — similarity heuristic for near-match convergence (bl-ef38), tool-based verdict submission so peers self-validate schema (bl-3a88), and Cursor authenticated end-to-end provider CLI verification (bl-f0b6). The owned provider CLI is now shipped; deterministic-only escalation shipped.
+4. **Convergence quality follow-ons** — similarity heuristic for near-match convergence (bl-ef38) and tool-based verdict submission so peers self-validate schema (bl-3a88). The owned provider CLI is now shipped; Cursor authenticated peer E2E is verified; deterministic-only escalation shipped.
 
 ### Release / distribution
 
-- v0.1 tag gated on `RELEASING.md` manual provider verification: automated gates and local Claude/Codex installs are current, but interactive permission prompts, Cursor locked-keychain/provider-error resolution, and post-tag Agent Skills / skills.sh discovery remain.
+- v0.1 tag gated on `RELEASING.md` manual provider verification: automated gates and local Claude/Codex installs are current, Cursor authenticated peer E2E is verified, and remaining gates are interactive permission prompts plus post-tag Agent Skills / skills.sh discovery.
 - Public marketplace submission (Claude/Cursor), Codex Plugin Directory, and skills.sh verification follow the tag; no public claims until verified.
 
 ### Transcript tooling (session-observer, export-session-transcript, transcript-core)
@@ -58,18 +58,18 @@ reporting if the suite grows enough to justify it.
 
 ## Now
 
-- **v0.1 release verification** — bl-d85f is in progress on the release-verification branch. Completed so far: current automated gates, README/CHANGELOG/version/tag checks, release workflow parity, and local Claude/Codex install evidence. Remaining before tag: interactive provider permission prompts and Cursor keychain/provider-error resolution or explicit unsupported-path release note.
+- **v0.1 release verification** — bl-d85f is in progress on the release-verification branch. Completed so far: current automated gates, README/CHANGELOG/version/tag checks, release workflow parity, local Claude/Codex install evidence, and Cursor authenticated peer E2E. Remaining before tag: interactive provider permission prompts and any provider plugin-install checks still called out in `RELEASING.md`.
 - **Post-tag discovery verification** — after the tag/release, verify Agent Skills / skills.sh and any public provider directory discovery paths before making public listing claims.
 
 ## Next
 
 - **Remaining family skills** — after `consensus-evaluate`, `-create`, `-decide`, `-plan`, `-research` as thin wrappers with v3 defaults. `-create` front-loads the `independent_draft` cold-start + derived-sectioning design the next two reuse.
-- **Peer-invocation hardening** — tool-based verdict submission (bl-3a88) remains a later reliability design now that the provider CLI owns the claude/codex/cursor path. Cursor-as-peer verification (bl-f0b6) should rerun against the provider CLI once the local Cursor keychain/auth state is usable.
+- **Peer-invocation hardening** — tool-based verdict submission (bl-3a88) remains a later reliability design now that the provider CLI owns the claude/codex/cursor path and Cursor-as-peer E2E is verified.
 
 ## Later
 
 - Harmonization pass and deliberation metrics (after the family ships, per v3 Phase 4).
-- Cursor-as-peer documentation/dogfooding (custom ACP provider path).
+- Cursor submit-tool / custom ACP provider path exploration.
 - Transcript-tooling deferrals (promote individually if needed).
 - **Multi-agent collaboration substrate** — a proposed lane beneath the deliberation engine: how agents observe and message each other on one project, extending `session-observer`. Foundation is the become-observable daemon + merged shared session log (bl-4e2e), then addressable inter-agent messaging (bl-f59f); orchestration (work-claiming, message bus) stays a vault stub until messaging hits real limits. Source: `02 - Projects/Skills/Ideas/2026-06-19-*` (vault) with `cass` prior-art assessed. Explicitly sequenced **after** the TypeScript/test foundation hardening lands — promote off "Later" at that point.
 - Additional plugin groups (`plugins/<name>/`) as new skill families mature — the DR-001 layout already supports this.

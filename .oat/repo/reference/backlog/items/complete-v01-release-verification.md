@@ -38,13 +38,18 @@ When this release item runs, treat that as prior evidence rather than starting f
 - README install matrix verified accurate against live provider CLIs at tag time.
 - Post-tag: `npx skills add` / skills.sh discovery verified before any public listing claims (record result in `current-state.md`).
 
-## Current Verification Status (2026-06-19)
+## Current Verification Status (2026-06-20)
 
 - Automated gates passed on the release-verification branch: `pnpm run build`, `pnpm run type-check`, `pnpm run build:check`, `pnpm run test` (53 files / 572 tests), `pnpm run validate`, and `pnpm run smoke`.
 - Version/tag readiness passed: `node scripts/bump-version.mjs --check-tag v0.1.0`; the bump/tag guard now covers both shipped consensus skill metadata files (`refine`, `evaluate`) plus provider/marketplace manifests.
 - Release workflow parity was updated to use pnpm install, generated-output build/drift checks, type-check, build-check, test, validate, smoke, and tag/manifest consistency on tag pushes.
 - Claude Code local install from the release-candidate checkout passed and exposes both shipped consensus skills plus `consensus-section-runner`.
 - Codex local install passed through the configured local `skills` marketplace; adding this separate worktree as another `skills` marketplace is blocked by marketplace-name collision unless the existing source is removed or updated.
-- Cursor remains blocked before tag: the local Cursor Agent path is blocked by a locked macOS login keychain, and Paseo reports the Cursor provider as `error`.
+- Cursor authenticated peer E2E passed through the owned provider CLI after
+  unlocking the macOS login keychain in the same SSH shell that invoked
+  `cursor-agent`: direct provider CLI smoke, Refine with `--peers cursor,codex`,
+  and Evaluate with `--peers cursor,codex` all succeeded. Cursor remains
+  auth-sensitive local state and its plugin install / exec permission behavior
+  still needs release-gate verification.
 - Interactive permission prompts remain before-tag gates for Claude Code, Codex, and Cursor.
 - Agent Skills source discovery works with `npx skills@latest add tkstang/skills --list --full-depth`, but this is not post-tag skills.sh indexing and must not be used as a public listing claim.
