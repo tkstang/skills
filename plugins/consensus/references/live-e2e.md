@@ -140,9 +140,14 @@ node plugins/consensus/scripts/consensus.mjs provider ls --json
 node plugins/consensus/scripts/consensus.mjs preflight --json --provider cursor
 ```
 
+When testing over SSH, run `security unlock-keychain` in that SSH session before
+invoking `cursor-agent`. Unlocking the mini's GUI login session may not make the
+keychain usable to an already-open SSH shell.
+
 Continue only when Cursor reports `ready` / `usable: true`. If it still reports
-`auth_required`, authenticate Cursor in the current login session before treating
-the result as a consensus failure.
+`auth_required`, authenticate Cursor and unlock the login keychain in the same
+terminal/session that will run the provider CLI before treating the result as a
+consensus failure.
 
 Run a one-call provider CLI smoke before spending on full skill E2E:
 
@@ -160,12 +165,18 @@ process.stdout.write(JSON.stringify({
 NODE
 ```
 
-Expected provider smoke result:
+Target provider smoke result:
 
 - The provider CLI emits a valid envelope with `ok: true`.
 - `diagnostics.strategy_used` is `prompt_only`.
 - If the first Cursor response is malformed but retry succeeds, record the
   retry count; this is useful supportability evidence.
+
+Current observed failure to capture under bl-f0b6: Cursor can return a successful
+wrapper whose `result` field contains prose plus an embedded JSON object. The
+provider CLI treats that as `PROVIDER_SCHEMA_VALIDATION` because the parsed
+payload does not expose top-level `schema_version`. That is prompt-only
+structured-output reliability work, not an auth/keychain failure.
 
 Then run the live skill paths with Cursor as one peer:
 
