@@ -69,7 +69,7 @@ Canonical per-provider transcript knowledge (store locations, record parsing, st
 
 - v0.1 automated gates passed locally on 2026-06-19: `pnpm run build`, `pnpm run type-check`, `pnpm run build:check`, `pnpm run test` (53 files / 572 tests), `pnpm run validate`, and `pnpm run smoke`.
 - `node scripts/bump-version.mjs --check-tag v0.1.0` passed on 2026-06-19, and release tag workflow parity was updated to install with pnpm, build, type-check, build-check, test, validate, smoke, and check tag/manifest consistency.
-- v0.1 tagging is still gated by `RELEASING.md`: Claude Code and Codex local installs are verified, but interactive permission prompts remain unverified; Cursor is blocked by locked keychain / provider `error`; Agent Skills source listing works but post-tag skills.sh indexing is not verified.
+- v0.1 tagging is still gated by `RELEASING.md`: Claude Code and Codex local installs are verified, and Cursor authenticated peer E2E now passes through the provider CLI (Refine and Evaluate with `--peers cursor,codex`, after unlocking the macOS login keychain in the invoking shell). Remaining gates: interactive provider permission prompts (Claude/Codex/Cursor) remain unverified, Cursor plugin-install / exec-permission behavior still needs release-gate verification, and Agent Skills source listing works but post-tag skills.sh indexing is not. No tag or GitHub release exists yet (CHANGELOG `[0.1.0]` is still `Unreleased`).
 - Codex public Plugin Directory and skills.sh listing are explicitly not claimed until verified post-publication.
 
 ## Project Management Surfaces

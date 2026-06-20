@@ -32,6 +32,14 @@ Open naming question: decide whether the shipped skill should be named
 `phone-a-friend` or shortened to `phone-friend`. The longer name is more
 idiomatic; the shorter name may be easier as a command/skill label.
 
+**Sequencing (2026-06-20):** independent of the consensus-family lane and the
+provider CLI is already shipped, so this is *buildable* any time. Preferred order
+is **after** the docs site lands (`bl-ecaa`) so this skill documents directly into
+the new IA rather than adding another section to the dense README right before it
+is restructured. As a small, self-contained new skill it is a good **first
+validation** that the new docs IA absorbs a new skill cleanly. Do not start it as
+a 4th concurrent track while release + family + hardening are in flight.
+
 ## Acceptance Criteria
 
 - A new shipped skill exists for one-shot advisory peer consultation using the
