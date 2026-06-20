@@ -629,13 +629,16 @@ var buildClaudeInvocation = (request, options = {}) => {
     argv.push("--permission-mode", claudePermissionMode);
     redactedArgv.push("--permission-mode", claudePermissionMode);
   }
+  argv.push(request.prompt);
+  redactedArgv.push("<prompt>");
   return invocation({
     executable: "claude",
     argv,
     redactedArgv,
     request,
     strategy,
-    outputMode: "stdout_json"
+    outputMode: "stdout_json",
+    stdin: ""
   });
 };
 var buildCodexInvocation = (request, options = {}) => {
@@ -683,7 +686,7 @@ function invocation(input) {
   return {
     executable: input.executable,
     argv: input.argv,
-    stdin: input.request.prompt,
+    stdin: input.stdin ?? input.request.prompt,
     ...input.request.cwd ? { cwd: input.request.cwd } : {},
     output_mode: input.outputMode,
     strategy: input.strategy,
@@ -1416,7 +1419,7 @@ function mergeProviderDiagnostics(diagnostics, warnings) {
     ...warnings ?? []
   ];
   return {
-    ...diagnostics ?? {},
+    ...diagnostics,
     ...mergedWarnings.length > 0 ? { warnings: mergedWarnings } : {}
   };
 }
@@ -1702,7 +1705,8 @@ Return only JSON matching the schema.`
         diagnostics
       });
     }
-    const validation = validateSchemaSubset(parsed.value, schema);
+    const verdictJson = extractStructuredJsonValue(parsed.value);
+    const validation = validateSchemaSubset(verdictJson, schema);
     if (!validation.ok) {
       if (attempt < maxAttempts) {
         validationFeedback = validation.message;
@@ -1727,7 +1731,7 @@ Return only JSON matching the schema.`
       args: invocation2.redacted_command,
       stdout: providerOutput.value,
       stderr: processResult.stderr,
-      json: parsed.value,
+      json: verdictJson,
       attempts: {
         cli_attempts: attempt,
         terminal_reason: "success"
@@ -1787,6 +1791,19 @@ function parseProviderJson(stdout) {
       ok: false,
       message: `Provider returned invalid JSON: ${error instanceof Error ? error.message : String(error)}`
     };
+  }
+}
+function extractStructuredJsonValue(value) {
+  if (!isRecord2(value)) return value;
+  if ("structured_output" in value) {
+    return value.structured_output;
+  }
+  const result = value.result;
+  if (typeof result !== "string") return value;
+  try {
+    return JSON.parse(result.trim());
+  } catch {
+    return value;
   }
 }
 function validateSchemaSubset(value, schema) {

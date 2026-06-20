@@ -12,7 +12,7 @@ import type {
 } from '../../../src/consensus/provider-cli/types.js';
 
 describe('provider invocation builders', () => {
-  it.each(['claude', 'codex', 'cursor'] as const)(
+  it.each(['codex', 'cursor'] as const)(
     'builds %s argv arrays without shell interpolation or prompt argv leakage',
     (id) => {
       const invocation = buildInvocation(id, 'prompt_only');
@@ -27,6 +27,18 @@ describe('provider invocation builders', () => {
       ]);
     },
   );
+
+  it('passes Claude prompt as a redacted positional argument for print mode', () => {
+    const invocation = buildInvocation('claude', 'provider_validated');
+
+    expect(invocation.shell).toBe(false);
+    expect(invocation.stdin).toBe('');
+    expect(invocation.argv.at(-1)).toBe('Sensitive prompt text.');
+    expect(invocation.redacted_command.at(-1)).toBe('<prompt>');
+    expect(invocation.redacted_command.join(' ')).not.toContain(
+      'Sensitive prompt text.',
+    );
+  });
 
   it('reflects Claude provider-validated schema strategy in argv', () => {
     const invocation = buildInvocation('claude', 'provider_validated', {
@@ -49,6 +61,7 @@ describe('provider invocation builders', () => {
       'claude-sonnet',
       '--effort',
       'high',
+      'Sensitive prompt text.',
     ]);
     expect(argumentAfter(invocation.argv, '--json-schema')).not.toMatch(
       /(?:^|\/)schema\.json$/,
@@ -67,6 +80,7 @@ describe('provider invocation builders', () => {
       'claude-sonnet',
       '--effort',
       'high',
+      '<prompt>',
     ]);
     expect(JSON.stringify(invocation.redacted_command)).not.toContain(
       'properties',
