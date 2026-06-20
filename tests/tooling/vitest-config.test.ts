@@ -16,6 +16,10 @@ describe('vitest tooling', () => {
   });
 
   it('allows integration tests enough time for subprocess fixtures', () => {
-    expect(vitestConfig.test?.testTimeout).toBe(10_000);
+    // Generous enough that subprocess/real-timer integration tests are not
+    // starved past their budget under a saturated parallel run. Asserted as a
+    // floor so future upward tuning does not break this guard.
+    expect(vitestConfig.test?.testTimeout).toBeGreaterThanOrEqual(30_000);
+    expect(vitestConfig.test?.hookTimeout).toBeGreaterThanOrEqual(30_000);
   });
 });
