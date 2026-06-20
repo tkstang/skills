@@ -423,6 +423,7 @@ async function writeExecutableFixture(
 function strictClaudeFixture() {
   return `#!/bin/sh
 seen_schema=0
+prompt=''
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --print)
@@ -466,9 +467,13 @@ while [ "$#" -gt 0 ]; do
           ;;
       esac
       ;;
-    *)
+    -*)
       printf 'unknown option: %s\\n' "$1" >&2
       exit 64
+      ;;
+    *)
+      prompt="$1"
+      shift
       ;;
   esac
 done
@@ -476,7 +481,11 @@ if [ "$seen_schema" != "1" ]; then
   printf 'missing --json-schema\\n' >&2
   exit 64
 fi
-printf '{"verdict":"accept"}\\n'
+if [ -z "$prompt" ]; then
+  printf 'missing prompt argument\\n' >&2
+  exit 64
+fi
+printf '%s\\n' '{"type":"result","subtype":"success","is_error":false,"result":"{\\"verdict\\":\\"accept\\"}"}'
 `;
 }
 

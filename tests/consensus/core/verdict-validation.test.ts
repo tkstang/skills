@@ -84,7 +84,13 @@ it('verdict schema declares alternating branches without maxLength caps', async 
   expect(schema.$id).toBe(
     'consensus-plugin/v1/verdict-alternating.schema.json',
   );
-  expect(schema.required).toEqual(['schema_version', 'verdict', 'reasoning']);
+  expect(schema.required).toEqual([
+    'schema_version',
+    'verdict',
+    'reasoning',
+    'proposed_artifact',
+    'concerns',
+  ]);
   // The schema is the provider-side (prompt+parse) shape only. It must stay
   // compatible with OpenAI/codex structured output, which forbids `oneOf`/`not`;
   // the per-verdict conditional requirements (proposed_artifact required for
@@ -215,6 +221,14 @@ it('parallel verdict schema declares the parallel vocabulary and critique fields
     'ACCEPT_PEER',
     'CONVERGED',
     'IMPASSE',
+  ]);
+  expect(schema.required).toEqual([
+    'schema_version',
+    'verdict',
+    'reasoning',
+    'critique',
+    'proposed_artifact',
+    'concerns',
   ]);
   expect(schema.properties.critique).toBeTruthy();
   expect(schema.properties.critique.required).toEqual([

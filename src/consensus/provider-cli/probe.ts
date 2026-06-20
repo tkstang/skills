@@ -259,7 +259,7 @@ function mergeProviderDiagnostics(
     ...(warnings ?? []),
   ];
   return {
-    ...(diagnostics ?? {}),
+    ...diagnostics,
     ...(mergedWarnings.length > 0 ? { warnings: mergedWarnings } : {}),
   };
 }

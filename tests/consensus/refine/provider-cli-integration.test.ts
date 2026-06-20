@@ -57,7 +57,7 @@ async function writeProviderExecutable(binDir: string, name: string) {
       '}',
       'const { writeFileSync } = require("node:fs");',
       'const verdict = process.env.CONSENSUS_PROVIDER_FIXTURE_VERDICT ?? "ACCEPT";',
-      'const payload = { schema_version: "v1", verdict, reasoning: `${process.argv[1]} accepts` };',
+      'const payload = { schema_version: "v1", verdict, reasoning: `${process.argv[1]} accepts`, proposed_artifact: "", concerns: [] };',
       'if (verdict !== "ACCEPT") payload.proposed_artifact = "# Proposed\\n\\nFixture."; ',
       'const outputArgIndex = process.argv.findIndex((arg) => arg === "--output-last-message" || arg === "-o");',
       'if (outputArgIndex !== -1) {',

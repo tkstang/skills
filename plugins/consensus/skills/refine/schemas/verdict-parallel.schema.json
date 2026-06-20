@@ -3,7 +3,14 @@
   "$id": "consensus-plugin/v1/verdict-parallel.schema.json",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "verdict", "reasoning"],
+  "required": [
+    "schema_version",
+    "verdict",
+    "reasoning",
+    "critique",
+    "proposed_artifact",
+    "concerns"
+  ],
   "properties": {
     "schema_version": {
       "const": "v1",

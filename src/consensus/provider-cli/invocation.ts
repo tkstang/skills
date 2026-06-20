@@ -74,6 +74,9 @@ export const buildClaudeInvocation: ProviderInvocationBuilder = (
     redactedArgv.push('--permission-mode', claudePermissionMode);
   }
 
+  argv.push(request.prompt);
+  redactedArgv.push('<prompt>');
+
   return invocation({
     executable: 'claude',
     argv,
@@ -81,6 +84,7 @@ export const buildClaudeInvocation: ProviderInvocationBuilder = (
     request,
     strategy,
     outputMode: 'stdout_json',
+    stdin: '',
   });
 };
 
@@ -150,11 +154,12 @@ function invocation(input: {
   strategy: StructuredOutputStrategy;
   outputMode: OutputMode;
   lastMessageFile?: string;
+  stdin?: string;
 }): ProviderInvocation {
   return {
     executable: input.executable,
     argv: input.argv,
-    stdin: input.request.prompt,
+    stdin: input.stdin ?? input.request.prompt,
     ...(input.request.cwd ? { cwd: input.request.cwd } : {}),
     output_mode: input.outputMode,
     strategy: input.strategy,

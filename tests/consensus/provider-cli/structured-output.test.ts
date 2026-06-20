@@ -67,7 +67,7 @@ describe('structured provider output coordinator', () => {
       processSuccess('{"verdict":"accept"}'),
     ]);
 
-    const envelope = await runProviderTurn(request(), {
+    const envelope = await runProviderTurn(request({ provider: 'cursor' }), {
       readSchema: async () => schema(),
       runSubprocess: subprocess.run,
     });
@@ -242,6 +242,49 @@ describe('structured provider output coordinator', () => {
     expect(schemaArgument).not.toMatch(/(?:^|\/)schema\.json$/);
     expect(JSON.parse(schemaArgument)).toEqual(schema());
     expect(JSON.stringify(envelope)).not.toContain('"properties"');
+  });
+
+  it('unwraps Claude print-mode structured output before schema validation', async () => {
+    const providerStdout = JSON.stringify({
+      type: 'result',
+      subtype: 'success',
+      is_error: false,
+      result: 'I returned the requested verdict.',
+      structured_output: { verdict: 'accept' },
+    });
+
+    const envelope = await runProviderTurn(request({ provider: 'claude' }), {
+      readSchema: async () => schema(),
+      runSubprocess: fakeSubprocess([processSuccess(providerStdout)]).run,
+    });
+
+    expect(envelope).toMatchObject({
+      ok: true,
+      provider: 'claude',
+      stdout: providerStdout,
+      json: { verdict: 'accept' },
+    });
+  });
+
+  it('falls back to Claude print-mode result JSON before schema validation', async () => {
+    const providerStdout = JSON.stringify({
+      type: 'result',
+      subtype: 'success',
+      is_error: false,
+      result: '{"verdict":"accept"}',
+    });
+
+    const envelope = await runProviderTurn(request({ provider: 'claude' }), {
+      readSchema: async () => schema(),
+      runSubprocess: fakeSubprocess([processSuccess(providerStdout)]).run,
+    });
+
+    expect(envelope).toMatchObject({
+      ok: true,
+      provider: 'claude',
+      stdout: providerStdout,
+      json: { verdict: 'accept' },
+    });
   });
 
   it('emits terminal ok:false envelopes that still exit process 0', async () => {

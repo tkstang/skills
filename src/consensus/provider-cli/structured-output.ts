@@ -222,7 +222,8 @@ export async function runProviderTurn(
       });
     }
 
-    const validation = validateSchemaSubset(parsed.value, schema);
+    const verdictJson = extractStructuredJsonValue(parsed.value);
+    const validation = validateSchemaSubset(verdictJson, schema);
     if (!validation.ok) {
       if (attempt < maxAttempts) {
         validationFeedback = validation.message;
@@ -249,7 +250,7 @@ export async function runProviderTurn(
       args: invocation.redacted_command,
       stdout: providerOutput.value,
       stderr: processResult.stderr,
-      json: parsed.value,
+      json: verdictJson,
       attempts: {
         cli_attempts: attempt,
         terminal_reason: 'success',
@@ -335,6 +336,23 @@ function parseProviderJson(stdout: string): ParseResult {
       ok: false,
       message: `Provider returned invalid JSON: ${error instanceof Error ? error.message : String(error)}`,
     };
+  }
+}
+
+function extractStructuredJsonValue(value: unknown): unknown {
+  if (!isRecord(value)) return value;
+
+  if ('structured_output' in value) {
+    return value.structured_output;
+  }
+
+  const result = value.result;
+  if (typeof result !== 'string') return value;
+
+  try {
+    return JSON.parse(result.trim());
+  } catch {
+    return value;
   }
 }
 
