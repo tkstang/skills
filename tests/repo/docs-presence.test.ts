@@ -34,7 +34,7 @@ describe('docs-presence', () => {
 
   it('license, changelog, and provider docs contract are present', async () => {
     expect(await read('LICENSE')).toMatch(/MIT License/);
-    expect(await read('CHANGELOG.md')).toMatch(/## \[0\.1\.0\] - Unreleased/);
+    expect(await read('CHANGELOG.md')).toMatch(/## \[0\.1\.0\] - \d{4}-\d{2}-\d{2}/);
 
     const claude = await lstat(new URL('CLAUDE.md', repoRoot));
     expect(claude.isSymbolicLink()).toBe(true);

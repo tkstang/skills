@@ -37,7 +37,7 @@ Last updated: 2026-06-20.
 | `pnpm run build`       | passed | Generated all committed runtime outputs from canonical TypeScript source                                 |
 | `pnpm run type-check`  | passed | `tsc --noEmit` completed                                                                                 |
 | `pnpm run build:check` | passed | All generated outputs reported `in sync`                                                                 |
-| `pnpm run test`        | passed | Vitest-only suite: 72 test files passed, 687 tests passed                                                |
+| `pnpm run test`        | passed | Vitest-only suite: 72 test files passed, 726 tests passed                                                |
 | `pnpm run validate`    | passed | `validation passed`                                                                                      |
 | `pnpm run smoke`       | passed | `smoke passed`                                                                                           |
 | `pnpm run premerge`    | passed | Build, type-check, build-check, test, validate, and smoke all passed                                     |
