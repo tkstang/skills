@@ -38,6 +38,26 @@ jobs:
       - run: pnpm run validate
       - run: pnpm run smoke
 
+  skill-versions:
+    # Require a version bump for any skill whose directory changed in the PR.
+    # Needs full history (fetch-depth: 0) to diff against the PR base.
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    env:
+      GIT_HOOKS: "0"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Validate changed skill version bumps
+        run: node scripts/validate-skill-versions.mjs --base-ref "${{ github.event.pull_request.base.sha }}"
+
   commitlint:
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'

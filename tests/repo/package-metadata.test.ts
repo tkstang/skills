@@ -30,6 +30,7 @@ describe('package-metadata', () => {
         'test:vitest',
         'type-check',
         'validate',
+        'validate:skill-versions',
         'worktree:init',
         'worktree:validate',
       ].toSorted(),
@@ -41,6 +42,9 @@ describe('package-metadata', () => {
     );
     expect(packageJson.scripts?.['type-check']).toBe('tsc --noEmit');
     expect(packageJson.scripts?.validate).toBe('node scripts/validate.mjs');
+    expect(packageJson.scripts?.['validate:skill-versions']).toBe(
+      'node scripts/validate-skill-versions.mjs',
+    );
     expect(packageJson.scripts?.smoke).toBe('node scripts/smoke-test.mjs');
   });
 });

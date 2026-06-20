@@ -1,8 +1,13 @@
 #!/bin/sh
 set -e
 
-# Run the full verification suite before pushing so breakage never leaves the
-# machine. Mirrors the commands CI runs (.github/workflows/validate.yml).
-pnpm run test
+# Fast pre-flight before pushing: cheap static checks only (~3s). The full
+# Vitest suite and smoke flow run in CI (.github/workflows/validate.yml), so
+# they are intentionally not duplicated here — a pre-push hook should stay fast.
 pnpm run validate
-pnpm run smoke
+pnpm run build:check
+pnpm run type-check
+
+# Require a version bump for any skill whose directory changed against main.
+base_ref="$(git merge-base HEAD origin/main 2>/dev/null || git merge-base HEAD main 2>/dev/null || echo main)"
+node scripts/validate-skill-versions.mjs --base-ref "$base_ref"
