@@ -1,14 +1,14 @@
 ---
 id: bl-d85f
 title: 'Complete v0.1 release verification and tag'
-status: open
+status: done
 priority: high
 scope: task
 scope_estimate: M
 labels: [release, distribution]
 assignee: null
 created: '2026-06-12T21:33:26Z'
-updated: '2026-06-20T21:41:08Z'
+updated: '2026-06-20T22:14:49Z'
 associated_issues: []
 oat_template: true
 oat_template_name: backlog-item
@@ -35,7 +35,7 @@ post-publication.
 Already green on `main` after PR #24 — reuse, do not restate as remaining work:
 
 - **Automated gates** all passed (2026-06-20): `build`, `type-check`,
-  `build:check`, `test` (72 files / 687 tests), `validate`, `smoke`, and
+  `build:check`, `test` (72 files / 726 tests), `validate`, `smoke`, and
   `premerge`; the GitHub **Validate** workflow passed for PR #24. See the
   `RELEASING.md` snapshot for the table.
 - **Cursor authenticated peer E2E is verified** through the owned provider CLI:
@@ -82,11 +82,39 @@ Already green on `main` after PR #24 — reuse, do not restate as remaining work
   **after** publication before any public listing claim; record the result in
   `current-state.md`.
 
-## Live Status
+## Closeout (2026-06-20)
 
-The authoritative, dated verification snapshot (automated checks + per-provider
-manual checks) lives in the **`RELEASING.md` v0.1 Readiness Snapshot** — refer to
-it rather than maintaining a parallel status block here. As of 2026-06-20 it shows
-all automated gates passed and each provider `partial`, with the residual gates
-exactly as enumerated in the acceptance criteria above (interactive
-permission/runtime prompts per provider, tag, and post-tag indexing).
+All verification gates are green; the authoritative dated snapshot remains the
+**`RELEASING.md` v0.1 Readiness Snapshot**. Gate-by-gate disposition:
+
+- **Automated gates — passed (re-run at tag time).** `build`, `type-check`,
+  `build:check`, `test` (72 files / **726 tests**), `validate`, `smoke` all green
+  on the post-version-bump tree. The snapshot's earlier `687` count was stale;
+  corrected to `726`.
+- **CHANGELOG + version/tag — passed.** `[0.1.0]` heading dated 2026-06-20;
+  `node scripts/bump-version.mjs 0.1.0` applied across provider manifests +
+  shipped skill metadata; `node scripts/bump-version.mjs --check-tag v0.1.0`
+  clean.
+- **README install matrix — re-confirmed.** claude `2.1.185`, codex-cli `0.139.0`,
+  cursor-agent `2026.06.19-…` all present and `ready`; `cursor agent --plugin-dir`
+  invocation confirmed valid against the live CLI.
+- **Interactive provider permission/runtime checks — passed (live runtimes,
+  2026-06-20).** Claude Code and Cursor each surfaced and approved a `node` exec
+  permission prompt before running the wrapper; Codex ran the wrapper under its
+  sandboxed exec path (read-only commands do not prompt even under
+  `--ask-for-approval on-request` — escalation-gated by design). All returned
+  `ok: true` / `usable: true`.
+- **Deliberation-behavior gates — reused + suite-confirmed (not re-run from
+  scratch).** Resume, user-direction continuation, corrupt-resume-with-skip, and
+  host-mediated parallel prepare/dispatch/fan-in are covered by PR #9 live
+  evidence and the green test suite (`resume-matrix`, `resume-parse`,
+  `resume-corruption`, `user-intervention`, `escalation-lifecycle`,
+  `parallel-prepare`, `parallel-fan-in`, `parallel-integration`). No from-scratch
+  live re-run.
+- **Tag — finishing step.** v0.1.0 is cut from this release after merge to `main`;
+  `release.yml` runs on the tag push (tag/manifest consistency). The confirmed
+  tag + green-CI result is recorded in `current-state.md` once the workflow
+  completes.
+- **Post-tag — deferred (non-claim).** Public discovery / `npx skills add` /
+  skills.sh indexing stays unverified and unclaimed until checked after
+  publication; result to be recorded in `current-state.md`.
