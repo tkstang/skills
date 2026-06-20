@@ -24,5 +24,13 @@
       "codex",
       "cursor"
     ]
+  },
+  "knowledgeIndex": {
+    "lastRunAt": "2026-06-20T23:35:11Z",
+    "commitHash": "e4e9348cf8b809448c693ed7182c017048eb4acf",
+    "baseBranch": "main",
+    "mode": "full",
+    "formats": [],
+    "artifactPath": ".oat/repo/knowledge/"
   }
 }
