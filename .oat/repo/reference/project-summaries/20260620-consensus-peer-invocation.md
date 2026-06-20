@@ -4,7 +4,7 @@ oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-19
 oat_generated: true
-oat_summary_last_task: p04-t07
+oat_summary_last_task: p05-t02
 oat_summary_revision_count: 0
 oat_summary_includes_revisions: []
 ---
@@ -62,6 +62,7 @@ The implementation keeps shipped runtime code dependency-free and generated from
 
 - bl-3a88: evaluate a future submit-tool or validated verdict-submission path as reliability hardening.
 - bl-f0b6: verify Cursor as an authenticated peer end-to-end through the provider CLI once local auth/keychain state allows it.
+- bl-e0e7: spike and, if viable, consolidate duplicated Refine/Evaluate generated loop output into a plugin-local shared runtime script.
 - Future provider adapters such as Gemini, Kimi, OpenCode, OpenRouter, GLM, Pi, or local open-weight models remain extension work, not first-scope support.
 
 ## Associated Issues
