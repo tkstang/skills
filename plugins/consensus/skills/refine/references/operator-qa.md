@@ -5,6 +5,10 @@ Manual dogfood guide for the v0.1 iteration-mode work (`parallel_revision`,
 suite proves the mechanics; this guide is the human pass that confirms the three
 modes produce artifacts a reader can actually follow.
 
+For the shorter release-gate check that proves the current provider CLI works
+against live Claude+Codex for both shipped consumers, use the shared runbook at
+`plugins/consensus/references/live-e2e.md`.
+
 Run it on a machine that has Node.js 22 or newer, the generated `consensus` CLI,
 and real peer CLIs configured (usually `claude` and `codex`). It exercises live
 models and **costs real API spend** — see the cost note in each scenario.
