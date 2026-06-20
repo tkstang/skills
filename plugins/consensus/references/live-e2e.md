@@ -128,6 +128,73 @@ node -e 'const fs=require("node:fs"); const p=process.argv[1]; const r=JSON.pars
   .consensus/<evaluate-run-id>/records.json
 ```
 
+## Optional Cursor-as-Peer E2E
+
+Cursor is part of the first provider floor, but local authentication is
+operator-owned. Start by clearing the common keychain blocker:
+
+```bash
+security unlock-keychain
+cursor-agent --version
+node plugins/consensus/scripts/consensus.mjs provider ls --json
+node plugins/consensus/scripts/consensus.mjs preflight --json --provider cursor
+```
+
+Continue only when Cursor reports `ready` / `usable: true`. If it still reports
+`auth_required`, authenticate Cursor in the current login session before treating
+the result as a consensus failure.
+
+Run a one-call provider CLI smoke before spending on full skill E2E:
+
+```bash
+node <<'NODE' | node plugins/consensus/scripts/consensus.mjs run --request-json - --json
+const path = require('node:path');
+process.stdout.write(JSON.stringify({
+  schema_version: 'v1',
+  provider: 'cursor',
+  schema_path: path.resolve('plugins/consensus/skills/refine/schemas/verdict-alternating.schema.json'),
+  prompt: 'Return exactly one JSON object matching the schema. Use schema_version v1, verdict ACCEPT, brief reasoning, empty proposed_artifact, and empty concerns.',
+  cwd: process.cwd(),
+  max_attempts: 2,
+}));
+NODE
+```
+
+Expected provider smoke result:
+
+- The provider CLI emits a valid envelope with `ok: true`.
+- `diagnostics.strategy_used` is `prompt_only`.
+- If the first Cursor response is malformed but retry succeeds, record the
+  retry count; this is useful supportability evidence.
+
+Then run the live skill paths with Cursor as one peer:
+
+```bash
+node plugins/consensus/skills/refine/scripts/consensus-refine.mjs \
+  plugins/consensus/skills/refine/references/examples/email-announcement.md \
+  --goal "Tighten this announcement: keep it warm but concise; lead with the change." \
+  --peers cursor,codex \
+  --max-rounds 2 \
+  --output tmp/e2e-provider-cli/refine-email-cursor.consensus.md \
+  | tee tmp/e2e-provider-cli/refine-email-cursor.stdout.jsonl
+
+node plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs \
+  plugins/consensus/references/e2e/evaluate-release-note.md \
+  --rubric plugins/consensus/references/e2e/evaluate-release-rubric.md \
+  --peers cursor,codex \
+  --max-rounds 2 \
+  --output tmp/e2e-provider-cli/evaluate-release-cursor.evaluation.md \
+  | tee tmp/e2e-provider-cli/evaluate-release-cursor.stdout.jsonl
+```
+
+Expected Cursor skill evidence:
+
+- Both wrappers emit `run_completed` with `status: "converged"` or another
+  non-error terminal state that is justified by the deliberation artifact.
+- Records include Cursor with `strategy_used: "prompt_only"`.
+- Any `PROVIDER_INVALID_JSON` / `PROVIDER_SCHEMA_VALIDATION` retries are
+  recorded with the final disposition.
+
 ## Known Provider-Specific Failure Modes
 
 These are useful regression clues:
