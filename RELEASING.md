@@ -10,7 +10,11 @@ v0.1 is not ready to tag until the full project validation and provider smoke te
 - Run `pnpm run test`.
 - Run `pnpm run validate`.
 - Run `pnpm run smoke`.
-- Verify sequential `consensus-refine` on a real markdown artifact.
+- Run the live provider E2E release gate in
+  `plugins/consensus/references/live-e2e.md` and capture Refine plus Evaluate
+  evidence.
+- Verify sequential `consensus-refine` on a real markdown artifact when the
+  live E2E runbook does not already cover the release delta.
 - Verify resume from a generated deliberation artifact.
 - Verify user-direction continuation after an impasse or max-rounds stop.
 - Verify corrupt resume handling with explicit skip controls before continuing from damaged state.

@@ -2,6 +2,10 @@
 
 Use this walkthrough when validating the shipped `evaluate` skill against live peers. The examples assume commands are run from the repository root.
 
+For the shorter release-gate check that proves the current provider CLI works
+against live Claude+Codex for both shipped consumers, use the shared runbook at
+`plugins/consensus/references/live-e2e.md`.
+
 ## Minimal Evaluation
 
 Before running live peers, verify the shared prerequisites and provider

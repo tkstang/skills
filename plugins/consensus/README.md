@@ -95,6 +95,9 @@ When a parallel-mode section gets stuck (persistent disagreement, oscillation, b
 
 For a hands-on QA walkthrough of all three modes and the escalation ladder against live peers — exact commands, example inputs, and expected output — see `skills/refine/references/operator-qa.md`.
 
+For the shorter repeatable live provider E2E release gate covering both `refine`
+and `evaluate`, see `references/live-e2e.md`.
+
 Parallel section orchestration is host mediated. Prepare packets first, dispatch section runners with the host runtime, then fan in the completed section outputs:
 
 ```bash
@@ -113,6 +116,9 @@ node plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs artifact.m
 The evaluate wrapper defaults to `shared_input` cold start, `parallel_revision` iteration, and `minimal` agency. Without `--output`, it writes `<artifact>.evaluation.md`; with `--output <path>`, it writes the evaluation there. The artifact contains unified findings, embedded `consensus-verdict` records for each peer turn, and either `## Dissent` or `## Unresolved dissent` when peer disagreement remains.
 
 For an operator walkthrough of evaluation inputs, expected JSONL, sidecar output, and dissent review, see `skills/evaluate/references/operator-qa.md`.
+
+For the shared live provider E2E release gate and the small checked-in
+evaluation fixture pair, see `references/live-e2e.md` and `references/e2e/`.
 
 #### Guided rubric creation
 
@@ -169,4 +175,6 @@ Cursor is included in the provider floor, but local auth state is still operator
 - `skills/evaluate/` - implementation directory for the shipped `evaluate` skill.
 - `skills/evaluate/references/operator-qa.md` - manual QA walkthrough of artifact/rubric evaluation and dissent review.
 - `skills/evaluate/references/examples/` - four ready-to-adapt example rubrics (general-purpose, code review, technical writing, design/architecture) used by guided rubric creation.
+- `references/live-e2e.md` - repeatable live provider E2E release-gate runbook for Refine and Evaluate.
+- `references/e2e/` - small checked-in artifacts and rubrics used by the live E2E runbook.
 - `agents/consensus-section-runner.md` - task contract for host-mediated parallel section runners.
