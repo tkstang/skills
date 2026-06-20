@@ -8,7 +8,7 @@ This repository is a personal Agent Skills home. It contains standalone skills u
 
 ### Consensus plugin
 
-`plugins/consensus/` is a self-contained plugin package for consensus workflows. It ships `refine`, a markdown refinement skill that uses two provider CLI-backed AI peers to deliberate toward a converged artifact with an audit trail, and `evaluate`, an artifact-vs-rubric evaluation skill that preserves unified findings, per-peer reasoning, and dissent.
+`plugins/consensus/` is a self-contained plugin package for consensus workflows. It ships `refine`, a markdown refinement skill that uses two provider CLI-backed AI peers to deliberate toward a converged artifact with an audit trail, and `evaluate`, an artifact-vs-rubric evaluation skill that preserves unified findings, per-peer reasoning, and dissent, with a guided flow and bundled example rubrics for users who do not yet have a rubric.
 
 The consensus scope is intentionally narrow: the `refine` and `evaluate` skills, three iteration modes (`alternating` default for refine, `parallel_revision` default for evaluate, `parallel_synthesized`) selected with `--iteration`, an agency-gated escalation ladder (`--host-direction` re-entry), a configurable synthesizer (`--synthesizer`), sequential sections by default for refine, opt-in host-mediated parallel section orchestration for refine, and the `--agency` flag. Future work may add the rest of the consensus skill family, a whole-document harmonization pass, and deliberation metrics/cost caps.
 

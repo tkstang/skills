@@ -100,9 +100,17 @@ describe('release-versioning', () => {
       'version' in (await readJson(root, cursorMarketplacePath)).plugins[0],
     ).toBe(false);
     for (const file of skillFiles) {
-      expect(await readFile(path.join(root, file), 'utf8')).toMatch(
-        /version: "0\.2\.0-beta\.1"/,
-      );
+      const skillMarkdown = await readFile(path.join(root, file), 'utf8');
+      const frontmatterMatch = skillMarkdown.match(/^---\n([\s\S]*?)\n---/);
+      const frontmatter = frontmatterMatch![1];
+      expect(
+        frontmatter,
+        `${file} top-level version should be bumped`,
+      ).toMatch(/^version: "0\.2\.0-beta\.1"$/m);
+      expect(
+        frontmatter,
+        `${file} metadata.version should be bumped`,
+      ).toMatch(/^metadata:\n(?:  .+\n)*?  version: "0\.2\.0-beta\.1"$/m);
     }
   });
 

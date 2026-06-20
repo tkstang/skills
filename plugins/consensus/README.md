@@ -114,6 +114,12 @@ The evaluate wrapper defaults to `shared_input` cold start, `parallel_revision` 
 
 For an operator walkthrough of evaluation inputs, expected JSONL, sidecar output, and dissent review, see `skills/evaluate/references/operator-qa.md`.
 
+#### Guided rubric creation
+
+If you want an evaluation but do not have a rubric yet — or you ask for help authoring one — the `evaluate` skill runs a host-model guided flow: it elicits your evaluation goals, adapts one of the bundled example rubrics, writes a draft to a path you approve, then invokes the wrapper with `--rubric`. The raw `--rubric` contract above is unchanged for users who already have a rubric. Rubric criteria are the `##`–`######` headings and `-`/`*` bullets in the file, and the wrapper uses the first 12 distinct criteria, so keep the load-bearing ones near the top; weights and scoring scales are peer-facing guidance, not machine-parsed structure.
+
+Four ready-to-adapt example rubrics ship under `skills/evaluate/references/examples/`: `general-purpose.md`, `code-review.md`, `technical-writing.md`, and `design-architecture.md`.
+
 ## Permissions
 
 The consensus `refine` and `evaluate` skills need permission to run:
@@ -162,4 +168,5 @@ Cursor is included in the provider floor, but local auth state is still operator
 - `skills/refine/references/operator-qa.md` - manual QA walkthrough of the iteration modes and escalation ladder, with runnable example inputs under `references/examples/`.
 - `skills/evaluate/` - implementation directory for the shipped `evaluate` skill.
 - `skills/evaluate/references/operator-qa.md` - manual QA walkthrough of artifact/rubric evaluation and dissent review.
+- `skills/evaluate/references/examples/` - four ready-to-adapt example rubrics (general-purpose, code review, technical writing, design/architecture) used by guided rubric creation.
 - `agents/consensus-section-runner.md` - task contract for host-mediated parallel section runners.

@@ -87,6 +87,31 @@ describe('repo-layout', () => {
     ).toBe(true);
   });
 
+  it('evaluate skill ships bundled rubric examples', async () => {
+    const examplesDir = path.posix.join(
+      'plugins',
+      'consensus',
+      'skills',
+      'evaluate',
+      'references',
+      'examples',
+    );
+
+    await assertDirectory(examplesDir);
+
+    const requiredExamples = [
+      path.posix.join(examplesDir, 'general-purpose.md'),
+      path.posix.join(examplesDir, 'code-review.md'),
+      path.posix.join(examplesDir, 'technical-writing.md'),
+      path.posix.join(examplesDir, 'design-architecture.md'),
+    ];
+
+    for (const examplePath of requiredExamples) {
+      const exists = await pathExists(examplePath);
+      expect(exists, `${examplePath} should exist`).toBe(true);
+    }
+  });
+
   it('consensus distribution tree does not include canonical TypeScript source', async () => {
     expect(
       await pathExists('plugins/consensus/skills/refine/src'),

@@ -27,7 +27,7 @@ The implementation keeps shipped runtime code dependency-free and generated from
 - Preserved the retry split: the provider CLI owns provider-tier failures, schema parsing/validation, output caps, and timeouts; the consensus loop owns verdict semantics, verdict caps, convergence, and resume.
 - Switched Refine, Evaluate, and smoke flows to the provider CLI backend by default for new runs and removed temporary fallback switches.
 - Updated maintained docs and release/operator QA references, removed old helper scripts/fixtures/test names, and added a provider-neutral cleanup scan.
-- Added repo-reference updates after implementation: DR-022, bl-bb7e completion, and narrowed follow-ups for submit-tool hardening and authenticated Cursor verification.
+- Added repo-reference updates after implementation: DR-023, bl-bb7e completion, and narrowed follow-ups for submit-tool hardening and authenticated Cursor verification.
 - Resolved final-review v4 Minor artifact-alignment findings in `design.md` without changing runtime behavior.
 
 ## Key Decisions

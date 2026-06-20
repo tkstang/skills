@@ -38,33 +38,56 @@ async function writeJson(root, relativePath, value) {
   );
 }
 
-function skillMetadataVersion(markdown, relativePath) {
+function skillFrontmatterVersions(markdown, relativePath) {
   const match = String(markdown).match(/^---\n([\s\S]*?)\n---(?:\n|$)/);
   if (!match) {
     throw new Error(`${relativePath}: missing frontmatter block`);
   }
 
-  const versionMatch = match[1].match(
+  const topLevelMatch = match[1].match(/^version:\s*["']?([^"'\n]+)["']?\s*$/m);
+  const metadataMatch = match[1].match(
     /^metadata:\n(?:  .+\n)*?  version:\s*["']?([^"'\n]+)["']?$/m,
   );
-  if (!versionMatch) {
-    throw new Error(`${relativePath}: missing metadata.version`);
+
+  const topLevel = topLevelMatch ? topLevelMatch[1] : null;
+  const metadata = metadataMatch ? metadataMatch[1] : null;
+
+  if (topLevel == null && metadata == null) {
+    throw new Error(`${relativePath}: missing skill version`);
   }
-  return versionMatch[1];
+
+  return { topLevel, metadata };
 }
 
-function replaceSkillMetadataVersion(markdown, version, relativePath) {
+function replaceSkillVersions(markdown, version, relativePath) {
   const match = String(markdown).match(/^---\n([\s\S]*?)\n---(?:\n|$)/);
   if (!match) {
     throw new Error(`${relativePath}: missing frontmatter block`);
   }
 
-  const updatedFrontmatter = match[1].replace(
+  let updatedFrontmatter = match[1];
+  let replacedAny = false;
+
+  const withTopLevel = updatedFrontmatter.replace(
+    /^(version:\s*)["']?[^"'\n]+["']?(\s*)$/m,
+    `$1"${version}"$2`,
+  );
+  if (withTopLevel !== updatedFrontmatter) {
+    updatedFrontmatter = withTopLevel;
+    replacedAny = true;
+  }
+
+  const withMetadata = updatedFrontmatter.replace(
     /(^metadata:\n(?:  .+\n)*?  version:\s*)["']?[^"'\n]+["']?$/m,
     `$1"${version}"`,
   );
-  if (updatedFrontmatter === match[1]) {
-    throw new Error(`${relativePath}: missing metadata.version`);
+  if (withMetadata !== updatedFrontmatter) {
+    updatedFrontmatter = withMetadata;
+    replacedAny = true;
+  }
+
+  if (!replacedAny) {
+    throw new Error(`${relativePath}: missing skill version`);
   }
 
   const trailingNewline = match[0].endsWith('\n') ? '\n' : '';
@@ -112,7 +135,7 @@ export async function bumpVersion({ root = process.cwd(), version }) {
 
   for (const relativePath of SKILL_FILES) {
     const filePath = path.join(root, relativePath);
-    const updated = replaceSkillMetadataVersion(
+    const updated = replaceSkillVersions(
       await readFile(filePath, 'utf8'),
       nextVersion,
       relativePath,
@@ -150,12 +173,15 @@ export async function checkTagVersion({ root = process.cwd(), tag }) {
   }
 
   for (const relativePath of SKILL_FILES) {
-    const version = skillMetadataVersion(
+    const { topLevel, metadata } = skillFrontmatterVersions(
       await readFile(path.join(root, relativePath), 'utf8'),
       relativePath,
     );
-    if (version !== expectedVersion) {
-      mismatches.push(`${relativePath}:metadata.version=${version}`);
+    if (topLevel != null && topLevel !== expectedVersion) {
+      mismatches.push(`${relativePath}:version=${topLevel}`);
+    }
+    if (metadata != null && metadata !== expectedVersion) {
+      mismatches.push(`${relativePath}:metadata.version=${metadata}`);
     }
   }
 

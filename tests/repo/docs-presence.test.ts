@@ -47,6 +47,43 @@ describe('docs-presence', () => {
     expect(skill).toMatch(/^## Escalation Handling$/m);
   });
 
+  it('refine SKILL.md contains usage guidance sections', async () => {
+    const skill = await read(refineSkillPath);
+
+    expect(skill).toMatch(/^## When NOT to Use$/m);
+    expect(skill).toMatch(/^## Examples$/m);
+    expect(skill).toMatch(/^## Success Criteria$/m);
+  });
+
+  it('evaluate SKILL.md contains usage guidance sections', async () => {
+    const skill = await read(evaluateSkillPath);
+
+    expect(skill).toMatch(/^## When NOT to Use$/m);
+    expect(skill).toMatch(/^## Examples$/m);
+    expect(skill).toMatch(/^## Success Criteria$/m);
+  });
+
+  it('evaluate SKILL.md documents guided rubric creation flow', async () => {
+    const skill = await read(evaluateSkillPath);
+
+    expect(skill).toMatch(/^## Guided Rubric Creation$/m);
+    // no-rubric evaluation trigger
+    expect(skill).toMatch(/no rubric|provides no rubric|without a rubric/i);
+    // user-approved paths
+    expect(skill).toMatch(/user-approved/i);
+    // 12-criteria cap
+    expect(skill).toMatch(/12/);
+  });
+
+  it('evaluate SKILL.md links to bundled rubric examples', async () => {
+    const skill = await read(evaluateSkillPath);
+
+    expect(skill).toMatch(/general-purpose\.md/);
+    expect(skill).toMatch(/code-review\.md/);
+    expect(skill).toMatch(/technical-writing\.md/);
+    expect(skill).toMatch(/design-architecture\.md/);
+  });
+
   it('evaluate skill is documented and registered in distribution surfaces', async () => {
     const requiredEvaluateFiles = [
       evaluateSkillPath,

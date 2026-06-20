@@ -1,6 +1,6 @@
 # Skills Repo Roadmap
 
-**Last updated:** 2026-06-19 (consensus peer invocation now defaults to the owned provider CLI for Refine/Evaluate, completing **bl-bb7e** and superseding the old external peer-run boundary. Prior: v0.1 release verification refreshed automated gates, provider install evidence, release notes, version/tag checks, and release workflow parity; test-organization cleanup is branch-implemented on main context.)
+**Last updated:** 2026-06-19 (consensus peer invocation now defaults to the owned provider CLI for Refine/Evaluate, completing **bl-bb7e** and superseding the old external peer-run boundary (DR-023). consensus-rubric-guidance brought `refine` + `evaluate` to authoring-best-practice parity with a validator-backed top-level skill `version` (DR-022), plus guided rubric creation and four bundled example rubrics. Also 2026-06-19: v0.1 release verification refreshed automated gates, provider install evidence, release notes, version/tag checks, and release workflow parity; test-organization cleanup landed shared `tests/helpers/`, a domain-organized test tree, and two oversized suites split. Prior: PR4 retired the `node:test` runner and completed **bl-bfb4**.)
 
 ## Planning Model
 
