@@ -67,10 +67,11 @@ Canonical per-provider transcript knowledge (store locations, record parsing, st
 
 ## Release Posture
 
-- v0.1 automated gates passed locally on 2026-06-19: `pnpm run build`, `pnpm run type-check`, `pnpm run build:check`, `pnpm run test` (53 files / 572 tests), `pnpm run validate`, and `pnpm run smoke`.
-- `node scripts/bump-version.mjs --check-tag v0.1.0` passed on 2026-06-19, and release tag workflow parity was updated to install with pnpm, build, type-check, build-check, test, validate, smoke, and check tag/manifest consistency.
-- v0.1 tagging is still gated by `RELEASING.md`: Claude Code and Codex local installs are verified, and Cursor authenticated peer E2E now passes through the provider CLI (Refine and Evaluate with `--peers cursor,codex`, after unlocking the macOS login keychain in the invoking shell). Remaining gates: interactive provider permission prompts (Claude/Codex/Cursor) remain unverified, Cursor plugin-install / exec-permission behavior still needs release-gate verification, and Agent Skills source listing works but post-tag skills.sh indexing is not. No tag or GitHub release exists yet (CHANGELOG `[0.1.0]` is still `Unreleased`).
-- Codex public Plugin Directory and skills.sh listing are explicitly not claimed until verified post-publication.
+- v0.1 automated gates passed locally on 2026-06-20 (re-run at tag time on the post-version-bump tree): `pnpm run build`, `pnpm run type-check`, `pnpm run build:check`, `pnpm run test` (72 files / 726 tests), `pnpm run validate`, and `pnpm run smoke`.
+- CHANGELOG `[0.1.0]` is dated 2026-06-20 and `node scripts/bump-version.mjs 0.1.0` has been applied across provider manifests + shipped skill metadata; `node scripts/bump-version.mjs --check-tag v0.1.0` is clean. Release tag workflow parity installs with pnpm, then build, type-check, build-check, test, validate, smoke, and checks tag/manifest consistency.
+- v0.1 release verification (bl-d85f) is complete as of 2026-06-20: README install matrix re-confirmed against the live provider CLIs (claude 2.1.185, codex-cli 0.139.0, cursor-agent 2026.06.19-…), and interactive provider permission/runtime smokes passed in live runtimes — Claude Code and Cursor each surfaced and approved a `node` exec prompt; Codex ran the wrapper under its sandboxed exec path (read-only commands do not prompt even under `--ask-for-approval on-request`, by design). Deliberation-behavior gates were reused from PR #9 + confirmed by the test suite. See the `RELEASING.md` snapshot.
+- v0.1.0 is tagged from `main` as the finishing step of this release; the `release.yml` tag/manifest-consistency workflow runs on the tag push. _(The confirmed tag + green-CI result and post-tag public-discovery check are recorded here once each completes.)_
+- Codex public Plugin Directory and skills.sh listing are explicitly not claimed until verified post-publication; post-tag `npx skills add` / skills.sh indexing remains unverified.
 
 ## Project Management Surfaces
 
