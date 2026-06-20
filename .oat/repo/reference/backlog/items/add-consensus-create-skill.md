@@ -20,6 +20,12 @@ Add `consensus-create`: peers produce a new artifact from a brief/spec through d
 
 **Blocked by:** bl-7af0 (parallel-synthesized mode) — its default iteration mode. Also blocked by [[bl-2ed7]] (`independent_draft` cold-start strategy), now tracked as its own shared-`consensus-loop` item because `decide` and `plan` need it too; this skill is its natural first consumer. Sectioning from derived (not input) structure remains a design question for this item.
 
+**Project packaging (2026-06-20):** runs in **one consensus-family OAT project**
+with [[bl-2ed7]] (its gate, co-designed here since the cold-start needs a real
+consumer) and the thin wrappers [[bl-87ef]] + [[bl-0cb8]] that ride this skill's
+derived-sectioning groundwork. This skill carries the design weight of the
+project; decide/plan fall out cheaply once it lands.
+
 ## Acceptance Criteria
 
 - `consensus-create` produces an artifact from a brief with full deliberation log, using independent peer drafts in round 1.

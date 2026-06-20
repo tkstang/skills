@@ -28,7 +28,7 @@ Deferred Minor from the consensus-rubric-guidance final review (`final-review-20
 
 ## Acceptance Criteria
 
-- A test (Node `node:test` or Vitest, matching the existing `tests/` layout) imports/exercises the canonical `extractRubricCriteria` logic and runs it over every file in `plugins/consensus/skills/evaluate/references/examples/`.
+- A Vitest `.test.ts` (matching the current `tests/` layout — `node:test` is retired and blocked by `tests/tooling/no-node-test-runner.test.ts`), placed under `tests/consensus/evaluate/`, imports/exercises the canonical `extractRubricCriteria` logic and runs it over every file in `plugins/consensus/skills/evaluate/references/examples/`.
 - The test asserts each example yields `<=12` distinct parser-visible criteria.
 - The test fails clearly if a new example is added that exceeds the cap, naming the offending file and count.
 - No change to the shipped wrapper runtime or the example content is required to make the test pass (it documents the current, correct state).

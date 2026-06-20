@@ -37,6 +37,15 @@ each defaults to `independent_draft` and cannot ship its intended behavior
 without it. `consensus-create` is the natural first consumer that front-loads
 this work.
 
+**Project packaging (2026-06-20):** run this in **one consensus-family OAT
+project** with [[bl-b9b9]] → [[bl-87ef]] + [[bl-0cb8]] rather than as a standalone
+item. `independent_draft` is a loop primitive with no observable behavior until a
+skill exercises it, so building it without its first consumer (`consensus-create`)
+risks the wrong abstraction; the cold-start design and `bl-b9b9`'s
+derived-sectioning design want to be settled together. `bl-645c` (research) stays
+in a **separate** project — it uses `shared_input` (not gated on this item) and
+carries an unrelated peer tool-access DR.
+
 ## Acceptance Criteria
 
 - `consensus-loop` supports `cold_start_strategy: independent_draft`: round 1

@@ -40,6 +40,20 @@ such as `../../../scripts/consensus-loop.mjs`. This should stay plugin-local and
 hermetic; do **not** use a global path such as `~/.consensus/scripts`, which
 would create version, cleanup, and cross-install coupling problems.
 
+**Sequencing constraints (2026-06-20):**
+
+- **Not concurrent with the consensus-family project.** This item changes how
+  `consensus-loop.mjs` is *emitted*, while the family project (`bl-2ed7` →
+  `bl-b9b9` → `bl-87ef`/`bl-0cb8`) actively modifies `consensus-loop` source and
+  its generated output. Running both at once means fighting over generated `.mjs`
+  + drift guards. Land this **before the family project starts or after it
+  merges**, not in parallel.
+- **Spike is informed by the release work.** The multi-host install spike below
+  wants the same installed-layout knowledge that `bl-d85f` produces while
+  verifying provider installs across Claude/Codex/Cursor. Prefer doing the spike
+  informed by that evidence rather than ahead of it. The code change is small; the
+  spike is the real work and a genuine go/no-go.
+
 Before changing the generated-output layout, run a spike to prove that
 plugin-local shared scripts work from the installed plugin layout in every host
 we care about: Cursor, Copilot, Claude, and Codex at minimum. The spike should

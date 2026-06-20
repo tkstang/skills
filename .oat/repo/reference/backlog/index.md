@@ -13,6 +13,7 @@
 - **v3 cold-start prerequisite + reserved extension (seeded 2026-06-19):** **bl-2ed7** pulls the deferred `independent_draft` cold-start strategy out of bl-b9b9 into its own shared-`consensus-loop` item because create/decide/plan (bl-b9b9/bl-87ef/bl-0cb8) all default to it and it gates all three. **bl-f8cb** is a low-priority seed for the parked v3 "3+ peer" extension so the two-peer constraint is explicit.
 - **v3 "for discussion" seeds (2026-06-19):** two minor v3 open questions parked as undecided-if-needed so they are not lost — **bl-58b3** (first-class `type=edit` mid-loop user artifact edits vs the existing artifact-edit-then-resume path) and **bl-db5d** (opt-in `--sections auto-llm` LLM section auto-chunking vs the deterministic heading/marker fallback). Both may resolve `wont_do`; decide before building.
 - **Skill authoring conformance + guided rubrics (shipped 2026-06-19):** consensus-rubric-guidance brought `refine` + `evaluate` to authoring best-practice parity (When NOT to Use / Examples / Success Criteria, `argument-hint`, validator-backed top-level `version` synced with `metadata.version` — DR-022, enforced by `validate.mjs` + `bump-version.mjs`), and added host-model-driven guided rubric creation plus four bundled example rubrics for `evaluate`. One ship-safe follow-up filed: bl-3913 (a test guarding the bundled examples at `<=12` parser-visible criteria).
+- **Documentation site (seeded 2026-06-20):** **bl-ecaa** captures standing up a dedicated docs site and slimming the increasingly dense `README.md` to a lean entry point. Intended as a **single OAT project** in two phases — scaffold via the user-invoked `oat-docs-bootstrap` skill (Fumadocs vs MkDocs decision), then migrate/curate README content into the site via `oat-docs-analyze`/`oat-docs-apply` (the OAT docs skills carry the IA). Sequenced **after** bl-d85f so the doc restructure does not churn the tag-time README install-matrix gate.
 
 <!-- OAT BACKLOG-INDEX -->
 | ID | Title | Status | Priority | Scope | Estimate |
@@ -32,6 +33,7 @@
 | bl-3291 | Refine provider-exit retry classification (transient vs terminal) | open | medium | task | M |
 | bl-e0e7 | Share consensus generated runtime output at the plugin level | open | medium | task | M |
 | bl-4e2e | Shared session log substrate (become-observable daemon + merged log) | open | medium | initiative | L |
+| bl-ecaa | Stand up a documentation site and slim the README | open | medium | initiative | M |
 | bl-853a | Stand up TypeScript + vitest build toolchain (bundle-to-mjs) | done | medium | feature | M |
 | bl-3a88 | Tool-based verdict submission for consensus peers (future reliability hardening) | open | medium | feature | L |
 | bl-f0b6 | Verify cursor-as-peer end-to-end through provider CLI (authenticated cursor-agent) | done | medium | task | S |

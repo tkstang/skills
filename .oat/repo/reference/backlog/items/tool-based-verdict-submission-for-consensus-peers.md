@@ -28,6 +28,16 @@ Augment the provider CLI's "emit a final JSON message that matches this schema" 
 
 **Scope note:** this is a deliberate hardening pass for the peer-invocation layer and deserves its own design pass — not a quick patch. Captured from a user idea during the consensus-iteration-modes dogfood; not a ship blocker for v0.2 (the schema+prompt approach was made to work), but the leading candidate to harden the deliberation primitive.
 
+**Project packaging (2026-06-20):** run in a **provider-cli-hardening OAT
+project** alongside [[bl-3291]] (provider-exit retry classification) — both harden
+the owned CLI's reliability boundary and share the `src/consensus/provider-cli/`
+surface, which is **disjoint from the consensus-family lane** (`consensus-loop`
+core), so the two projects run concurrently without churn. **Do the design pass
+first**: the verdict-submission decision should be made before the synthesized-mode
+family wrappers (`bl-b9b9`/`bl-87ef`/`bl-0cb8`) fan out, since this de-risks their
+structured output. The `bl-2ed7` gate + `bl-b9b9` sectioning design provide the
+runway to land this design (and ideally the build) before the wrappers ship.
+
 **Cross-link (2026-06-19):** follows [[bl-bb7e]] (provider CLI), which now owns the peer-invocation boundary. Cursor still has no native schema flag, so the operator-lean provider set (claude + codex + cursor) still needs the soft validation path. A verdict-submission tool is the mechanism that could normalize all three onto one robust, self-correcting contract.
 
 ## Acceptance Criteria
