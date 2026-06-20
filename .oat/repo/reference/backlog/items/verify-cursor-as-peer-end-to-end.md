@@ -8,7 +8,7 @@ scope_estimate: S
 labels: [consensus, provider-cli, cursor, verification]
 assignee: null
 created: '2026-06-13T19:12:43Z'
-updated: '2026-06-19T23:16:53Z'
+updated: '2026-06-20T19:52:17Z'
 associated_issues: []
 oat_template: true
 oat_template_name: backlog-item
@@ -16,7 +16,17 @@ oat_template_name: backlog-item
 
 ## Description
 
-**Status update (2026-06-19): still open, reframed for the provider CLI.**
+**Status update (2026-06-20): auth can be cleared, full E2E still fails.**
+After unlocking the login keychain in the same SSH session that runs the
+provider CLI, `cursor-agent --version` and
+`consensus preflight --json --provider cursor` report Cursor as ready. A direct
+provider CLI smoke with a very strict "JSON object and no prose" prompt can
+return `ok: true` using `strategy_used: "prompt_only"`. However, a live Refine
+run with `--peers cursor,codex` still fails before the first recorded turn with
+`Missing required JSON field: schema_version`, indicating the real wrapper
+prompt path is not yet reliable enough for Cursor prompt-only structured output.
+
+**Prior status update (2026-06-19): still open, reframed for the provider CLI.**
 Cursor is now represented by the generated `consensus` provider CLI inventory
 and preflight path. On this machine, Cursor currently reports `auth_required`
 because the macOS login keychain is locked. This item should verify an

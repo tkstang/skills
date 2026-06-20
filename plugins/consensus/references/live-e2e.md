@@ -178,6 +178,13 @@ provider CLI treats that as `PROVIDER_SCHEMA_VALIDATION` because the parsed
 payload does not expose top-level `schema_version`. That is prompt-only
 structured-output reliability work, not an auth/keychain failure.
 
+Observed 2026-06-20: after unlocking the login keychain in the SSH session,
+Cursor preflight reported `ready`, and a direct provider CLI smoke passed when
+the prompt explicitly required "one JSON object and no prose." A live Refine run
+with `--peers cursor,codex` still failed before the first recorded turn with
+`Missing required JSON field: schema_version`. Do not claim Cursor peer E2E
+support until this full-wrapper path is green.
+
 Then run the live skill paths with Cursor as one peer:
 
 ```bash
