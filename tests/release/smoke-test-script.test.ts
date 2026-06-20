@@ -22,14 +22,23 @@ function writer() {
   };
 }
 
+function cleanSmokeEnv(overrides: NodeJS.ProcessEnv = {}) {
+  const {
+    CONSENSUS_CLI_PATH: _consensusCliPath,
+    ...env
+  } = process.env;
+  return { ...env, ...overrides };
+}
+
 describe('smoke-test-script', () => {
-  it('runSmokeTest runs validation, uses the Paseo stub, and verifies wrapper output', async () => {
+  it('runSmokeTest runs validation, uses the consensus CLI stub, and verifies wrapper output', async () => {
     const stdout = writer();
     const calls: { command: string; args: string[]; env: NodeJS.ProcessEnv }[] =
       [];
 
     const result = await runSmokeTest({
       stdout: stdout.stream,
+      env: cleanSmokeEnv(),
       runCommand: async (command: string, args: string[], options: { env: NodeJS.ProcessEnv }) => {
         calls.push({ command, args, env: options.env });
         return { stdout: '', stderr: '' };
@@ -44,6 +53,9 @@ describe('smoke-test-script', () => {
     ]);
     expect(result.env.PATH.split(path.delimiter)[0]).toMatch(
       /tests\/fixtures\/bin$/,
+    );
+    expect(calls[0].env.CONSENSUS_CLI_PATH).toBe(
+      path.join(repoRoot, 'tests/fixtures/bin/consensus'),
     );
     expect(result.events.at(-1).event).toBe('run_completed');
     expect(result.events.at(-1).status).toBe('converged');
@@ -65,6 +77,30 @@ describe('smoke-test-script', () => {
     expect(result.parallelSynthesized.escalation.resume.flag).toBe(
       '--host-direction',
     );
+  });
+
+  it('runSmokeTest keeps the consensus CLI path for wrapper execution', async () => {
+    const stdout = writer();
+    const calls: { command: string; args: string[]; env: NodeJS.ProcessEnv }[] =
+      [];
+
+    const result = await runSmokeTest({
+      stdout: stdout.stream,
+      env: cleanSmokeEnv(),
+      runCommand: async (command: string, args: string[], options: { env: NodeJS.ProcessEnv }) => {
+        calls.push({ command, args, env: options.env });
+        return { stdout: '', stderr: '' };
+      },
+    });
+
+    expect(result.status).toBe('passed');
+    expect(calls[0].env.CONSENSUS_CLI_PATH).toBe(
+      path.join(repoRoot, 'tests/fixtures/bin/consensus'),
+    );
+    expect(result.events.at(-1).event).toBe('run_completed');
+    expect(result.events.at(-1).status).toBe('converged');
+    expect(result.artifact).toMatch(/## Final Output/);
+    expect(stdout.value()).toMatch(/smoke passed/);
   });
 
   it('runParallelSynthesizedSmoke escalates once then converges via --host-direction', async () => {

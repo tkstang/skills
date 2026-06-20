@@ -22,8 +22,13 @@ import {
   EXIT_CODES,
   exitCodeForError,
   hashArtifact,
+  invokeConsensusProviderCli,
+  invokeProviderCliWithRetry,
   invalidIterationModeError,
   ITERATION_MODES,
+  peerSchemaPathForMode,
+  providerCliSpawnTarget,
+  resolveConsensusCliPath,
   runConsensusLoop,
 } from '../core/consensus-loop.js';
 
@@ -50,7 +55,6 @@ interface ErrorLike {
 interface AnnotatedError extends Error {
   code?: string;
   cleanupError?: unknown;
-  remediation?: typeof PASEO_REMEDIATION;
 }
 
 interface JsonBlockParseResult {
@@ -404,8 +408,6 @@ interface LoopInvocationPayload {
 
 const execFileAsync = promisify(execFile);
 
-export const MIN_PASEO_VERSION = '0.1.0';
-export const MAX_TESTED_PASEO_VERSION = '0.9.0';
 export const INPUT_SIZE_CAP_BYTES = 1024 * 1024;
 export const PROVIDER_ID_PATTERN = /^[a-z][a-z0-9-]{0,31}$/u;
 
@@ -417,12 +419,6 @@ const STRICT_RESUME_HASH_OPTIONS = Object.freeze({
   collapseEofNewlines: false,
   finalNewline: false,
 });
-const PASEO_REMEDIATION = Object.freeze({
-  install_command: 'npm install -g @getpaseo/cli',
-  source_url: 'https://github.com/getpaseo/paseo',
-  install_script: 'scripts/install-paseo.mjs',
-});
-
 function isJsonRecord(value: unknown): value is JsonRecord {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
@@ -1971,29 +1967,21 @@ function validateProviderId(providerId: unknown, label = 'provider id') {
   return providerId;
 }
 
-// `paseo provider ls --json` reports readiness via a `status` string
-// (available | loading | error | unavailable | not found) and exposes `enabled`
-// as a display string ("Enabled" | "Disabled") — NOT the booleans our injected
-// and test inventories use. A provider that errored (e.g. cursor when
-// cursor-agent cannot authenticate) carries status "error" while still looking
-// enabled, so keying availability off `available`/`enabled === false` alone let
-// every configured provider pass preflight and only fail later as a mid-loop
-// `paseo run` timeout. Treat known-bad statuses as unavailable so PEER_UNAVAILABLE
-// fires up front with remediation. "loading" is tolerated: a cold daemon snapshot
-// can momentarily report healthy providers as loading (observed in dogfooding:
-// providers report "loading" for ~10-30s after a daemon (re)start, then settle),
-// and a genuinely broken provider settles into a terminal unavailable status
-// ("error" or "unavailable" — e.g. cursor-agent / claude with no auth) rather
-// than loading forever. Residual risk: a provider still "loading" at preflight
-// that will settle to broken; the operator-qa guidance to confirm providers are
-// "available" before a run covers that window.
+// Provider inventory readiness is reported through status strings. Treat
+// known-bad statuses as unavailable so PEER_UNAVAILABLE fires during preflight
+// with actionable provider CLI guidance. "loading" is tolerated because provider
+// CLIs can briefly report a warming state before settling to ready or a terminal
+// unavailable status.
 const PROVIDER_UNAVAILABLE_STATUSES = new Set([
+  'auth_required',
   'error',
+  'missing',
   'unavailable',
   'not found',
   'notfound',
   'disabled',
   'offline',
+  'unsupported',
 ]);
 
 function providerEntryAvailable(entry: ProviderInventoryEntry) {
@@ -2001,7 +1989,7 @@ function providerEntryAvailable(entry: ProviderInventoryEntry) {
   if (typeof entry.available === 'boolean') {
     return entry.available;
   }
-  // Disabled providers are never usable, in either boolean or Paseo's string form.
+  // Disabled providers are never usable, in either boolean or display-string form.
   if (entry.enabled === false || entry.enabled === 'Disabled') {
     return false;
   }
@@ -2095,34 +2083,16 @@ function buildSectionsFromBoundaries(
   return sections;
 }
 
-function parseVersionText(text: unknown) {
-  const match = String(text).match(/(\d+)\.(\d+)\.(\d+)/);
-  if (!match) {
-    throw new Error(
-      `could not parse paseo version from: ${String(text).trim()}`,
-    );
-  }
-  return match[0];
-}
-
-function compareVersions(left: string, right: string) {
-  const leftParts = left.split('.').map(Number);
-  const rightParts = right.split('.').map(Number);
-  for (let index = 0; index < 3; index += 1) {
-    if (leftParts[index] < rightParts[index]) return -1;
-    if (leftParts[index] > rightParts[index]) return 1;
-  }
-  return 0;
-}
-
-function missingPaseoError(cause: unknown) {
-  const error: AnnotatedError = new Error(
-    `paseo appears to be missing or unavailable. Install with "${PASEO_REMEDIATION.install_command}", build from ${PASEO_REMEDIATION.source_url}, or run ${PASEO_REMEDIATION.install_script}.`,
+function missingConsensusProviderCliError(command: string, cause: unknown) {
+  return new ConsensusError(
+    `consensus provider CLI appears to be missing or unavailable at ${command}. Set CONSENSUS_CLI_PATH or run pnpm run build before selecting the provider CLI backend.`,
+    {
+      code: 'CONSENSUS_PROVIDER_CLI_MISSING',
+      exitCode: EXIT_CODES.CONFIG,
+      cause,
+      details: { command },
+    },
   );
-  error.code = 'PASEO_MISSING';
-  error.cause = cause;
-  error.remediation = PASEO_REMEDIATION;
-  return error;
 }
 
 export async function readInputFile(
@@ -2270,7 +2240,8 @@ async function defaultRunCommand(
   args: string[],
   options: { env?: NodeJS.ProcessEnv; cwd?: string } = {},
 ) {
-  const result = await execFileAsync(command, args, {
+  const spawnTarget = providerCliSpawnTarget(command, args);
+  const result = await execFileAsync(spawnTarget.command, spawnTarget.args, {
     cwd: options.cwd,
     env: options.env,
     maxBuffer: 2 * 1024 * 1024,
@@ -2881,6 +2852,38 @@ export function renderDeliberationArtifact(runResult: WrapperRunResult) {
     .replace(/\s+$/u, '')}\n`;
 }
 
+function providerCliLoopInvokers({
+  env,
+  cwd,
+  iteration,
+}: {
+  env: NodeJS.ProcessEnv;
+  cwd: string;
+  iteration: IterationModeValue;
+}): Pick<LoopRunOptions, 'invokePeer' | 'invokeSynthesizer'> {
+  return {
+    invokePeer: (turn) =>
+      invokeProviderCliWithRetry(
+        {
+          provider: turn.provider,
+          schemaPath: turn.schemaPath ?? peerSchemaPathForMode(iteration),
+          prompt: turn.prompt,
+          env,
+          cwd,
+        },
+        { mode: iteration },
+      ),
+    invokeSynthesizer: (call) =>
+      invokeConsensusProviderCli({
+        provider: call.provider,
+        schemaPath: call.schemaPath,
+        prompt: call.prompt,
+        env,
+        cwd,
+      }),
+  };
+}
+
 export async function runSequential(
   options: readonly string[] | WrapperOptions,
   runOptions: WrapperRunOptions = {},
@@ -2916,7 +2919,7 @@ export async function runSequential(
   const preflight =
     normalized.preflight === false
       ? { peers: normalized.peers ?? ['claude', 'codex'], warnings: [] }
-      : await (normalized.preflight ?? preflightPaseo)({
+      : await (normalized.preflight ?? preflightConsensusProviderCli)({
           ...normalized,
           env,
           cwd,
@@ -2930,6 +2933,11 @@ export async function runSequential(
   const resumeSections = sectionLookup(resumeState?.sections);
   const runSections = sequentialRunSections(parsedSections, resumeState);
   const sectionResults: SectionResult[] = [];
+  const providerCliInvokers = providerCliLoopInvokers({
+    env,
+    cwd,
+    iteration: normalized.iteration,
+  });
 
   for (const section of runSections) {
     const sectionDir = sectionRunDirectory(runDir, section);
@@ -3028,9 +3036,14 @@ export async function runSequential(
       const loopRunOptions = {
         env,
         cwd,
-        invokePeer: normalized.invokePeer ?? runOptions.invokePeer,
+        invokePeer:
+          normalized.invokePeer ??
+          runOptions.invokePeer ??
+          providerCliInvokers.invokePeer,
         invokeSynthesizer:
-          normalized.invokeSynthesizer ?? runOptions.invokeSynthesizer,
+          normalized.invokeSynthesizer ??
+          runOptions.invokeSynthesizer ??
+          providerCliInvokers.invokeSynthesizer,
         initialRecords: asLoopInitialRecords(resumeSection?.records),
         initialArtifact: sectionInput,
         userDirection: resumeSection?.inFlight
@@ -3163,7 +3176,7 @@ export async function prepareParallelRun(
   const preflight =
     normalized.preflight === false
       ? { peers: normalized.peers ?? ['claude', 'codex'], warnings: [] }
-      : await (normalized.preflight ?? preflightPaseo)({
+      : await (normalized.preflight ?? preflightConsensusProviderCli)({
           ...normalized,
           env,
           cwd,
@@ -3509,7 +3522,7 @@ export function resolvePeers(
 
   if (missing.length > 0) {
     const error: AnnotatedError = new Error(
-      `Missing peers in Paseo inventory: ${missing.join(', ')}. Verify configured providers with "paseo provider ls --json".`,
+      `Missing peers in provider inventory: ${missing.join(', ')}. Verify configured providers with "consensus provider ls --json".`,
     );
     error.code = 'PEER_UNAVAILABLE';
     throw error;
@@ -3517,7 +3530,7 @@ export function resolvePeers(
 
   if (unavailable.length > 0) {
     const error: AnnotatedError = new Error(
-      `Paseo providers are unavailable: ${unavailable.join(', ')}.`,
+      `Consensus providers are unavailable: ${unavailable.join(', ')}.`,
     );
     error.code = 'PEER_UNAVAILABLE';
     throw error;
@@ -3570,7 +3583,7 @@ export function resolveSynthesizer(
   const entry = inventory.find((candidate) => candidate.id === synthesizer);
   if (!entry || entry.available === false) {
     throw new ConsensusError(
-      `Synthesizer "${synthesizer}" is not an available provider in the Paseo inventory. Verify configured providers with "paseo provider ls --json".`,
+      `Synthesizer "${synthesizer}" is not an available provider in the provider CLI inventory. Verify configured providers with "consensus provider ls --json".`,
       {
         code: 'SYNTHESIZER_UNAVAILABLE',
         exitCode: EXIT_CODES.CONFIG,
@@ -3582,18 +3595,83 @@ export function resolveSynthesizer(
   return { synthesizer, warnings };
 }
 
-export async function preflightPaseo(
-  options: Pick<WrapperOptions, 'runCommand' | 'env' | 'cwd' | 'peers'> = {},
+function providerCliUnavailableError(
+  providers: NormalizedProviderInventoryEntry[],
+  selected: string[],
+) {
+  const byId = new Map(providers.map((entry) => [entry.id, entry]));
+  const details = selected.map((id) => {
+    const entry = byId.get(id);
+    return {
+      id,
+      status: String(entry?.status ?? (entry ? 'unavailable' : 'missing')),
+    };
+  });
+  const summary = details
+    .map((entry) => `${entry.id} (${entry.status})`)
+    .join(', ');
+  return new ConsensusError(
+    `Consensus providers are unavailable: ${summary}. Run "consensus preflight --json --provider <id>" and resolve provider authentication or availability before retrying.`,
+    {
+      code: 'PEER_UNAVAILABLE',
+      exitCode: EXIT_CODES.CONFIG,
+      details: { providers: details },
+    },
+  );
+}
+
+function resolveProviderCliPeers(
+  options: Pick<WrapperOptions, 'peers'> = {},
+  host: HostId = 'unknown',
+  providerInventory: ProviderInventoryInput = [],
+) {
+  const defaultPeers =
+    host === 'codex' ? ['codex', 'claude'] : ['claude', 'codex'];
+  const peers = options.peers ?? defaultPeers;
+  const inventory = normalizeProviderInventory(providerInventory);
+  const byId = new Map(inventory.map((entry) => [entry.id, entry]));
+  const unavailable = peers.filter(
+    (peer) => byId.get(peer)?.available !== true,
+  );
+
+  if (unavailable.length > 0) {
+    throw providerCliUnavailableError(inventory, unavailable);
+  }
+
+  return { peers, inventory };
+}
+
+function parseProviderCliEnvelope(stdout: string, label: string): JsonRecord {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(stdout) as unknown;
+  } catch (error) {
+    throw new Error(
+      `consensus ${label} output was not valid JSON: ${asErrorLike(error).message}`,
+      { cause: error },
+    );
+  }
+
+  if (!isJsonRecord(parsed) || parsed.schema_version !== 'v1') {
+    throw new Error(`consensus ${label} output was not a v1 JSON envelope`);
+  }
+  return parsed;
+}
+
+export async function preflightConsensusProviderCli(
+  options: Pick<
+    WrapperOptions,
+    'runCommand' | 'env' | 'cwd' | 'peers' | 'iteration' | 'synthesizer'
+  > = {},
 ): Promise<PreflightResult> {
   const runCommand: CommandRunner = options.runCommand ?? defaultRunCommand;
   const env = options.env ?? process.env;
   const cwd = options.cwd ?? process.cwd();
+  const command = resolveConsensusCliPath({ env });
 
-  let versionOutput: CommandRunnerResult;
   let inventoryOutput: CommandRunnerResult;
   try {
-    versionOutput = await runCommand('paseo', ['--version'], { env, cwd });
-    inventoryOutput = await runCommand('paseo', ['provider', 'ls', '--json'], {
+    inventoryOutput = await runCommand(command, ['provider', 'ls', '--json'], {
       env,
       cwd,
     });
@@ -3603,48 +3681,60 @@ export async function preflightPaseo(
       details.code === 'ENOENT' ||
       /ENOENT|not found/i.test(details.message ?? '')
     ) {
-      throw missingPaseoError(error);
+      throw missingConsensusProviderCliError(command, error);
     }
     throw error;
   }
 
-  const version = parseVersionText(versionOutput.stdout);
-  let providerInventory: unknown;
-  try {
-    providerInventory = JSON.parse(inventoryOutput.stdout) as unknown;
-  } catch (error) {
-    throw new Error(
-      `paseo provider inventory was not valid JSON: ${asErrorLike(error).message}`,
-      { cause: error },
-    );
-  }
-
+  const inventoryEnvelope = parseProviderCliEnvelope(
+    inventoryOutput.stdout,
+    'provider inventory',
+  );
+  const providerInventory = normalizeProviderInventory(
+    inventoryEnvelope.providers,
+  );
   const host = detectHost(env);
-  const resolved = resolvePeers(options, host, providerInventory);
-  const warnings = [];
-  if (
-    compareVersions(version, MIN_PASEO_VERSION) < 0 ||
-    compareVersions(version, MAX_TESTED_PASEO_VERSION) > 0
-  ) {
-    warnings.push({
-      code: 'PASEO_VERSION_UNTESTED',
-      level: 'warning',
-      version,
-      min: MIN_PASEO_VERSION,
-      max: MAX_TESTED_PASEO_VERSION,
-      message: `Paseo ${version} is outside the tested range ${MIN_PASEO_VERSION} to ${MAX_TESTED_PASEO_VERSION}.`,
-    });
+  const resolved = resolveProviderCliPeers(options, host, providerInventory);
+  const { synthesizer } = resolveSynthesizer(
+    {
+      iteration: options.iteration ?? 'alternating',
+      synthesizer: options.synthesizer ?? null,
+      peers: resolved.peers,
+    },
+    resolved.inventory,
+  );
+  const providersToPreflight = [
+    ...new Set([...resolved.peers, ...(synthesizer ? [synthesizer] : [])]),
+  ];
+
+  for (const peer of providersToPreflight) {
+    const preflightOutput = await runCommand(
+      command,
+      ['preflight', '--json', '--provider', peer],
+      { env, cwd },
+    );
+    const preflightEnvelope = parseProviderCliEnvelope(
+      preflightOutput.stdout,
+      `${peer} preflight`,
+    );
+    if (preflightEnvelope.usable !== true) {
+      throw providerCliUnavailableError(
+        normalizeProviderInventory(preflightEnvelope.providers),
+        [peer],
+      );
+    }
   }
 
   return {
     ok: true,
-    version,
-    providerInventory: normalizeProviderInventory(providerInventory),
+    version: 'provider-cli',
+    providerInventory: resolved.inventory,
     host,
     peers: resolved.peers,
-    warnings,
+    warnings: [],
   };
 }
+
 
 export async function runWrapperCli(
   argv: readonly string[],

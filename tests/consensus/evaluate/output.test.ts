@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, stat, writeFile } from 'node:fs/promises';
+import { chmod, mkdtemp, readFile, stat, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -9,6 +9,7 @@ import {
   runConsensusEvaluate,
   runEvaluateCli,
 } from '../../../src/consensus/evaluate/consensus-evaluate.js';
+import { makeProviderCliEnv } from '../../helpers/process.mjs';
 
 type JsonRecord = Record<string, any>;
 
@@ -66,6 +67,7 @@ it('runs the evaluate wrapper with loop state files and renders unified findings
     ],
     {
       cwd: files.tempRoot,
+      env: makeProviderCliEnv(),
       now: () => '2026-06-17T00:00:00.000Z',
       invokePeer: async ({ provider, prompt }) => {
         prompts.push(prompt);
@@ -137,6 +139,7 @@ it('writes a default sidecar evaluation for CLI runs without --output', async ()
     ],
     {
       cwd: files.tempRoot,
+      env: makeProviderCliEnv(),
       now: () => '2026-06-17T00:00:00.000Z',
       stdout: {
         write(chunk: string | Uint8Array) {
@@ -179,6 +182,74 @@ it('writes a default sidecar evaluation for CLI runs without --output', async ()
   expect(artifact).toContain('Release readiness is medium.');
 });
 
+it('reports provider CLI auth failures through Evaluate CLI JSONL', async () => {
+  const files = await fixtureFiles('consensus-evaluate-auth-');
+  const consensusPath = path.join(files.tempRoot, 'consensus');
+  await writeFile(
+    consensusPath,
+    [
+      '#!/usr/bin/env node',
+      'const args = process.argv.slice(2);',
+      'if (args[0] === "provider") { console.log(JSON.stringify({ schema_version: "v1", ok: true, providers: [{ id: "cursor", status: "auth_required" }, { id: "claude", status: "ready" }] })); process.exit(0); }',
+      'console.log(JSON.stringify({ schema_version: "v1", ok: true, usable: false, providers: [{ id: args.at(-1), status: "auth_required" }] }));',
+      '',
+    ].join('\n'),
+  );
+  await chmod(consensusPath, 0o755);
+  let stdout = '';
+  let stderr = '';
+
+  const exitCode = await runEvaluateCli(
+    [
+      files.artifactPath,
+      '--rubric',
+      files.rubricPath,
+      '--run-dir',
+      files.runDir,
+      '--allow-root',
+      files.tempRoot,
+      '--peers',
+      'cursor,claude',
+      '--max-rounds',
+      '1',
+    ],
+    {
+      cwd: files.tempRoot,
+      env: {
+        ...process.env,
+        CONSENSUS_CLI_PATH: consensusPath,
+      },
+      stdout: {
+        write(chunk: string | Uint8Array) {
+          stdout += String(chunk);
+          return true;
+        },
+      },
+      stderr: {
+        write(chunk: string | Uint8Array) {
+          stderr += String(chunk);
+          return true;
+        },
+      },
+    },
+  );
+
+  expect(exitCode).toBe(78);
+  const events = stdout
+    .trim()
+    .split('\n')
+    .map((line) => JSON.parse(line) as JsonRecord);
+  const error = events.find((event) => event.event === 'error');
+  expect(error).toMatchObject({
+    code: 'PEER_UNAVAILABLE',
+    exit_code: 78,
+  });
+  expect(error?.message).toMatch(/cursor/);
+  expect(error?.message).toMatch(/auth_required/);
+  expect(stderr).toMatch(/cursor/);
+  expect(stderr).not.toMatch(/install/i);
+});
+
 it('renders unresolved dissent for impasse runs', async () => {
   const files = await fixtureFiles('consensus-evaluate-impasse-');
 
@@ -200,6 +271,7 @@ it('renders unresolved dissent for impasse runs', async () => {
     ],
     {
       cwd: files.tempRoot,
+      env: makeProviderCliEnv(),
       now: () => '2026-06-17T00:00:00.000Z',
       invokePeer: async ({ provider }) => ({
         stdout: JSON.stringify({ provider }),

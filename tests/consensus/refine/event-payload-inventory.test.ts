@@ -7,7 +7,7 @@ import { expect, it } from 'vitest';
 // @ts-expect-error The generated runtime is intentionally declaration-free; this test exercises the shipped artifact.
 import * as consensusRefine from '../../../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
 import {
-  makeStubEnv,
+  makeProviderCliEnv,
   sampleInput,
 } from '../../helpers/process.mjs';
 
@@ -53,28 +53,9 @@ function captureStdout() {
   };
 }
 
-function stubEnv(responseJson: string) {
-  return makeStubEnv({ PASEO_STUB_RESPONSE_JSON: responseJson });
+function stubEnv(overrides: NodeJS.ProcessEnv = {}) {
+  return makeProviderCliEnv(overrides);
 }
-
-// An alternating ACCEPT verdict whose proposed_artifact carries the marker.
-const ALTERNATING_ACCEPT = JSON.stringify({
-  schema_version: 'v1',
-  verdict: 'ACCEPT',
-  reasoning: 'Looks good as-is.',
-  proposed_artifact: `Accepted body. ${PEER_REVISION_MARKER}\n`,
-});
-
-// A parallel CONVERGED verdict whose critique carries the marker.
-const PARALLEL_CONVERGED = JSON.stringify({
-  schema_version: 'v1',
-  verdict: 'CONVERGED',
-  reasoning: 'Both revisions already agree.',
-  critique: {
-    own_previous: `own ${PEER_REVISION_MARKER}`,
-    peer_previous: `peer ${PEER_REVISION_MARKER}`,
-  },
-});
 
 const synthPreflight = async () => ({
   peers: ['claude', 'codex'],
@@ -190,7 +171,10 @@ it('alternating run: full CLI emits run_started/run_completed with no revision c
     {
       stdout,
       cwd: tempRoot,
-      env: stubEnv(ALTERNATING_ACCEPT),
+      env: stubEnv({
+        CONSENSUS_STUB_VERDICT: 'REVISE',
+        CONSENSUS_STUB_PROPOSED_ARTIFACT: `Accepted body. ${PEER_REVISION_MARKER}\n`,
+      }),
       preflight: async () => ({ peers: ['claude', 'codex'], warnings: [] }),
     },
   );
@@ -236,7 +220,7 @@ it('parallel_revision run: full CLI routine events carry no revision content', a
     {
       stdout,
       cwd: tempRoot,
-      env: stubEnv(PARALLEL_CONVERGED),
+      env: stubEnv({ CONSENSUS_STUB_VERDICT: 'CONVERGED' }),
       preflight: async () => ({ peers: ['claude', 'codex'], warnings: [] }),
     },
   );

@@ -4,15 +4,37 @@ Use this walkthrough when validating the shipped `evaluate` skill against live p
 
 ## Minimal Evaluation
 
-Before running live peers, verify the shared prerequisites:
+Before running live peers, verify the shared prerequisites and provider
+inventory:
 
 ```bash
 node --version            # must be >= 22
-paseo --version           # must be present (tested range 0.1.0-0.9.0)
-paseo provider ls --json  # requested peers should report status "available"
+node plugins/consensus/scripts/consensus.mjs provider ls --json
+node plugins/consensus/scripts/consensus.mjs preflight --json
 ```
 
-The evaluate wrapper validates provider ID syntax and surfaces Paseo/runtime failures from peer invocation. Unlike `refine`, provider inventory checking is an operator preflight step before invocation.
+For an installed plugin, the same checks may be exposed as `consensus provider ls
+--json` and `consensus preflight --json`. Requested peers should report `ready`.
+If Cursor reports `auth_required`, unlock the OS keychain or authenticate the
+Cursor CLI in your normal login shell before retrying.
+
+The evaluate wrapper validates provider ID syntax and surfaces provider-neutral
+diagnostics from peer invocation. Provider inventory checking is still a useful
+operator preflight step before an expensive live run.
+
+## Provider CLI dogfood checklist
+
+Before a release cutover, capture these checks in the parity note or release
+checklist:
+
+- `pnpm run build:check`
+- `pnpm run test`
+- Focused Evaluate provider CLI integration tests:
+  `pnpm exec vitest run tests/consensus/evaluate/provider-cli-integration.test.ts tests/consensus/evaluate/wrapper.test.ts tests/consensus/evaluate/output.test.ts`
+- `node plugins/consensus/scripts/consensus.mjs provider ls --json`
+- `node plugins/consensus/scripts/consensus.mjs preflight --json`
+- Per-provider preflight for `claude`, `codex`, and `cursor`, noting
+  `auth_required` separately from implementation failures.
 
 ```bash
 node plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs \

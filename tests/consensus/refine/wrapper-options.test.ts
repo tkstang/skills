@@ -1,17 +1,20 @@
+import { chmod, mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+
 import { expect, it } from 'vitest';
 
 // @ts-expect-error The generated runtime is intentionally declaration-free; this test exercises the shipped artifact.
 import * as consensusRefine from '../../../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
 
 const {
-  MAX_TESTED_PASEO_VERSION,
-  MIN_PASEO_VERSION,
   detectHost,
   parseWrapperArgs,
-  preflightPaseo,
+  preflightConsensusProviderCli,
   resolvePeers,
   resolveSynthesizer,
   resolveRunDir,
+  runSequential,
 } = consensusRefine;
 
 function inventory(ids: string[]) {
@@ -207,7 +210,7 @@ it('detectHost recognizes Claude, Codex, Cursor, and unknown environments', () =
   expect(detectHost({})).toBe('unknown');
 });
 
-it('resolvePeers uses host-aware defaults and paseo inventory as source of truth', () => {
+it('resolvePeers uses host-aware defaults and provider inventory as source of truth', () => {
   expect(
     resolvePeers({}, 'claude', inventory(['claude', 'codex'])).peers,
   ).toEqual(['claude', 'codex']);
@@ -231,7 +234,7 @@ it('resolvePeers uses host-aware defaults and paseo inventory as source of truth
       'claude',
       inventory(['claude']),
     ),
-  ).toThrow(/missing.*paseo provider ls --json/i);
+  ).toThrow(/missing.*consensus provider ls --json/i);
   expect(() =>
     resolvePeers({ peers: ['claude', 'codex'] }, 'claude', [
       { id: 'claude', available: true },
@@ -246,9 +249,9 @@ it('resolvePeers uses host-aware defaults and paseo inventory as source of truth
   ).toThrow(/provider inventory id.*must match/);
 });
 
-it('resolvePeers reads real Paseo provider ls status/enabled shape', () => {
-  // `paseo provider ls --json` emits { provider, status, enabled: "Enabled"|"Disabled" },
-  // not the { id, available } booleans the synthetic inventory() helper uses.
+it('resolvePeers reads provider status/enabled inventory shape', () => {
+  // Provider inventories can emit { provider, status, enabled: "Enabled"|"Disabled" },
+  // not only the { id, available } booleans the synthetic inventory() helper uses.
   const ready = [
     { provider: 'claude', status: 'available', enabled: 'Enabled' },
     { provider: 'codex', status: 'available', enabled: 'Enabled' },
@@ -257,8 +260,8 @@ it('resolvePeers reads real Paseo provider ls status/enabled shape', () => {
     resolvePeers({ peers: ['claude', 'codex'] }, 'claude', ready).peers,
   ).toEqual(['claude', 'codex']);
 
-  // A peer Paseo reports as errored (e.g. cursor when cursor-agent can't auth)
-  // must fail preflight rather than surface later as a paseo run timeout.
+  // A provider reported as errored (for example, cursor auth failure) must fail
+  // preflight before any mid-loop invocation.
   expect(() =>
     resolvePeers({ peers: ['claude', 'cursor'] }, 'claude', [
       { provider: 'claude', status: 'available', enabled: 'Enabled' },
@@ -266,7 +269,7 @@ it('resolvePeers reads real Paseo provider ls status/enabled shape', () => {
     ]),
   ).toThrow(/unavailable.*cursor/i);
 
-  // Paseo's "Disabled" display string means unavailable too.
+  // The "Disabled" display string means unavailable too.
   expect(() =>
     resolvePeers({ peers: ['claude', 'omp'] }, 'claude', [
       { provider: 'claude', status: 'available', enabled: 'Enabled' },
@@ -284,68 +287,212 @@ it('resolvePeers reads real Paseo provider ls status/enabled shape', () => {
   ).toEqual(['claude', 'codex']);
 });
 
-it('preflightPaseo reads version and providers and warns outside tested range', async () => {
+it('preflightConsensusProviderCli uses provider inventory and selected-provider preflight', async () => {
   const calls: Array<[string, string[]]> = [];
-  const result = await preflightPaseo({
+  const result = await preflightConsensusProviderCli({
     peers: ['claude', 'codex'],
-    env: { CLAUDECODE: '1' },
+    env: { CONSENSUS_CLI_PATH: '/tmp/bin/consensus' },
     runCommand: async (command: string, args: string[]) => {
       calls.push([command, args]);
-      if (args[0] === '--version') {
-        return { stdout: `paseo ${MAX_TESTED_PASEO_VERSION}\n`, stderr: '' };
+      if (args[0] === 'provider') {
+        return {
+          stdout: JSON.stringify({
+            schema_version: 'v1',
+            ok: true,
+            providers: [
+              { id: 'claude', status: 'ready' },
+              { id: 'codex', status: 'ready' },
+            ],
+          }),
+          stderr: '',
+        };
       }
       return {
-        stdout: JSON.stringify(inventory(['claude', 'codex'])),
+        stdout: JSON.stringify({
+          schema_version: 'v1',
+          ok: true,
+          usable: true,
+          providers: [{ id: args.at(-1), status: 'ready' }],
+        }),
         stderr: '',
       };
     },
   });
 
   expect(calls).toEqual([
-    ['paseo', ['--version']],
-    ['paseo', ['provider', 'ls', '--json']],
+    ['/tmp/bin/consensus', ['provider', 'ls', '--json']],
+    ['/tmp/bin/consensus', ['preflight', '--json', '--provider', 'claude']],
+    ['/tmp/bin/consensus', ['preflight', '--json', '--provider', 'codex']],
   ]);
-  expect(result.ok).toBe(true);
-  expect(result.version).toBe(MAX_TESTED_PASEO_VERSION);
   expect(result.peers).toEqual(['claude', 'codex']);
-  expect(result.warnings).toEqual([]);
-
-  const old = await preflightPaseo({
-    runCommand: async (_command: string, args: string[]) => {
-      if (args[0] === '--version')
-        return { stdout: 'paseo 0.0.1\n', stderr: '' };
-      return {
-        stdout: JSON.stringify(inventory(['claude', 'codex'])),
-        stderr: '',
-      };
-    },
-  });
-  expect(old.warnings[0].message).toMatch(
-    new RegExp(`${MIN_PASEO_VERSION}.*${MAX_TESTED_PASEO_VERSION}`),
-  );
+  expect(result.providerInventory).toEqual([
+    expect.objectContaining({ id: 'claude', available: true }),
+    expect.objectContaining({ id: 'codex', available: true }),
+  ]);
 });
 
-it('preflightPaseo surfaces missing paseo with install remediation', async () => {
+it('preflightConsensusProviderCli reports auth-required providers without install remediation', async () => {
   await expect(
-    preflightPaseo({
-      runCommand: async () => {
-        const error = new Error('spawn paseo ENOENT') as Error & {
-          code?: string;
+    preflightConsensusProviderCli({
+      peers: ['cursor'],
+      env: { CONSENSUS_CLI_PATH: '/tmp/bin/consensus' },
+      runCommand: async (_command: string, args: string[]) => {
+        if (args[0] === 'provider') {
+          return {
+            stdout: JSON.stringify({
+              schema_version: 'v1',
+              ok: true,
+              providers: [{ id: 'cursor', status: 'auth_required' }],
+            }),
+            stderr: '',
+          };
+        }
+        return {
+          stdout: JSON.stringify({
+            schema_version: 'v1',
+            ok: true,
+            usable: false,
+            providers: [{ id: 'cursor', status: 'auth_required' }],
+          }),
+          stderr: '',
         };
-        error.code = 'ENOENT';
-        throw error;
       },
     }),
-  ).rejects.toSatisfy((error: any) => {
-    expect(error.message).toMatch(/paseo.*missing/i);
-    expect(error.remediation.install_command).toBe(
-      'npm install -g @getpaseo/cli',
-    );
-    expect(error.remediation.source_url).toMatch(
-      /github\.com\/getpaseo\/paseo/,
-    );
-    expect(error.remediation.install_script).toBe('scripts/install-paseo.mjs');
+  ).rejects.toSatisfy((error: { code?: string; message: string }) => {
+    expect(error.code).toBe('PEER_UNAVAILABLE');
+    expect(error.message).toMatch(/cursor/);
+    expect(error.message).toMatch(/auth_required/);
+    expect(error.message).not.toMatch(/install/i);
     return true;
+  });
+});
+
+it('runSequential preflights an explicit synthesized-mode synthesizer outside the peer set', async () => {
+  const tempRoot = await mkdtemp(
+    path.join(os.tmpdir(), 'consensus-cli-refine-synth-preflight-'),
+  );
+  const inputPath = path.join(tempRoot, 'draft.md');
+  const calls: Array<[string, string[]]> = [];
+  await writeFile(inputPath, '# Intro\n\nStable text.\n');
+
+  await expect(
+    runSequential({
+      inputPath,
+      output: path.join(tempRoot, 'draft.consensus.md'),
+      runDir: path.join(tempRoot, '.consensus/run'),
+      allowRoot: tempRoot,
+      cwd: tempRoot,
+      env: {
+        ...process.env,
+        CONSENSUS_CLI_PATH: '/tmp/bin/consensus',
+      },
+      goal: 'Run synthesized mode.',
+      peers: ['claude', 'codex'],
+      iteration: 'parallel_synthesized',
+      synthesizer: 'cursor',
+      maxRounds: 1,
+      agency: 'moderate',
+      runCommand: async (command: string, args: string[]) => {
+        calls.push([command, args]);
+        if (args[0] === 'provider') {
+          return {
+            stdout: JSON.stringify({
+              schema_version: 'v1',
+              ok: true,
+              providers: [
+                { id: 'claude', status: 'ready' },
+                { id: 'codex', status: 'ready' },
+                { id: 'cursor', status: 'ready' },
+              ],
+            }),
+            stderr: '',
+          };
+        }
+        const provider = args.at(-1);
+        return {
+          stdout: JSON.stringify({
+            schema_version: 'v1',
+            ok: true,
+            usable: provider !== 'cursor',
+            providers: [
+              {
+                id: provider,
+                status: provider === 'cursor' ? 'auth_required' : 'ready',
+              },
+            ],
+          }),
+          stderr: '',
+        };
+      },
+    }),
+  ).rejects.toSatisfy((error: { code?: string; message: string }) => {
+    expect(error.code).toBe('PEER_UNAVAILABLE');
+    expect(error.message).toMatch(/cursor/);
+    expect(error.message).toMatch(/auth_required/);
+    return true;
+  });
+
+  expect(calls).toEqual([
+    ['/tmp/bin/consensus', ['provider', 'ls', '--json']],
+    ['/tmp/bin/consensus', ['preflight', '--json', '--provider', 'claude']],
+    ['/tmp/bin/consensus', ['preflight', '--json', '--provider', 'codex']],
+    ['/tmp/bin/consensus', ['preflight', '--json', '--provider', 'cursor']],
+  ]);
+});
+
+it('runSequential uses the provider CLI backend with CONSENSUS_CLI_PATH override', async () => {
+  const tempRoot = await mkdtemp(
+    path.join(os.tmpdir(), 'consensus-cli-refine-'),
+  );
+  const consensusPath = path.join(tempRoot, 'consensus');
+  const inputPath = path.join(tempRoot, 'draft.md');
+  const outputPath = path.join(tempRoot, 'draft.consensus.md');
+  const runDir = path.join(tempRoot, '.consensus/run');
+
+  await writeFile(inputPath, '# Intro\n\nStable text.\n');
+  await writeFile(
+    consensusPath,
+    [
+      '#!/usr/bin/env node',
+      'const args = process.argv.slice(2);',
+      'const readStdin = () => new Promise((resolve) => { let data = ""; process.stdin.setEncoding("utf8"); process.stdin.on("data", (chunk) => { data += chunk; }); process.stdin.on("end", () => resolve(data)); });',
+      'async function main() {',
+      '  if (args[0] === "provider") { console.log(JSON.stringify({ schema_version: "v1", ok: true, providers: [{ id: "claude", status: "ready" }, { id: "codex", status: "ready" }] })); return; }',
+      '  if (args[0] === "preflight") { console.log(JSON.stringify({ schema_version: "v1", ok: true, usable: true, providers: [{ id: args.at(-1), status: "ready" }] })); return; }',
+      '  const request = JSON.parse(await readStdin());',
+      '  const payload = { schema_version: "v1", verdict: "ACCEPT", reasoning: `${request.provider} accepts` };',
+      '  console.log(JSON.stringify({ schema_version: "v1", ok: true, provider: request.provider, args: ["stub"], stdout: JSON.stringify(payload), json: payload, attempts: { cli_attempts: 1, terminal_reason: "success", retryable: false }, diagnostics: { strategy_used: "prompt_only" } }));',
+      '}',
+      'main().catch((error) => { console.error(error.message); process.exitCode = 1; });',
+      '',
+    ].join('\n'),
+  );
+  await chmod(consensusPath, 0o755);
+
+  const result = await runSequential({
+    inputPath,
+    output: outputPath,
+    runDir,
+    allowRoot: tempRoot,
+    cwd: tempRoot,
+    env: {
+      ...process.env,
+      CONSENSUS_CLI_PATH: consensusPath,
+    },
+    goal: 'Run through the provider CLI backend.',
+    peers: ['claude', 'codex'],
+    maxRounds: 1,
+    agency: 'moderate',
+  });
+
+  expect(result.status).toBe('converged');
+  const records = JSON.parse(
+    await readFile(result.sections[0].paths.records, 'utf8'),
+  );
+  expect(records[0]).toMatchObject({
+    raw_provider_response: expect.stringContaining('"verdict":"ACCEPT"'),
+    provider_diagnostics: { strategy_used: 'prompt_only' },
+    attempts: { cli_attempts: 1, terminal_reason: 'success' },
   });
 });
 

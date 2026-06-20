@@ -47,7 +47,6 @@ class ConsensusError extends Error {
   code;
   exitCode;
   details;
-  paseoExitCode;
   stderr;
   constructor(message, options = {}) {
     super(message, { cause: options.cause });
@@ -203,7 +202,9 @@ async function syncFileIfAvailable(filePath) {
 }
 function normalizeCost(status) {
   const source = status.cost_source ?? status.cost?.source ?? "unavailable";
-  const normalized = ["paseo", "estimated", "unavailable"].includes(source) ? source : "unavailable";
+  const normalized = ["provider_cli", "estimated", "unavailable"].includes(
+    source
+  ) ? source : "unavailable";
   const costUsd = status.approximate_cost_usd ?? status.cost_usd ?? status.cost?.usd;
   if (normalized === "unavailable" || typeof costUsd !== "number") {
     return { cost_source: normalized };
@@ -265,22 +266,6 @@ function outputCapError(streamName, capBytes) {
     }
   );
 }
-function paseoMissingError(error) {
-  const cause = asErrorLike(error);
-  return new ConsensusError("paseo executable not found on PATH", {
-    code: "PASEO_MISSING",
-    exitCode: EXIT_CODES.CONFIG,
-    cause: error,
-    details: {
-      path: cause.path,
-      syscall: cause.syscall
-    }
-  });
-}
-function isMissingPaseoSpawnError(error) {
-  const candidate = asErrorLike(error);
-  return candidate.code === "ENOENT" && (candidate.path === "paseo" || candidate.syscall === "spawn paseo");
-}
 function exitCodeForError(error) {
   const candidate = asErrorLike(error);
   if (candidate.name === "AbortError" || candidate.code === "SIGINT") {
@@ -290,10 +275,13 @@ function exitCodeForError(error) {
     return Number(candidate.exitCode);
   }
   if ([
-    "PASEO_MISSING",
     "PEER_UNAVAILABLE",
     "NODE_TOO_OLD",
-    "NODE_VERSION_UNSUPPORTED"
+    "NODE_VERSION_UNSUPPORTED",
+    "PROVIDER_MISSING",
+    "PROVIDER_UNAVAILABLE",
+    "PROVIDER_AUTH_REQUIRED",
+    "HOST_RECURSION_BLOCKED"
   ].includes(candidate.code ?? "")) {
     return EXIT_CODES.CONFIG;
   }
@@ -303,7 +291,7 @@ function exitCodeForError(error) {
   if (["ENOENT", "ENOTDIR", "EISDIR"].includes(candidate.code ?? "")) {
     return EXIT_CODES.IO;
   }
-  if (error instanceof SyntaxError || candidate.code === "PASEO_INVALID_JSON") {
+  if (error instanceof SyntaxError || candidate.code === "PROVIDER_INVALID_JSON") {
     return EXIT_CODES.DATA;
   }
   if (/^(--|unknown option|missing required option|input path|unexpected positional)/i.test(
@@ -663,27 +651,30 @@ async function writeLoopStatus(statusPath, status, _options = {}) {
   await syncFileIfAvailable(statusPath);
   return normalizedStatus;
 }
-function invokePaseo({
-  provider,
-  schemaPath: schemaPath2,
-  prompt,
-  env = process.env,
-  cwd = process.cwd()
-}) {
+function resolveConsensusCliPath({
+  consensusCliPath,
+  env = process.env
+} = {}) {
+  return consensusCliPath ?? env.CONSENSUS_CLI_PATH ?? fileURLToPath(new URL("../../../scripts/consensus.mjs", import.meta.url));
+}
+function isDefaultConsensusCliPath(command) {
+  return path.resolve(command) === path.resolve(
+    fileURLToPath(new URL("../../../scripts/consensus.mjs", import.meta.url))
+  );
+}
+function providerCliSpawnTarget(command, args) {
+  if (isDefaultConsensusCliPath(command) && path.extname(command) === ".mjs") {
+    return { command: process.execPath, args: [command, ...args] };
+  }
+  return { command, args };
+}
+function runProviderCliCommand(command, args, options = {}) {
   return new Promise((resolve, reject) => {
-    const args = [
-      "run",
-      "--provider",
-      provider,
-      "--output-schema",
-      schemaPath2,
-      "--json",
-      prompt
-    ];
-    const child = spawn("paseo", args, {
-      cwd,
-      env,
-      stdio: ["ignore", "pipe", "pipe"]
+    const spawnTarget = providerCliSpawnTarget(command, args);
+    const child = spawn(spawnTarget.command, spawnTarget.args, {
+      cwd: options.cwd,
+      env: options.env,
+      stdio: ["pipe", "pipe", "pipe"]
     });
     const stdoutChunks = [];
     const stderrChunks = [];
@@ -713,83 +704,151 @@ function invokePaseo({
       "data",
       (chunk) => capture("stderr", stderrChunks, chunk)
     );
-    child.on("error", (error) => {
-      reject(
-        isMissingPaseoSpawnError(error) ? paseoMissingError(error) : error
-      );
-    });
+    child.on("error", reject);
     child.on("close", (code, signal) => {
       if (capError) {
         reject(capError);
         return;
       }
-      const stdout = Buffer.concat(stdoutChunks).toString("utf8");
-      const stderr = Buffer.concat(stderrChunks).toString("utf8");
-      if (code !== 0) {
-        const detail = stderr.trim() ? `: ${stderr.trim()}` : signal ? ` (signal ${signal})` : "";
-        const error = new ConsensusError(
-          `paseo exited with code ${code}${detail}`,
-          {
-            code: "PASEO_EXIT",
-            exitCode: EXIT_CODES.CONFIG,
-            details: { paseo_exit_code: code, stderr }
-          }
-        );
-        error.paseoExitCode = code;
-        error.stderr = stderr;
-        reject(error);
-        return;
-      }
-      try {
-        resolve({
-          provider,
-          args,
-          stdout,
-          stderr,
-          json: JSON.parse(stdout)
-        });
-      } catch (error) {
-        if (stdoutBytes >= SUBPROCESS_OUTPUT_CAP_BYTES) {
-          reject(outputCapError("stdout", SUBPROCESS_OUTPUT_CAP_BYTES));
-          return;
-        }
-        reject(
-          new ConsensusError(
-            `paseo returned invalid JSON: ${hardErrorMessage(error)}`,
-            {
-              code: "PASEO_INVALID_JSON",
-              exitCode: EXIT_CODES.DATA,
-              cause: error,
-              details: { stdout, stderr }
-            }
-          )
-        );
-      }
+      resolve({
+        code,
+        signal,
+        stdout: Buffer.concat(stdoutChunks).toString("utf8"),
+        stderr: Buffer.concat(stderrChunks).toString("utf8")
+      });
     });
+    child.stdin.end(options.input ?? "");
   });
 }
-function isRetryablePaseoError(error) {
-  const candidate = asErrorLike(error);
-  return candidate.code === "PASEO_EXIT" || candidate.code === "PASEO_INVALID_JSON";
+async function invokeConsensusProviderCli({
+  provider,
+  schemaPath: schemaPath2,
+  prompt,
+  env = process.env,
+  cwd = process.cwd(),
+  consensusCliPath,
+  runCommand = runProviderCliCommand
+}) {
+  const command = resolveConsensusCliPath({ consensusCliPath, env });
+  const request = {
+    schema_version: "v1",
+    provider,
+    schema_path: schemaPath2,
+    prompt,
+    cwd
+  };
+  const result = await runCommand(
+    command,
+    ["run", "--request-json", "-", "--json"],
+    {
+      env,
+      cwd,
+      input: JSON.stringify(request)
+    }
+  );
+  const envelope = parseConsensusCliRunEnvelope(result);
+  if (!envelope.ok) {
+    throw providerCliEnvelopeError(envelope);
+  }
+  return {
+    provider: envelope.provider,
+    args: envelope.args,
+    stdout: envelope.stdout,
+    stderr: envelope.stderr,
+    json: envelope.json,
+    raw_provider_response: envelope.stdout ?? JSON.stringify(envelope.json),
+    provider_diagnostics: envelope.diagnostics,
+    attempts: envelope.attempts
+  };
 }
-async function invokePaseoWithRetry(args, {
+async function invokeProviderCliWithRetry(args, {
   attempts = 3,
   delayMs = 750,
   sleep,
-  invoke = invokePaseo
+  invoke = invokeConsensusProviderCli,
+  mode = "alternating"
 } = {}) {
   const wait = sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
   let lastError;
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     try {
-      return await invoke(args);
+      const result = await invoke(args);
+      const verdictError = peerVerdictError(
+        normalizeVerdict(result.json, mode),
+        mode
+      );
+      if (verdictError) throw verdictError;
+      return result;
     } catch (error) {
       lastError = error;
-      if (!isRetryablePaseoError(error) || attempt === attempts) throw error;
+      const retryable = asErrorLike(error).code === "INVALID_VERDICT_SHAPE" || asErrorLike(error).code === "INVALID_VERDICT_CAPS";
+      if (!retryable || attempt === attempts) throw error;
       await wait(delayMs);
     }
   }
   throw lastError;
+}
+function parseConsensusCliRunEnvelope(result) {
+  let parsed;
+  try {
+    parsed = JSON.parse(result.stdout);
+  } catch (error) {
+    throw new ConsensusError(
+      `consensus provider CLI returned invalid JSON: ${hardErrorMessage(error)}`,
+      {
+        code: result.code && result.code !== 0 ? "CONSENSUS_CLI_USAGE" : "PROVIDER_INVALID_JSON",
+        exitCode: result.code && result.code !== 0 ? EXIT_CODES.USAGE : EXIT_CODES.DATA,
+        cause: error,
+        details: {
+          exit_code: result.code,
+          signal: result.signal ?? null,
+          stdout: result.stdout,
+          stderr: result.stderr ?? ""
+        }
+      }
+    );
+  }
+  if (!isConsensusCliRunEnvelope(parsed)) {
+    throw new ConsensusError(
+      "consensus provider CLI returned an invalid envelope",
+      {
+        code: "PROVIDER_INVALID_JSON",
+        exitCode: EXIT_CODES.DATA,
+        details: {
+          exit_code: result.code,
+          signal: result.signal ?? null,
+          stdout: result.stdout,
+          stderr: result.stderr ?? ""
+        }
+      }
+    );
+  }
+  return parsed;
+}
+function isConsensusCliRunEnvelope(value) {
+  if (!isJsonRecord(value)) return false;
+  return value.schema_version === "v1" && typeof value.ok === "boolean";
+}
+function providerCliEnvelopeError(envelope) {
+  return new ConsensusError(envelope.message, {
+    code: envelope.code,
+    exitCode: exitCodeForProviderError(envelope.code),
+    details: {
+      provider: envelope.provider ?? null,
+      retryable: envelope.retryable,
+      attempts: envelope.attempts,
+      diagnostics: envelope.diagnostics,
+      stdout: envelope.stdout,
+      stderr: envelope.stderr
+    }
+  });
+}
+function exitCodeForProviderError(code) {
+  if (code === "CONSENSUS_CLI_USAGE") return EXIT_CODES.USAGE;
+  if (code === "PROVIDER_INVALID_JSON" || code === "PROVIDER_SCHEMA_VALIDATION") {
+    return EXIT_CODES.DATA;
+  }
+  return EXIT_CODES.CONFIG;
 }
 function peerVerdictError(verdict, mode) {
   const shape = validateVerdictShape(verdict, { mode });
@@ -816,12 +875,20 @@ function peerVerdictError(verdict, mode) {
   }
   return null;
 }
+function providerAuditFields(result) {
+  const rawResponse = result.raw_provider_response ?? result.stdout ?? JSON.stringify(result.json);
+  return {
+    raw_provider_response: rawResponse,
+    ...result.provider_diagnostics ? { provider_diagnostics: result.provider_diagnostics } : {},
+    ...result.attempts ? { attempts: result.attempts } : {}
+  };
+}
 async function invokeValidatedPeer({
   mode,
   attempts = 3,
   delayMs = 750,
   sleep,
-  invoke = invokePaseo,
+  invoke = invokeConsensusProviderCli,
   ...args
 } = {}) {
   const wait = sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
@@ -837,7 +904,7 @@ async function invokeValidatedPeer({
       return result;
     } catch (error) {
       lastError = error;
-      const retryable = isRetryablePaseoError(error) || asErrorLike(error).code === "INVALID_VERDICT_SHAPE" || asErrorLike(error).code === "INVALID_VERDICT_CAPS";
+      const retryable = asErrorLike(error).code === "INVALID_VERDICT_SHAPE" || asErrorLike(error).code === "INVALID_VERDICT_CAPS";
       if (!retryable || attempt === attempts) throw error;
       await wait(delayMs);
     }
@@ -1322,7 +1389,7 @@ async function executeAlternatingTurn({
       hashOptionsForAgency(options.agency)
     ),
     iteration_mode: options.iteration,
-    raw_paseo_response: peerResult.stdout ?? JSON.stringify(peerResult.json)
+    ...providerAuditFields(peerResult)
   };
   if (typeof verdict.proposed_artifact === "string") {
     recordPayload.proposed_artifact = verdict.proposed_artifact;
@@ -1462,7 +1529,7 @@ async function executeParallelRound(context) {
         hashOptionsForAgency(options.agency)
       ),
       iteration_mode: mode,
-      raw_paseo_response: peerResult.stdout ?? JSON.stringify(peerResult.json)
+      ...providerAuditFields(peerResult)
     };
     if (typeof verdict.proposed_artifact === "string") {
       recordPayload.proposed_artifact = verdict.proposed_artifact;
@@ -1573,7 +1640,7 @@ async function executeSynthesis({
       hashOptionsForAgency(options.agency)
     ),
     iteration_mode: options.iteration,
-    raw_paseo_response: synthResult.stdout ?? JSON.stringify(synthResult.json)
+    ...providerAuditFields(synthResult)
   };
   return { synthesis: recordPayload, nextArtifact: synthesizedArtifact };
 }
@@ -1872,20 +1939,24 @@ async function runConsensusLoop(argv, runOptions = {}) {
   });
   const turnBudget = options.maxRounds * options.peers.length;
   const maxTurns = intervention ? initialPeerTurns + turnBudget : turnBudget;
-  const invokePeer = runOptions.invokePeer ?? ((turn) => invokeValidatedPeer({
-    mode: options.iteration,
-    provider: turn.provider,
-    schemaPath: peerSchemaPathForMode(options.iteration),
-    prompt: turn.prompt,
-    env: runOptions.env ?? process.env,
-    cwd: runOptions.cwd ?? process.cwd()
-  }));
-  const invokeSynthesizer = runOptions.invokeSynthesizer ?? ((call) => invokePaseoWithRetry({
+  const env = runOptions.env ?? process.env;
+  const cwd = runOptions.cwd ?? process.cwd();
+  const invokePeer = runOptions.invokePeer ?? ((turn) => invokeProviderCliWithRetry(
+    {
+      provider: turn.provider,
+      schemaPath: peerSchemaPathForMode(options.iteration),
+      prompt: turn.prompt,
+      env,
+      cwd
+    },
+    { mode: options.iteration }
+  ));
+  const invokeSynthesizer = runOptions.invokeSynthesizer ?? ((call) => invokeConsensusProviderCli({
     provider: call.provider,
     schemaPath: call.schemaPath,
     prompt: call.prompt,
-    env: runOptions.env ?? process.env,
-    cwd: runOptions.cwd ?? process.cwd()
+    env,
+    cwd
   }));
   const prompts = resolvePromptProfile(runOptions.promptProfile);
   try {
@@ -2447,16 +2518,19 @@ export {
   exitCodeForError,
   hashArtifact,
   invalidIterationModeError,
-  invokePaseo,
-  invokePaseoWithRetry,
+  invokeConsensusProviderCli,
+  invokeProviderCliWithRetry,
   invokeValidatedPeer,
   normalizeForHash,
   normalizeVerdict,
   parallelSchemaPath,
   parseLoopArgs,
   peerSchemaPathForMode,
+  providerCliSpawnTarget,
+  resolveConsensusCliPath,
   routeEscalation,
   runConsensusLoop,
+  runProviderCliCommand,
   synthesisSchemaPath,
   validateSynthesisCaps,
   validateSynthesisShape,

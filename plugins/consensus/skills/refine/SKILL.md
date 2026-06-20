@@ -3,8 +3,8 @@ name: refine
 description: Use when refining a draft and you want two AI peers to deliberate to convergence with structured verdicts, a final artifact, and a readable audit trail.
 version: '0.1.0'
 license: MIT
-compatibility: Agent Skills baseline; requires `paseo` CLI on PATH.
-allowed-tools: Bash(node:*), Bash(paseo:*), Read, Write
+compatibility: Agent Skills baseline; requires Node.js 22+ and the generated consensus CLI.
+allowed-tools: Bash(node:*), Bash(consensus:*), Read, Write
 argument-hint: <input-artifact.md> [--goal "<refinement goal>"]
 metadata:
   author: thomas.stang
@@ -17,9 +17,16 @@ Use this skill when the user wants a markdown draft refined through two-peer del
 
 ## Prerequisites
 
-Before a run, ensure Node.js 22 or newer and `paseo` are available. If `paseo` is missing, tell the user the wrapper will fail preflight and point them to the install-assist script documented by this plugin. Do not auto-install dependencies.
+Before a run, ensure Node.js 22 or newer is available and the generated `consensus` CLI can run. From an installed plugin this may be exposed as `consensus`; from a repository checkout the same provider CLI lives at `plugins/consensus/scripts/consensus.mjs` and can be run with `node`.
 
-Preflight resolves peers from `paseo provider ls --json` and fails closed with `PEER_UNAVAILABLE` when a requested peer is missing or reports a non-ready status (`error`, `unavailable`, `not found`, or a `Disabled` provider). When this fires, relay the named peer and the remediation hint (`paseo provider ls --json`) rather than retrying — a common cause is a custom ACP peer such as Cursor whose underlying CLI is not authenticated (e.g. `cursor-agent` with a locked OS keychain reports `error`).
+Use provider inventory and provider-neutral preflight before expensive runs:
+
+```bash
+consensus provider ls --json
+consensus preflight --json
+```
+
+The wrapper fails closed when a requested peer is missing, unavailable, unsupported, or auth-required. Relay the named provider, status, and remediation hint from the provider inventory rather than retrying. Cursor auth problems should be described through `auth_required` inventory/preflight diagnostics, commonly caused by a locked OS keychain or an unauthenticated Cursor CLI.
 
 ## Sequential Invocation
 
@@ -47,7 +54,7 @@ Pick the mode by what the document needs: `alternating` for routine tightening; 
 
 ### Synthesizer selection
 
-In `parallel_synthesized` mode the synthesis call defaults to the first configured peer's provider. Override it with `--synthesizer <provider-id>` to run routine merging on a cheaper model; the provider must be present in the peer inventory or preflight fails (`SYNTHESIZER_UNAVAILABLE`). The flag is warned-and-ignored outside `parallel_synthesized` mode. The synthesizer identity is recorded with every synthesis record and in the resolution block.
+In `parallel_synthesized` mode the synthesis call defaults to the first configured peer's provider. Override it with `--synthesizer <provider-id>` to run routine merging on a cheaper model; the provider must be present and usable in the provider inventory or preflight fails (`SYNTHESIZER_UNAVAILABLE`). The flag is warned-and-ignored outside `parallel_synthesized` mode. The synthesizer identity is recorded with every synthesis record and in the resolution block.
 
 Invalid mode values fail preflight with `INVALID_ITERATION_MODE` and a message listing the allowed modes.
 

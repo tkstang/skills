@@ -1,0 +1,82 @@
+#!/usr/bin/env node
+
+import { writeFileSync } from 'node:fs';
+
+process.stdin.setEncoding('utf8');
+
+let stdin = '';
+process.stdin.on('data', (chunk) => {
+  stdin += chunk;
+});
+process.stdin.on('end', () => {
+  const [mode, ...args] = process.argv.slice(2);
+
+  if (mode === 'echo-stdin') {
+    process.stdout.write(stdin);
+    return;
+  }
+
+  if (mode === 'stdout-stderr') {
+    process.stdout.write('stdout text');
+    process.stderr.write('stderr text');
+    return;
+  }
+
+  if (mode === 'exit-code') {
+    process.stderr.write('provider failed');
+    process.exitCode = 7;
+    return;
+  }
+
+  if (mode === 'sleep') {
+    setTimeout(() => {
+      process.stdout.write('late output');
+    }, Number(args[0] ?? 1000));
+    return;
+  }
+
+  if (mode === 'ignore-sigterm') {
+    process.on('SIGTERM', () => {});
+    setInterval(() => {}, 1000);
+    return;
+  }
+
+  if (mode === 'ignore-sigterm-output') {
+    process.on('SIGTERM', () => {});
+    process.stdout.on('error', () => {});
+    process.stderr.on('error', () => {});
+    const chunk = 'x'.repeat(Number(args[0] ?? 1024));
+    setInterval(() => {
+      process.stdout.write(chunk);
+      process.stderr.write(chunk);
+    }, 1);
+    return;
+  }
+
+  if (mode === 'big-output') {
+    process.stdout.write('x'.repeat(Number(args[0] ?? 1024)));
+    return;
+  }
+
+  if (mode === 'last-message') {
+    const [outputPath] = args;
+    if (!outputPath) {
+      process.stderr.write('missing output path');
+      process.exitCode = 64;
+      return;
+    }
+    writeFileSync(outputPath, '{"verdict":"accept"}\n');
+    process.stdout.write(
+      '{"type":"session.started"}\n{"type":"turn.completed"}\n',
+    );
+    return;
+  }
+
+  if (mode === 'argv-json') {
+    process.stdout.write(JSON.stringify(args));
+    return;
+  }
+
+  process.stderr.write(`unknown mode: ${mode ?? ''}`);
+  process.exitCode = 64;
+});

@@ -1,9 +1,6 @@
-import { execFile } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { promisify } from 'node:util';
-
-const execFileAsync = promisify(execFile);
 
 /** Absolute path to the repository root (parent of tests/). */
 export const repoRoot = path.resolve(
@@ -13,6 +10,9 @@ export const repoRoot = path.resolve(
 /** Absolute path to the fixture stub binaries directory. */
 export const fixtureBin = path.join(repoRoot, 'tests/fixtures/bin');
 
+/** Absolute path to the shared consensus CLI fixture. */
+export const consensusCliFixture = path.join(fixtureBin, 'consensus');
+
 /** Absolute path to the shared sample-input fixture. */
 export const sampleInput = path.join(
   repoRoot,
@@ -21,7 +21,7 @@ export const sampleInput = path.join(
 
 /**
  * Build a stub process env that prepends the fixture bin directory to PATH.
- * Consensus tests use this to inject the paseo stub without touching real PATH.
+ * Consensus tests use this to inject fixture binaries without touching real PATH.
  */
 export function makeStubEnv(overrides = {}) {
   return {
@@ -29,6 +29,17 @@ export function makeStubEnv(overrides = {}) {
     PATH: `${fixtureBin}${path.delimiter}${process.env.PATH}`,
     ...overrides,
   };
+}
+
+/**
+ * Build a stub process env that routes wrappers through the owned consensus CLI
+ * fixture.
+ */
+export function makeProviderCliEnv(overrides = {}) {
+  return makeStubEnv({
+    CONSENSUS_CLI_PATH: consensusCliFixture,
+    ...overrides,
+  });
 }
 
 export function captureWriter() {
@@ -59,14 +70,55 @@ export async function readJson(filePath) {
 }
 
 export async function runNodeScript(scriptPath, args = [], options = {}) {
-  try {
-    return await execFileAsync(process.execPath, [scriptPath, ...args], {
+  const result = await runNodeScriptResult(scriptPath, args, options);
+  if (result.code === 0) {
+    return {
+      stdout: result.stdout,
+      stderr: result.stderr,
+    };
+  }
+
+  const error = new Error(
+    `Command failed with exit code ${result.code}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`,
+  );
+  error.stdout = result.stdout;
+  error.stderr = result.stderr;
+  error.code = result.code;
+  throw error;
+}
+
+export function runNodeScriptResult(scriptPath, args = [], options = {}) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [scriptPath, ...args], {
       cwd: options.cwd,
       env: options.env,
-      maxBuffer: options.maxBuffer ?? 8 * 1024 * 1024,
+      stdio: ['pipe', 'pipe', 'pipe'],
     });
-  } catch (error) {
-    error.message = `${error.message}\nstdout:\n${error.stdout ?? ''}\nstderr:\n${error.stderr ?? ''}`;
-    throw error;
-  }
+    let stdout = '';
+    let stderr = '';
+
+    child.stdout.setEncoding('utf8');
+    child.stderr.setEncoding('utf8');
+    child.stdout.on('data', (chunk) => {
+      stdout += chunk;
+    });
+    child.stderr.on('data', (chunk) => {
+      stderr += chunk;
+    });
+    child.on('error', reject);
+    child.on('close', (code, signal) => {
+      resolve({
+        code,
+        signal,
+        stdout,
+        stderr,
+      });
+    });
+
+    if (options.input !== undefined) {
+      child.stdin.end(options.input);
+    } else {
+      child.stdin.end();
+    }
+  });
 }

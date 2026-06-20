@@ -334,7 +334,7 @@ it('exitCodeForError maps unit-testable wrapper exit codes', () => {
   ).toBe(74);
   expect(
     exitCodeForError(
-      Object.assign(new Error('missing'), { code: 'PASEO_MISSING' }),
+      Object.assign(new Error('missing'), { code: 'PROVIDER_MISSING' }),
     ),
   ).toBe(78);
   expect(
@@ -526,4 +526,57 @@ it('runSequential treats impasse as a section error after writing the artifact',
     'converged',
     'converged',
   ]);
+});
+
+it('runSequential reports provider CLI auth failures with provider-neutral remediation', async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-auth-'));
+  const inputPath = path.join(tempRoot, 'draft.md');
+  await writeFile(inputPath, '# Intro\n\nNeeds review.\n');
+
+  await expect(
+    runSequential({
+      inputPath,
+      output: path.join(tempRoot, 'out.md'),
+      runDir: path.join(tempRoot, '.consensus/run'),
+      allowRoot: tempRoot,
+      cwd: tempRoot,
+      env: {
+        ...process.env,
+        CONSENSUS_CLI_PATH: '/tmp/bin/consensus',
+      },
+      peers: ['cursor', 'claude'],
+      maxRounds: 1,
+      agency: 'moderate',
+      runCommand: async (_command: string, args: string[]) => {
+        if (args[0] === 'provider') {
+          return {
+            stdout: JSON.stringify({
+              schema_version: 'v1',
+              ok: true,
+              providers: [
+                { id: 'cursor', status: 'auth_required' },
+                { id: 'claude', status: 'ready' },
+              ],
+            }),
+            stderr: '',
+          };
+        }
+        return {
+          stdout: JSON.stringify({
+            schema_version: 'v1',
+            ok: true,
+            usable: false,
+            providers: [{ id: 'cursor', status: 'auth_required' }],
+          }),
+          stderr: '',
+        };
+      },
+    }),
+  ).rejects.toSatisfy((error: { code?: string; message: string }) => {
+    expect(error.code).toBe('PEER_UNAVAILABLE');
+    expect(error.message).toMatch(/cursor/);
+    expect(error.message).toMatch(/auth_required/);
+    expect(renderHumanError(error)).not.toMatch(/install/i);
+    return true;
+  });
 });

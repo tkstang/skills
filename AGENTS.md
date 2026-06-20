@@ -29,7 +29,7 @@
 ## Repository Conventions
 
 - Use Node >=22 for runtime and test scripts.
-- Keep runtime plugin code dependency-free and use Node standard library APIs unless a future project explicitly changes that contract. This applies to **shipped** skills/plugins, which must run with no install step (Paseo is the only external boundary; see DR-002). **Developer tooling** (git hooks, commit linting, future formatters) may take dependencies.
+- Keep runtime plugin code dependency-free and use Node standard library APIs unless a future project explicitly changes that contract. This applies to **shipped** skills/plugins, which must run with no install step; provider CLI subprocesses are the only external execution boundary. **Developer tooling** (git hooks, commit linting, future formatters) may take dependencies.
 - Developer dependencies use **pnpm** (`packageManager` is pinned in `package.json`; `pnpm-lock.yaml` is committed). Install with `pnpm install`; CI runs `pnpm install --frozen-lockfile`. Never add runtime dependencies to shipped skills.
 - Do not document provider support, marketplace availability, or skills.sh discovery as complete until the release checklist verifies the live provider path.
 - Keep plugin-facing documentation accurate to source code and manifests; do not preserve stale workaround notes when the implementation contract changes.

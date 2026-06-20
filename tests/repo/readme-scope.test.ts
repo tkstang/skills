@@ -1,9 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 
-// @ts-expect-error The generated runtime is intentionally declaration-free; this test exercises the shipped artifact.
-import { MIN_PASEO_VERSION, MAX_TESTED_PASEO_VERSION } from '../../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
-
 const repoRoot = new URL('../..', import.meta.url);
 
 async function read(relativePath: string) {
@@ -11,7 +8,7 @@ async function read(relativePath: string) {
 }
 
 describe('readme-scope', () => {
-  it('README documents v0.1 local install paths and Paseo prerequisite range', async () => {
+  it('README documents v0.1 local install paths and consensus CLI prerequisites', async () => {
     const readme = await read('README.md');
 
     expect(readme).toMatch(/claude plugin marketplace add "\$PWD" --scope user/);
@@ -22,13 +19,10 @@ describe('readme-scope', () => {
     expect(readme).toMatch(
       /session-scoped through Cursor Agent's `--plugin-dir` option/,
     );
-    expect(readme).toMatch(
-      new RegExp(
-        `tested range ${MIN_PASEO_VERSION.replaceAll('.', '\\.')} to ${MAX_TESTED_PASEO_VERSION.replaceAll('.', '\\.')}`,
-        'i',
-      ),
-    );
-    expect(readme).toMatch(/scripts\/install-paseo\.mjs/);
+    expect(readme).toMatch(/Node\.js 22 or newer/);
+    expect(readme).toMatch(/consensus CLI/i);
+    expect(readme).toMatch(/consensus provider ls --json/);
+    expect(readme).toMatch(/consensus preflight --json/);
   });
 
   it('README names permissions, limitations, no telemetry, prompt injection, and advanced peer config', async () => {
@@ -39,12 +33,13 @@ describe('readme-scope', () => {
     expect(readme).toMatch(/no telemetry/i);
     expect(readme).toMatch(/prompt injection/i);
     expect(readme).toMatch(/^## Advanced Configuration$/m);
-    expect(readme).toMatch(/custom ACP providers/i);
-    expect(readme).toMatch(/cursor-as-peer/i);
+    expect(readme).toMatch(/provider inventory/i);
+    expect(readme).toMatch(/Cursor.*auth_required/i);
     expect(readme).toMatch(/consensus-create/);
     expect(readme).toMatch(/parallel_revision/);
     expect(readme).toMatch(/parallel_synthesized/);
     expect(readme).toMatch(/whole-document harmonization/);
+    expect(readme).not.toMatch(/custom ACP provider/i);
   });
 
   it('README documents iteration modes as available, not future work', async () => {
@@ -66,6 +61,8 @@ describe('readme-scope', () => {
   it('plugin README documents iteration modes and escalation flags', async () => {
     const readme = await read('plugins/consensus/README.md');
 
+    expect(readme).toMatch(/consensus provider ls --json/);
+    expect(readme).toMatch(/consensus preflight --json/);
     expect(readme).toMatch(/--iteration/);
     expect(readme).toMatch(/parallel_revision/);
     expect(readme).toMatch(/parallel_synthesized/);
@@ -97,12 +94,6 @@ describe('readme-scope', () => {
     expect(contributing).toMatch(/cross-provider testing/i);
     expect(changelog).toMatch(/alternating-mode deliberation/i);
     expect(changelog).toMatch(/resume/i);
-    expect(changelog).toMatch(/Paseo install assist/i);
     expect(changelog).toMatch(/mocked smoke test/i);
-    expect(changelog).toMatch(
-      new RegExp(
-        `${MIN_PASEO_VERSION.replaceAll('.', '\\.')}.*${MAX_TESTED_PASEO_VERSION.replaceAll('.', '\\.')}`,
-      ),
-    );
   });
 });

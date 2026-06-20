@@ -2,7 +2,7 @@
 
 Status: v0.1 pre-release.
 
-`plugins/consensus/` is a self-contained plugin package for consensus workflows. It ships `refine`, which refines markdown drafts by asking two Paseo-backed AI peers to deliberate toward a converged artifact with an audit trail, and `evaluate`, which judges an artifact against a rubric with unified findings, per-peer reasoning, and dissent preserved in the deliberation log.
+`plugins/consensus/` is a self-contained plugin package for consensus workflows. It ships `refine`, which refines markdown drafts by asking two provider CLI-backed AI peers to deliberate toward a converged artifact with an audit trail, and `evaluate`, which judges an artifact against a rubric with unified findings, per-peer reasoning, and dissent preserved in the deliberation log.
 
 The scope is intentionally narrow: the `refine` and `evaluate` skills, three iteration modes selected with `--iteration` (`alternating` default for refine, `parallel_revision` default for evaluate, `parallel_synthesized`), a configurable synthesizer (`--synthesizer`), an agency-gated escalation ladder with host/user decision re-entry (`--host-direction`), sequential sections by default for refine, opt-in host-mediated parallel section orchestration for refine, and the `--agency` flag. Future work may add the rest of the consensus skill family, a whole-document harmonization pass, and deliberation metrics/cost caps.
 
@@ -41,16 +41,19 @@ If `skills` is already configured as a marketplace from another local checkout, 
 ## Prerequisites
 
 - Node.js 22 or newer.
-- Paseo CLI on `PATH`: `npm install -g @getpaseo/cli`. v0.1 validates against tested range 0.1.0 to 0.9.0 and emits a warning outside that range.
-- The peer CLIs configured in Paseo, usually `claude` and `codex`.
+- The generated consensus CLI from this plugin, used for provider inventory, preflight, and peer invocation.
+- Local provider CLIs for the requested peers. The first supported provider floor is `claude`, `codex`, and `cursor`.
 
-The plugin shells out to Paseo. It does not vendor Paseo and does not auto-install it. To use the opt-in helper, run from the repository root:
+The wrappers always invoke peers through the generated provider CLI. There is no alternate backend selector in v0.1.
+
+Check provider inventory and readiness from the repository root:
 
 ```bash
-node scripts/install-paseo.mjs
+node plugins/consensus/scripts/consensus.mjs provider ls --json
+node plugins/consensus/scripts/consensus.mjs preflight --json
 ```
 
-The helper prompts before running `npm install -g @getpaseo/cli`; declining leaves your machine unchanged.
+In an installed plugin environment, the same provider CLI may be exposed as `consensus`, for example `consensus provider ls --json` and `consensus preflight --json`.
 
 ## Usage
 
@@ -122,7 +125,7 @@ Four ready-to-adapt example rubrics ship under `skills/evaluate/references/examp
 The consensus `refine` and `evaluate` skills need permission to run:
 
 - `node` for the wrapper and loop scripts.
-- `paseo` for peer invocation.
+- `consensus` for provider inventory/preflight when exposed as a command.
 - read/write access to input files, generated `.consensus/` run state, and output artifacts.
 
 Refine parallel section mode additionally requires host-native subagent dispatch. Codex authorization must fail closed: if dispatch approval is unavailable or denied, the host should report that parallel mode did not run.
@@ -135,25 +138,16 @@ By default, host detection chooses `claude,codex` on Claude Code and Cursor, and
 node plugins/consensus/skills/refine/scripts/consensus-refine.mjs draft.md --peers claude,codex
 ```
 
-Peer IDs come from `paseo provider ls --json`; the wrappers do not probe executables directly. The `refine` wrapper performs provider-inventory preflight and fails closed with `PEER_UNAVAILABLE` when a requested peer is missing from the inventory or reports a non-ready status (`error`, `unavailable`, `not found`, or a `Disabled` provider). For `evaluate`, provider inventory checking is a host/operator step before invocation; the wrapper validates provider ID syntax and surfaces Paseo/runtime failures from peer invocation. Custom ACP providers are supported when they are registered with Paseo and appear in that inventory.
+Peer IDs come from provider inventory:
 
-Cursor is not a built-in Paseo peer at v0.1, so cursor-as-peer is opt-in. Register Cursor as a custom ACP provider — either through Paseo's one-click ACP catalog or by adding it to `~/.paseo/config.json`:
-
-```json
-{
-  "agents": {
-    "providers": {
-      "cursor": {
-        "extends": "acp",
-        "label": "Cursor",
-        "command": ["cursor-agent", "acp"]
-      }
-    }
-  }
-}
+```bash
+consensus provider ls --json
+consensus preflight --json --provider claude
 ```
 
-Then authenticate `cursor-agent` (it stores credentials in the OS keychain — a locked keychain makes the provider report `error`) and pass `--peers cursor,codex`. Note that Cursor runs through Paseo's generic ACP path, where `--output-schema` is enforced by prompt injection plus validation/retry rather than the native structured output `claude` and `codex` expose; expect more schema-retry churn, and treat cursor-as-peer as unverified end-to-end until a full deliberation run is exercised against an authenticated `cursor-agent`.
+The first supported provider floor is `claude`, `codex`, and `cursor`; future providers are extension points, not v0.1 support claims. Requested peers must be present and usable in provider inventory/preflight before live use. The wrappers surface provider-neutral diagnostics such as `PROVIDER_MISSING`, `PROVIDER_AUTH_REQUIRED`, `PROVIDER_UNAVAILABLE`, and `PROVIDER_UNSUPPORTED_OPTION`.
+
+Cursor is included in the provider floor, but local auth state is still operator-owned. If inventory or preflight reports Cursor as `auth_required`, unlock the OS keychain or authenticate the Cursor CLI in the current user session before retrying. Cursor submit-tool support is reserved for a later acceptance path and is not selected by default.
 
 ## Limitations
 
@@ -161,11 +155,11 @@ Then authenticate `cursor-agent` (it stores credentials in the OS keychain — a
 - Remaining consensus family skills are future work: `consensus-create`, `consensus-decide`, `consensus-plan`, and `consensus-research`.
 - Ships three iteration modes (`alternating`, `parallel_revision`, `parallel_synthesized`); the independent-draft cold-start strategy is not exposed through `refine` or `evaluate` (shared-input only).
 - Sections converge independently; whole-document harmonization and deliberation metrics/cost caps remain deferred.
-- Cursor is supported as a host runtime, and as a peer only via a user-configured custom ACP provider (not a default Paseo peer); its structured-output path is softer than claude/codex and is unverified end-to-end at v0.1.
+- Cursor is supported as a host runtime and as a first-floor peer when its local CLI is authenticated. Treat `auth_required` inventory/preflight results as a local setup issue, not a retryable consensus failure.
 - Codex public marketplace submission is not assumed; Git/local install is the v0.1 path.
 - skills.sh listing should not be claimed until indexing has been verified after publication.
 - Prompt injection inside the input artifact is mitigated by prompt framing and schema validation, but peer CLIs may still produce structurally valid bad advice. Review the audit trail before publishing outputs.
-- This plugin adds no telemetry. Paseo and configured peer CLIs may have their own behavior; review those tools separately.
+- This plugin adds no telemetry. Configured provider CLIs may have their own behavior; review those tools separately.
 
 ## Package Layout
 

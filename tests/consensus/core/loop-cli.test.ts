@@ -7,7 +7,7 @@ import { expect, it } from 'vitest';
 // @ts-expect-error The generated runtime is intentionally declaration-free; this test exercises the shipped artifact.
 import * as consensusLoop from '../../../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
 import {
-  makeStubEnv,
+  makeProviderCliEnv,
   readJson,
 } from '../../helpers/process.mjs';
 
@@ -200,9 +200,11 @@ it('buildTurnPrompt marks the first turn when no prior verdict exists', () => {
   expect(prompt).toMatch(/None - you are first/);
 });
 
-it('runConsensusLoop converges on two ACCEPT turns with the Paseo stub', async () => {
+it('runConsensusLoop converges on two ACCEPT turns with the provider CLI fixture', async () => {
   const files = await makeRunFiles('Stable text.\n');
-  const result = await runConsensusLoop(argvFor(files), { env: makeStubEnv() });
+  const result = await runConsensusLoop(argvFor(files), {
+    env: makeProviderCliEnv(),
+  });
 
   expect(result.status.status).toBe('converged');
   expect(result.status.termination_reason).toBe('double_accept');
@@ -239,7 +241,9 @@ it('runConsensusLoop stops on explicit IMPASSE verdicts', async () => {
   );
 
   const result = await runConsensusLoop(argvFor(files), {
-    env: makeStubEnv({ PASEO_STUB_RESPONSE_FILE: responsePath }),
+    invokePeer: async () => ({
+      json: JSON.parse(await readFile(responsePath, 'utf8')),
+    }),
   });
 
   expect(result.status.status).toBe('impasse');
@@ -356,11 +360,10 @@ it('runConsensusLoop detects two-state oscillation', async () => {
   expect(result.status.turns).toBe(4);
 });
 
-it('default synthesizer seam invokes paseo with the synthesis schema and resolved provider', async () => {
+it('default synthesizer seam invokes the synthesis schema with the resolved provider', async () => {
   const files = await makeRunFiles('Seed text.\n');
-  const capturePath = path.join(files.tempRoot, 'capture.json');
-  // Both peers CONVERGED so the round converges; the synthesizer is the final paseo
-  // call, so the capture file reflects the synthesizer invocation.
+  // Both peers CONVERGED so the round converges; the synthesizer seam receives
+  // the final provider invocation.
   const converged = JSON.stringify({
     schema_version: 'v1',
     verdict: 'CONVERGED',
@@ -374,8 +377,6 @@ it('default synthesizer seam invokes paseo with the synthesis schema and resolve
     unresolved_disagreements: [],
   });
 
-  // Peers use the default invokePaseo (verdict), the synthesizer uses the synthesis
-  // schema path. We capture the last paseo argv (the synthesizer call).
   let synthCall: any = null;
   await runConsensusLoop(
     argvFor(files, [
@@ -387,7 +388,6 @@ it('default synthesizer seam invokes paseo with the synthesis schema and resolve
       '1',
     ]),
     {
-      env: makeStubEnv({ PASEO_STUB_RESPONSE_JSON: converged }),
       invokePeer: async ({ provider }: { provider: string }) => ({
         json: JSON.parse(converged),
         stdout: converged,
@@ -404,38 +404,40 @@ it('default synthesizer seam invokes paseo with the synthesis schema and resolve
   expect(synthCall.schemaPath ?? '').toMatch(/synthesis\.schema\.json$/);
 });
 
-it('runConsensusLoop writes an error status and rejects hard Paseo failures', async () => {
+it('runConsensusLoop writes an error status and rejects hard provider failures', async () => {
   const files = await makeRunFiles();
 
   await expect(
     runConsensusLoop(argvFor(files), {
-      env: makeStubEnv({
-        PASEO_STUB_EXIT_CODE: '42',
-        PASEO_STUB_STDERR: 'provider failed',
+      env: makeProviderCliEnv({
+        CONSENSUS_STUB_RUN_FAILURE_CODE: 'PROVIDER_EXIT',
       }),
     }),
-  ).rejects.toThrow(/paseo exited with code 42/);
+  ).rejects.toThrow(/fixture provider_exit/);
 
   const status = await readJson(files.statusPath);
   expect(status.status).toBe('error');
   expect(status.termination_reason).toBe('hard_error');
-  expect(status.error).toMatch(/provider failed/);
+  expect(status.error).toMatch(/fixture provider_exit/);
 });
 
-it('runConsensusLoop maps missing direct paseo executable to config', async () => {
+it('runConsensusLoop records a missing provider CLI path as a hard error', async () => {
   const files = await makeRunFiles();
 
   await expect(
     runConsensusLoop(argvFor(files), {
-      env: { ...process.env, PATH: files.tempRoot },
+      env: {
+        ...process.env,
+        CONSENSUS_CLI_PATH: path.join(files.tempRoot, 'missing-consensus'),
+      },
     }),
   ).rejects.toSatisfy((error: { code?: string }) => {
-    expect(error.code).toBe('PASEO_MISSING');
-    expect(exitCodeForError(error)).toBe(EXIT_CODES.CONFIG);
+    expect(error.code).toBe('ENOENT');
+    expect(exitCodeForError(error)).toBe(EXIT_CODES.IO);
     return true;
   });
   const status = await readJson(files.statusPath);
   expect(status.status).toBe('error');
   expect(status.termination_reason).toBe('hard_error');
-  expect(status.error).toMatch(/paseo executable not found/);
+  expect(status.error).toMatch(/ENOENT/);
 });

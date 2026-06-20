@@ -1,14 +1,14 @@
 ---
 id: bl-f0b6
-title: 'Verify cursor-as-peer end-to-end through Paseo (authenticated cursor-agent)'
+title: 'Verify cursor-as-peer end-to-end through provider CLI (authenticated cursor-agent)'
 status: open
 priority: medium
 scope: task
 scope_estimate: S
-labels: [consensus, paseo, cursor, verification]
+labels: [consensus, provider-cli, cursor, verification]
 assignee: null
 created: '2026-06-13T19:12:43Z'
-updated: '2026-06-13T19:12:43Z'
+updated: '2026-06-19T23:16:53Z'
 associated_issues: []
 oat_template: true
 oat_template_name: backlog-item
@@ -16,47 +16,34 @@ oat_template_name: backlog-item
 
 ## Description
 
-Cursor is supported by Paseo as a custom ACP provider (`cursor-agent acp`, routed
-through the dedicated `CursorACPAgentClient`), and the consensus `refine` skill
-can target it via `--peers cursor,codex` once it appears in `paseo provider ls
---json`. This path has **not** been exercised end-to-end, so cursor-as-peer is
-documented as "unverified" at v0.1 (see README "Advanced Configuration" /
-"Limitations").
+**Status update (2026-06-19): still open, reframed for the provider CLI.**
+Cursor is now represented by the generated `consensus` provider CLI inventory
+and preflight path. On this machine, Cursor currently reports `auth_required`
+because the macOS login keychain is locked. This item should verify an
+authenticated Cursor peer through `consensus provider ls`, `consensus preflight`,
+and a live Refine/Evaluate peer run once local auth is usable.
+
+Cursor is represented in the provider CLI's first provider floor and can be
+targeted via `--peers cursor,codex` once it reports usable in
+`consensus provider ls --json` / `consensus preflight --json --provider cursor`.
+This path has **not** been exercised end-to-end with authenticated local Cursor
+credentials, so cursor-as-peer remains documented as auth-sensitive and
+unverified for live use.
 
 Two specific unknowns motivate this:
 
 1. **Auth/environment:** `cursor-agent` stores credentials in the OS keychain. A
-   locked/unauthenticated keychain makes the Paseo provider report `status: error`
-   (now caught by preflight `PEER_UNAVAILABLE` after the inventory-status fix). A
-   real run needs an authenticated `cursor-agent` and the provider at `available`.
-2. **Structured output:** Cursor runs through Paseo's generic ACP path, where
-   `--output-schema` is enforced by prompt injection + validation/retry rather
-   than the native structured output `claude`/`codex` expose. We need to confirm
-   our verdict schema survives that path (schema-retry rate, malformed-JSON
-   handling, latency) without degrading deliberation quality.
+   locked/unauthenticated keychain makes provider CLI inventory/preflight report
+   `auth_required`. A real run needs an authenticated `cursor-agent` and a
+   `ready`/usable provider status.
+2. **Structured output:** Cursor has no native schema flag in the current first
+   scope. The provider CLI treats Cursor as prompt-only plus local
+   validation/retry. We need to confirm the verdict schema survives that path
+   (schema-retry rate, malformed-JSON handling, latency) without degrading
+   deliberation quality.
 
-Setup reference (already documented in the README): register Cursor in
-`~/.paseo/config.json` (or via Paseo's one-click ACP catalog):
-
-```json
-{ "agents": { "providers": { "cursor": {
-  "extends": "acp", "label": "Cursor", "command": ["cursor-agent", "acp"]
-} } } }
-```
-
-Related: bl-bb7e (in-house peer CLI investigation) — findings here feed the
-build-vs-buy decision on whether maintaining ACP-peer support is worth keeping
-Paseo for.
-
-Confirmed from source (2026-06-14): cursor has **no native schema flag** in
-either Paseo (`~/code/paseo` `providers/cursor-acp-agent.ts`, routed through the
-generic ACP soft-schema path) or stoa (`~/code/stoa`
-`apps/server/src/ai-workflows/provider-adapter.ts` invokes
-`cursor agent --print --output-format json` — an envelope only — and enforces the
-schema via `final-json-contract.ts` `prompt-only` delivery). So this verification
-is specifically characterizing the **prompt-inject + validate + retry** path for
-cursor, not a native structured-output path. stoa's working direct cursor adapter
-is a reference for both this run and bl-bb7e.
+Related: bl-bb7e is complete; findings here now feed release/provider support
+wording and any later submit-tool hardening work ([[bl-3a88]]).
 
 ## Acceptance Criteria
 
@@ -64,10 +51,11 @@ is a reference for both this run and bl-bb7e.
   separately, `cursor` as one peer in a parallel mode) against an authenticated
   `cursor-agent`, with the run artifact and JSONL captured as evidence.
 - Schema behavior is characterized: observed schema-retry rate and any
-  malformed-verdict / `PASEO_INVALID_JSON` occurrences recorded, with a verdict
+  malformed-verdict / provider-invalid-JSON occurrences recorded, with a verdict
   on whether cursor-as-peer is reliable enough to document as supported.
 - Preflight behavior confirmed against a real errored Cursor provider (locked
-  keychain or signed-out) — `PEER_UNAVAILABLE` fires with the remediation hint.
+  keychain or signed-out) — provider CLI preflight reports `auth_required` with
+  the remediation hint.
 - README/SKILL wording updated from "unverified end-to-end" to the verified
   status (supported, or supported-with-caveats, or not-recommended) based on the
   evidence; findings cross-referenced into bl-bb7e.

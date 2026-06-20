@@ -10,8 +10,7 @@ import * as consensusLoop from '../../../plugins/consensus/skills/refine/scripts
 import * as consensusRefine from '../../../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
 import { extractJsonBlock } from '../../helpers/consensus.js';
 import {
-  fixtureBin,
-  makeStubEnv,
+  makeProviderCliEnv,
   repoRoot,
   sampleInput,
 } from '../../helpers/process.mjs';
@@ -145,10 +144,18 @@ it('runSequential refines sections, creates run files, and writes an artifact', 
   );
   const outputPath = path.join(tempRoot, 'sample.consensus.md');
   const runDir = path.join(tempRoot, '.consensus/run');
-  const env = {
-    PATH: `${fixtureBin}${path.delimiter}${process.env.PATH}`,
+  const env = makeProviderCliEnv({
     CURSOR_TRACE_ID: 'artifact-host-test',
-  };
+  });
+  for (const key of Object.keys(env)) {
+    if (
+      key.startsWith('CODEX_') ||
+      key.startsWith('OPENAI_CODEX_') ||
+      key.startsWith('CLAUDE')
+    ) {
+      delete env[key];
+    }
+  }
   const result = await runSequential({
     inputPath: sampleInput,
     output: outputPath,
@@ -226,7 +233,7 @@ it('run_started discloses iteration mode and per-round call multiplier', async (
   const alternating = captureStdout();
   await runWrapperCli([sampleInput, '--peers', 'claude,codex'], {
     stdout: alternating,
-    env: makeStubEnv(),
+    env: makeProviderCliEnv(),
     preflight: async () => ({ peers: ['claude', 'codex'], warnings: [] }),
   });
   const altStart = alternating
@@ -247,14 +254,7 @@ it('run_started discloses iteration mode and per-round call multiplier', async (
     ],
     {
       stdout: parallel,
-      env: makeStubEnv({
-        PASEO_STUB_RESPONSE_JSON: JSON.stringify({
-          schema_version: 'v1',
-          verdict: 'CONVERGED',
-          reasoning: 'agreed',
-          critique: { own_previous: 'o', peer_previous: 'p' },
-        }),
-      }),
+      env: makeProviderCliEnv({ CONSENSUS_STUB_VERDICT: 'CONVERGED' }),
       preflight: async () => ({ peers: ['claude', 'codex'], warnings: [] }),
     },
   );
@@ -271,13 +271,6 @@ it('parallel-revision artifact resolution reports peer_calls totals', async () =
   );
   const outputPath = path.join(tempRoot, 'out.consensus.md');
   const runDir = path.join(tempRoot, '.consensus/run');
-  const converged = JSON.stringify({
-    schema_version: 'v1',
-    verdict: 'CONVERGED',
-    reasoning: 'agreed',
-    critique: { own_previous: 'o', peer_previous: 'p' },
-  });
-
   const result = await runSequential({
     inputPath: sampleInput,
     output: outputPath,
@@ -289,7 +282,7 @@ it('parallel-revision artifact resolution reports peer_calls totals', async () =
     maxRounds: 2,
     agency: 'moderate',
     preflight: async () => ({ peers: ['claude', 'codex'], warnings: [] }),
-    env: makeStubEnv({ PASEO_STUB_RESPONSE_JSON: converged }),
+    env: makeProviderCliEnv({ CONSENSUS_STUB_VERDICT: 'CONVERGED' }),
   });
 
   const artifact = await readFile(outputPath, 'utf8');
@@ -343,7 +336,7 @@ it('runSequential preserves completed resume section output when source input ch
     cwd: tempRoot,
     peers: ['claude', 'codex'],
     preflight: async () => ({ peers: ['claude', 'codex'], warnings: [] }),
-    env: makeStubEnv(),
+    env: makeProviderCliEnv(),
   });
 
   const artifact = await readFile(outputPath, 'utf8');
@@ -387,7 +380,7 @@ it('runSequential preserves artifact section inventory when source headings drif
     cwd: tempRoot,
     peers: ['claude', 'codex'],
     preflight: async () => ({ peers: ['claude', 'codex'], warnings: [] }),
-    env: makeStubEnv(),
+    env: makeProviderCliEnv(),
   });
 
   const artifact = await readFile(outputPath, 'utf8');
