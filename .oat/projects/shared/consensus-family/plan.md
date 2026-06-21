@@ -39,7 +39,7 @@ oat_template: false
 
 ## Pre-Implementation Coordination
 
-Before starting implementation, rebase this branch after the pending docs-IA PR (#32) lands. PR #32 was inspected at head `e49b13d`; it stands up the Fumadocs site under `documentation/docs/`, slims `README.md` into an entry point/install matrix, and rewrites `tests/repo/readme-scope.test.ts` plus `tests/repo/docs-presence.test.ts` to treat the docs site as the dense documentation source of truth.
+This branch was rebased onto the merged docs-IA PR (#32) at `origin/main` merge commit `62c26a2`. PR #32 stands up the Fumadocs site under `documentation/docs/`, slims `README.md` into an entry point/install matrix, and rewrites `tests/repo/readme-scope.test.ts` plus `tests/repo/docs-presence.test.ts` to treat the docs site as the dense documentation source of truth.
 
 Keep the implementation task intent, but re-check documentation paths and repo-invariant tests against the rebased tree before executing documentation-facing tasks. In particular:
 
@@ -48,7 +48,7 @@ Keep the implementation task intent, but re-check documentation paths and repo-i
 - `plugins/consensus/README.md` remains in scope for deep plugin/operator reference because PR #32 intentionally left it untouched.
 - `CHANGELOG.md`, smoke tests, provider manifests, skill docs, and generated-output invariants remain implementation-scope surfaces.
 
-If the new IA supersedes a listed docs path or `git add` command in this plan draft, adapt during implementation or defer structure-specific sync to `oat-project-document`; do not preserve stale documentation paths just because they appear here.
+If the IA still changes after this rebase, adapt the affected documentation paths during implementation or defer structure-specific sync to `oat-project-document`; do not preserve stale documentation paths just because they appear here.
 
 ## Phase 1: Loop-Core `independent_draft`
 
@@ -540,6 +540,11 @@ git commit -m "feat(p02-t04): ship consensus create skill"
 
 **Files:**
 
+- Add: `documentation/docs/user-guide/consensus/create.md`
+- Modify: `documentation/docs/user-guide/consensus/index.md`
+- Modify: `documentation/docs/user-guide/consensus/configuration.md`
+- Modify: `documentation/docs/user-guide/consensus/meta.json`
+- Modify: `documentation/index.md`
 - Modify: `README.md`
 - Modify: `plugins/consensus/README.md`
 - Modify: `CHANGELOG.md`
@@ -549,21 +554,21 @@ git commit -m "feat(p02-t04): ship consensus create skill"
 
 **Step 1: Write test (RED)**
 
-Add smoke, README, and CHANGELOG tests asserting create is documented as shipped, not future work, recorded under `## [Unreleased]` / `### Added`, and the mocked smoke flow checks artifact + deliberation log + resolution metadata.
+Add smoke, docs-site, README summary, and CHANGELOG tests asserting create is documented as shipped, not future work, recorded under `## [Unreleased]` / `### Added`, and the mocked smoke flow checks artifact + deliberation log + resolution metadata.
 
 Run: `pnpm exec vitest run tests/release/smoke-test-script.test.ts tests/repo/readme-scope.test.ts`
 Expected: Tests fail until docs and smoke flow include create.
 
 **Step 2: Implement (GREEN)**
 
-Update docs, CHANGELOG, and smoke fixture flow for `consensus-create`.
+Update the Fumadocs consensus pages, slim README summary, plugin README reference, CHANGELOG, and smoke fixture flow for `consensus-create`. Add the create page to `documentation/docs/user-guide/consensus/meta.json` and `index.md`, update `configuration.md` for `independent_draft` semantics, then run `cd documentation && oat docs generate-index --docs-dir docs --output index.md`.
 
 Run: `pnpm run smoke`
 Expected: Mocked smoke flow includes create and passes.
 
 **Step 3: Refactor**
 
-Ensure docs avoid provider-marketplace claims beyond the verified local install path.
+Ensure docs avoid provider-marketplace claims beyond the verified local install path, and keep `README.md` as a short entry point rather than reintroducing dense reference sections.
 
 **Step 4: Verify**
 
@@ -573,7 +578,7 @@ Expected: Create phase gate set passes.
 **Step 5: Commit**
 
 ```bash
-git add README.md plugins/consensus/README.md CHANGELOG.md scripts/smoke-test.mjs tests/release/smoke-test-script.test.ts tests/repo/readme-scope.test.ts
+git add documentation/docs/user-guide/consensus/create.md documentation/docs/user-guide/consensus/index.md documentation/docs/user-guide/consensus/configuration.md documentation/docs/user-guide/consensus/meta.json documentation/index.md README.md plugins/consensus/README.md CHANGELOG.md scripts/smoke-test.mjs tests/release/smoke-test-script.test.ts tests/repo/readme-scope.test.ts
 git commit -m "docs(p02-t05): document and smoke test consensus create"
 ```
 
@@ -772,6 +777,10 @@ git commit -m "feat(p03-t04): ship consensus decide skill"
 
 **Files:**
 
+- Add: `documentation/docs/user-guide/consensus/decide.md`
+- Modify: `documentation/docs/user-guide/consensus/index.md`
+- Modify: `documentation/docs/user-guide/consensus/meta.json`
+- Modify: `documentation/index.md`
 - Modify: `README.md`
 - Modify: `plugins/consensus/README.md`
 - Modify: `CHANGELOG.md`
@@ -781,21 +790,21 @@ git commit -m "feat(p03-t04): ship consensus decide skill"
 
 **Step 1: Write test (RED)**
 
-Add docs/smoke/CHANGELOG assertions for decide, including the required headings and dissent surfacing.
+Add docs-site, smoke, README summary, and CHANGELOG assertions for decide, including the required headings and dissent surfacing.
 
 Run: `pnpm exec vitest run tests/release/smoke-test-script.test.ts tests/repo/readme-scope.test.ts`
 Expected: Tests fail until decide docs and smoke flow are added.
 
 **Step 2: Implement (GREEN)**
 
-Update docs, CHANGELOG, and smoke fixture flow for `consensus-decide`.
+Update the Fumadocs consensus pages, slim README summary, plugin README reference, CHANGELOG, and smoke fixture flow for `consensus-decide`. Add the decide page to `documentation/docs/user-guide/consensus/meta.json` and `index.md`, then regenerate `documentation/index.md`.
 
 Run: `pnpm run smoke`
 Expected: Mocked smoke flow includes decide and passes.
 
 **Step 3: Refactor**
 
-Keep docs clear that output is markdown, not a new machine-readable decision schema.
+Keep docs clear that output is markdown, not a new machine-readable decision schema; update future-work wording so `consensus-plan` and `consensus-research` remain deferred but `consensus-decide` does not.
 
 **Step 4: Verify**
 
@@ -805,7 +814,7 @@ Expected: Decide phase gate set passes.
 **Step 5: Commit**
 
 ```bash
-git add README.md plugins/consensus/README.md CHANGELOG.md scripts/smoke-test.mjs tests/release/smoke-test-script.test.ts tests/repo/readme-scope.test.ts
+git add documentation/docs/user-guide/consensus/decide.md documentation/docs/user-guide/consensus/index.md documentation/docs/user-guide/consensus/meta.json documentation/index.md README.md plugins/consensus/README.md CHANGELOG.md scripts/smoke-test.mjs tests/release/smoke-test-script.test.ts tests/repo/readme-scope.test.ts
 git commit -m "docs(p03-t05): document and smoke test consensus decide"
 ```
 
@@ -1004,6 +1013,11 @@ git commit -m "feat(p04-t04): ship consensus plan skill"
 
 **Files:**
 
+- Add: `documentation/docs/user-guide/consensus/plan.md`
+- Modify: `documentation/docs/user-guide/consensus/index.md`
+- Modify: `documentation/docs/user-guide/consensus/meta.json`
+- Modify: `documentation/docs/engineering/architecture/generated-runtime.md`
+- Modify: `documentation/index.md`
 - Modify: `README.md`
 - Modify: `plugins/consensus/README.md`
 - Modify: `CHANGELOG.md`
@@ -1014,21 +1028,21 @@ git commit -m "feat(p04-t04): ship consensus plan skill"
 
 **Step 1: Write test (RED)**
 
-Add docs/smoke/CHANGELOG assertions for plan and family-level generated-output expectations for create/decide/plan.
+Add docs-site, smoke, README summary, CHANGELOG, and family-level generated-output assertions for plan and the complete create/decide/plan family.
 
 Run: `pnpm exec vitest run tests/release/smoke-test-script.test.ts tests/repo/readme-scope.test.ts tests/tooling/generated-output-sync.test.ts`
 Expected: Tests fail until plan docs/smoke and generated-output checks are updated.
 
 **Step 2: Implement (GREEN)**
 
-Update docs, CHANGELOG, and smoke fixture flow for `consensus-plan`; ensure generated-output sync covers all new runtime mappings.
+Update the Fumadocs consensus pages, generated-runtime architecture page, slim README summary, plugin README reference, CHANGELOG, and smoke fixture flow for `consensus-plan`; ensure generated-output sync covers all new runtime mappings. Add the plan page to `documentation/docs/user-guide/consensus/meta.json` and `index.md`, then regenerate `documentation/index.md`.
 
 Run: `pnpm run smoke`
 Expected: Mocked smoke flow includes create, decide, and plan and passes.
 
 **Step 3: Refactor**
 
-Remove stale "future work" wording for shipped skills while keeping `consensus-research` out of scope.
+Remove stale "future work" wording for shipped skills while keeping `consensus-research` out of scope. Preserve the docs-IA contract that dense user guidance lives in `documentation/docs/` and README stays slim.
 
 **Step 4: Verify**
 
@@ -1038,7 +1052,7 @@ Expected: Full gate set passes.
 **Step 5: Commit**
 
 ```bash
-git add README.md plugins/consensus/README.md CHANGELOG.md scripts/smoke-test.mjs tests/release/smoke-test-script.test.ts tests/repo/readme-scope.test.ts tests/tooling/generated-output-sync.test.ts
+git add documentation/docs/user-guide/consensus/plan.md documentation/docs/user-guide/consensus/index.md documentation/docs/user-guide/consensus/meta.json documentation/docs/engineering/architecture/generated-runtime.md documentation/index.md README.md plugins/consensus/README.md CHANGELOG.md scripts/smoke-test.mjs tests/release/smoke-test-script.test.ts tests/repo/readme-scope.test.ts tests/tooling/generated-output-sync.test.ts
 git commit -m "docs(p04-t05): document and verify consensus plan family"
 ```
 
