@@ -235,4 +235,3 @@ _Design-related open questions are tracked in the [Open Questions](#open-questio
 - Architecture: `.oat/repo/reference/research/consensus/architecture-v3.md`
 - Decision record: `.oat/repo/reference/decision-record.md` (DR-024)
 - Knowledge Base: `.oat/repo/knowledge/project-index.md`
-</content>
