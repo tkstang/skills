@@ -31,26 +31,26 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-06-21T15:59:48.857Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-06-21T20:27:22Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-06-21T21:00:58Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
 # Project State: consensus-family
 
-**Status:** Planning in progress — maximum dispatch ceiling set; awaiting Claude plan review
+**Status:** Planning in progress — plan review fixes completed; awaiting plan re-review
 **Started:** 2026-06-21
 **Last Updated:** 2026-06-21
 
 ## Current Phase
 
-Planning in progress — plan drafted by Codex; maximum dispatch ceiling selected (Codex `xhigh`, Claude `opus`); awaiting Claude plan review before artifact review processing and implementation readiness.
+Planning in progress — plan drafted by Codex; maximum dispatch ceiling selected (Codex `xhigh`, Claude `opus`); Claude plan review received and artifact fixes applied; awaiting plan re-review before implementation readiness.
 
 ## Artifacts
 
 - **Discovery:** `discovery.md` (complete)
 - **Spec:** `spec.md` (complete — confirmed requirements)
 - **Design:** `design.md` (complete — HiLL approved)
-- **Plan:** `plan.md` (drafted — awaiting Claude review)
+- **Plan:** `plan.md` (drafted — review fixes completed; awaiting re-review)
 - **Implementation:** `implementation.md` (scaffolded template — not started)
 
 ## Progress
@@ -62,8 +62,8 @@ Planning in progress — plan drafted by Codex; maximum dispatch ceiling selecte
 - ✓ Design complete (selective collaborative); Codex design review incorporated
 - ✓ HiLL `design` checkpoint approved
 - ✓ Maximum dispatch ceiling selected — Codex `xhigh`, Claude `opus`
-- ⧗ Plan drafted — awaiting Claude plan review
-- ⧗ Next: process plan review, then `oat-project-implement`
+- ✓ Plan review received and artifact fixes applied
+- ⧗ Next: re-run plan artifact review, then `oat-project-implement` after pass
 
 ## Blockers
 
@@ -71,4 +71,4 @@ None
 
 ## Next Milestone
 
-Receive and process Claude's plan review so `oat-project-plan` can mark the plan complete and hand off to `oat-project-implement`.
+Re-run the plan artifact review so `oat-project-plan` can mark the plan complete and hand off to `oat-project-implement`.

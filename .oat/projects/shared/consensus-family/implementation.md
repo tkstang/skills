@@ -96,6 +96,33 @@ oat_generated: false
 
 ---
 
+## Review Received: plan
+
+**Date:** 2026-06-21
+**Review artifact:** `reviews/archived/artifact-plan-review-2026-06-21.md`
+**Type:** artifact review
+
+**Findings:**
+
+- Critical: 0
+- Important: 2
+- Medium: 2
+- Minor: 3
+
+**Actions taken:**
+
+- Resolved `I1` by adding `CHANGELOG.md` coverage to the documentation tasks and requiring CHANGELOG assertions.
+- Resolved `I2` by adding provider plugin manifest description updates to `p02-t04`, including `plugin-manifests.test.ts` coverage and an explicit no-version-bump-without-release-decision note.
+- Resolved `M1` by tightening `SKILL.md` required-section guidance for create/decide/plan and calling out the hardcoded shipped-skill test allowlists.
+- Resolved `M2` by adding `p01-t02` to the FR1/FR2 requirement index rows in `spec.md`.
+- Resolved `m1` by adding a closeout bookkeeping note that durable decision promotion and backlog/roadmap cleanup belong to `oat-project-complete`.
+- Rejected `m2` with rationale: `p01-t06` correctly omits `scripts/bump-version.mjs` because refine/evaluate are already listed in `SKILL_FILES`.
+- Rejected `m3` with rationale: splitting design Phase 3 into separate decide and plan phases is a deliberate implementation-plan refinement that matches the separate-PR intent.
+
+**Plan status:** artifact fixes completed; awaiting plan re-review before marking `plan.md` complete.
+
+---
+
 ## Phase 2: {Phase Name}
 
 **Status:** pending

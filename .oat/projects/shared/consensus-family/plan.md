@@ -31,7 +31,7 @@ oat_template: false
 - [x] Defer HiLL checkpoint confirmation to oat-project-implement
 - [x] Evaluated phases for parallelism opportunities
 - [x] Set `oat_plan_parallel_groups` in frontmatter
-- [ ] Run plan artifact review
+- [x] Run plan artifact review
 
 ## Parallelism
 
@@ -479,22 +479,28 @@ git commit -m "feat(p02-t03): run consensus create through loop"
 - Create: `plugins/consensus/skills/create/scripts/consensus-create.mjs` (generated)
 - Modify: `scripts/build-generated.mjs`
 - Modify: `scripts/bump-version.mjs`
+- Modify: `plugins/consensus/.claude-plugin/plugin.json`
+- Modify: `plugins/consensus/.codex-plugin/plugin.json`
+- Modify: `plugins/consensus/.cursor-plugin/plugin.json`
 - Modify: `tests/repo/skill-frontmatter.test.ts`
 - Modify: `tests/repo/docs-presence.test.ts`
 - Modify: `tests/repo/layout.test.ts`
+- Modify: `tests/repo/plugin-manifests.test.ts`
 - Modify: `tests/release/versioning.test.ts`
 - Modify: `tests/tooling/generated-output-sync.test.ts`
 
 **Step 1: Write test (RED)**
 
-Extend repo-invariant tests to expect the create skill directory, portable/versioned frontmatter, bundled schemas, example fixture, and generated script path.
+Extend repo-invariant tests to expect the create skill directory, portable/versioned frontmatter, bundled schemas, example fixture, generated script path, and refreshed plugin manifest description. Update `tests/repo/skill-frontmatter.test.ts` in both places it hardcodes shipped skill names: the `skillPaths` parametrization and the `['refine', 'evaluate']` name allowlist.
 
-Run: `pnpm exec vitest run tests/repo/skill-frontmatter.test.ts tests/repo/docs-presence.test.ts tests/repo/layout.test.ts tests/release/versioning.test.ts tests/tooling/generated-output-sync.test.ts`
+Run: `pnpm exec vitest run tests/repo/skill-frontmatter.test.ts tests/repo/docs-presence.test.ts tests/repo/layout.test.ts tests/repo/plugin-manifests.test.ts tests/release/versioning.test.ts tests/tooling/generated-output-sync.test.ts`
 Expected: Repo-invariant tests fail before the skill anatomy exists.
 
 **Step 2: Implement (GREEN)**
 
-Add the create skill files, copy schema contracts from the existing consensus skills, register `src/consensus/create/consensus-create.ts` in `scripts/build-generated.mjs`, and add the create `SKILL.md` path to `SKILL_FILES`.
+Add the create skill files, copy schema contracts from the existing consensus skills, register `src/consensus/create/consensus-create.ts` in `scripts/build-generated.mjs`, add the create `SKILL.md` path to `SKILL_FILES`, and broaden the provider plugin manifest descriptions to include the create family. Do not bump provider manifest versions unless a release decision explicitly changes the current `0.1.0` pin.
+
+The create `SKILL.md` must include the same enforced user-facing structure as the shipped consensus skills: `## When NOT to Use`, `## Examples`, `## Success Criteria`, `## Output Contract`, and a per-skill invocation section such as `## Create Invocation`.
 
 Run: `pnpm run build`
 Expected: `plugins/consensus/skills/create/scripts/consensus-create.mjs` and its loop runtime are generated.
@@ -505,13 +511,13 @@ Check `version` and `metadata.version` match in the new `SKILL.md`.
 
 **Step 4: Verify**
 
-Run: `pnpm exec vitest run tests/repo/skill-frontmatter.test.ts tests/repo/docs-presence.test.ts tests/repo/layout.test.ts tests/release/versioning.test.ts tests/tooling/generated-output-sync.test.ts`
+Run: `pnpm exec vitest run tests/repo/skill-frontmatter.test.ts tests/repo/docs-presence.test.ts tests/repo/layout.test.ts tests/repo/plugin-manifests.test.ts tests/release/versioning.test.ts tests/tooling/generated-output-sync.test.ts`
 Expected: Repo-invariant tests pass.
 
 **Step 5: Commit**
 
 ```bash
-git add plugins/consensus/skills/create scripts/build-generated.mjs scripts/bump-version.mjs tests/repo/skill-frontmatter.test.ts tests/repo/docs-presence.test.ts tests/repo/layout.test.ts tests/release/versioning.test.ts tests/tooling/generated-output-sync.test.ts
+git add plugins/consensus/skills/create plugins/consensus/.claude-plugin/plugin.json plugins/consensus/.codex-plugin/plugin.json plugins/consensus/.cursor-plugin/plugin.json scripts/build-generated.mjs scripts/bump-version.mjs tests/repo/skill-frontmatter.test.ts tests/repo/docs-presence.test.ts tests/repo/layout.test.ts tests/repo/plugin-manifests.test.ts tests/release/versioning.test.ts tests/tooling/generated-output-sync.test.ts
 git commit -m "feat(p02-t04): ship consensus create skill"
 ```
 
@@ -523,20 +529,21 @@ git commit -m "feat(p02-t04): ship consensus create skill"
 
 - Modify: `README.md`
 - Modify: `plugins/consensus/README.md`
+- Modify: `CHANGELOG.md`
 - Modify: `scripts/smoke-test.mjs`
 - Modify: `tests/release/smoke-test-script.test.ts`
 - Modify: `tests/repo/readme-scope.test.ts`
 
 **Step 1: Write test (RED)**
 
-Add smoke and README tests asserting create is documented as shipped, not future work, and the mocked smoke flow checks artifact + deliberation log + resolution metadata.
+Add smoke, README, and CHANGELOG tests asserting create is documented as shipped, not future work, recorded under `## [Unreleased]` / `### Added`, and the mocked smoke flow checks artifact + deliberation log + resolution metadata.
 
 Run: `pnpm exec vitest run tests/release/smoke-test-script.test.ts tests/repo/readme-scope.test.ts`
 Expected: Tests fail until docs and smoke flow include create.
 
 **Step 2: Implement (GREEN)**
 
-Update docs and smoke fixture flow for `consensus-create`.
+Update docs, CHANGELOG, and smoke fixture flow for `consensus-create`.
 
 Run: `pnpm run smoke`
 Expected: Mocked smoke flow includes create and passes.
@@ -553,7 +560,7 @@ Expected: Create phase gate set passes.
 **Step 5: Commit**
 
 ```bash
-git add README.md plugins/consensus/README.md scripts/smoke-test.mjs tests/release/smoke-test-script.test.ts tests/repo/readme-scope.test.ts
+git add README.md plugins/consensus/README.md CHANGELOG.md scripts/smoke-test.mjs tests/release/smoke-test-script.test.ts tests/repo/readme-scope.test.ts
 git commit -m "docs(p02-t05): document and smoke test consensus create"
 ```
 
@@ -716,7 +723,7 @@ git commit -m "feat(p03-t03): run consensus decide through loop"
 
 **Step 1: Write test (RED)**
 
-Extend repo-invariant tests for decide skill frontmatter, schemas, examples, and generated script.
+Extend repo-invariant tests for decide skill frontmatter, schemas, examples, generated script, and the shipped-skill test allowlists (`skillPaths` plus the name allowlist).
 
 Run: `pnpm exec vitest run tests/repo/skill-frontmatter.test.ts tests/repo/docs-presence.test.ts tests/repo/layout.test.ts tests/release/versioning.test.ts tests/tooling/generated-output-sync.test.ts`
 Expected: Tests fail until decide skill files exist.
@@ -724,6 +731,8 @@ Expected: Tests fail until decide skill files exist.
 **Step 2: Implement (GREEN)**
 
 Add decide skill anatomy, build-generated mapping, and version-bump registration.
+
+The decide `SKILL.md` must include the same enforced user-facing structure as the shipped consensus skills: `## When NOT to Use`, `## Examples`, `## Success Criteria`, `## Output Contract`, and a per-skill invocation section such as `## Decision Invocation`.
 
 Run: `pnpm run build`
 Expected: Decide generated runtime files are written under `plugins/consensus/skills/decide/scripts/`.
@@ -752,20 +761,21 @@ git commit -m "feat(p03-t04): ship consensus decide skill"
 
 - Modify: `README.md`
 - Modify: `plugins/consensus/README.md`
+- Modify: `CHANGELOG.md`
 - Modify: `scripts/smoke-test.mjs`
 - Modify: `tests/release/smoke-test-script.test.ts`
 - Modify: `tests/repo/readme-scope.test.ts`
 
 **Step 1: Write test (RED)**
 
-Add docs/smoke assertions for decide, including the required headings and dissent surfacing.
+Add docs/smoke/CHANGELOG assertions for decide, including the required headings and dissent surfacing.
 
 Run: `pnpm exec vitest run tests/release/smoke-test-script.test.ts tests/repo/readme-scope.test.ts`
 Expected: Tests fail until decide docs and smoke flow are added.
 
 **Step 2: Implement (GREEN)**
 
-Update docs and smoke fixture flow for `consensus-decide`.
+Update docs, CHANGELOG, and smoke fixture flow for `consensus-decide`.
 
 Run: `pnpm run smoke`
 Expected: Mocked smoke flow includes decide and passes.
@@ -782,7 +792,7 @@ Expected: Decide phase gate set passes.
 **Step 5: Commit**
 
 ```bash
-git add README.md plugins/consensus/README.md scripts/smoke-test.mjs tests/release/smoke-test-script.test.ts tests/repo/readme-scope.test.ts
+git add README.md plugins/consensus/README.md CHANGELOG.md scripts/smoke-test.mjs tests/release/smoke-test-script.test.ts tests/repo/readme-scope.test.ts
 git commit -m "docs(p03-t05): document and smoke test consensus decide"
 ```
 
@@ -945,7 +955,7 @@ git commit -m "feat(p04-t03): run consensus plan through loop"
 
 **Step 1: Write test (RED)**
 
-Extend repo-invariant tests for plan skill frontmatter, schemas, example fixture, and generated script.
+Extend repo-invariant tests for plan skill frontmatter, schemas, example fixture, generated script, and the shipped-skill test allowlists (`skillPaths` plus the name allowlist).
 
 Run: `pnpm exec vitest run tests/repo/skill-frontmatter.test.ts tests/repo/docs-presence.test.ts tests/repo/layout.test.ts tests/release/versioning.test.ts tests/tooling/generated-output-sync.test.ts`
 Expected: Tests fail until plan skill files exist.
@@ -953,6 +963,8 @@ Expected: Tests fail until plan skill files exist.
 **Step 2: Implement (GREEN)**
 
 Add plan skill anatomy, build-generated mapping, and version-bump registration.
+
+The plan `SKILL.md` must include the same enforced user-facing structure as the shipped consensus skills: `## When NOT to Use`, `## Examples`, `## Success Criteria`, `## Output Contract`, and a per-skill invocation section such as `## Plan Invocation`.
 
 Run: `pnpm run build`
 Expected: Plan generated runtime files are written under `plugins/consensus/skills/plan/scripts/`.
@@ -981,6 +993,7 @@ git commit -m "feat(p04-t04): ship consensus plan skill"
 
 - Modify: `README.md`
 - Modify: `plugins/consensus/README.md`
+- Modify: `CHANGELOG.md`
 - Modify: `scripts/smoke-test.mjs`
 - Modify: `tests/release/smoke-test-script.test.ts`
 - Modify: `tests/repo/readme-scope.test.ts`
@@ -988,14 +1001,14 @@ git commit -m "feat(p04-t04): ship consensus plan skill"
 
 **Step 1: Write test (RED)**
 
-Add docs/smoke assertions for plan and family-level generated-output expectations for create/decide/plan.
+Add docs/smoke/CHANGELOG assertions for plan and family-level generated-output expectations for create/decide/plan.
 
 Run: `pnpm exec vitest run tests/release/smoke-test-script.test.ts tests/repo/readme-scope.test.ts tests/tooling/generated-output-sync.test.ts`
 Expected: Tests fail until plan docs/smoke and generated-output checks are updated.
 
 **Step 2: Implement (GREEN)**
 
-Update docs and smoke fixture flow for `consensus-plan`; ensure generated-output sync covers all new runtime mappings.
+Update docs, CHANGELOG, and smoke fixture flow for `consensus-plan`; ensure generated-output sync covers all new runtime mappings.
 
 Run: `pnpm run smoke`
 Expected: Mocked smoke flow includes create, decide, and plan and passes.
@@ -1012,9 +1025,15 @@ Expected: Full gate set passes.
 **Step 5: Commit**
 
 ```bash
-git add README.md plugins/consensus/README.md scripts/smoke-test.mjs tests/release/smoke-test-script.test.ts tests/repo/readme-scope.test.ts tests/tooling/generated-output-sync.test.ts
+git add README.md plugins/consensus/README.md CHANGELOG.md scripts/smoke-test.mjs tests/release/smoke-test-script.test.ts tests/repo/readme-scope.test.ts tests/tooling/generated-output-sync.test.ts
 git commit -m "docs(p04-t05): document and verify consensus plan family"
 ```
+
+---
+
+## Closeout Bookkeeping
+
+Discovery identified durable-decision promotion and backlog/roadmap cleanup as closeout work. That bookkeeping is intentionally deferred to `oat-project-complete`, after implementation and final review establish the shipped behavior. Do not add implementation-phase tasks for decision-record, backlog, `completed.md`, `current-state.md`, or roadmap updates unless the completion workflow asks for them.
 
 ---
 
@@ -1031,7 +1050,7 @@ Track reviews here after running the `oat-project-review-provide` and `oat-proje
 | final  | code     | pending  | -          | -                                             |
 | spec   | artifact | pending  | -          | -                                             |
 | design | artifact | received | 2026-06-21 | reviews/artifact-design-review-2026-06-21.md |
-| plan   | artifact | received | 2026-06-21 | reviews/artifact-plan-review-2026-06-21.md    |
+| plan   | artifact | fixes_completed | 2026-06-21 | reviews/archived/artifact-plan-review-2026-06-21.md |
 
 **Status values:** `pending` -> `received` -> `fixes_added` -> `fixes_completed` -> `passed`
 
@@ -1053,7 +1072,7 @@ Track reviews here after running the `oat-project-review-provide` and `oat-proje
 
 **Total: 21 tasks**
 
-Ready for implementation after plan artifact review passes and `oat-project-implement` confirms phase checkpoint behavior.
+Ready for plan re-review, then implementation after the plan review passes and `oat-project-implement` confirms phase checkpoint behavior.
 
 ## References
 

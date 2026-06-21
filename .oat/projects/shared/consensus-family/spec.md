@@ -190,8 +190,8 @@ _Design-related open questions are tracked in the [Open Questions](#open-questio
 
 | ID   | Description                                                       | Priority | Verification                              | Planned Tasks                      |
 | ---- | ---------------------------------------------------------------- | -------- | ----------------------------------------- | ---------------------------------- |
-| FR1  | `independent_draft` cold-start supported in loop core            | P0       | unit + integration: loop cold-start path  | p01-t01, p01-t03, p01-t04, p01-t05 |
-| FR2  | `independent_draft` coherent across all three iteration modes    | P0       | unit + integration: round-1 prompt + run per mode | p01-t03, p01-t04 |
+| FR1  | `independent_draft` cold-start supported in loop core            | P0       | unit + integration: loop cold-start path  | p01-t01, p01-t02, p01-t03, p01-t04, p01-t05 |
+| FR2  | `independent_draft` coherent across all three iteration modes    | P0       | unit + integration: round-1 prompt + run per mode | p01-t02, p01-t03, p01-t04 |
 | FR3  | Cold-start recorded in resolution block + `--cold-start` config  | P0       | unit: arg parse + resolution recording    | p01-t01, p01-t04, p01-t05, p02-t01, p03-t01, p04-t01 |
 | FR4  | `consensus-create` skill (brief → artifact)                      | P0       | integration + manual: create end-to-end   | p02-t01, p02-t02, p02-t03, p02-t04, p02-t05 |
 | FR5  | `consensus-decide` skill (markdown decision doc, surfaces dissent)| P1      | integration: minimal-agency dissent surfacing | p03-t01, p03-t02, p03-t03, p03-t04, p03-t05 |
