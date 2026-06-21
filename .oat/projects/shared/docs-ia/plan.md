@@ -387,6 +387,37 @@ git commit -m "docs(p03-t03): close out bl-ecaa; record Fumadocs DR; refresh ref
 
 ---
 
+## Phase 4: Docs deployment CI (GitHub Pages)
+
+> Added mid-implementation at operator request — model a GitHub Pages docs-deploy
+> on `open-agent-toolkit`'s `deploy-docs.yml`. Independent of the README slim
+> (touches `.github/workflows/` + reads the built `documentation/out`), so it can
+> land before or after p03-t02; the closeout (p03-t03) runs last and reflects it.
+
+### Task p04-t01: Add the GitHub Pages docs-deploy workflow
+
+**Files:**
+
+- Create: `.github/workflows/deploy-docs.yml`
+
+**Step 1:** Author the workflow adapted for this repo's nested-standalone shape (OAT is a monorepo; we differ): trigger on `workflow_dispatch` + push to `main` under `documentation/**`; `pages: write` / `id-token: write` perms; `concurrency: pages`; `pnpm/action-setup@v4` + `actions/setup-node@v4` (node 22, `cache: pnpm`, `cache-dependency-path: documentation/pnpm-lock.yaml`); `pnpm install --frozen-lockfile` + `pnpm build` **in `documentation/`**; build env `NEXT_PUBLIC_BASE_PATH: /skills` (project Pages subpath); `configure-pages` → `upload-pages-artifact` (path `documentation/out`) → `deploy-pages`.
+
+**Step 2: Verify** the static export is deploy-ready (the app already sets `output: 'export'` via `createDocsConfig`).
+
+Run: `cd documentation && NEXT_PUBLIC_BASE_PATH=/skills pnpm build` → confirm `documentation/out/` has `index.html`, all route `index.html` files, and assets prefixed `/skills/_next/...`.
+Expected: 28 html files; basePath applied.
+
+**Step 3: [OPERATOR ACTION]** Enable GitHub Pages: repo **Settings → Pages → Source: "GitHub Actions"**. The workflow can't enable Pages itself; first deploy needs this once. (Also confirm `/skills` basePath vs a custom apex domain.)
+
+**Step 4: Commit.**
+
+```bash
+git add .github/workflows/deploy-docs.yml
+git commit -m "ci(p04-t01): add GitHub Pages docs-deploy workflow"
+```
+
+---
+
 ## Reviews
 
 {Track reviews here after running the oat-project-review-provide and oat-project-review-receive skills.}
@@ -398,6 +429,7 @@ git commit -m "docs(p03-t03): close out bl-ecaa; record Fumadocs DR; refresh ref
 | p01    | code     | pending | -    | -        |
 | p02    | code     | pending | -    | -        |
 | p03    | code     | pending | -    | -        |
+| p04    | code     | pending | -    | -        |
 | final  | code     | pending | -    | -        |
 | spec   | artifact | n/a     | -    | quick mode — no spec |
 | design | artifact | pending | -    | -        |
@@ -421,8 +453,9 @@ git commit -m "docs(p03-t03): close out bl-ecaa; record Fumadocs DR; refresh ref
 - Phase 1: 2 tasks — scaffold the Fumadocs app (operator-run) + verify build green
 - Phase 2: 7 tasks — migrate README content into the deeper two-trunk IA (user-guide consensus/ + skills/ folders; engineering architecture + repository-layout + split contributing) + regenerate nav
 - Phase 3: 3 tasks — slim README, re-verify install matrix, close out + DR
+- Phase 4: 1 task — GitHub Pages docs-deploy workflow (added at operator request)
 
-**Total: 12 tasks**
+**Total: 13 tasks**
 
 Ready for code review and merge.
 

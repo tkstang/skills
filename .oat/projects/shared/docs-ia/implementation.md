@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-21
-oat_current_task_id: p03-t01
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -28,9 +28,10 @@ oat_generated: false
 | ------------------------------------------- | ----------- | ----- | --------- |
 | Phase 1 — Scaffold (operator + verify)      | complete    | 2     | 2/2       |
 | Phase 2 — Migrate into two-trunk IA         | complete    | 7     | 7/7       |
-| Phase 3 — Slim README + close out           | pending     | 3     | 0/3       |
+| Phase 3 — Slim README + close out           | complete    | 3     | 3/3       |
+| Phase 4 — GitHub Pages docs-deploy CI       | complete    | 1     | 1/1       |
 
-**Total:** 9/12 tasks completed
+**Total:** 13/13 tasks completed
 
 ---
 
