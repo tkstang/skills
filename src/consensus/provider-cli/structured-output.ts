@@ -161,7 +161,6 @@ export async function runProviderTurn(
     if (!processResult.ok) {
       const classification = adapter.classifyRunFailure(processResult);
       if (classification.retryable && attempt < maxAttempts) {
-        validationFeedback = classification.message;
         continue;
       }
 

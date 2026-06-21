@@ -77,6 +77,27 @@ describe('structured provider output coordinator', () => {
     expect(envelope.attempts.cli_attempts).toBe(2);
   });
 
+  it('retries a transient provider exit without mutating the prompt', async () => {
+    const subprocess = fakeSubprocess([
+      processFailure('PROVIDER_EXIT', true, {
+        stderr: 'temporary unavailable, try again',
+      }),
+      processSuccess('{"verdict":"accept"}'),
+    ]);
+
+    const envelope = await runProviderTurn(request({ provider: 'cursor' }), {
+      readSchema: async () => schema(),
+      runSubprocess: subprocess.run,
+    });
+
+    expect(envelope).toMatchObject({
+      ok: true,
+      attempts: { cli_attempts: 2 },
+    });
+    expect(subprocess.prompts).toHaveLength(2);
+    expect(subprocess.prompts[1]).toBe(subprocess.prompts[0]);
+  });
+
   it('adds schema instructions to prompt-only provider prompts', async () => {
     const subprocess = fakeSubprocess([
       processSuccess('{"verdict":"accept"}'),
