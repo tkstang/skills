@@ -15,7 +15,7 @@ the [User Guide](documentation/docs/user-guide/index.md) (install / use / config
 and [Engineering](documentation/docs/engineering/index.md) (how it works /
 contribute). Run it locally with `cd documentation && pnpm install && pnpm dev`.
 
-## Install
+## Local Git Repository Install
 
 The v0.1 path is local marketplace installation from this checkout. Run from the
 repository root.
