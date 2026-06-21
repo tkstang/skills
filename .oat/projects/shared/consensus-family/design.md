@@ -130,9 +130,9 @@ The "API" is the CLI invocation contract: subcommand + flags in, JSONL events + 
 
 **`consensus-create`** — input `--brief <text>` or `--brief-file <path>` (one required), `--template <path>` (optional); optional overrides `--cold-start` / `--iteration` / `--agency` (defaults `independent_draft` / `parallel_synthesized` / maximum) plus shared output/run-dir flags; output: artifact → confined path, JSONL deliberation → stdout, resolution block.
 
-**`consensus-decide`** — input `--options <text|path>`; defaults `independent_draft` / `parallel_synthesized` / minimal; output: markdown decision doc (recommendation / reasoning / alternatives / dissent) + resolution block.
+**`consensus-decide`** — input `--options <path>` (path to the options doc, per architecture-v3); defaults `independent_draft` / `parallel_synthesized` / minimal; output: markdown decision doc (recommendation / reasoning / alternatives / dissent) + resolution block.
 
-**`consensus-plan`** — input `--goal <text>` + `--constraints <text|path>` (optional); defaults `independent_draft` / `parallel_synthesized` / moderate; output: markdown plan (steps / dependencies / risks) + resolution block.
+**`consensus-plan`** — input `--goal <text>` + `--constraints <text>` (optional, inline, per architecture-v3); defaults `independent_draft` / `parallel_synthesized` / moderate; output: markdown plan (steps / dependencies / risks) + resolution block.
 
 **Error handling:** missing/empty required input and oversized input (>1 MiB) are usage errors that fail before any provider call; preflight checks provider availability; provider/turn failures use the existing terminal/retry classification.
 
@@ -144,7 +144,7 @@ The "API" is the CLI invocation contract: subcommand + flags in, JSONL events + 
 
 **Input size cap:** the 1 MiB read cap applies to every new input.
 
-**Path confinement:** output paths, run dirs, and file-form inputs (`--brief-file`, `--template`, `--options`/`--constraints` paths) go through the existing confinement helpers.
+**Path confinement:** output paths, run dirs, and file-form inputs (`--brief-file`, `--template`, `--options`) go through the existing confinement helpers (decide `--options` is a path; plan `--constraints` is inline text).
 
 **Verdict capture:** reuses the DR-024 seam — run-bound sidecar (`randomUUID` temp file), byte-capped, schema-validated at submit and at capture. The family additionally enforces the `verdict` enum (subset validator doesn't).
 
@@ -175,13 +175,13 @@ The "API" is the CLI invocation contract: subcommand + flags in, JSONL events + 
 |---|---|---|
 | FR1 | unit + integration | loop accepts `--cold-start independent_draft`; round-1 frames the brief, not a shared artifact; `shared_input` regression intact |
 | FR2 | unit + integration | round-1 prompt shape per mode; round-1→convergence run per mode (parallel_revision / parallel_synthesized / alternating); alternating = A-drafts/B-revises |
-| FR3 | unit | `--cold-start` parse/validate; resolution block records `cold_start`; per-skill defaults |
+| FR3 | unit | `--cold-start` parse/validate; resolution block records `cold_start`; per-skill defaults; refine/evaluate reject `independent_draft` (per-skill guard) |
 | FR4 | integration + e2e | create brief→artifact (mock peers); whole-artifact; resolution block present; mocked smoke-flow run from a reference brief fixture |
 | FR5 | integration + e2e | decide at minimal agency renders `unresolved_disagreements[]` into the dissent heading; does not editorially decide; smoke-flow run from a contested-options fixture asserts dissent heading |
 | FR6 | integration + e2e | plan goal+constraints→markdown plan with required headings; smoke-flow run from a goal+constraints fixture |
 | NFR2 | unit | `build:check`; skill-version validators |
 | NFR3 | integration | `verdict_source` recorded; out-of-enum `verdict` handled |
-| NFR4 | unit | input cap; path confinement; refine/evaluate reject `independent_draft` |
+| NFR4 | unit | input cap; path confinement; untrusted-input framing |
 | NFR1 / NFR5 | manual + e2e | no runtime deps; full gate set green |
 
 ### Unit Tests

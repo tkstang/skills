@@ -56,7 +56,8 @@ This project delivers the **consensus skill family for creation tasks**: it impl
 
 - **Description:** The loop core must support `independent_draft` as a cold-start strategy alongside `shared_input`. In round 1 under `independent_draft`, each peer produces its own output from the brief with no shared starting artifact; subsequent rounds proceed per the active iteration mode.
 - **Acceptance Criteria:**
-  - The cold-start type/contract accepts both `shared_input` and `independent_draft`; the previous hard rejection at the loop parser and both existing wrappers is replaced with validation that accepts both.
+  - The **loop-core** cold-start type/parser accepts both `shared_input` and `independent_draft` (the previous loop-core hard rejection is replaced with validation accepting both).
+  - The **new** wrappers (create/decide/plan) accept both values; **`refine`/`evaluate` keep a deliberate `shared_input`-only guard** — they reject `independent_draft` with a clear "this skill supports `shared_input` only" message (it is semantically meaningless for them: evaluate has no artifact to evaluate, and refine would discard its input draft).
   - Under `independent_draft`, round-1 peer prompts frame the **brief** as the context ("produce your own draft from this brief"), not a shared artifact to revise.
   - Behaves coherently in all three iteration modes (see FR2).
   - `shared_input` behavior is unchanged (refine/evaluate keep their current default and output).
@@ -77,7 +78,7 @@ This project delivers the **consensus skill family for creation tasks**: it impl
 - **Acceptance Criteria:**
   - The resolution block records the effective `cold_start` value (`independent_draft` for the new skills by default).
   - `--cold-start` overrides the default and is validated.
-  - create/decide/plan default to `independent_draft`; refine/evaluate keep `shared_input`.
+  - create/decide/plan default to `independent_draft`; refine/evaluate keep `shared_input` (and reject `independent_draft` per FR1's per-skill guard).
 - **Priority:** P0
 
 **FR4: `consensus-create` skill**

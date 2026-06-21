@@ -1,6 +1,6 @@
 ---
 oat_current_task: null
-oat_last_commit: null
+oat_last_commit: 8aa1801
 oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
@@ -11,8 +11,8 @@ oat_children: [] # optional coordination-parent child slugs
 oat_hill_checkpoints: ['discovery', 'design'] # Configured: which phases require human-in-the-loop lifecycle approval
 oat_hill_completed: ['discovery'] # Progress: which HiLL checkpoints have been completed
 oat_parallel_execution: false
-oat_phase: discovery # Current phase: discovery | spec | design | plan | implement | decomposition
-oat_phase_status: complete # Status: in_progress | complete | pr_open
+oat_phase: design # Current phase: discovery | spec | design | plan | implement | decomposition
+oat_phase_status: in_progress # Status: in_progress | complete | pr_open
 # oat_orchestration_retry_limit: 2  # optional; override fix-loop retry limit (range 0-5)
 # oat_dispatch_ceiling: # optional project override for provider-aware dispatch ceilings
 #   provider: codex # codex | claude
@@ -25,25 +25,25 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-06-21T15:59:48.857Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-06-21T16:37:07Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-06-21T20:04:05Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
 # Project State: consensus-family
 
-**Status:** Discovery complete — ready for design
+**Status:** Design draft committed — awaiting design HiLL review
 **Started:** 2026-06-21
 **Last Updated:** 2026-06-21
 
 ## Current Phase
 
-Discovery complete (HiLL approved) — ready for `oat-project-design`
+Design — draft committed (Codex review incorporated); awaiting design HiLL approval before `oat-project-plan`
 
 ## Artifacts
 
 - **Discovery:** `discovery.md` (complete)
-- **Spec:** `spec.md` (scaffolded template — authored inline by `oat-project-design`)
-- **Design:** `design.md` (scaffolded template — not started)
+- **Spec:** `spec.md` (complete — confirmed requirements)
+- **Design:** `design.md` (draft committed — awaiting HiLL review)
 - **Plan:** `plan.md` (scaffolded template — not started)
 - **Implementation:** `implementation.md` (scaffolded template — not started)
 
@@ -52,7 +52,9 @@ Discovery complete (HiLL approved) — ready for `oat-project-design`
 - ✓ Project scaffolded; branch rebased onto current `main` (fresh knowledge base)
 - ✓ Discovery complete — 8 key decisions recorded (4 kickoff + 4 validated)
 - ✓ HiLL `discovery` checkpoint approved
-- ⧗ Next: design (spec.md + design.md)
+- ✓ Spec confirmed (FR1–6 / NFR1–5; FR5/FR6 → P1)
+- ✓ Design drafted (selective collaborative); Codex design review incorporated
+- ⧗ Awaiting design HiLL approval → `oat-project-plan`
 
 ## Blockers
 
