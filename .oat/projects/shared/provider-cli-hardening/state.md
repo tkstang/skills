@@ -12,7 +12,7 @@ oat_hill_checkpoints: [discovery, design] # Configured: which phases require hum
 oat_hill_completed: [discovery, design] # Progress: which HiLL checkpoints have been completed
 oat_parallel_execution: false
 oat_phase: implement # Current phase: discovery | spec | design | plan | implement | decomposition
-oat_phase_status: complete # Status: in_progress | complete | pr_open
+oat_phase_status: pr_open # Status: in_progress | complete | pr_open
 # oat_orchestration_retry_limit: 2  # optional; override fix-loop retry limit (range 0-5)
 oat_dispatch_ceiling: # provider-aware dispatch ceiling (reviews always run at max tier)
   preset: maximum
@@ -23,26 +23,27 @@ oat_dispatch_ceiling: # provider-aware dispatch ceiling (reviews always run at m
 oat_workflow_mode: spec-driven # spec-driven | quick | import
 oat_workflow_origin: native # native | imported
 oat_docs_updated: complete # null | skipped | complete — documentation sync status
-oat_pr_status: null # null | ready | open | closed | merged — actual PR state for the current project
-oat_pr_url: null # null | string — tracked PR URL when a PR exists
+oat_pr_status: open # null | ready | open | closed | merged — actual PR state for the current project
+oat_pr_url: "https://github.com/tkstang/skills/pull/29" # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-06-20T23:02:16.482Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-06-21T05:08:46Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-06-21T05:12:44Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
 # Project State: provider-cli-hardening
 
-**Status:** Implementation complete — final review passed
+**Status:** Implementation — PR open, awaiting human review.
 **Started:** 2026-06-20
 **Last Updated:** 2026-06-21
 
 ## Current Phase
 
+Implementation complete and PR open: <https://github.com/tkstang/skills/pull/29>.
 All implementation phases passed review. Final review blockers were fixed in
 `85393b2`, and final re-review passed with no Critical or Important findings. The
 full verification gate passes. Dispatch ceiling = **maximum** (Codex: xhigh ·
-Claude: opus). PR handoff is next.
+Claude: opus).
 
 ## Artifacts
 
@@ -65,6 +66,8 @@ Claude: opus). PR handoff is next.
 - ✓ Phase 2 (`p02`) implementation and code review complete
 - ✓ Phase 3 (`p03`) implementation and code review complete
 - ✓ Final review passed
+- ✓ PR created
+- ⧗ Awaiting human review
 
 ## Blockers
 
@@ -72,4 +75,7 @@ None
 
 ## Next Milestone
 
-Run `oat-project-pr-final` when ready for PR handoff.
+PR is open for review.
+
+- To incorporate feedback: run `oat-project-revise`
+- When approved: run `oat-project-complete`
