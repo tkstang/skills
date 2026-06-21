@@ -68,3 +68,11 @@
 - `README.md` — repo overview, layout, and install paths.
 - `CONTRIBUTING.md` — contribution workflow.
 - `RELEASING.md` — release checklist and provider-path verification.
+
+<!-- OAT docs -->
+## Documentation
+
+- **Docs root:** `documentation`
+- **Framework:** Fumadocs (Next.js + MDX)
+- **Index file:** `documentation/docs/index.md`
+<!-- END OAT docs -->

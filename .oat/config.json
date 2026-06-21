@@ -20,6 +20,11 @@
     "research": true,
     "brainstorm": true
   },
+  "documentation": {
+    "root": "documentation",
+    "tooling": "fumadocs",
+    "index": "documentation/index.md"
+  },
   "localPaths": [
     ".oat/**/analysis",
     ".oat/**/pr",
