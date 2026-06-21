@@ -885,7 +885,7 @@ git commit -m "docs(p03-t05): promote DR-bl3a88 and flag consensus-family track"
 | final  | code     | pending  | -          | -                                                     |
 | spec   | artifact | pending  | -          | -                                                     |
 | design | artifact | passed   | 2026-06-21 | reviews/archived/artifact-design-review-2026-06-21.md |
-| plan   | artifact | passed   | 2026-06-21 | structured (in-memory) — 1 Important + 5 Medium/Minor, all resolved |
+| plan   | artifact | received | 2026-06-21 | reviews/artifact-plan-review-2026-06-21.md                       |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 
