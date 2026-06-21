@@ -593,9 +593,11 @@ Track test execution during implementation.
 
 **Verification performed:**
 
+- `pnpm test`
+- `pnpm lint`
+- `pnpm type-check`
+- `pnpm build`
 - `pnpm run build:check`
-- `pnpm run type-check`
-- `pnpm run test`
 - `pnpm run validate`
 - `pnpm run smoke`
 

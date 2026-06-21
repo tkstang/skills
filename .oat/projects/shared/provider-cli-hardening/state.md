@@ -41,8 +41,9 @@ oat_generated: false
 
 All implementation phases passed review. Phase 3 re-review cleared the blocking
 lifecycle-metadata finding with no Critical or Important findings. A final
-verification lint cleanup was committed after the first full gate run. Dispatch
-ceiling = **maximum** (Codex: xhigh · Claude: opus). Final review is next.
+verification lint cleanup was committed after the first full gate run, and the
+full final verification gate now passes. Dispatch ceiling = **maximum** (Codex:
+xhigh · Claude: opus). Final review is next.
 
 ## Artifacts
 
