@@ -396,6 +396,49 @@ describe('structured provider output coordinator', () => {
     });
   });
 
+  it('falls back to the parse path when no submit sidecar is present', async () => {
+    const envelope = await runProviderTurn(request({ provider: 'cursor' }), {
+      readSchema: async () => schema(),
+      runSubprocess: fakeSubprocess([
+        processSuccess('{"verdict":"final-message"}'),
+      ]).run,
+    });
+
+    expect(envelope).toMatchObject({
+      ok: true,
+      json: { verdict: 'final-message' },
+      diagnostics: {
+        verdict_source: 'final_message',
+      },
+    });
+  });
+
+  it('uses existing terminal handling when neither submit nor parse yields output', async () => {
+    const envelope = await runProviderTurn(
+      request({ provider: 'codex', max_attempts: 1 }),
+      {
+        readSchema: async () => schema(),
+        runSubprocess: fakeSubprocess([
+          processSuccess('{"type":"turn.completed"}', {
+            last_message: '',
+          }),
+        ]).run,
+      },
+    );
+
+    expect(envelope).toMatchObject({
+      ok: false,
+      code: 'PROVIDER_INVALID_JSON',
+      attempts: {
+        cli_attempts: 1,
+        terminal_reason: 'missing_provider_output',
+      },
+      diagnostics: {
+        verdict_source: 'final_message',
+      },
+    });
+  });
+
   it('extracts Codex last-message-file output before schema validation', async () => {
     const envelope = await runProviderTurn(request({ provider: 'codex' }), {
       readSchema: async () => schema(),
