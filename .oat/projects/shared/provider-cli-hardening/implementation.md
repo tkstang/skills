@@ -2,7 +2,7 @@
 oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
-oat_last_updated: 2026-06-20
+oat_last_updated: 2026-06-21
 oat_current_task_id: p01-t01
 oat_generated: false
 ---
@@ -10,7 +10,7 @@ oat_generated: false
 # Implementation: provider-cli-hardening
 
 **Started:** 2026-06-20
-**Last Updated:** 2026-06-20
+**Last Updated:** 2026-06-21
 
 > This document is used to resume interrupted implementation sessions.
 >
@@ -26,14 +26,15 @@ oat_generated: false
 
 | Phase   | Status      | Tasks | Completed |
 | ------- | ----------- | ----- | --------- |
-| Phase 1 | in_progress | N     | 0/N       |
-| Phase 2 | pending     | N     | 0/N       |
+| p01     | in_progress | 7     | 0/7       |
+| p02     | pending     | 10    | 0/10      |
+| p03     | pending     | 5     | 0/5       |
 
-**Total:** 0/{N} tasks completed
+**Total:** 0/22 tasks completed
 
 ---
 
-## Phase 1: {Phase Name}
+## Phase p01: bl-3291 — retry-classification hardening
 
 **Status:** in_progress
 **Started:** 2026-06-20
@@ -57,35 +58,35 @@ oat_generated: false
 
 - {trade-offs or deviations discovered during implementation}
 
-### Task p01-t01: {Task Name}
+### Task p01-t01: Lock the confirmed terminal-default contract
 
-**Status:** completed / in_progress / pending / blocked
-**Commit:** {sha} (if completed)
+**Status:** pending
+**Commit:** -
 
 **Outcome (required when completed):**
 
-- {what materially changed (not “did task”, but “system now does X”)}
+- Pending.
 
 **Files changed:**
 
-- `{path}` - {why}
+- Pending.
 
 **Verification:**
 
-- Run: `{command(s)}`
-- Result: {pass/fail + notes}
+- Run: -
+- Result: -
 
 **Notes / Decisions:**
 
-- {gotchas, trade-offs, design deltas, important context for future sessions}
+- Pending.
 
 **Issues Encountered:**
 
-- {Issue and resolution}
+- None yet.
 
 ---
 
-### Task p01-t02: {Task Name}
+### Task p01-t02: Decouple transient-exit retry from validation feedback
 
 **Status:** pending
 **Commit:** -
@@ -101,7 +102,7 @@ oat_generated: false
 **Status:** pending
 **Started:** -
 
-### Task p02-t01: {Task Name}
+### Task p02-t01: Extract shared schema-subset validator
 
 **Status:** pending
 **Commit:** -

@@ -1,5 +1,5 @@
 ---
-oat_current_task: null
+oat_current_task: p01-t01
 oat_last_commit: null
 oat_blockers: []
 associated_issues: [{type: backlog, ref: "bl-3a88"}, {type: backlog, ref: "bl-3291"}] # [{type: backlog|project|jira|linear, ref: "identifier"}]
@@ -11,8 +11,8 @@ oat_children: [] # optional coordination-parent child slugs
 oat_hill_checkpoints: [discovery, design] # Configured: which phases require human-in-the-loop lifecycle approval
 oat_hill_completed: [discovery, design] # Progress: which HiLL checkpoints have been completed
 oat_parallel_execution: false
-oat_phase: plan # Current phase: discovery | spec | design | plan | implement | decomposition
-oat_phase_status: complete # Status: in_progress | complete | pr_open
+oat_phase: implement # Current phase: discovery | spec | design | plan | implement | decomposition
+oat_phase_status: in_progress # Status: in_progress | complete | pr_open
 # oat_orchestration_retry_limit: 2  # optional; override fix-loop retry limit (range 0-5)
 oat_dispatch_ceiling: # provider-aware dispatch ceiling (reviews always run at max tier)
   preset: maximum
@@ -27,22 +27,21 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-06-20T23:02:16.482Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-06-21T02:43:20.000Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-06-21T02:45:44Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
 # Project State: provider-cli-hardening
 
-**Status:** Plan complete — ready for implementation
+**Status:** Implementation in progress
 **Started:** 2026-06-20
 **Last Updated:** 2026-06-21
 
 ## Current Phase
 
-Plan complete. `plan.md` (22 tasks across 3 phases) passed both the auto and manual
-plan artifact-reviews (all findings resolved) and is finalized
-(`ready_for: oat-project-implement`). Dispatch ceiling = **maximum** (Codex: xhigh ·
-Claude: opus). Ready for `oat-project-implement`.
+Implementation is starting from `p01-t01` using Tier 1 subagents. `plan.md` (22
+tasks across 3 phases) passed both the auto and manual plan artifact-reviews (all
+findings resolved). Dispatch ceiling = **maximum** (Codex: xhigh · Claude: opus).
 
 ## Artifacts
 
@@ -50,7 +49,7 @@ Claude: opus). Ready for `oat-project-implement`.
 - **Spec:** `spec.md` (complete — requirements confirmed; Requirement Index mapped to tasks)
 - **Design:** `design.md` (complete — HiLL-approved; artifact review resolved)
 - **Plan:** `plan.md` (complete — auto + manual reviews passed; ready for implement)
-- **Implementation:** `implementation.md` (scaffolded template — not started)
+- **Implementation:** `implementation.md` (in progress — current task `p01-t01`)
 
 ## Progress
 
@@ -61,7 +60,7 @@ Claude: opus). Ready for `oat-project-implement`.
 - ✓ Artifact design review received; findings resolved; design HiLL approved
 - ✓ Plan drafted (22 tasks: 7 + 10 + 5); auto + manual plan-reviews passed; requirement index mapped
 - ✓ Plan finalized (ready for implement)
-- ⧗ Awaiting implementation
+- ⧗ Implementation in progress (`p01-t01`)
 
 ## Blockers
 
@@ -69,6 +68,5 @@ None
 
 ## Next Milestone
 
-Implementation (`oat-project-implement`) — execute the 22 tasks; it will confirm HiLL
-phase checkpoints at execution start (Phase 1 bl-3291 → Phase 2 bl-3a88 → Phase 3
-evidence/E2E + DR promotion).
+Complete Phase 1 (`p01`) retry-classification hardening, then continue through Phase
+2 and Phase 3. HiLL checkpoint is final-only (`p03`) with auto-review enabled.
