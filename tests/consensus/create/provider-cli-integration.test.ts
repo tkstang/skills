@@ -1,4 +1,4 @@
-import { mkdtemp, readFile } from 'node:fs/promises';
+import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -8,6 +8,82 @@ import { runConsensusCreate } from '../../../src/consensus/create/consensus-crea
 import { makeProviderCliEnv, parseJsonl } from '../../helpers/process.mjs';
 
 type JsonRecord = Record<string, any>;
+
+it('keeps first-round independent create prompts free of shared placeholder drafts', async () => {
+  const tempRoot = await mkdtemp(
+    path.join(os.tmpdir(), 'consensus-create-cli-integration-'),
+  );
+  const outputPath = path.join(tempRoot, 'created.md');
+  const runDir = path.join(tempRoot, '.consensus/create-run');
+  await writeFile(
+    path.join(tempRoot, 'template.md'),
+    '# Template\n\nUse a title and one concise paragraph.\n',
+  );
+
+  const peerPrompts: JsonRecord[] = [];
+
+  const result = await runConsensusCreate(
+    [
+      '--brief',
+      'Draft a concise launch announcement.',
+      '--template',
+      'template.md',
+      '--output',
+      outputPath,
+      '--run-dir',
+      runDir,
+      '--allow-root',
+      tempRoot,
+      '--peers',
+      'claude,codex',
+      '--iteration',
+      'parallel_synthesized',
+      '--synthesizer',
+      'cursor',
+      '--max-rounds',
+      '1',
+    ],
+    {
+      cwd: tempRoot,
+      env: makeProviderCliEnv(),
+      invokePeer: async ({ provider, round, prompt, artifact }) => {
+        peerPrompts.push({ provider, round, prompt, artifact });
+        return {
+          json: {
+            schema_version: 'v1',
+            verdict: 'REVISE',
+            reasoning: `${provider} drafted from the brief.`,
+            proposed_artifact: `# ${provider} launch draft\n\nCreated from the brief.\n`,
+          },
+        };
+      },
+      invokeSynthesizer: async () => ({
+        json: {
+          schema_version: 'v1',
+          synthesized_artifact:
+            '# Synthesized Launch Draft\n\nCreated from both peer drafts.\n',
+          synthesis_reasoning: 'fixture synthesis',
+          unresolved_disagreements: [],
+        },
+      }),
+    },
+  );
+
+  const firstRoundPrompts = peerPrompts.filter((call) => call.round === 1);
+  expect(firstRoundPrompts).toHaveLength(2);
+  for (const call of firstRoundPrompts) {
+    expect(call.artifact).toBe('');
+    expect(call.prompt).toContain('<CREATE_BRIEF>');
+    expect(call.prompt).toContain('Draft a concise launch announcement.');
+    expect(call.prompt).toContain('<CREATE_TEMPLATE>');
+    expect(call.prompt).toContain('Use a title and one concise paragraph.');
+    expect(call.prompt).toContain('produce a complete draft artifact');
+    expect(call.prompt).not.toContain('Current draft artifact:');
+    expect(call.prompt).not.toContain('<CREATE_DRAFT>');
+    expect(call.prompt).not.toContain('Pending peer creation.');
+  }
+  await expect(readFile(result.paths.input, 'utf8')).resolves.toBe('');
+});
 
 it('runs Create through the consensus loop with provider-neutral records', async () => {
   const tempRoot = await mkdtemp(

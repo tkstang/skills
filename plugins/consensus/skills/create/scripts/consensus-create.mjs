@@ -321,6 +321,12 @@ async function loadCreateInputs(options, { cwd = process.cwd() } = {}) {
   const templatePath = options.template ? await confineRead(options.template, resolvedCwd, allowedRoot) : null;
   const brief = briefPath ? await readCreateInputFile(briefPath) : String(options.brief ?? "");
   ensureUnderSizeCap(brief, "brief");
+  if (brief.trim().length === 0) {
+    throw new ConsensusError("consensus-create brief must not be empty", {
+      code: "EMPTY_BRIEF",
+      exitCode: EXIT_CODES.USAGE
+    });
+  }
   const template = templatePath ? await readCreateInputFile(templatePath) : null;
   return {
     brief,
@@ -337,6 +343,22 @@ function encodePromptBlockData(text) {
 }
 function promptBlockData(text) {
   return ensureFinalNewline(encodePromptBlockData(text));
+}
+function currentDraftBlocks({
+  artifact,
+  coldStart,
+  round
+}) {
+  if (coldStart === "independent_draft" && round === 1) {
+    return [];
+  }
+  return [
+    "",
+    "Current draft artifact:",
+    "<CREATE_DRAFT>",
+    promptBlockData(artifact),
+    "</CREATE_DRAFT>"
+  ];
 }
 function jsonBlock(value) {
   return value ? JSON.stringify(value, null, 2) : "None";
@@ -385,11 +407,7 @@ function buildCreatePromptProfile(inputs) {
         "Your role: deliberation peer",
         "",
         ...untrustedCreateInputBlocks(inputs),
-        "",
-        "Current draft artifact:",
-        "<CREATE_DRAFT>",
-        promptBlockData(input.artifact),
-        "</CREATE_DRAFT>",
+        ...currentDraftBlocks(input),
         "",
         "Prior deliberation records:",
         promptContext.priorRecordsBlock,
@@ -429,11 +447,7 @@ function buildCreatePromptProfile(inputs) {
         "",
         ...untrustedCreateInputBlocks(inputs),
         ...previousDrafts,
-        "",
-        "Current draft artifact:",
-        "<CREATE_DRAFT>",
-        promptBlockData(input.artifact),
-        "</CREATE_DRAFT>",
+        ...currentDraftBlocks(input),
         "",
         "Your task: produce a complete draft artifact from the brief and optional template.",
         "If you revise the artifact, put the full artifact in proposed_artifact.",
@@ -666,7 +680,7 @@ function statePathsFor(runDir) {
   };
 }
 function createInitialArtifact() {
-  return "# Created Artifact\n\nPending peer creation.\n";
+  return "";
 }
 function yamlScalar(value) {
   if (value === null || value === void 0) return "null";

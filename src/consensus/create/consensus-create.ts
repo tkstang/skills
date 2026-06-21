@@ -497,6 +497,12 @@ export async function loadCreateInputs(
     ? await readCreateInputFile(briefPath)
     : String(options.brief ?? '');
   ensureUnderSizeCap(brief, 'brief');
+  if (brief.trim().length === 0) {
+    throw new ConsensusError('consensus-create brief must not be empty', {
+      code: 'EMPTY_BRIEF',
+      exitCode: EXIT_CODES.USAGE,
+    });
+  }
 
   const template = templatePath
     ? await readCreateInputFile(templatePath)
@@ -522,6 +528,28 @@ function encodePromptBlockData(text: string) {
 
 function promptBlockData(text: string) {
   return ensureFinalNewline(encodePromptBlockData(text));
+}
+
+function currentDraftBlocks({
+  artifact,
+  coldStart,
+  round,
+}: {
+  artifact: string;
+  coldStart?: ColdStartMode;
+  round: number;
+}) {
+  if (coldStart === 'independent_draft' && round === 1) {
+    return [];
+  }
+
+  return [
+    '',
+    'Current draft artifact:',
+    '<CREATE_DRAFT>',
+    promptBlockData(artifact),
+    '</CREATE_DRAFT>',
+  ];
 }
 
 function jsonBlock(value: unknown) {
@@ -591,11 +619,7 @@ export function buildCreatePromptProfile(
         'Your role: deliberation peer',
         '',
         ...untrustedCreateInputBlocks(inputs),
-        '',
-        'Current draft artifact:',
-        '<CREATE_DRAFT>',
-        promptBlockData(input.artifact),
-        '</CREATE_DRAFT>',
+        ...currentDraftBlocks(input),
         '',
         'Prior deliberation records:',
         promptContext.priorRecordsBlock,
@@ -639,11 +663,7 @@ export function buildCreatePromptProfile(
         '',
         ...untrustedCreateInputBlocks(inputs),
         ...previousDrafts,
-        '',
-        'Current draft artifact:',
-        '<CREATE_DRAFT>',
-        promptBlockData(input.artifact),
-        '</CREATE_DRAFT>',
+        ...currentDraftBlocks(input),
         '',
         'Your task: produce a complete draft artifact from the brief and optional template.',
         'If you revise the artifact, put the full artifact in proposed_artifact.',
@@ -935,7 +955,7 @@ function statePathsFor(runDir: string): CreateStatePaths {
 }
 
 function createInitialArtifact() {
-  return '# Created Artifact\n\nPending peer creation.\n';
+  return '';
 }
 
 function yamlScalar(value: unknown) {

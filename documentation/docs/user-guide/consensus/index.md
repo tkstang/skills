@@ -29,7 +29,8 @@ inputs — see the
 
 ## Iteration modes
 
-Both skills support three iteration modes, selected with `--iteration`:
+The shipped consensus skills support three iteration modes, selected with
+`--iteration`:
 
 - **`alternating`** (default for `refine`) — one peer revises and the other
   responds, turn by turn. Lowest cost: one peer call per round.

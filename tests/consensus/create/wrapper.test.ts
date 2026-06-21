@@ -10,6 +10,7 @@ import {
   loadCreateInputs,
   parseCreateArgs,
 } from '../../../src/consensus/create/consensus-create.js';
+import { EXIT_CODES } from '../../../src/consensus/core/consensus-loop.js';
 
 it('parses inline briefs and create defaults', () => {
   const parsed = parseCreateArgs(['--brief', 'Draft a launch note.']);
@@ -143,6 +144,24 @@ it('loads brief files and optional templates relative to the invocation cwd', as
   expect(inputs.templatePath).toBe(path.join(tempRoot, 'template.md'));
   expect(inputs.brief).toBe('# Brief\n\nShip it.\n');
   expect(inputs.template).toBe('# Template\n\nUse sections.\n');
+});
+
+it('rejects empty briefs as usage errors before create runs', async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-create-'));
+  await writeFile(path.join(tempRoot, 'empty-brief.md'), '');
+
+  for (const parsed of [
+    parseCreateArgs(['--brief', '']),
+    parseCreateArgs(['--brief', '   \n\t  ']),
+    parseCreateArgs(['--brief-file', 'empty-brief.md']),
+  ]) {
+    await expect(loadCreateInputs(parsed, { cwd: tempRoot })).rejects.toMatchObject(
+      {
+        code: 'EMPTY_BRIEF',
+        exitCode: EXIT_CODES.USAGE,
+      },
+    );
+  }
 });
 
 it('rejects oversized inline and file inputs before create runs', async () => {
