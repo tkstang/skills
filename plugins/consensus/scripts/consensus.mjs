@@ -1749,7 +1749,7 @@ async function runProviderTurn(request, dependencies = {}) {
     parentEnv,
     request: effectiveRequest,
     hostEnv: {
-      ...hostGuard.child_env ?? {},
+      ...hostGuard.child_env,
       CONSENSUS_SUBMIT_COMMAND: submitCommand,
       CONSENSUS_SUBMIT_FILE: submitCapturePath,
       CONSENSUS_SUBMIT_SCHEMA: path3.resolve(request.schema_path)

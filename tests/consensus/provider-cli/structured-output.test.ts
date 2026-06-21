@@ -516,8 +516,8 @@ describe('structured provider output coordinator', () => {
 
     expect(parseEnvelope.ok).toBe(true);
     expect(submitEnvelope.ok).toBe(true);
-    expect(Object.keys(submitEnvelope).sort()).toEqual(
-      Object.keys(parseEnvelope).sort(),
+    expect(Object.keys(submitEnvelope).toSorted()).toEqual(
+      Object.keys(parseEnvelope).toSorted(),
     );
   });
 
