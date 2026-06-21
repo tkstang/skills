@@ -1076,7 +1076,7 @@ Track reviews here after running the `oat-project-review-provide` and `oat-proje
 | p04    | code     | pending  | -          | -                                             |
 | final  | code     | pending  | -          | -                                             |
 | spec   | artifact | pending  | -          | -                                             |
-| design | artifact | received | 2026-06-21 | reviews/artifact-design-review-2026-06-21.md |
+| design | artifact | passed   | 2026-06-21 | reviews/archived/artifact-design-review-2026-06-21.md |
 | plan   | artifact | passed   | 2026-06-21 | reviews/archived/artifact-plan-review-2026-06-21-v2.md |
 
 **Status values:** `pending` -> `received` -> `fixes_added` -> `fixes_completed` -> `passed`
