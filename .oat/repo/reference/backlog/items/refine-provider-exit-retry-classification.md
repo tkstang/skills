@@ -8,13 +8,32 @@ scope_estimate: M
 labels: [consensus, provider-cli, reliability, retry]
 assignee: null
 created: '2026-06-19T23:41:44Z'
-updated: '2026-06-19T23:41:44Z'
+updated: '2026-06-21T00:23:08Z'
 associated_issues: []
 oat_template: true
 oat_template_name: backlog-item
 ---
 
 ## Description
+
+**Status update (2026-06-21 — drift flagged in `provider-cli-hardening` discovery):**
+This item is **drifted against shipped reality**. The transient-vs-terminal
+classifier described below as "to add" already shipped in `92a2711` (the same commit
+as the CLI itself): `adapters.ts` classifies 429/rate-limit/etc. as retryable
+transient and auth/unsupported/unavailable as terminal, and the retry loop in
+`structured-output.ts` already honors it within `max_attempts`. Critically, the
+shipped default for an *unmatched* nonzero exit is **terminal (no retry)**, not the
+"retry-all" baseline this item assumes — so the "unknown exits retain
+retry-within-max_attempts (strictly additive)" acceptance criterion is **stale** and
+would *reverse* shipped fail-fast behavior if implemented literally. The active
+project **confirms the shipped terminal-default contract** (no retry-all restoration
+absent evidence it harms real runs) and rescopes the work to real hardening gaps:
+fix transient-retry prompt contamination (`structured-output.ts:164`),
+evidence-backed per-adapter signatures, signal/interruption classification where
+reliable, distinct redacted audit recording of the classification that fired, and
+contract-locking tests. The acceptance criteria below will be rewritten at project
+completion to match the confirmed contract. See
+`.oat/projects/shared/provider-cli-hardening/discovery.md`.
 
 The shipped `consensus` provider CLI (`src/consensus/provider-cli/`) currently
 retries **all** nonzero provider exits within `max_attempts`, except cases an

@@ -78,8 +78,11 @@ inflation, not real churn). **Key finding that reshapes both items:**
   the *validation-feedback* prompt path (`structured-output.ts:164`
   `validationFeedback = classification.message`), so a "rate limit" string is
   injected into the next prompt as "Schema validation failed: …" — a prompt-shape
-  defect; (e) audit records `terminal_reason` but `AttemptSummary.retryable` is not
-  populated on the terminal failure path.
+  defect. (Note: `AttemptSummary.retryable` *is* already populated on the terminal
+  failure path — `envelope.ts:104-118` `buildAttemptSummary` always sets it and
+  `failureEnvelope` passes `input.retryable` through — so that is **not** a gap. The
+  only real audit gap is making the classification that fired distinctly recorded
+  without stderr leakage; `terminal_reason` already carries most of this.)
 - **bl-3a88 is genuinely not built (design-first is correct).** Only a *type-level
   reservation* exists: `submit_tool_candidate` in `STRUCTURED_OUTPUT_STRATEGIES`,
   cursor lists it as a capability, `supports_submit_tool: false` on all adapters,
@@ -136,9 +139,11 @@ never-shipped deferral.
 3. **Signal/interruption classification** — classify interrupted/signal-terminated
    runs as transient **only where the runtime exposes reliable evidence** (e.g.
    non-null `signal`); do not guess.
-4. **Redacted audit fields** — record which classification fired
-   (transient/terminal/unknown) and populate retryability in the attempt summary,
-   **preserving existing stderr redaction rules** (no stderr leakage).
+4. **Redacted audit fields** — ensure the classification that fired
+   (transient/terminal/unknown) is distinctly recorded, **preserving existing
+   stderr redaction rules** (no stderr leakage). Note `AttemptSummary.retryable` is
+   already populated and `terminal_reason` already carries most of the basis — this
+   gap is about distinguishability + a no-leak guarantee, not adding retryability.
 5. **Contract-locking tests** — unit/integration tests that lock the *confirmed*
    default: transient → retry within budget, terminal → stop early, unknown →
    terminal (the now-confirmed fall-through), per adapter that gains a signature.
@@ -157,7 +162,10 @@ not buy enough reliability to justify the complexity.
 **Decision:** Design pass leads with submit-CLI; **MCP is documented as a rejected
 alternative for this repo** (extra server/config boundary, uneven provider MCP
 support, cuts against "subprocess is the only external execution boundary"). The
-hardened prompt+parse path remains the **fallback** baseline, not the primary.
+hardened prompt+parse path is the existing baseline and an **available fallback
+candidate** for no-submission handling — but the actual no-submission behavior
+(terminal failure vs bounded retry vs parse-path fallback) is **not pre-decided
+here**; it is a central DR decision (see Open Questions).
 
 ### Question 4: bl-3a88 adoption risk + evidence bar?
 
@@ -205,20 +213,23 @@ boundary" contract; uneven MCP support across claude/codex/cursor; deterministic
 run-bound capture is more complex. Net: extra complexity without enough added
 reliability here.
 
-#### Approach 3: Harden the current prompt+parse path _(fallback, not primary)_
+#### Approach 3: Harden the current prompt+parse path _(existing baseline; fallback candidate)_
 
 **Description:** Keep relying on final-message JSON, improve prompts/parsing/
 re-prompt feedback.
-**When this is the right choice:** As the fallback when a peer doesn't submit, or
-if submit-CLI adoption proves unreliable.
+**When this is the right choice:** As the existing baseline, and a *candidate*
+fallback for no-submission handling **if the DR chooses a parse-path fallback** over
+a terminal failure or bounded retry.
 **Tradeoffs:** Structurally fragile (depends on the model ending its turn with
-schema-valid JSON) — exactly the path that failed in the 2026-06-13 dogfood.
+schema-valid JSON) — exactly the path that failed in the 2026-06-13 dogfood; whether
+it becomes the no-submission fallback is a DR decision, not assumed here.
 
 ### Chosen Direction
 
-**Approach:** Submit-CLI as the primary bl-3a88 design (DR), prompt+parse retained
-as fallback; MCP documented as rejected alternative. bl-3291 = confirm shipped
-terminal-default contract + fill the five gaps.
+**Approach:** Submit-CLI as the primary bl-3a88 design (DR); MCP documented as
+rejected alternative; prompt+parse is the existing baseline and a candidate
+no-submission fallback (the DR decides no-submission behavior). bl-3291 = confirm
+shipped terminal-default contract + fill the five gaps.
 **Rationale:** Submit-CLI satisfies the dependency-free / single-subprocess-boundary
 contract, is uniform across the three providers, and yields deterministic,
 audit-friendly capture. bl-3291's classification already ships; the value left is
@@ -258,7 +269,9 @@ design-pass work.
    per-adapter signatures, signal/interruption classification (where reliable),
    redacted audit fields, and contract-locking tests.
 3. **bl-3a88 mechanism:** **Submit-CLI primary**; MCP a documented rejected
-   alternative for this repo; prompt+parse retained as fallback.
+   alternative for this repo; prompt+parse is the existing baseline and a candidate
+   no-submission fallback (no-submission behavior itself is a DR decision, not
+   pre-decided — see Decision 5 and Open Questions).
 4. **bl-3a88 capture:** Run-bound **sidecar artifact** read post-turn; engine stays
    deterministic; audit trail intact.
 5. **bl-3a88 adoption + evidence:** DR must define **no-submission behavior** and
@@ -380,18 +393,9 @@ _(For design — captured, not decided in discovery.)_
 
 ## Next Steps
 
-Use this discovery artifact to drive the next workflow step:
+This is a **spec-driven** project. The next step is `oat-project-design`, which
+confirms requirements and produces both `spec.md` and `design.md` (plus the bl-3a88
+verdict-submission DR). Design is the next HiLL checkpoint.
 
-- **Spec-driven mode:** continue to `oat-project-design` (which confirms
-  requirements and produces both `spec.md` and `design.md`).
-- **Spec-driven mode → formalize-only:** use `oat-project-spec` standalone
-  if you want a formalized requirements artifact but aren't ready to
-  design yet.
-- **Quick mode → straight to plan:** proceed directly to `plan.md` when
-  scope is clear and no architecture decisions remain.
-- **Quick mode → optional lightweight design:** produce a focused
-  `design.md` (architecture, components, data flow, testing) before
-  planning. Choose this when discovery surfaced architecture choices
-  or component boundaries.
-- **Quick mode → promote:** escalate to spec-driven if discovery revealed
-  the scope is larger or more complex than expected.
+If you want to formalize requirements without designing yet, run `oat-project-spec`
+standalone first — otherwise proceed directly to `oat-project-design`.
