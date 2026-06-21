@@ -1,5 +1,5 @@
 ---
-oat_status: in_progress
+oat_status: complete
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-21
@@ -325,12 +325,12 @@ oat_generated: false
 - Result: pass, with the gated live-provider test skipped by default.
 - Run: `pnpm run build:check && pnpm run type-check && pnpm run test && pnpm run validate && pnpm run smoke`
 - Result: pass.
-- Review gate: p03 code review found one Important lifecycle-metadata issue only; product verification passed and this artifact fix is awaiting re-review.
+- Review gate: p03 re-review passed with 0 Critical / 0 Important findings; one Minor `oat_last_commit` traceability note was folded into final bookkeeping.
 
 **Notes / Decisions:**
 
 - p03-t04 was verification-only and produced no commit because the full gate sweep did not require generated-output changes.
-- The active p03 review artifact remains at `reviews/p03-review-2026-06-21.md` for re-review context.
+- The p03 review artifacts were consumed and archived after the passing re-review.
 
 ### Task p03-t01: Fixture — no structured-output message to submitted verdict
 
@@ -449,13 +449,13 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 **Branch:** provider-cli-hardening
 **Tier:** 1
 **Policy:** merge-strategy=sequential, retry-limit=2
-**Phases:** 1 executed, 1 awaiting re-review, 0 failed, 0 stopped
+**Phases:** 1 executed, 1 passed, 0 failed, 0 stopped
 
 #### Phase Outcomes
 
 | Phase | Implementer | Review | Fix Iterations | Disposition |
 | ----- | ----------- | ------ | -------------- | ----------- |
-| p03   | DONE        | fixes_completed | 1/2      | awaiting re-review |
+| p03   | DONE        | pass   | 1/2            | passed      |
 
 #### Parallel Groups
 
@@ -464,18 +464,18 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 #### Dispatch Notes
 
 - Dispatch: p03 implementation completed commits c6fd0fe, b14d72a, 7e9b540, and 718fa47.
-- Dispatch: p03 review/fix used `effort_axis=selected:medium`, `model_axis=inherited`; dispatch ceiling `xhigh` from project state.
+- Dispatch: p03 review/fix/re-review used `effort_axis=selected:xhigh` for review and `selected:medium` for lifecycle-artifact fix; dispatch ceiling `xhigh` from project state.
 - Fix loop: resolved the Important lifecycle-metadata finding from `reviews/p03-review-2026-06-21.md`.
 
 #### Outstanding Items
 
-- Run p03 re-review; do not mark p03 passed until the reviewer clears the active review artifact.
+- None.
 
 #### Artifact / Design Deltas
 
 | Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
 | ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
-| p03-review | state.md / implementation.md | p03-t01 next | p03 tasks complete, current task null | Lifecycle metadata lagged completed p03 commits | p03 commits c6fd0fe..718fa47 and active review | p03 re-review |
+| p03-review | state.md / implementation.md | p03-t01 next | p03 tasks complete, current task null | Lifecycle metadata lagged completed p03 commits | p03 commits c6fd0fe..718fa47 and passing p03 re-review | resolved; final review next |
 
 <!-- orchestration-runs-end -->
 
@@ -513,7 +513,8 @@ Chronological log of implementation progress.
 - [x] p03-t03: Live-provider submit E2E and sandbox posture - 7e9b540
 - [x] p03-t04: Full gate sweep - verification-only; no commit required
 - [x] p03-t05: Promote DR-bl3a88 and flag consensus-family track - 718fa47
-- [x] p03-r01: Review fix, lifecycle metadata aligned for p03 re-review
+- [x] p03-r01: Review fix, lifecycle metadata aligned for p03 re-review - 7eb77eb
+- [x] p03-r02: Re-review passed; p03 marked passed - bookkeeping
 
 **What changed (high level):**
 
@@ -522,7 +523,7 @@ Chronological log of implementation progress.
 - The submit CLI seam is implemented, preferred over parse fallback when present, and preserves the core envelope contract.
 - The peer prompt now uses a runner-injected submit command and submit write errors return structured JSON.
 - Phase 3 evidence fixtures, gated live E2E, and DR/backlog promotion are complete.
-- Lifecycle metadata now reflects that all p03 plan tasks are complete and the project is awaiting p03 re-review.
+- Lifecycle metadata now reflects that all p03 plan tasks are complete and p03 re-review passed.
 
 **Decisions:**
 
@@ -531,7 +532,7 @@ Chronological log of implementation progress.
 
 **Follow-ups / TODO:**
 
-- Run p03 re-review; if it passes, continue to final review.
+- Run final review.
 
 **Blockers:**
 

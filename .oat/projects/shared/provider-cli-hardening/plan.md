@@ -890,7 +890,7 @@ git commit -m "docs(p03-t05): promote DR-bl3a88 and flag consensus-family track"
 | ------ | -------- | -------- | ---------- | ----------------------------------------------------- |
 | p01    | code     | passed   | 2026-06-21 | reviews/archived/p01-review-2026-06-21.md            |
 | p02    | code     | passed   | 2026-06-21 | reviews/archived/p02-review-2026-06-21-v3.md         |
-| p03    | code     | fixes_completed | 2026-06-21 | reviews/p03-review-2026-06-21.md                     |
+| p03    | code     | passed   | 2026-06-21 | reviews/archived/p03-review-2026-06-21-v2.md         |
 | final  | code     | pending  | -          | -                                                     |
 | spec   | artifact | pending  | -          | -                                                     |
 | design | artifact | passed   | 2026-06-21 | reviews/archived/artifact-design-review-2026-06-21.md |
