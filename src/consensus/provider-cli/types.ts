@@ -130,6 +130,7 @@ export interface ProviderDiagnostics {
   strategy_used?: StructuredOutputStrategy;
   output_mode?: OutputMode;
   exit_classification?: ProviderExitClassification;
+  verdict_source?: 'submit' | 'final_message';
   host_relation?: 'different_host' | 'same_host' | 'unknown';
   guard?:
     | 'none'

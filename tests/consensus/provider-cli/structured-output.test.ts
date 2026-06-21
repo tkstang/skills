@@ -1,14 +1,15 @@
+import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
 import { providerRegistry } from '../../../src/consensus/provider-cli/adapters.js';
+import { processExitForEnvelope } from '../../../src/consensus/provider-cli/envelope.js';
+import type { ProviderInvocation } from '../../../src/consensus/provider-cli/invocation.js';
 import {
   runProviderTurn,
   selectStructuredOutputStrategy,
 } from '../../../src/consensus/provider-cli/structured-output.js';
-import { processExitForEnvelope } from '../../../src/consensus/provider-cli/envelope.js';
-import type { ProviderInvocation } from '../../../src/consensus/provider-cli/invocation.js';
 import type {
   ProviderProcessResult,
   RunProviderSubprocessOptions,
@@ -105,9 +106,7 @@ describe('structured provider output coordinator', () => {
   });
 
   it('adds schema instructions to prompt-only provider prompts', async () => {
-    const subprocess = fakeSubprocess([
-      processSuccess('{"verdict":"accept"}'),
-    ]);
+    const subprocess = fakeSubprocess([processSuccess('{"verdict":"accept"}')]);
 
     const envelope = await runProviderTurn(request({ provider: 'cursor' }), {
       readSchema: async () => schema(),
@@ -121,9 +120,7 @@ describe('structured provider output coordinator', () => {
   });
 
   it('augments prompts with submit instructions when capture is enabled', async () => {
-    const subprocess = fakeSubprocess([
-      processSuccess('{"verdict":"accept"}'),
-    ]);
+    const subprocess = fakeSubprocess([processSuccess('{"verdict":"accept"}')]);
 
     const envelope = await runProviderTurn(request({ provider: 'cursor' }), {
       readSchema: async () => schema(),
@@ -356,6 +353,49 @@ describe('structured provider output coordinator', () => {
     );
   });
 
+  it('uses a valid sidecar verdict as envelope json with verdict_source submit', async () => {
+    let submitPath: string | undefined;
+
+    const envelope = await runProviderTurn(request({ provider: 'cursor' }), {
+      readSchema: async () => schema(),
+      async runSubprocess(_invocation, options) {
+        submitPath = options.env?.CONSENSUS_SUBMIT_FILE;
+        if (!submitPath) throw new Error('Missing submit capture path');
+        await writeFile(submitPath, '{"verdict":"submit"}', 'utf8');
+        return processSuccess('{"verdict":"final-message"}');
+      },
+    });
+
+    expect(envelope).toMatchObject({
+      ok: true,
+      stdout: '{"verdict":"submit"}',
+      json: { verdict: 'submit' },
+      diagnostics: {
+        verdict_source: 'submit',
+      },
+    });
+  });
+
+  it('cleans up the submit sidecar after the provider turn', async () => {
+    let submitPath: string | undefined;
+
+    const envelope = await runProviderTurn(request({ provider: 'cursor' }), {
+      readSchema: async () => schema(),
+      async runSubprocess(_invocation, options) {
+        submitPath = options.env?.CONSENSUS_SUBMIT_FILE;
+        if (!submitPath) throw new Error('Missing submit capture path');
+        await writeFile(submitPath, '{"verdict":"submit"}', 'utf8');
+        return processSuccess('{"verdict":"final-message"}');
+      },
+    });
+
+    expect(envelope.ok).toBe(true);
+    expect(submitPath).toBeTruthy();
+    await expect(readFile(submitPath!, 'utf8')).rejects.toMatchObject({
+      code: 'ENOENT',
+    });
+  });
+
   it('extracts Codex last-message-file output before schema validation', async () => {
     const envelope = await runProviderTurn(request({ provider: 'codex' }), {
       readSchema: async () => schema(),
@@ -379,9 +419,7 @@ describe('structured provider output coordinator', () => {
   });
 
   it('applies the default non-interactive runtime policy before invocation', async () => {
-    const subprocess = fakeSubprocess([
-      processSuccess('{"verdict":"accept"}'),
-    ]);
+    const subprocess = fakeSubprocess([processSuccess('{"verdict":"accept"}')]);
 
     await expect(
       runProviderTurn(request({ provider: 'codex' }), {
@@ -396,9 +434,7 @@ describe('structured provider output coordinator', () => {
   });
 
   it('passes inline schema JSON to Claude while redacting diagnostics', async () => {
-    const subprocess = fakeSubprocess([
-      processSuccess('{"verdict":"accept"}'),
-    ]);
+    const subprocess = fakeSubprocess([processSuccess('{"verdict":"accept"}')]);
 
     const envelope = await runProviderTurn(
       request({
@@ -595,10 +631,7 @@ function processSuccess(
 }
 
 function processFailure(
-  code: Extract<
-    ProviderProcessResult,
-    { ok: false }
-  >['code'],
+  code: Extract<ProviderProcessResult, { ok: false }>['code'],
   retryable: boolean,
   overrides: Partial<Extract<ProviderProcessResult, { ok: false }>> = {},
 ): ProviderProcessResult {
