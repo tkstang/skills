@@ -52,6 +52,7 @@ export function selectStructuredOutputStrategy(
     adapter.capabilities.schema_strategies.includes('constrained_native') &&
     adapter.capabilities.schema_strategies.includes('prompt_only')
   ) {
+    // Codex strict output can fail before the peer turn starts; Claude provider validation constrains only the final message.
     return 'prompt_only';
   }
   if (adapter.capabilities.schema_strategies.includes('constrained_native')) {
