@@ -515,6 +515,7 @@ Chronological log of implementation progress.
 - [x] p03-t05: Promote DR-bl3a88 and flag consensus-family track - 718fa47
 - [x] p03-r01: Review fix, lifecycle metadata aligned for p03 re-review - 7eb77eb
 - [x] p03-r02: Re-review passed; p03 marked passed - bookkeeping
+- [x] final-verification: Lint cleanup after final gate run - 031846e
 
 **What changed (high level):**
 
@@ -524,6 +525,7 @@ Chronological log of implementation progress.
 - The peer prompt now uses a runner-injected submit command and submit write errors return structured JSON.
 - Phase 3 evidence fixtures, gated live E2E, and DR/backlog promotion are complete.
 - Lifecycle metadata now reflects that all p03 plan tasks are complete and p03 re-review passed.
+- Final verification lint cleanup removed the remaining `oxlint` errors in provider-cli touched files.
 
 **Decisions:**
 
