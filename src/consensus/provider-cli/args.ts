@@ -22,7 +22,8 @@ export type ParsedConsensusCliCommand =
   | ParsedHelpCommand
   | ParsedProviderListCommand
   | ParsedPreflightCommand
-  | ParsedRunCommand;
+  | ParsedRunCommand
+  | ParsedSubmitCommand;
 
 export interface ParsedHelpCommand {
   kind: 'help';
@@ -65,6 +66,14 @@ export interface ParsedRunCommand {
   envAllow?: string[];
 }
 
+export interface ParsedSubmitCommand {
+  kind: 'submit';
+  json: true;
+  verdictSource?: PromptSource;
+  schemaPath?: string;
+  outPath?: string;
+}
+
 export interface NormalizeRunRequestIo {
   cwd?: string;
   env?: Record<string, string | undefined>;
@@ -93,6 +102,10 @@ export function parseConsensusCliArgs(
 
   if (command === 'run') {
     return parseRunCommand(tokens);
+  }
+
+  if (command === 'submit') {
+    return parseSubmitCommand(tokens);
   }
 
   throw new ConsensusCliUsageError(`Unknown command: ${command}`);
@@ -318,6 +331,50 @@ function parseRunCommand(tokens: readonly string[]): ParsedRunCommand {
   if (command.requestJson) {
     assertNoRequestJsonConflicts(command, parsed.positionals.length);
   }
+
+  return command;
+}
+
+function parseSubmitCommand(tokens: readonly string[]): ParsedSubmitCommand {
+  const parsed = parseOptionTokens(tokens, {
+    allowedFlags: new Set(['--json', '--schema', '--out', '--verdict-file']),
+    valueFlags: new Set(['--schema', '--out', '--verdict-file']),
+  });
+  requireJson(parsed.flags);
+
+  const command: ParsedSubmitCommand = {
+    kind: 'submit',
+    json: true,
+  };
+
+  assignIfDefined(
+    command,
+    'schemaPath',
+    singleValue(parsed.flags, '--schema'),
+  );
+  assignIfDefined(command, 'outPath', singleValue(parsed.flags, '--out'));
+
+  const verdictFile = singleValue(parsed.flags, '--verdict-file');
+  const stdinMarkers = parsed.positionals.filter((value) => value === '-');
+  const unknownPositionals = parsed.positionals.filter((value) => value !== '-');
+  if (unknownPositionals.length > 0) {
+    throw new ConsensusCliUsageError(
+      `Unexpected positional argument: ${unknownPositionals[0]}`,
+    );
+  }
+
+  const verdictSources: PromptSource[] = [];
+  if (verdictFile !== undefined) {
+    verdictSources.push({ kind: 'file', path: verdictFile });
+  }
+  for (let index = 0; index < stdinMarkers.length; index += 1) {
+    verdictSources.push({ kind: 'stdin' });
+  }
+
+  if (verdictSources.length > 1) {
+    throw new ConsensusCliUsageError('Use only one verdict source');
+  }
+  command.verdictSource = verdictSources[0];
 
   return command;
 }
