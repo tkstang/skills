@@ -539,9 +539,14 @@ contract.
 - **Per-adapter signature evidence (FR8):** the specific provider-specific transient
   signatures to add are gathered during build from real evidence; if none exists for
   a provider, that is recorded rather than guessed.
-- **Sandbox tmpdir writes:** whether Codex `read-only` can write the sidecar in
-  practice, or the capture path must live under `cwd` — confirmed by live E2E (FR5)
-  and recorded.
+- **Sandbox tmpdir writes (resolved 2026-06-21):** local gated live E2E confirmed
+  Codex `read-only` reaches the injected `CONSENSUS_SUBMIT_COMMAND` but cannot
+  write the current `tmpdir` sidecar (`EPERM` on the atomic temp file). The same
+  E2E passed with Codex `workspace-write`, `approval_policy=never`, and
+  `diagnostics.verdict_source: submit`. Current source of truth for the implemented
+  posture is therefore: tmpdir sidecar capture is live-confirmed for Codex
+  `workspace-write`; Codex `read-only` requires a future capture-path relocation
+  under an allowed cwd/workspace path before it can be claimed.
 - **Live E2E provider availability:** which provider(s) are available in CI vs.
   local for the FR5 live confirmation; E2E is gated/skippable accordingly.
 
