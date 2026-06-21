@@ -643,12 +643,20 @@ git commit -m "feat(p02-t07): capture submitted verdict as preferred source"
 
 ```typescript
 it('falls back to the parse path when no sidecar is present (default)', async () => {/* today’s behavior */});
-it('terminates with missing_submission when require-submission is set and no sidecar', async () => {/* opt-in */});
+it('terminates via existing missing_provider_output/schema_validation handling when neither submit nor parse yields usable output', async () => {/* default terminal path */});
 ```
 
 **Step 2: Implement (GREEN)** — default `prefer-submit → parse fallback → existing
-terminal handling`; add an opt-in `require_submission` request flag that yields a
-distinct `missing_submission` terminal reason. No bounded extra retry; no backoff.
+terminal handling` (the terminal case reuses the existing
+`missing_provider_output`/`schema_validation` reasons). No bounded extra retry; no
+backoff.
+
+> **Deferred (future follow-up):** the strict `require_submission` request flag +
+> distinct `missing_submission` terminal reason is **out of scope here** — the design
+> (`design.md` DR-bl3a88; §Deployment Strategy) frames strict mode as future
+> tightening gated on adoption evidence. Promoting it later requires request-contract
+> edits (`args.ts` parsing + `parseRequestJson` validation, the request type, and
+> tests), so it is tracked as a follow-up, not built in p02-t08.
 
 Run: `pnpm exec vitest run tests/consensus/provider-cli/structured-output.test.ts`
 
@@ -885,7 +893,7 @@ git commit -m "docs(p03-t05): promote DR-bl3a88 and flag consensus-family track"
 | final  | code     | pending  | -          | -                                                     |
 | spec   | artifact | pending  | -          | -                                                     |
 | design | artifact | passed   | 2026-06-21 | reviews/archived/artifact-design-review-2026-06-21.md |
-| plan   | artifact | received | 2026-06-21 | reviews/artifact-plan-review-2026-06-21.md                       |
+| plan   | artifact | passed   | 2026-06-21 | reviews/archived/artifact-plan-review-2026-06-21.md (manual; I1 resolved) |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 
