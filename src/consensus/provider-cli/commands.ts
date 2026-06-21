@@ -91,6 +91,7 @@ export function helpText() {
 Commands:
   provider ls --json
   preflight --json [--provider <id>] [--max-depth <n>]
+  submit --json [-|--verdict-file <path>] [--schema <path>] [--out <path>]
   run --provider <id> --schema <path> --json [-|--prompt <text>|--prompt-file <path>]
       [--model <name>] [--effort <level>]
       [--permission-mode <mode>] [--sandbox <name>] [--approval-policy <policy>]
@@ -230,6 +231,9 @@ export async function runConsensusCli(
         }),
       );
       return 0;
+    }
+    if (command.kind === 'submit') {
+      return runSubmit(command, io);
     }
 
     const request = await normalizeRunRequest(command, io);
