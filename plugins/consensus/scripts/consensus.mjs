@@ -722,283 +722,6 @@ function defaultStrategy(adapter) {
   ) ?? "prompt_only";
 }
 
-// src/consensus/provider-cli/adapters.ts
-var COMMON_AUTH_REQUIRED_PATTERNS = [
-  /auth(?:entication)? required/i,
-  /not logged in/i,
-  /login required/i,
-  /keychain.*locked/i
-];
-var COMMON_UNAVAILABLE_PATTERNS = [
-  /unsupported platform/i,
-  /not configured/i
-];
-var COMMON_UNSUPPORTED_OPTION_PATTERNS = [
-  /unknown (?:option|flag|argument)/i,
-  /unrecognized (?:option|flag|argument)/i,
-  /unsupported (?:option|flag|argument)/i,
-  /invalid (?:option|flag|argument)/i
-];
-var COMMON_TRANSIENT_EXIT_PATTERNS = [
-  /\b429\b/i,
-  /rate limit/i,
-  /temporar(?:y|ily) unavailable/i,
-  /try again/i,
-  /econnreset/i,
-  /etimedout/i
-];
-var DEFAULT_PROVIDER_ADAPTERS = [
-  {
-    id: "claude",
-    display_name: "Claude",
-    executable: "claude",
-    buildInvocation: buildClaudeInvocation,
-    classifyRunFailure: defaultRunFailureClassifier({
-      auth_required_patterns: COMMON_AUTH_REQUIRED_PATTERNS,
-      unavailable_patterns: COMMON_UNAVAILABLE_PATTERNS,
-      unsupported_option_patterns: COMMON_UNSUPPORTED_OPTION_PATTERNS,
-      transient_exit_patterns: COMMON_TRANSIENT_EXIT_PATTERNS
-    }),
-    probe: {
-      version_args: ["--version"],
-      auth_required_patterns: COMMON_AUTH_REQUIRED_PATTERNS,
-      unavailable_patterns: COMMON_UNAVAILABLE_PATTERNS
-    },
-    capabilities: {
-      schema_strategies: ["provider_validated", "prompt_only"],
-      output_modes: ["stdout_json"],
-      options: {
-        model: true,
-        effort: "effort",
-        runtime_policy: {
-          permission_modes: ["non-interactive", "read-only"],
-          env_allowlist: true
-        }
-      },
-      supports_submit_tool: false,
-      supports_same_host_subprocess: true,
-      supports_host_native_dispatch: false
-    }
-  },
-  {
-    id: "codex",
-    display_name: "Codex",
-    executable: "codex",
-    buildInvocation: buildCodexInvocation,
-    classifyRunFailure: defaultRunFailureClassifier({
-      auth_required_patterns: COMMON_AUTH_REQUIRED_PATTERNS,
-      unavailable_patterns: COMMON_UNAVAILABLE_PATTERNS,
-      unsupported_option_patterns: COMMON_UNSUPPORTED_OPTION_PATTERNS,
-      transient_exit_patterns: COMMON_TRANSIENT_EXIT_PATTERNS
-    }),
-    probe: {
-      version_args: ["--version"],
-      auth_required_patterns: COMMON_AUTH_REQUIRED_PATTERNS,
-      unavailable_patterns: COMMON_UNAVAILABLE_PATTERNS
-    },
-    capabilities: {
-      schema_strategies: ["constrained_native", "prompt_only"],
-      output_modes: ["last_message_file"],
-      options: {
-        model: true,
-        effort: "reasoning_effort",
-        runtime_policy: {
-          permission_modes: ["non-interactive"],
-          sandboxes: ["read-only", "workspace-write"],
-          approval_policies: ["never", "on-request"],
-          env_allowlist: true
-        }
-      },
-      supports_submit_tool: false,
-      supports_same_host_subprocess: true,
-      supports_host_native_dispatch: false
-    }
-  },
-  {
-    id: "cursor",
-    display_name: "Cursor",
-    executable: "cursor-agent",
-    buildInvocation: buildCursorInvocation,
-    classifyRunFailure: defaultRunFailureClassifier({
-      auth_required_patterns: [
-        ...COMMON_AUTH_REQUIRED_PATTERNS,
-        /credential.*locked/i
-      ],
-      unavailable_patterns: COMMON_UNAVAILABLE_PATTERNS,
-      unsupported_option_patterns: COMMON_UNSUPPORTED_OPTION_PATTERNS,
-      transient_exit_patterns: COMMON_TRANSIENT_EXIT_PATTERNS
-    }),
-    probe: {
-      version_args: ["--version"],
-      auth_required_patterns: [
-        ...COMMON_AUTH_REQUIRED_PATTERNS,
-        /credential.*locked/i
-      ],
-      unavailable_patterns: COMMON_UNAVAILABLE_PATTERNS
-    },
-    capabilities: {
-      schema_strategies: ["prompt_only", "submit_tool_candidate"],
-      output_modes: ["stdout_json"],
-      options: {
-        model: false,
-        effort: null,
-        runtime_policy: {
-          permission_modes: ["non-interactive"],
-          env_allowlist: true
-        }
-      },
-      supports_submit_tool: false,
-      supports_same_host_subprocess: true,
-      supports_host_native_dispatch: false
-    }
-  }
-];
-function providerRegistry(adapters = DEFAULT_PROVIDER_ADAPTERS) {
-  const byId = /* @__PURE__ */ new Map();
-  for (const adapter of adapters) byId.set(adapter.id, adapter);
-  return {
-    list() {
-      return [...adapters];
-    },
-    get(id) {
-      return byId.get(id);
-    }
-  };
-}
-function defaultRunFailureClassifier(patterns) {
-  return (failure2) => {
-    if (failure2.code !== "PROVIDER_EXIT") {
-      return {
-        code: failure2.code,
-        message: failure2.message,
-        retryable: failure2.retryable,
-        terminal_reason: terminalReasonForNonExitFailure(failure2.code)
-      };
-    }
-    const output = `${failure2.stdout}
-${failure2.stderr}
-${failure2.message}`;
-    const outputLine = firstNonEmptyLine(output);
-    if (matchesAny(output, patterns.auth_required_patterns)) {
-      return {
-        code: "PROVIDER_AUTH_REQUIRED",
-        message: outputLine ?? "Provider authentication is required.",
-        retryable: false,
-        terminal_reason: "provider_auth_required"
-      };
-    }
-    if (matchesAny(output, patterns.unsupported_option_patterns)) {
-      return {
-        code: "PROVIDER_UNSUPPORTED_OPTION",
-        message: outputLine ?? "Provider rejected an unsupported option.",
-        retryable: false,
-        terminal_reason: "provider_unsupported_option"
-      };
-    }
-    if (matchesAny(output, patterns.unavailable_patterns)) {
-      return {
-        code: "PROVIDER_EXIT",
-        message: outputLine ?? failure2.message,
-        retryable: false,
-        terminal_reason: "provider_unavailable_exit"
-      };
-    }
-    if (matchesAny(output, patterns.transient_exit_patterns)) {
-      return {
-        code: "PROVIDER_EXIT",
-        message: outputLine ?? failure2.message,
-        retryable: true,
-        terminal_reason: "provider_exit_transient"
-      };
-    }
-    return {
-      code: "PROVIDER_EXIT",
-      message: outputLine ?? failure2.message,
-      retryable: false,
-      terminal_reason: "provider_exit_terminal"
-    };
-  };
-}
-function terminalReasonForNonExitFailure(code) {
-  if (code === "PROVIDER_MISSING") return "provider_missing";
-  if (code === "PROVIDER_TIMEOUT") return "provider_timeout";
-  return "output_cap_exceeded";
-}
-function matchesAny(value, patterns) {
-  return patterns.some((pattern) => pattern.test(value));
-}
-function firstNonEmptyLine(value) {
-  return value.split(/\r?\n/).map((line) => line.trim()).find(Boolean);
-}
-
-// src/consensus/provider-cli/envelope.ts
-function successEnvelope(input) {
-  const envelope = {
-    schema_version: "v1",
-    ok: true,
-    provider: input.provider,
-    args: input.args,
-    stdout: input.stdout,
-    json: input.json,
-    attempts: buildAttemptSummary(input.attempts, false)
-  };
-  if (input.stderr !== void 0) envelope.stderr = input.stderr;
-  if (input.diagnostics) envelope.diagnostics = input.diagnostics;
-  return envelope;
-}
-function failureEnvelope(input) {
-  const envelope = {
-    schema_version: "v1",
-    ok: false,
-    code: input.code,
-    message: input.message,
-    retryable: input.retryable,
-    attempts: buildAttemptSummary(
-      {
-        ...input.attempts,
-        terminal_reason: input.terminal_reason ?? input.attempts?.terminal_reason
-      },
-      input.retryable
-    )
-  };
-  if (input.provider) envelope.provider = input.provider;
-  if (input.stdout !== void 0) envelope.stdout = input.stdout;
-  if (input.stderr !== void 0) envelope.stderr = input.stderr;
-  if (input.diagnostics) envelope.diagnostics = input.diagnostics;
-  return envelope;
-}
-function usageFailure(message, details) {
-  const diagnostics = details === void 0 ? void 0 : { warnings: [JSON.stringify(details)] };
-  return failureEnvelope({
-    code: "CONSENSUS_CLI_USAGE",
-    message,
-    retryable: false,
-    attempts: {
-      cli_attempts: 0,
-      terminal_reason: "usage"
-    },
-    diagnostics
-  });
-}
-function processExitForEnvelope(envelope) {
-  if (envelope.ok) return 0;
-  if (envelope.code === "CONSENSUS_CLI_USAGE") return 2;
-  return 0;
-}
-function buildAttemptSummary(attempts, retryable) {
-  return {
-    cli_attempts: attempts?.cli_attempts ?? 1,
-    ...attempts?.provider_internal_attempts === void 0 ? {} : { provider_internal_attempts: attempts.provider_internal_attempts },
-    ...attempts?.terminal_reason === void 0 ? {} : { terminal_reason: attempts.terminal_reason },
-    retryable
-  };
-}
-
-// src/consensus/provider-cli/probe.ts
-import { constants } from "node:fs";
-import { access } from "node:fs/promises";
-import path2 from "node:path";
-
 // src/consensus/provider-cli/subprocess.ts
 import { spawn } from "node:child_process";
 import { readFile, rm } from "node:fs/promises";
@@ -1006,6 +729,9 @@ var DEFAULT_MAX_OUTPUT_BYTES = 1024 * 1024 * 10;
 var DEFAULT_TIMEOUT_SEC = 300;
 var DEFAULT_TERMINATION_GRACE_MS = 250;
 var DEFAULT_FINAL_RESOLUTION_MS = 1e3;
+function isReliableExternalInterrupt(input) {
+  return input.code === "PROVIDER_EXIT" && input.signal !== null && input.exit_code === null;
+}
 function runProviderSubprocess(invocation2, options = {}) {
   const maxOutputBytes = options.maxOutputBytes ?? DEFAULT_MAX_OUTPUT_BYTES;
   const timeoutSec = options.timeoutSec ?? DEFAULT_TIMEOUT_SEC;
@@ -1262,7 +988,318 @@ function failure(input) {
   };
 }
 
+// src/consensus/provider-cli/adapters.ts
+var COMMON_AUTH_REQUIRED_PATTERNS = [
+  /auth(?:entication)? required/i,
+  /not logged in/i,
+  /login required/i,
+  /keychain.*locked/i
+];
+var COMMON_UNAVAILABLE_PATTERNS = [
+  /unsupported platform/i,
+  /not configured/i
+];
+var COMMON_UNSUPPORTED_OPTION_PATTERNS = [
+  /unknown (?:option|flag|argument)/i,
+  /unrecognized (?:option|flag|argument)/i,
+  /unsupported (?:option|flag|argument)/i,
+  /invalid (?:option|flag|argument)/i
+];
+var COMMON_TRANSIENT_EXIT_PATTERNS = [
+  /\b429\b/i,
+  /rate limit/i,
+  /temporar(?:y|ily) unavailable/i,
+  /try again/i,
+  /econnreset/i,
+  /etimedout/i
+];
+var CLAUDE_TRANSIENT_EXIT_PATTERNS = [
+  // Evidence: Claude Code error reference documents this exact repeated 529
+  // overload message as temporary capacity exhaustion:
+  // https://code.claude.com/docs/en/errors
+  /API Error: Repeated 529 Overloaded errors/i
+];
+var CODEX_TRANSIENT_EXIT_PATTERNS = [
+  // No Codex CLI-specific transient stderr evidence in project artifacts yet.
+];
+var CURSOR_TRANSIENT_EXIT_PATTERNS = [
+  // No Cursor CLI-specific transient stderr evidence in project artifacts yet.
+];
+var DEFAULT_PROVIDER_ADAPTERS = [
+  {
+    id: "claude",
+    display_name: "Claude",
+    executable: "claude",
+    buildInvocation: buildClaudeInvocation,
+    classifyRunFailure: defaultRunFailureClassifier({
+      auth_required_patterns: COMMON_AUTH_REQUIRED_PATTERNS,
+      unavailable_patterns: COMMON_UNAVAILABLE_PATTERNS,
+      unsupported_option_patterns: COMMON_UNSUPPORTED_OPTION_PATTERNS,
+      transient_exit_patterns: [
+        ...COMMON_TRANSIENT_EXIT_PATTERNS,
+        ...CLAUDE_TRANSIENT_EXIT_PATTERNS
+      ]
+    }),
+    probe: {
+      version_args: ["--version"],
+      auth_required_patterns: COMMON_AUTH_REQUIRED_PATTERNS,
+      unavailable_patterns: COMMON_UNAVAILABLE_PATTERNS
+    },
+    capabilities: {
+      schema_strategies: ["provider_validated", "prompt_only"],
+      output_modes: ["stdout_json"],
+      options: {
+        model: true,
+        effort: "effort",
+        runtime_policy: {
+          permission_modes: ["non-interactive", "read-only"],
+          env_allowlist: true
+        }
+      },
+      supports_submit_tool: false,
+      supports_same_host_subprocess: true,
+      supports_host_native_dispatch: false
+    }
+  },
+  {
+    id: "codex",
+    display_name: "Codex",
+    executable: "codex",
+    buildInvocation: buildCodexInvocation,
+    classifyRunFailure: defaultRunFailureClassifier({
+      auth_required_patterns: COMMON_AUTH_REQUIRED_PATTERNS,
+      unavailable_patterns: COMMON_UNAVAILABLE_PATTERNS,
+      unsupported_option_patterns: COMMON_UNSUPPORTED_OPTION_PATTERNS,
+      transient_exit_patterns: [
+        ...COMMON_TRANSIENT_EXIT_PATTERNS,
+        ...CODEX_TRANSIENT_EXIT_PATTERNS
+      ]
+    }),
+    probe: {
+      version_args: ["--version"],
+      auth_required_patterns: COMMON_AUTH_REQUIRED_PATTERNS,
+      unavailable_patterns: COMMON_UNAVAILABLE_PATTERNS
+    },
+    capabilities: {
+      schema_strategies: ["constrained_native", "prompt_only"],
+      output_modes: ["last_message_file"],
+      options: {
+        model: true,
+        effort: "reasoning_effort",
+        runtime_policy: {
+          permission_modes: ["non-interactive"],
+          sandboxes: ["read-only", "workspace-write"],
+          approval_policies: ["never", "on-request"],
+          env_allowlist: true
+        }
+      },
+      supports_submit_tool: false,
+      supports_same_host_subprocess: true,
+      supports_host_native_dispatch: false
+    }
+  },
+  {
+    id: "cursor",
+    display_name: "Cursor",
+    executable: "cursor-agent",
+    buildInvocation: buildCursorInvocation,
+    classifyRunFailure: defaultRunFailureClassifier({
+      auth_required_patterns: [
+        ...COMMON_AUTH_REQUIRED_PATTERNS,
+        /credential.*locked/i
+      ],
+      unavailable_patterns: COMMON_UNAVAILABLE_PATTERNS,
+      unsupported_option_patterns: COMMON_UNSUPPORTED_OPTION_PATTERNS,
+      transient_exit_patterns: [
+        ...COMMON_TRANSIENT_EXIT_PATTERNS,
+        ...CURSOR_TRANSIENT_EXIT_PATTERNS
+      ]
+    }),
+    probe: {
+      version_args: ["--version"],
+      auth_required_patterns: [
+        ...COMMON_AUTH_REQUIRED_PATTERNS,
+        /credential.*locked/i
+      ],
+      unavailable_patterns: COMMON_UNAVAILABLE_PATTERNS
+    },
+    capabilities: {
+      schema_strategies: ["prompt_only", "submit_tool_candidate"],
+      output_modes: ["stdout_json"],
+      options: {
+        model: false,
+        effort: null,
+        runtime_policy: {
+          permission_modes: ["non-interactive"],
+          env_allowlist: true
+        }
+      },
+      supports_submit_tool: false,
+      supports_same_host_subprocess: true,
+      supports_host_native_dispatch: false
+    }
+  }
+];
+function providerRegistry(adapters = DEFAULT_PROVIDER_ADAPTERS) {
+  const byId = /* @__PURE__ */ new Map();
+  for (const adapter of adapters) byId.set(adapter.id, adapter);
+  return {
+    list() {
+      return [...adapters];
+    },
+    get(id) {
+      return byId.get(id);
+    }
+  };
+}
+function defaultRunFailureClassifier(patterns) {
+  return (failure2) => {
+    if (failure2.code !== "PROVIDER_EXIT") {
+      return {
+        code: failure2.code,
+        message: failure2.message,
+        retryable: failure2.retryable,
+        terminal_reason: terminalReasonForNonExitFailure(failure2.code),
+        exit_classification: "terminal"
+      };
+    }
+    const output = `${failure2.stdout}
+${failure2.stderr}
+${failure2.message}`;
+    const outputLine = firstNonEmptyLine(output);
+    if (isReliableExternalInterrupt(failure2)) {
+      return {
+        code: "PROVIDER_EXIT",
+        message: `Provider subprocess was interrupted by signal ${failure2.signal}.`,
+        retryable: true,
+        terminal_reason: "provider_exit_interrupted",
+        exit_classification: "interrupted"
+      };
+    }
+    if (matchesAny(output, patterns.auth_required_patterns)) {
+      return {
+        code: "PROVIDER_AUTH_REQUIRED",
+        message: outputLine ?? "Provider authentication is required.",
+        retryable: false,
+        terminal_reason: "provider_auth_required",
+        exit_classification: "terminal"
+      };
+    }
+    if (matchesAny(output, patterns.unsupported_option_patterns)) {
+      return {
+        code: "PROVIDER_UNSUPPORTED_OPTION",
+        message: outputLine ?? "Provider rejected an unsupported option.",
+        retryable: false,
+        terminal_reason: "provider_unsupported_option",
+        exit_classification: "terminal"
+      };
+    }
+    if (matchesAny(output, patterns.unavailable_patterns)) {
+      return {
+        code: "PROVIDER_EXIT",
+        message: outputLine ?? failure2.message,
+        retryable: false,
+        terminal_reason: "provider_unavailable_exit",
+        exit_classification: "terminal"
+      };
+    }
+    if (matchesAny(output, patterns.transient_exit_patterns)) {
+      return {
+        code: "PROVIDER_EXIT",
+        message: outputLine ?? failure2.message,
+        retryable: true,
+        terminal_reason: "provider_exit_transient",
+        exit_classification: "transient"
+      };
+    }
+    return {
+      code: "PROVIDER_EXIT",
+      message: outputLine ?? failure2.message,
+      retryable: false,
+      terminal_reason: "provider_exit_terminal",
+      exit_classification: "unknown"
+    };
+  };
+}
+function terminalReasonForNonExitFailure(code) {
+  if (code === "PROVIDER_MISSING") return "provider_missing";
+  if (code === "PROVIDER_TIMEOUT") return "provider_timeout";
+  return "output_cap_exceeded";
+}
+function matchesAny(value, patterns) {
+  return patterns.some((pattern) => pattern.test(value));
+}
+function firstNonEmptyLine(value) {
+  return value.split(/\r?\n/).map((line) => line.trim()).find(Boolean);
+}
+
+// src/consensus/provider-cli/envelope.ts
+function successEnvelope(input) {
+  const envelope = {
+    schema_version: "v1",
+    ok: true,
+    provider: input.provider,
+    args: input.args,
+    stdout: input.stdout,
+    json: input.json,
+    attempts: buildAttemptSummary(input.attempts, false)
+  };
+  if (input.stderr !== void 0) envelope.stderr = input.stderr;
+  if (input.diagnostics) envelope.diagnostics = input.diagnostics;
+  return envelope;
+}
+function failureEnvelope(input) {
+  const envelope = {
+    schema_version: "v1",
+    ok: false,
+    code: input.code,
+    message: input.message,
+    retryable: input.retryable,
+    attempts: buildAttemptSummary(
+      {
+        ...input.attempts,
+        terminal_reason: input.terminal_reason ?? input.attempts?.terminal_reason
+      },
+      input.retryable
+    )
+  };
+  if (input.provider) envelope.provider = input.provider;
+  if (input.stdout !== void 0) envelope.stdout = input.stdout;
+  if (input.stderr !== void 0) envelope.stderr = input.stderr;
+  if (input.diagnostics) envelope.diagnostics = input.diagnostics;
+  return envelope;
+}
+function usageFailure(message, details) {
+  const diagnostics = details === void 0 ? void 0 : { warnings: [JSON.stringify(details)] };
+  return failureEnvelope({
+    code: "CONSENSUS_CLI_USAGE",
+    message,
+    retryable: false,
+    attempts: {
+      cli_attempts: 0,
+      terminal_reason: "usage"
+    },
+    diagnostics
+  });
+}
+function processExitForEnvelope(envelope) {
+  if (envelope.ok) return 0;
+  if (envelope.code === "CONSENSUS_CLI_USAGE") return 2;
+  return 0;
+}
+function buildAttemptSummary(attempts, retryable) {
+  return {
+    cli_attempts: attempts?.cli_attempts ?? 1,
+    ...attempts?.provider_internal_attempts === void 0 ? {} : { provider_internal_attempts: attempts.provider_internal_attempts },
+    ...attempts?.terminal_reason === void 0 ? {} : { terminal_reason: attempts.terminal_reason },
+    retryable
+  };
+}
+
 // src/consensus/provider-cli/probe.ts
+import { constants } from "node:fs";
+import { access } from "node:fs/promises";
+import path2 from "node:path";
 var DEFAULT_PROBE_TIMEOUT_SEC = 10;
 var DEFAULT_PROBE_MAX_OUTPUT_BYTES = 64 * 1024;
 async function probeProviderRegistry({
@@ -1618,6 +1655,7 @@ async function runProviderTurn(request, dependencies = {}) {
   });
   let validationFeedback;
   let lastInvocation;
+  let exitClassification;
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     const invocationRequest = {
       ...effectiveRequest,
@@ -1645,12 +1683,17 @@ async function runProviderTurn(request, dependencies = {}) {
         redacted_command: invocation2.redacted_command
       },
       hostGuard.diagnostics,
-      processResult.diagnostics
+      processResult.diagnostics,
+      exitClassificationDiagnostics(exitClassification)
     );
     if (!processResult.ok) {
       const classification = adapter.classifyRunFailure(processResult);
+      exitClassification = classification.exit_classification;
+      const failureDiagnostics = mergeDiagnostics(
+        diagnostics,
+        exitClassificationDiagnostics(exitClassification)
+      );
       if (classification.retryable && attempt < maxAttempts) {
-        validationFeedback = classification.message;
         continue;
       }
       return failureEnvelope({
@@ -1664,7 +1707,7 @@ async function runProviderTurn(request, dependencies = {}) {
           cli_attempts: attempt,
           terminal_reason: classification.terminal_reason
         },
-        diagnostics
+        diagnostics: failureDiagnostics
       });
     }
     const providerOutput = extractProviderOutput(invocation2, processResult);
@@ -1925,6 +1968,9 @@ function mergeDiagnostics(...diagnostics) {
   }
   if (warnings.length > 0) merged.warnings = warnings;
   return merged;
+}
+function exitClassificationDiagnostics(exitClassification) {
+  return exitClassification ? { exit_classification: exitClassification } : void 0;
 }
 function isRecord2(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
