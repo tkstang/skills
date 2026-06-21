@@ -1,11 +1,28 @@
-import { lstat, readFile, realpath, stat } from 'node:fs/promises';
+import {
+  lstat,
+  mkdir,
+  readFile,
+  realpath,
+  rename,
+  stat,
+  unlink,
+  writeFile,
+} from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import {
   ConsensusError,
   EXIT_CODES,
+  exitCodeForError,
   invalidIterationModeError,
   ITERATION_MODES,
+  invokeConsensusProviderCli,
+  invokeProviderCliWithRetry,
+  peerSchemaPathForMode,
+  resolveConsensusCliPath,
+  runConsensusLoop,
+  runProviderCliCommand,
 } from '../core/consensus-loop.js';
 import type {
   Agency,
@@ -14,8 +31,10 @@ import type {
   LoopRecord,
   LoopStatus,
   ParallelTurnPromptInput,
+  PeerInvoker,
   PromptProfile,
   SynthesisPromptInput,
+  SynthesizerInvoker,
   TurnPromptInput,
 } from '../core/consensus-loop.js';
 
@@ -23,6 +42,8 @@ const MAX_ROUNDS_MIN = 1;
 const MAX_ROUNDS_MAX = 100;
 const PROVIDER_ID_PATTERN = /^[a-z][a-z0-9_-]{0,31}$/u;
 export const INPUT_SIZE_CAP_BYTES = 1024 * 1024;
+const DEFAULT_DECIDE_GOAL = 'Choose between the supplied options.';
+const DEFAULT_PEERS = Object.freeze(['claude', 'codex']);
 
 export interface ParsedDecideOptions {
   optionsPath: string;
@@ -41,6 +62,35 @@ export interface LoadedDecideInputs {
   options: string;
   optionsPath: string;
 }
+
+export interface DecideStatePaths {
+  input: string;
+  records: string;
+  output: string;
+  status: string;
+}
+
+export interface DecideRunInput extends Partial<ParsedDecideOptions> {
+  cwd?: string;
+  env?: NodeJS.ProcessEnv;
+}
+
+type NormalizedDecideRunInput = ParsedDecideOptions & {
+  cwd?: string;
+  env?: NodeJS.ProcessEnv;
+};
+
+export interface DecideExecutionOptions {
+  cwd?: string;
+  env?: NodeJS.ProcessEnv;
+  now?: () => string;
+  invokePeer?: PeerInvoker;
+  invokeSynthesizer?: SynthesizerInvoker;
+  stdout?: Pick<NodeJS.WritableStream, 'write'>;
+  stderr?: Pick<NodeJS.WritableStream, 'write'>;
+}
+
+export type DecideCliOptions = DecideExecutionOptions;
 
 export interface DecideArtifactMetadata {
   optionsPath?: string | null;
@@ -61,6 +111,21 @@ export interface DecisionRenderInput {
   records: LoopRecord[];
   status: LoopStatus;
   metadata?: DecideArtifactMetadata;
+}
+
+export interface DecideRunResult {
+  outputPath: string;
+  runDir: string;
+  paths: DecideStatePaths;
+  loopArgv: string[];
+  records: LoopRecord[];
+  status: LoopStatus;
+  decisionArtifact: string;
+  finalArtifact: string;
+  peers: string[];
+  startedAt: string;
+  endedAt: string;
+  wallClockMs: number;
 }
 
 function requireValue(argv: readonly string[], index: number, token: string) {
@@ -274,6 +339,118 @@ async function confineRead(inputPath: string, cwd: string, rootPath: string) {
   }
 
   return target;
+}
+
+export async function confineWrite(targetPath: string, rootPath: string) {
+  const root = path.resolve(rootPath);
+  const target = path.isAbsolute(targetPath)
+    ? path.resolve(targetPath)
+    : path.resolve(root, targetPath);
+
+  if (!inside(root, target)) {
+    throw new ConsensusError(`write path is outside allowed root: ${target}`, {
+      code: 'WRITE_PATH_OUTSIDE_ROOT',
+      exitCode: EXIT_CODES.NOPERM,
+      details: { root, path: target },
+    });
+  }
+
+  if (await pathExists(target)) {
+    const targetStat = await lstat(target);
+    if (targetStat.isSymbolicLink()) {
+      throw new ConsensusError(`write target may not be a symlink: ${target}`, {
+        code: 'WRITE_TARGET_SYMLINK',
+        exitCode: EXIT_CODES.NOPERM,
+        details: { path: target },
+      });
+    }
+  }
+
+  const realRoot = await realpath(root);
+  const parent = path.dirname(target);
+  const existing = await nearestExistingPath(parent);
+  const realExisting = await realpath(existing);
+  const realParent = path.resolve(
+    realExisting,
+    path.relative(existing, parent),
+  );
+
+  if (!inside(realRoot, realParent)) {
+    throw new ConsensusError(
+      `write path resolves outside allowed root: ${target}`,
+      {
+        code: 'WRITE_PATH_OUTSIDE_ROOT',
+        exitCode: EXIT_CODES.NOPERM,
+        details: { root, path: target },
+      },
+    );
+  }
+
+  return target;
+}
+
+function pathExists(targetPath: string) {
+  return lstat(targetPath)
+    .then(() => true)
+    .catch((error: NodeJS.ErrnoException) => {
+      if (error.code === 'ENOENT') return false;
+      throw error;
+    });
+}
+
+async function nearestExistingPath(targetPath: string): Promise<string> {
+  if (await pathExists(targetPath)) return targetPath;
+  const parent = path.dirname(targetPath);
+  if (parent === targetPath) return targetPath;
+  return await nearestExistingPath(parent);
+}
+
+export async function atomicWriteFile(
+  targetPath: string,
+  contents: string,
+  options: { rootPath?: string } = {},
+) {
+  const writePath = options.rootPath
+    ? await confineWrite(targetPath, options.rootPath)
+    : path.resolve(targetPath);
+
+  if (await pathExists(writePath)) {
+    const targetStat = await lstat(writePath);
+    if (targetStat.isSymbolicLink()) {
+      throw new ConsensusError(
+        `write target may not be a symlink: ${writePath}`,
+        {
+          code: 'WRITE_TARGET_SYMLINK',
+          exitCode: EXIT_CODES.NOPERM,
+          details: { path: writePath },
+        },
+      );
+    }
+  }
+
+  await mkdir(path.dirname(writePath), { recursive: true });
+  const tempPath = path.join(
+    path.dirname(writePath),
+    `.${path.basename(writePath)}.tmp-${process.pid}-${Math.random().toString(16).slice(2)}`,
+  );
+
+  try {
+    await writeFile(tempPath, contents);
+    await rename(tempPath, writePath);
+  } catch (error) {
+    try {
+      await unlink(tempPath);
+    } catch (cleanupError) {
+      const code = (cleanupError as NodeJS.ErrnoException).code;
+      if (code !== 'ENOENT') {
+        (error as Error & { cleanupError?: unknown }).cleanupError =
+          cleanupError;
+      }
+    }
+    throw error;
+  }
+
+  return writePath;
 }
 
 export async function readDecideInputFile(inputPath: string) {
@@ -517,6 +694,263 @@ export function buildDecidePromptProfile(
   };
 }
 
+function isJsonRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function parseProviderCliEnvelope(stdout: string, label: string) {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(stdout) as unknown;
+  } catch (error) {
+    throw new Error(
+      `consensus ${label} output was not valid JSON: ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error },
+    );
+  }
+  if (!isJsonRecord(parsed) || parsed.schema_version !== 'v1') {
+    throw new Error(`consensus ${label} output was not a v1 JSON envelope`);
+  }
+  return parsed;
+}
+
+function providerStatusMap(envelope: Record<string, unknown>) {
+  const providers = Array.isArray(envelope.providers) ? envelope.providers : [];
+  const entries: Array<[string, string]> = [];
+  for (const provider of providers) {
+    if (!isJsonRecord(provider)) continue;
+    const id = String(provider.id ?? provider.provider ?? provider.name ?? '');
+    if (!id) continue;
+    entries.push([id, String(provider.status ?? 'unavailable')]);
+  }
+  return new Map(entries);
+}
+
+function providerCliUnavailableError(
+  providers: Array<{ id: string; status: string }>,
+) {
+  const summary = providers
+    .map((provider) => `${provider.id} (${provider.status})`)
+    .join(', ');
+  return new ConsensusError(
+    `Consensus providers are unavailable: ${summary}. Run "consensus preflight --json --provider <id>" and resolve provider authentication or availability before retrying.`,
+    {
+      code: 'PEER_UNAVAILABLE',
+      exitCode: EXIT_CODES.CONFIG,
+      details: { providers },
+    },
+  );
+}
+
+async function preflightDecideProviderCli({
+  env,
+  cwd,
+  providers,
+}: {
+  env: NodeJS.ProcessEnv;
+  cwd: string;
+  providers: string[];
+}) {
+  const command = resolveConsensusCliPath({ env });
+  const inventoryResult = await runProviderCliCommand(
+    command,
+    ['provider', 'ls', '--json'],
+    { env, cwd },
+  );
+  const inventory = parseProviderCliEnvelope(
+    inventoryResult.stdout,
+    'provider inventory',
+  );
+  const statuses = providerStatusMap(inventory);
+  const unavailable = providers
+    .filter((provider) => statuses.get(provider) !== 'ready')
+    .map((provider) => ({
+      id: provider,
+      status: statuses.get(provider) ?? 'missing',
+    }));
+  if (unavailable.length > 0) {
+    throw providerCliUnavailableError(unavailable);
+  }
+
+  for (const provider of providers) {
+    const preflightResult = await runProviderCliCommand(
+      command,
+      ['preflight', '--json', '--provider', provider],
+      { env, cwd },
+    );
+    const preflight = parseProviderCliEnvelope(
+      preflightResult.stdout,
+      `${provider} preflight`,
+    );
+    if (preflight.usable !== true) {
+      const preflightStatuses = providerStatusMap(preflight);
+      throw providerCliUnavailableError([
+        {
+          id: provider,
+          status: preflightStatuses.get(provider) ?? 'unavailable',
+        },
+      ]);
+    }
+  }
+}
+
+function providerCliLoopInvokers({
+  env,
+  cwd,
+  iteration,
+}: {
+  env: NodeJS.ProcessEnv;
+  cwd: string;
+  iteration: IterationMode;
+}): Pick<DecideExecutionOptions, 'invokePeer' | 'invokeSynthesizer'> {
+  return {
+    invokePeer: (turn) =>
+      invokeProviderCliWithRetry(
+        {
+          provider: turn.provider,
+          schemaPath: turn.schemaPath ?? peerSchemaPathForMode(iteration),
+          prompt: turn.prompt,
+          env,
+          cwd,
+        },
+        { mode: iteration },
+      ),
+    invokeSynthesizer: (call) =>
+      invokeConsensusProviderCli({
+        provider: call.provider,
+        schemaPath: call.schemaPath,
+        prompt: call.prompt,
+        env,
+        cwd,
+      }),
+  };
+}
+
+function validateDecideSource(
+  options: Pick<ParsedDecideOptions, 'optionsPath'>,
+) {
+  if (!options.optionsPath) {
+    throw new ConsensusError('consensus-decide requires --options <path>', {
+      code: 'MISSING_OPTIONS_SOURCE',
+      exitCode: EXIT_CODES.USAGE,
+    });
+  }
+}
+
+function normalizeDecideOptions(
+  input: readonly string[] | DecideRunInput,
+): NormalizedDecideRunInput {
+  if (Array.isArray(input)) {
+    return parseDecideArgs(input);
+  }
+  const normalized: NormalizedDecideRunInput = {
+    optionsPath: '',
+    peers: null,
+    maxRounds: 12,
+    agency: 'minimal',
+    iteration: 'parallel_synthesized',
+    synthesizer: null,
+    coldStart: 'independent_draft',
+    output: null,
+    runDir: null,
+    allowRoot: null,
+    ...input,
+  };
+  validateDecideSource(normalized);
+  return normalized;
+}
+
+function loopArgvForDecide({
+  paths,
+  options,
+  peers,
+  synthesizer,
+}: {
+  paths: DecideStatePaths;
+  options: NormalizedDecideRunInput;
+  peers: string[];
+  synthesizer: string | null;
+}) {
+  const argv = [
+    '--section-file',
+    paths.input,
+    '--goal',
+    DEFAULT_DECIDE_GOAL,
+    '--peers',
+    peers.join(','),
+    '--max-rounds',
+    String(options.maxRounds),
+    '--agency',
+    options.agency,
+    '--iteration',
+    options.iteration,
+    '--cold-start',
+    options.coldStart,
+  ];
+  if (synthesizer) {
+    argv.push('--synthesizer', synthesizer);
+  }
+  argv.push(
+    '--output-records',
+    paths.records,
+    '--output-section',
+    paths.output,
+    '--output-status',
+    paths.status,
+  );
+  return argv;
+}
+
+let defaultRunDirCounter = 0;
+
+function defaultRunDirName() {
+  return `decide-${Date.now()}-${process.pid}-${defaultRunDirCounter++}`;
+}
+
+export async function resolveRunDir(
+  options: Pick<ParsedDecideOptions, 'runDir' | 'allowRoot'> & {
+    cwd?: string;
+  },
+) {
+  const cwd = path.resolve(options.cwd ?? process.cwd());
+  const root = path.resolve(options.allowRoot ?? cwd);
+  const target = options.runDir
+    ? path.isAbsolute(options.runDir)
+      ? options.runDir
+      : path.resolve(cwd, options.runDir)
+    : path.resolve(cwd, '.consensus', defaultRunDirName());
+
+  return await confineWrite(target, root);
+}
+
+export async function resolveOutputPath(
+  options: Pick<ParsedDecideOptions, 'output' | 'allowRoot'> & {
+    cwd?: string;
+  },
+) {
+  const cwd = path.resolve(options.cwd ?? process.cwd());
+  const root = path.resolve(options.allowRoot ?? cwd);
+  const target = options.output
+    ? path.isAbsolute(options.output)
+      ? options.output
+      : path.resolve(cwd, options.output)
+    : path.resolve(cwd, 'consensus-decision.md');
+  return await confineWrite(target, root);
+}
+
+function statePathsFor(runDir: string): DecideStatePaths {
+  return {
+    input: path.join(runDir, 'input.md'),
+    records: path.join(runDir, 'records.json'),
+    output: path.join(runDir, 'output.md'),
+    status: path.join(runDir, 'status.json'),
+  };
+}
+
+function createInitialArtifact() {
+  return '';
+}
+
 type JsonRecord = Record<string, unknown>;
 
 function yamlScalar(value: unknown) {
@@ -732,4 +1166,172 @@ export function renderDecisionArtifact({
     .join('\n')
     .replace(/\n{4,}/gu, '\n\n\n')
     .replace(/\s+$/u, '')}\n`;
+}
+
+export async function runConsensusDecide(
+  input: readonly string[] | DecideRunInput,
+  runOptions: DecideExecutionOptions = {},
+): Promise<DecideRunResult> {
+  const normalized = normalizeDecideOptions(input);
+  const cwd = path.resolve(normalized.cwd ?? runOptions.cwd ?? process.cwd());
+  const env = normalized.env ?? runOptions.env ?? process.env;
+  const startedAt = (runOptions.now ?? (() => new Date().toISOString()))();
+  const startMs = Date.now();
+  const loaded = await loadDecideInputs(normalized, { cwd });
+  const runDir = await resolveRunDir({ ...normalized, cwd });
+  const outputPath = await resolveOutputPath({ ...normalized, cwd });
+  const writeRoot = path.resolve(normalized.allowRoot ?? cwd);
+  const paths = statePathsFor(runDir);
+  const peers = normalized.peers ?? [...DEFAULT_PEERS];
+  const synthesizer =
+    normalized.iteration === 'parallel_synthesized'
+      ? (normalized.synthesizer ?? peers[0])
+      : null;
+  const providerCliInvokers = providerCliLoopInvokers({
+    env,
+    cwd,
+    iteration: normalized.iteration,
+  });
+  await preflightDecideProviderCli({
+    env,
+    cwd,
+    providers: [...new Set([...peers, ...(synthesizer ? [synthesizer] : [])])],
+  });
+
+  const initialArtifact = createInitialArtifact();
+  const loopArgv = loopArgvForDecide({
+    paths,
+    options: normalized,
+    peers,
+    synthesizer,
+  });
+
+  await Promise.all([
+    confineWrite(paths.records, writeRoot),
+    confineWrite(paths.output, writeRoot),
+    confineWrite(paths.status, writeRoot),
+  ]);
+  await atomicWriteFile(paths.input, initialArtifact, { rootPath: writeRoot });
+
+  const result = await runConsensusLoop(loopArgv, {
+    env,
+    cwd,
+    now: runOptions.now,
+    initialArtifact,
+    promptProfile: buildDecidePromptProfile(loaded),
+    invokePeer: runOptions.invokePeer ?? providerCliInvokers.invokePeer,
+    invokeSynthesizer:
+      runOptions.invokeSynthesizer ?? providerCliInvokers.invokeSynthesizer,
+  });
+
+  const endedAt = (runOptions.now ?? (() => new Date().toISOString()))();
+  const wallClockMs = Date.now() - startMs;
+  const finalArtifact = renderDecisionArtifact({
+    decisionArtifact: result.output,
+    records: result.records,
+    status: result.status,
+    metadata: {
+      optionsPath: loaded.optionsPath,
+      runDir,
+      peers,
+      iteration: normalized.iteration,
+      synthesizer,
+      agency: normalized.agency,
+      coldStart: normalized.coldStart,
+      maxRounds: normalized.maxRounds,
+      startedAt,
+      endedAt,
+      wallClockMs,
+    },
+  });
+
+  await atomicWriteFile(outputPath, finalArtifact, {
+    rootPath: normalized.allowRoot ? writeRoot : path.dirname(outputPath),
+  });
+
+  return {
+    outputPath,
+    runDir,
+    paths,
+    loopArgv,
+    records: result.records,
+    status: result.status,
+    decisionArtifact: result.output,
+    finalArtifact,
+    peers,
+    startedAt,
+    endedAt,
+    wallClockMs,
+  };
+}
+
+function writeJsonl(
+  stream: Pick<NodeJS.WritableStream, 'write'>,
+  event: string,
+  payload: Record<string, unknown>,
+) {
+  stream.write(`${JSON.stringify({ event, ...payload })}\n`);
+}
+
+function errorDetails(error: unknown) {
+  if (error instanceof Error) {
+    const annotated = error as Error & {
+      code?: string;
+      details?: unknown;
+    };
+    return {
+      code: annotated.code ?? 'ERROR',
+      message: error.message,
+      details: annotated.details,
+    };
+  }
+  return {
+    code: 'ERROR',
+    message: String(error),
+    details: undefined,
+  };
+}
+
+export async function runDecideCli(
+  argv: readonly string[] = process.argv.slice(2),
+  options: DecideCliOptions = {},
+) {
+  const stdout = options.stdout ?? process.stdout;
+  const stderr = options.stderr ?? process.stderr;
+
+  try {
+    const parsed = parseDecideArgs(argv);
+    writeJsonl(stdout, 'run_started', {
+      options_file: parsed.optionsPath,
+      iteration_mode: parsed.iteration,
+    });
+    const result = await runConsensusDecide(parsed, options);
+    writeJsonl(stdout, 'run_completed', {
+      status: result.status.status,
+      output_path: result.outputPath,
+      run_dir: result.runDir,
+      records: result.records.length,
+    });
+    return 0;
+  } catch (error) {
+    const details = errorDetails(error);
+    const exitCode = exitCodeForError(error);
+    writeJsonl(stdout, 'error', {
+      code: details.code,
+      exit_code: exitCode,
+      message: details.message,
+      ...(details.details === undefined ? {} : { details: details.details }),
+    });
+    stderr.write(`${details.message}\n`);
+    return exitCode;
+  }
+}
+
+if (
+  process.argv[1] &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+) {
+  runDecideCli(process.argv.slice(2)).then((exitCode) => {
+    process.exitCode = exitCode;
+  });
 }
