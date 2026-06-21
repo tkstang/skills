@@ -89,7 +89,7 @@ _Validated with the user in this discovery (2026-06-21):_
 - `independent_draft` works across all three iteration modes, with the chosen cold-start recorded in the resolution block, covered by loop-level tests.
 - consensus-create, consensus-decide, consensus-plan exist as shipped skills with their v3 defaults, manifests, SKILL.md, schemas, references, and tests.
 - Gates pass: `pnpm run build:check`, `pnpm run type-check`, `pnpm run test`, `pnpm run validate`, `pnpm run smoke`.
-- Durable decisions (cold-start, sectioning) promoted to `decision-record.md` as DR(s); the four backlog items, `completed.md`, `current-state.md`, and `roadmap.md` updated at completion.
+- Durable decisions promoted to `decision-record.md` as DR(s) — cold-start strategy, whole-artifact sectioning, alternating-mode degenerate semantics, and the decide/plan structured-markdown output contract; the four backlog items, `completed.md`, `current-state.md`, and `roadmap.md` updated at completion.
 
 ## Out of Scope
 
@@ -120,8 +120,8 @@ Remaining for design:
 
 ## Risks
 
-- **Alternating-mode semantics for independent_draft:** the sharpest unresolved mechanic; risk of an awkward/degenerate behavior that satisfies the AC letter but not its intent.
-  - **Likelihood:** Medium · **Impact:** Medium · **Mitigation:** decide semantics explicitly in design; cover with loop-level tests per mode.
+- **Alternating-mode semantics for independent_draft:** the semantics are decided (Key Decision 6: degenerate A-drafts/B-revises), but they are awkward and non-default — the residual risk is that the behavior satisfies the AC letter but surprises users.
+  - **Likelihood:** Medium · **Impact:** Medium · **Mitigation:** specify the degenerate flow precisely in design; cover with loop-level tests per mode; document it as a non-default path.
 - **Sectioning scope creep:** outline-first pulls in harmonization/auto-chunking machinery beyond v1.
   - **Likelihood:** Medium · **Impact:** Medium · **Mitigation:** prefer whole-artifact for v1, document outline-first as a deferred path.
 - **Generated-output drift:** hand-editing `.mjs` or skipping `pnpm run build` breaks the build:check gate.
@@ -132,5 +132,3 @@ Remaining for design:
 Use this discovery artifact to drive the next workflow step:
 
 - **Spec-driven mode:** continue to `oat-project-design` (which confirms requirements and produces both `spec.md` and `design.md`).
-</content>
-</invoke>
