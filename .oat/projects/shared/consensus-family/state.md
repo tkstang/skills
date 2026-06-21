@@ -1,6 +1,6 @@
 ---
-oat_current_task: p01-t01
-oat_last_commit: eb3233c
+oat_current_task: p02-t01
+oat_last_commit: 57449eb
 oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
@@ -31,19 +31,19 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-06-21T15:59:48.857Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-06-21T21:47:23Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-06-21T22:26:17Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
 # Project State: consensus-family
 
-**Status:** Implementation ready — plan artifact feedback processed
+**Status:** Implementation in progress — p01 passed review
 **Started:** 2026-06-21
 **Last Updated:** 2026-06-21
 
 ## Current Phase
 
-Implementation ready — plan drafted by Codex; maximum dispatch ceiling selected (Codex `xhigh`, Claude `opus`); Claude plan review received and artifact fixes applied; branch rebased onto merged docs-IA PR #32; plan re-review feedback processed directly in `plan.md`; user approved proceeding to implementation without another artifact re-review.
+Implementation in progress — p01 loop-core `independent_draft` work completed, fixed after p01 review, and passed re-review; next task is `p02-t01`.
 
 ## Artifacts
 
@@ -51,7 +51,7 @@ Implementation ready — plan drafted by Codex; maximum dispatch ceiling selecte
 - **Spec:** `spec.md` (complete — confirmed requirements)
 - **Design:** `design.md` (complete — HiLL approved)
 - **Plan:** `plan.md` (complete — ready for `oat-project-implement`)
-- **Implementation:** `implementation.md` (scaffolded template — not started)
+- **Implementation:** `implementation.md` (in progress — p01 passed, p02 pending)
 
 ## Progress
 
@@ -66,7 +66,8 @@ Implementation ready — plan drafted by Codex; maximum dispatch ceiling selecte
 - ✓ Inspected docs-IA PR #32 and recorded Fumadocs documentation-target implications
 - ✓ Rebased onto merged docs-IA PR #32 and refreshed documentation task targets
 - ✓ Plan v2 re-review feedback processed
-- ⧗ Next: execute `oat-project-implement` starting at `p01-t01`
+- ✓ Phase p01 completed and passed code review
+- ⧗ Next: execute p02 starting at `p02-t01`
 
 ## Blockers
 
@@ -74,4 +75,4 @@ None
 
 ## Next Milestone
 
-Execute `oat-project-implement` against the rebased tree, starting at `p01-t01`, with documentation tasks targeting `documentation/docs/user-guide/consensus/`, the slim README contract, and the updated repo documentation tests.
+Continue `oat-project-implement` with p02 (`consensus-create`), starting at `p02-t01`.

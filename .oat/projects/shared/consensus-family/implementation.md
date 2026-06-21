@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-21
-oat_current_task_id: p01-t01
+oat_current_task_id: p02-t01
 oat_generated: false
 ---
 
@@ -24,75 +24,92 @@ oat_generated: false
 
 ## Progress Overview
 
-| Phase   | Status      | Tasks | Completed |
-| ------- | ----------- | ----- | --------- |
-| Phase 1 | in_progress | N     | 0/N       |
-| Phase 2 | pending     | N     | 0/N       |
+| Phase   | Status  | Tasks | Completed |
+| ------- | ------- | ----- | --------- |
+| Phase 1 | passed  | 6     | 6/6       |
+| Phase 2 | pending | 5     | 0/5       |
+| Phase 3 | pending | 5     | 0/5       |
+| Phase 4 | pending | 5     | 0/5       |
 
-**Total:** 0/{N} tasks completed
+**Total:** 6/21 tasks completed
 
 ---
 
-## Phase 1: {Phase Name}
+## Phase 1: Loop-Core `independent_draft`
 
-**Status:** in_progress
+**Status:** passed
 **Started:** 2026-06-21
+**Completed:** 2026-06-21
 
-### Phase Summary (fill when phase is complete)
+### Phase Summary
 
 **Outcome (what changed):**
 
-- {2-5 bullets describing user-visible / behavior-level changes delivered in this phase}
+- The shared consensus loop now accepts `independent_draft` as a first-class cold-start mode while preserving `shared_input` defaults.
+- Round-1 prompt building receives `coldStart` and frames `independent_draft` inputs as untrusted briefs for peers to draft from independently.
+- Loop-level tests prove `independent_draft` reaches terminal convergence in alternating, `parallel_revision`, and `parallel_synthesized` modes.
+- `refine` and `evaluate` remain deliberately `shared_input`-only with clearer semantic guard errors for `independent_draft`.
+- Generated runtime outputs for existing consensus skills were rebuilt, and changed skill versions/frontmatter invariants were updated.
 
 **Key files touched:**
 
-- `{path}` - {why}
+- `src/consensus/core/consensus-loop.ts` - widened cold-start support, prompt threading, and round-1 independent-draft framing.
+- `src/consensus/refine/consensus-refine.ts` - preserved `shared_input`-only guard wording for refine.
+- `src/consensus/evaluate/consensus-evaluate.ts` - preserved `shared_input`-only guard wording for evaluate.
+- `plugins/consensus/skills/refine/` and `plugins/consensus/skills/evaluate/` - regenerated shipped runtime output and bumped changed skill versions.
+- `tests/consensus/core/independent-draft-loop.test.ts` and `tests/consensus/core/independent-draft-prompts.test.ts` - covered independent-draft prompt and convergence behavior.
 
 **Verification:**
 
-- Run: `{command(s)}`
-- Result: {pass/fail + notes}
+- Run: `pnpm exec vitest run tests/consensus/core/loop-cli.test.ts tests/consensus/core/independent-draft-prompts.test.ts tests/consensus/core/independent-draft-loop.test.ts tests/consensus/evaluate/prompt-profile.test.ts tests/consensus/evaluate/wrapper.test.ts tests/consensus/refine/wrapper-options.test.ts tests/repo/skill-frontmatter.test.ts`
+- Result: passed after the p01 review fix.
+- Run: `pnpm run build:check && pnpm run type-check && pnpm run test && pnpm run validate && pnpm run validate:skill-versions --base-ref main && pnpm run smoke`
+- Result: passed in the p01 implementation/re-review cycle.
 
 **Notes / Decisions:**
 
-- {trade-offs or deviations discovered during implementation}
+- `validate:skill-versions` accepts `--base-ref main` without an extra `--`; the plan command was treated as artifact drift.
+- Updating `tests/repo/skill-frontmatter.test.ts` was required after refine/evaluate skill version bumps so the invariant checks the synced `version`/`metadata.version` shape instead of old literal values.
 
-### Task p01-t01: {Task Name}
+### Task p01-t01: Widen Cold-Start Types and Parser
 
-**Status:** completed / in_progress / pending / blocked
-**Commit:** {sha} (if completed)
-
-**Outcome (required when completed):**
-
-- {what materially changed (not “did task”, but “system now does X”)}
-
-**Files changed:**
-
-- `{path}` - {why}
-
-**Verification:**
-
-- Run: `{command(s)}`
-- Result: {pass/fail + notes}
-
-**Notes / Decisions:**
-
-- {gotchas, trade-offs, design deltas, important context for future sessions}
-
-**Issues Encountered:**
-
-- {Issue and resolution}
+**Status:** completed
+**Commit:** `6713935`
 
 ---
 
-### Task p01-t02: {Task Name}
+### Task p01-t02: Thread Cold Start Into Prompt Builders
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** `4769f01`
 
-**Notes:**
+---
 
-- {Notes will be added during implementation}
+### Task p01-t03: Frame Round-1 Independent Draft Prompts
+
+**Status:** completed
+**Commit:** `f7931f1`
+
+---
+
+### Task p01-t04: Prove Independent Draft Across Iteration Modes
+
+**Status:** completed
+**Commit:** `4152831`, `57449eb`
+
+---
+
+### Task p01-t05: Preserve Refine and Evaluate Shared-Input Guards
+
+**Status:** completed
+**Commit:** `ae3a70e`
+
+---
+
+### Task p01-t06: Regenerate Existing Skill Runtime and Version Bumps
+
+**Status:** completed
+**Commit:** `a65b133`, `1cfdb9d`
 
 ---
 
@@ -170,6 +187,39 @@ _- Outstanding Items_
 
 <!-- orchestration-runs-start -->
 
+### Run 1 — 2026-06-21 22:26
+
+**Branch:** consensus-family
+**Tier:** 1
+**Policy:** merge-strategy=direct, retry-limit=2
+**Phases:** 1 executed, 1 passed, 0 failed, 0 stopped
+
+#### Phase Outcomes
+
+| Phase | Implementer | Review | Fix Iterations | Disposition |
+| ----- | ----------- | ------ | -------------- | ----------- |
+| p01   | DONE        | pass   | 1/2            | passed      |
+
+#### Parallel Groups
+
+- p01: sequential
+
+#### Dispatch Notes
+
+- Dispatch: p01 implementation used `effort_axis=selected:xhigh`, `model_axis=inherited`; reviewer used `oat-reviewer-xhigh`.
+- Dispatch: p01 fix for C1 used `effort_axis=selected:high`, `model_axis=inherited`.
+
+#### Outstanding Items
+
+- None.
+
+#### Artifact / Design Deltas
+
+| Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
+| ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
+| p01-t06       | plan.md p01-t06 verification | `pnpm run validate:skill-versions -- --base-ref main` | `pnpm run validate:skill-versions --base-ref main` | Package script passes args directly to the validator and rejects the extra `--` token. | `package.json` script + validator CLI | No code follow-up. |
+| p01-t06       | plan.md p01-t06 file list | Skill directories only | Also updated `tests/repo/skill-frontmatter.test.ts` | Refine/evaluate version bumps made the frontmatter invariant stale. | Repository test suite | No code follow-up. |
+
 _Orchestration runs from `oat-project-implement` are appended here, most-recent-first within the file but append-only at the bottom of the log._
 
 <!-- orchestration-runs-end -->
@@ -182,36 +232,34 @@ Chronological log of implementation progress.
 
 ### 2026-06-21
 
-**Session Start:** {time}
+**Session Start:** 22:26 UTC
 
-- [x] p01-t01: {Task name} - {commit sha}
-- [ ] p01-t02: {Task name} - in progress
+- [x] p01-t01: Widen cold-start parser - `6713935`
+- [x] p01-t02: Thread cold-start into prompt builders - `4769f01`
+- [x] p01-t03: Frame independent draft prompts - `f7931f1`
+- [x] p01-t04: Prove independent draft modes - `4152831`, fix `57449eb`
+- [x] p01-t05: Preserve shared-input guards - `ae3a70e`
+- [x] p01-t06: Regenerate existing consensus runtime - `a65b133`, `1cfdb9d`
 
 **What changed (high level):**
 
-- {short bullets suitable for PR/docs}
+- `independent_draft` is now a loop-core cold-start mode with round-1 brief framing.
+- Existing `refine`/`evaluate` wrappers retain their `shared_input`-only behavior.
+- Loop-level tests cover prompt framing and terminal convergence across all three iteration modes.
 
 **Decisions:**
 
-- {Decision made and rationale}
+- Accepted the package script's `validate:skill-versions --base-ref main` invocation shape as source of truth.
 
 **Follow-ups / TODO:**
 
-- {anything discovered during implementation that should be captured for later}
+- None for p01.
 
 **Blockers:**
 
-- {Blocker description} - {status: resolved/pending}
+- p01 review C1 identified missing convergence assertions; resolved by `57449eb`.
 
-**Session End:** {time}
-
----
-
-### 2026-06-21
-
-**Session Start:** {time}
-
-{Continue log...}
+**Session End:** 22:26 UTC
 
 ---
 
@@ -230,7 +278,7 @@ Track test execution during implementation.
 
 | Phase | Tests Run | Passed | Failed | Coverage |
 | ----- | --------- | ------ | ------ | -------- |
-| 1     | -         | -      | -      | -        |
+| 1     | targeted p01 Vitest suites; `build:check`; `type-check`; `test`; `validate`; `validate:skill-versions --base-ref main`; `smoke` | yes    | 0      | n/a      |
 | 2     | -         | -      | -      | -        |
 
 ## Final Summary (for PR/docs)
