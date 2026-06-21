@@ -19,6 +19,7 @@ export const SKILL_FILES = [
   'plugins/consensus/skills/refine/SKILL.md',
   'plugins/consensus/skills/evaluate/SKILL.md',
   'plugins/consensus/skills/create/SKILL.md',
+  'plugins/consensus/skills/decide/SKILL.md',
 ];
 
 const SEMVER_PATTERN =

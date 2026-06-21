@@ -15,7 +15,16 @@ const createSkillPath = new URL(
   '../../plugins/consensus/skills/create/SKILL.md',
   import.meta.url,
 );
-const skillPaths = [refineSkillPath, evaluateSkillPath, createSkillPath];
+const decideSkillPath = new URL(
+  '../../plugins/consensus/skills/decide/SKILL.md',
+  import.meta.url,
+);
+const skillPaths = [
+  refineSkillPath,
+  evaluateSkillPath,
+  createSkillPath,
+  decideSkillPath,
+];
 
 function frontmatter(markdown: string) {
   const match = markdown.match(/^---\n([\s\S]*?)\n---\n/);
@@ -45,7 +54,7 @@ describe('skill-frontmatter', () => {
       const block = frontmatter(markdown);
       const name = field(block, 'name');
 
-      expect(['refine', 'evaluate', 'create']).toContain(name);
+      expect(['refine', 'evaluate', 'create', 'decide']).toContain(name);
       expect(path.basename(path.dirname(skillPath.pathname))).toBe(name);
       expect(field(block, 'description').length > 40).toBeTruthy();
       expect(field(block, 'license')).toBe('MIT');
@@ -171,6 +180,33 @@ describe('skill-frontmatter', () => {
     );
     expect(hint, 'argument-hint should mention file briefs').toMatch(
       /--brief-file/,
+    );
+  });
+
+  it('decide skill has promoted top-level version matching metadata.version', async () => {
+    const markdown = await readFile(decideSkillPath, 'utf8');
+    const block = frontmatter(markdown);
+
+    const topLevelVersion = field(block, 'version');
+    const metaVersion = metadataVersion(block);
+
+    expect(topLevelVersion).toMatch(/^\d+\.\d+\.\d+/);
+    expect(
+      topLevelVersion,
+      'top-level version must match metadata.version',
+    ).toBe(metaVersion);
+  });
+
+  it('decide skill has a useful argument-hint', async () => {
+    const markdown = await readFile(decideSkillPath, 'utf8');
+    const block = frontmatter(markdown);
+
+    const hint = field(block, 'argument-hint');
+    expect(hint, 'argument-hint should mention options files').toMatch(
+      /--options/,
+    );
+    expect(hint, 'argument-hint should reference markdown options').toMatch(
+      /\.md/,
     );
   });
 
