@@ -86,6 +86,21 @@ const COMMON_TRANSIENT_EXIT_PATTERNS = [
   /etimedout/i,
 ] as const;
 
+const CLAUDE_TRANSIENT_EXIT_PATTERNS = [
+  // Evidence: Claude Code error reference documents this exact repeated 529
+  // overload message as temporary capacity exhaustion:
+  // https://code.claude.com/docs/en/errors
+  /API Error: Repeated 529 Overloaded errors/i,
+] as const;
+
+const CODEX_TRANSIENT_EXIT_PATTERNS = [
+  // No Codex CLI-specific transient stderr evidence in project artifacts yet.
+] as const;
+
+const CURSOR_TRANSIENT_EXIT_PATTERNS = [
+  // No Cursor CLI-specific transient stderr evidence in project artifacts yet.
+] as const;
+
 export const DEFAULT_PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [
   {
     id: 'claude',
@@ -96,7 +111,10 @@ export const DEFAULT_PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [
       auth_required_patterns: COMMON_AUTH_REQUIRED_PATTERNS,
       unavailable_patterns: COMMON_UNAVAILABLE_PATTERNS,
       unsupported_option_patterns: COMMON_UNSUPPORTED_OPTION_PATTERNS,
-      transient_exit_patterns: COMMON_TRANSIENT_EXIT_PATTERNS,
+      transient_exit_patterns: [
+        ...COMMON_TRANSIENT_EXIT_PATTERNS,
+        ...CLAUDE_TRANSIENT_EXIT_PATTERNS,
+      ],
     }),
     probe: {
       version_args: ['--version'],
@@ -128,7 +146,10 @@ export const DEFAULT_PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [
       auth_required_patterns: COMMON_AUTH_REQUIRED_PATTERNS,
       unavailable_patterns: COMMON_UNAVAILABLE_PATTERNS,
       unsupported_option_patterns: COMMON_UNSUPPORTED_OPTION_PATTERNS,
-      transient_exit_patterns: COMMON_TRANSIENT_EXIT_PATTERNS,
+      transient_exit_patterns: [
+        ...COMMON_TRANSIENT_EXIT_PATTERNS,
+        ...CODEX_TRANSIENT_EXIT_PATTERNS,
+      ],
     }),
     probe: {
       version_args: ['--version'],
@@ -165,7 +186,10 @@ export const DEFAULT_PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [
       ],
       unavailable_patterns: COMMON_UNAVAILABLE_PATTERNS,
       unsupported_option_patterns: COMMON_UNSUPPORTED_OPTION_PATTERNS,
-      transient_exit_patterns: COMMON_TRANSIENT_EXIT_PATTERNS,
+      transient_exit_patterns: [
+        ...COMMON_TRANSIENT_EXIT_PATTERNS,
+        ...CURSOR_TRANSIENT_EXIT_PATTERNS,
+      ],
     }),
     probe: {
       version_args: ['--version'],

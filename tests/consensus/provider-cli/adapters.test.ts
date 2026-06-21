@@ -172,6 +172,35 @@ describe('provider adapter registry', () => {
     });
   });
 
+  it('applies an evidence-backed provider-specific transient signature', () => {
+    const registry = providerRegistry();
+
+    expect(
+      registry.get('claude')!.classifyRunFailure(
+        providerExitFailure({
+          stderr: 'API Error: Repeated 529 Overloaded errors.',
+        }),
+      ),
+    ).toMatchObject({
+      code: 'PROVIDER_EXIT',
+      retryable: true,
+      terminal_reason: 'provider_exit_transient',
+      exit_classification: 'transient',
+    });
+
+    expect(
+      registry.get('cursor')!.classifyRunFailure(
+        providerExitFailure({
+          stderr: 'API Error: Repeated 529 Overloaded errors.',
+        }),
+      ),
+    ).toMatchObject({
+      retryable: false,
+      terminal_reason: 'provider_exit_terminal',
+      exit_classification: 'unknown',
+    });
+  });
+
   it('uses adapter capabilities for default provider inventory entries', async () => {
     const envelope = await runProviderList();
 
