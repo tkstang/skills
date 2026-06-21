@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-21
-oat_current_task_id: p01-t01
+oat_current_task_id: p02-t01
 oat_generated: false
 ---
 
@@ -26,59 +26,71 @@ oat_generated: false
 
 | Phase   | Status      | Tasks | Completed |
 | ------- | ----------- | ----- | --------- |
-| p01     | in_progress | 7     | 0/7       |
-| p02     | pending     | 10    | 0/10      |
+| p01     | complete    | 7     | 7/7       |
+| p02     | in_progress | 10    | 0/10      |
 | p03     | pending     | 5     | 0/5       |
 
-**Total:** 0/22 tasks completed
+**Total:** 7/22 tasks completed
 
 ---
 
 ## Phase p01: bl-3291 — retry-classification hardening
 
-**Status:** in_progress
+**Status:** complete
 **Started:** 2026-06-20
 
-### Phase Summary (fill when phase is complete)
+### Phase Summary
 
 **Outcome (what changed):**
 
-- {2-5 bullets describing user-visible / behavior-level changes delivered in this phase}
+- Unknown provider exits are locked as terminal by default and do not retry.
+- Transient provider exits retry without contaminating the next prompt with schema-validation feedback.
+- Provider diagnostics now include a redacted `exit_classification` basis.
+- Reliable external interrupts classify as retryable, while CLI timeout/output-cap terminations remain terminal.
+- Adapter tests now cover common, provider-specific, terminal, and unknown classifier behavior.
 
 **Key files touched:**
 
-- `{path}` - {why}
+- `src/consensus/provider-cli/adapters.ts` - retry-classification basis and evidence-backed signatures.
+- `src/consensus/provider-cli/structured-output.ts` - retry loop feedback separation and diagnostics propagation.
+- `src/consensus/provider-cli/subprocess.ts` - external-interrupt signal metadata.
+- `src/consensus/provider-cli/types.ts` - additive diagnostic field.
+- `tests/consensus/provider-cli/*.test.ts` - contract, retry, interruption, and matrix coverage.
+- `plugins/consensus/scripts/consensus.mjs` - generated runtime output from `pnpm run build`.
 
 **Verification:**
 
-- Run: `{command(s)}`
-- Result: {pass/fail + notes}
+- Run: `pnpm run build:check && pnpm run type-check && pnpm exec vitest run tests/consensus/provider-cli`
+- Result: pass.
+- Review gate: `p01` code review passed with 0 Critical / 0 Important / 0 Minor findings.
 
 **Notes / Decisions:**
 
-- {trade-offs or deviations discovered during implementation}
+- No plan/design/spec deviations recorded.
+- p01-t05 added only the documented Claude Code repeated-529 overload signature; Codex/Cursor keep common patterns with explicit no-evidence comments.
 
 ### Task p01-t01: Lock the confirmed terminal-default contract
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** 5eef0b0
 
 **Outcome (required when completed):**
 
-- Pending.
+- Tests lock terminal-default behavior for unknown provider exits at both classifier and turn-loop levels.
 
 **Files changed:**
 
-- Pending.
+- `tests/consensus/provider-cli/adapters.test.ts` - classifier fall-through contract.
+- `tests/consensus/provider-cli/structured-output.test.ts` - no retry for unknown provider exit.
 
 **Verification:**
 
-- Run: -
-- Result: -
+- Run: `pnpm exec vitest run tests/consensus/provider-cli/adapters.test.ts tests/consensus/provider-cli/structured-output.test.ts`
+- Result: pass.
 
 **Notes / Decisions:**
 
-- Pending.
+- Source behavior already matched the confirmed contract; task added lock tests only.
 
 **Issues Encountered:**
 
@@ -88,19 +100,74 @@ oat_generated: false
 
 ### Task p01-t02: Decouple transient-exit retry from validation feedback
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** d36596c
 
 **Notes:**
 
-- {Notes will be added during implementation}
+- Transient provider exits now retry without adding schema-validation feedback to the next prompt; schema-validation retries still add feedback.
 
 ---
 
-## Phase 2: {Phase Name}
+### Task p01-t03: Record classification basis via redacted diagnostic
 
-**Status:** pending
-**Started:** -
+**Status:** completed
+**Commit:** f89fdd8
+
+**Notes:**
+
+- `diagnostics.exit_classification` records enum-only classifier basis without copying provider stderr into the diagnostic.
+
+---
+
+### Task p01-t04: Classify reliable interruption signals as transient
+
+**Status:** completed
+**Commit:** 67af933
+
+**Notes:**
+
+- Plain external signal exits can retry as interrupted; timeout/output-cap and ambiguous signal cases remain terminal.
+
+---
+
+### Task p01-t05: Evidence-backed per-adapter transient signatures
+
+**Status:** completed
+**Commit:** d441f09
+
+**Notes:**
+
+- Added the Claude Code repeated-529 overload signature with evidence; no guessed provider-specific Codex/Cursor signatures were added.
+
+---
+
+### Task p01-t06: Per-adapter contract matrix tests
+
+**Status:** completed
+**Commit:** 2b12e0c
+
+**Notes:**
+
+- Matrix tests cover transient, terminal, and unknown classification behavior for Claude, Codex, and Cursor adapters.
+
+---
+
+### Task p01-t07: Regenerate runtime + Phase 1 gates
+
+**Status:** completed
+**Commit:** 8d7d277
+
+**Notes:**
+
+- Generated runtime output is in sync after `pnpm run build`; Phase 1 gates passed.
+
+---
+
+## Phase p02: bl-3a88 — verdict-submission mechanism
+
+**Status:** in_progress
+**Started:** 2026-06-21
 
 ### Task p02-t01: Extract shared schema-subset validator
 
@@ -121,6 +188,38 @@ _- Outstanding Items_
 
 _Orchestration runs from `oat-project-implement` are appended here, most-recent-first within the file but append-only at the bottom of the log._
 
+### Run 1 — 2026-06-21 03:03 UTC
+
+**Branch:** provider-cli-hardening
+**Tier:** 1
+**Policy:** merge-strategy=sequential, retry-limit=2
+**Phases:** 1 executed, 1 passed, 0 failed, 0 stopped
+
+#### Phase Outcomes
+
+| Phase | Implementer | Review | Fix Iterations | Disposition |
+| ----- | ----------- | ------ | -------------- | ----------- |
+| p01   | DONE        | pass   | 0/2            | passed      |
+
+#### Parallel Groups
+
+- p01: sequential; no parallel worktree group configured.
+
+#### Dispatch Notes
+
+- Dispatch: p01 implementation used `effort_axis=selected:xhigh`, `model_axis=inherited`; dispatch ceiling `xhigh` from project state.
+- Dispatch: p01 review used `effort_axis=selected:xhigh`, `model_axis=inherited`; reviewer ran at configured ceiling.
+
+#### Outstanding Items
+
+- None.
+
+#### Artifact / Design Deltas
+
+| Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
+| ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
+| None          | -               | -                    | -                 | -      | -               | -         |
+
 <!-- orchestration-runs-end -->
 
 ---
@@ -129,30 +228,37 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 
 Chronological log of implementation progress.
 
-### 2026-06-20
+### 2026-06-21
 
-**Session Start:** {time}
+**Session Start:** 02:45 UTC
 
-- [x] p01-t01: {Task name} - {commit sha}
-- [ ] p01-t02: {Task name} - in progress
+- [x] p01-t01: Lock the confirmed terminal-default contract - 5eef0b0
+- [x] p01-t02: Decouple transient-exit retry from validation feedback - d36596c
+- [x] p01-t03: Record classification basis via redacted diagnostic - f89fdd8
+- [x] p01-t04: Classify reliable interruption signals as transient - 67af933
+- [x] p01-t05: Evidence-backed per-adapter transient signatures - d441f09
+- [x] p01-t06: Per-adapter contract matrix tests - 2b12e0c
+- [x] p01-t07: Regenerate runtime + Phase 1 gates - 8d7d277
+- [ ] p02-t01: Extract shared schema-subset validator - next
 
 **What changed (high level):**
 
-- {short bullets suitable for PR/docs}
+- Provider-exit retry classification is now locked, redacted, and covered by adapter matrix tests.
+- Generated runtime output is in sync after Phase 1.
 
 **Decisions:**
 
-- {Decision made and rationale}
+- Added only evidence-backed provider-specific transient signatures; no guessed Codex/Cursor-specific patterns.
 
 **Follow-ups / TODO:**
 
-- {anything discovered during implementation that should be captured for later}
+- Continue with Phase 2 submit-CLI build.
 
 **Blockers:**
 
-- {Blocker description} - {status: resolved/pending}
+- None.
 
-**Session End:** {time}
+**Session End:** 03:03 UTC
 
 ---
 
@@ -178,7 +284,7 @@ Track test execution during implementation.
 
 | Phase | Tests Run | Passed | Failed | Coverage |
 | ----- | --------- | ------ | ------ | -------- |
-| 1     | -         | -      | -      | -        |
+| p01   | `pnpm run build:check`; `pnpm run type-check`; `pnpm exec vitest run tests/consensus/provider-cli`; review also ran `pnpm run validate` and `pnpm run smoke` | yes | 0 | Provider CLI phase scope |
 | 2     | -         | -      | -      | -        |
 
 ## Final Summary (for PR/docs)

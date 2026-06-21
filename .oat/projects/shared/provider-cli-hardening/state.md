@@ -1,6 +1,6 @@
 ---
-oat_current_task: p01-t01
-oat_last_commit: null
+oat_current_task: p02-t01
+oat_last_commit: 8d7d27796f9e954e1dd9d2cb1875476b63e88b46
 oat_blockers: []
 associated_issues: [{type: backlog, ref: "bl-3a88"}, {type: backlog, ref: "bl-3291"}] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
@@ -27,7 +27,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-06-20T23:02:16.482Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-06-21T02:45:44Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-06-21T03:03:27Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -39,9 +39,9 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation is starting from `p01-t01` using Tier 1 subagents. `plan.md` (22
-tasks across 3 phases) passed both the auto and manual plan artifact-reviews (all
-findings resolved). Dispatch ceiling = **maximum** (Codex: xhigh · Claude: opus).
+Phase 1 (`p01`) passed implementation and code review with no findings. Current
+task is `p02-t01` using Tier 1 subagents. Dispatch ceiling = **maximum** (Codex:
+xhigh · Claude: opus).
 
 ## Artifacts
 
@@ -49,7 +49,7 @@ findings resolved). Dispatch ceiling = **maximum** (Codex: xhigh · Claude: opus
 - **Spec:** `spec.md` (complete — requirements confirmed; Requirement Index mapped to tasks)
 - **Design:** `design.md` (complete — HiLL-approved; artifact review resolved)
 - **Plan:** `plan.md` (complete — auto + manual reviews passed; ready for implement)
-- **Implementation:** `implementation.md` (in progress — current task `p01-t01`)
+- **Implementation:** `implementation.md` (in progress — current task `p02-t01`)
 
 ## Progress
 
@@ -60,7 +60,8 @@ findings resolved). Dispatch ceiling = **maximum** (Codex: xhigh · Claude: opus
 - ✓ Artifact design review received; findings resolved; design HiLL approved
 - ✓ Plan drafted (22 tasks: 7 + 10 + 5); auto + manual plan-reviews passed; requirement index mapped
 - ✓ Plan finalized (ready for implement)
-- ⧗ Implementation in progress (`p01-t01`)
+- ✓ Phase 1 (`p01`) implementation and code review complete
+- ⧗ Implementation in progress (`p02-t01`)
 
 ## Blockers
 
@@ -68,5 +69,5 @@ None
 
 ## Next Milestone
 
-Complete Phase 1 (`p01`) retry-classification hardening, then continue through Phase
-2 and Phase 3. HiLL checkpoint is final-only (`p03`) with auto-review enabled.
+Complete Phase 2 (`p02`) verdict-submission mechanism, then Phase 3 evidence/E2E +
+DR promotion. HiLL checkpoint is final-only (`p03`) with auto-review enabled.
