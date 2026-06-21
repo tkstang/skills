@@ -5,6 +5,7 @@ import {
   providerRegistry,
 } from '../../../src/consensus/provider-cli/adapters.js';
 import { runProviderList } from '../../../src/consensus/provider-cli/commands.js';
+import type { ProviderRunFailureInput } from '../../../src/consensus/provider-cli/adapters.js';
 
 describe('provider adapter registry', () => {
   it('registers the first-scope provider adapters by user-facing ID', () => {
@@ -79,6 +80,127 @@ describe('provider adapter registry', () => {
     }
   });
 
+  it('classifies an unmatched provider exit as terminal', () => {
+    const adapter = providerRegistry().get('claude')!;
+
+    expect(
+      adapter.classifyRunFailure({
+        code: 'PROVIDER_EXIT',
+        message: 'Provider subprocess exited with code 1.',
+        retryable: true,
+        stdout: '',
+        stderr: 'boom',
+        exit_code: 1,
+        signal: null,
+      }),
+    ).toMatchObject({
+      code: 'PROVIDER_EXIT',
+      retryable: false,
+      terminal_reason: 'provider_exit_terminal',
+    });
+  });
+
+  it('classifies an externally-interrupted run with a reliable signal as transient', () => {
+    const adapter = providerRegistry().get('codex')!;
+
+    expect(
+      adapter.classifyRunFailure(
+        providerExitFailure({
+          exit_code: null,
+          signal: 'SIGTERM',
+        }),
+      ),
+    ).toMatchObject({
+      code: 'PROVIDER_EXIT',
+      retryable: true,
+      terminal_reason: 'provider_exit_interrupted',
+      exit_classification: 'interrupted',
+    });
+  });
+
+  it('keeps CLI timeout and output-cap terminations terminal', () => {
+    const adapter = providerRegistry().get('codex')!;
+
+    expect(
+      adapter.classifyRunFailure({
+        code: 'PROVIDER_TIMEOUT',
+        message: 'Provider subprocess timed out.',
+        retryable: false,
+        stdout: '',
+        stderr: '',
+        exit_code: null,
+        signal: 'SIGTERM',
+      }),
+    ).toMatchObject({
+      retryable: false,
+      terminal_reason: 'provider_timeout',
+      exit_classification: 'terminal',
+    });
+
+    expect(
+      adapter.classifyRunFailure({
+        code: 'PROVIDER_OUTPUT_CAP_EXCEEDED',
+        message: 'Provider subprocess exceeded output cap.',
+        retryable: false,
+        stdout: '',
+        stderr: '',
+        exit_code: null,
+        signal: 'SIGTERM',
+      }),
+    ).toMatchObject({
+      retryable: false,
+      terminal_reason: 'output_cap_exceeded',
+      exit_classification: 'terminal',
+    });
+  });
+
+  it('defaults ambiguous signal cases to terminal', () => {
+    const adapter = providerRegistry().get('cursor')!;
+
+    expect(
+      adapter.classifyRunFailure(
+        providerExitFailure({
+          exit_code: 143,
+          signal: 'SIGTERM',
+        }),
+      ),
+    ).toMatchObject({
+      code: 'PROVIDER_EXIT',
+      retryable: false,
+      terminal_reason: 'provider_exit_terminal',
+      exit_classification: 'unknown',
+    });
+  });
+
+  it('applies an evidence-backed provider-specific transient signature', () => {
+    const registry = providerRegistry();
+
+    expect(
+      registry.get('claude')!.classifyRunFailure(
+        providerExitFailure({
+          stderr: 'API Error: Repeated 529 Overloaded errors.',
+        }),
+      ),
+    ).toMatchObject({
+      code: 'PROVIDER_EXIT',
+      retryable: true,
+      terminal_reason: 'provider_exit_transient',
+      exit_classification: 'transient',
+    });
+
+    expect(
+      registry.get('cursor')!.classifyRunFailure(
+        providerExitFailure({
+          stderr: 'API Error: Repeated 529 Overloaded errors.',
+        }),
+      ),
+    ).toMatchObject({
+      retryable: false,
+      terminal_reason: 'provider_exit_terminal',
+      exit_classification: 'unknown',
+    });
+  });
+
   it('uses adapter capabilities for default provider inventory entries', async () => {
     const envelope = await runProviderList();
 
@@ -101,3 +223,79 @@ describe('provider adapter registry', () => {
     ]);
   });
 });
+
+describe.each(['claude', 'codex', 'cursor'] as const)(
+  'exit classification: %s',
+  (id) => {
+    it('classifies shared transient signatures as retryable within budget', () => {
+      const adapter = providerRegistry().get(id)!;
+
+      expect(
+        adapter.classifyRunFailure(
+          providerExitFailure({ stderr: 'HTTP 429 Too Many Requests' }),
+        ),
+      ).toMatchObject({
+        code: 'PROVIDER_EXIT',
+        retryable: true,
+        terminal_reason: 'provider_exit_transient',
+        exit_classification: 'transient',
+      });
+    });
+
+    it('classifies auth and unsupported-option signatures as terminal', () => {
+      const adapter = providerRegistry().get(id)!;
+
+      expect(
+        adapter.classifyRunFailure(
+          providerExitFailure({ stderr: 'authentication required' }),
+        ),
+      ).toMatchObject({
+        code: 'PROVIDER_AUTH_REQUIRED',
+        retryable: false,
+        terminal_reason: 'provider_auth_required',
+        exit_classification: 'terminal',
+      });
+
+      expect(
+        adapter.classifyRunFailure(
+          providerExitFailure({ stderr: 'unknown option: --bad-flag' }),
+        ),
+      ).toMatchObject({
+        code: 'PROVIDER_UNSUPPORTED_OPTION',
+        retryable: false,
+        terminal_reason: 'provider_unsupported_option',
+        exit_classification: 'terminal',
+      });
+    });
+
+    it('classifies unknown provider exits as terminal by default', () => {
+      const adapter = providerRegistry().get(id)!;
+
+      expect(
+        adapter.classifyRunFailure(
+          providerExitFailure({ stderr: 'unmatched provider failure' }),
+        ),
+      ).toMatchObject({
+        code: 'PROVIDER_EXIT',
+        retryable: false,
+        terminal_reason: 'provider_exit_terminal',
+        exit_classification: 'unknown',
+      });
+    });
+  },
+);
+
+function providerExitFailure(
+  overrides: Partial<ProviderRunFailureInput> = {},
+): ProviderRunFailureInput {
+  return {
+    code: 'PROVIDER_EXIT',
+    message: 'Provider subprocess exited with code null.',
+    retryable: true,
+    stdout: '',
+    stderr: '',
+    exit_code: 1,
+    signal: null,
+    ...overrides,
+  };
+}

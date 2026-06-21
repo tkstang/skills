@@ -1,6 +1,11 @@
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import {
+  runSubmit,
   runConsensusCli,
   runPreflight,
   runProviderList,
@@ -108,6 +113,266 @@ describe('provider CLI command handlers', () => {
       providers: [{ id: 'claude', status: 'missing' }],
     });
   });
+
+  it('writes exactly one SubmitResult JSON line on stdout for valid submissions', async () => {
+    const tempDir = await mkdtemp(path.join(tmpdir(), 'consensus-submit-'));
+    try {
+      const outPath = path.join(tempDir, 'capture.json');
+      const stdout = captureWriter();
+      const stderr = captureWriter();
+
+      const code = await runSubmit(
+        {
+          kind: 'submit',
+          json: true,
+          verdictSource: { kind: 'stdin' },
+          schemaPath: 'schema.json',
+          outPath,
+        },
+        submitIo({
+          stdout,
+          stderr,
+          stdin: '{"verdict":"accept"}',
+          files: { 'schema.json': JSON.stringify(schema()) },
+        }),
+      );
+
+      expect(code).toBe(0);
+      expect(stderr.value()).toBe('');
+      expect(stdout.value().trim().split('\n')).toHaveLength(1);
+      expect(JSON.parse(stdout.value())).toEqual({
+        schema_version: 'v1',
+        ok: true,
+        captured: true,
+        message: 'verdict captured',
+      });
+      expect(JSON.parse(await readFile(outPath, 'utf8'))).toEqual({
+        verdict: 'accept',
+      });
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('returns ok:false JSON and mirrors schema errors to stderr', async () => {
+    const tempDir = await mkdtemp(path.join(tmpdir(), 'consensus-submit-'));
+    try {
+      const stdout = captureWriter();
+      const stderr = captureWriter();
+
+      const code = await runSubmit(
+        {
+          kind: 'submit',
+          json: true,
+          verdictSource: { kind: 'stdin' },
+          schemaPath: 'schema.json',
+          outPath: path.join(tempDir, 'capture.json'),
+        },
+        submitIo({
+          stdout,
+          stderr,
+          stdin: '{"other":"value"}',
+          files: { 'schema.json': JSON.stringify(schema()) },
+        }),
+      );
+
+      expect(code).toBe(1);
+      expect(stdout.value().trim().split('\n')).toHaveLength(1);
+      expect(JSON.parse(stdout.value())).toEqual({
+        schema_version: 'v1',
+        ok: false,
+        captured: false,
+        message: 'Missing required JSON field: verdict',
+      });
+      expect(stderr.value()).toContain(
+        'Missing required JSON field: verdict',
+      );
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('returns ok:false JSON and mirrors capture write errors to stderr', async () => {
+    const stdout = captureWriter();
+    const stderr = captureWriter();
+    const writes: Array<{ path: string; contents: string }> = [];
+
+    const code = await runSubmit(
+      {
+        kind: 'submit',
+        json: true,
+        verdictSource: { kind: 'stdin' },
+        schemaPath: 'schema.json',
+        outPath: '/capture/verdict.json',
+      },
+      submitIo({
+        stdout,
+        stderr,
+        stdin: '{"verdict":"accept"}',
+        files: { 'schema.json': JSON.stringify(schema()) },
+        writeSubmitCapture: async (filePath, contents) => {
+          writes.push({ path: filePath, contents });
+          throw new Error('EACCES: permission denied');
+        },
+      }),
+    );
+
+    const message = 'Could not write submit capture: EACCES: permission denied';
+    expect(code).toBe(1);
+    expect(writes).toEqual([
+      {
+        path: '/capture/verdict.json',
+        contents: '{"verdict":"accept"}\n',
+      },
+    ]);
+    expect(stdout.value().trim().split('\n')).toHaveLength(1);
+    expect(JSON.parse(stdout.value())).toEqual({
+      schema_version: 'v1',
+      ok: false,
+      captured: false,
+      message,
+    });
+    expect(stderr.value()).toBe(`${message}\n`);
+  });
+
+  it.each([
+    ['stdin', { kind: 'stdin' } as const],
+    ['file', { kind: 'file', path: 'large-verdict.json' } as const],
+  ])(
+    'rejects oversized submit %s input before parsing or writing capture',
+    async (_sourceName, verdictSource) => {
+      const stdout = captureWriter();
+      const stderr = captureWriter();
+      const writes: Array<{ path: string; contents: string }> = [];
+
+      const code = await runSubmit(
+        {
+          kind: 'submit',
+          json: true,
+          verdictSource,
+          schemaPath: 'schema.json',
+          outPath: '/capture/verdict.json',
+        },
+        submitIo({
+          stdout,
+          stderr,
+          stdin: 'x'.repeat(64),
+          env: { CONSENSUS_SUBMIT_MAX_BYTES: '16' },
+          files: {
+            'schema.json': JSON.stringify(schema()),
+            'large-verdict.json': 'x'.repeat(64),
+          },
+          writeSubmitCapture: async (filePath, contents) => {
+            writes.push({ path: filePath, contents });
+          },
+        }),
+      );
+
+      const result = JSON.parse(stdout.value());
+      expect(code).toBe(1);
+      expect(result).toMatchObject({
+        ok: false,
+        captured: false,
+        message:
+          'Submitted verdict exceeds submit capture limit of 16 bytes (64 bytes).',
+      });
+      expect(stderr.value()).toContain(result.message);
+      expect(writes).toEqual([]);
+    },
+  );
+
+  it('rejects oversized serialized submit captures before writing the sidecar', async () => {
+    const stdout = captureWriter();
+    const stderr = captureWriter();
+    const writes: Array<{ path: string; contents: string }> = [];
+    const rawVerdict = '{"verdict":"ok"}';
+
+    const code = await runSubmit(
+      {
+        kind: 'submit',
+        json: true,
+        verdictSource: { kind: 'stdin' },
+        schemaPath: 'schema.json',
+        outPath: '/capture/verdict.json',
+      },
+      submitIo({
+        stdout,
+        stderr,
+        stdin: rawVerdict,
+        env: {
+          CONSENSUS_SUBMIT_MAX_BYTES: String(Buffer.byteLength(rawVerdict)),
+        },
+        files: { 'schema.json': JSON.stringify(schema()) },
+        writeSubmitCapture: async (filePath, contents) => {
+          writes.push({ path: filePath, contents });
+        },
+      }),
+    );
+
+    const result = JSON.parse(stdout.value());
+    expect(code).toBe(1);
+    expect(result).toMatchObject({
+      ok: false,
+      captured: false,
+      message:
+        'Submitted verdict exceeds submit capture limit of 16 bytes (17 bytes).',
+    });
+    expect(stderr.value()).toContain(result.message);
+    expect(writes).toEqual([]);
+  });
+
+  it('does not overwrite a prior valid capture with an invalid submission', async () => {
+    const tempDir = await mkdtemp(path.join(tmpdir(), 'consensus-submit-'));
+    try {
+      const outPath = path.join(tempDir, 'capture.json');
+      const files = { 'schema.json': JSON.stringify(schema()) };
+
+      await runSubmit(
+        {
+          kind: 'submit',
+          json: true,
+          verdictSource: { kind: 'stdin' },
+          schemaPath: 'schema.json',
+          outPath,
+        },
+        submitIo({
+          stdout: captureWriter(),
+          stderr: captureWriter(),
+          stdin: '{"verdict":"accept"}',
+          files,
+        }),
+      );
+
+      const stdout = captureWriter();
+      const stderr = captureWriter();
+      const code = await runSubmit(
+        {
+          kind: 'submit',
+          json: true,
+          verdictSource: { kind: 'stdin' },
+          schemaPath: 'schema.json',
+          outPath,
+        },
+        submitIo({
+          stdout,
+          stderr,
+          stdin: '{"other":"value"}',
+          files,
+        }),
+      );
+
+      expect(code).toBe(1);
+      expect(JSON.parse(await readFile(outPath, 'utf8'))).toEqual({
+        verdict: 'accept',
+      });
+      expect(JSON.parse(stdout.value())).toMatchObject({
+        ok: false,
+        captured: false,
+      });
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
+  });
 });
 
 function providerEntries(
@@ -142,4 +407,44 @@ function providerEntry(
 
 async function unexpectedRead(): Promise<string> {
   throw new Error('Unexpected IO read');
+}
+
+function schema() {
+  return {
+    type: 'object',
+    required: ['verdict'],
+    properties: {
+      verdict: { type: 'string' },
+    },
+  };
+}
+
+function submitIo(options: {
+  stdout: ReturnType<typeof captureWriter>;
+  stderr: ReturnType<typeof captureWriter>;
+  stdin: string;
+  files: Record<string, string>;
+  env?: Record<string, string | undefined>;
+  writeSubmitCapture?(path: string, contents: string): Promise<void>;
+}) {
+  return {
+    stdout: options.stdout.stream,
+    stderr: options.stderr.stream,
+    stdin: process.stdin,
+    cwd: '/workspace',
+    env: options.env,
+    async readFile(filePath: string) {
+      const contents = options.files[filePath];
+      if (contents === undefined) {
+        throw new Error(`Unexpected file read: ${filePath}`);
+      }
+      return contents;
+    },
+    async readStdin() {
+      return options.stdin;
+    },
+    ...(options.writeSubmitCapture
+      ? { writeSubmitCapture: options.writeSubmitCapture }
+      : {}),
+  };
 }

@@ -162,6 +162,27 @@ describe('provider runtime policy validation', () => {
     expect(env).not.toHaveProperty('SECRET_TOKEN');
   });
 
+  it('merges submit capture variables from host env without requiring allowlist', () => {
+    const env = buildChildEnvironment({
+      parentEnv: {
+        PATH: '/usr/bin',
+        CONSENSUS_SUBMIT_FILE: '/untrusted/capture.json',
+        CONSENSUS_SUBMIT_SCHEMA: '/untrusted/schema.json',
+      },
+      request: request({ provider: 'claude' }),
+      hostEnv: {
+        CONSENSUS_SUBMIT_FILE: '/tmp/capture.json',
+        CONSENSUS_SUBMIT_SCHEMA: '/tmp/schema.json',
+      },
+    });
+
+    expect(env).toMatchObject({
+      PATH: '/usr/bin',
+      CONSENSUS_SUBMIT_FILE: '/tmp/capture.json',
+      CONSENSUS_SUBMIT_SCHEMA: '/tmp/schema.json',
+    });
+  });
+
   it('allows caller-named env variables without exposing values in diagnostics', () => {
     const policy = {
       env_allowlist: ['CUSTOM_SECRET'],

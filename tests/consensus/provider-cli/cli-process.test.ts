@@ -1,10 +1,15 @@
-import { chmod, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { chmod, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
 import {
+  helpText,
+  runConsensusCli as runSourceConsensusCli,
+} from '../../../src/consensus/provider-cli/commands.js';
+import {
+  captureWriter,
   repoRoot,
   runNodeScriptResult,
 } from '../../helpers/process.mjs';
@@ -343,6 +348,55 @@ describe('generated consensus provider CLI process contract', () => {
     expect(result.stdout).toContain('--approval-policy <policy>');
     expect(result.stdout).toContain('--env-allow <name>');
     expect(result.stdout).toContain('--max-depth <n>');
+  });
+
+  it('routes source submit commands to runSubmit and exits with its code', async () => {
+    const schemaPath = await writeSchemaFixture();
+    const outPath = path.join(path.dirname(schemaPath), 'capture.json');
+    const stdout = captureWriter();
+    const stderr = captureWriter();
+
+    try {
+      const code = await runSourceConsensusCli(
+        [
+          'submit',
+          '--json',
+          '-',
+          '--schema',
+          schemaPath,
+          '--out',
+          outPath,
+        ],
+        {
+          stdout: stdout.stream,
+          stderr: stderr.stream,
+          stdin: process.stdin,
+          cwd: repoRoot,
+          env: process.env,
+          readFile: (filePath) => readFile(filePath, 'utf8'),
+          readStdin: async () => '{"verdict":"accept"}',
+        },
+      );
+
+      expect(code).toBe(0);
+      expect(stderr.value()).toBe('');
+      expect(parseSingleJsonDocument(stdout.value())).toMatchObject({
+        ok: true,
+        captured: true,
+        message: 'verdict captured',
+      });
+      expect(JSON.parse(await readFile(outPath, 'utf8'))).toEqual({
+        verdict: 'accept',
+      });
+    } finally {
+      await rm(path.dirname(schemaPath), { recursive: true, force: true });
+    }
+  });
+
+  it('lists submit in source help text', () => {
+    expect(helpText()).toContain(
+      'submit --json [-|--verdict-file <path>] [--schema <path>] [--out <path>]',
+    );
   });
 
   it('rejects request JSON mixed with conflicting flags', async () => {

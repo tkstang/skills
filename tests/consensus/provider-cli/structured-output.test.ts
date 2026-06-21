@@ -1,12 +1,22 @@
+import { spawnSync } from 'node:child_process';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import { providerRegistry } from '../../../src/consensus/provider-cli/adapters.js';
+import { processExitForEnvelope } from '../../../src/consensus/provider-cli/envelope.js';
+import type { ProviderInvocation } from '../../../src/consensus/provider-cli/invocation.js';
 import {
+  buildConsensusSubmitCommand,
   runProviderTurn,
   selectStructuredOutputStrategy,
 } from '../../../src/consensus/provider-cli/structured-output.js';
-import { processExitForEnvelope } from '../../../src/consensus/provider-cli/envelope.js';
-import type { ProviderProcessResult } from '../../../src/consensus/provider-cli/subprocess.js';
+import type {
+  ProviderProcessResult,
+  RunProviderSubprocessOptions,
+} from '../../../src/consensus/provider-cli/subprocess.js';
 import type {
   ConsensusCliRunRequest,
   ProviderId,
@@ -19,6 +29,11 @@ describe('structured provider output coordinator', () => {
     expect(selectStructuredOutputStrategy(registry.get('codex')!)).toBe(
       'constrained_native',
     );
+    expect(
+      selectStructuredOutputStrategy(registry.get('codex')!, {
+        submitCaptureEnabled: true,
+      }),
+    ).toBe('prompt_only');
     expect(selectStructuredOutputStrategy(registry.get('claude')!)).toBe(
       'provider_validated',
     );
@@ -77,10 +92,29 @@ describe('structured provider output coordinator', () => {
     expect(envelope.attempts.cli_attempts).toBe(2);
   });
 
-  it('adds schema instructions to prompt-only provider prompts', async () => {
+  it('retries a transient provider exit without mutating the prompt', async () => {
     const subprocess = fakeSubprocess([
+      processFailure('PROVIDER_EXIT', true, {
+        stderr: 'temporary unavailable, try again',
+      }),
       processSuccess('{"verdict":"accept"}'),
     ]);
+
+    const envelope = await runProviderTurn(request({ provider: 'cursor' }), {
+      readSchema: async () => schema(),
+      runSubprocess: subprocess.run,
+    });
+
+    expect(envelope).toMatchObject({
+      ok: true,
+      attempts: { cli_attempts: 2 },
+    });
+    expect(subprocess.prompts).toHaveLength(2);
+    expect(subprocess.prompts[1]).toBe(subprocess.prompts[0]);
+  });
+
+  it('adds schema instructions to prompt-only provider prompts', async () => {
+    const subprocess = fakeSubprocess([processSuccess('{"verdict":"accept"}')]);
 
     const envelope = await runProviderTurn(request({ provider: 'cursor' }), {
       readSchema: async () => schema(),
@@ -91,6 +125,103 @@ describe('structured provider output coordinator', () => {
     expect(subprocess.prompts[0]).toContain('Structured output requirements');
     expect(subprocess.prompts[0]).toContain('<JSON_SCHEMA>');
     expect(subprocess.prompts[0]).toContain('"required":["verdict"]');
+  });
+
+  it('augments prompts with submit instructions when capture is enabled', async () => {
+    const subprocess = fakeSubprocess([processSuccess('{"verdict":"accept"}')]);
+    const submitCommand = buildConsensusSubmitCommand({
+      nodePath: '/usr/local/bin/node',
+      cliPath: '/workspace/plugins/consensus/scripts/consensus.mjs',
+    });
+
+    const envelope = await runProviderTurn(request({ provider: 'cursor' }), {
+      readSchema: async () => schema(),
+      runSubprocess: subprocess.run,
+      submitCommand,
+    });
+
+    expect(envelope.ok).toBe(true);
+    expect(subprocess.envs[0]?.CONSENSUS_SUBMIT_COMMAND).toBe(submitCommand);
+    expect(subprocess.prompts[0]).toContain(submitCommand);
+    expect(subprocess.prompts[0]).not.toContain('`consensus submit --json -`');
+    expect(subprocess.prompts[0]).toContain('CONSENSUS_SUBMIT_SCHEMA');
+    expect(subprocess.prompts[0]).toContain('CONSENSUS_SUBMIT_FILE');
+    expect(subprocess.prompts[0]).toContain('final-message JSON fallback');
+  });
+
+  it('captures a verdict submitted through the advertised peer command', async () => {
+    const tempDir = await mkdtemp(path.join(tmpdir(), 'consensus-submit-test-'));
+    const schemaPath = path.join(tempDir, 'schema.json');
+    await writeFile(schemaPath, JSON.stringify(schema()), 'utf8');
+    const submitCommand = buildConsensusSubmitCommand({
+      nodePath: process.execPath,
+      cliPath: path.resolve('plugins/consensus/scripts/consensus.mjs'),
+    });
+
+    try {
+      const envelope = await runProviderTurn(
+        request({ provider: 'cursor', schema_path: schemaPath }),
+        {
+          readSchema: async () => schema(),
+          submitCommand,
+          async runSubprocess(invocation, options) {
+            expect(invocation.stdin).toContain(submitCommand);
+            expect(options.env?.CONSENSUS_SUBMIT_COMMAND).toBe(submitCommand);
+
+            const submit = runShellCommand({
+              command: options.env?.CONSENSUS_SUBMIT_COMMAND,
+              env: options.env,
+              stdin: '{"verdict":"submit-command"}\n',
+            });
+            expect(submit).toMatchObject({ exitCode: 0 });
+            expect(JSON.parse(submit.stdout)).toMatchObject({
+              ok: true,
+              captured: true,
+            });
+
+            return processSuccess('{"verdict":"final-message"}');
+          },
+        },
+      );
+
+      expect(envelope).toMatchObject({
+        ok: true,
+        stdout: '{"verdict":"submit-command"}\n',
+        json: { verdict: 'submit-command' },
+        diagnostics: {
+          verdict_source: 'submit',
+        },
+      });
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('runs submit-enabled Codex turns without native strict output schema flags', async () => {
+    const subprocess = fakeSubprocess([
+      processSuccess('{"type":"turn.completed"}', {
+        last_message: '{"verdict":"accept"}',
+      }),
+    ]);
+
+    const envelope = await runProviderTurn(request({ provider: 'codex' }), {
+      readSchema: async () => schema(),
+      runSubprocess: subprocess.run,
+    });
+
+    expect(envelope).toMatchObject({
+      ok: true,
+      diagnostics: {
+        strategy_used: 'prompt_only',
+        output_mode: 'last_message_file',
+      },
+    });
+    expect(subprocess.invocations[0]?.argv).toContain(
+      '--output-last-message',
+    );
+    expect(subprocess.invocations[0]?.argv).not.toContain(
+      '--output-schema',
+    );
   });
 
   it('retries retryable provider exits and stops on timeout classifications', async () => {
@@ -185,6 +316,275 @@ describe('structured provider output coordinator', () => {
     });
   });
 
+  it('does not retry an unknown-signature provider exit within max_attempts', async () => {
+    const subprocess = fakeSubprocess([
+      processFailure('PROVIDER_EXIT', true, {
+        stderr: 'boom',
+      }),
+      processSuccess('{"verdict":"accept"}'),
+    ]);
+
+    const envelope = await runProviderTurn(
+      request({ provider: 'cursor', max_attempts: 3 }),
+      {
+        readSchema: async () => schema(),
+        runSubprocess: subprocess.run,
+      },
+    );
+
+    expect(envelope).toMatchObject({
+      ok: false,
+      code: 'PROVIDER_EXIT',
+      attempts: {
+        cli_attempts: 1,
+        terminal_reason: 'provider_exit_terminal',
+      },
+    });
+    expect(subprocess.prompts).toHaveLength(1);
+  });
+
+  it('records which exit classification fired in diagnostics', async () => {
+    const transientEnvelope = await runProviderTurn(
+      request({ provider: 'cursor' }),
+      {
+        readSchema: async () => schema(),
+        runSubprocess: fakeSubprocess([
+          processFailure('PROVIDER_EXIT', true, {
+            stderr: 'temporary unavailable, try again',
+          }),
+          processSuccess('{"verdict":"accept"}'),
+        ]).run,
+      },
+    );
+
+    expect(transientEnvelope).toMatchObject({
+      ok: true,
+      diagnostics: {
+        exit_classification: 'transient',
+      },
+    });
+
+    const unknownEnvelope = await runProviderTurn(
+      request({ provider: 'cursor', max_attempts: 3 }),
+      {
+        readSchema: async () => schema(),
+        runSubprocess: fakeSubprocess([
+          processFailure('PROVIDER_EXIT', true, {
+            stderr: 'sensitive provider stderr: token-123',
+          }),
+        ]).run,
+      },
+    );
+
+    expect(unknownEnvelope).toMatchObject({
+      ok: false,
+      diagnostics: {
+        exit_classification: 'unknown',
+      },
+    });
+    expect(JSON.stringify(unknownEnvelope.diagnostics)).not.toContain(
+      'token-123',
+    );
+  });
+
+  it('injects submit capture env while preserving host guard child env', async () => {
+    const subprocess = fakeSubprocess([
+      processSuccess('{"type":"turn.completed"}', {
+        last_message: '{"verdict":"accept"}',
+      }),
+    ]);
+
+    const envelope = await runProviderTurn(
+      request({
+        provider: 'codex',
+        host: {
+          runtime: 'codex',
+          cwd: '/workspace',
+          run_id: 'run-123',
+          depth: 0,
+          max_depth: 2,
+        },
+      }),
+      {
+        readSchema: async () => schema(),
+        runSubprocess: subprocess.run,
+      },
+    );
+
+    expect(envelope.ok).toBe(true);
+    expect(subprocess.envs[0]).toMatchObject({
+      CONSENSUS_RUN_ID: 'run-123',
+      CONSENSUS_PARENT_HOST: 'codex',
+      CONSENSUS_DEPTH: '1',
+      CONSENSUS_SUBMIT_SCHEMA: path.resolve('schema.json'),
+    });
+    expect(subprocess.envs[0]?.CONSENSUS_SUBMIT_FILE).toMatch(
+      /consensus-submit-[\w-]+\.json$/,
+    );
+  });
+
+  it('generates a unique submit sidecar path per provider turn', async () => {
+    const first = fakeSubprocess([processSuccess('{"verdict":"accept"}')]);
+    const second = fakeSubprocess([processSuccess('{"verdict":"accept"}')]);
+
+    await runProviderTurn(request({ provider: 'cursor' }), {
+      readSchema: async () => schema(),
+      runSubprocess: first.run,
+    });
+    await runProviderTurn(request({ provider: 'cursor' }), {
+      readSchema: async () => schema(),
+      runSubprocess: second.run,
+    });
+
+    expect(first.envs[0]?.CONSENSUS_SUBMIT_FILE).toBeTruthy();
+    expect(second.envs[0]?.CONSENSUS_SUBMIT_FILE).toBeTruthy();
+    expect(first.envs[0]?.CONSENSUS_SUBMIT_FILE).not.toBe(
+      second.envs[0]?.CONSENSUS_SUBMIT_FILE,
+    );
+  });
+
+  it('uses a valid sidecar verdict as envelope json with verdict_source submit', async () => {
+    let submitPath: string | undefined;
+
+    const envelope = await runProviderTurn(request({ provider: 'cursor' }), {
+      readSchema: async () => schema(),
+      async runSubprocess(_invocation, options) {
+        submitPath = options.env?.CONSENSUS_SUBMIT_FILE;
+        if (!submitPath) throw new Error('Missing submit capture path');
+        await writeFile(submitPath, '{"verdict":"submit"}', 'utf8');
+        return processSuccess('{"verdict":"final-message"}');
+      },
+    });
+
+    expect(envelope).toMatchObject({
+      ok: true,
+      stdout: '{"verdict":"submit"}',
+      json: { verdict: 'submit' },
+      diagnostics: {
+        verdict_source: 'submit',
+      },
+    });
+  });
+
+  it('cleans up the submit sidecar after the provider turn', async () => {
+    let submitPath: string | undefined;
+
+    const envelope = await runProviderTurn(request({ provider: 'cursor' }), {
+      readSchema: async () => schema(),
+      async runSubprocess(_invocation, options) {
+        submitPath = options.env?.CONSENSUS_SUBMIT_FILE;
+        if (!submitPath) throw new Error('Missing submit capture path');
+        await writeFile(submitPath, '{"verdict":"submit"}', 'utf8');
+        return processSuccess('{"verdict":"final-message"}');
+      },
+    });
+
+    expect(envelope.ok).toBe(true);
+    expect(submitPath).toBeTruthy();
+    await expect(readFile(submitPath!, 'utf8')).rejects.toMatchObject({
+      code: 'ENOENT',
+    });
+  });
+
+  it('rejects oversized submit sidecars without copying them into the envelope', async () => {
+    const largeVerdict = `{"verdict":"${'x'.repeat(128)}"}`;
+
+    const envelope = await runProviderTurn(
+      request({
+        provider: 'cursor',
+        max_attempts: 1,
+        max_output_bytes: 32,
+      }),
+      {
+        readSchema: async () => schema(),
+        async runSubprocess(_invocation, options) {
+          const submitPath = options.env?.CONSENSUS_SUBMIT_FILE;
+          if (!submitPath) throw new Error('Missing submit capture path');
+          await writeFile(submitPath, largeVerdict, 'utf8');
+          return processSuccess('not json');
+        },
+      },
+    );
+
+    expect(envelope).toMatchObject({
+      ok: false,
+      code: 'PROVIDER_INVALID_JSON',
+      stdout: 'not json',
+      attempts: {
+        cli_attempts: 1,
+        terminal_reason: 'invalid_json',
+      },
+    });
+    expect(JSON.stringify(envelope)).not.toContain(largeVerdict);
+  });
+
+  it('falls back to the parse path when no submit sidecar is present', async () => {
+    const envelope = await runProviderTurn(request({ provider: 'cursor' }), {
+      readSchema: async () => schema(),
+      runSubprocess: fakeSubprocess([
+        processSuccess('{"verdict":"final-message"}'),
+      ]).run,
+    });
+
+    expect(envelope).toMatchObject({
+      ok: true,
+      json: { verdict: 'final-message' },
+      diagnostics: {
+        verdict_source: 'final_message',
+      },
+    });
+  });
+
+  it('uses existing terminal handling when neither submit nor parse yields output', async () => {
+    const envelope = await runProviderTurn(
+      request({ provider: 'codex', max_attempts: 1 }),
+      {
+        readSchema: async () => schema(),
+        runSubprocess: fakeSubprocess([
+          processSuccess('{"type":"turn.completed"}', {
+            last_message: '',
+          }),
+        ]).run,
+      },
+    );
+
+    expect(envelope).toMatchObject({
+      ok: false,
+      code: 'PROVIDER_INVALID_JSON',
+      attempts: {
+        cli_attempts: 1,
+        terminal_reason: 'missing_provider_output',
+      },
+      diagnostics: {
+        verdict_source: 'final_message',
+      },
+    });
+  });
+
+  it('keeps the success envelope shape unchanged across submit and parse paths', async () => {
+    const parseEnvelope = await runProviderTurn(request({ provider: 'cursor' }), {
+      readSchema: async () => schema(),
+      runSubprocess: fakeSubprocess([
+        processSuccess('{"verdict":"final-message"}'),
+      ]).run,
+    });
+    const submitEnvelope = await runProviderTurn(request({ provider: 'cursor' }), {
+      readSchema: async () => schema(),
+      async runSubprocess(_invocation, options) {
+        const submitPath = options.env?.CONSENSUS_SUBMIT_FILE;
+        if (!submitPath) throw new Error('Missing submit capture path');
+        await writeFile(submitPath, '{"verdict":"submit"}', 'utf8');
+        return processSuccess('{"verdict":"final-message"}');
+      },
+    });
+
+    expect(parseEnvelope.ok).toBe(true);
+    expect(submitEnvelope.ok).toBe(true);
+    expect(Object.keys(submitEnvelope).toSorted()).toEqual(
+      Object.keys(parseEnvelope).toSorted(),
+    );
+  });
+
   it('extracts Codex last-message-file output before schema validation', async () => {
     const envelope = await runProviderTurn(request({ provider: 'codex' }), {
       readSchema: async () => schema(),
@@ -208,9 +608,7 @@ describe('structured provider output coordinator', () => {
   });
 
   it('applies the default non-interactive runtime policy before invocation', async () => {
-    const subprocess = fakeSubprocess([
-      processSuccess('{"verdict":"accept"}'),
-    ]);
+    const subprocess = fakeSubprocess([processSuccess('{"verdict":"accept"}')]);
 
     await expect(
       runProviderTurn(request({ provider: 'codex' }), {
@@ -225,9 +623,7 @@ describe('structured provider output coordinator', () => {
   });
 
   it('passes inline schema JSON to Claude while redacting diagnostics', async () => {
-    const subprocess = fakeSubprocess([
-      processSuccess('{"verdict":"accept"}'),
-    ]);
+    const subprocess = fakeSubprocess([processSuccess('{"verdict":"accept"}')]);
 
     const envelope = await runProviderTurn(
       request({
@@ -369,18 +765,20 @@ function schema() {
 
 function fakeSubprocess(results: ProviderProcessResult[]) {
   const prompts: string[] = [];
-  const invocations: Array<{ argv: string[]; stdin: string }> = [];
+  const invocations: ProviderInvocation[] = [];
+  const envs: Array<Record<string, string | undefined>> = [];
 
   return {
     prompts,
     invocations,
-    async run(invocation: {
-      argv: string[];
-      stdin: string;
-      output_mode?: string;
-    }) {
+    envs,
+    async run(
+      invocation: ProviderInvocation,
+      options: RunProviderSubprocessOptions,
+    ) {
       prompts.push(invocation.stdin);
       invocations.push(invocation);
+      envs.push(options?.env ?? {});
       const result = results.shift();
       if (!result) throw new Error('Unexpected subprocess invocation');
       if (
@@ -406,6 +804,41 @@ function argumentAfter(argv: string[], flag: string): string {
   return argv[index + 1];
 }
 
+function runShellCommand(input: {
+  command: string | undefined;
+  env: Record<string, string | undefined> | undefined;
+  stdin: string;
+}): { exitCode: number | null; stdout: string; stderr: string } {
+  if (!input.command) throw new Error('Missing advertised submit command');
+
+  const env: NodeJS.ProcessEnv = {
+    ...process.env,
+    ...definedEnv(input.env ?? {}),
+  };
+  const result = spawnSync('/bin/sh', ['-c', input.command], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env,
+    input: input.stdin,
+  });
+  if (result.error) throw result.error;
+  return {
+    exitCode: result.status,
+    stdout: result.stdout,
+    stderr: result.stderr,
+  };
+}
+
+function definedEnv(
+  env: Record<string, string | undefined>,
+): Record<string, string> {
+  const defined: Record<string, string> = {};
+  for (const [key, value] of Object.entries(env)) {
+    if (value !== undefined) defined[key] = value;
+  }
+  return defined;
+}
+
 function processSuccess(
   stdout: string,
   overrides: Partial<Extract<ProviderProcessResult, { ok: true }>> = {},
@@ -422,10 +855,7 @@ function processSuccess(
 }
 
 function processFailure(
-  code: Extract<
-    ProviderProcessResult,
-    { ok: false }
-  >['code'],
+  code: Extract<ProviderProcessResult, { ok: false }>['code'],
   retryable: boolean,
   overrides: Partial<Extract<ProviderProcessResult, { ok: false }>> = {},
 ): ProviderProcessResult {
