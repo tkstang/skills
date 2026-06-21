@@ -1,0 +1,11 @@
+{
+  "pages": [
+    "---Architecture---",
+    "architecture",
+    "repository-layout",
+    "---Contributing---",
+    "contributing",
+    "---Reference---",
+    "decisions"
+  ]
+}

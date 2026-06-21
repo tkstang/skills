@@ -35,7 +35,7 @@
 | bl-3291 | Refine provider-exit retry classification (transient vs terminal) | done | medium | task | M |
 | bl-e0e7 | Share consensus generated runtime output at the plugin level | open | medium | task | M |
 | bl-4e2e | Shared session log substrate (become-observable daemon + merged log) | open | medium | initiative | L |
-| bl-ecaa | Stand up a documentation site and slim the README | open | medium | initiative | M |
+| bl-ecaa | Stand up a documentation site and slim the README | closed | medium | initiative | M |
 | bl-853a | Stand up TypeScript + vitest build toolchain (bundle-to-mjs) | done | medium | feature | M |
 | bl-3a88 | Tool-based verdict submission for consensus peers (future reliability hardening) | done | medium | feature | L |
 | bl-f0b6 | Verify cursor-as-peer end-to-end through provider CLI (authenticated cursor-agent) | done | medium | task | S |

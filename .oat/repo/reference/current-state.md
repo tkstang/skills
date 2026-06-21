@@ -1,6 +1,6 @@
 # Skills Repo Current State
 
-**Last updated:** 2026-06-21 (Provider CLI hardening shipped: conservative provider-exit retry classification is locked/auditable, and peers now have a validated `consensus submit` sidecar-verdict path with Codex strict-output rejection avoided, submit capture size-bounded, and gated live Codex workspace-write evidence recorded. Prior: Cursor authenticated peer E2E through the provider CLI is verified for Refine and Evaluate with `cursor,codex`; consensus peer invocation now uses the owned provider CLI by default for new Refine/Evaluate runs.)
+**Last updated:** 2026-06-21 (Documentation site stood up: a Fumadocs app at `documentation/` with a two-trunk audience-split IA (User Guide + Engineering), built via `cd documentation && pnpm build` (static export to `documentation/out`) and deployed to GitHub Pages by `.github/workflows/deploy-docs.yml`; the dense README was migrated into the site and slimmed to a lean entry point that links into it (bl-ecaa, DR-025). Also: provider CLI hardening shipped — conservative provider-exit retry classification is locked/auditable, and peers now have a validated `consensus submit` sidecar-verdict path with Codex strict-output rejection avoided, submit capture size-bounded, and gated live Codex workspace-write evidence recorded (bl-3a88, bl-3291, DR-024). Prior: Cursor authenticated peer E2E through the provider CLI is verified for Refine and Evaluate with `cursor,codex`; consensus peer invocation now uses the owned provider CLI by default for new Refine/Evaluate runs.)
 
 ## Overview
 
@@ -56,6 +56,10 @@ Standalone skill exporting the current (or selected) session to sanitized markdo
 ### transcript-core (`src/transcript/core/`)
 
 Canonical per-provider transcript knowledge (store locations, record parsing, structural filtering) lives at `src/transcript/core/runtimes.ts` and is consumed by session-observer and export-session-transcript via committed `// GENERATED` copies at each skill's `scripts/lib/runtimes.mjs`. `pnpm run build` regenerates the copies, `pnpm run build:check` and `tests/tooling/generated-output-sync.test.ts` enforce drift, and `pnpm run sync:transcript-core` remains a compatibility wrapper around the same build path.
+
+### Documentation site (`documentation/`) — shipped 2026-06-21, bl-ecaa
+
+A Fumadocs (Next.js) app at `documentation/` provides the public-facing documentation, organized as a two-trunk audience-split IA: **User Guide** (install / use / configure) and **Engineering** (how-it-works / contribute). It builds with `cd documentation && pnpm build` (nested-standalone, `output: 'export'` static export to `documentation/out`) and deploys to GitHub Pages via `.github/workflows/deploy-docs.yml` (basePath `/skills`). The framework choice (Fumadocs over MkDocs) is recorded in DR-025. The dense reference content was migrated from `README.md` into the site, slimming the README (205 → 72 lines) to a lean entry point — project description, install matrix, and links into the site. Future projects document into the site via `oat-project-document` rather than the README. First deploy requires the operator to enable Settings → Pages → Source: GitHub Actions (one-time).
 
 ## Validation Posture
 

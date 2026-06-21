@@ -1,7 +1,25 @@
-import { lstat, readFile } from 'node:fs/promises';
+import { lstat, readFile, readdir } from 'node:fs/promises';
+
 import { describe, expect, it } from 'vitest';
 
 const repoRoot = new URL('../..', import.meta.url);
+
+// Dense reference content was migrated out of README.md into the docs site
+// under documentation/docs/ (the docs-ia project). Read the whole site so
+// presence assertions track the new source of truth, not exact page placement.
+async function readDocsSite(): Promise<string> {
+  const docsDir = new URL('documentation/docs/', repoRoot);
+  const entries = await readdir(docsDir, { recursive: true });
+  const markdown = entries.filter(
+    (entry) => typeof entry === 'string' && entry.endsWith('.md'),
+  );
+  const contents = await Promise.all(
+    markdown.map((rel) =>
+      readFile(new URL(`documentation/docs/${rel}`, repoRoot), 'utf8'),
+    ),
+  );
+  return contents.join('\n\n');
+}
 const requiredDocs = [
   'README.md',
   'LICENSE',
@@ -20,21 +38,29 @@ describe('docs-presence', () => {
   it('baseline documentation files exist', async () => {
     for (const docPath of requiredDocs) {
       const contents = await read(docPath);
-      expect(contents.trim().length > 0, `${docPath} should not be empty`).toBeTruthy();
+      expect(
+        contents.trim().length > 0,
+        `${docPath} should not be empty`,
+      ).toBeTruthy();
     }
   });
 
-  it('README documents local git repository install, permissions, and limitations', async () => {
+  it('README keeps the install matrix; permissions and limitations live in the docs site', async () => {
     const readme = await read('README.md');
+    const docs = await readDocsSite();
 
+    // README retains the install-matrix entry point (the tag-time gate).
     expect(readme).toMatch(/^## Local Git Repository Install$/m);
-    expect(readme).toMatch(/^## Permissions$/m);
-    expect(readme).toMatch(/^## Limitations$/m);
+    // The dense permissions/limitations detail was migrated into the site.
+    expect(docs).toMatch(/^## Permissions$/m);
+    expect(docs).toMatch(/^## Limitations$/m);
   });
 
   it('license, changelog, and provider docs contract are present', async () => {
     expect(await read('LICENSE')).toMatch(/MIT License/);
-    expect(await read('CHANGELOG.md')).toMatch(/## \[0\.1\.0\] - \d{4}-\d{2}-\d{2}/);
+    expect(await read('CHANGELOG.md')).toMatch(
+      /## \[0\.1\.0\] - \d{4}-\d{2}-\d{2}/,
+    );
 
     const claude = await lstat(new URL('CLAUDE.md', repoRoot));
     expect(claude.isSymbolicLink()).toBe(true);
@@ -133,7 +159,7 @@ describe('docs-presence', () => {
   });
 
   it('documentation records the generated TypeScript runtime contract', async () => {
-    const readme = await read('README.md');
+    const docs = await readDocsSite();
     const rootAgents = await read('AGENTS.md');
     const consensusAgents = await read('plugins/consensus/AGENTS.md');
     const testAgents = await read('tests/AGENTS.md');
@@ -143,17 +169,23 @@ describe('docs-presence', () => {
       'skills/export-session-transcript/references/transcript-formats.md',
     );
 
-    expect(readme).toMatch(/^### Generated runtime outputs$/m);
-    expect(readme).toMatch(/src\/transcript\/core\/runtimes\.ts/);
-    expect(readme).toMatch(/pnpm run sync:transcript-core.*compatibility wrapper/);
-    expect(readme).toMatch(/scripts\/build-generated\.mjs --check/);
+    // The generated-runtime contract now lives in the docs site
+    // (Engineering → Architecture), not the README.
+    expect(docs).toMatch(/[Gg]enerated runtime/);
+    expect(docs).toMatch(/src\/transcript\/core\/runtimes\.ts/);
+    expect(docs).toMatch(/sync:transcript-core/);
+    expect(docs).toMatch(/scripts\/build-generated\.mjs/);
     expect(rootAgents).toMatch(/canonical TypeScript source/);
     expect(rootAgents).toMatch(
       /pnpm run sync:transcript-core.*compatibility wrapper/,
     );
     expect(consensusAgents).toMatch(/src\/consensus\//);
-    expect(consensusAgents).toMatch(/plugins\/consensus\/skills\/\*\/scripts\//);
-    expect(testAgents).toMatch(/tests\/tooling\/generated-output-sync\.test\.ts/);
+    expect(consensusAgents).toMatch(
+      /plugins\/consensus\/skills\/\*\/scripts\//,
+    );
+    expect(testAgents).toMatch(
+      /tests\/tooling\/generated-output-sync\.test\.ts/,
+    );
     expect(sharedTranscriptCore).toMatch(/src\/transcript\/core\/runtimes\.ts/);
     expect(sharedTranscriptCore).not.toMatch(
       /shared\/transcript-core\/runtimes\.mjs/,

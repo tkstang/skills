@@ -1,0 +1,70 @@
+name: Deploy Docs
+
+# Builds the Fumadocs docs app (documentation/) as a static export and publishes
+# it to GitHub Pages. Modeled on open-agent-toolkit's deploy-docs.yml, adapted
+# for this repo's nested-standalone shape (the docs app has its own lockfile and
+# is built with `cd documentation && pnpm build`, not a root workspace script).
+#
+# Prerequisite (one-time, operator): enable GitHub Pages with
+# Settings -> Pages -> Source: "GitHub Actions".
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'documentation/**'
+      - '.github/workflows/deploy-docs.yml'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow one concurrent Pages deployment; don't cancel an in-flight publish.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build and deploy docs to GitHub Pages
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+          cache-dependency-path: documentation/pnpm-lock.yaml
+
+      - name: Install dependencies
+        working-directory: documentation
+        run: pnpm install --frozen-lockfile
+
+      - name: Build docs (static export -> documentation/out)
+        working-directory: documentation
+        run: pnpm build
+        env:
+          # GitHub Pages project site serves under https://<owner>.github.io/skills/.
+          # If this repo later uses a custom domain at the apex, drop this so the
+          # site builds at the root path instead.
+          NEXT_PUBLIC_BASE_PATH: /skills
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: documentation/out
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
