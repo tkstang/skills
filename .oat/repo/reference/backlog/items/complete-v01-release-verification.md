@@ -111,10 +111,13 @@ All verification gates are green; the authoritative dated snapshot remains the
   `resume-corruption`, `user-intervention`, `escalation-lifecycle`,
   `parallel-prepare`, `parallel-fan-in`, `parallel-integration`). No from-scratch
   live re-run.
-- **Tag — finishing step.** v0.1.0 is cut from this release after merge to `main`;
-  `release.yml` runs on the tag push (tag/manifest consistency). The confirmed
-  tag + green-CI result is recorded in `current-state.md` once the workflow
-  completes.
-- **Post-tag — deferred (non-claim).** Public discovery / `npx skills add` /
-  skills.sh indexing stays unverified and unclaimed until checked after
-  publication; result to be recorded in `current-state.md`.
+- **Tag — done.** v0.1.0 tag pushed on `main` (`e4e9348`); `release.yml` ran
+  **green** (build, type-check, build:check, test, validate, smoke,
+  `--check-tag v0.1.0`); GitHub Release published at
+  <https://github.com/tkstang/skills/releases/tag/v0.1.0>.
+- **Post-tag — partial.** `npx skills add tkstang/skills` source discovery passes
+  (the `refine`/`evaluate` consensus skills resolve from the tagged source).
+  skills.sh hosted indexing is **not yet live** (`npx skills search consensus`
+  does not return `tkstang/skills` as of 2026-06-20 — expected async lag); no
+  public skills.sh listing is claimed until it indexes. Recorded in
+  `current-state.md`.

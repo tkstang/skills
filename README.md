@@ -167,6 +167,7 @@ For watch mode, `--runtime both` watches Claude Code and Codex in one foreground
 ## Limitations
 
 - The consensus plugin family ships the `refine` and `evaluate` skills in v0.1; the standalone `session-observer` and `export-session-transcript` skills (and the transcript-core generated runtime they use) ship alongside it but are not part of the consensus plugin.
+- The consensus `refine` and `evaluate` skills are **plugin-install-only** — they invoke the provider CLI at `plugins/consensus/scripts/consensus.mjs`, which lives at the plugin root, outside each skill directory. Install them as the consensus plugin (Claude/Codex/Cursor marketplace), not as individual skills; an individual `npx skills add …@refine` would omit the CLI and fail `CONSENSUS_PROVIDER_CLI_MISSING`. Only the standalone `session-observer` and `export-session-transcript` skills are self-contained and individually installable.
 - Remaining consensus family skills are future work: `consensus-create`, `consensus-decide`, `consensus-plan`, and `consensus-research`.
 - Consensus ships three iteration modes (`alternating`, `parallel_revision`, `parallel_synthesized`); the `parallel_revision` and `parallel_synthesized` capabilities disclose their per-round call multiplier (2x peer calls, plus 1 synthesis call for synthesized) and escalate stuck states through the agency-gated ladder.
 - Consensus sections converge independently; whole-document harmonization and deliberation metrics/cost caps remain deferred.
