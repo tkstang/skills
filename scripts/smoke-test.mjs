@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
 import { runConsensusCreate } from '../plugins/consensus/skills/create/scripts/consensus-create.mjs';
+import { runConsensusDecide } from '../plugins/consensus/skills/decide/scripts/consensus-decide.mjs';
 import {
   runSequential,
   runWrapperCli,
@@ -290,6 +291,68 @@ export async function runCreateSmoke({ env }) {
   };
 }
 
+export async function runDecideSmoke({ env }) {
+  const tempRoot = await mkdtemp(
+    path.join(os.tmpdir(), 'consensus-smoke-decide-'),
+  );
+  const optionsPath = path.join(tempRoot, 'options.md');
+  const outputPath = path.join(tempRoot, 'decision.md');
+  const runDir = path.join(tempRoot, '.consensus/decide-run');
+  await writeFile(
+    optionsPath,
+    '# Options\n\n- Option A: ship the smaller scope this week.\n- Option B: wait for the broader migration.\n',
+  );
+  const decideEnv = {
+    ...env,
+    CONSENSUS_STUB_VERDICT: 'REVISE',
+    CONSENSUS_STUB_PROPOSED_ARTIFACT:
+      '## Recommendation\n\nChoose option A.\n\n## Reasoning\n\nSynthesized decision from the smoke options.\n\n## Alternatives\n\n- Option B\n\n## Dissent / Unresolved Disagreement\n\n- No unresolved disagreement in this fixture.\n',
+    CONSENSUS_STUB_SYNTHESIZED_ARTIFACT:
+      '## Recommendation\n\nChoose option A.\n\n## Reasoning\n\nSynthesized decision from the smoke options.\n\n## Alternatives\n\n- Option B\n\n## Dissent / Unresolved Disagreement\n\n- No unresolved disagreement in this fixture.\n',
+  };
+
+  const result = await runConsensusDecide(
+    [
+      '--options',
+      optionsPath,
+      '--output',
+      outputPath,
+      '--run-dir',
+      runDir,
+      '--allow-root',
+      tempRoot,
+      '--peers',
+      'claude,codex',
+      '--iteration',
+      'parallel_synthesized',
+      '--max-rounds',
+      '2',
+    ],
+    {
+      cwd: tempRoot,
+      env: decideEnv,
+    },
+  );
+
+  const artifact = await readFile(outputPath, 'utf8');
+  assert.equal(result.status.status, 'converged');
+  assert.match(artifact, /## Recommendation/);
+  assert.match(artifact, /## Reasoning/);
+  assert.match(artifact, /## Alternatives/);
+  assert.match(artifact, /## Dissent \/ Unresolved Disagreement/);
+  assert.match(artifact, /<!-- consensus:consensus-resolution\n/);
+  assert.match(artifact, /"cold_start": "independent_draft"/);
+  assert.match(artifact, /"iteration": "parallel_synthesized"/);
+  assert.match(artifact, /"agency": "minimal"/);
+
+  return {
+    status: result.status.status,
+    outputPath,
+    runDir,
+    artifact,
+  };
+}
+
 export async function runSmokeTest(options = {}) {
   const root = path.resolve(options.root ?? repoRoot);
   const stdout = options.stdout ?? process.stdout;
@@ -353,6 +416,7 @@ export async function runSmokeTest(options = {}) {
   assertArtifactShape(artifact);
 
   const create = await runCreateSmoke({ env });
+  const decide = await runDecideSmoke({ env });
 
   // Second scenario: a mocked parallel-synthesized flow that escalates once and
   // resumes to convergence via --host-direction (exercises synthesizer, the
@@ -368,6 +432,7 @@ export async function runSmokeTest(options = {}) {
     outputPath,
     runDir,
     create,
+    decide,
     parallelSynthesized,
   };
 }
