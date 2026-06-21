@@ -5,6 +5,7 @@ import {
   providerRegistry,
 } from '../../../src/consensus/provider-cli/adapters.js';
 import { runProviderList } from '../../../src/consensus/provider-cli/commands.js';
+import type { ProviderRunFailureInput } from '../../../src/consensus/provider-cli/adapters.js';
 
 describe('provider adapter registry', () => {
   it('registers the first-scope provider adapters by user-facing ID', () => {
@@ -99,6 +100,78 @@ describe('provider adapter registry', () => {
     });
   });
 
+  it('classifies an externally-interrupted run with a reliable signal as transient', () => {
+    const adapter = providerRegistry().get('codex')!;
+
+    expect(
+      adapter.classifyRunFailure(
+        providerExitFailure({
+          exit_code: null,
+          signal: 'SIGTERM',
+        }),
+      ),
+    ).toMatchObject({
+      code: 'PROVIDER_EXIT',
+      retryable: true,
+      terminal_reason: 'provider_exit_interrupted',
+      exit_classification: 'interrupted',
+    });
+  });
+
+  it('keeps CLI timeout and output-cap terminations terminal', () => {
+    const adapter = providerRegistry().get('codex')!;
+
+    expect(
+      adapter.classifyRunFailure({
+        code: 'PROVIDER_TIMEOUT',
+        message: 'Provider subprocess timed out.',
+        retryable: false,
+        stdout: '',
+        stderr: '',
+        exit_code: null,
+        signal: 'SIGTERM',
+      }),
+    ).toMatchObject({
+      retryable: false,
+      terminal_reason: 'provider_timeout',
+      exit_classification: 'terminal',
+    });
+
+    expect(
+      adapter.classifyRunFailure({
+        code: 'PROVIDER_OUTPUT_CAP_EXCEEDED',
+        message: 'Provider subprocess exceeded output cap.',
+        retryable: false,
+        stdout: '',
+        stderr: '',
+        exit_code: null,
+        signal: 'SIGTERM',
+      }),
+    ).toMatchObject({
+      retryable: false,
+      terminal_reason: 'output_cap_exceeded',
+      exit_classification: 'terminal',
+    });
+  });
+
+  it('defaults ambiguous signal cases to terminal', () => {
+    const adapter = providerRegistry().get('cursor')!;
+
+    expect(
+      adapter.classifyRunFailure(
+        providerExitFailure({
+          exit_code: 143,
+          signal: 'SIGTERM',
+        }),
+      ),
+    ).toMatchObject({
+      code: 'PROVIDER_EXIT',
+      retryable: false,
+      terminal_reason: 'provider_exit_terminal',
+      exit_classification: 'unknown',
+    });
+  });
+
   it('uses adapter capabilities for default provider inventory entries', async () => {
     const envelope = await runProviderList();
 
@@ -121,3 +194,18 @@ describe('provider adapter registry', () => {
     ]);
   });
 });
+
+function providerExitFailure(
+  overrides: Partial<ProviderRunFailureInput> = {},
+): ProviderRunFailureInput {
+  return {
+    code: 'PROVIDER_EXIT',
+    message: 'Provider subprocess exited with code null.',
+    retryable: true,
+    stdout: '',
+    stderr: '',
+    exit_code: 1,
+    signal: null,
+    ...overrides,
+  };
+}

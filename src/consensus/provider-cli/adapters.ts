@@ -12,6 +12,7 @@ import {
   buildCodexInvocation,
   buildCursorInvocation,
 } from './invocation.js';
+import { isReliableExternalInterrupt } from './subprocess.js';
 import type { ProviderInvocationBuilder } from './invocation.js';
 
 export interface ProviderAdapter {
@@ -241,6 +242,16 @@ function defaultRunFailureClassifier(
 
     const output = `${failure.stdout}\n${failure.stderr}\n${failure.message}`;
     const outputLine = firstNonEmptyLine(output);
+    if (isReliableExternalInterrupt(failure)) {
+      return {
+        code: 'PROVIDER_EXIT',
+        message: `Provider subprocess was interrupted by signal ${failure.signal}.`,
+        retryable: true,
+        terminal_reason: 'provider_exit_interrupted',
+        exit_classification: 'interrupted',
+      };
+    }
+
     if (matchesAny(output, patterns.auth_required_patterns)) {
       return {
         code: 'PROVIDER_AUTH_REQUIRED',

@@ -56,6 +56,37 @@ describe('bounded provider subprocess runner', () => {
     });
   });
 
+  it('surfaces plain signal-terminated subprocesses as provider exits', async () => {
+    const result = await runProviderSubprocess(
+      {
+        executable: process.execPath,
+        argv: ['-e', 'process.kill(process.pid, "SIGTERM")'],
+        stdin: '',
+        cwd: repoRoot,
+        output_mode: 'stdout_json',
+        strategy: 'prompt_only',
+        redacted_command: ['node', '-e', '<script>'],
+        shell: false,
+      },
+      {
+        maxOutputBytes: 1024,
+        timeoutSec: 5,
+      },
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      code: 'PROVIDER_EXIT',
+      retryable: true,
+      exit_code: null,
+      signal: 'SIGTERM',
+      diagnostics: {
+        provider_exit_code: null,
+        provider_signal: 'SIGTERM',
+      },
+    });
+  });
+
   it('kills timed-out subprocesses as PROVIDER_TIMEOUT', async () => {
     const result = await runProviderSubprocess(invocation(['sleep', '1000']), {
       maxOutputBytes: 1024,
