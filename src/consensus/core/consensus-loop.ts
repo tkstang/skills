@@ -2121,6 +2121,7 @@ function resultStatus(
     rounds: roundCount(turns, options.peers.length),
     agency: options.agency,
     iteration_mode: options.iteration,
+    cold_start: options.coldStart,
     peer_calls: peerCalls,
     synthesis_calls: synthesisCalls,
     ...extra,
