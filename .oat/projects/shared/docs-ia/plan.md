@@ -430,7 +430,7 @@ git commit -m "ci(p04-t01): add GitHub Pages docs-deploy workflow"
 | p02    | code     | pending | -    | -        |
 | p03    | code     | pending | -    | -        |
 | p04    | code     | pending | -    | -        |
-| final  | code     | pending | -    | -        |
+| final  | code     | received | 2026-06-21 | reviews/final-review-2026-06-21.md |
 | spec   | artifact | n/a     | -    | quick mode — no spec |
 | design | artifact | pending | -    | -        |
 | plan   | artifact | passed  | 2026-06-21 | structured review (in-memory); I1/I2 + M1/M2/m1/m3 applied |
