@@ -224,6 +224,67 @@ describe('provider adapter registry', () => {
   });
 });
 
+describe.each(['claude', 'codex', 'cursor'] as const)(
+  'exit classification: %s',
+  (id) => {
+    it('classifies shared transient signatures as retryable within budget', () => {
+      const adapter = providerRegistry().get(id)!;
+
+      expect(
+        adapter.classifyRunFailure(
+          providerExitFailure({ stderr: 'HTTP 429 Too Many Requests' }),
+        ),
+      ).toMatchObject({
+        code: 'PROVIDER_EXIT',
+        retryable: true,
+        terminal_reason: 'provider_exit_transient',
+        exit_classification: 'transient',
+      });
+    });
+
+    it('classifies auth and unsupported-option signatures as terminal', () => {
+      const adapter = providerRegistry().get(id)!;
+
+      expect(
+        adapter.classifyRunFailure(
+          providerExitFailure({ stderr: 'authentication required' }),
+        ),
+      ).toMatchObject({
+        code: 'PROVIDER_AUTH_REQUIRED',
+        retryable: false,
+        terminal_reason: 'provider_auth_required',
+        exit_classification: 'terminal',
+      });
+
+      expect(
+        adapter.classifyRunFailure(
+          providerExitFailure({ stderr: 'unknown option: --bad-flag' }),
+        ),
+      ).toMatchObject({
+        code: 'PROVIDER_UNSUPPORTED_OPTION',
+        retryable: false,
+        terminal_reason: 'provider_unsupported_option',
+        exit_classification: 'terminal',
+      });
+    });
+
+    it('classifies unknown provider exits as terminal by default', () => {
+      const adapter = providerRegistry().get(id)!;
+
+      expect(
+        adapter.classifyRunFailure(
+          providerExitFailure({ stderr: 'unmatched provider failure' }),
+        ),
+      ).toMatchObject({
+        code: 'PROVIDER_EXIT',
+        retryable: false,
+        terminal_reason: 'provider_exit_terminal',
+        exit_classification: 'unknown',
+      });
+    });
+  },
+);
+
 function providerExitFailure(
   overrides: Partial<ProviderRunFailureInput> = {},
 ): ProviderRunFailureInput {
