@@ -19,7 +19,7 @@ export type IterationMode =
   | 'parallel_revision'
   | 'parallel_synthesized';
 export type Agency = 'minimal' | 'moderate' | 'maximum';
-export type ColdStartMode = 'shared_input';
+export type ColdStartMode = 'shared_input' | 'independent_draft';
 export type CostSource = 'provider_cli' | 'estimated' | 'unavailable';
 
 export type AlternatingVerdictValue = 'ACCEPT' | 'REVISE' | 'IMPASSE';
@@ -537,6 +537,11 @@ export const ITERATION_MODES = Object.freeze([
   'parallel_revision',
   'parallel_synthesized',
 ]) as readonly IterationMode[];
+
+export const COLD_START_MODES = Object.freeze([
+  'shared_input',
+  'independent_draft',
+]) as readonly ColdStartMode[];
 
 export function callsPerRound(mode: IterationMode) {
   if (mode === 'parallel_revision') return { peer: 2, synthesis: 0 };
@@ -1666,11 +1671,10 @@ export function parseLoopArgs(argv: string[]): LoopOptions {
   if (!ITERATION_MODES.includes(parsed.iteration as IterationMode)) {
     throw invalidIterationModeError(parsed.iteration);
   }
-  if (parsed.coldStart === 'independent_draft') {
-    throw new Error('--cold-start independent_draft is not yet supported');
-  }
-  if (parsed.coldStart !== 'shared_input') {
-    throw new Error('--cold-start must be shared_input');
+  if (!COLD_START_MODES.includes(parsed.coldStart as ColdStartMode)) {
+    throw new Error(
+      `--cold-start must be one of ${COLD_START_MODES.join(', ')}`,
+    );
   }
   if (!['minimal', 'moderate', 'maximum'].includes(parsed.agency)) {
     throw new Error('--agency must be minimal, moderate, or maximum');

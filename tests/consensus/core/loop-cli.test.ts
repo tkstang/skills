@@ -4,20 +4,14 @@ import path from 'node:path';
 
 import { expect, it } from 'vitest';
 
-// @ts-expect-error The generated runtime is intentionally declaration-free; this test exercises the shipped artifact.
-import * as consensusLoop from '../../../plugins/consensus/skills/refine/scripts/consensus-loop.mjs';
 import {
-  makeProviderCliEnv,
-  readJson,
-} from '../../helpers/process.mjs';
-
-const {
   buildTurnPrompt,
   EXIT_CODES,
   exitCodeForError,
   parseLoopArgs,
   runConsensusLoop,
-} = consensusLoop;
+} from '../../../src/consensus/core/consensus-loop.js';
+import { makeProviderCliEnv, readJson } from '../../helpers/process.mjs';
 
 type RunFiles = {
   tempRoot: string;
@@ -152,10 +146,21 @@ it('parseLoopArgs rejects invalid iteration modes with INVALID_ITERATION_MODE an
   expect(thrown.message).toMatch(/parallel_synthesized/);
 });
 
-it('parseLoopArgs rejects independent_draft cold start as not yet supported', () => {
-  expect(() =>
-    parseLoopArgs(baseLoopArgv(['--cold-start', 'independent_draft'])),
-  ).toThrow(/not yet supported/);
+it('parseLoopArgs accepts known cold-start modes and defaults to shared_input', () => {
+  expect(parseLoopArgs(baseLoopArgv()).coldStart).toBe('shared_input');
+  expect(
+    parseLoopArgs(baseLoopArgv(['--cold-start', 'shared_input'])).coldStart,
+  ).toBe('shared_input');
+  expect(
+    parseLoopArgs(baseLoopArgv(['--cold-start', 'independent_draft']))
+      .coldStart,
+  ).toBe('independent_draft');
+  expect(() => parseLoopArgs(baseLoopArgv(['--cold-start', 'blank']))).toThrow(
+    /shared_input/,
+  );
+  expect(() => parseLoopArgs(baseLoopArgv(['--cold-start', 'blank']))).toThrow(
+    /independent_draft/,
+  );
 });
 
 it('buildTurnPrompt frames untrusted artifact text and passes prior peer verdict', () => {
