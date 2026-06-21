@@ -176,9 +176,9 @@ The "API" is the CLI invocation contract: subcommand + flags in, JSONL events + 
 | FR1 | unit + integration | loop accepts `--cold-start independent_draft`; round-1 frames the brief, not a shared artifact; `shared_input` regression intact |
 | FR2 | unit + integration | round-1 prompt shape per mode; round-1→convergence run per mode (parallel_revision / parallel_synthesized / alternating); alternating = A-drafts/B-revises |
 | FR3 | unit | `--cold-start` parse/validate; resolution block records `cold_start`; per-skill defaults |
-| FR4 | integration + manual | create brief→artifact (mock peers); whole-artifact; resolution block present |
-| FR5 | integration | decide at minimal agency renders `unresolved_disagreements[]` into the dissent heading; does not editorially decide |
-| FR6 | integration | plan goal+constraints→markdown plan with required headings |
+| FR4 | integration + e2e | create brief→artifact (mock peers); whole-artifact; resolution block present; mocked smoke-flow run from a reference brief fixture |
+| FR5 | integration + e2e | decide at minimal agency renders `unresolved_disagreements[]` into the dissent heading; does not editorially decide; smoke-flow run from a contested-options fixture asserts dissent heading |
+| FR6 | integration + e2e | plan goal+constraints→markdown plan with required headings; smoke-flow run from a goal+constraints fixture |
 | NFR2 | unit | `build:check`; skill-version validators |
 | NFR3 | integration | `verdict_source` recorded; out-of-enum `verdict` handled |
 | NFR4 | unit | input cap; path confinement; refine/evaluate reject `independent_draft` |
@@ -197,7 +197,13 @@ The "API" is the CLI invocation contract: subcommand + flags in, JSONL events + 
 
 ### End-to-End Tests
 
-- **Scope:** optional live run behind an env flag, mirroring the existing gated provider e2e (skipped unless explicitly enabled + preflight ready).
+Unlike refine/evaluate — whose e2e drives a reference **input artifact** and can diff against it — create/decide/plan generate from a brief, so there is **no golden output to compare**. E2E verification therefore asserts the **flow and output contract**, driven by reference **input fixtures** (briefs / options / goals) shipped under each skill's `references/examples/`:
+
+- **Mocked e2e (CI, deterministic):** extend the `scripts/smoke-test.mjs` flow (fixture provider on `PATH`) to drive create/decide/plan to convergence and assert the output shape — created artifact present, `## Deliberation Log`, and a `consensus-resolution` block recording `cold_start: independent_draft` + iteration mode + agency. For decide/plan, assert the required markdown headings (recommendation / reasoning / alternatives / dissent; steps / dependencies / risks). For decide, assert the dissent heading carries surfaced `unresolved_disagreements[]`.
+- **Gated live e2e (optional, env-flagged):** mirror `submit-live.e2e` — run a real provider against a reference brief and assert the same structural contract (artifact written to the confined path, resolution block, required headings, `verdict_source`) rather than exact content. Skipped unless explicitly enabled + preflight ready.
+- **Reference fixtures:** each new skill ships `references/examples/` inputs (create: a sample brief; decide: a contested-options set; plan: a goal+constraints) — the create-family analog of refine/evaluate's reference artifacts, doubling as operator examples.
+
+**Why structural, not golden:** generation is non-deterministic and there is no input artifact to converge toward, so e2e verifies the contract (resolution metadata, required headings, dissent surfacing, `verdict_source`) the family guarantees — not specific generated prose.
 
 ## Deployment Strategy
 
@@ -218,6 +224,7 @@ Additive change — standard `git revert`; `shared_input` is byte-identical so r
 ### Configuration
 
 - Each new skill: bump `version` and `metadata.version` (in sync); add to `SKILL_FILES` in `scripts/bump-version.mjs`; the skill-version-on-edit validator must pass.
+- Each new skill ships `references/examples/` input fixtures (brief / options / goal) and is wired into the `scripts/smoke-test.mjs` mocked e2e flow.
 - No new user-facing env config; the verdict-seam env is injected by the loop, not user-set.
 - Refresh provider views via `oat sync` per the repo convention.
 
