@@ -1,5 +1,5 @@
 ---
-oat_current_task: null
+oat_current_task: p01-t01
 oat_last_commit: eb3233c
 oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
@@ -11,7 +11,7 @@ oat_children: [] # optional coordination-parent child slugs
 oat_hill_checkpoints: ['discovery', 'design'] # Configured: which phases require human-in-the-loop lifecycle approval
 oat_hill_completed: ['discovery', 'design'] # Progress: which HiLL checkpoints have been completed
 oat_parallel_execution: false
-oat_phase: plan # Current phase: discovery | spec | design | plan | implement | decomposition
+oat_phase: implement # Current phase: discovery | spec | design | plan | implement | decomposition
 oat_phase_status: in_progress # Status: in_progress | complete | pr_open
 # oat_orchestration_retry_limit: 2  # optional; override fix-loop retry limit (range 0-5)
 # oat_dispatch_ceiling: # optional project override for provider-aware dispatch ceilings
@@ -31,26 +31,26 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-06-21T15:59:48.857Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-06-21T21:21:15Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-06-21T21:47:23Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
 # Project State: consensus-family
 
-**Status:** Planning in progress — plan review fixes completed; awaiting plan re-review
+**Status:** Implementation ready — plan artifact feedback processed
 **Started:** 2026-06-21
 **Last Updated:** 2026-06-21
 
 ## Current Phase
 
-Planning in progress — plan drafted by Codex; maximum dispatch ceiling selected (Codex `xhigh`, Claude `opus`); Claude plan review received and artifact fixes applied; branch rebased onto merged docs-IA PR #32 and implementation documentation tasks refreshed for the Fumadocs structure; awaiting plan re-review before implementation readiness.
+Implementation ready — plan drafted by Codex; maximum dispatch ceiling selected (Codex `xhigh`, Claude `opus`); Claude plan review received and artifact fixes applied; branch rebased onto merged docs-IA PR #32; plan re-review feedback processed directly in `plan.md`; user approved proceeding to implementation without another artifact re-review.
 
 ## Artifacts
 
 - **Discovery:** `discovery.md` (complete)
 - **Spec:** `spec.md` (complete — confirmed requirements)
 - **Design:** `design.md` (complete — HiLL approved)
-- **Plan:** `plan.md` (drafted — review fixes completed; awaiting re-review)
+- **Plan:** `plan.md` (complete — ready for `oat-project-implement`)
 - **Implementation:** `implementation.md` (scaffolded template — not started)
 
 ## Progress
@@ -65,7 +65,8 @@ Planning in progress — plan drafted by Codex; maximum dispatch ceiling selecte
 - ✓ Plan review received and artifact fixes applied
 - ✓ Inspected docs-IA PR #32 and recorded Fumadocs documentation-target implications
 - ✓ Rebased onto merged docs-IA PR #32 and refreshed documentation task targets
-- ⧗ Next: re-run plan artifact review, then `oat-project-implement` after pass
+- ✓ Plan v2 re-review feedback processed
+- ⧗ Next: execute `oat-project-implement` starting at `p01-t01`
 
 ## Blockers
 
@@ -73,4 +74,4 @@ None
 
 ## Next Milestone
 
-Re-run the plan artifact review. After it passes, start `oat-project-implement` against the rebased tree with documentation tasks targeting `documentation/docs/user-guide/consensus/`, the slim README contract, and the updated repo documentation tests.
+Execute `oat-project-implement` against the rebased tree, starting at `p01-t01`, with documentation tasks targeting `documentation/docs/user-guide/consensus/`, the slim README contract, and the updated repo documentation tests.

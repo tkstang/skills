@@ -1,10 +1,10 @@
 ---
-oat_status: in_progress
-oat_ready_for: null
+oat_status: complete
+oat_ready_for: oat-project-implement
 oat_blockers: []
 oat_last_updated: 2026-06-21
 oat_phase: plan
-oat_phase_status: in_progress
+oat_phase_status: complete
 oat_plan_parallel_groups: []
 oat_plan_source: spec-driven
 oat_import_reference: null
@@ -504,7 +504,7 @@ git commit -m "feat(p02-t03): run consensus create through loop"
 
 **Step 1: Write test (RED)**
 
-Extend repo-invariant tests to expect the create skill directory, portable/versioned frontmatter, bundled schemas, example fixture, generated script path, and refreshed plugin manifest description. Update `tests/repo/skill-frontmatter.test.ts` in both places it hardcodes shipped skill names: the `skillPaths` parametrization and the `['refine', 'evaluate']` name allowlist.
+Extend repo-invariant tests to expect the create skill directory, portable/versioned frontmatter, bundled schemas, example fixture, generated script path, and refreshed plugin manifest description. Add the new skill to the hardcoded shipped-skill lists in both `tests/repo/skill-frontmatter.test.ts` (`skillPaths` parametrization plus the `['refine', 'evaluate']` name allowlist) and `tests/release/versioning.test.ts` (`skillFiles`).
 
 Run: `pnpm exec vitest run tests/repo/skill-frontmatter.test.ts tests/repo/docs-presence.test.ts tests/repo/layout.test.ts tests/repo/plugin-manifests.test.ts tests/release/versioning.test.ts tests/tooling/generated-output-sync.test.ts`
 Expected: Repo-invariant tests fail before the skill anatomy exists.
@@ -544,7 +544,7 @@ git commit -m "feat(p02-t04): ship consensus create skill"
 - Modify: `documentation/docs/user-guide/consensus/index.md`
 - Modify: `documentation/docs/user-guide/consensus/configuration.md`
 - Modify: `documentation/docs/user-guide/consensus/meta.json`
-- Modify: `documentation/index.md`
+- Modify: `documentation/index.md` (generated; do not hand-edit)
 - Modify: `README.md`
 - Modify: `plugins/consensus/README.md`
 - Modify: `CHANGELOG.md`
@@ -554,21 +554,21 @@ git commit -m "feat(p02-t04): ship consensus create skill"
 
 **Step 1: Write test (RED)**
 
-Add smoke, docs-site, README summary, and CHANGELOG tests asserting create is documented as shipped, not future work, recorded under `## [Unreleased]` / `### Added`, and the mocked smoke flow checks artifact + deliberation log + resolution metadata.
+Add smoke, docs-site, README summary, and CHANGELOG tests asserting create is documented as shipped, not future work, recorded under `## [Unreleased]` / `### Added`, and the mocked smoke flow checks artifact + deliberation log + resolution metadata. Add a negative docs assertion that `consensus-create` is not described as future work after it ships.
 
 Run: `pnpm exec vitest run tests/release/smoke-test-script.test.ts tests/repo/readme-scope.test.ts`
 Expected: Tests fail until docs and smoke flow include create.
 
 **Step 2: Implement (GREEN)**
 
-Update the Fumadocs consensus pages, slim README summary, plugin README reference, CHANGELOG, and smoke fixture flow for `consensus-create`. Add the create page to `documentation/docs/user-guide/consensus/meta.json` and `index.md`, update `configuration.md` for `independent_draft` semantics, then run `cd documentation && oat docs generate-index --docs-dir docs --output index.md`.
+Update the Fumadocs consensus pages, slim README summary, plugin README reference, CHANGELOG, and smoke fixture flow for `consensus-create`. Add the create page to `documentation/docs/user-guide/consensus/meta.json` and `index.md`, update `configuration.md` for `independent_draft` semantics, and remove `consensus-create` from the `## Limitations` "future work" bullet in `documentation/docs/user-guide/consensus/index.md`. Then run `cd documentation && oat docs generate-index --docs-dir docs --output index.md`.
 
 Run: `pnpm run smoke`
 Expected: Mocked smoke flow includes create and passes.
 
 **Step 3: Refactor**
 
-Ensure docs avoid provider-marketplace claims beyond the verified local install path, and keep `README.md` as a short entry point rather than reintroducing dense reference sections.
+Ensure docs avoid provider-marketplace claims beyond the verified local install path, keep `README.md` as a short entry point rather than reintroducing dense reference sections, and leave only the not-yet-shipped skills in the consensus docs future-work bullet.
 
 **Step 4: Verify**
 
@@ -741,7 +741,7 @@ git commit -m "feat(p03-t03): run consensus decide through loop"
 
 **Step 1: Write test (RED)**
 
-Extend repo-invariant tests for decide skill frontmatter, schemas, examples, generated script, and the shipped-skill test allowlists (`skillPaths` plus the name allowlist).
+Extend repo-invariant tests for decide skill frontmatter, schemas, examples, generated script, and the shipped-skill test allowlists in both `tests/repo/skill-frontmatter.test.ts` (`skillPaths` plus the name allowlist) and `tests/release/versioning.test.ts` (`skillFiles`).
 
 Run: `pnpm exec vitest run tests/repo/skill-frontmatter.test.ts tests/repo/docs-presence.test.ts tests/repo/layout.test.ts tests/release/versioning.test.ts tests/tooling/generated-output-sync.test.ts`
 Expected: Tests fail until decide skill files exist.
@@ -780,7 +780,7 @@ git commit -m "feat(p03-t04): ship consensus decide skill"
 - Add: `documentation/docs/user-guide/consensus/decide.md`
 - Modify: `documentation/docs/user-guide/consensus/index.md`
 - Modify: `documentation/docs/user-guide/consensus/meta.json`
-- Modify: `documentation/index.md`
+- Modify: `documentation/index.md` (generated; do not hand-edit)
 - Modify: `README.md`
 - Modify: `plugins/consensus/README.md`
 - Modify: `CHANGELOG.md`
@@ -790,21 +790,21 @@ git commit -m "feat(p03-t04): ship consensus decide skill"
 
 **Step 1: Write test (RED)**
 
-Add docs-site, smoke, README summary, and CHANGELOG assertions for decide, including the required headings and dissent surfacing.
+Add docs-site, smoke, README summary, and CHANGELOG assertions for decide, including the required headings and dissent surfacing. Add a negative docs assertion that `consensus-decide` is not described as future work after it ships.
 
 Run: `pnpm exec vitest run tests/release/smoke-test-script.test.ts tests/repo/readme-scope.test.ts`
 Expected: Tests fail until decide docs and smoke flow are added.
 
 **Step 2: Implement (GREEN)**
 
-Update the Fumadocs consensus pages, slim README summary, plugin README reference, CHANGELOG, and smoke fixture flow for `consensus-decide`. Add the decide page to `documentation/docs/user-guide/consensus/meta.json` and `index.md`, then regenerate `documentation/index.md`.
+Update the Fumadocs consensus pages, slim README summary, plugin README reference, CHANGELOG, and smoke fixture flow for `consensus-decide`. Add the decide page to `documentation/docs/user-guide/consensus/meta.json` and `index.md`, remove `consensus-decide` from the `## Limitations` "future work" bullet, then regenerate `documentation/index.md`.
 
 Run: `pnpm run smoke`
 Expected: Mocked smoke flow includes decide and passes.
 
 **Step 3: Refactor**
 
-Keep docs clear that output is markdown, not a new machine-readable decision schema; update future-work wording so `consensus-plan` and `consensus-research` remain deferred but `consensus-decide` does not.
+Keep docs clear that output is markdown, not a new machine-readable decision schema; update future-work wording so only `consensus-plan` and `consensus-research` remain deferred after decide ships.
 
 **Step 4: Verify**
 
@@ -977,7 +977,7 @@ git commit -m "feat(p04-t03): run consensus plan through loop"
 
 **Step 1: Write test (RED)**
 
-Extend repo-invariant tests for plan skill frontmatter, schemas, example fixture, generated script, and the shipped-skill test allowlists (`skillPaths` plus the name allowlist).
+Extend repo-invariant tests for plan skill frontmatter, schemas, example fixture, generated script, and the shipped-skill test allowlists in both `tests/repo/skill-frontmatter.test.ts` (`skillPaths` plus the name allowlist) and `tests/release/versioning.test.ts` (`skillFiles`).
 
 Run: `pnpm exec vitest run tests/repo/skill-frontmatter.test.ts tests/repo/docs-presence.test.ts tests/repo/layout.test.ts tests/release/versioning.test.ts tests/tooling/generated-output-sync.test.ts`
 Expected: Tests fail until plan skill files exist.
@@ -1017,7 +1017,7 @@ git commit -m "feat(p04-t04): ship consensus plan skill"
 - Modify: `documentation/docs/user-guide/consensus/index.md`
 - Modify: `documentation/docs/user-guide/consensus/meta.json`
 - Modify: `documentation/docs/engineering/architecture/generated-runtime.md`
-- Modify: `documentation/index.md`
+- Modify: `documentation/index.md` (generated; do not hand-edit)
 - Modify: `README.md`
 - Modify: `plugins/consensus/README.md`
 - Modify: `CHANGELOG.md`
@@ -1028,21 +1028,21 @@ git commit -m "feat(p04-t04): ship consensus plan skill"
 
 **Step 1: Write test (RED)**
 
-Add docs-site, smoke, README summary, CHANGELOG, and family-level generated-output assertions for plan and the complete create/decide/plan family.
+Add docs-site, smoke, README summary, CHANGELOG, and family-level generated-output assertions for plan and the complete create/decide/plan family. Add a negative docs assertion that `consensus-plan` is not described as future work after it ships, and assert the generated-runtime table names the create/decide/plan generated `.mjs` paths.
 
 Run: `pnpm exec vitest run tests/release/smoke-test-script.test.ts tests/repo/readme-scope.test.ts tests/tooling/generated-output-sync.test.ts`
 Expected: Tests fail until plan docs/smoke and generated-output checks are updated.
 
 **Step 2: Implement (GREEN)**
 
-Update the Fumadocs consensus pages, generated-runtime architecture page, slim README summary, plugin README reference, CHANGELOG, and smoke fixture flow for `consensus-plan`; ensure generated-output sync covers all new runtime mappings. Add the plan page to `documentation/docs/user-guide/consensus/meta.json` and `index.md`, then regenerate `documentation/index.md`.
+Update the Fumadocs consensus pages, generated-runtime architecture page, slim README summary, plugin README reference, CHANGELOG, and smoke fixture flow for `consensus-plan`; ensure generated-output sync covers all new runtime mappings. Add the plan page to `documentation/docs/user-guide/consensus/meta.json` and `index.md`, remove `consensus-plan` from the `## Limitations` "future work" bullet, then regenerate `documentation/index.md`. Edit `documentation/docs/engineering/architecture/generated-runtime.md` directly; the docs index regeneration does not update its canonical-source table.
 
 Run: `pnpm run smoke`
 Expected: Mocked smoke flow includes create, decide, and plan and passes.
 
 **Step 3: Refactor**
 
-Remove stale "future work" wording for shipped skills while keeping `consensus-research` out of scope. Preserve the docs-IA contract that dense user guidance lives in `documentation/docs/` and README stays slim.
+Remove stale "future work" wording for shipped skills while keeping only `consensus-research` out of scope. Preserve the docs-IA contract that dense user guidance lives in `documentation/docs/` and README stays slim.
 
 **Step 4: Verify**
 
@@ -1077,7 +1077,7 @@ Track reviews here after running the `oat-project-review-provide` and `oat-proje
 | final  | code     | pending  | -          | -                                             |
 | spec   | artifact | pending  | -          | -                                             |
 | design | artifact | received | 2026-06-21 | reviews/artifact-design-review-2026-06-21.md |
-| plan   | artifact | received | 2026-06-21 | reviews/artifact-plan-review-2026-06-21-v2.md |
+| plan   | artifact | passed   | 2026-06-21 | reviews/archived/artifact-plan-review-2026-06-21-v2.md |
 
 **Status values:** `pending` -> `received` -> `fixes_added` -> `fixes_completed` -> `passed`
 

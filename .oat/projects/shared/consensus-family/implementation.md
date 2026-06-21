@@ -123,6 +123,31 @@ oat_generated: false
 
 ---
 
+## Review Received: plan re-review
+
+**Date:** 2026-06-21
+**Review artifact:** `reviews/archived/artifact-plan-review-2026-06-21-v2.md`
+**Type:** artifact review
+
+**Findings:**
+
+- Critical: 0
+- Important: 0
+- Medium: 2
+- Minor: 3
+
+**Actions taken:**
+
+- Resolved `M1` by explicitly naming the `tests/release/versioning.test.ts` `skillFiles` allowlist alongside the two `tests/repo/skill-frontmatter.test.ts` shipped-skill allowlists in the create/decide/plan skill-anatomy tasks.
+- Resolved `M2` by requiring each docs task to remove its shipped skill from the `documentation/docs/user-guide/consensus/index.md` future-work limitation and to add a negative docs assertion that the shipped skill is not still described as future work.
+- Resolved `m1` by marking `documentation/index.md` as generated/do-not-hand-edit in the docs task file lists.
+- Resolved `m2` by requiring a generated-runtime table assertion and direct edit of `documentation/docs/engineering/architecture/generated-runtime.md`.
+- Rejected `m3` with rationale: the closeout/DR-promotion item was already resolved by the plan's `Closeout Bookkeeping` section.
+
+**Plan status:** user approved proceeding after artifact fixes; `plan.md` marked complete and ready for `oat-project-implement`.
+
+---
+
 ## Phase 2: {Phase Name}
 
 **Status:** pending
