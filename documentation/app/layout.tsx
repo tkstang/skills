@@ -8,12 +8,13 @@ import { source } from '@/lib/source';
 
 export const metadata = {
   title: 'skills',
-  description: 'A personal home for Agent Skills and plugins, including the consensus deliberation plugin.',
+  description:
+    'A personal home for Agent Skills and plugins, including the consensus deliberation plugin.',
 };
 
 export default function Layout({ children }: { children: ReactNode }) {
   return (
-    <html lang='en' suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
       <body>
         <RootProvider
           search={{
@@ -23,7 +24,8 @@ export default function Layout({ children }: { children: ReactNode }) {
           <DocsLayout
             branding={{
               title: 'skills',
-              description: 'A personal home for Agent Skills and plugins, including the consensus deliberation plugin.',
+              description:
+                'A personal home for Agent Skills and plugins, including the consensus deliberation plugin.',
             }}
             tree={source.getPageTree()}
           >

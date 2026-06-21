@@ -1,4 +1,5 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
+
 import { describe, expect, it } from 'vitest';
 
 const repoRoot = new URL('../..', import.meta.url);
@@ -7,55 +8,95 @@ async function read(relativePath: string) {
   return readFile(new URL(relativePath, repoRoot), 'utf8');
 }
 
+// The dense reference content was migrated out of README.md into the Fumadocs
+// docs site under documentation/docs/ (the docs-ia project). These tests assert
+// the new source of truth: README.md is a slim entry point (project description +
+// install matrix + links), and the migrated detail lives in the docs site.
+async function readDocsSite(): Promise<string> {
+  const docsDir = new URL('documentation/docs/', repoRoot);
+  const entries = await readdir(docsDir, { recursive: true });
+  const markdown = entries.filter(
+    (entry) => typeof entry === 'string' && entry.endsWith('.md'),
+  );
+  const contents = await Promise.all(
+    markdown.map((rel) =>
+      readFile(new URL(`documentation/docs/${rel}`, repoRoot), 'utf8'),
+    ),
+  );
+  return contents.join('\n\n');
+}
+
 describe('readme-scope', () => {
-  it('README documents v0.1 local install paths and consensus CLI prerequisites', async () => {
+  it('README keeps the v0.1 local install matrix as the entry point', async () => {
     const readme = await read('README.md');
 
-    expect(readme).toMatch(/claude plugin marketplace add "\$PWD" --scope user/);
-    expect(readme).toMatch(/claude plugin install consensus@skills --scope user/);
+    expect(readme).toMatch(/^## Local Git Repository Install$/m);
+    expect(readme).toMatch(
+      /claude plugin marketplace add "\$PWD" --scope user/,
+    );
+    expect(readme).toMatch(
+      /claude plugin install consensus@skills --scope user/,
+    );
     expect(readme).toMatch(/codex plugin marketplace add "\$PWD"/);
     expect(readme).toMatch(/codex plugin add consensus --marketplace skills/);
-    expect(readme).toMatch(/cursor agent --plugin-dir "\$PWD\/plugins\/consensus"/);
     expect(readme).toMatch(
-      /session-scoped through Cursor Agent's `--plugin-dir` option/,
+      /cursor agent --plugin-dir "\$PWD\/plugins\/consensus"/,
     );
-    expect(readme).toMatch(/Node\.js 22 or newer/);
-    expect(readme).toMatch(/consensus CLI/i);
-    expect(readme).toMatch(/consensus provider ls --json/);
-    expect(readme).toMatch(/consensus preflight --json/);
+    expect(readme).toMatch(/Node\.js 22/);
   });
 
-  it('README names permissions, limitations, no telemetry, prompt injection, and advanced peer config', async () => {
+  it('README is a slim entry point that links into the docs site', async () => {
     const readme = await read('README.md');
 
-    expect(readme).toMatch(/^## Permissions$/m);
-    expect(readme).toMatch(/^## Limitations$/m);
-    expect(readme).toMatch(/no telemetry/i);
-    expect(readme).toMatch(/prompt injection/i);
-    expect(readme).toMatch(/^## Advanced Configuration$/m);
-    expect(readme).toMatch(/provider inventory/i);
-    expect(readme).toMatch(/Cursor.*auth_required/i);
-    expect(readme).toMatch(/consensus-create/);
-    expect(readme).toMatch(/parallel_revision/);
-    expect(readme).toMatch(/parallel_synthesized/);
-    expect(readme).toMatch(/whole-document harmonization/);
-    expect(readme).not.toMatch(/custom ACP provider/i);
+    // Links readers into the migrated docs site.
+    expect(readme).toMatch(/documentation\/docs\//);
+    // The dense reference sections were moved out of the README.
+    expect(readme).not.toMatch(/^## Permissions$/m);
+    expect(readme).not.toMatch(/^## Advanced Configuration$/m);
   });
 
-  it('README documents iteration modes as available, not future work', async () => {
-    const readme = await read('README.md');
+  it('docs site carries the install prerequisites and provider-readiness commands', async () => {
+    const docs = await readDocsSite();
+
+    expect(docs).toMatch(/Node\.js 22 or newer/);
+    expect(docs).toMatch(/consensus CLI/i);
+    expect(docs).toMatch(/consensus provider ls --json/);
+    expect(docs).toMatch(/consensus preflight --json/);
+    // Cursor `--plugin-dir` caveat (prose may wrap across lines in the docs).
+    expect(docs).toMatch(/session-scoped/);
+    expect(docs).toMatch(/--plugin-dir/);
+  });
+
+  it('docs site names permissions, limitations, no telemetry, prompt injection, and advanced peer config', async () => {
+    const docs = await readDocsSite();
+
+    expect(docs).toMatch(/^## Permissions$/m);
+    expect(docs).toMatch(/^## Limitations$/m);
+    expect(docs).toMatch(/no telemetry/i);
+    expect(docs).toMatch(/prompt injection/i);
+    expect(docs).toMatch(/provider inventory/i);
+    expect(docs).toMatch(/auth_required/);
+    expect(docs).toMatch(/consensus-create/);
+    expect(docs).toMatch(/parallel_revision/);
+    expect(docs).toMatch(/parallel_synthesized/);
+    expect(docs).toMatch(/whole-document harmonization/);
+    expect(docs).not.toMatch(/custom ACP provider/i);
+  });
+
+  it('docs site documents iteration modes as available, not future work', async () => {
+    const docs = await readDocsSite();
 
     // Parallel modes are shipped, no longer "future work".
-    expect(readme).not.toMatch(
+    expect(docs).not.toMatch(
       /parallel-revision and parallel-synthesized modes are future work/i,
     );
-    // The new selection/escalation flags are named.
-    expect(readme).toMatch(/--iteration/);
-    expect(readme).toMatch(/--synthesizer/);
-    expect(readme).toMatch(/--host-direction/);
+    // The selection/escalation flags are named.
+    expect(docs).toMatch(/--iteration/);
+    expect(docs).toMatch(/--synthesizer/);
+    expect(docs).toMatch(/--host-direction/);
     // Harmonization and deliberation metrics/cost caps remain deferred.
-    expect(readme).toMatch(/whole-document harmonization/i);
-    expect(readme).toMatch(/metrics|cost caps/i);
+    expect(docs).toMatch(/whole-document harmonization/i);
+    expect(docs).toMatch(/metrics|cost caps/i);
   });
 
   it('plugin README documents iteration modes and escalation flags', async () => {
