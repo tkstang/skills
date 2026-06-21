@@ -8,7 +8,7 @@ scope_estimate: M
 labels: [consensus, provider-cli, reliability, retry]
 assignee: null
 created: '2026-06-19T23:41:44Z'
-updated: '2026-06-21T00:23:08Z'
+updated: '2026-06-21T04:16:06Z'
 associated_issues: []
 oat_template: true
 oat_template_name: backlog-item
@@ -16,47 +16,27 @@ oat_template_name: backlog-item
 
 ## Description
 
-**Status update (2026-06-21 — drift flagged in `provider-cli-hardening` discovery):**
-This item is **drifted against shipped reality**. The transient-vs-terminal
-classifier described below as "to add" already shipped in `92a2711` (the same commit
-as the CLI itself): `adapters.ts` classifies 429/rate-limit/etc. as retryable
-transient and auth/unsupported/unavailable as terminal, and the retry loop in
-`structured-output.ts` already honors it within `max_attempts`. Critically, the
-shipped default for an *unmatched* nonzero exit is **terminal (no retry)**, not the
-"retry-all" baseline this item assumes — so the "unknown exits retain
-retry-within-max_attempts (strictly additive)" acceptance criterion is **stale** and
-would *reverse* shipped fail-fast behavior if implemented literally. The active
-project **confirms the shipped terminal-default contract** (no retry-all restoration
-absent evidence it harms real runs) and rescopes the work to real hardening gaps:
-fix transient-retry prompt contamination (`structured-output.ts:164`),
-evidence-backed per-adapter signatures, signal/interruption classification where
-reliable, distinct redacted audit recording of the classification that fired, and
-contract-locking tests. The acceptance criteria below will be rewritten at project
-completion to match the confirmed contract. See
-`.oat/projects/shared/provider-cli-hardening/discovery.md`.
+**Resolution update (2026-06-21 — `provider-cli-hardening`):** this item was
+rewritten to match shipped reality. The transient-vs-terminal classifier already
+shipped with the provider CLI in `92a2711`; unknown/unmatched nonzero exits already
+fall through as **terminal (no retry)**. The old "retry-all" premise is therefore
+obsolete, and restoring retry-all would be a semantic regression rather than an
+additive refinement.
 
-The shipped `consensus` provider CLI (`src/consensus/provider-cli/`) currently
-retries **all** nonzero provider exits within `max_attempts`, except cases an
-adapter recognizes as terminal (unsupported options, auth-required, missing
-executable, recursion-guard failure, output cap, usage error). `design.md:564`
-explicitly defers smarter classification:
+The confirmed contract is: provider exits retry only when an adapter-owned
+classifier has evidence for a transient or reliable external-interruption class;
+recognized terminal exits and unknown/unmatched exits stop immediately with a
+recorded terminal reason. `provider-cli-hardening` locked that contract and filled
+the real gaps: transient exits retry without schema-validation prompt
+contamination, the fired classification is recorded as a redacted diagnostic,
+reliable external interrupts classify as retryable while timeout/output-cap paths
+remain terminal, and provider-specific transient signatures are added only where
+evidence exists.
 
-> Later refinements can add stderr/signature matching for rate limits, 429s,
-> interrupted runs, and provider-specific transient classes.
-
-This item tracks that refinement: classify `PROVIDER_EXIT` outcomes by matching
-adapter stderr/exit signatures so retries target genuinely transient failures
-(rate limits, 429s, interrupted runs, transient network/provider errors) instead
-of retrying every nonzero exit. Terminal-but-currently-retried classes (for
-example deterministic argument/usage failures that slip past the adapter's
-terminal set) should be recognized and stopped early to avoid wasted attempts
-and latency.
-
-**Why:** retry-all is a safe floor but burns `max_attempts` and wall-clock on
-failures that will never succeed, and under-reacts to provider-specific
-transient classes that deserve more deliberate backoff. Signature-based
-classification makes provider runs both faster to fail and more resilient to
-transient blips.
+**Why:** fail-fast unknown exits avoid wasting the bounded provider attempt budget
+on failures with no retry evidence, while explicit transient signatures still
+protect real rate-limit/provider-temporary cases. The important hardening is making
+the classifier auditable, conservative, and tested rather than broadening retries.
 
 **Scope note:** distinct from [[bl-3a88]] (tool-based verdict submission /
 schema self-correction), which addresses **structured-output validation** churn
@@ -68,17 +48,19 @@ boundary this item refines).
 
 ## Acceptance Criteria
 
-- `PROVIDER_EXIT` classification distinguishes transient (retryable) from
-  terminal (non-retryable) using adapter-owned stderr/exit-signature matching,
-  covering at least rate limits / 429s, interrupted runs, and one
-  provider-specific transient class per shipped adapter where evidence exists.
-- Recognized-terminal exits stop retrying immediately with a `terminal_reason`,
-  rather than consuming the full `max_attempts` budget.
-- Unknown/unmatched nonzero exits retain the current retry-within-`max_attempts`
-  behavior so the change is strictly additive (no regression for unclassified
-  cases).
-- Unit/integration tests cover transient-retry, terminal-stop, and
-  unknown-fallthrough paths for each adapter that gains a signature.
-- Audit/diagnostic fields record which classification fired (transient vs
-  terminal vs unknown) without leaking provider stderr content beyond existing
-  redaction rules.
+- Unknown/unmatched nonzero `PROVIDER_EXIT` outcomes remain terminal by default:
+  no retry, `terminal_reason: provider_exit_terminal`, and a contract-locking test.
+- Transient provider exits retry within `max_attempts` without mutating the next
+  prompt with schema-validation feedback; schema-validation retries keep their
+  existing feedback behavior.
+- Adapter-owned classification distinguishes transient, terminal, unknown, and
+  reliable external-interruption cases. Reliable external interrupts retry;
+  timeout/output-cap/internal terminations and ambiguous signal cases remain
+  terminal.
+- Provider-specific transient signatures are added only where evidence exists
+  (currently the documented Claude Code repeated-529 overload class); absence of
+  Codex/Cursor-specific evidence is recorded instead of guessed.
+- Unit/integration tests cover transient-retry, terminal-stop, unknown-terminal,
+  interruption, and per-adapter matrix paths.
+- Audit/diagnostic fields record which classification fired without leaking
+  provider stderr beyond existing redaction rules.
