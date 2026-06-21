@@ -185,6 +185,33 @@ describe('structured provider output coordinator', () => {
     });
   });
 
+  it('does not retry an unknown-signature provider exit within max_attempts', async () => {
+    const subprocess = fakeSubprocess([
+      processFailure('PROVIDER_EXIT', true, {
+        stderr: 'boom',
+      }),
+      processSuccess('{"verdict":"accept"}'),
+    ]);
+
+    const envelope = await runProviderTurn(
+      request({ provider: 'cursor', max_attempts: 3 }),
+      {
+        readSchema: async () => schema(),
+        runSubprocess: subprocess.run,
+      },
+    );
+
+    expect(envelope).toMatchObject({
+      ok: false,
+      code: 'PROVIDER_EXIT',
+      attempts: {
+        cli_attempts: 1,
+        terminal_reason: 'provider_exit_terminal',
+      },
+    });
+    expect(subprocess.prompts).toHaveLength(1);
+  });
+
   it('extracts Codex last-message-file output before schema validation', async () => {
     const envelope = await runProviderTurn(request({ provider: 'codex' }), {
       readSchema: async () => schema(),

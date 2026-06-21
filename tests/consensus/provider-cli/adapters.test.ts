@@ -79,6 +79,26 @@ describe('provider adapter registry', () => {
     }
   });
 
+  it('classifies an unmatched provider exit as terminal', () => {
+    const adapter = providerRegistry().get('claude')!;
+
+    expect(
+      adapter.classifyRunFailure({
+        code: 'PROVIDER_EXIT',
+        message: 'Provider subprocess exited with code 1.',
+        retryable: true,
+        stdout: '',
+        stderr: 'boom',
+        exit_code: 1,
+        signal: null,
+      }),
+    ).toMatchObject({
+      code: 'PROVIDER_EXIT',
+      retryable: false,
+      terminal_reason: 'provider_exit_terminal',
+    });
+  });
+
   it('uses adapter capabilities for default provider inventory entries', async () => {
     const envelope = await runProviderList();
 
