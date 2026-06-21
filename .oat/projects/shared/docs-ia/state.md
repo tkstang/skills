@@ -33,7 +33,7 @@ oat_generated: false
 
 # Project State: docs-ia
 
-**Status:** Implementation complete — all 13 tasks done; ready for review/PR
+**Status:** Implementation complete — all 15 tasks done (incl. final-review fixes); ready for PR
 **Started:** 2026-06-21
 **Last Updated:** 2026-06-21
 
