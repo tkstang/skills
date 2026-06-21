@@ -18,6 +18,7 @@ export const MARKETPLACE_MANIFESTS = [
 export const SKILL_FILES = [
   'plugins/consensus/skills/refine/SKILL.md',
   'plugins/consensus/skills/evaluate/SKILL.md',
+  'plugins/consensus/skills/create/SKILL.md',
 ];
 
 const SEMVER_PATTERN =

@@ -11,7 +11,11 @@ const evaluateSkillPath = new URL(
   '../../plugins/consensus/skills/evaluate/SKILL.md',
   import.meta.url,
 );
-const skillPaths = [refineSkillPath, evaluateSkillPath];
+const createSkillPath = new URL(
+  '../../plugins/consensus/skills/create/SKILL.md',
+  import.meta.url,
+);
+const skillPaths = [refineSkillPath, evaluateSkillPath, createSkillPath];
 
 function frontmatter(markdown: string) {
   const match = markdown.match(/^---\n([\s\S]*?)\n---\n/);
@@ -41,7 +45,7 @@ describe('skill-frontmatter', () => {
       const block = frontmatter(markdown);
       const name = field(block, 'name');
 
-      expect(['refine', 'evaluate']).toContain(name);
+      expect(['refine', 'evaluate', 'create']).toContain(name);
       expect(path.basename(path.dirname(skillPath.pathname))).toBe(name);
       expect(field(block, 'description').length > 40).toBeTruthy();
       expect(field(block, 'license')).toBe('MIT');
@@ -141,6 +145,33 @@ describe('skill-frontmatter', () => {
       /\.md/,
     );
     expect(hint, 'argument-hint should mention --rubric').toMatch(/--rubric/);
+  });
+
+  it('create skill has promoted top-level version matching metadata.version', async () => {
+    const markdown = await readFile(createSkillPath, 'utf8');
+    const block = frontmatter(markdown);
+
+    const topLevelVersion = field(block, 'version');
+    const metaVersion = metadataVersion(block);
+
+    expect(topLevelVersion).toMatch(/^\d+\.\d+\.\d+/);
+    expect(
+      topLevelVersion,
+      'top-level version must match metadata.version',
+    ).toBe(metaVersion);
+  });
+
+  it('create skill has a useful argument-hint', async () => {
+    const markdown = await readFile(createSkillPath, 'utf8');
+    const block = frontmatter(markdown);
+
+    const hint = field(block, 'argument-hint');
+    expect(hint, 'argument-hint should mention inline briefs').toMatch(
+      /--brief/,
+    );
+    expect(hint, 'argument-hint should mention file briefs').toMatch(
+      /--brief-file/,
+    );
   });
 
   it('skill instructions cover host orchestration responsibilities', async () => {

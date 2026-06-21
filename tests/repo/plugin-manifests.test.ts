@@ -1,5 +1,6 @@
 import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 const repoRoot = new URL('../..', import.meta.url);
@@ -29,9 +30,9 @@ describe('plugin-manifests', () => {
 
       expect(manifest.name, `${provider} name`).toBe('consensus');
       expect(manifest.version, `${provider} version`).toBe('0.1.0');
-      expect(manifest.author, `${provider} author`).toEqual(
-        { name: 'Thomas Stang' },
-      );
+      expect(manifest.author, `${provider} author`).toEqual({
+        name: 'Thomas Stang',
+      });
 
       if (provider === 'codex') {
         expect(manifest.skills, `${provider} skill discovery path`).toBe(
@@ -56,7 +57,9 @@ describe('plugin-manifests', () => {
         relativeSkillPath,
       );
       expect(
-        resolvedSkillPath.startsWith(path.resolve((pluginRoot as URL).pathname)),
+        resolvedSkillPath.startsWith(
+          path.resolve((pluginRoot as URL).pathname),
+        ),
         `${provider} skill path should stay inside plugin root`,
       ).toBeTruthy();
       expect((await stat(resolvedSkillPath)).isDirectory()).toBe(true);
@@ -65,6 +68,10 @@ describe('plugin-manifests', () => {
         manifest.metadata?.release_checklist?.join('\n') ?? '',
         `${provider} should carry release-time permission verification notes`,
       ).toMatch(/verify .*runtime/i);
+      expect(
+        JSON.stringify(manifest),
+        `${provider} manifest should advertise consensus-create`,
+      ).toMatch(/create/i);
     }
   });
 
@@ -72,12 +79,21 @@ describe('plugin-manifests', () => {
     const manifest = await readJson(providers.codex.manifestPath);
 
     expect(manifest.interface?.displayName).toBe('Consensus');
+    expect(manifest.interface?.shortDescription).toBe(
+      'Create, refine, and evaluate artifacts with two-peer deliberation.',
+    );
+    expect(manifest.interface?.longDescription).toBe(
+      'Consensus deliberation skills for creating artifacts from briefs, refining markdown drafts, or evaluating artifacts against rubrics with multiple AI peers and an audit trail.',
+    );
     expect(manifest.interface?.developerName).toBe('Thomas Stang');
     expect(manifest.interface?.category).toBe('Coding');
     expect(manifest.interface?.capabilities).toEqual([
       'Interactive',
       'Read',
       'Write',
+    ]);
+    expect(manifest.interface?.defaultPrompt).toEqual([
+      'Use Consensus Create to draft from a brief, Consensus Refine to improve a markdown draft, or Consensus Evaluate to judge an artifact against a rubric.',
     ]);
   });
 });
