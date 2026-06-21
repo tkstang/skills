@@ -1,14 +1,14 @@
 ---
 id: bl-ecaa
 title: 'Stand up a documentation site and slim the README'
-status: open # open | in_progress | closed | wont_do
+status: closed # open | in_progress | closed | wont_do
 priority: medium # urgent | high | medium | low | none
 scope: initiative # idea | task | feature | initiative
 scope_estimate: M # XS | S | M | L | XL | XXL
 labels: [docs, documentation-site, readme, developer-experience]
 assignee: null
 created: '2026-06-20T21:34:27Z'
-updated: '2026-06-20T21:34:27Z'
+updated: '2026-06-21T20:30:00Z'
 associated_issues: []
 oat_template: true
 oat_template_name: backlog-item

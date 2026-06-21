@@ -176,3 +176,15 @@
 **Decision:** Consensus now ships a generated `consensus` provider CLI at `plugins/consensus/scripts/consensus.mjs`, backed by canonical TypeScript under `src/consensus/provider-cli/`. The CLI owns `provider ls`, `preflight`, and `run`; provider-neutral envelopes and errors; structured-output strategy selection; runtime policy validation; host recursion guard; bounded probes and subprocesses; schema delivery; redacted diagnostics; and provider-tier retry/cap/timeout behavior. Claude receives inline JSON schema, Codex uses output-schema plus last-message extraction, and Cursor remains prompt-only with local validation/retry. Refine and Evaluate default to this CLI for new runs. Historical `.oat` artifacts remain untouched, and maintained source/runtime/docs/tests do not keep old compatibility aliases.
 **Rationale:** Owning the peer-invocation boundary removes a runtime prerequisite, aligns the implementation with the Stoa/provider-adapter evidence gathered during research, keeps the published plugin on Node standard library plus generated runtime outputs, and gives the consensus loop direct control over its failure taxonomy, security posture, and retry ownership. Cursor submit-tool support remains deferred as future hardening, and authenticated Cursor-as-peer verification remains open until local keychain/auth state allows a live run.
 **Status:** Accepted.
+
+### DR-024: Fumadocs for the documentation site (2026-06-21)
+
+**Context:** The docs-ia project (bl-ecaa) stood up a documentation site to slim the dense README. OAT docs tooling supports two frameworks: Fumadocs (Next.js, primary path) and MkDocs (Python, lean path).
+
+**Decision:** Use Fumadocs.
+
+**Reasoning:** Toolchain consistency — the repo is already Node/pnpm/TypeScript, so Fumadocs keeps documentation in one toolchain with no new language in dev/CI (MkDocs would add Python). Fumadocs is the OAT CLI's primary, best-tooled path and gives the public-facing site richer reader UX (client-side search, generated nav).
+
+**Alternatives considered:** MkDocs (Material) — leaner output but introduces a Python toolchain to a repo that has none.
+
+**Implications:** The docs app lives at `documentation/` (nested-standalone Fumadocs, `output: 'export'`), static-exports to GitHub Pages via `.github/workflows/deploy-docs.yml` (basePath `/skills`). Future projects document into the site via `oat-project-document`, not the README.
