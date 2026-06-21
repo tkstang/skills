@@ -249,6 +249,7 @@ export type SynthesizerInvoker = (
 export interface ParallelTurnPromptInput {
   provider: string;
   mode?: IterationMode;
+  coldStart?: ColdStartMode;
   round: number;
   turn: number;
   goal: string;
@@ -273,6 +274,7 @@ export interface SynthesisPromptInput {
 export interface TurnPromptInput {
   provider: string;
   peerIndex?: number;
+  coldStart?: ColdStartMode;
   round: number;
   turn: number;
   goal: string;
@@ -2135,6 +2137,7 @@ async function executeAlternatingTurn({
   const prompt = prompts.buildTurnPrompt({
     provider,
     peerIndex,
+    coldStart: options.coldStart,
     round,
     turn,
     goal: options.goal,
@@ -2300,6 +2303,7 @@ async function executeParallelRound(
     const prompt = prompts.buildParallelTurnPrompt({
       provider,
       mode,
+      coldStart: options.coldStart,
       round,
       turn: baseTurn + peerIndex + 1,
       goal: options.goal,

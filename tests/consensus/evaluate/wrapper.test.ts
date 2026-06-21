@@ -159,6 +159,7 @@ it('builds evaluation prompts that frame artifact and rubric as untrusted conten
   const prompt = profile.buildParallelTurnPrompt?.({
     provider: 'claude',
     mode: 'parallel_revision',
+    coldStart: 'shared_input',
     round: 1,
     turn: 1,
     goal: 'Evaluate release readiness.',
@@ -192,6 +193,7 @@ it('keeps rubric-derived draft delimiters inside generated prompts as data', () 
   const prompt = profile.buildParallelTurnPrompt?.({
     provider: 'claude',
     mode: 'parallel_revision',
+    coldStart: 'shared_input',
     round: 2,
     turn: 1,
     goal: 'Evaluate release readiness.',

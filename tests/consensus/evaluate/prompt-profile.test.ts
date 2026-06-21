@@ -19,10 +19,10 @@ import type {
 
 const typedPromptProfile: PromptProfile = {
   buildTurnPrompt(input: TurnPromptInput) {
-    return `${input.provider}:${input.round}:${input.artifact}`;
+    return `${input.provider}:${input.round}:${input.coldStart}:${input.artifact}`;
   },
   buildParallelTurnPrompt(input: ParallelTurnPromptInput) {
-    return `${input.provider}:${input.mode ?? 'parallel_revision'}:${input.artifact}`;
+    return `${input.provider}:${input.mode ?? 'parallel_revision'}:${input.coldStart}:${input.artifact}`;
   },
   buildSynthesisPrompt(input: SynthesisPromptInput) {
     return `${input.provider}:${input.revisionA.text ?? ''}:${(input.priorUnresolved ?? []).join(',')}`;
@@ -110,6 +110,10 @@ it('uses a custom parallel prompt builder when a prompt profile is supplied', as
     'codex',
   ]);
   expect(builderInputs.map((input) => input.turn)).toEqual([1, 2]);
+  expect(builderInputs.map((input) => input.coldStart)).toEqual([
+    'shared_input',
+    'shared_input',
+  ]);
   expect(
     builderInputs.every((input) => input.artifact === 'Initial artifact.\n'),
   ).toBe(true);
@@ -120,6 +124,55 @@ it('uses a custom parallel prompt builder when a prompt profile is supplied', as
   expect(
     prompts.every((prompt) => prompt.includes('Independently revise')),
   ).toBe(false);
+});
+
+it('passes cold start into alternating prompt builders', async () => {
+  const tempRoot = await mkdtemp(
+    path.join(os.tmpdir(), 'consensus-prompt-profile-'),
+  );
+  const sectionFile = path.join(tempRoot, 'section.md');
+  await writeFile(sectionFile, 'The file input should not be read.\n');
+
+  const builderInputs: TurnPromptInput[] = [];
+  const result = await runConsensusLoop(
+    {
+      sectionFile,
+      goal: 'Judge the artifact against a rubric.',
+      peers: ['claude', 'codex'],
+      maxRounds: 1,
+      iteration: 'alternating',
+      coldStart: 'shared_input',
+      agency: 'moderate',
+      synthesizer: null,
+      outputRecords: path.join(tempRoot, 'records.json'),
+      outputSection: path.join(tempRoot, 'section.out.md'),
+      outputStatus: path.join(tempRoot, 'status.json'),
+    } satisfies LoopOptions,
+    {
+      initialArtifact: 'Initial artifact.\n',
+      promptProfile: {
+        buildTurnPrompt(input) {
+          builderInputs.push(input);
+          return `profile-turn-prompt:${input.coldStart}:${input.artifact}`;
+        },
+      },
+      invokePeer: async (turn) => ({
+        stdout: JSON.stringify({ prompt: turn.prompt }),
+        json: {
+          schema_version: 'v1',
+          verdict: 'REVISE',
+          reasoning: `${turn.provider} revised from the supplied prompt.`,
+          proposed_artifact: 'Shared evaluation.\n',
+        },
+      }),
+    },
+  );
+
+  expect(result.status.status).toBe('converged');
+  expect(builderInputs.map((input) => input.coldStart)).toEqual([
+    'shared_input',
+    'shared_input',
+  ]);
 });
 
 it('uses default prompt builders when no prompt profile is supplied', async () => {
