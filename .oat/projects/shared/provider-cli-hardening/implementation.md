@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-21
-oat_current_task_id: p02-t01
+oat_current_task_id: p03-t01
 oat_generated: false
 ---
 
@@ -27,10 +27,10 @@ oat_generated: false
 | Phase   | Status      | Tasks | Completed |
 | ------- | ----------- | ----- | --------- |
 | p01     | complete    | 7     | 7/7       |
-| p02     | in_progress | 10    | 0/10      |
-| p03     | pending     | 5     | 0/5       |
+| p02     | complete    | 10    | 10/10     |
+| p03     | in_progress | 5     | 0/5       |
 
-**Total:** 7/22 tasks completed
+**Total:** 17/22 tasks completed
 
 ---
 
@@ -166,10 +166,142 @@ oat_generated: false
 
 ## Phase p02: bl-3a88 — verdict-submission mechanism
 
+**Status:** complete
+**Started:** 2026-06-21
+
+### Phase Summary
+
+**Outcome (what changed):**
+
+- Added a validated `consensus submit` CLI path with one-line `SubmitResult` stdout on success and failure.
+- Bound each provider turn to a run-scoped sidecar file, schema path, and explicit `CONSENSUS_SUBMIT_COMMAND`.
+- Prompted peers to use the injected submit command while preserving final-message JSON fallback behavior.
+- Preferred valid submitted sidecar verdicts over final-message parsing and recorded `verdict_source`.
+- Kept the core `ConsensusCliRunEnvelope` shape unchanged across submit and parse paths.
+
+**Key files touched:**
+
+- `src/consensus/provider-cli/args.ts` - `submit` command parsing.
+- `src/consensus/provider-cli/commands.ts` - submit handler, structured failure handling, and CLI dispatch.
+- `src/consensus/provider-cli/schema-validate.ts` - shared schema-subset validation.
+- `src/consensus/provider-cli/structured-output.ts` - submit env/prompt/capture resolution and fallback behavior.
+- `src/consensus/provider-cli/types.ts` - additive `verdict_source` diagnostic.
+- `tests/consensus/provider-cli/*.test.ts` and `tests/consensus/core/provider-cli-invocation.test.ts` - submit path, fallback, and envelope-invariance coverage.
+- `plugins/consensus/scripts/consensus.mjs` - generated runtime output from `pnpm run build`.
+
+**Verification:**
+
+- Run: `pnpm run build:check && pnpm run type-check && pnpm run test && pnpm run smoke && pnpm run validate`
+- Result: pass.
+- Review gate: initial p02 review found one Critical; first re-review found one Important; final p02 re-review passed with 0 Critical / 0 Important / 0 Medium / 0 Minor findings.
+
+**Notes / Decisions:**
+
+- Strict `require_submission` and distinct `missing_submission` remain deferred per the resolved plan.
+- Two review fixes were accepted into p02: explicit `CONSENSUS_SUBMIT_COMMAND` injection and structured sidecar-write failure handling.
+
+### Task p02-t01: Extract shared schema-subset validator
+
+**Status:** completed
+**Commit:** b7b9b11
+
+---
+
+### Task p02-t02: Parse `consensus submit` arguments
+
+**Status:** completed
+**Commit:** 1bd27a3
+
+---
+
+### Task p02-t03: Implement `runSubmit` handler
+
+**Status:** completed
+**Commit:** 2b0cd31
+
+---
+
+### Task p02-t04: Dispatch `submit` in the CLI + help text
+
+**Status:** completed
+**Commit:** 6d9d658
+
+---
+
+### Task p02-t05: Run-bound capture path + child-env injection
+
+**Status:** completed
+**Commit:** c5fe0e0
+
+---
+
+### Task p02-t06: Prompt the peer to submit
+
+**Status:** completed
+**Commit:** 1afbef9
+
+---
+
+### Task p02-t07: Preferred-source capture resolution + `verdict_source` diagnostic
+
+**Status:** completed
+**Commit:** 717eaa5
+
+---
+
+### Task p02-t08: No-submission behavior
+
+**Status:** completed
+**Commit:** 45e3b8d
+
+**Notes:**
+
+- Default behavior is prefer-submit, parse fallback, then existing terminal handling. Strict require-submission mode remains deferred.
+
+---
+
+### Task p02-t09: Envelope-contract invariance + core-loop integration
+
+**Status:** completed
+**Commit:** 8903c79
+
+---
+
+### Task p02-t10: Regenerate runtime + Phase 2 gates
+
+**Status:** completed
+**Commit:** 763b3e5
+
+---
+
+### Review Fix p02-r01: Inject peer submit command
+
+**Status:** completed
+**Commit:** 6180297
+
+**Notes:**
+
+- Resolved Critical review finding by injecting and prompting peers to use `CONSENSUS_SUBMIT_COMMAND` instead of assuming a bare `consensus` executable exists.
+
+---
+
+### Review Fix p02-r02: Return structured submit write failures
+
+**Status:** completed
+**Commit:** 0a11740
+
+**Notes:**
+
+- Resolved Important re-review finding by converting sidecar-write failures into one structured `SubmitResult` stdout line plus concise stderr.
+
+---
+
+## Phase p03: Reliability evidence, live E2E, and decision-record promotion
+
 **Status:** in_progress
 **Started:** 2026-06-21
 
-### Task p02-t01: Extract shared schema-subset validator
+### Task p03-t01: Fixture — no structured-output message to submitted verdict
 
 **Status:** pending
 **Commit:** -
@@ -220,6 +352,39 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 | ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
 | None          | -               | -                    | -                 | -      | -               | -         |
 
+### Run 2 — 2026-06-21 04:00 UTC
+
+**Branch:** provider-cli-hardening
+**Tier:** 1
+**Policy:** merge-strategy=sequential, retry-limit=2
+**Phases:** 1 executed, 1 passed, 0 failed, 0 stopped
+
+#### Phase Outcomes
+
+| Phase | Implementer | Review | Fix Iterations | Disposition |
+| ----- | ----------- | ------ | -------------- | ----------- |
+| p02   | DONE        | pass   | 2/2            | passed      |
+
+#### Parallel Groups
+
+- p02: sequential; no parallel worktree group configured.
+
+#### Dispatch Notes
+
+- Dispatch: p02 implementation used `effort_axis=selected:xhigh`, `model_axis=inherited`; dispatch ceiling `xhigh` from project state.
+- Dispatch: p02 review/fix/re-review used `effort_axis=selected:xhigh`, `model_axis=inherited`; reviewer ran at configured ceiling.
+- Fix loop: resolved Critical `CONSENSUS_SUBMIT_COMMAND` executable-contract finding and Important structured write-failure finding.
+
+#### Outstanding Items
+
+- None.
+
+#### Artifact / Design Deltas
+
+| Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
+| ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
+| None          | -               | -                    | -                 | -      | -               | -         |
+
 <!-- orchestration-runs-end -->
 
 ---
@@ -239,20 +404,35 @@ Chronological log of implementation progress.
 - [x] p01-t05: Evidence-backed per-adapter transient signatures - d441f09
 - [x] p01-t06: Per-adapter contract matrix tests - 2b12e0c
 - [x] p01-t07: Regenerate runtime + Phase 1 gates - 8d7d277
-- [ ] p02-t01: Extract shared schema-subset validator - next
+- [x] p02-t01: Extract shared schema-subset validator - b7b9b11
+- [x] p02-t02: Parse `consensus submit` arguments - 1bd27a3
+- [x] p02-t03: Implement `runSubmit` handler - 2b0cd31
+- [x] p02-t04: Dispatch `submit` in the CLI + help text - 6d9d658
+- [x] p02-t05: Run-bound capture path + child-env injection - c5fe0e0
+- [x] p02-t06: Prompt the peer to submit - 1afbef9
+- [x] p02-t07: Preferred-source capture resolution + `verdict_source` diagnostic - 717eaa5
+- [x] p02-t08: No-submission behavior - 45e3b8d
+- [x] p02-t09: Envelope-contract invariance + core-loop integration - 8903c79
+- [x] p02-t10: Regenerate runtime + Phase 2 gates - 763b3e5
+- [x] p02-r01: Review fix, injected peer submit command - 6180297
+- [x] p02-r02: Review fix, structured submit write failures - 0a11740
+- [ ] p03-t01: Fixture no-structured-output evidence - next
 
 **What changed (high level):**
 
 - Provider-exit retry classification is now locked, redacted, and covered by adapter matrix tests.
 - Generated runtime output is in sync after Phase 1.
+- The submit CLI seam is implemented, preferred over parse fallback when present, and preserves the core envelope contract.
+- The peer prompt now uses a runner-injected submit command and submit write errors return structured JSON.
 
 **Decisions:**
 
 - Added only evidence-backed provider-specific transient signatures; no guessed Codex/Cursor-specific patterns.
+- Deferred strict require-submission mode remains out of scope until adoption evidence supports it.
 
 **Follow-ups / TODO:**
 
-- Continue with Phase 2 submit-CLI build.
+- Continue with Phase 3 evidence, live E2E, and decision-record promotion.
 
 **Blockers:**
 
@@ -285,7 +465,7 @@ Track test execution during implementation.
 | Phase | Tests Run | Passed | Failed | Coverage |
 | ----- | --------- | ------ | ------ | -------- |
 | p01   | `pnpm run build:check`; `pnpm run type-check`; `pnpm exec vitest run tests/consensus/provider-cli`; review also ran `pnpm run validate` and `pnpm run smoke` | yes | 0 | Provider CLI phase scope |
-| 2     | -         | -      | -      | -        |
+| p02   | `pnpm run build:check`; `pnpm run type-check`; `pnpm run test`; `pnpm run smoke`; `pnpm run validate`; generated-runtime write-failure check | yes | 0 | Provider CLI submit path and core envelope integration |
 
 ## Final Summary (for PR/docs)
 
