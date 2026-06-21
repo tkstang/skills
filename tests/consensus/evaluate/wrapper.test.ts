@@ -91,7 +91,7 @@ it('rejects independent_draft cold starts with a clear evaluate error', () => {
       '--cold-start',
       'independent_draft',
     ]),
-  ).toThrow(/--cold-start independent_draft is not yet supported/);
+  ).toThrow(/supports `shared_input` only/);
 });
 
 it('loads artifact and rubric inputs relative to the invocation cwd', async () => {

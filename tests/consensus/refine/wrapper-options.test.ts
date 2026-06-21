@@ -4,10 +4,7 @@ import path from 'node:path';
 
 import { expect, it } from 'vitest';
 
-// @ts-expect-error The generated runtime is intentionally declaration-free; this test exercises the shipped artifact.
-import * as consensusRefine from '../../../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
-
-const {
+import {
   detectHost,
   parseWrapperArgs,
   preflightConsensusProviderCli,
@@ -15,7 +12,7 @@ const {
   resolveSynthesizer,
   resolveRunDir,
   runSequential,
-} = consensusRefine;
+} from '../../../src/consensus/refine/consensus-refine.js';
 
 function inventory(ids: string[]) {
   return ids.map((id) => ({ id, available: true }));
@@ -49,6 +46,7 @@ it('parseWrapperArgs handles sequential options and defaults', () => {
   expect(parsed.peers).toEqual(['claude', 'codex']);
   expect(parsed.maxRounds).toBe(8);
   expect(parsed.agency).toBe('maximum');
+  expect(parsed.coldStart).toBe('shared_input');
   expect(parsed.output).toBe('draft.consensus.md');
   expect(parsed.runDir).toBe('.consensus/run');
   expect(parsed.allowRoot).toBe('.');
@@ -67,6 +65,9 @@ it('parseWrapperArgs accepts iteration modes, defaults to alternating, and rejec
     parseWrapperArgs(['draft.md', '--iteration', 'parallel_synthesized'])
       .iteration,
   ).toBe('parallel_synthesized');
+  expect(
+    parseWrapperArgs(['draft.md', '--cold-start', 'shared_input']).coldStart,
+  ).toBe('shared_input');
 
   let thrown: any;
   try {
@@ -82,7 +83,7 @@ it('parseWrapperArgs accepts iteration modes, defaults to alternating, and rejec
 
   expect(() =>
     parseWrapperArgs(['draft.md', '--cold-start', 'independent_draft']),
-  ).toThrow(/not yet supported/);
+  ).toThrow(/supports `shared_input` only/);
 });
 
 it('parseWrapperArgs parses --synthesizer and defaults it to null (resolved at run time)', () => {
@@ -486,9 +487,11 @@ it('runSequential uses the provider CLI backend with CONSENSUS_CLI_PATH override
   });
 
   expect(result.status).toBe('converged');
-  const records = JSON.parse(
-    await readFile(result.sections[0].paths.records, 'utf8'),
-  );
+  expect(result.sections).toHaveLength(1);
+  const [section] = result.sections;
+  if (!section) throw new Error('expected one result section');
+  if (!section.paths) throw new Error('expected section output paths');
+  const records = JSON.parse(await readFile(section.paths.records, 'utf8'));
   expect(records[0]).toMatchObject({
     raw_provider_response: expect.stringContaining('"verdict":"ACCEPT"'),
     provider_diagnostics: { strategy_used: 'prompt_only' },
