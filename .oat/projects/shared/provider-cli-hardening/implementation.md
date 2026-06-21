@@ -518,6 +518,7 @@ Chronological log of implementation progress.
 - [x] final-verification: Lint cleanup after final gate run - 031846e
 - [x] final-r01: Review fix, remove Codex strict-output path and bound submit capture - 85393b2
 - [x] final-r02: Final re-review passed; final review marked passed - bookkeeping
+- [x] final-r03: Minor final review comment clarity fix - d4085f6
 
 **What changed (high level):**
 
@@ -529,6 +530,8 @@ Chronological log of implementation progress.
 - Lifecycle metadata now reflects that all p03 plan tasks are complete and p03 re-review passed.
 - Final verification lint cleanup removed the remaining `oxlint` errors in provider-cli touched files.
 - Final review blockers were resolved by removing Codex native strict-output enforcement from submit-enabled turns and bounding submit capture size.
+- Final manual pass v3 had no Critical/Important/Medium findings; the one Minor
+  comment-clarity note was resolved directly in `d4085f6`.
 
 **Decisions:**
 
@@ -542,6 +545,32 @@ Chronological log of implementation progress.
 **Blockers:**
 
 - None.
+
+### Review Received: final (v3)
+
+**Date:** 2026-06-21
+**Review artifact:** reviews/archived/final-review-2026-06-21-v3.md
+
+**Findings:**
+
+- Critical: 0
+- Important: 0
+- Medium: 0
+- Minor: 1
+
+**Minor disposition:**
+
+- m1: Converted and resolved directly by `d4085f6`. The review asked for an
+  explanatory call-site comment clarifying why submit-enabled Codex downgrades to
+  `prompt_only` while Claude `provider_validated` remains intact. No behavior
+  change was required.
+
+**Deferred Medium ledger:** none.
+
+**New tasks added:** none; the user explicitly approved applying the negligible
+minor fix directly and marking the review passed.
+
+**Next:** PR remains open for human review.
 
 **Session End:** 03:03 UTC
 
@@ -606,7 +635,7 @@ Track test execution during implementation.
 - `pnpm run build:check`
 - `pnpm run validate`
 - `pnpm run smoke`
-- Final re-review artifact: `reviews/archived/final-review-2026-06-21-v2.md`
+- Final review artifact: `reviews/archived/final-review-2026-06-21-v3.md`
 
 **Design deltas (if any):**
 

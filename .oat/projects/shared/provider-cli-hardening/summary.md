@@ -97,6 +97,9 @@ core consensus engine contract or adding runtime dependencies.
 - The final review caught two blockers: submit-enabled Codex still used native
   strict-output flags, and submit capture could bypass output-size limits. Both
   were fixed before final re-review passed.
+- The final manual pass v3 had one Minor comment-clarity observation about
+  provider strategy selection; it was resolved with a source comment and no
+  behavior change.
 
 ## Integration Notes
 

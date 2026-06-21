@@ -1,6 +1,6 @@
 ---
 oat_current_task: null
-oat_last_commit: 85393b219a629258ca61694bfba6099e3d37cacb
+oat_last_commit: d4085f62a25c5ff5a732c9d96984282d5d6d6c73
 oat_blockers: []
 associated_issues: [{type: backlog, ref: "bl-3a88"}, {type: backlog, ref: "bl-3291"}] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
@@ -27,7 +27,7 @@ oat_pr_status: open # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: "https://github.com/tkstang/skills/pull/29" # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-06-20T23:02:16.482Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-06-21T05:12:44Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-06-21T15:12:22Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -41,9 +41,10 @@ oat_generated: false
 
 Implementation complete and PR open: <https://github.com/tkstang/skills/pull/29>.
 All implementation phases passed review. Final review blockers were fixed in
-`85393b2`, and final re-review passed with no Critical or Important findings. The
-full verification gate passes. Dispatch ceiling = **maximum** (Codex: xhigh ·
-Claude: opus).
+`85393b2`; final manual pass v3 had no Critical/Important/Medium findings, and
+its single Minor comment-clarity note was resolved in `d4085f6`. The full
+verification gate passes. Dispatch ceiling = **maximum** (Codex: xhigh · Claude:
+opus).
 
 ## Artifacts
 
