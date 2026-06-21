@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-21
-oat_current_task_id: p02-t01
+oat_current_task_id: p03-t01
 oat_generated: false
 ---
 
@@ -27,10 +27,10 @@ oat_generated: false
 | Phase                                       | Status      | Tasks | Completed |
 | ------------------------------------------- | ----------- | ----- | --------- |
 | Phase 1 — Scaffold (operator + verify)      | complete    | 2     | 2/2       |
-| Phase 2 — Migrate into two-trunk IA         | pending     | 7     | 0/7       |
+| Phase 2 — Migrate into two-trunk IA         | complete    | 7     | 7/7       |
 | Phase 3 — Slim README + close out           | pending     | 3     | 0/3       |
 
-**Total:** 2/12 tasks completed
+**Total:** 9/12 tasks completed
 
 ---
 
@@ -106,13 +106,30 @@ oat_generated: false
 
 ## Phase 2: Migrate README content into the two-trunk IA
 
-**Status:** pending
-**Started:** -
+**Status:** complete (executed as one integrated authoring pass, not 7 separate commits)
+**Commit:** 2ce7991
+
+### Phase Summary
+
+**Outcome:** The full two-trunk IA is authored and builds green (28 static pages). README content migrated into `documentation/docs/`:
+- **User Guide:** `index`, `installation` (install matrix verbatim), `consensus/{index,refine,evaluate,configuration}`, `skills/{index,session-observer,export-session-transcript}`.
+- **Engineering:** `index`, `architecture/{index,transcript-core,generated-runtime}`, `repository-layout`, `contributing/{index, development/*, documentation/*}`, `decisions`.
+
+**Execution notes:**
+- Top-level backbone + `installation.md` (tag-time gate, verbatim) authored directly; leaf content authored by 5 parallel subagents grounded in real source files; integrated by me.
+- `oat docs analyze` is an audit tool (no flags) — not used to "propose structure"; the designed IA was authored directly and the generated manifest + build verify it.
+- No-info-loss map at `migration-map.md` — all 26 rows `yes`.
+- Cross-tree references converted to `github.com/tkstang/skills/blob/main/...` URLs (relative paths would 404 in the built site).
+- Scaffold placeholders (`docs/getting-started.md`, `docs/contributing.md`) removed; content migrated.
+- **FP-11 applied** (turbopack warning DID appear under Next 16 Turbopack build): `next.config.js` merges `turbopack.root: import.meta.dirname` into createDocsConfig's config (overwriting `turbopack` broke MDX — merge required).
+- Whole docs tree is oxfmt/oxlint clean (ecosystem approach — no exclusions); CI-ready.
+
+**Verification:** `cd documentation && pnpm build` → green (28 pages, no turbopack warning); `oxfmt --check` clean on all 35 docs files + generated manifest.
 
 ### Task p02-t01: Analyze + curate structure; record no-info-loss mapping
 
-**Status:** pending
-**Commit:** -
+**Status:** completed (see Phase Summary)
+**Commit:** 2ce7991
 
 ---
 
