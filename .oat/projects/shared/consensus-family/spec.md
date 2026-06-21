@@ -190,17 +190,17 @@ _Design-related open questions are tracked in the [Open Questions](#open-questio
 
 | ID   | Description                                                       | Priority | Verification                              | Planned Tasks                      |
 | ---- | ---------------------------------------------------------------- | -------- | ----------------------------------------- | ---------------------------------- |
-| FR1  | `independent_draft` cold-start supported in loop core            | P0       | unit + integration: loop cold-start path  | {To be filled by oat-project-plan} |
-| FR2  | `independent_draft` coherent across all three iteration modes    | P0       | unit + integration: round-1 prompt + run per mode | {To be filled by oat-project-plan} |
-| FR3  | Cold-start recorded in resolution block + `--cold-start` config  | P0       | unit: arg parse + resolution recording    | {To be filled by oat-project-plan} |
-| FR4  | `consensus-create` skill (brief → artifact)                      | P0       | integration + manual: create end-to-end   | {To be filled by oat-project-plan} |
-| FR5  | `consensus-decide` skill (markdown decision doc, surfaces dissent)| P1      | integration: minimal-agency dissent surfacing | {To be filled by oat-project-plan} |
-| FR6  | `consensus-plan` skill (markdown plan)                           | P1       | integration: plan end-to-end              | {To be filled by oat-project-plan} |
-| NFR1 | Dependency-free / install-free shipped skills                    | P0       | manual + validate: no runtime deps        | {To be filled by oat-project-plan} |
-| NFR2 | Build & version discipline                                       | P0       | unit: build:check + skill-version validators | {To be filled by oat-project-plan} |
-| NFR3 | Reliability via settled DR-024 verdict-submission seam           | P0       | integration: verdict_source + enum enforcement | {To be filled by oat-project-plan} |
-| NFR4 | Untrusted input handling (cap + confinement + framing)           | P0       | unit: input cap + path confinement        | {To be filled by oat-project-plan} |
-| NFR5 | Repository quality gates pass                                    | P0       | e2e: full gate set                        | {To be filled by oat-project-plan} |
+| FR1  | `independent_draft` cold-start supported in loop core            | P0       | unit + integration: loop cold-start path  | p01-t01, p01-t03, p01-t04, p01-t05 |
+| FR2  | `independent_draft` coherent across all three iteration modes    | P0       | unit + integration: round-1 prompt + run per mode | p01-t03, p01-t04 |
+| FR3  | Cold-start recorded in resolution block + `--cold-start` config  | P0       | unit: arg parse + resolution recording    | p01-t01, p01-t04, p01-t05, p02-t01, p03-t01, p04-t01 |
+| FR4  | `consensus-create` skill (brief → artifact)                      | P0       | integration + manual: create end-to-end   | p02-t01, p02-t02, p02-t03, p02-t04, p02-t05 |
+| FR5  | `consensus-decide` skill (markdown decision doc, surfaces dissent)| P1      | integration: minimal-agency dissent surfacing | p03-t01, p03-t02, p03-t03, p03-t04, p03-t05 |
+| FR6  | `consensus-plan` skill (markdown plan)                           | P1       | integration: plan end-to-end              | p04-t01, p04-t02, p04-t03, p04-t04, p04-t05 |
+| NFR1 | Dependency-free / install-free shipped skills                    | P0       | manual + validate: no runtime deps        | p02-t01, p02-t02, p03-t01, p03-t02, p04-t01, p04-t02 |
+| NFR2 | Build & version discipline                                       | P0       | unit: build:check + skill-version validators | p01-t06, p02-t04, p03-t04, p04-t04, p04-t05 |
+| NFR3 | Reliability via settled DR-024 verdict-submission seam           | P0       | integration: verdict_source + enum enforcement | p01-t04, p02-t03, p03-t03, p04-t03 |
+| NFR4 | Untrusted input handling (cap + confinement + framing)           | P0       | unit: input cap + path confinement        | p01-t03, p02-t02, p03-t02, p04-t02 |
+| NFR5 | Repository quality gates pass                                    | P0       | e2e: full gate set                        | p04-t05 |
 
 **Notes:**
 
