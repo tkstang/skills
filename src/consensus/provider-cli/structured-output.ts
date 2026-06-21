@@ -148,6 +148,7 @@ export async function runProviderTurn(
         prompt: request.prompt,
         strategy,
         inlineJsonSchema,
+        submitCaptureEnabled: true,
         validationFeedback,
       }),
     };
@@ -380,9 +381,20 @@ function promptForStrategy(input: {
   prompt: string;
   strategy: StructuredOutputStrategy;
   inlineJsonSchema: string;
+  submitCaptureEnabled?: boolean;
   validationFeedback?: string;
 }) {
   const parts = [input.prompt];
+
+  if (input.submitCaptureEnabled) {
+    parts.push(
+      'Verdict submission:',
+      'Before ending the turn, submit the final verdict by running `consensus submit --json -` and passing the JSON verdict on stdin.',
+      'The command validates against the active schema from CONSENSUS_SUBMIT_SCHEMA and captures to CONSENSUS_SUBMIT_FILE.',
+      'If submission fails, fix the reported schema error and run the command again.',
+      'Also keep the final-message JSON fallback: end with only the same JSON object matching the schema.',
+    );
+  }
 
   if (input.validationFeedback) {
     parts.push(

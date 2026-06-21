@@ -120,6 +120,23 @@ describe('structured provider output coordinator', () => {
     expect(subprocess.prompts[0]).toContain('"required":["verdict"]');
   });
 
+  it('augments prompts with submit instructions when capture is enabled', async () => {
+    const subprocess = fakeSubprocess([
+      processSuccess('{"verdict":"accept"}'),
+    ]);
+
+    const envelope = await runProviderTurn(request({ provider: 'cursor' }), {
+      readSchema: async () => schema(),
+      runSubprocess: subprocess.run,
+    });
+
+    expect(envelope.ok).toBe(true);
+    expect(subprocess.prompts[0]).toContain('consensus submit --json -');
+    expect(subprocess.prompts[0]).toContain('CONSENSUS_SUBMIT_SCHEMA');
+    expect(subprocess.prompts[0]).toContain('CONSENSUS_SUBMIT_FILE');
+    expect(subprocess.prompts[0]).toContain('final-message JSON fallback');
+  });
+
   it('retries retryable provider exits and stops on timeout classifications', async () => {
     const subprocess = fakeSubprocess([
       processFailure('PROVIDER_EXIT', true, {
