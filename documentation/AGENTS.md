@@ -8,6 +8,15 @@ This file tells agents how to work inside `documentation`, the documentation app
 
 `documentation` is the documentation surface for `skills`. Humans read the rendered site; agents read the Markdown source and the navigation structure. This file tells agents the conventions that keep both audiences served, and points at the tooling that enforces those conventions. Everything here is about ongoing work inside the docs app — adding, restructuring, auditing, and bulk-editing content.
 
+## This site's structure
+
+Content lives under `docs/` in two audience trunks. Place new pages by audience:
+
+- **`docs/user-guide/`** — consumer-facing: how to install, use, and configure what the repo ships. Subject folders (`consensus/`, `skills/`) each have an `index.md` overview plus deeper per-item pages; `installation.md` holds the install matrix.
+- **`docs/engineering/`** — internals and contribution guidance: `architecture/` (transcript-core, the generated-runtime build contract), `repository-layout.md`, `contributing/` (split into `development/` and `documentation/`), and `decisions.md`.
+
+A subject that serves both audiences appears in **both** trunks, written for that trunk's reader (e.g. consensus has user-facing pages under `user-guide/consensus/` and an engineering home for internals). When in doubt, match the audience of the nearest sibling pages.
+
 ## When you need to add a new page
 
 1. Create the Markdown file under `docs/` at the directory that best matches the page's topic. Every content directory is an `index.md` map — find the right one before picking a path. **Prefer `.md`** for plain content pages; reach for `.mdx` only when the page actually needs embedded JSX (a custom component, an interactive widget, a specialized layout). Plain `.md` is the default because agents, linters, and grep rules all handle it more reliably than `.mdx`.

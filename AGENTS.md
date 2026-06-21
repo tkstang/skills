@@ -76,3 +76,18 @@
 - **Framework:** Fumadocs (Next.js + MDX)
 - **Index file:** `documentation/docs/index.md`
 <!-- END OAT docs -->
+
+The docs site is the repo's most complete reference (the README is only an entry
+point). It is organized into two audience trunks — start at
+[`documentation/docs/index.md`](documentation/docs/index.md):
+
+- **User Guide** (`documentation/docs/user-guide/`) — install, use, and configure
+  the consensus plugin and the standalone skills.
+- **Engineering** (`documentation/docs/engineering/`) — architecture, the
+  generated-runtime build contract, repository layout, and contributing.
+
+**Authoring or restructuring docs?** Read
+[`documentation/AGENTS.md`](documentation/AGENTS.md) first — it is the docs-app
+authoring contract (the `## Contents` navigation rules, the `.md`-link
+convention, and the generated-index discipline). Project documentation targets
+this site via `oat-project-document`, not the README.
