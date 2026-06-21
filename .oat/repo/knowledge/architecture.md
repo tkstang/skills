@@ -1,231 +1,229 @@
 ---
 oat_generated: true
-oat_generated_at: 2026-06-12
-oat_source_head_sha: d008a7e571d90cc6c436c82e176129f62ab54ec4
-oat_source_main_merge_base_sha: ed22b463dcdaa466476b0957fea64deb3f663391
-oat_warning: "GENERATED FILE - Do not edit manually. Regenerate with oat-repo-knowledge-index"
+oat_generated_at: 2026-06-20
+oat_source_head_sha: e4e9348cf8b809448c693ed7182c017048eb4acf
+oat_source_main_merge_base_sha: e4e9348cf8b809448c693ed7182c017048eb4acf
+oat_warning: 'GENERATED FILE - Do not edit manually. Regenerate with oat-repo-knowledge-index'
 ---
 
 # Architecture
 
-**Analysis Date:** 2026-06-12
+**Analysis Date:** 2026-06-20
 
 ## Pattern Overview
 
-**Overall:** Multi-skill repository with shared provider adapters and plugin packaging.
+**Overall:** Multi-module monorepo with canonical TypeScript source, generated Node.js runtime outputs, and provider plugin distribution.
 
 **Key Characteristics:**
 
-- CLI-driven Node.js skills (no third-party runtime dependencies)
-- Three distinct skills: consensus refinement, session observation, and transcript export
-- Canonical transcript-core TypeScript source generated to consuming skills to maintain single source of truth
-- Skills packaged as plugins (consensus) or standalone executables (session-observer, export-session-transcript)
-- JSONL-based coordination protocol between wrapper and host for parallel orchestration
-- Per-runtime transcript adapters (Claude Code, Codex, Cursor) shared across skills
+- Canonical source lives in `src/` under TypeScript; shipped skills/plugins execute committed `.mjs` generated outputs with no dependencies
+- Provider-agnostic core algorithms (consensus loop, transcript adapters) authored once under `src/`, distributed to multiple consumers via generated outputs
+- Three distribution targets: `plugins/consensus/` (AI peer deliberation), `skills/session-observer/` (transcript observer), `skills/export-session-transcript/` (sanitized export)
+- Build system (`scripts/build-generated.mjs`) rewrites TypeScript imports to `.mjs` paths and bundles only where needed (provider CLI)
+- No runtime dependencies on shipped code; developer tooling (tests, type-checking, linting) is Node.js + dev packages only
 
 ## Layers
 
-**CLI Entry Point Layer:**
+**Source (Canonical):**
 
-- Purpose: Parse user-supplied flags, invoke orchestration logic, handle exit codes
-- Location: `skills/session-observer/scripts/session-observer.mjs`, `skills/export-session-transcript/scripts/export-session-transcript.mjs`, `plugins/consensus/skills/refine/scripts/consensus-refine.mjs`
-- Contains: Argument parsing (node:util parseArgs), file I/O, process lifecycle
-- Depends on: lib modules (observe, digest, runtimes), Node standard library
-- Used by: User invocations via `node <script>` from agent shells
+- Purpose: Single source of truth for all algorithms and business logic
+- Location: `src/consensus/`, `src/transcript/`
+- Contains: TypeScript modules for consensus deliberation loop, provider CLI bridge, transcript parsing, session observation, sanitization
+- Depends on: Node.js standard library only
+- Used by: Build system (generates `.mjs` output), tests (via TypeScript imports)
 
-**Orchestration Logic Layer:**
+**Provider CLI (Subprocess Bridge):**
 
-- Purpose: Implement high-level workflows (catch-up, watch, parallel dispatch, deliberation)
-- Location: `skills/session-observer/scripts/lib/observe.mjs`, `skills/session-observer/scripts/lib/watch.mjs`, `plugins/consensus/skills/refine/scripts/consensus-loop.mjs`
-- Contains: State machines, coordination logic, decision algorithms
-- Depends on: Adapter layer (runtimes, digest), state management, subprocess dispatch
-- Used by: CLI entry points, watch control handlers
+- Purpose: Invoke peer AI agents (Claude, Codex, Cursor) and synthesizers; mediate structured output extraction and permission guards
+- Location: `src/consensus/provider-cli/`
+- Contains: `cli.ts` (CLI entry point), `commands.ts` (provider list, preflight), `adapters.ts` (per-provider invocation), `structured-output.ts` (output parsing), `probe.ts` (provider readiness checks), `host-guard.ts` (depth/recursion guards)
+- Depends on: Spawns local provider CLIs as child processes; reads environment for `CLAUDE_*`, `CURSOR_*` configs
+- Used by: Consensus core loop via `invokeConsensusProviderCli()`
 
-**Adapter Layer:**
+**Consensus Core Loop:**
 
-- Purpose: Normalize per-provider transcript stores (store locations, record parsing, filtering)
-- Location: `src/transcript/core/runtimes.ts` (canonical), `skills/*/scripts/lib/runtimes.mjs` (generated copies)
-- Contains: Path discovery, metadata extraction, JSONL record normalization
-- Depends on: Node fs/path/os, provider-specific knowledge
-- Used by: locate.mjs, observe.mjs, export-session-transcript.mjs, sanitize.mjs
+- Purpose: Runs deliberation rounds (alternating or parallel modes) between two AI peers, implements convergence logic, respects iteration modes, handles escalation
+- Location: `src/consensus/core/consensus-loop.ts`
+- Contains: `runConsensusLoop()` function, verdict/synthesis payload types, loop options interface, artifact hashing, file confinement helpers
+- Depends on: Provider CLI via subprocess invocation, file I/O with path confinement
+- Used by: `consensus-refine.ts` (markdown refinement) and `consensus-evaluate.ts` (rubric evaluation)
 
-**Renderer and Formatter Layer:**
+**Consensus Wrappers:**
 
-- Purpose: Transform normalized records into user-visible output (Markdown digest, sanitized transcript)
-- Location: `skills/session-observer/scripts/lib/digest.mjs`, `src/transcript/export-session/sanitize.ts` (canonical), `skills/export-session-transcript/scripts/lib/sanitize.mjs` (generated)
-- Contains: Markdown generation, content filtering, tool/result truncation
-- Depends on: Normalized entries, output formatting logic
-- Used by: observe.mjs, export CLI
+- Purpose: Entry points for end-user skill workflows; parse CLI args, load artifacts, run loop, emit JSONL events, handle resume state
+- Locations: `src/consensus/refine/consensus-refine.ts`, `src/consensus/evaluate/consensus-evaluate.ts`
+- Contains: CLI argument parsing (flags like `--goal`, `--iteration`, `--agency`), file read/write with 1 MiB cap, section parsing (refine) or rubric loading (evaluate), JSONL event emission
+- Depends on: Consensus core loop, provider CLI
+- Used by: Generated `.mjs` scripts shipped under `plugins/consensus/skills/`
 
-**State Management Layer:**
+**Transcript Core (Multi-Runtime Adapters):**
 
-- Purpose: Persist and retrieve read offsets, watch metadata, codec caches
-- Location: `skills/session-observer/scripts/lib/state.mjs`, `skills/session-observer/scripts/lib/watch-state.mjs`
-- Contains: Disk I/O (JSON serialization), conflict-free read-offset tracking
-- Depends on: fs/promises, os.homedir()
-- Used by: observe.mjs, watch.mjs, session-observer CLI
+- Purpose: Single source of truth for per-runtime transcript location, record shape, and schema
+- Location: `src/transcript/core/runtimes.ts`
+- Contains: Runtime discovery (`discoverPaths()`), cwd encoding, session metadata extraction, record normalization (drops tool calls, command messages by default)
+- Depends on: Node.js fs/path APIs, runtime-specific directory structure knowledge (Claude Code: `~/.claude/`, Cursor: `~/.cursor/agent-logs/`, Codex: varies by env)
+- Used by: Session observer and export-session-transcript via generated copies
 
-**Discovery and Ranking Layer:**
+**Session Observer (Transcript Digester):**
 
-- Purpose: Locate candidate transcripts and select the most relevant for a given runtime/cwd pair
-- Location: `skills/session-observer/scripts/lib/locate.mjs`, `skills/session-observer/scripts/lib/rank.mjs`, `skills/session-observer/scripts/lib/session-classifier.mjs`
-- Contains: Filesystem traversal, candidate scoring, transcript classification
-- Depends on: Adapter layer (runtimes), mtime/size inspection, git worktree introspection
-- Used by: observe.mjs, CLI runtime resolution
+- Purpose: Read agent session transcripts, digest changes into markdown, support live watch mode with debounce
+- Location: `src/transcript/session-observer/`
+- Contains: `session-observer.ts` (CLI, subcommands: review/catch-up/watch/locate/state), `lib/observe.ts` (catch-up logic), `lib/watch.ts` (poll/debounce), `lib/locate.ts` (transcript discovery + ranking), `lib/digest.ts` (record → markdown), `lib/rank.ts` (candidate prioritization), `lib/state.ts` (offset persistence), `lib/watch-state.ts` (watch mode state machine)
+- Depends on: Transcript core (runtime adapters), file I/O, readline for subprocess communication
+- Used by: Generated `.mjs` scripts under `skills/session-observer/scripts/`
+
+**Export Session Transcript (Sanitizer):**
+
+- Purpose: Export live agent session to clean Markdown; drop environment wrappers, tool calls, subagent payloads, instruction records
+- Location: `src/transcript/export-session/`
+- Contains: `export-session-transcript.ts` (CLI, session selection by marker or ID), `sanitize.ts` (sanitization pass), normalization via transcript-core
+- Depends on: Transcript core, session marker announcement protocol (marker text injected to get session ID)
+- Used by: Generated `.mjs` scripts under `skills/export-session-transcript/scripts/`
 
 ## Data Flow
 
-**Session Observer: Catch-Up Path:**
+**Consensus Refine Workflow:**
 
-1. CLI parses `session-observer.mjs catch-up --runtime codex --cwd /project`
-2. `resolveAutoRuntime()` enumerates candidates via `discover()` (each runtime in parallel)
-3. `rank()` scores candidates by engagement, mtime, cwd exactness
-4. `observeCatchUp()` reads state via `state.mjs`, loads transcript via `readRecords()` (from runtimes.mjs)
-5. `normalizeEntries()` filters tool calls/results, command messages per runtime-specific rules
-6. `buildDigest()` compares prev offset to current record count, prepares delta entries
-7. `renderMarkdown()` or `renderJson()` outputs digest
-8. `mark-read` flag updates state file with new offset (if provided)
+1. User runs `consensus-refine.mjs draft.md --goal "..." --iteration alternating`
+2. Wrapper loads draft, parses into sections, emits `run_started` event (JSONL)
+3. Loop spawns provider CLI subprocess with peer ID and prompt
+4. Provider CLI invokes local `claude` CLI, captures JSON output, returns to loop
+5. Loop evaluates verdict, writes section artifacts, emits `peer_turn` event
+6. Peer 2 invokes similarly; loop checks convergence
+7. On convergence or impasse, emits `run_completed` event, writes final artifact + deliberation log
+8. Resume from `--resume <artifact>` re-enters with persisted records and optional `--user-direction`
 
-**Session Observer: Watch Path:**
+**Consensus Evaluate Workflow:**
 
-1. CLI parses `session-observer.mjs watch --runtime codex --until-stopped`
-2. `watchLoop()` spawns foreground pollers for the selected runtime
-3. Poll cycle: `readRecords()` → `normalizeEntries()` → compare offset → emit delta digest
-4. Debounce logic (--debounce-sec) coalesces rapid transcript changes before emit
-5. `watch-ctl` subcommands (pause/resume/flush/stop) write control directives that watchLoop polls
-6. State advances only after digest is consumed (or after --max-pending-sec timeout)
+1. User runs `consensus-evaluate.mjs artifact.md --rubric rubric.md --iteration parallel_revision`
+2. Wrapper loads artifact + rubric, emits `run_started` event
+3. Loop spawns both peers in parallel (not alternating); each evaluates against rubric
+4. Per-round synthesis (if `--iteration parallel_synthesized`) invokes synthesizer to merge findings
+5. Escalation triggered if peers disagree persistently; requires `--host-direction` re-entry
+6. Emits `peer_turn`, `synthesis`, `escalation_required` events; final `run_completed`
 
-**Export Session Transcript: Sanitization Pipeline:**
+**Session Observer Catch-Up:**
 
-1. CLI parses `export-session-transcript.mjs [out] --runtime auto --match <marker>`
-2. `discover()` + `encodeCwdVariants()` locate all candidate sessions for cwd
-3. Grep cwd candidates for session marker to identify current invocation
-4. `readRecords()` loads full transcript JSONL
-5. `normalizeEntries()` drops tool calls/results (structural filter)
-6. `sanitizeEntries()` removes environment payloads, SKILL.md content, system instructions (content filter)
-7. Strip marker line and empty entries
-8. `renderMarkdown()` produces annotated Markdown (per-message metadata)
-9. Write to --out <path> (or ~/Downloads/<branch-name>.md)
+1. User runs `session-observer.mjs catch-up --runtime codex --cwd $PWD`
+2. Locate discovers candidate transcripts for cwd (latest by default; `--session <id>` to select)
+3. State file (`~/.session-observer-state.json`) holds per-cwd read offsets
+4. Observer reads transcript from last-read offset, builds digest via `digest.ts`
+5. Emits Markdown-rendered digest to stdout
+6. Updates state offset for next catch-up
 
-**Consensus Refine: Sequential Deliberation:**
+**Session Observer Watch Mode:**
 
-1. CLI parses `consensus-refine.mjs draft.md --goal "Goal" --peers claude,codex --max-rounds 3`
-2. Validation: input size <1MB, provider IDs valid, Paseo version in range
-3. Parse markdown sections via section-parser, hash input for resume detection
-4. For each section:
-   - Serialize round N with prompt, section text, peer verdicts from round N-1
-   - Invoke `paseo peer chat` with structured prompt (2 peers in parallel)
-   - Parse JSONL output from each peer: verdicts, proposed artifacts, concerns
-   - Validate verdict schema (required fields, byte limits, concern caps)
-   - If divergent verdicts: loop to round N+1 (unless max-rounds reached → impasse)
-   - If convergent: accept section, move to next
-5. Emit JSONL coordination: status, warnings, parallel-dispatch instructions, artifact paths
-6. Write deliberation artifact with section convergence status, all verdict rounds, final text
+1. User runs `session-observer.mjs watch --runtime codex --cwd $PWD`
+2. Watch loop polls transcript file on 1s interval (configurable)
+3. Detects settled changes (file quiet > debounce window)
+4. Emits catch-up digest for new records
+5. Continuous writes every `--max-pending-sec` even if file not quiet
+6. Watch-ctl socket allows `pause`, `resume`, `status`, `stop` from another terminal
 
-**Consensus Refine: Parallel Dispatch (Host-Mediated):**
+**Export Session Transcript:**
 
-1. `--prepare-parallel` mode: generate manifest with section packets, exit with manifest path in JSONL
-2. Host (Claude Code/Codex) receives JSONL, dispatches subagents via native mechanism
-3. Each subagent runs `consensus-section-runner.md` task contract: runs `consensus-refine.mjs --run-section` for its packet
-4. Host waits for batch completion, fan-in via `--fan-in <manifest>` to collect outputs
-5. Wrapper assembles final artifact from section results in original order
-
-**State Management:**
-
-- Session observer offsets stored at `~/.local/state/session-observer/state.json` (per-session tracking by runtime + sessionId)
-- Watch state at `~/.local/state/session-observer/watch-state.json` (active watcher metadata)
-- Codex cwd cache at `~/.local/state/session-observer/codex-cwd-cache.json` (avoids re-parsing every candidate session)
-- Consensus run state in `.consensus/<hash>/` within the project (deliberation records, intermediate artifacts, resume checkpoints)
+1. Agent announces session marker (unique hex token) early in conversation
+2. User runs `export-session-transcript.mjs --match <marker>` or `--session <id>`
+3. Script locates matching transcript, reads all records
+4. Normalization drops tool calls, command messages
+5. Sanitization (export-owned) drops environment wrappers, hidden payloads, instruction records
+6. Renders to Markdown, writes to `~/Downloads/` or `--out <path>`
 
 ## Key Abstractions
 
-**Candidate Selection:**
+**IterationMode:**
 
-- Purpose: Select the most relevant transcript from multiple runtime sessions for the same cwd
-- Examples: `skills/session-observer/scripts/lib/locate.mjs`, `rank.mjs`
-- Pattern: Parallel discovery (all runtimes), ranked scoring (engagement, mtime, exactness), state-aware fallback (prior same-cwd session)
+- Purpose: Selects how peers deliberate
+- Examples: `alternating` (default for refine: P1 → P2 → P1...), `parallel_revision` (both peers each round), `parallel_synthesized` (parallel + per-round synthesis merge)
+- Pattern: Union type at `src/consensus/core/consensus-loop.ts` lines 17–20; branching in loop logic
 
-**Normalized Transcript Entry:**
+**VerdictValue:**
 
-- Purpose: Unified record shape across runtime providers (Claude Code/Codex/Cursor)
-- Examples: Output of `normalizeEntries()` in runtimes.mjs
-- Pattern: Extract relevant fields (role, text, tool calls), drop provider-specific metadata, truncate to limits
+- Purpose: Encodes peer evaluation outcome
+- Examples: `ACCEPT` (peer accepts previous state), `REVISE` (peer proposes change), `CONVERGED` (both agree), `IMPASSE` (stuck, needs escalation)
+- Pattern: Discriminated union; payload shape differs per verdict type (`RevisionVerdictPayload` vs `TerminalVerdictPayload`)
 
-**Verdict Schema (Consensus):**
+**Runtime (Transcript):**
 
-- Purpose: Structured deliberation outcome from each peer (accept/revise/impasse)
-- Examples: `VERDICT_BRANCHES` and `VERDICT_CAPS` in `plugins/consensus/skills/refine/scripts/consensus-loop.mjs`
-- Pattern: JSON with required fields (schema_version, verdict, reasoning) and byte-capped optional fields (concerns, proposed_artifact)
+- Purpose: Abstracts per-provider transcript store location and schema
+- Examples: `'claude-code'`, `'codex'`, `'cursor'`
+- Pattern: String union at `src/transcript/core/runtimes.ts` line 22; functions `discoverPaths()`, `encodeCwd()`, `normalizeEntries()` dispatch per runtime
 
-**Read Offset State:**
+**ProviderInventoryEntry:**
 
-- Purpose: Track high-water mark per session to enable delta-only ("catch-up") views
-- Examples: `state.mjs` session map: `{ runtime, sessionId, recordedCwd, lastRecordIndex, lastTotalRecords, lastReadAt }`
-- Pattern: Load on read, advance only on successful digest emit, persist to JSON
+- Purpose: Snapshot of a provider's capabilities, status, and guard level
+- Examples: `{ id: 'claude', status: 'ready', capabilities: { ... }, guard: 'none' }`
+- Pattern: Queried from provider CLI via `provider ls` command; informs feasibility checks in consensus wrappers
 
-**Transcript-Core Module (Generated):**
+**Agency (Escalation Level):**
 
-- Purpose: Single canonical source for per-runtime adapter logic, distributed as committed copies to consumers
-- Examples: `src/transcript/core/runtimes.ts` (canonical), `skills/*/scripts/lib/runtimes.mjs` (consumers)
-- Pattern: Banner-stamped generated copies via `scripts/build-generated.mjs`; `scripts/sync-transcript-core.mjs` delegates as a compatibility wrapper; drift verified by `tests/generated-output-sync.test.mjs`
+- Purpose: Controls who breaks impasse: `'minimal'` (no escalation), `'moderate'` (escalate to user), `'maximum'` (escalate to host orchestrator)
+- Pattern: Flag `--agency minimal|moderate|maximum`; wrapped peers invoke host-guard logic to prevent recursive consensus infinite loops
+
+**LoopRecord:**
+
+- Purpose: Audit log entry for a consensus round; persisted to disk for resume
+- Examples: `{ turn_index: 0, round_index: 1, agent: 'peer-1', verdict: { ... }, timestamp: '...' }`
+- Pattern: Array of records written to JSON file, reloadable for `--resume` mode; allows debugging and resumable workflows
 
 ## Entry Points
 
-**Session Observer CLI:**
-
-- Location: `skills/session-observer/scripts/session-observer.mjs`
-- Triggers: User invocation `node session-observer.mjs <subcommand> [flags]`
-- Responsibilities: Parse args, resolve runtime/cwd, dispatch to observe/watch/state/locate logic, render output, manage exit codes
-
-**Export Transcript CLI:**
-
-- Location: `skills/export-session-transcript/scripts/export-session-transcript.mjs`
-- Triggers: User invocation `node export-session-transcript.mjs [out] [flags]`
-- Responsibilities: Enumerate candidates, identify session via marker or --session flag, pipeline (read → normalize → sanitize → render), write file
-
 **Consensus Refine CLI:**
 
-- Location: `plugins/consensus/skills/refine/scripts/consensus-refine.mjs`
-- Triggers: User invocation `node consensus-refine.mjs <input.md> --goal <goal> [flags]`
-- Responsibilities: Validate input/Paseo, parse markdown sections, coordinate deliberation loop (sequential or parallel-prepare), emit JSONL protocol, write artifact
+- Location: `src/consensus/refine/consensus-refine.ts` (source), `plugins/consensus/skills/refine/scripts/consensus-refine.mjs` (generated)
+- Triggers: `node plugins/consensus/skills/refine/scripts/consensus-refine.mjs <draft.md> --goal "..." [options]`
+- Responsibilities: Parse CLI args, load draft, invoke consensus loop, emit JSONL events, write output + deliberation artifact
 
-**Consensus Loop Engine:**
+**Consensus Evaluate CLI:**
 
-- Location: `plugins/consensus/skills/refine/scripts/consensus-loop.mjs`
-- Triggers: Internal use by consensus-refine.mjs via `runConsensusLoop()`
-- Responsibilities: Section iteration, paseo peer invocation, verdict validation, convergence detection, impasse handling
+- Location: `src/consensus/evaluate/consensus-evaluate.ts` (source), `plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs` (generated)
+- Triggers: `node plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs <artifact.md> --rubric rubric.md [options]`
+- Responsibilities: Load artifact + rubric, invoke loop, evaluate section-by-section, emit findings, write output
+
+**Consensus Provider CLI:**
+
+- Location: `src/consensus/provider-cli/cli.ts` (source), `plugins/consensus/scripts/consensus.mjs` (generated, bundled)
+- Triggers: `node plugins/consensus/scripts/consensus.mjs provider ls --json`, `preflight --json`, `run --json <envelope-JSON>`
+- Responsibilities: Query provider inventory, preflight readiness checks, invoke peers via subprocess, return structured output
+
+**Session Observer CLI:**
+
+- Location: `src/transcript/session-observer/session-observer.ts`, `skills/session-observer/scripts/session-observer.mjs`
+- Triggers: `node skills/session-observer/scripts/session-observer.mjs review|catch-up|watch [options]`
+- Responsibilities: Discover transcripts, parse records, emit digest, watch/poll mode orchestration
+
+**Export Session Transcript CLI:**
+
+- Location: `src/transcript/export-session/export-session-transcript.ts`, `skills/export-session-transcript/scripts/export-session-transcript.mjs`
+- Triggers: `node skills/export-session-transcript/scripts/export-session-transcript.mjs [--match <marker>|--session <id>] [--out <path>]`
+- Responsibilities: Locate session, read + sanitize records, render Markdown, write file
 
 ## Error Handling
 
-**Strategy:** Typed exit codes (EXIT_CODES) + JSONL error reporting for orchestration.
+**Strategy:** Exit codes, JSONL event emission, error envelopes in structured output.
 
 **Patterns:**
 
-- Session observer: exit 0 (success), 1 (hard error), 2 (no candidates), 3 (ambiguous runtime, needs user input), 4 (schema mismatch)
-- Export transcript: exit 0, 1 (hard error), 2 (no candidates), 3 (ambiguous, needs --match/--session/--all)
-- Consensus: EXIT_CODES.USAGE (64), DATA (65), IO (73), SECTION_ERROR (74), NOPERM (77), CONFIG (78), INTERRUPTED (130)
-- Consensus JSONL: phase "error", includes error message and optional diagnostics path
-- Watch mode: continues polling on transient errors, emits health flags in `watch-ctl status`
-
-**Validation:**
-
-- Consensus input size capped at 1MB
-- Verdict byte limits enforced per field (reasoning 16KB, proposed_artifact 256KB, concern 4KB, total 512KB, max 20 concerns)
-- Provider IDs validated against `PROVIDER_ID_PATTERN: /^[a-z][a-z0-9-]{0,31}$/`
-- Paseo version checked against MIN_PASEO_VERSION (0.1.0) and MAX_TESTED_PASEO_VERSION (0.9.0)
+- **Provider CLI envelope:** All provider CLI commands return JSON with `{ ok: true, ... }` on success or `{ ok: false, error: { code, message, ... } }` on failure; exit code reflects result
+- **EXIT_CODES:** Consensus wrappers define exit code map (e.g., `PROVIDER_UNAVAILABLE = 1`, `INVALID_RESUME = 4`) at `src/consensus/core/consensus-loop.ts`; callers can parse exit code
+- **JSONL events:** Consensus wrappers emit JSON lines to stdout (refine, evaluate); each line is `{ event: "...", ... }`; on error, emits `{ event: "error", code: "...", message: "..." }` followed by exit
+- **File confinement:** Wrappers use `confineWrite()` / `resolveOutputPath()` helpers to prevent path traversal; enforce 1 MiB read cap on input files
+- **Transcript parsing:** Session observer handles missing/corrupt transcript files gracefully; emits diagnostics; falls back to no-match exit code if not found
 
 ## Cross-Cutting Concerns
 
-**Logging:** Minimal; warnings and diagnostic info emitted via JSONL (consensus) or stderr (session-observer/export); `--debug` flag expands verbosity
+**Logging:** JSONL event stream to stdout (consensus wrappers, session observer watch). Debugging info (provider CLI invocations, peer responses) written to stderr or captured in deliberation artifact.
 
-**Validation:** Input schema checking (Consensus verdicts, export marker format), transcript record structure validation (per runtime), state file integrity checks
+**Validation:** 
+- Provider preflight check verifies installed provider CLIs and capabilities before expensive runs
+- Consensus resume artifact validation ensures section state and record integrity before reloading
+- Transcript format validation via per-runtime schema; mismatches yield diagnostics
 
-**Runtime Detection:** Per-skill auto-detection of active peer runtime; SESSION_OBSERVER_SELF env var allows CLI to exclude itself when discovering others
-
-**Permissions:** Read-only for transcripts; read/write for state (`~/.local/state/`) and run artifacts (`.consensus/`); consensus needs `node` and `paseo` execution
-
-**Provider Compatibility:** Adapter layer isolates provider differences (store locations, record shapes); skills remain provider-agnostic; marketplace entries map repo to Claude Code, Codex, and (Cursor via --plugin-dir)
+**Authentication:** 
+- Delegated to local provider CLIs; consensus/transcript code does not handle keys
+- Provider CLI inherits host environment (e.g., `ANTHROPIC_API_KEY`) and subprocess CLI home directory
+- Host guard prevents recursive consensus invocations (depth tracking via `CONSENSUS_DEPTH` env var)
 
 ---
 
-_Architecture analysis: 2026-06-12_
+_Architecture analysis: 2026-06-20_

@@ -1,153 +1,92 @@
 ---
 oat_generated: true
-oat_generated_at: 2026-06-12
-oat_source_head_sha: d008a7e571d90cc6c436c82e176129f62ab54ec4
-oat_source_main_merge_base_sha: ed22b463dcdaa466476b0957fea64deb3f663391
+oat_generated_at: 2026-06-20
+oat_source_head_sha: e4e9348cf8b809448c693ed7182c017048eb4acf
+oat_source_main_merge_base_sha: e4e9348cf8b809448c693ed7182c017048eb4acf
 oat_warning: "GENERATED FILE - Do not edit manually. Regenerate with oat-repo-knowledge-index"
 ---
 
 # External Integrations
 
-**Analysis Date:** 2026-06-12
+**Analysis Date:** 2026-06-20
 
 ## APIs & External Services
 
-**AI Peer Coordination (Paseo):**
+**AI Provider CLIs (consensus plugin):**
 
-- Paseo CLI (`@getpaseo/cli`) — Peer orchestration and JSON-over-stdout dialogue coordination
-  - Invocation: Child process spawn via `node:child_process`
-  - Purpose: Consensus refinement via two-peer deliberation (consensus plugin)
-  - Config: Paseo CLI configured separately with peer CLIs (`claude`, `codex`)
-  - (See `/Users/tstang/Code/skills/plugins/consensus/skills/refine/scripts/consensus-refine.mjs`)
+The only external execution boundary in shipped code is provider CLI subprocesses. The consensus engine invokes locally-installed agent CLIs rather than calling vendor HTTP APIs directly. Adapters live in `src/consensus/provider-cli/adapters.ts` and invocation builders in `src/consensus/provider-cli/invocation.ts`.
 
-**Agent Runtime Environments:**
+- **Claude** — executable `claude` (`buildClaudeInvocation`)
+- **Codex** — executable `codex` (`buildCodexInvocation`)
+- **Cursor** — executable `cursor-agent` (`buildCursorInvocation`)
 
-- Claude Code (Claude) — AI agent runtime; invoked as peer via Paseo
-- Codex (Codex) — AI agent runtime; invoked as peer via Paseo
-- Cursor Agent (Cursor) — AI agent runtime; invoked as peer via Paseo
-- Detected via environment variables: `CLAUDECODE`, `CODEX_*`, `CURSOR_*`
+Each adapter declares: `id`, `display_name`, `executable`, a `probe` definition (`src/consensus/provider-cli/probe.ts`) for availability detection, `capabilities`, a structured-output strategy, and a `classifyRunFailure` mapper (`PROVIDER_MISSING`, `PROVIDER_EXIT`, `PROVIDER_TIMEOUT`, `PROVIDER_OUTPUT_CAP_EXCEEDED`). Subprocess execution and timeouts/output caps are enforced in `src/consensus/provider-cli/subprocess.ts`, gated by `src/consensus/provider-cli/host-guard.ts` and `runtime-policy.ts`.
 
 ## Data Storage
 
 **Databases:**
 
-- Not applicable — No database integration
+- None. There is no database — this repo ships agent skills, not a service.
 
 **File Storage:**
 
-- Local filesystem only
-- Transcript stores (read-only):
-  - Claude Code store location (runtime-detected)
-  - Codex store location (runtime-detected)
-  - Cursor store location (runtime-detected)
-- Deliberation artifacts: Written as local markdown files
-- Default output directory: `~/Downloads` (for export-session-transcript skill)
+- Local filesystem only. The transcript skills read provider session stores and write outputs (session-observer state, exported Markdown). The consensus engine writes audit/deliberation artifacts (`.consensus/` in the working tree).
 
 **Caching:**
 
-- Not applicable — No caching layer
+- None as a service. Session-observer persists per-runtime read offsets to a state directory (`STATE_DIR`) so `catch-up` shows only new records.
 
 ## Authentication & Identity
 
 **Auth Provider:**
 
-- Not applicable — No remote auth provider
-- Runtime environment detection (no credentials required)
-
-**Session Identification:**
-
-- Session marker: Random hex marker announced to user, grepped from transcripts to identify current session (export-session-transcript skill)
-- (See `/Users/tstang/Code/skills/skills/export-session-transcript/scripts/export-session-transcript.mjs` for marker logic)
+- None owned by this repo. Authentication is delegated entirely to the provider CLIs — each invoked CLI (`claude`, `codex`, `cursor-agent`) must already be authenticated in the user's environment. No API keys or tokens are read or stored by this codebase.
 
 ## Monitoring & Observability
 
 **Error Tracking:**
 
-- Not applicable — No remote error tracking service
+- None. Errors surface through structured failure classification (provider error codes) and process exit codes.
 
 **Logs:**
 
-- Structured JSON Lines (JSONL) coordination output on stdout
-- JSONL format includes: status updates, warnings, artifact paths, section states, verdict records
-- Stderr: Terminal diagnostics only (not part of coordination protocol)
-- (See `/Users/tstang/Code/skills/plugins/consensus/skills/refine/SKILL.md` for JSONL protocol)
-
-**Debug/Diagnostic Output:**
-
-- Optional `--debug` flag for session-observer skill
-- Event logs via `--event-log` flag for watch mode
-- Diagnostics path reporting for corrupt section state
+- stdout/stderr and written artifacts (consensus deliberation logs, transcript digests). No external log sink.
 
 ## CI/CD & Deployment
 
 **Hosting:**
 
-- Not applicable (distributed as Agent Skills and plugins within Claude Code, Codex, Cursor)
+- Not a hosted service. Distribution is via the local git repository marketplace (`.claude-plugin/marketplace.json`) and provider skill install paths.
 
 **CI Pipeline:**
 
-- GitHub Actions (`.github/workflows/` directory exists but not analyzed in detail)
-- Local validation: `npm test`, `npm run validate`, `npm run smoke`
+- GitHub Actions:
+  - `.github/workflows/validate.yml` — install (frozen lockfile), build, type-check, build-drift check, tests, validate, smoke, plus incremental oxlint / oxfmt on changed files.
+  - `.github/workflows/release.yml` — release automation.
 
 ## Environment Configuration
 
-**Required env vars:**
+**Runtime detection env vars (not secrets):**
 
-- None for basic operation
-- Optional (runtime auto-detection):
-  - `CLAUDECODE`, `CLAUDE_CODE`, `CLAUDECODE_SESSION_ID` — Claude Code detection hint
-  - `CODEX_*` (any var prefixed with `CODEX_`) — Codex detection hint
-  - `CURSOR_*` (any var prefixed with `CURSOR_`) — Cursor detection hint
-
-**Optional env vars:**
-
-- `CONSENSUS_SMOKE_EXPECT_STATUS` — Smoke test expected status (for testing)
+- Claude Code: `CLAUDECODE`, `CLAUDE_CODE`
+- Codex: `CODEX_HOME`, `CODEX_SANDBOX`
+- Cursor: `CURSOR`, `CURSOR_TRACE_ID`
+- Skill self-markers / state: `SESSION_OBSERVER_SELF`, `EXPORT_SESSION_SELF`, `STATE_DIR`
 
 **Secrets location:**
 
-- Not applicable — No secrets required for core operation
+- None in this repo. Provider credentials live in each provider CLI's own configuration, outside this codebase.
 
 ## Webhooks & Callbacks
 
 **Incoming:**
 
-- Not applicable
+- None.
 
 **Outgoing:**
 
-- Not applicable
-
-## Subprocess Invocations
-
-**Paseo CLI Subprocess:**
-
-- Invoked via `spawn()` from `/Users/tstang/Code/skills/plugins/consensus/skills/refine/scripts/consensus-loop.mjs`
-- Receives JSONL-serialized peer instructions on stdin
-- Emits JSON verdict records on stdout (one per line)
-- Exit code handling for peer unavailability, invalid JSON, and Paseo errors
-
-**Version Validation:**
-
-- Paseo version checked at runtime; validated against tested range v0.1.0 to v0.9.0
-- Warning emitted if outside tested range (does not block execution)
-- (See `/Users/tstang/Code/skills/plugins/consensus/skills/refine/scripts/consensus-refine.mjs` for version check)
-
-**Node.js Version Check:**
-
-- Enforced at runtime: Node.js 22 or newer required
-- Validation in consensus plugin preflight
-
-## Transcript Integration
-
-**Provider-Specific Transcript Formats:**
-
-- Claude Code transcript store format (JSONL per session)
-- Codex transcript store format (JSONL per session)
-- Cursor Agent transcript store format (JSONL per session)
-- Canonical knowledge: `src/transcript/core/runtimes.ts` (single source of truth)
-- Generated copies: `skills/session-observer/scripts/lib/runtimes.mjs`, `skills/export-session-transcript/scripts/lib/runtimes.mjs`
-- (See `skills/session-observer/references/transcript-formats.md` and `skills/export-session-transcript/references/transcript-formats.md`)
+- None. All outbound communication is mediated by provider CLI subprocesses, not HTTP calls from this code.
 
 ---
 
-_Integration audit: 2026-06-12_
+_Integration audit: 2026-06-20_

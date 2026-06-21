@@ -1,8 +1,8 @@
 ---
 oat_generated: true
-oat_generated_at: 2026-06-12
-oat_source_head_sha: d008a7e571d90cc6c436c82e176129f62ab54ec4
-oat_source_main_merge_base_sha: ed22b463dcdaa466476b0957fea64deb3f663391
+oat_generated_at: 2026-06-20
+oat_source_head_sha: e4e9348cf8b809448c693ed7182c017048eb4acf
+oat_source_main_merge_base_sha: e4e9348cf8b809448c693ed7182c017048eb4acf
 oat_index_type: full
 oat_warning: "GENERATED FILE - Do not edit manually. Regenerate with oat-repo-knowledge-index"
 ---
@@ -11,60 +11,76 @@ oat_warning: "GENERATED FILE - Do not edit manually. Regenerate with oat-repo-kn
 
 ## Overview
 
-Personal Agent Skills home: standalone skills under `skills/`, packaged plugins under `plugins/<name>/`, a shared library under `shared/`, and provider marketplace entries at the repo root. The flagship deliverable is the `consensus` plugin — structured two-peer AI deliberation on markdown artifacts via Paseo — alongside the `session-observer` (peer-transcript review + watch mode) and `export-session-transcript` (sanitized transcript export) standalone skills.
+`skills` is a personal Agent Skills home (v0.1.0 pre-release). It ships standalone Agent Skills under `skills/` and packaged plugins under `plugins/<name>/`, all authored from canonical TypeScript in `src/` and distributed as committed, dependency-free `.mjs` runtime outputs that agent runtimes (Claude Code, Codex, Cursor) execute with no install step.
 
 ## Purpose
 
-Reduce manual shuttling between AI coding agents: consensus deliberation automates peer refinement loops with an audit trail; the transcript skills let one agent observe, catch up on, or export what another agent did. Built multi-provider (Claude Code, Codex, Cursor) from day one; v0.1 pre-release, local/Git install paths only.
+It packages reusable agent capabilities — multi-peer consensus deliberation, and tooling to observe and export agent session transcripts — in a provider-portable way. The hard constraint shaping the whole repo: shipped runtime code uses only the Node standard library, with provider CLI subprocesses as the sole external execution boundary.
 
 ## Technology Stack
 
-Node.js >= 22, ESM, **standard library only** in shipped runtime output. Canonical developer source for migrated runtimes lives under `src/` and generates committed `.mjs` files with `scripts/build-generated.mjs`. Markdown skill definitions with provider manifests (`.claude-plugin/`, `.cursor-plugin/`, `.codex-plugin/`). External tool boundary: shells out to the `paseo` CLI (consensus peers) — never embedded (AGPL boundary, DR-002). See [stack.md](stack.md).
+- **Language:** TypeScript `^6.0.3` (canonical source, type-checked `--noEmit`) → generated JavaScript ESM `.mjs` (shipped runtime).
+- **Runtime:** Node.js `>=22`, ESM (`"type": "module"`).
+- **Package manager:** pnpm `>=10.13.1` (pinned `pnpm@10.13.1`, lockfile committed). Dev-only deps; **zero runtime dependencies**.
+- **Build/test tooling:** esbuild (TS→.mjs), Vitest, oxlint, oxfmt, commitlint, lint-staged.
+
+See [stack.md](stack.md).
 
 ## Architecture
 
-Skills-first repo with self-contained sub-plugins (DR-001). Consensus splits a deterministic orchestrator (wrapper + loop engine scripts, JSONL stdout as host coordination protocol) from the host model layer (SKILL.md instructions, host-mediated parallel dispatch per DR-003). Transcript skills share per-provider format knowledge through `src/transcript/core/runtimes.ts` with generated committed copies and a drift guard (DR-014 superseded by DR-020/DR-021). See [architecture.md](architecture.md).
+Multi-module monorepo with a canonical-source/generated-output split: logic is written once in `src/`, built to committed `.mjs` at the exact paths manifests and users execute, and verified against drift by the test suite. Two domains — `consensus/` (deliberation engine + provider-CLI layer) and `transcript/` (shared transcript core + session-observer + export). See [architecture.md](architecture.md).
 
 ## Key Features
 
-- `consensus:refine` — alternating-mode two-peer deliberation with hash convergence, agency levels, resume-from-artifact, host-mediated parallel sections.
-- `session-observer` — review/catch-up/locate digests of peer agent sessions across three runtimes, plus foreground polling watch mode with control directives.
-- `export-session-transcript` — marker-matched current-session export with two-layer sanitization.
-- `transcript-core` — canonical provider transcript knowledge in `src/transcript/core/runtimes.ts`, generated into skill-local `scripts/lib/runtimes.mjs` copies.
+- **Consensus plugin** (`plugins/consensus/`): `refine` (markdown refinement to a converged artifact with audit trail) and `evaluate` (artifact-vs-rubric with preserved dissent), with iteration modes (`alternating`, `parallel_revision`, `parallel_synthesized`), an agency-gated escalation ladder, and a configurable synthesizer.
+- **Session observer** (`skills/session-observer/`): tool-free digests of what another coding agent (Claude Code / Codex / Cursor) just did, with per-session read offsets and a foreground watch mode.
+- **Export session transcript** (`skills/export-session-transcript/`): exports the current session to a sanitized Markdown transcript, selected via an announced session marker.
+- **Shared transcript-core** (`src/transcript/core/runtimes.ts`): single source of per-provider transcript knowledge, materialized into each consumer's generated `scripts/lib/runtimes.mjs`.
 
 ## Project Structure
 
-- `plugins/consensus/` — plugin package (skills, agents contract, provider manifests)
-- `skills/` — standalone skills (session-observer, export-session-transcript)
-- `src/` — canonical TypeScript source for migrated consensus and transcript runtimes
-- `shared/transcript-core/` — compatibility documentation pointer for the former transcript-core source path
-- `scripts/` — generated-output build/check, validate, smoke-test, compatibility sync, install-assist, version bump
-- `tests/` — Node and Vitest suites mirroring skill/plugin layout
-- `.oat/repo/reference/` — planning surfaces (roadmap, current-state, decision-record, backlog, research)
-- `.agents/`, `.claude/`, `.cursor/`, `.codex/` — OAT canonical skills + generated provider views (not shipped)
+```
+src/        # Canonical TypeScript source (consensus/, transcript/) — edit here
+plugins/    # Packaged plugins (consensus) — generated .mjs + provider manifests
+skills/     # Standalone skills (session-observer, export-session-transcript)
+shared/     # Shared docs
+scripts/    # Dev tooling (build-generated, validate, smoke, bump-version, worktree/)
+tests/      # Vitest suite (72 files) + fixtures + repo-invariant tests
+tools/      # git-hooks
+.oat/       # OAT workflow state + repo knowledge base
+.github/    # CI workflows (validate.yml, release.yml)
+```
 
 See [structure.md](structure.md).
 
 ## Getting Started
 
-No install step (stdlib only). Node >= 22 required. Consensus additionally needs `paseo` on PATH (`node scripts/install-paseo.mjs` for assisted install).
+```bash
+pnpm install          # installs dev deps + git hooks (GIT_HOOKS=0 to skip)
+pnpm run build        # regenerate committed .mjs from src/
+pnpm run premerge     # build + type-check + build:check + test + validate + smoke
+```
+
+Requires Node `>=22` and pnpm `>=10.13.1`.
 
 ## Development Workflow
 
-- `npm test` — full Node plus Vitest suite
-- `npm run validate` — structure/manifest/docs invariants
-- `npm run smoke` — mocked end-to-end consensus flow
-- `npm run build` / `npm run build:check` — regenerate or check committed generated runtime outputs
-- `npm run sync:transcript-core` — compatibility wrapper around the generated-output build
-- `oat sync --scope all` — refresh provider skill views
+- Edit canonical TS under `src/`, then `pnpm run build` (never hand-edit generated `.mjs`).
+- `pnpm run lint` / `pnpm run format` (incremental adoption — staged files only; don't run repo-wide format in unrelated PRs).
+- Commits follow **Conventional Commits**, enforced by the `commit-msg` hook and CI.
+- New worktrees: `pnpm run worktree:init`; pre-merge: `pnpm run worktree:validate`.
+
+See [conventions.md](conventions.md).
 
 ## Testing
 
-Node `node:test` plus Vitest TypeScript suites. Heavy use of temp-HOME fixtures, paseo-stub mocks for consensus integration, generated-output drift checks, and injected time/sleep hooks for watch-mode determinism. See [testing.md](testing.md).
+Vitest (`pnpm run test`, via `scripts/run-vitest.mjs`) over 72 test files: unit, integration (real subprocess + fixture stub binaries), repo-invariant, and release suites. `tests/tooling/generated-output-sync.test.ts` guards generated-output drift. `pnpm run smoke` runs the mocked end-to-end consensus flow; live-provider paths are release-checklist gated. See [testing.md](testing.md).
 
 ## Known Issues
 
-See [concerns.md](concerns.md). Highlights: v0.1 release gated on manual provider verification (`RELEASING.md`); Paseo pre-1.0 CLI surface pinned to a tested range; watch tests are timing-sensitive (deterministic waits added 2026-06-12).
+v0.1 pre-release: clean tree, no `TODO`/`FIXME` in `src/`. Main concerns are structural — multi-file sync obligations (lint/format exclusions, version triple-sync), the canonical-source→generated-output discipline, and an unverified live-provider/marketplace path (consensus permission declaration still `provisional`). See [concerns.md](concerns.md).
+
+---
 
 **Generated Knowledge Base Files:**
 
