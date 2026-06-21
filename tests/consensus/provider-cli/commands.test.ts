@@ -192,6 +192,49 @@ describe('provider CLI command handlers', () => {
     }
   });
 
+  it('returns ok:false JSON and mirrors capture write errors to stderr', async () => {
+    const stdout = captureWriter();
+    const stderr = captureWriter();
+    const writes: Array<{ path: string; contents: string }> = [];
+
+    const code = await runSubmit(
+      {
+        kind: 'submit',
+        json: true,
+        verdictSource: { kind: 'stdin' },
+        schemaPath: 'schema.json',
+        outPath: '/capture/verdict.json',
+      },
+      submitIo({
+        stdout,
+        stderr,
+        stdin: '{"verdict":"accept"}',
+        files: { 'schema.json': JSON.stringify(schema()) },
+        writeSubmitCapture: async (filePath, contents) => {
+          writes.push({ path: filePath, contents });
+          throw new Error('EACCES: permission denied');
+        },
+      }),
+    );
+
+    const message = 'Could not write submit capture: EACCES: permission denied';
+    expect(code).toBe(1);
+    expect(writes).toEqual([
+      {
+        path: '/capture/verdict.json',
+        contents: '{"verdict":"accept"}\n',
+      },
+    ]);
+    expect(stdout.value().trim().split('\n')).toHaveLength(1);
+    expect(JSON.parse(stdout.value())).toEqual({
+      schema_version: 'v1',
+      ok: false,
+      captured: false,
+      message,
+    });
+    expect(stderr.value()).toBe(`${message}\n`);
+  });
+
   it('does not overwrite a prior valid capture with an invalid submission', async () => {
     const tempDir = await mkdtemp(path.join(tmpdir(), 'consensus-submit-'));
     try {
@@ -296,6 +339,7 @@ function submitIo(options: {
   stdin: string;
   files: Record<string, string>;
   env?: Record<string, string | undefined>;
+  writeSubmitCapture?(path: string, contents: string): Promise<void>;
 }) {
   return {
     stdout: options.stdout.stream,
@@ -313,5 +357,8 @@ function submitIo(options: {
     async readStdin() {
       return options.stdin;
     },
+    ...(options.writeSubmitCapture
+      ? { writeSubmitCapture: options.writeSubmitCapture }
+      : {}),
   };
 }

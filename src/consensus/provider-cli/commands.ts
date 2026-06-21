@@ -38,6 +38,7 @@ export interface ConsensusCliIo {
   env?: Record<string, string | undefined>;
   readFile(path: string): Promise<string>;
   readStdin(): Promise<string>;
+  writeSubmitCapture?(path: string, contents: string): Promise<void>;
 }
 
 export interface WritableLike {
@@ -190,7 +191,19 @@ export async function runSubmit(
     return submitFailure(io, validation.message, 1);
   }
 
-  await writeJsonFileAtomic(outPath, `${JSON.stringify(verdict)}\n`);
+  try {
+    await (io.writeSubmitCapture ?? writeJsonFileAtomic)(
+      outPath,
+      `${JSON.stringify(verdict)}\n`,
+    );
+  } catch (error) {
+    return submitFailure(
+      io,
+      `Could not write submit capture: ${error instanceof Error ? error.message : String(error)}`,
+      1,
+    );
+  }
+
   writeJson(io, {
     schema_version: 'v1',
     ok: true,
