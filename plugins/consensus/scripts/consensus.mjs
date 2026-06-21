@@ -5,6 +5,11 @@
 // src/consensus/provider-cli/cli.ts
 import { readFile as readFile3 } from "node:fs/promises";
 
+// src/consensus/provider-cli/commands.ts
+import { randomUUID as randomUUID3 } from "node:crypto";
+import { mkdir, rename, writeFile } from "node:fs/promises";
+import { basename, dirname, join } from "node:path";
+
 // src/consensus/provider-cli/host-guard.ts
 function detectHostRuntime(env) {
   if (env.CONSENSUS_PARENT_HOST === "claude" || env.CLAUDECODE || env.CLAUDE_CODE_ENTRYPOINT || env.CLAUDE_CODE_SESSION_ID || env.CLAUDE_SESSION_ID) {
@@ -103,6 +108,9 @@ function parseConsensusCliArgs(argv) {
   }
   if (command === "run") {
     return parseRunCommand(tokens);
+  }
+  if (command === "submit") {
+    return parseSubmitCommand(tokens);
   }
   throw new ConsensusCliUsageError(`Unknown command: ${command}`);
 }
@@ -297,6 +305,43 @@ function parseRunCommand(tokens) {
   if (command.requestJson) {
     assertNoRequestJsonConflicts(command, parsed.positionals.length);
   }
+  return command;
+}
+function parseSubmitCommand(tokens) {
+  const parsed = parseOptionTokens(tokens, {
+    allowedFlags: /* @__PURE__ */ new Set(["--json", "--schema", "--out", "--verdict-file"]),
+    valueFlags: /* @__PURE__ */ new Set(["--schema", "--out", "--verdict-file"])
+  });
+  requireJson(parsed.flags);
+  const command = {
+    kind: "submit",
+    json: true
+  };
+  assignIfDefined(
+    command,
+    "schemaPath",
+    singleValue(parsed.flags, "--schema")
+  );
+  assignIfDefined(command, "outPath", singleValue(parsed.flags, "--out"));
+  const verdictFile = singleValue(parsed.flags, "--verdict-file");
+  const stdinMarkers = parsed.positionals.filter((value) => value === "-");
+  const unknownPositionals = parsed.positionals.filter((value) => value !== "-");
+  if (unknownPositionals.length > 0) {
+    throw new ConsensusCliUsageError(
+      `Unexpected positional argument: ${unknownPositionals[0]}`
+    );
+  }
+  const verdictSources = [];
+  if (verdictFile !== void 0) {
+    verdictSources.push({ kind: "file", path: verdictFile });
+  }
+  for (let index = 0; index < stdinMarkers.length; index += 1) {
+    verdictSources.push({ kind: "stdin" });
+  }
+  if (verdictSources.length > 1) {
+    throw new ConsensusCliUsageError("Use only one verdict source");
+  }
+  command.verdictSource = verdictSources[0];
   return command;
 }
 function assertNoRequestJsonConflicts(command, positionalCount) {
@@ -1467,8 +1512,57 @@ function firstNonEmptyLine2(value) {
   return value.split(/\r?\n/).map((line) => line.trim()).find(Boolean);
 }
 
+// src/consensus/provider-cli/schema-validate.ts
+function validateSchemaSubset(value, schema) {
+  if (!isRecord2(schema)) return { ok: true };
+  if (schema.type === "object" && !isRecord2(value)) {
+    return { ok: false, message: "Expected provider JSON to be an object." };
+  }
+  if (Array.isArray(schema.required)) {
+    if (!isRecord2(value)) {
+      return {
+        ok: false,
+        message: "Expected provider JSON to be an object with required fields."
+      };
+    }
+    for (const field of schema.required) {
+      if (typeof field === "string" && !(field in value)) {
+        return {
+          ok: false,
+          message: `Missing required JSON field: ${field}`
+        };
+      }
+    }
+  }
+  if (isRecord2(schema.properties) && isRecord2(value)) {
+    for (const [field, fieldSchema] of Object.entries(schema.properties)) {
+      if (!(field in value) || !isRecord2(fieldSchema)) continue;
+      const type = fieldSchema.type;
+      if (typeof type === "string" && !matchesJsonType(value[field], type)) {
+        return {
+          ok: false,
+          message: `Field ${field} must be ${type}.`
+        };
+      }
+    }
+  }
+  return { ok: true };
+}
+function isRecord2(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function matchesJsonType(value, type) {
+  if (type === "array") return Array.isArray(value);
+  if (type === "object") return isRecord2(value);
+  if (type === "integer") return Number.isInteger(value);
+  return typeof value === type;
+}
+
 // src/consensus/provider-cli/structured-output.ts
-import { readFile as readFile2 } from "node:fs/promises";
+import { randomUUID as randomUUID2 } from "node:crypto";
+import { readFile as readFile2, rm as rm2 } from "node:fs/promises";
+import { tmpdir as tmpdir2 } from "node:os";
+import path3 from "node:path";
 
 // src/consensus/provider-cli/runtime-policy.ts
 var DEFAULT_RUNTIME_POLICY = {
@@ -1648,157 +1742,191 @@ async function runProviderTurn(request, dependencies = {}) {
   const strategy = selectStructuredOutputStrategy(adapter);
   const runSubprocess = dependencies.runSubprocess ?? runProviderSubprocess;
   const parentEnv = dependencies.parentEnv ?? process.env;
+  const submitCapturePath = submitCaptureFile();
   const childEnv = buildChildEnvironment({
     parentEnv,
     request: effectiveRequest,
-    hostEnv: hostGuard.child_env ?? {}
+    hostEnv: {
+      ...hostGuard.child_env ?? {},
+      CONSENSUS_SUBMIT_FILE: submitCapturePath,
+      CONSENSUS_SUBMIT_SCHEMA: path3.resolve(request.schema_path)
+    }
   });
   let validationFeedback;
   let lastInvocation;
   let exitClassification;
-  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-    const invocationRequest = {
-      ...effectiveRequest,
-      prompt: promptForStrategy({
-        prompt: request.prompt,
+  try {
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      await cleanupSubmitCaptureFile(submitCapturePath);
+      const invocationRequest = {
+        ...effectiveRequest,
+        prompt: promptForStrategy({
+          prompt: request.prompt,
+          strategy,
+          inlineJsonSchema,
+          submitCaptureEnabled: true,
+          validationFeedback
+        })
+      };
+      const invocation2 = buildProviderInvocation(adapter, invocationRequest, {
         strategy,
-        inlineJsonSchema,
-        validationFeedback
-      })
-    };
-    const invocation2 = buildProviderInvocation(adapter, invocationRequest, {
-      strategy,
-      inlineJsonSchema
-    });
-    lastInvocation = invocation2;
-    const processResult = await runSubprocess(invocation2, {
-      env: childEnv,
-      maxOutputBytes: request.max_output_bytes,
-      timeoutSec: request.max_runtime_sec
-    });
-    const diagnostics = mergeDiagnostics(
-      {
-        strategy_used: strategy,
-        output_mode: invocation2.output_mode,
-        redacted_command: invocation2.redacted_command
-      },
-      hostGuard.diagnostics,
-      processResult.diagnostics,
-      exitClassificationDiagnostics(exitClassification)
-    );
-    if (!processResult.ok) {
-      const classification = adapter.classifyRunFailure(processResult);
-      exitClassification = classification.exit_classification;
-      const failureDiagnostics = mergeDiagnostics(
-        diagnostics,
+        inlineJsonSchema
+      });
+      lastInvocation = invocation2;
+      const processResult = await runSubprocess(invocation2, {
+        env: childEnv,
+        maxOutputBytes: request.max_output_bytes,
+        timeoutSec: request.max_runtime_sec
+      });
+      const diagnostics = mergeDiagnostics(
+        {
+          strategy_used: strategy,
+          output_mode: invocation2.output_mode,
+          redacted_command: invocation2.redacted_command
+        },
+        hostGuard.diagnostics,
+        processResult.diagnostics,
         exitClassificationDiagnostics(exitClassification)
       );
-      if (classification.retryable && attempt < maxAttempts) {
-        continue;
+      if (!processResult.ok) {
+        const classification = adapter.classifyRunFailure(processResult);
+        exitClassification = classification.exit_classification;
+        const failureDiagnostics = mergeDiagnostics(
+          diagnostics,
+          exitClassificationDiagnostics(exitClassification)
+        );
+        if (classification.retryable && attempt < maxAttempts) {
+          continue;
+        }
+        return failureEnvelope({
+          provider: request.provider,
+          code: classification.code,
+          message: classification.message,
+          retryable: false,
+          stdout: processResult.stdout,
+          stderr: processResult.stderr,
+          attempts: {
+            cli_attempts: attempt,
+            terminal_reason: classification.terminal_reason
+          },
+          diagnostics: failureDiagnostics
+        });
       }
-      return failureEnvelope({
-        provider: request.provider,
-        code: classification.code,
-        message: classification.message,
-        retryable: false,
-        stdout: processResult.stdout,
-        stderr: processResult.stderr,
-        attempts: {
-          cli_attempts: attempt,
-          terminal_reason: classification.terminal_reason
-        },
-        diagnostics: failureDiagnostics
+      const submittedVerdict = await readSubmittedVerdict(
+        submitCapturePath,
+        schema
+      );
+      if (submittedVerdict.ok) {
+        return successEnvelope({
+          provider: request.provider,
+          args: invocation2.redacted_command,
+          stdout: submittedVerdict.raw,
+          stderr: processResult.stderr,
+          json: submittedVerdict.value,
+          attempts: {
+            cli_attempts: attempt,
+            terminal_reason: "success"
+          },
+          diagnostics: mergeDiagnostics(diagnostics, {
+            verdict_source: "submit"
+          })
+        });
+      }
+      const providerOutput = extractProviderOutput(invocation2, processResult);
+      const finalMessageDiagnostics = mergeDiagnostics(diagnostics, {
+        verdict_source: "final_message"
       });
-    }
-    const providerOutput = extractProviderOutput(invocation2, processResult);
-    if (!providerOutput.ok) {
-      if (attempt < maxAttempts) {
-        validationFeedback = providerOutput.message;
-        continue;
+      if (!providerOutput.ok) {
+        if (attempt < maxAttempts) {
+          validationFeedback = providerOutput.message;
+          continue;
+        }
+        return failureEnvelope({
+          provider: request.provider,
+          code: "PROVIDER_INVALID_JSON",
+          message: providerOutput.message,
+          retryable: false,
+          stdout: processResult.stdout,
+          stderr: processResult.stderr,
+          attempts: {
+            cli_attempts: attempt,
+            terminal_reason: "missing_provider_output"
+          },
+          diagnostics: finalMessageDiagnostics
+        });
       }
-      return failureEnvelope({
-        provider: request.provider,
-        code: "PROVIDER_INVALID_JSON",
-        message: providerOutput.message,
-        retryable: false,
-        stdout: processResult.stdout,
-        stderr: processResult.stderr,
-        attempts: {
-          cli_attempts: attempt,
-          terminal_reason: "missing_provider_output"
-        },
-        diagnostics
-      });
-    }
-    const parsed = parseProviderJson(providerOutput.value);
-    if (!parsed.ok) {
-      if (attempt < maxAttempts) {
-        validationFeedback = parsed.message;
-        continue;
+      const parsed = parseProviderJson(providerOutput.value);
+      if (!parsed.ok) {
+        if (attempt < maxAttempts) {
+          validationFeedback = parsed.message;
+          continue;
+        }
+        return failureEnvelope({
+          provider: request.provider,
+          code: "PROVIDER_INVALID_JSON",
+          message: parsed.message,
+          retryable: false,
+          stdout: providerOutput.value,
+          stderr: processResult.stderr,
+          attempts: {
+            cli_attempts: attempt,
+            terminal_reason: "invalid_json"
+          },
+          diagnostics: finalMessageDiagnostics
+        });
       }
-      return failureEnvelope({
+      const verdictJson = extractStructuredJsonValue(parsed.value);
+      const validation = validateSchemaSubset(verdictJson, schema);
+      if (!validation.ok) {
+        if (attempt < maxAttempts) {
+          validationFeedback = validation.message;
+          continue;
+        }
+        return failureEnvelope({
+          provider: request.provider,
+          code: "PROVIDER_SCHEMA_VALIDATION",
+          message: validation.message,
+          retryable: false,
+          stdout: providerOutput.value,
+          stderr: processResult.stderr,
+          attempts: {
+            cli_attempts: attempt,
+            terminal_reason: "schema_validation"
+          },
+          diagnostics: finalMessageDiagnostics
+        });
+      }
+      return successEnvelope({
         provider: request.provider,
-        code: "PROVIDER_INVALID_JSON",
-        message: parsed.message,
-        retryable: false,
+        args: invocation2.redacted_command,
         stdout: providerOutput.value,
         stderr: processResult.stderr,
+        json: verdictJson,
         attempts: {
           cli_attempts: attempt,
-          terminal_reason: "invalid_json"
+          terminal_reason: "success"
         },
-        diagnostics
+        diagnostics: finalMessageDiagnostics
       });
     }
-    const verdictJson = extractStructuredJsonValue(parsed.value);
-    const validation = validateSchemaSubset(verdictJson, schema);
-    if (!validation.ok) {
-      if (attempt < maxAttempts) {
-        validationFeedback = validation.message;
-        continue;
-      }
-      return failureEnvelope({
-        provider: request.provider,
-        code: "PROVIDER_SCHEMA_VALIDATION",
-        message: validation.message,
-        retryable: false,
-        stdout: providerOutput.value,
-        stderr: processResult.stderr,
-        attempts: {
-          cli_attempts: attempt,
-          terminal_reason: "schema_validation"
-        },
-        diagnostics
-      });
-    }
-    return successEnvelope({
+    return failureEnvelope({
       provider: request.provider,
-      args: invocation2.redacted_command,
-      stdout: providerOutput.value,
-      stderr: processResult.stderr,
-      json: verdictJson,
+      code: "PROVIDER_EXIT",
+      message: "Provider run ended without a terminal result.",
+      retryable: false,
       attempts: {
-        cli_attempts: attempt,
-        terminal_reason: "success"
+        cli_attempts: maxAttempts,
+        terminal_reason: "attempt_budget_exhausted"
       },
-      diagnostics
+      diagnostics: lastInvocation ? {
+        strategy_used: strategy,
+        output_mode: lastInvocation.output_mode,
+        redacted_command: lastInvocation.redacted_command
+      } : void 0
     });
+  } finally {
+    await cleanupSubmitCaptureFile(submitCapturePath);
   }
-  return failureEnvelope({
-    provider: request.provider,
-    code: "PROVIDER_EXIT",
-    message: "Provider run ended without a terminal result.",
-    retryable: false,
-    attempts: {
-      cli_attempts: maxAttempts,
-      terminal_reason: "attempt_budget_exhausted"
-    },
-    diagnostics: lastInvocation ? {
-      strategy_used: strategy,
-      output_mode: lastInvocation.output_mode,
-      redacted_command: lastInvocation.redacted_command
-    } : void 0
-  });
 }
 async function readJsonSchema(schemaPath) {
   return JSON.parse(await readFile2(schemaPath, "utf8"));
@@ -1838,6 +1966,26 @@ function parseProviderJson(stdout) {
     };
   }
 }
+async function readSubmittedVerdict(filePath, schema) {
+  let raw;
+  try {
+    raw = await readFile2(filePath, "utf8");
+  } catch {
+    return { ok: false };
+  }
+  if (!raw.trim()) return { ok: false };
+  const parsed = parseProviderJson(raw);
+  if (!parsed.ok) return { ok: false };
+  const validation = validateSchemaSubset(parsed.value, schema);
+  if (!validation.ok) return { ok: false };
+  return { ok: true, raw, value: parsed.value };
+}
+async function cleanupSubmitCaptureFile(filePath) {
+  try {
+    await rm2(filePath, { force: true });
+  } catch {
+  }
+}
 function extractStructuredJsonValue(value) {
   if (!isRecord2(value)) return value;
   if ("structured_output" in value) {
@@ -1853,6 +2001,15 @@ function extractStructuredJsonValue(value) {
 }
 function promptForStrategy(input) {
   const parts = [input.prompt];
+  if (input.submitCaptureEnabled) {
+    parts.push(
+      "Verdict submission:",
+      "Before ending the turn, submit the final verdict by running `consensus submit --json -` and passing the JSON verdict on stdin.",
+      "The command validates against the active schema from CONSENSUS_SUBMIT_SCHEMA and captures to CONSENSUS_SUBMIT_FILE.",
+      "If submission fails, fix the reported schema error and run the command again.",
+      "Also keep the final-message JSON fallback: end with only the same JSON object matching the schema."
+    );
+  }
   if (input.validationFeedback) {
     parts.push(
       `Schema validation failed: ${input.validationFeedback}`,
@@ -1917,47 +2074,6 @@ function extractFirstJsonObject(text) {
   }
   return void 0;
 }
-function validateSchemaSubset(value, schema) {
-  if (!isRecord2(schema)) return { ok: true };
-  if (schema.type === "object" && !isRecord2(value)) {
-    return { ok: false, message: "Expected provider JSON to be an object." };
-  }
-  if (Array.isArray(schema.required)) {
-    if (!isRecord2(value)) {
-      return {
-        ok: false,
-        message: "Expected provider JSON to be an object with required fields."
-      };
-    }
-    for (const field of schema.required) {
-      if (typeof field === "string" && !(field in value)) {
-        return {
-          ok: false,
-          message: `Missing required JSON field: ${field}`
-        };
-      }
-    }
-  }
-  if (isRecord2(schema.properties) && isRecord2(value)) {
-    for (const [field, fieldSchema] of Object.entries(schema.properties)) {
-      if (!(field in value) || !isRecord2(fieldSchema)) continue;
-      const type = fieldSchema.type;
-      if (typeof type === "string" && !matchesJsonType(value[field], type)) {
-        return {
-          ok: false,
-          message: `Field ${field} must be ${type}.`
-        };
-      }
-    }
-  }
-  return { ok: true };
-}
-function matchesJsonType(value, type) {
-  if (type === "array") return Array.isArray(value);
-  if (type === "object") return isRecord2(value);
-  if (type === "integer") return Number.isInteger(value);
-  return typeof value === type;
-}
 function mergeDiagnostics(...diagnostics) {
   const merged = {};
   const warnings = [];
@@ -1972,8 +2088,8 @@ function mergeDiagnostics(...diagnostics) {
 function exitClassificationDiagnostics(exitClassification) {
   return exitClassification ? { exit_classification: exitClassification } : void 0;
 }
-function isRecord2(value) {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+function submitCaptureFile() {
+  return path3.join(tmpdir2(), `consensus-submit-${randomUUID2()}.json`);
 }
 
 // src/consensus/provider-cli/commands.ts
@@ -1983,6 +2099,7 @@ function helpText() {
 Commands:
   provider ls --json
   preflight --json [--provider <id>] [--max-depth <n>]
+  submit --json [-|--verdict-file <path>] [--schema <path>] [--out <path>]
   run --provider <id> --schema <path> --json [-|--prompt <text>|--prompt-file <path>]
       [--model <name>] [--effort <level>]
       [--permission-mode <mode>] [--sandbox <name>] [--approval-policy <policy>]
@@ -2018,6 +2135,59 @@ async function runPreflight(options = {}) {
     ...diagnostics ? { diagnostics } : {}
   };
 }
+async function runSubmit(command, io) {
+  const schemaPath = command.schemaPath ?? io.env?.CONSENSUS_SUBMIT_SCHEMA;
+  if (!schemaPath) {
+    return submitFailure(io, "Missing submit schema path.", 2);
+  }
+  const outPath = command.outPath ?? io.env?.CONSENSUS_SUBMIT_FILE;
+  if (!outPath) {
+    return submitFailure(io, "Missing submit output path.", 2);
+  }
+  if (!command.verdictSource) {
+    return submitFailure(io, "Missing verdict source.", 2);
+  }
+  if (command.verdictSource.kind === "prompt") {
+    return submitFailure(
+      io,
+      "Submit verdict source must be stdin or --verdict-file.",
+      2
+    );
+  }
+  let schema;
+  try {
+    schema = JSON.parse(await io.readFile(schemaPath));
+  } catch (error) {
+    return submitFailure(
+      io,
+      `Could not read submit schema: ${error instanceof Error ? error.message : String(error)}`,
+      2
+    );
+  }
+  let verdict;
+  try {
+    verdict = JSON.parse(await readSubmitSource(command.verdictSource, io));
+  } catch (error) {
+    return submitFailure(
+      io,
+      `Submitted verdict must be valid JSON: ${error instanceof Error ? error.message : String(error)}`,
+      1
+    );
+  }
+  const validation = validateSchemaSubset(verdict, schema);
+  if (!validation.ok) {
+    return submitFailure(io, validation.message, 1);
+  }
+  await writeJsonFileAtomic(outPath, `${JSON.stringify(verdict)}
+`);
+  writeJson(io, {
+    schema_version: "v1",
+    ok: true,
+    captured: true,
+    message: "verdict captured"
+  });
+  return 0;
+}
 async function runConsensusCli(argv, io, options = {}) {
   try {
     const command = parseConsensusCliArgs(argv);
@@ -2043,6 +2213,9 @@ async function runConsensusCli(argv, io, options = {}) {
       );
       return 0;
     }
+    if (command.kind === "submit") {
+      return runSubmit(command, io);
+    }
     const request = await normalizeRunRequest(command, io);
     const envelope = await runProviderTurn(request, {
       readSchema: async (schemaPath) => JSON.parse(await io.readFile(schemaPath)),
@@ -2062,6 +2235,32 @@ async function runConsensusCli(argv, io, options = {}) {
     );
     return 1;
   }
+}
+async function readSubmitSource(source, io) {
+  if (source.kind === "stdin") return io.readStdin();
+  if (source.kind === "file") return io.readFile(source.path);
+  return source.value;
+}
+function submitFailure(io, message, exitCode) {
+  writeJson(io, {
+    schema_version: "v1",
+    ok: false,
+    captured: false,
+    message
+  });
+  io.stderr.write(`${message}
+`);
+  return exitCode;
+}
+async function writeJsonFileAtomic(filePath, contents) {
+  const directory = dirname(filePath);
+  await mkdir(directory, { recursive: true });
+  const tempPath = join(
+    directory,
+    `.${basename(filePath)}.${process.pid}.${randomUUID3()}.tmp`
+  );
+  await writeFile(tempPath, contents, "utf8");
+  await rename(tempPath, filePath);
 }
 function defaultProbeOptions(options, env) {
   if (options.registry || options.probeRunner) return options;
