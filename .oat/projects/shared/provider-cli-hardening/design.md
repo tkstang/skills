@@ -214,10 +214,16 @@ for adapters that opt in.
   flags for testing.
 - Validate the payload with the existing schema-subset validator (the same one used
   in `structured-output.ts`).
-- On success: atomically write the validated verdict to the capture path; print a
-  short confirmation; exit 0.
-- On failure: print a specific, actionable schema error to **stderr**; exit
-  nonzero; do not write/overwrite a prior valid capture with an invalid one.
+- Always emit **exactly one `SubmitResult` JSON line on stdout** (success *and*
+  failure), consistent with the `--json` contract of `provider ls`/`preflight`/`run`
+  (`writeJson`). The human-readable confirmation/error text lives in
+  `SubmitResult.message`, never as free-form stdout.
+- On success: atomically write the validated verdict to the capture path; emit
+  `{ ok: true, captured: true, message: "verdict captured" }`; exit 0.
+- On failure: emit `{ ok: false, captured: false, message: <specific schema
+  problem> }` on stdout **and mirror** the actionable schema error to **stderr**
+  (so the peer self-corrects via stderr + nonzero exit); do not write/overwrite a
+  prior valid capture with an invalid one.
 - Never spawn a provider (no recursion-guard interaction).
 
 **Interfaces (illustrative — camelCase fns, snake_case data):**
@@ -238,12 +244,12 @@ export async function runSubmit(
   io: ConsensusCliIo,
 ): Promise<number>;                  // 0 = captured, nonzero = validation/usage
 
-// envelope-ish result printed to stdout for the peer (human+machine readable)
+// the single JSON line printed to stdout (machine-readable; one per invocation)
 interface SubmitResult {
   schema_version: 'v1';
   ok: boolean;
   captured?: boolean;
-  message: string;                  // on failure: the specific schema problem
+  message: string;                  // success confirmation, or the specific schema problem on failure
 }
 ```
 
@@ -370,11 +376,15 @@ envelope and audit record; subject to existing redaction (no stderr content).
 - `--schema <path>` optional; defaults to `CONSENSUS_SUBMIT_SCHEMA` env.
 - `--out <path>` optional; defaults to `CONSENSUS_SUBMIT_FILE` env.
 
-**stdout (machine + human):** `SubmitResult` JSON line; on success a brief
-"verdict captured" confirmation.
+**stdout:** exactly one `SubmitResult` JSON line in all cases (machine-readable,
+consistent with `provider ls`/`preflight`/`run` via `writeJson`). The success
+confirmation and the failure schema-problem text both live in
+`SubmitResult.message` — no free-form text on stdout, so callers/tests can always
+parse it.
 
-**stderr:** on validation failure, the specific schema problem (actionable for the
-peer), honoring redaction.
+**stderr:** on validation failure, the same actionable schema problem is mirrored
+to stderr (the peer's in-context self-correction signal), honoring redaction. On
+success, stderr is empty.
 
 **Exit codes:** `0` captured; `2` usage error (missing source/schema/out, conflicts)
 consistent with `processExitForEnvelope` usage mapping; `1` validation failure
@@ -463,7 +473,7 @@ existing redaction. No new logging surface.
 | ID   | Verification                            | Key Scenarios |
 | ---- | --------------------------------------- | ------------- |
 | FR1  | unit + integration                      | `consensus submit` parses stdin/`--verdict-file`; resolves schema/out from env; rejects bad usage |
-| FR2  | unit + integration                      | invalid verdict → specific schema error on stderr, nonzero exit; valid → captured; resubmit overwrites |
+| FR2  | unit + integration                      | stdout is always exactly one `SubmitResult` JSON line; invalid verdict → `ok:false` JSON on stdout + schema error mirrored to stderr + nonzero exit; valid → `ok:true` captured; resubmit overwrites |
 | FR3  | integration                             | sidecar present+valid → `envelope.json` equals submitted verdict; `verdict_source: submit`; envelope contract unchanged |
 | FR4  | unit + integration                      | no sidecar → parse fallback (default) → today's behavior; (opt-in strict) → `missing_submission` terminal |
 | FR5  | integration (fixtures) + e2e (live)     | fixture A "no structured-output message" and B "strict-output rejection" → self-corrected success via submit; ≥1 live provider submits |
