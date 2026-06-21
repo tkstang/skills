@@ -12,14 +12,12 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 // @ts-expect-error No type declarations for script helpers; importing for runtime behavior.
-import {
-  bumpVersion,
-  checkTagVersion,
-  isValidSemver,
-} from '../../scripts/bump-version.mjs';
+import * as bumpVersionScript from '../../scripts/bump-version.mjs';
 // @ts-expect-error No type declarations for script helpers; importing for runtime behavior.
-import { validateRepository } from '../../scripts/validate.mjs';
+import * as validateScript from '../../scripts/validate.mjs';
 import { repoRoot } from '../helpers/process.mjs';
+const { bumpVersion, checkTagVersion, isValidSemver } = bumpVersionScript;
+const { validateRepository } = validateScript;
 const jsonFiles = [
   'plugins/consensus/.claude-plugin/plugin.json',
   'plugins/consensus/.cursor-plugin/plugin.json',

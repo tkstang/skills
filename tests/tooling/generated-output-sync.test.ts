@@ -327,8 +327,8 @@ describe('generated output drift guard', () => {
 
   it('rewrites only emitted module specifiers', async () => {
     // @ts-expect-error No type declarations; this test exercises the shipped artifact.
-    const { rewriteImportSpecifiers } =
-      await import('../../scripts/build-generated.mjs');
+    const buildGenerated = await import('../../scripts/build-generated.mjs');
+    const { rewriteImportSpecifiers } = buildGenerated;
     const rewrite = {
       from: '../core/consensus-loop.js',
       to: './consensus-loop.mjs',
@@ -360,8 +360,8 @@ describe('generated output drift guard', () => {
 
   it('fails when a configured rewrite source is absent from module specifiers', async () => {
     // @ts-expect-error No type declarations; this test exercises the shipped artifact.
-    const { rewriteImportSpecifiers } =
-      await import('../../scripts/build-generated.mjs');
+    const buildGenerated = await import('../../scripts/build-generated.mjs');
+    const { rewriteImportSpecifiers } = buildGenerated;
 
     expect(() =>
       rewriteImportSpecifiers(
