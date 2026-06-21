@@ -1,9 +1,9 @@
 {
   "name": "docs",
-  "type": "module",
-  "private": true,
   "version": "0.1.0",
+  "private": true,
   "description": "A personal home for Agent Skills and plugins, including the consensus deliberation plugin.",
+  "type": "module",
   "scripts": {
     "predev": "fumadocs-mdx && oat docs generate-index --docs-dir docs --output index.md",
     "dev": "next dev",
@@ -32,8 +32,8 @@
     "@types/node": "^22.10.0",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
+    "oxfmt": "^0.36.0",
     "tailwindcss": "^4.2.1",
-    "typescript": "^5.8.3",
-    "oxfmt": "^0.36.0"
+    "typescript": "^5.8.3"
   }
 }
