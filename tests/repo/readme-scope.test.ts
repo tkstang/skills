@@ -77,6 +77,8 @@ describe('readme-scope', () => {
     expect(docs).toMatch(/provider inventory/i);
     expect(docs).toMatch(/auth_required/);
     expect(docs).toMatch(/consensus-create/);
+    expect(docs).toMatch(/brief/i);
+    expect(docs).toMatch(/independent_draft/);
     expect(docs).toMatch(/parallel_revision/);
     expect(docs).toMatch(/parallel_synthesized/);
     expect(docs).toMatch(/whole-document harmonization/);
@@ -99,6 +101,18 @@ describe('readme-scope', () => {
     expect(docs).toMatch(/metrics|cost caps/i);
   });
 
+  it('docs site documents consensus-create as shipped, not future work', async () => {
+    const docs = await readDocsSite();
+
+    expect(docs).toMatch(/consensus-create/);
+    expect(docs).toMatch(/--brief <text>|--brief-file <path>/);
+    expect(docs).toMatch(/Created Artifact/);
+    expect(docs).toMatch(/consensus-resolution/);
+    expect(docs).not.toMatch(
+      /Remaining consensus-family skills are future work:[\s\S]*consensus-create/i,
+    );
+  });
+
   it('plugin README documents iteration modes and escalation flags', async () => {
     const readme = await read('plugins/consensus/README.md');
 
@@ -113,6 +127,31 @@ describe('readme-scope', () => {
       /parallel-revision and parallel-synthesized modes are future work/i,
     );
     expect(readme).toMatch(/whole-document harmonization/i);
+  });
+
+  it('README and plugin README summarize consensus-create as shipped', async () => {
+    const readme = await read('README.md');
+    const pluginReadme = await read('plugins/consensus/README.md');
+
+    expect(readme).toMatch(/consensus.*create/i);
+    expect(readme).toMatch(/brief/i);
+    expect(pluginReadme).toMatch(/consensus-create/);
+    expect(pluginReadme).toMatch(/--brief/);
+    expect(pluginReadme).toMatch(/independent_draft/);
+    expect(pluginReadme).not.toMatch(
+      /Remaining consensus family skills are future work:[\s\S]*consensus-create/i,
+    );
+  });
+
+  it('CHANGELOG records consensus-create under Unreleased Added', async () => {
+    const changelog = await read('CHANGELOG.md');
+
+    expect(changelog).toMatch(
+      /## \[Unreleased\][\s\S]*### Added[\s\S]*consensus-create/i,
+    );
+    expect(changelog).toMatch(/independent_draft/);
+    expect(changelog).toMatch(/parallel_synthesized/);
+    expect(changelog).toMatch(/consensus-resolution/);
   });
 
   it('CHANGELOG records the v0.1 iteration-mode work under Unreleased', async () => {

@@ -24,8 +24,9 @@
 - User Guide
   - [User Guide](user-guide/index.md) — Install, use, and configure the consensus plugin and the standalone skills shipped by this repo.
   - Consensus
-    - [Consensus](user-guide/consensus/index.md) — How the consensus plugin deliberates two AI peers over an artifact, the refine and evaluate skills, iteration modes, and current limitations.
-    - [Configuration](user-guide/consensus/configuration.md) — Shared consensus configuration: peer selection, the provider floor, preflight diagnostics, synthesizer, agency, Cursor auth, and required permissions.
+    - [Consensus](user-guide/consensus/index.md) — How the consensus plugin deliberates two AI peers over artifacts and briefs, including create, refine, evaluate, iteration modes, and current limitations.
+    - [Configuration](user-guide/consensus/configuration.md) — Shared consensus configuration: peer selection, cold starts, the provider floor, preflight diagnostics, synthesizer, agency, Cursor auth, and required permissions.
+    - [Create](user-guide/consensus/create.md) — Run the create skill to produce a new artifact from a brief with independent peer drafts, synthesis, a deliberation log, and resolution metadata.
     - [Evaluate](user-guide/consensus/evaluate.md) — Run the evaluate skill to judge an artifact against a rubric with two AI peers, unified findings, embedded verdict records, and preserved dissent.
     - [Refine](user-guide/consensus/refine.md) — Run the refine skill to deliberate two AI peers toward a converged markdown artifact, including iteration modes, resume, escalation, and host-mediated parallel sections.
   - Skills

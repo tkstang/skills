@@ -5,8 +5,8 @@
 A personal Agent Skills home: standalone skills under `skills/` and packaged
 plugins under `plugins/<name>/`, runnable across Claude Code, Codex, and Cursor.
 
-It ships the **consensus** plugin — `refine` (two provider-CLI-backed AI peers
-deliberate a markdown draft toward a converged artifact with an audit trail) and
+It ships the **consensus** plugin — `create` (draft a new artifact from a brief),
+`refine` (deliberate a markdown draft toward a converged artifact), and
 `evaluate` (judge an artifact against a rubric) — plus standalone session skills
 (`session-observer`, `export-session-transcript`).
 

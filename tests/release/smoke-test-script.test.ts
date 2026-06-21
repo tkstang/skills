@@ -1,4 +1,5 @@
 import path from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 // @ts-expect-error No type declarations for script helpers; importing for runtime behavior.
@@ -23,10 +24,7 @@ function writer() {
 }
 
 function cleanSmokeEnv(overrides: NodeJS.ProcessEnv = {}) {
-  const {
-    CONSENSUS_CLI_PATH: _consensusCliPath,
-    ...env
-  } = process.env;
+  const { CONSENSUS_CLI_PATH: _consensusCliPath, ...env } = process.env;
   return { ...env, ...overrides };
 }
 
@@ -39,7 +37,11 @@ describe('smoke-test-script', () => {
     const result = await runSmokeTest({
       stdout: stdout.stream,
       env: cleanSmokeEnv(),
-      runCommand: async (command: string, args: string[], options: { env: NodeJS.ProcessEnv }) => {
+      runCommand: async (
+        command: string,
+        args: string[],
+        options: { env: NodeJS.ProcessEnv },
+      ) => {
         calls.push({ command, args, env: options.env });
         return { stdout: '', stderr: '' };
       },
@@ -62,6 +64,19 @@ describe('smoke-test-script', () => {
     expect(result.artifact).toMatch(/## Final Output/);
     expect(result.artifact).toMatch(/<!-- consensus:consensus-resolution/);
     expect(stdout.value()).toMatch(/smoke passed/);
+
+    expect(result.create, 'create smoke scenario missing').toBeTruthy();
+    expect(result.create.status).toBe('converged');
+    expect(result.create.artifact).toMatch(/## Created Artifact/);
+    expect(result.create.artifact).toMatch(/## Deliberation Log/);
+    expect(result.create.artifact).toMatch(
+      /<!-- consensus:consensus-resolution/,
+    );
+    expect(result.create.artifact).toMatch(/"cold_start": "independent_draft"/);
+    expect(result.create.artifact).toMatch(
+      /"iteration": "parallel_synthesized"/,
+    );
+    expect(result.create.artifact).toMatch(/"agency": "maximum"/);
 
     // The smoke now also drives a parallel-synthesized escalation + host-direction
     // resume to convergence.
@@ -87,7 +102,11 @@ describe('smoke-test-script', () => {
     const result = await runSmokeTest({
       stdout: stdout.stream,
       env: cleanSmokeEnv(),
-      runCommand: async (command: string, args: string[], options: { env: NodeJS.ProcessEnv }) => {
+      runCommand: async (
+        command: string,
+        args: string[],
+        options: { env: NodeJS.ProcessEnv },
+      ) => {
         calls.push({ command, args, env: options.env });
         return { stdout: '', stderr: '' };
       },
@@ -101,11 +120,14 @@ describe('smoke-test-script', () => {
     expect(result.events.at(-1).status).toBe('converged');
     expect(result.artifact).toMatch(/## Final Output/);
     expect(stdout.value()).toMatch(/smoke passed/);
+    expect(result.create.status).toBe('converged');
+    expect(result.create.artifact).toMatch(/Synthesized/);
   });
 
   it('runParallelSynthesizedSmoke escalates once then converges via --host-direction', async () => {
     // @ts-expect-error No type declarations for script helpers; importing for runtime behavior.
-    const { runParallelSynthesizedSmoke } = await import('../../scripts/smoke-test.mjs');
+    const smokeModule = await import('../../scripts/smoke-test.mjs');
+    const { runParallelSynthesizedSmoke } = smokeModule;
     const result = await runParallelSynthesizedSmoke();
 
     expect(result.status).toBe('converged');

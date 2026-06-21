@@ -2,11 +2,11 @@
 
 Status: v0.1 pre-release.
 
-`plugins/consensus/` is a self-contained plugin package for consensus workflows. It ships `refine`, which refines markdown drafts by asking two provider CLI-backed AI peers to deliberate toward a converged artifact with an audit trail, and `evaluate`, which judges an artifact against a rubric with unified findings, per-peer reasoning, and dissent preserved in the deliberation log.
+`plugins/consensus/` is a self-contained plugin package for consensus workflows. It ships `create`, which drafts a new artifact from a brief with independent peer drafts and synthesis; `refine`, which refines markdown drafts by asking two provider CLI-backed AI peers to deliberate toward a converged artifact with an audit trail; and `evaluate`, which judges an artifact against a rubric with unified findings, per-peer reasoning, and dissent preserved in the deliberation log.
 
 Consensus peers run through the generated provider CLI. The CLI owns provider inventory, preflight, bounded subprocess execution, conservative retry classification, schema delivery, and the internal `consensus submit` sidecar-verdict path used to capture peer verdicts before final-message parsing fallback.
 
-The scope is intentionally narrow: the `refine` and `evaluate` skills, three iteration modes selected with `--iteration` (`alternating` default for refine, `parallel_revision` default for evaluate, `parallel_synthesized`), a configurable synthesizer (`--synthesizer`), an agency-gated escalation ladder with host/user decision re-entry (`--host-direction`), sequential sections by default for refine, opt-in host-mediated parallel section orchestration for refine, and the `--agency` flag. Future work may add the rest of the consensus skill family, a whole-document harmonization pass, and deliberation metrics/cost caps.
+The scope is intentionally narrow: the `create`, `refine`, and `evaluate` skills, three iteration modes selected with `--iteration` (`parallel_synthesized` default for create, `alternating` default for refine, `parallel_revision` default for evaluate), a configurable synthesizer (`--synthesizer`), an agency-gated escalation ladder with host/user decision re-entry (`--host-direction`), sequential sections by default for refine, opt-in host-mediated parallel section orchestration for refine, and the `--agency` flag. Future work may add the remaining consensus family skills, a whole-document harmonization pass, and deliberation metrics/cost caps.
 
 ## Local Git Repository Install
 
@@ -58,6 +58,20 @@ node plugins/consensus/scripts/consensus.mjs preflight --json
 In an installed plugin environment, the same provider CLI may be exposed as `consensus`, for example `consensus provider ls --json` and `consensus preflight --json`. The `consensus submit --json -` command is an internal provider-turn command; wrappers inject its exact path through `CONSENSUS_SUBMIT_COMMAND`.
 
 ## Usage
+
+### Create
+
+Create a new artifact from a brief:
+
+```bash
+node plugins/consensus/skills/create/scripts/consensus-create.mjs \
+  --brief-file brief.md \
+  --output created.md
+```
+
+Use `--brief <text>` for short inline briefs and `--template <path>` when the user has a preferred structure or style sample. The create wrapper defaults to `independent_draft`, `parallel_synthesized`, and `maximum` agency. The artifact contains generated content under `## Created Artifact`, a `consensus-resolution` block, and a `## Deliberation Log` with peer verdicts and synthesis records.
+
+For an operator walkthrough of brief inputs, expected JSONL, sidecar output, and resolution metadata, see `skills/create/references/operator-qa.md`.
 
 ### Refine
 
@@ -130,7 +144,7 @@ Four ready-to-adapt example rubrics ship under `skills/evaluate/references/examp
 
 ## Permissions
 
-The consensus `refine` and `evaluate` skills need permission to run:
+The consensus `create`, `refine`, and `evaluate` skills need permission to run:
 
 - `node` for the wrapper and loop scripts.
 - `consensus` for provider inventory/preflight/submit when exposed as a command.
@@ -163,9 +177,9 @@ Cursor is included in the provider floor, but local auth state is still operator
 
 ## Limitations
 
-- v0.1 ships the `refine` and `evaluate` skills.
-- Remaining consensus family skills are future work: `consensus-create`, `consensus-decide`, `consensus-plan`, and `consensus-research`.
-- Ships three iteration modes (`alternating`, `parallel_revision`, `parallel_synthesized`); the independent-draft cold-start strategy is not exposed through `refine` or `evaluate` (shared-input only).
+- v0.1 ships the `create`, `refine`, and `evaluate` skills.
+- Remaining consensus family skills are future work: `consensus-decide`, `consensus-plan`, and `consensus-research`.
+- Ships three iteration modes (`alternating`, `parallel_revision`, `parallel_synthesized`); the independent-draft cold-start strategy is exposed through `create`, while `refine` and `evaluate` remain shared-input only.
 - Sections converge independently; whole-document harmonization and deliberation metrics/cost caps remain deferred.
 - Verdict submission is best-effort by default: successful submit sidecars are preferred, then wrappers fall back to final-message parsing. A strict require-submission mode and Codex read-only submit capture-path relocation remain future work.
 - Cursor is supported as a host runtime and as a first-floor peer when its local CLI is authenticated. Treat `auth_required` inventory/preflight results as a local setup issue, not a retryable consensus failure.
@@ -177,6 +191,8 @@ Cursor is included in the provider floor, but local auth state is still operator
 ## Package Layout
 
 - `.claude-plugin/`, `.cursor-plugin/`, `.codex-plugin/` - provider plugin manifests.
+- `skills/create/` - implementation directory for the shipped `create` skill.
+- `skills/create/references/operator-qa.md` - manual QA walkthrough of brief-to-artifact creation, with a runnable brief under `references/examples/`.
 - `skills/refine/` - implementation directory for the shipped `refine` skill.
 - `skills/refine/references/operator-qa.md` - manual QA walkthrough of the iteration modes and escalation ladder, with runnable example inputs under `references/examples/`.
 - `skills/evaluate/` - implementation directory for the shipped `evaluate` skill.

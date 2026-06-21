@@ -7,6 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
+import { runConsensusCreate } from '../plugins/consensus/skills/create/scripts/consensus-create.mjs';
 import {
   runSequential,
   runWrapperCli,
@@ -234,6 +235,61 @@ export async function runParallelSynthesizedSmoke(_options = {}) {
   };
 }
 
+export async function runCreateSmoke({ env }) {
+  const tempRoot = await mkdtemp(
+    path.join(os.tmpdir(), 'consensus-smoke-create-'),
+  );
+  const outputPath = path.join(tempRoot, 'created.md');
+  const runDir = path.join(tempRoot, '.consensus/create-run');
+  const createEnv = {
+    ...env,
+    CONSENSUS_STUB_VERDICT: 'REVISE',
+    CONSENSUS_STUB_PROPOSED_ARTIFACT:
+      '# Created Artifact\n\nPeer draft from the smoke brief.\n',
+    CONSENSUS_STUB_SYNTHESIZED_ARTIFACT:
+      '# Created Artifact\n\nSynthesized create artifact from the smoke brief.\n',
+  };
+
+  const result = await runConsensusCreate(
+    [
+      '--brief',
+      'Draft a short smoke-test artifact for the consensus-create wrapper.',
+      '--output',
+      outputPath,
+      '--run-dir',
+      runDir,
+      '--allow-root',
+      tempRoot,
+      '--peers',
+      'claude,codex',
+      '--iteration',
+      'parallel_synthesized',
+      '--max-rounds',
+      '1',
+    ],
+    {
+      cwd: tempRoot,
+      env: createEnv,
+    },
+  );
+
+  const artifact = await readFile(outputPath, 'utf8');
+  assert.equal(result.status.status, 'converged');
+  assert.match(artifact, /## Created Artifact/);
+  assert.match(artifact, /## Deliberation Log/);
+  assert.match(artifact, /<!-- consensus:consensus-resolution\n/);
+  assert.match(artifact, /"cold_start": "independent_draft"/);
+  assert.match(artifact, /"iteration": "parallel_synthesized"/);
+  assert.match(artifact, /"agency": "maximum"/);
+
+  return {
+    status: result.status.status,
+    outputPath,
+    runDir,
+    artifact,
+  };
+}
+
 export async function runSmokeTest(options = {}) {
   const root = path.resolve(options.root ?? repoRoot);
   const stdout = options.stdout ?? process.stdout;
@@ -296,6 +352,8 @@ export async function runSmokeTest(options = {}) {
   const artifact = await readFile(outputPath, 'utf8');
   assertArtifactShape(artifact);
 
+  const create = await runCreateSmoke({ env });
+
   // Second scenario: a mocked parallel-synthesized flow that escalates once and
   // resumes to convergence via --host-direction (exercises synthesizer, the
   // escalation_required event, and host-decision re-entry on top of v1 resume).
@@ -309,6 +367,7 @@ export async function runSmokeTest(options = {}) {
     artifact,
     outputPath,
     runDir,
+    create,
     parallelSynthesized,
   };
 }
