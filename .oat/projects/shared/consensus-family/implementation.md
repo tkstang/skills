@@ -187,7 +187,7 @@ oat_generated: false
 - `src/consensus/create/create-prompts.ts` - create prompt profile and untrusted brief/template framing.
 - `src/consensus/core/consensus-loop.ts` - support for independent-draft round-1 create prompts without placeholder shared draft content.
 - `plugins/consensus/skills/create/` and `skills/consensus-create/` - generated runtime, skill anatomy, and shipped skill metadata.
-- `documentation/docs/user-guide/consensus/index.md`, `documentation/docs/user-guide/consensus/skills/create.md`, `documentation/docs/engineering/architecture/generated-runtime.md`, and `documentation/index.md` - consensus create docs and generated docs index updates.
+- `documentation/docs/user-guide/consensus/index.md`, `documentation/docs/user-guide/consensus/create.md`, `documentation/docs/engineering/architecture/generated-runtime.md`, and `documentation/index.md` - consensus create docs and generated docs index updates.
 - `.oxfmtrc.json` and `.oxlintrc.json` - generated-output lint/format exclusions for create runtime files.
 - `tests/consensus/create/`, `tests/repo/`, `tests/tooling/generated-output-sync.test.ts`, and `tests/release/` - create behavior, docs, manifest, generated-output, versioning, and smoke coverage.
 
