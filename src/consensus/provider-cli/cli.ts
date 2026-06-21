@@ -1,8 +1,12 @@
 #!/usr/bin/env node
 
-import { readFile } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 
 import { runConsensusCli } from './commands.js';
+import {
+  byteLength,
+  SubmitCaptureLimitError,
+} from './submit-capture.js';
 
 import type { ConsensusCliIo } from './commands.js';
 
@@ -15,17 +19,48 @@ function nodeIo(): ConsensusCliIo {
     stdin: process.stdin,
     cwd: process.cwd(),
     env: process.env,
-    readFile: (filePath) => readFile(filePath, 'utf8'),
-    readStdin: () => readAllStdin(process.stdin),
+    readFile: (filePath, maxBytes) => readUtf8File(filePath, maxBytes),
+    readStdin: (maxBytes) => readAllStdin(process.stdin, maxBytes),
   };
 }
 
-function readAllStdin(stdin: NodeJS.ReadStream): Promise<string> {
+async function readUtf8File(
+  filePath: string,
+  maxBytes: number | undefined,
+): Promise<string> {
+  if (maxBytes !== undefined) {
+    const file = await stat(filePath);
+    if (file.size > maxBytes) {
+      throw new SubmitCaptureLimitError(file.size, maxBytes);
+    }
+  }
+
+  const contents = await readFile(filePath, 'utf8');
+  if (maxBytes !== undefined && byteLength(contents) > maxBytes) {
+    throw new SubmitCaptureLimitError(byteLength(contents), maxBytes);
+  }
+  return contents;
+}
+
+function readAllStdin(
+  stdin: NodeJS.ReadStream,
+  maxBytes: number | undefined,
+): Promise<string> {
   stdin.setEncoding('utf8');
   return new Promise((resolve, reject) => {
     let value = '';
+    let bytes = 0;
     stdin.on('data', (chunk) => {
-      value += chunk;
+      const text = typeof chunk === 'string' ? chunk : chunk.toString('utf8');
+      if (maxBytes !== undefined) {
+        bytes += byteLength(text);
+        if (bytes > maxBytes) {
+          reject(new SubmitCaptureLimitError(bytes, maxBytes));
+          stdin.destroy();
+          return;
+        }
+      }
+      value += text;
     });
     stdin.on('error', reject);
     stdin.on('end', () => {

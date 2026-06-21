@@ -52,6 +52,51 @@ describe('provider CLI argument parsing', () => {
     });
   });
 
+  it('parses submit with stdin verdict and env-defaulted schema/out', () => {
+    expect(parseConsensusCliArgs(['submit', '--json', '-'])).toEqual({
+      kind: 'submit',
+      json: true,
+      verdictSource: { kind: 'stdin' },
+    });
+  });
+
+  it('parses submit with explicit file, schema, and out paths', () => {
+    expect(
+      parseConsensusCliArgs([
+        'submit',
+        '--json',
+        '--verdict-file',
+        'verdict.json',
+        '--schema',
+        'schema.json',
+        '--out',
+        'capture.json',
+      ]),
+    ).toEqual({
+      kind: 'submit',
+      json: true,
+      verdictSource: { kind: 'file', path: 'verdict.json' },
+      schemaPath: 'schema.json',
+      outPath: 'capture.json',
+    });
+  });
+
+  it('rejects submit with multiple verdict sources or missing json', () => {
+    expect(() =>
+      parseConsensusCliArgs([
+        'submit',
+        '--json',
+        '--verdict-file',
+        'verdict.json',
+        '-',
+      ]),
+    ).toThrow('Use only one verdict source');
+
+    expect(() => parseConsensusCliArgs(['submit', '-'])).toThrow(
+      'Missing required --json flag',
+    );
+  });
+
   it('normalizes short prompts', async () => {
     const command = parseConsensusCliArgs([
       'run',

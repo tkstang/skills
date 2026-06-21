@@ -1,5 +1,6 @@
 import type {
   FirstScopeProviderId,
+  ProviderExitClassification,
   ProviderCapabilities,
   ProviderErrorCode,
   ProviderId,
@@ -11,6 +12,7 @@ import {
   buildCodexInvocation,
   buildCursorInvocation,
 } from './invocation.js';
+import { isReliableExternalInterrupt } from './subprocess.js';
 import type { ProviderInvocationBuilder } from './invocation.js';
 
 export interface ProviderAdapter {
@@ -49,6 +51,7 @@ export interface ProviderRunFailureClassification {
   message: string;
   retryable: boolean;
   terminal_reason: string;
+  exit_classification: ProviderExitClassification;
 }
 
 export type ProviderRunFailureClassifier = (
@@ -83,6 +86,21 @@ const COMMON_TRANSIENT_EXIT_PATTERNS = [
   /etimedout/i,
 ] as const;
 
+const CLAUDE_TRANSIENT_EXIT_PATTERNS = [
+  // Evidence: Claude Code error reference documents this exact repeated 529
+  // overload message as temporary capacity exhaustion:
+  // https://code.claude.com/docs/en/errors
+  /API Error: Repeated 529 Overloaded errors/i,
+] as const;
+
+const CODEX_TRANSIENT_EXIT_PATTERNS = [
+  // No Codex CLI-specific transient stderr evidence in project artifacts yet.
+] as const;
+
+const CURSOR_TRANSIENT_EXIT_PATTERNS = [
+  // No Cursor CLI-specific transient stderr evidence in project artifacts yet.
+] as const;
+
 export const DEFAULT_PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [
   {
     id: 'claude',
@@ -93,7 +111,10 @@ export const DEFAULT_PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [
       auth_required_patterns: COMMON_AUTH_REQUIRED_PATTERNS,
       unavailable_patterns: COMMON_UNAVAILABLE_PATTERNS,
       unsupported_option_patterns: COMMON_UNSUPPORTED_OPTION_PATTERNS,
-      transient_exit_patterns: COMMON_TRANSIENT_EXIT_PATTERNS,
+      transient_exit_patterns: [
+        ...COMMON_TRANSIENT_EXIT_PATTERNS,
+        ...CLAUDE_TRANSIENT_EXIT_PATTERNS,
+      ],
     }),
     probe: {
       version_args: ['--version'],
@@ -125,7 +146,10 @@ export const DEFAULT_PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [
       auth_required_patterns: COMMON_AUTH_REQUIRED_PATTERNS,
       unavailable_patterns: COMMON_UNAVAILABLE_PATTERNS,
       unsupported_option_patterns: COMMON_UNSUPPORTED_OPTION_PATTERNS,
-      transient_exit_patterns: COMMON_TRANSIENT_EXIT_PATTERNS,
+      transient_exit_patterns: [
+        ...COMMON_TRANSIENT_EXIT_PATTERNS,
+        ...CODEX_TRANSIENT_EXIT_PATTERNS,
+      ],
     }),
     probe: {
       version_args: ['--version'],
@@ -162,7 +186,10 @@ export const DEFAULT_PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [
       ],
       unavailable_patterns: COMMON_UNAVAILABLE_PATTERNS,
       unsupported_option_patterns: COMMON_UNSUPPORTED_OPTION_PATTERNS,
-      transient_exit_patterns: COMMON_TRANSIENT_EXIT_PATTERNS,
+      transient_exit_patterns: [
+        ...COMMON_TRANSIENT_EXIT_PATTERNS,
+        ...CURSOR_TRANSIENT_EXIT_PATTERNS,
+      ],
     }),
     probe: {
       version_args: ['--version'],
@@ -233,17 +260,29 @@ function defaultRunFailureClassifier(
         message: failure.message,
         retryable: failure.retryable,
         terminal_reason: terminalReasonForNonExitFailure(failure.code),
+        exit_classification: 'terminal',
       };
     }
 
     const output = `${failure.stdout}\n${failure.stderr}\n${failure.message}`;
     const outputLine = firstNonEmptyLine(output);
+    if (isReliableExternalInterrupt(failure)) {
+      return {
+        code: 'PROVIDER_EXIT',
+        message: `Provider subprocess was interrupted by signal ${failure.signal}.`,
+        retryable: true,
+        terminal_reason: 'provider_exit_interrupted',
+        exit_classification: 'interrupted',
+      };
+    }
+
     if (matchesAny(output, patterns.auth_required_patterns)) {
       return {
         code: 'PROVIDER_AUTH_REQUIRED',
         message: outputLine ?? 'Provider authentication is required.',
         retryable: false,
         terminal_reason: 'provider_auth_required',
+        exit_classification: 'terminal',
       };
     }
 
@@ -253,6 +292,7 @@ function defaultRunFailureClassifier(
         message: outputLine ?? 'Provider rejected an unsupported option.',
         retryable: false,
         terminal_reason: 'provider_unsupported_option',
+        exit_classification: 'terminal',
       };
     }
 
@@ -262,6 +302,7 @@ function defaultRunFailureClassifier(
         message: outputLine ?? failure.message,
         retryable: false,
         terminal_reason: 'provider_unavailable_exit',
+        exit_classification: 'terminal',
       };
     }
 
@@ -271,6 +312,7 @@ function defaultRunFailureClassifier(
         message: outputLine ?? failure.message,
         retryable: true,
         terminal_reason: 'provider_exit_transient',
+        exit_classification: 'transient',
       };
     }
 
@@ -279,6 +321,7 @@ function defaultRunFailureClassifier(
       message: outputLine ?? failure.message,
       retryable: false,
       terminal_reason: 'provider_exit_terminal',
+      exit_classification: 'unknown',
     };
   };
 }

@@ -4,6 +4,8 @@ Status: v0.1 pre-release.
 
 `plugins/consensus/` is a self-contained plugin package for consensus workflows. It ships `refine`, which refines markdown drafts by asking two provider CLI-backed AI peers to deliberate toward a converged artifact with an audit trail, and `evaluate`, which judges an artifact against a rubric with unified findings, per-peer reasoning, and dissent preserved in the deliberation log.
 
+Consensus peers run through the generated provider CLI. The CLI owns provider inventory, preflight, bounded subprocess execution, conservative retry classification, schema delivery, and the internal `consensus submit` sidecar-verdict path used to capture peer verdicts before final-message parsing fallback.
+
 The scope is intentionally narrow: the `refine` and `evaluate` skills, three iteration modes selected with `--iteration` (`alternating` default for refine, `parallel_revision` default for evaluate, `parallel_synthesized`), a configurable synthesizer (`--synthesizer`), an agency-gated escalation ladder with host/user decision re-entry (`--host-direction`), sequential sections by default for refine, opt-in host-mediated parallel section orchestration for refine, and the `--agency` flag. Future work may add the rest of the consensus skill family, a whole-document harmonization pass, and deliberation metrics/cost caps.
 
 ## Local Git Repository Install
@@ -41,7 +43,7 @@ If `skills` is already configured as a marketplace from another local checkout, 
 ## Prerequisites
 
 - Node.js 22 or newer.
-- The generated consensus CLI from this plugin, used for provider inventory, preflight, and peer invocation.
+- The generated consensus CLI from this plugin, used for provider inventory, preflight, peer invocation, and peer verdict submission.
 - Local provider CLIs for the requested peers. The first supported provider floor is `claude`, `codex`, and `cursor`.
 
 The wrappers always invoke peers through the generated provider CLI. There is no alternate backend selector in v0.1.
@@ -53,7 +55,7 @@ node plugins/consensus/scripts/consensus.mjs provider ls --json
 node plugins/consensus/scripts/consensus.mjs preflight --json
 ```
 
-In an installed plugin environment, the same provider CLI may be exposed as `consensus`, for example `consensus provider ls --json` and `consensus preflight --json`.
+In an installed plugin environment, the same provider CLI may be exposed as `consensus`, for example `consensus provider ls --json` and `consensus preflight --json`. The `consensus submit --json -` command is an internal provider-turn command; wrappers inject its exact path through `CONSENSUS_SUBMIT_COMMAND`.
 
 ## Usage
 
@@ -131,8 +133,8 @@ Four ready-to-adapt example rubrics ship under `skills/evaluate/references/examp
 The consensus `refine` and `evaluate` skills need permission to run:
 
 - `node` for the wrapper and loop scripts.
-- `consensus` for provider inventory/preflight when exposed as a command.
-- read/write access to input files, generated `.consensus/` run state, and output artifacts.
+- `consensus` for provider inventory/preflight/submit when exposed as a command.
+- read/write access to input files, generated `.consensus/` run state, provider-turn submit sidecars, and output artifacts.
 
 Refine parallel section mode additionally requires host-native subagent dispatch. Codex authorization must fail closed: if dispatch approval is unavailable or denied, the host should report that parallel mode did not run.
 
@@ -153,7 +155,11 @@ consensus preflight --json --provider claude
 
 The first supported provider floor is `claude`, `codex`, and `cursor`; future providers are extension points, not v0.1 support claims. Requested peers must be present and usable in provider inventory/preflight before live use. The wrappers surface provider-neutral diagnostics such as `PROVIDER_MISSING`, `PROVIDER_AUTH_REQUIRED`, `PROVIDER_UNAVAILABLE`, and `PROVIDER_UNSUPPORTED_OPTION`.
 
-Cursor is included in the provider floor, but local auth state is still operator-owned. If inventory or preflight reports Cursor as `auth_required`, unlock the OS keychain or authenticate the Cursor CLI in the current user session before retrying. Cursor submit-tool support is reserved for a later acceptance path and is not selected by default.
+Provider exits are classified conservatively. Unknown exits are terminal by default; reliable external interrupts can retry; timeout and output-cap failures remain terminal; provider-specific transient signatures are evidence-backed and redacted in diagnostics through `exit_classification`.
+
+Verdict submission is enabled through an injected submit command and environment: `CONSENSUS_SUBMIT_COMMAND`, `CONSENSUS_SUBMIT_SCHEMA`, `CONSENSUS_SUBMIT_FILE`, and `CONSENSUS_SUBMIT_MAX_BYTES`. Peers submit schema-valid verdict JSON with the injected command. Successful submit sidecars are preferred and reported with `verdict_source: "submit"`; when no valid sidecar exists, wrappers fall back to final-message parsing and report `verdict_source: "final_message"`. Submit-enabled Codex turns avoid native `--output-schema`, so strict-output rejection does not block the peer before it can run the submit command.
+
+Cursor is included in the provider floor, but local auth state is still operator-owned. If inventory or preflight reports Cursor as `auth_required`, unlock the OS keychain or authenticate the Cursor CLI in the current user session before retrying. Native Cursor submit-tool support is reserved for a later acceptance path; the provider-neutral submit CLI path is used instead.
 
 ## Limitations
 
@@ -161,6 +167,7 @@ Cursor is included in the provider floor, but local auth state is still operator
 - Remaining consensus family skills are future work: `consensus-create`, `consensus-decide`, `consensus-plan`, and `consensus-research`.
 - Ships three iteration modes (`alternating`, `parallel_revision`, `parallel_synthesized`); the independent-draft cold-start strategy is not exposed through `refine` or `evaluate` (shared-input only).
 - Sections converge independently; whole-document harmonization and deliberation metrics/cost caps remain deferred.
+- Verdict submission is best-effort by default: successful submit sidecars are preferred, then wrappers fall back to final-message parsing. A strict require-submission mode and Codex read-only submit capture-path relocation remain future work.
 - Cursor is supported as a host runtime and as a first-floor peer when its local CLI is authenticated. Treat `auth_required` inventory/preflight results as a local setup issue, not a retryable consensus failure.
 - Codex public marketplace submission is not assumed; Git/local install is the v0.1 path.
 - skills.sh listing should not be claimed until indexing has been verified after publication.
