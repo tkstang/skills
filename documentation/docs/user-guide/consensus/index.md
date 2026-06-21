@@ -81,8 +81,8 @@ diagnostics, and permissions, and the per-skill pages for the full command set.
   `parallel_synthesized`); `parallel_revision` and `parallel_synthesized`
   disclose their per-round call multiplier (2x peer calls, plus 1 synthesis call
   for synthesized) and escalate stuck states through the agency-gated ladder.
-- The independent-draft cold-start strategy is exposed through `create`.
-  `refine` and `evaluate` remain shared-input only.
+- The independent-draft cold-start strategy is exposed through `create` and
+  `decide`. `refine` and `evaluate` remain shared-input only.
 - Sections converge independently; whole-document harmonization and deliberation
   metrics / cost caps remain deferred.
 - Cursor is supported as a host runtime and as a first-floor peer when its local

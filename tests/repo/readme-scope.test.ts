@@ -126,6 +126,9 @@ describe('readme-scope', () => {
     expect(docs).toMatch(/Dissent \/ Unresolved Disagreement/);
     expect(docs).toMatch(/minimal/);
     expect(docs).toMatch(/consensus-resolution/);
+    expect(docs).toMatch(
+      /independent-draft cold-start strategy is exposed through `create` and\s+`decide`/i,
+    );
     expect(docs).not.toMatch(
       /Remaining consensus-family skills are future work:[\s\S]*consensus-decide/i,
     );
