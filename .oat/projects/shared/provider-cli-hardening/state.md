@@ -1,6 +1,6 @@
 ---
-oat_current_task: p03-t01
-oat_last_commit: 0a1174066de0b7964e54311779610149f67d294b
+oat_current_task: null
+oat_last_commit: 718fa473b4973b2536117e8bbea34c6d6e80af8f
 oat_blockers: []
 associated_issues: [{type: backlog, ref: "bl-3a88"}, {type: backlog, ref: "bl-3291"}] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
@@ -27,21 +27,22 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-06-20T23:02:16.482Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-06-21T04:00:12Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-06-21T04:28:51Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
 # Project State: provider-cli-hardening
 
-**Status:** Implementation in progress
+**Status:** Phase 3 implementation complete; awaiting p03 re-review
 **Started:** 2026-06-20
 **Last Updated:** 2026-06-21
 
 ## Current Phase
 
-Phases 1 and 2 passed implementation and code review. Current task is `p03-t01`
-using Tier 1 subagents. Dispatch ceiling = **maximum** (Codex: xhigh · Claude:
-opus).
+Phases 1 and 2 passed implementation and code review. Phase 3 implementation
+completed all planned tasks and its first code review returned one Important
+lifecycle-metadata finding. The fix has been applied and p03 is awaiting
+re-review. Dispatch ceiling = **maximum** (Codex: xhigh · Claude: opus).
 
 ## Artifacts
 
@@ -49,7 +50,7 @@ opus).
 - **Spec:** `spec.md` (complete — requirements confirmed; Requirement Index mapped to tasks)
 - **Design:** `design.md` (complete — HiLL-approved; artifact review resolved)
 - **Plan:** `plan.md` (complete — auto + manual reviews passed; ready for implement)
-- **Implementation:** `implementation.md` (in progress — current task `p03-t01`)
+- **Implementation:** `implementation.md` (p03 complete — awaiting p03 re-review)
 
 ## Progress
 
@@ -62,7 +63,8 @@ opus).
 - ✓ Plan finalized (ready for implement)
 - ✓ Phase 1 (`p01`) implementation and code review complete
 - ✓ Phase 2 (`p02`) implementation and code review complete
-- ⧗ Implementation in progress (`p03-t01`)
+- ✓ Phase 3 (`p03`) implementation complete
+- ⧗ p03 lifecycle-metadata review fix complete; awaiting p03 re-review
 
 ## Blockers
 
@@ -70,5 +72,5 @@ None
 
 ## Next Milestone
 
-Complete Phase 3 evidence/E2E + DR promotion. HiLL checkpoint is final-only (`p03`)
-with auto-review enabled.
+Run p03 re-review against `reviews/p03-review-2026-06-21.md`. Do not advance to
+final review until p03 re-review passes.

@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-21
-oat_current_task_id: p03-t01
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -28,9 +28,9 @@ oat_generated: false
 | ------- | ----------- | ----- | --------- |
 | p01     | complete    | 7     | 7/7       |
 | p02     | complete    | 10    | 10/10     |
-| p03     | in_progress | 5     | 0/5       |
+| p03     | complete    | 5     | 5/5       |
 
-**Total:** 17/22 tasks completed
+**Total:** 22/22 tasks completed
 
 ---
 
@@ -298,13 +298,72 @@ oat_generated: false
 
 ## Phase p03: Reliability evidence, live E2E, and decision-record promotion
 
-**Status:** in_progress
+**Status:** complete
 **Started:** 2026-06-21
+
+### Phase Summary
+
+**Outcome (what changed):**
+
+- Added deterministic evidence fixtures showing submit-sidecar capture converts both known flaky failure classes into successful submitted verdicts.
+- Added a gated live-provider E2E for prompt-driven `consensus submit`, skipped by default unless explicitly enabled.
+- Recorded the Codex read-only sandbox/tmpdir limitation as a future capture-path relocation concern rather than a shipped support claim.
+- Promoted DR-bl3a88 to the repo decision record and flagged the consensus-family backlog track.
+
+**Key files touched:**
+
+- `tests/consensus/provider-cli/evidence/no-structured-output.test.ts` - no-final-JSON reliability fixture.
+- `tests/consensus/provider-cli/evidence/strict-output-rejection.test.ts` - strict-output rejection reliability fixture.
+- `tests/consensus/provider-cli/e2e/submit-live.e2e.test.ts` - gated live-provider submit E2E.
+- `.oat/projects/shared/provider-cli-hardening/design.md` - sandbox/tmpdir posture note.
+- `.oat/repo/reference/decision-record.md` - promoted submit-CLI decision.
+- `.oat/repo/reference/backlog/items/*.md` - backlog status and bl-3291 contract alignment.
+
+**Verification:**
+
+- Run: `pnpm exec vitest run tests/consensus/provider-cli/evidence/no-structured-output.test.ts tests/consensus/provider-cli/evidence/strict-output-rejection.test.ts tests/consensus/provider-cli/e2e/submit-live.e2e.test.ts`
+- Result: pass, with the gated live-provider test skipped by default.
+- Run: `pnpm run build:check && pnpm run type-check && pnpm run test && pnpm run validate && pnpm run smoke`
+- Result: pass.
+- Review gate: p03 code review found one Important lifecycle-metadata issue only; product verification passed and this artifact fix is awaiting re-review.
+
+**Notes / Decisions:**
+
+- p03-t04 was verification-only and produced no commit because the full gate sweep did not require generated-output changes.
+- The active p03 review artifact remains at `reviews/p03-review-2026-06-21.md` for re-review context.
 
 ### Task p03-t01: Fixture — no structured-output message to submitted verdict
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** c6fd0fe
+
+---
+
+### Task p03-t02: Fixture — strict-output rejection to submitted verdict
+
+**Status:** completed
+**Commit:** b14d72a
+
+---
+
+### Task p03-t03: Live-provider E2E and sandbox/tmpdir posture
+
+**Status:** completed
+**Commit:** 7e9b540
+
+---
+
+### Task p03-t04: Full gate sweep
+
+**Status:** completed
+**Commit:** verification-only; no commit required
+
+---
+
+### Task p03-t05: Promote DR-bl3a88 and flag consensus-family track
+
+**Status:** completed
+**Commit:** 718fa47
 
 ---
 
@@ -385,6 +444,39 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 | ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
 | None          | -               | -                    | -                 | -      | -               | -         |
 
+### Run 3 — 2026-06-21 05:00 UTC
+
+**Branch:** provider-cli-hardening
+**Tier:** 1
+**Policy:** merge-strategy=sequential, retry-limit=2
+**Phases:** 1 executed, 1 awaiting re-review, 0 failed, 0 stopped
+
+#### Phase Outcomes
+
+| Phase | Implementer | Review | Fix Iterations | Disposition |
+| ----- | ----------- | ------ | -------------- | ----------- |
+| p03   | DONE        | fixes_completed | 1/2      | awaiting re-review |
+
+#### Parallel Groups
+
+- p03: sequential; no parallel worktree group configured.
+
+#### Dispatch Notes
+
+- Dispatch: p03 implementation completed commits c6fd0fe, b14d72a, 7e9b540, and 718fa47.
+- Dispatch: p03 review/fix used `effort_axis=selected:medium`, `model_axis=inherited`; dispatch ceiling `xhigh` from project state.
+- Fix loop: resolved the Important lifecycle-metadata finding from `reviews/p03-review-2026-06-21.md`.
+
+#### Outstanding Items
+
+- Run p03 re-review; do not mark p03 passed until the reviewer clears the active review artifact.
+
+#### Artifact / Design Deltas
+
+| Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
+| ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
+| p03-review | state.md / implementation.md | p03-t01 next | p03 tasks complete, current task null | Lifecycle metadata lagged completed p03 commits | p03 commits c6fd0fe..718fa47 and active review | p03 re-review |
+
 <!-- orchestration-runs-end -->
 
 ---
@@ -416,7 +508,12 @@ Chronological log of implementation progress.
 - [x] p02-t10: Regenerate runtime + Phase 2 gates - 763b3e5
 - [x] p02-r01: Review fix, injected peer submit command - 6180297
 - [x] p02-r02: Review fix, structured submit write failures - 0a11740
-- [ ] p03-t01: Fixture no-structured-output evidence - next
+- [x] p03-t01: Fixture no-structured-output evidence - c6fd0fe
+- [x] p03-t02: Fixture strict-output rejection evidence - b14d72a
+- [x] p03-t03: Live-provider submit E2E and sandbox posture - 7e9b540
+- [x] p03-t04: Full gate sweep - verification-only; no commit required
+- [x] p03-t05: Promote DR-bl3a88 and flag consensus-family track - 718fa47
+- [x] p03-r01: Review fix, lifecycle metadata aligned for p03 re-review
 
 **What changed (high level):**
 
@@ -424,6 +521,8 @@ Chronological log of implementation progress.
 - Generated runtime output is in sync after Phase 1.
 - The submit CLI seam is implemented, preferred over parse fallback when present, and preserves the core envelope contract.
 - The peer prompt now uses a runner-injected submit command and submit write errors return structured JSON.
+- Phase 3 evidence fixtures, gated live E2E, and DR/backlog promotion are complete.
+- Lifecycle metadata now reflects that all p03 plan tasks are complete and the project is awaiting p03 re-review.
 
 **Decisions:**
 
@@ -432,7 +531,7 @@ Chronological log of implementation progress.
 
 **Follow-ups / TODO:**
 
-- Continue with Phase 3 evidence, live E2E, and decision-record promotion.
+- Run p03 re-review; if it passes, continue to final review.
 
 **Blockers:**
 
@@ -466,29 +565,40 @@ Track test execution during implementation.
 | ----- | --------- | ------ | ------ | -------- |
 | p01   | `pnpm run build:check`; `pnpm run type-check`; `pnpm exec vitest run tests/consensus/provider-cli`; review also ran `pnpm run validate` and `pnpm run smoke` | yes | 0 | Provider CLI phase scope |
 | p02   | `pnpm run build:check`; `pnpm run type-check`; `pnpm run test`; `pnpm run smoke`; `pnpm run validate`; generated-runtime write-failure check | yes | 0 | Provider CLI submit path and core envelope integration |
+| p03   | `pnpm exec vitest run tests/consensus/provider-cli/evidence/no-structured-output.test.ts tests/consensus/provider-cli/evidence/strict-output-rejection.test.ts tests/consensus/provider-cli/e2e/submit-live.e2e.test.ts`; `pnpm run build:check`; `pnpm run type-check`; `pnpm run test`; `pnpm run validate`; `pnpm run smoke` | yes | 0 | Reliability evidence, gated live E2E, generated output, full gates |
 
 ## Final Summary (for PR/docs)
 
 **What shipped:**
 
-- {capability 1}
-- {capability 2}
+- Provider-exit retry classification is terminal-by-default for unknown exits, redacted in diagnostics, and covered across adapters.
+- `consensus submit` gives provider peers a validated sidecar verdict-submission path while preserving the existing core envelope contract.
+- Deterministic p03 evidence and gated live-provider E2E cover the submit path, and DR-bl3a88 is promoted to the repo decision record.
 
 **Behavioral changes (user-facing):**
 
-- {bullet}
+- Provider peers are prompted with a run-bound `CONSENSUS_SUBMIT_COMMAND`; submitted verdicts are preferred over final-message parsing when present.
+- No-submission still falls back to the existing parse path by default.
+- Transient provider exits retry without injecting process-exit messages as schema-validation feedback.
 
 **Key files / modules:**
 
-- `{path}` - {purpose}
+- `src/consensus/provider-cli/structured-output.ts` - retry loop, submit capture, fallback resolution, diagnostics.
+- `src/consensus/provider-cli/commands.ts` - `consensus submit` handling.
+- `src/consensus/provider-cli/adapters.ts` - provider-exit classification.
+- `tests/consensus/provider-cli/` - classifier, submit, evidence, E2E, and envelope coverage.
 
 **Verification performed:**
 
-- {tests/lint/typecheck/build/manual steps}
+- `pnpm run build:check`
+- `pnpm run type-check`
+- `pnpm run test`
+- `pnpm run validate`
+- `pnpm run smoke`
 
 **Design deltas (if any):**
 
-- {what changed vs design.md and why}
+- Codex read-only sandbox/tmpdir posture is documented as a future capture-path relocation concern; the default shipped behavior does not claim read-only Codex sidecar writes are supported.
 
 ## References
 
