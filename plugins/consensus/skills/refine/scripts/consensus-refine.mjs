@@ -1561,10 +1561,14 @@ function parseWrapperArgs(argv) {
     throw invalidIterationModeError(parsed.iteration);
   }
   if (parsed.coldStart === "independent_draft") {
-    throw new Error("--cold-start independent_draft is not yet supported");
+    throw new Error(
+      "consensus-refine supports `shared_input` only because it refines an existing draft"
+    );
   }
   if (parsed.coldStart !== "shared_input") {
-    throw new Error("--cold-start must be shared_input");
+    throw new Error(
+      "consensus-refine supports `shared_input` only; --cold-start must be shared_input"
+    );
   }
   if (parsed.fanIn) {
     if (positionals.length > 0) {

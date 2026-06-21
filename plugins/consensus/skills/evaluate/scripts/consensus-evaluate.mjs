@@ -187,7 +187,7 @@ function parseColdStart(value) {
   const coldStart = value;
   if (coldStart === "independent_draft") {
     throw new ConsensusError(
-      "--cold-start independent_draft is not yet supported for consensus-evaluate",
+      "consensus-evaluate supports `shared_input` only because it evaluates an existing artifact",
       {
         code: "UNSUPPORTED_COLD_START",
         exitCode: EXIT_CODES.USAGE
@@ -195,7 +195,9 @@ function parseColdStart(value) {
     );
   }
   if (coldStart !== "shared_input") {
-    throw new Error("--cold-start must be shared_input");
+    throw new Error(
+      "consensus-evaluate supports `shared_input` only; --cold-start must be shared_input"
+    );
   }
   return "shared_input";
 }

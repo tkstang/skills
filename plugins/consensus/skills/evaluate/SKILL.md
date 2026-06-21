@@ -1,14 +1,14 @@
 ---
 name: evaluate
 description: Use when evaluating an artifact against a rubric with two AI peers, unified findings, per-peer reasoning, and dissent preserved in the deliberation log.
-version: '0.1.0'
+version: '0.1.1'
 license: MIT
 compatibility: Agent Skills baseline; requires Node.js 22+ and the generated consensus CLI.
 allowed-tools: Bash(node:*), Bash(consensus:*), Read, Write
 argument-hint: <artifact.md> [--rubric <rubric.md>]
 metadata:
   author: thomas.stang
-  version: '0.1.0'
+  version: '0.1.1'
 ---
 
 # Evaluate
@@ -44,7 +44,7 @@ The defaults are:
 - `--iteration parallel_revision`
 - `--agency minimal`
 
-The wrapper requires `--rubric <path>`. It rejects `--cold-start independent_draft` because independent-draft startup is not yet supported for this skill family.
+The wrapper requires `--rubric <path>`. It rejects `--cold-start independent_draft` because `consensus-evaluate` evaluates an existing artifact and supports `shared_input` only.
 
 Read JSONL emitted on stdout. Treat each JSONL line as host coordination data: status updates, warnings, artifact paths, or impasse summaries. Use stderr only as terminal diagnostics, not as the coordination protocol.
 
