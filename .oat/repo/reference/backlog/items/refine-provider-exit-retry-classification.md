@@ -1,14 +1,14 @@
 ---
 id: bl-3291
 title: 'Refine provider-exit retry classification (transient vs terminal)'
-status: open
+status: done
 priority: medium
 scope: task
 scope_estimate: M
 labels: [consensus, provider-cli, reliability, retry]
 assignee: null
 created: '2026-06-19T23:41:44Z'
-updated: '2026-06-21T04:16:06Z'
+updated: '2026-06-21T05:01:55Z'
 associated_issues: []
 oat_template: true
 oat_template_name: backlog-item
