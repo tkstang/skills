@@ -354,23 +354,23 @@ _Design-related open questions are tracked in the [Open Questions](#open-questio
 
 | ID   | Description                                              | Priority | Verification                          | Planned Tasks                      |
 | ---- | ------------------------------------------------------- | -------- | ------------------------------------- | ---------------------------------- |
-| FR1  | Verdict-submission action (submit-CLI)                  | P0       | unit + integration: submit subcommand | TBD - see plan.md                  |
-| FR2  | In-context validation + self-correction                | P0       | unit: schema-error messages; integration: in-turn retry | TBD - see plan.md |
-| FR3  | Deterministic capture into envelope/audit trail         | P0       | integration: sidecar capture → envelope.json | TBD - see plan.md          |
-| FR4  | Defined no-submission behavior                          | P0       | unit + integration: no-submission path | TBD - see plan.md                 |
-| FR5  | Reliability evidence vs. prior path                     | P0       | integration (fixtures) + e2e (live)   | TBD - see plan.md                  |
-| FR6  | Confirm terminal-default retry contract                 | P0       | unit: unknown-exit → terminal         | TBD - see plan.md                  |
-| FR7  | Fix transient-retry prompt contamination                | P0       | unit: transient retry prompt unchanged | TBD - see plan.md                 |
-| FR8  | Evidence-backed per-adapter transient signatures        | P1       | unit: per-adapter signature           | TBD - see plan.md                  |
-| FR9  | Signal/interruption classification (reliable)           | P1       | unit: signal → transient; timeout → terminal | TBD - see plan.md           |
-| FR10 | Redacted audit recording of classification basis        | P0       | unit: basis recorded; no-leak assertion | TBD - see plan.md               |
-| FR11 | Contract-locking tests                                  | P0       | unit + integration: per-adapter matrix | TBD - see plan.md                 |
-| FR12 | Decision record + family-track flag                     | P0       | manual: DR entry + family flag        | TBD - see plan.md                  |
-| NFR1 | Dependency-free shipped runtime                         | P0       | static: no new dep; integration: smoke | TBD - see plan.md                 |
-| NFR2 | Engine determinism + audit integrity                    | P0       | integration: envelope contract unchanged | TBD - see plan.md              |
-| NFR3 | Redaction preserved                                     | P0       | unit: no-leak test                    | TBD - see plan.md                  |
-| NFR4 | Generated-output discipline                             | P0       | static: build:check clean             | TBD - see plan.md                  |
-| NFR5 | Gates green                                             | P0       | integration: all gates               | TBD - see plan.md                  |
+| FR1  | Verdict-submission action (submit-CLI)                  | P0       | unit + integration: submit subcommand | p02-t02, p02-t03, p02-t04                  |
+| FR2  | In-context validation + self-correction                | P0       | unit: schema-error messages; integration: in-turn retry | p02-t01, p02-t03, p02-t06 |
+| FR3  | Deterministic capture into envelope/audit trail         | P0       | integration: sidecar capture → envelope.json | p02-t05, p02-t07          |
+| FR4  | Defined no-submission behavior                          | P0       | unit + integration: no-submission path | p02-t08                 |
+| FR5  | Reliability evidence vs. prior path                     | P0       | integration (fixtures) + e2e (live)   | p03-t01, p03-t02, p03-t03                  |
+| FR6  | Confirm terminal-default retry contract                 | P0       | unit: unknown-exit → terminal         | p01-t01                  |
+| FR7  | Fix transient-retry prompt contamination                | P0       | unit: transient retry prompt unchanged | p01-t02                 |
+| FR8  | Evidence-backed per-adapter transient signatures        | P1       | unit: per-adapter signature           | p01-t05                  |
+| FR9  | Signal/interruption classification (reliable)           | P1       | unit: signal → transient; timeout → terminal | p01-t04           |
+| FR10 | Redacted audit recording of classification basis        | P0       | unit: basis recorded; no-leak assertion | p01-t03               |
+| FR11 | Contract-locking tests                                  | P0       | unit + integration: per-adapter matrix | p01-t06                 |
+| FR12 | Decision record + family-track flag                     | P0       | manual: DR entry + family flag        | p03-t05                  |
+| NFR1 | Dependency-free shipped runtime                         | P0       | static: no new dep; integration: smoke | p02-t03, p02-t10                 |
+| NFR2 | Engine determinism + audit integrity                    | P0       | integration: envelope contract unchanged | p02-t07, p02-t09              |
+| NFR3 | Redaction preserved                                     | P0       | unit: no-leak test                    | p01-t03                  |
+| NFR4 | Generated-output discipline                             | P0       | static: build:check clean             | p01-t07, p02-t10, p03-t04                  |
+| NFR5 | Gates green                                             | P0       | integration: all gates               | p03-t04                  |
 
 **Notes:**
 
