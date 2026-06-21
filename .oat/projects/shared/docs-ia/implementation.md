@@ -24,19 +24,20 @@ oat_generated: false
 
 ## Progress Overview
 
-| Phase   | Status      | Tasks | Completed |
-| ------- | ----------- | ----- | --------- |
-| Phase 1 | in_progress | N     | 0/N       |
-| Phase 2 | pending     | N     | 0/N       |
+| Phase                                       | Status      | Tasks | Completed |
+| ------------------------------------------- | ----------- | ----- | --------- |
+| Phase 1 — Scaffold (operator + verify)      | pending     | 2     | 0/2       |
+| Phase 2 — Migrate into two-trunk IA         | pending     | 7     | 0/7       |
+| Phase 3 — Slim README + close out           | pending     | 3     | 0/3       |
 
-**Total:** 0/{N} tasks completed
+**Total:** 0/12 tasks completed
 
 ---
 
-## Phase 1: {Phase Name}
+## Phase 1: Scaffold the Fumadocs app (operator-run + verify)
 
-**Status:** in_progress
-**Started:** 2026-06-21
+**Status:** pending
+**Started:** -
 
 ### Phase Summary (fill when phase is complete)
 
@@ -57,10 +58,10 @@ oat_generated: false
 
 - {trade-offs or deviations discovered during implementation}
 
-### Task p01-t01: {Task Name}
+### Task p01-t01: Pre-stage inputs and scaffold via /oat-docs-bootstrap (OPERATOR ACTION)
 
-**Status:** completed / in_progress / pending / blocked
-**Commit:** {sha} (if completed)
+**Status:** pending
+**Commit:** -
 
 **Outcome (required when completed):**
 
@@ -85,7 +86,7 @@ oat_generated: false
 
 ---
 
-### Task p01-t02: {Task Name}
+### Task p01-t02: Verify build green and record the framework decision
 
 **Status:** pending
 **Commit:** -
@@ -96,12 +97,12 @@ oat_generated: false
 
 ---
 
-## Phase 2: {Phase Name}
+## Phase 2: Migrate README content into the two-trunk IA
 
 **Status:** pending
 **Started:** -
 
-### Task p02-t01: {Task Name}
+### Task p02-t01: Analyze + curate structure; record no-info-loss mapping
 
 **Status:** pending
 **Commit:** -
