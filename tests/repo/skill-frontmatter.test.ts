@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 const refineSkillPath = new URL(
@@ -21,6 +22,14 @@ function frontmatter(markdown: string) {
 function field(block: string, name: string) {
   const match = block.match(new RegExp(`^${name}:\\s*(.+)$`, 'm'));
   expect(match, `frontmatter should include ${name}`).toBeTruthy();
+  return match![1].trim().replace(/^["']|["']$/g, '');
+}
+
+function metadataVersion(block: string) {
+  const match = block.match(
+    /^metadata:\n(?:  .+\n)*?  version:\s*["']?([^"'\n]+)["']?/m,
+  );
+  expect(match, 'frontmatter should include metadata.version').toBeTruthy();
   return match![1].trim().replace(/^["']|["']$/g, '');
 }
 
@@ -51,9 +60,7 @@ describe('skill-frontmatter', () => {
         );
       }
 
-      expect(block).toMatch(
-        /^metadata:\n(?:  .+\n)*  version: ["']0\.1\.0["']$/m,
-      );
+      expect(metadataVersion(block)).toBe(field(block, 'version'));
     },
   );
 
@@ -62,16 +69,13 @@ describe('skill-frontmatter', () => {
     const block = frontmatter(markdown);
 
     const topLevelVersion = field(block, 'version');
-    const metaVersionMatch = block.match(
-      /^metadata:\n(?:  .+\n)*?  version:\s*["']?([^"'\n]+)["']?/m,
-    );
-    expect(metaVersionMatch, 'frontmatter should include metadata.version').toBeTruthy();
-    const metaVersion = metaVersionMatch![1].trim().replace(/^["']|["']$/g, '');
+    const metaVersion = metadataVersion(block);
 
     expect(topLevelVersion).toMatch(/^\d+\.\d+\.\d+/);
-    expect(topLevelVersion, 'top-level version must match metadata.version').toBe(
-      metaVersion,
-    );
+    expect(
+      topLevelVersion,
+      'top-level version must match metadata.version',
+    ).toBe(metaVersion);
   });
 
   it('refine skill has a useful argument-hint', async () => {
@@ -79,8 +83,12 @@ describe('skill-frontmatter', () => {
     const block = frontmatter(markdown);
 
     const hint = field(block, 'argument-hint');
-    expect(hint, 'argument-hint should reference a markdown input').toMatch(/\.md/);
-    expect(hint, 'argument-hint should mention the optional goal').toMatch(/goal/i);
+    expect(hint, 'argument-hint should reference a markdown input').toMatch(
+      /\.md/,
+    );
+    expect(hint, 'argument-hint should mention the optional goal').toMatch(
+      /goal/i,
+    );
   });
 
   it('evaluate skill frontmatter is portable and versioned', async () => {
@@ -107,7 +115,7 @@ describe('skill-frontmatter', () => {
       );
     }
 
-    expect(block).toMatch(/^metadata:\n(?:  .+\n)*  version: ["']0\.1\.0["']$/m);
+    expect(metadataVersion(block)).toBe(field(block, 'version'));
   });
 
   it('evaluate skill has promoted top-level version matching metadata.version', async () => {
@@ -115,16 +123,13 @@ describe('skill-frontmatter', () => {
     const block = frontmatter(markdown);
 
     const topLevelVersion = field(block, 'version');
-    const metaVersionMatch = block.match(
-      /^metadata:\n(?:  .+\n)*?  version:\s*["']?([^"'\n]+)["']?/m,
-    );
-    expect(metaVersionMatch, 'frontmatter should include metadata.version').toBeTruthy();
-    const metaVersion = metaVersionMatch![1].trim().replace(/^["']|["']$/g, '');
+    const metaVersion = metadataVersion(block);
 
     expect(topLevelVersion).toMatch(/^\d+\.\d+\.\d+/);
-    expect(topLevelVersion, 'top-level version must match metadata.version').toBe(
-      metaVersion,
-    );
+    expect(
+      topLevelVersion,
+      'top-level version must match metadata.version',
+    ).toBe(metaVersion);
   });
 
   it('evaluate skill has a useful argument-hint', async () => {
@@ -132,7 +137,9 @@ describe('skill-frontmatter', () => {
     const block = frontmatter(markdown);
 
     const hint = field(block, 'argument-hint');
-    expect(hint, 'argument-hint should reference a markdown artifact').toMatch(/\.md/);
+    expect(hint, 'argument-hint should reference a markdown artifact').toMatch(
+      /\.md/,
+    );
     expect(hint, 'argument-hint should mention --rubric').toMatch(/--rubric/);
   });
 

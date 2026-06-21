@@ -222,6 +222,7 @@ Document any intentional deviations from the original plan, spec, or design. Inc
 | Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
 | ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
 | p01-t06       | plan.md p01-t06 verification | `pnpm run validate:skill-versions -- --base-ref main` | `pnpm run validate:skill-versions --base-ref main` | The package script passes arguments directly to `scripts/validate-skill-versions.mjs` and rejects the extra `--` token. The accepted form runs the same validator against `main`. | `package.json` script + `scripts/validate-skill-versions.mjs` CLI | Update the plan command if the artifact is revised; no code follow-up. |
+| p01-t06       | plan.md p01-t06 file list | `plugins/consensus/skills/refine`, `plugins/consensus/skills/evaluate` only | Also updated `tests/repo/skill-frontmatter.test.ts` | The required refine/evaluate skill version bumps made the repository frontmatter invariant test stale; full phase verification failed until the invariant asserted version consistency instead of the old literal `0.1.0`. | Repository test suite | Plan file list should include this invariant if p01-t06 is revised; no code follow-up. |
 
 ## Test Results
 
