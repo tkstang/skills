@@ -3,7 +3,7 @@
 // Source: src/consensus/provider-cli/cli.ts
 
 // src/consensus/provider-cli/cli.ts
-import { readFile as readFile3 } from "node:fs/promises";
+import { readFile as readFile3, stat as stat2 } from "node:fs/promises";
 
 // src/consensus/provider-cli/commands.ts
 import { randomUUID as randomUUID3 } from "node:crypto";
@@ -1560,7 +1560,7 @@ function matchesJsonType(value, type) {
 
 // src/consensus/provider-cli/structured-output.ts
 import { randomUUID as randomUUID2 } from "node:crypto";
-import { readFile as readFile2, rm as rm2 } from "node:fs/promises";
+import { readFile as readFile2, rm as rm2, stat } from "node:fs/promises";
 import { tmpdir as tmpdir2 } from "node:os";
 import path3 from "node:path";
 import { fileURLToPath } from "node:url";
@@ -1668,8 +1668,49 @@ function unsupported(option, message) {
   };
 }
 
+// src/consensus/provider-cli/submit-capture.ts
+var DEFAULT_SUBMIT_CAPTURE_MAX_BYTES = 1024 * 1024 * 10;
+var CONSENSUS_SUBMIT_MAX_BYTES_ENV = "CONSENSUS_SUBMIT_MAX_BYTES";
+var SubmitCaptureLimitError = class extends Error {
+  bytes;
+  maxBytes;
+  constructor(bytes, maxBytes) {
+    super(submitCaptureLimitMessage(bytes, maxBytes));
+    this.bytes = bytes;
+    this.maxBytes = maxBytes;
+  }
+};
+function submitCaptureMaxBytes(maxOutputBytes) {
+  return maxOutputBytes ?? DEFAULT_SUBMIT_CAPTURE_MAX_BYTES;
+}
+function parseSubmitCaptureMaxBytes(value) {
+  if (value === void 0 || value === "") {
+    return DEFAULT_SUBMIT_CAPTURE_MAX_BYTES;
+  }
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed < 1) {
+    return void 0;
+  }
+  return parsed;
+}
+function byteLength(value) {
+  return Buffer.byteLength(value, "utf8");
+}
+function assertWithinSubmitCaptureLimit(value, maxBytes) {
+  const bytes = byteLength(value);
+  if (bytes > maxBytes) {
+    throw new SubmitCaptureLimitError(bytes, maxBytes);
+  }
+}
+function submitCaptureLimitMessage(bytes, maxBytes) {
+  return `Submitted verdict exceeds submit capture limit of ${maxBytes} bytes (${bytes} bytes).`;
+}
+
 // src/consensus/provider-cli/structured-output.ts
-function selectStructuredOutputStrategy(adapter) {
+function selectStructuredOutputStrategy(adapter, options = {}) {
+  if (options.submitCaptureEnabled && adapter.capabilities.schema_strategies.includes("constrained_native") && adapter.capabilities.schema_strategies.includes("prompt_only")) {
+    return "prompt_only";
+  }
   if (adapter.capabilities.schema_strategies.includes("constrained_native")) {
     return "constrained_native";
   }
@@ -1740,10 +1781,13 @@ async function runProviderTurn(request, dependencies = {}) {
     runtime_policy: defaultRuntimePolicy(request.runtime_policy)
   };
   const maxAttempts = effectiveRequest.max_attempts ?? 1;
-  const strategy = selectStructuredOutputStrategy(adapter);
+  const strategy = selectStructuredOutputStrategy(adapter, {
+    submitCaptureEnabled: true
+  });
   const runSubprocess = dependencies.runSubprocess ?? runProviderSubprocess;
   const parentEnv = dependencies.parentEnv ?? process.env;
   const submitCapturePath = submitCaptureFile();
+  const maxSubmitBytes = submitCaptureMaxBytes(request.max_output_bytes);
   const submitCommand = dependencies.submitCommand ?? buildConsensusSubmitCommand();
   const childEnv = buildChildEnvironment({
     parentEnv,
@@ -1752,6 +1796,7 @@ async function runProviderTurn(request, dependencies = {}) {
       ...hostGuard.child_env,
       CONSENSUS_SUBMIT_COMMAND: submitCommand,
       CONSENSUS_SUBMIT_FILE: submitCapturePath,
+      [CONSENSUS_SUBMIT_MAX_BYTES_ENV]: String(maxSubmitBytes),
       CONSENSUS_SUBMIT_SCHEMA: path3.resolve(request.schema_path)
     }
   });
@@ -1818,7 +1863,8 @@ async function runProviderTurn(request, dependencies = {}) {
       }
       const submittedVerdict = await readSubmittedVerdict(
         submitCapturePath,
-        schema
+        schema,
+        maxSubmitBytes
       );
       if (submittedVerdict.ok) {
         return successEnvelope({
@@ -1970,10 +2016,13 @@ function parseProviderJson(stdout) {
     };
   }
 }
-async function readSubmittedVerdict(filePath, schema) {
+async function readSubmittedVerdict(filePath, schema, maxBytes) {
   let raw;
   try {
+    const capture = await stat(filePath);
+    if (capture.size > maxBytes) return { ok: false };
     raw = await readFile2(filePath, "utf8");
+    assertWithinSubmitCaptureLimit(raw, maxBytes);
   } catch {
     return { ok: false };
   }
@@ -2173,6 +2222,12 @@ async function runSubmit(command, io) {
       2
     );
   }
+  const maxSubmitBytes = parseSubmitCaptureMaxBytes(
+    io.env?.[CONSENSUS_SUBMIT_MAX_BYTES_ENV]
+  );
+  if (maxSubmitBytes === void 0) {
+    return submitFailure(io, "Invalid submit capture byte limit.", 2);
+  }
   let schema;
   try {
     schema = JSON.parse(await io.readFile(schemaPath));
@@ -2183,9 +2238,24 @@ async function runSubmit(command, io) {
       2
     );
   }
+  let rawVerdict;
+  try {
+    rawVerdict = await readSubmitSource(
+      command.verdictSource,
+      io,
+      maxSubmitBytes
+    );
+    assertWithinSubmitCaptureLimit(rawVerdict, maxSubmitBytes);
+  } catch (error) {
+    return submitFailure(
+      io,
+      error instanceof Error ? error.message : String(error),
+      1
+    );
+  }
   let verdict;
   try {
-    verdict = JSON.parse(await readSubmitSource(command.verdictSource, io));
+    verdict = JSON.parse(rawVerdict);
   } catch (error) {
     return submitFailure(
       io,
@@ -2197,11 +2267,21 @@ async function runSubmit(command, io) {
   if (!validation.ok) {
     return submitFailure(io, validation.message, 1);
   }
+  const captureContents = `${JSON.stringify(verdict)}
+`;
+  try {
+    assertWithinSubmitCaptureLimit(captureContents, maxSubmitBytes);
+  } catch (error) {
+    return submitFailure(
+      io,
+      error instanceof SubmitCaptureLimitError ? error.message : `Could not size submit capture: ${error instanceof Error ? error.message : String(error)}`,
+      1
+    );
+  }
   try {
     await (io.writeSubmitCapture ?? writeJsonFileAtomic)(
       outPath,
-      `${JSON.stringify(verdict)}
-`
+      captureContents
     );
   } catch (error) {
     return submitFailure(
@@ -2266,9 +2346,9 @@ async function runConsensusCli(argv, io, options = {}) {
     return 1;
   }
 }
-async function readSubmitSource(source, io) {
-  if (source.kind === "stdin") return io.readStdin();
-  if (source.kind === "file") return io.readFile(source.path);
+async function readSubmitSource(source, io, maxBytes) {
+  if (source.kind === "stdin") return io.readStdin(maxBytes);
+  if (source.kind === "file") return io.readFile(source.path, maxBytes);
   return source.value;
 }
 function submitFailure(io, message, exitCode) {
@@ -2390,16 +2470,39 @@ function nodeIo() {
     stdin: process.stdin,
     cwd: process.cwd(),
     env: process.env,
-    readFile: (filePath) => readFile3(filePath, "utf8"),
-    readStdin: () => readAllStdin(process.stdin)
+    readFile: (filePath, maxBytes) => readUtf8File(filePath, maxBytes),
+    readStdin: (maxBytes) => readAllStdin(process.stdin, maxBytes)
   };
 }
-function readAllStdin(stdin) {
+async function readUtf8File(filePath, maxBytes) {
+  if (maxBytes !== void 0) {
+    const file = await stat2(filePath);
+    if (file.size > maxBytes) {
+      throw new SubmitCaptureLimitError(file.size, maxBytes);
+    }
+  }
+  const contents = await readFile3(filePath, "utf8");
+  if (maxBytes !== void 0 && byteLength(contents) > maxBytes) {
+    throw new SubmitCaptureLimitError(byteLength(contents), maxBytes);
+  }
+  return contents;
+}
+function readAllStdin(stdin, maxBytes) {
   stdin.setEncoding("utf8");
   return new Promise((resolve, reject) => {
     let value = "";
+    let bytes = 0;
     stdin.on("data", (chunk) => {
-      value += chunk;
+      const text = typeof chunk === "string" ? chunk : chunk.toString("utf8");
+      if (maxBytes !== void 0) {
+        bytes += byteLength(text);
+        if (bytes > maxBytes) {
+          reject(new SubmitCaptureLimitError(bytes, maxBytes));
+          stdin.destroy();
+          return;
+        }
+      }
+      value += text;
     });
     stdin.on("error", reject);
     stdin.on("end", () => {

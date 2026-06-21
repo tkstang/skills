@@ -2,6 +2,7 @@ import { writeFile } from 'node:fs/promises';
 
 import { describe, expect, it } from 'vitest';
 
+import { providerRegistry } from '../../../../src/consensus/provider-cli/adapters.js';
 import { runProviderTurn } from '../../../../src/consensus/provider-cli/structured-output.js';
 import type { ProviderProcessResult } from '../../../../src/consensus/provider-cli/subprocess.js';
 import type { ConsensusCliRunRequest } from '../../../../src/consensus/provider-cli/types.js';
@@ -12,7 +13,9 @@ describe('submit evidence: strict-output rejection', () => {
       request({ provider: 'codex', max_attempts: 1 }),
       {
         readSchema: async () => schema(),
-        async runSubprocess(_invocation, options) {
+        async runSubprocess(invocation, options) {
+          expect(invocation.argv).not.toContain('--output-schema');
+          expect(invocation.argv).toContain('--output-last-message');
           const submitPath = options.env?.CONSENSUS_SUBMIT_FILE;
           if (!submitPath) throw new Error('Missing submit capture path');
           await writeFile(submitPath, '{"verdict":"submit"}', 'utf8');
@@ -33,23 +36,36 @@ describe('submit evidence: strict-output rejection', () => {
       },
     });
 
+    const legacyCodex = providerRegistry().get('codex')!;
     const control = await runProviderTurn(
       request({ provider: 'codex', max_attempts: 1 }),
       {
+        registry: providerRegistry([
+          {
+            ...legacyCodex,
+            capabilities: {
+              ...legacyCodex.capabilities,
+              schema_strategies: ['constrained_native'],
+            },
+          },
+        ]),
         readSchema: async () => schema(),
-        runSubprocess: async () => strictOutputRejectedTurn(),
+        runSubprocess: async (invocation) => {
+          expect(invocation.argv).toContain('--output-schema');
+          return strictOutputRejectedBeforeTurn();
+        },
       },
     );
 
     expect(control).toMatchObject({
       ok: false,
-      code: 'PROVIDER_INVALID_JSON',
+      code: 'PROVIDER_EXIT',
       attempts: {
         cli_attempts: 1,
-        terminal_reason: 'invalid_json',
+        terminal_reason: 'provider_exit_terminal',
       },
       diagnostics: {
-        verdict_source: 'final_message',
+        strategy_used: 'constrained_native',
       },
     });
   });
@@ -75,6 +91,22 @@ function schema() {
     properties: {
       verdict: { type: 'string' },
     },
+  };
+}
+
+function strictOutputRejectedBeforeTurn(): ProviderProcessResult {
+  return {
+    ok: false,
+    code: 'PROVIDER_EXIT',
+    message:
+      'OpenAI strict structured output rejected the requested schema before the peer turn started.',
+    retryable: true,
+    stdout: '',
+    stderr:
+      'OpenAI strict structured output rejected the requested schema before the peer turn started.',
+    exit_code: 1,
+    signal: null,
+    diagnostics: {},
   };
 }
 

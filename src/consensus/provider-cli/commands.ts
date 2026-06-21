@@ -19,6 +19,12 @@ import {
 } from './probe.js';
 import { validateSchemaSubset } from './schema-validate.js';
 import { runProviderTurn } from './structured-output.js';
+import {
+  assertWithinSubmitCaptureLimit,
+  CONSENSUS_SUBMIT_MAX_BYTES_ENV,
+  parseSubmitCaptureMaxBytes,
+  SubmitCaptureLimitError,
+} from './submit-capture.js';
 
 import type { ParsedSubmitCommand, PromptSource } from './args.js';
 import type {
@@ -36,8 +42,8 @@ export interface ConsensusCliIo {
   stdin: NodeJS.ReadStream;
   cwd: string;
   env?: Record<string, string | undefined>;
-  readFile(path: string): Promise<string>;
-  readStdin(): Promise<string>;
+  readFile(path: string, maxBytes?: number): Promise<string>;
+  readStdin(maxBytes?: number): Promise<string>;
   writeSubmitCapture?(path: string, contents: string): Promise<void>;
 }
 
@@ -164,6 +170,13 @@ export async function runSubmit(
     );
   }
 
+  const maxSubmitBytes = parseSubmitCaptureMaxBytes(
+    io.env?.[CONSENSUS_SUBMIT_MAX_BYTES_ENV],
+  );
+  if (maxSubmitBytes === undefined) {
+    return submitFailure(io, 'Invalid submit capture byte limit.', 2);
+  }
+
   let schema: unknown;
   try {
     schema = JSON.parse(await io.readFile(schemaPath));
@@ -175,9 +188,25 @@ export async function runSubmit(
     );
   }
 
+  let rawVerdict: string;
+  try {
+    rawVerdict = await readSubmitSource(
+      command.verdictSource,
+      io,
+      maxSubmitBytes,
+    );
+    assertWithinSubmitCaptureLimit(rawVerdict, maxSubmitBytes);
+  } catch (error) {
+    return submitFailure(
+      io,
+      error instanceof Error ? error.message : String(error),
+      1,
+    );
+  }
+
   let verdict: unknown;
   try {
-    verdict = JSON.parse(await readSubmitSource(command.verdictSource, io));
+    verdict = JSON.parse(rawVerdict);
   } catch (error) {
     return submitFailure(
       io,
@@ -191,10 +220,23 @@ export async function runSubmit(
     return submitFailure(io, validation.message, 1);
   }
 
+  const captureContents = `${JSON.stringify(verdict)}\n`;
+  try {
+    assertWithinSubmitCaptureLimit(captureContents, maxSubmitBytes);
+  } catch (error) {
+    return submitFailure(
+      io,
+      error instanceof SubmitCaptureLimitError
+        ? error.message
+        : `Could not size submit capture: ${error instanceof Error ? error.message : String(error)}`,
+      1,
+    );
+  }
+
   try {
     await (io.writeSubmitCapture ?? writeJsonFileAtomic)(
       outPath,
-      `${JSON.stringify(verdict)}\n`,
+      captureContents,
     );
   } catch (error) {
     return submitFailure(
@@ -274,9 +316,10 @@ export async function runConsensusCli(
 async function readSubmitSource(
   source: PromptSource,
   io: ConsensusCliIo,
+  maxBytes: number,
 ): Promise<string> {
-  if (source.kind === 'stdin') return io.readStdin();
-  if (source.kind === 'file') return io.readFile(source.path);
+  if (source.kind === 'stdin') return io.readStdin(maxBytes);
+  if (source.kind === 'file') return io.readFile(source.path, maxBytes);
   return source.value;
 }
 

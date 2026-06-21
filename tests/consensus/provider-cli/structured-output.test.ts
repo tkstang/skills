@@ -29,6 +29,11 @@ describe('structured provider output coordinator', () => {
     expect(selectStructuredOutputStrategy(registry.get('codex')!)).toBe(
       'constrained_native',
     );
+    expect(
+      selectStructuredOutputStrategy(registry.get('codex')!, {
+        submitCaptureEnabled: true,
+      }),
+    ).toBe('prompt_only');
     expect(selectStructuredOutputStrategy(registry.get('claude')!)).toBe(
       'provider_validated',
     );
@@ -190,6 +195,33 @@ describe('structured provider output coordinator', () => {
     } finally {
       await rm(tempDir, { recursive: true, force: true });
     }
+  });
+
+  it('runs submit-enabled Codex turns without native strict output schema flags', async () => {
+    const subprocess = fakeSubprocess([
+      processSuccess('{"type":"turn.completed"}', {
+        last_message: '{"verdict":"accept"}',
+      }),
+    ]);
+
+    const envelope = await runProviderTurn(request({ provider: 'codex' }), {
+      readSchema: async () => schema(),
+      runSubprocess: subprocess.run,
+    });
+
+    expect(envelope).toMatchObject({
+      ok: true,
+      diagnostics: {
+        strategy_used: 'prompt_only',
+        output_mode: 'last_message_file',
+      },
+    });
+    expect(subprocess.invocations[0]?.argv).toContain(
+      '--output-last-message',
+    );
+    expect(subprocess.invocations[0]?.argv).not.toContain(
+      '--output-schema',
+    );
   });
 
   it('retries retryable provider exits and stops on timeout classifications', async () => {
@@ -452,6 +484,38 @@ describe('structured provider output coordinator', () => {
     await expect(readFile(submitPath!, 'utf8')).rejects.toMatchObject({
       code: 'ENOENT',
     });
+  });
+
+  it('rejects oversized submit sidecars without copying them into the envelope', async () => {
+    const largeVerdict = `{"verdict":"${'x'.repeat(128)}"}`;
+
+    const envelope = await runProviderTurn(
+      request({
+        provider: 'cursor',
+        max_attempts: 1,
+        max_output_bytes: 32,
+      }),
+      {
+        readSchema: async () => schema(),
+        async runSubprocess(_invocation, options) {
+          const submitPath = options.env?.CONSENSUS_SUBMIT_FILE;
+          if (!submitPath) throw new Error('Missing submit capture path');
+          await writeFile(submitPath, largeVerdict, 'utf8');
+          return processSuccess('not json');
+        },
+      },
+    );
+
+    expect(envelope).toMatchObject({
+      ok: false,
+      code: 'PROVIDER_INVALID_JSON',
+      stdout: 'not json',
+      attempts: {
+        cli_attempts: 1,
+        terminal_reason: 'invalid_json',
+      },
+    });
+    expect(JSON.stringify(envelope)).not.toContain(largeVerdict);
   });
 
   it('falls back to the parse path when no submit sidecar is present', async () => {

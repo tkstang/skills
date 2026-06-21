@@ -235,6 +235,92 @@ describe('provider CLI command handlers', () => {
     expect(stderr.value()).toBe(`${message}\n`);
   });
 
+  it.each([
+    ['stdin', { kind: 'stdin' } as const],
+    ['file', { kind: 'file', path: 'large-verdict.json' } as const],
+  ])(
+    'rejects oversized submit %s input before parsing or writing capture',
+    async (_sourceName, verdictSource) => {
+      const stdout = captureWriter();
+      const stderr = captureWriter();
+      const writes: Array<{ path: string; contents: string }> = [];
+
+      const code = await runSubmit(
+        {
+          kind: 'submit',
+          json: true,
+          verdictSource,
+          schemaPath: 'schema.json',
+          outPath: '/capture/verdict.json',
+        },
+        submitIo({
+          stdout,
+          stderr,
+          stdin: 'x'.repeat(64),
+          env: { CONSENSUS_SUBMIT_MAX_BYTES: '16' },
+          files: {
+            'schema.json': JSON.stringify(schema()),
+            'large-verdict.json': 'x'.repeat(64),
+          },
+          writeSubmitCapture: async (filePath, contents) => {
+            writes.push({ path: filePath, contents });
+          },
+        }),
+      );
+
+      const result = JSON.parse(stdout.value());
+      expect(code).toBe(1);
+      expect(result).toMatchObject({
+        ok: false,
+        captured: false,
+        message:
+          'Submitted verdict exceeds submit capture limit of 16 bytes (64 bytes).',
+      });
+      expect(stderr.value()).toContain(result.message);
+      expect(writes).toEqual([]);
+    },
+  );
+
+  it('rejects oversized serialized submit captures before writing the sidecar', async () => {
+    const stdout = captureWriter();
+    const stderr = captureWriter();
+    const writes: Array<{ path: string; contents: string }> = [];
+    const rawVerdict = '{"verdict":"ok"}';
+
+    const code = await runSubmit(
+      {
+        kind: 'submit',
+        json: true,
+        verdictSource: { kind: 'stdin' },
+        schemaPath: 'schema.json',
+        outPath: '/capture/verdict.json',
+      },
+      submitIo({
+        stdout,
+        stderr,
+        stdin: rawVerdict,
+        env: {
+          CONSENSUS_SUBMIT_MAX_BYTES: String(Buffer.byteLength(rawVerdict)),
+        },
+        files: { 'schema.json': JSON.stringify(schema()) },
+        writeSubmitCapture: async (filePath, contents) => {
+          writes.push({ path: filePath, contents });
+        },
+      }),
+    );
+
+    const result = JSON.parse(stdout.value());
+    expect(code).toBe(1);
+    expect(result).toMatchObject({
+      ok: false,
+      captured: false,
+      message:
+        'Submitted verdict exceeds submit capture limit of 16 bytes (17 bytes).',
+    });
+    expect(stderr.value()).toContain(result.message);
+    expect(writes).toEqual([]);
+  });
+
   it('does not overwrite a prior valid capture with an invalid submission', async () => {
     const tempDir = await mkdtemp(path.join(tmpdir(), 'consensus-submit-'));
     try {

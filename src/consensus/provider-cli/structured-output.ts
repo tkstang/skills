@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { readFile, rm } from 'node:fs/promises';
+import { readFile, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -17,6 +17,11 @@ import {
 } from './runtime-policy.js';
 import { isRecord, validateSchemaSubset } from './schema-validate.js';
 import { runProviderSubprocess } from './subprocess.js';
+import {
+  assertWithinSubmitCaptureLimit,
+  CONSENSUS_SUBMIT_MAX_BYTES_ENV,
+  submitCaptureMaxBytes,
+} from './submit-capture.js';
 import type { RunProviderSubprocessOptions } from './subprocess.js';
 import type { ProviderProcessResult } from './subprocess.js';
 import type {
@@ -40,7 +45,15 @@ export interface RunProviderTurnDependencies {
 
 export function selectStructuredOutputStrategy(
   adapter: ProviderAdapter,
+  options: { submitCaptureEnabled?: boolean } = {},
 ): StructuredOutputStrategy {
+  if (
+    options.submitCaptureEnabled &&
+    adapter.capabilities.schema_strategies.includes('constrained_native') &&
+    adapter.capabilities.schema_strategies.includes('prompt_only')
+  ) {
+    return 'prompt_only';
+  }
   if (adapter.capabilities.schema_strategies.includes('constrained_native')) {
     return 'constrained_native';
   }
@@ -119,10 +132,13 @@ export async function runProviderTurn(
     runtime_policy: defaultRuntimePolicy(request.runtime_policy),
   };
   const maxAttempts = effectiveRequest.max_attempts ?? 1;
-  const strategy = selectStructuredOutputStrategy(adapter);
+  const strategy = selectStructuredOutputStrategy(adapter, {
+    submitCaptureEnabled: true,
+  });
   const runSubprocess = dependencies.runSubprocess ?? runProviderSubprocess;
   const parentEnv = dependencies.parentEnv ?? process.env;
   const submitCapturePath = submitCaptureFile();
+  const maxSubmitBytes = submitCaptureMaxBytes(request.max_output_bytes);
   const submitCommand =
     dependencies.submitCommand ?? buildConsensusSubmitCommand();
   const childEnv = buildChildEnvironment({
@@ -132,6 +148,7 @@ export async function runProviderTurn(
       ...hostGuard.child_env,
       CONSENSUS_SUBMIT_COMMAND: submitCommand,
       CONSENSUS_SUBMIT_FILE: submitCapturePath,
+      [CONSENSUS_SUBMIT_MAX_BYTES_ENV]: String(maxSubmitBytes),
       CONSENSUS_SUBMIT_SCHEMA: path.resolve(request.schema_path),
     },
   });
@@ -203,6 +220,7 @@ export async function runProviderTurn(
       const submittedVerdict = await readSubmittedVerdict(
         submitCapturePath,
         schema,
+        maxSubmitBytes,
       );
       if (submittedVerdict.ok) {
         return successEnvelope({
@@ -395,10 +413,14 @@ function parseProviderJson(stdout: string): ParseResult {
 async function readSubmittedVerdict(
   filePath: string,
   schema: unknown,
+  maxBytes: number,
 ): Promise<SubmittedVerdictResult> {
   let raw: string;
   try {
+    const capture = await stat(filePath);
+    if (capture.size > maxBytes) return { ok: false };
     raw = await readFile(filePath, 'utf8');
+    assertWithinSubmitCaptureLimit(raw, maxBytes);
   } catch {
     return { ok: false };
   }
