@@ -37,6 +37,19 @@ oat_template: false
 
 `oat_plan_parallel_groups: []` keeps implementation sequential. The wrapper phases are conceptually separable, but they all touch shared build-generation, skill-version, smoke-test, README, manifest, and repo-invariant surfaces, so declaring phase-level parallelism would create avoidable merge conflicts.
 
+## Pre-Implementation Coordination
+
+Before starting implementation, rebase this branch after the pending docs-IA PR (#32) lands. PR #32 was inspected at head `e49b13d`; it stands up the Fumadocs site under `documentation/docs/`, slims `README.md` into an entry point/install matrix, and rewrites `tests/repo/readme-scope.test.ts` plus `tests/repo/docs-presence.test.ts` to treat the docs site as the dense documentation source of truth.
+
+Keep the implementation task intent, but re-check documentation paths and repo-invariant tests against the rebased tree before executing documentation-facing tasks. In particular:
+
+- User-facing docs for `consensus-create`, `consensus-decide`, `consensus-plan`, and `independent_draft` should likely land under `documentation/docs/user-guide/consensus/` by adding per-skill pages, updating `index.md`, `configuration.md`, and `meta.json`, then regenerating the Fumadocs index with `cd documentation && oat docs generate-index --docs-dir docs --output index.md`.
+- `README.md` should remain slim; update only its short shipped-skill summary or links if needed.
+- `plugins/consensus/README.md` remains in scope for deep plugin/operator reference because PR #32 intentionally left it untouched.
+- `CHANGELOG.md`, smoke tests, provider manifests, skill docs, and generated-output invariants remain implementation-scope surfaces.
+
+If the new IA supersedes a listed docs path or `git add` command in this plan draft, adapt during implementation or defer structure-specific sync to `oat-project-document`; do not preserve stale documentation paths just because they appear here.
+
 ## Phase 1: Loop-Core `independent_draft`
 
 ### Task p01-t01: Widen Cold-Start Types and Parser

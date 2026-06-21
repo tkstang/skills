@@ -31,7 +31,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-06-21T15:59:48.857Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-06-21T21:00:58Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-06-21T21:07:31Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -43,7 +43,7 @@ oat_generated: false
 
 ## Current Phase
 
-Planning in progress — plan drafted by Codex; maximum dispatch ceiling selected (Codex `xhigh`, Claude `opus`); Claude plan review received and artifact fixes applied; awaiting plan re-review before implementation readiness.
+Planning in progress — plan drafted by Codex; maximum dispatch ceiling selected (Codex `xhigh`, Claude `opus`); Claude plan review received and artifact fixes applied; awaiting plan re-review before implementation readiness. Before implementation starts, rebase after docs-IA PR #32 lands and refresh documentation task targets against its Fumadocs structure.
 
 ## Artifacts
 
@@ -63,6 +63,8 @@ Planning in progress — plan drafted by Codex; maximum dispatch ceiling selecte
 - ✓ HiLL `design` checkpoint approved
 - ✓ Maximum dispatch ceiling selected — Codex `xhigh`, Claude `opus`
 - ✓ Plan review received and artifact fixes applied
+- ✓ Inspected docs-IA PR #32 and recorded Fumadocs documentation-target implications
+- ⧗ Rebase after docs-IA PR #32 lands before implementation
 - ⧗ Next: re-run plan artifact review, then `oat-project-implement` after pass
 
 ## Blockers
@@ -71,4 +73,4 @@ None
 
 ## Next Milestone
 
-Re-run the plan artifact review so `oat-project-plan` can mark the plan complete and hand off to `oat-project-implement`.
+Re-run the plan artifact review. After it passes, rebase on the docs-IA PR #32 merge before starting `oat-project-implement`; then refresh implementation docs tasks against `documentation/docs/user-guide/consensus/`, the slim README contract, and the updated repo documentation tests.
