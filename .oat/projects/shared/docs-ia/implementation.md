@@ -30,8 +30,9 @@ oat_generated: false
 | Phase 2 — Migrate into two-trunk IA         | complete    | 7     | 7/7       |
 | Phase 3 — Slim README + close out           | complete    | 3     | 3/3       |
 | Phase 4 — GitHub Pages docs-deploy CI       | complete    | 1     | 1/1       |
+| Phase 5 — Final-review fixes (C1/I1)        | complete    | 2     | 2/2       |
 
-**Total:** 13/13 tasks completed
+**Total:** 15/15 tasks completed
 
 ---
 
@@ -206,28 +207,48 @@ Track test execution during implementation.
 | 1     | -         | -      | -      | -        |
 | 2     | -         | -      | -      | -        |
 
+## Review Received: final (Codex)
+
+**Date:** 2026-06-21
+**Review artifact:** `reviews/archived/final-review-2026-06-21.md`
+
+**Findings:** Critical 1 · Important 1 · Medium 0 · Minor 1
+
+- **C1 (Critical) — fixed (p05-t01):** `tests/repo/{readme-scope,docs-presence}.test.ts` still asserted the pre-migration dense README, so `pnpm test` failed 5 tests. Rewrote them to the new source of truth (README keeps the install-matrix entry point; migrated detail asserted against the docs site via a recursive reader). Verified: `pnpm test` → 737 pass.
+- **I1 (Important) — fixed (p05-t02):** `documentation/app/layout.tsx` was oxfmt-dirty. Formatted it. (Our CI oxfmt step only checks `*.{mjs,js,json,md}`, not `.tsx`, so this was not a hard gate failure for us, but the reviewer's broader changed-file check flagged it and it's correct hygiene.)
+- **m1 (Minor) — resolved as artifact alignment:** stale OAT lifecycle placeholders in `state.md` / `implementation.md`. Aligned to the completed state in this receive (no code task).
+
+No deferred findings. Branch verified green after fixes.
+
 ## Final Summary (for PR/docs)
 
 **What shipped:**
 
-- {capability 1}
-- {capability 2}
+- A Fumadocs documentation site at `documentation/` (nested-standalone, static export) with a two-trunk audience IA — **User Guide** (install/use/configure) and **Engineering** (how-it-works/contribute), 24 pages.
+- `README.md` slimmed 205→72 lines to an entry point (description + install matrix + links into the site).
+- A GitHub Pages deploy workflow (`.github/workflows/deploy-docs.yml`, basePath `/skills`).
+- Agent-instruction routing to the docs (root `AGENTS.md` + `documentation/AGENTS.md`).
 
 **Behavioral changes (user-facing):**
 
-- {bullet}
+- Documentation now lives in a navigable site; the README links out rather than carrying the dense reference content.
 
 **Key files / modules:**
 
-- `{path}` - {purpose}
+- `documentation/**` — the docs app + content.
+- `README.md` — slimmed entry point (install matrix preserved).
+- `.github/workflows/deploy-docs.yml` — GitHub Pages deploy.
+- `tests/repo/{readme-scope,docs-presence}.test.ts` — re-pointed to the docs source of truth.
 
 **Verification performed:**
 
-- {tests/lint/typecheck/build/manual steps}
+- `pnpm test` (737 pass), `pnpm run validate`, `pnpm run build:check`, `pnpm run type-check`, `pnpm run smoke`, docs build green (28 pages), changed-file `oxfmt --check` clean, `oxlint` clean.
 
-**Design deltas (if any):**
+**Design deltas:**
 
-- {what changed vs design.md and why}
+- Phase 4 (GitHub Pages deploy CI) added mid-implementation at operator request; recorded in `plan.md`. No deviation from the design IA.
+
+**Operator action for live deploy:** enable Settings → Pages → Source: GitHub Actions (one-time).
 
 ## References
 

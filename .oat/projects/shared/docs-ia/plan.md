@@ -418,6 +418,21 @@ git commit -m "ci(p04-t01): add GitHub Pages docs-deploy workflow"
 
 ---
 
+## Phase 5: Final-review fixes (Codex)
+
+> Added by `oat-project-review-receive` from `reviews/archived/final-review-2026-06-21.md`
+> (scope `final`, code). Both tasks executed + verified immediately.
+
+### Task p05-t01: (review) Re-point repo tests to the migrated docs source of truth — **done** (f4c2abc)
+
+`tests/repo/{readme-scope,docs-presence}.test.ts` asserted the pre-migration dense README (permissions/limitations/iteration-modes/generated-runtime/provider-readiness), so `pnpm test` failed 5 tests. Rewrote to assert README's install-matrix entry point + the docs site (`documentation/docs/`) for migrated detail. **Verify:** `pnpm test` → 737 pass. ✓
+
+### Task p05-t02: (review) Format `documentation/app/layout.tsx` — **done** (f4c2abc)
+
+oxfmt-dirty docs-app layout. Formatted. **Verify:** changed-file `oxfmt --check` clean. ✓ (Our CI oxfmt only checks `*.{mjs,js,json,md}`; this was hygiene + reviewer alignment, not a hard gate failure.)
+
+---
+
 ## Reviews
 
 {Track reviews here after running the oat-project-review-provide and oat-project-review-receive skills.}
@@ -430,7 +445,8 @@ git commit -m "ci(p04-t01): add GitHub Pages docs-deploy workflow"
 | p02    | code     | pending | -    | -        |
 | p03    | code     | pending | -    | -        |
 | p04    | code     | pending | -    | -        |
-| final  | code     | received | 2026-06-21 | reviews/final-review-2026-06-21.md |
+| p05    | code     | passed   | 2026-06-21 | review fixes (C1/I1) verified green |
+| final  | code     | passed   | 2026-06-21 | reviews/archived/final-review-2026-06-21.md; C1/I1 fixed, `pnpm test` 737 green |
 | spec   | artifact | n/a     | -    | quick mode — no spec |
 | design | artifact | pending | -    | -        |
 | plan   | artifact | passed  | 2026-06-21 | structured review (in-memory); I1/I2 + M1/M2/m1/m3 applied |
@@ -454,8 +470,9 @@ git commit -m "ci(p04-t01): add GitHub Pages docs-deploy workflow"
 - Phase 2: 7 tasks — migrate README content into the deeper two-trunk IA (user-guide consensus/ + skills/ folders; engineering architecture + repository-layout + split contributing) + regenerate nav
 - Phase 3: 3 tasks — slim README, re-verify install matrix, close out + DR
 - Phase 4: 1 task — GitHub Pages docs-deploy workflow (added at operator request)
+- Phase 5: 2 tasks — final-review fixes (C1 repo tests → docs source of truth; I1 format layout.tsx)
 
-**Total: 13 tasks**
+**Total: 15 tasks**
 
 Ready for code review and merge.
 

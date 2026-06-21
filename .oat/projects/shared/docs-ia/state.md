@@ -1,6 +1,6 @@
 ---
 oat_current_task: null
-oat_last_commit: a2f4631
+oat_last_commit: f4c2abc
 oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
@@ -27,7 +27,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-06-21T00:16:38.744Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-06-21T20:16:01Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-06-21T20:40:18Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -46,15 +46,16 @@ Implement - **complete** (13/13 tasks). Fumadocs docs site at `documentation/` w
 - **Discovery:** `discovery.md` (complete — Fumadocs chosen)
 - **Spec:** N/A (quick mode)
 - **Design:** `design.md` (complete — two-trunk IA: User Guide + Engineering)
-- **Plan:** `plan.md` (complete — `oat_ready_for: oat-project-implement`)
-- **Implementation:** `implementation.md` (initialized — first task `p01-t01`)
+- **Plan:** `plan.md` (complete — all phases done, incl. p05 review fixes)
+- **Implementation:** `implementation.md` (complete — 13/13 tasks)
 
 ## Progress
 
 - ✓ Discovery complete (framework: Fumadocs)
 - ✓ Lightweight design complete (deep two-trunk IA)
-- ✓ Execution plan complete (12 tasks, sequential; HiLL pauses after p01 + p02)
-- ⧗ Ready to implement
+- ✓ Execution plan complete + executed (Phases 1–4)
+- ✓ Final code review received (Codex) — C1/I1 fixed, verified green
+- ✓ Implementation complete; branch CI-clean
 
 ## Blockers
 
@@ -62,7 +63,7 @@ None
 
 ## Next Milestone
 
-Run `oat-project-implement`; first task `p01-t01` is the operator-run `/oat-docs-bootstrap` scaffold
+Open the final PR (`oat-project-pr-final`). One operator action for the live site: enable Settings → Pages → Source: GitHub Actions.
 
 ## Dispatch Ceiling
 
