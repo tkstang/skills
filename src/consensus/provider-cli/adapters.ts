@@ -1,5 +1,6 @@
 import type {
   FirstScopeProviderId,
+  ProviderExitClassification,
   ProviderCapabilities,
   ProviderErrorCode,
   ProviderId,
@@ -49,6 +50,7 @@ export interface ProviderRunFailureClassification {
   message: string;
   retryable: boolean;
   terminal_reason: string;
+  exit_classification: ProviderExitClassification;
 }
 
 export type ProviderRunFailureClassifier = (
@@ -233,6 +235,7 @@ function defaultRunFailureClassifier(
         message: failure.message,
         retryable: failure.retryable,
         terminal_reason: terminalReasonForNonExitFailure(failure.code),
+        exit_classification: 'terminal',
       };
     }
 
@@ -244,6 +247,7 @@ function defaultRunFailureClassifier(
         message: outputLine ?? 'Provider authentication is required.',
         retryable: false,
         terminal_reason: 'provider_auth_required',
+        exit_classification: 'terminal',
       };
     }
 
@@ -253,6 +257,7 @@ function defaultRunFailureClassifier(
         message: outputLine ?? 'Provider rejected an unsupported option.',
         retryable: false,
         terminal_reason: 'provider_unsupported_option',
+        exit_classification: 'terminal',
       };
     }
 
@@ -262,6 +267,7 @@ function defaultRunFailureClassifier(
         message: outputLine ?? failure.message,
         retryable: false,
         terminal_reason: 'provider_unavailable_exit',
+        exit_classification: 'terminal',
       };
     }
 
@@ -271,6 +277,7 @@ function defaultRunFailureClassifier(
         message: outputLine ?? failure.message,
         retryable: true,
         terminal_reason: 'provider_exit_transient',
+        exit_classification: 'transient',
       };
     }
 
@@ -279,6 +286,7 @@ function defaultRunFailureClassifier(
       message: outputLine ?? failure.message,
       retryable: false,
       terminal_reason: 'provider_exit_terminal',
+      exit_classification: 'unknown',
     };
   };
 }

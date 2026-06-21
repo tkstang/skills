@@ -127,6 +127,7 @@ export async function runProviderTurn(
   });
   let validationFeedback: string | undefined;
   let lastInvocation: ProviderInvocation | undefined;
+  let exitClassification: ProviderDiagnostics['exit_classification'];
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     const invocationRequest = {
@@ -156,10 +157,16 @@ export async function runProviderTurn(
       },
       hostGuard.diagnostics,
       processResult.diagnostics,
+      exitClassificationDiagnostics(exitClassification),
     );
 
     if (!processResult.ok) {
       const classification = adapter.classifyRunFailure(processResult);
+      exitClassification = classification.exit_classification;
+      const failureDiagnostics = mergeDiagnostics(
+        diagnostics,
+        exitClassificationDiagnostics(exitClassification),
+      );
       if (classification.retryable && attempt < maxAttempts) {
         continue;
       }
@@ -175,7 +182,7 @@ export async function runProviderTurn(
           cli_attempts: attempt,
           terminal_reason: classification.terminal_reason,
         },
-        diagnostics,
+        diagnostics: failureDiagnostics,
       });
     }
 
@@ -507,6 +514,14 @@ function mergeDiagnostics(
   }
   if (warnings.length > 0) merged.warnings = warnings;
   return merged;
+}
+
+function exitClassificationDiagnostics(
+  exitClassification: ProviderDiagnostics['exit_classification'],
+): ProviderDiagnostics | undefined {
+  return exitClassification
+    ? { exit_classification: exitClassification }
+    : undefined;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

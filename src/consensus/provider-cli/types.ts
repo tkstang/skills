@@ -129,6 +129,7 @@ export interface AttemptSummary {
 export interface ProviderDiagnostics {
   strategy_used?: StructuredOutputStrategy;
   output_mode?: OutputMode;
+  exit_classification?: ProviderExitClassification;
   host_relation?: 'different_host' | 'same_host' | 'unknown';
   guard?:
     | 'none'
@@ -146,6 +147,12 @@ export interface ProviderDiagnostics {
   timeout_sec?: number;
   warnings?: string[];
 }
+
+export type ProviderExitClassification =
+  | 'transient'
+  | 'terminal'
+  | 'unknown'
+  | 'interrupted';
 
 export const PROVIDER_ERROR_CODES = [
   'PROVIDER_MISSING',

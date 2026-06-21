@@ -233,6 +233,50 @@ describe('structured provider output coordinator', () => {
     expect(subprocess.prompts).toHaveLength(1);
   });
 
+  it('records which exit classification fired in diagnostics', async () => {
+    const transientEnvelope = await runProviderTurn(
+      request({ provider: 'cursor' }),
+      {
+        readSchema: async () => schema(),
+        runSubprocess: fakeSubprocess([
+          processFailure('PROVIDER_EXIT', true, {
+            stderr: 'temporary unavailable, try again',
+          }),
+          processSuccess('{"verdict":"accept"}'),
+        ]).run,
+      },
+    );
+
+    expect(transientEnvelope).toMatchObject({
+      ok: true,
+      diagnostics: {
+        exit_classification: 'transient',
+      },
+    });
+
+    const unknownEnvelope = await runProviderTurn(
+      request({ provider: 'cursor', max_attempts: 3 }),
+      {
+        readSchema: async () => schema(),
+        runSubprocess: fakeSubprocess([
+          processFailure('PROVIDER_EXIT', true, {
+            stderr: 'sensitive provider stderr: token-123',
+          }),
+        ]).run,
+      },
+    );
+
+    expect(unknownEnvelope).toMatchObject({
+      ok: false,
+      diagnostics: {
+        exit_classification: 'unknown',
+      },
+    });
+    expect(JSON.stringify(unknownEnvelope.diagnostics)).not.toContain(
+      'token-123',
+    );
+  });
+
   it('extracts Codex last-message-file output before schema validation', async () => {
     const envelope = await runProviderTurn(request({ provider: 'codex' }), {
       readSchema: async () => schema(),
