@@ -1,6 +1,6 @@
 ---
-oat_current_task: null
-oat_last_commit: null
+oat_current_task: p02-t01
+oat_last_commit: 149e0ac
 oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
@@ -11,8 +11,8 @@ oat_children: [] # optional coordination-parent child slugs
 oat_hill_checkpoints: [] # Configured: which phases require human-in-the-loop lifecycle approval
 oat_hill_completed: [] # Progress: which HiLL checkpoints have been completed
 oat_parallel_execution: false
-oat_phase: plan # Current phase: discovery | spec | design | plan | implement | decomposition
-oat_phase_status: complete # Status: in_progress | complete | pr_open
+oat_phase: implement # Current phase: discovery | spec | design | plan | implement | decomposition
+oat_phase_status: in_progress # Status: in_progress | complete | pr_open
 # oat_orchestration_retry_limit: 2  # optional; override fix-loop retry limit (range 0-5)
 oat_dispatch_ceiling: # provider-aware dispatch ceiling (operator-selected at planning)
   preset: maximum
@@ -27,19 +27,19 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-06-21T00:16:38.744Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-06-21T15:17:15Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-06-21T19:21:28Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
 # Project State: docs-ia
 
-**Status:** Plan complete — ready for implementation
+**Status:** Implementing — Phase 1 complete (HiLL pause before Phase 2)
 **Started:** 2026-06-21
 **Last Updated:** 2026-06-21
 
 ## Current Phase
 
-Plan complete - 12 tasks across 3 phases; ready for `oat-project-implement`
+Implement - Phase 1 (scaffold) complete & built green; paused at the post-p01 HiLL checkpoint before the Phase 2 migration. Next task: `p02-t01`.
 
 ## Artifacts
 
