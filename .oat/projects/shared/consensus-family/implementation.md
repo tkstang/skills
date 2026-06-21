@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-21
-oat_current_task_id: p02-t01
+oat_current_task_id: p03-t01
 oat_generated: false
 ---
 
@@ -27,11 +27,11 @@ oat_generated: false
 | Phase   | Status  | Tasks | Completed |
 | ------- | ------- | ----- | --------- |
 | Phase 1 | passed  | 6     | 6/6       |
-| Phase 2 | pending | 5     | 0/5       |
+| Phase 2 | passed  | 5     | 5/5       |
 | Phase 3 | pending | 5     | 0/5       |
 | Phase 4 | pending | 5     | 0/5       |
 
-**Total:** 6/21 tasks completed
+**Total:** 11/21 tasks completed
 
 ---
 
@@ -165,15 +165,80 @@ oat_generated: false
 
 ---
 
-## Phase 2: {Phase Name}
+## Phase 2: consensus-create
 
-**Status:** pending
-**Started:** -
+**Status:** passed
+**Started:** 2026-06-21
+**Completed:** 2026-06-21
 
-### Task p02-t01: {Task Name}
+### Phase Summary
 
-**Status:** pending
-**Commit:** -
+**Outcome (what changed):**
+
+- Added `consensus-create` as a shipped consensus skill backed by the shared loop in `independent_draft` mode.
+- Added CLI argument parsing, inline/file/stdin brief loading, JSON/Markdown output controls, prompt profile rendering, and create-specific resolution metadata.
+- Added create prompt framing that treats briefs and templates as untrusted data and avoids shared placeholder draft seed leakage in round 1.
+- Added generated runtime output, skill anatomy, manifest/docs coverage, smoke integration, and repository invariant updates for the create skill.
+- Fixed review findings around empty/missing/duplicate brief-source usage classification and stale overview docs wording.
+
+**Key files touched:**
+
+- `src/consensus/create/consensus-create.ts` - create CLI parsing, brief loading, loop execution, and output rendering.
+- `src/consensus/create/create-prompts.ts` - create prompt profile and untrusted brief/template framing.
+- `src/consensus/core/consensus-loop.ts` - support for independent-draft round-1 create prompts without placeholder shared draft content.
+- `plugins/consensus/skills/create/` and `skills/consensus-create/` - generated runtime, skill anatomy, and shipped skill metadata.
+- `documentation/docs/user-guide/consensus/index.md`, `documentation/docs/user-guide/consensus/skills/create.md`, `documentation/docs/engineering/architecture/generated-runtime.md`, and `documentation/index.md` - consensus create docs and generated docs index updates.
+- `.oxfmtrc.json` and `.oxlintrc.json` - generated-output lint/format exclusions for create runtime files.
+- `tests/consensus/create/`, `tests/repo/`, `tests/tooling/generated-output-sync.test.ts`, and `tests/release/` - create behavior, docs, manifest, generated-output, versioning, and smoke coverage.
+
+**Verification:**
+
+- Run: `pnpm exec vitest run tests/consensus/create/wrapper.test.ts tests/consensus/create/provider-cli-integration.test.ts`
+- Result: passed after p02 review fixes.
+- Run: `pnpm exec vitest run tests/repo/skill-frontmatter.test.ts tests/repo/docs-presence.test.ts tests/repo/layout.test.ts tests/repo/plugin-manifests.test.ts tests/release/versioning.test.ts tests/tooling/generated-output-sync.test.ts tests/release/smoke-test-script.test.ts tests/repo/readme-scope.test.ts`
+- Result: passed in p02 v3 review.
+- Run: `pnpm run build:check && pnpm run type-check && pnpm run validate && pnpm run validate:skill-versions --base-ref main && pnpm run smoke && pnpm run test`
+- Result: passed in p02 v3 review.
+- Run: create CLI usage checks for missing, duplicate, and empty brief sources.
+- Result: returned usage exit code 64 with explicit create error codes before provider calls.
+
+**Notes / Decisions:**
+
+- `validate:skill-versions` accepts `--base-ref main` without an extra `--`; the plan command was treated as artifact drift for p02 as well.
+- Adding generated create runtime output required static lint/format exclusions, even though those files were not named in the original p02 file list.
+
+### Task p02-t01: Add Create CLI Argument Parser and Input Loader
+
+**Status:** completed
+**Commit:** `82c71ac`
+
+---
+
+### Task p02-t02: Define Create Prompt Profile
+
+**Status:** completed
+**Commit:** `3ec45f5`
+
+---
+
+### Task p02-t03: Execute Create Through Shared Loop
+
+**Status:** completed
+**Commit:** `4c8a006`, review fixes `33d2595`, `5ab7740`
+
+---
+
+### Task p02-t04: Generate and Ship Create Skill
+
+**Status:** completed
+**Commit:** `66d70c3`, `59464e1`
+
+---
+
+### Task p02-t05: Document Create and Add Smoke Coverage
+
+**Status:** completed
+**Commit:** `008f9cf`, review fix `33d2595`
 
 ---
 
@@ -220,6 +285,39 @@ _- Outstanding Items_
 | p01-t06       | plan.md p01-t06 verification | `pnpm run validate:skill-versions -- --base-ref main` | `pnpm run validate:skill-versions --base-ref main` | Package script passes args directly to the validator and rejects the extra `--` token. | `package.json` script + validator CLI | No code follow-up. |
 | p01-t06       | plan.md p01-t06 file list | Skill directories only | Also updated `tests/repo/skill-frontmatter.test.ts` | Refine/evaluate version bumps made the frontmatter invariant stale. | Repository test suite | No code follow-up. |
 
+### Run 2 — 2026-06-21 23:24
+
+**Branch:** consensus-family
+**Tier:** 1
+**Policy:** merge-strategy=direct, retry-limit=2
+**Phases:** 1 executed, 1 passed, 0 failed, 0 stopped
+
+#### Phase Outcomes
+
+| Phase | Implementer          | Review | Fix Iterations | Disposition |
+| ----- | -------------------- | ------ | -------------- | ----------- |
+| p02   | DONE_WITH_CONCERNS   | pass   | 2/2            | passed      |
+
+#### Parallel Groups
+
+- p02: sequential fix/re-review loop
+
+#### Dispatch Notes
+
+- Dispatch: p02 implementation used `effort_axis=selected:xhigh`, `model_axis=inherited`; reviewer used `oat-reviewer-xhigh`.
+- Dispatch: p02 first fix for I1/I2/m1 used `effort_axis=selected:high`, `model_axis=inherited`; second fix for v2 I1 used `effort_axis=selected:medium`, `model_axis=inherited`.
+
+#### Outstanding Items
+
+- None.
+
+#### Artifact / Design Deltas
+
+| Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
+| ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
+| p02-t04       | plan.md p02-t04 file list | Create skill anatomy, build/version scripts, provider manifests, and repo-invariant tests | Also updated `.oxfmtrc.json` and `.oxlintrc.json` | Adding create generated-output mappings made the existing generated-output drift guard require the new generated `.mjs` paths to be excluded from static lint/format configs. | `tests/tooling/generated-output-sync.test.ts` + generated-output config contract | No code follow-up. |
+| p02-t05       | plan.md p02-t05 verification | `pnpm run validate:skill-versions -- --base-ref main` | `pnpm run validate:skill-versions --base-ref main` | Package script passes args directly to the validator and rejects the extra `--` token. | `package.json` script + validator CLI | No code follow-up. |
+
 _Orchestration runs from `oat-project-implement` are appended here, most-recent-first within the file but append-only at the bottom of the log._
 
 <!-- orchestration-runs-end -->
@@ -240,26 +338,34 @@ Chronological log of implementation progress.
 - [x] p01-t04: Prove independent draft modes - `4152831`, fix `57449eb`
 - [x] p01-t05: Preserve shared-input guards - `ae3a70e`
 - [x] p01-t06: Regenerate existing consensus runtime - `a65b133`, `1cfdb9d`
+- [x] p02-t01: Add create parser and input loader - `82c71ac`
+- [x] p02-t02: Define create prompt profile - `3ec45f5`
+- [x] p02-t03: Execute create through shared loop - `4c8a006`, fixes `33d2595`, `5ab7740`
+- [x] p02-t04: Generate and ship create skill - `66d70c3`, `59464e1`
+- [x] p02-t05: Document create and add smoke coverage - `008f9cf`, fix `33d2595`
 
 **What changed (high level):**
 
 - `independent_draft` is now a loop-core cold-start mode with round-1 brief framing.
 - Existing `refine`/`evaluate` wrappers retain their `shared_input`-only behavior.
 - Loop-level tests cover prompt framing and terminal convergence across all three iteration modes.
+- `consensus-create` is now a shipped skill using the shared loop in `independent_draft` mode with brief loading, create prompt framing, generated runtime, docs, and smoke coverage.
 
 **Decisions:**
 
 - Accepted the package script's `validate:skill-versions --base-ref main` invocation shape as source of truth.
+- Accepted static lint/format config updates as part of generated runtime drift protection for new create outputs.
 
 **Follow-ups / TODO:**
 
-- None for p01.
+- None for p01 or p02.
 
 **Blockers:**
 
 - p01 review C1 identified missing convergence assertions; resolved by `57449eb`.
+- p02 review I1/I2/m1 and p02 v2 I1 were resolved by `33d2595` and `5ab7740`.
 
-**Session End:** 22:26 UTC
+**Session End:** 23:24 UTC
 
 ---
 
@@ -281,7 +387,7 @@ Track test execution during implementation.
 | Phase | Tests Run | Passed | Failed | Coverage |
 | ----- | --------- | ------ | ------ | -------- |
 | 1     | targeted p01 Vitest suites; `build:check`; `type-check`; `test`; `validate`; `validate:skill-versions --base-ref main`; `smoke` | yes    | 0      | n/a      |
-| 2     | -         | -      | -      | -        |
+| 2     | targeted create Vitest suites; repo/docs/versioning/generated-output Vitest subset; `build:check`; `type-check`; `test`; `validate`; `validate:skill-versions --base-ref main`; `smoke`; create CLI usage checks | yes    | 0      | n/a      |
 
 ## Final Summary (for PR/docs)
 
