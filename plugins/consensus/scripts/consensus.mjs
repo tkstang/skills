@@ -1563,6 +1563,7 @@ import { randomUUID as randomUUID2 } from "node:crypto";
 import { readFile as readFile2, rm as rm2 } from "node:fs/promises";
 import { tmpdir as tmpdir2 } from "node:os";
 import path3 from "node:path";
+import { fileURLToPath } from "node:url";
 
 // src/consensus/provider-cli/runtime-policy.ts
 var DEFAULT_RUNTIME_POLICY = {
@@ -1743,11 +1744,13 @@ async function runProviderTurn(request, dependencies = {}) {
   const runSubprocess = dependencies.runSubprocess ?? runProviderSubprocess;
   const parentEnv = dependencies.parentEnv ?? process.env;
   const submitCapturePath = submitCaptureFile();
+  const submitCommand = dependencies.submitCommand ?? buildConsensusSubmitCommand();
   const childEnv = buildChildEnvironment({
     parentEnv,
     request: effectiveRequest,
     hostEnv: {
       ...hostGuard.child_env ?? {},
+      CONSENSUS_SUBMIT_COMMAND: submitCommand,
       CONSENSUS_SUBMIT_FILE: submitCapturePath,
       CONSENSUS_SUBMIT_SCHEMA: path3.resolve(request.schema_path)
     }
@@ -1765,6 +1768,7 @@ async function runProviderTurn(request, dependencies = {}) {
           strategy,
           inlineJsonSchema,
           submitCaptureEnabled: true,
+          submitCommand,
           validationFeedback
         })
       };
@@ -2002,9 +2006,12 @@ function extractStructuredJsonValue(value) {
 function promptForStrategy(input) {
   const parts = [input.prompt];
   if (input.submitCaptureEnabled) {
+    const submitCommand = input.submitCommand ?? buildConsensusSubmitCommand();
     parts.push(
       "Verdict submission:",
-      "Before ending the turn, submit the final verdict by running `consensus submit --json -` and passing the JSON verdict on stdin.",
+      "Before ending the turn, submit the final verdict by running this exact command and passing the JSON verdict on stdin:",
+      `\`${submitCommand}\``,
+      "The same command is injected as CONSENSUS_SUBMIT_COMMAND; do not substitute a bare `consensus` executable.",
       "The command validates against the active schema from CONSENSUS_SUBMIT_SCHEMA and captures to CONSENSUS_SUBMIT_FILE.",
       "If submission fails, fix the reported schema error and run the command again.",
       "Also keep the final-message JSON fallback: end with only the same JSON object matching the schema."
@@ -2090,6 +2097,18 @@ function exitClassificationDiagnostics(exitClassification) {
 }
 function submitCaptureFile() {
   return path3.join(tmpdir2(), `consensus-submit-${randomUUID2()}.json`);
+}
+function buildConsensusSubmitCommand(input = {}) {
+  const nodePath = input.nodePath ?? process.execPath;
+  const cliPath = input.cliPath ?? currentConsensusCliPath();
+  return `${shellQuote(nodePath)} ${shellQuote(cliPath)} submit --json -`;
+}
+function currentConsensusCliPath() {
+  if (process.argv[1]) return path3.resolve(process.argv[1]);
+  return fileURLToPath(import.meta.url);
+}
+function shellQuote(value) {
+  return `'${value.replaceAll("'", "'\\''")}'`;
 }
 
 // src/consensus/provider-cli/commands.ts

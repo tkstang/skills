@@ -1,4 +1,6 @@
-import { readFile, writeFile } from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -7,6 +9,7 @@ import { providerRegistry } from '../../../src/consensus/provider-cli/adapters.j
 import { processExitForEnvelope } from '../../../src/consensus/provider-cli/envelope.js';
 import type { ProviderInvocation } from '../../../src/consensus/provider-cli/invocation.js';
 import {
+  buildConsensusSubmitCommand,
   runProviderTurn,
   selectStructuredOutputStrategy,
 } from '../../../src/consensus/provider-cli/structured-output.js';
@@ -121,17 +124,72 @@ describe('structured provider output coordinator', () => {
 
   it('augments prompts with submit instructions when capture is enabled', async () => {
     const subprocess = fakeSubprocess([processSuccess('{"verdict":"accept"}')]);
+    const submitCommand = buildConsensusSubmitCommand({
+      nodePath: '/usr/local/bin/node',
+      cliPath: '/workspace/plugins/consensus/scripts/consensus.mjs',
+    });
 
     const envelope = await runProviderTurn(request({ provider: 'cursor' }), {
       readSchema: async () => schema(),
       runSubprocess: subprocess.run,
+      submitCommand,
     });
 
     expect(envelope.ok).toBe(true);
-    expect(subprocess.prompts[0]).toContain('consensus submit --json -');
+    expect(subprocess.envs[0]?.CONSENSUS_SUBMIT_COMMAND).toBe(submitCommand);
+    expect(subprocess.prompts[0]).toContain(submitCommand);
+    expect(subprocess.prompts[0]).not.toContain('`consensus submit --json -`');
     expect(subprocess.prompts[0]).toContain('CONSENSUS_SUBMIT_SCHEMA');
     expect(subprocess.prompts[0]).toContain('CONSENSUS_SUBMIT_FILE');
     expect(subprocess.prompts[0]).toContain('final-message JSON fallback');
+  });
+
+  it('captures a verdict submitted through the advertised peer command', async () => {
+    const tempDir = await mkdtemp(path.join(tmpdir(), 'consensus-submit-test-'));
+    const schemaPath = path.join(tempDir, 'schema.json');
+    await writeFile(schemaPath, JSON.stringify(schema()), 'utf8');
+    const submitCommand = buildConsensusSubmitCommand({
+      nodePath: process.execPath,
+      cliPath: path.resolve('plugins/consensus/scripts/consensus.mjs'),
+    });
+
+    try {
+      const envelope = await runProviderTurn(
+        request({ provider: 'cursor', schema_path: schemaPath }),
+        {
+          readSchema: async () => schema(),
+          submitCommand,
+          async runSubprocess(invocation, options) {
+            expect(invocation.stdin).toContain(submitCommand);
+            expect(options.env?.CONSENSUS_SUBMIT_COMMAND).toBe(submitCommand);
+
+            const submit = runShellCommand({
+              command: options.env?.CONSENSUS_SUBMIT_COMMAND,
+              env: options.env,
+              stdin: '{"verdict":"submit-command"}\n',
+            });
+            expect(submit).toMatchObject({ exitCode: 0 });
+            expect(JSON.parse(submit.stdout)).toMatchObject({
+              ok: true,
+              captured: true,
+            });
+
+            return processSuccess('{"verdict":"final-message"}');
+          },
+        },
+      );
+
+      expect(envelope).toMatchObject({
+        ok: true,
+        stdout: '{"verdict":"submit-command"}\n',
+        json: { verdict: 'submit-command' },
+        diagnostics: {
+          verdict_source: 'submit',
+        },
+      });
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
   });
 
   it('retries retryable provider exits and stops on timeout classifications', async () => {
@@ -680,6 +738,41 @@ function argumentAfter(argv: string[], flag: string): string {
     throw new Error(`Missing argument after ${flag}`);
   }
   return argv[index + 1];
+}
+
+function runShellCommand(input: {
+  command: string | undefined;
+  env: Record<string, string | undefined> | undefined;
+  stdin: string;
+}): { exitCode: number | null; stdout: string; stderr: string } {
+  if (!input.command) throw new Error('Missing advertised submit command');
+
+  const env: NodeJS.ProcessEnv = {
+    ...process.env,
+    ...definedEnv(input.env ?? {}),
+  };
+  const result = spawnSync('/bin/sh', ['-c', input.command], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env,
+    input: input.stdin,
+  });
+  if (result.error) throw result.error;
+  return {
+    exitCode: result.status,
+    stdout: result.stdout,
+    stderr: result.stderr,
+  };
+}
+
+function definedEnv(
+  env: Record<string, string | undefined>,
+): Record<string, string> {
+  const defined: Record<string, string> = {};
+  for (const [key, value] of Object.entries(env)) {
+    if (value !== undefined) defined[key] = value;
+  }
+  return defined;
 }
 
 function processSuccess(

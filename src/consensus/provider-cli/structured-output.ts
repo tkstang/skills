@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { providerRegistry } from './adapters.js';
 import type { ProviderAdapter, ProviderAdapterRegistry } from './adapters.js';
@@ -34,6 +35,7 @@ export interface RunProviderTurnDependencies {
     options: RunProviderSubprocessOptions,
   ) => Promise<ProviderProcessResult>;
   parentEnv?: NodeJS.ProcessEnv;
+  submitCommand?: string;
 }
 
 export function selectStructuredOutputStrategy(
@@ -121,11 +123,14 @@ export async function runProviderTurn(
   const runSubprocess = dependencies.runSubprocess ?? runProviderSubprocess;
   const parentEnv = dependencies.parentEnv ?? process.env;
   const submitCapturePath = submitCaptureFile();
+  const submitCommand =
+    dependencies.submitCommand ?? buildConsensusSubmitCommand();
   const childEnv = buildChildEnvironment({
     parentEnv,
     request: effectiveRequest,
     hostEnv: {
       ...(hostGuard.child_env ?? {}),
+      CONSENSUS_SUBMIT_COMMAND: submitCommand,
       CONSENSUS_SUBMIT_FILE: submitCapturePath,
       CONSENSUS_SUBMIT_SCHEMA: path.resolve(request.schema_path),
     },
@@ -144,6 +149,7 @@ export async function runProviderTurn(
           strategy,
           inlineJsonSchema,
           submitCaptureEnabled: true,
+          submitCommand,
           validationFeedback,
         }),
       };
@@ -438,14 +444,19 @@ function promptForStrategy(input: {
   strategy: StructuredOutputStrategy;
   inlineJsonSchema: string;
   submitCaptureEnabled?: boolean;
+  submitCommand?: string;
   validationFeedback?: string;
 }) {
   const parts = [input.prompt];
 
   if (input.submitCaptureEnabled) {
+    const submitCommand =
+      input.submitCommand ?? buildConsensusSubmitCommand();
     parts.push(
       'Verdict submission:',
-      'Before ending the turn, submit the final verdict by running `consensus submit --json -` and passing the JSON verdict on stdin.',
+      'Before ending the turn, submit the final verdict by running this exact command and passing the JSON verdict on stdin:',
+      `\`${submitCommand}\``,
+      'The same command is injected as CONSENSUS_SUBMIT_COMMAND; do not substitute a bare `consensus` executable.',
       'The command validates against the active schema from CONSENSUS_SUBMIT_SCHEMA and captures to CONSENSUS_SUBMIT_FILE.',
       'If submission fails, fix the reported schema error and run the command again.',
       'Also keep the final-message JSON fallback: end with only the same JSON object matching the schema.',
@@ -554,4 +565,22 @@ function exitClassificationDiagnostics(
 
 function submitCaptureFile() {
   return path.join(tmpdir(), `consensus-submit-${randomUUID()}.json`);
+}
+
+export function buildConsensusSubmitCommand(input: {
+  nodePath?: string;
+  cliPath?: string;
+} = {}) {
+  const nodePath = input.nodePath ?? process.execPath;
+  const cliPath = input.cliPath ?? currentConsensusCliPath();
+  return `${shellQuote(nodePath)} ${shellQuote(cliPath)} submit --json -`;
+}
+
+function currentConsensusCliPath() {
+  if (process.argv[1]) return path.resolve(process.argv[1]);
+  return fileURLToPath(import.meta.url);
+}
+
+function shellQuote(value: string) {
+  return `'${value.replaceAll("'", "'\\''")}'`;
 }
