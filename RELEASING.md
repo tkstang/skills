@@ -57,10 +57,14 @@ Last updated: 2026-06-20.
 All interactive provider permission/runtime checks above are green as of
 2026-06-20 (Claude Code and Cursor surfaced and approved a `node` exec prompt;
 Codex ran the wrapper under its sandboxed exec path, which by design does not
-prompt for read-only commands even under `on-request`). The only remaining gates
-are pushing the v0.1.0 tag (with `release.yml` green) and post-tag public
-discovery / skills.sh indexing, which stays a non-claim until verified after
-publication.
+prompt for read-only commands even under `on-request`).
+
+**v0.1.0 is released (2026-06-20).** The tag is pushed on `main` (`e4e9348`),
+`release.yml` ran green (build, type-check, build:check, test, validate, smoke,
+`--check-tag v0.1.0`), and the GitHub Release is published at
+<https://github.com/tkstang/skills/releases/tag/v0.1.0>. Post-tag `npx skills add
+tkstang/skills` source discovery passes; skills.sh **hosted indexing is not yet
+live** (expected async lag) and stays a non-claim until it indexes.
 
 ## Versioning
 
