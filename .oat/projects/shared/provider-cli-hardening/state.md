@@ -1,6 +1,6 @@
 ---
 oat_current_task: null
-oat_last_commit: 031846eb38386fc62c19f0a8ac16125ad6922412
+oat_last_commit: 85393b219a629258ca61694bfba6099e3d37cacb
 oat_blockers: []
 associated_issues: [{type: backlog, ref: "bl-3a88"}, {type: backlog, ref: "bl-3291"}] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
@@ -12,7 +12,7 @@ oat_hill_checkpoints: [discovery, design] # Configured: which phases require hum
 oat_hill_completed: [discovery, design] # Progress: which HiLL checkpoints have been completed
 oat_parallel_execution: false
 oat_phase: implement # Current phase: discovery | spec | design | plan | implement | decomposition
-oat_phase_status: in_progress # Status: in_progress | complete | pr_open
+oat_phase_status: complete # Status: in_progress | complete | pr_open
 # oat_orchestration_retry_limit: 2  # optional; override fix-loop retry limit (range 0-5)
 oat_dispatch_ceiling: # provider-aware dispatch ceiling (reviews always run at max tier)
   preset: maximum
@@ -27,23 +27,22 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-06-20T23:02:16.482Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-06-21T04:38:10Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-06-21T05:01:55Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
 # Project State: provider-cli-hardening
 
-**Status:** Implementation tasks complete; awaiting final review
+**Status:** Implementation complete — final review passed
 **Started:** 2026-06-20
 **Last Updated:** 2026-06-21
 
 ## Current Phase
 
-All implementation phases passed review. Phase 3 re-review cleared the blocking
-lifecycle-metadata finding with no Critical or Important findings. A final
-verification lint cleanup was committed after the first full gate run, and the
-full final verification gate now passes. Dispatch ceiling = **maximum** (Codex:
-xhigh · Claude: opus). Final review is next.
+All implementation phases passed review. Final review blockers were fixed in
+`85393b2`, and final re-review passed with no Critical or Important findings. The
+full verification gate passes. Dispatch ceiling = **maximum** (Codex: xhigh ·
+Claude: opus). PR handoff is next.
 
 ## Artifacts
 
@@ -51,7 +50,7 @@ xhigh · Claude: opus). Final review is next.
 - **Spec:** `spec.md` (complete — requirements confirmed; Requirement Index mapped to tasks)
 - **Design:** `design.md` (complete — HiLL-approved; artifact review resolved)
 - **Plan:** `plan.md` (complete — auto + manual reviews passed; ready for implement)
-- **Implementation:** `implementation.md` (tasks complete — awaiting final review)
+- **Implementation:** `implementation.md` (complete — final review passed)
 
 ## Progress
 
@@ -65,7 +64,7 @@ xhigh · Claude: opus). Final review is next.
 - ✓ Phase 1 (`p01`) implementation and code review complete
 - ✓ Phase 2 (`p02`) implementation and code review complete
 - ✓ Phase 3 (`p03`) implementation and code review complete
-- ⧗ Awaiting final review
+- ✓ Final review passed
 
 ## Blockers
 
@@ -73,4 +72,4 @@ None
 
 ## Next Milestone
 
-Run final review. Do not open the final PR until final review passes.
+Run `oat-project-pr-final` when ready for PR handoff.

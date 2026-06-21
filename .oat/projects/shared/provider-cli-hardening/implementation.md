@@ -516,6 +516,8 @@ Chronological log of implementation progress.
 - [x] p03-r01: Review fix, lifecycle metadata aligned for p03 re-review - 7eb77eb
 - [x] p03-r02: Re-review passed; p03 marked passed - bookkeeping
 - [x] final-verification: Lint cleanup after final gate run - 031846e
+- [x] final-r01: Review fix, remove Codex strict-output path and bound submit capture - 85393b2
+- [x] final-r02: Final re-review passed; final review marked passed - bookkeeping
 
 **What changed (high level):**
 
@@ -526,6 +528,7 @@ Chronological log of implementation progress.
 - Phase 3 evidence fixtures, gated live E2E, and DR/backlog promotion are complete.
 - Lifecycle metadata now reflects that all p03 plan tasks are complete and p03 re-review passed.
 - Final verification lint cleanup removed the remaining `oxlint` errors in provider-cli touched files.
+- Final review blockers were resolved by removing Codex native strict-output enforcement from submit-enabled turns and bounding submit capture size.
 
 **Decisions:**
 
@@ -534,7 +537,7 @@ Chronological log of implementation progress.
 
 **Follow-ups / TODO:**
 
-- Run final review.
+- Final review passed; next step is PR handoff.
 
 **Blockers:**
 
@@ -577,17 +580,20 @@ Track test execution during implementation.
 - Provider-exit retry classification is terminal-by-default for unknown exits, redacted in diagnostics, and covered across adapters.
 - `consensus submit` gives provider peers a validated sidecar verdict-submission path while preserving the existing core envelope contract.
 - Deterministic p03 evidence and gated live-provider E2E cover the submit path, and DR-bl3a88 is promoted to the repo decision record.
+- Submit capture is size-bounded and submit-enabled Codex turns avoid native `--output-schema` strict-output rejection.
 
 **Behavioral changes (user-facing):**
 
 - Provider peers are prompted with a run-bound `CONSENSUS_SUBMIT_COMMAND`; submitted verdicts are preferred over final-message parsing when present.
 - No-submission still falls back to the existing parse path by default.
+- Submit-enabled Codex turns use prompt-only local validation instead of native `--output-schema`.
 - Transient provider exits retry without injecting process-exit messages as schema-validation feedback.
 
 **Key files / modules:**
 
 - `src/consensus/provider-cli/structured-output.ts` - retry loop, submit capture, fallback resolution, diagnostics.
 - `src/consensus/provider-cli/commands.ts` - `consensus submit` handling.
+- `src/consensus/provider-cli/submit-capture.ts` - shared submit-capture byte-limit helpers.
 - `src/consensus/provider-cli/adapters.ts` - provider-exit classification.
 - `tests/consensus/provider-cli/` - classifier, submit, evidence, E2E, and envelope coverage.
 
@@ -600,6 +606,7 @@ Track test execution during implementation.
 - `pnpm run build:check`
 - `pnpm run validate`
 - `pnpm run smoke`
+- Final re-review artifact: `reviews/archived/final-review-2026-06-21-v2.md`
 
 **Design deltas (if any):**
 
