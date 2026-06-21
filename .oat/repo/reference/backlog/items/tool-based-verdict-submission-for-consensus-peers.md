@@ -1,14 +1,14 @@
 ---
 id: bl-3a88
 title: 'Tool-based verdict submission for consensus peers (future reliability hardening)'
-status: open
+status: done
 priority: medium
 scope: feature
 scope_estimate: L
 labels: [consensus, provider-cli, structured-output, reliability, primitive]
 assignee: null
 created: '2026-06-13T16:53:33Z'
-updated: '2026-06-19T23:16:53Z'
+updated: '2026-06-21T05:01:55Z'
 associated_issues: []
 oat_template: true
 oat_template_name: backlog-item
@@ -40,12 +40,42 @@ runway to land this design (and ideally the build) before the wrappers ship.
 
 **Cross-link (2026-06-19):** follows [[bl-bb7e]] (provider CLI), which now owns the peer-invocation boundary. Cursor still has no native schema flag, so the operator-lean provider set (claude + codex + cursor) still needs the soft validation path. A verdict-submission tool is the mechanism that could normalize all three onto one robust, self-correcting contract.
 
+**Status update (2026-06-21 — `provider-cli-hardening`):** verdict-submission is
+now decided and built as an owned submit-CLI seam; see [[DR-024]]. The runner
+injects `CONSENSUS_SUBMIT_COMMAND`, `CONSENSUS_SUBMIT_SCHEMA`, and
+`CONSENSUS_SUBMIT_FILE`, plus `CONSENSUS_SUBMIT_MAX_BYTES`; peers submit verdict
+JSON with the injected command. The command validates in-context, enforces the
+submit byte cap, and writes a run-bound sidecar; the turn runner uses that
+sidecar as the preferred verdict source while preserving final-message parse
+fallback when no valid submission exists. Submit-enabled Codex turns avoid native
+`--output-schema`, so strict-output rejection does not happen before the peer can
+run the submit command. MCP was rejected for this repo because it adds a
+server/config boundary and uneven provider support beyond the dependency-free
+subprocess contract.
+
+**Consensus-family track flag:** the verdict contract is now decided for the
+synthesized-mode family. `bl-b9b9` / `bl-87ef` / `bl-0cb8` can plan against
+submit-CLI plus parse fallback as the provider-CLI contract, rather than reopening
+the MCP-vs-CLI question. Remaining hardening follow-ups are narrower: opt-in
+strict require-submission semantics and Codex `read-only` support via capture-path
+relocation under an allowed cwd/workspace path. Those follow-ups should not block
+the family wrappers from using the decided contract.
+
 ## Acceptance Criteria
 
-- A design pass evaluating: an MCP tool vs. a CLI the sandboxed agent runs; how the orchestrator captures the submitted verdict; how it composes with stateless-per-turn agents and the deterministic engine.
-- The mechanism validates against the per-mode schema and returns actionable errors the agent can self-correct, reducing wrapper retry churn.
-- Demonstrated reliability improvement vs. `--output-schema` on the cases that were flaky (synthesizer structured output; codex strict output).
-- Keeps the engine deterministic and the artifact-as-audit-trail contract intact.
+- Decision record captures submit-CLI as the selected mechanism, MCP as the
+  rejected alternative, run-bound sidecar capture, no-submission fallback behavior,
+  and evidence.
+- The mechanism validates against the per-mode schema and returns actionable
+  in-context errors the agent can self-correct, reducing wrapper retry churn.
+- Deterministic fixtures demonstrate reliability improvement on the historical
+  no-structured-output and Codex/OpenAI strict-output rejection cases.
+- A gated live-provider E2E confirms prompt-driven submission with an available
+  provider and records sandbox/tmpdir posture.
+- The engine remains deterministic and the artifact-as-audit-trail contract stays
+  intact: submitted verdicts flow through the unchanged `ConsensusCliRunEnvelope`.
+- The consensus-family track (`bl-b9b9` / `bl-87ef` / `bl-0cb8`) is flagged that
+  the verdict contract is decided.
 
 ## Source
 

@@ -1,354 +1,152 @@
 ---
 oat_generated: true
-oat_generated_at: 2026-06-12
-oat_source_head_sha: d008a7e571d90cc6c436c82e176129f62ab54ec4
-oat_source_main_merge_base_sha: ed22b463dcdaa466476b0957fea64deb3f663391
+oat_generated_at: 2026-06-20
+oat_source_head_sha: e4e9348cf8b809448c693ed7182c017048eb4acf
+oat_source_main_merge_base_sha: e4e9348cf8b809448c693ed7182c017048eb4acf
 oat_warning: "GENERATED FILE - Do not edit manually. Regenerate with oat-repo-knowledge-index"
 ---
 
 # Testing Patterns
 
-**Analysis Date:** 2026-06-12
+**Analysis Date:** 2026-06-20
 
 ## Test Framework
 
 **Runner:**
 
-- Node.js built-in `node:test` module for remaining `.test.mjs` suites
-- Vitest for migrated TypeScript `.test.ts` suites
-- Node >=22 required (see `package.json` line 7)
-- Vitest config lives in `vitest.config.ts`
+- Vitest `^4.1.9`. Config: `vitest.config.mjs` (node environment, `testTimeout: 10_000`).
+- Invoked via `scripts/run-vitest.mjs` (the repo deliberately avoids the Node built-in test runner — guarded by `tests/tooling/no-node-test-runner.test.ts`).
 
 **Assertion Library:**
 
-- Node.js built-in `node:assert/strict` (see imports in all test files, e.g., `error-handling.test.mjs` line 1)
-- Vitest suites import assertions from `vitest`
+- Vitest's built-in `expect` (`toEqual`, `toMatchObject`, `arrayContaining`, etc.).
 
 **Run Commands:**
 
 ```bash
-pnpm run test               # Run Node and Vitest suites
-pnpm run validate           # Run validation script
-pnpm run smoke              # Run mocked end-to-end consensus wrapper flow
-pnpm run build:check        # Verify generated runtime output drift
+pnpm run test          # full suite via scripts/run-vitest.mjs
+pnpm run type-check    # tsc --noEmit (type safety, not part of vitest)
+pnpm run validate      # repo structure / manifest / docs invariants
+pnpm run smoke         # mocked end-to-end consensus wrapper flow
+pnpm run premerge      # build + type-check + build:check + test + validate + smoke
 ```
 
 ## Test File Organization
 
 **Location:**
 
-- Separate `tests/` directory at repository root (see `/Users/tstang/Code/skills/tests/`)
-- Subdirectories for organized test groups:
-  - `tests/session-observer/` — session observer module tests
-  - `tests/transcript-core/` — transcript core module tests
-  - `tests/export-session-transcript/` — export transcript module tests
-  - `tests/fixtures/` — test fixture data and stub binaries
-  - `tests/helpers/` — shared test helpers
+- Separate `tests/` tree mirroring the `src/` domains (`tests/consensus/...`, `tests/transcript-core/...`, `tests/session-observer/...`).
 
 **Naming:**
 
-- Pattern: `{subject}.test.mjs` for Node tests and `{subject}.test.ts` for migrated Vitest tests
-- Examples: `error-handling.test.mjs`, `path-safety.test.ts`, `loop-convergence.test.ts`
-- Subdirectory tests follow same pattern: `tests/session-observer/observe.test.mjs`
+- `<subject>.test.ts`. Tests import canonical source directly using NodeNext `.js` specifiers (e.g. `../../../src/consensus/provider-cli/adapters.js`).
 
 **Structure:**
 
 ```
 tests/
-├── error-handling.test.mjs
-├── loop-convergence.test.mjs
-├── path-safety.test.mjs
-├── parallel-integration.test.mjs
-├── generated-output-sync.test.mjs
-├── loop-convergence.test.ts
-├── fixtures/
-│   ├── sample-input.md          # Sample markdown input for testing
-│   ├── bin/                     # Stub executables for testing
-│   └── ...
-├── helpers/
-│   ├── process.mjs              # Shared test helpers
-│   └── .gitkeep
-└── session-observer/
-    ├── observe.test.mjs
-    ├── cli.test.mjs
-    └── ...
-└── transcript-core/
-    └── runtimes.test.ts
-└── export-session-transcript/
-    ├── cli.test.ts
-    └── sanitize.test.ts
+├── consensus/        # core, evaluate, refine, provider-cli unit + integration
+├── transcript-core/  # runtimes.ts behavior
+├── session-observer/ # locate, observe, rank, watch, digest, integration + fixtures/
+├── export-session-transcript/  # cli, sanitize + fixtures/
+├── repo/             # layout, manifests, frontmatter, readme-scope invariants
+├── release/          # versioning, validate-script, smoke-test-script
+├── tooling/          # generated-output-sync (drift guard), vitest-config, no-node-test-runner
+├── fixtures/         # shared bins + sample inputs
+└── helpers/          # consensus.ts, process.mjs (shared utilities)
 ```
+
+72 test files total.
 
 ## Test Structure
 
 **Suite Organization:**
 
-```javascript
-import assert from 'node:assert/strict';
-import { mkdtemp, readFile } from 'node:fs/promises';
-import os from 'node:os';
-import path from 'node:path';
-import test from 'node:test';
+```typescript
+import { describe, expect, it } from 'vitest';
+import { providerRegistry } from '../../../src/consensus/provider-cli/adapters.js';
 
-import { runWrapperCli } from '../plugins/consensus/skills/refine/scripts/consensus-refine.mjs';
-
-test('descriptive test name', () => {
-  // Test body
-});
-
-test('async test with async/await', async () => {
-  // Test body
+describe('provider adapter registry', () => {
+  it('registers the first-scope provider adapters by user-facing ID', () => {
+    const registry = providerRegistry();
+    expect(registry.list().map((a) => a.id)).toEqual(['claude', 'codex', 'cursor']);
+  });
 });
 ```
-
-Vitest suites use the same flat behavior-oriented test naming with `test` and
-`expect` imported from `vitest`.
 
 **Patterns:**
 
-- Each `test()` call is an individual test (no describe/context nesting used)
-- Tests are flat; one test per `test()` invocation
-- Descriptive test names explain behavior: `'error-handling.test.mjs'` contains tests like:
-  - `'exitCodeForError maps unit-testable wrapper exit codes'`
-  - `'runWrapperCli writes JSONL to stdout and human errors to stderr'`
-  - (see `error-handling.test.mjs` lines 133-158)
-- Setup: tests use `mkdtemp()` and `readFile()`/`writeFile()` for temporary filesystem state
-- Teardown: implicit (Node.js cleans up tmp directories)
-- Assertions: use `assert.equal()`, `assert.deepEqual()`, `assert.match()`, `assert.throws()`, `assert.rejects()`
-
-**Example from `path-safety.test.mjs` lines 16-26:**
-```javascript
-test('readInputFile allows unrestricted reads but enforces size cap', async () => {
-  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-path-'));
-  const inputPath = path.join(tempRoot, 'input.md');
-  await writeFile(inputPath, 'small');
-
-  assert.equal(await readInputFile(inputPath), 'small');
-
-  const largePath = path.join(tempRoot, 'large.md');
-  await writeFile(largePath, `${'x'.repeat(INPUT_SIZE_CAP_BYTES)}x`);
-  await assert.rejects(readInputFile(largePath), /input exceeds size cap/);
-});
-```
+- `describe`/`it` blocks; behavior-named test titles.
+- `toMatchObject` / `arrayContaining` for partial structural assertions on capability/config objects.
 
 ## Mocking
 
-**Framework:** Manual mocking (no external mock library like Sinon or Jest)
+**Framework:** No vitest auto-mocking. Tests favor **real subprocess + fixture stub binaries** over mocks.
 
 **Patterns:**
 
-Test stub functions are created manually:
-
-```javascript
-function captureWriter() {
-  let value = '';
-  return {
-    stream: {
-      write(chunk) {
-        value += chunk;
-      }
-    },
-    value() {
-      return value;
-    }
-  };
-}
-
-function sectionFailOnceInvoker() {
-  let calls = 0;
-  return async () => {
-    calls += 1;
-    if (calls === 1) {
-      throw new Error('provider unavailable for first section');
-    }
-    return {
-      json: {
-        schema_version: 'v0',
-        verdict: 'ACCEPT',
-        reasoning: 'accepted'
-      }
-    };
-  };
-}
-```
-
-(see `error-handling.test.mjs` lines 22-78)
-
-**Stub binaries approach:**
-
-- Stub executables in `tests/fixtures/bin/` replace real `paseo` executable during testing
-- Environment variable `PATH` prepended with fixture bin directory (see `parallel-integration.test.mjs` lines 15-20):
-  ```javascript
-  function stubEnv(overrides = {}) {
-    return {
-      ...process.env,
-      PATH: `${fixtureBin}${path.delimiter}${process.env.PATH}`,
-      ...overrides
-    };
-  }
-  ```
-
-- Stub responses injected via environment variables: `PASEO_STUB_RESPONSE_JSON` (see `parallel-integration.test.mjs` lines 75-83)
+- Fixture executables under `tests/fixtures/bin/` (`consensus`, `consensus-provider-stub`) stand in for real provider CLIs, wired in via a stubbed PATH/env (`makeStubEnv` in `tests/helpers/process.mjs`).
+- Generated runtime `.mjs` is imported and exercised directly (e.g. smoke test imports `runSequential`, `runWrapperCli` from `consensus-refine.mjs`).
 
 **What to Mock:**
 
-- External subprocess calls: paseo executable behavior mocked via stub binary + environment variables
-- Writer streams: mock stdout/stderr with `captureWriter()` helper to inspect output
-- Async provider invokers: manual closure-based functions that return different responses on successive calls
+- The provider CLI boundary only — via fixture stub binaries, not in-process mocks.
 
 **What NOT to Mock:**
 
-- Real filesystem operations (use `mkdtemp()` in actual temporary directories)
-- Real path resolution and symlink checking (tests explicitly verify security properties)
-- Actual error types (construct real Error/ConsensusError objects)
+- Internal modules, filesystem, and the consensus loop itself — exercised for real against temp dirs.
 
 ## Fixtures and Factories
 
 **Test Data:**
 
-Sample input file in `tests/fixtures/sample-input.md`:
-```
-# Intro
-Opening text.
-
-## Details
-- Point one
-- Point two
-
-## Close
-Closing remarks.
-```
-
-**Helper factories:**
-
-```javascript
-function captureWriter() {
-  let value = '';
-  return { stream: { write(chunk) { value += chunk; } }, value() { return value; } };
-}
-
-function sectionFailOnceInvoker() {
-  let calls = 0;
-  return async () => {
-    calls += 1;
-    if (calls === 1) throw new Error('...');
-    return { json: { schema_version: 'v0', verdict: 'ACCEPT', reasoning: '...' } };
-  };
-}
-```
-
-(see `tests/helpers/process.mjs` lines 6-39)
+- JSONL transcript fixtures per runtime under `tests/session-observer/fixtures/{claude-code,codex,cursor}/` (typical, malformed, partial-tail, empty variants) and `tests/export-session-transcript/fixtures/*/hidden-payloads.jsonl`.
+- `tests/helpers/consensus.ts` provides domain helpers like `extractJsonBlock(markdown, label)` to parse `<!-- consensus:<label> -->` artifact blocks.
 
 **Location:**
 
-- Fixtures: `tests/fixtures/` (markdown samples, stub binaries, etc.)
-- Helpers: `tests/helpers/process.mjs` exports:
-  - `captureWriter()` — captures stream output
-  - `parseJsonl()` — parses JSONL strings to array of objects
-  - `runNodeScript()` — runs Node scripts with exec, captures output/errors
+- `tests/**/fixtures/` and `tests/helpers/`.
 
 ## Coverage
 
-**Requirements:** Not enforced (no coverage configuration found)
-
-**View Coverage:**
-
-- Not supported by current test setup
-- Could be added via Node or Vitest coverage tooling, but not currently in use
+**Requirements:** None enforced. Coverage is breadth-driven (unit + integration + repo-invariant + release suites).
 
 ## Test Types
 
 **Unit Tests:**
 
-- Tests focus on single functions or modules in isolation
-- Examples: `loop-convergence.test.mjs` tests `normalizeForHash()`, `hashArtifact()`, `detectConvergence()` directly
-- Assertions verify function contracts: input → output transformation
-- No external dependencies in unit tests
+- Pure-module behavior (adapters, args, envelope, section-parser, sanitize, runtimes).
 
 **Integration Tests:**
 
-- Tests combine multiple modules: `error-handling.test.mjs` tests `runSequential()` + `ConsensusError` + `exitCodeForError()` together
-- Example: `parallel-integration.test.mjs` (lines 30-111) runs full end-to-end flow:
-  - prepare phase
-  - simulated host section loops
-  - fan-in completion
-  - verifies output artifact structure
-- Use `mkdtemp()` to create real temporary filesystems
-- Call real exported functions with stubbed subprocess behavior
+- End-to-end CLI flows with stub binaries and temp dirs (`provider-cli-integration`, `parallel-integration`, session-observer `integration.test.ts`, export `cli.test.ts`).
 
-**E2E Tests:**
+**Repo-Invariant Tests:**
 
-- `npm run smoke` runs a mocked end-to-end consensus wrapper flow (see `package.json` line 13)
-- Not traditional E2E; more of a smoke test verifying the CLI entry point works with mocked providers
+- `tests/repo/*` and `tests/tooling/generated-output-sync.test.ts` assert structure, manifest parity, skill frontmatter, and that committed `.mjs` matches a fresh build (catches forgetting `pnpm run build`).
+
+**E2E (live provider):**
+
+- Mocked end-to-end via `pnpm run smoke`. Live-provider CLI paths are gated behind the release checklist (`RELEASING.md`), not the default suite.
 
 ## Common Patterns
 
 **Async Testing:**
 
-```javascript
-test('async operation succeeds', async () => {
-  const result = await someAsyncFunction();
-  assert.equal(result.status, 'success');
-});
-
-test('async operation throws on error', async () => {
-  await assert.rejects(
-    someAsyncFunction(),
-    /error message pattern/
-  );
+```typescript
+it('runs the wrapper end to end', async () => {
+  const result = await runWrapperCli(args, { env, cwd });
+  expect(result.exitCode).toBe(0);
 });
 ```
-
-(see `error-handling.test.mjs` line 227-267 for real pattern)
 
 **Error Testing:**
 
-```javascript
-test('validation rejects oversized input', async () => {
-  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'test-'));
-  const largePath = path.join(tempRoot, 'large.md');
-  await writeFile(largePath, 'x'.repeat(INPUT_SIZE_CAP_BYTES + 1));
-
-  await assert.rejects(readInputFile(largePath), /input exceeds size cap/);
-});
-
-test('function maps errors to correct exit codes', () => {
-  assert.equal(
-    exitCodeForError(new ConsensusError('msg', { exitCode: EXIT_CODES.USAGE })),
-    64
-  );
-});
+```typescript
+expect(() => extractJsonBlock(markdown, 'verdict')).toThrow();
+// or assert on classified provider error codes (PROVIDER_TIMEOUT, PROVIDER_EXIT, ...)
 ```
-
-(see `path-safety.test.mjs` lines 16-26 and `error-handling.test.mjs` lines 133-145)
-
-**Object/Response Assertions:**
-
-```javascript
-test('returns expected shape', () => {
-  const result = detectConvergence([...records...]);
-  assert.deepEqual(result, {
-    converged: true,
-    reason: 'hash_match',
-    record_indexes: [0, 1],
-    artifact_hash: expectedHash
-  });
-});
-```
-
-(see `loop-convergence.test.mjs` lines 30-43)
-
-**Regex Match Assertions:**
-
-```javascript
-test('includes expected pattern', () => {
-  const hash = hashArtifact('text');
-  assert.match(hash, /^sha256:[a-f0-9]{64}$/);
-});
-```
-
-(see `loop-convergence.test.mjs` lines 22-28)
 
 ---
 
-_Testing analysis: 2026-06-12_
+_Testing analysis: 2026-06-20_

@@ -1,3 +1,7 @@
+import { randomUUID } from 'node:crypto';
+import { mkdir, rename, writeFile } from 'node:fs/promises';
+import { basename, dirname, join } from 'node:path';
+
 import {
   ConsensusCliUsageError,
   normalizeRunRequest,
@@ -13,8 +17,16 @@ import {
   nodeProbeCommandRunner,
   probeProviderRegistry,
 } from './probe.js';
+import { validateSchemaSubset } from './schema-validate.js';
 import { runProviderTurn } from './structured-output.js';
+import {
+  assertWithinSubmitCaptureLimit,
+  CONSENSUS_SUBMIT_MAX_BYTES_ENV,
+  parseSubmitCaptureMaxBytes,
+  SubmitCaptureLimitError,
+} from './submit-capture.js';
 
+import type { ParsedSubmitCommand, PromptSource } from './args.js';
 import type {
   HostContext,
   ProviderCapabilities,
@@ -30,8 +42,9 @@ export interface ConsensusCliIo {
   stdin: NodeJS.ReadStream;
   cwd: string;
   env?: Record<string, string | undefined>;
-  readFile(path: string): Promise<string>;
-  readStdin(): Promise<string>;
+  readFile(path: string, maxBytes?: number): Promise<string>;
+  readStdin(maxBytes?: number): Promise<string>;
+  writeSubmitCapture?(path: string, contents: string): Promise<void>;
 }
 
 export interface WritableLike {
@@ -57,6 +70,13 @@ export interface CommandDiagnostics {
   warnings?: string[];
 }
 
+export interface SubmitResult {
+  schema_version: 'v1';
+  ok: boolean;
+  captured?: boolean;
+  message: string;
+}
+
 export interface ProviderCommandOptions {
   registry?: ProviderInventoryEntry[] | ProviderRegistryLoader;
   probeRunner?: ProbeCommandRunner;
@@ -78,6 +98,7 @@ export function helpText() {
 Commands:
   provider ls --json
   preflight --json [--provider <id>] [--max-depth <n>]
+  submit --json [-|--verdict-file <path>] [--schema <path>] [--out <path>]
   run --provider <id> --schema <path> --json [-|--prompt <text>|--prompt-file <path>]
       [--model <name>] [--effort <level>]
       [--permission-mode <mode>] [--sandbox <name>] [--approval-policy <policy>]
@@ -124,6 +145,116 @@ export async function runPreflight(
   };
 }
 
+export async function runSubmit(
+  command: ParsedSubmitCommand,
+  io: ConsensusCliIo,
+): Promise<number> {
+  const schemaPath = command.schemaPath ?? io.env?.CONSENSUS_SUBMIT_SCHEMA;
+  if (!schemaPath) {
+    return submitFailure(io, 'Missing submit schema path.', 2);
+  }
+
+  const outPath = command.outPath ?? io.env?.CONSENSUS_SUBMIT_FILE;
+  if (!outPath) {
+    return submitFailure(io, 'Missing submit output path.', 2);
+  }
+
+  if (!command.verdictSource) {
+    return submitFailure(io, 'Missing verdict source.', 2);
+  }
+  if (command.verdictSource.kind === 'prompt') {
+    return submitFailure(
+      io,
+      'Submit verdict source must be stdin or --verdict-file.',
+      2,
+    );
+  }
+
+  const maxSubmitBytes = parseSubmitCaptureMaxBytes(
+    io.env?.[CONSENSUS_SUBMIT_MAX_BYTES_ENV],
+  );
+  if (maxSubmitBytes === undefined) {
+    return submitFailure(io, 'Invalid submit capture byte limit.', 2);
+  }
+
+  let schema: unknown;
+  try {
+    schema = JSON.parse(await io.readFile(schemaPath));
+  } catch (error) {
+    return submitFailure(
+      io,
+      `Could not read submit schema: ${error instanceof Error ? error.message : String(error)}`,
+      2,
+    );
+  }
+
+  let rawVerdict: string;
+  try {
+    rawVerdict = await readSubmitSource(
+      command.verdictSource,
+      io,
+      maxSubmitBytes,
+    );
+    assertWithinSubmitCaptureLimit(rawVerdict, maxSubmitBytes);
+  } catch (error) {
+    return submitFailure(
+      io,
+      error instanceof Error ? error.message : String(error),
+      1,
+    );
+  }
+
+  let verdict: unknown;
+  try {
+    verdict = JSON.parse(rawVerdict);
+  } catch (error) {
+    return submitFailure(
+      io,
+      `Submitted verdict must be valid JSON: ${error instanceof Error ? error.message : String(error)}`,
+      1,
+    );
+  }
+
+  const validation = validateSchemaSubset(verdict, schema);
+  if (!validation.ok) {
+    return submitFailure(io, validation.message, 1);
+  }
+
+  const captureContents = `${JSON.stringify(verdict)}\n`;
+  try {
+    assertWithinSubmitCaptureLimit(captureContents, maxSubmitBytes);
+  } catch (error) {
+    return submitFailure(
+      io,
+      error instanceof SubmitCaptureLimitError
+        ? error.message
+        : `Could not size submit capture: ${error instanceof Error ? error.message : String(error)}`,
+      1,
+    );
+  }
+
+  try {
+    await (io.writeSubmitCapture ?? writeJsonFileAtomic)(
+      outPath,
+      captureContents,
+    );
+  } catch (error) {
+    return submitFailure(
+      io,
+      `Could not write submit capture: ${error instanceof Error ? error.message : String(error)}`,
+      1,
+    );
+  }
+
+  writeJson(io, {
+    schema_version: 'v1',
+    ok: true,
+    captured: true,
+    message: 'verdict captured',
+  } satisfies SubmitResult);
+  return 0;
+}
+
 export async function runConsensusCli(
   argv: readonly string[],
   io: ConsensusCliIo,
@@ -156,6 +287,9 @@ export async function runConsensusCli(
       );
       return 0;
     }
+    if (command.kind === 'submit') {
+      return runSubmit(command, io);
+    }
 
     const request = await normalizeRunRequest(command, io);
     const envelope = await runProviderTurn(request, {
@@ -177,6 +311,42 @@ export async function runConsensusCli(
     );
     return 1;
   }
+}
+
+async function readSubmitSource(
+  source: PromptSource,
+  io: ConsensusCliIo,
+  maxBytes: number,
+): Promise<string> {
+  if (source.kind === 'stdin') return io.readStdin(maxBytes);
+  if (source.kind === 'file') return io.readFile(source.path, maxBytes);
+  return source.value;
+}
+
+function submitFailure(
+  io: ConsensusCliIo,
+  message: string,
+  exitCode: 1 | 2,
+): 1 | 2 {
+  writeJson(io, {
+    schema_version: 'v1',
+    ok: false,
+    captured: false,
+    message,
+  } satisfies SubmitResult);
+  io.stderr.write(`${message}\n`);
+  return exitCode;
+}
+
+async function writeJsonFileAtomic(filePath: string, contents: string) {
+  const directory = dirname(filePath);
+  await mkdir(directory, { recursive: true });
+  const tempPath = join(
+    directory,
+    `.${basename(filePath)}.${process.pid}.${randomUUID()}.tmp`,
+  );
+  await writeFile(tempPath, contents, 'utf8');
+  await rename(tempPath, filePath);
 }
 
 function defaultProbeOptions(

@@ -98,6 +98,59 @@ describe('consensus provider CLI invocation seam', () => {
     });
   });
 
+  it('projects submit-path envelopes without changing the core result contract', async () => {
+    const result = await invokeConsensusProviderCli({
+      provider: 'cursor',
+      schemaPath: '/schemas/verdict.json',
+      prompt: 'Review this section.',
+      cwd: '/tmp/consensus-run',
+      env: { CONSENSUS_CLI_PATH: '/tmp/bin/consensus' },
+      runCommand: async () => ({
+        code: 0,
+        stdout: JSON.stringify({
+          schema_version: 'v1',
+          ok: true,
+          provider: 'cursor',
+          args: ['cursor-agent', '--output-format', 'json', '--force'],
+          stdout: '{"verdict":"ACCEPT"}',
+          stderr: '',
+          json: {
+            schema_version: 'v1',
+            verdict: 'ACCEPT',
+            reasoning: 'submitted',
+          },
+          attempts: {
+            cli_attempts: 1,
+            terminal_reason: 'success',
+            retryable: false,
+          },
+          diagnostics: {
+            strategy_used: 'prompt_only',
+            verdict_source: 'submit',
+          },
+        }),
+        stderr: '',
+      }),
+    });
+
+    expect(result).toMatchObject({
+      provider: 'cursor',
+      args: ['cursor-agent', '--output-format', 'json', '--force'],
+      stdout: '{"verdict":"ACCEPT"}',
+      raw_provider_response: '{"verdict":"ACCEPT"}',
+      json: {
+        schema_version: 'v1',
+        verdict: 'ACCEPT',
+        reasoning: 'submitted',
+      },
+      provider_diagnostics: {
+        strategy_used: 'prompt_only',
+        verdict_source: 'submit',
+      },
+      attempts: { cli_attempts: 1, terminal_reason: 'success' },
+    });
+  });
+
   it('maps structured ok:false provider failures to ConsensusError', async () => {
     await expect(
       invokeConsensusProviderCli({

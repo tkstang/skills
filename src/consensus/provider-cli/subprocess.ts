@@ -49,6 +49,18 @@ const DEFAULT_TIMEOUT_SEC = 300;
 const DEFAULT_TERMINATION_GRACE_MS = 250;
 const DEFAULT_FINAL_RESOLUTION_MS = 1000;
 
+export function isReliableExternalInterrupt(input: {
+  code: ProviderErrorCode;
+  exit_code: number | null;
+  signal: string | null;
+}) {
+  return (
+    input.code === 'PROVIDER_EXIT' &&
+    input.signal !== null &&
+    input.exit_code === null
+  );
+}
+
 export function runProviderSubprocess(
   invocation: ProviderInvocation,
   options: RunProviderSubprocessOptions = {},
