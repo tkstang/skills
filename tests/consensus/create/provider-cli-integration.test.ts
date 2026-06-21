@@ -4,10 +4,77 @@ import path from 'node:path';
 
 import { expect, it } from 'vitest';
 
-import { runConsensusCreate } from '../../../src/consensus/create/consensus-create.js';
-import { makeProviderCliEnv, parseJsonl } from '../../helpers/process.mjs';
+import {
+  runConsensusCreate,
+  runCreateCli,
+} from '../../../src/consensus/create/consensus-create.js';
+import {
+  makeProviderCliEnv,
+  parseJsonl,
+} from '../../helpers/process.mjs';
 
 type JsonRecord = Record<string, any>;
+
+function captureCreateWriter() {
+  let contents = '';
+  return {
+    stream: {
+      write(chunk: string | Uint8Array) {
+        contents += String(chunk);
+        return true;
+      },
+    },
+    value() {
+      return contents;
+    },
+  };
+}
+
+it('classifies missing and duplicate brief sources as usage errors before provider calls', async () => {
+  const cases = [
+    {
+      argv: [],
+      code: 'MISSING_BRIEF_SOURCE',
+      message: /requires --brief or --brief-file/,
+    },
+    {
+      argv: ['--brief', 'x', '--brief-file', 'y'],
+      code: 'DUPLICATE_BRIEF_SOURCE',
+      message: /exactly one of --brief or --brief-file/,
+    },
+  ];
+
+  for (const testCase of cases) {
+    const stdout = captureCreateWriter();
+    const stderr = captureCreateWriter();
+    const providerCalls: string[] = [];
+    const exitCode = await runCreateCli(testCase.argv, {
+      env: makeProviderCliEnv(),
+      stdout: stdout.stream,
+      stderr: stderr.stream,
+      invokePeer: async () => {
+        providerCalls.push('peer');
+        throw new Error('provider call should not run');
+      },
+      invokeSynthesizer: async () => {
+        providerCalls.push('synthesizer');
+        throw new Error('synthesizer call should not run');
+      },
+    });
+
+    expect(exitCode).toBe(64);
+    expect(providerCalls).toEqual([]);
+    const events = parseJsonl<JsonRecord>(stdout.value());
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      event: 'error',
+      code: testCase.code,
+      exit_code: 64,
+    });
+    expect(events[0].message).toMatch(testCase.message);
+    expect(stderr.value()).toMatch(testCase.message);
+  }
+});
 
 it('keeps first-round independent create prompts free of shared placeholder drafts', async () => {
   const tempRoot = await mkdtemp(

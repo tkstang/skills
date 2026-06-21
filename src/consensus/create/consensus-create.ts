@@ -205,12 +205,19 @@ function validateBriefSources(
   options: Pick<ParsedCreateOptions, 'brief' | 'briefFile'>,
 ) {
   if (options.brief !== null && options.briefFile !== null) {
-    throw new Error(
+    throw new ConsensusError(
       'consensus-create accepts exactly one of --brief or --brief-file',
+      {
+        code: 'DUPLICATE_BRIEF_SOURCE',
+        exitCode: EXIT_CODES.USAGE,
+      },
     );
   }
   if (options.brief === null && options.briefFile === null) {
-    throw new Error('consensus-create requires --brief or --brief-file');
+    throw new ConsensusError('consensus-create requires --brief or --brief-file', {
+      code: 'MISSING_BRIEF_SOURCE',
+      exitCode: EXIT_CODES.USAGE,
+    });
   }
 }
 
