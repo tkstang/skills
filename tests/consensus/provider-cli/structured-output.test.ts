@@ -1,3 +1,5 @@
+import path from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import { providerRegistry } from '../../../src/consensus/provider-cli/adapters.js';
@@ -6,7 +8,11 @@ import {
   selectStructuredOutputStrategy,
 } from '../../../src/consensus/provider-cli/structured-output.js';
 import { processExitForEnvelope } from '../../../src/consensus/provider-cli/envelope.js';
-import type { ProviderProcessResult } from '../../../src/consensus/provider-cli/subprocess.js';
+import type { ProviderInvocation } from '../../../src/consensus/provider-cli/invocation.js';
+import type {
+  ProviderProcessResult,
+  RunProviderSubprocessOptions,
+} from '../../../src/consensus/provider-cli/subprocess.js';
 import type {
   ConsensusCliRunRequest,
   ProviderId,
@@ -277,6 +283,62 @@ describe('structured provider output coordinator', () => {
     );
   });
 
+  it('injects submit capture env while preserving host guard child env', async () => {
+    const subprocess = fakeSubprocess([
+      processSuccess('{"type":"turn.completed"}', {
+        last_message: '{"verdict":"accept"}',
+      }),
+    ]);
+
+    const envelope = await runProviderTurn(
+      request({
+        provider: 'codex',
+        host: {
+          runtime: 'codex',
+          cwd: '/workspace',
+          run_id: 'run-123',
+          depth: 0,
+          max_depth: 2,
+        },
+      }),
+      {
+        readSchema: async () => schema(),
+        runSubprocess: subprocess.run,
+      },
+    );
+
+    expect(envelope.ok).toBe(true);
+    expect(subprocess.envs[0]).toMatchObject({
+      CONSENSUS_RUN_ID: 'run-123',
+      CONSENSUS_PARENT_HOST: 'codex',
+      CONSENSUS_DEPTH: '1',
+      CONSENSUS_SUBMIT_SCHEMA: path.resolve('schema.json'),
+    });
+    expect(subprocess.envs[0]?.CONSENSUS_SUBMIT_FILE).toMatch(
+      /consensus-submit-[\w-]+\.json$/,
+    );
+  });
+
+  it('generates a unique submit sidecar path per provider turn', async () => {
+    const first = fakeSubprocess([processSuccess('{"verdict":"accept"}')]);
+    const second = fakeSubprocess([processSuccess('{"verdict":"accept"}')]);
+
+    await runProviderTurn(request({ provider: 'cursor' }), {
+      readSchema: async () => schema(),
+      runSubprocess: first.run,
+    });
+    await runProviderTurn(request({ provider: 'cursor' }), {
+      readSchema: async () => schema(),
+      runSubprocess: second.run,
+    });
+
+    expect(first.envs[0]?.CONSENSUS_SUBMIT_FILE).toBeTruthy();
+    expect(second.envs[0]?.CONSENSUS_SUBMIT_FILE).toBeTruthy();
+    expect(first.envs[0]?.CONSENSUS_SUBMIT_FILE).not.toBe(
+      second.envs[0]?.CONSENSUS_SUBMIT_FILE,
+    );
+  });
+
   it('extracts Codex last-message-file output before schema validation', async () => {
     const envelope = await runProviderTurn(request({ provider: 'codex' }), {
       readSchema: async () => schema(),
@@ -461,18 +523,20 @@ function schema() {
 
 function fakeSubprocess(results: ProviderProcessResult[]) {
   const prompts: string[] = [];
-  const invocations: Array<{ argv: string[]; stdin: string }> = [];
+  const invocations: ProviderInvocation[] = [];
+  const envs: Array<Record<string, string | undefined>> = [];
 
   return {
     prompts,
     invocations,
-    async run(invocation: {
-      argv: string[];
-      stdin: string;
-      output_mode?: string;
-    }) {
+    envs,
+    async run(
+      invocation: ProviderInvocation,
+      options: RunProviderSubprocessOptions,
+    ) {
       prompts.push(invocation.stdin);
       invocations.push(invocation);
+      envs.push(options?.env ?? {});
       const result = results.shift();
       if (!result) throw new Error('Unexpected subprocess invocation');
       if (

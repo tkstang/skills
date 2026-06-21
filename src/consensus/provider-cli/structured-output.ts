@@ -1,4 +1,7 @@
+import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 
 import { providerRegistry } from './adapters.js';
 import { failureEnvelope, successEnvelope } from './envelope.js';
@@ -124,10 +127,15 @@ export async function runProviderTurn(
   const strategy = selectStructuredOutputStrategy(adapter);
   const runSubprocess = dependencies.runSubprocess ?? runProviderSubprocess;
   const parentEnv = dependencies.parentEnv ?? process.env;
+  const submitCapturePath = submitCaptureFile();
   const childEnv = buildChildEnvironment({
     parentEnv,
     request: effectiveRequest,
-    hostEnv: hostGuard.child_env ?? {},
+    hostEnv: {
+      ...(hostGuard.child_env ?? {}),
+      CONSENSUS_SUBMIT_FILE: submitCapturePath,
+      CONSENSUS_SUBMIT_SCHEMA: path.resolve(request.schema_path),
+    },
   });
   let validationFeedback: string | undefined;
   let lastInvocation: ProviderInvocation | undefined;
@@ -474,4 +482,8 @@ function exitClassificationDiagnostics(
   return exitClassification
     ? { exit_classification: exitClassification }
     : undefined;
+}
+
+function submitCaptureFile() {
+  return path.join(tmpdir(), `consensus-submit-${randomUUID()}.json`);
 }
