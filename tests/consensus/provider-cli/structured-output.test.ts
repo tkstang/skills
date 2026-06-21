@@ -439,6 +439,30 @@ describe('structured provider output coordinator', () => {
     });
   });
 
+  it('keeps the success envelope shape unchanged across submit and parse paths', async () => {
+    const parseEnvelope = await runProviderTurn(request({ provider: 'cursor' }), {
+      readSchema: async () => schema(),
+      runSubprocess: fakeSubprocess([
+        processSuccess('{"verdict":"final-message"}'),
+      ]).run,
+    });
+    const submitEnvelope = await runProviderTurn(request({ provider: 'cursor' }), {
+      readSchema: async () => schema(),
+      async runSubprocess(_invocation, options) {
+        const submitPath = options.env?.CONSENSUS_SUBMIT_FILE;
+        if (!submitPath) throw new Error('Missing submit capture path');
+        await writeFile(submitPath, '{"verdict":"submit"}', 'utf8');
+        return processSuccess('{"verdict":"final-message"}');
+      },
+    });
+
+    expect(parseEnvelope.ok).toBe(true);
+    expect(submitEnvelope.ok).toBe(true);
+    expect(Object.keys(submitEnvelope).sort()).toEqual(
+      Object.keys(parseEnvelope).sort(),
+    );
+  });
+
   it('extracts Codex last-message-file output before schema validation', async () => {
     const envelope = await runProviderTurn(request({ provider: 'codex' }), {
       readSchema: async () => schema(),
