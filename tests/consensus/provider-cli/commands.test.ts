@@ -1,6 +1,11 @@
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import {
+  runSubmit,
   runConsensusCli,
   runPreflight,
   runProviderList,
@@ -108,6 +113,137 @@ describe('provider CLI command handlers', () => {
       providers: [{ id: 'claude', status: 'missing' }],
     });
   });
+
+  it('writes exactly one SubmitResult JSON line on stdout for valid submissions', async () => {
+    const tempDir = await mkdtemp(path.join(tmpdir(), 'consensus-submit-'));
+    try {
+      const outPath = path.join(tempDir, 'capture.json');
+      const stdout = captureWriter();
+      const stderr = captureWriter();
+
+      const code = await runSubmit(
+        {
+          kind: 'submit',
+          json: true,
+          verdictSource: { kind: 'stdin' },
+          schemaPath: 'schema.json',
+          outPath,
+        },
+        submitIo({
+          stdout,
+          stderr,
+          stdin: '{"verdict":"accept"}',
+          files: { 'schema.json': JSON.stringify(schema()) },
+        }),
+      );
+
+      expect(code).toBe(0);
+      expect(stderr.value()).toBe('');
+      expect(stdout.value().trim().split('\n')).toHaveLength(1);
+      expect(JSON.parse(stdout.value())).toEqual({
+        schema_version: 'v1',
+        ok: true,
+        captured: true,
+        message: 'verdict captured',
+      });
+      expect(JSON.parse(await readFile(outPath, 'utf8'))).toEqual({
+        verdict: 'accept',
+      });
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('returns ok:false JSON and mirrors schema errors to stderr', async () => {
+    const tempDir = await mkdtemp(path.join(tmpdir(), 'consensus-submit-'));
+    try {
+      const stdout = captureWriter();
+      const stderr = captureWriter();
+
+      const code = await runSubmit(
+        {
+          kind: 'submit',
+          json: true,
+          verdictSource: { kind: 'stdin' },
+          schemaPath: 'schema.json',
+          outPath: path.join(tempDir, 'capture.json'),
+        },
+        submitIo({
+          stdout,
+          stderr,
+          stdin: '{"other":"value"}',
+          files: { 'schema.json': JSON.stringify(schema()) },
+        }),
+      );
+
+      expect(code).toBe(1);
+      expect(stdout.value().trim().split('\n')).toHaveLength(1);
+      expect(JSON.parse(stdout.value())).toEqual({
+        schema_version: 'v1',
+        ok: false,
+        captured: false,
+        message: 'Missing required JSON field: verdict',
+      });
+      expect(stderr.value()).toContain(
+        'Missing required JSON field: verdict',
+      );
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('does not overwrite a prior valid capture with an invalid submission', async () => {
+    const tempDir = await mkdtemp(path.join(tmpdir(), 'consensus-submit-'));
+    try {
+      const outPath = path.join(tempDir, 'capture.json');
+      const files = { 'schema.json': JSON.stringify(schema()) };
+
+      await runSubmit(
+        {
+          kind: 'submit',
+          json: true,
+          verdictSource: { kind: 'stdin' },
+          schemaPath: 'schema.json',
+          outPath,
+        },
+        submitIo({
+          stdout: captureWriter(),
+          stderr: captureWriter(),
+          stdin: '{"verdict":"accept"}',
+          files,
+        }),
+      );
+
+      const stdout = captureWriter();
+      const stderr = captureWriter();
+      const code = await runSubmit(
+        {
+          kind: 'submit',
+          json: true,
+          verdictSource: { kind: 'stdin' },
+          schemaPath: 'schema.json',
+          outPath,
+        },
+        submitIo({
+          stdout,
+          stderr,
+          stdin: '{"other":"value"}',
+          files,
+        }),
+      );
+
+      expect(code).toBe(1);
+      expect(JSON.parse(await readFile(outPath, 'utf8'))).toEqual({
+        verdict: 'accept',
+      });
+      expect(JSON.parse(stdout.value())).toMatchObject({
+        ok: false,
+        captured: false,
+      });
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
+  });
 });
 
 function providerEntries(
@@ -142,4 +278,40 @@ function providerEntry(
 
 async function unexpectedRead(): Promise<string> {
   throw new Error('Unexpected IO read');
+}
+
+function schema() {
+  return {
+    type: 'object',
+    required: ['verdict'],
+    properties: {
+      verdict: { type: 'string' },
+    },
+  };
+}
+
+function submitIo(options: {
+  stdout: ReturnType<typeof captureWriter>;
+  stderr: ReturnType<typeof captureWriter>;
+  stdin: string;
+  files: Record<string, string>;
+  env?: Record<string, string | undefined>;
+}) {
+  return {
+    stdout: options.stdout.stream,
+    stderr: options.stderr.stream,
+    stdin: process.stdin,
+    cwd: '/workspace',
+    env: options.env,
+    async readFile(filePath: string) {
+      const contents = options.files[filePath];
+      if (contents === undefined) {
+        throw new Error(`Unexpected file read: ${filePath}`);
+      }
+      return contents;
+    },
+    async readStdin() {
+      return options.stdin;
+    },
+  };
 }
