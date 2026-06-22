@@ -1,6 +1,6 @@
 ---
 oat_current_task: null
-oat_last_commit: 8d0e919
+oat_last_commit: 4285adf
 oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
@@ -12,7 +12,7 @@ oat_hill_checkpoints: ['discovery', 'design'] # Configured: which phases require
 oat_hill_completed: ['discovery', 'design'] # Progress: which HiLL checkpoints have been completed
 oat_parallel_execution: false
 oat_phase: implement # Current phase: discovery | spec | design | plan | implement | decomposition
-oat_phase_status: complete # Status: in_progress | complete | pr_open
+oat_phase_status: pr_open # Status: in_progress | complete | pr_open
 # oat_orchestration_retry_limit: 2  # optional; override fix-loop retry limit (range 0-5)
 # oat_dispatch_ceiling: # optional project override for provider-aware dispatch ceilings
 #   provider: codex # codex | claude
@@ -27,23 +27,23 @@ oat_dispatch_ceiling:
 oat_workflow_mode: spec-driven # spec-driven | quick | import
 oat_workflow_origin: native # native | imported
 oat_docs_updated: complete # null | skipped | complete — documentation sync status
-oat_pr_status: null # null | ready | open | closed | merged — actual PR state for the current project
-oat_pr_url: null # null | string — tracked PR URL when a PR exists
+oat_pr_status: open # null | ready | open | closed | merged — actual PR state for the current project
+oat_pr_url: "https://github.com/tkstang/skills/pull/33" # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-06-21T15:59:48.857Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-06-22T01:45:51Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-06-22T01:49:39Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
 # Project State: consensus-family
 
-**Status:** Documentation sync complete — PR handoff next
+**Status:** PR open — awaiting human review
 **Started:** 2026-06-21
 **Last Updated:** 2026-06-22
 
 ## Current Phase
 
-Implementation and documentation sync complete — p01 loop-core `independent_draft`, p02 `consensus-create`, p03 `consensus-decide`, p04 `consensus-plan`, final review fixes, Fumadocs skill docs, and repo-reference/PJM updates completed; final review passed.
+Implementation — PR open, awaiting human review.
 
 ## Artifacts
 
@@ -72,7 +72,8 @@ Implementation and documentation sync complete — p01 loop-core `independent_dr
 - ✓ Phase p04 completed and passed code review
 - ✓ Final implementation review passed
 - ✓ Fumadocs skill documentation and repo-reference/PJM documentation synced
-- ⧗ Next: PR handoff
+- ✓ PR created — https://github.com/tkstang/skills/pull/33
+- ⧗ Awaiting human review
 
 ## Blockers
 
@@ -80,4 +81,7 @@ None
 
 ## Next Milestone
 
-Open the final project PR.
+PR is open for review.
+
+- To incorporate feedback: run `oat-project-revise`
+- When approved: run `oat-project-complete`
