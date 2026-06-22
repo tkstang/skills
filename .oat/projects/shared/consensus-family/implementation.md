@@ -183,8 +183,7 @@ oat_generated: false
 
 **Key files touched:**
 
-- `src/consensus/create/consensus-create.ts` - create CLI parsing, brief loading, loop execution, and output rendering.
-- `src/consensus/create/create-prompts.ts` - create prompt profile and untrusted brief/template framing.
+- `src/consensus/create/consensus-create.ts` - create CLI parsing, brief loading, prompt profile, untrusted brief/template framing, loop execution, and output rendering.
 - `src/consensus/core/consensus-loop.ts` - support for independent-draft round-1 create prompts without placeholder shared draft content.
 - `plugins/consensus/skills/create/` and `skills/consensus-create/` - generated runtime, skill anatomy, and shipped skill metadata.
 - `documentation/docs/user-guide/consensus/index.md`, `documentation/docs/user-guide/consensus/create.md`, `documentation/docs/engineering/architecture/generated-runtime.md`, and `documentation/index.md` - consensus create docs and generated docs index updates.
@@ -608,6 +607,7 @@ Chronological log of implementation progress.
 - p04 review C1/I1 identified raw goal prompt exposure and alternating independent-draft turn-2 semantics; resolved by `25427d6`.
 - Final review C1/C2 identified create/decide alternating independent-draft turn-2 semantics; resolved by `8b5c156`.
 - Final review v2 identified stale shared configuration/evaluate docs wording; resolved by `90bdaf4`.
+- Final review v4 identified two minor lifecycle-artifact drift notes; resolved by updating the Phase 2 touched-file summary and recording the create implementation consolidation in deviations below.
 
 **Session End:** 01:35 UTC
 
@@ -628,6 +628,7 @@ Document any intentional deviations from the original plan, spec, or design. Inc
 | p04-t04       | plan.md p04-t04 file list | Plan skill anatomy, build/version scripts, generated-output tests, and repo-invariant tests | Also updated `.oxfmtrc.json`, `.oxlintrc.json`, provider plugin manifests, and `tests/repo/plugin-manifests.test.ts` | Generated plan runtime needs lint/format exclusions, and provider-facing manifest metadata must advertise shipped plan support. | p04 review artifacts + repository tests | Plan file list should include these metadata/config updates when generated outputs or shipped skills are added; no code follow-up. |
 | p04-t05       | plan.md p04-t05 verification | `pnpm run validate:skill-versions -- --base-ref main` | `pnpm run validate:skill-versions --base-ref main` | The package script passes arguments directly to `scripts/validate-skill-versions.mjs` and rejects the extra `--` token. The accepted form runs the same validator against `main`. | `package.json` script + `scripts/validate-skill-versions.mjs` CLI | Update the plan command if the artifact is revised; no code follow-up. |
 | final-review  | plan/design FR2 prompt semantics | Create/decide/plan alternating `independent_draft` turn 2 revises peer A's draft | Create/decide were updated after final review to match the accepted plan wrapper semantics | Final review identified the cross-wrapper semantic gap after p04 fixed plan. | `src/consensus/{create,decide,plan}` prompt profiles + wrapper tests | No code follow-up. |
+| final-review-v4 | plan.md p02-t01/p02-t02 task split | Parser/loading/prompt-profile work appears as split plan tasks | Create parsing, loading, prompt profile, and loop execution are consolidated in `src/consensus/create/consensus-create.ts` across sequential commits | The shipped single-file wrapper matches decide/plan and satisfies FR4; the split was a planning aid, not a runtime boundary. | `src/consensus/create/consensus-create.ts` + create wrapper tests | No code follow-up. |
 
 ## Test Results
 
