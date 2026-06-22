@@ -19,11 +19,16 @@ const decideSkillPath = new URL(
   '../../plugins/consensus/skills/decide/SKILL.md',
   import.meta.url,
 );
+const planSkillPath = new URL(
+  '../../plugins/consensus/skills/plan/SKILL.md',
+  import.meta.url,
+);
 const skillPaths = [
   refineSkillPath,
   evaluateSkillPath,
   createSkillPath,
   decideSkillPath,
+  planSkillPath,
 ];
 
 function frontmatter(markdown: string) {
@@ -54,7 +59,9 @@ describe('skill-frontmatter', () => {
       const block = frontmatter(markdown);
       const name = field(block, 'name');
 
-      expect(['refine', 'evaluate', 'create', 'decide']).toContain(name);
+      expect(['refine', 'evaluate', 'create', 'decide', 'plan']).toContain(
+        name,
+      );
       expect(path.basename(path.dirname(skillPath.pathname))).toBe(name);
       expect(field(block, 'description').length > 40).toBeTruthy();
       expect(field(block, 'license')).toBe('MIT');
@@ -207,6 +214,33 @@ describe('skill-frontmatter', () => {
     );
     expect(hint, 'argument-hint should reference markdown options').toMatch(
       /\.md/,
+    );
+  });
+
+  it('plan skill has promoted top-level version matching metadata.version', async () => {
+    const markdown = await readFile(planSkillPath, 'utf8');
+    const block = frontmatter(markdown);
+
+    const topLevelVersion = field(block, 'version');
+    const metaVersion = metadataVersion(block);
+
+    expect(topLevelVersion).toMatch(/^\d+\.\d+\.\d+/);
+    expect(
+      topLevelVersion,
+      'top-level version must match metadata.version',
+    ).toBe(metaVersion);
+  });
+
+  it('plan skill has a useful argument-hint', async () => {
+    const markdown = await readFile(planSkillPath, 'utf8');
+    const block = frontmatter(markdown);
+
+    const hint = field(block, 'argument-hint');
+    expect(hint, 'argument-hint should mention inline goals').toMatch(
+      /--goal/,
+    );
+    expect(hint, 'argument-hint should mention inline constraints').toMatch(
+      /--constraints/,
     );
   });
 

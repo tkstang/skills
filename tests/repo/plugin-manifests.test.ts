@@ -76,6 +76,10 @@ describe('plugin-manifests', () => {
         JSON.stringify(manifest),
         `${provider} manifest should advertise consensus-decide`,
       ).toMatch(/decide/i);
+      expect(
+        JSON.stringify(manifest),
+        `${provider} manifest should advertise consensus-plan`,
+      ).toMatch(/plan/i);
     }
   });
 
@@ -84,10 +88,10 @@ describe('plugin-manifests', () => {
 
     expect(manifest.interface?.displayName).toBe('Consensus');
     expect(manifest.interface?.shortDescription).toBe(
-      'Create, decide, refine, and evaluate artifacts with two-peer deliberation.',
+      'Create, decide, plan, refine, and evaluate artifacts with two-peer deliberation.',
     );
     expect(manifest.interface?.longDescription).toBe(
-      'Consensus deliberation skills for creating artifacts from briefs, deciding between options, refining markdown drafts, or evaluating artifacts against rubrics with multiple AI peers and an audit trail.',
+      'Consensus deliberation skills for creating artifacts from briefs, deciding between options, planning from goals and constraints, refining markdown drafts, or evaluating artifacts against rubrics with multiple AI peers and an audit trail.',
     );
     expect(manifest.interface?.developerName).toBe('Thomas Stang');
     expect(manifest.interface?.category).toBe('Coding');
@@ -98,7 +102,9 @@ describe('plugin-manifests', () => {
     ]);
     expect(manifest.interface?.defaultPrompt).toEqual([
       'Use Consensus Create to draft from a brief, Consensus Decide to turn options into a decision, Consensus Refine to improve a markdown draft, or Consensus Evaluate to judge an artifact against a rubric.',
+      'Use Consensus Plan to turn a goal and constraints into a structured plan.',
     ]);
     expect(JSON.stringify(manifest.interface)).toMatch(/decide/i);
+    expect(JSON.stringify(manifest.interface)).toMatch(/plan/i);
   });
 });
