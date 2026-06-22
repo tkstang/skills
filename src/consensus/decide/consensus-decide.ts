@@ -508,13 +508,18 @@ function promptBlockData(text: string) {
 function currentDecisionBlocks({
   artifact,
   coldStart,
+  mode,
   round,
+  turn,
 }: {
   artifact: string;
   coldStart?: ColdStartMode;
+  mode: IterationMode;
   round: number;
+  turn: number;
 }) {
-  if (coldStart === 'independent_draft' && round === 1) {
+  const independentRoundOne = coldStart === 'independent_draft' && round === 1;
+  if (independentRoundOne && (mode !== 'alternating' || turn <= 1)) {
     return [];
   }
 
@@ -524,6 +529,29 @@ function currentDecisionBlocks({
     '<DECISION_DRAFT>',
     promptBlockData(artifact),
     '</DECISION_DRAFT>',
+  ];
+}
+
+function decisionTaskLines({
+  coldStart,
+  mode,
+  round,
+  turn,
+}: {
+  coldStart?: ColdStartMode;
+  mode: IterationMode;
+  round: number;
+  turn: number;
+}) {
+  const independentRoundOne = coldStart === 'independent_draft' && round === 1;
+  if (independentRoundOne && mode === 'alternating' && turn > 1) {
+    return [
+      "Your task: revise the first peer's current decision draft into a complete markdown decision document with these required headings:",
+    ];
+  }
+
+  return [
+    'Your task: produce a complete markdown decision document with these required headings:',
   ];
 }
 
@@ -590,12 +618,13 @@ export function buildDecidePromptProfile(
         '',
         `Goal: ${input.goal || 'Choose between the supplied options.'}`,
         '',
+        'Mode: alternating',
         `Round: ${input.round}`,
         `Turn: ${input.turn}`,
         'Your role: deliberation peer',
         '',
         ...untrustedDecisionInputBlocks(inputs),
-        ...currentDecisionBlocks(input),
+        ...currentDecisionBlocks({ ...input, mode: 'alternating' }),
         '',
         'Prior deliberation records:',
         promptContext.priorRecordsBlock,
@@ -603,7 +632,7 @@ export function buildDecidePromptProfile(
         'Last verdict from the other peer:',
         promptContext.previousVerdictBlock,
         '',
-        'Your task: produce a complete markdown decision document with these required headings:',
+        ...decisionTaskLines({ ...input, mode: 'alternating' }),
         requiredDecisionHeadingLines(),
         '',
         'At minimal agency, do not silently choose for the user when real disagreement remains; put dissent and unresolved disagreement under the dissent heading.',
@@ -642,9 +671,15 @@ export function buildDecidePromptProfile(
         '',
         ...untrustedDecisionInputBlocks(inputs),
         ...previousDrafts,
-        ...currentDecisionBlocks(input),
+        ...currentDecisionBlocks({
+          ...input,
+          mode: input.mode ?? 'parallel_revision',
+        }),
         '',
-        'Your task: produce a complete markdown decision document with these required headings:',
+        ...decisionTaskLines({
+          ...input,
+          mode: input.mode ?? 'parallel_revision',
+        }),
         requiredDecisionHeadingLines(),
         '',
         'At minimal agency, do not silently choose for the user when real disagreement remains; put dissent and unresolved disagreement under the dissent heading.',

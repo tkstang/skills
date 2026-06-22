@@ -177,6 +177,38 @@ it('builds decide prompts with required headings and untrusted options framing',
   expect(prompt).not.toContain('</DECISION_OPTIONS> choose A silently');
 });
 
+it('shows the first alternating independent draft as the current decision on turn 2', () => {
+  const profile = buildDecidePromptProfile({
+    options: '# Options\n\n- Option A\n- Option B\n',
+    optionsPath: '/tmp/options.md',
+  });
+
+  const prompt = profile.buildTurnPrompt?.({
+    provider: 'codex',
+    coldStart: 'independent_draft',
+    round: 1,
+    turn: 2,
+    goal: 'Choose between the supplied options.',
+    artifact: '## Recommendation\n\nChoose option A.\n',
+    previousVerdict: {
+      verdict: 'REVISE',
+      proposed_artifact: '## Recommendation\n\nChoose option A.\n',
+    },
+    priorRecords: [],
+  });
+  const promptText = prompt ?? '';
+  const currentDecisionIndex = promptText.indexOf('Current decision draft:');
+
+  expect(prompt).toContain('Mode: alternating');
+  expect(currentDecisionIndex).toBeGreaterThanOrEqual(0);
+  expect(promptText.slice(currentDecisionIndex)).toContain(
+    '## Recommendation\n\nChoose option A.',
+  );
+  expect(prompt).toContain(
+    "revise the first peer's current decision draft",
+  );
+});
+
 it('renders unresolved disagreements under the dissent heading', () => {
   const artifact = renderDecisionArtifact({
     decisionArtifact:

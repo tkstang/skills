@@ -354,9 +354,12 @@ function promptBlockData(text) {
 function currentDraftBlocks({
   artifact,
   coldStart,
-  round
+  mode,
+  round,
+  turn
 }) {
-  if (coldStart === "independent_draft" && round === 1) {
+  const independentRoundOne = coldStart === "independent_draft" && round === 1;
+  if (independentRoundOne && (mode !== "alternating" || turn <= 1)) {
     return [];
   }
   return [
@@ -365,6 +368,22 @@ function currentDraftBlocks({
     "<CREATE_DRAFT>",
     promptBlockData(artifact),
     "</CREATE_DRAFT>"
+  ];
+}
+function createTaskLines({
+  coldStart,
+  mode,
+  round,
+  turn
+}) {
+  const independentRoundOne = coldStart === "independent_draft" && round === 1;
+  if (independentRoundOne && mode === "alternating" && turn > 1) {
+    return [
+      "Your task: revise the first peer's current draft artifact into a complete draft artifact from the brief and optional template."
+    ];
+  }
+  return [
+    "Your task: produce a complete draft artifact from the brief and optional template."
   ];
 }
 function jsonBlock(value) {
@@ -409,12 +428,13 @@ function buildCreatePromptProfile(inputs) {
         "",
         `Goal: ${input.goal || "Create a new artifact from the brief."}`,
         "",
+        "Mode: alternating",
         `Round: ${input.round}`,
         `Turn: ${input.turn}`,
         "Your role: deliberation peer",
         "",
         ...untrustedCreateInputBlocks(inputs),
-        ...currentDraftBlocks(input),
+        ...currentDraftBlocks({ ...input, mode: "alternating" }),
         "",
         "Prior deliberation records:",
         promptContext.priorRecordsBlock,
@@ -422,7 +442,7 @@ function buildCreatePromptProfile(inputs) {
         "Last verdict from the other peer:",
         promptContext.previousVerdictBlock,
         "",
-        "Your task: produce a complete draft artifact from the brief and optional template.",
+        ...createTaskLines({ ...input, mode: "alternating" }),
         "If you revise the artifact, put the full artifact in proposed_artifact.",
         "Respond with only JSON conforming to the peer verdict schema."
       ].join("\n");
@@ -454,9 +474,15 @@ function buildCreatePromptProfile(inputs) {
         "",
         ...untrustedCreateInputBlocks(inputs),
         ...previousDrafts,
-        ...currentDraftBlocks(input),
+        ...currentDraftBlocks({
+          ...input,
+          mode: input.mode ?? "parallel_revision"
+        }),
         "",
-        "Your task: produce a complete draft artifact from the brief and optional template.",
+        ...createTaskLines({
+          ...input,
+          mode: input.mode ?? "parallel_revision"
+        }),
         "If you revise the artifact, put the full artifact in proposed_artifact.",
         "Respond with only JSON conforming to the peer verdict schema."
       ].join("\n");
