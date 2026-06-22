@@ -528,9 +528,12 @@ function untrustedPlanInputBlocks(inputs) {
 function currentPlanBlocks({
   artifact,
   coldStart,
-  round
+  mode,
+  round,
+  turn
 }) {
-  if (coldStart === "independent_draft" && round === 1) {
+  const independentRoundOne = coldStart === "independent_draft" && round === 1;
+  if (independentRoundOne && (mode !== "alternating" || turn <= 1)) {
     return [];
   }
   return [
@@ -539,6 +542,22 @@ function currentPlanBlocks({
     "<PLAN_DRAFT>",
     promptBlockData(artifact),
     "</PLAN_DRAFT>"
+  ];
+}
+function planTaskLines({
+  coldStart,
+  mode,
+  round,
+  turn
+}) {
+  const independentRoundOne = coldStart === "independent_draft" && round === 1;
+  if (independentRoundOne && mode === "alternating" && turn > 1) {
+    return [
+      "Your task: revise the first peer's current plan draft into a complete markdown plan with these required headings:"
+    ];
+  }
+  return [
+    "Your task: produce a complete markdown plan with these required headings:"
   ];
 }
 function planPeerPrompt(input) {
@@ -558,6 +577,7 @@ const REQUIRED_PLAN_HEADINGS = [
   "## Dependencies",
   "## Risks"
 ];
+const PLAN_GOAL_HEADER = "Goal: see the delimited PLAN_GOAL block below";
 function requiredPlanHeadingLines() {
   return REQUIRED_PLAN_HEADINGS.map((heading) => `- ${heading}`).join("\n");
 }
@@ -568,14 +588,15 @@ function buildPlanPromptProfile(inputs) {
       return [
         `You are ${input.provider} participating in consensus planning.`,
         "",
-        `Goal: ${input.goal || inputs.goal}`,
+        PLAN_GOAL_HEADER,
         "",
+        "Mode: alternating",
         `Round: ${input.round}`,
         `Turn: ${input.turn}`,
         "Your role: deliberation peer",
         "",
         ...untrustedPlanInputBlocks(inputs),
-        ...currentPlanBlocks(input),
+        ...currentPlanBlocks({ ...input, mode: "alternating" }),
         "",
         "Prior deliberation records:",
         promptContext.priorRecordsBlock,
@@ -583,7 +604,7 @@ function buildPlanPromptProfile(inputs) {
         "Last verdict from the other peer:",
         promptContext.previousVerdictBlock,
         "",
-        "Your task: produce a complete markdown plan with these required headings:",
+        ...planTaskLines({ ...input, mode: "alternating" }),
         requiredPlanHeadingLines(),
         "",
         "Keep the plan actionable and preserve material dependencies and risks instead of smoothing them away.",
@@ -608,7 +629,7 @@ function buildPlanPromptProfile(inputs) {
       return [
         `You are ${input.provider} participating in consensus planning.`,
         "",
-        `Goal: ${input.goal || inputs.goal}`,
+        PLAN_GOAL_HEADER,
         "",
         `Mode: ${input.mode ?? "parallel_revision"}`,
         `Cold start: ${input.coldStart ?? "independent_draft"}`,
@@ -618,9 +639,15 @@ function buildPlanPromptProfile(inputs) {
         "",
         ...untrustedPlanInputBlocks(inputs),
         ...previousDrafts,
-        ...currentPlanBlocks(input),
+        ...currentPlanBlocks({
+          ...input,
+          mode: input.mode ?? "parallel_revision"
+        }),
         "",
-        "Your task: produce a complete markdown plan with these required headings:",
+        ...planTaskLines({
+          ...input,
+          mode: input.mode ?? "parallel_revision"
+        }),
         requiredPlanHeadingLines(),
         "",
         "Keep the plan actionable and preserve material dependencies and risks instead of smoothing them away.",
@@ -633,7 +660,7 @@ function buildPlanPromptProfile(inputs) {
       return [
         `You are ${input.provider} synthesizing consensus plan drafts.`,
         "",
-        `Goal: ${input.goal || inputs.goal}`,
+        PLAN_GOAL_HEADER,
         `Round: ${input.round}`,
         "",
         ...untrustedPlanInputBlocks(inputs),
