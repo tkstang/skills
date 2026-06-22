@@ -1,6 +1,6 @@
 ---
 oat_current_task: null
-oat_last_commit: 90bdaf4
+oat_last_commit: 8d0e919
 oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
@@ -26,24 +26,24 @@ oat_dispatch_ceiling:
   source: project-state
 oat_workflow_mode: spec-driven # spec-driven | quick | import
 oat_workflow_origin: native # native | imported
-oat_docs_updated: null # null | skipped | complete — documentation sync status
+oat_docs_updated: complete # null | skipped | complete — documentation sync status
 oat_pr_status: null # null | ready | open | closed | merged — actual PR state for the current project
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-06-21T15:59:48.857Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-06-22T01:35:48Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-06-22T01:45:51Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
 # Project State: consensus-family
 
-**Status:** Implementation complete — final review passed
+**Status:** Documentation sync complete — PR handoff next
 **Started:** 2026-06-21
 **Last Updated:** 2026-06-22
 
 ## Current Phase
 
-Implementation complete — p01 loop-core `independent_draft`, p02 `consensus-create`, p03 `consensus-decide`, p04 `consensus-plan`, and final review fixes completed; final review passed.
+Implementation and documentation sync complete — p01 loop-core `independent_draft`, p02 `consensus-create`, p03 `consensus-decide`, p04 `consensus-plan`, final review fixes, Fumadocs skill docs, and repo-reference/PJM updates completed; final review passed.
 
 ## Artifacts
 
@@ -71,7 +71,8 @@ Implementation complete — p01 loop-core `independent_draft`, p02 `consensus-cr
 - ✓ Phase p03 completed and passed code review
 - ✓ Phase p04 completed and passed code review
 - ✓ Final implementation review passed
-- ⧗ Next: documentation sync and PR handoff
+- ✓ Fumadocs skill documentation and repo-reference/PJM documentation synced
+- ⧗ Next: PR handoff
 
 ## Blockers
 
@@ -79,4 +80,4 @@ None
 
 ## Next Milestone
 
-Run configured documentation sync and PR handoff.
+Open the final project PR.
