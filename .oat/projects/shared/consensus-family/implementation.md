@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-21
-oat_current_task_id: p03-t01
+oat_current_task_id: p04-t01
 oat_generated: false
 ---
 
@@ -28,10 +28,10 @@ oat_generated: false
 | ------- | ------- | ----- | --------- |
 | Phase 1 | passed  | 6     | 6/6       |
 | Phase 2 | passed  | 5     | 5/5       |
-| Phase 3 | pending | 5     | 0/5       |
+| Phase 3 | passed  | 5     | 5/5       |
 | Phase 4 | pending | 5     | 0/5       |
 
-**Total:** 11/21 tasks completed
+**Total:** 16/21 tasks completed
 
 ---
 
@@ -242,6 +242,82 @@ oat_generated: false
 
 ---
 
+## Phase 3: consensus-decide
+
+**Status:** passed
+**Started:** 2026-06-21
+**Completed:** 2026-06-21
+
+### Phase Summary
+
+**Outcome (what changed):**
+
+- Added `consensus-decide` as a shipped consensus skill backed by the shared loop in `independent_draft` / `parallel_synthesized` mode with minimal agency.
+- Added options-file loading, decide-specific prompt/profile rendering, markdown decision output, resolution metadata, and visible unresolved-disagreement handling.
+- Added generated decide runtime output, skill anatomy, schemas, examples, operator QA, build/version registration, provider manifest metadata, docs, and smoke coverage.
+- Fixed review findings around stale independent-draft docs wording, provider manifest coverage, and duplicate dissent headings in rendered decide artifacts.
+
+**Key files touched:**
+
+- `src/consensus/decide/consensus-decide.ts` - decide parser, prompt profile, loop execution, output rendering, path/size confinement, and duplicate dissent-heading cleanup.
+- `plugins/consensus/skills/decide/` - decide skill anatomy, schemas, examples, operator QA, and generated runtime scripts.
+- `plugins/consensus/.codex-plugin/plugin.json`, `plugins/consensus/.claude-plugin/plugin.json`, and `plugins/consensus/.cursor-plugin/plugin.json` - provider-facing decide metadata.
+- `documentation/docs/user-guide/consensus/decide.md`, `documentation/docs/user-guide/consensus/index.md`, `documentation/docs/user-guide/consensus/meta.json`, `documentation/index.md`, `README.md`, `plugins/consensus/README.md`, and `CHANGELOG.md` - decide docs, nav, summaries, generated docs index, and release notes.
+- `.oxfmtrc.json` and `.oxlintrc.json` - generated-output lint/format exclusions for decide runtime files.
+- `tests/consensus/decide/`, `tests/repo/`, `tests/tooling/generated-output-sync.test.ts`, `tests/release/`, and `scripts/smoke-test.mjs` - decide behavior, docs, manifest, generated-output, versioning, and smoke coverage.
+
+**Verification:**
+
+- Run: `pnpm exec vitest run tests/consensus/decide/wrapper.test.ts tests/consensus/decide/provider-cli-integration.test.ts`
+- Result: passed in p03 review cycles.
+- Run: `pnpm exec vitest run tests/repo/plugin-manifests.test.ts tests/consensus/decide/wrapper.test.ts tests/consensus/decide/provider-cli-integration.test.ts tests/release/smoke-test-script.test.ts`
+- Result: passed in p03 v4 review.
+- Run: `pnpm run build:check && pnpm run type-check && pnpm run validate && pnpm run validate:skill-versions --base-ref main && pnpm run smoke && pnpm run test`
+- Result: passed in p03 v4 review.
+- Run: `git diff --check d6779ae..9082b33`
+- Result: passed in p03 v4 review.
+
+**Notes / Decisions:**
+
+- `validate:skill-versions` accepts `--base-ref main` without an extra `--`; the plan command was treated as artifact drift for p03 as well.
+- Adding generated decide runtime output required static lint/format exclusions, matching the create-phase generated-output contract.
+- Provider manifest descriptions/interface text were included in p03 after review because shipped wrapper anatomy includes provider-facing discoverability metadata.
+
+### Task p03-t01: Add Decide Wrapper Argument Model
+
+**Status:** completed
+**Commit:** `c0a836c`
+
+---
+
+### Task p03-t02: Render Decide Markdown Contract and Dissent
+
+**Status:** completed
+**Commit:** `a83274e`, review fix `9082b33`
+
+---
+
+### Task p03-t03: Run Decide Through the Consensus Loop
+
+**Status:** completed
+**Commit:** `c4d9e80`
+
+---
+
+### Task p03-t04: Ship Decide Skill Anatomy and Generated Runtime
+
+**Status:** completed
+**Commit:** `d07e0c7`, review fix `b04e2ed`
+
+---
+
+### Task p03-t05: Document and Smoke-Test Decide
+
+**Status:** completed
+**Commit:** `66fa1df`, review fix `2dbe138`
+
+---
+
 ## Orchestration Runs
 
 _Each run from `oat-project-implement` appends an entry below with:_
@@ -318,6 +394,41 @@ _- Outstanding Items_
 | p02-t04       | plan.md p02-t04 file list | Create skill anatomy, build/version scripts, provider manifests, and repo-invariant tests | Also updated `.oxfmtrc.json` and `.oxlintrc.json` | Adding create generated-output mappings made the existing generated-output drift guard require the new generated `.mjs` paths to be excluded from static lint/format configs. | `tests/tooling/generated-output-sync.test.ts` + generated-output config contract | No code follow-up. |
 | p02-t05       | plan.md p02-t05 verification | `pnpm run validate:skill-versions -- --base-ref main` | `pnpm run validate:skill-versions --base-ref main` | Package script passes args directly to the validator and rejects the extra `--` token. | `package.json` script + validator CLI | No code follow-up. |
 
+### Run 3 — 2026-06-22 00:12
+
+**Branch:** consensus-family
+**Tier:** 1
+**Policy:** merge-strategy=direct, retry-limit=2
+**Phases:** 1 executed, 1 passed, 0 failed, 0 stopped
+
+#### Phase Outcomes
+
+| Phase | Implementer | Review | Fix Iterations | Disposition |
+| ----- | ----------- | ------ | -------------- | ----------- |
+| p03   | DONE        | pass   | 2/2 + 1 minor  | passed      |
+
+#### Parallel Groups
+
+- p03: sequential fix/re-review loop
+
+#### Dispatch Notes
+
+- Dispatch: p03 implementation used `effort_axis=selected:xhigh`, `model_axis=inherited`; reviewer used `oat-reviewer-xhigh`.
+- Dispatch: p03 fix for stale independent-draft docs wording was applied inline as a narrow documentation/test fix.
+- Dispatch: p03 provider-manifest fix used `effort_axis=selected:medium`, `model_axis=inherited`.
+- Dispatch: p03 duplicate dissent-heading polish fix used `effort_axis=selected:medium`, `model_axis=inherited`.
+
+#### Outstanding Items
+
+- None.
+
+#### Artifact / Design Deltas
+
+| Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
+| ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
+| p03-t04       | plan.md p03-t04 file list | Decide skill anatomy, build/version scripts, repo-invariant tests, and generated-output mapping | Also updated `.oxfmtrc.json`, `.oxlintrc.json`, provider plugin manifests, and `tests/repo/plugin-manifests.test.ts` | Generated decide runtime requires lint/format exclusions, and shipped wrapper anatomy requires provider-facing discoverability metadata. | p03 reviews and repository invariant tests | No code follow-up. |
+| p03-t05       | plan.md p03-t05 verification | `pnpm run validate:skill-versions -- --base-ref main` | `pnpm run validate:skill-versions --base-ref main` | Package script passes args directly to the validator and rejects the extra `--` token. | `package.json` script + validator CLI | No code follow-up. |
+
 _Orchestration runs from `oat-project-implement` are appended here, most-recent-first within the file but append-only at the bottom of the log._
 
 <!-- orchestration-runs-end -->
@@ -343,6 +454,11 @@ Chronological log of implementation progress.
 - [x] p02-t03: Execute create through shared loop - `4c8a006`, fixes `33d2595`, `5ab7740`
 - [x] p02-t04: Generate and ship create skill - `66d70c3`, `59464e1`
 - [x] p02-t05: Document create and add smoke coverage - `008f9cf`, fix `33d2595`
+- [x] p03-t01: Add decide wrapper argument model - `c0a836c`
+- [x] p03-t02: Render decide markdown contract and dissent - `a83274e`, fix `9082b33`
+- [x] p03-t03: Run decide through the consensus loop - `c4d9e80`
+- [x] p03-t04: Ship decide skill anatomy and generated runtime - `d07e0c7`, fix `b04e2ed`
+- [x] p03-t05: Document and smoke-test decide - `66fa1df`, fix `2dbe138`
 
 **What changed (high level):**
 
@@ -350,22 +466,25 @@ Chronological log of implementation progress.
 - Existing `refine`/`evaluate` wrappers retain their `shared_input`-only behavior.
 - Loop-level tests cover prompt framing and terminal convergence across all three iteration modes.
 - `consensus-create` is now a shipped skill using the shared loop in `independent_draft` mode with brief loading, create prompt framing, generated runtime, docs, and smoke coverage.
+- `consensus-decide` is now a shipped skill using the shared loop in `independent_draft` / `parallel_synthesized` mode with minimal-agency dissent surfacing, generated runtime, docs, provider manifests, and smoke coverage.
 
 **Decisions:**
 
 - Accepted the package script's `validate:skill-versions --base-ref main` invocation shape as source of truth.
 - Accepted static lint/format config updates as part of generated runtime drift protection for new create outputs.
+- Accepted static lint/format config updates for generated decide outputs and provider manifest updates for shipped decide discoverability.
 
 **Follow-ups / TODO:**
 
-- None for p01 or p02.
+- None for p01, p02, or p03.
 
 **Blockers:**
 
 - p01 review C1 identified missing convergence assertions; resolved by `57449eb`.
 - p02 review I1/I2/m1 and p02 v2 I1 were resolved by `33d2595` and `5ab7740`.
+- p03 reviews identified stale independent-draft docs wording, missing provider manifest metadata, and duplicate dissent headings; resolved by `2dbe138`, `b04e2ed`, and `9082b33`.
 
-**Session End:** 23:24 UTC
+**Session End:** 00:12 UTC
 
 ---
 
@@ -379,6 +498,8 @@ Document any intentional deviations from the original plan, spec, or design. Inc
 | p01-t06       | plan.md p01-t06 file list | `plugins/consensus/skills/refine`, `plugins/consensus/skills/evaluate` only | Also updated `tests/repo/skill-frontmatter.test.ts` | The required refine/evaluate skill version bumps made the repository frontmatter invariant test stale; full phase verification failed until the invariant asserted version consistency instead of the old literal `0.1.0`. | Repository test suite | Plan file list should include this invariant if p01-t06 is revised; no code follow-up. |
 | p02-t04       | plan.md p02-t04 file list | Create skill anatomy, build/version scripts, provider manifests, and repo-invariant tests | Also updated `.oxfmtrc.json` and `.oxlintrc.json` | Adding create generated-output mappings made the existing generated-output drift guard require the new generated `.mjs` paths to be excluded from static lint/format configs. | `tests/tooling/generated-output-sync.test.ts` + generated-output config contract | Plan file list should include static lint/format config updates when generated outputs are added; no code follow-up. |
 | p02-t05       | plan.md p02-t05 verification | `pnpm run validate:skill-versions -- --base-ref main` | `pnpm run validate:skill-versions --base-ref main` | The package script passes arguments directly to `scripts/validate-skill-versions.mjs` and rejects the extra `--` token. The accepted form runs the same validator against `main`. | `package.json` script + `scripts/validate-skill-versions.mjs` CLI | Update the plan command if the artifact is revised; no code follow-up. |
+| p03-t04       | plan.md p03-t04 file list | Decide skill anatomy, build/version scripts, generated-output tests, and repo-invariant tests | Also updated `.oxfmtrc.json`, `.oxlintrc.json`, provider plugin manifests, and `tests/repo/plugin-manifests.test.ts` | Generated decide runtime needs lint/format exclusions, and provider-facing manifest metadata must advertise shipped decide support. | p03 review artifacts + repository tests | Plan file list should include these metadata/config updates when generated outputs or shipped skills are added; no code follow-up. |
+| p03-t05       | plan.md p03-t05 verification | `pnpm run validate:skill-versions -- --base-ref main` | `pnpm run validate:skill-versions --base-ref main` | The package script passes arguments directly to `scripts/validate-skill-versions.mjs` and rejects the extra `--` token. The accepted form runs the same validator against `main`. | `package.json` script + `scripts/validate-skill-versions.mjs` CLI | Update the plan command if the artifact is revised; no code follow-up. |
 
 ## Test Results
 
@@ -388,6 +509,7 @@ Track test execution during implementation.
 | ----- | --------- | ------ | ------ | -------- |
 | 1     | targeted p01 Vitest suites; `build:check`; `type-check`; `test`; `validate`; `validate:skill-versions --base-ref main`; `smoke` | yes    | 0      | n/a      |
 | 2     | targeted create Vitest suites; repo/docs/versioning/generated-output Vitest subset; `build:check`; `type-check`; `test`; `validate`; `validate:skill-versions --base-ref main`; `smoke`; create CLI usage checks | yes    | 0      | n/a      |
+| 3     | targeted decide Vitest suites; provider manifest/docs/smoke/generated-output Vitest subsets; `build:check`; `type-check`; `test`; `validate`; `validate:skill-versions --base-ref main`; `smoke`; `git diff --check d6779ae..9082b33` | yes    | 0      | n/a      |
 
 ## Final Summary (for PR/docs)
 
