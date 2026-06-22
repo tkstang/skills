@@ -180,7 +180,7 @@ it('builds decide prompts with required headings and untrusted options framing',
 it('renders unresolved disagreements under the dissent heading', () => {
   const artifact = renderDecisionArtifact({
     decisionArtifact:
-      '## Recommendation\n\nChoose option A.\n\n## Reasoning\n\nIt is faster.\n\n## Alternatives\n\n- Option B\n',
+      '## Recommendation\n\nChoose option A.\n\n## Reasoning\n\nIt is faster.\n\n## Alternatives\n\n- Option B\n\n## Dissent / Unresolved Disagreement\n\n- Generated dissent section that should be replaced.\n',
     records: [
       {
         record_type: 'synthesis',
@@ -216,6 +216,12 @@ it('renders unresolved disagreements under the dissent heading', () => {
   expect(artifact).toContain('## Reasoning');
   expect(artifact).toContain('## Alternatives');
   expect(artifact).toContain('## Dissent / Unresolved Disagreement');
+  expect(
+    artifact.match(/^## Dissent \/ Unresolved Disagreement$/gmu),
+  ).toHaveLength(1);
+  expect(artifact).not.toContain(
+    '- Generated dissent section that should be replaced.',
+  );
   expect(artifact).toContain('- Option B has lower migration risk.');
   expect(artifact).toContain('- Cost estimates remain uncertain.');
   expect(artifact).toContain('<!-- consensus:consensus-resolution');

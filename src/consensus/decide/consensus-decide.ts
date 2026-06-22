@@ -567,11 +567,12 @@ function decidePeerPrompt(input: TurnPromptInput | ParallelTurnPromptInput) {
   };
 }
 
+const DECISION_DISSENT_HEADING = '## Dissent / Unresolved Disagreement';
 const REQUIRED_DECISION_HEADINGS = [
   '## Recommendation',
   '## Reasoning',
   '## Alternatives',
-  '## Dissent / Unresolved Disagreement',
+  DECISION_DISSENT_HEADING,
 ];
 
 function requiredDecisionHeadingLines() {
@@ -1109,6 +1110,30 @@ function renderDissent(disagreements: string[]) {
   return disagreements.map((item) => `- ${item}`).join('\n');
 }
 
+function removeGeneratedDissentSection(markdown: string) {
+  const lines = markdown.split('\n');
+  const retained: string[] = [];
+  let index = 0;
+
+  while (index < lines.length) {
+    if (lines[index]?.trim() === DECISION_DISSENT_HEADING) {
+      index += 1;
+      while (
+        index < lines.length &&
+        !/^##(?!#)\s+/u.test(lines[index]?.trim() ?? '')
+      ) {
+        index += 1;
+      }
+      continue;
+    }
+
+    retained.push(lines[index] ?? '');
+    index += 1;
+  }
+
+  return retained.join('\n').replace(/\s+$/u, '');
+}
+
 export function renderDecisionArtifact({
   decisionArtifact,
   records,
@@ -1140,9 +1165,10 @@ export function renderDecisionArtifact({
     '',
     '# Consensus Decision',
     '',
-    sanitizeProse(decisionArtifact) || '(empty decision document)',
+    removeGeneratedDissentSection(sanitizeProse(decisionArtifact)) ||
+      '(empty decision document)',
     '',
-    '## Dissent / Unresolved Disagreement',
+    DECISION_DISSENT_HEADING,
     '',
     renderDissent(disagreements),
     '',
