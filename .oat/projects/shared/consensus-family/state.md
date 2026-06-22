@@ -1,6 +1,6 @@
 ---
 oat_current_task: null
-oat_last_commit: 25427d6
+oat_last_commit: 90bdaf4
 oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
@@ -12,7 +12,7 @@ oat_hill_checkpoints: ['discovery', 'design'] # Configured: which phases require
 oat_hill_completed: ['discovery', 'design'] # Progress: which HiLL checkpoints have been completed
 oat_parallel_execution: false
 oat_phase: implement # Current phase: discovery | spec | design | plan | implement | decomposition
-oat_phase_status: in_progress # Status: in_progress | complete | pr_open
+oat_phase_status: complete # Status: in_progress | complete | pr_open
 # oat_orchestration_retry_limit: 2  # optional; override fix-loop retry limit (range 0-5)
 # oat_dispatch_ceiling: # optional project override for provider-aware dispatch ceilings
 #   provider: codex # codex | claude
@@ -31,19 +31,19 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-06-21T15:59:48.857Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-06-22T01:08:51Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-06-22T01:35:48Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
 # Project State: consensus-family
 
-**Status:** Implementation tasks complete — awaiting final review
+**Status:** Implementation complete — final review passed
 **Started:** 2026-06-21
 **Last Updated:** 2026-06-22
 
 ## Current Phase
 
-Implementation tasks complete — p01 loop-core `independent_draft`, p02 `consensus-create`, p03 `consensus-decide`, and p04 `consensus-plan` work completed, fixed after review, and passed re-review; awaiting final review.
+Implementation complete — p01 loop-core `independent_draft`, p02 `consensus-create`, p03 `consensus-decide`, p04 `consensus-plan`, and final review fixes completed; final review passed.
 
 ## Artifacts
 
@@ -51,7 +51,7 @@ Implementation tasks complete — p01 loop-core `independent_draft`, p02 `consen
 - **Spec:** `spec.md` (complete — confirmed requirements)
 - **Design:** `design.md` (complete — HiLL approved)
 - **Plan:** `plan.md` (complete — ready for `oat-project-implement`)
-- **Implementation:** `implementation.md` (tasks complete — awaiting final review)
+- **Implementation:** `implementation.md` (complete — final review passed)
 
 ## Progress
 
@@ -70,7 +70,8 @@ Implementation tasks complete — p01 loop-core `independent_draft`, p02 `consen
 - ✓ Phase p02 completed and passed code review
 - ✓ Phase p03 completed and passed code review
 - ✓ Phase p04 completed and passed code review
-- ⧗ Next: final implementation review
+- ✓ Final implementation review passed
+- ⧗ Next: documentation sync and PR handoff
 
 ## Blockers
 
@@ -78,4 +79,4 @@ None
 
 ## Next Milestone
 
-Run final implementation review before documentation/PR handoff.
+Run configured documentation sync and PR handoff.

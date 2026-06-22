@@ -577,6 +577,8 @@ Chronological log of implementation progress.
 - [x] p04-t03: Run plan through the consensus loop - `017cefe`, fix `25427d6`
 - [x] p04-t04: Ship plan skill anatomy and generated runtime - `0faebc1`
 - [x] p04-t05: Document, smoke-test, and run final gates - `98b64a9`
+- [x] final review: Align alternating independent-draft prompts - `8b5c156`
+- [x] final review: Refresh shared configuration docs wording - `90bdaf4`
 
 **What changed (high level):**
 
@@ -604,8 +606,10 @@ Chronological log of implementation progress.
 - p02 review I1/I2/m1 and p02 v2 I1 were resolved by `33d2595` and `5ab7740`.
 - p03 reviews identified stale independent-draft docs wording, missing provider manifest metadata, and duplicate dissent headings; resolved by `2dbe138`, `b04e2ed`, and `9082b33`.
 - p04 review C1/I1 identified raw goal prompt exposure and alternating independent-draft turn-2 semantics; resolved by `25427d6`.
+- Final review C1/C2 identified create/decide alternating independent-draft turn-2 semantics; resolved by `8b5c156`.
+- Final review v2 identified stale shared configuration/evaluate docs wording; resolved by `90bdaf4`.
 
-**Session End:** 01:08 UTC
+**Session End:** 01:35 UTC
 
 ---
 
@@ -623,6 +627,7 @@ Document any intentional deviations from the original plan, spec, or design. Inc
 | p03-t05       | plan.md p03-t05 verification | `pnpm run validate:skill-versions -- --base-ref main` | `pnpm run validate:skill-versions --base-ref main` | The package script passes arguments directly to `scripts/validate-skill-versions.mjs` and rejects the extra `--` token. The accepted form runs the same validator against `main`. | `package.json` script + `scripts/validate-skill-versions.mjs` CLI | Update the plan command if the artifact is revised; no code follow-up. |
 | p04-t04       | plan.md p04-t04 file list | Plan skill anatomy, build/version scripts, generated-output tests, and repo-invariant tests | Also updated `.oxfmtrc.json`, `.oxlintrc.json`, provider plugin manifests, and `tests/repo/plugin-manifests.test.ts` | Generated plan runtime needs lint/format exclusions, and provider-facing manifest metadata must advertise shipped plan support. | p04 review artifacts + repository tests | Plan file list should include these metadata/config updates when generated outputs or shipped skills are added; no code follow-up. |
 | p04-t05       | plan.md p04-t05 verification | `pnpm run validate:skill-versions -- --base-ref main` | `pnpm run validate:skill-versions --base-ref main` | The package script passes arguments directly to `scripts/validate-skill-versions.mjs` and rejects the extra `--` token. The accepted form runs the same validator against `main`. | `package.json` script + `scripts/validate-skill-versions.mjs` CLI | Update the plan command if the artifact is revised; no code follow-up. |
+| final-review  | plan/design FR2 prompt semantics | Create/decide/plan alternating `independent_draft` turn 2 revises peer A's draft | Create/decide were updated after final review to match the accepted plan wrapper semantics | Final review identified the cross-wrapper semantic gap after p04 fixed plan. | `src/consensus/{create,decide,plan}` prompt profiles + wrapper tests | No code follow-up. |
 
 ## Test Results
 
@@ -634,6 +639,7 @@ Track test execution during implementation.
 | 2     | targeted create Vitest suites; repo/docs/versioning/generated-output Vitest subset; `build:check`; `type-check`; `test`; `validate`; `validate:skill-versions --base-ref main`; `smoke`; create CLI usage checks | yes    | 0      | n/a      |
 | 3     | targeted decide Vitest suites; provider manifest/docs/smoke/generated-output Vitest subsets; `build:check`; `type-check`; `test`; `validate`; `validate:skill-versions --base-ref main`; `smoke`; `git diff --check d6779ae..9082b33` | yes    | 0      | n/a      |
 | 4     | targeted plan Vitest suites; provider manifest/docs/smoke/generated-output Vitest subsets; `build:check`; `type-check`; `test`; `validate`; `validate:skill-versions --base-ref main`; `smoke`; `git diff --check` | yes    | 0      | n/a      |
+| final | focused create/decide/plan wrapper and core tests; docs regression test; `build`; `build:check`; `type-check`; `test`; `validate`; `validate:skill-versions --base-ref main`; `smoke`; `git diff --check` | yes    | 0      | n/a      |
 
 ## Final Summary (for PR/docs)
 
