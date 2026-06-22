@@ -1,59 +1,80 @@
 ---
+oat_status: complete
+oat_ready_for: null
+oat_blockers: []
+oat_last_updated: 2026-06-22
 oat_generated: true
-oat_generated_at: 2026-06-22
 oat_summary_kind: project
 oat_project: .oat/projects/shared/consensus-family
 oat_workflow_mode: spec-driven
+oat_summary_last_task: p04-t05
+oat_summary_revision_count: 0
+oat_summary_includes_revisions: []
 ---
 
 # Project Summary: consensus-family
 
 ## Overview
 
-`consensus-family` delivered the next creation-oriented consensus family slice:
-the shared `independent_draft` cold-start primitive plus `consensus-create`,
-`consensus-decide`, and `consensus-plan`. It closed backlog items **bl-2ed7**,
-**bl-b9b9**, **bl-87ef**, and **bl-0cb8**. `consensus-research` remains separate
-because it uses `shared_input` and needs a peer tool-access / evidence-capture
-design decision before build.
+`consensus-family` shipped the creation-oriented consensus family slice. The
+project added `independent_draft` as a shared `consensus-loop` cold-start
+strategy and delivered three generated TypeScript-backed wrapper skills:
+`consensus-create`, `consensus-decide`, and `consensus-plan`.
 
-The project ran as a spec-driven OAT project after the docs-IA merge, so
-user-facing documentation landed in the Fumadocs site under
-`documentation/docs/user-guide/consensus/` instead of expanding `README.md`.
+The new wrappers default to `independent_draft` plus `parallel_synthesized`, with
+per-skill agency and output contracts:
+
+- `create`: brief or brief-file plus optional template to created markdown
+  artifact, maximum agency.
+- `decide`: options file to markdown decision with recommendation, reasoning,
+  alternatives, and surfaced dissent, minimal agency.
+- `plan`: goal plus optional inline constraints to structured markdown steps,
+  dependencies, and risks, moderate agency.
+
+`refine` and `evaluate` intentionally remain `shared_input` only. The only
+remaining consensus-family wrapper is `consensus-research`, which is out of scope
+because it uses `shared_input` and needs its own peer tool-access design pass.
 
 ## What Was Implemented
 
-- `independent_draft` is now a first-class cold-start strategy in
-  `src/consensus/core/consensus-loop.ts`, covered across `alternating`,
-  `parallel_revision`, and `parallel_synthesized`.
-- Round-1 independent-draft prompts frame brief/options/goal content as
-  untrusted input and ask peers to draft independently; round 2+ keeps the
-  existing revision/synthesis flow.
-- `refine` and `evaluate` keep wrapper-local `shared_input` guards with clearer
-  semantic error messages.
-- `consensus-create` ships as a generated TypeScript-backed wrapper with inline
-  or file-backed brief input, optional template input, whole-artifact sectioning,
-  `independent_draft` / `parallel_synthesized` / maximum defaults, and a markdown
-  creation artifact.
-- `consensus-decide` ships as a generated TypeScript-backed wrapper with options
-  file input, `independent_draft` / `parallel_synthesized` / minimal defaults,
-  and a markdown decision artifact that preserves dissent and unresolved
-  disagreement.
-- `consensus-plan` ships as a generated TypeScript-backed wrapper with goal plus
-  optional inline constraints, `independent_draft` / `parallel_synthesized` /
-  moderate defaults, and a structured markdown plan artifact.
-- Plugin manifests, skill frontmatter/version metadata, generated runtime
-  outputs, smoke tests, repository invariant tests, plugin README, CHANGELOG, and
-  Fumadocs consensus pages were updated for the new skill surface.
+- Widened the shared loop cold-start model to accept `shared_input` and
+  `independent_draft`.
+- Threaded `coldStart` through the turn prompt builders and changed round-1
+  `independent_draft` framing so peers draft from untrusted brief/options/goal
+  content rather than revise a shared seed artifact.
+- Covered `independent_draft` behavior in `alternating`, `parallel_revision`, and
+  `parallel_synthesized` loop tests.
+- Preserved `refine` and `evaluate` wrapper-local guards so they reject
+  `independent_draft` with clear `shared_input`-only errors.
+- Added canonical TypeScript source, generated runtime output, skill anatomy,
+  schemas/examples/operator QA, docs, manifests, smoke coverage, and repository
+  invariants for `create`, `decide`, and `plan`.
+- Updated the Fumadocs consensus guide, plugin README, CHANGELOG, generated
+  runtime documentation, provider manifests, build/version registration, lint and
+  format exclusions for generated output, and repo reference/PJM artifacts.
+
+## Reviews
+
+All planned phase reviews passed:
+
+- `p01`: loop-core `independent_draft`, passed after one fix round.
+- `p02`: `consensus-create`, passed after two review/fix rounds.
+- `p03`: `consensus-decide`, passed after review/fix rounds plus minor polish.
+- `p04`: `consensus-plan`, passed after one fix round.
+- `final`: implementation review passed on v4 after final create/decide prompt
+  alignment, shared configuration docs refresh, and two minor lifecycle-artifact
+  alignment notes.
+
+Final review row:
+
+```markdown
+| final  | code     | passed   | 2026-06-22 | reviews/archived/final-review-2026-06-22-v4.md |
+```
 
 ## Verification
 
-Final implementation review passed after two fix rounds. The final review
-verified focused wrapper/docs tests, generated-output drift checks, type-check,
-repository validation, skill-version validation, smoke, `git diff --check`, and
-the full Vitest suite.
-
-Local implementation gates also passed during phase reviews:
+The implementation and final review cycles ran targeted wrapper/core/docs tests
+plus the full repository gate set:
 
 - `pnpm run build`
 - `pnpm run build:check`
@@ -63,30 +84,32 @@ Local implementation gates also passed during phase reviews:
 - `pnpm run validate`
 - `pnpm run validate:skill-versions --base-ref main`
 - `pnpm run smoke`
+- `git diff --check`
 
-## Key Decisions
+Final review v4 independently rechecked focused wrapper/docs tests,
+`build:check`, `type-check`, `validate`, `validate:skill-versions`, `smoke`, the
+full Vitest suite, and whitespace checks.
 
-- **DR-026:** `independent_draft` is a round-1-only loop-core cold start; the new
-  wrappers stay thin; create uses whole-artifact sectioning for v1; decide/plan
-  use structured markdown headings rather than machine-readable output schemas.
-- `consensus-research` stays out of this project and remains a separate design
-  pass because peer tool access is a different risk surface.
-- Documentation targets the Fumadocs site introduced by docs IA, not the slimmed
-  README.
+## Design Notes
 
-## Follow-up Items
+- DR-026 records the durable family design: `independent_draft` is a round-1-only
+  loop-core cold start; create/decide/plan stay thin wrappers; create uses
+  whole-artifact sectioning for v1; decide/plan use structured markdown headings
+  rather than machine-readable output schemas.
+- `parallel_synthesized` reliability reuses the DR-024 submit-CLI verdict seam;
+  this project did not reopen MCP-vs-CLI or strict-output strategy decisions.
+- Static lint/format generated-output exclusions and provider manifest metadata
+  updates were accepted as required repository-surface work for each new shipped
+  skill.
+- Final review v4 found two minor lifecycle-artifact drift notes. The shipped
+  implementation remained source of truth; `implementation.md` now records the
+  create wrapper consolidation and no code follow-up is needed.
 
-- Build `consensus-research` as a separate project after recording the peer
-  tool-access / evidence-capture decision.
-- Revisit outline-first derived sectioning only when large-document creation
-  needs per-section convergence and harmonization.
+## Follow-Ups
+
+- Build `consensus-research` separately after resolving peer tool access and
+  evidence capture.
+- Revisit outline-first derived sectioning when large-document creation needs
+  per-section convergence.
 - Promote whole-document harmonization, deliberation metrics, and convergence
-  similarity heuristics when the shipped family surface has enough usage data.
-
-## Associated Issues
-
-- `bl-2ed7`: Implement `independent_draft` cold-start strategy in
-  `consensus-loop`.
-- `bl-b9b9`: Add `consensus-create` skill.
-- `bl-87ef`: Add `consensus-decide` skill.
-- `bl-0cb8`: Add `consensus-plan` skill.
+  quality follow-ons once the shipped family surface has usage evidence.
