@@ -8,13 +8,16 @@ import {
 } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 // @ts-expect-error No type declarations for script helpers; importing for runtime behavior.
-import { bumpVersion, checkTagVersion, isValidSemver } from '../../scripts/bump-version.mjs';
+import * as bumpVersionScript from '../../scripts/bump-version.mjs';
 // @ts-expect-error No type declarations for script helpers; importing for runtime behavior.
-import { validateRepository } from '../../scripts/validate.mjs';
+import * as validateScript from '../../scripts/validate.mjs';
 import { repoRoot } from '../helpers/process.mjs';
+const { bumpVersion, checkTagVersion, isValidSemver } = bumpVersionScript;
+const { validateRepository } = validateScript;
 const jsonFiles = [
   'plugins/consensus/.claude-plugin/plugin.json',
   'plugins/consensus/.cursor-plugin/plugin.json',
@@ -26,6 +29,9 @@ const jsonFiles = [
 const skillFiles = [
   'plugins/consensus/skills/refine/SKILL.md',
   'plugins/consensus/skills/evaluate/SKILL.md',
+  'plugins/consensus/skills/create/SKILL.md',
+  'plugins/consensus/skills/decide/SKILL.md',
+  'plugins/consensus/skills/plan/SKILL.md',
 ];
 const requiredDocs = [
   'README.md',
@@ -103,14 +109,12 @@ describe('release-versioning', () => {
       const skillMarkdown = await readFile(path.join(root, file), 'utf8');
       const frontmatterMatch = skillMarkdown.match(/^---\n([\s\S]*?)\n---/);
       const frontmatter = frontmatterMatch![1];
-      expect(
-        frontmatter,
-        `${file} top-level version should be bumped`,
-      ).toMatch(/^version: "0\.2\.0-beta\.1"$/m);
-      expect(
-        frontmatter,
-        `${file} metadata.version should be bumped`,
-      ).toMatch(/^metadata:\n(?:  .+\n)*?  version: "0\.2\.0-beta\.1"$/m);
+      expect(frontmatter, `${file} top-level version should be bumped`).toMatch(
+        /^version: "0\.2\.0-beta\.1"$/m,
+      );
+      expect(frontmatter, `${file} metadata.version should be bumped`).toMatch(
+        /^metadata:\n(?:  .+\n)*?  version: "0\.2\.0-beta\.1"$/m,
+      );
     }
   });
 

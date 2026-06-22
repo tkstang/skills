@@ -29,6 +29,9 @@ const requiredDocs = [
 ];
 const refineSkillPath = 'plugins/consensus/skills/refine/SKILL.md';
 const evaluateSkillPath = 'plugins/consensus/skills/evaluate/SKILL.md';
+const createSkillPath = 'plugins/consensus/skills/create/SKILL.md';
+const decideSkillPath = 'plugins/consensus/skills/decide/SKILL.md';
+const planSkillPath = 'plugins/consensus/skills/plan/SKILL.md';
 
 async function read(relativePath: string) {
   return readFile(new URL(relativePath, repoRoot), 'utf8');
@@ -87,6 +90,36 @@ describe('docs-presence', () => {
     expect(skill).toMatch(/^## When NOT to Use$/m);
     expect(skill).toMatch(/^## Examples$/m);
     expect(skill).toMatch(/^## Success Criteria$/m);
+  });
+
+  it('create SKILL.md contains usage guidance sections', async () => {
+    const skill = await read(createSkillPath);
+
+    expect(skill).toMatch(/^## When NOT to Use$/m);
+    expect(skill).toMatch(/^## Examples$/m);
+    expect(skill).toMatch(/^## Success Criteria$/m);
+    expect(skill).toMatch(/^## Output Contract$/m);
+    expect(skill).toMatch(/^## Create Invocation$/m);
+  });
+
+  it('decide SKILL.md contains usage guidance sections', async () => {
+    const skill = await read(decideSkillPath);
+
+    expect(skill).toMatch(/^## When NOT to Use$/m);
+    expect(skill).toMatch(/^## Examples$/m);
+    expect(skill).toMatch(/^## Success Criteria$/m);
+    expect(skill).toMatch(/^## Output Contract$/m);
+    expect(skill).toMatch(/^## Decision Invocation$/m);
+  });
+
+  it('plan SKILL.md contains usage guidance sections', async () => {
+    const skill = await read(planSkillPath);
+
+    expect(skill).toMatch(/^## When NOT to Use$/m);
+    expect(skill).toMatch(/^## Examples$/m);
+    expect(skill).toMatch(/^## Success Criteria$/m);
+    expect(skill).toMatch(/^## Output Contract$/m);
+    expect(skill).toMatch(/^## Plan Invocation$/m);
   });
 
   it('evaluate SKILL.md documents guided rubric creation flow', async () => {
@@ -156,6 +189,141 @@ describe('docs-presence', () => {
       expect(searchable).toMatch(/refine/);
       expect(searchable).toMatch(/evaluate/);
     }
+  });
+
+  it('create skill is documented and registered in distribution surfaces', async () => {
+    const requiredCreateFiles = [
+      createSkillPath,
+      'plugins/consensus/skills/create/references/operator-qa.md',
+      'plugins/consensus/skills/create/references/examples/artifact-brief.md',
+      'plugins/consensus/skills/create/scripts/consensus-create.mjs',
+      'plugins/consensus/skills/create/scripts/consensus-loop.mjs',
+      'plugins/consensus/skills/create/schemas/verdict-alternating.schema.json',
+      'plugins/consensus/skills/create/schemas/verdict-parallel.schema.json',
+      'plugins/consensus/skills/create/schemas/synthesis.schema.json',
+    ];
+
+    for (const relativePath of requiredCreateFiles) {
+      const contents = await read(relativePath);
+      expect(
+        contents.trim().length > 0,
+        `${relativePath} should not be empty`,
+      ).toBeTruthy();
+    }
+
+    const skill = await read(createSkillPath);
+    expect(skill).toMatch(/^name: create$/m);
+    expect(skill).toMatch(/^## Create Invocation$/m);
+    expect(skill).toMatch(/^## Output Contract$/m);
+    expect(skill).toMatch(/--brief <text>/);
+    expect(skill).toMatch(/--brief-file <path>/);
+    expect(skill).toMatch(/independent_draft/);
+    expect(skill).toMatch(/parallel_synthesized/);
+    expect(skill).toMatch(/maximum/);
+    expect(skill).toMatch(/consensus-resolution/);
+
+    const qa = await read(
+      'plugins/consensus/skills/create/references/operator-qa.md',
+    );
+    expect(qa).toMatch(/consensus-create\.mjs/);
+    expect(qa).toMatch(/--brief/);
+    expect(qa).toMatch(/Deliberation Log/);
+
+    const providerManifests = [
+      'plugins/consensus/.claude-plugin/plugin.json',
+      'plugins/consensus/.codex-plugin/plugin.json',
+      'plugins/consensus/.cursor-plugin/plugin.json',
+    ];
+    for (const manifestPath of providerManifests) {
+      const manifest = JSON.parse(await read(manifestPath));
+      const searchable = JSON.stringify(manifest);
+      expect(searchable).toMatch(/refine/);
+      expect(searchable).toMatch(/evaluate/);
+      expect(searchable).toMatch(/create/);
+    }
+  });
+
+  it('decide skill is documented and registered in distribution surfaces', async () => {
+    const requiredDecideFiles = [
+      decideSkillPath,
+      'plugins/consensus/skills/decide/references/operator-qa.md',
+      'plugins/consensus/skills/decide/references/examples/contested-options.md',
+      'plugins/consensus/skills/decide/scripts/consensus-decide.mjs',
+      'plugins/consensus/skills/decide/scripts/consensus-loop.mjs',
+      'plugins/consensus/skills/decide/schemas/verdict-alternating.schema.json',
+      'plugins/consensus/skills/decide/schemas/verdict-parallel.schema.json',
+      'plugins/consensus/skills/decide/schemas/synthesis.schema.json',
+    ];
+
+    for (const relativePath of requiredDecideFiles) {
+      const contents = await read(relativePath);
+      expect(
+        contents.trim().length > 0,
+        `${relativePath} should not be empty`,
+      ).toBeTruthy();
+    }
+
+    const skill = await read(decideSkillPath);
+    expect(skill).toMatch(/^name: decide$/m);
+    expect(skill).toMatch(/^## Decision Invocation$/m);
+    expect(skill).toMatch(/^## Output Contract$/m);
+    expect(skill).toMatch(/--options <path>/);
+    expect(skill).toMatch(/independent_draft/);
+    expect(skill).toMatch(/parallel_synthesized/);
+    expect(skill).toMatch(/minimal/);
+    expect(skill).toMatch(/Dissent \/ Unresolved Disagreement/);
+    expect(skill).toMatch(/consensus-resolution/);
+
+    const qa = await read(
+      'plugins/consensus/skills/decide/references/operator-qa.md',
+    );
+    expect(qa).toMatch(/consensus-decide\.mjs/);
+    expect(qa).toMatch(/--options/);
+    expect(qa).toMatch(/Dissent \/ Unresolved Disagreement/);
+  });
+
+  it('plan skill is documented and registered in distribution surfaces', async () => {
+    const requiredPlanFiles = [
+      planSkillPath,
+      'plugins/consensus/skills/plan/references/operator-qa.md',
+      'plugins/consensus/skills/plan/references/examples/goal-and-constraints.md',
+      'plugins/consensus/skills/plan/scripts/consensus-plan.mjs',
+      'plugins/consensus/skills/plan/scripts/consensus-loop.mjs',
+      'plugins/consensus/skills/plan/schemas/verdict-alternating.schema.json',
+      'plugins/consensus/skills/plan/schemas/verdict-parallel.schema.json',
+      'plugins/consensus/skills/plan/schemas/synthesis.schema.json',
+    ];
+
+    for (const relativePath of requiredPlanFiles) {
+      const contents = await read(relativePath);
+      expect(
+        contents.trim().length > 0,
+        `${relativePath} should not be empty`,
+      ).toBeTruthy();
+    }
+
+    const skill = await read(planSkillPath);
+    expect(skill).toMatch(/^name: plan$/m);
+    expect(skill).toMatch(/^## Plan Invocation$/m);
+    expect(skill).toMatch(/^## Output Contract$/m);
+    expect(skill).toMatch(/--goal <text>/);
+    expect(skill).toMatch(/--constraints <text>/);
+    expect(skill).toMatch(/independent_draft/);
+    expect(skill).toMatch(/parallel_synthesized/);
+    expect(skill).toMatch(/moderate/);
+    expect(skill).toMatch(/## Steps/);
+    expect(skill).toMatch(/## Dependencies/);
+    expect(skill).toMatch(/## Risks/);
+    expect(skill).toMatch(/consensus-resolution/);
+
+    const qa = await read(
+      'plugins/consensus/skills/plan/references/operator-qa.md',
+    );
+    expect(qa).toMatch(/consensus-plan\.mjs/);
+    expect(qa).toMatch(/--goal/);
+    expect(qa).toMatch(/## Steps/);
+    expect(qa).toMatch(/## Dependencies/);
+    expect(qa).toMatch(/## Risks/);
   });
 
   it('documentation records the generated TypeScript runtime contract', async () => {

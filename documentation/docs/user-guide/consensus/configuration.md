@@ -1,11 +1,12 @@
 ---
 title: 'Configuration'
-description: 'Shared consensus configuration: peer selection, the provider floor, preflight diagnostics, synthesizer, agency, Cursor auth, and required permissions.'
+description: 'Shared consensus configuration: peer selection, cold starts, the provider floor, preflight diagnostics, synthesizer, agency, Cursor auth, and required permissions.'
 ---
 
 # Configuration
 
-Configuration shared by both [`refine`](refine.md) and [`evaluate`](evaluate.md).
+Configuration shared by [`create`](create.md), [`decide`](decide.md),
+[`plan`](plan.md), [`refine`](refine.md), and [`evaluate`](evaluate.md).
 For the full reference, see the
 [consensus plugin README](https://github.com/tkstang/skills/blob/main/plugins/consensus/README.md).
 
@@ -56,6 +57,14 @@ routine merging on a cheaper model; the provider must be present and usable in t
 provider inventory or preflight fails (`SYNTHESIZER_UNAVAILABLE`). The flag is
 warned-and-ignored outside `parallel_synthesized` mode.
 
+## Cold starts
+
+`create`, `decide`, and `plan` default to
+`--cold-start independent_draft`: in round 1 each peer drafts from the brief,
+options, or goal/constraints before the deliberation converges. `refine` and
+`evaluate` remain `shared_input` only because they operate on an existing draft
+or artifact.
+
 ## Agency
 
 `--agency` controls who resolves a stuck section. At `minimal` agency, unresolved
@@ -73,7 +82,8 @@ path and is not selected by default.
 
 ## Permissions
 
-The consensus `refine` and `evaluate` skills need permission to run:
+The consensus `create`, `decide`, `plan`, `refine`, and `evaluate` skills need
+permission to run:
 
 - `node` for the wrapper and loop scripts.
 - `consensus` for provider inventory/preflight when exposed as a command.

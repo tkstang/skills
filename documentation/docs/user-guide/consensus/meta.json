@@ -1,3 +1,11 @@
 {
-  "pages": ["index", "refine", "evaluate", "configuration"]
+  "pages": [
+    "index",
+    "create",
+    "decide",
+    "plan",
+    "refine",
+    "evaluate",
+    "configuration"
+  ]
 }

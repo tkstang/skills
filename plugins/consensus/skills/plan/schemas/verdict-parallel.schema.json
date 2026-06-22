@@ -1,0 +1,49 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "consensus-plugin/v1/verdict-parallel.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "verdict",
+    "reasoning",
+    "critique",
+    "proposed_artifact",
+    "concerns"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "v1",
+      "type": "string"
+    },
+    "verdict": {
+      "enum": ["REVISE", "ACCEPT_PEER", "CONVERGED", "IMPASSE"],
+      "type": "string"
+    },
+    "reasoning": {
+      "type": "string"
+    },
+    "critique": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["own_previous", "peer_previous"],
+      "properties": {
+        "own_previous": {
+          "type": "string"
+        },
+        "peer_previous": {
+          "type": "string"
+        }
+      }
+    },
+    "proposed_artifact": {
+      "type": "string"
+    },
+    "concerns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

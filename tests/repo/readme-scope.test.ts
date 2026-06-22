@@ -77,9 +77,24 @@ describe('readme-scope', () => {
     expect(docs).toMatch(/provider inventory/i);
     expect(docs).toMatch(/auth_required/);
     expect(docs).toMatch(/consensus-create/);
+    expect(docs).toMatch(/consensus-decide/);
+    expect(docs).toMatch(/consensus-plan/);
+    expect(docs).toMatch(/brief/i);
+    expect(docs).toMatch(/## Steps/);
+    expect(docs).toMatch(/## Dependencies/);
+    expect(docs).toMatch(/## Risks/);
+    expect(docs).toMatch(/Dissent \/ Unresolved Disagreement/);
+    expect(docs).toMatch(/independent_draft/);
     expect(docs).toMatch(/parallel_revision/);
     expect(docs).toMatch(/parallel_synthesized/);
     expect(docs).toMatch(/whole-document harmonization/);
+    expect(docs).toMatch(
+      /configuration shared by \[`create`\][\s\S]*\[`decide`\][\s\S]*\[`plan`\][\s\S]*\[`refine`\][\s\S]*\[`evaluate`\]/i,
+    );
+    expect(docs).toMatch(
+      /`create`, `decide`, and `plan` default to[\s\S]*`--cold-start independent_draft`/i,
+    );
+    expect(docs).not.toMatch(/not yet supported for this skill family/i);
     expect(docs).not.toMatch(/custom ACP provider/i);
   });
 
@@ -99,6 +114,56 @@ describe('readme-scope', () => {
     expect(docs).toMatch(/metrics|cost caps/i);
   });
 
+  it('docs site documents consensus-create as shipped, not future work', async () => {
+    const docs = await readDocsSite();
+
+    expect(docs).toMatch(/consensus-create/);
+    expect(docs).toMatch(/--brief <text>|--brief-file <path>/);
+    expect(docs).toMatch(/Created Artifact/);
+    expect(docs).toMatch(/consensus-resolution/);
+    expect(docs).not.toMatch(
+      /Remaining consensus-family skills are future work:[^\n]*consensus-create/i,
+    );
+  });
+
+  it('docs site documents consensus-decide as shipped, not future work', async () => {
+    const docs = await readDocsSite();
+
+    expect(docs).toMatch(/consensus-decide/);
+    expect(docs).toMatch(/--options <path>/);
+    expect(docs).toMatch(/Recommendation/);
+    expect(docs).toMatch(/Reasoning/);
+    expect(docs).toMatch(/Alternatives/);
+    expect(docs).toMatch(/Dissent \/ Unresolved Disagreement/);
+    expect(docs).toMatch(/minimal/);
+    expect(docs).toMatch(/consensus-resolution/);
+    expect(docs).toMatch(
+      /independent-draft cold-start strategy is exposed through `create`,\s+`decide`, and `plan`/i,
+    );
+    expect(docs).not.toMatch(
+      /Remaining consensus-family skills are future work:[^\n]*consensus-decide/i,
+    );
+  });
+
+  it('docs site documents consensus-plan as shipped, not future work', async () => {
+    const docs = await readDocsSite();
+
+    expect(docs).toMatch(/consensus-plan/);
+    expect(docs).toMatch(/--goal <text>/);
+    expect(docs).toMatch(/--constraints <text>/);
+    expect(docs).toMatch(/## Steps/);
+    expect(docs).toMatch(/## Dependencies/);
+    expect(docs).toMatch(/## Risks/);
+    expect(docs).toMatch(/moderate/);
+    expect(docs).toMatch(/consensus-resolution/);
+    expect(docs).toMatch(
+      /independent-draft cold-start strategy is exposed through `create`,\s+`decide`, and `plan`/i,
+    );
+    expect(docs).not.toMatch(
+      /Remaining consensus-family skills are future work:[^\n]*consensus-plan/i,
+    );
+  });
+
   it('plugin README documents iteration modes and escalation flags', async () => {
     const readme = await read('plugins/consensus/README.md');
 
@@ -113,6 +178,86 @@ describe('readme-scope', () => {
       /parallel-revision and parallel-synthesized modes are future work/i,
     );
     expect(readme).toMatch(/whole-document harmonization/i);
+  });
+
+  it('README and plugin README summarize consensus-create as shipped', async () => {
+    const readme = await read('README.md');
+    const pluginReadme = await read('plugins/consensus/README.md');
+
+    expect(readme).toMatch(/consensus.*create/i);
+    expect(readme).toMatch(/brief/i);
+    expect(pluginReadme).toMatch(/consensus-create/);
+    expect(pluginReadme).toMatch(/--brief/);
+    expect(pluginReadme).toMatch(/independent_draft/);
+    expect(pluginReadme).not.toMatch(
+      /Remaining consensus family skills are future work:[\s\S]*consensus-create/i,
+    );
+  });
+
+  it('README and plugin README summarize consensus-decide as shipped', async () => {
+    const readme = await read('README.md');
+    const pluginReadme = await read('plugins/consensus/README.md');
+
+    expect(readme).toMatch(/consensus[\s\S]*decide/i);
+    expect(readme).toMatch(/options/i);
+    expect(pluginReadme).toMatch(/consensus-decide/);
+    expect(pluginReadme).toMatch(/--options/);
+    expect(pluginReadme).toMatch(/Dissent \/ Unresolved Disagreement/);
+    expect(pluginReadme).not.toMatch(
+      /Remaining consensus family skills are future work:[\s\S]*consensus-decide/i,
+    );
+  });
+
+  it('README and plugin README summarize consensus-plan as shipped', async () => {
+    const readme = await read('README.md');
+    const pluginReadme = await read('plugins/consensus/README.md');
+
+    expect(readme).toMatch(/consensus[\s\S]*plan/i);
+    expect(readme).toMatch(/goal/i);
+    expect(pluginReadme).toMatch(/consensus-plan/);
+    expect(pluginReadme).toMatch(/--goal/);
+    expect(pluginReadme).toMatch(/--constraints/);
+    expect(pluginReadme).toMatch(/## Dependencies/);
+    expect(pluginReadme).not.toMatch(
+      /Remaining consensus family skills are future work:[\s\S]*consensus-plan/i,
+    );
+  });
+
+  it('CHANGELOG records consensus-create under Unreleased Added', async () => {
+    const changelog = await read('CHANGELOG.md');
+
+    expect(changelog).toMatch(
+      /## \[Unreleased\][\s\S]*### Added[\s\S]*consensus-create/i,
+    );
+    expect(changelog).toMatch(/independent_draft/);
+    expect(changelog).toMatch(/parallel_synthesized/);
+    expect(changelog).toMatch(/consensus-resolution/);
+  });
+
+  it('CHANGELOG records consensus-decide under Unreleased Added', async () => {
+    const changelog = await read('CHANGELOG.md');
+
+    expect(changelog).toMatch(
+      /## \[Unreleased\][\s\S]*### Added[\s\S]*consensus-decide/i,
+    );
+    expect(changelog).toMatch(/independent_draft/);
+    expect(changelog).toMatch(/parallel_synthesized/);
+    expect(changelog).toMatch(/minimal/);
+    expect(changelog).toMatch(/Dissent \/ Unresolved Disagreement/);
+  });
+
+  it('CHANGELOG records consensus-plan under Unreleased Added', async () => {
+    const changelog = await read('CHANGELOG.md');
+
+    expect(changelog).toMatch(
+      /## \[Unreleased\][\s\S]*### Added[\s\S]*consensus-plan/i,
+    );
+    expect(changelog).toMatch(/independent_draft/);
+    expect(changelog).toMatch(/parallel_synthesized/);
+    expect(changelog).toMatch(/moderate/);
+    expect(changelog).toMatch(/## Steps/);
+    expect(changelog).toMatch(/## Dependencies/);
+    expect(changelog).toMatch(/## Risks/);
   });
 
   it('CHANGELOG records the v0.1 iteration-mode work under Unreleased', async () => {

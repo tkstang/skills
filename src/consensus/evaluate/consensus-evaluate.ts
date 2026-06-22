@@ -175,10 +175,10 @@ function parseProviderCliEnvelope(stdout: string, label: string) {
   return parsed;
 }
 
-function providerStatusMap(envelope: Record<string, unknown>): Map<string, string> {
-  const providers = Array.isArray(envelope.providers)
-    ? envelope.providers
-    : [];
+function providerStatusMap(
+  envelope: Record<string, unknown>,
+): Map<string, string> {
+  const providers = Array.isArray(envelope.providers) ? envelope.providers : [];
   const entries: Array<[string, string]> = [];
   for (const provider of providers) {
     if (!isJsonRecord(provider)) continue;
@@ -335,7 +335,7 @@ function parseColdStart(value: string): 'shared_input' {
   const coldStart = value as ColdStartValue;
   if (coldStart === 'independent_draft') {
     throw new ConsensusError(
-      '--cold-start independent_draft is not yet supported for consensus-evaluate',
+      'consensus-evaluate supports `shared_input` only because it evaluates an existing artifact',
       {
         code: 'UNSUPPORTED_COLD_START',
         exitCode: EXIT_CODES.USAGE,
@@ -343,7 +343,9 @@ function parseColdStart(value: string): 'shared_input' {
     );
   }
   if (coldStart !== 'shared_input') {
-    throw new Error('--cold-start must be shared_input');
+    throw new Error(
+      'consensus-evaluate supports `shared_input` only; --cold-start must be shared_input',
+    );
   }
   return 'shared_input';
 }
@@ -492,7 +494,9 @@ function ensureFinalNewline(text: string) {
 }
 
 function encodePromptBlockData(text: string) {
-  return String(text ?? '').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+  return String(text ?? '')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;');
 }
 
 function promptBlockData(text: string) {

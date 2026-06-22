@@ -30,8 +30,10 @@ The evaluate wrapper defaults to:
 
 `parallel_revision` with minimal agency is the default because independent
 judgment and visible disagreement are the point of evaluation. The wrapper
-requires `--rubric <path>` and rejects `--cold-start independent_draft`, which is
-not yet supported for this skill family.
+requires `--rubric <path>` and rejects `--cold-start independent_draft` because
+evaluate compares an existing artifact against a rubric. `independent_draft` is
+for the create/decide/plan wrappers that start from briefs, options, or goals
+rather than an existing artifact.
 
 ## Output
 

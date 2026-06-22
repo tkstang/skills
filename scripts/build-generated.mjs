@@ -24,6 +24,21 @@ export const generatedOutputs = [
     output: 'plugins/consensus/skills/evaluate/scripts/consensus-loop.mjs',
   },
   {
+    id: 'consensus-create-loop',
+    source: 'src/consensus/core/consensus-loop.ts',
+    output: 'plugins/consensus/skills/create/scripts/consensus-loop.mjs',
+  },
+  {
+    id: 'consensus-decide-loop',
+    source: 'src/consensus/core/consensus-loop.ts',
+    output: 'plugins/consensus/skills/decide/scripts/consensus-loop.mjs',
+  },
+  {
+    id: 'consensus-plan-loop',
+    source: 'src/consensus/core/consensus-loop.ts',
+    output: 'plugins/consensus/skills/plan/scripts/consensus-loop.mjs',
+  },
+  {
     id: 'consensus-refine',
     source: 'src/consensus/refine/consensus-refine.ts',
     output: 'plugins/consensus/skills/refine/scripts/consensus-refine.mjs',
@@ -35,6 +50,30 @@ export const generatedOutputs = [
     id: 'consensus-evaluate',
     source: 'src/consensus/evaluate/consensus-evaluate.ts',
     output: 'plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs',
+    importRewrites: [
+      { from: '../core/consensus-loop.js', to: './consensus-loop.mjs' },
+    ],
+  },
+  {
+    id: 'consensus-create',
+    source: 'src/consensus/create/consensus-create.ts',
+    output: 'plugins/consensus/skills/create/scripts/consensus-create.mjs',
+    importRewrites: [
+      { from: '../core/consensus-loop.js', to: './consensus-loop.mjs' },
+    ],
+  },
+  {
+    id: 'consensus-decide',
+    source: 'src/consensus/decide/consensus-decide.ts',
+    output: 'plugins/consensus/skills/decide/scripts/consensus-decide.mjs',
+    importRewrites: [
+      { from: '../core/consensus-loop.js', to: './consensus-loop.mjs' },
+    ],
+  },
+  {
+    id: 'consensus-plan',
+    source: 'src/consensus/plan/consensus-plan.ts',
+    output: 'plugins/consensus/skills/plan/scripts/consensus-plan.mjs',
     importRewrites: [
       { from: '../core/consensus-loop.js', to: './consensus-loop.mjs' },
     ],

@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 const refineSkillPath = new URL(
@@ -10,7 +11,25 @@ const evaluateSkillPath = new URL(
   '../../plugins/consensus/skills/evaluate/SKILL.md',
   import.meta.url,
 );
-const skillPaths = [refineSkillPath, evaluateSkillPath];
+const createSkillPath = new URL(
+  '../../plugins/consensus/skills/create/SKILL.md',
+  import.meta.url,
+);
+const decideSkillPath = new URL(
+  '../../plugins/consensus/skills/decide/SKILL.md',
+  import.meta.url,
+);
+const planSkillPath = new URL(
+  '../../plugins/consensus/skills/plan/SKILL.md',
+  import.meta.url,
+);
+const skillPaths = [
+  refineSkillPath,
+  evaluateSkillPath,
+  createSkillPath,
+  decideSkillPath,
+  planSkillPath,
+];
 
 function frontmatter(markdown: string) {
   const match = markdown.match(/^---\n([\s\S]*?)\n---\n/);
@@ -24,6 +43,14 @@ function field(block: string, name: string) {
   return match![1].trim().replace(/^["']|["']$/g, '');
 }
 
+function metadataVersion(block: string) {
+  const match = block.match(
+    /^metadata:\n(?:  .+\n)*?  version:\s*["']?([^"'\n]+)["']?/m,
+  );
+  expect(match, 'frontmatter should include metadata.version').toBeTruthy();
+  return match![1].trim().replace(/^["']|["']$/g, '');
+}
+
 describe('skill-frontmatter', () => {
   it.each(skillPaths)(
     '%s frontmatter is portable, provider-cli aware, and versioned',
@@ -32,7 +59,9 @@ describe('skill-frontmatter', () => {
       const block = frontmatter(markdown);
       const name = field(block, 'name');
 
-      expect(['refine', 'evaluate']).toContain(name);
+      expect(['refine', 'evaluate', 'create', 'decide', 'plan']).toContain(
+        name,
+      );
       expect(path.basename(path.dirname(skillPath.pathname))).toBe(name);
       expect(field(block, 'description').length > 40).toBeTruthy();
       expect(field(block, 'license')).toBe('MIT');
@@ -51,9 +80,7 @@ describe('skill-frontmatter', () => {
         );
       }
 
-      expect(block).toMatch(
-        /^metadata:\n(?:  .+\n)*  version: ["']0\.1\.0["']$/m,
-      );
+      expect(metadataVersion(block)).toBe(field(block, 'version'));
     },
   );
 
@@ -62,16 +89,13 @@ describe('skill-frontmatter', () => {
     const block = frontmatter(markdown);
 
     const topLevelVersion = field(block, 'version');
-    const metaVersionMatch = block.match(
-      /^metadata:\n(?:  .+\n)*?  version:\s*["']?([^"'\n]+)["']?/m,
-    );
-    expect(metaVersionMatch, 'frontmatter should include metadata.version').toBeTruthy();
-    const metaVersion = metaVersionMatch![1].trim().replace(/^["']|["']$/g, '');
+    const metaVersion = metadataVersion(block);
 
     expect(topLevelVersion).toMatch(/^\d+\.\d+\.\d+/);
-    expect(topLevelVersion, 'top-level version must match metadata.version').toBe(
-      metaVersion,
-    );
+    expect(
+      topLevelVersion,
+      'top-level version must match metadata.version',
+    ).toBe(metaVersion);
   });
 
   it('refine skill has a useful argument-hint', async () => {
@@ -79,8 +103,12 @@ describe('skill-frontmatter', () => {
     const block = frontmatter(markdown);
 
     const hint = field(block, 'argument-hint');
-    expect(hint, 'argument-hint should reference a markdown input').toMatch(/\.md/);
-    expect(hint, 'argument-hint should mention the optional goal').toMatch(/goal/i);
+    expect(hint, 'argument-hint should reference a markdown input').toMatch(
+      /\.md/,
+    );
+    expect(hint, 'argument-hint should mention the optional goal').toMatch(
+      /goal/i,
+    );
   });
 
   it('evaluate skill frontmatter is portable and versioned', async () => {
@@ -107,7 +135,7 @@ describe('skill-frontmatter', () => {
       );
     }
 
-    expect(block).toMatch(/^metadata:\n(?:  .+\n)*  version: ["']0\.1\.0["']$/m);
+    expect(metadataVersion(block)).toBe(field(block, 'version'));
   });
 
   it('evaluate skill has promoted top-level version matching metadata.version', async () => {
@@ -115,16 +143,13 @@ describe('skill-frontmatter', () => {
     const block = frontmatter(markdown);
 
     const topLevelVersion = field(block, 'version');
-    const metaVersionMatch = block.match(
-      /^metadata:\n(?:  .+\n)*?  version:\s*["']?([^"'\n]+)["']?/m,
-    );
-    expect(metaVersionMatch, 'frontmatter should include metadata.version').toBeTruthy();
-    const metaVersion = metaVersionMatch![1].trim().replace(/^["']|["']$/g, '');
+    const metaVersion = metadataVersion(block);
 
     expect(topLevelVersion).toMatch(/^\d+\.\d+\.\d+/);
-    expect(topLevelVersion, 'top-level version must match metadata.version').toBe(
-      metaVersion,
-    );
+    expect(
+      topLevelVersion,
+      'top-level version must match metadata.version',
+    ).toBe(metaVersion);
   });
 
   it('evaluate skill has a useful argument-hint', async () => {
@@ -132,8 +157,91 @@ describe('skill-frontmatter', () => {
     const block = frontmatter(markdown);
 
     const hint = field(block, 'argument-hint');
-    expect(hint, 'argument-hint should reference a markdown artifact').toMatch(/\.md/);
+    expect(hint, 'argument-hint should reference a markdown artifact').toMatch(
+      /\.md/,
+    );
     expect(hint, 'argument-hint should mention --rubric').toMatch(/--rubric/);
+  });
+
+  it('create skill has promoted top-level version matching metadata.version', async () => {
+    const markdown = await readFile(createSkillPath, 'utf8');
+    const block = frontmatter(markdown);
+
+    const topLevelVersion = field(block, 'version');
+    const metaVersion = metadataVersion(block);
+
+    expect(topLevelVersion).toMatch(/^\d+\.\d+\.\d+/);
+    expect(
+      topLevelVersion,
+      'top-level version must match metadata.version',
+    ).toBe(metaVersion);
+  });
+
+  it('create skill has a useful argument-hint', async () => {
+    const markdown = await readFile(createSkillPath, 'utf8');
+    const block = frontmatter(markdown);
+
+    const hint = field(block, 'argument-hint');
+    expect(hint, 'argument-hint should mention inline briefs').toMatch(
+      /--brief/,
+    );
+    expect(hint, 'argument-hint should mention file briefs').toMatch(
+      /--brief-file/,
+    );
+  });
+
+  it('decide skill has promoted top-level version matching metadata.version', async () => {
+    const markdown = await readFile(decideSkillPath, 'utf8');
+    const block = frontmatter(markdown);
+
+    const topLevelVersion = field(block, 'version');
+    const metaVersion = metadataVersion(block);
+
+    expect(topLevelVersion).toMatch(/^\d+\.\d+\.\d+/);
+    expect(
+      topLevelVersion,
+      'top-level version must match metadata.version',
+    ).toBe(metaVersion);
+  });
+
+  it('decide skill has a useful argument-hint', async () => {
+    const markdown = await readFile(decideSkillPath, 'utf8');
+    const block = frontmatter(markdown);
+
+    const hint = field(block, 'argument-hint');
+    expect(hint, 'argument-hint should mention options files').toMatch(
+      /--options/,
+    );
+    expect(hint, 'argument-hint should reference markdown options').toMatch(
+      /\.md/,
+    );
+  });
+
+  it('plan skill has promoted top-level version matching metadata.version', async () => {
+    const markdown = await readFile(planSkillPath, 'utf8');
+    const block = frontmatter(markdown);
+
+    const topLevelVersion = field(block, 'version');
+    const metaVersion = metadataVersion(block);
+
+    expect(topLevelVersion).toMatch(/^\d+\.\d+\.\d+/);
+    expect(
+      topLevelVersion,
+      'top-level version must match metadata.version',
+    ).toBe(metaVersion);
+  });
+
+  it('plan skill has a useful argument-hint', async () => {
+    const markdown = await readFile(planSkillPath, 'utf8');
+    const block = frontmatter(markdown);
+
+    const hint = field(block, 'argument-hint');
+    expect(hint, 'argument-hint should mention inline goals').toMatch(
+      /--goal/,
+    );
+    expect(hint, 'argument-hint should mention inline constraints').toMatch(
+      /--constraints/,
+    );
   });
 
   it('skill instructions cover host orchestration responsibilities', async () => {

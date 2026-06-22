@@ -1,15 +1,15 @@
 import { readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 const root = new URL('../..', import.meta.url);
 
 async function assertDirectory(relativePath: string) {
   const details = await stat(new URL(`${relativePath}/`, root));
-  expect(
-    details.isDirectory(),
-    `${relativePath} should be a directory`,
-  ).toBe(true);
+  expect(details.isDirectory(), `${relativePath} should be a directory`).toBe(
+    true,
+  );
 }
 
 async function pathExists(relativePath: string) {
@@ -51,6 +51,12 @@ describe('repo-layout', () => {
       path.posix.join('plugins', 'consensus', 'skills', 'refine', 'scripts'),
       path.posix.join('plugins', 'consensus', 'skills', 'evaluate'),
       path.posix.join('plugins', 'consensus', 'skills', 'evaluate', 'scripts'),
+      path.posix.join('plugins', 'consensus', 'skills', 'create'),
+      path.posix.join('plugins', 'consensus', 'skills', 'create', 'scripts'),
+      path.posix.join('plugins', 'consensus', 'skills', 'decide'),
+      path.posix.join('plugins', 'consensus', 'skills', 'decide', 'scripts'),
+      path.posix.join('plugins', 'consensus', 'skills', 'plan'),
+      path.posix.join('plugins', 'consensus', 'skills', 'plan', 'scripts'),
       path.posix.join('plugins', 'consensus', 'agents'),
       path.posix.join('plugins', 'consensus', '.claude-plugin'),
       path.posix.join('plugins', 'consensus', '.cursor-plugin'),
@@ -104,6 +110,72 @@ describe('repo-layout', () => {
       path.posix.join(examplesDir, 'code-review.md'),
       path.posix.join(examplesDir, 'technical-writing.md'),
       path.posix.join(examplesDir, 'design-architecture.md'),
+    ];
+
+    for (const examplePath of requiredExamples) {
+      const exists = await pathExists(examplePath);
+      expect(exists, `${examplePath} should exist`).toBe(true);
+    }
+  });
+
+  it('create skill ships bundled brief examples', async () => {
+    const examplesDir = path.posix.join(
+      'plugins',
+      'consensus',
+      'skills',
+      'create',
+      'references',
+      'examples',
+    );
+
+    await assertDirectory(examplesDir);
+
+    const requiredExamples = [
+      path.posix.join(examplesDir, 'artifact-brief.md'),
+    ];
+
+    for (const examplePath of requiredExamples) {
+      const exists = await pathExists(examplePath);
+      expect(exists, `${examplePath} should exist`).toBe(true);
+    }
+  });
+
+  it('decide skill ships bundled options examples', async () => {
+    const examplesDir = path.posix.join(
+      'plugins',
+      'consensus',
+      'skills',
+      'decide',
+      'references',
+      'examples',
+    );
+
+    await assertDirectory(examplesDir);
+
+    const requiredExamples = [
+      path.posix.join(examplesDir, 'contested-options.md'),
+    ];
+
+    for (const examplePath of requiredExamples) {
+      const exists = await pathExists(examplePath);
+      expect(exists, `${examplePath} should exist`).toBe(true);
+    }
+  });
+
+  it('plan skill ships bundled goal and constraints examples', async () => {
+    const examplesDir = path.posix.join(
+      'plugins',
+      'consensus',
+      'skills',
+      'plan',
+      'references',
+      'examples',
+    );
+
+    await assertDirectory(examplesDir);
+
+    const requiredExamples = [
+      path.posix.join(examplesDir, 'goal-and-constraints.md'),
     ];
 
     for (const examplePath of requiredExamples) {

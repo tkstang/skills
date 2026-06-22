@@ -1,0 +1,35 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "consensus-plugin/v1/verdict-alternating.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "verdict",
+    "reasoning",
+    "proposed_artifact",
+    "concerns"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "v1",
+      "type": "string"
+    },
+    "verdict": {
+      "enum": ["ACCEPT", "REVISE", "IMPASSE"],
+      "type": "string"
+    },
+    "reasoning": {
+      "type": "string"
+    },
+    "proposed_artifact": {
+      "type": "string"
+    },
+    "concerns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}
