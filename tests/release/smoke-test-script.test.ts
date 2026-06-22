@@ -95,6 +95,18 @@ describe('smoke-test-script', () => {
     );
     expect(result.decide.artifact).toMatch(/"agency": "minimal"/);
 
+    expect(result.plan, 'plan smoke scenario missing').toBeTruthy();
+    expect(result.plan.status).toBe('converged');
+    expect(result.plan.artifact).toMatch(/## Steps/);
+    expect(result.plan.artifact).toMatch(/## Dependencies/);
+    expect(result.plan.artifact).toMatch(/## Risks/);
+    expect(result.plan.artifact).toMatch(/<!-- consensus:consensus-resolution/);
+    expect(result.plan.artifact).toMatch(/"cold_start": "independent_draft"/);
+    expect(result.plan.artifact).toMatch(
+      /"iteration": "parallel_synthesized"/,
+    );
+    expect(result.plan.artifact).toMatch(/"agency": "moderate"/);
+
     // The smoke now also drives a parallel-synthesized escalation + host-direction
     // resume to convergence.
     expect(
@@ -143,6 +155,8 @@ describe('smoke-test-script', () => {
     expect(result.decide.artifact).toMatch(
       /Dissent \/ Unresolved Disagreement/,
     );
+    expect(result.plan.status).toBe('converged');
+    expect(result.plan.artifact).toMatch(/## Dependencies/);
   });
 
   it('runParallelSynthesizedSmoke escalates once then converges via --host-direction', async () => {

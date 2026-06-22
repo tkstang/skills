@@ -191,6 +191,29 @@ describe('generated output drift guard', () => {
     );
   });
 
+  it('documents generated runtime outputs for the creation skill family', async () => {
+    const docs = await readFile(
+      new URL(
+        '../../documentation/docs/engineering/architecture/generated-runtime.md',
+        import.meta.url,
+      ),
+      'utf8',
+    );
+
+    expect(docs).toContain('src/consensus/create/consensus-create.ts');
+    expect(docs).toContain(
+      'plugins/consensus/skills/create/scripts/consensus-create.mjs',
+    );
+    expect(docs).toContain('src/consensus/decide/consensus-decide.ts');
+    expect(docs).toContain(
+      'plugins/consensus/skills/decide/scripts/consensus-decide.mjs',
+    );
+    expect(docs).toContain('src/consensus/plan/consensus-plan.ts');
+    expect(docs).toContain(
+      'plugins/consensus/skills/plan/scripts/consensus-plan.mjs',
+    );
+  });
+
   it('excludes generated outputs from static lint and format configs', async () => {
     const [oxfmt, oxlint] = await Promise.all([
       readFile(new URL('../../.oxfmtrc.json', import.meta.url), 'utf8').then(

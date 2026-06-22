@@ -6,9 +6,10 @@ A personal Agent Skills home: standalone skills under `skills/` and packaged
 plugins under `plugins/<name>/`, runnable across Claude Code, Codex, and Cursor.
 
 It ships the **consensus** plugin — `create` (draft a new artifact from a brief),
-`decide` (choose between options while surfacing dissent), `refine` (deliberate
-a markdown draft toward a converged artifact), and `evaluate` (judge an artifact
-against a rubric) — plus standalone session skills (`session-observer`,
+`decide` (choose between options while surfacing dissent), `plan` (turn a goal
+and constraints into a structured plan), `refine` (deliberate a markdown draft
+toward a converged artifact), and `evaluate` (judge an artifact against a
+rubric) — plus standalone session skills (`session-observer`,
 `export-session-transcript`).
 
 📖 **Full documentation** is the Fumadocs site under [`documentation/`](documentation/):

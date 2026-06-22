@@ -9,6 +9,7 @@ import { promisify } from 'node:util';
 
 import { runConsensusCreate } from '../plugins/consensus/skills/create/scripts/consensus-create.mjs';
 import { runConsensusDecide } from '../plugins/consensus/skills/decide/scripts/consensus-decide.mjs';
+import { runConsensusPlan } from '../plugins/consensus/skills/plan/scripts/consensus-plan.mjs';
 import {
   runSequential,
   runWrapperCli,
@@ -353,6 +354,64 @@ export async function runDecideSmoke({ env }) {
   };
 }
 
+export async function runPlanSmoke({ env }) {
+  const tempRoot = await mkdtemp(
+    path.join(os.tmpdir(), 'consensus-smoke-plan-'),
+  );
+  const outputPath = path.join(tempRoot, 'plan.md');
+  const runDir = path.join(tempRoot, '.consensus/plan-run');
+  const planEnv = {
+    ...env,
+    CONSENSUS_STUB_VERDICT: 'CONVERGED',
+    CONSENSUS_STUB_PROPOSED_ARTIFACT:
+      '## Steps\n\n1. Prepare rollout.\n\n## Dependencies\n\n- Feature flags.\n\n## Risks\n\n- Rollback complexity.\n',
+    CONSENSUS_STUB_SYNTHESIZED_ARTIFACT:
+      '## Steps\n\n1. Prepare rollout.\n2. Run staged deployment.\n\n## Dependencies\n\n- Feature flags.\n- Rollback runbook.\n\n## Risks\n\n- Rollback complexity.\n',
+  };
+
+  const result = await runConsensusPlan(
+    [
+      '--goal',
+      'Plan a staged rollout for the consensus-plan smoke fixture.',
+      '--constraints',
+      'Keep downtime under five minutes and preserve rollback.',
+      '--output',
+      outputPath,
+      '--run-dir',
+      runDir,
+      '--allow-root',
+      tempRoot,
+      '--peers',
+      'claude,codex',
+      '--iteration',
+      'parallel_synthesized',
+      '--max-rounds',
+      '2',
+    ],
+    {
+      cwd: tempRoot,
+      env: planEnv,
+    },
+  );
+
+  const artifact = await readFile(outputPath, 'utf8');
+  assert.equal(result.status.status, 'converged');
+  assert.match(artifact, /## Steps/);
+  assert.match(artifact, /## Dependencies/);
+  assert.match(artifact, /## Risks/);
+  assert.match(artifact, /<!-- consensus:consensus-resolution\n/);
+  assert.match(artifact, /"cold_start": "independent_draft"/);
+  assert.match(artifact, /"iteration": "parallel_synthesized"/);
+  assert.match(artifact, /"agency": "moderate"/);
+
+  return {
+    status: result.status.status,
+    outputPath,
+    runDir,
+    artifact,
+  };
+}
+
 export async function runSmokeTest(options = {}) {
   const root = path.resolve(options.root ?? repoRoot);
   const stdout = options.stdout ?? process.stdout;
@@ -417,6 +476,7 @@ export async function runSmokeTest(options = {}) {
 
   const create = await runCreateSmoke({ env });
   const decide = await runDecideSmoke({ env });
+  const plan = await runPlanSmoke({ env });
 
   // Second scenario: a mocked parallel-synthesized flow that escalates once and
   // resumes to convergence via --host-direction (exercises synthesizer, the
@@ -433,6 +493,7 @@ export async function runSmokeTest(options = {}) {
     runDir,
     create,
     decide,
+    plan,
     parallelSynthesized,
   };
 }

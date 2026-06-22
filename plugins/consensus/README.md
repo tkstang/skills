@@ -2,11 +2,11 @@
 
 Status: v0.1 pre-release.
 
-`plugins/consensus/` is a self-contained plugin package for consensus workflows. It ships `create`, which drafts a new artifact from a brief with independent peer drafts and synthesis; `decide`, which chooses between documented options with minimal agency and explicit dissent surfacing; `refine`, which refines markdown drafts by asking two provider CLI-backed AI peers to deliberate toward a converged artifact with an audit trail; and `evaluate`, which judges an artifact against a rubric with unified findings, per-peer reasoning, and dissent preserved in the deliberation log.
+`plugins/consensus/` is a self-contained plugin package for consensus workflows. It ships `create`, which drafts a new artifact from a brief with independent peer drafts and synthesis; `decide`, which chooses between documented options with minimal agency and explicit dissent surfacing; `plan`, which turns a goal and inline constraints into a structured plan with steps, dependencies, and risks; `refine`, which refines markdown drafts by asking two provider CLI-backed AI peers to deliberate toward a converged artifact with an audit trail; and `evaluate`, which judges an artifact against a rubric with unified findings, per-peer reasoning, and dissent preserved in the deliberation log.
 
 Consensus peers run through the generated provider CLI. The CLI owns provider inventory, preflight, bounded subprocess execution, conservative retry classification, schema delivery, and the internal `consensus submit` sidecar-verdict path used to capture peer verdicts before final-message parsing fallback.
 
-The scope is intentionally narrow: the `create`, `decide`, `refine`, and `evaluate` skills, three iteration modes selected with `--iteration` (`parallel_synthesized` default for create and decide, `alternating` default for refine, `parallel_revision` default for evaluate), a configurable synthesizer (`--synthesizer`), an agency-gated escalation ladder with host/user decision re-entry (`--host-direction`), sequential sections by default for refine, opt-in host-mediated parallel section orchestration for refine, and the `--agency` flag. Future work may add the remaining consensus family skills, a whole-document harmonization pass, and deliberation metrics/cost caps.
+The scope is intentionally narrow: the `create`, `decide`, `plan`, `refine`, and `evaluate` skills, three iteration modes selected with `--iteration` (`parallel_synthesized` default for create, decide, and plan, `alternating` default for refine, `parallel_revision` default for evaluate), a configurable synthesizer (`--synthesizer`), an agency-gated escalation ladder with host/user decision re-entry (`--host-direction`), sequential sections by default for refine, opt-in host-mediated parallel section orchestration for refine, and the `--agency` flag. Future work may add `consensus-research`, a whole-document harmonization pass, and deliberation metrics/cost caps.
 
 ## Local Git Repository Install
 
@@ -87,6 +87,21 @@ The decide wrapper defaults to `independent_draft`, `parallel_synthesized`, and 
 
 For an operator walkthrough of options input, expected JSONL, sidecar output, and dissent review, see `skills/decide/references/operator-qa.md`.
 
+### Plan
+
+Turn a goal and inline constraints into a structured plan:
+
+```bash
+node plugins/consensus/skills/plan/scripts/consensus-plan.mjs \
+  --goal "Plan a staged rollout for the migration" \
+  --constraints "Keep downtime under five minutes and preserve rollback." \
+  --output plan.md
+```
+
+The plan wrapper defaults to `independent_draft`, `parallel_synthesized`, and `moderate` agency. The artifact contains `## Steps`, `## Dependencies`, `## Risks`, a `consensus-resolution` block, and a `## Deliberation Log` with peer verdicts and synthesis records. Constraints are inline-only for this version; do not pass a path input for constraints.
+
+For an operator walkthrough of goal input, expected JSONL, sidecar output, and resolution metadata, see `skills/plan/references/operator-qa.md`.
+
 ### Refine
 
 For the default sequential flow, run the wrapper against a markdown file:
@@ -158,7 +173,7 @@ Four ready-to-adapt example rubrics ship under `skills/evaluate/references/examp
 
 ## Permissions
 
-The consensus `create`, `decide`, `refine`, and `evaluate` skills need permission to run:
+The consensus `create`, `decide`, `plan`, `refine`, and `evaluate` skills need permission to run:
 
 - `node` for the wrapper and loop scripts.
 - `consensus` for provider inventory/preflight/submit when exposed as a command.
@@ -191,9 +206,9 @@ Cursor is included in the provider floor, but local auth state is still operator
 
 ## Limitations
 
-- v0.1 ships the `create`, `decide`, `refine`, and `evaluate` skills.
-- Remaining consensus family skills are future work: `consensus-plan` and `consensus-research`.
-- Ships three iteration modes (`alternating`, `parallel_revision`, `parallel_synthesized`); the independent-draft cold-start strategy is exposed through `create` and `decide`, while `refine` and `evaluate` remain shared-input only.
+- v0.1 ships the `create`, `decide`, `plan`, `refine`, and `evaluate` skills.
+- Remaining consensus family skills are future work: `consensus-research`.
+- Ships three iteration modes (`alternating`, `parallel_revision`, `parallel_synthesized`); the independent-draft cold-start strategy is exposed through `create`, `decide`, and `plan`, while `refine` and `evaluate` remain shared-input only.
 - Sections converge independently; whole-document harmonization and deliberation metrics/cost caps remain deferred.
 - Verdict submission is best-effort by default: successful submit sidecars are preferred, then wrappers fall back to final-message parsing. A strict require-submission mode and Codex read-only submit capture-path relocation remain future work.
 - Cursor is supported as a host runtime and as a first-floor peer when its local CLI is authenticated. Treat `auth_required` inventory/preflight results as a local setup issue, not a retryable consensus failure.
@@ -209,6 +224,8 @@ Cursor is included in the provider floor, but local auth state is still operator
 - `skills/create/references/operator-qa.md` - manual QA walkthrough of brief-to-artifact creation, with a runnable brief under `references/examples/`.
 - `skills/decide/` - implementation directory for the shipped `decide` skill.
 - `skills/decide/references/operator-qa.md` - manual QA walkthrough of options-to-decision runs and dissent review, with a runnable options file under `references/examples/`.
+- `skills/plan/` - implementation directory for the shipped `plan` skill.
+- `skills/plan/references/operator-qa.md` - manual QA walkthrough of goal-to-plan runs, with a runnable goal and constraints example under `references/examples/`.
 - `skills/refine/` - implementation directory for the shipped `refine` skill.
 - `skills/refine/references/operator-qa.md` - manual QA walkthrough of the iteration modes and escalation ladder, with runnable example inputs under `references/examples/`.
 - `skills/evaluate/` - implementation directory for the shipped `evaluate` skill.
