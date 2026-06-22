@@ -1,14 +1,14 @@
 ---
 id: bl-b9b9
 title: 'Add consensus-create skill (artifact from brief)'
-status: open
+status: done
 priority: medium
 scope: feature
 scope_estimate: M
 labels: [consensus, skill-family]
 assignee: null
 created: '2026-06-12T21:33:26Z'
-updated: '2026-06-12T21:33:26Z'
+updated: '2026-06-22T01:40:22Z'
 associated_issues: []
 oat_template: true
 oat_template_name: backlog-item
@@ -32,3 +32,21 @@ project; decide/plan fall out cheaply once it lands.
 - v3 defaults applied (independent_draft / parallel_synthesized / maximum agency), overridable.
 - Derived-sectioning behavior decided and documented (whole-artifact vs outline-first per the v1 large-document strategy).
 - Manifests, SKILL.md, READMEs, and tests updated as for other family skills.
+
+## Delivery Notes
+
+Delivered by the spec-driven OAT project `consensus-family` on branch
+`consensus-family`.
+
+- Added canonical TypeScript wrapper source at
+  `src/consensus/create/consensus-create.ts` with brief loading, optional
+  template input, create-specific prompt profile, resolution metadata, and
+  markdown artifact rendering.
+- Generated committed plugin runtime output and shipped skill anatomy under
+  `plugins/consensus/skills/create/`.
+- Selected whole-artifact sectioning for v1; outline-first derived sectioning
+  remains deferred until large-document creation needs it.
+- Documented `create` in the Fumadocs consensus guide, plugin README, provider
+  manifests, and operator QA reference.
+- Added wrapper, provider-CLI integration, generated-output, manifest, docs, and
+  smoke coverage.

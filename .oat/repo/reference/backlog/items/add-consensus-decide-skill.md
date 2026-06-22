@@ -1,14 +1,14 @@
 ---
 id: bl-87ef
 title: 'Add consensus-decide skill (recommend among options)'
-status: open
+status: done
 priority: medium
 scope: feature
 scope_estimate: S
 labels: [consensus, skill-family]
 assignee: null
 created: '2026-06-12T21:33:26Z'
-updated: '2026-06-12T21:33:26Z'
+updated: '2026-06-22T01:40:22Z'
 associated_issues: []
 oat_template: true
 oat_template_name: backlog-item
@@ -26,3 +26,21 @@ Add `consensus-decide`: peers deliberate over options and converge on a decision
 - v3 defaults applied (independent_draft / parallel_synthesized / minimal agency), overridable.
 - Minimal-agency behavior verified: unresolved disagreements surface to the user rather than being editorially decided.
 - Manifests, SKILL.md, READMEs, and tests updated as for other family skills.
+
+## Delivery Notes
+
+Delivered by the spec-driven OAT project `consensus-family` on branch
+`consensus-family`.
+
+- Added canonical TypeScript wrapper source at
+  `src/consensus/decide/consensus-decide.ts` with options-file loading,
+  minimal-agency defaults, decide-specific prompt framing, resolution metadata,
+  and markdown decision rendering.
+- Generated committed plugin runtime output and shipped skill anatomy under
+  `plugins/consensus/skills/decide/`.
+- Rendered unresolved disagreements into the decision artifact rather than
+  silently resolving them, preserving the minimal-agency contract.
+- Documented `decide` in the Fumadocs consensus guide, plugin README, provider
+  manifests, and operator QA reference.
+- Added wrapper, provider-CLI integration, generated-output, manifest, docs, and
+  smoke coverage.
