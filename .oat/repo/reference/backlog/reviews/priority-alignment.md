@@ -30,7 +30,7 @@ Items already started, in code review, or otherwise mid-flight. Close these out 
 
 | Item | Scope | Notes |
 | --- | --- | --- |
-| [Complete v0.1 release verification and tag](../items/complete-v01-release-verification.md) (`bl-d85f`) | Remaining: S | **In flight** in a release worktree. Finishing pass — reuse PR #24 evidence (automated gates + Cursor E2E verified). Remaining gates only: interactive provider permission prompts, CHANGELOG/version/tag, README install matrix, push tag + green `release.yml`, post-tag skills.sh discovery. |
+| [Complete v0.1 release verification and tag](../archived/complete-v01-release-verification.md) (`bl-d85f`) | Remaining: S | **In flight** in a release worktree. Finishing pass — reuse PR #24 evidence (automated gates + Cursor E2E verified). Remaining gates only: interactive provider permission prompts, CHANGELOG/version/tag, README install matrix, push tag + green `release.yml`, post-tag skills.sh discovery. |
 | Skill version-bump validation + enforcement (no backlog item) | S–M | In progress. Dev-tooling: assert shipped-skill `version` / `metadata.version` bump on modification (per repo convention + `validate.mjs`/`bump-version.mjs`/`SKILL_FILES`). Same surface as `bl-3913`. Consider filing a backlog item. |
 | Refresh stale references (no backlog item) | S | ✅ This pass (2026-06-20): rewrote `backlog-and-roadmap-review.md`; revised `bl-d85f` to a finishing-pass scope pointing at the `RELEASING.md` snapshot; fixed `current-state.md` Cursor status + `completed.md` present-tense "blocked"; corrected `bl-3913` `node:test` → Vitest. `roadmap.md`/`index.md` were already current and re-sequenced this pass. |
 
@@ -42,7 +42,7 @@ The single highest-priority item and closest to done; already running in its own
 
 | Item | Scope | Planning investment | Parallel with | Notes |
 | --- | --- | --- | --- | --- |
-| [Complete v0.1 release verification and tag](../items/complete-v01-release-verification.md) (`bl-d85f`) | M (remaining: S) | Low | family + hardening | Remaining gates only — see Finishing/in flight. Stop before outward-facing steps (tag push, public discovery). |
+| [Complete v0.1 release verification and tag](../archived/complete-v01-release-verification.md) (`bl-d85f`) | M (remaining: S) | Low | family + hardening | Remaining gates only — see Finishing/in flight. Stop before outward-facing steps (tag push, public discovery). |
 
 ---
 
@@ -52,10 +52,10 @@ The synthesized-mode wrappers over `consensus-loop`, run as **one OAT project**.
 
 | Item | Scope | Planning investment | Parallel with | Notes |
 | --- | --- | --- | --- | --- |
-| [Implement independent_draft cold-start](../items/independent-draft-cold-start-strategy.md) (`bl-2ed7`) | M | Med | hardening track | Gate. Shared `consensus-loop` capability across all iteration modes; co-design with `bl-b9b9`. |
-| [Add consensus-create skill](../items/add-consensus-create-skill.md) (`bl-b9b9`) | M | **High** | hardening track | Carries the project's design weight: resolve derived-sectioning (whole-artifact vs outline-first) up front — decide/plan inherit it. independent_draft / parallel_synthesized / maximum agency. |
-| [Add consensus-decide skill](../items/add-consensus-decide-skill.md) (`bl-87ef`) | S | Low | `bl-0cb8` | Thin wrapper after the gate + sectioning groundwork. Validates the unique minimal-agency + synthesized edge. |
-| [Add consensus-plan skill](../items/add-consensus-plan-skill.md) (`bl-0cb8`) | S | Low | `bl-87ef` | Thin wrapper; reuses create/decide groundwork. |
+| [Implement independent_draft cold-start](../archived/independent-draft-cold-start-strategy.md) (`bl-2ed7`) | M | Med | hardening track | Gate. Shared `consensus-loop` capability across all iteration modes; co-design with `bl-b9b9`. |
+| [Add consensus-create skill](../archived/add-consensus-create-skill.md) (`bl-b9b9`) | M | **High** | hardening track | Carries the project's design weight: resolve derived-sectioning (whole-artifact vs outline-first) up front — decide/plan inherit it. independent_draft / parallel_synthesized / maximum agency. |
+| [Add consensus-decide skill](../archived/add-consensus-decide-skill.md) (`bl-87ef`) | S | Low | `bl-0cb8` | Thin wrapper after the gate + sectioning groundwork. Validates the unique minimal-agency + synthesized edge. |
+| [Add consensus-plan skill](../archived/add-consensus-plan-skill.md) (`bl-0cb8`) | S | Low | `bl-87ef` | Thin wrapper; reuses create/decide groundwork. |
 | [Add consensus-research skill](../items/add-consensus-research-skill.md) (`bl-645c`) | M | **High** | — (separate project) | Last family skill, lowest priority. Resolve peer tool-access as a DR before build. Uses `shared_input`, so **not** gated on `bl-2ed7`. Keep out of the create/decide/plan project. |
 
 ---
@@ -66,8 +66,8 @@ Hardening on top of the shipped owned CLI, run as **one OAT project**. Source su
 
 | Item | Scope | Planning investment | Parallel with | Notes |
 | --- | --- | --- | --- | --- |
-| [Tool-based verdict submission](../items/tool-based-verdict-submission-for-consensus-peers.md) (`bl-3a88`) | L | **High** | family track | Highest-leverage durability fix for structured-output fragility. Design pass first (MCP tool vs CLI; verdict capture; composition with the deterministic engine), then build. De-risks the family synthesized wrappers. |
-| [Refine provider-exit retry classification](../items/refine-provider-exit-retry-classification.md) (`bl-3291`) | M | Med | family track | Strictly-additive ride-along on the same surface: signature-match transient (429/rate-limit/interrupted) vs terminal exits; unknown exits keep current behavior. |
+| [Tool-based verdict submission](../archived/tool-based-verdict-submission-for-consensus-peers.md) (`bl-3a88`) | L | **High** | family track | Highest-leverage durability fix for structured-output fragility. Design pass first (MCP tool vs CLI; verdict capture; composition with the deterministic engine), then build. De-risks the family synthesized wrappers. |
+| [Refine provider-exit retry classification](../archived/refine-provider-exit-retry-classification.md) (`bl-3291`) | M | Med | family track | Strictly-additive ride-along on the same surface: signature-match transient (429/rate-limit/interrupted) vs terminal exits; unknown exits keep current behavior. |
 
 ---
 
@@ -77,7 +77,7 @@ The README has become unreadably dense. Stand up the docs site and slim the READ
 
 | Item | Scope | Planning investment | Parallel with | Notes |
 | --- | --- | --- | --- | --- |
-| [Stand up a documentation site and slim the README](../items/stand-up-documentation-site-slim-readme.md) (`bl-ecaa`) | M | Med | family + hardening | Single OAT project, two phases: scaffold via the user-invoked `/oat-docs-bootstrap` (Fumadocs vs MkDocs), then migrate/curate via `oat-docs-analyze`/`oat-docs-apply`. README reduces to entry point + install matrix + links. Do not regress the `bl-d85f` install-matrix gate. |
+| [Stand up a documentation site and slim the README](../archived/stand-up-documentation-site-slim-readme.md) (`bl-ecaa`) | M | Med | family + hardening | Single OAT project, two phases: scaffold via the user-invoked `/oat-docs-bootstrap` (Fumadocs vs MkDocs), then migrate/curate via `oat-docs-analyze`/`oat-docs-apply`. README reduces to entry point + install matrix + links. Do not regress the `bl-d85f` install-matrix gate. |
 
 ---
 
@@ -155,9 +155,9 @@ Quick lookup for "can I start X while Y is in flight?" (capacity: 2–3 worktree
 
 Three concrete actions for the next development cycle. Not a ranked list of everything — just what to do _first_.
 
-1. **Continue** [`bl-d85f`](../items/complete-v01-release-verification.md) in the release worktree (in flight) — finishing pass to the v0.1 tag. When it lands, route that worktree to docs IA.
-2. **Kick off** the **consensus-family** project at [`bl-2ed7`](../items/independent-draft-cold-start-strategy.md) → `bl-b9b9` → `bl-87ef`+`bl-0cb8` — the highest-leverage unblock.
-3. **Kick off** the **provider-cli-hardening** project — [`bl-3a88`](../items/tool-based-verdict-submission-for-consensus-peers.md) design pass first, then [`bl-3291`](../items/refine-provider-exit-retry-classification.md) — concurrently with the family (disjoint source surface), so verdict-submission lands before the synthesized wrappers fan out.
+1. **Continue** [`bl-d85f`](../archived/complete-v01-release-verification.md) in the release worktree (in flight) — finishing pass to the v0.1 tag. When it lands, route that worktree to docs IA.
+2. **Kick off** the **consensus-family** project at [`bl-2ed7`](../archived/independent-draft-cold-start-strategy.md) → `bl-b9b9` → `bl-87ef`+`bl-0cb8` — the highest-leverage unblock.
+3. **Kick off** the **provider-cli-hardening** project — [`bl-3a88`](../archived/tool-based-verdict-submission-for-consensus-peers.md) design pass first, then [`bl-3291`](../archived/refine-provider-exit-retry-classification.md) — concurrently with the family (disjoint source surface), so verdict-submission lands before the synthesized wrappers fan out.
 
 > Then: docs IA (`bl-ecaa`) into the freed release worktree after the tag, before the family finishes; then phone-a-friend (`bl-22d3`) documents into the new site.
 

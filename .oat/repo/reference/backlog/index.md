@@ -18,27 +18,12 @@
 <!-- OAT BACKLOG-INDEX -->
 | ID | Title | Status | Priority | Scope | Estimate |
 | --- | --- | --- | --- | --- | --- |
-| bl-5d49 | Add parallel-revision iteration mode to consensus-loop | done | high | feature | M |
-| bl-7af0 | Add parallel-synthesized iteration mode (synthesis-mediation design gate) | done | high | feature | L |
-| bl-d85f | Complete v0.1 release verification and tag | done | high | task | M |
-| bl-b9b9 | Add consensus-create skill (artifact from brief) | done | medium | feature | M |
-| bl-87ef | Add consensus-decide skill (recommend among options) | done | medium | feature | S |
-| bl-5174 | Add consensus-evaluate skill (artifact vs rubric) | done | medium | feature | S |
-| bl-0cb8 | Add consensus-plan skill (structured plan from goal) | done | medium | feature | S |
 | bl-22d3 | Add phone-a-friend advisory peer skill | open | medium | feature | M |
 | bl-7c1d | Control public skill discovery surface on skills.sh | open | medium | task | M |
 | bl-1f9c | De-flake the session-observer watch test suite | open | medium | task | S |
-| bl-2ed7 | Implement independent_draft cold-start strategy in consensus-loop | done | medium | feature | M |
 | bl-f59f | Inter-agent direct messaging (addressable, prioritized) | open | medium | feature | M |
-| bl-bb7e | Investigate in-house peer-invocation CLI to reduce/replace the external peer-run dependency | done | medium | initiative | L |
-| bl-bfb4 | Migrate consensus + tests to real TypeScript types | done | medium | initiative | L |
-| bl-3291 | Refine provider-exit retry classification (transient vs terminal) | done | medium | task | M |
 | bl-e0e7 | Share consensus generated runtime output at the plugin level | open | medium | task | M |
 | bl-4e2e | Shared session log substrate (become-observable daemon + merged log) | open | medium | initiative | L |
-| bl-ecaa | Stand up a documentation site and slim the README | closed | medium | initiative | M |
-| bl-853a | Stand up TypeScript + vitest build toolchain (bundle-to-mjs) | done | medium | feature | M |
-| bl-3a88 | Tool-based verdict submission for consensus peers (future reliability hardening) | done | medium | feature | L |
-| bl-f0b6 | Verify cursor-as-peer end-to-end through provider CLI (authenticated cursor-agent) | done | medium | task | S |
 | bl-3913 | Add a test guarding bundled rubric examples at <=12 parser-visible criteria | open | low | test | S |
 | bl-645c | Add consensus-research skill (investigate question, synthesized findings) | open | low | feature | M |
 | bl-9ed4 | Add deliberation metrics (tokens, wall-clock, rounds) to artifacts | open | low | feature | S |

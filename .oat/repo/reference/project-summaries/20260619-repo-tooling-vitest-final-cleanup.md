@@ -49,4 +49,4 @@ Full gate green: `build`, `type-check`, `build:check` (15/15 in sync), `test` (5
 - Plan: `plan.md` · Discovery: `discovery.md` · Implementation: `implementation.md`
 - Final reviews: `reviews/archived/final-review-2026-06-18-v2.md` (latest), `reviews/archived/final-review-2026-06-18.md`
 - PR: https://github.com/tkstang/skills/pull/18
-- Backlog initiative: bl-bfb4 (`.oat/repo/reference/backlog/items/migrate-consensus-tests-to-typescript-types.md`)
+- Backlog initiative: bl-bfb4 (`.oat/repo/reference/backlog/archived/migrate-consensus-tests-to-typescript-types.md`)

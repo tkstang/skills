@@ -1,6 +1,6 @@
 # OAT Backlog Completed
 
-> Summary archive for completed backlog work. Keep newest entries first. Use `backlog/archived/` for full file-per-item historical records when a completed item still needs rich context.
+> Summary archive for completed backlog work. Keep newest entries first. Full completed item records live in `backlog/archived/`.
 
 ## Entry Format
 
