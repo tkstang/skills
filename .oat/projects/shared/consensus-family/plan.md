@@ -1075,7 +1075,7 @@ Track reviews here after running the `oat-project-review-provide` and `oat-proje
 | p01    | code     | passed   | 2026-06-21 | reviews/archived/p01-review-2026-06-21-v2.md |
 | p02    | code     | passed   | 2026-06-21 | reviews/archived/p02-review-2026-06-21-v3.md |
 | p03    | code     | passed   | 2026-06-21 | reviews/archived/p03-review-2026-06-21-v4.md |
-| p04    | code     | pending  | -          | -                                             |
+| p04    | code     | passed   | 2026-06-22 | reviews/archived/p04-review-2026-06-22-v2.md |
 | final  | code     | pending  | -          | -                                             |
 | spec   | artifact | pending  | -          | -                                             |
 | design | artifact | passed   | 2026-06-21 | reviews/archived/artifact-design-review-2026-06-21.md |

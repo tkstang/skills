@@ -1,16 +1,16 @@
 ---
-oat_status: in_progress
+oat_status: complete
 oat_ready_for: null
 oat_blockers: []
-oat_last_updated: 2026-06-21
-oat_current_task_id: p04-t01
+oat_last_updated: 2026-06-22
+oat_current_task_id: null
 oat_generated: false
 ---
 
 # Implementation: consensus-family
 
 **Started:** 2026-06-21
-**Last Updated:** 2026-06-21
+**Last Updated:** 2026-06-22
 
 > This document is used to resume interrupted implementation sessions.
 >
@@ -29,9 +29,9 @@ oat_generated: false
 | Phase 1 | passed  | 6     | 6/6       |
 | Phase 2 | passed  | 5     | 5/5       |
 | Phase 3 | passed  | 5     | 5/5       |
-| Phase 4 | pending | 5     | 0/5       |
+| Phase 4 | passed  | 5     | 5/5       |
 
-**Total:** 16/21 tasks completed
+**Total:** 21/21 tasks completed
 
 ---
 
@@ -318,6 +318,86 @@ oat_generated: false
 
 ---
 
+## Phase 4: consensus-plan and Family Gates
+
+**Status:** passed
+**Started:** 2026-06-22
+**Completed:** 2026-06-22
+
+### Phase Summary
+
+**Outcome (what changed):**
+
+- Added `consensus-plan` as a shipped consensus skill backed by the shared loop in `independent_draft` / `parallel_synthesized` mode with moderate agency.
+- Added inline goal and constraints parsing, plan-specific prompt/profile rendering, markdown plan output, resolution metadata, and prompt hardening for untrusted goal/constraints content.
+- Added generated plan runtime output, skill anatomy, schemas, examples, operator QA, build/version registration, provider manifest metadata, docs, generated-runtime architecture coverage, and smoke coverage.
+- Completed the create/decide/plan family docs and smoke flow, leaving only `consensus-research` as future work.
+- Fixed review findings around raw goal prompt exposure and alternating independent-draft turn-2 semantics.
+
+**Key files touched:**
+
+- `src/consensus/plan/consensus-plan.ts` - plan parser, prompt profile, loop execution, output rendering, inline constraints handling, and prompt hardening.
+- `plugins/consensus/skills/plan/` - plan skill anatomy, schemas, examples, operator QA, and generated runtime scripts.
+- `plugins/consensus/.codex-plugin/plugin.json`, `plugins/consensus/.claude-plugin/plugin.json`, and `plugins/consensus/.cursor-plugin/plugin.json` - provider-facing plan metadata.
+- `documentation/docs/user-guide/consensus/plan.md`, `documentation/docs/user-guide/consensus/index.md`, `documentation/docs/user-guide/consensus/meta.json`, `documentation/docs/engineering/architecture/generated-runtime.md`, `documentation/index.md`, `README.md`, `plugins/consensus/README.md`, and `CHANGELOG.md` - plan docs, nav, generated-runtime table, summaries, generated docs index, and release notes.
+- `.oxfmtrc.json` and `.oxlintrc.json` - generated-output lint/format exclusions for plan runtime files.
+- `tests/consensus/plan/`, `tests/repo/`, `tests/tooling/generated-output-sync.test.ts`, `tests/release/`, and `scripts/smoke-test.mjs` - plan behavior, docs, manifest, generated-output, versioning, and smoke coverage.
+
+**Verification:**
+
+- Run: `pnpm exec vitest run tests/consensus/plan`
+- Result: passed after p04 review fix.
+- Run: `pnpm exec vitest run tests/repo/skill-frontmatter.test.ts tests/repo/docs-presence.test.ts tests/repo/layout.test.ts tests/repo/plugin-manifests.test.ts tests/release/versioning.test.ts tests/tooling/generated-output-sync.test.ts`
+- Result: passed in p04 implementation.
+- Run: `pnpm exec vitest run tests/release/smoke-test-script.test.ts tests/repo/readme-scope.test.ts tests/tooling/generated-output-sync.test.ts`
+- Result: passed in p04 implementation.
+- Run: `pnpm run build:check && pnpm run type-check && pnpm run test && pnpm run validate && pnpm run validate:skill-versions --base-ref main && pnpm run smoke`
+- Result: passed in p04 implementation/re-review cycle.
+- Run: `git diff --check`
+- Result: passed in p04 review/fix cycle.
+
+**Notes / Decisions:**
+
+- `validate:skill-versions` accepts `--base-ref main` without an extra `--`; the plan command was treated as artifact drift for p04 as well.
+- Adding generated plan runtime output required static lint/format exclusions, matching the create/decide generated-output contract.
+- Provider manifest descriptions/interface text were included for plan because shipped wrapper anatomy includes provider-facing discoverability metadata.
+- Plan inputs remain inline-only for v1; `--constraints-file` was intentionally not added.
+
+### Task p04-t01: Add Plan Wrapper Argument Model
+
+**Status:** completed
+**Commit:** `a22d04f`
+
+---
+
+### Task p04-t02: Render Plan Markdown Contract
+
+**Status:** completed
+**Commit:** `fce8d26`
+
+---
+
+### Task p04-t03: Run Plan Through the Consensus Loop
+
+**Status:** completed
+**Commit:** `017cefe`, review fix `25427d6`
+
+---
+
+### Task p04-t04: Ship Plan Skill Anatomy and Generated Runtime
+
+**Status:** completed
+**Commit:** `0faebc1`
+
+---
+
+### Task p04-t05: Document, Smoke-Test, and Run Final Gates
+
+**Status:** completed
+**Commit:** `98b64a9`
+
+---
+
 ## Orchestration Runs
 
 _Each run from `oat-project-implement` appends an entry below with:_
@@ -429,6 +509,39 @@ _- Outstanding Items_
 | p03-t04       | plan.md p03-t04 file list | Decide skill anatomy, build/version scripts, repo-invariant tests, and generated-output mapping | Also updated `.oxfmtrc.json`, `.oxlintrc.json`, provider plugin manifests, and `tests/repo/plugin-manifests.test.ts` | Generated decide runtime requires lint/format exclusions, and shipped wrapper anatomy requires provider-facing discoverability metadata. | p03 reviews and repository invariant tests | No code follow-up. |
 | p03-t05       | plan.md p03-t05 verification | `pnpm run validate:skill-versions -- --base-ref main` | `pnpm run validate:skill-versions --base-ref main` | Package script passes args directly to the validator and rejects the extra `--` token. | `package.json` script + validator CLI | No code follow-up. |
 
+### Run 4 — 2026-06-22 01:08
+
+**Branch:** consensus-family
+**Tier:** 1
+**Policy:** merge-strategy=direct, retry-limit=2
+**Phases:** 1 executed, 1 passed, 0 failed, 0 stopped
+
+#### Phase Outcomes
+
+| Phase | Implementer | Review | Fix Iterations | Disposition |
+| ----- | ----------- | ------ | -------------- | ----------- |
+| p04   | DONE        | pass   | 1/2            | passed      |
+
+#### Parallel Groups
+
+- p04: sequential fix/re-review loop
+
+#### Dispatch Notes
+
+- Dispatch: p04 implementation used `effort_axis=selected:xhigh`, `model_axis=inherited`; reviewer used `oat-reviewer-xhigh`.
+- Dispatch: p04 fix for C1/I1 used `effort_axis=selected:xhigh`, `model_axis=inherited`.
+
+#### Outstanding Items
+
+- None.
+
+#### Artifact / Design Deltas
+
+| Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
+| ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
+| p04-t04       | plan.md p04-t04 file list | Plan skill anatomy, build/version scripts, generated-output tests, and repo-invariant tests | Also updated `.oxfmtrc.json`, `.oxlintrc.json`, provider plugin manifests, and `tests/repo/plugin-manifests.test.ts` | Generated plan runtime needs lint/format exclusions, and provider-facing manifest metadata must advertise shipped plan support. | p04 review artifacts + repository tests | No code follow-up. |
+| p04-t05       | plan.md p04-t05 verification | `pnpm run validate:skill-versions -- --base-ref main` | `pnpm run validate:skill-versions --base-ref main` | Package script passes args directly to the validator and rejects the extra `--` token. | `package.json` script + validator CLI | No code follow-up. |
+
 _Orchestration runs from `oat-project-implement` are appended here, most-recent-first within the file but append-only at the bottom of the log._
 
 <!-- orchestration-runs-end -->
@@ -459,6 +572,11 @@ Chronological log of implementation progress.
 - [x] p03-t03: Run decide through the consensus loop - `c4d9e80`
 - [x] p03-t04: Ship decide skill anatomy and generated runtime - `d07e0c7`, fix `b04e2ed`
 - [x] p03-t05: Document and smoke-test decide - `66fa1df`, fix `2dbe138`
+- [x] p04-t01: Add plan wrapper argument model - `a22d04f`
+- [x] p04-t02: Render plan markdown contract - `fce8d26`
+- [x] p04-t03: Run plan through the consensus loop - `017cefe`, fix `25427d6`
+- [x] p04-t04: Ship plan skill anatomy and generated runtime - `0faebc1`
+- [x] p04-t05: Document, smoke-test, and run final gates - `98b64a9`
 
 **What changed (high level):**
 
@@ -467,24 +585,27 @@ Chronological log of implementation progress.
 - Loop-level tests cover prompt framing and terminal convergence across all three iteration modes.
 - `consensus-create` is now a shipped skill using the shared loop in `independent_draft` mode with brief loading, create prompt framing, generated runtime, docs, and smoke coverage.
 - `consensus-decide` is now a shipped skill using the shared loop in `independent_draft` / `parallel_synthesized` mode with minimal-agency dissent surfacing, generated runtime, docs, provider manifests, and smoke coverage.
+- `consensus-plan` is now a shipped skill using the shared loop in `independent_draft` / `parallel_synthesized` mode with inline goal/constraints input, prompt-framed plan markdown, generated runtime, docs, provider manifests, and family smoke coverage.
 
 **Decisions:**
 
 - Accepted the package script's `validate:skill-versions --base-ref main` invocation shape as source of truth.
 - Accepted static lint/format config updates as part of generated runtime drift protection for new create outputs.
 - Accepted static lint/format config updates for generated decide outputs and provider manifest updates for shipped decide discoverability.
+- Accepted static lint/format config updates for generated plan outputs and provider manifest updates for shipped plan discoverability.
 
 **Follow-ups / TODO:**
 
-- None for p01, p02, or p03.
+- None for p01, p02, p03, or p04.
 
 **Blockers:**
 
 - p01 review C1 identified missing convergence assertions; resolved by `57449eb`.
 - p02 review I1/I2/m1 and p02 v2 I1 were resolved by `33d2595` and `5ab7740`.
 - p03 reviews identified stale independent-draft docs wording, missing provider manifest metadata, and duplicate dissent headings; resolved by `2dbe138`, `b04e2ed`, and `9082b33`.
+- p04 review C1/I1 identified raw goal prompt exposure and alternating independent-draft turn-2 semantics; resolved by `25427d6`.
 
-**Session End:** 00:12 UTC
+**Session End:** 01:08 UTC
 
 ---
 
@@ -500,6 +621,8 @@ Document any intentional deviations from the original plan, spec, or design. Inc
 | p02-t05       | plan.md p02-t05 verification | `pnpm run validate:skill-versions -- --base-ref main` | `pnpm run validate:skill-versions --base-ref main` | The package script passes arguments directly to `scripts/validate-skill-versions.mjs` and rejects the extra `--` token. The accepted form runs the same validator against `main`. | `package.json` script + `scripts/validate-skill-versions.mjs` CLI | Update the plan command if the artifact is revised; no code follow-up. |
 | p03-t04       | plan.md p03-t04 file list | Decide skill anatomy, build/version scripts, generated-output tests, and repo-invariant tests | Also updated `.oxfmtrc.json`, `.oxlintrc.json`, provider plugin manifests, and `tests/repo/plugin-manifests.test.ts` | Generated decide runtime needs lint/format exclusions, and provider-facing manifest metadata must advertise shipped decide support. | p03 review artifacts + repository tests | Plan file list should include these metadata/config updates when generated outputs or shipped skills are added; no code follow-up. |
 | p03-t05       | plan.md p03-t05 verification | `pnpm run validate:skill-versions -- --base-ref main` | `pnpm run validate:skill-versions --base-ref main` | The package script passes arguments directly to `scripts/validate-skill-versions.mjs` and rejects the extra `--` token. The accepted form runs the same validator against `main`. | `package.json` script + `scripts/validate-skill-versions.mjs` CLI | Update the plan command if the artifact is revised; no code follow-up. |
+| p04-t04       | plan.md p04-t04 file list | Plan skill anatomy, build/version scripts, generated-output tests, and repo-invariant tests | Also updated `.oxfmtrc.json`, `.oxlintrc.json`, provider plugin manifests, and `tests/repo/plugin-manifests.test.ts` | Generated plan runtime needs lint/format exclusions, and provider-facing manifest metadata must advertise shipped plan support. | p04 review artifacts + repository tests | Plan file list should include these metadata/config updates when generated outputs or shipped skills are added; no code follow-up. |
+| p04-t05       | plan.md p04-t05 verification | `pnpm run validate:skill-versions -- --base-ref main` | `pnpm run validate:skill-versions --base-ref main` | The package script passes arguments directly to `scripts/validate-skill-versions.mjs` and rejects the extra `--` token. The accepted form runs the same validator against `main`. | `package.json` script + `scripts/validate-skill-versions.mjs` CLI | Update the plan command if the artifact is revised; no code follow-up. |
 
 ## Test Results
 
@@ -510,29 +633,48 @@ Track test execution during implementation.
 | 1     | targeted p01 Vitest suites; `build:check`; `type-check`; `test`; `validate`; `validate:skill-versions --base-ref main`; `smoke` | yes    | 0      | n/a      |
 | 2     | targeted create Vitest suites; repo/docs/versioning/generated-output Vitest subset; `build:check`; `type-check`; `test`; `validate`; `validate:skill-versions --base-ref main`; `smoke`; create CLI usage checks | yes    | 0      | n/a      |
 | 3     | targeted decide Vitest suites; provider manifest/docs/smoke/generated-output Vitest subsets; `build:check`; `type-check`; `test`; `validate`; `validate:skill-versions --base-ref main`; `smoke`; `git diff --check d6779ae..9082b33` | yes    | 0      | n/a      |
+| 4     | targeted plan Vitest suites; provider manifest/docs/smoke/generated-output Vitest subsets; `build:check`; `type-check`; `test`; `validate`; `validate:skill-versions --base-ref main`; `smoke`; `git diff --check` | yes    | 0      | n/a      |
 
 ## Final Summary (for PR/docs)
 
 **What shipped:**
 
-- {capability 1}
-- {capability 2}
+- Shared consensus loop support for `independent_draft` cold starts across all iteration modes.
+- Shipped `consensus-create`, `consensus-decide`, and `consensus-plan` skills with generated runtime output, skill anatomy, docs, provider manifest metadata, and smoke coverage.
+- Family-level documentation and generated-runtime coverage for create/decide/plan, with only `consensus-research` left as future work.
 
 **Behavioral changes (user-facing):**
 
-- {bullet}
+- `consensus-create` drafts a new artifact from a brief using independent peer drafts and synthesis.
+- `consensus-decide` turns options into a markdown decision while surfacing unresolved disagreement at minimal agency.
+- `consensus-plan` turns an inline goal and optional inline constraints into structured markdown steps, dependencies, and risks.
+- `refine` and `evaluate` remain shared-input only with clearer guardrails.
 
 **Key files / modules:**
 
-- `{path}` - {purpose}
+- `src/consensus/core/consensus-loop.ts` - cold-start plumbing and independent-draft prompt behavior.
+- `src/consensus/create/consensus-create.ts` - create wrapper.
+- `src/consensus/decide/consensus-decide.ts` - decide wrapper.
+- `src/consensus/plan/consensus-plan.ts` - plan wrapper.
+- `plugins/consensus/skills/{create,decide,plan}/` - shipped skill anatomy and generated runtime outputs.
+- `documentation/docs/user-guide/consensus/` - Fumadocs consensus user guide pages.
+- `scripts/smoke-test.mjs` and release/repo tests - family-level smoke and invariant coverage.
 
 **Verification performed:**
 
-- {tests/lint/typecheck/build/manual steps}
+- Targeted create/decide/plan Vitest suites and repository invariant subsets.
+- `pnpm run build:check`
+- `pnpm run type-check`
+- `pnpm run test`
+- `pnpm run validate`
+- `pnpm run validate:skill-versions --base-ref main`
+- `pnpm run smoke`
+- `git diff --check`
 
 **Design deltas (if any):**
 
-- {what changed vs design.md and why}
+- Static lint/format generated-output exclusions and provider manifest metadata updates were included for each new generated/shipped skill so repository gates and provider-facing discoverability stay accurate.
+- The plan artifact command spelling for skill-version validation uses `pnpm run validate:skill-versions --base-ref main`; the extra `--` form in the plan is stale.
 
 ## References
 

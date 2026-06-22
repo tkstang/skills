@@ -1,6 +1,6 @@
 ---
-oat_current_task: p04-t01
-oat_last_commit: 9082b33
+oat_current_task: null
+oat_last_commit: 25427d6
 oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
@@ -31,19 +31,19 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-06-21T15:59:48.857Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-06-22T00:12:56Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-06-22T01:08:51Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
 # Project State: consensus-family
 
-**Status:** Implementation in progress — p03 passed review
+**Status:** Implementation tasks complete — awaiting final review
 **Started:** 2026-06-21
-**Last Updated:** 2026-06-21
+**Last Updated:** 2026-06-22
 
 ## Current Phase
 
-Implementation in progress — p01 loop-core `independent_draft`, p02 `consensus-create`, and p03 `consensus-decide` work completed, fixed after review, and passed re-review; next task is `p04-t01`.
+Implementation tasks complete — p01 loop-core `independent_draft`, p02 `consensus-create`, p03 `consensus-decide`, and p04 `consensus-plan` work completed, fixed after review, and passed re-review; awaiting final review.
 
 ## Artifacts
 
@@ -51,7 +51,7 @@ Implementation in progress — p01 loop-core `independent_draft`, p02 `consensus
 - **Spec:** `spec.md` (complete — confirmed requirements)
 - **Design:** `design.md` (complete — HiLL approved)
 - **Plan:** `plan.md` (complete — ready for `oat-project-implement`)
-- **Implementation:** `implementation.md` (in progress — p01/p02/p03 passed, p04 pending)
+- **Implementation:** `implementation.md` (tasks complete — awaiting final review)
 
 ## Progress
 
@@ -69,7 +69,8 @@ Implementation in progress — p01 loop-core `independent_draft`, p02 `consensus
 - ✓ Phase p01 completed and passed code review
 - ✓ Phase p02 completed and passed code review
 - ✓ Phase p03 completed and passed code review
-- ⧗ Next: execute p04 starting at `p04-t01`
+- ✓ Phase p04 completed and passed code review
+- ⧗ Next: final implementation review
 
 ## Blockers
 
@@ -77,4 +78,4 @@ None
 
 ## Next Milestone
 
-Continue `oat-project-implement` with p04 (`consensus-plan`), starting at `p04-t01`.
+Run final implementation review before documentation/PR handoff.
