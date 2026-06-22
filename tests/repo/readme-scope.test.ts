@@ -88,6 +88,13 @@ describe('readme-scope', () => {
     expect(docs).toMatch(/parallel_revision/);
     expect(docs).toMatch(/parallel_synthesized/);
     expect(docs).toMatch(/whole-document harmonization/);
+    expect(docs).toMatch(
+      /configuration shared by \[`create`\][\s\S]*\[`decide`\][\s\S]*\[`plan`\][\s\S]*\[`refine`\][\s\S]*\[`evaluate`\]/i,
+    );
+    expect(docs).toMatch(
+      /`create`, `decide`, and `plan` default to[\s\S]*`--cold-start independent_draft`/i,
+    );
+    expect(docs).not.toMatch(/not yet supported for this skill family/i);
     expect(docs).not.toMatch(/custom ACP provider/i);
   });
 

@@ -5,8 +5,8 @@ description: 'Shared consensus configuration: peer selection, cold starts, the p
 
 # Configuration
 
-Configuration shared by [`create`](create.md), [`refine`](refine.md), and
-[`evaluate`](evaluate.md).
+Configuration shared by [`create`](create.md), [`decide`](decide.md),
+[`plan`](plan.md), [`refine`](refine.md), and [`evaluate`](evaluate.md).
 For the full reference, see the
 [consensus plugin README](https://github.com/tkstang/skills/blob/main/plugins/consensus/README.md).
 
@@ -59,9 +59,11 @@ warned-and-ignored outside `parallel_synthesized` mode.
 
 ## Cold starts
 
-`create` defaults to `--cold-start independent_draft`: in round 1 each peer
-drafts its own artifact from the brief. `refine` and `evaluate` remain
-`shared_input` only because they operate on an existing draft or artifact.
+`create`, `decide`, and `plan` default to
+`--cold-start independent_draft`: in round 1 each peer drafts from the brief,
+options, or goal/constraints before the deliberation converges. `refine` and
+`evaluate` remain `shared_input` only because they operate on an existing draft
+or artifact.
 
 ## Agency
 
@@ -80,7 +82,8 @@ path and is not selected by default.
 
 ## Permissions
 
-The consensus `create`, `refine`, and `evaluate` skills need permission to run:
+The consensus `create`, `decide`, `plan`, `refine`, and `evaluate` skills need
+permission to run:
 
 - `node` for the wrapper and loop scripts.
 - `consensus` for provider inventory/preflight when exposed as a command.
