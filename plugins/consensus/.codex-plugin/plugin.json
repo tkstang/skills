@@ -1,7 +1,7 @@
 {
   "name": "consensus",
   "version": "0.1.0",
-  "description": "Consensus create, refine, and evaluate skills for multi-peer deliberation.",
+  "description": "Consensus create, decide, refine, and evaluate skills for multi-peer deliberation.",
   "author": {
     "name": "Thomas Stang"
   },
@@ -9,13 +9,13 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Consensus",
-    "shortDescription": "Create, refine, and evaluate artifacts with two-peer deliberation.",
-    "longDescription": "Consensus deliberation skills for creating artifacts from briefs, refining markdown drafts, or evaluating artifacts against rubrics with multiple AI peers and an audit trail.",
+    "shortDescription": "Create, decide, refine, and evaluate artifacts with two-peer deliberation.",
+    "longDescription": "Consensus deliberation skills for creating artifacts from briefs, deciding between options, refining markdown drafts, or evaluating artifacts against rubrics with multiple AI peers and an audit trail.",
     "developerName": "Thomas Stang",
     "category": "Coding",
     "capabilities": ["Interactive", "Read", "Write"],
     "defaultPrompt": [
-      "Use Consensus Create to draft from a brief, Consensus Refine to improve a markdown draft, or Consensus Evaluate to judge an artifact against a rubric."
+      "Use Consensus Create to draft from a brief, Consensus Decide to turn options into a decision, Consensus Refine to improve a markdown draft, or Consensus Evaluate to judge an artifact against a rubric."
     ]
   },
   "metadata": {

@@ -1,7 +1,7 @@
 {
   "name": "consensus",
   "version": "0.1.0",
-  "description": "Consensus create, refine, and evaluate skills for multi-peer deliberation.",
+  "description": "Consensus create, decide, refine, and evaluate skills for multi-peer deliberation.",
   "author": {
     "name": "Thomas Stang"
   },
