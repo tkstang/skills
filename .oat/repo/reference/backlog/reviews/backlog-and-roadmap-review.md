@@ -1,37 +1,46 @@
 # Backlog & Roadmap Review
 
-**Date:** 2026-06-20
-**Scope:** All active items under `.oat/repo/reference/backlog/items/` (20 open; 7 recently completed excluded from rating)
+**Date:** 2026-06-22
+**Scope:** All active items under `.oat/repo/reference/backlog/items/` (15 open items)
 **Roadmap:** `.oat/repo/reference/roadmap.md`
 **Purpose:** Prioritize by value/effort, surface dependencies, and recommend an execution sequence
 
-> If a one-page execution companion exists in this directory, see [`priority-alignment.md`](./priority-alignment.md) — produced via the optional walkthrough at the end of `oat-pjm-review-backlog`. It is the short, ordered "what to do next" view of this full review.
+> If a one-page execution companion exists in this directory, see [`priority-alignment.md`](./priority-alignment.md) - produced via the optional walkthrough at the end of `oat-pjm-review-backlog`. It is the short, ordered "what to do next" view of this full review.
 
 ---
 
 ## 1. Executive Summary
 
-The backlog contains **20 active items** (1 high, 10 medium, 9 low priority) plus **7 recently completed** since the last review (the two iteration modes `bl-5d49`/`bl-7af0`, `bl-5174` consensus-evaluate, `bl-bb7e` owned provider CLI, `bl-bfb4`/`bl-853a` the TypeScript+Vitest toolchain, and `bl-f0b6` Cursor-as-peer E2E). Three things have fundamentally shifted the board since the 2026-06-14 review:
+The backlog contains **15 active items** after the v0.1 release, docs IA, consensus-family implementation, and provider-CLI hardening work were completed and archived. The board has shifted from "finish the v0.1 foundation" to three active decisions:
 
-1. **The "Paseo dependency" framing is obsolete.** `bl-bb7e` shipped an *owned* `consensus` provider CLI (DR-023) that now owns peer invocation, retry, and schema delivery for Refine/Evaluate. The old build-vs-buy lane is resolved; what remains is *hardening* the owned CLI, not deciding whether to own it.
-2. **The TypeScript/Vitest foundation has landed.** The sequencing constraint that paused everything in the last priority-alignment pass is gone. The family lane and the multi-agent substrate lane are both promotable.
-3. **Eleven new items were seeded** (2026-06-19/20), reshaping the medium tier: a pulled-out cold-start prerequisite (`bl-2ed7`), provider-CLI design deferrals (`bl-3291`, `bl-3ca6`, `bl-e0e7`), an advisory-peer utility (`bl-22d3`), a new multi-agent collaboration lane (`bl-4e2e` → `bl-f59f`), and four v3 decision/reserved seeds.
+1. Control the public discovery surface before any skills.sh or marketplace listing claim.
+2. Take the cheap reliability wins that reduce CI/release friction.
+3. Choose the next product lane: advisory peer utility first, then the design-gated `consensus-research` wrapper, while larger substrate and reserved-protocol work remains deferred.
 
 | Theme | Count | Key Observation |
 | --- | --- | --- |
-| Consensus family skills | 5 | All gating iteration modes shipped. The new critical-path gate is `bl-2ed7` (`independent_draft` cold start), which blocks create/decide/plan. `consensus-research` is design-gated, not dependency-gated. |
-| Provider-CLI reliability & packaging | 4 | `bl-3291`, `bl-3a88`, `bl-e0e7`, `bl-3ca6` all build *on* the now-shipped owned CLI. Hardening + maintainability, not a build-vs-buy question anymore. |
-| Multi-agent collaboration substrate | 2 | New lane: `bl-4e2e` (shared session log) → `bl-f59f` (direct messaging). Unblocked now that the TS foundation landed. |
-| Advisory peer utility | 1 | `bl-22d3` (phone-a-friend) — a self-contained one-shot second-opinion skill over the provider CLI; independent of the deliberation loop. |
-| Release / distribution | 1 | `bl-d85f` (v0.1 tag) is the only high-priority item and is **nearly done** — most automated/install gates passed 2026-06-20; remaining work is interactive permission prompts + post-tag discovery. |
-| Convergence / quality / observability fill-ins | 3 | `bl-9ed4`, `bl-ef38`, `bl-e39a` — low-priority, independent, roadmap "Later". |
-| v3 decision seeds & test guards | 4 | `bl-db5d`, `bl-58b3` (decide-before-build, may `wont_do`), `bl-f8cb`, `bl-3ca6` (reserved, large), plus `bl-3913` (cheap test guard). |
+| Release / discovery control | 1 | `bl-7c1d` (Control public skill discovery surface on skills.sh) is the only roadmap-Now item still represented as active backlog work. It gates public listing claims. |
+| Test and reliability hardening | 2 | `bl-1f9c` (De-flake the session-observer watch test suite) and `bl-3913` (Add a test guarding bundled rubric examples at <=12 parser-visible criteria) are small, local, high-signal guardrail work. |
+| New skill surface | 2 | `bl-22d3` (Add phone-a-friend advisory peer skill) is buildable now and should validate the new docs IA; `bl-645c` (Add consensus-research skill) is a separate design-gated wrapper because peer tool access/evidence capture needs a decision. |
+| Consensus runtime quality | 5 | `bl-9ed4` (Add deliberation metrics), `bl-ef38` (Add similarity heuristic), `bl-e39a` (Add whole-document harmonization pass), `bl-db5d` (LLM section auto-chunking fallback), and `bl-58b3` (Mid-loop user artifact edits) are useful but not release-blocking. Several should be decision-first. |
+| Plugin packaging maintainability | 1 | `bl-e0e7` (Share consensus generated runtime output at the plugin level) is worthwhile but spike-gated across installed plugin layouts. |
+| Multi-agent collaboration substrate | 2 | `bl-4e2e` (Shared session log substrate) is the foundation; `bl-f59f` (Inter-agent direct messaging) is hard-blocked behind it. |
+| Reserved protocol seeds | 2 | `bl-3ca6` (Define host-native dispatch / safe-packet protocol) and `bl-f8cb` (Multi-peer 3+ deliberation extension) are explicit go/no-go seeds, not implementation-ready work. |
+
+**Quadrant distribution:**
+
+| Quadrant | Count | Items |
+| --- | --- | --- |
+| Quick Win | 3 | `bl-1f9c` (De-flake the session-observer watch test suite); `bl-3913` (Add a test guarding bundled rubric examples at <=12 parser-visible criteria); `bl-9ed4` (Add deliberation metrics) |
+| Strategic | 7 | `bl-7c1d` (Control public skill discovery surface on skills.sh); `bl-22d3` (Add phone-a-friend advisory peer skill); `bl-e0e7` (Share consensus generated runtime output at the plugin level); `bl-645c` (Add consensus-research skill); `bl-e39a` (Add whole-document harmonization pass); `bl-4e2e` (Shared session log substrate); `bl-f59f` (Inter-agent direct messaging) |
+| Fill-in | 3 | `bl-ef38` (Add similarity heuristic); `bl-db5d` (LLM section auto-chunking fallback); `bl-58b3` (Mid-loop user artifact edits) |
+| Avoid / Defer | 2 | `bl-3ca6` (Define host-native dispatch / safe-packet protocol); `bl-f8cb` (Multi-peer 3+ deliberation extension) |
 
 **Top-line recommendations:**
 
-1. **Finish `bl-d85f` (v0.1 release verification & tag) now** — it is the sole high-priority item and is closest to done. Most gates passed 2026-06-20; only interactive provider permission prompts and post-tag skills.sh discovery remain. Closing it clears the path to any public listing claim.
-2. **Treat `bl-2ed7` (`independent_draft` cold start) as the family-lane critical path** — it is a shared `consensus-loop` capability that hard-blocks `bl-b9b9`/`bl-87ef`/`bl-0cb8`. Land it before (or as the front of) `consensus-create`, then decide/plan ride it cheaply.
-3. **`bl-3913` (rubric example cap guard) is a free quick win** — S-sized, ship-safe, no runtime change. Note the item text says "Node `node:test` or Vitest"; the repo retired `node:test` (`tests/tooling/no-node-test-runner.test.ts` enforces it), so this must be authored as a Vitest `.test.ts`.
+1. **Do `bl-7c1d` (Control public skill discovery surface on skills.sh) before any public listing claim.** The v0.1 tag is out, but `.agents/skills/**` and plugin-bound consensus skills still need an intentional discovery story before skills.sh or marketplace language becomes true.
+2. **Batch `bl-1f9c` (De-flake the session-observer watch test suite) with `bl-3913` (Add a test guarding bundled rubric examples at <=12 parser-visible criteria).** Both are narrow reliability work, and `bl-1f9c` directly addresses release/CI friction already observed in the live repo.
+3. **Use `bl-22d3` (Add phone-a-friend advisory peer skill) as the next feature build.** It is independent, depends on already-shipped provider CLI/docs foundations, and is a better next validation of the docs IA than starting the heavier `bl-645c` (Add consensus-research skill) design question immediately.
 
 ---
 
@@ -47,7 +56,7 @@ The backlog contains **20 active items** (1 high, 10 medium, 9 low priority) plu
 
 ### Priority Quadrants
 
-```
+```text
                      High Value
                         |
          STRATEGIC      |      QUICK WIN
@@ -63,553 +72,466 @@ The backlog contains **20 active items** (1 high, 10 medium, 9 low priority) plu
 
 ---
 
-### bl-d85f — Complete v0.1 release verification and tag
+### bl-7c1d - Control public skill discovery surface on skills.sh
 
-> Execute the remaining `RELEASING.md` gates on real provider runtimes, finalize CHANGELOG, and tag v0.1.0.
-
-| Dimension | Rating | Rationale |
-| --- | --- | --- |
-| **Value** | **High** | Milestone prerequisite — gates the public marketplace / skills.sh announcements. No public claims until this lands. The only high-priority item on the board. |
-| **Effort** | **Low** | Most gates already passed (2026-06-20): automated build/type-check/test/validate/smoke, version/tag readiness, release-workflow parity, Claude/Codex local installs, and Cursor authenticated peer E2E. Remaining is interactive permission prompts (3 providers) + post-tag discovery verification. |
-| **Quadrant** | **Quick Win** (the remaining slice only) | High value, low remaining effort — closest-to-done high-value item. |
-
-- **Dependencies:** None
-- **Blocked by:** Nothing (remaining gates are interactive provider prompts + post-tag steps)
-- **Blocks:** Public marketplace submission, Codex Plugin Directory, skills.sh discovery claims (not yet backlog items)
-
----
-
-### bl-2ed7 — Implement independent_draft cold-start strategy in consensus-loop
-
-> Add the `independent_draft` cold-start strategy (round 1 = per-peer independent drafts from the brief, no shared starting artifact) to the shared `consensus-loop` primitive, across all iteration modes.
+> Prevent OAT tooling and plugin-bound consensus skills from being misrepresented as standalone public skills before any skills.sh listing claim.
 
 | Dimension | Rating | Rationale |
 | --- | --- | --- |
-| **Value** | **High** | Shared-primitive capability that hard-blocks **three** family skills (create/decide/plan). Pulled out of `bl-b9b9` precisely because it is the common gate, not one skill's concern. This is the family lane's critical path. |
-| **Effort** | **Medium** | M-sized; touches the `consensus-loop` core, must work across all three iteration modes, record cold-start in the resolution block, and carry its own loop-level tests. |
-| **Quadrant** | **Strategic** | High value, moderate effort; sequence it first in the family lane. |
-
-- **Dependencies:** Reuses `consensus-loop` + the shipped iteration modes.
-- **Blocked by:** Nothing.
-- **Blocks:** `bl-b9b9` (create), `bl-87ef` (decide), `bl-0cb8` (plan) — all hard-blocked.
-
----
-
-### bl-b9b9 — Add consensus-create skill (artifact from brief)
-
-> Peers produce a new artifact from a brief through deliberation. Defaults: independent_draft / parallel_synthesized / maximum agency.
-
-| Dimension | Rating | Rationale |
-| --- | --- | --- |
-| **Value** | **Medium** | First synthesized-mode family wrapper and the natural first consumer of `independent_draft`; front-loads the derived-sectioning design (whole-artifact vs outline-first) that decide/plan reuse — more than a rote wrapper. |
-| **Effort** | **Medium** | M-sized; the cold-start machinery is now factored into `bl-2ed7`, but the derived-sectioning design decision still lives here. |
-| **Quadrant** | **Strategic** | Front-load the sectioning design; decide/plan ride it. |
-
-- **Dependencies:** `parallel_synthesized` (shipped); `independent_draft` (`bl-2ed7`); derived-sectioning design.
-- **Blocked by:** `bl-2ed7`.
-- **Blocks:** Soft-precedes `bl-87ef`/`bl-0cb8` (shares sectioning groundwork).
-
----
-
-### bl-87ef — Add consensus-decide skill (recommend among options)
-
-> Peers deliberate over options and converge on a decision doc with reasoning and dissent. Defaults: independent_draft / parallel_synthesized / minimal agency.
-
-| Dimension | Rating | Rationale |
-| --- | --- | --- |
-| **Value** | **Medium** | Family member; the minimal-agency + synthesized combination is unique (contested calls always surface), so it validates an important agency edge. |
-| **Effort** | **Low** | S-sized thin wrapper once `bl-2ed7` and `bl-b9b9`'s sectioning groundwork land. |
-| **Quadrant** | **Quick Win** (after its blockers) | |
-
-- **Dependencies:** `parallel_synthesized` (shipped); `independent_draft` (`bl-2ed7`).
-- **Blocked by:** `bl-2ed7` (hard); `bl-b9b9` (soft — sectioning groundwork).
-- **Blocks:** Nothing.
-
----
-
-### bl-0cb8 — Add consensus-plan skill (structured plan from goal)
-
-> Peers produce a structured plan (steps, dependencies, risks) from a goal. Defaults: independent_draft / parallel_synthesized / moderate agency.
-
-| Dimension | Rating | Rationale |
-| --- | --- | --- |
-| **Value** | **Medium** | Family member; straightforward defaults, no unique agency/cold-start edge beyond what create/decide already exercise. |
-| **Effort** | **Low** | S-sized thin wrapper. |
-| **Quadrant** | **Quick Win** (after its blockers) | |
-
-- **Dependencies:** `parallel_synthesized` (shipped); `independent_draft` (`bl-2ed7`).
-- **Blocked by:** `bl-2ed7` (hard); `bl-b9b9` (soft — sectioning groundwork).
-- **Blocks:** Nothing.
-
----
-
-### bl-645c — Add consensus-research skill (investigate question, synthesized findings)
-
-> Peers investigate a question and converge on synthesized findings with evidence. Defaults: shared_input / parallel_synthesized / moderate agency.
-
-| Dimension | Rating | Rationale |
-| --- | --- | --- |
-| **Value** | **Low** | Explicitly the lowest-priority family skill; peer turns are tool-using research, not text edits. |
-| **Effort** | **Medium** | M-sized; gated on an unresolved design question — whether provider-CLI peers get tool access and under what permissions — which may justify its own design pass/DR. |
-| **Quadrant** | **Strategic** (low-value variant → defer until peer tool-access is settled) | |
-
-- **Dependencies:** `parallel_synthesized` (shipped). Uses `shared_input` cold start, so it is **not** blocked by `bl-2ed7`.
-- **Blocked by:** Nothing hard; design-gated on the peer tool-access decision.
-- **Blocks:** Nothing.
-
----
-
-### bl-22d3 — Add phone-a-friend advisory peer skill
-
-> A lightweight skill that asks one provider-backed peer for a one-shot structured second opinion via the owned provider CLI — advisory only, no deliberation loop, no refine/evaluate artifact.
-
-| Dimension | Rating | Rationale |
-| --- | --- | --- |
-| **Value** | **Medium** | High day-to-day utility (a fast cross-provider sanity check on a design/bug/review concern) at a fraction of the deliberation loop's cost; self-contained and broadly reusable. |
-| **Effort** | **Medium** | M-sized; new shipped skill with a documented output schema, context-inference + sensitive-material guidance, default cross-provider peer selection, a host disposition step, recursion/self-spawn safety, and a naming decision (`phone-a-friend` vs `phone-friend`) to resolve before shipping. |
-| **Quadrant** | **Strategic** | Independent of the family/cold-start machinery; can run in any wave once the provider CLI is depended on (it is, shipped). |
-
-- **Dependencies:** Owned provider CLI (shipped).
-- **Blocked by:** Nothing.
-- **Blocks:** Nothing.
-
----
-
-### bl-3291 — Refine provider-exit retry classification (transient vs terminal)
-
-> Classify `PROVIDER_EXIT` outcomes by adapter stderr/exit-signature matching so retries target genuinely transient failures (rate limits, 429s, interrupted runs) and recognized-terminal exits stop early.
-
-| Dimension | Rating | Rationale |
-| --- | --- | --- |
-| **Value** | **Medium** | Reliability + latency: retry-all is a safe floor that burns `max_attempts`/wall-clock on non-recoverable exits and under-reacts to provider transients. Strictly-additive change (unknown exits keep current behavior). |
-| **Effort** | **Medium** | M-sized; per-adapter signature matching, terminal-stop with `terminal_reason`, audit/diagnostic fields, and tests for transient/terminal/unknown paths per adapter. |
-| **Quadrant** | **Strategic** | Targeted hardening of the shipped CLI's retry boundary. |
-
-- **Dependencies:** Builds on the shipped provider CLI retry boundary (`bl-bb7e`, done).
-- **Blocked by:** Nothing.
-- **Blocks:** Nothing. Complementary to `bl-3a88` (process-exit handling vs structured-output validation — distinct boundaries).
-
----
-
-### bl-e0e7 — Share consensus generated runtime output at the plugin level
-
-> Replace the duplicated per-skill `consensus-loop.mjs` generated output with one plugin-local shared script (`plugins/consensus/scripts/consensus-loop.mjs`), gated by a spike proving plugin-local shared scripts resolve from installed layouts in Cursor, Copilot, Claude, and Codex.
-
-| Dimension | Rating | Rationale |
-| --- | --- | --- |
-| **Value** | **Medium** | Maintainability — removes duplicate generated runtime output across refine/evaluate (verified duplication today). But the payoff is contingent on the multi-host install spike passing; the spike may recommend keeping duplication. |
-| **Effort** | **Medium** | M-sized; spike across 4 hosts, then a `build-generated.mjs` change, drift-check updates, and a release/test check that exercises the installed plugin-root layout. |
-| **Quadrant** | **Strategic** (spike-gated) | Do the spike first; it is a real go/no-go. |
-
-- **Dependencies:** Generated-runtime build pipeline (shipped).
-- **Blocked by:** Nothing (the spike is the first internal step).
-- **Blocks:** Nothing.
-
----
-
-### bl-3a88 — Tool-based verdict submission for consensus peers (reliability hardening)
-
-> Give peers an explicit validated verdict-submission surface (a tool/CLI the agent calls) instead of relying only on final-message JSON + orchestrator validation, so schema errors are returned in-context for self-correction.
-
-| Dimension | Rating | Rationale |
-| --- | --- | --- |
-| **Value** | **Medium** (high-leverage but narrowed) | Live dogfooding repeatedly hit structured-output fragility (codex strict output, OpenAI `oneOf` rejection, synthesizer "finished without structured output"). A validated submit-tool co-locates schema enforcement with the agent. Narrowed since `bl-bb7e`: the CLI already owns local validation/retry, so this is durability hardening, not a ship blocker. |
-| **Effort** | **High** | L-sized; deserves its own design pass (MCP tool vs CLI, how the orchestrator captures the verdict, composition with stateless-per-turn agents and the deterministic engine). |
-| **Quadrant** | **Strategic** | De-risks the synthesized-mode family wrappers; design pass can run alongside the family lane. |
-
-- **Dependencies:** Owned provider CLI (shipped) — now the boundary this would extend.
-- **Blocked by:** Nothing.
-- **Blocks:** Nothing formally; soft-de-risks `bl-b9b9`/`bl-87ef`/`bl-0cb8`/`bl-645c`.
-
----
-
-### bl-4e2e — Shared session log substrate (become-observable daemon + merged log)
-
-> Foundation of a multi-agent collaboration substrate: an agent-initiated "become observable" registration + a central daemon that merges registered sessions into one timestamp-ordered, noise-filtered shared log any participating agent can tail. Extends `session-observer`.
-
-| Dimension | Rating | Rationale |
-| --- | --- | --- |
-| **Value** | **Medium** | Opens a genuinely new capability lane (multi-agent observation) and establishes the shared `.consensus/` state dir + agent-identity primitive that messaging reuses. But it is a foundation investment, not an immediate workflow win. |
-| **Effort** | **High** | L-sized initiative; ~6 open design questions (adopt `cass` vs bespoke, packaging, merge/filter schema), daemon lifecycle (heartbeat/crash cleanup, idle timeout, reactivation), needs a design pass + DR before build. |
-| **Quadrant** | **Strategic** | Roadmap "Later"; now promotable since the TS foundation landed. |
-
-- **Dependencies:** Extends shipped `session-observer` cursor/high-water-mark pattern.
-- **Blocked by:** Nothing (sequenced after TS hardening, which is done).
-- **Blocks:** `bl-f59f` (inter-agent messaging reuses its identity/state primitives).
-
----
-
-### bl-f59f — Inter-agent direct messaging (addressable, prioritized)
-
-> Addressable agent-to-agent direct messages with priority-over-log semantics (checked before shared-log catch-up), reusing the substrate's identity + cursor primitives. Build-vs-adopt against Agent Mail / `cass`.
-
-| Dimension | Rating | Rationale |
-| --- | --- | --- |
-| **Value** | **Medium** | The targeted-signal capability layer on top of ambient observation; meaningful once multiple agents collaborate on one project. |
-| **Effort** | **Medium** | M-sized; ~4 open design questions; a recorded build-vs-adopt decision (Agent Mail/`cass` wrapper vs lightweight queue-with-cursor); reuses the substrate's identity layer. |
-| **Quadrant** | **Strategic** | Sequenced strictly after the substrate foundation. |
-
-- **Dependencies:** `bl-4e2e` identity/state/cursor primitives.
-- **Blocked by:** `bl-4e2e` (hard).
-- **Blocks:** Nothing.
-
----
-
-### bl-3913 — Add a test guarding bundled rubric examples at <=12 parser-visible criteria
-
-> A focused test that runs the canonical `extractRubricCriteria` logic over each bundled `evaluate` example and asserts each yields <=12 distinct parser-visible criteria, protecting the cap mechanically.
-
-| Dimension | Rating | Rationale |
-| --- | --- | --- |
-| **Value** | **Low** | Future-proofing only; the examples are correct as shipped. Prevents a silent truncation regression if a future edit adds headings/bullets. |
-| **Effort** | **Low** | S-sized; one test, no runtime or content change. |
-| **Quadrant** | **Quick Win / Fill-in** | The cheapest ship-safe item on the board. |
-
-- **Dependencies:** Exercises shipped `extractRubricCriteria` + the 4 bundled examples (verified present).
-- **Blocked by:** Nothing.
-- **Blocks:** Nothing.
-- **Note:** Item text offers "Node `node:test` or Vitest"; `node:test` is retired and guarded against, so author this as a Vitest `.test.ts`.
-
----
-
-### bl-9ed4 — Add deliberation metrics (tokens, wall-clock, rounds) to artifacts
-
-> Add consistent token/cost/round/wall-clock metrics to turn records, loop status, and the resolution block across iteration modes; degrade gracefully when a provider does not surface a figure.
-
-| Dimension | Rating | Rationale |
-| --- | --- | --- |
-| **Value** | **Low** | Observability improvement; roadmap "Later" after the family ships. |
-| **Effort** | **Low** | S-sized; mostly plumbing derivable figures + a feasibility note on cost-cap flags. Parallel-mode metrics shape is now stable. |
-| **Quadrant** | **Fill-in** | |
-
-- **Dependencies:** Parallel-mode metrics shape (shipped).
-- **Blocked by:** Nothing.
-- **Blocks:** Nothing (may spawn a cost-cap follow-up).
-
----
-
-### bl-ef38 — Add similarity heuristic for near-converged deliberation states
-
-> Optional deterministic similarity measure (e.g. normalized edit distance over DR-004 normalization) that lets the loop self-confirm almost-converged states instead of escalating, agency-gated to moderate+.
-
-| Dimension | Rating | Rationale |
-| --- | --- | --- |
-| **Value** | **Low** | Reduces escalation frequency on long documents; explicitly a deferred nice-to-have. Deterministic-only escalation already shipped. |
-| **Effort** | **Low** | S-sized; bounded algorithm + threshold + audit-trail disclosure + boundary tests. |
-| **Quadrant** | **Fill-in** | |
-
-- **Dependencies:** DR-004 normalization / convergence engine (shipped).
-- **Blocked by:** Nothing.
-- **Blocks:** Nothing.
-
----
-
-### bl-e39a — Add whole-document harmonization pass after section convergence
-
-> Optional post-convergence pass (`--harmonize`) where peers see the full assembled document and propose cross-section refinements; removes the v0.1 "no harmonization" limitation.
-
-| Dimension | Rating | Rationale |
-| --- | --- | --- |
-| **Value** | **Low** | Quality improvement for multi-section documents; roadmap "Later" (after the family ships, per v3 Phase 4). |
-| **Effort** | **Medium** | M-sized; new sequential post-fan-in pass that must compose with both sequential and host-mediated parallel orchestration + resume. |
-| **Quadrant** | **Fill-in** (defer until family ships) | |
-
-- **Dependencies:** Reuses loop mechanics + convergence detection; must compose with parallel section dispatch.
+| **Value** | **High** | This is the only active backlog item directly tied to the roadmap's post-tag public discovery gate. It protects external claims and prevents broken standalone installs. |
+| **Effort** | **Medium** | Requires OAT sync-layer handling for `.agents/skills/**`, shipped-skill content/behavior changes for consensus self-redirects, version bumps, generated output, and live discovery verification. |
+| **Quadrant** | **Strategic** | High value with cross-surface verification; do before any public listing/submission language. |
+
+- **Dependencies:** v0.1 release evidence and provider install knowledge from `bl-d85f` (Complete v0.1 release verification and tag), already archived.
 - **Blocked by:** Nothing hard.
-- **Blocks:** Nothing.
+- **Blocks:** Public skills.sh listing claims and any broader public-discovery/submission claim until verified.
 
 ---
 
-### bl-3ca6 — Define host-native dispatch / safe-packet protocol (reserved seam)
+### bl-1f9c - De-flake the session-observer watch test suite
 
-> A thin seed giving the reserved host-native-dispatch capability flags (`supports_host_native_dispatch`, `host_native_safe_packet_required`) a tracked home: a written go/no-go and, if pursued, the safe-packet/history/execution/audit/safety contract before any adapter flips the flag.
+> Replace timing-sensitive watch tests with deterministic stop/teardown behavior so CI and hooks stop failing under load.
 
 | Dimension | Rating | Rationale |
 | --- | --- | --- |
-| **Value** | **Low** | Speculative; the value is preventing the reserved flags/vocabulary from being orphaned or accidentally enabled. May resolve `wont_do` if the prompt/CLI floor stays sufficient. |
-| **Effort** | **High** | L-sized initiative if pursued (full protocol design); the go/no-go itself is small. |
-| **Quadrant** | **Avoid / Defer** | Do the cheap go/no-go; defer the design unless a concrete need emerges. |
+| **Value** | **High** | The flakes already affected the v0.1 tag push and PR validation. Removing them improves release confidence and developer velocity. |
+| **Effort** | **Low** | The failing surfaces are known: tight `maxRuntimeMin` budgets and a real SIGTERM subprocess race in `tests/session-observer/watch.test.ts`. A test-only change avoids shipped skill version-bump scope unless generated runtime changes become necessary. |
+| **Quadrant** | **Quick Win** | High value, small surface, and concrete reproduction clues. |
 
-- **Dependencies:** Provider CLI reserved seams (shipped, `bl-bb7e`).
+- **Dependencies:** None.
 - **Blocked by:** Nothing.
-- **Blocks:** Nothing (it is the gate that keeps the flag from being flipped prematurely).
+- **Blocks:** Nothing formally, but reduces future release and pre-push friction.
 
 ---
 
-### bl-db5d — LLM section auto-chunking fallback (--sections auto-llm) — for discussion
+### bl-3913 - Add a test guarding bundled rubric examples at <=12 parser-visible criteria
 
-> Open question: should there be an opt-in LLM auto-chunking fallback (`--sections auto-llm`) for unstructured documents with no usable headings, vs the current deterministic whole-document fallback?
-
-| Dimension | Rating | Rationale |
-| --- | --- | --- |
-| **Value** | **Low** | Undecided; non-determinism would complicate resume, per-section convergence, and audit reproducibility. May resolve `wont_do`. |
-| **Effort** | **Low** | S-sized decision; the build (if pursued, strictly opt-in) is larger but contingent. |
-| **Quadrant** | **Fill-in** (decision-first) | Decide before building. |
-
-- **Dependencies:** Deterministic sectioning (shipped).
-- **Blocked by:** Nothing.
-- **Blocks:** Nothing.
-
----
-
-### bl-58b3 — Mid-loop user artifact edits (type=edit intervention) — for discussion
-
-> Open question: make a first-class `type=edit` user intervention (peers told "the user edited this, continue from here") distinct from the existing artifact-edit-then-resume path?
+> Add a focused Vitest guard so bundled evaluate example rubrics cannot silently exceed the parser-visible criteria cap.
 
 | Dimension | Rating | Rationale |
 | --- | --- | --- |
-| **Value** | **Low** | Undecided; the canonical-artifact resume may already cover this. May resolve `wont_do`. |
-| **Effort** | **Low** | S-sized decision + (if pursued) first-class audit logging. |
-| **Quadrant** | **Fill-in** (decision-first) | Decide before building. |
+| **Value** | **Medium** | Prevents a known class of rubric truncation regression in shipped examples. It is not product-critical, but it preserves authoring quality. |
+| **Effort** | **Low** | Test-only, localized to `tests/consensus/evaluate/` and the canonical parser behavior. No runtime or example-content change is expected. |
+| **Quadrant** | **Quick Win** | Cheap guardrail; pairs well with other test reliability work. |
 
-- **Dependencies:** Existing resume / `USER_INTERVENTION` / `HOST_DECISION` machinery (shipped).
+- **Dependencies:** Current Vitest-only test layout, already shipped.
 - **Blocked by:** Nothing.
 - **Blocks:** Nothing.
 
 ---
 
-### bl-f8cb — Multi-peer (3+) deliberation extension (reserved / v3+ concern)
+### bl-22d3 - Add phone-a-friend advisory peer skill
 
-> Thin seed for the parked v3 "three+ agent" extension so the two-peer constraint is explicit. Introduces pairwise-vs-group convergence, tie/majority semantics, oscillation generalization, verdict aggregation, and cost scaling.
+> Add a one-shot provider-backed advisory peer skill without running the full consensus deliberation loop.
 
 | Dimension | Rating | Rationale |
 | --- | --- | --- |
-| **Value** | **Low** | Speculative; no justified need yet. The value is keeping the two-peer constraint explicit and the idea tracked. |
-| **Effort** | **High** | L-sized; a fundamental generalization of the convergence engine if pursued. |
-| **Quadrant** | **Avoid / Defer** | Go/no-go only; revisit if a concrete 3+-peer need emerges. |
+| **Value** | **Medium** | High practical utility for design/review uncertainty and a good first validation that the docs IA absorbs a new skill cleanly. It is useful but does not unblock another backlog item. |
+| **Effort** | **Medium** | New shipped skill, output schema, context inference, peer selection, recursion/self-spawn safety, docs, tests, and a naming decision. Provider CLI and docs foundations already exist. |
+| **Quadrant** | **Strategic** | Independent feature work with visible user value; good next feature after immediate cleanup. |
 
-- **Dependencies:** Convergence engine (shipped, two-peer).
+- **Dependencies:** Owned provider CLI, provider preflight, and documentation site, all shipped.
 - **Blocked by:** Nothing.
+- **Blocks:** Nothing formally; acts as the first post-docs-IA new-skill validation.
+
+---
+
+### bl-e0e7 - Share consensus generated runtime output at the plugin level
+
+> Replace per-skill duplicated `consensus-loop.mjs` generated outputs with one plugin-local shared runtime if installed host layouts prove it works.
+
+| Dimension | Rating | Rationale |
+| --- | --- | --- |
+| **Value** | **Medium** | Reduces duplicated generated output across `create`, `decide`, `plan`, `refine`, and `evaluate`, making future loop changes easier to ship. |
+| **Effort** | **Medium** | The code migration is moderate, but the real work is a 4-host install/layout spike plus drift guard/docs/test updates. The spike can still decide to keep duplication. |
+| **Quadrant** | **Strategic** | Maintainability payoff, but only after plugin-local shared scripts are proven across hosts. |
+
+- **Dependencies:** Current generated-runtime build pipeline and installed-layout evidence from v0.1 release verification.
+- **Blocked by:** Nothing hard now that consensus-family work is complete, but avoid running it concurrently with any active `consensus-loop` feature branch.
+- **Blocks:** Nothing.
+
+---
+
+### bl-645c - Add consensus-research skill (investigate question, synthesized findings)
+
+> Add the remaining consensus-family wrapper for research questions, synthesized findings, evidence, and dissent.
+
+| Dimension | Rating | Rationale |
+| --- | --- | --- |
+| **Value** | **Medium** | Completes the six-skill family and is on the roadmap's Next list, but lower urgency because research turns introduce permissions/evidence concerns distinct from text-editing wrappers. |
+| **Effort** | **Medium** | The wrapper itself can reuse shipped loop patterns, but peer tool access, evidence capture, and permissions need an explicit design decision before build. |
+| **Quadrant** | **Strategic** | Worth doing, but as a design-led project rather than a thin-wrapper sprint. |
+
+- **Dependencies:** `parallel_synthesized` iteration and provider CLI, already shipped. Uses `shared_input`, so it does not depend on independent-draft work.
+- **Blocked by:** Peer tool-access and evidence-capture decision.
+- **Blocks:** Nothing else in the current active backlog.
+
+---
+
+### bl-9ed4 - Add deliberation metrics (tokens, wall-clock, rounds) to artifacts
+
+> Report consistent rounds, wall-clock, token/cost availability, and related metrics in consensus artifacts.
+
+| Dimension | Rating | Rationale |
+| --- | --- | --- |
+| **Value** | **Medium** | Improves observability and supports future budget/cost controls. Peer call and synthesis call totals already exist, so this makes the artifact contract more complete. |
+| **Effort** | **Low** | The loop has status and record plumbing plus a `CostSource` type; provider cost/token fields may remain unavailable with explicit semantics. |
+| **Quadrant** | **Quick Win** | A small, useful observability pass if kept to graceful availability semantics. |
+
+- **Dependencies:** Existing consensus-loop status/record fields and provider CLI diagnostics.
+- **Blocked by:** Nothing, as long as unavailable token/cost data is represented honestly.
+- **Blocks:** Future hard cost-cap work if pursued.
+
+---
+
+### bl-ef38 - Add similarity heuristic for near-converged deliberation states
+
+> Add a deterministic similarity threshold for almost-converged states so trivial phrasing drift can avoid unnecessary escalation.
+
+| Dimension | Rating | Rationale |
+| --- | --- | --- |
+| **Value** | **Low** | Nice-to-have quality improvement. Strict deterministic hash convergence already works and agency escalation handles ambiguous drift. |
+| **Effort** | **Low** | Small algorithm/test surface if limited to deterministic normalized edit-distance-style scoring and clear audit disclosure. |
+| **Quadrant** | **Fill-in** | Useful when nearby loop work is open, but not a priority by itself. |
+
+- **Dependencies:** Existing normalization/hash convergence rules.
+- **Blocked by:** Nothing.
+- **Blocks:** Nothing.
+
+---
+
+### bl-e39a - Add whole-document harmonization pass after section convergence
+
+> Run a post-convergence pass over the assembled document to resolve cross-section drift, repetition, and flow issues.
+
+| Dimension | Rating | Rationale |
+| --- | --- | --- |
+| **Value** | **Medium** | Addresses a known v0.1 limitation for multi-section documents and improves final artifact quality. |
+| **Effort** | **Medium** | Requires new post-section orchestration, resume behavior, context-bounding decision, tests, docs, and parallel fan-in composition. |
+| **Quadrant** | **Strategic** | Meaningful quality work, but best sequenced after smaller reliability/discovery tasks. |
+
+- **Dependencies:** Existing sequential and host-mediated parallel section orchestration.
+- **Blocked by:** Context-bounding decision: assembled document only vs assembled document plus section logs.
+- **Blocks:** Nothing.
+
+---
+
+### bl-db5d - LLM section auto-chunking fallback (--sections auto-llm)
+
+> Decide whether opt-in LLM-generated section boundaries are worth the non-determinism for unstructured documents.
+
+| Dimension | Rating | Rationale |
+| --- | --- | --- |
+| **Value** | **Low** | Whole-document fallback is already available. This helps only documents with poor structure where automated boundaries are worth audit complexity. |
+| **Effort** | **Low** | The next useful step is a decision, not implementation. A build would be larger because resume/audit reproducibility must be addressed. |
+| **Quadrant** | **Fill-in** | Decision-only fill-in; may resolve `wont_do`. |
+
+- **Dependencies:** Existing deterministic heading/marker/user-boundary sectioning.
+- **Blocked by:** Product decision on whether non-deterministic sectioning is acceptable.
+- **Blocks:** Nothing.
+
+---
+
+### bl-58b3 - Mid-loop user artifact edits (type=edit intervention)
+
+> Decide whether artifact edits during resume need a first-class `type=edit` intervention distinct from existing artifact-edit-then-resume behavior.
+
+| Dimension | Rating | Rationale |
+| --- | --- | --- |
+| **Value** | **Low** | Existing artifact-as-state resume already allows manual edits between runs. The open question is audit semantics, not missing core capability. |
+| **Effort** | **Low** | The decision is small; implementation can stay deferred unless a real workflow need appears. |
+| **Quadrant** | **Fill-in** | Decision-only fill-in; likely pair with resume/audit work. |
+
+- **Dependencies:** Existing resume protocol and `USER_INTERVENTION` / `HOST_DECISION` records.
+- **Blocked by:** Product decision on whether distinct audit semantics are needed.
+- **Blocks:** Nothing.
+
+---
+
+### bl-4e2e - Shared session log substrate (become-observable daemon + merged log)
+
+> Add a project-scoped multi-agent observation substrate: registration, daemon, merged filtered log, lifecycle, and identity.
+
+| Dimension | Rating | Rationale |
+| --- | --- | --- |
+| **Value** | **Medium** | Opens a new collaboration lane and establishes primitives that direct messaging reuses, but it is foundation work rather than immediate product polish. |
+| **Effort** | **High** | Initiative-sized: adopt-vs-build on `cass`, daemon lifecycle, schema/filtering, packaging, heartbeat/cleanup, reactivation, and state/identity conventions. |
+| **Quadrant** | **Strategic** | A real lane, but it needs design before build and should not displace immediate discovery/reliability work. |
+
+- **Dependencies:** Existing `session-observer` cursor/high-water-mark and transcript parsing patterns.
+- **Blocked by:** Design pass on adopt-vs-build, packaging, and merged-log schema.
+- **Blocks:** `bl-f59f` (Inter-agent direct messaging).
+
+---
+
+### bl-f59f - Inter-agent direct messaging (addressable, prioritized)
+
+> Add project-scoped direct messages between named agents, checked before ambient shared-log catch-up.
+
+| Dimension | Rating | Rationale |
+| --- | --- | --- |
+| **Value** | **Medium** | Adds targeted signal on top of ambient multi-agent observation; useful only after the substrate exists. |
+| **Effort** | **Medium** | Reuses substrate identity/state if available, but still needs build-vs-adopt and message lifecycle decisions. |
+| **Quadrant** | **Strategic** | Valuable as the second half of the collaboration lane, not a standalone start. |
+
+- **Dependencies:** `bl-4e2e` (Shared session log substrate).
+- **Blocked by:** `bl-4e2e` (Shared session log substrate).
+- **Blocks:** Nothing.
+
+---
+
+### bl-3ca6 - Define host-native dispatch / safe-packet protocol (reserved seam)
+
+> Decide whether host-native dispatch is worth pursuing and, if so, define the safety/audit packet contract before any adapter enables it.
+
+| Dimension | Rating | Rationale |
+| --- | --- | --- |
+| **Value** | **Low** | This is a safety anchor for a reserved extension point, not a current capability gap. The prompt/CLI floor is working. |
+| **Effort** | **High** | A real implementation would involve safety packet contents, conversation-history boundaries, execution contract, audit fields, and adapter capability transitions. |
+| **Quadrant** | **Avoid / Defer** | Keep as a guardrail seed; do not build without a concrete host-native need. |
+
+- **Dependencies:** Provider CLI reserved capability flags from the archived provider-CLI work.
+- **Blocked by:** Go/no-go decision.
+- **Blocks:** Any future adapter flip to host-native dispatch support.
+
+---
+
+### bl-f8cb - Multi-peer (3+) deliberation extension (reserved / v3+ concern)
+
+> Decide whether deliberation needs more than two peers and design group convergence/tie semantics if it ever does.
+
+| Dimension | Rating | Rationale |
+| --- | --- | --- |
+| **Value** | **Low** | Speculative. Two-peer deliberation is the current product shape and no concrete 3+ peer need is documented. |
+| **Effort** | **High** | Would affect convergence semantics, verdict aggregation, oscillation handling, cost behavior, and UX across iteration modes. |
+| **Quadrant** | **Avoid / Defer** | Explicitly parked v3+ concern; revisit only with evidence. |
+
+- **Dependencies:** None beyond the existing consensus loop.
+- **Blocked by:** Go/no-go decision with evidence that two peers are insufficient.
 - **Blocks:** Nothing.
 
 ---
 
 ## 3. Dependency Graph
 
+```text
+Legend:  -->  hard dependency
+         ~~>  soft/sequencing dependency
+
+bl-4e2e --> bl-f59f
+
+bl-7c1d ~~> public listing / marketplace claim (roadmap gap, no item yet)
+bl-22d3 ~~> validates new docs IA for post-docs skill additions
+bl-e0e7 ~~> future consensus-loop maintenance
+bl-9ed4 ~~> future hard cost-cap item if one is filed
+
+bl-1f9c [independent]
+bl-3913 [independent]
+bl-645c [design-gated: peer tool access/evidence capture]
+bl-ef38 [independent fill-in]
+bl-e39a [design-gated: harmonization context]
+bl-db5d [decision-first]
+bl-58b3 [decision-first]
+bl-3ca6 [go/no-go reserved seam]
+bl-f8cb [go/no-go reserved seam]
 ```
-Legend:  ──▶  hard dependency (must complete first)
-         - -▶  soft dependency (beneficial but not required)
 
-bl-2ed7 ──▶ bl-b9b9 ──▶ bl-87ef
-        ├─▶ bl-87ef        (bl-b9b9 - -▶ bl-87ef: sectioning groundwork)
-        └─▶ bl-0cb8        (bl-b9b9 - -▶ bl-0cb8: sectioning groundwork)
-
-bl-4e2e ──▶ bl-f59f
-
-bl-645c   (no backlog dep; design-gated on peer tool-access decision)
-bl-3a88 - -▶ { bl-b9b9, bl-87ef, bl-0cb8, bl-645c }   (de-risks synthesized output)
-
-Independent (no backlog dependencies):
-  bl-d85f   bl-22d3   bl-3291   bl-e0e7   bl-3a88   bl-3913
-  bl-9ed4   bl-ef38   bl-e39a   bl-3ca6   bl-db5d   bl-58b3   bl-f8cb
-```
-
-**ID legend** (every ID used above):
+**ID legend**
 
 | ID | Title |
 | --- | --- |
-| bl-2ed7 | Implement independent_draft cold-start strategy in consensus-loop |
-| bl-b9b9 | Add consensus-create skill (artifact from brief) |
-| bl-87ef | Add consensus-decide skill (recommend among options) |
-| bl-0cb8 | Add consensus-plan skill (structured plan from goal) |
+| bl-7c1d | Control public skill discovery surface on skills.sh |
+| bl-1f9c | De-flake the session-observer watch test suite |
+| bl-3913 | Add a test guarding bundled rubric examples at <=12 parser-visible criteria |
+| bl-22d3 | Add phone-a-friend advisory peer skill |
+| bl-e0e7 | Share consensus generated runtime output at the plugin level |
 | bl-645c | Add consensus-research skill (investigate question, synthesized findings) |
-| bl-3a88 | Tool-based verdict submission for consensus peers |
+| bl-9ed4 | Add deliberation metrics (tokens, wall-clock, rounds) to artifacts |
+| bl-ef38 | Add similarity heuristic for near-converged deliberation states |
+| bl-e39a | Add whole-document harmonization pass after section convergence |
+| bl-db5d | LLM section auto-chunking fallback (--sections auto-llm) |
+| bl-58b3 | Mid-loop user artifact edits (type=edit intervention) |
 | bl-4e2e | Shared session log substrate (become-observable daemon + merged log) |
 | bl-f59f | Inter-agent direct messaging (addressable, prioritized) |
-| bl-d85f | Complete v0.1 release verification and tag |
-| bl-22d3 | Add phone-a-friend advisory peer skill |
-| bl-3291 | Refine provider-exit retry classification (transient vs terminal) |
-| bl-e0e7 | Share consensus generated runtime output at the plugin level |
-| bl-3913 | Add a test guarding bundled rubric examples at <=12 criteria |
-| bl-9ed4 | Add deliberation metrics to artifacts |
-| bl-ef38 | Add similarity heuristic for near-converged states |
-| bl-e39a | Add whole-document harmonization pass |
-| bl-3ca6 | Define host-native dispatch / safe-packet protocol (reserved) |
-| bl-db5d | LLM section auto-chunking fallback (for discussion) |
-| bl-58b3 | Mid-loop user artifact edits (for discussion) |
-| bl-f8cb | Multi-peer (3+) deliberation extension (reserved) |
+| bl-3ca6 | Define host-native dispatch / safe-packet protocol (reserved seam) |
+| bl-f8cb | Multi-peer (3+) deliberation extension (reserved / v3+ concern) |
 
 ---
 
 ## 4. Parallel Lanes
 
-These are independent work streams that can be tackled concurrently without conflicts.
+### Lane A: Release Discovery Control
 
-### Lane A: Consensus family skills
+Controls what the repo exposes publicly before any hosted skills.sh or marketplace claim.
 
-The synthesized-mode wrappers over `consensus-loop`. The gating iteration modes shipped; the lane's internal critical path is now `bl-2ed7` (`independent_draft`), which blocks create/decide/plan. `consensus-research` is design-gated (peer tool-access), not dependency-gated, and uses `shared_input` so it does not need `bl-2ed7`.
-
-```
-bl-2ed7 ──▶ bl-b9b9 ──▶ { bl-87ef, bl-0cb8 }
-bl-645c   (parallel; design-gated on peer tool-access)
+```text
+bl-7c1d (Control public skill discovery surface on skills.sh)
 ```
 
 **Items in this lane:**
 
-- **bl-2ed7** — Implement independent_draft cold-start strategy in consensus-loop
-- **bl-b9b9** — Add consensus-create skill (artifact from brief)
-- **bl-87ef** — Add consensus-decide skill (recommend among options)
-- **bl-0cb8** — Add consensus-plan skill (structured plan from goal)
-- **bl-645c** — Add consensus-research skill (investigate question, synthesized findings)
-
-**Total estimated effort:** Medium-High (one M cold-start + one M create + two S + one M research; shared wrapper pattern compounds)
-**Cross-lane dependencies:** Hardening from Lane C (`bl-3a88`) soft-de-risks the synthesized wrappers but is not a hard blocker.
-
-### Lane B: Release / distribution
-
-Independent; gates announcements, not development. Mostly complete.
-
-```
-bl-d85f
-```
-
-**Items in this lane:**
-
-- **bl-d85f** — Complete v0.1 release verification and tag
-
-**Total estimated effort:** Low (remaining slice)
-**Cross-lane dependencies:** None.
-
-### Lane C: Provider-CLI reliability & packaging
-
-Hardening and maintainability *on top of* the now-shipped owned provider CLI — not a build-vs-buy question anymore.
-
-```
-bl-3291   bl-3a88   bl-e0e7   bl-3ca6   (all independent of each other)
-```
-
-**Items in this lane:**
-
-- **bl-3291** — Refine provider-exit retry classification (transient vs terminal)
-- **bl-3a88** — Tool-based verdict submission for consensus peers
-- **bl-e0e7** — Share consensus generated runtime output at the plugin level
-- **bl-3ca6** — Define host-native dispatch / safe-packet protocol (reserved; go/no-go first)
-
-**Total estimated effort:** High (two L + two M; `bl-3ca6` likely defers after go/no-go)
-**Cross-lane dependencies:** `bl-3a88` strengthens Lane A's synthesized-mode skills.
-
-### Lane D: Advisory peer utility
-
-Self-contained one-shot second-opinion skill over the provider CLI; no deliberation loop.
-
-```
-bl-22d3
-```
-
-**Items in this lane:**
-
-- **bl-22d3** — Add phone-a-friend advisory peer skill
+- **bl-7c1d** - Control public skill discovery surface on skills.sh
 
 **Total estimated effort:** Medium
-**Cross-lane dependencies:** None (depends only on the shipped provider CLI).
+**Cross-lane dependencies:** Coordinate with docs/release messaging; do not claim public listing until verification lands.
 
-### Lane E: Multi-agent collaboration substrate
+### Lane B: Test Reliability and Guardrails
 
-A new lane beneath the deliberation engine: how agents observe and message each other on one project. Unblocked now that the TS foundation landed.
+Small changes that increase confidence without product-design churn.
 
-```
-bl-4e2e ──▶ bl-f59f
-```
-
-**Items in this lane:**
-
-- **bl-4e2e** — Shared session log substrate (become-observable daemon + merged log)
-- **bl-f59f** — Inter-agent direct messaging (addressable, prioritized)
-
-**Total estimated effort:** High (one L foundation + one M capability layer; both carry design passes)
-**Cross-lane dependencies:** None; extends shipped `session-observer`.
-
-### Lane F: Convergence / quality / observability fill-ins
-
-Low-priority, independent nice-to-haves; roadmap "Later" (after the family ships).
-
-```
-bl-9ed4   bl-ef38   bl-e39a   (all independent)
+```text
+bl-1f9c (De-flake the session-observer watch test suite)
+bl-3913 (Add a test guarding bundled rubric examples at <=12 parser-visible criteria)
 ```
 
 **Items in this lane:**
 
-- **bl-9ed4** — Add deliberation metrics to artifacts
-- **bl-ef38** — Add similarity heuristic for near-converged states
-- **bl-e39a** — Add whole-document harmonization pass
+- **bl-1f9c** - De-flake the session-observer watch test suite
+- **bl-3913** - Add a test guarding bundled rubric examples at <=12 parser-visible criteria
 
-**Total estimated effort:** Low-Medium
+**Total estimated effort:** Low to Medium
 **Cross-lane dependencies:** None.
 
-### Lane G: v3 decision seeds & test guards
+### Lane C: New Skill Surface
 
-Decide-before-build seeds (several may resolve `wont_do`) plus one cheap ship-safe test guard.
+Build the next useful skill first, then tackle the research wrapper as a separate design-gated project.
 
-```
-bl-3913   bl-db5d   bl-58b3   bl-f8cb   (all independent)
+```text
+bl-22d3 (Add phone-a-friend advisory peer skill)
+  ~~> bl-645c (Add consensus-research skill)
 ```
 
 **Items in this lane:**
 
-- **bl-3913** — Add a test guarding bundled rubric examples at <=12 criteria (ship-safe quick win)
-- **bl-db5d** — LLM section auto-chunking fallback (decision-first; may `wont_do`)
-- **bl-58b3** — Mid-loop user artifact edits (decision-first; may `wont_do`)
-- **bl-f8cb** — Multi-peer (3+) deliberation extension (go/no-go; may `wont_do`)
+- **bl-22d3** - Add phone-a-friend advisory peer skill
+- **bl-645c** - Add consensus-research skill (investigate question, synthesized findings)
 
-**Total estimated effort:** Low (decisions + one S test); build cost is contingent and deferred.
-**Cross-lane dependencies:** None.
+**Total estimated effort:** Medium to High
+**Cross-lane dependencies:** `bl-645c` (Add consensus-research skill) needs a peer tool-access/evidence decision.
+
+### Lane D: Plugin Packaging Maintainability
+
+Spike and, if viable, simplify generated consensus runtime layout.
+
+```text
+bl-e0e7 (Share consensus generated runtime output at the plugin level)
+```
+
+**Items in this lane:**
+
+- **bl-e0e7** - Share consensus generated runtime output at the plugin level
+
+**Total estimated effort:** Medium
+**Cross-lane dependencies:** Avoid concurrent `consensus-loop` feature branches.
+
+### Lane E: Consensus Runtime Quality
+
+Quality and observability improvements for existing consensus workflows.
+
+```text
+bl-9ed4 (Add deliberation metrics)
+bl-ef38 (Add similarity heuristic)
+bl-e39a (Add whole-document harmonization pass)
+bl-db5d (LLM section auto-chunking fallback)
+bl-58b3 (Mid-loop user artifact edits)
+```
+
+**Items in this lane:**
+
+- **bl-9ed4** - Add deliberation metrics (tokens, wall-clock, rounds) to artifacts
+- **bl-ef38** - Add similarity heuristic for near-converged deliberation states
+- **bl-e39a** - Add whole-document harmonization pass after section convergence
+- **bl-db5d** - LLM section auto-chunking fallback (--sections auto-llm)
+- **bl-58b3** - Mid-loop user artifact edits (type=edit intervention)
+
+**Total estimated effort:** Medium to High if bundled; low for the decision-only seeds.
+**Cross-lane dependencies:** `bl-e39a` (Add whole-document harmonization pass) composes with section orchestration and resume; decision seeds can be resolved independently.
+
+### Lane F: Multi-Agent Collaboration Substrate
+
+Design and build ambient observation before direct messaging.
+
+```text
+bl-4e2e (Shared session log substrate)
+  --> bl-f59f (Inter-agent direct messaging)
+```
+
+**Items in this lane:**
+
+- **bl-4e2e** - Shared session log substrate (become-observable daemon + merged log)
+- **bl-f59f** - Inter-agent direct messaging (addressable, prioritized)
+
+**Total estimated effort:** High
+**Cross-lane dependencies:** None, but this lane should start only when there is appetite for a full design/build initiative.
+
+### Lane G: Reserved Protocol Seeds
+
+Keep future extension seams visible, but do not implement without new evidence.
+
+```text
+bl-3ca6 (Define host-native dispatch / safe-packet protocol)
+bl-f8cb (Multi-peer 3+ deliberation extension)
+```
+
+**Items in this lane:**
+
+- **bl-3ca6** - Define host-native dispatch / safe-packet protocol (reserved seam)
+- **bl-f8cb** - Multi-peer (3+) deliberation extension (reserved / v3+ concern)
+
+**Total estimated effort:** High if pursued
+**Cross-lane dependencies:** Go/no-go decisions first.
 
 ---
 
 ## 5. Recommended Execution Order
 
-### Wave 1: Finish the release + unblock the family + bank a free test guard
+### Wave 1: Public Surface and Reliability Cleanup
 
 | Order | Item | Effort | Rationale |
 | --- | --- | --- | --- |
-| 1a | **bl-d85f** — Complete v0.1 release verification and tag | Low | Sole high-priority item, closest to done; run the remaining interactive permission prompts + post-tag discovery and tag. |
-| 1b | **bl-2ed7** — Implement independent_draft cold-start | Medium | Family-lane critical path; hard-blocks create/decide/plan. Start immediately, in parallel with 1a. |
-| 1c | **bl-3913** — Rubric example cap guard | Low | Free ship-safe quick win; slot in around the above. Author as Vitest `.test.ts`. |
+| 1a | **bl-7c1d** - Control public skill discovery surface on skills.sh | Medium | Roadmap-Now gate for public listing claims; prevents broken or misleading discovery. |
+| 1b | **bl-1f9c** - De-flake the session-observer watch test suite | Low | Removes known hook/CI flake before the next release train. |
+| 1c | **bl-3913** - Add a test guarding bundled rubric examples at <=12 parser-visible criteria | Low | Cheap guardrail; can batch with other test work. |
 
-**Parallelism:** 1a (release/ops) ∥ 1b (consensus-loop core) ∥ 1c (test) — all different surfaces.
+**Parallelism:** `bl-7c1d` (Control public skill discovery surface) can run alongside `bl-1f9c` (De-flake the session-observer watch test suite) and `bl-3913` (Add a test guarding bundled rubric examples) because release-discovery, session-observer tests, and evaluate rubric tests are separate surfaces.
 
-### Wave 2: Family fan-out + advisory utility + hardening design
-
-| Order | Item | Effort | Rationale |
-| --- | --- | --- | --- |
-| 2a | **bl-b9b9** — Add consensus-create skill | Medium | First synthesized wrapper; resolves derived-sectioning design that decide/plan reuse. Needs `bl-2ed7` first. |
-| 2b | **bl-87ef** — Add consensus-decide skill | Low | Thin wrapper; validates the minimal-agency + synthesized edge. |
-| 2c | **bl-0cb8** — Add consensus-plan skill | Low | Thin wrapper; reuses create/decide groundwork. |
-| 2d | **bl-22d3** — Add phone-a-friend advisory peer skill | Medium | Independent high-utility skill over the shipped provider CLI; can run any time. Resolve the naming decision before shipping. |
-| 2e | **bl-3a88** — Tool-based verdict submission (design pass) | High | Highest-leverage durability fix for structured-output fragility; start the design pass alongside the synthesized wrappers it de-risks. |
-
-**Parallelism:** Land `bl-b9b9`'s sectioning design first, then `bl-87ef` ∥ `bl-0cb8`. `bl-22d3` and the `bl-3a88` design pass run independently.
-
-### Wave 3: Reliability hardening + last family skill + packaging spike
+### Wave 2: Next Useful Skill and Packaging Spike
 
 | Order | Item | Effort | Rationale |
 | --- | --- | --- | --- |
-| 3a | **bl-3291** — Provider-exit retry classification | Medium | Targeted reliability/latency win on the shipped CLI; strictly additive. |
-| 3b | **bl-645c** — Add consensus-research skill | Medium | Last family skill; start only after the peer tool-access design question is answered (DR if durable). |
-| 3c | **bl-e0e7** — Share generated runtime output (spike first) | Medium | Maintainability; run the 4-host install spike as a go/no-go before changing the generated-output layout. |
+| 2a | **bl-22d3** - Add phone-a-friend advisory peer skill | Medium | Best next feature: independent, provider CLI exists, docs site exists, useful immediately. |
+| 2b | **bl-e0e7** - Share consensus generated runtime output at the plugin level | Medium | Run the installed-layout spike now that family work is done; proceed only if host layouts support plugin-local shared scripts. |
+| 2c | **bl-9ed4** - Add deliberation metrics (tokens, wall-clock, rounds) to artifacts | Low | Small observability pass if there is room; keep token/cost fields honest when unavailable. |
 
-**Parallelism:** 3a, 3b, 3c touch different surfaces and can run concurrently subject to capacity.
+**Parallelism:** `bl-22d3` (Add phone-a-friend advisory peer skill) and `bl-e0e7` (Share consensus generated runtime output) can run in separate worktrees if no other branch is modifying consensus-loop generated outputs. `bl-9ed4` (Add deliberation metrics) should not overlap with `bl-e0e7` if both touch the loop status/runtime output in practice.
 
-### Wave 4: New collaboration lane (after the family settles)
+### Wave 3: Design-Gated Consensus Expansion
 
 | Order | Item | Effort | Rationale |
 | --- | --- | --- | --- |
-| 4a | **bl-4e2e** — Shared session log substrate | High | Foundation of the multi-agent lane; needs a design pass + DR. Promotable now that the TS foundation landed. |
-| 4b | **bl-f59f** — Inter-agent direct messaging | Medium | Capability layer; record the build-vs-adopt (Agent Mail/`cass`) decision. Needs `bl-4e2e` first. |
+| 3a | **bl-645c** - Add consensus-research skill (investigate question, synthesized findings) | Medium | Roadmap Next, but peer tool access/evidence capture needs a design/DR before implementation. |
+| 3b | **bl-e39a** - Add whole-document harmonization pass after section convergence | Medium | Meaningful artifact-quality improvement after existing section orchestration is stable. |
 
-**Parallelism:** Sequential within the lane (4a → 4b); the lane runs independently of consensus work.
+**Parallelism:** These can be separate projects because `bl-645c` (Add consensus-research skill) is wrapper/tool-access focused while `bl-e39a` (Add whole-document harmonization pass) is loop/section orchestration focused, but both should start with design decisions.
+
+### Wave 4: Larger Collaboration Initiative
+
+| Order | Item | Effort | Rationale |
+| --- | --- | --- | --- |
+| 4a | **bl-4e2e** - Shared session log substrate (become-observable daemon + merged log) | High | Foundation for multi-agent observation and identity. |
+| 4b | **bl-f59f** - Inter-agent direct messaging (addressable, prioritized) | Medium | Build only after substrate identity/state primitives exist. |
+
+**Parallelism:** Keep sequential inside this lane: `bl-4e2e` (Shared session log substrate) before `bl-f59f` (Inter-agent direct messaging).
 
 ### Deferred
 
 | Item | Rationale |
 | --- | --- |
-| **bl-9ed4** — Add deliberation metrics | Low-value observability; roadmap "Later" — slot in as a fill-in after the family ships. |
-| **bl-ef38** — Add similarity heuristic | Deferred nice-to-have; deterministic-only escalation already shipped. |
-| **bl-e39a** — Add whole-document harmonization pass | Roadmap "Later" (v3 Phase 4); defer until the family ships. |
-| **bl-3ca6** — Host-native dispatch protocol | Do the cheap go/no-go; defer the full design (likely `wont_do` near-term). |
-| **bl-db5d** — LLM section auto-chunking | Decision-first; may `wont_do`. Decide before building. |
-| **bl-58b3** — Mid-loop user artifact edits | Decision-first; existing resume may already cover it. May `wont_do`. |
-| **bl-f8cb** — Multi-peer (3+) extension | Go/no-go only; revisit if a concrete 3+-peer need emerges. |
+| **bl-ef38** - Add similarity heuristic for near-converged deliberation states | Useful fill-in, but current deterministic convergence plus escalation is adequate. |
+| **bl-db5d** - LLM section auto-chunking fallback (--sections auto-llm) | Decision-only seed; may resolve `wont_do` unless unstructured-document demand appears. |
+| **bl-58b3** - Mid-loop user artifact edits (type=edit intervention) | Decision-only seed; existing artifact-edit-then-resume may be enough. |
+| **bl-3ca6** - Define host-native dispatch / safe-packet protocol (reserved seam) | Reserved protocol work with no current host-native need. |
+| **bl-f8cb** - Multi-peer (3+) deliberation extension (reserved / v3+ concern) | Speculative large design; needs evidence that two peers are insufficient. |
 
 ---
 
@@ -617,37 +539,30 @@ bl-3913   bl-db5d   bl-58b3   bl-f8cb   (all independent)
 
 ### How backlog items map to roadmap phases
 
-| Roadmap Phase / Lane | Status | Backlog Items | Notes |
+| Roadmap Phase | Status | Backlog Items | Notes |
 | --- | --- | --- | --- |
-| Release / distribution (Now) | In progress (nearly done) | **bl-d85f** — v0.1 release verification and tag | Roadmap Now correctly names it; most gates passed 2026-06-20. |
-| Post-tag discovery verification (Now) | Open | (covered by **bl-d85f** post-tag acceptance criterion) | No standalone item; folded into `bl-d85f`. |
-| Consensus — Remaining family skills (Next) | Open | **bl-2ed7** — independent_draft (gate); **bl-b9b9** — create; **bl-87ef** — decide; **bl-0cb8** — plan; **bl-645c** — research | Roadmap names create as front-loading the cold-start; it now lives in `bl-2ed7`. Surface `bl-2ed7` explicitly on the roadmap as the gate. |
-| Consensus — Peer-invocation hardening (Next) | Open | **bl-3a88** — tool-based verdict submission; **bl-3291** — retry classification | Roadmap names `bl-3a88`; `bl-3291` is a newer design-deferral from the provider-CLI project. |
-| Consensus — Convergence quality (Later) | Open | **bl-ef38** — similarity heuristic | Roadmap groups as deferred nice-to-have. |
-| Consensus — Harmonization & metrics (Later) | Open | **bl-e39a** — harmonization; **bl-9ed4** — deliberation metrics | Roadmap Phase 4, after family ships. |
-| Multi-agent collaboration substrate (Later) | Open | **bl-4e2e** — shared session log; **bl-f59f** — inter-agent messaging | Roadmap sequences this after TS hardening (now done) — promote off "Later." |
-| Reserved seams / provider CLI (implied) | Open | **bl-3ca6** — host-native dispatch; **bl-e0e7** — shared runtime output | Newer items not yet broken out on the roadmap (see Gaps/Orphans). |
+| Now: Post-tag discovery verification | Active | **bl-7c1d** - Control public skill discovery surface on skills.sh | Strong alignment. This is the practical backlog record for the remaining public-discovery gate. |
+| Next: Consensus research | Active | **bl-645c** - Add consensus-research skill (investigate question, synthesized findings) | Roadmap correctly treats this as separate from completed create/decide/plan family work. |
+| Next: Advisory peer | Active | **bl-22d3** - Add phone-a-friend advisory peer skill | Strong alignment. Docs IA gate is satisfied, so this is buildable. |
+| Later: Harmonization / metrics / convergence quality | Deferred | **bl-e39a** - Add whole-document harmonization pass; **bl-9ed4** - Add deliberation metrics; **bl-ef38** - Add similarity heuristic | Roadmap and backlog agree these are follow-ons rather than immediate blockers. |
+| Later: Plugin packaging maintainability | Deferred | **bl-e0e7** - Share consensus generated runtime output at the plugin level | Roadmap captures the non-concurrency constraint; current family work is complete, so the item is now eligible for a spike. |
+| Later: v3 discussion / reserved seeds | Deferred | **bl-db5d** - LLM section auto-chunking fallback; **bl-58b3** - Mid-loop user artifact edits; **bl-3ca6** - Define host-native dispatch / safe-packet protocol; **bl-f8cb** - Multi-peer 3+ deliberation extension | Correctly not near-term. Keep decision-first. |
+| Later: Multi-agent collaboration substrate | Deferred / promotable | **bl-4e2e** - Shared session log substrate; **bl-f59f** - Inter-agent direct messaging | Roadmap says promotable when there is appetite after family/docs. Family/docs are done; this is now an explicit capacity choice, not a dependency block. |
 
 ### Gaps: Roadmap items without backlog coverage
 
 | Roadmap Item | Phase | Recommendation |
 | --- | --- | --- |
-| Public marketplace submission (Claude/Cursor), Codex Plugin Directory, skills.sh verification | After v0.1 tag | Still no dedicated post-tag distribution item. `bl-d85f` covers post-tag skills.sh discovery verification but not the marketplace/Plugin-Directory submissions. Consider a successor item after the tag. |
-| Cursor submit-tool / custom ACP provider path exploration | Later | Partially related to `bl-3a88` (verdict submission) but not the same; no dedicated item. Track if pursued. |
-| Transcript-tooling deferrals (Cursor SQLite store, provider-hook push, Gemini CLI adapter, notable-event memory capture, richer export rendering) | Later | Intentionally not in the backlog ("promotable on demand"). No action unless prioritized. |
-| Additional plugin groups as families mature | Later | Speculative; no backlog item needed yet. |
+| Public marketplace submission, Codex Plugin Directory submission, and hosted skills.sh listing after discovery control | Now / release-distribution follow-up | `bl-7c1d` (Control public skill discovery surface) covers discovery-surface correctness, but not the full submission workflow. After `bl-7c1d` closes, consider a narrow successor backlog item for actual public submission/listing verification if the repo is ready to claim it. |
+| Typed-test-fixture cleanup and per-domain Vitest projects / coverage reporting | Later / optional tooling polish | Leave unfiled unless test-maintenance pain increases. `bl-1f9c` (De-flake the session-observer watch test suite) covers the only currently painful test-harness issue. |
+| Codex read-only submit capture-path relocation and strict require-submission mode | Later / provider-CLI follow-up | The roadmap mentions these as deferrals but no active item exists. File a backlog item only if provider-CLI reliability work returns to active priority. |
 
-### Orphans: Backlog items not on the roadmap
+### Orphans: Backlog items not explicitly represented on the roadmap
 
 | Backlog Item | Recommendation |
 | --- | --- |
-| **bl-22d3** — Add phone-a-friend advisory peer skill | Newly seeded (2026-06-20); not yet on the roadmap. Add a line under the consensus lane (advisory/utility) — it is a distinct deliverable from the deliberation family. |
-| **bl-e0e7** — Share consensus generated runtime output | Maintainability/packaging item not on the roadmap. Low-ceremony; either add a "provider-CLI / packaging maintainability" note or leave as a standalone backlog task. |
-| **bl-3291** — Provider-exit retry classification | Fits the "peer-invocation hardening" line on the roadmap Next lane; consider naming it there alongside `bl-3a88`. |
-| **bl-3ca6** — Host-native dispatch protocol | Reserved seam; mention under the provider-CLI lane so the gate is visible, even though it is likely deferred. |
-| **bl-db5d / bl-58b3 / bl-f8cb** — v3 decision/reserved seeds | Intentionally parked seeds; fine to leave off the roadmap until a decision promotes one. |
-
-All active items map to a lane or are intentionally-parked seeds — no genuine orphans, but several newly-seeded items (`bl-2ed7`, `bl-22d3`, `bl-3291`, `bl-e0e7`, `bl-3ca6`) deserve explicit roadmap lines so the planning surface reflects the current board.
+| **bl-1f9c** - De-flake the session-observer watch test suite | Add to the roadmap as a short "Now maintenance" callout or keep in backlog-only execution planning; it addresses real release friction. |
+| **bl-3913** - Add a test guarding bundled rubric examples at <=12 parser-visible criteria | Backlog-only is fine. It is a cheap guardrail, not roadmap-level strategy. |
 
 ---
 
@@ -655,25 +570,24 @@ All active items map to a lane or are intentionally-parked seeds — no genuine 
 
 ### Strategic observations
 
-1. **The board has matured past its biggest risk.** The last review's central worry — building synthesized-mode skills on a fragile external (Paseo) structured-output path — is largely resolved: the owned provider CLI shipped (DR-023) and owns validation/retry. The remaining structured-output work (`bl-3a88`) is now durability hardening, not a foundational dependency.
-2. **The family lane has a single new chokepoint: `bl-2ed7`.** Pulling `independent_draft` out of `consensus-create` into a shared `consensus-loop` capability was the right call — but it means three family skills are hard-blocked on one M-sized item. Land it first to convert decide/plan into the cheap wrappers they should be.
-3. **A genuinely new lane opened.** The multi-agent collaboration substrate (`bl-4e2e` → `bl-f59f`) is a different kind of work from the deliberation engine — observation/messaging plumbing extending `session-observer`. Its explicit "after TS hardening" gate is now satisfied, so it is promotable; treat it as an initiative with a design pass, not a quick feature.
-4. **Two true parallel tracks exist today.** Release (`bl-d85f`) and the family lane share nothing; the advisory utility (`bl-22d3`) and the provider-CLI hardening lane are also independent of family sequencing. Several things can run at once if capacity allows.
-5. **Several seeds are decisions, not builds.** `bl-db5d`, `bl-58b3`, `bl-f8cb`, and `bl-3ca6` are deliberately parked "decide-before-build" / "go-no-go" items; some will likely resolve `wont_do`. Do not let their count inflate the perceived build backlog — the real near-term build queue is much shorter than 20.
+1. **The active board is cleaner than the stale June 20 review.** Archived work now includes the v0.1 release, docs IA, provider-CLI hardening, independent draft, and create/decide/plan. The active backlog should not keep optimizing around those closed gates.
+2. **`bl-7c1d` (Control public skill discovery surface on skills.sh) is the real release continuation.** The release is done, but public-discovery truth is still gated on internal flags, self-redirect behavior, and live verification.
+3. **The next feature should probably be `bl-22d3` (Add phone-a-friend advisory peer skill), not `bl-645c` (Add consensus-research skill).** Phone-a-friend is independent and validates the new docs site with lower design risk; consensus-research needs peer tool-access and evidence-capture decisions first.
+4. **The multi-agent substrate lane is now dependency-unblocked but still capacity-heavy.** `bl-4e2e` (Shared session log substrate) is a full design/build initiative; start it only when the operator wants that lane, not as incidental follow-up.
+5. **Several low-priority consensus-loop seeds should be decision-first.** `bl-db5d` (LLM section auto-chunking fallback), `bl-58b3` (Mid-loop user artifact edits), `bl-3ca6` (Define host-native dispatch / safe-packet protocol), and `bl-f8cb` (Multi-peer 3+ deliberation extension) should not become implementation projects without explicit go/no-go evidence.
 
 ### Risks
 
 | Risk | Mitigation |
 | --- | --- |
-| `bl-2ed7` is a hidden single point of failure for the family lane — three skills wait on it, but its "medium" rating can make it look optional. | Sequence it explicitly first in Wave 1 and surface it on the roadmap Next lane as the family gate. |
-| `bl-d85f`'s remaining gates are interactive (provider permission prompts) and easy to stall; it is the only thing between the repo and public claims. | Schedule the interactive prompts as a focused session; do not treat "automated gates passed" as "released." |
-| Building the synthesized-mode wrappers (`bl-b9b9`/`-87ef`/`-0cb8`) before `bl-3a88` hardening reproduces the dogfood structured-output failures. | Run the `bl-3a88` design pass alongside Wave 2 so hardening lands with/just after the synthesized wrappers. |
-| `bl-645c` and `bl-b9b9` carry unresolved design questions (peer tool-access; derived sectioning) inside "feature" items — scope-creep risk. | Split a short design/DR pass off the front of each before committing to build, especially `bl-645c`'s peer tool-access question. |
-| `bl-e0e7` could be built before its multi-host install spike, coupling the change to an unproven layout assumption. | Treat the spike as a hard go/no-go gate; record the result before touching `build-generated.mjs`. |
-| Newly-seeded items (`bl-2ed7`, `bl-22d3`, `bl-3291`, `bl-e0e7`, `bl-3ca6`) are not yet reflected on the roadmap, so the planning surface understates the board. | Run `oat-pjm-update-repo-reference` to add roadmap lines for the new items. |
+| Public discovery gets claimed before `bl-7c1d` (Control public skill discovery surface on skills.sh) lands. | Keep docs/release wording as non-claim language until internal flags, self-redirects, and live discovery checks are complete. |
+| `bl-e0e7` (Share consensus generated runtime output at the plugin level) creates install regressions in one host. | Treat the multi-host installed-layout spike as a hard go/no-go; keep duplicated loop outputs if any host cannot resolve plugin-local shared scripts. |
+| `bl-1f9c` (De-flake the session-observer watch test suite) weakens coverage while removing flake. | Replace timing races with deterministic stop conditions and hardened teardown assertions; keep baseline emission and cleanup behavior asserted. |
+| `bl-645c` (Add consensus-research skill) ships without a tool-access/evidence model. | Make the peer tool-access/evidence-capture decision an explicit design/DR gate before implementation. |
+| Multi-agent substrate work balloons into orchestration platform scope. | Keep `bl-4e2e` (Shared session log substrate) scoped to observation/merged log/identity; defer direct messaging to `bl-f59f` (Inter-agent direct messaging) and orchestration beyond that. |
 
 ### Quick wins to tackle immediately
 
-1. **bl-d85f** — Complete v0.1 release verification and tag (Low remaining effort; sole high-value item; clears the path to public claims).
-2. **bl-3913** — Add the rubric example cap guard (Low effort; ship-safe; no runtime change — author as Vitest `.test.ts`).
-3. **bl-2ed7** — Implement `independent_draft` cold-start (Medium effort but the highest-leverage unblock — converts three blocked family skills into ready work).
+1. **bl-1f9c** - De-flake the session-observer watch test suite (low effort, removes known CI/hook friction).
+2. **bl-3913** - Add a test guarding bundled rubric examples at <=12 parser-visible criteria (low effort, protects a known parser-cap invariant).
+3. **bl-9ed4** - Add deliberation metrics (tokens, wall-clock, rounds) to artifacts (low effort if scoped to available/unavailable semantics and existing counters).
