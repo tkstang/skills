@@ -432,7 +432,7 @@ git commit -m "docs(p03-t02): record skills.sh crawl/submission finding and cat-
 | final  | code     | pending         | -          | -                                                     |
 | spec   | artifact | pending         | -          | -                                                     |
 | design | artifact | fixes_completed | 2026-06-26 | reviews/archived/artifact-design-review-2026-06-26.md |
-| plan   | artifact | passed          | 2026-06-26 | structured auto-review (no file); M1+m1+m2 applied     |
+| plan   | artifact | received        | 2026-06-26 | reviews/artifact-plan-review-2026-06-26.md             |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 
