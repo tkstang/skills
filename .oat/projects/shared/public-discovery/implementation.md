@@ -379,7 +379,7 @@ Track test execution during implementation.
 
 **Final review:** passed on 2026-06-26.
 
-- Artifact: `reviews/final-review-2026-06-26.md`
+- Artifact: `reviews/archived/final-review-2026-06-26.md`
 - Findings: 0 Critical, 0 Important, 0 Medium, 0 Minor
 - Next: project summary, documentation sync, and final PR.
 
