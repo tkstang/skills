@@ -331,7 +331,13 @@ describe('docs-presence', () => {
     const rootAgents = await read('AGENTS.md');
     const consensusAgents = await read('plugins/consensus/AGENTS.md');
     const testAgents = await read('tests/AGENTS.md');
-    const decisions = await read('.oat/repo/reference/decision-record.md');
+    const decisionIndex = await read('.oat/repo/reference/decisions/index.md');
+    const canonicalTypescriptDecision = await read(
+      '.oat/repo/reference/decisions/DR-260615-canonical-typescript-sources.md',
+    );
+    const sharedTranscriptDecision = await read(
+      '.oat/repo/reference/decisions/DR-260604-shared-transcript-knowledge.md',
+    );
     const sharedTranscriptCore = await read('shared/transcript-core/README.md');
     const exportTranscriptFormats = await read(
       'skills/export-session-transcript/references/transcript-formats.md',
@@ -364,9 +370,13 @@ describe('docs-presence', () => {
     expect(exportTranscriptFormats).not.toMatch(
       /shared\/transcript-core\/runtimes\.mjs/,
     );
-    expect(decisions).toMatch(
+    expect(decisionIndex).toMatch(/DR-260615-canonical-typescript-sources/);
+    expect(decisionIndex).toMatch(/DR-260604-shared-transcript-knowledge/);
+    expect(canonicalTypescriptDecision).toMatch(
       /Canonical TypeScript sources build committed generated runtime outputs/,
     );
-    expect(decisions).toMatch(/DR-014[\s\S]+Superseded in implementation/);
+    expect(sharedTranscriptDecision).toMatch(
+      /DR-014[\s\S]+Superseded in implementation/,
+    );
   });
 });

@@ -1,0 +1,15 @@
+---
+id: DR-260621-consensus-verdict-submission
+title: Consensus verdict submission uses owned submit CLI with sidecar capture
+date: 2026-06-21
+status: Accepted.
+legacy_id: DR-024
+---
+
+### DR-024: Consensus verdict submission uses owned submit CLI with sidecar capture
+
+- **Date:** 2026-06-21
+**Context:** The provider CLI originally obtained peer verdicts by asking the model to end its turn with schema-valid final-message JSON, then parsing and validating that output after the turn. The 2026-06-13 consensus dogfood exposed two reliability failures in that contract: a peer finished without a structured-output message, and Codex/OpenAI strict-output rejected a schema before producing a usable verdict. The consensus-family synthesized-mode wrappers (`bl-b9b9`/`bl-87ef`/`bl-0cb8`) need a stronger verdict contract before they fan out.
+**Decision:** Use an owned submit-CLI seam as the primary verdict-submission mechanism. The provider turn injects an exact `CONSENSUS_SUBMIT_COMMAND` (`consensus submit --json -` via the generated checkout/plugin CLI), plus `CONSENSUS_SUBMIT_SCHEMA`, `CONSENSUS_SUBMIT_FILE`, and `CONSENSUS_SUBMIT_MAX_BYTES`. Submit-enabled Codex turns deliberately use prompt-only local validation rather than native `--output-schema`, so strict-output rejection cannot occur before the peer has a chance to submit. The peer runs the injected command during its turn with the verdict JSON on stdin; the command validates against the same per-mode schema, enforces the submit byte cap, writes a run-bound sidecar file on success, and returns a structured `SubmitResult` plus actionable stderr on failure so the peer can self-correct in-turn. After the provider turn exits, the runner reads the bounded sidecar as the preferred verdict source and surfaces it through the existing `ConsensusCliRunEnvelope`; the envelope shape remains unchanged and diagnostics record `verdict_source: submit`. If no valid sidecar exists, the runner falls back to the existing final-message parse path, then to existing missing-output/schema-validation terminal handling. MCP is a rejected alternative for this repo because it adds a server/config boundary, uneven provider support, and runtime surface area beyond the dependency-free subprocess contract.
+**Rationale:** Submit-CLI keeps the shipped runtime dependency-free, works through the one owned provider subprocess boundary, preserves deterministic post-turn capture and the artifact-as-audit-trail contract, and gives peers in-context validation feedback without requiring the deterministic wrapper to re-prompt from outside the turn. Deterministic fixtures now cover both historical failure classes and show submit capture converting them to success. A gated live E2E passed with Codex using `workspace-write`, `approval_policy=never`, and `verdict_source: submit`; the same evidence showed Codex `read-only` reaches the command but cannot write the current tmpdir sidecar (`EPERM`), so claiming read-only support requires a future capture-path relocation under an allowed cwd/workspace path.
+- **Status:** Accepted.

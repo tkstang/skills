@@ -1,6 +1,6 @@
 # Consensus Design Research
 
-Evidence inputs for the consensus plugin (`plugins/consensus/`). These are read-only snapshots of the design lineage that produced v0.1; they are not active planning surfaces. Active commitments live in `../../roadmap.md`, `../../decision-record.md`, and `../../backlog/`.
+Evidence inputs for the consensus plugin (`plugins/consensus/`). These are read-only snapshots of the design lineage that produced v0.1; they are not active planning surfaces. Active commitments live in `../../../pjm/roadmap.md`, `../../decisions/`, and `../../../pjm/backlog/`.
 
 ## Contents
 
