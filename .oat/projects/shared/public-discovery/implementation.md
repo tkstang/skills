@@ -24,12 +24,13 @@ oat_generated: false
 
 ## Progress Overview
 
-| Phase   | Status      | Tasks | Completed |
-| ------- | ----------- | ----- | --------- |
-| Phase 1 | in_progress | N     | 0/N       |
-| Phase 2 | pending     | N     | 0/N       |
+| Phase                                  | Status      | Tasks | Completed |
+| -------------------------------------- | ----------- | ----- | --------- |
+| Phase 1 — Consensus standalone recovery | in_progress | 5     | 0/5       |
+| Phase 2 — Upstream handoff prompt       | pending     | 1     | 0/1       |
+| Phase 3 — Verification & recording      | pending     | 2     | 0/2       |
 
-**Total:** 0/{N} tasks completed
+**Total:** 0/8 tasks completed
 
 ---
 
