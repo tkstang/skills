@@ -1,6 +1,6 @@
 ---
 title: 'Installation'
-description: 'Install the consensus plugin per provider (Claude Code, Codex, Cursor) and check prerequisites.'
+description: 'Install the consensus plugin per provider, check prerequisites, and recover standalone consensus skill installs.'
 ---
 
 # Installation
@@ -56,6 +56,28 @@ Agent's `--plugin-dir` option.
 
 The consensus wrappers always invoke peers through the generated provider CLI.
 There is no alternate backend selector in v0.1.
+
+## Standalone consensus recovery
+
+Use the full consensus plugin install when possible. If a consensus skill was
+installed standalone through skills.sh without the plugin tree, the wrapper will
+look for a shared provider CLI at `~/.consensus/consensus.mjs`. Provision it with
+the pinned installer:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/tkstang/skills/v0.1.2/install.sh | bash
+```
+
+The remote one-liner becomes usable once `v0.1.2` is released. Before that tag
+exists, run the installer from a clone instead:
+
+```bash
+bash install.sh
+```
+
+Checkout mode copies `plugins/consensus/scripts/consensus.mjs` into
+`~/.consensus/consensus.mjs` without network access. Re-run the installer after
+updating the checkout if the consensus runtime changes.
 
 ## Check provider readiness
 
