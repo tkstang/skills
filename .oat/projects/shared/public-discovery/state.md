@@ -1,6 +1,6 @@
 ---
 oat_current_task: null
-oat_last_commit: 1184322
+oat_last_commit: 8b5d663
 oat_blockers: []
 associated_issues: [{type: backlog, ref: "BL-260621-control-public-skill-discovery"}] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
@@ -12,7 +12,7 @@ oat_hill_checkpoints: [] # Configured: which phases require human-in-the-loop li
 oat_hill_completed: [] # Progress: which HiLL checkpoints have been completed
 oat_parallel_execution: false
 oat_phase: implement # Current phase: discovery | spec | design | plan | implement | decomposition
-oat_phase_status: in_progress # Status: in_progress | complete | pr_open
+oat_phase_status: complete # Status: in_progress | complete | pr_open
 # oat_orchestration_retry_limit: 2  # optional; override fix-loop retry limit (range 0-5)
 oat_dispatch_ceiling: # project override for provider-aware dispatch ceilings
   preset: maximum
@@ -27,7 +27,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-06-26T02:20:27.593Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-06-26T23:19:03Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-06-26T23:26:31Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -39,7 +39,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation - Tasks complete; awaiting final review.
+Implementation complete.
 
 ## Artifacts
 
@@ -54,7 +54,7 @@ Implementation - Tasks complete; awaiting final review.
 - ✓ Discovery complete
 - ✓ Plan complete
 - ✓ Implementation tasks complete
-- ⧗ Awaiting final review
+- ✓ Final review passed
 
 ## Blockers
 
@@ -62,4 +62,4 @@ None
 
 ## Next Milestone
 
-Run final verification and final code review.
+Generate docs/project summary and open final PR.
