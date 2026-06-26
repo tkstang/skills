@@ -94,13 +94,16 @@ lever" hypothesis was disproven 2026-06-20).
    gitignored). A hand-edited flag is clobbered on the next sync — the flag must
    come from the sync source or a deterministic post-sync step. **Where the flag
    lives is the primary open design question.**
-3. **Category 2 (consensus `refine`/`evaluate`):** preferred direction is **keep
-   discoverable + self-redirect**, not hide — leave them visible so the plugin is
-   marketable, but make standalone invocation fail gracefully (SKILL.md tells the
-   host agent the skill needs the consensus plugin; the wrapper turns
-   `CONSENSUS_PROVIDER_CLI_MISSING` into an actionable "install the consensus
-   plugin" message). Alternative if redirect proves insufficient: mark them
-   `internal` and verify the plugin still presents via plugin-manifest discovery.
+3. **Category 2 (consensus skills — all five: `refine`, `evaluate`, `decide`,
+   `plan`, `create`):** keep discoverable, not hidden — leave them visible so the
+   plugin stays marketable, but make a standalone install **recoverable** rather
+   than cryptically broken. The shared-core resolver gains a `~/.consensus/`
+   fallback, the missing-CLI failure becomes an actionable message with two
+   recovery options (install the consensus plugin, or run the pinned
+   `install.sh`), and a repo `install.sh` (pinned fetch from a repo ref)
+   provisions the shared script. Scope is all five current consensus skills, not
+   only the originally-named `refine`/`evaluate` (mechanism detailed in
+   `design.md`).
 4. **Category 1 (standalone skills):** confirm `session-observer` and
    `export-session-transcript` remain the only individually-installable entries
    and resolve/run correctly.
@@ -112,11 +115,12 @@ lever" hypothesis was disproven 2026-06-20).
 
 - **Do not hand-edit `oat sync`-generated files** (`.agents/skills/**`); the flag
   must survive a sync. `oat` is an external CLI, not vendored.
-- **Consensus SKILL.md changes are shipped-skill content/behavior changes** →
-  require a skill **version bump** with top-level `version` and
-  `metadata.version` kept in sync (`scripts/validate.mjs`), and the changed-skill
-  bump is enforced by `scripts/validate-skill-versions.mjs`. (`refine`/`evaluate`
-  are currently at `0.1.1`.)
+- **Consensus SKILL.md/runtime changes are shipped-skill content/behavior
+  changes** → require a skill **version bump** with top-level `version` and
+  `metadata.version` kept in sync (`scripts/validate.mjs`), enforced by
+  `scripts/validate-skill-versions.mjs`. This applies to whichever of the five
+  consensus skills change (`refine`/`evaluate` are at `0.1.1`; `decide`/`plan`/
+  `create` bump from their current versions).
 - **Consensus runtime behavior changes go through canonical TS under `src/`**,
   then `pnpm run build` regenerates the `.mjs`; never hand-edit generated
   `// GENERATED` outputs.
@@ -127,14 +131,23 @@ lever" hypothesis was disproven 2026-06-20).
 
 ## Success Criteria
 
-- `npx skills add tkstang/skills --list` no longer surfaces the `.agents/skills/**`
-  OAT tooling skills; `INSTALL_INTERNAL_SKILLS=1 … --list` shows them reappear.
-- The `internal` flag on `.agents/skills/**` survives an `oat sync` run.
-- Consensus `refine`/`evaluate` handled per the chosen direction (redirect or
-  hide), with a skill version bump if their SKILL.md/runtime content changes, and
-  the consensus plugin still discoverable **as a plugin**.
-- `session-observer` and `export-session-transcript` confirmed as the only
-  individually-installable standalone entries, resolving/running correctly.
+- **Category 3 deliverable (closes this project):** the upstream handoff prompt
+  for `open-agent-toolkit` is authored and committed, naming the flag, the
+  affected skill set, and the post-sync verification it should produce.
+- **Category 3 deferred verification (post-upstream follow-up — NOT a closure
+  gate):** after the upstream `metadata.internal` flag lands and syncs into this
+  repo, confirm `npx skills add tkstang/skills --list` no longer surfaces the
+  `.agents/skills/**` OAT tooling skills and that `INSTALL_INTERNAL_SKILLS=1 …
+  --list` shows them reappear (flag survives `oat sync`). Tracked against
+  `BL-260621`.
+- **Category 2:** all five consensus skills (`refine`, `evaluate`, `decide`,
+  `plan`, `create`) stay discoverable; a standalone install surfaces the
+  actionable missing-CLI message and is recoverable via the pinned `install.sh`
+  (which provisions `~/.consensus/consensus.mjs`); changed consensus skills get a
+  version bump; the consensus plugin remains discoverable **as a plugin**.
+- **Category 1:** `session-observer` and `export-session-transcript` confirmed as
+  the only individually-installable standalone entries, resolving/running
+  correctly.
 - skills.sh crawl-vs-submission behavior verified and the listing strategy
   recorded in repo reference state before any public-listing claim.
 
