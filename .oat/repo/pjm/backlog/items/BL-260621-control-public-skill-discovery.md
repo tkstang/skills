@@ -12,7 +12,7 @@ labels:
   - skills
 assignee: null
 created: 2026-06-21T00:05:11Z
-updated: 2026-06-21T00:05:11Z
+updated: 2026-06-26T23:01:24Z
 associated_issues: []
 legacy_id: bl-7c1d
 ---
@@ -93,6 +93,57 @@ verification.
 - **The earlier "root `SKILL.md` lever" was wrong** — default discovery already
   walks every container dir, so a repo-root `SKILL.md` does not suppress
   `.agents/skills/`. Scratch it.
+
+## Findings (2026-06-26)
+
+p03 verification used the published `skills@1.5.13` CLI explicitly. From this
+repo cwd, the exact unversioned `npx skills ...` spelling resolves the local
+package named `skills` first and fails with `npm error could not determine
+executable to run`; version-pinning avoids that local package shadow while still
+exercising the public CLI.
+
+### Hosted index checks
+
+| Check | Date | Command / URL | Output snippet | Result |
+| ----- | ---- | ------------- | -------------- | ------ |
+| Owner search | 2026-06-26 | `npx -y skills@1.5.13 find tkstang` | `No skills found for "tkstang"` | `tkstang/skills` is not indexed by the hosted search surface. |
+| Skill search | 2026-06-26 | `npx -y skills@1.5.13 find session-observer` | `No skills found for "session-observer"` | The intended standalone skill does not surface from the hosted index yet. |
+| Owner-scoped search | 2026-06-26 | `npx -y skills@1.5.13 find session --owner tkstang` | `No skills found for "session" from owner "tkstang"` | No indexed skills are associated with owner `tkstang`. |
+| Direct repo page | 2026-06-26 | `curl -L https://skills.sh/tkstang/skills` | `HTTP_STATUS=404`, `FINAL_URL=https://www.skills.sh/tkstang/skills`, `NEXT_HTTP_ERROR_FALLBACK;404` | No hosted repo page exists for `tkstang/skills`. |
+| Hosted search page | 2026-06-26 | `curl -L 'https://www.skills.sh/search?q=tkstang'` | `HTTP_STATUS=200`; grep found no `tkstang/skills`, `session-observer`, or `export-session-transcript` in the returned HTML | The rendered search route is reachable, but the static response contains no matching repo or skill IDs. |
+| Public API search | 2026-06-26 | `curl -L 'https://skills.sh/api/v1/skills/search?q=tkstang&limit=10'` | `HTTP_STATUS=401`; `authentication_required`; message points to `https://skills.sh/docs/api#authentication` | Public unauthenticated API search is not available for this verification path. |
+
+### Docs consulted
+
+- <https://vercel.com/kb/guide/agent-skills-creating-installing-and-sharing-reusable-agent-context> states there is no special skills.sh publish command or registry submission flow: put the skill in a git repo, share it, and installs through `npx skills add` can make it appear on skills.sh via install telemetry.
+- <https://www.skills.sh/docs> states the leaderboard is ranked from anonymous telemetry collected by the `skills` CLI when users install skills.
+- <https://www.skills.sh/docs/api> documents the hosted search/detail API, but live unauthenticated requests returned `authentication_required`.
+- <https://vercel.com/changelog/introducing-skills-the-open-agent-skills-ecosystem> describes skills.sh as a directory and leaderboard for discovering, browsing, and tracking skill package usage.
+- <https://github.com/vercel-labs/skills/issues/880> is still an open upstream question asking whether skills.sh auto-indexes public GitHub repos or requires manual submission; the current Vercel KB above is the clearest published guidance.
+
+### Determination and strategy
+
+- **Auto-crawl:** no evidence that skills.sh currently auto-crawls arbitrary
+  public GitHub repos into search. `tkstang/skills` is public and installable via
+  direct CLI source, but it is absent from hosted `skills find`, hosted search,
+  and the direct repo page.
+- **Submission-gated:** no active registry submission flow was found. Current
+  Vercel guidance says there is no special publish command; hosted visibility can
+  follow install telemetry.
+- **Chosen listing strategy:** do not submit or claim a public listing now. After
+  release and after the cat-3 upstream `metadata.internal` flag lands and syncs
+  back, seed/verify hosted visibility through real direct installs of the intended
+  standalone entries (`session-observer`, `export-session-transcript`) and re-run
+  the hosted checks above. If Vercel later exposes a manual submission path, use
+  it only after the cat-3 hiding verification passes.
+- **Hosted `metadata.internal` behavior:** still unverified. Because this repo is
+  absent from the hosted index, there is no hosted indexed before/after surface on
+  which to test whether skills.sh honors `metadata.internal`. Treat CLI behavior
+  as verified, but keep hosted behavior as a post-indexing follow-up.
+- **Cat-3 deferral:** the actual hiding of `.agents/skills/**` remains deferred
+  until the `open-agent-toolkit` upstream source adds `metadata.internal: true`
+  and this repo syncs it back. Do not claim a public listing or hosted hiding
+  outcome before that post-upstream verification is complete.
 
 ## Open questions / design tensions
 
