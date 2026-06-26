@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-26
-oat_current_task_id: p03-t01
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -28,9 +28,9 @@ oat_generated: false
 | -------------------------------------- | ----------- | ----- | --------- |
 | Phase 1 — Consensus standalone recovery | completed   | 5     | 5/5       |
 | Phase 2 — Upstream handoff prompt       | completed   | 1     | 1/1       |
-| Phase 3 — Verification & recording      | in_progress | 2     | 0/2       |
+| Phase 3 — Verification & recording      | completed   | 2     | 2/2       |
 
-**Total:** 6/8 tasks completed
+**Total:** 8/8 tasks completed
 
 ---
 
@@ -162,20 +162,44 @@ oat_generated: false
 
 ## Phase 3: Verification & recording (cat 1 + skills.sh)
 
-**Status:** in_progress
+**Status:** completed
 **Started:** 2026-06-26
+
+### Phase Summary
+
+**Outcome (what changed):**
+
+- Recorded the live `skills@1.5.13` discovery surface, including full parsed proof that the only standalone `skills/` entries are `session-observer` and `export-session-transcript`.
+- Verified both standalone skills install and run from isolated HOME/cache/XDG directories.
+- Simulated standalone consensus recovery and verified `install.sh` provisions `~/.consensus/consensus.mjs` for the copied `refine` skill.
+- Recorded skills.sh hosted-index checks, no-current-listing strategy, and cat-3 deferral in the backlog item.
+
+**Key files touched:**
+
+- `.oat/projects/shared/public-discovery/verification/cli-discovery.md` - CLI discovery, standalone install/run, and recovery evidence.
+- `.oat/repo/pjm/backlog/items/BL-260621-control-public-skill-discovery.md` - hosted-index findings and listing strategy.
+
+**Verification:**
+
+- Run: isolated `npx -y skills@1.5.13 add tkstang/skills --list`; standalone installs and entrypoint `--help`; local consensus recovery simulation; `skills find` and skills.sh URL checks; p03 review/re-review.
+- Result: pass. p03 re-review had 0 findings.
+
+**Notes / Decisions:**
+
+- Unversioned `npx skills ...` shadows the local package from this checkout, so the evidence uses explicit `skills@1.5.13`.
+- Hosted `tkstang/skills` is not indexed yet; do not claim skills.sh listing until post-cat-3 verification.
 
 ### Task p03-t01: Verify CLI discovery — standalone entries + consensus recovery
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** 558ce1b
 
 ---
 
 ### Task p03-t02: Verify and record skills.sh crawl/submission behavior
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** e8ab87a
 
 ---
 
@@ -190,6 +214,40 @@ _- Outstanding Items_
 <!-- orchestration-runs-start -->
 
 _Orchestration runs from `oat-project-implement` are appended here, most-recent-first within the file but append-only at the bottom of the log._
+
+### Run 2 — 2026-06-26 18:19
+
+**Branch:** feat-public-discovery
+**Tier:** 1
+**Policy:** merge-strategy=merge, retry-limit=2
+**Phases:** 1 executed, 1 passed, 0 failed, 0 stopped
+
+#### Phase Outcomes
+
+| Phase | Implementer | Review | Fix Iterations | Disposition |
+| ----- | ----------- | ------ | -------------- | ----------- |
+| p03   | DONE        | pass   | 1/2            | merged      |
+
+#### Parallel Groups
+
+- p03: sequential on orchestration branch.
+
+#### Dispatch Notes
+
+- Dispatch: p03 implementation used effort_axis=selected:xhigh, model_axis=inherited, dispatch_ceiling=xhigh. Rationale: live CLI/network checks, local consensus recovery simulation, and backlog evidence recording.
+- Dispatch: p03 review and re-review used `oat-reviewer-xhigh`; initial review found one Important evidence gap and one Minor backlog cleanup, fixed by `1184322`.
+
+#### Outstanding Items
+
+- None.
+
+#### Artifact / Design Deltas
+
+Run-scoped snapshot only. The durable record is `## Deviations from Plan / Design`; consolidate any non-`None` entries there at the next phase boundary.
+
+| Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
+| ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
+| None | - | - | - | - | - | - |
 
 ### Run 1 — 2026-06-26 17:47
 
@@ -269,6 +327,36 @@ Chronological log of implementation progress.
 
 ---
 
+### 2026-06-26 — Phase 3
+
+**Session Start:** 17:50
+
+- [x] p03-t01: Verify standalone install/run + consensus discovery and recovery - 558ce1b
+- [x] p03-t02: Record skills.sh crawl/submission finding and cat-3 deferral - e8ab87a
+- [x] p03 review fix: preserve complete discovery evidence and supersede stale backlog note - 1184322
+
+**What changed (high level):**
+
+- Added durable CLI discovery evidence under `verification/cli-discovery.md`.
+- Updated the backlog item with dated hosted-index findings and the no-listing-until-cat-3 strategy.
+
+**Decisions:**
+
+- Use explicit `skills@1.5.13` for reproducible CLI checks because unversioned `npx skills` shadows this repo's package name from the checkout.
+- Keep hosted-listing claims deferred until the OAT `metadata.internal` upstream work lands and syncs back.
+
+**Follow-ups / TODO:**
+
+- Run final verification and final review.
+
+**Blockers:**
+
+- None.
+
+**Session End:** 18:19
+
+---
+
 ## Deviations from Plan / Design
 
 Document any intentional deviations from the original plan, spec, or design. Include accepted review findings where the shipped implementation is source of truth and a lifecycle artifact needs alignment.
@@ -284,29 +372,43 @@ Track test execution during implementation.
 | Phase | Tests Run | Passed | Failed | Coverage |
 | ----- | --------- | ------ | ------ | -------- |
 | p01/p02 fan-in | `pnpm test`; `pnpm lint`; `pnpm run type-check`; `pnpm run build:check` | yes | no | n/a |
+| p03 | isolated `skills@1.5.13` discovery/install checks; consensus recovery simulation; skills.sh hosted checks | yes | no | n/a |
 
 ## Final Summary (for PR/docs)
 
 **What shipped:**
 
-- {capability 1}
-- {capability 2}
+- Standalone consensus skills can recover a missing shared provider CLI through `~/.consensus/consensus.mjs`.
+- All five consensus wrappers share the same actionable missing-provider-CLI error.
+- `install.sh` provisions the shared consensus CLI in checkout mode and documents the pinned remote install path.
+- The public-discovery verification record proves standalone skill install/run behavior and captures skills.sh hosted-index status.
+- The `open-agent-toolkit` upstream handoff prompt captures the cat-3 `metadata.internal` follow-up.
 
 **Behavioral changes (user-facing):**
 
-- {bullet}
+- Users who install a consensus skill standalone get a clear recovery message instead of an opaque missing-provider-CLI failure.
+- The README now gives a concrete alternative installer for standalone consensus skill installs.
 
 **Key files / modules:**
 
-- `{path}` - {purpose}
+- `src/consensus/core/consensus-loop.ts` - shared CLI resolution and error messaging.
+- `src/consensus/refine/consensus-refine.ts` - refine preflight delegation to shared helper.
+- `plugins/consensus/skills/**` - regenerated consensus runtimes and skill version bumps.
+- `install.sh` - alternative installer.
+- `README.md` - installation documentation.
+- `.oat/projects/shared/public-discovery/verification/cli-discovery.md` - public discovery verification evidence.
+- `.oat/repo/pjm/backlog/items/BL-260621-control-public-skill-discovery.md` - hosted-index findings and deferral strategy.
 
 **Verification performed:**
 
-- {tests/lint/typecheck/build/manual steps}
+- `pnpm test`, `pnpm lint`, `pnpm run type-check`, `pnpm run build:check`.
+- `pnpm run validate`, `pnpm run validate:skill-versions --base-ref origin/main`, targeted consensus Vitest tests, `bash -n install.sh`.
+- Isolated `skills@1.5.13` discovery/install checks, consensus recovery simulation, and skills.sh hosted checks recorded in `verification/cli-discovery.md`.
 
 **Design deltas (if any):**
 
-- {what changed vs design.md and why}
+- p01 review required `evaluate` to bump to `0.1.3` because current `origin/main` already had `0.1.2`; plan text was updated.
+- The valid skill-version command is `pnpm run validate:skill-versions --base-ref origin/main`; the earlier extra `--` form was corrected.
 
 ## References
 
