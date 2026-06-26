@@ -38,7 +38,7 @@ Vitest, pnpm, bash (`install.sh`).
 
 ## Planning Checklist
 
-- [x] Confirmed HiLL checkpoints with user (pause after `p01`)
+- [x] Confirmed HiLL checkpoints from workflow config (final phase only)
 - [x] Set `oat_plan_hill_phases` in frontmatter
 - [x] Evaluated phases for parallelism opportunities
 - [x] Set `oat_plan_parallel_groups` in frontmatter
@@ -112,13 +112,14 @@ and tests all reference the same `~/.consensus/consensus.mjs` literal.
 Run `pnpm run build` so all five generated `.mjs` bundles reflect the change.
 Because this is the **first commit to touch all five consensus skill dirs**, bump
 each skill's `version` AND `metadata.version` in lockstep **here** (review-I2):
-`refine`/`evaluate` `0.1.1 → 0.1.2`; `decide`/`plan`/`create` `0.1.0 → 0.1.1`.
+`refine` `0.1.1 → 0.1.2`; `evaluate` `0.1.1 → 0.1.3` because current
+`origin/main` already has `0.1.2`; `decide`/`plan`/`create` `0.1.0 → 0.1.1`.
 Doing the bump in the same commit as the first skill-dir change keeps every commit
 in the phase independently version-valid relative to `origin/main` — no mid-phase
 push hazard, no deferred-bump workaround. Subsequent p01 commits regenerate the
 same dirs but need no further bump (version is already ahead of base).
 
-Run: `pnpm run build && pnpm exec vitest run tests/consensus/core/resolve-consensus-cli-path.test.ts && pnpm run validate:skill-versions -- --base-ref origin/main`
+Run: `pnpm run build && pnpm exec vitest run tests/consensus/core/resolve-consensus-cli-path.test.ts && pnpm run validate:skill-versions --base-ref origin/main`
 Expected: generated `.mjs` in sync; resolver tests green; skill-version gate passes.
 
 **Step 5: Commit**
@@ -309,7 +310,7 @@ each of the five consensus skills is listed in `SKILL_FILES` in
 
 **Step 2: Verify**
 
-Run: `pnpm run build:check && pnpm run validate && pnpm run validate:skill-versions -- --base-ref origin/main && pnpm test`
+Run: `pnpm run build:check && pnpm run validate && pnpm run validate:skill-versions --base-ref origin/main && pnpm test`
 Expected: generated outputs in sync; structure/version invariants pass (top-level
 `version` == `metadata.version` for each; every changed skill dir has a bumped
 version); full Vitest suite green.
@@ -475,8 +476,8 @@ git commit -m "docs(p03-t02): record skills.sh crawl/submission finding and cat-
 
 | Scope  | Type     | Status          | Date       | Artifact                                              |
 | ------ | -------- | --------------- | ---------- | ----------------------------------------------------- |
-| p01    | code     | pending         | -          | -                                                     |
-| p02    | code     | pending         | -          | -                                                     |
+| p01    | code     | passed          | 2026-06-26 | reviews/p01-review-2026-06-26-v2.md                  |
+| p02    | code     | passed          | 2026-06-26 | reviews/p02-review-2026-06-26.md                     |
 | p03    | code     | pending         | -          | -                                                     |
 | final  | code     | pending         | -          | -                                                     |
 | spec   | artifact | pending         | -          | -                                                     |

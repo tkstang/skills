@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-26
-oat_current_task_id: p01-t01
+oat_current_task_id: p03-t01
 oat_generated: false
 ---
 
@@ -26,114 +26,144 @@ oat_generated: false
 
 | Phase                                  | Status      | Tasks | Completed |
 | -------------------------------------- | ----------- | ----- | --------- |
-| Phase 1 — Consensus standalone recovery | in_progress | 5     | 0/5       |
-| Phase 2 — Upstream handoff prompt       | pending     | 1     | 0/1       |
-| Phase 3 — Verification & recording      | pending     | 2     | 0/2       |
+| Phase 1 — Consensus standalone recovery | completed   | 5     | 5/5       |
+| Phase 2 — Upstream handoff prompt       | completed   | 1     | 1/1       |
+| Phase 3 — Verification & recording      | in_progress | 2     | 0/2       |
 
-**Total:** 0/8 tasks completed
+**Total:** 6/8 tasks completed
 
 ---
 
-## Phase 1: {Phase Name}
+## Phase 1: Consensus standalone recovery (cat 2)
 
-**Status:** in_progress
+**Status:** completed
 **Started:** 2026-06-26
 
-### Phase Summary (fill when phase is complete)
+### Phase Summary
 
 **Outcome (what changed):**
 
-- {2-5 bullets describing user-visible / behavior-level changes delivered in this phase}
+- Consensus skills now resolve a shared CLI from explicit path, `CONSENSUS_CLI_PATH`, plugin-relative install, then `~/.consensus/consensus.mjs`.
+- All five consensus wrappers surface one actionable missing-provider-CLI error.
+- `install.sh` provides a checkout-first and pinned-remote-capable alternative installer for standalone consensus skill installs.
+- README documents the standalone recovery path and tests assert the README/install/resolver contract.
 
 **Key files touched:**
 
-- `{path}` - {why}
+- `src/consensus/core/consensus-loop.ts` - shared resolver and missing-CLI helper.
+- `src/consensus/refine/consensus-refine.ts` - delegates refine preflight to shared helper.
+- `plugins/consensus/skills/*` - skill versions and regenerated runtime outputs.
+- `install.sh` - alternative installer.
+- `README.md` - alternative-install documentation.
+- `tests/consensus/**` - resolver, missing-message, installer, and contract coverage.
 
 **Verification:**
 
-- Run: `{command(s)}`
-- Result: {pass/fail + notes}
+- Run: `bash -n install.sh`; `pnpm run build:check`; `pnpm run validate`; `pnpm run validate:skill-versions --base-ref origin/main`; targeted p01 Vitest tests; `pnpm test`.
+- Result: pass. Integration after fan-in also passed `pnpm test`, `pnpm lint`, `pnpm run type-check`, and `pnpm run build:check`.
 
 **Notes / Decisions:**
 
-- {trade-offs or deviations discovered during implementation}
+- p01 re-review had 0 Critical and 0 Important findings. It recorded one Minor artifact-drift note; plan text was corrected during bookkeeping.
+- `evaluate` was bumped to `0.1.3` because current `origin/main` already had `0.1.2`.
 
 ### Task p01-t01: Add `~/.consensus/` fallback to the shared CLI resolver
 
-**Status:** pending
-**Commit:** {sha} (if completed)
+**Status:** completed
+**Commit:** 31195d9
 
 **Outcome (required when completed):**
 
-- {what materially changed (not “did task”, but “system now does X”)}
+- Consensus CLI resolution now falls back to `~/.consensus/consensus.mjs` when the plugin-relative shared CLI is absent.
 
 **Files changed:**
 
-- `{path}` - {why}
+- `src/consensus/core/consensus-loop.ts` - existence-aware resolver and shared path constant.
+- `tests/consensus/core/resolve-consensus-cli-path.test.ts` - sandboxed resolver-order coverage.
+- `plugins/consensus/skills/**` - regenerated outputs and version bumps.
 
 **Verification:**
 
-- Run: `{command(s)}`
-- Result: {pass/fail + notes}
+- Run: `pnpm run build`; resolver Vitest file; `pnpm run validate:skill-versions --base-ref origin/main`.
+- Result: pass after the later p01 fix bumped `evaluate` for the current `origin/main`.
 
 **Notes / Decisions:**
 
-- {gotchas, trade-offs, design deltas, important context for future sessions}
+- Shared path is centralized so installer, tests, and runtime message stay aligned.
 
 **Issues Encountered:**
 
-- {Issue and resolution}
+- p01 review found `evaluate` needed a higher version against current `origin/main`; fixed in `6789eaa`.
 
 ---
 
 ### Task p01-t02: Centralize the actionable missing-CLI error across all five skills
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** 7bb662c
 
 **Notes:**
 
-- Notes will be added during implementation.
+- Shared missing-CLI error now covers refine/evaluate/decide/plan/create and points users to plugin install or pinned `install.sh`.
 
 ---
 
 ### Task p01-t03: Add the pinned-fetch `install.sh` alternative installer
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** dc7bce4
 
 ---
 
 ### Task p01-t04: Document the alternative-install path + assert the cross-file contract
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** 97e3040
 
 ---
 
 ### Task p01-t05: Final phase validation (build + version + full suite)
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** none - final validation was clean with nothing to stage.
 
 ---
 
 ## Phase 2: Upstream handoff prompt (cat 3)
 
-**Status:** pending
-**Started:** -
+**Status:** completed
+**Started:** 2026-06-26
+
+### Phase Summary
+
+**Outcome (what changed):**
+
+- Added a self-contained `open-agent-toolkit` handoff prompt for upstreaming `metadata.internal: true` on OAT tooling skills.
+
+**Key files touched:**
+
+- `.oat/projects/shared/public-discovery/handoff/open-agent-toolkit-internal-flag-prompt.md` - upstream implementation prompt and verification instructions.
+
+**Verification:**
+
+- Run: manual content check by implementer; p02 code review.
+- Result: pass, 0 findings.
+
+**Notes / Decisions:**
+
+- Actual downstream hiding remains deferred until the upstream OAT change lands and syncs back.
 
 ### Task p02-t01: Author the `open-agent-toolkit` internal-flag handoff prompt
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** 3de1f28
 
 ---
 
 ## Phase 3: Verification & recording (cat 1 + skills.sh)
 
-**Status:** pending
-**Started:** -
+**Status:** in_progress
+**Started:** 2026-06-26
 
 ### Task p03-t01: Verify CLI discovery — standalone entries + consensus recovery
 
@@ -161,6 +191,43 @@ _- Outstanding Items_
 
 _Orchestration runs from `oat-project-implement` are appended here, most-recent-first within the file but append-only at the bottom of the log._
 
+### Run 1 — 2026-06-26 17:47
+
+**Branch:** feat-public-discovery
+**Tier:** 1
+**Policy:** merge-strategy=merge, retry-limit=2
+**Phases:** 2 executed, 2 passed, 0 failed, 0 stopped
+
+#### Phase Outcomes
+
+| Phase | Implementer | Review | Fix Iterations | Disposition |
+| ----- | ----------- | ------ | -------------- | ----------- |
+| p01   | DONE        | pass   | 1/2            | merged      |
+| p02   | DONE_WITH_CONCERNS | pass   | 0/2            | merged      |
+
+#### Parallel Groups
+
+- Group 1 [p01, p02]: worktree-based, merged in order.
+
+#### Dispatch Notes
+
+- Dispatch: p01 implementation used effort_axis=selected:xhigh, model_axis=inherited, dispatch_ceiling=xhigh. Rationale: multi-file consensus runtime, generated outputs, installer, docs, and skill-version invariants.
+- Dispatch: p02 implementation used effort_axis=selected:xhigh, model_axis=inherited, dispatch_ceiling=xhigh. Rationale: single-file upstream handoff deliverable with project-level maximum ceiling.
+- Dispatch: p01 review and re-review used `oat-reviewer-xhigh`; initial review found one Important version-gate issue, fixed by `6789eaa`.
+- Dispatch: p02 review used `oat-reviewer-xhigh`; no findings.
+
+#### Outstanding Items
+
+- p01 re-review recorded one Minor artifact-drift note. Plan text was updated during bookkeeping; no code follow-up remains.
+
+#### Artifact / Design Deltas
+
+Run-scoped snapshot only. The durable record is `## Deviations from Plan / Design`; consolidate any non-`None` entries there at the next phase boundary.
+
+| Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
+| ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
+| p01 review m1 | plan.md Phase 1 | `evaluate` target `0.1.2`; validator command with extra `--` | `evaluate` target `0.1.3`; validator command without extra `--` | `origin/main` advanced and repo validator rejects literal `--` | implementation + updated plan.md | Completed in bookkeeping |
+
 <!-- orchestration-runs-end -->
 
 ---
@@ -171,36 +238,34 @@ Chronological log of implementation progress.
 
 ### 2026-06-26
 
-**Session Start:** {time}
+**Session Start:** 17:07
 
-- [x] p01-t01: {Task name} - {commit sha}
-- [ ] p01-t02: {Task name} - in progress
+- [x] p01-t01: Add `~/.consensus/` fallback - 31195d9
+- [x] p01-t02: Centralize missing-CLI error - 7bb662c
+- [x] p01-t03: Add installer - dc7bce4
+- [x] p01-t04: Document installer contract - 97e3040
+- [x] p01 review fix: bump evaluate for current main - 6789eaa
+- [x] p02-t01: Author upstream handoff prompt - 3de1f28
 
 **What changed (high level):**
 
-- {short bullets suitable for PR/docs}
+- Consensus standalone recovery landed and passed p01 re-review.
+- OAT upstream internal-flag handoff prompt landed and passed p02 review.
+- Parallel worktrees merged back in plan order as `5c06e42` and `e542690`.
 
 **Decisions:**
 
-- {Decision made and rationale}
+- Corrected plan text during bookkeeping for the accepted p01 review Minor: current target for `evaluate` is `0.1.3`, and the valid skill-version command omits the extra `--`.
 
 **Follow-ups / TODO:**
 
-- {anything discovered during implementation that should be captured for later}
+- Continue with p03 verification and recording.
 
 **Blockers:**
 
-- {Blocker description} - {status: resolved/pending}
+- None.
 
-**Session End:** {time}
-
----
-
-### 2026-06-26
-
-**Session Start:** {time}
-
-{Continue log...}
+**Session End:** 17:47
 
 ---
 
@@ -210,7 +275,7 @@ Document any intentional deviations from the original plan, spec, or design. Inc
 
 | Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
 | ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
-| -             | -               | -                    | -                 | -      | -               | -         |
+| p01 review m1 | plan.md Phase 1 | `evaluate` target `0.1.2`; validator command with extra `--` | `evaluate` target `0.1.3`; validator command without extra `--` | `origin/main` advanced and repo validator rejects literal `--` | implementation + updated plan.md | Completed in bookkeeping |
 
 ## Test Results
 
@@ -218,8 +283,7 @@ Track test execution during implementation.
 
 | Phase | Tests Run | Passed | Failed | Coverage |
 | ----- | --------- | ------ | ------ | -------- |
-| 1     | -         | -      | -      | -        |
-| 2     | -         | -      | -      | -        |
+| p01/p02 fan-in | `pnpm test`; `pnpm lint`; `pnpm run type-check`; `pnpm run build:check` | yes | no | n/a |
 
 ## Final Summary (for PR/docs)
 
