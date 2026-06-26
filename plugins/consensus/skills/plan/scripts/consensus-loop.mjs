@@ -697,6 +697,27 @@ function resolveConsensusCliPath(options = {}) {
   if (resolution.status === "resolved") return resolution.path;
   return resolution.attemptedPaths[0];
 }
+function consensusProviderCliMissingError({
+  attemptedPaths,
+  cause
+}) {
+  return new ConsensusError(
+    "Consensus provider CLI is missing. Install the consensus plugin, or run the pinned install.sh installer from the README alternative-install section to provision ~/.consensus/consensus.mjs.",
+    {
+      code: "CONSENSUS_PROVIDER_CLI_MISSING",
+      exitCode: EXIT_CODES.CONFIG,
+      cause,
+      details: { attemptedPaths: [...new Set(attemptedPaths)] }
+    }
+  );
+}
+function requireConsensusCliPath(options = {}) {
+  const resolution = resolveConsensusCliPathDetails(options);
+  if (resolution.status === "resolved") return resolution.path;
+  throw consensusProviderCliMissingError({
+    attemptedPaths: resolution.attemptedPaths
+  });
+}
 function providerCliSpawnTarget(command, args) {
   if (path.extname(command) === ".mjs") {
     return { command: process.execPath, args: [command, ...args] };
@@ -704,6 +725,16 @@ function providerCliSpawnTarget(command, args) {
   return { command, args };
 }
 function runProviderCliCommand(command, args, options = {}) {
+  if (path.extname(command) === ".mjs" && !existsSync(command)) {
+    return Promise.reject(
+      consensusProviderCliMissingError({
+        attemptedPaths: [
+          command,
+          consensusSharedCliPath(options.env?.HOME || os.homedir())
+        ]
+      })
+    );
+  }
   return new Promise((resolve, reject) => {
     const spawnTarget = providerCliSpawnTarget(command, args);
     const child = spawn(spawnTarget.command, spawnTarget.args, {
@@ -764,7 +795,7 @@ async function invokeConsensusProviderCli({
   consensusCliPath,
   runCommand = runProviderCliCommand
 }) {
-  const command = resolveConsensusCliPath({ consensusCliPath, env });
+  const command = runCommand === runProviderCliCommand ? requireConsensusCliPath({ consensusCliPath, env }) : resolveConsensusCliPath({ consensusCliPath, env });
   const request = {
     schema_version: "v1",
     provider,
@@ -2627,6 +2658,7 @@ export {
   buildSynthesisPrompt,
   buildTurnPrompt,
   callsPerRound,
+  consensusProviderCliMissingError,
   consensusSharedCliPath,
   createRecordsWriter,
   detectConvergence,
@@ -2648,6 +2680,7 @@ export {
   parseLoopArgs,
   peerSchemaPathForMode,
   providerCliSpawnTarget,
+  requireConsensusCliPath,
   resolveConsensusCliPath,
   resolveConsensusCliPathDetails,
   routeEscalation,
