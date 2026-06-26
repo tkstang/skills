@@ -150,14 +150,13 @@ exercising the public CLI.
 - `.agents/skills/**` is `oat sync`-generated. `metadata.internal: true` on those
   must be applied by the OAT sync layer (or a post-sync step), or it gets
   overwritten — do not hand-edit synced files. Decide where the flag lives.
-- Marking consensus `refine`/`evaluate` `internal: true` removes them from
-  `npx skills` discovery (killing the broken standalone-install path) **without**
-  touching the real plugin-install path (`claude`/`codex plugin install` does not
-  use `npx skills`). **Verify** the consensus plugin stays discoverable *as a
-  plugin* via plugin-manifest discovery when its skills are internal. Note: this
-  is a **content change to shipped skills → requires a skill version bump** (top
-  `version` + `metadata.version` in sync, via `scripts/bump-version.mjs`), and
-  because v0.1.0 is already tagged/released it lands as a **0.1.1**, not a re-tag.
+- Historical/superseded (2026-06-26 p03): the earlier option to mark consensus
+  `refine`/`evaluate` `internal: true` is no longer the accepted strategy. The
+  current project strategy keeps all five consensus skills (`create`, `decide`,
+  `evaluate`, `plan`, `refine`) discoverable and recoverable as standalone
+  installs with actionable missing-CLI / installer guidance. Only category 3
+  `.agents/skills/**` hiding remains deferred to the upstream OAT sync-layer
+  change.
 - Confirm whether the skills.sh hosted leaderboard auto-crawls public repos or is
   submission-gated (still undocumented; `tkstang/skills` is not yet indexed).
 

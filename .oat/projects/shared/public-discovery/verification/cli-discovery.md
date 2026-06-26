@@ -16,7 +16,7 @@
 | Check | Result | Notes |
 | ----- | ------ | ----- |
 | Exact plan command `npx skills add tkstang/skills --list` | non-blocking command-form failure | From this checkout, `npx` resolves the repo's local package named `skills`, which has no bin. Version-pinning the package avoids the local package shadow. |
-| Discovery list via `skills@1.5.13` | pass | `export-session-transcript`, `session-observer`, and all five consensus skills are visible. OAT tooling skills are also still visible, which is the known cat-3 deferred upstream outcome. |
+| Discovery list via `skills@1.5.13` | pass | The parsed 64-name `Available Skills` output contains exactly 2 standalone root-skill entries, all 5 consensus skills, and 57 deferred OAT tooling entries. OAT tooling visibility is the known cat-3 deferred upstream outcome. |
 | Install/run `session-observer` standalone | pass | Installed into isolated `~/.agents/skills/session-observer`; installed entrypoint `--help` exited 0. |
 | Install/run `export-session-transcript` standalone | pass | Installed into isolated `~/.agents/skills/export-session-transcript`; installed entrypoint `--help` exited 0. |
 | Consensus standalone missing-CLI message | pass | A copied `refine` skill without the plugin tree exits 78 with `CONSENSUS_PROVIDER_CLI_MISSING` and names the pinned installer recovery. |
@@ -85,6 +85,7 @@ Command:
 ```bash
 tmp_home=$(mktemp -d /tmp/public-discovery-home.XXXXXX)
 tmp_cache=$(mktemp -d /tmp/public-discovery-npm.XXXXXX)
+out=$(mktemp /tmp/public-discovery-list.XXXXXX)
 HOME="$tmp_home" \
   npm_config_cache="$tmp_cache" \
   XDG_CONFIG_HOME="$tmp_home/.config" \
@@ -92,12 +93,12 @@ HOME="$tmp_home" \
   XDG_CACHE_HOME="$tmp_home/.cache" \
   CI=1 \
   DO_NOT_TRACK=1 \
-  npx -y skills@1.5.13 add tkstang/skills --list
+  npx -y skills@1.5.13 add tkstang/skills --list | tee "$out"
 ```
 
 Result: exit 0.
 
-Relevant output:
+Relevant output header and parsed skill names:
 
 ```text
 Source: https://github.com/tkstang/skills.git
@@ -107,7 +108,63 @@ Found 64 skills
 Available Skills
   export-session-transcript
   session-observer
-  ...
+  analyze
+  authoring-docs
+  compare
+  create-agnostic-skill
+  deep-research
+  oat-agent-instructions-analyze
+  oat-agent-instructions-apply
+  oat-docs-analyze
+  oat-docs-apply
+  oat-docs-authoring
+  oat-docs-bootstrap
+  oat-idea-ideate
+  oat-idea-new
+  oat-idea-scratchpad
+  oat-idea-summarize
+  oat-pjm-add-backlog-item
+  oat-pjm-decision
+  oat-pjm-review-backlog
+  oat-pjm-update-repo-reference
+  oat-project-capture
+  oat-project-clear-active
+  oat-project-complete
+  oat-project-design
+  oat-project-discover
+  oat-project-document
+  oat-project-implement
+  oat-project-import-plan
+  oat-project-new
+  oat-project-next
+  oat-project-open
+  oat-project-plan
+  oat-project-plan-writing
+  oat-project-pr-final
+  oat-project-pr-progress
+  oat-project-progress
+  oat-project-promote-spec-driven
+  oat-project-quick-start
+  oat-project-reconcile
+  oat-project-review-provide
+  oat-project-review-provide-remote
+  oat-project-review-receive
+  oat-project-review-receive-remote
+  oat-project-revise
+  oat-project-spec
+  oat-project-split
+  oat-project-summary
+  oat-repo-knowledge-index
+  oat-repo-maintainability-review
+  oat-review-provide
+  oat-review-provide-remote
+  oat-review-receive
+  oat-review-receive-remote
+  oat-worktree-bootstrap
+  oat-worktree-bootstrap-auto
+  oat-wrap-up
+  skeptic
+  synthesize
   create
   decide
   evaluate
@@ -115,11 +172,54 @@ Available Skills
   refine
 ```
 
+Filtered proof command over the same command output:
+
+```bash
+clean=$(mktemp /tmp/public-discovery-list-clean.XXXXXX)
+names=$(mktemp /tmp/public-discovery-skill-names.XXXXXX)
+perl -pe 's/\e\[[0-9;?]*[A-Za-z]//g; s/\r//g' "$out" > "$clean"
+perl -ne 'if (/^\S+\s{4}([a-z0-9][a-z0-9-]+)$/) { print "$1\n" }' "$clean" > "$names"
+NAMES="$names" node - <<'NODE'
+const fs = require('node:fs');
+const names = fs.readFileSync(process.env.NAMES, 'utf8').trim().split(/\n/).filter(Boolean);
+const standalone = new Set(['export-session-transcript', 'session-observer']);
+const consensus = new Set(['create', 'decide', 'evaluate', 'plan', 'refine']);
+const standaloneSeen = names.filter((name) => standalone.has(name));
+const consensusSeen = names.filter((name) => consensus.has(name));
+const deferred = names.filter((name) => !standalone.has(name) && !consensus.has(name));
+console.log(`total=${names.length}`);
+console.log(`standalone_count=${standaloneSeen.length}`);
+console.log(`standalone_names=${standaloneSeen.join(',')}`);
+console.log(`consensus_count=${consensusSeen.length}`);
+console.log(`consensus_names=${consensusSeen.join(',')}`);
+console.log(`deferred_oat_count=${deferred.length}`);
+console.log(`deferred_oat_names=${deferred.join(',')}`);
+NODE
+```
+
+Filtered proof output:
+
+```text
+total=64
+standalone_count=2
+standalone_names=export-session-transcript,session-observer
+consensus_count=5
+consensus_names=create,decide,evaluate,plan,refine
+deferred_oat_count=57
+deferred_oat_names=analyze,authoring-docs,compare,create-agnostic-skill,deep-research,oat-agent-instructions-analyze,oat-agent-instructions-apply,oat-docs-analyze,oat-docs-apply,oat-docs-authoring,oat-docs-bootstrap,oat-idea-ideate,oat-idea-new,oat-idea-scratchpad,oat-idea-summarize,oat-pjm-add-backlog-item,oat-pjm-decision,oat-pjm-review-backlog,oat-pjm-update-repo-reference,oat-project-capture,oat-project-clear-active,oat-project-complete,oat-project-design,oat-project-discover,oat-project-document,oat-project-implement,oat-project-import-plan,oat-project-new,oat-project-next,oat-project-open,oat-project-plan,oat-project-plan-writing,oat-project-pr-final,oat-project-pr-progress,oat-project-promote-spec-driven,oat-project-quick-start,oat-project-reconcile,oat-project-review-provide,oat-project-review-provide-remote,oat-project-review-receive,oat-project-review-receive-remote,oat-project-revise,oat-project-spec,oat-project-split,oat-project-summary,oat-repo-knowledge-index,oat-repo-maintainability-review,oat-review-provide,oat-review-provide-remote,oat-review-receive,oat-review-receive-remote,oat-worktree-bootstrap,oat-worktree-bootstrap-auto,oat-wrap-up,skeptic,synthesize
+```
+
 Interpretation:
 
 - Category 1 standalone entries are present: `session-observer`, `export-session-transcript`.
 - Category 2 consensus entries are present: `create`, `decide`, `evaluate`, `plan`, `refine`.
-- Category 3 OAT tooling entries are still present. This is expected before the upstream `open-agent-toolkit` `metadata.internal: true` change lands and syncs back; that hiding outcome remains deferred to `BL-260621`.
+- No other names are present in the 64-name discovery result. The only root
+  `skills/` standalone entries are `session-observer` and
+  `export-session-transcript`; every other visible name is either a consensus
+  plugin skill or a deferred OAT tooling entry.
+- Category 3 OAT tooling entries are still present. This is expected before the
+  upstream `open-agent-toolkit` `metadata.internal: true` change lands and syncs
+  back; that hiding outcome remains deferred to `BL-260621`.
 
 ## 2. Standalone Install And Entrypoint Smoke
 
