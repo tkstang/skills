@@ -58,9 +58,9 @@ oat_generated: false
 
 - {trade-offs or deviations discovered during implementation}
 
-### Task p01-t01: {Task Name}
+### Task p01-t01: Add `~/.consensus/` fallback to the shared CLI resolver
 
-**Status:** completed / in_progress / pending / blocked
+**Status:** pending
 **Commit:** {sha} (if completed)
 
 **Outcome (required when completed):**
@@ -86,23 +86,63 @@ oat_generated: false
 
 ---
 
-### Task p01-t02: {Task Name}
+### Task p01-t02: Centralize the actionable missing-CLI error across all five skills
 
 **Status:** pending
 **Commit:** -
 
 **Notes:**
 
-- {Notes will be added during implementation}
+- Notes will be added during implementation.
 
 ---
 
-## Phase 2: {Phase Name}
+### Task p01-t03: Add the pinned-fetch `install.sh` alternative installer
+
+**Status:** pending
+**Commit:** -
+
+---
+
+### Task p01-t04: Document the alternative-install path + assert the cross-file contract
+
+**Status:** pending
+**Commit:** -
+
+---
+
+### Task p01-t05: Final phase validation (build + version + full suite)
+
+**Status:** pending
+**Commit:** -
+
+---
+
+## Phase 2: Upstream handoff prompt (cat 3)
 
 **Status:** pending
 **Started:** -
 
-### Task p02-t01: {Task Name}
+### Task p02-t01: Author the `open-agent-toolkit` internal-flag handoff prompt
+
+**Status:** pending
+**Commit:** -
+
+---
+
+## Phase 3: Verification & recording (cat 1 + skills.sh)
+
+**Status:** pending
+**Started:** -
+
+### Task p03-t01: Verify CLI discovery — standalone entries + consensus recovery
+
+**Status:** pending
+**Commit:** -
+
+---
+
+### Task p03-t02: Verify and record skills.sh crawl/submission behavior
 
 **Status:** pending
 **Commit:** -
