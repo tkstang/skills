@@ -1,7 +1,7 @@
 ---
 id: BL-260619-add-a-test-guarding-bundled
 title: Add a test guarding bundled rubric examples at <=12 parser-visible criteria
-status: open
+status: done
 priority: low
 scope: test
 scope_estimate: S
@@ -13,7 +13,7 @@ labels:
   - nice-to-have
 assignee: null
 created: 2026-06-19T16:50:01Z
-updated: 2026-06-19T16:50:01Z
+updated: 2026-06-26T21:49:32Z
 associated_issues: []
 legacy_id: bl-3913
 ---

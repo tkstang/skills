@@ -198,8 +198,13 @@ async function runCli(
 
 async function waitFor(
   predicate: () => Promise<any> | any,
+  // Generous default ceiling: a starved subprocess (CI / pre-push under load)
+  // can take well over a second to boot and write its first state. waitFor
+  // returns as soon as the predicate is truthy, so a high ceiling only adds
+  // slack under starvation — it never slows the happy path. Stays well under
+  // the 30s vitest testTimeout.
   {
-    timeoutMs = 1500,
+    timeoutMs = 10_000,
     intervalMs = 25,
   }: { timeoutMs?: number; intervalMs?: number } = {},
 ): Promise<any> {
@@ -220,6 +225,11 @@ describe('runWatchLoop', () => {
         { content: 'old message that should not be emitted' },
       ]);
       const stdout: string[] = [];
+      // Virtual clock: time only advances when the loop sleeps, which it does
+      // *after* establishing the baseline. This makes the baseline emission
+      // deterministic instead of racing a ~240 ms wall-clock max-runtime budget
+      // that can fire first under CPU starvation.
+      let nowMs = Date.UTC(2026, 5, 3, 12, 0, 0);
 
       const result = await runWatchLoop(
         {
@@ -231,6 +241,10 @@ describe('runWatchLoop', () => {
         },
         {
           writeStdout: (chunk: string) => stdout.push(chunk),
+          now: () => nowMs,
+          sleep: async (ms: number) => {
+            nowMs += ms;
+          },
         },
       );
 
@@ -262,6 +276,9 @@ describe('runWatchLoop', () => {
         { content: 'unread backlog should be emitted' },
       ]);
       const stdout: string[] = [];
+      // Virtual clock (see the baseline test): keeps the catch-up backlog
+      // emission deterministic instead of racing the wall-clock max-runtime.
+      let nowMs = Date.UTC(2026, 5, 3, 12, 0, 0);
 
       const result = await runWatchLoop(
         {
@@ -274,6 +291,10 @@ describe('runWatchLoop', () => {
         },
         {
           writeStdout: (chunk: string) => stdout.push(chunk),
+          now: () => nowMs,
+          sleep: async (ms: number) => {
+            nowMs += ms;
+          },
         },
       );
 
@@ -397,8 +418,13 @@ describe('runWatchLoop', () => {
         { content: 'json baseline message' },
       ]);
       const stdout: string[] = [];
+      // Virtual clock: append once the baseline target is locked (so it is a
+      // delta, not absorbed into the baseline), then let the loop emit it via
+      // debounce before the virtual max-runtime. No wall-clock race.
+      let nowMs = Date.UTC(2026, 5, 3, 12, 0, 0);
+      let appended = false;
 
-      const watchPromise = runWatchLoop(
+      await runWatchLoop(
         {
           runtime: 'claude-code',
           cwd,
@@ -409,24 +435,27 @@ describe('runWatchLoop', () => {
         },
         {
           writeStdout: (chunk: string) => stdout.push(chunk),
+          now: () => nowMs,
+          sleep: async (ms: number) => {
+            nowMs += ms;
+            if (!appended) {
+              const state = await readJsonIfExists(join(stateDir, 'watch.json'));
+              if (
+                state?.watchers?.some(
+                  (watcher: any) => watcher.targets?.length >= 1,
+                )
+              ) {
+                appended = true;
+                await appendClaudeMessage(
+                  transcriptPath,
+                  sessionId,
+                  'json update payload',
+                );
+              }
+            }
+          },
         },
       );
-
-      // Wait for the baseline target lock (recorded after the baseline
-      // signature is captured) so the append below is seen as a delta
-      // rather than being absorbed into a slow baseline observe.
-      await waitFor(async () => {
-        const state = await readJsonIfExists(join(stateDir, 'watch.json'));
-        return state?.watchers?.some(
-          (watcher: any) => watcher.targets?.length >= 1,
-        );
-      });
-      await appendClaudeMessage(
-        transcriptPath,
-        sessionId,
-        'json update payload',
-      );
-      await watchPromise;
 
       const lines = stdout
         .join('')
@@ -501,8 +530,12 @@ describe('runWatchLoop', () => {
         { content: 'both baseline message' },
       ]);
       const stdout: string[] = [];
+      // Virtual clock: append once the claude-code baseline is established,
+      // then let the loop emit it via debounce before the virtual max-runtime.
+      let nowMs = Date.UTC(2026, 5, 3, 12, 0, 0);
+      let appended = false;
 
-      const watchPromise = runWatchLoop(
+      const result = await runWatchLoop(
         {
           runtime: 'both',
           cwd,
@@ -513,23 +546,26 @@ describe('runWatchLoop', () => {
         },
         {
           writeStdout: (chunk: string) => stdout.push(chunk),
+          now: () => nowMs,
+          sleep: async (ms: number) => {
+            nowMs += ms;
+            if (!appended) {
+              const state = await readJsonIfExists(join(stateDir, 'state.json'));
+              if (
+                state?.sessions?.['claude-code:watch-runtime-both']
+                  ?.lastRecordIndex === 1
+              ) {
+                appended = true;
+                await appendClaudeMessage(
+                  transcriptPath,
+                  sessionId,
+                  'both runtime update payload',
+                );
+              }
+            }
+          },
         },
       );
-
-      await waitFor(async () => {
-        const state = await readJsonIfExists(join(stateDir, 'state.json'));
-        return (
-          state?.sessions?.['claude-code:watch-runtime-both']
-            ?.lastRecordIndex === 1
-        );
-      });
-      await appendClaudeMessage(
-        transcriptPath,
-        sessionId,
-        'both runtime update payload',
-      );
-
-      const result = await watchPromise;
       expect(result.eventCount).toBe(1);
 
       const lines = stdout
@@ -854,15 +890,21 @@ describe('runWatchLoop', () => {
         { content: 'status baseline message' },
       ]);
 
+      // Safety-net timings instead of a tight wall-clock budget: the appended
+      // update must stay "behind" (pending, never auto-emitted) so status can
+      // observe records-behind drift, and the watcher must outlive the status
+      // read. debounce/maxPending are far larger than any orchestration window
+      // so emission can't race the observation, and the loop ends via the
+      // explicit stop directive below rather than max-runtime.
       const watchPromise = runWatchLoop(
         {
           runtime: 'auto',
           cwd,
           session: `codex:${sessionId}`,
           pollSec: 0.03,
-          debounceSec: 5,
-          maxPendingSec: 5,
-          maxRuntimeMin: 0.03,
+          debounceSec: 600,
+          maxPendingSec: 600,
+          maxRuntimeMin: 1,
           json: true,
         },
         {
@@ -1044,7 +1086,13 @@ describe('runWatchLoop', () => {
       const eventLog = join('logs', 'events.jsonl');
       const resolvedEventLog = join(stateDir, eventLog);
 
-      const watchPromise = runWatchLoop(
+      // Virtual clock: append once the baseline target is locked, then let the
+      // loop emit the metadata-only delta via debounce before the virtual
+      // max-runtime. No wall-clock race.
+      let nowMs = Date.UTC(2026, 5, 3, 12, 0, 0);
+      let appended = false;
+
+      await runWatchLoop(
         {
           runtime: 'claude-code',
           cwd,
@@ -1055,23 +1103,27 @@ describe('runWatchLoop', () => {
         },
         {
           writeStdout: () => {},
+          now: () => nowMs,
+          sleep: async (ms: number) => {
+            nowMs += ms;
+            if (!appended) {
+              const state = await readJsonIfExists(join(stateDir, 'watch.json'));
+              if (
+                state?.watchers?.some(
+                  (watcher: any) => watcher.targets?.length >= 1,
+                )
+              ) {
+                appended = true;
+                await appendClaudeMessage(
+                  transcriptPath,
+                  sessionId,
+                  'event log content must stay out',
+                );
+              }
+            }
+          },
         },
       );
-
-      // Wait for the baseline target lock so the append is a post-baseline
-      // delta even when baseline establishment is slow.
-      await waitFor(async () => {
-        const state = await readJsonIfExists(join(stateDir, 'watch.json'));
-        return state?.watchers?.some(
-          (watcher: any) => watcher.targets?.length >= 1,
-        );
-      });
-      await appendClaudeMessage(
-        transcriptPath,
-        sessionId,
-        'event log content must stay out',
-      );
-      await watchPromise;
 
       const raw = await readFile(resolvedEventLog, 'utf8');
       expect(raw.includes('event log content must stay out')).toBe(false);
@@ -1209,8 +1261,17 @@ describe('runWatchLoop', () => {
         { content: 'pause baseline message' },
       ]);
       const stdout: string[] = [];
+      // Virtual clock with a staged scenario driven off the loop's own progress:
+      //   stage 0: baseline locked        -> pause
+      //   stage 1: pause directive applied -> append while paused
+      //   stage 2: a poll observed the append without emitting (paused) -> assert
+      //            no emission, then resume
+      // After resume the loop emits the settled update before (virtual)
+      // max-runtime. No real wall-clock is raced.
+      let nowMs = Date.UTC(2026, 5, 3, 12, 0, 0);
+      let stage = 0;
 
-      const watchPromise = runWatchLoop(
+      const result = await runWatchLoop(
         {
           runtime: 'claude-code',
           cwd,
@@ -1220,42 +1281,49 @@ describe('runWatchLoop', () => {
         },
         {
           writeStdout: (chunk: string) => stdout.push(chunk),
+          now: () => nowMs,
+          sleep: async (ms: number) => {
+            nowMs += ms;
+            if (stage === 0) {
+              const state = await readJsonIfExists(join(stateDir, 'watch.json'));
+              if (
+                state?.watchers?.some(
+                  (watcher: any) => watcher.targets?.length >= 1,
+                )
+              ) {
+                stage = 1;
+                await watchState.writeControlDirective('pause');
+              }
+              return;
+            }
+            if (stage === 1) {
+              // Pause has been applied once the directive is consumed/cleared.
+              const control = await readJsonIfExists(
+                join(stateDir, 'watch.control.json'),
+              );
+              if (control === null) {
+                stage = 2;
+                await appendClaudeMessage(
+                  transcriptPath,
+                  sessionId,
+                  'paused update',
+                );
+              }
+              return;
+            }
+            if (stage === 2) {
+              // The poll this cycle observed the append; a paused watcher must
+              // not have emitted it.
+              expect(
+                !stdout.join('').includes('paused update'),
+                'paused watcher should not emit settled updates',
+              ).toBeTruthy();
+              stage = 3;
+              await watchState.writeControlDirective('resume');
+            }
+          },
         },
       );
-
-      await waitFor(async () => {
-        const state = await readJsonIfExists(join(stateDir, 'watch.json'));
-        return state?.watchers?.some(
-          (watcher: any) => watcher.targets?.length >= 1,
-        );
-      });
-      await watchState.writeControlDirective('pause');
-      await waitFor(async () => {
-        return (
-          (await readJsonIfExists(join(stateDir, 'watch.control.json'))) ===
-          null
-        );
-      });
-      const appendedAtMs = Date.now();
-      await appendClaudeMessage(transcriptPath, sessionId, 'paused update');
-      let firstStampAfterAppendMs: number | null = null;
-      await waitFor(async () => {
-        const state = await readJsonIfExists(join(stateDir, 'watch.json'));
-        const lastPollAtMs = Date.parse(state?.watchers?.[0]?.lastPollAt ?? '');
-        if (!Number.isFinite(lastPollAtMs) || lastPollAtMs <= appendedAtMs) {
-          return false;
-        }
-        if (firstStampAfterAppendMs === null) {
-          firstStampAfterAppendMs = lastPollAtMs;
-          return false;
-        }
-        return lastPollAtMs > firstStampAfterAppendMs;
-      });
-
-      expect(!stdout.join('').includes('paused update'), 'paused watcher should not emit settled updates').toBeTruthy();
-
-      await watchState.writeControlDirective('resume');
-      const result = await watchPromise;
 
       expect(result.reason).toBe('max-runtime');
       expect(result.eventCount).toBe(1);
@@ -1271,8 +1339,16 @@ describe('runWatchLoop', () => {
         { content: 'flush baseline message' },
       ]);
       const stdout: string[] = [];
+      // Virtual clock: time only advances when the loop sleeps, so the scenario
+      // is driven off the loop's own observable progress (target lock, then a
+      // poll that has seen the append) instead of racing a ~1.2s wall-clock
+      // max-runtime budget against real-time orchestration. debounceSec is far
+      // beyond the runtime budget, so the explicit flush is the only emit path.
+      let nowMs = Date.UTC(2026, 5, 3, 12, 0, 0);
+      let appended = false;
+      let flushed = false;
 
-      const watchPromise = runWatchLoop(
+      const result = await runWatchLoop(
         {
           runtime: 'claude-code',
           cwd,
@@ -1282,38 +1358,37 @@ describe('runWatchLoop', () => {
         },
         {
           writeStdout: (chunk: string) => stdout.push(chunk),
+          now: () => nowMs,
+          sleep: async (ms: number) => {
+            nowMs += ms;
+            if (!appended) {
+              // Append only once the baseline target is locked, so it lands as a
+              // post-baseline delta.
+              const state = await readJsonIfExists(join(stateDir, 'watch.json'));
+              if (
+                state?.watchers?.some(
+                  (watcher: any) => watcher.targets?.length >= 1,
+                )
+              ) {
+                appended = true;
+                await appendClaudeMessage(
+                  transcriptPath,
+                  sessionId,
+                  'flush update',
+                );
+              }
+              return;
+            }
+            if (!flushed) {
+              // The poll between append and now has the record pending; force it.
+              flushed = true;
+              await watchState.writeControlDirective('flush');
+            }
+          },
         },
       );
 
-      // Wait for the baseline target lock so the append is a post-baseline
-      // delta even when baseline establishment is slow.
-      await waitFor(async () => {
-        const state = await readJsonIfExists(join(stateDir, 'watch.json'));
-        return state?.watchers?.some(
-          (watcher: any) => watcher.targets?.length >= 1,
-        );
-      });
-      const appendedAtMs = Date.now();
-      await appendClaudeMessage(transcriptPath, sessionId, 'flush update');
-      // Two completed poll stamps after the append guarantee a pollTargets
-      // pass observed the appended record, so the flush below has a pending
-      // entry to force out (debounceSec is far beyond the runtime budget,
-      // so flush is the only emit path this test can take).
-      let firstStampAfterAppendMs: number | null = null;
-      await waitFor(async () => {
-        const state = await readJsonIfExists(join(stateDir, 'watch.json'));
-        const lastPollAtMs = Date.parse(state?.watchers?.[0]?.lastPollAt ?? '');
-        if (!Number.isFinite(lastPollAtMs) || lastPollAtMs <= appendedAtMs)
-          return false;
-        if (firstStampAfterAppendMs === null) {
-          firstStampAfterAppendMs = lastPollAtMs;
-          return false;
-        }
-        return lastPollAtMs > firstStampAfterAppendMs;
-      });
-      await watchState.writeControlDirective('flush');
-
-      const result = await watchPromise;
+      expect(result.reason).toBe('max-runtime');
       expect(result.eventCount).toBe(1);
       expect(stdout.join('').includes('flush update')).toBeTruthy();
     });
@@ -1326,8 +1401,12 @@ describe('runWatchLoop', () => {
         { content: 'stop baseline message' },
       ]);
       const stdout: string[] = [];
+      // Virtual clock: issue the stop directive once the watcher is active,
+      // driven by the loop's own progress rather than a wall-clock race.
+      let nowMs = Date.UTC(2026, 5, 3, 12, 0, 0);
+      let stopped = false;
 
-      const watchPromise = runWatchLoop(
+      const result = await runWatchLoop(
         {
           runtime: 'claude-code',
           cwd,
@@ -1337,16 +1416,20 @@ describe('runWatchLoop', () => {
         },
         {
           writeStdout: (chunk: string) => stdout.push(chunk),
+          now: () => nowMs,
+          sleep: async (ms: number) => {
+            nowMs += ms;
+            if (!stopped) {
+              const state = await readJsonIfExists(join(stateDir, 'watch.json'));
+              if (state?.active) {
+                stopped = true;
+                await watchState.writeControlDirective('stop');
+              }
+            }
+          },
         },
       );
 
-      await waitFor(async () => {
-        const state = await readJsonIfExists(join(stateDir, 'watch.json'));
-        return state?.active;
-      });
-      await watchState.writeControlDirective('stop');
-
-      const result = await watchPromise;
       expect(result.reason).toBe('control-stop');
       expect(stdout.join('').includes('watch stopped reason=control-stop')).toBeTruthy();
 
@@ -1389,7 +1472,12 @@ describe('runWatchLoop', () => {
       expect(await readJsonIfExists(join(stateDir, 'watch.control.json'))).toBe(null);
 
       const stdout: string[] = [];
-      const watchPromise = runWatchLoop(
+      // Virtual clock: append once this fresh watcher has established its
+      // baseline, then let the loop emit it before the (virtual) max-runtime.
+      let nowMs = Date.UTC(2026, 5, 3, 12, 0, 0);
+      let appended = false;
+
+      const result = await runWatchLoop(
         {
           runtime: 'claude-code',
           cwd,
@@ -1399,23 +1487,27 @@ describe('runWatchLoop', () => {
         },
         {
           writeStdout: (chunk: string) => stdout.push(chunk),
+          now: () => nowMs,
+          sleep: async (ms: number) => {
+            nowMs += ms;
+            if (!appended) {
+              const state = await readJsonIfExists(join(stateDir, 'state.json'));
+              if (
+                state?.sessions?.['claude-code:watch-inactive-stop']
+                  ?.lastRecordIndex === 1
+              ) {
+                appended = true;
+                await appendClaudeMessage(
+                  transcriptPath,
+                  sessionId,
+                  'next watcher update after inactive stop',
+                );
+              }
+            }
+          },
         },
       );
 
-      await waitFor(async () => {
-        const state = await readJsonIfExists(join(stateDir, 'state.json'));
-        return (
-          state?.sessions?.['claude-code:watch-inactive-stop']
-            ?.lastRecordIndex === 1
-        );
-      });
-      await appendClaudeMessage(
-        transcriptPath,
-        sessionId,
-        'next watcher update after inactive stop',
-      );
-
-      const result = await watchPromise;
       expect(result.reason).toBe('max-runtime');
       expect(result.eventCount).toBe(1);
       expect(stdout.join('').includes('next watcher update after inactive stop')).toBeTruthy();
@@ -1459,8 +1551,12 @@ describe('runWatchLoop', () => {
           stdio: ['ignore', 'pipe', 'pipe'],
         },
       );
-
       try {
+        // The watcher installs its SIGTERM/SIGINT handlers before it announces
+        // itself active, so killing it as soon as watch.json.active appears
+        // exercises — and guards — a clean shutdown even when the signal races
+        // startup. (A busy machine could otherwise deliver SIGTERM before the
+        // handlers were installed and trip Node's default terminate.)
         await waitFor(async () => {
           const state = await readJsonIfExists(join(stateDir, 'watch.json'));
           return state?.active;
