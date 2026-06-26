@@ -1551,23 +1551,15 @@ describe('runWatchLoop', () => {
           stdio: ['ignore', 'pipe', 'pipe'],
         },
       );
-      let childStdout = '';
-      child.stdout?.setEncoding('utf8');
-      child.stdout?.on('data', (chunk: string) => {
-        childStdout += chunk;
-      });
-
       try {
-        // Gate the kill on the watcher's first emitted event, not on
-        // watch.json.active. The active record is written in startWatcher
-        // *before* the SIGTERM/SIGINT handlers are installed; the first stdout
-        // event is written from inside the loop, *after* they are installed. On
-        // a busy machine, waiting only for watch.json.active can deliver SIGTERM
-        // into that pre-handler window, where Node's default action terminates
-        // the process via signal instead of the clean shutdown this asserts.
+        // The watcher installs its SIGTERM/SIGINT handlers before it announces
+        // itself active, so killing it as soon as watch.json.active appears
+        // exercises — and guards — a clean shutdown even when the signal races
+        // startup. (A busy machine could otherwise deliver SIGTERM before the
+        // handlers were installed and trip Node's default terminate.)
         await waitFor(async () => {
           const state = await readJsonIfExists(join(stateDir, 'watch.json'));
-          return state?.active && childStdout.length > 0;
+          return state?.active;
         });
 
         child.kill('SIGTERM');

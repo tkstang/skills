@@ -626,18 +626,7 @@ async function runWatchLoop(args, deps = {}) {
   const limitMs = maxRuntimeMs(args.maxRuntimeMin);
   const startedAtMs = (deps.now ?? Date.now)();
   const deadlineMs = limitMs === null ? null : startedAtMs + limitMs;
-  const active = await watchStateLib.startWatcher({
-    runtime,
-    cwd,
-    pid: deps.pid ?? process.pid,
-    startedAt: new Date(startedAtMs).toISOString(),
-    session: args.session ?? null,
-    pollSec: pollMs / 1e3,
-    debounceSec: debounceMs / 1e3,
-    maxPendingSec: resolvedMaxPendingMs / 1e3,
-    heartbeatSec: resolvedHeartbeatMs === null ? 0 : resolvedHeartbeatMs / 1e3,
-    staleAfterSec: (pollMs + debounceMs + resolvedMaxPendingMs) / 1e3
-  });
+  const watcherPid = deps.pid ?? process.pid;
   const resolvedDeps = {
     now: deps.now ?? Date.now,
     sleep: deps.sleep ?? sleep,
@@ -647,7 +636,7 @@ async function runWatchLoop(args, deps = {}) {
   const targets = /* @__PURE__ */ new Map();
   const pending = /* @__PURE__ */ new Map();
   const eventState = {
-    pid: active.pid,
+    pid: watcherPid,
     debounceMs,
     maxPendingMs: resolvedMaxPendingMs,
     eventCount: 0,
@@ -659,6 +648,24 @@ async function runWatchLoop(args, deps = {}) {
   };
   const removeSignalHandlers = deps.handleSignals === false ? () => {
   } : installSignalHandlers(eventState);
+  let active;
+  try {
+    active = await watchStateLib.startWatcher({
+      runtime,
+      cwd,
+      pid: watcherPid,
+      startedAt: new Date(startedAtMs).toISOString(),
+      session: args.session ?? null,
+      pollSec: pollMs / 1e3,
+      debounceSec: debounceMs / 1e3,
+      maxPendingSec: resolvedMaxPendingMs / 1e3,
+      heartbeatSec: resolvedHeartbeatMs === null ? 0 : resolvedHeartbeatMs / 1e3,
+      staleAfterSec: (pollMs + debounceMs + resolvedMaxPendingMs) / 1e3
+    });
+  } catch (err) {
+    removeSignalHandlers();
+    throw err;
+  }
   let reason = "stopped";
   try {
     await emitWatchPosture(normalizedArgs, resolvedDeps);

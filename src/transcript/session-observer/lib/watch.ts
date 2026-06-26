@@ -936,18 +936,9 @@ export async function runWatchLoop(
   const limitMs = maxRuntimeMs(args.maxRuntimeMin);
   const startedAtMs = (deps.now ?? Date.now)();
   const deadlineMs = limitMs === null ? null : startedAtMs + limitMs;
-  const active = await watchStateLib.startWatcher({
-    runtime,
-    cwd,
-    pid: deps.pid ?? process.pid,
-    startedAt: new Date(startedAtMs).toISOString(),
-    session: args.session ?? null,
-    pollSec: pollMs / 1000,
-    debounceSec: debounceMs / 1000,
-    maxPendingSec: resolvedMaxPendingMs / 1000,
-    heartbeatSec: resolvedHeartbeatMs === null ? 0 : resolvedHeartbeatMs / 1000,
-    staleAfterSec: (pollMs + debounceMs + resolvedMaxPendingMs) / 1000,
-  });
+  // startWatcher returns the record for the pid it is given, so the watcher's
+  // pid is known before it is announced.
+  const watcherPid = deps.pid ?? process.pid;
 
   const resolvedDeps: ResolvedWatchDeps = {
     now: deps.now ?? Date.now,
@@ -958,7 +949,7 @@ export async function runWatchLoop(
   const targets = new Map<string, WatchTarget>();
   const pending = new Map<string, PendingEntry>();
   const eventState: WatchEventState = {
-    pid: active.pid,
+    pid: watcherPid,
     debounceMs,
     maxPendingMs: resolvedMaxPendingMs,
     eventCount: 0,
@@ -968,10 +959,37 @@ export async function runWatchLoop(
     stopRequested: false,
     stopReason: 'stopped',
   };
+  // Install signal handlers before announcing the watcher active. startWatcher
+  // writes watch.json.active, which is the moment a SIGTERM/SIGINT can target
+  // this process; installing handlers first guarantees such a signal is handled
+  // as a clean shutdown instead of hitting Node's default terminate during the
+  // startup window.
   const removeSignalHandlers =
     deps.handleSignals === false
       ? () => {}
       : installSignalHandlers(eventState);
+
+  let active: Awaited<ReturnType<typeof watchStateLib.startWatcher>>;
+  try {
+    active = await watchStateLib.startWatcher({
+      runtime,
+      cwd,
+      pid: watcherPid,
+      startedAt: new Date(startedAtMs).toISOString(),
+      session: args.session ?? null,
+      pollSec: pollMs / 1000,
+      debounceSec: debounceMs / 1000,
+      maxPendingSec: resolvedMaxPendingMs / 1000,
+      heartbeatSec:
+        resolvedHeartbeatMs === null ? 0 : resolvedHeartbeatMs / 1000,
+      staleAfterSec: (pollMs + debounceMs + resolvedMaxPendingMs) / 1000,
+    });
+  } catch (err) {
+    // startWatcher rejects (e.g. a duplicate target) before the main loop's
+    // finally can run, so remove the handlers we just installed to avoid a leak.
+    removeSignalHandlers();
+    throw err;
+  }
   let reason = 'stopped';
 
   try {
