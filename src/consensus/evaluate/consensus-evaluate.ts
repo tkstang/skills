@@ -823,7 +823,9 @@ function statePathsFor(runDir: string): EvaluationStatePaths {
   };
 }
 
-function extractRubricCriteria(rubric: string) {
+export const RUBRIC_CRITERIA_CAP = 12;
+
+export function parseRubricCriteria(rubric: string): string[] {
   const criteria: string[] = [];
   for (const line of rubric.split(/\r?\n/u)) {
     const heading = line.match(/^#{2,6}\s+(.+?)\s*$/u);
@@ -836,7 +838,11 @@ function extractRubricCriteria(rubric: string) {
       criteria.push(bullet[1]);
     }
   }
-  return [...new Set(criteria)].slice(0, 12);
+  return [...new Set(criteria)];
+}
+
+function extractRubricCriteria(rubric: string) {
+  return parseRubricCriteria(rubric).slice(0, RUBRIC_CRITERIA_CAP);
 }
 
 export function createEvaluationInitialArtifact({

@@ -574,7 +574,8 @@ function statePathsFor(runDir) {
     status: path.join(runDir, "status.json")
   };
 }
-function extractRubricCriteria(rubric) {
+const RUBRIC_CRITERIA_CAP = 12;
+function parseRubricCriteria(rubric) {
   const criteria = [];
   for (const line of rubric.split(/\r?\n/u)) {
     const heading = line.match(/^#{2,6}\s+(.+?)\s*$/u);
@@ -587,7 +588,10 @@ function extractRubricCriteria(rubric) {
       criteria.push(bullet[1]);
     }
   }
-  return [...new Set(criteria)].slice(0, 12);
+  return [...new Set(criteria)];
+}
+function extractRubricCriteria(rubric) {
+  return parseRubricCriteria(rubric).slice(0, RUBRIC_CRITERIA_CAP);
 }
 function createEvaluationInitialArtifact({
   rubric
@@ -979,12 +983,14 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
 }
 export {
   INPUT_SIZE_CAP_BYTES,
+  RUBRIC_CRITERIA_CAP,
   atomicWriteFile,
   buildEvaluationPromptProfile,
   confineWrite,
   createEvaluationInitialArtifact,
   loadEvaluationInputs,
   parseEvaluateArgs,
+  parseRubricCriteria,
   readInputFile,
   renderEvaluationArtifact,
   resolveOutputPath,
