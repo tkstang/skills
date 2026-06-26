@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "oatVersion": "0.1.32",
+  "oatVersion": "0.1.33",
   "entries": [
     {
       "canonicalPath": ".agents/skills/authoring-docs",
@@ -1201,7 +1201,27 @@
       "contentHash": null,
       "isFile": true,
       "lastSynced": "2026-06-14T14:22:38.042Z"
+    },
+    {
+      "canonicalPath": ".agents/skills/oat-pjm-decision",
+      "providerPath": ".claude/skills/oat-pjm-decision",
+      "provider": "claude",
+      "contentType": "skill",
+      "strategy": "symlink",
+      "contentHash": null,
+      "isFile": false,
+      "lastSynced": "2026-06-26T04:59:59.663Z"
+    },
+    {
+      "canonicalPath": ".agents/skills/oat-pjm-decision",
+      "providerPath": ".cursor/skills/oat-pjm-decision",
+      "provider": "cursor",
+      "contentType": "skill",
+      "strategy": "symlink",
+      "contentHash": null,
+      "isFile": false,
+      "lastSynced": "2026-06-26T04:59:59.664Z"
     }
   ],
-  "lastUpdated": "2026-06-14T14:22:38.042Z"
+  "lastUpdated": "2026-06-26T04:59:59.664Z"
 }
