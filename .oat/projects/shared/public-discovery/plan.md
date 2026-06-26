@@ -73,6 +73,7 @@ No shared migration, generated artifact, or cross-phase test dependency couples
 - Modify: `src/consensus/core/consensus-loop.ts`
 - Create: `tests/consensus/core/resolve-consensus-cli-path.test.ts`
 - Modify (regenerated): `plugins/consensus/skills/*/scripts/*.mjs` (via `pnpm run build`)
+- Modify: `plugins/consensus/skills/{refine,evaluate,decide,plan,create}/SKILL.md` (version + metadata.version — this is the first commit to touch the five skill dirs, so it carries the bump; review-I2)
 
 **Step 1: Write test (RED)**
 
@@ -105,21 +106,26 @@ Expected: passes (GREEN).
 Keep the fallback path a single shared constant/helper so p01-t02, `install.sh`,
 and tests all reference the same `~/.consensus/consensus.mjs` literal.
 
-**Step 4: Verify**
+**Step 4: Rebuild, bump versions, verify**
 
-Run: `pnpm run build && pnpm exec vitest run tests/consensus/core/resolve-consensus-cli-path.test.ts`
-Expected: generated `.mjs` regenerated and in sync; tests green.
+Run `pnpm run build` so all five generated `.mjs` bundles reflect the change.
+Because this is the **first commit to touch all five consensus skill dirs**, bump
+each skill's `version` AND `metadata.version` in lockstep **here** (review-I2):
+`refine`/`evaluate` `0.1.1 → 0.1.2`; `decide`/`plan`/`create` `0.1.0 → 0.1.1`.
+Doing the bump in the same commit as the first skill-dir change keeps every commit
+in the phase independently version-valid relative to `origin/main` — no mid-phase
+push hazard, no deferred-bump workaround. Subsequent p01 commits regenerate the
+same dirs but need no further bump (version is already ahead of base).
+
+Run: `pnpm run build && pnpm exec vitest run tests/consensus/core/resolve-consensus-cli-path.test.ts && pnpm run validate:skill-versions -- --base-ref origin/main`
+Expected: generated `.mjs` in sync; resolver tests green; skill-version gate passes.
 
 **Step 5: Commit**
 
 ```bash
 git add src/consensus/core/consensus-loop.ts tests/consensus/core/resolve-consensus-cli-path.test.ts plugins/consensus/skills
-git commit -m "feat(p01-t01): add ~/.consensus fallback to consensus CLI resolver"
+git commit -m "feat(p01-t01): add ~/.consensus resolver fallback and bump consensus skill versions"
 ```
-
-> Note: this commit regenerates `.mjs` in all five consensus skill dirs; the
-> lockstep version-bump gate (`validate:skill-versions`) is satisfied at the **p01
-> push boundary after p01-t05**. Do not push individual mid-phase task commits.
 
 ---
 
@@ -173,9 +179,9 @@ git add src/consensus tests/consensus/provider-cli/missing-cli-message.test.ts p
 git commit -m "feat(p01-t02): centralize actionable missing-CLI error across all five consensus skills"
 ```
 
-> Note: same version-gate timing as p01-t01 — the regenerated `.mjs` changes all
-> five skill dirs; the bump gate is satisfied at the p01 push boundary after
-> p01-t05, so don't push this commit on its own mid-phase.
+> Note: this regenerates the same five skill dirs, but the lockstep version bump
+> already landed in p01-t01, so no further bump is needed and this commit is
+> independently version-valid (review-I2).
 
 ---
 
@@ -186,23 +192,33 @@ git commit -m "feat(p01-t02): centralize actionable missing-CLI error across all
 - Create: `install.sh`
 - Create: `tests/consensus/install-sh.test.ts`
 
+> **Acquisition policy (review-I3):** **checkout-mode is the pre-merge-verified
+> path** — `install.sh` run from a clone copies the in-tree
+> `plugins/consensus/scripts/consensus.mjs` into `~/.consensus/`. The remote
+> pinned-fetch one-liner still ships and is documented, but its **live**
+> verification (the raw GitHub URL actually serving `install.sh` + `consensus.mjs`)
+> is **deferred to post-release**, since the pinned tag only exists once a release
+> that includes `install.sh` is cut (tracked against `BL-260621`). The unit test
+> mocks the remote source; do not assert against a live URL pre-merge.
+
 **Step 1: Write test (RED)**
 
-Add a Vitest harness that runs `install.sh` with a sandboxed `HOME` and a mocked
-pinned-fetch source, asserting: it writes `~/.consensus/consensus.mjs` from the
-pinned ref; a subsequent `resolveConsensusCliPath` finds it; it is idempotent on
-re-run; it fails clearly when the fetch/write cannot complete; in-checkout mode
-copies the in-tree `plugins/consensus/scripts/consensus.mjs` without network.
+Add a Vitest harness that runs `install.sh` with a sandboxed `HOME`, asserting:
+**checkout-mode** copies the in-tree `plugins/consensus/scripts/consensus.mjs` to
+`~/.consensus/consensus.mjs` without network; a subsequent `resolveConsensusCliPath`
+finds it; it is idempotent on re-run; it fails clearly when the copy/write cannot
+complete; and the **mocked** remote pinned-fetch branch writes from a stubbed
+source (no live URL).
 
 Run: `pnpm exec vitest run tests/consensus/install-sh.test.ts`
 Expected: fails (RED).
 
 **Step 2: Implement (GREEN)**
 
-Write `install.sh`: resolve the shared `consensus.mjs` (in-checkout copy preferred;
-otherwise fetch from the pinned repo ref) and write it to `~/.consensus/`. POSIX
-bash, Node-22-aware, idempotent, clear failure messaging. `bash -n install.sh`
-must pass.
+Write `install.sh`: resolve the shared `consensus.mjs` (**in-checkout copy
+preferred**; otherwise fetch from the pinned repo ref) and write it to
+`~/.consensus/`. POSIX bash, Node-22-aware, idempotent, clear failure messaging.
+`bash -n install.sh` must pass.
 
 Run: `bash -n install.sh && pnpm exec vitest run tests/consensus/install-sh.test.ts`
 Expected: passes (GREEN).
@@ -236,20 +252,27 @@ git commit -m "feat(p01-t03): add install.sh alternative installer for consensus
 **Step 1: Author content**
 
 Add an alternative-install section documenting the pinned `install.sh` one-liner
-(`curl -fsSL https://raw.githubusercontent.com/tkstang/skills/<tag>/install.sh | bash`),
-the current pinned ref, what it does (provisions `~/.consensus/consensus.mjs`), and
-when to use it (a consensus skill installed standalone via skills.sh, without the
-full plugin). Keep wording consistent with the runtime missing-CLI message.
+with a **concrete release ref** — the next release tag `v0.1.2`, NOT a literal
+`<tag>` placeholder and NOT a moving branch:
+`curl -fsSL https://raw.githubusercontent.com/tkstang/skills/v0.1.2/install.sh | bash`.
+Document what it does (provisions `~/.consensus/consensus.mjs`) and when to use it
+(a consensus skill installed standalone via skills.sh, without the full plugin).
+Note the one-liner goes live once `v0.1.2` is released (review-I3: remote
+verification deferred post-release; checkout-mode works from a clone today). Keep
+wording consistent with the runtime missing-CLI message.
 
-**Step 2: Write the contract test (the real verification — design-review M1)**
+**Step 2: Write the contract test (the real verification — design-review M1 + review-I3)**
 
 `pnpm run validate` only asserts the *existing* README install section exists; it
 does **not** check the new alternative-install contract. Add
 `tests/consensus/install-contract.test.ts` that extracts the pinned ref and the
 `~/.consensus/consensus.mjs` literal from `README.md` and asserts they match the
 same values in `install.sh` and the resolver constant introduced in p01-t01
-(Step 3). This makes the cross-file contract a real assertion instead of an
-eyeball check — closing the silent-drift risk the design names.
+(Step 3). It must also **reject literal `<tag>` placeholders** and bare moving
+refs (`main`/`HEAD`) in any README/runtime-facing install text, asserting the ref
+is a concrete release tag (review-I3). This makes the cross-file contract a real
+assertion instead of an eyeball check — closing the silent-drift risk the design
+names.
 
 **Step 3: Verify**
 
@@ -266,20 +289,22 @@ git commit -m "docs(p01-t04): document install.sh alt-install path and assert cr
 
 ---
 
-### Task p01-t05: Rebuild runtimes and bump the five consensus skill versions
+### Task p01-t05: Final phase validation (build + version + full suite)
+
+Version bumps now land in p01-t01 (review-I2), so this task is the phase gate: it
+confirms the regenerated runtimes, version invariants, and full suite are green
+across the whole p01 change before the HiLL pause.
 
 **Files:**
 
-- Modify: `plugins/consensus/skills/{refine,evaluate,decide,plan,create}/SKILL.md` (version + metadata.version)
-- Modify (regenerated): `plugins/consensus/skills/*/scripts/*.mjs`
+- Modify (regenerated, only if `build:check` reports drift): `plugins/consensus/skills/*/scripts/*.mjs`
 
-**Step 1: Rebuild + bump**
+**Step 1: Rebuild if needed**
 
-Run `pnpm run build` to ensure all five generated `.mjs` bundles reflect the
-`src/consensus` changes. Bump each changed consensus skill's `version` **and**
-`metadata.version` in lockstep (`refine`/`evaluate` `0.1.1 → 0.1.2`;
-`decide`/`plan`/`create` `0.1.0 → 0.1.1`). Confirm each skill is listed in
-`SKILL_FILES` in `scripts/bump-version.mjs`.
+Run `pnpm run build`; commit any regenerated `.mjs` only if `build:check` would
+otherwise report drift (normally a no-op since t01–t02 already rebuilt). Confirm
+each of the five consensus skills is listed in `SKILL_FILES` in
+`scripts/bump-version.mjs` and that the t01 bumps are present and in lockstep.
 
 **Step 2: Verify**
 
@@ -292,8 +317,11 @@ version); full Vitest suite green.
 
 ```bash
 git add plugins/consensus/skills
-git commit -m "chore(p01-t05): rebuild consensus runtimes and bump skill versions"
+git commit -m "chore(p01-t05): final p01 validation — runtimes/versions/suite green"
 ```
+
+> If Step 2 is clean with nothing to stage, no commit is needed; the phase is
+> validated by the gate alone.
 
 ---
 
@@ -356,30 +384,45 @@ Run `npx skills add tkstang/skills --list` and confirm the discovery surface:
 Note: `--list` resolves against the public remote's default branch, so it reflects
 *discovery*, not this branch's recovery infra (which only lands at merge).
 
-**Step 2: Verify recovery (local simulation)**
+**Step 2: Install + run the standalone skills (review-I1)**
+
+Listing is not the same as resolving/running. In an isolated `HOME`/install
+target, actually install each standalone skill and smoke-run it:
+
+- `npx skills add tkstang/skills@session-observer`, then run a safe documented
+  no-op (the skill's `--help`/status/probe command)
+- `npx skills add tkstang/skills@export-session-transcript`, then run its safe
+  documented no-op (e.g. `--help`)
+
+Confirm each installs cleanly and its entrypoint executes (not merely listed).
+These are self-contained skills, so this runs against the public remote without the
+branch's consensus changes.
+
+**Step 3: Verify recovery (local simulation)**
 
 Simulate a standalone consensus skill dir with no plugin tree (and no
 `~/.consensus/consensus.mjs`): confirm the run surfaces the actionable missing-CLI
-message, then run `install.sh` and confirm the skill resolves the shared CLI from
-`~/.consensus/consensus.mjs`. This local simulation is the only pre-merge
-verification of the recovery path.
+message, then run `install.sh` (checkout-mode) and confirm the skill resolves the
+shared CLI from `~/.consensus/consensus.mjs`. This local simulation is the only
+pre-merge verification of the recovery path.
 
-**Step 3: Record**
+**Step 4: Record**
 
-Capture both the `--list` output (discovery) and the local-simulation result
-(recovery), pass/fail per check, into `verification/cli-discovery.md`.
+Capture the `--list` output (discovery), each standalone install/run result, and
+the local-simulation result (recovery) — pass/fail per check — into
+`verification/cli-discovery.md`.
 
-**Step 4: Verify**
+**Step 5: Verify**
 
 Run: `npx skills add tkstang/skills --list`
-Expected: discovery entries match the recorded expectations; the Step 2 local
-simulation demonstrates the recovery path.
+Expected: discovery entries match expectations; both standalone skills install and
+run (Step 2); the Step 3 local simulation demonstrates the recovery path.
 
-**Step 5: Commit**
+**Step 6: Commit**
 
 ```bash
 git add .oat/projects/shared/public-discovery/verification/cli-discovery.md
-git commit -m "test(p03-t01): verify standalone + consensus CLI discovery and recovery"
+git commit -m "test(p03-t01): verify standalone install/run + consensus discovery and recovery"
 ```
 
 ---
@@ -390,24 +433,29 @@ git commit -m "test(p03-t01): verify standalone + consensus CLI discovery and re
 
 - Modify: `.oat/repo/pjm/backlog/items/BL-260621-control-public-skill-discovery.md`
 
-**Step 1: Investigate**
+**Step 1: Investigate (concrete, reproducible checks — review-M1)**
 
 Determine whether the skills.sh hosted index auto-crawls public repos or is
 submission-gated, and whether the hosted crawler honors `metadata.internal` the
-way the CLI does. Use the CLI/docs and a direct check of whether `tkstang/skills`
-is indexed.
+way the CLI does. Run and capture output + date for each:
+
+- `npx skills find tkstang` (is the repo indexed?)
+- `npx skills find session-observer` (does our entry surface from the hosted index?)
+- a direct hosted check of the `tkstang/skills` page/search on skills.sh
+- record links to any skills.sh / Vercel docs consulted on crawl-vs-submission
 
 **Step 2: Record**
 
-Append the finding to the backlog item's `## Findings`, choosing the listing
-strategy accordingly, and explicitly note that the cat-3 hiding outcome remains
-deferred to the post-upstream verification (do not claim a public listing before
-the upstream `internal` flag lands and syncs).
+Append the finding to the backlog item's `## Findings` with, for each check, the
+**command/URL, date, and output snippet**, plus the resulting listing strategy
+(submit vs wait-for-crawl). Explicitly note that the cat-3 hiding outcome remains
+deferred to the post-upstream verification — do **not** claim a public listing
+before the upstream `internal` flag lands and syncs.
 
 **Step 3: Verify**
 
-Confirm the backlog item records the crawl/submission determination and the
-deferral note.
+Confirm the backlog item records each check's command/date/output, the
+crawl-vs-submission determination, the chosen strategy, and the deferral note.
 
 **Step 4: Commit**
 
@@ -432,7 +480,7 @@ git commit -m "docs(p03-t02): record skills.sh crawl/submission finding and cat-
 | final  | code     | pending         | -          | -                                                     |
 | spec   | artifact | pending         | -          | -                                                     |
 | design | artifact | fixes_completed | 2026-06-26 | reviews/archived/artifact-design-review-2026-06-26.md |
-| plan   | artifact | received        | 2026-06-26 | reviews/artifact-plan-review-2026-06-26.md             |
+| plan   | artifact | fixes_completed | 2026-06-26 | reviews/archived/artifact-plan-review-2026-06-26.md   |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 
@@ -449,13 +497,13 @@ git commit -m "docs(p03-t02): record skills.sh crawl/submission finding and cat-
 
 **Summary:**
 
-- Phase 1 (Consensus standalone recovery): 5 tasks — resolver fallback, shared actionable error, `install.sh`, README, rebuild + version bumps
+- Phase 1 (Consensus standalone recovery): 5 tasks — resolver fallback + version bumps, shared actionable error, `install.sh`, README + contract test, final validation
 - Phase 2 (Upstream handoff prompt): 1 task — `open-agent-toolkit` internal-flag prompt
-- Phase 3 (Verification & recording): 2 tasks — CLI discovery verification, skills.sh finding
+- Phase 3 (Verification & recording): 2 tasks — CLI discovery + standalone install/run, skills.sh finding
 
 **Total: 8 tasks**
 
-Ready for code review and merge.
+Ready for `oat-project-implement`.
 
 ---
 
