@@ -618,7 +618,10 @@ git commit -m "feat(prev1-t02): add internal-flag detector and validate:internal
 **Step 1: Apply + sync**
 
 Run `node scripts/apply-internal-flags.mjs` against `.agents/skills/`, then
-`oat sync` (project scope) so provider mirrors stay coherent.
+`oat sync` so provider mirrors stay coherent. Use **bare `oat sync`** — verified
+on oat 0.1.33 it defaults to `Scope: project` (bare `oat sync` and
+`oat sync --scope project` print the identical plan; `--scope` is undocumented in
+`oat sync --help`, so prefer the bare command to avoid depending on a hidden flag).
 
 **Step 2: Verify the controlled surface**
 
