@@ -13,6 +13,7 @@
     "premerge": "pnpm run build && pnpm run type-check && pnpm run build:check && pnpm run test && pnpm run validate && pnpm run smoke",
     "validate": "node scripts/validate.mjs",
     "validate:skill-versions": "node scripts/validate-skill-versions.mjs",
+    "validate:internal-flags": "node scripts/validate-internal-flags.mjs",
     "smoke": "node scripts/smoke-test.mjs",
     "worktree:init": "bash scripts/worktree/init.sh",
     "worktree:validate": "bash scripts/worktree/validate.sh",
