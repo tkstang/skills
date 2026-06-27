@@ -1,5 +1,17 @@
 # Upstream Handoff Prompt: Hide OAT Tooling Skills from Public Skill Discovery
 
+> **Status: OPTIONAL FUTURE UPSTREAM IMPROVEMENT (not required).**
+> Category 3 is already **solved in-repo** in `tkstang/skills`: the idempotent
+> `scripts/apply-internal-flags.mjs` stamps `metadata.internal: true` onto every
+> `.agents/skills/**/SKILL.md`, a detector (`pnpm run validate:internal-flags`,
+> wired into CI and the `pre-push` hook) guarantees the flag survives
+> `oat tools update` / `oat sync`, and the discovery drop is **verified** (see
+> `verification/internal-flag-discovery.md`). This prompt is retained only as an
+> optional upstream enhancement: moving the flag to the `open-agent-toolkit` pack
+> source would let **all** downstream consumers inherit it automatically and let
+> each repo retire its per-repo apply-script + gate. It is not a blocker for the
+> `tkstang/skills` public-discovery project, which is complete without it.
+
 You are working in the `open-agent-toolkit` repository.
 
 ## Goal
@@ -76,11 +88,13 @@ consensus plugin discovery path are not hidden by this change.
 
 ## Boundary for `tkstang/skills` Public Discovery Project
 
-For the `tkstang/skills` public-discovery project, this prompt is the committed
-handoff deliverable for the category-3 OAT tooling skill work. The actual hiding
-outcome is deferred until this upstream change lands and is synced back into
-`tkstang/skills`.
+For the `tkstang/skills` public-discovery project, category 3 is **already solved
+and verified in-repo** via `scripts/apply-internal-flags.mjs` plus the
+`validate:internal-flags` CI/pre-push gate; the discovery drop is recorded in
+`verification/internal-flag-discovery.md`. This prompt is therefore an **optional
+future improvement**, not a closure gate.
 
-Track that follow-up verification against backlog item
-`BL-260621-control-public-skill-discovery`; do not treat the downstream hiding
-outcome as closed before the post-sync checks above pass.
+If the upstream change is later adopted, `tkstang/skills` can retire its per-repo
+apply-script and gate and instead inherit `metadata.internal: true` directly from
+the synced pack source. Track that optional follow-up against backlog item
+`BL-260621-control-public-skill-discovery`.

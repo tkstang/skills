@@ -12,7 +12,7 @@ labels:
   - skills
 assignee: null
 created: 2026-06-21T00:05:11Z
-updated: 2026-06-26T23:01:24Z
+updated: 2026-06-27T00:00:00Z
 associated_issues: []
 legacy_id: bl-7c1d
 ---
@@ -49,9 +49,13 @@ verification.
 ## Acceptance Criteria
 
 - Apply `metadata.internal: true` so `.agents/skills/**` never appears in
-  `npx skills` discovery, sourced from the OAT sync layer (not hand-edited) so it
-  survives `oat sync`. Verify with `npx skills add tkstang/skills --list` (the OAT
-  tooling skills drop out) vs `INSTALL_INTERNAL_SKILLS=1 … --list` (they reappear).
+  `npx skills` discovery, via a deterministic in-repo step (not hand-edited) that
+  survives `oat sync`. **Done (revision 1, 2026-06-27):** an idempotent
+  apply-script (`scripts/apply-internal-flags.mjs`) stamps the flag and a detector
+  (`pnpm run validate:internal-flags`, enforced in CI + `pre-push`) keeps it from
+  regressing. Verified with `npx skills add … --list` (OAT tooling skills drop
+  out) vs `INSTALL_INTERNAL_SKILLS=1 … --list` (they reappear); see the
+  2026-06-27 finding below.
 - Consensus `refine`/`evaluate` treatment (**preferred direction: keep
   discoverable + self-redirect**, not hide): leave them visible on skills.sh so
   the plugin is marketable, but make standalone invocation fail gracefully — the
@@ -131,32 +135,69 @@ exercising the public CLI.
   Vercel guidance says there is no special publish command; hosted visibility can
   follow install telemetry.
 - **Chosen listing strategy:** do not submit or claim a public listing now. After
-  release and after the cat-3 upstream `metadata.internal` flag lands and syncs
-  back, seed/verify hosted visibility through real direct installs of the intended
-  standalone entries (`session-observer`, `export-session-transcript`) and re-run
-  the hosted checks above. If Vercel later exposes a manual submission path, use
-  it only after the cat-3 hiding verification passes.
+  release (cat-3 hiding is now solved in-repo and verified — see the 2026-06-27
+  finding below; it no longer waits on an upstream change), seed/verify hosted
+  visibility through real direct installs of the intended standalone entries
+  (`session-observer`, `export-session-transcript`) and re-run the hosted checks
+  above. If Vercel later exposes a manual submission path, use it only after the
+  hosted re-verification passes.
 - **Hosted `metadata.internal` behavior:** still unverified. Because this repo is
   absent from the hosted index, there is no hosted indexed before/after surface on
   which to test whether skills.sh honors `metadata.internal`. Treat CLI behavior
   as verified, but keep hosted behavior as a post-indexing follow-up.
-- **Cat-3 deferral:** the actual hiding of `.agents/skills/**` remains deferred
-  until the `open-agent-toolkit` upstream source adds `metadata.internal: true`
-  and this repo syncs it back. Do not claim a public listing or hosted hiding
-  outcome before that post-upstream verification is complete.
+- **Cat-3 deferral:** _(superseded 2026-06-27 — see the 2026-06-27 finding.)_ The
+  actual hiding of `.agents/skills/**` is no longer deferred to upstream: it is
+  solved in-repo via `scripts/apply-internal-flags.mjs` + the
+  `validate:internal-flags` gate, and the CLI discovery drop is verified. Only the
+  hosted/remote re-verification (against the public default branch, post-merge)
+  remains a follow-up; do not claim a public hosted listing before that.
+
+## Findings (2026-06-27) — Cat-3 solved in-repo (revision 1)
+
+Category 3 was redirected from the upstream `open-agent-toolkit` handoff (which
+deferred the hiding outcome) to an **in-repo, enforced** solution, and the
+discovery drop is now **verified**:
+
+- **Apply-script:** `scripts/apply-internal-flags.mjs` (with shared helper
+  `scripts/lib/skill-frontmatter.mjs`) idempotently stamps `metadata.internal:
+  true` onto every `.agents/skills/**/SKILL.md`. It skips the symlinked
+  `session-observer` entry so the canonical standalone skill stays public. 57 OAT
+  tooling skills are flagged.
+- **Gate:** `pnpm run validate:internal-flags`
+  (`scripts/validate-internal-flags.mjs`) fails when any mirrored skill lacks the
+  flag; it runs in a PR-scoped `internal-flags` CI job and the local `pre-push`
+  hook, so the flag cannot regress after `oat tools update` / `oat sync`.
+- **Runbook:** documented in `AGENTS.md` (hand-maintained section): `oat tools
+  update` → `node scripts/apply-internal-flags.mjs` → `oat sync`.
+- **Verified discovery drop (skills@1.5.13, local checkout):**
+  `npx skills add … --list` → `Found 7 skills` (only `session-observer`,
+  `export-session-transcript`, and the 5 consensus skills); the OAT tooling skills
+  are absent. `INSTALL_INTERNAL_SKILLS=1 … --list` → `Found 64 skills` (the 57
+  flagged OAT tooling skills reappear). Recorded in the project's
+  `verification/internal-flag-discovery.md`.
+- **Upstream handoff prompt:** downgraded (not deleted) to an optional future
+  improvement — adding the flag at the `open-agent-toolkit` pack source would let
+  downstream repos inherit it and retire the per-repo apply-script + gate.
+- **Remaining follow-up:** remote/hosted re-verification against the public
+  default branch is a post-merge confirmation; do not claim a public hosted
+  listing before it.
 
 ## Open questions / design tensions
 
-- `.agents/skills/**` is `oat sync`-generated. `metadata.internal: true` on those
-  must be applied by the OAT sync layer (or a post-sync step), or it gets
-  overwritten — do not hand-edit synced files. Decide where the flag lives.
+- ~~`.agents/skills/**` is `oat sync`-generated. `metadata.internal: true` on
+  those must be applied by the OAT sync layer (or a post-sync step), or it gets
+  overwritten — do not hand-edit synced files. Decide where the flag lives.~~
+  **Resolved 2026-06-27:** the flag lives in the in-repo `apply-internal-flags`
+  post-sync step, enforced by the `validate:internal-flags` gate (see the
+  2026-06-27 finding above).
 - Historical/superseded (2026-06-26 p03): the earlier option to mark consensus
   `refine`/`evaluate` `internal: true` is no longer the accepted strategy. The
   current project strategy keeps all five consensus skills (`create`, `decide`,
   `evaluate`, `plan`, `refine`) discoverable and recoverable as standalone
-  installs with actionable missing-CLI / installer guidance. Only category 3
-  `.agents/skills/**` hiding remains deferred to the upstream OAT sync-layer
-  change.
+  installs with actionable missing-CLI / installer guidance. Category 3
+  `.agents/skills/**` hiding is now **solved in-repo and verified** (revision 1,
+  2026-06-27); only the hosted/remote re-verification (post-merge) remains a
+  follow-up.
 - Confirm whether the skills.sh hosted leaderboard auto-crawls public repos or is
   submission-gated (still undocumented; `tkstang/skills` is not yet indexed).
 
