@@ -34,9 +34,10 @@ function extractInstallTargetRelative(installSh: string) {
 }
 
 describe('consensus install contract', () => {
-  it('keeps README, install.sh, and resolver shared-path/ref values aligned', async () => {
-    const [readme, installSh, resolver] = await Promise.all([
+  it('keeps README, user guide, install.sh, and resolver shared-path/ref values aligned', async () => {
+    const [readme, installGuide, installSh, resolver] = await Promise.all([
       repoFile('README.md'),
+      repoFile('documentation/docs/user-guide/installation.md'),
       repoFile('install.sh'),
       repoFile('src/consensus/core/consensus-loop.ts'),
     ]);
@@ -46,8 +47,13 @@ describe('consensus install contract', () => {
     const [readmeRef] = readmeRefs;
     expect(readmeRef).toMatch(/^v\d+\.\d+\.\d+$/u);
     expect(['main', 'HEAD']).not.toContain(readmeRef);
-    expect(readme).not.toContain('<tag>');
-    expect(`${readme}\n${resolver}`).not.toMatch(
+
+    const installGuideRefs = extractInstallRefs(installGuide);
+    expect(installGuideRefs).toEqual([readmeRef]);
+
+    const runtimeFacingInstallText = `${readme}\n${installGuide}\n${resolver}`;
+    expect(runtimeFacingInstallText).not.toContain('<tag>');
+    expect(runtimeFacingInstallText).not.toMatch(
       /raw\.githubusercontent\.com\/tkstang\/skills\/(?:main|HEAD)\//iu,
     );
 
@@ -56,6 +62,7 @@ describe('consensus install contract', () => {
       CONSENSUS_SHARED_CLI_RELATIVE_PATH,
     );
     expect(readme).toContain(`~/${CONSENSUS_SHARED_CLI_RELATIVE_PATH}`);
+    expect(installGuide).toContain(`~/${CONSENSUS_SHARED_CLI_RELATIVE_PATH}`);
     expect(installSh).toContain(
       'plugins/consensus/scripts/consensus.mjs',
     );
