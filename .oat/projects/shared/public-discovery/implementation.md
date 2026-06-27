@@ -1,9 +1,9 @@
 ---
-oat_status: in_progress
+oat_status: complete
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-27
-oat_current_task_id: prev1-t01
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -30,9 +30,9 @@ oat_generated: false
 | Phase 2 — Upstream handoff prompt       | completed   | 1     | 1/1       |
 | Phase 3 — Verification & recording      | completed   | 2     | 2/2       |
 | Phase 4 — Final review fixes            | completed   | 1     | 1/1       |
-| Phase p-rev1 — Cat-3 in-repo internal-flag tooling | in_progress | 6 | 0/6   |
+| Phase p-rev1 — Cat-3 in-repo internal-flag tooling | completed   | 6 | 6/6   |
 
-**Total:** 9/15 tasks completed
+**Total:** 15/15 tasks completed
 
 ---
 
@@ -264,6 +264,80 @@ artifacts (downgrading, not deleting, the upstream handoff prompt).
 
 ---
 
+## Phase p-rev1: Cat-3 in-repo internal-flag tooling
+
+**Status:** completed
+**Started:** 2026-06-27
+
+### Phase Summary
+
+**Outcome (what changed):**
+
+- Category 3 is now solved **in-repo and verified**, not deferred upstream: an
+  idempotent script stamps `metadata.internal: true` onto every
+  `.agents/skills/**/SKILL.md` (57 OAT tooling skills), and a detector + CI/pre-push
+  gate keeps the flag present through `oat tools update` / `oat sync`.
+- Live `npx skills@1.5.13 --list` against the local checkout now shows **7** skills
+  (2 standalone + 5 consensus); the 57 OAT tooling skills drop out and reappear only
+  under `INSTALL_INTERNAL_SKILLS=1` (64). `session-observer` /
+  `export-session-transcript` remain unflagged (the apply script skips the symlinked
+  mirror).
+- The upstream `open-agent-toolkit` handoff prompt is downgraded (kept) to an
+  optional future improvement; discovery/design/backlog realigned to the in-repo
+  solution.
+
+**Key files touched:**
+
+- `scripts/lib/skill-frontmatter.mjs`, `scripts/apply-internal-flags.mjs`,
+  `scripts/validate-internal-flags.mjs` - apply + detect tooling.
+- `tests/scripts/*.test.ts`, `tests/repo/package-metadata.test.ts` - coverage.
+- `.agents/skills/**/SKILL.md` ×57 - stamped `metadata.internal: true`.
+- `.github/workflows/validate.yml`, `tools/git-hooks/pre-push` - enforcement gate.
+- `AGENTS.md` / `CLAUDE.md` - runbook (hand-maintained section).
+- `discovery.md`, `design.md`, `handoff/...prompt.md`, `BL-260621` - cat-3 realignment.
+
+**Verification:**
+
+- Run: `pnpm run validate:internal-flags` (57, exit 0; negative probe → exit 1);
+  `pnpm run build:check`; `pnpm run validate`;
+  `pnpm run validate:skill-versions --base-ref origin/main` (5 verified, unaffected);
+  `pnpm test` (875 passed, 1 skipped); live `npx skills@1.5.13 --list`.
+- Result: pass. Phase-gate review (opus): 0 Critical, 0 Important, 2 Minor (deferred).
+
+**Notes / Decisions:**
+
+- `.agents/skills/**` are synced mirrors outside `validate.mjs`'s skill-version
+  scope, so stamping them required no skill-version bump (verified).
+- Deviations recorded: hook path is `tools/git-hooks/pre-push` (no `.husky/`); live
+  discovery check ran against the local checkout (remote re-verify is a post-merge
+  follow-up on `BL-260621`).
+
+### Task prev1-t01: Add idempotent internal-flag apply script
+
+**Status:** completed · **Commit:** e2ae641
+
+### Task prev1-t02: Add internal-flag detector + package script
+
+**Status:** completed · **Commit:** 28f42ff (+ 5d87bfa test-invariant fix)
+
+### Task prev1-t03: Apply the flag, sync, and verify the discovery drop
+
+**Status:** completed · **Commit:** d4c4aa2
+
+### Task prev1-t04: Enforce the flag in CI + pre-push
+
+**Status:** completed · **Commit:** 711387e
+
+### Task prev1-t05: Document the runbook in AGENTS.md
+
+**Status:** completed · **Commit:** 36631aa
+
+### Task prev1-t06: Realign cat-3 artifacts and downgrade the handoff prompt
+
+**Status:** completed · **Commit:** 89be78a
+
+---
+
 ## Orchestration Runs
 
 _Each run from `oat-project-implement` appends an entry below with:_
@@ -275,6 +349,36 @@ _- Outstanding Items_
 <!-- orchestration-runs-start -->
 
 _Orchestration runs from `oat-project-implement` are appended here, most-recent-first within the file but append-only at the bottom of the log._
+
+### Run 4 — 2026-06-27
+
+**Branch:** feat-public-discovery
+**Tier:** 1 (subagents)
+**Policy:** merge-strategy=sequential, retry-limit=2
+**Phases:** 1 executed, 1 passed, 0 failed, 0 stopped
+
+#### Phase Outcomes
+
+| Phase   | Implementer | Review | Fix Iterations | Disposition |
+| ------- | ----------- | ------ | -------------- | ----------- |
+| p-rev1  | DONE        | pass   | 0/2            | completed   |
+
+#### Parallel Groups
+
+- None — p-rev1 ran sequentially.
+
+#### Dispatch Notes
+
+- Dispatch: p-rev1 implementation model_axis=selected:opus (ceiling=opus, project state); review model_axis=selected:opus (reviewer at ceiling). High stakes: repo-wide `.agents/skills` mutation + CI/hook enforcement.
+
+#### Outstanding Items
+
+- None. 2 Minor review findings accepted/deferred (frontmatter matcher depth-scoping robustness note; worktree pre-push behavior backstopped by the PR-scoped CI gate).
+
+#### Artifact / Design Deltas
+
+- prev1-t04: plan named `.husky/pre-push`; repo uses `tools/git-hooks/pre-push` — implemented against the real hook path (consolidated in `## Deviations from Plan / Design`).
+- prev1-t03: live `npx skills` discovery check ran against the local checkout (flags are on this unmerged branch); remote re-verify deferred post-merge to `BL-260621`.
 
 ### Run 3 — 2026-06-27 11:18
 
