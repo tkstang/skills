@@ -1,6 +1,6 @@
 ---
-oat_current_task: null
-oat_last_commit: 107d2b9
+oat_current_task: p04-t01
+oat_last_commit: eedd0f8
 oat_blockers: []
 associated_issues: [{type: backlog, ref: "BL-260621-control-public-skill-discovery"}] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
@@ -12,7 +12,7 @@ oat_hill_checkpoints: [] # Configured: which phases require human-in-the-loop li
 oat_hill_completed: [] # Progress: which HiLL checkpoints have been completed
 oat_parallel_execution: false
 oat_phase: implement # Current phase: discovery | spec | design | plan | implement | decomposition
-oat_phase_status: pr_open # Status: in_progress | complete | pr_open
+oat_phase_status: in_progress # Status: in_progress | complete | pr_open
 # oat_orchestration_retry_limit: 2  # optional; override fix-loop retry limit (range 0-5)
 oat_dispatch_ceiling: # project override for provider-aware dispatch ceilings
   preset: maximum
@@ -27,7 +27,7 @@ oat_pr_status: open # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: "https://github.com/tkstang/skills/pull/38" # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-06-26T02:20:27.593Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-06-26T23:34:39Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-06-27T16:02:07Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -35,11 +35,11 @@ oat_generated: false
 
 **Status:** Implementation
 **Started:** 2026-06-26
-**Last Updated:** 2026-06-26
+**Last Updated:** 2026-06-27
 
 ## Current Phase
 
-Implementation — PR open, awaiting human review.
+Implementation — final review fix queued.
 
 ## Artifacts
 
@@ -54,9 +54,10 @@ Implementation — PR open, awaiting human review.
 - ✓ Discovery complete
 - ✓ Plan complete
 - ✓ Implementation tasks complete
-- ✓ Final review passed
+- ✓ Prior final review passed
 - ✓ PR created
-- ⧗ Awaiting human review
+- ✓ 2026-06-27 final review received
+- ⧗ Review fix task queued: `p04-t01`
 
 ## Blockers
 
@@ -64,7 +65,7 @@ None
 
 ## Next Milestone
 
-PR is open for review.
+Execute final review fix task `p04-t01`.
 
-- To incorporate feedback: run `oat-project-revise`
-- When approved: run `oat-project-complete`
+- To execute the fix: run `oat-project-implement`
+- After fixes: run `oat-project-review-provide code final`, then `oat-project-review-receive`

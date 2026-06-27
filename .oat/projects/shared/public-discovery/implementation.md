@@ -2,15 +2,15 @@
 oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
-oat_last_updated: 2026-06-26
-oat_current_task_id: null
+oat_last_updated: 2026-06-27
+oat_current_task_id: p04-t01
 oat_generated: false
 ---
 
 # Implementation: public-discovery
 
 **Started:** 2026-06-26
-**Last Updated:** 2026-06-26
+**Last Updated:** 2026-06-27
 
 > This document is used to resume interrupted implementation sessions.
 >
@@ -29,8 +29,9 @@ oat_generated: false
 | Phase 1 — Consensus standalone recovery | completed   | 5     | 5/5       |
 | Phase 2 — Upstream handoff prompt       | completed   | 1     | 1/1       |
 | Phase 3 — Verification & recording      | completed   | 2     | 2/2       |
+| Phase 4 — Final review fixes            | in_progress | 1     | 0/1       |
 
-**Total:** 8/8 tasks completed
+**Total:** 8/9 tasks completed
 
 ---
 
@@ -200,6 +201,43 @@ oat_generated: false
 
 **Status:** completed
 **Commit:** e8ab87a
+
+---
+
+## Phase 4: Final review fixes
+
+**Status:** in_progress
+**Started:** 2026-06-27
+
+### Phase Summary
+
+**Outcome (what changed):**
+
+- Pending. Final review receive converted one Minor coverage gap into a review-fix
+  task and deferred one release-tag coordination note to the existing release
+  checklist/backlog follow-up.
+
+**Key files touched:**
+
+- `tests/consensus/install-contract.test.ts` - pending extension for the
+  user-guide installation page.
+
+**Verification:**
+
+- Pending: `pnpm exec vitest run tests/consensus/install-contract.test.ts` and
+  `pnpm --dir documentation run build`.
+
+**Notes / Decisions:**
+
+- Final review had 0 Critical, 0 Important, and 0 Medium findings.
+- Minor `m2` (`v0.1.2` release-tag coordination) is accepted as a release
+  checklist / `BL-260621` follow-up because it depends on the actual release tag
+  cut and cannot be fully verified pre-release.
+
+### Task p04-t01: Extend installer contract coverage to user-guide install docs
+
+**Status:** pending
+**Commit:** pending
 
 ---
 
@@ -382,6 +420,36 @@ Track test execution during implementation.
 - Artifact: `reviews/archived/final-review-2026-06-26.md`
 - Findings: 0 Critical, 0 Important, 0 Medium, 0 Minor
 - Next: project summary, documentation sync, and final PR.
+
+### Review Received: final
+
+**Date:** 2026-06-27
+**Review artifact:** `reviews/archived/final-review-2026-06-27.md`
+
+**Findings:**
+
+- Critical: 0
+- Important: 0
+- Medium: 0
+- Minor: 2
+
+**New tasks added:** p04-t01
+
+**Converted Findings:**
+
+- m1 -> p04-t01: extend `tests/consensus/install-contract.test.ts` to cover
+  `documentation/docs/user-guide/installation.md`.
+
+**Deferred Findings (Minor):**
+
+- m2: release-tag coordination for the `v0.1.2` installer pin is deferred to the
+  release checklist / `BL-260621` because the remote one-liner can only be fully
+  verified once the release tag is cut. The current branch keeps README,
+  `install.sh`, and user-guide docs internally aligned; post-release validation
+  must confirm the tag contains this branch's installer/resolver work.
+
+**Next:** Execute fix task `p04-t01` via the `oat-project-implement` skill, then
+update the final review row to `fixes_completed` and re-run final review.
 
 ## Final Summary (for PR/docs)
 

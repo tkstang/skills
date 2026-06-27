@@ -2,7 +2,7 @@
 oat_status: complete
 oat_ready_for: oat-project-implement
 oat_blockers: []
-oat_last_updated: 2026-06-26
+oat_last_updated: 2026-06-27
 oat_phase: plan
 oat_phase_status: complete
 oat_plan_hill_phases: ['p03'] # workflow.hillCheckpointDefault=final
@@ -468,6 +468,48 @@ git commit -m "docs(p03-t02): record skills.sh crawl/submission finding and cat-
 
 ---
 
+## Phase 4: Final review fixes
+
+### Task p04-t01: (review) Extend installer contract coverage to user-guide install docs
+
+**Files:**
+
+- Modify: `tests/consensus/install-contract.test.ts`
+- Verify: `documentation/docs/user-guide/installation.md`
+
+**Step 1: Understand the issue**
+
+Review finding: the installer contract test enforces the pinned ref and
+`~/.consensus/consensus.mjs` literal across README, `install.sh`, and the
+resolver, but it does not assert the same contract in
+`documentation/docs/user-guide/installation.md`. Current docs agree, so this is a
+coverage gap rather than a live defect.
+
+Location: `tests/consensus/install-contract.test.ts:14`
+
+**Step 2: Implement fix**
+
+Extend the contract test to read `documentation/docs/user-guide/installation.md`
+and assert that its install command/ref and shared path match the same values
+already enforced for README, `install.sh`, and the resolver. Preserve the existing
+guard against literal `<tag>` placeholders and moving refs.
+
+**Step 3: Verify**
+
+Run: `pnpm exec vitest run tests/consensus/install-contract.test.ts && pnpm --dir documentation run build`
+
+Expected: install-contract test passes, and the docs app builds without introducing
+generated-index or MDX drift.
+
+**Step 4: Commit**
+
+```bash
+git add tests/consensus/install-contract.test.ts
+git commit -m "test(p04-t01): cover user-guide installer contract"
+```
+
+---
+
 ## Reviews
 
 {Track reviews here after running the oat-project-review-provide and oat-project-review-receive skills.}
@@ -479,7 +521,7 @@ git commit -m "docs(p03-t02): record skills.sh crawl/submission finding and cat-
 | p01    | code     | passed          | 2026-06-26 | reviews/archived/p01-review-2026-06-26-v2.md         |
 | p02    | code     | passed          | 2026-06-26 | reviews/archived/p02-review-2026-06-26.md            |
 | p03    | code     | passed          | 2026-06-26 | reviews/archived/p03-review-2026-06-26-v2.md         |
-| final  | code     | received        | 2026-06-27 | reviews/final-review-2026-06-27.md                   |
+| final  | code     | fixes_added     | 2026-06-27 | reviews/archived/final-review-2026-06-27.md          |
 | spec   | artifact | pending         | -          | -                                                     |
 | design | artifact | fixes_completed | 2026-06-26 | reviews/archived/artifact-design-review-2026-06-26.md |
 | plan   | artifact | fixes_completed | 2026-06-26 | reviews/archived/artifact-plan-review-2026-06-26.md   |
@@ -502,8 +544,9 @@ git commit -m "docs(p03-t02): record skills.sh crawl/submission finding and cat-
 - Phase 1 (Consensus standalone recovery): 5 tasks — resolver fallback + version bumps, shared actionable error, `install.sh`, README + contract test, final validation
 - Phase 2 (Upstream handoff prompt): 1 task — `open-agent-toolkit` internal-flag prompt
 - Phase 3 (Verification & recording): 2 tasks — CLI discovery + standalone install/run, skills.sh finding
+- Phase 4 (Final review fixes): 1 task — user-guide installer contract coverage
 
-**Total: 8 tasks**
+**Total: 9 tasks**
 
 Ready for `oat-project-implement`.
 
