@@ -824,7 +824,7 @@ git commit -m "fix(prev1-t08): depth-scope metadata.internal detection in skill-
 | p01    | code     | passed          | 2026-06-26 | reviews/archived/p01-review-2026-06-26-v2.md         |
 | p02    | code     | passed          | 2026-06-26 | reviews/archived/p02-review-2026-06-26.md            |
 | p03    | code     | passed          | 2026-06-26 | reviews/archived/p03-review-2026-06-26-v2.md         |
-| p-rev1 | code     | fixes_added     | 2026-06-27 | reviews/archived/p-rev1-review-2026-06-27-v2.md      |
+| p-rev1 | code     | passed          | 2026-06-27 | reviews/archived/p-rev1-review-2026-06-27-v3.md      |
 | final  | code     | fixes_completed | 2026-06-27 | reviews/archived/final-review-2026-06-27.md          |
 | spec   | artifact | pending         | -          | -                                                     |
 | design | artifact | fixes_completed | 2026-06-26 | reviews/archived/artifact-design-review-2026-06-26.md |

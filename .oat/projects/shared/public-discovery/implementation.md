@@ -1,9 +1,9 @@
 ---
-oat_status: in_progress
+oat_status: complete
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-27
-oat_current_task_id: prev1-t07
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -30,9 +30,9 @@ oat_generated: false
 | Phase 2 — Upstream handoff prompt       | completed   | 1     | 1/1       |
 | Phase 3 — Verification & recording      | completed   | 2     | 2/2       |
 | Phase 4 — Final review fixes            | completed   | 1     | 1/1       |
-| Phase p-rev1 — Cat-3 in-repo internal-flag tooling | in_progress | 8 | 6/8   |
+| Phase p-rev1 — Cat-3 in-repo internal-flag tooling | completed   | 8 | 8/8   |
 
-**Total:** 15/17 tasks completed
+**Total:** 17/17 tasks completed
 
 ---
 
@@ -56,8 +56,14 @@ oat_generated: false
   no live defect, but a false "already flagged" read could leak a skill into public
   discovery, so it's cheap insurance in the discovery-control path. prev1-t08.
 
-**Next:** Execute prev1-t07 → prev1-t08 via `oat-project-implement`, then re-run the
-p-rev1 review (confirming `pnpm run type-check` passes) to reach `passed`.
+**Resolution:** prev1-t07 (`a4c8d0f`) added `// @ts-expect-error` above the three
+declaration-free `.mjs` imports — `pnpm run type-check` now exits 0 (TS7016 cleared,
+no unused-directive errors). prev1-t08 (`a3dfdd0`) depth-scoped `frontmatterHasInternal`
+to the direct child indent (sharing `detectNestedIndent` with the apply path, so
+detect/add depth can't diverge) + a deep-nesting fixture test. The v3 re-review
+(`reviews/archived/p-rev1-review-2026-06-27-v3.md`) passed: 0 Critical, 0 Important,
+1 optional Minor (loop-invariant regex recompile — accepted/deferred, negligible).
+p-rev1 review row → `passed`.
 
 ---
 
@@ -374,6 +380,31 @@ _- Outstanding Items_
 <!-- orchestration-runs-start -->
 
 _Orchestration runs from `oat-project-implement` are appended here, most-recent-first within the file but append-only at the bottom of the log._
+
+### Run 5 — 2026-06-27
+
+**Branch:** feat-public-discovery
+**Tier:** 1 (subagents)
+**Policy:** fix-cycle for p-rev1 v2 review findings, retry-limit=2
+**Phases:** 1 executed (p-rev1 fix scope), 1 passed, 0 failed, 0 stopped
+
+#### Phase Outcomes
+
+| Phase           | Implementer | Review | Fix Iterations | Disposition |
+| --------------- | ----------- | ------ | -------------- | ----------- |
+| p-rev1 (fixes)  | DONE        | pass   | 1/2            | completed   |
+
+#### Dispatch Notes
+
+- Dispatch: fix implementation model_axis=selected:sonnet (small, well-specified review fixes; under opus ceiling); re-review model_axis=selected:opus (reviewer at ceiling), scoped to fix commits a4c8d0f..a3dfdd0.
+
+#### Outstanding Items
+
+- None. v3 re-review passed (0 Critical, 0 Important). 1 optional Minor (loop-invariant regex recompile in skill-frontmatter.mjs) accepted/deferred — negligible, injection-safe.
+
+#### Artifact / Design Deltas
+
+- None.
 
 ### Run 4 — 2026-06-27
 
