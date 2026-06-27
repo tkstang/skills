@@ -2,95 +2,111 @@
 oat_status: complete
 oat_ready_for: null
 oat_blockers: []
-oat_last_updated: 2026-06-26
+oat_last_updated: 2026-06-27
 oat_generated: true
-oat_summary_last_task: p03-t02
-oat_summary_revision_count: 0
-oat_summary_includes_revisions: []
+oat_summary_last_task: prev1-t08
+oat_summary_revision_count: 1
+oat_summary_includes_revisions: [p-rev1]
 ---
 
 # Summary: public-discovery
 
 ## Overview
 
-This project tightened the public discovery story for `tkstang/skills` by
-controlling the path the repo actually owns today: the `skills` CLI and the
-standalone skill install experience. It made standalone consensus installs
-recoverable, prepared an upstream OAT internal-flag handoff, and recorded live
-CLI and skills.sh evidence for the current public-discovery state.
+This project controlled the public skill-discovery surface for `tkstang/skills`
+on the path the repo actually owns — the `npx skills` CLI — across three skill
+categories: the standalone skills stay individually installable, the consensus
+plugin skills stay discoverable but recover when installed standalone, and the
+OAT tooling mirrors under `.agents/skills/**` are hidden from discovery. The
+OAT-tooling hiding was first scoped as an upstream handoff (deferred) and then,
+in revision `p-rev1`, redirected to an **in-repo, enforced, and verified**
+solution.
 
 ## What Was Implemented
 
-- Added shared-home consensus CLI recovery. The consensus wrappers now resolve
-  the provider CLI from explicit path, `CONSENSUS_CLI_PATH`, plugin-relative
-  install, then `~/.consensus/consensus.mjs`.
-- Centralized the actionable missing-provider-CLI error across `create`,
-  `decide`, `evaluate`, `plan`, and `refine`.
-- Added `install.sh`, which provisions the shared consensus CLI in checkout mode
-  today and carries the pinned remote install path for the next release tag.
-- Updated README and docs installation guidance for standalone consensus
-  recovery.
-- Added tests for resolver order, shared missing-CLI messaging, installer
-  behavior, and README/install/resolver contract drift.
-- Added an `open-agent-toolkit` handoff prompt for applying
-  `metadata.internal: true` at the upstream OAT tooling skill source.
-- Recorded public discovery evidence in
-  `verification/cli-discovery.md`: published `skills@1.5.13` listing,
-  standalone skill install/run smoke checks, and local consensus recovery
-  simulation.
-- Updated `BL-260621-control-public-skill-discovery` with dated skills.sh
-  hosted-index checks, no-current-listing strategy, and cat-3 deferral.
+- **Consensus standalone recovery (cat 2):** the wrappers resolve the provider
+  CLI from explicit path → `CONSENSUS_CLI_PATH` → plugin-relative install →
+  `~/.consensus/consensus.mjs`, with one shared actionable missing-CLI error
+  across all five skills (`create`, `decide`, `evaluate`, `plan`, `refine`).
+  `install.sh` provisions the shared CLI (checkout mode today; pinned remote ref
+  for the next release). README + docs install guidance updated; tests cover
+  resolver order, the shared message, the installer, and the README/install/
+  resolver contract.
+- **OAT tooling hiding (cat 3) — solved in-repo:** `scripts/apply-internal-flags.mjs`
+  idempotently stamps `metadata.internal: true` on all 57 `.agents/skills/**/SKILL.md`
+  (skipping the symlinked `session-observer`); `scripts/validate-internal-flags.mjs`
+  gates it in a PR-scoped CI job + the `pre-push` hook; the runbook lives in
+  AGENTS.md. Discovery drop verified live (`npx skills@1.5.13 --list` → tooling
+  drops out; `INSTALL_INTERNAL_SKILLS=1` → reappears). The `open-agent-toolkit`
+  handoff prompt was kept as an **optional future** improvement, not the mechanism.
+- **Verification + records:** `verification/cli-discovery.md` and
+  `verification/internal-flag-discovery.md` capture the live evidence; the cat-3
+  decision is recorded as DR-260627; `BL-260621` closed out.
 
 ## Key Decisions
 
-- Category 2 consensus skills should stay discoverable and become recoverable
-  standalone, rather than being hidden from discovery.
-- Category 3 OAT tooling hiding must be fixed upstream in `open-agent-toolkit`.
-  Editing synced `.agents/skills/**` in this repo would be overwritten by
-  `oat sync`.
-- The hosted skills.sh listing should not be claimed yet. The repo is installable
-  with the published CLI, but hosted search and direct repo checks did not show
-  `tkstang/skills` as indexed on 2026-06-26.
-- Verification should use `skills@1.5.13` explicitly from this checkout because
-  unversioned `npx skills ...` shadows the local repo package named `skills`.
+- **Control public skill discovery in-repo** (cat 3): stamp + gate
+  `metadata.internal: true` on the synced `.agents/skills/**` mirrors via an
+  idempotent script and a CI/pre-push gate, rather than hand-editing (clobbered by
+  `oat sync`) or depending on an upstream `open-agent-toolkit` change. See DR-260627.
+- **Keep consensus skills discoverable and recover standalone installs via a
+  shared-home installer** (cat 2), rather than hiding them from discovery.
+- **No hosted skills.sh listing claim until verified** — the repo is installable
+  via the published CLI, but hosted search did not show `tkstang/skills` indexed;
+  the hosted crawl/submission path stays a deferred follow-up.
 
 ## Design Deltas
 
-- `evaluate` was bumped to `0.1.3` instead of the originally planned `0.1.2`
-  because current `origin/main` already contained `0.1.2`.
-- The accepted skill-version validation command is
-  `pnpm run validate:skill-versions --base-ref origin/main`; the earlier plan
-  form with an extra `--` was corrected after review.
+- Cat 3 was redirected mid-project from "upstream handoff, hiding deferred" to the
+  in-repo enforced solution above; discovery/design/backlog were realigned in
+  `p-rev1` and the handoff prompt downgraded (see Revision History).
+- `evaluate` shipped `0.1.3` (not the planned `0.1.2`) because `origin/main`
+  already carried `0.1.2`.
+- The working skill-version command is `pnpm run validate:skill-versions --base-ref origin/main`
+  (no extra `--`), corrected after review.
 
 ## Notable Challenges
 
-- p01 review found the `evaluate` version bump was insufficient against current
-  `origin/main`; the fix bumped both `version` and `metadata.version` to
-  `0.1.3`.
-- p03 review found the discovery artifact needed complete or filtered evidence
-  for the "only standalone entries" claim; the fix added the parsed 64-skill
-  list and category counts.
+- An independent second review of `p-rev1` (v2) caught a CI-blocking `type-check`
+  failure the phase-gate review missed: the new test files imported
+  declaration-free `.mjs` scripts without the repo's `@ts-expect-error` suppression
+  (TS7016). Fixed in `prev1-t07`; a v3 re-review then passed clean.
+- The `frontmatter` internal-flag matcher was hardened to depth-scope detection
+  (`prev1-t08`) so a future deeply-nested `internal:` can't be mistaken for the
+  flag and leak a skill into public discovery.
 
 ## Integration Notes
 
-- The new runtime behavior is generated from
-  `src/consensus/core/consensus-loop.ts`; committed `.mjs` outputs under
-  `plugins/consensus/skills/**` must stay in sync via `pnpm run build`.
-- Standalone consensus recovery depends on `~/.consensus/consensus.mjs`, created
-  by `install.sh`.
-- The remote installer one-liner targets `v0.1.2` and becomes live only after
-  that release tag exists.
+- Consensus runtime behavior is generated from `src/consensus/core/consensus-loop.ts`;
+  committed `.mjs` under `plugins/consensus/skills/**` must stay in sync via
+  `pnpm run build`.
+- After `oat tools update`, re-run `node scripts/apply-internal-flags.mjs` then
+  `oat sync` to keep `.agents/skills/**` flagged; the `validate:internal-flags` gate
+  (CI + pre-push) blocks regressions.
+- Standalone consensus recovery depends on `~/.consensus/consensus.mjs` written by
+  `install.sh`; the remote one-liner targets `v0.1.2` and is live only once that
+  tag exists.
+- Use `skills@1.5.13` explicitly for CLI verification — unversioned `npx skills`
+  shadows the local repo package named `skills`.
+
+## Revision History
+
+- **p-rev1 — Category 3 redirected to in-repo tooling (2026-06-27).** After the
+  initial implementation shipped the upstream-handoff approach, cat-3 was
+  redirected to the in-repo apply-script + detector + CI/pre-push gate + runbook,
+  and the discovery drop was verified live. An independent v2 review caught a
+  type-check CI blocker (fixed in `prev1-t07`); `prev1-t08` depth-scoped the
+  matcher; the v3 re-review passed clean.
 
 ## Follow-up Items
 
-- Run the `open-agent-toolkit` handoff prompt, sync the resulting OAT
-  `metadata.internal: true` source change back into this repo, then re-run CLI
-  discovery.
-- Do not seed or claim hosted skills.sh listing until cat-3 hiding is verified.
-  After that, seed discovery by installing the intended standalone entries and
-  re-checking the hosted index.
-- Hosted `metadata.internal` behavior remains unverified until the repo is
-  indexed and the upstream OAT internal flag has landed.
+- **Verify the skills.sh hosted path** (crawl vs submission; whether it honors
+  `internal`) before any public-listing claim; `tkstang/skills` is not yet indexed.
+- **Optional upstream:** run the `open-agent-toolkit` handoff prompt to add the flag
+  at the OAT pack source, which would let all consumers inherit it and retire the
+  per-repo apply script.
+- Minor (deferred): the internal-flag detector recompiles a loop-invariant regex
+  per skill — negligible, injection-safe.
 
 ## Associated Issues
 
