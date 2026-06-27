@@ -1,6 +1,6 @@
 ---
-oat_current_task: p04-t01
-oat_last_commit: eedd0f8
+oat_current_task: null
+oat_last_commit: 6d9938e
 oat_blockers: []
 associated_issues: [{type: backlog, ref: "BL-260621-control-public-skill-discovery"}] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
@@ -27,7 +27,7 @@ oat_pr_status: open # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: "https://github.com/tkstang/skills/pull/38" # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-06-26T02:20:27.593Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-06-27T16:02:07Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-06-27T16:18:29Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -39,7 +39,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation — final review fix queued.
+Implementation — tasks complete; awaiting final review.
 
 ## Artifacts
 
@@ -57,7 +57,8 @@ Implementation — final review fix queued.
 - ✓ Prior final review passed
 - ✓ PR created
 - ✓ 2026-06-27 final review received
-- ⧗ Review fix task queued: `p04-t01`
+- ✓ Review fix task completed: `p04-t01`
+- ⧗ Awaiting final re-review
 
 ## Blockers
 
@@ -65,7 +66,7 @@ None
 
 ## Next Milestone
 
-Execute final review fix task `p04-t01`.
+Final review is required before returning the PR to ready state.
 
-- To execute the fix: run `oat-project-implement`
-- After fixes: run `oat-project-review-provide code final`, then `oat-project-review-receive`
+- Run `oat-project-review-provide code final`
+- Then run `oat-project-review-receive`

@@ -1,9 +1,9 @@
 ---
-oat_status: in_progress
+oat_status: complete
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-27
-oat_current_task_id: p04-t01
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -29,9 +29,9 @@ oat_generated: false
 | Phase 1 — Consensus standalone recovery | completed   | 5     | 5/5       |
 | Phase 2 — Upstream handoff prompt       | completed   | 1     | 1/1       |
 | Phase 3 — Verification & recording      | completed   | 2     | 2/2       |
-| Phase 4 — Final review fixes            | in_progress | 1     | 0/1       |
+| Phase 4 — Final review fixes            | completed   | 1     | 1/1       |
 
-**Total:** 8/9 tasks completed
+**Total:** 9/9 tasks completed
 
 ---
 
@@ -206,26 +206,30 @@ oat_generated: false
 
 ## Phase 4: Final review fixes
 
-**Status:** in_progress
+**Status:** completed
 **Started:** 2026-06-27
 
 ### Phase Summary
 
 **Outcome (what changed):**
 
-- Pending. Final review receive converted one Minor coverage gap into a review-fix
-  task and deferred one release-tag coordination note to the existing release
+- Extended the installer contract test so the user-guide installation page is
+  covered by the same pinned-ref and shared-path guard as README, `install.sh`,
+  and the resolver.
+- Final review receive converted one Minor coverage gap into this review-fix task
+  and deferred one release-tag coordination note to the existing release
   checklist/backlog follow-up.
 
 **Key files touched:**
 
-- `tests/consensus/install-contract.test.ts` - pending extension for the
-  user-guide installation page.
+- `tests/consensus/install-contract.test.ts` - now checks
+  `documentation/docs/user-guide/installation.md`.
 
 **Verification:**
 
-- Pending: `pnpm exec vitest run tests/consensus/install-contract.test.ts` and
+- Run: `pnpm exec vitest run tests/consensus/install-contract.test.ts` and
   `pnpm --dir documentation run build`.
+- Result: pass.
 
 **Notes / Decisions:**
 
@@ -236,8 +240,8 @@ oat_generated: false
 
 ### Task p04-t01: Extend installer contract coverage to user-guide install docs
 
-**Status:** pending
-**Commit:** pending
+**Status:** completed
+**Commit:** 6d9938e
 
 ---
 
@@ -252,6 +256,42 @@ _- Outstanding Items_
 <!-- orchestration-runs-start -->
 
 _Orchestration runs from `oat-project-implement` are appended here, most-recent-first within the file but append-only at the bottom of the log._
+
+### Run 3 — 2026-06-27 11:18
+
+**Branch:** feat-public-discovery
+**Tier:** 2
+**Policy:** merge-strategy=inline, retry-limit=2
+**Phases:** 1 executed, 1 passed, 0 failed, 0 stopped
+
+#### Phase Outcomes
+
+| Phase | Implementer | Review | Fix Iterations | Disposition |
+| ----- | ----------- | ------ | -------------- | ----------- |
+| p04   | DONE        | not-run | 0/2            | completed   |
+
+#### Parallel Groups
+
+- p04: sequential inline execution; subagents skipped by user request.
+
+#### Dispatch Notes
+
+- Dispatch: p04 implementation used Tier 2 inline execution because the user
+  explicitly requested skipping subagents. Dispatch ceiling resolved to Codex
+  `xhigh` from project state, but no subagent dispatch was performed.
+
+#### Outstanding Items
+
+- Final re-review is still required before the final review row can return to
+  `passed`.
+
+#### Artifact / Design Deltas
+
+Run-scoped snapshot only. The durable record is `## Deviations from Plan / Design`; consolidate any non-`None` entries there at the next phase boundary.
+
+| Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
+| ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
+| None | - | - | - | - | - | - |
 
 ### Run 2 — 2026-06-26 18:19
 
@@ -395,6 +435,37 @@ Chronological log of implementation progress.
 
 ---
 
+### 2026-06-27 — Final review fix
+
+**Session Start:** 11:17
+
+- [x] p04-t01: Extend installer contract coverage to user-guide install docs - 6d9938e
+
+**What changed (high level):**
+
+- `tests/consensus/install-contract.test.ts` now reads
+  `documentation/docs/user-guide/installation.md` and verifies the docs install
+  command/ref plus `~/.consensus/consensus.mjs` path stay aligned with README,
+  `install.sh`, and the resolver.
+
+**Decisions:**
+
+- No RED step was meaningful because the docs page was already compliant; this
+  task adds drift coverage for the current correct state.
+
+**Follow-ups / TODO:**
+
+- Re-run final review for the p04 fix and process it with
+  `oat-project-review-receive`.
+
+**Blockers:**
+
+- None.
+
+**Session End:** 11:18
+
+---
+
 ## Deviations from Plan / Design
 
 Document any intentional deviations from the original plan, spec, or design. Include accepted review findings where the shipped implementation is source of truth and a lifecycle artifact needs alignment.
@@ -412,6 +483,7 @@ Track test execution during implementation.
 | p01/p02 fan-in | `pnpm test`; `pnpm lint`; `pnpm run type-check`; `pnpm run build:check` | yes | no | n/a |
 | p03 | isolated `skills@1.5.13` discovery/install checks; consensus recovery simulation; skills.sh hosted checks | yes | no | n/a |
 | final | `pnpm test`; `pnpm lint`; `pnpm run type-check`; `pnpm run build`; `pnpm run build:check`; `pnpm run validate`; `pnpm run smoke`; `pnpm run validate:skill-versions --base-ref origin/main` | yes | no | n/a |
+| p04 | `pnpm exec vitest run tests/consensus/install-contract.test.ts`; `pnpm --dir documentation run build` | yes | no | n/a |
 
 ## Review Received
 
@@ -448,8 +520,10 @@ Track test execution during implementation.
   `install.sh`, and user-guide docs internally aligned; post-release validation
   must confirm the tag contains this branch's installer/resolver work.
 
-**Next:** Execute fix task `p04-t01` via the `oat-project-implement` skill, then
-update the final review row to `fixes_completed` and re-run final review.
+**Fix status:** p04-t01 completed in `6d9938e`.
+
+**Next:** Re-run final review, then process the review with
+`oat-project-review-receive`.
 
 ## Final Summary (for PR/docs)
 
@@ -460,6 +534,8 @@ update the final review row to `fixes_completed` and re-run final review.
 - `install.sh` provisions the shared consensus CLI in checkout mode and documents the pinned remote install path.
 - The public-discovery verification record proves standalone skill install/run behavior and captures skills.sh hosted-index status.
 - The `open-agent-toolkit` upstream handoff prompt captures the cat-3 `metadata.internal` follow-up.
+- The final review fix extends the installer contract guard to the user-guide
+  installation page so README/docs/install/resolver drift is covered.
 
 **Behavioral changes (user-facing):**
 
@@ -475,12 +551,14 @@ update the final review row to `fixes_completed` and re-run final review.
 - `README.md` - installation documentation.
 - `.oat/projects/shared/public-discovery/verification/cli-discovery.md` - public discovery verification evidence.
 - `.oat/repo/pjm/backlog/items/BL-260621-control-public-skill-discovery.md` - hosted-index findings and deferral strategy.
+- `tests/consensus/install-contract.test.ts` - cross-file installer contract coverage, including user-guide docs.
 
 **Verification performed:**
 
 - `pnpm test`, `pnpm lint`, `pnpm run type-check`, `pnpm run build:check`.
 - `pnpm run validate`, `pnpm run validate:skill-versions --base-ref origin/main`, targeted consensus Vitest tests, `bash -n install.sh`.
 - Isolated `skills@1.5.13` discovery/install checks, consensus recovery simulation, and skills.sh hosted checks recorded in `verification/cli-discovery.md`.
+- `pnpm exec vitest run tests/consensus/install-contract.test.ts` and `pnpm --dir documentation run build` for the final review fix.
 
 **Design deltas (if any):**
 
