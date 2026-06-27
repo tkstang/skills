@@ -5,6 +5,8 @@ description: Use when all implementation work is finished and the project is rea
 disable-model-invocation: true
 user-invocable: true
 allowed-tools: Read, Write, Bash, AskUserQuestion
+metadata:
+  internal: true
 ---
 
 # Complete Project

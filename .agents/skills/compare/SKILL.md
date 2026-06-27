@@ -5,6 +5,8 @@ description: Domain-aware comparative analysis with clear recommendations. Compa
 argument-hint: 'item1 item2 [item3...] [--save] [--context path] [--dimensions "dim1, dim2, ..."]'
 user-invocable: true
 allowed-tools: Read, Glob, Grep, Bash, WebSearch, WebFetch, AskUserQuestion, Agent, mcp__*
+metadata:
+  internal: true
 ---
 
 # /compare

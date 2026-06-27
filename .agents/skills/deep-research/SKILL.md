@@ -5,6 +5,8 @@ description: Comprehensive research orchestrator that classifies topics, dispatc
 argument-hint: 'topic [--depth surface|standard|exhaustive] [--focus angle] [--context path] [output-path]'
 user-invocable: true
 allowed-tools: Read, Glob, Grep, Bash, WebSearch, WebFetch, AskUserQuestion, Agent, mcp__*
+metadata:
+  internal: true
 ---
 
 # /deep-research

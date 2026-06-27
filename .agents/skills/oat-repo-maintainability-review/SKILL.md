@@ -6,6 +6,8 @@ argument-hint: '[--scope repo|directory] [--target <path>] [--mode auto|tracked|
 disable-model-invocation: true
 user-invocable: true
 allowed-tools: Read, Write, Bash, Glob, Grep, AskUserQuestion
+metadata:
+  internal: true
 ---
 
 # Repo Maintainability Review

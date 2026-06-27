@@ -5,6 +5,8 @@ description: Use when the user explicitly asks to receive review findings for an
 disable-model-invocation: false
 user-invocable: true
 allowed-tools: Read, Write, Bash(git:*), Bash(oat:*), Glob, Grep, AskUserQuestion
+metadata:
+  internal: true
 ---
 
 # Receive Review

@@ -5,6 +5,8 @@ description: Use when the user requests or confirms adding a new repo backlog it
 disable-model-invocation: false
 user-invocable: true
 allowed-tools: Read, Write, Bash, Glob, Grep, AskUserQuestion
+metadata:
+  internal: true
 ---
 
 # Add Backlog Item

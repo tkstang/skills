@@ -6,6 +6,8 @@ argument-hint: '[--project <name>]'
 disable-model-invocation: true
 user-invocable: true
 allowed-tools: Read, Write, Bash, Glob, Grep, AskUserQuestion
+metadata:
+  internal: true
 ---
 
 # Promote Project To Spec-Driven Lifecycle

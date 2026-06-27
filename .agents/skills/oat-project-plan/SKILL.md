@@ -5,6 +5,8 @@ description: Use when design.md is complete and executable implementation tasks 
 disable-model-invocation: true
 user-invocable: true
 allowed-tools: Read, Write, Bash(git:*), Glob, Grep, AskUserQuestion
+metadata:
+  internal: true
 ---
 
 # Planning Phase

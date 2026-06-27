@@ -6,6 +6,8 @@ argument-hint: '[unstaged|staged|base_branch=<branch>|base_sha=<sha>|<sha1>..<sh
 disable-model-invocation: true
 user-invocable: true
 allowed-tools: Read, Write, Bash, Glob, Grep, AskUserQuestion
+metadata:
+  internal: true
 ---
 
 # Ad-Hoc Review

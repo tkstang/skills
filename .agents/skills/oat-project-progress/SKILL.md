@@ -5,6 +5,8 @@ description: Use when the user explicitly asks to check OAT project progress —
 disable-model-invocation: false
 user-invocable: true
 allowed-tools: Read, Glob, Grep, Bash(git:*), AskUserQuestion
+metadata:
+  internal: true
 ---
 
 # Progress Router

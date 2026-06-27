@@ -5,6 +5,8 @@ description: Use when a project has an open PR and human feedback needs to be in
 disable-model-invocation: true
 user-invocable: true
 allowed-tools: Read, Write, Bash(git:*), Glob, Grep, AskUserQuestion
+metadata:
+  internal: true
 ---
 
 # Project Revise

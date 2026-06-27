@@ -6,6 +6,8 @@ argument-hint: '<project-name> ["project description"]'
 disable-model-invocation: true
 user-invocable: true
 allowed-tools: Read, Write, Bash, Glob, Grep, AskUserQuestion
+metadata:
+  internal: true
 ---
 
 # Quick Start Project

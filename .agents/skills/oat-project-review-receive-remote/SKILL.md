@@ -5,6 +5,8 @@ description: Use when processing GitHub PR review comments within project contex
 disable-model-invocation: true
 user-invocable: true
 allowed-tools: Read, Write, Bash, Glob, Grep, AskUserQuestion
+metadata:
+  internal: true
 ---
 
 # Project Remote Review Receive

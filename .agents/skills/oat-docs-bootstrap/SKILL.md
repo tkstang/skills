@@ -6,6 +6,8 @@ argument-hint: '<optional-target-dir>'
 disable-model-invocation: true
 user-invocable: true
 allowed-tools: Read, Write, Edit, Bash, Glob, Grep, AskUserQuestion
+metadata:
+  internal: true
 ---
 
 # Docs Bootstrap

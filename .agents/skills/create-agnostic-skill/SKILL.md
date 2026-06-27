@@ -6,6 +6,8 @@ argument-hint: '[skill-name]'
 disable-model-invocation: true
 allowed-tools: Read, Write, Bash, Glob, Grep, AskUserQuestion
 user-invocable: true
+metadata:
+  internal: true
 ---
 
 # Create Skill

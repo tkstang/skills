@@ -5,6 +5,8 @@ description: Use when an active OAT project needs a mid-project PR for a complet
 disable-model-invocation: true
 user-invocable: true
 allowed-tools: Read, Write, Bash(git:*), Glob, Grep, AskUserQuestion
+metadata:
+  internal: true
 ---
 
 # Progress PR

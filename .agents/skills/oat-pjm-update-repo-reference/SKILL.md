@@ -5,6 +5,8 @@ description: Use when repo reference artifacts need updating — roadmap, decisi
 disable-model-invocation: false
 user-invocable: true
 allowed-tools: Read, Write, Bash, Glob, Grep, AskUserQuestion
+metadata:
+  internal: true
 ---
 
 # Update Repo Reference

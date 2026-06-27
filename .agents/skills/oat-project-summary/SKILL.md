@@ -5,6 +5,8 @@ description: Use when the user requests or confirms summarizing an active OAT pr
 disable-model-invocation: false
 user-invocable: true
 allowed-tools: Read, Write, Bash(git:*), Bash(oat config:*), Bash(oat decision:*), Glob, Grep, AskUserQuestion
+metadata:
+  internal: true
 ---
 
 # Project Summary

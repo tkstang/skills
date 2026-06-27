@@ -5,6 +5,8 @@ description: Use when continuing work on the active OAT project. Reads project s
 disable-model-invocation: true
 user-invocable: true
 allowed-tools: Read, Glob, Grep, Bash(git:*), Skill
+metadata:
+  internal: true
 ---
 
 # Project Next

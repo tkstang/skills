@@ -5,6 +5,8 @@ description: Use when processing review findings outside project context. Conver
 disable-model-invocation: true
 user-invocable: true
 allowed-tools: Read, Write, Bash, Glob, Grep, AskUserQuestion
+metadata:
+  internal: true
 ---
 
 # Review Receive (Ad-hoc Local)

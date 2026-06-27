@@ -5,6 +5,8 @@ description: Run when you have a docs analysis artifact and want to generate or 
 disable-model-invocation: true
 user-invocable: true
 allowed-tools: Read, Write, Edit, Bash(git:*), Bash(gh:*), Glob, Grep, AskUserQuestion
+metadata:
+  internal: true
 ---
 
 # Docs Apply

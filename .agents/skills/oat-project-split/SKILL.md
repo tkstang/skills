@@ -6,6 +6,8 @@ argument-hint: '--plan-file <path>'
 disable-model-invocation: true
 user-invocable: true
 allowed-tools: Read, Write, Bash(oat:*), Bash(pnpm:*), Glob, Grep, AskUserQuestion
+metadata:
+  internal: true
 ---
 
 # Split OAT Project

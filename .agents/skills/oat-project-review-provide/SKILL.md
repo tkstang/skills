@@ -5,6 +5,8 @@ description: Use when the user explicitly asks to review an OAT project — e.g.
 disable-model-invocation: false
 user-invocable: true
 allowed-tools: Read, Glob, Grep, Bash(git:*), AskUserQuestion
+metadata:
+  internal: true
 ---
 
 # Request Review

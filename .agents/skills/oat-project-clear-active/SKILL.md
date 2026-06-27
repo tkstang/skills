@@ -5,6 +5,8 @@ version: 1.2.0
 disable-model-invocation: true
 user-invocable: true
 allowed-tools: Read, Write, Bash, AskUserQuestion
+metadata:
+  internal: true
 ---
 
 # Clear Active Project
