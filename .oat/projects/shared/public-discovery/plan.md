@@ -740,6 +740,79 @@ git commit -m "docs(prev1-t06): realign cat-3 artifacts to in-repo solution; dow
 
 ---
 
+### Task prev1-t07: (review) Fix type-check failure for new script `.mjs` imports
+
+**Files:**
+
+- Modify: `tests/scripts/apply-internal-flags.test.ts`
+- Modify: `tests/scripts/validate-internal-flags.test.ts`
+
+**Step 1: Understand the issue**
+
+Review finding (I1): the new TypeScript tests import declaration-free `.mjs`
+scripts (`../../scripts/apply-internal-flags.mjs`,
+`../../scripts/lib/skill-frontmatter.mjs`, `../../scripts/validate-internal-flags.mjs`),
+so `pnpm run type-check` (`tsc --noEmit`) fails TS7016. The main `validate` CI
+job runs `type-check` after build, so the PR would fail CI.
+Location: `tests/scripts/apply-internal-flags.test.ts:14-15`, `tests/scripts/validate-internal-flags.test.ts:9`.
+
+**Step 2: Implement fix**
+
+Add the repo's established suppression directly above each declaration-free `.mjs`
+import, matching the existing pattern (e.g. `tests/consensus/core/escalation.test.ts:7`):
+`// @ts-expect-error The generated runtime is intentionally declaration-free; this test exercises the shipped artifact.`
+(Adjust wording to "script helper" since these are dev scripts, not generated
+runtime.) Do not add a `.d.ts` unless the suppression pattern is insufficient.
+
+**Step 3: Verify**
+
+Run: `pnpm run type-check && pnpm exec vitest run tests/scripts/apply-internal-flags.test.ts tests/scripts/validate-internal-flags.test.ts`
+Expected: type-check exits 0 (no TS7016); both test files still pass.
+
+**Step 4: Commit**
+
+```bash
+git add tests/scripts/apply-internal-flags.test.ts tests/scripts/validate-internal-flags.test.ts
+git commit -m "fix(prev1-t07): suppress TS7016 on declaration-free script imports in p-rev1 tests"
+```
+
+---
+
+### Task prev1-t08: (review) Depth-scope `internal:` detection under `metadata:`
+
+**Files:**
+
+- Modify: `scripts/lib/skill-frontmatter.mjs`
+- Modify: `tests/scripts/apply-internal-flags.test.ts` or `tests/scripts/validate-internal-flags.test.ts` (add a nested-key fixture case)
+
+**Step 1: Understand the issue**
+
+Review finding (M1): `frontmatterHasInternal` treats any indented `internal:`
+under `metadata:` as `metadata.internal` regardless of nesting depth, so a future
+`metadata:\n  visibility:\n    internal: true` could be falsely read as already
+flagged — and a wrongly-"flagged" skill would silently leak into public discovery.
+No live defect today (all 57 files are flat). Location: `scripts/lib/skill-frontmatter.mjs:97`.
+
+**Step 2: Implement fix**
+
+Only accept an `internal:` key at the **direct child indent depth** of the
+`metadata:` block (the detected child indent), not at arbitrary deeper nesting.
+Keep apply + detect sharing the same matcher so they stay consistent.
+
+**Step 3: Verify**
+
+Run: `pnpm exec vitest run tests/scripts/apply-internal-flags.test.ts tests/scripts/validate-internal-flags.test.ts && pnpm run validate:internal-flags`
+Expected: a deeper-nested `internal:` is NOT treated as flagged; the 57 real flat-metadata skills still pass; detector exit 0.
+
+**Step 4: Commit**
+
+```bash
+git add scripts/lib/skill-frontmatter.mjs tests/scripts/
+git commit -m "fix(prev1-t08): depth-scope metadata.internal detection in skill-frontmatter helper"
+```
+
+---
+
 ## Reviews
 
 {Track reviews here after running the oat-project-review-provide and oat-project-review-receive skills.}
@@ -751,7 +824,7 @@ git commit -m "docs(prev1-t06): realign cat-3 artifacts to in-repo solution; dow
 | p01    | code     | passed          | 2026-06-26 | reviews/archived/p01-review-2026-06-26-v2.md         |
 | p02    | code     | passed          | 2026-06-26 | reviews/archived/p02-review-2026-06-26.md            |
 | p03    | code     | passed          | 2026-06-26 | reviews/archived/p03-review-2026-06-26-v2.md         |
-| p-rev1 | code     | received        | 2026-06-27 | reviews/p-rev1-review-2026-06-27-v2.md               |
+| p-rev1 | code     | fixes_added     | 2026-06-27 | reviews/archived/p-rev1-review-2026-06-27-v2.md      |
 | final  | code     | fixes_completed | 2026-06-27 | reviews/archived/final-review-2026-06-27.md          |
 | spec   | artifact | pending         | -          | -                                                     |
 | design | artifact | fixes_completed | 2026-06-26 | reviews/archived/artifact-design-review-2026-06-26.md |
@@ -776,9 +849,9 @@ git commit -m "docs(prev1-t06): realign cat-3 artifacts to in-repo solution; dow
 - Phase 2 (Upstream handoff prompt): 1 task — `open-agent-toolkit` internal-flag prompt
 - Phase 3 (Verification & recording): 2 tasks — CLI discovery + standalone install/run, skills.sh finding
 - Phase 4 (Final review fixes): 1 task — user-guide installer contract coverage
-- Phase p-rev1 (Cat-3 in-repo internal-flag tooling): 6 tasks — apply script, detector, apply+verify, CI/hook enforcement, AGENTS.md runbook, artifact realignment
+- Phase p-rev1 (Cat-3 in-repo internal-flag tooling): 8 tasks — apply script, detector, apply+verify, CI/hook enforcement, AGENTS.md runbook, artifact realignment, + review fixes (type-check suppression, depth-scoped detection)
 
-**Total: 15 tasks**
+**Total: 17 tasks**
 
 Ready for `oat-project-implement`.
 

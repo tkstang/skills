@@ -1,9 +1,9 @@
 ---
-oat_status: complete
+oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-27
-oat_current_task_id: null
+oat_current_task_id: prev1-t07
 oat_generated: false
 ---
 
@@ -30,9 +30,34 @@ oat_generated: false
 | Phase 2 — Upstream handoff prompt       | completed   | 1     | 1/1       |
 | Phase 3 — Verification & recording      | completed   | 2     | 2/2       |
 | Phase 4 — Final review fixes            | completed   | 1     | 1/1       |
-| Phase p-rev1 — Cat-3 in-repo internal-flag tooling | completed   | 6 | 6/6   |
+| Phase p-rev1 — Cat-3 in-repo internal-flag tooling | in_progress | 8 | 6/8   |
 
-**Total:** 15/15 tasks completed
+**Total:** 15/17 tasks completed
+
+---
+
+## Review Received: p-rev1 (v2)
+
+**Date:** 2026-06-27
+**Review artifact:** reviews/archived/p-rev1-review-2026-06-27-v2.md
+
+**Findings:** 0 Critical, 1 Important, 0 Medium, 1 Minor
+
+**New tasks added:** prev1-t07 (I1 — type-check), prev1-t08 (M1 — depth-scoped detection)
+
+**Notes:**
+
+- Independent v2 review caught a CI-blocker the phase-gate review missed: the new
+  p-rev1 test files import declaration-free `.mjs` scripts without the repo's
+  `@ts-expect-error` suppression, so `pnpm run type-check` fails TS7016 (the main
+  `validate` CI job runs type-check after build). prev1-t07 applies the established
+  suppression pattern.
+- M1 (depth-scoped `metadata.internal` detection) converted rather than deferred:
+  no live defect, but a false "already flagged" read could leak a skill into public
+  discovery, so it's cheap insurance in the discovery-control path. prev1-t08.
+
+**Next:** Execute prev1-t07 → prev1-t08 via `oat-project-implement`, then re-run the
+p-rev1 review (confirming `pnpm run type-check` passes) to reach `passed`.
 
 ---
 
