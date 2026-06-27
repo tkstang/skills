@@ -83,6 +83,11 @@ function frontmatterHasInternal(frontmatterLines) {
   if (metadataIndex === -1) {
     return false;
   }
+  // Detect the direct-child indent depth of the metadata: block.
+  // Only an `internal:` key at exactly this depth (not deeper nesting) counts.
+  // This prevents a key like `metadata.visibility.internal` from being treated
+  // as `metadata.internal`.
+  const indent = detectNestedIndent(frontmatterLines, metadataIndex);
   for (
     let index = metadataIndex + 1;
     index < frontmatterLines.length;
@@ -94,7 +99,10 @@ function frontmatterHasInternal(frontmatterLines) {
     if (!/^\s/u.test(line)) {
       break;
     }
-    const match = line.match(/^\s+internal:\s*(.+?)\s*$/u);
+    // Match `internal:` only at the direct-child indent depth (not deeper).
+    const match = line.match(
+      new RegExp(`^${indent}internal:\\s*(.+?)\\s*$`, 'u'),
+    );
     if (match) {
       const value = match[1].trim().replace(/^["']|["']$/gu, '');
       return value === 'true';

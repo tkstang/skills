@@ -55,6 +55,21 @@ metadata:
 Already flagged body.
 `;
 
+// A skill where `internal: true` is nested deeper than metadata's direct children.
+// The detector must NOT treat this as already flagged.
+const DEEP_NESTED_SKILL = `---
+name: oat-deep
+description: Has internal nested under a deeper key, not as a direct metadata child.
+metadata:
+  visibility:
+    internal: true
+---
+
+# oat-deep
+
+Deep-nested internal body.
+`;
+
 async function writeSkill(dir: string, name: string, content: string) {
   const skillDir = path.join(dir, name);
   await mkdir(skillDir, { recursive: true });
@@ -94,6 +109,21 @@ describe('addInternalFlag (frontmatter patch)', () => {
 
   it('throws when there is no frontmatter block', () => {
     expect(() => addInternalFlag('# Just a body\n')).toThrow();
+  });
+
+  it('does not treat a deeply-nested internal: as the flag; direct child IS the flag', () => {
+    // Deeper-nested internal: must not be seen as the flag.
+    expect(hasInternalFlag(DEEP_NESTED_SKILL)).toBe(false);
+
+    // addInternalFlag must still add internal: at the direct-child indent level.
+    const { content, changed } = addInternalFlag(DEEP_NESTED_SKILL);
+    expect(changed).toBe(true);
+    expect(hasInternalFlag(content)).toBe(true);
+
+    // The deep-nested internal: key is left intact.
+    expect(content).toContain('visibility:\n    internal: true');
+    // The new flag sits at the direct child level of metadata:.
+    expect(content).toContain('metadata:\n  internal: true');
   });
 });
 
