@@ -11,11 +11,10 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+// @ts-expect-error The script helper is intentionally declaration-free; this test exercises the dev script directly.
 import { applyInternalFlags } from '../../scripts/apply-internal-flags.mjs';
-import {
-  addInternalFlag,
-  hasInternalFlag,
-} from '../../scripts/lib/skill-frontmatter.mjs';
+// @ts-expect-error The script helper is intentionally declaration-free; this test exercises the dev script directly.
+import { addInternalFlag, hasInternalFlag } from '../../scripts/lib/skill-frontmatter.mjs';
 
 const NO_META_SKILL = `---
 name: oat-thing

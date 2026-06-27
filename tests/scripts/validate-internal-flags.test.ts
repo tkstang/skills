@@ -6,6 +6,7 @@ import { promisify } from 'node:util';
 
 import { describe, expect, it } from 'vitest';
 
+// @ts-expect-error The script helper is intentionally declaration-free; this test exercises the dev script directly.
 import { validateInternalFlags } from '../../scripts/validate-internal-flags.mjs';
 
 const execFileAsync = promisify(execFile);
