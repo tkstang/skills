@@ -58,6 +58,27 @@ jobs:
       - name: Validate changed skill version bumps
         run: node scripts/validate-skill-versions.mjs --base-ref "${{ github.event.pull_request.base.sha }}"
 
+  internal-flags:
+    # Block merge if any .agents/skills/**/SKILL.md is missing
+    # metadata.internal: true — the flag that hides OAT tooling skills from
+    # `npx skills` discovery. Modeled on the skill-versions gate; PR-scoped. The
+    # detector scans the synced skills tree, so no base diff / full history is
+    # needed.
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    env:
+      GIT_HOOKS: "0"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Validate .agents/skills internal flags
+        run: pnpm run validate:internal-flags
+
   commitlint:
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
