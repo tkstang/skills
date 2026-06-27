@@ -492,6 +492,8 @@ Document any intentional deviations from the original plan, spec, or design. Inc
 | Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
 | ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
 | p01 review m1 | plan.md Phase 1 | `evaluate` target `0.1.2`; validator command with extra `--` | `evaluate` target `0.1.3`; validator command without extra `--` | `origin/main` advanced and repo validator rejects literal `--` | implementation + updated plan.md | Completed in bookkeeping |
+| prev1-t04 | plan.md Phase p-rev1 | Modify `.husky/pre-push` (per task file list + commit message) | Modified `tools/git-hooks/pre-push` (the real hook, symlinked into `.git/hooks` by `tools/git-hooks/manage-hooks.mjs`) | Repo has no `.husky/`; hooks live in `tools/git-hooks/`. The added `node scripts/validate-internal-flags.mjs` line mirrors the existing skill-versions gate there | implementation (`tools/git-hooks/pre-push`) | None — enforcement wired in the correct hook |
+| prev1-t03 verification | plan.md Phase p-rev1 / dispatch note | Live `npx skills` discovery check possibly unavailable (record limitation if no network) | Live check performed against the **local checkout** with `skills@1.5.13` (CLI accepts a local path source); remote `tkstang/skills --list` reflects the unmerged default branch so it cannot show the drop pre-merge | implementation + `verification/internal-flag-discovery.md` | Hosted/remote re-verification is a post-merge follow-up (tracked `BL-260621`) |
 
 ## Test Results
 
