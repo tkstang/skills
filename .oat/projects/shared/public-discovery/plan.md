@@ -479,7 +479,7 @@ git commit -m "docs(p03-t02): record skills.sh crawl/submission finding and cat-
 | p01    | code     | passed          | 2026-06-26 | reviews/archived/p01-review-2026-06-26-v2.md         |
 | p02    | code     | passed          | 2026-06-26 | reviews/archived/p02-review-2026-06-26.md            |
 | p03    | code     | passed          | 2026-06-26 | reviews/archived/p03-review-2026-06-26-v2.md         |
-| final  | code     | passed          | 2026-06-26 | reviews/archived/final-review-2026-06-26.md          |
+| final  | code     | received        | 2026-06-27 | reviews/final-review-2026-06-27.md                   |
 | spec   | artifact | pending         | -          | -                                                     |
 | design | artifact | fixes_completed | 2026-06-26 | reviews/archived/artifact-design-review-2026-06-26.md |
 | plan   | artifact | fixes_completed | 2026-06-26 | reviews/archived/artifact-plan-review-2026-06-26.md   |
