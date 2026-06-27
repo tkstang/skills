@@ -5,6 +5,8 @@ description: Merge multiple analysis artifacts into a single coherent report wit
 argument-hint: '[directory | file1 file2 ...] [--inline]'
 user-invocable: true
 allowed-tools: Read, Glob, Grep, Bash, AskUserQuestion
+metadata:
+  internal: true
 ---
 
 # /synthesize

@@ -6,6 +6,8 @@ argument-hint: '<idea-name> [--global]'
 disable-model-invocation: true
 user-invocable: true
 allowed-tools: Read, Write, Bash, Glob, AskUserQuestion
+metadata:
+  internal: true
 ---
 
 # New Idea

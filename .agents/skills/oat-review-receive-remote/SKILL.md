@@ -5,6 +5,8 @@ description: Use when processing GitHub PR review comments outside project conte
 disable-model-invocation: true
 user-invocable: true
 allowed-tools: Read, Write, Bash, Glob, Grep, AskUserQuestion
+metadata:
+  internal: true
 ---
 
 # Remote Review Receive (Ad-hoc GitHub PR)

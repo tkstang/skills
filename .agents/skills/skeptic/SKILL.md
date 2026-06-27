@@ -5,6 +5,8 @@ description: Use when the user questions or suspects an agent claim is wrong. Ad
 argument-hint: '[claim to question — optional, defaults to most recent agent assertion]'
 user-invocable: true
 allowed-tools: Read, Glob, Grep, Bash, WebSearch, WebFetch, AskUserQuestion, Agent, mcp__*
+metadata:
+  internal: true
 ---
 
 # /skeptic

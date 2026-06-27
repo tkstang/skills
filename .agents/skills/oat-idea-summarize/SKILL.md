@@ -6,6 +6,8 @@ argument-hint: '[--global]'
 disable-model-invocation: true
 user-invocable: true
 allowed-tools: Read, Write, Grep, AskUserQuestion
+metadata:
+  internal: true
 ---
 
 # Summarize Idea

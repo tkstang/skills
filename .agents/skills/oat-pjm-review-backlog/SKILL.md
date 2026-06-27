@@ -6,6 +6,8 @@ argument-hint: '[backlog-root] [--roadmap=<path>] [--output=<path>]'
 disable-model-invocation: true
 allowed-tools: Read, Write, Glob, Grep, Bash(git:*), AskUserQuestion, Task
 user-invocable: true
+metadata:
+  internal: true
 ---
 
 # Review Backlog

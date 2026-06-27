@@ -5,6 +5,8 @@ description: Use when authoring or mutating plan.md in any OAT workflow. Defines
 disable-model-invocation: true
 user-invocable: false
 allowed-tools: Read, Write, Glob, Grep
+metadata:
+  internal: true
 ---
 
 # Plan Writing Contract

@@ -11,3 +11,8 @@ pnpm run type-check
 # Require a version bump for any skill whose directory changed against main.
 base_ref="$(git merge-base HEAD origin/main 2>/dev/null || git merge-base HEAD main 2>/dev/null || echo main)"
 node scripts/validate-skill-versions.mjs --base-ref "$base_ref"
+
+# Require metadata.internal: true on every .agents/skills/**/SKILL.md so OAT
+# tooling skills stay hidden from `npx skills` discovery (mirrors the
+# skill-versions gate; survives `oat tools update` / `oat sync`).
+node scripts/validate-internal-flags.mjs

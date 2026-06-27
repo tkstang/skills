@@ -5,6 +5,8 @@ description: Use when onboarding OAT to a repository or when knowledge artifacts
 disable-model-invocation: true
 user-invocable: true
 allowed-tools: Read, Write, Bash(git:*), Glob, Grep, AskUserQuestion, Task
+metadata:
+  internal: true
 ---
 
 # Knowledge Base Generation

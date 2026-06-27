@@ -49,6 +49,21 @@ Prerequisites: Node.js 22+ and local provider CLIs for the requested peers
 and provider-readiness checks — is in the
 [User Guide → Installation](documentation/docs/user-guide/installation.md).
 
+## Alternative Consensus Installer
+
+Use the full consensus plugin install when possible. If a consensus skill was
+installed standalone through skills.sh without the plugin tree, run the pinned
+installer to provision the shared provider CLI at `~/.consensus/consensus.mjs`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/tkstang/skills/v0.1.2/install.sh | bash
+```
+
+This gives standalone consensus skills the same shared `consensus.mjs` runtime
+they would find in a plugin install. The remote one-liner goes live once
+`v0.1.2` is released; until then, running `bash install.sh` from a clone copies
+the in-tree `plugins/consensus/scripts/consensus.mjs` without network access.
+
 ## Documentation
 
 - **[User Guide](documentation/docs/user-guide/index.md)** — install, use, and configure what this repo ships.

@@ -5,6 +5,8 @@ description: Use when human-implemented commits need to be mapped back to planne
 disable-model-invocation: true
 user-invocable: true
 allowed-tools: Read, Write, Bash(git:*), Glob, Grep, AskUserQuestion
+metadata:
+  internal: true
 ---
 
 # Reconcile Manual Implementation

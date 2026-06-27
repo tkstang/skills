@@ -5,6 +5,8 @@ description: Use when work happened outside the OAT project workflow and needs r
 disable-model-invocation: true
 user-invocable: true
 allowed-tools: Read, Write, Bash, Glob, Grep, AskUserQuestion
+metadata:
+  internal: true
 ---
 
 # Capture Untracked Work

@@ -5,6 +5,8 @@ description: Run when you have an agent instructions analysis artifact and want 
 disable-model-invocation: true
 user-invocable: true
 allowed-tools: Read, Write, Edit, Bash(git:*), Bash(gh:*), Glob, Grep, AskUserQuestion
+metadata:
+  internal: true
 ---
 
 # Agent Instructions Apply

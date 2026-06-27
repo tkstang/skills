@@ -22,10 +22,11 @@
 | BL-260626-add-consensus-panel-skill | Add consensus-panel skill (neutral moderator, multi-agent panel) | open | medium | feature | M |
 | BL-260620-add-phone-a-friend-advisory | Add phone-a-friend advisory peer skill | open | medium | feature | M |
 | BL-260626-configure-default-consensus | Configure default panel/consensus agent configs via CLI | open | medium | feature | M |
-| BL-260621-control-public-skill-discovery | Control public skill discovery surface on skills.sh | open | medium | task | M |
+| BL-260621-control-public-skill-discovery | Control public skill discovery surface on skills.sh | done | medium | task | M |
 | BL-260619-inter-agent-direct-messaging | Inter-agent direct messaging (addressable, prioritized) | open | medium | feature | M |
 | BL-260620-share-consensus-generated | Share consensus generated runtime output at the plugin level | open | medium | task | M |
 | BL-260619-shared-session-log-substrate | Shared session log substrate (become-observable daemon + merged log) | open | medium | initiative | L |
+| BL-260627-verify-skills-sh-hosted | Verify skills.sh hosted discovery surface and listing strategy | open | medium | task | S |
 | BL-260612-add-consensus-research-skill | Add consensus-research skill (investigate question, synthesized findings) | open | low | feature | M |
 | BL-260612-add-deliberation-metrics | Add deliberation metrics (tokens, wall-clock, rounds) to artifacts | open | low | feature | S |
 | BL-260612-add-similarity-heuristic | Add similarity heuristic for near-converged deliberation states | open | low | feature | S |

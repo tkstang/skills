@@ -5,6 +5,8 @@ description: Use when discovery is complete but you're not ready to design yet, 
 disable-model-invocation: true
 user-invocable: true
 allowed-tools: Read, Write, Bash(git:*), Glob, Grep, AskUserQuestion
+metadata:
+  internal: true
 ---
 
 # Specification Phase

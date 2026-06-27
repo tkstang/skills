@@ -6,6 +6,8 @@ argument-hint: '[--since YYYY-MM-DD] [--until YYYY-MM-DD] [--past-week|--past-2-
 disable-model-invocation: false
 allowed-tools: Read, Write, Bash, Glob, Grep, AskUserQuestion
 user-invocable: true
+metadata:
+  internal: true
 ---
 
 # Wrap-Up

@@ -6,6 +6,8 @@ argument-hint: '[--retry-limit <N>] [--dry-run]'
 disable-model-invocation: true
 user-invocable: true
 allowed-tools: Read, Write, Bash(git:*), Glob, Grep, AskUserQuestion, Task
+metadata:
+  internal: true
 ---
 
 # Implementation Phase

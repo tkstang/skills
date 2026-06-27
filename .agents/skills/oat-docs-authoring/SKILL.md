@@ -6,6 +6,8 @@ argument-hint: '[docs task or target path]'
 disable-model-invocation: false
 allowed-tools: Read, Write, Bash, Glob, Grep, AskUserQuestion
 user-invocable: true
+metadata:
+  internal: true
 ---
 
 # OAT Docs Authoring

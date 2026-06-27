@@ -5,6 +5,8 @@ description: Use when reviewing a GitHub PR opened on another machine for an act
 disable-model-invocation: true
 user-invocable: true
 allowed-tools: Read, Write, Bash, Glob, Grep, Task, AskUserQuestion
+metadata:
+  internal: true
 ---
 
 # Remote Review Provide (Project-Scoped GitHub PR)

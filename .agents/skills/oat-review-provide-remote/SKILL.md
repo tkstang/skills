@@ -5,6 +5,8 @@ description: Use when reviewing a GitHub PR opened on another machine and postin
 disable-model-invocation: true
 user-invocable: true
 allowed-tools: Read, Write, Bash, Glob, Grep, AskUserQuestion
+metadata:
+  internal: true
 ---
 
 # Remote Review Provide (Ad-hoc GitHub PR)

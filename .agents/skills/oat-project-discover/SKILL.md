@@ -5,6 +5,8 @@ description: Use when the user explicitly asks to continue discovery for an acti
 disable-model-invocation: false
 user-invocable: true
 allowed-tools: Read, Write, Bash(git:*), Bash(oat:*), Bash(pnpm:*), Glob, Grep, AskUserQuestion
+metadata:
+  internal: true
 ---
 
 # Discovery Phase

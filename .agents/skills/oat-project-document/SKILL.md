@@ -6,6 +6,8 @@ argument-hint: '[project-path] [--auto]'
 disable-model-invocation: false
 user-invocable: true
 allowed-tools: Read, Write, Edit, Bash(git:*), Glob, Grep, AskUserQuestion, Skill
+metadata:
+  internal: true
 ---
 
 # Project Documentation Sync

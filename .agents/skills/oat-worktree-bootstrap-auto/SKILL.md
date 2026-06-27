@@ -6,6 +6,8 @@ argument-hint: '<branch-name> [--base <ref>] [--path <root>] [--baseline-policy 
 disable-model-invocation: false
 user-invocable: false
 allowed-tools: Read, Write, Bash, Glob, Grep
+metadata:
+  internal: true
 ---
 
 # Autonomous Worktree Bootstrap

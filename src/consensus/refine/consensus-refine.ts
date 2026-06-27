@@ -19,6 +19,7 @@ import { promisify } from 'node:util';
 import {
   callsPerRound,
   ConsensusError,
+  consensusProviderCliMissingError,
   EXIT_CODES,
   exitCodeForError,
   hashArtifact,
@@ -28,7 +29,7 @@ import {
   ITERATION_MODES,
   peerSchemaPathForMode,
   providerCliSpawnTarget,
-  resolveConsensusCliPath,
+  requireConsensusCliPath,
   runConsensusLoop,
 } from '../core/consensus-loop.js';
 
@@ -2083,18 +2084,6 @@ function buildSectionsFromBoundaries(
   return sections;
 }
 
-function missingConsensusProviderCliError(command: string, cause: unknown) {
-  return new ConsensusError(
-    `consensus provider CLI appears to be missing or unavailable at ${command}. Set CONSENSUS_CLI_PATH or run pnpm run build before selecting the provider CLI backend.`,
-    {
-      code: 'CONSENSUS_PROVIDER_CLI_MISSING',
-      exitCode: EXIT_CODES.CONFIG,
-      cause,
-      details: { command },
-    },
-  );
-}
-
 export async function readInputFile(
   inputPath: string,
   options: Pick<WrapperOptions, 'sizeCapBytes'> = {},
@@ -3671,7 +3660,7 @@ export async function preflightConsensusProviderCli(
   const runCommand: CommandRunner = options.runCommand ?? defaultRunCommand;
   const env = options.env ?? process.env;
   const cwd = options.cwd ?? process.cwd();
-  const command = resolveConsensusCliPath({ env });
+  const command = requireConsensusCliPath({ env });
 
   let inventoryOutput: CommandRunnerResult;
   try {
@@ -3685,7 +3674,10 @@ export async function preflightConsensusProviderCli(
       details.code === 'ENOENT' ||
       /ENOENT|not found/i.test(details.message ?? '')
     ) {
-      throw missingConsensusProviderCliError(command, error);
+      throw consensusProviderCliMissingError({
+        attemptedPaths: [command],
+        cause: error,
+      });
     }
     throw error;
   }

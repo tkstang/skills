@@ -35,4 +35,4 @@
     - [Skills](user-guide/skills/index.md) — Standalone session skills for working across coding-agent sessions.
     - [Export Session Transcript](user-guide/skills/export-session-transcript.md) — Export the current coding-agent session to a sanitized, branch-named Markdown transcript.
     - [Session Observer](user-guide/skills/session-observer.md) — Review what another coding agent did in this project with tool-free digests, per-session read offsets, and foreground watch mode.
-  - [Installation](user-guide/installation.md) — Install the consensus plugin per provider (Claude Code, Codex, Cursor) and check prerequisites.
+  - [Installation](user-guide/installation.md) — Install the consensus plugin per provider, check prerequisites, and recover standalone consensus skill installs.

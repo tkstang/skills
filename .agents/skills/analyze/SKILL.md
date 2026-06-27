@@ -5,6 +5,8 @@ description: Multi-angle analysis of existing artifacts, codebases, documents, o
 argument-hint: 'target [--context path]'
 user-invocable: true
 allowed-tools: Read, Glob, Grep, Bash, WebSearch, WebFetch, AskUserQuestion, Agent, mcp__*
+metadata:
+  internal: true
 ---
 
 # /analyze

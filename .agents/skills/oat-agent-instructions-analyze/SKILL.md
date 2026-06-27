@@ -5,6 +5,8 @@ description: Run when you need to evaluate agent instruction file coverage, qual
 disable-model-invocation: true
 user-invocable: true
 allowed-tools: Read, Write, Bash(git:*), Glob, Grep, AskUserQuestion, Task
+metadata:
+  internal: true
 ---
 
 # Agent Instructions Analysis

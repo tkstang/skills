@@ -6,6 +6,8 @@ argument-hint: '<project-name> [--force]'
 disable-model-invocation: true
 user-invocable: true
 allowed-tools: Read, Write, Bash, Glob, Grep, AskUserQuestion
+metadata:
+  internal: true
 ---
 
 # New OAT Project

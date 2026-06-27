@@ -5,6 +5,8 @@ description: Use when the user requests or confirms recording a durable repo dec
 disable-model-invocation: false
 user-invocable: true
 allowed-tools: Read, Write, Bash, Glob, Grep, AskUserQuestion
+metadata:
+  internal: true
 ---
 
 # Record Repo Decision

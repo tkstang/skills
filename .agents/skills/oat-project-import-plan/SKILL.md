@@ -6,6 +6,8 @@ argument-hint: '<path-to-plan.md> [--provider codex|cursor|claude] [--project <n
 disable-model-invocation: true
 user-invocable: true
 allowed-tools: Read, Write, Bash, Glob, Grep, AskUserQuestion
+metadata:
+  internal: true
 ---
 
 # Import External Plan

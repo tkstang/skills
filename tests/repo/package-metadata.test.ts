@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises';
+
 import { describe, expect, it } from 'vitest';
 
 describe('package-metadata', () => {
@@ -30,6 +31,7 @@ describe('package-metadata', () => {
         'test:vitest',
         'type-check',
         'validate',
+        'validate:internal-flags',
         'validate:skill-versions',
         'worktree:init',
         'worktree:validate',
@@ -44,6 +46,9 @@ describe('package-metadata', () => {
     expect(packageJson.scripts?.validate).toBe('node scripts/validate.mjs');
     expect(packageJson.scripts?.['validate:skill-versions']).toBe(
       'node scripts/validate-skill-versions.mjs',
+    );
+    expect(packageJson.scripts?.['validate:internal-flags']).toBe(
+      'node scripts/validate-internal-flags.mjs',
     );
     expect(packageJson.scripts?.smoke).toBe('node scripts/smoke-test.mjs');
   });

@@ -5,6 +5,8 @@ description: Use when the user requests or confirms opening the final PR for an 
 disable-model-invocation: false
 user-invocable: true
 allowed-tools: Read, Write, Bash(git:*), Glob, Grep, AskUserQuestion
+metadata:
+  internal: true
 ---
 
 # Project PR (Final)

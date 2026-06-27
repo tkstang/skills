@@ -9,6 +9,8 @@
 <!-- OAT DECISION-INDEX -->
 | ID | Date | Status | Title | Legacy |
 | --- | --- | --- | --- | --- |
+| DR-260627-control-public-skill-discovery | 2026-06-27 | accepted | Control public skill discovery in-repo via internal-flag apply script and CI gate | - |
+| DR-260627-keep-consensus-skills | 2026-06-27 | accepted | Keep consensus skills discoverable and recover standalone installs via a shared-home installer | - |
 | DR-260622-independent-draft-family | 2026-06-22 | Accepted. | Independent-draft family wrappers stay thin and whole-artifact for v1 | DR-026 |
 | DR-260621-consensus-verdict-submission | 2026-06-21 | Accepted. | Consensus verdict submission uses owned submit CLI with sidecar capture | DR-024 |
 | DR-260621-fumadocs-for-the-documentation | 2026-06-21 | proposed | Fumadocs for the documentation site | DR-025 |
