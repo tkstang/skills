@@ -1,7 +1,7 @@
 ---
 id: BL-260621-control-public-skill-discovery
 title: Control public skill discovery surface on skills.sh
-status: open
+status: done
 priority: medium
 scope: task
 scope_estimate: M
@@ -210,3 +210,26 @@ because no public-listing claim is being made yet. **Recommendation until
 resolved:** do not submit/list `tkstang/skills` on skills.sh until the `internal`
 flagging (especially for `.agents/skills/**`) is in place, so the OAT tooling and
 plugin-nested skills are not mis-presented as standalone installable skills.
+
+## Closeout (2026-06-27 — PR #38, project public-discovery)
+
+**Done** — all three categories controlled and verified in-repo (see DR-260627):
+
+- **Cat 3 (OAT tooling):** solved **in-repo** rather than via the upstream
+  `open-agent-toolkit` handoff. `scripts/apply-internal-flags.mjs` stamps
+  `metadata.internal: true` on every `.agents/skills/**/SKILL.md`;
+  `scripts/validate-internal-flags.mjs` (`pnpm run validate:internal-flags`) gates
+  it in a PR-scoped CI job + the `pre-push` hook; the runbook is in AGENTS.md.
+  Discovery drop verified live (`npx skills@1.5.13 --list` → tooling drops out;
+  `INSTALL_INTERNAL_SKILLS=1` → reappears). The upstream handoff prompt is **kept
+  as an optional future improvement**, not the primary mechanism.
+- **Cat 2 (consensus):** kept discoverable; a standalone install now recovers via
+  the `~/.consensus/` resolver fallback + actionable missing-CLI error + a
+  pinned-ref `install.sh` (consensus skills `0.1.x` bumped accordingly).
+- **Cat 1 (standalone):** `session-observer` + `export-session-transcript`
+  confirmed as the only individually-installable entries (the apply script skips
+  the symlinked `session-observer` mirror).
+
+**Deferred follow-up:** the skills.sh **hosted** crawl-vs-submission behavior is
+still unverified (`tkstang/skills` not yet indexed); no public-listing claim until
+that hosted path is checked post-merge.
