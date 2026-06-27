@@ -1,9 +1,9 @@
 ---
-oat_status: complete
+oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-27
-oat_current_task_id: null
+oat_current_task_id: prev1-t01
 oat_generated: false
 ---
 
@@ -30,8 +30,27 @@ oat_generated: false
 | Phase 2 — Upstream handoff prompt       | completed   | 1     | 1/1       |
 | Phase 3 — Verification & recording      | completed   | 2     | 2/2       |
 | Phase 4 — Final review fixes            | completed   | 1     | 1/1       |
+| Phase p-rev1 — Cat-3 in-repo internal-flag tooling | in_progress | 6 | 0/6   |
 
-**Total:** 9/9 tasks completed
+**Total:** 9/15 tasks completed
+
+---
+
+## Revision Received: Inline Feedback
+
+**Date:** 2026-06-27
+**Source:** inline conversation
+
+**Changes requested:** Redirect Category 3 from the upstream `open-agent-toolkit`
+handoff (deferred hiding) to an in-repo, enforced solution — a script that stamps
+`metadata.internal: true` onto all `.agents/skills/**/SKILL.md`, a detector + CI/
+pre-push gate so the flag survives `oat tools update`/`oat sync`, an AGENTS.md
+runbook, verification of the discovery drop, and realignment of the cat-3
+artifacts (downgrading, not deleting, the upstream handoff prompt).
+
+**New tasks added:** prev1-t01 … prev1-t06 (see `## Phase p-rev1` in plan.md)
+
+**Next:** Execute revision tasks via the `oat-project-implement` skill, starting at prev1-t01.
 
 ---
 

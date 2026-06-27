@@ -510,6 +510,233 @@ git commit -m "test(p04-t01): cover user-guide installer contract"
 
 ---
 
+## Phase p-rev1: Revision 1 — Category 3 in-repo internal-flag tooling
+
+Source: inline feedback (2026-06-27).
+
+Redirect Category 3 from the upstream `open-agent-toolkit` handoff (deferred
+hiding) to an **in-repo, enforced** solution: a script stamps `metadata.internal: true`
+onto every `.agents/skills/**/SKILL.md`, a detector + CI/hook gate guarantees the
+flag survives `oat tools update` / `oat sync`, and the discovery drop is verified
+here rather than deferred. This is the design-review C1 "idempotent in-repo step
+that survives `oat sync`" option, chosen over the shipped handoff prompt.
+
+> Note: `.agents/skills/**` are OAT-synced mirrors, NOT canonical skills — they
+> are not in `validate.mjs`'s skill-version scope (`skills/*/`,
+> `plugins/*/skills/*/`), so stamping them needs no skill-version bump. Scripts
+> here are dev tooling (deps allowed; Node stdlib preferred); they do not touch
+> shipped skill runtime.
+
+### Task prev1-t01: (revision) Add idempotent internal-flag apply script
+
+**Files:**
+
+- Create: `scripts/lib/skill-frontmatter.mjs` (shared YAML-frontmatter read/patch helper)
+- Create: `scripts/apply-internal-flags.mjs`
+- Create: `tests/scripts/apply-internal-flags.test.ts`
+
+**Step 1: Write test (RED)**
+
+Against a fixture skills dir, assert the script adds `metadata.internal: true` to
+each `SKILL.md` lacking it, leaves already-flagged skills untouched (idempotent),
+and preserves existing frontmatter/body. Run twice → no diff on the second run.
+
+Run: `pnpm exec vitest run tests/scripts/apply-internal-flags.test.ts`
+Expected: fails (RED).
+
+**Step 2: Implement (GREEN)**
+
+Write the shared parser and an apply script that walks `.agents/skills/*/SKILL.md`
+(target dir overridable for tests), inserting `metadata.internal: true` under the
+existing `metadata:` block (creating it if absent) without disturbing other keys.
+
+Run: `pnpm exec vitest run tests/scripts/apply-internal-flags.test.ts`
+Expected: passes (GREEN).
+
+**Step 3: Verify**
+
+Run: `pnpm exec vitest run tests/scripts/apply-internal-flags.test.ts`
+Expected: green; second-run idempotency asserted.
+
+**Step 4: Commit**
+
+```bash
+git add scripts/lib/skill-frontmatter.mjs scripts/apply-internal-flags.mjs tests/scripts/apply-internal-flags.test.ts
+git commit -m "feat(prev1-t01): add idempotent internal-flag apply script for .agents/skills"
+```
+
+---
+
+### Task prev1-t02: (revision) Add internal-flag detector + package script
+
+**Files:**
+
+- Create: `scripts/validate-internal-flags.mjs`
+- Create: `tests/scripts/validate-internal-flags.test.ts`
+- Modify: `package.json` (add `validate:internal-flags` script)
+
+**Step 1: Write test (RED)**
+
+Using the shared parser, assert the detector exits non-zero and lists offenders
+when any `.agents/skills/**/SKILL.md` lacks `metadata.internal: true`, and exits
+zero when all are flagged (fixture-driven).
+
+Run: `pnpm exec vitest run tests/scripts/validate-internal-flags.test.ts`
+Expected: fails (RED).
+
+**Step 2: Implement (GREEN)**
+
+Write the detector (reusing `scripts/lib/skill-frontmatter.mjs`) and add
+`"validate:internal-flags": "node scripts/validate-internal-flags.mjs"` to
+`package.json`.
+
+Run: `pnpm exec vitest run tests/scripts/validate-internal-flags.test.ts`
+Expected: passes (GREEN).
+
+**Step 3: Verify**
+
+Run: `pnpm exec vitest run tests/scripts/validate-internal-flags.test.ts`
+Expected: green.
+
+**Step 4: Commit**
+
+```bash
+git add scripts/validate-internal-flags.mjs tests/scripts/validate-internal-flags.test.ts package.json
+git commit -m "feat(prev1-t02): add internal-flag detector and validate:internal-flags script"
+```
+
+---
+
+### Task prev1-t03: (revision) Apply the flag, sync, and verify the discovery drop
+
+**Files:**
+
+- Modify: `.agents/skills/*/SKILL.md` (stamped by the apply script)
+- Modify: `.oat/sync/manifest.json` and provider mirrors (from `oat sync`, if changed)
+- Create: `.oat/projects/shared/public-discovery/verification/internal-flag-discovery.md`
+
+**Step 1: Apply + sync**
+
+Run `node scripts/apply-internal-flags.mjs` against `.agents/skills/`, then
+`oat sync` (project scope) so provider mirrors stay coherent.
+
+**Step 2: Verify the controlled surface**
+
+In an isolated HOME/cache (and explicit `skills@1.5.13`, per the p03 verification
+note that unversioned `npx skills` shadows the local checkout):
+
+- `npx -y skills@1.5.13 add tkstang/skills --list` → `.agents/skills/**` no longer appear
+- `INSTALL_INTERNAL_SKILLS=1 npx -y skills@1.5.13 add tkstang/skills --list` → they reappear
+- `skills/session-observer` + `skills/export-session-transcript` remain the only standalone entries
+
+Record command/output/date in `verification/internal-flag-discovery.md`.
+
+**Step 3: Verify gate**
+
+Run: `pnpm run validate:internal-flags && pnpm run build:check`
+Expected: detector passes (all flagged); no generated drift.
+
+**Step 4: Commit**
+
+```bash
+git add .agents/skills .oat/sync/manifest.json .claude .cursor .oat/projects/shared/public-discovery/verification/internal-flag-discovery.md
+git commit -m "feat(prev1-t03): stamp internal flag on .agents/skills and verify discovery drop"
+```
+
+---
+
+### Task prev1-t04: (revision) Enforce the flag in CI + pre-push
+
+**Files:**
+
+- Modify: `.github/workflows/validate.yml` (add an internal-flags job, modeled on `skill-versions`)
+- Modify: the `pre-push` hook wiring (run `validate:internal-flags`)
+
+**Step 1: Wire enforcement**
+
+Add a PR-scoped CI job running `pnpm run validate:internal-flags`, and add the
+same check to the local `pre-push` hook — mirroring the existing
+`validate-skill-versions` gate pattern so a missing flag cannot merge to `main`.
+
+**Step 2: Verify**
+
+Temporarily remove the flag from one `.agents/skills/**/SKILL.md` → confirm
+`pnpm run validate:internal-flags` fails; restore → passes. Confirm the workflow
+yaml is valid.
+
+Run: `pnpm run validate:internal-flags`
+Expected: passes with all flags present; fails the negative probe.
+
+**Step 3: Commit**
+
+```bash
+git add .github/workflows/validate.yml .husky/pre-push
+git commit -m "ci(prev1-t04): block merge when .agents/skills internal flag is missing"
+```
+
+---
+
+### Task prev1-t05: (revision) Document the runbook in AGENTS.md
+
+**Files:**
+
+- Modify: `AGENTS.md` (hand-maintained section only — NOT the `<!-- OAT tools -->` generated block)
+
+**Step 1: Author runbook**
+
+In a hand-maintained section, document the sequence after refreshing tooling:
+`oat tools update` → `node scripts/apply-internal-flags.mjs` → `oat sync`, and
+note that `validate:internal-flags` (CI + pre-push) guarantees the flag's presence.
+
+**Step 2: Verify**
+
+Confirm the new content sits outside the `oat sync`-regenerated block (so sync
+won't clobber it) and `oat sync` leaves it intact.
+
+Run: `pnpm run validate`
+Expected: repository/doc invariants pass.
+
+**Step 3: Commit**
+
+```bash
+git add AGENTS.md
+git commit -m "docs(prev1-t05): document internal-flag apply/sync runbook in AGENTS.md"
+```
+
+---
+
+### Task prev1-t06: (revision) Realign cat-3 artifacts and downgrade the handoff prompt
+
+**Files:**
+
+- Modify: `.oat/projects/shared/public-discovery/discovery.md` (cat-3 decision + success criteria)
+- Modify: `.oat/projects/shared/public-discovery/design.md` (cat-3 component + deferral framing)
+- Modify: `.oat/projects/shared/public-discovery/handoff/open-agent-toolkit-internal-flag-prompt.md` (downgrade)
+- Modify: `.oat/repo/pjm/backlog/items/BL-260621-control-public-skill-discovery.md`
+
+**Step 1: Realign**
+
+Flip the cat-3 narrative from "upstream handoff, hiding deferred" to "solved
+in-repo via the apply-script + CI gate, discovery drop verified." Move the cat-3
+success criterion from deferred-verification to verified. **Downgrade** (do not
+delete) the handoff prompt to an explicit "optional future upstream improvement —
+would let all `open-agent-toolkit` consumers inherit the flag and retire the
+per-repo apply-script." Update the backlog item's findings/strategy.
+
+**Step 2: Verify**
+
+Confirm the three artifacts + backlog no longer claim cat-3 is deferred, agree on
+the in-repo mechanism, and the handoff prompt reads as optional/future.
+
+**Step 3: Commit**
+
+```bash
+git add .oat/projects/shared/public-discovery/discovery.md .oat/projects/shared/public-discovery/design.md .oat/projects/shared/public-discovery/handoff .oat/repo/pjm/backlog/items/BL-260621-control-public-skill-discovery.md
+git commit -m "docs(prev1-t06): realign cat-3 artifacts to in-repo solution; downgrade upstream handoff"
+```
+
+---
+
 ## Reviews
 
 {Track reviews here after running the oat-project-review-provide and oat-project-review-receive skills.}
@@ -545,8 +772,9 @@ git commit -m "test(p04-t01): cover user-guide installer contract"
 - Phase 2 (Upstream handoff prompt): 1 task — `open-agent-toolkit` internal-flag prompt
 - Phase 3 (Verification & recording): 2 tasks — CLI discovery + standalone install/run, skills.sh finding
 - Phase 4 (Final review fixes): 1 task — user-guide installer contract coverage
+- Phase p-rev1 (Cat-3 in-repo internal-flag tooling): 6 tasks — apply script, detector, apply+verify, CI/hook enforcement, AGENTS.md runbook, artifact realignment
 
-**Total: 9 tasks**
+**Total: 15 tasks**
 
 Ready for `oat-project-implement`.
 

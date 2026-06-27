@@ -1,5 +1,5 @@
 ---
-oat_current_task: null
+oat_current_task: prev1-t01
 oat_last_commit: 6d9938e
 oat_blockers: []
 associated_issues: [{type: backlog, ref: "BL-260621-control-public-skill-discovery"}] # [{type: backlog|project|jira|linear, ref: "identifier"}]
@@ -27,7 +27,7 @@ oat_pr_status: open # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: "https://github.com/tkstang/skills/pull/38" # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-06-26T02:20:27.593Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-06-27T16:18:29Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-06-27T16:27:54Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
