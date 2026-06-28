@@ -15,6 +15,18 @@ const schema = JSON.parse(
   ),
 );
 
+const example = JSON.parse(
+  readFileSync(
+    fileURLToPath(
+      new URL(
+        '../../../plugins/consensus/skills/phone-a-friend/references/examples/registry-cache.advisory.json',
+        import.meta.url,
+      ),
+    ),
+    'utf8',
+  ),
+);
+
 const valid = {
   schema_version: 'v1',
   understood_question: 'Should we cache the registry lookup?',
@@ -29,6 +41,10 @@ const valid = {
 describe('advisory.schema.json', () => {
   it('accepts a well-formed advisory payload', () => {
     expect(validateSchemaSubset(valid, schema).ok).toBe(true);
+  });
+
+  it('accepts the shipped example advisory payload', () => {
+    expect(validateSchemaSubset(example, schema).ok).toBe(true);
   });
 
   it('rejects a payload missing a required field', () => {
