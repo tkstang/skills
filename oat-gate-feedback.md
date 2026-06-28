@@ -137,6 +137,33 @@ budget.`
 
 Flagging in case the OAT-installed Codex hooks/skill payloads contribute.
 
+### 7. 🟠 MED — No handoff/guidance for processing the review a gate produces
+
+The review a cross-provider gate produces **is** a normal review artifact: it was
+written to the standard location
+(`{PROJECT_PATH}/reviews/artifact-plan-review-2026-06-28.md`, matching
+`oat-project-review-provide` Step 7 naming), with `oat_review_invocation: manual`
+and a plan Reviews row at `received`, **self-committed by the dispatched
+runtime**. The existing `oat-project-review-receive` flow can process it. But the
+gate path leaves a lifecycle gap:
+
+- The Gate Execution step only checks the command's **exit code** — it never
+  routes the review it just generated to `oat-project-review-receive`. A gate run
+  therefore leaves an unprocessed `received` review behind with no instruction to
+  disposition/archive it. The gating skill should surface "review produced at
+  `<path>` (received) — run `oat-project-review-receive` before proceeding," or
+  hand off automatically.
+- The artifact is tagged `oat_review_invocation: manual` even though it was
+  **gate-originated**. Consider a distinct value (e.g. `gate`) so receive can
+  apply gate-appropriate disposition and provenance is clear.
+- The lifecycle spans two runtimes/commits (dispatched runtime writes+commits the
+  artifact and flips the plan row; receive later archives it with another
+  commit). Document that gate reviews follow the normal receive → archive flow so
+  hosts don't treat the gate as having "consumed" its own review.
+
+**Suggested:** define the post-gate review handoff explicitly (gating skill →
+`oat-project-review-receive`), and tag gate-produced reviews distinctly.
+
 ---
 
 ## Positive signal (please preserve while fixing the above)
@@ -202,6 +229,14 @@ blocking findings clearly, or say no blocking findings."`
 > 6. [LOW/observed, likely Codex-side] During `codex exec`: "failed to parse
 >    plugin hooks config ~/.codex/.../hooks.json: unknown field `description`"
 >    and "Skill descriptions were shortened to fit the 2% skills context budget."
+> 7. [MED] No handoff for the review the gate produces. The gate review is a
+>    normal artifact in the standard reviews/ location (oat_review_invocation:
+>    manual, plan row `received`), self-committed by the dispatched runtime, but
+>    the Gate Execution step only checks exit code and never routes it to
+>    oat-project-review-receive — leaving an unprocessed `received` review behind.
+>    Define the post-gate handoff (gating skill → oat-project-review-receive),
+>    tag gate-produced reviews distinctly (e.g. oat_review_invocation: gate), and
+>    document that gate reviews follow the normal receive → archive lifecycle.
 >
 > POSITIVE SIGNAL (keep this): the cross-runtime review caught a real Important
 > plan gap the same-runtime Claude reviewer missed — the plan updated only the
