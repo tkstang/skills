@@ -2,11 +2,11 @@
 
 Status: v0.1 pre-release.
 
-`plugins/consensus/` is a self-contained plugin package for consensus workflows. It ships `create`, which drafts a new artifact from a brief with independent peer drafts and synthesis; `decide`, which chooses between documented options with minimal agency and explicit dissent surfacing; `plan`, which turns a goal and inline constraints into a structured plan with steps, dependencies, and risks; `refine`, which refines markdown drafts by asking two provider CLI-backed AI peers to deliberate toward a converged artifact with an audit trail; and `evaluate`, which judges an artifact against a rubric with unified findings, per-peer reasoning, and dissent preserved in the deliberation log.
+`plugins/consensus/` is a self-contained plugin package for consensus workflows. It ships `create`, which drafts a new artifact from a brief with independent peer drafts and synthesis; `decide`, which chooses between documented options with minimal agency and explicit dissent surfacing; `plan`, which turns a goal and inline constraints into a structured plan with steps, dependencies, and risks; `refine`, which refines markdown drafts by asking two provider CLI-backed AI peers to deliberate toward a converged artifact with an audit trail; `evaluate`, which judges an artifact against a rubric with unified findings, per-peer reasoning, and dissent preserved in the deliberation log; and `phone-a-friend`, which asks one other provider-backed peer for a structured advisory take without a deliberation loop.
 
 Consensus peers run through the generated provider CLI. The CLI owns provider inventory, preflight, bounded subprocess execution, conservative retry classification, schema delivery, and the internal `consensus submit` sidecar-verdict path used to capture peer verdicts before final-message parsing fallback.
 
-The scope is intentionally narrow: the `create`, `decide`, `plan`, `refine`, and `evaluate` skills, three iteration modes selected with `--iteration` (`parallel_synthesized` default for create, decide, and plan, `alternating` default for refine, `parallel_revision` default for evaluate), a configurable synthesizer (`--synthesizer`), an agency-gated escalation ladder with host/user decision re-entry (`--host-direction`), sequential sections by default for refine, opt-in host-mediated parallel section orchestration for refine, and the `--agency` flag. Future work may add `consensus-research`, a whole-document harmonization pass, and deliberation metrics/cost caps.
+The scope is intentionally narrow: the `create`, `decide`, `plan`, `refine`, `evaluate`, and `phone-a-friend` skills, three iteration modes selected with `--iteration` (`parallel_synthesized` default for create, decide, and plan, `alternating` default for refine, `parallel_revision` default for evaluate), a configurable synthesizer (`--synthesizer`), an agency-gated escalation ladder with host/user decision re-entry (`--host-direction`), sequential sections by default for refine, opt-in host-mediated parallel section orchestration for refine, the `--agency` flag, and one-shot advisory peer consultation through `consensus run`. Future work may add `consensus-research`, `consensus-panel`, a whole-document harmonization pass, and deliberation metrics/cost caps.
 
 ## Local Git Repository Install
 
@@ -171,13 +171,43 @@ If you want an evaluation but do not have a rubric yet — or you ask for help a
 
 Four ready-to-adapt example rubrics ship under `skills/evaluate/references/examples/`: `general-purpose.md`, `code-review.md`, `technical-writing.md`, and `design-architecture.md`.
 
+### Phone-a-friend
+
+Ask one other provider-backed peer for a structured advisory take:
+
+```bash
+node plugins/consensus/scripts/consensus.mjs run \
+  --provider claude \
+  --schema plugins/consensus/skills/phone-a-friend/schemas/advisory.schema.json \
+  --prompt-file prompt.md \
+  --json \
+  --max-depth 1
+```
+
+The `phone-a-friend` skill is instruction-only: it has no generated wrapper and
+does not run a deliberation loop. The host infers or confirms the advisory
+question, compacts relevant context into a prompt file, prefers a peer provider
+different from the host, reads the schema-validated advisory payload, and
+dispositions the take before acting. Peer output is advisory only.
+
+For the full host-facing workflow, see `skills/phone-a-friend/SKILL.md`. For the
+schema contract and manual QA walkthrough, see
+`skills/phone-a-friend/schemas/advisory.schema.json` and
+`skills/phone-a-friend/references/operator-qa.md`.
+
 ## Permissions
 
-The consensus `create`, `decide`, `plan`, `refine`, and `evaluate` skills need permission to run:
+The consensus `create`, `decide`, `plan`, `refine`, `evaluate`, and
+`phone-a-friend` skills need permission to run:
 
 - `node` for the wrapper and loop scripts.
 - `consensus` for provider inventory/preflight/submit when exposed as a command.
 - read/write access to input files, generated `.consensus/` run state, provider-turn submit sidecars, and output artifacts.
+
+`phone-a-friend` uses the generated provider CLI directly through `consensus run`
+with the advisory schema, not a generated wrapper. It needs read access to the
+prompt file and schema, and any write access the host uses to prepare temporary
+prompt files or record the advisory disposition.
 
 Refine parallel section mode additionally requires host-native subagent dispatch. Codex authorization must fail closed: if dispatch approval is unavailable or denied, the host should report that parallel mode did not run.
 
@@ -206,8 +236,10 @@ Cursor is included in the provider floor, but local auth state is still operator
 
 ## Limitations
 
-- v0.1 ships the `create`, `decide`, `plan`, `refine`, and `evaluate` skills.
-- Remaining consensus family skills are future work: `consensus-research`.
+- v0.1 ships the `create`, `decide`, `plan`, `refine`, `evaluate`, and
+  `phone-a-friend` skills.
+- Remaining consensus family skills are future work: `consensus-research` and
+  `consensus-panel`.
 - Ships three iteration modes (`alternating`, `parallel_revision`, `parallel_synthesized`); the independent-draft cold-start strategy is exposed through `create`, `decide`, and `plan`, while `refine` and `evaluate` remain shared-input only.
 - Sections converge independently; whole-document harmonization and deliberation metrics/cost caps remain deferred.
 - Verdict submission is best-effort by default: successful submit sidecars are preferred, then wrappers fall back to final-message parsing. A strict require-submission mode and Codex read-only submit capture-path relocation remain future work.
@@ -231,6 +263,10 @@ Cursor is included in the provider floor, but local auth state is still operator
 - `skills/evaluate/` - implementation directory for the shipped `evaluate` skill.
 - `skills/evaluate/references/operator-qa.md` - manual QA walkthrough of artifact/rubric evaluation and dissent review.
 - `skills/evaluate/references/examples/` - four ready-to-adapt example rubrics (general-purpose, code review, technical writing, design/architecture) used by guided rubric creation.
+- `skills/phone-a-friend/` - instruction-only advisory peer consultation skill.
+- `skills/phone-a-friend/schemas/advisory.schema.json` - structured advisory response contract.
+- `skills/phone-a-friend/references/operator-qa.md` - manual QA walkthrough of one-shot advisory calls, expected JSON, and host disposition.
+- `skills/phone-a-friend/references/examples/` - example advisory prompt and response payload.
 - `references/live-e2e.md` - repeatable live provider E2E release-gate runbook for Refine and Evaluate.
 - `references/e2e/` - small checked-in artifacts and rubrics used by the live E2E runbook.
 - `agents/consensus-section-runner.md` - task contract for host-mediated parallel section runners.
