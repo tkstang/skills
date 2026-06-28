@@ -29,9 +29,9 @@ oat_generated: false
 | Phase 1: Skill core (schema + SKILL.md)     | complete    | 3     | 3/3       |
 | Phase 2: Registration + version invariants  | complete    | 1     | 1/1       |
 | Phase 3: Docs + sync + full verification    | complete    | 2     | 2/2       |
-| Phase 4: Final review fixes                 | in_progress | 3     | 1/3       |
+| Phase 4: Final review fixes                 | in_progress | 3     | 2/3       |
 
-**Total:** 7/9 tasks completed
+**Total:** 8/9 tasks completed
 
 ---
 
@@ -357,8 +357,24 @@ Pending. This phase addresses the three Minor findings from
 
 ### Task p04-t02: (review) Correct validate:skill-versions command form
 
-**Status:** pending
-**Commit:** pending
+**Status:** completed
+**Commit:** 3992fe0
+
+**Outcome:**
+
+- Updated the stale skill-version validation command in `plan.md` to the
+  accepted pnpm argument form.
+
+**Files changed:**
+
+- `.oat/projects/shared/phone-a-friend/plan.md` - corrected
+  `pnpm run validate:skill-versions --base-ref main`.
+
+**Verification:**
+
+- Run: `pnpm run validate:skill-versions --base-ref main`
+- Result: pass. The validator accepted the command and reported no changed
+  skills relative to `main`.
 
 ### Task p04-t03: (review) Exercise shipped advisory example in schema test
 
