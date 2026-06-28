@@ -1,6 +1,6 @@
 ---
-oat_current_task: p01-t01
-oat_last_commit: null
+oat_current_task: p02-t01
+oat_last_commit: dddf8fd4a2d654efecf925ca3401af936236b6b4
 oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
@@ -27,19 +27,19 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-06-28T14:25:04.101Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-06-28T17:02:13Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-06-28T17:21:00Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
 # Project State: phone-a-friend
 
-**Status:** Implementation in progress — p01-t01
+**Status:** Implementation in progress — p02-t01
 **Started:** 2026-06-28
 **Last Updated:** 2026-06-28
 
 ## Current Phase
 
-Implementation in progress - Current task: p01-t01
+Implementation in progress - Current task: p02-t01
 
 ## Artifacts
 
@@ -47,14 +47,15 @@ Implementation in progress - Current task: p01-t01
 - **Spec:** N/A (quick mode)
 - **Design:** `design.md` (complete — lightweight)
 - **Plan:** `plan.md` (complete — artifact review passed)
-- **Implementation:** `implementation.md` (in progress — next task p01-t01)
+- **Implementation:** `implementation.md` (in progress — next task p02-t01)
 
 ## Progress
 
 - ✓ Discovery captured (naming + architecture decisions resolved)
 - ✓ Lightweight design captured (advisory schema + safety boundary)
 - ✓ Plan generated (3 phases, 6 tasks) and artifact review passed
-- ⧗ Implementation in progress (current task: p01-t01)
+- ✓ Phase 1 complete (skill core)
+- ⧗ Implementation in progress (current task: p02-t01)
 
 ## Blockers
 
@@ -62,4 +63,4 @@ None
 
 ## Next Milestone
 
-Complete Phase 1 skill core tasks
+Complete Phase 2 registration and version invariants
