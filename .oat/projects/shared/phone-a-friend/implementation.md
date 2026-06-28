@@ -407,6 +407,39 @@ Run-scoped snapshot only. The durable record is `## Deviations from Plan / Desig
 | ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
 | p03-t02 | plan.md Phase 3 files | Sync outputs only were listed for p03-t02. | Two test expectation files were updated. | Full verification surfaced stale release and manifest tests from p02 changes; fixing them was necessary to satisfy the declared verification gate. | implementation | None |
 
+### Run 4 — 2026-06-28 13:00
+
+**Branch:** phone-a-friend
+**Tier:** 1
+**Policy:** merge-strategy=merge, retry-limit=2
+**Phases:** final review fix executed, final review awaiting re-review
+
+#### Phase Outcomes
+
+| Phase | Implementer | Review | Fix Iterations | Disposition |
+| ----- | ----------- | ------ | -------------- | ----------- |
+| final | DONE | fail | 1/2 | fixes_completed; awaiting re-review |
+
+#### Parallel Groups
+
+- final review fix: sequential
+
+#### Dispatch Notes
+
+- Dispatch: final review used model_axis=inherited, effort_axis=selected:xhigh, dispatch_ceiling=xhigh; reviewer runs at the configured ceiling for deterministic quality gate behavior.
+
+#### Outstanding Items
+
+- Final re-review required after fixing plugin README staleness and removing `oat-gate-feedback.md`. Initial review artifact: `reviews/final-review-2026-06-28.md`.
+
+#### Artifact / Design Deltas
+
+Run-scoped snapshot only. The durable record is `## Deviations from Plan / Design`; consolidate any non-`None` entries there at the next phase boundary.
+
+| Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
+| ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
+| final-review | plan.md Phase 3 docs files | User Guide docs were listed explicitly. | Plugin README was also updated. | Final review found plugin-facing docs must stay accurate to the shipped skill set. | implementation | None |
+
 <!-- orchestration-runs-end -->
 
 ---
@@ -425,6 +458,7 @@ Chronological log of implementation progress.
 - [x] p02-t01: Register skill in version tooling + plugin descriptions - a34dd6c
 - [x] p03-t01: Document phone-a-friend in the User Guide - 8572f6e
 - [x] p03-t02: Sync provider views + full verification - 6b48af2
+- [x] final-review fix: Align plugin README and remove temporary feedback file - 12e7cb4
 
 **What changed (high level):**
 
@@ -432,21 +466,24 @@ Chronological log of implementation progress.
 - Registered the skill in release version tooling and updated plugin manifest skill descriptions.
 - Documented `phone-a-friend` in the consensus User Guide and regenerated docs navigation.
 - Checked provider sync and full verification; repaired stale tests so the suite passes.
+- Updated the plugin README so plugin-facing docs include `phone-a-friend`, and removed the temporary OAT gate feedback handoff file from the shipping range.
 
 **Decisions:**
 
 - Kept Phase 1 aligned to the instruction-only architecture from design.md; no generated runtime was added.
 - Accepted test fixture updates in p03 because they were required by the p03 full verification gate after p02 changed the version-tooling and manifest contracts.
+- Accepted the plugin README update as part of final review because root repo instructions require plugin-facing documentation to stay accurate to source and manifests.
 
 **Follow-ups / TODO:**
 
 - Consider a later docs/tooling cleanup for the stale `validate:skill-versions -- --base-ref` command form.
-- Final code review is required before PR handoff.
+- Final code re-review is required before PR handoff.
 
 **Blockers:**
 
 - p01 review found stale lifecycle tracking after implementation commits - resolved in bookkeeping and passed re-review.
 - p03 full verification initially failed on stale release/plugin manifest test expectations - resolved by 6b48af2.
+- Final review found stale plugin README copy and temporary repo-root feedback file - resolved by 12e7cb4; awaiting re-review.
 
 **Session End:** 12:21
 
@@ -469,6 +506,7 @@ Track test execution during implementation.
 | 1     | `PATH="$PWD/node_modules/.bin:$PATH" node scripts/run-vitest.mjs tests/consensus/phone-a-friend/advisory-schema.test.ts`; `pnpm run type-check`; `npm run validate` | yes | 0 | n/a |
 | 2     | `npm run validate`; `pnpm run validate:skill-versions --base-ref main`; `grep -rn "create, decide, plan, refine" plugins/consensus/.*-plugin/plugin.json` | yes | 0 | n/a |
 | 3     | `pnpm exec vitest run tests/release/versioning.test.ts tests/repo/plugin-manifests.test.ts`; `pnpm run type-check`; `pnpm run build:check`; `npm test`; `npm run validate`; `npm run smoke` | yes | 0 | n/a |
+| final-review-fix | `pnpm run type-check`; `pnpm run build:check`; `npm test`; `npm run validate`; `npm run smoke`; `pnpm run lint` | yes | 0 | n/a |
 
 ## Final Summary (for PR/docs)
 
@@ -479,6 +517,7 @@ Track test execution during implementation.
 - Host-facing skill instructions, operator reference, and example advisory payload.
 - Plugin manifest and release version-tooling registration for the new skill.
 - User Guide documentation and docs navigation for the advisory workflow.
+- Plugin README updates for the new advisory skill.
 - Updated release/versioning and plugin-manifest tests for the new skill and manifest copy.
 
 **Behavioral changes (user-facing):**
@@ -495,6 +534,7 @@ Track test execution during implementation.
 - `tests/consensus/phone-a-friend/advisory-schema.test.ts` - schema contract coverage.
 - `scripts/bump-version.mjs` - release version-tooling registration.
 - `plugins/consensus/.*-plugin/plugin.json` - plugin descriptions and Codex interface copy.
+- `plugins/consensus/README.md` - plugin-facing usage, permissions, limitations, and package layout.
 - `documentation/docs/user-guide/consensus/phone-a-friend.md` - user guide page.
 - `documentation/docs/user-guide/consensus/index.md` - consensus section navigation and skill enumeration.
 - `tests/release/versioning.test.ts` and `tests/repo/plugin-manifests.test.ts` - updated release and manifest expectations.
@@ -508,12 +548,14 @@ Track test execution during implementation.
 - `npm test`
 - `npm run validate`
 - `npm run smoke`
+- `pnpm run lint` (exited 0 with existing warnings)
 - `oat sync` / `oat sync --dry-run` reported no changes required.
 
 **Design deltas (if any):**
 
 - No product design deltas. Implementation remained instruction-only with no generated runtime.
 - Plan-scoped implementation detail: p03-t02 updated two test expectation files because the full verification gate exposed stale assumptions after p02.
+- Final-review implementation detail: plugin README was updated because plugin-facing docs must stay accurate to source and manifests.
 
 ## References
 

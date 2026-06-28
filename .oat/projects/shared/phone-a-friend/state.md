@@ -1,6 +1,6 @@
 ---
 oat_current_task: null
-oat_last_commit: 6b48af2cbdd8ee1acd8c0365495aaaa2ce2f62a9
+oat_last_commit: 12e7cb4836b6daf2b071bb87e7b140e307a4f7ab
 oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
@@ -27,19 +27,19 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-06-28T14:25:04.101Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-06-28T17:48:13Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-06-28T18:00:16Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
 # Project State: phone-a-friend
 
-**Status:** Implementation tasks complete — awaiting final review
+**Status:** Implementation tasks complete — awaiting final re-review
 **Started:** 2026-06-28
 **Last Updated:** 2026-06-28
 
 ## Current Phase
 
-Implementation - Tasks complete; awaiting final review.
+Implementation - Tasks complete; final review fixes applied; awaiting final re-review.
 
 ## Artifacts
 
@@ -47,7 +47,7 @@ Implementation - Tasks complete; awaiting final review.
 - **Spec:** N/A (quick mode)
 - **Design:** `design.md` (complete — lightweight)
 - **Plan:** `plan.md` (complete — artifact review passed)
-- **Implementation:** `implementation.md` (tasks complete — awaiting final review)
+- **Implementation:** `implementation.md` (tasks complete — awaiting final re-review)
 
 ## Progress
 
@@ -58,7 +58,7 @@ Implementation - Tasks complete; awaiting final review.
 - ✓ Phase 2 complete (registration + version invariants)
 - ✓ Phase 3 complete (docs, sync, full verification)
 - ✓ Implementation tasks complete
-- ⧗ Awaiting final review
+- ⧗ Awaiting final re-review after fixes
 
 ## Blockers
 
@@ -66,4 +66,4 @@ None
 
 ## Next Milestone
 
-Run final code review for implementation
+Run final code re-review for implementation
