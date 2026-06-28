@@ -325,6 +325,31 @@ completion.
 
 ---
 
+### Review Received: final (v4)
+
+**Date:** 2026-06-28
+**Review artifact:** `reviews/archived/final-review-2026-06-28-v4.md`
+
+**Findings:**
+
+- Critical: 0
+- Important: 0
+- Medium: 0
+- Minor: 0
+
+**New tasks added:** None.
+
+**Deferred Findings (Medium):**
+
+- None.
+
+**Disposition:** Passed. Final re-review confirmed the v3 Minor findings were
+resolved.
+
+**Next:** Continue post-implementation handoff / PR flow.
+
+---
+
 ## Phase 4: Final review fixes
 
 **Status:** complete
@@ -652,14 +677,15 @@ Chronological log of implementation progress.
 
 **Follow-ups / TODO:**
 
-- Run final re-review and receive it before post-implementation handoff.
+- Continue post-implementation handoff / PR flow.
 
 **Blockers:**
 
 - p01 review found stale lifecycle tracking after implementation commits - resolved in bookkeeping and passed re-review.
 - p03 full verification initially failed on stale release/plugin manifest test expectations - resolved by 6b48af2.
 - Final review found stale plugin README copy and temporary repo-root feedback file - resolved by 12e7cb4 and passed re-review.
-- v3 final review found three Minor follow-ups - resolved by p04 tasks; awaiting final re-review.
+- v3 final review found three Minor follow-ups - resolved by p04 tasks and
+  passed v4 final re-review.
 
 **Session End:** 12:21
 
