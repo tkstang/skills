@@ -418,7 +418,7 @@ Run-scoped snapshot only. The durable record is `## Deviations from Plan / Desig
 
 | Phase | Implementer | Review | Fix Iterations | Disposition |
 | ----- | ----------- | ------ | -------------- | ----------- |
-| final | DONE | fail | 1/2 | fixes_completed; awaiting re-review |
+| final | DONE | pass | 1/2 | passed |
 
 #### Parallel Groups
 
@@ -430,7 +430,7 @@ Run-scoped snapshot only. The durable record is `## Deviations from Plan / Desig
 
 #### Outstanding Items
 
-- Final re-review required after fixing plugin README staleness and removing `oat-gate-feedback.md`. Initial review artifact: `reviews/final-review-2026-06-28.md`.
+- None. Final re-review passed with artifact `reviews/final-review-2026-06-28-v2.md`.
 
 #### Artifact / Design Deltas
 
@@ -477,13 +477,13 @@ Chronological log of implementation progress.
 **Follow-ups / TODO:**
 
 - Consider a later docs/tooling cleanup for the stale `validate:skill-versions -- --base-ref` command form.
-- Final code re-review is required before PR handoff.
+- Final review passed; ready for post-implementation handoff.
 
 **Blockers:**
 
 - p01 review found stale lifecycle tracking after implementation commits - resolved in bookkeeping and passed re-review.
 - p03 full verification initially failed on stale release/plugin manifest test expectations - resolved by 6b48af2.
-- Final review found stale plugin README copy and temporary repo-root feedback file - resolved by 12e7cb4; awaiting re-review.
+- Final review found stale plugin README copy and temporary repo-root feedback file - resolved by 12e7cb4 and passed re-review.
 
 **Session End:** 12:21
 

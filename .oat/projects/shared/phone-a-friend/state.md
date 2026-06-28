@@ -12,7 +12,7 @@ oat_hill_checkpoints: [] # Configured: which phases require human-in-the-loop li
 oat_hill_completed: [] # Progress: which HiLL checkpoints have been completed
 oat_parallel_execution: false
 oat_phase: implement # Current phase: discovery | spec | design | plan | implement | decomposition
-oat_phase_status: in_progress # Status: in_progress | complete | pr_open
+oat_phase_status: complete # Status: in_progress | complete | pr_open
 # oat_orchestration_retry_limit: 2  # optional; override fix-loop retry limit (range 0-5)
 oat_dispatch_ceiling: # provider-aware dispatch ceiling for this project
   preset: maximum
@@ -27,19 +27,19 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-06-28T14:25:04.101Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-06-28T18:00:16Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-06-28T18:06:50Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
 # Project State: phone-a-friend
 
-**Status:** Implementation tasks complete — awaiting final re-review
+**Status:** Implementation complete — final review passed
 **Started:** 2026-06-28
 **Last Updated:** 2026-06-28
 
 ## Current Phase
 
-Implementation - Tasks complete; final review fixes applied; awaiting final re-review.
+Implementation complete - Final review passed.
 
 ## Artifacts
 
@@ -47,7 +47,7 @@ Implementation - Tasks complete; final review fixes applied; awaiting final re-r
 - **Spec:** N/A (quick mode)
 - **Design:** `design.md` (complete — lightweight)
 - **Plan:** `plan.md` (complete — artifact review passed)
-- **Implementation:** `implementation.md` (tasks complete — awaiting final re-review)
+- **Implementation:** `implementation.md` (complete — final review passed)
 
 ## Progress
 
@@ -58,7 +58,7 @@ Implementation - Tasks complete; final review fixes applied; awaiting final re-r
 - ✓ Phase 2 complete (registration + version invariants)
 - ✓ Phase 3 complete (docs, sync, full verification)
 - ✓ Implementation tasks complete
-- ⧗ Awaiting final re-review after fixes
+- ✓ Final review passed
 
 ## Blockers
 
@@ -66,4 +66,4 @@ None
 
 ## Next Milestone
 
-Run final code re-review for implementation
+Choose post-implementation handoff: summary, docs, or final PR
