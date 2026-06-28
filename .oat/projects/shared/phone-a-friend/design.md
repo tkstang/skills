@@ -311,17 +311,32 @@ integration** — not on a wrapper unit surface.
 
 ### Unit / contract tests
 
-- **Scope:** `advisory.schema.json` is valid JSON Schema and accepts a
-  well-formed advisory payload while rejecting one missing a required field or
-  carrying an unknown property (`additionalProperties: false`).
+Two layers enforce the contract, and the test must reflect them honestly:
+
+- **Repo fallback validator (`validateSchemaSubset`)** — checks **required
+  fields present + property types only**. It does *not* reject unknown properties
+  and does *not* enforce `enum`.
+- **Provider-native strategies** (`provider_validated` for Claude,
+  `constrained_native` for Codex) — enforce the full JSON Schema, including
+  `enum` and `additionalProperties: false`.
+
+- **Scope:** `advisory.schema.json` is well-formed and behaves correctly under the
+  repo validator, and structurally declares the full contract for provider-native
+  enforcement.
 - **Key cases:**
-  - Valid payload (all required fields + optional `assumptions`) validates.
-  - Missing `confidence` (or any required field) fails.
-  - `confidence` outside the enum fails.
-  - Unknown top-level property fails.
-- Reuse the repo's existing schema-validation/test helpers (the same
-  `validateSchemaSubset` path the CLI uses) so the test exercises the real
-  validation behavior.
+  - `validateSchemaSubset(validPayload, schema).ok === true` (all required fields
+    + optional `assumptions`).
+  - `validateSchemaSubset(payloadMissingConfidence, schema).ok === false`
+    (required-field check).
+  - `validateSchemaSubset({ ...valid, risks: 'oops' }, schema).ok === false`
+    (type check: `risks` must be an array).
+  - Structural assertions on the schema file itself: the seven `required` fields
+    are declared, `additionalProperties` is `false`, and `confidence.enum` is
+    `["low","medium","high"]` (documents the contract the provider-native
+    strategies enforce).
+- Reuse the real `validateSchemaSubset` from
+  `src/consensus/provider-cli/schema-validate.ts` so the test exercises the
+  actual CLI validation behavior, not a reimplementation.
 
 ### Integration tests
 
