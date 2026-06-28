@@ -201,7 +201,7 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 
 | Phase | Implementer | Review | Fix Iterations | Disposition |
 | ----- | ----------- | ------ | -------------- | ----------- |
-| p01   | DONE_WITH_CONCERNS | fail | 1/2 | fixes_completed; awaiting re-review |
+| p01   | DONE_WITH_CONCERNS | pass | 1/2 | passed |
 
 #### Parallel Groups
 
@@ -214,7 +214,7 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 
 #### Outstanding Items
 
-- p01 re-review required after lifecycle bookkeeping fix. Review artifact: `reviews/p01-review-2026-06-28.md`.
+- None. p01 re-review passed with artifact `reviews/p01-review-2026-06-28-v2.md`.
 
 #### Artifact / Design Deltas
 
@@ -250,11 +250,11 @@ Chronological log of implementation progress.
 
 **Follow-ups / TODO:**
 
-- Re-review p01 after the bookkeeping fix, then continue with p02-t01.
+- Continue with p02-t01.
 
 **Blockers:**
 
-- p01 review found stale lifecycle tracking after implementation commits - resolved in bookkeeping, awaiting re-review.
+- p01 review found stale lifecycle tracking after implementation commits - resolved in bookkeeping and passed re-review.
 
 **Session End:** 12:21
 
