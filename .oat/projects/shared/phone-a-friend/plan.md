@@ -261,9 +261,9 @@ git commit -m "docs(p01-t03): add phone-a-friend operator reference and example"
 **Files:**
 
 - Modify: `scripts/bump-version.mjs` (add SKILL.md to `SKILL_FILES`)
-- Modify: `plugins/consensus/.claude-plugin/plugin.json` (description prose)
-- Modify: `plugins/consensus/.cursor-plugin/plugin.json` (description prose)
-- Modify: `plugins/consensus/.codex-plugin/plugin.json` (description prose)
+- Modify: `plugins/consensus/.claude-plugin/plugin.json` (prose `description`)
+- Modify: `plugins/consensus/.cursor-plugin/plugin.json` (prose `description`)
+- Modify: `plugins/consensus/.codex-plugin/plugin.json` (prose `description` **and** the `interface` block: `shortDescription`, `longDescription`, `defaultPrompt`)
 
 **Step 1: Add the new skill to the version-bump set**
 
@@ -271,18 +271,41 @@ Add `'plugins/consensus/skills/phone-a-friend/SKILL.md'` to the `SKILL_FILES`
 array in `scripts/bump-version.mjs` so release version-bumping keeps the new
 skill's `version`/`metadata.version` in sync.
 
-**Step 2: Refresh plugin descriptions for accuracy**
+**Step 2: Refresh every skill-enumerating manifest field for accuracy**
 
-Update the prose `description` in all three plugin manifests to include
-`phone-a-friend` (e.g., "Consensus create, decide, plan, refine, evaluate, and
-phone-a-friend skills…"). Skills are auto-discovered from `skills/` — no skill
-array exists, so this is the only manifest accuracy change. Keep the three
-provider manifests consistent with each other.
+Skills are auto-discovered from `skills/` (no skill array exists and `validate.mjs`
+does not require one), but several manifest fields **enumerate the skill set in
+prose** and would go stale if not updated. Reconcile **all** of them so installed
+plugin UI/help text stays accurate (finding from the cross-provider plan review):
+
+1. **Prose `description`** in all three plugin manifests
+   (`.claude-plugin` / `.cursor-plugin` / `.codex-plugin`), currently
+   "Consensus create, decide, plan, refine, and evaluate skills for multi-peer
+   deliberation." → include `phone-a-friend`. Keep the three consistent.
+2. **`.codex-plugin/plugin.json` `interface` block** — the only manifest with an
+   `interface`. Update the skill enumeration in:
+   - `interface.shortDescription` ("Create, decide, plan, refine, and evaluate
+     artifacts…")
+   - `interface.longDescription` (the long skill rundown)
+   - `interface.defaultPrompt` (the example-prompt array that names each skill)
+   Decide whether `phone-a-friend` (advisory, non-converging) belongs in the
+   same enumeration or as a brief separate clause, but do not leave it omitted
+   while the others are listed.
+
+Marketplace files (`.claude-plugin/marketplace.json`,
+`.cursor-plugin/marketplace.json`, `.agents/plugins/marketplace.json`) use a
+**generic** plugin description ("…for refining drafts with multiple AI peers")
+that does not enumerate the set, so they need no change for accuracy — optionally
+broaden, but it is not a staleness gap.
 
 **Step 3: Verify**
 
 Run: `npm run validate`
 Expected: No errors (manifest + marketplace consistency, skill discovery).
+
+Grep check: confirm no skill-enumerating field still omits phone-a-friend, e.g.
+`grep -rn "create, decide, plan, refine" plugins/consensus/.*-plugin/plugin.json`
+returns only intentionally-updated lines.
 
 Run: `pnpm run validate:skill-versions -- --base-ref main`
 Expected: No errors — the new skill is added (no pre-existing version to regress);
@@ -415,7 +438,7 @@ git commit -m "chore(p03-t02): sync provider views for phone-a-friend"
 | p02    | code     | pending | -          | -        |
 | p03    | code     | pending | -          | -        |
 | final  | code     | pending | -          | -        |
-| plan   | artifact | received | 2026-06-28 | reviews/artifact-plan-review-2026-06-28.md |
+| plan   | artifact | passed   | 2026-06-28 | reviews/archived/artifact-plan-review-2026-06-28.md |
 | design | artifact | pending | -          | -        |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
