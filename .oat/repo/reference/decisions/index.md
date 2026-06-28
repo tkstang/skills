@@ -9,6 +9,10 @@
 <!-- OAT DECISION-INDEX -->
 | ID | Date | Status | Title | Legacy |
 | --- | --- | --- | --- | --- |
+| DR-260628-host-owned-disposition | 2026-06-28 | accepted | Host-owned disposition | - |
+| DR-260628-instruction-only-advisory | 2026-06-28 | accepted | Instruction-only advisory skill | - |
+| DR-260628-phone-a-friend-naming | 2026-06-28 | accepted | Phone-a-friend naming | - |
+| DR-260628-skill-local-advisory-schema | 2026-06-28 | accepted | Skill-local advisory schema | - |
 | DR-260627-control-public-skill-discovery | 2026-06-27 | accepted | Control public skill discovery in-repo via internal-flag apply script and CI gate | - |
 | DR-260627-keep-consensus-skills | 2026-06-27 | accepted | Keep consensus skills discoverable and recover standalone installs via a shared-home installer | - |
 | DR-260622-independent-draft-family | 2026-06-22 | Accepted. | Independent-draft family wrappers stay thin and whole-artifact for v1 | DR-026 |
