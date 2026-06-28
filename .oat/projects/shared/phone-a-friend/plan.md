@@ -308,7 +308,7 @@ Grep check: confirm no skill-enumerating field still omits phone-a-friend, e.g.
 `grep -rn "create, decide, plan, refine" plugins/consensus/.*-plugin/plugin.json`
 returns only intentionally-updated lines.
 
-Run: `pnpm run validate:skill-versions -- --base-ref main`
+Run: `pnpm run validate:skill-versions --base-ref main`
 Expected: No errors — the new skill is added (no pre-existing version to regress);
 no existing skill changed without a bump.
 
