@@ -1,9 +1,9 @@
 ---
-oat_status: in_progress
+oat_status: complete
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-28
-oat_current_task_id: p04-t01
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -29,9 +29,9 @@ oat_generated: false
 | Phase 1: Skill core (schema + SKILL.md)     | complete    | 3     | 3/3       |
 | Phase 2: Registration + version invariants  | complete    | 1     | 1/1       |
 | Phase 3: Docs + sync + full verification    | complete    | 2     | 2/2       |
-| Phase 4: Final review fixes                 | in_progress | 3     | 2/3       |
+| Phase 4: Final review fixes                 | complete    | 3     | 3/3       |
 
-**Total:** 8/9 tasks completed
+**Total:** 9/9 tasks completed
 
 ---
 
@@ -320,20 +320,42 @@ oat_generated: false
 
 **New tasks added:** `p04-t01`, `p04-t02`, `p04-t03`
 
-**Next:** Execute the final-review fix tasks via `oat-project-implement`, then
-run a final re-review before PR completion.
+**Next:** Final-review fixes are complete; run a final re-review before PR
+completion.
 
 ---
 
 ## Phase 4: Final review fixes
 
-**Status:** in_progress
+**Status:** complete
 **Started:** 2026-06-28
 
 ### Phase Summary
 
-Pending. This phase addresses the three Minor findings from
-`reviews/archived/final-review-2026-06-28-v3.md`.
+**Outcome (what changed):**
+
+- Removed the temporary OAT gate feedback handoff file now that the feedback was
+  passed on.
+- Corrected the stale `validate:skill-versions` pnpm command form in the plan.
+- Added contract coverage that validates the shipped example advisory payload.
+
+**Key files touched:**
+
+- `.oat/projects/shared/phone-a-friend/references/oat-gate-feedback.md` -
+  deleted.
+- `.oat/projects/shared/phone-a-friend/plan.md` - corrected the command form and
+  recorded review-fix status.
+- `tests/consensus/phone-a-friend/advisory-schema.test.ts` - validates the
+  shipped example advisory JSON.
+
+**Verification:**
+
+- Run: `git status --short -- .oat/projects/shared/phone-a-friend/references/oat-gate-feedback.md`
+- Run: `pnpm run validate:skill-versions --base-ref main`
+- Run: `PATH="$PWD/node_modules/.bin:$PATH" node scripts/run-vitest.mjs tests/consensus/phone-a-friend/advisory-schema.test.ts`
+- Run: `pnpm run type-check`
+- Result: pass. The raw `node scripts/run-vitest.mjs ...` form still needs
+  `node_modules/.bin` on `PATH` in this shell.
 
 ### Task p04-t01: (review) Remove temporary OAT gate feedback handoff
 
@@ -378,8 +400,28 @@ Pending. This phase addresses the three Minor findings from
 
 ### Task p04-t03: (review) Exercise shipped advisory example in schema test
 
-**Status:** pending
-**Commit:** pending
+**Status:** completed
+**Commit:** 40c54e2
+
+**Outcome:**
+
+- The schema contract test now parses the shipped
+  `registry-cache.advisory.json` example and validates it against the advisory
+  schema.
+
+**Files changed:**
+
+- `tests/consensus/phone-a-friend/advisory-schema.test.ts` - loads and validates
+  the shipped example advisory payload.
+
+**Verification:**
+
+- Run: `node scripts/run-vitest.mjs tests/consensus/phone-a-friend/advisory-schema.test.ts`
+- Result: failed because this shell could not resolve `vitest` from `PATH`.
+- Run: `PATH="$PWD/node_modules/.bin:$PATH" node scripts/run-vitest.mjs tests/consensus/phone-a-friend/advisory-schema.test.ts`
+- Result: pass. One test file passed with 5 tests.
+- Run: `pnpm run type-check`
+- Result: pass.
 
 ---
 
@@ -531,6 +573,43 @@ Run-scoped snapshot only. The durable record is `## Deviations from Plan / Desig
 | ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
 | final-review | plan.md Phase 3 docs files | User Guide docs were listed explicitly. | Plugin README was also updated. | Final review found plugin-facing docs must stay accurate to the shipped skill set. | implementation | None |
 
+### Run 5 — 2026-06-28 16:05
+
+**Branch:** phone-a-friend
+**Tier:** 2
+**Policy:** inline review-fix execution, retry-limit=2
+**Phases:** 1 executed, 1 passed, 0 failed, 0 stopped
+
+#### Phase Outcomes
+
+| Phase | Implementer | Review | Fix Iterations | Disposition |
+| ----- | ----------- | ------ | -------------- | ----------- |
+| p04   | DONE | not run | 0/2 | fixes_completed |
+
+#### Parallel Groups
+
+- p04: sequential inline execution
+
+#### Dispatch Notes
+
+- Dispatch: p04 implementation used Tier 2 inline execution because the user
+  explicitly declined subagents for these small final-review fixes.
+- Dispatch ceiling resolved to xhigh for Codex from project state, but no
+  subagent dispatch was performed.
+
+#### Outstanding Items
+
+- Final re-review is still required before the final review row can be marked
+  `passed`.
+
+#### Artifact / Design Deltas
+
+Run-scoped snapshot only. The durable record is `## Deviations from Plan / Design`; consolidate any non-`None` entries there at the next phase boundary.
+
+| Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
+| ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
+| None | - | - | - | - | - | - |
+
 <!-- orchestration-runs-end -->
 
 ---
@@ -550,6 +629,9 @@ Chronological log of implementation progress.
 - [x] p03-t01: Document phone-a-friend in the User Guide - 8572f6e
 - [x] p03-t02: Sync provider views + full verification - 6b48af2
 - [x] final-review fix: Align plugin README and remove temporary feedback file - 12e7cb4
+- [x] p04-t01: Remove temporary OAT gate feedback handoff - 07a7508
+- [x] p04-t02: Correct validate:skill-versions command form - 3992fe0
+- [x] p04-t03: Exercise shipped advisory example in schema test - 40c54e2
 
 **What changed (high level):**
 
@@ -558,6 +640,9 @@ Chronological log of implementation progress.
 - Documented `phone-a-friend` in the consensus User Guide and regenerated docs navigation.
 - Checked provider sync and full verification; repaired stale tests so the suite passes.
 - Updated the plugin README so plugin-facing docs include `phone-a-friend`, and removed the temporary OAT gate feedback handoff file from the shipping range.
+- Processed v3 final-review Minor findings: deleted the temporary project
+  feedback handoff, corrected the skill-version validation command, and added
+  example advisory schema coverage.
 
 **Decisions:**
 
@@ -567,14 +652,14 @@ Chronological log of implementation progress.
 
 **Follow-ups / TODO:**
 
-- Consider a later docs/tooling cleanup for the stale `validate:skill-versions -- --base-ref` command form.
-- Final review passed; ready for post-implementation handoff.
+- Run final re-review and receive it before post-implementation handoff.
 
 **Blockers:**
 
 - p01 review found stale lifecycle tracking after implementation commits - resolved in bookkeeping and passed re-review.
 - p03 full verification initially failed on stale release/plugin manifest test expectations - resolved by 6b48af2.
 - Final review found stale plugin README copy and temporary repo-root feedback file - resolved by 12e7cb4 and passed re-review.
+- v3 final review found three Minor follow-ups - resolved by p04 tasks; awaiting final re-review.
 
 **Session End:** 12:21
 
@@ -598,6 +683,7 @@ Track test execution during implementation.
 | 2     | `npm run validate`; `pnpm run validate:skill-versions --base-ref main`; `grep -rn "create, decide, plan, refine" plugins/consensus/.*-plugin/plugin.json` | yes | 0 | n/a |
 | 3     | `pnpm exec vitest run tests/release/versioning.test.ts tests/repo/plugin-manifests.test.ts`; `pnpm run type-check`; `pnpm run build:check`; `npm test`; `npm run validate`; `npm run smoke` | yes | 0 | n/a |
 | final-review-fix | `pnpm run type-check`; `pnpm run build:check`; `npm test`; `npm run validate`; `npm run smoke`; `pnpm run lint` | yes | 0 | n/a |
+| 4     | `git status --short -- .oat/projects/shared/phone-a-friend/references/oat-gate-feedback.md`; `pnpm run validate:skill-versions --base-ref main`; `PATH="$PWD/node_modules/.bin:$PATH" node scripts/run-vitest.mjs tests/consensus/phone-a-friend/advisory-schema.test.ts`; `pnpm run type-check` | yes | 0 | n/a |
 
 ## Final Summary (for PR/docs)
 
@@ -610,6 +696,9 @@ Track test execution during implementation.
 - User Guide documentation and docs navigation for the advisory workflow.
 - Plugin README updates for the new advisory skill.
 - Updated release/versioning and plugin-manifest tests for the new skill and manifest copy.
+- Final-review minor cleanups: removed the temporary project feedback handoff,
+  corrected the stale validation command, and added schema coverage for the
+  shipped example advisory payload.
 
 **Behavioral changes (user-facing):**
 
@@ -623,6 +712,7 @@ Track test execution during implementation.
 - `plugins/consensus/skills/phone-a-friend/schemas/advisory.schema.json` - advisory response contract.
 - `plugins/consensus/skills/phone-a-friend/references/` - operator walkthrough and examples.
 - `tests/consensus/phone-a-friend/advisory-schema.test.ts` - schema contract coverage.
+- `.oat/projects/shared/phone-a-friend/plan.md` - review-fix task tracking and corrected command form.
 - `scripts/bump-version.mjs` - release version-tooling registration.
 - `plugins/consensus/.*-plugin/plugin.json` - plugin descriptions and Codex interface copy.
 - `plugins/consensus/README.md` - plugin-facing usage, permissions, limitations, and package layout.
@@ -634,6 +724,7 @@ Track test execution during implementation.
 
 - `PATH="$PWD/node_modules/.bin:$PATH" node scripts/run-vitest.mjs tests/consensus/phone-a-friend/advisory-schema.test.ts`
 - `pnpm exec vitest run tests/release/versioning.test.ts tests/repo/plugin-manifests.test.ts`
+- `pnpm run validate:skill-versions --base-ref main`
 - `pnpm run type-check`
 - `pnpm run build:check`
 - `npm test`

@@ -1,6 +1,6 @@
 ---
-oat_current_task: p04-t03
-oat_last_commit: 3992fe0
+oat_current_task: null
+oat_last_commit: 40c54e2
 oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
@@ -27,19 +27,19 @@ oat_pr_status: open # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: "https://github.com/tkstang/skills/pull/39" # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-06-28T14:25:04.101Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-06-28T21:04:20Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-06-28T21:05:30Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
 # Project State: phone-a-friend
 
-**Status:** Implementation — final-review fixes in progress
+**Status:** Implementation — awaiting final re-review
 **Started:** 2026-06-28
 **Last Updated:** 2026-06-28
 
 ## Current Phase
 
-Implementation — final-review fixes in progress.
+Implementation — final-review fixes complete; awaiting final re-review.
 
 ## Artifacts
 
@@ -47,7 +47,7 @@ Implementation — final-review fixes in progress.
 - **Spec:** N/A (quick mode)
 - **Design:** `design.md` (complete — lightweight)
 - **Plan:** `plan.md` (complete — artifact review passed)
-- **Implementation:** `implementation.md` (in progress — final-review fixes)
+- **Implementation:** `implementation.md` (complete — awaiting final re-review)
 - **Summary:** `summary.md` (complete)
 
 ## Progress
@@ -59,7 +59,7 @@ Implementation — final-review fixes in progress.
 - ✓ Phase 2 complete (registration + version invariants)
 - ✓ Phase 3 complete (docs, sync, full verification)
 - ✓ Implementation tasks complete
-- ⧗ Final review fixes in progress
+- ✓ Final review fixes complete
 - ✓ PR created
 - ⧗ Awaiting final re-review
 
@@ -69,7 +69,7 @@ None
 
 ## Next Milestone
 
-Complete the final-review fixes and run final re-review.
+Run final re-review.
 
-- Current task: `p04-t03`
-- After fixes: run `oat-project-review-provide code final`
+- Run: `oat-project-review-provide code final`
+- Then receive the review before PR completion.
