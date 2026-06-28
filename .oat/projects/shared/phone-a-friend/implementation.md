@@ -1,9 +1,9 @@
 ---
-oat_status: in_progress
+oat_status: complete
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-28
-oat_current_task_id: p03-t01
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -28,9 +28,9 @@ oat_generated: false
 | ------------------------------------------- | ----------- | ----- | --------- |
 | Phase 1: Skill core (schema + SKILL.md)     | complete    | 3     | 3/3       |
 | Phase 2: Registration + version invariants  | complete    | 1     | 1/1       |
-| Phase 3: Docs + sync + full verification    | pending     | 2     | 0/2       |
+| Phase 3: Docs + sync + full verification    | complete    | 2     | 2/2       |
 
-**Total:** 4/6 tasks completed
+**Total:** 6/6 tasks completed
 
 ---
 
@@ -207,20 +207,88 @@ oat_generated: false
 
 ## Phase 3: Docs + sync + full verification
 
-**Status:** pending
-**Started:** -
+**Status:** complete
+**Started:** 2026-06-28
+
+### Phase Summary
+
+**Outcome (what changed):**
+
+- Added a User Guide page for `phone-a-friend` and wired it into the consensus docs navigation.
+- Regenerated the docs root index so generated navigation includes the new page.
+- Ran provider sync; no tracked provider-view changes were required.
+- Repaired release-versioning and plugin-manifest test expectations that were made stale by the new skill and manifest copy.
+- Completed the full verification suite for the project.
+
+**Key files touched:**
+
+- `documentation/docs/user-guide/consensus/phone-a-friend.md` - documents the advisory workflow, invocation, schema, peer selection, and safety boundary.
+- `documentation/docs/user-guide/consensus/index.md` - adds the page to `## Contents` and updates skill enumeration copy.
+- `documentation/index.md` - regenerated docs index.
+- `tests/release/versioning.test.ts` - includes the new skill in release fixture coverage.
+- `tests/repo/plugin-manifests.test.ts` - updates exact Codex manifest interface expectations.
+
+**Verification:**
+
+- Run: `pnpm exec vitest run tests/release/versioning.test.ts tests/repo/plugin-manifests.test.ts`
+- Run: `pnpm run type-check`
+- Run: `pnpm run build:check`
+- Run: `npm test`
+- Run: `npm run validate`
+- Run: `npm run smoke`
+- Result: pass.
+
+**Notes / Decisions:**
+
+- `oat sync` was a no-op; provider views were already in sync.
+- Updating the two test files was necessary to satisfy p03's full verification gate after the p02 manifest/version-tooling changes.
 
 ### Task p03-t01: Document phone-a-friend in the User Guide
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** 8572f6e
+
+**Outcome:**
+
+- The docs site now has a `phone-a-friend` User Guide page and the consensus section describes six skills: five converging skills and one advisory skill.
+
+**Files changed:**
+
+- `documentation/docs/user-guide/consensus/phone-a-friend.md` - new user-facing page.
+- `documentation/docs/user-guide/consensus/index.md` - navigation and enumeration update.
+- `documentation/index.md` - regenerated docs index.
+
+**Verification:**
+
+- Run: `cd documentation && oat docs generate-index --docs-dir docs --output index.md`
+- Run: `npm run validate`
+- Result: pass.
 
 ---
 
 ### Task p03-t02: Sync provider views + full verification
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** 6b48af2
+
+**Outcome:**
+
+- Provider sync was checked and produced no tracked changes; full verification passed after test fixtures were aligned to the new skill and manifest copy.
+
+**Files changed:**
+
+- `tests/release/versioning.test.ts` - adds `phone-a-friend` skill fixture coverage.
+- `tests/repo/plugin-manifests.test.ts` - updates Codex manifest interface expectations.
+
+**Verification:**
+
+- Run: `oat sync`
+- Run: `pnpm run type-check`
+- Run: `pnpm run build:check`
+- Run: `npm test`
+- Run: `npm run validate`
+- Run: `npm run smoke`
+- Result: pass. `oat sync` reported no changes required.
 
 ---
 
@@ -304,6 +372,41 @@ Run-scoped snapshot only. The durable record is `## Deviations from Plan / Desig
 | ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
 | None | - | - | - | - | - | - |
 
+### Run 3 — 2026-06-28 12:48
+
+**Branch:** phone-a-friend
+**Tier:** 1
+**Policy:** merge-strategy=merge, retry-limit=2
+**Phases:** 1 executed, 1 passed, 0 failed, 0 stopped
+
+#### Phase Outcomes
+
+| Phase | Implementer | Review | Fix Iterations | Disposition |
+| ----- | ----------- | ------ | -------------- | ----------- |
+| p03   | DONE | pass | 1/2 | passed |
+
+#### Parallel Groups
+
+- p03: sequential
+
+#### Dispatch Notes
+
+- Dispatch: p03 implementation used model_axis=inherited, effort_axis=selected:xhigh, dispatch_ceiling=xhigh; Phase 3 touches docs navigation, generated docs index, provider sync outputs, and full repository verification.
+- Dispatch: p03 fix used model_axis=inherited, effort_axis=selected:xhigh, dispatch_ceiling=xhigh; full verification exposed stale test expectations from p02 manifest/version-tooling changes.
+- Dispatch: p03 review used model_axis=inherited, effort_axis=selected:xhigh, dispatch_ceiling=xhigh; reviewer runs at the configured ceiling for deterministic quality gate behavior.
+
+#### Outstanding Items
+
+- None. p03 review passed with artifact `reviews/p03-review-2026-06-28.md`.
+
+#### Artifact / Design Deltas
+
+Run-scoped snapshot only. The durable record is `## Deviations from Plan / Design`; consolidate any non-`None` entries there at the next phase boundary.
+
+| Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
+| ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
+| p03-t02 | plan.md Phase 3 files | Sync outputs only were listed for p03-t02. | Two test expectation files were updated. | Full verification surfaced stale release and manifest tests from p02 changes; fixing them was necessary to satisfy the declared verification gate. | implementation | None |
+
 <!-- orchestration-runs-end -->
 
 ---
@@ -320,24 +423,30 @@ Chronological log of implementation progress.
 - [x] p01-t02: Author SKILL.md - 47a8166
 - [x] p01-t03: Operator reference + example - dddf8fd
 - [x] p02-t01: Register skill in version tooling + plugin descriptions - a34dd6c
+- [x] p03-t01: Document phone-a-friend in the User Guide - 8572f6e
+- [x] p03-t02: Sync provider views + full verification - 6b48af2
 
 **What changed (high level):**
 
 - Added the `phone-a-friend` skill, advisory schema, contract test, operator reference, and example advisory payload.
 - Registered the skill in release version tooling and updated plugin manifest skill descriptions.
+- Documented `phone-a-friend` in the consensus User Guide and regenerated docs navigation.
+- Checked provider sync and full verification; repaired stale tests so the suite passes.
 
 **Decisions:**
 
 - Kept Phase 1 aligned to the instruction-only architecture from design.md; no generated runtime was added.
+- Accepted test fixture updates in p03 because they were required by the p03 full verification gate after p02 changed the version-tooling and manifest contracts.
 
 **Follow-ups / TODO:**
 
-- Continue with p03-t01.
 - Consider a later docs/tooling cleanup for the stale `validate:skill-versions -- --base-ref` command form.
+- Final code review is required before PR handoff.
 
 **Blockers:**
 
 - p01 review found stale lifecycle tracking after implementation commits - resolved in bookkeeping and passed re-review.
+- p03 full verification initially failed on stale release/plugin manifest test expectations - resolved by 6b48af2.
 
 **Session End:** 12:21
 
@@ -359,29 +468,52 @@ Track test execution during implementation.
 | ----- | --------- | ------ | ------ | -------- |
 | 1     | `PATH="$PWD/node_modules/.bin:$PATH" node scripts/run-vitest.mjs tests/consensus/phone-a-friend/advisory-schema.test.ts`; `pnpm run type-check`; `npm run validate` | yes | 0 | n/a |
 | 2     | `npm run validate`; `pnpm run validate:skill-versions --base-ref main`; `grep -rn "create, decide, plan, refine" plugins/consensus/.*-plugin/plugin.json` | yes | 0 | n/a |
+| 3     | `pnpm exec vitest run tests/release/versioning.test.ts tests/repo/plugin-manifests.test.ts`; `pnpm run type-check`; `pnpm run build:check`; `npm test`; `npm run validate`; `npm run smoke` | yes | 0 | n/a |
 
 ## Final Summary (for PR/docs)
 
 **What shipped:**
 
-- {capability 1}
-- {capability 2}
+- A new shipped consensus plugin skill, `phone-a-friend`, for one-shot advisory peer consultation.
+- A reusable advisory JSON schema and contract test.
+- Host-facing skill instructions, operator reference, and example advisory payload.
+- Plugin manifest and release version-tooling registration for the new skill.
+- User Guide documentation and docs navigation for the advisory workflow.
+- Updated release/versioning and plugin-manifest tests for the new skill and manifest copy.
 
 **Behavioral changes (user-facing):**
 
-- {bullet}
+- Agents can use `phone-a-friend` to ask one other provider-backed peer for a structured advisory take without running a deliberation loop.
+- The host remains responsible for selecting/confirming context, choosing a peer, reading the advisory response, and dispositioning the take before acting.
+- The consensus User Guide now describes the sixth consensus skill and distinguishes converging skills from the advisory skill.
 
 **Key files / modules:**
 
-- `{path}` - {purpose}
+- `plugins/consensus/skills/phone-a-friend/SKILL.md` - shipped skill instructions.
+- `plugins/consensus/skills/phone-a-friend/schemas/advisory.schema.json` - advisory response contract.
+- `plugins/consensus/skills/phone-a-friend/references/` - operator walkthrough and examples.
+- `tests/consensus/phone-a-friend/advisory-schema.test.ts` - schema contract coverage.
+- `scripts/bump-version.mjs` - release version-tooling registration.
+- `plugins/consensus/.*-plugin/plugin.json` - plugin descriptions and Codex interface copy.
+- `documentation/docs/user-guide/consensus/phone-a-friend.md` - user guide page.
+- `documentation/docs/user-guide/consensus/index.md` - consensus section navigation and skill enumeration.
+- `tests/release/versioning.test.ts` and `tests/repo/plugin-manifests.test.ts` - updated release and manifest expectations.
 
 **Verification performed:**
 
-- {tests/lint/typecheck/build/manual steps}
+- `PATH="$PWD/node_modules/.bin:$PATH" node scripts/run-vitest.mjs tests/consensus/phone-a-friend/advisory-schema.test.ts`
+- `pnpm exec vitest run tests/release/versioning.test.ts tests/repo/plugin-manifests.test.ts`
+- `pnpm run type-check`
+- `pnpm run build:check`
+- `npm test`
+- `npm run validate`
+- `npm run smoke`
+- `oat sync` / `oat sync --dry-run` reported no changes required.
 
 **Design deltas (if any):**
 
-- {what changed vs design.md and why}
+- No product design deltas. Implementation remained instruction-only with no generated runtime.
+- Plan-scoped implementation detail: p03-t02 updated two test expectation files because the full verification gate exposed stale assumptions after p02.
 
 ## References
 

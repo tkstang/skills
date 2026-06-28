@@ -437,7 +437,7 @@ git commit -m "chore(p03-t02): sync provider views for phone-a-friend"
 | ------ | -------- | ------- | ---------- | -------- |
 | p01    | code     | passed | 2026-06-28 | reviews/p01-review-2026-06-28-v2.md |
 | p02    | code     | passed | 2026-06-28 | reviews/p02-review-2026-06-28.md |
-| p03    | code     | pending | -          | -        |
+| p03    | code     | passed | 2026-06-28 | reviews/p03-review-2026-06-28.md |
 | final  | code     | pending | -          | -        |
 | plan   | artifact | passed   | 2026-06-28 | reviews/archived/artifact-plan-review-2026-06-28.md |
 | design | artifact | pending | -          | -        |
