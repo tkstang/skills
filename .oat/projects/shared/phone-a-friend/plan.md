@@ -5,7 +5,7 @@ oat_blockers: []
 oat_last_updated: 2026-06-28
 oat_phase: plan
 oat_phase_status: complete
-oat_plan_hill_phases: ["p03"] # phases to pause AFTER completing (empty = every phase)
+oat_plan_hill_phases: ["p04"] # phases to pause AFTER completing (empty = every phase)
 oat_auto_review_at_hill_checkpoints: true
 oat_plan_parallel_groups: [] # groups of phases that run concurrently in worktrees; [] = fully sequential
 oat_plan_source: quick # spec-driven | quick | imported
@@ -427,6 +427,102 @@ git commit -m "chore(p03-t02): sync provider views for phone-a-friend"
 
 ---
 
+## Phase 4: Final review fixes
+
+### Task p04-t01: (review) Remove temporary OAT gate feedback handoff
+
+**Files:**
+
+- Delete: `.oat/projects/shared/phone-a-friend/references/oat-gate-feedback.md`
+
+**Step 1: Understand the issue**
+
+Review finding m1: the OAT gate feedback handoff file is explicitly marked
+temporary and says to delete it after passing it to the OAT agent. The feedback
+has been passed on, so the file should no longer remain in the tree.
+
+**Step 2: Implement fix**
+
+Delete `.oat/projects/shared/phone-a-friend/references/oat-gate-feedback.md`.
+
+**Step 3: Verify**
+
+Run: `git status --short -- .oat/projects/shared/phone-a-friend/references/oat-gate-feedback.md`
+Expected: the file is deleted and no other reference file changes are included.
+
+**Step 4: Commit**
+
+```bash
+git add .oat/projects/shared/phone-a-friend/references/oat-gate-feedback.md
+git commit -m "chore(p04-t01): remove temporary OAT gate feedback handoff"
+```
+
+---
+
+### Task p04-t02: (review) Correct validate:skill-versions command form
+
+**Files:**
+
+- Modify: `.oat/projects/shared/phone-a-friend/plan.md`
+
+**Step 1: Understand the issue**
+
+Review finding m2: the plan still documents
+`pnpm run validate:skill-versions -- --base-ref main`, but in this repo pnpm
+forwards the literal `--` and the validator rejects it. The working command is
+`pnpm run validate:skill-versions --base-ref main`.
+
+**Step 2: Implement fix**
+
+Update the stale command in the Phase 2 verification step to remove the extra
+`--`.
+
+**Step 3: Verify**
+
+Run: `pnpm run validate:skill-versions --base-ref main`
+Expected: the validator accepts the command form.
+
+**Step 4: Commit**
+
+```bash
+git add .oat/projects/shared/phone-a-friend/plan.md
+git commit -m "docs(p04-t02): correct skill-version validation command"
+```
+
+---
+
+### Task p04-t03: (review) Exercise shipped advisory example in schema test
+
+**Files:**
+
+- Modify: `tests/consensus/phone-a-friend/advisory-schema.test.ts`
+
+**Step 1: Understand the issue**
+
+Review finding m3: the schema contract test validates an inline advisory object,
+but not the shipped example file at
+`plugins/consensus/skills/phone-a-friend/references/examples/registry-cache.advisory.json`.
+The example currently conforms, but no automated test prevents future drift.
+
+**Step 2: Implement fix**
+
+Load the shipped example advisory JSON in the contract test and validate it with
+`validateSchemaSubset(example, schema)`.
+
+**Step 3: Verify**
+
+Run: `node scripts/run-vitest.mjs tests/consensus/phone-a-friend/advisory-schema.test.ts`
+Expected: all advisory schema tests pass, including the shipped example check.
+
+**Step 4: Commit**
+
+```bash
+git add tests/consensus/phone-a-friend/advisory-schema.test.ts
+git commit -m "test(p04-t03): validate phone-a-friend example advisory"
+```
+
+---
+
 ## Reviews
 
 {Track reviews here after running the oat-project-review-provide and oat-project-review-receive skills.}
@@ -438,7 +534,7 @@ git commit -m "chore(p03-t02): sync provider views for phone-a-friend"
 | p01    | code     | passed | 2026-06-28 | reviews/archived/p01-review-2026-06-28-v2.md |
 | p02    | code     | passed | 2026-06-28 | reviews/archived/p02-review-2026-06-28.md |
 | p03    | code     | passed | 2026-06-28 | reviews/archived/p03-review-2026-06-28.md |
-| final  | code     | received | 2026-06-28 | reviews/final-review-2026-06-28-v3.md |
+| final  | code     | fixes_added | 2026-06-28 | reviews/archived/final-review-2026-06-28-v3.md |
 | plan   | artifact | passed   | 2026-06-28 | reviews/archived/artifact-plan-review-2026-06-28.md |
 | design | artifact | pending | -          | -        |
 
@@ -460,10 +556,11 @@ git commit -m "chore(p03-t02): sync provider views for phone-a-friend"
 - Phase 1: 3 tasks — advisory schema + contract test, SKILL.md instructions, operator reference
 - Phase 2: 1 task — version-tooling registration + plugin description accuracy
 - Phase 3: 2 tasks — User Guide documentation, provider sync + full verification
+- Phase 4: 3 tasks — final-review minor fixes
 
-**Total: 6 tasks**
+**Total: 9 tasks**
 
-Ready for code review and merge.
+Ready for review-fix implementation.
 
 ---
 

@@ -1,9 +1,9 @@
 ---
-oat_status: complete
+oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-28
-oat_current_task_id: null
+oat_current_task_id: p04-t01
 oat_generated: false
 ---
 
@@ -29,8 +29,9 @@ oat_generated: false
 | Phase 1: Skill core (schema + SKILL.md)     | complete    | 3     | 3/3       |
 | Phase 2: Registration + version invariants  | complete    | 1     | 1/1       |
 | Phase 3: Docs + sync + full verification    | complete    | 2     | 2/2       |
+| Phase 4: Final review fixes                 | in_progress | 3     | 0/3       |
 
-**Total:** 6/6 tasks completed
+**Total:** 6/9 tasks completed
 
 ---
 
@@ -289,6 +290,65 @@ oat_generated: false
 - Run: `npm run validate`
 - Run: `npm run smoke`
 - Result: pass. `oat sync` reported no changes required.
+
+---
+
+### Review Received: final (v3)
+
+**Date:** 2026-06-28
+**Review artifact:** `reviews/archived/final-review-2026-06-28-v3.md`
+
+**Findings:**
+
+- Critical: 0
+- Important: 0
+- Medium: 0
+- Minor: 3
+
+**Disposition:**
+
+- m1: convert to immediate review-fix task `p04-t01`; the temporary feedback
+  document has been passed on and should be deleted.
+- m2: convert to review-fix task `p04-t02`; update the stale
+  `validate:skill-versions` command form in `plan.md`.
+- m3: convert to review-fix task `p04-t03`; validate the shipped advisory
+  example in the schema contract test.
+
+**Deferred Findings (Medium):**
+
+- None.
+
+**New tasks added:** `p04-t01`, `p04-t02`, `p04-t03`
+
+**Next:** Execute the final-review fix tasks via `oat-project-implement`, then
+run a final re-review before PR completion.
+
+---
+
+## Phase 4: Final review fixes
+
+**Status:** in_progress
+**Started:** 2026-06-28
+
+### Phase Summary
+
+Pending. This phase addresses the three Minor findings from
+`reviews/archived/final-review-2026-06-28-v3.md`.
+
+### Task p04-t01: (review) Remove temporary OAT gate feedback handoff
+
+**Status:** pending
+**Commit:** pending
+
+### Task p04-t02: (review) Correct validate:skill-versions command form
+
+**Status:** pending
+**Commit:** pending
+
+### Task p04-t03: (review) Exercise shipped advisory example in schema test
+
+**Status:** pending
+**Commit:** pending
 
 ---
 
