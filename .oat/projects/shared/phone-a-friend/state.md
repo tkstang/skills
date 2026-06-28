@@ -1,7 +1,10 @@
 ---
 oat_current_task: null
-oat_last_commit: 48ae3bc
-oat_blockers: []
+oat_last_commit: c2c6e5e
+oat_blockers:
+  - task_id: gate:oat-project-implement
+    reason: "Cross-runtime final implementation gate launched claude -p and hung without stdout or review artifact; interrupted after roughly eight minutes."
+    since: 2026-06-28
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
 oat_parent: null # optional child-only coordination parent slug
@@ -27,19 +30,20 @@ oat_pr_status: open # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: "https://github.com/tkstang/skills/pull/39" # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-06-28T14:25:04.101Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-06-28T21:10:53Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-06-28T21:21:05Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
 # Project State: phone-a-friend
 
-**Status:** PR open — awaiting human review
+**Status:** PR open — final implement gate needs rerun
 **Started:** 2026-06-28
 **Last Updated:** 2026-06-28
 
 ## Current Phase
 
-Implementation complete; PR open, awaiting human review.
+Implementation complete and final re-review passed; PR open. The final
+cross-runtime implement gate needs rerun because the Claude gate runtime hung.
 
 ## Artifacts
 
@@ -66,11 +70,15 @@ Implementation complete; PR open, awaiting human review.
 
 ## Blockers
 
-None
+- `gate:oat-project-implement`: Cross-runtime final implementation gate launched
+  `claude -p` and hung without stdout or review artifact; interrupted after
+  roughly eight minutes.
 
 ## Next Milestone
 
-PR is open for review.
+PR is open for review, but the final implement gate needs rerun before treating
+the implement skill as fully gated.
 
+- Rerun or debug: `oat gate resolve oat-project-implement --json`
 - To incorporate feedback: run `oat-project-revise`
 - When approved: run `oat-project-complete`
