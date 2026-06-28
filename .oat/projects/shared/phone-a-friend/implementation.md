@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-06-28
-oat_current_task_id: p02-t01
+oat_current_task_id: p03-t01
 oat_generated: false
 ---
 
@@ -27,10 +27,10 @@ oat_generated: false
 | Phase                                       | Status      | Tasks | Completed |
 | ------------------------------------------- | ----------- | ----- | --------- |
 | Phase 1: Skill core (schema + SKILL.md)     | complete    | 3     | 3/3       |
-| Phase 2: Registration + version invariants  | pending     | 1     | 0/1       |
+| Phase 2: Registration + version invariants  | complete    | 1     | 1/1       |
 | Phase 3: Docs + sync + full verification    | pending     | 2     | 0/2       |
 
-**Total:** 3/6 tasks completed
+**Total:** 4/6 tasks completed
 
 ---
 
@@ -149,13 +149,59 @@ oat_generated: false
 
 ## Phase 2: Registration + version invariants
 
-**Status:** pending
-**Started:** -
+**Status:** complete
+**Started:** 2026-06-28
+
+### Phase Summary
+
+**Outcome (what changed):**
+
+- Added `phone-a-friend` to release version-bump tooling so the new skill version stays synchronized during releases.
+- Updated all skill-enumerating consensus plugin descriptions and Codex interface copy to include `phone-a-friend`.
+
+**Key files touched:**
+
+- `scripts/bump-version.mjs` - includes the new skill in `SKILL_FILES`.
+- `plugins/consensus/.claude-plugin/plugin.json` - updates plugin description.
+- `plugins/consensus/.cursor-plugin/plugin.json` - updates plugin description.
+- `plugins/consensus/.codex-plugin/plugin.json` - updates plugin description and interface copy.
+
+**Verification:**
+
+- Run: `npm run validate`
+- Run: `pnpm run validate:skill-versions --base-ref main`
+- Run: `grep -rn "create, decide, plan, refine" plugins/consensus/.*-plugin/plugin.json`
+- Result: pass. The plan's literal `-- --base-ref` form is stale in this environment; the accepted `--base-ref` form passed.
+
+**Notes / Decisions:**
+
+- Marketplace manifests were left unchanged because they do not enumerate the skill set.
 
 ### Task p02-t01: Register skill in version tooling + plugin descriptions
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** a34dd6c
+
+**Outcome:**
+
+- The new skill is included in release version tooling and visible in plugin UI/help descriptions that list consensus skills.
+
+**Files changed:**
+
+- `scripts/bump-version.mjs` - added `plugins/consensus/skills/phone-a-friend/SKILL.md`.
+- `plugins/consensus/.claude-plugin/plugin.json` - added `phone-a-friend` to skill description.
+- `plugins/consensus/.cursor-plugin/plugin.json` - added `phone-a-friend` to skill description.
+- `plugins/consensus/.codex-plugin/plugin.json` - added `phone-a-friend` to skill description and interface copy.
+
+**Verification:**
+
+- Run: `npm run validate`
+- Run: `pnpm run validate:skill-versions --base-ref main`
+- Result: pass.
+
+**Notes:**
+
+- p02 review passed with one Minor non-blocking note about stale documented command syntax.
 
 ---
 
@@ -224,6 +270,40 @@ Run-scoped snapshot only. The durable record is `## Deviations from Plan / Desig
 | ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
 | None | - | - | - | - | - | - |
 
+### Run 2 — 2026-06-28 12:31
+
+**Branch:** phone-a-friend
+**Tier:** 1
+**Policy:** merge-strategy=merge, retry-limit=2
+**Phases:** 1 executed, 1 passed, 0 failed, 0 stopped
+
+#### Phase Outcomes
+
+| Phase | Implementer | Review | Fix Iterations | Disposition |
+| ----- | ----------- | ------ | -------------- | ----------- |
+| p02   | DONE | pass | 0/2 | passed |
+
+#### Parallel Groups
+
+- p02: sequential
+
+#### Dispatch Notes
+
+- Dispatch: p02 implementation used model_axis=inherited, effort_axis=selected:xhigh, dispatch_ceiling=xhigh; Phase 2 is a narrow but release-sensitive manifest and version-tooling update.
+- Dispatch: p02 review used model_axis=inherited, effort_axis=selected:xhigh, dispatch_ceiling=xhigh; reviewer runs at the configured ceiling for deterministic quality gate behavior.
+
+#### Outstanding Items
+
+- Minor: documented `pnpm run validate:skill-versions -- --base-ref ...` command form is stale in this environment; accepted form is `pnpm run validate:skill-versions --base-ref ...`. Non-blocking for p02.
+
+#### Artifact / Design Deltas
+
+Run-scoped snapshot only. The durable record is `## Deviations from Plan / Design`; consolidate any non-`None` entries there at the next phase boundary.
+
+| Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
+| ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
+| None | - | - | - | - | - | - |
+
 <!-- orchestration-runs-end -->
 
 ---
@@ -239,10 +319,12 @@ Chronological log of implementation progress.
 - [x] p01-t01: Advisory schema + contract test - 8a2b5f1
 - [x] p01-t02: Author SKILL.md - 47a8166
 - [x] p01-t03: Operator reference + example - dddf8fd
+- [x] p02-t01: Register skill in version tooling + plugin descriptions - a34dd6c
 
 **What changed (high level):**
 
 - Added the `phone-a-friend` skill, advisory schema, contract test, operator reference, and example advisory payload.
+- Registered the skill in release version tooling and updated plugin manifest skill descriptions.
 
 **Decisions:**
 
@@ -250,7 +332,8 @@ Chronological log of implementation progress.
 
 **Follow-ups / TODO:**
 
-- Continue with p02-t01.
+- Continue with p03-t01.
+- Consider a later docs/tooling cleanup for the stale `validate:skill-versions -- --base-ref` command form.
 
 **Blockers:**
 
@@ -275,7 +358,7 @@ Track test execution during implementation.
 | Phase | Tests Run | Passed | Failed | Coverage |
 | ----- | --------- | ------ | ------ | -------- |
 | 1     | `PATH="$PWD/node_modules/.bin:$PATH" node scripts/run-vitest.mjs tests/consensus/phone-a-friend/advisory-schema.test.ts`; `pnpm run type-check`; `npm run validate` | yes | 0 | n/a |
-| 2     | -         | -      | -      | -        |
+| 2     | `npm run validate`; `pnpm run validate:skill-versions --base-ref main`; `grep -rn "create, decide, plan, refine" plugins/consensus/.*-plugin/plugin.json` | yes | 0 | n/a |
 
 ## Final Summary (for PR/docs)
 
