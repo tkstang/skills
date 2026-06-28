@@ -29,9 +29,9 @@ oat_generated: false
 | Phase 1: Skill core (schema + SKILL.md)     | complete    | 3     | 3/3       |
 | Phase 2: Registration + version invariants  | complete    | 1     | 1/1       |
 | Phase 3: Docs + sync + full verification    | complete    | 2     | 2/2       |
-| Phase 4: Final review fixes                 | in_progress | 3     | 0/3       |
+| Phase 4: Final review fixes                 | in_progress | 3     | 1/3       |
 
-**Total:** 6/9 tasks completed
+**Total:** 7/9 tasks completed
 
 ---
 
@@ -337,8 +337,23 @@ Pending. This phase addresses the three Minor findings from
 
 ### Task p04-t01: (review) Remove temporary OAT gate feedback handoff
 
-**Status:** pending
-**Commit:** pending
+**Status:** completed
+**Commit:** 07a7508
+
+**Outcome:**
+
+- Removed the temporary OAT gate dogfood feedback handoff file after the feedback
+  was passed on.
+
+**Files changed:**
+
+- `.oat/projects/shared/phone-a-friend/references/oat-gate-feedback.md` -
+  deleted.
+
+**Verification:**
+
+- Run: `git status --short -- .oat/projects/shared/phone-a-friend/references/oat-gate-feedback.md`
+- Result: pass. Only the intended deletion was present before commit.
 
 ### Task p04-t02: (review) Correct validate:skill-versions command form
 
