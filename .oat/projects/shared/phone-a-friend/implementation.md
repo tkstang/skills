@@ -328,7 +328,7 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 
 #### Outstanding Items
 
-- None. p01 re-review passed with artifact `reviews/p01-review-2026-06-28-v2.md`.
+- None. p01 re-review passed with artifact `reviews/archived/p01-review-2026-06-28-v2.md`.
 
 #### Artifact / Design Deltas
 
@@ -397,7 +397,7 @@ Run-scoped snapshot only. The durable record is `## Deviations from Plan / Desig
 
 #### Outstanding Items
 
-- None. p03 review passed with artifact `reviews/p03-review-2026-06-28.md`.
+- None. p03 review passed with artifact `reviews/archived/p03-review-2026-06-28.md`.
 
 #### Artifact / Design Deltas
 
@@ -430,7 +430,7 @@ Run-scoped snapshot only. The durable record is `## Deviations from Plan / Desig
 
 #### Outstanding Items
 
-- None. Final re-review passed with artifact `reviews/final-review-2026-06-28-v2.md`.
+- None. Final re-review passed with artifact `reviews/archived/final-review-2026-06-28-v2.md`.
 
 #### Artifact / Design Deltas
 

@@ -39,7 +39,7 @@ None
 
 ## Requirements/Design Alignment
 
-**Evidence sources used:** `discovery.md`, `design.md`, `plan.md`, `implementation.md`, prior failed review artifact `reviews/final-review-2026-06-28.md`, and the files changed in `98c6fd5eadfe0eee8c54b0629c57beb530f82d6a..75e561b7af70008709fc67dae3c9285112828010`. `spec.md` is absent; quick mode requires `discovery.md` and `plan.md`, so this is not a workflow contract gap.
+**Evidence sources used:** `discovery.md`, `design.md`, `plan.md`, `implementation.md`, prior failed review artifact `reviews/archived/final-review-2026-06-28.md`, and the files changed in `98c6fd5eadfe0eee8c54b0629c57beb530f82d6a..75e561b7af70008709fc67dae3c9285112828010`. `spec.md` is absent; quick mode requires `discovery.md` and `plan.md`, so this is not a workflow contract gap.
 
 ### Previous Findings
 
