@@ -415,7 +415,7 @@ git commit -m "chore(p03-t02): sync provider views for phone-a-friend"
 | p02    | code     | pending | -          | -        |
 | p03    | code     | pending | -          | -        |
 | final  | code     | pending | -          | -        |
-| plan   | artifact | passed  | 2026-06-28 | structured (inline; 5 findings applied) |
+| plan   | artifact | received | 2026-06-28 | reviews/artifact-plan-review-2026-06-28.md |
 | design | artifact | pending | -          | -        |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
