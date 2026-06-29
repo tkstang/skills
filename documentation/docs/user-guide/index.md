@@ -12,9 +12,9 @@ trunk instead.
 
 What ships today:
 
-- **Consensus plugin** — `refine` (deliberate two AI peers toward a converged
-  markdown artifact) and `evaluate` (judge an artifact against a rubric), with an
-  audit trail.
+- **Consensus plugin** — `create`, `decide`, and `plan` start from a brief,
+  options, or goal; `refine` and `evaluate` converge or judge artifacts with
+  audit trails; `phone-a-friend` asks one peer for a one-shot advisory take.
 - **Standalone skills** — `session-observer` (review what another coding agent
   did) and `export-session-transcript` (export the current session to sanitized
   Markdown).
@@ -22,5 +22,5 @@ What ships today:
 ## Contents
 
 - [Installation](installation.md) — Install the consensus plugin per provider (Claude Code, Codex, Cursor) and check prerequisites.
-- [Consensus](consensus/index.md) — Overview, `refine` and `evaluate` usage, and shared configuration.
+- [Consensus](consensus/index.md) — Overview, `create`, `decide`, `plan`, `refine`, `evaluate`, `phone-a-friend`, and shared configuration.
 - [Skills](skills/index.md) — The standalone session skills.
