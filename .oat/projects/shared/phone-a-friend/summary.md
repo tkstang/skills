@@ -2,9 +2,9 @@
 oat_status: complete
 oat_ready_for: null
 oat_blockers: []
-oat_last_updated: 2026-06-28
+oat_last_updated: 2026-06-30
 oat_generated: true
-oat_summary_last_task: p03-t02
+oat_summary_last_task: p04-t03
 oat_summary_revision_count: 0
 oat_summary_includes_revisions: []
 ---
@@ -42,6 +42,17 @@ document cleanly into the Fumadocs User Guide instead of expanding the README.
   describe the sixth consensus skill.
 - Updated release/versioning and plugin-manifest tests so the repository gates
   understand the new skill and manifest wording.
+- Processed final-review follow-ups by deleting the temporary gate-feedback
+  handoff, correcting the stale project-plan skill-version validation command,
+  and validating the shipped advisory example payload in the schema test.
+- Ran the project-document pass after implementation, refreshing the root
+  README, docs landing pages, installation next-step copy, engineering
+  repository layout, and generated docs index so high-level docs no longer
+  described the older five-skill / convergence-only consensus surface.
+- Resolved post-update OAT tool-pack drift by accepting the `oat_gateable`
+  tool-pack refresh for `oat-project-plan` and `oat-project-implement`,
+  re-stamping `metadata.internal: true`, and removing duplicated workflow
+  continuation text from `AGENTS.md`.
 - Updated PJM reference state by archiving the completed backlog item, adding a
   completed-history entry, and removing phone-a-friend from the roadmap's Next
   lane.
@@ -72,9 +83,16 @@ document cleanly into the Fumadocs User Guide instead of expanding the README.
   package and that a temporary OAT gate feedback file was in the shipping range.
   The README was updated and the temporary file was removed before the passing
   final re-review.
+- A later independent v3 final review found three Minor follow-ups, all handled
+  by Phase 4: remove the temporary feedback handoff, correct the project-plan
+  validation command, and add schema coverage for the shipped advisory example.
 - The original review artifacts remained active after the final pass, so the
   final PR workflow archived them and rewrote project references to
   `reviews/archived/`.
+- The cross-runtime implementation gate initially appeared to hang because
+  `claude -p` ran in default permission mode and blocked `Skill(...)`, `oat`, and
+  `pnpm exec` operations. The diagnostic showed the trusted noninteractive
+  Claude gate path should run with permission bypass.
 
 ## Tradeoffs Made
 
@@ -89,7 +107,7 @@ document cleanly into the Fumadocs User Guide instead of expanding the README.
 
 ## Follow-up Items
 
-- Consider a later docs/tooling cleanup for the stale documented
-  `validate:skill-versions -- --base-ref` command form noted in the p02 review.
-  This was a non-blocking repo-instruction cleanup, not part of the shipped
-  phone-a-friend behavior.
+- Update the cross-runtime gate runner/config so Claude gate executions use a
+  trusted noninteractive permission mode such as `--dangerously-skip-permissions`
+  or `--permission-mode bypassPermissions`, and surface permission-denial output
+  instead of presenting it as a silent hang.
