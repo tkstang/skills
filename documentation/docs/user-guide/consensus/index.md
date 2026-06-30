@@ -1,18 +1,19 @@
 ---
 title: 'Consensus'
-description: 'How the consensus plugin deliberates two AI peers over artifacts, briefs, options, and goals, including create, decide, plan, refine, evaluate, iteration modes, and current limitations.'
+description: 'How the consensus plugin uses provider-backed AI peers for converging artifacts and one-shot advisory takes, including create, decide, plan, refine, evaluate, phone-a-friend, iteration modes, and current limitations.'
 ---
 
 # Consensus
 
-The consensus plugin runs **two provider-CLI-backed AI peers** that deliberate
-over an artifact toward a converged result, leaving an audit trail you can
-review. The peers are invoked through the generated consensus CLI; the wrappers
-parse your document, run the peers through structured verdict rounds, and write a
-markdown deliberation artifact with the final output, resolution metadata, and a
-deliberation log.
+The consensus plugin uses provider-CLI-backed AI peers for two related workflows:
+converging artifacts through peer deliberation, and one-shot advisory takes that
+the host dispositions. The peers are invoked through the generated consensus CLI;
+the converging wrappers parse your document, run the peers through structured
+verdict rounds, and write a markdown deliberation artifact with the final output,
+resolution metadata, and a deliberation log.
 
-The scope is intentionally narrow. v0.1 ships five skills:
+The scope is intentionally narrow. v0.1 ships six skills: five converging skills
+and one advisory skill.
 
 - **[`create`](create.md)** — creates a new artifact from a brief with
   `independent_draft`, `parallel_synthesized`, maximum agency, a deliberation
@@ -30,6 +31,9 @@ The scope is intentionally narrow. v0.1 ships five skills:
 - **[`evaluate`](evaluate.md)** — judges an artifact against a rubric, with
   unified findings, per-peer reasoning, and dissent preserved in the
   deliberation log.
+- **[`phone-a-friend`](phone-a-friend.md)** — asks one other provider-backed peer
+  for a structured advisory take, then leaves the host responsible for agreeing,
+  applying, ignoring, or following up.
 
 For the deepest reference — operator-QA walkthroughs, exact commands, and example
 inputs — see the
@@ -76,10 +80,12 @@ diagnostics, and permissions, and the per-skill pages for the full command set.
 
 ## Limitations
 
-- v0.1 ships the `create`, `decide`, `plan`, `refine`, and `evaluate` skills.
+- v0.1 ships the `create`, `decide`, `plan`, `refine`, `evaluate`, and
+  `phone-a-friend` skills.
   The standalone `session-observer` and `export-session-transcript` skills ship
   alongside the consensus plugin but are not part of it.
-- Remaining consensus-family skills are future work: `consensus-research`.
+- Remaining consensus-family skills are future work: `consensus-research` and
+  `consensus-panel`.
 - Three iteration modes ship (`alternating`, `parallel_revision`,
   `parallel_synthesized`); `parallel_revision` and `parallel_synthesized`
   disclose their per-round call multiplier (2x peer calls, plus 1 synthesis call
@@ -109,4 +115,5 @@ diagnostics, and permissions, and the per-skill pages for the full command set.
 - [Plan](plan.md) - `plan` usage: goal and inline constraints, moderate-agency defaults, required headings, and output contract.
 - [Refine](refine.md) - `refine` usage: sequential default, iteration modes, resume, escalation, and host-mediated parallel sections.
 - [Evaluate](evaluate.md) - `evaluate` usage: artifact-vs-rubric command, defaults, output contract, and guided rubric creation.
+- [Phone-a-friend](phone-a-friend.md) - `phone-a-friend` usage: one-shot advisory peer call, provider selection, advisory schema, and host disposition.
 - [Configuration](configuration.md) - Shared configuration: peer selection, provider floor, diagnostics, synthesizer, agency, and permissions.

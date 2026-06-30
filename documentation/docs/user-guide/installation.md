@@ -92,5 +92,5 @@ In an installed plugin environment, the same provider CLI may be exposed as
 `consensus` — for example `consensus provider ls --json` and
 `consensus preflight --json`.
 
-Next: head to [Consensus](consensus/index.md) to run `refine` and `evaluate`, or
-the standalone [Skills](skills/index.md).
+Next: head to [Consensus](consensus/index.md) to run the consensus workflows,
+including `phone-a-friend`, or the standalone [Skills](skills/index.md).
