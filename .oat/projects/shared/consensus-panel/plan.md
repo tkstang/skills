@@ -113,6 +113,7 @@ git commit -m "feat(p01-t01): add consensus config resolver"
 Cover:
 
 - `consensus config get --json --scope user|project|effective`
+- `consensus config list --json`
 - `consensus config set --json --scope user|project --peers ...`
 - `consensus config set --json --scope user|project --panelists ... --panel-size ...`
 - `consensus config set --json --from-file ...`
@@ -127,8 +128,8 @@ Expected: tests fail because `config` is not parsed.
 **Step 2: Implement**
 
 Extend the provider CLI parser, help text, command dispatcher, JSON envelopes, and
-diagnostics. Use the shared config store/resolver internally; do not shell out to
-the CLI from the CLI.
+diagnostics for `get`, `list`, `set`, and `clear`. Use the shared config
+store/resolver internally; do not shell out to the CLI from the CLI.
 
 Run: `pnpm exec vitest run tests/consensus/provider-cli/config-commands.test.ts tests/consensus/config/consensus-config.test.ts`
 Expected: tests pass.
@@ -168,6 +169,10 @@ Expected: generated output is synchronized.
 Run: `node plugins/consensus/scripts/consensus.mjs config get --json --scope effective`
 Expected: JSON envelope is returned with built-in defaults or empty config plus
 diagnostics, without touching real user/project config unless temp env is passed.
+
+Run: `node plugins/consensus/scripts/consensus.mjs config list --json`
+Expected: JSON envelope lists available config scopes/keys without mutating user
+or project config.
 
 **Step 4: Commit**
 
@@ -212,10 +217,15 @@ Keep current parse-time validation for explicit `--peers`.
 Run: `pnpm exec vitest run tests/consensus/create tests/consensus/decide tests/consensus/plan`
 Expected: tests pass.
 
+Ensure existing wrapper tests run with temp `HOME`, `XDG_CONFIG_HOME`, and cwd so
+machine-local consensus config cannot change no-config expectations.
+
 **Step 3: Verify**
 
 Run: `pnpm run type-check`
-Expected: TypeScript passes.
+Expected: TypeScript passes. Generated wrapper outputs are intentionally not
+regenerated until p02-t03, so source-level tests remain the source of truth for
+this intermediate commit.
 
 **Step 4: Commit**
 
@@ -255,10 +265,15 @@ preflight. Keep existing two-peer constraints and escalation behavior unchanged.
 Run: `pnpm exec vitest run tests/consensus/refine tests/consensus/evaluate`
 Expected: tests pass.
 
+Ensure existing wrapper tests run with temp `HOME`, `XDG_CONFIG_HOME`, and cwd so
+machine-local consensus config cannot change no-config expectations.
+
 **Step 3: Verify**
 
 Run: `pnpm run type-check`
-Expected: TypeScript passes.
+Expected: TypeScript passes. Generated wrapper outputs are intentionally not
+regenerated until p02-t03, so source-level tests remain the source of truth for
+this intermediate commit.
 
 **Step 4: Commit**
 
@@ -278,8 +293,7 @@ git commit -m "feat(p02-t02): apply default consensus config to review wrappers"
 - Modify: `plugins/consensus/skills/refine/scripts/*.mjs`
 - Modify: `plugins/consensus/skills/evaluate/scripts/*.mjs`
 - Modify: `plugins/consensus/skills/{create,decide,plan,refine,evaluate}/SKILL.md`
-- Modify: `scripts/bump-version.mjs` only if the new panel skill needs to be
-  registered later in Phase 4
+- Create or modify: `tests/consensus/generated-config-import.test.ts`
 
 **Step 1: Update build mappings**
 
@@ -289,6 +303,11 @@ runtime modules as sibling `.mjs` files for each wrapper that imports them.
 Run: `pnpm run build`
 Expected: generated wrapper outputs include the shared config runtime module
 without hand edits.
+
+Add generated-import assertions for all five convergence wrappers:
+
+- generated wrapper `.mjs` files contain `from './consensus-config.mjs'`
+- generated wrapper `.mjs` files do not contain `'../config/'`
 
 **Step 2: Bump touched skill versions**
 
@@ -300,13 +319,13 @@ Expected: changed skills have version bumps.
 
 **Step 3: Verify**
 
-Run: `pnpm run build:check && pnpm run validate`
-Expected: generated outputs and structural validation pass.
+Run: `pnpm run build:check && pnpm exec vitest run tests/consensus/generated-config-import.test.ts tests/tooling/generated-output-sync.test.ts && pnpm run validate`
+Expected: generated outputs, import rewrites, and structural validation pass.
 
 **Step 4: Commit**
 
 ```bash
-git add scripts/build-generated.mjs plugins/consensus/skills/create plugins/consensus/skills/decide plugins/consensus/skills/plan plugins/consensus/skills/refine plugins/consensus/skills/evaluate scripts/bump-version.mjs
+git add scripts/build-generated.mjs plugins/consensus/skills/create plugins/consensus/skills/decide plugins/consensus/skills/plan plugins/consensus/skills/refine plugins/consensus/skills/evaluate tests/consensus/generated-config-import.test.ts
 git commit -m "build(p02-t03): regenerate consensus wrappers for default config"
 ```
 
@@ -583,7 +602,8 @@ git commit -m "docs(p04-t03): update consensus panel distribution surfaces"
 **Step 1: Run full verification**
 
 Run: `pnpm run build && pnpm run build:check && pnpm run type-check && pnpm run test && pnpm run validate && pnpm run smoke`
-Expected: all gates pass.
+Expected: all gates pass in a temp config environment so `pnpm run smoke` is not
+affected by machine-local `~/.config/consensus/config.json` or `.consensus/config.json`.
 
 **Step 2: Fix drift**
 
@@ -597,7 +617,7 @@ Expected: all gates pass.
 
 ```bash
 git add src/consensus plugins/consensus tests scripts documentation README.md CHANGELOG.md
-git commit -m "chore(p05-t01): pass consensus panel validation gates"
+git diff --cached --quiet || git commit -m "chore(p05-t01): pass consensus panel validation gates"
 ```
 
 ### Task p05-t02: Update backlog records for completed panel/config items
@@ -650,7 +670,7 @@ git commit -m "chore(p05-t02): close consensus panel backlog items"
 | final  | code     | pending         | -          | -                                                          |
 | spec   | artifact | pending         | -          | -                                                          |
 | design | artifact | fixes_completed | 2026-07-01 | reviews/archived/artifact-design-review-2026-07-01.md     |
-| plan   | artifact | received        | 2026-07-01 | reviews/artifact-plan-review-2026-07-01.md                |
+| plan   | artifact | fixes_completed | 2026-07-02 | reviews/archived/artifact-plan-review-2026-07-01.md      |
 
 **Status values:** `pending` -> `received` -> `fixes_added` -> `fixes_completed`
 -> `passed`

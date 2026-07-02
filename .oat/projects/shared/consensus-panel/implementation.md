@@ -197,6 +197,40 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 
 **Next:** Proceed to quick-start plan generation.
 
+### Artifact Review Received: plan
+
+**Date:** 2026-07-02
+**Review artifact:** reviews/archived/artifact-plan-review-2026-07-01.md
+
+**Findings:**
+
+- Critical: 0
+- Important: 0
+- Medium: 3
+- Minor: 4
+
+**New tasks added:** none (artifact review resolved directly in `plan.md`)
+
+**Disposition map:**
+
+- M1: resolve_in_artifact - added `consensus config list --json` coverage to
+  p01-t02 and generated CLI runtime verification to p01-t03.
+- M2: resolve_in_artifact - added generated config-import assertions and
+  targeted generated-output verification to p02-t03.
+- M3: resolve_in_artifact - added temp config environment isolation notes for
+  wrapper tests and final smoke verification.
+- m1: resolve_in_artifact - reconciled plan review status to
+  `fixes_completed` with the archived review path.
+- m2: resolve_in_artifact - removed the conditional `scripts/bump-version.mjs`
+  edit from p02-t03; panel registration remains in p04-t01.
+- m3: resolve_in_artifact - documented that Phase 2 wrapper commits rely on
+  p02-t03 to regenerate generated outputs.
+- m4: resolve_in_artifact - made the p05-t01 validation commit conditional on
+  actual staged drift.
+
+**Next:** Re-run `oat-project-review-provide artifact plan` to confirm the plan
+fixes, or continue to implementation if the user accepts the artifact alignment.
+
 ---
 
 ## Implementation Log

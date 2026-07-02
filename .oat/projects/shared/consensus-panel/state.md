@@ -27,7 +27,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-01T00:10:18.011Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-02T04:01:49Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-02T21:51:00Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -46,7 +46,7 @@ Plan - ready for implementation
 - **Discovery:** `discovery.md` (complete)
 - **Spec:** N/A (quick mode)
 - **Design:** `design.md` (complete)
-- **Plan:** `plan.md` (complete; artifact review passed)
+- **Plan:** `plan.md` (complete; artifact review fixes completed)
 - **Implementation:** `implementation.md` (initialized; next task `p01-t01`)
 
 ## Progress
@@ -57,7 +57,7 @@ Plan - ready for implementation
 - ✓ Design artifact review received and resolved
 - ✓ Quick-start discovery completed through CLI boundary
 - ✓ Execution plan generated: 5 phases / 14 tasks
-- ✓ Plan artifact review passed
+- ✓ Plan artifact review received and artifact fixes completed
 - ✓ Dispatch ceiling set: maximum (Codex xhigh, Claude opus)
 - ⧗ Ready for implementation
 
@@ -67,4 +67,5 @@ None
 
 ## Next Milestone
 
-Run `oat-project-implement` starting with `p01-t01`.
+Re-run `oat-project-review-provide artifact plan` to confirm the plan fixes, or
+continue with `oat-project-implement` starting at `p01-t01`.
