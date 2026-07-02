@@ -2,7 +2,7 @@
 oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
-oat_last_updated: 2026-07-01
+oat_last_updated: 2026-07-02
 oat_current_task_id: p01-t01
 oat_generated: false
 ---
@@ -10,7 +10,7 @@ oat_generated: false
 # Implementation: consensus-panel
 
 **Started:** 2026-07-01
-**Last Updated:** 2026-07-01
+**Last Updated:** 2026-07-02
 
 > This document is used to resume interrupted implementation sessions.
 >
@@ -24,84 +24,119 @@ oat_generated: false
 
 ## Progress Overview
 
-| Phase   | Status      | Tasks | Completed |
-| ------- | ----------- | ----- | --------- |
-| Phase 1 | in_progress | N     | 0/N       |
-| Phase 2 | pending     | N     | 0/N       |
+| Phase   | Status  | Tasks | Completed |
+| ------- | ------- | ----- | --------- |
+| Phase 1 | pending | 3     | 0/3       |
+| Phase 2 | pending | 3     | 0/3       |
+| Phase 3 | pending | 3     | 0/3       |
+| Phase 4 | pending | 3     | 0/3       |
+| Phase 5 | pending | 2     | 0/2       |
 
-**Total:** 0/{N} tasks completed
+**Total:** 0/14 tasks completed
 
----
-
-## Phase 1: {Phase Name}
-
-**Status:** in_progress
-**Started:** 2026-07-01
-
-### Phase Summary (fill when phase is complete)
-
-**Outcome (what changed):**
-
-- {2-5 bullets describing user-visible / behavior-level changes delivered in this phase}
-
-**Key files touched:**
-
-- `{path}` - {why}
-
-**Verification:**
-
-- Run: `{command(s)}`
-- Result: {pass/fail + notes}
-
-**Notes / Decisions:**
-
-- {trade-offs or deviations discovered during implementation}
-
-### Task p01-t01: {Task Name}
-
-**Status:** completed / in_progress / pending / blocked
-**Commit:** {sha} (if completed)
-
-**Outcome (required when completed):**
-
-- {what materially changed (not “did task”, but “system now does X”)}
-
-**Files changed:**
-
-- `{path}` - {why}
-
-**Verification:**
-
-- Run: `{command(s)}`
-- Result: {pass/fail + notes}
-
-**Notes / Decisions:**
-
-- {gotchas, trade-offs, design deltas, important context for future sessions}
-
-**Issues Encountered:**
-
-- {Issue and resolution}
+**Next task:** `p01-t01` - Add config schema, store, and resolver tests
 
 ---
 
-### Task p01-t02: {Task Name}
-
-**Status:** pending
-**Commit:** -
-
-**Notes:**
-
-- {Notes will be added during implementation}
-
----
-
-## Phase 2: {Phase Name}
+## Phase 1: Shared Consensus Config Foundation
 
 **Status:** pending
 **Started:** -
 
-### Task p02-t01: {Task Name}
+### Task p01-t01: Add config schema, store, and resolver tests
+
+**Status:** pending
+**Commit:** -
+
+### Task p01-t02: Add provider CLI config commands
+
+**Status:** pending
+**Commit:** -
+
+### Task p01-t03: Regenerate provider CLI runtime output
+
+**Status:** pending
+**Commit:** -
+
+---
+
+## Phase 2: Existing Wrapper Default-Config Integration
+
+**Status:** pending
+**Started:** -
+
+### Task p02-t01: Integrate create, decide, and plan wrappers
+
+**Status:** pending
+**Commit:** -
+
+### Task p02-t02: Integrate refine and evaluate wrappers
+
+**Status:** pending
+**Commit:** -
+
+### Task p02-t03: Update generated wrapper outputs and skill versions
+
+**Status:** pending
+**Commit:** -
+
+---
+
+## Phase 3: Consensus Panel Runtime
+
+**Status:** pending
+**Started:** -
+
+### Task p03-t01: Add panel schema, parser, prompt, and artifact renderer
+
+**Status:** pending
+**Commit:** -
+
+### Task p03-t02: Implement panel provider execution and shortfall handling
+
+**Status:** pending
+**Commit:** -
+
+### Task p03-t03: Generate panel runtime output
+
+**Status:** pending
+**Commit:** -
+
+---
+
+## Phase 4: Shipped Skill, Docs, and Distribution Surfaces
+
+**Status:** pending
+**Started:** -
+
+### Task p04-t01: Add panel skill instructions and examples
+
+**Status:** pending
+**Commit:** -
+
+### Task p04-t02: Update docs and navigation
+
+**Status:** pending
+**Commit:** -
+
+### Task p04-t03: Update plugin manifests, README, and repo metadata
+
+**Status:** pending
+**Commit:** -
+
+---
+
+## Phase 5: Final Validation and Backlog Bookkeeping
+
+**Status:** pending
+**Started:** -
+
+### Task p05-t01: Run full generated-output and validation gates
+
+**Status:** pending
+**Commit:** -
+
+### Task p05-t02: Update backlog records for completed panel/config items
 
 **Status:** pending
 **Commit:** -
@@ -168,38 +203,10 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 
 Chronological log of implementation progress.
 
-### 2026-07-01
+### 2026-07-02
 
-**Session Start:** {time}
-
-- [x] p01-t01: {Task name} - {commit sha}
-- [ ] p01-t02: {Task name} - in progress
-
-**What changed (high level):**
-
-- {short bullets suitable for PR/docs}
-
-**Decisions:**
-
-- {Decision made and rationale}
-
-**Follow-ups / TODO:**
-
-- {anything discovered during implementation that should be captured for later}
-
-**Blockers:**
-
-- {Blocker description} - {status: resolved/pending}
-
-**Session End:** {time}
-
----
-
-### 2026-07-01
-
-**Session Start:** {time}
-
-{Continue log...}
+- Quick-start plan completed and implementation tracker initialized.
+- No implementation tasks have started.
 
 ---
 
@@ -217,34 +224,36 @@ Track test execution during implementation.
 
 | Phase | Tests Run | Passed | Failed | Coverage |
 | ----- | --------- | ------ | ------ | -------- |
-| 1     | -         | -      | -      | -        |
-| 2     | -         | -      | -      | -        |
+| p01   | -         | -      | -      | -        |
+| p02   | -         | -      | -      | -        |
+| p03   | -         | -      | -      | -        |
+| p04   | -         | -      | -      | -        |
+| p05   | -         | -      | -      | -        |
 
 ## Final Summary (for PR/docs)
 
 **What shipped:**
 
-- {capability 1}
-- {capability 2}
+- Pending implementation.
 
 **Behavioral changes (user-facing):**
 
-- {bullet}
+- Pending implementation.
 
 **Key files / modules:**
 
-- `{path}` - {purpose}
+- Pending implementation.
 
 **Verification performed:**
 
-- {tests/lint/typecheck/build/manual steps}
+- Pending implementation.
 
 **Design deltas (if any):**
 
-- {what changed vs design.md and why}
+- Pending implementation.
 
 ## References
 
 - Plan: `plan.md`
 - Design: `design.md`
-- Spec: `spec.md`
+- Spec: N/A (quick mode)
