@@ -11,11 +11,12 @@ oat_template: false
 ## Overview
 
 The project adds shared default composition for the consensus family, then uses
-it to ship `consensus-panel`. Default composition lives behind the generated
-provider CLI and is resolved with explicit precedence: per-invocation override,
-project config, user config, then built-in defaults. Existing convergence skills
-keep their two-peer behavior, but can read the shared resolver when no explicit
-peers are provided.
+it to ship `consensus-panel`. The generated provider CLI owns the user-facing
+`consensus config` command surface, while generated wrappers consume the same
+shared config/resolver modules in-process. Composition is resolved with explicit
+precedence: per-invocation override, project config, user config, then built-in
+defaults. Existing convergence skills keep their two-peer behavior, but read the
+shared resolver when no explicit peers are provided.
 
 `consensus-panel` is a new non-converging skill and wrapper. It sends the same
 user question to 2+ provider-backed panelists through `consensus run`, captures
@@ -40,11 +41,12 @@ committed runtime output is generated into `plugins/consensus/`, and provider
 turns run through the generated `plugins/consensus/scripts/consensus.mjs`
 provider CLI. This design keeps that boundary intact.
 
-Shared composition configuration becomes a small provider-CLI-owned subsystem:
-config commands read/write user and project config, a resolver applies
-precedence, and wrappers ask the resolver for the workflow-specific composition
-they need. Converging wrappers receive exactly two peers. `consensus-panel`
-receives 2+ panelists.
+Shared composition configuration becomes a small shared subsystem with two
+consumers. The provider CLI exposes config commands that read/write user and
+project config. Generated wrappers import the resolver in-process before their
+existing provider preflight and execution steps. Converging wrappers receive
+exactly two peers and keep their built-in defaults when no config exists.
+`consensus-panel` receives 2+ panelists.
 
 **Key Components:**
 
@@ -55,6 +57,9 @@ receives 2+ panelists.
   for a specific workflow.
 - **Provider CLI config commands:** Expose JSON-first view, set, and clear
   commands for default composition.
+- **Convergence wrapper integration:** Update `create`, `decide`, `plan`,
+  `refine`, and `evaluate` to call the resolver only when their explicit
+  `--peers` flag is absent.
 - **Panel wrapper:** Resolves panelists, preflights them, runs independent
   provider turns, and writes the panel artifact.
 - **Panel skill:** Host-facing instructions that preserve moderator neutrality and
@@ -77,12 +82,23 @@ plugins/consensus/skills/panel/scripts/consensus-panel.mjs
   |
 src/consensus/panel/consensus-panel.ts
   |
-  +--> src/consensus/config/*        -> user/project config files
-  +--> consensus preflight --json    -> provider availability
+  +--> generated sibling consensus-config.mjs
+  +--> consensus provider ls --json  -> inventory
+  +--> consensus preflight --json    -> readiness
   +--> consensus run --json          -> one independent turn per panelist
   |
   v
 panel artifact markdown
+
+src/consensus/{create,decide,plan,refine,evaluate}/*.ts
+  |
+  +--> generated sibling consensus-config.mjs
+  +--> existing two-peer loop/preflight behavior
+
+src/consensus/provider-cli/commands.ts
+  |
+  +--> shared config/resolver modules
+  +--> user/project config files
 ```
 
 ### Data Flow
@@ -94,7 +110,8 @@ panel artifact markdown
    --panelists, --panel-size, --output, --run-dir, and --allow-root.
 4. Resolver builds effective composition:
    invocation > project config > user config > built-in defaults.
-5. Wrapper checks provider inventory/preflight for requested panelists.
+5. Wrapper loads inventory with `consensus provider ls --json`, then checks
+   readiness with `consensus preflight --json` for requested panelists.
 6. Wrapper invokes each usable panelist through consensus run with the panel
    response schema.
 7. Wrapper records ok/error/unavailable status per panelist.
@@ -122,6 +139,8 @@ panel artifact markdown
 **Interfaces:**
 
 ```typescript
+type ConsensusConfigKey = 'peers' | 'panelists' | 'panel-size' | 'roles' | 'all';
+
 interface ConsensusConfigStore {
   readUserConfig(): Promise<ConsensusDefaultsConfig | null>;
   writeUserConfig(config: ConsensusDefaultsConfig): Promise<void>;
@@ -145,6 +164,9 @@ interface ConsensusConfigStore {
   documented surface.
 - Project config uses `.consensus/` because that directory is already the
   consensus-family local artifact namespace.
+- `roles.advisor` is reserved schema space for a future `phone-a-friend`
+  integration. It can be stored and cleared as part of `roles` or `all`, but it
+  does not create a live v1 resolver workflow.
 
 ### Consensus Config Resolver
 
@@ -156,15 +178,15 @@ interface ConsensusConfigStore {
 - Return workflow-specific composition:
   - `convergence`: exactly two peers.
   - `panel`: two or more panelists.
-  - `advisory`: one advisor.
 - Validate provider IDs syntactically before inventory checks.
-- Validate availability through provider inventory/preflight before execution.
+- Validate IDs against provider inventory, then validate availability through
+  preflight before execution.
 - Preserve explicit override precedence even when persisted defaults exist.
 
 **Interfaces:**
 
 ```typescript
-type ConsensusWorkflow = 'convergence' | 'panel' | 'advisory';
+type ConsensusWorkflow = 'convergence' | 'panel';
 
 interface ResolveConsensusCompositionInput {
   workflow: ConsensusWorkflow;
@@ -189,12 +211,61 @@ function resolveConsensusComposition(
 **Design Decisions:**
 
 - `panel_size` limits or expands selection from configured `panelists`, but it
-  cannot reduce panel execution below two panelists.
+  cannot reduce panel execution below two panelists. If `panel_size` is smaller
+  than the configured panelist list, selection is the first N panelists in
+  configured order. If `panel_size` is larger than the configured list, the
+  resolver appends ready providers from inventory order, excluding duplicates. If
+  the requested size still cannot be satisfied but at least two panelists are
+  ready, the wrapper proceeds with a shortfall warning. If fewer than two are
+  ready, the run fails closed.
 - Convergence wrappers never receive more than two peers, even when panel
   defaults contain a larger panel.
 - Unavailable explicitly requested providers fail closed. Unavailable configured
   defaults emit diagnostics and may fall back only when a documented fallback can
   still satisfy the workflow minimum.
+- Config/resolver modules are shared TypeScript sources that are generated as
+  sibling `.mjs` runtime modules for every wrapper that imports them. The provider
+  CLI continues to bundle its own copy.
+
+### Convergence Wrapper Integration
+
+**Purpose:** Apply default consensus config to the existing converging wrappers
+without changing their explicit-flag behavior or two-peer contracts.
+
+**Responsibilities:**
+
+- Update `create`, `decide`, `plan`, `refine`, and `evaluate` canonical wrapper
+  sources to call `resolveConsensusComposition({ workflow: 'convergence', ... })`
+  only when parsed `--peers` is absent.
+- Load provider inventory from the same source those wrappers already use for
+  provider preflight, using `provider ls` or the internal probe before readiness
+  checks.
+- Preserve current built-in defaults exactly when no project/user config exists:
+  host-aware `claude,codex` / `codex,claude` ordering remains the fallback.
+- Keep explicit `--peers` as the highest-precedence source and continue rejecting
+  anything other than exactly two peers for convergence workflows.
+- Regenerate all affected wrapper `.mjs` files and bump versions for all touched
+  shipped skills: `create`, `decide`, `plan`, `refine`, and `evaluate`.
+
+**Interfaces:**
+
+```typescript
+const resolvedPeers = parsed.peers ?? (await resolveConsensusComposition({
+  workflow: 'convergence',
+  cwd,
+  env,
+  inventory,
+})).agents.map((agent) => agent.provider);
+```
+
+**Design Decisions:**
+
+- No existing wrapper behavior changes when no config exists.
+- Existing wrapper tests should gain default-config cases rather than replacing
+  current explicit `--peers` coverage.
+- Model/effort defaults are carried in the resolved agent refs, but wrappers may
+  apply them only where their current provider invocation path supports those
+  controls.
 
 ### Provider CLI Config Commands
 
@@ -220,7 +291,7 @@ consensus config set --json --scope user|project \
   [--panel-size 2] \
   [--from-file consensus-config.json] \
   [--cwd <path>]
-consensus config clear --json --scope user|project [--key peers|panelists|panel-size|all] [--cwd <path>]
+consensus config clear --json --scope user|project [--key peers|panelists|panel-size|roles|all] [--cwd <path>]
 consensus config list --json [--cwd <path>]
 ```
 
@@ -267,6 +338,25 @@ interface RunConsensusPanelOptions {
   invokePanelist?: PanelistInvoker;
 }
 
+type PanelistInvoker = (request: {
+  panelist: ConsensusAgentRef;
+  prompt: string;
+  schemaPath: string;
+}) => Promise<PanelistInvocationResult>;
+
+interface PanelistInvocationResult {
+  ok: boolean;
+  payload?: PanelResponsePayload;
+  diagnostics?: string[];
+}
+
+interface ConsensusPanelRunResult {
+  status: 'passed' | 'failed';
+  outputPath: string | null;
+  responses: ConsensusPanelArtifact['responses'];
+  shortfalls: string[];
+}
+
 function runConsensusPanel(
   argv: readonly string[],
   options?: RunConsensusPanelOptions,
@@ -279,8 +369,10 @@ function runConsensusPanel(
   to other panelists.
 - The wrapper does not synthesize a recommendation. It may render mechanical
   moderator notes for diagnostics and shortfalls, but not a content opinion.
-- A run with fewer than two usable panelists fails or reports an explicit
-  shortfall rather than silently becoming `phone-a-friend`.
+- At least two successful panelist responses is a successful panel run. If fewer
+  than two panelists succeed, the wrapper exits non-zero and writes an
+  explicitly-labeled failure/shortfall artifact at the resolved output path when
+  that path can be safely written. It never silently becomes `phone-a-friend`.
 
 ### Consensus Panel Skill
 
@@ -301,9 +393,8 @@ function runConsensusPanel(
 
 **Design Decisions:**
 
-- The skill should be named `panel` in the plugin directory if provider skill
-  naming favors short names, while docs and prose can call the workflow
-  `consensus-panel`.
+- The skill directory is `plugins/consensus/skills/panel`; docs and prose call
+  the workflow `consensus-panel`.
 - The skill should explicitly contrast panel with `refine`, `evaluate`, and
   `phone-a-friend`.
 
@@ -313,8 +404,14 @@ function runConsensusPanel(
 
 **Responsibilities:**
 
-- Add the panel wrapper mapping to `scripts/build-generated.mjs`.
+- Add generated-output mappings to `scripts/build-generated.mjs` for:
+  - shared config/resolver modules as sibling `consensus-config.mjs` outputs for
+    `create`, `decide`, `plan`, `refine`, `evaluate`, and `panel`;
+  - the panel wrapper itself;
+  - any import rewrites from `../config/*.js` to sibling `.mjs` outputs.
 - Generate committed `plugins/consensus/skills/panel/scripts/consensus-panel.mjs`.
+- Regenerate committed wrapper outputs for all existing convergence skills that
+  import the resolver.
 - Add `plugins/consensus/skills/panel/SKILL.md`, schemas, references, and
   examples.
 - Update provider plugin manifests and install/visibility tests as needed.
@@ -343,7 +440,7 @@ interface ConsensusDefaults {
   panel_size?: number;
   roles?: {
     panelist?: ConsensusAgentRef[];
-    advisor?: ConsensusAgentRef;
+    advisor?: ConsensusAgentRef; // reserved in v1; not a live resolver workflow
     synthesizer?: ConsensusAgentRef;
   };
 }
@@ -391,7 +488,7 @@ validation.
 ```typescript
 interface ResolvedConsensusComposition {
   source: 'invocation' | 'project' | 'user' | 'built-in';
-  workflow: 'convergence' | 'panel' | 'advisory';
+  workflow: 'convergence' | 'panel';
   agents: ConsensusAgentRef[];
   warnings: string[];
 }
@@ -401,7 +498,8 @@ interface ResolvedConsensusComposition {
 
 - `convergence` requires exactly two usable agents.
 - `panel` requires at least two usable agents.
-- `advisory` requires one usable agent.
+- Advisory defaults are reserved config fields in v1 and are not returned by the
+  live resolver until `phone-a-friend` has a concrete consumer path.
 
 ### Panel Response Payload
 
@@ -437,6 +535,7 @@ interface PanelResponsePayload {
 ```typescript
 interface ConsensusPanelArtifact {
   schema_version: 'v1';
+  status: 'passed' | 'failed';
   question: string;
   panelists: ConsensusAgentRef[];
   responses: Array<{
@@ -471,6 +570,7 @@ interface ConsensusPanelArtifact {
 
 ```bash
 consensus config get --json --scope effective
+consensus config get --json --scope effective --workflow panel
 consensus config set --json --scope user --panelists claude,codex --panel-size 2
 consensus config clear --json --scope project --key panelists
 ```
@@ -549,8 +649,10 @@ that panelist as `error` and the wrapper exits according to the minimum-panelist
 rule:
 
 - At least two successful responses: artifact can be produced with diagnostics.
-- Fewer than two successful responses: fail closed or produce an explicit
-  shortfall artifact only if the command contract defines that as non-success.
+- Fewer than two successful responses: exit non-zero and write an explicitly
+  labeled `status: failed` shortfall artifact at the resolved output path when
+  that path can be safely written. This is failure evidence, not a successful
+  panel result.
 
 ### Logging and Diagnostics
 
@@ -568,7 +670,10 @@ rule:
 - Config parser accepts valid `v1` defaults and rejects malformed schemas.
 - Resolver applies invocation, project, user, and built-in precedence.
 - Resolver returns exactly two agents for convergence workflows.
-- Resolver returns 2+ agents for panel workflows and enforces `panel_size`.
+- Resolver returns 2+ agents for panel workflows and enforces deterministic
+  `panel_size` selection and inventory-order expansion.
+- Reserved `roles.advisor` config is accepted/cleared but does not enter the live
+  v1 resolver workflow.
 - CLI arg parsing covers `consensus config` and `consensus-panel` flags.
 - Panel prompt builder frames question as untrusted data and preserves moderator
   neutrality.
@@ -583,12 +688,15 @@ rule:
   without touching the real machine.
 - Existing wrappers consume defaults only when explicit `--peers` is absent.
 - Explicit wrapper flags win over project/user defaults.
+- Existing wrappers preserve their built-in peer order when no config exists.
 - `runConsensusPanel` invokes one provider turn per usable panelist using stubbed
   invokers.
 - Panel wrapper degrades with diagnostics when a non-required configured
   panelist is unavailable but still has two successful responses.
 - Panel wrapper fails clearly when fewer than two panelists are usable.
 - Generated runtime sync covers the new panel wrapper.
+- Generated runtime sync covers shared config/resolver module outputs for all
+  wrappers that import them.
 
 ### Repo and Documentation Tests
 
@@ -612,16 +720,11 @@ rule:
 
 ## Open Questions
 
-- Should `consensus config set` support additional convenience flags for
-  per-role defaults in v1, or should role defaults initially be writable only
-  through `--from-file`?
-- Should panel artifacts with one successful response and one or more failures be
-  written as failure evidence, or should the wrapper only write artifacts on
-  successful two-panelist minimum completion?
-
-These questions do not block planning. They should be resolved in the
-implementation task that defines the exact config command contract and panel
-failure contract.
+No design-blocking open questions remain. V1 supports role defaults through
+`--from-file` plus `--key roles|all` clearing rather than per-role convenience
+flags. Fewer than two successful panelist responses is a non-success that writes
+an explicit `status: failed` shortfall artifact when the output path can be
+safely written.
 
 ## References
 

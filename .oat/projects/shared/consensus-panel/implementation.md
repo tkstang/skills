@@ -124,6 +124,46 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 
 ---
 
+## Review Notes
+
+### Artifact Review Received: design
+
+**Date:** 2026-07-01
+**Review artifact:** reviews/archived/artifact-design-review-2026-07-01.md
+
+**Findings:**
+
+- Critical: 0
+- Important: 2
+- Medium: 3
+- Minor: 4
+
+**Disposition map:**
+
+- I1: resolve_in_artifact - added convergence-wrapper resolver integration,
+  inventory source, built-in default preservation, and required skill version
+  bump guidance.
+- I2: resolve_in_artifact - committed to in-process resolver consumption for
+  wrappers, with provider CLI owning config commands and generated sibling
+  config modules for wrapper runtime output.
+- M1: resolve_in_artifact - pinned deterministic `panel_size` selection,
+  inventory-order expansion, shortfall warning, and fewer-than-two failure.
+- M2: resolve_in_artifact - marked advisory defaults as reserved schema space,
+  not a live v1 resolver workflow.
+- M3: resolve_in_artifact - defined fewer-than-two successful panel responses as
+  non-success with an explicit failed shortfall artifact when safely writable.
+- m1: resolve_in_artifact - defined the referenced config key and panel wrapper
+  helper result types.
+- m2: resolve_in_artifact - added `roles` to the clearable config key set.
+- m3: resolve_in_artifact - separated `provider ls` inventory from `preflight`
+  readiness checks.
+- m4: resolve_in_artifact - committed to `plugins/consensus/skills/panel` as the
+  skill directory name.
+
+**Next:** Proceed to quick-start plan generation.
+
+---
+
 ## Implementation Log
 
 Chronological log of implementation progress.
