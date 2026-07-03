@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-02
-oat_current_task_id: p02-t01
+oat_current_task_id: p02-t02
 oat_generated: false
 ---
 
@@ -27,14 +27,14 @@ oat_generated: false
 | Phase   | Status  | Tasks | Completed |
 | ------- | ------- | ----- | --------- |
 | Phase 1 | completed | 3     | 3/3       |
-| Phase 2 | in_progress | 3  | 0/3       |
+| Phase 2 | in_progress | 3  | 1/3       |
 | Phase 3 | pending | 3     | 0/3       |
 | Phase 4 | pending | 3     | 0/3       |
 | Phase 5 | pending | 2     | 0/2       |
 
-**Total:** 3/14 tasks completed
+**Total:** 4/14 tasks completed
 
-**Next task:** `p02-t01` - Integrate create, decide, and plan wrappers
+**Next task:** `p02-t02` - Integrate refine and evaluate wrappers
 
 ---
 
@@ -78,8 +78,8 @@ oat_generated: false
 
 ### Task p02-t01: Integrate create, decide, and plan wrappers
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** ce84a77
 
 ### Task p02-t02: Integrate refine and evaluate wrappers
 
