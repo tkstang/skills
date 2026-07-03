@@ -65,7 +65,7 @@ Implementation - p02 re-review passed; awaiting p03 review
 - ✓ p02-t01 create/decide/plan wrapper config integration implemented
 - ✓ p02-t02 refine/evaluate wrapper config integration implemented
 - ✓ p02-t03 generated wrapper outputs and skill versions updated
-- ⧗ p02 code review received with one Important finding
+- ✓ p02 code review received with one Important finding
 - ✓ p02 review finding fixed in `619aff5`
 - ✓ p02 re-review passed
 - ✓ p03-t01 panel artifact contract implemented

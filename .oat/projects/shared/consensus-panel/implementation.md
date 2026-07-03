@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-02
-oat_current_task_id: p03-t01
+oat_current_task_id: p04-t01
 oat_generated: false
 ---
 
@@ -34,7 +34,7 @@ oat_generated: false
 
 **Total:** 9/14 tasks completed
 
-**Next task:** `p04-t01` - Add panel skill instructions and examples after p02 re-review and p03 review
+**Next task:** `p04-t01` - Add panel skill instructions and examples after p03 review
 
 ---
 
@@ -87,6 +87,7 @@ oat_generated: false
 - p02 review v2 identified one Important no-config built-in fallback issue to
   fix before Phase 3 begins; `619aff5` preserves the built-in pair and lets
   preflight fail instead of silently substituting a ready provider.
+- p02 re-review passed with 0 findings.
 
 ### Task p02-t01: Integrate create, decide, and plan wrappers
 
