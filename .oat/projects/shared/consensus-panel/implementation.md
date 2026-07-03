@@ -29,12 +29,12 @@ oat_generated: false
 | Phase 1 | completed | 3     | 3/3       |
 | Phase 2 | passed | 3          | 3/3       |
 | Phase 3 | passed | 3          | 3/3       |
-| Phase 4 | in_progress | 3  | 0/3       |
+| Phase 4 | review_pending | 3 | 3/3       |
 | Phase 5 | pending | 2     | 0/2       |
 
-**Total:** 9/14 tasks completed
+**Total:** 12/14 tasks completed
 
-**Next task:** `p04-t01` - Add panel skill instructions and examples
+**Next task:** `p05-t01` - Run full generated-output and validation gates after p04 review
 
 ---
 
@@ -143,23 +143,32 @@ oat_generated: false
 
 ## Phase 4: Shipped Skill, Docs, and Distribution Surfaces
 
-**Status:** in_progress
+**Status:** completed
 **Started:** 2026-07-02
+**Completed:** 2026-07-02
+
+**Summary:**
+
+- Added the shipped panel skill instructions, operator QA, and example prompts.
+- Added the user-guide panel docs page, navigation, configuration coverage, and
+  generated docs index.
+- Updated plugin manifests, README surfaces, changelog notes, and repository
+  tests for the shipped panel workflow.
 
 ### Task p04-t01: Add panel skill instructions and examples
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** f17586f
 
 ### Task p04-t02: Update docs and navigation
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** 70087cd
 
 ### Task p04-t03: Update plugin manifests, README, and repo metadata
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** ac1bd56
 
 ---
 
@@ -202,10 +211,10 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 | p01 | passed | reviews/p01-rereview-2026-07-03.md | One fix iteration resolved four Important findings. |
 | p02 | passed | reviews/p02-rereview-2026-07-03.md | One Important finding fixed in `619aff5`; re-review passed. |
 | p03 | passed | reviews/p03-rereview-2026-07-03-v2.md | One Critical and one Important finding fixed in `7d343d9`; re-review passed. |
-| p04 | in_progress | pending | Starting at `p04-t01`. |
+| p04 | review_pending | pending | Phase 4 implemented; awaiting p04 review. |
 | p05 | pending | pending | HiLL checkpoint phase. |
 
-**Outstanding items:** Continue Phase 4 implementation.
+**Outstanding items:** Run p04 code review before Phase 5.
 
 <!-- orchestration-runs-end -->
 
@@ -432,6 +441,11 @@ Chronological log of implementation progress.
 - p03 review findings fixed in `7d343d9`; p03 re-review is pending.
 - p03 re-review passed with 0 findings in
   `reviews/p03-rereview-2026-07-03-v2.md`; Phase 4 started at `p04-t01`.
+- Phase 4 implemented by Tier 1 subagent dispatch:
+  - `p04-t01` completed in `f17586f`.
+  - `p04-t02` completed in `70087cd`.
+  - `p04-t03` completed in `ac1bd56`.
+- p04 code review is pending before proceeding to `p05-t01`.
 
 ---
 
@@ -452,7 +466,7 @@ Track test execution during implementation.
 | p01   | `pnpm exec vitest run tests/consensus/config/consensus-config.test.ts tests/consensus/provider-cli/config-commands.test.ts`; `pnpm run type-check`; `pnpm run build`; `pnpm run build:check`; generated CLI malformed-config checks | pass | 0 | Targeted p01 coverage |
 | p02   | `pnpm exec vitest run tests/consensus/create tests/consensus/decide tests/consensus/plan`; `pnpm exec vitest run tests/consensus/refine tests/consensus/evaluate`; `pnpm run type-check`; `pnpm run build`; `pnpm run build:check`; `pnpm exec vitest run tests/consensus/generated-config-import.test.ts tests/tooling/generated-output-sync.test.ts`; `pnpm run validate`; `pnpm run validate:skill-versions --base-ref origin/main` | pass | 0 | Targeted wrapper, generated-output, validation, and skill-version coverage |
 | p03   | `pnpm exec vitest run tests/consensus/panel/wrapper.test.ts tests/consensus/panel/panel-schema.test.ts`; `pnpm exec vitest run tests/consensus/panel/provider-cli-integration.test.ts`; `pnpm exec vitest run tests/consensus/panel`; `pnpm run type-check`; `pnpm run build`; `pnpm run build:check`; `node plugins/consensus/skills/panel/scripts/consensus-panel.mjs --help`; `pnpm exec vitest run tests/tooling/generated-output-sync.test.ts` | pass | 0 | Targeted panel runtime and generated-output coverage |
-| p04   | -         | -      | -      | -        |
+| p04   | `pnpm exec vitest run tests/repo/skill-frontmatter.test.ts tests/repo/docs-presence.test.ts tests/repo/layout.test.ts tests/repo/readme-scope.test.ts tests/repo/plugin-manifests.test.ts`; `pnpm run validate`; `pnpm exec oxfmt --check documentation/docs/user-guide/consensus/panel.md documentation/docs/user-guide/consensus/index.md documentation/docs/user-guide/consensus/configuration.md documentation/docs/user-guide/consensus/meta.json` | pass | 0 | Skill, docs, manifests, README scope, validation, and targeted docs formatting |
 | p05   | -         | -      | -      | -        |
 
 ## Final Summary (for PR/docs)
