@@ -29,12 +29,12 @@ oat_generated: false
 | Phase 1 | completed | 3     | 3/3       |
 | Phase 2 | passed | 3          | 3/3       |
 | Phase 3 | passed | 3          | 3/3       |
-| Phase 4 | review_pending | 3 | 3/3       |
-| Phase 5 | pending | 2     | 0/2       |
+| Phase 4 | passed | 3          | 3/3       |
+| Phase 5 | in_progress | 2  | 0/2       |
 
 **Total:** 12/14 tasks completed
 
-**Next task:** `p05-t01` - Run full generated-output and validation gates after p04 review
+**Next task:** `p05-t01` - Run full generated-output and validation gates
 
 ---
 
@@ -175,7 +175,7 @@ oat_generated: false
 ## Phase 5: Final Validation and Backlog Bookkeeping
 
 **Status:** pending
-**Started:** -
+**Started:** 2026-07-02
 
 ### Task p05-t01: Run full generated-output and validation gates
 
@@ -211,10 +211,10 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 | p01 | passed | reviews/p01-rereview-2026-07-03.md | One fix iteration resolved four Important findings. |
 | p02 | passed | reviews/p02-rereview-2026-07-03.md | One Important finding fixed in `619aff5`; re-review passed. |
 | p03 | passed | reviews/p03-rereview-2026-07-03-v2.md | One Critical and one Important finding fixed in `7d343d9`; re-review passed. |
-| p04 | review_pending | pending | Phase 4 implemented; awaiting p04 review. |
-| p05 | pending | pending | HiLL checkpoint phase. |
+| p04 | passed | reviews/p04-review-2026-07-03.md | Passed with 0 findings. |
+| p05 | in_progress | pending | HiLL checkpoint phase started at `p05-t01`. |
 
-**Outstanding items:** Run p04 code review before Phase 5.
+**Outstanding items:** Complete Phase 5, then run p05 code review and HiLL checkpoint.
 
 <!-- orchestration-runs-end -->
 
@@ -405,6 +405,20 @@ canonical-equivalent in-root paths.
 
 **Disposition:** passed - proceed to Phase 4.
 
+### Code Review Received: p04
+
+**Date:** 2026-07-03
+**Review artifact:** reviews/p04-review-2026-07-03.md
+
+**Findings:**
+
+- Critical: 0
+- Important: 0
+- Medium: 0
+- Minor: 0
+
+**Disposition:** passed - proceed to Phase 5.
+
 ---
 
 ## Implementation Log
@@ -445,7 +459,8 @@ Chronological log of implementation progress.
   - `p04-t01` completed in `f17586f`.
   - `p04-t02` completed in `70087cd`.
   - `p04-t03` completed in `ac1bd56`.
-- p04 code review is pending before proceeding to `p05-t01`.
+- p04 code review passed with 0 findings in `reviews/p04-review-2026-07-03.md`;
+  Phase 5 started at `p05-t01`.
 
 ---
 
