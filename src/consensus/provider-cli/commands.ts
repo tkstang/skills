@@ -3,6 +3,13 @@ import { mkdir, rename, writeFile } from 'node:fs/promises';
 import { basename, dirname, join } from 'node:path';
 
 import {
+  clearConsensusConfig,
+  parseConsensusDefaultsConfig,
+  readConsensusConfig,
+  resolveConsensusComposition,
+  writeConsensusConfig,
+} from '../config/consensus-config.js';
+import {
   ConsensusCliUsageError,
   normalizeRunRequest,
   parseConsensusCliArgs,
@@ -26,7 +33,21 @@ import {
   SubmitCaptureLimitError,
 } from './submit-capture.js';
 
-import type { ParsedSubmitCommand, PromptSource } from './args.js';
+import type {
+  ParsedConfigClearCommand,
+  ParsedConfigGetCommand,
+  ParsedConfigSetCommand,
+  ParsedSubmitCommand,
+  PromptSource,
+} from './args.js';
+import type {
+  ConsensusAgentRef,
+  ConsensusConfigKey,
+  ConsensusConfigScope,
+  ConsensusCompositionSource,
+  ConsensusDefaultsConfig,
+  ConsensusWorkflow,
+} from '../config/consensus-config.js';
 import type {
   HostContext,
   ProviderCapabilities,
@@ -70,6 +91,48 @@ export interface CommandDiagnostics {
   warnings?: string[];
 }
 
+export interface ConfigScopedEnvelope {
+  schema_version: 'v1';
+  ok: true;
+  scope: 'user' | 'project';
+  config: ConsensusDefaultsConfig | null;
+}
+
+export interface ConfigEffectiveEnvelope {
+  schema_version: 'v1';
+  ok: true;
+  scope: 'effective';
+  source: ConsensusCompositionSource;
+  config: ConsensusDefaultsConfig;
+  workflow?: ConsensusWorkflow;
+  agents?: ConsensusAgentRef[];
+  diagnostics?: CommandDiagnostics;
+}
+
+export interface ConfigListEnvelope {
+  schema_version: 'v1';
+  ok: true;
+  scopes: ['user', 'project', 'effective'];
+  writable_scopes: ['user', 'project'];
+  keys: ['peers', 'panelists', 'panel-size', 'roles', 'all'];
+  workflows: ['convergence', 'panel'];
+}
+
+export interface ConfigSetEnvelope {
+  schema_version: 'v1';
+  ok: true;
+  scope: ConsensusConfigScope;
+  config: ConsensusDefaultsConfig;
+}
+
+export interface ConfigClearEnvelope {
+  schema_version: 'v1';
+  ok: true;
+  scope: ConsensusConfigScope;
+  key: ConsensusConfigKey;
+  config: ConsensusDefaultsConfig | null;
+}
+
 export interface SubmitResult {
   schema_version: 'v1';
   ok: boolean;
@@ -96,6 +159,11 @@ export function helpText() {
   return `Usage: consensus <command> --json
 
 Commands:
+  config get --json [--scope user|project|effective] [--workflow convergence|panel] [--cwd <path>]
+  config list --json [--cwd <path>]
+  config set --json --scope user|project [--peers <a,b>] [--panelists <a,b,c>]
+      [--panel-size <n>] [--from-file <path>] [--cwd <path>]
+  config clear --json --scope user|project [--key peers|panelists|panel-size|roles|all] [--cwd <path>]
   provider ls --json
   preflight --json [--provider <id>] [--max-depth <n>]
   submit --json [-|--verdict-file <path>] [--schema <path>] [--out <path>]
@@ -266,6 +334,22 @@ export async function runConsensusCli(
       io.stdout.write(helpText());
       return 0;
     }
+    if (command.kind === 'config-list') {
+      writeJson(io, runConfigList());
+      return 0;
+    }
+    if (command.kind === 'config-get') {
+      writeJson(io, await runConfigGet(command, io, options));
+      return 0;
+    }
+    if (command.kind === 'config-set') {
+      writeJson(io, await runConfigSet(command, io));
+      return 0;
+    }
+    if (command.kind === 'config-clear') {
+      writeJson(io, await runConfigClear(command, io));
+      return 0;
+    }
     if (command.kind === 'provider-list') {
       writeJson(
         io,
@@ -311,6 +395,250 @@ export async function runConsensusCli(
     );
     return 1;
   }
+}
+
+function runConfigList(): ConfigListEnvelope {
+  return {
+    schema_version: 'v1',
+    ok: true,
+    scopes: ['user', 'project', 'effective'],
+    writable_scopes: ['user', 'project'],
+    keys: ['peers', 'panelists', 'panel-size', 'roles', 'all'],
+    workflows: ['convergence', 'panel'],
+  };
+}
+
+async function runConfigGet(
+  command: ParsedConfigGetCommand,
+  io: ConsensusCliIo,
+  options: ConsensusCliCommandOptions,
+): Promise<ConfigScopedEnvelope | ConfigEffectiveEnvelope> {
+  const cwd = command.cwd ?? io.cwd;
+  if (command.scope === 'user' || command.scope === 'project') {
+    return {
+      schema_version: 'v1',
+      ok: true,
+      scope: command.scope,
+      config: await readConsensusConfig({
+        scope: command.scope,
+        cwd,
+        env: io.env,
+      }),
+    };
+  }
+
+  const effective = await readEffectiveConfig(cwd, io.env);
+  if (!command.workflow) {
+    return {
+      schema_version: 'v1',
+      ok: true,
+      scope: 'effective',
+      source: effective.source,
+      config: effective.config,
+      diagnostics: { warnings: [] },
+    };
+  }
+
+  const composition = await resolveConsensusComposition({
+    workflow: command.workflow,
+    cwd,
+    env: io.env,
+    inventory: await resolveRegistry(
+      options.registry,
+      defaultProbeOptions(options, io.env),
+    ),
+  });
+
+  return {
+    schema_version: 'v1',
+    ok: true,
+    scope: 'effective',
+    source: composition.source,
+    config: effective.config,
+    workflow: composition.workflow,
+    agents: composition.agents,
+    diagnostics: { warnings: composition.warnings },
+  };
+}
+
+async function runConfigSet(
+  command: ParsedConfigSetCommand,
+  io: ConsensusCliIo,
+): Promise<ConfigSetEnvelope> {
+  const cwd = command.cwd ?? io.cwd;
+  const patch = parseConfigSetPatch(command);
+  if (!command.fromFile && Object.keys(patch).length === 1) {
+    throw new ConsensusCliUsageError(
+      'config set requires --peers, --panelists, --panel-size, or --from-file',
+    );
+  }
+
+  const base = command.fromFile
+    ? await readConfigFromFile(command.fromFile, io)
+    : ((await readConsensusConfig({
+        scope: command.scope,
+        cwd,
+        env: io.env,
+      })) ?? { schema_version: 'v1' });
+  const config = parseConfigForCli({
+    ...base,
+    ...patch,
+  });
+
+  await writeConsensusConfig({
+    scope: command.scope,
+    cwd,
+    env: io.env,
+    config,
+  });
+
+  return {
+    schema_version: 'v1',
+    ok: true,
+    scope: command.scope,
+    config,
+  };
+}
+
+async function runConfigClear(
+  command: ParsedConfigClearCommand,
+  io: ConsensusCliIo,
+): Promise<ConfigClearEnvelope> {
+  const cwd = command.cwd ?? io.cwd;
+  await clearConsensusConfig({
+    scope: command.scope,
+    cwd,
+    env: io.env,
+    key: command.key,
+  });
+
+  return {
+    schema_version: 'v1',
+    ok: true,
+    scope: command.scope,
+    key: command.key,
+    config: await readConsensusConfig({
+      scope: command.scope,
+      cwd,
+      env: io.env,
+    }),
+  };
+}
+
+async function readEffectiveConfig(
+  cwd: string,
+  env: ConsensusCliIo['env'],
+): Promise<{
+  source: 'project' | 'user' | 'built-in';
+  config: ConsensusDefaultsConfig;
+}> {
+  const user = await readConsensusConfig({ scope: 'user', cwd, env });
+  const project = await readConsensusConfig({ scope: 'project', cwd, env });
+  const config = mergeConfigs(user, project);
+  const source = configHasDefaults(project)
+    ? 'project'
+    : configHasDefaults(user)
+      ? 'user'
+      : 'built-in';
+  return { source, config };
+}
+
+function mergeConfigs(
+  user: ConsensusDefaultsConfig | null,
+  project: ConsensusDefaultsConfig | null,
+): ConsensusDefaultsConfig {
+  const config: ConsensusDefaultsConfig = { schema_version: 'v1' };
+  mergeConfigFields(config, user);
+  mergeConfigFields(config, project);
+  return config;
+}
+
+function mergeConfigFields(
+  target: ConsensusDefaultsConfig,
+  source: ConsensusDefaultsConfig | null,
+) {
+  if (!source) return;
+  if (source.peers !== undefined) target.peers = source.peers;
+  if (source.panelists !== undefined) target.panelists = source.panelists;
+  if (source.panel_size !== undefined) target.panel_size = source.panel_size;
+  if (source.roles !== undefined) target.roles = source.roles;
+}
+
+function configHasDefaults(
+  config: ConsensusDefaultsConfig | null,
+): config is ConsensusDefaultsConfig {
+  return (
+    config !== null &&
+    (config.peers !== undefined ||
+      config.panelists !== undefined ||
+      config.panel_size !== undefined ||
+      config.roles !== undefined)
+  );
+}
+
+async function readConfigFromFile(
+  filePath: string,
+  io: ConsensusCliIo,
+): Promise<ConsensusDefaultsConfig> {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(await io.readFile(filePath));
+  } catch (error) {
+    throw new ConsensusCliUsageError(
+      `Malformed consensus config: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+  return parseConfigForCli(parsed);
+}
+
+function parseConfigForCli(value: unknown): ConsensusDefaultsConfig {
+  try {
+    return parseConsensusDefaultsConfig(value);
+  } catch (error) {
+    throw new ConsensusCliUsageError(
+      `Malformed consensus config: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+}
+
+function parseConfigSetPatch(
+  command: ParsedConfigSetCommand,
+): Partial<ConsensusDefaultsConfig> & { schema_version: 'v1' } {
+  const patch: Partial<ConsensusDefaultsConfig> & { schema_version: 'v1' } = {
+    schema_version: 'v1',
+  };
+  if (command.peers !== undefined) {
+    patch.peers = parseAgentSpecList(command.peers);
+  }
+  if (command.panelists !== undefined) {
+    patch.panelists = parseAgentSpecList(command.panelists);
+  }
+  if (command.panelSize !== undefined) {
+    patch.panel_size = command.panelSize;
+  }
+  return patch;
+}
+
+function parseAgentSpecList(value: string): ConsensusAgentRef[] {
+  return value
+    .split(',')
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0)
+    .map(parseAgentSpec);
+}
+
+function parseAgentSpec(value: string): ConsensusAgentRef {
+  const [provider, model, effort, extra] = value.split(':');
+  if (extra !== undefined) {
+    throw new ConsensusCliUsageError(
+      'Agent specs must use provider[:model[:effort]]',
+    );
+  }
+
+  const agent: ConsensusAgentRef = { provider };
+  if (model !== undefined && model.length > 0) agent.model = model;
+  if (effort !== undefined && effort.length > 0) agent.effort = effort;
+  return agent;
 }
 
 async function readSubmitSource(
