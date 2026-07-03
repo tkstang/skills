@@ -510,6 +510,8 @@ Chronological log of implementation progress.
   pending.
 - Human approval received for the p05 HiLL checkpoint; implementation is ready
   for final review.
+- Final verification lint errors were fixed in `8660b48`; follow-up
+  `build:check`, `type-check`, and `lint` passed.
 
 ---
 
