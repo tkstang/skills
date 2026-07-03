@@ -1,4 +1,12 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  realpath,
+  rm,
+  symlink,
+  writeFile,
+} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -139,6 +147,56 @@ describe('consensus panel wrapper contract', () => {
         ),
       ).rejects.toMatchObject({ code: 'WRITE_PATH_OUTSIDE_ROOT' });
     });
+  });
+
+  it('accepts canonical-equivalent allow-root paths for reads and writes', async () => {
+    const root = await mkdtemp(
+      path.join(os.tmpdir(), 'consensus-panel-wrapper-'),
+    );
+    const aliasParent = await mkdtemp(
+      path.join(os.tmpdir(), 'consensus-panel-wrapper-alias-'),
+    );
+
+    try {
+      const canonicalRoot = await realpath(root);
+      const aliasRoot = path.join(aliasParent, 'root-link');
+      await symlink(canonicalRoot, aliasRoot, 'dir');
+      const questionPath = path.join(canonicalRoot, 'question.md');
+      await writeFile(questionPath, 'Canonical path question?');
+
+      const loaded = await loadPanelQuestion(
+        parsePanelArgs([
+          '--question-file',
+          'question.md',
+          '--allow-root',
+          aliasRoot,
+        ]),
+        { cwd: canonicalRoot },
+      );
+      expect(loaded.questionPath).toBe(questionPath);
+      expect(loaded.question).toBe('Canonical path question?');
+
+      const paths = await resolvePanelPaths(
+        parsePanelArgs([
+          '--question',
+          'Inline?',
+          '--output',
+          'out/panel.md',
+          '--run-dir',
+          'runs/panel',
+          '--allow-root',
+          aliasRoot,
+        ]),
+        { cwd: canonicalRoot, runId: 'panel-fixed' },
+      );
+      expect(paths.runDir).toBe(path.join(canonicalRoot, 'runs', 'panel'));
+      expect(paths.outputPath).toBe(path.join(canonicalRoot, 'out', 'panel.md'));
+    } finally {
+      await Promise.all([
+        rm(root, { recursive: true, force: true }),
+        rm(aliasParent, { recursive: true, force: true }),
+      ]);
+    }
   });
 
   it('builds a neutral prompt that frames the question as untrusted data', () => {

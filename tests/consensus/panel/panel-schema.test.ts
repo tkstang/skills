@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
@@ -8,6 +8,9 @@ import {
   panelResponseSchemaPath,
 } from '../../../src/consensus/panel/consensus-panel.js';
 import { validateSchemaSubset } from '../../../src/consensus/provider-cli/schema-validate.js';
+
+// @ts-expect-error The generated runtime is intentionally declaration-free; this test exercises the shipped artifact.
+import { panelResponseSchemaPath as generatedPanelResponseSchemaPath } from '../../../plugins/consensus/skills/panel/scripts/consensus-panel.mjs';
 
 const schemaPath = panelResponseSchemaPath();
 const schema = JSON.parse(readFileSync(schemaPath, 'utf8'));
@@ -32,6 +35,13 @@ describe('panel-response.schema.json', () => {
         ),
       ),
     );
+  });
+
+  it('resolves the generated runtime schema path to an existing shipped file', () => {
+    const generatedSchemaPath = generatedPanelResponseSchemaPath();
+
+    expect(generatedSchemaPath).toBe(schemaPath);
+    expect(existsSync(generatedSchemaPath)).toBe(true);
   });
 
   it('accepts a well-formed panel response payload', () => {

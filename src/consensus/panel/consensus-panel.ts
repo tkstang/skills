@@ -358,17 +358,15 @@ async function nearestExistingPath(targetPath: string): Promise<string> {
   return await nearestExistingPath(parent);
 }
 
+async function canonicalPathThroughNearestExisting(targetPath: string) {
+  const existing = await nearestExistingPath(targetPath);
+  const realExisting = await realpath(existing);
+  return path.resolve(realExisting, path.relative(existing, targetPath));
+}
+
 async function confineRead(inputPath: string, cwd: string, rootPath: string) {
   const root = path.resolve(rootPath);
   const target = resolveInputPath(inputPath, cwd);
-
-  if (!inside(root, target)) {
-    throw new PanelError(`read path is outside allowed root: ${target}`, {
-      code: 'READ_PATH_OUTSIDE_ROOT',
-      exitCode: PANEL_EXIT_CODES.NOPERM,
-      details: { root, path: target },
-    });
-  }
 
   const [realRoot, targetStat] = await Promise.all([
     realpath(root),
@@ -378,7 +376,7 @@ async function confineRead(inputPath: string, cwd: string, rootPath: string) {
     throw new Error(`question path must be a file: ${target}`);
   }
 
-  const realTarget = await realpath(target);
+  const realTarget = await canonicalPathThroughNearestExisting(target);
   if (!inside(realRoot, realTarget)) {
     throw new PanelError(`read path resolves outside allowed root: ${target}`, {
       code: 'READ_PATH_OUTSIDE_ROOT',
@@ -397,14 +395,6 @@ export async function confinePanelWrite(
   const root = path.resolve(rootPath);
   const target = path.resolve(targetPath);
 
-  if (!inside(root, target)) {
-    throw new PanelError(`write path is outside allowed root: ${target}`, {
-      code: 'WRITE_PATH_OUTSIDE_ROOT',
-      exitCode: PANEL_EXIT_CODES.NOPERM,
-      details: { root, path: target },
-    });
-  }
-
   if (await pathExists(target)) {
     const targetStat = await lstat(target);
     if (targetStat.isSymbolicLink()) {
@@ -418,12 +408,7 @@ export async function confinePanelWrite(
 
   const realRoot = await realpath(root);
   const parent = path.dirname(target);
-  const existing = await nearestExistingPath(parent);
-  const realExisting = await realpath(existing);
-  const realParent = path.resolve(
-    realExisting,
-    path.relative(existing, parent),
-  );
+  const realParent = await canonicalPathThroughNearestExisting(parent);
 
   if (!inside(realRoot, realParent)) {
     throw new PanelError(`write path resolves outside allowed root: ${target}`, {
@@ -570,6 +555,13 @@ export function buildPanelPrompt({ question }: { question: string }) {
 }
 
 export function panelResponseSchemaPath() {
+  const generatedRuntimeSchemaPath = fileURLToPath(
+    new URL('../schemas/panel-response.schema.json', import.meta.url),
+  );
+  if (existsSync(generatedRuntimeSchemaPath)) {
+    return generatedRuntimeSchemaPath;
+  }
+
   return fileURLToPath(
     new URL(
       '../../../plugins/consensus/skills/panel/schemas/panel-response.schema.json',
