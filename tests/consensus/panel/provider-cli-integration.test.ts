@@ -1,4 +1,11 @@
-import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import {
+  chmod,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  writeFile,
+} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -27,8 +34,11 @@ interface IsolatedPanelContext {
 describe('consensus panel provider execution', () => {
   it('invokes one independent provider turn per usable explicit panelist', async () => {
     await withIsolatedPanelContext(async (context) => {
-      const calls: Array<{ provider: string; prompt: string; schemaPath: string }> =
-        [];
+      const calls: Array<{
+        provider: string;
+        prompt: string;
+        schemaPath: string;
+      }> = [];
       const result = await runConsensusPanel(
         [
           '--question',
@@ -66,7 +76,10 @@ describe('consensus panel provider execution', () => {
         expect(call.schemaPath).toMatch(/panel-response\.schema\.json$/);
       }
 
-      const artifact = await readFile(path.join(context.cwd, 'panel.md'), 'utf8');
+      const artifact = await readFile(
+        path.join(context.cwd, 'panel.md'),
+        'utf8',
+      );
       expect(artifact).toContain('fixture response from claude');
       expect(artifact).toContain('fixture response from codex');
       expect(artifact).toContain('fixture response from cursor');
@@ -197,7 +210,9 @@ describe('consensus panel provider execution', () => {
           ]),
         );
         expect(result.shortfalls).toEqual(
-          expect.arrayContaining([expect.stringMatching(/cursor.*unavailable/)]),
+          expect.arrayContaining([
+            expect.stringMatching(/cursor.*unavailable/),
+          ]),
         );
 
         const artifact = await readFile(result.outputPath, 'utf8');
@@ -246,7 +261,9 @@ describe('consensus panel provider execution', () => {
       );
 
       expect(exitCode).toBe(65);
-      expect(stderr.value()).toMatch(/fewer than two successful panel responses/i);
+      expect(stderr.value()).toMatch(
+        /fewer than two successful panel responses/i,
+      );
       const events = parseJsonl<JsonRecord>(stdout.value());
       expect(events).toEqual(
         expect.arrayContaining([
@@ -262,10 +279,116 @@ describe('consensus panel provider execution', () => {
     });
   });
 
+  it('exits with USAGE (64) for invalid arguments', async () => {
+    await withIsolatedPanelContext(async (context) => {
+      const stdout = captureWriter();
+      const stderr = captureWriter();
+
+      const exitCode = await runPanelCli(['--question', 'x', '--unknown'], {
+        cwd: context.cwd,
+        env: context.env,
+        stdout: stdout.stream,
+        stderr: stderr.stream,
+      });
+
+      expect(exitCode).toBe(64);
+      const events = parseJsonl<JsonRecord>(stdout.value());
+      expect(events).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ event: 'error', exit_code: 64 }),
+        ]),
+      );
+      expect(stderr.value()).toMatch(/unknown option/);
+    });
+  });
+
+  it('fails closed when an explicitly named panelist is unavailable even if two others succeed', async () => {
+    await withIsolatedPanelContext(
+      async (context) => {
+        const calls: string[] = [];
+        const result = await runConsensusPanel(
+          [
+            '--question',
+            'What should the panel consider?',
+            '--panelists',
+            'claude,codex,cursor',
+            '--output',
+            'explicit-unavailable.md',
+            '--run-dir',
+            '.consensus/explicit-unavailable',
+            '--allow-root',
+            context.cwd,
+          ],
+          runOptions(context, calls),
+        );
+
+        expect(calls).toEqual(['claude', 'codex']);
+        expect(result.status).toBe('failed');
+        expect(result.shortfalls).toEqual(
+          expect.arrayContaining([
+            expect.stringMatching(
+              /explicitly requested panelists were unavailable/,
+            ),
+          ]),
+        );
+      },
+      { CONSENSUS_STUB_UNAVAILABLE: 'cursor' },
+    );
+  });
+
+  it('does not fail closed when an auto-expanded panelist fails preflight', async () => {
+    await withIsolatedPanelContext(async (context) => {
+      const callsPath = path.join(context.root, 'split-calls.jsonl');
+      const consensusCli = await writeSplitReadinessConsensusCli(
+        context.root,
+        callsPath,
+        { unavailableAtPreflight: 'cursor' },
+      );
+      const env = { ...context.env, CONSENSUS_CLI_PATH: consensusCli };
+
+      // Two panelists are named explicitly; --panel-size 3 auto-expands with
+      // cursor, which is ready at `provider ls` but fails preflight. Since cursor
+      // was not requested by name, its unavailability must not fail the panel.
+      const result = await runConsensusPanel(
+        [
+          '--question',
+          'How should we test this?',
+          '--panelists',
+          'claude,codex',
+          '--panel-size',
+          '3',
+          '--output',
+          'auto-expanded.md',
+          '--allow-root',
+          context.cwd,
+        ],
+        {
+          cwd: context.cwd,
+          env,
+          now: () => '2026-07-03T00:00:00.000Z',
+        },
+      );
+
+      expect(result.panelists.map((panelist) => panelist.provider)).toEqual([
+        'claude',
+        'codex',
+        'cursor',
+      ]);
+      expect(result.status).toBe('passed');
+      expect(
+        result.responses.find((entry) => entry.panelist.provider === 'cursor')
+          ?.status,
+      ).toBe('unavailable');
+    });
+  });
+
   it('runs provider turns through consensus run --json after inventory and preflight', async () => {
     await withIsolatedPanelContext(async (context) => {
       const callsPath = path.join(context.root, 'calls.jsonl');
-      const consensusCli = await writePanelConsensusCli(context.root, callsPath);
+      const consensusCli = await writePanelConsensusCli(
+        context.root,
+        callsPath,
+      );
       const env = {
         ...context.env,
         CONSENSUS_CLI_PATH: consensusCli,
@@ -303,7 +426,10 @@ describe('consensus panel provider execution', () => {
         { provider: 'codex' },
       ]);
       const runCalls = calls.filter((call) => call.event === 'run');
-      expect(runCalls.map((call) => call.provider)).toEqual(['claude', 'codex']);
+      expect(runCalls.map((call) => call.provider)).toEqual([
+        'claude',
+        'codex',
+      ]);
       for (const call of runCalls) {
         expect(call.args).toEqual(['run', '--request-json', '-', '--json']);
         expect(call.schema_path).toMatch(/panel-response\.schema\.json$/);
@@ -319,7 +445,9 @@ async function withIsolatedPanelContext(
   fn: (context: IsolatedPanelContext) => Promise<void>,
   envOverrides: NodeJS.ProcessEnv = {},
 ) {
-  const root = await mkdtemp(path.join(os.tmpdir(), 'consensus-panel-provider-'));
+  const root = await mkdtemp(
+    path.join(os.tmpdir(), 'consensus-panel-provider-'),
+  );
   try {
     const cwd = path.join(root, 'project');
     const home = path.join(root, 'home');
@@ -469,6 +597,101 @@ if (args[0] === 'provider' && args[1] === 'ls') {
     diagnostics: {
       strategy_used: 'fixture_consensus_cli',
     },
+  });
+} else {
+  process.stderr.write('unknown command: ' + args.join(' ') + '\\n');
+  process.exitCode = 64;
+}
+`,
+    'utf8',
+  );
+  await chmod(scriptPath, 0o755);
+  return scriptPath;
+}
+
+// A provider CLI fixture where a provider is ready at `provider ls` (so the
+// resolver auto-expands it into the panel) but reports unusable at preflight.
+async function writeSplitReadinessConsensusCli(
+  root: string,
+  callsPath: string,
+  { unavailableAtPreflight }: { unavailableAtPreflight: string },
+) {
+  const scriptPath = path.join(root, 'consensus-split-readiness.mjs');
+  await writeFile(
+    scriptPath,
+    `#!/usr/bin/env node
+import { appendFileSync } from 'node:fs';
+
+const args = process.argv.slice(2);
+const UNAVAILABLE_AT_PREFLIGHT = ${JSON.stringify(unavailableAtPreflight)};
+
+function append(entry) {
+  appendFileSync(${JSON.stringify(callsPath)}, JSON.stringify({ args, ...entry }) + '\\n');
+}
+
+function print(value) {
+  process.stdout.write(JSON.stringify(value) + '\\n');
+}
+
+function providerFromArgs() {
+  const index = args.indexOf('--provider');
+  return index >= 0 ? args[index + 1] : args.at(-1);
+}
+
+function readStdin() {
+  return new Promise((resolve) => {
+    let data = '';
+    process.stdin.setEncoding('utf8');
+    process.stdin.on('data', (chunk) => {
+      data += chunk;
+    });
+    process.stdin.on('end', () => resolve(data));
+  });
+}
+
+if (args[0] === 'provider' && args[1] === 'ls') {
+  append({ event: 'provider_ls' });
+  print({
+    schema_version: 'v1',
+    ok: true,
+    providers: [
+      { id: 'claude', status: 'ready' },
+      { id: 'codex', status: 'ready' },
+      { id: 'cursor', status: 'ready' },
+    ],
+  });
+} else if (args[0] === 'preflight') {
+  const provider = providerFromArgs();
+  const status = provider === UNAVAILABLE_AT_PREFLIGHT ? 'unavailable' : 'ready';
+  append({ event: 'preflight', provider, status });
+  print({
+    schema_version: 'v1',
+    ok: true,
+    usable: status === 'ready',
+    providers: [{ id: provider, status }],
+  });
+} else if (args[0] === 'run') {
+  const request = JSON.parse(await readStdin());
+  append({ event: 'run', provider: request.provider });
+  const payload = {
+    schema_version: 'v1',
+    understood_question: 'How should we test this?',
+    response: 'fixture response from ' + request.provider,
+    key_points: ['point'],
+    risks: ['risk'],
+    assumptions: ['assumption'],
+    confidence: 'high',
+  };
+  print({
+    schema_version: 'v1',
+    ok: true,
+    provider: request.provider,
+    args: ['fixture-consensus-cli'],
+    stdout: JSON.stringify(payload),
+    stderr: '',
+    json: payload,
+    attempts: { cli_attempts: 1, terminal_reason: 'success', retryable: false },
+    diagnostics: { strategy_used: 'fixture_consensus_cli' },
   });
 } else {
   process.stderr.write('unknown command: ' + args.join(' ') + '\\n');

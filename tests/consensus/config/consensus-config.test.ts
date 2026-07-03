@@ -318,7 +318,7 @@ describe('consensus config schema and resolver', () => {
     });
   });
 
-  it('reports invocation as source when invocation panel_size drives selection', async () => {
+  it('attributes source to configured panelists when only invocation panel_size drives count', async () => {
     await withTempConfig(async ({ cwd, env }) => {
       await writeConsensusConfig({
         scope: 'project',
@@ -346,7 +346,45 @@ describe('consensus config schema and resolver', () => {
         },
       });
 
-      expect(result.source).toBe('invocation');
+      // panel_size came from the invocation, but the panelist identities came
+      // from project config, so provenance is attributed to project.
+      expect(result.source).toBe('project');
+      expect(result.agents).toEqual([
+        { provider: 'claude' },
+        { provider: 'codex' },
+      ]);
+    });
+  });
+
+  it('attributes source to user panelists when only invocation panel_size drives count', async () => {
+    await withTempConfig(async ({ cwd, env }) => {
+      await writeConsensusConfig({
+        scope: 'user',
+        cwd,
+        env,
+        config: {
+          schema_version: 'v1',
+          defaults: {
+            panelists: [
+              { provider: 'claude' },
+              { provider: 'codex' },
+              { provider: 'cursor' },
+            ],
+          },
+        },
+      });
+
+      const result = await resolveConsensusComposition({
+        workflow: 'panel',
+        cwd,
+        env,
+        inventory: inventory(['claude', 'codex', 'cursor']),
+        invocation: {
+          panel_size: 2,
+        },
+      });
+
+      expect(result.source).toBe('user');
       expect(result.agents).toEqual([
         { provider: 'claude' },
         { provider: 'codex' },

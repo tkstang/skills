@@ -12,6 +12,7 @@ import {
 } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { resolveConsensusComposition } from './consensus-config.mjs';
 import {
   ConsensusError,
   EXIT_CODES,
@@ -25,7 +26,6 @@ import {
   runConsensusLoop,
   runProviderCliCommand
 } from './consensus-loop.mjs';
-import { resolveConsensusComposition } from './consensus-config.mjs';
 const MAX_ROUNDS_MIN = 1;
 const MAX_ROUNDS_MAX = 100;
 const PROVIDER_ID_PATTERN = /^[a-z][a-z0-9_-]{0,31}$/u;
@@ -703,8 +703,9 @@ function yamlScalar(value) {
   return /^[A-Za-z0-9_.-]+$/u.test(text) ? text : JSON.stringify(text);
 }
 function canonicalJsonBlock(label, value) {
+  const json = JSON.stringify(value, null, 2).replace(/-->/gu, "--\\u003e");
   return `<!-- consensus:${label}
-${JSON.stringify(value, null, 2)}
+${json}
 -->`;
 }
 function sanitizeProse(value) {

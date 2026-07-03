@@ -11,6 +11,7 @@ import {
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { resolveConsensusComposition } from '../config/consensus-config.js';
 import {
   ConsensusError,
   EXIT_CODES,
@@ -37,7 +38,6 @@ import type {
   SynthesizerInvoker,
   TurnPromptInput,
 } from '../core/consensus-loop.js';
-import { resolveConsensusComposition } from '../config/consensus-config.js';
 import type { ProviderInventoryEntry } from '../provider-cli/types.js';
 
 const MAX_ROUNDS_MIN = 1;
@@ -215,10 +215,13 @@ function validateBriefSources(
     );
   }
   if (options.brief === null && options.briefFile === null) {
-    throw new ConsensusError('consensus-create requires --brief or --brief-file', {
-      code: 'MISSING_BRIEF_SOURCE',
-      exitCode: EXIT_CODES.USAGE,
-    });
+    throw new ConsensusError(
+      'consensus-create requires --brief or --brief-file',
+      {
+        code: 'MISSING_BRIEF_SOURCE',
+        exitCode: EXIT_CODES.USAGE,
+      },
+    );
   }
 }
 
@@ -1041,7 +1044,12 @@ function yamlScalar(value: unknown) {
 }
 
 function canonicalJsonBlock(label: string, value: unknown) {
-  return `<!-- consensus:${label}\n${JSON.stringify(value, null, 2)}\n-->`;
+  // Escape any `-->` in the serialized JSON so an untrusted string value cannot
+  // close the enclosing HTML comment early and truncate the block. `>`
+  // round-trips through JSON.parse back to `>`, so consumers reconstruct the
+  // original text.
+  const json = JSON.stringify(value, null, 2).replace(/-->/gu, '--\\u003e');
+  return `<!-- consensus:${label}\n${json}\n-->`;
 }
 
 function sanitizeProse(value: unknown) {

@@ -327,10 +327,11 @@ function resolvePanelComposition(
     firstPanelSizeCandidate?.source !== 'invocation'
       ? undefined
       : firstPanelSizeCandidate;
-  const source =
-    panelSizeCandidate?.source === 'invocation'
-      ? 'invocation'
-      : (panelistsCandidate?.source ?? panelSizeCandidate?.source);
+  // Attribute the composition to where the panelist *identities* come from. A
+  // panel_size candidate only changes how many of those identities run, so it
+  // must not claim provenance (e.g. report `invocation`) when the panelists
+  // themselves come from a config scope.
+  const source = panelistsCandidate?.source ?? panelSizeCandidate?.source;
   const configuredPanelists = panelistsCandidate?.config.defaults?.panelists;
   const targetSize =
     panelSizeCandidate?.config.defaults?.panel_size ??

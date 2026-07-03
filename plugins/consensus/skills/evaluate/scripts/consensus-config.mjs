@@ -194,7 +194,7 @@ function resolvePanelComposition(input, candidates) {
     ({ config }) => config.defaults?.panel_size !== void 0
   );
   const panelSizeCandidate = panelistsCandidate?.source === "invocation" && firstPanelSizeCandidate?.source !== "invocation" ? void 0 : firstPanelSizeCandidate;
-  const source = panelSizeCandidate?.source === "invocation" ? "invocation" : panelistsCandidate?.source ?? panelSizeCandidate?.source;
+  const source = panelistsCandidate?.source ?? panelSizeCandidate?.source;
   const configuredPanelists = panelistsCandidate?.config.defaults?.panelists;
   const targetSize = panelSizeCandidate?.config.defaults?.panel_size ?? configuredPanelists?.length ?? 2;
   const selected = selectPanelAgents(

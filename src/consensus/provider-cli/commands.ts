@@ -9,37 +9,6 @@ import {
   resolveConsensusComposition,
   writeConsensusConfig,
 } from '../config/consensus-config.js';
-import {
-  ConsensusCliUsageError,
-  normalizeRunRequest,
-  parseConsensusCliArgs,
-} from './args.js';
-import { providerRegistry } from './adapters.js';
-import {
-  processExitForEnvelope,
-  usageFailure,
-} from './envelope.js';
-import { evaluateHostGuard, hostContextFromEnv } from './host-guard.js';
-import {
-  nodeProbeCommandRunner,
-  probeProviderRegistry,
-} from './probe.js';
-import { validateSchemaSubset } from './schema-validate.js';
-import { runProviderTurn } from './structured-output.js';
-import {
-  assertWithinSubmitCaptureLimit,
-  CONSENSUS_SUBMIT_MAX_BYTES_ENV,
-  parseSubmitCaptureMaxBytes,
-  SubmitCaptureLimitError,
-} from './submit-capture.js';
-
-import type {
-  ParsedConfigClearCommand,
-  ParsedConfigGetCommand,
-  ParsedConfigSetCommand,
-  ParsedSubmitCommand,
-  PromptSource,
-} from './args.js';
 import type {
   ConsensusAgentRef,
   ConsensusConfigKey,
@@ -49,6 +18,31 @@ import type {
   ConsensusDefaultsConfig,
   ConsensusWorkflow,
 } from '../config/consensus-config.js';
+import { providerRegistry } from './adapters.js';
+import {
+  ConsensusCliUsageError,
+  normalizeRunRequest,
+  parseConsensusCliArgs,
+} from './args.js';
+import type {
+  ParsedConfigClearCommand,
+  ParsedConfigGetCommand,
+  ParsedConfigSetCommand,
+  ParsedSubmitCommand,
+  PromptSource,
+} from './args.js';
+import { processExitForEnvelope, usageFailure } from './envelope.js';
+import { evaluateHostGuard, hostContextFromEnv } from './host-guard.js';
+import { nodeProbeCommandRunner, probeProviderRegistry } from './probe.js';
+import type { ProbeCommandRunner } from './probe.js';
+import { validateSchemaSubset } from './schema-validate.js';
+import { runProviderTurn } from './structured-output.js';
+import {
+  assertWithinSubmitCaptureLimit,
+  CONSENSUS_SUBMIT_MAX_BYTES_ENV,
+  parseSubmitCaptureMaxBytes,
+  SubmitCaptureLimitError,
+} from './submit-capture.js';
 import type {
   HostContext,
   ProviderCapabilities,
@@ -56,7 +50,6 @@ import type {
   ProviderId,
   ProviderInventoryEntry,
 } from './types.js';
-import type { ProbeCommandRunner } from './probe.js';
 
 export interface ConsensusCliIo {
   stdout: WritableLike;
@@ -99,12 +92,23 @@ export interface ConfigScopedEnvelope {
   config: ConsensusDefaultsConfig | null;
 }
 
+export type ConfigFieldSource = 'user' | 'project';
+
+export type ConfigFieldSources = Partial<
+  Record<'peers' | 'panelists' | 'panel-size' | 'roles', ConfigFieldSource>
+>;
+
 export interface ConfigEffectiveEnvelope {
   schema_version: 'v1';
   ok: true;
   scope: 'effective';
   source: ConsensusCompositionSource;
   config: ConsensusDefaultsConfig;
+  // Present only without `--workflow`: which scope supplied each merged field.
+  // The scalar `source` above is a whole-config summary (highest scope with any
+  // field); per-field attribution makes the field-level merge explicit so it is
+  // not mistaken for the `--workflow` resolver's candidate-level `source`.
+  field_sources?: ConfigFieldSources;
   workflow?: ConsensusWorkflow;
   agents?: ConsensusAgentRef[];
   diagnostics?: CommandDiagnostics;
@@ -153,8 +157,9 @@ export interface PreflightCommandOptions extends ProviderCommandOptions {
 
 export interface ConsensusCliCommandOptions extends ProviderCommandOptions {}
 
-export type ProviderRegistryLoader =
-  () => ProviderInventoryEntry[] | Promise<ProviderInventoryEntry[]>;
+export type ProviderRegistryLoader = () =>
+  | ProviderInventoryEntry[]
+  | Promise<ProviderInventoryEntry[]>;
 
 export function helpText() {
   return `Usage: consensus <command> --json
@@ -435,6 +440,7 @@ async function runConfigGet(
       ok: true,
       scope: 'effective',
       source: effective.source,
+      field_sources: effective.fieldSources,
       config: effective.config,
       diagnostics: { warnings: [] },
     };
@@ -528,6 +534,7 @@ async function readEffectiveConfig(
   env: ConsensusCliIo['env'],
 ): Promise<{
   source: 'project' | 'user' | 'built-in';
+  fieldSources: ConfigFieldSources;
   config: ConsensusDefaultsConfig;
 }> {
   const user = await readConsensusConfig({ scope: 'user', cwd, env });
@@ -538,7 +545,31 @@ async function readEffectiveConfig(
     : configHasDefaults(user)
       ? 'user'
       : 'built-in';
-  return { source, config };
+  return { source, fieldSources: effectiveFieldSources(user, project), config };
+}
+
+// Report which scope supplied each merged field. Project overrides user per
+// field, mirroring mergeConfigFields, so a field present in project is attributed
+// to project even when user also sets it.
+function effectiveFieldSources(
+  user: ConsensusDefaultsConfig | null,
+  project: ConsensusDefaultsConfig | null,
+): ConfigFieldSources {
+  const fieldSources: ConfigFieldSources = {};
+  const fields = [
+    ['peers', 'peers'],
+    ['panelists', 'panelists'],
+    ['panel-size', 'panel_size'],
+    ['roles', 'roles'],
+  ] as const;
+  for (const [key, field] of fields) {
+    if (project?.defaults?.[field] !== undefined) {
+      fieldSources[key] = 'project';
+    } else if (user?.defaults?.[field] !== undefined) {
+      fieldSources[key] = 'user';
+    }
+  }
+  return fieldSources;
 }
 
 function mergeConfigs(
@@ -619,7 +650,9 @@ function configWithDefaultsPatch(
     ...base.defaults,
     ...patch,
   };
-  const config: ConsensusDefaultsConfig = { schema_version: base.schema_version };
+  const config: ConsensusDefaultsConfig = {
+    schema_version: base.schema_version,
+  };
   if (configDefaultsHasValues(defaults)) config.defaults = defaults;
   return config;
 }
@@ -705,10 +738,7 @@ function defaultProbeOptions(
   };
 }
 
-export function writeJson(
-  io: Pick<ConsensusCliIo, 'stdout'>,
-  value: unknown,
-) {
+export function writeJson(io: Pick<ConsensusCliIo, 'stdout'>, value: unknown) {
   io.stdout.write(`${JSON.stringify(value)}\n`);
 }
 
@@ -761,10 +791,7 @@ function mergeDiagnostics(
   current: ProviderDiagnostics | undefined,
   next: ProviderDiagnostics,
 ): ProviderDiagnostics {
-  const warnings = [
-    ...(current?.warnings ?? []),
-    ...(next.warnings ?? []),
-  ];
+  const warnings = [...(current?.warnings ?? []), ...(next.warnings ?? [])];
 
   return {
     ...current,
@@ -789,11 +816,13 @@ async function resolveRegistry(
 }
 
 function defaultProviderRegistry(): ProviderInventoryEntry[] {
-  return providerRegistry().list().map((adapter) => ({
-    id: adapter.id,
-    status: 'missing',
-    capabilities: adapter.capabilities,
-  }));
+  return providerRegistry()
+    .list()
+    .map((adapter) => ({
+      id: adapter.id,
+      status: 'missing',
+      capabilities: adapter.capabilities,
+    }));
 }
 
 function placeholderCapabilities(): ProviderCapabilities {

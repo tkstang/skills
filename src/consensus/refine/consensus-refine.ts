@@ -16,6 +16,7 @@ import { createInterface } from 'node:readline/promises';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
+import { resolveConsensusComposition } from '../config/consensus-config.js';
 import {
   callsPerRound,
   ConsensusError,
@@ -32,7 +33,6 @@ import {
   requireConsensusCliPath,
   runConsensusLoop,
 } from '../core/consensus-loop.js';
-import { resolveConsensusComposition } from '../config/consensus-config.js';
 import type { ProviderInventoryEntry as ConsensusProviderInventoryEntry } from '../provider-cli/types.js';
 
 type JsonRecord = Record<string, unknown>;
@@ -539,7 +539,12 @@ function dynamicFence(contents: unknown, info = '') {
 }
 
 function canonicalJsonBlock(label: string, value: unknown) {
-  return `<!-- consensus:${label}\n${JSON.stringify(value, null, 2)}\n-->`;
+  // Escape any `-->` in the serialized JSON so an untrusted string value cannot
+  // close the enclosing HTML comment early and truncate the block. This block is
+  // round-tripped back through consensusBlockPattern/JSON.parse, and `>`
+  // decodes to `>`, so the reconstructed value is unchanged.
+  const json = JSON.stringify(value, null, 2).replace(/-->/gu, '--\\u003e');
+  return `<!-- consensus:${label}\n${json}\n-->`;
 }
 
 function sanitizeProse(text: unknown) {

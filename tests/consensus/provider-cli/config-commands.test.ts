@@ -152,6 +152,58 @@ describe('provider CLI consensus config commands', () => {
     });
   });
 
+  it('reports per-field sources for the effective view without a workflow', async () => {
+    await withTempCli(async (context) => {
+      await writeConsensusConfig({
+        scope: 'user',
+        cwd: context.cwd,
+        env: context.env,
+        config: {
+          schema_version: 'v1',
+          defaults: {
+            peers: [{ provider: 'claude' }, { provider: 'codex' }],
+          },
+        },
+      });
+      await writeConsensusConfig({
+        scope: 'project',
+        cwd: context.cwd,
+        env: context.env,
+        config: {
+          schema_version: 'v1',
+          defaults: {
+            panelists: [
+              { provider: 'claude' },
+              { provider: 'codex' },
+              { provider: 'cursor' },
+            ],
+            panel_size: 3,
+          },
+        },
+      });
+
+      // The scalar `source` summarizes to 'project', but per-field attribution
+      // makes the field-level merge explicit: peers came from user, the panel
+      // fields from project. This is what distinguishes the no-workflow view
+      // from the `--workflow` resolver's candidate-level source.
+      await expect(
+        runCli(context, ['config', 'get', '--json', '--scope', 'effective']),
+      ).resolves.toMatchObject({
+        code: 0,
+        json: {
+          ok: true,
+          scope: 'effective',
+          source: 'project',
+          field_sources: {
+            peers: 'user',
+            panelists: 'project',
+            'panel-size': 'project',
+          },
+        },
+      });
+    });
+  });
+
   it('lists config scopes, keys, and workflows without mutating config', async () => {
     await withTempCli(async (context) => {
       await expect(

@@ -256,14 +256,36 @@ function validateQuestionSources(
     );
   }
   if (options.question === null && options.questionFile === null) {
-    throw new PanelError('consensus-panel requires --question or --question-file', {
-      code: 'MISSING_QUESTION_SOURCE',
-      exitCode: PANEL_EXIT_CODES.USAGE,
-    });
+    throw new PanelError(
+      'consensus-panel requires --question or --question-file',
+      {
+        code: 'MISSING_QUESTION_SOURCE',
+        exitCode: PANEL_EXIT_CODES.USAGE,
+      },
+    );
   }
 }
 
 export function parsePanelArgs(argv: readonly string[]): ParsedPanelOptions {
+  try {
+    return parsePanelArgsInner(argv);
+  } catch (error) {
+    if (error instanceof PanelError) throw error;
+    // Any other failure here is an argument/usage problem; classify it as USAGE
+    // so the CLI exit code matches the question-source usage errors instead of
+    // falling through to the generic CONFIG default.
+    throw new PanelError(
+      error instanceof Error ? error.message : String(error),
+      {
+        code: 'INVALID_ARGUMENTS',
+        exitCode: PANEL_EXIT_CODES.USAGE,
+        cause: error,
+      },
+    );
+  }
+}
+
+function parsePanelArgsInner(argv: readonly string[]): ParsedPanelOptions {
   const parsed: ParsedPanelOptions = {
     question: null,
     questionFile: null,
@@ -327,7 +349,9 @@ function ensureUnderQuestionSizeCap(contents: string, label: string) {
 }
 
 function resolveInputPath(inputPath: string, cwd: string) {
-  return path.isAbsolute(inputPath) ? path.resolve(inputPath) : path.resolve(cwd, inputPath);
+  return path.isAbsolute(inputPath)
+    ? path.resolve(inputPath)
+    : path.resolve(cwd, inputPath);
 }
 
 function inside(root: string, target: string) {
@@ -388,10 +412,7 @@ async function confineRead(inputPath: string, cwd: string, rootPath: string) {
   return target;
 }
 
-export async function confinePanelWrite(
-  targetPath: string,
-  rootPath: string,
-) {
+export async function confinePanelWrite(targetPath: string, rootPath: string) {
   const root = path.resolve(rootPath);
   const target = path.resolve(targetPath);
 
@@ -411,11 +432,14 @@ export async function confinePanelWrite(
   const realParent = await canonicalPathThroughNearestExisting(parent);
 
   if (!inside(realRoot, realParent)) {
-    throw new PanelError(`write path resolves outside allowed root: ${target}`, {
-      code: 'WRITE_PATH_OUTSIDE_ROOT',
-      exitCode: PANEL_EXIT_CODES.NOPERM,
-      details: { root, path: target },
-    });
+    throw new PanelError(
+      `write path resolves outside allowed root: ${target}`,
+      {
+        code: 'WRITE_PATH_OUTSIDE_ROOT',
+        exitCode: PANEL_EXIT_CODES.NOPERM,
+        details: { root, path: target },
+      },
+    );
   }
 
   return target;
@@ -656,7 +680,12 @@ function yamlScalar(value: unknown) {
 }
 
 function canonicalJsonBlock(label: string, value: unknown) {
-  return `<!-- consensus:${label}\n${JSON.stringify(value, null, 2)}\n-->`;
+  // Escape any `-->` in the serialized JSON so an untrusted string value cannot
+  // close the enclosing HTML comment early and truncate the block. `>`
+  // round-trips through JSON.parse back to `>`, so consumers reconstruct the
+  // original text.
+  const json = JSON.stringify(value, null, 2).replace(/-->/gu, '--\\u003e');
+  return `<!-- consensus:${label}\n${json}\n-->`;
 }
 
 function sanitizeProse(value: unknown) {
@@ -680,7 +709,11 @@ function panelistLabel(panelist: ConsensusAgentRef) {
 
 function renderResponseEntry(entry: ConsensusPanelResponseEntry) {
   const label = panelistLabel(entry.panelist);
-  const parts = [`### ${label} - ${entry.status}`, '', `- Status: ${entry.status}`];
+  const parts = [
+    `### ${label} - ${entry.status}`,
+    '',
+    `- Status: ${entry.status}`,
+  ];
 
   if (entry.response) {
     parts.push(
@@ -942,9 +975,15 @@ export async function runConsensusPanel(
   const successfulResponses = responses.filter(
     (response) => response.status === 'ok',
   ).length;
-  const explicitUnavailable =
-    normalized.panelists !== null &&
-    responses.some((response) => response.status === 'unavailable');
+  // Fail closed only when a panelist the caller explicitly named is unavailable.
+  // Panelists auto-expanded from inventory to satisfy --panel-size were not
+  // requested by name, so their unavailability is a shortfall, not a hard fail.
+  const explicitPanelistIds = new Set(normalized.panelists ?? []);
+  const explicitUnavailable = responses.some(
+    (response) =>
+      response.status === 'unavailable' &&
+      explicitPanelistIds.has(response.panelist.provider),
+  );
   const status =
     successfulResponses >= 2 && !explicitUnavailable ? 'passed' : 'failed';
 
@@ -1154,7 +1193,9 @@ async function preflightPanelists({
       readiness.push({
         agent,
         status: 'unavailable',
-        diagnostics: [panelistUnavailableMessage(agent.provider, inventoryStatus)],
+        diagnostics: [
+          panelistUnavailableMessage(agent.provider, inventoryStatus),
+        ],
       });
       continue;
     }
@@ -1178,7 +1219,9 @@ async function preflightPanelists({
     readiness.push({
       agent,
       status: 'unavailable',
-      diagnostics: [panelistUnavailableMessage(agent.provider, preflightStatus)],
+      diagnostics: [
+        panelistUnavailableMessage(agent.provider, preflightStatus),
+      ],
     });
   }
 
@@ -1262,16 +1305,19 @@ function parseProviderCliEnvelope(
   }
 
   if (!isRecord(parsed) || parsed.schema_version !== 'v1') {
-    throw new PanelError(`consensus ${label} output was not a v1 JSON envelope`, {
-      code: 'PROVIDER_INVALID_JSON',
-      exitCode: PANEL_EXIT_CODES.DATA,
-      details: {
-        exit_code: result.code,
-        signal: result.signal,
-        stdout: result.stdout,
-        stderr: result.stderr,
+    throw new PanelError(
+      `consensus ${label} output was not a v1 JSON envelope`,
+      {
+        code: 'PROVIDER_INVALID_JSON',
+        exitCode: PANEL_EXIT_CODES.DATA,
+        details: {
+          exit_code: result.code,
+          signal: result.signal,
+          stdout: result.stdout,
+          stderr: result.stderr,
+        },
       },
-    });
+    );
   }
 
   return parsed;

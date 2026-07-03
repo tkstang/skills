@@ -17,6 +17,7 @@ import path from "node:path";
 import { createInterface } from "node:readline/promises";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+import { resolveConsensusComposition } from './consensus-config.mjs';
 import {
   callsPerRound,
   ConsensusError,
@@ -33,7 +34,6 @@ import {
   requireConsensusCliPath,
   runConsensusLoop
 } from './consensus-loop.mjs';
-import { resolveConsensusComposition } from './consensus-config.mjs';
 const execFileAsync = promisify(execFile);
 const INPUT_SIZE_CAP_BYTES = 1024 * 1024;
 const PROVIDER_ID_PATTERN = /^[a-z][a-z0-9-]{0,31}$/u;
@@ -133,8 +133,9 @@ function dynamicFence(contents, info = "") {
 ${text.replace(/\n*$/u, "\n")}${ticks}`;
 }
 function canonicalJsonBlock(label, value) {
+  const json = JSON.stringify(value, null, 2).replace(/-->/gu, "--\\u003e");
   return `<!-- consensus:${label}
-${JSON.stringify(value, null, 2)}
+${json}
 -->`;
 }
 function sanitizeProse(text) {
