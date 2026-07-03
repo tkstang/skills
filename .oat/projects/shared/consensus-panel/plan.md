@@ -709,7 +709,7 @@ git commit -m "fix(p06-t01): align project config root resolution"
 | p03    | code     | passed          | 2026-07-03 | reviews/p03-rereview-2026-07-03-v2.md                     |
 | p04    | code     | passed          | 2026-07-03 | reviews/p04-review-2026-07-03.md                          |
 | p05    | code     | passed          | 2026-07-03 | reviews/p05-rereview-2026-07-03.md                        |
-| final  | code     | fixes_completed | 2026-07-03 | reviews/final-review-2026-07-03.md                        |
+| final  | code     | fixes_completed | 2026-07-03 | reviews/archived/final-review-2026-07-03.md               |
 | spec   | artifact | pending         | -          | -                                                          |
 | design | artifact | fixes_completed | 2026-07-01 | reviews/archived/artifact-design-review-2026-07-01.md     |
 | plan   | artifact | fixes_completed | 2026-07-02 | reviews/archived/artifact-plan-review-2026-07-01.md      |

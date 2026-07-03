@@ -484,7 +484,7 @@ includes `p05`; `phone-a-friend` now points to the shipped panel workflow.
 ### Code Review Received: final
 
 **Date:** 2026-07-03
-**Review artifact:** reviews/final-review-2026-07-03.md
+**Review artifact:** reviews/archived/final-review-2026-07-03.md
 
 **Findings:**
 
@@ -554,7 +554,7 @@ Chronological log of implementation progress.
   for final review.
 - Final verification lint errors were fixed in `8660b48`; follow-up
   `build:check`, `type-check`, and `lint` passed.
-- Final review received in `reviews/final-review-2026-07-03.md` with one
+- Final review received in `reviews/archived/final-review-2026-07-03.md` with one
   Medium project config path-semantics finding; added `p06-t01`.
 - `p06-t01` completed in `5ed430f`; final review fixes are complete and final
   re-review is pending.
