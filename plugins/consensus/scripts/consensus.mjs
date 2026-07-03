@@ -3,12 +3,382 @@
 // Source: src/consensus/provider-cli/cli.ts
 
 // src/consensus/provider-cli/cli.ts
-import { readFile as readFile3, stat as stat2 } from "node:fs/promises";
+import { readFile as readFile4, stat as stat2 } from "node:fs/promises";
 
 // src/consensus/provider-cli/commands.ts
-import { randomUUID as randomUUID3 } from "node:crypto";
-import { mkdir, rename, writeFile } from "node:fs/promises";
+import { randomUUID as randomUUID4 } from "node:crypto";
+import { mkdir as mkdir2, rename as rename2, writeFile as writeFile2 } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
+
+// src/consensus/config/consensus-config.ts
+import { randomUUID } from "node:crypto";
+import {
+  mkdir,
+  readFile,
+  rename,
+  rm,
+  writeFile
+} from "node:fs/promises";
+import path from "node:path";
+var BUILT_IN_PROVIDER_ORDER = ["claude", "codex"];
+var TOP_LEVEL_KEYS = /* @__PURE__ */ new Set([
+  "schema_version",
+  "peers",
+  "panelists",
+  "panel_size",
+  "roles"
+]);
+var AGENT_KEYS = /* @__PURE__ */ new Set(["provider", "model", "effort"]);
+var ROLE_KEYS = /* @__PURE__ */ new Set(["panelist", "advisor", "synthesizer"]);
+function parseConsensusDefaultsConfig(value) {
+  if (!isRecord(value)) {
+    throw new Error("Consensus config must be an object");
+  }
+  assertKnownKeys(value, TOP_LEVEL_KEYS, "Consensus config");
+  if (value.schema_version !== void 0 && value.schema_version !== "v1") {
+    throw new Error('Consensus config schema_version must be "v1"');
+  }
+  const config = { schema_version: "v1" };
+  if (value.peers !== void 0) {
+    config.peers = parseAgentList(value.peers, {
+      label: "Consensus config peers",
+      exactLength: 2
+    });
+  }
+  if (value.panelists !== void 0) {
+    config.panelists = parseAgentList(value.panelists, {
+      label: "Consensus config panelists",
+      minLength: 2
+    });
+  }
+  if (value.panel_size !== void 0) {
+    config.panel_size = parsePanelSize(value.panel_size);
+  }
+  if (value.roles !== void 0) {
+    config.roles = parseRolesConfig(value.roles);
+  }
+  return config;
+}
+async function readConsensusConfig(input) {
+  const configPath = await consensusConfigPath(input);
+  let contents;
+  try {
+    contents = await readFile(configPath, "utf8");
+  } catch (error) {
+    if (isNodeError(error) && error.code === "ENOENT") return null;
+    throw error;
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(contents);
+  } catch (error) {
+    throw new Error(
+      `Could not parse consensus config at ${configPath}: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+  return parseConsensusDefaultsConfig(parsed);
+}
+async function writeConsensusConfig(input) {
+  const configPath = await consensusConfigPath(input);
+  const config = parseConsensusDefaultsConfig(input.config);
+  await writeJsonAtomic(configPath, config);
+}
+async function clearConsensusConfig(input) {
+  const key = input.key ?? "all";
+  const configPath = await consensusConfigPath(input);
+  if (key === "all") {
+    await rm(configPath, { force: true });
+    return;
+  }
+  const existing = await readConsensusConfig(input);
+  if (!existing) return;
+  const next = { ...existing };
+  if (key === "peers") {
+    delete next.peers;
+  } else if (key === "panelists") {
+    delete next.panelists;
+  } else if (key === "panel-size") {
+    delete next.panel_size;
+  } else if (key === "roles") {
+    delete next.roles;
+  } else {
+    assertNever(key);
+  }
+  await writeJsonAtomic(configPath, next);
+}
+async function consensusConfigPath(input) {
+  if (input.scope === "user") {
+    return path.join(userConfigDir(input.env), "consensus", "config.json");
+  }
+  return path.join(path.resolve(input.cwd), ".consensus", "config.json");
+}
+async function resolveConsensusComposition(input) {
+  const candidates = await loadCandidates(input);
+  if (input.workflow === "convergence") {
+    return resolveConvergenceComposition(input, candidates);
+  }
+  return resolvePanelComposition(input, candidates);
+}
+async function loadCandidates(input) {
+  const candidates = [];
+  if (input.invocation && hasConsensusDefaults(input.invocation)) {
+    candidates.push({
+      source: "invocation",
+      config: parseConsensusDefaultsConfig({
+        schema_version: "v1",
+        ...input.invocation
+      })
+    });
+  }
+  const project = await readConsensusConfig({
+    scope: "project",
+    cwd: input.cwd,
+    env: input.env
+  });
+  if (project) candidates.push({ source: "project", config: project });
+  const user = await readConsensusConfig({
+    scope: "user",
+    cwd: input.cwd,
+    env: input.env
+  });
+  if (user) candidates.push({ source: "user", config: user });
+  return candidates;
+}
+function resolveConvergenceComposition(input, candidates) {
+  const candidate = candidates.find(
+    ({ config }) => config.peers !== void 0
+  );
+  if (candidate?.config.peers) {
+    return {
+      source: candidate.source,
+      workflow: "convergence",
+      agents: candidate.config.peers,
+      warnings: inventoryWarnings(candidate.config.peers, input.inventory)
+    };
+  }
+  return {
+    source: "built-in",
+    workflow: "convergence",
+    agents: builtInAgents(input.inventory, 2),
+    warnings: []
+  };
+}
+function resolvePanelComposition(input, candidates) {
+  const panelistsCandidate = candidates.find(
+    ({ config }) => config.panelists !== void 0
+  );
+  const panelSizeCandidate = candidates.find(
+    ({ config }) => config.panel_size !== void 0
+  );
+  const source = panelistsCandidate?.source ?? panelSizeCandidate?.source;
+  const configuredPanelists = panelistsCandidate?.config.panelists;
+  const targetSize = panelSizeCandidate?.config.panel_size ?? configuredPanelists?.length ?? 2;
+  const selected = selectPanelAgents(
+    configuredPanelists ?? builtInAgents(input.inventory, 2),
+    targetSize,
+    input.inventory
+  );
+  const warnings = [
+    ...inventoryWarnings(configuredPanelists ?? [], input.inventory)
+  ];
+  if (selected.length < targetSize) {
+    warnings.push(
+      `Only ${selected.length} panelists are available for requested panel_size ${targetSize}.`
+    );
+  }
+  if (selected.length < 2) {
+    selected.push(...missingBuiltInAgents(selected).slice(0, 2 - selected.length));
+  }
+  return {
+    source: source ?? "built-in",
+    workflow: "panel",
+    agents: selected,
+    warnings
+  };
+}
+function selectPanelAgents(configuredPanelists, targetSize, inventory) {
+  const selected = configuredPanelists.slice(0, targetSize);
+  if (selected.length >= targetSize) return selected;
+  const seen = new Set(selected.map((agent) => agent.provider));
+  for (const entry of inventory ?? []) {
+    if (selected.length >= targetSize) break;
+    if (entry.status !== "ready" || seen.has(entry.id)) continue;
+    selected.push({ provider: entry.id });
+    seen.add(entry.id);
+  }
+  if (selected.length < 2) {
+    for (const agent of missingBuiltInAgents(selected)) {
+      selected.push(agent);
+      if (selected.length >= 2) break;
+    }
+  }
+  return selected;
+}
+function builtInAgents(inventory, count) {
+  const ready = (inventory ?? []).filter((entry) => entry.status === "ready").map((entry) => ({ provider: entry.id }));
+  const selected = ready.slice(0, count);
+  for (const agent of missingBuiltInAgents(selected)) {
+    if (selected.length >= count) break;
+    selected.push(agent);
+  }
+  return selected;
+}
+function missingBuiltInAgents(current) {
+  const seen = new Set(current.map((agent) => agent.provider));
+  return BUILT_IN_PROVIDER_ORDER.filter((provider) => !seen.has(provider)).map(
+    (provider) => ({ provider })
+  );
+}
+function inventoryWarnings(agents, inventory) {
+  if (!inventory || inventory.length === 0) return [];
+  const byId = new Map(inventory.map((entry) => [entry.id, entry]));
+  const warnings = [];
+  for (const agent of agents) {
+    const entry = byId.get(agent.provider);
+    if (!entry) {
+      warnings.push(`Configured provider is not registered: ${agent.provider}`);
+    } else if (entry.status !== "ready") {
+      warnings.push(
+        `Configured provider is not ready: ${agent.provider} (${entry.status})`
+      );
+    }
+  }
+  return warnings;
+}
+function parseAgentList(value, options) {
+  if (!Array.isArray(value)) {
+    throw new Error(`${options.label} must be an array`);
+  }
+  if (options.exactLength !== void 0 && value.length !== options.exactLength) {
+    throw new Error(
+      `${options.label} must contain exactly ${formatCount(options.exactLength)} agents`
+    );
+  }
+  if (options.minLength !== void 0 && value.length < options.minLength) {
+    throw new Error(
+      `${options.label} must contain at least ${formatCount(options.minLength)} agents`
+    );
+  }
+  const agents = value.map(
+    (item, index) => parseAgentRef(item, `${options.label}[${index}]`)
+  );
+  assertUniqueProviders(agents, options.label);
+  return agents;
+}
+function parseAgentRef(value, label) {
+  if (!isRecord(value)) {
+    throw new Error(`${label} must be an object`);
+  }
+  assertKnownKeys(value, AGENT_KEYS, label);
+  if (typeof value.provider !== "string" || value.provider.length === 0) {
+    throw new Error(`${label}.provider must be a non-empty string`);
+  }
+  if (!isProviderId(value.provider)) {
+    throw new Error(`${label}.provider must be a provider id`);
+  }
+  const agent = { provider: value.provider };
+  if (value.model !== void 0) {
+    if (typeof value.model !== "string" || value.model.length === 0) {
+      throw new Error(`${label}.model must be a non-empty string`);
+    }
+    agent.model = value.model;
+  }
+  if (value.effort !== void 0) {
+    if (typeof value.effort !== "string" || value.effort.length === 0) {
+      throw new Error(`${label}.effort must be a non-empty string`);
+    }
+    agent.effort = value.effort;
+  }
+  return agent;
+}
+function parsePanelSize(value) {
+  if (!Number.isInteger(value) || Number(value) < 2) {
+    throw new Error(
+      "Consensus config panel_size must be an integer greater than 1"
+    );
+  }
+  return Number(value);
+}
+function parseRolesConfig(value) {
+  if (!isRecord(value)) {
+    throw new Error("Consensus config roles must be an object");
+  }
+  assertKnownKeys(value, ROLE_KEYS, "Consensus config roles");
+  const roles = {};
+  if (value.panelist !== void 0) {
+    roles.panelist = parseAgentList(value.panelist, {
+      label: "Consensus config roles.panelist",
+      minLength: 1
+    });
+  }
+  if (value.advisor !== void 0) {
+    roles.advisor = parseAgentList(value.advisor, {
+      label: "Consensus config roles.advisor",
+      minLength: 1
+    });
+  }
+  if (value.synthesizer !== void 0) {
+    roles.synthesizer = parseAgentList(value.synthesizer, {
+      label: "Consensus config roles.synthesizer",
+      minLength: 1
+    });
+  }
+  return roles;
+}
+function assertUniqueProviders(agents, label) {
+  const seen = /* @__PURE__ */ new Set();
+  for (const agent of agents) {
+    if (seen.has(agent.provider)) {
+      throw new Error(`${label} must not contain duplicate providers`);
+    }
+    seen.add(agent.provider);
+  }
+}
+function assertKnownKeys(record, knownKeys, label) {
+  for (const key of Object.keys(record)) {
+    if (!knownKeys.has(key)) {
+      throw new Error(`${label} has unknown key: ${key}`);
+    }
+  }
+}
+function hasConsensusDefaults(value) {
+  return value.peers !== void 0 || value.panelists !== void 0 || value.panel_size !== void 0 || value.roles !== void 0;
+}
+function isProviderId(value) {
+  return /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(value);
+}
+function userConfigDir(env = {}) {
+  const xdg = env.XDG_CONFIG_HOME ?? process.env.XDG_CONFIG_HOME;
+  if (xdg && xdg.length > 0) return path.resolve(xdg);
+  const home = env.HOME ?? process.env.HOME;
+  if (!home) {
+    throw new Error("HOME is required to resolve user consensus config");
+  }
+  return path.join(path.resolve(home), ".config");
+}
+async function writeJsonAtomic(filePath, config) {
+  const directory = path.dirname(filePath);
+  await mkdir(directory, { recursive: true });
+  const tempPath = path.join(
+    directory,
+    `.${path.basename(filePath)}.${process.pid}.${randomUUID()}.tmp`
+  );
+  await writeFile(tempPath, `${JSON.stringify(config, null, 2)}
+`, "utf8");
+  await rename(tempPath, filePath);
+}
+function isRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function isNodeError(error) {
+  return error instanceof Error && "code" in error;
+}
+function formatCount(count) {
+  return count === 2 ? "two" : String(count);
+}
+function assertNever(value) {
+  throw new Error(`Unexpected consensus config key: ${String(value)}`);
+}
 
 // src/consensus/provider-cli/host-guard.ts
 function detectHostRuntime(env) {
@@ -103,6 +473,9 @@ function parseConsensusCliArgs(argv) {
   if (command === "provider") {
     return parseProviderCommand(tokens);
   }
+  if (command === "config") {
+    return parseConfigCommand(tokens);
+  }
   if (command === "preflight") {
     return parsePreflightCommand(tokens);
   }
@@ -173,6 +546,138 @@ function parseProviderCommand(tokens) {
   requireJson(parsed.flags);
   requireNoPositionals(parsed.positionals);
   return { kind: "provider-list", json: true };
+}
+function parseConfigCommand(tokens) {
+  const [subcommand, ...rest] = tokens;
+  if (subcommand === "get") return parseConfigGetCommand(rest);
+  if (subcommand === "list") return parseConfigListCommand(rest);
+  if (subcommand === "set") return parseConfigSetCommand(rest);
+  if (subcommand === "clear") return parseConfigClearCommand(rest);
+  throw new ConsensusCliUsageError(
+    "Expected config subcommand: get, list, set, or clear"
+  );
+}
+function parseConfigGetCommand(tokens) {
+  const parsed = parseOptionTokens(tokens, {
+    allowedFlags: /* @__PURE__ */ new Set(["--json", "--scope", "--cwd", "--workflow"]),
+    valueFlags: /* @__PURE__ */ new Set(["--scope", "--cwd", "--workflow"])
+  });
+  requireJson(parsed.flags);
+  requireNoPositionals(parsed.positionals);
+  const scope = parseConfigReadScope(
+    singleValue(parsed.flags, "--scope") ?? "effective"
+  );
+  const command = {
+    kind: "config-get",
+    json: true,
+    scope
+  };
+  assignIfDefined(command, "cwd", singleValue(parsed.flags, "--cwd"));
+  const workflow = singleValue(parsed.flags, "--workflow");
+  if (workflow !== void 0) {
+    command.workflow = parseConfigWorkflow(workflow);
+  }
+  return command;
+}
+function parseConfigListCommand(tokens) {
+  const parsed = parseOptionTokens(tokens, {
+    allowedFlags: /* @__PURE__ */ new Set(["--json", "--cwd"]),
+    valueFlags: /* @__PURE__ */ new Set(["--cwd"])
+  });
+  requireJson(parsed.flags);
+  requireNoPositionals(parsed.positionals);
+  const command = {
+    kind: "config-list",
+    json: true
+  };
+  assignIfDefined(command, "cwd", singleValue(parsed.flags, "--cwd"));
+  return command;
+}
+function parseConfigSetCommand(tokens) {
+  const parsed = parseOptionTokens(tokens, {
+    allowedFlags: /* @__PURE__ */ new Set([
+      "--json",
+      "--scope",
+      "--cwd",
+      "--peers",
+      "--panelists",
+      "--panel-size",
+      "--from-file"
+    ]),
+    valueFlags: /* @__PURE__ */ new Set([
+      "--scope",
+      "--cwd",
+      "--peers",
+      "--panelists",
+      "--panel-size",
+      "--from-file"
+    ])
+  });
+  requireJson(parsed.flags);
+  requireNoPositionals(parsed.positionals);
+  const command = {
+    kind: "config-set",
+    json: true,
+    scope: parseConfigWriteScope(singleValue(parsed.flags, "--scope"))
+  };
+  assignIfDefined(command, "cwd", singleValue(parsed.flags, "--cwd"));
+  assignIfDefined(command, "peers", singleValue(parsed.flags, "--peers"));
+  assignIfDefined(
+    command,
+    "panelists",
+    singleValue(parsed.flags, "--panelists")
+  );
+  assignIfDefined(
+    command,
+    "fromFile",
+    singleValue(parsed.flags, "--from-file")
+  );
+  const panelSize = singleValue(parsed.flags, "--panel-size");
+  if (panelSize !== void 0) {
+    command.panelSize = parsePositiveInteger("--panel-size", panelSize);
+  }
+  return command;
+}
+function parseConfigClearCommand(tokens) {
+  const parsed = parseOptionTokens(tokens, {
+    allowedFlags: /* @__PURE__ */ new Set(["--json", "--scope", "--cwd", "--key"]),
+    valueFlags: /* @__PURE__ */ new Set(["--scope", "--cwd", "--key"])
+  });
+  requireJson(parsed.flags);
+  requireNoPositionals(parsed.positionals);
+  const command = {
+    kind: "config-clear",
+    json: true,
+    scope: parseConfigWriteScope(singleValue(parsed.flags, "--scope")),
+    key: parseConfigKey(singleValue(parsed.flags, "--key") ?? "all")
+  };
+  assignIfDefined(command, "cwd", singleValue(parsed.flags, "--cwd"));
+  return command;
+}
+function parseConfigReadScope(value) {
+  if (value === "user" || value === "project" || value === "effective") {
+    return value;
+  }
+  throw new ConsensusCliUsageError(`Invalid config scope: ${value}`);
+}
+function parseConfigWriteScope(value) {
+  if (value === "user" || value === "project") return value;
+  if (value === void 0) {
+    throw new ConsensusCliUsageError(
+      "Missing required config --scope user|project"
+    );
+  }
+  throw new ConsensusCliUsageError(`Invalid config scope: ${value}`);
+}
+function parseConfigKey(value) {
+  if (value === "peers" || value === "panelists" || value === "panel-size" || value === "roles" || value === "all") {
+    return value;
+  }
+  throw new ConsensusCliUsageError(`Invalid config key: ${value}`);
+}
+function parseConfigWorkflow(value) {
+  if (value === "convergence" || value === "panel") return value;
+  throw new ConsensusCliUsageError(`Unsupported config workflow: ${value}`);
 }
 function parsePreflightCommand(tokens) {
   const parsed = parseOptionTokens(tokens, {
@@ -420,7 +925,7 @@ function parseRequestJson(contents) {
       cause: String(error)
     });
   }
-  if (!isRecord(parsed)) {
+  if (!isRecord2(parsed)) {
     throw new ConsensusCliUsageError("Request JSON must be an object");
   }
   if (parsed.schema_version !== "v1") {
@@ -464,7 +969,7 @@ function parseRequestJson(contents) {
 }
 function validateRuntimePolicy(value) {
   if (value === void 0) return;
-  if (!isRecord(value)) {
+  if (!isRecord2(value)) {
     throw new ConsensusCliUsageError(
       "Request JSON runtime_policy must be an object"
     );
@@ -492,7 +997,7 @@ function validateRuntimePolicy(value) {
 }
 function validateHostContext(value) {
   if (value === void 0) return;
-  if (!isRecord(value)) {
+  if (!isRecord2(value)) {
     throw new ConsensusCliUsageError("Request JSON host must be an object");
   }
   validateRequiredStringField(value, "runtime", "Request JSON host.runtime");
@@ -511,7 +1016,7 @@ function validateHostContext(value) {
 }
 function validateRedaction(value) {
   if (value === void 0) return;
-  if (!isRecord(value)) {
+  if (!isRecord2(value)) {
     throw new ConsensusCliUsageError("Request JSON redaction must be an object");
   }
   validateOptionalBooleanField(
@@ -632,14 +1137,14 @@ function parsePositiveInteger(flag, value) {
   }
   return Number(value);
 }
-function isRecord(value) {
+function isRecord2(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 // src/consensus/provider-cli/invocation.ts
-import { randomUUID } from "node:crypto";
+import { randomUUID as randomUUID2 } from "node:crypto";
 import { tmpdir } from "node:os";
-import path from "node:path";
+import path2 from "node:path";
 function buildProviderInvocation(adapter, request, options = {}) {
   return adapter.buildInvocation(request, {
     strategy: options.strategy ?? defaultStrategy(adapter),
@@ -756,9 +1261,9 @@ function codexConfigOverride(key, value) {
   return `${key}=${JSON.stringify(value)}`;
 }
 function codexLastMessageFile() {
-  return path.join(
+  return path2.join(
     tmpdir(),
-    `consensus-codex-last-message-${randomUUID()}.txt`
+    `consensus-codex-last-message-${randomUUID2()}.txt`
   );
 }
 function defaultStrategy(adapter) {
@@ -769,7 +1274,7 @@ function defaultStrategy(adapter) {
 
 // src/consensus/provider-cli/subprocess.ts
 import { spawn } from "node:child_process";
-import { readFile, rm } from "node:fs/promises";
+import { readFile as readFile2, rm as rm2 } from "node:fs/promises";
 var DEFAULT_MAX_OUTPUT_BYTES = 1024 * 1024 * 10;
 var DEFAULT_TIMEOUT_SEC = 300;
 var DEFAULT_TERMINATION_GRACE_MS = 250;
@@ -978,7 +1483,7 @@ async function readLastMessage(invocation2) {
   if (!invocation2.last_message_file) return {};
   try {
     return {
-      contents: await readFile(invocation2.last_message_file, "utf8")
+      contents: await readFile2(invocation2.last_message_file, "utf8")
     };
   } catch (error) {
     return {
@@ -989,7 +1494,7 @@ async function readLastMessage(invocation2) {
 async function cleanupInvocationFiles(invocation2) {
   if (!invocation2.last_message_file) return;
   try {
-    await rm(invocation2.last_message_file, { force: true });
+    await rm2(invocation2.last_message_file, { force: true });
   } catch {
   }
 }
@@ -1344,7 +1849,7 @@ function buildAttemptSummary(attempts, retryable) {
 // src/consensus/provider-cli/probe.ts
 import { constants } from "node:fs";
 import { access } from "node:fs/promises";
-import path2 from "node:path";
+import path3 from "node:path";
 var DEFAULT_PROBE_TIMEOUT_SEC = 10;
 var DEFAULT_PROBE_MAX_OUTPUT_BYTES = 64 * 1024;
 async function probeProviderRegistry({
@@ -1402,13 +1907,13 @@ function nodeProbeCommandRunner(env = process.env, options = {}) {
   };
 }
 async function findExecutable(command, env) {
-  if (command.includes(path2.sep)) {
+  if (command.includes(path3.sep)) {
     return canExecute(command).then((ok) => ok ? command : void 0);
   }
   const pathValue = env.PATH ?? "";
-  for (const searchPath of pathValue.split(path2.delimiter)) {
+  for (const searchPath of pathValue.split(path3.delimiter)) {
     if (!searchPath) continue;
-    const candidate = path2.join(searchPath, command);
+    const candidate = path3.join(searchPath, command);
     if (await canExecute(candidate)) return candidate;
   }
   return void 0;
@@ -1514,12 +2019,12 @@ function firstNonEmptyLine2(value) {
 
 // src/consensus/provider-cli/schema-validate.ts
 function validateSchemaSubset(value, schema) {
-  if (!isRecord2(schema)) return { ok: true };
-  if (schema.type === "object" && !isRecord2(value)) {
+  if (!isRecord3(schema)) return { ok: true };
+  if (schema.type === "object" && !isRecord3(value)) {
     return { ok: false, message: "Expected provider JSON to be an object." };
   }
   if (Array.isArray(schema.required)) {
-    if (!isRecord2(value)) {
+    if (!isRecord3(value)) {
       return {
         ok: false,
         message: "Expected provider JSON to be an object with required fields."
@@ -1534,9 +2039,9 @@ function validateSchemaSubset(value, schema) {
       }
     }
   }
-  if (isRecord2(schema.properties) && isRecord2(value)) {
+  if (isRecord3(schema.properties) && isRecord3(value)) {
     for (const [field, fieldSchema] of Object.entries(schema.properties)) {
-      if (!(field in value) || !isRecord2(fieldSchema)) continue;
+      if (!(field in value) || !isRecord3(fieldSchema)) continue;
       const type = fieldSchema.type;
       if (typeof type === "string" && !matchesJsonType(value[field], type)) {
         return {
@@ -1548,21 +2053,21 @@ function validateSchemaSubset(value, schema) {
   }
   return { ok: true };
 }
-function isRecord2(value) {
+function isRecord3(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 function matchesJsonType(value, type) {
   if (type === "array") return Array.isArray(value);
-  if (type === "object") return isRecord2(value);
+  if (type === "object") return isRecord3(value);
   if (type === "integer") return Number.isInteger(value);
   return typeof value === type;
 }
 
 // src/consensus/provider-cli/structured-output.ts
-import { randomUUID as randomUUID2 } from "node:crypto";
-import { readFile as readFile2, rm as rm2, stat } from "node:fs/promises";
+import { randomUUID as randomUUID3 } from "node:crypto";
+import { readFile as readFile3, rm as rm3, stat } from "node:fs/promises";
 import { tmpdir as tmpdir2 } from "node:os";
-import path3 from "node:path";
+import path4 from "node:path";
 import { fileURLToPath } from "node:url";
 
 // src/consensus/provider-cli/runtime-policy.ts
@@ -1797,7 +2302,7 @@ async function runProviderTurn(request, dependencies = {}) {
       CONSENSUS_SUBMIT_COMMAND: submitCommand,
       CONSENSUS_SUBMIT_FILE: submitCapturePath,
       [CONSENSUS_SUBMIT_MAX_BYTES_ENV]: String(maxSubmitBytes),
-      CONSENSUS_SUBMIT_SCHEMA: path3.resolve(request.schema_path)
+      CONSENSUS_SUBMIT_SCHEMA: path4.resolve(request.schema_path)
     }
   });
   let validationFeedback;
@@ -1979,7 +2484,7 @@ async function runProviderTurn(request, dependencies = {}) {
   }
 }
 async function readJsonSchema(schemaPath) {
-  return JSON.parse(await readFile2(schemaPath, "utf8"));
+  return JSON.parse(await readFile3(schemaPath, "utf8"));
 }
 function preInvocationFailure(input) {
   return failureEnvelope({
@@ -2021,7 +2526,7 @@ async function readSubmittedVerdict(filePath, schema, maxBytes) {
   try {
     const capture = await stat(filePath);
     if (capture.size > maxBytes) return { ok: false };
-    raw = await readFile2(filePath, "utf8");
+    raw = await readFile3(filePath, "utf8");
     assertWithinSubmitCaptureLimit(raw, maxBytes);
   } catch {
     return { ok: false };
@@ -2035,12 +2540,12 @@ async function readSubmittedVerdict(filePath, schema, maxBytes) {
 }
 async function cleanupSubmitCaptureFile(filePath) {
   try {
-    await rm2(filePath, { force: true });
+    await rm3(filePath, { force: true });
   } catch {
   }
 }
 function extractStructuredJsonValue(value) {
-  if (!isRecord2(value)) return value;
+  if (!isRecord3(value)) return value;
   if ("structured_output" in value) {
     return value.structured_output;
   }
@@ -2145,7 +2650,7 @@ function exitClassificationDiagnostics(exitClassification) {
   return exitClassification ? { exit_classification: exitClassification } : void 0;
 }
 function submitCaptureFile() {
-  return path3.join(tmpdir2(), `consensus-submit-${randomUUID2()}.json`);
+  return path4.join(tmpdir2(), `consensus-submit-${randomUUID3()}.json`);
 }
 function buildConsensusSubmitCommand(input = {}) {
   const nodePath = input.nodePath ?? process.execPath;
@@ -2153,7 +2658,7 @@ function buildConsensusSubmitCommand(input = {}) {
   return `${shellQuote(nodePath)} ${shellQuote(cliPath)} submit --json -`;
 }
 function currentConsensusCliPath() {
-  if (process.argv[1]) return path3.resolve(process.argv[1]);
+  if (process.argv[1]) return path4.resolve(process.argv[1]);
   return fileURLToPath(import.meta.url);
 }
 function shellQuote(value) {
@@ -2165,6 +2670,11 @@ function helpText() {
   return `Usage: consensus <command> --json
 
 Commands:
+  config get --json [--scope user|project|effective] [--workflow convergence|panel] [--cwd <path>]
+  config list --json [--cwd <path>]
+  config set --json --scope user|project [--peers <a,b>] [--panelists <a,b,c>]
+      [--panel-size <n>] [--from-file <path>] [--cwd <path>]
+  config clear --json --scope user|project [--key peers|panelists|panel-size|roles|all] [--cwd <path>]
   provider ls --json
   preflight --json [--provider <id>] [--max-depth <n>]
   submit --json [-|--verdict-file <path>] [--schema <path>] [--out <path>]
@@ -2305,6 +2815,22 @@ async function runConsensusCli(argv, io, options = {}) {
       io.stdout.write(helpText());
       return 0;
     }
+    if (command.kind === "config-list") {
+      writeJson(io, runConfigList());
+      return 0;
+    }
+    if (command.kind === "config-get") {
+      writeJson(io, await runConfigGet(command, io, options));
+      return 0;
+    }
+    if (command.kind === "config-set") {
+      writeJson(io, await runConfigSet(command, io));
+      return 0;
+    }
+    if (command.kind === "config-clear") {
+      writeJson(io, await runConfigClear(command, io));
+      return 0;
+    }
     if (command.kind === "provider-list") {
       writeJson(
         io,
@@ -2346,6 +2872,184 @@ async function runConsensusCli(argv, io, options = {}) {
     return 1;
   }
 }
+function runConfigList() {
+  return {
+    schema_version: "v1",
+    ok: true,
+    scopes: ["user", "project", "effective"],
+    writable_scopes: ["user", "project"],
+    keys: ["peers", "panelists", "panel-size", "roles", "all"],
+    workflows: ["convergence", "panel"]
+  };
+}
+async function runConfigGet(command, io, options) {
+  const cwd = command.cwd ?? io.cwd;
+  if (command.scope === "user" || command.scope === "project") {
+    return {
+      schema_version: "v1",
+      ok: true,
+      scope: command.scope,
+      config: await readConsensusConfig({
+        scope: command.scope,
+        cwd,
+        env: io.env
+      })
+    };
+  }
+  const effective = await readEffectiveConfig(cwd, io.env);
+  if (!command.workflow) {
+    return {
+      schema_version: "v1",
+      ok: true,
+      scope: "effective",
+      source: effective.source,
+      config: effective.config,
+      diagnostics: { warnings: [] }
+    };
+  }
+  const composition = await resolveConsensusComposition({
+    workflow: command.workflow,
+    cwd,
+    env: io.env,
+    inventory: await resolveRegistry(
+      options.registry,
+      defaultProbeOptions(options, io.env)
+    )
+  });
+  return {
+    schema_version: "v1",
+    ok: true,
+    scope: "effective",
+    source: composition.source,
+    config: effective.config,
+    workflow: composition.workflow,
+    agents: composition.agents,
+    diagnostics: { warnings: composition.warnings }
+  };
+}
+async function runConfigSet(command, io) {
+  const cwd = command.cwd ?? io.cwd;
+  const patch = parseConfigSetPatch(command);
+  if (!command.fromFile && Object.keys(patch).length === 1) {
+    throw new ConsensusCliUsageError(
+      "config set requires --peers, --panelists, --panel-size, or --from-file"
+    );
+  }
+  const base = command.fromFile ? await readConfigFromFile(command.fromFile, io) : await readConsensusConfig({
+    scope: command.scope,
+    cwd,
+    env: io.env
+  }) ?? { schema_version: "v1" };
+  const config = parseConfigForCli({
+    ...base,
+    ...patch
+  });
+  await writeConsensusConfig({
+    scope: command.scope,
+    cwd,
+    env: io.env,
+    config
+  });
+  return {
+    schema_version: "v1",
+    ok: true,
+    scope: command.scope,
+    config
+  };
+}
+async function runConfigClear(command, io) {
+  const cwd = command.cwd ?? io.cwd;
+  await clearConsensusConfig({
+    scope: command.scope,
+    cwd,
+    env: io.env,
+    key: command.key
+  });
+  return {
+    schema_version: "v1",
+    ok: true,
+    scope: command.scope,
+    key: command.key,
+    config: await readConsensusConfig({
+      scope: command.scope,
+      cwd,
+      env: io.env
+    })
+  };
+}
+async function readEffectiveConfig(cwd, env) {
+  const user = await readConsensusConfig({ scope: "user", cwd, env });
+  const project = await readConsensusConfig({ scope: "project", cwd, env });
+  const config = mergeConfigs(user, project);
+  const source = configHasDefaults(project) ? "project" : configHasDefaults(user) ? "user" : "built-in";
+  return { source, config };
+}
+function mergeConfigs(user, project) {
+  const config = { schema_version: "v1" };
+  mergeConfigFields(config, user);
+  mergeConfigFields(config, project);
+  return config;
+}
+function mergeConfigFields(target, source) {
+  if (!source) return;
+  if (source.peers !== void 0) target.peers = source.peers;
+  if (source.panelists !== void 0) target.panelists = source.panelists;
+  if (source.panel_size !== void 0) target.panel_size = source.panel_size;
+  if (source.roles !== void 0) target.roles = source.roles;
+}
+function configHasDefaults(config) {
+  return config !== null && (config.peers !== void 0 || config.panelists !== void 0 || config.panel_size !== void 0 || config.roles !== void 0);
+}
+async function readConfigFromFile(filePath, io) {
+  let parsed;
+  try {
+    parsed = JSON.parse(await io.readFile(filePath));
+  } catch (error) {
+    throw new ConsensusCliUsageError(
+      `Malformed consensus config: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+  return parseConfigForCli(parsed);
+}
+function parseConfigForCli(value) {
+  try {
+    return parseConsensusDefaultsConfig(value);
+  } catch (error) {
+    throw new ConsensusCliUsageError(
+      `Malformed consensus config: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+function parseConfigSetPatch(command) {
+  const patch = {
+    schema_version: "v1"
+  };
+  if (command.peers !== void 0) {
+    patch.peers = parseAgentSpecList(command.peers);
+  }
+  if (command.panelists !== void 0) {
+    patch.panelists = parseAgentSpecList(command.panelists);
+  }
+  if (command.panelSize !== void 0) {
+    patch.panel_size = command.panelSize;
+  }
+  return patch;
+}
+function parseAgentSpecList(value) {
+  return value.split(",").map((item) => item.trim()).filter((item) => item.length > 0).map(parseAgentSpec);
+}
+function parseAgentSpec(value) {
+  const [provider, model, effort, extra] = value.split(":");
+  if (extra !== void 0) {
+    throw new ConsensusCliUsageError(
+      "Agent specs must use provider[:model[:effort]]"
+    );
+  }
+  const agent = { provider };
+  if (model !== void 0 && model.length > 0) agent.model = model;
+  if (effort !== void 0 && effort.length > 0) agent.effort = effort;
+  return agent;
+}
 async function readSubmitSource(source, io, maxBytes) {
   if (source.kind === "stdin") return io.readStdin(maxBytes);
   if (source.kind === "file") return io.readFile(source.path, maxBytes);
@@ -2364,13 +3068,13 @@ function submitFailure(io, message, exitCode) {
 }
 async function writeJsonFileAtomic(filePath, contents) {
   const directory = dirname(filePath);
-  await mkdir(directory, { recursive: true });
+  await mkdir2(directory, { recursive: true });
   const tempPath = join(
     directory,
-    `.${basename(filePath)}.${process.pid}.${randomUUID3()}.tmp`
+    `.${basename(filePath)}.${process.pid}.${randomUUID4()}.tmp`
   );
-  await writeFile(tempPath, contents, "utf8");
-  await rename(tempPath, filePath);
+  await writeFile2(tempPath, contents, "utf8");
+  await rename2(tempPath, filePath);
 }
 function defaultProbeOptions(options, env) {
   if (options.registry || options.probeRunner) return options;
@@ -2481,7 +3185,7 @@ async function readUtf8File(filePath, maxBytes) {
       throw new SubmitCaptureLimitError(file.size, maxBytes);
     }
   }
-  const contents = await readFile3(filePath, "utf8");
+  const contents = await readFile4(filePath, "utf8");
   if (maxBytes !== void 0 && byteLength(contents) > maxBytes) {
     throw new SubmitCaptureLimitError(byteLength(contents), maxBytes);
   }
