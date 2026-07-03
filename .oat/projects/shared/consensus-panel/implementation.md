@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-02
-oat_current_task_id: p05-t01
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -30,11 +30,11 @@ oat_generated: false
 | Phase 2 | passed | 3          | 3/3       |
 | Phase 3 | passed | 3          | 3/3       |
 | Phase 4 | passed | 3          | 3/3       |
-| Phase 5 | in_progress | 2  | 0/2       |
+| Phase 5 | review_pending | 2 | 2/2       |
 
-**Total:** 12/14 tasks completed
+**Total:** 14/14 tasks completed
 
-**Next task:** `p05-t01` - Run full generated-output and validation gates
+**Next task:** none - p05 review pending
 
 ---
 
@@ -174,18 +174,26 @@ oat_generated: false
 
 ## Phase 5: Final Validation and Backlog Bookkeeping
 
-**Status:** pending
+**Status:** completed
 **Started:** 2026-07-02
+**Completed:** 2026-07-02
+
+**Summary:**
+
+- Ran the full generated-output, type-check, test, validation, and smoke gates
+  in an isolated consensus config environment.
+- Fixed release-versioning fixture drift for the new panel skill.
+- Archived the two completed backlog items and regenerated the backlog index.
 
 ### Task p05-t01: Run full generated-output and validation gates
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** 9a74ae3
 
 ### Task p05-t02: Update backlog records for completed panel/config items
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** dadc4c0
 
 ---
 
@@ -212,9 +220,9 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 | p02 | passed | reviews/p02-rereview-2026-07-03.md | One Important finding fixed in `619aff5`; re-review passed. |
 | p03 | passed | reviews/p03-rereview-2026-07-03-v2.md | One Critical and one Important finding fixed in `7d343d9`; re-review passed. |
 | p04 | passed | reviews/p04-review-2026-07-03.md | Passed with 0 findings. |
-| p05 | in_progress | pending | HiLL checkpoint phase started at `p05-t01`. |
+| p05 | review_pending | pending | HiLL checkpoint phase implemented; review pending. |
 
-**Outstanding items:** Complete Phase 5, then run p05 code review and HiLL checkpoint.
+**Outstanding items:** Run p05 code review, then request HiLL checkpoint approval.
 
 <!-- orchestration-runs-end -->
 
@@ -461,6 +469,10 @@ Chronological log of implementation progress.
   - `p04-t03` completed in `ac1bd56`.
 - p04 code review passed with 0 findings in `reviews/p04-review-2026-07-03.md`;
   Phase 5 started at `p05-t01`.
+- Phase 5 implemented by Tier 1 subagent dispatch:
+  - `p05-t01` completed in `9a74ae3`.
+  - `p05-t02` completed in `dadc4c0`.
+- p05 code review is pending before the HiLL checkpoint approval request.
 
 ---
 
@@ -482,7 +494,7 @@ Track test execution during implementation.
 | p02   | `pnpm exec vitest run tests/consensus/create tests/consensus/decide tests/consensus/plan`; `pnpm exec vitest run tests/consensus/refine tests/consensus/evaluate`; `pnpm run type-check`; `pnpm run build`; `pnpm run build:check`; `pnpm exec vitest run tests/consensus/generated-config-import.test.ts tests/tooling/generated-output-sync.test.ts`; `pnpm run validate`; `pnpm run validate:skill-versions --base-ref origin/main` | pass | 0 | Targeted wrapper, generated-output, validation, and skill-version coverage |
 | p03   | `pnpm exec vitest run tests/consensus/panel/wrapper.test.ts tests/consensus/panel/panel-schema.test.ts`; `pnpm exec vitest run tests/consensus/panel/provider-cli-integration.test.ts`; `pnpm exec vitest run tests/consensus/panel`; `pnpm run type-check`; `pnpm run build`; `pnpm run build:check`; `node plugins/consensus/skills/panel/scripts/consensus-panel.mjs --help`; `pnpm exec vitest run tests/tooling/generated-output-sync.test.ts` | pass | 0 | Targeted panel runtime and generated-output coverage |
 | p04   | `pnpm exec vitest run tests/repo/skill-frontmatter.test.ts tests/repo/docs-presence.test.ts tests/repo/layout.test.ts tests/repo/readme-scope.test.ts tests/repo/plugin-manifests.test.ts`; `pnpm run validate`; `pnpm exec oxfmt --check documentation/docs/user-guide/consensus/panel.md documentation/docs/user-guide/consensus/index.md documentation/docs/user-guide/consensus/configuration.md documentation/docs/user-guide/consensus/meta.json` | pass | 0 | Skill, docs, manifests, README scope, validation, and targeted docs formatting |
-| p05   | -         | -      | -      | -        |
+| p05   | `pnpm run build && pnpm run build:check && pnpm run type-check && pnpm run test && pnpm run validate && pnpm run smoke`; `oat backlog regenerate-index`; `pnpm run validate` | pass | 0 | Full generated-output, type-check, test, validation, smoke, and backlog-index coverage |
 
 ## Final Summary (for PR/docs)
 
