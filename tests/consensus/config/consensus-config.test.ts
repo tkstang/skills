@@ -18,6 +18,25 @@ describe('consensus config schema and resolver', () => {
     expect(
       parseConsensusDefaultsConfig({
         schema_version: 'v1',
+        defaults: {
+          peers: [
+            { provider: 'claude', model: 'sonnet', effort: 'high' },
+            { provider: 'codex', model: 'gpt-5', effort: 'xhigh' },
+          ],
+          panelists: [
+            { provider: 'claude' },
+            { provider: 'codex' },
+            { provider: 'cursor' },
+          ],
+          panel_size: 2,
+          roles: {
+            advisor: { provider: 'cursor' },
+          },
+        },
+      }),
+    ).toEqual({
+      schema_version: 'v1',
+      defaults: {
         peers: [
           { provider: 'claude', model: 'sonnet', effort: 'high' },
           { provider: 'codex', model: 'gpt-5', effort: 'xhigh' },
@@ -29,23 +48,8 @@ describe('consensus config schema and resolver', () => {
         ],
         panel_size: 2,
         roles: {
-          advisor: [{ provider: 'cursor' }],
+          advisor: { provider: 'cursor' },
         },
-      }),
-    ).toEqual({
-      schema_version: 'v1',
-      peers: [
-        { provider: 'claude', model: 'sonnet', effort: 'high' },
-        { provider: 'codex', model: 'gpt-5', effort: 'xhigh' },
-      ],
-      panelists: [
-        { provider: 'claude' },
-        { provider: 'codex' },
-        { provider: 'cursor' },
-      ],
-      panel_size: 2,
-      roles: {
-        advisor: [{ provider: 'cursor' }],
       },
     });
 
@@ -56,16 +60,30 @@ describe('consensus config schema and resolver', () => {
       parseConsensusDefaultsConfig({ schema_version: 'v2' }),
     ).toThrow('Consensus config schema_version must be "v1"');
     expect(() =>
-      parseConsensusDefaultsConfig({ peers: [{ provider: 'claude' }] }),
+      parseConsensusDefaultsConfig({
+        schema_version: 'v1',
+        defaults: { peers: [{ provider: 'claude' }] },
+      }),
     ).toThrow('Consensus config peers must contain exactly two agents');
     expect(() =>
       parseConsensusDefaultsConfig({
-        panelists: [{ provider: 'claude' }],
+        schema_version: 'v1',
+        defaults: { panelists: [{ provider: 'claude' }] },
       }),
     ).toThrow('Consensus config panelists must contain at least two agents');
     expect(() =>
-      parseConsensusDefaultsConfig({ panel_size: 1 }),
+      parseConsensusDefaultsConfig({
+        schema_version: 'v1',
+        defaults: { panel_size: 1 },
+      }),
     ).toThrow('Consensus config panel_size must be an integer greater than 1');
+    expect(() =>
+      parseConsensusDefaultsConfig({
+        defaults: {
+          peers: [{ provider: 'claude' }, { provider: 'codex' }],
+        },
+      }),
+    ).toThrow('Consensus config schema_version must be "v1"');
   });
 
   it('resolves built-in, user, and project config in precedence order', async () => {
@@ -88,7 +106,9 @@ describe('consensus config schema and resolver', () => {
         env,
         config: {
           schema_version: 'v1',
-          peers: [{ provider: 'codex' }, { provider: 'cursor' }],
+          defaults: {
+            peers: [{ provider: 'codex' }, { provider: 'cursor' }],
+          },
         },
       });
 
@@ -110,7 +130,9 @@ describe('consensus config schema and resolver', () => {
         env,
         config: {
           schema_version: 'v1',
-          peers: [{ provider: 'cursor' }, { provider: 'claude' }],
+          defaults: {
+            peers: [{ provider: 'cursor' }, { provider: 'claude' }],
+          },
         },
       });
 
@@ -136,7 +158,9 @@ describe('consensus config schema and resolver', () => {
         env,
         config: {
           schema_version: 'v1',
-          peers: [{ provider: 'claude' }, { provider: 'codex' }],
+          defaults: {
+            peers: [{ provider: 'claude' }, { provider: 'codex' }],
+          },
         },
       });
       await writeConsensusConfig({
@@ -145,7 +169,9 @@ describe('consensus config schema and resolver', () => {
         env,
         config: {
           schema_version: 'v1',
-          peers: [{ provider: 'codex' }, { provider: 'cursor' }],
+          defaults: {
+            peers: [{ provider: 'codex' }, { provider: 'cursor' }],
+          },
         },
       });
 
@@ -166,6 +192,90 @@ describe('consensus config schema and resolver', () => {
     });
   });
 
+  it('does not resize invocation panelists with persisted panel_size defaults', async () => {
+    await withTempConfig(async ({ cwd, env }) => {
+      await writeConsensusConfig({
+        scope: 'user',
+        cwd,
+        env,
+        config: {
+          schema_version: 'v1',
+          defaults: {
+            panel_size: 4,
+          },
+        },
+      });
+      await writeConsensusConfig({
+        scope: 'project',
+        cwd,
+        env,
+        config: {
+          schema_version: 'v1',
+          defaults: {
+            panel_size: 2,
+          },
+        },
+      });
+
+      const result = await resolveConsensusComposition({
+        workflow: 'panel',
+        cwd,
+        env,
+        inventory: inventory(['claude', 'codex', 'cursor', 'gemini']),
+        invocation: {
+          panelists: [
+            { provider: 'cursor' },
+            { provider: 'claude' },
+            { provider: 'codex' },
+          ],
+        },
+      });
+
+      expect(result.source).toBe('invocation');
+      expect(result.agents).toEqual([
+        { provider: 'cursor' },
+        { provider: 'claude' },
+        { provider: 'codex' },
+      ]);
+    });
+  });
+
+  it('reports invocation as source when invocation panel_size drives selection', async () => {
+    await withTempConfig(async ({ cwd, env }) => {
+      await writeConsensusConfig({
+        scope: 'project',
+        cwd,
+        env,
+        config: {
+          schema_version: 'v1',
+          defaults: {
+            panelists: [
+              { provider: 'claude' },
+              { provider: 'codex' },
+              { provider: 'cursor' },
+            ],
+          },
+        },
+      });
+
+      const result = await resolveConsensusComposition({
+        workflow: 'panel',
+        cwd,
+        env,
+        inventory: inventory(['claude', 'codex', 'cursor']),
+        invocation: {
+          panel_size: 2,
+        },
+      });
+
+      expect(result.source).toBe('invocation');
+      expect(result.agents).toEqual([
+        { provider: 'claude' },
+        { provider: 'codex' },
+      ]);
+    });
+  });
+
   it('returns exactly two agents for convergence workflows', async () => {
     await withTempConfig(async ({ cwd, env }) => {
       await writeConsensusConfig({
@@ -174,12 +284,14 @@ describe('consensus config schema and resolver', () => {
         env,
         config: {
           schema_version: 'v1',
-          panelists: [
-            { provider: 'claude' },
-            { provider: 'codex' },
-            { provider: 'cursor' },
-          ],
-          panel_size: 3,
+          defaults: {
+            panelists: [
+              { provider: 'claude' },
+              { provider: 'codex' },
+              { provider: 'cursor' },
+            ],
+            panel_size: 3,
+          },
         },
       });
 
@@ -205,7 +317,9 @@ describe('consensus config schema and resolver', () => {
         env,
         config: {
           schema_version: 'v1',
-          panelists: [{ provider: 'claude' }, { provider: 'codex' }],
+          defaults: {
+            panelists: [{ provider: 'claude' }, { provider: 'codex' }],
+          },
         },
       });
 
@@ -233,12 +347,14 @@ describe('consensus config schema and resolver', () => {
         env,
         config: {
           schema_version: 'v1',
-          panelists: [
-            { provider: 'claude' },
-            { provider: 'codex' },
-            { provider: 'cursor' },
-          ],
-          panel_size: 2,
+          defaults: {
+            panelists: [
+              { provider: 'claude' },
+              { provider: 'codex' },
+              { provider: 'cursor' },
+            ],
+            panel_size: 2,
+          },
         },
       });
 
@@ -264,8 +380,10 @@ describe('consensus config schema and resolver', () => {
         env,
         config: {
           schema_version: 'v1',
-          panelists: [{ provider: 'cursor' }, { provider: 'claude' }],
-          panel_size: 4,
+          defaults: {
+            panelists: [{ provider: 'cursor' }, { provider: 'claude' }],
+            panel_size: 4,
+          },
         },
       });
 
@@ -296,16 +414,20 @@ describe('consensus config schema and resolver', () => {
         env,
         config: {
           schema_version: 'v1',
-          roles: {
-            advisor: [{ provider: 'cursor' }],
+          defaults: {
+            roles: {
+              advisor: { provider: 'cursor' },
+            },
           },
         },
       });
 
       const stored = await readConsensusConfig({ scope: 'project', cwd, env });
       expect(stored).toMatchObject({
-        roles: {
-          advisor: [{ provider: 'cursor' }],
+        defaults: {
+          roles: {
+            advisor: { provider: 'cursor' },
+          },
         },
       });
 
@@ -341,11 +463,13 @@ describe('consensus config schema and resolver', () => {
         env,
         config: {
           schema_version: 'v1',
-          peers: [{ provider: 'claude' }, { provider: 'codex' }],
-          panelists: [{ provider: 'claude' }, { provider: 'codex' }],
-          panel_size: 2,
-          roles: {
-            advisor: [{ provider: 'cursor' }],
+          defaults: {
+            peers: [{ provider: 'claude' }, { provider: 'codex' }],
+            panelists: [{ provider: 'claude' }, { provider: 'codex' }],
+            panel_size: 2,
+            roles: {
+              advisor: { provider: 'cursor' },
+            },
           },
         },
       });
@@ -358,10 +482,12 @@ describe('consensus config schema and resolver', () => {
       });
       expect(await readConsensusConfig({ scope: 'project', cwd, env })).toEqual({
         schema_version: 'v1',
-        peers: [{ provider: 'claude' }, { provider: 'codex' }],
-        panelists: [{ provider: 'claude' }, { provider: 'codex' }],
-        roles: {
-          advisor: [{ provider: 'cursor' }],
+        defaults: {
+          peers: [{ provider: 'claude' }, { provider: 'codex' }],
+          panelists: [{ provider: 'claude' }, { provider: 'codex' }],
+          roles: {
+            advisor: { provider: 'cursor' },
+          },
         },
       });
 

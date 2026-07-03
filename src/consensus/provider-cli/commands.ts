@@ -45,6 +45,7 @@ import type {
   ConsensusConfigKey,
   ConsensusConfigScope,
   ConsensusCompositionSource,
+  ConsensusDefaults,
   ConsensusDefaultsConfig,
   ConsensusWorkflow,
 } from '../config/consensus-config.js';
@@ -467,7 +468,7 @@ async function runConfigSet(
 ): Promise<ConfigSetEnvelope> {
   const cwd = command.cwd ?? io.cwd;
   const patch = parseConfigSetPatch(command);
-  if (!command.fromFile && Object.keys(patch).length === 1) {
+  if (!command.fromFile && !configDefaultsHasValues(patch)) {
     throw new ConsensusCliUsageError(
       'config set requires --peers, --panelists, --panel-size, or --from-file',
     );
@@ -480,10 +481,7 @@ async function runConfigSet(
         cwd,
         env: io.env,
       })) ?? { schema_version: 'v1' });
-  const config = parseConfigForCli({
-    ...base,
-    ...patch,
-  });
+  const config = parseConfigForCli(configWithDefaultsPatch(base, patch));
 
   await writeConsensusConfig({
     scope: command.scope,
@@ -548,14 +546,16 @@ function mergeConfigs(
   project: ConsensusDefaultsConfig | null,
 ): ConsensusDefaultsConfig {
   const config: ConsensusDefaultsConfig = { schema_version: 'v1' };
-  mergeConfigFields(config, user);
-  mergeConfigFields(config, project);
+  const defaults: ConsensusDefaults = {};
+  mergeConfigFields(defaults, user?.defaults);
+  mergeConfigFields(defaults, project?.defaults);
+  if (configDefaultsHasValues(defaults)) config.defaults = defaults;
   return config;
 }
 
 function mergeConfigFields(
-  target: ConsensusDefaultsConfig,
-  source: ConsensusDefaultsConfig | null,
+  target: ConsensusDefaults,
+  source: ConsensusDefaults | undefined,
 ) {
   if (!source) return;
   if (source.peers !== undefined) target.peers = source.peers;
@@ -567,13 +567,7 @@ function mergeConfigFields(
 function configHasDefaults(
   config: ConsensusDefaultsConfig | null,
 ): config is ConsensusDefaultsConfig {
-  return (
-    config !== null &&
-    (config.peers !== undefined ||
-      config.panelists !== undefined ||
-      config.panel_size !== undefined ||
-      config.roles !== undefined)
-  );
+  return config !== null && configDefaultsHasValues(config.defaults);
 }
 
 async function readConfigFromFile(
@@ -603,10 +597,8 @@ function parseConfigForCli(value: unknown): ConsensusDefaultsConfig {
 
 function parseConfigSetPatch(
   command: ParsedConfigSetCommand,
-): Partial<ConsensusDefaultsConfig> & { schema_version: 'v1' } {
-  const patch: Partial<ConsensusDefaultsConfig> & { schema_version: 'v1' } = {
-    schema_version: 'v1',
-  };
+): ConsensusDefaults {
+  const patch: ConsensusDefaults = {};
   if (command.peers !== undefined) {
     patch.peers = parseAgentSpecList(command.peers);
   }
@@ -617,6 +609,31 @@ function parseConfigSetPatch(
     patch.panel_size = command.panelSize;
   }
   return patch;
+}
+
+function configWithDefaultsPatch(
+  base: ConsensusDefaultsConfig,
+  patch: ConsensusDefaults,
+): ConsensusDefaultsConfig {
+  const defaults = {
+    ...(base.defaults ?? {}),
+    ...patch,
+  };
+  const config: ConsensusDefaultsConfig = { schema_version: base.schema_version };
+  if (configDefaultsHasValues(defaults)) config.defaults = defaults;
+  return config;
+}
+
+function configDefaultsHasValues(
+  defaults: ConsensusDefaults | undefined,
+): defaults is ConsensusDefaults {
+  return (
+    defaults !== undefined &&
+    (defaults.peers !== undefined ||
+      defaults.panelists !== undefined ||
+      defaults.panel_size !== undefined ||
+      defaults.roles !== undefined)
+  );
 }
 
 function parseAgentSpecList(value: string): ConsensusAgentRef[] {

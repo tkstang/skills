@@ -21,43 +21,49 @@ import {
 } from "node:fs/promises";
 import path from "node:path";
 var BUILT_IN_PROVIDER_ORDER = ["claude", "codex"];
-var TOP_LEVEL_KEYS = /* @__PURE__ */ new Set([
-  "schema_version",
-  "peers",
-  "panelists",
-  "panel_size",
-  "roles"
-]);
+var CONFIG_KEYS = /* @__PURE__ */ new Set(["schema_version", "defaults"]);
+var DEFAULTS_KEYS = /* @__PURE__ */ new Set(["peers", "panelists", "panel_size", "roles"]);
 var AGENT_KEYS = /* @__PURE__ */ new Set(["provider", "model", "effort"]);
 var ROLE_KEYS = /* @__PURE__ */ new Set(["panelist", "advisor", "synthesizer"]);
 function parseConsensusDefaultsConfig(value) {
   if (!isRecord(value)) {
     throw new Error("Consensus config must be an object");
   }
-  assertKnownKeys(value, TOP_LEVEL_KEYS, "Consensus config");
-  if (value.schema_version !== void 0 && value.schema_version !== "v1") {
+  assertKnownKeys(value, CONFIG_KEYS, "Consensus config");
+  if (value.schema_version !== "v1") {
     throw new Error('Consensus config schema_version must be "v1"');
   }
   const config = { schema_version: "v1" };
+  if (value.defaults !== void 0) {
+    config.defaults = parseConsensusDefaults(value.defaults);
+  }
+  return config;
+}
+function parseConsensusDefaults(value) {
+  if (!isRecord(value)) {
+    throw new Error("Consensus config defaults must be an object");
+  }
+  assertKnownKeys(value, DEFAULTS_KEYS, "Consensus config defaults");
+  const defaults = {};
   if (value.peers !== void 0) {
-    config.peers = parseAgentList(value.peers, {
+    defaults.peers = parseAgentList(value.peers, {
       label: "Consensus config peers",
       exactLength: 2
     });
   }
   if (value.panelists !== void 0) {
-    config.panelists = parseAgentList(value.panelists, {
+    defaults.panelists = parseAgentList(value.panelists, {
       label: "Consensus config panelists",
       minLength: 2
     });
   }
   if (value.panel_size !== void 0) {
-    config.panel_size = parsePanelSize(value.panel_size);
+    defaults.panel_size = parsePanelSize(value.panel_size);
   }
   if (value.roles !== void 0) {
-    config.roles = parseRolesConfig(value.roles);
+    defaults.roles = parseRolesConfig(value.roles);
   }
-  return config;
+  return defaults;
 }
 async function readConsensusConfig(input) {
   const configPath = await consensusConfigPath(input);
@@ -92,18 +98,20 @@ async function clearConsensusConfig(input) {
   }
   const existing = await readConsensusConfig(input);
   if (!existing) return;
-  const next = { ...existing };
+  const defaults = { ...existing.defaults ?? {} };
   if (key === "peers") {
-    delete next.peers;
+    delete defaults.peers;
   } else if (key === "panelists") {
-    delete next.panelists;
+    delete defaults.panelists;
   } else if (key === "panel-size") {
-    delete next.panel_size;
+    delete defaults.panel_size;
   } else if (key === "roles") {
-    delete next.roles;
+    delete defaults.roles;
   } else {
     assertNever(key);
   }
+  const next = { schema_version: "v1" };
+  if (hasConsensusDefaults(defaults)) next.defaults = defaults;
   await writeJsonAtomic(configPath, next);
 }
 async function consensusConfigPath(input) {
@@ -124,10 +132,10 @@ async function loadCandidates(input) {
   if (input.invocation && hasConsensusDefaults(input.invocation)) {
     candidates.push({
       source: "invocation",
-      config: parseConsensusDefaultsConfig({
+      config: {
         schema_version: "v1",
-        ...input.invocation
-      })
+        defaults: parseConsensusDefaults(input.invocation)
+      }
     });
   }
   const project = await readConsensusConfig({
@@ -146,14 +154,15 @@ async function loadCandidates(input) {
 }
 function resolveConvergenceComposition(input, candidates) {
   const candidate = candidates.find(
-    ({ config }) => config.peers !== void 0
+    ({ config }) => config.defaults?.peers !== void 0
   );
-  if (candidate?.config.peers) {
+  const peers = candidate?.config.defaults?.peers;
+  if (peers) {
     return {
       source: candidate.source,
       workflow: "convergence",
-      agents: candidate.config.peers,
-      warnings: inventoryWarnings(candidate.config.peers, input.inventory)
+      agents: peers,
+      warnings: inventoryWarnings(peers, input.inventory)
     };
   }
   return {
@@ -165,14 +174,15 @@ function resolveConvergenceComposition(input, candidates) {
 }
 function resolvePanelComposition(input, candidates) {
   const panelistsCandidate = candidates.find(
-    ({ config }) => config.panelists !== void 0
+    ({ config }) => config.defaults?.panelists !== void 0
   );
-  const panelSizeCandidate = candidates.find(
-    ({ config }) => config.panel_size !== void 0
+  const firstPanelSizeCandidate = candidates.find(
+    ({ config }) => config.defaults?.panel_size !== void 0
   );
-  const source = panelistsCandidate?.source ?? panelSizeCandidate?.source;
-  const configuredPanelists = panelistsCandidate?.config.panelists;
-  const targetSize = panelSizeCandidate?.config.panel_size ?? configuredPanelists?.length ?? 2;
+  const panelSizeCandidate = panelistsCandidate?.source === "invocation" && firstPanelSizeCandidate?.source !== "invocation" ? void 0 : firstPanelSizeCandidate;
+  const source = panelSizeCandidate?.source === "invocation" ? "invocation" : panelistsCandidate?.source ?? panelSizeCandidate?.source;
+  const configuredPanelists = panelistsCandidate?.config.defaults?.panelists;
+  const targetSize = panelSizeCandidate?.config.defaults?.panel_size ?? configuredPanelists?.length ?? 2;
   const selected = selectPanelAgents(
     configuredPanelists ?? builtInAgents(input.inventory, 2),
     targetSize,
@@ -312,16 +322,13 @@ function parseRolesConfig(value) {
     });
   }
   if (value.advisor !== void 0) {
-    roles.advisor = parseAgentList(value.advisor, {
-      label: "Consensus config roles.advisor",
-      minLength: 1
-    });
+    roles.advisor = parseAgentRef(value.advisor, "Consensus config roles.advisor");
   }
   if (value.synthesizer !== void 0) {
-    roles.synthesizer = parseAgentList(value.synthesizer, {
-      label: "Consensus config roles.synthesizer",
-      minLength: 1
-    });
+    roles.synthesizer = parseAgentRef(
+      value.synthesizer,
+      "Consensus config roles.synthesizer"
+    );
   }
   return roles;
 }
@@ -2930,7 +2937,7 @@ async function runConfigGet(command, io, options) {
 async function runConfigSet(command, io) {
   const cwd = command.cwd ?? io.cwd;
   const patch = parseConfigSetPatch(command);
-  if (!command.fromFile && Object.keys(patch).length === 1) {
+  if (!command.fromFile && !configDefaultsHasValues(patch)) {
     throw new ConsensusCliUsageError(
       "config set requires --peers, --panelists, --panel-size, or --from-file"
     );
@@ -2940,10 +2947,7 @@ async function runConfigSet(command, io) {
     cwd,
     env: io.env
   }) ?? { schema_version: "v1" };
-  const config = parseConfigForCli({
-    ...base,
-    ...patch
-  });
+  const config = parseConfigForCli(configWithDefaultsPatch(base, patch));
   await writeConsensusConfig({
     scope: command.scope,
     cwd,
@@ -2986,8 +2990,10 @@ async function readEffectiveConfig(cwd, env) {
 }
 function mergeConfigs(user, project) {
   const config = { schema_version: "v1" };
-  mergeConfigFields(config, user);
-  mergeConfigFields(config, project);
+  const defaults = {};
+  mergeConfigFields(defaults, user?.defaults);
+  mergeConfigFields(defaults, project?.defaults);
+  if (configDefaultsHasValues(defaults)) config.defaults = defaults;
   return config;
 }
 function mergeConfigFields(target, source) {
@@ -2998,7 +3004,7 @@ function mergeConfigFields(target, source) {
   if (source.roles !== void 0) target.roles = source.roles;
 }
 function configHasDefaults(config) {
-  return config !== null && (config.peers !== void 0 || config.panelists !== void 0 || config.panel_size !== void 0 || config.roles !== void 0);
+  return config !== null && configDefaultsHasValues(config.defaults);
 }
 async function readConfigFromFile(filePath, io) {
   let parsed;
@@ -3021,9 +3027,7 @@ function parseConfigForCli(value) {
   }
 }
 function parseConfigSetPatch(command) {
-  const patch = {
-    schema_version: "v1"
-  };
+  const patch = {};
   if (command.peers !== void 0) {
     patch.peers = parseAgentSpecList(command.peers);
   }
@@ -3034,6 +3038,18 @@ function parseConfigSetPatch(command) {
     patch.panel_size = command.panelSize;
   }
   return patch;
+}
+function configWithDefaultsPatch(base, patch) {
+  const defaults = {
+    ...base.defaults ?? {},
+    ...patch
+  };
+  const config = { schema_version: base.schema_version };
+  if (configDefaultsHasValues(defaults)) config.defaults = defaults;
+  return config;
+}
+function configDefaultsHasValues(defaults) {
+  return defaults !== void 0 && (defaults.peers !== void 0 || defaults.panelists !== void 0 || defaults.panel_size !== void 0 || defaults.roles !== void 0);
 }
 function parseAgentSpecList(value) {
   return value.split(",").map((item) => item.trim()).filter((item) => item.length > 0).map(parseAgentSpec);

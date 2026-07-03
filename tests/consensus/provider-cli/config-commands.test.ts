@@ -18,7 +18,9 @@ describe('provider CLI consensus config commands', () => {
         env: context.env,
         config: {
           schema_version: 'v1',
-          peers: [{ provider: 'claude' }, { provider: 'codex' }],
+          defaults: {
+            peers: [{ provider: 'claude' }, { provider: 'codex' }],
+          },
         },
       });
       await writeConsensusConfig({
@@ -27,12 +29,14 @@ describe('provider CLI consensus config commands', () => {
         env: context.env,
         config: {
           schema_version: 'v1',
-          peers: [{ provider: 'codex' }, { provider: 'cursor' }],
-          panelists: [
-            { provider: 'claude' },
-            { provider: 'codex' },
-            { provider: 'cursor' },
-          ],
+          defaults: {
+            peers: [{ provider: 'codex' }, { provider: 'cursor' }],
+            panelists: [
+              { provider: 'claude' },
+              { provider: 'codex' },
+              { provider: 'cursor' },
+            ],
+          },
         },
       });
 
@@ -46,7 +50,9 @@ describe('provider CLI consensus config commands', () => {
           scope: 'user',
           config: {
             schema_version: 'v1',
-            peers: [{ provider: 'claude' }, { provider: 'codex' }],
+            defaults: {
+              peers: [{ provider: 'claude' }, { provider: 'codex' }],
+            },
           },
         },
       });
@@ -59,7 +65,9 @@ describe('provider CLI consensus config commands', () => {
           ok: true,
           scope: 'project',
           config: {
-            peers: [{ provider: 'codex' }, { provider: 'cursor' }],
+            defaults: {
+              peers: [{ provider: 'codex' }, { provider: 'cursor' }],
+            },
           },
         },
       });
@@ -83,12 +91,14 @@ describe('provider CLI consensus config commands', () => {
           workflow: 'convergence',
           agents: [{ provider: 'codex' }, { provider: 'cursor' }],
           config: {
-            peers: [{ provider: 'codex' }, { provider: 'cursor' }],
-            panelists: [
-              { provider: 'claude' },
-              { provider: 'codex' },
-              { provider: 'cursor' },
-            ],
+            defaults: {
+              peers: [{ provider: 'codex' }, { provider: 'cursor' }],
+              panelists: [
+                { provider: 'claude' },
+                { provider: 'codex' },
+                { provider: 'cursor' },
+              ],
+            },
           },
           diagnostics: {
             warnings: [],
@@ -145,7 +155,9 @@ describe('provider CLI consensus config commands', () => {
           scope: 'user',
           config: {
             schema_version: 'v1',
-            peers: [{ provider: 'claude' }, { provider: 'codex' }],
+            defaults: {
+              peers: [{ provider: 'claude' }, { provider: 'codex' }],
+            },
           },
         },
       });
@@ -168,12 +180,14 @@ describe('provider CLI consensus config commands', () => {
           ok: true,
           scope: 'project',
           config: {
-            panelists: [
-              { provider: 'claude' },
-              { provider: 'codex' },
-              { provider: 'cursor' },
-            ],
-            panel_size: 3,
+            defaults: {
+              panelists: [
+                { provider: 'claude' },
+                { provider: 'codex' },
+                { provider: 'cursor' },
+              ],
+              panel_size: 3,
+            },
           },
         },
       });
@@ -186,7 +200,9 @@ describe('provider CLI consensus config commands', () => {
           ),
         ),
       ).toMatchObject({
-        peers: [{ provider: 'claude' }, { provider: 'codex' }],
+        defaults: {
+          peers: [{ provider: 'claude' }, { provider: 'codex' }],
+        },
       });
       await expect(
         JSON.parse(
@@ -196,12 +212,14 @@ describe('provider CLI consensus config commands', () => {
           ),
         ),
       ).toMatchObject({
-        panelists: [
-          { provider: 'claude' },
-          { provider: 'codex' },
-          { provider: 'cursor' },
-        ],
-        panel_size: 3,
+        defaults: {
+          panelists: [
+            { provider: 'claude' },
+            { provider: 'codex' },
+            { provider: 'cursor' },
+          ],
+          panel_size: 3,
+        },
       });
     });
   });
@@ -213,9 +231,11 @@ describe('provider CLI consensus config commands', () => {
         filePath,
         JSON.stringify({
           schema_version: 'v1',
-          peers: [{ provider: 'codex' }, { provider: 'claude' }],
-          roles: {
-            advisor: [{ provider: 'cursor' }],
+          defaults: {
+            peers: [{ provider: 'codex' }, { provider: 'claude' }],
+            roles: {
+              advisor: { provider: 'cursor' },
+            },
           },
         }),
       );
@@ -236,11 +256,47 @@ describe('provider CLI consensus config commands', () => {
           ok: true,
           scope: 'project',
           config: {
-            peers: [{ provider: 'codex' }, { provider: 'claude' }],
-            roles: {
-              advisor: [{ provider: 'cursor' }],
+            defaults: {
+              peers: [{ provider: 'codex' }, { provider: 'claude' }],
+              roles: {
+                advisor: { provider: 'cursor' },
+              },
             },
           },
+        },
+      });
+    });
+  });
+
+  it('returns a usage envelope when --from-file omits schema_version', async () => {
+    await withTempCli(async (context) => {
+      const filePath = path.join(context.root, 'no-schema-config.json');
+      await writeFile(
+        filePath,
+        JSON.stringify({
+          defaults: {
+            peers: [{ provider: 'codex' }, { provider: 'claude' }],
+          },
+        }),
+      );
+
+      await expect(
+        runCli(context, [
+          'config',
+          'set',
+          '--json',
+          '--scope',
+          'project',
+          '--from-file',
+          filePath,
+        ]),
+      ).resolves.toMatchObject({
+        code: 2,
+        json: {
+          ok: false,
+          code: 'CONSENSUS_CLI_USAGE',
+          message:
+            'Malformed consensus config: Consensus config schema_version must be "v1"',
         },
       });
     });
@@ -278,11 +334,13 @@ describe('provider CLI consensus config commands', () => {
           key: 'panel-size',
           config: {
             schema_version: 'v1',
-            panelists: [
-              { provider: 'claude' },
-              { provider: 'codex' },
-              { provider: 'cursor' },
-            ],
+            defaults: {
+              panelists: [
+                { provider: 'claude' },
+                { provider: 'codex' },
+                { provider: 'cursor' },
+              ],
+            },
           },
         },
       });
@@ -362,7 +420,9 @@ describe('provider CLI consensus config commands', () => {
         filePath,
         JSON.stringify({
           schema_version: 'v1',
-          panelists: [{ provider: 'claude' }],
+          defaults: {
+            panelists: [{ provider: 'claude' }],
+          },
         }),
       );
 

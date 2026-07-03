@@ -35,8 +35,8 @@ export interface ConsensusAgentRef {
 
 export interface ConsensusRolesConfig {
   panelist?: ConsensusAgentRef[];
-  advisor?: ConsensusAgentRef[];
-  synthesizer?: ConsensusAgentRef[];
+  advisor?: ConsensusAgentRef;
+  synthesizer?: ConsensusAgentRef;
 }
 
 export interface ConsensusDefaults {
@@ -46,8 +46,9 @@ export interface ConsensusDefaults {
   roles?: ConsensusRolesConfig;
 }
 
-export interface ConsensusDefaultsConfig extends ConsensusDefaults {
+export interface ConsensusDefaultsConfig {
   schema_version: 'v1';
+  defaults?: ConsensusDefaults;
 }
 
 export interface ConsensusConfigIo {
@@ -85,13 +86,8 @@ interface ConfigCandidate {
 }
 
 const BUILT_IN_PROVIDER_ORDER: ProviderId[] = ['claude', 'codex'];
-const TOP_LEVEL_KEYS = new Set([
-  'schema_version',
-  'peers',
-  'panelists',
-  'panel_size',
-  'roles',
-]);
+const CONFIG_KEYS = new Set(['schema_version', 'defaults']);
+const DEFAULTS_KEYS = new Set(['peers', 'panelists', 'panel_size', 'roles']);
 const AGENT_KEYS = new Set(['provider', 'model', 'effort']);
 const ROLE_KEYS = new Set(['panelist', 'advisor', 'synthesizer']);
 
@@ -101,37 +97,48 @@ export function parseConsensusDefaultsConfig(
   if (!isRecord(value)) {
     throw new Error('Consensus config must be an object');
   }
-  assertKnownKeys(value, TOP_LEVEL_KEYS, 'Consensus config');
+  assertKnownKeys(value, CONFIG_KEYS, 'Consensus config');
 
-  if (
-    value.schema_version !== undefined &&
-    value.schema_version !== 'v1'
-  ) {
+  if (value.schema_version !== 'v1') {
     throw new Error('Consensus config schema_version must be "v1"');
   }
 
   const config: ConsensusDefaultsConfig = { schema_version: 'v1' };
+  if (value.defaults !== undefined) {
+    config.defaults = parseConsensusDefaults(value.defaults);
+  }
+
+  return config;
+}
+
+function parseConsensusDefaults(value: unknown): ConsensusDefaults {
+  if (!isRecord(value)) {
+    throw new Error('Consensus config defaults must be an object');
+  }
+  assertKnownKeys(value, DEFAULTS_KEYS, 'Consensus config defaults');
+
+  const defaults: ConsensusDefaults = {};
 
   if (value.peers !== undefined) {
-    config.peers = parseAgentList(value.peers, {
+    defaults.peers = parseAgentList(value.peers, {
       label: 'Consensus config peers',
       exactLength: 2,
     });
   }
   if (value.panelists !== undefined) {
-    config.panelists = parseAgentList(value.panelists, {
+    defaults.panelists = parseAgentList(value.panelists, {
       label: 'Consensus config panelists',
       minLength: 2,
     });
   }
   if (value.panel_size !== undefined) {
-    config.panel_size = parsePanelSize(value.panel_size);
+    defaults.panel_size = parsePanelSize(value.panel_size);
   }
   if (value.roles !== undefined) {
-    config.roles = parseRolesConfig(value.roles);
+    defaults.roles = parseRolesConfig(value.roles);
   }
 
-  return config;
+  return defaults;
 }
 
 export async function readConsensusConfig(
@@ -180,19 +187,21 @@ export async function clearConsensusConfig(
   const existing = await readConsensusConfig(input);
   if (!existing) return;
 
-  const next: ConsensusDefaultsConfig = { ...existing };
+  const defaults: ConsensusDefaults = { ...(existing.defaults ?? {}) };
   if (key === 'peers') {
-    delete next.peers;
+    delete defaults.peers;
   } else if (key === 'panelists') {
-    delete next.panelists;
+    delete defaults.panelists;
   } else if (key === 'panel-size') {
-    delete next.panel_size;
+    delete defaults.panel_size;
   } else if (key === 'roles') {
-    delete next.roles;
+    delete defaults.roles;
   } else {
     assertNever(key);
   }
 
+  const next: ConsensusDefaultsConfig = { schema_version: 'v1' };
+  if (hasConsensusDefaults(defaults)) next.defaults = defaults;
   await writeJsonAtomic(configPath, next);
 }
 
@@ -223,10 +232,10 @@ async function loadCandidates(
   if (input.invocation && hasConsensusDefaults(input.invocation)) {
     candidates.push({
       source: 'invocation',
-      config: parseConsensusDefaultsConfig({
+      config: {
         schema_version: 'v1',
-        ...input.invocation,
-      }),
+        defaults: parseConsensusDefaults(input.invocation),
+      },
     });
   }
 
@@ -252,14 +261,15 @@ function resolveConvergenceComposition(
   candidates: ConfigCandidate[],
 ): ResolvedConsensusComposition {
   const candidate = candidates.find(
-    ({ config }) => config.peers !== undefined,
+    ({ config }) => config.defaults?.peers !== undefined,
   );
-  if (candidate?.config.peers) {
+  const peers = candidate?.config.defaults?.peers;
+  if (peers) {
     return {
       source: candidate.source,
       workflow: 'convergence',
-      agents: candidate.config.peers,
-      warnings: inventoryWarnings(candidate.config.peers, input.inventory),
+      agents: peers,
+      warnings: inventoryWarnings(peers, input.inventory),
     };
   }
 
@@ -276,15 +286,23 @@ function resolvePanelComposition(
   candidates: ConfigCandidate[],
 ): ResolvedConsensusComposition {
   const panelistsCandidate = candidates.find(
-    ({ config }) => config.panelists !== undefined,
+    ({ config }) => config.defaults?.panelists !== undefined,
   );
-  const panelSizeCandidate = candidates.find(
-    ({ config }) => config.panel_size !== undefined,
+  const firstPanelSizeCandidate = candidates.find(
+    ({ config }) => config.defaults?.panel_size !== undefined,
   );
-  const source = panelistsCandidate?.source ?? panelSizeCandidate?.source;
-  const configuredPanelists = panelistsCandidate?.config.panelists;
+  const panelSizeCandidate =
+    panelistsCandidate?.source === 'invocation' &&
+    firstPanelSizeCandidate?.source !== 'invocation'
+      ? undefined
+      : firstPanelSizeCandidate;
+  const source =
+    panelSizeCandidate?.source === 'invocation'
+      ? 'invocation'
+      : panelistsCandidate?.source ?? panelSizeCandidate?.source;
+  const configuredPanelists = panelistsCandidate?.config.defaults?.panelists;
   const targetSize =
-    panelSizeCandidate?.config.panel_size ??
+    panelSizeCandidate?.config.defaults?.panel_size ??
     configuredPanelists?.length ??
     2;
 
@@ -470,16 +488,13 @@ function parseRolesConfig(value: unknown): ConsensusRolesConfig {
     });
   }
   if (value.advisor !== undefined) {
-    roles.advisor = parseAgentList(value.advisor, {
-      label: 'Consensus config roles.advisor',
-      minLength: 1,
-    });
+    roles.advisor = parseAgentRef(value.advisor, 'Consensus config roles.advisor');
   }
   if (value.synthesizer !== undefined) {
-    roles.synthesizer = parseAgentList(value.synthesizer, {
-      label: 'Consensus config roles.synthesizer',
-      minLength: 1,
-    });
+    roles.synthesizer = parseAgentRef(
+      value.synthesizer,
+      'Consensus config roles.synthesizer',
+    );
   }
 
   return roles;
