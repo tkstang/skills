@@ -531,7 +531,7 @@ Track test execution during implementation.
 | p02   | `pnpm exec vitest run tests/consensus/create tests/consensus/decide tests/consensus/plan`; `pnpm exec vitest run tests/consensus/refine tests/consensus/evaluate`; `pnpm run type-check`; `pnpm run build`; `pnpm run build:check`; `pnpm exec vitest run tests/consensus/generated-config-import.test.ts tests/tooling/generated-output-sync.test.ts`; `pnpm run validate`; `pnpm run validate:skill-versions --base-ref origin/main` | pass | 0 | Targeted wrapper, generated-output, validation, and skill-version coverage |
 | p03   | `pnpm exec vitest run tests/consensus/panel/wrapper.test.ts tests/consensus/panel/panel-schema.test.ts`; `pnpm exec vitest run tests/consensus/panel/provider-cli-integration.test.ts`; `pnpm exec vitest run tests/consensus/panel`; `pnpm run type-check`; `pnpm run build`; `pnpm run build:check`; `node plugins/consensus/skills/panel/scripts/consensus-panel.mjs --help`; `pnpm exec vitest run tests/tooling/generated-output-sync.test.ts` | pass | 0 | Targeted panel runtime and generated-output coverage |
 | p04   | `pnpm exec vitest run tests/repo/skill-frontmatter.test.ts tests/repo/docs-presence.test.ts tests/repo/layout.test.ts tests/repo/readme-scope.test.ts tests/repo/plugin-manifests.test.ts`; `pnpm run validate`; `pnpm exec oxfmt --check documentation/docs/user-guide/consensus/panel.md documentation/docs/user-guide/consensus/index.md documentation/docs/user-guide/consensus/configuration.md documentation/docs/user-guide/consensus/meta.json` | pass | 0 | Skill, docs, manifests, README scope, validation, and targeted docs formatting |
-| p05   | `pnpm run build && pnpm run build:check && pnpm run type-check && pnpm run test && pnpm run validate && pnpm run smoke`; `oat backlog regenerate-index`; `pnpm run validate` | pass | 0 | Full generated-output, type-check, test, validation, smoke, and backlog-index coverage |
+| p05   | `pnpm run build && pnpm run build:check && pnpm run type-check && pnpm run test && pnpm run validate && pnpm run smoke && pnpm run lint`; `oat backlog regenerate-index`; `pnpm run validate` | pass | 0 | Full generated-output, type-check, test, validation, smoke, lint, and backlog-index coverage |
 
 ## Final Summary (for PR/docs)
 
@@ -581,6 +581,7 @@ Track test execution during implementation.
 - `pnpm run test`
 - `pnpm run validate`
 - `pnpm run smoke`
+- `pnpm run lint`
 - `pnpm run validate:skill-versions --base-ref origin/main`
 - Targeted Vitest coverage for config, provider CLI, wrapper defaults, panel
   runtime, plugin manifests/docs/readme surfaces, release versioning, and

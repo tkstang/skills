@@ -159,6 +159,7 @@ export async function readConsensusConfig(
   } catch (error) {
     throw new Error(
       `Could not parse consensus config at ${configPath}: ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error },
     );
   }
 
@@ -187,7 +188,7 @@ export async function clearConsensusConfig(
   const existing = await readConsensusConfig(input);
   if (!existing) return;
 
-  const defaults: ConsensusDefaults = { ...(existing.defaults ?? {}) };
+  const defaults: ConsensusDefaults = { ...existing.defaults };
   if (key === 'peers') {
     delete defaults.peers;
   } else if (key === 'panelists') {

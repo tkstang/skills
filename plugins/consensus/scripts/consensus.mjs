@@ -79,7 +79,8 @@ async function readConsensusConfig(input) {
     parsed = JSON.parse(contents);
   } catch (error) {
     throw new Error(
-      `Could not parse consensus config at ${configPath}: ${error instanceof Error ? error.message : String(error)}`
+      `Could not parse consensus config at ${configPath}: ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error }
     );
   }
   return parseConsensusDefaultsConfig(parsed);
@@ -98,7 +99,7 @@ async function clearConsensusConfig(input) {
   }
   const existing = await readConsensusConfig(input);
   if (!existing) return;
-  const defaults = { ...existing.defaults ?? {} };
+  const defaults = { ...existing.defaults };
   if (key === "peers") {
     delete defaults.peers;
   } else if (key === "panelists") {
@@ -3046,7 +3047,7 @@ function parseConfigSetPatch(command) {
 }
 function configWithDefaultsPatch(base, patch) {
   const defaults = {
-    ...base.defaults ?? {},
+    ...base.defaults,
     ...patch
   };
   const config = { schema_version: base.schema_version };

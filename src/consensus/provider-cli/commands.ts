@@ -616,7 +616,7 @@ function configWithDefaultsPatch(
   patch: ConsensusDefaults,
 ): ConsensusDefaultsConfig {
   const defaults = {
-    ...(base.defaults ?? {}),
+    ...base.defaults,
     ...patch,
   };
   const config: ConsensusDefaultsConfig = { schema_version: base.schema_version };
