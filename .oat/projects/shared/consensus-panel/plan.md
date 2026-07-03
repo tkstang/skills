@@ -668,7 +668,7 @@ git commit -m "chore(p05-t02): close consensus panel backlog items"
 | p02    | code     | passed          | 2026-07-03 | reviews/p02-rereview-2026-07-03.md                        |
 | p03    | code     | passed          | 2026-07-03 | reviews/p03-rereview-2026-07-03-v2.md                     |
 | p04    | code     | passed          | 2026-07-03 | reviews/p04-review-2026-07-03.md                          |
-| p05    | code     | fixes_completed | 2026-07-03 | reviews/p05-review-2026-07-03.md                          |
+| p05    | code     | passed          | 2026-07-03 | reviews/p05-rereview-2026-07-03.md                        |
 | final  | code     | pending         | -          | -                                                          |
 | spec   | artifact | pending         | -          | -                                                          |
 | design | artifact | fixes_completed | 2026-07-01 | reviews/archived/artifact-design-review-2026-07-01.md     |

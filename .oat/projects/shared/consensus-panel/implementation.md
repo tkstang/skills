@@ -30,11 +30,11 @@ oat_generated: false
 | Phase 2 | passed | 3          | 3/3       |
 | Phase 3 | passed | 3          | 3/3       |
 | Phase 4 | passed | 3          | 3/3       |
-| Phase 5 | fixes_completed | 2 | 2/2       |
+| Phase 5 | passed | 2          | 2/2       |
 
 **Total:** 14/14 tasks completed
 
-**Next task:** none - p05 review pending
+**Next task:** none - p05 HiLL checkpoint approval pending
 
 ---
 
@@ -220,9 +220,9 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 | p02 | passed | reviews/p02-rereview-2026-07-03.md | One Important finding fixed in `619aff5`; re-review passed. |
 | p03 | passed | reviews/p03-rereview-2026-07-03-v2.md | One Critical and one Important finding fixed in `7d343d9`; re-review passed. |
 | p04 | passed | reviews/p04-review-2026-07-03.md | Passed with 0 findings. |
-| p05 | fixes_completed | reviews/p05-review-2026-07-03.md | HiLL checkpoint metadata and phone-a-friend wording fixed; re-review pending. |
+| p05 | passed | reviews/p05-rereview-2026-07-03.md | HiLL checkpoint metadata and phone-a-friend wording fixed; re-review passed. |
 
-**Outstanding items:** Run p05 re-review, then request HiLL checkpoint approval.
+**Outstanding items:** Request HiLL checkpoint approval.
 
 <!-- orchestration-runs-end -->
 
@@ -442,6 +442,20 @@ canonical-equivalent in-root paths.
 **Disposition:** fixes_completed - machine-readable HiLL checkpoint state now
 includes `p05`; `phone-a-friend` now points to the shipped panel workflow.
 
+### Code Re-Review Received: p05
+
+**Date:** 2026-07-03
+**Review artifact:** reviews/p05-rereview-2026-07-03.md
+
+**Findings:**
+
+- Critical: 0
+- Important: 0
+- Medium: 0
+- Minor: 0
+
+**Disposition:** passed - request HiLL checkpoint approval.
+
 ---
 
 ## Implementation Log
@@ -491,6 +505,9 @@ Chronological log of implementation progress.
   Important and one Minor finding; fix before requesting HiLL checkpoint approval.
 - p05 review findings fixed by adding `p05` to machine-readable HiLL checkpoint
   state and updating `phone-a-friend` panel wording/version.
+- p05 re-review passed with 0 findings in
+  `reviews/p05-rereview-2026-07-03.md`; human HiLL checkpoint approval is
+  pending.
 
 ---
 
