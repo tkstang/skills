@@ -276,7 +276,7 @@ function resolveConvergenceComposition(
   return {
     source: 'built-in',
     workflow: 'convergence',
-    agents: builtInAgents(input.inventory, 2),
+    agents: builtInConvergenceAgents(2),
     warnings: [],
   };
 }
@@ -372,6 +372,12 @@ function builtInAgents(
     selected.push(agent);
   }
   return selected;
+}
+
+function builtInConvergenceAgents(count: number): ConsensusAgentRef[] {
+  return BUILT_IN_PROVIDER_ORDER.slice(0, count).map((provider) => ({
+    provider,
+  }));
 }
 
 function missingBuiltInAgents(

@@ -157,7 +157,7 @@ function resolveConvergenceComposition(input, candidates) {
   return {
     source: "built-in",
     workflow: "convergence",
-    agents: builtInAgents(input.inventory, 2),
+    agents: builtInConvergenceAgents(2),
     warnings: []
   };
 }
@@ -221,6 +221,11 @@ function builtInAgents(inventory, count) {
     selected.push(agent);
   }
   return selected;
+}
+function builtInConvergenceAgents(count) {
+  return BUILT_IN_PROVIDER_ORDER.slice(0, count).map((provider) => ({
+    provider
+  }));
 }
 function missingBuiltInAgents(current) {
   const seen = new Set(current.map((agent) => agent.provider));

@@ -23,6 +23,7 @@ interface IsolatedRunContext {
 
 async function withIsolatedConsensusConfig(
   fn: (context: IsolatedRunContext) => Promise<void>,
+  envOverrides: NodeJS.ProcessEnv = {},
 ) {
   const root = await mkdtemp(path.join(os.tmpdir(), 'consensus-plan-config-'));
   try {
@@ -41,6 +42,7 @@ async function withIsolatedConsensusConfig(
         HOME: home,
         XDG_CONFIG_HOME: xdg,
         CONSENSUS_STUB_PROVIDERS: 'claude,codex,cursor',
+        ...envOverrides,
       }),
     });
   } finally {
@@ -136,6 +138,23 @@ it('preserves built-in peer order when no consensus config exists', async () => 
 
     expect(result.peers).toEqual(['claude', 'codex']);
   });
+});
+
+it('fails preflight for unavailable built-in peers instead of substituting ready providers', async () => {
+  await withIsolatedConsensusConfig(
+    async (context) => {
+      await expect(
+        runPlanFixture(context, 'no-config-unavailable-built-in'),
+      ).rejects.toSatisfy((error: { code?: string; message: string }) => {
+        expect(error.code).toBe('PEER_UNAVAILABLE');
+        expect(error.message).toMatch(/codex/);
+        expect(error.message).toMatch(/auth_required/);
+        expect(error.message).not.toMatch(/cursor/);
+        return true;
+      });
+    },
+    { CONSENSUS_STUB_AUTH_REQUIRED: 'codex' },
+  );
 });
 
 it('uses project and user peer defaults only when --peers is absent', async () => {

@@ -197,6 +197,23 @@ it('preserves built-in evaluate peer order when no consensus config exists', asy
   });
 });
 
+it('fails preflight for unavailable built-in evaluate peers instead of substituting ready providers', async () => {
+  await withIsolatedConsensusConfig(
+    async (context) => {
+      await expect(
+        runEvaluateFixture(context, 'no-config-unavailable-built-in'),
+      ).rejects.toSatisfy((error: { code?: string; message: string }) => {
+        expect(error.code).toBe('PEER_UNAVAILABLE');
+        expect(error.message).toMatch(/codex/);
+        expect(error.message).toMatch(/auth_required/);
+        expect(error.message).not.toMatch(/cursor/);
+        return true;
+      });
+    },
+    { CONSENSUS_STUB_AUTH_REQUIRED: 'codex' },
+  );
+});
+
 it('uses project and user peer defaults only when --peers is absent', async () => {
   await withIsolatedConsensusConfig(async (context) => {
     await writeConsensusConfig({

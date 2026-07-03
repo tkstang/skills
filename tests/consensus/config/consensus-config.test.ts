@@ -150,6 +150,24 @@ describe('consensus config schema and resolver', () => {
     });
   });
 
+  it('keeps no-config convergence built-ins independent of inventory readiness', async () => {
+    await withTempConfig(async ({ cwd, env }) => {
+      await expect(
+        resolveConsensusComposition({
+          workflow: 'convergence',
+          cwd,
+          env,
+          inventory: inventory(['claude', 'codex', 'cursor'], {
+            codex: 'auth_required',
+          }),
+        }),
+      ).resolves.toMatchObject({
+        source: 'built-in',
+        agents: [{ provider: 'claude' }, { provider: 'codex' }],
+      });
+    });
+  });
+
   it('lets explicit invocation composition override persisted defaults', async () => {
     await withTempConfig(async ({ cwd, env }) => {
       await writeConsensusConfig({
@@ -530,10 +548,13 @@ async function withTempConfig(
   }
 }
 
-function inventory(ids: string[]): ProviderInventoryEntry[] {
+function inventory(
+  ids: string[],
+  statuses: Record<string, ProviderInventoryEntry['status']> = {},
+): ProviderInventoryEntry[] {
   return ids.map((id) => ({
     id,
-    status: 'ready',
+    status: statuses[id] ?? 'ready',
     capabilities: {
       schema_strategies: ['prompt_only'],
       output_modes: ['stdout_json'],
