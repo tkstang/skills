@@ -201,7 +201,7 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 | ----- | ------ | ------ | ----- |
 | p01 | passed | reviews/p01-rereview-2026-07-03.md | One fix iteration resolved four Important findings. |
 | p02 | passed | reviews/p02-rereview-2026-07-03.md | One Important finding fixed in `619aff5`; re-review passed. |
-| p03 | passed | reviews/p03-rereview-2026-07-03.md | One Critical and one Important finding fixed in `7d343d9`; re-review passed. |
+| p03 | passed | reviews/p03-rereview-2026-07-03-v2.md | One Critical and one Important finding fixed in `7d343d9`; re-review passed. |
 | p04 | in_progress | pending | Starting at `p04-t01`. |
 | p05 | pending | pending | HiLL checkpoint phase. |
 
@@ -385,7 +385,7 @@ canonical-equivalent in-root paths.
 ### Code Re-Review Received: p03
 
 **Date:** 2026-07-03
-**Review artifact:** reviews/p03-rereview-2026-07-03.md
+**Review artifact:** reviews/p03-rereview-2026-07-03-v2.md
 
 **Findings:**
 
@@ -431,7 +431,7 @@ Chronological log of implementation progress.
   Critical and one Important finding; fix before starting Phase 4.
 - p03 review findings fixed in `7d343d9`; p03 re-review is pending.
 - p03 re-review passed with 0 findings in
-  `reviews/p03-rereview-2026-07-03.md`; Phase 4 started at `p04-t01`.
+  `reviews/p03-rereview-2026-07-03-v2.md`; Phase 4 started at `p04-t01`.
 
 ---
 
