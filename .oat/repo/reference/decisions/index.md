@@ -9,6 +9,11 @@
 <!-- OAT DECISION-INDEX -->
 | ID | Date | Status | Title | Legacy |
 | --- | --- | --- | --- | --- |
+| DR-260703-invocation-wins-over-persisted | 2026-07-03 | accepted | Invocation wins over persisted defaults | - |
+| DR-260703-moderator-stays-neutral | 2026-07-03 | accepted | Moderator stays neutral | - |
+| DR-260703-one-project-for-config | 2026-07-03 | accepted | One project for config and panel | - |
+| DR-260703-panel-is-single-round-breadth | 2026-07-03 | accepted | Panel is single round breadth | - |
+| DR-260703-provider-cli-owns | 2026-07-03 | accepted | Provider CLI owns configuration | - |
 | DR-260628-host-owned-disposition | 2026-06-28 | accepted | Host-owned disposition | - |
 | DR-260628-instruction-only-advisory | 2026-06-28 | accepted | Instruction-only advisory skill | - |
 | DR-260628-phone-a-friend-naming | 2026-06-28 | accepted | Phone-a-friend naming | - |
