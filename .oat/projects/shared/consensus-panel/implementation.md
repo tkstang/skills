@@ -30,7 +30,7 @@ oat_generated: false
 | Phase 2 | passed | 3          | 3/3       |
 | Phase 3 | passed | 3          | 3/3       |
 | Phase 4 | passed | 3          | 3/3       |
-| Phase 5 | fixes_required | 2 | 2/2       |
+| Phase 5 | fixes_completed | 2 | 2/2       |
 
 **Total:** 14/14 tasks completed
 
@@ -220,9 +220,9 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 | p02 | passed | reviews/p02-rereview-2026-07-03.md | One Important finding fixed in `619aff5`; re-review passed. |
 | p03 | passed | reviews/p03-rereview-2026-07-03-v2.md | One Critical and one Important finding fixed in `7d343d9`; re-review passed. |
 | p04 | passed | reviews/p04-review-2026-07-03.md | Passed with 0 findings. |
-| p05 | fixes_required | reviews/p05-review-2026-07-03.md | One Important and one Minor finding; fix loop pending. |
+| p05 | fixes_completed | reviews/p05-review-2026-07-03.md | HiLL checkpoint metadata and phone-a-friend wording fixed; re-review pending. |
 
-**Outstanding items:** Fix p05 review findings, re-review, then request HiLL checkpoint approval.
+**Outstanding items:** Run p05 re-review, then request HiLL checkpoint approval.
 
 <!-- orchestration-runs-end -->
 
@@ -439,8 +439,8 @@ canonical-equivalent in-root paths.
 - Medium: 0
 - Minor: 1
 
-**Disposition:** fixes_required - machine-readable HiLL checkpoint state omits
-`p05`; `phone-a-friend` still refers to `consensus-panel` as future work.
+**Disposition:** fixes_completed - machine-readable HiLL checkpoint state now
+includes `p05`; `phone-a-friend` now points to the shipped panel workflow.
 
 ---
 
@@ -489,6 +489,8 @@ Chronological log of implementation progress.
   - `p05-t02` completed in `dadc4c0`.
 - p05 code review received in `reviews/p05-review-2026-07-03.md` with one
   Important and one Minor finding; fix before requesting HiLL checkpoint approval.
+- p05 review findings fixed by adding `p05` to machine-readable HiLL checkpoint
+  state and updating `phone-a-friend` panel wording/version.
 
 ---
 

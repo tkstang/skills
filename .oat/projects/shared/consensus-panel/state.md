@@ -8,7 +8,7 @@ oat_parent: null # optional child-only coordination parent slug
 oat_siblings: [] # optional child-only sibling slugs
 oat_depends_on: [] # optional child-only sibling dependencies
 oat_children: [] # optional coordination-parent child slugs
-oat_hill_checkpoints: [] # Configured: which phases require human-in-the-loop lifecycle approval
+oat_hill_checkpoints: ["p05"] # Configured: which phases require human-in-the-loop lifecycle approval
 oat_hill_completed: [] # Progress: which HiLL checkpoints have been completed
 oat_parallel_execution: false
 oat_phase: implement # Current phase: discovery | spec | design | plan | implement | decomposition
@@ -27,7 +27,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-01T00:10:18.011Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-03T04:04:06Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-03T04:10:43Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -39,7 +39,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation - p05 review received; fixing HiLL checkpoint metadata before approval
+Implementation - p05 review findings fixed; p05 re-review pending
 
 ## Artifacts
 
@@ -80,7 +80,9 @@ Implementation - p05 review received; fixing HiLL checkpoint metadata before app
 - ✓ p04 code review passed
 - ✓ p05-t01 full validation gates passed
 - ✓ p05-t02 backlog records closed
-- ⧗ p05 HiLL checkpoint review received with one Important finding
+- ✓ p05 HiLL checkpoint review received with one Important finding
+- ✓ p05 review findings fixed
+- ⧗ p05 re-review pending before human checkpoint approval
 
 ## Blockers
 
@@ -88,4 +90,4 @@ None
 
 ## Next Milestone
 
-Fix p05 review findings and re-review p05 before requesting human checkpoint approval.
+Pass p05 re-review, then request human checkpoint approval.
