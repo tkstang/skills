@@ -34,7 +34,7 @@ describe('plugin-manifests', () => {
         name: 'Thomas Stang',
       });
       expect(manifest.description, `${provider} description`).toBe(
-        'Consensus create, decide, plan, refine, evaluate, and phone-a-friend skills for peer deliberation and advisory consultation.',
+        'Consensus create, decide, plan, refine, evaluate, panel, and phone-a-friend skills for peer deliberation, attributed panels, and advisory consultation.',
       );
 
       if (provider === 'codex') {
@@ -87,6 +87,10 @@ describe('plugin-manifests', () => {
         JSON.stringify(manifest),
         `${provider} manifest should advertise consensus-phone-a-friend`,
       ).toMatch(/phone-a-friend/i);
+      expect(
+        JSON.stringify(manifest),
+        `${provider} manifest should advertise consensus-panel`,
+      ).toMatch(/panel/i);
     }
   });
 
@@ -95,10 +99,10 @@ describe('plugin-manifests', () => {
 
     expect(manifest.interface?.displayName).toBe('Consensus');
     expect(manifest.interface?.shortDescription).toBe(
-      'Create, decide, plan, refine, evaluate, or phone-a-friend with Consensus.',
+      'Create, decide, plan, refine, evaluate, panel, or phone-a-friend with Consensus.',
     );
     expect(manifest.interface?.longDescription).toBe(
-      'Consensus skills for creating artifacts from briefs, deciding between options, planning from goals and constraints, refining markdown drafts, evaluating artifacts against rubrics with multiple AI peers and an audit trail, or asking one other peer for a structured advisory take.',
+      'Consensus skills for creating artifacts from briefs, deciding between options, planning from goals and constraints, refining markdown drafts, evaluating artifacts against rubrics with multiple AI peers and an audit trail, running neutral multi-peer panels with attributed responses, or asking one other peer for a structured advisory take.',
     );
     expect(manifest.interface?.developerName).toBe('Thomas Stang');
     expect(manifest.interface?.category).toBe('Coding');
@@ -109,10 +113,11 @@ describe('plugin-manifests', () => {
     ]);
     expect(manifest.interface?.defaultPrompt).toEqual([
       'Use Consensus Create to draft from a brief, Consensus Decide to turn options into a decision, Consensus Refine to improve a markdown draft, or Consensus Evaluate to judge an artifact against a rubric.',
-      'Use Consensus Plan to turn a goal and constraints into a structured plan, or Consensus Phone-a-friend to ask one peer for a one-shot advisory take.',
+      'Use Consensus Plan to turn a goal and constraints into a structured plan, Consensus Panel to ask multiple peers the same question, or Consensus Phone-a-friend to ask one peer for a one-shot advisory take.',
     ]);
     expect(JSON.stringify(manifest.interface)).toMatch(/decide/i);
     expect(JSON.stringify(manifest.interface)).toMatch(/plan/i);
+    expect(JSON.stringify(manifest.interface)).toMatch(/panel/i);
     expect(JSON.stringify(manifest.interface)).toMatch(/phone-a-friend/i);
   });
 });
