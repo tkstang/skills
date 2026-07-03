@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-02
-oat_current_task_id: p04-t01
+oat_current_task_id: p05-t01
 oat_generated: false
 ---
 
