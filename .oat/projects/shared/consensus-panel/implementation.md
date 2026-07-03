@@ -498,6 +498,21 @@ includes `p05`; `phone-a-friend` now points to the shipped panel workflow.
 **Disposition:** fixes_added - preserve the documented project-root config
 contract by fixing project config root resolution.
 
+### Code Re-Review Received: final
+
+**Date:** 2026-07-03
+**Review artifact:** reviews/archived/final-review-2026-07-03-rereview-20260703T120001Z.md
+
+**Findings:**
+
+- Critical: 0
+- Important: 0
+- Medium: 0
+- Minor: 0
+
+**Disposition:** passed - final review fix `p06-t01` resolved the project config
+path semantics finding.
+
 ---
 
 ## Implementation Log
@@ -557,7 +572,7 @@ Chronological log of implementation progress.
 - Final review received in `reviews/archived/final-review-2026-07-03.md` with one
   Medium project config path-semantics finding; added `p06-t01`.
 - `p06-t01` completed in `5ed430f`; final review fixes are complete and final
-  re-review is pending.
+  re-review passed with 0 findings.
 
 ---
 
@@ -604,6 +619,8 @@ Track test execution during implementation.
 
 - Users can configure default convergence peers and panel defaults through
   `consensus config` without editing wrapper prompts.
+- Project config reads and effective resolution work from nested working
+  directories by walking upward to the nearest existing `.consensus/config.json`.
 - Existing convergence skills consume configured defaults only when explicit
   peers are omitted.
 - Users can run `consensus-panel` for breadth gathering from at least two
