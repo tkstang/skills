@@ -1,9 +1,9 @@
 ---
-oat_status: in_progress
+oat_status: complete
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-03
-oat_current_task_id: p06-t01
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -31,11 +31,11 @@ oat_generated: false
 | Phase 3 | passed | 3          | 3/3       |
 | Phase 4 | passed | 3          | 3/3       |
 | Phase 5 | passed | 2          | 2/2       |
-| Phase 6 | pending | 1          | 0/1       |
+| Phase 6 | completed | 1     | 1/1       |
 
-**Total:** 14/15 tasks completed
+**Total:** 15/15 tasks completed
 
-**Next task:** p06-t01
+**Next task:** none - final re-review pending
 
 ---
 
@@ -195,6 +195,30 @@ oat_generated: false
 
 **Status:** completed
 **Commit:** dadc4c0
+
+---
+
+## Phase 6: Final Review Fixes
+
+**Status:** completed
+**Started:** 2026-07-03
+**Completed:** 2026-07-03
+
+**Summary:**
+
+- Resolved the final review Medium finding by making project config lookup walk
+  upward from nested working directories to the nearest existing
+  `.consensus/config.json`.
+- Preserved deterministic project config writes by using the nearest existing
+  project config when present and the explicit cwd path when no config exists
+  above.
+- Added regression coverage for nested resolver and provider CLI effective
+  config behavior.
+
+### Task p06-t01: (review) Align project config root resolution
+
+**Status:** completed
+**Commit:** 5ed430f
 
 ---
 
@@ -532,6 +556,8 @@ Chronological log of implementation progress.
   `build:check`, `type-check`, and `lint` passed.
 - Final review received in `reviews/final-review-2026-07-03.md` with one
   Medium project config path-semantics finding; added `p06-t01`.
+- `p06-t01` completed in `5ed430f`; final review fixes are complete and final
+  re-review is pending.
 
 ---
 
@@ -554,6 +580,7 @@ Track test execution during implementation.
 | p03   | `pnpm exec vitest run tests/consensus/panel/wrapper.test.ts tests/consensus/panel/panel-schema.test.ts`; `pnpm exec vitest run tests/consensus/panel/provider-cli-integration.test.ts`; `pnpm exec vitest run tests/consensus/panel`; `pnpm run type-check`; `pnpm run build`; `pnpm run build:check`; `node plugins/consensus/skills/panel/scripts/consensus-panel.mjs --help`; `pnpm exec vitest run tests/tooling/generated-output-sync.test.ts` | pass | 0 | Targeted panel runtime and generated-output coverage |
 | p04   | `pnpm exec vitest run tests/repo/skill-frontmatter.test.ts tests/repo/docs-presence.test.ts tests/repo/layout.test.ts tests/repo/readme-scope.test.ts tests/repo/plugin-manifests.test.ts`; `pnpm run validate`; `pnpm exec oxfmt --check documentation/docs/user-guide/consensus/panel.md documentation/docs/user-guide/consensus/index.md documentation/docs/user-guide/consensus/configuration.md documentation/docs/user-guide/consensus/meta.json` | pass | 0 | Skill, docs, manifests, README scope, validation, and targeted docs formatting |
 | p05   | `pnpm run build && pnpm run build:check && pnpm run type-check && pnpm run test && pnpm run validate && pnpm run smoke && pnpm run lint`; `oat backlog regenerate-index`; `pnpm run validate` | pass | 0 | Full generated-output, type-check, test, validation, smoke, lint, and backlog-index coverage |
+| p06   | `pnpm exec vitest run tests/consensus/config/consensus-config.test.ts tests/consensus/provider-cli/config-commands.test.ts`; `pnpm run build && pnpm run build:check && pnpm run type-check && pnpm run test && pnpm run validate && pnpm run smoke && pnpm run lint` | pass | 0 | Final review project config root-resolution fix and full regression coverage |
 
 ## Final Summary (for PR/docs)
 
