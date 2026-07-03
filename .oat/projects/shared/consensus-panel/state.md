@@ -39,7 +39,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation - Phase 5 implemented; awaiting p05 HiLL checkpoint review
+Implementation - p05 review received; fixing HiLL checkpoint metadata before approval
 
 ## Artifacts
 
@@ -80,7 +80,7 @@ Implementation - Phase 5 implemented; awaiting p05 HiLL checkpoint review
 - ✓ p04 code review passed
 - ✓ p05-t01 full validation gates passed
 - ✓ p05-t02 backlog records closed
-- ⧗ p05 HiLL checkpoint review pending
+- ⧗ p05 HiLL checkpoint review received with one Important finding
 
 ## Blockers
 
@@ -88,4 +88,4 @@ None
 
 ## Next Milestone
 
-Pass p05 HiLL checkpoint review, then request human checkpoint approval.
+Fix p05 review findings and re-review p05 before requesting human checkpoint approval.
