@@ -1,14 +1,50 @@
 ---
 title: 'Configuration'
-description: 'Shared consensus configuration: peer selection, cold starts, the provider floor, preflight diagnostics, synthesizer, agency, Cursor auth, and required permissions.'
+description: 'Shared consensus configuration: peer and panelist selection, default config paths, precedence, cold starts, the provider floor, preflight diagnostics, synthesizer, agency, Cursor auth, and required permissions.'
 ---
 
 # Configuration
 
 Configuration shared by [`create`](create.md), [`decide`](decide.md),
-[`plan`](plan.md), [`refine`](refine.md), and [`evaluate`](evaluate.md).
+[`plan`](plan.md), [`refine`](refine.md), [`evaluate`](evaluate.md), and
+[`panel`](panel.md).
 For the full reference, see the
 [consensus plugin README](https://github.com/tkstang/skills/blob/main/plugins/consensus/README.md).
+
+## Config paths and precedence
+
+The generated provider CLI owns default composition through `consensus config`.
+Defaults are stored in JSON config files:
+
+- User config: `${XDG_CONFIG_HOME:-$HOME/.config}/consensus/config.json`.
+- Project config: `<project root>/.consensus/config.json`, resolved from the
+  invocation cwd or `--cwd`.
+
+Effective composition is resolved in this order:
+
+1. Invocation flags such as `--peers`, `--panelists`, and `--panel-size`.
+2. Project config from `.consensus/config.json`.
+3. User config from `.config/consensus/config.json` or `XDG_CONFIG_HOME`.
+4. Built-in defaults.
+
+Inspect defaults with:
+
+```bash
+consensus config get --json --scope effective
+consensus config get --json --scope effective --workflow panel
+consensus config list --json
+```
+
+Set or clear defaults with:
+
+```bash
+consensus config set --json --scope user --peers claude,codex
+consensus config set --json --scope project --panelists claude,codex,cursor --panel-size 3
+consensus config clear --json --scope project --key panelists
+```
+
+From a repository checkout, run the same commands through
+`plugins/consensus/scripts/consensus.mjs` with `node`.
 
 ## Peer selection
 
@@ -18,6 +54,33 @@ By default, host detection chooses `claude,codex` on Claude Code and Cursor, and
 ```bash
 node plugins/consensus/skills/refine/scripts/consensus-refine.mjs draft.md --peers claude,codex
 ```
+
+Converging workflows always resolve exactly two peers. `--peers` has precedence
+over project config, user config, and built-in defaults.
+
+## Panelist selection
+
+[`panel`](panel.md) resolves at least two provider-backed panelists. Override
+panelists for one run with `--panelists`:
+
+```bash
+node plugins/consensus/skills/panel/scripts/consensus-panel.mjs \
+  --question "What risks should we inspect?" \
+  --panelists claude,codex
+```
+
+Set a target size with `--panel-size`:
+
+```bash
+node plugins/consensus/skills/panel/scripts/consensus-panel.mjs \
+  --question-file question.md \
+  --panel-size 3
+```
+
+`--panelists` must list at least two provider ids. `--panel-size` must be 2 or
+larger. If `--panel-size` is smaller than the configured panelist list, the first
+N configured panelists are selected. If it is larger, the resolver appends ready
+providers from inventory order when possible.
 
 ## Provider floor, inventory, and preflight
 

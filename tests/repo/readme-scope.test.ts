@@ -164,6 +164,27 @@ describe('readme-scope', () => {
     );
   });
 
+  it('docs site documents consensus-panel as shipped, not future work', async () => {
+    const docs = await readDocsSite();
+
+    expect(docs).toMatch(/consensus-panel/);
+    expect(docs).toMatch(/neutral moderator/i);
+    expect(docs).toMatch(/side-by-side|attributed/i);
+    expect(docs).toMatch(/--question <text>/);
+    expect(docs).toMatch(/--question-file <path>/);
+    expect(docs).toMatch(/--panelists/);
+    expect(docs).toMatch(/--panel-size/);
+    expect(docs).toMatch(/consensus config get --json --scope effective/);
+    expect(docs).toMatch(/\.config\/consensus\/config\.json/);
+    expect(docs).toMatch(/\.consensus\/config\.json/);
+    expect(docs).toMatch(
+      /invocation[\s\S]*project[\s\S]*user[\s\S]*built-in/i,
+    );
+    expect(docs).not.toMatch(
+      /Remaining consensus-family skills are future work:[^\n]*consensus-panel/i,
+    );
+  });
+
   it('plugin README documents iteration modes and escalation flags', async () => {
     const readme = await read('plugins/consensus/README.md');
 

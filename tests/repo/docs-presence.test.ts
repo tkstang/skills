@@ -33,6 +33,7 @@ const createSkillPath = 'plugins/consensus/skills/create/SKILL.md';
 const decideSkillPath = 'plugins/consensus/skills/decide/SKILL.md';
 const planSkillPath = 'plugins/consensus/skills/plan/SKILL.md';
 const panelSkillPath = 'plugins/consensus/skills/panel/SKILL.md';
+const panelDocPath = 'documentation/docs/user-guide/consensus/panel.md';
 
 async function read(relativePath: string) {
   return readFile(new URL(relativePath, repoRoot), 'utf8');
@@ -374,6 +375,38 @@ describe('docs-presence', () => {
     expect(qa).toMatch(/consensus-panel\.mjs/);
     expect(qa).toMatch(/--panelists/);
     expect(qa).toMatch(/JSONL/);
+  });
+
+  it('panel docs page exists and is navigable', async () => {
+    const panelDoc = await read(panelDocPath);
+    const index = await read('documentation/docs/user-guide/consensus/index.md');
+    const meta = JSON.parse(
+      await read('documentation/docs/user-guide/consensus/meta.json'),
+    );
+
+    expect(panelDoc).toMatch(/^title: ['"]?Panel['"]?$/m);
+    expect(panelDoc).toMatch(/consensus-panel/);
+    expect(panelDoc).toMatch(/neutral moderator/i);
+    expect(panelDoc).toMatch(/--panelists/);
+    expect(panelDoc).toMatch(/--panel-size/);
+    expect(index).toMatch(/\[panel\]\(panel\.md\)/i);
+    expect(index).toMatch(/side-by-side|attributed/i);
+    expect(meta.pages).toContain('panel');
+  });
+
+  it('configuration docs cover panel defaults, paths, and precedence', async () => {
+    const config = await read(
+      'documentation/docs/user-guide/consensus/configuration.md',
+    );
+
+    expect(config).toMatch(/\.config\/consensus\/config\.json/);
+    expect(config).toMatch(/\.consensus\/config\.json/);
+    expect(config).toMatch(
+      /invocation[\s\S]*project[\s\S]*user[\s\S]*built-in/i,
+    );
+    expect(config).toMatch(/--panelists/);
+    expect(config).toMatch(/--panel-size/);
+    expect(config).toMatch(/consensus config/);
   });
 
   it('documentation records the generated TypeScript runtime contract', async () => {

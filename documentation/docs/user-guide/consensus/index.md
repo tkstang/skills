@@ -1,19 +1,20 @@
 ---
 title: 'Consensus'
-description: 'How the consensus plugin uses provider-backed AI peers for converging artifacts and one-shot advisory takes, including create, decide, plan, refine, evaluate, phone-a-friend, iteration modes, and current limitations.'
+description: 'How the consensus plugin uses provider-backed AI peers for converging artifacts, panel responses, and one-shot advisory takes, including create, decide, plan, refine, evaluate, panel, phone-a-friend, iteration modes, and current limitations.'
 ---
 
 # Consensus
 
-The consensus plugin uses provider-CLI-backed AI peers for two related workflows:
-converging artifacts through peer deliberation, and one-shot advisory takes that
-the host dispositions. The peers are invoked through the generated consensus CLI;
-the converging wrappers parse your document, run the peers through structured
-verdict rounds, and write a markdown deliberation artifact with the final output,
+The consensus plugin uses provider-CLI-backed AI peers for three related
+workflows: converging artifacts through peer deliberation, single-round panel
+responses with side-by-side attribution, and one-shot advisory takes that the
+host dispositions. The peers are invoked through the generated consensus CLI; the
+converging wrappers parse your document, run the peers through structured verdict
+rounds, and write a markdown deliberation artifact with the final output,
 resolution metadata, and a deliberation log.
 
-The scope is intentionally narrow. v0.1 ships six skills: five converging skills
-and one advisory skill.
+The scope is intentionally narrow. v0.1 ships seven skills: five converging
+skills, one panel skill, and one advisory skill.
 
 - **[`create`](create.md)** — creates a new artifact from a brief with
   `independent_draft`, `parallel_synthesized`, maximum agency, a deliberation
@@ -31,6 +32,9 @@ and one advisory skill.
 - **[`evaluate`](evaluate.md)** — judges an artifact against a rubric, with
   unified findings, per-peer reasoning, and dissent preserved in the
   deliberation log.
+- **[`panel`](panel.md)** — asks multiple provider-backed panelists the same
+  question and writes side-by-side attributed responses while the host stays a
+  neutral moderator.
 - **[`phone-a-friend`](phone-a-friend.md)** — asks one other provider-backed peer
   for a structured advisory take, then leaves the host responsible for agreeing,
   applying, ignoring, or following up.
@@ -80,12 +84,11 @@ diagnostics, and permissions, and the per-skill pages for the full command set.
 
 ## Limitations
 
-- v0.1 ships the `create`, `decide`, `plan`, `refine`, `evaluate`, and
+- v0.1 ships the `create`, `decide`, `plan`, `refine`, `evaluate`, `panel`, and
   `phone-a-friend` skills.
   The standalone `session-observer` and `export-session-transcript` skills ship
   alongside the consensus plugin but are not part of it.
-- Remaining consensus-family skills are future work: `consensus-research` and
-  `consensus-panel`.
+- Remaining consensus-family skills are future work: `consensus-research`.
 - Three iteration modes ship (`alternating`, `parallel_revision`,
   `parallel_synthesized`); `parallel_revision` and `parallel_synthesized`
   disclose their per-round call multiplier (2x peer calls, plus 1 synthesis call
@@ -115,5 +118,6 @@ diagnostics, and permissions, and the per-skill pages for the full command set.
 - [Plan](plan.md) - `plan` usage: goal and inline constraints, moderate-agency defaults, required headings, and output contract.
 - [Refine](refine.md) - `refine` usage: sequential default, iteration modes, resume, escalation, and host-mediated parallel sections.
 - [Evaluate](evaluate.md) - `evaluate` usage: artifact-vs-rubric command, defaults, output contract, and guided rubric creation.
+- [Panel](panel.md) - `panel` usage: single-round multi-peer questions, panelist selection, JSONL status, output contract, and neutral moderation.
 - [Phone-a-friend](phone-a-friend.md) - `phone-a-friend` usage: one-shot advisory peer call, provider selection, advisory schema, and host disposition.
-- [Configuration](configuration.md) - Shared configuration: peer selection, provider floor, diagnostics, synthesizer, agency, and permissions.
+- [Configuration](configuration.md) - Shared configuration: peer and panelist selection, provider floor, config paths, diagnostics, synthesizer, agency, and permissions.
