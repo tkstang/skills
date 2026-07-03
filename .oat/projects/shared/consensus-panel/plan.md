@@ -660,6 +660,46 @@ git add .oat/repo/pjm/backlog/items/BL-260626-configure-default-consensus.md .oa
 git commit -m "chore(p05-t02): close consensus panel backlog items"
 ```
 
+## Phase 6: Final Review Fixes
+
+### Task p06-t01: (review) Align project config root resolution
+
+**Files:**
+
+- Modify: `src/consensus/config/consensus-config.ts`
+- Modify: `tests/consensus/config/consensus-config.test.ts`
+- Modify: generated consensus config runtime outputs under `plugins/consensus/`
+
+**Step 1: Understand the issue**
+
+Review finding: Project config is documented as
+`<project root>/.consensus/config.json`, resolved from invocation cwd or `--cwd`,
+but `consensusConfigPath()` currently uses the exact cwd directory. That means a
+root project config can be missed when commands run from a subdirectory.
+Location: `src/consensus/config/consensus-config.ts:216`
+
+**Step 2: Implement fix**
+
+Preserve the documented project-root contract by resolving project config
+upward from cwd to the nearest `.consensus/config.json` for reads/effective
+resolution, while keeping writes deterministic for explicit project scope.
+Add regression coverage for subdirectory reads/effective defaults.
+
+**Step 3: Verify**
+
+Run: `pnpm exec vitest run tests/consensus/config/consensus-config.test.ts tests/consensus/provider-cli/config-commands.test.ts`
+Expected: config resolver and provider CLI config tests pass.
+
+Run: `pnpm run build && pnpm run build:check && pnpm run type-check && pnpm run lint`
+Expected: generated output, TypeScript, and lint pass.
+
+**Step 4: Commit**
+
+```bash
+git add src/consensus/config/consensus-config.ts tests/consensus/config/consensus-config.test.ts plugins/consensus
+git commit -m "fix(p06-t01): align project config root resolution"
+```
+
 ## Reviews
 
 | Scope  | Type     | Status          | Date       | Artifact                                                   |
@@ -669,7 +709,7 @@ git commit -m "chore(p05-t02): close consensus panel backlog items"
 | p03    | code     | passed          | 2026-07-03 | reviews/p03-rereview-2026-07-03-v2.md                     |
 | p04    | code     | passed          | 2026-07-03 | reviews/p04-review-2026-07-03.md                          |
 | p05    | code     | passed          | 2026-07-03 | reviews/p05-rereview-2026-07-03.md                        |
-| final  | code     | pending         | -          | -                                                          |
+| final  | code     | fixes_added     | 2026-07-03 | reviews/final-review-2026-07-03.md                        |
 | spec   | artifact | pending         | -          | -                                                          |
 | design | artifact | fixes_completed | 2026-07-01 | reviews/archived/artifact-design-review-2026-07-01.md     |
 | plan   | artifact | fixes_completed | 2026-07-02 | reviews/archived/artifact-plan-review-2026-07-01.md      |
@@ -689,8 +729,9 @@ git commit -m "chore(p05-t02): close consensus panel backlog items"
 - Phase 4: 3 tasks - shipped panel skill, docs, manifests, README/plugin README,
   and repo metadata.
 - Phase 5: 2 tasks - full validation and backlog closure.
+- Phase 6: 1 task - final review project config root-resolution fix.
 
-**Total: 14 tasks**
+**Total: 15 tasks**
 
 Ready for implementation.
 

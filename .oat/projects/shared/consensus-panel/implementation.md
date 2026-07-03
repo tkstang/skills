@@ -1,9 +1,9 @@
 ---
-oat_status: complete
+oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-03
-oat_current_task_id: null
+oat_current_task_id: p06-t01
 oat_generated: false
 ---
 
@@ -31,10 +31,11 @@ oat_generated: false
 | Phase 3 | passed | 3          | 3/3       |
 | Phase 4 | passed | 3          | 3/3       |
 | Phase 5 | passed | 2          | 2/2       |
+| Phase 6 | pending | 1          | 0/1       |
 
-**Total:** 14/14 tasks completed
+**Total:** 14/15 tasks completed
 
-**Next task:** none - final review pending
+**Next task:** p06-t01
 
 ---
 
@@ -456,6 +457,23 @@ includes `p05`; `phone-a-friend` now points to the shipped panel workflow.
 
 **Disposition:** passed - request HiLL checkpoint approval.
 
+### Code Review Received: final
+
+**Date:** 2026-07-03
+**Review artifact:** reviews/final-review-2026-07-03.md
+
+**Findings:**
+
+- Critical: 0
+- Important: 0
+- Medium: 1
+- Minor: 0
+
+**New tasks added:** p06-t01
+
+**Disposition:** fixes_added - preserve the documented project-root config
+contract by fixing project config root resolution.
+
 ---
 
 ## Implementation Log
@@ -512,6 +530,8 @@ Chronological log of implementation progress.
   for final review.
 - Final verification lint errors were fixed in `8660b48`; follow-up
   `build:check`, `type-check`, and `lint` passed.
+- Final review received in `reviews/final-review-2026-07-03.md` with one
+  Medium project config path-semantics finding; added `p06-t01`.
 
 ---
 
