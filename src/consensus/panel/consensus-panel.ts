@@ -1,4 +1,6 @@
+import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
+import { existsSync } from 'node:fs';
 import {
   lstat,
   mkdir,
@@ -12,10 +14,13 @@ import {
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import type {
-  ConsensusAgentRef,
-  ConsensusCompositionSource,
+import {
+  resolveConsensusComposition,
+  type ConsensusAgentRef,
+  type ConsensusCompositionSource,
+  type ConsensusDefaults,
 } from '../config/consensus-config.js';
+import type { ProviderInventoryEntry } from '../provider-cli/types.js';
 
 export const PANEL_QUESTION_SIZE_CAP_BYTES = 1024 * 1024;
 
@@ -61,7 +66,7 @@ export interface ConsensusPanelResponseEntry {
   panelist: ConsensusAgentRef;
   status: 'ok' | 'unavailable' | 'error';
   response?: PanelResponsePayload;
-  diagnostics?: string[];
+  diagnostics?: readonly string[];
 }
 
 export interface ConsensusPanelArtifact {
@@ -78,6 +83,53 @@ export interface ConsensusPanelArtifact {
   };
 }
 
+export interface PanelistInvocationRequest {
+  panelist: ConsensusAgentRef;
+  prompt: string;
+  schemaPath: string;
+  cwd: string;
+  env: NodeJS.ProcessEnv;
+}
+
+export interface PanelistInvocationResult {
+  ok: boolean;
+  payload?: unknown;
+  diagnostics?: readonly string[];
+}
+
+export type PanelistInvoker = (
+  request: PanelistInvocationRequest,
+) => Promise<PanelistInvocationResult>;
+
+export interface PanelRunInput extends Partial<ParsedPanelOptions> {
+  cwd?: string;
+  env?: NodeJS.ProcessEnv;
+}
+
+export interface RunConsensusPanelOptions {
+  cwd?: string;
+  env?: NodeJS.ProcessEnv;
+  now?: () => string;
+  runId?: string;
+  invokePanelist?: PanelistInvoker;
+  stdout?: JsonlWritable;
+}
+
+export interface PanelCliOptions extends RunConsensusPanelOptions {
+  stderr?: JsonlWritable;
+}
+
+export interface ConsensusPanelRunResult {
+  status: 'passed' | 'failed';
+  outputPath: string;
+  runDir: string;
+  panelists: ConsensusAgentRef[];
+  responses: ConsensusPanelResponseEntry[];
+  shortfalls: string[];
+  artifact: ConsensusPanelArtifact;
+  finalArtifact: string;
+}
+
 interface PanelErrorOptions {
   code: string;
   exitCode?: number;
@@ -86,6 +138,26 @@ interface PanelErrorOptions {
 }
 
 type JsonRecord = Record<string, unknown>;
+type JsonlWritable = { write(chunk: string | Uint8Array): unknown };
+
+interface ProviderCliCommandRunnerResult {
+  code: number | null;
+  signal: NodeJS.Signals | null;
+  stdout: string;
+  stderr: string;
+}
+
+interface ProviderCliCommandRunnerOptions {
+  cwd?: string;
+  env?: NodeJS.ProcessEnv;
+  input?: string;
+}
+
+interface ProviderReadiness {
+  agent: ConsensusAgentRef;
+  status: 'ready' | 'unavailable';
+  diagnostics: string[];
+}
 
 const PROVIDER_ID_PATTERN = /^[a-z][a-z0-9_-]{0,31}$/u;
 const RESPONSE_KEYS = new Set([
@@ -711,6 +783,610 @@ export function renderPanelArtifact(artifact: ConsensusPanelArtifact) {
     .replace(/\s+$/u, '')}\n`;
 }
 
+function normalizePanelOptions(
+  input: readonly string[] | PanelRunInput,
+): ParsedPanelOptions & { cwd?: string; env?: NodeJS.ProcessEnv } {
+  if (Array.isArray(input)) return parsePanelArgs(input);
+
+  const normalized = {
+    question: null,
+    questionFile: null,
+    panelists: null,
+    panelSize: null,
+    output: null,
+    runDir: null,
+    allowRoot: null,
+    ...input,
+  } satisfies ParsedPanelOptions & { cwd?: string; env?: NodeJS.ProcessEnv };
+  validateQuestionSources(normalized);
+  return normalized;
+}
+
+function invocationDefaultsFor(
+  options: Pick<ParsedPanelOptions, 'panelists' | 'panelSize'>,
+): ConsensusDefaults | undefined {
+  const invocation: ConsensusDefaults = {};
+  if (options.panelists) {
+    invocation.panelists = options.panelists.map((provider) => ({ provider }));
+  }
+  if (options.panelSize !== null) {
+    invocation.panel_size = options.panelSize;
+  }
+  return invocation.panelists || invocation.panel_size !== undefined
+    ? invocation
+    : undefined;
+}
+
+export async function runConsensusPanel(
+  input: readonly string[] | PanelRunInput,
+  runOptions: RunConsensusPanelOptions = {},
+): Promise<ConsensusPanelRunResult> {
+  const normalized = normalizePanelOptions(input);
+  const cwd = path.resolve(normalized.cwd ?? runOptions.cwd ?? process.cwd());
+  const env = normalized.env ?? runOptions.env ?? process.env;
+  const now = runOptions.now ?? (() => new Date().toISOString());
+  const createdAt = now();
+  const runId = runOptions.runId ?? defaultPanelRunId();
+  const stdout = runOptions.stdout;
+  const loaded = await loadPanelQuestion(normalized, { cwd });
+  const paths = await resolvePanelPaths(normalized, {
+    cwd,
+    questionPath: loaded.questionPath,
+    runId,
+  });
+  const allowedRoot = allowedRootFor(cwd, normalized.allowRoot);
+  const command = resolveConsensusCliPath(env);
+
+  writeJsonl(stdout, 'run_started', {
+    question_source: normalized.questionFile ? 'file' : 'inline',
+    question_file: loaded.questionPath,
+    run_id: runId,
+  });
+
+  const inventory = await loadPanelProviderInventory({ command, env, cwd });
+  const resolved = await resolveConsensusComposition({
+    workflow: 'panel',
+    cwd,
+    env,
+    inventory,
+    invocation: invocationDefaultsFor(normalized),
+  });
+  const panelists = resolved.agents;
+  const prompt = buildPanelPrompt({ question: loaded.question });
+  const schemaPath = panelResponseSchemaPath();
+
+  writeJsonl(stdout, 'panel_resolved', {
+    source: resolved.source,
+    panelists: panelists.map((panelist) => panelist.provider),
+    warnings: resolved.warnings,
+  });
+
+  await mkdir(paths.runDir, { recursive: true });
+
+  const readiness = await preflightPanelists({
+    command,
+    env,
+    cwd,
+    panelists,
+    inventory,
+  });
+  const invokePanelist = runOptions.invokePanelist ?? invokePanelistViaCli;
+  const responses: ConsensusPanelResponseEntry[] = [];
+  const shortfalls = [...resolved.warnings];
+
+  for (const ready of readiness) {
+    if (ready.status !== 'ready') {
+      responses.push({
+        panelist: ready.agent,
+        status: 'unavailable',
+        diagnostics: ready.diagnostics,
+      });
+      shortfalls.push(...ready.diagnostics);
+      writeJsonl(stdout, 'panelist_unavailable', {
+        panelist: ready.agent.provider,
+        diagnostics: ready.diagnostics,
+      });
+      continue;
+    }
+
+    writeJsonl(stdout, 'panelist_started', {
+      panelist: ready.agent.provider,
+    });
+    try {
+      const result = await invokePanelist({
+        panelist: ready.agent,
+        prompt,
+        schemaPath,
+        cwd,
+        env,
+      });
+      if (!result.ok) {
+        const diagnostics =
+          result.diagnostics && result.diagnostics.length > 0
+            ? result.diagnostics
+            : [`Panelist ${ready.agent.provider} returned an error.`];
+        responses.push({
+          panelist: ready.agent,
+          status: 'error',
+          diagnostics,
+        });
+        shortfalls.push(...diagnostics);
+        writeJsonl(stdout, 'panelist_completed', {
+          panelist: ready.agent.provider,
+          status: 'error',
+          diagnostics,
+        });
+        continue;
+      }
+
+      const payload = parsePanelResponsePayload(result.payload);
+      responses.push({
+        panelist: ready.agent,
+        status: 'ok',
+        response: payload,
+        diagnostics: result.diagnostics,
+      });
+      writeJsonl(stdout, 'panelist_completed', {
+        panelist: ready.agent.provider,
+        status: 'ok',
+      });
+    } catch (error) {
+      const details = panelErrorDetails(error);
+      const diagnostics = [details.message];
+      responses.push({
+        panelist: ready.agent,
+        status: 'error',
+        diagnostics,
+      });
+      shortfalls.push(...diagnostics);
+      writeJsonl(stdout, 'panelist_completed', {
+        panelist: ready.agent.provider,
+        status: 'error',
+        diagnostics,
+      });
+    }
+  }
+
+  const successfulResponses = responses.filter(
+    (response) => response.status === 'ok',
+  ).length;
+  const explicitUnavailable =
+    normalized.panelists !== null &&
+    responses.some((response) => response.status === 'unavailable');
+  const status =
+    successfulResponses >= 2 && !explicitUnavailable ? 'passed' : 'failed';
+
+  if (successfulResponses < 2) {
+    shortfalls.push(
+      `Panel failed: fewer than two successful panel responses (${successfulResponses} of ${panelists.length}).`,
+    );
+  } else if (explicitUnavailable) {
+    shortfalls.push(
+      'Panel failed: one or more explicitly requested panelists were unavailable.',
+    );
+  }
+
+  const artifact: ConsensusPanelArtifact = {
+    schema_version: 'v1',
+    status,
+    question: loaded.question,
+    panelists,
+    responses,
+    shortfalls,
+    metadata: {
+      run_id: runId,
+      created_at: createdAt,
+      config_source: resolved.source,
+    },
+  };
+  const finalArtifact = renderPanelArtifact(artifact);
+  await atomicWritePanelFile(paths.outputPath, finalArtifact, {
+    rootPath: allowedRoot,
+  });
+
+  writeJsonl(stdout, 'artifact_written', {
+    output_path: paths.outputPath,
+    run_dir: paths.runDir,
+  });
+  writeJsonl(stdout, 'run_completed', {
+    status,
+    output_path: paths.outputPath,
+    run_dir: paths.runDir,
+    successful_responses: successfulResponses,
+    panelists: panelists.length,
+  });
+
+  return {
+    status,
+    outputPath: paths.outputPath,
+    runDir: paths.runDir,
+    panelists,
+    responses,
+    shortfalls,
+    artifact,
+    finalArtifact,
+  };
+}
+
+export function panelUsage() {
+  return `Usage: node consensus-panel.mjs --question <text> [options]
+       node consensus-panel.mjs --question-file <path> [options]
+
+Options:
+  --question <text>       Inline panel question.
+  --question-file <path>  Read the panel question from a file.
+  --panelists <ids>       Comma-separated provider ids, at least two.
+  --panel-size <n>        Target panel size, minimum 2.
+  --output <path>         Markdown artifact path.
+  --run-dir <path>        Run directory for panel coordination files.
+  --allow-root <path>     Root allowed for question reads and artifact writes.
+  --help                  Show this help.
+`;
+}
+
+export async function runPanelCli(
+  argv: readonly string[] = process.argv.slice(2),
+  options: PanelCliOptions = {},
+) {
+  const stdout = options.stdout ?? process.stdout;
+  const stderr = options.stderr ?? process.stderr;
+
+  if (argv.includes('--help') || argv.includes('-h')) {
+    stdout.write(panelUsage());
+    return 0;
+  }
+
+  try {
+    const result = await runConsensusPanel(argv, {
+      ...options,
+      stdout,
+    });
+    if (result.status === 'failed') {
+      const message = result.shortfalls.at(-1) ?? 'Consensus panel failed.';
+      stderr.write(`${message}\n`);
+      return PANEL_EXIT_CODES.DATA;
+    }
+    return 0;
+  } catch (error) {
+    const details = panelErrorDetails(error);
+    const exitCode = panelExitCodeForError(error);
+    writeJsonl(stdout, 'error', {
+      code: details.code,
+      exit_code: exitCode,
+      message: details.message,
+      ...(details.details === undefined ? {} : { details: details.details }),
+    });
+    stderr.write(`${details.message}\n`);
+    return exitCode;
+  }
+}
+
+function resolveConsensusCliPath(env: NodeJS.ProcessEnv = process.env) {
+  if (env.CONSENSUS_CLI_PATH && env.CONSENSUS_CLI_PATH.length > 0) {
+    return env.CONSENSUS_CLI_PATH;
+  }
+
+  const generatedSibling = fileURLToPath(
+    new URL('../../../scripts/consensus.mjs', import.meta.url),
+  );
+  if (existsSync(generatedSibling)) return generatedSibling;
+
+  return fileURLToPath(
+    new URL(
+      '../../../plugins/consensus/scripts/consensus.mjs',
+      import.meta.url,
+    ),
+  );
+}
+
+function providerCliSpawnTarget(command: string, args: string[]) {
+  if (path.extname(command) === '.mjs') {
+    return { command: process.execPath, args: [command, ...args] };
+  }
+  return { command, args };
+}
+
+function runProviderCliCommand(
+  command: string,
+  args: string[],
+  options: ProviderCliCommandRunnerOptions = {},
+): Promise<ProviderCliCommandRunnerResult> {
+  return new Promise((resolve, reject) => {
+    const spawnTarget = providerCliSpawnTarget(command, args);
+    const child = spawn(spawnTarget.command, spawnTarget.args, {
+      cwd: options.cwd,
+      env: options.env,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    let stdout = '';
+    let stderr = '';
+
+    child.stdout.setEncoding('utf8');
+    child.stderr.setEncoding('utf8');
+    child.stdout.on('data', (chunk: string) => {
+      stdout += chunk;
+    });
+    child.stderr.on('data', (chunk: string) => {
+      stderr += chunk;
+    });
+    child.on('error', reject);
+    child.on('close', (code, signal) => {
+      resolve({ code, signal, stdout, stderr });
+    });
+    child.stdin.end(options.input ?? '');
+  });
+}
+
+async function loadPanelProviderInventory({
+  command,
+  env,
+  cwd,
+}: {
+  command: string;
+  env: NodeJS.ProcessEnv;
+  cwd: string;
+}): Promise<ProviderInventoryEntry[]> {
+  const inventoryResult = await runProviderCliCommand(
+    command,
+    ['provider', 'ls', '--json'],
+    { env, cwd },
+  );
+  const inventory = parseProviderCliEnvelope(
+    inventoryResult,
+    'provider inventory',
+  );
+  return providerInventoryEntries(inventory);
+}
+
+async function preflightPanelists({
+  command,
+  env,
+  cwd,
+  panelists,
+  inventory,
+}: {
+  command: string;
+  env: NodeJS.ProcessEnv;
+  cwd: string;
+  panelists: ConsensusAgentRef[];
+  inventory: ProviderInventoryEntry[];
+}): Promise<ProviderReadiness[]> {
+  const statuses = new Map(
+    inventory.map((entry) => [entry.id, entry.status] as const),
+  );
+  const readiness: ProviderReadiness[] = [];
+
+  for (const agent of panelists) {
+    const inventoryStatus = statuses.get(agent.provider) ?? 'missing';
+    if (inventoryStatus !== 'ready') {
+      readiness.push({
+        agent,
+        status: 'unavailable',
+        diagnostics: [panelistUnavailableMessage(agent.provider, inventoryStatus)],
+      });
+      continue;
+    }
+
+    const preflightResult = await runProviderCliCommand(
+      command,
+      ['preflight', '--json', '--provider', agent.provider],
+      { env, cwd },
+    );
+    const preflight = parseProviderCliEnvelope(
+      preflightResult,
+      `${agent.provider} preflight`,
+    );
+    if (preflight.usable === true) {
+      readiness.push({ agent, status: 'ready', diagnostics: [] });
+      continue;
+    }
+
+    const preflightStatus =
+      providerStatusMap(preflight).get(agent.provider) ?? 'unavailable';
+    readiness.push({
+      agent,
+      status: 'unavailable',
+      diagnostics: [panelistUnavailableMessage(agent.provider, preflightStatus)],
+    });
+  }
+
+  return readiness;
+}
+
+function panelistUnavailableMessage(provider: string, status: string) {
+  return `Panelist ${provider} unavailable: ${status}`;
+}
+
+async function invokePanelistViaCli({
+  panelist,
+  prompt,
+  schemaPath,
+  cwd,
+  env,
+}: PanelistInvocationRequest): Promise<PanelistInvocationResult> {
+  const command = resolveConsensusCliPath(env);
+  const request: JsonRecord = {
+    schema_version: 'v1',
+    provider: panelist.provider,
+    schema_path: schemaPath,
+    prompt,
+    cwd,
+  };
+  if (panelist.model) request.model = panelist.model;
+  if (panelist.effort) request.effort = panelist.effort;
+
+  const result = await runProviderCliCommand(
+    command,
+    ['run', '--request-json', '-', '--json'],
+    {
+      env,
+      cwd,
+      input: JSON.stringify(request),
+    },
+  );
+  const envelope = parseProviderRunEnvelope(result);
+
+  if (envelope.ok !== true) {
+    return {
+      ok: false,
+      diagnostics: [
+        typeof envelope.message === 'string'
+          ? envelope.message
+          : `Panelist ${panelist.provider} failed.`,
+        ...diagnosticsFromEnvelope(envelope),
+      ],
+    };
+  }
+
+  return {
+    ok: true,
+    payload: envelope.json,
+    diagnostics: diagnosticsFromEnvelope(envelope),
+  };
+}
+
+function parseProviderCliEnvelope(
+  result: ProviderCliCommandRunnerResult,
+  label: string,
+) {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(result.stdout) as unknown;
+  } catch (error) {
+    throw new PanelError(
+      `consensus ${label} output was not valid JSON: ${error instanceof Error ? error.message : String(error)}`,
+      {
+        code: 'PROVIDER_INVALID_JSON',
+        exitCode: PANEL_EXIT_CODES.DATA,
+        cause: error,
+        details: {
+          exit_code: result.code,
+          signal: result.signal,
+          stdout: result.stdout,
+          stderr: result.stderr,
+        },
+      },
+    );
+  }
+
+  if (!isRecord(parsed) || parsed.schema_version !== 'v1') {
+    throw new PanelError(`consensus ${label} output was not a v1 JSON envelope`, {
+      code: 'PROVIDER_INVALID_JSON',
+      exitCode: PANEL_EXIT_CODES.DATA,
+      details: {
+        exit_code: result.code,
+        signal: result.signal,
+        stdout: result.stdout,
+        stderr: result.stderr,
+      },
+    });
+  }
+
+  return parsed;
+}
+
+function parseProviderRunEnvelope(result: ProviderCliCommandRunnerResult) {
+  const parsed = parseProviderCliEnvelope(result, 'run');
+  if (typeof parsed.ok !== 'boolean') {
+    throw new PanelError('consensus run output was missing ok status', {
+      code: 'PROVIDER_INVALID_JSON',
+      exitCode: PANEL_EXIT_CODES.DATA,
+      details: parsed,
+    });
+  }
+  return parsed;
+}
+
+function providerStatusMap(envelope: Record<string, unknown>) {
+  const providers = Array.isArray(envelope.providers) ? envelope.providers : [];
+  const entries: Array<[string, string]> = [];
+  for (const provider of providers) {
+    if (!isRecord(provider)) continue;
+    const id = String(provider.id ?? provider.provider ?? provider.name ?? '');
+    if (!id) continue;
+    entries.push([id, String(provider.status ?? 'unavailable')]);
+  }
+  return new Map(entries);
+}
+
+function providerInventoryEntries(
+  envelope: Record<string, unknown>,
+): ProviderInventoryEntry[] {
+  return [...providerStatusMap(envelope)].map(
+    ([id, status]) =>
+      ({
+        id,
+        status,
+      }) as ProviderInventoryEntry,
+  );
+}
+
+function diagnosticsFromEnvelope(envelope: Record<string, unknown>) {
+  const diagnostics: string[] = [];
+  if (isRecord(envelope.diagnostics)) {
+    if (Array.isArray(envelope.diagnostics.warnings)) {
+      diagnostics.push(
+        ...envelope.diagnostics.warnings.filter(
+          (warning): warning is string => typeof warning === 'string',
+        ),
+      );
+    }
+    if (typeof envelope.diagnostics.strategy_used === 'string') {
+      diagnostics.push(`strategy: ${envelope.diagnostics.strategy_used}`);
+    }
+  }
+  if (isRecord(envelope.attempts)) {
+    if (typeof envelope.attempts.terminal_reason === 'string') {
+      diagnostics.push(`terminal_reason: ${envelope.attempts.terminal_reason}`);
+    }
+  }
+  return diagnostics;
+}
+
+function writeJsonl(
+  stream: JsonlWritable | undefined,
+  event: string,
+  payload: Record<string, unknown>,
+) {
+  stream?.write(`${JSON.stringify({ event, ...payload })}\n`);
+}
+
+function panelErrorDetails(error: unknown) {
+  if (error instanceof Error) {
+    const annotated = error as Error & {
+      code?: string;
+      details?: unknown;
+    };
+    return {
+      code: annotated.code ?? 'ERROR',
+      message: error.message,
+      details: annotated.details,
+    };
+  }
+  return {
+    code: 'ERROR',
+    message: String(error),
+    details: undefined,
+  };
+}
+
+function panelExitCodeForError(error: unknown) {
+  if (error instanceof PanelError) return error.exitCode;
+  const code = (error as { code?: unknown })?.code;
+  if (code === 'ENOENT') return PANEL_EXIT_CODES.IO;
+  if (code === 'EACCES' || code === 'EPERM') return PANEL_EXIT_CODES.NOPERM;
+  return PANEL_EXIT_CODES.CONFIG;
+}
+
 function isRecord(value: unknown): value is JsonRecord {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+if (
+  process.argv[1] &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+) {
+  runPanelCli(process.argv.slice(2)).then((exitCode) => {
+    process.exitCode = exitCode;
+  });
 }
