@@ -64,6 +64,11 @@ export const generatedOutputs = [
     output: 'plugins/consensus/skills/evaluate/scripts/consensus-config.mjs',
   },
   {
+    id: 'consensus-panel-config',
+    source: 'src/consensus/config/consensus-config.ts',
+    output: 'plugins/consensus/skills/panel/scripts/consensus-config.mjs',
+  },
+  {
     id: 'consensus-refine',
     source: 'src/consensus/refine/consensus-refine.ts',
     output: 'plugins/consensus/skills/refine/scripts/consensus-refine.mjs',
@@ -105,6 +110,14 @@ export const generatedOutputs = [
     output: 'plugins/consensus/skills/plan/scripts/consensus-plan.mjs',
     importRewrites: [
       { from: '../core/consensus-loop.js', to: './consensus-loop.mjs' },
+      { from: '../config/consensus-config.js', to: './consensus-config.mjs' },
+    ],
+  },
+  {
+    id: 'consensus-panel',
+    source: 'src/consensus/panel/consensus-panel.ts',
+    output: 'plugins/consensus/skills/panel/scripts/consensus-panel.mjs',
+    importRewrites: [
       { from: '../config/consensus-config.js', to: './consensus-config.mjs' },
     ],
   },
