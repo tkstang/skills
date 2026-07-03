@@ -20,6 +20,10 @@ export class ConsensusCliUsageError extends Error {
 
 export type ParsedConsensusCliCommand =
   | ParsedHelpCommand
+  | ParsedConfigGetCommand
+  | ParsedConfigListCommand
+  | ParsedConfigSetCommand
+  | ParsedConfigClearCommand
   | ParsedProviderListCommand
   | ParsedPreflightCommand
   | ParsedRunCommand
@@ -32,6 +36,49 @@ export interface ParsedHelpCommand {
 export interface ParsedProviderListCommand {
   kind: 'provider-list';
   json: true;
+}
+
+export type ParsedConfigReadScope = 'user' | 'project' | 'effective';
+export type ParsedConfigWriteScope = 'user' | 'project';
+export type ParsedConfigKey =
+  | 'peers'
+  | 'panelists'
+  | 'panel-size'
+  | 'roles'
+  | 'all';
+export type ParsedConfigWorkflow = 'convergence' | 'panel';
+
+export interface ParsedConfigGetCommand {
+  kind: 'config-get';
+  json: true;
+  scope: ParsedConfigReadScope;
+  cwd?: string;
+  workflow?: ParsedConfigWorkflow;
+}
+
+export interface ParsedConfigListCommand {
+  kind: 'config-list';
+  json: true;
+  cwd?: string;
+}
+
+export interface ParsedConfigSetCommand {
+  kind: 'config-set';
+  json: true;
+  scope: ParsedConfigWriteScope;
+  cwd?: string;
+  peers?: string;
+  panelists?: string;
+  panelSize?: number;
+  fromFile?: string;
+}
+
+export interface ParsedConfigClearCommand {
+  kind: 'config-clear';
+  json: true;
+  scope: ParsedConfigWriteScope;
+  cwd?: string;
+  key: ParsedConfigKey;
 }
 
 export interface ParsedPreflightCommand {
@@ -94,6 +141,10 @@ export function parseConsensusCliArgs(
 
   if (command === 'provider') {
     return parseProviderCommand(tokens);
+  }
+
+  if (command === 'config') {
+    return parseConfigCommand(tokens);
   }
 
   if (command === 'preflight') {
@@ -186,6 +237,177 @@ function parseProviderCommand(
   requireNoPositionals(parsed.positionals);
 
   return { kind: 'provider-list', json: true };
+}
+
+function parseConfigCommand(
+  tokens: readonly string[],
+):
+  | ParsedConfigGetCommand
+  | ParsedConfigListCommand
+  | ParsedConfigSetCommand
+  | ParsedConfigClearCommand {
+  const [subcommand, ...rest] = tokens;
+  if (subcommand === 'get') return parseConfigGetCommand(rest);
+  if (subcommand === 'list') return parseConfigListCommand(rest);
+  if (subcommand === 'set') return parseConfigSetCommand(rest);
+  if (subcommand === 'clear') return parseConfigClearCommand(rest);
+
+  throw new ConsensusCliUsageError(
+    'Expected config subcommand: get, list, set, or clear',
+  );
+}
+
+function parseConfigGetCommand(
+  tokens: readonly string[],
+): ParsedConfigGetCommand {
+  const parsed = parseOptionTokens(tokens, {
+    allowedFlags: new Set(['--json', '--scope', '--cwd', '--workflow']),
+    valueFlags: new Set(['--scope', '--cwd', '--workflow']),
+  });
+  requireJson(parsed.flags);
+  requireNoPositionals(parsed.positionals);
+
+  const scope = parseConfigReadScope(
+    singleValue(parsed.flags, '--scope') ?? 'effective',
+  );
+  const command: ParsedConfigGetCommand = {
+    kind: 'config-get',
+    json: true,
+    scope,
+  };
+  assignIfDefined(command, 'cwd', singleValue(parsed.flags, '--cwd'));
+
+  const workflow = singleValue(parsed.flags, '--workflow');
+  if (workflow !== undefined) {
+    command.workflow = parseConfigWorkflow(workflow);
+  }
+
+  return command;
+}
+
+function parseConfigListCommand(
+  tokens: readonly string[],
+): ParsedConfigListCommand {
+  const parsed = parseOptionTokens(tokens, {
+    allowedFlags: new Set(['--json', '--cwd']),
+    valueFlags: new Set(['--cwd']),
+  });
+  requireJson(parsed.flags);
+  requireNoPositionals(parsed.positionals);
+
+  const command: ParsedConfigListCommand = {
+    kind: 'config-list',
+    json: true,
+  };
+  assignIfDefined(command, 'cwd', singleValue(parsed.flags, '--cwd'));
+  return command;
+}
+
+function parseConfigSetCommand(
+  tokens: readonly string[],
+): ParsedConfigSetCommand {
+  const parsed = parseOptionTokens(tokens, {
+    allowedFlags: new Set([
+      '--json',
+      '--scope',
+      '--cwd',
+      '--peers',
+      '--panelists',
+      '--panel-size',
+      '--from-file',
+    ]),
+    valueFlags: new Set([
+      '--scope',
+      '--cwd',
+      '--peers',
+      '--panelists',
+      '--panel-size',
+      '--from-file',
+    ]),
+  });
+  requireJson(parsed.flags);
+  requireNoPositionals(parsed.positionals);
+
+  const command: ParsedConfigSetCommand = {
+    kind: 'config-set',
+    json: true,
+    scope: parseConfigWriteScope(singleValue(parsed.flags, '--scope')),
+  };
+  assignIfDefined(command, 'cwd', singleValue(parsed.flags, '--cwd'));
+  assignIfDefined(command, 'peers', singleValue(parsed.flags, '--peers'));
+  assignIfDefined(
+    command,
+    'panelists',
+    singleValue(parsed.flags, '--panelists'),
+  );
+  assignIfDefined(
+    command,
+    'fromFile',
+    singleValue(parsed.flags, '--from-file'),
+  );
+  const panelSize = singleValue(parsed.flags, '--panel-size');
+  if (panelSize !== undefined) {
+    command.panelSize = parsePositiveInteger('--panel-size', panelSize);
+  }
+
+  return command;
+}
+
+function parseConfigClearCommand(
+  tokens: readonly string[],
+): ParsedConfigClearCommand {
+  const parsed = parseOptionTokens(tokens, {
+    allowedFlags: new Set(['--json', '--scope', '--cwd', '--key']),
+    valueFlags: new Set(['--scope', '--cwd', '--key']),
+  });
+  requireJson(parsed.flags);
+  requireNoPositionals(parsed.positionals);
+
+  const command: ParsedConfigClearCommand = {
+    kind: 'config-clear',
+    json: true,
+    scope: parseConfigWriteScope(singleValue(parsed.flags, '--scope')),
+    key: parseConfigKey(singleValue(parsed.flags, '--key') ?? 'all'),
+  };
+  assignIfDefined(command, 'cwd', singleValue(parsed.flags, '--cwd'));
+  return command;
+}
+
+function parseConfigReadScope(value: string): ParsedConfigReadScope {
+  if (value === 'user' || value === 'project' || value === 'effective') {
+    return value;
+  }
+  throw new ConsensusCliUsageError(`Invalid config scope: ${value}`);
+}
+
+function parseConfigWriteScope(
+  value: string | undefined,
+): ParsedConfigWriteScope {
+  if (value === 'user' || value === 'project') return value;
+  if (value === undefined) {
+    throw new ConsensusCliUsageError(
+      'Missing required config --scope user|project',
+    );
+  }
+  throw new ConsensusCliUsageError(`Invalid config scope: ${value}`);
+}
+
+function parseConfigKey(value: string): ParsedConfigKey {
+  if (
+    value === 'peers' ||
+    value === 'panelists' ||
+    value === 'panel-size' ||
+    value === 'roles' ||
+    value === 'all'
+  ) {
+    return value;
+  }
+  throw new ConsensusCliUsageError(`Invalid config key: ${value}`);
+}
+
+function parseConfigWorkflow(value: string): ParsedConfigWorkflow {
+  if (value === 'convergence' || value === 'panel') return value;
+  throw new ConsensusCliUsageError(`Unsupported config workflow: ${value}`);
 }
 
 function parsePreflightCommand(

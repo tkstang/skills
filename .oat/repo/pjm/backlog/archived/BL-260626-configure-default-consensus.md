@@ -1,7 +1,7 @@
 ---
 id: BL-260626-configure-default-consensus
 title: Configure default panel/consensus agent configs via CLI
-status: open
+status: done
 priority: medium
 scope: feature
 scope_estimate: M
@@ -12,7 +12,7 @@ labels:
   - config
 assignee: null
 created: 2026-06-26T04:55:26Z
-updated: 2026-06-26T04:55:26Z
+updated: 2026-07-03T04:02:22Z
 associated_issues: []
 ---
 
@@ -58,3 +58,19 @@ Scope/design to settle at build:
   examples; tests cover precedence resolution and validation.
 - BL-260626-add-consensus-panel-skill can consume these defaults for its default
   panel composition.
+
+## Completion
+
+Completed on 2026-07-03 by the `consensus-panel` OAT project.
+
+- Added JSON-first `consensus config get/list/set/clear` commands for user,
+  project, and effective consensus defaults, including peers, panelists,
+  `panel_size`, and reserved role defaults.
+- Persisted user config under `${XDG_CONFIG_HOME:-$HOME/.config}/consensus/`
+  and project config under `.consensus/`, with documented precedence:
+  invocation flags, project config, user config, then built-in defaults.
+- Integrated default resolution into the existing consensus-family wrappers while
+  preserving explicit `--peers` precedence and the built-in no-config fallback.
+- Documented the schema, config paths, precedence, and examples in the docs site,
+  with tests covering schema validation, precedence, CLI commands, and wrapper
+  default consumption.

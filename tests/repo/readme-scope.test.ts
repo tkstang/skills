@@ -164,6 +164,27 @@ describe('readme-scope', () => {
     );
   });
 
+  it('docs site documents consensus-panel as shipped, not future work', async () => {
+    const docs = await readDocsSite();
+
+    expect(docs).toMatch(/consensus-panel/);
+    expect(docs).toMatch(/neutral moderator/i);
+    expect(docs).toMatch(/side-by-side|attributed/i);
+    expect(docs).toMatch(/--question <text>/);
+    expect(docs).toMatch(/--question-file <path>/);
+    expect(docs).toMatch(/--panelists/);
+    expect(docs).toMatch(/--panel-size/);
+    expect(docs).toMatch(/consensus config get --json --scope effective/);
+    expect(docs).toMatch(/\.config\/consensus\/config\.json/);
+    expect(docs).toMatch(/\.consensus\/config\.json/);
+    expect(docs).toMatch(
+      /invocation[\s\S]*project[\s\S]*user[\s\S]*built-in/i,
+    );
+    expect(docs).not.toMatch(
+      /Remaining consensus-family skills are future work:[^\n]*consensus-panel/i,
+    );
+  });
+
   it('plugin README documents iteration modes and escalation flags', async () => {
     const readme = await read('plugins/consensus/README.md');
 
@@ -223,6 +244,22 @@ describe('readme-scope', () => {
     );
   });
 
+  it('README and plugin README summarize consensus-panel as shipped', async () => {
+    const readme = await read('README.md');
+    const pluginReadme = await read('plugins/consensus/README.md');
+
+    expect(readme).toMatch(/consensus[\s\S]*panel/i);
+    expect(readme).toMatch(/attributed|side-by-side/i);
+    expect(pluginReadme).toMatch(/consensus-panel/);
+    expect(pluginReadme).toMatch(/--question/);
+    expect(pluginReadme).toMatch(/--panelists/);
+    expect(pluginReadme).toMatch(/--panel-size/);
+    expect(pluginReadme).toMatch(/neutral moderator/i);
+    expect(pluginReadme).not.toMatch(
+      /Remaining consensus family skills are future work:[^\n]*consensus-panel/i,
+    );
+  });
+
   it('CHANGELOG records consensus-create under Unreleased Added', async () => {
     const changelog = await read('CHANGELOG.md');
 
@@ -258,6 +295,18 @@ describe('readme-scope', () => {
     expect(changelog).toMatch(/## Steps/);
     expect(changelog).toMatch(/## Dependencies/);
     expect(changelog).toMatch(/## Risks/);
+  });
+
+  it('CHANGELOG records consensus-panel under Unreleased Added', async () => {
+    const changelog = await read('CHANGELOG.md');
+
+    expect(changelog).toMatch(
+      /## \[Unreleased\][\s\S]*### Added[\s\S]*consensus-panel/i,
+    );
+    expect(changelog).toMatch(/neutral moderator/i);
+    expect(changelog).toMatch(/--panelists/);
+    expect(changelog).toMatch(/--panel-size/);
+    expect(changelog).toMatch(/single-round/i);
   });
 
   it('CHANGELOG records the v0.1 iteration-mode work under Unreleased', async () => {

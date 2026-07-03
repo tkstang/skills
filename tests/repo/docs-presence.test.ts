@@ -32,6 +32,8 @@ const evaluateSkillPath = 'plugins/consensus/skills/evaluate/SKILL.md';
 const createSkillPath = 'plugins/consensus/skills/create/SKILL.md';
 const decideSkillPath = 'plugins/consensus/skills/decide/SKILL.md';
 const planSkillPath = 'plugins/consensus/skills/plan/SKILL.md';
+const panelSkillPath = 'plugins/consensus/skills/panel/SKILL.md';
+const panelDocPath = 'documentation/docs/user-guide/consensus/panel.md';
 
 async function read(relativePath: string) {
   return readFile(new URL(relativePath, repoRoot), 'utf8');
@@ -120,6 +122,17 @@ describe('docs-presence', () => {
     expect(skill).toMatch(/^## Success Criteria$/m);
     expect(skill).toMatch(/^## Output Contract$/m);
     expect(skill).toMatch(/^## Plan Invocation$/m);
+  });
+
+  it('panel SKILL.md contains usage guidance sections', async () => {
+    const skill = await read(panelSkillPath);
+
+    expect(skill).toMatch(/^## When NOT to Use$/m);
+    expect(skill).toMatch(/^## Examples$/m);
+    expect(skill).toMatch(/^## Success Criteria$/m);
+    expect(skill).toMatch(/^## Output Contract$/m);
+    expect(skill).toMatch(/^## Panel Invocation$/m);
+    expect(skill).toMatch(/^## Moderator Neutrality$/m);
   });
 
   it('evaluate SKILL.md documents guided rubric creation flow', async () => {
@@ -324,6 +337,76 @@ describe('docs-presence', () => {
     expect(qa).toMatch(/## Steps/);
     expect(qa).toMatch(/## Dependencies/);
     expect(qa).toMatch(/## Risks/);
+  });
+
+  it('panel skill is documented and registered in skill surfaces', async () => {
+    const requiredPanelFiles = [
+      panelSkillPath,
+      'plugins/consensus/skills/panel/references/operator-qa.md',
+      'plugins/consensus/skills/panel/references/examples/design-risk-question.md',
+      'plugins/consensus/skills/panel/references/examples/privacy-boundary-question.md',
+      'plugins/consensus/skills/panel/scripts/consensus-panel.mjs',
+      'plugins/consensus/skills/panel/scripts/consensus-config.mjs',
+      'plugins/consensus/skills/panel/schemas/panel-response.schema.json',
+    ];
+
+    for (const relativePath of requiredPanelFiles) {
+      const contents = await read(relativePath);
+      expect(
+        contents.trim().length > 0,
+        `${relativePath} should not be empty`,
+      ).toBeTruthy();
+    }
+
+    const skill = await read(panelSkillPath);
+    expect(skill).toMatch(/^name: panel$/m);
+    expect(skill).toMatch(/^## Panel Invocation$/m);
+    expect(skill).toMatch(/^## Output Contract$/m);
+    expect(skill).toMatch(/--question <text>/);
+    expect(skill).toMatch(/--question-file <path>/);
+    expect(skill).toMatch(/--panelists <provider-id/);
+    expect(skill).toMatch(/--panel-size <n>/);
+    expect(skill).toMatch(/neutral moderator/i);
+    expect(skill).toMatch(/context approval/i);
+
+    const qa = await read(
+      'plugins/consensus/skills/panel/references/operator-qa.md',
+    );
+    expect(qa).toMatch(/consensus-panel\.mjs/);
+    expect(qa).toMatch(/--panelists/);
+    expect(qa).toMatch(/JSONL/);
+  });
+
+  it('panel docs page exists and is navigable', async () => {
+    const panelDoc = await read(panelDocPath);
+    const index = await read('documentation/docs/user-guide/consensus/index.md');
+    const meta = JSON.parse(
+      await read('documentation/docs/user-guide/consensus/meta.json'),
+    );
+
+    expect(panelDoc).toMatch(/^title: ['"]?Panel['"]?$/m);
+    expect(panelDoc).toMatch(/consensus-panel/);
+    expect(panelDoc).toMatch(/neutral moderator/i);
+    expect(panelDoc).toMatch(/--panelists/);
+    expect(panelDoc).toMatch(/--panel-size/);
+    expect(index).toMatch(/\[panel\]\(panel\.md\)/i);
+    expect(index).toMatch(/side-by-side|attributed/i);
+    expect(meta.pages).toContain('panel');
+  });
+
+  it('configuration docs cover panel defaults, paths, and precedence', async () => {
+    const config = await read(
+      'documentation/docs/user-guide/consensus/configuration.md',
+    );
+
+    expect(config).toMatch(/\.config\/consensus\/config\.json/);
+    expect(config).toMatch(/\.consensus\/config\.json/);
+    expect(config).toMatch(
+      /invocation[\s\S]*project[\s\S]*user[\s\S]*built-in/i,
+    );
+    expect(config).toMatch(/--panelists/);
+    expect(config).toMatch(/--panel-size/);
+    expect(config).toMatch(/consensus config/);
   });
 
   it('documentation records the generated TypeScript runtime contract', async () => {

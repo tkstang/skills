@@ -17,6 +17,7 @@ import path from "node:path";
 import { createInterface } from "node:readline/promises";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+import { resolveConsensusComposition } from './consensus-config.mjs';
 import {
   callsPerRound,
   ConsensusError,
@@ -132,8 +133,9 @@ function dynamicFence(contents, info = "") {
 ${text.replace(/\n*$/u, "\n")}${ticks}`;
 }
 function canonicalJsonBlock(label, value) {
+  const json = JSON.stringify(value, null, 2).replace(/-->/gu, "--\\u003e");
   return `<!-- consensus:${label}
-${JSON.stringify(value, null, 2)}
+${json}
 -->`;
 }
 function sanitizeProse(text) {
@@ -2587,6 +2589,31 @@ function resolveProviderCliPeers(options = {}, host = "unknown", providerInvento
   }
   return { peers, inventory };
 }
+function providerInventoryForConsensusConfig(providerInventory) {
+  return providerInventory.map((entry) => {
+    const status = entry.available === true ? "ready" : typeof entry.status === "string" ? entry.status : "unavailable";
+    return { id: entry.id, status };
+  });
+}
+async function resolveConfiguredProviderCliPeers({
+  options,
+  host,
+  env,
+  cwd,
+  providerInventory
+}) {
+  if (options.peers) {
+    return resolveProviderCliPeers(options, host, providerInventory);
+  }
+  const composition = await resolveConsensusComposition({
+    workflow: "convergence",
+    cwd,
+    env,
+    inventory: providerInventoryForConsensusConfig(providerInventory)
+  });
+  const peerOptions = composition.source === "built-in" ? {} : { peers: composition.agents.map((agent) => agent.provider) };
+  return resolveProviderCliPeers(peerOptions, host, providerInventory);
+}
 function parseProviderCliEnvelope(stdout, label) {
   let parsed;
   try {
@@ -2631,7 +2658,13 @@ async function preflightConsensusProviderCli(options = {}) {
     inventoryEnvelope.providers
   );
   const host = detectHost(env);
-  const resolved = resolveProviderCliPeers(options, host, providerInventory);
+  const resolved = await resolveConfiguredProviderCliPeers({
+    options,
+    host,
+    env,
+    cwd,
+    providerInventory
+  });
   const { synthesizer } = resolveSynthesizer(
     {
       iteration: options.iteration ?? "alternating",

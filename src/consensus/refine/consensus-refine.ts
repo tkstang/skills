@@ -16,6 +16,7 @@ import { createInterface } from 'node:readline/promises';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
+import { resolveConsensusComposition } from '../config/consensus-config.js';
 import {
   callsPerRound,
   ConsensusError,
@@ -32,6 +33,7 @@ import {
   requireConsensusCliPath,
   runConsensusLoop,
 } from '../core/consensus-loop.js';
+import type { ProviderInventoryEntry as ConsensusProviderInventoryEntry } from '../provider-cli/types.js';
 
 type JsonRecord = Record<string, unknown>;
 type IterationModeValue = (typeof ITERATION_MODES)[number];
@@ -537,7 +539,12 @@ function dynamicFence(contents: unknown, info = '') {
 }
 
 function canonicalJsonBlock(label: string, value: unknown) {
-  return `<!-- consensus:${label}\n${JSON.stringify(value, null, 2)}\n-->`;
+  // Escape any `-->` in the serialized JSON so an untrusted string value cannot
+  // close the enclosing HTML comment early and truncate the block. This block is
+  // round-tripped back through consensusBlockPattern/JSON.parse, and `>`
+  // decodes to `>`, so the reconstructed value is unchanged.
+  const json = JSON.stringify(value, null, 2).replace(/-->/gu, '--\\u003e');
+  return `<!-- consensus:${label}\n${json}\n-->`;
 }
 
 function sanitizeProse(text: unknown) {
@@ -3634,6 +3641,50 @@ function resolveProviderCliPeers(
   return { peers, inventory };
 }
 
+function providerInventoryForConsensusConfig(
+  providerInventory: readonly NormalizedProviderInventoryEntry[],
+): ConsensusProviderInventoryEntry[] {
+  return providerInventory.map((entry) => {
+    const status =
+      entry.available === true
+        ? 'ready'
+        : typeof entry.status === 'string'
+          ? entry.status
+          : 'unavailable';
+    return { id: entry.id, status } as ConsensusProviderInventoryEntry;
+  });
+}
+
+async function resolveConfiguredProviderCliPeers({
+  options,
+  host,
+  env,
+  cwd,
+  providerInventory,
+}: {
+  options: Pick<WrapperOptions, 'peers'>;
+  host: HostId;
+  env: NodeJS.ProcessEnv;
+  cwd: string;
+  providerInventory: NormalizedProviderInventoryEntry[];
+}) {
+  if (options.peers) {
+    return resolveProviderCliPeers(options, host, providerInventory);
+  }
+
+  const composition = await resolveConsensusComposition({
+    workflow: 'convergence',
+    cwd,
+    env,
+    inventory: providerInventoryForConsensusConfig(providerInventory),
+  });
+  const peerOptions =
+    composition.source === 'built-in'
+      ? {}
+      : { peers: composition.agents.map((agent) => agent.provider) };
+  return resolveProviderCliPeers(peerOptions, host, providerInventory);
+}
+
 function parseProviderCliEnvelope(stdout: string, label: string): JsonRecord {
   let parsed: unknown;
   try {
@@ -3690,7 +3741,13 @@ export async function preflightConsensusProviderCli(
     inventoryEnvelope.providers,
   );
   const host = detectHost(env);
-  const resolved = resolveProviderCliPeers(options, host, providerInventory);
+  const resolved = await resolveConfiguredProviderCliPeers({
+    options,
+    host,
+    env,
+    cwd,
+    providerInventory,
+  });
   const { synthesizer } = resolveSynthesizer(
     {
       iteration: options.iteration ?? 'alternating',

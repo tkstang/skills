@@ -1,7 +1,7 @@
 {
   "name": "consensus",
   "version": "0.1.0",
-  "description": "Consensus create, decide, plan, refine, evaluate, and phone-a-friend skills for peer deliberation and advisory consultation.",
+  "description": "Consensus create, decide, plan, refine, evaluate, panel, and phone-a-friend skills for peer deliberation, attributed panels, and advisory consultation.",
   "author": {
     "name": "Thomas Stang"
   },

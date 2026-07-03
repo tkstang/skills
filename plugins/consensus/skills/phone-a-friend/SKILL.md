@@ -1,14 +1,14 @@
 ---
 name: phone-a-friend
 description: Use for one-shot advisory peer consultation when the host wants a structured second opinion and remains responsible for dispositioning the take.
-version: '0.1.0'
+version: '0.1.1'
 license: MIT
 compatibility: Agent Skills baseline; requires Node.js 22+ and the generated consensus CLI.
 allowed-tools: Bash(node:*), Bash(consensus:*), Read, Write
 argument-hint: ["<question or topic>"] [--peer <provider-id>]
 metadata:
   author: thomas.stang
-  version: '0.1.0'
+  version: '0.1.1'
 ---
 
 # Phone a Friend
@@ -25,7 +25,7 @@ Use this skill when the user asks for one other AI peer's advice, or when your c
 
 - You need peers to converge on an improved artifact. Use `refine`.
 - You need to judge an artifact against a rubric, checklist, spec, or acceptance criteria. Use `evaluate`.
-- You need a multi-peer panel, neutral moderation, voting, or side-by-side peer positions. That belongs to the future `consensus-panel` workflow, not this skill.
+- You need a multi-peer panel, neutral moderation, voting, or side-by-side peer positions. Use the shipped `panel` / `consensus-panel` workflow, not this skill.
 - You would need to send broad, irrelevant, sensitive, or private context without user confirmation.
 
 ## Prerequisites

@@ -12,6 +12,7 @@ import {
 } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { resolveConsensusComposition } from './consensus-config.mjs';
 import {
   ConsensusError,
   EXIT_CODES,
@@ -30,7 +31,6 @@ const MAX_ROUNDS_MAX = 100;
 const PROVIDER_ID_PATTERN = /^[a-z][a-z0-9_-]{0,31}$/u;
 const INPUT_SIZE_CAP_BYTES = 1024 * 1024;
 const DEFAULT_DECIDE_GOAL = "Choose between the supplied options.";
-const DEFAULT_PEERS = Object.freeze(["claude", "codex"]);
 function requireValue(argv, index, token) {
   const value = argv[index + 1];
   if (value === void 0 || value.startsWith("--")) {
@@ -550,6 +550,11 @@ function providerStatusMap(envelope) {
   }
   return new Map(entries);
 }
+function providerInventoryEntries(envelope) {
+  return [...providerStatusMap(envelope)].map(
+    ([id, status]) => ({ id, status })
+  );
+}
 function providerCliUnavailableError(providers) {
   const summary = providers.map((provider) => `${provider.id} (${provider.status})`).join(", ");
   return new ConsensusError(
@@ -604,6 +609,22 @@ async function preflightDecideProviderCli({
       ]);
     }
   }
+}
+async function loadDecideProviderInventory({
+  env,
+  cwd
+}) {
+  const command = resolveConsensusCliPath({ env });
+  const inventoryResult = await runProviderCliCommand(
+    command,
+    ["provider", "ls", "--json"],
+    { env, cwd }
+  );
+  const inventory = parseProviderCliEnvelope(
+    inventoryResult.stdout,
+    "provider inventory"
+  );
+  return providerInventoryEntries(inventory);
 }
 function providerCliLoopInvokers({
   env,
@@ -731,8 +752,9 @@ function yamlScalar(value) {
   return /^[A-Za-z0-9_.-]+$/u.test(text) ? text : JSON.stringify(text);
 }
 function canonicalJsonBlock(label, value) {
+  const json = JSON.stringify(value, null, 2).replace(/-->/gu, "--\\u003e");
   return `<!-- consensus:${label}
-${JSON.stringify(value, null, 2)}
+${json}
 -->`;
 }
 function sanitizeProse(value) {
@@ -935,7 +957,13 @@ async function runConsensusDecide(input, runOptions = {}) {
   const outputPath = await resolveOutputPath({ ...normalized, cwd });
   const writeRoot = path.resolve(normalized.allowRoot ?? cwd);
   const paths = statePathsFor(runDir);
-  const peers = normalized.peers ?? [...DEFAULT_PEERS];
+  const inventory = normalized.peers === null ? await loadDecideProviderInventory({ env, cwd }) : void 0;
+  const peers = normalized.peers ?? (await resolveConsensusComposition({
+    workflow: "convergence",
+    cwd,
+    env,
+    inventory
+  })).agents.map((agent) => agent.provider);
   const synthesizer = normalized.iteration === "parallel_synthesized" ? normalized.synthesizer ?? peers[0] : null;
   const providerCliInvokers = providerCliLoopInvokers({
     env,

@@ -2,11 +2,11 @@
 
 Status: v0.1 pre-release.
 
-`plugins/consensus/` is a self-contained plugin package for consensus workflows. It ships `create`, which drafts a new artifact from a brief with independent peer drafts and synthesis; `decide`, which chooses between documented options with minimal agency and explicit dissent surfacing; `plan`, which turns a goal and inline constraints into a structured plan with steps, dependencies, and risks; `refine`, which refines markdown drafts by asking two provider CLI-backed AI peers to deliberate toward a converged artifact with an audit trail; `evaluate`, which judges an artifact against a rubric with unified findings, per-peer reasoning, and dissent preserved in the deliberation log; and `phone-a-friend`, which asks one other provider-backed peer for a structured advisory take without a deliberation loop.
+`plugins/consensus/` is a self-contained plugin package for consensus workflows. It ships `create`, which drafts a new artifact from a brief with independent peer drafts and synthesis; `decide`, which chooses between documented options with minimal agency and explicit dissent surfacing; `plan`, which turns a goal and inline constraints into a structured plan with steps, dependencies, and risks; `refine`, which refines markdown drafts by asking two provider CLI-backed AI peers to deliberate toward a converged artifact with an audit trail; `evaluate`, which judges an artifact against a rubric with unified findings, per-peer reasoning, and dissent preserved in the deliberation log; `panel`, which asks multiple provider-backed panelists the same question and writes side-by-side attributed responses while the host stays a neutral moderator; and `phone-a-friend`, which asks one other provider-backed peer for a structured advisory take without a deliberation loop.
 
 Consensus peers run through the generated provider CLI. The CLI owns provider inventory, preflight, bounded subprocess execution, conservative retry classification, schema delivery, and the internal `consensus submit` sidecar-verdict path used to capture peer verdicts before final-message parsing fallback.
 
-The scope is intentionally narrow: the `create`, `decide`, `plan`, `refine`, `evaluate`, and `phone-a-friend` skills, three iteration modes selected with `--iteration` (`parallel_synthesized` default for create, decide, and plan, `alternating` default for refine, `parallel_revision` default for evaluate), a configurable synthesizer (`--synthesizer`), an agency-gated escalation ladder with host/user decision re-entry (`--host-direction`), sequential sections by default for refine, opt-in host-mediated parallel section orchestration for refine, the `--agency` flag, and one-shot advisory peer consultation through `consensus run`. Future work may add `consensus-research`, `consensus-panel`, a whole-document harmonization pass, and deliberation metrics/cost caps.
+The scope is intentionally narrow: the `create`, `decide`, `plan`, `refine`, `evaluate`, `panel`, and `phone-a-friend` skills, three iteration modes selected with `--iteration` (`parallel_synthesized` default for create, decide, and plan, `alternating` default for refine, `parallel_revision` default for evaluate), a configurable synthesizer (`--synthesizer`), an agency-gated escalation ladder with host/user decision re-entry (`--host-direction`), sequential sections by default for refine, opt-in host-mediated parallel section orchestration for refine, the `--agency` flag, single-round neutral panel questions through `consensus-panel`, and one-shot advisory peer consultation through `consensus run`. Future work may add `consensus-research`, a whole-document harmonization pass, multi-round panel discussion, and deliberation metrics/cost caps.
 
 ## Local Git Repository Install
 
@@ -171,6 +171,33 @@ If you want an evaluation but do not have a rubric yet — or you ask for help a
 
 Four ready-to-adapt example rubrics ship under `skills/evaluate/references/examples/`: `general-purpose.md`, `code-review.md`, `technical-writing.md`, and `design-architecture.md`.
 
+### Panel
+
+Ask multiple provider-backed panelists the same question:
+
+```bash
+node plugins/consensus/skills/panel/scripts/consensus-panel.mjs \
+  --question "What risks should we inspect before launch?" \
+  --panelists claude,codex \
+  --output panel.md
+```
+
+Use `--question-file <path>` for longer prompts, `--panelists` to name explicit
+providers, and `--panel-size` to set a target panel size. Without explicit
+panelists, the wrapper resolves defaults from `consensus config` using invocation
+flags, project config, user config, then built-in fallback.
+
+The panel wrapper emits JSONL status events, writes a markdown `consensus-panel`
+artifact, and records each panelist's response with attribution, diagnostics,
+shortfalls, and run metadata. The host remains a neutral moderator: it presents
+the attributed responses and does not synthesize, vote, or add a host-authored
+panel answer.
+
+For the host-facing workflow, see `skills/panel/SKILL.md`. For the panel response
+schema and manual QA walkthrough, see
+`skills/panel/schemas/panel-response.schema.json` and
+`skills/panel/references/operator-qa.md`.
+
 ### Phone-a-friend
 
 Ask one other provider-backed peer for a structured advisory take:
@@ -197,7 +224,7 @@ schema contract and manual QA walkthrough, see
 
 ## Permissions
 
-The consensus `create`, `decide`, `plan`, `refine`, `evaluate`, and
+The consensus `create`, `decide`, `plan`, `refine`, `evaluate`, `panel`, and
 `phone-a-friend` skills need permission to run:
 
 - `node` for the wrapper and loop scripts.
@@ -209,6 +236,10 @@ with the advisory schema, not a generated wrapper. It needs read access to the
 prompt file and schema, and any write access the host uses to prepare temporary
 prompt files or record the advisory disposition.
 
+`panel` uses the generated panel wrapper, writes `.consensus/` run state and a
+markdown panel artifact, and should ask before sending sensitive/private context
+to provider-backed panelists.
+
 Refine parallel section mode additionally requires host-native subagent dispatch. Codex authorization must fail closed: if dispatch approval is unavailable or denied, the host should report that parallel mode did not run.
 
 ## Advanced Configuration
@@ -217,6 +248,17 @@ By default, host detection chooses `claude,codex` on Claude Code and Cursor, and
 
 ```bash
 node plugins/consensus/skills/refine/scripts/consensus-refine.mjs draft.md --peers claude,codex
+```
+
+Panel defaults use the same config surface:
+
+```bash
+consensus config get --json --scope effective --workflow panel
+consensus config set --json --scope project --panelists claude,codex,cursor --panel-size 3
+node plugins/consensus/skills/panel/scripts/consensus-panel.mjs \
+  --question-file question.md \
+  --panelists claude,codex \
+  --panel-size 2
 ```
 
 Peer IDs come from provider inventory:
@@ -236,10 +278,11 @@ Cursor is included in the provider floor, but local auth state is still operator
 
 ## Limitations
 
-- v0.1 ships the `create`, `decide`, `plan`, `refine`, `evaluate`, and
+- v0.1 ships the `create`, `decide`, `plan`, `refine`, `evaluate`, `panel`, and
   `phone-a-friend` skills.
-- Remaining consensus family skills are future work: `consensus-research` and
-  `consensus-panel`.
+- Remaining consensus family skills are future work: `consensus-research`.
+- `consensus-panel` is single-round and independent. Multi-round panel
+  discussion remains future work.
 - Ships three iteration modes (`alternating`, `parallel_revision`, `parallel_synthesized`); the independent-draft cold-start strategy is exposed through `create`, `decide`, and `plan`, while `refine` and `evaluate` remain shared-input only.
 - Sections converge independently; whole-document harmonization and deliberation metrics/cost caps remain deferred.
 - Verdict submission is best-effort by default: successful submit sidecars are preferred, then wrappers fall back to final-message parsing. A strict require-submission mode and Codex read-only submit capture-path relocation remain future work.
@@ -258,6 +301,10 @@ Cursor is included in the provider floor, but local auth state is still operator
 - `skills/decide/references/operator-qa.md` - manual QA walkthrough of options-to-decision runs and dissent review, with a runnable options file under `references/examples/`.
 - `skills/plan/` - implementation directory for the shipped `plan` skill.
 - `skills/plan/references/operator-qa.md` - manual QA walkthrough of goal-to-plan runs, with a runnable goal and constraints example under `references/examples/`.
+- `skills/panel/` - implementation directory for the shipped `panel` skill.
+- `skills/panel/references/operator-qa.md` - manual QA walkthrough of single-round panel runs, config defaults, JSONL events, and artifact review.
+- `skills/panel/references/examples/` - runnable question examples for design risk and privacy-boundary panels.
+- `skills/panel/schemas/panel-response.schema.json` - structured panelist response contract.
 - `skills/refine/` - implementation directory for the shipped `refine` skill.
 - `skills/refine/references/operator-qa.md` - manual QA walkthrough of the iteration modes and escalation ladder, with runnable example inputs under `references/examples/`.
 - `skills/evaluate/` - implementation directory for the shipped `evaluate` skill.

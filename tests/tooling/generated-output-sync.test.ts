@@ -62,6 +62,8 @@ describe('generated output drift guard', () => {
     expect(result.stdout).toContain('consensus-decide: in sync');
     expect(result.stdout).toContain('consensus-plan-loop: in sync');
     expect(result.stdout).toContain('consensus-plan: in sync');
+    expect(result.stdout).toContain('consensus-panel-config: in sync');
+    expect(result.stdout).toContain('consensus-panel: in sync');
     expect(result.stdout).toContain('consensus-provider-cli: in sync');
     expect(result.stdout).toContain(
       'transcript-core-session-observer: in sync',
@@ -137,6 +139,10 @@ describe('generated output drift guard', () => {
     expect(script).toContain('src/consensus/plan/consensus-plan.ts');
     expect(script).toContain(
       'plugins/consensus/skills/plan/scripts/consensus-plan.mjs',
+    );
+    expect(script).toContain('src/consensus/panel/consensus-panel.ts');
+    expect(script).toContain(
+      'plugins/consensus/skills/panel/scripts/consensus-panel.mjs',
     );
     expect(script).toContain('src/consensus/provider-cli/cli.ts');
     expect(script).toContain('plugins/consensus/scripts/consensus.mjs');

@@ -1,4 +1,11 @@
-import { chmod, mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import {
+  chmod,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  writeFile,
+} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -12,6 +19,106 @@ import {
   parseEvaluateArgs,
   runConsensusEvaluate,
 } from '../../../src/consensus/evaluate/consensus-evaluate.js';
+import { writeConsensusConfig } from '../../../src/consensus/config/consensus-config.js';
+import { makeProviderCliEnv } from '../../helpers/process.mjs';
+
+interface IsolatedRunContext {
+  cwd: string;
+  env: NodeJS.ProcessEnv;
+}
+
+function withoutHostSignals(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const scrubbed = { ...env };
+  for (const key of Object.keys(scrubbed)) {
+    if (
+      key.startsWith('CODEX_') ||
+      key.startsWith('CURSOR_') ||
+      key === 'CLAUDECODE' ||
+      key === 'CLAUDE_CODE' ||
+      key === 'CLAUDECODE_SESSION_ID'
+    ) {
+      delete scrubbed[key];
+    }
+  }
+  return scrubbed;
+}
+
+async function withIsolatedConsensusConfig(
+  fn: (context: IsolatedRunContext) => Promise<void>,
+  envOverrides: NodeJS.ProcessEnv = {},
+) {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'consensus-evaluate-config-'));
+  try {
+    const cwd = path.join(root, 'project');
+    const home = path.join(root, 'home');
+    const xdg = path.join(root, 'xdg');
+    await Promise.all([
+      mkdir(cwd, { recursive: true }),
+      mkdir(home, { recursive: true }),
+      mkdir(xdg, { recursive: true }),
+    ]);
+    await writeFile(path.join(cwd, 'artifact.md'), '# Artifact\n\nShip it.\n');
+    await writeFile(path.join(cwd, 'rubric.md'), '# Rubric\n\nCheck risk.\n');
+
+    await fn({
+      cwd,
+      env: withoutHostSignals(
+        makeProviderCliEnv({
+          HOME: home,
+          XDG_CONFIG_HOME: xdg,
+          CONSENSUS_STUB_PROVIDERS: 'claude,codex,cursor',
+          ...envOverrides,
+        }),
+      ),
+    });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+}
+
+async function runEvaluateFixture(
+  context: IsolatedRunContext,
+  label: string,
+  extraArgv: readonly string[] = [],
+) {
+  return await runConsensusEvaluate(
+    [
+      'artifact.md',
+      '--rubric',
+      'rubric.md',
+      '--output',
+      `${label}.md`,
+      '--run-dir',
+      `.consensus/${label}`,
+      '--allow-root',
+      context.cwd,
+      '--max-rounds',
+      '1',
+      ...extraArgv,
+    ],
+    {
+      cwd: context.cwd,
+      env: context.env,
+      invokePeer: async ({ provider }) => ({
+        json: {
+          schema_version: 'v1',
+          verdict: 'REVISE',
+          reasoning: `${provider} fixture finding`,
+          proposed_artifact: `# Evaluation\n\n## Unified Findings\n\n- ${provider} found risk.\n`,
+        },
+      }),
+      invokeSynthesizer: async () => ({
+        json: {
+          schema_version: 'v1',
+          synthesized_artifact:
+            '# Evaluation\n\n## Unified Findings\n\n- Fixture synthesis.\n',
+          synthesis_reasoning: 'fixture synthesis',
+          unresolved_disagreements: [],
+        },
+      }),
+    },
+  );
+}
 
 function extractTaggedBlock(prompt: string, label: string, tag: string) {
   const labelIndex = prompt.indexOf(label);
@@ -80,6 +187,128 @@ it('parses artifact, rubric, consensus flags, and evaluate defaults', () => {
     runDir: '.consensus/evaluate-run',
     allowRoot: '.',
   });
+});
+
+it('preserves built-in evaluate peer order when no consensus config exists', async () => {
+  await withIsolatedConsensusConfig(async (context) => {
+    const result = await runEvaluateFixture(context, 'no-config');
+
+    expect(result.peers).toEqual(['claude', 'codex']);
+  });
+});
+
+it('fails preflight for unavailable built-in evaluate peers instead of substituting ready providers', async () => {
+  await withIsolatedConsensusConfig(
+    async (context) => {
+      await expect(
+        runEvaluateFixture(context, 'no-config-unavailable-built-in'),
+      ).rejects.toSatisfy((error: { code?: string; message: string }) => {
+        expect(error.code).toBe('PEER_UNAVAILABLE');
+        expect(error.message).toMatch(/codex/);
+        expect(error.message).toMatch(/auth_required/);
+        expect(error.message).not.toMatch(/cursor/);
+        return true;
+      });
+    },
+    { CONSENSUS_STUB_AUTH_REQUIRED: 'codex' },
+  );
+});
+
+it('uses project and user peer defaults only when --peers is absent', async () => {
+  await withIsolatedConsensusConfig(async (context) => {
+    await writeConsensusConfig({
+      scope: 'user',
+      cwd: context.cwd,
+      env: context.env,
+      config: {
+        schema_version: 'v1',
+        defaults: {
+          peers: [{ provider: 'codex' }, { provider: 'cursor' }],
+        },
+      },
+    });
+
+    await expect(
+      runEvaluateFixture(context, 'user-default'),
+    ).resolves.toMatchObject({
+      peers: ['codex', 'cursor'],
+    });
+
+    await writeConsensusConfig({
+      scope: 'project',
+      cwd: context.cwd,
+      env: context.env,
+      config: {
+        schema_version: 'v1',
+        defaults: {
+          peers: [{ provider: 'cursor' }, { provider: 'claude' }],
+        },
+      },
+    });
+
+    await expect(
+      runEvaluateFixture(context, 'project-default'),
+    ).resolves.toMatchObject({
+      peers: ['cursor', 'claude'],
+    });
+
+    await expect(
+      runEvaluateFixture(context, 'explicit-peers', [
+        '--peers',
+        'claude,codex',
+      ]),
+    ).resolves.toMatchObject({
+      peers: ['claude', 'codex'],
+    });
+  });
+});
+
+it('fails closed for unavailable explicit evaluate peers', async () => {
+  await withIsolatedConsensusConfig(
+    async (context) => {
+      await expect(
+        runEvaluateFixture(context, 'explicit-unavailable', [
+          '--peers',
+          'claude,cursor',
+        ]),
+      ).rejects.toSatisfy((error: { code?: string; message: string }) => {
+        expect(error.code).toBe('PEER_UNAVAILABLE');
+        expect(error.message).toMatch(/cursor/);
+        expect(error.message).toMatch(/auth_required/);
+        return true;
+      });
+    },
+    { CONSENSUS_STUB_AUTH_REQUIRED: 'cursor' },
+  );
+});
+
+it('reports provider-neutral diagnostics for unavailable configured defaults', async () => {
+  await withIsolatedConsensusConfig(
+    async (context) => {
+      await writeConsensusConfig({
+        scope: 'project',
+        cwd: context.cwd,
+        env: context.env,
+        config: {
+          schema_version: 'v1',
+          defaults: {
+            peers: [{ provider: 'claude' }, { provider: 'cursor' }],
+          },
+        },
+      });
+
+      await expect(
+        runEvaluateFixture(context, 'configured-unavailable'),
+      ).rejects.toSatisfy((error: { code?: string; message: string }) => {
+        expect(error.code).toBe('PEER_UNAVAILABLE');
+        expect(error.message).toMatch(/cursor/);
+        expect(error.message).toMatch(/auth_required/);
+        expect(error.message).not.toMatch(/install/i);
+        return true;
+      });
+    },
+    { CONSENSUS_STUB_AUTH_REQUIRED: 'cursor' },
+  );
 });
 
 it('rejects independent_draft cold starts with a clear evaluate error', () => {

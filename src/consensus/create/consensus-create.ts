@@ -11,6 +11,7 @@ import {
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { resolveConsensusComposition } from '../config/consensus-config.js';
 import {
   ConsensusError,
   EXIT_CODES,
@@ -37,6 +38,7 @@ import type {
   SynthesizerInvoker,
   TurnPromptInput,
 } from '../core/consensus-loop.js';
+import type { ProviderInventoryEntry } from '../provider-cli/types.js';
 
 const MAX_ROUNDS_MIN = 1;
 const MAX_ROUNDS_MAX = 100;
@@ -134,7 +136,6 @@ export interface CreateRunResult {
 type JsonRecord = Record<string, unknown>;
 
 const DEFAULT_CREATE_GOAL = 'Create a new artifact from the brief.';
-const DEFAULT_PEERS = Object.freeze(['claude', 'codex']);
 
 function requireValue(argv: readonly string[], index: number, token: string) {
   const value = argv[index + 1];
@@ -214,10 +215,13 @@ function validateBriefSources(
     );
   }
   if (options.brief === null && options.briefFile === null) {
-    throw new ConsensusError('consensus-create requires --brief or --brief-file', {
-      code: 'MISSING_BRIEF_SOURCE',
-      exitCode: EXIT_CODES.USAGE,
-    });
+    throw new ConsensusError(
+      'consensus-create requires --brief or --brief-file',
+      {
+        code: 'MISSING_BRIEF_SOURCE',
+        exitCode: EXIT_CODES.USAGE,
+      },
+    );
   }
 }
 
@@ -784,6 +788,14 @@ function providerStatusMap(envelope: Record<string, unknown>) {
   return new Map(entries);
 }
 
+function providerInventoryEntries(
+  envelope: Record<string, unknown>,
+): ProviderInventoryEntry[] {
+  return [...providerStatusMap(envelope)].map(
+    ([id, status]) => ({ id, status }) as ProviderInventoryEntry,
+  );
+}
+
 function providerCliUnavailableError(
   providers: Array<{ id: string; status: string }>,
 ) {
@@ -850,6 +862,26 @@ async function preflightCreateProviderCli({
       ]);
     }
   }
+}
+
+async function loadCreateProviderInventory({
+  env,
+  cwd,
+}: {
+  env: NodeJS.ProcessEnv;
+  cwd: string;
+}): Promise<ProviderInventoryEntry[]> {
+  const command = resolveConsensusCliPath({ env });
+  const inventoryResult = await runProviderCliCommand(
+    command,
+    ['provider', 'ls', '--json'],
+    { env, cwd },
+  );
+  const inventory = parseProviderCliEnvelope(
+    inventoryResult.stdout,
+    'provider inventory',
+  );
+  return providerInventoryEntries(inventory);
 }
 
 function providerCliLoopInvokers({
@@ -1012,7 +1044,12 @@ function yamlScalar(value: unknown) {
 }
 
 function canonicalJsonBlock(label: string, value: unknown) {
-  return `<!-- consensus:${label}\n${JSON.stringify(value, null, 2)}\n-->`;
+  // Escape any `-->` in the serialized JSON so an untrusted string value cannot
+  // close the enclosing HTML comment early and truncate the block. `>`
+  // round-trips through JSON.parse back to `>`, so consumers reconstruct the
+  // original text.
+  const json = JSON.stringify(value, null, 2).replace(/-->/gu, '--\\u003e');
+  return `<!-- consensus:${label}\n${json}\n-->`;
 }
 
 function sanitizeProse(value: unknown) {
@@ -1213,7 +1250,20 @@ export async function runConsensusCreate(
   const outputPath = await resolveOutputPath({ ...normalized, cwd });
   const writeRoot = path.resolve(normalized.allowRoot ?? cwd);
   const paths = statePathsFor(runDir);
-  const peers = normalized.peers ?? [...DEFAULT_PEERS];
+  const inventory =
+    normalized.peers === null
+      ? await loadCreateProviderInventory({ env, cwd })
+      : undefined;
+  const peers: string[] =
+    normalized.peers ??
+    (
+      await resolveConsensusComposition({
+        workflow: 'convergence',
+        cwd,
+        env,
+        inventory,
+      })
+    ).agents.map((agent) => agent.provider);
   const synthesizer =
     normalized.iteration === 'parallel_synthesized'
       ? (normalized.synthesizer ?? peers[0])

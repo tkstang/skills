@@ -1,4 +1,11 @@
-import { chmod, mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import {
+  chmod,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  writeFile,
+} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -13,9 +20,82 @@ import {
   resolveRunDir,
   runSequential,
 } from '../../../src/consensus/refine/consensus-refine.js';
+import { writeConsensusConfig } from '../../../src/consensus/config/consensus-config.js';
 
 function inventory(ids: string[]) {
   return ids.map((id) => ({ id, available: true }));
+}
+
+interface IsolatedConfigContext {
+  cwd: string;
+  env: NodeJS.ProcessEnv;
+}
+
+async function withIsolatedConsensusConfig(
+  fn: (context: IsolatedConfigContext) => Promise<void>,
+  envOverrides: NodeJS.ProcessEnv = {},
+) {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'consensus-refine-config-'));
+  try {
+    const cwd = path.join(root, 'project');
+    const home = path.join(root, 'home');
+    const xdg = path.join(root, 'xdg');
+    await Promise.all([
+      mkdir(cwd, { recursive: true }),
+      mkdir(home, { recursive: true }),
+      mkdir(xdg, { recursive: true }),
+    ]);
+
+    await fn({
+      cwd,
+      env: {
+        CONSENSUS_CLI_PATH: '/tmp/bin/consensus',
+        HOME: home,
+        XDG_CONFIG_HOME: xdg,
+        ...envOverrides,
+      },
+    });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+}
+
+function providerCliCommand(
+  statuses: Record<string, string> = {},
+  providers = ['claude', 'codex', 'cursor'],
+) {
+  const calls: Array<[string, string[]]> = [];
+  return {
+    calls,
+    runCommand: async (command: string, args: string[]) => {
+      calls.push([command, args]);
+      if (args[0] === 'provider') {
+        return {
+          stdout: JSON.stringify({
+            schema_version: 'v1',
+            ok: true,
+            providers: providers.map((id) => ({
+              id,
+              status: statuses[id] ?? 'ready',
+            })),
+          }),
+          stderr: '',
+        };
+      }
+
+      const provider = args.at(-1) ?? '';
+      const status = statuses[provider] ?? 'ready';
+      return {
+        stdout: JSON.stringify({
+          schema_version: 'v1',
+          ok: true,
+          usable: status === 'ready',
+          providers: [{ id: provider, status }],
+        }),
+        stderr: '',
+      };
+    },
+  };
 }
 
 it('parseWrapperArgs handles sequential options and defaults', () => {
@@ -330,6 +410,133 @@ it('preflightConsensusProviderCli uses provider inventory and selected-provider 
     expect.objectContaining({ id: 'claude', available: true }),
     expect.objectContaining({ id: 'codex', available: true }),
   ]);
+});
+
+it('preflightConsensusProviderCli preserves host-aware defaults without config', async () => {
+  await withIsolatedConsensusConfig(
+    async ({ cwd, env }) => {
+      const command = providerCliCommand();
+      const result = await preflightConsensusProviderCli({
+        cwd,
+        env,
+        runCommand: command.runCommand,
+      });
+
+      expect(result.peers).toEqual(['codex', 'claude']);
+    },
+    { CODEX_SANDBOX: '1' },
+  );
+});
+
+it('preflightConsensusProviderCli uses configured defaults only without explicit peers', async () => {
+  await withIsolatedConsensusConfig(async ({ cwd, env }) => {
+    const command = providerCliCommand();
+    await writeConsensusConfig({
+      scope: 'user',
+      cwd,
+      env,
+      config: {
+        schema_version: 'v1',
+        defaults: {
+          peers: [{ provider: 'codex' }, { provider: 'cursor' }],
+        },
+      },
+    });
+
+    await expect(
+      preflightConsensusProviderCli({
+        cwd,
+        env,
+        runCommand: command.runCommand,
+      }),
+    ).resolves.toMatchObject({
+      peers: ['codex', 'cursor'],
+    });
+
+    await writeConsensusConfig({
+      scope: 'project',
+      cwd,
+      env,
+      config: {
+        schema_version: 'v1',
+        defaults: {
+          peers: [{ provider: 'cursor' }, { provider: 'claude' }],
+        },
+      },
+    });
+
+    await expect(
+      preflightConsensusProviderCli({
+        cwd,
+        env,
+        runCommand: command.runCommand,
+      }),
+    ).resolves.toMatchObject({
+      peers: ['cursor', 'claude'],
+    });
+
+    await expect(
+      preflightConsensusProviderCli({
+        cwd,
+        env,
+        peers: ['claude', 'codex'],
+        runCommand: command.runCommand,
+      }),
+    ).resolves.toMatchObject({
+      peers: ['claude', 'codex'],
+    });
+  });
+});
+
+it('preflightConsensusProviderCli still fails closed for unavailable explicit peers', async () => {
+  await withIsolatedConsensusConfig(async ({ cwd, env }) => {
+    const command = providerCliCommand({ cursor: 'auth_required' });
+
+    await expect(
+      preflightConsensusProviderCli({
+        cwd,
+        env,
+        peers: ['claude', 'cursor'],
+        runCommand: command.runCommand,
+      }),
+    ).rejects.toSatisfy((error: { code?: string; message: string }) => {
+      expect(error.code).toBe('PEER_UNAVAILABLE');
+      expect(error.message).toMatch(/cursor/);
+      expect(error.message).toMatch(/auth_required/);
+      return true;
+    });
+  });
+});
+
+it('preflightConsensusProviderCli reports provider-neutral configured default diagnostics', async () => {
+  await withIsolatedConsensusConfig(async ({ cwd, env }) => {
+    const command = providerCliCommand({ cursor: 'auth_required' });
+    await writeConsensusConfig({
+      scope: 'project',
+      cwd,
+      env,
+      config: {
+        schema_version: 'v1',
+        defaults: {
+          peers: [{ provider: 'claude' }, { provider: 'cursor' }],
+        },
+      },
+    });
+
+    await expect(
+      preflightConsensusProviderCli({
+        cwd,
+        env,
+        runCommand: command.runCommand,
+      }),
+    ).rejects.toSatisfy((error: { code?: string; message: string }) => {
+      expect(error.code).toBe('PEER_UNAVAILABLE');
+      expect(error.message).toMatch(/cursor/);
+      expect(error.message).toMatch(/auth_required/);
+      expect(error.message).not.toMatch(/install/i);
+      return true;
+    });
+  });
 });
 
 it('preflightConsensusProviderCli reports auth-required providers without install remediation', async () => {

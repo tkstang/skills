@@ -1,4 +1,4 @@
-import { mkdtemp, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -9,8 +9,87 @@ import {
   INPUT_SIZE_CAP_BYTES,
   loadCreateInputs,
   parseCreateArgs,
+  runConsensusCreate,
 } from '../../../src/consensus/create/consensus-create.js';
+import { writeConsensusConfig } from '../../../src/consensus/config/consensus-config.js';
 import { EXIT_CODES } from '../../../src/consensus/core/consensus-loop.js';
+import { makeProviderCliEnv } from '../../helpers/process.mjs';
+
+interface IsolatedRunContext {
+  cwd: string;
+  env: NodeJS.ProcessEnv;
+}
+
+async function withIsolatedConsensusConfig(
+  fn: (context: IsolatedRunContext) => Promise<void>,
+  envOverrides: NodeJS.ProcessEnv = {},
+) {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'consensus-create-config-'));
+  try {
+    const cwd = path.join(root, 'project');
+    const home = path.join(root, 'home');
+    const xdg = path.join(root, 'xdg');
+    await Promise.all([
+      mkdir(cwd, { recursive: true }),
+      mkdir(home, { recursive: true }),
+      mkdir(xdg, { recursive: true }),
+    ]);
+
+    await fn({
+      cwd,
+      env: makeProviderCliEnv({
+        HOME: home,
+        XDG_CONFIG_HOME: xdg,
+        CONSENSUS_STUB_PROVIDERS: 'claude,codex,cursor',
+        ...envOverrides,
+      }),
+    });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+}
+
+async function runCreateFixture(
+  context: IsolatedRunContext,
+  label: string,
+  extraArgv: readonly string[] = [],
+) {
+  return await runConsensusCreate(
+    [
+      '--brief',
+      'Draft a concise launch note.',
+      '--output',
+      `${label}.md`,
+      '--run-dir',
+      `.consensus/${label}`,
+      '--allow-root',
+      context.cwd,
+      '--max-rounds',
+      '1',
+      ...extraArgv,
+    ],
+    {
+      cwd: context.cwd,
+      env: context.env,
+      invokePeer: async ({ provider }) => ({
+        json: {
+          schema_version: 'v1',
+          verdict: 'REVISE',
+          reasoning: `${provider} fixture revision`,
+          proposed_artifact: `# ${provider} Draft\n\nFixture draft.\n`,
+        },
+      }),
+      invokeSynthesizer: async () => ({
+        json: {
+          schema_version: 'v1',
+          synthesized_artifact: '# Created Artifact\n\nFixture synthesis.\n',
+          synthesis_reasoning: 'fixture synthesis',
+          unresolved_disagreements: [],
+        },
+      }),
+    },
+  );
+}
 
 it('parses inline briefs and create defaults', () => {
   const parsed = parseCreateArgs(['--brief', 'Draft a launch note.']);
@@ -28,6 +107,105 @@ it('parses inline briefs and create defaults', () => {
     output: null,
     runDir: null,
     allowRoot: null,
+  });
+});
+
+it('preserves built-in peer order when no consensus config exists', async () => {
+  await withIsolatedConsensusConfig(async (context) => {
+    const result = await runCreateFixture(context, 'no-config');
+
+    expect(result.peers).toEqual(['claude', 'codex']);
+  });
+});
+
+it('fails preflight for unavailable built-in peers instead of substituting ready providers', async () => {
+  await withIsolatedConsensusConfig(
+    async (context) => {
+      await expect(
+        runCreateFixture(context, 'no-config-unavailable-built-in'),
+      ).rejects.toSatisfy((error: { code?: string; message: string }) => {
+        expect(error.code).toBe('PEER_UNAVAILABLE');
+        expect(error.message).toMatch(/codex/);
+        expect(error.message).toMatch(/auth_required/);
+        expect(error.message).not.toMatch(/cursor/);
+        return true;
+      });
+    },
+    { CONSENSUS_STUB_AUTH_REQUIRED: 'codex' },
+  );
+});
+
+it('uses project and user peer defaults only when --peers is absent', async () => {
+  await withIsolatedConsensusConfig(async (context) => {
+    await writeConsensusConfig({
+      scope: 'user',
+      cwd: context.cwd,
+      env: context.env,
+      config: {
+        schema_version: 'v1',
+        defaults: {
+          peers: [{ provider: 'codex' }, { provider: 'cursor' }],
+        },
+      },
+    });
+
+    await expect(runCreateFixture(context, 'user-default')).resolves.toMatchObject(
+      {
+        peers: ['codex', 'cursor'],
+      },
+    );
+
+    await writeConsensusConfig({
+      scope: 'project',
+      cwd: context.cwd,
+      env: context.env,
+      config: {
+        schema_version: 'v1',
+        defaults: {
+          peers: [{ provider: 'cursor' }, { provider: 'claude' }],
+        },
+      },
+    });
+
+    await expect(
+      runCreateFixture(context, 'project-default'),
+    ).resolves.toMatchObject({
+      peers: ['cursor', 'claude'],
+    });
+
+    await expect(
+      runCreateFixture(context, 'explicit-peers', [
+        '--peers',
+        'claude,codex',
+      ]),
+    ).resolves.toMatchObject({
+      peers: ['claude', 'codex'],
+    });
+  });
+});
+
+it('does not leak configured panel defaults into create peer selection', async () => {
+  await withIsolatedConsensusConfig(async (context) => {
+    await writeConsensusConfig({
+      scope: 'project',
+      cwd: context.cwd,
+      env: context.env,
+      config: {
+        schema_version: 'v1',
+        defaults: {
+          panelists: [
+            { provider: 'cursor' },
+            { provider: 'codex' },
+            { provider: 'claude' },
+          ],
+          panel_size: 3,
+        },
+      },
+    });
+
+    const result = await runCreateFixture(context, 'panel-defaults');
+
+    expect(result.peers).toEqual(['claude', 'codex']);
   });
 });
 

@@ -57,6 +57,8 @@ describe('repo-layout', () => {
       path.posix.join('plugins', 'consensus', 'skills', 'decide', 'scripts'),
       path.posix.join('plugins', 'consensus', 'skills', 'plan'),
       path.posix.join('plugins', 'consensus', 'skills', 'plan', 'scripts'),
+      path.posix.join('plugins', 'consensus', 'skills', 'panel'),
+      path.posix.join('plugins', 'consensus', 'skills', 'panel', 'scripts'),
       path.posix.join('plugins', 'consensus', 'agents'),
       path.posix.join('plugins', 'consensus', '.claude-plugin'),
       path.posix.join('plugins', 'consensus', '.cursor-plugin'),
@@ -176,6 +178,29 @@ describe('repo-layout', () => {
 
     const requiredExamples = [
       path.posix.join(examplesDir, 'goal-and-constraints.md'),
+    ];
+
+    for (const examplePath of requiredExamples) {
+      const exists = await pathExists(examplePath);
+      expect(exists, `${examplePath} should exist`).toBe(true);
+    }
+  });
+
+  it('panel skill ships bundled question examples', async () => {
+    const examplesDir = path.posix.join(
+      'plugins',
+      'consensus',
+      'skills',
+      'panel',
+      'references',
+      'examples',
+    );
+
+    await assertDirectory(examplesDir);
+
+    const requiredExamples = [
+      path.posix.join(examplesDir, 'design-risk-question.md'),
+      path.posix.join(examplesDir, 'privacy-boundary-question.md'),
     ];
 
     for (const examplePath of requiredExamples) {

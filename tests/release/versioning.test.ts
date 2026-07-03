@@ -32,6 +32,7 @@ const skillFiles = [
   'plugins/consensus/skills/create/SKILL.md',
   'plugins/consensus/skills/decide/SKILL.md',
   'plugins/consensus/skills/plan/SKILL.md',
+  'plugins/consensus/skills/panel/SKILL.md',
   'plugins/consensus/skills/phone-a-friend/SKILL.md',
 ];
 const requiredDocs = [

@@ -1,4 +1,4 @@
-import { mkdtemp, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -10,7 +10,91 @@ import {
   loadDecideInputs,
   parseDecideArgs,
   renderDecisionArtifact,
+  runConsensusDecide,
 } from '../../../src/consensus/decide/consensus-decide.js';
+import { writeConsensusConfig } from '../../../src/consensus/config/consensus-config.js';
+import { makeProviderCliEnv } from '../../helpers/process.mjs';
+
+interface IsolatedRunContext {
+  cwd: string;
+  env: NodeJS.ProcessEnv;
+}
+
+async function withIsolatedConsensusConfig(
+  fn: (context: IsolatedRunContext) => Promise<void>,
+  envOverrides: NodeJS.ProcessEnv = {},
+) {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'consensus-decide-config-'));
+  try {
+    const cwd = path.join(root, 'project');
+    const home = path.join(root, 'home');
+    const xdg = path.join(root, 'xdg');
+    await Promise.all([
+      mkdir(cwd, { recursive: true }),
+      mkdir(home, { recursive: true }),
+      mkdir(xdg, { recursive: true }),
+    ]);
+    await writeFile(
+      path.join(cwd, 'options.md'),
+      '# Options\n\n- Ship now\n- Wait for more evidence\n',
+    );
+
+    await fn({
+      cwd,
+      env: makeProviderCliEnv({
+        HOME: home,
+        XDG_CONFIG_HOME: xdg,
+        CONSENSUS_STUB_PROVIDERS: 'claude,codex,cursor',
+        ...envOverrides,
+      }),
+    });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+}
+
+async function runDecideFixture(
+  context: IsolatedRunContext,
+  label: string,
+  extraArgv: readonly string[] = [],
+) {
+  return await runConsensusDecide(
+    [
+      '--options',
+      'options.md',
+      '--output',
+      `${label}.md`,
+      '--run-dir',
+      `.consensus/${label}`,
+      '--allow-root',
+      context.cwd,
+      '--max-rounds',
+      '1',
+      ...extraArgv,
+    ],
+    {
+      cwd: context.cwd,
+      env: context.env,
+      invokePeer: async ({ provider }) => ({
+        json: {
+          schema_version: 'v1',
+          verdict: 'REVISE',
+          reasoning: `${provider} fixture recommendation`,
+          proposed_artifact: `## Recommendation\n\n${provider} recommends shipping.\n\n## Reasoning\n\nFixture.\n\n## Alternatives\n\n- Wait.\n\n## Dissent / Unresolved Disagreement\n\n- None.\n`,
+        },
+      }),
+      invokeSynthesizer: async () => ({
+        json: {
+          schema_version: 'v1',
+          synthesized_artifact:
+            '## Recommendation\n\nShip now.\n\n## Reasoning\n\nFixture synthesis.\n\n## Alternatives\n\n- Wait.\n\n## Dissent / Unresolved Disagreement\n\n- None.\n',
+          synthesis_reasoning: 'fixture synthesis',
+          unresolved_disagreements: [],
+        },
+      }),
+    },
+  );
+}
 
 it('parses options paths and decide defaults', () => {
   const parsed = parseDecideArgs(['--options', 'options.md']);
@@ -26,6 +110,105 @@ it('parses options paths and decide defaults', () => {
     output: null,
     runDir: null,
     allowRoot: null,
+  });
+});
+
+it('preserves built-in peer order when no consensus config exists', async () => {
+  await withIsolatedConsensusConfig(async (context) => {
+    const result = await runDecideFixture(context, 'no-config');
+
+    expect(result.peers).toEqual(['claude', 'codex']);
+  });
+});
+
+it('fails preflight for unavailable built-in peers instead of substituting ready providers', async () => {
+  await withIsolatedConsensusConfig(
+    async (context) => {
+      await expect(
+        runDecideFixture(context, 'no-config-unavailable-built-in'),
+      ).rejects.toSatisfy((error: { code?: string; message: string }) => {
+        expect(error.code).toBe('PEER_UNAVAILABLE');
+        expect(error.message).toMatch(/codex/);
+        expect(error.message).toMatch(/auth_required/);
+        expect(error.message).not.toMatch(/cursor/);
+        return true;
+      });
+    },
+    { CONSENSUS_STUB_AUTH_REQUIRED: 'codex' },
+  );
+});
+
+it('uses project and user peer defaults only when --peers is absent', async () => {
+  await withIsolatedConsensusConfig(async (context) => {
+    await writeConsensusConfig({
+      scope: 'user',
+      cwd: context.cwd,
+      env: context.env,
+      config: {
+        schema_version: 'v1',
+        defaults: {
+          peers: [{ provider: 'codex' }, { provider: 'cursor' }],
+        },
+      },
+    });
+
+    await expect(runDecideFixture(context, 'user-default')).resolves.toMatchObject(
+      {
+        peers: ['codex', 'cursor'],
+      },
+    );
+
+    await writeConsensusConfig({
+      scope: 'project',
+      cwd: context.cwd,
+      env: context.env,
+      config: {
+        schema_version: 'v1',
+        defaults: {
+          peers: [{ provider: 'cursor' }, { provider: 'claude' }],
+        },
+      },
+    });
+
+    await expect(
+      runDecideFixture(context, 'project-default'),
+    ).resolves.toMatchObject({
+      peers: ['cursor', 'claude'],
+    });
+
+    await expect(
+      runDecideFixture(context, 'explicit-peers', [
+        '--peers',
+        'claude,codex',
+      ]),
+    ).resolves.toMatchObject({
+      peers: ['claude', 'codex'],
+    });
+  });
+});
+
+it('does not leak configured panel defaults into decide peer selection', async () => {
+  await withIsolatedConsensusConfig(async (context) => {
+    await writeConsensusConfig({
+      scope: 'project',
+      cwd: context.cwd,
+      env: context.env,
+      config: {
+        schema_version: 'v1',
+        defaults: {
+          panelists: [
+            { provider: 'cursor' },
+            { provider: 'codex' },
+            { provider: 'claude' },
+          ],
+          panel_size: 3,
+        },
+      },
+    });
+
+    const result = await runDecideFixture(context, 'panel-defaults');
+
+    expect(result.peers).toEqual(['claude', 'codex']);
   });
 });
 
