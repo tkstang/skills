@@ -32,6 +32,8 @@ import {
   requireConsensusCliPath,
   runConsensusLoop,
 } from '../core/consensus-loop.js';
+import { resolveConsensusComposition } from '../config/consensus-config.js';
+import type { ProviderInventoryEntry as ConsensusProviderInventoryEntry } from '../provider-cli/types.js';
 
 type JsonRecord = Record<string, unknown>;
 type IterationModeValue = (typeof ITERATION_MODES)[number];
@@ -3634,6 +3636,50 @@ function resolveProviderCliPeers(
   return { peers, inventory };
 }
 
+function providerInventoryForConsensusConfig(
+  providerInventory: readonly NormalizedProviderInventoryEntry[],
+): ConsensusProviderInventoryEntry[] {
+  return providerInventory.map((entry) => {
+    const status =
+      entry.available === true
+        ? 'ready'
+        : typeof entry.status === 'string'
+          ? entry.status
+          : 'unavailable';
+    return { id: entry.id, status } as ConsensusProviderInventoryEntry;
+  });
+}
+
+async function resolveConfiguredProviderCliPeers({
+  options,
+  host,
+  env,
+  cwd,
+  providerInventory,
+}: {
+  options: Pick<WrapperOptions, 'peers'>;
+  host: HostId;
+  env: NodeJS.ProcessEnv;
+  cwd: string;
+  providerInventory: NormalizedProviderInventoryEntry[];
+}) {
+  if (options.peers) {
+    return resolveProviderCliPeers(options, host, providerInventory);
+  }
+
+  const composition = await resolveConsensusComposition({
+    workflow: 'convergence',
+    cwd,
+    env,
+    inventory: providerInventoryForConsensusConfig(providerInventory),
+  });
+  const peerOptions =
+    composition.source === 'built-in'
+      ? {}
+      : { peers: composition.agents.map((agent) => agent.provider) };
+  return resolveProviderCliPeers(peerOptions, host, providerInventory);
+}
+
 function parseProviderCliEnvelope(stdout: string, label: string): JsonRecord {
   let parsed: unknown;
   try {
@@ -3690,7 +3736,13 @@ export async function preflightConsensusProviderCli(
     inventoryEnvelope.providers,
   );
   const host = detectHost(env);
-  const resolved = resolveProviderCliPeers(options, host, providerInventory);
+  const resolved = await resolveConfiguredProviderCliPeers({
+    options,
+    host,
+    env,
+    cwd,
+    providerInventory,
+  });
   const { synthesizer } = resolveSynthesizer(
     {
       iteration: options.iteration ?? 'alternating',
