@@ -28,13 +28,13 @@ oat_generated: false
 | ------- | ------- | ----- | --------- |
 | Phase 1 | completed | 3     | 3/3       |
 | Phase 2 | passed | 3          | 3/3       |
-| Phase 3 | fixes_completed | 3 | 3/3       |
-| Phase 4 | pending | 3     | 0/3       |
+| Phase 3 | passed | 3          | 3/3       |
+| Phase 4 | in_progress | 3  | 0/3       |
 | Phase 5 | pending | 2     | 0/2       |
 
 **Total:** 9/14 tasks completed
 
-**Next task:** `p04-t01` - Add panel skill instructions and examples after p03 re-review
+**Next task:** `p04-t01` - Add panel skill instructions and examples
 
 ---
 
@@ -143,8 +143,8 @@ oat_generated: false
 
 ## Phase 4: Shipped Skill, Docs, and Distribution Surfaces
 
-**Status:** pending
-**Started:** -
+**Status:** in_progress
+**Started:** 2026-07-02
 
 ### Task p04-t01: Add panel skill instructions and examples
 
@@ -201,11 +201,11 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 | ----- | ------ | ------ | ----- |
 | p01 | passed | reviews/p01-rereview-2026-07-03.md | One fix iteration resolved four Important findings. |
 | p02 | passed | reviews/p02-rereview-2026-07-03.md | One Important finding fixed in `619aff5`; re-review passed. |
-| p03 | fixes_completed | reviews/p03-review-2026-07-03.md | One Critical and one Important finding fixed in `7d343d9`; re-review pending. |
-| p04 | pending | pending | Not started. |
+| p03 | passed | reviews/p03-rereview-2026-07-03.md | One Critical and one Important finding fixed in `7d343d9`; re-review passed. |
+| p04 | in_progress | pending | Starting at `p04-t01`. |
 | p05 | pending | pending | HiLL checkpoint phase. |
 
-**Outstanding items:** Run p03 re-review before Phase 4.
+**Outstanding items:** Continue Phase 4 implementation.
 
 <!-- orchestration-runs-end -->
 
@@ -382,6 +382,20 @@ canonical-equivalent in-root paths.
 - generated runtime `panelResponseSchemaPath()` existence probe
 - `pnpm run validate`
 
+### Code Re-Review Received: p03
+
+**Date:** 2026-07-03
+**Review artifact:** reviews/p03-rereview-2026-07-03.md
+
+**Findings:**
+
+- Critical: 0
+- Important: 0
+- Medium: 0
+- Minor: 0
+
+**Disposition:** passed - proceed to Phase 4.
+
 ---
 
 ## Implementation Log
@@ -416,6 +430,8 @@ Chronological log of implementation progress.
 - p03 code review received in `reviews/p03-review-2026-07-03.md` with one
   Critical and one Important finding; fix before starting Phase 4.
 - p03 review findings fixed in `7d343d9`; p03 re-review is pending.
+- p03 re-review passed with 0 findings in
+  `reviews/p03-rereview-2026-07-03.md`; Phase 4 started at `p04-t01`.
 
 ---
 

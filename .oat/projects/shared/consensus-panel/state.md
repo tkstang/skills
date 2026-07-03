@@ -1,6 +1,6 @@
 ---
 oat_current_task: p04-t01
-oat_last_commit: 38f4242
+oat_last_commit: 9fec271
 oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
@@ -27,7 +27,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-01T00:10:18.011Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-03T03:38:27Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-03T03:42:13Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -39,7 +39,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation - p03 review findings fixed; p03 re-review pending
+Implementation - p03 re-review passed; executing `p04-t01`
 
 ## Artifacts
 
@@ -47,7 +47,7 @@ Implementation - p03 review findings fixed; p03 re-review pending
 - **Spec:** N/A (quick mode)
 - **Design:** `design.md` (complete)
 - **Plan:** `plan.md` (complete; artifact review fixes completed)
-- **Implementation:** `implementation.md` (in progress; next task `p04-t01` after p03 re-review)
+- **Implementation:** `implementation.md` (in progress; next task `p04-t01`)
 
 ## Progress
 
@@ -73,7 +73,8 @@ Implementation - p03 review findings fixed; p03 re-review pending
 - ✓ p03-t03 panel generated runtime output implemented
 - ✓ p03 code review received with one Critical and one Important finding
 - ✓ p03 review findings fixed in `7d343d9`
-- ⧗ p03 re-review pending before Phase 4
+- ✓ p03 re-review passed
+- ⧗ Phase 4 started at `p04-t01`
 
 ## Blockers
 
@@ -81,4 +82,4 @@ None
 
 ## Next Milestone
 
-Pass p03 re-review, then begin Phase 4.
+Complete Phase 4 shipped skill, docs, and distribution surfaces.
