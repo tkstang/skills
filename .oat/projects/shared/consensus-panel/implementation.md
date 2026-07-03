@@ -28,13 +28,13 @@ oat_generated: false
 | ------- | ------- | ----- | --------- |
 | Phase 1 | completed | 3     | 3/3       |
 | Phase 2 | passed | 3          | 3/3       |
-| Phase 3 | review_pending | 3 | 3/3       |
+| Phase 3 | fixes_required | 3 | 3/3       |
 | Phase 4 | pending | 3     | 0/3       |
 | Phase 5 | pending | 2     | 0/2       |
 
 **Total:** 9/14 tasks completed
 
-**Next task:** `p04-t01` - Add panel skill instructions and examples after p03 review
+**Next task:** `p04-t01` - Add panel skill instructions and examples after p03 review fixes
 
 ---
 
@@ -120,6 +120,8 @@ oat_generated: false
   diagnostics, shortfall handling, and failed-artifact evidence when fewer than
   two panelists succeed.
 - Generated the panel runtime output and sibling shared config module.
+- p03 review identified a missing generated-runtime schema path and canonical
+  allow-root path confinement issue to fix before Phase 4 begins.
 
 ### Task p03-t01: Add panel schema, parser, prompt, and artifact renderer
 
@@ -198,11 +200,11 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 | ----- | ------ | ------ | ----- |
 | p01 | passed | reviews/p01-rereview-2026-07-03.md | One fix iteration resolved four Important findings. |
 | p02 | passed | reviews/p02-rereview-2026-07-03.md | One Important finding fixed in `619aff5`; re-review passed. |
-| p03 | review_pending | pending | Phase 3 implemented; review pending. |
+| p03 | fixes_required | reviews/p03-review-2026-07-03.md | One Critical and one Important finding; fix loop pending. |
 | p04 | pending | pending | Not started. |
 | p05 | pending | pending | HiLL checkpoint phase. |
 
-**Outstanding items:** Run p03 code review.
+**Outstanding items:** Fix p03 review findings and re-review before Phase 4.
 
 <!-- orchestration-runs-end -->
 
@@ -351,6 +353,22 @@ ready provider; p02 re-review pending.
 
 **Disposition:** passed - proceed to p03 review.
 
+### Code Review Received: p03
+
+**Date:** 2026-07-03
+**Review artifact:** reviews/p03-review-2026-07-03.md
+
+**Findings:**
+
+- Critical: 1
+- Important: 1
+- Medium: 0
+- Minor: 0
+
+**Disposition:** fixes_required - generated panel runtime resolves the response
+schema to a non-existent shipped path, and `--allow-root` rejects
+canonical-equivalent in-root paths.
+
 ---
 
 ## Implementation Log
@@ -382,6 +400,8 @@ Chronological log of implementation progress.
   - `p03-t03` completed in `21944ac`.
 - p02 re-review passed with 0 findings in
   `reviews/p02-rereview-2026-07-03.md`; p03 code review is pending.
+- p03 code review received in `reviews/p03-review-2026-07-03.md` with one
+  Critical and one Important finding; fix before starting Phase 4.
 
 ---
 
