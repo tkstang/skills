@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import {
+  access,
   mkdir,
   readFile,
   rename,
@@ -213,7 +214,36 @@ export async function consensusConfigPath(
     return path.join(userConfigDir(input.env), 'consensus', 'config.json');
   }
 
-  return path.join(path.resolve(input.cwd), '.consensus', 'config.json');
+  return projectConsensusConfigPath(input.cwd);
+}
+
+async function projectConsensusConfigPath(cwd: string): Promise<string> {
+  const fallback = projectConsensusConfigPathAt(cwd);
+  const existing = await findNearestProjectConsensusConfig(cwd);
+  return existing ?? fallback;
+}
+
+async function findNearestProjectConsensusConfig(
+  cwd: string,
+): Promise<string | null> {
+  let current = path.resolve(cwd);
+  while (true) {
+    const candidate = projectConsensusConfigPathAt(current);
+    try {
+      await access(candidate);
+      return candidate;
+    } catch (error) {
+      if (!isNodeError(error) || error.code !== 'ENOENT') throw error;
+    }
+
+    const parent = path.dirname(current);
+    if (parent === current) return null;
+    current = parent;
+  }
+}
+
+function projectConsensusConfigPathAt(cwd: string): string {
+  return path.join(path.resolve(cwd), '.consensus', 'config.json');
 }
 
 export async function resolveConsensusComposition(
@@ -300,7 +330,7 @@ function resolvePanelComposition(
   const source =
     panelSizeCandidate?.source === 'invocation'
       ? 'invocation'
-      : panelistsCandidate?.source ?? panelSizeCandidate?.source;
+      : (panelistsCandidate?.source ?? panelSizeCandidate?.source);
   const configuredPanelists = panelistsCandidate?.config.defaults?.panelists;
   const targetSize =
     panelSizeCandidate?.config.defaults?.panel_size ??
@@ -323,7 +353,9 @@ function resolvePanelComposition(
   }
 
   if (selected.length < 2) {
-    selected.push(...missingBuiltInAgents(selected).slice(0, 2 - selected.length));
+    selected.push(
+      ...missingBuiltInAgents(selected).slice(0, 2 - selected.length),
+    );
   }
 
   return {
@@ -495,7 +527,10 @@ function parseRolesConfig(value: unknown): ConsensusRolesConfig {
     });
   }
   if (value.advisor !== undefined) {
-    roles.advisor = parseAgentRef(value.advisor, 'Consensus config roles.advisor');
+    roles.advisor = parseAgentRef(
+      value.advisor,
+      'Consensus config roles.advisor',
+    );
   }
   if (value.synthesizer !== undefined) {
     roles.synthesizer = parseAgentRef(

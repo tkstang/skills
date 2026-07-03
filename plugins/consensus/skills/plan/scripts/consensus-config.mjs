@@ -2,6 +2,7 @@
 // Source: src/consensus/config/consensus-config.ts
 import { randomUUID } from "node:crypto";
 import {
+  access,
   mkdir,
   readFile,
   rename,
@@ -108,7 +109,30 @@ async function consensusConfigPath(input) {
   if (input.scope === "user") {
     return path.join(userConfigDir(input.env), "consensus", "config.json");
   }
-  return path.join(path.resolve(input.cwd), ".consensus", "config.json");
+  return projectConsensusConfigPath(input.cwd);
+}
+async function projectConsensusConfigPath(cwd) {
+  const fallback = projectConsensusConfigPathAt(cwd);
+  const existing = await findNearestProjectConsensusConfig(cwd);
+  return existing ?? fallback;
+}
+async function findNearestProjectConsensusConfig(cwd) {
+  let current = path.resolve(cwd);
+  while (true) {
+    const candidate = projectConsensusConfigPathAt(current);
+    try {
+      await access(candidate);
+      return candidate;
+    } catch (error) {
+      if (!isNodeError(error) || error.code !== "ENOENT") throw error;
+    }
+    const parent = path.dirname(current);
+    if (parent === current) return null;
+    current = parent;
+  }
+}
+function projectConsensusConfigPathAt(cwd) {
+  return path.join(path.resolve(cwd), ".consensus", "config.json");
 }
 async function resolveConsensusComposition(input) {
   const candidates = await loadCandidates(input);
@@ -187,7 +211,9 @@ function resolvePanelComposition(input, candidates) {
     );
   }
   if (selected.length < 2) {
-    selected.push(...missingBuiltInAgents(selected).slice(0, 2 - selected.length));
+    selected.push(
+      ...missingBuiltInAgents(selected).slice(0, 2 - selected.length)
+    );
   }
   return {
     source: source ?? "built-in",
@@ -317,7 +343,10 @@ function parseRolesConfig(value) {
     });
   }
   if (value.advisor !== void 0) {
-    roles.advisor = parseAgentRef(value.advisor, "Consensus config roles.advisor");
+    roles.advisor = parseAgentRef(
+      value.advisor,
+      "Consensus config roles.advisor"
+    );
   }
   if (value.synthesizer !== void 0) {
     roles.synthesizer = parseAgentRef(

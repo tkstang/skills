@@ -150,6 +150,66 @@ describe('consensus config schema and resolver', () => {
     });
   });
 
+  it('resolves project config from nested working directories', async () => {
+    await withTempConfig(async ({ cwd, env }) => {
+      const nestedCwd = path.join(cwd, 'packages', 'tool');
+      await mkdir(nestedCwd, { recursive: true });
+      await writeConsensusConfig({
+        scope: 'project',
+        cwd,
+        env,
+        config: {
+          schema_version: 'v1',
+          defaults: {
+            peers: [{ provider: 'cursor' }, { provider: 'claude' }],
+          },
+        },
+      });
+
+      await expect(
+        readConsensusConfig({ scope: 'project', cwd: nestedCwd, env }),
+      ).resolves.toMatchObject({
+        defaults: {
+          peers: [{ provider: 'cursor' }, { provider: 'claude' }],
+        },
+      });
+      await expect(
+        resolveConsensusComposition({
+          workflow: 'convergence',
+          cwd: nestedCwd,
+          env,
+          inventory: inventory(['claude', 'codex', 'cursor']),
+        }),
+      ).resolves.toMatchObject({
+        source: 'project',
+        agents: [{ provider: 'cursor' }, { provider: 'claude' }],
+      });
+
+      await writeConsensusConfig({
+        scope: 'project',
+        cwd: nestedCwd,
+        env,
+        config: {
+          schema_version: 'v1',
+          defaults: {
+            peers: [{ provider: 'codex' }, { provider: 'cursor' }],
+          },
+        },
+      });
+
+      await expect(
+        readFile(path.join(nestedCwd, '.consensus', 'config.json'), 'utf8'),
+      ).rejects.toThrow();
+      await expect(
+        readConsensusConfig({ scope: 'project', cwd, env }),
+      ).resolves.toMatchObject({
+        defaults: {
+          peers: [{ provider: 'codex' }, { provider: 'cursor' }],
+        },
+      });
+    });
+  });
+
   it('keeps no-config convergence built-ins independent of inventory readiness', async () => {
     await withTempConfig(async ({ cwd, env }) => {
       await expect(
@@ -498,16 +558,18 @@ describe('consensus config schema and resolver', () => {
         env,
         key: 'panel-size',
       });
-      expect(await readConsensusConfig({ scope: 'project', cwd, env })).toEqual({
-        schema_version: 'v1',
-        defaults: {
-          peers: [{ provider: 'claude' }, { provider: 'codex' }],
-          panelists: [{ provider: 'claude' }, { provider: 'codex' }],
-          roles: {
-            advisor: { provider: 'cursor' },
+      expect(await readConsensusConfig({ scope: 'project', cwd, env })).toEqual(
+        {
+          schema_version: 'v1',
+          defaults: {
+            peers: [{ provider: 'claude' }, { provider: 'codex' }],
+            panelists: [{ provider: 'claude' }, { provider: 'codex' }],
+            roles: {
+              advisor: { provider: 'cursor' },
+            },
           },
         },
-      });
+      );
 
       await clearConsensusConfig({
         scope: 'project',
@@ -518,7 +580,9 @@ describe('consensus config schema and resolver', () => {
       await expect(
         readFile(path.join(cwd, '.consensus', 'config.json'), 'utf8'),
       ).rejects.toThrow();
-      expect(await readConsensusConfig({ scope: 'project', cwd, env })).toBeNull();
+      expect(
+        await readConsensusConfig({ scope: 'project', cwd, env }),
+      ).toBeNull();
     });
   });
 });

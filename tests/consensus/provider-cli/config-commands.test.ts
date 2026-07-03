@@ -108,6 +108,50 @@ describe('provider CLI consensus config commands', () => {
     });
   });
 
+  it('gets effective project config from a nested cwd', async () => {
+    await withTempCli(async (context) => {
+      const nestedCwd = path.join(context.cwd, 'packages', 'tool');
+      await mkdir(nestedCwd, { recursive: true });
+      await writeConsensusConfig({
+        scope: 'project',
+        cwd: context.cwd,
+        env: context.env,
+        config: {
+          schema_version: 'v1',
+          defaults: {
+            peers: [{ provider: 'codex' }, { provider: 'cursor' }],
+          },
+        },
+      });
+
+      await expect(
+        runCli(
+          {
+            ...context,
+            cwd: nestedCwd,
+          },
+          [
+            'config',
+            'get',
+            '--json',
+            '--scope',
+            'effective',
+            '--workflow',
+            'convergence',
+          ],
+        ),
+      ).resolves.toMatchObject({
+        code: 0,
+        json: {
+          ok: true,
+          scope: 'effective',
+          source: 'project',
+          agents: [{ provider: 'codex' }, { provider: 'cursor' }],
+        },
+      });
+    });
+  });
+
   it('lists config scopes, keys, and workflows without mutating config', async () => {
     await withTempCli(async (context) => {
       await expect(
@@ -128,10 +172,7 @@ describe('provider CLI consensus config commands', () => {
         readFile(path.join(context.cwd, '.consensus', 'config.json'), 'utf8'),
       ).rejects.toThrow();
       await expect(
-        readFile(
-          path.join(context.xdg, 'consensus', 'config.json'),
-          'utf8',
-        ),
+        readFile(path.join(context.xdg, 'consensus', 'config.json'), 'utf8'),
       ).rejects.toThrow();
     });
   });
@@ -368,24 +409,13 @@ describe('provider CLI consensus config commands', () => {
   });
 
   it.each([
-    [
-      ['config', 'get', '--scope', 'user'],
-      'Missing required --json flag',
-    ],
+    [['config', 'get', '--scope', 'user'], 'Missing required --json flag'],
     [
       ['config', 'get', '--json', '--scope', 'machine'],
       'Invalid config scope: machine',
     ],
     [
-      [
-        'config',
-        'clear',
-        '--json',
-        '--scope',
-        'project',
-        '--key',
-        'unknown',
-      ],
+      ['config', 'clear', '--json', '--scope', 'project', '--key', 'unknown'],
       'Invalid config key: unknown',
     ],
     [
@@ -400,18 +430,21 @@ describe('provider CLI consensus config commands', () => {
       ],
       'Unsupported config workflow: brainstorm',
     ],
-  ])('returns usage envelopes for invalid config command %#', async (argv, message) => {
-    await withTempCli(async (context) => {
-      await expect(runCli(context, argv)).resolves.toMatchObject({
-        code: 2,
-        json: {
-          ok: false,
-          code: 'CONSENSUS_CLI_USAGE',
-          message,
-        },
+  ])(
+    'returns usage envelopes for invalid config command %#',
+    async (argv, message) => {
+      await withTempCli(async (context) => {
+        await expect(runCli(context, argv)).resolves.toMatchObject({
+          code: 2,
+          json: {
+            ok: false,
+            code: 'CONSENSUS_CLI_USAGE',
+            message,
+          },
+        });
       });
-    });
-  });
+    },
+  );
 
   it('returns usage envelopes for malformed config files', async () => {
     await withTempCli(async (context) => {
