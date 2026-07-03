@@ -1,8 +1,8 @@
 ---
-oat_status: in_progress
+oat_status: complete
 oat_ready_for: null
 oat_blockers: []
-oat_last_updated: 2026-07-02
+oat_last_updated: 2026-07-03
 oat_current_task_id: null
 oat_generated: false
 ---
@@ -10,7 +10,7 @@ oat_generated: false
 # Implementation: consensus-panel
 
 **Started:** 2026-07-01
-**Last Updated:** 2026-07-02
+**Last Updated:** 2026-07-03
 
 > This document is used to resume interrupted implementation sessions.
 >
@@ -34,7 +34,7 @@ oat_generated: false
 
 **Total:** 14/14 tasks completed
 
-**Next task:** none - p05 HiLL checkpoint approval pending
+**Next task:** none - final review pending
 
 ---
 
@@ -222,7 +222,7 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 | p04 | passed | reviews/p04-review-2026-07-03.md | Passed with 0 findings. |
 | p05 | passed | reviews/p05-rereview-2026-07-03.md | HiLL checkpoint metadata and phone-a-friend wording fixed; re-review passed. |
 
-**Outstanding items:** Request HiLL checkpoint approval.
+**Outstanding items:** Run final code review.
 
 <!-- orchestration-runs-end -->
 
@@ -508,6 +508,8 @@ Chronological log of implementation progress.
 - p05 re-review passed with 0 findings in
   `reviews/p05-rereview-2026-07-03.md`; human HiLL checkpoint approval is
   pending.
+- Human approval received for the p05 HiLL checkpoint; implementation is ready
+  for final review.
 
 ---
 
@@ -535,23 +537,62 @@ Track test execution during implementation.
 
 **What shipped:**
 
-- Pending implementation.
+- A shared consensus default configuration store/resolver with user, project,
+  built-in, and explicit-invocation precedence.
+- Provider CLI `consensus config` commands for JSON-only get, list, set, and
+  clear operations across user/project/effective scopes.
+- Default-config integration for the existing `create`, `decide`, `plan`,
+  `refine`, and `evaluate` convergence wrappers while preserving explicit
+  `--peers` precedence and built-in fallback behavior.
+- A shipped `panel` / `consensus-panel` workflow with neutral single-round
+  moderator prompts, provider-backed panelist fan-out, attributed markdown
+  artifacts, JSONL status events, schema validation, and shortfall diagnostics.
+- User documentation, plugin manifests, README/plugin README surfaces,
+  changelog notes, release-versioning coverage, and PJM backlog closure for the
+  delivered panel/config items.
 
 **Behavioral changes (user-facing):**
 
-- Pending implementation.
+- Users can configure default convergence peers and panel defaults through
+  `consensus config` without editing wrapper prompts.
+- Existing convergence skills consume configured defaults only when explicit
+  peers are omitted.
+- Users can run `consensus-panel` for breadth gathering from at least two
+  provider-backed panelists, with configurable `--panelists` and `--panel-size`.
+- `phone-a-friend` guidance now points multi-peer panel needs to the shipped
+  panel workflow rather than future work.
 
 **Key files / modules:**
 
-- Pending implementation.
+- `src/consensus/config/consensus-config.ts`
+- `src/consensus/provider-cli/{args.ts,commands.ts}`
+- `src/consensus/{create,decide,plan,refine,evaluate}/`
+- `src/consensus/panel/consensus-panel.ts`
+- `plugins/consensus/scripts/consensus.mjs`
+- `plugins/consensus/skills/{create,decide,plan,refine,evaluate,panel,phone-a-friend}/`
+- `documentation/docs/user-guide/consensus/`
+- `tests/consensus/`, `tests/repo/`, `tests/release/versioning.test.ts`
 
 **Verification performed:**
 
-- Pending implementation.
+- `pnpm run build`
+- `pnpm run build:check`
+- `pnpm run type-check`
+- `pnpm run test`
+- `pnpm run validate`
+- `pnpm run smoke`
+- `pnpm run validate:skill-versions --base-ref origin/main`
+- Targeted Vitest coverage for config, provider CLI, wrapper defaults, panel
+  runtime, plugin manifests/docs/readme surfaces, release versioning, and
+  `phone-a-friend` frontmatter/schema coverage.
+- `oat backlog regenerate-index`
 
 **Design deltas (if any):**
 
-- Pending implementation.
+- None accepted as intentional divergences. Review-discovered lifecycle drift
+  was fixed before final review: `state.md` now records `p05` as the configured
+  HiLL checkpoint and `phone-a-friend` guidance points to the shipped panel
+  workflow.
 
 ## References
 
