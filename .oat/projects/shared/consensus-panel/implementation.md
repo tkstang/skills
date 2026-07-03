@@ -27,7 +27,7 @@ oat_generated: false
 | Phase   | Status  | Tasks | Completed |
 | ------- | ------- | ----- | --------- |
 | Phase 1 | completed | 3     | 3/3       |
-| Phase 2 | pending | 3     | 0/3       |
+| Phase 2 | in_progress | 3  | 0/3       |
 | Phase 3 | pending | 3     | 0/3       |
 | Phase 4 | pending | 3     | 0/3       |
 | Phase 5 | pending | 2     | 0/2       |
@@ -73,8 +73,8 @@ oat_generated: false
 
 ## Phase 2: Existing Wrapper Default-Config Integration
 
-**Status:** pending
-**Started:** -
+**Status:** in_progress
+**Started:** 2026-07-02
 
 ### Task p02-t01: Integrate create, decide, and plan wrappers
 
@@ -165,6 +165,21 @@ _- Outstanding Items_
 <!-- orchestration-runs-start -->
 
 _Orchestration runs from `oat-project-implement` are appended here, most-recent-first within the file but append-only at the bottom of the log._
+
+### Run 1 - 2026-07-02 - Tier 1 Subagents
+
+**Branch:** `feat-consensus-panel`
+**Policy:** Sequential phase execution with code review after each phase; HiLL checkpoint configured at `p05`.
+
+| Phase | Status | Review | Notes |
+| ----- | ------ | ------ | ----- |
+| p01 | passed | reviews/p01-rereview-2026-07-03.md | One fix iteration resolved four Important findings. |
+| p02 | in_progress | pending | Starting at `p02-t01`. |
+| p03 | pending | pending | Not started. |
+| p04 | pending | pending | Not started. |
+| p05 | pending | pending | HiLL checkpoint phase. |
+
+**Outstanding items:** Continue Phase 2 implementation.
 
 <!-- orchestration-runs-end -->
 
@@ -267,6 +282,20 @@ fixes, or continue to implementation if the user accepts the artifact alignment.
 
 **Next:** Run p01 re-review before starting Phase 2.
 
+### Code Re-Review Received: p01
+
+**Date:** 2026-07-03
+**Review artifact:** reviews/p01-rereview-2026-07-03.md
+
+**Findings:**
+
+- Critical: 0
+- Important: 0
+- Medium: 0
+- Minor: 0
+
+**Disposition:** passed - proceed to Phase 2.
+
 ---
 
 ## Implementation Log
@@ -283,6 +312,8 @@ Chronological log of implementation progress.
 - p01 code review received in `reviews/p01-review-2026-07-03.md`.
 - p01 review fixes completed in `5a77b74`; next step is p01 re-review before
   proceeding to `p02-t01`.
+- p01 re-review passed with 0 findings in
+  `reviews/p01-rereview-2026-07-03.md`; Phase 2 started at `p02-t01`.
 
 ---
 

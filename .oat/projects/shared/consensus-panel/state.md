@@ -1,6 +1,6 @@
 ---
 oat_current_task: p02-t01
-oat_last_commit: 5a77b74
+oat_last_commit: 83b3769
 oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
@@ -27,7 +27,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-01T00:10:18.011Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-03T02:42:02Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-03T02:46:49Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -39,7 +39,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation - Phase 1 review fixes completed; awaiting p01 re-review before `p02-t01`
+Implementation - p01 re-review passed; executing `p02-t01`
 
 ## Artifacts
 
@@ -61,7 +61,8 @@ Implementation - Phase 1 review fixes completed; awaiting p01 re-review before `
 - ✓ Dispatch ceiling set: maximum (Codex xhigh, Claude opus)
 - ✓ Phase 1 shared consensus config foundation implemented
 - ✓ p01 code review received and fixes completed
-- ⧗ Awaiting p01 re-review before Phase 2
+- ✓ p01 re-review passed
+- ⧗ Phase 2 started at `p02-t01`
 
 ## Blockers
 
@@ -69,4 +70,4 @@ None
 
 ## Next Milestone
 
-Pass p01 re-review, then begin Phase 2 default-config integration.
+Complete Phase 2 default-config integration across existing wrappers.
