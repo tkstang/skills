@@ -26,7 +26,7 @@ oat_generated: false
 
 | Phase   | Status  | Tasks | Completed |
 | ------- | ------- | ----- | --------- |
-| Phase 1 | pending | 3     | 0/3       |
+| Phase 1 | in_progress | 3  | 0/3       |
 | Phase 2 | pending | 3     | 0/3       |
 | Phase 3 | pending | 3     | 0/3       |
 | Phase 4 | pending | 3     | 0/3       |
@@ -40,8 +40,8 @@ oat_generated: false
 
 ## Phase 1: Shared Consensus Config Foundation
 
-**Status:** pending
-**Started:** -
+**Status:** in_progress
+**Started:** 2026-07-02
 
 ### Task p01-t01: Add config schema, store, and resolver tests
 
