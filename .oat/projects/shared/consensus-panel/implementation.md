@@ -27,14 +27,14 @@ oat_generated: false
 | Phase   | Status  | Tasks | Completed |
 | ------- | ------- | ----- | --------- |
 | Phase 1 | completed | 3     | 3/3       |
-| Phase 2 | fixes_required | 3 | 3/3       |
-| Phase 3 | pending | 3     | 0/3       |
+| Phase 2 | fixes_completed | 3 | 3/3       |
+| Phase 3 | review_pending | 3 | 3/3       |
 | Phase 4 | pending | 3     | 0/3       |
 | Phase 5 | pending | 2     | 0/2       |
 
-**Total:** 6/14 tasks completed
+**Total:** 9/14 tasks completed
 
-**Next task:** `p03-t01` - Add panel schema, parser, prompt, and artifact renderer after p02 review fixes
+**Next task:** `p04-t01` - Add panel skill instructions and examples after p02 re-review and p03 review
 
 ---
 
@@ -85,7 +85,8 @@ oat_generated: false
 - Bumped the changed shipped skill versions for `create`, `decide`, `plan`,
   `refine`, and `evaluate`.
 - p02 review v2 identified one Important no-config built-in fallback issue to
-  fix before Phase 3 begins.
+  fix before Phase 3 begins; `619aff5` preserves the built-in pair and lets
+  preflight fail instead of silently substituting a ready provider.
 
 ### Task p02-t01: Integrate create, decide, and plan wrappers
 
@@ -106,23 +107,33 @@ oat_generated: false
 
 ## Phase 3: Consensus Panel Runtime
 
-**Status:** pending
-**Started:** -
+**Status:** completed
+**Started:** 2026-07-02
+**Completed:** 2026-07-02
+
+**Summary:**
+
+- Added the dependency-free panel parser, prompt builder, schema validation, and
+  markdown artifact renderer.
+- Implemented provider fan-out through independent panelist turns with
+  diagnostics, shortfall handling, and failed-artifact evidence when fewer than
+  two panelists succeed.
+- Generated the panel runtime output and sibling shared config module.
 
 ### Task p03-t01: Add panel schema, parser, prompt, and artifact renderer
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** 4009bd2
 
 ### Task p03-t02: Implement panel provider execution and shortfall handling
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** f15566b
 
 ### Task p03-t03: Generate panel runtime output
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** 21944ac
 
 ---
 
@@ -185,12 +196,12 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 | Phase | Status | Review | Notes |
 | ----- | ------ | ------ | ----- |
 | p01 | passed | reviews/p01-rereview-2026-07-03.md | One fix iteration resolved four Important findings. |
-| p02 | fixes_required | reviews/p02-review-2026-07-03-v2.md | One Important finding; fix loop pending. |
-| p03 | pending | pending | Not started. |
+| p02 | fixes_completed | reviews/p02-review-2026-07-03-v2.md | One Important finding fixed in `619aff5`; re-review pending. |
+| p03 | review_pending | pending | Phase 3 implemented; review waits for p02 re-review. |
 | p04 | pending | pending | Not started. |
 | p05 | pending | pending | HiLL checkpoint phase. |
 
-**Outstanding items:** Fix the p02 Important finding and re-review before Phase 3.
+**Outstanding items:** Run p02 re-review, then p03 code review.
 
 <!-- orchestration-runs-end -->
 
@@ -321,9 +332,9 @@ fixes, or continue to implementation if the user accepts the artifact alignment.
 - Medium: 0
 - Minor: 0
 
-**Disposition:** fixes_required - no-config convergence defaults can silently
-replace an unavailable built-in peer with another ready provider. Preserve the
-built-in pair and let preflight fail instead.
+**Disposition:** fixes_completed - `619aff5` preserves the built-in pair and lets
+preflight fail instead of replacing an unavailable built-in peer with another
+ready provider; p02 re-review pending.
 
 ---
 
@@ -349,6 +360,12 @@ Chronological log of implementation progress.
   - `p02-t03` completed in `3ef69eb`.
 - p02 code review v2 received in `reviews/p02-review-2026-07-03-v2.md` with
   one Important finding; fix before starting Phase 3.
+- p02 review finding fixed in `619aff5`.
+- Phase 3 implemented by Tier 1 subagent dispatch:
+  - `p03-t01` completed in `4009bd2`.
+  - `p03-t02` completed in `f15566b`.
+  - `p03-t03` completed in `21944ac`.
+- p02 re-review is pending before p03 code review.
 
 ---
 
@@ -368,7 +385,7 @@ Track test execution during implementation.
 | ----- | --------- | ------ | ------ | -------- |
 | p01   | `pnpm exec vitest run tests/consensus/config/consensus-config.test.ts tests/consensus/provider-cli/config-commands.test.ts`; `pnpm run type-check`; `pnpm run build`; `pnpm run build:check`; generated CLI malformed-config checks | pass | 0 | Targeted p01 coverage |
 | p02   | `pnpm exec vitest run tests/consensus/create tests/consensus/decide tests/consensus/plan`; `pnpm exec vitest run tests/consensus/refine tests/consensus/evaluate`; `pnpm run type-check`; `pnpm run build`; `pnpm run build:check`; `pnpm exec vitest run tests/consensus/generated-config-import.test.ts tests/tooling/generated-output-sync.test.ts`; `pnpm run validate`; `pnpm run validate:skill-versions --base-ref origin/main` | pass | 0 | Targeted wrapper, generated-output, validation, and skill-version coverage |
-| p03   | -         | -      | -      | -        |
+| p03   | `pnpm exec vitest run tests/consensus/panel/wrapper.test.ts tests/consensus/panel/panel-schema.test.ts`; `pnpm exec vitest run tests/consensus/panel/provider-cli-integration.test.ts`; `pnpm exec vitest run tests/consensus/panel`; `pnpm run type-check`; `pnpm run build`; `pnpm run build:check`; `node plugins/consensus/skills/panel/scripts/consensus-panel.mjs --help`; `pnpm exec vitest run tests/tooling/generated-output-sync.test.ts` | pass | 0 | Targeted panel runtime and generated-output coverage |
 | p04   | -         | -      | -      | -        |
 | p05   | -         | -      | -      | -        |
 
