@@ -35,12 +35,13 @@ import type {
   SynthesizerInvoker,
   TurnPromptInput,
 } from '../core/consensus-loop.js';
+import { resolveConsensusComposition } from '../config/consensus-config.js';
+import type { ProviderInventoryEntry } from '../provider-cli/types.js';
 
 const MAX_ROUNDS_MIN = 1;
 const MAX_ROUNDS_MAX = 100;
 const PROVIDER_ID_PATTERN = /^[a-z][a-z0-9_-]{0,31}$/u;
 export const INPUT_SIZE_CAP_BYTES = 1024 * 1024;
-const DEFAULT_PEERS = Object.freeze(['claude', 'codex']);
 
 export interface ParsedPlanOptions {
   goal: string;
@@ -480,6 +481,14 @@ function providerStatusMap(envelope: Record<string, unknown>) {
   return new Map(entries);
 }
 
+function providerInventoryEntries(
+  envelope: Record<string, unknown>,
+): ProviderInventoryEntry[] {
+  return [...providerStatusMap(envelope)].map(
+    ([id, status]) => ({ id, status }) as ProviderInventoryEntry,
+  );
+}
+
 function providerCliUnavailableError(
   providers: Array<{ id: string; status: string }>,
 ) {
@@ -546,6 +555,26 @@ async function preflightPlanProviderCli({
       ]);
     }
   }
+}
+
+async function loadPlanProviderInventory({
+  env,
+  cwd,
+}: {
+  env: NodeJS.ProcessEnv;
+  cwd: string;
+}): Promise<ProviderInventoryEntry[]> {
+  const command = resolveConsensusCliPath({ env });
+  const inventoryResult = await runProviderCliCommand(
+    command,
+    ['provider', 'ls', '--json'],
+    { env, cwd },
+  );
+  const inventory = parseProviderCliEnvelope(
+    inventoryResult.stdout,
+    'provider inventory',
+  );
+  return providerInventoryEntries(inventory);
 }
 
 function providerCliLoopInvokers({
@@ -1154,7 +1183,20 @@ export async function runConsensusPlan(
   const outputPath = await resolveOutputPath({ ...normalized, cwd });
   const writeRoot = path.resolve(normalized.allowRoot ?? cwd);
   const paths = statePathsFor(runDir);
-  const peers = normalized.peers ?? [...DEFAULT_PEERS];
+  const inventory =
+    normalized.peers === null
+      ? await loadPlanProviderInventory({ env, cwd })
+      : undefined;
+  const peers: string[] =
+    normalized.peers ??
+    (
+      await resolveConsensusComposition({
+        workflow: 'convergence',
+        cwd,
+        env,
+        inventory,
+      })
+    ).agents.map((agent) => agent.provider);
   const synthesizer =
     normalized.iteration === 'parallel_synthesized'
       ? (normalized.synthesizer ?? peers[0])
