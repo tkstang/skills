@@ -32,6 +32,7 @@ const evaluateSkillPath = 'plugins/consensus/skills/evaluate/SKILL.md';
 const createSkillPath = 'plugins/consensus/skills/create/SKILL.md';
 const decideSkillPath = 'plugins/consensus/skills/decide/SKILL.md';
 const planSkillPath = 'plugins/consensus/skills/plan/SKILL.md';
+const panelSkillPath = 'plugins/consensus/skills/panel/SKILL.md';
 
 async function read(relativePath: string) {
   return readFile(new URL(relativePath, repoRoot), 'utf8');
@@ -120,6 +121,17 @@ describe('docs-presence', () => {
     expect(skill).toMatch(/^## Success Criteria$/m);
     expect(skill).toMatch(/^## Output Contract$/m);
     expect(skill).toMatch(/^## Plan Invocation$/m);
+  });
+
+  it('panel SKILL.md contains usage guidance sections', async () => {
+    const skill = await read(panelSkillPath);
+
+    expect(skill).toMatch(/^## When NOT to Use$/m);
+    expect(skill).toMatch(/^## Examples$/m);
+    expect(skill).toMatch(/^## Success Criteria$/m);
+    expect(skill).toMatch(/^## Output Contract$/m);
+    expect(skill).toMatch(/^## Panel Invocation$/m);
+    expect(skill).toMatch(/^## Moderator Neutrality$/m);
   });
 
   it('evaluate SKILL.md documents guided rubric creation flow', async () => {
@@ -324,6 +336,44 @@ describe('docs-presence', () => {
     expect(qa).toMatch(/## Steps/);
     expect(qa).toMatch(/## Dependencies/);
     expect(qa).toMatch(/## Risks/);
+  });
+
+  it('panel skill is documented and registered in skill surfaces', async () => {
+    const requiredPanelFiles = [
+      panelSkillPath,
+      'plugins/consensus/skills/panel/references/operator-qa.md',
+      'plugins/consensus/skills/panel/references/examples/design-risk-question.md',
+      'plugins/consensus/skills/panel/references/examples/privacy-boundary-question.md',
+      'plugins/consensus/skills/panel/scripts/consensus-panel.mjs',
+      'plugins/consensus/skills/panel/scripts/consensus-config.mjs',
+      'plugins/consensus/skills/panel/schemas/panel-response.schema.json',
+    ];
+
+    for (const relativePath of requiredPanelFiles) {
+      const contents = await read(relativePath);
+      expect(
+        contents.trim().length > 0,
+        `${relativePath} should not be empty`,
+      ).toBeTruthy();
+    }
+
+    const skill = await read(panelSkillPath);
+    expect(skill).toMatch(/^name: panel$/m);
+    expect(skill).toMatch(/^## Panel Invocation$/m);
+    expect(skill).toMatch(/^## Output Contract$/m);
+    expect(skill).toMatch(/--question <text>/);
+    expect(skill).toMatch(/--question-file <path>/);
+    expect(skill).toMatch(/--panelists <provider-id/);
+    expect(skill).toMatch(/--panel-size <n>/);
+    expect(skill).toMatch(/neutral moderator/i);
+    expect(skill).toMatch(/context approval/i);
+
+    const qa = await read(
+      'plugins/consensus/skills/panel/references/operator-qa.md',
+    );
+    expect(qa).toMatch(/consensus-panel\.mjs/);
+    expect(qa).toMatch(/--panelists/);
+    expect(qa).toMatch(/JSONL/);
   });
 
   it('documentation records the generated TypeScript runtime contract', async () => {

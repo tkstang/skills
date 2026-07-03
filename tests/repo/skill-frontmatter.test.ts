@@ -23,12 +23,18 @@ const planSkillPath = new URL(
   '../../plugins/consensus/skills/plan/SKILL.md',
   import.meta.url,
 );
+const panelSkillPath = new URL(
+  '../../plugins/consensus/skills/panel/SKILL.md',
+  import.meta.url,
+);
+const bumpVersionPath = new URL('../../scripts/bump-version.mjs', import.meta.url);
 const skillPaths = [
   refineSkillPath,
   evaluateSkillPath,
   createSkillPath,
   decideSkillPath,
   planSkillPath,
+  panelSkillPath,
 ];
 
 function frontmatter(markdown: string) {
@@ -59,9 +65,14 @@ describe('skill-frontmatter', () => {
       const block = frontmatter(markdown);
       const name = field(block, 'name');
 
-      expect(['refine', 'evaluate', 'create', 'decide', 'plan']).toContain(
-        name,
-      );
+      expect([
+        'refine',
+        'evaluate',
+        'create',
+        'decide',
+        'plan',
+        'panel',
+      ]).toContain(name);
       expect(path.basename(path.dirname(skillPath.pathname))).toBe(name);
       expect(field(block, 'description').length > 40).toBeTruthy();
       expect(field(block, 'license')).toBe('MIT');
@@ -241,6 +252,78 @@ describe('skill-frontmatter', () => {
     );
     expect(hint, 'argument-hint should mention inline constraints').toMatch(
       /--constraints/,
+    );
+  });
+
+  it('panel skill frontmatter is portable and versioned', async () => {
+    const markdown = await readFile(panelSkillPath, 'utf8');
+    const block = frontmatter(markdown);
+    const name = field(block, 'name');
+
+    expect(name).toBe('panel');
+    expect(path.basename(path.dirname(panelSkillPath.pathname))).toBe(name);
+    expect(field(block, 'description')).toMatch(/multi-peer|panel/i);
+    expect(field(block, 'license')).toBe('MIT');
+    expect(field(block, 'compatibility')).toMatch(/Agent Skills baseline/);
+    expect(field(block, 'compatibility')).toMatch(/consensus CLI/);
+
+    const allowedTools = field(block, 'allowed-tools');
+    for (const requiredTool of [
+      'Bash(node:*)',
+      'Bash(consensus:*)',
+      'Read',
+      'Write',
+    ]) {
+      expect(allowedTools).toMatch(
+        new RegExp(requiredTool.replace(/[()*]/g, '\\$&')),
+      );
+    }
+
+    expect(metadataVersion(block)).toBe(field(block, 'version'));
+  });
+
+  it('panel skill has a useful argument-hint', async () => {
+    const markdown = await readFile(panelSkillPath, 'utf8');
+    const block = frontmatter(markdown);
+
+    const hint = field(block, 'argument-hint');
+    expect(hint, 'argument-hint should mention inline questions').toMatch(
+      /--question/,
+    );
+    expect(hint, 'argument-hint should mention question files').toMatch(
+      /--question-file/,
+    );
+    expect(hint, 'argument-hint should mention panel selection').toMatch(
+      /--panelists/,
+    );
+  });
+
+  it('panel skill documents moderation, invocation, and output responsibilities', async () => {
+    const markdown = await readFile(panelSkillPath, 'utf8');
+
+    for (const requiredPhrase of [
+      'neutral moderator',
+      'sensitive',
+      'private context',
+      'consensus-panel.mjs',
+      '--panelists',
+      '--panel-size',
+      'consensus config',
+      'JSONL',
+      'Output Contract',
+      'When NOT to Use',
+      'Success Criteria',
+      'BL-260701-add-multi-round-panel',
+    ]) {
+      expect(markdown).toMatch(new RegExp(requiredPhrase, 'i'));
+    }
+  });
+
+  it('panel skill is included in version bump tooling', async () => {
+    const script = await readFile(bumpVersionPath, 'utf8');
+
+    expect(script).toMatch(
+      /plugins\/consensus\/skills\/panel\/SKILL\.md/,
     );
   });
 
