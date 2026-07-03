@@ -1,7 +1,7 @@
 ---
 id: BL-260626-add-consensus-panel-skill
 title: Add consensus-panel skill (neutral moderator, multi-agent panel)
-status: open
+status: done
 priority: medium
 scope: feature
 scope_estimate: M
@@ -12,7 +12,7 @@ labels:
   - peer-review
 assignee: null
 created: 2026-06-26T04:55:26Z
-updated: 2026-06-26T04:55:26Z
+updated: 2026-07-03T04:02:22Z
 associated_issues: []
 ---
 
@@ -88,3 +88,19 @@ Open design questions to resolve before/at build:
   round, cold-start/mode reuse) are resolved and recorded (DR if durable).
 - Manifests, SKILL.md, documentation site pages, and tests updated as for other
   family skills.
+
+## Completion
+
+Completed on 2026-07-03 by the `consensus-panel` OAT project.
+
+- Shipped `plugins/consensus/skills/panel/` as the `consensus-panel` workflow,
+  with moderator-neutral host instructions, operator QA, examples, schema
+  assets, generated runtime output, and provider plugin manifest coverage.
+- Added a direct single-round panel wrapper that sends the same question to two
+  or more provider-backed panelists via the owned provider CLI and renders all
+  attributed responses, diagnostics, and shortfalls into a markdown artifact.
+- Integrated configured panel defaults from the shared consensus config resolver,
+  while keeping per-invocation `--panelists` and `--panel-size` controls.
+- Documented positioning against `refine`, `evaluate`, and `phone-a-friend`,
+  and recorded v1 as independent single-round paneling with multi-round
+  discussion deferred to `BL-260701-add-multi-round-panel`.
