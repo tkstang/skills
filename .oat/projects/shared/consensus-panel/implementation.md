@@ -28,13 +28,13 @@ oat_generated: false
 | ------- | ------- | ----- | --------- |
 | Phase 1 | completed | 3     | 3/3       |
 | Phase 2 | passed | 3          | 3/3       |
-| Phase 3 | fixes_required | 3 | 3/3       |
+| Phase 3 | fixes_completed | 3 | 3/3       |
 | Phase 4 | pending | 3     | 0/3       |
 | Phase 5 | pending | 2     | 0/2       |
 
 **Total:** 9/14 tasks completed
 
-**Next task:** `p04-t01` - Add panel skill instructions and examples after p03 review fixes
+**Next task:** `p04-t01` - Add panel skill instructions and examples after p03 re-review
 
 ---
 
@@ -120,8 +120,9 @@ oat_generated: false
   diagnostics, shortfall handling, and failed-artifact evidence when fewer than
   two panelists succeed.
 - Generated the panel runtime output and sibling shared config module.
-- p03 review identified a missing generated-runtime schema path and canonical
-  allow-root path confinement issue to fix before Phase 4 begins.
+- Resolved p03 review findings in `7d343d9` by making the generated runtime
+  schema path resolve to the shipped schema asset and by canonicalizing
+  `--allow-root` path confinement before containment checks.
 
 ### Task p03-t01: Add panel schema, parser, prompt, and artifact renderer
 
@@ -200,11 +201,11 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 | ----- | ------ | ------ | ----- |
 | p01 | passed | reviews/p01-rereview-2026-07-03.md | One fix iteration resolved four Important findings. |
 | p02 | passed | reviews/p02-rereview-2026-07-03.md | One Important finding fixed in `619aff5`; re-review passed. |
-| p03 | fixes_required | reviews/p03-review-2026-07-03.md | One Critical and one Important finding; fix loop pending. |
+| p03 | fixes_completed | reviews/p03-review-2026-07-03.md | One Critical and one Important finding fixed in `7d343d9`; re-review pending. |
 | p04 | pending | pending | Not started. |
 | p05 | pending | pending | HiLL checkpoint phase. |
 
-**Outstanding items:** Fix p03 review findings and re-review before Phase 4.
+**Outstanding items:** Run p03 re-review before Phase 4.
 
 <!-- orchestration-runs-end -->
 
@@ -369,6 +370,18 @@ ready provider; p02 re-review pending.
 schema to a non-existent shipped path, and `--allow-root` rejects
 canonical-equivalent in-root paths.
 
+**Fixes:** `7d343d9` resolves both findings.
+
+**Verification:**
+
+- `pnpm run build`
+- `pnpm exec vitest run tests/consensus/panel tests/tooling/generated-output-sync.test.ts`
+- `pnpm run type-check`
+- `pnpm run build:check`
+- `node plugins/consensus/skills/panel/scripts/consensus-panel.mjs --help`
+- generated runtime `panelResponseSchemaPath()` existence probe
+- `pnpm run validate`
+
 ---
 
 ## Implementation Log
@@ -402,6 +415,7 @@ Chronological log of implementation progress.
   `reviews/p02-rereview-2026-07-03.md`; p03 code review is pending.
 - p03 code review received in `reviews/p03-review-2026-07-03.md` with one
   Critical and one Important finding; fix before starting Phase 4.
+- p03 review findings fixed in `7d343d9`; p03 re-review is pending.
 
 ---
 
