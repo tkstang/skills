@@ -27,7 +27,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-01T00:10:18.011Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-03T02:46:49Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-03T03:01:42Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -39,7 +39,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation - Phase 2 implemented; p02 code review pending
+Implementation - Phase 2 implemented; awaiting p02 code review before `p03-t01`
 
 ## Artifacts
 
@@ -47,7 +47,7 @@ Implementation - Phase 2 implemented; p02 code review pending
 - **Spec:** N/A (quick mode)
 - **Design:** `design.md` (complete)
 - **Plan:** `plan.md` (complete; artifact review fixes completed)
-- **Implementation:** `implementation.md` (in progress; next task `p03-t01` after p02 review)
+- **Implementation:** `implementation.md` (in progress; next task `p03-t01`)
 
 ## Progress
 
@@ -73,4 +73,4 @@ None
 
 ## Next Milestone
 
-Complete p02 code review, then continue with Phase 3 panel runtime.
+Pass p02 code review, then begin Phase 3 consensus panel runtime.

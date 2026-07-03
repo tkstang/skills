@@ -184,12 +184,12 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 | Phase | Status | Review | Notes |
 | ----- | ------ | ------ | ----- |
 | p01 | passed | reviews/p01-rereview-2026-07-03.md | One fix iteration resolved four Important findings. |
-| p02 | in_progress | pending | Starting at `p02-t01`. |
+| p02 | review_pending | pending | Phase 2 implemented; awaiting p02 review. |
 | p03 | pending | pending | Not started. |
 | p04 | pending | pending | Not started. |
 | p05 | pending | pending | HiLL checkpoint phase. |
 
-**Outstanding items:** Continue Phase 2 implementation.
+**Outstanding items:** Run p02 code review before Phase 3.
 
 <!-- orchestration-runs-end -->
 
@@ -324,6 +324,11 @@ Chronological log of implementation progress.
   proceeding to `p02-t01`.
 - p01 re-review passed with 0 findings in
   `reviews/p01-rereview-2026-07-03.md`; Phase 2 started at `p02-t01`.
+- Phase 2 implemented by Tier 1 subagent dispatch:
+  - `p02-t01` completed in `ce84a77`.
+  - `p02-t02` completed in `ab6b633`.
+  - `p02-t03` completed in `3ef69eb`.
+- p02 code review is pending before proceeding to `p03-t01`.
 
 ---
 
@@ -342,7 +347,7 @@ Track test execution during implementation.
 | Phase | Tests Run | Passed | Failed | Coverage |
 | ----- | --------- | ------ | ------ | -------- |
 | p01   | `pnpm exec vitest run tests/consensus/config/consensus-config.test.ts tests/consensus/provider-cli/config-commands.test.ts`; `pnpm run type-check`; `pnpm run build`; `pnpm run build:check`; generated CLI malformed-config checks | pass | 0 | Targeted p01 coverage |
-| p02   | -         | -      | -      | -        |
+| p02   | `pnpm exec vitest run tests/consensus/create tests/consensus/decide tests/consensus/plan`; `pnpm exec vitest run tests/consensus/refine tests/consensus/evaluate`; `pnpm run type-check`; `pnpm run build`; `pnpm run build:check`; `pnpm exec vitest run tests/consensus/generated-config-import.test.ts tests/tooling/generated-output-sync.test.ts`; `pnpm run validate`; `pnpm run validate:skill-versions --base-ref origin/main` | pass | 0 | Targeted wrapper, generated-output, validation, and skill-version coverage |
 | p03   | -         | -      | -      | -        |
 | p04   | -         | -      | -      | -        |
 | p05   | -         | -      | -      | -        |
