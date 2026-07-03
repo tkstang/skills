@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-02
-oat_current_task_id: p02-t02
+oat_current_task_id: p03-t01
 oat_generated: false
 ---
 
@@ -27,14 +27,14 @@ oat_generated: false
 | Phase   | Status  | Tasks | Completed |
 | ------- | ------- | ----- | --------- |
 | Phase 1 | completed | 3     | 3/3       |
-| Phase 2 | in_progress | 3  | 1/3       |
+| Phase 2 | completed | 3     | 3/3       |
 | Phase 3 | pending | 3     | 0/3       |
 | Phase 4 | pending | 3     | 0/3       |
 | Phase 5 | pending | 2     | 0/2       |
 
-**Total:** 4/14 tasks completed
+**Total:** 6/14 tasks completed
 
-**Next task:** `p02-t02` - Integrate refine and evaluate wrappers
+**Next task:** `p03-t01` - Add panel schema, parser, prompt, and artifact renderer
 
 ---
 
@@ -73,8 +73,18 @@ oat_generated: false
 
 ## Phase 2: Existing Wrapper Default-Config Integration
 
-**Status:** in_progress
+**Status:** completed
 **Started:** 2026-07-02
+**Completed:** 2026-07-02
+
+**Summary:**
+
+- Applied default consensus config to all existing convergence wrappers while
+  preserving explicit `--peers` precedence and built-in behavior when no config
+  exists.
+- Regenerated wrapper outputs with sibling `consensus-config.mjs` modules.
+- Bumped the changed shipped skill versions for `create`, `decide`, `plan`,
+  `refine`, and `evaluate`.
 
 ### Task p02-t01: Integrate create, decide, and plan wrappers
 
@@ -83,13 +93,13 @@ oat_generated: false
 
 ### Task p02-t02: Integrate refine and evaluate wrappers
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** ab6b633
 
 ### Task p02-t03: Update generated wrapper outputs and skill versions
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** 3ef69eb
 
 ---
 

@@ -1,6 +1,6 @@
 ---
-oat_current_task: p02-t02
-oat_last_commit: ce84a77
+oat_current_task: p03-t01
+oat_last_commit: 3ef69eb
 oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
@@ -39,7 +39,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation - Phase 2 in progress; executing `p02-t02`
+Implementation - Phase 2 implemented; p02 code review pending
 
 ## Artifacts
 
@@ -47,7 +47,7 @@ Implementation - Phase 2 in progress; executing `p02-t02`
 - **Spec:** N/A (quick mode)
 - **Design:** `design.md` (complete)
 - **Plan:** `plan.md` (complete; artifact review fixes completed)
-- **Implementation:** `implementation.md` (in progress; next task `p02-t02`)
+- **Implementation:** `implementation.md` (in progress; next task `p03-t01` after p02 review)
 
 ## Progress
 
@@ -63,7 +63,9 @@ Implementation - Phase 2 in progress; executing `p02-t02`
 - ✓ p01 code review received and fixes completed
 - ✓ p01 re-review passed
 - ✓ p02-t01 create/decide/plan wrapper config integration implemented
-- ⧗ Phase 2 continuing at `p02-t02`
+- ✓ p02-t02 refine/evaluate wrapper config integration implemented
+- ✓ p02-t03 generated wrapper outputs and skill versions updated
+- ⧗ p02 code review pending
 
 ## Blockers
 
@@ -71,4 +73,4 @@ None
 
 ## Next Milestone
 
-Complete Phase 2 default-config integration across existing wrappers.
+Complete p02 code review, then continue with Phase 3 panel runtime.
