@@ -116,6 +116,8 @@ Quick lookup for "can I start X while Y is in flight?" (capacity: 2–3 worktree
 
 Three concrete actions for the next development cycle. Not a ranked list of everything — just what to do _first_.
 
+> Each kickoff-stack item has a one-shot kickoff prompt under [`../../handoffs/`](../../handoffs/) — create a worktree per item and pass the handoff as context to `/oat-project-quick-start`. Handoffs are deleted in the PR that ships their item (see **Project Kickoff Handoffs** in [`../../AGENTS.md`](../../AGENTS.md)).
+
 1. **Kick off** [`BL-260620-share-consensus-generated`](../items/BL-260620-share-consensus-generated.md) (share consensus generated runtime output) — the cycle anchor; the no-concurrency window is open now and the duplication is 5 loop + 6 config copies. Spike first; a documented "keep duplication" close is a valid outcome.
 2. **Kick off** [`BL-260627-verify-skills-sh-hosted`](../items/BL-260627-verify-skills-sh-hosted.md) (verify skills.sh hosted discovery surface) in a parallel track — timeboxed; record the listing strategy in `current-state.md`. Then run the **decision sweep** in the same track (mid-loop edits, auto-chunking, multi-round-panel distinction).
 3. **Queue** the loop-quality worktree ([`BL-260612-add-deliberation-metrics`](../items/BL-260612-add-deliberation-metrics.md) metrics → [`BL-260612-add-similarity-heuristic`](../items/BL-260612-add-similarity-heuristic.md) similarity) to open **the moment the dedup track lands or closes** — with the harmonization context-bounding decision at its tail.

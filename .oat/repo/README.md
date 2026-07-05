@@ -15,6 +15,7 @@ and reference surface for this repository. Agent-facing rules live in the
 | `pjm/backlog/completed.md` | Newest-first completion summaries | Appended at close-out |
 | `pjm/backlog/index.md` | Curated overview + generated item table | Overview curated; table via `oat backlog regenerate-index` |
 | `pjm/backlog/reviews/` | Backlog review + priority-alignment artifacts | `oat-pjm-review-backlog` skill |
+| `pjm/handoffs/` | One-shot kickoff prompts for kickoff-stack items (one file per item, `git rm`'d in the PR that ships the item) | Alignment walkthrough; consumed at project kickoff |
 | `reference/decisions/` | Durable decision records + index | `oat decision` |
 | `reference/project-summaries/` | Completion records for shipped projects | Project lifecycle |
 | `reference/research/` | Evidence inputs by topic (read-only history) | Research workflows |

@@ -42,3 +42,36 @@ left in `items/`) is how drift starts — finish all steps or none.
 **When reviewing backlog state** (e.g. `oat-pjm-review-backlog`), cross-check
 recent commits against open items: work that shipped without a close-out
 should be closed retroactively with a note.
+
+## Project Kickoff Handoffs
+
+`handoffs/` holds one-shot kickoff prompts that turn kickoff-stack backlog
+items into OAT projects without re-deriving context. See `handoffs/README.md`
+for the consumption convention.
+
+**When to generate or refresh.** At the conclusion of a priority-alignment
+pass (`oat-pjm-review-backlog` walkthrough), write or refresh one handoff per
+item in the agreed **kickoff stack** — kickoff-stack items only, not the whole
+board. When a later alignment pass reprioritizes an item out of the stack,
+delete its stale handoff in that same pass.
+
+**Required content per handoff** (file named `<BL-id>.md`):
+
+- The item reference: ID + human-readable title + item file path.
+- Recommended mode (`/oat-project-quick-start` vs `/oat-project-new`) with
+  guidance on which project artifacts to pre-populate from existing research
+  instead of leaving thin.
+- Authoritative input pointers: research directories, decision records
+  (`reference/decisions/`), and code paths the project should treat as
+  source material.
+- Repo conventions and verification gates the item file omits (build/test
+  gates, version-bump rules, sequencing constraints).
+- A close-out section requiring (a) the **Backlog Lifecycle** above executed
+  in the same shipping PR, and (b) `git rm` of the handoff file in that same
+  PR.
+
+**Properties.** Handoffs are consumable, not durable — durable knowledge
+belongs in the item file, `reference/`, or project artifacts. The operator
+creates a worktree per item and passes the handoff as context when invoking
+the project-creation skill. Every backlog item referenced inside a handoff
+pairs the ID with its human-readable title (no bare IDs).
