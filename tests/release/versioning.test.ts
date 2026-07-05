@@ -4,7 +4,6 @@ import {
   readFile,
   writeFile,
   mkdtemp,
-  symlink,
 } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -61,7 +60,7 @@ async function tempReleaseRoot() {
   for (const file of requiredDocs) {
     await cp(path.join(repoRoot, file), path.join(tempRoot, file));
   }
-  await symlink('AGENTS.md', path.join(tempRoot, 'CLAUDE.md'));
+  await writeFile(path.join(tempRoot, 'CLAUDE.md'), '@AGENTS.md\n');
   return tempRoot;
 }
 

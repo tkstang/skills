@@ -443,8 +443,12 @@ async function validateDocs(root) {
 
   const claudePath = path.join(root, 'CLAUDE.md');
   const claude = await lstat(claudePath);
-  if (!claude.isSymbolicLink()) {
-    issues.push('CLAUDE.md should be a symlink to AGENTS.md');
+  if (claude.isSymbolicLink()) {
+    issues.push(
+      'CLAUDE.md should be an @AGENTS.md pointer stub, not a symlink',
+    );
+  } else if ((await readFile(claudePath, 'utf8')).trim() !== '@AGENTS.md') {
+    issues.push('CLAUDE.md should contain exactly "@AGENTS.md"');
   }
 
   issues.push(...(await validateReadmeInstallMatrix(root)));

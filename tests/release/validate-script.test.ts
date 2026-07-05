@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, writeFile, mkdir, symlink } from 'node:fs/promises';
+import { mkdtemp, readFile, writeFile, mkdir } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -53,7 +53,7 @@ async function createValidTempRepository() {
   await writeFile(path.join(tempRoot, 'CONTRIBUTING.md'), '# Contributing\n');
   await writeFile(path.join(tempRoot, 'RELEASING.md'), '# Releasing\n');
   await writeFile(path.join(tempRoot, 'AGENTS.md'), '# Agents\n');
-  await symlink('AGENTS.md', path.join(tempRoot, 'CLAUDE.md'));
+  await writeFile(path.join(tempRoot, 'CLAUDE.md'), '@AGENTS.md\n');
 
   const skillFrontmatter = `---
 name: refine
