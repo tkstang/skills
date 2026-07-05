@@ -19,7 +19,6 @@
 <!-- OAT BACKLOG-INDEX -->
 | ID | Title | Status | Priority | Scope | Estimate |
 | --- | --- | --- | --- | --- | --- |
-| BL-260621-control-public-skill-discovery | Control public skill discovery surface on skills.sh | done | medium | task | M |
 | BL-260619-inter-agent-direct-messaging | Inter-agent direct messaging (addressable, prioritized) | open | medium | feature | M |
 | BL-260620-share-consensus-generated | Share consensus generated runtime output at the plugin level | open | medium | task | M |
 | BL-260619-shared-session-log-substrate | Shared session log substrate (become-observable daemon + merged log) | open | medium | initiative | L |
