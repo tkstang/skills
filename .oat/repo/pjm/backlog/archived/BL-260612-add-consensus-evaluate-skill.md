@@ -1,7 +1,7 @@
 ---
 id: BL-260612-add-consensus-evaluate-skill
 title: Add consensus-evaluate skill (artifact vs rubric)
-status: done
+status: closed
 priority: medium
 scope: feature
 scope_estimate: S

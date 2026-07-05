@@ -1,7 +1,7 @@
 ---
 id: BL-260614-stand-up-typescript-vitest
 title: Stand up TypeScript + vitest build toolchain (bundle-to-mjs)
-status: done
+status: closed
 priority: medium
 scope: feature
 scope_estimate: M

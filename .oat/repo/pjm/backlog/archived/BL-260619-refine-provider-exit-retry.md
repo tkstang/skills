@@ -1,7 +1,7 @@
 ---
 id: BL-260619-refine-provider-exit-retry
 title: Refine provider-exit retry classification (transient vs terminal)
-status: done
+status: closed
 priority: medium
 scope: task
 scope_estimate: M

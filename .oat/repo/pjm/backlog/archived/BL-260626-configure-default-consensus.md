@@ -1,7 +1,7 @@
 ---
 id: BL-260626-configure-default-consensus
 title: Configure default panel/consensus agent configs via CLI
-status: done
+status: closed
 priority: medium
 scope: feature
 scope_estimate: M

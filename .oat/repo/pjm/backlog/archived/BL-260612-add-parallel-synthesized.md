@@ -1,7 +1,7 @@
 ---
 id: BL-260612-add-parallel-synthesized
 title: Add parallel-synthesized iteration mode (synthesis-mediation design gate)
-status: done
+status: closed
 priority: high
 scope: feature
 scope_estimate: L
