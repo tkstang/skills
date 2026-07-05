@@ -1,7 +1,7 @@
 ---
 id: BL-260619-implement-independent-draft
 title: Implement independent_draft cold-start strategy in consensus-loop
-status: done
+status: closed
 priority: medium
 scope: feature
 scope_estimate: M

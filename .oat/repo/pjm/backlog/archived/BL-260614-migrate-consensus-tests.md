@@ -1,7 +1,7 @@
 ---
 id: BL-260614-migrate-consensus-tests
 title: Migrate consensus + tests to real TypeScript types
-status: done
+status: closed
 priority: medium
 scope: initiative
 scope_estimate: L

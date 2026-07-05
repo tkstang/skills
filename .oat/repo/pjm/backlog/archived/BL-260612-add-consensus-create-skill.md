@@ -1,7 +1,7 @@
 ---
 id: BL-260612-add-consensus-create-skill
 title: Add consensus-create skill (artifact from brief)
-status: done
+status: closed
 priority: medium
 scope: feature
 scope_estimate: M

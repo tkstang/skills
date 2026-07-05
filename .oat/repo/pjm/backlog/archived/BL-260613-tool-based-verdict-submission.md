@@ -2,7 +2,7 @@
 id: BL-260613-tool-based-verdict-submission
 title: Tool-based verdict submission for consensus peers (future reliability
   hardening)
-status: done
+status: closed
 priority: medium
 scope: feature
 scope_estimate: L

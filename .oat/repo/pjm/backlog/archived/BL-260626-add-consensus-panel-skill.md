@@ -1,7 +1,7 @@
 ---
 id: BL-260626-add-consensus-panel-skill
 title: Add consensus-panel skill (neutral moderator, multi-agent panel)
-status: done
+status: closed
 priority: medium
 scope: feature
 scope_estimate: M

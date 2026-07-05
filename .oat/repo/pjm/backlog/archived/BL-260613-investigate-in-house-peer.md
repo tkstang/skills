@@ -2,7 +2,7 @@
 id: BL-260613-investigate-in-house-peer
 title: Investigate in-house peer-invocation CLI to reduce/replace the external
   peer-run dependency
-status: done
+status: closed
 priority: medium
 scope: initiative
 scope_estimate: L

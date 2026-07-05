@@ -1,7 +1,7 @@
 ---
 id: BL-260612-add-parallel-revision
 title: Add parallel-revision iteration mode to consensus-loop
-status: done
+status: closed
 priority: high
 scope: feature
 scope_estimate: M

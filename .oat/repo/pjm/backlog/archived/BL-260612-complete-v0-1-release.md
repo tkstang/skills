@@ -1,7 +1,7 @@
 ---
 id: BL-260612-complete-v0-1-release
 title: Complete v0.1 release verification and tag
-status: done
+status: closed
 priority: high
 scope: task
 scope_estimate: M

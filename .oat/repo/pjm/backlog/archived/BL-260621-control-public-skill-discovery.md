@@ -1,7 +1,7 @@
 ---
 id: BL-260621-control-public-skill-discovery
 title: Control public skill discovery surface on skills.sh
-status: done
+status: closed
 priority: medium
 scope: task
 scope_estimate: M
@@ -12,7 +12,7 @@ labels:
   - skills
 assignee: null
 created: 2026-06-21T00:05:11Z
-updated: 2026-06-27T00:00:00Z
+updated: 2026-07-05T00:00:00Z
 associated_issues: []
 legacy_id: bl-7c1d
 ---

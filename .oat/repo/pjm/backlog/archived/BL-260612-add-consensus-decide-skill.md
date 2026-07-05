@@ -1,7 +1,7 @@
 ---
 id: BL-260612-add-consensus-decide-skill
 title: Add consensus-decide skill (recommend among options)
-status: done
+status: closed
 priority: medium
 scope: feature
 scope_estimate: S

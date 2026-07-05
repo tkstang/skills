@@ -1,7 +1,7 @@
 ---
 id: BL-260620-add-phone-a-friend-advisory
 title: Add phone-a-friend advisory peer skill
-status: done
+status: closed
 priority: medium
 scope: feature
 scope_estimate: M

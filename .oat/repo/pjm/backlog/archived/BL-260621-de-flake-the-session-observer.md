@@ -1,7 +1,7 @@
 ---
 id: BL-260621-de-flake-the-session-observer
 title: De-flake the session-observer watch test suite
-status: done
+status: closed
 priority: medium
 scope: task
 scope_estimate: S

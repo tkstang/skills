@@ -68,7 +68,8 @@ describe('docs-presence', () => {
     );
 
     const claude = await lstat(new URL('CLAUDE.md', repoRoot));
-    expect(claude.isSymbolicLink()).toBe(true);
+    expect(claude.isSymbolicLink()).toBe(false);
+    expect((await read('CLAUDE.md')).trim()).toBe('@AGENTS.md');
   });
 
   it('refine SKILL.md documents iteration-mode and escalation sections', async () => {

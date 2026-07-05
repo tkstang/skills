@@ -2,7 +2,7 @@
 id: BL-260613-verify-cursor-as-peer-end
 title: Verify cursor-as-peer end-to-end through provider CLI (authenticated
   cursor-agent)
-status: done
+status: closed
 priority: medium
 scope: task
 scope_estimate: S

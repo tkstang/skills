@@ -16,5 +16,5 @@ This directory is the skills repo's durable, append-mostly provenance area. It i
 
 - Prefer updating the active source of truth over adding parallel notes.
 - Keep `../pjm/roadmap.md`, `../pjm/current-state.md`, and affected backlog items in agreement when planning language changes.
-- When closing or shipping work: move completed backlog records to `../pjm/backlog/archived/`, update the completed summary, the project summary, and `../pjm/current-state.md`; promote durable decisions into `decisions/`.
+- When closing or shipping work, follow the **Backlog Lifecycle** in `../pjm/AGENTS.md` (status flip → completed summary → archive move → index regeneration); in addition, update the project summary and `../pjm/current-state.md`, and promote durable decisions into `decisions/`.
 - Research snapshots are read-only history — annotate implementation divergence with pointers to the decision record rather than rewriting them.

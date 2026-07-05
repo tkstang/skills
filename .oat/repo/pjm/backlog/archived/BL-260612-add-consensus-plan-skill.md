@@ -1,7 +1,7 @@
 ---
 id: BL-260612-add-consensus-plan-skill
 title: Add consensus-plan skill (structured plan from goal)
-status: done
+status: closed
 priority: medium
 scope: feature
 scope_estimate: S
