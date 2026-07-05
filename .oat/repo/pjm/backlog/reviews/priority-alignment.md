@@ -1,7 +1,7 @@
 # Backlog Priority Alignment
 
-**Date:** 2026-06-23
-**Status:** Active — **Major reshape post-v0.1.** The entire prior 3-track plan has shipped: **v0.1.0 released** (`bl-d85f`), **consensus-family complete** (`bl-2ed7` → `bl-b9b9` → `bl-87ef` + `bl-0cb8`), **provider-CLI hardening done** (`bl-3a88` + `bl-3291`, DR-024), and **docs IA stood up** (`bl-ecaa`, DR-025). The board is now **15 active items with nothing in flight**. Verified this pass: `bl-1f9c` (de-flake watch tests) did **not** ship and stays a Phase 1 quick win.
+**Date:** 2026-07-05
+**Status:** Active — **Consolidation cycle committed post-panel/config ship.** The entire 2026-06-23 plan has shipped and archived: public-discovery control (`BL-260621`, PR #38), watch-suite de-flake + rubric guard (PR #37), phone-a-friend (2026-06-28), and consensus-panel + config defaults (PR #40, 2026-07-03). The board is **13 open items with nothing in flight**. This pass commits a consolidation cycle: take the open generated-output dedup window, close the last release non-claim, run the decision sweep, then the loop-quality batch. Research DR and the substrate initiative are explicitly held for later cycles.
 
 One-page execution guide: recommended order, scope, parallelism, and planning investment. For the full value/effort catalog, dependency graph, and quadrant tables, see [backlog-and-roadmap-review.md](./backlog-and-roadmap-review.md).
 
@@ -20,85 +20,69 @@ One-page execution guide: recommended order, scope, parallelism, and planning in
 
 > **Planning investment** = discovery/design likely needed *before* implementation pays off — not total build time. An item can be small to build but carry a real upfront design pass (and vice versa).
 
-**Operator context (this pass):** capacity is **2–3 parallel worktrees**, sized to the work; order purely **by leverage** (no calendar/freeze constraints). The full v0.1 foundation (release, consensus-family, provider-CLI hardening, docs IA) is closed and archived, so this plan is no longer optimizing around those gates — it sequences the remaining 15 items. The docs site exists, so each new skill project documents itself into the site via `oat-project-document`, not the README. `bl-22d3` (phone-a-friend) is **pulled up into Phase 1** as a parallel feature track — it is independent and the old "no 4th concurrent track" constraint died with the release/family/hardening ships — and stays sequenced **before** `bl-645c` (consensus-research), which needs a peer tool-access DR first. `bl-3913` (rubric-cap guard) moved down to Phase 2 to keep Phase 1 within the worktree budget.
+**Operator context (this pass):** capacity is **2–3 parallel worktrees**; order by leverage, no calendar constraints. Cycle shape chosen in the walkthrough: **consolidation (Option A)** — the dedup window is the one time-sensitive thing on the board, so it anchors Track 1. The **consensus-research DR is deferred to next cycle** (keep this cycle purely consolidation). The **decision sweep banks into Track 2** right after the hosted check, so the loop-semantics decisions are settled before the loop-quality worktree opens. The **substrate initiative is held** for a deliberate start with initiative-level appetite, not as a third-track afterthought. The two reserved seeds stay parked with no go/no-go ceremony — their guard value is already delivered.
 
 ---
 
 ## Finishing / in flight
 
-**Nothing is mid-flight.** No started or in-review feature branch exists; the only working-tree change is this backlog-review refresh itself. The prior alignment's entire "in flight" set (`bl-d85f` release, consensus-family, provider-CLI hardening, docs IA) is complete and archived. Phase 1 is therefore a clean start, not a continuation.
+**Nothing is mid-flight.** The only open work is this alignment/hygiene pass itself (branch `review-backlog-july-4`, plus the cherry-picked `pjm-guidance` commits: Backlog Lifecycle contract, pointer-stub migration, retroactive `BL-260621` close-out). Phase 1 is a clean start.
 
 ---
 
-## Phase 1 — Public surface, reliability, and the advisory peer
+## Phase 1 — Packaging window + release closeout
 
-The roadmap-Now discovery gate, the highest-value reliability quick win, and the next product skill — pulled up together because all three are independent and touch **disjoint surfaces** (OAT sync/discovery vs `session-observer` tests vs a new provider-CLI skill). This fits the 2–3 worktree budget: `bl-1f9c` is a quick win that doesn't consume a full cycle, and the rubric-cap guard moved to Phase 2 to make room. The old "no 4th concurrent track" constraint on `bl-22d3` is obsolete now that release + family + hardening have shipped.
+Two parallel tracks on fully disjoint surfaces (build tooling vs hosted-index verification). This phase exists because the dedup item's no-concurrency constraint is satisfied **right now** — nothing consensus-loop-touching is in flight for the first time since the item was written, and the duplication has grown to 5 loop copies + 6 config copies.
 
 | Item | Scope | Planning investment | Parallel with | Notes |
 | --- | --- | --- | --- | --- |
-| [Control public skill discovery surface on skills.sh](../items/control-public-skill-discovery-surface.md) (`bl-7c1d`) | M | Med | `bl-1f9c`, `bl-22d3` | Only active item tied to the roadmap-Now post-tag discovery gate. OAT sync handling for `.agents/skills/**`, consensus self-redirects, version bumps, generated output, live discovery verification. **Blocks any public skills.sh / marketplace claim** until it lands. Settle its discovery posture early so `bl-22d3` can ship into it. |
-| [De-flake the session-observer watch test suite](../items/deflake-session-observer-watch-tests.md) (`bl-1f9c`) | S | Low | `bl-7c1d`, `bl-22d3` | **Quick win — verified not shipped.** Tight `maxRuntimeMin` budgets + a SIGTERM subprocess race in `tests/session-observer/watch.test.ts`. The flake already hit the v0.1 tag push/PR validation. Test-only; keep baseline-emission and teardown assertions. Bank `bl-3913` in this same worktree if convenient. |
-| [Add phone-a-friend advisory peer skill](../items/add-phone-a-friend-advisory-peer-skill.md) (`bl-22d3`) | M | Med | `bl-7c1d`, `bl-1f9c` | **Pulled up from Phase 2.** Independent; provider CLI + docs site already exist. Resolve `phone-a-friend` vs `phone-friend` naming, recursion/self-spawn safety, default cross-provider peer selection, host disposition step. **Soft guard:** let `bl-7c1d`'s discovery-posture decision land before this skill *ships* so it is born into the right discovery story (they can still start concurrently). First validation that the docs IA absorbs a new skill cleanly. |
+| [Share consensus generated runtime output at the plugin level](../items/BL-260620-share-consensus-generated.md) (`BL-260620-share-consensus-generated`) | M | Med | `BL-260627-verify-skills-sh-hosted` | **Track 1 — the cycle anchor.** 4-host install spike (Claude/Codex/Cursor/Copilot) is the real work and a genuine go/no-go; the code change is small. Must also cover the `~/.consensus/` resolver fallback + `install.sh` shipped by PR #38. A documented "keep duplication" outcome is a legitimate close — don't let it linger half-open. **Nothing loop-touching starts until this lands or closes.** |
+| [Verify skills.sh hosted discovery surface and listing strategy](../items/BL-260627-verify-skills-sh-hosted.md) (`BL-260627-verify-skills-sh-hosted`) | S | Low | `BL-260620-share-consensus-generated` | **Track 2.** Recipe pre-written in the item (exact commands + prior results table). Timebox it: if `tkstang/skills` is still unindexed, record "wait-for-crawl + install-telemetry seeding" as the strategy in `current-state.md` and re-check on a cadence. Closes the last v0.1 non-claim. |
+| **Decision sweep** (three seeds, one sitting — banked in Track 2 after the hosted check): [Mid-loop user artifact edits](../items/BL-260620-mid-loop-user-artifact-edits.md) (`BL-260620-mid-loop-user-artifact-edits`), [LLM section auto-chunking fallback](../items/BL-260620-llm-section-auto-chunking.md) (`BL-260620-llm-section-auto-chunking`), and the product-distinction half of [Add multi-round panel discussion](../items/BL-260701-add-multi-round-panel.md) (`BL-260701-add-multi-round-panel`) | S | Low | anything | Verdicts recorded as item updates (DR only if durable); several may resolve `wont_do`, which is a healthy outcome. Sequenced **before Phase 2** because the first two touch loop semantics — settle the contract before the loop-quality worktree opens. The multi-round-panel *build* stays deferred regardless of the decision (needs panel usage evidence). |
 
 ---
 
-## Phase 2 — Packaging spike + banked guardrail
+## Phase 2 — Loop-quality batch
 
-A maintainability spike plus the cheap rubric guardrail that slid down from Phase 1. Neither is on the critical path; `bl-e0e7` is a spike, not a commitment — it may decide to keep duplication.
+One worktree, strictly sequential, opening **only after Phase 1's dedup track lands or closes** — every item here regenerates loop output. Batched so the loop core is opened once, not three times.
 
 | Item | Scope | Planning investment | Parallel with | Notes |
 | --- | --- | --- | --- | --- |
-| [Share consensus generated runtime output at the plugin level](../items/share-consensus-generated-runtime-output.md) (`bl-e0e7`) | M | Med | — | Maintainability spike: collapse per-skill `consensus-loop.mjs` to one plugin-local shared script, gated by a 4-host install spike. **Not concurrent with any consensus-loop feature branch** (shared generated output). Spike informed by the `bl-d85f` install work; may keep duplication. |
-| [Add a test guarding bundled rubric examples at ≤12 parser-visible criteria](../items/add-rubric-example-criteria-cap-guard.md) (`bl-3913`) | S | Low | `bl-e0e7` | **Moved down from Phase 1.** Trivial Vitest guard under `tests/consensus/evaluate/`; no runtime or example-content change. The phase label is priority, not a prohibition — **bank it in the `bl-1f9c` worktree if that suite is already open** rather than waiting. |
+| [Add deliberation metrics (tokens, wall-clock, rounds) to artifacts](../items/BL-260612-add-deliberation-metrics.md) (`BL-260612-add-deliberation-metrics`) | S | Low | — (same worktree as similarity) | First post-dedup loop change. Partial scaffolding exists (`LoopStatus` turns/rounds + `cost_source`/`approximate_cost_usd`); the provider envelope exposes **no token/cost data** yet, so half the work is investigating what each provider CLI can emit and degrading gracefully. Record the cost-cap feasibility note per the item. |
+| [Add similarity heuristic for near-converged deliberation states](../items/BL-260612-add-similarity-heuristic.md) (`BL-260612-add-similarity-heuristic`) | S | Low | — | Bank in the same worktree as metrics — same loop-core neighborhood. Deterministic algorithm + threshold, agency-gated (moderate+), audit-disclosed in turn records. |
+| [Add whole-document harmonization pass after section convergence](../items/BL-260612-add-whole-document.md) (`BL-260612-add-whole-document`) | M | Med | — | **Decision-first, build by appetite.** Record the context-bounding decision (lean assembled-doc-only per v2/v3) at the tail of this phase; the build is the largest loop-quality item (composes with sequential + parallel + resume) and may slip to Phase 3 if the cycle runs long. |
 
 ---
 
-## Phase 3 — Design-gated consensus expansion
+## Phase 3 — Design-gated consensus expansion (next cycle)
 
-Both items are small-to-moderate builds carrying real upfront design weight. Each starts with a recorded decision, not a sprint.
+Deliberately **not** started this cycle (operator decision this pass). Each item begins with a recorded decision, not a sprint.
 
 | Item | Scope | Planning investment | Parallel with | Notes |
 | --- | --- | --- | --- | --- |
-| [Add consensus-research skill](../items/add-consensus-research-skill.md) (`bl-645c`) | M | **High** | `bl-e39a` (separate project) | Last family skill. Resolve peer tool-access / evidence-capture / permissions as a **DR before build**. Uses `shared_input`, so **not** gated on `independent_draft`. Keep as its own OAT project. |
-| [Add whole-document harmonization pass after section convergence](../items/add-whole-document-harmonization-pass.md) (`bl-e39a`) | M | Med | `bl-645c` | v3 Phase 4 quality work. Decide context-bounding first (assembled document only vs document + section logs); composes with sequential + parallel + resume. |
+| [Add consensus-research skill](../items/BL-260612-add-consensus-research-skill.md) (`BL-260612-add-consensus-research-skill`) | M | **High** | harmonization build (if slipped) | Last family skill; roadmap-Next. Peer tool-access / evidence-capture / permissions DR **before** build — the DR may reshape the provider CLI contract. Keep as its own OAT project. The build must not run concurrently with other loop-touching work. |
+| [Add whole-document harmonization pass](../items/BL-260612-add-whole-document.md) (`BL-260612-add-whole-document`) — build, if not taken in Phase 2 | M | Med | `BL-260612-add-consensus-research-skill` DR (not its build) | Carries forward with its context-bounding decision already recorded. |
 
 ---
 
-## Phase 4 — Multi-agent collaboration substrate
+## Phase 4 — Multi-agent collaboration substrate (appetite-gated initiative)
 
-A new lane beneath the deliberation engine (observe + message peers on one project, extending `session-observer`). Dependency-unblocked now that the TS/test foundation and family work have landed, but **capacity-heavy** — a full design/build initiative, strictly sequential within the lane. Start only when there is appetite for an initiative, not as incidental follow-up.
+A separate lane on a disjoint surface (session-observer / transcript tooling). Dependency-unblocked, but **held** until there is explicit appetite for an initiative — it should displace a track knowingly, not fill one incidentally.
 
 | Item | Scope | Planning investment | Parallel with | Notes |
 | --- | --- | --- | --- | --- |
-| [Shared session log substrate](../items/shared-session-log-substrate.md) (`bl-4e2e`) | L | **High** | consensus work (disjoint) | Foundation: become-observable daemon + merged log + `.consensus/` state + identity. ~6 open design questions; adopt-vs-build (`cass`) decision. **Design pass first.** Blocks `bl-f59f`. |
-| [Inter-agent direct messaging](../items/inter-agent-direct-messaging.md) (`bl-f59f`) | M | **High** | — | Addressable, prioritized messages checked before ambient catch-up. Reuses substrate identity/state; needs `bl-4e2e` (hard block). |
+| [Shared session log substrate](../items/BL-260619-shared-session-log-substrate.md) (`BL-260619-shared-session-log-substrate`) | L | **High** | consensus work (disjoint surface) | Foundation: become-observable daemon + merged log + project-scoped state + agent identity. ~6 open design questions incl. adopt-vs-build on `cass` and packaging. **Design pass + DR first.** Blocks messaging. |
+| [Inter-agent direct messaging](../items/BL-260619-inter-agent-direct-messaging.md) (`BL-260619-inter-agent-direct-messaging`) | M | **High** | — | Hard-blocked behind the substrate. Build-vs-adopt decision (Agent Mail / `mcp-agent-mail`) recorded before build. |
 
 ---
 
-## Deferred fill-ins & decision seeds
+## Deferred / parked
 
-Low-priority and independent. Fill-ins slot into gaps; decision seeds need a recorded verdict before any build (several may resolve `wont_do`). The count overstates the real build queue.
-
-| Item | Scope | Planning investment | Notes |
-| --- | --- | --- | --- |
-| [Add deliberation metrics](../items/add-deliberation-metrics.md) (`bl-9ed4`) | S | Low | Quick win by quadrant but roadmap-Later; **kept deferred this pass.** Token/cost/round/wall-clock in the resolution block; degrade gracefully when provider data is unavailable. Pull in when there's room. |
-| [Add similarity heuristic](../items/add-convergence-similarity-heuristic.md) (`bl-ef38`) | S | Low | Deterministic near-converge measure, agency-gated to moderate+. Fill-in when nearby loop work is open. |
-| [LLM section auto-chunking fallback](../items/llm-section-auto-chunking.md) (`bl-db5d`) | S | Low | **Decision-first** (may `wont_do`). Whole-document fallback already exists. |
-| [Mid-loop user artifact edits](../items/mid-loop-user-artifact-edits.md) (`bl-58b3`) | S | Low | **Decision-first** (may `wont_do`). Existing artifact-edit-then-resume may be enough. |
-| [Define host-native dispatch / safe-packet protocol](../items/define-host-native-dispatch-safe-packet-protocol.md) (`bl-3ca6`) | L | **High** | **Go/no-go first** (likely defer). Reserved seam; no current host-native need. |
-| [Multi-peer (3+) deliberation extension](../items/multi-peer-deliberation-extension.md) (`bl-f8cb`) | L | **High** | **Go/no-go first** (likely defer). Speculative; needs evidence two peers are insufficient. |
-
----
-
-## Suggested OAT project groupings
-
-Run cohesive arcs as a single OAT project rather than separate tickets:
-
-| Proposed project | Items | Why one project |
+| Item | Scope | Notes |
 | --- | --- | --- |
-| **consensus-research** (separate) | `bl-645c` | Own peer tool-access DR; kept out of any other project so that decision doesn't block unrelated work. |
-| **multi-agent-substrate** | `bl-4e2e` → `bl-f59f` | One initiative; shared identity/state primitive + a single adopt-vs-build (`cass`) decision. |
-| Standalone tasks (not projects) | `bl-7c1d`, `bl-1f9c`, `bl-3913`, `bl-22d3`, `bl-e0e7`, fill-ins, seeds | Single-arc tasks or decisions; project ceremony would be overhead. |
+| [Add multi-round panel discussion](../items/BL-260701-add-multi-round-panel.md) (`BL-260701-add-multi-round-panel`) — build | M | Panel v1 shipped 2026-07-03; the build waits for usage evidence that single-round breadth is insufficient. The product-distinction *decision* lands in the Phase 1 sweep. Panel workflow is strictly single-shot today — multi-round is a real build, not a bolt-on. |
+| [Define host-native dispatch / safe-packet protocol](../items/BL-260619-define-host-native-dispatch.md) (`BL-260619-define-host-native-dispatch`) | L | **Parked, no go/no-go ceremony** (operator decision this pass) — the seed's guard value (preventing a reserved flag flip without a contract) is already delivered. Revisit only on a concrete dispatch need. |
+| [Multi-peer (3+) deliberation extension](../items/BL-260619-multi-peer-3-deliberation.md) (`BL-260619-multi-peer-3-deliberation`) | L | **Parked.** The panel ship weakened the near-term case further — "hear from 3+ providers" is now served without convergence surgery. Revisit only with evidence two peers are insufficient. |
 
 ---
 
@@ -108,11 +92,23 @@ Quick lookup for "can I start X while Y is in flight?" (capacity: 2–3 worktree
 
 | Can run together | Keep sequential |
 | --- | --- |
-| `bl-7c1d` ∥ `bl-1f9c` ∥ `bl-22d3` (disjoint surfaces; fits 2–3 worktrees since `bl-1f9c` is a quick win) | `bl-7c1d` discovery-posture decision before `bl-22d3` *ships* (soft) — new skill should land into the right posture |
-| `bl-3913` banks in the `bl-1f9c` worktree (same Vitest suite) — do it whenever that worktree is open | `bl-22d3` before `bl-645c` (operator sequencing — feature first, then research) |
-| Substrate lane (`bl-4e2e` → `bl-f59f`) ∥ consensus work (disjoint surface) | `bl-e0e7` **not concurrent** with any consensus-loop-touching branch (shared generated output) |
-| — | `bl-645c` DR / `bl-e39a` context-bounding decision before their builds |
-| — | `bl-4e2e` before `bl-f59f` (hard block) |
+| `BL-260620-share-consensus-generated` ∥ `BL-260627-verify-skills-sh-hosted` (disjoint: build tooling vs hosted-index checks) | **Nothing loop-touching** ∥ `BL-260620-share-consensus-generated` — the dedup window is the point of this cycle |
+| Decision sweep ∥ anything (item updates only, no code) | Decision sweep **before** the Phase 2 loop-quality worktree opens (mid-loop-edit + auto-chunking verdicts fix the loop contract) |
+| Substrate lane ∥ consensus work (disjoint surface) — *when* it starts | `BL-260612-add-deliberation-metrics` → `BL-260612-add-similarity-heuristic` → harmonization (one worktree, one loop-core opening) |
+| Harmonization *decision* ∥ Phase 1 tracks | `BL-260619-shared-session-log-substrate` before `BL-260619-inter-agent-direct-messaging` (hard block) |
+| — | `BL-260612-add-consensus-research-skill` DR before its build; build not concurrent with other loop work |
+
+---
+
+## Suggested OAT project groupings
+
+| Proposed project | Items | Why one project |
+| --- | --- | --- |
+| **consensus-packaging** | `BL-260620-share-consensus-generated` | Spike + go/no-go + build in one arc; the spike evidence is the deliverable either way. |
+| **loop-quality** | `BL-260612-add-deliberation-metrics` → `BL-260612-add-similarity-heuristic` (+ `BL-260612-add-whole-document` decision) | One loop-core opening, one regeneration arc, shared test surface. |
+| **consensus-research** (next cycle, separate) | `BL-260612-add-consensus-research-skill` | Own peer tool-access DR; kept separate so the decision doesn't block unrelated work. |
+| **multi-agent-substrate** (appetite-gated) | `BL-260619-shared-session-log-substrate` → `BL-260619-inter-agent-direct-messaging` | One initiative; shared identity/state primitive + a single adopt-vs-build decision. |
+| Standalone tasks (not projects) | `BL-260627-verify-skills-sh-hosted`, decision sweep | Single-arc verification/decision work; project ceremony would be overhead. |
 
 ---
 
@@ -120,11 +116,11 @@ Quick lookup for "can I start X while Y is in flight?" (capacity: 2–3 worktree
 
 Three concrete actions for the next development cycle. Not a ranked list of everything — just what to do _first_.
 
-1. **Kick off** [`bl-7c1d`](../items/control-public-skill-discovery-surface.md) (Control public skill discovery surface on skills.sh) — the only roadmap-Now gate; blocks any public skills.sh / marketplace claim until verified. Settle its discovery-posture decision early so `bl-22d3` can ship into it.
-2. **Kick off** [`bl-1f9c`](../items/deflake-session-observer-watch-tests.md) (De-flake the session-observer watch test suite), banking [`bl-3913`](../items/add-rubric-example-criteria-cap-guard.md) (rubric criteria cap guard) in the same test worktree — `bl-1f9c` removes the flake that hit the v0.1 tag push.
-3. **Kick off** [`bl-22d3`](../items/add-phone-a-friend-advisory-peer-skill.md) (phone-a-friend advisory peer) as a parallel feature track — independent and buildable now; just land `bl-7c1d`'s discovery-posture decision before it ships.
+1. **Kick off** [`BL-260620-share-consensus-generated`](../items/BL-260620-share-consensus-generated.md) (share consensus generated runtime output) — the cycle anchor; the no-concurrency window is open now and the duplication is 5 loop + 6 config copies. Spike first; a documented "keep duplication" close is a valid outcome.
+2. **Kick off** [`BL-260627-verify-skills-sh-hosted`](../items/BL-260627-verify-skills-sh-hosted.md) (verify skills.sh hosted discovery surface) in a parallel track — timeboxed; record the listing strategy in `current-state.md`. Then run the **decision sweep** in the same track (mid-loop edits, auto-chunking, multi-round-panel distinction).
+3. **Queue** the loop-quality worktree ([`BL-260612-add-deliberation-metrics`](../items/BL-260612-add-deliberation-metrics.md) metrics → [`BL-260612-add-similarity-heuristic`](../items/BL-260612-add-similarity-heuristic.md) similarity) to open **the moment the dedup track lands or closes** — with the harmonization context-bounding decision at its tail.
 
-> Then: design-gate `bl-645c` (consensus-research) and `bl-e39a` (harmonization) behind their decisions; treat the multi-agent substrate (`bl-4e2e` → `bl-f59f`) as a separate initiative to start when there's appetite.
+> Then, next cycle: the `consensus-research` peer tool-access DR (`BL-260612-add-consensus-research-skill`), the harmonization build if it slipped, and — with deliberate appetite — the substrate initiative (`BL-260619-shared-session-log-substrate` → `BL-260619-inter-agent-direct-messaging`).
 
 ---
 
@@ -139,4 +135,5 @@ Append a new row each time this file is refreshed via the `oat-pjm-review-backlo
 | 2026-06-15 | Re-sequenced around active TS/vitest work: paused `bl-5174`, deferred `bl-d85f` until post-TS, moved peer-invocation ownership (`bl-3a88`/`bl-bb7e`) to a later design/spike track. |
 | 2026-06-20 | **Major reshape.** TS foundation landed (#13–19); owned provider CLI shipped (#22–24, DR-023) → `bl-bb7e` done, Paseo framing retired, peer-invocation reframed as *hardening*. `bl-5174` + `bl-f0b6` done. 11 new items folded in. Re-phased and verified `bl-d85f` untagged. Added OAT-project groupings. |
 | 2026-06-20 | **Committed 3-track plan.** `bl-d85f` now in flight (finishing pass, release worktree). Active tracks: **consensus-family** (`bl-2ed7`→`bl-b9b9`→`bl-87ef`+`bl-0cb8`, one project) ∥ **provider-cli-hardening** (`bl-3a88` design-first + `bl-3291`, disjoint surface). Promoted **docs IA** (`bl-ecaa`) to immediate post-tag; `bl-22d3` (phone-a-friend) sequenced after docs IA. Recorded `bl-e0e7`-not-concurrent-with-family constraint. |
-| 2026-06-23 | **Major reshape post-v0.1.** Prior 3-track plan fully shipped and archived: v0.1.0 released (`bl-d85f`); consensus-family done (`bl-2ed7`/`bl-b9b9`/`bl-87ef`/`bl-0cb8`); provider-CLI hardening done (`bl-3a88`/`bl-3291`, DR-024); docs IA stood up (`bl-ecaa`, DR-025). Reshaped the remaining 15 active items into 4 phases + deferred. Verified `bl-1f9c` (de-flake watch tests) did **not** ship. Capacity held at 2–3 worktrees; planning-investment column retained; `bl-9ed4` left deferred; `bl-645c` kept behind its peer tool-access DR; `bl-22d3` before `bl-645c`. **Rebalance:** pulled `bl-22d3` (phone-a-friend) up into Phase 1 as a parallel feature track (the old "no 4th track" ban is obsolete) and pushed `bl-3913` (rubric guard) down to Phase 2, since the small Phase 1 test items left room. Added a soft guard: settle `bl-7c1d`'s discovery posture before `bl-22d3` ships. "Finishing / in flight" now empty. |
+| 2026-06-23 | **Major reshape post-v0.1.** Prior 3-track plan fully shipped and archived. Reshaped the remaining 15 active items into 4 phases + deferred. Verified `bl-1f9c` (de-flake watch tests) did **not** ship. Pulled `bl-22d3` (phone-a-friend) up into Phase 1; pushed `bl-3913` (rubric guard) down to Phase 2. Soft guard: settle `bl-7c1d`'s discovery posture before `bl-22d3` ships. "Finishing / in flight" empty. |
+| 2026-07-05 | **Consolidation cycle committed.** The entire 2026-06-23 Phase 1 stack shipped (discovery control PR #38, de-flake + rubric guard PR #37, phone-a-friend, panel + config PR #40). Board now 13 open items, nothing in flight. This pass: **Phase 1** = dedup spike (`BL-260620-share-consensus-generated`, window open — duplication grew to 5 loop + 6 config copies) ∥ hosted-discovery check (`BL-260627-verify-skills-sh-hosted`) with the **decision sweep banked after it**; **Phase 2** = loop-quality batch (metrics → similarity, harmonization decision-first). **Research DR deferred to next cycle** (operator decision); **substrate held** for deliberate initiative start; **reserved seeds parked with no go/no-go ceremony**. Capacity held at 2–3 worktrees. Alignment pass also landed the Backlog Lifecycle contract, retroactive `BL-260621` close-out, pointer-stub validator sweep, and roadmap refresh. |
