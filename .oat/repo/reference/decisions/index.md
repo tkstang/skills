@@ -9,6 +9,7 @@
 <!-- OAT DECISION-INDEX -->
 | ID | Date | Status | Title | Legacy |
 | --- | --- | --- | --- | --- |
+| DR-260705-skills-sh-listing-is-telemetry | 2026-07-05 | accepted | skills.sh listing is telemetry-seeded; never name internal skills in telemetry | - |
 | DR-260703-invocation-wins-over-persisted | 2026-07-03 | accepted | Invocation wins over persisted defaults | - |
 | DR-260703-moderator-stays-neutral | 2026-07-03 | accepted | Moderator stays neutral | - |
 | DR-260703-one-project-for-config | 2026-07-03 | accepted | One project for config and panel | - |
