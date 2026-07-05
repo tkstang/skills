@@ -98,6 +98,20 @@ entries, and the apply script already skips the symlinked mirror automatically.
 - `CONTRIBUTING.md` — contribution workflow.
 - `RELEASING.md` — release checklist and provider-path verification.
 
+## Using OAT PJM
+
+This repo tracks work in a file-backed backlog at `.oat/repo/pjm/backlog/`
+(roadmap and current-state live alongside it under `.oat/repo/pjm/`).
+
+- Before starting non-trivial work, check whether an open backlog item already
+  covers it (`.oat/repo/pjm/backlog/index.md`).
+- If your change satisfies an open backlog item's acceptance criteria — even a
+  small doc or chore commit made outside an OAT project lifecycle — close and
+  archive that item in the same commit/PR, following the **Backlog Lifecycle**
+  in `.oat/repo/pjm/AGENTS.md`.
+- Offer to capture genuinely new follow-up work as a backlog item
+  (`oat-pjm-add-backlog-item`) rather than leaving it in chat.
+
 <!-- OAT docs -->
 ## Documentation
 
