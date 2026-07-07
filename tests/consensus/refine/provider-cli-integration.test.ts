@@ -241,7 +241,7 @@ it('runs prepared parallel section packets through the provider CLI backend', as
   await runNodeScript(
     path.join(
       repoRoot,
-      'plugins/consensus/skills/refine/scripts/consensus-loop.mjs',
+      'plugins/consensus/scripts/consensus-loop.mjs',
     ),
     section.loop_argv,
     { cwd: tempRoot, env },

@@ -22,14 +22,14 @@ type JsonRecord = Record<string, any>;
 
 const loopScript = path.join(
   repoRoot,
-  'plugins/consensus/skills/refine/scripts/consensus-loop.mjs',
+  'plugins/consensus/scripts/consensus-loop.mjs',
 );
 
 it('parallel section runner target is the generated consensus-loop runtime', async () => {
   expect(loopScript).toBe(
     path.join(
       repoRoot,
-      'plugins/consensus/skills/refine/scripts/consensus-loop.mjs',
+      'plugins/consensus/scripts/consensus-loop.mjs',
     ),
   );
   const loopSource = await readFile(loopScript, 'utf8');

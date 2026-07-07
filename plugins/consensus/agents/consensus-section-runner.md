@@ -26,7 +26,7 @@ The host dispatch prompt must include:
 Run the per-section loop script with the provided values, threading the packet's mode (and synthesizer when present) into the invocation:
 
 ```bash
-node plugins/consensus/skills/refine/scripts/consensus-loop.mjs \
+node plugins/consensus/scripts/consensus-loop.mjs \
   --section-file <section_file> \
   --goal "<goal>" \
   --peers <peers> \
