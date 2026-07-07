@@ -14,7 +14,7 @@ oat_hill_checkpoints: []
 oat_hill_completed: []
 oat_parallel_execution: false
 oat_phase: implement
-oat_phase_status: complete
+oat_phase_status: pr_open
 oat_dispatch_ceiling:
   preset: maximum
   providers:
@@ -24,11 +24,11 @@ oat_dispatch_ceiling:
 oat_workflow_mode: quick
 oat_workflow_origin: native
 oat_docs_updated: complete
-oat_pr_status: null
-oat_pr_url: null
+oat_pr_status: open
+oat_pr_url: "https://github.com/tkstang/skills/pull/45"
 oat_project_created: "2026-07-07T03:40:03.687Z"
 oat_project_completed: null
-oat_project_state_updated: "2026-07-07T18:28:57Z"
+oat_project_state_updated: "2026-07-07T18:32:29Z"
 oat_generated: false
 ---
 
@@ -40,7 +40,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implement - Implementation complete; final review passed.
+Implementation — PR open, awaiting human review.
 
 ## Artifacts
 
@@ -62,6 +62,8 @@ Implement - Implementation complete; final review passed.
 - [x] Documentation, PJM closeout, and final validation completed
 - [x] Final review follow-up fixes completed
 - [x] Final review passed
+- [x] PR created
+- [ ] Awaiting human review
 
 ## Blockers
 
@@ -69,4 +71,7 @@ None.
 
 ## Next Milestone
 
-Run documentation sync and final PR handoff.
+PR is open for review.
+
+- To incorporate feedback: run `oat-project-revise`
+- When approved: run `oat-project-complete`
