@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-07
-oat_current_task_id: p02-t01
+oat_current_task_id: p02-t02
 oat_generated: false
 ---
 
@@ -21,10 +21,10 @@ oat_generated: false
 | Phase | Status      | Tasks | Completed |
 | ----- | ----------- | ----- | --------- |
 | p01   | completed   | 3     | 3/3       |
-| p02   | pending     | 4     | 0/4       |
+| p02   | in_progress | 4     | 1/4       |
 | p03   | pending     | 3     | 0/3       |
 
-**Total:** 3/10 tasks completed
+**Total:** 4/10 tasks completed
 
 ## Phase p01: Provider Layout Spike And Go/No-Go Evidence
 
@@ -122,13 +122,34 @@ orchestrator's checkpoint/review handling.
 
 ## Phase p02: Shared Runtime Build Migration
 
-**Status:** pending
-**Started:** -
+**Status:** in_progress
+**Started:** 2026-07-07
 
 ### Task p02-t01: Update Generated-Output Mapping And Import Rewrites
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** pending in this commit; final SHA must be filled by later OAT
+bookkeeping because a task commit cannot contain its own final SHA.
+
+**Notes:**
+
+- Updated `scripts/build-generated.mjs` so `src/consensus/core/consensus-loop.ts`
+  emits one shared `plugins/consensus/scripts/consensus-loop.mjs` output.
+- Rewrote the five generated consensus wrappers to import the shared loop from
+  `../../../scripts/consensus-loop.mjs` while keeping duplicated
+  `consensus-config.mjs` outputs unchanged.
+- Updated `.oxfmtrc.json` and `.oxlintrc.json` static generated-output mirrors
+  to include the shared plugin-root loop output and remove stale per-skill loop
+  entries.
+- Verification passed:
+  - `node scripts/build-generated.mjs --list-outputs | rg '^plugins/consensus/scripts/consensus-loop\.mjs$'`
+  - `if node scripts/build-generated.mjs --list-outputs | rg 'plugins/consensus/skills/.*/scripts/consensus-loop\.mjs'; then exit 1; else exit 0; fi`
+  - `rg -n '\.\./\.\./\.\./scripts/consensus-loop\.mjs' scripts/build-generated.mjs`
+  - `rg -n 'plugins/consensus/scripts/consensus-loop\.mjs' .oxfmtrc.json .oxlintrc.json`
+  - `if rg -n 'plugins/consensus/skills/.*/scripts/consensus-loop\.mjs' .oxfmtrc.json .oxlintrc.json; then exit 1; else exit 0; fi`
+- Self-review: scope stayed within the task file list; `.lintstagedrc.mjs` was
+  intentionally unchanged because it derives generated paths from
+  `scripts/build-generated.mjs --list-outputs`.
 
 ### Task p02-t02: Update Drift And Layout Regression Tests
 
@@ -310,6 +331,11 @@ Run-scoped snapshot only. The durable record is `## Deviations from Plan / Desig
 | p01-t02 | `rg -n "Claude Code.*(pass|fail|blocked)|Codex.*(pass|fail|blocked)|Cursor Agent.*(pass|fail|blocked)|Copilot.*(pass|fail|blocked)|standalone recovery.*(pass|fail|blocked)" .oat/projects/shared/share-consensus-scripts/references/plugin-layout-spike.md` | yes | 0 | provider statuses recorded |
 | p01-t02 | `pnpm exec vitest run tests/consensus/core/resolve-consensus-cli-path.test.ts tests/consensus/provider-cli/missing-cli-message.test.ts` | yes | 0 | standalone recovery path; 2 files, 6 tests |
 | p01-t03 | `rg -n "Recommendation: (go|no-go)|Required checkpoint" .oat/projects/shared/share-consensus-scripts/references/plugin-layout-spike.md` | yes | 0 | go recommendation and checkpoint recorded |
+| p02-t01 | `node scripts/build-generated.mjs --list-outputs \| rg '^plugins/consensus/scripts/consensus-loop\.mjs$'` | yes | 0 | shared plugin-root loop output listed |
+| p02-t01 | `if node scripts/build-generated.mjs --list-outputs \| rg 'plugins/consensus/skills/.*/scripts/consensus-loop\.mjs'; then exit 1; else exit 0; fi` | yes | 0 | stale per-skill loop outputs removed from mapping |
+| p02-t01 | `rg -n '\.\./\.\./\.\./scripts/consensus-loop\.mjs' scripts/build-generated.mjs` | yes | 0 | five wrapper import rewrites point at shared plugin loop |
+| p02-t01 | `rg -n 'plugins/consensus/scripts/consensus-loop\.mjs' .oxfmtrc.json .oxlintrc.json` | yes | 0 | static lint/format mirrors include shared loop output |
+| p02-t01 | `if rg -n 'plugins/consensus/skills/.*/scripts/consensus-loop\.mjs' .oxfmtrc.json .oxlintrc.json; then exit 1; else exit 0; fi` | yes | 0 | static lint/format mirrors removed stale per-skill loop outputs |
 
 ## Final Summary (for PR/docs)
 

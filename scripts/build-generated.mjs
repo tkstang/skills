@@ -16,17 +16,7 @@ export const generatedOutputs = [
   {
     id: 'consensus-loop',
     source: 'src/consensus/core/consensus-loop.ts',
-    output: 'plugins/consensus/skills/refine/scripts/consensus-loop.mjs',
-  },
-  {
-    id: 'consensus-evaluate-loop',
-    source: 'src/consensus/core/consensus-loop.ts',
-    output: 'plugins/consensus/skills/evaluate/scripts/consensus-loop.mjs',
-  },
-  {
-    id: 'consensus-create-loop',
-    source: 'src/consensus/core/consensus-loop.ts',
-    output: 'plugins/consensus/skills/create/scripts/consensus-loop.mjs',
+    output: 'plugins/consensus/scripts/consensus-loop.mjs',
   },
   {
     id: 'consensus-create-config',
@@ -34,19 +24,9 @@ export const generatedOutputs = [
     output: 'plugins/consensus/skills/create/scripts/consensus-config.mjs',
   },
   {
-    id: 'consensus-decide-loop',
-    source: 'src/consensus/core/consensus-loop.ts',
-    output: 'plugins/consensus/skills/decide/scripts/consensus-loop.mjs',
-  },
-  {
     id: 'consensus-decide-config',
     source: 'src/consensus/config/consensus-config.ts',
     output: 'plugins/consensus/skills/decide/scripts/consensus-config.mjs',
-  },
-  {
-    id: 'consensus-plan-loop',
-    source: 'src/consensus/core/consensus-loop.ts',
-    output: 'plugins/consensus/skills/plan/scripts/consensus-loop.mjs',
   },
   {
     id: 'consensus-plan-config',
@@ -73,7 +53,10 @@ export const generatedOutputs = [
     source: 'src/consensus/refine/consensus-refine.ts',
     output: 'plugins/consensus/skills/refine/scripts/consensus-refine.mjs',
     importRewrites: [
-      { from: '../core/consensus-loop.js', to: './consensus-loop.mjs' },
+      {
+        from: '../core/consensus-loop.js',
+        to: '../../../scripts/consensus-loop.mjs',
+      },
       { from: '../config/consensus-config.js', to: './consensus-config.mjs' },
     ],
   },
@@ -82,7 +65,10 @@ export const generatedOutputs = [
     source: 'src/consensus/evaluate/consensus-evaluate.ts',
     output: 'plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs',
     importRewrites: [
-      { from: '../core/consensus-loop.js', to: './consensus-loop.mjs' },
+      {
+        from: '../core/consensus-loop.js',
+        to: '../../../scripts/consensus-loop.mjs',
+      },
       { from: '../config/consensus-config.js', to: './consensus-config.mjs' },
     ],
   },
@@ -91,7 +77,10 @@ export const generatedOutputs = [
     source: 'src/consensus/create/consensus-create.ts',
     output: 'plugins/consensus/skills/create/scripts/consensus-create.mjs',
     importRewrites: [
-      { from: '../core/consensus-loop.js', to: './consensus-loop.mjs' },
+      {
+        from: '../core/consensus-loop.js',
+        to: '../../../scripts/consensus-loop.mjs',
+      },
       { from: '../config/consensus-config.js', to: './consensus-config.mjs' },
     ],
   },
@@ -100,7 +89,10 @@ export const generatedOutputs = [
     source: 'src/consensus/decide/consensus-decide.ts',
     output: 'plugins/consensus/skills/decide/scripts/consensus-decide.mjs',
     importRewrites: [
-      { from: '../core/consensus-loop.js', to: './consensus-loop.mjs' },
+      {
+        from: '../core/consensus-loop.js',
+        to: '../../../scripts/consensus-loop.mjs',
+      },
       { from: '../config/consensus-config.js', to: './consensus-config.mjs' },
     ],
   },
@@ -109,7 +101,10 @@ export const generatedOutputs = [
     source: 'src/consensus/plan/consensus-plan.ts',
     output: 'plugins/consensus/skills/plan/scripts/consensus-plan.mjs',
     importRewrites: [
-      { from: '../core/consensus-loop.js', to: './consensus-loop.mjs' },
+      {
+        from: '../core/consensus-loop.js',
+        to: '../../../scripts/consensus-loop.mjs',
+      },
       { from: '../config/consensus-config.js', to: './consensus-config.mjs' },
     ],
   },
