@@ -435,6 +435,84 @@ git commit -m "chore(oat): record shared generated runtime verification"
 
 ---
 
+### Task p03-t04: (review) Expand Shared-Loop Schema Parity Coverage
+
+**Files:**
+
+- Modify: `tests/consensus/evaluate/schema-parity.test.ts`
+
+**Step 1: Understand the issue**
+
+Review finding `M1`: the shared loop now resolves verdict and synthesis schemas
+through the plugin-root runtime path, but the existing parity guard only
+compares `evaluate` schemas against `refine`. `create`, `decide`, and `plan`
+schema copies could drift silently from the runtime schemas.
+
+**Step 2: Implement fix**
+
+Expand the parity test to iterate every loop-using skill schema directory
+(`create`, `decide`, `evaluate`, `plan`, and `refine`) against the canonical
+schema set.
+
+**Step 3: Verify**
+
+Run:
+
+```bash
+pnpm exec vitest run tests/consensus/evaluate/schema-parity.test.ts
+pnpm run build:check
+```
+
+Expected: schema parity passes for every loop-using consensus skill and
+generated outputs remain in sync.
+
+**Step 4: Commit**
+
+```bash
+git add tests/consensus/evaluate/schema-parity.test.ts .oat/projects/shared/share-consensus-scripts/implementation.md
+git commit -m "test(p03-t04): cover shared schema parity"
+```
+
+---
+
+### Task p03-t05: (review) Refresh Roadmap Header Snapshot
+
+**Files:**
+
+- Modify: `.oat/repo/pjm/roadmap.md`
+
+**Step 1: Understand the issue**
+
+Review finding `m1`: the roadmap body correctly records
+`BL-260620-share-consensus-generated` as done, but the top `Last updated`
+sentence still advertises the previous 2026-07-05 snapshot.
+
+**Step 2: Implement fix**
+
+Update the roadmap header to 2026-07-07 and mention the shared generated runtime
+closeout while preserving the prior neutral-panel/config-defaults context as
+older status.
+
+**Step 3: Verify**
+
+Run:
+
+```bash
+rg -n "2026-07-07|shared generated runtime|BL-260620-share-consensus-generated" .oat/repo/pjm/roadmap.md
+```
+
+Expected: the header timestamp and body both reflect the completed shared
+generated runtime closeout.
+
+**Step 4: Commit**
+
+```bash
+git add .oat/repo/pjm/roadmap.md .oat/projects/shared/share-consensus-scripts/implementation.md
+git commit -m "docs(p03-t05): refresh roadmap closeout header"
+```
+
+---
+
 ## Reviews
 
 | Scope  | Type     | Status  | Date       | Artifact |
@@ -442,7 +520,7 @@ git commit -m "chore(oat): record shared generated runtime verification"
 | p01    | code     | passed | 2026-07-07 | reviews/archived/p01-review-2026-07-07.md |
 | p02    | code     | passed | 2026-07-07 | reviews/archived/p02-review-2026-07-07.md |
 | p03    | code     | passed | 2026-07-07 | reviews/archived/p03-review-2026-07-07-v2.md |
-| final  | code     | pending | -          | -        |
+| final  | code     | fixes_added | 2026-07-07 | reviews/archived/final-review-2026-07-07.md |
 | spec   | artifact | passed  | 2026-07-07 | N/A (quick mode; no spec artifact) |
 | design | artifact | passed  | 2026-07-07 | N/A (quick mode; no design artifact) |
 | plan   | artifact | fixes_completed | 2026-07-07 | reviews/archived/artifact-plan-review-2026-07-06.md |
@@ -459,9 +537,10 @@ git commit -m "chore(oat): record shared generated runtime verification"
   go/no-go recommendation.
 - Phase 2: 4 tasks - shared runtime build migration, drift/layout tests,
   generated output regeneration, and focused shared-import smoke.
-- Phase 3: 3 tasks - docs update, PJM closeout, and full validation evidence.
+- Phase 3: 5 tasks - docs update, PJM closeout, full validation evidence, and
+  final-review follow-up fixes.
 
-**Total: 10 tasks**
+**Total: 12 tasks**
 
 Ready for `oat-project-implement`.
 

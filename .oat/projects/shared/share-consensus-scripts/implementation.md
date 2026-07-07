@@ -1,9 +1,9 @@
 ---
-oat_status: complete
+oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-07
-oat_current_task_id: null
+oat_current_task_id: p03-t04
 oat_generated: false
 ---
 
@@ -22,9 +22,9 @@ oat_generated: false
 | ----- | ----------- | ----- | --------- |
 | p01   | completed   | 3     | 3/3       |
 | p02   | completed   | 4     | 4/4       |
-| p03   | completed   | 3     | 3/3       |
+| p03   | in_progress | 5     | 3/5       |
 
-**Total:** 10/10 tasks completed
+**Total:** 10/12 tasks completed
 
 ## Phase p01: Provider Layout Spike And Go/No-Go Evidence
 
@@ -579,6 +579,34 @@ Run-scoped snapshot only. The durable record is `## Deviations from Plan / Desig
 
 **Next:** run final code review before PR handoff.
 
+### Review Received: final code
+
+**Date:** 2026-07-07
+**Review artifact:** `reviews/archived/final-review-2026-07-07.md`
+
+**Findings:**
+
+- Critical: 0
+- Important: 0
+- Medium: 1
+- Minor: 1
+
+**New tasks added:** `p03-t04`, `p03-t05`
+
+**Finding disposition map:**
+
+- `M1` converted: add full shared-loop schema parity coverage across
+  `create`, `decide`, `evaluate`, `plan`, and `refine` schema directories.
+- `m1` converted: refresh the roadmap header timestamp/current-snapshot text to
+  match the 2026-07-07 shared generated runtime closeout.
+
+**Deferred Findings (Medium):** none.
+
+**Minor Findings:** 1 converted, 0 deferred.
+
+**Next:** execute `p03-t04` and `p03-t05`, then mark fixes completed and rerun
+final review.
+
 ## Implementation Log
 
 ### 2026-07-07
@@ -702,7 +730,8 @@ Phase 3 completed the shared generated runtime migration closeout: engineering
 docs now describe the plugin-local loop output, PJM closed and archived
 `BL-260620-share-consensus-generated`, the consumed kickoff handoff is deleted,
 the stale roadmap entry was corrected, and final clean-state validation passes.
-Implementation tasks are complete; final code review remains before PR handoff.
+Implementation tasks are complete except for the final-review follow-up fixes
+captured as `p03-t04` and `p03-t05`. Re-run final review after those tasks.
 
 ## References
 
