@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-07
-oat_current_task_id: p02-t02
+oat_current_task_id: p02-t03
 oat_generated: false
 ---
 
@@ -21,10 +21,10 @@ oat_generated: false
 | Phase | Status      | Tasks | Completed |
 | ----- | ----------- | ----- | --------- |
 | p01   | completed   | 3     | 3/3       |
-| p02   | in_progress | 4     | 1/4       |
+| p02   | in_progress | 4     | 2/4       |
 | p03   | pending     | 3     | 0/3       |
 
-**Total:** 4/10 tasks completed
+**Total:** 5/10 tasks completed
 
 ## Phase p01: Provider Layout Spike And Go/No-Go Evidence
 
@@ -128,8 +128,7 @@ orchestrator's checkpoint/review handling.
 ### Task p02-t01: Update Generated-Output Mapping And Import Rewrites
 
 **Status:** completed
-**Commit:** pending in this commit; final SHA must be filled by later OAT
-bookkeeping because a task commit cannot contain its own final SHA.
+**Commit:** `ec11f50ef514`
 
 **Notes:**
 
@@ -153,8 +152,26 @@ bookkeeping because a task commit cannot contain its own final SHA.
 
 ### Task p02-t02: Update Drift And Layout Regression Tests
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** pending in this commit; final SHA must be filled by later OAT
+bookkeeping because a task commit cannot contain its own final SHA.
+
+**Notes:**
+
+- Updated `tests/tooling/generated-output-sync.test.ts` so mapping assertions
+  expect one shared plugin-root `consensus-loop.mjs` output and no per-skill
+  loop outputs.
+- Added a plugin-root layout regression test that resolves the five wrapper
+  loop import rewrites to `plugins/consensus/scripts/consensus-loop.mjs`.
+- Updated the import-rewrite unit test to use the new shared loop target.
+- No fixture file was needed; the regression is expressed against
+  `generatedOutputs` and URL resolution for the repository plugin layout.
+- Verification passed:
+  - `rg -n "shared plugin loop|plugin-root.*loop|consensus/scripts/consensus-loop" tests/tooling/generated-output-sync.test.ts`
+  - `pnpm exec vitest run tests/tooling/generated-output-sync.test.ts -t "declares source to generated-output mappings|shared plugin loop|plugin-root"` (1 file, 3 tests passed, 12 skipped)
+- Self-review: tests cover the changed mapping and wrapper resolution behavior
+  without asserting full generated-output drift before p02-t03 regenerates
+  committed outputs.
 
 ### Task p02-t03: Regenerate Outputs, Remove Duplicates, And Bump Skill Versions
 
@@ -336,6 +353,8 @@ Run-scoped snapshot only. The durable record is `## Deviations from Plan / Desig
 | p02-t01 | `rg -n '\.\./\.\./\.\./scripts/consensus-loop\.mjs' scripts/build-generated.mjs` | yes | 0 | five wrapper import rewrites point at shared plugin loop |
 | p02-t01 | `rg -n 'plugins/consensus/scripts/consensus-loop\.mjs' .oxfmtrc.json .oxlintrc.json` | yes | 0 | static lint/format mirrors include shared loop output |
 | p02-t01 | `if rg -n 'plugins/consensus/skills/.*/scripts/consensus-loop\.mjs' .oxfmtrc.json .oxlintrc.json; then exit 1; else exit 0; fi` | yes | 0 | static lint/format mirrors removed stale per-skill loop outputs |
+| p02-t02 | `rg -n "shared plugin loop\|plugin-root.*loop\|consensus/scripts/consensus-loop" tests/tooling/generated-output-sync.test.ts` | yes | 0 | shared loop and plugin-root regression test text present |
+| p02-t02 | `pnpm exec vitest run tests/tooling/generated-output-sync.test.ts -t "declares source to generated-output mappings\|shared plugin loop\|plugin-root"` | yes | 0 | focused generated-output mapping/layout tests; 1 file, 3 tests passed, 12 skipped |
 
 ## Final Summary (for PR/docs)
 
