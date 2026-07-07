@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-07
-oat_current_task_id: p03-t03
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -22,9 +22,9 @@ oat_generated: false
 | ----- | ----------- | ----- | --------- |
 | p01   | completed   | 3     | 3/3       |
 | p02   | completed   | 4     | 4/4       |
-| p03   | in_progress | 3     | 2/3       |
+| p03   | completed   | 3     | 3/3       |
 
-**Total:** 9/10 tasks completed
+**Total:** 10/10 tasks completed
 
 ## Phase p01: Provider Layout Spike And Go/No-Go Evidence
 
@@ -275,8 +275,9 @@ argv/timing issue recorded in `## Deviations from Plan / Design`.
 
 ## Phase p03: Documentation, PJM Closeout, And Final Verification
 
-**Status:** in_progress
+**Status:** completed
 **Started:** 2026-07-07
+**Completed:** 2026-07-07
 
 ### Task p03-t01: Update Documentation For Runtime Layout
 
@@ -305,8 +306,7 @@ argv/timing issue recorded in `## Deviations from Plan / Design`.
 ### Task p03-t02: Close Backlog Item And Remove Consumed Handoff
 
 **Status:** completed
-**Commit:** pending in this task commit; final SHA cannot be recorded inside the
-commit that creates it.
+**Commit:** `5a54ed594cbe`
 
 **Notes:**
 
@@ -331,8 +331,70 @@ commit that creates it.
 
 ### Task p03-t03: Run Full Validation And Record Final Evidence
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** pending in this task commit; final SHA cannot be recorded inside the
+commit that creates it.
+
+**Supporting fix commit:** `e2639291e669`
+
+**Notes:**
+
+- Investigated the repeated commit-hook warning by running
+  `oat sync --scope project` from a clean tree. The sync only changed managed
+  OAT provider-view wording/version metadata (`.codex/config.toml` description
+  text and `.oat/sync/manifest.json` `oatVersion`), not consensus skill/plugin
+  output. Those uncommitted sync diffs were not retained because they were not a
+  direct consequence of the shipped consensus runtime migration.
+- The first full `pnpm test` gate failed on stale per-skill loop assumptions and
+  one real shared-layout resolver bug: tests still imported or executed
+  `plugins/consensus/skills/*/scripts/consensus-loop.mjs`, and the shared loop
+  still resolved the plugin-local CLI/schemas as if it lived inside a skill
+  directory.
+- Added supporting fix commit `e2639291e669` to make the tree clean for
+  `worktree:validate`: shared loop default CLI path now resolves sibling
+  `./consensus.mjs`, shared loop schema helpers resolve the existing plugin-local
+  refine schema copies, tests and the section-runner agent command target the
+  shared loop path, and `pnpm run build` regenerated
+  `plugins/consensus/scripts/consensus-loop.mjs`.
+- Final required gates were rerun from clean committed state and passed:
+  - `pnpm test` (98 files passed, 969 tests passed, 1 skipped)
+  - `pnpm run build:check`
+  - `npm run validate`
+  - `npm run smoke`
+  - `pnpm run worktree:validate`
+
+### Phase p03 Summary
+
+**Outcome:** documentation, PJM closeout, and final validation completed. Phase
+p03 is ready for orchestrator-managed p03 review/bookkeeping.
+
+**Key files touched:**
+
+- `documentation/docs/engineering/architecture/generated-runtime.md`
+- `RELEASING.md`
+- `.oat/repo/pjm/backlog/archived/BL-260620-share-consensus-generated.md`
+- `.oat/repo/pjm/backlog/completed.md`
+- `.oat/repo/pjm/backlog/index.md`
+- `.oat/repo/pjm/current-state.md`
+- `.oat/repo/pjm/handoffs/BL-260620-share-consensus-generated.md`
+- `src/consensus/core/consensus-loop.ts`
+- `plugins/consensus/scripts/consensus-loop.mjs`
+- `plugins/consensus/agents/consensus-section-runner.md`
+- focused tests under `tests/consensus/` and `tests/repo/docs-presence.test.ts`
+- `.oat/projects/shared/share-consensus-scripts/implementation.md`
+
+**Verification run:**
+
+- p03-t01 docs verification and `pnpm run validate`.
+- p03-t02 PJM lifecycle verification and index regeneration.
+- p03-t03 initial failed `pnpm test`, focused validation repair, then final
+  clean-state gates: `pnpm test`, `pnpm run build:check`, `npm run validate`,
+  `npm run smoke`, and `pnpm run worktree:validate`.
+
+**Notable decisions/deviations:** p03-t03 required a supporting validation fix
+commit outside the original p03-t03 file list because the clean full-suite gate
+found stale p02 path assumptions and a real shared-loop resolver bug. The
+durable delta is recorded in `## Deviations from Plan / Design`.
 
 ## Orchestration Runs
 
@@ -525,6 +587,7 @@ Run-scoped snapshot only. The durable record is `## Deviations from Plan / Desig
 | Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
 | ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
 | p02-t03 / p02 review | `plan.md` | Verify with `pnpm run validate:skill-versions -- --base-ref "$BASE_REF"` before the task commit | Literal command failed with `unexpected argument: --`; accepted command is `pnpm run validate:skill-versions --base-ref "$BASE_REF"` and passed after the task commit, verifying five changed skills | Current pnpm/script argv behavior passes the separator through to this script, and the validator compares `base...HEAD` rather than the working tree | `plan.md` and `scripts/validate-skill-versions.mjs` CLI parser | Resolved by aligning the p02-t03 plan command in p02 bookkeeping; no source-code follow-up needed |
+| p03-t03 | `plan.md` | p03-t03 file list only named `implementation.md` and optional `plan.md`, with final gates expected to pass from the p02 migration state | Added supporting fix commit `e2639291e669` touching canonical/generated shared loop code, focused tests, and the section-runner command before recording final evidence | The required clean-state `pnpm test` gate failed because p02 left stale per-skill loop references and the shared loop still resolved CLI/schema paths relative to the old per-skill location | Final validation gates and the plugin-local shared layout from `scripts/build-generated.mjs` / `plugins/consensus/scripts/consensus-loop.mjs` | Resolved in `e2639291e669`; no follow-up needed before p03 review |
 
 ## Test Results
 
@@ -561,10 +624,23 @@ Run-scoped snapshot only. The durable record is `## Deviations from Plan / Desig
 | p03-t02 | `test ! -e .oat/repo/pjm/handoffs/BL-260620-share-consensus-generated.md` | yes | 0 | consumed kickoff handoff removed |
 | p03-t02 | `test -e .oat/repo/pjm/backlog/archived/BL-260620-share-consensus-generated.md` | yes | 0 | closed item archived |
 | p03-t02 | `rg -n "BL-260620-share-consensus-generated" .oat/repo/pjm/backlog/completed.md .oat/repo/pjm/backlog/index.md` | yes | 0 | completion entry and curated overview reference the closed item |
+| p03-t03 | `oat sync --scope project` | yes | 0 | sync investigated hook warning; generated only unrelated OAT provider-view wording/version drift, not retained |
+| p03-t03 | `pnpm test` | no | 22 reports | initial clean-state full suite exposed stale per-skill loop path assumptions and shared-loop CLI/schema resolver bugs |
+| p03-t03 | `pnpm exec vitest run tests/consensus/core tests/consensus/refine tests/consensus/generated-refine-import.test.ts tests/consensus/generated-evaluate-import.test.ts tests/repo/docs-presence.test.ts` | yes | 0 | targeted validation repair; 32 files, 298 tests passed |
+| p03-t03 | `pnpm run build:check` | yes | 0 | generated outputs in sync after validation repair |
+| p03-t03 | `pnpm test` | yes | 0 | final clean-state full suite; 98 files passed, 969 tests passed, 1 skipped |
+| p03-t03 | `pnpm run build:check` | yes | 0 | final generated-output drift guard passed |
+| p03-t03 | `npm run validate` | yes | 0 | final repository validation passed |
+| p03-t03 | `npm run smoke` | yes | 0 | final smoke passed |
+| p03-t03 | `pnpm run worktree:validate` | yes | 0 | install, build, type-check, build:check, test, validate, smoke, final build:check, and clean-tree check passed |
 
 ## Final Summary (for PR/docs)
 
-Pending implementation.
+Phase 3 completed the shared generated runtime migration closeout: engineering
+docs now describe the plugin-local loop output, PJM closed and archived
+`BL-260620-share-consensus-generated`, the consumed kickoff handoff is deleted,
+and final clean-state validation passes. The p03 review/final PR handoff remains
+for the orchestrator; this phase did not run final review or PR-final.
 
 ## References
 
