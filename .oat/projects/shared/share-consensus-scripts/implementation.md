@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-07
-oat_current_task_id: p01-t01
+oat_current_task_id: p01-t02
 oat_generated: false
 ---
 
@@ -20,25 +20,32 @@ oat_generated: false
 
 | Phase | Status      | Tasks | Completed |
 | ----- | ----------- | ----- | --------- |
-| p01   | in_progress | 3     | 0/3       |
+| p01   | in_progress | 3     | 1/3       |
 | p02   | pending     | 4     | 0/4       |
 | p03   | pending     | 3     | 0/3       |
 
-**Total:** 0/10 tasks completed
+**Total:** 1/10 tasks completed
 
 ## Phase p01: Provider Layout Spike And Go/No-Go Evidence
 
 **Status:** in_progress
-**Started:** -
+**Started:** 2026-07-07
 
 ### Task p01-t01: Prepare Spike Evidence Artifact
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** pending in task commit
 
 **Notes:**
 
-- Create `.oat/projects/shared/share-consensus-scripts/references/plugin-layout-spike.md`.
+- Created `.oat/projects/shared/share-consensus-scripts/references/plugin-layout-spike.md`.
+- Recorded required sections for Claude Code, Codex, Cursor Agent, Copilot,
+  standalone recovery, and the go/no-go checkpoint.
+- Recorded planned command/discovery steps from `plugins/consensus/README.md`,
+  `RELEASING.md`, local CLI help, and GitHub Copilot CLI primary docs.
+- Verification passed:
+  - `test -f .oat/projects/shared/share-consensus-scripts/references/plugin-layout-spike.md`
+  - `rg -n "Claude Code|Codex|Cursor Agent|Copilot|standalone recovery|Go/no-go" .oat/projects/shared/share-consensus-scripts/references/plugin-layout-spike.md`
 
 ### Task p01-t02: Run Provider Layout Checks
 
@@ -190,6 +197,8 @@ _Orchestration runs from `oat-project-implement` are appended here._
 | Phase | Tests Run | Passed | Failed | Coverage |
 | ----- | --------- | ------ | ------ | -------- |
 | quick-start | `git diff --check` | yes | 0 | artifact whitespace |
+| p01-t01 | `test -f .oat/projects/shared/share-consensus-scripts/references/plugin-layout-spike.md` | yes | 0 | spike artifact exists |
+| p01-t01 | `rg -n "Claude Code|Codex|Cursor Agent|Copilot|standalone recovery|Go/no-go" .oat/projects/shared/share-consensus-scripts/references/plugin-layout-spike.md` | yes | 0 | required sections present |
 
 ## Final Summary (for PR/docs)
 
