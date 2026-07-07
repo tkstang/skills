@@ -23,12 +23,12 @@ oat_dispatch_ceiling:
   source: project-state
 oat_workflow_mode: quick
 oat_workflow_origin: native
-oat_docs_updated: null
+oat_docs_updated: complete
 oat_pr_status: null
 oat_pr_url: null
 oat_project_created: "2026-07-07T03:40:03.687Z"
 oat_project_completed: null
-oat_project_state_updated: "2026-07-07T18:25:33Z"
+oat_project_state_updated: "2026-07-07T18:28:57Z"
 oat_generated: false
 ---
 
