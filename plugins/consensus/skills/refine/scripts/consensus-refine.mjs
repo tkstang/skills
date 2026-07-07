@@ -33,7 +33,7 @@ import {
   providerCliSpawnTarget,
   requireConsensusCliPath,
   runConsensusLoop
-} from './consensus-loop.mjs';
+} from '../../../scripts/consensus-loop.mjs';
 const execFileAsync = promisify(execFile);
 const INPUT_SIZE_CAP_BYTES = 1024 * 1024;
 const PROVIDER_ID_PATTERN = /^[a-z][a-z0-9-]{0,31}$/u;

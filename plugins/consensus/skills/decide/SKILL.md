@@ -1,14 +1,14 @@
 ---
 name: decide
 description: Use when choosing between documented options with two AI peers, independent decision drafts, synthesis, and explicit unresolved dissent.
-version: '0.1.2'
+version: '0.1.3'
 license: MIT
 compatibility: Agent Skills baseline; requires Node.js 22+ and the generated consensus CLI.
 allowed-tools: Bash(node:*), Bash(consensus:*), Read, Write
 argument-hint: --options <options.md>
 metadata:
   author: thomas.stang
-  version: '0.1.2'
+  version: '0.1.3'
 ---
 
 # Decide

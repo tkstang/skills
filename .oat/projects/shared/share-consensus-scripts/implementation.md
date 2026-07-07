@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-07
-oat_current_task_id: p02-t03
+oat_current_task_id: p02-t04
 oat_generated: false
 ---
 
@@ -21,10 +21,10 @@ oat_generated: false
 | Phase | Status      | Tasks | Completed |
 | ----- | ----------- | ----- | --------- |
 | p01   | completed   | 3     | 3/3       |
-| p02   | in_progress | 4     | 2/4       |
+| p02   | in_progress | 4     | 3/4       |
 | p03   | pending     | 3     | 0/3       |
 
-**Total:** 5/10 tasks completed
+**Total:** 6/10 tasks completed
 
 ## Phase p01: Provider Layout Spike And Go/No-Go Evidence
 
@@ -153,8 +153,7 @@ orchestrator's checkpoint/review handling.
 ### Task p02-t02: Update Drift And Layout Regression Tests
 
 **Status:** completed
-**Commit:** pending in this commit; final SHA must be filled by later OAT
-bookkeeping because a task commit cannot contain its own final SHA.
+**Commit:** `af43b73cefd2`
 
 **Notes:**
 
@@ -175,8 +174,43 @@ bookkeeping because a task commit cannot contain its own final SHA.
 
 ### Task p02-t03: Regenerate Outputs, Remove Duplicates, And Bump Skill Versions
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** pending in this commit; final SHA must be filled by later OAT
+bookkeeping because a task commit cannot contain its own final SHA.
+
+**Notes:**
+
+- Ran `pnpm run build`, which generated
+  `plugins/consensus/scripts/consensus-loop.mjs` and regenerated the five
+  consensus wrapper outputs with the shared loop import.
+- Removed stale tracked per-skill loop outputs under
+  `plugins/consensus/skills/{create,decide,evaluate,plan,refine}/scripts/`.
+- Bumped changed consensus skill versions in both top-level `version` and
+  `metadata.version`:
+  - `create`: `0.1.2` -> `0.1.3`
+  - `decide`: `0.1.2` -> `0.1.3`
+  - `evaluate`: `0.1.4` -> `0.1.5`
+  - `plan`: `0.1.2` -> `0.1.3`
+  - `refine`: `0.1.3` -> `0.1.4`
+- Confirmed `scripts/bump-version.mjs` already lists the five changed consensus
+  skill files in `SKILL_FILES`; no update was needed.
+- Verification passed:
+  - `pnpm run build`
+  - `rg -n "from '../../../scripts/consensus-loop\.mjs'|from './consensus-loop\.mjs'" plugins/consensus/skills/{create,decide,evaluate,plan,refine}/scripts/*.mjs` (five shared imports; no stale local loop imports)
+  - `if git ls-files 'plugins/consensus/skills/*/scripts/consensus-loop.mjs' | rg .; then exit 1; else exit 0; fi`
+  - `rg -n "plugins/consensus/skills/(create|decide|evaluate|plan|refine)/SKILL.md" scripts/bump-version.mjs`
+  - `pnpm run build:check`
+- Skill-version verification caveat: the plan's literal
+  `pnpm run validate:skill-versions -- --base-ref "$BASE_REF"` passed an extra
+  `--` to `scripts/validate-skill-versions.mjs` under the installed pnpm/script
+  behavior and failed with `unexpected argument: --`. The accepted command shape
+  is `pnpm run validate:skill-versions --base-ref "$BASE_REF"`. Before this
+  task commit, that accepted command exits 0 but reports no changed skills
+  because the script compares `base...HEAD` and does not include uncommitted
+  task changes; rerun it after this commit and record the post-commit result in
+  the next tracker update.
+- Self-review: generated `.mjs` outputs were produced by `pnpm run build`, not
+  hand-edited; `consensus-config.mjs` duplication remains unchanged.
 
 ### Task p02-t04: Run Focused Runtime Smoke For Shared Imports
 
@@ -336,7 +370,7 @@ Run-scoped snapshot only. The durable record is `## Deviations from Plan / Desig
 
 | Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
 | ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
-| -             | -               | -                    | -                 | -      | -               | -         |
+| p02-t03 | `plan.md` | Verify with `pnpm run validate:skill-versions -- --base-ref "$BASE_REF"` before the task commit | Literal command failed with `unexpected argument: --`; accepted command is `pnpm run validate:skill-versions --base-ref "$BASE_REF"` and must be rerun after the task commit to include p02-t03 changes | Installed pnpm/script argv behavior passes the separator through to this script, and the validator compares `base...HEAD` rather than the working tree | `scripts/validate-skill-versions.mjs` CLI parser and git diff implementation | Record post-commit pass result in the next implementation tracker update; no source-code follow-up needed |
 
 ## Test Results
 
@@ -355,6 +389,13 @@ Run-scoped snapshot only. The durable record is `## Deviations from Plan / Desig
 | p02-t01 | `if rg -n 'plugins/consensus/skills/.*/scripts/consensus-loop\.mjs' .oxfmtrc.json .oxlintrc.json; then exit 1; else exit 0; fi` | yes | 0 | static lint/format mirrors removed stale per-skill loop outputs |
 | p02-t02 | `rg -n "shared plugin loop\|plugin-root.*loop\|consensus/scripts/consensus-loop" tests/tooling/generated-output-sync.test.ts` | yes | 0 | shared loop and plugin-root regression test text present |
 | p02-t02 | `pnpm exec vitest run tests/tooling/generated-output-sync.test.ts -t "declares source to generated-output mappings\|shared plugin loop\|plugin-root"` | yes | 0 | focused generated-output mapping/layout tests; 1 file, 3 tests passed, 12 skipped |
+| p02-t03 | `pnpm run build` | yes | 0 | generated shared loop output and wrapper imports |
+| p02-t03 | `rg -n "from '../../../scripts/consensus-loop\.mjs'\|from './consensus-loop\.mjs'" plugins/consensus/skills/{create,decide,evaluate,plan,refine}/scripts/*.mjs` | yes | 0 | five wrappers import shared plugin loop; no stale local loop imports |
+| p02-t03 | `if git ls-files 'plugins/consensus/skills/*/scripts/consensus-loop.mjs' \| rg .; then exit 1; else exit 0; fi` | yes | 0 | stale per-skill loop outputs removed from tracked files |
+| p02-t03 | `rg -n "plugins/consensus/skills/(create\|decide\|evaluate\|plan\|refine)/SKILL.md" scripts/bump-version.mjs` | yes | 0 | release bump tooling already covers changed consensus skills |
+| p02-t03 | `pnpm run build:check` | yes | 0 | generated outputs in sync |
+| p02-t03 | `BASE_REF=$(git merge-base HEAD origin/main 2>/dev/null \|\| git merge-base HEAD main); pnpm run validate:skill-versions -- --base-ref "$BASE_REF"` | no | 2 | literal plan command passes an extra `--` to this script; see deviation |
+| p02-t03 | `BASE_REF=$(git merge-base HEAD origin/main 2>/dev/null \|\| git merge-base HEAD main); pnpm run validate:skill-versions --base-ref "$BASE_REF"` | yes | 0 | accepted argv shape; pre-commit run cannot see uncommitted skill changes because the script compares `base...HEAD` |
 
 ## Final Summary (for PR/docs)
 
