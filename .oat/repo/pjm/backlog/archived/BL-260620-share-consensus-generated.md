@@ -1,7 +1,7 @@
 ---
 id: BL-260620-share-consensus-generated
 title: Share consensus generated runtime output at the plugin level
-status: open
+status: closed
 priority: medium
 scope: task
 scope_estimate: M
@@ -12,7 +12,7 @@ labels:
   - maintainability
 assignee: null
 created: 2026-06-20T00:17:51Z
-updated: 2026-06-20T00:17:51Z
+updated: 2026-07-07T14:27:34Z
 associated_issues: []
 legacy_id: bl-e0e7
 ---

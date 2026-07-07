@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-07
-oat_current_task_id: p03-t01
+oat_current_task_id: p03-t03
 oat_generated: false
 ---
 
@@ -22,9 +22,9 @@ oat_generated: false
 | ----- | ----------- | ----- | --------- |
 | p01   | completed   | 3     | 3/3       |
 | p02   | completed   | 4     | 4/4       |
-| p03   | in_progress | 3     | 1/3       |
+| p03   | in_progress | 3     | 2/3       |
 
-**Total:** 8/10 tasks completed
+**Total:** 9/10 tasks completed
 
 ## Phase p01: Provider Layout Spike And Go/No-Go Evidence
 
@@ -281,8 +281,7 @@ argv/timing issue recorded in `## Deviations from Plan / Design`.
 ### Task p03-t01: Update Documentation For Runtime Layout
 
 **Status:** completed
-**Commit:** pending in this task commit; final SHA cannot be recorded inside the
-commit that creates it.
+**Commit:** `a9391b3c515b`
 
 **Notes:**
 
@@ -305,8 +304,30 @@ commit that creates it.
 
 ### Task p03-t02: Close Backlog Item And Remove Consumed Handoff
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** pending in this task commit; final SHA cannot be recorded inside the
+commit that creates it.
+
+**Notes:**
+
+- Closed `.oat/repo/pjm/backlog/items/BL-260620-share-consensus-generated.md`
+  with `status: closed` and moved it to
+  `.oat/repo/pjm/backlog/archived/BL-260620-share-consensus-generated.md`.
+- Added a newest-first `backlog/completed.md` entry summarizing the provider
+  evidence, shared generated-loop migration, wrapper import rewrite, drift
+  coverage, docs update, and evidence-gated marketplace/skills.sh claims.
+- Ran `oat backlog regenerate-index`, which removed the item from the managed
+  active backlog table.
+- Updated the curated backlog overview and `current-state.md` only where they
+  still described plugin-local shared generated runtime output as a remaining
+  follow-up or described the old per-skill loop-copy layout.
+- Deleted the consumed kickoff handoff at
+  `.oat/repo/pjm/handoffs/BL-260620-share-consensus-generated.md`.
+- Verification passed:
+  - `test ! -e .oat/repo/pjm/backlog/items/BL-260620-share-consensus-generated.md`
+  - `test ! -e .oat/repo/pjm/handoffs/BL-260620-share-consensus-generated.md`
+  - `test -e .oat/repo/pjm/backlog/archived/BL-260620-share-consensus-generated.md`
+  - `rg -n "BL-260620-share-consensus-generated" .oat/repo/pjm/backlog/completed.md .oat/repo/pjm/backlog/index.md`
 
 ### Task p03-t03: Run Full Validation And Record Final Evidence
 
@@ -534,6 +555,12 @@ Run-scoped snapshot only. The durable record is `## Deviations from Plan / Desig
 | p02-t04 | `pnpm run build:check` | yes | 0 | generated outputs in sync after smoke |
 | p02-t04 | `pnpm exec vitest run tests/tooling/generated-output-sync.test.ts` | yes | 0 | 1 file, 15 tests passed |
 | p02-t04 | `rg -n "Shared import smoke.*pass" .oat/projects/shared/share-consensus-scripts/references/plugin-layout-spike.md` | yes | 0 | smoke result recorded in spike artifact |
+| p03-t01 | `rg -n "plugins/consensus/scripts/consensus-loop\.mjs\|plugin-local" documentation/docs/engineering/architecture/generated-runtime.md` | yes | 0 | docs mention shared plugin-local loop output and runtime contract |
+| p03-t01 | `pnpm run validate` | yes | 0 | repository validation passed after docs update |
+| p03-t02 | `test ! -e .oat/repo/pjm/backlog/items/BL-260620-share-consensus-generated.md` | yes | 0 | closed item removed from active items |
+| p03-t02 | `test ! -e .oat/repo/pjm/handoffs/BL-260620-share-consensus-generated.md` | yes | 0 | consumed kickoff handoff removed |
+| p03-t02 | `test -e .oat/repo/pjm/backlog/archived/BL-260620-share-consensus-generated.md` | yes | 0 | closed item archived |
+| p03-t02 | `rg -n "BL-260620-share-consensus-generated" .oat/repo/pjm/backlog/completed.md .oat/repo/pjm/backlog/index.md` | yes | 0 | completion entry and curated overview reference the closed item |
 
 ## Final Summary (for PR/docs)
 
@@ -543,4 +570,6 @@ Pending implementation.
 
 - Plan: `plan.md`
 - Discovery: `discovery.md`
-- Backlog handoff: `.oat/repo/pjm/handoffs/BL-260620-share-consensus-generated.md`
+- Backlog handoff:
+  `.oat/repo/pjm/handoffs/BL-260620-share-consensus-generated.md` (consumed and
+  deleted in p03-t02)
