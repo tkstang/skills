@@ -439,7 +439,7 @@ git commit -m "chore(oat): record shared generated runtime verification"
 
 | Scope  | Type     | Status  | Date       | Artifact |
 | ------ | -------- | ------- | ---------- | -------- |
-| p01    | code     | pending | -          | -        |
+| p01    | code     | passed | 2026-07-07 | reviews/archived/p01-review-2026-07-07.md |
 | p02    | code     | pending | -          | -        |
 | p03    | code     | pending | -          | -        |
 | final  | code     | pending | -          | -        |
