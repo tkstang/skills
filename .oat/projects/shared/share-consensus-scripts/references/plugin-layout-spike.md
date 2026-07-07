@@ -37,24 +37,31 @@ Each provider table records:
 
 ## Claude Code
 
-Planned command/discovery sequence:
+Provider status: Claude Code pass.
+
+Command/discovery sequence:
 
 ```bash
 claude plugin --help
 claude plugin marketplace --help
 claude plugin list
 claude plugin details consensus
-ls -la ~/.claude/plugins ~/.claude/plugins/cache
+cat ~/.claude/plugins/installed_plugins.json
 find ~/.claude/plugins -path '*consensus*' -maxdepth 8 -print
+test -d ~/.claude/plugins/cache/skills/consensus/0.1.0/scripts
+test -d ~/.claude/plugins/cache/skills/consensus/0.1.0/skills
+node -e 'new URL("../../../scripts/consensus.mjs", wrapper)'
 ```
 
 | Command/discovery step | Installed or local-load plugin root | `plugins/consensus/scripts/` preserved beside `skills/` | Wrapper import path tested | Status | Notes |
 | ---------------------- | ----------------------------------- | ------------------------------------------------------- | -------------------------- | ------ | ----- |
-| Pending p01-t02 live check | Pending | Pending | `../../../scripts/consensus-loop.mjs` | pending | README starts from `claude plugin marketplace add "$PWD" --scope user`, `claude plugin install consensus@skills --scope user`, and `claude plugin details consensus`. |
+| `claude plugin details consensus`; `find ~/.claude/plugins -path '*consensus*' -maxdepth 8 -print`; directory tests | `/Users/tstang/.claude/plugins/cache/skills/consensus/0.1.0` | Yes. `scripts/` and `skills/` are siblings in the installed cache. | `../../../scripts/consensus.mjs` resolves to the installed plugin-local CLI; `../../../scripts/consensus-loop.mjs` resolves to the same plugin-local `scripts/` directory for the proposed shared loop. | pass | `claude plugin details consensus` reports `consensus@skills` enabled with 7 skills and 1 agent. `installed_plugins.json` records install path `/Users/tstang/.claude/plugins/cache/skills/consensus/0.1.0`; marketplace `skills` currently points at `/Users/tstang/Code/skills`, not this worktree. |
 
 ## Codex
 
-Planned command/discovery sequence:
+Provider status: Codex pass.
+
+Command/discovery sequence:
 
 ```bash
 codex plugin --help
@@ -62,35 +69,48 @@ codex plugin marketplace list
 codex plugin list
 ls -la ~/.codex/plugins/cache/skills/consensus/0.1.0
 test -d ~/.codex/plugins/cache/skills/consensus/0.1.0/scripts
+test -d ~/.codex/plugins/cache/skills/consensus/0.1.0/skills
+node -e 'new URL("../../../scripts/consensus.mjs", wrapper)'
 ```
 
 | Command/discovery step | Installed or local-load plugin root | `plugins/consensus/scripts/` preserved beside `skills/` | Wrapper import path tested | Status | Notes |
 | ---------------------- | ----------------------------------- | ------------------------------------------------------- | -------------------------- | ------ | ----- |
-| Pending p01-t02 live check | Pending | Pending | `../../../scripts/consensus-loop.mjs` | pending | README starts from `codex plugin marketplace add "$PWD"`, `codex plugin add consensus --marketplace skills`, and `codex plugin list`. |
+| `codex plugin marketplace list`; `codex plugin list`; cache tree and directory tests | `/Users/tstang/.codex/plugins/cache/skills/consensus/0.1.0` (runtime cache); `/Users/tstang/Code/skills/plugins/consensus` (configured `skills` marketplace source) | Yes. `scripts/` and `skills/` are siblings in the runtime cache. | `../../../scripts/consensus.mjs` resolves to the installed plugin-local CLI; `../../../scripts/consensus-loop.mjs` resolves to the same plugin-local `scripts/` directory for the proposed shared loop. | pass | `codex plugin list` reports `consensus@skills` installed/enabled from the configured local marketplace. The configured marketplace is `/Users/tstang/Code/skills`, so this spike did not disrupt the user-level marketplace to point at the current worktree. |
 
 ## Cursor Agent
 
-Planned command/discovery sequence:
+Provider status: Cursor Agent pass.
+
+Command/discovery sequence:
 
 ```bash
 cursor agent --help
 cursor-agent --help
+cursor agent --version
+cursor-agent --version
 test -d plugins/consensus/scripts
 test -d plugins/consensus/skills
+node -e 'new URL("../../../scripts/consensus.mjs", wrapper)'
 ```
 
 | Command/discovery step | Installed or local-load plugin root | `plugins/consensus/scripts/` preserved beside `skills/` | Wrapper import path tested | Status | Notes |
 | ---------------------- | ----------------------------------- | ------------------------------------------------------- | -------------------------- | ------ | ----- |
-| Pending p01-t02 live check | `plugins/consensus` local load | Pending | `../../../scripts/consensus-loop.mjs` | pending | README says Cursor Agent local plugin loading is session-scoped with `cursor agent --plugin-dir "$PWD/plugins/consensus"`; no Cursor marketplace install is claimed. |
+| `cursor agent --help`; `cursor-agent --help`; local root directory tests | `/Users/tstang/Code/share-consensus-scripts/plugins/consensus` via `cursor agent --plugin-dir "$PWD/plugins/consensus"` | Yes. The local-load root itself contains sibling `scripts/` and `skills/`. | `../../../scripts/consensus.mjs` resolves to the plugin-local CLI; `../../../scripts/consensus-loop.mjs` resolves to the same plugin-local `scripts/` directory for the proposed shared loop. | pass | Cursor Agent version `2026.07.01-41b2de7`; help exposes `--plugin-dir <path>` as a repeatable local plugin directory. No interactive Cursor model session was launched in this evidence phase. |
 
 ## Copilot
 
-Planned command/discovery sequence:
+Provider status: Copilot pass.
+
+Command/discovery sequence:
 
 ```bash
 copilot --help
 gh copilot --help
 gh copilot -- --help
+HOME="$(mktemp -d)/home" npm_config_cache="$(mktemp -d)/npm-cache" npx -y @github/copilot --help
+HOME="$tmp/home" npm_config_cache="$tmp/npm-cache" npx -y @github/copilot plugin --help
+HOME="$tmp/home" npm_config_cache="$tmp/npm-cache" npx -y @github/copilot plugin install "$PWD/plugins/consensus"
+find "$tmp/home/.copilot/installed-plugins" -maxdepth 5 -print
 ```
 
 Primary-doc checks:
@@ -102,11 +122,13 @@ Primary-doc checks:
 
 | Command/discovery step | Installed or local-load plugin root | `plugins/consensus/scripts/` preserved beside `skills/` | Wrapper import path tested | Status | Notes |
 | ---------------------- | ----------------------------------- | ------------------------------------------------------- | -------------------------- | ------ | ----- |
-| Pending p01-t02 live/doc check | Pending | Pending | `../../../scripts/consensus-loop.mjs` | pending | Local `copilot` binary is not in PATH; `gh copilot` is the available launcher. p01-t02 will record whether local installation is possible or blocked in this environment. |
+| Primary docs; `gh copilot --help`; isolated `npx -y @github/copilot`; temporary-HOME local install | `/var/folders/fp/rnl_nlcj5ngfqfh8nb92vktr0000gn/T/tmp.o66VF6HrRc/home/.copilot/installed-plugins/_direct/consensus` | Yes. Isolated direct install copied sibling `scripts/` and `skills/`; install output: `Plugin "consensus" installed successfully. Installed 7 skills.` | `../../../scripts/consensus.mjs` resolves to the installed plugin-local CLI; `../../../scripts/consensus-loop.mjs` resolves to the same plugin-local `scripts/` directory for the proposed shared loop. | pass | `copilot` is not installed in PATH, and `gh copilot -- --help` reports `Copilot CLI not installed`. Isolated npm-run CLI help exposes `--plugin-dir <directory>` and `copilot plugin install`. The direct local install path works today but warns it is deprecated; marketplace install should be the durable release path for Copilot. Primary docs also state local path install and installed plugin file locations under `~/.copilot/installed-plugins`. |
 
 ## standalone recovery
 
-Planned command/discovery sequence:
+Provider status: standalone recovery pass.
+
+Command/discovery sequence:
 
 ```bash
 pnpm exec vitest run \
@@ -116,7 +138,7 @@ pnpm exec vitest run \
 
 | Command/discovery step | Installed or local-load plugin root | `plugins/consensus/scripts/` preserved beside `skills/` | Wrapper import path tested | Status | Notes |
 | ---------------------- | ----------------------------------- | ------------------------------------------------------- | -------------------------- | ------ | ----- |
-| Pending p01-t02 focused tests | Simulated standalone skill install | N/A for single-skill install | Plugin CLI fallback to `~/.consensus/consensus.mjs` | pending | PR #38 recovery must remain actionable if a standalone single-skill install lacks the plugin-local CLI. |
+| Focused Vitest recovery tests | Simulated standalone skill install | N/A for single-skill install | Plugin CLI fallback to `~/.consensus/consensus.mjs`; shared `CONSENSUS_PROVIDER_CLI_MISSING` error | pass | `pnpm exec vitest run tests/consensus/core/resolve-consensus-cli-path.test.ts tests/consensus/provider-cli/missing-cli-message.test.ts` passed: 2 files, 6 tests. The tests cover explicit/env/plugin/shared-home resolution order, `~/.consensus/consensus.mjs` fallback, and the shared actionable missing-CLI message across wrappers. |
 
 ## Go/no-go
 

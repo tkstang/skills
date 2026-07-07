@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-07
-oat_current_task_id: p01-t02
+oat_current_task_id: p01-t03
 oat_generated: false
 ---
 
@@ -20,11 +20,11 @@ oat_generated: false
 
 | Phase | Status      | Tasks | Completed |
 | ----- | ----------- | ----- | --------- |
-| p01   | in_progress | 3     | 1/3       |
+| p01   | in_progress | 3     | 2/3       |
 | p02   | pending     | 4     | 0/4       |
 | p03   | pending     | 3     | 0/3       |
 
-**Total:** 1/10 tasks completed
+**Total:** 2/10 tasks completed
 
 ## Phase p01: Provider Layout Spike And Go/No-Go Evidence
 
@@ -34,7 +34,7 @@ oat_generated: false
 ### Task p01-t01: Prepare Spike Evidence Artifact
 
 **Status:** completed
-**Commit:** pending in task commit
+**Commit:** `81ad31d00b2c`
 
 **Notes:**
 
@@ -49,12 +49,31 @@ oat_generated: false
 
 ### Task p01-t02: Run Provider Layout Checks
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** pending in task commit
 
 **Notes:**
 
-- Record Claude Code, Codex, Cursor Agent, Copilot, and standalone recovery evidence.
+- Recorded live/provider-layout evidence in
+  `.oat/projects/shared/share-consensus-scripts/references/plugin-layout-spike.md`.
+- Provider status summary:
+  - Claude Code: pass; installed cache preserves sibling `scripts/` and
+    `skills/` under
+    `/Users/tstang/.claude/plugins/cache/skills/consensus/0.1.0`.
+  - Codex: pass; runtime cache preserves sibling `scripts/` and `skills/`
+    under `/Users/tstang/.codex/plugins/cache/skills/consensus/0.1.0`.
+  - Cursor Agent: pass; local `--plugin-dir "$PWD/plugins/consensus"` loads the
+    plugin root that contains sibling `scripts/` and `skills/`.
+  - Copilot: pass; isolated temporary-HOME `npx -y @github/copilot plugin
+    install "$PWD/plugins/consensus"` copied the full plugin root under
+    `.copilot/installed-plugins/_direct/consensus` with sibling `scripts/` and
+    `skills/`; direct local installs warn they are deprecated, so marketplace
+    install should be the durable path.
+  - Standalone recovery: pass; focused Vitest checks proved plugin-local CLI
+    resolution, `~/.consensus/consensus.mjs` fallback, and the shared actionable
+    `CONSENSUS_PROVIDER_CLI_MISSING` error.
+- Verification passed:
+  - `rg -n "Claude Code.*(pass|fail|blocked)|Codex.*(pass|fail|blocked)|Cursor Agent.*(pass|fail|blocked)|Copilot.*(pass|fail|blocked)|standalone recovery.*(pass|fail|blocked)" .oat/projects/shared/share-consensus-scripts/references/plugin-layout-spike.md`
 
 ### Task p01-t03: Record Go/No-Go Recommendation
 
@@ -199,6 +218,8 @@ _Orchestration runs from `oat-project-implement` are appended here._
 | quick-start | `git diff --check` | yes | 0 | artifact whitespace |
 | p01-t01 | `test -f .oat/projects/shared/share-consensus-scripts/references/plugin-layout-spike.md` | yes | 0 | spike artifact exists |
 | p01-t01 | `rg -n "Claude Code|Codex|Cursor Agent|Copilot|standalone recovery|Go/no-go" .oat/projects/shared/share-consensus-scripts/references/plugin-layout-spike.md` | yes | 0 | required sections present |
+| p01-t02 | `rg -n "Claude Code.*(pass|fail|blocked)|Codex.*(pass|fail|blocked)|Cursor Agent.*(pass|fail|blocked)|Copilot.*(pass|fail|blocked)|standalone recovery.*(pass|fail|blocked)" .oat/projects/shared/share-consensus-scripts/references/plugin-layout-spike.md` | yes | 0 | provider statuses recorded |
+| p01-t02 | `pnpm exec vitest run tests/consensus/core/resolve-consensus-cli-path.test.ts tests/consensus/provider-cli/missing-cli-message.test.ts` | yes | 0 | standalone recovery path; 2 files, 6 tests |
 
 ## Final Summary (for PR/docs)
 
