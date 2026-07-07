@@ -59,10 +59,31 @@ docs, upstream issues, live probes):
    (2 standalone + 5 consensus skills at most, no `oat-*`) before claiming a
    listing anywhere.
 
+## Post-lag re-check (2026-07-07)
+
+The seeded installs propagated to the hosted surface, and the safety property
+this record turns on is now **verified live**:
+
+- `https://www.skills.sh/tkstang/skills` and `https://www.skills.sh/tkstang`
+  now return **200** (both 404 at seed time on 2026-07-05).
+- The repo page lists **exactly `session-observer` and
+  `export-session-transcript`** — fetched and grepped for every OAT tooling
+  (`oat-*`, `analyze`, `skeptic`, `deep-research`, `authoring-docs`,
+  `synthesize`, `compare`) and consensus skill name; none appear. The
+  client-side `metadata.internal` filter demonstrably protects the hosted
+  surface end-to-end.
+- **Search still lags:** `npx skills find session-observer|tkstang` and
+  owner-scoped search return nothing (the page exists but the skills are not
+  yet in the search index). This is a discoverability lag, not a safety gap —
+  the control `find consensus` returns other repos' skills, so search itself
+  works.
+
 ## Consequences
 
-- The v0.1 release non-claim can be lifted once the seeded installs surface
-  and the visible set checks out; until then it stands.
+- **The safety dimension of the release non-claim can be lifted now:** the
+  hosted surface is verified to expose only the two intended standalone skills.
+  A full *discoverability* claim (skills findable via `skills find`) still
+  waits on search-index propagation; re-check periodically.
 - Accidental telemetry naming an internal skill is a permanent public
   exposure absent a manual upstream fix — treat the guardrail as a hard
   rule, not a preference.
