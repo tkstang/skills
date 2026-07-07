@@ -217,8 +217,7 @@ orchestrator's checkpoint/review handling.
 ### Task p02-t04: Run Focused Runtime Smoke For Shared Imports
 
 **Status:** completed
-**Commit:** pending in this commit; final SHA must be filled by later OAT
-bookkeeping because a task commit cannot contain its own final SHA.
+**Commit:** `9c99a9f21b32`
 
 **Notes:**
 
@@ -336,6 +335,41 @@ Run-scoped snapshot only. The durable record is `## Deviations from Plan / Desig
 | ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
 | None | - | - | - | - | - | - |
 
+### Run 2 — 2026-07-07 14:21
+
+**Branch:** share-consensus-scripts
+**Tier:** 1
+**Policy:** merge-strategy=merge, retry-limit=2
+**Phases:** 1 executed, 1 passed, 0 failed, 0 stopped
+
+#### Phase Outcomes
+
+| Phase | Implementer | Review | Fix Iterations | Disposition |
+| ----- | ----------- | ------ | -------------- | ----------- |
+| p02 | DONE_WITH_CONCERNS | pass_with_findings | 0/2 | passed; continue to p03 |
+
+#### Parallel Groups
+
+- Singleton phase p02: sequential native subagent dispatch
+
+#### Dispatch Notes
+
+- Dispatch: p02 implementer used `oat-phase-implementer-xhigh`; reviewer dispatch used `oat-reviewer-xhigh` but stalled after two waits and one nudge, so the orchestrator completed the p02 review inline per the OAT fallback rule.
+- Review artifact: `reviews/archived/p02-review-2026-07-07.md`.
+- The implementer concern was the p02-t03 `validate:skill-versions` argv shape, not a runtime correctness issue. The accepted command passed post-commit and the plan command was aligned during bookkeeping.
+
+#### Outstanding Items
+
+- None.
+
+#### Artifact / Design Deltas
+
+Run-scoped snapshot only. The durable record is `## Deviations from Plan / Design`; consolidate any non-`None` entries there at the next phase boundary.
+
+| Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
+| ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
+| p02-t03 / p02 review | `plan.md` | `pnpm run validate:skill-versions -- --base-ref "$BASE_REF"` | `pnpm run validate:skill-versions --base-ref "$BASE_REF"` | Current pnpm passes the extra separator through to `scripts/validate-skill-versions.mjs`; the accepted command is verified and now reflected in `plan.md`. | `plan.md` and `scripts/validate-skill-versions.mjs` | Resolved in this bookkeeping update. |
+
 <!-- orchestration-runs-end -->
 
 ### Review Received: p01 code
@@ -357,6 +391,28 @@ Run-scoped snapshot only. The durable record is `## Deviations from Plan / Desig
   `plan.md`, and `state.md` is advanced to the p01 checkpoint handoff.
 
 **Next:** await the configured p01 go/no-go checkpoint decision before Phase 2.
+
+### Review Received: p02 code
+
+**Date:** 2026-07-07
+**Review artifact:** `reviews/archived/p02-review-2026-07-07.md`
+
+**Findings:**
+
+- Critical: 0
+- Important: 0
+- Medium: 0
+- Minor: 1
+
+**Disposition:**
+
+- Minor plan-command drift resolved in this phase-boundary bookkeeping update:
+  p02-t03 now uses `pnpm run validate:skill-versions --base-ref "$BASE_REF"`
+  in `plan.md`, matching the verified command shape.
+- `p02-t04` now records commit `9c99a9f21b32`, p02 is marked passed in
+  `plan.md`, and `state.md` is advanced to p03.
+
+**Next:** continue with p03 documentation, PJM closeout, and final validation.
 
 ## Implementation Log
 
@@ -427,7 +483,7 @@ Run-scoped snapshot only. The durable record is `## Deviations from Plan / Desig
 
 | Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
 | ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
-| p02-t03 | `plan.md` | Verify with `pnpm run validate:skill-versions -- --base-ref "$BASE_REF"` before the task commit | Literal command failed with `unexpected argument: --`; accepted command is `pnpm run validate:skill-versions --base-ref "$BASE_REF"` and must be rerun after the task commit to include p02-t03 changes | Installed pnpm/script argv behavior passes the separator through to this script, and the validator compares `base...HEAD` rather than the working tree | `scripts/validate-skill-versions.mjs` CLI parser and git diff implementation | Record post-commit pass result in the next implementation tracker update; no source-code follow-up needed |
+| p02-t03 / p02 review | `plan.md` | Verify with `pnpm run validate:skill-versions -- --base-ref "$BASE_REF"` before the task commit | Literal command failed with `unexpected argument: --`; accepted command is `pnpm run validate:skill-versions --base-ref "$BASE_REF"` and passed after the task commit, verifying five changed skills | Current pnpm/script argv behavior passes the separator through to this script, and the validator compares `base...HEAD` rather than the working tree | `plan.md` and `scripts/validate-skill-versions.mjs` CLI parser | Resolved by aligning the p02-t03 plan command in p02 bookkeeping; no source-code follow-up needed |
 
 ## Test Results
 

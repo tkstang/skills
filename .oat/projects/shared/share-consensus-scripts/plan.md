@@ -283,7 +283,7 @@ git commit -m "test(consensus): cover shared plugin loop layout"
 ```bash
 pnpm run build:check
 BASE_REF=$(git merge-base HEAD origin/main 2>/dev/null || git merge-base HEAD main)
-pnpm run validate:skill-versions -- --base-ref "$BASE_REF"
+pnpm run validate:skill-versions --base-ref "$BASE_REF"
 ```
 
 **Commit:**
@@ -440,7 +440,7 @@ git commit -m "chore(oat): record shared generated runtime verification"
 | Scope  | Type     | Status  | Date       | Artifact |
 | ------ | -------- | ------- | ---------- | -------- |
 | p01    | code     | passed | 2026-07-07 | reviews/archived/p01-review-2026-07-07.md |
-| p02    | code     | pending | -          | -        |
+| p02    | code     | passed | 2026-07-07 | reviews/archived/p02-review-2026-07-07.md |
 | p03    | code     | pending | -          | -        |
 | final  | code     | pending | -          | -        |
 | spec   | artifact | passed  | 2026-07-07 | N/A (quick mode; no spec artifact) |
