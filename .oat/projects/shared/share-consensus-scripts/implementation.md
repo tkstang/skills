@@ -22,9 +22,9 @@ oat_generated: false
 | ----- | ----------- | ----- | --------- |
 | p01   | completed   | 3     | 3/3       |
 | p02   | completed   | 4     | 4/4       |
-| p03   | pending     | 3     | 0/3       |
+| p03   | in_progress | 3     | 1/3       |
 
-**Total:** 7/10 tasks completed
+**Total:** 8/10 tasks completed
 
 ## Phase p01: Provider Layout Spike And Go/No-Go Evidence
 
@@ -275,13 +275,33 @@ argv/timing issue recorded in `## Deviations from Plan / Design`.
 
 ## Phase p03: Documentation, PJM Closeout, And Final Verification
 
-**Status:** pending
-**Started:** -
+**Status:** in_progress
+**Started:** 2026-07-07
 
 ### Task p03-t01: Update Documentation For Runtime Layout
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** pending in this task commit; final SHA cannot be recorded inside the
+commit that creates it.
+
+**Notes:**
+
+- Updated `documentation/docs/engineering/architecture/generated-runtime.md` so
+  the consensus loop maps to the shared plugin-local output
+  `plugins/consensus/scripts/consensus-loop.mjs`.
+- Documented the plugin install/local-load runtime contract: provider layouts
+  must preserve plugin-root `scripts/` beside `skills/`, and the generated
+  wrappers import the shared loop with
+  `../../../scripts/consensus-loop.mjs`.
+- Kept marketplace and skills.sh claims bounded to verified layout evidence and
+  the existing non-claim language.
+- Updated the stale `RELEASING.md` versioning sentence so it points at the
+  current `scripts/bump-version.mjs` skill list instead of naming only
+  `refine` and `evaluate`.
+- No navigation changes were needed.
+- Verification passed:
+  - `rg -n "plugins/consensus/scripts/consensus-loop\.mjs|plugin-local" documentation/docs/engineering/architecture/generated-runtime.md`
+  - `pnpm run validate`
 
 ### Task p03-t02: Close Backlog Item And Remove Consumed Handoff
 

@@ -27,18 +27,35 @@ run committed `.mjs` with no install step.
 
 ## Canonical source → generated output
 
-| Canonical TypeScript source                                  | Generated output                                                                                                                                                                                                                                                                                                         |
-| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `src/consensus/core/consensus-loop.ts`                       | `plugins/consensus/skills/refine/scripts/consensus-loop.mjs`, `plugins/consensus/skills/evaluate/scripts/consensus-loop.mjs`, `plugins/consensus/skills/create/scripts/consensus-loop.mjs`, `plugins/consensus/skills/decide/scripts/consensus-loop.mjs`, and `plugins/consensus/skills/plan/scripts/consensus-loop.mjs` |
-| `src/consensus/refine/consensus-refine.ts`                   | `plugins/consensus/skills/refine/scripts/consensus-refine.mjs`                                                                                                                                                                                                                                                           |
-| `src/consensus/evaluate/consensus-evaluate.ts`               | `plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs`                                                                                                                                                                                                                                                       |
-| `src/consensus/create/consensus-create.ts`                   | `plugins/consensus/skills/create/scripts/consensus-create.mjs`                                                                                                                                                                                                                                                           |
-| `src/consensus/decide/consensus-decide.ts`                   | `plugins/consensus/skills/decide/scripts/consensus-decide.mjs`                                                                                                                                                                                                                                                           |
-| `src/consensus/plan/consensus-plan.ts`                       | `plugins/consensus/skills/plan/scripts/consensus-plan.mjs`                                                                                                                                                                                                                                                               |
-| `src/transcript/core/runtimes.ts`                            | `skills/session-observer/scripts/lib/runtimes.mjs` and `skills/export-session-transcript/scripts/lib/runtimes.mjs`                                                                                                                                                                                                       |
-| `src/transcript/session-observer/`                           | the generated session-observer CLI, probe, and library files under `skills/session-observer/scripts/`                                                                                                                                                                                                                    |
-| `src/transcript/export-session/sanitize.ts`                  | `skills/export-session-transcript/scripts/lib/sanitize.mjs`                                                                                                                                                                                                                                                              |
-| `src/transcript/export-session/export-session-transcript.ts` | `skills/export-session-transcript/scripts/export-session-transcript.mjs`                                                                                                                                                                                                                                                 |
+| Canonical TypeScript source                                  | Generated output                                                                                                   |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| `src/consensus/core/consensus-loop.ts`                       | `plugins/consensus/scripts/consensus-loop.mjs`                                                                     |
+| `src/consensus/refine/consensus-refine.ts`                   | `plugins/consensus/skills/refine/scripts/consensus-refine.mjs`                                                     |
+| `src/consensus/evaluate/consensus-evaluate.ts`               | `plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs`                                                 |
+| `src/consensus/create/consensus-create.ts`                   | `plugins/consensus/skills/create/scripts/consensus-create.mjs`                                                     |
+| `src/consensus/decide/consensus-decide.ts`                   | `plugins/consensus/skills/decide/scripts/consensus-decide.mjs`                                                     |
+| `src/consensus/plan/consensus-plan.ts`                       | `plugins/consensus/skills/plan/scripts/consensus-plan.mjs`                                                         |
+| `src/transcript/core/runtimes.ts`                            | `skills/session-observer/scripts/lib/runtimes.mjs` and `skills/export-session-transcript/scripts/lib/runtimes.mjs` |
+| `src/transcript/session-observer/`                           | the generated session-observer CLI, probe, and library files under `skills/session-observer/scripts/`              |
+| `src/transcript/export-session/sanitize.ts`                  | `skills/export-session-transcript/scripts/lib/sanitize.mjs`                                                        |
+| `src/transcript/export-session/export-session-transcript.ts` | `skills/export-session-transcript/scripts/export-session-transcript.mjs`                                           |
+
+## Consensus plugin-local runtime layout
+
+Consensus wrapper outputs live under
+`plugins/consensus/skills/<name>/scripts/`, but the shared loop output now lives
+once at `plugins/consensus/scripts/consensus-loop.mjs`. Generated wrappers import
+that plugin-local runtime with `../../../scripts/consensus-loop.mjs`, so a
+provider install or local-load runtime must preserve the plugin root with
+`scripts/` beside `skills/`.
+
+The Phase 1 provider-layout spike verified that Claude Code and Codex installed
+caches, Cursor Agent `--plugin-dir`, and an isolated Copilot CLI local install
+preserve that plugin-root shape. Those checks prove the local/package layout used
+by the generated imports; they are not broader marketplace or skills.sh
+availability claims. Standalone single-skill copies are not the primary runtime
+contract. They remain supported only through the existing recovery path that
+looks for `~/.consensus/consensus.mjs`.
 
 ## Import rewriting
 
@@ -46,6 +63,11 @@ Wrappers type-check against canonical TypeScript imports such as
 `../core/consensus-loop.js`, `../core/runtimes.js`, and `./sanitize.js`. The build
 rewrites declared module specifiers to shipped local `.mjs` imports and fails if
 an expected source specifier is absent.
+
+For Consensus wrappers, the `../core/consensus-loop.js` import rewrites to the
+shared plugin-local output at `../../../scripts/consensus-loop.mjs`. Keep that
+relative path in sync with `scripts/build-generated.mjs` and
+`tests/tooling/generated-output-sync.test.ts`.
 
 ## Never hand-edit generated output
 
