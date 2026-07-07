@@ -1,17 +1,17 @@
 ---
 id: BL-260620-mid-loop-user-artifact-edits
 title: Mid-loop user artifact edits (type=edit intervention) — for discussion
-status: open
+status: wont_do
 priority: low
 scope: idea
 scope_estimate: S
 labels:
   - consensus
   - consensus-loop
-  - undecided
+  - decision-sweep
 assignee: null
 created: 2026-06-20T00:10:39Z
-updated: 2026-06-20T00:10:39Z
+updated: 2026-07-07T03:50:31Z
 associated_issues: []
 legacy_id: bl-58b3
 ---
@@ -42,9 +42,24 @@ direction/steering prompt, with its own audit semantics.
 hand-edit-then-resume path, or does the canonical-artifact resume already cover
 it? Decide before building.
 
+## Verdict
+
+Resolved `wont_do` on 2026-07-07.
+
+Do not add a distinct `type=edit` user intervention. The supported path remains:
+the user edits the canonical artifact, resumes with `--user-direction` that
+states what changed or what should happen next, and the existing
+`USER_INTERVENTION` round records that direction.
+
+A separate edit event type would require diff capture, artifact provenance rules,
+resume-hash semantics, and extra peer framing, but it would not unlock a workflow
+that the canonical-artifact resume path does not already support. Revisit only if
+real audit requirements need machine-readable user edit diffs rather than a user
+direction note.
+
 ## Acceptance Criteria
 
-- Decision recorded on whether a distinct `type=edit` user intervention adds
-  value over the existing artifact-edit-then-resume path (may resolve `wont_do`).
-- If pursued: `type=edit` interventions are logged as first-class audit entries
-  and peers are framed to continue from the user-edited state.
+- Decision recorded: a distinct `type=edit` user intervention does not add enough
+  value over the existing artifact-edit-then-resume path to justify new loop
+  semantics.
+- No implementation planned.

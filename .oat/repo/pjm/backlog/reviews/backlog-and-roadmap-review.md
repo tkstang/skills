@@ -1,17 +1,25 @@
 # Backlog & Roadmap Review
 
 **Date:** 2026-07-04
-**Scope:** All active items under `.oat/repo/pjm/backlog/items/` (13 open items)
+**Scope:** July 4/5 snapshot of active items under `.oat/repo/pjm/backlog/items/` (13 open items at review time; 10 open after the 2026-07-07 sweep)
 **Roadmap:** `.oat/repo/pjm/roadmap.md`
 **Purpose:** Prioritize by value/effort, surface dependencies, and recommend an execution sequence
 
 > If a one-page execution companion exists in this directory, see [`priority-alignment.md`](./priority-alignment.md) — produced via the optional walkthrough at the end of `oat-pjm-review-backlog`. It is the short, ordered "what to do next" view of this full review.
 
+> **2026-07-07 update:** the hosted discovery check is done, and the decision
+> sweep from this review is complete. `BL-260620-mid-loop-user-artifact-edits`
+> and `BL-260620-llm-section-auto-chunking` resolved `wont_do` and moved to
+> `backlog/archived/`; `BL-260701-add-multi-round-panel` now has its product
+> distinction recorded while the build remains open and evidence-gated. The
+> generated active backlog table now has 10 open items; this document otherwise
+> remains the July 4/5 prioritization snapshot.
+
 ---
 
 ## 1. Executive Summary
 
-The backlog contains **13 open items** after the neutral-panel + default-config project shipped (2026-07-03), following phone-a-friend (2026-06-28) and public-discovery control (2026-06-27). The entire Phase 1 kickoff stack from the 2026-06-23 alignment — discovery control, watch-suite de-flake, rubric guard, phone-a-friend — is **done**. Nothing is in flight. The board is now dominated by low-priority seeds and decision-first items; only four medium-priority items carry near-term execution weight.
+At review time, the backlog contained **13 open items** after the neutral-panel + default-config project shipped (2026-07-03), following phone-a-friend (2026-06-28) and public-discovery control (2026-06-27). After the 2026-07-07 decision sweep, the board is **10 open items**. Nothing is in flight. The remaining board is dominated by low-priority seeds and decision-first items; three medium-priority items carry near-term execution weight.
 
 **What changed since the 2026-06-22 review:**
 
@@ -26,7 +34,7 @@ The backlog contains **13 open items** after the neutral-panel + default-config 
 | Consensus runtime quality | 3 | **BL-260612-add-deliberation-metrics** (deliberation metrics), **BL-260612-add-similarity-heuristic** (similarity heuristic), **BL-260612-add-whole-document** (harmonization pass) — all touch the shared loop core, so they sequence after (not alongside) the dedup task. |
 | New skill surface | 2 | **BL-260612-add-consensus-research-skill** (consensus-research) is the last family skill, design-gated on peer tool access. **BL-260701-add-multi-round-panel** (multi-round panel) is a fresh post-v1 idea; panel usage evidence should come first. |
 | Multi-agent collaboration substrate | 2 | **BL-260619-shared-session-log-substrate** (shared session log substrate) → **BL-260619-inter-agent-direct-messaging** (inter-agent messaging): a full initiative lane, unblocked but appetite-gated. |
-| Decision seeds (may `wont_do`) | 2 | **BL-260620-mid-loop-user-artifact-edits** (mid-loop type=edit) and **BL-260620-llm-section-auto-chunking** (LLM auto-chunking) — decisions, not builds; batchable in one sitting. |
+| Decision seeds (resolved after review) | 2 | **BL-260620-mid-loop-user-artifact-edits** (mid-loop type=edit) and **BL-260620-llm-section-auto-chunking** (LLM auto-chunking) — both resolved `wont_do` on 2026-07-07 and moved to `backlog/archived/`. |
 | Reserved go/no-go seeds | 2 | **BL-260619-define-host-native-dispatch** (host-native dispatch) and **BL-260619-multi-peer-3-deliberation** (3+ peers) — explicitly speculative; keep parked. |
 
 **Quadrant distribution:**
@@ -431,13 +439,13 @@ BL-260619-shared-session-log-substrate (design pass ──▶ build) ──▶ B
 
 **Parallelism:** 3c ∥ (3a or 3b). 3a and 3b are mutually sequential.
 
-### Decision sweep (anytime, one sitting)
+### Decision sweep (completed 2026-07-07)
 
-Batch and record verdicts — several may resolve `wont_do`, which is a healthy outcome:
+Verdicts are recorded in the item files:
 
-- **BL-260620-mid-loop-user-artifact-edits** — Mid-loop user artifact edits
-- **BL-260620-llm-section-auto-chunking** — LLM section auto-chunking
-- **BL-260701-add-multi-round-panel** — Multi-round panel (product-distinction decision only)
+- **BL-260620-mid-loop-user-artifact-edits** — Mid-loop user artifact edits: resolved `wont_do` and archived.
+- **BL-260620-llm-section-auto-chunking** — LLM section auto-chunking: resolved `wont_do` and archived.
+- **BL-260701-add-multi-round-panel** — Multi-round panel: product-distinction decision recorded; build remains deferred for usage evidence.
 
 ### Deferred
 
@@ -446,7 +454,7 @@ Batch and record verdicts — several may resolve `wont_do`, which is a healthy 
 | **BL-260619-inter-agent-direct-messaging** — Inter-agent direct messaging | Hard-blocked behind the substrate foundation. |
 | **BL-260619-define-host-native-dispatch** — Host-native dispatch protocol | Reserved seam; the seed's guard value is already delivered. Go/no-go only if a concrete need appears. |
 | **BL-260619-multi-peer-3-deliberation** — Multi-peer (3+) deliberation | Speculative; panel now covers the 3+-provider breadth case without convergence surgery. |
-| **BL-260701-add-multi-round-panel** — Multi-round panel (build) | Panel v1 shipped 2026-07-03; collect usage evidence before adding rounds. Decision can be recorded earlier (see sweep). |
+| **BL-260701-add-multi-round-panel** — Multi-round panel (build) | Panel v1 shipped 2026-07-03; collect usage evidence before adding rounds. Product distinction is recorded; build remains deferred. |
 
 ---
 
@@ -461,7 +469,7 @@ Batch and record verdicts — several may resolve `wont_do`, which is a healthy 
 | Later — loop quality (v3 Phase 4) | Open | **BL-260612-add-whole-document** — Harmonization; **BL-260612-add-deliberation-metrics** — Metrics; **BL-260612-add-similarity-heuristic** — Similarity heuristic | Aligned. The "after create/decide/plan land" gate is now satisfied — these are promotable. |
 | Later — plugin packaging | Open | **BL-260620-share-consensus-generated** — Share consensus generated runtime output | Aligned, but the roadmap's "land before the family project starts or after it merges" constraint has **resolved in favor of now** — the family project is done and nothing loop-touching is in flight. Roadmap wording is stale. |
 | Later — reserved seeds | Parked | **BL-260619-define-host-native-dispatch** — Host-native dispatch; **BL-260619-multi-peer-3-deliberation** — 3+ peers | Aligned (go/no-go first, likely defer). |
-| Later — decision seeds | Parked | **BL-260620-mid-loop-user-artifact-edits** — Mid-loop edits; **BL-260620-llm-section-auto-chunking** — LLM auto-chunking | Aligned (decide before building). |
+| Later — decision seeds | Resolved 2026-07-07 | **BL-260620-mid-loop-user-artifact-edits** — Mid-loop edits; **BL-260620-llm-section-auto-chunking** — LLM auto-chunking | Both resolved `wont_do` and moved to `backlog/archived/`. |
 | Later — multi-agent substrate | Open | **BL-260619-shared-session-log-substrate** — Substrate; **BL-260619-inter-agent-direct-messaging** — Messaging | Aligned; the TS-foundation gate it was sequenced behind has landed, so it is promotable on appetite. |
 
 ### Gaps: Roadmap items without backlog coverage
@@ -490,9 +498,9 @@ The roadmap's **Last updated** stamp is 2026-06-28. It does not yet record the 2
 
 ### Strategic observations
 
-1. **The board is post-milestone and top-light.** Everything urgent-or-high is done and archived; 9 of 13 open items are priority `low`, and four of those are decisions rather than builds. This is the natural moment for either (a) the maintainability + loop-quality consolidation pass (Lanes A+B, recommended), or (b) committing to the substrate initiative. Doing both at once is beyond the historical 2–3 worktree capacity once the substrate design pass starts.
+1. **The board is post-milestone and top-light.** Everything urgent-or-high is done and archived; after the 2026-07-07 sweep, 7 of 10 open items are priority `low`. This is the natural moment for either (a) the maintainability + loop-quality consolidation pass (Lanes A+B, recommended), or (b) committing to the substrate initiative. Doing both at once is beyond the historical 2–3 worktree capacity once the substrate design pass starts.
 2. **`BL-260620-share-consensus-generated` (share consensus generated runtime output) is the scheduling keystone.** Its no-concurrency constraint radiates across every loop-touching item, and the constraint is satisfied *right now* for the first time since it was written. Skipping the window means either re-litigating it after harmonization/metrics churn or serializing around it later anyway.
-3. **Decision debt is cheap to clear.** Four open items (`BL-260620-mid-loop-user-artifact-edits`, `BL-260620-llm-section-auto-chunking`, the decision half of `BL-260701-add-multi-round-panel`, and the go/no-go framing on the two reserved seeds) resolve with recorded verdicts, not code. One decision-sweep sitting could shrink the visible backlog by up to a third and make the real build queue honest.
+3. **Decision debt was cheap to clear.** The 2026-07-07 sweep archived `BL-260620-mid-loop-user-artifact-edits` and `BL-260620-llm-section-auto-chunking` as `wont_do`, and recorded the product distinction for `BL-260701-add-multi-round-panel` while keeping the build evidence-gated. The remaining reserved seeds can still stay parked until a concrete need appears.
 4. **The panel ship quietly weakened the case for `BL-260619-multi-peer-3-deliberation` (3+ deliberation).** "Hear from 3+ providers" is now served by panel without touching convergence semantics. Worth noting in that item when next touched.
 
 ### Risks

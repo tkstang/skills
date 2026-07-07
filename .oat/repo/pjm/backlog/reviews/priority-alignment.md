@@ -1,7 +1,7 @@
 # Backlog Priority Alignment
 
 **Date:** 2026-07-05
-**Status:** Active — **Consolidation cycle committed post-panel/config ship.** The entire 2026-06-23 plan has shipped and archived: public-discovery control (`BL-260621`, PR #38), watch-suite de-flake + rubric guard (PR #37), phone-a-friend (2026-06-28), and consensus-panel + config defaults (PR #40, 2026-07-03). The board is **13 open items with nothing in flight**. This pass commits a consolidation cycle: take the open generated-output dedup window, close the last release non-claim, run the decision sweep, then the loop-quality batch. Research DR and the substrate initiative are explicitly held for later cycles.
+**Status:** Active — **Consolidation cycle committed post-panel/config ship; Track 2 closed.** The hosted discovery check is done and the decision sweep is complete. The board is **10 open items with nothing in flight**. This cycle now centers on the open generated-output dedup window, then the loop-quality batch. Research DR and the substrate initiative remain explicitly held for later cycles.
 
 One-page execution guide: recommended order, scope, parallelism, and planning investment. For the full value/effort catalog, dependency graph, and quadrant tables, see [backlog-and-roadmap-review.md](./backlog-and-roadmap-review.md).
 
@@ -20,7 +20,7 @@ One-page execution guide: recommended order, scope, parallelism, and planning in
 
 > **Planning investment** = discovery/design likely needed *before* implementation pays off — not total build time. An item can be small to build but carry a real upfront design pass (and vice versa).
 
-**Operator context (this pass):** capacity is **2–3 parallel worktrees**; order by leverage, no calendar constraints. Cycle shape chosen in the walkthrough: **consolidation (Option A)** — the dedup window is the one time-sensitive thing on the board, so it anchors Track 1. The **consensus-research DR is deferred to next cycle** (keep this cycle purely consolidation). The **decision sweep banks into Track 2** right after the hosted check, so the loop-semantics decisions are settled before the loop-quality worktree opens. The **substrate initiative is held** for a deliberate start with initiative-level appetite, not as a third-track afterthought. The two reserved seeds stay parked with no go/no-go ceremony — their guard value is already delivered.
+**Operator context (this pass):** capacity is **2–3 parallel worktrees**; order by leverage, no calendar constraints. Cycle shape chosen in the walkthrough: **consolidation (Option A)** — the dedup window is the one time-sensitive thing on the board, so it anchors Track 1. The **consensus-research DR is deferred to next cycle** (keep this cycle purely consolidation). **Track 2 is closed**: hosted discovery is done, mid-loop edit and auto-chunking decisions are archived `wont_do`, and the multi-round-panel product distinction is recorded. The **substrate initiative is held** for a deliberate start with initiative-level appetite, not as a third-track afterthought. The two reserved seeds stay parked with no go/no-go ceremony — their guard value is already delivered.
 
 ---
 
@@ -32,13 +32,13 @@ One-page execution guide: recommended order, scope, parallelism, and planning in
 
 ## Phase 1 — Packaging window + release closeout
 
-Two parallel tracks on fully disjoint surfaces (build tooling vs hosted-index verification). This phase exists because the dedup item's no-concurrency constraint is satisfied **right now** — nothing consensus-loop-touching is in flight for the first time since the item was written, and the duplication has grown to 5 loop copies + 6 config copies.
+Track 2 is complete (hosted-index verification plus the decision sweep). Track 1 remains because the dedup item's no-concurrency constraint is satisfied **right now** — nothing consensus-loop-touching is in flight for the first time since the item was written, and the duplication has grown to 5 loop copies + 6 config copies.
 
 | Item | Scope | Planning investment | Parallel with | Notes |
 | --- | --- | --- | --- | --- |
-| [Share consensus generated runtime output at the plugin level](../items/BL-260620-share-consensus-generated.md) (`BL-260620-share-consensus-generated`) | M | Med | `BL-260627-verify-skills-sh-hosted` | **Track 1 — the cycle anchor.** 4-host install spike (Claude/Codex/Cursor/Copilot) is the real work and a genuine go/no-go; the code change is small. Must also cover the `~/.consensus/` resolver fallback + `install.sh` shipped by PR #38. A documented "keep duplication" outcome is a legitimate close — don't let it linger half-open. **Nothing loop-touching starts until this lands or closes.** |
-| [Verify skills.sh hosted discovery surface and listing strategy](../items/BL-260627-verify-skills-sh-hosted.md) (`BL-260627-verify-skills-sh-hosted`) | S | Low | `BL-260620-share-consensus-generated` | **Track 2.** Recipe pre-written in the item (exact commands + prior results table). Timebox it: if `tkstang/skills` is still unindexed, record "wait-for-crawl + install-telemetry seeding" as the strategy in `current-state.md` and re-check on a cadence. Closes the last v0.1 non-claim. |
-| **Decision sweep** (three seeds, one sitting — banked in Track 2 after the hosted check): [Mid-loop user artifact edits](../items/BL-260620-mid-loop-user-artifact-edits.md) (`BL-260620-mid-loop-user-artifact-edits`), [LLM section auto-chunking fallback](../items/BL-260620-llm-section-auto-chunking.md) (`BL-260620-llm-section-auto-chunking`), and the product-distinction half of [Add multi-round panel discussion](../items/BL-260701-add-multi-round-panel.md) (`BL-260701-add-multi-round-panel`) | S | Low | anything | Verdicts recorded as item updates (DR only if durable); several may resolve `wont_do`, which is a healthy outcome. Sequenced **before Phase 2** because the first two touch loop semantics — settle the contract before the loop-quality worktree opens. The multi-round-panel *build* stays deferred regardless of the decision (needs panel usage evidence). |
+| [Share consensus generated runtime output at the plugin level](../items/BL-260620-share-consensus-generated.md) (`BL-260620-share-consensus-generated`) | M | Med | nothing loop-touching | **Track 1 — the cycle anchor.** 4-host install spike (Claude/Codex/Cursor/Copilot) is the real work and a genuine go/no-go; the code change is small. Must also cover the `~/.consensus/` resolver fallback + `install.sh` shipped by PR #38. A documented "keep duplication" outcome is a legitimate close — don't let it linger half-open. **Nothing loop-touching starts until this lands or closes.** |
+| [Verify skills.sh hosted discovery surface and listing strategy](../archived/BL-260627-verify-skills-sh-hosted.md) (`BL-260627-verify-skills-sh-hosted`) | S | Done | — | Closed 2026-07-05. The hosted index is telemetry-only; strategy and guardrails are recorded in `current-state.md` and `DR-260705-skills-sh-listing-is-telemetry`. |
+| **Decision sweep**: [Mid-loop user artifact edits](../archived/BL-260620-mid-loop-user-artifact-edits.md) (`BL-260620-mid-loop-user-artifact-edits`), [LLM section auto-chunking fallback](../archived/BL-260620-llm-section-auto-chunking.md) (`BL-260620-llm-section-auto-chunking`), and [Add multi-round panel discussion](../items/BL-260701-add-multi-round-panel.md) (`BL-260701-add-multi-round-panel`) product distinction | S | Done | — | Completed 2026-07-07. Mid-loop edit and auto-chunking resolved `wont_do`; multi-round panel remains open only for the evidence-gated build. |
 
 ---
 
@@ -80,7 +80,7 @@ A separate lane on a disjoint surface (session-observer / transcript tooling). D
 
 | Item | Scope | Notes |
 | --- | --- | --- |
-| [Add multi-round panel discussion](../items/BL-260701-add-multi-round-panel.md) (`BL-260701-add-multi-round-panel`) — build | M | Panel v1 shipped 2026-07-03; the build waits for usage evidence that single-round breadth is insufficient. The product-distinction *decision* lands in the Phase 1 sweep. Panel workflow is strictly single-shot today — multi-round is a real build, not a bolt-on. |
+| [Add multi-round panel discussion](../items/BL-260701-add-multi-round-panel.md) (`BL-260701-add-multi-round-panel`) — build | M | Panel v1 shipped 2026-07-03; the build waits for usage evidence that single-round breadth is insufficient. The product distinction is recorded: future multi-round must remain opt-in, attributed, and non-converging. Panel workflow is strictly single-shot today — multi-round is a real build, not a bolt-on. |
 | [Define host-native dispatch / safe-packet protocol](../items/BL-260619-define-host-native-dispatch.md) (`BL-260619-define-host-native-dispatch`) | L | **Parked, no go/no-go ceremony** (operator decision this pass) — the seed's guard value (preventing a reserved flag flip without a contract) is already delivered. Revisit only on a concrete dispatch need. |
 | [Multi-peer (3+) deliberation extension](../items/BL-260619-multi-peer-3-deliberation.md) (`BL-260619-multi-peer-3-deliberation`) | L | **Parked.** The panel ship weakened the near-term case further — "hear from 3+ providers" is now served without convergence surgery. Revisit only with evidence two peers are insufficient. |
 
@@ -93,7 +93,7 @@ Quick lookup for "can I start X while Y is in flight?" (capacity: 2–3 worktree
 | Can run together | Keep sequential |
 | --- | --- |
 | `BL-260620-share-consensus-generated` ∥ `BL-260627-verify-skills-sh-hosted` (disjoint: build tooling vs hosted-index checks) | **Nothing loop-touching** ∥ `BL-260620-share-consensus-generated` — the dedup window is the point of this cycle |
-| Decision sweep ∥ anything (item updates only, no code) | Decision sweep **before** the Phase 2 loop-quality worktree opens (mid-loop-edit + auto-chunking verdicts fix the loop contract) |
+| Decision sweep is done (item updates only, no code) | Phase 2 loop-quality can open after `BL-260620-share-consensus-generated` lands or closes |
 | Substrate lane ∥ consensus work (disjoint surface) — *when* it starts | `BL-260612-add-deliberation-metrics` → `BL-260612-add-similarity-heuristic` → harmonization (one worktree, one loop-core opening) |
 | Harmonization *decision* ∥ Phase 1 tracks | `BL-260619-shared-session-log-substrate` before `BL-260619-inter-agent-direct-messaging` (hard block) |
 | — | `BL-260612-add-consensus-research-skill` DR before its build; build not concurrent with other loop work |
@@ -108,7 +108,7 @@ Quick lookup for "can I start X while Y is in flight?" (capacity: 2–3 worktree
 | **loop-quality** | `BL-260612-add-deliberation-metrics` → `BL-260612-add-similarity-heuristic` (+ `BL-260612-add-whole-document` decision) | One loop-core opening, one regeneration arc, shared test surface. |
 | **consensus-research** (next cycle, separate) | `BL-260612-add-consensus-research-skill` | Own peer tool-access DR; kept separate so the decision doesn't block unrelated work. |
 | **multi-agent-substrate** (appetite-gated) | `BL-260619-shared-session-log-substrate` → `BL-260619-inter-agent-direct-messaging` | One initiative; shared identity/state primitive + a single adopt-vs-build decision. |
-| Standalone tasks (not projects) | `BL-260627-verify-skills-sh-hosted`, decision sweep | Single-arc verification/decision work; project ceremony would be overhead. |
+| Standalone tasks (completed) | `BL-260627-verify-skills-sh-hosted`, decision sweep | Closed without project ceremony; remaining active work should use the project groupings above. |
 
 ---
 
@@ -119,8 +119,8 @@ Three concrete actions for the next development cycle. Not a ranked list of ever
 > Each kickoff-stack item has a one-shot kickoff prompt under [`../../handoffs/`](../../handoffs/) — create a worktree per item and pass the handoff as context to `/oat-project-quick-start`. Handoffs are deleted in the PR that ships their item (see **Project Kickoff Handoffs** in [`../../AGENTS.md`](../../AGENTS.md)).
 
 1. **Kick off** [`BL-260620-share-consensus-generated`](../items/BL-260620-share-consensus-generated.md) (share consensus generated runtime output) — the cycle anchor; the no-concurrency window is open now and the duplication is 5 loop + 6 config copies. Spike first; a documented "keep duplication" close is a valid outcome.
-2. **Kick off** [`BL-260627-verify-skills-sh-hosted`](../items/BL-260627-verify-skills-sh-hosted.md) (verify skills.sh hosted discovery surface) in a parallel track — timeboxed; record the listing strategy in `current-state.md`. Then run the **decision sweep** in the same track (mid-loop edits, auto-chunking, multi-round-panel distinction).
-3. **Queue** the loop-quality worktree ([`BL-260612-add-deliberation-metrics`](../items/BL-260612-add-deliberation-metrics.md) metrics → [`BL-260612-add-similarity-heuristic`](../items/BL-260612-add-similarity-heuristic.md) similarity) to open **the moment the dedup track lands or closes** — with the harmonization context-bounding decision at its tail.
+2. **Queue** the loop-quality worktree ([`BL-260612-add-deliberation-metrics`](../items/BL-260612-add-deliberation-metrics.md) metrics → [`BL-260612-add-similarity-heuristic`](../items/BL-260612-add-similarity-heuristic.md) similarity) to open **the moment the dedup track lands or closes** — with the harmonization context-bounding decision at its tail.
+3. **Keep** [`BL-260612-add-consensus-research-skill`](../items/BL-260612-add-consensus-research-skill.md) (consensus-research) for next cycle's peer tool-access DR unless the consolidation cycle finishes early with appetite for a design-only lane.
 
 > Then, next cycle: the `consensus-research` peer tool-access DR (`BL-260612-add-consensus-research-skill`), the harmonization build if it slipped, and — with deliberate appetite — the substrate initiative (`BL-260619-shared-session-log-substrate` → `BL-260619-inter-agent-direct-messaging`).
 
@@ -132,6 +132,7 @@ Append a new row each time this file is refreshed via the `oat-pjm-review-backlo
 
 | Date | Update |
 | --- | --- |
+| 2026-07-07 | **Decision sweep completed.** `BL-260620-mid-loop-user-artifact-edits` and `BL-260620-llm-section-auto-chunking` resolved `wont_do` and moved to `backlog/archived/`; `BL-260701-add-multi-round-panel` now records the product distinction while the build remains evidence-gated. Track 2 is closed, board is 10 open items, and the next active move is the generated-runtime dedup spike before loop-quality work. |
 | 2026-06-14 | Initial alignment. Both iteration modes (`bl-5d49`, `bl-7af0`) merged via #9 → all five family skills unblocked; #10 landed dev tooling. Phased into Family-kickoff+release / Family-fan-out+hardening / Paseo-build-vs-buy+last-skill. Planning-investment column included. Flagged stale "merge pending" narratives. |
 | 2026-06-14 | Refreshed stale "merge pending" narratives → "merged via PR #9" across reference docs. Roadmap Now/Next re-sequenced. |
 | 2026-06-15 | Re-sequenced around active TS/vitest work: paused `bl-5174`, deferred `bl-d85f` until post-TS, moved peer-invocation ownership (`bl-3a88`/`bl-bb7e`) to a later design/spike track. |
