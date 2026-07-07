@@ -142,7 +142,47 @@ pnpm exec vitest run \
 
 ## Go/no-go
 
-Recommendation: pending p01-t03.
+Recommendation: go.
 
 Required checkpoint: stop after p01-t03 for the configured go/no-go decision
 before Phase 2 changes any generated-output mappings.
+
+### Go Rationale
+
+All required provider layouts checked in p01 preserve a plugin root with
+`scripts/` beside `skills/`:
+
+| Provider | Status | Evidence summary |
+| -------- | ------ | ---------------- |
+| Claude Code | pass | Installed cache root `/Users/tstang/.claude/plugins/cache/skills/consensus/0.1.0` preserves sibling `scripts/` and `skills/`. |
+| Codex | pass | Runtime cache root `/Users/tstang/.codex/plugins/cache/skills/consensus/0.1.0` preserves sibling `scripts/` and `skills/`. |
+| Cursor Agent | pass | Local `--plugin-dir "$PWD/plugins/consensus"` points at the plugin root that contains sibling `scripts/` and `skills/`. |
+| Copilot | pass | Isolated temporary-HOME `npx -y @github/copilot plugin install "$PWD/plugins/consensus"` preserves sibling `scripts/` and `skills/` under `.copilot/installed-plugins/_direct/consensus`; CLI help also exposes `--plugin-dir <directory>`. |
+| standalone recovery | pass | Focused Vitest checks pass for plugin-local CLI resolution, `~/.consensus/consensus.mjs` fallback, and the shared actionable missing-CLI message. |
+
+The proposed Phase 2 wrapper import path,
+`../../../scripts/consensus-loop.mjs`, resolves to the same plugin-local
+`scripts/` directory as the existing generated CLI path,
+`../../../scripts/consensus.mjs`, from each checked wrapper layout.
+
+### Required Caveats For Phase 2 And Docs
+
+- Phase 1 proves path geometry and provider packaging layout. It does not prove
+  runtime execution of the new shared `consensus-loop.mjs` file because Phase 2
+  has not generated that file yet. Keep p02-t04's focused shared-import smoke.
+- Claude Code and Codex installed evidence came from existing user-level
+  `consensus@skills` installs whose `skills` marketplace points at
+  `/Users/tstang/Code/skills`, not this worktree. Do not repoint those
+  marketplaces during Phase 2 unless a later release gate explicitly needs it.
+- Cursor evidence is local-load geometry from CLI help and the repository plugin
+  root, not an interactive model session.
+- Copilot evidence used an isolated temporary HOME and the official npm CLI. The
+  direct local install path currently works but emits a deprecation warning; use
+  `--plugin-dir` or a marketplace install as the durable Copilot path.
+
+### No-Go Blockers
+
+None found in p01. If later Phase 2 smoke fails after the shared file exists,
+fall back to the plan's documented no-go path: keep duplicated generated loop
+outputs and close the backlog item with this spike evidence plus the failing
+smoke evidence.

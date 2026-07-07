@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-07
-oat_current_task_id: p01-t03
+oat_current_task_id: p02-t01
 oat_generated: false
 ---
 
@@ -20,16 +20,17 @@ oat_generated: false
 
 | Phase | Status      | Tasks | Completed |
 | ----- | ----------- | ----- | --------- |
-| p01   | in_progress | 3     | 2/3       |
+| p01   | completed   | 3     | 3/3       |
 | p02   | pending     | 4     | 0/4       |
 | p03   | pending     | 3     | 0/3       |
 
-**Total:** 2/10 tasks completed
+**Total:** 3/10 tasks completed
 
 ## Phase p01: Provider Layout Spike And Go/No-Go Evidence
 
-**Status:** in_progress
+**Status:** completed
 **Started:** 2026-07-07
+**Completed:** 2026-07-07
 
 ### Task p01-t01: Prepare Spike Evidence Artifact
 
@@ -50,7 +51,7 @@ oat_generated: false
 ### Task p01-t02: Run Provider Layout Checks
 
 **Status:** completed
-**Commit:** pending in task commit
+**Commit:** `d0411036743c`
 
 **Notes:**
 
@@ -77,12 +78,47 @@ oat_generated: false
 
 ### Task p01-t03: Record Go/No-Go Recommendation
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** pending in task commit
 
 **Notes:**
 
-- Stop after this task for the configured p01 HiLL checkpoint.
+- Recorded `Recommendation: go` in the spike artifact.
+- Rationale: Claude Code, Codex, Cursor Agent, and Copilot all preserve a plugin
+  root with `scripts/` beside `skills/`; standalone recovery remains
+  actionable through `~/.consensus/consensus.mjs` with the shared missing-CLI
+  error.
+- Caveats recorded for Phase 2:
+  - p01 proved layout/path geometry; p02-t04 still needs a focused
+    shared-import smoke after `plugins/consensus/scripts/consensus-loop.mjs`
+    exists.
+  - Copilot direct local installs currently work but warn they are deprecated,
+    so `--plugin-dir` or marketplace install should be the durable Copilot path.
+  - Cursor evidence is local-load geometry, not an interactive model session.
+- Verification passed:
+  - `rg -n "Recommendation: (go|no-go)|Required checkpoint" .oat/projects/shared/share-consensus-scripts/references/plugin-layout-spike.md`
+
+### Phase p01 Summary
+
+**Outcome:** go recommendation recorded. Provider layout evidence supports
+continuing to Phase 2 after the configured p01 HiLL checkpoint.
+
+**Key files touched:**
+
+- `.oat/projects/shared/share-consensus-scripts/references/plugin-layout-spike.md`
+- `.oat/projects/shared/share-consensus-scripts/implementation.md`
+
+**Verification run:**
+
+- `test -f .oat/projects/shared/share-consensus-scripts/references/plugin-layout-spike.md`
+- `rg -n "Claude Code|Codex|Cursor Agent|Copilot|standalone recovery|Go/no-go" .oat/projects/shared/share-consensus-scripts/references/plugin-layout-spike.md`
+- `rg -n "Claude Code.*(pass|fail|blocked)|Codex.*(pass|fail|blocked)|Cursor Agent.*(pass|fail|blocked)|Copilot.*(pass|fail|blocked)|standalone recovery.*(pass|fail|blocked)" .oat/projects/shared/share-consensus-scripts/references/plugin-layout-spike.md`
+- `pnpm exec vitest run tests/consensus/core/resolve-consensus-cli-path.test.ts tests/consensus/provider-cli/missing-cli-message.test.ts`
+- `rg -n "Recommendation: (go|no-go)|Required checkpoint" .oat/projects/shared/share-consensus-scripts/references/plugin-layout-spike.md`
+
+**Notable decisions/deviations:** none from the plan. The phase stopped after
+p01 as required; `state.md` was intentionally left unchanged for the
+orchestrator's checkpoint/review handling.
 
 ## Phase p02: Shared Runtime Build Migration
 
@@ -220,6 +256,7 @@ _Orchestration runs from `oat-project-implement` are appended here._
 | p01-t01 | `rg -n "Claude Code|Codex|Cursor Agent|Copilot|standalone recovery|Go/no-go" .oat/projects/shared/share-consensus-scripts/references/plugin-layout-spike.md` | yes | 0 | required sections present |
 | p01-t02 | `rg -n "Claude Code.*(pass|fail|blocked)|Codex.*(pass|fail|blocked)|Cursor Agent.*(pass|fail|blocked)|Copilot.*(pass|fail|blocked)|standalone recovery.*(pass|fail|blocked)" .oat/projects/shared/share-consensus-scripts/references/plugin-layout-spike.md` | yes | 0 | provider statuses recorded |
 | p01-t02 | `pnpm exec vitest run tests/consensus/core/resolve-consensus-cli-path.test.ts tests/consensus/provider-cli/missing-cli-message.test.ts` | yes | 0 | standalone recovery path; 2 files, 6 tests |
+| p01-t03 | `rg -n "Recommendation: (go|no-go)|Required checkpoint" .oat/projects/shared/share-consensus-scripts/references/plugin-layout-spike.md` | yes | 0 | go recommendation and checkpoint recorded |
 
 ## Final Summary (for PR/docs)
 
