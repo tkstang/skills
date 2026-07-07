@@ -1,5 +1,5 @@
 ---
-oat_status: in_progress
+oat_status: complete
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-07
@@ -332,8 +332,7 @@ argv/timing issue recorded in `## Deviations from Plan / Design`.
 ### Task p03-t03: Run Full Validation And Record Final Evidence
 
 **Status:** completed
-**Commit:** pending in this task commit; final SHA cannot be recorded inside the
-commit that creates it.
+**Commit:** `8d6a107480df`
 
 **Supporting fix commit:** `e2639291e669`
 
@@ -366,7 +365,7 @@ commit that creates it.
 ### Phase p03 Summary
 
 **Outcome:** documentation, PJM closeout, and final validation completed. Phase
-p03 is ready for orchestrator-managed p03 review/bookkeeping.
+p03 passed review after one focused roadmap-alignment fix.
 
 **Key files touched:**
 
@@ -473,6 +472,44 @@ Run-scoped snapshot only. The durable record is `## Deviations from Plan / Desig
 | ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
 | p02-t03 / p02 review | `plan.md` | `pnpm run validate:skill-versions -- --base-ref "$BASE_REF"` | `pnpm run validate:skill-versions --base-ref "$BASE_REF"` | Current pnpm passes the extra separator through to `scripts/validate-skill-versions.mjs`; the accepted command is verified and now reflected in `plan.md`. | `plan.md` and `scripts/validate-skill-versions.mjs` | Resolved in this bookkeeping update. |
 
+### Run 3 — 2026-07-07 14:52
+
+**Branch:** share-consensus-scripts
+**Tier:** 1
+**Policy:** merge-strategy=merge, retry-limit=2
+**Phases:** 1 executed, 1 passed, 0 failed, 0 stopped
+
+#### Phase Outcomes
+
+| Phase | Implementer | Review | Fix Iterations | Disposition |
+| ----- | ----------- | ------ | -------------- | ----------- |
+| p03 | DONE_WITH_CONCERNS | pass | 1/2 | passed; implementation tasks complete |
+
+#### Parallel Groups
+
+- Singleton phase p03: sequential native subagent dispatch
+
+#### Dispatch Notes
+
+- Dispatch: p03 implementer used `oat-phase-implementer-xhigh`; p03 review and re-review used `oat-reviewer-xhigh`; all matched the project-state Codex ceiling.
+- Initial p03 review artifact: `reviews/archived/p03-review-2026-07-07.md` found one Important PJM roadmap drift issue.
+- Review fix commit `769af3ba0a8c` aligned `.oat/repo/pjm/roadmap.md` with the closed backlog item.
+- Passing re-review artifact: `reviews/archived/p03-review-2026-07-07-v2.md`.
+- `oat sync --scope project` still produces unrelated managed OAT provider-view wording/version drift and was not committed.
+
+#### Outstanding Items
+
+- None.
+
+#### Artifact / Design Deltas
+
+Run-scoped snapshot only. The durable record is `## Deviations from Plan / Design`; consolidate any non-`None` entries there at the next phase boundary.
+
+| Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
+| ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
+| p03-t03 | `plan.md` | p03-t03 file list only named `implementation.md` and optional `plan.md` | Supporting fix commit touched shared loop source/output, tests, and section-runner command before final evidence commit | Full clean-state validation exposed stale per-skill loop references and a real shared-loop resolver bug | final validation gates and shared plugin-root runtime layout | Resolved in `e2639291e669`. |
+| p03 review | `.oat/repo/pjm/roadmap.md` | PJM surfaces should no longer present `BL-260620-share-consensus-generated` as future work after closeout | Roadmap now records the item as done and removes the stale Later-lane entry | p03 review found the only stale PJM surface after backlog closeout | `.oat/repo/pjm/roadmap.md` | Resolved in `769af3ba0a8c`. |
+
 <!-- orchestration-runs-end -->
 
 ### Review Received: p01 code
@@ -516,6 +553,31 @@ Run-scoped snapshot only. The durable record is `## Deviations from Plan / Desig
   `plan.md`, and `state.md` is advanced to p03.
 
 **Next:** continue with p03 documentation, PJM closeout, and final validation.
+
+### Review Received: p03 code
+
+**Date:** 2026-07-07
+**Review artifacts:**
+
+- `reviews/archived/p03-review-2026-07-07.md`
+- `reviews/archived/p03-review-2026-07-07-v2.md`
+
+**Findings:**
+
+- Critical: 0
+- Important: 1 (first review), then 0 after fix and re-review
+- Medium: 0
+- Minor: 0
+
+**Disposition:**
+
+- Important PJM roadmap drift resolved in `769af3ba0a8c`: the roadmap now marks
+  `BL-260620-share-consensus-generated` done and no longer lists it as future
+  Later work.
+- p03 re-review passed with zero findings. p03 is marked passed in `plan.md`,
+  review artifacts are archived, and implementation is ready for final review.
+
+**Next:** run final code review before PR handoff.
 
 ## Implementation Log
 
@@ -639,8 +701,8 @@ Run-scoped snapshot only. The durable record is `## Deviations from Plan / Desig
 Phase 3 completed the shared generated runtime migration closeout: engineering
 docs now describe the plugin-local loop output, PJM closed and archived
 `BL-260620-share-consensus-generated`, the consumed kickoff handoff is deleted,
-and final clean-state validation passes. The p03 review/final PR handoff remains
-for the orchestrator; this phase did not run final review or PR-final.
+the stale roadmap entry was corrected, and final clean-state validation passes.
+Implementation tasks are complete; final code review remains before PR handoff.
 
 ## References
 
