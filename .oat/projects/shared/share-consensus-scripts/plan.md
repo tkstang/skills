@@ -47,10 +47,12 @@ Phase 1 is the evidence phase. After p01 completes, implementation must pause
 for the configured go/no-go checkpoint.
 
 - **Go:** execute p02 and p03 as written.
-- **No-go:** do not execute p02 migration tasks. Instead, append no-go closeout
-  tasks to this plan, preserving existing task IDs, that record the blocker,
-  keep duplicated generated outputs, update docs if needed, close the backlog
-  item, delete the consumed handoff, and run the relevant validation gates.
+- **No-go:** do not execute p02 migration tasks. Record the blocker in the
+  spike artifact, then run the existing outcome-aware p03 closeout tasks to keep
+  duplicated generated outputs, update docs if needed, close the backlog item,
+  delete the consumed handoff, and run the relevant validation gates. Append
+  additional no-go tasks only if implementation discovers cleanup not already
+  covered by p03.
 
 ## Parallelism
 
@@ -178,6 +180,8 @@ git commit -m "test(consensus): record plugin layout go-no-go"
 **Files:**
 
 - Modify: `scripts/build-generated.mjs`
+- Modify: `.oxfmtrc.json`
+- Modify: `.oxlintrc.json`
 
 **Steps:**
 
@@ -186,9 +190,16 @@ git commit -m "test(consensus): record plugin layout go-no-go"
    `plugins/consensus/scripts/consensus-loop.mjs`.
 2. Update the `importRewrites` for `consensus-refine`, `consensus-evaluate`,
    `consensus-create`, `consensus-decide`, and `consensus-plan` so
-   `../core/consensus-loop.js` rewrites to the correct plugin-root-relative
-   shared path from each wrapper output.
-3. Keep `consensus-config.mjs` duplication unchanged unless Phase 1 evidence and
+   `../core/consensus-loop.js` rewrites to the literal plugin-root-relative
+   target `../../../scripts/consensus-loop.mjs` from each wrapper output.
+3. Update static generated-output mirrors in `.oxfmtrc.json` and
+   `.oxlintrc.json`: add `plugins/consensus/scripts/consensus-loop.mjs` and
+   prune the five stale per-skill `consensus-loop.mjs` entries.
+4. Leave `.lintstagedrc.mjs` unchanged unless verification proves otherwise; it
+   derives generated paths from `scripts/build-generated.mjs --list-outputs`.
+   CI generated-output guards also derive from `--list-outputs` and should
+   auto-adapt with the mapping.
+5. Keep `consensus-config.mjs` duplication unchanged unless Phase 1 evidence and
    the operator explicitly broaden the scope.
 
 **Verify:**
@@ -196,12 +207,14 @@ git commit -m "test(consensus): record plugin layout go-no-go"
 ```bash
 node scripts/build-generated.mjs --list-outputs | rg '^plugins/consensus/scripts/consensus-loop\.mjs$'
 ! node scripts/build-generated.mjs --list-outputs | rg 'plugins/consensus/skills/.*/scripts/consensus-loop\.mjs'
+rg -n 'plugins/consensus/scripts/consensus-loop\.mjs' .oxfmtrc.json .oxlintrc.json
+! rg -n 'plugins/consensus/skills/.*/scripts/consensus-loop\.mjs' .oxfmtrc.json .oxlintrc.json
 ```
 
 **Commit:**
 
 ```bash
-git add scripts/build-generated.mjs .oat/projects/shared/share-consensus-scripts/implementation.md
+git add scripts/build-generated.mjs .oxfmtrc.json .oxlintrc.json .oat/projects/shared/share-consensus-scripts/implementation.md
 git commit -m "build(consensus): share generated loop output at plugin root"
 ```
 
@@ -222,11 +235,16 @@ git commit -m "build(consensus): share generated loop output at plugin root"
    layout and proves wrapper imports resolve the shared loop from the plugin root.
 3. Keep tests scoped to generated-output and plugin-root layout behavior; do not
    exercise live providers in unit tests.
+4. Do not claim the full generated-output drift guard is green in this task.
+   Phase 2's mapping, static mirrors, test updates, and regenerated outputs are
+   coupled; the first full-green drift checkpoint is p02-t04 after p02-t03
+   regenerates committed outputs.
 
 **Verify:**
 
 ```bash
-pnpm exec vitest run tests/tooling/generated-output-sync.test.ts
+rg -n "shared plugin loop|plugin-root.*loop|consensus/scripts/consensus-loop" tests/tooling/generated-output-sync.test.ts
+pnpm exec vitest run tests/tooling/generated-output-sync.test.ts -t "declares source to generated-output mappings|shared plugin loop|plugin-root"
 ```
 
 **Commit:**
@@ -425,7 +443,7 @@ git commit -m "chore(oat): record shared generated runtime verification"
 | final  | code     | pending | -          | -        |
 | spec   | artifact | passed  | 2026-07-07 | N/A (quick mode; no spec artifact) |
 | design | artifact | passed  | 2026-07-07 | N/A (quick mode; no design artifact) |
-| plan   | artifact | received | 2026-07-06 | reviews/artifact-plan-review-2026-07-06.md |
+| plan   | artifact | fixes_completed | 2026-07-07 | reviews/archived/artifact-plan-review-2026-07-06.md |
 
 **Status values:** `pending` -> `received` -> `fixes_added` ->
 `fixes_completed` -> `passed`
