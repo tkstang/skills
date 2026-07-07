@@ -520,7 +520,7 @@ git commit -m "docs(p03-t05): refresh roadmap closeout header"
 | p01    | code     | passed | 2026-07-07 | reviews/archived/p01-review-2026-07-07.md |
 | p02    | code     | passed | 2026-07-07 | reviews/archived/p02-review-2026-07-07.md |
 | p03    | code     | passed | 2026-07-07 | reviews/archived/p03-review-2026-07-07-v2.md |
-| final  | code     | fixes_added | 2026-07-07 | reviews/archived/final-review-2026-07-07.md |
+| final  | code     | fixes_completed | 2026-07-07 | reviews/archived/final-review-2026-07-07.md |
 | spec   | artifact | passed  | 2026-07-07 | N/A (quick mode; no spec artifact) |
 | design | artifact | passed  | 2026-07-07 | N/A (quick mode; no design artifact) |
 | plan   | artifact | fixes_completed | 2026-07-07 | reviews/archived/artifact-plan-review-2026-07-06.md |

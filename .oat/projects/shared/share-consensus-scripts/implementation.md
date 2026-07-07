@@ -635,8 +635,9 @@ Run-scoped snapshot only. The durable record is `## Deviations from Plan / Desig
 
 **Minor Findings:** 1 converted, 0 deferred.
 
-**Next:** execute `p03-t04` and `p03-t05`, then mark fixes completed and rerun
-final review.
+**Fix tasks completed:** `p03-t04`, `p03-t05`
+
+**Next:** rerun final review focused on the completed review-fix tasks.
 
 ## Implementation Log
 
