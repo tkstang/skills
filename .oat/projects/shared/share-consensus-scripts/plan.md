@@ -207,6 +207,7 @@ git commit -m "test(consensus): record plugin layout go-no-go"
 ```bash
 node scripts/build-generated.mjs --list-outputs | rg '^plugins/consensus/scripts/consensus-loop\.mjs$'
 ! node scripts/build-generated.mjs --list-outputs | rg 'plugins/consensus/skills/.*/scripts/consensus-loop\.mjs'
+rg -n '\.\./\.\./\.\./scripts/consensus-loop\.mjs' scripts/build-generated.mjs
 rg -n 'plugins/consensus/scripts/consensus-loop\.mjs' .oxfmtrc.json .oxlintrc.json
 ! rg -n 'plugins/consensus/skills/.*/scripts/consensus-loop\.mjs' .oxfmtrc.json .oxlintrc.json
 ```
@@ -444,7 +445,7 @@ git commit -m "chore(oat): record shared generated runtime verification"
 | spec   | artifact | passed  | 2026-07-07 | N/A (quick mode; no spec artifact) |
 | design | artifact | passed  | 2026-07-07 | N/A (quick mode; no design artifact) |
 | plan   | artifact | fixes_completed | 2026-07-07 | reviews/archived/artifact-plan-review-2026-07-06.md |
-| plan   | artifact | received | 2026-07-06 | reviews/artifact-plan-review-2026-07-06.md |
+| plan   | artifact | passed | 2026-07-07 | reviews/archived/artifact-plan-review-2026-07-06-r2.md |
 
 **Status values:** `pending` -> `received` -> `fixes_added` ->
 `fixes_completed` -> `passed`
