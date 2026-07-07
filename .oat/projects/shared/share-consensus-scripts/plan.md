@@ -6,6 +6,7 @@ oat_last_updated: 2026-07-07
 oat_phase: plan
 oat_phase_status: complete
 oat_plan_hill_phases: ["p01"] # pause after spike for the required go/no-go decision
+oat_auto_review_at_hill_checkpoints: true
 oat_plan_parallel_groups: [] # fully sequential; see ## Parallelism
 oat_plan_source: quick
 oat_import_reference: null
