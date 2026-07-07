@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-07
-oat_current_task_id: p02-t04
+oat_current_task_id: p03-t01
 oat_generated: false
 ---
 
@@ -21,10 +21,10 @@ oat_generated: false
 | Phase | Status      | Tasks | Completed |
 | ----- | ----------- | ----- | --------- |
 | p01   | completed   | 3     | 3/3       |
-| p02   | in_progress | 4     | 3/4       |
+| p02   | completed   | 4     | 4/4       |
 | p03   | pending     | 3     | 0/3       |
 
-**Total:** 6/10 tasks completed
+**Total:** 7/10 tasks completed
 
 ## Phase p01: Provider Layout Spike And Go/No-Go Evidence
 
@@ -122,8 +122,9 @@ orchestrator's checkpoint/review handling.
 
 ## Phase p02: Shared Runtime Build Migration
 
-**Status:** in_progress
+**Status:** completed
 **Started:** 2026-07-07
+**Completed:** 2026-07-07
 
 ### Task p02-t01: Update Generated-Output Mapping And Import Rewrites
 
@@ -175,8 +176,7 @@ orchestrator's checkpoint/review handling.
 ### Task p02-t03: Regenerate Outputs, Remove Duplicates, And Bump Skill Versions
 
 **Status:** completed
-**Commit:** pending in this commit; final SHA must be filled by later OAT
-bookkeeping because a task commit cannot contain its own final SHA.
+**Commit:** `b766a84f0d8a`
 
 **Notes:**
 
@@ -209,13 +209,70 @@ bookkeeping because a task commit cannot contain its own final SHA.
   because the script compares `base...HEAD` and does not include uncommitted
   task changes; rerun it after this commit and record the post-commit result in
   the next tracker update.
+- Post-commit skill-version verification passed:
+  `BASE_REF=$(git merge-base HEAD origin/main 2>/dev/null || git merge-base HEAD main); pnpm run validate:skill-versions --base-ref "$BASE_REF"` verified 5 changed skills against `ff40c8e20c6c979d034b707b5ac090287be2452b`.
 - Self-review: generated `.mjs` outputs were produced by `pnpm run build`, not
   hand-edited; `consensus-config.mjs` duplication remains unchanged.
 
 ### Task p02-t04: Run Focused Runtime Smoke For Shared Imports
 
-**Status:** pending
-**Commit:** -
+**Status:** completed
+**Commit:** pending in this commit; final SHA must be filled by later OAT
+bookkeeping because a task commit cannot contain its own final SHA.
+
+**Notes:**
+
+- Ran a focused Node ESM smoke that imports all five generated consensus
+  wrappers from the repository plugin layout:
+  `create`, `decide`, `evaluate`, `plan`, and `refine`.
+- The smoke printed `Shared import smoke: pass`, proving the generated wrapper
+  import `../../../scripts/consensus-loop.mjs` resolves to
+  `plugins/consensus/scripts/consensus-loop.mjs` at runtime.
+- Recorded the command, result, and caveat in
+  `.oat/projects/shared/share-consensus-scripts/references/plugin-layout-spike.md`.
+- Provider caveat: the smoke intentionally did not mutate user-level Claude Code
+  or Codex caches or repoint configured marketplaces; p01 already proved those
+  layouts preserve plugin-root `scripts/` beside `skills/`.
+- Verification passed:
+  - focused Node wrapper import smoke (five wrappers loaded; `Shared import smoke: pass`)
+  - `pnpm run build:check`
+  - `pnpm exec vitest run tests/tooling/generated-output-sync.test.ts` (1 file, 15 tests passed)
+  - `rg -n "Shared import smoke.*pass" .oat/projects/shared/share-consensus-scripts/references/plugin-layout-spike.md`
+- Self-review: p02 migration behavior is covered by build mapping checks,
+  generated-output drift tests, wrapper import loading, and skill-version
+  validation; no p03 documentation or PJM closeout work was started.
+
+### Phase p02 Summary
+
+**Outcome:** shared runtime build migration completed and ready for p02 code
+review. Phase 3 was not started.
+
+**Key files touched:**
+
+- `scripts/build-generated.mjs`
+- `.oxfmtrc.json`
+- `.oxlintrc.json`
+- `tests/tooling/generated-output-sync.test.ts`
+- `plugins/consensus/scripts/consensus-loop.mjs`
+- `plugins/consensus/skills/{create,decide,evaluate,plan,refine}/scripts/*.mjs`
+- `plugins/consensus/skills/{create,decide,evaluate,plan,refine}/SKILL.md`
+- `.oat/projects/shared/share-consensus-scripts/references/plugin-layout-spike.md`
+- `.oat/projects/shared/share-consensus-scripts/implementation.md`
+
+**Verification run:**
+
+- p02-t01 mapping/static mirror commands.
+- p02-t02 focused generated-output mapping/layout Vitest selection.
+- `pnpm run build`
+- `pnpm run build:check`
+- `pnpm run validate:skill-versions --base-ref "$BASE_REF"` after p02-t03
+  commit.
+- focused Node shared-import smoke.
+- `pnpm exec vitest run tests/tooling/generated-output-sync.test.ts`
+
+**Notable decisions/deviations:** `consensus-config.mjs` duplication stayed
+unchanged as planned. The only deviation is the p02-t03 skill-version command
+argv/timing issue recorded in `## Deviations from Plan / Design`.
 
 ## Phase p03: Documentation, PJM Closeout, And Final Verification
 
@@ -396,6 +453,11 @@ Run-scoped snapshot only. The durable record is `## Deviations from Plan / Desig
 | p02-t03 | `pnpm run build:check` | yes | 0 | generated outputs in sync |
 | p02-t03 | `BASE_REF=$(git merge-base HEAD origin/main 2>/dev/null \|\| git merge-base HEAD main); pnpm run validate:skill-versions -- --base-ref "$BASE_REF"` | no | 2 | literal plan command passes an extra `--` to this script; see deviation |
 | p02-t03 | `BASE_REF=$(git merge-base HEAD origin/main 2>/dev/null \|\| git merge-base HEAD main); pnpm run validate:skill-versions --base-ref "$BASE_REF"` | yes | 0 | accepted argv shape; pre-commit run cannot see uncommitted skill changes because the script compares `base...HEAD` |
+| p02-t03 | `BASE_REF=$(git merge-base HEAD origin/main 2>/dev/null \|\| git merge-base HEAD main); pnpm run validate:skill-versions --base-ref "$BASE_REF"` | yes | 0 | post-commit run verified 5 changed skills against `ff40c8e20c6c979d034b707b5ac090287be2452b` |
+| p02-t04 | focused Node wrapper import smoke | yes | 0 | all five generated wrappers loaded; `Shared import smoke: pass` |
+| p02-t04 | `pnpm run build:check` | yes | 0 | generated outputs in sync after smoke |
+| p02-t04 | `pnpm exec vitest run tests/tooling/generated-output-sync.test.ts` | yes | 0 | 1 file, 15 tests passed |
+| p02-t04 | `rg -n "Shared import smoke.*pass" .oat/projects/shared/share-consensus-scripts/references/plugin-layout-spike.md` | yes | 0 | smoke result recorded in spike artifact |
 
 ## Final Summary (for PR/docs)
 

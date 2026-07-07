@@ -180,6 +180,42 @@ The proposed Phase 2 wrapper import path,
   direct local install path currently works but emits a deprecation warning; use
   `--plugin-dir` or a marketplace install as the durable Copilot path.
 
+## Shared Import Smoke
+
+Shared import smoke: pass.
+
+Command:
+
+```bash
+node --input-type=module <<'EOF'
+const root = new URL(`file://${process.cwd()}/`);
+const wrappers = [
+  'plugins/consensus/skills/create/scripts/consensus-create.mjs',
+  'plugins/consensus/skills/decide/scripts/consensus-decide.mjs',
+  'plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs',
+  'plugins/consensus/skills/plan/scripts/consensus-plan.mjs',
+  'plugins/consensus/skills/refine/scripts/consensus-refine.mjs',
+];
+for (const wrapper of wrappers) {
+  await import(new URL(wrapper, root));
+  console.log(`loaded ${wrapper}`);
+}
+console.log('Shared import smoke: pass');
+EOF
+```
+
+Result: pass. Node loaded all five generated consensus wrappers from the
+repository plugin layout after p02 generated
+`plugins/consensus/scripts/consensus-loop.mjs`. This proves the wrapper import
+`../../../scripts/consensus-loop.mjs` resolves and executes from
+`plugins/consensus/skills/<name>/scripts/` to the shared plugin-root loop file.
+
+Caveat: this smoke intentionally did not mutate user-level Claude Code or Codex
+plugin caches and did not repoint configured marketplaces. Phase 1 already
+proved those installed/cache layouts preserve `scripts/` beside `skills/`; this
+p02 smoke proves the newly generated shared file and wrapper imports work in the
+repository plugin layout.
+
 ### No-Go Blockers
 
 None found in p01. If later Phase 2 smoke fails after the shared file exists,
