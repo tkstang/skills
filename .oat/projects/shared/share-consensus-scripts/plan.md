@@ -1,204 +1,459 @@
 ---
-oat_status: in_progress
-oat_ready_for: null
+oat_status: complete
+oat_ready_for: oat-project-implement
 oat_blockers: []
 oat_last_updated: 2026-07-07
 oat_phase: plan
-oat_phase_status: in_progress
-oat_plan_hill_phases: [] # phases to pause AFTER completing (empty = every phase)
-oat_plan_parallel_groups: [] # groups of phases that run concurrently in worktrees; [] = fully sequential
-oat_plan_source: spec-driven # spec-driven | quick | imported
-oat_import_reference: null # e.g., references/imported-plan.md
-oat_import_source_path: null # original source path provided by user
-oat_import_provider: null # codex | cursor | claude | null
+oat_phase_status: complete
+oat_plan_hill_phases: ["p01"] # pause after spike for the required go/no-go decision
+oat_plan_parallel_groups: [] # fully sequential; see ## Parallelism
+oat_plan_source: quick
+oat_import_reference: null
+oat_import_source_path: null
+oat_import_provider: null
 oat_generated: false
 ---
 
 # Implementation Plan: share-consensus-scripts
 
-> Execute this plan using `oat-project-implement` — sequential by default, parallel when `oat_plan_parallel_groups` is declared.
+> Execute this plan using `oat-project-implement`.
 
-**Goal:** {Brief goal statement from spec}
+**Goal:** Decide, with provider-layout evidence, whether Consensus can share
+generated runtime output at the plugin level; on go, migrate
+`consensus-loop.mjs` to a single plugin-local generated output and close
+`BL-260620-share-consensus-generated`; on no-go, keep duplication and close the
+item with concrete evidence.
 
-**Architecture:** {1-2 sentence architecture summary from design}
+**Architecture:** Canonical TypeScript source remains under `src/`. The build
+script remains the only source of truth for committed generated `.mjs` outputs.
+The proposed runtime sharing point is plugin-local:
+`plugins/consensus/scripts/consensus-loop.mjs`, imported by skill wrappers
+through plugin-root-relative paths.
 
-**Tech Stack:** {Key technologies from design}
+**Tech Stack:** Node 22+, pnpm, TypeScript, esbuild, Vitest, OAT file-backed PJM.
 
-**Commit Convention:** `{type}({scope}): {description}` - e.g., `feat(p01-t01): add user auth endpoint`
+**Commit Convention:** `{type}({scope}): {description}`.
 
 ## Planning Checklist
 
-- [ ] Confirmed HiLL checkpoints with user
-- [ ] Set `oat_plan_hill_phases` in frontmatter
-- [ ] Evaluated phases for parallelism opportunities
-- [ ] Set `oat_plan_parallel_groups` in frontmatter
+- [x] Confirmed HiLL checkpoints with user or source artifacts
+- [x] Set `oat_plan_hill_phases` in frontmatter (`["p01"]`)
+- [x] Evaluated phases for parallelism opportunities
+- [x] Set `oat_plan_parallel_groups` in frontmatter (`[]`)
 
----
+## No-Go Handling
+
+Phase 1 is the evidence phase. After p01 completes, implementation must pause
+for the configured go/no-go checkpoint.
+
+- **Go:** execute p02 and p03 as written.
+- **No-go:** do not execute p02 migration tasks. Instead, append no-go closeout
+  tasks to this plan, preserving existing task IDs, that record the blocker,
+  keep duplicated generated outputs, update docs if needed, close the backlog
+  item, delete the consumed handoff, and run the relevant validation gates.
 
 ## Parallelism
 
-Phases that have no overlapping file modifications may run concurrently. To declare parallelism:
+This plan is intentionally sequential. Phase 1 determines whether Phase 2 is
+valid at all. Phase 2 modifies the central generated-output mapping, generated
+runtime files, wrapper imports, generated-output drift tests, and skill versions;
+splitting that work across worktrees would create fragile merge and drift-guard
+coordination. Phase 3 depends on the final go/no-go outcome and the exact files
+changed by Phase 2. Therefore `oat_plan_parallel_groups` remains `[]`.
 
-```yaml
-oat_plan_parallel_groups: [['p02', 'p03']]
-```
+## Phase 1: Provider Layout Spike And Go/No-Go Evidence
 
-Each inner array is a group of phases that execute in parallel (each in its own worktree) and merge back in plan order after all pass. Groups themselves run sequentially.
-
-Default is `[]` (fully sequential, no worktrees). Only declare parallelism when phases are genuinely file-disjoint — overlap will produce merge conflicts that stop the run.
-
----
-
-## Dispatch Profile
-
-_Optional override surface. Use only for explicit user-authored constraints or preferences. Omit this section when runtime selection should choose the lowest confident tier._
-
-Blank or `auto` means there is no explicit constraint for that provider. Do not generate rows by default; a missing phase row uses runtime selection.
-
-| Phase | Claude model              | Codex effort                   | Rationale                     |
-| ----- | ------------------------- | ------------------------------ | ----------------------------- |
-| pNN   | haiku\|sonnet\|opus\|auto | low\|medium\|high\|xhigh\|auto | why this constraint is needed |
-
-Codex effort values are preferred controls. `oat-project-implement` caps them against the resolved OAT dispatch ceiling and maps selected efforts to pinned implementer variants. Codex provider default effort is informational for base/unpinned roles and is not an OAT ceiling.
-
----
-
-## Phase 1: {Phase Name}
-
-### Task p01-t01: {Task Name}
+### Task p01-t01: Prepare Spike Evidence Artifact
 
 **Files:**
 
-- Create: `{path/to/file.ts}`
-- Modify: `{path/to/existing.ts}`
+- Create: `.oat/projects/shared/share-consensus-scripts/references/plugin-layout-spike.md`
 
-**Step 1: Write test (RED)**
+**Steps:**
 
-```typescript
-// {path/to/file.test.ts}
-describe('{feature}', () => {
-  it('{test case}', () => {
-    // Test implementation
-  });
-});
-```
+1. Create the spike evidence artifact with sections for Claude Code, Codex,
+   Cursor Agent, Copilot, standalone recovery, and recommendation.
+2. Record the commands or command-discovery steps that will be used for each
+   provider. Start from `plugins/consensus/README.md`, `RELEASING.md`, and live
+   CLI help instead of assuming older docs are current.
+3. Include an evidence table for each provider with: command used, installed or
+   local-load plugin root, whether `plugins/consensus/scripts/` is preserved
+   beside `skills/`, wrapper import path tested, status, and notes.
 
-Run: `pnpm --filter {package-name} exec vitest run {path/to/file.test.ts}`
-Expected: Test fails (RED)
-
-**Step 2: Implement (GREEN)**
-
-```typescript
-// {path/to/file.ts}
-// Implementation code or interface signatures
-```
-
-Run: `pnpm --filter {package-name} exec vitest run {path/to/file.test.ts}`
-Expected: Test passes (GREEN)
-
-Use the actual runner command that scopes to the intended file or test target. Do not write a package-level shortcut unless it truly executes only the scope the task claims.
-
-**Step 3: Refactor**
-
-{Any cleanup or improvements while tests stay green}
-
-**Step 4: Verify**
-
-Run: `pnpm lint && pnpm type-check`
-Expected: No errors
-
-**Step 5: Commit**
+**Verify:**
 
 ```bash
-git add {files}
-git commit -m "feat(p01-t01): {description}"
+test -f .oat/projects/shared/share-consensus-scripts/references/plugin-layout-spike.md
+rg -n "Claude Code|Codex|Cursor Agent|Copilot|standalone recovery|Go/no-go" .oat/projects/shared/share-consensus-scripts/references/plugin-layout-spike.md
+```
+
+**Commit:**
+
+```bash
+git add .oat/projects/shared/share-consensus-scripts/references/plugin-layout-spike.md .oat/projects/shared/share-consensus-scripts/implementation.md
+git commit -m "test(consensus): prepare plugin layout spike evidence"
 ```
 
 ---
 
-### Task p01-t02: {Task Name}
+### Task p01-t02: Run Provider Layout Checks
 
 **Files:**
 
-- {File list}
+- Modify: `.oat/projects/shared/share-consensus-scripts/references/plugin-layout-spike.md`
 
-**Step 1: Write test (RED)**
+**Steps:**
 
-{Test code}
+1. For Claude Code, verify the local marketplace install or plugin load path and
+   inspect the installed plugin tree. Record the exact commands and whether
+   `plugins/consensus/scripts/` is available from a skill wrapper's relative
+   path.
+2. For Codex, verify the configured marketplace or local plugin install path and
+   inspect the installed plugin tree. If a local marketplace already points to a
+   different checkout, record that state and use the least disruptive verified
+   path.
+3. For Cursor Agent, verify the local `--plugin-dir` load shape and whether the
+   plugin root is preserved during execution.
+4. For Copilot, verify the current plugin/install surface from live CLI help or
+   primary provider documentation. If no supported local plugin load exists,
+   record the blocker with source evidence instead of guessing.
+5. Verify the PR #38 standalone recovery path still works or remains actionable:
+   a standalone single-skill install must either find the plugin-local CLI or
+   fall back to the documented `~/.consensus/consensus.mjs` recovery path with
+   the shared actionable error.
 
-**Step 2: Implement (GREEN)**
-
-{Implementation code or signatures}
-
-**Step 3: Refactor**
-
-{Optional cleanup}
-
-**Step 4: Verify**
-
-Run: `{verification command}`
-Expected: {output}
-
-Verification commands should be behaviorally accurate. If the task claims a file-scoped or test-scoped check, use the concrete runner invocation that really scopes to that target.
-
-**Step 5: Commit**
+**Verify:**
 
 ```bash
-git add {files}
-git commit -m "feat(p01-t02): {description}"
+rg -n "Claude Code.*(pass|fail|blocked)|Codex.*(pass|fail|blocked)|Cursor Agent.*(pass|fail|blocked)|Copilot.*(pass|fail|blocked)|standalone recovery.*(pass|fail|blocked)" .oat/projects/shared/share-consensus-scripts/references/plugin-layout-spike.md
+```
+
+**Commit:**
+
+```bash
+git add .oat/projects/shared/share-consensus-scripts/references/plugin-layout-spike.md .oat/projects/shared/share-consensus-scripts/implementation.md
+git commit -m "test(consensus): record provider plugin layout evidence"
 ```
 
 ---
 
-## Phase 2: {Phase Name}
+### Task p01-t03: Record Go/No-Go Recommendation
 
-### Task p02-t01: {Task Name}
+**Files:**
 
-{Continue TDD pattern...}
+- Modify: `.oat/projects/shared/share-consensus-scripts/references/plugin-layout-spike.md`
+- Modify: `.oat/projects/shared/share-consensus-scripts/implementation.md`
+
+**Steps:**
+
+1. Summarize whether all required providers preserve a plugin root that supports
+   plugin-local shared scripts.
+2. State the recommendation clearly as `go` or `no-go`.
+3. For `go`, list any provider caveats that implementation must preserve in docs
+   or tests.
+4. For `no-go`, list the blockers and the evidence needed to close the backlog
+   item while keeping duplicated generated output.
+5. Stop after this task for the configured HiLL checkpoint before executing
+   Phase 2.
+
+**Verify:**
+
+```bash
+rg -n "Recommendation: (go|no-go)|Required checkpoint" .oat/projects/shared/share-consensus-scripts/references/plugin-layout-spike.md
+```
+
+**Commit:**
+
+```bash
+git add .oat/projects/shared/share-consensus-scripts/references/plugin-layout-spike.md .oat/projects/shared/share-consensus-scripts/implementation.md
+git commit -m "test(consensus): record plugin layout go-no-go"
+```
+
+---
+
+## Phase 2: Shared Runtime Build Migration (Go Path Only)
+
+### Task p02-t01: Update Generated-Output Mapping And Import Rewrites
+
+**Files:**
+
+- Modify: `scripts/build-generated.mjs`
+
+**Steps:**
+
+1. Replace the five per-skill `consensus-loop.mjs` build outputs with one shared
+   mapping for `src/consensus/core/consensus-loop.ts` to
+   `plugins/consensus/scripts/consensus-loop.mjs`.
+2. Update the `importRewrites` for `consensus-refine`, `consensus-evaluate`,
+   `consensus-create`, `consensus-decide`, and `consensus-plan` so
+   `../core/consensus-loop.js` rewrites to the correct plugin-root-relative
+   shared path from each wrapper output.
+3. Keep `consensus-config.mjs` duplication unchanged unless Phase 1 evidence and
+   the operator explicitly broaden the scope.
+
+**Verify:**
+
+```bash
+node scripts/build-generated.mjs --list-outputs | rg '^plugins/consensus/scripts/consensus-loop\.mjs$'
+! node scripts/build-generated.mjs --list-outputs | rg 'plugins/consensus/skills/.*/scripts/consensus-loop\.mjs'
+```
+
+**Commit:**
+
+```bash
+git add scripts/build-generated.mjs .oat/projects/shared/share-consensus-scripts/implementation.md
+git commit -m "build(consensus): share generated loop output at plugin root"
+```
+
+---
+
+### Task p02-t02: Update Drift And Layout Regression Tests
+
+**Files:**
+
+- Modify: `tests/tooling/generated-output-sync.test.ts`
+- Create or modify: focused test fixture(s) under `tests/` if needed for plugin-root layout simulation
+
+**Steps:**
+
+1. Update generated-output mapping assertions to expect the shared loop output
+   and no per-skill loop outputs.
+2. Add or update a regression test that simulates the installed plugin-root
+   layout and proves wrapper imports resolve the shared loop from the plugin root.
+3. Keep tests scoped to generated-output and plugin-root layout behavior; do not
+   exercise live providers in unit tests.
+
+**Verify:**
+
+```bash
+pnpm exec vitest run tests/tooling/generated-output-sync.test.ts
+```
+
+**Commit:**
+
+```bash
+git add tests .oat/projects/shared/share-consensus-scripts/implementation.md
+git commit -m "test(consensus): cover shared plugin loop layout"
+```
+
+---
+
+### Task p02-t03: Regenerate Outputs, Remove Duplicates, And Bump Skill Versions
+
+**Files:**
+
+- Modify: generated consensus wrapper outputs under `plugins/consensus/skills/*/scripts/`
+- Create: `plugins/consensus/scripts/consensus-loop.mjs`
+- Delete: per-skill `plugins/consensus/skills/{create,decide,evaluate,plan,refine}/scripts/consensus-loop.mjs`
+- Modify: `plugins/consensus/skills/{create,decide,evaluate,plan,refine}/SKILL.md`
+- Modify: `scripts/bump-version.mjs` only if the coverage check shows a missing changed skill
+
+**Steps:**
+
+1. Run `pnpm run build`.
+2. Confirm the generated wrapper imports point at the shared plugin-local loop.
+3. Remove stale per-skill loop outputs from tracked files.
+4. Bump the five changed consensus skill versions, keeping top-level `version`
+   and `metadata.version` in sync.
+5. Confirm release version-bump tooling still covers the changed skills; if it
+   does not, update `scripts/bump-version.mjs` in this task before committing.
+
+**Verify:**
+
+```bash
+pnpm run build:check
+BASE_REF=$(git merge-base HEAD origin/main 2>/dev/null || git merge-base HEAD main)
+pnpm run validate:skill-versions -- --base-ref "$BASE_REF"
+```
+
+**Commit:**
+
+```bash
+git add scripts plugins/consensus tests .oat/projects/shared/share-consensus-scripts/implementation.md
+git commit -m "chore(consensus): regenerate shared loop runtime outputs"
+```
+
+---
+
+### Task p02-t04: Run Focused Runtime Smoke For Shared Imports
+
+**Files:**
+
+- Modify: `.oat/projects/shared/share-consensus-scripts/references/plugin-layout-spike.md`
+- Modify: `.oat/projects/shared/share-consensus-scripts/implementation.md`
+
+**Steps:**
+
+1. Run a focused local smoke that proves the generated wrappers can load with
+   the shared loop path in the repository plugin layout.
+2. If Phase 1 found provider-specific caveats, run the cheapest safe smoke for
+   those installed or local-load layouts without making unverified release
+   claims.
+3. Record the command, result, and any caveat in the spike evidence artifact.
+
+**Verify:**
+
+```bash
+pnpm run build:check
+pnpm exec vitest run tests/tooling/generated-output-sync.test.ts
+rg -n "Shared import smoke.*pass" .oat/projects/shared/share-consensus-scripts/references/plugin-layout-spike.md
+```
+
+**Commit:**
+
+```bash
+git add .oat/projects/shared/share-consensus-scripts/references/plugin-layout-spike.md .oat/projects/shared/share-consensus-scripts/implementation.md
+git commit -m "test(consensus): verify shared loop import smoke"
+```
+
+---
+
+## Phase 3: Documentation, PJM Closeout, And Final Verification
+
+### Task p03-t01: Update Documentation For Runtime Layout
+
+**Files:**
+
+- Modify: `documentation/docs/engineering/architecture/generated-runtime.md`
+- Modify: `documentation/docs/user-guide/installation.md` if install/runtime claims change
+- Modify: `plugins/consensus/README.md` or `RELEASING.md` only if source claims become stale
+
+**Steps:**
+
+1. Read `documentation/AGENTS.md` before editing docs.
+2. Update the generated-runtime engineering page to describe the shared
+   plugin-local loop output and the plugin install/local-load runtime contract.
+3. Keep marketplace and skills.sh claims limited to verified evidence.
+4. If navigation changes are needed, update authored `## Contents` links and
+   regenerate the docs index; otherwise do not churn generated docs artifacts.
+
+**Verify:**
+
+```bash
+rg -n "plugins/consensus/scripts/consensus-loop\.mjs|plugin-local" documentation/docs/engineering/architecture/generated-runtime.md
+pnpm run validate
+```
+
+**Commit:**
+
+```bash
+git add documentation plugins/consensus/README.md RELEASING.md .oat/projects/shared/share-consensus-scripts/implementation.md
+git commit -m "docs(consensus): document shared generated runtime layout"
+```
+
+---
+
+### Task p03-t02: Close Backlog Item And Remove Consumed Handoff
+
+**Files:**
+
+- Move: `.oat/repo/pjm/backlog/items/BL-260620-share-consensus-generated.md` to `.oat/repo/pjm/backlog/archived/BL-260620-share-consensus-generated.md`
+- Modify: `.oat/repo/pjm/backlog/completed.md`
+- Modify: `.oat/repo/pjm/backlog/index.md`
+- Modify: `.oat/repo/pjm/current-state.md` if the operating picture changes
+- Delete: `.oat/repo/pjm/handoffs/BL-260620-share-consensus-generated.md`
+
+**Steps:**
+
+1. Set the backlog item status to `closed` and update its `updated` timestamp.
+   If Phase 1 ended no-go, close with the documented no-go rationale instead of
+   claiming the migration shipped.
+2. Add a newest-first entry to `backlog/completed.md`.
+3. Move the item to `backlog/archived/`.
+4. Run `oat backlog regenerate-index`.
+5. Refresh `current-state.md` and the curated overview if this item changes
+   priority sequencing.
+6. Remove the consumed handoff file in the same commit.
+
+**Verify:**
+
+```bash
+test ! -e .oat/repo/pjm/backlog/items/BL-260620-share-consensus-generated.md
+test ! -e .oat/repo/pjm/handoffs/BL-260620-share-consensus-generated.md
+test -e .oat/repo/pjm/backlog/archived/BL-260620-share-consensus-generated.md
+rg -n "BL-260620-share-consensus-generated" .oat/repo/pjm/backlog/completed.md .oat/repo/pjm/backlog/index.md
+```
+
+**Commit:**
+
+```bash
+git add .oat/repo/pjm .oat/projects/shared/share-consensus-scripts/implementation.md
+git commit -m "chore(pjm): close shared consensus generated runtime item"
+```
+
+---
+
+### Task p03-t03: Run Full Validation And Record Final Evidence
+
+**Files:**
+
+- Modify: `.oat/projects/shared/share-consensus-scripts/implementation.md`
+- Modify: `.oat/projects/shared/share-consensus-scripts/plan.md` if review status or no-go task adjustments are needed
+
+**Steps:**
+
+1. Run the required final gates.
+2. Record the commands and pass/fail results in `implementation.md`.
+3. Fix any generated-output drift or validation failure before PR handoff.
+
+**Verify:**
+
+```bash
+pnpm test
+pnpm run build:check
+npm run validate
+npm run smoke
+pnpm run worktree:validate
+```
+
+**Commit:**
+
+```bash
+git add .oat/projects/shared/share-consensus-scripts/implementation.md .oat/projects/shared/share-consensus-scripts/plan.md
+git commit -m "chore(oat): record shared generated runtime verification"
+```
 
 ---
 
 ## Reviews
 
-{Track reviews here after running the oat-project-review-provide and oat-project-review-receive skills.}
+| Scope  | Type     | Status  | Date       | Artifact |
+| ------ | -------- | ------- | ---------- | -------- |
+| p01    | code     | pending | -          | -        |
+| p02    | code     | pending | -          | -        |
+| p03    | code     | pending | -          | -        |
+| final  | code     | pending | -          | -        |
+| spec   | artifact | passed  | 2026-07-07 | N/A (quick mode; no spec artifact) |
+| design | artifact | passed  | 2026-07-07 | N/A (quick mode; no design artifact) |
+| plan   | artifact | passed  | 2026-07-07 | inline structured review; I1 resolved |
 
-{Keep both code + artifact rows below. Add additional code rows (p03, p04, etc.) as needed, but do not delete `spec`/`design`.}
-
-| Scope  | Type     | Status  | Date | Artifact |
-| ------ | -------- | ------- | ---- | -------- |
-| p01    | code     | pending | -    | -        |
-| p02    | code     | pending | -    | -        |
-| final  | code     | pending | -    | -        |
-| spec   | artifact | pending | -    | -        |
-| design | artifact | pending | -    | -        |
-
-**Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
-
-**Meaning:**
-
-- `received`: review artifact exists (not yet converted into fix tasks)
-- `fixes_added`: fix tasks were added to the plan (work queued)
-- `fixes_completed`: fix tasks implemented, awaiting re-review
-- `passed`: re-review run and recorded as passing (no Critical/Important)
-
----
+**Status values:** `pending` -> `received` -> `fixes_added` ->
+`fixes_completed` -> `passed`
 
 ## Implementation Complete
 
 **Summary:**
 
-- Phase 1: {N} tasks - {Description}
-- Phase 2: {N} tasks - {Description}
+- Phase 1: 3 tasks - provider layout spike, standalone recovery check, and
+  go/no-go recommendation.
+- Phase 2: 4 tasks - shared runtime build migration, drift/layout tests,
+  generated output regeneration, and focused shared-import smoke.
+- Phase 3: 3 tasks - docs update, PJM closeout, and full validation evidence.
 
-**Total: {N} tasks**
+**Total: 10 tasks**
 
-Ready for code review and merge.
-
----
+Ready for `oat-project-implement`.
 
 ## References
 
-- Design: `design.md` (required in spec-driven mode; optional in quick/import mode)
-- Spec: `spec.md` (required in spec-driven mode; optional in quick/import mode)
 - Discovery: `discovery.md`
-- Imported Source: `references/imported-plan.md` (when `oat_plan_source: imported`)
+- Handoff:
+  `.oat/repo/pjm/handoffs/BL-260620-share-consensus-generated.md`
+- Backlog item:
+  `.oat/repo/pjm/backlog/items/BL-260620-share-consensus-generated.md`
+- Generated-output build mapping: `scripts/build-generated.mjs`
+- Generated-output drift guard: `tests/tooling/generated-output-sync.test.ts`
+- Decisions:
+  `.oat/repo/reference/decisions/DR-260615-canonical-typescript-sources.md`,
+  `.oat/repo/reference/decisions/DR-260616-build-time-import-rewrites.md`,
+  `.oat/repo/reference/decisions/DR-260627-keep-consensus-skills.md`
