@@ -425,7 +425,7 @@ git commit -m "chore(oat): record shared generated runtime verification"
 | final  | code     | pending | -          | -        |
 | spec   | artifact | passed  | 2026-07-07 | N/A (quick mode; no spec artifact) |
 | design | artifact | passed  | 2026-07-07 | N/A (quick mode; no design artifact) |
-| plan   | artifact | passed  | 2026-07-07 | inline structured review; I1 resolved |
+| plan   | artifact | received | 2026-07-06 | reviews/artifact-plan-review-2026-07-06.md |
 
 **Status values:** `pending` -> `received` -> `fixes_added` ->
 `fixes_completed` -> `passed`
