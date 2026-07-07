@@ -4,14 +4,13 @@ import path from 'node:path';
 import { expect, it } from 'vitest';
 
 const repoRoot = path.resolve(new URL('../../..', import.meta.url).pathname);
-const refineSchemasDir = path.join(
-  repoRoot,
-  'plugins/consensus/skills/refine/schemas',
-);
-const evaluateSchemasDir = path.join(
-  repoRoot,
-  'plugins/consensus/skills/evaluate/schemas',
-);
+
+const loopUsingSkills = ['create', 'decide', 'evaluate', 'plan', 'refine'] as const;
+const canonicalSkill = 'refine';
+
+function schemasDir(skill: (typeof loopUsingSkills)[number]) {
+  return path.join(repoRoot, 'plugins/consensus/skills', skill, 'schemas');
+}
 
 const schemaFiles = [
   'verdict-alternating.schema.json',
@@ -29,17 +28,22 @@ async function readSchema(dir: string, name: string) {
   return readFile(path.join(dir, name), 'utf8');
 }
 
-it('copies every evaluate schema from the canonical refine distribution schemas', async () => {
-  expect(await schemaNames(refineSchemasDir)).toEqual(
-    [...schemaFiles].toSorted(),
-  );
-  expect(await schemaNames(evaluateSchemasDir)).toEqual(
+it('copies every loop-using skill schema from the canonical refine distribution schemas', async () => {
+  const canonicalSchemasDir = schemasDir(canonicalSkill);
+  expect(await schemaNames(canonicalSchemasDir)).toEqual(
     [...schemaFiles].toSorted(),
   );
 
-  for (const schemaFile of schemaFiles) {
-    await expect(readSchema(evaluateSchemasDir, schemaFile)).resolves.toBe(
-      await readSchema(refineSchemasDir, schemaFile),
+  for (const skill of loopUsingSkills) {
+    const skillSchemasDir = schemasDir(skill);
+    expect(await schemaNames(skillSchemasDir)).toEqual(
+      [...schemaFiles].toSorted(),
     );
+
+    for (const schemaFile of schemaFiles) {
+      await expect(readSchema(skillSchemasDir, schemaFile)).resolves.toBe(
+        await readSchema(canonicalSchemasDir, schemaFile),
+      );
+    }
   }
 });
