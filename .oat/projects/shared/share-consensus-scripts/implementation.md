@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-07
-oat_current_task_id: p03-t04
+oat_current_task_id: final-review
 oat_generated: false
 ---
 
@@ -22,9 +22,9 @@ oat_generated: false
 | ----- | ----------- | ----- | --------- |
 | p01   | completed   | 3     | 3/3       |
 | p02   | completed   | 4     | 4/4       |
-| p03   | in_progress | 5     | 3/5       |
+| p03   | completed   | 5     | 5/5       |
 
-**Total:** 10/12 tasks completed
+**Total:** 12/12 tasks completed
 
 ## Phase p01: Provider Layout Spike And Go/No-Go Evidence
 
@@ -362,10 +362,38 @@ argv/timing issue recorded in `## Deviations from Plan / Design`.
   - `npm run smoke`
   - `pnpm run worktree:validate`
 
+### Task p03-t04: (review) Expand Shared-Loop Schema Parity Coverage
+
+**Status:** completed
+**Commit:** `5606f0f61009`
+
+**Notes:**
+
+- Expanded `tests/consensus/evaluate/schema-parity.test.ts` so the parity guard
+  checks `create`, `decide`, `evaluate`, `plan`, and `refine` schema
+  directories against the canonical `refine` schema set.
+- Verification passed:
+  - `pnpm exec vitest run tests/consensus/evaluate/schema-parity.test.ts`
+  - `pnpm run build:check`
+
+### Task p03-t05: (review) Refresh Roadmap Header Snapshot
+
+**Status:** completed
+**Commit:** `de36426bcc9e`
+
+**Notes:**
+
+- Updated `.oat/repo/pjm/roadmap.md` header to `2026-07-07` and made the shared
+  generated runtime closeout the current snapshot.
+- Preserved the prior neutral panel/config defaults and backlog hygiene context
+  as older status in the same header.
+- Verification passed:
+  - `rg -n "2026-07-07|shared generated runtime|BL-260620-share-consensus-generated" .oat/repo/pjm/roadmap.md`
+
 ### Phase p03 Summary
 
 **Outcome:** documentation, PJM closeout, and final validation completed. Phase
-p03 passed review after one focused roadmap-alignment fix.
+p03 final-review follow-up fixes are implemented and ready for final review.
 
 **Key files touched:**
 
@@ -380,6 +408,7 @@ p03 passed review after one focused roadmap-alignment fix.
 - `plugins/consensus/scripts/consensus-loop.mjs`
 - `plugins/consensus/agents/consensus-section-runner.md`
 - focused tests under `tests/consensus/` and `tests/repo/docs-presence.test.ts`
+- `.oat/repo/pjm/roadmap.md`
 - `.oat/projects/shared/share-consensus-scripts/implementation.md`
 
 **Verification run:**
@@ -389,6 +418,8 @@ p03 passed review after one focused roadmap-alignment fix.
 - p03-t03 initial failed `pnpm test`, focused validation repair, then final
   clean-state gates: `pnpm test`, `pnpm run build:check`, `npm run validate`,
   `npm run smoke`, and `pnpm run worktree:validate`.
+- p03-t04 focused schema parity Vitest command and `pnpm run build:check`.
+- p03-t05 roadmap header `rg` verification.
 
 **Notable decisions/deviations:** p03-t03 required a supporting validation fix
 commit outside the original p03-t03 file list because the clean full-suite gate
@@ -723,15 +754,19 @@ final review.
 | p03-t03 | `npm run validate` | yes | 0 | final repository validation passed |
 | p03-t03 | `npm run smoke` | yes | 0 | final smoke passed |
 | p03-t03 | `pnpm run worktree:validate` | yes | 0 | install, build, type-check, build:check, test, validate, smoke, final build:check, and clean-tree check passed |
+| p03-t04 | `pnpm exec vitest run tests/consensus/evaluate/schema-parity.test.ts` | yes | 0 | schema parity covers create, decide, evaluate, plan, and refine |
+| p03-t04 | `pnpm run build:check` | yes | 0 | generated outputs remain in sync |
+| p03-t05 | `rg -n "2026-07-07|shared generated runtime|BL-260620-share-consensus-generated" .oat/repo/pjm/roadmap.md` | yes | 0 | roadmap header and body reflect shared generated runtime closeout |
 
 ## Final Summary (for PR/docs)
 
 Phase 3 completed the shared generated runtime migration closeout: engineering
 docs now describe the plugin-local loop output, PJM closed and archived
 `BL-260620-share-consensus-generated`, the consumed kickoff handoff is deleted,
-the stale roadmap entry was corrected, and final clean-state validation passes.
-Implementation tasks are complete except for the final-review follow-up fixes
-captured as `p03-t04` and `p03-t05`. Re-run final review after those tasks.
+the roadmap header was refreshed to the 2026-07-07 shared generated runtime
+closeout, schema parity now covers all loop-using consensus skills, and final
+clean-state validation passes. Implementation tasks are complete; re-run final
+review next.
 
 ## References
 
