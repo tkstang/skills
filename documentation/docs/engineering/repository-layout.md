@@ -29,6 +29,8 @@ Shipped runtime `.mjs` lives next to its manifests under `plugins/` and
 Inside `plugins/consensus/`:
 
 - `.claude-plugin/`, `.cursor-plugin/`, `.codex-plugin/` — provider plugin manifests.
+- `scripts/consensus.mjs` — generated provider CLI used for provider inventory, preflight, peer invocation, and submit-sidecar capture.
+- `scripts/consensus-loop.mjs` — generated shared consensus loop runtime imported by the generated `create`, `decide`, `evaluate`, `plan`, and `refine` wrappers. Keep it beside `skills/` in the plugin root; wrappers import it with `../../../scripts/consensus-loop.mjs`.
 - `skills/create/` — implementation directory for the shipped `create` skill.
   - `skills/create/references/operator-qa.md` — manual QA walkthrough of brief-to-artifact creation, with a runnable brief under `references/examples/`.
 - `skills/decide/` — implementation directory for the shipped `decide` skill.
