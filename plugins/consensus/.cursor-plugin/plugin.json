@@ -8,9 +8,9 @@
   "license": "MIT",
   "metadata": {
     "provider": "cursor",
-    "permission_declaration": "provisional",
-    "release_checklist": [
-      "Verify exec permission shape against the Cursor runtime before v0.1 tagging."
+    "permission_declaration": "verified",
+    "permission_verification": [
+      "Verified during v0.1 release on 2026-06-20: Cursor surfaced and approved the node exec prompt; local plugin loading remains --plugin-dir based."
     ]
   }
 }

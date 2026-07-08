@@ -94,11 +94,23 @@ const CLAUDE_TRANSIENT_EXIT_PATTERNS = [
 ] as const;
 
 const CODEX_TRANSIENT_EXIT_PATTERNS = [
-  // No Codex CLI-specific transient stderr evidence in project artifacts yet.
+  // Evidence: installed codex-cli 0.142.5 binary strings include these
+  // rate-limit and overload messages in provider-facing error paths.
+  /rate limiter has requested a/i,
+  /failed to fetch codex rate limits/i,
+  /unknown rate limit reached type/i,
+  /dropping overload response for connection/i,
+  /try again at/i,
 ] as const;
 
 const CURSOR_TRANSIENT_EXIT_PATTERNS = [
-  // No Cursor CLI-specific transient stderr evidence in project artifacts yet.
+  // Evidence: installed cursor-agent 2026.07.01 bundle contains these
+  // connection/session terminal reasons and network errors.
+  /connection_timeout/i,
+  /stream_error/i,
+  /session_error/i,
+  /session_aborted/i,
+  /network error/i,
 ] as const;
 
 export const DEFAULT_PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [

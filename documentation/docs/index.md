@@ -5,7 +5,7 @@ description: 'A personal home for Agent Skills and plugins, including the consen
 
 # skills
 
-> Status: v0.1 pre-release.
+> Status: v0.1.
 
 A personal Agent Skills home — standalone skills under `skills/` and packaged
 plugins under `plugins/<name>/`, runnable across Claude Code, Codex, and Cursor.

@@ -68,9 +68,17 @@ describe('plugin-manifests', () => {
       expect((await stat(resolvedSkillPath)).isDirectory()).toBe(true);
 
       expect(
-        manifest.metadata?.release_checklist?.join('\n') ?? '',
-        `${provider} should carry release-time permission verification notes`,
-      ).toMatch(/verify .*runtime/i);
+        manifest.metadata?.permission_declaration,
+        `${provider} permission declaration`,
+      ).toBe('verified');
+      expect(
+        manifest.metadata?.permission_verification?.join('\n') ?? '',
+        `${provider} should carry completed permission verification evidence`,
+      ).toMatch(/verified .*2026-06-20/i);
+      expect(
+        JSON.stringify(manifest.metadata),
+        `${provider} should not keep stale v0.1 blocking checklist text`,
+      ).not.toMatch(/provisional|before v0\.1 tagging|release_checklist/i);
       expect(
         JSON.stringify(manifest),
         `${provider} manifest should advertise consensus-create`,
