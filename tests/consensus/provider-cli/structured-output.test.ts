@@ -388,6 +388,7 @@ describe('structured provider output coordinator', () => {
   });
 
   it('injects submit capture env while preserving host guard child env', async () => {
+    const cwd = path.join(path.sep, 'workspace');
     const subprocess = fakeSubprocess([
       processSuccess('{"type":"turn.completed"}', {
         last_message: '{"verdict":"accept"}',
@@ -397,9 +398,10 @@ describe('structured provider output coordinator', () => {
     const envelope = await runProviderTurn(
       request({
         provider: 'codex',
+        cwd,
         host: {
           runtime: 'codex',
-          cwd: '/workspace',
+          cwd,
           run_id: 'run-123',
           depth: 0,
           max_depth: 2,
@@ -419,25 +421,31 @@ describe('structured provider output coordinator', () => {
       CONSENSUS_SUBMIT_SCHEMA: path.resolve('schema.json'),
     });
     expect(subprocess.envs[0]?.CONSENSUS_SUBMIT_FILE).toMatch(
-      /consensus-submit-[\w-]+\.json$/,
+      new RegExp(
+        `${escapeRegExp(path.join(cwd, '.consensus', 'submit'))}${escapeRegExp(path.sep)}consensus-submit-[\\w-]+\\.json$`,
+      ),
     );
   });
 
   it('generates a unique submit sidecar path per provider turn', async () => {
+    const cwd = path.join(path.sep, 'workspace', 'unique-submit');
     const first = fakeSubprocess([processSuccess('{"verdict":"accept"}')]);
     const second = fakeSubprocess([processSuccess('{"verdict":"accept"}')]);
 
-    await runProviderTurn(request({ provider: 'cursor' }), {
+    await runProviderTurn(request({ provider: 'cursor', cwd }), {
       readSchema: async () => schema(),
       runSubprocess: first.run,
     });
-    await runProviderTurn(request({ provider: 'cursor' }), {
+    await runProviderTurn(request({ provider: 'cursor', cwd }), {
       readSchema: async () => schema(),
       runSubprocess: second.run,
     });
 
     expect(first.envs[0]?.CONSENSUS_SUBMIT_FILE).toBeTruthy();
     expect(second.envs[0]?.CONSENSUS_SUBMIT_FILE).toBeTruthy();
+    expect(first.envs[0]?.CONSENSUS_SUBMIT_FILE).toContain(
+      path.join(cwd, '.consensus', 'submit'),
+    );
     expect(first.envs[0]?.CONSENSUS_SUBMIT_FILE).not.toBe(
       second.envs[0]?.CONSENSUS_SUBMIT_FILE,
     );
@@ -802,6 +810,10 @@ function argumentAfter(argv: string[], flag: string): string {
     throw new Error(`Missing argument after ${flag}`);
   }
   return argv[index + 1];
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function runShellCommand(input: {

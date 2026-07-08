@@ -851,10 +851,22 @@ var CLAUDE_TRANSIENT_EXIT_PATTERNS = [
   /API Error: Repeated 529 Overloaded errors/i
 ];
 var CODEX_TRANSIENT_EXIT_PATTERNS = [
-  // No Codex CLI-specific transient stderr evidence in project artifacts yet.
+  // Evidence: installed codex-cli 0.142.5 binary strings include these
+  // rate-limit and overload messages in provider-facing error paths.
+  /rate limiter has requested a/i,
+  /failed to fetch codex rate limits/i,
+  /unknown rate limit reached type/i,
+  /dropping overload response for connection/i,
+  /try again at/i
 ];
 var CURSOR_TRANSIENT_EXIT_PATTERNS = [
-  // No Cursor CLI-specific transient stderr evidence in project artifacts yet.
+  // Evidence: installed cursor-agent 2026.07.01 bundle contains these
+  // connection/session terminal reasons and network errors.
+  /connection_timeout/i,
+  /stream_error/i,
+  /session_error/i,
+  /session_aborted/i,
+  /network error/i
 ];
 var DEFAULT_PROVIDER_ADAPTERS = [
   {
@@ -2106,10 +2118,8 @@ function matchesJsonType(value, type) {
 }
 
 // src/consensus/provider-cli/structured-output.ts
-import { randomUUID as randomUUID3 } from "node:crypto";
 import { readFile as readFile3, rm as rm3, stat } from "node:fs/promises";
-import { tmpdir as tmpdir2 } from "node:os";
-import path4 from "node:path";
+import path5 from "node:path";
 import { fileURLToPath } from "node:url";
 
 // src/consensus/provider-cli/runtime-policy.ts
@@ -2216,8 +2226,11 @@ function unsupported(option, message) {
 }
 
 // src/consensus/provider-cli/submit-capture.ts
+import { randomUUID as randomUUID3 } from "node:crypto";
+import path4 from "node:path";
 var DEFAULT_SUBMIT_CAPTURE_MAX_BYTES = 1024 * 1024 * 10;
 var CONSENSUS_SUBMIT_MAX_BYTES_ENV = "CONSENSUS_SUBMIT_MAX_BYTES";
+var CONSENSUS_SUBMIT_CAPTURE_DIR = ".consensus/submit";
 var SubmitCaptureLimitError = class extends Error {
   bytes;
   maxBytes;
@@ -2251,6 +2264,15 @@ function assertWithinSubmitCaptureLimit(value, maxBytes) {
 }
 function submitCaptureLimitMessage(bytes, maxBytes) {
   return `Submitted verdict exceeds submit capture limit of ${maxBytes} bytes (${bytes} bytes).`;
+}
+function submitCaptureDirectory(cwd) {
+  return path4.resolve(cwd, CONSENSUS_SUBMIT_CAPTURE_DIR);
+}
+function submitCaptureFilePath(cwd, id = randomUUID3()) {
+  return path4.join(
+    submitCaptureDirectory(cwd),
+    `consensus-submit-${id}.json`
+  );
 }
 
 // src/consensus/provider-cli/structured-output.ts
@@ -2333,7 +2355,9 @@ async function runProviderTurn(request, dependencies = {}) {
   });
   const runSubprocess = dependencies.runSubprocess ?? runProviderSubprocess;
   const parentEnv = dependencies.parentEnv ?? process.env;
-  const submitCapturePath = submitCaptureFile();
+  const submitCapturePath = submitCaptureFilePath(
+    effectiveRequest.cwd ?? process.cwd()
+  );
   const maxSubmitBytes = submitCaptureMaxBytes(request.max_output_bytes);
   const submitCommand = dependencies.submitCommand ?? buildConsensusSubmitCommand();
   const childEnv = buildChildEnvironment({
@@ -2344,7 +2368,7 @@ async function runProviderTurn(request, dependencies = {}) {
       CONSENSUS_SUBMIT_COMMAND: submitCommand,
       CONSENSUS_SUBMIT_FILE: submitCapturePath,
       [CONSENSUS_SUBMIT_MAX_BYTES_ENV]: String(maxSubmitBytes),
-      CONSENSUS_SUBMIT_SCHEMA: path4.resolve(request.schema_path)
+      CONSENSUS_SUBMIT_SCHEMA: path5.resolve(request.schema_path)
     }
   });
   let validationFeedback;
@@ -2691,16 +2715,13 @@ function mergeDiagnostics(...diagnostics) {
 function exitClassificationDiagnostics(exitClassification) {
   return exitClassification ? { exit_classification: exitClassification } : void 0;
 }
-function submitCaptureFile() {
-  return path4.join(tmpdir2(), `consensus-submit-${randomUUID3()}.json`);
-}
 function buildConsensusSubmitCommand(input = {}) {
   const nodePath = input.nodePath ?? process.execPath;
   const cliPath = input.cliPath ?? currentConsensusCliPath();
   return `${shellQuote(nodePath)} ${shellQuote(cliPath)} submit --json -`;
 }
 function currentConsensusCliPath() {
-  if (process.argv[1]) return path4.resolve(process.argv[1]);
+  if (process.argv[1]) return path5.resolve(process.argv[1]);
   return fileURLToPath(import.meta.url);
 }
 function shellQuote(value) {

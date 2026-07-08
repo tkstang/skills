@@ -172,13 +172,39 @@ describe('provider adapter registry', () => {
     });
   });
 
-  it('applies an evidence-backed provider-specific transient signature', () => {
+  it('applies evidence-backed provider-specific transient signatures', () => {
     const registry = providerRegistry();
 
     expect(
       registry.get('claude')!.classifyRunFailure(
         providerExitFailure({
           stderr: 'API Error: Repeated 529 Overloaded errors.',
+        }),
+      ),
+    ).toMatchObject({
+      code: 'PROVIDER_EXIT',
+      retryable: true,
+      terminal_reason: 'provider_exit_transient',
+      exit_classification: 'transient',
+    });
+
+    expect(
+      registry.get('codex')!.classifyRunFailure(
+        providerExitFailure({
+          stderr: 'rate limiter has requested a pause; Try again at 12:34.',
+        }),
+      ),
+    ).toMatchObject({
+      code: 'PROVIDER_EXIT',
+      retryable: true,
+      terminal_reason: 'provider_exit_transient',
+      exit_classification: 'transient',
+    });
+
+    expect(
+      registry.get('cursor')!.classifyRunFailure(
+        providerExitFailure({
+          stderr: 'stream_error: session_error after network error',
         }),
       ),
     ).toMatchObject({

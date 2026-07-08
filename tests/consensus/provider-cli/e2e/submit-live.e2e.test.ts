@@ -134,9 +134,9 @@ function runtimePolicyFor(
   if (provider === 'codex') {
     return {
       permission_mode: 'non-interactive',
-      // p03 live evidence showed Codex read-only cannot write the current
-      // tmpdir sidecar on macOS; workspace-write is the passing live posture.
-      sandbox: process.env.CONSENSUS_LIVE_CODEX_SANDBOX ?? 'workspace-write',
+      // Submit capture now lives under the provider cwd instead of the process
+      // tmpdir, matching the DR-024 read-only relocation.
+      sandbox: process.env.CONSENSUS_LIVE_CODEX_SANDBOX ?? 'read-only',
       approval_policy: 'never',
     };
   }

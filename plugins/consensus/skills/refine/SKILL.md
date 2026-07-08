@@ -1,14 +1,14 @@
 ---
 name: refine
 description: Use when refining a draft and you want two AI peers to deliberate to convergence with structured verdicts, a final artifact, and a readable audit trail.
-version: '0.1.3'
+version: '0.1.4'
 license: MIT
 compatibility: Agent Skills baseline; requires Node.js 22+ and the generated consensus CLI.
 allowed-tools: Bash(node:*), Bash(consensus:*), Read, Write
 argument-hint: <input-artifact.md> [--goal "<refinement goal>"]
 metadata:
   author: thomas.stang
-  version: '0.1.3'
+  version: '0.1.4'
 ---
 
 # Refine
@@ -27,6 +27,8 @@ consensus preflight --json
 ```
 
 The wrapper fails closed when a requested peer is missing, unavailable, unsupported, or auth-required. Relay the named provider, status, and remediation hint from the provider inventory rather than retrying. Cursor auth problems should be described through `auth_required` inventory/preflight diagnostics, commonly caused by a locked OS keychain or an unauthenticated Cursor CLI.
+
+Provider `run` failures are reported in JSON envelopes. Terminal provider failures such as `ok: false`, `PROVIDER_EXIT`, `PROVIDER_INVALID_JSON`, or `PROVIDER_SCHEMA_VALIDATION` still exit process `0`; do not treat `$?` as success. Parse the envelope fields (`ok`, `code`, `retryable`, and `attempts.terminal_reason`) and report the structured failure. CLI usage failures (`CONSENSUS_CLI_USAGE`) exit `2`. The peer-facing `consensus submit` command is different: schema or capture failures exit nonzero so the peer can self-correct in-turn.
 
 ## Sequential Invocation
 

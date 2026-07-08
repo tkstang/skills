@@ -4,7 +4,7 @@ Scoped guidance for `plugins/consensus/`. Inherits the root `AGENTS.md`; this fi
 
 ## Architecture
 
-`plugins/consensus/` is a self-contained plugin: two provider CLI-backed AI peers deliberate over an artifact toward a converged result with an audit trail. It currently ships `refine` for markdown draft refinement and `evaluate` for artifact-vs-rubric evaluation. See `README.md` for the iteration modes (`--iteration`: `alternating` default for refine, `parallel_revision` default for evaluate, `parallel_synthesized`), the synthesizer/escalation/agency flags, and install paths.
+`plugins/consensus/` is a self-contained plugin: provider CLI-backed AI peers create, decide, plan, refine, evaluate, answer panel questions, or provide one-shot advisory takes with an audit trail. It currently ships seven skills: `create`, `decide`, `plan`, `refine`, `evaluate`, `panel`, and `phone-a-friend`. See `README.md` for the iteration modes (`--iteration`: `parallel_synthesized` default for create/decide/plan, `alternating` default for refine, `parallel_revision` default for evaluate), the synthesizer/escalation/agency flags, panel/advisory behavior, and install paths.
 
 ## Non-Negotiables
 
@@ -16,6 +16,5 @@ Scoped guidance for `plugins/consensus/`. Inherits the root `AGENTS.md`; this fi
 ## References
 
 - `README.md` — plugin scope, install paths, iteration modes, flags.
-- `skills/refine/SKILL.md` — the `refine` skill contract and operation.
-- `skills/evaluate/SKILL.md` — the `evaluate` skill contract and operation.
+- `skills/*/SKILL.md` — shipped skill contracts and operation.
 - `src/consensus/refine/consensus-refine.ts` and `src/consensus/evaluate/consensus-evaluate.ts` — canonical wrapper sources for path-safety helpers (`confineWrite`, `resolveOutputPath`, `resolveRunDir`, `readInputFile`, `INPUT_SIZE_CAP_BYTES`).

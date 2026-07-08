@@ -76,10 +76,10 @@ core consensus engine contract or adding runtime dependencies.
 
 ## Design Deltas
 
-- Codex read-only sandbox posture is documented as a limitation rather than a
-  shipped support claim for sidecar writes. The live evidence showed Codex can
-  reach the command in read-only mode but cannot write the current tmpdir sidecar,
-  so read-only support requires a future capture-path relocation.
+- Codex read-only sandbox posture was originally documented as a limitation
+  rather than a shipped support claim for sidecar writes. The 2026-07-07 follow-up
+  relocated submit capture under the provider turn cwd at `.consensus/submit/`,
+  removing the old tmpdir sidecar dependency.
 - Final review tightened the design by removing Codex native strict-output
   enforcement from submit-enabled turns and bounding submit capture size. Those
   changes became the shipped source of truth and were reflected in DR-024 and
@@ -117,8 +117,8 @@ core consensus engine contract or adding runtime dependencies.
 
 - Add an opt-in strict require-submission mode once submit adoption evidence is
   strong enough to justify terminal failure when no sidecar is present.
-- Relocate Codex read-only submit capture to a path writable under the relevant
-  sandbox before claiming read-only Codex sidecar support.
+- Codex read-only submit capture relocation is no longer open; the remaining
+  verdict-path hardening follow-up is strict require-submission mode.
 - Backoff/jitter for transient retries remains deferred because it adds wall-clock
   nondeterminism.
 

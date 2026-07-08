@@ -1,14 +1,14 @@
 ---
 name: phone-a-friend
 description: Use for one-shot advisory peer consultation when the host wants a structured second opinion and remains responsible for dispositioning the take.
-version: '0.1.1'
+version: '0.1.2'
 license: MIT
 compatibility: Agent Skills baseline; requires Node.js 22+ and the generated consensus CLI.
 allowed-tools: Bash(node:*), Bash(consensus:*), Read, Write
 argument-hint: ["<question or topic>"] [--peer <provider-id>]
 metadata:
   author: thomas.stang
-  version: '0.1.1'
+  version: '0.1.2'
 ---
 
 # Phone a Friend
@@ -47,6 +47,8 @@ node plugins/consensus/scripts/consensus.mjs preflight --json
 ```
 
 Relay provider-neutral diagnostics such as `missing`, `auth_required`, `unavailable`, or `unsupported` instead of retrying blindly.
+
+Provider `run` failures are reported in JSON envelopes. Terminal provider failures such as `ok: false`, `PROVIDER_EXIT`, `PROVIDER_INVALID_JSON`, or `PROVIDER_SCHEMA_VALIDATION` still exit process `0`; do not treat `$?` as success. Parse the envelope fields (`ok`, `code`, `retryable`, and `attempts.terminal_reason`) and report the structured failure. CLI usage failures (`CONSENSUS_CLI_USAGE`) exit `2`. The peer-facing `consensus submit` command is different: schema or capture failures exit nonzero so the peer can self-correct in-turn.
 
 ## Workflow
 

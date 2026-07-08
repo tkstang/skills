@@ -97,6 +97,9 @@ diagnostics, and permissions, and the per-skill pages for the full command set.
   `decide`, and `plan`. `refine` and `evaluate` remain shared-input only.
 - Sections converge independently; whole-document harmonization and deliberation
   metrics / cost caps remain deferred.
+- Verdict submission is best-effort by default: successful submit sidecars are
+  preferred, then wrappers fall back to final-message parsing. Strict
+  require-submission mode remains future work.
 - Cursor is supported as a host runtime and as a first-floor peer when its local
   CLI is authenticated. Treat `auth_required` inventory/preflight results as a
   local setup issue, not a retryable consensus failure.
