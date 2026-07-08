@@ -749,13 +749,19 @@ function parsePeers(value: unknown): string[] {
 
 function schemaPath() {
   return fileURLToPath(
-    new URL('../schemas/verdict-alternating.schema.json', import.meta.url),
+    new URL(
+      '../skills/refine/schemas/verdict-alternating.schema.json',
+      import.meta.url,
+    ),
   );
 }
 
 export function parallelSchemaPath() {
   return fileURLToPath(
-    new URL('../schemas/verdict-parallel.schema.json', import.meta.url),
+    new URL(
+      '../skills/refine/schemas/verdict-parallel.schema.json',
+      import.meta.url,
+    ),
   );
 }
 
@@ -768,7 +774,7 @@ export function peerSchemaPathForMode(mode: IterationMode) {
 
 export function synthesisSchemaPath() {
   return fileURLToPath(
-    new URL('../schemas/synthesis.schema.json', import.meta.url),
+    new URL('../skills/refine/schemas/synthesis.schema.json', import.meta.url),
   );
 }
 
@@ -1293,7 +1299,7 @@ export function consensusSharedCliPath(homeDir = os.homedir()) {
 }
 
 function defaultConsensusCliPath() {
-  return fileURLToPath(new URL('../../../scripts/consensus.mjs', import.meta.url));
+  return fileURLToPath(new URL('./consensus.mjs', import.meta.url));
 }
 
 export function resolveConsensusCliPathDetails({

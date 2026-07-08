@@ -25,7 +25,7 @@ import {
   resolveConsensusCliPath,
   runConsensusLoop,
   runProviderCliCommand
-} from './consensus-loop.mjs';
+} from '../../../scripts/consensus-loop.mjs';
 const MAX_ROUNDS_MIN = 1;
 const MAX_ROUNDS_MAX = 100;
 const PROVIDER_ID_PATTERN = /^[a-z][a-z0-9_-]{0,31}$/u;

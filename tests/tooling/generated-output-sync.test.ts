@@ -54,13 +54,9 @@ describe('generated output drift guard', () => {
     expect(result.stderr).toBe('');
     expect(result.stdout).toContain('consensus-loop: in sync');
     expect(result.stdout).toContain('consensus-refine: in sync');
-    expect(result.stdout).toContain('consensus-evaluate-loop: in sync');
     expect(result.stdout).toContain('consensus-evaluate: in sync');
-    expect(result.stdout).toContain('consensus-create-loop: in sync');
     expect(result.stdout).toContain('consensus-create: in sync');
-    expect(result.stdout).toContain('consensus-decide-loop: in sync');
     expect(result.stdout).toContain('consensus-decide: in sync');
-    expect(result.stdout).toContain('consensus-plan-loop: in sync');
     expect(result.stdout).toContain('consensus-plan: in sync');
     expect(result.stdout).toContain('consensus-panel-config: in sync');
     expect(result.stdout).toContain('consensus-panel: in sync');
@@ -106,10 +102,7 @@ describe('generated output drift guard', () => {
 
     expect(script).toContain('src/consensus/core/consensus-loop.ts');
     expect(script).toContain(
-      'plugins/consensus/skills/refine/scripts/consensus-loop.mjs',
-    );
-    expect(script).toContain(
-      'plugins/consensus/skills/evaluate/scripts/consensus-loop.mjs',
+      'plugins/consensus/scripts/consensus-loop.mjs',
     );
     expect(script).toContain('src/consensus/refine/consensus-refine.ts');
     expect(script).toContain(
@@ -119,22 +112,13 @@ describe('generated output drift guard', () => {
     expect(script).toContain(
       'plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs',
     );
-    expect(script).toContain(
-      'plugins/consensus/skills/create/scripts/consensus-loop.mjs',
-    );
     expect(script).toContain('src/consensus/create/consensus-create.ts');
     expect(script).toContain(
       'plugins/consensus/skills/create/scripts/consensus-create.mjs',
     );
-    expect(script).toContain(
-      'plugins/consensus/skills/decide/scripts/consensus-loop.mjs',
-    );
     expect(script).toContain('src/consensus/decide/consensus-decide.ts');
     expect(script).toContain(
       'plugins/consensus/skills/decide/scripts/consensus-decide.mjs',
-    );
-    expect(script).toContain(
-      'plugins/consensus/skills/plan/scripts/consensus-loop.mjs',
     );
     expect(script).toContain('src/consensus/plan/consensus-plan.ts');
     expect(script).toContain(
@@ -195,6 +179,65 @@ describe('generated output drift guard', () => {
     expect(script).toContain(
       'skills/export-session-transcript/scripts/export-session-transcript.mjs',
     );
+  });
+
+  it('declares one shared plugin loop output and no per-skill loop outputs', () => {
+    const loopMappings = generatedOutputs.filter(
+      (mapping: any) =>
+        mapping.source === 'src/consensus/core/consensus-loop.ts',
+    );
+
+    expect(loopMappings).toEqual([
+      {
+        id: 'consensus-loop',
+        source: 'src/consensus/core/consensus-loop.ts',
+        output: 'plugins/consensus/scripts/consensus-loop.mjs',
+      },
+    ]);
+    expect(generatedOutputPaths).not.toContain(
+      'plugins/consensus/skills/refine/scripts/consensus-loop.mjs',
+    );
+    expect(generatedOutputPaths).not.toContain(
+      'plugins/consensus/skills/evaluate/scripts/consensus-loop.mjs',
+    );
+    expect(generatedOutputPaths).not.toContain(
+      'plugins/consensus/skills/create/scripts/consensus-loop.mjs',
+    );
+    expect(generatedOutputPaths).not.toContain(
+      'plugins/consensus/skills/decide/scripts/consensus-loop.mjs',
+    );
+    expect(generatedOutputPaths).not.toContain(
+      'plugins/consensus/skills/plan/scripts/consensus-loop.mjs',
+    );
+  });
+
+  it('resolves wrapper loop imports through the plugin-root scripts directory', () => {
+    const wrapperIds = [
+      'consensus-refine',
+      'consensus-evaluate',
+      'consensus-create',
+      'consensus-decide',
+      'consensus-plan',
+    ];
+    const sharedLoop = new URL(
+      '../../plugins/consensus/scripts/consensus-loop.mjs',
+      import.meta.url,
+    );
+
+    for (const wrapperId of wrapperIds) {
+      const mapping = generatedOutputs.find(
+        (candidate: any) => candidate.id === wrapperId,
+      );
+      expect(mapping).toBeDefined();
+
+      const loopRewrite = mapping.importRewrites.find(
+        (rewrite: any) => rewrite.from === '../core/consensus-loop.js',
+      );
+      expect(loopRewrite.to).toBe('../../../scripts/consensus-loop.mjs');
+
+      const wrapperOutput = new URL(`../../${mapping.output}`, import.meta.url);
+      expect(new URL(loopRewrite.to, wrapperOutput).href).toBe(sharedLoop.href);
+    }
   });
 
   it('documents generated runtime outputs for the creation skill family', async () => {
@@ -378,7 +421,7 @@ describe('generated output drift guard', () => {
     const { rewriteImportSpecifiers } = buildGenerated;
     const rewrite = {
       from: '../core/consensus-loop.js',
-      to: './consensus-loop.mjs',
+      to: '../../../scripts/consensus-loop.mjs',
     };
     const source = [
       'import { runConsensusLoop } from "../core/consensus-loop.js";',
@@ -391,11 +434,13 @@ describe('generated output drift guard', () => {
     const rewritten = rewriteImportSpecifiers(source, rewrite, 'test-mapping');
 
     expect(rewritten).toContain(
-      "import { runConsensusLoop } from './consensus-loop.mjs';",
+      "import { runConsensusLoop } from '../../../scripts/consensus-loop.mjs';",
     );
-    expect(rewritten).toContain("import './consensus-loop.mjs';");
     expect(rewritten).toContain(
-      "const dynamicLoop = () => import('./consensus-loop.mjs');",
+      "import '../../../scripts/consensus-loop.mjs';",
+    );
+    expect(rewritten).toContain(
+      "const dynamicLoop = () => import('../../../scripts/consensus-loop.mjs');",
     );
     expect(rewritten).toContain(
       'const diagnostic = "../core/consensus-loop.js";',
@@ -415,7 +460,7 @@ describe('generated output drift guard', () => {
         'const diagnostic = "../core/consensus-loop.js";',
         {
           from: '../core/consensus-loop.js',
-          to: './consensus-loop.mjs',
+          to: '../../../scripts/consensus-loop.mjs',
         },
         'test-mapping',
       ),

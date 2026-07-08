@@ -76,7 +76,7 @@ Use:
 node scripts/bump-version.mjs 0.1.0
 ```
 
-The bump script updates the three provider plugin manifests, the shipped consensus skill metadata (`refine` and `evaluate`), and any marketplace `version` fields that are already present. It does not add version fields to marketplace schemas that omit them.
+The bump script updates the three provider plugin manifests, the shipped consensus skill metadata listed in `scripts/bump-version.mjs`, and any marketplace `version` fields that are already present. It does not add version fields to marketplace schemas that omit them.
 
 Before pushing a release tag, verify the tag and manifests match:
 

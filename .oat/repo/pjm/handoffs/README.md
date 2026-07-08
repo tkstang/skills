@@ -22,9 +22,6 @@ Conventions:
 
 ## Current handoffs
 
-- [`BL-260620-share-consensus-generated.md`](./BL-260620-share-consensus-generated.md)
-  (`BL-260620-share-consensus-generated` — Share consensus generated runtime
-  output at the plugin level)
 - [`BL-260612-add-deliberation-metrics.md`](./BL-260612-add-deliberation-metrics.md)
   (`BL-260612-add-deliberation-metrics` — Add deliberation metrics to
   artifacts)

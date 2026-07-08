@@ -9,6 +9,8 @@
 <!-- OAT DECISION-INDEX -->
 | ID | Date | Status | Title | Legacy |
 | --- | --- | --- | --- | --- |
+| DR-260707-shared-consensus-loop-runtime | 2026-07-07 | accepted | Shared consensus loop runtime stays plugin-local | - |
+| DR-260707-standalone-consensus-installs | 2026-07-07 | accepted | Standalone consensus installs remain recovery-only | - |
 | DR-260705-skills-sh-listing-is-telemetry | 2026-07-05 | accepted | skills.sh listing is telemetry-seeded; never name internal skills in telemetry | - |
 | DR-260703-invocation-wins-over-persisted | 2026-07-03 | accepted | Invocation wins over persisted defaults | - |
 | DR-260703-moderator-stays-neutral | 2026-07-03 | accepted | Moderator stays neutral | - |
