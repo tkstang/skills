@@ -28,6 +28,8 @@ consensus preflight --json
 
 The wrapper fails closed when a requested peer is missing, unavailable, unsupported, or auth-required. Relay the named provider, status, and remediation hint from the provider inventory rather than retrying. Cursor auth problems should be described through `auth_required` inventory/preflight diagnostics, commonly caused by a locked OS keychain or an unauthenticated Cursor CLI.
 
+Provider `run` failures are reported in JSON envelopes. Terminal provider failures such as `ok: false`, `PROVIDER_EXIT`, `PROVIDER_INVALID_JSON`, or `PROVIDER_SCHEMA_VALIDATION` still exit process `0`; do not treat `$?` as success. Parse the envelope fields (`ok`, `code`, `retryable`, and `attempts.terminal_reason`) and report the structured failure. CLI usage failures (`CONSENSUS_CLI_USAGE`) exit `2`. The peer-facing `consensus submit` command is different: schema or capture failures exit nonzero so the peer can self-correct in-turn.
+
 ## Sequential Invocation
 
 For the default one-shot path, run the wrapper from this skill directory:

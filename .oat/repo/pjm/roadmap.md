@@ -23,7 +23,7 @@ What remains, in dependency order:
 1. **Remaining family skill** — `consensus-research` as a separate design/build project because peer tool access and evidence capture need their own durable decision; it uses `shared_input`, not `independent_draft`.
 2. **Harmonization pass** — whole-document coherence after independent section convergence.
 3. **Deliberation metrics** — tokens, wall-clock, rounds per section in the resolution block.
-4. **Convergence quality follow-ons** — similarity heuristic for near-match convergence (BL-260612-add-similarity-heuristic). Tool-based verdict submission (BL-260613-tool-based-verdict-submission) is now shipped as the submit-CLI + sidecar contract; remaining verdict-path follow-ups are opt-in strict require-submission mode and Codex read-only capture-path relocation.
+4. **Convergence quality follow-ons** — similarity heuristic for near-match convergence (BL-260612-add-similarity-heuristic). Tool-based verdict submission (BL-260613-tool-based-verdict-submission) is now shipped as the submit-CLI + sidecar contract; the Codex read-only capture-path relocation now writes under `.consensus/submit/`, leaving opt-in strict require-submission mode as the remaining verdict-path follow-up.
 
 ### Release / distribution
 

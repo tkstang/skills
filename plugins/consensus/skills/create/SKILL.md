@@ -28,6 +28,8 @@ consensus preflight --json
 
 The wrapper validates provider ID syntax and fails closed when a requested provider is missing, unavailable, unsupported, or auth-required. Relay the named provider, status, and remediation hint from the provider inventory rather than retrying blindly.
 
+Provider `run` failures are reported in JSON envelopes. Terminal provider failures such as `ok: false`, `PROVIDER_EXIT`, `PROVIDER_INVALID_JSON`, or `PROVIDER_SCHEMA_VALIDATION` still exit process `0`; do not treat `$?` as success. Parse the envelope fields (`ok`, `code`, `retryable`, and `attempts.terminal_reason`) and report the structured failure. CLI usage failures (`CONSENSUS_CLI_USAGE`) exit `2`. The peer-facing `consensus submit` command is different: schema or capture failures exit nonzero so the peer can self-correct in-turn.
+
 ## Create Invocation
 
 Run the wrapper from this skill directory with either an inline brief or a brief file:

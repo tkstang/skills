@@ -112,6 +112,14 @@ used:
 - `PROVIDER_UNAVAILABLE`
 - `PROVIDER_UNSUPPORTED_OPTION`
 
+Provider `run` results are machine-readable envelopes. Terminal provider
+failures such as `ok: false`, `PROVIDER_EXIT`, `PROVIDER_INVALID_JSON`, or
+`PROVIDER_SCHEMA_VALIDATION` still exit process `0`; shell callers must parse
+the JSON envelope instead of checking `$?`. CLI usage failures
+(`CONSENSUS_CLI_USAGE`) exit `2`. The peer-facing `consensus submit` subcommand
+uses ordinary nonzero exit codes for validation or capture failures so the peer
+can correct the verdict in-turn.
+
 ## Synthesizer
 
 In `parallel_synthesized` mode the synthesis call defaults to the first
@@ -145,8 +153,8 @@ path and is not selected by default.
 
 ## Permissions
 
-The consensus `create`, `decide`, `plan`, `refine`, and `evaluate` skills need
-permission to run:
+The consensus `create`, `decide`, `plan`, `refine`, `evaluate`, `panel`, and
+`phone-a-friend` skills need permission to run:
 
 - `node` for the wrapper and loop scripts.
 - `consensus` for provider inventory/preflight when exposed as a command.

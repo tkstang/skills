@@ -1,6 +1,4 @@
-import { randomUUID } from 'node:crypto';
 import { readFile, rm, stat } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -21,6 +19,7 @@ import {
   assertWithinSubmitCaptureLimit,
   CONSENSUS_SUBMIT_MAX_BYTES_ENV,
   submitCaptureMaxBytes,
+  submitCaptureFilePath,
 } from './submit-capture.js';
 import type { RunProviderSubprocessOptions } from './subprocess.js';
 import type { ProviderProcessResult } from './subprocess.js';
@@ -138,7 +137,9 @@ export async function runProviderTurn(
   });
   const runSubprocess = dependencies.runSubprocess ?? runProviderSubprocess;
   const parentEnv = dependencies.parentEnv ?? process.env;
-  const submitCapturePath = submitCaptureFile();
+  const submitCapturePath = submitCaptureFilePath(
+    effectiveRequest.cwd ?? process.cwd(),
+  );
   const maxSubmitBytes = submitCaptureMaxBytes(request.max_output_bytes);
   const submitCommand =
     dependencies.submitCommand ?? buildConsensusSubmitCommand();
@@ -584,10 +585,6 @@ function exitClassificationDiagnostics(
   return exitClassification
     ? { exit_classification: exitClassification }
     : undefined;
-}
-
-function submitCaptureFile() {
-  return path.join(tmpdir(), `consensus-submit-${randomUUID()}.json`);
 }
 
 export function buildConsensusSubmitCommand(input: {
