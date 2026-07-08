@@ -26,7 +26,7 @@ description = "OAT phase implementer pinned to medium reasoning effort for norma
 config_file = "agents/oat-phase-implementer-medium.toml"
 
 [agents.oat-phase-implementer-xhigh]
-description = "OAT phase implementer pinned to xhigh reasoning effort for the highest configured Codex dispatch ceiling."
+description = "OAT phase implementer pinned to xhigh reasoning effort for the highest configured Codex dispatch policy cap."
 config_file = "agents/oat-phase-implementer-xhigh.toml"
 
 [agents.oat-reviewer-high]
@@ -42,7 +42,7 @@ description = "OAT reviewer pinned to medium reasoning effort for normal multi-f
 config_file = "agents/oat-reviewer-medium.toml"
 
 [agents.oat-reviewer-xhigh]
-description = "OAT reviewer pinned to xhigh reasoning effort for the highest configured Codex dispatch ceiling."
+description = "OAT reviewer pinned to xhigh reasoning effort for the highest configured Codex dispatch policy cap."
 config_file = "agents/oat-reviewer-xhigh.toml"
 
 [agents.skeptical-evaluator]
