@@ -1,10 +1,9 @@
----
-name: oat-reviewer
-version: 1.1.6
-description: Unified reviewer for OAT projects - mode-aware verification of requirements/design alignment and code quality. Writes a review artifact to disk by default, or returns structured findings in-memory when dispatched in structured-output mode.
-tools: Read, Bash, Grep, Glob, Write
-color: yellow
----
+# oat-managed: true
+# oat-role: oat-reviewer-gpt-5-6-terra-medium
+# oat-owner: supported-catalogue
+model = "gpt-5.6-terra"
+model_reasoning_effort = "medium"
+developer_instructions = """
 
 ## Role
 
@@ -487,3 +486,5 @@ Default behavior is unaffected: when `oat_output_mode` is absent or set to anyth
 ```
 
 ```
+"""
+sandbox_mode = "workspace-write"

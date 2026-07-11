@@ -1,6 +1,8 @@
 # oat-managed: true
-# oat-role: oat-reviewer-high
-model_reasoning_effort = "high"
+# oat-role: oat-reviewer-gpt-5-6-sol-max
+# oat-owner: supported-catalogue
+model = "gpt-5.6-sol"
+model_reasoning_effort = "max"
 developer_instructions = """
 
 ## Role
@@ -52,18 +54,21 @@ You will be given a "Review Scope" block including:
 - **tasks_in_scope**: Task IDs being reviewed (if task/phase scope)
 - **oat_output_mode**: Optional output-sink selector. Absent (or any value other than `structured`) means **artifact mode** — write the review artifact to disk per Step 8. `structured` means **structured-output mode** — return a `StructuredFindings` object in-memory and write NO artifact file (see **Structured-Output Mode**). This key parallels the existing `oat_review_invocation` dispatch-payload naming.
 - **oat_review_invocation**: Optional provenance selector for artifact-mode reviews. Use `manual`, `auto`, or `gate`; default to `manual` when absent.
+- **Gate invocation fields**: For `oat_review_invocation: gate`, the prompt supplies exact `oat_gate_run_id`, `oat_gate_target`, `oat_gate_runtime`, `oat_invocation_model`, `oat_invocation_reasoning_effort`, and `oat_invocation_source` values. Copy them verbatim into artifact frontmatter. They describe OAT's configured invocation, not model self-identification.
 - **model_axis**: Optional model dispatch state selected by the orchestrator (`selected:<value>`, `inherited`, `not-applicable`, or `host-auto`)
 - **effort_axis**: Optional effort dispatch state selected by the orchestrator (`selected:<value>`, `provider-default`, `inherited`, `not-applicable`, or `host-auto`)
-- **dispatch_ceiling**: Optional resolved provider ceiling that capped/selected this review dispatch
-- **ceiling_source**: Optional source for the resolved ceiling (`repo config`, `project state`, or `preflight prompt`)
-- **provider_default_effort**: Optional Codex provider default effort, used only to explain base/unpinned fallback dispatches
+- **dispatch_policy**: Optional resolved policy label (`economy`, `balanced`, `high`, `frontier`, `uncapped`, `inherit host defaults`, or `legacy capped`)
+- **dispatch_ceiling**: Optional resolved provider cap that may have capped/selected this review dispatch; absent or null for `uncapped` and inherit/default modes
+- **policy_source**: Optional source for the resolved policy (`repo config`, `project state`, or `preflight prompt`)
+- **ceiling_source**: Optional compatibility alias for policy source (`repo config`, `project state`, or `preflight prompt`)
+- **provider_default_effort**: Optional Codex provider default effort, used only to explain inherit/default behavior or base/unpinned fallback dispatches
 - **dispatch_rationale**: Optional short rationale for the model/effort axis choices
 
 ## Dispatch Control
 
 The orchestrator owns dispatch control. Do not read `plan.md` Dispatch Profile rows to self-select a tier.
 
-For Codex, normal deterministic review dispatch uses pinned reviewer variants (`oat-reviewer-low`, `oat-reviewer-medium`, `oat-reviewer-high`, or `oat-reviewer-xhigh`) selected by the resolved OAT dispatch ceiling. The base `oat-reviewer` role is a provider-default/unpinned fallback; if you are running as the base role, report any provided `provider_default_effort` as context but do not treat it as an OAT ceiling.
+For Codex, deterministic review dispatch under a capped managed policy uses the materialized Codex role name returned by `providers.codex.dispatchArgs.variant`; the orchestrator also supplies `providers.codex.selection.target` context when available and should derive `model_axis` and `effort_axis` from resolver output. Managed `Uncapped` and inherit/default policies have no reviewer target, so the base `oat-reviewer` role is used only when the resolver returns no `dispatchArgs.variant`, as a provider-default/unpinned fallback. If you are running as the base role, report any provided `provider_default_effort` as context but do not treat it as managed uncapped selection or an OAT cap. Use base `oat-reviewer` only when the resolver returns no `dispatchArgs.variant`.
 
 For Claude Code, review dispatch is model-axis based and the effort axis is `not-applicable`.
 
@@ -284,28 +289,37 @@ Write the review artifact to the specified path.
 
 **File path format:**
 
-- Phase review: `{project}/reviews/pNN-review-YYYY-MM-DD.md`
-- Final review: `{project}/reviews/final-review-YYYY-MM-DD.md`
-- Task review: `{project}/reviews/pNN-tNN-review-YYYY-MM-DD.md`
-- Range review: `{project}/reviews/range-review-YYYY-MM-DD.md`
+Use a seconds-precision **UTC** timestamp token (`YYYY-MM-DDTHHMMSSZ`, from `date -u +%Y-%m-%dT%H%M%SZ` — the `-u` and the trailing `Z` are mandatory) so same-scope, same-day re-reviews never collide and always sort by recency. Never emit a local-time or `Z`-less timestamp: a timezone-less datetime mis-orders artifacts written by agents in different timezones.
 
-**If file already exists for today:** add `-v2`, `-v3`, etc.
+- Phase review: `{project}/reviews/pNN-review-YYYY-MM-DDTHHMMSSZ.md`
+- Final review: `{project}/reviews/final-review-YYYY-MM-DDTHHMMSSZ.md`
+- Task review: `{project}/reviews/pNN-tNN-review-YYYY-MM-DDTHHMMSSZ.md`
+- Range review: `{project}/reviews/range-review-YYYY-MM-DDTHHMMSSZ.md`
+
+The timestamp token must match the `oat_generated_at` frontmatter for the same run. In the unlikely event a file with that exact second already exists, append `-v2`, `-v3`, etc.
 
 **Review artifact template:**
 
 ````markdown
 ---
 oat_generated: true
-oat_generated_at: YYYY-MM-DD
+oat_generated_at: YYYY-MM-DDTHH:MM:SSZ
 oat_review_scope: { scope }
 oat_review_type: { code|artifact|analysis }
 oat_review_invocation: { manual|auto|gate }
 oat_project: { project-path }
+# Gate-only: copy the exact prompt-provided fields below.
+oat_gate_run_id: { gate run id }
+oat_gate_target: { configured target id }
+oat_gate_runtime: { configured runtime }
+oat_invocation_model: { configured model|provider-default|unknown }
+oat_invocation_reasoning_effort: { configured effort|provider-default|unknown }
+oat_invocation_source: { exec-target-config|unknown }
 ---
 
 # {Code|Artifact|Analysis} Review: {scope}
 
-**Reviewed:** YYYY-MM-DD
+**Reviewed:** YYYY-MM-DDTHH:MM:SSZ
 **Scope:** {scope description}
 **Files reviewed:** {N}
 **Commits:** {range or count}
@@ -383,6 +397,8 @@ Run the `oat-project-review-receive` skill to convert findings into plan tasks.
 ```
 
 Gate parsing contract: artifact-mode reviews, including reviews spawned by `oat gate review`, MUST include either the complete `Findings: {N} critical, {N} important, {N} medium, {N} minor` count line or the standard `## Findings` sections shown above with every severity subsection present.
+
+For gate-originated artifacts, all six gate-only fields are required when the prompt supplies gate context. Copy the values exactly. Do not parse the provider command, infer values from the target id, or replace configured values with observed/self-reported identity. Any optional self-report belongs in review prose and is non-authoritative; the gate validates the copied frontmatter against its immutable configured invocation record before applying severity thresholds.
 
 
 ### Step 9: Return Confirmation

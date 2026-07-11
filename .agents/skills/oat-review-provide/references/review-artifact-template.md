@@ -5,7 +5,7 @@ Use this template for non-project commit-range reviews.
 ````markdown
 ---
 oat_generated: true
-oat_generated_at: YYYY-MM-DD
+oat_generated_at: YYYY-MM-DDTHH:MM:SSZ
 oat_review_type: code
 oat_review_scope: { scope }
 oat_review_scope_mode: { files|unstaged|staged|range }
@@ -23,19 +23,25 @@ oat_review_mode: ad_hoc
 
 {2-3 sentence summary}
 
+Findings: {N} critical, {N} important, {N} medium, {N} minor
+
 ## Findings
 
 ### Critical
 
-{None or list}
+{If none: "None"}
 
 ### Important
 
-{None or list}
+{If none: "None"}
+
+### Medium
+
+{If none: "None"}
 
 ### Minor
 
-{None or list}
+{If none: "None"}
 
 ## Verification Commands
 

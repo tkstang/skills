@@ -1,6 +1,6 @@
 ---
 name: oat-project-next
-version: 1.0.5
+version: 1.0.7
 description: Use when continuing work on the active OAT project. Reads project state, determines the next lifecycle action, and invokes the appropriate skill automatically.
 disable-model-invocation: true
 user-invocable: true
@@ -220,7 +220,7 @@ Otherwise, look up the target skill from the routing table for the current `oat_
 | discovery     | in_progress  | tier 3        | `oat-project-discover`     |
 | discovery     | in_progress  | tier 2        | `oat-project-plan`         |
 | discovery     | complete     | tier 1        | `oat-project-plan`         |
-| plan          | in_progress  | tier 3        | `oat-project-plan`         |
+| plan          | in_progress  | tier 3        | `oat-project-quick-start`  |
 | plan          | in_progress  | tier 2        | `oat-project-implement` \* |
 | plan          | complete     | tier 1        | `oat-project-implement` \* |
 | implement     | in_progress  | —             | `oat-project-implement` \* |
@@ -260,6 +260,13 @@ Before dispatching the target skill, check for unprocessed review artifacts:
 Entry condition: `oat_phase == "implement"` AND (`oat_phase_status == "complete"` OR `oat_phase_status == "pr_open"`)
 
 Apply the following checks in priority order. Stop at the first match:
+
+**5.0: Incomplete approval-aware post-implementation sequence**
+
+Before every other post-implementation route, inspect `oat_post_implement_sequence`
+in project state. When the snapshot exists and is incomplete, route to
+`oat-project-implement`. This applies even when `oat_phase_status` is `pr_open`
+or a summary exists. A completed snapshot falls through to the normal router.
 
 **5.1: Incomplete revision tasks**
 
