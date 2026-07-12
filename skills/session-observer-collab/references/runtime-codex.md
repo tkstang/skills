@@ -126,3 +126,33 @@ Codex client. Mark live lifecycle continuation as documented-but-unvalidated
 until an actual exact trust breadcrumb, one substantive peer-triggered wake,
 range/cursor advance, cap behavior, steering observation, coexistence, and
 disarm have been measured against the acceptance matrix.
+
+## Automated acceptance subset (2026-07-12)
+
+The bounded acceptance command was run without touching live Codex hooks,
+trust records, leases, or session state:
+
+```text
+pnpm exec vitest run tests/session-observer-collab/codex-hook.test.ts tests/session-observer-collab/control.test.ts
+```
+
+Result: **2 test files passed, 32 tests passed**. This is automated proof only;
+it is not evidence that any live Codex harness row passed.
+
+| Acceptance area                 | Automated subset evidence                                                                                                                           | Live status                           |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| Exact-command trust/readiness   | Synthetic readiness fixtures classify exact trust, explicit disablement, omitted `enabled`, and `lastRanAt`.                                        | Not run; no live `/hooks` breadcrumb. |
+| One substantive trigger         | Synthetic peer digest produces one wake envelope and advances one claim.                                                                            | Not run.                              |
+| Exact range/cursor              | Asserts `records="0-2"` and `peerCursor: 3` for the claimed range.                                                                                  | Not run.                              |
+| Recurring two-continuation flow | Single continuation, CAS race, and cap exhaustion are covered; two automatic continuations in one session are not.                                  | Not run.                              |
+| Finite caps/expiry              | Cap exhaustion, lease expiry, and bounded wait expiry become terminal/idle.                                                                         | Not run.                              |
+| Waiting/idle states             | Stored wait deadlines and `wait-timeout` transitions are asserted.                                                                                  | Not run.                              |
+| No-op suppression               | `[no-op]` output does not spend continuation budget and ends in `idle` after timeout.                                                               | Not run.                              |
+| Queued input/steering           | No automated test in this subset exercises queued user input or steering.                                                                           | Not run.                              |
+| Hook coexistence                | Install is idempotent and preserves unrelated `Stop`/`SessionStart` entries; UI-row coexistence is not exercised.                                   | Not run.                              |
+| Stale-worktree pruning          | Identity mismatch fails closed; expired/capped/targeted disarmed pruning is covered. Missing-resource stale-worktree pruning is not exercised here. | Not run.                              |
+| Disarm                          | Idempotent disarm and exact-hook uninstall guards are covered.                                                                                      | Not run.                              |
+
+All live one-shot, recurring, timeout/input, coexistence, and disarm claims
+remain **documented but unvalidated** pending an independently evidenced Codex
+client run with no intervening user turn.
