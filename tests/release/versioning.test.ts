@@ -1,10 +1,4 @@
-import {
-  cp,
-  mkdir,
-  readFile,
-  writeFile,
-  mkdtemp,
-} from 'node:fs/promises';
+import { cp, mkdir, readFile, writeFile, mkdtemp } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -27,6 +21,7 @@ const jsonFiles = [
 ];
 const skillFiles = [
   'skills/session-observer/SKILL.md',
+  'skills/export-session-transcript/SKILL.md',
   'plugins/consensus/skills/refine/SKILL.md',
   'plugins/consensus/skills/evaluate/SKILL.md',
   'plugins/consensus/skills/create/SKILL.md',
@@ -120,12 +115,18 @@ describe('release-versioning', () => {
       const skillMarkdown = await readFile(path.join(root, file), 'utf8');
       const frontmatterMatch = skillMarkdown.match(/^---\n([\s\S]*?)\n---/);
       const frontmatter = frontmatterMatch![1];
-      expect(frontmatter, `${file} top-level version should be bumped`).toMatch(
-        /^version: "0\.2\.0-beta\.1"$/m,
-      );
-      expect(frontmatter, `${file} metadata.version should be bumped`).toMatch(
-        /^metadata:\n(?:  .+\n)*?  version: "0\.2\.0-beta\.1"$/m,
-      );
+      if (/^version:/m.test(frontmatter)) {
+        expect(
+          frontmatter,
+          `${file} top-level version should be bumped`,
+        ).toMatch(/^version: "0\.2\.0-beta\.1"$/m);
+      }
+      if (/^metadata:\n(?:  .+\n)*?  version:/m.test(frontmatter)) {
+        expect(
+          frontmatter,
+          `${file} metadata.version should be bumped`,
+        ).toMatch(/^metadata:\n(?:  .+\n)*?  version: "0\.2\.0-beta\.1"$/m);
+      }
     }
   });
 

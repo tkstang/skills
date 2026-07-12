@@ -283,10 +283,10 @@ describe('runWatchLoop', () => {
         1,
       );
 
-      const watchState = JSON.parse(
+      const savedWatchState = JSON.parse(
         await readFile(join(stateDir, 'watch.json'), 'utf8'),
       );
-      expect(watchState.active).toBe(null);
+      expect(savedWatchState.active).toBe(null);
     });
   });
 
@@ -518,7 +518,9 @@ describe('runWatchLoop', () => {
       expect(candidates[0].message).toContain('remains pinned');
 
       const state = await readJsonIfExists(join(stateDir, 'state.json'));
-      expect(state?.sessions?.[`claude-code:${watchedSessionId}`]).toBeDefined();
+      expect(
+        state?.sessions?.[`claude-code:${watchedSessionId}`],
+      ).toBeDefined();
       expect(state?.sessions?.['claude-code:newer-session']).toBeUndefined();
     });
   });
@@ -990,9 +992,9 @@ describe('runWatchLoop', () => {
       const state = JSON.parse(
         await readFile(join(stateDir, 'state.json'), 'utf8'),
       );
-      expect(state.sessions['claude-code:watch-quiet-empty'].lastRecordIndex).toBe(
-        2,
-      );
+      expect(
+        state.sessions['claude-code:watch-quiet-empty'].lastRecordIndex,
+      ).toBe(2);
     });
   });
 

@@ -387,7 +387,7 @@ async function findNewerSameCwdCandidates(runtime, targetCwd, watched) {
   const candidates = await discover(runtime, targetCwd);
   return candidates.filter(
     (candidate) => candidate.recordedCwd === targetCwd && candidate.sessionId !== watched.sessionId && candidate.transcriptPath !== watched.transcriptPath && candidate.mtime > watched.mtime
-  ).sort(
+  ).toSorted(
     (left, right) => right.mtime - left.mtime || left.transcriptPath.localeCompare(right.transcriptPath)
   );
 }

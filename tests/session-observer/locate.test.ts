@@ -202,10 +202,16 @@ test('findSessionCandidate returns only an exact same-cwd session match', async 
     const projectDir = join(home, '.claude', 'projects', encodeCwd(targetCwd));
     await mkdir(projectDir, { recursive: true });
     await writeFile(join(projectDir, 'one.jsonl'), CLAUDE_CODE_TYPICAL, 'utf8');
-    expect(await findSessionCandidate('claude-code', targetCwd, 'cc-session-001')).toMatchObject({
-      runtime: 'claude-code', sessionId: 'cc-session-001', recordedCwd: targetCwd,
+    expect(
+      await findSessionCandidate('claude-code', targetCwd, 'cc-session-001'),
+    ).toMatchObject({
+      runtime: 'claude-code',
+      sessionId: 'cc-session-001',
+      recordedCwd: targetCwd,
     });
-    expect(await findSessionCandidate('claude-code', targetCwd, 'missing')).toBeNull();
+    expect(
+      await findSessionCandidate('claude-code', targetCwd, 'missing'),
+    ).toBeNull();
   });
 });
 

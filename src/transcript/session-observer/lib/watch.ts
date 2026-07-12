@@ -119,7 +119,7 @@ function heartbeatMs(value: unknown): number | null {
 }
 
 function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+  return new Promise((complete) => setTimeout(complete, ms));
 }
 
 function stateDir(): string {
@@ -276,7 +276,9 @@ function baselineGapEvent(
   };
 }
 
-function targetIdentityEvidence(target: WatchTarget): TranscriptIdentityEvidence {
+function targetIdentityEvidence(
+  target: WatchTarget,
+): TranscriptIdentityEvidence {
   return {
     runtime: target.runtime,
     sessionId: target.sessionId,

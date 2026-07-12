@@ -41,7 +41,7 @@ function heartbeatMs(value) {
   return Math.max(1, numeric * 1e3);
 }
 function sleep(ms) {
-  return new Promise((resolve2) => setTimeout(resolve2, ms));
+  return new Promise((complete) => setTimeout(complete, ms));
 }
 function stateDir() {
   return process.env.STATE_DIR ?? join(homedir(), ".local", "state", "session-observer");

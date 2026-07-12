@@ -101,9 +101,7 @@ describe('generated output drift guard', () => {
     );
 
     expect(script).toContain('src/consensus/core/consensus-loop.ts');
-    expect(script).toContain(
-      'plugins/consensus/scripts/consensus-loop.mjs',
-    );
+    expect(script).toContain('plugins/consensus/scripts/consensus-loop.mjs');
     expect(script).toContain('src/consensus/refine/consensus-refine.ts');
     expect(script).toContain(
       'plugins/consensus/skills/refine/scripts/consensus-refine.mjs',

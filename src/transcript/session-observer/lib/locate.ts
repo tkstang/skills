@@ -660,10 +660,7 @@ export async function findSessionCandidate(
 export async function findNewerSameCwdCandidates(
   runtime: Runtime,
   targetCwd: string,
-  watched: Pick<
-    TranscriptCandidate,
-    'sessionId' | 'transcriptPath' | 'mtime'
-  >,
+  watched: Pick<TranscriptCandidate, 'sessionId' | 'transcriptPath' | 'mtime'>,
 ): Promise<TranscriptCandidate[]> {
   const candidates = await discover(runtime, targetCwd);
   return candidates
@@ -674,7 +671,7 @@ export async function findNewerSameCwdCandidates(
         candidate.transcriptPath !== watched.transcriptPath &&
         candidate.mtime > watched.mtime,
     )
-    .sort(
+    .toSorted(
       (left, right) =>
         right.mtime - left.mtime ||
         left.transcriptPath.localeCompare(right.transcriptPath),
