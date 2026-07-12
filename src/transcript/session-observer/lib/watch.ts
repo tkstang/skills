@@ -254,6 +254,42 @@ async function emitLockedTarget(
   await writeStdoutChunk(deps, lockedTargetLine(target));
 }
 
+function baselineGapEvent(
+  target: WatchTarget,
+  skippedFromIndex: number,
+  skippedToIndex: number,
+) {
+  return {
+    type: 'baseline-gap',
+    level: 'warning',
+    runtime: target.runtime,
+    sessionId: target.sessionId,
+    skippedFromIndex,
+    skippedToIndex,
+    nextIndex: target.baselineRecordIndex,
+    message: `standalone watch skipped unread range ${skippedFromIndex}-${skippedToIndex} for ${target.key}`,
+  };
+}
+
+async function emitBaselineGap(
+  args: WatchLoopArgs,
+  deps: ResolvedWatchDeps,
+  target: WatchTarget,
+  skippedFromIndex: number,
+  skippedToIndex: number,
+): Promise<void> {
+  const event = baselineGapEvent(target, skippedFromIndex, skippedToIndex);
+  if (args.json) {
+    await writeStdoutChunk(deps, JSON.stringify(event) + '\n');
+  } else {
+    await writeStdoutChunk(
+      deps,
+      `[session-observer] warning baseline-gap ${target.key} skippedRange=${skippedFromIndex}-${skippedToIndex}\n`,
+    );
+  }
+  await appendEventLog(args.eventLog, event);
+}
+
 async function emitWatchPosture(
   args: WatchLoopArgs,
   deps: ResolvedWatchDeps,
@@ -622,6 +658,18 @@ async function establishBaseline(
       'unknown',
     lockedAt: new Date(deps.now()).toISOString(),
   };
+  const skippedFromIndex = result.fromIndex;
+  const skippedToIndex = target.baselineRecordIndex - 1;
+  const hasStandaloneGap =
+    !args.catchUpFirst &&
+    result.sessionState !== null &&
+    skippedToIndex >= skippedFromIndex;
+  if (hasStandaloneGap && args.strictBaseline) {
+    await restoreConsumedBaseline(result);
+    throw new Error(
+      `strict baseline refused unread range ${skippedFromIndex}-${skippedToIndex} for ${key}`,
+    );
+  }
   try {
     await watchStateLib.recordWatcherTarget({ pid: eventState.pid, target });
   } catch (err) {
@@ -635,6 +683,9 @@ async function establishBaseline(
     // Best-effort metadata write; the loop still functions without it.
   }
   targets.set(key, target);
+  if (hasStandaloneGap) {
+    await emitBaselineGap(args, deps, target, skippedFromIndex, skippedToIndex);
+  }
   await emitLockedTarget(args, deps, target);
   await stateLib
     .setWatchedByPid(target.runtime, target.sessionId, eventState.pid)

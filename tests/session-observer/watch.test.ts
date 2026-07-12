@@ -270,6 +270,7 @@ describe('runWatchLoop', () => {
       ).toBeTruthy();
       expect(output.includes('baselineRecordIndex=1')).toBeTruthy();
       expect(output.includes('engagement=engaged')).toBeTruthy();
+      expect(output.includes('baseline-gap')).toBeFalsy();
       expect(
         !output.includes('old message that should not be emitted'),
       ).toBeTruthy();
@@ -285,6 +286,120 @@ describe('runWatchLoop', () => {
         await readFile(join(stateDir, 'watch.json'), 'utf8'),
       );
       expect(watchState.active).toBe(null);
+    });
+  });
+
+  test('warns with the skipped range when standalone watch advances a prior offset', async () => {
+    await withTempSessionHome(async (home, stateDir) => {
+      const cwd = '/test/watch-baseline-gap';
+      const sessionId = 'watch-baseline-gap';
+      const transcriptPath = await writeClaudeTranscript(home, cwd, sessionId, [
+        { content: 'already read' },
+        { content: 'skipped one' },
+        { content: 'skipped two' },
+      ]);
+      await writeFile(
+        join(stateDir, 'state.json'),
+        JSON.stringify({
+          schemaVersion: 1,
+          sessions: {
+            [`claude-code:${sessionId}`]: {
+              runtime: 'claude-code',
+              sessionId,
+              lastRecordIndex: 1,
+              lastTotalRecords: 1,
+              transcriptPath,
+              recordedCwd: cwd,
+            },
+          },
+        }),
+      );
+      const stdout: string[] = [];
+      let nowMs = Date.UTC(2026, 5, 3, 12, 0, 0);
+
+      await runWatchLoop(
+        {
+          runtime: 'claude-code',
+          cwd,
+          json: true,
+          pollSec: 0.02,
+          debounceSec: 0.02,
+          maxRuntimeMin: 0.004,
+        },
+        {
+          writeStdout: (chunk: string) => stdout.push(chunk),
+          now: () => nowMs,
+          sleep: async (ms: number) => {
+            nowMs += ms;
+          },
+        },
+      );
+
+      const events = stdout
+        .join('')
+        .trim()
+        .split('\n')
+        .map((line) => JSON.parse(line));
+      const gap = events.find((event) => event.type === 'baseline-gap');
+      expect(gap).toBeDefined();
+      expect(gap).toMatchObject({
+        type: 'baseline-gap',
+        runtime: 'claude-code',
+        sessionId,
+        skippedFromIndex: 1,
+        skippedToIndex: 2,
+        nextIndex: 3,
+      });
+    });
+  });
+
+  test('strict baseline refuses a standalone gap without advancing the prior offset', async () => {
+    await withTempSessionHome(async (home, stateDir) => {
+      const cwd = '/test/watch-strict-baseline-gap';
+      const sessionId = 'watch-strict-baseline-gap';
+      const transcriptPath = await writeClaudeTranscript(home, cwd, sessionId, [
+        { content: 'already read' },
+        { content: 'must not be skipped' },
+      ]);
+      await writeFile(
+        join(stateDir, 'state.json'),
+        JSON.stringify({
+          schemaVersion: 1,
+          sessions: {
+            [`claude-code:${sessionId}`]: {
+              runtime: 'claude-code',
+              sessionId,
+              lastRecordIndex: 1,
+              lastTotalRecords: 1,
+              transcriptPath,
+              recordedCwd: cwd,
+            },
+          },
+        }),
+      );
+
+      await expect(
+        runWatchLoop(
+          {
+            runtime: 'claude-code',
+            cwd,
+            strictBaseline: true,
+            pollSec: 0.02,
+            debounceSec: 0.02,
+            maxRuntimeMin: 0.004,
+          },
+          { writeStdout: () => {} },
+        ),
+      ).rejects.toThrow(
+        'strict baseline refused unread range 1-1 for claude-code:watch-strict-baseline-gap',
+      );
+
+      const state = JSON.parse(
+        await readFile(join(stateDir, 'state.json'), 'utf8'),
+      );
+      expect(state.sessions[`claude-code:${sessionId}`].lastRecordIndex).toBe(
+        1,
+      );
     });
   });
 
@@ -324,6 +439,7 @@ describe('runWatchLoop', () => {
         output.includes('baseline claude-code:watch-catch-up-first'),
       ).toBeTruthy();
       expect(output.includes('unread backlog should be emitted')).toBeTruthy();
+      expect(output.includes('baseline-gap')).toBeFalsy();
 
       const state = JSON.parse(
         await readFile(join(stateDir, 'state.json'), 'utf8'),
