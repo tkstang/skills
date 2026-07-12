@@ -109,9 +109,10 @@ describe('repo-layout', () => {
     ];
 
     for (const relativePath of requiredFiles) {
-      expect(await pathExists(relativePath), `${relativePath} should exist`).toBe(
-        true,
-      );
+      expect(
+        await pathExists(relativePath),
+        `${relativePath} should exist`,
+      ).toBe(true);
     }
   });
 

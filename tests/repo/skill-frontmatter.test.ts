@@ -31,7 +31,10 @@ const collaborationSkillPath = new URL(
   '../../skills/session-observer-collab/SKILL.md',
   import.meta.url,
 );
-const bumpVersionPath = new URL('../../scripts/bump-version.mjs', import.meta.url);
+const bumpVersionPath = new URL(
+  '../../scripts/bump-version.mjs',
+  import.meta.url,
+);
 const skillPaths = [
   refineSkillPath,
   evaluateSkillPath,
@@ -251,9 +254,7 @@ describe('skill-frontmatter', () => {
     const block = frontmatter(markdown);
 
     const hint = field(block, 'argument-hint');
-    expect(hint, 'argument-hint should mention inline goals').toMatch(
-      /--goal/,
-    );
+    expect(hint, 'argument-hint should mention inline goals').toMatch(/--goal/);
     expect(hint, 'argument-hint should mention inline constraints').toMatch(
       /--constraints/,
     );
@@ -326,9 +327,7 @@ describe('skill-frontmatter', () => {
   it('panel skill is included in version bump tooling', async () => {
     const script = await readFile(bumpVersionPath, 'utf8');
 
-    expect(script).toMatch(
-      /plugins\/consensus\/skills\/panel\/SKILL\.md/,
-    );
+    expect(script).toMatch(/plugins\/consensus\/skills\/panel\/SKILL\.md/);
   });
 
   it('skill instructions cover host orchestration responsibilities', async () => {
