@@ -429,7 +429,7 @@ Do not run generated builds concurrently. The p04/p05 workers verify their scope
 
 | Scope  | Type     | Status  | Date | Artifact |
 | ------ | -------- | ------- | ---- | -------- |
-| p01    | code     | pending | -    | -        |
+| p01    | code     | passed  | 2026-07-12 | managed review after fix iteration 2/2 |
 | p02    | code     | pending | -    | -        |
 | p03    | code     | pending | -    | -        |
 | p04    | code     | pending | -    | -        |

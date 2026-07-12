@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-12
-oat_current_task_id: p01-t01
+oat_current_task_id: p02-t01
 oat_generated: false
 ---
 
@@ -18,21 +18,31 @@ oat_generated: false
 
 | Phase | Status | Tasks | Completed |
 | --- | --- | ---: | ---: |
-| p01 — Transcript semantics | in_progress | 4 | 0 |
-| p02 — Identity and watch behavior | pending | 5 | 0 |
+| p01 — Transcript semantics | completed | 4 | 4 |
+| p02 — Identity and watch behavior | in_progress | 5 | 0 |
 | p03 — Collaboration protocol/control | pending | 4 | 0 |
 | p04 — Codex adapter | pending | 3 | 0 |
 | p05 — Cursor and Claude adapters | pending | 3 | 0 |
 | p06 — Integration and closeout | pending | 5 | 0 |
 
-**Total:** 0/24 tasks completed
+**Total:** 4/24 tasks completed
 
 ## Phase p01: Normalize collaboration-bearing transcript semantics
 
-- [ ] `p01-t01` Render queued Claude input exactly once
-- [ ] `p01-t02` Classify synthetic wakes as automatic control input
-- [ ] `p01-t03` Buffer Cursor activity through terminal completion
-- [ ] `p01-t04` Guarantee recoverable user-message content
+- [x] `p01-t01` Render queued Claude input exactly once — `fabdb35`
+- [x] `p01-t02` Classify synthetic wakes as automatic control input — `16d774c`, fixes `ef39157`, `a964137`
+- [x] `p01-t03` Buffer Cursor activity through terminal completion — `355acca`, fixes `f003a02`, `ed6e411`
+- [x] `p01-t04` Guarantee recoverable user-message content — `2f77c65`, format `dc578e8`
+
+### Phase p01 Summary
+
+**Outcome:** Claude queued input is rendered once; automatic wake envelopes retain non-human provenance; Cursor turns emit only at terminal completion without losing buffered user/tool/assistant/diagnostic entries across incremental polls; user recovery pointers preserve original source indices.
+
+**Key files:** `src/transcript/core/runtimes.ts`, `src/transcript/session-observer/lib/{digest,session-classifier,types,watch}.ts`, and targeted runtime/observer fixtures and tests.
+
+**Verification:** 118 targeted tests passed across runtime, digest, watch, and locate suites; `pnpm run type-check`, changed-file `oxfmt --check`, and `git diff --check` passed.
+
+**Review:** Initial review found 1 Critical, 1 Important, and 1 Minor issue. Two bounded fix iterations resolved all findings; final managed review passed with zero findings.
 
 ## Phase p02: Harden identity and watch behavior
 
@@ -81,6 +91,48 @@ oat_generated: false
 ## Orchestration Runs
 
 <!-- orchestration-runs-start -->
+
+### Run 1 — 2026-07-12 15:20 CDT
+
+**Branch:** `session-observer-collab`
+**Tier:** 1
+**Policy:** merge-strategy=merge, retry-limit=2
+**Phases:** 1 executed, 1 passed, 0 failed, 0 stopped
+
+#### Phase Outcomes
+
+| Phase | Implementer | Review | Fix Iterations | Disposition |
+| --- | --- | --- | ---: | --- |
+| p01 | DONE | pass | 2/2 | completed on orchestration branch |
+
+#### Parallel Groups
+
+- p01: sequential
+
+#### Dispatch Notes
+
+- `Dispatch: scope=p01 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-high`
+- `Dispatch: scope=p01-t01 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-terra effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-terra-high`
+- `Dispatch: scope=p01-t02 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:medium dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-medium`
+- `Dispatch: scope=p01-t03 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:medium dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-medium`
+- `Dispatch: scope=p01-t04 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-terra effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-terra-high`
+- `Dispatch: scope=p01-t03 action=fix role=fix producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-high`
+- `Dispatch: scope=p01-t02 action=fix role=fix producer=unknown provenance=unknown model_axis=selected:gpt-5.6-luna effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-luna-high`
+- `Dispatch: scope=p01-t04 action=fix role=fix producer=unknown provenance=unknown model_axis=selected:gpt-5.6-luna effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-luna-high`
+- `Dispatch: scope=p01-t02 action=fix role=fix producer=unknown provenance=unknown model_axis=selected:gpt-5.6-luna effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-luna-high`
+- `Dispatch: scope=p01-t03 action=fix role=fix producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-high`
+- `Dispatch: scope=p01 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high`
+
+#### Outstanding Items
+
+- None
+
+#### Artifact / Design Deltas
+
+| Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
+| --- | --- | --- | --- | --- | --- | --- |
+| None | - | - | - | - | - | - |
+
 <!-- orchestration-runs-end -->
 
 ## Deviations from Plan / Design
