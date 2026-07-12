@@ -30,7 +30,22 @@ const CLI_PATH = fileURLToPath(
 const FIXTURES = join(__dirname, 'fixtures');
 const typicalClaude = join(FIXTURES, 'claude-code', 'typical.jsonl');
 const emptyClaude = join(FIXTURES, 'claude-code', 'empty.jsonl');
+const typicalCodex = join(FIXTURES, 'codex', 'typical.jsonl');
 const typicalCursor = join(FIXTURES, 'cursor', 'typical.jsonl');
+
+const HARNESS_ENV = {
+  CLAUDECODE: '',
+  CLAUDE_CODE_ENTRYPOINT: '',
+  CLAUDE_CODE_SESSION_ID: '',
+  CLAUDE_SESSION_ID: '',
+  CODEX_THREAD_ID: '',
+  CODEX_SESSION_ID: '',
+  CODEX_SANDBOX: '',
+  OPENAI_CODEX_SESSION_ID: '',
+  CURSOR_TRACE_ID: '',
+  CURSOR_AGENT: '',
+  CURSOR_SESSION_ID: '',
+};
 
 /**
  * Spawn the CLI with the given args and env.
@@ -42,7 +57,7 @@ function spawnCli(
   return spawnSync('node', [CLI_PATH, ...args], {
     encoding: 'utf8',
     timeout: 15000,
-    env: { ...process.env, ...env },
+    env: { ...process.env, ...HARNESS_ENV, ...env },
   });
 }
 
@@ -74,6 +89,45 @@ async function copyCursorTranscript(
   await mkdir(transcriptDir, { recursive: true });
   const transcriptPath = join(transcriptDir, `${sessionId}.jsonl`);
   await copyFile(typicalCursor, transcriptPath);
+  return transcriptPath;
+}
+
+async function copyClaudeTranscript(
+  home: string,
+  cwd: string,
+  sessionId: string,
+): Promise<string> {
+  const projectDir = join(
+    home,
+    '.claude',
+    'projects',
+    cwd.replace(/[/.]/g, '-'),
+  );
+  await mkdir(projectDir, { recursive: true });
+  const transcriptPath = join(projectDir, `${sessionId}.jsonl`);
+  const fixture = await readFile(typicalClaude, 'utf8');
+  await writeFile(
+    transcriptPath,
+    fixture.replaceAll('cc-session-001', sessionId),
+    'utf8',
+  );
+  return transcriptPath;
+}
+
+async function copyCodexTranscript(
+  home: string,
+  cwd: string,
+  sessionId: string,
+): Promise<string> {
+  const transcriptDir = join(home, '.codex', 'sessions', '2026', '07', '12');
+  await mkdir(transcriptDir, { recursive: true });
+  const transcriptPath = join(transcriptDir, `${sessionId}.jsonl`);
+  const fixture = await readFile(typicalCodex, 'utf8');
+  await writeFile(
+    transcriptPath,
+    `${JSON.stringify({ sessionId, payload: { type: 'session_meta', cwd } })}\n${fixture}`,
+    'utf8',
+  );
   return transcriptPath;
 }
 
@@ -129,6 +183,76 @@ describe('CLI subcommand dispatch', () => {
           .map((candidate: any) => candidate.sessionId)
           .toSorted(),
       ).toEqual(['cursor-one', 'cursor-two']);
+    } finally {
+      await rm(home, { recursive: true, force: true });
+    }
+  });
+
+  test('whoami recognizes supported harness aliases and runtime-only fallback', async () => {
+    const home = await mkdtemp(join(tmpdir(), 'cli-whoami-harnesses-'));
+    try {
+      const cwd = join(home, 'Code', 'project');
+      await copyClaudeTranscript(home, cwd, 'claude-one');
+      await copyCodexTranscript(home, cwd, 'codex-one');
+      await copyCursorTranscript(home, cwd, 'cursor-one');
+
+      const cases = [
+        ['CLAUDE_CODE_SESSION_ID', 'claude-one', 'claude-code'],
+        ['OPENAI_CODEX_SESSION_ID', 'codex-one', 'codex'],
+        ['CURSOR_SESSION_ID', 'cursor-one', 'cursor'],
+        ['CLAUDECODE', '1', 'claude-code'],
+        ['CLAUDE_CODE_ENTRYPOINT', 'cli', 'claude-code'],
+        ['CODEX_SANDBOX', 'workspace-write', 'codex'],
+        ['CURSOR_TRACE_ID', 'trace-one', 'cursor'],
+        ['CURSOR_AGENT', '1', 'cursor'],
+      ] as const;
+
+      for (const [name, value, runtime] of cases) {
+        const result = spawnCli(['whoami', '--cwd', cwd, '--json'], {
+          HOME: home,
+          STATE_DIR: join(home, '.state'),
+          [name]: value,
+        });
+        expect(
+          result.status,
+          `${name}: ${result.stderr}\n${result.stdout}`,
+        ).toBe(0);
+        const payload = JSON.parse(result.stdout);
+        expect(payload.runtime).toBe(runtime);
+        expect(payload.source).toBe(
+          name.endsWith('SESSION_ID')
+            ? 'harness-environment'
+            : 'same-cwd-transcript',
+        );
+      }
+    } finally {
+      await rm(home, { recursive: true, force: true });
+    }
+  });
+
+  test('whoami fails closed for conflicting harness signals and candidate ambiguity', async () => {
+    const home = await mkdtemp(join(tmpdir(), 'cli-whoami-conflicts-'));
+    try {
+      const cwd = join(home, 'Code', 'project');
+      await copyClaudeTranscript(home, cwd, 'claude-one');
+      await copyCodexTranscript(home, cwd, 'codex-one');
+
+      let result = spawnCli(['whoami', '--cwd', cwd, '--json'], {
+        HOME: home,
+        CLAUDECODE: '1',
+        CODEX_SANDBOX: 'workspace-write',
+      });
+      expect(result.status, `${result.stderr}\n${result.stdout}`).toBe(2);
+      expect(JSON.parse(result.stdout).noIdentity).toBe(true);
+
+      await copyCursorTranscript(home, cwd, 'cursor-one');
+      await copyCursorTranscript(home, cwd, 'cursor-two');
+      result = spawnCli(['whoami', '--cwd', cwd, '--json'], {
+        HOME: home,
+        CURSOR_AGENT: '1',
+      });
+      expect(result.status, `${result.stderr}\n${result.stdout}`).toBe(3);
+      expect(JSON.parse(result.stdout).ambiguousIdentity).toBe(true);
     } finally {
       await rm(home, { recursive: true, force: true });
     }

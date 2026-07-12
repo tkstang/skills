@@ -18,12 +18,38 @@ function parseExplicitSelf(value, sessionId) {
 }
 function harnessIdentity(env, runtime) {
   const signals = [
-    ["claude-code", env.CLAUDE_CODE_SESSION_ID ?? env.CLAUDE_SESSION_ID],
-    ["codex", env.CODEX_THREAD_ID ?? env.CODEX_SESSION_ID],
-    ["cursor", env.CURSOR_SESSION_ID]
+    {
+      runtime: "claude-code",
+      sessionIds: [env.CLAUDE_CODE_SESSION_ID, env.CLAUDE_SESSION_ID],
+      runtimeIndicators: [env.CLAUDECODE, env.CLAUDE_CODE_ENTRYPOINT]
+    },
+    {
+      runtime: "codex",
+      sessionIds: [
+        env.CODEX_THREAD_ID,
+        env.CODEX_SESSION_ID,
+        env.OPENAI_CODEX_SESSION_ID
+      ],
+      runtimeIndicators: [env.CODEX_SANDBOX]
+    },
+    {
+      runtime: "cursor",
+      sessionIds: [env.CURSOR_SESSION_ID],
+      runtimeIndicators: [env.CURSOR_TRACE_ID, env.CURSOR_AGENT]
+    }
   ];
-  const matches = signals.filter(([candidateRuntime]) => !runtime || candidateRuntime === runtime).filter(([, sessionId]) => Boolean(sessionId));
-  return matches.length === 1 ? { runtime: matches[0][0], sessionId: matches[0][1] } : null;
+  const matches = signals.filter((signal) => !runtime || signal.runtime === runtime).map((signal) => ({
+    runtime: signal.runtime,
+    sessionIds: [...new Set(signal.sessionIds.filter(Boolean))],
+    hasRuntimeIndicator: signal.runtimeIndicators.some(Boolean)
+  })).filter(
+    (signal) => signal.sessionIds.length > 0 || signal.hasRuntimeIndicator
+  );
+  if (matches.length !== 1 || matches[0].sessionIds.length > 1) return null;
+  return {
+    runtime: matches[0].runtime,
+    sessionId: matches[0].sessionIds[0]
+  };
 }
 async function resolveSelfIdentity(targetCwd, env = process.env) {
   const explicit = parseExplicitSelf(
