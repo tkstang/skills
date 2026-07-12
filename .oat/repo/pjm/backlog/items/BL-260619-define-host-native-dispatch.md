@@ -12,15 +12,17 @@ labels:
   - reserved
 assignee: null
 created: 2026-06-19T23:41:44Z
-updated: 2026-06-19T23:41:44Z
+updated: 2026-07-11T23:41:32Z
 associated_issues: []
 legacy_id: bl-3ca6
 ---
 
 ## Description
 
-`design.md:159` reserves **host-native dispatch** for a future project. The
-shipped first-scope provider CLI deliberately does **not** implement it:
+The shipped provider-CLI capability contract in
+`src/consensus/provider-cli/types.ts` reserves **host-native dispatch** for a
+future project. The shipped first-scope provider CLI deliberately does **not**
+implement it:
 
 - All first-scope adapters report `supports_host_native_dispatch: false`.
 - The `host_native_safe_packet_required` guard value is a **reserved vocabulary
@@ -32,7 +34,7 @@ contents, the conversation-history boundary, the execution contract, the audit
 fields, and the safety checks.
 
 This is a **thin seed** so the reserved seam has a tracked home rather than
-living only as commentary in `design.md`. It is **speculative and large**, not
+living only in the provider-CLI contract. It is **speculative and large**, not
 near-term work; the value is preventing the reserved capability flags and
 vocabulary from being orphaned or accidentally enabled without a real contract.
 
@@ -42,8 +44,9 @@ vocabulary from being orphaned or accidentally enabled without a real contract.
 flip a flag without the safety/history/audit contract the design requires. A
 seed item keeps the gate explicit.
 
-Cross-link: [[bl-bb7e]] (done — shipped the provider CLI that established these
-reserved capability flags).
+Cross-link: **BL-260613-investigate-in-house-peer** — Investigate in-house
+peer-invocation CLI to reduce/replace the external peer-run dependency (done;
+shipped the provider CLI that established these reserved capability flags).
 
 ## Acceptance Criteria
 

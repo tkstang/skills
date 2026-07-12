@@ -1,69 +1,31 @@
 # Handoff: Add Deliberation Metrics (Tokens, Wall-Clock, Rounds) to Artifacts
 
-**Backlog item:** `.oat/repo/pjm/backlog/items/BL-260612-add-deliberation-metrics.md`
-(`BL-260612-add-deliberation-metrics` — Add deliberation metrics (tokens,
-wall-clock, rounds) to artifacts)
-**Mode:** `/oat-project-quick-start` — pre-populate spec from the v3
-architecture's resolution-block requirements rather than re-deriving them.
-Run this and `BL-260612-add-similarity-heuristic` (similarity heuristic for
-near-converged states) as **one loop-quality project in one worktree** —
-same loop-core neighborhood, one regeneration arc; see the loop-quality
-grouping in `backlog/reviews/priority-alignment.md`.
-
-**Sequencing gate:** do **not** start until
-`BL-260620-share-consensus-generated` (share consensus generated runtime
-output) lands or closes — this project regenerates loop output, and the
-dedup project owns that surface first. On a dedup "go," you regenerate one
-shared loop script; on a documented no-go, five per-skill copies.
+**Backlog item:** [`BL-260612-add-deliberation-metrics` — Add deliberation metrics (tokens, wall-clock, rounds) to artifacts](../backlog/items/BL-260612-add-deliberation-metrics.md)
+**Mode:** `/oat-project-quick-start` — run this first in the single **loop-quality** project and worktree with [`BL-260612-add-similarity-heuristic` — Add similarity heuristic for near-converged deliberation states](../backlog/items/BL-260612-add-similarity-heuristic.md). The generated-runtime dedup work is already shipped; no packaging-window gate remains.
 
 ## Mission
 
-Make every consensus artifact's resolution block report total rounds,
-per-section rounds, wall-clock, and token/cost figures where providers
-expose them — with explicit "unavailable" semantics where they don't (omit
-rather than guess). Metrics must be consistent across alternating and
-parallel iteration modes and must survive resume. Also deliver the
-feasibility note on `--max-cost-per-section` / `--max-cost-total` budget
-caps (record in the item or split a successor).
+Make consensus artifacts consistently report total rounds, per-section rounds, wall-clock, and token/cost figures only where provider signals are actually available. Preserve explicit unavailable semantics rather than estimating or guessing. Record whether `--max-cost-per-section` or `--max-cost-total` can become a real follow-up.
 
-## Authoritative inputs (populate spec from these)
+## Authoritative inputs
 
-- `.oat/repo/reference/research/consensus/architecture-v3.md` — the
-  resolution-block metrics spec and the cost-cap open question.
-- `src/consensus/core/consensus-loop.ts` — existing scaffolding:
-  `LoopStatus` already carries turn/round counts and `cost_source`
-  (`provider_cli|estimated|unavailable`) + `approximate_cost_usd` fields;
-  records carry timestamps but no aggregated duration.
-- `src/consensus/provider-cli/types.ts` — the run envelope
-  (`ConsensusCliRunEnvelope`): today it exposes attempts + diagnostics
-  (output bytes, timeout) but **no token or cost data from any adapter**.
-  Half this project is investigating what the Claude/Codex/Cursor CLIs can
-  actually emit per run (`src/consensus/provider-cli/` adapters) and wiring
-  only what exists.
-- Resume/corruption test suites under `tests/consensus/refine/` — metrics
-  must survive the resume paths those tests cover.
+- The backlog item and `.oat/repo/reference/research/consensus/architecture-v3.md` — resolution-block requirements and the cost-cap question.
+- `src/consensus/core/consensus-loop.ts` — existing `LoopStatus` cost fields and canonical loop records.
+- `src/consensus/provider-cli/types.ts` plus `src/consensus/provider-cli/adapters.ts` — the owned provider-CLI run envelope and actual provider signals; do not revive historical Paseo assumptions.
+- `src/consensus/{create,decide,evaluate,plan,refine}/` and `tests/consensus/` — wrapper rendering, resume, and artifact-schema coverage that must stay consistent.
+
+## Sequencing and scope
+
+- This project is **now**. It may run while [`BL-260612-add-consensus-research-skill` — Add consensus-research skill](../backlog/items/BL-260612-add-consensus-research-skill.md) is in its design/DR phase, but not while a research-wrapper build is changing the shared loop.
+- Complete metrics before the similarity heuristic; keep both in one worktree and one regeneration arc.
+- Do not pull in whole-document harmonization; [`BL-260612-add-whole-document` — Add whole-document harmonization pass](../backlog/items/BL-260612-add-whole-document.md) is the next separate project.
 
 ## Repo conventions and gates
 
-- Canonical TS under `src/`; `pnpm run build` regenerates committed `.mjs`;
-  `pnpm run build:check` catches drift. Never hand-edit `// GENERATED`
-  outputs.
-- Metrics changes touch shipped skill output → **version bumps** for every
-  affected consensus skill (`pnpm run validate:skill-versions -- --base-ref
-  <ref>` enforces; top-level `version` and `metadata.version` in sync).
-- Artifact/schema additions must stay inside the v1 record schema
-  discipline (see `DR-260613-unified-v1-verdict-schema.md` for the shape of
-  that contract) — additive fields, no breaking renames.
-- Definition of done: `pnpm test`, `pnpm run build:check`, `npm run
-  validate`, `npm run smoke`; docs updated in the Fumadocs site via
-  `oat-project-document`, not README.
+- Canonical TypeScript is under `src/`; run `pnpm run build` to regenerate committed runtime output, then `pnpm run build:check`. Never hand-edit generated files.
+- A changed canonical skill needs its `SKILL.md` version bumped and its top-level and metadata versions kept in sync. Add any new shipped skill to `scripts/bump-version.mjs` when applicable.
+- Verify with `pnpm test`, `pnpm run build:check`, `pnpm run validate`, and `pnpm run smoke`. Document user-facing behavior in the Fumadocs site via `oat-project-document` when needed.
 
-## Close-out (same PR — no exceptions)
+## Close-out — same shipping PR
 
-Follow the **Backlog Lifecycle** in `.oat/repo/pjm/AGENTS.md`: set the item
-`status: closed` + bump `updated`, append the `backlog/completed.md` entry,
-`git mv` the item to `backlog/archived/`, run `oat backlog
-regenerate-index`, refresh `current-state.md` and the curated overview.
-**Then delete this handoff file
-(`git rm .oat/repo/pjm/handoffs/BL-260612-add-deliberation-metrics.md`) in
-the same PR** — it is consumed context, not documentation.
+Follow the **Backlog Lifecycle** in `.oat/repo/pjm/AGENTS.md`: close and archive [`BL-260612-add-deliberation-metrics` — Add deliberation metrics](../backlog/items/BL-260612-add-deliberation-metrics.md), update `backlog/completed.md`, regenerate `backlog/index.md`, and refresh the operating picture if needed. Delete this handoff with `git rm .oat/repo/pjm/handoffs/BL-260612-add-deliberation-metrics.md` in that same PR. If the project ships both current loop-quality items, delete the paired similarity handoff there too.
