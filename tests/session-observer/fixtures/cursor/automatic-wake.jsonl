@@ -1,0 +1,2 @@
+{"role":"user","sessionId":"cursor-auto-wake","cwd":"/tmp/project","message":{"content":[{"type":"text","text":"{\"session_observer_wake\":{\"automatic\":true,\"runtime\":\"claude-code\",\"leaseId\":\"lease-cursor-1\",\"pinnedPeer\":{\"runtime\":\"claude-code\",\"sessionId\":\"peer-claude\"},\"range\":{\"fromIndex\":12,\"toIndex\":15}}}"}]}}
+{"role":"assistant","sessionId":"cursor-auto-wake","cwd":"/tmp/project","message":{"content":[{"type":"text","text":"I inspected the requested peer range."}]}}

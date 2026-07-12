@@ -85,10 +85,7 @@ function applyTailSlice(
 }
 
 function renderedCharCount(entries: DigestEntry[]): number {
-  return entries.reduce(
-    (sum, entry) => sum + (entry.text?.length ?? 0),
-    0,
-  );
+  return entries.reduce((sum, entry) => sum + (entry.text?.length ?? 0), 0);
 }
 
 // ---------------------------------------------------------------------------
@@ -415,19 +412,16 @@ export async function buildDigest(
         : fullEntriesInRawRange.filter((e) => e.kind === 'tool_call').length,
       toolResults: includeToolResults
         ? 0
-        : fullEntriesInRawRange.filter(
-            (e) => e.kind === 'tool_result',
-          ).length,
+        : fullEntriesInRawRange.filter((e) => e.kind === 'tool_result').length,
       commandMessages: includeCommandMessages
         ? 0
-        : fullEntriesInRawRange.filter(
-            (e) => e.kind === 'command_message',
-          ).length,
+        : fullEntriesInRawRange.filter((e) => e.kind === 'command_message')
+            .length,
       bootstrapRecords: [...bootstrapRecordIndexes].filter(
         (index) => index >= rawFromIndex,
       ).length,
-      bootstrapMessages: fullEntriesInRawRangeBeforeBootstrap.filter(
-        (e) => bootstrapRecordIndexes.has(e.recordIndex),
+      bootstrapMessages: fullEntriesInRawRangeBeforeBootstrap.filter((e) =>
+        bootstrapRecordIndexes.has(e.recordIndex),
       ).length,
       metadataRecords: [...rawRecordIndexes].filter(
         (index) => !rawRecordIndexesWithAnyEntry.has(index),
@@ -489,9 +483,11 @@ export function renderMarkdown(digest: Digest): string {
       const header =
         group[0].displayRole === 'queued-user'
           ? '### User (queued mid-turn)'
-          : role === 'user'
-            ? '### User'
-            : '### Assistant';
+          : group[0].displayRole === 'automatic-control'
+            ? '### Hook/control (automatic)'
+            : role === 'user'
+              ? '### User'
+              : '### Assistant';
       parts.push(header);
       parts.push('');
       for (const entry of group) {

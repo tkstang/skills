@@ -28,12 +28,29 @@ export interface TranscriptMeta {
 }
 
 export type DigestEntryRole = 'user' | 'assistant';
-export type DigestEntryDisplayRole = 'queued-user';
+export type DigestEntryDisplayRole = 'queued-user' | 'automatic-control';
+export type DigestEntryOrigin =
+  | 'human'
+  | 'automatic-control'
+  | 'runtime-diagnostic';
 export type DigestEntryKind =
   | 'message'
   | 'tool_call'
   | 'tool_result'
   | 'command_message';
+
+export interface AutomaticControlProvenance {
+  automatic: true;
+  runtime: string;
+  leaseId: string;
+  pinnedPeer: JsonObject | string;
+  range: {
+    fromIndex: number;
+    toIndex: number;
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+}
 
 export interface DigestEntry {
   role: DigestEntryRole;
@@ -41,6 +58,8 @@ export interface DigestEntry {
   recordIndex: number;
   kind: DigestEntryKind;
   displayRole?: DigestEntryDisplayRole;
+  origin?: DigestEntryOrigin;
+  automaticControl?: AutomaticControlProvenance;
   toolName?: string;
 }
 
@@ -90,6 +109,65 @@ function isObject(value: unknown): value is JsonObject {
  */
 function asString(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined;
+}
+
+function parseAutomaticControlEnvelope(
+  text: string,
+): AutomaticControlProvenance | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  if (!isObject(parsed) || !isObject(parsed.session_observer_wake)) return null;
+
+  const wake = parsed.session_observer_wake;
+  const range = wake.range;
+  if (
+    wake.automatic !== true ||
+    !asString(wake.runtime) ||
+    !asString(wake.leaseId) ||
+    (!isObject(wake.pinnedPeer) && !asString(wake.pinnedPeer)) ||
+    !isObject(range) ||
+    !Number.isInteger(range.fromIndex) ||
+    !Number.isInteger(range.toIndex) ||
+    (range.fromIndex as number) < 0 ||
+    (range.toIndex as number) < (range.fromIndex as number)
+  ) {
+    return null;
+  }
+
+  return wake as AutomaticControlProvenance;
+}
+
+function messageEntry(
+  role: DigestEntryRole,
+  text: string,
+  recordIndex: number,
+  displayRole?: DigestEntryDisplayRole,
+): DigestEntry {
+  if (role === 'user') {
+    const automaticControl = parseAutomaticControlEnvelope(text);
+    if (automaticControl) {
+      return {
+        role,
+        text,
+        recordIndex,
+        kind: 'message',
+        displayRole: 'automatic-control',
+        origin: 'automatic-control',
+        automaticControl,
+      };
+    }
+  }
+  return {
+    role,
+    text,
+    recordIndex,
+    kind: 'message',
+    ...(displayRole ? { displayRole } : {}),
+  };
 }
 
 /**
@@ -222,7 +300,9 @@ export function encodeCwdVariants(runtime: Runtime, cwd: string): string[] {
  * @param {string} transcriptPath
  * @returns {Promise<object[]>}
  */
-export async function readRecords(transcriptPath: string): Promise<JsonObject[]> {
+export async function readRecords(
+  transcriptPath: string,
+): Promise<JsonObject[]> {
   const raw = await readFile(transcriptPath, 'utf8');
   if (!raw) return [];
 
@@ -452,7 +532,7 @@ function claudeEntriesFromContent(
       if (!opts.includeCommandMessages) return [];
       return [{ role, text: content, recordIndex, kind: 'command_message' }];
     }
-    return [{ role, text: content, recordIndex, kind: 'message' }];
+    return [messageEntry(role, content, recordIndex)];
   }
   if (!Array.isArray(content)) return [];
 
@@ -508,7 +588,7 @@ function claudeEntriesFromContent(
       if (!opts.includeCommandMessages) return [];
       return [{ role, text, recordIndex, kind: 'command_message' }];
     }
-    return text ? [{ role, text, recordIndex, kind: 'message' }] : [];
+    return text ? [messageEntry(role, text, recordIndex)] : [];
   });
 }
 
@@ -568,15 +648,7 @@ function normalizeClaudeCode(
     ) {
       const content = asString(record.content);
       return content
-        ? [
-            {
-              role: 'user',
-              displayRole: 'queued-user',
-              text: content,
-              recordIndex,
-              kind: 'message',
-            },
-          ]
+        ? [messageEntry('user', content, recordIndex, 'queued-user')]
         : [];
     }
 
@@ -594,15 +666,7 @@ function normalizeClaudeCode(
         return [];
       }
       attachmentOnlyContents.add(prompt);
-      return [
-        {
-          role: 'user',
-          displayRole: 'queued-user',
-          text: prompt,
-          recordIndex,
-          kind: 'message',
-        },
-      ];
+      return [messageEntry('user', prompt, recordIndex, 'queued-user')];
     }
 
     // Determine role
@@ -668,16 +732,14 @@ function normalizeCodex(
 
     const content = payload.content;
     if (typeof content === 'string') {
-      return content
-        ? [{ role, text: content, recordIndex, kind: 'message' }]
-        : [];
+      return content ? [messageEntry(role, content, recordIndex)] : [];
     }
     if (!Array.isArray(content)) return [];
 
     return content.flatMap((block): DigestEntry[] => {
       if (!isObject(block)) return [];
       const text = asString(block.text) ?? asString(block.content);
-      return text ? [{ role, text, recordIndex, kind: 'message' }] : [];
+      return text ? [messageEntry(role, text, recordIndex)] : [];
     });
   });
 }
@@ -710,9 +772,7 @@ function normalizeCursor(
     const message = isObject(record.message) ? record.message : record;
     const content = message.content;
     if (typeof content === 'string') {
-      return content
-        ? [{ role, text: content, recordIndex, kind: 'message' }]
-        : [];
+      return content ? [messageEntry(role, content, recordIndex)] : [];
     }
     if (!Array.isArray(content)) return [];
 
@@ -735,7 +795,7 @@ function normalizeCursor(
       }
 
       const text = asString(block.text) ?? asString(block.content);
-      return text ? [{ role, text, recordIndex, kind: 'message' }] : [];
+      return text ? [messageEntry(role, text, recordIndex)] : [];
     });
   });
 }

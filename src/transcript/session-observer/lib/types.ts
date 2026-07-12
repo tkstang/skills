@@ -1,4 +1,12 @@
-import type { DigestEntry, JsonObject, Runtime } from '../../core/runtimes.js';
+import type {
+  AutomaticControlProvenance,
+  DigestEntry,
+  DigestEntryOrigin,
+  JsonObject,
+  Runtime,
+} from '../../core/runtimes.js';
+
+export type { AutomaticControlProvenance, DigestEntryOrigin };
 
 export type SessionObserverRuntime = Runtime;
 export type RuntimeSelection = Runtime | 'auto';
