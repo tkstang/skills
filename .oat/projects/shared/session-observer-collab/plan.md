@@ -436,11 +436,13 @@ Do not run generated builds concurrently. The p04/p05 workers verify their scope
 | final  | code     | pending | -    | -        |
 | spec   | artifact | pending | -    | N/A (quick mode) |
 | design | artifact | passed  | 2026-07-12 | inline co-author review |
-| plan   | artifact | received | 2026-07-12 | reviews/artifact-plan-review-2026-07-12T191919Z.md |
+| plan   | artifact | passed  | 2026-07-12 | managed structured review (clean) |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 
 Human co-author artifact review passed on 2026-07-12 with no Critical or Important findings; three Minor findings were resolved directly in the design/plan. The independent managed plan review then identified two Important readiness-bookkeeping issues; both were fixed, and the target-preserving re-review returned clean with no remaining findings.
+
+The configured cross-runtime quick-start gate was explicitly skipped by user direction after its first non-JSON run produced no eligibility envelope. That artifact was archived unconsumed and does not replace the clean managed plan-review disposition above.
 
 ## Implementation Complete
 

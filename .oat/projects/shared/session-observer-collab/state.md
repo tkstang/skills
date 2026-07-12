@@ -24,7 +24,7 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: "2026-07-12T17:48:10.523Z"
 oat_project_completed: null
-oat_project_state_updated: "2026-07-12T20:00:00Z"
+oat_project_state_updated: "2026-07-12T20:20:00Z"
 oat_generated: false
 ---
 
@@ -57,6 +57,7 @@ Plan complete and independently reviewed; implementation can start at `p01-t01`.
 - ✓ Managed High dispatch policy resolved
 - ✓ Phase gate review configured for `p06`
 - ✓ Plan artifact review passed after two bookkeeping fixes
+- ✓ Cross-runtime quick-start gate skipped by explicit user direction
 - ⧗ Ready for `oat-project-implement`
 
 ## Blockers

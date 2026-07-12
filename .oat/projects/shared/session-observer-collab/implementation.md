@@ -73,6 +73,7 @@ oat_generated: false
 
 - Human co-author review approved `design.md` and `plan.md`; three Minor artifact findings were applied.
 - Managed plan review found two Important readiness-bookkeeping issues; both were fixed and re-review passed clean.
+- Cross-runtime quick-start gate receipt was explicitly skipped by the user; its uncorroborated artifact was archived without consumption.
 - Project dispatch policy is managed `high` using the user-level candidate ladder.
 - Phase gate review is enabled for `p06` only.
 - HiLL phase selection remains intentionally unset until `oat-project-implement` confirms it.
