@@ -1,67 +1,31 @@
 # Handoff: Add Similarity Heuristic for Near-Converged Deliberation States
 
-**Backlog item:** `.oat/repo/pjm/backlog/items/BL-260612-add-similarity-heuristic.md`
-(`BL-260612-add-similarity-heuristic` — Add similarity heuristic for
-near-converged deliberation states)
-**Mode:** bank into the **same `/oat-project-quick-start` project and
-worktree** as `BL-260612-add-deliberation-metrics` (deliberation metrics) —
-one loop-quality arc, one loop-core opening, one regeneration pass. Sequence
-it second within that project. If run standalone for any reason, the same
-sequencing gate applies: not before `BL-260620-share-consensus-generated`
-(share consensus generated runtime output) lands or closes.
+**Backlog item:** [`BL-260612-add-similarity-heuristic` — Add similarity heuristic for near-converged deliberation states](../backlog/items/BL-260612-add-similarity-heuristic.md)
+**Mode:** `/oat-project-quick-start` — the second item in the current **loop-quality** project and worktree, immediately after [`BL-260612-add-deliberation-metrics` — Add deliberation metrics](../backlog/items/BL-260612-add-deliberation-metrics.md). The generated-runtime dedup work is already shipped; no packaging-window gate remains.
 
 ## Mission
 
-Let the loop self-confirm almost-converged states — e.g. one extra
-confirmation round or counting a near-match toward convergence — instead of
-escalating through the agency ladder, when peers settle into
-trivially-different phrasings on long documents. Constraints are fixed by
-the item and non-negotiable: the measure must be **deterministic and
-reproducible** (fixed algorithm + threshold recorded in the artifact),
-**agency-gated** (likely moderate+ only; minimal agency stays
-strict-hash-only), and **audit-disclosed** (turn records and the resolution
-block show when similarity — not hash equality — drove a convergence call).
+Allow the consensus loop to recognize narrowly near-converged states without weakening strict deterministic convergence. The measure must use a fixed, reproducible algorithm and threshold; minimal agency remains hash-only; every similarity-driven decision is visible in turn records and the resolution block.
 
-## Authoritative inputs (populate spec from these)
+## Authoritative inputs
 
-- The item file — design constraints and acceptance criteria are the spec
-  skeleton.
-- `.oat/repo/reference/decisions/DR-260502-normalized-hash-convergence.md` —
-  the normalization the similarity measure builds on (e.g. normalized edit
-  distance over that same normalization), and why convergence is
-  deterministic in the first place. The heuristic extends this contract; it
-  must not weaken it.
-- `.oat/repo/reference/research/consensus/architecture-v3.md` — the origin
-  note ("high-similarity-but-not-identical can trigger one more round to
-  confirm").
-- `src/consensus/core/consensus-loop.ts` — the convergence path: SHA-256
-  hash equality plus verdict rules per iteration mode, the
-  maximum-agency double-accept rule, and the A-B-A-B oscillation window.
-  The heuristic slots beside these, gated so each iteration mode's
-  convergence shape stays coherent.
-- Escalation-ladder behavior (agency-gated host/user routing) — the thing
-  this heuristic reduces the frequency of; its tests live under
-  `tests/consensus/core/`.
+- The backlog item and `.oat/repo/reference/research/consensus/architecture-v3.md` — the near-match confirmation idea and intended scope.
+- `.oat/repo/reference/decisions/DR-260502-normalized-hash-convergence.md` and `.oat/repo/reference/decisions/DR-260613-unified-v1-verdict-schema.md` — normalization, strict deterministic defaults, agency, and audit expectations.
+- `src/consensus/core/consensus-loop.ts` — convergence and oscillation logic for alternating and parallel modes.
+- `tests/consensus/core/` — threshold-boundary and audit-trail coverage belongs here.
+
+## Sequencing and scope
+
+- Start only after the metrics pass in the same worktree; share the generated-output and artifact-schema validation arc.
+- The work may overlap [`BL-260612-add-consensus-research-skill` — Add consensus-research skill](../backlog/items/BL-260612-add-consensus-research-skill.md) only while research remains in a design/DR phase. Do not overlap two loop-changing builds.
+- Do not incorporate whole-document harmonization; [`BL-260612-add-whole-document` — Add whole-document harmonization pass](../backlog/items/BL-260612-add-whole-document.md) is the next separate project.
 
 ## Repo conventions and gates
 
-- Test surface the item requires: threshold boundary cases per iteration
-  mode + audit-trail disclosure. Add under `tests/consensus/core/`.
-- Canonical TS in `src/`, `pnpm run build` + `pnpm run build:check`; never
-  hand-edit `// GENERATED` outputs; version bumps for every consensus skill
-  whose generated output changes (`validate:skill-versions` enforces).
-- Definition of done: `pnpm test`, `pnpm run build:check`, `npm run
-  validate`, `npm run smoke`; document the threshold + disclosure semantics
-  in the Fumadocs site via `oat-project-document`.
+- Edit canonical TypeScript, run `pnpm run build`, and verify `pnpm run build:check`; never hand-edit generated runtime output.
+- Bump every changed canonical skill version and maintain top-level/metadata version parity.
+- Verify with `pnpm test`, `pnpm run build:check`, `pnpm run validate`, and `pnpm run smoke`. Add operator-facing documentation via Fumadocs if threshold or disclosure semantics become user-configurable.
 
-## Close-out (same PR — no exceptions)
+## Close-out — same shipping PR
 
-Follow the **Backlog Lifecycle** in `.oat/repo/pjm/AGENTS.md`: set the item
-`status: closed` + bump `updated`, append the `backlog/completed.md` entry,
-`git mv` the item to `backlog/archived/`, run `oat backlog
-regenerate-index`, refresh `current-state.md` and the curated overview.
-**Then delete this handoff file
-(`git rm .oat/repo/pjm/handoffs/BL-260612-add-similarity-heuristic.md`) in
-the same PR** — it is consumed context, not documentation. If this item
-ships in the same PR as `BL-260612-add-deliberation-metrics` (deliberation
-metrics), delete both handoffs there.
+Follow the **Backlog Lifecycle** in `.oat/repo/pjm/AGENTS.md`: close and archive [`BL-260612-add-similarity-heuristic` — Add similarity heuristic](../backlog/items/BL-260612-add-similarity-heuristic.md), update `backlog/completed.md`, regenerate `backlog/index.md`, and refresh the operating picture if needed. Delete this handoff with `git rm .oat/repo/pjm/handoffs/BL-260612-add-similarity-heuristic.md` in that same PR. If the project ships both current loop-quality items, delete the paired metrics handoff there too.

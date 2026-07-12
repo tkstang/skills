@@ -1,92 +1,159 @@
 ---
 oat_generated: true
-oat_generated_at: 2026-06-20
-oat_source_head_sha: e4e9348cf8b809448c693ed7182c017048eb4acf
-oat_source_main_merge_base_sha: e4e9348cf8b809448c693ed7182c017048eb4acf
+oat_generated_at: 2026-07-11
+oat_source_head_sha: 0e25a36d3958a1e09c7bedaddd6d3498dc0905d7
+oat_source_main_merge_base_sha: 17043d653233fb906e018f5872359d99eb556208
 oat_warning: "GENERATED FILE - Do not edit manually. Regenerate with oat-repo-knowledge-index"
 ---
 
 # External Integrations
 
-**Analysis Date:** 2026-06-20
+**Analysis Date:** 2026-07-11
 
 ## APIs & External Services
 
-**AI Provider CLIs (consensus plugin):**
+**AI Provider CLIs:**
 
-The only external execution boundary in shipped code is provider CLI subprocesses. The consensus engine invokes locally-installed agent CLIs rather than calling vendor HTTP APIs directly. Adapters live in `src/consensus/provider-cli/adapters.ts` and invocation builders in `src/consensus/provider-cli/invocation.ts`.
+- **Claude (Anthropic)** - Multi-model AI provider
+  - Executable: `claude` (invoked as subprocess)
+  - Invocation builder: `buildClaudeInvocation()` in `src/consensus/provider-cli/invocation.ts`
+  - Adapter: `src/consensus/provider-cli/adapters.ts` (DEFAULT_PROVIDER_ADAPTERS, id: 'claude')
+  - Auth: `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN` environment variable
+  - Capabilities: model selection, effort levels ('effort'), runtime policies (non-interactive, read-only, env_allowlist)
+  - Schema strategies: provider_validated, prompt_only
+  - Output mode: stdout_json
 
-- **Claude** — executable `claude` (`buildClaudeInvocation`)
-- **Codex** — executable `codex` (`buildCodexInvocation`)
-- **Cursor** — executable `cursor-agent` (`buildCursorInvocation`)
+- **Codex (OpenAI)** - Multi-model AI provider
+  - Executable: `codex` (invoked as subprocess)
+  - Invocation builder: `buildCodexInvocation()` in `src/consensus/provider-cli/invocation.ts`
+  - Adapter: `src/consensus/provider-cli/adapters.ts` (DEFAULT_PROVIDER_ADAPTERS, id: 'codex')
+  - Auth: `OPENAI_API_KEY` environment variable
+  - Capabilities: model selection, effort levels ('reasoning_effort'), runtime policies (non-interactive, sandboxes: read-only/workspace-write, approval_policies: never/on-request, env_allowlist)
+  - Schema strategies: constrained_native, prompt_only
+  - Output mode: last_message_file
 
-Each adapter declares: `id`, `display_name`, `executable`, a `probe` definition (`src/consensus/provider-cli/probe.ts`) for availability detection, `capabilities`, a structured-output strategy, and a `classifyRunFailure` mapper (`PROVIDER_MISSING`, `PROVIDER_EXIT`, `PROVIDER_TIMEOUT`, `PROVIDER_OUTPUT_CAP_EXCEEDED`). Subprocess execution and timeouts/output caps are enforced in `src/consensus/provider-cli/subprocess.ts`, gated by `src/consensus/provider-cli/host-guard.ts` and `runtime-policy.ts`.
+- **Cursor** - Agent-based IDE
+  - Executable: `cursor-agent` (invoked as subprocess)
+  - Invocation builder: `buildCursorInvocation()` in `src/consensus/provider-cli/invocation.ts`
+  - Adapter: `src/consensus/provider-cli/adapters.ts` (DEFAULT_PROVIDER_ADAPTERS, id: 'cursor')
+  - Auth: `CURSOR_API_KEY` environment variable
+  - Capabilities: model selection disabled, no effort selection, runtime policies (non-interactive, env_allowlist)
+  - Schema strategies: prompt_only, submit_tool_candidate
+  - Output mode: stdout_json
 
 ## Data Storage
 
 **Databases:**
 
-- None. There is no database — this repo ships agent skills, not a service.
+- Not detected - No external database integrations found
 
 **File Storage:**
 
-- Local filesystem only. The transcript skills read provider session stores and write outputs (session-observer state, exported Markdown). The consensus engine writes audit/deliberation artifacts (`.consensus/` in the working tree).
+- Local filesystem only - Config files stored in `.consensus/` directory under user's home (XDG_CONFIG_HOME or HOME based)
+- Reference: `src/consensus/config/consensus-config.ts`
 
 **Caching:**
 
-- None as a service. Session-observer persists per-runtime read offsets to a state directory (`STATE_DIR`) so `catch-up` shows only new records.
+- None - No external caching service detected
 
 ## Authentication & Identity
 
-**Auth Provider:**
+**Auth Providers:**
 
-- None owned by this repo. Authentication is delegated entirely to the provider CLIs — each invoked CLI (`claude`, `codex`, `cursor-agent`) must already be authenticated in the user's environment. No API keys or tokens are read or stored by this codebase.
+- Custom (Provider-specific API keys)
+  - Implementation: Environment variable-based authentication per provider
+  - Providers: Anthropic (Claude), OpenAI (Codex), Cursor
+  - Environment variables: `ANTHROPIC_API_KEY`, `CLAUDE_CODE_OAUTH_TOKEN`, `OPENAI_API_KEY`, `CURSOR_API_KEY`
+  - Validation: Runtime policy handles env var allowlisting (`src/consensus/provider-cli/runtime-policy.ts`)
 
 ## Monitoring & Observability
 
 **Error Tracking:**
 
-- None. Errors surface through structured failure classification (provider error codes) and process exit codes.
+- None - No external error tracking service (Sentry, Rollbar, etc.) detected
 
 **Logs:**
 
-- stdout/stderr and written artifacts (consensus deliberation logs, transcript digests). No external log sink.
+- Standard output/stderr capture from provider CLI invocations
+- Error classification and retry logic in `src/consensus/provider-cli/adapters.ts` (failure pattern matching for transient vs. terminal errors)
+- Subprocess stdout/stderr capture in `src/consensus/provider-cli/subprocess.ts`
 
 ## CI/CD & Deployment
 
 **Hosting:**
 
-- Not a hosted service. Distribution is via the local git repository marketplace (`.claude-plugin/marketplace.json`) and provider skill install paths.
+- GitHub (repository hosting)
+- Documentation site: Next.js-based static/server-side rendering (deployable to Vercel or any Node.js host)
+- Skills/plugins: Distributed via provider marketplaces (Claude Code marketplace, Codex plugin system) or git repository install
 
 **CI Pipeline:**
 
-- GitHub Actions:
-  - `.github/workflows/validate.yml` — install (frozen lockfile), build, type-check, build-drift check, tests, validate, smoke, plus incremental oxlint / oxfmt on changed files.
-  - `.github/workflows/release.yml` — release automation.
+- GitHub Actions (`.github/workflows/`)
+- Local pre-commit hook: lint-staged with oxlint/oxfmt
+- Local pre-push hook: full validation suite (`pnpm run validate`, `pnpm run smoke`)
 
 ## Environment Configuration
 
-**Runtime detection env vars (not secrets):**
+**Required env vars:**
 
-- Claude Code: `CLAUDECODE`, `CLAUDE_CODE`
-- Codex: `CODEX_HOME`, `CODEX_SANDBOX`
-- Cursor: `CURSOR`, `CURSOR_TRACE_ID`
-- Skill self-markers / state: `SESSION_OBSERVER_SELF`, `EXPORT_SESSION_SELF`, `STATE_DIR`
+- Provider-specific (at least one needed):
+  - `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN` - for Claude provider
+  - `OPENAI_API_KEY` - for Codex provider
+  - `CURSOR_API_KEY` - for Cursor provider
+- System environment (inherited from parent):
+  - `PATH`, `HOME`, `TMPDIR`, `TEMP`, `TMP`, `USER`, `LOGNAME`, `SHELL`, `LANG`
+  - `XDG_CONFIG_HOME` - optional, used for config file location (falls back to HOME)
 
 **Secrets location:**
 
-- None in this repo. Provider credentials live in each provider CLI's own configuration, outside this codebase.
+- Environment variables (provider-managed, not in repository)
+- No `.env` files detected in repository
+- Config stored in user's `.consensus/` directory
 
 ## Webhooks & Callbacks
 
 **Incoming:**
 
-- None.
+- None detected
 
 **Outgoing:**
 
-- None. All outbound communication is mediated by provider CLI subprocesses, not HTTP calls from this code.
+- Provider CLI invocations via subprocess (consensus plugin orchestrates provider CLI calls)
+- Standard subprocess communication: stdin/stdout/stderr pipes
+- Reference: `src/consensus/provider-cli/subprocess.ts`, `src/consensus/provider-cli/structured-output.ts`
+
+## Provider Capability Matrix
+
+Reference source: `src/consensus/provider-cli/adapters.ts`, `src/consensus/provider-cli/types.ts`
+
+| Capability | Claude | Codex | Cursor |
+|-----------|--------|-------|--------|
+| Model selection | Yes | Yes | No |
+| Effort selection | Yes (effort) | Yes (reasoning_effort) | No |
+| Runtime policies | Yes | Yes | Yes |
+| Sandboxing | No | Yes (read-only, workspace-write) | No |
+| Approval policies | No | Yes (never, on-request) | No |
+| Env allowlist | Yes | Yes | Yes |
+| Schema validation | provider_validated, prompt_only | constrained_native, prompt_only | prompt_only, submit_tool_candidate |
+| Same-host subprocess | Yes | Yes | Yes |
+| Host native dispatch | No | No | No |
+| Submit tool support | No | No | No |
+
+## Error Handling & Retry
+
+**Transient errors** (retryable):
+- Rate limit errors (429, rate limit messages)
+- Temporary unavailability (try again, temporary)
+- Connection errors (econnreset, etimedout)
+- Overload errors (Claude: 529 Repeated, Codex: rate limiter, Cursor: connection_timeout)
+- Reference: `src/consensus/provider-cli/adapters.ts` (CLAUDE_TRANSIENT_EXIT_PATTERNS, CODEX_TRANSIENT_EXIT_PATTERNS, CURSOR_TRANSIENT_EXIT_PATTERNS)
+
+**Terminal errors** (not retryable):
+- Authentication required (not logged in, keychain locked)
+- Unsupported platform/configuration
+- Unsupported options/flags
+- Process exits with non-transient codes
 
 ---
 
-_Integration audit: 2026-06-20_
+_Integration audit: 2026-07-11_

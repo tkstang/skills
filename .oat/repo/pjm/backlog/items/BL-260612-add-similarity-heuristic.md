@@ -11,7 +11,7 @@ labels:
   - nice-to-have
 assignee: null
 created: 2026-06-12T23:38:35Z
-updated: 2026-06-12T23:38:35Z
+updated: 2026-07-11T23:41:32Z
 associated_issues: []
 legacy_id: bl-ef38
 ---
@@ -26,7 +26,7 @@ Design constraints if picked up: the heuristic must be deterministic and reprodu
 
 ## Source
 
-Deferred from consensus-iteration-modes discovery (Question 3, 2026-06-12). Originates in the v3 architecture's "high-similarity-but-not-identical can trigger one more round to confirm" note (`research/consensus/architecture-v3.md`).
+Deferred from consensus-iteration-modes discovery (Question 3, 2026-06-12). Originates in the v3 architecture's "high-similarity-but-not-identical can trigger one more round to confirm" note (`.oat/repo/reference/research/consensus/architecture-v3.md`).
 
 ## Acceptance Criteria
 

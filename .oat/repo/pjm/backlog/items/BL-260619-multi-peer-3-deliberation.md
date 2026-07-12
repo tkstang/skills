@@ -11,7 +11,7 @@ labels:
   - reserved
 assignee: null
 created: 2026-06-19T23:57:18Z
-updated: 2026-06-19T23:57:18Z
+updated: 2026-07-11T23:41:32Z
 associated_issues: []
 legacy_id: bl-f8cb
 ---
@@ -24,7 +24,8 @@ living only in the architecture doc. The current consensus engine is built aroun
 extension (pairwise disagreement, ties of three)" as a carried-forward open
 question and a **"v3+ concern"** — i.e. deliberately out of first scope.
 
-**Source:** `research/consensus/architecture-v3.md` ("Open design questions" #8).
+**Source:** `.oat/repo/reference/research/consensus/architecture-v3.md`
+("Open design questions" #8).
 
 Extending to three or more peers introduces problems the two-peer model does not
 have: pairwise vs group convergence, majority/tie semantics, how oscillation and

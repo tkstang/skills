@@ -22,9 +22,11 @@ Conventions:
 
 ## Current handoffs
 
+- [`BL-260612-add-consensus-research-skill.md`](./BL-260612-add-consensus-research-skill.md)
+  (`BL-260612-add-consensus-research-skill` — Add consensus-research skill)
 - [`BL-260612-add-deliberation-metrics.md`](./BL-260612-add-deliberation-metrics.md)
-  (`BL-260612-add-deliberation-metrics` — Add deliberation metrics to
-  artifacts)
+  (`BL-260612-add-deliberation-metrics` — Add deliberation metrics (tokens,
+  wall-clock, rounds) to artifacts)
 - [`BL-260612-add-similarity-heuristic.md`](./BL-260612-add-similarity-heuristic.md)
   (`BL-260612-add-similarity-heuristic` — Add similarity heuristic for
   near-converged deliberation states)

@@ -10,7 +10,7 @@ labels:
   - skill-family
 assignee: null
 created: 2026-06-12T21:33:26Z
-updated: 2026-06-12T21:33:26Z
+updated: 2026-07-11T23:41:32Z
 associated_issues: []
 legacy_id: bl-645c
 ---
@@ -19,7 +19,7 @@ legacy_id: bl-645c
 
 Add `consensus-research`: peers investigate a question and converge on synthesized findings with evidence and dissent. Thin wrapper with v3 defaults: `shared_input` cold start (question + scope), `parallel_synthesized` iteration, `moderate` agency. Mode-specific inputs: `--question <text>`, `--scope <text>`.
 
-**Blocked by:** bl-7af0 (parallel-synthesized mode). Lowest-priority family skill because peer turns are tool-using research rather than text edits — whether Paseo peer invocations get tool access (and under what permissions) is an open design question this item must answer before build; that may justify its own design pass.
+**Dependency status:** `parallel_synthesized` is shipped. No active backlog item blocks this work; before build, a design/DR must decide whether and how the owned provider CLI grants peer tool access, which permissions apply, and how evidence provenance is captured.
 
 ## Acceptance Criteria
 

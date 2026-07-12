@@ -1,68 +1,46 @@
 # Backlog & Roadmap Review
 
-**Date:** 2026-07-04
-**Scope:** July 4/5 snapshot of active items under `.oat/repo/pjm/backlog/items/` (13 open items at review time; 10 open after the 2026-07-07 sweep)
+**Date:** 2026-07-11
+**Scope:** All 9 active items under `.oat/repo/pjm/backlog/items/`, recent completion history, current implementation, and the repository roadmap
 **Roadmap:** `.oat/repo/pjm/roadmap.md`
-**Purpose:** Prioritize by value/effort, surface dependencies, and recommend an execution sequence
+**Purpose:** Prioritize by value and effort, surface dependencies, and recommend an execution sequence
 
-> If a one-page execution companion exists in this directory, see [`priority-alignment.md`](./priority-alignment.md) — produced via the optional walkthrough at the end of `oat-pjm-review-backlog`. It is the short, ordered "what to do next" view of this full review.
-
-> **2026-07-07 update:** the hosted discovery check is done, and the decision
-> sweep from this review is complete. `BL-260620-mid-loop-user-artifact-edits`
-> and `BL-260620-llm-section-auto-chunking` resolved `wont_do` and moved to
-> `backlog/archived/`; `BL-260701-add-multi-round-panel` now has its product
-> distinction recorded while the build remains open and evidence-gated. The
-> generated active backlog table now has 10 open items; this document otherwise
-> remains the July 4/5 prioritization snapshot.
+> The one-page execution companion at [`priority-alignment.md`](./priority-alignment.md) was refreshed through the July 11 operator walkthrough. It records the confirmed now/next/later sequence and current kickoff stack.
 
 ---
 
 ## 1. Executive Summary
 
-At review time, the backlog contained **13 open items** after the neutral-panel + default-config project shipped (2026-07-03), following phone-a-friend (2026-06-28) and public-discovery control (2026-06-27). After the 2026-07-07 decision sweep, the board is **10 open items**. Nothing is in flight. The remaining board is dominated by low-priority seeds and decision-first items; three medium-priority items carry near-term execution weight.
+The active backlog contains **9 items** in three themes:
 
-**What changed since the 2026-06-22 review:**
-
-- Shipped and archived: `BL-260621-control-public-skill-discovery` (discovery control, PR #38 — closed retroactively 2026-07-05 during the hygiene pass), phone-a-friend, watch-suite de-flake, rubric-cap guard, consensus-panel, and consensus config defaults.
-- New since last review: **BL-260627-verify-skills-sh-hosted** — Verify skills.sh hosted discovery surface (the deferred hosted-path check split out of discovery control) and **BL-260701-add-multi-round-panel** — Add multi-round panel discussion (deferred from panel v1).
-- Codebase drift that changes one rating: the `consensus-loop.mjs` duplication that **BL-260620-share-consensus-generated** (share consensus generated runtime output) targets has grown from 2 copies to **5** (refine, evaluate, create, decide, plan), plus `consensus-config.mjs` duplicated across **6** skills (those five + panel) — `scripts/build-generated.mjs:19-69`. The item's value has increased since it was written, and the "not concurrent with loop-touching work" window is open right now.
-
-| Theme | Count | Key Observation |
-| --- | --- | --- |
-| Release / distribution | 1 | **BL-260627-verify-skills-sh-hosted** — Verify skills.sh hosted discovery surface: the last release-lane gate before any public-listing claim; small and independent. |
-| Plugin packaging maintainability | 1 | **BL-260620-share-consensus-generated** — Share consensus generated runtime output: duplication grew 2→5 loop copies since the item was written; the no-loop-work-in-flight window is open now. |
-| Consensus runtime quality | 3 | **BL-260612-add-deliberation-metrics** (deliberation metrics), **BL-260612-add-similarity-heuristic** (similarity heuristic), **BL-260612-add-whole-document** (harmonization pass) — all touch the shared loop core, so they sequence after (not alongside) the dedup task. |
-| New skill surface | 2 | **BL-260612-add-consensus-research-skill** (consensus-research) is the last family skill, design-gated on peer tool access. **BL-260701-add-multi-round-panel** (multi-round panel) is a fresh post-v1 idea; panel usage evidence should come first. |
-| Multi-agent collaboration substrate | 2 | **BL-260619-shared-session-log-substrate** (shared session log substrate) → **BL-260619-inter-agent-direct-messaging** (inter-agent messaging): a full initiative lane, unblocked but appetite-gated. |
-| Decision seeds (resolved after review) | 2 | **BL-260620-mid-loop-user-artifact-edits** (mid-loop type=edit) and **BL-260620-llm-section-auto-chunking** (LLM auto-chunking) — both resolved `wont_do` on 2026-07-07 and moved to `backlog/archived/`. |
-| Reserved go/no-go seeds | 2 | **BL-260619-define-host-native-dispatch** (host-native dispatch) and **BL-260619-multi-peer-3-deliberation** (3+ peers) — explicitly speculative; keep parked. |
+| Theme | Count | Key observation |
+| --- | ---: | --- |
+| Consensus family and loop quality | 4 | `consensus-research` is the only unshipped named family skill; the other three should share one controlled loop-core change window. |
+| Multi-agent collaboration substrate | 2 | The foundation is still an initiative-sized, design-first commitment; messaging is hard-blocked behind it. |
+| Deferred capability seeds | 3 | Host-native dispatch, 3+ peer convergence, and multi-round panel discussion should wait for concrete demand or usage evidence. |
 
 **Quadrant distribution:**
 
 | Quadrant | Count | Items |
-| --- | --- | --- |
-| Quick Win | 2 | **BL-260627-verify-skills-sh-hosted** — Verify skills.sh hosted discovery surface; **BL-260612-add-deliberation-metrics** — Add deliberation metrics |
-| Strategic | 5 | **BL-260620-share-consensus-generated** — Share consensus generated runtime output; **BL-260612-add-consensus-research-skill** — Add consensus-research skill; **BL-260612-add-whole-document** — Whole-document harmonization pass; **BL-260619-shared-session-log-substrate** — Shared session log substrate; **BL-260619-inter-agent-direct-messaging** — Inter-agent direct messaging |
-| Fill-in | 4 | **BL-260612-add-similarity-heuristic** — Similarity heuristic; **BL-260620-mid-loop-user-artifact-edits** — Mid-loop user artifact edits (decision); **BL-260620-llm-section-auto-chunking** — LLM section auto-chunking (decision); **BL-260701-add-multi-round-panel** — Multi-round panel (decision-first) |
-| Avoid / Defer | 2 | **BL-260619-define-host-native-dispatch** — Host-native dispatch protocol; **BL-260619-multi-peer-3-deliberation** — Multi-peer (3+) deliberation |
+| --- | ---: | --- |
+| Strategic | 4 | **BL-260612-add-consensus-research-skill** — Add consensus-research skill; **BL-260612-add-whole-document** — Add whole-document harmonization pass; **BL-260619-shared-session-log-substrate** — Shared session log substrate; **BL-260619-inter-agent-direct-messaging** — Inter-agent direct messaging |
+| Fill-in | 2 | **BL-260612-add-deliberation-metrics** — Add deliberation metrics; **BL-260612-add-similarity-heuristic** — Add similarity heuristic |
+| Avoid / Defer | 3 | **BL-260619-define-host-native-dispatch** — Define host-native dispatch / safe-packet protocol; **BL-260619-multi-peer-3-deliberation** — Multi-peer (3+) deliberation extension; **BL-260701-add-multi-round-panel** — Add multi-round panel discussion |
+| Quick Win | 0 | None |
 
 **Top-line recommendations:**
 
-1. **Take the open dedup window: run `BL-260620-share-consensus-generated` (share consensus generated runtime output) now.** Its one hard constraint — not concurrent with any consensus-loop-touching branch — is satisfied for the first time since it was written, and every deferred loop-quality item (metrics, similarity, harmonization) gets cheaper afterward because changes regenerate into one shared output instead of five.
-2. **Close the release lane with `BL-260627-verify-skills-sh-hosted` (verify skills.sh hosted discovery surface).** It is small, independent, already has its verification recipe written into the item, and it retires the last standing non-claim from the v0.1 release.
-3. **Batch the three consensus-loop quality items into one post-dedup arc** — `BL-260612-add-deliberation-metrics` (metrics), `BL-260612-add-similarity-heuristic` (similarity heuristic), and optionally `BL-260612-add-whole-document` (harmonization, decision-first) — rather than opening the loop core three separate times.
-
----
-
-## 2. Item Catalog
+1. Start [`BL-260612-add-consensus-research-skill` — Add consensus-research skill](../items/BL-260612-add-consensus-research-skill.md) with its peer-tool-access and evidence-capture decision record; the decision must precede any build.
+2. Start [`BL-260612-add-deliberation-metrics` — Add deliberation metrics](../items/BL-260612-add-deliberation-metrics.md) and then [`BL-260612-add-similarity-heuristic` — Add similarity heuristic](../items/BL-260612-add-similarity-heuristic.md) now in one sequential loop-quality worktree. They may run alongside the research **DR**, not a research build.
+3. Take [`BL-260612-add-whole-document` — Add whole-document harmonization pass](../items/BL-260612-add-whole-document.md) and [`BL-260619-shared-session-log-substrate` — Shared session log substrate](../items/BL-260619-shared-session-log-substrate.md) next, with deliberate capacity for their separate design/build arcs.
 
 ### Rating Key
 
 | Rating | Value | Effort |
 | --- | --- | --- |
-| **High** | Unblocks other items, daily workflow impact, or product milestone prerequisite | > 3 days, high complexity, or touches many files |
-| **Medium** | Improves quality/consistency but not blocking | 1-3 days, moderate complexity |
-| **Low** | Nice-to-have or future-facing | < 1 day, straightforward, isolated change |
+| **High** | Unblocks other items, daily workflow impact, or roadmap prerequisite | More than 3 days, high complexity, or broad surface |
+| **Medium** | Meaningful quality or consistency gain without being a prerequisite | About 1–3 days of focused work |
+| **Low** | Speculative, evidence-gated, or narrow benefit | Under a day and isolated |
 
 ### Priority Quadrants
 
@@ -80,205 +58,164 @@ At review time, the backlog contained **13 open items** after the neutral-panel 
                      Low Value
 ```
 
+For medium ratings, the closest execution quadrant is used: non-blocking bounded work is **Fill-in**, while initiative-sized work with material future leverage is **Strategic**.
+
 ---
 
-### BL-260627-verify-skills-sh-hosted — Verify skills.sh hosted discovery surface and listing strategy
+## 2. Item Catalog
 
-> Verify the Vercel-controlled hosted path (auto-crawl vs submission; whether hosted indexing honors `metadata.internal`) and record the listing strategy before any public claim.
+### `BL-260612-add-consensus-research-skill` — Add consensus-research skill (investigate question, synthesized findings)
+
+> The last unshipped named family skill: a shared-input, parallel-synthesized research workflow that produces evidence, dissent, and a deliberation log.
+
+**Metadata:** Open · backlog priority low · feature · estimate M · labels: consensus, skill-family · unassigned.
 
 | Dimension | Rating | Rationale |
 | --- | --- | --- |
-| **Value** | **High** | The only remaining release-lane gate; blocks every public-listing / marketplace claim. The CLI-path control shipped in PR #38 — this is the half the repo does not own and has never verified. |
-| **Effort** | **Low** | The item embeds its own verification recipe (exact `npx skills find` commands, hosted URLs, prior results table from 2026-06-26). Re-run, interpret, record strategy in `current-state.md`. Possibly seeded by real installs of the standalone skills. |
-| **Quadrant** | **Quick Win** | Cheapest high-leverage item on the board. |
+| **Value** | **High** | It is the sole roadmap **Next** item and completes the named skill family. |
+| **Effort** | **High** | A durable decision on peer tool access, evidence provenance, and permissions precedes a new wrapper, schemas, documentation, and tests. |
+| **Quadrant** | **Strategic** | The design decision reduces risk before a cross-cutting build. |
 
-- **Dependencies:** PR #38 merged to the public default branch (done). Hosted indexing is asynchronous and outside repo control — the check may need repetition if `tkstang/skills` is still unindexed.
+- **Dependencies:** Parallel-synthesized mode is already shipped; a new peer-tool-access/evidence-capture decision record is the remaining prerequisite.
+- **Blocked by:** No active backlog item; the historical parallel-synthesized-mode predecessor is already complete.
+- **Blocks:** The `consensus-research` implementation and the family-completeness roadmap claim.
+- **Implementation context:** The owned provider CLI is the execution boundary; the active item now records that boundary explicitly.
+
+### `BL-260612-add-deliberation-metrics` — Add deliberation metrics (tokens, wall-clock, rounds) to artifacts
+
+> Complete the partially present metrics contract while accurately representing unavailable provider cost and token data.
+
+**Metadata:** Open · backlog priority low · feature · estimate S · labels: consensus, observability · unassigned.
+
+| Dimension | Rating | Rationale |
+| --- | --- | --- |
+| **Value** | **Medium** | Better cost, time, and round visibility improves auditability but does not unblock current product use. |
+| **Effort** | **Medium** | Round and wall-clock fields already exist, but per-provider signal inventory, schema propagation, resume behavior, and graceful unavailable semantics remain. |
+| **Quadrant** | **Fill-in** | A bounded quality improvement once the loop-core worktree is open. |
+
+- **Dependencies:** No hard active-item dependency; first confirm what the owned provider CLI can report rather than assuming provider cost signals exist.
 - **Blocked by:** Nothing.
-- **Blocks:** Any public skills.sh listing claim; the optional upstream `open-agent-toolkit` internal-flag handoff decision.
+- **Blocks:** A defensible follow-up on hard cost-cap flags, if evidence makes that worthwhile.
+- **Implementation context:** Canonical sources already emit `wall_clock_ms`, `total_rounds`, `cost_source: unavailable`, and `approximate_cost_usd: null`; the work is to make availability real and consistent, not to invent metrics.
 
----
+### `BL-260612-add-similarity-heuristic` — Add similarity heuristic for near-converged deliberation states
 
-### BL-260620-share-consensus-generated — Share consensus generated runtime output at the plugin level
+> Add an auditable, agency-gated near-match signal without weakening strict deterministic convergence for minimal agency.
 
-> Collapse duplicated per-skill `consensus-loop.mjs` into one plugin-local shared script, gated by a multi-host installed-layout spike.
-
-| Dimension | Rating | Rationale |
-| --- | --- | --- |
-| **Value** | **High** | Upgraded from the item's original framing: `build-generated.mjs` now emits the loop into **5** skill dirs (refine, evaluate, create, decide, plan — lines 19–49) and `consensus-config.mjs` into **6** (+panel, lines 34–69). Every future loop change (metrics, similarity, harmonization, research) multiplies through this. It also serializes the whole consensus lane: nothing loop-touching can run while this is open. |
-| **Effort** | **Medium** | The code change is small; the real work is the 4-host install spike (Claude / Codex / Cursor / Copilot installed-layout verification) which is a genuine go/no-go — it may conclude "keep duplication." The `~/.consensus/` resolver fallback + `install.sh` shipped by PR #38 add a since-written wrinkle the spike must also cover (standalone-install recovery must keep working). |
-| **Quadrant** | **Strategic** | High value, spike-gated; schedule deliberately into the currently-open no-loop-work window. |
-
-- **Dependencies:** Install-layout evidence from the v0.1 release work and PR #38's standalone-recovery path (both available).
-- **Blocked by:** Nothing — the "not concurrent with consensus-loop feature branches" constraint is **currently satisfied** (nothing in flight).
-- **Blocks (softly):** `BL-260612-add-deliberation-metrics`, `BL-260612-add-similarity-heuristic`, `BL-260612-add-whole-document`, and the eventual `BL-260612-add-consensus-research-skill` build — all get cheaper and conflict-free after the dedup lands (or after it decides to keep duplication).
-
----
-
-### BL-260612-add-deliberation-metrics — Add deliberation metrics (tokens, wall-clock, rounds) to artifacts
-
-> Consistent rounds / wall-clock / token / cost metrics in turn records, loop status, and the artifact resolution block, degrading gracefully where providers expose nothing.
+**Metadata:** Open · backlog priority low · feature · estimate S · labels: consensus, convergence, nice-to-have · unassigned.
 
 | Dimension | Rating | Rationale |
 | --- | --- | --- |
-| **Value** | **Medium** | Observability across every consensus artifact, and the prerequisite for the v3 cost-cap question. Not blocking anything today. |
-| **Effort** | **Low–Medium** | Partial scaffolding already exists: `LoopStatus` carries turns/rounds and `cost_source` / `approximate_cost_usd` fields (`src/consensus/core/consensus-loop.ts:160-166`), but wall-clock duration is not aggregated and the provider-CLI run envelope exposes **no token/cost data** from any adapter (`src/consensus/provider-cli/types.ts:183-184`). The token/cost half is therefore mostly "investigate what each provider CLI can emit, wire what exists, mark the rest unavailable" — bounded, but it spans loop core + provider CLI + generated outputs. |
-| **Quadrant** | **Quick Win** | By roadmap position it is Later, but as the first post-dedup loop change it is the natural warm-up. |
+| **Value** | **Low** | The deterministic escalation ladder works today; this reduces friction only if near-match escalations prove frequent. |
+| **Effort** | **Low** | A fixed algorithm, threshold, disclosure, and boundary tests are contained once the shared loop is open. |
+| **Quadrant** | **Fill-in** | A safe second item in a deliberate loop-quality batch, not a reason to reopen that code alone. |
 
-- **Dependencies:** None hard. Cheaper after `BL-260620-share-consensus-generated` (one regenerated loop output instead of five).
-- **Blocked by:** Nothing (soft: the dedup window).
-- **Blocks:** The v3 cost-cap feasibility question (`--max-cost-per-section` etc.) recorded inside this item.
-
----
-
-### BL-260612-add-similarity-heuristic — Add similarity heuristic for near-converged deliberation states
-
-> Deterministic near-match measure (agency-gated, audit-disclosed) so almost-converged states can self-confirm instead of escalating.
-
-| Dimension | Rating | Rationale |
-| --- | --- | --- |
-| **Value** | **Low–Medium** | Reduces escalation frequency on long documents; quality-of-life for deliberation runs, blocks nothing. Convergence today is strictly SHA-256 hash equality plus verdict rules (`src/consensus/core/consensus-loop.ts:3342`), so the opportunity is real but not urgent. |
-| **Effort** | **Low** | Well-localized in the loop core's convergence path; deterministic algorithm + threshold + turn-record disclosure. Test surface is threshold boundaries + audit trail. |
-| **Quadrant** | **Fill-in** | Slot into the post-dedup loop-quality arc alongside metrics. |
-
-- **Dependencies:** None hard; same soft dedup-window sequencing as metrics.
+- **Dependencies:** No hard active-item dependency; preserve the accepted deterministic-only default and agency gate.
 - **Blocked by:** Nothing.
-- **Blocks:** Nothing.
+- **Blocks:** Nothing directly; it may reduce host/user escalation frequency on long documents.
+- **Implementation context:** The v1 verdict decision intentionally deferred fuzzy scoring, so the acceptance criteria must preserve a reproducible algorithm and audit disclosure.
 
----
+### `BL-260612-add-whole-document` — Add whole-document harmonization pass after section convergence
 
-### BL-260612-add-whole-document — Add whole-document harmonization pass after section convergence
+> Add an optional post-fan-in pass to reconcile terminology, redundancy, transitions, and narrative flow across independently converged sections.
 
-> Optional `--harmonize` pass: after all sections converge, peers refine the assembled document for cross-section coherence, with its own deliberation log.
-
-| Dimension | Rating | Rationale |
-| --- | --- | --- |
-| **Value** | **Medium** | Removes a documented v0.1 limitation and is the flagship v3 Phase 4 quality feature. Matters most for long multi-section refine runs. |
-| **Effort** | **Medium–High** | Must compose with sequential and host-mediated parallel section flows, resume-through-interruption, and impasse handling. Section orchestration lives in the refine wrapper (`src/consensus/refine/consensus-refine.ts`) with the loop core per-section — harmonization adds a new post-fan-in stage across both. Carries an explicit context-bounding decision (assembled-doc-only vs + per-section logs) before build. |
-| **Quadrant** | **Strategic** | Decision-first, then a real build; the largest of the three loop-quality items. |
-
-- **Dependencies:** Context-bounding decision (lean assembled-doc-only per v2/v3). Strong soft dependency on the dedup window.
-- **Blocked by:** Nothing hard.
-- **Blocks:** Nothing.
-
----
-
-### BL-260612-add-consensus-research-skill — Add consensus-research skill (investigate question, synthesized findings)
-
-> The last unshipped family skill: peers investigate a question and converge on synthesized findings with evidence and dissent (`shared_input` / `parallel_synthesized` / moderate agency).
+**Metadata:** Open · backlog priority low · feature · estimate M · labels: consensus, quality · unassigned.
 
 | Dimension | Rating | Rationale |
 | --- | --- | --- |
-| **Value** | **Medium** | Completes the named v3 family and is the roadmap's only "Next" entry. But it is a new capability class — tool-using peer turns — not an incremental wrapper, and no user demand signal has forced it yet. |
-| **Effort** | **Medium (+ High planning)** | The wrapper itself follows the create/decide/plan pattern, but the peer tool-access / permissions / evidence-capture question is an explicit DR-before-build gate that may reshape the provider CLI contract. Keep as its own OAT project, as the roadmap already states. |
-| **Quadrant** | **Strategic** | Design-gated; start with the DR, not the build. |
+| **Value** | **High** | This is the major remaining quality gap for multi-section artifacts and is explicitly retained on the roadmap. |
+| **Effort** | **High** | It must compose with sequential and host-mediated parallel section runs, impasse routing, artifact rendering, and resume. |
+| **Quadrant** | **Strategic** | A design-first loop change with meaningful product quality leverage. |
 
-- **Dependencies:** Peer tool-access DR (the real gate). `parallel_synthesized` (shipped). Build phase should respect the dedup window if it touches the loop.
-- **Blocked by:** Its own unresolved design question.
-- **Blocks:** Family-completeness claims; nothing mechanical.
+- **Dependencies:** Existing section orchestration and resume are shipped; record the context boundary (assembled document only versus logs) before implementation.
+- **Blocked by:** Nothing technically; schedule after a clear decision about the loop-quality batch to avoid repeatedly reopening the shared runtime.
+- **Blocks:** Removal of the documented no-harmonization limitation for large, multi-section artifacts.
+- **Implementation context:** The prior design favors assembled-document-only context; the current `refine` source already has section state, parallel aggregation, and resume paths that make the integration broad rather than a wrapper-only option.
 
----
+### `BL-260619-define-host-native-dispatch` — Define host-native dispatch / safe-packet protocol (reserved seam)
 
-### BL-260701-add-multi-round-panel — Add multi-round panel discussion
+> Decide whether the reserved provider capability should ever become a real host-native dispatch contract, with a safe packet, audit boundary, and guard behavior.
 
-> Optional follow-up rounds for `consensus-panel` where panelists see each other's responses, without collapsing into refine-style convergence.
-
-| Dimension | Rating | Rationale |
-| --- | --- | --- |
-| **Value** | **Low–Medium** | Panel v1 shipped **yesterday** (2026-07-03). There is no usage evidence yet showing single-round breadth is insufficient. The item's own first acceptance criterion is a product-distinction decision (multi-round ≠ convergence), which is genuinely worth settling — the build is speculative until then. |
-| **Effort** | **Medium** | The panel workflow is strictly single-shot — one pass over panelists, no round loop, no re-panel hooks (`src/consensus/panel/consensus-panel.ts:899-1013`). Multi-round means adding round structure, prior-response framing, attribution preservation, and cost/timeout behavior. Not a small bolt-on. |
-| **Quadrant** | **Fill-in (decision-first)** | Record the product-distinction decision when convenient; defer the build until panel usage justifies it. |
-
-- **Dependencies:** Panel v1 (shipped); real panel usage evidence (accumulating).
-- **Blocked by:** Nothing hard.
-- **Blocks:** Nothing.
-
----
-
-### BL-260619-shared-session-log-substrate — Shared session log substrate (become-observable daemon + merged log)
-
-> Foundation of the multi-agent collaboration lane: agent-initiated observability registration, a merging daemon, and one timestamp-ordered shared log any agent can tail.
+**Metadata:** Open · backlog priority low · initiative · estimate L · labels: consensus, provider-cli, host-native, reserved · unassigned.
 
 | Dimension | Rating | Rationale |
 | --- | --- | --- |
-| **Value** | **High (within its lane)** | Unblocks `BL-260619-inter-agent-direct-messaging` and defines the identity/state primitives everything else in the lane reuses. Subsumes session-observer's single-target limitation. Whether the lane itself is the right next investment is an appetite call, not a dependency call. |
-| **Effort** | **High** | Genuinely new territory. session-observer today: per-session cursor state in user-scoped `~/.local/state/session-observer/` (`src/transcript/session-observer/lib/state.ts:50`), watcher records with PID/heartbeat (`lib/types.ts:233-254`), multi-runtime watch but **no** merged log, **no** agent identity beyond provider names, **no** project-scoped state (the `.consensus/` convention exists only on the consensus side, `src/consensus/config/consensus-config.ts:246`). ~6 open design questions incl. adopt-vs-build on `cass` and packaging. Design pass first, DR required. |
-| **Quadrant** | **Strategic** | Initiative-sized; start only with explicit appetite. |
+| **Value** | **Low** | The current reservation already delivers its guard value: no adapter can silently enable the capability. |
+| **Effort** | **High** | A real go path spans execution semantics, conversation history, safety, auditing, and provider-specific adapters. |
+| **Quadrant** | **Avoid / Defer** | Keep the safety seam explicit, but do not start without a concrete dispatch need. |
 
-- **Dependencies:** TS/test foundation (landed). Design pass + adopt-vs-build DR before any code.
-- **Blocked by:** Nothing technical; appetite-gated.
-- **Blocks:** `BL-260619-inter-agent-direct-messaging` (hard).
+- **Dependencies:** No active-item dependency; any implementation needs a go/no-go and design contract first.
+- **Blocked by:** Evidence of a need beyond the current provider CLI floor.
+- **Blocks:** Nothing currently planned.
+- **Implementation context:** All shipped provider adapters report `supports_host_native_dispatch: false`, while the type surface preserves the safe-packet vocabulary; this is correctly a reserved seam, not partially implemented work.
 
----
+### `BL-260619-shared-session-log-substrate` — Shared session log substrate (become-observable daemon + merged log)
 
-### BL-260619-inter-agent-direct-messaging — Inter-agent direct messaging (addressable, prioritized)
+> Establish a project-scoped, multi-session observation substrate: registration, merged log, identity, lifecycle, and a decision on adopting or building the plumbing.
 
-> Point-to-point agent messages with priority-over-log semantics, reusing the substrate's identity and cursor primitives.
-
-| Dimension | Rating | Rationale |
-| --- | --- | --- |
-| **Value** | **Medium** | The capability users would actually feel from the substrate lane — but it is meaningless without the foundation beneath it. |
-| **Effort** | **Medium–High** | Build-vs-adopt decision (Agent Mail / `mcp-agent-mail`) plus message lifecycle, scoping, and cleanup. Cheaper if the substrate's primitives land well. |
-| **Quadrant** | **Strategic** | Sequenced strictly behind the substrate. |
-
-- **Dependencies:** Substrate identity + state-directory + cursor primitives.
-- **Blocked by:** **BL-260619-shared-session-log-substrate** (hard).
-- **Blocks:** The (vault-stub) orchestration layer.
-
----
-
-### BL-260620-mid-loop-user-artifact-edits — Mid-loop user artifact edits (type=edit intervention) — for discussion
-
-> Decide whether a first-class `type=edit` intervention adds value over the existing artifact-edit-then-resume path.
+**Metadata:** Open · backlog priority medium · initiative · estimate L · labels: multi-agent, substrate, session-observer, foundation · unassigned.
 
 | Dimension | Rating | Rationale |
 | --- | --- | --- |
-| **Value** | **Low** | The existing canonical-artifact resume path already covers the underlying need; this is about audit semantics. May well resolve `wont_do`. |
-| **Effort** | **Low (decision only)** | One sitting to decide and record; build only if the decision says so. |
-| **Quadrant** | **Fill-in** | Batch with the other decision seeds. |
+| **Value** | **High** | It is the foundation for direct messaging and materially extends the single-session observer model. |
+| **Effort** | **High** | The work is a daemon, shared state and identity design, reliability lifecycle, filtering/schema, and an adopt-versus-build decision. |
+| **Quadrant** | **Strategic** | High-leverage but should consume an explicit initiative slot, not background capacity. |
 
-- **Dependencies:** None. — **Blocked by:** Nothing. — **Blocks:** Nothing.
+- **Dependencies:** TypeScript and current session-observer foundations are shipped; the remaining dependency is a design pass on `cass`/Agent Mail adoption, packaging, and log schema.
+- **Blocked by:** Nothing technically, but deliberately appetite-gated.
+- **Blocks:** [`BL-260619-inter-agent-direct-messaging` — Inter-agent direct messaging](../items/BL-260619-inter-agent-direct-messaging.md).
+- **Implementation context:** Session-observer already has state, watch, cursor, and high-water-mark patterns, but it does not have project-scoped multi-session registration or a merged lifecycle-managed log.
 
----
+### `BL-260619-inter-agent-direct-messaging` — Inter-agent direct messaging (addressable, prioritized)
 
-### BL-260620-llm-section-auto-chunking — LLM section auto-chunking fallback (--sections auto-llm) — for discussion
+> Add prioritized, addressable agent-to-agent messages over the substrate's shared identity and project-scoped state primitives.
 
-> Decide whether an opt-in LLM chunking fallback for heading-less documents is worth the non-determinism vs the current whole-document fallback.
-
-| Dimension | Rating | Rationale |
-| --- | --- | --- |
-| **Value** | **Low** | Deterministic fallback exists and no user pain has been recorded. Non-deterministic boundaries would complicate resume, per-section convergence, and audit reproducibility. Likely `wont_do` or long defer. |
-| **Effort** | **Low (decision only)** | One sitting to decide and record. |
-| **Quadrant** | **Fill-in** | Batch with the other decision seeds. |
-
-- **Dependencies:** None. — **Blocked by:** Nothing. — **Blocks:** Nothing.
-
----
-
-### BL-260619-define-host-native-dispatch — Define host-native dispatch / safe-packet protocol (reserved seam)
-
-> Go/no-go, then (only if go) a full safety/history/audit contract before any adapter may set `supports_host_native_dispatch: true`.
+**Metadata:** Open · backlog priority medium · feature · estimate M · labels: multi-agent, substrate, messaging · unassigned.
 
 | Dimension | Rating | Rationale |
 | --- | --- | --- |
-| **Value** | **Low (today)** | Its current value is already delivered by existing: the seed prevents someone flipping a reserved flag without a contract. No present need for host-native dispatch while the prompt/CLI floor is sufficient. |
-| **Effort** | **High (if pursued)** | Packet contents, history boundary, execution contract, audit fields, safety checks — an initiative. The go/no-go itself is cheap. |
-| **Quadrant** | **Avoid / Defer** | Keep parked; revisit only if a concrete dispatch need emerges. |
+| **Value** | **High** | Targeted signal is the operational payoff of the collaboration substrate and enables priority-over-log semantics. |
+| **Effort** | **High** | It requires the foundation plus an adopt-versus-build decision, queue/cursor semantics, lifecycle, and tests. |
+| **Quadrant** | **Strategic** | Valuable only as the second part of a coherent substrate initiative. |
 
-- **Dependencies:** None. — **Blocked by:** Nothing. — **Blocks:** Nothing (the guard value is the point).
+- **Dependencies:** [`BL-260619-shared-session-log-substrate` — Shared session log substrate](../items/BL-260619-shared-session-log-substrate.md) is a hard dependency.
+- **Blocked by:** The substrate's identity, state directory, and cursor primitives.
+- **Blocks:** Future work-claiming or message-bus layers, if later promoted.
+- **Implementation context:** The item rightly requires evaluating Agent Mail / `cass` before building a bespoke queue; do not introduce a separate identity system.
 
----
+### `BL-260619-multi-peer-3-deliberation` — Multi-peer (3+) deliberation extension (reserved / v3+ concern)
 
-### BL-260619-multi-peer-3-deliberation — Multi-peer (3+) deliberation extension (reserved / v3+ concern)
+> Preserve the 3+ peer convergence question until real evidence shows that two symmetric peers are insufficient.
 
-> Go/no-go on extending the two-peer engine to 3+ peers (group convergence, tie semantics, verdict aggregation, cost scaling).
+**Metadata:** Open · backlog priority low · idea · estimate L · labels: consensus, consensus-loop, reserved · unassigned.
 
 | Dimension | Rating | Rationale |
 | --- | --- | --- |
-| **Value** | **Low** | No evidence two peers are insufficient. The **panel** skill now covers the "hear from 3+ providers" use case without touching convergence semantics — which further weakens the near-term case for 3+ *deliberation*. |
-| **Effort** | **High (if pursued)** | Generalizing pairwise convergence, oscillation, and verdicts is engine-core surgery. |
-| **Quadrant** | **Avoid / Defer** | Keep parked. |
+| **Value** | **Low** | `consensus-panel` already provides 3+ breadth without adding group convergence semantics, weakening the near-term case. |
+| **Effort** | **High** | Ties, group convergence, oscillation, verdict aggregation, and cost behavior touch the core model. |
+| **Quadrant** | **Avoid / Defer** | Keep the seed as a guardrail; demand must precede design work. |
 
-- **Dependencies:** None. — **Blocked by:** Nothing. — **Blocks:** Nothing.
+- **Dependencies:** No active-item dependency; needs documented evidence that two peers are insufficient.
+- **Blocked by:** Product demand and a go/no-go decision.
+- **Blocks:** Nothing currently planned.
+- **Implementation context:** The shipped engine is deliberately two-peer, and panel is explicitly independent and non-converging rather than a shortcut to group consensus.
+
+### `BL-260701-add-multi-round-panel` — Add multi-round panel discussion
+
+> Explore an opt-in attributed cross-talk mode while preserving a neutral moderator and never turning panel into refine/evaluate-style convergence.
+
+**Metadata:** Open · backlog priority low · idea · estimate M · labels: consensus, skill-family, panel, decision-recorded, usage-evidence-needed · unassigned.
+
+| Dimension | Rating | Rationale |
+| --- | --- | --- |
+| **Value** | **Low** | The v1 panel already meets the independent-breadth use case; this item waits on usage evidence that cross-talk is worth its added cost and complexity. |
+| **Effort** | **Medium** | Multi-round state, attribution, provider behavior, timeouts, and possible resume semantics are a real workflow change. |
+| **Quadrant** | **Avoid / Defer** | The key product distinctions are already decided; no build should start without usage evidence. |
+
+- **Dependencies:** No active backlog dependency; the single-round and neutral-moderator decisions are already recorded.
+- **Blocked by:** Evidence that single-round breadth is insufficient.
+- **Blocks:** Nothing currently planned.
+- **Implementation context:** The panel wrapper is intentionally direct fan-out with attributed responses and no synthesis; any future mode must stay opt-in and non-converging.
 
 ---
 
@@ -286,211 +223,179 @@ At review time, the backlog contained **13 open items** after the neutral-panel 
 
 ```text
 Legend:  ──▶  hard dependency (must complete first)
-         - -▶  soft dependency (beneficial but not required)
-
-BL-260620-share-consensus-generated - -▶ BL-260612-add-deliberation-metrics
-BL-260620-share-consensus-generated - -▶ BL-260612-add-similarity-heuristic
-BL-260620-share-consensus-generated - -▶ BL-260612-add-whole-document
-BL-260620-share-consensus-generated - -▶ BL-260612-add-consensus-research-skill (build phase only)
-
-(peer tool-access DR) ──▶ BL-260612-add-consensus-research-skill
-(context-bounding decision) ──▶ BL-260612-add-whole-document
-(product-distinction decision + panel usage evidence) ──▶ BL-260701-add-multi-round-panel
+         - -▶  soft sequencing or shared-surface constraint
 
 BL-260619-shared-session-log-substrate ──▶ BL-260619-inter-agent-direct-messaging
 
-Independent:
-BL-260627-verify-skills-sh-hosted        [independent]
-BL-260620-mid-loop-user-artifact-edits   [independent — decision seed]
-BL-260620-llm-section-auto-chunking      [independent — decision seed]
-BL-260619-define-host-native-dispatch    [independent — go/no-go seed]
-BL-260619-multi-peer-3-deliberation      [independent — go/no-go seed]
+BL-260612-add-consensus-research-skill (tool-access DR) ──▶ research build
+
+BL-260612-add-deliberation-metrics - -▶ BL-260612-add-similarity-heuristic
+BL-260612-add-similarity-heuristic - -▶ BL-260612-add-whole-document
+
+BL-260612-add-consensus-research-skill (build) - -▶ no concurrent loop-core changes
+BL-260612-add-deliberation-metrics - -▶ no concurrent loop-core changes
+BL-260612-add-similarity-heuristic - -▶ no concurrent loop-core changes
+BL-260612-add-whole-document - -▶ no concurrent loop-core changes
+
+BL-260619-define-host-native-dispatch [independent, demand-gated]
+BL-260619-multi-peer-3-deliberation [independent, evidence-gated]
+BL-260701-add-multi-round-panel [independent, evidence-gated]
 ```
 
-Note: the soft edges from `BL-260620-share-consensus-generated` are *concurrency* constraints, not prerequisites — the item's own rule is "not concurrent with consensus-loop-touching branches." Doing it first is the cheapest ordering; doing it after all of them is also valid but re-runs the dedup across more churn.
-
-**ID legend** (every ID used above):
+**ID legend:**
 
 | ID | Title |
 | --- | --- |
-| BL-260627-verify-skills-sh-hosted | Verify skills.sh hosted discovery surface and listing strategy |
-| BL-260620-share-consensus-generated | Share consensus generated runtime output at the plugin level |
-| BL-260612-add-deliberation-metrics | Add deliberation metrics (tokens, wall-clock, rounds) to artifacts |
-| BL-260612-add-similarity-heuristic | Add similarity heuristic for near-converged deliberation states |
-| BL-260612-add-whole-document | Add whole-document harmonization pass after section convergence |
-| BL-260612-add-consensus-research-skill | Add consensus-research skill (investigate question, synthesized findings) |
-| BL-260701-add-multi-round-panel | Add multi-round panel discussion |
-| BL-260619-shared-session-log-substrate | Shared session log substrate (become-observable daemon + merged log) |
-| BL-260619-inter-agent-direct-messaging | Inter-agent direct messaging (addressable, prioritized) |
-| BL-260620-mid-loop-user-artifact-edits | Mid-loop user artifact edits (type=edit intervention) |
-| BL-260620-llm-section-auto-chunking | LLM section auto-chunking fallback (--sections auto-llm) |
-| BL-260619-define-host-native-dispatch | Define host-native dispatch / safe-packet protocol (reserved seam) |
-| BL-260619-multi-peer-3-deliberation | Multi-peer (3+) deliberation extension (reserved / v3+ concern) |
+| `BL-260612-add-consensus-research-skill` | Add consensus-research skill (investigate question, synthesized findings) |
+| `BL-260612-add-deliberation-metrics` | Add deliberation metrics (tokens, wall-clock, rounds) to artifacts |
+| `BL-260612-add-similarity-heuristic` | Add similarity heuristic for near-converged deliberation states |
+| `BL-260612-add-whole-document` | Add whole-document harmonization pass after section convergence |
+| `BL-260619-define-host-native-dispatch` | Define host-native dispatch / safe-packet protocol (reserved seam) |
+| `BL-260619-shared-session-log-substrate` | Shared session log substrate (become-observable daemon + merged log) |
+| `BL-260619-inter-agent-direct-messaging` | Inter-agent direct messaging (addressable, prioritized) |
+| `BL-260619-multi-peer-3-deliberation` | Multi-peer (3+) deliberation extension (reserved / v3+ concern) |
+| `BL-260701-add-multi-round-panel` | Add multi-round panel discussion |
 
 ---
 
 ## 4. Parallel Lanes
 
-### Lane A: Release / distribution closeout
+### Lane A: Consensus research — decision, then isolated build
 
-Finish the last release-lane non-claim. Fully independent of everything else.
+Resolve the peer-tool-access, permission, and evidence-provenance contract first. The decision pass is safe to run alongside the other lanes; the wrapper build should not overlap loop-core changes.
 
 ```text
-BL-260627-verify-skills-sh-hosted  (single item)
+BL-260612-add-consensus-research-skill (DR) ──▶ BL-260612-add-consensus-research-skill (build)
 ```
 
 **Items in this lane:**
 
-- **BL-260627-verify-skills-sh-hosted** — Verify skills.sh hosted discovery surface and listing strategy
+- **BL-260612-add-consensus-research-skill** — Add consensus-research skill (investigate question, synthesized findings)
 
-**Total estimated effort:** Low
-**Cross-lane dependencies:** None. May need a second pass later if hosted indexing lags.
+**Total estimated effort:** High
+**Cross-lane dependencies:** The design pass can proceed in parallel. Its build shares the plugin loop surface with Lane B and must be serialized with it.
 
-### Lane B: Consensus packaging → loop quality
+### Lane B: Consensus loop quality — one worktree, one shared-runtime opening
 
-The generated-output dedup first (its no-concurrency window is open), then the loop-quality items land against a single shared output. Strictly sequential *within* the lane because everything touches the same loop core / generated outputs.
+Use a single, sequential worktree for metrics, similarity, and any harmonization decision/build. The July 7 shared-runtime migration removed five duplicate loop outputs, but it also means every loop change is now concentrated in one source/output contract.
 
 ```text
-BL-260620-share-consensus-generated ──▶ BL-260612-add-deliberation-metrics ──▶ BL-260612-add-similarity-heuristic - -▶ BL-260612-add-whole-document (decision-first)
+BL-260612-add-deliberation-metrics - -▶ BL-260612-add-similarity-heuristic - -▶ BL-260612-add-whole-document
 ```
 
 **Items in this lane:**
 
-- **BL-260620-share-consensus-generated** — Share consensus generated runtime output at the plugin level
-- **BL-260612-add-deliberation-metrics** — Add deliberation metrics to artifacts
-- **BL-260612-add-similarity-heuristic** — Similarity heuristic for near-converged states
-- **BL-260612-add-whole-document** — Whole-document harmonization pass (decision-first, largest)
+- **BL-260612-add-deliberation-metrics** — Add deliberation metrics (tokens, wall-clock, rounds) to artifacts
+- **BL-260612-add-similarity-heuristic** — Add similarity heuristic for near-converged deliberation states
+- **BL-260612-add-whole-document** — Add whole-document harmonization pass after section convergence
 
-**Total estimated effort:** Medium overall (dedup spike M; metrics S–M; similarity S; harmonization M–H if built)
-**Cross-lane dependencies:** Blocks the *build* phase of **BL-260612-add-consensus-research-skill** (Lane C) from running concurrently, not its DR.
+**Total estimated effort:** Medium–High
+**Cross-lane dependencies:** Serialize with the research build. The harmonization design decision can happen earlier, but do not let it create a second simultaneous loop change.
 
-### Lane C: Design / decision work (no loop conflicts)
+### Lane C: Multi-agent collaboration substrate — initiative slot
 
-Pure design-and-decision work that can run alongside Lane B because it produces DRs and item updates, not loop code.
-
-```text
-BL-260612-add-consensus-research-skill (DR phase)   [parallel]
-BL-260620-mid-loop-user-artifact-edits (decision)   [batchable]
-BL-260620-llm-section-auto-chunking (decision)      [batchable]
-BL-260701-add-multi-round-panel (product decision)  [batchable]
-```
-
-**Items in this lane:**
-
-- **BL-260612-add-consensus-research-skill** — Add consensus-research skill (peer tool-access DR only)
-- **BL-260620-mid-loop-user-artifact-edits** — Mid-loop user artifact edits (decision)
-- **BL-260620-llm-section-auto-chunking** — LLM section auto-chunking (decision)
-- **BL-260701-add-multi-round-panel** — Multi-round panel (product-distinction decision)
-
-**Total estimated effort:** Low–Medium (mostly decisions; the research DR is the substantive one)
-**Cross-lane dependencies:** The research *build* waits for both its DR and Lane B's dedup outcome.
-
-### Lane D: Multi-agent collaboration substrate (appetite-gated initiative)
-
-A separate initiative on a disjoint surface (session-observer / transcript tooling). Can run parallel to all consensus work, but is capacity-heavy — start only with explicit appetite.
+Run this lane only when deliberately allocating capacity to a new operational surface; it is technically disjoint from consensus loop work but too large to be an incidental side project.
 
 ```text
-BL-260619-shared-session-log-substrate (design pass ──▶ build) ──▶ BL-260619-inter-agent-direct-messaging
+BL-260619-shared-session-log-substrate ──▶ BL-260619-inter-agent-direct-messaging
 ```
 
 **Items in this lane:**
 
 - **BL-260619-shared-session-log-substrate** — Shared session log substrate (become-observable daemon + merged log)
-- **BL-260619-inter-agent-direct-messaging** — Inter-agent direct messaging
+- **BL-260619-inter-agent-direct-messaging** — Inter-agent direct messaging (addressable, prioritized)
 
 **Total estimated effort:** High
-**Cross-lane dependencies:** None technically; competes for the operator's initiative-sized capacity slot.
+**Cross-lane dependencies:** None technically. It competes for attention with the research and loop-quality initiatives.
 
-### Parked (no lane)
+### Lane D: Reserved and evidence-gated seeds — stay parked
 
-- **BL-260619-define-host-native-dispatch** — Host-native dispatch protocol (go/no-go seed)
-- **BL-260619-multi-peer-3-deliberation** — Multi-peer (3+) deliberation (go/no-go seed)
+```text
+BL-260619-define-host-native-dispatch [demand-gated]
+BL-260619-multi-peer-3-deliberation [evidence-gated]
+BL-260701-add-multi-round-panel [usage-evidence-gated]
+```
+
+**Items in this lane:**
+
+- **BL-260619-define-host-native-dispatch** — Define host-native dispatch / safe-packet protocol (reserved seam)
+- **BL-260619-multi-peer-3-deliberation** — Multi-peer (3+) deliberation extension (reserved / v3+ concern)
+- **BL-260701-add-multi-round-panel** — Add multi-round panel discussion
+
+**Total estimated effort:** High if any seed is promoted
+**Cross-lane dependencies:** Promotion requires concrete use evidence, not merely available capacity.
 
 ---
 
 ## 5. Recommended Execution Order
 
-### Wave 1: Close the release lane + take the dedup window
+### Wave 1: Research boundary + loop-quality batch (now)
 
 | Order | Item | Effort | Rationale |
 | --- | --- | --- | --- |
-| 1a | **BL-260627-verify-skills-sh-hosted** — Verify skills.sh hosted discovery surface | Low | Cheapest high-leverage item; retires the last v0.1 non-claim; recipe already written. |
-| 1b | **BL-260620-share-consensus-generated** — Share consensus generated runtime output | Medium | The no-loop-work-in-flight window is open **now**; duplication has grown to 5 loop copies; everything downstream in the consensus lane gets cheaper. |
+| 1a | **BL-260612-add-consensus-research-skill** — Add consensus-research skill (design/DR phase) | High | Resolve peer tools, permissions, evidence provenance, and the owned provider-CLI boundary before estimating a build. |
+| 1b | **BL-260612-add-deliberation-metrics** — Add deliberation metrics | Medium | A bounded observability pass with existing round/wall-clock scaffolding; inventory provider signals before exposing cost data. |
+| 1c | **BL-260612-add-similarity-heuristic** — Add similarity heuristic | Low | Take immediately after metrics in the same worktree to share generated-output and artifact validation. |
 
-**Parallelism:** 1a ∥ 1b — fully disjoint surfaces (hosted-index verification vs build tooling).
+**Parallelism:** The research DR can run beside the metrics-to-similarity worktree. Do not begin a research build while any loop-quality implementation is in flight.
 
-### Wave 2: Loop-quality batch + research DR
-
-| Order | Item | Effort | Rationale |
-| --- | --- | --- | --- |
-| 2a | **BL-260612-add-deliberation-metrics** — Add deliberation metrics | Low–Med | First post-dedup loop change; scaffolding (cost fields, round counts) partially exists. |
-| 2b | **BL-260612-add-similarity-heuristic** — Similarity heuristic | Low | Same loop-core neighborhood as 2a; bank in the same worktree. |
-| 2c | **BL-260612-add-consensus-research-skill** — consensus-research (DR phase only) | Med (planning) | Runs parallel to 2a/2b — produces a decision record, not loop code. |
-
-**Parallelism:** (2a → 2b sequential in one worktree) ∥ 2c.
-
-### Wave 3: Bigger builds, by appetite
+### Wave 2: Coherence + collaboration foundation (next)
 
 | Order | Item | Effort | Rationale |
 | --- | --- | --- | --- |
-| 3a | **BL-260612-add-whole-document** — Harmonization pass (decision, then build) | Med–High | Largest loop-quality item; context-bounding decision first. |
-| 3b | **BL-260612-add-consensus-research-skill** — consensus-research (build) | Medium | Only after its DR resolves; not concurrent with 3a (both touch loop/generated output). |
-| 3c | **BL-260619-shared-session-log-substrate** — Substrate (design pass) | High | Start only with initiative-level appetite; disjoint surface, so it can run beside 3a *or* 3b. |
+| 2a | **BL-260612-add-whole-document** — Add whole-document harmonization pass (decision first, then build by demand) | High | Record the context boundary, then decide on the broad post-fan-in and resume integration. |
+| 2b | **BL-260619-shared-session-log-substrate** — Shared session log substrate (design first) | High | Start the adopt-versus-build, packaging, identity, merged-log, and lifecycle decisions only with an explicit initiative slot. |
 
-**Parallelism:** 3c ∥ (3a or 3b). 3a and 3b are mutually sequential.
+**Parallelism:** These lanes are technically disjoint, but both are high-attention arcs. Start one or both only with deliberate capacity.
 
-### Decision sweep (completed 2026-07-07)
+### Wave 3: Direct messaging (later)
 
-Verdicts are recorded in the item files:
+| Order | Item | Effort | Rationale |
+| --- | --- | --- | --- |
+| 3 | **BL-260619-inter-agent-direct-messaging** — Inter-agent direct messaging | High | It remains hard-blocked until the session-log substrate supplies shared identity, state, lifecycle, and cursor primitives. |
 
-- **BL-260620-mid-loop-user-artifact-edits** — Mid-loop user artifact edits: resolved `wont_do` and archived.
-- **BL-260620-llm-section-auto-chunking** — LLM section auto-chunking: resolved `wont_do` and archived.
-- **BL-260701-add-multi-round-panel** — Multi-round panel: product-distinction decision recorded; build remains deferred for usage evidence.
+**Parallelism:** None before the substrate exists.
 
 ### Deferred
 
 | Item | Rationale |
 | --- | --- |
-| **BL-260619-inter-agent-direct-messaging** — Inter-agent direct messaging | Hard-blocked behind the substrate foundation. |
-| **BL-260619-define-host-native-dispatch** — Host-native dispatch protocol | Reserved seam; the seed's guard value is already delivered. Go/no-go only if a concrete need appears. |
-| **BL-260619-multi-peer-3-deliberation** — Multi-peer (3+) deliberation | Speculative; panel now covers the 3+-provider breadth case without convergence surgery. |
-| **BL-260701-add-multi-round-panel** — Multi-round panel (build) | Panel v1 shipped 2026-07-03; collect usage evidence before adding rounds. Product distinction is recorded; build remains deferred. |
+| **BL-260619-define-host-native-dispatch** — Define host-native dispatch / safe-packet protocol | The current reserved seam prevents unsafe accidental activation; demand must justify a full protocol. |
+| **BL-260619-multi-peer-3-deliberation** — Multi-peer (3+) deliberation extension | Panel already covers multi-provider breadth; group convergence needs evidence that two peers are insufficient. |
+| **BL-260701-add-multi-round-panel** — Add multi-round panel discussion | The required product constraints are decided; wait for real evidence that single-round breadth is insufficient. |
 
 ---
 
 ## 6. Roadmap Alignment
 
-### How backlog items map to roadmap phases
+### How backlog items map to roadmap lanes
 
-| Roadmap Phase | Status | Backlog Items | Notes |
+| Roadmap lane | Status | Backlog items | Notes |
 | --- | --- | --- | --- |
-| Now — public-discovery control | Shipped except hosted check | **BL-260627-verify-skills-sh-hosted** — Verify skills.sh hosted discovery surface | The roadmap mentions the deferred hosted check narratively but predates this item's creation — it should reference the item ID. |
-| Next — consensus research | Open | **BL-260612-add-consensus-research-skill** — Add consensus-research skill | Aligned; DR-before-build framing matches. |
-| Later — loop quality (v3 Phase 4) | Open | **BL-260612-add-whole-document** — Harmonization; **BL-260612-add-deliberation-metrics** — Metrics; **BL-260612-add-similarity-heuristic** — Similarity heuristic | Aligned. The "after create/decide/plan land" gate is now satisfied — these are promotable. |
-| Later — plugin packaging | Open | **BL-260620-share-consensus-generated** — Share consensus generated runtime output | Aligned, but the roadmap's "land before the family project starts or after it merges" constraint has **resolved in favor of now** — the family project is done and nothing loop-touching is in flight. Roadmap wording is stale. |
-| Later — reserved seeds | Parked | **BL-260619-define-host-native-dispatch** — Host-native dispatch; **BL-260619-multi-peer-3-deliberation** — 3+ peers | Aligned (go/no-go first, likely defer). |
-| Later — decision seeds | Resolved 2026-07-07 | **BL-260620-mid-loop-user-artifact-edits** — Mid-loop edits; **BL-260620-llm-section-auto-chunking** — LLM auto-chunking | Both resolved `wont_do` and moved to `backlog/archived/`. |
-| Later — multi-agent substrate | Open | **BL-260619-shared-session-log-substrate** — Substrate; **BL-260619-inter-agent-direct-messaging** — Messaging | Aligned; the TS-foundation gate it was sequenced behind has landed, so it is promotable on appetite. |
+| **Now: research boundary** | Active | **BL-260612-add-consensus-research-skill** — Add consensus-research skill | DR now; implementation only after a documented go and outside another loop build. |
+| **Now: loop-quality batch** | Active | **BL-260612-add-deliberation-metrics** — Add deliberation metrics; **BL-260612-add-similarity-heuristic** — Add similarity heuristic | One sequential shared-loop worktree, running alongside the research DR only. |
+| **Next: coherence + foundation** | Next | **BL-260612-add-whole-document** — Add whole-document harmonization pass; **BL-260619-shared-session-log-substrate** — Shared session log substrate | Each begins with a design decision; run only with deliberate capacity. |
+| **Later: direct messaging** | Later | **BL-260619-inter-agent-direct-messaging** — Inter-agent direct messaging | Hard-blocked behind the shared session-log substrate. |
+| **Later: reserved and evidence-gated work** | Parked | **BL-260619-define-host-native-dispatch** — Define host-native dispatch / safe-packet protocol; **BL-260619-multi-peer-3-deliberation** — Multi-peer (3+) deliberation extension; **BL-260701-add-multi-round-panel** — Add multi-round panel discussion | Demand or usage evidence must precede a design/build commitment. |
 
-### Gaps: Roadmap items without backlog coverage
+### Gaps: Roadmap work without active backlog coverage
 
-| Roadmap Item | Phase | Recommendation |
-| --- | --- | --- |
-| Opt-in strict require-submission mode (verdict path follow-up) | Consensus lane, "what remains" | Mentioned in the lane narrative and the backlog index overview, but has **no backlog item**. Create a small seed item or explicitly declare it promotable-on-demand in the index. |
-| Codex read-only capture-path relocation (verdict path follow-up) | Consensus lane, "what remains" | Same treatment as above — narrative-only today. |
-| Cursor submit-tool / custom ACP provider path exploration | Later | Narrative-only. Acceptable as a Later stub, but note it has no tracked home. |
-| Transcript-tooling deferrals (Cursor SQLite store, provider-hook push, Gemini adapter, …) | Later | Intentionally archived-project-recorded and promotable on demand — no action needed; this is the documented pattern. |
-
-### Orphans: Backlog items not on the roadmap
-
-| Backlog Item | Recommendation |
+| Roadmap item | Recommendation |
 | --- | --- |
-| **BL-260701-add-multi-round-panel** — Add multi-round panel discussion | Add to the roadmap's Later lane (or a panel bullet under the consensus lane). Created 2026-07-01, after the roadmap's last update. |
-| **BL-260627-verify-skills-sh-hosted** — Verify skills.sh hosted discovery surface | Referenced narratively in Now ("Still open (deferred)") but not by item ID — update the roadmap line to point at the item. |
+| Opt-in strict require-submission mode | Keep as an explicitly untracked later follow-up until there is a concrete user or release need; do not add a backlog item solely because the roadmap names it. |
+| Cursor submit-tool / custom ACP exploration | Remains discovery territory. Add a scoped item only when a provider need and success criteria are known. |
+| Public marketplace submissions and hosted-search propagation | Release/distribution monitoring rather than a build initiative; capture a time-bounded backlog item only if a verified blocker emerges. |
 
-### Roadmap staleness
+### Orphans: Backlog items not represented on the roadmap
 
-The roadmap's **Last updated** stamp is 2026-06-28. It does not yet record the 2026-07-03 ship of `consensus-panel` + `consensus config` defaults (**BL-260626-add-consensus-panel-skill** / **BL-260626-configure-default-consensus**, PR #40) — the consensus-lane narrative ("`consensus-research` is the only remaining unshipped named family skill") is still accurate, but the lane and Now sections should note panel/config as shipped and fold the two orphans above in.
+**None.** All 9 active items map to an explicit Now, Next, or Later roadmap lane.
+
+### Status consistency findings
+
+- The active item count is **9**. The one-page alignment was refreshed through the July 11 walkthrough, removing its stale 10-item count and completed generated-runtime-dedup gate.
+- The research and metrics items now name the owned `consensus` provider CLI as their execution boundary rather than the retired runtime terminology.
+- Historic relative source pointers in the similarity, multi-peer, host-native-dispatch, and roadmap records were updated to their current repository locations in this alignment pass.
+- No recent commit evidence indicates that an active item has shipped without backlog close-out. The July 7 shared-runtime migration and the decision sweep are already archived and reflected in the roadmap/current state.
 
 ---
 
@@ -498,24 +403,24 @@ The roadmap's **Last updated** stamp is 2026-06-28. It does not yet record the 2
 
 ### Strategic observations
 
-1. **The board is post-milestone and top-light.** Everything urgent-or-high is done and archived; after the 2026-07-07 sweep, 7 of 10 open items are priority `low`. This is the natural moment for either (a) the maintainability + loop-quality consolidation pass (Lanes A+B, recommended), or (b) committing to the substrate initiative. Doing both at once is beyond the historical 2–3 worktree capacity once the substrate design pass starts.
-2. **`BL-260620-share-consensus-generated` (share consensus generated runtime output) is the scheduling keystone.** Its no-concurrency constraint radiates across every loop-touching item, and the constraint is satisfied *right now* for the first time since it was written. Skipping the window means either re-litigating it after harmonization/metrics churn or serializing around it later anyway.
-3. **Decision debt was cheap to clear.** The 2026-07-07 sweep archived `BL-260620-mid-loop-user-artifact-edits` and `BL-260620-llm-section-auto-chunking` as `wont_do`, and recorded the product distinction for `BL-260701-add-multi-round-panel` while keeping the build evidence-gated. The remaining reserved seeds can still stay parked until a concrete need appears.
-4. **The panel ship quietly weakened the case for `BL-260619-multi-peer-3-deliberation` (3+ deliberation).** "Hear from 3+ providers" is now served by panel without touching convergence semantics. Worth noting in that item when next touched.
+1. The board is no longer a broad release cleanup. It is one current research decision, one current controlled shared-loop quality lane, two next design/build arcs, and three intentionally parked seeds.
+2. The shared plugin-local runtime reduces duplicate generated output, but it increases the value of serializing loop-core work. Parallelize design work, not concurrent edits to the same loop/artifact schema.
+3. The multi-agent substrate has real strategic value but needs a deliberate owner and operational appetite. It should not be started merely because its code surface is disjoint.
 
 ### Risks
 
 | Risk | Mitigation |
 | --- | --- |
-| **Backlog hygiene drift** — ~~`BL-260621-control-public-skill-discovery` (control public skill discovery surface) was `status: done` but unarchived and missing from `completed.md`~~ **Resolved 2026-07-05:** closed/archived retroactively; a Backlog Lifecycle contract in `pjm/AGENTS.md` now defines close-out steps and terminal statuses (`closed`/`wont_do`) to prevent recurrence. | Follow the Backlog Lifecycle at every ship; the review skill cross-checks recent commits against open items. |
-| **Roadmap staleness compounds:** last updated 2026-06-28; panel/config ship and two newer items unreferenced. | Fold the 2026-07-03 ship + both orphan items into the roadmap in the same pass as the hygiene fix. |
-| **Hosted-index verification may be unactionable if skills.sh still hasn't indexed the repo** — the item depends on Vercel-side crawl behavior. | Timebox the check; if still unindexed, record "wait-for-crawl + optional install-telemetry seeding" as the strategy and re-check on a calendar cadence rather than leaving the item open-ended. |
-| **The dedup spike may fail a host** (Copilot/Codex installed layouts unverified for plugin-root relative imports), leaving the item half-open. | The spike is explicitly a go/no-go: a documented "keep duplication" outcome with recorded evidence is a legitimate close. Don't let it linger as in-progress. |
-| **Stale review artifacts mislead:** the previous living review (2026-06-22) and priority-alignment (2026-06-23) referenced a 15-item board with a kickoff stack that has entirely shipped. | This document replaces the living review; refresh `priority-alignment.md` via the walkthrough (offered separately). |
+| Research skill build starts before tool-access/evidence decisions are made. | Make the DR and explicit go/no-go the first project phase; scope the build from that result. |
+| Metrics or similarity assumptions overstate what providers report. | Inventory provider CLI signals first; preserve explicit unavailable semantics and avoid fabricated costs. |
+| Several loop items are implemented in separate worktrees. | Maintain one sequential loop-quality worktree and run generated-output, test, validate, and smoke gates per repo convention. |
+| Current execution drifts from the confirmed phase order. | Use the refreshed priority-alignment guide and its three current handoffs as the kickoff source of truth. |
+| Substrate work quietly becomes an unbounded platform project. | Require a design/DR, adoption evaluation, defined packaging, lifecycle boundaries, and an explicit initiative slot. |
 
 ### Quick wins to tackle immediately
 
-1. **BL-260627-verify-skills-sh-hosted** — Verify skills.sh hosted discovery surface (Low effort; recipe pre-written in the item; closes the last release non-claim).
-2. **BL-260612-add-deliberation-metrics** — Add deliberation metrics (Low–Medium effort once the dedup lands; partial scaffolding already in `LoopStatus`).
+There are **no true quick wins** on the active board. The nearest low-risk bounded work is:
 
-> The backlog hygiene micro-task flagged by this review (archiving `BL-260621-control-public-skill-discovery` — control public skill discovery surface) was completed 2026-07-05, alongside a new Backlog Lifecycle contract in `pjm/AGENTS.md`.
+1. **BL-260612-add-deliberation-metrics** — Add deliberation metrics (medium effort after the provider signal inventory).
+2. **BL-260612-add-similarity-heuristic** — Add similarity heuristic (low effort, but only as part of the same loop-quality worktree).
+3. **BL-260612-add-consensus-research-skill** — Add consensus-research skill (the design/DR phase runs now alongside, but not inside, the loop-quality implementation worktree).
