@@ -1,8 +1,7 @@
 ---
 oat_status: complete
 oat_ready_for: oat-project-implement
-oat_blockers:
-  - "p03 review retry 3/3 exhausted: effective ambient .mjs declarations remain stale"
+oat_blockers: []
 oat_last_updated: 2026-07-12
 oat_phase: plan
 oat_phase_status: complete

@@ -1,9 +1,8 @@
 ---
 oat_status: in_progress
 oat_ready_for: null
-oat_blockers:
-  - "p03 review retry 3/3 exhausted: effective ambient .mjs declarations remain stale"
-oat_orchestration_retry_limit: 3
+oat_blockers: []
+oat_orchestration_retry_limit: 4
 oat_last_updated: 2026-07-12
 oat_current_task_id: null
 oat_generated: false
@@ -112,6 +111,7 @@ oat_generated: false
 - The shared runtime output also requires an `export-session-transcript` skill version bump under the repository's changed-skill invariant; p02 terminal quality fixes own that metadata-only adjustment.
 - The user explicitly authorized one additional p03 review-fix iteration; retry limit is 3 for this run.
 - That iteration resolved all four prior findings; the final re-review found one new Medium ambient-declaration issue and exhausted the 3/3 limit.
+- The user authorized a fourth fix-only iteration for that Medium finding and directed implementation to proceed to the next phase without another p03 review.
 
 ## Orchestration Runs
 
