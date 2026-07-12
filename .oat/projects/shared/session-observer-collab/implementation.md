@@ -4,7 +4,7 @@ oat_ready_for: null
 oat_blockers: []
 oat_orchestration_retry_limit: 4
 oat_last_updated: 2026-07-12
-oat_current_task_id: null
+oat_current_task_id: p04-t01
 oat_generated: false
 ---
 
@@ -21,7 +21,7 @@ oat_generated: false
 | --- | --- | ---: | ---: |
 | p01 — Transcript semantics | completed | 4 | 4 |
 | p02 — Identity and watch behavior | completed | 5 | 5 |
-| p03 — Collaboration protocol/control | blocked_review | 4 | 4 |
+| p03 — Collaboration protocol/control | completed | 4 | 4 |
 | p04 — Codex adapter | pending | 3 | 0 |
 | p05 — Cursor and Claude adapters | pending | 3 | 0 |
 | p06 — Integration and closeout | pending | 5 | 0 |
@@ -67,16 +67,16 @@ oat_generated: false
 
 - [x] `p03-t01` Scaffold the canonical sibling skill — `a5ec157`
 - [x] `p03-t02` Author the runtime-neutral N=2 protocol — `8bb9cc7`
-- [x] `p03-t03` Implement versioned lease state and control operations — `a5620c8`, fixes `a7c9f00`, `40343fe`, `e4450fe`
+- [x] `p03-t03` Implement versioned lease state and control operations — `a5620c8`, fixes `a7c9f00`, `40343fe`, `e4450fe`, `a417771`
 - [x] `p03-t04` Normalize substantive completion and continuation selection — `5fd8ee7`, fixes `e99c970`, `50dc0d7`
 
 ### Phase p03 Summary
 
-**Outcome:** The canonical collaboration skill, runtime-neutral protocol, dependency-free lease/control plane, adapter interface, and completion selector are implemented. Task and integration tests pass, but phase review remains blocked after the configured fix limit.
+**Outcome:** The canonical collaboration skill, runtime-neutral protocol, dependency-free lease/control plane, adapter interface, completion selector, and effective TypeScript declarations are implemented. The user directed the final Medium declaration fix to close p03 without another review and proceed.
 
-**Verification:** 77 p03 tests, type-check, repository validation, build parity, changed-file quality, dependency/provider-mirror boundaries, and diff checks pass.
+**Verification:** 77 phase tests, 44 root-focused collaboration tests, dedicated ambient compile-time coverage, full type-check, repository validation, build parity, changed-file quality, dependency/provider-mirror boundaries, and diff checks pass.
 
-**Review blocker:** User-authorized iteration 3/3 resolved all four prior findings. Re-review found one new Medium issue: `scripts/mjs-modules.d.ts` remains the effective TypeScript contract for `.mjs` imports but does not model the schema-v4 wait fields or owner/peer validator API. The authorized retry limit is exhausted; p04/p05 were not started.
+**Review:** User-authorized iteration 3/3 resolved all four blocking findings. The re-review identified one Medium ambient-declaration issue; iteration 4/4 fixed it with compile-time coverage. Per explicit user direction, no further p03 reviewer ran and the phase advanced.
 
 ## Phase p04: Implement and validate the Codex lifecycle adapter
 
@@ -266,13 +266,40 @@ oat_generated: false
 | --- | --- | --- | --- | --- | --- | --- |
 | p03 review | design.md lease/control contract | Complete runtime and TypeScript control-plane contract | Runtime behavior is complete; effective ambient declarations are stale | Reviewer traced actual TypeScript module resolution after runtime fixes | review finding + implementation | Resume only with explicit retry-limit override |
 
+### Run 5 — 2026-07-12 18:39 CDT
+
+**Branch:** `session-observer-collab`
+**Tier:** 1
+**Policy:** merge-strategy=merge, retry-limit=4 (explicit user override)
+**Phases:** 1 resumed, 1 passed by user disposition, 0 failed, 0 stopped
+
+#### Phase Outcomes
+
+| Phase | Implementer | Review | Fix Iterations | Disposition |
+| --- | --- | --- | ---: | --- |
+| p03 | DONE | intentionally not rerun | 4/4 | completed; proceed to p04/p05 |
+
+#### Dispatch Notes
+
+- `Dispatch: scope=p03-t03-review-fix-i4 action=fix role=fix producer=unknown provenance=unknown model_axis=selected:gpt-5.6-luna effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-luna-high`
+
+#### Outstanding Items
+
+- None.
+
+#### Artifact / Design Deltas
+
+| Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
+| --- | --- | --- | --- | --- | --- | --- |
+| p03 review | plan.md standard per-phase review loop | Re-review after each blocking fix iteration | Medium declaration finding fixed and p03 closed without another review | Explicit user direction to fix and move to the next phase | implementation + user disposition | Final review still covers the complete branch |
+
 <!-- orchestration-runs-end -->
 
 ## Deviations from Plan / Design
 
 | Date | Scope | Deviation | Disposition |
 | --- | --- | --- | --- |
-| - | - | None | - |
+| 2026-07-12 | p03 review | Final Medium declaration fix was not re-reviewed at the phase boundary; user explicitly directed fix-only completion and advancement. The implementation plus final project review are the source of truth. | Accepted; final review covers the full branch. |
 
 ## Final Summary (for PR/docs)
 

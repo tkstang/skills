@@ -1,6 +1,6 @@
 ---
-oat_current_task: p03-review
-oat_last_commit: e4450fe7e1f36e82fda49e6be33539cfce5c4f91
+oat_current_task: p04-t01
+oat_last_commit: a417771dd9dad93608d7052fb51e09aba146691c
 oat_blockers: []
 oat_orchestration_retry_limit: 4
 associated_issues: []
@@ -37,7 +37,7 @@ oat_generated: false
 
 ## Current Phase
 
-Phase p03 fix-only iteration 4/4 is authorized and in progress.
+Parallel phase group p04/p05 is next.
 
 ## Artifacts
 
@@ -61,7 +61,8 @@ Phase p03 fix-only iteration 4/4 is authorized and in progress.
 - ✓ Cross-runtime quick-start gate skipped by explicit user direction
 - ✓ Phase p01 completed and reviewed
 - ✓ Phase p02 completed and reviewed
-- ⧗ Phase p03 fix-only iteration 4/4 in progress; p04/p05 not started
+- ✓ Phase p03 completed after user-authorized fix-only iteration 4/4
+- ⧗ Parallel group p04/p05 ready to start
 
 ## Blockers
 
@@ -69,4 +70,4 @@ None
 
 ## Next Milestone
 
-Complete the authorized ambient-declaration fix, record p03 accepted without another review, and proceed to p04/p05.
+Execute the p04/p05 parallel adapter group, merge in plan order, and verify integration.
