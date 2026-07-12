@@ -13,6 +13,11 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, test } from 'vitest';
 
 import {
+  assessCodexHookReadiness,
+  installCodexStopHook,
+  uninstallCodexStopHook,
+} from '../../skills/session-observer-collab/scripts/codex-lifecycle.mjs';
+import {
   arm,
   disarm,
   install,
@@ -66,6 +71,157 @@ function options(cwd: string, transcript: string) {
 }
 
 describe('collaboration lease controls', () => {
+  test('installs the exact Codex Stop command without replacing unrelated hooks', async () => {
+    const { home } = await fixture();
+    const hooksPath = join(home, '.codex', 'hooks.json');
+    const scriptPath = join(
+      home,
+      '.codex',
+      'hooks',
+      'session-observer-collab-stop.mjs',
+    );
+    const unrelated = {
+      hooks: {
+        Stop: [
+          {
+            hooks: [
+              {
+                type: 'command',
+                command: 'node /tmp/unrelated-stop.mjs',
+                timeout: 10,
+              },
+            ],
+          },
+        ],
+        SessionStart: [
+          { hooks: [{ type: 'command', command: 'node /tmp/start.mjs' }] },
+        ],
+      },
+    };
+    await mkdir(join(home, '.codex'), { recursive: true });
+    await writeFile(hooksPath, JSON.stringify(unrelated));
+
+    const first = await installCodexStopHook({ hooksPath, scriptPath });
+    const second = await installCodexStopHook({ hooksPath, scriptPath });
+    const written = JSON.parse(await readFile(hooksPath, 'utf8'));
+
+    expect(first).toMatchObject({
+      changed: true,
+      exactCommand: `node ${scriptPath}`,
+    });
+    expect(second).toMatchObject({ changed: false });
+    expect(written.hooks.SessionStart).toEqual(unrelated.hooks.SessionStart);
+    expect(written.hooks.Stop[0]).toEqual(unrelated.hooks.Stop[0]);
+    expect(
+      written.hooks.Stop.flatMap((group: { hooks: unknown[] }) => group.hooks),
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          command: `node ${scriptPath}`,
+          statusMessage: 'Checking for Session Observer peer activity',
+        }),
+      ]),
+    );
+  });
+
+  test('reports trust, explicit disablement, and effective execution as separate Codex facts', async () => {
+    const { home } = await fixture();
+    const scriptPath = join(
+      home,
+      '.codex',
+      'hooks',
+      'session-observer-collab-stop.mjs',
+    );
+    const exactCommand = `node ${scriptPath}`;
+    const hooks = {
+      hooks: {
+        Stop: [{ hooks: [{ type: 'command', command: exactCommand }] }],
+      },
+    };
+
+    expect(
+      assessCodexHookReadiness({
+        scriptPath,
+        hooks,
+        trustRecords: [{ command: exactCommand, trusted: true }],
+        hookStatuses: [
+          { command: exactCommand, lastRanAt: '2026-07-12T12:00:00.000Z' },
+        ],
+      }),
+    ).toMatchObject({
+      installed: true,
+      trusted: 'trusted',
+      enablement: 'not-explicitly-disabled',
+      effectiveExecution: 'observed',
+      mayArm: true,
+    });
+    expect(
+      assessCodexHookReadiness({
+        scriptPath,
+        hooks,
+        trustRecords: [{ command: exactCommand, trusted: true }],
+        hookStatuses: [
+          {
+            command: exactCommand,
+            enabled: false,
+            lastRanAt: '2026-07-12T12:00:00.000Z',
+          },
+        ],
+      }),
+    ).toMatchObject({ enablement: 'disabled', mayArm: false });
+    expect(
+      assessCodexHookReadiness({
+        scriptPath,
+        hooks,
+        trustRecords: [{ command: 'node /other/script.mjs', trusted: true }],
+        hookStatuses: [
+          {
+            command: 'node /other/script.mjs',
+            lastRanAt: '2026-07-12T12:00:00.000Z',
+          },
+        ],
+      }),
+    ).toMatchObject({
+      trusted: 'unverified',
+      effectiveExecution: 'unverified',
+      mayArm: false,
+    });
+  });
+
+  test('uninstalls only the confirmed exact Codex hook after all leases are disarmed', async () => {
+    const { home } = await fixture();
+    const hooksPath = join(home, '.codex', 'hooks.json');
+    const scriptPath = join(
+      home,
+      '.codex',
+      'hooks',
+      'session-observer-collab-stop.mjs',
+    );
+    await installCodexStopHook({ hooksPath, scriptPath });
+    await expect(
+      uninstallCodexStopHook({ hooksPath, scriptPath, confirmed: false }),
+    ).rejects.toThrow('explicit confirmation');
+    await expect(
+      uninstallCodexStopHook({
+        hooksPath,
+        scriptPath,
+        confirmed: true,
+        activeLeaseCount: 1,
+      }),
+    ).rejects.toThrow('active collaboration leases');
+
+    const result = await uninstallCodexStopHook({
+      hooksPath,
+      scriptPath,
+      confirmed: true,
+      activeLeaseCount: 0,
+    });
+    expect(result).toMatchObject({ changed: true, removed: 1 });
+    expect(JSON.parse(await readFile(hooksPath, 'utf8')).hooks.Stop).toEqual(
+      [],
+    );
+  });
+
   test('install and arm are idempotent and owner-only', async () => {
     const { root, cwd, transcript } = await fixture();
     expect(

@@ -5,8 +5,11 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, test } from 'vitest';
 
 import { arm } from '../../skills/session-observer-collab/scripts/collab-control.mjs';
-import { readLease, stateRoot } from '../../skills/session-observer-collab/scripts/lib/lease-state.mjs';
 import { runCodexStopHook } from '../../skills/session-observer-collab/scripts/hooks/codex-stop.mjs';
+import {
+  readLease,
+  stateRoot,
+} from '../../skills/session-observer-collab/scripts/lib/lease-state.mjs';
 
 const roots: string[] = [];
 const START = 1_700_000_000_000;
@@ -105,7 +108,10 @@ describe('Codex Stop continuation hook', () => {
       { root, now: () => START + 1, observe: async () => digest() },
     );
 
-    expect(result).toMatchObject({ decision: 'block', reason: expect.any(String) });
+    expect(result).toMatchObject({
+      decision: 'block',
+      reason: expect.any(String),
+    });
     expect(result.reason).toContain('<session_observer_wake automatic="true"');
     expect(result.reason).toContain('runtime="codex"');
     expect(result.reason).toContain(`lease_id="${armed.lease.leaseId}"`);
@@ -124,14 +130,27 @@ describe('Codex Stop continuation hook', () => {
     await armLease(root, cwd, transcript, { continuationCap: 1 });
 
     await expect(
-      runCodexStopHook({ hook_event_name: 'Stop', session_id: 'bad/session', cwd }, { root }),
-    ).resolves.toMatchObject({ decision: 'allow', diagnostic: 'invalid-hook-input' });
+      runCodexStopHook(
+        { hook_event_name: 'Stop', session_id: 'bad/session', cwd },
+        { root },
+      ),
+    ).resolves.toMatchObject({
+      decision: 'allow',
+      diagnostic: 'invalid-hook-input',
+    });
     await expect(
       runCodexStopHook(
-        { hook_event_name: 'Stop', session_id: 'codex-1', cwd: join(cwd, 'other') },
+        {
+          hook_event_name: 'Stop',
+          session_id: 'codex-1',
+          cwd: join(cwd, 'other'),
+        },
         { root, observe: async () => digest() },
       ),
-    ).resolves.toMatchObject({ decision: 'allow', diagnostic: 'identity-mismatch' });
+    ).resolves.toMatchObject({
+      decision: 'allow',
+      diagnostic: 'identity-mismatch',
+    });
     expect((await readLease(root, 'codex-1'))?.state).toBe('armed');
 
     const exhausted = await runCodexStopHook(
@@ -178,18 +197,53 @@ describe('Codex Stop continuation hook', () => {
     const { root, cwd, transcript } = await fixture();
     await armLease(root, cwd, transcript, { continuationCap: 1 });
     const hook = { hook_event_name: 'Stop', session_id: 'codex-1', cwd };
-    const options = { root, now: () => START + 1, observe: async () => digest() };
+    const options = {
+      root,
+      now: () => START + 1,
+      observe: async () => digest(),
+    };
 
     const results = [
       await runCodexStopHook(hook, options),
       await runCodexStopHook(hook, options),
     ];
 
-    expect(results.filter((result) => result.decision === 'block')).toHaveLength(1);
+    expect(
+      results.filter((result) => result.decision === 'block'),
+    ).toHaveLength(1);
     expect(await readLease(root, 'codex-1')).toMatchObject({
       peerCursor: 3,
       continuationCount: 1,
       loopCount: 1,
     });
+  });
+
+  test('a restarted Codex client requires an explicit re-arm after an idle timeout', async () => {
+    const { root, cwd, transcript } = await fixture();
+    await armLease(root, cwd, transcript, { waitMs: 1 });
+    const timeoutMoments = [START + 1, START + 1, START + 2, START + 2];
+    const event = { hook_event_name: 'Stop', session_id: 'codex-1', cwd };
+    const noOp = digest();
+    noOp.entries[1].text = '[no-op] still waiting for the peer';
+
+    await expect(
+      runCodexStopHook(event, {
+        root,
+        now: () => timeoutMoments.shift() ?? START + 2,
+        observe: async () => noOp,
+      }),
+    ).resolves.toMatchObject({ decision: 'allow', diagnostic: 'wait-timeout' });
+    await expect(
+      runCodexStopHook(event, { root, observe: async () => noOp }),
+    ).resolves.toMatchObject({ decision: 'allow', diagnostic: 'wait-timeout' });
+
+    await armLease(root, cwd, transcript, { waitMs: 100 });
+    await expect(
+      runCodexStopHook(event, {
+        root,
+        now: () => START + 3,
+        observe: async () => digest(),
+      }),
+    ).resolves.toMatchObject({ decision: 'block' });
   });
 });
