@@ -33,6 +33,11 @@ export type DigestEntryOrigin =
   | 'human'
   | 'automatic-control'
   | 'runtime-diagnostic';
+export type CursorTerminalStatus =
+  | 'success'
+  | 'aborted'
+  | 'error'
+  | 'cancelled';
 export type DigestEntryKind =
   | 'message'
   | 'tool_call'
@@ -764,8 +769,13 @@ function normalizeCursor(
   opts: NormalizeEntriesOptions,
 ): DigestEntry[] {
   const includeToolCalls = opts.includeToolCalls ?? false;
+  const entries: DigestEntry[] = [];
+  let turnStart = 0;
 
-  return records.flatMap((record, recordIndex): DigestEntry[] => {
+  const normalizeRecord = (
+    record: JsonObject,
+    recordIndex: number,
+  ): DigestEntry[] => {
     const role = asString(record.role);
     if (role !== 'assistant' && role !== 'user') return [];
 
@@ -797,7 +807,43 @@ function normalizeCursor(
       const text = asString(block.text) ?? asString(block.content);
       return text ? [messageEntry(role, text, recordIndex)] : [];
     });
+  };
+
+  records.forEach((record, recordIndex) => {
+    if (record.type !== 'turn_ended') return;
+
+    const status = asString(record.status) as CursorTerminalStatus | undefined;
+    const buffered = records
+      .slice(turnStart, recordIndex)
+      .flatMap((turnRecord, offset) =>
+        normalizeRecord(turnRecord, turnStart + offset),
+      );
+    const userEntries = buffered.filter((entry) => entry.role === 'user');
+
+    if (status === 'success') {
+      const toolEntries = includeToolCalls
+        ? buffered.filter((entry) => entry.kind === 'tool_call')
+        : [];
+      const finalAssistant = buffered.findLast(
+        (entry) => entry.role === 'assistant' && entry.kind === 'message',
+      );
+      entries.push(...userEntries, ...toolEntries);
+      if (finalAssistant) entries.push(finalAssistant);
+    } else {
+      const label = status ?? 'unknown';
+      entries.push(...userEntries, {
+        role: 'assistant',
+        text: `[Cursor turn ended with status: ${label}]`,
+        recordIndex,
+        kind: 'message',
+        origin: 'runtime-diagnostic',
+      });
+    }
+
+    turnStart = recordIndex + 1;
   });
+
+  return entries;
 }
 
 // ---------------------------------------------------------------------------

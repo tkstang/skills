@@ -12,8 +12,10 @@ import { fileURLToPath } from 'node:url';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import type { JsonObject, Runtime } from '../../src/transcript/core/runtimes.js';
-
+import type {
+  JsonObject,
+  Runtime,
+} from '../../src/transcript/core/runtimes.js';
 import {
   discoverPaths,
   encodeCwd,
@@ -77,7 +79,7 @@ describe('readRecords', () => {
 
   it('typical.jsonl — returns expected count and parsed objects (cursor)', async () => {
     const records = await readRecords(fixturePath('cursor', 'typical.jsonl'));
-    expectEqual(records.length, 3);
+    expectEqual(records.length, 4);
     expectEqual(typeof records[0], 'object');
     expectEqual(records[0].role, 'user');
   });
@@ -92,10 +94,7 @@ describe('readRecords', () => {
       );
       // 5 valid JSON lines + 1 non-JSON → 5 records returned
       expectEqual(records.length, 5);
-      expectOk(
-        warnings.length > 0,
-        'expected a console.warn for the bad line',
-      );
+      expectOk(warnings.length > 0, 'expected a console.warn for the bad line');
     } finally {
       console.warn = origWarn;
     }
@@ -110,10 +109,7 @@ describe('readRecords', () => {
         fixturePath('codex', 'malformed.jsonl'),
       );
       expectEqual(records.length, 5);
-      expectOk(
-        warnings.length > 0,
-        'expected a console.warn for the bad line',
-      );
+      expectOk(warnings.length > 0, 'expected a console.warn for the bad line');
     } finally {
       console.warn = origWarn;
     }
@@ -128,10 +124,7 @@ describe('readRecords', () => {
         fixturePath('cursor', 'malformed.jsonl'),
       );
       expectEqual(records.length, 4);
-      expectOk(
-        warnings.length > 0,
-        'expected a console.warn for the bad line',
-      );
+      expectOk(warnings.length > 0, 'expected a console.warn for the bad line');
     } finally {
       console.warn = origWarn;
     }
@@ -713,7 +706,7 @@ describe('normalizeEntries (cursor)', () => {
     const entries = normalizeEntries('cursor', records, {
       includeToolCalls: false,
     });
-    expectEqual(entries.length, 3);
+    expectEqual(entries.length, 2);
     for (const e of entries) {
       expectEqual(e.kind, 'message');
       expectOk(e.role === 'user' || e.role === 'assistant');
@@ -746,6 +739,58 @@ describe('normalizeEntries (cursor)', () => {
     );
     expectOk(toolCallEntries[0].text.includes('runtimes.mjs'));
   });
+
+  it('buffers provisional activity and emits one final response on success', async () => {
+    const terminalRecords = await readRecords(
+      fixturePath('cursor', 'terminal-success.jsonl'),
+    );
+    const entries = normalizeEntries('cursor', terminalRecords, {
+      includeToolCalls: false,
+    });
+
+    expectDeepEqual(
+      entries.map((entry) => [entry.role, entry.text, entry.recordIndex]),
+      [
+        ['user', 'Implement the Cursor lifecycle.', 0],
+        ['assistant', 'The completed implementation is ready.', 4],
+      ],
+    );
+  });
+
+  it('keeps completed tool activity available only when requested', async () => {
+    const terminalRecords = await readRecords(
+      fixturePath('cursor', 'terminal-success.jsonl'),
+    );
+    const entries = normalizeEntries('cursor', terminalRecords, {
+      includeToolCalls: true,
+    });
+
+    expectDeepEqual(
+      entries.map((entry) => entry.kind),
+      ['message', 'tool_call', 'message'],
+    );
+  });
+
+  for (const status of ['aborted', 'error', 'cancelled']) {
+    it(`emits a diagnostic without provisional content for ${status}`, async () => {
+      const terminalRecords = await readRecords(
+        fixturePath('cursor', `terminal-${status}.jsonl`),
+      );
+      const entries = normalizeEntries('cursor', terminalRecords, {
+        includeToolCalls: true,
+      });
+
+      expectEqual(entries.length, 2);
+      expectEqual(entries[0].role, 'user');
+      expectEqual(entries[1].origin, 'runtime-diagnostic');
+      expectOk(entries[1].text.includes(status));
+      expectOk(entries.every((entry) => !entry.text.includes('provisional')));
+      expectEqual(
+        entries.filter((entry) => entry.kind === 'tool_call').length,
+        0,
+      );
+    });
+  }
 });
 
 // ---------------------------------------------------------------------------

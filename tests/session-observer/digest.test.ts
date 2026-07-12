@@ -665,6 +665,17 @@ describe('buildDigest', () => {
       'should include assistant messages',
     ).toBeTruthy();
   });
+
+  test('cursor digest hides an unterminated provisional tail', async () => {
+    const digest = await buildDigest(
+      'cursor',
+      join(FIXTURES, 'cursor', 'unterminated.jsonl'),
+      { fromIndex: 0, mode: 'review', includeToolCalls: true },
+    );
+
+    expect(digest.entries).toEqual([]);
+    expect(digest.range.nextIndex).toBe(3);
+  });
 });
 
 // ---------------------------------------------------------------------------

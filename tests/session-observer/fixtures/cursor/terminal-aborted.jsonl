@@ -1,0 +1,3 @@
+{"role":"user","message":{"content":[{"type":"text","text":"Run the task."}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"provisional aborted plan"},{"type":"tool_use","name":"shell","input":{"command":"false"}}]}}
+{"type":"turn_ended","status":"aborted"}

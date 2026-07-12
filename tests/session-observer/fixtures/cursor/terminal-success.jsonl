@@ -1,0 +1,6 @@
+{"role":"user","message":{"content":[{"type":"text","text":"Implement the Cursor lifecycle."}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"I am making a provisional plan."}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"read_file","input":{"path":"runtimes.ts"}}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"A provisional fragment."}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"The completed implementation is ready."}]}}
+{"type":"turn_ended","status":"success"}

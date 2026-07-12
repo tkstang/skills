@@ -1,12 +1,17 @@
 import type {
   AutomaticControlProvenance,
+  CursorTerminalStatus,
   DigestEntry,
   DigestEntryOrigin,
   JsonObject,
   Runtime,
 } from '../../core/runtimes.js';
 
-export type { AutomaticControlProvenance, DigestEntryOrigin };
+export type {
+  AutomaticControlProvenance,
+  CursorTerminalStatus,
+  DigestEntryOrigin,
+};
 
 export type SessionObserverRuntime = Runtime;
 export type RuntimeSelection = Runtime | 'auto';
