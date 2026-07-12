@@ -120,8 +120,50 @@ describe('normalized completed continuation selection', () => {
   });
 
   test.each([
+    'Waiting is incorrect; re-arm with the corrected cursor.',
+    'Holding would lose the result; continue with the corrected range.',
+    'Idle is the wrong state. Please resume the watcher.',
+    'Armed should be false after this decision.',
+    'Monitoring found a lease conflict; use the winning cursor.',
+    'No updates should be reported until the result is persisted.',
+  ])(
+    'selects a substantive state-word-leading response after automatic control: %s',
+    (text) => {
+      const result = selectCompletedContinuation(
+        digest(
+          [
+            message('user', '{wake}', 3, {
+              displayRole: 'automatic-control',
+              origin: 'automatic-control',
+              automaticControl: { automatic: true },
+            }),
+            message('assistant', text, 5),
+          ],
+          3,
+          6,
+        ),
+      );
+
+      expect(result).toMatchObject({
+        status: 'continuation',
+        continuation: true,
+        completedRecord: 5,
+        nextCursor: 6,
+        peerCursor: 6,
+        budgetCost: 1,
+        range: {
+          indexBase: 'zero-based-jsonl-record-index',
+          fromIndex: 3,
+          toIndex: 5,
+        },
+      });
+    },
+  );
+
+  test.each([
     'Acknowledged.',
     'Status: waiting for more peer input.',
+    'Waiting for more input.',
     '  ',
     '[no-op]',
   ])(

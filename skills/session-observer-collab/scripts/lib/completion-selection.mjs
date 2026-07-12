@@ -3,7 +3,7 @@ const NO_OP_PREFIX = /^\s*\[no-op\](?:\s|$)/iu;
 const ACKNOWLEDGMENT =
   /^\s*(?:ack(?:nowledged)?|got it|understood|noted|received|ok(?:ay)?|thanks|thank you)[.!]*\s*$/iu;
 const STATUS_ECHO =
-  /^\s*(?:status:\s*)?(?:waiting\b|still waiting\b|idle\b|armed\b|monitoring\b|no (?:new )?(?:input|updates?|messages?|changes?)\b)/iu;
+  /^\s*(?:status:\s*)?(?:(?:still\s+)?(?:waiting|holding|idle|armed|monitoring)(?:\s+(?:for|on|until)\s+[^.!?;:]+)?|no (?:new )?(?:input|updates?|messages?|changes?))[.!]*\s*$/iu;
 
 function integer(value, label) {
   if (!Number.isSafeInteger(value) || value < 0)
