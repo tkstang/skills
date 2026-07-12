@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node /ABSOLUTE/PATH/TO/session-observer-collab-stop.mjs",
+            "timeout": 15,
+            "statusMessage": "Checking for Session Observer peer activity"
+          }
+        ]
+      }
+    ]
+  }
+}
