@@ -60,8 +60,10 @@ export interface AutomaticControlProvenance {
 export interface DigestEntry {
   role: DigestEntryRole;
   text: string;
-  /** Exact zero-based source record index for bounded recovery. */
+  /** Zero-based record index at which this entry becomes consumable. */
   recordIndex: number;
+  /** Exact source record when consumption is gated by a later terminal record. */
+  sourceRecordIndex?: number;
   kind: DigestEntryKind;
   displayRole?: DigestEntryDisplayRole;
   origin?: DigestEntryOrigin;
@@ -829,7 +831,13 @@ function normalizeCursor(
         (entry) => entry.role === 'assistant' && entry.kind === 'message',
       );
       entries.push(...userEntries, ...toolEntries);
-      if (finalAssistant) entries.push(finalAssistant);
+      if (finalAssistant) {
+        entries.push({
+          ...finalAssistant,
+          sourceRecordIndex: finalAssistant.recordIndex,
+          recordIndex,
+        });
+      }
     } else {
       const label = status ?? 'unknown';
       entries.push(...userEntries, {

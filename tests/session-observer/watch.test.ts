@@ -251,16 +251,24 @@ describe('runWatchLoop', () => {
       expect(result.reason).toBe('max-runtime');
       expect(result.eventCount).toBe(0);
       const output = stdout.join('');
-      expect(output.startsWith('[session-observer] Watcher is now active.')).toBeTruthy();
-      expect(output.includes('baseline claude-code:watch-baseline')).toBeTruthy();
+      expect(
+        output.startsWith('[session-observer] Watcher is now active.'),
+      ).toBeTruthy();
+      expect(
+        output.includes('baseline claude-code:watch-baseline'),
+      ).toBeTruthy();
       expect(output.includes('baselineRecordIndex=1')).toBeTruthy();
       expect(output.includes('engagement=engaged')).toBeTruthy();
-      expect(!output.includes('old message that should not be emitted')).toBeTruthy();
+      expect(
+        !output.includes('old message that should not be emitted'),
+      ).toBeTruthy();
 
       const state = JSON.parse(
         await readFile(join(stateDir, 'state.json'), 'utf8'),
       );
-      expect(state.sessions['claude-code:watch-baseline'].lastRecordIndex).toBe(1);
+      expect(state.sessions['claude-code:watch-baseline'].lastRecordIndex).toBe(
+        1,
+      );
 
       const watchState = JSON.parse(
         await readFile(join(stateDir, 'watch.json'), 'utf8'),
@@ -301,13 +309,17 @@ describe('runWatchLoop', () => {
       const output = stdout.join('');
       expect(result.reason).toBe('max-runtime');
       expect(result.eventCount).toBe(1);
-      expect(output.includes('baseline claude-code:watch-catch-up-first')).toBeTruthy();
+      expect(
+        output.includes('baseline claude-code:watch-catch-up-first'),
+      ).toBeTruthy();
       expect(output.includes('unread backlog should be emitted')).toBeTruthy();
 
       const state = JSON.parse(
         await readFile(join(stateDir, 'state.json'), 'utf8'),
       );
-      expect(state.sessions['claude-code:watch-catch-up-first'].lastRecordIndex).toBe(1);
+      expect(
+        state.sessions['claude-code:watch-catch-up-first'].lastRecordIndex,
+      ).toBe(1);
     });
   });
 
@@ -362,7 +374,81 @@ describe('runWatchLoop', () => {
       expect(digestCount).toBe(1);
       expect(output.includes('first debounced update')).toBeTruthy();
       expect(output.includes('second debounced update')).toBeTruthy();
-      expect(sleepCount >= 4, 'fake clock should advance through debounce settling').toBeTruthy();
+      expect(
+        sleepCount >= 4,
+        'fake clock should advance through debounce settling',
+      ).toBeTruthy();
+    });
+  });
+
+  test('emits a buffered Cursor completion after provisional records were consumed', async () => {
+    await withTempSessionHome(async (home, stateDir) => {
+      const cwd = '/test/watch-cursor-buffered-completion';
+      const sessionId = 'watch-cursor-buffered-completion';
+      const transcriptPath = await writeCursorTranscript(home, cwd, sessionId, [
+        { role: 'user', content: 'Finish the buffered Cursor turn.' },
+        { content: 'The completed Cursor response.' },
+      ]);
+      const stdout: string[] = [];
+      let nowMs = Date.UTC(2026, 5, 3, 12, 0, 0);
+      let terminalAppended = false;
+
+      const result = await runWatchLoop(
+        {
+          runtime: 'cursor',
+          cwd,
+          session: `cursor:${sessionId}`,
+          pollSec: 0.02,
+          debounceSec: 0.02,
+          maxRuntimeMin: 0.004,
+          json: true,
+        },
+        {
+          writeStdout: (chunk: string) => stdout.push(chunk),
+          now: () => nowMs,
+          sleep: async (ms: number) => {
+            nowMs += ms;
+            if (terminalAppended) return;
+
+            const state = await readJsonIfExists(join(stateDir, 'state.json'));
+            if (
+              state?.sessions?.[`cursor:${sessionId}`]?.lastRecordIndex === 2
+            ) {
+              terminalAppended = true;
+              await appendFile(
+                transcriptPath,
+                `${JSON.stringify({ type: 'turn_ended', status: 'success' })}\n`,
+                'utf8',
+              );
+            }
+          },
+        },
+      );
+
+      expect(terminalAppended).toBe(true);
+      expect(result.reason).toBe('max-runtime');
+      expect(result.eventCount).toBe(1);
+
+      const events = stdout
+        .join('')
+        .trim()
+        .split('\n')
+        .filter(Boolean)
+        .map((line) => JSON.parse(line))
+        .filter((line) => line.type === 'delta');
+      expect(events).toHaveLength(1);
+      expect(events[0].newRecords).toBe(1);
+      expect(events[0].digest.entries).toEqual([
+        expect.objectContaining({
+          role: 'assistant',
+          text: 'The completed Cursor response.',
+          recordIndex: 2,
+          sourceRecordIndex: 1,
+        }),
+      ]);
+
+      const state = await readJsonIfExists(join(stateDir, 'state.json'));
+      expect(state?.sessions?.[`cursor:${sessionId}`]?.lastRecordIndex).toBe(3);
     });
   });
 
@@ -405,7 +491,10 @@ describe('runWatchLoop', () => {
 
       const output = stdout.join('');
       expect(result.reason).toBe('max-runtime');
-      expect(result.eventCount >= 1, 'max-pending should prevent indefinite debounce starvation').toBeTruthy();
+      expect(
+        result.eventCount >= 1,
+        'max-pending should prevent indefinite debounce starvation',
+      ).toBeTruthy();
       expect(output.includes('continuous update 1')).toBeTruthy();
     });
   });
@@ -439,7 +528,9 @@ describe('runWatchLoop', () => {
           sleep: async (ms: number) => {
             nowMs += ms;
             if (!appended) {
-              const state = await readJsonIfExists(join(stateDir, 'watch.json'));
+              const state = await readJsonIfExists(
+                join(stateDir, 'watch.json'),
+              );
               if (
                 state?.watchers?.some(
                   (watcher: any) => watcher.targets?.length >= 1,
@@ -466,7 +557,10 @@ describe('runWatchLoop', () => {
       const locked = lines.find((line) => line.type === 'baseline');
       const event = lines.find((line) => line.type === 'delta');
       const stopped = lines.find((line) => line.type === 'stopped');
-      expect(locked, 'json watch should emit a startup lock event').toBeTruthy();
+      expect(
+        locked,
+        'json watch should emit a startup lock event',
+      ).toBeTruthy();
       expect(event, 'json watch should emit a delta event').toBeTruthy();
       expect(stopped, 'json watch should emit a stopped event').toBeTruthy();
       expect(locked.sessionId).toBe(sessionId);
@@ -515,7 +609,10 @@ describe('runWatchLoop', () => {
         .filter(Boolean)
         .map((line) => JSON.parse(line));
       const heartbeat = lines.find((line) => line.type === 'heartbeat');
-      expect(heartbeat, 'quiet json watch should emit a heartbeat').toBeTruthy();
+      expect(
+        heartbeat,
+        'quiet json watch should emit a heartbeat',
+      ).toBeTruthy();
       expect(heartbeat.recordsBehind).toBe(0);
       expect(heartbeat.healthy).toBe(true);
       expect(heartbeat.targets[0].sessionId).toBe(sessionId);
@@ -550,7 +647,9 @@ describe('runWatchLoop', () => {
           sleep: async (ms: number) => {
             nowMs += ms;
             if (!appended) {
-              const state = await readJsonIfExists(join(stateDir, 'state.json'));
+              const state = await readJsonIfExists(
+                join(stateDir, 'state.json'),
+              );
               if (
                 state?.sessions?.['claude-code:watch-runtime-both']
                   ?.lastRecordIndex === 1
@@ -576,7 +675,10 @@ describe('runWatchLoop', () => {
         .map((line) => JSON.parse(line));
       const locked = lines.find((line) => line.type === 'baseline');
       const event = lines.find((line) => line.type === 'delta');
-      expect(locked, 'runtime both should emit a startup lock event').toBeTruthy();
+      expect(
+        locked,
+        'runtime both should emit a startup lock event',
+      ).toBeTruthy();
       expect(event, 'runtime both should emit a delta event').toBeTruthy();
       expect(event.type).toBe('delta');
       expect(event.runtime).toBe('claude-code');
@@ -633,7 +735,10 @@ describe('runWatchLoop', () => {
         .filter(Boolean)
         .map((line) => JSON.parse(line));
       const event = lines.find((line) => line.type === 'delta');
-      expect(event, 'max runtime should flush the selected pending delta').toBeTruthy();
+      expect(
+        event,
+        'max runtime should flush the selected pending delta',
+      ).toBeTruthy();
       expect(event.runtime).toBe('claude-code');
       expect(event.sessionId).toBe(sessionId);
       expect(event.digest.entries[0].text).toBe('both final flush update');
@@ -691,7 +796,10 @@ describe('runWatchLoop', () => {
         .filter(Boolean)
         .map((line) => JSON.parse(line));
       const event = lines.find((line) => line.type === 'delta');
-      expect(event, 'baseline lock race should emit the appended delta').toBeTruthy();
+      expect(
+        event,
+        'baseline lock race should emit the appended delta',
+      ).toBeTruthy();
       expect(event.runtime).toBe('claude-code');
       expect(event.sessionId).toBe(sessionId);
       expect(event.digest.entries[0].text).toBe('both baseline race update');
@@ -758,13 +866,24 @@ describe('runWatchLoop', () => {
           return null;
         return state;
       });
-      expect(activeState.watchers.map((watcher: any) => watcher.pid)).toEqual([111, 222]);
-      expect(activeState.watchers.map((watcher: any) => watcher.targets[0]?.runtime)).toEqual(['claude-code', 'codex']);
+      expect(activeState.watchers.map((watcher: any) => watcher.pid)).toEqual([
+        111, 222,
+      ]);
+      expect(
+        activeState.watchers.map((watcher: any) => watcher.targets[0]?.runtime),
+      ).toEqual(['claude-code', 'codex']);
 
       const results = await Promise.all([watcherA, watcherB]);
-      expect(results.map((result: any) => result.reason)).toEqual(['max-runtime', 'max-runtime']);
-      expect(stdoutA.join('').includes('baseline claude-code:same-cwd-claude')).toBeTruthy();
-      expect(stdoutB.join('').includes('baseline codex:same-cwd-codex')).toBeTruthy();
+      expect(results.map((result: any) => result.reason)).toEqual([
+        'max-runtime',
+        'max-runtime',
+      ]);
+      expect(
+        stdoutA.join('').includes('baseline claude-code:same-cwd-claude'),
+      ).toBeTruthy();
+      expect(
+        stdoutB.join('').includes('baseline codex:same-cwd-codex'),
+      ).toBeTruthy();
     });
   });
 
@@ -801,27 +920,28 @@ describe('runWatchLoop', () => {
       });
 
       const stdoutB: string[] = [];
-      await expect(
-        () =>
-          runWatchLoop(
-            {
-              runtime: 'claude-code',
-              cwd,
-              pollSec: 0.03,
-              debounceSec: 0.04,
-              maxRuntimeMin: 0.02,
-            },
-            {
-              pid: 222,
-              handleSignals: false,
-              writeStdout: (chunk: string) => stdoutB.push(chunk),
-            },
-          ),
+      await expect(() =>
+        runWatchLoop(
+          {
+            runtime: 'claude-code',
+            cwd,
+            pollSec: 0.03,
+            debounceSec: 0.04,
+            maxRuntimeMin: 0.02,
+          },
+          {
+            pid: 222,
+            handleSignals: false,
+            writeStdout: (chunk: string) => stdoutB.push(chunk),
+          },
+        ),
       ).rejects.toThrow(/already watching claude-code:duplicate-target/);
       expect(stdoutB.join('').includes('already watching')).toBeTruthy();
 
       const watchJson = await readJsonIfExists(join(stateDir, 'watch.json'));
-      expect(watchJson.watchers.map((watcher: any) => watcher.pid)).toEqual([111]);
+      expect(watchJson.watchers.map((watcher: any) => watcher.pid)).toEqual([
+        111,
+      ]);
 
       const result = await watcherA;
       expect(result.reason).toBe('max-runtime');
@@ -872,10 +992,17 @@ describe('runWatchLoop', () => {
         (result): result is PromiseFulfilledResult<any> =>
           result.status === 'fulfilled',
       );
-      expect(rejected.length, `exactly one watcher should lose the startup race: ${JSON.stringify(settled)}`).toBe(1);
-      expect(rejected[0].reason.message).toMatch(/already watching claude-code:duplicate-target-race/);
+      expect(
+        rejected.length,
+        `exactly one watcher should lose the startup race: ${JSON.stringify(settled)}`,
+      ).toBe(1);
+      expect(rejected[0].reason.message).toMatch(
+        /already watching claude-code:duplicate-target-race/,
+      );
       expect(fulfilled[0].value.reason).toBe('max-runtime');
-      expect((stdoutA.join('') + stdoutB.join('')).includes('already watching')).toBeTruthy();
+      expect(
+        (stdoutA.join('') + stdoutB.join('')).includes('already watching'),
+      ).toBeTruthy();
 
       const watchJson = await readJsonIfExists(join(stateDir, 'watch.json'));
       expect(watchJson?.watchers ?? []).toEqual([]);
@@ -928,7 +1055,10 @@ describe('runWatchLoop', () => {
           HOME: home,
           STATE_DIR: stateDir,
         });
-        expect(result.status, `status should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(0);
+        expect(
+          result.status,
+          `status should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
+        ).toBe(0);
         const payload = JSON.parse(result.stdout);
         const target = payload.targets?.[0];
         return target?.recordsBehind === 1 ? payload : null;
@@ -1022,14 +1152,21 @@ describe('runWatchLoop', () => {
         HOME: home,
         STATE_DIR: stateDir,
       });
-      expect(result.status, `status should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(0);
+      expect(
+        result.status,
+        `status should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
+      ).toBe(0);
       const payload = JSON.parse(result.stdout);
 
       expect(payload.active).toBe(true);
       expect(payload.healthy).toBe(false);
       expect(payload.targets[0].recordsBehind).toBe(3);
-      expect(payload.targets[0].healthReasons.includes('records-behind-stale')).toBeTruthy();
-      expect(payload.targets[0].healthReasons.includes('poll-heartbeat-stale')).toBeTruthy();
+      expect(
+        payload.targets[0].healthReasons.includes('records-behind-stale'),
+      ).toBeTruthy();
+      expect(
+        payload.targets[0].healthReasons.includes('poll-heartbeat-stale'),
+      ).toBeTruthy();
     });
   });
 
@@ -1070,9 +1207,11 @@ describe('runWatchLoop', () => {
 
       const state = await readJsonIfExists(join(stateDir, 'state.json'));
       expect(state?.sessions?.[`cursor:${sessionId}`]).toBe(undefined);
-      expect(Object.keys(state?.sessions ?? {}).some((key) =>
+      expect(
+        Object.keys(state?.sessions ?? {}).some((key) =>
           key.startsWith('cursor:'),
-        )).toBe(false);
+        ),
+      ).toBe(false);
     });
   });
 
@@ -1107,7 +1246,9 @@ describe('runWatchLoop', () => {
           sleep: async (ms: number) => {
             nowMs += ms;
             if (!appended) {
-              const state = await readJsonIfExists(join(stateDir, 'watch.json'));
+              const state = await readJsonIfExists(
+                join(stateDir, 'watch.json'),
+              );
               if (
                 state?.watchers?.some(
                   (watcher: any) => watcher.targets?.length >= 1,
@@ -1166,7 +1307,9 @@ describe('runWatchLoop', () => {
             writeStdout: () => {},
           },
         ),
-      ).rejects.toThrow(/--event-log must stay under the session-observer state directory/);
+      ).rejects.toThrow(
+        /--event-log must stay under the session-observer state directory/,
+      );
       await expect(
         runWatchLoop(
           { ...options, eventLog: join(home, 'outside.jsonl') },
@@ -1174,7 +1317,9 @@ describe('runWatchLoop', () => {
             writeStdout: () => {},
           },
         ),
-      ).rejects.toThrow(/--event-log must stay under the session-observer state directory/);
+      ).rejects.toThrow(
+        /--event-log must stay under the session-observer state directory/,
+      );
     });
   });
 
@@ -1202,7 +1347,9 @@ describe('runWatchLoop', () => {
             writeStdout: () => {},
           },
         ),
-      ).rejects.toThrow(/--event-log must stay under the session-observer state directory/);
+      ).rejects.toThrow(
+        /--event-log must stay under the session-observer state directory/,
+      );
       await expect(
         runWatchLoop(
           { ...options, eventLog: join('linked-logs', 'events.jsonl') },
@@ -1210,7 +1357,9 @@ describe('runWatchLoop', () => {
             writeStdout: () => {},
           },
         ),
-      ).rejects.toThrow(/--event-log must stay under the session-observer state directory/);
+      ).rejects.toThrow(
+        /--event-log must stay under the session-observer state directory/,
+      );
 
       expect(await readFile(outsideLog, 'utf8')).toBe('');
       expect(await readJsonIfExists(join(stateDir, 'watch.json'))).toBe(null);
@@ -1248,7 +1397,9 @@ describe('runWatchLoop', () => {
               writeStdout: () => {},
             },
           ),
-        ).rejects.toThrow(/--event-log cannot use session-observer state, lock, temp, or backup files/);
+        ).rejects.toThrow(
+          /--event-log cannot use session-observer state, lock, temp, or backup files/,
+        );
       }
     });
   });
@@ -1285,7 +1436,9 @@ describe('runWatchLoop', () => {
           sleep: async (ms: number) => {
             nowMs += ms;
             if (stage === 0) {
-              const state = await readJsonIfExists(join(stateDir, 'watch.json'));
+              const state = await readJsonIfExists(
+                join(stateDir, 'watch.json'),
+              );
               if (
                 state?.watchers?.some(
                   (watcher: any) => watcher.targets?.length >= 1,
@@ -1364,7 +1517,9 @@ describe('runWatchLoop', () => {
             if (!appended) {
               // Append only once the baseline target is locked, so it lands as a
               // post-baseline delta.
-              const state = await readJsonIfExists(join(stateDir, 'watch.json'));
+              const state = await readJsonIfExists(
+                join(stateDir, 'watch.json'),
+              );
               if (
                 state?.watchers?.some(
                   (watcher: any) => watcher.targets?.length >= 1,
@@ -1420,7 +1575,9 @@ describe('runWatchLoop', () => {
           sleep: async (ms: number) => {
             nowMs += ms;
             if (!stopped) {
-              const state = await readJsonIfExists(join(stateDir, 'watch.json'));
+              const state = await readJsonIfExists(
+                join(stateDir, 'watch.json'),
+              );
               if (state?.active) {
                 stopped = true;
                 await watchState.writeControlDirective('stop');
@@ -1431,13 +1588,17 @@ describe('runWatchLoop', () => {
       );
 
       expect(result.reason).toBe('control-stop');
-      expect(stdout.join('').includes('watch stopped reason=control-stop')).toBeTruthy();
+      expect(
+        stdout.join('').includes('watch stopped reason=control-stop'),
+      ).toBeTruthy();
 
       const watchJson = JSON.parse(
         await readFile(join(stateDir, 'watch.json'), 'utf8'),
       );
       expect(watchJson.active).toBe(null);
-      expect(await readJsonIfExists(join(stateDir, 'watch.control.json'))).toBe(null);
+      expect(await readJsonIfExists(join(stateDir, 'watch.control.json'))).toBe(
+        null,
+      );
     });
   });
 
@@ -1465,11 +1626,16 @@ describe('runWatchLoop', () => {
           env: { ...process.env, HOME: home, STATE_DIR: stateDir },
         },
       );
-      expect(stopResult.status, `inactive stop should exit 0\nstdout: ${stopResult.stdout}\nstderr: ${stopResult.stderr}`).toBe(0);
+      expect(
+        stopResult.status,
+        `inactive stop should exit 0\nstdout: ${stopResult.stdout}\nstderr: ${stopResult.stderr}`,
+      ).toBe(0);
       const stopPayload = JSON.parse(stopResult.stdout);
       expect(stopPayload.noActiveWatcher).toBe(true);
       expect(stopPayload.active).toBe(false);
-      expect(await readJsonIfExists(join(stateDir, 'watch.control.json'))).toBe(null);
+      expect(await readJsonIfExists(join(stateDir, 'watch.control.json'))).toBe(
+        null,
+      );
 
       const stdout: string[] = [];
       // Virtual clock: append once this fresh watcher has established its
@@ -1491,7 +1657,9 @@ describe('runWatchLoop', () => {
           sleep: async (ms: number) => {
             nowMs += ms;
             if (!appended) {
-              const state = await readJsonIfExists(join(stateDir, 'state.json'));
+              const state = await readJsonIfExists(
+                join(stateDir, 'state.json'),
+              );
               if (
                 state?.sessions?.['claude-code:watch-inactive-stop']
                   ?.lastRecordIndex === 1
@@ -1510,7 +1678,9 @@ describe('runWatchLoop', () => {
 
       expect(result.reason).toBe('max-runtime');
       expect(result.eventCount).toBe(1);
-      expect(stdout.join('').includes('next watcher update after inactive stop')).toBeTruthy();
+      expect(
+        stdout.join('').includes('next watcher update after inactive stop'),
+      ).toBeTruthy();
     });
   });
 
@@ -1572,7 +1742,9 @@ describe('runWatchLoop', () => {
           await readFile(join(stateDir, 'watch.json'), 'utf8'),
         );
         expect(watchJson.active).toBe(null);
-        expect(await readJsonIfExists(join(stateDir, 'watch.control.json'))).toBe(null);
+        expect(
+          await readJsonIfExists(join(stateDir, 'watch.control.json')),
+        ).toBe(null);
       } finally {
         if (!child.killed) child.kill('SIGKILL');
       }

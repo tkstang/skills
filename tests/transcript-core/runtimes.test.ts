@@ -752,9 +752,10 @@ describe('normalizeEntries (cursor)', () => {
       entries.map((entry) => [entry.role, entry.text, entry.recordIndex]),
       [
         ['user', 'Implement the Cursor lifecycle.', 0],
-        ['assistant', 'The completed implementation is ready.', 4],
+        ['assistant', 'The completed implementation is ready.', 5],
       ],
     );
+    expectEqual(entries[1].sourceRecordIndex, 4);
   });
 
   it('keeps completed tool activity available only when requested', async () => {
