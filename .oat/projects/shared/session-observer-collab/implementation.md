@@ -1,7 +1,8 @@
 ---
 oat_status: in_progress
 oat_ready_for: null
-oat_blockers: []
+oat_blockers:
+  - "p03 review retry 3/3 exhausted: effective ambient .mjs declarations remain stale"
 oat_orchestration_retry_limit: 3
 oat_last_updated: 2026-07-12
 oat_current_task_id: null
@@ -67,16 +68,16 @@ oat_generated: false
 
 - [x] `p03-t01` Scaffold the canonical sibling skill — `a5ec157`
 - [x] `p03-t02` Author the runtime-neutral N=2 protocol — `8bb9cc7`
-- [x] `p03-t03` Implement versioned lease state and control operations — `a5620c8`, fixes `a7c9f00`, `40343fe`
+- [x] `p03-t03` Implement versioned lease state and control operations — `a5620c8`, fixes `a7c9f00`, `40343fe`, `e4450fe`
 - [x] `p03-t04` Normalize substantive completion and continuation selection — `5fd8ee7`, fixes `e99c970`, `50dc0d7`
 
 ### Phase p03 Summary
 
 **Outcome:** The canonical collaboration skill, runtime-neutral protocol, dependency-free lease/control plane, adapter interface, and completion selector are implemented. Task and integration tests pass, but phase review remains blocked after the configured fix limit.
 
-**Verification:** 68 p03 tests, type-check, repository validation, build parity, changed-file quality, dependency/provider-mirror boundaries, and diff checks pass.
+**Verification:** 77 p03 tests, type-check, repository validation, build parity, changed-file quality, dependency/provider-mirror boundaries, and diff checks pass.
 
-**Review blocker:** After two review-fix iterations, 3 Important findings remain (Claude peer-runtime pins, fail-closed legacy peer-runtime migration, self-expiring waiting deadline) plus 1 Medium concurrent installation-lock finding. p04/p05 were not started.
+**Review blocker:** User-authorized iteration 3/3 resolved all four prior findings. Re-review found one new Medium issue: `scripts/mjs-modules.d.ts` remains the effective TypeScript contract for `.mjs` imports but does not model the schema-v4 wait fields or owner/peer validator API. The authorized retry limit is exhausted; p04/p05 were not started.
 
 ## Phase p04: Implement and validate the Codex lifecycle adapter
 
@@ -110,6 +111,7 @@ oat_generated: false
 - p02-t05's generated boundary includes the Export Session Transcript runtime bundle because p01 changed shared canonical `src/transcript/core/runtimes.ts`; the canonical build owns both generated copies.
 - The shared runtime output also requires an `export-session-transcript` skill version bump under the repository's changed-skill invariant; p02 terminal quality fixes own that metadata-only adjustment.
 - The user explicitly authorized one additional p03 review-fix iteration; retry limit is 3 for this run.
+- That iteration resolved all four prior findings; the final re-review found one new Medium ambient-declaration issue and exhausted the 3/3 limit.
 
 ## Orchestration Runs
 
@@ -234,6 +236,35 @@ oat_generated: false
 | Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
 | --- | --- | --- | --- | --- | --- | --- |
 | p03 review | design.md lease/control contract | Complete truthful, race-safe lifecycle control plane | Core implemented, but four review findings remain | Reviewer found uncovered edge cases after bounded fixes | review findings + implementation | Resume only with explicit retry-limit override |
+
+### Run 4 — 2026-07-12 18:05 CDT
+
+**Branch:** `session-observer-collab`
+**Tier:** 1
+**Policy:** merge-strategy=merge, retry-limit=3 (explicit user override)
+**Phases:** 1 resumed, 0 passed, 1 failed, 1 stopped
+
+#### Phase Outcomes
+
+| Phase | Implementer | Review | Fix Iterations | Disposition |
+| --- | --- | --- | ---: | --- |
+| p03 | DONE | fail | 3/3 | stopped; sequential schedule blocked |
+
+#### Dispatch Notes
+
+- Final authorized fix: `e4450fe` on `oat-phase-implementer-gpt-5-6-sol-high`.
+- Re-review: `oat-reviewer-gpt-5-6-sol-high`.
+
+#### Outstanding Items
+
+- Medium: effective ambient `.mjs` declarations do not expose schema-v4 wait fields or the separate owner/peer validator API; add matching declarations and compile-time coverage.
+- Retry limit exhausted at 3/3; a further fix pass requires explicit user authorization. p04/p05 were not started.
+
+#### Artifact / Design Deltas
+
+| Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
+| --- | --- | --- | --- | --- | --- | --- |
+| p03 review | design.md lease/control contract | Complete runtime and TypeScript control-plane contract | Runtime behavior is complete; effective ambient declarations are stale | Reviewer traced actual TypeScript module resolution after runtime fixes | review finding + implementation | Resume only with explicit retry-limit override |
 
 <!-- orchestration-runs-end -->
 

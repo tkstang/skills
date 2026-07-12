@@ -1,7 +1,8 @@
 ---
 oat_current_task: p03-review
-oat_last_commit: 50dc0d7d7a35b73ae906497e0defbffced7db182
-oat_blockers: []
+oat_last_commit: e4450fe7e1f36e82fda49e6be33539cfce5c4f91
+oat_blockers:
+  - "p03 review retry 3/3 exhausted: effective ambient .mjs declarations remain stale"
 oat_orchestration_retry_limit: 3
 associated_issues: []
 oat_kind: implementation
@@ -37,7 +38,7 @@ oat_generated: false
 
 ## Current Phase
 
-Phase p03 review-fix iteration 3/3 is authorized and in progress.
+Phase p03 review is blocked after the user-authorized fix iteration 3/3.
 
 ## Artifacts
 
@@ -61,12 +62,13 @@ Phase p03 review-fix iteration 3/3 is authorized and in progress.
 - ✓ Cross-runtime quick-start gate skipped by explicit user direction
 - ✓ Phase p01 completed and reviewed
 - ✓ Phase p02 completed and reviewed
-- ⧗ Phase p03 review-fix iteration 3/3 in progress; p04/p05 not started
+- ! Phase p03 review remains blocked after iteration 3/3; p04/p05 not started
 
 ## Blockers
 
-None
+- The effective wildcard declaration in `skills/session-observer-collab/scripts/mjs-modules.d.ts` is stale: it omits schema-v4 wait fields and the separate owner/peer validator API. Runtime behavior and 77 p03 tests pass, but compile-time consumer coverage is incomplete.
+- The explicit p03 review-fix limit is exhausted at 3/3.
 
 ## Next Milestone
 
-Complete p03 review-fix iteration 3/3 and re-review.
+Obtain explicit authorization for a fourth p03 review-fix pass, update the ambient declarations with compile-time coverage, and re-review.

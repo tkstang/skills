@@ -1,7 +1,8 @@
 ---
 oat_status: complete
 oat_ready_for: oat-project-implement
-oat_blockers: []
+oat_blockers:
+  - "p03 review retry 3/3 exhausted: effective ambient .mjs declarations remain stale"
 oat_last_updated: 2026-07-12
 oat_phase: plan
 oat_phase_status: complete
@@ -439,7 +440,7 @@ Generated-bundle CLI flag assertions run in p02-t05 after the canonical build.
 | ------ | -------- | ------- | ---- | -------- |
 | p01    | code     | passed  | 2026-07-12 | managed review after fix iteration 2/2 |
 | p02    | code     | passed  | 2026-07-12 | managed review after fix iteration 2/2 |
-| p03    | code     | fixes_added | 2026-07-12 | blocked after review fix limit 2/2 |
+| p03    | code     | fixes_added | 2026-07-12 | blocked after user-authorized review fix limit 3/3; one Medium declaration finding remains |
 | p04    | code     | pending | -    | -        |
 | p05    | code     | pending | -    | -        |
 | p06    | code     | pending | -    | -        |
