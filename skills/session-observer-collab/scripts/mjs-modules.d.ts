@@ -33,6 +33,9 @@ declare module '*skills/session-observer-collab/scripts/lib/completion-selection
 }
 
 declare module '*skills/session-observer-collab/scripts/collab-control.mjs' {
+  export type OwnerRuntime = 'codex' | 'cursor';
+  export type PeerRuntime = 'claude-code' | 'codex' | 'cursor';
+
   export interface Installation {
     schemaVersion: number;
     runtimes: Record<string, { command: string }>;
@@ -54,8 +57,8 @@ declare module '*skills/session-observer-collab/scripts/collab-control.mjs' {
     state: string;
     schemaVersion: number;
     leaseId: string;
-    runtime: string;
-    peerRuntime: string;
+    runtime: OwnerRuntime;
+    peerRuntime: PeerRuntime;
     ownerSession: string;
     ownerCwd: string;
     peerSession: string;
@@ -66,6 +69,8 @@ declare module '*skills/session-observer-collab/scripts/collab-control.mjs' {
     loopCount: number;
     loopCap: number;
     waitMs: number;
+    waitStartedAt: string | null;
+    waitDeadlineAt: string | null;
     leaseMs: number;
     armedAt: string;
     expiresAt: string;
@@ -108,12 +113,16 @@ declare module '*skills/session-observer-collab/scripts/collab-control.mjs' {
 }
 
 declare module '*skills/session-observer-collab/scripts/lib/lease-state.mjs' {
+  export type OwnerRuntime = 'codex' | 'cursor';
+  export type PeerRuntime = 'claude-code' | 'codex' | 'cursor';
+  export type Runtime = OwnerRuntime;
+
   export interface Lease {
     state: string;
     schemaVersion: number;
     leaseId: string;
-    runtime: string;
-    peerRuntime: string;
+    runtime: OwnerRuntime;
+    peerRuntime: PeerRuntime;
     ownerSession: string;
     ownerCwd: string;
     peerSession: string;
@@ -124,6 +133,8 @@ declare module '*skills/session-observer-collab/scripts/lib/lease-state.mjs' {
     loopCount: number;
     loopCap: number;
     waitMs: number;
+    waitStartedAt: string | null;
+    waitDeadlineAt: string | null;
     leaseMs: number;
     armedAt: string;
     expiresAt: string;
@@ -139,7 +150,9 @@ declare module '*skills/session-observer-collab/scripts/lib/lease-state.mjs' {
   export const MAX_LOOPS: number;
   export function stateRoot(env?: NodeJS.ProcessEnv): string;
   export function validateId(value: unknown, label?: string): string;
-  export function validateRuntime(value: unknown): string;
+  export function validateOwnerRuntime(value: OwnerRuntime): OwnerRuntime;
+  export function validatePeerRuntime(value: PeerRuntime): PeerRuntime;
+  export function validateRuntime(value: OwnerRuntime): OwnerRuntime;
   export function validateAbsolutePath(value: unknown, label: string): string;
   export function leasePath(root: string, ownerSession: string): string;
   export function migrateLease(input: unknown): Lease;
