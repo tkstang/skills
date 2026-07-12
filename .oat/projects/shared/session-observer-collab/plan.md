@@ -5,200 +5,461 @@ oat_blockers: []
 oat_last_updated: 2026-07-12
 oat_phase: plan
 oat_phase_status: in_progress
-oat_plan_hill_phases: [] # phases to pause AFTER completing (empty = every phase)
-oat_plan_parallel_groups: [] # groups of phases that run concurrently in worktrees; [] = fully sequential
-oat_plan_source: spec-driven # spec-driven | quick | imported
-oat_import_reference: null # e.g., references/imported-plan.md
-oat_import_source_path: null # original source path provided by user
-oat_import_provider: null # codex | cursor | claude | null
+oat_plan_hill_phases: []
+oat_plan_parallel_groups:
+  - [p04, p05]
+oat_plan_source: quick
+oat_import_reference: null
+oat_import_source_path: null
+oat_import_provider: null
 oat_generated: false
+oat_template: true
 ---
 
 # Implementation Plan: session-observer-collab
 
-> Execute this plan using `oat-project-implement` — sequential by default, parallel when `oat_plan_parallel_groups` is declared.
+> Execute this plan using `oat-project-implement`.
 
-**Goal:** {Brief goal statement from spec}
+**Goal:** Harden the base Session Observer from real collaboration failures and ship a compositional N=2 collaboration skill with honest, bounded wake behavior across Claude Code, Codex, Cursor, and generic fallbacks.
 
-**Architecture:** {1-2 sentence architecture summary from design}
+**Architecture:** Canonical TypeScript owns transcript/runtime semantics and generates the shipped base observer bundle. A dependency-free sibling skill owns runtime-neutral collaboration policy, a versioned lease/control surface, and thin harness adapters that consume normalized base-observer output.
 
-**Tech Stack:** {Key technologies from design}
+**Tech Stack:** Node.js 22+, TypeScript, dependency-free ESM runtime scripts, Vitest, generated-runtime build pipeline, Markdown/MDX skills and documentation, OAT file-backed PJM.
 
-**Commit Convention:** `{type}({scope}): {description}` - e.g., `feat(p01-t01): add user auth endpoint`
+**Commit Convention:** `type(pNN-tNN): description`
 
 ## Planning Checklist
 
-- [ ] Confirmed HiLL checkpoints with user
-- [ ] Set `oat_plan_hill_phases` in frontmatter
-- [ ] Evaluated phases for parallelism opportunities
-- [ ] Set `oat_plan_parallel_groups` in frontmatter
-
----
+- [x] Discovery grounded in the authoritative handoff packet
+- [x] Lightweight design drafted and self-reviewed
+- [x] Canonical source and generated-output boundaries identified
+- [x] Phases evaluated for dependency and write-set parallelism
+- [x] Stable task IDs, scoped verification, and atomic commits assigned
+- [ ] Project dispatch policy resolved
+- [ ] Optional Phase gate review setting resolved
+- [ ] Plan artifact review recorded
 
 ## Parallelism
 
-Phases that have no overlapping file modifications may run concurrently. To declare parallelism:
+Phases p01 through p03 are sequential: normalized completion/provenance must exist before watch behavior and collaboration leases can safely depend on it. After p03 fixes the shared protocol and control interfaces, p04 and p05 may run concurrently in isolated worktrees because their canonical write sets are disjoint: p04 owns only Codex adapter/reference/tests, while p05 owns Cursor and Claude adapter/reference/tests. Phase p06 merges and validates both lanes, updates shared documentation/release surfaces, and therefore runs after the parallel group.
 
 ```yaml
-oat_plan_parallel_groups: [['p02', 'p03']]
+oat_plan_parallel_groups:
+  - [p04, p05]
 ```
 
-Each inner array is a group of phases that execute in parallel (each in its own worktree) and merge back in plan order after all pass. Groups themselves run sequentially.
+Do not run generated builds concurrently. The p04/p05 workers verify their scoped source/tests; p06 owns the serialized repository build and full integration gates after merge.
 
-Default is `[]` (fully sequential, no worktrees). Only declare parallelism when phases are genuinely file-disjoint — overlap will produce merge conflicts that stop the run.
+## Phase 1: Normalize collaboration-bearing transcript semantics
 
----
-
-## Dispatch Profile
-
-_Optional override surface. Use only for explicit user-authored constraints or preferences. Omit this section when runtime selection should choose the lowest confident tier._
-
-Blank or `auto` means there is no explicit constraint for that provider. Do not generate rows by default; a missing phase row uses runtime selection.
-
-| Phase | Claude model                     | Codex effort                   | Rationale                     |
-| ----- | -------------------------------- | ------------------------------ | ----------------------------- |
-| pNN   | haiku\|sonnet\|opus\|fable\|auto | low\|medium\|high\|xhigh\|auto | why this constraint is needed |
-
-Codex effort values are preferred controls. `oat-project-implement` caps them when a capped managed dispatch policy exists, selects them directly under managed `Uncapped`, and maps selected efforts to pinned implementer variants when available. Codex provider default effort is informational only for explicit inherit/default behavior or base/unpinned fallback paths.
-
----
-
-## Phase 1: {Phase Name}
-
-### Task p01-t01: {Task Name}
+### Task p01-t01: Render queued Claude input exactly once
 
 **Files:**
 
-- Create: `{path/to/file.ts}`
-- Modify: `{path/to/existing.ts}`
+- Modify: `src/transcript/core/runtimes.ts`
+- Modify: `src/transcript/session-observer/lib/types.ts`
+- Modify: `src/transcript/session-observer/lib/digest.ts`
+- Modify: `tests/session-observer/digest.test.ts`
+- Add/modify: `tests/session-observer/fixtures/claude-code/*`
 
-**Step 1: Write test (RED)**
+**Implementation:** Add failing fixtures for `queue-operation` enqueue/remove records and `queued_command` attachments, then normalize/dedupe them into one `User (queued mid-turn)` entry in review, catch-up, and watch-compatible digest output. Preserve existing output for transcripts without queued input.
 
-```typescript
-// {path/to/file.test.ts}
-describe('{feature}', () => {
-  it('{test case}', () => {
-    // Test implementation
-  });
-});
-```
+**Verify:** `pnpm exec vitest run tests/session-observer/digest.test.ts`
 
-Run: `pnpm --filter {package-name} exec vitest run {path/to/file.test.ts}`
-Expected: Test fails (RED)
+**Commit:** `feat(p01-t01): render queued Claude input`
 
-**Step 2: Implement (GREEN)**
-
-```typescript
-// {path/to/file.ts}
-// Implementation code or interface signatures
-```
-
-Run: `pnpm --filter {package-name} exec vitest run {path/to/file.test.ts}`
-Expected: Test passes (GREEN)
-
-Use the actual runner command that scopes to the intended file or test target. Do not write a package-level shortcut unless it truly executes only the scope the task claims.
-
-**Step 3: Refactor**
-
-{Any cleanup or improvements while tests stay green}
-
-**Step 4: Verify**
-
-Run: `pnpm lint && pnpm type-check`
-Expected: No errors
-
-**Step 5: Commit**
-
-```bash
-git add {files}
-git commit -m "feat(p01-t01): {description}"
-```
-
----
-
-### Task p01-t02: {Task Name}
+### Task p01-t02: Classify synthetic wakes as automatic control input
 
 **Files:**
 
-- {File list}
+- Modify: `src/transcript/core/runtimes.ts`
+- Modify: `src/transcript/session-observer/lib/types.ts`
+- Modify: `src/transcript/session-observer/lib/digest.ts`
+- Modify: `tests/session-observer/digest.test.ts`
+- Add/modify: runtime fixtures under `tests/session-observer/fixtures/`
 
-**Step 1: Write test (RED)**
+**Implementation:** Define and detect the machine-readable `session_observer_wake` envelope. Preserve its automatic/runtime/lease/pin/range provenance, render it as `Hook/control (automatic)` in markdown/JSON, and expose a non-human origin that collaboration logic can exclude from authority and recursive triggers.
 
-{Test code}
+**Verify:** `pnpm exec vitest run tests/session-observer/digest.test.ts`
 
-**Step 2: Implement (GREEN)**
+**Commit:** `feat(p01-t02): classify automatic wake envelopes`
 
-{Implementation code or signatures}
+### Task p01-t03: Buffer Cursor activity through terminal completion
 
-**Step 3: Refactor**
+**Files:**
 
-{Optional cleanup}
+- Modify: `src/transcript/core/runtimes.ts`
+- Modify: `src/transcript/session-observer/lib/types.ts`
+- Modify: `tests/transcript-core/runtimes.test.ts`
+- Modify: `tests/session-observer/digest.test.ts`
+- Add/modify: `tests/session-observer/fixtures/cursor/*`
 
-**Step 4: Verify**
+**Implementation:** Buffer Cursor planning/fragments/tool activity until the top-level `turn_ended`. Emit one completed final response on success; emit a terminal diagnostic without provisional substantive content for aborted, error, and cancelled turns. Keep debug-only activity available without changing ordinary peer-position semantics.
 
-Run: `{verification command}`
-Expected: {output}
+**Verify:** `pnpm exec vitest run tests/transcript-core/runtimes.test.ts tests/session-observer/digest.test.ts`
 
-Verification commands should be behaviorally accurate. If the task claims a file-scoped or test-scoped check, use the concrete runner invocation that really scopes to that target.
+**Commit:** `feat(p01-t03): buffer Cursor turns to completion`
 
-**Step 5: Commit**
+### Task p01-t04: Guarantee recoverable user-message content
 
-```bash
-git add {files}
-git commit -m "feat(p01-t02): {description}"
-```
+**Files:**
 
----
+- Modify: `src/transcript/core/runtimes.ts`
+- Modify: `src/transcript/session-observer/lib/digest.ts`
+- Modify: `src/transcript/session-observer/lib/types.ts`
+- Modify: `tests/session-observer/digest.test.ts`
 
-## Phase 2: {Phase Name}
+**Implementation:** Exempt user content from silent truncation. If a safety cap remains necessary, add transcript path plus exact zero-based record index to the normalized/digest recovery metadata and both renderers. Verify ordinary large-digest tail slicing remains backward compatible.
 
-### Task p02-t01: {Task Name}
+**Verify:** `pnpm exec vitest run tests/session-observer/digest.test.ts`
 
-{Continue TDD pattern...}
+**Commit:** `fix(p01-t04): preserve recoverable user messages`
 
----
+## Phase 2: Harden identity and watch behavior
+
+### Task p02-t01: Add fail-closed `whoami`
+
+**Files:**
+
+- Modify: `src/transcript/session-observer/session-observer.ts`
+- Modify: `src/transcript/session-observer/lib/observe.ts`
+- Modify: `src/transcript/session-observer/lib/locate.ts`
+- Modify: `src/transcript/session-observer/lib/types.ts`
+- Modify: `tests/session-observer/cli.test.ts`
+- Modify: `tests/session-observer/locate.test.ts`
+
+**Implementation:** Add `whoami [--json]` with ordered resolution from explicit self identity, harness signals, then unambiguous newest same-cwd self-runtime transcript. Return runtime/session/transcript/source; return non-zero with candidates when ambiguous instead of selecting by recency.
+
+**Verify:** `pnpm exec vitest run tests/session-observer/cli.test.ts tests/session-observer/locate.test.ts`
+
+**Commit:** `feat(p02-t01): add fail-closed self identity`
+
+### Task p02-t02: Suppress empty watch deltas without losing offsets
+
+**Files:**
+
+- Modify: `src/transcript/session-observer/session-observer.ts`
+- Modify: `src/transcript/session-observer/lib/types.ts`
+- Modify: `src/transcript/session-observer/lib/watch.ts`
+- Modify: `tests/session-observer/watch.test.ts`
+- Modify: `tests/session-observer/cli.test.ts`
+
+**Implementation:** Add `--quiet-empty` to watch and catch-up-then-watch. Metadata-only growth advances the high-water mark but emits no stdout delta; substantive deltas and enabled heartbeats retain current behavior.
+
+**Verify:** `pnpm exec vitest run tests/session-observer/watch.test.ts tests/session-observer/cli.test.ts`
+
+**Commit:** `feat(p02-t02): suppress empty watch deltas`
+
+### Task p02-t03: Detect standalone-watch baseline gaps
+
+**Files:**
+
+- Modify: `src/transcript/session-observer/session-observer.ts`
+- Modify: `src/transcript/session-observer/lib/types.ts`
+- Modify: `src/transcript/session-observer/lib/watch.ts`
+- Modify: `tests/session-observer/watch.test.ts`
+- Modify: `tests/session-observer/cli.test.ts`
+
+**Implementation:** Compare a standalone watch baseline with a prior stored target offset. Emit a stable warning event naming the skipped range, or refuse under `--strict-baseline`. Do not warn for first-ever watch or catch-up-then-watch.
+
+**Verify:** `pnpm exec vitest run tests/session-observer/watch.test.ts tests/session-observer/cli.test.ts`
+
+**Commit:** `feat(p02-t03): guard unread watch baselines`
+
+### Task p02-t04: Warn about newer same-cwd sessions
+
+**Files:**
+
+- Modify: `src/transcript/session-observer/lib/watch.ts`
+- Modify: `src/transcript/session-observer/lib/locate.ts`
+- Modify: `src/transcript/session-observer/lib/types.ts`
+- Modify: `tests/session-observer/watch.test.ts`
+
+**Implementation:** During each poll window, check for a newer same-cwd candidate for the watched runtime. Emit a deduplicated neutral `newer-session-candidate` event with identity evidence; never auto-switch or claim supersession.
+
+**Verify:** `pnpm exec vitest run tests/session-observer/watch.test.ts`
+
+**Commit:** `feat(p02-t04): warn on newer peer sessions`
+
+### Task p02-t05: Regenerate and document the base observer surface
+
+**Files:**
+
+- Modify: `skills/session-observer/SKILL.md`
+- Generated: `skills/session-observer/scripts/**/*.mjs`
+- Modify as needed: `scripts/build-generated.mjs`
+- Modify as needed: `scripts/bump-version.mjs`
+- Modify: relevant generated-output/release tests
+
+**Implementation:** Document new commands/events and the rule that a filtered digest is not evidence of absence. Bump the base skill version consistently, ensure release tooling tracks it, run the canonical build, and commit all generated outputs together. Never hand-edit generated `.mjs` files.
+
+**Verify:** `pnpm run build && pnpm run build:check && pnpm exec vitest run tests/tooling/generated-output-sync.test.ts tests/release/skill-version-bumps.test.ts`
+
+**Commit:** `feat(p02-t05): publish observer collaboration primitives`
+
+## Phase 3: Establish the collaboration protocol and control plane
+
+### Task p03-t01: Scaffold the canonical sibling skill
+
+**Files:**
+
+- Create: `skills/session-observer-collab/SKILL.md`
+- Create: `skills/session-observer-collab/references/runtime-claude-code.md`
+- Create: `skills/session-observer-collab/references/runtime-codex.md`
+- Create: `skills/session-observer-collab/references/runtime-cursor.md`
+- Create: `skills/session-observer-collab/scripts/`
+- Modify: `tests/repo/layout.test.ts`
+- Modify/add: standalone skill metadata/layout tests
+
+**Implementation:** Create a versioned, public standalone skill at the canonical `skills/` path with dependency-free Node 22 compatibility. Add load-one-runtime-reference routing and placeholder-free protocol/reference shells; do not author in generated provider mirrors or use harness magic filenames.
+
+**Verify:** `pnpm exec vitest run tests/repo/layout.test.ts tests/repo/skill-frontmatter.test.ts && pnpm run validate`
+
+**Commit:** `feat(p03-t01): scaffold session observer collaboration skill`
+
+### Task p03-t02: Author the runtime-neutral N=2 protocol
+
+**Files:**
+
+- Modify: `skills/session-observer-collab/SKILL.md`
+- Add: protocol-focused repository tests as needed
+
+**Implementation:** Encode exact-identity arming, catch-up-then-watch, capability probing/disclosure, user/peer addressing, cross-session direction versus local authorization, automatic-control provenance, no-op and empty-delta suppression, pause triggers, consensus freshness/correction, stateless third-observer limits, shared-worktree serialization, log format, and closeout. Reference base CLI one-liners without duplicating its mechanics.
+
+**Verify:** `pnpm run validate && pnpm exec vitest run tests/repo/layout.test.ts`
+
+**Commit:** `feat(p03-t02): define mutual observation protocol`
+
+### Task p03-t03: Implement versioned lease state and control operations
+
+**Files:**
+
+- Create: `skills/session-observer-collab/scripts/collab-control.mjs`
+- Create: `skills/session-observer-collab/scripts/lib/*.mjs`
+- Create: `tests/session-observer-collab/control.test.ts`
+- Create: sanitized fixtures under `tests/session-observer-collab/fixtures/`
+
+**Implementation:** Add idempotent install/status/arm/disarm/prune, per-session XDG leases, owner-only permissions, version/schema migration, atomic writes, compare-and-swap cursor/count semantics, explicit armed/waiting/idle/triggered/disarmed states, bounded expiry/caps, and ownership-safe pruning. Define a runtime adapter interface so p04 and p05 never edit shared control files.
+
+**Verify:** `pnpm exec vitest run tests/session-observer-collab/control.test.ts`
+
+**Commit:** `feat(p03-t03): add collaboration lease controls`
+
+### Task p03-t04: Normalize substantive completion and continuation selection
+
+**Files:**
+
+- Create/modify: `skills/session-observer-collab/scripts/lib/*.mjs`
+- Create: `tests/session-observer-collab/completion.test.ts`
+
+**Implementation:** Consume base observer JSON/provenance rather than duplicating raw transcript parsers. Select the latest completed substantive peer turn, return an exact contiguous range, advance to `completedRecord + 1`, and suppress empty, metadata-only, replayed automatic, and `[no-op]` activity without spending budget. Preserve short genuine feedback.
+
+**Verify:** `pnpm exec vitest run tests/session-observer-collab/completion.test.ts`
+
+**Commit:** `feat(p03-t04): select bounded peer continuations`
+
+## Phase 4: Implement and validate the Codex lifecycle adapter
+
+### Task p04-t01: Implement the thin Codex Stop hook
+
+**Files:**
+
+- Create: `skills/session-observer-collab/scripts/hooks/codex-stop.mjs`
+- Create: `tests/session-observer-collab/codex-hook.test.ts`
+- Use as oracle only: project `references/prototypes/codex/*`
+
+**Implementation:** Validate the acting session/worktree/transcript and one lease, enter bounded waiting, invoke shared completed-turn selection, atomically claim cursor/count, and emit the harness continuation decision containing `session_observer_wake`. Preserve unrelated hooks and treat malformed/expired/mismatched state as fail-closed no-op/diagnostic behavior.
+
+**Verify:** `pnpm exec vitest run tests/session-observer-collab/codex-hook.test.ts`
+
+**Commit:** `feat(p04-t01): add bounded Codex continuation hook`
+
+### Task p04-t02: Complete Codex install, trust, and lifecycle operations
+
+**Files:**
+
+- Modify: `skills/session-observer-collab/references/runtime-codex.md`
+- Add/modify: Codex-specific adapter registration files under the skill
+- Modify: `tests/session-observer-collab/control.test.ts`
+- Modify: `tests/session-observer-collab/codex-hook.test.ts`
+
+**Implementation:** Cover exact-command trust, `/hooks` approval/effective-execution proof, static hook coexistence, five-second default wait, opt-in longer waits with steering warning, one-shot/recurring bounds, timeout-to-idle truthfulness, restart behavior, deterministic disarm, safe prune, and explicit uninstall. Do not infer enablement from an absent `enabled` field.
+
+**Verify:** `pnpm exec vitest run tests/session-observer-collab/control.test.ts tests/session-observer-collab/codex-hook.test.ts`
+
+**Commit:** `feat(p04-t02): complete Codex collaboration lifecycle`
+
+### Task p04-t03: Run the Codex acceptance harness
+
+**Files:**
+
+- Modify: `skills/session-observer-collab/references/runtime-codex.md` only for measured corrections
+- Add: sanitized test evidence/fixtures when durable and repository-appropriate
+
+**Implementation:** Exercise exact trust breadcrumb, one substantive trigger, exact range/cursor, recurring two-continuation flow, finite caps/expiry, waiting/idle states, no-op suppression, queued user input/steering, hook coexistence, stale-worktree pruning, and disarm. Record proof without committing live session state.
+
+**Verify:** `pnpm exec vitest run tests/session-observer-collab/codex-hook.test.ts tests/session-observer-collab/control.test.ts`
+
+**Commit:** `test(p04-t03): verify Codex collaboration lifecycle`
+
+## Phase 5: Implement Cursor and Claude harness adapters
+
+### Task p05-t01: Implement the Cursor Stop-hook adapter
+
+**Files:**
+
+- Create: `skills/session-observer-collab/scripts/hooks/cursor-stop.mjs`
+- Create: `tests/session-observer-collab/cursor-hook.test.ts`
+
+**Implementation:** Validate Cursor Stop input and terminal success, use shared completed-turn selection, enforce independent `loop_limit` and lease bounds, and return only a synthetic `followup_message` wake envelope. Late output cannot wake an idle session; error/abort/cancel and provisional turns cannot become peer positions.
+
+**Verify:** `pnpm exec vitest run tests/session-observer-collab/cursor-hook.test.ts`
+
+**Commit:** `feat(p05-t01): add Cursor continuation hook`
+
+### Task p05-t02: Document and probe Cursor lifecycle behavior
+
+**Files:**
+
+- Modify: `skills/session-observer-collab/references/runtime-cursor.md`
+- Modify: `tests/session-observer-collab/cursor-hook.test.ts`
+- Add: sanitized Cursor fixtures/evidence when appropriate
+
+**Implementation:** Cover conversation/session identity, `turn_ended` ordering, observed-side stateless review, success/non-success statuses, loop count, input during wait, restart/resume, synthetic and no-op suppression, absent tool-result payloads, scheduled-poll fallback, and stronger-tier probes. Label lifecycle continuation documented-but-unvalidated unless live arm → peer post → followup generation → disarm succeeds.
+
+**Verify:** `pnpm exec vitest run tests/session-observer-collab/cursor-hook.test.ts tests/transcript-core/runtimes.test.ts`
+
+**Commit:** `docs(p05-t02): define measured Cursor collaboration support`
+
+### Task p05-t03: Author and verify the Claude Code Monitor recipe
+
+**Files:**
+
+- Modify: `skills/session-observer-collab/references/runtime-claude-code.md`
+- Add: protocol/reference validation tests as needed
+
+**Implementation:** Probe Monitor availability, run a pinned quiet-empty/no-heartbeat watch when present, define event-wake disclosure, verify substantive notifications, same-session client restart resilience, clean stop, and scheduled/manual fallback. Keep Monitor harness-native but optional by capability probe.
+
+**Verify:** `pnpm run validate && pnpm exec vitest run tests/session-observer/watch.test.ts`
+
+**Commit:** `docs(p05-t03): add Claude Monitor collaboration recipe`
+
+## Phase 6: Integrate, document, and close the evidence loop
+
+### Task p06-t01: Integrate skill distribution and release invariants
+
+**Files:**
+
+- Modify: `scripts/validate.mjs`
+- Modify: `scripts/bump-version.mjs`
+- Modify: `tests/repo/layout.test.ts`
+- Modify: `tests/release/skill-version-bumps.test.ts`
+- Modify/add: collaboration skill structure tests
+
+**Implementation:** Register the new standalone skill in required layout/release tooling, validate metadata/version consistency and dependency-free scripts, preserve public discovery semantics, and ensure provider mirrors remain generated. Bump every changed skill version exactly once relative to `origin/main`.
+
+**Verify:** `pnpm exec vitest run tests/repo/layout.test.ts tests/release/skill-version-bumps.test.ts && pnpm run validate && pnpm run validate:skill-versions -- --base-ref origin/main`
+
+**Commit:** `build(p06-t01): register collaboration skill distribution`
+
+### Task p06-t02: Publish user and engineering documentation
+
+**Files:**
+
+- Modify: `documentation/docs/user-guide/skills/index.md`
+- Modify: `documentation/docs/user-guide/skills/meta.json`
+- Create: `documentation/docs/user-guide/skills/session-observer-collab.md`
+- Modify: `documentation/docs/user-guide/skills/session-observer.md`
+- Modify as needed: `documentation/docs/engineering/repository-layout.md`
+- Modify as needed: `documentation/docs/engineering/architecture/generated-runtime.md`
+- Modify: docs-presence/navigation tests
+
+**Implementation:** Document installation, N=2 topology, honest wake tiers, runtime loading, authority, closeout, new base flags, generated-source boundary, and validated-versus-documented provider status. Keep README as an entry point and avoid stale marketplace/provider claims.
+
+**Verify:** `pnpm exec vitest run tests/repo/docs-presence.test.ts tests/repo/readme-scope.test.ts && pnpm run validate`
+
+**Commit:** `docs(p06-t02): document session observer collaboration`
+
+### Task p06-t03: Record all intentional v2 deferrals
+
+**Files:**
+
+- Create: `.oat/repo/pjm/backlog/items/BL-*.md`
+- Modify: `.oat/repo/pjm/backlog/index.md`
+- Modify as needed: `.oat/repo/pjm/current-state.md` and roadmap narrative
+
+**Implementation:** Create clear file-backed backlog items for deferred per-observer offsets/N>2 mesh, stronger Cursor wake surfaces, Cursor transcript-store/slug coverage, and optional idle-session application integrations. Consolidate only when acceptance criteria remain independently verifiable. Do not close the existing shared-log or direct-messaging initiatives.
+
+**Verify:** `oat backlog regenerate-index && git diff --check && pnpm run validate`
+
+**Commit:** `chore(p06-t03): capture collaboration v2 follow-ups`
+
+### Task p06-t04: Run the full acceptance and sanitization matrix
+
+**Files:**
+
+- Modify: tests/fixtures/docs only for findings discovered by the matrix
+- Audit: project `references/` and shipped skill examples for secrets/live state
+
+**Implementation:** Run every automated acceptance row; execute available Claude/Codex/Cursor live probes; preserve unvalidated labels for unavailable/failed probes; verify no live leases, secrets, or credentials ship; reconcile the historical `.session-observer/` source-packet wording with the project-local reference path; and get a peer final review of the current handoff.
+
+**Verify:** `pnpm run build && pnpm run build:check && pnpm run type-check && pnpm test && pnpm run validate && pnpm run validate:skill-versions -- --base-ref origin/main && pnpm run smoke`
+
+**Commit:** `test(p06-t04): close collaboration acceptance matrix`
+
+### Task p06-t05: Verify clean closeout and installation handoff
+
+**Files:**
+
+- Modify: project implementation/review artifacts and durable docs only if needed
+
+**Implementation:** Final freshness poll, resolve peer findings, finalize bounded evidence logs, stop watchers/Monitor/pollers, disarm and prune leases, ask whether static hooks should remain, verify destination artifacts, and confirm backlog IDs in the handoff. After merge—or during explicitly authorized local dogfooding—refresh the canonical user-level skill and provider symlinks, then run `oat sync --scope user`.
+
+**Verify:** `pnpm run worktree:validate` from a clean worktree, plus `oat sync --scope user` only at the repository-approved installation boundary.
+
+**Commit:** `chore(p06-t05): finalize collaboration handoff`
 
 ## Reviews
-
-{Track reviews here after running the oat-project-review-provide and oat-project-review-receive skills.}
-
-{Keep both code + artifact rows below. Add additional code rows (p03, p04, etc.) as needed, but do not delete `spec`/`design`.}
 
 | Scope  | Type     | Status  | Date | Artifact |
 | ------ | -------- | ------- | ---- | -------- |
 | p01    | code     | pending | -    | -        |
 | p02    | code     | pending | -    | -        |
+| p03    | code     | pending | -    | -        |
+| p04    | code     | pending | -    | -        |
+| p05    | code     | pending | -    | -        |
+| p06    | code     | pending | -    | -        |
 | final  | code     | pending | -    | -        |
-| spec   | artifact | pending | -    | -        |
-| design | artifact | pending | -    | -        |
+| spec   | artifact | pending | -    | N/A (quick mode) |
+| design | artifact | pending | -    | `design.md` |
+| plan   | artifact | pending | -    | `plan.md` |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 
-**Meaning:**
-
-- `received`: review artifact exists (not yet converted into fix tasks)
-- `fixes_added`: fix tasks were added to the plan (work queued)
-- `fixes_completed`: fix tasks implemented, awaiting re-review
-- `passed`: re-review run and recorded as passing (no Critical/Important)
-
----
+The design and plan remain pending human review until the user completes the requested combined review. The plan row is updated independently by the automatic plan artifact-review loop.
 
 ## Implementation Complete
 
 **Summary:**
 
-- Phase 1: {N} tasks - {Description}
-- Phase 2: {N} tasks - {Description}
+- Phase 1: 4 tasks — normalize queued input, automatic control provenance, Cursor completion, and user recovery
+- Phase 2: 5 tasks — add identity and watch safeguards, regenerate and document the base skill
+- Phase 3: 4 tasks — establish the sibling skill, protocol, lease controls, and completion selection
+- Phase 4: 3 tasks — implement and validate Codex lifecycle continuation
+- Phase 5: 3 tasks — implement Cursor continuation and document Cursor/Claude harness behavior
+- Phase 6: 5 tasks — integrate distribution/docs/PJM, run the full matrix, and close out safely
 
-**Total: {N} tasks**
+**Total: 24 tasks across 6 phases**
 
-Ready for code review and merge.
-
----
+Ready for implementation only after dispatch policy, Phase gate review setup, and the plan artifact-review disposition are resolved.
 
 ## References
 
-- Design: `design.md` (required in spec-driven mode; optional in quick/import mode)
-- Spec: `spec.md` (required in spec-driven mode; optional in quick/import mode)
-- Discovery: `discovery.md`
-- Imported Source: `references/imported-plan.md` (when `oat_plan_source: imported`)
+- [Discovery](discovery.md)
+- [Lightweight design](design.md)
+- [Authoritative implementation brief](references/prompt.md)
+- [Packet manifest](references/README.md)
+- [Acceptance matrix](references/acceptance-matrix.md)
+- [Codex lifecycle contract](references/codex-stop-hook-setup.md)
+- [Cursor lifecycle contract](references/cursor-stop-hook-setup.md)
+- [Closeout runbook](references/closeout-runbook.md)
