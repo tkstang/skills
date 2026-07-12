@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-12
-oat_current_task_id: p02-t01
+oat_current_task_id: p03-t01
 oat_generated: false
 ---
 
@@ -19,13 +19,13 @@ oat_generated: false
 | Phase | Status | Tasks | Completed |
 | --- | --- | ---: | ---: |
 | p01 — Transcript semantics | completed | 4 | 4 |
-| p02 — Identity and watch behavior | in_progress | 5 | 0 |
-| p03 — Collaboration protocol/control | pending | 4 | 0 |
+| p02 — Identity and watch behavior | completed | 5 | 5 |
+| p03 — Collaboration protocol/control | in_progress | 4 | 0 |
 | p04 — Codex adapter | pending | 3 | 0 |
 | p05 — Cursor and Claude adapters | pending | 3 | 0 |
 | p06 — Integration and closeout | pending | 5 | 0 |
 
-**Total:** 4/24 tasks completed
+**Total:** 9/24 tasks completed
 
 ## Phase p01: Normalize collaboration-bearing transcript semantics
 
@@ -46,11 +46,21 @@ oat_generated: false
 
 ## Phase p02: Harden identity and watch behavior
 
-- [ ] `p02-t01` Add fail-closed `whoami`
-- [ ] `p02-t02` Suppress empty watch deltas without losing offsets
-- [ ] `p02-t03` Detect standalone-watch baseline gaps
-- [ ] `p02-t04` Warn about newer same-cwd sessions
-- [ ] `p02-t05` Regenerate and document the base observer surface
+- [x] `p02-t01` Add fail-closed `whoami` — `53b35c6`, fixes `9eb5247`, `f409bb1`
+- [x] `p02-t02` Suppress empty watch deltas without losing offsets — `1237a91`
+- [x] `p02-t03` Detect standalone-watch baseline gaps — `e41e6cd`
+- [x] `p02-t04` Warn about newer same-cwd sessions — `38283af`
+- [x] `p02-t05` Regenerate and document the base observer surface — `e6e36cf`, quality fix `644dad2`
+
+### Phase p02 Summary
+
+**Outcome:** `whoami` resolves authoritative aliases or same-cwd runtime candidates and fails closed on conflicting/ambiguous signals; quiet-empty advances offsets without noise; standalone watch detects unread baseline gaps; watchers warn without auto-switching when a newer same-cwd session appears; base/export generated bundles and skill versions are synchronized.
+
+**Key files:** canonical observer CLI/observe/locate/watch/types modules, generated Session Observer and shared Export Session Transcript bundles, both skill manifests, release/build tooling, focused fixtures/tests, and Session Observer skill docs.
+
+**Verification:** canonical build/build:check; 114 focused CLI/locate/watch/tooling/release tests; type-check; repository validation; two changed-skill version checks; changed-file lint/format; diff and clean-tree checks.
+
+**Review:** Initial review found one Important harness-signal gap. Review iteration 1 exposed an Important same-cwd filtering defect; iteration 2 resolved it. Final managed review passed with zero findings.
 
 ## Phase p03: Establish the collaboration protocol and control plane
 
@@ -135,6 +145,47 @@ oat_generated: false
 | Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
 | --- | --- | --- | --- | --- | --- | --- |
 | None | - | - | - | - | - | - |
+
+### Run 2 — 2026-07-12 16:40 CDT
+
+**Branch:** `session-observer-collab`
+**Tier:** 1
+**Policy:** merge-strategy=merge, retry-limit=2
+**Phases:** 1 executed, 1 passed, 0 failed, 0 stopped
+
+#### Phase Outcomes
+
+| Phase | Implementer | Review | Fix Iterations | Disposition |
+| --- | --- | --- | ---: | --- |
+| p02 | DONE | pass | 2/2 | completed on orchestration branch |
+
+#### Parallel Groups
+
+- p02: sequential
+
+#### Dispatch Notes
+
+- `Dispatch: scope=p02 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-high`
+- `Dispatch: scope=p02-t01 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:medium dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-medium`
+- `Dispatch: scope=p02-t02 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-terra effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-terra-high`
+- `Dispatch: scope=p02-t03 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:medium dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-medium`
+- `Dispatch: scope=p02-t04 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-terra effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-terra-high`
+- `Dispatch: scope=p02-t05 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-terra effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-terra-high`
+- `Dispatch: scope=p02-t05-quality-fix-1 action=fix role=fix producer=unknown provenance=unknown model_axis=selected:gpt-5.6-terra effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-terra-high`
+- `Dispatch: scope=p02-t05-quality-fix-2 action=fix role=fix producer=unknown provenance=unknown model_axis=selected:gpt-5.6-terra effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-terra-high`
+- `Dispatch: scope=p02-t01-review-fix-i1 action=fix role=fix producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:medium dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-medium`
+- `Dispatch: scope=p02-t01-review-fix-i1-iteration-2 action=fix role=fix producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:medium dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-medium`
+- `Dispatch: scope=p02 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high`
+
+#### Outstanding Items
+
+- None
+
+#### Artifact / Design Deltas
+
+| Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
+| --- | --- | --- | --- | --- | --- | --- |
+| p02 verification | plan.md p02 Verify/file boundaries | Generated CLI checks appeared in early canonical tasks; shared generated output/version path was omitted | Canonical tasks verify source; p02-t05 owns generated CLI/build plus both shared skill versions | Generated CLI tests execute committed bundles; shared runtime builds two skills | plan.md + canonical build graph | Plan corrected in `aa22c07`, `012e29b`, `73a6b41` |
 
 <!-- orchestration-runs-end -->
 

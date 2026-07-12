@@ -372,7 +372,7 @@ Generated-bundle CLI flag assertions run in p02-t05 after the canonical build.
 
 **Implementation:** Register the new standalone skill in required layout/release tooling, validate metadata/version consistency and dependency-free scripts, preserve public discovery semantics, and ensure provider mirrors remain generated. Bump every changed skill version exactly once relative to `origin/main`.
 
-**Verify:** `pnpm exec vitest run tests/repo/layout.test.ts tests/release/skill-version-bumps.test.ts && pnpm run validate && pnpm run validate:skill-versions -- --base-ref origin/main`
+**Verify:** `pnpm exec vitest run tests/repo/layout.test.ts tests/release/skill-version-bumps.test.ts && pnpm run validate && node scripts/validate-skill-versions.mjs --base-ref origin/main`
 
 **Commit:** `build(p06-t01): register collaboration skill distribution`
 
@@ -417,7 +417,7 @@ Generated-bundle CLI flag assertions run in p02-t05 after the canonical build.
 
 **Implementation:** Run every automated acceptance row; execute available Claude/Codex/Cursor live probes; preserve unvalidated labels for unavailable/failed probes; verify no live leases, secrets, or credentials ship; reconcile the historical `.session-observer/` source-packet wording with the project-local reference path; and get a peer final review of the current handoff.
 
-**Verify:** `pnpm run build && pnpm run build:check && pnpm run type-check && pnpm test && pnpm run validate && pnpm run validate:skill-versions -- --base-ref origin/main && pnpm run smoke`
+**Verify:** `pnpm run build && pnpm run build:check && pnpm run type-check && pnpm test && pnpm run validate && node scripts/validate-skill-versions.mjs --base-ref origin/main && pnpm run smoke`
 
 **Commit:** `test(p06-t04): close collaboration acceptance matrix`
 
@@ -438,7 +438,7 @@ Generated-bundle CLI flag assertions run in p02-t05 after the canonical build.
 | Scope  | Type     | Status  | Date | Artifact |
 | ------ | -------- | ------- | ---- | -------- |
 | p01    | code     | passed  | 2026-07-12 | managed review after fix iteration 2/2 |
-| p02    | code     | pending | -    | -        |
+| p02    | code     | passed  | 2026-07-12 | managed review after fix iteration 2/2 |
 | p03    | code     | pending | -    | -        |
 | p04    | code     | pending | -    | -        |
 | p05    | code     | pending | -    | -        |
