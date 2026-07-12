@@ -224,7 +224,7 @@ Do not run generated builds concurrently. The p04/p05 workers verify their scope
 - Modify: `skills/session-observer-collab/SKILL.md`
 - Add: protocol-focused repository tests as needed
 
-**Implementation:** Encode exact-identity arming, catch-up-then-watch, capability probing/disclosure, user/peer addressing, cross-session direction versus local authorization, automatic-control provenance, no-op and empty-delta suppression, pause triggers, consensus freshness/correction, stateless third-observer limits, shared-worktree serialization, log format, and closeout. Reference base CLI one-liners without duplicating its mechanics.
+**Implementation:** Encode exact-identity arming, catch-up-then-watch, capability probing/disclosure, user/peer addressing, cross-session direction versus local authorization, automatic-control provenance, no-op and empty-delta suppression, pause triggers, consensus freshness/correction, bounded raw-record verification with secret redaction, stateless third-observer limits, shared-worktree serialization, log format, and closeout. Include the validated mid-run onboarding pattern as a self-contained kickoff brief carrying exact peer pins, stateless-read-only constraints, bounded tasks, authority/no-op conventions, and the shared log format; use the transferred `cursor-kickoff.md` as evidence/template. Reference base CLI one-liners without duplicating its mechanics.
 
 **Verify:** `pnpm run validate && pnpm exec vitest run tests/repo/layout.test.ts`
 
@@ -296,7 +296,7 @@ Do not run generated builds concurrently. The p04/p05 workers verify their scope
 - Modify: `skills/session-observer-collab/references/runtime-codex.md` only for measured corrections
 - Add: sanitized test evidence/fixtures when durable and repository-appropriate
 
-**Implementation:** Exercise exact trust breadcrumb, one substantive trigger, exact range/cursor, recurring two-continuation flow, finite caps/expiry, waiting/idle states, no-op suppression, queued user input/steering, hook coexistence, stale-worktree pruning, and disarm. Record proof without committing live session state.
+**Implementation:** Exercise exact trust breadcrumb, one substantive trigger, exact range/cursor, recurring two-continuation flow, finite caps/expiry, waiting/idle states, no-op suppression, queued user input/steering, hook coexistence, stale-worktree pruning, and disarm. Record live-harness evidence against the acceptance matrix without committing live session state; the Verify command below covers only the automated subset and must not be treated as proof that live harness rows passed.
 
 **Verify:** `pnpm exec vitest run tests/session-observer-collab/codex-hook.test.ts tests/session-observer-collab/control.test.ts`
 
@@ -338,7 +338,7 @@ Do not run generated builds concurrently. The p04/p05 workers verify their scope
 - Modify: `skills/session-observer-collab/references/runtime-claude-code.md`
 - Add: protocol/reference validation tests as needed
 
-**Implementation:** Probe Monitor availability, run a pinned quiet-empty/no-heartbeat watch when present, define event-wake disclosure, verify substantive notifications, same-session client restart resilience, clean stop, and scheduled/manual fallback. Keep Monitor harness-native but optional by capability probe.
+**Implementation:** Probe Monitor availability, run a pinned quiet-empty/no-heartbeat watch when present, define event-wake disclosure, verify substantive notifications, same-session client restart resilience, clean stop, and scheduled/manual fallback. Keep Monitor harness-native but optional by capability probe. Record live Monitor evidence against the acceptance matrix; the Verify command below covers the automated/documentation subset and is not proof of a passing live harness row.
 
 **Verify:** `pnpm run validate && pnpm exec vitest run tests/session-observer/watch.test.ts`
 
@@ -431,12 +431,12 @@ Do not run generated builds concurrently. The p04/p05 workers verify their scope
 | p06    | code     | pending | -    | -        |
 | final  | code     | pending | -    | -        |
 | spec   | artifact | pending | -    | N/A (quick mode) |
-| design | artifact | pending | -    | `design.md` |
+| design | artifact | passed  | 2026-07-12 | inline co-author review |
 | plan   | artifact | pending | -    | `plan.md` |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 
-The design and plan remain pending human review until the user completes the requested combined review. The plan row is updated independently by the automatic plan artifact-review loop.
+Human co-author artifact review passed on 2026-07-12 with no Critical or Important findings; three Minor findings were resolved directly in the design/plan. The `design` row records that approval. The `plan` row remains pending until the independent automatic plan artifact-review loop completes.
 
 ## Implementation Complete
 

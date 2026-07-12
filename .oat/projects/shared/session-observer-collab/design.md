@@ -65,7 +65,7 @@ Render queued user entries and automatic control entries with distinct headings.
 
 ### Collaboration protocol skill (`skills/session-observer-collab/SKILL.md`)
 
-Own the N=2 arming handshake, exact pinning, capability ladder, selected-mode disclosure, message addressing, human-direction versus local-authorization distinction, synthetic-input rules, pause triggers, consensus reporting, logging format, shared-worktree serialization, freshness checks, and deterministic closeout. It references base CLI invocations briefly and never reproduces observer documentation.
+Own the N=2 arming handshake, exact pinning, capability ladder, selected-mode disclosure, message addressing, human-direction versus local-authorization distinction, synthetic-input rules, pause triggers, consensus reporting, logging format, shared-worktree serialization, freshness checks, bounded raw-record verification with secret redaction, onboarding a stateless participant mid-run through a self-contained kickoff brief, and deterministic closeout. The kickoff pattern preserves exact peer pins, stateless-read-only constraints, authority/no-op conventions, bounded tasks, and shared logging. The skill references base CLI invocations briefly and never reproduces observer documentation.
 
 ### Runtime references
 

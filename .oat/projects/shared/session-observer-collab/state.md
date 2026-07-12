@@ -11,6 +11,10 @@ oat_children: []
 oat_hill_checkpoints: []
 oat_hill_completed: []
 oat_parallel_execution: false
+oat_dispatch_policy:
+  mode: managed
+  policy: high
+  source: project-state
 oat_phase: plan
 oat_phase_status: in_progress
 oat_workflow_mode: quick
@@ -20,7 +24,7 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: "2026-07-12T17:48:10.523Z"
 oat_project_completed: null
-oat_project_state_updated: "2026-07-12T19:00:00Z"
+oat_project_state_updated: "2026-07-12T19:20:00Z"
 oat_generated: false
 ---
 
