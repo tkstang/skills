@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "oatVersion": "0.1.52",
+  "oatVersion": "0.1.53",
   "entries": [
     {
       "canonicalPath": ".agents/skills/authoring-docs",
@@ -1221,7 +1221,67 @@
       "contentHash": null,
       "isFile": false,
       "lastSynced": "2026-06-26T04:59:59.664Z"
+    },
+    {
+      "canonicalPath": ".agents/skills/oat-dispatch-subagents",
+      "providerPath": ".claude/skills/oat-dispatch-subagents",
+      "provider": "claude",
+      "contentType": "skill",
+      "strategy": "symlink",
+      "contentHash": null,
+      "isFile": false,
+      "lastSynced": "2026-07-12T19:34:22.696Z"
+    },
+    {
+      "canonicalPath": ".agents/skills/oat-project-dispatch-subagents",
+      "providerPath": ".claude/skills/oat-project-dispatch-subagents",
+      "provider": "claude",
+      "contentType": "skill",
+      "strategy": "symlink",
+      "contentHash": null,
+      "isFile": false,
+      "lastSynced": "2026-07-12T19:34:22.698Z"
+    },
+    {
+      "canonicalPath": ".agents/skills/oat-repo-improve",
+      "providerPath": ".claude/skills/oat-repo-improve",
+      "provider": "claude",
+      "contentType": "skill",
+      "strategy": "symlink",
+      "contentHash": null,
+      "isFile": false,
+      "lastSynced": "2026-07-12T19:34:22.698Z"
+    },
+    {
+      "canonicalPath": ".agents/skills/oat-dispatch-subagents",
+      "providerPath": ".cursor/skills/oat-dispatch-subagents",
+      "provider": "cursor",
+      "contentType": "skill",
+      "strategy": "symlink",
+      "contentHash": null,
+      "isFile": false,
+      "lastSynced": "2026-07-12T19:34:22.698Z"
+    },
+    {
+      "canonicalPath": ".agents/skills/oat-project-dispatch-subagents",
+      "providerPath": ".cursor/skills/oat-project-dispatch-subagents",
+      "provider": "cursor",
+      "contentType": "skill",
+      "strategy": "symlink",
+      "contentHash": null,
+      "isFile": false,
+      "lastSynced": "2026-07-12T19:34:22.699Z"
+    },
+    {
+      "canonicalPath": ".agents/skills/oat-repo-improve",
+      "providerPath": ".cursor/skills/oat-repo-improve",
+      "provider": "cursor",
+      "contentType": "skill",
+      "strategy": "symlink",
+      "contentHash": null,
+      "isFile": false,
+      "lastSynced": "2026-07-12T19:34:22.699Z"
     }
   ],
-  "lastUpdated": "2026-06-26T04:59:59.664Z"
+  "lastUpdated": "2026-07-12T19:34:22.699Z"
 }
