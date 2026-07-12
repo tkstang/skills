@@ -75,6 +75,14 @@ describe('buildDigest', () => {
           '### Hook/control (automatic)',
         );
 
+        expect(digest.engagement).toMatchObject({
+          status: 'unengaged',
+          engaged: false,
+          genuineUserMessages: 0,
+          syntheticUserMessages: 1,
+          hasAssistantAndUser: false,
+        });
+
         const json = JSON.parse(renderJson(digest));
         expect(json.entries).toContainEqual(
           expect.objectContaining({

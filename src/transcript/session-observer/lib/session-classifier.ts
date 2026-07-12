@@ -39,7 +39,9 @@ function isHiddenBootstrapUserText(text: unknown): boolean {
 function isSyntheticForEngagement(entry: DigestEntry): boolean {
   if (entry.role !== 'user') return false;
   return (
-    entry.kind === 'command_message' || isHiddenBootstrapUserText(entry.text)
+    entry.kind === 'command_message' ||
+    entry.origin === 'automatic-control' ||
+    isHiddenBootstrapUserText(entry.text)
   );
 }
 

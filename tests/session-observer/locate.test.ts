@@ -21,7 +21,8 @@ import {
   readFile,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { expect, test } from 'vitest';
 
@@ -50,6 +51,14 @@ import {
   discover,
   gitWorktrees,
 } from '../../src/transcript/session-observer/lib/locate.js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const FIXTURES = join(__dirname, 'fixtures');
+const automaticWakeFixtures = [
+  ['claude-code', join(FIXTURES, 'claude-code', 'automatic-wake.jsonl')],
+  ['codex', join(FIXTURES, 'codex', 'automatic-wake.jsonl')],
+  ['cursor', join(FIXTURES, 'cursor', 'automatic-wake.jsonl')],
+] as const;
 
 // ---------------------------------------------------------------------------
 // Fixture helpers
@@ -85,6 +94,68 @@ function encodeCursorCwd(cwd: string): string {
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
+
+test.each(automaticWakeFixtures)(
+  'automatic %s wakes are not treated as engaged candidates',
+  async (runtime, fixturePath) => {
+    await withTempHome(async (home) => {
+      const fixture = await readFile(fixturePath, 'utf8');
+      const targetCwd = join(home, 'Code', 'automatic-wake-project');
+      let transcriptPath: string;
+
+      if (runtime === 'claude-code') {
+        transcriptPath = join(
+          home,
+          '.claude',
+          'projects',
+          encodeCwd(targetCwd),
+          'automatic-wake.jsonl',
+        );
+      } else if (runtime === 'codex') {
+        const now = new Date();
+        transcriptPath = join(
+          home,
+          '.codex',
+          'sessions',
+          String(now.getFullYear()),
+          String(now.getMonth() + 1).padStart(2, '0'),
+          String(now.getDate()).padStart(2, '0'),
+          'automatic-wake.jsonl',
+        );
+      } else {
+        transcriptPath = join(
+          home,
+          '.cursor',
+          'projects',
+          encodeCursorCwd(targetCwd),
+          'agent-transcripts',
+          'automatic-wake',
+          'transcript.jsonl',
+        );
+      }
+
+      await mkdir(dirname(transcriptPath), { recursive: true });
+      await writeFile(transcriptPath, fixture, 'utf8');
+
+      const candidates = await discover(runtime, targetCwd);
+      const candidate = candidates.find(
+        (entry: any) => entry.transcriptPath === transcriptPath,
+      );
+
+      expect(candidate).toMatchObject({
+        engagementStatus: 'unengaged',
+        engaged: false,
+        genuineUserMessages: 0,
+        hasAssistantAndUser: false,
+        engagement: expect.objectContaining({
+          status: 'unengaged',
+          genuineUserMessages: 0,
+          syntheticUserMessages: 1,
+        }),
+      });
+    });
+  },
+);
 
 test('claude-code: discover returns one candidate with correct sessionId and recordedCwd', async () => {
   await withTempHome(async (home) => {
