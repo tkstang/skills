@@ -749,13 +749,17 @@ describe('normalizeEntries (cursor)', () => {
     });
 
     expectDeepEqual(
-      entries.map((entry) => [entry.role, entry.text, entry.recordIndex]),
+      entries.map((entry) => [
+        entry.role,
+        entry.text,
+        entry.recordIndex,
+        entry.sourceRecordIndex,
+      ]),
       [
-        ['user', 'Implement the Cursor lifecycle.', 0],
-        ['assistant', 'The completed implementation is ready.', 5],
+        ['user', 'Implement the Cursor lifecycle.', 5, 0],
+        ['assistant', 'The completed implementation is ready.', 5, 4],
       ],
     );
-    expectEqual(entries[1].sourceRecordIndex, 4);
   });
 
   it('keeps completed tool activity available only when requested', async () => {
@@ -767,8 +771,16 @@ describe('normalizeEntries (cursor)', () => {
     });
 
     expectDeepEqual(
-      entries.map((entry) => entry.kind),
-      ['message', 'tool_call', 'message'],
+      entries.map((entry) => [
+        entry.kind,
+        entry.recordIndex,
+        entry.sourceRecordIndex,
+      ]),
+      [
+        ['message', 5, 0],
+        ['tool_call', 5, 2],
+        ['message', 5, 4],
+      ],
     );
   });
 
@@ -783,6 +795,8 @@ describe('normalizeEntries (cursor)', () => {
 
       expectEqual(entries.length, 2);
       expectEqual(entries[0].role, 'user');
+      expectEqual(entries[0].recordIndex, 2);
+      expectEqual(entries[0].sourceRecordIndex, 0);
       expectEqual(entries[1].origin, 'runtime-diagnostic');
       expectOk(entries[1].text.includes(status));
       expectOk(entries.every((entry) => !entry.text.includes('provisional')));

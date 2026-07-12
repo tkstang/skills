@@ -11,7 +11,6 @@ import { type Runtime, readRecords } from '../../core/runtimes.js';
 import { renderMarkdown } from './digest.js';
 import { observeCatchUp } from './observe.js';
 import * as stateLib from './state.js';
-import * as watchStateLib from './watch-state.js';
 import type {
   Digest,
   DuplicateWatchTargetError,
@@ -22,6 +21,7 @@ import type {
   WatchLoopDeps,
   WatchLoopError,
 } from './types.js';
+import * as watchStateLib from './watch-state.js';
 
 const DEFAULT_POLL_SEC = 2;
 const DEFAULT_DEBOUNCE_SEC = 2;
@@ -208,8 +208,7 @@ async function writeStdoutChunk(
   chunk: string,
 ): Promise<void> {
   const result = deps.writeStdout(chunk);
-  if (result && typeof result === 'object' && 'then' in result)
-    await result;
+  if (result && typeof result === 'object' && 'then' in result) await result;
 }
 
 function lockedTargetEvent(target: WatchTarget) {
@@ -372,14 +371,11 @@ async function heartbeatPayload(
   for (const target of targets.values()) {
     targetStatuses.push(await targetHeartbeatStatus(target, sessionState));
   }
-  const totalRecordsBehind = targetStatuses.reduce(
-    (sum, target) => {
-      if (target.recordsBehind === null || !Number.isFinite(target.recordsBehind))
-        return sum;
-      return sum + target.recordsBehind;
-    },
-    0,
-  );
+  const totalRecordsBehind = targetStatuses.reduce((sum, target) => {
+    if (target.recordsBehind === null || !Number.isFinite(target.recordsBehind))
+      return sum;
+    return sum + target.recordsBehind;
+  }, 0);
   const healthy = targetStatuses.every((target) => target.healthy);
   return {
     type: 'heartbeat',
@@ -393,7 +389,9 @@ async function heartbeatPayload(
   };
 }
 
-function heartbeatLine(payload: Awaited<ReturnType<typeof heartbeatPayload>>): string {
+function heartbeatLine(
+  payload: Awaited<ReturnType<typeof heartbeatPayload>>,
+): string {
   const status =
     payload.recordsBehind === 0 ? 'no new records' : 'records pending';
   return (
@@ -440,9 +438,7 @@ function isReservedEventLogSegment(segment: string): boolean {
     segment.endsWith('.tmp') ||
     segment.endsWith('.bak') ||
     segment.startsWith('watch.control.') ||
-    [...RESERVED_EVENT_LOG_NAMES].some((name) =>
-      segment.startsWith(`${name}.`),
-    )
+    [...RESERVED_EVENT_LOG_NAMES].some((name) => segment.startsWith(`${name}.`))
   );
 }
 
@@ -529,7 +525,9 @@ async function assertEventLogPathSafe(
   }
 }
 
-async function resolveEventLogPath(eventLog: unknown): Promise<string | undefined> {
+async function resolveEventLogPath(
+  eventLog: unknown,
+): Promise<string | undefined> {
   if (!eventLog) return undefined;
   const dir = resolve(stateDir());
   const eventLogPath = String(eventLog);
@@ -567,7 +565,10 @@ async function restoreConsumedBaseline(result: ObserveSuccess): Promise<void> {
   }
 }
 
-function duplicateTargetError(conflictPid: number | undefined, key: string): Error {
+function duplicateTargetError(
+  conflictPid: number | undefined,
+  key: string,
+): Error {
   return new Error(
     `watcher pid ${conflictPid} is already watching ${key}; ` +
       `stop it with watch-ctl stop --pid ${conflictPid} or pin a different --session`,
@@ -965,9 +966,7 @@ export async function runWatchLoop(
   // as a clean shutdown instead of hitting Node's default terminate during the
   // startup window.
   const removeSignalHandlers =
-    deps.handleSignals === false
-      ? () => {}
-      : installSignalHandlers(eventState);
+    deps.handleSignals === false ? () => {} : installSignalHandlers(eventState);
 
   let active: Awaited<ReturnType<typeof watchStateLib.startWatcher>>;
   try {

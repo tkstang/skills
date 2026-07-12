@@ -821,22 +821,27 @@ function normalizeCursor(
       .flatMap((turnRecord, offset) =>
         normalizeRecord(turnRecord, turnStart + offset),
       );
-    const userEntries = buffered.filter((entry) => entry.role === 'user');
+    const consumeAtTerminal = (entry: DigestEntry): DigestEntry => ({
+      ...entry,
+      sourceRecordIndex: entry.sourceRecordIndex ?? entry.recordIndex,
+      recordIndex,
+    });
+    const userEntries = buffered
+      .filter((entry) => entry.role === 'user')
+      .map(consumeAtTerminal);
 
     if (status === 'success') {
       const toolEntries = includeToolCalls
-        ? buffered.filter((entry) => entry.kind === 'tool_call')
+        ? buffered
+            .filter((entry) => entry.kind === 'tool_call')
+            .map(consumeAtTerminal)
         : [];
       const finalAssistant = buffered.findLast(
         (entry) => entry.role === 'assistant' && entry.kind === 'message',
       );
       entries.push(...userEntries, ...toolEntries);
       if (finalAssistant) {
-        entries.push({
-          ...finalAssistant,
-          sourceRecordIndex: finalAssistant.recordIndex,
-          recordIndex,
-        });
+        entries.push(consumeAtTerminal(finalAssistant));
       }
     } else {
       const label = status ?? 'unknown';

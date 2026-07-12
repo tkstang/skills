@@ -704,6 +704,23 @@ describe('buildDigest', () => {
     expect(digest.entries).toEqual([]);
     expect(digest.range.nextIndex).toBe(3);
   });
+
+  test('cursor recovery pointers use the buffered user source record', async () => {
+    const transcriptPath = join(FIXTURES, 'cursor', 'terminal-success.jsonl');
+    const digest = await buildDigest('cursor', transcriptPath, {
+      fromIndex: 0,
+      mode: 'review',
+      maxTurns: 1,
+    });
+
+    expect(digest.accounting.recovery.omittedUserMessages).toEqual([
+      {
+        transcriptPath,
+        indexBase: 'zero-based-jsonl-record-index',
+        recordIndex: 0,
+      },
+    ]);
+  });
 });
 
 // ---------------------------------------------------------------------------

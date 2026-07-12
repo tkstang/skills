@@ -389,6 +389,22 @@ describe('runWatchLoop', () => {
         { role: 'user', content: 'Finish the buffered Cursor turn.' },
         { content: 'The completed Cursor response.' },
       ]);
+      await appendFile(
+        transcriptPath,
+        `${JSON.stringify({
+          role: 'assistant',
+          message: {
+            content: [
+              {
+                type: 'tool_use',
+                name: 'read_file',
+                input: { path: 'runtimes.ts' },
+              },
+            ],
+          },
+        })}\n`,
+        'utf8',
+      );
       const stdout: string[] = [];
       let nowMs = Date.UTC(2026, 5, 3, 12, 0, 0);
       let terminalAppended = false;
@@ -402,6 +418,7 @@ describe('runWatchLoop', () => {
           debounceSec: 0.02,
           maxRuntimeMin: 0.004,
           json: true,
+          includeTools: true,
         },
         {
           writeStdout: (chunk: string) => stdout.push(chunk),
@@ -412,7 +429,7 @@ describe('runWatchLoop', () => {
 
             const state = await readJsonIfExists(join(stateDir, 'state.json'));
             if (
-              state?.sessions?.[`cursor:${sessionId}`]?.lastRecordIndex === 2
+              state?.sessions?.[`cursor:${sessionId}`]?.lastRecordIndex === 3
             ) {
               terminalAppended = true;
               await appendFile(
@@ -440,17 +457,114 @@ describe('runWatchLoop', () => {
       expect(events[0].newRecords).toBe(1);
       expect(events[0].digest.entries).toEqual([
         expect.objectContaining({
+          role: 'user',
+          text: 'Finish the buffered Cursor turn.',
+          recordIndex: 3,
+          sourceRecordIndex: 0,
+        }),
+        expect.objectContaining({
+          kind: 'tool_call',
+          toolName: 'read_file',
+          recordIndex: 3,
+          sourceRecordIndex: 2,
+        }),
+        expect.objectContaining({
           role: 'assistant',
           text: 'The completed Cursor response.',
-          recordIndex: 2,
+          recordIndex: 3,
           sourceRecordIndex: 1,
         }),
       ]);
+      expect(
+        events[0].digest.entries.filter(
+          (entry: { kind: string }) => entry.kind === 'tool_call',
+        ),
+      ).toHaveLength(1);
 
       const state = await readJsonIfExists(join(stateDir, 'state.json'));
-      expect(state?.sessions?.[`cursor:${sessionId}`]?.lastRecordIndex).toBe(3);
+      expect(state?.sessions?.[`cursor:${sessionId}`]?.lastRecordIndex).toBe(4);
     });
   });
+
+  for (const status of ['aborted', 'error', 'cancelled']) {
+    test(`emits buffered Cursor input and terminal diagnostic after incremental ${status}`, async () => {
+      await withTempSessionHome(async (home, stateDir) => {
+        const cwd = `/test/watch-cursor-incremental-${status}`;
+        const sessionId = `watch-cursor-incremental-${status}`;
+        const transcriptPath = await writeCursorTranscript(
+          home,
+          cwd,
+          sessionId,
+          [
+            { role: 'user', content: `Start the ${status} Cursor turn.` },
+            { content: `provisional ${status} response` },
+          ],
+        );
+        const stdout: string[] = [];
+        let nowMs = Date.UTC(2026, 5, 3, 12, 0, 0);
+        let terminalAppended = false;
+
+        const result = await runWatchLoop(
+          {
+            runtime: 'cursor',
+            cwd,
+            session: `cursor:${sessionId}`,
+            pollSec: 0.02,
+            debounceSec: 0.02,
+            maxRuntimeMin: 0.004,
+            json: true,
+          },
+          {
+            writeStdout: (chunk: string) => stdout.push(chunk),
+            now: () => nowMs,
+            sleep: async (ms: number) => {
+              nowMs += ms;
+              if (terminalAppended) return;
+
+              const state = await readJsonIfExists(
+                join(stateDir, 'state.json'),
+              );
+              if (
+                state?.sessions?.[`cursor:${sessionId}`]?.lastRecordIndex === 2
+              ) {
+                terminalAppended = true;
+                await appendFile(
+                  transcriptPath,
+                  `${JSON.stringify({ type: 'turn_ended', status })}\n`,
+                  'utf8',
+                );
+              }
+            },
+          },
+        );
+
+        expect(terminalAppended).toBe(true);
+        expect(result.eventCount).toBe(1);
+        const events = stdout
+          .join('')
+          .trim()
+          .split('\n')
+          .filter(Boolean)
+          .map((line) => JSON.parse(line))
+          .filter((line) => line.type === 'delta');
+        expect(events).toHaveLength(1);
+        expect(events[0].digest.entries).toEqual([
+          expect.objectContaining({
+            role: 'user',
+            text: `Start the ${status} Cursor turn.`,
+            recordIndex: 2,
+            sourceRecordIndex: 0,
+          }),
+          expect.objectContaining({
+            origin: 'runtime-diagnostic',
+            text: `[Cursor turn ended with status: ${status}]`,
+            recordIndex: 2,
+          }),
+        ]);
+        expect(stdout.join('')).not.toContain(`provisional ${status} response`);
+      });
+    });
+  }
 
   test('emits during continuous writes once max pending age is reached', async () => {
     await withTempSessionHome(async (home) => {

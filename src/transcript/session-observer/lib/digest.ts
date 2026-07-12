@@ -104,19 +104,20 @@ function omittedUserMessageRecoveryPointers(
   const pointers: DigestRecoveryPointer[] = [];
 
   for (const entry of entriesBeforeTailSlice) {
+    const recoveryRecordIndex = entry.sourceRecordIndex ?? entry.recordIndex;
     if (
       retained.has(entry) ||
       entry.role !== 'user' ||
       entry.origin === 'automatic-control' ||
-      seenRecordIndexes.has(entry.recordIndex)
+      seenRecordIndexes.has(recoveryRecordIndex)
     ) {
       continue;
     }
-    seenRecordIndexes.add(entry.recordIndex);
+    seenRecordIndexes.add(recoveryRecordIndex);
     pointers.push({
       transcriptPath,
       indexBase: 'zero-based-jsonl-record-index',
-      recordIndex: entry.recordIndex,
+      recordIndex: recoveryRecordIndex,
     });
   }
 
