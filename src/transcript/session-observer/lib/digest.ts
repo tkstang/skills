@@ -33,6 +33,7 @@ import type {
   Digest,
   DigestAccounting,
   DigestFilters,
+  DigestRecoveryPointer,
   DigestRange,
 } from './types.js';
 
@@ -86,6 +87,40 @@ function applyTailSlice(
 
 function renderedCharCount(entries: DigestEntry[]): number {
   return entries.reduce((sum, entry) => sum + (entry.text?.length ?? 0), 0);
+}
+
+/**
+ * A tail cap may omit whole human user entries, but it must never make their
+ * decision-bearing content unrecoverable.  Keep a pointer for every omitted
+ * human entry; automatic control input is not human direction and is excluded.
+ */
+function omittedUserMessageRecoveryPointers(
+  entriesBeforeTailSlice: DigestEntry[],
+  retainedEntries: DigestEntry[],
+  transcriptPath: string,
+): DigestRecoveryPointer[] {
+  const retained = new Set(retainedEntries);
+  const seenRecordIndexes = new Set<number>();
+  const pointers: DigestRecoveryPointer[] = [];
+
+  for (const entry of entriesBeforeTailSlice) {
+    if (
+      retained.has(entry) ||
+      entry.role !== 'user' ||
+      entry.origin === 'automatic-control' ||
+      seenRecordIndexes.has(entry.recordIndex)
+    ) {
+      continue;
+    }
+    seenRecordIndexes.add(entry.recordIndex);
+    pointers.push({
+      transcriptPath,
+      indexBase: 'zero-based-jsonl-record-index',
+      recordIndex: entry.recordIndex,
+    });
+  }
+
+  return pointers;
 }
 
 // ---------------------------------------------------------------------------
@@ -191,6 +226,20 @@ function formatHeader(digest: Digest): string {
     if (filterParts.length > 0) {
       lines.push(`**filtered out:** ${filterParts.join(' · ')}`);
     }
+  }
+  if (accounting.recovery.omittedUserMessages.length > 0) {
+    const { transcriptPath, indexBase } =
+      accounting.recovery.omittedUserMessages[0]!;
+    const recordIndexes = accounting.recovery.omittedUserMessages.map(
+      (pointer) => pointer.recordIndex,
+    );
+    const indexDescription =
+      indexBase === 'zero-based-jsonl-record-index'
+        ? 'zero-based JSONL indices'
+        : indexBase;
+    lines.push(
+      `**User-message recovery:** ${transcriptPath} records ${recordIndexes.join(', ')} (${indexDescription}).`,
+    );
   }
 
   // Filters
@@ -429,6 +478,13 @@ export async function buildDigest(
       tailSliceEntries: Math.max(
         0,
         entriesBeforeTailSlice.length - filteredEntries.length,
+      ),
+    },
+    recovery: {
+      omittedUserMessages: omittedUserMessageRecoveryPointers(
+        entriesBeforeTailSlice,
+        filteredEntries,
+        transcriptPath,
       ),
     },
     autoLargeDigest,

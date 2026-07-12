@@ -129,6 +129,12 @@ export interface DigestRange {
   newRecords: number;
 }
 
+export interface DigestRecoveryPointer {
+  transcriptPath: string;
+  indexBase: 'zero-based-jsonl-record-index';
+  recordIndex: number;
+}
+
 export interface DigestAccounting {
   indexBase: 'zero-based-jsonl-record-index';
   raw: {
@@ -151,6 +157,9 @@ export interface DigestAccounting {
     bootstrapMessages: number;
     metadataRecords: number;
     tailSliceEntries: number;
+  };
+  recovery: {
+    omittedUserMessages: DigestRecoveryPointer[];
   };
   autoLargeDigest: {
     thresholdChars: number;

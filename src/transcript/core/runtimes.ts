@@ -60,6 +60,7 @@ export interface AutomaticControlProvenance {
 export interface DigestEntry {
   role: DigestEntryRole;
   text: string;
+  /** Exact zero-based source record index for bounded recovery. */
   recordIndex: number;
   kind: DigestEntryKind;
   displayRole?: DigestEntryDisplayRole;

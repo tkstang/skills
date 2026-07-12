@@ -628,6 +628,28 @@ describe('buildDigest', () => {
       expect(digest.entries[0].recordIndex).toBe(4);
       expect(digest.accounting.filtered.tailSliceEntries).toBe(4);
       expect(
+        digest.accounting.recovery.omittedUserMessages,
+      ).toEqual([
+        {
+          transcriptPath,
+          indexBase: 'zero-based-jsonl-record-index',
+          recordIndex: 0,
+        },
+        {
+          transcriptPath,
+          indexBase: 'zero-based-jsonl-record-index',
+          recordIndex: 2,
+        },
+      ]);
+      expect(digest.entries[0].text).toBe(`4:${longText}`);
+      expect(renderMarkdown(digest)).toContain('User-message recovery');
+      expect(renderMarkdown(digest)).toContain(
+        `${transcriptPath} records 0, 2 (zero-based JSONL indices).`,
+      );
+      expect(JSON.parse(renderJson(digest)).accounting.recovery).toEqual(
+        digest.accounting.recovery,
+      );
+      expect(
         digest.warnings.some((w: string) =>
           w.includes('Large digest fallback'),
         ),
