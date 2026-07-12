@@ -136,7 +136,9 @@ Do not run generated builds concurrently. The p04/p05 workers verify their scope
 
 **Implementation:** Add `whoami [--json]` with ordered resolution from explicit self identity, harness signals, then unambiguous newest same-cwd self-runtime transcript. Return runtime/session/transcript/source; return non-zero with candidates when ambiguous instead of selecting by recency.
 
-**Verify:** `pnpm exec vitest run tests/session-observer/cli.test.ts tests/session-observer/locate.test.ts`
+**Verify:** `pnpm exec vitest run tests/session-observer/locate.test.ts && pnpm run type-check`
+
+The generated-bundle CLI assertions for `whoami` run in p02-t05 after the canonical build. This task must not generate or commit shipped `.mjs` outputs.
 
 **Commit:** `feat(p02-t01): add fail-closed self identity`
 
@@ -152,7 +154,9 @@ Do not run generated builds concurrently. The p04/p05 workers verify their scope
 
 **Implementation:** Add `--quiet-empty` to watch and catch-up-then-watch. Metadata-only growth advances the high-water mark but emits no stdout delta; substantive deltas and enabled heartbeats retain current behavior.
 
-**Verify:** `pnpm exec vitest run tests/session-observer/watch.test.ts tests/session-observer/cli.test.ts`
+**Verify:** `pnpm exec vitest run tests/session-observer/watch.test.ts && pnpm run type-check`
+
+Generated-bundle CLI flag assertions run in p02-t05 after the canonical build.
 
 **Commit:** `feat(p02-t02): suppress empty watch deltas`
 
@@ -168,7 +172,9 @@ Do not run generated builds concurrently. The p04/p05 workers verify their scope
 
 **Implementation:** Compare a standalone watch baseline with a prior stored target offset. Emit a stable warning event naming the skipped range, or refuse under `--strict-baseline`. Do not warn for first-ever watch or catch-up-then-watch.
 
-**Verify:** `pnpm exec vitest run tests/session-observer/watch.test.ts tests/session-observer/cli.test.ts`
+**Verify:** `pnpm exec vitest run tests/session-observer/watch.test.ts && pnpm run type-check`
+
+Generated-bundle CLI flag assertions run in p02-t05 after the canonical build.
 
 **Commit:** `feat(p02-t03): guard unread watch baselines`
 
@@ -199,7 +205,7 @@ Do not run generated builds concurrently. The p04/p05 workers verify their scope
 
 **Implementation:** Document new commands/events and the rule that a filtered digest is not evidence of absence. Bump the base skill version consistently, ensure release tooling tracks it, run the canonical build, and commit all generated outputs together. Never hand-edit generated `.mjs` files.
 
-**Verify:** `pnpm run build && pnpm run build:check && pnpm exec vitest run tests/tooling/generated-output-sync.test.ts tests/release/skill-version-bumps.test.ts`
+**Verify:** `pnpm run build && pnpm run build:check && pnpm exec vitest run tests/session-observer/cli.test.ts tests/session-observer/locate.test.ts tests/session-observer/watch.test.ts tests/tooling/generated-output-sync.test.ts tests/release/skill-version-bumps.test.ts`
 
 **Commit:** `feat(p02-t05): publish observer collaboration primitives`
 

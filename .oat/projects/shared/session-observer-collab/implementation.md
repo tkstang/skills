@@ -87,6 +87,7 @@ oat_generated: false
 - Project dispatch policy is managed `high` using the user-level candidate ladder.
 - Phase gate review is enabled for `p06` only.
 - HiLL checkpoint is confirmed for final phase `p06`; auto-review at that checkpoint is enabled.
+- p02 initially blocked because p02-t01's CLI verification exercised generated output owned by p02-t05. The plan now verifies canonical source in p02-t01 through p02-t04 and defers generated-bundle CLI integration to p02-t05; no task scope or product behavior changed.
 
 ## Orchestration Runs
 
