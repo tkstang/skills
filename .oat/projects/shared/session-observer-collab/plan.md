@@ -1,19 +1,23 @@
 ---
-oat_status: in_progress
-oat_ready_for: null
+oat_status: complete
+oat_ready_for: oat-project-implement
 oat_blockers: []
 oat_last_updated: 2026-07-12
 oat_phase: plan
-oat_phase_status: in_progress
-oat_plan_hill_phases: []
+oat_phase_status: complete
 oat_plan_parallel_groups:
   - [p04, p05]
+oat_phase_review_gate:
+  enabled: true
+  phases: [p06]
+  review_type: code
+  exit_nonzero_on: important
 oat_plan_source: quick
 oat_import_reference: null
 oat_import_source_path: null
 oat_import_provider: null
 oat_generated: false
-oat_template: true
+oat_template: false
 ---
 
 # Implementation Plan: session-observer-collab
@@ -35,9 +39,9 @@ oat_template: true
 - [x] Canonical source and generated-output boundaries identified
 - [x] Phases evaluated for dependency and write-set parallelism
 - [x] Stable task IDs, scoped verification, and atomic commits assigned
-- [ ] Project dispatch policy resolved
-- [ ] Optional Phase gate review setting resolved
-- [ ] Plan artifact review recorded
+- [x] Project dispatch policy resolved
+- [x] Optional Phase gate review setting resolved
+- [x] Plan artifact review recorded
 
 ## Parallelism
 
@@ -432,11 +436,11 @@ Do not run generated builds concurrently. The p04/p05 workers verify their scope
 | final  | code     | pending | -    | -        |
 | spec   | artifact | pending | -    | N/A (quick mode) |
 | design | artifact | passed  | 2026-07-12 | inline co-author review |
-| plan   | artifact | pending | -    | `plan.md` |
+| plan   | artifact | passed  | 2026-07-12 | managed structured review (clean) |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 
-Human co-author artifact review passed on 2026-07-12 with no Critical or Important findings; three Minor findings were resolved directly in the design/plan. The `design` row records that approval. The `plan` row remains pending until the independent automatic plan artifact-review loop completes.
+Human co-author artifact review passed on 2026-07-12 with no Critical or Important findings; three Minor findings were resolved directly in the design/plan. The independent managed plan review then identified two Important readiness-bookkeeping issues; both were fixed, and the target-preserving re-review returned clean with no remaining findings.
 
 ## Implementation Complete
 
@@ -451,7 +455,7 @@ Human co-author artifact review passed on 2026-07-12 with no Critical or Importa
 
 **Total: 24 tasks across 6 phases**
 
-Ready for implementation only after dispatch policy, Phase gate review setup, and the plan artifact-review disposition are resolved.
+Ready for implementation via `oat-project-implement`.
 
 ## References
 

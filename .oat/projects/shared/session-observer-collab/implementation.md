@@ -12,199 +12,77 @@ oat_generated: false
 **Started:** 2026-07-12
 **Last Updated:** 2026-07-12
 
-> This document is used to resume interrupted implementation sessions.
->
-> Conventions:
->
-> - `oat_current_task_id` always points at the **next plan task to do** (not the last completed task).
-> - When all plan tasks are complete, set `oat_current_task_id: null`.
-> - Reviews are **not** plan tasks. Track review status in `plan.md` under `## Reviews` (e.g., `| final | code | passed | ... |`).
-> - Keep phase/task statuses consistent with the Progress Overview table so restarts resume correctly.
-> - Before running the `oat-project-pr-final` skill, ensure `## Final Summary (for PR/docs)` is filled with what was actually implemented.
+> Resume at `oat_current_task_id`. Reviews are tracked in `plan.md`, not as implementation tasks.
 
 ## Progress Overview
 
-| Phase   | Status      | Tasks | Completed |
-| ------- | ----------- | ----- | --------- |
-| Phase 1 | in_progress | N     | 0/N       |
-| Phase 2 | pending     | N     | 0/N       |
+| Phase | Status | Tasks | Completed |
+| --- | --- | ---: | ---: |
+| p01 — Transcript semantics | pending | 4 | 0 |
+| p02 — Identity and watch behavior | pending | 5 | 0 |
+| p03 — Collaboration protocol/control | pending | 4 | 0 |
+| p04 — Codex adapter | pending | 3 | 0 |
+| p05 — Cursor and Claude adapters | pending | 3 | 0 |
+| p06 — Integration and closeout | pending | 5 | 0 |
 
-**Total:** 0/{N} tasks completed
+**Total:** 0/24 tasks completed
 
----
+## Phase p01: Normalize collaboration-bearing transcript semantics
 
-## Phase 1: {Phase Name}
+- [ ] `p01-t01` Render queued Claude input exactly once
+- [ ] `p01-t02` Classify synthetic wakes as automatic control input
+- [ ] `p01-t03` Buffer Cursor activity through terminal completion
+- [ ] `p01-t04` Guarantee recoverable user-message content
 
-**Status:** in_progress
-**Started:** 2026-07-12
+## Phase p02: Harden identity and watch behavior
 
-### Phase Summary (fill when phase is complete)
+- [ ] `p02-t01` Add fail-closed `whoami`
+- [ ] `p02-t02` Suppress empty watch deltas without losing offsets
+- [ ] `p02-t03` Detect standalone-watch baseline gaps
+- [ ] `p02-t04` Warn about newer same-cwd sessions
+- [ ] `p02-t05` Regenerate and document the base observer surface
 
-**Outcome (what changed):**
+## Phase p03: Establish the collaboration protocol and control plane
 
-- {2-5 bullets describing user-visible / behavior-level changes delivered in this phase}
+- [ ] `p03-t01` Scaffold the canonical sibling skill
+- [ ] `p03-t02` Author the runtime-neutral N=2 protocol
+- [ ] `p03-t03` Implement versioned lease state and control operations
+- [ ] `p03-t04` Normalize substantive completion and continuation selection
 
-**Key files touched:**
+## Phase p04: Implement and validate the Codex lifecycle adapter
 
-- `{path}` - {why}
+- [ ] `p04-t01` Implement the thin Codex Stop hook
+- [ ] `p04-t02` Complete Codex install, trust, and lifecycle operations
+- [ ] `p04-t03` Run the Codex acceptance harness
 
-**Verification:**
+## Phase p05: Implement Cursor and Claude harness adapters
 
-- Run: `{command(s)}`
-- Result: {pass/fail + notes}
+- [ ] `p05-t01` Implement the Cursor Stop-hook adapter
+- [ ] `p05-t02` Document and probe Cursor lifecycle behavior
+- [ ] `p05-t03` Author and verify the Claude Code Monitor recipe
 
-**Notes / Decisions:**
+## Phase p06: Integrate, document, and close the evidence loop
 
-- {trade-offs or deviations discovered during implementation}
+- [ ] `p06-t01` Integrate skill distribution and release invariants
+- [ ] `p06-t02` Publish user and engineering documentation
+- [ ] `p06-t03` Record all intentional v2 deferrals
+- [ ] `p06-t04` Run the full acceptance and sanitization matrix
+- [ ] `p06-t05` Verify clean closeout and installation handoff
 
-### Task p01-t01: {Task Name}
+## Review and Planning Notes
 
-**Status:** completed / in_progress / pending / blocked
-**Commit:** {sha} (if completed)
-
-**Outcome (required when completed):**
-
-- {what materially changed (not “did task”, but “system now does X”)}
-
-**Files changed:**
-
-- `{path}` - {why}
-
-**Verification:**
-
-- Run: `{command(s)}`
-- Result: {pass/fail + notes}
-
-**Notes / Decisions:**
-
-- {gotchas, trade-offs, design deltas, important context for future sessions}
-
-**Issues Encountered:**
-
-- {Issue and resolution}
-
----
-
-### Task p01-t02: {Task Name}
-
-**Status:** pending
-**Commit:** -
-
-**Notes:**
-
-- {Notes will be added during implementation}
-
----
-
-## Phase 2: {Phase Name}
-
-**Status:** pending
-**Started:** -
-
-### Task p02-t01: {Task Name}
-
-**Status:** pending
-**Commit:** -
-
----
-
-## Orchestration Runs
-
-_Each run from `oat-project-implement` appends an entry below with:_
-_- Run header (number, timestamp, branch, tier, policy, phase counts)_
-_- Phase Outcomes table_
-_- Parallel Groups list_
-_- Outstanding Items_
-
-<!-- orchestration-runs-start -->
-
-_Orchestration runs from `oat-project-implement` are appended here, most-recent-first within the file but append-only at the bottom of the log._
-
-<!-- orchestration-runs-end -->
-
----
-
-## Implementation Log
-
-Chronological log of implementation progress.
-
-### 2026-07-12
-
-**Session Start:** {time}
-
-- [x] p01-t01: {Task name} - {commit sha}
-- [ ] p01-t02: {Task name} - in progress
-
-**What changed (high level):**
-
-- {short bullets suitable for PR/docs}
-
-**Decisions:**
-
-- {Decision made and rationale}
-
-**Follow-ups / TODO:**
-
-- {anything discovered during implementation that should be captured for later}
-
-**Blockers:**
-
-- {Blocker description} - {status: resolved/pending}
-
-**Session End:** {time}
-
----
-
-### 2026-07-12
-
-**Session Start:** {time}
-
-{Continue log...}
-
----
+- Human co-author review approved `design.md` and `plan.md`; three Minor artifact findings were applied.
+- Managed plan review found two Important readiness-bookkeeping issues; both were fixed and re-review passed clean.
+- Project dispatch policy is managed `high` using the user-level candidate ladder.
+- Phase gate review is enabled for `p06` only.
+- HiLL phase selection remains intentionally unset until `oat-project-implement` confirms it.
 
 ## Deviations from Plan / Design
 
-Document any intentional deviations from the original plan, spec, or design. Include accepted review findings where the shipped implementation is source of truth and a lifecycle artifact needs alignment.
-
-| Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
-| ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
-| -             | -               | -                    | -                 | -      | -               | -         |
-
-## Test Results
-
-Track test execution during implementation.
-
-| Phase | Tests Run | Passed | Failed | Coverage |
-| ----- | --------- | ------ | ------ | -------- |
-| 1     | -         | -      | -      | -        |
-| 2     | -         | -      | -      | -        |
+| Date | Scope | Deviation | Disposition |
+| --- | --- | --- | --- |
+| - | - | None | - |
 
 ## Final Summary (for PR/docs)
 
-**What shipped:**
-
-- {capability 1}
-- {capability 2}
-
-**Behavioral changes (user-facing):**
-
-- {bullet}
-
-**Key files / modules:**
-
-- `{path}` - {purpose}
-
-**Verification performed:**
-
-- {tests/lint/typecheck/build/manual steps}
-
-**Design deltas (if any):**
-
-- {what changed vs design.md and why}
-
-## References
-
-- Plan: `plan.md`
-- Design: `design.md`
-- Spec: `spec.md`
+_Fill after implementation._
