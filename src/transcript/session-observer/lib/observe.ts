@@ -130,7 +130,9 @@ export async function resolveSelfIdentity(
     };
   }
 
-  const candidates = await discover(signal.runtime, targetCwd);
+  const candidates = (await discover(signal.runtime, targetCwd)).filter(
+    (candidate) => candidate.recordedCwd === targetCwd,
+  );
   if (candidates.length === 1) {
     return {
       identity: {

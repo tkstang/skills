@@ -9,6 +9,7 @@ import {
   mkdir,
   copyFile,
   readFile,
+  utimes,
   writeFile,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -225,6 +226,41 @@ describe('CLI subcommand dispatch', () => {
             : 'same-cwd-transcript',
         );
       }
+    } finally {
+      await rm(home, { recursive: true, force: true });
+    }
+  });
+
+  test('whoami scopes runtime-only Codex fallback to the requested cwd', async () => {
+    const home = await mkdtemp(join(tmpdir(), 'cli-whoami-codex-cwd-'));
+    try {
+      const cwd = join(home, 'Code', 'project');
+      const sameCwdTranscript = await copyCodexTranscript(
+        home,
+        cwd,
+        'codex-same-cwd',
+      );
+      const unrelatedTranscript = await copyCodexTranscript(
+        home,
+        join(home, 'Code', 'unrelated-project'),
+        'codex-newer-unrelated-cwd',
+      );
+      const newerMtime = new Date(Date.now() + 1_000);
+      await utimes(unrelatedTranscript, newerMtime, newerMtime);
+
+      const result = spawnCli(['whoami', '--cwd', cwd, '--json'], {
+        HOME: home,
+        STATE_DIR: join(home, '.state'),
+        CODEX_SANDBOX: 'workspace-write',
+      });
+
+      expect(result.status, `${result.stderr}\n${result.stdout}`).toBe(0);
+      expect(JSON.parse(result.stdout)).toEqual({
+        runtime: 'codex',
+        session: 'codex-same-cwd',
+        transcript: sameCwdTranscript,
+        source: 'same-cwd-transcript',
+      });
     } finally {
       await rm(home, { recursive: true, force: true });
     }
