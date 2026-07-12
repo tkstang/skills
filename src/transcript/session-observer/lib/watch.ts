@@ -768,6 +768,9 @@ async function emitPending(
 
   const newRecords = result.digest.range.newRecords ?? 0;
   if (newRecords <= 0) return false;
+  if (args.quietEmpty && result.digest.accounting.rendered.count === 0) {
+    return false;
+  }
 
   const rendered = renderMarkdown(result.digest);
   const ts = new Date(deps.now()).toISOString();
@@ -802,6 +805,9 @@ async function emitObservedDelta(
 ): Promise<boolean> {
   const newRecords = result.digest.range.newRecords ?? 0;
   if (newRecords <= 0) return false;
+  if (args.quietEmpty && result.digest.accounting.rendered.count === 0) {
+    return false;
+  }
 
   const rendered = renderMarkdown(result.digest);
   const ts = new Date(deps.now()).toISOString();

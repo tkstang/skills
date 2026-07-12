@@ -328,6 +328,7 @@ export interface WatchLoopArgs {
   maxPendingSec?: number;
   maxRuntimeMin?: number;
   heartbeatSec?: number;
+  quietEmpty?: boolean;
   eventLog?: string;
   catchUpFirst?: boolean;
   suppressWatchedWarningPid?: number;

@@ -152,6 +152,17 @@ async function appendClaudeMessage(
   );
 }
 
+async function appendClaudeMetadata(
+  transcriptPath: string,
+  sessionId: string,
+): Promise<void> {
+  await appendFile(
+    transcriptPath,
+    JSON.stringify({ sessionId, type: 'metadata' }) + '\n',
+    'utf8',
+  );
+}
+
 async function appendCodexMessage(
   transcriptPath: string,
   sessionId: string,
@@ -730,6 +741,69 @@ describe('runWatchLoop', () => {
       expect(heartbeat.recordsBehind).toBe(0);
       expect(heartbeat.healthy).toBe(true);
       expect(heartbeat.targets[0].sessionId).toBe(sessionId);
+    });
+  });
+
+  test('quiet-empty consumes metadata-only growth without a delta and keeps heartbeats', async () => {
+    await withTempSessionHome(async (home, stateDir) => {
+      const cwd = '/test/watch-quiet-empty';
+      const sessionId = 'watch-quiet-empty';
+      const transcriptPath = await writeClaudeTranscript(home, cwd, sessionId, [
+        { content: 'quiet-empty baseline message' },
+      ]);
+      const stdout: string[] = [];
+      let nowMs = Date.UTC(2026, 5, 3, 12, 0, 0);
+      let appended = false;
+
+      const result = await runWatchLoop(
+        {
+          runtime: 'claude-code',
+          cwd,
+          pollSec: 0.03,
+          debounceSec: 0.04,
+          heartbeatSec: 0.06,
+          maxRuntimeMin: 0.02,
+          json: true,
+          quietEmpty: true,
+        },
+        {
+          writeStdout: (chunk: string) => stdout.push(chunk),
+          now: () => nowMs,
+          sleep: async (ms: number) => {
+            nowMs += ms;
+            if (!appended) {
+              const state = await readJsonIfExists(
+                join(stateDir, 'watch.json'),
+              );
+              if (
+                state?.watchers?.some(
+                  (watcher: any) => watcher.targets?.length >= 1,
+                )
+              ) {
+                appended = true;
+                await appendClaudeMetadata(transcriptPath, sessionId);
+              }
+            }
+          },
+        },
+      );
+
+      const events = stdout
+        .join('')
+        .trim()
+        .split('\n')
+        .filter(Boolean)
+        .map((line) => JSON.parse(line));
+      expect(result.eventCount).toBe(0);
+      expect(events.some((event) => event.type === 'delta')).toBe(false);
+      expect(events.some((event) => event.type === 'heartbeat')).toBe(true);
+
+      const state = JSON.parse(
+        await readFile(join(stateDir, 'state.json'), 'utf8'),
+      );
+      expect(state.sessions['claude-code:watch-quiet-empty'].lastRecordIndex).toBe(
+        2,
+      );
     });
   });
 

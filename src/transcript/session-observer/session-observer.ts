@@ -80,6 +80,7 @@ function parseCliArgs(argv: string[]): CliArgs {
       'max-pending-sec': { type: 'string', default: undefined },
       'max-runtime-min': { type: 'string', default: undefined },
       'heartbeat-sec': { type: 'string', default: undefined },
+      'quiet-empty': { type: 'boolean', default: false },
       'event-log': { type: 'string', default: undefined },
       'until-stopped': { type: 'boolean', default: false },
       interactive: { type: 'boolean', default: false },
@@ -106,6 +107,7 @@ function parseCliArgs(argv: string[]): CliArgs {
     'max-pending-sec'?: string;
     'max-runtime-min'?: string;
     'heartbeat-sec'?: string;
+    'quiet-empty'?: boolean;
     'event-log'?: string;
     'until-stopped'?: boolean;
     interactive?: boolean;
@@ -175,6 +177,7 @@ function parseCliArgs(argv: string[]): CliArgs {
     maxPendingSec,
     maxRuntimeMin,
     heartbeatSec,
+    quietEmpty: values['quiet-empty'] ?? false,
     eventLog: values['event-log'],
     untilStopped: values['until-stopped'] ?? false,
     interactive: values.interactive ?? false,
@@ -460,6 +463,7 @@ function printWatchUsage(command = 'watch'): never {
       '  --max-pending-sec <N>               Max seconds to hold continuous changes before emitting (default: 30)',
       '  --max-runtime-min <N>               Auto-exit after N minutes (0 = unlimited)',
       '  --heartbeat-sec <N>                 Quiet status heartbeat interval in seconds (default: 120; 0 = disabled)',
+      '  --quiet-empty                       Suppress deltas with no rendered messages',
       '  --until-stopped                     Alias posture: run until explicitly stopped',
       '  --interactive                       Alias posture: foreground collaboration watch',
       '  --event-log <path>                  Metadata-only JSONL event log',
