@@ -1,10 +1,8 @@
 ---
 oat_status: in_progress
 oat_ready_for: null
-oat_blockers:
-  - task_id: p03-review
-    reason: Review fix limit exhausted with 3 Important and 1 Medium lease/control findings remaining.
-    since: 2026-07-12
+oat_blockers: []
+oat_orchestration_retry_limit: 3
 oat_last_updated: 2026-07-12
 oat_current_task_id: null
 oat_generated: false
@@ -111,6 +109,7 @@ oat_generated: false
 - p02 initially blocked because p02-t01's CLI verification exercised generated output owned by p02-t05. The plan now verifies canonical source in p02-t01 through p02-t04 and defers generated-bundle CLI integration to p02-t05; no task scope or product behavior changed.
 - p02-t05's generated boundary includes the Export Session Transcript runtime bundle because p01 changed shared canonical `src/transcript/core/runtimes.ts`; the canonical build owns both generated copies.
 - The shared runtime output also requires an `export-session-transcript` skill version bump under the repository's changed-skill invariant; p02 terminal quality fixes own that metadata-only adjustment.
+- The user explicitly authorized one additional p03 review-fix iteration; retry limit is 3 for this run.
 
 ## Orchestration Runs
 
