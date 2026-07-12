@@ -199,6 +199,7 @@ Generated-bundle CLI flag assertions run in p02-t05 after the canonical build.
 
 - Modify: `skills/session-observer/SKILL.md`
 - Generated: `skills/session-observer/scripts/**/*.mjs`
+- Generated: `skills/export-session-transcript/scripts/lib/runtimes.mjs` (shared canonical runtime output from p01)
 - Modify as needed: `scripts/build-generated.mjs`
 - Modify as needed: `scripts/bump-version.mjs`
 - Modify: relevant generated-output/release tests
