@@ -29,7 +29,7 @@ import {
   gitWorktrees,
   claudeCodeLookupDiagnostics,
 } from './lib/locate.js';
-import { observeCatchUp } from './lib/observe.js';
+import { observeCatchUp, resolveSelfIdentity } from './lib/observe.js';
 import { rank } from './lib/rank.js';
 import * as stateLib from './lib/state.js';
 import type {
@@ -381,6 +381,7 @@ function printUsage(): never {
       '  catch-up   Incremental: only records added since the last read',
       '  catch-up-then-watch  Emit unread backlog, then keep foreground watch active',
       '  locate     Diagnostic: ranked candidate list',
+      '  whoami    Resolve this session identity (fails closed on ambiguity)',
       '  state      Manage high-water marks: get, reset, clear',
       '  watch      Foreground watcher for debounced catch-up updates',
       '  watch-ctl  Inspect or control active watch state',
@@ -413,6 +414,37 @@ function printUsage(): never {
     ].join('\n'),
   );
   process.exit(0);
+}
+
+async function runWhoami(args: CliArgs): Promise<never> {
+  const resolved = await resolveSelfIdentity(args.cwd);
+  if ('identity' in resolved) {
+    if (args.json) return emitJson(resolved.identity);
+    return emit(
+      `${resolved.identity.runtime}:${resolved.identity.session}\n${resolved.identity.transcript}\nsource: ${resolved.identity.source}`,
+    );
+  }
+  if ('ambiguous' in resolved) {
+    const payload = {
+      ambiguousIdentity: true,
+      runtime: resolved.runtime,
+      cwd: args.cwd,
+      candidates: resolved.candidates,
+    };
+    if (args.json) return emitJson(payload, 3);
+    return emit(
+      `Self identity is ambiguous for ${resolved.runtime} in ${args.cwd}:\n${renderCandidateList(resolved.candidates)}`,
+      3,
+    );
+  }
+  const payload = {
+    noIdentity: true,
+    runtime: resolved.runtime,
+    cwd: args.cwd,
+    candidates: resolved.candidates ?? [],
+  };
+  if (args.json) return emitJson(payload, 2);
+  return emit(`Unable to establish self identity for ${args.cwd}.`, 2);
 }
 
 function printWatchUsage(command = 'watch'): never {
@@ -1672,6 +1704,8 @@ async function main(argv: string[]): Promise<void> {
       return runCatchUp(args);
     case 'locate':
       return runLocate(args);
+    case 'whoami':
+      return runWhoami(args);
     case 'state':
       return runState(args);
     case 'watch':
@@ -1682,8 +1716,8 @@ async function main(argv: string[]): Promise<void> {
     default:
       return emitError(
         args.subcommand
-          ? `Unknown subcommand: ${args.subcommand}. Use review, catch-up, catch-up-then-watch, locate, state, watch, or watch-ctl.`
-          : 'No subcommand specified. Use review, catch-up, catch-up-then-watch, locate, state, watch, or watch-ctl.',
+          ? `Unknown subcommand: ${args.subcommand}. Use review, catch-up, catch-up-then-watch, locate, whoami, state, watch, or watch-ctl.`
+          : 'No subcommand specified. Use review, catch-up, catch-up-then-watch, locate, whoami, state, watch, or watch-ctl.',
         1,
       );
   }

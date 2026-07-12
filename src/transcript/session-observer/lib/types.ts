@@ -429,6 +429,27 @@ export interface ObservedRuntimeResolution {
   candidates?: Record<string, TranscriptCandidate[]>;
 }
 
+export type SelfIdentitySource =
+  | 'explicit-self'
+  | 'harness-environment'
+  | 'same-cwd-transcript';
+
+export interface SelfIdentity {
+  runtime: Runtime;
+  session: string;
+  transcript: string;
+  source: SelfIdentitySource;
+}
+
+export type SelfIdentityResolution =
+  | { identity: SelfIdentity }
+  | {
+      ambiguous: true;
+      runtime: Runtime;
+      candidates: TranscriptCandidate[];
+    }
+  | { noMatch: true; runtime?: Runtime; candidates?: TranscriptCandidate[] };
+
 export interface DuplicateWatchTargetError extends Error {
   code?: 'DUPLICATE_WATCH_TARGET';
   conflictPid?: number;

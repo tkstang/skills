@@ -49,6 +49,7 @@ async function withTempHome(fn: (dir: string) => Promise<void>): Promise<void> {
 
 import {
   discover,
+  findSessionCandidate,
   gitWorktrees,
 } from '../../src/transcript/session-observer/lib/locate.js';
 
@@ -192,6 +193,19 @@ test('claude-code: discover returns one candidate with correct sessionId and rec
       typeof c.ageSec === 'number' && c.ageSec >= 0,
       'ageSec should be a non-negative number',
     ).toBeTruthy();
+  });
+});
+
+test('findSessionCandidate returns only an exact same-cwd session match', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'identity-project');
+    const projectDir = join(home, '.claude', 'projects', encodeCwd(targetCwd));
+    await mkdir(projectDir, { recursive: true });
+    await writeFile(join(projectDir, 'one.jsonl'), CLAUDE_CODE_TYPICAL, 'utf8');
+    expect(await findSessionCandidate('claude-code', targetCwd, 'cc-session-001')).toMatchObject({
+      runtime: 'claude-code', sessionId: 'cc-session-001', recordedCwd: targetCwd,
+    });
+    expect(await findSessionCandidate('claude-code', targetCwd, 'missing')).toBeNull();
   });
 });
 

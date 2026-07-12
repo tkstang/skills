@@ -82,6 +82,46 @@ async function copyCursorTranscript(
 // ---------------------------------------------------------------------------
 
 describe('CLI subcommand dispatch', () => {
+  test('--help lists whoami command surface', () => {
+    const result = spawnCli(['--help']);
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('whoami');
+  });
+
+  test('whoami resolves explicit, harness, and ambiguous identities', async () => {
+    const home = await mkdtemp(join(tmpdir(), 'cli-whoami-'));
+    try {
+      const cwd = join(home, 'Code', 'project');
+      const one = await copyCursorTranscript(home, cwd, 'cursor-one');
+      let result = spawnCli(['whoami', '--cwd', cwd, '--json'], {
+        HOME: home,
+        STATE_DIR: join(home, '.state'),
+        SESSION_OBSERVER_SELF: 'cursor:cursor-one',
+      });
+      expect(result.status, `${result.stderr}\n${result.stdout}`).toBe(0);
+      expect(JSON.parse(result.stdout)).toEqual({
+        runtime: 'cursor', session: 'cursor-one', transcript: one, source: 'explicit-self',
+      });
+
+      result = spawnCli(['whoami', '--cwd', cwd], {
+        HOME: home, STATE_DIR: join(home, '.state'), CODEX_THREAD_ID: '', CURSOR_SESSION_ID: 'cursor-one',
+      });
+      expect(result.status, `${result.stderr}\n${result.stdout}`).toBe(0);
+      expect(result.stdout).toContain('harness-environment');
+
+      await copyCursorTranscript(home, cwd, 'cursor-two');
+      result = spawnCli(['whoami', '--cwd', cwd, '--json'], {
+        HOME: home, STATE_DIR: join(home, '.state'), SESSION_OBSERVER_SELF: 'cursor',
+      });
+      expect(result.status, `${result.stderr}\n${result.stdout}`).toBe(3);
+      const payload = JSON.parse(result.stdout);
+      expect(payload.ambiguousIdentity).toBe(true);
+      expect(payload.candidates.map((candidate: any) => candidate.sessionId).sort()).toEqual(['cursor-one', 'cursor-two']);
+    } finally {
+      await rm(home, { recursive: true, force: true });
+    }
+  });
+
   test('--help lists cursor as a runtime option', () => {
     const result = spawnCli(['--help']);
     expect(result.status, `help should exit 0\nstderr: ${result.stderr}`).toBe(0);
