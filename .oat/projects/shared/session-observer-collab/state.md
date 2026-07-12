@@ -1,5 +1,5 @@
 ---
-oat_current_task: null
+oat_current_task: p01-t01
 oat_last_commit: null
 oat_blockers: []
 associated_issues: []
@@ -15,8 +15,8 @@ oat_dispatch_policy:
   mode: managed
   policy: high
   source: project-state
-oat_phase: plan
-oat_phase_status: complete
+oat_phase: implement
+oat_phase_status: in_progress
 oat_workflow_mode: quick
 oat_workflow_origin: native
 oat_docs_updated: null
@@ -24,19 +24,19 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: "2026-07-12T17:48:10.523Z"
 oat_project_completed: null
-oat_project_state_updated: "2026-07-12T20:20:00Z"
+oat_project_state_updated: "2026-07-12T20:40:00Z"
 oat_generated: false
 ---
 
 # Project State: session-observer-collab
 
-**Status:** Ready for implementation
+**Status:** Implementation in progress
 **Started:** 2026-07-12
 **Last Updated:** 2026-07-12
 
 ## Current Phase
 
-Plan complete and independently reviewed; implementation can start at `p01-t01`.
+Implementation started at `p01-t01`.
 
 ## Artifacts
 
@@ -58,7 +58,7 @@ Plan complete and independently reviewed; implementation can start at `p01-t01`.
 - ✓ Phase gate review configured for `p06`
 - ✓ Plan artifact review passed after two bookkeeping fixes
 - ✓ Cross-runtime quick-start gate skipped by explicit user direction
-- ⧗ Ready for `oat-project-implement`
+- ⧗ Phase p01 in progress at `p01-t01`
 
 ## Blockers
 
@@ -66,4 +66,4 @@ None
 
 ## Next Milestone
 
-Start implementation at `p01-t01`.
+Complete and review phase p01.

@@ -18,7 +18,7 @@ oat_generated: false
 
 | Phase | Status | Tasks | Completed |
 | --- | --- | ---: | ---: |
-| p01 — Transcript semantics | pending | 4 | 0 |
+| p01 — Transcript semantics | in_progress | 4 | 0 |
 | p02 — Identity and watch behavior | pending | 5 | 0 |
 | p03 — Collaboration protocol/control | pending | 4 | 0 |
 | p04 — Codex adapter | pending | 3 | 0 |
@@ -76,7 +76,12 @@ oat_generated: false
 - Cross-runtime quick-start gate receipt was explicitly skipped by the user; its uncorroborated artifact was archived without consumption.
 - Project dispatch policy is managed `high` using the user-level candidate ladder.
 - Phase gate review is enabled for `p06` only.
-- HiLL phase selection remains intentionally unset until `oat-project-implement` confirms it.
+- HiLL checkpoint is confirmed for final phase `p06`; auto-review at that checkpoint is enabled.
+
+## Orchestration Runs
+
+<!-- orchestration-runs-start -->
+<!-- orchestration-runs-end -->
 
 ## Deviations from Plan / Design
 
