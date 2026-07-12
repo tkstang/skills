@@ -1,0 +1,85 @@
+import {
+  compareAndSwapTrigger,
+  effectiveLease,
+  readLease,
+  validateAbsolutePath,
+  validateId,
+  validateRuntime,
+} from './lease-state.mjs';
+
+export const RUNTIME_ADAPTER_VERSION = 1;
+
+export function defineRuntimeAdapter(adapter) {
+  if (!adapter || typeof adapter !== 'object')
+    throw new TypeError('adapter must be an object');
+  validateRuntime(adapter.runtime);
+  for (const method of ['identify', 'emit'])
+    if (typeof adapter[method] !== 'function')
+      throw new TypeError(`adapter.${method} must be a function`);
+  return Object.freeze({ version: RUNTIME_ADAPTER_VERSION, ...adapter });
+}
+
+export function validateAdapterInvocation(input) {
+  if (!input || typeof input !== 'object')
+    throw new TypeError('invocation must be an object');
+  return Object.freeze({
+    runtime: validateRuntime(input.runtime),
+    ownerSession: validateId(input.ownerSession, 'owner-session'),
+    cwd: validateAbsolutePath(input.cwd, 'cwd'),
+    transcript: validateAbsolutePath(input.transcript, 'transcript'),
+    now: input.now === undefined ? Date.now() : input.now,
+  });
+}
+
+export async function inspectAdapterLease(root, invocation) {
+  const input = validateAdapterInvocation(invocation);
+  const lease = await readLease(root, input.ownerSession);
+  if (!lease) return { eligible: false, reason: 'missing', lease: null };
+  if (
+    lease.runtime !== input.runtime ||
+    lease.ownerCwd !== input.cwd ||
+    lease.peerTranscript !== input.transcript
+  ) {
+    return { eligible: false, reason: 'identity-mismatch', lease };
+  }
+  const effective = effectiveLease(lease, input.now);
+  return {
+    eligible: ['armed', 'waiting'].includes(effective.state),
+    reason: effective.diagnostic || effective.state,
+    lease: effective,
+  };
+}
+
+export async function claimAdapterTrigger(
+  root,
+  invocation,
+  expected,
+  completion,
+) {
+  const inspected = await inspectAdapterLease(root, invocation);
+  if (!inspected.eligible)
+    return {
+      triggered: false,
+      reason: inspected.reason,
+      lease: inspected.lease,
+    };
+  if (
+    !completion ||
+    !Number.isSafeInteger(completion.peerCursor) ||
+    completion.peerCursor <= expected.peerCursor
+  ) {
+    return { triggered: false, reason: 'no-advance', lease: inspected.lease };
+  }
+  const result = await compareAndSwapTrigger(
+    root,
+    invocation.ownerSession,
+    expected,
+    completion,
+    invocation.now,
+  );
+  return {
+    triggered: result.ok,
+    reason: result.ok ? 'triggered' : result.reason,
+    lease: result.lease ?? null,
+  };
+}
