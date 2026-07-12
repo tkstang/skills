@@ -65,6 +65,22 @@ export interface TranscriptCandidate extends EngagementCandidateFields {
   snippetMatch?: SnippetMatch;
 }
 
+export interface TranscriptIdentityEvidence {
+  runtime: Runtime;
+  sessionId: string;
+  transcriptPath: string;
+  recordedCwd: string | null;
+  mtime: number;
+  size: number;
+}
+
+export interface NewerSessionCandidateEvent {
+  type: 'newer-session-candidate';
+  watched: TranscriptIdentityEvidence;
+  candidate: TranscriptIdentityEvidence;
+  message: string;
+}
+
 export interface RuntimeCandidateSet {
   runtime: Runtime;
   candidates: TranscriptCandidate[];

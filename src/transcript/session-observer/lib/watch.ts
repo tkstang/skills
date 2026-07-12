@@ -9,6 +9,7 @@ import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 
 import { type Runtime, readRecords } from '../../core/runtimes.js';
 import { renderMarkdown } from './digest.js';
+import { findNewerSameCwdCandidates } from './locate.js';
 import { observeCatchUp } from './observe.js';
 import * as stateLib from './state.js';
 import type {
@@ -16,7 +17,10 @@ import type {
   DuplicateWatchTargetError,
   EngagementStatus,
   ObserveSuccess,
+  NewerSessionCandidateEvent,
   SessionObserverState,
+  TranscriptCandidate,
+  TranscriptIdentityEvidence,
   WatchLoopArgs,
   WatchLoopDeps,
   WatchLoopError,
@@ -48,6 +52,7 @@ interface WatchTarget {
   signature: FileSignature;
   recordCount: number;
   baselineRecordIndex: number;
+  candidateMtime: number;
   engagementStatus: EngagementStatus;
   lockedAt: string;
 }
@@ -269,6 +274,63 @@ function baselineGapEvent(
     nextIndex: target.baselineRecordIndex,
     message: `standalone watch skipped unread range ${skippedFromIndex}-${skippedToIndex} for ${target.key}`,
   };
+}
+
+function targetIdentityEvidence(target: WatchTarget): TranscriptIdentityEvidence {
+  return {
+    runtime: target.runtime,
+    sessionId: target.sessionId,
+    transcriptPath: target.transcriptPath,
+    recordedCwd: target.recordedCwd,
+    mtime: target.candidateMtime,
+    size: target.signature.size,
+  };
+}
+
+function candidateIdentityEvidence(
+  candidate: TranscriptCandidate,
+): TranscriptIdentityEvidence {
+  return {
+    runtime: candidate.runtime,
+    sessionId: candidate.sessionId,
+    transcriptPath: candidate.transcriptPath,
+    recordedCwd: candidate.recordedCwd,
+    mtime: candidate.mtime,
+    size: candidate.size,
+  };
+}
+
+function newerSessionCandidateEvent(
+  target: WatchTarget,
+  candidate: TranscriptCandidate,
+): NewerSessionCandidateEvent {
+  return {
+    type: 'newer-session-candidate',
+    watched: targetIdentityEvidence(target),
+    candidate: candidateIdentityEvidence(candidate),
+    message:
+      'A newer same-cwd transcript candidate was observed; the watcher remains pinned.',
+  };
+}
+
+async function emitNewerSessionCandidate(
+  args: WatchLoopArgs,
+  deps: ResolvedWatchDeps,
+  target: WatchTarget,
+  candidate: TranscriptCandidate,
+): Promise<void> {
+  const event = newerSessionCandidateEvent(target, candidate);
+  if (args.json) {
+    await writeStdoutChunk(deps, JSON.stringify(event) + '\n');
+  } else {
+    await writeStdoutChunk(
+      deps,
+      `[session-observer] newer-session-candidate watched=${target.key} ` +
+        `candidate=${candidate.runtime}:${candidate.sessionId} ` +
+        'watcher-remains-pinned\n',
+    );
+  }
+  await appendEventLog(args.eventLog, event);
 }
 
 async function emitBaselineGap(
@@ -652,6 +714,7 @@ async function establishBaseline(
     signature,
     recordCount: result.digest.range.totalRecords,
     baselineRecordIndex: result.digest.range.nextIndex,
+    candidateMtime: result.candidate.mtime,
     engagementStatus:
       result.digest.engagement?.status ??
       result.candidate.engagementStatus ??
@@ -797,6 +860,35 @@ async function pollTargets(
       firstChangedAt: existing?.firstChangedAt ?? nowMs,
       lastChangedAt: nowMs,
     });
+  }
+}
+
+function newerCandidateKey(candidate: TranscriptCandidate): string {
+  return `${candidate.runtime}:${candidate.sessionId}:${candidate.transcriptPath}`;
+}
+
+async function emitNewerSessionCandidates(
+  args: WatchLoopArgs & { cwd: string },
+  targets: Map<string, WatchTarget>,
+  emittedCandidates: Set<string>,
+  deps: ResolvedWatchDeps,
+): Promise<void> {
+  for (const target of targets.values()) {
+    const candidates = await findNewerSameCwdCandidates(
+      target.runtime,
+      args.cwd,
+      {
+        sessionId: target.sessionId,
+        transcriptPath: target.transcriptPath,
+        mtime: target.candidateMtime,
+      },
+    );
+    for (const candidate of candidates) {
+      const key = newerCandidateKey(candidate);
+      if (emittedCandidates.has(key)) continue;
+      await emitNewerSessionCandidate(args, deps, target, candidate);
+      emittedCandidates.add(key);
+    }
   }
 }
 
@@ -1006,6 +1098,7 @@ export async function runWatchLoop(
   };
   const targets = new Map<string, WatchTarget>();
   const pending = new Map<string, PendingEntry>();
+  const emittedNewerCandidates = new Set<string>();
   const eventState: WatchEventState = {
     pid: watcherPid,
     debounceMs,
@@ -1079,6 +1172,12 @@ export async function runWatchLoop(
         );
       }
       await pollTargets(targets, pending, nowMs, resolvedDeps.stat);
+      await emitNewerSessionCandidates(
+        normalizedArgs,
+        targets,
+        emittedNewerCandidates,
+        resolvedDeps,
+      );
       await applyControlDirective(
         normalizedArgs,
         pending,

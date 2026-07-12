@@ -654,6 +654,34 @@ export async function findSessionCandidate(
 }
 
 /**
+ * Return same-cwd sessions that are more recently modified than a watched pin.
+ * The watcher remains responsible for deciding whether and how to report them.
+ */
+export async function findNewerSameCwdCandidates(
+  runtime: Runtime,
+  targetCwd: string,
+  watched: Pick<
+    TranscriptCandidate,
+    'sessionId' | 'transcriptPath' | 'mtime'
+  >,
+): Promise<TranscriptCandidate[]> {
+  const candidates = await discover(runtime, targetCwd);
+  return candidates
+    .filter(
+      (candidate) =>
+        candidate.recordedCwd === targetCwd &&
+        candidate.sessionId !== watched.sessionId &&
+        candidate.transcriptPath !== watched.transcriptPath &&
+        candidate.mtime > watched.mtime,
+    )
+    .sort(
+      (left, right) =>
+        right.mtime - left.mtime ||
+        left.transcriptPath.localeCompare(right.transcriptPath),
+    );
+}
+
+/**
  * Enumerate sister git worktrees for the given cwd.
  * Shells out to `git worktree list --porcelain` and parses `worktree <path>` lines.
  * Returns [] on any error (not a git repo, git not in PATH, etc.).

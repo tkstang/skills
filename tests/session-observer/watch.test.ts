@@ -11,6 +11,7 @@ import {
   readFile,
   writeFile,
   appendFile,
+  utimes,
   stat as fsStat,
   symlink,
 } from 'node:fs/promises';
@@ -447,6 +448,78 @@ describe('runWatchLoop', () => {
       expect(
         state.sessions['claude-code:watch-catch-up-first'].lastRecordIndex,
       ).toBe(1);
+    });
+  });
+
+  test('warns once about a newer same-cwd candidate without switching the watched pin', async () => {
+    await withTempSessionHome(async (home, stateDir) => {
+      const cwd = '/test/watch-newer-session-candidate';
+      const watchedSessionId = 'watched-session';
+      await writeClaudeTranscript(home, cwd, watchedSessionId, [
+        { content: 'watched baseline message' },
+      ]);
+      const stdout: string[] = [];
+      let nowMs = Date.UTC(2026, 5, 3, 12, 0, 0);
+      let candidateCreated = false;
+
+      const result = await runWatchLoop(
+        {
+          runtime: 'claude-code',
+          cwd,
+          json: true,
+          pollSec: 0.02,
+          debounceSec: 0.02,
+          maxRuntimeMin: 0.006,
+        },
+        {
+          writeStdout: (chunk: string) => stdout.push(chunk),
+          now: () => nowMs,
+          sleep: async (ms: number) => {
+            nowMs += ms;
+            if (candidateCreated) return;
+            candidateCreated = true;
+            const candidatePath = await writeClaudeTranscript(
+              home,
+              cwd,
+              'newer-session',
+              [{ content: 'newer candidate baseline message' }],
+            );
+            const future = new Date(Date.now() + 120_000);
+            await utimes(candidatePath, future, future);
+          },
+        },
+      );
+
+      expect(result.reason).toBe('max-runtime');
+      expect(result.eventCount).toBe(0);
+      const events = stdout
+        .join('')
+        .trim()
+        .split('\n')
+        .filter(Boolean)
+        .map((line) => JSON.parse(line));
+      const candidates = events.filter(
+        (event) => event.type === 'newer-session-candidate',
+      );
+      expect(candidates).toHaveLength(1);
+      expect(candidates[0]).toMatchObject({
+        type: 'newer-session-candidate',
+        watched: {
+          runtime: 'claude-code',
+          sessionId: watchedSessionId,
+          recordedCwd: cwd,
+        },
+        candidate: {
+          runtime: 'claude-code',
+          sessionId: 'newer-session',
+          recordedCwd: cwd,
+        },
+      });
+      expect(candidates[0].message).toContain('remains pinned');
+
+      const state = await readJsonIfExists(join(stateDir, 'state.json'));
+      expect(state?.sessions?.[`claude-code:${watchedSessionId}`]).toBeDefined();
+      expect(state?.sessions?.['claude-code:newer-session']).toBeUndefined();
     });
   });
 
