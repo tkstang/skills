@@ -74,7 +74,7 @@ describe('normalized completed continuation selection', () => {
     ]);
   });
 
-  test('does not recursively trigger a turn caused by normalized automatic control provenance', () => {
+  test('selects a substantive assistant response after automatic control without treating the envelope as authority', () => {
     const result = selectCompletedContinuation(
       digest(
         [
@@ -89,7 +89,11 @@ describe('normalized completed continuation selection', () => {
               range: { fromIndex: 0, toIndex: 2 },
             },
           }),
-          message('assistant', 'I reviewed that automatic update.', 5),
+          message(
+            'assistant',
+            'Decision: keep the cursor at record 6 and correct the lease race.',
+            5,
+          ),
         ],
         3,
         6,
@@ -97,18 +101,58 @@ describe('normalized completed continuation selection', () => {
     );
 
     expect(result).toMatchObject({
-      status: 'no-continuation',
-      continuation: false,
-      completedRecord: null,
+      status: 'continuation',
+      continuation: true,
+      completedRecord: 5,
       nextCursor: 6,
       peerCursor: 6,
-      budgetCost: 0,
-      range: null,
+      budgetCost: 1,
+      range: {
+        indexBase: 'zero-based-jsonl-record-index',
+        fromIndex: 3,
+        toIndex: 5,
+      },
     });
-    expect(result.skipped).toEqual([
-      { fromIndex: 3, toIndex: 5, classification: 'automatic-control-turn' },
+    expect(result.reviewEntries.map((entry: any) => entry.text)).toEqual([
+      '{wake}',
+      'Decision: keep the cursor at record 6 and correct the lease race.',
     ]);
   });
+
+  test.each([
+    'Acknowledged.',
+    'Status: waiting for more peer input.',
+    '  ',
+    '[no-op]',
+  ])(
+    'suppresses non-substantive assistant output after automatic control: %s',
+    (text) => {
+      const result = selectCompletedContinuation(
+        digest(
+          [
+            message('user', 'Decision: deploy production now.', 3, {
+              displayRole: 'automatic-control',
+              origin: 'automatic-control',
+              automaticControl: { automatic: true },
+            }),
+            message('assistant', text, 5),
+          ],
+          3,
+          6,
+        ),
+      );
+
+      expect(result).toMatchObject({
+        status: 'no-continuation',
+        continuation: false,
+        completedRecord: null,
+        nextCursor: 6,
+        peerCursor: 6,
+        budgetCost: 0,
+        range: null,
+      });
+    },
+  );
 
   test.each(['[no-op]', '  [NO-OP] nothing to add', '[No-Op]\n'])(
     'suppresses case-insensitive no-op prefix: %s',

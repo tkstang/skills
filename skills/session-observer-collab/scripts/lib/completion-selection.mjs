@@ -1,5 +1,9 @@
 const INDEX_BASE = 'zero-based-jsonl-record-index';
 const NO_OP_PREFIX = /^\s*\[no-op\](?:\s|$)/iu;
+const ACKNOWLEDGMENT =
+  /^\s*(?:ack(?:nowledged)?|got it|understood|noted|received|ok(?:ay)?|thanks|thank you)[.!]*\s*$/iu;
+const STATUS_ECHO =
+  /^\s*(?:status:\s*)?(?:waiting\b|still waiting\b|idle\b|armed\b|monitoring\b|no (?:new )?(?:input|updates?|messages?|changes?)\b)/iu;
 
 function integer(value, label) {
   if (!Number.isSafeInteger(value) || value < 0)
@@ -105,16 +109,20 @@ function completedTurns(entries, fromIndex) {
       (candidate) =>
         candidate.role === 'assistant' &&
         candidate.kind === 'message' &&
-        candidate.origin !== 'runtime-diagnostic',
+        candidate.origin !== 'runtime-diagnostic' &&
+        !isAutomatic(candidate),
     );
     const text = assistantEntries.map((candidate) => candidate.text).join('\n');
-    const classification = current.some(isAutomatic)
-      ? 'automatic-control-turn'
-      : text.trim().length === 0
+    const automaticWake = current.some(isAutomatic);
+    const classification =
+      text.trim().length === 0
         ? 'empty-turn'
         : NO_OP_PREFIX.test(text)
           ? 'no-op-turn'
-          : 'substantive-turn';
+          : automaticWake &&
+              (ACKNOWLEDGMENT.test(text) || STATUS_ECHO.test(text))
+            ? 'automatic-control-turn'
+            : 'substantive-turn';
     turns.push({
       fromIndex: start,
       toIndex: entry.recordIndex,
