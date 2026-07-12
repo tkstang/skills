@@ -49,7 +49,9 @@ function publicBootstrapIndexes(indexes: Set<number>): number[] {
   return [...indexes].toSorted((a, b) => a - b);
 }
 
-function entriesByRecordIndex(entries: DigestEntry[]): Map<number, DigestEntry[]> {
+function entriesByRecordIndex(
+  entries: DigestEntry[],
+): Map<number, DigestEntry[]> {
   const byRecord = new Map<number, DigestEntry[]>();
   for (const entry of entries) {
     const existing = byRecord.get(entry.recordIndex) ?? [];
@@ -61,8 +63,7 @@ function entriesByRecordIndex(entries: DigestEntry[]): Map<number, DigestEntry[]
 
 function visibleConversationEntries(entries: DigestEntry[]): DigestEntry[] {
   return entries.filter(
-    (entry) =>
-      entry.kind === 'message' || entry.kind === 'command_message',
+    (entry) => entry.kind === 'message' || entry.kind === 'command_message',
   );
 }
 
@@ -98,8 +99,7 @@ export function classifyTranscriptRecords(
     if (
       pendingTitleAssistant &&
       entries.every(
-        (entry) =>
-          entry.role === 'assistant' && entry.kind === 'message',
+        (entry) => entry.role === 'assistant' && entry.kind === 'message',
       )
     ) {
       bootstrapRecordIndexes.add(recordIndex);
@@ -108,15 +108,11 @@ export function classifyTranscriptRecords(
     }
     pendingTitleAssistant = false;
 
-    const userEntries = entries.filter(
-      (entry) => entry.role === 'user',
-    );
+    const userEntries = entries.filter((entry) => entry.role === 'user');
     const hiddenBootstrapUserRecord =
       userEntries.length > 0 &&
       entries.every((entry) => entry.role === 'user') &&
-      userEntries.every((entry) =>
-        isHiddenBootstrapUserText(entry.text),
-      );
+      userEntries.every((entry) => isHiddenBootstrapUserText(entry.text));
 
     if (hiddenBootstrapUserRecord) {
       bootstrapRecordIndexes.add(recordIndex);

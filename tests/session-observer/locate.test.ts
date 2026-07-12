@@ -180,7 +180,10 @@ test('claude-code: discover returns one candidate with correct sessionId and rec
       c.recordedCwd,
       'recordedCwd must be the exact targetCwd for direct-lookup candidates',
     ).toBe(targetCwd);
-    expect(c.mtime > 0, 'mtime should be a positive epoch-seconds value').toBeTruthy();
+    expect(
+      c.mtime > 0,
+      'mtime should be a positive epoch-seconds value',
+    ).toBeTruthy();
     expect(
       typeof c.size === 'number' && c.size >= 0,
       'size should be a number',
@@ -234,7 +237,10 @@ test('claude-code: direct lookup uses dot-sanitized project dir slug', async () 
       (candidate: any) => candidate.transcriptPath === transcriptPath,
     );
 
-    expect(c, 'should find the transcript via dot-sanitized direct lookup').toBeTruthy();
+    expect(
+      c,
+      'should find the transcript via dot-sanitized direct lookup',
+    ).toBeTruthy();
     expect(c.recordedCwd).toBe(targetCwd);
     expect(c.cwdSlug).toBe(encoded);
     expect(c.cwdEvidence).toBe('direct-parent-dir');
@@ -256,7 +262,10 @@ test('claude-code: fallback candidates preserve parent cwdSlug as weak evidence'
       (candidate: any) => candidate.transcriptPath === transcriptPath,
     );
 
-    expect(c, 'fallback scan should include non-direct project dirs').toBeTruthy();
+    expect(
+      c,
+      'fallback scan should include non-direct project dirs',
+    ).toBeTruthy();
     expect(c.cwdSlug).toBe(otherSlug);
     expect(c.cwdEvidence).toBe('decoded-parent-dir');
     expect(c.recordedCwd).not.toBe(targetCwd);
@@ -279,13 +288,17 @@ test('codex: discover returns candidate with cwd from session-meta record', asyn
 
     const candidates = await discover('codex', targetCwd);
 
-    expect(candidates.length >= 1, 'should find at least one candidate').toBeTruthy();
-    const c: any = candidates.find((x: any) => x.sessionId === 'codex-sess-001');
-    expect(c, 'should find the session by id').toBeTruthy();
     expect(
-      c.recordedCwd,
-      'recordedCwd should match session-meta cwd',
-    ).toBe(targetCwd);
+      candidates.length >= 1,
+      'should find at least one candidate',
+    ).toBeTruthy();
+    const c: any = candidates.find(
+      (x: any) => x.sessionId === 'codex-sess-001',
+    );
+    expect(c, 'should find the session by id').toBeTruthy();
+    expect(c.recordedCwd, 'recordedCwd should match session-meta cwd').toBe(
+      targetCwd,
+    );
     expect(c.runtime).toBe('codex');
   });
 });
