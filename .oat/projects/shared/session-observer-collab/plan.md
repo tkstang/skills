@@ -439,7 +439,7 @@ Generated-bundle CLI flag assertions run in p02-t05 after the canonical build.
 | ------ | -------- | ------- | ---- | -------- |
 | p01    | code     | passed  | 2026-07-12 | managed review after fix iteration 2/2 |
 | p02    | code     | passed  | 2026-07-12 | managed review after fix iteration 2/2 |
-| p03    | code     | pending | -    | -        |
+| p03    | code     | fixes_added | 2026-07-12 | blocked after review fix limit 2/2 |
 | p04    | code     | pending | -    | -        |
 | p05    | code     | pending | -    | -        |
 | p06    | code     | pending | -    | -        |

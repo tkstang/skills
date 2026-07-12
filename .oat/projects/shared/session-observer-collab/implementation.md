@@ -1,9 +1,12 @@
 ---
 oat_status: in_progress
 oat_ready_for: null
-oat_blockers: []
+oat_blockers:
+  - task_id: p03-review
+    reason: Review fix limit exhausted with 3 Important and 1 Medium lease/control findings remaining.
+    since: 2026-07-12
 oat_last_updated: 2026-07-12
-oat_current_task_id: p03-t01
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -20,12 +23,12 @@ oat_generated: false
 | --- | --- | ---: | ---: |
 | p01 — Transcript semantics | completed | 4 | 4 |
 | p02 — Identity and watch behavior | completed | 5 | 5 |
-| p03 — Collaboration protocol/control | in_progress | 4 | 0 |
+| p03 — Collaboration protocol/control | blocked_review | 4 | 4 |
 | p04 — Codex adapter | pending | 3 | 0 |
 | p05 — Cursor and Claude adapters | pending | 3 | 0 |
 | p06 — Integration and closeout | pending | 5 | 0 |
 
-**Total:** 9/24 tasks completed
+**Total:** 13/24 tasks completed
 
 ## Phase p01: Normalize collaboration-bearing transcript semantics
 
@@ -64,10 +67,18 @@ oat_generated: false
 
 ## Phase p03: Establish the collaboration protocol and control plane
 
-- [ ] `p03-t01` Scaffold the canonical sibling skill
-- [ ] `p03-t02` Author the runtime-neutral N=2 protocol
-- [ ] `p03-t03` Implement versioned lease state and control operations
-- [ ] `p03-t04` Normalize substantive completion and continuation selection
+- [x] `p03-t01` Scaffold the canonical sibling skill — `a5ec157`
+- [x] `p03-t02` Author the runtime-neutral N=2 protocol — `8bb9cc7`
+- [x] `p03-t03` Implement versioned lease state and control operations — `a5620c8`, fixes `a7c9f00`, `40343fe`
+- [x] `p03-t04` Normalize substantive completion and continuation selection — `5fd8ee7`, fixes `e99c970`, `50dc0d7`
+
+### Phase p03 Summary
+
+**Outcome:** The canonical collaboration skill, runtime-neutral protocol, dependency-free lease/control plane, adapter interface, and completion selector are implemented. Task and integration tests pass, but phase review remains blocked after the configured fix limit.
+
+**Verification:** 68 p03 tests, type-check, repository validation, build parity, changed-file quality, dependency/provider-mirror boundaries, and diff checks pass.
+
+**Review blocker:** After two review-fix iterations, 3 Important findings remain (Claude peer-runtime pins, fail-closed legacy peer-runtime migration, self-expiring waiting deadline) plus 1 Medium concurrent installation-lock finding. p04/p05 were not started.
 
 ## Phase p04: Implement and validate the Codex lifecycle adapter
 
@@ -186,6 +197,44 @@ oat_generated: false
 | Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
 | --- | --- | --- | --- | --- | --- | --- |
 | p02 verification | plan.md p02 Verify/file boundaries | Generated CLI checks appeared in early canonical tasks; shared generated output/version path was omitted | Canonical tasks verify source; p02-t05 owns generated CLI/build plus both shared skill versions | Generated CLI tests execute committed bundles; shared runtime builds two skills | plan.md + canonical build graph | Plan corrected in `aa22c07`, `012e29b`, `73a6b41` |
+
+### Run 3 — 2026-07-12 17:42 CDT
+
+**Branch:** `session-observer-collab`
+**Tier:** 1
+**Policy:** merge-strategy=merge, retry-limit=2
+**Phases:** 1 executed, 0 passed, 1 failed, 1 stopped
+
+#### Phase Outcomes
+
+| Phase | Implementer | Review | Fix Iterations | Disposition |
+| --- | --- | --- | ---: | --- |
+| p03 | DONE | fail | 2/2 | stopped; sequential schedule blocked |
+
+#### Parallel Groups
+
+- p03: sequential
+
+#### Dispatch Notes
+
+- Implementation: `a5ec157` (Luna/high), `8bb9cc7` (Terra/high), `a5620c8` and `5fd8ee7` (Sol/medium).
+- Integration fixes: `50682de` (Luna/high), `a7c9f00` (Terra/high).
+- Review fixes: `e99c970` and `50dc0d7` (Sol/medium), `40343fe` (Sol/high).
+- Reviewer: `Dispatch: scope=p03 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high`
+
+#### Outstanding Items
+
+- Important: observable peer runtime validation rejects `claude-code`; separate owner-adapter runtimes from peer runtimes.
+- Important: legacy migration fabricates missing `peerRuntime`; require explicit re-arm instead.
+- Important: crashed waiting adapters lack a bounded deadline and can remain falsely `waiting` until lease expiry.
+- Medium: installation registry read-modify-write is not locked against concurrent lost updates.
+- Retry limit exhausted at 2/2; explicit user override is required to continue p03 fixes. p04/p05 were not started.
+
+#### Artifact / Design Deltas
+
+| Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
+| --- | --- | --- | --- | --- | --- | --- |
+| p03 review | design.md lease/control contract | Complete truthful, race-safe lifecycle control plane | Core implemented, but four review findings remain | Reviewer found uncovered edge cases after bounded fixes | review findings + implementation | Resume only with explicit retry-limit override |
 
 <!-- orchestration-runs-end -->
 
