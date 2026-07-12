@@ -108,7 +108,10 @@ function groupByRole(entries: DigestEntry[]): DigestEntry[][] {
   let currentGroup = [entries[0]!];
 
   for (let i = 1; i < entries.length; i++) {
-    if (entries[i].role === currentGroup[0].role) {
+    if (
+      (entries[i].displayRole ?? entries[i].role) ===
+      (currentGroup[0].displayRole ?? currentGroup[0].role)
+    ) {
       currentGroup.push(entries[i]);
     } else {
       groups.push(currentGroup);
@@ -483,7 +486,12 @@ export function renderMarkdown(digest: Digest): string {
   } else {
     for (const group of groups) {
       const role = group[0].role;
-      const header = role === 'user' ? '### User' : '### Assistant';
+      const header =
+        group[0].displayRole === 'queued-user'
+          ? '### User (queued mid-turn)'
+          : role === 'user'
+            ? '### User'
+            : '### Assistant';
       parts.push(header);
       parts.push('');
       for (const entry of group) {

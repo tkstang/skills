@@ -14,6 +14,16 @@ const FIXTURES = join(__dirname, 'fixtures');
 const typicalClaude = join(FIXTURES, 'claude-code', 'typical.jsonl');
 const emptyClaude = join(FIXTURES, 'claude-code', 'empty.jsonl');
 const withToolBurst = join(FIXTURES, 'claude-code', 'with-tool-burst.jsonl');
+const queuedMidTurnClaude = join(
+  FIXTURES,
+  'claude-code',
+  'queued-mid-turn.jsonl',
+);
+const queuedAttachmentOnlyClaude = join(
+  FIXTURES,
+  'claude-code',
+  'queued-attachment-only.jsonl',
+);
 const typicalCodex = join(FIXTURES, 'codex', 'typical.jsonl');
 const typicalCursor = join(FIXTURES, 'cursor', 'typical.jsonl');
 
@@ -28,6 +38,59 @@ import {
 // ---------------------------------------------------------------------------
 
 describe('buildDigest', () => {
+  test('renders queued Claude input once across review and catch-up digests', async () => {
+    for (const mode of ['review', 'catch-up'] as const) {
+      const digest = await buildDigest('claude-code', queuedMidTurnClaude, {
+        fromIndex: 0,
+        mode,
+      });
+      const queuedEntries = digest.entries.filter(
+        (entry: any) => entry.displayRole === 'queued-user',
+      );
+
+      expect(queuedEntries).toHaveLength(1);
+      expect(queuedEntries[0]).toMatchObject({
+        role: 'user',
+        text: 'Yes, include the migration guide.',
+        recordIndex: 2,
+      });
+
+      const markdown = renderMarkdown(digest);
+      expect(markdown).toContain('### User (queued mid-turn)');
+      expect(
+        markdown.match(/Yes, include the migration guide\./g),
+      ).toHaveLength(1);
+
+      const json = JSON.parse(renderJson(digest));
+      expect(json.entries).toContainEqual(
+        expect.objectContaining({
+          displayRole: 'queued-user',
+          text: 'Yes, include the migration guide.',
+        }),
+      );
+    }
+  });
+
+  test('renders queued-command attachments when no enqueue record is present', async () => {
+    const digest = await buildDigest(
+      'claude-code',
+      queuedAttachmentOnlyClaude,
+      {
+        fromIndex: 0,
+        mode: 'review',
+      },
+    );
+
+    expect(digest.entries).toContainEqual(
+      expect.objectContaining({
+        role: 'user',
+        displayRole: 'queued-user',
+        text: 'Use the conservative migration path.',
+        recordIndex: 1,
+      }),
+    );
+  });
+
   test('returns correct entry count and range for fromIndex=0 (claude-code)', async () => {
     const digest = await buildDigest('claude-code', typicalClaude, {
       fromIndex: 0,

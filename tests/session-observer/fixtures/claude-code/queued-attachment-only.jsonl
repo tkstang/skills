@@ -1,0 +1,2 @@
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"I am waiting for your decision."}]},"sessionId":"cc-session-queued-attachment"}
+{"type":"attachment","attachment":{"type":"queued_command","prompt":"Use the conservative migration path.","commandMode":"prompt","origin":{"kind":"human"}},"sessionId":"cc-session-queued-attachment"}

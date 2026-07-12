@@ -28,6 +28,7 @@ export interface TranscriptMeta {
 }
 
 export type DigestEntryRole = 'user' | 'assistant';
+export type DigestEntryDisplayRole = 'queued-user';
 export type DigestEntryKind =
   | 'message'
   | 'tool_call'
@@ -39,6 +40,7 @@ export interface DigestEntry {
   text: string;
   recordIndex: number;
   kind: DigestEntryKind;
+  displayRole?: DigestEntryDisplayRole;
   toolName?: string;
 }
 
@@ -544,7 +546,65 @@ function normalizeClaudeCode(
     }
   }
 
+  // Queue-operation records capture input as soon as it is enqueued. Claude
+  // later duplicates that input in a queued_command attachment, so prefer the
+  // enqueue record and suppress its attachment copy.
+  const queuedOperationContents = new Set<string>();
+  for (const record of records) {
+    if (
+      asString(record.type) === 'queue-operation' &&
+      asString(record.operation) === 'enqueue'
+    ) {
+      const content = asString(record.content);
+      if (content) queuedOperationContents.add(content);
+    }
+  }
+  const attachmentOnlyContents = new Set<string>();
+
   return records.flatMap((record, recordIndex): DigestEntry[] => {
+    if (
+      asString(record.type) === 'queue-operation' &&
+      asString(record.operation) === 'enqueue'
+    ) {
+      const content = asString(record.content);
+      return content
+        ? [
+            {
+              role: 'user',
+              displayRole: 'queued-user',
+              text: content,
+              recordIndex,
+              kind: 'message',
+            },
+          ]
+        : [];
+    }
+
+    const attachment = record.attachment;
+    if (
+      isObject(attachment) &&
+      asString(attachment.type) === 'queued_command'
+    ) {
+      const prompt = asString(attachment.prompt);
+      if (
+        !prompt ||
+        queuedOperationContents.has(prompt) ||
+        attachmentOnlyContents.has(prompt)
+      ) {
+        return [];
+      }
+      attachmentOnlyContents.add(prompt);
+      return [
+        {
+          role: 'user',
+          displayRole: 'queued-user',
+          text: prompt,
+          recordIndex,
+          kind: 'message',
+        },
+      ];
+    }
+
     // Determine role
     const message = isObject(record.message) ? record.message : record;
     const role =

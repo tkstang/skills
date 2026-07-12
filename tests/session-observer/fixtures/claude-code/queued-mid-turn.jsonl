@@ -1,0 +1,6 @@
+{"type":"user","message":{"role":"user","content":"Please prepare the release notes."},"sessionId":"cc-session-queued"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"I am drafting the release notes now."}]},"sessionId":"cc-session-queued"}
+{"type":"queue-operation","operation":"enqueue","timestamp":"2026-07-12T12:00:00.000Z","sessionId":"cc-session-queued","content":"Yes, include the migration guide."}
+{"type":"queue-operation","operation":"remove","timestamp":"2026-07-12T12:00:01.000Z","sessionId":"cc-session-queued"}
+{"type":"attachment","attachment":{"type":"queued_command","prompt":"Yes, include the migration guide.","commandMode":"prompt","origin":{"kind":"human"}},"sessionId":"cc-session-queued"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"I will include the migration guide."}]},"sessionId":"cc-session-queued"}
