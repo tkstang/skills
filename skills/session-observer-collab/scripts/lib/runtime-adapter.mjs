@@ -6,7 +6,8 @@ import {
   readLease,
   validateAbsolutePath,
   validateId,
-  validateRuntime,
+  validateOwnerRuntime,
+  validatePeerRuntime,
 } from './lease-state.mjs';
 
 export const RUNTIME_ADAPTER_VERSION = 2;
@@ -14,7 +15,7 @@ export const RUNTIME_ADAPTER_VERSION = 2;
 export function defineRuntimeAdapter(adapter) {
   if (!adapter || typeof adapter !== 'object')
     throw new TypeError('adapter must be an object');
-  validateRuntime(adapter.runtime);
+  validateOwnerRuntime(adapter.runtime);
   for (const method of ['identify', 'emit'])
     if (typeof adapter[method] !== 'function')
       throw new TypeError(`adapter.${method} must be a function`);
@@ -25,8 +26,8 @@ export function validateAdapterInvocation(input) {
   if (!input || typeof input !== 'object')
     throw new TypeError('invocation must be an object');
   return Object.freeze({
-    runtime: validateRuntime(input.runtime),
-    peerRuntime: validateRuntime(input.peerRuntime),
+    runtime: validateOwnerRuntime(input.runtime),
+    peerRuntime: validatePeerRuntime(input.peerRuntime),
     peerSession: validateId(input.peerSession, 'peer-session'),
     ownerSession: validateId(input.ownerSession, 'owner-session'),
     cwd: validateAbsolutePath(input.cwd, 'cwd'),
@@ -85,13 +86,21 @@ export async function finishAdapterWait(
   diagnostic = 'wait-timeout',
 ) {
   const input = validateAdapterInvocation(invocation);
-  const inspected = await inspectAdapterLease(root, input);
-  if (!inspected.eligible)
+  const lease = await readLease(root, input.ownerSession);
+  if (!lease)
     return {
       finished: false,
-      reason: inspected.reason,
-      lease: inspected.lease,
+      reason: 'missing',
+      lease: null,
     };
+  if (
+    lease.runtime !== input.runtime ||
+    lease.peerRuntime !== input.peerRuntime ||
+    lease.peerSession !== input.peerSession ||
+    lease.ownerCwd !== input.cwd ||
+    lease.peerTranscript !== input.transcript
+  )
+    return { finished: false, reason: 'identity-mismatch', lease };
   const result = await finishLeaseWait(
     root,
     input.ownerSession,

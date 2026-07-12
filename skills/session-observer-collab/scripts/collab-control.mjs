@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { randomUUID } from 'node:crypto';
-import { chmod, mkdir, readFile } from 'node:fs/promises';
+import { chmod, mkdir, open, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -18,7 +18,8 @@ import {
   stateRoot,
   validateAbsolutePath,
   validateId,
-  validateRuntime,
+  validateOwnerRuntime,
+  validatePeerRuntime,
   withLeaseLock,
 } from './lib/lease-state.mjs';
 
@@ -75,21 +76,49 @@ async function readInstallation(root) {
   }
 }
 
+async function withInstallationLock(root, fn) {
+  const lock = join(root, 'installation.json.lock');
+  let handle;
+  await mkdir(root, { recursive: true, mode: 0o700 });
+  await chmod(root, 0o700);
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      handle = await open(lock, 'wx', 0o600);
+      break;
+    } catch (error) {
+      if (error?.code !== 'EEXIST') throw error;
+      if (attempt >= 199)
+        throw new Error('installation mutation lock timed out', {
+          cause: error,
+        });
+      await new Promise((resolveWait) => setTimeout(resolveWait, 5));
+    }
+  }
+  try {
+    return await fn();
+  } finally {
+    await handle.close();
+    await rm(lock, { force: true });
+  }
+}
+
 export async function install(root, { runtime, command }) {
-  validateRuntime(runtime);
+  validateOwnerRuntime(runtime);
   const exactCommand = validateAbsolutePath(command, 'command');
-  const installation = await readInstallation(root);
-  const existing = installation.runtimes[runtime];
-  if (existing?.command === exactCommand)
-    return { changed: false, installation };
-  installation.runtimes[runtime] = { command: exactCommand };
-  await atomicWriteJson(join(root, 'installation.json'), installation);
-  return { changed: true, installation };
+  return withInstallationLock(root, async () => {
+    const installation = await readInstallation(root);
+    const existing = installation.runtimes[runtime];
+    if (existing?.command === exactCommand)
+      return { changed: false, installation };
+    installation.runtimes[runtime] = { command: exactCommand };
+    await atomicWriteJson(join(root, 'installation.json'), installation);
+    return { changed: true, installation };
+  });
 }
 
 export async function arm(root, options, now = Date.now()) {
-  const runtime = validateRuntime(options.runtime);
-  const peerRuntime = validateRuntime(options.peerRuntime);
+  const runtime = validateOwnerRuntime(options.runtime);
+  const peerRuntime = validatePeerRuntime(options.peerRuntime);
   const ownerSession = validateId(options.session, 'owner-session');
   const peerSession = validateId(options.peerSession, 'peer-session');
   const ownerCwd = validateAbsolutePath(options.cwd, 'owner-cwd');
@@ -168,6 +197,8 @@ export async function arm(root, options, now = Date.now()) {
       loopCap,
       waitMs,
       leaseMs,
+      waitStartedAt: null,
+      waitDeadlineAt: null,
       armedAt: stamp,
       expiresAt: new Date(now + leaseMs).toISOString(),
       updatedAt: stamp,
@@ -191,6 +222,8 @@ export async function disarm(root, ownerSession, now = Date.now()) {
     const lease = {
       ...existing,
       state: 'disarmed',
+      waitStartedAt: null,
+      waitDeadlineAt: null,
       updatedAt: new Date(now).toISOString(),
       diagnostic: 'user-disarmed',
     };

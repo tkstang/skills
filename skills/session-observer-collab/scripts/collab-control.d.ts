@@ -1,4 +1,4 @@
-import type { Lease, Runtime } from './lib/lease-state.mjs';
+import type { Lease, OwnerRuntime, PeerRuntime } from './lib/lease-state.mjs';
 
 export interface Installation {
   schemaVersion: number;
@@ -6,8 +6,8 @@ export interface Installation {
 }
 
 export interface ArmOptions {
-  runtime: Runtime | string;
-  peerRuntime: Runtime | string;
+  runtime: OwnerRuntime | string;
+  peerRuntime: PeerRuntime | string;
   session: string;
   peerSession: string;
   cwd: string;
@@ -35,7 +35,7 @@ export function parseArgs(argv: string[]): {
 };
 export function install(
   root: string,
-  options: { runtime: Runtime | string; command: string },
+  options: { runtime: OwnerRuntime | string; command: string },
 ): Promise<{ changed: boolean; installation: Installation }>;
 export function arm(
   root: string,

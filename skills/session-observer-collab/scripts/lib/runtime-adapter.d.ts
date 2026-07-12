@@ -2,11 +2,12 @@ import type {
   Lease,
   LeaseCounters,
   LeaseUpdate,
-  Runtime,
+  OwnerRuntime,
+  PeerRuntime,
 } from './lease-state.mjs';
 
 export interface RuntimeAdapterInput {
-  runtime: Runtime | string;
+  runtime: OwnerRuntime | string;
   identify: (...args: unknown[]) => unknown;
   emit: (...args: unknown[]) => unknown;
   [key: string]: unknown;
@@ -17,8 +18,8 @@ export interface RuntimeAdapter extends RuntimeAdapterInput {
 }
 
 export interface AdapterInvocation {
-  runtime: Runtime | string;
-  peerRuntime: Runtime | string;
+  runtime: OwnerRuntime | string;
+  peerRuntime: PeerRuntime | string;
   peerSession: string;
   ownerSession: string;
   cwd: string;
@@ -27,8 +28,8 @@ export interface AdapterInvocation {
 }
 
 export interface ValidatedInvocation {
-  runtime: Runtime;
-  peerRuntime: Runtime;
+  runtime: OwnerRuntime;
+  peerRuntime: PeerRuntime;
   peerSession: string;
   ownerSession: string;
   cwd: string;

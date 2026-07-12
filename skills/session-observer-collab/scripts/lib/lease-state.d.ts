@@ -1,4 +1,6 @@
-export type Runtime = 'codex' | 'cursor';
+export type OwnerRuntime = 'codex' | 'cursor';
+export type PeerRuntime = 'claude-code' | OwnerRuntime;
+export type Runtime = OwnerRuntime;
 export type LeaseState =
   | 'armed'
   | 'waiting'
@@ -9,8 +11,8 @@ export type LeaseState =
 export interface Lease {
   schemaVersion: number;
   leaseId: string;
-  runtime: Runtime;
-  peerRuntime: Runtime;
+  runtime: OwnerRuntime;
+  peerRuntime: PeerRuntime;
   ownerSession: string;
   ownerCwd: string;
   peerSession: string;
@@ -22,6 +24,8 @@ export interface Lease {
   loopCount: number;
   loopCap: number;
   waitMs: number;
+  waitStartedAt: string | null;
+  waitDeadlineAt: string | null;
   leaseMs: number;
   armedAt: string;
   expiresAt: string;
@@ -57,7 +61,9 @@ export const MAX_LOOPS: number;
 
 export function stateRoot(env?: NodeJS.ProcessEnv): string;
 export function validateId(value: unknown, label?: string): string;
-export function validateRuntime(value: unknown): Runtime;
+export function validateOwnerRuntime(value: unknown): OwnerRuntime;
+export function validatePeerRuntime(value: unknown): PeerRuntime;
+export function validateRuntime(value: unknown): OwnerRuntime;
 export function validateAbsolutePath(value: unknown, label: string): string;
 export function leasePath(root: string, ownerSession: string): string;
 export function migrateLease(input: unknown): Lease;

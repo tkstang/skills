@@ -2,6 +2,7 @@
   "schemaVersion": 1,
   "leaseId": "sanitized-lease",
   "runtime": "codex",
+  "peerRuntime": "claude-code",
   "ownerSession": "owner-session",
   "ownerCwd": "/workspace/example",
   "peerSession": "peer-session",

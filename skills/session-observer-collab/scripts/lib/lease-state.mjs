@@ -14,7 +14,7 @@ import {
 import { homedir } from 'node:os';
 import { dirname, isAbsolute, join, resolve, sep } from 'node:path';
 
-export const LEASE_SCHEMA_VERSION = 3;
+export const LEASE_SCHEMA_VERSION = 4;
 export const LEASE_STATES = Object.freeze([
   'armed',
   'waiting',
@@ -29,7 +29,8 @@ export const MAX_CONTINUATIONS = 100;
 export const MAX_LOOPS = 1_000;
 
 const ID = /^[A-Za-z0-9](?:[A-Za-z0-9._:-]{0,127})$/;
-const RUNTIMES = new Set(['codex', 'cursor']);
+const OWNER_RUNTIMES = new Set(['codex', 'cursor']);
+const PEER_RUNTIMES = new Set(['claude-code', 'codex', 'cursor']);
 
 export class LeaseError extends Error {
   constructor(code, message) {
@@ -73,11 +74,26 @@ export function validateId(value, label = 'session') {
   return value;
 }
 
-export function validateRuntime(value) {
-  if (!RUNTIMES.has(value))
-    throw new LeaseError('invalid-runtime', 'runtime must be codex or cursor');
+export function validateOwnerRuntime(value) {
+  if (!OWNER_RUNTIMES.has(value))
+    throw new LeaseError(
+      'invalid-owner-runtime',
+      'owner runtime must be codex or cursor',
+    );
   return value;
 }
+
+export function validatePeerRuntime(value) {
+  if (!PEER_RUNTIMES.has(value))
+    throw new LeaseError(
+      'invalid-peer-runtime',
+      'peer runtime must be claude-code, codex, or cursor',
+    );
+  return value;
+}
+
+// Backward-compatible owner adapter validator.
+export const validateRuntime = validateOwnerRuntime;
 
 export function validateAbsolutePath(value, label) {
   if (typeof value !== 'string' || !isAbsolute(value) || value.includes('\0')) {
@@ -132,13 +148,32 @@ export function migrateLease(input) {
     delete input.triggerCap;
   }
   if (input.schemaVersion === 2) {
+    if (input.peerRuntime === undefined) {
+      throw new LeaseError(
+        'peer-runtime-rearm-required',
+        'legacy lease is missing peerRuntime; re-arm required',
+      );
+    }
     input = {
       ...input,
       schemaVersion: 3,
-      peerRuntime: input.peerRuntime ?? input.runtime,
       leaseMs:
         input.leaseMs ??
         Date.parse(input.expiresAt) - Date.parse(input.armedAt),
+    };
+  }
+  if (input.schemaVersion === 3) {
+    if (input.peerRuntime === undefined) {
+      throw new LeaseError(
+        'peer-runtime-rearm-required',
+        'legacy lease is missing peerRuntime; re-arm required',
+      );
+    }
+    input = {
+      ...input,
+      schemaVersion: 4,
+      waitStartedAt: input.waitStartedAt ?? null,
+      waitDeadlineAt: input.waitDeadlineAt ?? null,
     };
   }
   if (input.schemaVersion !== LEASE_SCHEMA_VERSION) {
@@ -153,8 +188,8 @@ export function migrateLease(input) {
 export function validateLease(raw) {
   const value = migrateLease(structuredClone(raw));
   validateId(value.leaseId, 'lease-id');
-  validateRuntime(value.runtime);
-  validateRuntime(value.peerRuntime);
+  validateOwnerRuntime(value.runtime);
+  validatePeerRuntime(value.peerRuntime);
   validateId(value.ownerSession, 'owner-session');
   validateId(value.peerSession, 'peer-session');
   validateAbsolutePath(value.ownerCwd, 'owner-cwd');
@@ -164,6 +199,16 @@ export function validateLease(raw) {
   value.armedAt = timestamp(value.armedAt, 'armedAt');
   value.expiresAt = timestamp(value.expiresAt, 'expiresAt');
   value.updatedAt = timestamp(value.updatedAt, 'updatedAt');
+  if ((value.waitStartedAt === null) !== (value.waitDeadlineAt === null)) {
+    throw new LeaseError(
+      'malformed-lease',
+      'wait timing fields must both be timestamps or both be null',
+    );
+  }
+  if (value.waitStartedAt !== null) {
+    value.waitStartedAt = timestamp(value.waitStartedAt, 'waitStartedAt');
+    value.waitDeadlineAt = timestamp(value.waitDeadlineAt, 'waitDeadlineAt');
+  }
   integer(value.waitMs, 'waitMs', 0, MAX_WAIT_MS);
   integer(value.leaseMs, 'leaseMs', 1, MAX_LEASE_MS);
   integer(value.peerCursor, 'peerCursor', 0, Number.MAX_SAFE_INTEGER);
@@ -176,6 +221,26 @@ export function validateLease(raw) {
     value.loopCount > value.loopCap
   ) {
     throw new LeaseError('malformed-lease', 'lease counters exceed their caps');
+  }
+  if (value.state !== 'waiting' && value.waitStartedAt !== null) {
+    throw new LeaseError(
+      'malformed-lease',
+      'only waiting leases may retain wait timing fields',
+    );
+  }
+  if (value.waitStartedAt !== null) {
+    const waitStarted = Date.parse(value.waitStartedAt);
+    const waitDeadline = Date.parse(value.waitDeadlineAt);
+    if (
+      waitDeadline < waitStarted ||
+      waitDeadline - waitStarted > value.waitMs ||
+      waitDeadline > Date.parse(value.expiresAt)
+    ) {
+      throw new LeaseError(
+        'malformed-lease',
+        'wait deadline must be bounded by waitMs and lease expiry',
+      );
+    }
   }
   if (
     Date.parse(value.expiresAt) < Date.parse(value.armedAt) ||
@@ -202,6 +267,8 @@ export function effectiveLease(lease, now = Date.now()) {
   ) {
     value.state = 'idle';
     value.diagnostic = 'lease-expired';
+    value.waitStartedAt = null;
+    value.waitDeadlineAt = null;
   }
   if (
     (value.state === 'armed' || value.state === 'waiting') &&
@@ -210,6 +277,20 @@ export function effectiveLease(lease, now = Date.now()) {
   ) {
     value.state = 'idle';
     value.diagnostic = 'cap-reached';
+    value.waitStartedAt = null;
+    value.waitDeadlineAt = null;
+  }
+  if (
+    value.state === 'waiting' &&
+    (value.waitDeadlineAt === null || now >= Date.parse(value.waitDeadlineAt))
+  ) {
+    value.state = 'idle';
+    value.diagnostic =
+      value.waitDeadlineAt === null
+        ? 'wait-timing-rearm-required'
+        : 'wait-timeout';
+    value.waitStartedAt = null;
+    value.waitDeadlineAt = null;
   }
   return value;
 }
@@ -355,6 +436,8 @@ export async function compareAndSwapTrigger(
       continuationCount: current.continuationCount + 1,
       loopCount: current.loopCount + loopIncrement,
       state: update.terminal === false ? 'armed' : 'triggered',
+      waitStartedAt: null,
+      waitDeadlineAt: null,
       diagnostic: update.diagnostic ?? null,
       updatedAt: new Date(now).toISOString(),
     });
@@ -398,6 +481,10 @@ export async function beginLeaseWait(
     const waiting = validateLease({
       ...effective,
       state: 'waiting',
+      waitStartedAt: new Date(now).toISOString(),
+      waitDeadlineAt: new Date(
+        Math.min(now + effective.waitMs, Date.parse(effective.expiresAt)),
+      ).toISOString(),
       updatedAt: new Date(now).toISOString(),
       diagnostic: null,
     });
@@ -432,6 +519,8 @@ export async function finishLeaseWait(
     const idle = validateLease({
       ...current,
       state: 'idle',
+      waitStartedAt: null,
+      waitDeadlineAt: null,
       diagnostic,
       updatedAt: new Date(now).toISOString(),
     });

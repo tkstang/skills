@@ -86,6 +86,18 @@ describe('collaboration lease controls', () => {
     expect((await stat(leasePath(root, 'owner-1'))).mode & 0o777).toBe(0o600);
   });
 
+  test('concurrent installs retain every distinct runtime registration', async () => {
+    const { root } = await fixture();
+    await Promise.all([
+      install(root, { runtime: 'codex', command: '/usr/bin/node' }),
+      install(root, { runtime: 'cursor', command: '/bin/sh' }),
+    ]);
+    expect((await status(root)).installation.runtimes).toEqual({
+      codex: { command: '/usr/bin/node' },
+      cursor: { command: '/bin/sh' },
+    });
+  });
+
   test('migrates v1 and fails closed for malformed or unsupported data', async () => {
     const { root } = await fixture();
     await mkdir(join(root, 'leases'), { recursive: true });
@@ -99,9 +111,20 @@ describe('collaboration lease controls', () => {
     await writeFile(leasePath(root, 'owner-session'), JSON.stringify(old));
     await chmod(leasePath(root, 'owner-session'), 0o600);
     expect(await readLease(root, 'owner-session')).toMatchObject({
-      schemaVersion: 3,
-      peerRuntime: 'codex',
+      schemaVersion: 4,
+      peerRuntime: 'claude-code',
       leaseMs: 60_000,
+    });
+    const missingPeerRuntime = { ...old };
+    delete missingPeerRuntime.peerRuntime;
+    await writeFile(
+      leasePath(root, 'owner-session'),
+      JSON.stringify(missingPeerRuntime),
+    );
+    await chmod(leasePath(root, 'owner-session'), 0o600);
+    await expect(readLease(root, 'owner-session')).rejects.toMatchObject({
+      code: 'peer-runtime-rearm-required',
+      message: 'legacy lease is missing peerRuntime; re-arm required',
     });
     await writeFile(leasePath(root, 'owner-session'), '{bad');
     await chmod(leasePath(root, 'owner-session'), 0o600);
@@ -343,6 +366,124 @@ describe('collaboration lease controls', () => {
     expect((await status(root, 'owner-1', 102_000)).lease).toBeNull();
   });
 
+  test('bounds waiting by its stored deadline and clears timing on terminal paths', async () => {
+    const { root, cwd, transcript } = await fixture();
+    const armed = await arm(
+      root,
+      { ...options(cwd, transcript), waitMs: '5000' },
+      1_000,
+    );
+    expect(armed.lease).toMatchObject({
+      waitStartedAt: null,
+      waitDeadlineAt: null,
+    });
+    const invocation = {
+      runtime: 'codex',
+      peerRuntime: 'cursor',
+      peerSession: 'peer-1',
+      ownerSession: 'owner-1',
+      cwd,
+      transcript,
+      now: 2_000,
+    };
+    const waiting = await beginAdapterWait(root, invocation);
+    expect(waiting.lease).toMatchObject({
+      state: 'waiting',
+      waitStartedAt: new Date(2_000).toISOString(),
+      waitDeadlineAt: new Date(7_000).toISOString(),
+    });
+    expect(
+      effectiveLease((await readLease(root, 'owner-1'))!, 7_000),
+    ).toMatchObject({
+      state: 'idle',
+      diagnostic: 'wait-timeout',
+      waitStartedAt: null,
+      waitDeadlineAt: null,
+    });
+
+    const expected = {
+      leaseId: waiting.lease!.leaseId,
+      peerCursor: 0,
+      continuationCount: 0,
+      loopCount: 0,
+    };
+    expect(
+      await finishAdapterWait(root, { ...invocation, now: 7_000 }, expected),
+    ).toMatchObject({
+      finished: true,
+      lease: { waitStartedAt: null, waitDeadlineAt: null },
+    });
+
+    await arm(root, options(cwd, transcript), 8_000);
+    const nextWait = await beginAdapterWait(root, {
+      ...invocation,
+      now: 9_000,
+    });
+    await disarm(root, 'owner-1', 10_000);
+    expect(await readLease(root, 'owner-1')).toMatchObject({
+      state: 'disarmed',
+      waitStartedAt: null,
+      waitDeadlineAt: null,
+    });
+
+    const rearmed = await arm(
+      root,
+      { ...options(cwd, transcript), cursor: '1' },
+      11_000,
+    );
+    expect(rearmed.lease).toMatchObject({
+      state: 'armed',
+      waitStartedAt: null,
+      waitDeadlineAt: null,
+    });
+    const triggerWait = await beginAdapterWait(root, {
+      ...invocation,
+      now: 12_000,
+    });
+    expect(
+      await compareAndSwapTrigger(
+        root,
+        'owner-1',
+        {
+          leaseId: triggerWait.lease!.leaseId,
+          peerCursor: 1,
+          continuationCount: 0,
+          loopCount: 0,
+        },
+        { peerCursor: 2 },
+        13_000,
+      ),
+    ).toMatchObject({
+      ok: true,
+      lease: { waitStartedAt: null, waitDeadlineAt: null },
+    });
+    expect(nextWait.waiting).toBe(true);
+
+    await arm(
+      root,
+      {
+        ...options(cwd, transcript),
+        session: 'owner-bounded',
+        waitMs: '5000',
+        leaseMs: '3000',
+      },
+      20_000,
+    );
+    expect(
+      await beginAdapterWait(root, {
+        ...invocation,
+        ownerSession: 'owner-bounded',
+        now: 21_000,
+      }),
+    ).toMatchObject({
+      waiting: true,
+      lease: {
+        waitStartedAt: new Date(21_000).toISOString(),
+        waitDeadlineAt: new Date(23_000).toISOString(),
+      },
+    });
+  });
+
   test('CLI run is JSON-ready and rejects unsafe session paths', async () => {
     const { home, cwd, transcript } = await fixture();
     const result = await run(
@@ -382,7 +523,7 @@ describe('collaboration lease controls', () => {
         ],
         { HOME: home },
       ),
-    ).rejects.toMatchObject({ code: 'invalid-runtime' });
+    ).rejects.toMatchObject({ code: 'invalid-peer-runtime' });
     await expect(
       run(['status', '--session', '../escape'], { HOME: home }),
     ).rejects.toMatchObject({ code: 'invalid-owner-session' });
@@ -566,6 +707,65 @@ describe('collaboration lease controls', () => {
     expect(
       await inspectAdapterLease(root, { ...invocation, peerSession: 'peer-2' }),
     ).toMatchObject({ eligible: false, reason: 'identity-mismatch' });
+  });
+
+  test.each([
+    ['codex', 'claude-code'],
+    ['codex', 'codex'],
+    ['codex', 'cursor'],
+    ['cursor', 'claude-code'],
+    ['cursor', 'codex'],
+    ['cursor', 'cursor'],
+  ])(
+    'pins owner runtime %s to observable peer runtime %s and exact peer session',
+    async (runtime, peerRuntime) => {
+      const { root, cwd, transcript } = await fixture();
+      await arm(
+        root,
+        { ...options(cwd, transcript), runtime, peerRuntime },
+        1_000,
+      );
+      const invocation = {
+        runtime,
+        peerRuntime,
+        peerSession: 'peer-1',
+        ownerSession: 'owner-1',
+        cwd,
+        transcript,
+        now: 2_000,
+      };
+      expect(await inspectAdapterLease(root, invocation)).toMatchObject({
+        eligible: true,
+      });
+      const otherPeerRuntime =
+        peerRuntime === 'claude-code' ? 'codex' : 'claude-code';
+      expect(
+        await inspectAdapterLease(root, {
+          ...invocation,
+          peerRuntime: otherPeerRuntime,
+        }),
+      ).toMatchObject({ eligible: false, reason: 'identity-mismatch' });
+      expect(
+        await inspectAdapterLease(root, {
+          ...invocation,
+          peerSession: 'other-peer',
+        }),
+      ).toMatchObject({ eligible: false, reason: 'identity-mismatch' });
+    },
+  );
+
+  test('rejects claude-code as an owner adapter runtime', async () => {
+    const { root, cwd, transcript } = await fixture();
+    await expect(
+      arm(root, { ...options(cwd, transcript), runtime: 'claude-code' }, 1_000),
+    ).rejects.toMatchObject({ code: 'invalid-owner-runtime' });
+    expect(() =>
+      defineRuntimeAdapter({
+        runtime: 'claude-code',
+        identify() {},
+        emit() {},
+      }),
+    ).toThrow(expect.objectContaining({ code: 'invalid-owner-runtime' }));
   });
 
   test('uses the exact collaboration state override ahead of XDG and HOME', async () => {
