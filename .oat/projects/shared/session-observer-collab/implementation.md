@@ -89,6 +89,7 @@ oat_generated: false
 - HiLL checkpoint is confirmed for final phase `p06`; auto-review at that checkpoint is enabled.
 - p02 initially blocked because p02-t01's CLI verification exercised generated output owned by p02-t05. The plan now verifies canonical source in p02-t01 through p02-t04 and defers generated-bundle CLI integration to p02-t05; no task scope or product behavior changed.
 - p02-t05's generated boundary includes the Export Session Transcript runtime bundle because p01 changed shared canonical `src/transcript/core/runtimes.ts`; the canonical build owns both generated copies.
+- The shared runtime output also requires an `export-session-transcript` skill version bump under the repository's changed-skill invariant; p02 terminal quality fixes own that metadata-only adjustment.
 
 ## Orchestration Runs
 
