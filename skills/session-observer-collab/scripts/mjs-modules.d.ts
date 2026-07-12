@@ -39,6 +39,7 @@ declare module '*skills/session-observer-collab/scripts/collab-control.mjs' {
   }
   export interface ArmOptions {
     runtime: string;
+    peerRuntime: string;
     session: string;
     peerSession: string;
     cwd: string;
@@ -51,6 +52,25 @@ declare module '*skills/session-observer-collab/scripts/collab-control.mjs' {
   }
   export interface Lease {
     state: string;
+    schemaVersion: number;
+    leaseId: string;
+    runtime: string;
+    peerRuntime: string;
+    ownerSession: string;
+    ownerCwd: string;
+    peerSession: string;
+    peerTranscript: string;
+    peerCursor: number;
+    continuationCount: number;
+    continuationCap: number;
+    loopCount: number;
+    loopCap: number;
+    waitMs: number;
+    leaseMs: number;
+    armedAt: string;
+    expiresAt: string;
+    updatedAt: string;
+    diagnostic: string | null;
     [key: string]: unknown;
   }
   export const CONTROL_SCHEMA_VERSION: number;
@@ -93,6 +113,7 @@ declare module '*skills/session-observer-collab/scripts/lib/lease-state.mjs' {
     schemaVersion: number;
     leaseId: string;
     runtime: string;
+    peerRuntime: string;
     ownerSession: string;
     ownerCwd: string;
     peerSession: string;
@@ -103,6 +124,7 @@ declare module '*skills/session-observer-collab/scripts/lib/lease-state.mjs' {
     loopCount: number;
     loopCap: number;
     waitMs: number;
+    leaseMs: number;
     armedAt: string;
     expiresAt: string;
     updatedAt: string;
@@ -130,10 +152,15 @@ declare module '*skills/session-observer-collab/scripts/lib/lease-state.mjs' {
     options?: { persistMigration?: boolean },
   ): Promise<Lease | null>;
   export function writeLease(root: string, lease: Lease): Promise<Lease>;
+  export function withLeaseLock<T>(
+    file: string,
+    fn: () => Promise<T>,
+  ): Promise<T>;
   export function compareAndSwapTrigger(
     root: string,
     ownerSession: string,
     expected: {
+      leaseId: string;
       peerCursor: number;
       continuationCount: number;
       loopCount: number;
@@ -151,11 +178,28 @@ declare module '*skills/session-observer-collab/scripts/lib/lease-state.mjs' {
   export function beginLeaseWait(
     root: string,
     ownerSession: string,
-    identity: Pick<Lease, 'runtime' | 'ownerCwd' | 'peerTranscript'>,
+    identity: Pick<
+      Lease,
+      'runtime' | 'peerRuntime' | 'peerSession' | 'ownerCwd' | 'peerTranscript'
+    >,
     now?: number,
   ): Promise<
     | { ok: true; changed: boolean; lease: Lease }
     | { ok: false; reason: string; lease?: Lease }
+  >;
+  export function finishLeaseWait(
+    root: string,
+    ownerSession: string,
+    expected: {
+      leaseId: string;
+      peerCursor: number;
+      continuationCount: number;
+      loopCount: number;
+    },
+    diagnostic?: string,
+    now?: number,
+  ): Promise<
+    { ok: true; lease: Lease } | { ok: false; reason: string; lease?: Lease }
   >;
   export function resourceExists(path: string): Promise<boolean>;
   export function pruneLeases(
@@ -167,6 +211,11 @@ declare module '*skills/session-observer-collab/scripts/lib/lease-state.mjs' {
 declare module '*skills/session-observer-collab/scripts/lib/runtime-adapter.mjs' {
   export interface Lease {
     state: string;
+    leaseId: string;
+    peerCursor: number;
+    continuationCount: number;
+    loopCount: number;
+    diagnostic: string | null;
     [key: string]: unknown;
   }
   export interface RuntimeAdapterInput {
@@ -180,6 +229,8 @@ declare module '*skills/session-observer-collab/scripts/lib/runtime-adapter.mjs'
   }
   export interface AdapterInvocation {
     runtime: string;
+    peerRuntime: string;
+    peerSession: string;
     ownerSession: string;
     cwd: string;
     transcript: string;
@@ -205,10 +256,22 @@ declare module '*skills/session-observer-collab/scripts/lib/runtime-adapter.mjs'
     reason: string;
     lease: Lease | null;
   }>;
+  export function finishAdapterWait(
+    root: string,
+    invocation: AdapterInvocation,
+    expected: {
+      leaseId: string;
+      peerCursor: number;
+      continuationCount: number;
+      loopCount: number;
+    },
+    diagnostic?: string,
+  ): Promise<{ finished: boolean; reason: string; lease: Lease | null }>;
   export function claimAdapterTrigger(
     root: string,
     invocation: AdapterInvocation,
     expected: {
+      leaseId: string;
       peerCursor: number;
       continuationCount: number;
       loopCount: number;

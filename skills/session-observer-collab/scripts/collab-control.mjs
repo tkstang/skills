@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { randomUUID } from 'node:crypto';
 import { chmod, mkdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -11,13 +12,14 @@ import {
   MAX_LOOPS,
   atomicWriteJson,
   effectiveLease,
+  leasePath,
   pruneLeases,
   readLease,
   stateRoot,
   validateAbsolutePath,
   validateId,
   validateRuntime,
-  writeLease,
+  withLeaseLock,
 } from './lib/lease-state.mjs';
 
 export const CONTROL_SCHEMA_VERSION = 1;
@@ -87,6 +89,7 @@ export async function install(root, { runtime, command }) {
 
 export async function arm(root, options, now = Date.now()) {
   const runtime = validateRuntime(options.runtime);
+  const peerRuntime = validateRuntime(options.peerRuntime);
   const ownerSession = validateId(options.session, 'owner-session');
   const peerSession = validateId(options.peerSession, 'peer-session');
   const ownerCwd = validateAbsolutePath(options.cwd, 'owner-cwd');
@@ -124,61 +127,85 @@ export async function arm(root, options, now = Date.now()) {
     0,
     Number.MAX_SAFE_INTEGER,
   );
-  const existing = await readLease(root, ownerSession);
   const identity = {
     runtime,
+    peerRuntime,
     ownerSession,
     ownerCwd,
     peerSession,
     peerTranscript,
   };
-  if (
-    existing &&
-    ['armed', 'waiting'].includes(effectiveLease(existing, now).state) &&
-    Object.entries(identity).every(([key, value]) => existing[key] === value)
-  ) {
-    return { changed: false, lease: effectiveLease(existing, now) };
-  }
-  const stamp = new Date(now).toISOString();
-  const lease = {
-    schemaVersion: LEASE_SCHEMA_VERSION,
-    leaseId: existing?.leaseId ?? `${ownerSession}-${now}`,
-    ...identity,
-    state: 'armed',
-    peerCursor: cursor,
-    continuationCount: 0,
-    continuationCap,
-    loopCount: 0,
-    loopCap,
-    waitMs,
-    armedAt: stamp,
-    expiresAt: new Date(now + leaseMs).toISOString(),
-    updatedAt: stamp,
-    diagnostic: null,
-  };
-  await writeLease(root, lease);
-  return { changed: true, lease };
+  const file = leasePath(root, ownerSession);
+  return withLeaseLock(file, async () => {
+    const existing = await readLease(root, ownerSession, {
+      persistMigration: false,
+    });
+    const request = {
+      ...identity,
+      peerCursor: cursor,
+      continuationCap,
+      loopCap,
+      waitMs,
+      leaseMs,
+    };
+    if (
+      existing &&
+      ['armed', 'waiting'].includes(effectiveLease(existing, now).state) &&
+      Object.entries(request).every(([key, value]) => existing[key] === value)
+    ) {
+      return { changed: false, lease: effectiveLease(existing, now) };
+    }
+    const stamp = new Date(now).toISOString();
+    const lease = {
+      schemaVersion: LEASE_SCHEMA_VERSION,
+      leaseId: randomUUID(),
+      ...identity,
+      state: 'armed',
+      peerCursor: cursor,
+      continuationCount: 0,
+      continuationCap,
+      loopCount: 0,
+      loopCap,
+      waitMs,
+      leaseMs,
+      armedAt: stamp,
+      expiresAt: new Date(now + leaseMs).toISOString(),
+      updatedAt: stamp,
+      diagnostic: null,
+    };
+    await atomicWriteJson(file, lease);
+    return { changed: true, lease };
+  });
 }
 
 export async function disarm(root, ownerSession, now = Date.now()) {
-  const existing = await readLease(
-    root,
-    validateId(ownerSession, 'owner-session'),
-  );
-  if (!existing) return { changed: false, lease: null };
-  if (existing.state === 'disarmed') return { changed: false, lease: existing };
-  const lease = {
-    ...existing,
-    state: 'disarmed',
-    updatedAt: new Date(now).toISOString(),
-    diagnostic: 'user-disarmed',
-  };
-  await writeLease(root, lease);
-  return { changed: true, lease };
+  const session = validateId(ownerSession, 'owner-session');
+  const file = leasePath(root, session);
+  return withLeaseLock(file, async () => {
+    const existing = await readLease(root, session, {
+      persistMigration: false,
+    });
+    if (!existing) return { changed: false, lease: null };
+    if (existing.state === 'disarmed')
+      return { changed: false, lease: existing };
+    const lease = {
+      ...existing,
+      state: 'disarmed',
+      updatedAt: new Date(now).toISOString(),
+      diagnostic: 'user-disarmed',
+    };
+    await atomicWriteJson(file, lease);
+    return { changed: true, lease };
+  });
 }
 
 export async function status(root, ownerSession, now = Date.now()) {
   const installation = await readInstallation(root);
+  if (ownerSession)
+    await pruneLeases(root, {
+      now,
+      ownerSession: validateId(ownerSession, 'owner-session'),
+    });
   const lease = ownerSession
     ? await readLease(root, validateId(ownerSession, 'owner-session'))
     : null;
@@ -190,8 +217,12 @@ export async function run(argv, env = process.env, now = Date.now()) {
   const root = stateRoot(env);
   await mkdir(root, { recursive: true, mode: 0o700 });
   await chmod(root, 0o700);
-  if (command === 'install')
-    return { ok: true, command, ...(await install(root, options)) };
+  if (command === 'install') {
+    const result = await install(root, options);
+    if (options.session)
+      await pruneLeases(root, { now, ownerSession: options.session });
+    return { ok: true, command, ...result };
+  }
   if (command === 'arm')
     return { ok: true, command, ...(await arm(root, options, now)) };
   if (command === 'disarm')

@@ -18,6 +18,8 @@ export interface RuntimeAdapter extends RuntimeAdapterInput {
 
 export interface AdapterInvocation {
   runtime: Runtime | string;
+  peerRuntime: Runtime | string;
+  peerSession: string;
   ownerSession: string;
   cwd: string;
   transcript: string;
@@ -26,6 +28,8 @@ export interface AdapterInvocation {
 
 export interface ValidatedInvocation {
   runtime: Runtime;
+  peerRuntime: Runtime;
+  peerSession: string;
   ownerSession: string;
   cwd: string;
   transcript: string;
@@ -49,6 +53,16 @@ export function beginAdapterWait(
 ): Promise<{
   waiting: boolean;
   changed: boolean;
+  reason: string;
+  lease: Lease | null;
+}>;
+export function finishAdapterWait(
+  root: string,
+  invocation: AdapterInvocation,
+  expected: LeaseCounters,
+  diagnostic?: string,
+): Promise<{
+  finished: boolean;
   reason: string;
   lease: Lease | null;
 }>;

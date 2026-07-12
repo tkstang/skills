@@ -7,6 +7,7 @@ export interface Installation {
 
 export interface ArmOptions {
   runtime: Runtime | string;
+  peerRuntime: Runtime | string;
   session: string;
   peerSession: string;
   cwd: string;

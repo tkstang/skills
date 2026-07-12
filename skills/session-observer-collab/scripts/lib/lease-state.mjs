@@ -14,7 +14,7 @@ import {
 import { homedir } from 'node:os';
 import { dirname, isAbsolute, join, resolve, sep } from 'node:path';
 
-export const LEASE_SCHEMA_VERSION = 2;
+export const LEASE_SCHEMA_VERSION = 3;
 export const LEASE_STATES = Object.freeze([
   'armed',
   'waiting',
@@ -40,6 +40,14 @@ export class LeaseError extends Error {
 }
 
 export function stateRoot(env = process.env) {
+  if (env.SESSION_OBSERVER_STATE_DIR) {
+    if (!isAbsolute(env.SESSION_OBSERVER_STATE_DIR))
+      throw new LeaseError(
+        'invalid-state-root',
+        'SESSION_OBSERVER_STATE_DIR must be absolute',
+      );
+    return resolve(env.SESSION_OBSERVER_STATE_DIR);
+  }
   const base =
     env.XDG_STATE_HOME || join(env.HOME || homedir(), '.local', 'state');
   if (!isAbsolute(base))
@@ -123,6 +131,16 @@ export function migrateLease(input) {
     delete input.triggerCount;
     delete input.triggerCap;
   }
+  if (input.schemaVersion === 2) {
+    input = {
+      ...input,
+      schemaVersion: 3,
+      peerRuntime: input.peerRuntime ?? input.runtime,
+      leaseMs:
+        input.leaseMs ??
+        Date.parse(input.expiresAt) - Date.parse(input.armedAt),
+    };
+  }
   if (input.schemaVersion !== LEASE_SCHEMA_VERSION) {
     throw new LeaseError(
       'unsupported-schema',
@@ -136,6 +154,7 @@ export function validateLease(raw) {
   const value = migrateLease(structuredClone(raw));
   validateId(value.leaseId, 'lease-id');
   validateRuntime(value.runtime);
+  validateRuntime(value.peerRuntime);
   validateId(value.ownerSession, 'owner-session');
   validateId(value.peerSession, 'peer-session');
   validateAbsolutePath(value.ownerCwd, 'owner-cwd');
@@ -146,6 +165,7 @@ export function validateLease(raw) {
   value.expiresAt = timestamp(value.expiresAt, 'expiresAt');
   value.updatedAt = timestamp(value.updatedAt, 'updatedAt');
   integer(value.waitMs, 'waitMs', 0, MAX_WAIT_MS);
+  integer(value.leaseMs, 'leaseMs', 1, MAX_LEASE_MS);
   integer(value.peerCursor, 'peerCursor', 0, Number.MAX_SAFE_INTEGER);
   integer(value.continuationCount, 'continuationCount', 0, MAX_CONTINUATIONS);
   integer(value.continuationCap, 'continuationCap', 1, MAX_CONTINUATIONS);
@@ -159,11 +179,11 @@ export function validateLease(raw) {
   }
   if (
     Date.parse(value.expiresAt) < Date.parse(value.armedAt) ||
-    Date.parse(value.expiresAt) - Date.parse(value.armedAt) > MAX_LEASE_MS
+    Date.parse(value.expiresAt) - Date.parse(value.armedAt) !== value.leaseMs
   ) {
     throw new LeaseError(
       'malformed-lease',
-      'lease expiry is invalid or exceeds the maximum',
+      'lease expiry must match its finite lease duration',
     );
   }
   if (value.diagnostic !== null && typeof value.diagnostic !== 'string')
@@ -241,25 +261,45 @@ export async function readLease(
     );
   }
   const migrated = validateLease(raw);
-  if (persistMigration && raw.schemaVersion !== migrated.schemaVersion)
-    await atomicWriteJson(file, migrated);
+  if (persistMigration && raw.schemaVersion !== migrated.schemaVersion) {
+    return withLeaseLock(file, async () => {
+      const latest = await readLease(root, ownerSession, {
+        persistMigration: false,
+      });
+      if (latest) await atomicWriteJson(file, latest);
+      return latest;
+    });
+  }
   return migrated;
 }
 
 export async function writeLease(root, lease) {
   const value = validateLease(lease);
-  await atomicWriteJson(leasePath(root, value.ownerSession), value);
-  return value;
+  const file = leasePath(root, value.ownerSession);
+  return withLeaseLock(file, async () => {
+    await atomicWriteJson(file, value);
+    return value;
+  });
 }
 
-async function withLock(file, fn) {
+export async function withLeaseLock(file, fn) {
   const lock = `${file}.lock`;
   let handle;
-  try {
-    handle = await open(lock, 'wx', 0o600);
-  } catch (error) {
-    if (error?.code === 'EEXIST') return { ok: false, reason: 'conflict' };
-    throw error;
+  await mkdir(dirname(file), { recursive: true, mode: 0o700 });
+  await chmod(dirname(file), 0o700);
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      handle = await open(lock, 'wx', 0o600);
+      break;
+    } catch (error) {
+      if (error?.code !== 'EEXIST') throw error;
+      if (attempt >= 199)
+        throw new LeaseError(
+          'lease-lock-timeout',
+          'lease mutation lock timed out',
+        );
+      await new Promise((resolveWait) => setTimeout(resolveWait, 5));
+    }
   }
   try {
     return await fn();
@@ -277,12 +317,13 @@ export async function compareAndSwapTrigger(
   now = Date.now(),
 ) {
   const file = leasePath(root, ownerSession);
-  return withLock(file, async () => {
+  return withLeaseLock(file, async () => {
     const current = await readLease(root, ownerSession, {
       persistMigration: false,
     });
     if (!current) return { ok: false, reason: 'missing' };
     if (
+      current.leaseId !== expected.leaseId ||
       current.peerCursor !== expected.peerCursor ||
       current.continuationCount !== expected.continuationCount ||
       current.loopCount !== expected.loopCount
@@ -302,11 +343,17 @@ export async function compareAndSwapTrigger(
       current.peerCursor,
       Number.MAX_SAFE_INTEGER,
     );
+    const loopIncrement = integer(
+      update.loopIncrement ?? 1,
+      'loopIncrement',
+      0,
+      current.loopCap - current.loopCount,
+    );
     const next = validateLease({
       ...current,
       peerCursor: nextCursor,
       continuationCount: current.continuationCount + 1,
-      loopCount: current.loopCount + (update.loopIncrement ?? 1),
+      loopCount: current.loopCount + loopIncrement,
       state: update.terminal === false ? 'armed' : 'triggered',
       diagnostic: update.diagnostic ?? null,
       updatedAt: new Date(now).toISOString(),
@@ -323,13 +370,15 @@ export async function beginLeaseWait(
   now = Date.now(),
 ) {
   const file = leasePath(root, ownerSession);
-  return withLock(file, async () => {
+  return withLeaseLock(file, async () => {
     const current = await readLease(root, ownerSession, {
       persistMigration: false,
     });
     if (!current) return { ok: false, reason: 'missing' };
     if (
       current.runtime !== identity.runtime ||
+      current.peerRuntime !== identity.peerRuntime ||
+      current.peerSession !== identity.peerSession ||
       current.ownerCwd !== identity.ownerCwd ||
       current.peerTranscript !== identity.peerTranscript
     ) {
@@ -357,6 +406,40 @@ export async function beginLeaseWait(
   });
 }
 
+export async function finishLeaseWait(
+  root,
+  ownerSession,
+  expected,
+  diagnostic = 'wait-timeout',
+  now = Date.now(),
+) {
+  const file = leasePath(root, ownerSession);
+  return withLeaseLock(file, async () => {
+    const current = await readLease(root, ownerSession, {
+      persistMigration: false,
+    });
+    if (!current) return { ok: false, reason: 'missing' };
+    if (
+      current.leaseId !== expected.leaseId ||
+      current.peerCursor !== expected.peerCursor ||
+      current.continuationCount !== expected.continuationCount ||
+      current.loopCount !== expected.loopCount
+    ) {
+      return { ok: false, reason: 'stale', lease: current };
+    }
+    if (current.state !== 'waiting')
+      return { ok: false, reason: current.state, lease: current };
+    const idle = validateLease({
+      ...current,
+      state: 'idle',
+      diagnostic,
+      updatedAt: new Date(now).toISOString(),
+    });
+    await atomicWriteJson(file, idle);
+    return { ok: true, lease: idle };
+  });
+}
+
 export async function resourceExists(path) {
   try {
     await access(path, constants.F_OK);
@@ -370,6 +453,9 @@ export async function pruneLeases(
   root,
   { now = Date.now(), ownerSession } = {},
 ) {
+  const targetedSession = ownerSession
+    ? validateId(ownerSession, 'owner-session')
+    : undefined;
   const leasesDir = join(resolve(root), 'leases');
   let names;
   try {
@@ -382,23 +468,31 @@ export async function pruneLeases(
   for (const name of names) {
     if (!name.endsWith('.json')) continue;
     const session = name.slice(0, -5);
-    if (!ID.test(session) || (ownerSession && session !== ownerSession))
+    if (!ID.test(session) || (targetedSession && session !== targetedSession))
       continue;
-    let lease;
-    try {
-      lease = await readLease(root, session);
-    } catch {
-      continue;
-    }
-    if (!lease || lease.ownerSession !== session) continue;
-    const expired = now >= Date.parse(lease.expiresAt);
-    const missing =
-      !(await resourceExists(lease.ownerCwd)) ||
-      !(await resourceExists(lease.peerTranscript));
-    if (expired || missing) {
-      await rm(leasePath(root, session));
-      removed.push(session);
-    }
+    const file = leasePath(root, session);
+    await withLeaseLock(file, async () => {
+      let lease;
+      try {
+        lease = await readLease(root, session, { persistMigration: false });
+      } catch {
+        return;
+      }
+      if (!lease || lease.ownerSession !== session) return;
+      const expired = now >= Date.parse(lease.expiresAt);
+      const capped =
+        lease.continuationCount >= lease.continuationCap ||
+        lease.loopCount >= lease.loopCap;
+      const targetedDisarmed =
+        Boolean(targetedSession) && lease.state === 'disarmed';
+      const missing =
+        !(await resourceExists(lease.ownerCwd)) ||
+        !(await resourceExists(lease.peerTranscript));
+      if (expired || capped || targetedDisarmed || missing) {
+        await rm(file);
+        removed.push(session);
+      }
+    });
   }
   return removed;
 }

@@ -10,6 +10,7 @@ export interface Lease {
   schemaVersion: number;
   leaseId: string;
   runtime: Runtime;
+  peerRuntime: Runtime;
   ownerSession: string;
   ownerCwd: string;
   peerSession: string;
@@ -21,6 +22,7 @@ export interface Lease {
   loopCount: number;
   loopCap: number;
   waitMs: number;
+  leaseMs: number;
   armedAt: string;
   expiresAt: string;
   updatedAt: string;
@@ -28,6 +30,7 @@ export interface Lease {
 }
 
 export interface LeaseCounters {
+  leaseId: string;
   peerCursor: number;
   continuationCount: number;
   loopCount: number;
@@ -67,6 +70,10 @@ export function readLease(
   options?: { persistMigration?: boolean },
 ): Promise<Lease | null>;
 export function writeLease(root: string, lease: Lease): Promise<Lease>;
+export function withLeaseLock<T>(
+  file: string,
+  fn: () => Promise<T>,
+): Promise<T>;
 export function compareAndSwapTrigger(
   root: string,
   ownerSession: string,
@@ -74,19 +81,28 @@ export function compareAndSwapTrigger(
   update: LeaseUpdate,
   now?: number,
 ): Promise<
-  | { ok: true; lease: Lease }
-  | { ok: false; reason: string; lease?: Lease }
-  | { ok: false; reason: 'conflict' }
+  { ok: true; lease: Lease } | { ok: false; reason: string; lease?: Lease }
 >;
 export function beginLeaseWait(
   root: string,
   ownerSession: string,
-  identity: Pick<Lease, 'runtime' | 'ownerCwd' | 'peerTranscript'>,
+  identity: Pick<
+    Lease,
+    'runtime' | 'peerRuntime' | 'peerSession' | 'ownerCwd' | 'peerTranscript'
+  >,
   now?: number,
 ): Promise<
   | { ok: true; changed: boolean; lease: Lease }
   | { ok: false; reason: string; lease?: Lease }
-  | { ok: false; reason: 'conflict' }
+>;
+export function finishLeaseWait(
+  root: string,
+  ownerSession: string,
+  expected: LeaseCounters,
+  diagnostic?: string,
+  now?: number,
+): Promise<
+  { ok: true; lease: Lease } | { ok: false; reason: string; lease?: Lease }
 >;
 export function resourceExists(path: string): Promise<boolean>;
 export function pruneLeases(

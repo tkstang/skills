@@ -2,13 +2,14 @@ import {
   beginLeaseWait,
   compareAndSwapTrigger,
   effectiveLease,
+  finishLeaseWait,
   readLease,
   validateAbsolutePath,
   validateId,
   validateRuntime,
 } from './lease-state.mjs';
 
-export const RUNTIME_ADAPTER_VERSION = 1;
+export const RUNTIME_ADAPTER_VERSION = 2;
 
 export function defineRuntimeAdapter(adapter) {
   if (!adapter || typeof adapter !== 'object')
@@ -25,6 +26,8 @@ export function validateAdapterInvocation(input) {
     throw new TypeError('invocation must be an object');
   return Object.freeze({
     runtime: validateRuntime(input.runtime),
+    peerRuntime: validateRuntime(input.peerRuntime),
+    peerSession: validateId(input.peerSession, 'peer-session'),
     ownerSession: validateId(input.ownerSession, 'owner-session'),
     cwd: validateAbsolutePath(input.cwd, 'cwd'),
     transcript: validateAbsolutePath(input.transcript, 'transcript'),
@@ -38,6 +41,8 @@ export async function inspectAdapterLease(root, invocation) {
   if (!lease) return { eligible: false, reason: 'missing', lease: null };
   if (
     lease.runtime !== input.runtime ||
+    lease.peerRuntime !== input.peerRuntime ||
+    lease.peerSession !== input.peerSession ||
     lease.ownerCwd !== input.cwd ||
     lease.peerTranscript !== input.transcript
   ) {
@@ -58,6 +63,8 @@ export async function beginAdapterWait(root, invocation) {
     input.ownerSession,
     {
       runtime: input.runtime,
+      peerRuntime: input.peerRuntime,
+      peerSession: input.peerSession,
       ownerCwd: input.cwd,
       peerTranscript: input.transcript,
     },
@@ -67,6 +74,34 @@ export async function beginAdapterWait(root, invocation) {
     waiting: result.ok,
     changed: result.ok && result.changed,
     reason: result.ok ? 'waiting' : result.reason,
+    lease: result.lease ?? null,
+  };
+}
+
+export async function finishAdapterWait(
+  root,
+  invocation,
+  expected,
+  diagnostic = 'wait-timeout',
+) {
+  const input = validateAdapterInvocation(invocation);
+  const inspected = await inspectAdapterLease(root, input);
+  if (!inspected.eligible)
+    return {
+      finished: false,
+      reason: inspected.reason,
+      lease: inspected.lease,
+    };
+  const result = await finishLeaseWait(
+    root,
+    input.ownerSession,
+    expected,
+    diagnostic,
+    input.now,
+  );
+  return {
+    finished: result.ok,
+    reason: result.ok ? diagnostic : result.reason,
     lease: result.lease ?? null,
   };
 }
