@@ -112,6 +112,7 @@ oat_generated: false
 - The user explicitly authorized one additional p03 review-fix iteration; retry limit is 3 for this run.
 - That iteration resolved all four prior findings; the final re-review found one new Medium ambient-declaration issue and exhausted the 3/3 limit.
 - The user authorized a fourth fix-only iteration for that Medium finding and directed implementation to proceed to the next phase without another p03 review.
+- The declared p04/p05 parallel group degraded to sequential execution because the required branch names `session-observer-collab/p04` and `session-observer-collab/p05` conflict with the existing orchestration branch ref `session-observer-collab`. Both strict `oat-worktree-bootstrap-auto` attempts failed before creating branches or worktrees.
 
 ## Orchestration Runs
 
