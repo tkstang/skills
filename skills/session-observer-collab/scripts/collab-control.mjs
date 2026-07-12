@@ -144,7 +144,7 @@ export async function arm(root, options, now = Date.now()) {
     schemaVersion: LEASE_SCHEMA_VERSION,
     leaseId: existing?.leaseId ?? `${ownerSession}-${now}`,
     ...identity,
-    state: waitMs > 0 ? 'waiting' : 'armed',
+    state: 'armed',
     peerCursor: cursor,
     continuationCount: 0,
     continuationCap,

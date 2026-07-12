@@ -148,6 +148,15 @@ declare module '*skills/session-observer-collab/scripts/lib/lease-state.mjs' {
   ): Promise<
     { ok: true; lease: Lease } | { ok: false; reason: string; lease?: Lease }
   >;
+  export function beginLeaseWait(
+    root: string,
+    ownerSession: string,
+    identity: Pick<Lease, 'runtime' | 'ownerCwd' | 'peerTranscript'>,
+    now?: number,
+  ): Promise<
+    | { ok: true; changed: boolean; lease: Lease }
+    | { ok: false; reason: string; lease?: Lease }
+  >;
   export function resourceExists(path: string): Promise<boolean>;
   export function pruneLeases(
     root: string,
@@ -187,6 +196,15 @@ declare module '*skills/session-observer-collab/scripts/lib/runtime-adapter.mjs'
     root: string,
     invocation: AdapterInvocation,
   ): Promise<{ eligible: boolean; reason: string; lease: Lease | null }>;
+  export function beginAdapterWait(
+    root: string,
+    invocation: AdapterInvocation,
+  ): Promise<{
+    waiting: boolean;
+    changed: boolean;
+    reason: string;
+    lease: Lease | null;
+  }>;
   export function claimAdapterTrigger(
     root: string,
     invocation: AdapterInvocation,

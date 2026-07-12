@@ -1,4 +1,5 @@
 import {
+  beginLeaseWait,
   compareAndSwapTrigger,
   effectiveLease,
   readLease,
@@ -47,6 +48,26 @@ export async function inspectAdapterLease(root, invocation) {
     eligible: ['armed', 'waiting'].includes(effective.state),
     reason: effective.diagnostic || effective.state,
     lease: effective,
+  };
+}
+
+export async function beginAdapterWait(root, invocation) {
+  const input = validateAdapterInvocation(invocation);
+  const result = await beginLeaseWait(
+    root,
+    input.ownerSession,
+    {
+      runtime: input.runtime,
+      ownerCwd: input.cwd,
+      peerTranscript: input.transcript,
+    },
+    input.now,
+  );
+  return {
+    waiting: result.ok,
+    changed: result.ok && result.changed,
+    reason: result.ok ? 'waiting' : result.reason,
+    lease: result.lease ?? null,
   };
 }
 

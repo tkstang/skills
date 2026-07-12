@@ -43,6 +43,15 @@ export function inspectAdapterLease(
   root: string,
   invocation: AdapterInvocation,
 ): Promise<{ eligible: boolean; reason: string; lease: Lease | null }>;
+export function beginAdapterWait(
+  root: string,
+  invocation: AdapterInvocation,
+): Promise<{
+  waiting: boolean;
+  changed: boolean;
+  reason: string;
+  lease: Lease | null;
+}>;
 export function claimAdapterTrigger(
   root: string,
   invocation: AdapterInvocation,

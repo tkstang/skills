@@ -28,6 +28,7 @@ import {
   stateRoot,
 } from '../../skills/session-observer-collab/scripts/lib/lease-state.mjs';
 import {
+  beginAdapterWait,
   claimAdapterTrigger,
   defineRuntimeAdapter,
   inspectAdapterLease,
@@ -114,7 +115,11 @@ describe('collaboration lease controls', () => {
   test('reports truthful states and disarms idempotently', async () => {
     const { root, cwd, transcript } = await fixture();
     const armed = await arm(root, options(cwd, transcript), 1_000);
-    expect(armed.lease.state).toBe('waiting');
+    expect(armed.lease.state).toBe('armed');
+    expect(
+      effectiveLease((await readLease(root, 'owner-1'))!, 2_000).state,
+    ).toBe('armed');
+    expect((await status(root, 'owner-1', 2_000)).lease?.state).toBe('armed');
     expect((await status(root, 'owner-1', 62_000)).lease?.state).toBe('idle');
     expect((await disarm(root, 'owner-1', 2_000)).changed).toBe(true);
     expect((await disarm(root, 'owner-1', 3_000)).changed).toBe(false);
@@ -172,6 +177,27 @@ describe('collaboration lease controls', () => {
       transcript,
       now: 2_000,
     };
+    const waits = await Promise.all([
+      beginAdapterWait(root, invocation),
+      beginAdapterWait(root, invocation),
+    ]);
+    expect(waits).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          waiting: true,
+          changed: true,
+          reason: 'waiting',
+          lease: expect.objectContaining({ state: 'waiting' }),
+        }),
+        expect.objectContaining({
+          waiting: false,
+          changed: false,
+          reason: 'conflict',
+          lease: null,
+        }),
+      ]),
+    );
+    expect((await readLease(root, 'owner-1'))?.state).toBe('waiting');
     expect((await inspectAdapterLease(root, invocation)).eligible).toBe(true);
     expect(
       (
@@ -191,6 +217,32 @@ describe('collaboration lease controls', () => {
         })
       ).reason,
     ).toBe('identity-mismatch');
+  });
+
+  test('expiry and caps make armed or waiting leases truthfully idle', async () => {
+    const { root, cwd, transcript } = await fixture();
+    await arm(root, options(cwd, transcript), 1_000);
+    expect((await status(root, 'owner-1', 62_000)).lease).toMatchObject({
+      state: 'idle',
+      diagnostic: 'lease-expired',
+    });
+
+    await arm(
+      root,
+      { ...options(cwd, transcript), continuationCap: '1' },
+      100_000,
+    );
+    await compareAndSwapTrigger(
+      root,
+      'owner-1',
+      { peerCursor: 0, continuationCount: 0, loopCount: 0 },
+      { peerCursor: 1, terminal: false },
+      101_000,
+    );
+    expect((await status(root, 'owner-1', 102_000)).lease).toMatchObject({
+      state: 'idle',
+      diagnostic: 'cap-reached',
+    });
   });
 
   test('CLI run is JSON-ready and rejects unsafe session paths', async () => {

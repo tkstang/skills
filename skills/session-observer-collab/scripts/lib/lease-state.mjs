@@ -176,7 +176,6 @@ export function validateLease(raw) {
 
 export function effectiveLease(lease, now = Date.now()) {
   const value = validateLease(lease);
-  if (value.state === 'armed' && value.waitMs > 0) value.state = 'waiting';
   if (
     (value.state === 'armed' || value.state === 'waiting') &&
     now >= Date.parse(value.expiresAt)
@@ -314,6 +313,47 @@ export async function compareAndSwapTrigger(
     });
     await atomicWriteJson(file, next);
     return { ok: true, lease: next };
+  });
+}
+
+export async function beginLeaseWait(
+  root,
+  ownerSession,
+  identity,
+  now = Date.now(),
+) {
+  const file = leasePath(root, ownerSession);
+  return withLock(file, async () => {
+    const current = await readLease(root, ownerSession, {
+      persistMigration: false,
+    });
+    if (!current) return { ok: false, reason: 'missing' };
+    if (
+      current.runtime !== identity.runtime ||
+      current.ownerCwd !== identity.ownerCwd ||
+      current.peerTranscript !== identity.peerTranscript
+    ) {
+      return { ok: false, reason: 'identity-mismatch', lease: current };
+    }
+    const effective = effectiveLease(current, now);
+    if (!['armed', 'waiting'].includes(effective.state)) {
+      return {
+        ok: false,
+        reason: effective.diagnostic || effective.state,
+        lease: effective,
+      };
+    }
+    if (effective.state === 'waiting') {
+      return { ok: true, changed: false, lease: effective };
+    }
+    const waiting = validateLease({
+      ...effective,
+      state: 'waiting',
+      updatedAt: new Date(now).toISOString(),
+      diagnostic: null,
+    });
+    await atomicWriteJson(file, waiting);
+    return { ok: true, changed: true, lease: waiting };
   });
 }
 

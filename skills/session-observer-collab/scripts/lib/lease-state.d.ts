@@ -78,6 +78,16 @@ export function compareAndSwapTrigger(
   | { ok: false; reason: string; lease?: Lease }
   | { ok: false; reason: 'conflict' }
 >;
+export function beginLeaseWait(
+  root: string,
+  ownerSession: string,
+  identity: Pick<Lease, 'runtime' | 'ownerCwd' | 'peerTranscript'>,
+  now?: number,
+): Promise<
+  | { ok: true; changed: boolean; lease: Lease }
+  | { ok: false; reason: string; lease?: Lease }
+  | { ok: false; reason: 'conflict' }
+>;
 export function resourceExists(path: string): Promise<boolean>;
 export function pruneLeases(
   root: string,
