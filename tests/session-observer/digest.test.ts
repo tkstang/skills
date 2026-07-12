@@ -635,9 +635,7 @@ describe('buildDigest', () => {
       expect(digest.entries.length).toBe(8);
       expect(digest.entries[0].recordIndex).toBe(4);
       expect(digest.accounting.filtered.tailSliceEntries).toBe(4);
-      expect(
-        digest.accounting.recovery.omittedUserMessages,
-      ).toEqual([
+      expect(digest.accounting.recovery.omittedUserMessages).toEqual([
         {
           transcriptPath,
           indexBase: 'zero-based-jsonl-record-index',
