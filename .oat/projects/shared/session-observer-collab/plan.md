@@ -436,7 +436,7 @@ Do not run generated builds concurrently. The p04/p05 workers verify their scope
 | final  | code     | pending | -    | -        |
 | spec   | artifact | pending | -    | N/A (quick mode) |
 | design | artifact | passed  | 2026-07-12 | inline co-author review |
-| plan   | artifact | passed  | 2026-07-12 | managed structured review (clean) |
+| plan   | artifact | received | 2026-07-12 | reviews/artifact-plan-review-2026-07-12T191919Z.md |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 
