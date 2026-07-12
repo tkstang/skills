@@ -26,6 +26,7 @@ const jsonFiles = [
   '.agents/plugins/marketplace.json',
 ];
 const skillFiles = [
+  'skills/session-observer/SKILL.md',
   'plugins/consensus/skills/refine/SKILL.md',
   'plugins/consensus/skills/evaluate/SKILL.md',
   'plugins/consensus/skills/create/SKILL.md',
@@ -33,6 +34,11 @@ const skillFiles = [
   'plugins/consensus/skills/plan/SKILL.md',
   'plugins/consensus/skills/panel/SKILL.md',
   'plugins/consensus/skills/phone-a-friend/SKILL.md',
+];
+const sessionObserverWatchDocs = [
+  'skills/session-observer/references/watch-design.md',
+  '.agents/skills/session-observer/SKILL.md',
+  '.agents/skills/session-observer/references/watch-design.md',
 ];
 const requiredDocs = [
   'README.md',
@@ -54,6 +60,10 @@ async function tempReleaseRoot() {
     await cp(path.join(repoRoot, file), path.join(tempRoot, file));
   }
   for (const file of skillFiles) {
+    await mkdir(path.dirname(path.join(tempRoot, file)), { recursive: true });
+    await cp(path.join(repoRoot, file), path.join(tempRoot, file));
+  }
+  for (const file of sessionObserverWatchDocs) {
     await mkdir(path.dirname(path.join(tempRoot, file)), { recursive: true });
     await cp(path.join(repoRoot, file), path.join(tempRoot, file));
   }

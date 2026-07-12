@@ -369,8 +369,10 @@ describe('generated output drift guard', () => {
     expect(digest).toContain("from './session-classifier.mjs'");
     expect(digest).not.toContain("from '../../core/runtimes.js'");
     expect(watch).toContain("from './runtimes.mjs'");
+    expect(watch).toContain("from './locate.mjs'");
     expect(watch).toContain("from './observe.mjs'");
     expect(watch).not.toContain("from '../../core/runtimes.js'");
+    expect(watch).not.toContain("from './locate.js'");
   });
 
   it('generates a shipped consensus provider CLI entrypoint', async () => {

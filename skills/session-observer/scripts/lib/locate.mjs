@@ -377,6 +377,20 @@ async function discover(runtime, targetCwd) {
   if (runtime === "cursor") return discoverCursor(targetCwd);
   throw new Error(`Unknown runtime: ${runtime}`);
 }
+async function findSessionCandidate(runtime, targetCwd, sessionId) {
+  const matches = (await discover(runtime, targetCwd)).filter(
+    (candidate) => candidate.sessionId === sessionId
+  );
+  return matches.length === 1 ? matches[0] : null;
+}
+async function findNewerSameCwdCandidates(runtime, targetCwd, watched) {
+  const candidates = await discover(runtime, targetCwd);
+  return candidates.filter(
+    (candidate) => candidate.recordedCwd === targetCwd && candidate.sessionId !== watched.sessionId && candidate.transcriptPath !== watched.transcriptPath && candidate.mtime > watched.mtime
+  ).sort(
+    (left, right) => right.mtime - left.mtime || left.transcriptPath.localeCompare(right.transcriptPath)
+  );
+}
 async function gitWorktrees(cwd) {
   try {
     const { stdout } = await execFileAsync(
@@ -400,5 +414,7 @@ async function gitWorktrees(cwd) {
 export {
   claudeCodeLookupDiagnostics,
   discover,
+  findNewerSameCwdCandidates,
+  findSessionCandidate,
   gitWorktrees
 };

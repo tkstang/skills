@@ -184,6 +184,7 @@ export const generatedOutputs = [
     importRewrites: [
       { from: '../../core/runtimes.js', to: './runtimes.mjs' },
       { from: './digest.js', to: './digest.mjs' },
+      { from: './locate.js', to: './locate.mjs' },
       { from: './observe.js', to: './observe.mjs' },
       { from: './state.js', to: './state.mjs' },
       { from: './watch-state.js', to: './watch-state.mjs' },

@@ -30,17 +30,32 @@ function applyTailSlice(entries, opts) {
   return entries;
 }
 function renderedCharCount(entries) {
-  return entries.reduce(
-    (sum, entry) => sum + (entry.text?.length ?? 0),
-    0
-  );
+  return entries.reduce((sum, entry) => sum + (entry.text?.length ?? 0), 0);
+}
+function omittedUserMessageRecoveryPointers(entriesBeforeTailSlice, retainedEntries, transcriptPath) {
+  const retained = new Set(retainedEntries);
+  const seenRecordIndexes = /* @__PURE__ */ new Set();
+  const pointers = [];
+  for (const entry of entriesBeforeTailSlice) {
+    const recoveryRecordIndex = entry.sourceRecordIndex ?? entry.recordIndex;
+    if (retained.has(entry) || entry.role !== "user" || entry.origin === "automatic-control" || seenRecordIndexes.has(recoveryRecordIndex)) {
+      continue;
+    }
+    seenRecordIndexes.add(recoveryRecordIndex);
+    pointers.push({
+      transcriptPath,
+      indexBase: "zero-based-jsonl-record-index",
+      recordIndex: recoveryRecordIndex
+    });
+  }
+  return pointers;
 }
 function groupByRole(entries) {
   if (entries.length === 0) return [];
   const groups = [];
   let currentGroup = [entries[0]];
   for (let i = 1; i < entries.length; i++) {
-    if (entries[i].role === currentGroup[0].role) {
+    if ((entries[i].displayRole ?? entries[i].role) === (currentGroup[0].displayRole ?? currentGroup[0].role)) {
       currentGroup.push(entries[i]);
     } else {
       groups.push(currentGroup);
@@ -107,6 +122,16 @@ function formatHeader(digest) {
     if (filterParts2.length > 0) {
       lines.push(`**filtered out:** ${filterParts2.join(" \xB7 ")}`);
     }
+  }
+  if (accounting.recovery.omittedUserMessages.length > 0) {
+    const { transcriptPath: transcriptPath2, indexBase } = accounting.recovery.omittedUserMessages[0];
+    const recordIndexes = accounting.recovery.omittedUserMessages.map(
+      (pointer) => pointer.recordIndex
+    );
+    const indexDescription = indexBase === "zero-based-jsonl-record-index" ? "zero-based JSONL indices" : indexBase;
+    lines.push(
+      `**User-message recovery:** ${transcriptPath2} records ${recordIndexes.join(", ")} (${indexDescription}).`
+    );
   }
   const filterParts = [];
   if (!filters.includeToolCalls) filterParts.push("tool calls excluded");
@@ -256,12 +281,8 @@ async function buildDigest(runtime, transcriptPath, opts = {}) {
     },
     filtered: {
       toolCalls: includeToolCalls ? 0 : fullEntriesInRawRange.filter((e) => e.kind === "tool_call").length,
-      toolResults: includeToolResults ? 0 : fullEntriesInRawRange.filter(
-        (e) => e.kind === "tool_result"
-      ).length,
-      commandMessages: includeCommandMessages ? 0 : fullEntriesInRawRange.filter(
-        (e) => e.kind === "command_message"
-      ).length,
+      toolResults: includeToolResults ? 0 : fullEntriesInRawRange.filter((e) => e.kind === "tool_result").length,
+      commandMessages: includeCommandMessages ? 0 : fullEntriesInRawRange.filter((e) => e.kind === "command_message").length,
       bootstrapRecords: [...bootstrapRecordIndexes].filter(
         (index) => index >= rawFromIndex
       ).length,
@@ -274,6 +295,13 @@ async function buildDigest(runtime, transcriptPath, opts = {}) {
       tailSliceEntries: Math.max(
         0,
         entriesBeforeTailSlice.length - filteredEntries.length
+      )
+    },
+    recovery: {
+      omittedUserMessages: omittedUserMessageRecoveryPointers(
+        entriesBeforeTailSlice,
+        filteredEntries,
+        transcriptPath
       )
     },
     autoLargeDigest
@@ -306,7 +334,7 @@ function renderMarkdown(digest) {
   } else {
     for (const group of groups) {
       const role = group[0].role;
-      const header = role === "user" ? "### User" : "### Assistant";
+      const header = group[0].displayRole === "queued-user" ? "### User (queued mid-turn)" : group[0].displayRole === "automatic-control" ? "### Hook/control (automatic)" : role === "user" ? "### User" : "### Assistant";
       parts.push(header);
       parts.push("");
       for (const entry of group) {

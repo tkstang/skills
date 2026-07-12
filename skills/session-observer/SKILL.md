@@ -3,13 +3,14 @@ name: session-observer
 description: Use when checking what another coding agent (Claude Code, Codex, or Cursor) just did in this project, reviewing a peer session, or catching up on new messages. Locates the active transcript, renders a tool-free digest, and tracks per-runtime read offsets.
 license: MIT
 compatibility: Agent Skills baseline; requires Node.js 22+. No third-party runtime dependencies.
-argument-hint: '[review|catch-up|catch-up-then-watch|locate|state|watch|watch-ctl|--watch] [--runtime <claude-code|codex|cursor|auto|both>] [--debug]'
+argument-hint: '[review|catch-up|catch-up-then-watch|locate|whoami|state|watch|watch-ctl|--watch] [--runtime <claude-code|codex|cursor|auto|both>] [--debug]'
 disable-model-invocation: false
 user-invocable: true
 allowed-tools: Bash, Read, AskUserQuestion
+version: '1.0.2'
 metadata:
   author: thomas.stang
-  version: '1.0.1'
+  version: '1.0.2'
 ---
 
 # session-observer
@@ -52,22 +53,23 @@ Use this skill when any of the following applies:
 
 ### Subcommands
 
-| Subcommand                     | Purpose                                            | State change                                              |
-| ------------------------------ | -------------------------------------------------- | --------------------------------------------------------- |
-| `review`                       | Full digest from the start                         | None (unless `--mark-read` passed)                        |
-| `catch-up`                     | Delta: records since last read                     | Advances high-water mark on success                       |
-| `catch-up-then-watch`          | Emit unread backlog, then enter foreground watcher | Advances high-water marks as backlog/deltas are consumed  |
-| `locate`                       | Ranked candidate list (diagnostic)                 | None                                                      |
-| `state get`                    | Print current state                                | None                                                      |
-| `state reset --runtime <r>`    | Reset all offsets for runtime                      | Zeroes `lastRecordIndex`                                  |
-| `state reset --session <r:id>` | Reset one session                                  | Zeroes `lastRecordIndex`                                  |
-| `state clear`                  | Clear all tracked sessions                         | Empties `sessions` map                                    |
-| `watch`                        | Foreground watcher for debounced catch-up updates  | Advances high-water marks as emitted digests are consumed |
-| `watch-ctl status`             | Print active watcher state                         | None                                                      |
-| `watch-ctl pause`              | Pause event emission while polling continues       | Writes a control directive                                |
-| `watch-ctl resume`             | Resume event emission                              | Writes a control directive                                |
-| `watch-ctl flush`              | Emit pending debounced updates immediately         | Writes a control directive                                |
-| `watch-ctl stop`               | Stop the active watcher                            | Signals the watcher and clears watch metadata on exit     |
+| Subcommand                     | Purpose                                              | State change                                              |
+| ------------------------------ | ---------------------------------------------------- | --------------------------------------------------------- |
+| `review`                       | Full digest from the start                           | None (unless `--mark-read` passed)                        |
+| `catch-up`                     | Delta: records since last read                       | Advances high-water mark on success                       |
+| `catch-up-then-watch`          | Emit unread backlog, then enter foreground watcher   | Advances high-water marks as backlog/deltas are consumed  |
+| `locate`                       | Ranked candidate list (diagnostic)                   | None                                                      |
+| `whoami`                       | Resolve this session's runtime/session/path identity | None; fails closed when identity is ambiguous             |
+| `state get`                    | Print current state                                  | None                                                      |
+| `state reset --runtime <r>`    | Reset all offsets for runtime                        | Zeroes `lastRecordIndex`                                  |
+| `state reset --session <r:id>` | Reset one session                                    | Zeroes `lastRecordIndex`                                  |
+| `state clear`                  | Clear all tracked sessions                           | Empties `sessions` map                                    |
+| `watch`                        | Foreground watcher for debounced catch-up updates    | Advances high-water marks as emitted digests are consumed |
+| `watch-ctl status`             | Print active watcher state                           | None                                                      |
+| `watch-ctl pause`              | Pause event emission while polling continues         | Writes a control directive                                |
+| `watch-ctl resume`             | Resume event emission                                | Writes a control directive                                |
+| `watch-ctl flush`              | Emit pending debounced updates immediately           | Writes a control directive                                |
+| `watch-ctl stop`               | Stop the active watcher                              | Signals the watcher and clears watch metadata on exit     |
 
 ### Flags (all subcommands accept these)
 
@@ -101,10 +103,14 @@ Use this skill when any of the following applies:
 | `--interactive`       | boolean                                  | false   | Alias posture for live collaboration. Equivalent to `--max-runtime-min 0`.                               |
 | `--event-log <path>`  | path                                     | —       | Write metadata-only JSONL event records. Message content stays on stdout.                                |
 | `--json`              | boolean                                  | false   | Emit each watch event as one JSON line instead of markdown.                                              |
+| `--quiet-empty`       | boolean                                  | false   | Consume metadata-only growth and advance offsets without emitting an empty delta.                        |
+| `--strict-baseline`   | boolean                                  | false   | Refuse a standalone watch that would establish a baseline past unread records.                           |
 
 ### Default content filter
 
 By default, only natural-language `user`/`assistant` messages are included. Tool calls, tool results, and Claude Code slash-command payload records (`<command-message>`, `<command-name>`, `<command-args>`) are excluded. Opt in with `--include-tools` (adds call markers), `--include-command-messages` (adds slash-command payloads), or `--debug` (adds tool markers and results).
+
+A filtered or empty digest is not evidence that the peer was idle or that the transcript contains no activity. It only means no records matched the current rendering options. Check the raw-record accounting, broaden the filters when appropriate, or inspect the pinned transcript before drawing an absence conclusion.
 
 If a digest would exceed the large-output threshold, the CLI automatically falls back to the last 8 user/assistant turn groups and adds a `Large digest fallback` warning. This protects `catch-up` from dumping pasted skill bodies or large transcript spans. Use `--max-turns` or `--max-bytes` for an explicit bound, or `--include-command-messages` when the slash-command payload itself is the thing being debugged.
 
@@ -165,6 +171,9 @@ node <skill-dir>/scripts/session-observer.mjs catch-up \
 node <skill-dir>/scripts/session-observer.mjs locate \
   --runtime auto --cwd "$PWD" --json
 
+# Identify the current session before choosing a peer
+node <skill-dir>/scripts/session-observer.mjs whoami --json
+
 # Locate by last-message excerpt before pinning
 node <skill-dir>/scripts/session-observer.mjs locate \
   --runtime claude-code --cwd "$PWD" --json --snippet "the last thing I saw"
@@ -221,6 +230,10 @@ For combined catch-up/watch requests, run `catch-up-then-watch`. Starting `watch
 
 Each emitted watch digest is equivalent to a debounced `catch-up` result and advances the high-water mark for the consumed raw transcript records. The debounce waits for `--debounce-sec` seconds of quiet, but continuous writes are still emitted after `--max-pending-sec` seconds so a busy transcript cannot starve the watcher indefinitely. If the watcher prints JSON lines, route by stable event type: `baseline`, `delta`, `heartbeat`, `stopped`, or `error`. Respond to `delta` events with digest content; stay quiet on `baseline` and `heartbeat` unless their metadata shows a problem. If it prints markdown, read each emitted digest before commenting.
 
+`--quiet-empty` is useful for collaboration watches: metadata-only growth still advances the offset, but no empty delta is printed. This does not mean nothing was written; it means the growth did not produce a rendered message under the active filters. `--strict-baseline` protects a standalone `watch` from silently skipping a previously unread range. Without it, such a start emits one `baseline-gap` warning with the zero-based skipped range; with it, startup refuses and leaves the prior offset intact. `catch-up-then-watch` first renders unread backlog and therefore does not create a baseline gap.
+
+During polling, a pinned watcher may emit a deduplicated `newer-session-candidate` event with identity evidence for a newer same-cwd transcript. It is informational only: the watcher stays pinned and never auto-switches or claims that the candidate superseded the selected peer.
+
 Quiet watches emit heartbeat/status lines every `--heartbeat-sec` seconds by default. Treat heartbeats as liveness/status only; they are not a reason to speak unless `recordsBehind` or `healthy` indicates a problem.
 
 While watch is active, keep the collaboration posture. If the user asks a side question, answer it, then re-engage the foreground watcher unless the user explicitly told you to stop. If your host requires stopping the foreground process before you can answer, restart with `catch-up-then-watch --runtime <peer> --cwd "$PWD" --until-stopped` immediately after the response so unread backlog is consumed before the baseline is reset.
@@ -247,7 +260,7 @@ Read the markdown digest. Then offer a take on what the peer did or said:
 - `rendered messages` — natural-language/tool entries actually shown after filters and tail slicing. Rendered ranges also use zero-based JSONL record indices.
 - `filtered out` — omitted tool calls, tool results, command messages, metadata/non-message records, or tail-sliced entries.
 
-If the header says `raw records consumed: 8` and `rendered messages: 1`, that is normal: the default digest filtered out the other raw records, usually tool activity or Claude slash-command payloads. Do not describe this as a range bug.
+If the header says `raw records consumed: 8` and `rendered messages: 1`, that is normal: the default digest filtered out the other raw records, usually tool activity or Claude slash-command payloads. Do not describe this as a range bug, peer idleness, or evidence that the omitted records do not exist.
 
 Use one convention everywhere when discussing positions: record numbers are **zero-based JSONL record indices**, not one-based line numbers. If you need one-based line numbers for a separate shell command, label them explicitly as line numbers.
 
@@ -406,7 +419,7 @@ Exit codes 0 (digest found) and 2 (no transcripts for this cwd) are both accepta
 
 ## Success Criteria
 
-- [ ] `SKILL.md` exists, frontmatter valid, version 1.0.0.
+- [ ] `SKILL.md` exists, frontmatter valid, and top-level `version` matches `metadata.version`.
 - [ ] `review`, `catch-up`, `locate`, and `state` subcommands respond correctly.
 - [ ] Default output excludes tool calls and results; `--include-tools` adds compact markers; `--debug` adds both.
 - [ ] `catch-up` advances the high-water mark; a second identical `catch-up` emits "no new records."

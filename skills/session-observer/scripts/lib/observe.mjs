@@ -2,13 +2,68 @@
 // Source: src/transcript/session-observer/lib/observe.ts
 import { readFile } from "node:fs/promises";
 import { buildDigest } from './digest.mjs';
-import { discover, gitWorktrees } from './locate.mjs';
+import { discover, findSessionCandidate, gitWorktrees } from './locate.mjs';
 import { rank } from './rank.mjs';
 import * as stateLib from './state.mjs';
 const VALID_RUNTIMES = ["claude-code", "codex", "cursor"];
 const VALID_RUNTIME_LABEL = VALID_RUNTIMES.join(", ");
 function isRuntime(value) {
   return typeof value === "string" && VALID_RUNTIMES.includes(value);
+}
+function parseExplicitSelf(value, sessionId) {
+  if (!value) return null;
+  const [runtime, ...sessionParts] = value.split(":");
+  if (!isRuntime(runtime)) return null;
+  return { runtime, sessionId: sessionParts.join(":") || sessionId };
+}
+function harnessIdentity(env, runtime) {
+  const signals = [
+    ["claude-code", env.CLAUDE_CODE_SESSION_ID ?? env.CLAUDE_SESSION_ID],
+    ["codex", env.CODEX_THREAD_ID ?? env.CODEX_SESSION_ID],
+    ["cursor", env.CURSOR_SESSION_ID]
+  ];
+  const matches = signals.filter(([candidateRuntime]) => !runtime || candidateRuntime === runtime).filter(([, sessionId]) => Boolean(sessionId));
+  return matches.length === 1 ? { runtime: matches[0][0], sessionId: matches[0][1] } : null;
+}
+async function resolveSelfIdentity(targetCwd, env = process.env) {
+  const explicit = parseExplicitSelf(
+    env.SESSION_OBSERVER_SELF,
+    env.SESSION_OBSERVER_SESSION_ID
+  );
+  const harness = harnessIdentity(env, explicit?.runtime);
+  const signal = explicit?.sessionId ? explicit : harness?.sessionId ? harness : explicit ?? harness;
+  if (!signal) return { noMatch: true };
+  if (signal.sessionId) {
+    const candidate = await findSessionCandidate(
+      signal.runtime,
+      targetCwd,
+      signal.sessionId
+    );
+    if (!candidate) return { noMatch: true, runtime: signal.runtime };
+    return {
+      identity: {
+        runtime: signal.runtime,
+        session: candidate.sessionId,
+        transcript: candidate.transcriptPath,
+        source: explicit?.sessionId ? "explicit-self" : "harness-environment"
+      }
+    };
+  }
+  const candidates = await discover(signal.runtime, targetCwd);
+  if (candidates.length === 1) {
+    return {
+      identity: {
+        runtime: signal.runtime,
+        session: candidates[0].sessionId,
+        transcript: candidates[0].transcriptPath,
+        source: "same-cwd-transcript"
+      }
+    };
+  }
+  if (candidates.length > 1) {
+    return { ambiguous: true, runtime: signal.runtime, candidates };
+  }
+  return { noMatch: true, runtime: signal.runtime, candidates };
 }
 function parsePinnedSession(session) {
   if (!session) return null;
@@ -46,9 +101,7 @@ async function preferredRuntimeFromState(withCandidates, targetCwd) {
       new Set(r.candidates.map((c) => c.sessionId))
     ])
   );
-  const matches = Object.values(state.sessions ?? {}).filter((s) => runtimeSet.has(s.runtime)).filter((s) => s.recordedCwd === targetCwd).filter(
-    (s) => sessionIdsByRuntime.get(s.runtime)?.has(s.sessionId)
-  ).toSorted(
+  const matches = Object.values(state.sessions ?? {}).filter((s) => runtimeSet.has(s.runtime)).filter((s) => s.recordedCwd === targetCwd).filter((s) => sessionIdsByRuntime.get(s.runtime)?.has(s.sessionId)).toSorted(
     (a, b) => String(b.lastReadAt ?? "").localeCompare(String(a.lastReadAt ?? ""))
   );
   const runtimes = [...new Set(matches.map((s) => s.runtime))];
@@ -70,9 +123,7 @@ async function resolveAutoRuntime(targetCwd, { self = process.env.SESSION_OBSERV
       }
     })
   );
-  const withCandidates = results.filter(
-    (r) => r.candidates.length > 0
-  );
+  const withCandidates = results.filter((r) => r.candidates.length > 0);
   const considered = isRuntime(self) ? withCandidates.filter((r) => r.runtime !== self) : withCandidates;
   if (considered.length === 1) return { runtime: considered[0].runtime };
   if (considered.length === 0) return { noMatch: true };
@@ -389,5 +440,6 @@ export {
   observeCatchUp,
   parsePinnedSession,
   resolveAutoRuntime,
+  resolveSelfIdentity,
   shouldMarkCatchUpRead
 };
