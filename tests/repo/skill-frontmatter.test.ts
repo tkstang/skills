@@ -27,6 +27,10 @@ const panelSkillPath = new URL(
   '../../plugins/consensus/skills/panel/SKILL.md',
   import.meta.url,
 );
+const collaborationSkillPath = new URL(
+  '../../skills/session-observer-collab/SKILL.md',
+  import.meta.url,
+);
 const bumpVersionPath = new URL('../../scripts/bump-version.mjs', import.meta.url);
 const skillPaths = [
   refineSkillPath,
@@ -343,5 +347,32 @@ describe('skill-frontmatter', () => {
     ]) {
       expect(markdown).toMatch(new RegExp(requiredPhrase, 'i'));
     }
+  });
+
+  it('session observer collaboration skill is a public, versioned canonical skill', async () => {
+    const markdown = await readFile(collaborationSkillPath, 'utf8');
+    const block = frontmatter(markdown);
+
+    expect(field(block, 'name')).toBe('session-observer-collab');
+    expect(path.basename(path.dirname(collaborationSkillPath.pathname))).toBe(
+      'session-observer-collab',
+    );
+    expect(field(block, 'description').length > 40).toBeTruthy();
+    expect(field(block, 'license')).toBe('MIT');
+    expect(field(block, 'compatibility')).toMatch(/Agent Skills baseline/);
+    expect(field(block, 'compatibility')).toMatch(/Node\.js 22/);
+    expect(field(block, 'version')).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(metadataVersion(block)).toBe(field(block, 'version'));
+    expect(block).not.toMatch(/^\s*internal:\s*true\s*$/m);
+  });
+
+  it('session observer collaboration routes to exactly one runtime reference', async () => {
+    const markdown = await readFile(collaborationSkillPath, 'utf8');
+
+    for (const runtime of ['claude-code', 'codex', 'cursor']) {
+      expect(markdown).toContain(`references/runtime-${runtime}`);
+    }
+    expect(markdown).toMatch(/load exactly one matching reference/i);
+    expect(markdown).not.toMatch(/\bTODO\b|\bFIXME\b|<placeholder>/i);
   });
 });

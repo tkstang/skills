@@ -43,6 +43,9 @@ describe('repo-layout', () => {
   it('repository exposes standalone and consensus plugin layout', async () => {
     const requiredDirectories = [
       'skills',
+      path.posix.join('skills', 'session-observer-collab'),
+      path.posix.join('skills', 'session-observer-collab', 'references'),
+      path.posix.join('skills', 'session-observer-collab', 'scripts'),
       path.posix.join('shared', 'transcript-core'),
       path.posix.join('skills', 'export-session-transcript'),
       path.posix.join('plugins', 'consensus'),
@@ -93,6 +96,23 @@ describe('repo-layout', () => {
       await pathExists('src/transcript/export-session/sanitize.ts'),
       'export sanitizer canonical source should live under src/transcript/export-session',
     ).toBe(true);
+  });
+
+  it('session observer collaboration skill keeps canonical references and scripts', async () => {
+    const skillRoot = path.posix.join('skills', 'session-observer-collab');
+    const requiredFiles = [
+      path.posix.join(skillRoot, 'SKILL.md'),
+      path.posix.join(skillRoot, 'references', 'runtime-claude-code.md'),
+      path.posix.join(skillRoot, 'references', 'runtime-codex.md'),
+      path.posix.join(skillRoot, 'references', 'runtime-cursor.md'),
+      path.posix.join(skillRoot, 'scripts', '.gitkeep'),
+    ];
+
+    for (const relativePath of requiredFiles) {
+      expect(await pathExists(relativePath), `${relativePath} should exist`).toBe(
+        true,
+      );
+    }
   });
 
   it('evaluate skill ships bundled rubric examples', async () => {
