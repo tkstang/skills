@@ -785,6 +785,18 @@ The exact p07 coordinator resolved successfully, but three native p07-t01 child 
 
 **Next:** Keep PR #48 open for human review. Use `oat-project-revise` for feedback or `oat-project-complete` after approval/merge.
 
+### Run 22 — 2026-07-13 09:55 CDT
+
+**Branch:** `session-observer-collab`
+**Policy:** configured final cross-runtime gate after approved implementation closeout
+**Result:** pass; review received with no fix tasks
+
+**Review outcome:** The authoritative JSON-eligible gate run reviewed the full branch and reported 0 Critical, 0 Important, 0 Medium, and 0 Minor findings. It independently passed 1,090 tests with one intentional skip, generated-output parity, and repository validation. The review is archived at `reviews/archived/final-review-2026-07-13T145244Z.md`.
+
+**Provenance:** The configured command first produced an equivalent clean review at `reviews/archived/final-review-2026-07-13T144605Z.md`, but its human-readable result omitted the required `receiveEligible` and `handoff` envelope. The single allowed retry added only the global `--json` output flag, preserved the same route, scope, and threshold, and supplied the canonical eligibility envelope. The later artifact is authoritative; the earlier clean artifact is retained as superseded operational history.
+
+**Disposition:** No findings were added to the plan and no implementation changes were required. The final review row is `passed`; implementation closeout remains complete and approved, with PR #48 open for human review.
+
 <!-- orchestration-runs-end -->
 
 ## Deviations from Plan / Design
