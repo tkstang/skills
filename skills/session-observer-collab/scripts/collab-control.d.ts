@@ -62,6 +62,13 @@ export function status(
   root: string,
   ownerSession?: string,
   now?: number,
+  recoveryOptions?: {
+    expected?: { leaseId: string; waitToken: string };
+    isWaiterLive?: (waiter: {
+      token: string;
+      pid: number;
+    }) => Promise<boolean | undefined>;
+  },
 ): Promise<{ installation: Installation; lease: Lease | null }>;
 export function codexInstall(
   root: string,

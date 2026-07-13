@@ -14,7 +14,7 @@ import {
 import { homedir } from 'node:os';
 import { dirname, isAbsolute, join, resolve, sep } from 'node:path';
 
-export const LEASE_SCHEMA_VERSION = 4;
+export const LEASE_SCHEMA_VERSION = 5;
 export const LEASE_STATES = Object.freeze([
   'armed',
   'waiting',
@@ -176,6 +176,14 @@ export function migrateLease(input) {
       waitDeadlineAt: input.waitDeadlineAt ?? null,
     };
   }
+  if (input.schemaVersion === 4) {
+    input = {
+      ...input,
+      schemaVersion: 5,
+      waitToken: null,
+      waitPid: null,
+    };
+  }
   if (input.schemaVersion !== LEASE_SCHEMA_VERSION) {
     throw new LeaseError(
       'unsupported-schema',
@@ -209,6 +217,20 @@ export function validateLease(raw) {
     value.waitStartedAt = timestamp(value.waitStartedAt, 'waitStartedAt');
     value.waitDeadlineAt = timestamp(value.waitDeadlineAt, 'waitDeadlineAt');
   }
+  const waiterFields = [value.waitToken, value.waitPid];
+  const nullWaiterFields = waiterFields.filter(
+    (field) => field === null,
+  ).length;
+  if (nullWaiterFields !== 0 && nullWaiterFields !== waiterFields.length) {
+    throw new LeaseError(
+      'malformed-lease',
+      'waiter identity fields must all be populated or all be null',
+    );
+  }
+  if (nullWaiterFields === 0) {
+    validateId(value.waitToken, 'wait-token');
+    integer(value.waitPid, 'waitPid', 1, Number.MAX_SAFE_INTEGER);
+  }
   integer(value.waitMs, 'waitMs', 0, MAX_WAIT_MS);
   integer(value.leaseMs, 'leaseMs', 1, MAX_LEASE_MS);
   integer(value.peerCursor, 'peerCursor', 0, Number.MAX_SAFE_INTEGER);
@@ -226,6 +248,12 @@ export function validateLease(raw) {
     throw new LeaseError(
       'malformed-lease',
       'only waiting leases may retain wait timing fields',
+    );
+  }
+  if (value.state !== 'waiting' && nullWaiterFields !== waiterFields.length) {
+    throw new LeaseError(
+      'malformed-lease',
+      'only waiting leases may retain waiter identity',
     );
   }
   if (value.waitStartedAt !== null) {
@@ -269,6 +297,8 @@ export function effectiveLease(lease, now = Date.now()) {
     value.diagnostic = 'lease-expired';
     value.waitStartedAt = null;
     value.waitDeadlineAt = null;
+    value.waitToken = null;
+    value.waitPid = null;
   }
   if (
     (value.state === 'armed' || value.state === 'waiting') &&
@@ -279,6 +309,8 @@ export function effectiveLease(lease, now = Date.now()) {
     value.diagnostic = 'cap-reached';
     value.waitStartedAt = null;
     value.waitDeadlineAt = null;
+    value.waitToken = null;
+    value.waitPid = null;
   }
   if (
     value.state === 'waiting' &&
@@ -291,8 +323,32 @@ export function effectiveLease(lease, now = Date.now()) {
         : 'wait-timeout';
     value.waitStartedAt = null;
     value.waitDeadlineAt = null;
+    value.waitToken = null;
+    value.waitPid = null;
   }
   return value;
+}
+
+export async function createWaiterIdentity(pid = process.pid) {
+  integer(pid, 'waitPid', 1, Number.MAX_SAFE_INTEGER);
+  return Object.freeze({
+    token: randomUUID(),
+    pid,
+  });
+}
+
+export async function isWaiterLive(waiter) {
+  try {
+    process.kill(waiter.pid, 0);
+  } catch (error) {
+    if (error?.code === 'ESRCH') return false;
+    if (error?.code === 'EPERM') return true;
+    return undefined;
+  }
+  // A live PID is deliberately treated as non-disprovable. It may belong to
+  // the original waiter or be a reused PID; either way status must not clear
+  // the lease without stronger evidence.
+  return true;
 }
 
 export async function atomicWriteJson(file, value) {
@@ -438,7 +494,54 @@ export async function compareAndSwapTrigger(
       state: update.terminal === false ? 'armed' : 'triggered',
       waitStartedAt: null,
       waitDeadlineAt: null,
+      waitToken: null,
+      waitPid: null,
       diagnostic: update.diagnostic ?? null,
+      updatedAt: new Date(now).toISOString(),
+    });
+    await atomicWriteJson(file, next);
+    return { ok: true, lease: next };
+  });
+}
+
+export async function compareAndSwapCursor(
+  root,
+  ownerSession,
+  expected,
+  peerCursor,
+  now = Date.now(),
+) {
+  const file = leasePath(root, ownerSession);
+  return withLeaseLock(file, async () => {
+    const current = await readLease(root, ownerSession, {
+      persistMigration: false,
+    });
+    if (!current) return { ok: false, reason: 'missing' };
+    if (
+      current.leaseId !== expected.leaseId ||
+      current.peerCursor !== expected.peerCursor ||
+      current.continuationCount !== expected.continuationCount ||
+      current.loopCount !== expected.loopCount
+    ) {
+      return { ok: false, reason: 'stale', lease: current };
+    }
+    const effective = effectiveLease(current, now);
+    if (effective.state !== 'waiting') {
+      return {
+        ok: false,
+        reason: effective.diagnostic || effective.state,
+        lease: effective,
+      };
+    }
+    const nextCursor = integer(
+      peerCursor,
+      'peerCursor',
+      current.peerCursor + 1,
+      Number.MAX_SAFE_INTEGER,
+    );
+    const next = validateLease({
+      ...current,
+      peerCursor: nextCursor,
       updatedAt: new Date(now).toISOString(),
     });
     await atomicWriteJson(file, next);
@@ -451,6 +554,7 @@ export async function beginLeaseWait(
   ownerSession,
   identity,
   now = Date.now(),
+  waiter,
 ) {
   const file = leasePath(root, ownerSession);
   return withLeaseLock(file, async () => {
@@ -476,8 +580,15 @@ export async function beginLeaseWait(
       };
     }
     if (effective.state === 'waiting') {
-      return { ok: true, changed: false, lease: effective };
+      if (waiter && effective.waitToken === waiter.token)
+        return { ok: true, changed: false, lease: effective };
+      return { ok: false, reason: 'waiter-active', lease: effective };
     }
+    if (!waiter)
+      throw new LeaseError(
+        'waiter-identity-required',
+        'a generation-bound waiter identity is required',
+      );
     const waiting = validateLease({
       ...effective,
       state: 'waiting',
@@ -485,6 +596,8 @@ export async function beginLeaseWait(
       waitDeadlineAt: new Date(
         Math.min(now + effective.waitMs, Date.parse(effective.expiresAt)),
       ).toISOString(),
+      waitToken: waiter.token,
+      waitPid: waiter.pid,
       updatedAt: new Date(now).toISOString(),
       diagnostic: null,
     });
@@ -521,11 +634,60 @@ export async function finishLeaseWait(
       state: 'idle',
       waitStartedAt: null,
       waitDeadlineAt: null,
+      waitToken: null,
+      waitPid: null,
       diagnostic,
       updatedAt: new Date(now).toISOString(),
     });
     await atomicWriteJson(file, idle);
     return { ok: true, lease: idle };
+  });
+}
+
+export async function recoverOrphanedWait(
+  root,
+  ownerSession,
+  now = Date.now(),
+  { expected, isWaiterLive: checkLiveness = isWaiterLive } = {},
+) {
+  const file = leasePath(root, ownerSession);
+  return withLeaseLock(file, async () => {
+    const current = await readLease(root, ownerSession, {
+      persistMigration: false,
+    });
+    if (!current) return { recovered: false, reason: 'missing', lease: null };
+    if (
+      expected &&
+      (current.leaseId !== expected.leaseId ||
+        current.waitToken !== expected.waitToken)
+    ) {
+      return { recovered: false, reason: 'stale', lease: current };
+    }
+    if (current.state !== 'waiting')
+      return { recovered: false, reason: current.state, lease: current };
+    if (current.waitToken === null || current.waitPid === null) {
+      return { recovered: false, reason: 'liveness-unknown', lease: current };
+    }
+    const live = await checkLiveness({
+      token: current.waitToken,
+      pid: current.waitPid,
+    });
+    if (live === true)
+      return { recovered: false, reason: 'waiter-live', lease: current };
+    if (live !== false)
+      return { recovered: false, reason: 'liveness-unknown', lease: current };
+    const idle = validateLease({
+      ...current,
+      state: 'idle',
+      waitStartedAt: null,
+      waitDeadlineAt: null,
+      waitToken: null,
+      waitPid: null,
+      diagnostic: 'waiter-terminated',
+      updatedAt: new Date(now).toISOString(),
+    });
+    await atomicWriteJson(file, idle);
+    return { recovered: true, reason: 'waiter-terminated', lease: idle };
   });
 }
 

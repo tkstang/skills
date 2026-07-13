@@ -186,12 +186,71 @@ describe('Codex Stop continuation hook', () => {
     ).resolves.toMatchObject({ decision: 'allow', diagnostic: 'wait-timeout' });
     expect(await readLease(root, 'codex-1')).toMatchObject({
       state: 'idle',
-      peerCursor: 0,
+      peerCursor: 3,
       continuationCount: 0,
       loopCount: 0,
       diagnostic: 'wait-timeout',
       waitStartedAt: null,
       waitDeadlineAt: null,
+    });
+  });
+
+  test('advances a suppressible range once, then selects a later substantive range exactly once', async () => {
+    const { root, cwd, transcript } = await fixture();
+    await armLease(root, cwd, transcript, { waitMs: 100 });
+    let calls = 0;
+    const result = await runCodexStopHook(
+      { hook_event_name: 'Stop', session_id: 'codex-1', cwd },
+      {
+        root,
+        now: () => START + 1,
+        observe: async (lease: { peerCursor: number }) => {
+          calls += 1;
+          const value = digest(lease.peerCursor);
+          if (lease.peerCursor === 0) value.entries[1].text = '[no-op] caught up';
+          return value;
+        },
+      },
+    );
+    expect(result).toMatchObject({ decision: 'block' });
+    expect(calls).toBe(2);
+    expect(await readLease(root, 'codex-1')).toMatchObject({
+      peerCursor: 6,
+      continuationCount: 1,
+      loopCount: 1,
+    });
+  });
+
+  test('refuses to advance a suppressible digest whose range is not contiguous', async () => {
+    const { root, cwd, transcript } = await fixture();
+    await armLease(root, cwd, transcript, { cursor: 3, waitMs: 100 });
+    const noOp = digest(0);
+    noOp.entries[1].text = '[no-op] stale observer output';
+    Object.assign(noOp.range, {
+      toIndex: 5,
+      nextIndex: 6,
+      totalRecords: 6,
+      newRecords: 6,
+    });
+    Object.assign(noOp.accounting.raw, {
+      toIndex: 5,
+      count: 6,
+      nextIndex: 6,
+      totalRecords: 6,
+    });
+    await expect(
+      runCodexStopHook(
+        { hook_event_name: 'Stop', session_id: 'codex-1', cwd },
+        { root, now: () => START + 1, observe: async () => noOp },
+      ),
+    ).resolves.toMatchObject({
+      decision: 'allow',
+      diagnostic: 'noncontiguous-selection',
+    });
+    expect(await readLease(root, 'codex-1')).toMatchObject({
+      peerCursor: 3,
+      continuationCount: 0,
+      loopCount: 0,
     });
   });
 

@@ -262,6 +262,25 @@ describe('normalized completed continuation selection', () => {
     ).toBe(true);
   });
 
+  test('does not advance a suppressed cursor across an incomplete rendered turn', () => {
+    const result = selectCompletedContinuation(
+      digest(
+        [
+          message('user', 'status?', 0),
+          message('assistant', '[no-op] caught up', 2),
+          message('user', 'new request still in progress', 5),
+        ],
+        0,
+        7,
+      ),
+    );
+    expect(result).toMatchObject({
+      continuation: false,
+      peerCursor: 3,
+      budgetCost: 0,
+    });
+  });
+
   test('rejects sliced or inconsistent observer results instead of silently consuming gaps', () => {
     expect(() =>
       selectCompletedContinuation({

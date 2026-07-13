@@ -26,6 +26,7 @@ export interface SkippedTurn {
 export interface ContinuationSelection {
   status: 'continuation' | 'no-continuation';
   continuation: boolean;
+  fromIndex: number;
   completedRecord: number | null;
   nextCursor: number;
   peerCursor: number;

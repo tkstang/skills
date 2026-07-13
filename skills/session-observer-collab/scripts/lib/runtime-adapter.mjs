@@ -1,6 +1,8 @@
 import {
   beginLeaseWait,
+  compareAndSwapCursor,
   compareAndSwapTrigger,
+  createWaiterIdentity,
   effectiveLease,
   finishLeaseWait,
   readLease,
@@ -33,6 +35,7 @@ export function validateAdapterInvocation(input) {
     cwd: validateAbsolutePath(input.cwd, 'cwd'),
     transcript: validateAbsolutePath(input.transcript, 'transcript'),
     now: input.now === undefined ? Date.now() : input.now,
+    waiter: input.waiter,
   });
 }
 
@@ -59,6 +62,7 @@ export async function inspectAdapterLease(root, invocation) {
 
 export async function beginAdapterWait(root, invocation) {
   const input = validateAdapterInvocation(invocation);
+  const waiter = input.waiter ?? (await createWaiterIdentity());
   const result = await beginLeaseWait(
     root,
     input.ownerSession,
@@ -70,11 +74,39 @@ export async function beginAdapterWait(root, invocation) {
       peerTranscript: input.transcript,
     },
     input.now,
+    waiter,
   );
   return {
     waiting: result.ok,
     changed: result.ok && result.changed,
     reason: result.ok ? 'waiting' : result.reason,
+    lease: result.lease ?? null,
+  };
+}
+
+export async function advanceAdapterCursor(
+  root,
+  invocation,
+  expected,
+  peerCursor,
+) {
+  const inspected = await inspectAdapterLease(root, invocation);
+  if (!inspected.eligible)
+    return {
+      advanced: false,
+      reason: inspected.reason,
+      lease: inspected.lease,
+    };
+  const result = await compareAndSwapCursor(
+    root,
+    invocation.ownerSession,
+    expected,
+    peerCursor,
+    invocation.now,
+  );
+  return {
+    advanced: result.ok,
+    reason: result.ok ? 'advanced' : result.reason,
     lease: result.lease ?? null,
   };
 }

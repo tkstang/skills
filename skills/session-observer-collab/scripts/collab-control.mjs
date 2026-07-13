@@ -23,6 +23,7 @@ import {
   leasePath,
   pruneLeases,
   readLease,
+  recoverOrphanedWait,
   stateRoot,
   validateAbsolutePath,
   validateId,
@@ -212,6 +213,8 @@ export async function arm(root, options, now = Date.now()) {
         leaseMs,
         waitStartedAt: null,
         waitDeadlineAt: null,
+        waitToken: null,
+        waitPid: null,
         armedAt: stamp,
         expiresAt: new Date(now + leaseMs).toISOString(),
         updatedAt: stamp,
@@ -316,6 +319,8 @@ export async function disarm(root, ownerSession, now = Date.now()) {
       state: 'disarmed',
       waitStartedAt: null,
       waitDeadlineAt: null,
+      waitToken: null,
+      waitPid: null,
       updatedAt: new Date(now).toISOString(),
       diagnostic: 'user-disarmed',
     };
@@ -324,13 +329,25 @@ export async function disarm(root, ownerSession, now = Date.now()) {
   });
 }
 
-export async function status(root, ownerSession, now = Date.now()) {
+export async function status(
+  root,
+  ownerSession,
+  now = Date.now(),
+  recoveryOptions,
+) {
   const installation = await readInstallation(root);
-  if (ownerSession)
+  if (ownerSession) {
+    await recoverOrphanedWait(
+      root,
+      validateId(ownerSession, 'owner-session'),
+      now,
+      recoveryOptions,
+    );
     await pruneLeases(root, {
       now,
       ownerSession: validateId(ownerSession, 'owner-session'),
     });
+  }
   const lease = ownerSession
     ? await readLease(root, validateId(ownerSession, 'owner-session'))
     : null;

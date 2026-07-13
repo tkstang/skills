@@ -131,7 +131,12 @@ function completedTurns(entries, fromIndex) {
     start = entry.recordIndex + 1;
     current = [];
   }
-  return turns;
+  const incompleteFrom = current.some(
+    (entry) => entry.role === 'user' && !isAutomatic(entry),
+  )
+    ? start
+    : null;
+  return { turns, incompleteFrom };
 }
 
 function mergeSkipped(turns, fromIndex, nextIndex) {
@@ -160,22 +165,24 @@ function mergeSkipped(turns, fromIndex, nextIndex) {
 
 export function selectCompletedContinuation(observerResult) {
   const { entries, fromIndex, nextIndex } = validateDigest(observerResult);
-  const turns = completedTurns(entries, fromIndex);
+  const { turns, incompleteFrom } = completedTurns(entries, fromIndex);
   const selected = turns.findLast(
     (turn) => turn.classification === 'substantive-turn',
   );
 
   if (!selected) {
+    const safeCursor = incompleteFrom ?? nextIndex;
     return Object.freeze({
       status: 'no-continuation',
       continuation: false,
+      fromIndex,
       completedRecord: null,
-      nextCursor: nextIndex,
-      peerCursor: nextIndex,
+      nextCursor: safeCursor,
+      peerCursor: safeCursor,
       budgetCost: 0,
       range: null,
       reviewEntries: Object.freeze([]),
-      skipped: Object.freeze(mergeSkipped(turns, fromIndex, nextIndex)),
+      skipped: Object.freeze(mergeSkipped(turns, fromIndex, safeCursor)),
     });
   }
 
@@ -184,6 +191,7 @@ export function selectCompletedContinuation(observerResult) {
   return Object.freeze({
     status: 'continuation',
     continuation: true,
+    fromIndex,
     completedRecord,
     nextCursor: cursor,
     peerCursor: cursor,

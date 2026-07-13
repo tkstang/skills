@@ -13,6 +13,7 @@ import {
 } from '../lib/lease-state.mjs';
 import {
   beginAdapterWait,
+  advanceAdapterCursor,
   claimAdapterTrigger,
   defineRuntimeAdapter,
   finishAdapterWait,
@@ -171,7 +172,8 @@ export async function runCodexStopHook(event, options = {}) {
   }));
   if (!waiting.waiting || !waiting.lease) return allow(waiting.reason);
 
-  const expected = counters(waiting.lease);
+  let activeLease = waiting.lease;
+  let expected = counters(activeLease);
   const deadline = Date.parse(waiting.lease.waitDeadlineAt);
   if (!Number.isFinite(deadline)) return allow('malformed-lease');
   let diagnostic = 'wait-timeout';
@@ -182,7 +184,7 @@ export async function runCodexStopHook(event, options = {}) {
       try {
         selection = selectCompletedContinuation(
           await waitFor(
-            Promise.resolve().then(() => observe(waiting.lease)),
+            Promise.resolve().then(() => observe(activeLease)),
             signal,
           ),
         );
@@ -196,9 +198,9 @@ export async function runCodexStopHook(event, options = {}) {
 
       if (validSelection(selection, expected)) {
         const terminal =
-          waiting.lease.continuationCount + selection.budgetCost >=
-            waiting.lease.continuationCap ||
-          waiting.lease.loopCount + 1 >= waiting.lease.loopCap;
+          activeLease.continuationCount + selection.budgetCost >=
+            activeLease.continuationCap ||
+          activeLease.loopCount + 1 >= activeLease.loopCap;
         const claimed = await claimAdapterTrigger(
           root,
           { ...invocation, now: currentNow },
@@ -218,7 +220,34 @@ export async function runCodexStopHook(event, options = {}) {
           diagnostic = claimed.reason;
           return allow(claimed.reason);
         }
-        return CODEX_STOP_ADAPTER.emit(waiting.lease, selection.range);
+        return CODEX_STOP_ADAPTER.emit(activeLease, selection.range);
+      }
+
+      if (
+        selection.continuation === false &&
+        selection.peerCursor > expected.peerCursor
+      ) {
+        if (selection.fromIndex !== expected.peerCursor) {
+          diagnostic = 'noncontiguous-selection';
+          return allow(diagnostic);
+        }
+        const advanced = await advanceAdapterCursor(
+          root,
+          { ...invocation, now: currentNow },
+          expected,
+          selection.peerCursor,
+        ).catch((error) => ({
+          advanced: false,
+          reason: error?.code ?? 'cursor-advance-failed',
+          lease: null,
+        }));
+        if (!advanced.advanced || !advanced.lease) {
+          diagnostic = advanced.reason;
+          return allow(advanced.reason);
+        }
+        activeLease = advanced.lease;
+        expected = counters(activeLease);
+        continue;
       }
 
       const remaining = deadline - now();

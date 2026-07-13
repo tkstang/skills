@@ -9,6 +9,7 @@ import {
 import { rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { spawn } from 'node:child_process';
 
 import { afterEach, describe, expect, test } from 'vitest';
 
@@ -29,11 +30,14 @@ import {
 } from '../../skills/session-observer-collab/scripts/collab-control.mjs';
 import {
   compareAndSwapTrigger,
+  compareAndSwapCursor,
+  createWaiterIdentity,
   effectiveLease,
   leasePath,
   MAX_WAIT_MS,
   pruneLeases,
   readLease,
+  recoverOrphanedWait,
   stateRoot,
 } from '../../skills/session-observer-collab/scripts/lib/lease-state.mjs';
 import {
@@ -478,7 +482,7 @@ describe('collaboration lease controls', () => {
     await writeFile(leasePath(root, 'owner-session'), JSON.stringify(old));
     await chmod(leasePath(root, 'owner-session'), 0o600);
     expect(await readLease(root, 'owner-session')).toMatchObject({
-      schemaVersion: 4,
+      schemaVersion: 5,
       peerRuntime: 'claude-code',
       leaseMs: 60_000,
     });
@@ -552,6 +556,127 @@ describe('collaboration lease controls', () => {
     expect(claims.filter((claim) => claim.ok)).toHaveLength(1);
     expect(claims.filter((claim) => !claim.ok)).toHaveLength(1);
     expect((await readLease(root, 'owner-1'))?.continuationCount).toBe(1);
+  });
+
+  test('cursor-only CAS advances suppressed ranges without spending budget and rejects stale generations', async () => {
+    const { root, cwd, transcript } = await fixture();
+    const armed = await arm(root, options(cwd, transcript), 1_000);
+    const waiting = await beginAdapterWait(root, {
+      runtime: 'codex',
+      peerRuntime: 'cursor',
+      peerSession: 'peer-1',
+      ownerSession: 'owner-1',
+      cwd,
+      transcript,
+      now: 1_500,
+    });
+    const expected = {
+      leaseId: armed.lease.leaseId,
+      peerCursor: 0,
+      continuationCount: 0,
+      loopCount: 0,
+    };
+    const advanced = await compareAndSwapCursor(
+      root,
+      'owner-1',
+      expected,
+      4,
+      2_000,
+    );
+    expect(advanced).toMatchObject({
+      ok: true,
+      lease: {
+        state: 'waiting',
+        peerCursor: 4,
+        continuationCount: 0,
+        loopCount: 0,
+      },
+    });
+    expect(waiting.waiting).toBe(true);
+    await expect(
+      compareAndSwapCursor(root, 'owner-1', expected, 8, 3_000),
+    ).resolves.toMatchObject({ ok: false, reason: 'stale' });
+  });
+
+  test('status recovers a killed generation-bound waiter but preserves a live waiter', async () => {
+    const { root, cwd, transcript } = await fixture();
+    await arm(root, options(cwd, transcript), 1_000);
+    const child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)']);
+    const waiter = await createWaiterIdentity(child.pid!);
+    const invocation = {
+      runtime: 'codex',
+      peerRuntime: 'cursor',
+      peerSession: 'peer-1',
+      ownerSession: 'owner-1',
+      cwd,
+      transcript,
+      now: 2_000,
+      waiter,
+    };
+    await beginAdapterWait(root, invocation);
+    expect((await status(root, 'owner-1', 2_100)).lease).toMatchObject({
+      state: 'waiting',
+      waitToken: waiter.token,
+    });
+
+    child.kill('SIGKILL');
+    await new Promise<void>((resolve) => child.once('exit', () => resolve()));
+    expect((await status(root, 'owner-1', 2_200)).lease).toMatchObject({
+      state: 'idle',
+      diagnostic: 'waiter-terminated',
+      waitStartedAt: null,
+      waitDeadlineAt: null,
+      waitToken: null,
+    });
+    expect((await status(root, 'owner-1', 2_300)).lease).toMatchObject({
+      state: 'idle',
+      diagnostic: 'waiter-terminated',
+    });
+  });
+
+  test('orphan recovery is generation-safe and refuses unknown liveness', async () => {
+    const { root, cwd, transcript } = await fixture();
+    await arm(root, options(cwd, transcript), 1_000);
+    const waiting = await beginAdapterWait(root, {
+      runtime: 'codex',
+      peerRuntime: 'cursor',
+      peerSession: 'peer-1',
+      ownerSession: 'owner-1',
+      cwd,
+      transcript,
+      now: 2_000,
+    });
+    const stale = {
+      leaseId: waiting.lease!.leaseId,
+      waitToken: String(waiting.lease!.waitToken),
+    };
+    await arm(root, { ...options(cwd, transcript), cursor: '4' }, 2_100);
+    await expect(
+      recoverOrphanedWait(root, 'owner-1', 2_200, {
+        expected: stale,
+        isWaiterLive: async () => false,
+      }),
+    ).resolves.toMatchObject({ recovered: false, reason: 'stale' });
+
+    const next = await beginAdapterWait(root, {
+      runtime: 'codex',
+      peerRuntime: 'cursor',
+      peerSession: 'peer-1',
+      ownerSession: 'owner-1',
+      cwd,
+      transcript,
+      now: 2_300,
+    });
+    await expect(
+      recoverOrphanedWait(root, 'owner-1', 2_400, {
+        expected: {
+          leaseId: next.lease!.leaseId,
+          waitToken: String(next.lease!.waitToken),
+        },
+        isWaiterLive: async () => undefined,
+      }),
+    ).resolves.toMatchObject({ recovered: false, reason: 'liveness-unknown' });
+    expect(await readLease(root, 'owner-1')).toMatchObject({ state: 'waiting' });
   });
 
   test('prunes only unambiguously owned expired or missing-resource leases', async () => {
@@ -665,7 +790,11 @@ describe('collaboration lease controls', () => {
     expect(waits).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ waiting: true, changed: true }),
-        expect.objectContaining({ waiting: true, changed: false }),
+        expect.objectContaining({
+          waiting: false,
+          changed: false,
+          reason: 'waiter-active',
+        }),
       ]),
     );
     expect((await readLease(root, 'owner-1'))?.state).toBe('waiting');

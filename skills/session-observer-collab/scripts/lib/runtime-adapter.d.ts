@@ -4,6 +4,7 @@ import type {
   LeaseUpdate,
   OwnerRuntime,
   PeerRuntime,
+  WaiterIdentity,
 } from './lease-state.mjs';
 
 export interface RuntimeAdapterInput {
@@ -25,6 +26,7 @@ export interface AdapterInvocation {
   cwd: string;
   transcript: string;
   now?: number;
+  waiter?: WaiterIdentity;
 }
 
 export interface ValidatedInvocation {
@@ -35,6 +37,7 @@ export interface ValidatedInvocation {
   cwd: string;
   transcript: string;
   now: number;
+  waiter?: WaiterIdentity;
 }
 
 export const RUNTIME_ADAPTER_VERSION: number;
@@ -64,6 +67,16 @@ export function finishAdapterWait(
   diagnostic?: string,
 ): Promise<{
   finished: boolean;
+  reason: string;
+  lease: Lease | null;
+}>;
+export function advanceAdapterCursor(
+  root: string,
+  invocation: AdapterInvocation,
+  expected: LeaseCounters,
+  peerCursor: number,
+): Promise<{
+  advanced: boolean;
   reason: string;
   lease: Lease | null;
 }>;

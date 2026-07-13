@@ -26,6 +26,8 @@ export interface Lease {
   waitMs: number;
   waitStartedAt: string | null;
   waitDeadlineAt: string | null;
+  waitToken: string | null;
+  waitPid: number | null;
   leaseMs: number;
   armedAt: string;
   expiresAt: string;
@@ -45,6 +47,11 @@ export interface LeaseUpdate {
   loopIncrement?: number;
   terminal?: boolean;
   diagnostic?: string | null;
+}
+
+export interface WaiterIdentity {
+  token: string;
+  pid: number;
 }
 
 export class LeaseError extends Error {
@@ -69,6 +76,10 @@ export function leasePath(root: string, ownerSession: string): string;
 export function migrateLease(input: unknown): Lease;
 export function validateLease(raw: unknown): Lease;
 export function effectiveLease(lease: Lease, now?: number): Lease;
+export function createWaiterIdentity(pid?: number): Promise<WaiterIdentity>;
+export function isWaiterLive(
+  waiter: WaiterIdentity,
+): Promise<boolean | undefined>;
 export function atomicWriteJson(file: string, value: unknown): Promise<void>;
 export function readLease(
   root: string,
@@ -89,6 +100,15 @@ export function compareAndSwapTrigger(
 ): Promise<
   { ok: true; lease: Lease } | { ok: false; reason: string; lease?: Lease }
 >;
+export function compareAndSwapCursor(
+  root: string,
+  ownerSession: string,
+  expected: LeaseCounters,
+  peerCursor: number,
+  now?: number,
+): Promise<
+  { ok: true; lease: Lease } | { ok: false; reason: string; lease?: Lease }
+>;
 export function beginLeaseWait(
   root: string,
   ownerSession: string,
@@ -97,10 +117,26 @@ export function beginLeaseWait(
     'runtime' | 'peerRuntime' | 'peerSession' | 'ownerCwd' | 'peerTranscript'
   >,
   now?: number,
+  waiter?: WaiterIdentity,
 ): Promise<
   | { ok: true; changed: boolean; lease: Lease }
   | { ok: false; reason: string; lease?: Lease }
 >;
+export function recoverOrphanedWait(
+  root: string,
+  ownerSession: string,
+  now?: number,
+  options?: {
+    expected?: { leaseId: string; waitToken: string };
+    isWaiterLive?: (
+      waiter: WaiterIdentity,
+    ) => Promise<boolean | undefined>;
+  },
+): Promise<{
+  recovered: boolean;
+  reason: string;
+  lease: Lease | null;
+}>;
 export function finishLeaseWait(
   root: string,
   ownerSession: string,
@@ -115,3 +151,33 @@ export function pruneLeases(
   root: string,
   options?: { now?: number; ownerSession?: string },
 ): Promise<string[]>;
+
+declare module '../../skills/session-observer-collab/scripts/lib/lease-state.mjs' {
+  export function createWaiterIdentity(
+    pid?: number,
+  ): Promise<WaiterIdentity>;
+  export function compareAndSwapCursor(
+    root: string,
+    ownerSession: string,
+    expected: LeaseCounters,
+    peerCursor: number,
+    now?: number,
+  ): Promise<
+    { ok: true; lease: Lease } | { ok: false; reason: string; lease?: Lease }
+  >;
+  export function recoverOrphanedWait(
+    root: string,
+    ownerSession: string,
+    now?: number,
+    options?: {
+      expected?: { leaseId: string; waitToken: string };
+      isWaiterLive?: (
+        waiter: WaiterIdentity,
+      ) => Promise<boolean | undefined>;
+    },
+  ): Promise<{
+    recovered: boolean;
+    reason: string;
+    lease: Lease | null;
+  }>;
+}
