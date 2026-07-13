@@ -1,6 +1,6 @@
 # Skills Repo Current State
 
-**Last updated:** 2026-07-12 (shared generated runtime output closed — **BL-260620-share-consensus-generated**: provider layouts verified the go path, `consensus-loop` now emits one plugin-local shared generated output at `plugins/consensus/scripts/consensus-loop.mjs`, and generated wrappers import it from the plugin root. Same day: provider CLI read-only capture relocation — submit sidecars now generate under the provider turn cwd at `.consensus/submit/` instead of tmpdir. Same day: skills.sh hosted re-check — the seeded installs propagated: the `tkstang/skills` repo page is live and lists **exactly** the two seeded standalone skills with no OAT/consensus leakage, confirming the `metadata.internal` protection on that hosted surface; CLI/hosted *search* still lags, and the newly shipped collaboration skill has not been externally verified. See DR-260705. Also same day: decision sweep closed — **BL-260620-mid-loop-user-artifact-edits** and **BL-260620-llm-section-auto-chunking** resolved `wont_do`, while **BL-260701-add-multi-round-panel** recorded the product distinction and remains evidence-gated for any build. Prior: skills.sh hosted-discovery verification closed 2026-07-05 — **BL-260627-verify-skills-sh-hosted**: hosted index confirmed telemetry-only, internal-flag safety confirmed client-side, hosted visibility seeded with owner installs of the two standalone skills; strategy + guardrail in DR-260705-skills-sh-listing-is-telemetry.)
+**Last updated:** 2026-07-13 (Session Observer Collaboration final review and mandatory verification passed: production wake envelopes are non-human control input across the supported runtimes; setup follows the acting runtime while peer pins remain exact; repeated queued human content remains transaction-distinct; and conflicting identity signals return fail-closed candidates. Codex lifecycle evidence is live-validated for the measured bounded path, while Cursor and Claude Monitor remain documented-but-unvalidated. The four N=2 follow-ups remain open and unchanged. Prior: shared generated runtime output closed — **BL-260620-share-consensus-generated**; provider CLI read-only capture relocated to `.consensus/submit/`; skills.sh hosted safety is verified for the two seeded standalone skills only. See DR-260705.)
 
 ## Overview
 
@@ -69,6 +69,14 @@ human-authority and wake behavior explicit. The canonical repository path is
 public and individually installable; marketplace, registry, hosted
 skills.sh/search, and provider-mirror propagation remain unverified until the
 release checklist proves them.
+
+The final collaboration pass hardens the production XML wake contract,
+transaction-scoped queued-input normalization, fail-closed identity candidates,
+and acting-runtime setup routing. Codex's measured bounded lifecycle path is
+live-validated; Cursor continuation and Claude Monitor remain
+documented-but-unvalidated, with buffered/manual or separately proven scheduler
+fallbacks. The canonical skill and user/provider copies are in parity; the
+four v2 backlog items remain the authoritative deferred boundary.
 
 ### transcript-core (`src/transcript/core/`)
 

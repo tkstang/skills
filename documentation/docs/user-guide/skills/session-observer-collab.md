@@ -105,6 +105,33 @@ For the two cross-runtime pairs, route setup locally and observation remotely:
 Runtime references describe harness-specific setup only. They cannot relax
 exact pinning, provenance, authority, no-op, pause, or closeout rules.
 
+## Manage local lifecycle state
+
+Use the shipped `collab-control.mjs` as the lifecycle surface; do not hand-edit
+leases or hook registration. It supports `install`, `status`, `arm`, `disarm`,
+and `prune`, plus the Codex-specific `codex-install`, `codex-status`, and
+`codex-uninstall` commands. The selected runtime reference supplies the exact
+arguments for setup and arming because they bind the local owner, worktree,
+peer pin, transcript, and finite limits.
+
+For ordinary inspection and closeout, the session-scoped commands are:
+
+```bash
+COLLAB="$PWD/skills/session-observer-collab/scripts/collab-control.mjs"
+
+node "$COLLAB" status --session "$SELF_SESSION" --json
+node "$COLLAB" disarm --session "$SELF_SESSION" --json
+node "$COLLAB" prune --session "$SELF_SESSION" --json
+```
+
+`status` reports literal lease state: `armed`, `waiting`, `idle`, `triggered`,
+or `disarmed`. A timeout is `idle`, not an active waiter or successful wake.
+For Codex, registration, exact-command trust, effective execution, lease
+arming, and a measured live wake are separate facts; installation alone never
+authorizes arming. Normal closeout disarms the named lease and preserves the
+static hook. Uninstall is a separate explicit user choice that must preserve
+unrelated hook registrations.
+
 ## Addressing and authority
 
 End every substantive turn with explicit addressing:
