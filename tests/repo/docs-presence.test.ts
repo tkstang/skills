@@ -44,6 +44,21 @@ async function read(relativePath: string) {
 }
 
 describe('docs-presence', () => {
+  it('generated docs manifest includes every Markdown page', async () => {
+    const docsDir = new URL('documentation/docs/', repoRoot);
+    const pages = (await readdir(docsDir, { recursive: true }))
+      .filter((entry) => typeof entry === 'string' && entry.endsWith('.md'))
+      .toSorted();
+    const manifest = await read('documentation/index.md');
+
+    for (const page of pages) {
+      expect(
+        manifest,
+        `${page} should be present in documentation/index.md`,
+      ).toContain(`(${page})`);
+    }
+  });
+
   it('baseline documentation files exist', async () => {
     for (const docPath of requiredDocs) {
       const contents = await read(docPath);
@@ -384,7 +399,9 @@ describe('docs-presence', () => {
 
   it('panel docs page exists and is navigable', async () => {
     const panelDoc = await read(panelDocPath);
-    const index = await read('documentation/docs/user-guide/consensus/index.md');
+    const index = await read(
+      'documentation/docs/user-guide/consensus/index.md',
+    );
     const meta = JSON.parse(
       await read('documentation/docs/user-guide/consensus/meta.json'),
     );
