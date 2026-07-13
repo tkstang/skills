@@ -1,7 +1,8 @@
 ---
-oat_current_task: p04-t01
-oat_last_commit: a417771dd9dad93608d7052fb51e09aba146691c
-oat_blockers: []
+oat_current_task: p04-review
+oat_last_commit: 3885181801f165f33ee37f09437e38ea3220e4c4
+oat_blockers:
+  - "p04 live Codex acceptance requires shipped-hook install, /hooks trust, and coordinated peer sessions"
 oat_orchestration_retry_limit: 4
 associated_issues: []
 oat_kind: implementation
@@ -37,7 +38,7 @@ oat_generated: false
 
 ## Current Phase
 
-Parallel phase group p04/p05 is next.
+Phase p04 is blocked on live Codex acceptance evidence after review-fix iteration 1/4.
 
 ## Artifacts
 
@@ -62,12 +63,15 @@ Parallel phase group p04/p05 is next.
 - ✓ Phase p01 completed and reviewed
 - ✓ Phase p02 completed and reviewed
 - ✓ Phase p03 completed after user-authorized fix-only iteration 4/4
-- ⧗ Parallel group p04/p05 ready to start
+- ! Phase p04 code and automated checks complete; live acceptance evidence blocked
+- · Phase p05 not started after sequential degradation
 
 ## Blockers
 
-None
+- The registered live Session Observer Stop hook is the historical prototype rather than the shipped p04 hook.
+- No shipped-command trust/effective-execution breadcrumb or active live lease exists.
+- Completing the matrix requires a user-assisted `/hooks` approval and coordinated Codex plus peer sessions.
 
 ## Next Milestone
 
-Execute the p04/p05 parallel adapter group, merge in plan order, and verify integration.
+Install and trust the shipped Codex hook, run the bounded live acceptance matrix, then re-review p04 before starting p05.

@@ -1,10 +1,11 @@
 ---
 oat_status: in_progress
 oat_ready_for: null
-oat_blockers: []
+oat_blockers:
+  - "p04 live Codex acceptance requires shipped-hook install, /hooks trust, and coordinated peer sessions"
 oat_orchestration_retry_limit: 4
 oat_last_updated: 2026-07-12
-oat_current_task_id: p04-t01
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -22,11 +23,11 @@ oat_generated: false
 | p01 — Transcript semantics | completed | 4 | 4 |
 | p02 — Identity and watch behavior | completed | 5 | 5 |
 | p03 — Collaboration protocol/control | completed | 4 | 4 |
-| p04 — Codex adapter | pending | 3 | 0 |
+| p04 — Codex adapter | blocked_review | 3 | 3 |
 | p05 — Cursor and Claude adapters | pending | 3 | 0 |
 | p06 — Integration and closeout | pending | 5 | 0 |
 
-**Total:** 13/24 tasks completed
+**Total:** 16/24 tasks completed
 
 ## Phase p01: Normalize collaboration-bearing transcript semantics
 
@@ -80,9 +81,17 @@ oat_generated: false
 
 ## Phase p04: Implement and validate the Codex lifecycle adapter
 
-- [ ] `p04-t01` Implement the thin Codex Stop hook
-- [ ] `p04-t02` Complete Codex install, trust, and lifecycle operations
-- [ ] `p04-t03` Run the Codex acceptance harness
+- [x] `p04-t01` Implement the thin Codex Stop hook — `1a5ddc3`
+- [x] `p04-t02` Complete Codex install, trust, and lifecycle operations — `8b6f829`, fixes `5b861fd`, `6cd01d2`, `3885181`
+- [x] `p04-t03` Run the Codex acceptance harness — `787f4dd`; live rows blocked
+
+### Phase p04 Summary
+
+**Outcome:** The Codex Stop hook, executable install/status/uninstall surface, lease-safe removal, argv-safe hook registration, bounded waits, signal cleanup, declarations, and honest automated evidence are implemented. Phase review remains blocked on the required live Codex matrix.
+
+**Verification:** 34 focused tests, full type-check, repository validation, diff checks, and clean-tree checks pass. Temporary live-probe artifacts were removed and no partial live evidence was committed.
+
+**Review blocker:** Review-fix iteration 1/4 resolved the executable control surface, uninstall safety, path quoting, and stale automated count. The live probe found only the historical prototype registered, with no shipped-hook trust/effective-execution breadcrumb and no live leases. Completing p04 requires installing the shipped hook, explicit `/hooks` trust/enablement, and coordinated Codex plus peer sessions for the required live rows.
 
 ## Phase p05: Implement Cursor and Claude harness adapters
 
@@ -293,6 +302,43 @@ oat_generated: false
 | Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
 | --- | --- | --- | --- | --- | --- | --- |
 | p03 review | plan.md standard per-phase review loop | Re-review after each blocking fix iteration | Medium declaration finding fixed and p03 closed without another review | Explicit user direction to fix and move to the next phase | implementation + user disposition | Final review still covers the complete branch |
+
+### Run 6 — 2026-07-12 19:31 CDT
+
+**Branch:** `session-observer-collab`
+**Tier:** 1
+**Policy:** merge-strategy=merge, retry-limit=4; parallel group degraded to sequential
+**Phases:** 1 executed, 0 passed, 1 blocked, 1 stopped
+
+#### Phase Outcomes
+
+| Phase | Implementer | Review | Fix Iterations | Disposition |
+| --- | --- | --- | ---: | --- |
+| p04 | DONE | blocked | 1/4 | stopped; p05 not started |
+
+#### Parallel Groups
+
+- Group `[p04, p05]`: both strict worktree bootstraps failed before creation because phase branch refs collided with the orchestration branch leaf; execution degraded to sequential.
+
+#### Dispatch Notes
+
+- p04 task/fix commits: `1a5ddc3`, `8b6f829`, `787f4dd`, `5b861fd`, `6cd01d2`, `3885181`.
+- Reviewer: `Dispatch: scope=p04 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high`.
+- Live fix probe: `Dispatch: scope=p04-t03-review-fix01 action=fix role=fix producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-high`.
+
+#### Outstanding Items
+
+- Install the shipped stable Codex hook.
+- Approve and enable it explicitly through `/hooks` and capture the effective-execution breadcrumb.
+- Coordinate Codex and peer sessions for one-shot, recurring, timeout, no-op, queued-input/steering, coexistence, pruning, and disarm rows.
+- p05 was not started because the degraded group is executing sequentially and p04 is blocked.
+
+#### Artifact / Design Deltas
+
+| Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
+| --- | --- | --- | --- | --- | --- | --- |
+| p04/p05 execution | plan.md parallel group | Worktree-isolated concurrent phases | Sequential target-preserving execution | Required `{project-name}/{phase}` branch names collide with orchestration branch leaf | implementation + issue report | OAT tooling report committed at `2d912c1` |
+| p04-t03 live matrix | plan.md p04-t03 | Live Codex acceptance rows | Automated coverage complete; live rows blocked before current-hook trust | Installed hook is the historical prototype, not shipped p04 | implementation + live probe | Requires user-assisted live setup/run |
 
 <!-- orchestration-runs-end -->
 

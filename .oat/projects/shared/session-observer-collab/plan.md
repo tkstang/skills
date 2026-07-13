@@ -1,7 +1,8 @@
 ---
 oat_status: complete
 oat_ready_for: oat-project-implement
-oat_blockers: []
+oat_blockers:
+  - "p04 live Codex acceptance requires shipped-hook install, /hooks trust, and coordinated peer sessions"
 oat_last_updated: 2026-07-12
 oat_phase: plan
 oat_phase_status: complete
@@ -440,7 +441,7 @@ Generated-bundle CLI flag assertions run in p02-t05 after the canonical build.
 | p01    | code     | passed  | 2026-07-12 | managed review after fix iteration 2/2 |
 | p02    | code     | passed  | 2026-07-12 | managed review after fix iteration 2/2 |
 | p03    | code     | passed  | 2026-07-12 | all blocking findings resolved; Medium declaration fix completed in user-directed fix-only iteration 4/4 |
-| p04    | code     | pending | -    | -        |
+| p04    | code     | fixes_added | 2026-07-12 | review-fix 1/4 code fixes complete; live Codex matrix blocked on user-assisted trust/session setup |
 | p05    | code     | pending | -    | -        |
 | p06    | code     | pending | -    | -        |
 | final  | code     | pending | -    | -        |
