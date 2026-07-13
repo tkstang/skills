@@ -2,7 +2,7 @@
 oat_status: in_progress
 oat_ready_for: null
 oat_blockers:
-  - "p04 live Codex acceptance requires shipped-hook install, /hooks trust, and coordinated peer sessions"
+  - "p04 live Codex acceptance requires exact-command registration, /hooks trust, and coordinated peer sessions"
 oat_orchestration_retry_limit: 4
 oat_last_updated: 2026-07-12
 oat_current_task_id: null
@@ -91,7 +91,7 @@ oat_generated: false
 
 **Verification:** 34 focused tests, full type-check, repository validation, diff checks, and clean-tree checks pass. Temporary live-probe artifacts were removed and no partial live evidence was committed.
 
-**Review blocker:** Review-fix iteration 1/4 resolved the executable control surface, uninstall safety, path quoting, and stale automated count. The live probe found only the historical prototype registered, with no shipped-hook trust/effective-execution breadcrumb and no live leases. Completing p04 requires installing the shipped hook, explicit `/hooks` trust/enablement, and coordinated Codex plus peer sessions for the required live rows.
+**Review blocker:** Review-fix iteration 1/4 resolved the executable control surface, uninstall safety, path quoting, and stale automated count. The shipped hook was installed at the stable user path with a source-matching hash and owner-only permissions, while the historical prototype was preserved as a backup. The existing registration still uses the historical command spelling rather than the new exact command, so completing p04 requires exact-command registration, explicit `/hooks` trust/enablement, and coordinated Codex plus peer sessions for the required live rows.
 
 ## Phase p05: Implement Cursor and Claude harness adapters
 
@@ -328,8 +328,8 @@ oat_generated: false
 
 #### Outstanding Items
 
-- Install the shipped stable Codex hook.
-- Approve and enable it explicitly through `/hooks` and capture the effective-execution breadcrumb.
+- Shipped stable Codex hook installed; replace the historical registration with the exact new command.
+- Approve and enable that exact command through `/hooks` and capture the effective-execution breadcrumb.
 - Coordinate Codex and peer sessions for one-shot, recurring, timeout, no-op, queued-input/steering, coexistence, pruning, and disarm rows.
 - p05 was not started because the degraded group is executing sequentially and p04 is blocked.
 
