@@ -12,7 +12,7 @@ function isObject(value) {
 function asString(value) {
   return typeof value === "string" ? value : void 0;
 }
-function parseAutomaticControlEnvelope(text) {
+function parseAutomaticControlJsonEnvelope(text) {
   let parsed;
   try {
     parsed = JSON.parse(text);
@@ -26,6 +26,67 @@ function parseAutomaticControlEnvelope(text) {
     return null;
   }
   return wake;
+}
+function decodeXmlAttribute(value) {
+  if (/[<>]|&(?!amp;|quot;|lt;|gt;|apos;)/u.test(value)) return null;
+  return value.replace(
+    /&(amp|quot|lt|gt|apos);/gu,
+    (_match, entity) => {
+      if (entity === "amp") return "&";
+      if (entity === "quot") return '"';
+      if (entity === "lt") return "<";
+      if (entity === "gt") return ">";
+      return "'";
+    }
+  );
+}
+function parseXmlAttributes(source) {
+  const attributes = /* @__PURE__ */ new Map();
+  const pattern = /([A-Za-z_][A-Za-z0-9_.:-]*)\s*=\s*"([^"]*)"/gu;
+  let cursor = 0;
+  let match;
+  while ((match = pattern.exec(source)) !== null) {
+    if (source.slice(cursor, match.index).trim()) return null;
+    const [, name, encodedValue] = match;
+    const value = decodeXmlAttribute(encodedValue);
+    if (value === null || attributes.has(name)) return null;
+    attributes.set(name, value);
+    cursor = pattern.lastIndex;
+  }
+  if (source.slice(cursor).trim() || attributes.size === 0) return null;
+  return attributes;
+}
+function parseAutomaticControlXmlEnvelope(text) {
+  const match = /^\s*<session_observer_wake\b([^<>]*)>([\s\S]*?)<\/session_observer_wake>\s*$/u.exec(
+    text
+  );
+  if (!match) return null;
+  const attributes = parseXmlAttributes(match[1]);
+  if (!attributes || attributes.get("automatic") !== "true") return null;
+  const runtime = attributes.get("runtime");
+  const leaseId = attributes.get("lease_id");
+  const pinnedPeer = attributes.get("peer");
+  const records = attributes.get("records");
+  const rangeMatch = /^(\d+)-(\d+)$/u.exec(records ?? "");
+  if (!runtime?.trim() || !leaseId?.trim() || !pinnedPeer?.trim() || !rangeMatch)
+    return null;
+  const fromIndex = Number(rangeMatch[1]);
+  const toIndex = Number(rangeMatch[2]);
+  if (!Number.isSafeInteger(fromIndex) || !Number.isSafeInteger(toIndex) || toIndex < fromIndex) {
+    return null;
+  }
+  return {
+    automatic: true,
+    runtime,
+    leaseId,
+    pinnedPeer,
+    range: { fromIndex, toIndex },
+    wireFormat: "xml",
+    body: match[2].trim()
+  };
+}
+function parseAutomaticControlEnvelope(text) {
+  return parseAutomaticControlXmlEnvelope(text) ?? parseAutomaticControlJsonEnvelope(text);
 }
 function messageEntry(role, text, recordIndex, displayRole) {
   if (role === "user") {

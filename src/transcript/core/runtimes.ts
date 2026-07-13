@@ -119,7 +119,7 @@ function asString(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined;
 }
 
-function parseAutomaticControlEnvelope(
+function parseAutomaticControlJsonEnvelope(
   text: string,
 ): AutomaticControlProvenance | null {
   let parsed: unknown;
@@ -147,6 +147,94 @@ function parseAutomaticControlEnvelope(
   }
 
   return wake as AutomaticControlProvenance;
+}
+
+function decodeXmlAttribute(value: string): string | null {
+  if (/[<>]|&(?!amp;|quot;|lt;|gt;|apos;)/u.test(value)) return null;
+  return value.replace(
+    /&(amp|quot|lt|gt|apos);/gu,
+    (_match, entity: string) => {
+      if (entity === 'amp') return '&';
+      if (entity === 'quot') return '"';
+      if (entity === 'lt') return '<';
+      if (entity === 'gt') return '>';
+      return "'";
+    },
+  );
+}
+
+function parseXmlAttributes(source: string): Map<string, string> | null {
+  const attributes = new Map<string, string>();
+  const pattern = /([A-Za-z_][A-Za-z0-9_.:-]*)\s*=\s*"([^"]*)"/gu;
+  let cursor = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = pattern.exec(source)) !== null) {
+    if (source.slice(cursor, match.index).trim()) return null;
+    const [, name, encodedValue] = match;
+    const value = decodeXmlAttribute(encodedValue);
+    if (value === null || attributes.has(name)) return null;
+    attributes.set(name, value);
+    cursor = pattern.lastIndex;
+  }
+
+  if (source.slice(cursor).trim() || attributes.size === 0) return null;
+  return attributes;
+}
+
+function parseAutomaticControlXmlEnvelope(
+  text: string,
+): AutomaticControlProvenance | null {
+  const match =
+    /^\s*<session_observer_wake\b([^<>]*)>([\s\S]*?)<\/session_observer_wake>\s*$/u.exec(
+      text,
+    );
+  if (!match) return null;
+
+  const attributes = parseXmlAttributes(match[1]);
+  if (!attributes || attributes.get('automatic') !== 'true') return null;
+
+  const runtime = attributes.get('runtime');
+  const leaseId = attributes.get('lease_id');
+  const pinnedPeer = attributes.get('peer');
+  const records = attributes.get('records');
+  const rangeMatch = /^(\d+)-(\d+)$/u.exec(records ?? '');
+  if (
+    !runtime?.trim() ||
+    !leaseId?.trim() ||
+    !pinnedPeer?.trim() ||
+    !rangeMatch
+  )
+    return null;
+
+  const fromIndex = Number(rangeMatch[1]);
+  const toIndex = Number(rangeMatch[2]);
+  if (
+    !Number.isSafeInteger(fromIndex) ||
+    !Number.isSafeInteger(toIndex) ||
+    toIndex < fromIndex
+  ) {
+    return null;
+  }
+
+  return {
+    automatic: true,
+    runtime,
+    leaseId,
+    pinnedPeer,
+    range: { fromIndex, toIndex },
+    wireFormat: 'xml',
+    body: match[2].trim(),
+  };
+}
+
+function parseAutomaticControlEnvelope(
+  text: string,
+): AutomaticControlProvenance | null {
+  return (
+    parseAutomaticControlXmlEnvelope(text) ??
+    parseAutomaticControlJsonEnvelope(text)
+  );
 }
 
 function messageEntry(
