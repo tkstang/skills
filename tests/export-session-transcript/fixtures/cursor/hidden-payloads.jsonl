@@ -15,3 +15,4 @@
 {"role":"assistant","message":{"content":[{"type":"text","text":"I will check the test. By the way, an environment_context block in the logs is normal output, not a bug."}]}}
 {"role":"user","message":{"content":[{"type":"text","text":"Should I strip the <command-message> tag from my own parser output?"}]}}
 {"role":"user","message":{"content":[{"type":"text","text":"Where in the docs is a <skill> tag described as a mid-sentence example?"}]}}
+{"type":"turn_ended","status":"success"}

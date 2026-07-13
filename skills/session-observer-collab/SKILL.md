@@ -74,11 +74,11 @@ do not silently substitute a newer same-cwd session.
 Resolve the peer runtime first, then load exactly one matching reference. Do
 not load all runtime references into the same turn.
 
-| Resolved runtime | Load this file                      | Initial wake posture                                       |
-| ---------------- | ----------------------------------- | ---------------------------------------------------------- |
-| Claude Code      | `references/runtime-claude-code.md` | Probe Monitor; otherwise scheduled polling                 |
-| Codex            | `references/runtime-codex.md`       | Trusted bounded lifecycle continuation when proven         |
-| Cursor           | `references/runtime-cursor.md`      | Documented lifecycle continuation; scheduled polling floor |
+| Resolved runtime | Load this file                      | Initial wake posture                                 |
+| ---------------- | ----------------------------------- | ---------------------------------------------------- |
+| Claude Code      | `references/runtime-claude-code.md` | Probe Monitor; otherwise buffered manual             |
+| Codex            | `references/runtime-codex.md`       | Trusted bounded lifecycle continuation when proven   |
+| Cursor           | `references/runtime-cursor.md`      | Documented continuation; prove polling or use manual |
 
 Probe the available local harness capability before enabling any continuation.
 The capability ladder is `event-wake`, `lifecycle-continuation`,

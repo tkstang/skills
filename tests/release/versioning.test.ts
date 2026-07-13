@@ -21,6 +21,7 @@ const jsonFiles = [
 ];
 const skillFiles = [
   'skills/session-observer/SKILL.md',
+  'skills/session-observer-collab/SKILL.md',
   'skills/export-session-transcript/SKILL.md',
   'plugins/consensus/skills/refine/SKILL.md',
   'plugins/consensus/skills/evaluate/SKILL.md',
@@ -34,6 +35,15 @@ const sessionObserverWatchDocs = [
   'skills/session-observer/references/watch-design.md',
   '.agents/skills/session-observer/SKILL.md',
   '.agents/skills/session-observer/references/watch-design.md',
+];
+const collaborationDistributionFiles = [
+  'skills/session-observer-collab/references/runtime-claude-code.md',
+  'skills/session-observer-collab/references/runtime-codex.md',
+  'skills/session-observer-collab/references/runtime-cursor.md',
+  'skills/session-observer-collab/scripts/collab-control.mjs',
+  'skills/session-observer-collab/scripts/codex-lifecycle.mjs',
+  'skills/session-observer-collab/scripts/hooks/codex-stop.mjs',
+  'skills/session-observer-collab/scripts/hooks/cursor-stop.mjs',
 ];
 const requiredDocs = [
   'README.md',
@@ -58,7 +68,10 @@ async function tempReleaseRoot() {
     await mkdir(path.dirname(path.join(tempRoot, file)), { recursive: true });
     await cp(path.join(repoRoot, file), path.join(tempRoot, file));
   }
-  for (const file of sessionObserverWatchDocs) {
+  for (const file of [
+    ...sessionObserverWatchDocs,
+    ...collaborationDistributionFiles,
+  ]) {
     await mkdir(path.dirname(path.join(tempRoot, file)), { recursive: true });
     await cp(path.join(repoRoot, file), path.join(tempRoot, file));
   }

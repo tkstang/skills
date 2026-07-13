@@ -52,8 +52,9 @@ If the user requests uninstall:
 
 ## 6. Transfer and verify
 
-1. Copy the entire `.session-observer/` directory to the implementation
-   worktree.
+1. Copy the finalized handoff packet into the project-local
+   `.oat/projects/shared/session-observer-collab/references/` directory. Do not
+   copy the historical source `.session-observer/` directory or any live state.
 2. In the destination, open `README.md` and `prompt.md` and verify every linked
    relative artifact exists.
 3. Confirm the implementation agent understands that prototype code is

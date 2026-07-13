@@ -11,9 +11,10 @@ collaboration has two separate modes:
   **documented-but-unvalidated** until one complete live run proves arm → peer
   post → follow-up generation → disarm in the same conversation.
 
-Scheduled polling is the honest operational floor until that second mode has
-passed its live acceptance row. A configured hook, a unit test, or CLI presence
-does not promote the tier.
+Until that second mode has passed its live acceptance row, use scheduled polling
+only when an effective scheduler is separately proven; otherwise use buffered
+manual catch-up. A configured hook, a unit test, or CLI presence does not
+promote the tier.
 
 ## Identity and completed-turn boundary
 

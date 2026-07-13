@@ -223,8 +223,10 @@ load exactly one runtime reference for concrete setup.
   (`Monitor` tool wrapping
   `node <skill>/scripts/session-observer.mjs watch --runtime <peer> --cwd "$PWD" --until-stopped --heartbeat-sec 0 --quiet-empty`);
   each emitted digest wakes the agent as a task notification. Heartbeats off;
-  quiet-empty on. When Monitor is unavailable, fall back to the generic poll
-  cadence below.
+  quiet-empty on. Do not call that path validated until the full live Monitor
+  sequence passes. When Monitor is unavailable or unvalidated, use buffered
+  manual catch-up unless an effective scheduler separately proves a future
+  agent turn; only then use the generic poll cadence below.
 - **Codex:** validated `lifecycle-continuation` through a trusted Stop-hook
   collaboration lease. It can chain a new generation only while the bounded
   Stop hook is active; after timeout/idle, later peer output needs another
@@ -259,8 +261,9 @@ each agent probes its environment and selects the strongest available mode:
 sake.** Harness-native mechanisms are first-class skill content, documented
 per runtime (`references/<runtime>.md`, mirroring the load-one-only
 provider-reference pattern): Claude Code → Monitor wrapping watch
-(`event-wake`, validated); Codex → Stop-hook collaboration lease with the
-loop guards above (`lifecycle-continuation`, validated); Cursor →
+(`event-wake`, currently unvalidated; buffered-manual fallback unless an
+effective scheduler proves `scheduled-poll`); Codex → Stop-hook collaboration
+lease with the loop guards above (`lifecycle-continuation`, validated); Cursor →
 `followup_message` Stop-hook generation chaining (`lifecycle-continuation`,
 documented but unvalidated — see the Cursor section), with `scheduled-poll`
 as its interim floor. These ship with the skill and work wherever the
@@ -443,7 +446,8 @@ Name these patterns so agents can invoke them deliberately:
 - [ ] Composes with the base skill; no reimplemented CLI mechanics.
 - [ ] Arming section prevents all three observed identity/gap failures
       (baseline gap, stale pin, silent-peer misdiagnosis).
-- [ ] Wake recipes cover Claude Code (Monitor, `event-wake` — validated),
+- [ ] Wake recipes cover Claude Code (Monitor, `event-wake` — unvalidated;
+      buffered-manual unless an effective scheduler proves `scheduled-poll`),
       Codex (Stop-hook collaboration lease, `lifecycle-continuation` —
       validated end-to-end including recurring mode), Cursor (documented
       `followup_message` lifecycle continuation pending live validation), and a

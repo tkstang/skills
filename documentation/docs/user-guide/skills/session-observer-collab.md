@@ -76,7 +76,8 @@ For Claude Code, probe Monitor first. Until the full Monitor sequence (quiet
 period, substantive notification, same-session restart, and clean stop) passes,
 use buffered manual; scheduled-poll is permitted only after effective
 scheduler evidence. Cursor's lifecycle recipe remains documented-but-unvalidated
-and scheduled polling is its floor. Do not describe any lower tier as
+and requires the same effective scheduler proof before selecting scheduled
+polling; otherwise use buffered manual. Do not describe either lower tier as
 autonomous wake.
 
 ## Load one runtime reference
@@ -87,7 +88,7 @@ After resolving the peer runtime, load only its matching reference:
 | ----------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------ |
 | Claude Code | `skills/session-observer-collab/references/runtime-claude-code.md` | Probe Monitor; otherwise buffered-manual (or scheduled-poll only when proven). |
 | Codex       | `skills/session-observer-collab/references/runtime-codex.md`       | Trusted bounded lifecycle continuation when local readiness is complete.       |
-| Cursor      | `skills/session-observer-collab/references/runtime-cursor.md`      | Documented lifecycle continuation; scheduled-poll floor until live proof.      |
+| Cursor      | `skills/session-observer-collab/references/runtime-cursor.md`      | Documented continuation; prove scheduled-poll or use buffered-manual.          |
 
 Runtime references describe harness-specific setup only. They cannot relax
 exact pinning, provenance, authority, no-op, pause, or closeout rules.

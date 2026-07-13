@@ -40,3 +40,20 @@ not land in this implementation, create a concrete v2 backlog item.
 Do not copy session-specific live state from the source machine. The lease
 example is sanitized. Install runtime state through the new skill's setup flow,
 and require local hook trust in the acting Codex session.
+
+This committed `references/` directory is the authoritative handoff packet for
+the implementation. Historical `.session-observer/` path mentions inside the
+imported prompt, kickoff template, and logs describe the source collaboration's
+original logging location; they do not name a live state directory to copy or
+ship.
+
+## Deferred v2 backlog
+
+- `BL-260713-per-observer-offsets-and-safe`
+- `BL-260713-stronger-cursor-collaboration`
+- `BL-260713-cursor-transcript-store`
+- `BL-260713-optional-idle-session`
+
+These file-backed items live under `.oat/repo/pjm/backlog/items/` and preserve
+the deferred N>2, Cursor, and optional application-integration boundaries from
+the implementation brief.
