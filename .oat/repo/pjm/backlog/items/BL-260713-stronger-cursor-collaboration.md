@@ -40,4 +40,3 @@ live path is proven.
 - Documentation labels each tier as validated or documented-but-unvalidated
   and includes the exact probe evidence; no Cursor support claim is inferred
   from configuration presence alone.
-

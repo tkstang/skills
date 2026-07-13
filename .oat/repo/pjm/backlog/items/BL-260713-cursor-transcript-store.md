@@ -39,4 +39,3 @@ be expanded only from sanitized evidence rather than guessed path rules.
   candidates, and restart/catch-up behavior.
 - User and engineering documentation state the supported coverage and retain a
   documented-but-unvalidated label for stores that cannot be probed.
-

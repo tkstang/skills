@@ -39,4 +39,3 @@ must not become a required runtime dependency.
   fallback to scheduled-poll or buffered-manual behavior.
 - Documentation distinguishes application-level wake assistance from runtime
   authority and does not imply that an integration is available on all hosts.
-

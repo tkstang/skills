@@ -41,4 +41,3 @@ messaging initiatives, which remain separate foundations and follow-ons.
 - The implementation and operator documentation preserve the N=2 behavior and
   state how this work composes with the existing shared-session-log substrate
   and direct-messaging backlog items.
-
