@@ -112,7 +112,7 @@ oat_generated: false
 - [x] `p06-t02` Publish user and engineering documentation — `5394f51`
 - [x] `p06-t03` Record all intentional v2 deferrals — `4881775`, quality fix `7dde2c2`
 - [x] `p06-t04` Run the full acceptance and sanitization matrix — `2f871aa`, review fix `60aea96`
-- [x] `p06-t05` Verify clean closeout and installation handoff — `91c64d5`
+- [x] `p06-t05` Verify clean closeout and installation handoff — `91c64d5`, post-review sync `4f87679`
 
 ### Phase p06 Summary
 
@@ -120,11 +120,11 @@ oat_generated: false
 
 **Verification:** `worktree:validate` passed with 1,081 tests passing and one intentional skip, plus type-check, generated-output parity, repository validation, smoke, diff checks, and two changed-skill version validation. The p06 peer handoff review was clean before standard phase review.
 
-**Operational closeout evidence:** Freshness failed closed (`whoami=noIdentity`; locator had only recency-ranked same-cwd candidates), so no exact peer was inferred. No project-owned watcher, Monitor, poller, or lease remained; one unrelated watcher under `/Users/tstang/orca/workspaces/open-agent-toolkit/oat-repo-improve` was preserved. The user explicitly chose to retain and trust the static Codex hook during p04; it remains installed, executable, unique at timeout 65, with zero collaboration lease files. User copies of observer 1.0.2, export 1.0.1, and collaboration 1.0.2 byte-match the branch; Claude/Cursor entries resolve to the canonical `~/.agents/skills/session-observer-collab` copy; `oat sync --scope user` passed in a login shell.
+**Operational closeout evidence:** Freshness failed closed (`whoami=noIdentity`; locator had only recency-ranked same-cwd candidates), so no exact peer was inferred. No project-owned watcher, Monitor, poller, or lease remained; one unrelated watcher under `/Users/tstang/orca/workspaces/open-agent-toolkit/oat-repo-improve` was preserved. The user explicitly chose to retain and trust the static Codex hook during p04; it remains installed, executable, unique at timeout 65, with zero collaboration lease files. After the final scheduler-proof fix `60aea96`, review-fix iteration 2 refreshed the entire canonical collaboration directory with `rsync --delete`, then `zsh -lic 'oat sync --scope user'` passed. Full-directory parity now holds for observer 1.0.2, export 1.0.1, and collaboration 1.0.2; Claude and Cursor raw links both target `../../.agents/skills/session-observer-collab` and resolve to `/Users/tstang/.agents/skills/session-observer-collab`.
 
 **Backlog handoff:** `BL-260713-per-observer-offsets-and-safe`, `BL-260713-stronger-cursor-collaboration`, `BL-260713-cursor-transcript-store`, and `BL-260713-optional-idle-session` are open. Existing shared-log and direct-messaging initiatives remain open.
 
-**Review:** Initial managed p06 review found three Important artifact-alignment findings. Product/reference fixes landed in `b3181f9` and `60aea96`; this bookkeeping commit records the required operational evidence before re-review.
+**Review:** Initial managed p06 review found three Important artifact-alignment findings. Product/reference fixes landed in `b3181f9` and `60aea96`, and durable operational evidence landed in bookkeeping. Re-review found one remaining Important stale-user-copy issue; review-fix iteration 2 refreshed and verified all user copies/provider links at `4f87679`.
 
 ## Review and Planning Notes
 
@@ -510,6 +510,34 @@ oat_generated: false
 | Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
 | --- | --- | --- | --- | --- | --- | --- |
 | p06-t05 commit | plan.md operational closeout | Durable evidence plus closeout commit | Operational work produced no repository diff, so task used an empty commit and evidence is recorded here | Cleanup/install checks were external/read-only | implementation.md | Final review validates durable evidence |
+
+### Run 12 — 2026-07-12 23:55 CDT
+
+**Branch:** `session-observer-collab`
+**Tier:** 1
+**Policy:** merge-strategy=merge, retry-limit=4; p06 review-fix iteration 2/4
+**Phases:** 1 resumed, 0 passed pending re-review, 1 fixed, 0 stopped
+
+#### Phase Outcomes
+
+| Phase | Implementer | Review | Fix Iterations | Disposition |
+| --- | --- | --- | ---: | --- |
+| p06 | DONE | fixes completed | 2/4 | post-fix user parity verified; re-review next |
+
+#### Dispatch Notes
+
+- User-install handoff fix: empty commit `4f87679` on native Luna/high.
+- Full collaboration directory refreshed after `60aea96`; login-shell user sync passed.
+
+#### Outstanding Items
+
+- Re-run managed p06 review.
+
+#### Artifact / Design Deltas
+
+| Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
+| --- | --- | --- | --- | --- | --- | --- |
+| p06-t05 user sync | implementation closeout evidence | User copies match final branch | First sync preceded the final scheduler wording fix; second full refresh restored parity | Review compared live user copy to post-fix branch | implementation + live parity checks | Re-review |
 
 <!-- orchestration-runs-end -->
 

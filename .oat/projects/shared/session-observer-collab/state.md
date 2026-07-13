@@ -1,6 +1,6 @@
 ---
 oat_current_task: p06-review
-oat_last_commit: 60aea96f5d1f0f802e76310a3b4c5557528087a
+oat_last_commit: 4f876797b35a342caffbb6eeb1112d070c96d412
 oat_blockers: []
 oat_orchestration_retry_limit: 4
 associated_issues: []
@@ -37,7 +37,7 @@ oat_generated: false
 
 ## Current Phase
 
-All p06 tasks and review fixes are complete; managed p06 re-review is next.
+All p06 tasks and review-fix iteration 2/4 are complete; managed p06 re-review is next.
 
 ## Artifacts
 
@@ -65,7 +65,7 @@ All p06 tasks and review fixes are complete; managed p06 re-review is next.
 - ✓ Phase p04 complete; all required live Codex rows and managed re-review passed
 - ✓ Phase p05 complete; managed review passed with zero findings
 - ✓ Final implementation phase p06 tasks complete
-- ⧗ p06 review-fix iteration 1/4 complete; awaiting re-review
+- ⧗ p06 review-fix iteration 2/4 complete; post-fix user parity verified; awaiting re-review
 
 ## Blockers
 
