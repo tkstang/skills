@@ -190,10 +190,10 @@ authorization to uninstall the shared hook.
 Automated tests prove registration merge/removal, exact-command status
 classification, finite wait/idle behavior, concurrent Stop safety, and restart
 re-arm semantics. They do not prove a user has trusted the hook in a live
-Codex client. Mark live lifecycle continuation as documented-but-unvalidated
-until an actual exact trust breadcrumb, one substantive peer-triggered wake,
-range/cursor advance, cap behavior, steering observation, coexistence, and
-disarm have been measured against the acceptance matrix.
+Codex client. Mark each live lifecycle row independently: the targeted rows
+measured below are validated, while unmeasured rows remain
+documented-but-unvalidated. Do not infer recurring coverage or queued-input
+behavior from a one-shot wake, cursor, expiry, coexistence, or cleanup result.
 
 ## Automated acceptance subset (2026-07-12)
 
@@ -221,6 +221,27 @@ it is not evidence that any live Codex harness row passed.
 | Stale-worktree pruning          | Identity mismatch fails closed; expired/capped/targeted disarmed pruning is covered. Missing-resource stale-worktree pruning is not exercised here. | Not run.                              |
 | Disarm                          | Idempotent disarm and exact-hook uninstall guards are covered.                                                                                      | Not run.                              |
 
-All live one-shot, recurring, timeout/input, coexistence, and disarm claims
-remain **documented but unvalidated** pending an independently evidenced Codex
-client run with no intervening user turn.
+The table above records the automated-only command's evidence boundary. The
+targeted live results below supersede its `Not run` cells only for the named
+rows; they do not broaden the automated subset or validate unlisted behavior.
+
+## Targeted live state-integrity retest (2026-07-12)
+
+A fresh real Codex TUI and a separate real Codex peer session exercised the
+state-integrity fixes at revision `ca51a5a`. Evidence was sanitized before
+recording, and all temporary leases, transcripts, and session artifacts were
+removed after the run. This was a targeted retest, not a broad rerun of every
+live acceptance row.
+
+| Targeted row                       | Live evidence                                                                                                                                                                                                                                                                                                                                                                                                                              | Result |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------ |
+| Fresh no-lease Stop gate           | The run began with zero leases. The TUI completed normally with all three installed Stop hooks active; the trusted observer launcher retained its 65-second timeout and the unrelated Orca hook remained active.                                                                                                                                                                                                                           | Pass   |
+| Interrupted waiter recovery        | During a real 15-second wait, `status` preserved `waiting` with a live wait token and PID. Esc visibly interrupted the Stop hook. The first post-Esc status recovered in 91 ms to `idle` / `waiter-terminated`, cleared all four wait ownership fields, and left both counts at zero; an immediate second status was unchanged.                                                                                                            | Pass   |
+| No-op cursor then substantive wake | While the peer turn was incomplete, the cursor advanced only across completed preamble records (`12 -> 14`) and spent no budget. After the same real `[no-op]` turn completed, the cursor advanced across its exact remaining range (`14 -> 25`) with both counts still zero. The next substantive range advanced `25 -> 32`, spent exactly one continuation and loop count, and produced one owner continuation with no `[no-op]` replay. | Pass   |
+| Absolute lease expiry              | A 1.5-second lease remained stored as `armed` with cursor and counts unchanged immediately after its absolute deadline. A substantive peer turn posted after that deadline did not reach the owner; the next real Stop invocation pruned the expired lease without spending budget.                                                                                                                                                        | Pass   |
+| Scoped stale-resource pruning      | Removing the uniquely owned temporary worktree and transcript made only that lease stale. Targeted `prune` removed exactly the stale lease while a separate live control lease remained unchanged.                                                                                                                                                                                                                                         | Pass   |
+| Deterministic disarm               | The first scoped `disarm` changed the control lease once to `disarmed` / `user-disarmed`. Repeating it returned `changed: false` with identical state and timestamp. Final scoped pruning left zero lease files and did not alter the static hooks.                                                                                                                                                                                        | Pass   |
+
+Recurring two-continuation behavior and queued-input/steering behavior were not
+rerun in this targeted retest. Their status must come from their own live
+acceptance evidence rather than this state-integrity run.
