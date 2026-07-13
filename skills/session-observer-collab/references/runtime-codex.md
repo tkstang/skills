@@ -25,7 +25,7 @@ script path or command does not authorize the observer command.
 ## Install and approve the static Stop hook
 
 Install one static observer hook per user, not one per worktree or per peer.
-Copy the shipped hook script to a stable absolute path, conventionally:
+Choose a stable absolute entrypoint path, conventionally:
 
 ```text
 ~/.codex/hooks/session-observer-collab-stop.mjs
@@ -37,13 +37,24 @@ Its registered command must remain byte-for-byte stable:
 node -- '/absolute/path/to/session-observer-collab-stop.mjs'
 ```
 
-The Codex registration adapter (`scripts/codex-lifecycle.mjs`) merges this
-exact command into `~/.codex/hooks.json`. The single-quoted script argument is
+`codex-install` atomically writes an owner-only launcher at that path and a
+content-addressed support bundle beside it. The bundle preserves the shipped
+hook's composition with Session Observer digest parsing and the shared
+collaboration lease/runtime modules, so the installed artifact resolves all
+ESM imports without the repository. An unchanged reinstall keeps the same
+launcher bytes and bundle identity. A shipped runtime-content change publishes
+the complete new support tree before atomically replacing the launcher, then
+removes superseded owned bundles.
+
+The Codex registration adapter (`scripts/codex-lifecycle.mjs`) merges the exact
+stable command into `~/.codex/hooks.json`. The single-quoted script argument is
 an argv-safe registration schema: it preserves spaces and shell metacharacters
 as path bytes rather than shell syntax. It writes a distinct status label,
 `Checking for Session Observer peer activity`, and preserves every unrelated
-event, Stop group, and command. Re-running installation detects the exact
-entry and makes no second observer entry.
+event, Stop group, and command. Re-running installation detects the exact entry
+and makes no second observer entry. The command path stays stable, but after an
+upgrade changes launcher content, inspect and explicitly re-trust it in
+`/hooks`; path equality alone is not approval of changed code.
 
 After installation, do all of the following before arming a lease:
 
@@ -65,10 +76,12 @@ different command or merely installed JSON is enough to arm a session.
 
 ## Stable control commands
 
-The shipped `collab-control.mjs` is the supported lifecycle surface. Substitute
-the absolute installed path to the copied hook in `CODEX_OBSERVER_HOOK`; keep
-that value unchanged after trust approval. The quoted shell variables keep the
-CLI arguments intact even when `$HOME` or the hook path contains whitespace.
+The shipped `collab-control.mjs` is the supported lifecycle surface. Set
+`CODEX_OBSERVER_HOOK` to the stable destination for the installed launcher and
+keep that value unchanged after trust approval. The quoted shell variables
+keep the CLI arguments intact even when `$HOME` or the hook path contains
+whitespace. Run this command from the shipped skill checkout so the installer
+can copy its committed runtime modules into the private support bundle.
 
 ```sh
 export CODEX_OBSERVER_HOOK="$HOME/.codex/hooks/session-observer-collab-stop.mjs"
@@ -100,7 +113,7 @@ post → continuation run is measured. The command never converts missing
 Uninstall is deliberately separate from normal `disarm`. It scans collaboration
 leases while holding the control lock, refuses active Codex leases or malformed
 lease state, removes only one exact observer registration, and only then may
-remove the script:
+remove the marker-identified observer launcher and support bundle:
 
 ```sh
 node "$COLLAB_CONTROL" codex-uninstall \
@@ -109,7 +122,11 @@ node "$COLLAB_CONTROL" codex-uninstall \
   --confirmed --remove-script --json
 ```
 
-If the exact registration is absent or duplicated, no script is removed.
+If the exact registration is absent or duplicated, no installed artifact is
+removed. An unmarked file or support directory is never claimed as observer
+state. The launcher and installed support directories are mode `0700`; support
+files and their ownership manifest are mode `0600`. Installation copies no
+credentials, trust records, transcript data, or live leases.
 
 ## Bounded lease lifecycle
 
@@ -164,9 +181,9 @@ session while handling one session’s disarm.
 
 Static-hook uninstall is a separate explicit user choice. Confirm it, remove
 only entries whose command exactly equals the observer command, preserve every
-other `hooks.json` entry, and remove the script only after there are no active
-collaboration leases. Do not use normal closeout as authorization to uninstall
-the shared hook.
+other `hooks.json` entry, and remove only the owned launcher/support bundle
+after there are no active collaboration leases. Do not use normal closeout as
+authorization to uninstall the shared hook.
 
 ## Live validation boundary
 

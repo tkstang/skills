@@ -253,7 +253,7 @@ async function readStdin() {
   return JSON.parse(input || '{}');
 }
 
-async function main() {
+export async function runCodexStopMain() {
   let event;
   try {
     event = await readStdin();
@@ -275,5 +275,5 @@ async function main() {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  main().catch(() => {});
+  runCodexStopMain().catch(() => {});
 }

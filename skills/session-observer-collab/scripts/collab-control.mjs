@@ -11,6 +11,7 @@ import {
   uninstallCodexStopHook,
   withCodexLifecycleLock,
 } from './codex-lifecycle.mjs';
+import { installCodexStopBundle } from './lib/codex-install.mjs';
 import {
   DEFAULT_WAIT_MS,
   LEASE_SCHEMA_VERSION,
@@ -244,8 +245,15 @@ async function readRecords(path, name) {
 
 export async function codexInstall(root, options) {
   return withCodexLifecycleLock(root, async () => {
+    const bundle = await installCodexStopBundle({
+      scriptPath: options.scriptPath,
+      sourceScriptPath:
+        options.sourceScriptPath ??
+        fileURLToPath(new URL('./hooks/codex-stop.mjs', import.meta.url)),
+    });
     const registration = await installCodexStopHook(options);
     return {
+      bundle,
       registration,
       readiness: assessCodexHookReadiness({
         scriptPath: options.scriptPath,

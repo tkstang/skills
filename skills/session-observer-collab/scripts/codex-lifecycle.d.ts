@@ -83,6 +83,7 @@ declare module '*skills/session-observer-collab/scripts/codex-lifecycle.mjs' {
     exactCommand: string;
     removed: number;
     scriptRemoved: boolean;
+    supportRemoved: boolean;
     safety: { activeLeaseCount: number };
   }>;
 }

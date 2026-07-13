@@ -33,4 +33,6 @@ declare module '*skills/session-observer-collab/scripts/hooks/codex-stop.mjs' {
     event: unknown,
     options?: CodexStopHookOptions,
   ): Promise<CodexStopHookResult>;
+
+  export function runCodexStopMain(): Promise<void>;
 }

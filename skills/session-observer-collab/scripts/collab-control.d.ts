@@ -36,6 +36,7 @@ export interface CodexControlOptions {
   hookStatusesPath?: string;
   confirmed?: boolean;
   removeScript?: boolean;
+  sourceScriptPath?: string;
 }
 
 export const CONTROL_SCHEMA_VERSION: number;

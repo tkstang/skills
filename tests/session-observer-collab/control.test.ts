@@ -257,7 +257,9 @@ describe('collaboration lease controls', () => {
     const statusPath = join(home, 'hook status.json');
     const unrelated = {
       hooks: {
-        Stop: [{ hooks: [{ type: 'command', command: 'node /tmp/other.mjs' }] }],
+        Stop: [
+          { hooks: [{ type: 'command', command: 'node /tmp/other.mjs' }] },
+        ],
       },
     };
     await mkdir(join(home, '.codex'), { recursive: true });
@@ -272,8 +274,10 @@ describe('collaboration lease controls', () => {
     const command = codexStopCommand(scriptPath);
     expect(installed).toMatchObject({
       command: 'codex-install',
+      bundle: { changed: true },
       readiness: { exactCommand: command, installed: true },
     });
+    const installedLauncher = await readFile(scriptPath, 'utf8');
     expect(command).toContain('hooks with spaces;and-$metacharacters.mjs');
     await writeFile(trustPath, JSON.stringify([{ command, trusted: true }]));
     await writeFile(
@@ -318,7 +322,7 @@ describe('collaboration lease controls', () => {
         1_700_000_000_100,
       ),
     ).rejects.toThrow('active collaboration leases');
-    expect(await readFile(scriptPath, 'utf8')).toBe('// hook\n');
+    expect(await readFile(scriptPath, 'utf8')).toBe(installedLauncher);
 
     await disarm(root, 'owner-1', 1_700_000_000_200);
     const firstRemoval = await run(
@@ -338,6 +342,7 @@ describe('collaboration lease controls', () => {
       command: 'codex-uninstall',
       removed: 1,
       scriptRemoved: true,
+      supportRemoved: true,
       safety: { activeLeaseCount: 0 },
     });
     expect(JSON.parse(await readFile(hooksPath, 'utf8'))).toEqual(unrelated);
@@ -359,7 +364,9 @@ describe('collaboration lease controls', () => {
       env,
     );
     expect(absent).toMatchObject({ removed: 0, scriptRemoved: false });
-    expect(await readFile(scriptPath, 'utf8')).toBe('// retained when absent\n');
+    expect(await readFile(scriptPath, 'utf8')).toBe(
+      '// retained when absent\n',
+    );
   });
 
   test('install and arm are idempotent and owner-only', async () => {

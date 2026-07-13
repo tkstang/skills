@@ -11,6 +11,7 @@ import {
 } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 
+import { removeCodexStopBundle } from './lib/codex-install.mjs';
 import {
   effectiveLease,
   leasePath,
@@ -332,19 +333,17 @@ export async function uninstallCodexStopHook({
     }
     await writeHookConfig(hooksPath, next);
     let scriptRemoved = false;
+    let supportRemoved = false;
     if (removeScript) {
-      try {
-        await rm(scriptPath);
-        scriptRemoved = true;
-      } catch (error) {
-        if (error?.code !== 'ENOENT') throw error;
-      }
+      ({ scriptRemoved, supportRemoved } =
+        await removeCodexStopBundle(scriptPath));
     }
     return {
       changed: true,
       exactCommand: command,
       removed,
       scriptRemoved,
+      supportRemoved,
       safety: { activeLeaseCount },
     };
   });
