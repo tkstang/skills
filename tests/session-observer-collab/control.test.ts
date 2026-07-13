@@ -14,6 +14,8 @@ import { afterEach, describe, expect, test } from 'vitest';
 
 import {
   assessCodexHookReadiness,
+  CODEX_STOP_TIMEOUT_GRACE_SECONDS,
+  CODEX_STOP_TIMEOUT_SECONDS,
   installCodexStopHook,
   uninstallCodexStopHook,
 } from '../../skills/session-observer-collab/scripts/codex-lifecycle.mjs';
@@ -28,6 +30,7 @@ import {
   compareAndSwapTrigger,
   effectiveLease,
   leasePath,
+  MAX_WAIT_MS,
   pruneLeases,
   readLease,
   stateRoot,
@@ -122,6 +125,19 @@ describe('collaboration lease controls', () => {
         }),
       ]),
     );
+    const installed = written.hooks.Stop.flatMap(
+      (group: { hooks: Array<{ command?: string; timeout?: number }> }) =>
+        group.hooks,
+    ).find(
+      (hook: { command?: string }) => hook.command === `node ${scriptPath}`,
+    );
+    expect(installed?.timeout).toBe(CODEX_STOP_TIMEOUT_SECONDS);
+    expect(CODEX_STOP_TIMEOUT_SECONDS).toBe(
+      MAX_WAIT_MS / 1_000 + CODEX_STOP_TIMEOUT_GRACE_SECONDS,
+    );
+    expect(CODEX_STOP_TIMEOUT_GRACE_SECONDS).toBeGreaterThan(0);
+    expect(CODEX_STOP_TIMEOUT_SECONDS).toBeGreaterThanOrEqual(16);
+    expect(CODEX_STOP_TIMEOUT_SECONDS).toBeGreaterThanOrEqual(60);
   });
 
   test('reports trust, explicit disablement, and effective execution as separate Codex facts', async () => {

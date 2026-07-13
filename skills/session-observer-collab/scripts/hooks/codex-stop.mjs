@@ -21,6 +21,26 @@ import {
 
 const POLL_MS = 250;
 
+function providerTerminationError() {
+  const error = new Error('Codex Stop hook terminated by provider');
+  error.code = 'provider-terminated';
+  return error;
+}
+
+function waitFor(promise, signal) {
+  if (!signal) return promise;
+  if (signal.aborted) return Promise.reject(providerTerminationError());
+  return new Promise((resolve, reject) => {
+    const onAbort = () => reject(providerTerminationError());
+    signal.addEventListener('abort', onAbort, { once: true });
+    Promise.resolve(promise)
+      .then(resolve, reject)
+      .finally(() => {
+        signal.removeEventListener('abort', onAbort);
+      });
+  });
+}
+
 function counters(lease) {
   return {
     leaseId: lease.leaseId,
@@ -107,6 +127,7 @@ export async function runCodexStopHook(event, options = {}) {
     options.sleep ??
     ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
   const now = options.now ?? Date.now;
+  const signal = options.signal;
   let currentNow = now();
   let lease;
 
@@ -153,59 +174,78 @@ export async function runCodexStopHook(event, options = {}) {
   const expected = counters(waiting.lease);
   const deadline = Date.parse(waiting.lease.waitDeadlineAt);
   if (!Number.isFinite(deadline)) return allow('malformed-lease');
+  let diagnostic = 'wait-timeout';
 
-  while ((currentNow = now()) < deadline) {
-    let selection;
-    try {
-      selection = selectCompletedContinuation(await observe(waiting.lease));
-    } catch {
-      await finishAdapterWait(
-        root,
-        { ...invocation, now: currentNow },
-        expected,
-        'observer-invalid',
-      );
-      return allow('observer-invalid');
+  try {
+    while ((currentNow = now()) < deadline) {
+      let selection;
+      try {
+        selection = selectCompletedContinuation(
+          await waitFor(
+            Promise.resolve().then(() => observe(waiting.lease)),
+            signal,
+          ),
+        );
+      } catch (error) {
+        diagnostic =
+          error?.code === 'provider-terminated'
+            ? 'provider-terminated'
+            : 'observer-invalid';
+        return allow(diagnostic);
+      }
+
+      if (validSelection(selection, expected)) {
+        const terminal =
+          waiting.lease.continuationCount + selection.budgetCost >=
+            waiting.lease.continuationCap ||
+          waiting.lease.loopCount + 1 >= waiting.lease.loopCap;
+        const claimed = await claimAdapterTrigger(
+          root,
+          { ...invocation, now: currentNow },
+          expected,
+          {
+            peerCursor: selection.peerCursor,
+            loopIncrement: 1,
+            terminal,
+            diagnostic: null,
+          },
+        ).catch((error) => ({
+          triggered: false,
+          reason: error?.code ?? 'claim-failed',
+          lease: null,
+        }));
+        if (!claimed.triggered) {
+          diagnostic = claimed.reason;
+          return allow(claimed.reason);
+        }
+        return CODEX_STOP_ADAPTER.emit(waiting.lease, selection.range);
+      }
+
+      const remaining = deadline - now();
+      if (remaining > 0)
+        await waitFor(
+          Promise.resolve(sleep(Math.min(POLL_MS, remaining))),
+          signal,
+        );
     }
-
-    if (validSelection(selection, expected)) {
-      const terminal =
-        waiting.lease.continuationCount + selection.budgetCost >=
-          waiting.lease.continuationCap ||
-        waiting.lease.loopCount + 1 >= waiting.lease.loopCap;
-      const claimed = await claimAdapterTrigger(
-        root,
-        { ...invocation, now: currentNow },
-        expected,
-        {
-          peerCursor: selection.peerCursor,
-          loopIncrement: 1,
-          terminal,
-          diagnostic: null,
-        },
-      ).catch((error) => ({
-        triggered: false,
-        reason: error?.code ?? 'claim-failed',
-        lease: null,
-      }));
-      if (!claimed.triggered) return allow(claimed.reason);
-      return CODEX_STOP_ADAPTER.emit(waiting.lease, selection.range);
-    }
-
-    const remaining = deadline - now();
-    if (remaining > 0) await sleep(Math.min(POLL_MS, remaining));
+    return allow(diagnostic);
+  } catch (error) {
+    diagnostic =
+      error?.code === 'provider-terminated'
+        ? 'provider-terminated'
+        : 'observer-invalid';
+    return allow(diagnostic);
+  } finally {
+    // A provider cancellation can arrive while either observe or sleep is
+    // pending. Finalize only this generation, so a stale hook cannot change a
+    // re-armed lease, but its own `waiting` state never outlives the process.
+    await finishAdapterWait(
+      root,
+      { ...invocation, now: currentNow },
+      expected,
+      diagnostic,
+    ).catch(() => {});
   }
-
-  const finished = await finishAdapterWait(
-    root,
-    { ...invocation, now: currentNow },
-    expected,
-  ).catch((error) => ({
-    finished: false,
-    reason: error?.code ?? 'finish-failed',
-    lease: null,
-  }));
-  return allow(finished.reason);
 }
 
 async function readStdin() {
@@ -220,9 +260,18 @@ async function main() {
   } catch {
     return;
   }
-  const result = await runCodexStopHook(event);
-  if (result.decision === 'block')
-    process.stdout.write(`${JSON.stringify(result)}\n`);
+  const controller = new AbortController();
+  const terminate = () => controller.abort();
+  process.once('SIGINT', terminate);
+  process.once('SIGTERM', terminate);
+  try {
+    const result = await runCodexStopHook(event, { signal: controller.signal });
+    if (result.decision === 'block')
+      process.stdout.write(`${JSON.stringify(result)}\n`);
+  } finally {
+    process.removeListener('SIGINT', terminate);
+    process.removeListener('SIGTERM', terminate);
+  }
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

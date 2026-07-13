@@ -9,11 +9,16 @@ import {
 } from 'node:fs/promises';
 import { dirname } from 'node:path';
 
-import { validateAbsolutePath } from './lib/lease-state.mjs';
+import { MAX_WAIT_MS, validateAbsolutePath } from './lib/lease-state.mjs';
 
 export const CODEX_STOP_STATUS_MESSAGE =
   'Checking for Session Observer peer activity';
-export const CODEX_STOP_TIMEOUT_SECONDS = 15;
+// Codex enforces this provider-level timeout independently of a lease. Keep a
+// finite grace period for setup and state finalization after every supported
+// bounded wait, so the provider cannot strand a lease in `waiting`.
+export const CODEX_STOP_TIMEOUT_GRACE_SECONDS = 5;
+export const CODEX_STOP_TIMEOUT_SECONDS =
+  MAX_WAIT_MS / 1_000 + CODEX_STOP_TIMEOUT_GRACE_SECONDS;
 
 export class CodexLifecycleError extends Error {
   constructor(code, message) {

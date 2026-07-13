@@ -190,6 +190,44 @@ describe('Codex Stop continuation hook', () => {
       continuationCount: 0,
       loopCount: 0,
       diagnostic: 'wait-timeout',
+      waitStartedAt: null,
+      waitDeadlineAt: null,
+    });
+  });
+
+  test('finalizes a maximum opt-in wait when the provider terminates the hook', async () => {
+    const { root, cwd, transcript } = await fixture();
+    await armLease(root, cwd, transcript, { waitMs: 60_000 });
+    const controller = new AbortController();
+    let observing!: () => void;
+    const observationStarted = new Promise<void>((resolve) => {
+      observing = resolve;
+    });
+    const result = runCodexStopHook(
+      { hook_event_name: 'Stop', session_id: 'codex-1', cwd },
+      {
+        root,
+        now: () => START + 1,
+        signal: controller.signal,
+        observe: async () => {
+          observing();
+          return new Promise(() => {});
+        },
+      },
+    );
+
+    await observationStarted;
+    controller.abort();
+
+    await expect(result).resolves.toMatchObject({
+      decision: 'allow',
+      diagnostic: 'provider-terminated',
+    });
+    expect(await readLease(root, 'codex-1')).toMatchObject({
+      state: 'idle',
+      diagnostic: 'provider-terminated',
+      waitStartedAt: null,
+      waitDeadlineAt: null,
     });
   });
 
