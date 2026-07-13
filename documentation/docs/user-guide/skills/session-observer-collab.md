@@ -51,6 +51,34 @@ collaboration lease, harness configuration, and local privileged actions.
 4. Confirm that each watcher rendered the peer's latest completed,
    substantive turn before calling silence idle or arming continuation.
 
+The same N=2 exchange, including its bounded closeout, is:
+
+```mermaid
+sequenceDiagram
+  participant U as User
+  participant A as Peer A
+  participant B as Peer B
+  participant L as A local lease
+
+  A->>A: whoami and announce identity
+  B->>B: whoami and announce identity
+  A->>A: pin B exactly
+  B->>B: pin A exactly
+  A->>A: catch-up-then-watch B
+  B->>B: catch-up-then-watch A
+  Note over A,B: Each confirms the peer's latest completed substantive turn
+  B->>B: Complete a substantive turn
+  A->>A: Watcher consumes B's exact completed range
+  A->>A: Classify the pinned delta and local steering state
+  A->>L: Claim one bounded continuation
+  L-->>A: CAS succeeds within caps and expiry
+  A->>A: Run one synthetic local continuation
+  Note over A,B: The same local path applies symmetrically when A's turn wakes B
+  Note over U,B: The bounded task ends or closeout is requested
+  A->>A: Final pinned freshness check, then disarm
+  B->>B: Final pinned freshness check, then disarm
+```
+
 Never use recency as an arming decision. Ambiguous identity, a pin mismatch,
 changed transcript path, baseline gap, or `newer-session-candidate` warning
 pauses the protocol; it never switches to a newer session automatically.
@@ -152,6 +180,27 @@ continuation. Empty or metadata-only deltas, heartbeats, replayed synthetic
 envelopes, terminal failures, and `[no-op]` turns advance state as appropriate
 but do not wake or spend loop budget. Timeout means `idle`, not successful
 delivery.
+
+### Delta classification and bounded continuation
+
+```mermaid
+flowchart TD
+  D[Observed peer range] --> V{Exact pin, transcript, and baseline valid?}
+  V -- No --> P[Pause and yield the diagnostic to the user]
+  V -- Yes --> C{New, contiguous, completed, and substantive?}
+  C -- No --> N[Advance state as appropriate<br/>No wake and no loop budget]
+  C -- Yes --> H{Human steering, local turn, or disarm?}
+  H -- Yes --> I[Defer or cancel automatic path]
+  H -- No --> L{Lease valid and matched?}
+  L -- No --> P
+  L -- Yes --> G{CAS succeeds and count,<br/>wait, and expiry allow?}
+  G -- Yes --> W[One bounded continuation<br/>Advance cursor and count]
+  G -- No --> X[No trigger<br/>Terminal or idle as appropriate]
+  N --> O[Remain idle or keep observing]
+  I --> O
+  W --> O
+  X --> O
+```
 
 ## Closeout
 

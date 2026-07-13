@@ -25,6 +25,33 @@ banner.
 TypeScript, Vitest, and bundling are developer tooling only; shipped skills still
 run committed `.mjs` with no install step.
 
+### Build and shipping topology
+
+The arrows below show authoring, build, verification, and sync relationships.
+They are not runtime imports: providers execute the committed `.mjs` files from
+their installed or locally loaded package shape.
+
+```mermaid
+flowchart LR
+  subgraph authoring["Canonical authoring"]
+    TS["TypeScript under src/"]
+    COLLAB["Authored collaboration .mjs<br/>under skills/session-observer-collab/"]
+  end
+
+  BUILD["pnpm run build"]
+  GENERATED["Committed generated .mjs<br/>under plugins/ and skills/"]
+  CHECK["pnpm run build:check<br/>and generated-output-sync test"]
+  RUNTIME["Provider install or local-load runtime<br/>no install step for shipped skills"]
+  SYNC["oat sync"]
+  MIRRORS["Generated .agents/, .claude/,<br/>and .cursor/ mirrors"]
+
+  TS --> BUILD --> GENERATED --> RUNTIME
+  TS -.->|expected output| CHECK
+  GENERATED -.->|checked output| CHECK
+  COLLAB --> RUNTIME
+  COLLAB --> SYNC --> MIRRORS
+```
+
 ## Canonical source → generated output
 
 | Canonical TypeScript source                                  | Generated output                                                                                                   |
