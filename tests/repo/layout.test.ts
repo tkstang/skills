@@ -1,4 +1,4 @@
-import { readdir, stat } from 'node:fs/promises';
+import { readdir, readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -105,7 +105,10 @@ describe('repo-layout', () => {
       path.posix.join(skillRoot, 'references', 'runtime-claude-code.md'),
       path.posix.join(skillRoot, 'references', 'runtime-codex.md'),
       path.posix.join(skillRoot, 'references', 'runtime-cursor.md'),
-      path.posix.join(skillRoot, 'scripts', '.gitkeep'),
+      path.posix.join(skillRoot, 'scripts', 'collab-control.mjs'),
+      path.posix.join(skillRoot, 'scripts', 'codex-lifecycle.mjs'),
+      path.posix.join(skillRoot, 'scripts', 'hooks', 'codex-stop.mjs'),
+      path.posix.join(skillRoot, 'scripts', 'hooks', 'cursor-stop.mjs'),
     ];
 
     for (const relativePath of requiredFiles) {
@@ -113,6 +116,33 @@ describe('repo-layout', () => {
         await pathExists(relativePath),
         `${relativePath} should exist`,
       ).toBe(true);
+    }
+  });
+
+  it('ships collaboration scripts with builtin or local runtime imports only', async () => {
+    const scriptsRoot = path.posix.join(
+      'skills',
+      'session-observer-collab',
+      'scripts',
+    );
+
+    for (const scriptPath of (await listFiles(scriptsRoot)).filter((file) =>
+      file.endsWith('.mjs'),
+    )) {
+      const script = await readFile(new URL(scriptPath, root), 'utf8');
+      const specifiers = [
+        ...script.matchAll(
+          /\b(?:import|export)\s+(?:[^'"\n;]*?\s+from\s+)?['"]([^'"]+)['"]/gu,
+        ),
+        ...script.matchAll(/\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/gu),
+        ...script.matchAll(/\brequire\(\s*['"]([^'"]+)['"]\s*\)/gu),
+      ];
+      for (const match of specifiers) {
+        expect(
+          match[1].startsWith('node:') || match[1].startsWith('.'),
+          `${scriptPath} should not import a third-party runtime dependency`,
+        ).toBe(true);
+      }
     }
   });
 

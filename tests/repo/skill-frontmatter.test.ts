@@ -324,10 +324,11 @@ describe('skill-frontmatter', () => {
     }
   });
 
-  it('panel skill is included in version bump tooling', async () => {
+  it('standalone and plugin skills are included in version bump tooling', async () => {
     const script = await readFile(bumpVersionPath, 'utf8');
 
     expect(script).toMatch(/plugins\/consensus\/skills\/panel\/SKILL\.md/);
+    expect(script).toMatch(/skills\/session-observer-collab\/SKILL\.md/);
   });
 
   it('skill instructions cover host orchestration responsibilities', async () => {
@@ -363,6 +364,7 @@ describe('skill-frontmatter', () => {
     expect(field(block, 'version')).toMatch(/^\d+\.\d+\.\d+$/);
     expect(metadataVersion(block)).toBe(field(block, 'version'));
     expect(block).not.toMatch(/^\s*internal:\s*true\s*$/m);
+    expect(block).not.toMatch(/^\s{2}internal:\s*true\s*$/m);
   });
 
   it('session observer collaboration routes to exactly one runtime reference', async () => {

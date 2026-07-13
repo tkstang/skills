@@ -23,6 +23,17 @@ const REQUIRED_SKILL_FIELDS = [
   'license',
   'compatibility',
 ];
+const COLLABORATION_SKILL_PATH = 'skills/session-observer-collab';
+const COLLABORATION_REQUIRED_FILES = [
+  'SKILL.md',
+  'references/runtime-claude-code.md',
+  'references/runtime-codex.md',
+  'references/runtime-cursor.md',
+  'scripts/collab-control.mjs',
+  'scripts/codex-lifecycle.mjs',
+  'scripts/hooks/codex-stop.mjs',
+  'scripts/hooks/cursor-stop.mjs',
+];
 
 function inside(root, target) {
   const relative = path.relative(root, target);
@@ -229,6 +240,74 @@ async function validateDiscoveredSkillDirectories(root) {
 
   for (const skillPath of await discoverSkillDirectories(root)) {
     issues.push(...(await validateSkillFrontmatter(root, skillPath)));
+  }
+
+  return issues;
+}
+
+async function listFilesRecursively(directory) {
+  const entries = await readdir(directory, { withFileTypes: true });
+  const files = [];
+
+  for (const entry of entries) {
+    const entryPath = path.join(directory, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...(await listFilesRecursively(entryPath)));
+    } else if (entry.isFile()) {
+      files.push(entryPath);
+    }
+  }
+
+  return files;
+}
+
+export async function validateCollaborationSkillDistribution(root) {
+  const issues = [];
+  const skillRoot = path.join(root, COLLABORATION_SKILL_PATH);
+  if (!(await pathExists(skillRoot))) return issues;
+
+  for (const relativePath of COLLABORATION_REQUIRED_FILES) {
+    if (!(await pathExists(path.join(skillRoot, relativePath)))) {
+      issues.push(
+        `${COLLABORATION_SKILL_PATH} missing required distribution file: ${relativePath}`,
+      );
+    }
+  }
+
+  const skillFile = path.join(skillRoot, 'SKILL.md');
+  if (await pathExists(skillFile)) {
+    const parsed = parseFrontmatter(
+      await readFile(skillFile, 'utf8'),
+      `${COLLABORATION_SKILL_PATH}/SKILL.md`,
+    );
+    if (parsed.metadata?.internal === 'true') {
+      issues.push(
+        `${COLLABORATION_SKILL_PATH}/SKILL.md must remain a public standalone skill`,
+      );
+    }
+  }
+
+  const scriptsDirectory = path.join(skillRoot, 'scripts');
+  if (!(await pathExists(scriptsDirectory))) return issues;
+
+  for (const scriptPath of await listFilesRecursively(scriptsDirectory)) {
+    if (path.extname(scriptPath) !== '.mjs') continue;
+    const source = await readFile(scriptPath, 'utf8');
+    const specifiers = [
+      ...source.matchAll(
+        /\b(?:import|export)\s+(?:[^'"\n;]*?\s+from\s+)?['"]([^'"]+)['"]/gu,
+      ),
+      ...source.matchAll(/\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/gu),
+      ...source.matchAll(/\brequire\(\s*['"]([^'"]+)['"]\s*\)/gu),
+    ];
+    for (const match of specifiers) {
+      const specifier = match[1];
+      if (!specifier.startsWith('node:') && !specifier.startsWith('.')) {
+        issues.push(
+          `${path.relative(root, scriptPath)} imports non-builtin runtime dependency: ${specifier}`,
+        );
+      }
+    }
   }
 
   return issues;
@@ -504,6 +583,7 @@ export async function validateRepository(options = {}) {
   errors.push(...(await validateDocs(root)));
   errors.push(...(await validateVersionConsistency(root)));
   errors.push(...(await validateDiscoveredSkillDirectories(root)));
+  errors.push(...(await validateCollaborationSkillDistribution(root)));
 
   for (const manifest of PROVIDER_MANIFESTS) {
     errors.push(...(await validateProviderManifest(root, manifest)));
