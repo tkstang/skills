@@ -318,26 +318,36 @@ function normalizeClaudeCode(records, opts) {
       }
     }
   }
-  const queuedOperationContents = /* @__PURE__ */ new Set();
-  for (const record of records) {
-    if (asString(record.type) === "queue-operation" && asString(record.operation) === "enqueue") {
-      const content = asString(record.content);
-      if (content) queuedOperationContents.add(content);
-    }
-  }
-  const attachmentOnlyContents = /* @__PURE__ */ new Set();
+  const queuedContents = [];
+  const deliveredQueuedContents = [];
   return records.flatMap((record, recordIndex) => {
-    if (asString(record.type) === "queue-operation" && asString(record.operation) === "enqueue") {
-      const content = asString(record.content);
-      return content ? [messageEntry("user", content, recordIndex, "queued-user")] : [];
+    if (asString(record.type) === "queue-operation") {
+      const operation = asString(record.operation);
+      if (operation === "enqueue") {
+        const content = asString(record.content);
+        if (!content) return [];
+        queuedContents.push(content);
+        return [messageEntry("user", content, recordIndex, "queued-user")];
+      }
+      if (operation === "remove") {
+        const content = asString(record.content);
+        const queuedIndex = content ? queuedContents.indexOf(content) : queuedContents.length > 0 ? 0 : -1;
+        if (queuedIndex !== -1) {
+          const [deliveredContent] = queuedContents.splice(queuedIndex, 1);
+          deliveredQueuedContents.push(deliveredContent);
+        }
+        return [];
+      }
     }
     const attachment = record.attachment;
     if (isObject(attachment) && asString(attachment.type) === "queued_command") {
       const prompt = asString(attachment.prompt);
-      if (!prompt || queuedOperationContents.has(prompt) || attachmentOnlyContents.has(prompt)) {
+      if (!prompt) return [];
+      const deliveredIndex = deliveredQueuedContents.indexOf(prompt);
+      if (deliveredIndex !== -1) {
+        deliveredQueuedContents.splice(deliveredIndex, 1);
         return [];
       }
-      attachmentOnlyContents.add(prompt);
       return [messageEntry("user", prompt, recordIndex, "queued-user")];
     }
     const message = isObject(record.message) ? record.message : record;

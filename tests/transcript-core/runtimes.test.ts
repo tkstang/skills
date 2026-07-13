@@ -582,6 +582,32 @@ describe('normalizeEntries (claude-code)', () => {
     // 3 tool_use blocks in the fixture
     expectOk(toolCallEntries.length >= 3);
   });
+
+  it('preserves repeated attachment-only queued input after suppressing one matching delivery', async () => {
+    const repeatedQueuedRecords = await readRecords(
+      fixturePath('claude-code', 'queued-repeated-input.jsonl'),
+    );
+
+    const entries = normalizeEntries('claude-code', repeatedQueuedRecords, {});
+    const queuedEntries = entries.filter(
+      (entry) => entry.displayRole === 'queued-user',
+    );
+
+    expect(queuedEntries).toEqual([
+      expect.objectContaining({
+        text: 'Keep the conservative migration path.',
+        recordIndex: 0,
+      }),
+      expect.objectContaining({
+        text: 'Keep the conservative migration path.',
+        recordIndex: 3,
+      }),
+      expect.objectContaining({
+        text: 'Keep the conservative migration path.',
+        recordIndex: 4,
+      }),
+    ]);
+  });
 });
 
 // ---------------------------------------------------------------------------

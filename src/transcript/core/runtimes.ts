@@ -722,30 +722,36 @@ function normalizeClaudeCode(
     }
   }
 
-  // Queue-operation records capture input as soon as it is enqueued. Claude
-  // later duplicates that input in a queued_command attachment, so prefer the
-  // enqueue record and suppress its attachment copy.
-  const queuedOperationContents = new Set<string>();
-  for (const record of records) {
-    if (
-      asString(record.type) === 'queue-operation' &&
-      asString(record.operation) === 'enqueue'
-    ) {
-      const content = asString(record.content);
-      if (content) queuedOperationContents.add(content);
-    }
-  }
-  const attachmentOnlyContents = new Set<string>();
+  // Queue-operation records capture input when it is enqueued. Claude later
+  // repeats a delivered queue item in a queued_command attachment. Correlate
+  // those representations by their ordered enqueue/remove transaction rather
+  // than by prompt text globally: identical human messages are distinct input.
+  const queuedContents: string[] = [];
+  const deliveredQueuedContents: string[] = [];
 
   return records.flatMap((record, recordIndex): DigestEntry[] => {
-    if (
-      asString(record.type) === 'queue-operation' &&
-      asString(record.operation) === 'enqueue'
-    ) {
-      const content = asString(record.content);
-      return content
-        ? [messageEntry('user', content, recordIndex, 'queued-user')]
-        : [];
+    if (asString(record.type) === 'queue-operation') {
+      const operation = asString(record.operation);
+      if (operation === 'enqueue') {
+        const content = asString(record.content);
+        if (!content) return [];
+        queuedContents.push(content);
+        return [messageEntry('user', content, recordIndex, 'queued-user')];
+      }
+
+      if (operation === 'remove') {
+        const content = asString(record.content);
+        const queuedIndex = content
+          ? queuedContents.indexOf(content)
+          : queuedContents.length > 0
+            ? 0
+            : -1;
+        if (queuedIndex !== -1) {
+          const [deliveredContent] = queuedContents.splice(queuedIndex, 1);
+          deliveredQueuedContents.push(deliveredContent);
+        }
+        return [];
+      }
     }
 
     const attachment = record.attachment;
@@ -754,14 +760,13 @@ function normalizeClaudeCode(
       asString(attachment.type) === 'queued_command'
     ) {
       const prompt = asString(attachment.prompt);
-      if (
-        !prompt ||
-        queuedOperationContents.has(prompt) ||
-        attachmentOnlyContents.has(prompt)
-      ) {
+      if (!prompt) return [];
+
+      const deliveredIndex = deliveredQueuedContents.indexOf(prompt);
+      if (deliveredIndex !== -1) {
+        deliveredQueuedContents.splice(deliveredIndex, 1);
         return [];
       }
-      attachmentOnlyContents.add(prompt);
       return [messageEntry('user', prompt, recordIndex, 'queued-user')];
     }
 
