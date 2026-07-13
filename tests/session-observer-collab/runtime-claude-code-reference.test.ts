@@ -18,20 +18,47 @@ describe('Claude Code Monitor reference', () => {
     expect(content).toContain('harness-native capability');
     expect(content).toContain('`event-wake`');
     expect(content).toContain('`scheduled-poll` or `buffered-manual`');
-    expect(content).toContain('the Claude Monitor\nacceptance-matrix row remains **unvalidated**');
-    expect(content).toContain('The current honest posture is\n`buffered-manual`');
+    expect(content).toContain(
+      'the Claude Monitor\nacceptance-matrix row remains **unvalidated**',
+    );
+    expect(content).toContain(
+      'The current honest posture is\n`buffered-manual`',
+    );
   });
 
   test('requires a pinned quiet watcher and the complete live evidence sequence', async () => {
     const content = await reference();
 
     expect(content).toContain('catch-up-then-watch');
-    expect(content).toContain('--session claude-code:<peer-session-id>');
+    expect(content).toContain(
+      'PEER_SESSION="<peer-runtime>:<peer-session-id>"',
+    );
+    expect(content).toContain('--session "$PEER_SESSION"');
+    expect(content).not.toContain('--session claude-code:<peer-session-id>');
     expect(content).toContain('--quiet-empty');
     expect(content).toContain('--heartbeat-sec 0');
     expect(content).toContain('## Required live Monitor sequence');
     expect(content).toContain('same Claude Code session');
     expect(content).toContain('same-session client');
     expect(content).toContain('later peer turn produces no notification');
+  });
+
+  test('keeps the selected Claude reference parameterized for every peer runtime', async () => {
+    const content = await reference();
+    const match = content.match(/PEER_SESSION="([^"]+)"/);
+
+    expect(match?.[1]).toBe('<peer-runtime>:<peer-session-id>');
+    for (const runtime of ['claude-code', 'codex', 'cursor']) {
+      expect(
+        match![1]
+          .replace('<peer-runtime>', runtime)
+          .replace('<peer-session-id>', `${runtime}-peer`),
+      ).toBe(`${runtime}:${runtime}-peer`);
+    }
+    expect(
+      match![1]
+        .replace('<peer-runtime>', 'codex')
+        .replace('<peer-session-id>', 'codex-peer'),
+    ).toBe('codex:codex-peer');
   });
 });

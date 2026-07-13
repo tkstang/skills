@@ -7,10 +7,10 @@ argument-hint: '[start|review|watch|close] [--runtime <claude-code|codex|cursor|
 disable-model-invocation: false
 user-invocable: true
 allowed-tools: Bash(node:*) Read AskUserQuestion
-version: '1.0.3'
+version: '1.0.4'
 metadata:
   author: thomas.stang
-  version: '1.0.3'
+  version: '1.0.4'
 ---
 
 # session-observer-collab

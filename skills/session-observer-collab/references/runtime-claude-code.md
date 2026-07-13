@@ -33,8 +33,10 @@ the exact confirmed peer pin. Start exactly one persistent Monitor task around
 this single foreground watcher; do not run a separate `catch-up` before it.
 
 ```sh
+PEER_SESSION="<peer-runtime>:<peer-session-id>"
+
 node <session-observer-skill>/scripts/session-observer.mjs catch-up-then-watch \
-  --session claude-code:<peer-session-id> \
+  --session "$PEER_SESSION" \
   --cwd "$PWD" \
   --until-stopped \
   --heartbeat-sec 0 \
@@ -91,11 +93,12 @@ and use the fallback tier until a fresh complete sequence passes.
 
 ## Restart and clean stop
 
-Keep the watcher pinned to the announced `claude-code:<session-id>` identity
-through a same-session client restart. A restart that creates a new session ID
-is a new identity: do not carry the old pin forward or claim resilience. If a
-peer appears unexpectedly quiet, run a pinned freshness check and inspect a
-`newer-session-candidate` warning rather than silently switching sessions.
+Keep the watcher pinned to the announced `<peer-runtime>:<peer-session-id>`
+identity through a same-session client restart. A restart that creates a new
+session ID is a new identity: do not carry the old pin forward or claim
+resilience. If a peer appears unexpectedly quiet, run a pinned freshness check
+and inspect a `newer-session-candidate` warning rather than silently switching
+sessions.
 
 At closeout, freeze automatic responses, perform the final pinned freshness
 check, then cancel/stop the persistent Monitor task using the harness control.
