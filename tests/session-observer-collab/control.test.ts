@@ -142,6 +142,70 @@ describe('collaboration lease controls', () => {
     expect(CODEX_STOP_TIMEOUT_SECONDS).toBeGreaterThanOrEqual(60);
   });
 
+  test('reconciles stale managed fields for one exact observer command', async () => {
+    const { home } = await fixture();
+    const hooksPath = join(home, '.codex', 'hooks.json');
+    const scriptPath = join(
+      home,
+      '.codex',
+      'hooks',
+      'session-observer-collab-stop.mjs',
+    );
+    const command = codexStopCommand(scriptPath);
+    const orcaStopGroup = {
+      matcher: 'Stop',
+      hooks: [
+        {
+          type: 'command',
+          command: 'node /opt/orca/stop-hook.mjs',
+          timeout: 20,
+          statusMessage: 'Orca is checking peers',
+        },
+      ],
+    };
+    const staleObserver = {
+      type: 'legacy-command',
+      command,
+      timeout: 15,
+      statusMessage: 'Old observer status',
+      enabled: false,
+      userLabel: 'keep this metadata',
+    };
+    const initial = {
+      hooks: {
+        Stop: [orcaStopGroup, { hooks: [staleObserver], matcher: 'Stop' }],
+        SessionStart: [{ hooks: [{ type: 'command', command: 'node start' }] }],
+      },
+    };
+    await mkdir(join(home, '.codex'), { recursive: true });
+    await writeFile(hooksPath, JSON.stringify(initial, null, 2));
+
+    const reconciled = await installCodexStopHook({ hooksPath, scriptPath });
+    const written = JSON.parse(await readFile(hooksPath, 'utf8'));
+    const observerEntries = written.hooks.Stop.flatMap(
+      (group: { hooks: Array<{ command?: string }> }) => group.hooks,
+    ).filter((hook: { command?: string }) => hook.command === command);
+
+    expect(reconciled).toMatchObject({ changed: true, exactCommand: command });
+    expect(written.hooks.Stop[0]).toEqual(orcaStopGroup);
+    expect(written.hooks.SessionStart).toEqual(initial.hooks.SessionStart);
+    expect(observerEntries).toEqual([
+      expect.objectContaining({
+        type: 'command',
+        command,
+        timeout: CODEX_STOP_TIMEOUT_SECONDS,
+        statusMessage: 'Checking for Session Observer peer activity',
+        enabled: false,
+        userLabel: 'keep this metadata',
+      }),
+    ]);
+
+    const canonical = await readFile(hooksPath, 'utf8');
+    const reinstall = await installCodexStopHook({ hooksPath, scriptPath });
+    expect(reinstall).toMatchObject({ changed: false, exactCommand: command });
+    expect(await readFile(hooksPath, 'utf8')).toBe(canonical);
+  });
+
   test('reports trust, explicit disablement, and effective execution as separate Codex facts', async () => {
     const { home } = await fixture();
     const scriptPath = join(

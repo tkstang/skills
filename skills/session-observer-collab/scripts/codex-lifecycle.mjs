@@ -183,11 +183,16 @@ export function codexStopHookEntry(scriptPath) {
 function exactHookEntries(config, command) {
   return (config.hooks.Stop ?? []).flatMap((group) =>
     group.hooks.filter(
-      (entry) =>
-        plainObject(entry) &&
-        entry.type === 'command' &&
-        entry.command === command,
+      (entry) => plainObject(entry) && entry.command === command,
     ),
+  );
+}
+
+function hasCanonicalManagedFields(entry, canonical) {
+  return (
+    entry.type === canonical.type &&
+    entry.timeout === canonical.timeout &&
+    entry.statusMessage === canonical.statusMessage
   );
 }
 
@@ -195,11 +200,29 @@ export async function installCodexStopHook(input) {
   const { hooksPath, scriptPath } = resolvedPaths(input);
   const command = codexStopCommand(scriptPath);
   const config = await readHookConfig(hooksPath);
-  if (exactHookEntries(config, command).length > 0)
+  const exact = exactHookEntries(config, command);
+  if (exact.length > 1)
+    throw new CodexLifecycleError(
+      'ambiguous-observer-registration',
+      'multiple exact Codex observer registrations found; refusing reconciliation',
+    );
+  const canonical = codexStopHookEntry(scriptPath);
+  if (exact.length === 1 && hasCanonicalManagedFields(exact[0], canonical))
     return { changed: false, exactCommand: command, config };
   const next = structuredClone(config);
   next.hooks.Stop ??= [];
-  next.hooks.Stop.push({ hooks: [codexStopHookEntry(scriptPath)] });
+  if (exact.length === 0) {
+    next.hooks.Stop.push({ hooks: [canonical] });
+  } else {
+    next.hooks.Stop = next.hooks.Stop.map((group) => ({
+      ...group,
+      hooks: group.hooks.map((entry) =>
+        plainObject(entry) && entry.command === command
+          ? { ...entry, ...canonical }
+          : entry,
+      ),
+    }));
+  }
   await writeHookConfig(hooksPath, next);
   return { changed: true, exactCommand: command, config: next };
 }
@@ -321,10 +344,7 @@ export async function uninstallCodexStopHook({
     if (Array.isArray(next.hooks.Stop)) {
       next.hooks.Stop = next.hooks.Stop.map((group) => {
         const hooks = group.hooks.filter((entry) => {
-          const observer =
-            plainObject(entry) &&
-            entry.type === 'command' &&
-            entry.command === command;
+          const observer = plainObject(entry) && entry.command === command;
           if (observer) removed += 1;
           return !observer;
         });
