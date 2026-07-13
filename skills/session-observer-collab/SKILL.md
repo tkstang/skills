@@ -78,7 +78,7 @@ not load all runtime references into the same turn.
 | ---------------- | ----------------------------------- | ---------------------------------------------------- |
 | Claude Code      | `references/runtime-claude-code.md` | Probe Monitor; otherwise buffered manual             |
 | Codex            | `references/runtime-codex.md`       | Trusted bounded lifecycle continuation when proven   |
-| Cursor           | `references/runtime-cursor.md`      | Documented continuation; prove polling or use manual |
+| Cursor           | `references/runtime-cursor.md`      | Documented continuation; prove scheduled-poll with an effective scheduler or use buffered manual |
 
 Probe the available local harness capability before enabling any continuation.
 The capability ladder is `event-wake`, `lifecycle-continuation`,
@@ -87,7 +87,8 @@ by a local, effective-execution probe—not configuration presence, a reference,
 or a claimed capability. Disclose to the user and peer: chosen tier, probe
 evidence, pin, watcher owner, maximum wait, continuation/loop limit, expiry,
 and fallback tier. For an unsupported or unproven runtime, disclose
-`scheduled-poll` or `buffered-manual` and never claim autonomous wake.
+`buffered-manual` unless an effective scheduler probe permits `scheduled-poll`,
+and never claim autonomous wake.
 
 Runtime references describe only harness-specific setup. They cannot relax
 this protocol. Load one reference after the runtime is resolved, and leave a

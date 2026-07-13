@@ -234,10 +234,12 @@ load exactly one runtime reference for concrete setup.
 - **Cursor:** documented but not yet live-validated `lifecycle-continuation`
   through Stop-hook `followup_message`. It ends one generation and submits a
   synthetic control message to start another; it is not same-turn resumption
-  and cannot wake an already-idle conversation. Scheduled polling is the
-  interim floor. Follow `cursor-stop-hook-setup.md`.
-- **Other runtimes:** probe honestly, then use scheduled polling or buffered
-  manual catch-up when no stronger bridge is proven.
+  and cannot wake an already-idle conversation. Scheduled polling is available
+  only after effective scheduler proof; otherwise buffered manual is the honest
+  floor. Follow `cursor-stop-hook-setup.md`.
+- **Other runtimes:** probe honestly; use scheduled polling only after effective
+  scheduler proof, otherwise buffered manual catch-up when no stronger bridge
+  is proven.
 
 **Runtime-neutral wake contract (keep the skill runtime-agnostic):** the core
 skill defines a capability ladder, not per-harness behavior. At arming time
@@ -265,9 +267,9 @@ provider-reference pattern): Claude Code → Monitor wrapping watch
 effective scheduler proves `scheduled-poll`); Codex → Stop-hook collaboration
 lease with the loop guards above (`lifecycle-continuation`, validated); Cursor →
 `followup_message` Stop-hook generation chaining (`lifecycle-continuation`,
-documented but unvalidated — see the Cursor section), with `scheduled-poll`
-as its interim floor. These ship with the skill and work wherever the
-harness runs. What must stay _optional_
+documented but unvalidated — see the Cursor section); select `scheduled-poll`
+only after effective scheduler proof, otherwise use `buffered-manual`. These
+ship with the skill and work wherever the harness runs. What must stay _optional_
 are **application-level integrations** — terminal supervisors, pane-injection
 or messaging services (e.g. Orca, Ghostex), desktop-only assumptions: an
 adapter may probe for them as tier upgrades, but the skill must never require

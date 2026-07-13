@@ -95,14 +95,16 @@ Do not promise prompt user steering while a Cursor Stop hook is in its bounded
 wait. The documented input does not prove whether input is queued, interrupts
 the hook, starts another generation, or is rejected. Keep the default window
 short, disclose that interaction behavior is unmeasured, and use scheduled
-polling or manual catch-up whenever a user needs dependable immediate control.
+polling only when effective scheduler proof exists; otherwise use manual
+catch-up whenever a user needs dependable immediate control.
 
 Use stateless, pinned observed-side review for normal collaboration and do not
 advance another observer's target offset. A Stop-hook lease has its own private
 cursor; it is not evidence that a background watcher remains active after the
 hook returns. On any capability, identity, ordering, or lifecycle uncertainty,
-fall back to a scheduled poll; when polling is unavailable, use buffered manual
-catch-up and disclose that no autonomous wake exists.
+fall back to a scheduled poll only when effective scheduler proof exists;
+otherwise use buffered manual catch-up and disclose that no autonomous wake
+exists.
 
 Managed background-subagent completion plus `subagentStop` is a possible
 stronger-tier probe, not an assumed upgrade. It may only be classified after a
