@@ -28,6 +28,16 @@ export interface RunResult {
   removed?: string[];
 }
 
+export interface CodexControlOptions {
+  hooksPath: string;
+  scriptPath: string;
+  session?: string;
+  trustRecordsPath?: string;
+  hookStatusesPath?: string;
+  confirmed?: boolean;
+  removeScript?: boolean;
+}
+
 export const CONTROL_SCHEMA_VERSION: number;
 export function parseArgs(argv: string[]): {
   command: string | undefined;
@@ -52,6 +62,20 @@ export function status(
   ownerSession?: string,
   now?: number,
 ): Promise<{ installation: Installation; lease: Lease | null }>;
+export function codexInstall(
+  root: string,
+  options: CodexControlOptions,
+): Promise<Record<string, unknown>>;
+export function codexStatus(
+  root: string,
+  options: CodexControlOptions,
+  now?: number,
+): Promise<Record<string, unknown>>;
+export function codexUninstall(
+  root: string,
+  options: CodexControlOptions,
+  now?: number,
+): Promise<Record<string, unknown>>;
 export function run(
   argv: string[],
   env?: NodeJS.ProcessEnv,

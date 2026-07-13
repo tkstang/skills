@@ -28,8 +28,10 @@ declare module '*skills/session-observer-collab/scripts/codex-lifecycle.mjs' {
     exactCommand: string;
     installed: boolean;
     trusted: 'trusted' | 'untrusted' | 'unverified';
-    enablement: 'disabled' | 'not-explicitly-disabled';
+    explicitEnablement: 'enabled' | 'disabled' | 'not-explicitly-enabled';
     effectiveExecution: 'observed' | 'unverified';
+    leaseArmed: 'armed' | 'not-armed';
+    liveWake: 'passed' | 'unverified';
     mayArm: boolean;
   }
 
@@ -45,6 +47,10 @@ declare module '*skills/session-observer-collab/scripts/codex-lifecycle.mjs' {
   export function codexStopHookEntry(
     scriptPath: string,
   ): Readonly<CodexHookEntry>;
+  export function withCodexLifecycleLock<T>(
+    root: string,
+    fn: () => Promise<T>,
+  ): Promise<T>;
   export function installCodexStopHook(input: {
     hooksPath: string;
     scriptPath: string;
@@ -53,21 +59,30 @@ declare module '*skills/session-observer-collab/scripts/codex-lifecycle.mjs' {
     exactCommand: string;
     config: CodexHooksConfig;
   }>;
+  export function inspectCodexStopHook(input: {
+    hooksPath: string;
+    scriptPath: string;
+  }): Promise<{ exactCommand: string; config: CodexHooksConfig }>;
   export function assessCodexHookReadiness(input: {
     scriptPath: string;
     hooks: CodexHooksConfig;
     trustRecords?: CodexHookRecord[];
     hookStatuses?: CodexHookRecord[];
+    leaseArmed?: boolean;
+    liveWakePassed?: boolean;
   }): Readonly<CodexHookReadiness>;
   export function uninstallCodexStopHook(input: {
     hooksPath: string;
     scriptPath: string;
     confirmed: boolean;
-    activeLeaseCount?: number;
+    root: string;
     removeScript?: boolean;
+    now?: number;
   }): Promise<{
     changed: boolean;
     exactCommand: string;
     removed: number;
+    scriptRemoved: boolean;
+    safety: { activeLeaseCount: number };
   }>;
 }

@@ -14,6 +14,7 @@ import { afterEach, describe, expect, test } from 'vitest';
 
 import {
   assessCodexHookReadiness,
+  codexStopCommand,
   CODEX_STOP_TIMEOUT_GRACE_SECONDS,
   CODEX_STOP_TIMEOUT_SECONDS,
   installCodexStopHook,
@@ -110,7 +111,7 @@ describe('collaboration lease controls', () => {
 
     expect(first).toMatchObject({
       changed: true,
-      exactCommand: `node ${scriptPath}`,
+      exactCommand: codexStopCommand(scriptPath),
     });
     expect(second).toMatchObject({ changed: false });
     expect(written.hooks.SessionStart).toEqual(unrelated.hooks.SessionStart);
@@ -120,7 +121,7 @@ describe('collaboration lease controls', () => {
     ).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          command: `node ${scriptPath}`,
+          command: codexStopCommand(scriptPath),
           statusMessage: 'Checking for Session Observer peer activity',
         }),
       ]),
@@ -129,7 +130,8 @@ describe('collaboration lease controls', () => {
       (group: { hooks: Array<{ command?: string; timeout?: number }> }) =>
         group.hooks,
     ).find(
-      (hook: { command?: string }) => hook.command === `node ${scriptPath}`,
+      (hook: { command?: string }) =>
+        hook.command === codexStopCommand(scriptPath),
     );
     expect(installed?.timeout).toBe(CODEX_STOP_TIMEOUT_SECONDS);
     expect(CODEX_STOP_TIMEOUT_SECONDS).toBe(
@@ -148,7 +150,7 @@ describe('collaboration lease controls', () => {
       'hooks',
       'session-observer-collab-stop.mjs',
     );
-    const exactCommand = `node ${scriptPath}`;
+    const exactCommand = codexStopCommand(scriptPath);
     const hooks = {
       hooks: {
         Stop: [{ hooks: [{ type: 'command', command: exactCommand }] }],
@@ -167,8 +169,10 @@ describe('collaboration lease controls', () => {
     ).toMatchObject({
       installed: true,
       trusted: 'trusted',
-      enablement: 'not-explicitly-disabled',
+      explicitEnablement: 'not-explicitly-enabled',
       effectiveExecution: 'observed',
+      leaseArmed: 'not-armed',
+      liveWake: 'unverified',
       mayArm: true,
     });
     expect(
@@ -184,7 +188,14 @@ describe('collaboration lease controls', () => {
           },
         ],
       }),
-    ).toMatchObject({ enablement: 'disabled', mayArm: false });
+    ).toMatchObject({ explicitEnablement: 'disabled', mayArm: false });
+    expect(
+      assessCodexHookReadiness({
+        scriptPath,
+        hooks,
+        hookStatuses: [{ command: exactCommand, enabled: true }],
+      }),
+    ).toMatchObject({ explicitEnablement: 'enabled' });
     expect(
       assessCodexHookReadiness({
         scriptPath,
@@ -204,8 +215,8 @@ describe('collaboration lease controls', () => {
     });
   });
 
-  test('uninstalls only the confirmed exact Codex hook after all leases are disarmed', async () => {
-    const { home } = await fixture();
+  test('removes only one confirmed exact Codex registration', async () => {
+    const { home, root } = await fixture();
     const hooksPath = join(home, '.codex', 'hooks.json');
     const scriptPath = join(
       home,
@@ -215,27 +226,140 @@ describe('collaboration lease controls', () => {
     );
     await installCodexStopHook({ hooksPath, scriptPath });
     await expect(
-      uninstallCodexStopHook({ hooksPath, scriptPath, confirmed: false }),
-    ).rejects.toThrow('explicit confirmation');
-    await expect(
       uninstallCodexStopHook({
         hooksPath,
         scriptPath,
-        confirmed: true,
-        activeLeaseCount: 1,
+        confirmed: false,
+        root,
       }),
-    ).rejects.toThrow('active collaboration leases');
-
+    ).rejects.toThrow('explicit confirmation');
     const result = await uninstallCodexStopHook({
       hooksPath,
       scriptPath,
       confirmed: true,
-      activeLeaseCount: 0,
+      root,
     });
     expect(result).toMatchObject({ changed: true, removed: 1 });
     expect(JSON.parse(await readFile(hooksPath, 'utf8')).hooks.Stop).toEqual(
       [],
     );
+  });
+
+  test('exposes argv-safe Codex lifecycle commands and derives uninstall safety from leases', async () => {
+    const { home, root, cwd, transcript } = await fixture();
+    const hooksPath = join(home, '.codex', 'hooks.json');
+    const scriptPath = join(
+      home,
+      '.codex',
+      'hooks with spaces;and-$metacharacters.mjs',
+    );
+    const trustPath = join(home, 'trust records.json');
+    const statusPath = join(home, 'hook status.json');
+    const unrelated = {
+      hooks: {
+        Stop: [{ hooks: [{ type: 'command', command: 'node /tmp/other.mjs' }] }],
+      },
+    };
+    await mkdir(join(home, '.codex'), { recursive: true });
+    await writeFile(hooksPath, JSON.stringify(unrelated));
+    await writeFile(scriptPath, '// hook\n');
+
+    const env = { SESSION_OBSERVER_STATE_DIR: root } as NodeJS.ProcessEnv;
+    const installed = await run(
+      ['codex-install', '--hooks-path', hooksPath, '--script-path', scriptPath],
+      env,
+    );
+    const command = codexStopCommand(scriptPath);
+    expect(installed).toMatchObject({
+      command: 'codex-install',
+      readiness: { exactCommand: command, installed: true },
+    });
+    expect(command).toContain('hooks with spaces;and-$metacharacters.mjs');
+    await writeFile(trustPath, JSON.stringify([{ command, trusted: true }]));
+    await writeFile(
+      statusPath,
+      JSON.stringify([{ command, lastRanAt: '2026-07-12T12:00:00.000Z' }]),
+    );
+    const readiness = await run(
+      [
+        'codex-status',
+        '--hooks-path',
+        hooksPath,
+        '--script-path',
+        scriptPath,
+        '--trust-records-path',
+        trustPath,
+        '--hook-statuses-path',
+        statusPath,
+      ],
+      env,
+    );
+    expect(readiness).toMatchObject({
+      command: 'codex-status',
+      explicitEnablement: 'not-explicitly-enabled',
+      effectiveExecution: 'observed',
+      leaseArmed: 'not-armed',
+      liveWake: 'unverified',
+    });
+
+    await arm(root, options(cwd, transcript), 1_700_000_000_000);
+    await expect(
+      run(
+        [
+          'codex-uninstall',
+          '--hooks-path',
+          hooksPath,
+          '--script-path',
+          scriptPath,
+          '--confirmed',
+          '--remove-script',
+        ],
+        env,
+        1_700_000_000_100,
+      ),
+    ).rejects.toThrow('active collaboration leases');
+    expect(await readFile(scriptPath, 'utf8')).toBe('// hook\n');
+
+    await disarm(root, 'owner-1', 1_700_000_000_200);
+    const firstRemoval = await run(
+      [
+        'codex-uninstall',
+        '--hooks-path',
+        hooksPath,
+        '--script-path',
+        scriptPath,
+        '--confirmed',
+        '--remove-script',
+      ],
+      env,
+      1_700_000_000_300,
+    );
+    expect(firstRemoval).toMatchObject({
+      command: 'codex-uninstall',
+      removed: 1,
+      scriptRemoved: true,
+      safety: { activeLeaseCount: 0 },
+    });
+    expect(JSON.parse(await readFile(hooksPath, 'utf8'))).toEqual(unrelated);
+    await expect(readFile(scriptPath, 'utf8')).rejects.toMatchObject({
+      code: 'ENOENT',
+    });
+
+    await writeFile(scriptPath, '// retained when absent\n');
+    const absent = await run(
+      [
+        'codex-uninstall',
+        '--hooks-path',
+        hooksPath,
+        '--script-path',
+        scriptPath,
+        '--confirmed',
+        '--remove-script',
+      ],
+      env,
+    );
+    expect(absent).toMatchObject({ removed: 0, scriptRemoved: false });
+    expect(await readFile(scriptPath, 'utf8')).toBe('// retained when absent\n');
   });
 
   test('install and arm are idempotent and owner-only', async () => {

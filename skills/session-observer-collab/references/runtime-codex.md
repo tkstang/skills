@@ -34,11 +34,13 @@ Copy the shipped hook script to a stable absolute path, conventionally:
 Its registered command must remain byte-for-byte stable:
 
 ```text
-node /absolute/path/to/session-observer-collab-stop.mjs
+node -- '/absolute/path/to/session-observer-collab-stop.mjs'
 ```
 
 The Codex registration adapter (`scripts/codex-lifecycle.mjs`) merges this
-exact command into `~/.codex/hooks.json`. It writes a distinct status label,
+exact command into `~/.codex/hooks.json`. The single-quoted script argument is
+an argv-safe registration schema: it preserves spaces and shell metacharacters
+as path bytes rather than shell syntax. It writes a distinct status label,
 `Checking for Session Observer peer activity`, and preserves every unrelated
 event, Stop group, and command. Re-running installation detects the exact
 entry and makes no second observer entry.
@@ -56,9 +58,58 @@ After installation, do all of the following before arming a lease:
    it as `armed`.
 
 The registration adapter’s readiness result intentionally leaves `installed`,
-`trusted`, `enablement`, `effectiveExecution`, and `mayArm` separate. It never
-claims a missing status field, a different command, or merely installed JSON is
-enough to arm a session.
+`trusted`, `explicitEnablement`, `effectiveExecution`, `leaseArmed`,
+`liveWake`, and `mayArm` separate. A missing `enabled` field is
+`not-explicitly-enabled`, never an inferred enablement fact. It never claims a
+different command or merely installed JSON is enough to arm a session.
+
+## Stable control commands
+
+The shipped `collab-control.mjs` is the supported lifecycle surface. Substitute
+the absolute installed path to the copied hook in `CODEX_OBSERVER_HOOK`; keep
+that value unchanged after trust approval. The quoted shell variables keep the
+CLI arguments intact even when `$HOME` or the hook path contains whitespace.
+
+```sh
+export CODEX_OBSERVER_HOOK="$HOME/.codex/hooks/session-observer-collab-stop.mjs"
+export COLLAB_CONTROL="/absolute/path/to/session-observer-collab/scripts/collab-control.mjs"
+
+node "$COLLAB_CONTROL" codex-install \
+  --hooks-path "$HOME/.codex/hooks.json" \
+  --script-path "$CODEX_OBSERVER_HOOK" --json
+```
+
+After manually approving the exact displayed command in `/hooks`, save only
+read-only `/hooks` trust/status exports as JSON arrays, then inspect each fact:
+
+```sh
+node "$COLLAB_CONTROL" codex-status \
+  --hooks-path "$HOME/.codex/hooks.json" \
+  --script-path "$CODEX_OBSERVER_HOOK" \
+  --session "$CODEX_SESSION_ID" \
+  --trust-records-path "/absolute/path/to/hooks-trust.json" \
+  --hook-statuses-path "/absolute/path/to/hooks-status.json" --json
+```
+
+`trusted: "trusted"` proves the exact registered command has a trust record;
+`effectiveExecution: "observed"` requires an exact-command `lastRanAt`.
+`liveWake` remains `unverified` until an actual arm → Stop → substantive peer
+post → continuation run is measured. The command never converts missing
+`enabled` data into proof of enablement.
+
+Uninstall is deliberately separate from normal `disarm`. It scans collaboration
+leases while holding the control lock, refuses active Codex leases or malformed
+lease state, removes only one exact observer registration, and only then may
+remove the script:
+
+```sh
+node "$COLLAB_CONTROL" codex-uninstall \
+  --hooks-path "$HOME/.codex/hooks.json" \
+  --script-path "$CODEX_OBSERVER_HOOK" \
+  --confirmed --remove-script --json
+```
+
+If the exact registration is absent or duplicated, no script is removed.
 
 ## Bounded lease lifecycle
 
@@ -136,7 +187,7 @@ trust records, leases, or session state:
 pnpm exec vitest run tests/session-observer-collab/codex-hook.test.ts tests/session-observer-collab/control.test.ts
 ```
 
-Result: **2 test files passed, 32 tests passed**. This is automated proof only;
+Result: the bounded automated subset passed at the recorded revision. This is automated proof only;
 it is not evidence that any live Codex harness row passed.
 
 | Acceptance area                 | Automated subset evidence                                                                                                                           | Live status                           |

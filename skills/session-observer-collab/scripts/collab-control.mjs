@@ -5,6 +5,13 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
+  assessCodexHookReadiness,
+  inspectCodexStopHook,
+  installCodexStopHook,
+  uninstallCodexStopHook,
+  withCodexLifecycleLock,
+} from './codex-lifecycle.mjs';
+import {
   DEFAULT_WAIT_MS,
   LEASE_SCHEMA_VERSION,
   MAX_CONTINUATIONS,
@@ -43,8 +50,12 @@ export function parseArgs(argv) {
     const key = rawKey.replace(/-([a-z])/g, (_, letter) =>
       letter.toUpperCase(),
     );
-    if (rawKey === 'json') {
-      options.json = true;
+    if (
+      rawKey === 'json' ||
+      rawKey === 'confirmed' ||
+      rawKey === 'remove-script'
+    ) {
+      options[key] = true;
       continue;
     }
     const value = inline ?? rest[++i];
@@ -165,47 +176,120 @@ export async function arm(root, options, now = Date.now()) {
     peerTranscript,
   };
   const file = leasePath(root, ownerSession);
-  return withLeaseLock(file, async () => {
-    const existing = await readLease(root, ownerSession, {
-      persistMigration: false,
+  return withCodexLifecycleLock(root, () =>
+    withLeaseLock(file, async () => {
+      const existing = await readLease(root, ownerSession, {
+        persistMigration: false,
+      });
+      const request = {
+        ...identity,
+        peerCursor: cursor,
+        continuationCap,
+        loopCap,
+        waitMs,
+        leaseMs,
+      };
+      if (
+        existing &&
+        ['armed', 'waiting'].includes(effectiveLease(existing, now).state) &&
+        Object.entries(request).every(([key, value]) => existing[key] === value)
+      ) {
+        return { changed: false, lease: effectiveLease(existing, now) };
+      }
+      const stamp = new Date(now).toISOString();
+      const lease = {
+        schemaVersion: LEASE_SCHEMA_VERSION,
+        leaseId: randomUUID(),
+        ...identity,
+        state: 'armed',
+        peerCursor: cursor,
+        continuationCount: 0,
+        continuationCap,
+        loopCount: 0,
+        loopCap,
+        waitMs,
+        leaseMs,
+        waitStartedAt: null,
+        waitDeadlineAt: null,
+        armedAt: stamp,
+        expiresAt: new Date(now + leaseMs).toISOString(),
+        updatedAt: stamp,
+        diagnostic: null,
+      };
+      await atomicWriteJson(file, lease);
+      return { changed: true, lease };
+    }),
+  );
+}
+
+function records(value, name) {
+  if (value === undefined) return [];
+  if (!Array.isArray(value))
+    throw new Error(`${name} must contain a JSON array`);
+  return value;
+}
+
+async function readRecords(path, name) {
+  if (path === undefined) return [];
+  const absolute = validateAbsolutePath(path, name);
+  try {
+    return records(JSON.parse(await readFile(absolute, 'utf8')), name);
+  } catch (error) {
+    if (error.message?.includes('must contain a JSON array')) throw error;
+    throw new Error(`${name} is unreadable: ${error.message}`, {
+      cause: error,
     });
-    const request = {
-      ...identity,
-      peerCursor: cursor,
-      continuationCap,
-      loopCap,
-      waitMs,
-      leaseMs,
+  }
+}
+
+export async function codexInstall(root, options) {
+  return withCodexLifecycleLock(root, async () => {
+    const registration = await installCodexStopHook(options);
+    return {
+      registration,
+      readiness: assessCodexHookReadiness({
+        scriptPath: options.scriptPath,
+        hooks: registration.config,
+      }),
     };
-    if (
-      existing &&
-      ['armed', 'waiting'].includes(effectiveLease(existing, now).state) &&
-      Object.entries(request).every(([key, value]) => existing[key] === value)
-    ) {
-      return { changed: false, lease: effectiveLease(existing, now) };
-    }
-    const stamp = new Date(now).toISOString();
-    const lease = {
-      schemaVersion: LEASE_SCHEMA_VERSION,
-      leaseId: randomUUID(),
-      ...identity,
-      state: 'armed',
-      peerCursor: cursor,
-      continuationCount: 0,
-      continuationCap,
-      loopCount: 0,
-      loopCap,
-      waitMs,
-      leaseMs,
-      waitStartedAt: null,
-      waitDeadlineAt: null,
-      armedAt: stamp,
-      expiresAt: new Date(now + leaseMs).toISOString(),
-      updatedAt: stamp,
-      diagnostic: null,
-    };
-    await atomicWriteJson(file, lease);
-    return { changed: true, lease };
+  });
+}
+
+export async function codexStatus(root, options, now = Date.now()) {
+  const registration = await inspectCodexStopHook({
+    hooksPath: options.hooksPath,
+    scriptPath: options.scriptPath,
+  });
+  const current = options.session
+    ? await status(root, options.session, now)
+    : { lease: null };
+  return assessCodexHookReadiness({
+    scriptPath: options.scriptPath,
+    hooks: registration.config,
+    trustRecords: await readRecords(
+      options.trustRecordsPath,
+      'trust-records-path',
+    ),
+    hookStatuses: await readRecords(
+      options.hookStatusesPath,
+      'hook-statuses-path',
+    ),
+    leaseArmed: ['armed', 'waiting'].includes(current.lease?.state),
+  });
+}
+
+export async function codexUninstall(root, options, now = Date.now()) {
+  if (options.confirmed !== true)
+    throw new Error(
+      'explicit --confirmed is required to uninstall the Codex hook',
+    );
+  return uninstallCodexStopHook({
+    hooksPath: options.hooksPath,
+    scriptPath: options.scriptPath,
+    confirmed: true,
+    root,
+    removeScript: options.removeScript === true,
+    now,
   });
 }
 
@@ -268,8 +352,14 @@ export async function run(argv, env = process.env, now = Date.now()) {
       command,
       removed: await pruneLeases(root, { now, ownerSession: options.session }),
     };
+  if (command === 'codex-install')
+    return { ok: true, command, ...(await codexInstall(root, options)) };
+  if (command === 'codex-status')
+    return { ok: true, command, ...(await codexStatus(root, options, now)) };
+  if (command === 'codex-uninstall')
+    return { ok: true, command, ...(await codexUninstall(root, options, now)) };
   throw new Error(
-    'usage: collab-control install|status|arm|disarm|prune [options] [--json]',
+    'usage: collab-control install|status|arm|disarm|prune|codex-install|codex-status|codex-uninstall [options] [--json]',
   );
 }
 

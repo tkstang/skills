@@ -2,14 +2,23 @@ import { randomUUID } from 'node:crypto';
 import {
   chmod,
   mkdir,
+  open,
+  readdir,
   readFile,
   rename,
   rm,
   writeFile,
 } from 'node:fs/promises';
-import { dirname } from 'node:path';
+import { dirname, join } from 'node:path';
 
-import { MAX_WAIT_MS, validateAbsolutePath } from './lib/lease-state.mjs';
+import {
+  effectiveLease,
+  leasePath,
+  MAX_WAIT_MS,
+  readLease,
+  validateAbsolutePath,
+  withLeaseLock,
+} from './lib/lease-state.mjs';
 
 export const CODEX_STOP_STATUS_MESSAGE =
   'Checking for Session Observer peer activity';
@@ -90,8 +99,75 @@ function resolvedPaths({ hooksPath, scriptPath }) {
   };
 }
 
+export async function withCodexLifecycleLock(root, fn) {
+  const stateRoot = validateAbsolutePath(root, 'state-root');
+  const lock = join(stateRoot, 'codex-lifecycle.lock');
+  let handle;
+  await mkdir(stateRoot, { recursive: true, mode: 0o700 });
+  await chmod(stateRoot, 0o700);
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      handle = await open(lock, 'wx', 0o600);
+      break;
+    } catch (error) {
+      if (error?.code !== 'EEXIST') throw error;
+      if (attempt >= 199)
+        throw new CodexLifecycleError(
+          'codex-lifecycle-lock-timeout',
+          'Codex lifecycle mutation lock timed out',
+        );
+      await new Promise((resolveWait) => setTimeout(resolveWait, 5));
+    }
+  }
+  try {
+    return await fn();
+  } finally {
+    await handle.close();
+    await rm(lock, { force: true });
+  }
+}
+
+async function activeCodexLeaseCount(root, now) {
+  const leasesDir = join(root, 'leases');
+  let names;
+  try {
+    names = await readdir(leasesDir);
+  } catch (error) {
+    if (error?.code === 'ENOENT') return 0;
+    throw error;
+  }
+  let count = 0;
+  for (const name of names) {
+    if (!name.endsWith('.json')) continue;
+    const ownerSession = name.slice(0, -'.json'.length);
+    const file = leasePath(root, ownerSession);
+    await withLeaseLock(file, async () => {
+      const lease = await readLease(root, ownerSession, {
+        persistMigration: false,
+      });
+      if (!lease) return;
+      const effective = effectiveLease(lease, now);
+      if (
+        effective.runtime === 'codex' &&
+        ['armed', 'waiting'].includes(effective.state)
+      ) {
+        count += 1;
+      }
+    });
+  }
+  return count;
+}
+
+function shellQuote(value) {
+  return `'${value.replaceAll("'", "'\"'\"'")}'`;
+}
+
 export function codexStopCommand(scriptPath) {
-  return `node ${validateAbsolutePath(scriptPath, 'script-path')}`;
+  // Codex stores command hooks as shell commands. Keep the registered command
+  // as one canonical string so the same byte sequence is used for install,
+  // trust/status matching, and removal, including paths with spaces or shell
+  // metacharacters.
+  return `node -- ${shellQuote(validateAbsolutePath(scriptPath, 'script-path'))}`;
 }
 
 export function codexStopHookEntry(scriptPath) {
@@ -127,6 +203,21 @@ export async function installCodexStopHook(input) {
   return { changed: true, exactCommand: command, config: next };
 }
 
+export async function inspectCodexStopHook({
+  hooksPath: rawHooksPath,
+  scriptPath: rawScriptPath,
+}) {
+  const { hooksPath, scriptPath } = resolvedPaths({
+    hooksPath: rawHooksPath,
+    scriptPath: rawScriptPath,
+  });
+  const config = await readHookConfig(hooksPath);
+  return {
+    exactCommand: codexStopCommand(scriptPath),
+    config,
+  };
+}
+
 function exactRecord(records, command) {
   if (!Array.isArray(records)) return undefined;
   return records.find(
@@ -144,6 +235,8 @@ export function assessCodexHookReadiness({
   hooks,
   trustRecords = [],
   hookStatuses = [],
+  leaseArmed = false,
+  liveWakePassed = false,
 }) {
   const command = codexStopCommand(scriptPath);
   const config = validateHookConfig(hooks);
@@ -154,8 +247,12 @@ export function assessCodexHookReadiness({
       ? 'trusted'
       : 'untrusted'
     : 'unverified';
-  const enablement =
-    status?.enabled === false ? 'disabled' : 'not-explicitly-disabled';
+  const explicitEnablement =
+    status?.enabled === true
+      ? 'enabled'
+      : status?.enabled === false
+        ? 'disabled'
+        : 'not-explicitly-enabled';
   const effectiveExecution =
     typeof status?.lastRanAt === 'string' &&
     Number.isFinite(Date.parse(status.lastRanAt))
@@ -166,12 +263,14 @@ export function assessCodexHookReadiness({
     exactCommand: command,
     installed,
     trusted,
-    enablement,
+    explicitEnablement,
     effectiveExecution,
+    leaseArmed: leaseArmed === true ? 'armed' : 'not-armed',
+    liveWake: liveWakePassed === true ? 'passed' : 'unverified',
     mayArm:
       installed &&
       trusted === 'trusted' &&
-      enablement !== 'disabled' &&
+      explicitEnablement !== 'disabled' &&
       effectiveExecution === 'observed',
   });
 }
@@ -180,51 +279,73 @@ export async function uninstallCodexStopHook({
   hooksPath: rawHooksPath,
   scriptPath: rawScriptPath,
   confirmed,
-  activeLeaseCount = 0,
+  root,
   removeScript = false,
+  now = Date.now(),
 }) {
   if (confirmed !== true)
     throw new CodexLifecycleError(
       'confirmation-required',
       'explicit confirmation is required to uninstall the Codex hook',
     );
-  if (!Number.isSafeInteger(activeLeaseCount) || activeLeaseCount < 0)
-    throw new CodexLifecycleError(
-      'invalid-active-lease-count',
-      'active lease count must be a non-negative integer',
-    );
-  if (activeLeaseCount > 0)
-    throw new CodexLifecycleError(
-      'active-leases',
-      'cannot uninstall while active collaboration leases remain',
-    );
-
-  const { hooksPath, scriptPath } = resolvedPaths({
-    hooksPath: rawHooksPath,
-    scriptPath: rawScriptPath,
+  return withCodexLifecycleLock(root, async () => {
+    const activeLeaseCount = await activeCodexLeaseCount(root, now);
+    if (activeLeaseCount > 0)
+      throw new CodexLifecycleError(
+        'active-leases',
+        'cannot uninstall while active collaboration leases remain',
+      );
+    const { hooksPath, scriptPath } = resolvedPaths({
+      hooksPath: rawHooksPath,
+      scriptPath: rawScriptPath,
+    });
+    const command = codexStopCommand(scriptPath);
+    const config = await readHookConfig(hooksPath);
+    const exact = exactHookEntries(config, command);
+    if (exact.length > 1)
+      throw new CodexLifecycleError(
+        'ambiguous-observer-registration',
+        'multiple exact Codex observer registrations found; refusing removal',
+      );
+    if (exact.length === 0)
+      return {
+        changed: false,
+        exactCommand: command,
+        removed: 0,
+        scriptRemoved: false,
+        safety: { activeLeaseCount },
+      };
+    const next = structuredClone(config);
+    let removed = 0;
+    if (Array.isArray(next.hooks.Stop)) {
+      next.hooks.Stop = next.hooks.Stop.map((group) => {
+        const hooks = group.hooks.filter((entry) => {
+          const observer =
+            plainObject(entry) &&
+            entry.type === 'command' &&
+            entry.command === command;
+          if (observer) removed += 1;
+          return !observer;
+        });
+        return { ...group, hooks };
+      }).filter((group) => group.hooks.length > 0);
+    }
+    await writeHookConfig(hooksPath, next);
+    let scriptRemoved = false;
+    if (removeScript) {
+      try {
+        await rm(scriptPath);
+        scriptRemoved = true;
+      } catch (error) {
+        if (error?.code !== 'ENOENT') throw error;
+      }
+    }
+    return {
+      changed: true,
+      exactCommand: command,
+      removed,
+      scriptRemoved,
+      safety: { activeLeaseCount },
+    };
   });
-  const command = codexStopCommand(scriptPath);
-  const config = await readHookConfig(hooksPath);
-  const next = structuredClone(config);
-  let removed = 0;
-  if (Array.isArray(next.hooks.Stop)) {
-    next.hooks.Stop = next.hooks.Stop.map((group) => {
-      const hooks = group.hooks.filter((entry) => {
-        const observer =
-          plainObject(entry) &&
-          entry.type === 'command' &&
-          entry.command === command;
-        if (observer) removed += 1;
-        return !observer;
-      });
-      return { ...group, hooks };
-    }).filter((group) => group.hooks.length > 0);
-  }
-  if (removed > 0) await writeHookConfig(hooksPath, next);
-  if (removeScript) await rm(scriptPath, { force: true });
-  return {
-    changed: removed > 0 || removeScript,
-    exactCommand: command,
-    removed,
-  };
 }
