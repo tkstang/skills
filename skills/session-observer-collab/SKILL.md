@@ -7,10 +7,10 @@ argument-hint: '[start|review|watch|close] [--runtime <claude-code|codex|cursor|
 disable-model-invocation: false
 user-invocable: true
 allowed-tools: Bash(node:*) Read AskUserQuestion
-version: '1.0.2'
+version: '1.0.3'
 metadata:
   author: thomas.stang
-  version: '1.0.2'
+  version: '1.0.3'
 ---
 
 # session-observer-collab
@@ -71,14 +71,24 @@ do not silently substitute a newer same-cwd session.
 
 ## Load One Runtime Reference
 
-Resolve the peer runtime first, then load exactly one matching reference. Do
-not load all runtime references into the same turn.
+Choose one setup reference from the acting/self runtime established by `whoami`.
+The peer runtime belongs only in the exact observation pin and peer transcript;
+it does not select the local harness setup. Do not load all runtime references
+into the same turn.
 
-| Resolved runtime | Load this file                      | Initial wake posture                                 |
-| ---------------- | ----------------------------------- | ---------------------------------------------------- |
-| Claude Code      | `references/runtime-claude-code.md` | Probe Monitor; otherwise buffered manual             |
-| Codex            | `references/runtime-codex.md`       | Trusted bounded lifecycle continuation when proven   |
-| Cursor           | `references/runtime-cursor.md`      | Documented continuation; prove scheduled-poll with an effective scheduler or use buffered manual |
+| Acting/self runtime | Load this file                      | Initial wake posture                                                                             |
+| ------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Claude Code         | `references/runtime-claude-code.md` | Probe Monitor; otherwise buffered manual                                                         |
+| Codex               | `references/runtime-codex.md`       | Trusted bounded lifecycle continuation when proven                                               |
+| Cursor              | `references/runtime-cursor.md`      | Documented continuation; prove scheduled-poll with an effective scheduler or use buffered manual |
+
+Examples keep the local setup and peer observation separate:
+
+- acting Codex → peer Claude Code: load `references/runtime-codex.md`, then
+  observe the peer through `--session claude-code:<peer-session-id>`.
+- acting Claude Code → peer Codex: load
+  `references/runtime-claude-code.md`, then observe the peer through
+  `--session codex:<peer-session-id>`.
 
 Probe the available local harness capability before enabling any continuation.
 The capability ladder is `event-wake`, `lifecycle-continuation`,
@@ -91,8 +101,8 @@ and fallback tier. For an unsupported or unproven runtime, disclose
 and never claim autonomous wake.
 
 Runtime references describe only harness-specific setup. They cannot relax
-this protocol. Load one reference after the runtime is resolved, and leave a
-documented-but-unvalidated mechanism at its lower proven tier.
+this protocol. Load the acting runtime's one reference after `whoami` resolves
+it, and leave a documented-but-unvalidated mechanism at its lower proven tier.
 
 ## Addressing, Direction, and Authorization
 

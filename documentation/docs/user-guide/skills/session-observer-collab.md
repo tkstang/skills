@@ -28,8 +28,9 @@ node "$COLLAB" status --json
 
 Provider-visible `.agents/`, `.claude/`, and `.cursor/` views are generated
 mirrors. Keep the checkout's `skills/` directory as the source of truth and do
-not edit a mirror. Resolve the provider runtime before loading a runtime
-reference; load exactly one reference for that resolved peer.
+not edit a mirror. Use `whoami` to establish the acting/self runtime before
+loading one runtime reference; the peer runtime remains only in the observation
+pin.
 
 ## N=2 handshake
 
@@ -82,13 +83,24 @@ autonomous wake.
 
 ## Load one runtime reference
 
-After resolving the peer runtime, load only its matching reference:
+Choose one setup reference from the acting/self runtime established by `whoami`.
+Use the peer runtime only for `--session <runtime>:<id>` and the pinned peer
+transcript; it does not choose the local harness setup.
 
-| Runtime     | Reference                                                          | Initial posture                                                                |
-| ----------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------ |
-| Claude Code | `skills/session-observer-collab/references/runtime-claude-code.md` | Probe Monitor; otherwise buffered-manual (or scheduled-poll only when proven). |
-| Codex       | `skills/session-observer-collab/references/runtime-codex.md`       | Trusted bounded lifecycle continuation when local readiness is complete.       |
-| Cursor      | `skills/session-observer-collab/references/runtime-cursor.md`      | Documented continuation; prove scheduled-poll with an effective scheduler or use buffered-manual. |
+| Acting/self runtime | Reference                                                          | Initial posture                                                                                   |
+| ------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------- |
+| Claude Code         | `skills/session-observer-collab/references/runtime-claude-code.md` | Probe Monitor; otherwise buffered-manual (or scheduled-poll only when proven).                    |
+| Codex               | `skills/session-observer-collab/references/runtime-codex.md`       | Trusted bounded lifecycle continuation when local readiness is complete.                          |
+| Cursor              | `skills/session-observer-collab/references/runtime-cursor.md`      | Documented continuation; prove scheduled-poll with an effective scheduler or use buffered-manual. |
+
+For the two cross-runtime pairs, route setup locally and observation remotely:
+
+- acting Codex → peer Claude Code: load
+  `skills/session-observer-collab/references/runtime-codex.md`; pin the peer as
+  `--session claude-code:<peer-session-id>`.
+- acting Claude Code → peer Codex: load
+  `skills/session-observer-collab/references/runtime-claude-code.md`; pin the
+  peer as `--session codex:<peer-session-id>`.
 
 Runtime references describe harness-specific setup only. They cannot relax
 exact pinning, provenance, authority, no-op, pause, or closeout rules.

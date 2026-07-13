@@ -1,6 +1,6 @@
 # Claude Code runtime reference
 
-Use this reference only after resolving the peer as Claude Code. It is the
+Use this reference only after resolving the acting runtime as Claude Code. It is the
 runtime-specific companion to `session-observer-collab/SKILL.md`; the base
 observer remains responsible for transcript reads, exact pins, and offsets.
 

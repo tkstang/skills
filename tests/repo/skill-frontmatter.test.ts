@@ -367,13 +367,16 @@ describe('skill-frontmatter', () => {
     expect(block).not.toMatch(/^\s{2}internal:\s*true\s*$/m);
   });
 
-  it('session observer collaboration routes to exactly one runtime reference', async () => {
+  it('session observer collaboration routes setup by the acting runtime', async () => {
     const markdown = await readFile(collaborationSkillPath, 'utf8');
 
     for (const runtime of ['claude-code', 'codex', 'cursor']) {
       expect(markdown).toContain(`references/runtime-${runtime}`);
     }
-    expect(markdown).toMatch(/load exactly one matching reference/i);
+    expect(markdown).toMatch(/acting\/self runtime established by `whoami`/i);
+    expect(markdown).toMatch(/acting Codex → peer Claude Code/i);
+    expect(markdown).toMatch(/acting Claude Code → peer Codex/i);
+    expect(markdown).not.toMatch(/Resolve the peer runtime first/i);
     expect(markdown).not.toMatch(/\bTODO\b|\bFIXME\b|<placeholder>/i);
   });
 });
