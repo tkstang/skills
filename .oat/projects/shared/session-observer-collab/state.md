@@ -1,6 +1,6 @@
 ---
-oat_current_task: p07-t06
-oat_last_commit: 3b0a4a893f07f79f3130c34882df798b9681c8ae
+oat_current_task: null
+oat_last_commit: bd48957183f9ac9278ea84022b6ad51757fd88ea
 oat_blockers: []
 oat_orchestration_retry_limit: 4
 associated_issues: []
@@ -25,7 +25,7 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: "2026-07-12T17:48:10.523Z"
 oat_project_completed: null
-oat_project_state_updated: "2026-07-13T06:15:00Z"
+oat_project_state_updated: "2026-07-13T06:20:05Z"
 oat_generated: false
 ---
 
@@ -37,7 +37,7 @@ oat_generated: false
 
 ## Current Phase
 
-The first focused final re-review confirmed five fixes but found one remaining Important Claude-reference peer-pin defect; p07-t06 is ready.
+p07-t06 and user-install parity are complete; awaiting the final one-commit re-review.
 
 ## Artifacts
 
@@ -73,7 +73,9 @@ The first focused final re-review confirmed five fixes but found one remaining I
 - ✓ p07 initial final-review fixes complete (5/5)
 - ✓ Post-fix user-install and provider-link parity verified
 - ✓ Focused final re-review completed with one remaining Important finding
-- ⧗ p07-t06 pending
+- ✓ p07-t06 complete and verified
+- ✓ Session Observer Collaboration 1.0.4 user/provider parity verified
+- ⧗ Final one-commit re-review pending
 
 ## Blockers
 
@@ -81,4 +83,4 @@ None
 
 ## Next Milestone
 
-Execute p07-t06 and run a final fix-commit-only re-review.
+Run the final one-commit re-review, then continue the configured pre-approval closeout sequence.

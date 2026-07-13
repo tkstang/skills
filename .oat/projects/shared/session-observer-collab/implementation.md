@@ -1,10 +1,10 @@
 ---
-oat_status: in_progress
+oat_status: complete
 oat_ready_for: null
 oat_blockers: []
 oat_orchestration_retry_limit: 4
 oat_last_updated: 2026-07-13
-oat_current_task_id: p07-t06
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -25,9 +25,9 @@ oat_generated: false
 | p04 — Codex adapter | completed | 3 | 3 |
 | p05 — Cursor and Claude adapters | completed | 3 | 3 |
 | p06 — Integration and closeout | completed | 5 | 5 |
-| p07 — Final review fixes | in_progress | 6 | 5 |
+| p07 — Final review fixes | completed | 6 | 6 |
 
-**Total:** 29/30 tasks completed
+**Total:** 30/30 tasks completed
 
 ## Phase p01: Normalize collaboration-bearing transcript semantics
 
@@ -134,7 +134,7 @@ oat_generated: false
 - [x] `p07-t03` Preserve repeated queued human messages (final-review) — `ecb4e76`
 - [x] `p07-t04` Return candidates for conflicting identity signals (final-review) — `7937ff1`
 - [x] `p07-t05` Close final-review quality evidence (final-review) — `7b29a70`
-- [ ] `p07-t06` Parameterize the Claude peer observation pin (final-review)
+- [x] `p07-t06` Parameterize the Claude peer observation pin (final-review) — `bd48957`
 
 ### Phase p07 Summary
 
@@ -142,9 +142,9 @@ oat_generated: false
 
 **Key files:** canonical transcript runtime and observer identity/digest modules, generated observer/export runtime mirrors, collaboration skill/reference/docs surfaces, literal-envelope and queued-input fixtures, observer CLI/locate tests, and repository version/build guards.
 
-**Verification:** 196 focused p07-t01 tests, 49 p07-t02 tests, 90 p07-t03 tests, 68 p07-t04 tests, and 172 p07-t05 focused tests passed. The final integration matrix passed 1,088 tests with one intentional skip; lint completed with five unrelated pre-existing `no-shadow` warnings and no errors; type-check, build, build-check, repository validation, changed-skill validation, formatting, and diff checks passed. Post-build worktree cleanliness and full user-install/provider-link parity were verified for Session Observer 1.0.5, Export Session Transcript 1.0.3, and Session Observer Collaboration 1.0.3.
+**Verification:** 196 focused p07-t01 tests, 49 p07-t02 tests, 90 p07-t03 tests, 68 p07-t04 tests, 172 p07-t05 focused tests, and 29 p07-t06 reference/version tests passed. The final integration matrix passed 1,088 tests with one intentional skip; lint completed with five unrelated pre-existing `no-shadow` warnings and no errors; type-check, build, build-check, repository validation, changed-skill validation, formatting, and diff checks passed. Post-build worktree cleanliness and full user-install/provider-link parity were verified for Session Observer 1.0.5, Export Session Transcript 1.0.3, and Session Observer Collaboration 1.0.4.
 
-**Review:** The first fix-commit-focused re-review confirmed four original substantive fixes and the lint evidence, then found one remaining Important hardcoded peer-runtime prefix in the selected Claude reference. Task `p07-t06` owns the bounded reference/test correction.
+**Review:** The first fix-commit-focused re-review confirmed four original substantive fixes and the lint evidence, then found one remaining Important hardcoded peer-runtime prefix in the selected Claude reference. Task `p07-t06` corrected the reference and added selected-reference cross-runtime coverage; one-commit re-review is pending.
 
 ## Review and Planning Notes
 
@@ -722,6 +722,24 @@ The exact p07 coordinator resolved successfully, but three native p07-t01 child 
 
 **Next:** Execute `p07-t06`, then run a fix-commit-only final re-review.
 
+### Run 18 — 2026-07-13 01:20 CDT
+
+**Branch:** `session-observer-collab`
+**Tier:** 1 handle reuse
+**Policy:** managed high; one bounded final-re-review fix
+**Phases:** 1 resumed, 1 fixed, 0 stopped; re-review pending
+
+#### Task Outcome
+
+| Task | Exact target | Commit | Verification |
+| --- | --- | --- | --- |
+| p07-t06 | `oat-phase-implementer-gpt-5-6-luna-high` | `bd48957` | 29 focused reference/version tests; validate, build-check, changed-skill validation, lint/format, diff, and user-install parity pass |
+
+#### Outstanding Items
+
+- Run the final re-review over `bd48957^..bd48957`.
+- If passed, refresh final verification/tracking and continue the configured pre-approval closeout sequence.
+
 <!-- orchestration-runs-end -->
 
 ## Deviations from Plan / Design
@@ -752,7 +770,7 @@ The exact p07 coordinator resolved successfully, but three native p07-t01 child 
 - Phase verification covered targeted runtime, observer, control, lifecycle, tooling, distribution, and documentation suites, plus type-check, lint/format, repository validation, generated-output parity, smoke, changed-skill version checks, diff checks, and clean-tree checks.
 - `pnpm run worktree:validate` passed with 1,081 tests and one intentional skip before final-gate cleanup.
 - The configured independent p06 gate passed with zero Critical and zero Important findings. Its two Medium cleanup findings and one Minor coverage finding were addressed in `5fc46ca`; the focused docs suite then passed 22 tests alongside repository validation and scoped lint/format checks.
-- After final-review fixes, repository-wide verification passed with 1,088 tests and one intentional skip. `pnpm lint` completed with five unrelated pre-existing `no-shadow` warnings and no errors; `pnpm type-check`, `pnpm build`, `pnpm run build:check`, `pnpm run validate`, changed-skill validation, and `git diff --check` passed; the generated build left the worktree clean. User-level canonical copies and Claude/Cursor links match Session Observer 1.0.5, Export Session Transcript 1.0.3, and Session Observer Collaboration 1.0.3.
+- After final-review fixes, repository-wide verification passed with 1,088 tests and one intentional skip. `pnpm lint` completed with five unrelated pre-existing `no-shadow` warnings and no errors; `pnpm type-check`, `pnpm build`, `pnpm run build:check`, `pnpm run validate`, changed-skill validation, and `git diff --check` passed; the generated build left the worktree clean. User-level canonical copies and Claude/Cursor links match Session Observer 1.0.5, Export Session Transcript 1.0.3, and Session Observer Collaboration 1.0.4.
 
 ### Design and execution deltas
 
