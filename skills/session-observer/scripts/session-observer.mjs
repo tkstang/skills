@@ -281,11 +281,15 @@ source: ${resolved.identity.source}`
       ambiguousIdentity: true,
       runtime: resolved.runtime,
       cwd: args.cwd,
+      signals: resolved.signals,
       candidates: resolved.candidates
     };
     if (args.json) return emitJson(payload2, 3);
+    const signalLabel = resolved.runtime ?? resolved.signals.map(
+      (signal) => signal.sessionId ? `${signal.runtime}:${signal.sessionId}` : signal.runtime
+    ).join(", ");
     return emit(
-      `Self identity is ambiguous for ${resolved.runtime} in ${args.cwd}:
+      `Self identity is ambiguous for ${signalLabel} in ${args.cwd}:
 ${renderCandidateList(resolved.candidates)}`,
       3
     );

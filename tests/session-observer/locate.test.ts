@@ -215,6 +215,27 @@ test('findSessionCandidate returns only an exact same-cwd session match', async 
   });
 });
 
+test('findSessionCandidate rejects a matching alias from another cwd', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'identity-project');
+    const otherCwd = join(home, 'Code', 'other-project');
+    const transcriptPath = join(
+      home,
+      '.codex',
+      'sessions',
+      '2026',
+      '07',
+      'identity-other.jsonl',
+    );
+    await mkdir(dirname(transcriptPath), { recursive: true });
+    await writeFile(transcriptPath, makeCodexTypical(otherCwd), 'utf8');
+
+    expect(
+      await findSessionCandidate('codex', targetCwd, 'codex-sess-001'),
+    ).toBeNull();
+  });
+});
+
 test('claude-code: glob fallback when encoded dir is missing — no throw, returns []', async () => {
   await withTempHome(async (home) => {
     const targetCwd = join(home, 'Code', 'nonexistent-project');

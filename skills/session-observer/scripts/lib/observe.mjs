@@ -45,11 +45,42 @@ function harnessIdentity(env, runtime) {
   })).filter(
     (signal) => signal.sessionIds.length > 0 || signal.hasRuntimeIndicator
   );
-  if (matches.length !== 1 || matches[0].sessionIds.length > 1) return null;
+  if (matches.length !== 1 || matches[0].sessionIds.length > 1) {
+    const identitySignals = matches.flatMap(
+      (match) => match.sessionIds.length > 0 ? match.sessionIds.map((sessionId) => ({
+        runtime: match.runtime,
+        sessionId
+      })) : [{ runtime: match.runtime }]
+    );
+    return identitySignals.length > 0 ? { ambiguous: true, signals: identitySignals } : null;
+  }
   return {
     runtime: matches[0].runtime,
     sessionId: matches[0].sessionIds[0]
   };
+}
+async function candidatesForIdentitySignals(signals, targetCwd) {
+  const candidateGroups = await Promise.all(
+    signals.map(async (signal) => {
+      if (signal.sessionId) {
+        const candidate = await findSessionCandidate(
+          signal.runtime,
+          targetCwd,
+          signal.sessionId
+        );
+        return candidate ? [candidate] : [];
+      }
+      return (await discover(signal.runtime, targetCwd)).filter(
+        (candidate) => candidate.recordedCwd === targetCwd
+      );
+    })
+  );
+  const seen = /* @__PURE__ */ new Set();
+  return candidateGroups.flat().filter((candidate) => {
+    if (seen.has(candidate.transcriptPath)) return false;
+    seen.add(candidate.transcriptPath);
+    return true;
+  });
 }
 async function resolveSelfIdentity(targetCwd, env = process.env) {
   const explicit = parseExplicitSelf(
@@ -57,7 +88,18 @@ async function resolveSelfIdentity(targetCwd, env = process.env) {
     env.SESSION_OBSERVER_SESSION_ID
   );
   const harness = harnessIdentity(env, explicit?.runtime);
-  const signal = explicit?.sessionId ? explicit : harness?.sessionId ? harness : explicit ?? harness;
+  if (!explicit?.sessionId && harness && "ambiguous" in harness) {
+    const signals = harness.signals;
+    const runtimes = [...new Set(signals.map((signal2) => signal2.runtime))];
+    return {
+      ambiguous: true,
+      runtime: runtimes.length === 1 ? runtimes[0] : void 0,
+      signals,
+      candidates: await candidatesForIdentitySignals(signals, targetCwd)
+    };
+  }
+  const harnessSignal = harness && !("ambiguous" in harness) ? harness : void 0;
+  const signal = explicit?.sessionId ? explicit : harnessSignal?.sessionId ? harnessSignal : explicit ?? harnessSignal;
   if (!signal) return { noMatch: true };
   if (signal.sessionId) {
     const candidate = await findSessionCandidate(
@@ -89,7 +131,12 @@ async function resolveSelfIdentity(targetCwd, env = process.env) {
     };
   }
   if (candidates.length > 1) {
-    return { ambiguous: true, runtime: signal.runtime, candidates };
+    return {
+      ambiguous: true,
+      runtime: signal.runtime,
+      signals: [{ runtime: signal.runtime }],
+      candidates
+    };
   }
   return { noMatch: true, runtime: signal.runtime, candidates };
 }

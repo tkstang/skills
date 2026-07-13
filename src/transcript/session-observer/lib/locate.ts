@@ -648,7 +648,8 @@ export async function findSessionCandidate(
   sessionId: string,
 ): Promise<TranscriptCandidate | null> {
   const matches = (await discover(runtime, targetCwd)).filter(
-    (candidate) => candidate.sessionId === sessionId,
+    (candidate) =>
+      candidate.recordedCwd === targetCwd && candidate.sessionId === sessionId,
   );
   return matches.length === 1 ? matches[0] : null;
 }

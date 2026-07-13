@@ -459,12 +459,18 @@ export interface SelfIdentity {
   source: SelfIdentitySource;
 }
 
+export interface SelfIdentitySignal {
+  runtime: Runtime;
+  sessionId?: string;
+}
+
 export type SelfIdentityResolution =
   | { identity: SelfIdentity }
   | {
       ambiguous: true;
-      runtime: Runtime;
+      runtime?: Runtime;
       candidates: TranscriptCandidate[];
+      signals: SelfIdentitySignal[];
     }
   | { noMatch: true; runtime?: Runtime; candidates?: TranscriptCandidate[] };
 

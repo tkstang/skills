@@ -379,7 +379,7 @@ async function discover(runtime, targetCwd) {
 }
 async function findSessionCandidate(runtime, targetCwd, sessionId) {
   const matches = (await discover(runtime, targetCwd)).filter(
-    (candidate) => candidate.sessionId === sessionId
+    (candidate) => candidate.recordedCwd === targetCwd && candidate.sessionId === sessionId
   );
   return matches.length === 1 ? matches[0] : null;
 }

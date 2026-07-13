@@ -266,7 +266,7 @@ describe('CLI subcommand dispatch', () => {
     }
   });
 
-  test('whoami fails closed for conflicting harness signals and candidate ambiguity', async () => {
+  test('whoami returns ambiguity candidates for conflicting harness signals and aliases', async () => {
     const home = await mkdtemp(join(tmpdir(), 'cli-whoami-conflicts-'));
     try {
       const cwd = join(home, 'Code', 'project');
@@ -275,20 +275,67 @@ describe('CLI subcommand dispatch', () => {
 
       let result = spawnCli(['whoami', '--cwd', cwd, '--json'], {
         HOME: home,
-        CLAUDECODE: '1',
-        CODEX_SANDBOX: 'workspace-write',
+        STATE_DIR: join(home, '.state'),
       });
       expect(result.status, `${result.stderr}\n${result.stdout}`).toBe(2);
       expect(JSON.parse(result.stdout).noIdentity).toBe(true);
+
+      result = spawnCli(['whoami', '--cwd', cwd, '--json'], {
+        HOME: home,
+        STATE_DIR: join(home, '.state'),
+        CLAUDECODE: '1',
+        CODEX_SANDBOX: 'workspace-write',
+      });
+      expect(result.status, `${result.stderr}\n${result.stdout}`).toBe(3);
+      let payload = JSON.parse(result.stdout);
+      expect(payload.ambiguousIdentity).toBe(true);
+      expect(payload.signals).toEqual(
+        expect.arrayContaining([
+          { runtime: 'claude-code' },
+          { runtime: 'codex' },
+        ]),
+      );
+      expect(
+        payload.candidates
+          .map(
+            (candidate: any) => `${candidate.runtime}:${candidate.sessionId}`,
+          )
+          .toSorted(),
+      ).toEqual(['claude-code:claude-one', 'codex:codex-one']);
+
+      await copyCodexTranscript(home, cwd, 'codex-two');
+      result = spawnCli(['whoami', '--cwd', cwd, '--json'], {
+        HOME: home,
+        STATE_DIR: join(home, '.state'),
+        CODEX_THREAD_ID: 'codex-one',
+        CODEX_SESSION_ID: 'codex-two',
+      });
+      expect(result.status, `${result.stderr}\n${result.stdout}`).toBe(3);
+      payload = JSON.parse(result.stdout);
+      expect(payload.ambiguousIdentity).toBe(true);
+      expect(payload.signals).toEqual(
+        expect.arrayContaining([
+          { runtime: 'codex', sessionId: 'codex-one' },
+          { runtime: 'codex', sessionId: 'codex-two' },
+        ]),
+      );
+      expect(
+        payload.candidates
+          .map((candidate: any) => candidate.sessionId)
+          .toSorted(),
+      ).toEqual(['codex-one', 'codex-two']);
 
       await copyCursorTranscript(home, cwd, 'cursor-one');
       await copyCursorTranscript(home, cwd, 'cursor-two');
       result = spawnCli(['whoami', '--cwd', cwd, '--json'], {
         HOME: home,
+        STATE_DIR: join(home, '.state'),
         CURSOR_AGENT: '1',
       });
       expect(result.status, `${result.stderr}\n${result.stdout}`).toBe(3);
-      expect(JSON.parse(result.stdout).ambiguousIdentity).toBe(true);
+      payload = JSON.parse(result.stdout);
+      expect(payload.ambiguousIdentity).toBe(true);
+      expect(payload.signals).toEqual([{ runtime: 'cursor' }]);
     } finally {
       await rm(home, { recursive: true, force: true });
     }

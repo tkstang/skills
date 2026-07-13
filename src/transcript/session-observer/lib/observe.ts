@@ -26,6 +26,7 @@ import type {
   RankTier,
   RuntimeCandidateSet,
   SelfIdentityResolution,
+  SelfIdentitySignal,
   SessionStateEntry,
   TranscriptCandidate,
 } from './types.js';
@@ -33,7 +34,11 @@ import type {
 export const VALID_RUNTIMES: Runtime[] = ['claude-code', 'codex', 'cursor'];
 export const VALID_RUNTIME_LABEL = VALID_RUNTIMES.join(', ');
 
-type IdentitySignal = { runtime: Runtime; sessionId?: string };
+type IdentitySignal = SelfIdentitySignal;
+type HarnessIdentityResolution =
+  | IdentitySignal
+  | { ambiguous: true; signals: IdentitySignal[] }
+  | null;
 
 function isRuntime(value: unknown): value is Runtime {
   return typeof value === 'string' && VALID_RUNTIMES.includes(value as Runtime);
@@ -52,7 +57,7 @@ function parseExplicitSelf(
 function harnessIdentity(
   env: NodeJS.ProcessEnv,
   runtime?: Runtime,
-): IdentitySignal | null {
+): HarnessIdentityResolution {
   const signals: Array<{
     runtime: Runtime;
     sessionIds: Array<string | undefined>;
@@ -89,11 +94,50 @@ function harnessIdentity(
       (signal) => signal.sessionIds.length > 0 || signal.hasRuntimeIndicator,
     );
 
-  if (matches.length !== 1 || matches[0].sessionIds.length > 1) return null;
+  if (matches.length !== 1 || matches[0].sessionIds.length > 1) {
+    const identitySignals = matches.flatMap((match) =>
+      match.sessionIds.length > 0
+        ? match.sessionIds.map((sessionId) => ({
+            runtime: match.runtime,
+            sessionId,
+          }))
+        : [{ runtime: match.runtime }],
+    );
+    return identitySignals.length > 0
+      ? { ambiguous: true, signals: identitySignals }
+      : null;
+  }
   return {
     runtime: matches[0].runtime,
     sessionId: matches[0].sessionIds[0],
   };
+}
+
+async function candidatesForIdentitySignals(
+  signals: IdentitySignal[],
+  targetCwd: string,
+): Promise<TranscriptCandidate[]> {
+  const candidateGroups = await Promise.all(
+    signals.map(async (signal) => {
+      if (signal.sessionId) {
+        const candidate = await findSessionCandidate(
+          signal.runtime,
+          targetCwd,
+          signal.sessionId,
+        );
+        return candidate ? [candidate] : [];
+      }
+      return (await discover(signal.runtime, targetCwd)).filter(
+        (candidate) => candidate.recordedCwd === targetCwd,
+      );
+    }),
+  );
+  const seen = new Set<string>();
+  return candidateGroups.flat().filter((candidate) => {
+    if (seen.has(candidate.transcriptPath)) return false;
+    seen.add(candidate.transcriptPath);
+    return true;
+  });
 }
 
 export async function resolveSelfIdentity(
@@ -105,11 +149,23 @@ export async function resolveSelfIdentity(
     env.SESSION_OBSERVER_SESSION_ID,
   );
   const harness = harnessIdentity(env, explicit?.runtime);
+  if (!explicit?.sessionId && harness && 'ambiguous' in harness) {
+    const signals = harness.signals;
+    const runtimes = [...new Set(signals.map((signal) => signal.runtime))];
+    return {
+      ambiguous: true,
+      runtime: runtimes.length === 1 ? runtimes[0] : undefined,
+      signals,
+      candidates: await candidatesForIdentitySignals(signals, targetCwd),
+    };
+  }
+  const harnessSignal =
+    harness && !('ambiguous' in harness) ? harness : undefined;
   const signal = explicit?.sessionId
     ? explicit
-    : harness?.sessionId
-      ? harness
-      : (explicit ?? harness);
+    : harnessSignal?.sessionId
+      ? harnessSignal
+      : (explicit ?? harnessSignal);
 
   if (!signal) return { noMatch: true };
 
@@ -144,7 +200,12 @@ export async function resolveSelfIdentity(
     };
   }
   if (candidates.length > 1) {
-    return { ambiguous: true, runtime: signal.runtime, candidates };
+    return {
+      ambiguous: true,
+      runtime: signal.runtime,
+      signals: [{ runtime: signal.runtime }],
+      candidates,
+    };
   }
   return { noMatch: true, runtime: signal.runtime, candidates };
 }

@@ -435,11 +435,21 @@ async function runWhoami(args: CliArgs): Promise<never> {
       ambiguousIdentity: true,
       runtime: resolved.runtime,
       cwd: args.cwd,
+      signals: resolved.signals,
       candidates: resolved.candidates,
     };
     if (args.json) return emitJson(payload, 3);
+    const signalLabel =
+      resolved.runtime ??
+      resolved.signals
+        .map((signal) =>
+          signal.sessionId
+            ? `${signal.runtime}:${signal.sessionId}`
+            : signal.runtime,
+        )
+        .join(', ');
     return emit(
-      `Self identity is ambiguous for ${resolved.runtime} in ${args.cwd}:\n${renderCandidateList(resolved.candidates)}`,
+      `Self identity is ambiguous for ${signalLabel} in ${args.cwd}:\n${renderCandidateList(resolved.candidates)}`,
       3,
     );
   }
