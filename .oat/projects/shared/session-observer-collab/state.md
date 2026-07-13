@@ -1,8 +1,7 @@
 ---
-oat_current_task: p04-review
-oat_last_commit: 424036ad3d81b12d00a8b4dd3f2a03aa783f8d45
-oat_blockers:
-  - "p04 live Codex acceptance requires /hooks trust/effective execution and coordinated peer sessions"
+oat_current_task: p05-t01
+oat_last_commit: 3e5e88f33a3db74474784f93f1f9b614f8d3953b
+oat_blockers: []
 oat_orchestration_retry_limit: 4
 associated_issues: []
 oat_kind: implementation
@@ -38,7 +37,7 @@ oat_generated: false
 
 ## Current Phase
 
-Phase p04 is blocked on live Codex acceptance evidence after review-fix iteration 1/4.
+Phase p04 is complete and reviewed; sequentially degraded phase p05 is next.
 
 ## Artifacts
 
@@ -63,16 +62,13 @@ Phase p04 is blocked on live Codex acceptance evidence after review-fix iteratio
 - ✓ Phase p01 completed and reviewed
 - ✓ Phase p02 completed and reviewed
 - ✓ Phase p03 completed after user-authorized fix-only iteration 4/4
-- ! Phase p04 code and automated checks complete; live acceptance evidence blocked
-- · Phase p05 not started after sequential degradation
+- ✓ Phase p04 complete; all required live Codex rows and managed re-review passed
+- ⧗ Phase p05 ready to start after sequential degradation
 
 ## Blockers
 
-- The shipped p04 hook is installed at `~/.codex/hooks/session-observer-collab-stop.mjs` with a source-matching hash and owner-only permissions; the historical prototype is backed up.
-- The Stop registration now contains exactly one new command and no historical-command match; the unrelated Orca Stop hook remains unchanged.
-- The iteration-3 launcher is installed with hash `7e0650…1f37` and requires one explicit `/hooks` review before targeted live retests.
-- Completing the matrix requires a user-assisted `/hooks` approval and coordinated Codex plus peer sessions.
+None
 
 ## Next Milestone
 
-Approve the changed Session Observer launcher under `/hooks`, retest Esc/no-op plus expiry/prune, then re-review p04 before starting p05.
+Execute p05 Cursor and Claude adapter tasks sequentially, then run managed p05 review.

@@ -1,11 +1,10 @@
 ---
 oat_status: in_progress
 oat_ready_for: null
-oat_blockers:
-  - "p04 live Codex acceptance requires /hooks trust/effective execution and coordinated peer sessions"
+oat_blockers: []
 oat_orchestration_retry_limit: 4
 oat_last_updated: 2026-07-12
-oat_current_task_id: null
+oat_current_task_id: p05-t01
 oat_generated: false
 ---
 
@@ -23,7 +22,7 @@ oat_generated: false
 | p01 — Transcript semantics | completed | 4 | 4 |
 | p02 — Identity and watch behavior | completed | 5 | 5 |
 | p03 — Collaboration protocol/control | completed | 4 | 4 |
-| p04 — Codex adapter | blocked_review | 3 | 3 |
+| p04 — Codex adapter | completed | 3 | 3 |
 | p05 — Cursor and Claude adapters | pending | 3 | 0 |
 | p06 — Integration and closeout | pending | 5 | 0 |
 
@@ -83,15 +82,15 @@ oat_generated: false
 
 - [x] `p04-t01` Implement the thin Codex Stop hook — `1a5ddc3`
 - [x] `p04-t02` Complete Codex install, trust, and lifecycle operations — `8b6f829`, fixes `5b861fd`, `6cd01d2`, `3885181`, `6a79f6a`, `7679346`, `424036a`
-- [x] `p04-t03` Run the Codex acceptance harness — `787f4dd`; live rows blocked
+- [x] `p04-t03` Run the Codex acceptance harness — `787f4dd`, live evidence `3e5e88f`
 
 ### Phase p04 Summary
 
-**Outcome:** The Codex Stop hook, executable install/status/uninstall surface, lease-safe removal, argv-safe hook registration, bounded waits, signal cleanup, declarations, and honest automated evidence are implemented. Phase review remains blocked on the required live Codex matrix.
+**Outcome:** The Codex Stop hook, executable install/status/uninstall surface, lease-safe removal, argv-safe registration, standalone atomic bundle, 65-second reconciliation, schema-v5 orphan recovery, zero-budget suppressed cursor advancement, and complete live acceptance evidence are implemented.
 
 **Verification:** 63 focused tests, including real out-of-repository bundle execution, stale-registration reconciliation, orphan-wait recovery, and zero-budget suppressed-range advancement, full type-check, repository validation, diff checks, and clean-tree checks pass. Temporary live-probe artifacts were removed and no partial live evidence was committed.
 
-**Review blocker:** Review-fix iteration 1/4 resolved the executable control surface, uninstall safety, path quoting, and stale automated count. Iteration 2/4 fixed copied-hook module resolution and reconciled managed registration fields. Live rows then passed real effective execution, coexistence, one-shot and recurring wakes, caps, idle timeout, queued input, and explicit cleanup, but exposed orphaned `waiting` after Esc and a suppressed-range cursor replay risk. Iteration 3/4 fixed both with schema-v5 waiter identity/recovery and a zero-budget cursor-only CAS. The updated launcher is installed and now requires explicit `/hooks` re-approval before targeted Esc/no-op retests and the remaining expiry/prune rows.
+**Review:** Review-fix iterations 1–3 resolved every blocking finding and every live-discovered product defect. Final managed re-review passed with zero Critical and zero Important findings. One Medium uninstall declaration mismatch is deferred to p06 integration; tracking drift and an overstated process-identity description were corrected in this bookkeeping pass.
 
 ## Phase p05: Implement Cursor and Claude harness adapters
 
@@ -122,6 +121,7 @@ oat_generated: false
 - That iteration resolved all four prior findings; the final re-review found one new Medium ambient-declaration issue and exhausted the 3/3 limit.
 - The user authorized a fourth fix-only iteration for that Medium finding and directed implementation to proceed to the next phase without another p03 review.
 - The declared p04/p05 parallel group degraded to sequential execution because the required branch names `session-observer-collab/p04` and `session-observer-collab/p05` conflict with the existing orchestration branch ref `session-observer-collab`. Both strict `oat-worktree-bootstrap-auto` attempts failed before creating branches or worktrees.
+- p04 final review passed with one product Medium deferred to p06: align `codex-lifecycle.d.ts` `supportRemoved` with the no-registration uninstall return shape.
 
 ## Orchestration Runs
 
@@ -399,7 +399,36 @@ oat_generated: false
 
 | Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
 | --- | --- | --- | --- | --- | --- | --- |
-| p04-t02 lease schema | design.md lease/control contract | Truthful waiting state | Schema v5 adds token, PID, and process-start identity for safe orphan recovery | Real Esc can terminate without a catchable signal | implementation | Documented evidence after targeted retest |
+| p04-t02 lease schema | design.md lease/control contract | Truthful waiting state | Schema v5 adds generation-bound token and PID identity with conservative liveness handling | Real Esc can terminate without a catchable signal | implementation | Live retest passed; no stronger process-start discriminator is claimed |
+
+### Run 9 — 2026-07-12 22:24 CDT
+
+**Branch:** `session-observer-collab`
+**Tier:** 1
+**Policy:** merge-strategy=merge, retry-limit=4; p04 final re-review
+**Phases:** 1 resumed, 1 passed, 0 failed, 0 stopped
+
+#### Phase Outcomes
+
+| Phase | Implementer | Review | Fix Iterations | Disposition |
+| --- | --- | --- | ---: | --- |
+| p04 | DONE | pass | 3/4 | completed; proceed to p05 |
+
+#### Dispatch Notes
+
+- Targeted live evidence commit: `3e5e88f` on `oat-phase-implementer-gpt-5-6-sol-high`.
+- Reviewer: `Dispatch: scope=p04 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high`.
+
+#### Outstanding Items
+
+- Medium, deferred to p06 integration: align `codex-lifecycle.d.ts` `supportRemoved` with the no-registration runtime return shape.
+- Collaboration skill version bump remains deferred to p06-t01.
+
+#### Artifact / Design Deltas
+
+| Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
+| --- | --- | --- | --- | --- | --- | --- |
+| p04 final review | plan.md p04 acceptance | Complete automated and live Codex lifecycle | All required rows green after three review-fix iterations | Real TUI evidence exposed install, cancellation, and replay defects that were fixed before acceptance | implementation + runtime-codex.md | Declaration/version cleanup in p06 |
 
 <!-- orchestration-runs-end -->
 
