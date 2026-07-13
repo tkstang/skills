@@ -1,10 +1,10 @@
 ---
-oat_status: complete
+oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_orchestration_retry_limit: 4
 oat_last_updated: 2026-07-13
-oat_current_task_id: null
+oat_current_task_id: p07-t01
 oat_generated: false
 ---
 
@@ -25,8 +25,9 @@ oat_generated: false
 | p04 — Codex adapter | completed | 3 | 3 |
 | p05 — Cursor and Claude adapters | completed | 3 | 3 |
 | p06 — Integration and closeout | completed | 5 | 5 |
+| p07 — Final review fixes | in_progress | 5 | 0 |
 
-**Total:** 24/24 tasks completed
+**Total:** 24/29 tasks completed
 
 ## Phase p01: Normalize collaboration-bearing transcript semantics
 
@@ -125,6 +126,14 @@ oat_generated: false
 **Backlog handoff:** `BL-260713-per-observer-offsets-and-safe`, `BL-260713-stronger-cursor-collaboration`, `BL-260713-cursor-transcript-store`, and `BL-260713-optional-idle-session` are open. Existing shared-log and direct-messaging initiatives remain open.
 
 **Review:** Initial managed p06 review found three Important artifact-alignment findings. Product/reference fixes landed in `b3181f9` and `60aea96`, and durable operational evidence landed in bookkeeping. Re-review found one remaining Important stale-user-copy issue; review-fix iteration 2 refreshed and verified all user copies/provider links at `4f87679`. Target-preserving final re-review passed with zero findings at every severity. The configured external gate then passed with no Critical or Important findings; its two Medium cleanup findings and one Minor freshness-coverage finding were addressed in `5fc46ca` without re-running the already-passing gate.
+
+## Phase p07: Resolve final review findings
+
+- [ ] `p07-t01` Unify the shipped wake-envelope contract (final-review)
+- [ ] `p07-t02` Route setup references by the acting runtime (final-review)
+- [ ] `p07-t03` Preserve repeated queued human messages (final-review)
+- [ ] `p07-t04` Return candidates for conflicting identity signals (final-review)
+- [ ] `p07-t05` Close final-review quality evidence (final-review)
 
 ## Review and Planning Notes
 
@@ -613,6 +622,37 @@ oat_generated: false
 | Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
 | --- | --- | --- | --- | --- | --- | --- |
 | p06 gate sweep | external gate review | Passing gate with durable sub-threshold dispositions | All three findings addressed immediately | Fixes were small, contained, low-risk closeout work | implementation + `5fc46ca` | Final review |
+
+### Run 15 — 2026-07-13 00:24 CDT
+
+**Branch:** `session-observer-collab`
+**Tier:** 1
+**Policy:** auto-review receive; convert Critical/Important/Medium and in-scope Minor findings without prompting
+**Phases:** final review received, 5 fix tasks added, 0 findings deferred, 0 rejected
+
+#### Review Received: final
+
+**Date:** 2026-07-13
+**Review artifact:** `reviews/archived/final-review-2026-07-13T050936Z.md`
+
+**Findings:**
+
+- Critical: 1
+- Important: 1
+- Medium: 2
+- Minor: 1
+
+**New tasks added:** `p07-t01`, `p07-t02`, `p07-t03`, `p07-t04`, `p07-t05`
+
+**Disposition map:**
+
+- Critical XML/JSON wake-envelope incompatibility → `p07-t01`.
+- Important acting-runtime reference-routing error → `p07-t02`.
+- Medium transcript-global queued-input deduplication → `p07-t03`.
+- Medium conflicting-identity signals omit candidate recovery → `p07-t04`.
+- Minor branch-introduced lint warning and inaccurate evidence label → `p07-t05`.
+
+**Next:** Execute p07 fixes via `oat-project-implement`, then run a fix-commit-focused final re-review.
 
 <!-- orchestration-runs-end -->
 

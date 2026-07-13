@@ -5,7 +5,7 @@ oat_blockers: []
 oat_last_updated: 2026-07-12
 oat_phase: plan
 oat_phase_status: complete
-oat_plan_hill_phases: [p06]
+oat_plan_hill_phases: [p07]
 oat_auto_review_at_hill_checkpoints: true
 oat_plan_parallel_groups:
   - [p04, p05]
@@ -433,6 +433,68 @@ Generated-bundle CLI flag assertions run in p02-t05 after the canonical build.
 
 **Commit:** `chore(p06-t05): finalize collaboration handoff`
 
+## Phase p07: Resolve final review findings
+
+### Task p07-t01: Unify the shipped wake-envelope contract (final-review)
+
+**Scope:** Fix the Critical adapter-to-normalizer mismatch so the literal Codex and Cursor wake messages are always recognized as automatic control input and cannot recursively consume continuation budget.
+
+**Files:** `src/transcript/core/runtimes.ts`, canonical collaboration hook sources and generated outputs, completion/renderer/classifier code as required, collaboration runtime references, and cross-contract fixtures/tests.
+
+**Implementation:** Establish the production XML `session_observer_wake` shape as the canonical adapter wire contract (retaining safe JSON compatibility only if required), parse its automatic/runtime/lease/peer/range fields across Claude/Codex/Cursor normalization, preserve provenance without granting human authority, and suppress pure automatic acknowledgments/replays from continuation selection. Exercise the literal outputs of both shipped hook envelope builders end to end.
+
+**Verify:** Focused transcript-core, digest/classifier, completion, Codex-hook, Cursor-hook, control, generated-output, type-check, and validation suites; direct cross-contract assertions must render `Hook/control (automatic)`, report non-human engagement, and spend zero continuation budget.
+
+**Commit:** `fix(p07-t01): unify automatic wake envelope contract`
+
+### Task p07-t02: Route setup references by the acting runtime (final-review)
+
+**Scope:** Fix the Important cross-runtime setup routing error while preserving the peer pin for transcript observation.
+
+**Files:** `skills/session-observer-collab/SKILL.md`, collaboration user guide, runtime reference/routing tests, and version/build surfaces required by the changed-skill contract.
+
+**Implementation:** Choose the one runtime setup reference from the acting/self runtime established by `whoami`; use the peer runtime only for the pinned peer transcript. Add explicit acting-Codex/peer-Claude and acting-Claude/peer-Codex examples and assertions.
+
+**Verify:** Focused collaboration docs/routing/frontmatter/version tests, repository validation, changed-skill version validation, and generated-output parity.
+
+**Commit:** `fix(p07-t02): route setup by acting runtime`
+
+### Task p07-t03: Preserve repeated queued human messages (final-review)
+
+**Scope:** Fix transcript-global content deduplication so independent queued messages with identical text remain distinct human inputs.
+
+**Files:** `src/transcript/core/runtimes.ts`, queued-input fixtures/tests, and generated runtime outputs.
+
+**Implementation:** Correlate attachment copies with their enqueue/remove or delivery transaction instead of suppressing matching content across the transcript. Preserve two independent identical attachment-only messages and a later identical message after an older enqueue transaction.
+
+**Verify:** Focused transcript-core and generated-output suites, type-check, build/build-check, and diff checks.
+
+**Commit:** `fix(p07-t03): preserve repeated queued input`
+
+### Task p07-t04: Return candidates for conflicting identity signals (final-review)
+
+**Scope:** Keep `whoami` fail-closed while making conflicting runtime/session indicators recoverable through the required ambiguity candidate payload.
+
+**Files:** canonical observer identity/locate/observe/CLI modules, declarations/generated output as required, and focused fixtures/tests.
+
+**Implementation:** Preserve conflicting signals as ambiguity evidence, discover plausible same-cwd candidates for each signaled runtime/session alias, and return exit 3 with candidates rather than collapsing to exit 2 `noIdentity`. Never guess a winner.
+
+**Verify:** Focused observer CLI/locate/identity suites covering conflicting runtimes and conflicting session-ID aliases, plus type-check, build/build-check, and repository validation.
+
+**Commit:** `fix(p07-t04): expose ambiguous identity candidates`
+
+### Task p07-t05: Close final-review quality evidence (final-review)
+
+**Scope:** Remove the branch-introduced lint warning and run the complete fix-phase acceptance matrix.
+
+**Files:** `src/transcript/session-observer/lib/digest.ts`, affected focused tests, generated observer output, and final implementation evidence.
+
+**Implementation:** Remove the recovery-pointer `transcriptPath` shadow without changing output, distinguish any remaining pre-existing warnings accurately, regenerate canonical outputs, and verify all p07 fixes together.
+
+**Verify:** `pnpm test`, `pnpm lint`, `pnpm type-check`, `pnpm build`, `pnpm run build:check`, `pnpm run validate`, changed-skill version validation, and `git diff --check`.
+
+**Commit:** `fix(p07-t05): close final review quality evidence`
+
 ## Reviews
 
 | Scope  | Type     | Status  | Date | Artifact |
@@ -443,7 +505,7 @@ Generated-bundle CLI flag assertions run in p02-t05 after the canonical build.
 | p04    | code     | passed | 2026-07-12 | managed re-review passed after fix iteration 3/4; all required live Codex rows green |
 | p05    | code     | passed | 2026-07-12 | managed review passed clean; Cursor and Claude live limitations remain honestly labeled |
 | p06    | code     | passed | 2026-07-13 | reviews/archived/p06-review-2026-07-13T045434Z.md |
-| final  | code     | received | 2026-07-13 | reviews/final-review-2026-07-13T050936Z.md |
+| final  | code     | fixes_added | 2026-07-13 | reviews/archived/final-review-2026-07-13T050936Z.md |
 | spec   | artifact | pending | -    | N/A (quick mode) |
 | design | artifact | passed  | 2026-07-12 | inline co-author review |
 | plan   | artifact | passed  | 2026-07-12 | managed structured review (clean) |
@@ -464,8 +526,9 @@ The configured cross-runtime quick-start gate was explicitly skipped by user dir
 - Phase 4: 3 tasks — implement and validate Codex lifecycle continuation
 - Phase 5: 3 tasks — implement Cursor continuation and document Cursor/Claude harness behavior
 - Phase 6: 5 tasks — integrate distribution/docs/PJM, run the full matrix, and close out safely
+- Phase 7: 5 tasks — resolve final-review envelope, runtime routing, queued-input, identity ambiguity, and quality-evidence findings
 
-**Total: 24 tasks across 6 phases**
+**Total: 29 tasks across 7 phases**
 
 Ready for implementation via `oat-project-implement`.
 
