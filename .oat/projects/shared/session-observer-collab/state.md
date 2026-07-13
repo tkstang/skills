@@ -1,5 +1,5 @@
 ---
-oat_current_task: p06-review
+oat_current_task: p06-gate
 oat_last_commit: 4f876797b35a342caffbb6eeb1112d070c96d412
 oat_blockers: []
 oat_orchestration_retry_limit: 4
@@ -37,7 +37,7 @@ oat_generated: false
 
 ## Current Phase
 
-All p06 tasks and review-fix iteration 2/4 are complete; managed p06 re-review is next.
+All p06 tasks and managed review are complete; the configured external p06 phase gate is next.
 
 ## Artifacts
 
@@ -65,7 +65,8 @@ All p06 tasks and review-fix iteration 2/4 are complete; managed p06 re-review i
 - ✓ Phase p04 complete; all required live Codex rows and managed re-review passed
 - ✓ Phase p05 complete; managed review passed with zero findings
 - ✓ Final implementation phase p06 tasks complete
-- ⧗ p06 review-fix iteration 2/4 complete; post-fix user parity verified; awaiting re-review
+- ✓ p06 review-fix iteration 2/4 complete; managed re-review passed clean
+- ⧗ Configured external p06 phase gate pending
 
 ## Blockers
 
@@ -73,4 +74,4 @@ None
 
 ## Next Milestone
 
-Re-run managed p06 review, then execute the configured external p06 gate, final review, and final HiLL closeout.
+Execute the configured external p06 gate, then final review and final HiLL closeout.

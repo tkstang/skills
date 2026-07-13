@@ -124,7 +124,7 @@ oat_generated: false
 
 **Backlog handoff:** `BL-260713-per-observer-offsets-and-safe`, `BL-260713-stronger-cursor-collaboration`, `BL-260713-cursor-transcript-store`, and `BL-260713-optional-idle-session` are open. Existing shared-log and direct-messaging initiatives remain open.
 
-**Review:** Initial managed p06 review found three Important artifact-alignment findings. Product/reference fixes landed in `b3181f9` and `60aea96`, and durable operational evidence landed in bookkeeping. Re-review found one remaining Important stale-user-copy issue; review-fix iteration 2 refreshed and verified all user copies/provider links at `4f87679`.
+**Review:** Initial managed p06 review found three Important artifact-alignment findings. Product/reference fixes landed in `b3181f9` and `60aea96`, and durable operational evidence landed in bookkeeping. Re-review found one remaining Important stale-user-copy issue; review-fix iteration 2 refreshed and verified all user copies/provider links at `4f87679`. Target-preserving final re-review passed with zero findings at every severity.
 
 ## Review and Planning Notes
 
@@ -538,6 +538,35 @@ oat_generated: false
 | Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
 | --- | --- | --- | --- | --- | --- | --- |
 | p06-t05 user sync | implementation closeout evidence | User copies match final branch | First sync preceded the final scheduler wording fix; second full refresh restored parity | Review compared live user copy to post-fix branch | implementation + live parity checks | Re-review |
+
+### Run 13 — 2026-07-12 23:59 CDT
+
+**Branch:** `session-observer-collab`
+**Tier:** 1
+**Policy:** merge-strategy=merge, retry-limit=4; p06 final re-review
+**Phases:** 1 resumed, 1 passed, 0 failed, 0 stopped
+
+#### Phase Outcomes
+
+| Phase | Implementer | Review | Fix Iterations | Disposition |
+| --- | --- | --- | ---: | --- |
+| p06 | DONE | pass | 2/4 | completed; external p06 gate next |
+
+#### Dispatch Notes
+
+- Reviewer: `Dispatch: scope=p06-re-review action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high`.
+- Root thread limit rejected the first re-dispatch before start; after releasing a completed handle, the same exact native reviewer route launched and passed.
+
+#### Outstanding Items
+
+- Run configured external p06 phase gate.
+- Run final review and final HiLL closeout.
+
+#### Artifact / Design Deltas
+
+| Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
+| --- | --- | --- | --- | --- | --- | --- |
+| None | - | - | - | - | - | - |
 
 <!-- orchestration-runs-end -->
 

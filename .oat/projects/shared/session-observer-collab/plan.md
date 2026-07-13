@@ -442,7 +442,7 @@ Generated-bundle CLI flag assertions run in p02-t05 after the canonical build.
 | p03    | code     | passed  | 2026-07-12 | all blocking findings resolved; Medium declaration fix completed in user-directed fix-only iteration 4/4 |
 | p04    | code     | passed | 2026-07-12 | managed re-review passed after fix iteration 3/4; all required live Codex rows green |
 | p05    | code     | passed | 2026-07-12 | managed review passed clean; Cursor and Claude live limitations remain honestly labeled |
-| p06    | code     | fixes_completed | 2026-07-12 | review-fix 2/4 post-fix user copy and provider-link parity verified; re-review pending |
+| p06    | code     | passed | 2026-07-12 | managed re-review passed clean after fix iteration 2/4 |
 | final  | code     | pending | -    | -        |
 | spec   | artifact | pending | -    | N/A (quick mode) |
 | design | artifact | passed  | 2026-07-12 | inline co-author review |
