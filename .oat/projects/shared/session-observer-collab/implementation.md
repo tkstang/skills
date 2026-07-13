@@ -1,9 +1,9 @@
 ---
-oat_status: in_progress
+oat_status: complete
 oat_ready_for: null
 oat_blockers: []
 oat_orchestration_retry_limit: 4
-oat_last_updated: 2026-07-12
+oat_last_updated: 2026-07-13
 oat_current_task_id: null
 oat_generated: false
 ---
@@ -11,7 +11,7 @@ oat_generated: false
 # Implementation: session-observer-collab
 
 **Started:** 2026-07-12
-**Last Updated:** 2026-07-12
+**Last Updated:** 2026-07-13
 
 > Resume at `oat_current_task_id`. Reviews are tracked in `plan.md`, not as implementation tasks.
 
@@ -624,4 +624,31 @@ oat_generated: false
 
 ## Final Summary (for PR/docs)
 
-_Fill after implementation._
+### What shipped
+
+- Collaboration-safe transcript semantics: Claude queued input renders once, synthetic wake envelopes remain automatic control input, Cursor emits completed turns only, and recovery pointers preserve original user-message locations.
+- A hardened Session Observer surface with fail-closed `whoami`, quiet empty watches that still advance offsets, standalone-baseline gap warnings, and non-switching newer-session warnings.
+- The public dependency-free `session-observer-collab` skill for a bounded N=2 topology, including explicit authority/provenance rules, versioned lease state, deterministic completion selection, lifecycle control commands, and runtime recipes for Codex, Cursor, Claude Code, and generic fallbacks.
+- A validated Codex lifecycle path with stable trusted-hook installation, bounded replay/continuation, race-safe cleanup, and live acceptance evidence. Cursor and Claude Code limitations remain explicitly documented where no callable live lifecycle surface was available.
+- Distribution/version/build guards, user and engineering documentation, generated navigation freshness coverage, the acceptance/sanitization matrix, and four file-backed v2 follow-ups.
+
+### Key implementation surfaces
+
+- Canonical transcript and observer code under `src/transcript/core/` and `src/transcript/session-observer/`, with generated standalone runtime output under `skills/session-observer/` and `skills/export-session-transcript/`.
+- The canonical sibling skill under `skills/session-observer-collab/`, including protocol references, lease/control libraries, Codex/Cursor hooks, provider recipes, and declarations.
+- Repository enforcement in `scripts/validate.mjs`, `scripts/bump-version.mjs`, release/layout/frontmatter/docs tests, and generated-output tooling.
+- User-facing documentation under `documentation/docs/user-guide/skills/`, engineering guidance, the generated `documentation/index.md`, and PJM follow-ups under `.oat/repo/pjm/`.
+
+### Verification performed
+
+- Phase verification covered targeted runtime, observer, control, lifecycle, tooling, distribution, and documentation suites, plus type-check, lint/format, repository validation, generated-output parity, smoke, changed-skill version checks, diff checks, and clean-tree checks.
+- `pnpm run worktree:validate` passed with 1,081 tests and one intentional skip before final-gate cleanup.
+- The configured independent p06 gate passed with zero Critical and zero Important findings. Its two Medium cleanup findings and one Minor coverage finding were addressed in `5fc46ca`; the focused docs suite then passed 22 tests alongside repository validation and scoped lint/format checks.
+- Repository-wide final verification runs immediately before final review and will be recorded in this section.
+
+### Design and execution deltas
+
+- The planned p04/p05 parallel worktree group ran sequentially because Git cannot create nested refs beneath the existing `session-observer-collab` branch. The failure occurred before worktree creation and did not change task scope or product output.
+- Cursor lifecycle continuation remains documented-but-unvalidated, and Claude Code Monitor remains unvalidated/buffered-manual; neither was promoted beyond the live evidence obtained.
+- The final p03 Medium declaration fix proceeded without another phase reviewer by explicit user direction; the full-branch final review remains the closing review boundary.
+- The source packet's provider-mirror `.agents/skills/` shape was adapted to this repository's canonical `skills/` root, with generated provider mirrors kept non-canonical.
