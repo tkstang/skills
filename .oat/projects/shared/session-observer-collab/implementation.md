@@ -82,16 +82,16 @@ oat_generated: false
 ## Phase p04: Implement and validate the Codex lifecycle adapter
 
 - [x] `p04-t01` Implement the thin Codex Stop hook — `1a5ddc3`
-- [x] `p04-t02` Complete Codex install, trust, and lifecycle operations — `8b6f829`, fixes `5b861fd`, `6cd01d2`, `3885181`, `6a79f6a`, `7679346`
+- [x] `p04-t02` Complete Codex install, trust, and lifecycle operations — `8b6f829`, fixes `5b861fd`, `6cd01d2`, `3885181`, `6a79f6a`, `7679346`, `424036a`
 - [x] `p04-t03` Run the Codex acceptance harness — `787f4dd`; live rows blocked
 
 ### Phase p04 Summary
 
 **Outcome:** The Codex Stop hook, executable install/status/uninstall surface, lease-safe removal, argv-safe hook registration, bounded waits, signal cleanup, declarations, and honest automated evidence are implemented. Phase review remains blocked on the required live Codex matrix.
 
-**Verification:** 37 focused tests, including real out-of-repository bundle execution and stale-registration reconciliation, full type-check, repository validation, diff checks, and clean-tree checks pass. Temporary live-probe artifacts were removed and no partial live evidence was committed.
+**Verification:** 63 focused tests, including real out-of-repository bundle execution, stale-registration reconciliation, orphan-wait recovery, and zero-budget suppressed-range advancement, full type-check, repository validation, diff checks, and clean-tree checks pass. Temporary live-probe artifacts were removed and no partial live evidence was committed.
 
-**Review blocker:** Review-fix iteration 1/4 resolved the executable control surface, uninstall safety, path quoting, and stale automated count. Iteration 2/4 fixed the copied-hook module-resolution failure with an atomic content-addressed support bundle and fixed stale exact registrations so managed fields reconcile from 15 to 65 seconds. A fresh Codex 0.144.1 gate now reports the changed Observer hook as the single item requiring review (`Installed 3, Active 2, Review 1`). Completing p04 requires explicit user trust for that current launcher, then effective-execution and coordinated Codex plus peer evidence for the remaining live rows.
+**Review blocker:** Review-fix iteration 1/4 resolved the executable control surface, uninstall safety, path quoting, and stale automated count. Iteration 2/4 fixed copied-hook module resolution and reconciled managed registration fields. Live rows then passed real effective execution, coexistence, one-shot and recurring wakes, caps, idle timeout, queued input, and explicit cleanup, but exposed orphaned `waiting` after Esc and a suppressed-range cursor replay risk. Iteration 3/4 fixed both with schema-v5 waiter identity/recovery and a zero-budget cursor-only CAS. The updated launcher is installed and now requires explicit `/hooks` re-approval before targeted Esc/no-op retests and the remaining expiry/prune rows.
 
 ## Phase p05: Implement Cursor and Claude harness adapters
 
@@ -370,6 +370,36 @@ oat_generated: false
 | Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
 | --- | --- | --- | --- | --- | --- | --- |
 | p04-t02 install | runtime-codex stable copied hook | One copied file runs from `~/.codex/hooks` | Atomic stable launcher plus content-addressed private support bundle | Real trusted Stop exposed repository-relative imports in copied source | implementation | Documented in runtime reference; version in p06-t01 |
+
+### Run 8 — 2026-07-12 21:09 CDT
+
+**Branch:** `session-observer-collab`
+**Tier:** 1
+**Policy:** merge-strategy=merge, retry-limit=4; p04 review-fix iteration 3/4
+**Phases:** 1 resumed, 0 passed, 1 awaiting live retest, 0 stopped
+
+#### Phase Outcomes
+
+| Phase | Implementer | Review | Fix Iterations | Disposition |
+| --- | --- | --- | ---: | --- |
+| p04 | DONE_WITH_CONCERNS | fixes added | 3/4 | updated launcher awaiting one `/hooks` review |
+
+#### Dispatch Notes
+
+- State-integrity fix: `424036a` on `oat-phase-implementer-gpt-5-6-sol-high`.
+- Live evidence before fix passed no-lease execution, trust/effective execution, coexistence, one-shot, recurring, caps, armed/waiting/idle, 5s timeout, queued input, and explicit cleanup.
+
+#### Outstanding Items
+
+- Approve the changed launcher hash `7e0650…1f37` under `/hooks`.
+- Retest Esc orphan recovery and no-op cursor advancement; run remaining wall-clock expiry and stale-worktree prune rows.
+- Collaboration skill version bump remains deferred to p06-t01.
+
+#### Artifact / Design Deltas
+
+| Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
+| --- | --- | --- | --- | --- | --- | --- |
+| p04-t02 lease schema | design.md lease/control contract | Truthful waiting state | Schema v5 adds token, PID, and process-start identity for safe orphan recovery | Real Esc can terminate without a catchable signal | implementation | Documented evidence after targeted retest |
 
 <!-- orchestration-runs-end -->
 
