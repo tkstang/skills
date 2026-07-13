@@ -644,7 +644,7 @@ oat_generated: false
 - Phase verification covered targeted runtime, observer, control, lifecycle, tooling, distribution, and documentation suites, plus type-check, lint/format, repository validation, generated-output parity, smoke, changed-skill version checks, diff checks, and clean-tree checks.
 - `pnpm run worktree:validate` passed with 1,081 tests and one intentional skip before final-gate cleanup.
 - The configured independent p06 gate passed with zero Critical and zero Important findings. Its two Medium cleanup findings and one Minor coverage finding were addressed in `5fc46ca`; the focused docs suite then passed 22 tests alongside repository validation and scoped lint/format checks.
-- Repository-wide final verification runs immediately before final review and will be recorded in this section.
+- Repository-wide final verification passed after gate cleanup: `pnpm test` completed 1,083 tests with one intentional skip; `pnpm lint` completed with six existing `no-shadow` warnings and no errors; `pnpm type-check`, `pnpm build`, `pnpm run build:check`, and `git diff --check` passed; the generated build left the worktree clean.
 
 ### Design and execution deltas
 
