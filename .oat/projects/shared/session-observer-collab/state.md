@@ -1,6 +1,6 @@
 ---
-oat_current_task: p06-gate
-oat_last_commit: 4f876797b35a342caffbb6eeb1112d070c96d412
+oat_current_task: final-review
+oat_last_commit: 5fc46caf358ec2bcba8f8876513c7eccda4d74ff
 oat_blockers: []
 oat_orchestration_retry_limit: 4
 associated_issues: []
@@ -25,7 +25,7 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: "2026-07-12T17:48:10.523Z"
 oat_project_completed: null
-oat_project_state_updated: "2026-07-12T23:00:00Z"
+oat_project_state_updated: "2026-07-13T05:05:16Z"
 oat_generated: false
 ---
 
@@ -33,11 +33,11 @@ oat_generated: false
 
 **Status:** Implementation in progress
 **Started:** 2026-07-12
-**Last Updated:** 2026-07-12
+**Last Updated:** 2026-07-13
 
 ## Current Phase
 
-All p06 tasks and managed review are complete; the configured external p06 phase gate is next.
+All p06 tasks, managed review, and the configured external phase gate are complete. Final verification and final review are next.
 
 ## Artifacts
 
@@ -66,7 +66,8 @@ All p06 tasks and managed review are complete; the configured external p06 phase
 - ✓ Phase p05 complete; managed review passed with zero findings
 - ✓ Final implementation phase p06 tasks complete
 - ✓ p06 review-fix iteration 2/4 complete; managed re-review passed clean
-- ⧗ Configured external p06 phase gate pending
+- ✓ Configured external p06 phase gate passed; all sub-threshold findings addressed
+- ⧗ Final verification and final review pending
 
 ## Blockers
 
@@ -74,4 +75,4 @@ None
 
 ## Next Milestone
 
-Execute the configured external p06 gate, then final review and final HiLL closeout.
+Run final verification and final review, then present the final p06 HiLL closeout checkpoint.

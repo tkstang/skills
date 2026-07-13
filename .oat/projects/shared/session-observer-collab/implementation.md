@@ -124,7 +124,7 @@ oat_generated: false
 
 **Backlog handoff:** `BL-260713-per-observer-offsets-and-safe`, `BL-260713-stronger-cursor-collaboration`, `BL-260713-cursor-transcript-store`, and `BL-260713-optional-idle-session` are open. Existing shared-log and direct-messaging initiatives remain open.
 
-**Review:** Initial managed p06 review found three Important artifact-alignment findings. Product/reference fixes landed in `b3181f9` and `60aea96`, and durable operational evidence landed in bookkeeping. Re-review found one remaining Important stale-user-copy issue; review-fix iteration 2 refreshed and verified all user copies/provider links at `4f87679`. Target-preserving final re-review passed with zero findings at every severity.
+**Review:** Initial managed p06 review found three Important artifact-alignment findings. Product/reference fixes landed in `b3181f9` and `60aea96`, and durable operational evidence landed in bookkeeping. Re-review found one remaining Important stale-user-copy issue; review-fix iteration 2 refreshed and verified all user copies/provider links at `4f87679`. Target-preserving final re-review passed with zero findings at every severity. The configured external gate then passed with no Critical or Important findings; its two Medium cleanup findings and one Minor freshness-coverage finding were addressed in `5fc46ca` without re-running the already-passing gate.
 
 ## Review and Planning Notes
 
@@ -567,6 +567,52 @@ oat_generated: false
 | Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
 | --- | --- | --- | --- | --- | --- | --- |
 | None | - | - | - | - | - | - |
+
+### Run 14 — 2026-07-13 00:05 CDT
+
+**Branch:** `session-observer-collab`
+**Tier:** 1
+**Policy:** passing-gate judgment sweep; address small, contained findings without re-gating
+**Phases:** 1 gate passed, 3 sub-threshold findings addressed, 0 deferred, 0 stopped
+
+#### Phase Outcomes
+
+| Phase | Implementer | Review | Fix Iterations | Disposition |
+| --- | --- | --- | ---: | --- |
+| p06 | DONE | gate pass | 2/4 | external gate consumed; final review next |
+
+#### Review Received: p06 gate
+
+**Date:** 2026-07-13
+**Review artifact:** `reviews/archived/p06-review-2026-07-13T045434Z.md`
+
+**Findings:**
+
+- Critical: 0
+- Important: 0
+- Medium: 2
+- Minor: 1
+
+**Disposition map:**
+
+- Generated docs navigation manifest stale: addressed now by regenerating `documentation/index.md`.
+- Four v2 backlog records retained template markers: addressed now by removing the markers and confirming backlog-index regeneration is stable.
+- No docs-manifest freshness guard: addressed now with a repository test that requires every docs Markdown page to appear in the committed manifest.
+
+**Verification:** `tests/repo/docs-presence.test.ts` passed (22 tests); repository validation, scoped oxlint/oxfmt, `git diff --check`, and backlog-index stability all passed.
+
+**Fix commit:** `5fc46ca`
+
+#### Outstanding Items
+
+- Run final verification and final review.
+- Present the final p06 HiLL closeout checkpoint.
+
+#### Artifact / Design Deltas
+
+| Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
+| --- | --- | --- | --- | --- | --- | --- |
+| p06 gate sweep | external gate review | Passing gate with durable sub-threshold dispositions | All three findings addressed immediately | Fixes were small, contained, low-risk closeout work | implementation + `5fc46ca` | Final review |
 
 <!-- orchestration-runs-end -->
 
