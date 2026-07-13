@@ -1,6 +1,6 @@
 ---
-oat_current_task: p05-t01
-oat_last_commit: 3e5e88f33a3db74474784f93f1f9b614f8d3953b
+oat_current_task: p06-t01
+oat_last_commit: 49f43c0cb860bc98ce54e98e12f82f152ced5293
 oat_blockers: []
 oat_orchestration_retry_limit: 4
 associated_issues: []
@@ -37,7 +37,7 @@ oat_generated: false
 
 ## Current Phase
 
-Phase p04 is complete and reviewed; sequentially degraded phase p05 is next.
+Phases p04 and p05 are complete and reviewed; final implementation phase p06 is next.
 
 ## Artifacts
 
@@ -63,7 +63,8 @@ Phase p04 is complete and reviewed; sequentially degraded phase p05 is next.
 - ✓ Phase p02 completed and reviewed
 - ✓ Phase p03 completed after user-authorized fix-only iteration 4/4
 - ✓ Phase p04 complete; all required live Codex rows and managed re-review passed
-- ⧗ Phase p05 ready to start after sequential degradation
+- ✓ Phase p05 complete; managed review passed with zero findings
+- ⧗ Final implementation phase p06 ready to start
 
 ## Blockers
 
@@ -71,4 +72,4 @@ None
 
 ## Next Milestone
 
-Execute p05 Cursor and Claude adapter tasks sequentially, then run managed p05 review.
+Execute p06 integration, documentation, acceptance, and closeout tasks; then run the configured final-phase reviews and HiLL closeout.

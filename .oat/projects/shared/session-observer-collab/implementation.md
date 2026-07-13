@@ -4,7 +4,7 @@ oat_ready_for: null
 oat_blockers: []
 oat_orchestration_retry_limit: 4
 oat_last_updated: 2026-07-12
-oat_current_task_id: p05-t01
+oat_current_task_id: p06-t01
 oat_generated: false
 ---
 
@@ -23,10 +23,10 @@ oat_generated: false
 | p02 — Identity and watch behavior | completed | 5 | 5 |
 | p03 — Collaboration protocol/control | completed | 4 | 4 |
 | p04 — Codex adapter | completed | 3 | 3 |
-| p05 — Cursor and Claude adapters | pending | 3 | 0 |
+| p05 — Cursor and Claude adapters | completed | 3 | 3 |
 | p06 — Integration and closeout | pending | 5 | 0 |
 
-**Total:** 16/24 tasks completed
+**Total:** 19/24 tasks completed
 
 ## Phase p01: Normalize collaboration-bearing transcript semantics
 
@@ -94,9 +94,17 @@ oat_generated: false
 
 ## Phase p05: Implement Cursor and Claude harness adapters
 
-- [ ] `p05-t01` Implement the Cursor Stop-hook adapter
-- [ ] `p05-t02` Document and probe Cursor lifecycle behavior
-- [ ] `p05-t03` Author and verify the Claude Code Monitor recipe
+- [x] `p05-t01` Implement the Cursor Stop-hook adapter — `c6c350e`, declaration fix `49f43c0`
+- [x] `p05-t02` Document and probe Cursor lifecycle behavior — `4be91e7`
+- [x] `p05-t03` Author and verify the Claude Code Monitor recipe — `c6be140`
+
+### Phase p05 Summary
+
+**Outcome:** The Cursor Stop-hook adapter enforces terminal-success, loop/lease bounds, completed-turn selection, suppression, and synthetic follow-up semantics. Cursor remains honestly documented-but-unvalidated because no full live lifecycle succeeded. Claude Monitor remains optional by capability probe and unvalidated/buffered-manual because no callable Monitor surface was available.
+
+**Verification:** 89 focused Cursor, Claude-reference, transcript-runtime, and watch tests; full type-check; repository validation; diff checks; clean tree.
+
+**Review:** Managed p05 review passed with zero findings at every severity.
 
 ## Phase p06: Integrate, document, and close the evidence loop
 
@@ -122,6 +130,7 @@ oat_generated: false
 - The user authorized a fourth fix-only iteration for that Medium finding and directed implementation to proceed to the next phase without another p03 review.
 - The declared p04/p05 parallel group degraded to sequential execution because the required branch names `session-observer-collab/p04` and `session-observer-collab/p05` conflict with the existing orchestration branch ref `session-observer-collab`. Both strict `oat-worktree-bootstrap-auto` attempts failed before creating branches or worktrees.
 - p04 final review passed with one product Medium deferred to p06: align `codex-lifecycle.d.ts` `supportRemoved` with the no-registration uninstall return shape.
+- p05-t01 preserved exact `gpt-5.6-terra`/high controls but used an ineligible fresh pinned-child fallback after a payload/fork conflict rather than a true role-selection rejection. Later p05 tasks used the correct materialized native role with fresh context; product output was unaffected and final review was clean.
 
 ## Orchestration Runs
 
@@ -429,6 +438,36 @@ oat_generated: false
 | Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
 | --- | --- | --- | --- | --- | --- | --- |
 | p04 final review | plan.md p04 acceptance | Complete automated and live Codex lifecycle | All required rows green after three review-fix iterations | Real TUI evidence exposed install, cancellation, and replay defects that were fixed before acceptance | implementation + runtime-codex.md | Declaration/version cleanup in p06 |
+
+### Run 10 — 2026-07-12 22:48 CDT
+
+**Branch:** `session-observer-collab`
+**Tier:** 1
+**Policy:** merge-strategy=merge, retry-limit=4; p05 sequential after parallel degradation
+**Phases:** 1 executed, 1 passed, 0 failed, 0 stopped
+
+#### Phase Outcomes
+
+| Phase | Implementer | Review | Fix Iterations | Disposition |
+| --- | --- | --- | ---: | --- |
+| p05 | DONE_WITH_CONCERNS | pass | 0/4 | completed; proceed to p06 |
+
+#### Dispatch Notes
+
+- Task commits: `c6c350e`, `4be91e7`, `c6be140`; declaration fix `49f43c0`.
+- Reviewer: `Dispatch: scope=p05 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high`.
+
+#### Outstanding Items
+
+- Cursor lifecycle continuation remains documented-but-unvalidated.
+- Claude Monitor remains unvalidated/buffered-manual; scheduled-poll requires separate effective scheduler proof.
+- p06 owns collaboration skill version/build integration and the deferred p04 declaration mismatch.
+
+#### Artifact / Design Deltas
+
+| Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
+| --- | --- | --- | --- | --- | --- | --- |
+| p05-t01 dispatch | oat-project-implement target-first contract | Materialized native role first with fresh context | Fresh pinned child used after payload/fork conflict, with exact model/effort preserved | Coordinator misclassified payload rejection as route rejection | implementation | Correct route used for p05-t02/t03; no product impact |
 
 <!-- orchestration-runs-end -->
 
