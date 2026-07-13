@@ -1,10 +1,10 @@
 ---
-oat_status: complete
+oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_orchestration_retry_limit: 4
 oat_last_updated: 2026-07-13
-oat_current_task_id: null
+oat_current_task_id: p07-t06
 oat_generated: false
 ---
 
@@ -25,9 +25,9 @@ oat_generated: false
 | p04 — Codex adapter | completed | 3 | 3 |
 | p05 — Cursor and Claude adapters | completed | 3 | 3 |
 | p06 — Integration and closeout | completed | 5 | 5 |
-| p07 — Final review fixes | completed | 5 | 5 |
+| p07 — Final review fixes | in_progress | 6 | 5 |
 
-**Total:** 29/29 tasks completed
+**Total:** 29/30 tasks completed
 
 ## Phase p01: Normalize collaboration-bearing transcript semantics
 
@@ -134,6 +134,7 @@ oat_generated: false
 - [x] `p07-t03` Preserve repeated queued human messages (final-review) — `ecb4e76`
 - [x] `p07-t04` Return candidates for conflicting identity signals (final-review) — `7937ff1`
 - [x] `p07-t05` Close final-review quality evidence (final-review) — `7b29a70`
+- [ ] `p07-t06` Parameterize the Claude peer observation pin (final-review)
 
 ### Phase p07 Summary
 
@@ -143,7 +144,7 @@ oat_generated: false
 
 **Verification:** 196 focused p07-t01 tests, 49 p07-t02 tests, 90 p07-t03 tests, 68 p07-t04 tests, and 172 p07-t05 focused tests passed. The final integration matrix passed 1,088 tests with one intentional skip; lint completed with five unrelated pre-existing `no-shadow` warnings and no errors; type-check, build, build-check, repository validation, changed-skill validation, formatting, and diff checks passed. Post-build worktree cleanliness and full user-install/provider-link parity were verified for Session Observer 1.0.5, Export Session Transcript 1.0.3, and Session Observer Collaboration 1.0.3.
 
-**Review:** Final fix-commit-focused re-review pending.
+**Review:** The first fix-commit-focused re-review confirmed four original substantive fixes and the lint evidence, then found one remaining Important hardcoded peer-runtime prefix in the selected Claude reference. Task `p07-t06` owns the bounded reference/test correction.
 
 ## Review and Planning Notes
 
@@ -695,6 +696,31 @@ The exact p07 coordinator resolved successfully, but three native p07-t01 child 
 
 - Run the final re-review over `0fcd0df^..7b29a70`.
 - If passed, refresh final tracking and continue the configured pre-approval closeout sequence.
+
+### Run 17 — 2026-07-13 01:15 CDT
+
+**Branch:** `session-observer-collab`
+**Tier:** 1
+**Policy:** auto-review receive; convert the remaining Important finding without prompting
+**Phases:** final re-review received, 1 fix task added, 0 findings deferred, 0 rejected
+
+#### Review Received: final re-review
+
+**Date:** 2026-07-13
+**Review artifact:** `reviews/archived/final-review-2026-07-13T060753Z.md`
+
+**Findings:**
+
+- Critical: 0
+- Important: 1
+- Medium: 0
+- Minor: 0
+
+**New task added:** `p07-t06`
+
+**Disposition:** The acting-runtime selection is correct, but `runtime-claude-code.md` still hardcodes `claude-code:<peer-session-id>`. Convert to `p07-t06`: parameterize the confirmed exact peer pin and add selected-reference cross-runtime coverage.
+
+**Next:** Execute `p07-t06`, then run a fix-commit-only final re-review.
 
 <!-- orchestration-runs-end -->
 

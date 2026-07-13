@@ -1,6 +1,6 @@
 ---
-oat_current_task: null
-oat_last_commit: 7b29a70bef13889e4d13e69f8555109f8f43d65c
+oat_current_task: p07-t06
+oat_last_commit: 3b0a4a893f07f79f3130c34882df798b9681c8ae
 oat_blockers: []
 oat_orchestration_retry_limit: 4
 associated_issues: []
@@ -25,7 +25,7 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: "2026-07-12T17:48:10.523Z"
 oat_project_completed: null
-oat_project_state_updated: "2026-07-13T06:05:17Z"
+oat_project_state_updated: "2026-07-13T06:15:00Z"
 oat_generated: false
 ---
 
@@ -37,7 +37,7 @@ oat_generated: false
 
 ## Current Phase
 
-All p07 final-review fixes and integration verification are complete; awaiting focused final re-review.
+The first focused final re-review confirmed five fixes but found one remaining Important Claude-reference peer-pin defect; p07-t06 is ready.
 
 ## Artifacts
 
@@ -70,9 +70,10 @@ All p07 final-review fixes and integration verification are complete; awaiting f
 - ✓ Implementation tasks complete
 - ✓ Final verification passed before review
 - ✓ Final review received: 1 Critical, 1 Important, 2 Medium, 1 Minor
-- ✓ p07 final-review fixes complete (5/5)
+- ✓ p07 initial final-review fixes complete (5/5)
 - ✓ Post-fix user-install and provider-link parity verified
-- ⧗ Focused final re-review pending
+- ✓ Focused final re-review completed with one remaining Important finding
+- ⧗ p07-t06 pending
 
 ## Blockers
 
@@ -80,4 +81,4 @@ None
 
 ## Next Milestone
 
-Run the final re-review over the five p07 fix commits, then continue the configured pre-approval closeout sequence.
+Execute p07-t06 and run a final fix-commit-only re-review.

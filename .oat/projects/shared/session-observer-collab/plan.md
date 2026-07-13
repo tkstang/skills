@@ -495,6 +495,18 @@ Generated-bundle CLI flag assertions run in p02-t05 after the canonical build.
 
 **Commit:** `fix(p07-t05): close final review quality evidence`
 
+### Task p07-t06: Parameterize the Claude peer observation pin (final-review)
+
+**Scope:** Complete acting-runtime routing by removing the Claude runtime reference's hardcoded Claude peer prefix and covering the selected reference recipe across runtimes.
+
+**Files:** `skills/session-observer-collab/references/runtime-claude-code.md`, selected-reference routing tests, and version metadata only if required by the branch-level changed-skill invariant.
+
+**Implementation:** Make the Monitor recipe consume the confirmed exact peer pin (`<peer-runtime>:<peer-session-id>` or an equivalent validated variable) rather than deriving the peer runtime from the acting Claude harness. Add reference-level coverage proving acting Claude → peer Codex preserves a `codex:<id>` pin and that other acting/peer combinations remain parameterized.
+
+**Verify:** Focused runtime-reference routing and skill-frontmatter/version tests, repository validation, relevant lint/format checks, and `git diff --check`.
+
+**Commit:** `fix(p07-t06): parameterize claude peer pin`
+
 ## Reviews
 
 | Scope  | Type     | Status  | Date | Artifact |
@@ -505,7 +517,7 @@ Generated-bundle CLI flag assertions run in p02-t05 after the canonical build.
 | p04    | code     | passed | 2026-07-12 | managed re-review passed after fix iteration 3/4; all required live Codex rows green |
 | p05    | code     | passed | 2026-07-12 | managed review passed clean; Cursor and Claude live limitations remain honestly labeled |
 | p06    | code     | passed | 2026-07-13 | reviews/archived/p06-review-2026-07-13T045434Z.md |
-| final  | code     | received | 2026-07-13 | reviews/final-review-2026-07-13T060753Z.md |
+| final  | code     | fixes_added | 2026-07-13 | reviews/archived/final-review-2026-07-13T060753Z.md |
 | spec   | artifact | pending | -    | N/A (quick mode) |
 | design | artifact | passed  | 2026-07-12 | inline co-author review |
 | plan   | artifact | passed  | 2026-07-12 | managed structured review (clean) |
@@ -526,9 +538,9 @@ The configured cross-runtime quick-start gate was explicitly skipped by user dir
 - Phase 4: 3 tasks — implement and validate Codex lifecycle continuation
 - Phase 5: 3 tasks — implement Cursor continuation and document Cursor/Claude harness behavior
 - Phase 6: 5 tasks — integrate distribution/docs/PJM, run the full matrix, and close out safely
-- Phase 7: 5 tasks — resolve final-review envelope, runtime routing, queued-input, identity ambiguity, and quality-evidence findings
+- Phase 7: 6 tasks — resolve final-review envelope, runtime routing/pin, queued-input, identity ambiguity, and quality-evidence findings
 
-**Total: 29 tasks across 7 phases**
+**Total: 30 tasks across 7 phases**
 
 Ready for implementation via `oat-project-implement`.
 
