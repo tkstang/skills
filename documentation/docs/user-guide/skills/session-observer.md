@@ -48,6 +48,28 @@ what is new since the last read. `catch-up` automatically advances the
 high-water mark on success; pass `--mark-read` if you want a `review` run to
 advance it too.
 
+## Collaboration flags
+
+The collaboration skill composes with this CLI; it does not replace it. These
+flags are the base observer's collaboration-facing contract:
+
+| Flag or command                                  | Purpose                                                                                                                                     |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `whoami --json`                                  | Resolve and print this session's runtime, session ID, transcript path, and identity source before a peer is pinned.                         |
+| `--session <runtime>:<id>`                       | Pin every stateful read or watch to one exact peer identity.                                                                                |
+| `--quiet-empty`                                  | Consume metadata-only growth and advance the offset without printing an empty delta.                                                        |
+| `--strict-baseline`                              | Refuse a standalone watch that would skip previously unread records; use `catch-up-then-watch` when you need to consume that backlog first. |
+| `--event-log <path>`                             | Write metadata-only watch events under the observer state directory; message content remains on stdout.                                     |
+| `--include-tools` / `--include-command-messages` | Expand a digest for bounded debugging; these are opt-in and do not change the default tool-free view.                                       |
+
+Watch output can report `baseline-gap`, `newer-session-candidate`, terminal
+diagnostics, or automatic control input. A newer-session candidate is a warning,
+not permission to switch pins. A filtered or empty digest is not evidence that
+the peer was idle; inspect the raw-record accounting or run a pinned review.
+
+For the two-peer handshake, wake tiers, authority rules, and lifecycle setup,
+see [Session Observer Collaboration](session-observer-collab.md).
+
 ## Runtime resolution (`--runtime`)
 
 The skill defaults to `--runtime auto`, which resolves by host hint, prior

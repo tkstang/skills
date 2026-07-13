@@ -13,12 +13,20 @@ infrastructure.
 
 - `skills/` — standalone personal skills.
   - `skills/session-observer/` — standalone peer transcript review and catch-up skill.
+  - `skills/session-observer-collab/` — N=2 collaboration protocol, runtime references, and bounded lifecycle adapters. Its `.mjs` files are authored, dependency-free skill runtime; provider-visible mirrors are generated.
   - `skills/export-session-transcript/` — standalone session transcript export skill.
 - `src/transcript/` — canonical TypeScript source for transcript-core, session-observer, and export-session runtime code.
 - `shared/transcript-core/` — compatibility documentation pointer for the former shared transcript-core source path.
 - `plugins/consensus/` — self-contained consensus plugin package.
 - `.claude-plugin/`, `.cursor-plugin/`, `.agents/plugins/` — repo-root marketplace entries.
 - `.oat/` and `.agents/` — project-management infrastructure, not required by plugin consumers.
+
+The standalone skill directories under `skills/` are the canonical shipped
+sources. `.agents/`, `.claude/`, and `.cursor/` provider views are generated
+mirrors; update the canonical directory and run the repository sync workflow
+instead of editing a mirror. The collaboration skill invokes the generated
+`session-observer` CLI for transcript operations and keeps its own control and
+lease state separate from observer read offsets.
 
 Shipped runtime `.mjs` lives next to its manifests under `plugins/` and
 `skills/`; it is generated from the canonical TypeScript in `src/` — see

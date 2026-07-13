@@ -34,6 +34,8 @@ const decideSkillPath = 'plugins/consensus/skills/decide/SKILL.md';
 const planSkillPath = 'plugins/consensus/skills/plan/SKILL.md';
 const panelSkillPath = 'plugins/consensus/skills/panel/SKILL.md';
 const panelDocPath = 'documentation/docs/user-guide/consensus/panel.md';
+const sessionObserverCollabDocPath =
+  'documentation/docs/user-guide/skills/session-observer-collab.md';
 
 async function read(relativePath: string) {
   return readFile(new URL(relativePath, repoRoot), 'utf8');
@@ -393,6 +395,38 @@ describe('docs-presence', () => {
     expect(index).toMatch(/\[panel\]\(panel\.md\)/i);
     expect(index).toMatch(/side-by-side|attributed/i);
     expect(meta.pages).toContain('panel');
+  });
+
+  it('session observer collaboration docs exist and are navigable', async () => {
+    const collabDoc = await read(sessionObserverCollabDocPath);
+    const index = await read('documentation/docs/user-guide/skills/index.md');
+    const meta = JSON.parse(
+      await read('documentation/docs/user-guide/skills/meta.json'),
+    );
+
+    expect(collabDoc).toMatch(
+      /^title: ['"]?Session Observer Collaboration['"]?$/m,
+    );
+    expect(collabDoc).toMatch(/N=2/);
+    expect(collabDoc).toMatch(/whoami --json/);
+    expect(collabDoc).toMatch(/--quiet-empty/);
+    expect(collabDoc).toMatch(/--strict-baseline/);
+    expect(collabDoc).toMatch(/event-wake/);
+    expect(collabDoc).toMatch(/lifecycle-continuation/);
+    expect(collabDoc).toMatch(/scheduled-poll/);
+    expect(collabDoc).toMatch(/buffered-manual/);
+    expect(collabDoc).toMatch(/Codex validated/);
+    expect(collabDoc).toMatch(/Cursor documented-but-unvalidated/);
+    expect(collabDoc).toMatch(/Claude Code Monitor unvalidated/);
+    expect(collabDoc).toMatch(/authority/i);
+    expect(collabDoc).toMatch(/## Closeout/);
+    expect(collabDoc).toMatch(/runtime-claude-code\.md/);
+    expect(collabDoc).toMatch(/runtime-codex\.md/);
+    expect(collabDoc).toMatch(/runtime-cursor\.md/);
+    expect(index).toMatch(
+      /\[Session Observer Collaboration\]\(session-observer-collab\.md\)/,
+    );
+    expect(meta.pages).toContain('session-observer-collab');
   });
 
   it('configuration docs cover panel defaults, paths, and precedence', async () => {

@@ -40,6 +40,12 @@ run committed `.mjs` with no install step.
 | `src/transcript/export-session/sanitize.ts`                  | `skills/export-session-transcript/scripts/lib/sanitize.mjs`                                                        |
 | `src/transcript/export-session/export-session-transcript.ts` | `skills/export-session-transcript/scripts/export-session-transcript.mjs`                                           |
 
+`skills/session-observer-collab/` is a different boundary: its dependency-free
+`.mjs` control, hook, and lease modules are authored shipped runtime files, not
+TypeScript build output. Keep those files in the canonical `skills/` tree and
+refresh provider mirrors through `oat sync`; do not hand-edit `.agents/`,
+`.claude/`, or `.cursor/` copies.
+
 ## Consensus plugin-local runtime layout
 
 Consensus wrapper outputs live under
