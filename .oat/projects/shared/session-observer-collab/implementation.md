@@ -761,6 +761,16 @@ The exact p07 coordinator resolved successfully, but three native p07-t01 child 
 - Execute the configured pre-approval summary → documentation → PR closeout sequence.
 - Present the final p07 HiLL approval checkpoint.
 
+### Run 20 — 2026-07-13 01:25 CDT
+
+**Branch:** `session-observer-collab`
+**Policy:** mandatory final verification after passing final review
+**Result:** pass
+
+**Verification:** `pnpm test` passed 1,090 tests with one intentional skip; lint completed with five unrelated pre-existing `no-shadow` warnings and no errors; type-check, build, build-check, repository validation, changed-skill validation against `origin/main`, and diff/clean-tree checks passed. The first version-validation invocation contained an extra forwarded `--`; the repository-supported invocation was rerun and passed for both changed skills.
+
+**Next:** Execute the immutable pre-approval sequence `summary → document → pr`, then present final p07 HiLL approval.
+
 <!-- orchestration-runs-end -->
 
 ## Deviations from Plan / Design
@@ -791,7 +801,7 @@ The exact p07 coordinator resolved successfully, but three native p07-t01 child 
 - Phase verification covered targeted runtime, observer, control, lifecycle, tooling, distribution, and documentation suites, plus type-check, lint/format, repository validation, generated-output parity, smoke, changed-skill version checks, diff checks, and clean-tree checks.
 - `pnpm run worktree:validate` passed with 1,081 tests and one intentional skip before final-gate cleanup.
 - The configured independent p06 gate passed with zero Critical and zero Important findings. Its two Medium cleanup findings and one Minor coverage finding were addressed in `5fc46ca`; the focused docs suite then passed 22 tests alongside repository validation and scoped lint/format checks.
-- After final-review fixes, repository-wide verification passed with 1,088 tests and one intentional skip. `pnpm lint` completed with five unrelated pre-existing `no-shadow` warnings and no errors; `pnpm type-check`, `pnpm build`, `pnpm run build:check`, `pnpm run validate`, changed-skill validation, and `git diff --check` passed; the generated build left the worktree clean. User-level canonical copies and Claude/Cursor links match Session Observer 1.0.5, Export Session Transcript 1.0.3, and Session Observer Collaboration 1.0.4.
+- After the passing final review, mandatory repository-wide verification passed with 1,090 tests and one intentional skip. `pnpm lint` completed with five unrelated pre-existing `no-shadow` warnings and no errors; `pnpm type-check`, `pnpm build`, `pnpm run build:check`, `pnpm run validate`, changed-skill validation, and `git diff --check` passed; the generated build left the worktree clean. User-level canonical copies and Claude/Cursor links match Session Observer 1.0.5, Export Session Transcript 1.0.3, and Session Observer Collaboration 1.0.4.
 
 ### Design and execution deltas
 
