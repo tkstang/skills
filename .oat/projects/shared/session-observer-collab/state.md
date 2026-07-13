@@ -1,6 +1,6 @@
 ---
 oat_current_task: p04-review
-oat_last_commit: 3885181801f165f33ee37f09437e38ea3220e4c4
+oat_last_commit: 76793466423a7d9f8829e9864804db5ac52618e5
 oat_blockers:
   - "p04 live Codex acceptance requires /hooks trust/effective execution and coordinated peer sessions"
 oat_orchestration_retry_limit: 4
@@ -70,9 +70,9 @@ Phase p04 is blocked on live Codex acceptance evidence after review-fix iteratio
 
 - The shipped p04 hook is installed at `~/.codex/hooks/session-observer-collab-stop.mjs` with a source-matching hash and owner-only permissions; the historical prototype is backed up.
 - The Stop registration now contains exactly one new command and no historical-command match; the unrelated Orca Stop hook remains unchanged.
-- No exact new-command trust/effective-execution breadcrumb or active live lease exists yet.
+- Codex 0.144.1 reports the current launcher as the single changed hook requiring review (`Installed 3, Active 2, Review 1`); no effective-execution breadcrumb or active live lease exists yet.
 - Completing the matrix requires a user-assisted `/hooks` approval and coordinated Codex plus peer sessions.
 
 ## Next Milestone
 
-Trust the exact shipped-hook command through `/hooks`, capture effective execution, run the bounded live acceptance matrix, then re-review p04 before starting p05.
+Approve the single current Session Observer item under `/hooks` Review, capture effective execution in a fresh TUI gate, run the bounded live acceptance matrix, then re-review p04 before starting p05.

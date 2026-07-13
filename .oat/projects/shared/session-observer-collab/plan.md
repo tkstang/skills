@@ -441,7 +441,7 @@ Generated-bundle CLI flag assertions run in p02-t05 after the canonical build.
 | p01    | code     | passed  | 2026-07-12 | managed review after fix iteration 2/2 |
 | p02    | code     | passed  | 2026-07-12 | managed review after fix iteration 2/2 |
 | p03    | code     | passed  | 2026-07-12 | all blocking findings resolved; Medium declaration fix completed in user-directed fix-only iteration 4/4 |
-| p04    | code     | fixes_added | 2026-07-12 | review-fix 1/4 code fixes complete; shipped hook installed and registered; live matrix awaits trust/effective execution and peer sessions |
+| p04    | code     | fixes_added | 2026-07-12 | review-fix 2/4 bundle and registration fixes complete; current launcher awaits one explicit `/hooks` review, then live matrix |
 | p05    | code     | pending | -    | -        |
 | p06    | code     | pending | -    | -        |
 | final  | code     | pending | -    | -        |
