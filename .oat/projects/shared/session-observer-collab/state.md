@@ -1,6 +1,6 @@
 ---
 oat_current_task: null
-oat_last_commit: bd48957183f9ac9278ea84022b6ad51757fd88ea
+oat_last_commit: 0d380a70b586fea3e21631d0cefa6477524f63cb
 oat_blockers: []
 oat_orchestration_retry_limit: 4
 associated_issues: []
@@ -25,7 +25,7 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: "2026-07-12T17:48:10.523Z"
 oat_project_completed: null
-oat_project_state_updated: "2026-07-13T06:20:05Z"
+oat_project_state_updated: "2026-07-13T06:24:00Z"
 oat_generated: false
 ---
 
@@ -37,7 +37,7 @@ oat_generated: false
 
 ## Current Phase
 
-p07-t06 and user-install parity are complete; awaiting the final one-commit re-review.
+Final review passed with zero findings; mandatory final verification and pre-approval closeout remain.
 
 ## Artifacts
 
@@ -75,7 +75,8 @@ p07-t06 and user-install parity are complete; awaiting the final one-commit re-r
 - ✓ Focused final re-review completed with one remaining Important finding
 - ✓ p07-t06 complete and verified
 - ✓ Session Observer Collaboration 1.0.4 user/provider parity verified
-- ⧗ Final one-commit re-review pending
+- ✓ Final one-commit re-review passed clean
+- ⧗ Mandatory final verification pending
 
 ## Blockers
 
@@ -83,4 +84,4 @@ None
 
 ## Next Milestone
 
-Run the final one-commit re-review, then continue the configured pre-approval closeout sequence.
+Run mandatory final verification, then execute the configured pre-approval closeout sequence.
