@@ -91,6 +91,18 @@ A Fumadocs (Next.js) app at `documentation/` provides the public-facing document
 
 ## Project Management Surfaces
 
+### Session-observer collaboration v2 boundary
+
+The v1 collaboration skill is intentionally bounded to a user plus two
+mutually observing agents. Four independently verifiable v2 follow-ups are
+tracked in the backlog: **BL-260713-per-observer-offsets-and-safe** (consumer
+offset namespaces and safe N>2 mesh), **BL-260713-stronger-cursor-collaboration**
+(stronger Cursor wake surfaces), **BL-260713-cursor-transcript-store** (Cursor
+transcript stores and dotted-path slugs), and
+**BL-260713-optional-idle-session** (opt-in application integrations for idle
+sessions). The existing shared-session-log substrate and inter-agent direct
+messaging initiatives remain open and unchanged.
+
 - `.oat/repo/pjm/roadmap.md` — active Now/Next/Later planning.
 - `.oat/repo/reference/decisions/` — file-per-record decisions migrated from DR-001 onward; regenerate the index with `oat decision regenerate-index`.
 - `.oat/repo/pjm/backlog/` — file-per-item backlog (`oat-pjm-*` skills; `oat backlog regenerate-index`).
