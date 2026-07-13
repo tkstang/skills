@@ -40,6 +40,31 @@ async function listFiles(relativePath: string): Promise<string[]> {
 }
 
 describe('repo-layout', () => {
+  it('keeps the canonical public standalone skill set explicit', async () => {
+    const standaloneSkills = (await readdir(new URL('skills/', root), {
+      withFileTypes: true,
+    }))
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name)
+      .toSorted();
+
+    expect(standaloneSkills).toEqual([
+      'export-session-transcript',
+      'session-observer',
+      'session-observer-collab',
+    ]);
+
+    for (const skill of standaloneSkills) {
+      const markdown = await readFile(
+        new URL(`skills/${skill}/SKILL.md`, root),
+        'utf8',
+      );
+      expect(markdown, `${skill} should be publicly discoverable`).not.toMatch(
+        /^\s{0,2}internal:\s*true\s*$/m,
+      );
+    }
+  });
+
   it('repository exposes standalone and consensus plugin layout', async () => {
     const requiredDirectories = [
       'skills',
