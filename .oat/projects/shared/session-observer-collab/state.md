@@ -1,6 +1,6 @@
 ---
-oat_current_task: p06-t01
-oat_last_commit: 49f43c0cb860bc98ce54e98e12f82f152ced5293
+oat_current_task: p06-review
+oat_last_commit: 60aea96f5d1f0f802e76310a3b4c5557528087a
 oat_blockers: []
 oat_orchestration_retry_limit: 4
 associated_issues: []
@@ -37,7 +37,7 @@ oat_generated: false
 
 ## Current Phase
 
-Phases p04 and p05 are complete and reviewed; final implementation phase p06 is next.
+All p06 tasks and review fixes are complete; managed p06 re-review is next.
 
 ## Artifacts
 
@@ -64,7 +64,8 @@ Phases p04 and p05 are complete and reviewed; final implementation phase p06 is 
 - ✓ Phase p03 completed after user-authorized fix-only iteration 4/4
 - ✓ Phase p04 complete; all required live Codex rows and managed re-review passed
 - ✓ Phase p05 complete; managed review passed with zero findings
-- ⧗ Final implementation phase p06 ready to start
+- ✓ Final implementation phase p06 tasks complete
+- ⧗ p06 review-fix iteration 1/4 complete; awaiting re-review
 
 ## Blockers
 
@@ -72,4 +73,4 @@ None
 
 ## Next Milestone
 
-Execute p06 integration, documentation, acceptance, and closeout tasks; then run the configured final-phase reviews and HiLL closeout.
+Re-run managed p06 review, then execute the configured external p06 gate, final review, and final HiLL closeout.
