@@ -36,8 +36,8 @@ const panelSkillPath = 'plugins/consensus/skills/panel/SKILL.md';
 const panelDocPath = 'documentation/docs/user-guide/consensus/panel.md';
 const sessionObserverCollabDocPath =
   'documentation/docs/user-guide/skills/session-observer-collab.md';
-const sessionObserverCollabPromptPath =
-  '.oat/projects/shared/session-observer-collab/references/prompt.md';
+const sessionObserverCollabCursorRuntimePath =
+  'skills/session-observer-collab/references/runtime-cursor.md';
 
 async function read(relativePath: string) {
   return readFile(new URL(relativePath, repoRoot), 'utf8');
@@ -418,7 +418,7 @@ describe('docs-presence', () => {
 
   it('session observer collaboration docs exist and are navigable', async () => {
     const collabDoc = await read(sessionObserverCollabDocPath);
-    const prompt = await read(sessionObserverCollabPromptPath);
+    const cursorRuntime = await read(sessionObserverCollabCursorRuntimePath);
     const index = await read('documentation/docs/user-guide/skills/index.md');
     const meta = JSON.parse(
       await read('documentation/docs/user-guide/skills/meta.json'),
@@ -440,11 +440,11 @@ describe('docs-presence', () => {
     expect(collabDoc).toMatch(
       /Cursor's lifecycle recipe[\s\S]*effective scheduler proof[\s\S]*otherwise use buffered manual/i,
     );
-    expect(prompt).toMatch(
-      /Cursor:[\s\S]*Scheduled polling is available\s+only after effective scheduler proof; otherwise buffered manual is the honest\s+floor/i,
+    expect(cursorRuntime).toMatch(
+      /scheduled poll only when effective scheduler proof exists;[\s\S]*otherwise use buffered manual/i,
     );
-    expect(prompt).not.toMatch(
-      /Cursor:[\s\S]*Scheduled polling is the\s+interim floor/i,
+    expect(cursorRuntime).not.toMatch(
+      /scheduled polling is the\s+interim floor/i,
     );
     expect(collabDoc).toMatch(/Claude Code Monitor unvalidated/);
     expect(collabDoc).toMatch(/authority/i);
