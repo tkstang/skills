@@ -771,6 +771,20 @@ The exact p07 coordinator resolved successfully, but three native p07-t01 child 
 
 **Next:** Execute the immutable pre-approval sequence `summary → document → pr`, then present final p07 HiLL approval.
 
+### Run 21 — 2026-07-13 09:42 CDT
+
+**Branch:** `session-observer-collab`
+**Policy:** final p07 HiLL closeout after explicit user approval
+**Result:** approved; implementation closeout complete
+
+**Post-review documentation pass:** At the user's request, six source-backed Mermaid diagrams were added across the collaboration lifecycle, standalone observer read/offset flow, Refine iteration flow, transcript export selection/sanitization, and generated-runtime topology. Commit `8b03123` was pushed to PR #48.
+
+**Verification:** All six diagrams passed Mermaid CLI parsing/rendering; the Fumadocs production build, 27 focused documentation tests, repository validation, formatting, diff checks, pre-push validation/build/type/version/internal-flag gates, and all five GitHub PR checks passed.
+
+**Approval:** The user explicitly approved the final p07 HiLL checkpoint. The immutable post-implementation sequence is complete with `summary`, `document`, and `pr` recorded before approval and no configured post-approval steps.
+
+**Next:** Keep PR #48 open for human review. Use `oat-project-revise` for feedback or `oat-project-complete` after approval/merge.
+
 <!-- orchestration-runs-end -->
 
 ## Deviations from Plan / Design
@@ -788,6 +802,7 @@ The exact p07 coordinator resolved successfully, but three native p07-t01 child 
 - The public dependency-free `session-observer-collab` skill for a bounded N=2 topology, including explicit authority/provenance rules, versioned lease state, deterministic completion selection, lifecycle control commands, and runtime recipes for Codex, Cursor, Claude Code, and generic fallbacks.
 - A validated Codex lifecycle path with stable trusted-hook installation, bounded replay/continuation, race-safe cleanup, and live acceptance evidence. Cursor and Claude Code limitations remain explicitly documented where no callable live lifecycle surface was available.
 - Distribution/version/build guards, user and engineering documentation, generated navigation freshness coverage, the acceptance/sanitization matrix, and four file-backed v2 follow-ups.
+- Six verified Mermaid visuals covering collaboration control flow, observer offsets, consensus iteration, transcript export, and generated-runtime topology.
 
 ### Key implementation surfaces
 
@@ -802,6 +817,7 @@ The exact p07 coordinator resolved successfully, but three native p07-t01 child 
 - `pnpm run worktree:validate` passed with 1,081 tests and one intentional skip before final-gate cleanup.
 - The configured independent p06 gate passed with zero Critical and zero Important findings. Its two Medium cleanup findings and one Minor coverage finding were addressed in `5fc46ca`; the focused docs suite then passed 22 tests alongside repository validation and scoped lint/format checks.
 - After the passing final review, mandatory repository-wide verification passed with 1,090 tests and one intentional skip. `pnpm lint` completed with five unrelated pre-existing `no-shadow` warnings and no errors; `pnpm type-check`, `pnpm build`, `pnpm run build:check`, `pnpm run validate`, changed-skill validation, and `git diff --check` passed; the generated build left the worktree clean. User-level canonical copies and Claude/Cursor links match Session Observer 1.0.5, Export Session Transcript 1.0.3, and Session Observer Collaboration 1.0.4.
+- The post-review visual documentation pass parsed and rendered all six Mermaid diagrams, built the Fumadocs site successfully, passed 27 focused tests and repository validation, and completed all five GitHub PR checks successfully.
 
 ### Design and execution deltas
 
