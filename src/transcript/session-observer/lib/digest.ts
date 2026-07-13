@@ -229,7 +229,7 @@ function formatHeader(digest: Digest): string {
     }
   }
   if (accounting.recovery.omittedUserMessages.length > 0) {
-    const { transcriptPath, indexBase } =
+    const { transcriptPath: recoveryTranscriptPath, indexBase } =
       accounting.recovery.omittedUserMessages[0]!;
     const recordIndexes = accounting.recovery.omittedUserMessages.map(
       (pointer) => pointer.recordIndex,
@@ -239,7 +239,7 @@ function formatHeader(digest: Digest): string {
         ? 'zero-based JSONL indices'
         : indexBase;
     lines.push(
-      `**User-message recovery:** ${transcriptPath} records ${recordIndexes.join(', ')} (${indexDescription}).`,
+      `**User-message recovery:** ${recoveryTranscriptPath} records ${recordIndexes.join(', ')} (${indexDescription}).`,
     );
   }
 

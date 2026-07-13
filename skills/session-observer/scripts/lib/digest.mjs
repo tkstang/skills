@@ -124,13 +124,13 @@ function formatHeader(digest) {
     }
   }
   if (accounting.recovery.omittedUserMessages.length > 0) {
-    const { transcriptPath: transcriptPath2, indexBase } = accounting.recovery.omittedUserMessages[0];
+    const { transcriptPath: recoveryTranscriptPath, indexBase } = accounting.recovery.omittedUserMessages[0];
     const recordIndexes = accounting.recovery.omittedUserMessages.map(
       (pointer) => pointer.recordIndex
     );
     const indexDescription = indexBase === "zero-based-jsonl-record-index" ? "zero-based JSONL indices" : indexBase;
     lines.push(
-      `**User-message recovery:** ${transcriptPath2} records ${recordIndexes.join(", ")} (${indexDescription}).`
+      `**User-message recovery:** ${recoveryTranscriptPath} records ${recordIndexes.join(", ")} (${indexDescription}).`
     );
   }
   const filterParts = [];
