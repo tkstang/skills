@@ -108,6 +108,37 @@ function digest(fromIndex = 0) {
   };
 }
 
+function digestWithEntries(
+  entries: Array<Record<string, unknown>>,
+  fromIndex = 0,
+  totalRecords = entries.length,
+) {
+  return {
+    schemaVersion: 1,
+    range: {
+      indexBase: 'zero-based-jsonl-record-index',
+      fromIndex,
+      toIndex: totalRecords - 1,
+      nextIndex: totalRecords,
+      totalRecords,
+      newRecords: totalRecords - fromIndex,
+    },
+    accounting: {
+      indexBase: 'zero-based-jsonl-record-index',
+      raw: {
+        fromIndex,
+        toIndex: totalRecords - 1,
+        count: totalRecords - fromIndex,
+        nextIndex: totalRecords,
+        totalRecords,
+      },
+      rendered: { count: entries.length },
+      filtered: { tailSliceEntries: 0 },
+    },
+    entries,
+  };
+}
+
 describe('Cursor Stop continuation hook', () => {
   test('claims an exact completed range and returns only a followup_message envelope', async () => {
     const { root, cwd, transcript } = await fixture();
@@ -164,6 +195,38 @@ describe('Cursor Stop continuation hook', () => {
     });
   });
 
+  test('binds a Stop payload to its exact conversation identity', async () => {
+    const { root, cwd, transcript } = await fixture();
+    await armLease(root, cwd, transcript);
+    let observed = false;
+
+    await expect(
+      runCursorStopHook(event({ conversation_id: 'cursor-other' }), {
+        root,
+        observe: async () => {
+          observed = true;
+          return digest();
+        },
+      }),
+    ).resolves.toBeNull();
+    await expect(
+      runCursorStopHook(event({ generation_id: '' }), {
+        root,
+        observe: async () => {
+          observed = true;
+          return digest();
+        },
+      }),
+    ).resolves.toBeNull();
+
+    expect(observed).toBe(false);
+    expect(await readLease(root, 'cursor-1')).toMatchObject({
+      state: 'armed',
+      peerCursor: 0,
+      continuationCount: 0,
+    });
+  });
+
   test('enforces Cursor loop_limit independently from the lease cap', async () => {
     const { root, cwd, transcript } = await fixture();
     await armLease(root, cwd, transcript, { continuationCap: 2, loopCap: 2 });
@@ -201,6 +264,82 @@ describe('Cursor Stop continuation hook', () => {
       state: 'idle',
       peerCursor: 3,
       continuationCount: 0,
+    });
+
+    let observed = false;
+    await expect(
+      runCursorStopHook(event({ generation_id: 'generation-2' }), {
+        root,
+        observe: async () => {
+          observed = true;
+          return digest(3);
+        },
+      }),
+    ).resolves.toBeNull();
+    expect(observed).toBe(false);
+  });
+
+  test('suppresses automatic acknowledgements and no-op turns without spending a continuation', async () => {
+    const { root, cwd, transcript } = await fixture();
+    await armLease(root, cwd, transcript, { waitMs: 1 });
+    const moments = [START + 1, START + 1, START + 2, START + 2];
+
+    await expect(
+      runCursorStopHook(event(), {
+        root,
+        now: () => moments.shift() ?? START + 2,
+        observe: async () =>
+          digestWithEntries([
+            {
+              role: 'user',
+              text: '<session_observer_wake automatic="true">',
+              kind: 'message',
+              recordIndex: 0,
+              automaticControl: { automatic: true },
+            },
+            {
+              role: 'assistant',
+              text: 'Acknowledged.',
+              kind: 'message',
+              recordIndex: 1,
+            },
+            {
+              role: 'user',
+              text: 'Check the peer status.',
+              kind: 'message',
+              recordIndex: 2,
+            },
+            {
+              role: 'assistant',
+              text: '[no-op] no substantive peer delta',
+              kind: 'message',
+              recordIndex: 3,
+            },
+          ]),
+      }),
+    ).resolves.toBeNull();
+    expect(await readLease(root, 'cursor-1')).toMatchObject({
+      state: 'idle',
+      peerCursor: 4,
+      continuationCount: 0,
+      loopCount: 0,
+    });
+  });
+
+  test('does not resume a terminal lease after a later generation without an explicit re-arm', async () => {
+    const { root, cwd, transcript } = await fixture();
+    await armLease(root, cwd, transcript, { continuationCap: 1, loopCap: 2 });
+
+    await expect(
+      runCursorStopHook(event(), {
+        root,
+        now: () => START + 1,
+        observe: async () => digest(),
+      }),
+    ).resolves.toEqual({ followup_message: expect.any(String) });
+    expect(await readLease(root, 'cursor-1')).toMatchObject({
+      state: 'triggered',
+      continuationCount: 1,
     });
 
     let observed = false;
