@@ -1,10 +1,10 @@
 ---
-oat_status: in_progress
+oat_status: complete
 oat_ready_for: null
 oat_blockers: []
 oat_orchestration_retry_limit: 4
 oat_last_updated: 2026-07-13
-oat_current_task_id: p07-t01
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -25,9 +25,9 @@ oat_generated: false
 | p04 — Codex adapter | completed | 3 | 3 |
 | p05 — Cursor and Claude adapters | completed | 3 | 3 |
 | p06 — Integration and closeout | completed | 5 | 5 |
-| p07 — Final review fixes | in_progress | 5 | 0 |
+| p07 — Final review fixes | completed | 5 | 5 |
 
-**Total:** 24/29 tasks completed
+**Total:** 29/29 tasks completed
 
 ## Phase p01: Normalize collaboration-bearing transcript semantics
 
@@ -129,11 +129,21 @@ oat_generated: false
 
 ## Phase p07: Resolve final review findings
 
-- [ ] `p07-t01` Unify the shipped wake-envelope contract (final-review)
-- [ ] `p07-t02` Route setup references by the acting runtime (final-review)
-- [ ] `p07-t03` Preserve repeated queued human messages (final-review)
-- [ ] `p07-t04` Return candidates for conflicting identity signals (final-review)
-- [ ] `p07-t05` Close final-review quality evidence (final-review)
+- [x] `p07-t01` Unify the shipped wake-envelope contract (final-review) — `0fcd0df`
+- [x] `p07-t02` Route setup references by the acting runtime (final-review) — `b1f0e6e`
+- [x] `p07-t03` Preserve repeated queued human messages (final-review) — `ecb4e76`
+- [x] `p07-t04` Return candidates for conflicting identity signals (final-review) — `7937ff1`
+- [x] `p07-t05` Close final-review quality evidence (final-review) — `7b29a70`
+
+### Phase p07 Summary
+
+**Outcome:** Production Codex/Cursor XML wake envelopes now normalize as automatic control across all three transcript runtimes and cannot grant human authority or spend continuation budget on pure acknowledgments. Setup references route by the acting runtime; repeated identical queued human messages remain distinct across transactions; conflicting identity signals return fail-closed ambiguity candidates; and the branch-introduced digest lint warning is removed.
+
+**Key files:** canonical transcript runtime and observer identity/digest modules, generated observer/export runtime mirrors, collaboration skill/reference/docs surfaces, literal-envelope and queued-input fixtures, observer CLI/locate tests, and repository version/build guards.
+
+**Verification:** 196 focused p07-t01 tests, 49 p07-t02 tests, 90 p07-t03 tests, 68 p07-t04 tests, and 172 p07-t05 focused tests passed. The final integration matrix passed 1,088 tests with one intentional skip; lint completed with five unrelated pre-existing `no-shadow` warnings and no errors; type-check, build, build-check, repository validation, changed-skill validation, formatting, and diff checks passed. Post-build worktree cleanliness and full user-install/provider-link parity were verified for Session Observer 1.0.5, Export Session Transcript 1.0.3, and Session Observer Collaboration 1.0.3.
+
+**Review:** Final fix-commit-focused re-review pending.
 
 ## Review and Planning Notes
 
@@ -142,7 +152,7 @@ oat_generated: false
 - Cross-runtime quick-start gate receipt was explicitly skipped by the user; its uncorroborated artifact was archived without consumption.
 - Project dispatch policy is managed `high` using the user-level candidate ladder.
 - Phase gate review is enabled for `p06` only.
-- HiLL checkpoint is confirmed for final phase `p06`; auto-review at that checkpoint is enabled.
+- HiLL checkpoint is confirmed for final phase `p07`; auto-review at that checkpoint is enabled.
 - p02 initially blocked because p02-t01's CLI verification exercised generated output owned by p02-t05. The plan now verifies canonical source in p02-t01 through p02-t04 and defers generated-bundle CLI integration to p02-t05; no task scope or product behavior changed.
 - p02-t05's generated boundary includes the Export Session Transcript runtime bundle because p01 changed shared canonical `src/transcript/core/runtimes.ts`; the canonical build owns both generated copies.
 - The shared runtime output also requires an `export-session-transcript` skill version bump under the repository's changed-skill invariant; p02 terminal quality fixes own that metadata-only adjustment.
@@ -654,6 +664,38 @@ oat_generated: false
 
 **Next:** Execute p07 fixes via `oat-project-implement`, then run a fix-commit-focused final re-review.
 
+### Run 16 — 2026-07-13 01:05 CDT
+
+**Branch:** `session-observer-collab`
+**Tier:** 1 with target-preserving completed-handle reuse after the host thread cap blocked new child allocation
+**Policy:** managed high; five serialized final-review fix tasks
+**Phases:** 1 executed, 1 fixed, 0 stopped; re-review pending
+
+#### Phase Outcomes
+
+| Phase | Implementer | Review | Fix Iterations | Disposition |
+| --- | --- | --- | ---: | --- |
+| p07 | DONE | fixes completed | 1/4 | all five final-review findings resolved; focused final re-review next |
+
+#### Task Dispatch Summary
+
+| Task | Exact target | Commit | Verification |
+| --- | --- | --- | --- |
+| p07-t01 | `oat-phase-implementer-gpt-5-6-sol-high` | `0fcd0df` | 196 focused tests; cross-runtime literal-envelope, type/build/validation/version gates pass |
+| p07-t02 | `oat-phase-implementer-gpt-5-6-terra-high` | `b1f0e6e` | 49 focused routing/docs tests plus lint/build/validation/version gates pass |
+| p07-t03 | `oat-phase-implementer-gpt-5-6-sol-high` | `ecb4e76` | 90 queued-input tests plus type/build/validation/version gates pass |
+| p07-t04 | `oat-phase-implementer-gpt-5-6-terra-high` | `7937ff1` | 68 identity/CLI tests plus type/build/validation/version gates pass |
+| p07-t05 | `oat-phase-implementer-gpt-5-6-luna-high` | `7b29a70` | 172 focused tests; full 1,088-test matrix, lint/type/build/validation/version/diff gates pass |
+
+#### Dispatch Recovery Note
+
+The exact p07 coordinator resolved successfully, but three native p07-t01 child launches failed before start with `agent thread limit reached` because completed handles remained counted. No fallback or downgrade ran. Root preserved the resolver-selected task routes by reactivating existing exact Sol/high, Terra/high, and Luna/high handles serially; each task still produced exactly one bounded commit and a clean worktree.
+
+#### Outstanding Items
+
+- Run the final re-review over `0fcd0df^..7b29a70`.
+- If passed, refresh final tracking and continue the configured pre-approval closeout sequence.
+
 <!-- orchestration-runs-end -->
 
 ## Deviations from Plan / Design
@@ -666,8 +708,8 @@ oat_generated: false
 
 ### What shipped
 
-- Collaboration-safe transcript semantics: Claude queued input renders once, synthetic wake envelopes remain automatic control input, Cursor emits completed turns only, and recovery pointers preserve original user-message locations.
-- A hardened Session Observer surface with fail-closed `whoami`, quiet empty watches that still advance offsets, standalone-baseline gap warnings, and non-switching newer-session warnings.
+- Collaboration-safe transcript semantics: queued delivery copies render once while independent repeated human messages remain distinct; literal production XML wake envelopes remain automatic control input across Claude/Codex/Cursor; Cursor emits completed turns only; and recovery pointers preserve original user-message locations.
+- A hardened Session Observer surface with fail-closed `whoami`, recoverable candidate lists for conflicting runtime/session signals, quiet empty watches that still advance offsets, standalone-baseline gap warnings, and non-switching newer-session warnings.
 - The public dependency-free `session-observer-collab` skill for a bounded N=2 topology, including explicit authority/provenance rules, versioned lease state, deterministic completion selection, lifecycle control commands, and runtime recipes for Codex, Cursor, Claude Code, and generic fallbacks.
 - A validated Codex lifecycle path with stable trusted-hook installation, bounded replay/continuation, race-safe cleanup, and live acceptance evidence. Cursor and Claude Code limitations remain explicitly documented where no callable live lifecycle surface was available.
 - Distribution/version/build guards, user and engineering documentation, generated navigation freshness coverage, the acceptance/sanitization matrix, and four file-backed v2 follow-ups.
@@ -675,7 +717,7 @@ oat_generated: false
 ### Key implementation surfaces
 
 - Canonical transcript and observer code under `src/transcript/core/` and `src/transcript/session-observer/`, with generated standalone runtime output under `skills/session-observer/` and `skills/export-session-transcript/`.
-- The canonical sibling skill under `skills/session-observer-collab/`, including protocol references, lease/control libraries, Codex/Cursor hooks, provider recipes, and declarations.
+- The canonical sibling skill under `skills/session-observer-collab/`, including protocol references, lease/control libraries, Codex/Cursor hooks, acting-runtime setup recipes, and declarations.
 - Repository enforcement in `scripts/validate.mjs`, `scripts/bump-version.mjs`, release/layout/frontmatter/docs tests, and generated-output tooling.
 - User-facing documentation under `documentation/docs/user-guide/skills/`, engineering guidance, the generated `documentation/index.md`, and PJM follow-ups under `.oat/repo/pjm/`.
 
@@ -684,7 +726,7 @@ oat_generated: false
 - Phase verification covered targeted runtime, observer, control, lifecycle, tooling, distribution, and documentation suites, plus type-check, lint/format, repository validation, generated-output parity, smoke, changed-skill version checks, diff checks, and clean-tree checks.
 - `pnpm run worktree:validate` passed with 1,081 tests and one intentional skip before final-gate cleanup.
 - The configured independent p06 gate passed with zero Critical and zero Important findings. Its two Medium cleanup findings and one Minor coverage finding were addressed in `5fc46ca`; the focused docs suite then passed 22 tests alongside repository validation and scoped lint/format checks.
-- Repository-wide final verification passed after gate cleanup: `pnpm test` completed 1,083 tests with one intentional skip; `pnpm lint` completed with six existing `no-shadow` warnings and no errors; `pnpm type-check`, `pnpm build`, `pnpm run build:check`, and `git diff --check` passed; the generated build left the worktree clean.
+- After final-review fixes, repository-wide verification passed with 1,088 tests and one intentional skip. `pnpm lint` completed with five unrelated pre-existing `no-shadow` warnings and no errors; `pnpm type-check`, `pnpm build`, `pnpm run build:check`, `pnpm run validate`, changed-skill validation, and `git diff --check` passed; the generated build left the worktree clean. User-level canonical copies and Claude/Cursor links match Session Observer 1.0.5, Export Session Transcript 1.0.3, and Session Observer Collaboration 1.0.3.
 
 ### Design and execution deltas
 

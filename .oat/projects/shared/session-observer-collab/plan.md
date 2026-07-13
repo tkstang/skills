@@ -505,7 +505,7 @@ Generated-bundle CLI flag assertions run in p02-t05 after the canonical build.
 | p04    | code     | passed | 2026-07-12 | managed re-review passed after fix iteration 3/4; all required live Codex rows green |
 | p05    | code     | passed | 2026-07-12 | managed review passed clean; Cursor and Claude live limitations remain honestly labeled |
 | p06    | code     | passed | 2026-07-13 | reviews/archived/p06-review-2026-07-13T045434Z.md |
-| final  | code     | fixes_added | 2026-07-13 | reviews/archived/final-review-2026-07-13T050936Z.md |
+| final  | code     | fixes_completed | 2026-07-13 | reviews/archived/final-review-2026-07-13T050936Z.md |
 | spec   | artifact | pending | -    | N/A (quick mode) |
 | design | artifact | passed  | 2026-07-12 | inline co-author review |
 | plan   | artifact | passed  | 2026-07-12 | managed structured review (clean) |

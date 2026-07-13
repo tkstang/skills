@@ -1,6 +1,6 @@
 ---
-oat_current_task: p07-t01
-oat_last_commit: 84f1df1fbe77b11c1beb2175a18ba6662475b353
+oat_current_task: null
+oat_last_commit: 7b29a70bef13889e4d13e69f8555109f8f43d65c
 oat_blockers: []
 oat_orchestration_retry_limit: 4
 associated_issues: []
@@ -25,7 +25,7 @@ oat_pr_status: null
 oat_pr_url: null
 oat_project_created: "2026-07-12T17:48:10.523Z"
 oat_project_completed: null
-oat_project_state_updated: "2026-07-13T05:24:53Z"
+oat_project_state_updated: "2026-07-13T06:05:17Z"
 oat_generated: false
 ---
 
@@ -37,7 +37,7 @@ oat_generated: false
 
 ## Current Phase
 
-Final review received with five actionable findings; p07 review fixes are ready to execute.
+All p07 final-review fixes and integration verification are complete; awaiting focused final re-review.
 
 ## Artifacts
 
@@ -70,7 +70,9 @@ Final review received with five actionable findings; p07 review fixes are ready 
 - ✓ Implementation tasks complete
 - ✓ Final verification passed before review
 - ✓ Final review received: 1 Critical, 1 Important, 2 Medium, 1 Minor
-- ⧗ p07 final-review fixes pending
+- ✓ p07 final-review fixes complete (5/5)
+- ✓ Post-fix user-install and provider-link parity verified
+- ⧗ Focused final re-review pending
 
 ## Blockers
 
@@ -78,4 +80,4 @@ None
 
 ## Next Milestone
 
-Execute p07-t01 through p07-t05, verify the complete fix set, and run a focused final re-review.
+Run the final re-review over the five p07 fix commits, then continue the configured pre-approval closeout sequence.
