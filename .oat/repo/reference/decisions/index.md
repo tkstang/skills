@@ -9,6 +9,10 @@
 <!-- OAT DECISION-INDEX -->
 | ID | Date | Status | Title | Legacy |
 | --- | --- | --- | --- | --- |
+| DR-260713-acting-runtime-selects-setup | 2026-07-13 | accepted | Acting runtime selects setup | - |
+| DR-260713-bounded-lifecycle-continuation | 2026-07-13 | accepted | Bounded lifecycle continuation | - |
+| DR-260713-collaboration-uses-a-sibling | 2026-07-13 | accepted | Collaboration uses a sibling layer | - |
+| DR-260713-wake-envelopes-are-non-human | 2026-07-13 | accepted | Wake envelopes are non-human control | - |
 | DR-260707-shared-consensus-loop-runtime | 2026-07-07 | accepted | Shared consensus loop runtime stays plugin-local | - |
 | DR-260707-standalone-consensus-installs | 2026-07-07 | accepted | Standalone consensus installs remain recovery-only | - |
 | DR-260705-skills-sh-listing-is-telemetry | 2026-07-05 | accepted | skills.sh listing is telemetry-seeded; never name internal skills in telemetry | - |

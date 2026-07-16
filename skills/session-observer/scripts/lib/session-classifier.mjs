@@ -15,7 +15,7 @@ function isHiddenBootstrapUserText(text) {
 }
 function isSyntheticForEngagement(entry) {
   if (entry.role !== "user") return false;
-  return entry.kind === "command_message" || isHiddenBootstrapUserText(entry.text);
+  return entry.kind === "command_message" || entry.origin === "automatic-control" || isHiddenBootstrapUserText(entry.text);
 }
 function publicBootstrapIndexes(indexes) {
   return [...indexes].toSorted((a, b) => a - b);
@@ -58,12 +58,8 @@ function classifyTranscriptRecords(runtime, records) {
       continue;
     }
     pendingTitleAssistant = false;
-    const userEntries = entries.filter(
-      (entry) => entry.role === "user"
-    );
-    const hiddenBootstrapUserRecord = userEntries.length > 0 && entries.every((entry) => entry.role === "user") && userEntries.every(
-      (entry) => isHiddenBootstrapUserText(entry.text)
-    );
+    const userEntries = entries.filter((entry) => entry.role === "user");
+    const hiddenBootstrapUserRecord = userEntries.length > 0 && entries.every((entry) => entry.role === "user") && userEntries.every((entry) => isHiddenBootstrapUserText(entry.text));
     if (hiddenBootstrapUserRecord) {
       bootstrapRecordIndexes.add(recordIndex);
       syntheticUserMessages += userEntries.length;

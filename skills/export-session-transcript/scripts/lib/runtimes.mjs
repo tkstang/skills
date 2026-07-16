@@ -12,6 +12,105 @@ function isObject(value) {
 function asString(value) {
   return typeof value === "string" ? value : void 0;
 }
+function parseAutomaticControlJsonEnvelope(text) {
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  if (!isObject(parsed) || !isObject(parsed.session_observer_wake)) return null;
+  const wake = parsed.session_observer_wake;
+  const range = wake.range;
+  if (wake.automatic !== true || !asString(wake.runtime) || !asString(wake.leaseId) || !isObject(wake.pinnedPeer) && !asString(wake.pinnedPeer) || !isObject(range) || !Number.isInteger(range.fromIndex) || !Number.isInteger(range.toIndex) || range.fromIndex < 0 || range.toIndex < range.fromIndex) {
+    return null;
+  }
+  return wake;
+}
+function decodeXmlAttribute(value) {
+  if (/[<>]|&(?!amp;|quot;|lt;|gt;|apos;)/u.test(value)) return null;
+  return value.replace(
+    /&(amp|quot|lt|gt|apos);/gu,
+    (_match, entity) => {
+      if (entity === "amp") return "&";
+      if (entity === "quot") return '"';
+      if (entity === "lt") return "<";
+      if (entity === "gt") return ">";
+      return "'";
+    }
+  );
+}
+function parseXmlAttributes(source) {
+  const attributes = /* @__PURE__ */ new Map();
+  const pattern = /([A-Za-z_][A-Za-z0-9_.:-]*)\s*=\s*"([^"]*)"/gu;
+  let cursor = 0;
+  let match;
+  while ((match = pattern.exec(source)) !== null) {
+    if (source.slice(cursor, match.index).trim()) return null;
+    const [, name, encodedValue] = match;
+    const value = decodeXmlAttribute(encodedValue);
+    if (value === null || attributes.has(name)) return null;
+    attributes.set(name, value);
+    cursor = pattern.lastIndex;
+  }
+  if (source.slice(cursor).trim() || attributes.size === 0) return null;
+  return attributes;
+}
+function parseAutomaticControlXmlEnvelope(text) {
+  const match = /^\s*<session_observer_wake\b([^<>]*)>([\s\S]*?)<\/session_observer_wake>\s*$/u.exec(
+    text
+  );
+  if (!match) return null;
+  const attributes = parseXmlAttributes(match[1]);
+  if (!attributes || attributes.get("automatic") !== "true") return null;
+  const runtime = attributes.get("runtime");
+  const leaseId = attributes.get("lease_id");
+  const pinnedPeer = attributes.get("peer");
+  const records = attributes.get("records");
+  const rangeMatch = /^(\d+)-(\d+)$/u.exec(records ?? "");
+  if (!runtime?.trim() || !leaseId?.trim() || !pinnedPeer?.trim() || !rangeMatch)
+    return null;
+  const fromIndex = Number(rangeMatch[1]);
+  const toIndex = Number(rangeMatch[2]);
+  if (!Number.isSafeInteger(fromIndex) || !Number.isSafeInteger(toIndex) || toIndex < fromIndex) {
+    return null;
+  }
+  return {
+    automatic: true,
+    runtime,
+    leaseId,
+    pinnedPeer,
+    range: { fromIndex, toIndex },
+    wireFormat: "xml",
+    body: match[2].trim()
+  };
+}
+function parseAutomaticControlEnvelope(text) {
+  return parseAutomaticControlXmlEnvelope(text) ?? parseAutomaticControlJsonEnvelope(text);
+}
+function messageEntry(role, text, recordIndex, displayRole) {
+  if (role === "user") {
+    const automaticControl = parseAutomaticControlEnvelope(text);
+    if (automaticControl) {
+      return {
+        role,
+        text,
+        recordIndex,
+        kind: "message",
+        displayRole: "automatic-control",
+        origin: "automatic-control",
+        automaticControl
+      };
+    }
+  }
+  return {
+    role,
+    text,
+    recordIndex,
+    kind: "message",
+    ...displayRole ? { displayRole } : {}
+  };
+}
 function truncate(str, limit) {
   if (str.length <= limit) return str;
   return str.slice(0, limit) + "...";
@@ -154,7 +253,7 @@ function claudeEntriesFromContent(role, content, recordIndex, opts) {
       if (!opts.includeCommandMessages) return [];
       return [{ role, text: content, recordIndex, kind: "command_message" }];
     }
-    return [{ role, text: content, recordIndex, kind: "message" }];
+    return [messageEntry(role, content, recordIndex)];
   }
   if (!Array.isArray(content)) return [];
   return content.flatMap((block) => {
@@ -199,7 +298,7 @@ function claudeEntriesFromContent(role, content, recordIndex, opts) {
       if (!opts.includeCommandMessages) return [];
       return [{ role, text, recordIndex, kind: "command_message" }];
     }
-    return text ? [{ role, text, recordIndex, kind: "message" }] : [];
+    return text ? [messageEntry(role, text, recordIndex)] : [];
   });
 }
 function normalizeClaudeCode(records, opts) {
@@ -219,7 +318,38 @@ function normalizeClaudeCode(records, opts) {
       }
     }
   }
+  const queuedContents = [];
+  const deliveredQueuedContents = [];
   return records.flatMap((record, recordIndex) => {
+    if (asString(record.type) === "queue-operation") {
+      const operation = asString(record.operation);
+      if (operation === "enqueue") {
+        const content = asString(record.content);
+        if (!content) return [];
+        queuedContents.push(content);
+        return [messageEntry("user", content, recordIndex, "queued-user")];
+      }
+      if (operation === "remove") {
+        const content = asString(record.content);
+        const queuedIndex = content ? queuedContents.indexOf(content) : queuedContents.length > 0 ? 0 : -1;
+        if (queuedIndex !== -1) {
+          const [deliveredContent] = queuedContents.splice(queuedIndex, 1);
+          deliveredQueuedContents.push(deliveredContent);
+        }
+        return [];
+      }
+    }
+    const attachment = record.attachment;
+    if (isObject(attachment) && asString(attachment.type) === "queued_command") {
+      const prompt = asString(attachment.prompt);
+      if (!prompt) return [];
+      const deliveredIndex = deliveredQueuedContents.indexOf(prompt);
+      if (deliveredIndex !== -1) {
+        deliveredQueuedContents.splice(deliveredIndex, 1);
+        return [];
+      }
+      return [messageEntry("user", prompt, recordIndex, "queued-user")];
+    }
     const message = isObject(record.message) ? record.message : record;
     const role = asString(message.role) ?? asString(record.role) ?? asString(record.type);
     if (role !== "assistant" && role !== "user") return [];
@@ -256,25 +386,27 @@ function normalizeCodex(records, opts) {
     if (role !== "assistant" && role !== "user") return [];
     const content = payload.content;
     if (typeof content === "string") {
-      return content ? [{ role, text: content, recordIndex, kind: "message" }] : [];
+      return content ? [messageEntry(role, content, recordIndex)] : [];
     }
     if (!Array.isArray(content)) return [];
     return content.flatMap((block) => {
       if (!isObject(block)) return [];
       const text = asString(block.text) ?? asString(block.content);
-      return text ? [{ role, text, recordIndex, kind: "message" }] : [];
+      return text ? [messageEntry(role, text, recordIndex)] : [];
     });
   });
 }
 function normalizeCursor(records, opts) {
   const includeToolCalls = opts.includeToolCalls ?? false;
-  return records.flatMap((record, recordIndex) => {
+  const entries = [];
+  let turnStart = 0;
+  const normalizeRecord = (record, recordIndex) => {
     const role = asString(record.role);
     if (role !== "assistant" && role !== "user") return [];
     const message = isObject(record.message) ? record.message : record;
     const content = message.content;
     if (typeof content === "string") {
-      return content ? [{ role, text: content, recordIndex, kind: "message" }] : [];
+      return content ? [messageEntry(role, content, recordIndex)] : [];
     }
     if (!Array.isArray(content)) return [];
     return content.flatMap((block) => {
@@ -294,9 +426,43 @@ function normalizeCursor(records, opts) {
         ];
       }
       const text = asString(block.text) ?? asString(block.content);
-      return text ? [{ role, text, recordIndex, kind: "message" }] : [];
+      return text ? [messageEntry(role, text, recordIndex)] : [];
     });
+  };
+  records.forEach((record, recordIndex) => {
+    if (record.type !== "turn_ended") return;
+    const status = asString(record.status);
+    const buffered = records.slice(turnStart, recordIndex).flatMap(
+      (turnRecord, offset) => normalizeRecord(turnRecord, turnStart + offset)
+    );
+    const consumeAtTerminal = (entry) => ({
+      ...entry,
+      sourceRecordIndex: entry.sourceRecordIndex ?? entry.recordIndex,
+      recordIndex
+    });
+    const userEntries = buffered.filter((entry) => entry.role === "user").map(consumeAtTerminal);
+    if (status === "success") {
+      const toolEntries = includeToolCalls ? buffered.filter((entry) => entry.kind === "tool_call").map(consumeAtTerminal) : [];
+      const finalAssistant = buffered.findLast(
+        (entry) => entry.role === "assistant" && entry.kind === "message"
+      );
+      entries.push(...userEntries, ...toolEntries);
+      if (finalAssistant) {
+        entries.push(consumeAtTerminal(finalAssistant));
+      }
+    } else {
+      const label = status ?? "unknown";
+      entries.push(...userEntries, {
+        role: "assistant",
+        text: `[Cursor turn ended with status: ${label}]`,
+        recordIndex,
+        kind: "message",
+        origin: "runtime-diagnostic"
+      });
+    }
+    turnStart = recordIndex + 1;
   });
+  return entries;
 }
 function normalizeEntries(runtime, records, opts = {}) {
   if (runtime === "claude-code") return normalizeClaudeCode(records, opts);

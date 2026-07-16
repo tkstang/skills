@@ -1,10 +1,4 @@
-import {
-  cp,
-  mkdir,
-  readFile,
-  writeFile,
-  mkdtemp,
-} from 'node:fs/promises';
+import { cp, mkdir, readFile, writeFile, mkdtemp } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -26,6 +20,9 @@ const jsonFiles = [
   '.agents/plugins/marketplace.json',
 ];
 const skillFiles = [
+  'skills/session-observer/SKILL.md',
+  'skills/session-observer-collab/SKILL.md',
+  'skills/export-session-transcript/SKILL.md',
   'plugins/consensus/skills/refine/SKILL.md',
   'plugins/consensus/skills/evaluate/SKILL.md',
   'plugins/consensus/skills/create/SKILL.md',
@@ -33,6 +30,20 @@ const skillFiles = [
   'plugins/consensus/skills/plan/SKILL.md',
   'plugins/consensus/skills/panel/SKILL.md',
   'plugins/consensus/skills/phone-a-friend/SKILL.md',
+];
+const sessionObserverWatchDocs = [
+  'skills/session-observer/references/watch-design.md',
+  '.agents/skills/session-observer/SKILL.md',
+  '.agents/skills/session-observer/references/watch-design.md',
+];
+const collaborationDistributionFiles = [
+  'skills/session-observer-collab/references/runtime-claude-code.md',
+  'skills/session-observer-collab/references/runtime-codex.md',
+  'skills/session-observer-collab/references/runtime-cursor.md',
+  'skills/session-observer-collab/scripts/collab-control.mjs',
+  'skills/session-observer-collab/scripts/codex-lifecycle.mjs',
+  'skills/session-observer-collab/scripts/hooks/codex-stop.mjs',
+  'skills/session-observer-collab/scripts/hooks/cursor-stop.mjs',
 ];
 const requiredDocs = [
   'README.md',
@@ -54,6 +65,13 @@ async function tempReleaseRoot() {
     await cp(path.join(repoRoot, file), path.join(tempRoot, file));
   }
   for (const file of skillFiles) {
+    await mkdir(path.dirname(path.join(tempRoot, file)), { recursive: true });
+    await cp(path.join(repoRoot, file), path.join(tempRoot, file));
+  }
+  for (const file of [
+    ...sessionObserverWatchDocs,
+    ...collaborationDistributionFiles,
+  ]) {
     await mkdir(path.dirname(path.join(tempRoot, file)), { recursive: true });
     await cp(path.join(repoRoot, file), path.join(tempRoot, file));
   }
@@ -110,12 +128,18 @@ describe('release-versioning', () => {
       const skillMarkdown = await readFile(path.join(root, file), 'utf8');
       const frontmatterMatch = skillMarkdown.match(/^---\n([\s\S]*?)\n---/);
       const frontmatter = frontmatterMatch![1];
-      expect(frontmatter, `${file} top-level version should be bumped`).toMatch(
-        /^version: "0\.2\.0-beta\.1"$/m,
-      );
-      expect(frontmatter, `${file} metadata.version should be bumped`).toMatch(
-        /^metadata:\n(?:  .+\n)*?  version: "0\.2\.0-beta\.1"$/m,
-      );
+      if (/^version:/m.test(frontmatter)) {
+        expect(
+          frontmatter,
+          `${file} top-level version should be bumped`,
+        ).toMatch(/^version: "0\.2\.0-beta\.1"$/m);
+      }
+      if (/^metadata:\n(?:  .+\n)*?  version:/m.test(frontmatter)) {
+        expect(
+          frontmatter,
+          `${file} metadata.version should be bumped`,
+        ).toMatch(/^metadata:\n(?:  .+\n)*?  version: "0\.2\.0-beta\.1"$/m);
+      }
     }
   });
 

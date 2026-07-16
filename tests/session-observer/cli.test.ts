@@ -9,6 +9,7 @@ import {
   mkdir,
   copyFile,
   readFile,
+  utimes,
   writeFile,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -30,7 +31,22 @@ const CLI_PATH = fileURLToPath(
 const FIXTURES = join(__dirname, 'fixtures');
 const typicalClaude = join(FIXTURES, 'claude-code', 'typical.jsonl');
 const emptyClaude = join(FIXTURES, 'claude-code', 'empty.jsonl');
+const typicalCodex = join(FIXTURES, 'codex', 'typical.jsonl');
 const typicalCursor = join(FIXTURES, 'cursor', 'typical.jsonl');
+
+const HARNESS_ENV = {
+  CLAUDECODE: '',
+  CLAUDE_CODE_ENTRYPOINT: '',
+  CLAUDE_CODE_SESSION_ID: '',
+  CLAUDE_SESSION_ID: '',
+  CODEX_THREAD_ID: '',
+  CODEX_SESSION_ID: '',
+  CODEX_SANDBOX: '',
+  OPENAI_CODEX_SESSION_ID: '',
+  CURSOR_TRACE_ID: '',
+  CURSOR_AGENT: '',
+  CURSOR_SESSION_ID: '',
+};
 
 /**
  * Spawn the CLI with the given args and env.
@@ -42,7 +58,7 @@ function spawnCli(
   return spawnSync('node', [CLI_PATH, ...args], {
     encoding: 'utf8',
     timeout: 15000,
-    env: { ...process.env, ...env },
+    env: { ...process.env, ...HARNESS_ENV, ...env },
   });
 }
 
@@ -77,61 +93,370 @@ async function copyCursorTranscript(
   return transcriptPath;
 }
 
+async function copyClaudeTranscript(
+  home: string,
+  cwd: string,
+  sessionId: string,
+): Promise<string> {
+  const projectDir = join(
+    home,
+    '.claude',
+    'projects',
+    cwd.replace(/[/.]/g, '-'),
+  );
+  await mkdir(projectDir, { recursive: true });
+  const transcriptPath = join(projectDir, `${sessionId}.jsonl`);
+  const fixture = await readFile(typicalClaude, 'utf8');
+  await writeFile(
+    transcriptPath,
+    fixture.replaceAll('cc-session-001', sessionId),
+    'utf8',
+  );
+  return transcriptPath;
+}
+
+async function copyCodexTranscript(
+  home: string,
+  cwd: string,
+  sessionId: string,
+): Promise<string> {
+  const transcriptDir = join(home, '.codex', 'sessions', '2026', '07', '12');
+  await mkdir(transcriptDir, { recursive: true });
+  const transcriptPath = join(transcriptDir, `${sessionId}.jsonl`);
+  const fixture = await readFile(typicalCodex, 'utf8');
+  await writeFile(
+    transcriptPath,
+    `${JSON.stringify({ sessionId, payload: { type: 'session_meta', cwd } })}\n${fixture}`,
+    'utf8',
+  );
+  return transcriptPath;
+}
+
 // ---------------------------------------------------------------------------
 // Basic dispatch tests
 // ---------------------------------------------------------------------------
 
 describe('CLI subcommand dispatch', () => {
+  test('--help lists whoami command surface', () => {
+    const result = spawnCli(['--help']);
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('whoami');
+  });
+
+  test('whoami resolves explicit, harness, and ambiguous identities', async () => {
+    const home = await mkdtemp(join(tmpdir(), 'cli-whoami-'));
+    try {
+      const cwd = join(home, 'Code', 'project');
+      const one = await copyCursorTranscript(home, cwd, 'cursor-one');
+      let result = spawnCli(['whoami', '--cwd', cwd, '--json'], {
+        HOME: home,
+        STATE_DIR: join(home, '.state'),
+        SESSION_OBSERVER_SELF: 'cursor:cursor-one',
+      });
+      expect(result.status, `${result.stderr}\n${result.stdout}`).toBe(0);
+      expect(JSON.parse(result.stdout)).toEqual({
+        runtime: 'cursor',
+        session: 'cursor-one',
+        transcript: one,
+        source: 'explicit-self',
+      });
+
+      result = spawnCli(['whoami', '--cwd', cwd], {
+        HOME: home,
+        STATE_DIR: join(home, '.state'),
+        CODEX_THREAD_ID: '',
+        CURSOR_SESSION_ID: 'cursor-one',
+      });
+      expect(result.status, `${result.stderr}\n${result.stdout}`).toBe(0);
+      expect(result.stdout).toContain('harness-environment');
+
+      await copyCursorTranscript(home, cwd, 'cursor-two');
+      result = spawnCli(['whoami', '--cwd', cwd, '--json'], {
+        HOME: home,
+        STATE_DIR: join(home, '.state'),
+        SESSION_OBSERVER_SELF: 'cursor',
+      });
+      expect(result.status, `${result.stderr}\n${result.stdout}`).toBe(3);
+      const payload = JSON.parse(result.stdout);
+      expect(payload.ambiguousIdentity).toBe(true);
+      expect(
+        payload.candidates
+          .map((candidate: any) => candidate.sessionId)
+          .toSorted(),
+      ).toEqual(['cursor-one', 'cursor-two']);
+    } finally {
+      await rm(home, { recursive: true, force: true });
+    }
+  });
+
+  test('whoami recognizes supported harness aliases and runtime-only fallback', async () => {
+    const home = await mkdtemp(join(tmpdir(), 'cli-whoami-harnesses-'));
+    try {
+      const cwd = join(home, 'Code', 'project');
+      await copyClaudeTranscript(home, cwd, 'claude-one');
+      await copyCodexTranscript(home, cwd, 'codex-one');
+      await copyCursorTranscript(home, cwd, 'cursor-one');
+
+      const cases = [
+        ['CLAUDE_CODE_SESSION_ID', 'claude-one', 'claude-code'],
+        ['OPENAI_CODEX_SESSION_ID', 'codex-one', 'codex'],
+        ['CURSOR_SESSION_ID', 'cursor-one', 'cursor'],
+        ['CLAUDECODE', '1', 'claude-code'],
+        ['CLAUDE_CODE_ENTRYPOINT', 'cli', 'claude-code'],
+        ['CODEX_SANDBOX', 'workspace-write', 'codex'],
+        ['CURSOR_TRACE_ID', 'trace-one', 'cursor'],
+        ['CURSOR_AGENT', '1', 'cursor'],
+      ] as const;
+
+      for (const [name, value, runtime] of cases) {
+        const result = spawnCli(['whoami', '--cwd', cwd, '--json'], {
+          HOME: home,
+          STATE_DIR: join(home, '.state'),
+          [name]: value,
+        });
+        expect(
+          result.status,
+          `${name}: ${result.stderr}\n${result.stdout}`,
+        ).toBe(0);
+        const payload = JSON.parse(result.stdout);
+        expect(payload.runtime).toBe(runtime);
+        expect(payload.source).toBe(
+          name.endsWith('SESSION_ID')
+            ? 'harness-environment'
+            : 'same-cwd-transcript',
+        );
+      }
+    } finally {
+      await rm(home, { recursive: true, force: true });
+    }
+  });
+
+  test('whoami scopes runtime-only Codex fallback to the requested cwd', async () => {
+    const home = await mkdtemp(join(tmpdir(), 'cli-whoami-codex-cwd-'));
+    try {
+      const cwd = join(home, 'Code', 'project');
+      const sameCwdTranscript = await copyCodexTranscript(
+        home,
+        cwd,
+        'codex-same-cwd',
+      );
+      const unrelatedTranscript = await copyCodexTranscript(
+        home,
+        join(home, 'Code', 'unrelated-project'),
+        'codex-newer-unrelated-cwd',
+      );
+      const newerMtime = new Date(Date.now() + 1_000);
+      await utimes(unrelatedTranscript, newerMtime, newerMtime);
+
+      const result = spawnCli(['whoami', '--cwd', cwd, '--json'], {
+        HOME: home,
+        STATE_DIR: join(home, '.state'),
+        CODEX_SANDBOX: 'workspace-write',
+      });
+
+      expect(result.status, `${result.stderr}\n${result.stdout}`).toBe(0);
+      expect(JSON.parse(result.stdout)).toEqual({
+        runtime: 'codex',
+        session: 'codex-same-cwd',
+        transcript: sameCwdTranscript,
+        source: 'same-cwd-transcript',
+      });
+    } finally {
+      await rm(home, { recursive: true, force: true });
+    }
+  });
+
+  test('whoami returns ambiguity candidates for conflicting harness signals and aliases', async () => {
+    const home = await mkdtemp(join(tmpdir(), 'cli-whoami-conflicts-'));
+    try {
+      const cwd = join(home, 'Code', 'project');
+      await copyClaudeTranscript(home, cwd, 'claude-one');
+      await copyCodexTranscript(home, cwd, 'codex-one');
+
+      let result = spawnCli(['whoami', '--cwd', cwd, '--json'], {
+        HOME: home,
+        STATE_DIR: join(home, '.state'),
+      });
+      expect(result.status, `${result.stderr}\n${result.stdout}`).toBe(2);
+      expect(JSON.parse(result.stdout).noIdentity).toBe(true);
+
+      result = spawnCli(['whoami', '--cwd', cwd, '--json'], {
+        HOME: home,
+        STATE_DIR: join(home, '.state'),
+        CLAUDECODE: '1',
+        CODEX_SANDBOX: 'workspace-write',
+      });
+      expect(result.status, `${result.stderr}\n${result.stdout}`).toBe(3);
+      let payload = JSON.parse(result.stdout);
+      expect(payload.ambiguousIdentity).toBe(true);
+      expect(payload.signals).toEqual(
+        expect.arrayContaining([
+          { runtime: 'claude-code' },
+          { runtime: 'codex' },
+        ]),
+      );
+      expect(
+        payload.candidates
+          .map(
+            (candidate: any) => `${candidate.runtime}:${candidate.sessionId}`,
+          )
+          .toSorted(),
+      ).toEqual(['claude-code:claude-one', 'codex:codex-one']);
+
+      await copyCodexTranscript(home, cwd, 'codex-two');
+      result = spawnCli(['whoami', '--cwd', cwd, '--json'], {
+        HOME: home,
+        STATE_DIR: join(home, '.state'),
+        CODEX_THREAD_ID: 'codex-one',
+        CODEX_SESSION_ID: 'codex-two',
+      });
+      expect(result.status, `${result.stderr}\n${result.stdout}`).toBe(3);
+      payload = JSON.parse(result.stdout);
+      expect(payload.ambiguousIdentity).toBe(true);
+      expect(payload.signals).toEqual(
+        expect.arrayContaining([
+          { runtime: 'codex', sessionId: 'codex-one' },
+          { runtime: 'codex', sessionId: 'codex-two' },
+        ]),
+      );
+      expect(
+        payload.candidates
+          .map((candidate: any) => candidate.sessionId)
+          .toSorted(),
+      ).toEqual(['codex-one', 'codex-two']);
+
+      await copyCursorTranscript(home, cwd, 'cursor-one');
+      await copyCursorTranscript(home, cwd, 'cursor-two');
+      result = spawnCli(['whoami', '--cwd', cwd, '--json'], {
+        HOME: home,
+        STATE_DIR: join(home, '.state'),
+        CURSOR_AGENT: '1',
+      });
+      expect(result.status, `${result.stderr}\n${result.stdout}`).toBe(3);
+      payload = JSON.parse(result.stdout);
+      expect(payload.ambiguousIdentity).toBe(true);
+      expect(payload.signals).toEqual([{ runtime: 'cursor' }]);
+    } finally {
+      await rm(home, { recursive: true, force: true });
+    }
+  });
+
   test('--help lists cursor as a runtime option', () => {
     const result = spawnCli(['--help']);
-    expect(result.status, `help should exit 0\nstderr: ${result.stderr}`).toBe(0);
-    expect(result.stdout.includes('--runtime <claude-code|codex|cursor|auto>'), 'help should include cursor in the runtime list').toBeTruthy();
+    expect(result.status, `help should exit 0\nstderr: ${result.stderr}`).toBe(
+      0,
+    );
+    expect(
+      result.stdout.includes('--runtime <claude-code|codex|cursor|auto>'),
+      'help should include cursor in the runtime list',
+    ).toBeTruthy();
   });
 
   test('--help lists watch command surface', () => {
     const result = spawnCli(['--help']);
-    expect(result.status, `help should exit 0\nstderr: ${result.stderr}`).toBe(0);
-    expect(result.stdout.includes('watch'), 'help should list watch subcommand').toBeTruthy();
-    expect(result.stdout.includes('catch-up-then-watch'), 'help should list catch-up-then-watch subcommand').toBeTruthy();
-    expect(result.stdout.includes('watch-ctl'), 'help should list watch-ctl subcommand').toBeTruthy();
-    expect(result.stdout.includes('--watch'), 'help should list top-level --watch alias').toBeTruthy();
+    expect(result.status, `help should exit 0\nstderr: ${result.stderr}`).toBe(
+      0,
+    );
+    expect(
+      result.stdout.includes('watch'),
+      'help should list watch subcommand',
+    ).toBeTruthy();
+    expect(
+      result.stdout.includes('catch-up-then-watch'),
+      'help should list catch-up-then-watch subcommand',
+    ).toBeTruthy();
+    expect(
+      result.stdout.includes('watch-ctl'),
+      'help should list watch-ctl subcommand',
+    ).toBeTruthy();
+    expect(
+      result.stdout.includes('--watch'),
+      'help should list top-level --watch alias',
+    ).toBeTruthy();
   });
 
   test('watch --help lists watch flags', () => {
     const result = spawnCli(['watch', '--help']);
-    expect(result.status, `watch help should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(0);
-    expect(result.stdout.includes('--debounce-sec'), 'watch help should include debounce flag').toBeTruthy();
-    expect(result.stdout.includes('--poll-sec'), 'watch help should include poll flag').toBeTruthy();
-    expect(result.stdout.includes('--max-pending-sec'), 'watch help should include max pending flag').toBeTruthy();
-    expect(result.stdout.includes('--max-runtime-min'), 'watch help should include bounded runtime flag').toBeTruthy();
-    expect(result.stdout.includes('--heartbeat-sec'), 'watch help should include heartbeat flag').toBeTruthy();
-    expect(result.stdout.includes('--until-stopped'), 'watch help should include until-stopped alias').toBeTruthy();
-    expect(result.stdout.includes('--interactive'), 'watch help should include interactive alias').toBeTruthy();
-    expect(result.stdout.includes('--event-log'), 'watch help should include event log flag').toBeTruthy();
-    expect(result.stdout.includes('--runtime <claude-code|codex|cursor|auto|both>'), 'watch help should include both as a watch runtime option').toBeTruthy();
+    expect(
+      result.status,
+      `watch help should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
+    ).toBe(0);
+    expect(
+      result.stdout.includes('--debounce-sec'),
+      'watch help should include debounce flag',
+    ).toBeTruthy();
+    expect(
+      result.stdout.includes('--poll-sec'),
+      'watch help should include poll flag',
+    ).toBeTruthy();
+    expect(
+      result.stdout.includes('--max-pending-sec'),
+      'watch help should include max pending flag',
+    ).toBeTruthy();
+    expect(
+      result.stdout.includes('--max-runtime-min'),
+      'watch help should include bounded runtime flag',
+    ).toBeTruthy();
+    expect(
+      result.stdout.includes('--heartbeat-sec'),
+      'watch help should include heartbeat flag',
+    ).toBeTruthy();
+    expect(
+      result.stdout.includes('--until-stopped'),
+      'watch help should include until-stopped alias',
+    ).toBeTruthy();
+    expect(
+      result.stdout.includes('--interactive'),
+      'watch help should include interactive alias',
+    ).toBeTruthy();
+    expect(
+      result.stdout.includes('--event-log'),
+      'watch help should include event log flag',
+    ).toBeTruthy();
+    expect(
+      result.stdout.includes('--runtime <claude-code|codex|cursor|auto|both>'),
+      'watch help should include both as a watch runtime option',
+    ).toBeTruthy();
   });
 
   test('watch-ctl --help lists control operations', () => {
     const result = spawnCli(['watch-ctl', '--help']);
-    expect(result.status, `watch-ctl help should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(0);
+    expect(
+      result.status,
+      `watch-ctl help should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
+    ).toBe(0);
     for (const op of ['status', 'pause', 'resume', 'flush', 'stop']) {
-      expect(result.stdout.includes(op), `watch-ctl help should include ${op}`).toBeTruthy();
+      expect(
+        result.stdout.includes(op),
+        `watch-ctl help should include ${op}`,
+      ).toBeTruthy();
     }
   });
 
   test('--watch --help maps to watch help', () => {
     const canonical = spawnCli(['watch', '--help']);
     const alias = spawnCli(['--watch', '--help']);
-    expect(alias.status, `--watch help should exit 0\nstdout: ${alias.stdout}\nstderr: ${alias.stderr}`).toBe(0);
-    expect(alias.stdout, '--watch --help should print the same help as watch --help').toBe(canonical.stdout);
+    expect(
+      alias.status,
+      `--watch help should exit 0\nstdout: ${alias.stdout}\nstderr: ${alias.stderr}`,
+    ).toBe(0);
+    expect(
+      alias.stdout,
+      '--watch --help should print the same help as watch --help',
+    ).toBe(canonical.stdout);
   });
 
   test('catch-up-then-watch --help maps to watch help with command name', () => {
     const result = spawnCli(['catch-up-then-watch', '--help']);
-    expect(result.status, `catch-up-then-watch help should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(0);
-    expect(result.stdout.includes(
+    expect(
+      result.status,
+      `catch-up-then-watch help should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
+    ).toBe(0);
+    expect(
+      result.stdout.includes(
         'Usage: session-observer catch-up-then-watch [options]',
-      )).toBeTruthy();
+      ),
+    ).toBeTruthy();
     expect(result.stdout.includes('--heartbeat-sec')).toBeTruthy();
   });
 
@@ -146,7 +471,10 @@ describe('CLI subcommand dispatch', () => {
         STATE_DIR: stateDir,
       });
 
-      expect(result.status, `watch-ctl status should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(0);
+      expect(
+        result.status,
+        `watch-ctl status should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
+      ).toBe(0);
       const parsed = JSON.parse(result.stdout);
       expect(parsed.noActiveWatcher).toBe(true);
       expect(parsed.active).toBe(false);
@@ -182,7 +510,10 @@ describe('CLI subcommand dispatch', () => {
           ['watch-ctl', op, '--cwd', '/test/active-watch-control', '--json'],
           { HOME: tmpDir, STATE_DIR: stateDir },
         );
-        expect(result.status, `watch-ctl ${op} should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(0);
+        expect(
+          result.status,
+          `watch-ctl ${op} should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
+        ).toBe(0);
 
         const payload = JSON.parse(result.stdout);
         expect(payload.directive).toBe(op);
@@ -232,7 +563,10 @@ describe('CLI subcommand dispatch', () => {
         HOME: tmpDir,
         STATE_DIR: stateDir,
       });
-      expect(result.status, `lone-watcher control should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(0);
+      expect(
+        result.status,
+        `lone-watcher control should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
+      ).toBe(0);
       const payload = JSON.parse(result.stdout);
       expect(payload.directive).toBe('pause');
       expect(payload.control.pid).toBe(process.pid);
@@ -243,7 +577,10 @@ describe('CLI subcommand dispatch', () => {
         ['watch-ctl', 'pause', '--cwd', '/test/not-a-watcher-cwd', '--json'],
         { HOME: tmpDir, STATE_DIR: stateDir },
       );
-      expect(filtered.status, `explicit cwd miss should exit 3\nstdout: ${filtered.stdout}\nstderr: ${filtered.stderr}`).toBe(3);
+      expect(
+        filtered.status,
+        `explicit cwd miss should exit 3\nstdout: ${filtered.stdout}\nstderr: ${filtered.stderr}`,
+      ).toBe(3);
       const filteredPayload = JSON.parse(filtered.stdout);
       expect(filteredPayload.noMatchingWatcher).toBe(true);
       expect(filteredPayload.watchers.length).toBe(1);
@@ -298,7 +635,10 @@ describe('CLI subcommand dispatch', () => {
         ['watch-ctl', 'pause', '--cwd', cwd, '--json'],
         { HOME: tmpDir, STATE_DIR: stateDir },
       );
-      expect(ambiguous.status, `ambiguous control should exit 3\nstdout: ${ambiguous.stdout}\nstderr: ${ambiguous.stderr}`).toBe(3);
+      expect(
+        ambiguous.status,
+        `ambiguous control should exit 3\nstdout: ${ambiguous.stdout}\nstderr: ${ambiguous.stderr}`,
+      ).toBe(3);
       const ambiguousPayload = JSON.parse(ambiguous.stdout);
       expect(ambiguousPayload.ambiguousWatcher).toBe(true);
       expect(ambiguousPayload.watchers.length).toBe(2);
@@ -307,7 +647,10 @@ describe('CLI subcommand dispatch', () => {
         ['watch-ctl', 'pause', '--cwd', cwd, '--runtime', 'codex', '--json'],
         { HOME: tmpDir, STATE_DIR: stateDir },
       );
-      expect(selected.status, `selected control should exit 0\nstdout: ${selected.stdout}\nstderr: ${selected.stderr}`).toBe(0);
+      expect(
+        selected.status,
+        `selected control should exit 0\nstdout: ${selected.stdout}\nstderr: ${selected.stderr}`,
+      ).toBe(0);
       const payload = JSON.parse(selected.stdout);
       expect(payload.control.pid).toBe(firstPid);
     } finally {
@@ -336,12 +679,17 @@ describe('CLI subcommand dispatch', () => {
           STATE_DIR: stateDir,
         });
 
-        expect(result.status, `watch-ctl ${op} should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(0);
+        expect(
+          result.status,
+          `watch-ctl ${op} should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
+        ).toBe(0);
         const payload = JSON.parse(result.stdout);
         expect(payload.noActiveWatcher).toBe(true);
         expect(payload.active).toBe(false);
         expect(payload.watcher).toBe(null);
-        expect(await readJsonIfExists(join(stateDir, 'watch.control.json'))).toBe(null);
+        expect(
+          await readJsonIfExists(join(stateDir, 'watch.control.json')),
+        ).toBe(null);
       }
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
@@ -367,11 +715,20 @@ describe('CLI subcommand dispatch', () => {
         ],
         { HOME: tmpDir, STATE_DIR: stateDir },
       );
-      expect(escape.status, `watch with escaping event log should exit 1\nstdout: ${escape.stdout}\nstderr: ${escape.stderr}`).toBe(1);
+      expect(
+        escape.status,
+        `watch with escaping event log should exit 1\nstdout: ${escape.stdout}\nstderr: ${escape.stderr}`,
+      ).toBe(1);
       const escapeEvent = JSON.parse(escape.stdout.trim());
       expect(escapeEvent.type).toBe('error');
-      expect(escapeEvent.ts, 'error event should carry a timestamp').toBeTruthy();
-      expect(escapeEvent.message.length > 0, 'error event should carry a message').toBeTruthy();
+      expect(
+        escapeEvent.ts,
+        'error event should carry a timestamp',
+      ).toBeTruthy();
+      expect(
+        escapeEvent.message.length > 0,
+        'error event should carry a message',
+      ).toBeTruthy();
 
       const invalid = spawnCli(['watch', '--json', '--runtime', 'bogus'], {
         HOME: tmpDir,
@@ -391,10 +748,13 @@ describe('CLI subcommand dispatch', () => {
     // --help exits 0 or 1; should not crash with code 127 or similar
     // (exits 2 or 3 are also valid if runtime auto-resolution kicks in first)
     expect(result.status !== null, 'should have an exit code').toBeTruthy();
-    expect(result.status === 0 ||
+    expect(
+      result.status === 0 ||
         result.status === 1 ||
         result.status === 2 ||
-        result.status === 3, `unexpected exit code: ${result.status}`).toBeTruthy();
+        result.status === 3,
+      `unexpected exit code: ${result.status}`,
+    ).toBeTruthy();
   });
 
   test('unknown subcommand exits with code 1', () => {
@@ -432,8 +792,13 @@ describe('exit codes', () => {
         { HOME: tmpDir, STATE_DIR: stateDir },
       );
 
-      expect(result.status, `Expected exit 3 for unengaged empty fixture\nstdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(3);
-      expect(result.stdout.includes('has no user conversation yet')).toBeTruthy();
+      expect(
+        result.status,
+        `Expected exit 3 for unengaged empty fixture\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
+      ).toBe(3);
+      expect(
+        result.stdout.includes('has no user conversation yet'),
+      ).toBeTruthy();
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -456,9 +821,15 @@ describe('exit codes', () => {
         { HOME: tmpDir, STATE_DIR: stateDir },
       );
 
-      expect(result.status, `Expected exit 0, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(0);
-      expect(result.stdout.includes('### User') ||
-          result.stdout.includes('session-observer'), 'output should contain markdown content').toBeTruthy();
+      expect(
+        result.status,
+        `Expected exit 0, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
+      ).toBe(0);
+      expect(
+        result.stdout.includes('### User') ||
+          result.stdout.includes('session-observer'),
+        'output should contain markdown content',
+      ).toBeTruthy();
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -487,15 +858,24 @@ describe('locate --json', () => {
         { HOME: tmpDir, STATE_DIR: stateDir },
       );
 
-      expect(result.status === 0 || result.status === 2, `Expected exit 0 or 2 for locate, got ${result.status}\nstderr: ${result.stderr}`).toBeTruthy();
+      expect(
+        result.status === 0 || result.status === 2,
+        `Expected exit 0 or 2 for locate, got ${result.status}\nstderr: ${result.stderr}`,
+      ).toBeTruthy();
 
       if (result.status === 0) {
         let parsed: any;
         expect(() => {
           parsed = JSON.parse(result.stdout);
         }, 'stdout should be valid JSON').not.toThrow();
-        expect('winner' in parsed || 'noMatch' in parsed, 'JSON should contain winner or noMatch key').toBeTruthy();
-        expect('fallbacks' in parsed || 'noMatch' in parsed, 'JSON should contain fallbacks or noMatch').toBeTruthy();
+        expect(
+          'winner' in parsed || 'noMatch' in parsed,
+          'JSON should contain winner or noMatch key',
+        ).toBeTruthy();
+        expect(
+          'fallbacks' in parsed || 'noMatch' in parsed,
+          'JSON should contain fallbacks or noMatch',
+        ).toBeTruthy();
       }
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
@@ -529,13 +909,22 @@ describe('locate --json', () => {
         { HOME: tmpDir, STATE_DIR: stateDir },
       );
 
-      expect(result.status, `Expected exit 0 for locate debug, got ${result.status}\nstderr: ${result.stderr}`).toBe(0);
+      expect(
+        result.status,
+        `Expected exit 0 for locate debug, got ${result.status}\nstderr: ${result.stderr}`,
+      ).toBe(0);
 
       const parsed = JSON.parse(result.stdout);
-      expect(parsed.lookupDiagnostics?.claudeCode, 'lookupDiagnostics.claudeCode should be present').toBeTruthy();
-      expect(parsed.lookupDiagnostics.claudeCode.some(
+      expect(
+        parsed.lookupDiagnostics?.claudeCode,
+        'lookupDiagnostics.claudeCode should be present',
+      ).toBeTruthy();
+      expect(
+        parsed.lookupDiagnostics.claudeCode.some(
           (d: any) => d.encoded === encodedCwd && d.exists === true,
-        ), 'diagnostics should include the expected encoded dir and existence').toBeTruthy();
+        ),
+        'diagnostics should include the expected encoded dir and existence',
+      ).toBeTruthy();
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -567,14 +956,19 @@ describe('locate --json', () => {
         { HOME: tmpDir, STATE_DIR: stateDir },
       );
 
-      expect(result.status, `Expected exit 0 for locate snippet, got ${result.status}\nstderr: ${result.stderr}`).toBe(0);
+      expect(
+        result.status,
+        `Expected exit 0 for locate snippet, got ${result.status}\nstderr: ${result.stderr}`,
+      ).toBe(0);
 
       const parsed = JSON.parse(result.stdout);
       expect(parsed.winner.sessionId).toBe('cc-session-001');
       expect(parsed.snippet.query).toBe('Hello');
       expect(parsed.snippet.matches.length).toBe(1);
       expect(parsed.snippet.matches[0].sessionId).toBe('cc-session-001');
-      expect(parsed.snippet.matches[0].snippetMatch.context.includes('Hello')).toBeTruthy();
+      expect(
+        parsed.snippet.matches[0].snippetMatch.context.includes('Hello'),
+      ).toBeTruthy();
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -603,7 +997,10 @@ describe('--runtime auto', () => {
         },
       );
       // Should try codex (the peer), find no transcripts → exit 2
-      expect(result.status, `Expected exit 2 (noMatch) when peer runtime has no transcripts, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(2);
+      expect(
+        result.status,
+        `Expected exit 2 (noMatch) when peer runtime has no transcripts, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
+      ).toBe(2);
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -624,7 +1021,10 @@ describe('--runtime auto', () => {
         },
       );
       // Should try claude-code (the peer), find no transcripts → exit 2
-      expect(result.status, `Expected exit 2 (noMatch) when peer runtime has no transcripts, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(2);
+      expect(
+        result.status,
+        `Expected exit 2 (noMatch) when peer runtime has no transcripts, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
+      ).toBe(2);
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -644,7 +1044,10 @@ describe('--runtime auto', () => {
         },
       );
       // No candidates in either runtime → exit 2 or 3
-      expect(result.status === 2 || result.status === 3, `Expected exit 2 or 3 when no candidates in either runtime, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`).toBeTruthy();
+      expect(
+        result.status === 2 || result.status === 3,
+        `Expected exit 2 or 3 when no candidates in either runtime, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
+      ).toBeTruthy();
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -667,7 +1070,10 @@ describe('--runtime auto', () => {
         },
       );
 
-      expect(result.status, `Expected auto runtime to choose cursor, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(0);
+      expect(
+        result.status,
+        `Expected auto runtime to choose cursor, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
+      ).toBe(0);
       const parsed = JSON.parse(result.stdout);
       expect(parsed.runtime).toBe('cursor');
       expect(parsed.sessionId).toBe('cursor-peer');
@@ -714,7 +1120,10 @@ describe('--runtime auto', () => {
         },
       );
 
-      expect(result.status, `Expected ambiguousRuntime, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(3);
+      expect(
+        result.status,
+        `Expected ambiguousRuntime, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
+      ).toBe(3);
       const parsed = JSON.parse(result.stdout);
       expect(parsed.ambiguousRuntime).toBe(true);
       expect(parsed.runtimes.toSorted()).toEqual(['codex', 'cursor']);
@@ -795,7 +1204,10 @@ describe('--runtime auto', () => {
         { HOME: tmpDir, STATE_DIR: stateDir },
       );
 
-      expect(result.status, `Expected auto runtime to use state preference, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(0);
+      expect(
+        result.status,
+        `Expected auto runtime to use state preference, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
+      ).toBe(0);
       const parsed = JSON.parse(result.stdout);
       expect(parsed.runtime).toBe('claude-code');
       expect(parsed.sessionId).toBe('cc-dual');
@@ -876,7 +1288,10 @@ describe('--runtime auto', () => {
         { HOME: tmpDir, STATE_DIR: stateDir },
       );
 
-      expect(result.status, `Expected auto runtime to use cursor state preference, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(0);
+      expect(
+        result.status,
+        `Expected auto runtime to use cursor state preference, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
+      ).toBe(0);
       const parsed = JSON.parse(result.stdout);
       expect(parsed.runtime).toBe('cursor');
       expect(parsed.sessionId).toBe('cursor-three');
@@ -901,7 +1316,10 @@ describe('state subcommand', () => {
         HOME: tmpDir,
         STATE_DIR: stateDir,
       });
-      expect(result.status, `state get should exit 0\nstderr: ${result.stderr}`).toBe(0);
+      expect(
+        result.status,
+        `state get should exit 0\nstderr: ${result.stderr}`,
+      ).toBe(0);
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -917,7 +1335,10 @@ describe('state subcommand', () => {
         HOME: tmpDir,
         STATE_DIR: stateDir,
       });
-      expect(result.status, `state clear should exit 0\nstderr: ${result.stderr}`).toBe(0);
+      expect(
+        result.status,
+        `state clear should exit 0\nstderr: ${result.stderr}`,
+      ).toBe(0);
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -933,7 +1354,10 @@ describe('state subcommand', () => {
         HOME: tmpDir,
         STATE_DIR: stateDir,
       });
-      expect(result.status, `state reset should exit 0\nstderr: ${result.stderr}`).toBe(0);
+      expect(
+        result.status,
+        `state reset should exit 0\nstderr: ${result.stderr}`,
+      ).toBe(0);
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -949,7 +1373,10 @@ describe('state subcommand', () => {
         HOME: tmpDir,
         STATE_DIR: stateDir,
       });
-      expect(result.status, `state reset should exit 0\nstderr: ${result.stderr}`).toBe(0);
+      expect(
+        result.status,
+        `state reset should exit 0\nstderr: ${result.stderr}`,
+      ).toBe(0);
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -996,25 +1423,46 @@ describe('state subcommand', () => {
         HOME: tmpDir,
         STATE_DIR: stateDir,
       });
-      expect(result.status, `state reset --session should exit 0\nstderr: ${result.stderr}`).toBe(0);
+      expect(
+        result.status,
+        `state reset --session should exit 0\nstderr: ${result.stderr}`,
+      ).toBe(0);
 
       // Verify via state get --json that codex:abc123 is zeroed and claude-code:xyz789 is untouched.
       const getResult = spawnCli(['state', 'get', '--json'], {
         HOME: tmpDir,
         STATE_DIR: stateDir,
       });
-      expect(getResult.status, `state get should exit 0\nstderr: ${getResult.stderr}`).toBe(0);
+      expect(
+        getResult.status,
+        `state get should exit 0\nstderr: ${getResult.stderr}`,
+      ).toBe(0);
 
       const state = JSON.parse(getResult.stdout);
       const codexSession = state.sessions['codex:abc123'];
       const claudeSession = state.sessions['claude-code:xyz789'];
 
-      expect(codexSession, 'codex:abc123 session should still exist in state').toBeTruthy();
-      expect(codexSession.lastRecordIndex, 'codex:abc123 lastRecordIndex should be reset to 0').toBe(0);
-      expect(codexSession.lastTotalRecords, 'codex:abc123 lastTotalRecords should be reset to 0').toBe(0);
+      expect(
+        codexSession,
+        'codex:abc123 session should still exist in state',
+      ).toBeTruthy();
+      expect(
+        codexSession.lastRecordIndex,
+        'codex:abc123 lastRecordIndex should be reset to 0',
+      ).toBe(0);
+      expect(
+        codexSession.lastTotalRecords,
+        'codex:abc123 lastTotalRecords should be reset to 0',
+      ).toBe(0);
 
-      expect(claudeSession, 'claude-code:xyz789 session should still exist in state').toBeTruthy();
-      expect(claudeSession.lastRecordIndex, 'claude-code:xyz789 lastRecordIndex should be unchanged').toBe(17);
+      expect(
+        claudeSession,
+        'claude-code:xyz789 session should still exist in state',
+      ).toBeTruthy();
+      expect(
+        claudeSession.lastRecordIndex,
+        'claude-code:xyz789 lastRecordIndex should be unchanged',
+      ).toBe(17);
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }

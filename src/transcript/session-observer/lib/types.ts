@@ -1,4 +1,17 @@
-import type { DigestEntry, JsonObject, Runtime } from '../../core/runtimes.js';
+import type {
+  AutomaticControlProvenance,
+  CursorTerminalStatus,
+  DigestEntry,
+  DigestEntryOrigin,
+  JsonObject,
+  Runtime,
+} from '../../core/runtimes.js';
+
+export type {
+  AutomaticControlProvenance,
+  CursorTerminalStatus,
+  DigestEntryOrigin,
+};
 
 export type SessionObserverRuntime = Runtime;
 export type RuntimeSelection = Runtime | 'auto';
@@ -50,6 +63,22 @@ export interface TranscriptCandidate extends EngagementCandidateFields {
   cwdEvidence?: string;
   active?: boolean;
   snippetMatch?: SnippetMatch;
+}
+
+export interface TranscriptIdentityEvidence {
+  runtime: Runtime;
+  sessionId: string;
+  transcriptPath: string;
+  recordedCwd: string | null;
+  mtime: number;
+  size: number;
+}
+
+export interface NewerSessionCandidateEvent {
+  type: 'newer-session-candidate';
+  watched: TranscriptIdentityEvidence;
+  candidate: TranscriptIdentityEvidence;
+  message: string;
 }
 
 export interface RuntimeCandidateSet {
@@ -116,6 +145,12 @@ export interface DigestRange {
   newRecords: number;
 }
 
+export interface DigestRecoveryPointer {
+  transcriptPath: string;
+  indexBase: 'zero-based-jsonl-record-index';
+  recordIndex: number;
+}
+
 export interface DigestAccounting {
   indexBase: 'zero-based-jsonl-record-index';
   raw: {
@@ -138,6 +173,9 @@ export interface DigestAccounting {
     bootstrapMessages: number;
     metadataRecords: number;
     tailSliceEntries: number;
+  };
+  recovery: {
+    omittedUserMessages: DigestRecoveryPointer[];
   };
   autoLargeDigest: {
     thresholdChars: number;
@@ -306,6 +344,8 @@ export interface WatchLoopArgs {
   maxPendingSec?: number;
   maxRuntimeMin?: number;
   heartbeatSec?: number;
+  quietEmpty?: boolean;
+  strictBaseline?: boolean;
   eventLog?: string;
   catchUpFirst?: boolean;
   suppressWatchedWarningPid?: number;
@@ -406,6 +446,33 @@ export interface ObservedRuntimeResolution {
   runtimes?: Runtime[];
   candidates?: Record<string, TranscriptCandidate[]>;
 }
+
+export type SelfIdentitySource =
+  | 'explicit-self'
+  | 'harness-environment'
+  | 'same-cwd-transcript';
+
+export interface SelfIdentity {
+  runtime: Runtime;
+  session: string;
+  transcript: string;
+  source: SelfIdentitySource;
+}
+
+export interface SelfIdentitySignal {
+  runtime: Runtime;
+  sessionId?: string;
+}
+
+export type SelfIdentityResolution =
+  | { identity: SelfIdentity }
+  | {
+      ambiguous: true;
+      runtime?: Runtime;
+      candidates: TranscriptCandidate[];
+      signals: SelfIdentitySignal[];
+    }
+  | { noMatch: true; runtime?: Runtime; candidates?: TranscriptCandidate[] };
 
 export interface DuplicateWatchTargetError extends Error {
   code?: 'DUPLICATE_WATCH_TARGET';

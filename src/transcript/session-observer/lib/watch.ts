@@ -9,19 +9,23 @@ import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 
 import { type Runtime, readRecords } from '../../core/runtimes.js';
 import { renderMarkdown } from './digest.js';
+import { findNewerSameCwdCandidates } from './locate.js';
 import { observeCatchUp } from './observe.js';
 import * as stateLib from './state.js';
-import * as watchStateLib from './watch-state.js';
 import type {
   Digest,
   DuplicateWatchTargetError,
   EngagementStatus,
   ObserveSuccess,
+  NewerSessionCandidateEvent,
   SessionObserverState,
+  TranscriptCandidate,
+  TranscriptIdentityEvidence,
   WatchLoopArgs,
   WatchLoopDeps,
   WatchLoopError,
 } from './types.js';
+import * as watchStateLib from './watch-state.js';
 
 const DEFAULT_POLL_SEC = 2;
 const DEFAULT_DEBOUNCE_SEC = 2;
@@ -48,6 +52,7 @@ interface WatchTarget {
   signature: FileSignature;
   recordCount: number;
   baselineRecordIndex: number;
+  candidateMtime: number;
   engagementStatus: EngagementStatus;
   lockedAt: string;
 }
@@ -114,7 +119,7 @@ function heartbeatMs(value: unknown): number | null {
 }
 
 function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+  return new Promise((complete) => setTimeout(complete, ms));
 }
 
 function stateDir(): string {
@@ -208,8 +213,7 @@ async function writeStdoutChunk(
   chunk: string,
 ): Promise<void> {
   const result = deps.writeStdout(chunk);
-  if (result && typeof result === 'object' && 'then' in result)
-    await result;
+  if (result && typeof result === 'object' && 'then' in result) await result;
 }
 
 function lockedTargetEvent(target: WatchTarget) {
@@ -253,6 +257,101 @@ async function emitLockedTarget(
     return;
   }
   await writeStdoutChunk(deps, lockedTargetLine(target));
+}
+
+function baselineGapEvent(
+  target: WatchTarget,
+  skippedFromIndex: number,
+  skippedToIndex: number,
+) {
+  return {
+    type: 'baseline-gap',
+    level: 'warning',
+    runtime: target.runtime,
+    sessionId: target.sessionId,
+    skippedFromIndex,
+    skippedToIndex,
+    nextIndex: target.baselineRecordIndex,
+    message: `standalone watch skipped unread range ${skippedFromIndex}-${skippedToIndex} for ${target.key}`,
+  };
+}
+
+function targetIdentityEvidence(
+  target: WatchTarget,
+): TranscriptIdentityEvidence {
+  return {
+    runtime: target.runtime,
+    sessionId: target.sessionId,
+    transcriptPath: target.transcriptPath,
+    recordedCwd: target.recordedCwd,
+    mtime: target.candidateMtime,
+    size: target.signature.size,
+  };
+}
+
+function candidateIdentityEvidence(
+  candidate: TranscriptCandidate,
+): TranscriptIdentityEvidence {
+  return {
+    runtime: candidate.runtime,
+    sessionId: candidate.sessionId,
+    transcriptPath: candidate.transcriptPath,
+    recordedCwd: candidate.recordedCwd,
+    mtime: candidate.mtime,
+    size: candidate.size,
+  };
+}
+
+function newerSessionCandidateEvent(
+  target: WatchTarget,
+  candidate: TranscriptCandidate,
+): NewerSessionCandidateEvent {
+  return {
+    type: 'newer-session-candidate',
+    watched: targetIdentityEvidence(target),
+    candidate: candidateIdentityEvidence(candidate),
+    message:
+      'A newer same-cwd transcript candidate was observed; the watcher remains pinned.',
+  };
+}
+
+async function emitNewerSessionCandidate(
+  args: WatchLoopArgs,
+  deps: ResolvedWatchDeps,
+  target: WatchTarget,
+  candidate: TranscriptCandidate,
+): Promise<void> {
+  const event = newerSessionCandidateEvent(target, candidate);
+  if (args.json) {
+    await writeStdoutChunk(deps, JSON.stringify(event) + '\n');
+  } else {
+    await writeStdoutChunk(
+      deps,
+      `[session-observer] newer-session-candidate watched=${target.key} ` +
+        `candidate=${candidate.runtime}:${candidate.sessionId} ` +
+        'watcher-remains-pinned\n',
+    );
+  }
+  await appendEventLog(args.eventLog, event);
+}
+
+async function emitBaselineGap(
+  args: WatchLoopArgs,
+  deps: ResolvedWatchDeps,
+  target: WatchTarget,
+  skippedFromIndex: number,
+  skippedToIndex: number,
+): Promise<void> {
+  const event = baselineGapEvent(target, skippedFromIndex, skippedToIndex);
+  if (args.json) {
+    await writeStdoutChunk(deps, JSON.stringify(event) + '\n');
+  } else {
+    await writeStdoutChunk(
+      deps,
+      `[session-observer] warning baseline-gap ${target.key} skippedRange=${skippedFromIndex}-${skippedToIndex}\n`,
+    );
+  }
+  await appendEventLog(args.eventLog, event);
 }
 
 async function emitWatchPosture(
@@ -372,14 +471,11 @@ async function heartbeatPayload(
   for (const target of targets.values()) {
     targetStatuses.push(await targetHeartbeatStatus(target, sessionState));
   }
-  const totalRecordsBehind = targetStatuses.reduce(
-    (sum, target) => {
-      if (target.recordsBehind === null || !Number.isFinite(target.recordsBehind))
-        return sum;
-      return sum + target.recordsBehind;
-    },
-    0,
-  );
+  const totalRecordsBehind = targetStatuses.reduce((sum, target) => {
+    if (target.recordsBehind === null || !Number.isFinite(target.recordsBehind))
+      return sum;
+    return sum + target.recordsBehind;
+  }, 0);
   const healthy = targetStatuses.every((target) => target.healthy);
   return {
     type: 'heartbeat',
@@ -393,7 +489,9 @@ async function heartbeatPayload(
   };
 }
 
-function heartbeatLine(payload: Awaited<ReturnType<typeof heartbeatPayload>>): string {
+function heartbeatLine(
+  payload: Awaited<ReturnType<typeof heartbeatPayload>>,
+): string {
   const status =
     payload.recordsBehind === 0 ? 'no new records' : 'records pending';
   return (
@@ -440,9 +538,7 @@ function isReservedEventLogSegment(segment: string): boolean {
     segment.endsWith('.tmp') ||
     segment.endsWith('.bak') ||
     segment.startsWith('watch.control.') ||
-    [...RESERVED_EVENT_LOG_NAMES].some((name) =>
-      segment.startsWith(`${name}.`),
-    )
+    [...RESERVED_EVENT_LOG_NAMES].some((name) => segment.startsWith(`${name}.`))
   );
 }
 
@@ -529,7 +625,9 @@ async function assertEventLogPathSafe(
   }
 }
 
-async function resolveEventLogPath(eventLog: unknown): Promise<string | undefined> {
+async function resolveEventLogPath(
+  eventLog: unknown,
+): Promise<string | undefined> {
   if (!eventLog) return undefined;
   const dir = resolve(stateDir());
   const eventLogPath = String(eventLog);
@@ -567,7 +665,10 @@ async function restoreConsumedBaseline(result: ObserveSuccess): Promise<void> {
   }
 }
 
-function duplicateTargetError(conflictPid: number | undefined, key: string): Error {
+function duplicateTargetError(
+  conflictPid: number | undefined,
+  key: string,
+): Error {
   return new Error(
     `watcher pid ${conflictPid} is already watching ${key}; ` +
       `stop it with watch-ctl stop --pid ${conflictPid} or pin a different --session`,
@@ -615,12 +716,25 @@ async function establishBaseline(
     signature,
     recordCount: result.digest.range.totalRecords,
     baselineRecordIndex: result.digest.range.nextIndex,
+    candidateMtime: result.candidate.mtime,
     engagementStatus:
       result.digest.engagement?.status ??
       result.candidate.engagementStatus ??
       'unknown',
     lockedAt: new Date(deps.now()).toISOString(),
   };
+  const skippedFromIndex = result.fromIndex;
+  const skippedToIndex = target.baselineRecordIndex - 1;
+  const hasStandaloneGap =
+    !args.catchUpFirst &&
+    result.sessionState !== null &&
+    skippedToIndex >= skippedFromIndex;
+  if (hasStandaloneGap && args.strictBaseline) {
+    await restoreConsumedBaseline(result);
+    throw new Error(
+      `strict baseline refused unread range ${skippedFromIndex}-${skippedToIndex} for ${key}`,
+    );
+  }
   try {
     await watchStateLib.recordWatcherTarget({ pid: eventState.pid, target });
   } catch (err) {
@@ -634,6 +748,9 @@ async function establishBaseline(
     // Best-effort metadata write; the loop still functions without it.
   }
   targets.set(key, target);
+  if (hasStandaloneGap) {
+    await emitBaselineGap(args, deps, target, skippedFromIndex, skippedToIndex);
+  }
   await emitLockedTarget(args, deps, target);
   await stateLib
     .setWatchedByPid(target.runtime, target.sessionId, eventState.pid)
@@ -748,6 +865,35 @@ async function pollTargets(
   }
 }
 
+function newerCandidateKey(candidate: TranscriptCandidate): string {
+  return `${candidate.runtime}:${candidate.sessionId}:${candidate.transcriptPath}`;
+}
+
+async function emitNewerSessionCandidates(
+  args: WatchLoopArgs & { cwd: string },
+  targets: Map<string, WatchTarget>,
+  emittedCandidates: Set<string>,
+  deps: ResolvedWatchDeps,
+): Promise<void> {
+  for (const target of targets.values()) {
+    const candidates = await findNewerSameCwdCandidates(
+      target.runtime,
+      args.cwd,
+      {
+        sessionId: target.sessionId,
+        transcriptPath: target.transcriptPath,
+        mtime: target.candidateMtime,
+      },
+    );
+    for (const candidate of candidates) {
+      const key = newerCandidateKey(candidate);
+      if (emittedCandidates.has(key)) continue;
+      await emitNewerSessionCandidate(args, deps, target, candidate);
+      emittedCandidates.add(key);
+    }
+  }
+}
+
 async function emitPending(
   entry: PendingEntry,
   args: WatchLoopArgs & { cwd: string },
@@ -767,6 +913,9 @@ async function emitPending(
 
   const newRecords = result.digest.range.newRecords ?? 0;
   if (newRecords <= 0) return false;
+  if (args.quietEmpty && result.digest.accounting.rendered.count === 0) {
+    return false;
+  }
 
   const rendered = renderMarkdown(result.digest);
   const ts = new Date(deps.now()).toISOString();
@@ -801,6 +950,9 @@ async function emitObservedDelta(
 ): Promise<boolean> {
   const newRecords = result.digest.range.newRecords ?? 0;
   if (newRecords <= 0) return false;
+  if (args.quietEmpty && result.digest.accounting.rendered.count === 0) {
+    return false;
+  }
 
   const rendered = renderMarkdown(result.digest);
   const ts = new Date(deps.now()).toISOString();
@@ -948,6 +1100,7 @@ export async function runWatchLoop(
   };
   const targets = new Map<string, WatchTarget>();
   const pending = new Map<string, PendingEntry>();
+  const emittedNewerCandidates = new Set<string>();
   const eventState: WatchEventState = {
     pid: watcherPid,
     debounceMs,
@@ -965,9 +1118,7 @@ export async function runWatchLoop(
   // as a clean shutdown instead of hitting Node's default terminate during the
   // startup window.
   const removeSignalHandlers =
-    deps.handleSignals === false
-      ? () => {}
-      : installSignalHandlers(eventState);
+    deps.handleSignals === false ? () => {} : installSignalHandlers(eventState);
 
   let active: Awaited<ReturnType<typeof watchStateLib.startWatcher>>;
   try {
@@ -1023,6 +1174,12 @@ export async function runWatchLoop(
         );
       }
       await pollTargets(targets, pending, nowMs, resolvedDeps.stat);
+      await emitNewerSessionCandidates(
+        normalizedArgs,
+        targets,
+        emittedNewerCandidates,
+        resolvedDeps,
+      );
       await applyControlDirective(
         normalizedArgs,
         pending,

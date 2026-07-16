@@ -27,7 +27,14 @@ const panelSkillPath = new URL(
   '../../plugins/consensus/skills/panel/SKILL.md',
   import.meta.url,
 );
-const bumpVersionPath = new URL('../../scripts/bump-version.mjs', import.meta.url);
+const collaborationSkillPath = new URL(
+  '../../skills/session-observer-collab/SKILL.md',
+  import.meta.url,
+);
+const bumpVersionPath = new URL(
+  '../../scripts/bump-version.mjs',
+  import.meta.url,
+);
 const skillPaths = [
   refineSkillPath,
   evaluateSkillPath,
@@ -247,9 +254,7 @@ describe('skill-frontmatter', () => {
     const block = frontmatter(markdown);
 
     const hint = field(block, 'argument-hint');
-    expect(hint, 'argument-hint should mention inline goals').toMatch(
-      /--goal/,
-    );
+    expect(hint, 'argument-hint should mention inline goals').toMatch(/--goal/);
     expect(hint, 'argument-hint should mention inline constraints').toMatch(
       /--constraints/,
     );
@@ -319,12 +324,11 @@ describe('skill-frontmatter', () => {
     }
   });
 
-  it('panel skill is included in version bump tooling', async () => {
+  it('standalone and plugin skills are included in version bump tooling', async () => {
     const script = await readFile(bumpVersionPath, 'utf8');
 
-    expect(script).toMatch(
-      /plugins\/consensus\/skills\/panel\/SKILL\.md/,
-    );
+    expect(script).toMatch(/plugins\/consensus\/skills\/panel\/SKILL\.md/);
+    expect(script).toMatch(/skills\/session-observer-collab\/SKILL\.md/);
   });
 
   it('skill instructions cover host orchestration responsibilities', async () => {
@@ -343,5 +347,36 @@ describe('skill-frontmatter', () => {
     ]) {
       expect(markdown).toMatch(new RegExp(requiredPhrase, 'i'));
     }
+  });
+
+  it('session observer collaboration skill is a public, versioned canonical skill', async () => {
+    const markdown = await readFile(collaborationSkillPath, 'utf8');
+    const block = frontmatter(markdown);
+
+    expect(field(block, 'name')).toBe('session-observer-collab');
+    expect(path.basename(path.dirname(collaborationSkillPath.pathname))).toBe(
+      'session-observer-collab',
+    );
+    expect(field(block, 'description').length > 40).toBeTruthy();
+    expect(field(block, 'license')).toBe('MIT');
+    expect(field(block, 'compatibility')).toMatch(/Agent Skills baseline/);
+    expect(field(block, 'compatibility')).toMatch(/Node\.js 22/);
+    expect(field(block, 'version')).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(metadataVersion(block)).toBe(field(block, 'version'));
+    expect(block).not.toMatch(/^\s*internal:\s*true\s*$/m);
+    expect(block).not.toMatch(/^\s{2}internal:\s*true\s*$/m);
+  });
+
+  it('session observer collaboration routes setup by the acting runtime', async () => {
+    const markdown = await readFile(collaborationSkillPath, 'utf8');
+
+    for (const runtime of ['claude-code', 'codex', 'cursor']) {
+      expect(markdown).toContain(`references/runtime-${runtime}`);
+    }
+    expect(markdown).toMatch(/acting\/self runtime established by `whoami`/i);
+    expect(markdown).toMatch(/acting Codex → peer Claude Code/i);
+    expect(markdown).toMatch(/acting Claude Code → peer Codex/i);
+    expect(markdown).not.toMatch(/Resolve the peer runtime first/i);
+    expect(markdown).not.toMatch(/\bTODO\b|\bFIXME\b|<placeholder>/i);
   });
 });

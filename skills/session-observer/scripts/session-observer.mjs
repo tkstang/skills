@@ -11,7 +11,7 @@ import {
   gitWorktrees,
   claudeCodeLookupDiagnostics
 } from './lib/locate.mjs';
-import { observeCatchUp } from './lib/observe.mjs';
+import { observeCatchUp, resolveSelfIdentity } from './lib/observe.mjs';
 import { rank } from './lib/rank.mjs';
 import * as stateLib from './lib/state.mjs';
 import * as watchStateLib from './lib/watch-state.mjs';
@@ -40,6 +40,8 @@ function parseCliArgs(argv) {
       "max-pending-sec": { type: "string", default: void 0 },
       "max-runtime-min": { type: "string", default: void 0 },
       "heartbeat-sec": { type: "string", default: void 0 },
+      "quiet-empty": { type: "boolean", default: false },
+      "strict-baseline": { type: "boolean", default: false },
       "event-log": { type: "string", default: void 0 },
       "until-stopped": { type: "boolean", default: false },
       interactive: { type: "boolean", default: false },
@@ -88,6 +90,8 @@ function parseCliArgs(argv) {
     maxPendingSec,
     maxRuntimeMin,
     heartbeatSec,
+    quietEmpty: values["quiet-empty"] ?? false,
+    strictBaseline: values["strict-baseline"] ?? false,
     eventLog: values["event-log"],
     untilStopped: values["until-stopped"] ?? false,
     interactive: values.interactive ?? false,
@@ -228,6 +232,7 @@ function printUsage() {
       "  catch-up   Incremental: only records added since the last read",
       "  catch-up-then-watch  Emit unread backlog, then keep foreground watch active",
       "  locate     Diagnostic: ranked candidate list",
+      "  whoami    Resolve this session identity (fails closed on ambiguity)",
       "  state      Manage high-water marks: get, reset, clear",
       "  watch      Foreground watcher for debounced catch-up updates",
       "  watch-ctl  Inspect or control active watch state",
@@ -261,6 +266,43 @@ function printUsage() {
   );
   process.exit(0);
 }
+async function runWhoami(args) {
+  const resolved = await resolveSelfIdentity(args.cwd);
+  if ("identity" in resolved) {
+    if (args.json) return emitJson(resolved.identity);
+    return emit(
+      `${resolved.identity.runtime}:${resolved.identity.session}
+${resolved.identity.transcript}
+source: ${resolved.identity.source}`
+    );
+  }
+  if ("ambiguous" in resolved) {
+    const payload2 = {
+      ambiguousIdentity: true,
+      runtime: resolved.runtime,
+      cwd: args.cwd,
+      signals: resolved.signals,
+      candidates: resolved.candidates
+    };
+    if (args.json) return emitJson(payload2, 3);
+    const signalLabel = resolved.runtime ?? resolved.signals.map(
+      (signal) => signal.sessionId ? `${signal.runtime}:${signal.sessionId}` : signal.runtime
+    ).join(", ");
+    return emit(
+      `Self identity is ambiguous for ${signalLabel} in ${args.cwd}:
+${renderCandidateList(resolved.candidates)}`,
+      3
+    );
+  }
+  const payload = {
+    noIdentity: true,
+    runtime: resolved.runtime,
+    cwd: args.cwd,
+    candidates: resolved.candidates ?? []
+  };
+  if (args.json) return emitJson(payload, 2);
+  return emit(`Unable to establish self identity for ${args.cwd}.`, 2);
+}
 function printWatchUsage(command = "watch") {
   process.stdout.write(
     [
@@ -274,6 +316,8 @@ function printWatchUsage(command = "watch") {
       "  --max-pending-sec <N>               Max seconds to hold continuous changes before emitting (default: 30)",
       "  --max-runtime-min <N>               Auto-exit after N minutes (0 = unlimited)",
       "  --heartbeat-sec <N>                 Quiet status heartbeat interval in seconds (default: 120; 0 = disabled)",
+      "  --quiet-empty                       Suppress deltas with no rendered messages",
+      "  --strict-baseline                   Refuse standalone watch when unread records would be skipped",
       "  --until-stopped                     Alias posture: run until explicitly stopped",
       "  --interactive                       Alias posture: foreground collaboration watch",
       "  --event-log <path>                  Metadata-only JSONL event log",
@@ -1205,6 +1249,8 @@ async function main(argv) {
       return runCatchUp(args);
     case "locate":
       return runLocate(args);
+    case "whoami":
+      return runWhoami(args);
     case "state":
       return runState(args);
     case "watch":
@@ -1214,7 +1260,7 @@ async function main(argv) {
       return runWatchCtl(args);
     default:
       return emitError(
-        args.subcommand ? `Unknown subcommand: ${args.subcommand}. Use review, catch-up, catch-up-then-watch, locate, state, watch, or watch-ctl.` : "No subcommand specified. Use review, catch-up, catch-up-then-watch, locate, state, watch, or watch-ctl.",
+        args.subcommand ? `Unknown subcommand: ${args.subcommand}. Use review, catch-up, catch-up-then-watch, locate, whoami, state, watch, or watch-ctl.` : "No subcommand specified. Use review, catch-up, catch-up-then-watch, locate, whoami, state, watch, or watch-ctl.",
         1
       );
   }

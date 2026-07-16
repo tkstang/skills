@@ -14,8 +14,23 @@ const FIXTURES = join(__dirname, 'fixtures');
 const typicalClaude = join(FIXTURES, 'claude-code', 'typical.jsonl');
 const emptyClaude = join(FIXTURES, 'claude-code', 'empty.jsonl');
 const withToolBurst = join(FIXTURES, 'claude-code', 'with-tool-burst.jsonl');
+const queuedMidTurnClaude = join(
+  FIXTURES,
+  'claude-code',
+  'queued-mid-turn.jsonl',
+);
+const queuedAttachmentOnlyClaude = join(
+  FIXTURES,
+  'claude-code',
+  'queued-attachment-only.jsonl',
+);
 const typicalCodex = join(FIXTURES, 'codex', 'typical.jsonl');
 const typicalCursor = join(FIXTURES, 'cursor', 'typical.jsonl');
+const automaticWakeFixtures = [
+  ['claude-code', join(FIXTURES, 'claude-code', 'automatic-wake.jsonl')],
+  ['codex', join(FIXTURES, 'codex', 'automatic-wake.jsonl')],
+  ['cursor', join(FIXTURES, 'cursor', 'automatic-wake.jsonl')],
+] as const;
 
 import {
   buildDigest,
@@ -28,6 +43,140 @@ import {
 // ---------------------------------------------------------------------------
 
 describe('buildDigest', () => {
+  test.each(automaticWakeFixtures)(
+    'classifies %s wake envelopes as automatic control input',
+    async (runtime, fixture) => {
+      for (const mode of ['review', 'catch-up'] as const) {
+        const digest = await buildDigest(runtime, fixture, {
+          fromIndex: 0,
+          mode,
+        });
+        const control = digest.entries.find(
+          (entry) => entry.origin === 'automatic-control',
+        );
+
+        expect(control).toMatchObject({
+          role: 'user',
+          displayRole: 'automatic-control',
+          kind: 'message',
+          origin: 'automatic-control',
+          automaticControl: {
+            automatic: true,
+            runtime: expect.any(String),
+            leaseId: expect.stringMatching(/^lease-/),
+            pinnedPeer: expect.any(Object),
+            range: {
+              fromIndex: expect.any(Number),
+              toIndex: expect.any(Number),
+            },
+          },
+        });
+        expect(renderMarkdown(digest)).toContain(
+          '### Hook/control (automatic)',
+        );
+
+        expect(digest.engagement).toMatchObject({
+          status: 'unengaged',
+          engaged: false,
+          genuineUserMessages: 0,
+          syntheticUserMessages: 1,
+          hasAssistantAndUser: false,
+        });
+
+        const json = JSON.parse(renderJson(digest));
+        expect(json.entries).toContainEqual(
+          expect.objectContaining({
+            origin: 'automatic-control',
+            displayRole: 'automatic-control',
+            automaticControl: expect.objectContaining({ automatic: true }),
+          }),
+        );
+      }
+    },
+  );
+
+  test('does not classify ordinary JSON user text as automatic control', async () => {
+    const tmpDir = await mkdtemp(join(tmpdir(), 'digest-wake-test-'));
+    try {
+      const transcriptPath = join(tmpDir, 'ordinary-json.jsonl');
+      await writeFile(
+        transcriptPath,
+        `${JSON.stringify({
+          type: 'response_item',
+          payload: {
+            type: 'message',
+            role: 'user',
+            content: [{ type: 'input_text', text: '{"automatic":true}' }],
+          },
+        })}\n`,
+      );
+
+      const digest = await buildDigest('codex', transcriptPath);
+      expect(digest.entries).toContainEqual(
+        expect.objectContaining({
+          role: 'user',
+          text: '{"automatic":true}',
+        }),
+      );
+      expect(digest.entries[0]).not.toHaveProperty('origin');
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  test('renders queued Claude input once across review and catch-up digests', async () => {
+    for (const mode of ['review', 'catch-up'] as const) {
+      const digest = await buildDigest('claude-code', queuedMidTurnClaude, {
+        fromIndex: 0,
+        mode,
+      });
+      const queuedEntries = digest.entries.filter(
+        (entry: any) => entry.displayRole === 'queued-user',
+      );
+
+      expect(queuedEntries).toHaveLength(1);
+      expect(queuedEntries[0]).toMatchObject({
+        role: 'user',
+        text: 'Yes, include the migration guide.',
+        recordIndex: 2,
+      });
+
+      const markdown = renderMarkdown(digest);
+      expect(markdown).toContain('### User (queued mid-turn)');
+      expect(
+        markdown.match(/Yes, include the migration guide\./g),
+      ).toHaveLength(1);
+
+      const json = JSON.parse(renderJson(digest));
+      expect(json.entries).toContainEqual(
+        expect.objectContaining({
+          displayRole: 'queued-user',
+          text: 'Yes, include the migration guide.',
+        }),
+      );
+    }
+  });
+
+  test('renders queued-command attachments when no enqueue record is present', async () => {
+    const digest = await buildDigest(
+      'claude-code',
+      queuedAttachmentOnlyClaude,
+      {
+        fromIndex: 0,
+        mode: 'review',
+      },
+    );
+
+    expect(digest.entries).toContainEqual(
+      expect.objectContaining({
+        role: 'user',
+        displayRole: 'queued-user',
+        text: 'Use the conservative migration path.',
+        recordIndex: 1,
+      }),
+    );
+  });
+
   test('returns correct entry count and range for fromIndex=0 (claude-code)', async () => {
     const digest = await buildDigest('claude-code', typicalClaude, {
       fromIndex: 0,
@@ -37,8 +186,14 @@ describe('buildDigest', () => {
     });
 
     expect(digest.range.fromIndex, 'fromIndex should be 0').toBe(0);
-    expect(digest.range.totalRecords > 0, 'totalRecords should be > 0').toBeTruthy();
-    expect(digest.entries.length > 0, 'entries should be non-empty').toBeTruthy();
+    expect(
+      digest.range.totalRecords > 0,
+      'totalRecords should be > 0',
+    ).toBeTruthy();
+    expect(
+      digest.entries.length > 0,
+      'entries should be non-empty',
+    ).toBeTruthy();
     expect(
       digest.entries.every((e: any) => e.kind === 'message'),
       'default filter: only message entries',
@@ -64,10 +219,9 @@ describe('buildDigest', () => {
       partial.entries.every((e: any) => e.recordIndex >= midIndex),
       'all entries should have recordIndex >= fromIndex',
     ).toBeTruthy();
-    expect(
-      partial.range.fromIndex,
-      'range.fromIndex should match',
-    ).toBe(midIndex);
+    expect(partial.range.fromIndex, 'range.fromIndex should match').toBe(
+      midIndex,
+    );
   });
 
   test('newRecords set correctly in catch-up mode', async () => {
@@ -87,7 +241,10 @@ describe('buildDigest', () => {
       typeof catchUp.range.newRecords,
       'newRecords should be a number in catch-up mode',
     ).toBe('number');
-    expect(catchUp.range.newRecords >= 0, 'newRecords should be >= 0').toBeTruthy();
+    expect(
+      catchUp.range.newRecords >= 0,
+      'newRecords should be >= 0',
+    ).toBeTruthy();
   });
 
   test('catch-up separates raw records consumed from rendered messages', async () => {
@@ -428,7 +585,9 @@ describe('buildDigest', () => {
       expect(digest.engagement.genuineUserMessages).toBe(1);
       expect(digest.engagement.bootstrapRecordCount).toBe(4);
       expect(digest.accounting.filtered.bootstrapRecords).toBe(4);
-      expect(renderedText.includes('Please inspect the actual design conversation.')).toBeTruthy();
+      expect(
+        renderedText.includes('Please inspect the actual design conversation.'),
+      ).toBeTruthy();
       expect(renderedText.includes('Actual assistant response.')).toBeTruthy();
       expect(!renderedText.includes('AGENTS.md instructions')).toBeTruthy();
       expect(!renderedText.includes('Bootstrap Title')).toBeTruthy();
@@ -470,10 +629,32 @@ describe('buildDigest', () => {
         digest.accounting.autoLargeDigest,
         'autoLargeDigest accounting should be present',
       ).toBeTruthy();
-      expect((digest.accounting.autoLargeDigest as any).retainedTurnGroups).toBe(8);
+      expect(
+        (digest.accounting.autoLargeDigest as any).retainedTurnGroups,
+      ).toBe(8);
       expect(digest.entries.length).toBe(8);
       expect(digest.entries[0].recordIndex).toBe(4);
       expect(digest.accounting.filtered.tailSliceEntries).toBe(4);
+      expect(digest.accounting.recovery.omittedUserMessages).toEqual([
+        {
+          transcriptPath,
+          indexBase: 'zero-based-jsonl-record-index',
+          recordIndex: 0,
+        },
+        {
+          transcriptPath,
+          indexBase: 'zero-based-jsonl-record-index',
+          recordIndex: 2,
+        },
+      ]);
+      expect(digest.entries[0].text).toBe(`4:${longText}`);
+      expect(renderMarkdown(digest)).toContain('User-message recovery');
+      expect(renderMarkdown(digest)).toContain(
+        `${transcriptPath} records 0, 2 (zero-based JSONL indices).`,
+      );
+      expect(JSON.parse(renderJson(digest)).accounting.recovery).toEqual(
+        digest.accounting.recovery,
+      );
       expect(
         digest.warnings.some((w: string) =>
           w.includes('Large digest fallback'),
@@ -489,7 +670,10 @@ describe('buildDigest', () => {
       fromIndex: 0,
       mode: 'review',
     });
-    expect(digest.range.totalRecords > 0, 'should parse codex fixture').toBeTruthy();
+    expect(
+      digest.range.totalRecords > 0,
+      'should parse codex fixture',
+    ).toBeTruthy();
     expect(digest.runtime).toBe('codex');
   });
 
@@ -499,12 +683,43 @@ describe('buildDigest', () => {
       mode: 'review',
     });
 
-    expect(digest.range.totalRecords > 0, 'should parse cursor fixture').toBeTruthy();
+    expect(
+      digest.range.totalRecords > 0,
+      'should parse cursor fixture',
+    ).toBeTruthy();
     expect(digest.runtime).toBe('cursor');
     expect(
       digest.entries.some((entry: any) => entry.role === 'assistant'),
       'should include assistant messages',
     ).toBeTruthy();
+  });
+
+  test('cursor digest hides an unterminated provisional tail', async () => {
+    const digest = await buildDigest(
+      'cursor',
+      join(FIXTURES, 'cursor', 'unterminated.jsonl'),
+      { fromIndex: 0, mode: 'review', includeToolCalls: true },
+    );
+
+    expect(digest.entries).toEqual([]);
+    expect(digest.range.nextIndex).toBe(3);
+  });
+
+  test('cursor recovery pointers use the buffered user source record', async () => {
+    const transcriptPath = join(FIXTURES, 'cursor', 'terminal-success.jsonl');
+    const digest = await buildDigest('cursor', transcriptPath, {
+      fromIndex: 0,
+      mode: 'review',
+      maxTurns: 1,
+    });
+
+    expect(digest.accounting.recovery.omittedUserMessages).toEqual([
+      {
+        transcriptPath,
+        indexBase: 'zero-based-jsonl-record-index',
+        recordIndex: 0,
+      },
+    ]);
   });
 });
 
@@ -520,10 +735,16 @@ describe('renderMarkdown', () => {
     });
 
     const md = renderMarkdown(digest);
-    expect(typeof md === 'string', 'renderMarkdown returns a string').toBeTruthy();
+    expect(
+      typeof md === 'string',
+      'renderMarkdown returns a string',
+    ).toBeTruthy();
 
     // Should contain ### User and ### Assistant headers
-    expect(md.includes('### User'), 'should contain ### User header').toBeTruthy();
+    expect(
+      md.includes('### User'),
+      'should contain ### User header',
+    ).toBeTruthy();
     expect(
       md.includes('### Assistant'),
       'should contain ### Assistant header',
@@ -535,10 +756,9 @@ describe('renderMarkdown', () => {
     let prevHeader: string | null = null;
     for (const line of lines) {
       if (line.startsWith('### User') || line.startsWith('### Assistant')) {
-        expect(
-          line,
-          `Consecutive duplicate header found: ${line}`,
-        ).not.toBe(prevHeader);
+        expect(line, `Consecutive duplicate header found: ${line}`).not.toBe(
+          prevHeader,
+        );
         prevHeader = line;
       }
     }
@@ -583,7 +803,10 @@ describe('renderMarkdown', () => {
 
     const md = renderMarkdown(digest);
     // Should contain fromIndex and totalRecords info
-    expect(md.includes('0'), 'header should contain fromIndex value').toBeTruthy();
+    expect(
+      md.includes('0'),
+      'header should contain fromIndex value',
+    ).toBeTruthy();
     expect(
       md.includes(String(digest.range.totalRecords)),
       'header should contain totalRecords',
@@ -716,13 +939,19 @@ describe('renderJson', () => {
       mode: 'review',
     });
     const jsonStr = renderJson(digest);
-    expect(typeof jsonStr === 'string', 'renderJson returns a string').toBeTruthy();
+    expect(
+      typeof jsonStr === 'string',
+      'renderJson returns a string',
+    ).toBeTruthy();
     let parsed: any;
     expect(() => {
       parsed = JSON.parse(jsonStr);
     }, 'output should be valid JSON').not.toThrow();
     expect(parsed.schemaVersion, 'schemaVersion should be 1').toBe(1);
-    expect(Array.isArray(parsed.entries), 'entries should be an array').toBeTruthy();
+    expect(
+      Array.isArray(parsed.entries),
+      'entries should be an array',
+    ).toBeTruthy();
     expect(parsed.runtime, 'runtime should be preserved').toBe('claude-code');
   });
 });

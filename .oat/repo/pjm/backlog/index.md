@@ -15,6 +15,7 @@
 - **v3 "for discussion" seeds (2026-06-19; resolved 2026-07-07):** **BL-260620-mid-loop-user-artifact-edits** and **BL-260620-llm-section-auto-chunking** both resolved `wont_do` and are archived. The loop contract remains artifact-edit-then-resume with `USER_INTERVENTION` direction for user edits, and deterministic markers/headings with whole-document fallback for sectioning.
 - **Skill authoring conformance + guided rubrics (shipped 2026-06-19):** consensus-rubric-guidance brought `refine` + `evaluate` to authoring best-practice parity (When NOT to Use / Examples / Success Criteria, `argument-hint`, validator-backed top-level `version` synced with `metadata.version` — DR-022, enforced by `validate.mjs` + `bump-version.mjs`), and added host-model-driven guided rubric creation plus four bundled example rubrics for `evaluate`. One ship-safe follow-up, BL-260619-add-a-test-guarding-bundled (a test guarding the bundled examples at `<=12` parser-visible criteria), is now **done** (PR #37): `extractRubricCriteria` was split to expose an uncapped `parseRubricCriteria()` + `RUBRIC_CRITERIA_CAP` (no runtime behavior change), and a Vitest guard runs the canonical parser over every bundled `evaluate` example and fails (naming file + count) if one exceeds the cap (`evaluate` 0.1.1→0.1.2).
 - **Documentation site (shipped 2026-06-21):** **BL-260620-stand-up-a-documentation-site** is closed. The Fumadocs app at `documentation/` is now the dense documentation source of truth; `README.md` is a lean entry point, and subsequent projects document into the site through `oat-project-document` rather than expanding README. Framework decision: Fumadocs (DR-025).
+- **Session-observer collaboration v2 deferrals (seeded 2026-07-13):** the v1 N=2 skill intentionally leaves four independently verifiable follow-ups open: per-observer offsets and a safe N>2 mesh (**BL-260713-per-observer-offsets-and-safe**), stronger Cursor wake surfaces (**BL-260713-stronger-cursor-collaboration**), Cursor transcript-store and dotted-slug coverage (**BL-260713-cursor-transcript-store**), and optional idle-session application integrations (**BL-260713-optional-idle-session**). These do not close or replace the existing shared-session-log substrate and direct-messaging initiatives.
 
 <!-- OAT BACKLOG-INDEX -->
 | ID | Title | Status | Priority | Scope | Estimate |
@@ -26,8 +27,12 @@
 | BL-260701-add-multi-round-panel | Add multi-round panel discussion | open | low | idea | M |
 | BL-260612-add-similarity-heuristic | Add similarity heuristic for near-converged deliberation states | open | low | feature | S |
 | BL-260612-add-whole-document | Add whole-document harmonization pass after section convergence | open | low | feature | M |
+| BL-260713-cursor-transcript-store | Cursor transcript-store and slug coverage | open | low | feature | M |
 | BL-260619-define-host-native-dispatch | Define host-native dispatch / safe-packet protocol (reserved seam) | open | low | initiative | L |
 | BL-260619-multi-peer-3-deliberation | Multi-peer (3+) deliberation extension (reserved / v3+ concern) | open | low | idea | L |
+| BL-260713-optional-idle-session | Optional idle-session application integrations | open | low | idea | M |
+| BL-260713-per-observer-offsets-and-safe | Per-observer offsets and safe N>2 collaboration mesh | open | low | initiative | L |
+| BL-260713-stronger-cursor-collaboration | Stronger Cursor collaboration wake surfaces | open | low | feature | M |
 <!-- END OAT BACKLOG-INDEX -->
 
 ## Notes

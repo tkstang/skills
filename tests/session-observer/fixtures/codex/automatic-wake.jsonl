@@ -1,0 +1,3 @@
+{"type":"session_meta","payload":{"id":"codex-auto-wake","cwd":"/tmp/project"}}
+{"type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"{\"session_observer_wake\":{\"automatic\":true,\"runtime\":\"cursor\",\"leaseId\":\"lease-codex-1\",\"pinnedPeer\":{\"runtime\":\"cursor\",\"sessionId\":\"peer-cursor\"},\"range\":{\"fromIndex\":7,\"toIndex\":9}}}"}]}}
+{"type":"response_item","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"I inspected the requested peer range."}]}}

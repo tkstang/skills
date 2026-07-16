@@ -41,9 +41,34 @@ wrong session.
 - `--out <path>` overrides the output file or directory (also accepted
   positionally).
 
-The selection modes are mutually exclusive, with precedence `--all` >
-`--session` > `--match` > default (current session). The highest-precedence flag
-present wins and the lower ones are ignored.
+Selection is evaluated with precedence `--all` > `--session` > `--match` > no
+selector. The highest-precedence flag present wins and lower-precedence flags are
+ignored. With no selector, exactly one cwd candidate is selected; multiple
+candidates exit with an ambiguity message that asks for `--match`, `--session`,
+or `--all`.
+
+## Selection and sanitization flow
+
+```mermaid
+flowchart TB
+  Start[Transcript candidates for the cwd]
+  Start --> Mode{Highest-precedence selection flag?}
+  Mode -->|--all| All[Select every session]
+  Mode -->|--session id| Session[Select the requested session]
+  Mode -->|--match marker| Marker[Look up marker in cwd candidates]
+  Mode -->|none| Default{One candidate?}
+  Marker -->|found| Selected[Selected transcript or transcripts]
+  Marker -->|not found| Fallback[Use newest-for-cwd transcript and warn]
+  Fallback --> Selected
+  All --> Selected
+  Session --> Selected
+  Default -->|yes| Selected
+  Default -->|no| Ambiguous[Stop: choose --match, --session, or --all]
+  Selected --> Structural[Structural pass: normalizeEntries]
+  Structural --> Content[Content sanitizer: sanitizeEntries]
+  Content --> Strip[Strip marker lines and empty entries]
+  Strip --> Render[Render Markdown transcript]
+```
 
 ## Sanitization
 

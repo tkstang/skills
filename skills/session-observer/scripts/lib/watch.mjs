@@ -6,6 +6,7 @@ import { homedir } from "node:os";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { readRecords } from './runtimes.mjs';
 import { renderMarkdown } from './digest.mjs';
+import { findNewerSameCwdCandidates } from './locate.mjs';
 import { observeCatchUp } from './observe.mjs';
 import * as stateLib from './state.mjs';
 import * as watchStateLib from './watch-state.mjs';
@@ -40,7 +41,7 @@ function heartbeatMs(value) {
   return Math.max(1, numeric * 1e3);
 }
 function sleep(ms) {
-  return new Promise((resolve2) => setTimeout(resolve2, ms));
+  return new Promise((complete) => setTimeout(complete, ms));
 }
 function stateDir() {
   return process.env.STATE_DIR ?? join(homedir(), ".local", "state", "session-observer");
@@ -108,8 +109,7 @@ async function writeProcessStdout(chunk) {
 }
 async function writeStdoutChunk(deps, chunk) {
   const result = deps.writeStdout(chunk);
-  if (result && typeof result === "object" && "then" in result)
-    await result;
+  if (result && typeof result === "object" && "then" in result) await result;
 }
 function lockedTargetEvent(target) {
   return {
@@ -138,6 +138,72 @@ async function emitLockedTarget(args, deps, target) {
     return;
   }
   await writeStdoutChunk(deps, lockedTargetLine(target));
+}
+function baselineGapEvent(target, skippedFromIndex, skippedToIndex) {
+  return {
+    type: "baseline-gap",
+    level: "warning",
+    runtime: target.runtime,
+    sessionId: target.sessionId,
+    skippedFromIndex,
+    skippedToIndex,
+    nextIndex: target.baselineRecordIndex,
+    message: `standalone watch skipped unread range ${skippedFromIndex}-${skippedToIndex} for ${target.key}`
+  };
+}
+function targetIdentityEvidence(target) {
+  return {
+    runtime: target.runtime,
+    sessionId: target.sessionId,
+    transcriptPath: target.transcriptPath,
+    recordedCwd: target.recordedCwd,
+    mtime: target.candidateMtime,
+    size: target.signature.size
+  };
+}
+function candidateIdentityEvidence(candidate) {
+  return {
+    runtime: candidate.runtime,
+    sessionId: candidate.sessionId,
+    transcriptPath: candidate.transcriptPath,
+    recordedCwd: candidate.recordedCwd,
+    mtime: candidate.mtime,
+    size: candidate.size
+  };
+}
+function newerSessionCandidateEvent(target, candidate) {
+  return {
+    type: "newer-session-candidate",
+    watched: targetIdentityEvidence(target),
+    candidate: candidateIdentityEvidence(candidate),
+    message: "A newer same-cwd transcript candidate was observed; the watcher remains pinned."
+  };
+}
+async function emitNewerSessionCandidate(args, deps, target, candidate) {
+  const event = newerSessionCandidateEvent(target, candidate);
+  if (args.json) {
+    await writeStdoutChunk(deps, JSON.stringify(event) + "\n");
+  } else {
+    await writeStdoutChunk(
+      deps,
+      `[session-observer] newer-session-candidate watched=${target.key} candidate=${candidate.runtime}:${candidate.sessionId} watcher-remains-pinned
+`
+    );
+  }
+  await appendEventLog(args.eventLog, event);
+}
+async function emitBaselineGap(args, deps, target, skippedFromIndex, skippedToIndex) {
+  const event = baselineGapEvent(target, skippedFromIndex, skippedToIndex);
+  if (args.json) {
+    await writeStdoutChunk(deps, JSON.stringify(event) + "\n");
+  } else {
+    await writeStdoutChunk(
+      deps,
+      `[session-observer] warning baseline-gap ${target.key} skippedRange=${skippedFromIndex}-${skippedToIndex}
+`
+    );
+  }
+  await appendEventLog(args.eventLog, event);
 }
 async function emitWatchPosture(args, deps) {
   if (args.json) return;
@@ -222,14 +288,11 @@ async function heartbeatPayload(targets, deps, eventState) {
   for (const target of targets.values()) {
     targetStatuses.push(await targetHeartbeatStatus(target, sessionState));
   }
-  const totalRecordsBehind = targetStatuses.reduce(
-    (sum, target) => {
-      if (target.recordsBehind === null || !Number.isFinite(target.recordsBehind))
-        return sum;
-      return sum + target.recordsBehind;
-    },
-    0
-  );
+  const totalRecordsBehind = targetStatuses.reduce((sum, target) => {
+    if (target.recordsBehind === null || !Number.isFinite(target.recordsBehind))
+      return sum;
+    return sum + target.recordsBehind;
+  }, 0);
   const healthy = targetStatuses.every((target) => target.healthy);
   return {
     type: "heartbeat",
@@ -270,9 +333,7 @@ function eventLogReservedError() {
   );
 }
 function isReservedEventLogSegment(segment) {
-  return RESERVED_EVENT_LOG_NAMES.has(segment) || segment.endsWith(".lock") || segment.endsWith(".tmp") || segment.endsWith(".bak") || segment.startsWith("watch.control.") || [...RESERVED_EVENT_LOG_NAMES].some(
-    (name) => segment.startsWith(`${name}.`)
-  );
+  return RESERVED_EVENT_LOG_NAMES.has(segment) || segment.endsWith(".lock") || segment.endsWith(".tmp") || segment.endsWith(".bak") || segment.startsWith("watch.control.") || [...RESERVED_EVENT_LOG_NAMES].some((name) => segment.startsWith(`${name}.`));
 }
 function eventLogSegments(dir, resolved) {
   const rel = relative(dir, resolved);
@@ -397,9 +458,19 @@ async function establishBaseline(runtime, args, targets, deps, eventState) {
     signature,
     recordCount: result.digest.range.totalRecords,
     baselineRecordIndex: result.digest.range.nextIndex,
+    candidateMtime: result.candidate.mtime,
     engagementStatus: result.digest.engagement?.status ?? result.candidate.engagementStatus ?? "unknown",
     lockedAt: new Date(deps.now()).toISOString()
   };
+  const skippedFromIndex = result.fromIndex;
+  const skippedToIndex = target.baselineRecordIndex - 1;
+  const hasStandaloneGap = !args.catchUpFirst && result.sessionState !== null && skippedToIndex >= skippedFromIndex;
+  if (hasStandaloneGap && args.strictBaseline) {
+    await restoreConsumedBaseline(result);
+    throw new Error(
+      `strict baseline refused unread range ${skippedFromIndex}-${skippedToIndex} for ${key}`
+    );
+  }
   try {
     await watchStateLib.recordWatcherTarget({ pid: eventState.pid, target });
   } catch (err) {
@@ -410,6 +481,9 @@ async function establishBaseline(runtime, args, targets, deps, eventState) {
     }
   }
   targets.set(key, target);
+  if (hasStandaloneGap) {
+    await emitBaselineGap(args, deps, target, skippedFromIndex, skippedToIndex);
+  }
   await emitLockedTarget(args, deps, target);
   await stateLib.setWatchedByPid(target.runtime, target.sessionId, eventState.pid).catch(() => false);
   if (args.catchUpFirst) {
@@ -496,6 +570,28 @@ async function pollTargets(targets, pending, nowMs, statFn) {
     });
   }
 }
+function newerCandidateKey(candidate) {
+  return `${candidate.runtime}:${candidate.sessionId}:${candidate.transcriptPath}`;
+}
+async function emitNewerSessionCandidates(args, targets, emittedCandidates, deps) {
+  for (const target of targets.values()) {
+    const candidates = await findNewerSameCwdCandidates(
+      target.runtime,
+      args.cwd,
+      {
+        sessionId: target.sessionId,
+        transcriptPath: target.transcriptPath,
+        mtime: target.candidateMtime
+      }
+    );
+    for (const candidate of candidates) {
+      const key = newerCandidateKey(candidate);
+      if (emittedCandidates.has(key)) continue;
+      await emitNewerSessionCandidate(args, deps, target, candidate);
+      emittedCandidates.add(key);
+    }
+  }
+}
 async function emitPending(entry, args, deps, eventState) {
   const result = await observeCatchUp({
     ...args,
@@ -509,6 +605,9 @@ async function emitPending(entry, args, deps, eventState) {
   }
   const newRecords = result.digest.range.newRecords ?? 0;
   if (newRecords <= 0) return false;
+  if (args.quietEmpty && result.digest.accounting.rendered.count === 0) {
+    return false;
+  }
   const rendered = renderMarkdown(result.digest);
   const ts = new Date(deps.now()).toISOString();
   const metadata = eventMetadata(ts, result.digest, rendered);
@@ -533,6 +632,9 @@ async function emitPending(entry, args, deps, eventState) {
 async function emitObservedDelta(result, args, deps, eventState) {
   const newRecords = result.digest.range.newRecords ?? 0;
   if (newRecords <= 0) return false;
+  if (args.quietEmpty && result.digest.accounting.rendered.count === 0) {
+    return false;
+  }
   const rendered = renderMarkdown(result.digest);
   const ts = new Date(deps.now()).toISOString();
   const metadata = eventMetadata(ts, result.digest, rendered);
@@ -635,6 +737,7 @@ async function runWatchLoop(args, deps = {}) {
   };
   const targets = /* @__PURE__ */ new Map();
   const pending = /* @__PURE__ */ new Map();
+  const emittedNewerCandidates = /* @__PURE__ */ new Set();
   const eventState = {
     pid: watcherPid,
     debounceMs,
@@ -696,6 +799,12 @@ async function runWatchLoop(args, deps = {}) {
         );
       }
       await pollTargets(targets, pending, nowMs, resolvedDeps.stat);
+      await emitNewerSessionCandidates(
+        normalizedArgs,
+        targets,
+        emittedNewerCandidates,
+        resolvedDeps
+      );
       await applyControlDirective(
         normalizedArgs,
         pending,

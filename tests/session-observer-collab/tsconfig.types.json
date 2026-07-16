@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": [
+    "./ambient-types.ts",
+    "../../skills/session-observer-collab/scripts/mjs-modules.d.ts"
+  ]
+}

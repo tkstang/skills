@@ -48,6 +48,60 @@ what is new since the last read. `catch-up` automatically advances the
 high-water mark on success; pass `--mark-read` if you want a `review` run to
 advance it too.
 
+## Read and offset flow
+
+```mermaid
+flowchart TD
+  S[Read request] --> R["Resolve runtime and transcript<br/>or honor an exact --session pin"]
+  R --> M{Mode}
+  M -- review --> F[Read from transcript start]
+  M -- catch-up --> U[Read from next unread offset]
+  M -- catch-up-then-watch --> U
+  M -- watch --> B{Previously unread range at startup?}
+  B -->|No| W[Poll the selected transcript]
+  B -->|"Yes, with --strict-baseline"| Q[Refuse startup and leave the offset intact]
+  B -->|"Yes, otherwise"| G["Emit baseline-gap<br/>Advance baseline without rendering backlog"]
+  G --> W
+  F --> N[Normalize records and apply output filters]
+  U --> N
+  W --> K{Watch event?}
+  K -- Settled records --> N
+  K -- Newer-session candidate --> Y[Warn and retain the exact pin]
+  Y --> W
+  K -- No event --> W
+  N --> D[Render tool-free digest]
+  D --> A{Advance offset?}
+  A -- catch-up or watch success --> O[Store next unread raw-record index]
+  A -->|"review with --mark-read"| O
+  A -->|"review without --mark-read"| Z[Leave offset unchanged]
+  O --> T{Continue in watch mode?}
+  Z --> T
+  T -- Yes --> W
+  T -- No --> X[Return digest and finish]
+```
+
+## Collaboration flags
+
+The collaboration skill composes with this CLI; it does not replace it. These
+flags are the base observer's collaboration-facing contract:
+
+| Flag or command                                  | Purpose                                                                                                                                     |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `whoami --json`                                  | Resolve and print this session's runtime, session ID, transcript path, and identity source before a peer is pinned.                         |
+| `--session <runtime>:<id>`                       | Pin every stateful read or watch to one exact peer identity.                                                                                |
+| `--quiet-empty`                                  | Consume metadata-only growth and advance the offset without printing an empty delta.                                                        |
+| `--strict-baseline`                              | Refuse a standalone watch that would skip previously unread records; use `catch-up-then-watch` when you need to consume that backlog first. |
+| `--event-log <path>`                             | Write metadata-only watch events under the observer state directory; message content remains on stdout.                                     |
+| `--include-tools` / `--include-command-messages` | Expand a digest for bounded debugging; these are opt-in and do not change the default tool-free view.                                       |
+
+Watch output can report `baseline-gap`, `newer-session-candidate`, terminal
+diagnostics, or automatic control input. A newer-session candidate is a warning,
+not permission to switch pins. A filtered or empty digest is not evidence that
+the peer was idle; inspect the raw-record accounting or run a pinned review.
+
+For the two-peer handshake, wake tiers, authority rules, and lifecycle setup,
+see [Session Observer Collaboration](session-observer-collab.md).
+
 ## Runtime resolution (`--runtime`)
 
 The skill defaults to `--runtime auto`, which resolves by host hint, prior

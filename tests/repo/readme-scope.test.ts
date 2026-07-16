@@ -67,6 +67,19 @@ describe('readme-scope', () => {
     expect(docs).toMatch(/--plugin-dir/);
   });
 
+  it('docs site carries the standalone collaboration contract', async () => {
+    const docs = await readDocsSite();
+
+    expect(docs).toMatch(/session-observer-collab/);
+    expect(docs).toMatch(/N=2/);
+    expect(docs).toMatch(/event-wake/);
+    expect(docs).toMatch(/Codex validated/);
+    expect(docs).toMatch(/Cursor documented-but-unvalidated/);
+    expect(docs).toMatch(/Claude Code Monitor unvalidated/);
+    expect(docs).toMatch(/exact pins|exact peer pin/i);
+    expect(docs).toMatch(/human authority|human direction/i);
+  });
+
   it('docs site names permissions, limitations, no telemetry, prompt injection, and advanced peer config', async () => {
     const docs = await readDocsSite();
 

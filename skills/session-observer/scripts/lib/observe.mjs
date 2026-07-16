@@ -2,13 +2,143 @@
 // Source: src/transcript/session-observer/lib/observe.ts
 import { readFile } from "node:fs/promises";
 import { buildDigest } from './digest.mjs';
-import { discover, gitWorktrees } from './locate.mjs';
+import { discover, findSessionCandidate, gitWorktrees } from './locate.mjs';
 import { rank } from './rank.mjs';
 import * as stateLib from './state.mjs';
 const VALID_RUNTIMES = ["claude-code", "codex", "cursor"];
 const VALID_RUNTIME_LABEL = VALID_RUNTIMES.join(", ");
 function isRuntime(value) {
   return typeof value === "string" && VALID_RUNTIMES.includes(value);
+}
+function parseExplicitSelf(value, sessionId) {
+  if (!value) return null;
+  const [runtime, ...sessionParts] = value.split(":");
+  if (!isRuntime(runtime)) return null;
+  return { runtime, sessionId: sessionParts.join(":") || sessionId };
+}
+function harnessIdentity(env, runtime) {
+  const signals = [
+    {
+      runtime: "claude-code",
+      sessionIds: [env.CLAUDE_CODE_SESSION_ID, env.CLAUDE_SESSION_ID],
+      runtimeIndicators: [env.CLAUDECODE, env.CLAUDE_CODE_ENTRYPOINT]
+    },
+    {
+      runtime: "codex",
+      sessionIds: [
+        env.CODEX_THREAD_ID,
+        env.CODEX_SESSION_ID,
+        env.OPENAI_CODEX_SESSION_ID
+      ],
+      runtimeIndicators: [env.CODEX_SANDBOX]
+    },
+    {
+      runtime: "cursor",
+      sessionIds: [env.CURSOR_SESSION_ID],
+      runtimeIndicators: [env.CURSOR_TRACE_ID, env.CURSOR_AGENT]
+    }
+  ];
+  const matches = signals.filter((signal) => !runtime || signal.runtime === runtime).map((signal) => ({
+    runtime: signal.runtime,
+    sessionIds: [...new Set(signal.sessionIds.filter(Boolean))],
+    hasRuntimeIndicator: signal.runtimeIndicators.some(Boolean)
+  })).filter(
+    (signal) => signal.sessionIds.length > 0 || signal.hasRuntimeIndicator
+  );
+  if (matches.length !== 1 || matches[0].sessionIds.length > 1) {
+    const identitySignals = matches.flatMap(
+      (match) => match.sessionIds.length > 0 ? match.sessionIds.map((sessionId) => ({
+        runtime: match.runtime,
+        sessionId
+      })) : [{ runtime: match.runtime }]
+    );
+    return identitySignals.length > 0 ? { ambiguous: true, signals: identitySignals } : null;
+  }
+  return {
+    runtime: matches[0].runtime,
+    sessionId: matches[0].sessionIds[0]
+  };
+}
+async function candidatesForIdentitySignals(signals, targetCwd) {
+  const candidateGroups = await Promise.all(
+    signals.map(async (signal) => {
+      if (signal.sessionId) {
+        const candidate = await findSessionCandidate(
+          signal.runtime,
+          targetCwd,
+          signal.sessionId
+        );
+        return candidate ? [candidate] : [];
+      }
+      return (await discover(signal.runtime, targetCwd)).filter(
+        (candidate) => candidate.recordedCwd === targetCwd
+      );
+    })
+  );
+  const seen = /* @__PURE__ */ new Set();
+  return candidateGroups.flat().filter((candidate) => {
+    if (seen.has(candidate.transcriptPath)) return false;
+    seen.add(candidate.transcriptPath);
+    return true;
+  });
+}
+async function resolveSelfIdentity(targetCwd, env = process.env) {
+  const explicit = parseExplicitSelf(
+    env.SESSION_OBSERVER_SELF,
+    env.SESSION_OBSERVER_SESSION_ID
+  );
+  const harness = harnessIdentity(env, explicit?.runtime);
+  if (!explicit?.sessionId && harness && "ambiguous" in harness) {
+    const signals = harness.signals;
+    const runtimes = [...new Set(signals.map((signal2) => signal2.runtime))];
+    return {
+      ambiguous: true,
+      runtime: runtimes.length === 1 ? runtimes[0] : void 0,
+      signals,
+      candidates: await candidatesForIdentitySignals(signals, targetCwd)
+    };
+  }
+  const harnessSignal = harness && !("ambiguous" in harness) ? harness : void 0;
+  const signal = explicit?.sessionId ? explicit : harnessSignal?.sessionId ? harnessSignal : explicit ?? harnessSignal;
+  if (!signal) return { noMatch: true };
+  if (signal.sessionId) {
+    const candidate = await findSessionCandidate(
+      signal.runtime,
+      targetCwd,
+      signal.sessionId
+    );
+    if (!candidate) return { noMatch: true, runtime: signal.runtime };
+    return {
+      identity: {
+        runtime: signal.runtime,
+        session: candidate.sessionId,
+        transcript: candidate.transcriptPath,
+        source: explicit?.sessionId ? "explicit-self" : "harness-environment"
+      }
+    };
+  }
+  const candidates = (await discover(signal.runtime, targetCwd)).filter(
+    (candidate) => candidate.recordedCwd === targetCwd
+  );
+  if (candidates.length === 1) {
+    return {
+      identity: {
+        runtime: signal.runtime,
+        session: candidates[0].sessionId,
+        transcript: candidates[0].transcriptPath,
+        source: "same-cwd-transcript"
+      }
+    };
+  }
+  if (candidates.length > 1) {
+    return {
+      ambiguous: true,
+      runtime: signal.runtime,
+      signals: [{ runtime: signal.runtime }],
+      candidates
+    };
+  }
+  return { noMatch: true, runtime: signal.runtime, candidates };
 }
 function parsePinnedSession(session) {
   if (!session) return null;
@@ -46,9 +176,7 @@ async function preferredRuntimeFromState(withCandidates, targetCwd) {
       new Set(r.candidates.map((c) => c.sessionId))
     ])
   );
-  const matches = Object.values(state.sessions ?? {}).filter((s) => runtimeSet.has(s.runtime)).filter((s) => s.recordedCwd === targetCwd).filter(
-    (s) => sessionIdsByRuntime.get(s.runtime)?.has(s.sessionId)
-  ).toSorted(
+  const matches = Object.values(state.sessions ?? {}).filter((s) => runtimeSet.has(s.runtime)).filter((s) => s.recordedCwd === targetCwd).filter((s) => sessionIdsByRuntime.get(s.runtime)?.has(s.sessionId)).toSorted(
     (a, b) => String(b.lastReadAt ?? "").localeCompare(String(a.lastReadAt ?? ""))
   );
   const runtimes = [...new Set(matches.map((s) => s.runtime))];
@@ -70,9 +198,7 @@ async function resolveAutoRuntime(targetCwd, { self = process.env.SESSION_OBSERV
       }
     })
   );
-  const withCandidates = results.filter(
-    (r) => r.candidates.length > 0
-  );
+  const withCandidates = results.filter((r) => r.candidates.length > 0);
   const considered = isRuntime(self) ? withCandidates.filter((r) => r.runtime !== self) : withCandidates;
   if (considered.length === 1) return { runtime: considered[0].runtime };
   if (considered.length === 0) return { noMatch: true };
@@ -389,5 +515,6 @@ export {
   observeCatchUp,
   parsePinnedSession,
   resolveAutoRuntime,
+  resolveSelfIdentity,
   shouldMarkCatchUpRead
 };

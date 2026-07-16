@@ -30,8 +30,8 @@
  */
 
 import { execFile } from 'node:child_process';
-import { readdir, stat, mkdir, readFile, writeFile } from 'node:fs/promises';
 import type { Dirent, Stats } from 'node:fs';
+import { readdir, stat, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join, basename } from 'node:path';
 import { promisify } from 'node:util';
@@ -360,7 +360,9 @@ async function collectJsonlFiles(dir: string): Promise<string[]> {
  * @param {string} targetCwd
  * @returns {Promise<object[]>} Candidate[]
  */
-async function discoverCodex(_targetCwd: string): Promise<TranscriptCandidate[]> {
+async function discoverCodex(
+  _targetCwd: string,
+): Promise<TranscriptCandidate[]> {
   const [sessionsRoot] = discoverPaths('codex');
   const now = Date.now() / 1000;
   const cutoffSec = now - LOOKBACK_DAYS * 86400;
@@ -531,7 +533,9 @@ async function cursorCandidate(
  * @param {string} targetCwd
  * @returns {Promise<object[]>} Candidate[]
  */
-async function discoverCursor(targetCwd: string): Promise<TranscriptCandidate[]> {
+async function discoverCursor(
+  targetCwd: string,
+): Promise<TranscriptCandidate[]> {
   const [projectsRoot] = discoverPaths('cursor');
   const encodedVariants = encodeCwdVariants('cursor', targetCwd);
   const now = Date.now() / 1000;
@@ -635,6 +639,44 @@ export async function discover(
   if (runtime === 'codex') return discoverCodex(targetCwd);
   if (runtime === 'cursor') return discoverCursor(targetCwd);
   throw new Error(`Unknown runtime: ${runtime}`);
+}
+
+/** Find one exact session among the same-cwd candidates for a runtime. */
+export async function findSessionCandidate(
+  runtime: Runtime,
+  targetCwd: string,
+  sessionId: string,
+): Promise<TranscriptCandidate | null> {
+  const matches = (await discover(runtime, targetCwd)).filter(
+    (candidate) =>
+      candidate.recordedCwd === targetCwd && candidate.sessionId === sessionId,
+  );
+  return matches.length === 1 ? matches[0] : null;
+}
+
+/**
+ * Return same-cwd sessions that are more recently modified than a watched pin.
+ * The watcher remains responsible for deciding whether and how to report them.
+ */
+export async function findNewerSameCwdCandidates(
+  runtime: Runtime,
+  targetCwd: string,
+  watched: Pick<TranscriptCandidate, 'sessionId' | 'transcriptPath' | 'mtime'>,
+): Promise<TranscriptCandidate[]> {
+  const candidates = await discover(runtime, targetCwd);
+  return candidates
+    .filter(
+      (candidate) =>
+        candidate.recordedCwd === targetCwd &&
+        candidate.sessionId !== watched.sessionId &&
+        candidate.transcriptPath !== watched.transcriptPath &&
+        candidate.mtime > watched.mtime,
+    )
+    .toSorted(
+      (left, right) =>
+        right.mtime - left.mtime ||
+        left.transcriptPath.localeCompare(right.transcriptPath),
+    );
 }
 
 /**

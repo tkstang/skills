@@ -16,6 +16,9 @@ export const MARKETPLACE_MANIFESTS = [
 ];
 
 export const SKILL_FILES = [
+  'skills/session-observer/SKILL.md',
+  'skills/export-session-transcript/SKILL.md',
+  'skills/session-observer-collab/SKILL.md',
   'plugins/consensus/skills/refine/SKILL.md',
   'plugins/consensus/skills/evaluate/SKILL.md',
   'plugins/consensus/skills/create/SKILL.md',

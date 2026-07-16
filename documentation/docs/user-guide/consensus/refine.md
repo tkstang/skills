@@ -32,6 +32,50 @@ node plugins/consensus/skills/refine/scripts/consensus-refine.mjs draft.md --goa
 Select how the two peers deliberate with `--iteration`. The default is
 `alternating`.
 
+### Round-flow comparison
+
+```mermaid
+flowchart TB
+  Input[Current section state]
+
+  subgraph Alternating[alternating - 1 peer call per round]
+    A1["Selected peer revises<br/>Peers alternate across rounds"] --> A2[One revised state]
+  end
+
+  subgraph ParallelRevision[parallel_revision - 2 peer calls per round]
+    PR1[Peer A revises]
+    PR2[Peer B revises]
+    PR1 --> PR3["Two revisions retained<br/>for the next round"]
+    PR2 --> PR3
+  end
+
+  subgraph ParallelSynthesized[parallel_synthesized - 2 peer calls + 1 synthesis call per round]
+    PS1[Peer A revises]
+    PS2[Peer B revises]
+    PS1 --> Synthesis[Synthesis call: merge revisions]
+    PS2 --> Synthesis
+  end
+
+  Input --> A1
+  Input --> PR1
+  Input --> PR2
+  Input --> PS1
+  Input --> PS2
+  A2 --> Resolved{Agreement reached?}
+  PR3 --> Resolved
+  Synthesis --> Resolved
+  Resolved -->|yes| Output[Converged artifact]
+  Resolved -->|no| Continue{Can another normal round run?}
+  Continue -->|yes| Input
+  Continue -->|no, parallel escalation trigger| Escalation[escalation_required]
+  Continue -->|no, other stop| Stopped[Stop with unresolved state recorded]
+  Escalation --> User[User direction: --user-direction]
+  Escalation --> Host[Host direction: --host-direction]
+  User --> Resume[Resume artifact]
+  Host --> Resume
+  Resume --> Input
+```
+
 ```bash
 # Both peers revise in parallel each round; converge on emergent agreement (2x peer calls).
 node plugins/consensus/skills/refine/scripts/consensus-refine.mjs draft.md \

@@ -34,12 +34,31 @@ const decideSkillPath = 'plugins/consensus/skills/decide/SKILL.md';
 const planSkillPath = 'plugins/consensus/skills/plan/SKILL.md';
 const panelSkillPath = 'plugins/consensus/skills/panel/SKILL.md';
 const panelDocPath = 'documentation/docs/user-guide/consensus/panel.md';
+const sessionObserverCollabDocPath =
+  'documentation/docs/user-guide/skills/session-observer-collab.md';
+const sessionObserverCollabCursorRuntimePath =
+  'skills/session-observer-collab/references/runtime-cursor.md';
 
 async function read(relativePath: string) {
   return readFile(new URL(relativePath, repoRoot), 'utf8');
 }
 
 describe('docs-presence', () => {
+  it('generated docs manifest includes every Markdown page', async () => {
+    const docsDir = new URL('documentation/docs/', repoRoot);
+    const pages = (await readdir(docsDir, { recursive: true }))
+      .filter((entry) => typeof entry === 'string' && entry.endsWith('.md'))
+      .toSorted();
+    const manifest = await read('documentation/index.md');
+
+    for (const page of pages) {
+      expect(
+        manifest,
+        `${page} should be present in documentation/index.md`,
+      ).toContain(`(${page})`);
+    }
+  });
+
   it('baseline documentation files exist', async () => {
     for (const docPath of requiredDocs) {
       const contents = await read(docPath);
@@ -380,7 +399,9 @@ describe('docs-presence', () => {
 
   it('panel docs page exists and is navigable', async () => {
     const panelDoc = await read(panelDocPath);
-    const index = await read('documentation/docs/user-guide/consensus/index.md');
+    const index = await read(
+      'documentation/docs/user-guide/consensus/index.md',
+    );
     const meta = JSON.parse(
       await read('documentation/docs/user-guide/consensus/meta.json'),
     );
@@ -393,6 +414,48 @@ describe('docs-presence', () => {
     expect(index).toMatch(/\[panel\]\(panel\.md\)/i);
     expect(index).toMatch(/side-by-side|attributed/i);
     expect(meta.pages).toContain('panel');
+  });
+
+  it('session observer collaboration docs exist and are navigable', async () => {
+    const collabDoc = await read(sessionObserverCollabDocPath);
+    const cursorRuntime = await read(sessionObserverCollabCursorRuntimePath);
+    const index = await read('documentation/docs/user-guide/skills/index.md');
+    const meta = JSON.parse(
+      await read('documentation/docs/user-guide/skills/meta.json'),
+    );
+
+    expect(collabDoc).toMatch(
+      /^title: ['"]?Session Observer Collaboration['"]?$/m,
+    );
+    expect(collabDoc).toMatch(/N=2/);
+    expect(collabDoc).toMatch(/whoami --json/);
+    expect(collabDoc).toMatch(/--quiet-empty/);
+    expect(collabDoc).toMatch(/--strict-baseline/);
+    expect(collabDoc).toMatch(/event-wake/);
+    expect(collabDoc).toMatch(/lifecycle-continuation/);
+    expect(collabDoc).toMatch(/scheduled-poll/);
+    expect(collabDoc).toMatch(/buffered-manual/);
+    expect(collabDoc).toMatch(/Codex validated/);
+    expect(collabDoc).toMatch(/Cursor documented-but-unvalidated/);
+    expect(collabDoc).toMatch(
+      /Cursor's lifecycle recipe[\s\S]*effective scheduler proof[\s\S]*otherwise use buffered manual/i,
+    );
+    expect(cursorRuntime).toMatch(
+      /scheduled poll only when effective scheduler proof exists;[\s\S]*otherwise use buffered manual/i,
+    );
+    expect(cursorRuntime).not.toMatch(
+      /scheduled polling is the\s+interim floor/i,
+    );
+    expect(collabDoc).toMatch(/Claude Code Monitor unvalidated/);
+    expect(collabDoc).toMatch(/authority/i);
+    expect(collabDoc).toMatch(/## Closeout/);
+    expect(collabDoc).toMatch(/runtime-claude-code\.md/);
+    expect(collabDoc).toMatch(/runtime-codex\.md/);
+    expect(collabDoc).toMatch(/runtime-cursor\.md/);
+    expect(index).toMatch(
+      /\[Session Observer Collaboration\]\(session-observer-collab\.md\)/,
+    );
+    expect(meta.pages).toContain('session-observer-collab');
   });
 
   it('configuration docs cover panel defaults, paths, and precedence', async () => {

@@ -21,7 +21,8 @@ import {
   readFile,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { expect, test } from 'vitest';
 
@@ -48,8 +49,17 @@ async function withTempHome(fn: (dir: string) => Promise<void>): Promise<void> {
 
 import {
   discover,
+  findSessionCandidate,
   gitWorktrees,
 } from '../../src/transcript/session-observer/lib/locate.js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const FIXTURES = join(__dirname, 'fixtures');
+const automaticWakeFixtures = [
+  ['claude-code', join(FIXTURES, 'claude-code', 'automatic-wake.jsonl')],
+  ['codex', join(FIXTURES, 'codex', 'automatic-wake.jsonl')],
+  ['cursor', join(FIXTURES, 'cursor', 'automatic-wake.jsonl')],
+] as const;
 
 // ---------------------------------------------------------------------------
 // Fixture helpers
@@ -86,6 +96,68 @@ function encodeCursorCwd(cwd: string): string {
 // Tests
 // ---------------------------------------------------------------------------
 
+test.each(automaticWakeFixtures)(
+  'automatic %s wakes are not treated as engaged candidates',
+  async (runtime, fixturePath) => {
+    await withTempHome(async (home) => {
+      const fixture = await readFile(fixturePath, 'utf8');
+      const targetCwd = join(home, 'Code', 'automatic-wake-project');
+      let transcriptPath: string;
+
+      if (runtime === 'claude-code') {
+        transcriptPath = join(
+          home,
+          '.claude',
+          'projects',
+          encodeCwd(targetCwd),
+          'automatic-wake.jsonl',
+        );
+      } else if (runtime === 'codex') {
+        const now = new Date();
+        transcriptPath = join(
+          home,
+          '.codex',
+          'sessions',
+          String(now.getFullYear()),
+          String(now.getMonth() + 1).padStart(2, '0'),
+          String(now.getDate()).padStart(2, '0'),
+          'automatic-wake.jsonl',
+        );
+      } else {
+        transcriptPath = join(
+          home,
+          '.cursor',
+          'projects',
+          encodeCursorCwd(targetCwd),
+          'agent-transcripts',
+          'automatic-wake',
+          'transcript.jsonl',
+        );
+      }
+
+      await mkdir(dirname(transcriptPath), { recursive: true });
+      await writeFile(transcriptPath, fixture, 'utf8');
+
+      const candidates = await discover(runtime, targetCwd);
+      const candidate = candidates.find(
+        (entry: any) => entry.transcriptPath === transcriptPath,
+      );
+
+      expect(candidate).toMatchObject({
+        engagementStatus: 'unengaged',
+        engaged: false,
+        genuineUserMessages: 0,
+        hasAssistantAndUser: false,
+        engagement: expect.objectContaining({
+          status: 'unengaged',
+          genuineUserMessages: 0,
+          syntheticUserMessages: 1,
+        }),
+      });
+    });
+  },
+);
+
 test('claude-code: discover returns one candidate with correct sessionId and recordedCwd', async () => {
   await withTempHome(async (home) => {
     const targetCwd = join(home, 'Code', 'my-project');
@@ -109,7 +181,10 @@ test('claude-code: discover returns one candidate with correct sessionId and rec
       c.recordedCwd,
       'recordedCwd must be the exact targetCwd for direct-lookup candidates',
     ).toBe(targetCwd);
-    expect(c.mtime > 0, 'mtime should be a positive epoch-seconds value').toBeTruthy();
+    expect(
+      c.mtime > 0,
+      'mtime should be a positive epoch-seconds value',
+    ).toBeTruthy();
     expect(
       typeof c.size === 'number' && c.size >= 0,
       'size should be a number',
@@ -118,6 +193,46 @@ test('claude-code: discover returns one candidate with correct sessionId and rec
       typeof c.ageSec === 'number' && c.ageSec >= 0,
       'ageSec should be a non-negative number',
     ).toBeTruthy();
+  });
+});
+
+test('findSessionCandidate returns only an exact same-cwd session match', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'identity-project');
+    const projectDir = join(home, '.claude', 'projects', encodeCwd(targetCwd));
+    await mkdir(projectDir, { recursive: true });
+    await writeFile(join(projectDir, 'one.jsonl'), CLAUDE_CODE_TYPICAL, 'utf8');
+    expect(
+      await findSessionCandidate('claude-code', targetCwd, 'cc-session-001'),
+    ).toMatchObject({
+      runtime: 'claude-code',
+      sessionId: 'cc-session-001',
+      recordedCwd: targetCwd,
+    });
+    expect(
+      await findSessionCandidate('claude-code', targetCwd, 'missing'),
+    ).toBeNull();
+  });
+});
+
+test('findSessionCandidate rejects a matching alias from another cwd', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'identity-project');
+    const otherCwd = join(home, 'Code', 'other-project');
+    const transcriptPath = join(
+      home,
+      '.codex',
+      'sessions',
+      '2026',
+      '07',
+      'identity-other.jsonl',
+    );
+    await mkdir(dirname(transcriptPath), { recursive: true });
+    await writeFile(transcriptPath, makeCodexTypical(otherCwd), 'utf8');
+
+    expect(
+      await findSessionCandidate('codex', targetCwd, 'codex-sess-001'),
+    ).toBeNull();
   });
 });
 
@@ -163,7 +278,10 @@ test('claude-code: direct lookup uses dot-sanitized project dir slug', async () 
       (candidate: any) => candidate.transcriptPath === transcriptPath,
     );
 
-    expect(c, 'should find the transcript via dot-sanitized direct lookup').toBeTruthy();
+    expect(
+      c,
+      'should find the transcript via dot-sanitized direct lookup',
+    ).toBeTruthy();
     expect(c.recordedCwd).toBe(targetCwd);
     expect(c.cwdSlug).toBe(encoded);
     expect(c.cwdEvidence).toBe('direct-parent-dir');
@@ -185,7 +303,10 @@ test('claude-code: fallback candidates preserve parent cwdSlug as weak evidence'
       (candidate: any) => candidate.transcriptPath === transcriptPath,
     );
 
-    expect(c, 'fallback scan should include non-direct project dirs').toBeTruthy();
+    expect(
+      c,
+      'fallback scan should include non-direct project dirs',
+    ).toBeTruthy();
     expect(c.cwdSlug).toBe(otherSlug);
     expect(c.cwdEvidence).toBe('decoded-parent-dir');
     expect(c.recordedCwd).not.toBe(targetCwd);
@@ -208,13 +329,17 @@ test('codex: discover returns candidate with cwd from session-meta record', asyn
 
     const candidates = await discover('codex', targetCwd);
 
-    expect(candidates.length >= 1, 'should find at least one candidate').toBeTruthy();
-    const c: any = candidates.find((x: any) => x.sessionId === 'codex-sess-001');
-    expect(c, 'should find the session by id').toBeTruthy();
     expect(
-      c.recordedCwd,
-      'recordedCwd should match session-meta cwd',
-    ).toBe(targetCwd);
+      candidates.length >= 1,
+      'should find at least one candidate',
+    ).toBeTruthy();
+    const c: any = candidates.find(
+      (x: any) => x.sessionId === 'codex-sess-001',
+    );
+    expect(c, 'should find the session by id').toBeTruthy();
+    expect(c.recordedCwd, 'recordedCwd should match session-meta cwd').toBe(
+      targetCwd,
+    );
     expect(c.runtime).toBe('codex');
   });
 });

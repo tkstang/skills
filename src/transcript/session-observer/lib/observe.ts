@@ -9,7 +9,7 @@ import { readFile } from 'node:fs/promises';
 
 import type { Runtime } from '../../core/runtimes.js';
 import { buildDigest } from './digest.js';
-import { discover, gitWorktrees } from './locate.js';
+import { discover, findSessionCandidate, gitWorktrees } from './locate.js';
 import { rank } from './rank.js';
 import * as stateLib from './state.js';
 import type {
@@ -25,6 +25,8 @@ import type {
   PinnedSessionParseResult,
   RankTier,
   RuntimeCandidateSet,
+  SelfIdentityResolution,
+  SelfIdentitySignal,
   SessionStateEntry,
   TranscriptCandidate,
 } from './types.js';
@@ -32,13 +34,183 @@ import type {
 export const VALID_RUNTIMES: Runtime[] = ['claude-code', 'codex', 'cursor'];
 export const VALID_RUNTIME_LABEL = VALID_RUNTIMES.join(', ');
 
+type IdentitySignal = SelfIdentitySignal;
+type HarnessIdentityResolution =
+  | IdentitySignal
+  | { ambiguous: true; signals: IdentitySignal[] }
+  | null;
+
 function isRuntime(value: unknown): value is Runtime {
   return typeof value === 'string' && VALID_RUNTIMES.includes(value as Runtime);
 }
 
-export function parsePinnedSession(
-  session?: string,
-): PinnedSessionParseResult {
+function parseExplicitSelf(
+  value?: string,
+  sessionId?: string,
+): IdentitySignal | null {
+  if (!value) return null;
+  const [runtime, ...sessionParts] = value.split(':');
+  if (!isRuntime(runtime)) return null;
+  return { runtime, sessionId: sessionParts.join(':') || sessionId };
+}
+
+function harnessIdentity(
+  env: NodeJS.ProcessEnv,
+  runtime?: Runtime,
+): HarnessIdentityResolution {
+  const signals: Array<{
+    runtime: Runtime;
+    sessionIds: Array<string | undefined>;
+    runtimeIndicators: Array<string | undefined>;
+  }> = [
+    {
+      runtime: 'claude-code',
+      sessionIds: [env.CLAUDE_CODE_SESSION_ID, env.CLAUDE_SESSION_ID],
+      runtimeIndicators: [env.CLAUDECODE, env.CLAUDE_CODE_ENTRYPOINT],
+    },
+    {
+      runtime: 'codex',
+      sessionIds: [
+        env.CODEX_THREAD_ID,
+        env.CODEX_SESSION_ID,
+        env.OPENAI_CODEX_SESSION_ID,
+      ],
+      runtimeIndicators: [env.CODEX_SANDBOX],
+    },
+    {
+      runtime: 'cursor',
+      sessionIds: [env.CURSOR_SESSION_ID],
+      runtimeIndicators: [env.CURSOR_TRACE_ID, env.CURSOR_AGENT],
+    },
+  ];
+  const matches = signals
+    .filter((signal) => !runtime || signal.runtime === runtime)
+    .map((signal) => ({
+      runtime: signal.runtime,
+      sessionIds: [...new Set(signal.sessionIds.filter(Boolean))] as string[],
+      hasRuntimeIndicator: signal.runtimeIndicators.some(Boolean),
+    }))
+    .filter(
+      (signal) => signal.sessionIds.length > 0 || signal.hasRuntimeIndicator,
+    );
+
+  if (matches.length !== 1 || matches[0].sessionIds.length > 1) {
+    const identitySignals = matches.flatMap((match) =>
+      match.sessionIds.length > 0
+        ? match.sessionIds.map((sessionId) => ({
+            runtime: match.runtime,
+            sessionId,
+          }))
+        : [{ runtime: match.runtime }],
+    );
+    return identitySignals.length > 0
+      ? { ambiguous: true, signals: identitySignals }
+      : null;
+  }
+  return {
+    runtime: matches[0].runtime,
+    sessionId: matches[0].sessionIds[0],
+  };
+}
+
+async function candidatesForIdentitySignals(
+  signals: IdentitySignal[],
+  targetCwd: string,
+): Promise<TranscriptCandidate[]> {
+  const candidateGroups = await Promise.all(
+    signals.map(async (signal) => {
+      if (signal.sessionId) {
+        const candidate = await findSessionCandidate(
+          signal.runtime,
+          targetCwd,
+          signal.sessionId,
+        );
+        return candidate ? [candidate] : [];
+      }
+      return (await discover(signal.runtime, targetCwd)).filter(
+        (candidate) => candidate.recordedCwd === targetCwd,
+      );
+    }),
+  );
+  const seen = new Set<string>();
+  return candidateGroups.flat().filter((candidate) => {
+    if (seen.has(candidate.transcriptPath)) return false;
+    seen.add(candidate.transcriptPath);
+    return true;
+  });
+}
+
+export async function resolveSelfIdentity(
+  targetCwd: string,
+  env: NodeJS.ProcessEnv = process.env,
+): Promise<SelfIdentityResolution> {
+  const explicit = parseExplicitSelf(
+    env.SESSION_OBSERVER_SELF,
+    env.SESSION_OBSERVER_SESSION_ID,
+  );
+  const harness = harnessIdentity(env, explicit?.runtime);
+  if (!explicit?.sessionId && harness && 'ambiguous' in harness) {
+    const signals = harness.signals;
+    const runtimes = [...new Set(signals.map((signal) => signal.runtime))];
+    return {
+      ambiguous: true,
+      runtime: runtimes.length === 1 ? runtimes[0] : undefined,
+      signals,
+      candidates: await candidatesForIdentitySignals(signals, targetCwd),
+    };
+  }
+  const harnessSignal =
+    harness && !('ambiguous' in harness) ? harness : undefined;
+  const signal = explicit?.sessionId
+    ? explicit
+    : harnessSignal?.sessionId
+      ? harnessSignal
+      : (explicit ?? harnessSignal);
+
+  if (!signal) return { noMatch: true };
+
+  if (signal.sessionId) {
+    const candidate = await findSessionCandidate(
+      signal.runtime,
+      targetCwd,
+      signal.sessionId,
+    );
+    if (!candidate) return { noMatch: true, runtime: signal.runtime };
+    return {
+      identity: {
+        runtime: signal.runtime,
+        session: candidate.sessionId,
+        transcript: candidate.transcriptPath,
+        source: explicit?.sessionId ? 'explicit-self' : 'harness-environment',
+      },
+    };
+  }
+
+  const candidates = (await discover(signal.runtime, targetCwd)).filter(
+    (candidate) => candidate.recordedCwd === targetCwd,
+  );
+  if (candidates.length === 1) {
+    return {
+      identity: {
+        runtime: signal.runtime,
+        session: candidates[0].sessionId,
+        transcript: candidates[0].transcriptPath,
+        source: 'same-cwd-transcript',
+      },
+    };
+  }
+  if (candidates.length > 1) {
+    return {
+      ambiguous: true,
+      runtime: signal.runtime,
+      signals: [{ runtime: signal.runtime }],
+      candidates,
+    };
+  }
+  return { noMatch: true, runtime: signal.runtime, candidates };
+}
+
+export function parsePinnedSession(session?: string): PinnedSessionParseResult {
   if (!session) return null;
   const colonIndex = session.indexOf(':');
   if (colonIndex === -1) {
@@ -91,9 +263,7 @@ async function preferredRuntimeFromState(
   const matches = Object.values(state.sessions ?? {})
     .filter((s) => runtimeSet.has(s.runtime))
     .filter((s) => s.recordedCwd === targetCwd)
-    .filter((s) =>
-      sessionIdsByRuntime.get(s.runtime)?.has(s.sessionId),
-    )
+    .filter((s) => sessionIdsByRuntime.get(s.runtime)?.has(s.sessionId))
     .toSorted((a, b) =>
       String(b.lastReadAt ?? '').localeCompare(String(a.lastReadAt ?? '')),
     );
@@ -122,9 +292,7 @@ export async function resolveAutoRuntime(
     }),
   );
 
-  const withCandidates = results.filter(
-    (r) => r.candidates.length > 0,
-  );
+  const withCandidates = results.filter((r) => r.candidates.length > 0);
   const considered = isRuntime(self)
     ? withCandidates.filter((r) => r.runtime !== self)
     : withCandidates;
@@ -147,7 +315,10 @@ export async function resolveAutoRuntime(
 export async function applySnippetFilter(
   candidates: TranscriptCandidate[],
   snippet?: string,
-): Promise<{ candidates: TranscriptCandidate[]; matches: TranscriptCandidate[] }> {
+): Promise<{
+  candidates: TranscriptCandidate[];
+  matches: TranscriptCandidate[];
+}> {
   if (!snippet) return { candidates, matches: [] };
   const needle = snippet.toLowerCase();
   const matches: TranscriptCandidate[] = [];
@@ -355,7 +526,9 @@ async function observePinnedSession(
  * @param {object} args CLI-like options.
  * @returns {Promise<object>}
  */
-export async function observeCatchUp(args: ObserveArgs): Promise<ObserveOutcome> {
+export async function observeCatchUp(
+  args: ObserveArgs,
+): Promise<ObserveOutcome> {
   const { cwd, session, snippet } = args;
   let { runtime } = args;
   const pinnedSession = parsePinnedSession(session);
@@ -384,7 +557,7 @@ export async function observeCatchUp(args: ObserveArgs): Promise<ObserveOutcome>
           message:
             'Candidates found in multiple runtimes. Use --runtime to specify.',
         },
-          `Ambiguous runtime: candidates found in both ${resolved.runtimes?.join(', ')}. ` +
+        `Ambiguous runtime: candidates found in both ${resolved.runtimes?.join(', ')}. ` +
           `Specify --runtime <runtime>.`,
       );
     }

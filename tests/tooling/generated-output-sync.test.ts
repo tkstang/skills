@@ -101,9 +101,7 @@ describe('generated output drift guard', () => {
     );
 
     expect(script).toContain('src/consensus/core/consensus-loop.ts');
-    expect(script).toContain(
-      'plugins/consensus/scripts/consensus-loop.mjs',
-    );
+    expect(script).toContain('plugins/consensus/scripts/consensus-loop.mjs');
     expect(script).toContain('src/consensus/refine/consensus-refine.ts');
     expect(script).toContain(
       'plugins/consensus/skills/refine/scripts/consensus-refine.mjs',
@@ -369,8 +367,10 @@ describe('generated output drift guard', () => {
     expect(digest).toContain("from './session-classifier.mjs'");
     expect(digest).not.toContain("from '../../core/runtimes.js'");
     expect(watch).toContain("from './runtimes.mjs'");
+    expect(watch).toContain("from './locate.mjs'");
     expect(watch).toContain("from './observe.mjs'");
     expect(watch).not.toContain("from '../../core/runtimes.js'");
+    expect(watch).not.toContain("from './locate.js'");
   });
 
   it('generates a shipped consensus provider CLI entrypoint', async () => {
