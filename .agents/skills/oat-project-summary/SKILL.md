@@ -1,6 +1,6 @@
 ---
 name: oat-project-summary
-version: 1.2.0
+version: 1.3.2
 description: Use when the user requests or confirms summarizing an active OAT project — e.g. "summarize the project", "generate the summary", "run oat-project-summary", or confirms a previously offered summary run. Do NOT auto-invoke when implementation completes. Generates summary.md from project artifacts as institutional memory.
 disable-model-invocation: false
 user-invocable: true
@@ -71,6 +71,13 @@ If you catch yourself:
 2. Return to summary generation
 3. Keep content grounded in artifacts
 
+## Artifact Hygiene
+
+Artifact hygiene contract: Before finishing or committing, format every file you created or edited. Use the concrete write/fix formatting command supplied by the governing plan, task, or brief. If none is usable, discover the repository's documented write/fix command from applicable `AGENTS.md`/`CLAUDE.md` instructions and relevant package manifests; do not infer or hardcode a formatter. Prefer a file-scoped invocation when supported, and avoid rewriting unrelated files. If no command is discoverable, warn once with `no format command discovered in repo instructions; skipping`, then continue.
+
+After formatting, run only repository checks relevant to the files changed;
+writing prose artifacts does not imply unrelated full test suites.
+
 ## Process
 
 ### Step 0: Resolve Active Project
@@ -115,8 +122,13 @@ Read all available artifacts for synthesis:
 - `"$PROJECT_PATH/plan.md"` — phases, tasks, reviews, deferred items
 - `"$PROJECT_PATH/implementation.md"` — task outcomes, deviations, challenges, review notes
 - `"$PROJECT_PATH/state.md"` — associated issues, workflow mode
+- `"$PROJECT_PATH/oat-execution-learnings.md"` — optional append-only
+  autonomous-run observations and recommendations
 
 **Priority for content:** Implementation.md outcomes take precedence over design.md plans. Summary should reflect what actually happened, not what was planned.
+
+If `oat-execution-learnings.md` is absent, do not infer autonomous learnings
+from other artifacts and do not add an Autonomous Execution Learnings section.
 
 ### Step 3: Check for Existing Summary
 
@@ -140,9 +152,15 @@ test -f "$PROJECT_PATH/summary.md"
    ```
 
 3. Determine update scope:
-   - If `oat_summary_last_task == current_last_task` AND `oat_summary_revision_count == current_rev_count`: **No changes detected. Skip update.** Report: "Summary is current. No updates needed."
+   - If `oat-execution-learnings.md` exists, compare its dated entry
+     identifiers (timestamp, category, and title) with the source pointers in
+     the existing `## Autonomous Execution Learnings` section. Treat missing,
+     added, or changed recommendations as `learnings_changed`.
+   - If `oat_summary_last_task == current_last_task` AND `oat_summary_revision_count == current_rev_count` AND learnings are absent or unchanged: **No changes detected. Skip update.** Report: "Summary is current. No updates needed."
    - If `current_rev_count > oat_summary_revision_count`: New revision phases exist. Update: Revision History, What Was Implemented, Follow-up Items.
    - If `current_last_task > oat_summary_last_task`: New tasks completed. Update: What Was Implemented, Notable Challenges, Tradeoffs Made.
+   - If `learnings_changed`: update Autonomous Execution Learnings even when
+     task and revision tracking fields are unchanged.
 
 **If does not exist (first run):**
 
@@ -164,18 +182,57 @@ For each section, synthesize content from the relevant artifacts. Apply these ru
 
 **Section sources:**
 
-| Section              | Primary Sources                                                        |
-| -------------------- | ---------------------------------------------------------------------- |
-| Overview             | discovery.md initial request, spec.md problem statement                |
-| What Was Implemented | implementation.md task outcomes, plan.md phase structure               |
-| Key Decisions        | design.md decisions, implementation.md notes/decisions                 |
-| Design Deltas        | implementation.md deviations table; review-received design drift notes |
-| Notable Challenges   | implementation.md issues/blockers in task notes                        |
-| Tradeoffs Made       | implementation.md decisions, design.md tradeoff sections               |
-| Integration Notes    | implementation.md notes about cross-cutting concerns                   |
-| Revision History     | plan.md p-revN phases, implementation.md revision notes                |
-| Follow-up Items      | implementation.md deferred findings, plan.md deferred items            |
-| Associated Issues    | state.md `associated_issues` field                                     |
+| Section                        | Primary Sources                                                        |
+| ------------------------------ | ---------------------------------------------------------------------- |
+| Overview                       | discovery.md initial request, spec.md problem statement                |
+| What Was Implemented           | implementation.md task outcomes, plan.md phase structure               |
+| Key Decisions                  | design.md decisions, implementation.md notes/decisions                 |
+| Design Deltas                  | implementation.md deviations table; review-received design drift notes |
+| Notable Challenges             | implementation.md issues/blockers in task notes                        |
+| Tradeoffs Made                 | implementation.md decisions, design.md tradeoff sections               |
+| Integration Notes              | implementation.md notes about cross-cutting concerns                   |
+| Revision History               | plan.md p-revN phases, implementation.md revision notes                |
+| Follow-up Items                | implementation.md deferred findings, plan.md deferred items            |
+| Associated Issues              | state.md `associated_issues` field                                     |
+| Autonomous Execution Learnings | oat-execution-learnings.md dated entries                               |
+
+**Autonomous Execution Learnings (conditional):**
+
+When `"$PROJECT_PATH/oat-execution-learnings.md"` exists, synthesize
+`## Autonomous Execution Learnings` as actionable recommendations grouped
+under exactly these categories:
+
+- **Agent-instruction updates** — durable skill, agent-rule, or instruction
+  changes;
+- **Cloud-environment improvements** — image, setup, credentials,
+  provisioning, tool-availability, or environment-readiness changes;
+- **Code follow-ups** — concrete product or toolkit code changes not completed
+  by this project;
+- **Workflow issues** — lifecycle, gate, review, dispatch, or orchestration
+  process changes.
+
+For each source entry:
+
+1. Use its `Observation`, `Impact`, and `Recommendation` fields to decide
+   whether it contains an actionable recommendation. Do not copy raw run notes
+   that have no durable action.
+2. Place each recommendation in the single best-fit category above. The source
+   taxonomy (`gotcha`, `efficiency`, `documentation-gap`,
+   `candidate-skill-content`, `decision`, `environment-limited`) is evidence,
+   not a one-to-one output mapping.
+3. Write a concise action plus one-line rationale. Preserve uncertainty and
+   environment-limited status; do not claim an unverified fix.
+4. End the item with a relative link to `oat-execution-learnings.md` and the
+   exact source entry identifier (`timestamp — category — title`). Link to the
+   entry heading anchor when one exists; otherwise link to the file and include
+   the identifier in the link text so the entry remains traceable.
+5. Deduplicate recommendations that describe the same action, while retaining
+   pointers to every supporting source entry.
+
+Omit empty category subheadings. If the learnings file contains no actionable
+entries, omit the entire section. If the file is absent, this behavior is inert:
+remove the template placeholder during a first render and make no
+learnings-driven update on a re-run.
 
 **For incremental updates (re-run):**
 
@@ -223,7 +280,12 @@ test -f .oat/repo/reference/decisions/index.md || oat decision init
 
 **6.4 — Idempotent, date-independent promotion (critical).** For each decision in `## Key Decisions`:
 
-1. **Derive title + rationale.** The decision's bold lead-in / first clause becomes the **title** (a short noun phrase). The remaining explanatory text becomes the **rationale**, passed verbatim as `--context`.
+1. **Derive title + complete sections.** Ground every value in the Key Decision and its project artifacts:
+   - The bold lead-in / first clause becomes the **title** (a short noun phrase).
+   - The problem, constraint, or motivating rationale becomes **context**.
+   - The choice that was made becomes the **decision**.
+   - The resulting tradeoffs, follow-on effects, or operational implications become **consequences**.
+     Each section must contain concrete grounded prose; do not pass placeholder content.
 2. **Compute the slug the CLI would use.** The CLI generates the record ID as `DR-<YYMMDD>-<slug>`, where `<slug>` is the lowercased, ASCII-folded, hyphen-collapsed form of the title, capped at 30 characters at the last whole-word boundary with trailing stop-words (`a, an, the, of, for, and, to, in, on, as, with`) trimmed (the same slug rule the CLI applies). Compute that `<slug>` for the title.
 3. **Dedup on the exact slug, ignoring only the date prefix.** A record ID is `DR-<YYMMDD>-<slug>`, where the date is exactly six digits. Check whether a record for this slug already exists by stripping that fixed `DR-<6 digits>-` prefix from existing record IDs and comparing the remaining slug for **exact equality**. Anchor the date to exactly six characters so the slug must match in full:
 
@@ -239,10 +301,10 @@ test -f .oat/repo/reference/decisions/index.md || oat decision init
    - Otherwise → create it:
 
      ```bash
-     oat decision new "<title>" --status accepted --context "<rationale>"
+     oat decision new "<title>" --status accepted --context "<context>" --decision "<decision>" --consequences "<consequences>"
      ```
 
-     The command generates the deterministic `DR-YYMMDD-slug` ID, seeds the body from `.oat/templates/decision.md`, and regenerates the managed index automatically — do not hand-edit `index.md`. Optionally pass `--created-at "<project completion date>"` when a project completion date is available, so the record's date reflects when the decision was made.
+     The command generates the deterministic `DR-YYMMDD-slug` ID, fills every decision body section, and regenerates the managed index automatically — do not hand-edit `index.md`. Optionally pass `--created-at "<project completion date>"` when a project completion date is available, so the record's date reflects when the decision was made.
 
 Because of the date-independent slug dedup, this step is **safe to run every time `summary.md` is (re)generated** — including the pr-final refresh and revision re-runs — without ever creating duplicate decision records. Already-promoted decisions are skipped; only genuinely new Key Decisions become new records.
 
@@ -295,5 +357,10 @@ Summary tracks: last task {task_id}, {N} revision phases
 - Summary is under 200 lines for typical projects
 - Re-run after revisions updates only affected sections
 - Re-run with no changes produces no modifications
+- When `oat-execution-learnings.md` exists, actionable recommendations are
+  grouped under Agent-instruction updates, Cloud-environment improvements, Code
+  follow-ups, and Workflow issues with source-entry pointers
+- When `oat-execution-learnings.md` is absent, no Autonomous Execution
+  Learnings section is rendered and normal summary behavior is unchanged
 - When the PJM tool pack is installed, each Key Decision is promoted to a canonical `reference/decisions/DR-YYMMDD-slug` record via `oat decision new` (status `accepted`), deduped on the date-independent slug so re-runs never create duplicate records
 - When the PJM tool pack is not installed, decision promotion is skipped silently with no prompt

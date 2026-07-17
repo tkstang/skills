@@ -1,6 +1,6 @@
 ---
 name: oat-dispatch-subagents
-version: 1.0.0
+version: 1.1.3
 description: Use when an OAT skill or workflow needs provider-neutral selection, launch, recovery, or evidence for bounded subagent work without project lifecycle policy.
 disable-model-invocation: true
 user-invocable: false
@@ -75,6 +75,7 @@ Require the caller to provide:
 - expected output and verification evidence;
 - authority, deadline, escalation conditions, and retry limit;
 - fallback policy and authorization scope;
+- route-selection source for any non-native route;
 - optional resolved dispatch policy or named ceiling.
 
 Reject an over-broad request before selection. Every nontrivial request must
@@ -100,12 +101,42 @@ or run expensive work inline merely because one approval question is needed.
 The caller owns the user interaction; this skill returns the question and
 required scope.
 
+## Native-First Route Selection
+
+Use these route tiers:
+
+1. **Native same-runtime:** Always the preferred default when it can satisfy
+   the resolved role, model, effort, authority, and isolation requirements. It
+   needs no additional authorization.
+2. **Policy-resolved CLI/programmatic or cross-runtime:** Permitted without a
+   per-run prompt when configured dispatch policy selected the route. Project
+   policy resolved by `oat-project-dispatch-subagents` and configured
+   cross-family gates are standing, scope-bound authorization. Some harnesses
+   require this tier—for example Cursor task subagents when native model
+   availability cannot satisfy the resolved project target.
+3. **Agent-improvised CLI/programmatic or cross-runtime:** Prohibited unless
+   the user explicitly approves the named target and scope for the current
+   run. Approval from a prior run, task, branch reset, or materially different
+   scope does not carry forward.
+
+Availability of a provider CLI, SDK, API, or other programmatic surface is
+capability evidence, not route authorization. The engine must distinguish a
+policy-resolved alternate route from one proposed by the agent. If neither
+configured policy nor current explicit approval authorizes the alternate
+route, use an eligible native route or block.
+
+Do not re-prompt for each task or gate when the caller provides a complete
+policy-resolved route and scope. Record `selection_source: policy-resolved`
+with the owning configuration evidence. Use
+`selection_source: explicit-user` for a current-run operator grant and
+`selection_source: native-default` for the preferred native route.
+
 ## Dispatch Axes
 
 Keep these controls independent in selection and evidence:
 
-- dispatch context: root native, nested native, provider CLI, workflow, gate,
-  or blocked;
+- dispatch context: root native, nested native, provider CLI/programmatic,
+  workflow, gate, or blocked;
 - role or agent definition;
 - model selector and selector granularity;
 - effort or reasoning selector, when exposed;
@@ -115,6 +146,26 @@ Keep these controls independent in selection and evidence:
 
 A materialized role may package defaults, but its record must preserve each
 configured axis separately.
+
+## Deliberate Dispatch Mode
+
+Choose foreground or background deliberately from expected duration and the
+host interaction model. Multi-minute implementers, fix loops, and reviewers
+must survive ordinary session interaction and therefore run in background when
+the host supports a durable awaited handle. Reserve foreground dispatch for
+short checks whose interruption risk is negligible. Record the selected mode
+and reason with the launch payload.
+
+Background does not mean fire-and-forget. Retain and await the accepted handle,
+apply the Acceptance and Recovery contract below, and surface useful progress.
+In headless gate contexts, fire-and-forget background dispatch is forbidden:
+use the gate's inline or synchronously awaited route contract instead.
+
+For a silent background child, provider transcript filesystem metadata at the
+documented runtime path can provide observable liveness evidence. Check only
+metadata such as mtime and size. This evidence shows observable activity; it
+is never a health verdict and never authorizes replacement, timeout extension,
+or a second launch.
 
 ## Baseline Role Classes
 
@@ -160,11 +211,12 @@ For every dispatch:
 2. Resolve provider, context, role class, policy, ceiling, and candidates.
 3. Observe the launching dispatcher's relevant catalogs.
 4. Compute the exact native intersection.
-5. Select one native, inherited, provider-CLI, workflow, gate, or blocked route
-   before launch.
+5. Prefer an eligible native route. Otherwise select one policy-resolved or
+   explicitly authorized inherited, provider-CLI/programmatic, workflow, gate,
+   or blocked route before launch.
 6. Build the complete redacted payload.
-7. Record route, selection reason, candidates, catalog source, authority, and
-   deadline.
+7. Record route, selection source, selection reason, candidates, catalog
+   source, authority, and deadline.
 8. Launch once.
 9. Record launch acceptance separately from child outcome and runtime identity.
 
@@ -208,6 +260,11 @@ aggregate wave boundary; each lane may narrow that boundary.
   policy.
 - Continuing the same accepted child through its valid handle is allowed.
   Record continuation separately and preserve selectors and route.
+- A caller may cancel accepted handles only after it proves that the enclosing
+  run itself is invalid under caller-owned containment or integrity policy.
+  Record `invalid-run-abort` and the invalidating evidence. Cancellation never
+  makes another route eligible and never authorizes replacement, fallback, or
+  a successful child outcome.
 - Operator-authorized recovery is a new explicit action, never automatic
   fallback.
 - Runtime identity is optional corroboration. Missing runtime identity does not

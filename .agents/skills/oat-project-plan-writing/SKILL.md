@@ -1,6 +1,6 @@
 ---
 name: oat-project-plan-writing
-version: 1.2.9
+version: 1.2.15
 description: Use when authoring or mutating plan.md in any OAT workflow. Defines canonical format invariants — stable task IDs, required sections, review table rules, and resume guardrails.
 disable-model-invocation: true
 user-invocable: false
@@ -25,6 +25,41 @@ This is a sub-phase indicator; the calling skill owns the top-level banner.
 
 - When invoked by a calling skill, print the sub-banner immediately before plan authoring begins.
 
+## Shared Subagent Dispatch Contract
+
+Before every artifact self-review dispatch, read and follow
+`.agents/skills/oat-project-dispatch-subagents/SKILL.md`, which then requires
+`.agents/skills/oat-dispatch-subagents/SKILL.md`. This explicit two-skill load
+is mandatory; do not rely on ambient skill discovery. Planning self-review
+inherits the planning parent by default. The shared contracts own any
+catalog-aware exception, launch acceptance boundary, and dispatch record; this
+skill continues to own plan readiness and review disposition.
+
+After resolving the review provider, read exactly one active-provider
+reference from `.agents/skills/oat-dispatch-subagents/references/`
+(`provider-cursor.md`, `provider-codex.md`, or `provider-claude.md`). Do not
+merge provider mechanics.
+
+## Planning-Time Artifact Formatting Contract
+
+Resolve artifact formatting once while authoring the plan. Read the applicable
+repository instructions (`AGENTS.md`/`CLAUDE.md`) and relevant package
+manifests, then select the repository's documented write/fix formatting
+command. Distinguish write/fix commands from check-only commands, prefer the
+write/fix command, and never infer or hardcode a formatter executable. When the
+documented command supports paths, use a file-scoped invocation covering only
+the files that the task will create or edit.
+
+Bake the concrete repository command into the `Format` step of every task that
+creates or edits artifacts. Downstream agents execute that supplied command
+without repeating discovery. Runtime discovery is fallback-only when the
+supplied command is absent or unusable.
+
+If no documented write/fix command can be discovered, put this exact
+warn-once/no-op instruction into every artifact-writing task:
+Warn once with `no format command discovered in repo instructions; skipping`,
+then continue without formatting.
+
 ## Managed Dispatch Readiness and Review Contract
 
 All plan-producing workflows and their artifact reviews use this contract:
@@ -41,18 +76,23 @@ before each artifact review dispatch.
 
 ### Complete Dispatch Ladder Adoption Contract
 
-Before any plan becomes implementation-ready, inspect the effective
-`workflow.dispatchCeiling.providers` value and compare its ordered candidate
-ladders with the bundled
-`packages/cli/config/dispatch-matrix-recommendation.json` source (or the
-installed bundle's `config/dispatch-matrix-recommendation.json` asset). A
-complete custom ladder is allowed, but every supported provider must have valid
-ordered `candidates` cells through the named project ceiling. A legacy scalar,
-single fallback route, missing tier, empty candidates array, or malformed
-ordering is not a complete ladder.
+Before any plan becomes implementation-ready, use the reviewer resolver
+envelope from the preflight command above as the effective configuration and
+resolution boundary. Do not inspect or merge raw config surfaces.
 
-When the effective ladder is missing or incomplete, show the complete bundled
-recommendation before asking to write anything:
+Route from the resolver fields, not from hand-inspected config keys:
+
+- Prompt for ladder adoption when `unresolvedReason` is `ladder` or `both`, or
+  when `ladderCompleteness.complete` is `false`.
+- Show `ladderCompleteness.missingCells` so the operator sees exactly which
+  provider/tier cells adoption would fill.
+- When `unresolvedReason` is `policy`, keep ladder adoption separate: set the
+  project policy at plan time or select Inherit Host Defaults.
+- A resolved envelope has no `unresolvedReason`. When
+  `ladderCompleteness.complete` is `true`, skip adoption.
+
+When adoption is required, show the complete bundled recommendation before
+asking to write anything:
 
 | Provider        | Economy                                                        | Balanced                                                                                                       | High                                                        | Frontier                               |
 | --------------- | -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- | -------------------------------------- |
@@ -76,49 +116,68 @@ project's named ceiling is a separate project-state constraint. A
 project-specific active policy or ceiling must not be written to user
 `~/.oat/config.json`.
 
-Adoption preserves explicit cells. Re-run the resolver and re-check the full
-ladder after adoption. If preserved legacy or partial cells still leave the
-ladder incomplete or missing, identify those cells and block; do not overwrite,
-infer, or mark the plan implementation-ready. In non-interactive mode, an
-incomplete or missing ladder blocks readiness without choosing an ownership
-scope.
+Adoption preserves explicit cells. After adoption, re-run the reviewer
+preflight resolver and re-check `ladderCompleteness.complete` and
+`ladderCompleteness.missingCells`. If preserved legacy or partial cells still
+leave effective cells incomplete or missing, identify those cells and block;
+do not overwrite, infer, or mark the plan implementation-ready. In
+non-interactive mode, incomplete or missing effective cells block readiness
+without choosing an ownership scope.
 
 ### Reviewer Ceiling Contract
 
-A managed active-provider result is runnable only when the resolver returns
-concrete native dispatch controls or an explicit deferred cross-harness target.
-Otherwise treat the active-provider reviewer contract as unresolved.
-Reviewer resolution uses the final candidate of the configured review ceiling:
-call `--role reviewer` without an ephemeral implementer candidate request.
-Do not select a lower candidate for artifact, phase, project, or final review
-unless a separate reviewed contract explicitly authorizes reviewer lowering and
-defines its bounds. A `## Dispatch Profile` row alone is not such a contract.
+A managed active-provider result is runnable only when the resolver identifies
+the final candidate of the configured review ceiling. Call `--role reviewer`
+without an ephemeral implementer candidate request. Use that result as the
+planning-parent capability threshold, not as an unconditional child pin.
 
-Bind every concrete managed reviewer target to the actual provider
-invocation before probing generic reviewer availability or selecting an
-execution tier. That target takes precedence over every availability, tier,
-timeout, and inline fallback.
-A concrete managed Codex target takes precedence over tier availability.
+The default planning auto-review route is deliberate parent inheritance:
 
-- Codex: use the exact registered reviewer variant returned by
-  `providers.codex.dispatchArgs.variant` when the host can select that role.
-  If the exact role is unavailable or the current host cannot select it,
-  launch a fresh Codex child with the resolver target's explicit model,
-  reasoning effort, and canonical role instructions from
-  `.agents/agents/oat-reviewer.md`. If the fresh child cannot preserve the
-  target, use only a verified-equivalent inline route or block the review.
+1. Read launcher-owned evidence for the planning parent's configured model and
+   effort.
+2. Compare it with the resolved ceiling target on the provider's independent
+   axes.
+3. When the parent is known at or above the ceiling, omit the child model,
+   record `selection_reason: inherit`, and preserve the parent evidence.
+4. When the parent is unknown or below the ceiling, select the concrete ceiling
+   target before launch as the fail-closed exception below.
+
+Do not assume parent strength from self-report. Do not select a lower candidate
+for an exception. A `## Dispatch Profile` row alone cannot authorize reviewer
+lowering; only a separate reviewed contract may define a bounded lower
+candidate exception.
+
+For the exception route, bind every concrete managed reviewer target to the
+actual provider invocation before probing generic reviewer availability or
+selecting execution mechanics. A concrete managed Codex target takes precedence
+over generic tier availability.
+
+- Codex: when the resolver returns a materialized
+  `providers.codex.dispatchArgs.variant`, first launch that exact registered
+  reviewer variant as native `agent_type`. Only a recorded actual pre-start
+  native role-selection rejection permits a fresh Codex child with the resolver
+  target's explicit model, reasoning effort, and canonical role instructions
+  from `.agents/agents/oat-reviewer.md`. A separately pre-selected CLI route is
+  allowed only when native dispatch cannot express the complete target and no
+  child has started. If another route cannot preserve the target, use only a
+  verified-equivalent inline route or block the review.
 - Claude: require a non-empty `providers.claude.dispatchArgs.model` and put
   that exact value in the actual provider invocation as its `model` argument.
 - Cursor: treat `providers.cursor.dispatchArgs.model` as opaque and put that
   exact, unnormalized string in the actual provider invocation as its `model`
   argument.
 
-Build the actual host invocation payload before declaring the target enforced.
-On timeout, retry, or artifact rewrite/re-dispatch, reuse the same exact role or
-complete provider payload, including the exact model argument. If the host
-cannot apply the required role or model argument, fail closed or block unless
-the guarded inline-equivalence rule below applies. Never continue through a
-generic tier fallback.
+If the host cannot apply, pass, or bind the required exception role/model
+controls, fail closed or block unless verified equivalent inline controls are
+already established.
+
+Build the actual host invocation payload before declaring the exception target
+enforced. If the accepted reviewer does not conclude, continue, poll, or nudge
+the same child handle. A terminal timeout blocks or escalates without another
+launch. Only explicit pre-start rejection permits a new recorded selection.
+After an artifact rewrite following a completed review, the next review is a
+new attempt and reuses the same deliberate inheritance or exact exception
+policy. Never continue through a generic tier fallback.
 
 Workflow correctness must not require provider restart or hot reload.
 Runtime materialization may be best effort, but it is not the correctness
@@ -127,10 +186,10 @@ unavailable in the current session. Base Codex roles are allowed only for
 explicit inherit/default behavior and the documented managed-uncapped reviewer
 fallback.
 
-Inline review of a concrete managed target is permitted only after verifying
-equivalent current-host model and effort controls. Otherwise inline or base
-execution is limited to explicit inherit/default behavior or the documented
-managed-uncapped reviewer fallback.
+Inline review of a concrete managed exception target is permitted only with
+verified equivalent current-host model and effort controls. The default
+inheritance route may review inline because the planning parent is the selected
+reviewer context.
 
 The Auto Artifact-Review Loop below consumes this reviewer dispatch contract.
 Tier selection happens only after the target-preserving route is known and
@@ -198,11 +257,22 @@ Do not invent enablement in either branch.
 ### 3. Offer the canonical choice
 
 When at least one target qualifies and an interactive user-response channel is
-available, offer exactly these outcomes:
+available, the calling skill must ask:
+
+```text
+Should an additional cross-runtime phase gate review run after implementation
+phases? Built-in per-phase root reviews and the final review run regardless of
+this choice.
+```
+
+Then offer exactly these outcomes:
 
 1. **All phases** - enable the independent Phase gate review after every implementation phase.
 2. **Selected phases** - enable the independent Phase gate review only after chosen stable phase IDs.
 3. **Disabled** - leave Phase gate review disabled.
+
+Do not attach a bare `(Recommended)` label to any option. If the caller offers
+a recommendation, it must state the cost/coverage tradeoff explicitly.
 
 Phase gate review is non-pausing when it passes and is distinct from both HiLL
 approval and final artifact review.
@@ -271,11 +341,11 @@ Use this loop after an artifact has been written and before the calling skill ha
    - The bound controls rewrite/re-dispatch cycles after the initial review. A bound of `0` still permits the initial structured review, then surfaces residual findings without retrying.
 
 3. **Dispatch `oat-reviewer` in structured mode**
-   - When the resolver returned a concrete managed Codex target, use its exact registered reviewer or a fresh child pinned to the same model, effort, and canonical instructions. If neither is possible, run inline only with verified equivalent current-host controls; otherwise block.
-   - When the resolver returned a concrete managed Claude or Cursor target, require `providers.claude.dispatchArgs.model` or `providers.cursor.dispatchArgs.model` respectively and pass that exact value in the actual provider invocation's `model` argument. Cursor values are opaque and must not be normalized. If the host cannot apply the model argument, fail closed unless inline execution has verified equivalent controls.
-   - For explicit inherit/default behavior or the documented managed-uncapped reviewer fallback, Tier 1 uses the configured `oat-reviewer` subagent when available and authorized; Tier 2 may run the same reviewer prompt inline.
+   - Default: after the parent-at-or-above-ceiling check succeeds, omit the child model deliberately and record `selection_reason: inherit`. Tier 1 uses the configured `oat-reviewer` subagent; Tier 2 runs the same structured prompt in the planning parent.
+   - Exception: when the planning parent is unknown or below the ceiling, use the resolver's concrete ceiling target. Codex uses its exact registered reviewer or a fresh child pinned to the same model, effort, and canonical instructions after pre-start role rejection. Claude or Cursor requires the exact `providers.<provider>.dispatchArgs.model` value on the actual invocation; Cursor values remain opaque. If the host cannot preserve that target, block unless inline execution has verified equivalent controls.
+   - If an accepted child does not conclude, continue only through its existing handle. A terminal timeout blocks or escalates and cannot launch a replacement child.
    - Always set `oat_output_mode: structured`; the loop consumes `StructuredFindings` in-memory and the reviewer writes no artifact.
-   - Do not downgrade the resolved target or checklist when changing execution mechanics.
+   - Do not downgrade the selected inheritance/exception policy or checklist when changing execution mechanics.
 
 4. **Apply or offer fixes by severity**
    - If the structured review is clean, proceed to outcome recording.
@@ -284,7 +354,7 @@ Use this loop after an artifact has been written and before the calling skill ha
    - If a finding cannot be fixed within the artifact boundary, preserve it as residual and surface it before handoff.
 
 5. **Rewrite and re-dispatch within the bound**
-   - After applying fixes, rewrite the artifact and re-dispatch `oat-reviewer` with the same complete target payload, including the exact Claude or Cursor `dispatchArgs.model` argument.
+   - After applying fixes, rewrite the artifact and start a new review attempt with the same deliberate inheritance policy or complete exception payload, including any exact Claude or Cursor `dispatchArgs.model` argument.
    - Each rewrite/re-dispatch cycle consumes one retry.
    - Stop when the reviewer returns no findings or when the retry bound is exhausted.
 
@@ -332,8 +402,9 @@ Additional frontmatter keys (`oat_phase`, `oat_phase_status`, `oat_blockers`, `o
 `## Dispatch Profile` is optional and should be omitted by default. A profile
 may narrow a phase to a named ceiling at or below the project ceiling. The
 named ceiling is a maximum candidate tier, not an exact model-family or effort
-preference; the later coordinator chooses exact task targets from the complete
-configured ladder.
+preference; the implementation root chooses one exact phase-implementer target
+from the complete configured ladder. Optional nested work resolves separately
+only when the phase implementer justifies and launches it.
 
 Only include the section when the user has explicit constraints or preferences. Routine hand-tuning can be worse than runtime selection because the orchestrator has fresher phase context and host capability information at dispatch time.
 
@@ -378,10 +449,16 @@ If any required section is missing when a skill edits `plan.md`, it must be rest
 ### Review Table Preservation Rules
 
 - The `## Reviews` table includes both **code** rows (`p01`, `p02`, …, `final`) and **artifact** rows (`spec`, `design`, `plan`).
+- Rows are append-ordered review events. Duplicate `Scope` + `Type` rows are valid; readers use the latest appended matching event when they need current lifecycle state.
+- `Scope` + `Type` + `Artifact` filename form the event identity:
+  - The first event for a scope/type may claim an unbound `pending` placeholder whose Artifact is `-`.
+  - When a new review has a distinct artifact filename and no unbound placeholder remains, append a new row. Never overwrite a bound row merely because its scope/type matches.
+  - Later mutations, including archive-path rewrites, must select the event by scope/type and artifact filename. A path move from `reviews/` to `reviews/archived/` keeps the same event identity.
 - Skills must **never delete** existing review rows.
 - New rows may be appended (e.g., `p03` for a newly added phase).
 - Status semantics: `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`.
   - `received`: review artifact exists but findings have not yet been converted into fix tasks.
+  - An event status must never move backward in this ladder. A later event may start at `received` without changing an earlier event that already reached `passed`.
 
 ### Implementation Complete Section
 

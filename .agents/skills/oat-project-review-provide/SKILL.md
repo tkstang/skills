@@ -1,6 +1,6 @@
 ---
 name: oat-project-review-provide
-version: 1.3.14
+version: 1.3.20
 description: Use when the user explicitly asks to review an OAT project — e.g. "review project", "review the project", "run project review", or confirms a previously offered review. Do NOT auto-invoke on completed work alone. Resolves a project review scope and offers before running.
 disable-model-invocation: false
 user-invocable: true
@@ -93,6 +93,14 @@ Run the `oat-project-review-provide` skill and it will:
 1. Ask review type (code or artifact)
 2. Ask scope (task/phase/final/range)
 3. Confirm before running
+
+## Artifact Hygiene
+
+Artifact hygiene contract: Before finishing or committing, format every file you created or edited. Use the concrete write/fix formatting command supplied by the governing plan, task, or brief. If none is usable, discover the repository's documented write/fix command from applicable `AGENTS.md`/`CLAUDE.md` instructions and relevant package manifests; do not infer or hardcode a formatter. Prefer a file-scoped invocation when supported, and avoid rewriting unrelated files. If no command is discoverable, warn once with `no format command discovered in repo instructions; skipping`, then continue.
+
+After formatting, run only repository checks relevant to the files changed;
+writing prose artifacts or review bookkeeping does not imply unrelated full
+test suites.
 
 ## Process
 
@@ -578,6 +586,17 @@ candidate ladder, fail closed before review. Route interactive repair through
 the planning workflow's `Complete Dispatch Ladder Adoption Contract`; do not
 invent a reviewer target.
 
+**Pre-plan policy inheritance:** When the resolver returns
+`unresolvedReason: 'policy'`, and only then, an `artifact` review whose scope is
+`discovery`, `design`, or `spec` does not block or prompt. Review by deliberate
+inheritance in the current context and record
+`selection_reason: inherit (pre-plan; no project policy)`. An explicitly set
+project policy is always honored, including for pre-plan artifacts. Code
+reviews and `artifact plan` reviews still hard-require a resolved policy.
+Missing or incomplete ladder results (`unresolvedReason: 'ladder' | 'both'`)
+still fail closed. Gate exec-target selection is unaffected by this
+inheritance rule because gates resolve their target independently.
+
 After constructing the complete provider payload, record the launcher-owned
 `target`, `model_axis`, and `effort_axis` with
 `launcher-selected/config-declared` provenance. These fields are immutable:
@@ -590,15 +609,68 @@ terminal blocking review outcome: it blocks the review and does not invoke or
 trigger the fresh-child fallback. Absent findings from that terminal must not
 be parsed, interpreted, or treated as a passing review.
 
-On timeout or retry, reuse the same exact role or complete invocation payload,
-including the Claude or Cursor model argument. If the host cannot apply a
-required role or model argument, fail closed or block unless inline execution
-has verified equivalent current-host controls.
+Before acceptance, an explicit transport or role-selection rejection may retry
+with the same exact role and complete invocation payload, including the Claude
+or Cursor model argument. After acceptance, poll, nudge, or continue only
+through the existing reviewer handle. Terminal timeout, interruption, or
+`BLOCKED` blocks or escalates without another launch. If the host cannot apply
+a required role or model argument before launch, fail closed or block unless
+inline execution has verified equivalent current-host controls.
 Workflow correctness must not require provider restart or hot reload.
 Never use a managed base role because a target is missing or unavailable; a
 managed base role is forbidden except for
 explicit inherit/default behavior or the documented managed-uncapped reviewer
 fallback.
+
+**Step 6.1: Headless gate route (overrides normal tier selection)**
+
+When either prompt frontmatter has `oat_gate_headless: true` or the environment
+has `OAT_GATE_HEADLESS=1`, copy the expected runtime and model from
+`oat_gate_runtime` and `oat_invocation_model`, determine whether this host has
+an awaited-child capability, and use the gate-provided branch-local CLI path.
+Fail closed with `OAT_GATE_REFUSAL` if `OAT_GATE_CLI_PATH` is absent or not
+executable. Run the route command and validate its JSON before using it:
+
+```bash
+ROUTE_JSON="$("$OAT_GATE_CLI_PATH" gate route --json \
+  --expect-runtime "$OAT_GATE_RUNTIME" \
+  --expect-model "$OAT_INVOCATION_MODEL" \
+  --can-await true)"
+
+OAT_GATE_ROUTE_JSON="$ROUTE_JSON" node -e '
+const value = JSON.parse(process.env.OAT_GATE_ROUTE_JSON);
+if (!["inline", "delegate-sync", "refuse"].includes(value.route) ||
+    typeof value.reason !== "string") process.exit(1);
+if (value.cliRoot !== process.env.OAT_GATE_CLI_ROOT) process.exit(1);
+process.stdout.write(JSON.stringify(value));
+'
+```
+
+Pass `--can-await false` when this host cannot synchronously await delegated
+review completion. An absent command, command failure, help/non-JSON output,
+invalid envelope, or `cliRoot` different from `OAT_GATE_CLI_ROOT` is a
+structured refusal; never retry with bare `oat` or another installed CLI. Do
+not make a separate runtime/model identity judgment in skill prose; follow the
+validated helper route:
+
+In the terminal headless response, report
+`Gate route: <route> (runtime=<expected-runtime>, cliRoot=<validated-cliRoot>)`
+so the parent can retain branch-local route evidence.
+
+- `inline`: execute the complete `oat-reviewer` role contract in the current
+  context, write the artifact, and finish bookkeeping before returning.
+- `delegate-sync`: dispatch through an awaited handle, then verify the expected
+  artifact exists and carries the matching `oat_gate_run_id` before returning.
+  A terminal `BLOCKED`, interruption, timeout, or missing/mismatched artifact
+  remains terminal and must not trigger a second launch.
+- `refuse`: print `OAT_GATE_REFUSAL: <reason from route output>` on its own
+  line. Exit nonzero where the host permits; the gate classifies this line
+  independently of exit code.
+
+Headless gate mode overrides the Tier 1 background-dispatch preference:
+NEVER use fire-and-forget background dispatch in this mode. The review and its
+artifact/bookkeeping completion must be inline or synchronously awaited before
+the gate child exits.
 
 **Step 6a: Probe Subagent Availability**
 
@@ -833,7 +905,7 @@ Run the `oat-project-review-receive` skill to convert findings into plan tasks.
 
 After review artifact is written, update `plan.md` `## Reviews` table _if plan.md exists_.
 
-Update or add a row matching `{scope}`:
+Record this artifact as one append-ordered review event:
 
 - `Scope`: `{scope}` (examples: `p02`, `final`, `spec`, `design`)
   - Phase-range examples such as `p02-p03` are valid code-review scopes and should be preserved exactly.
@@ -841,6 +913,11 @@ Update or add a row matching `{scope}`:
 - `Status`: `received` (receive-review will decide `fixes_added` vs `passed`; `passed` now requires no unresolved Critical/Important/Medium and final deferred-medium disposition when applicable)
 - `Date`: `{today}`
 - `Artifact`: `reviews/{filename}.md`
+
+For the first event with this Scope + Type, claim an unbound `pending`
+placeholder only when its Artifact is `-`. Otherwise append a new row for the
+new artifact. Never replace or regress a bound event merely because Scope +
+Type matches; distinct artifact filenames are distinct review events.
 
 If plan.md is missing (e.g., spec/design review before planning), skip this update and rely on the review artifact + next-step routing.
 

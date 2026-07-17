@@ -1,6 +1,6 @@
 ---
 name: oat-project-pr-final
-version: 1.4.2
+version: 1.5.3
 description: Use when the user requests or confirms opening the final PR for an active OAT project — e.g. "open the final PR", "ship it", "run oat-project-pr-final", or confirms a previously offered final-PR step. Do NOT auto-invoke when phases are marked complete. Generates the final lifecycle PR description from artifacts and creates the PR.
 disable-model-invocation: false
 user-invocable: true
@@ -39,6 +39,11 @@ Generate a PR-ready summary grounded in canonical OAT artifacts, including:
 **OAT MODE: PR (Project)**
 
 **Purpose:** Create final PR description and open the PR.
+
+When `OAT_AUTONOMOUS=1`, read `references/docs/autonomy-contract.md` and keep
+`OAT_NON_INTERACTIVE=1` set for this run. Autonomous resolution is limited to
+the explicit branches below; never persist either environment signal. When
+autonomy is inactive, preserve the existing interactive path unchanged.
 
 ## Progress Indicators (User-Facing)
 
@@ -88,6 +93,14 @@ Run the `oat-project-pr-final` skill and it will ask for:
   - default when a known ticket is associated: `[{TICKET-NUM}] {Descriptive Project Title}`
   - otherwise default: `{type}: {project description}` using conventional-commit style (for example `feat: add review loop` or `docs: reorganize documentation for discoverability`)
 - base branch (resolved from: explicit `base=` arg → `git.defaultBranch` in `.oat/config.json` → `git rev-parse --abbrev-ref origin/HEAD` → fallback `main`)
+
+## Artifact Hygiene
+
+Artifact hygiene contract: Before finishing or committing, format every file you created or edited. Use the concrete write/fix formatting command supplied by the governing plan, task, or brief. If none is usable, discover the repository's documented write/fix command from applicable `AGENTS.md`/`CLAUDE.md` instructions and relevant package manifests; do not infer or hardcode a formatter. Prefer a file-scoped invocation when supported, and avoid rewriting unrelated files. If no command is discoverable, warn once with `no format command discovered in repo instructions; skipping`, then continue.
+
+After formatting, run only repository checks relevant to the files changed;
+writing a PR description or project-state prose does not imply unrelated full
+test suites.
 
 ## Process
 
@@ -158,15 +171,39 @@ If `WORKFLOW_MODE` is `quick` or `import`, proceed without spec/design and inclu
 Preferred source of truth (v1): `plan.md` `## Reviews` table.
 
 ```bash
-FINAL_ROW=$(grep -E "^\\|\\s*final\\s*\\|" "$PROJECT_PATH/plan.md" 2>/dev/null | head -1)
+REVIEWS_SECTION=$(awk '
+  /^## Reviews[[:space:]]*$/ { in_reviews = 1; next }
+  in_reviews && /^##[[:space:]]/ { exit }
+  in_reviews { print }
+' "$PROJECT_PATH/plan.md" 2>/dev/null)
+FINAL_ROW=$(printf '%s\n' "$REVIEWS_SECTION" | grep -E "^\\|\\s*final\\s*\\|\\s*code\\s*\\|" | tail -1)
 echo "$FINAL_ROW"
 ```
 
+`REVIEWS_SECTION` is strictly the `## Reviews` section through the next
+level-two heading. Use the latest appended event in that ledger whose Scope is
+`final` and Type is `code`. Earlier final-review events remain history and do
+not determine the current gate.
+
 If `FINAL_ROW` is missing or does not contain `passed`:
 
-- Tell user: "Final review is not marked passed. Run the `oat-project-review-provide` skill with `code final` then the `oat-project-review-receive` skill."
-- Ask whether to proceed anyway (allowed, but discouraged).
-  - If the status is `fixes_completed`: fixes were implemented but the re-review hasn't been run/recorded yet; re-run the `oat-project-review-provide` skill with `code final` then the `oat-project-review-receive` skill to reach `passed`.
+- If `OAT_AUTONOMOUS=1`, gate `PRFINAL-03` is a boundary stop. Never select
+  "proceed anyway." Report the current or missing final-review row, record the
+  blocker in project provenance, and stop before writing the PR artifact,
+  pushing, or creating the PR. Route the resumable next step to
+  `oat-project-review-provide code final` followed by
+  `oat-project-review-receive`.
+  - If the status is `fixes_completed`, require that same re-review/receive
+    sequence to reach `passed`; completed fixes alone are not approval.
+- Otherwise:
+  - Tell user: "Final review is not marked passed. Run the
+    `oat-project-review-provide` skill with `code final` then the
+    `oat-project-review-receive` skill."
+  - Ask whether to proceed anyway (allowed, but discouraged).
+    - If the status is `fixes_completed`: fixes were implemented but the
+      re-review hasn't been run/recorded yet; re-run the
+      `oat-project-review-provide` skill with `code final` then the
+      `oat-project-review-receive` skill to reach `passed`.
 
 ### Step 3: Collect Project Summary
 
@@ -378,7 +415,7 @@ After writing the PR artifact and creating the PR, update `"$PROJECT_PATH/state.
 **Content updates:**
 
 - In `## Current Phase`, set:
-  - `Implementation — PR open, awaiting human review.`
+  - `Implementation — PR open; completion may run before or after merge.`
 - In `## Progress`, add:
   - `- ✓ PR created`
   - `- ⧗ Awaiting human review`
@@ -388,8 +425,13 @@ After writing the PR artifact and creating the PR, update `"$PROJECT_PATH/state.
   PR is open for review.
 
   - To incorporate feedback: run `oat-project-revise`
-  - When approved: run `oat-project-complete`
+  - Complete before merge: run `oat-project-complete` now, then merge the PR.
+  - Merge before completion: merge the PR, then run `oat-project-complete`.
   ```
+
+Both orderings are supported. An open PR is not a blocker for
+`oat-project-complete`; when completion archives project artifacts, it
+regenerates and syncs the open PR body.
 
 If `state.md` is missing, skip with a warning.
 
@@ -400,4 +442,4 @@ If `state.md` is missing, skip with a warning.
 - Final review status checked and referenced
 - User has clear next step to open PR (manual or gh)
 - Project `state.md` shows `oat_phase_status: pr_open`
-- Next milestone references both `oat-project-revise` (for feedback) and `oat-project-complete` (when approved)
+- Next milestone references both `oat-project-revise` (for feedback) and both supported `oat-project-complete` orderings

@@ -1,6 +1,6 @@
 ---
 name: oat-project-dispatch-subagents
-version: 1.0.0
+version: 1.1.2
 description: Use when an OAT project lifecycle skill needs to translate project state, phase or task scope, gates, and write authority into a provider-neutral subagent dispatch.
 disable-model-invocation: true
 user-invocable: false
@@ -92,22 +92,42 @@ Project policy may cap or select a target. Translate the resolved policy and
 ceiling into the generic request; do not ask the general engine to read
 `state.md` or infer project configuration.
 
+Configured project policy is standing, scope-bound route authorization. When
+the resolver selects a CLI/programmatic or cross-runtime route, pass it to the
+general engine with `selection_source: policy-resolved` and evidence of the
+owning project, phase/task, provider, lifecycle role, policy/ceiling, and exact
+route. Do not ask the user to re-authorize that route for each task.
+
+Prefer native dispatch when it satisfies the resolved contract, but do not
+replace a required policy-resolved route merely because a weaker native surface
+exists. Cursor task subagents are a representative case: project policy may
+route through the Cursor CLI/programmatic surface when native model
+availability cannot satisfy the selected target. Configured cross-family gates
+use the same policy-resolved tier. Ambient CLI availability and stale
+conversational approval are never project policy.
+
 ## Lifecycle Roles
 
 Map each lifecycle role to a generic baseline class and add project policy:
 
-| Lifecycle role             | Generic class | Project-specific contract                                                                                                                |
-| -------------------------- | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| Phase coordinator          | `coordinator` | Own one phase dossier. Prefer an explicit suitable native target; inherit only when the root/session target is deliberately suitable.    |
-| Task worker                | `worker`      | Own one task and bounded files. Use an explicit native or pre-selected alternate target; never silently inherit an expensive root model. |
-| Fix worker                 | `worker`      | Own listed findings and bounded files. Preserve retry/fix-loop limits and original task context.                                         |
-| Planning self-review       | `reviewer`    | Inherit the planning parent by default unless the plan-writing contract requires an exact independent reviewer.                          |
-| Implementation self-review | `reviewer`    | Target the resolved reviewer ceiling; inherit only when the review-owning dispatcher is known to satisfy it.                             |
-| Phase gate                 | `reviewer`    | Use the configured independent target and fail closed when unavailable.                                                                  |
-| Lifecycle gate             | `reviewer`    | Stay independent of producer context and fail closed rather than substituting same-context self-review.                                  |
+| Lifecycle role                         | Generic class       | Project-specific contract                                                                                               |
+| -------------------------------------- | ------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Phase implementer                      | `worker`            | Own one complete phase, execute tasks directly in order, preserve per-task commits, and return phase verification.      |
+| Optional task/recon/specialist child   | `worker` or `recon` | Launch only when benefit justifies nesting; keep objective, files, authority, target, output, and verification bounded. |
+| Phase fix continuation                 | `worker`            | Resume the original phase handle when possible; preserve retry limits, phase context, and original request linkage.     |
+| Planning self-review                   | `reviewer`          | Inherit the planning parent by default unless the plan-writing contract requires an exact independent reviewer.         |
+| Root-owned implementation phase review | `reviewer`          | Target the resolved reviewer ceiling independently of the phase producer.                                               |
+| Phase gate                             | `reviewer`          | Use the configured independent target and fail closed when unavailable.                                                 |
+| Lifecycle gate                         | `reviewer`          | Stay independent of producer context and fail closed rather than substituting same-context self-review.                 |
 
 The calling lifecycle skill remains authoritative when its reviewed contract
 is stricter than this table.
+
+The root owns implementation phase-review selection. A native catalog that
+cannot satisfy the resolved review ceiling must use a policy-resolved
+pre-start CLI reviewer route when available. Record the native mismatch, exact
+target, selection reason, and ordered candidates; never delegate reviewer
+selection to a below-ceiling phase implementer or silently downgrade.
 
 ## Adapt the Request
 
@@ -121,9 +141,11 @@ For every lifecycle dispatch:
    limit, and fallback.
 4. Map the lifecycle role to a generic class.
 5. Add project metadata without replacing neutral request fields.
-6. Invoke `oat-dispatch-subagents` with the complete request.
-7. Preserve its generic dispatch record unchanged.
-8. Add lifecycle outcome metadata and let the calling workflow perform state,
+6. Add `selection_source: policy-resolved` plus owning configuration evidence
+   for every configured non-native route.
+7. Invoke `oat-dispatch-subagents` with the complete request.
+8. Preserve its generic dispatch record unchanged.
+9. Add lifecycle outcome metadata and let the calling workflow perform state,
    plan, implementation-log, commit, or review-table writes.
 
 Example adapter input:
@@ -157,12 +179,22 @@ project:
   worktree: root
 ```
 
-## Coordinator and Worker Topology
+## Phase-Agent Topology
 
-Use a phase coordinator only when the lifecycle workflow declares that
-topology. A coordinator may dispatch task workers when nesting and authority
-permit it, but it must not widen task boundaries, alter plan sequencing, or
-take over user checkpoints.
+The default implementation topology is root → phase implementer plus
+root → phase reviewer. The phase implementer directly owns the planned phase
+tasks. Per-task dispatch is not required.
+
+Optional nested workers or recon agents are benefit-driven and remain subject
+to exact bounded scopes and launcher-owned evidence. They must not widen task
+boundaries, alter plan sequencing, take over phase commits, dispatch the phase
+reviewer, or own user checkpoints.
+
+When review findings require fixes, resume the original phase request when the
+host supports continuation. If a completed phase handle is unavailable, allow
+at most one fresh same-target phase implementer for the bounded fix scope and
+link its generic record to the original `request_id` through existing
+`continuation_events`.
 
 For parallel groups, preserve plan-declared isolation. Each worktree receives
 only its assigned phase/task boundaries and must not mutate sibling worktrees.
@@ -215,6 +247,12 @@ fields inside the lifecycle extension.
   engine.
 - Accepted child failure: return the terminal outcome to the lifecycle caller;
   do not select a replacement automatically.
+- A tracked smoke marker makes containment, ownership registration, expected
+  base, and fixture readiness run-validity conditions. Failure of any condition
+  triggers `invalid-run-abort`: terminate accepted child and gate handles owned
+  by that run, preserve the invalidating evidence, clean only journal-owned
+  resources, and stop before any later launch. Never replace an aborted handle
+  or degrade the invalid smoke run to sequential execution.
 - Required gate target unavailable: fail closed.
 - Verification or commit failure after worker completion: lifecycle caller owns
   repair and bookkeeping; do not falsify the child outcome.

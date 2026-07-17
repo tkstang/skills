@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "oatVersion": "0.1.53",
+  "oatVersion": "0.1.72",
   "entries": [
     {
       "canonicalPath": ".agents/skills/authoring-docs",
@@ -1281,7 +1281,47 @@
       "contentHash": null,
       "isFile": false,
       "lastSynced": "2026-07-12T19:34:22.699Z"
+    },
+    {
+      "canonicalPath": ".agents/skills/oat-cursor-cloud-projects",
+      "providerPath": ".claude/skills/oat-cursor-cloud-projects",
+      "provider": "claude",
+      "contentType": "skill",
+      "strategy": "symlink",
+      "contentHash": null,
+      "isFile": false,
+      "lastSynced": "2026-07-17T20:08:53.109Z"
+    },
+    {
+      "canonicalPath": ".agents/skills/oat-project-autonomous",
+      "providerPath": ".claude/skills/oat-project-autonomous",
+      "provider": "claude",
+      "contentType": "skill",
+      "strategy": "symlink",
+      "contentHash": null,
+      "isFile": false,
+      "lastSynced": "2026-07-17T20:08:53.110Z"
+    },
+    {
+      "canonicalPath": ".agents/skills/oat-cursor-cloud-projects",
+      "providerPath": ".cursor/skills/oat-cursor-cloud-projects",
+      "provider": "cursor",
+      "contentType": "skill",
+      "strategy": "symlink",
+      "contentHash": null,
+      "isFile": false,
+      "lastSynced": "2026-07-17T20:08:53.111Z"
+    },
+    {
+      "canonicalPath": ".agents/skills/oat-project-autonomous",
+      "providerPath": ".cursor/skills/oat-project-autonomous",
+      "provider": "cursor",
+      "contentType": "skill",
+      "strategy": "symlink",
+      "contentHash": null,
+      "isFile": false,
+      "lastSynced": "2026-07-17T20:08:53.111Z"
     }
   ],
-  "lastUpdated": "2026-07-12T19:34:22.699Z"
+  "lastUpdated": "2026-07-17T20:08:53.111Z"
 }

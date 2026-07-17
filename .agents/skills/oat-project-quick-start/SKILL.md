@@ -1,6 +1,6 @@
 ---
 name: oat-project-quick-start
-version: 2.1.14
+version: 2.3.2
 description: Use when a task is small enough for quick mode or rapid iteration is preferred. Scaffolds a lightweight OAT project from discovery directly to a runnable plan, with optional brainstorming and lightweight design.
 argument-hint: '<project-name> ["project description"]'
 oat_gateable: true
@@ -26,9 +26,16 @@ Create or resume a project in **quick mode** and produce a runnable `plan.md` wi
 
 **Purpose:** Capture intent quickly (`discovery.md`) and generate an execution-ready `plan.md` for `oat-project-implement`.
 
+When `OAT_AUTONOMOUS=1`, read `references/docs/autonomy-contract.md` and keep
+`OAT_NON_INTERACTIVE=1` set for this run. The autonomous branches below are
+inert otherwise. Record decisions and rationale, but never persist either
+autonomy environment signal.
+
 **BLOCKED Activities:**
 
-- No spec-driven spec/design authoring unless user explicitly asks to promote to the spec-driven workflow.
+- No spec-driven spec/design authoring unless the user explicitly asks to
+  promote, or `OAT_AUTONOMOUS=1` selects promotion through the documented
+  design-depth heuristic.
 - No implementation code changes.
 
 **ALLOWED Activities:**
@@ -78,6 +85,13 @@ When executing this skill, provide lightweight progress feedback so the user can
 - Quick-start handoff is not complete until the changed project artifacts have been committed. Refresh `.oat/state.md` when available, but do not stage it; the repo dashboard is generated and normally gitignored.
 - This applies to downstream lifecycle boundaries too: implementation, review, revise, and PR skills must inherit a committed artifact baseline, not an untracked project tree.
 
+## Artifact Hygiene
+
+Artifact hygiene contract: Before finishing or committing, format every file you created or edited. Use the concrete write/fix formatting command supplied by the governing plan, task, or brief. If none is usable, discover the repository's documented write/fix command from applicable `AGENTS.md`/`CLAUDE.md` instructions and relevant package manifests; do not infer or hardcode a formatter. Prefer a file-scoped invocation when supported, and avoid rewriting unrelated files. If no command is discoverable, warn once with `no format command discovered in repo instructions; skipping`, then continue.
+
+After formatting, run only repository checks relevant to the files changed;
+writing lifecycle artifacts does not imply unrelated full test suites.
+
 ## Process
 
 ### Step 0 (Preflight): Inherited Git State
@@ -93,6 +107,10 @@ Before scaffolding, surface the working tree state so unrelated changes don't ge
    - **Abort** — exit the skill so the user can clean up manually.
 
 > **Tool availability is not the same as interactivity.** If `AskUserQuestion` is unavailable but chat is available, present the three choices as a plain chat message and wait for the user's reply. Only fall back to "Proceed anyway" when `OAT_NON_INTERACTIVE=1` is set or there is no user-response channel at all.
+
+When `OAT_AUTONOMOUS=1`, use that existing proceed-anyway branch, record gate
+`QS-01`, and leave all unrelated working-tree files unstaged. A cleanup that
+could discard work remains a destructive-change boundary.
 
 Do not advance past this gate without an explicit choice.
 
@@ -194,6 +212,13 @@ git diff --cached --quiet || git commit -m "chore(oat): capture quick-start disc
 
 **Auto-advance rule:** If the request was classified as **well-understood** in Step 2a and discovery surfaced no architecture decisions, component boundary questions, or unexpected complexity, skip this decision point entirely and continue directly to Step 2.6 (the requirements gate still fires before plan generation). This preserves the minimal-ceremony contract for straightforward requests.
 
+**Autonomous resolution:** If `OAT_AUTONOMOUS=1` and the auto-advance rule did
+not apply, do not present the choice below. Apply the same recommendation
+heuristic to select straight-to-plan, lightweight design, or spec-driven
+promotion. Record gate `QS-04`, the selected depth, and the evidence-based
+rationale in `discovery.md` before following the selected branch. Stop at a
+product-judgment boundary if the available evidence cannot support the choice.
+
 **Otherwise**, present the user with a choice about how to proceed:
 
 > "Discovery is complete. How would you like to proceed?"
@@ -293,6 +318,11 @@ fi
 #   b. Expand discovery (return to Step 2)
 # Route the user accordingly. Do NOT loop back into the gate.
 ```
+
+Under `OAT_AUTONOMOUS=1`, the non-interactive branch above is the gate `QS-05`
+resolution. Record the auto-confirmed requirement set in the discovery/plan
+handoff. Contradictory or materially incomplete requirements remain a
+product-judgment boundary; auto-confirmation is not permission to invent scope.
 
 Before continuing to Step 3, complete discovery through the CLI validation
 boundary:
@@ -571,6 +601,11 @@ After the generated quick plan has stable phase IDs and before Step 3.6 starts
 the plan artifact review, invoke the `Shared Phase Gate Review Setup Contract` from
 `oat-project-plan-writing`.
 
+When that contract offers a choice, render its required question verbatim:
+"Should an additional cross-runtime phase gate review run after implementation
+phases? Built-in per-phase root reviews and the final review run regardless of
+this choice." Do not add a bare `(Recommended)` option label.
+
 If `plan.md` already contains an explicit `oat_phase_review_gate`, preserve it
 through the shared contract without probing, prompting, or mutation. Otherwise
 let the contract probe qualifying targets and offer all phases, selected
@@ -610,18 +645,88 @@ Apply the shared loop exactly:
 
 - Resolve `workflow.autoArtifactReview.plan`; only an explicit `false` skips the loop.
 - Resolve `oat_orchestration_retry_limit` from project state, defaulting to `2`.
-- For a concrete managed target, dispatch the exact registered reviewer role. If the host cannot select it, launch a fresh Codex child pinned to the resolved model and reasoning effort with the canonical reviewer instructions.
-- For Claude or Cursor, pass the exact resolver-returned
-  `providers.<provider>.dispatchArgs.model` as the actual invocation's model
-  argument. Preserve the same complete payload on timeout and retry; Cursor
-  strings remain opaque.
-- Run inline only with verified equivalent current-host model and effort controls, or for explicit inherit/default behavior or the managed-uncapped reviewer exception. If none applies, fail closed before artifact review.
-- If the reviewer times out or does not conclude, poll and nudge once, then retry the same exact role or pinned child within the retry bound. If that target-preserving retry still fails, fail closed; never downgrade the review to inline.
+- Review in the current planning parent by deliberate inheritance by default.
+  Do not launch a managed child unless launcher-owned evidence identifies that
+  parent as unknown or below the resolved reviewer ceiling.
+- For that exception only, apply the shared concrete target contract. A Codex
+  materialized variant must first be launched as the exact native `agent_type`;
+  only a recorded actual pre-start role-selection rejection permits a fresh
+  child pinned to the resolved model and effort. Claude and Cursor use the
+  exact resolver-returned `providers.<provider>.dispatchArgs.model` value;
+  Cursor strings remain opaque.
+- After acceptance, poll, nudge, or continue only through the existing reviewer
+  handle. A terminal timeout blocks or escalates without another launch.
+  Replacement eligibility is limited to explicit pre-start rejection.
+- Run an exception inline only with verified equivalent current-host model and
+  effort controls. Default inherited review runs in the planning parent. If
+  neither route applies, fail closed before artifact review.
 - Apply Critical and Important artifact-local fixes when unambiguous; offer Medium and Minor fixes instead of silently applying them.
 - Re-dispatch after rewrites until clean or the retry bound is exhausted.
 - Update the `plan` artifact row in the `## Reviews` table to `passed` when clean. If residual findings remain, preserve the row and surface the residual findings before downstream handoff.
 
+### Gate Execution
+
+The quick-start exit-gate review scope is the complete artifact bundle that
+exists at this point:
+
+- `discovery.md`, including assumptions, constraints, and the chosen depth;
+- `design.md` when lightweight design was produced;
+- `plan.md`, including task completeness and executable verification.
+
+Review the bundle as one pre-implementation handoff so discovery assumptions
+and lightweight design decisions are checked with the plan that depends on
+them. This broadens review scope only; it does not change gate configuration
+schema or authorize runtime argument injection.
+
+Legacy quick-start gates whose configured command or prompt explicitly reviews
+only `plan.md` remain valid. Execute those commands unchanged, record
+`legacy-plan-only` scope in gate provenance, and do not require a config
+migration. New or bundle-capable gate declarations should evaluate every
+artifact above that exists.
+
+After artifact finalization and plan artifact review, run the configured gate
+as the last check before plan and project completion:
+
+1. Resolve the gate for this skill:
+
+   ```bash
+   oat gate resolve <this-skill> --json
+   ```
+
+   If the command returns JSON `null`, no gate is configured; proceed directly to the completion steps in Step 3.7 below.
+
+2. Export the resolved project path into the command shell:
+
+   ```bash
+   export PROJECT_PATH
+   ```
+
+   If the resolved command invokes `oat gate review`, the configured review command must already include `--project "$PROJECT_PATH"` and must not include `--target <id>`. A valid reusable shape is `oat gate review --project "$PROJECT_PATH" ...`. If the declaration is missing, stop and migrate the stored gate command; do not inject or append arguments at execution time.
+
+3. Execute the resolved command exactly as configured. Capture stdout, stderr, the exit code, and the structured JSON result. A zero exit code means the review passed its threshold, but it does not by itself authorize artifact receipt or complete the handoff.
+
+4. Review-artifact handoff:
+   - Parse the structured gate result. An exit code or artifact path alone never authorizes `oat-project-review-receive`.
+   - Invoke receive only when all three conditions hold: `status` is `ok` or `blocked`, the envelope explicitly sets `receiveEligible: true`, and a non-null `handoff` confirms the artifact was corroborated.
+   - `receiveEligible: false` is a hard stop even when `artifactPath` is present. Never receive `targeting_correlation_failed`; correct the project/run routing and run a new gate.
+   - Keep `artifact_validation_failed` outside receive until the artifact is corrected and the gate successfully revalidates it. Treat `review_failed`, unknown statuses, null handoffs, and contradictory eligibility fields as operational failures.
+   - `blocked` exits nonzero but is receive-eligible; `ok` exits zero and still requires durable receive disposition. Route by structured status and eligibility, not by exit code.
+
+5. If the command exits nonzero, use `description` to orient the next steps and handle `onFailure`:
+   - `block`: read gate feedback, remediate, and re-run the gate up to `maxAttempts` attempts (default `2`). If attempts are exhausted, escalate to the human with accumulated feedback and append that feedback to `implementation.md`. Treat a launch failure, missing CLI, or no eligible runtime as escalation-biased and do not spend it as a remediation attempt.
+   - `prompt`: surface the gate failure and ask the human how to proceed.
+   - `warn`: record the gate failure and continue.
+
+6. Runtime selection note (V1): the step runs the gate `command` as-is and reads no OAT runtime env var. By default, `oat gate review` and `oat gate cross-provider-exec` resolve the current host from built-in `hostDetectionCommand`s and avoid the same runtime when no exact target is supplied. Reusable lifecycle skill-gate commands must not include `--target <id>` so independent review stays provider-neutral. Use explicit targets only for manual/debug commands or deliberate local/user-specific overrides; do not hardcode provider/model targets in bundled skill guidance or shared lifecycle gate examples.
+
+A gate that ends in `block` after attempts are exhausted, or at an unresolved
+`prompt` boundary, means the completion steps below MUST NOT run; the phase
+stays `in_progress` and resumable.
+
 ### Step 3.7: Record Review Disposition and Mark Plan Complete
+
+Reach this completion boundary only after the configured gate passes or resolves
+according to its `onFailure` policy.
 
 Before changing readiness, durably record the review outcome in `plan.md`:
 
@@ -694,42 +799,6 @@ for path in \
 done
 git diff --cached --quiet || git commit -m "chore(oat): update quick-start artifacts for {project-name}"
 ```
-
-### Gate Execution
-
-Before reporting this skill as complete, run the configured gate as the final step after artifact review, state sync, dashboard refresh, and the quick-start artifact commit:
-
-1. Resolve the gate for this skill:
-
-   ```bash
-   oat gate resolve <this-skill> --json
-   ```
-
-   If the command returns JSON `null`, no gate is configured; the skill is complete.
-
-2. Export the resolved project path into the command shell:
-
-   ```bash
-   export PROJECT_PATH
-   ```
-
-   If the resolved command invokes `oat gate review`, the configured review command must already include `--project "$PROJECT_PATH"` and must not include `--target <id>`. A valid reusable shape is `oat gate review --project "$PROJECT_PATH" ...`. If the declaration is missing, stop and migrate the stored gate command; do not inject or append arguments at execution time.
-
-3. Execute the resolved command exactly as configured. Capture stdout, stderr, the exit code, and the structured JSON result. A zero exit code means the review passed its threshold, but it does not by itself authorize artifact receipt or complete the handoff.
-
-4. Review-artifact handoff:
-   - Parse the structured gate result. An exit code or artifact path alone never authorizes `oat-project-review-receive`.
-   - Invoke receive only when all three conditions hold: `status` is `ok` or `blocked`, the envelope explicitly sets `receiveEligible: true`, and a non-null `handoff` confirms the artifact was corroborated.
-   - `receiveEligible: false` is a hard stop even when `artifactPath` is present. Never receive `targeting_correlation_failed`; correct the project/run routing and run a new gate.
-   - Keep `artifact_validation_failed` outside receive until the artifact is corrected and the gate successfully revalidates it. Treat `review_failed`, unknown statuses, null handoffs, and contradictory eligibility fields as operational failures.
-   - `blocked` exits nonzero but is receive-eligible; `ok` exits zero and still requires durable receive disposition. Route by structured status and eligibility, not by exit code.
-
-5. If the command exits nonzero, use `description` to orient the next steps and handle `onFailure`:
-   - `block`: read gate feedback, remediate, and re-run the gate up to `maxAttempts` attempts (default `2`). If attempts are exhausted, escalate to the human with accumulated feedback and append that feedback to `implementation.md`. Treat a launch failure, missing CLI, or no eligible runtime as escalation-biased and do not spend it as a remediation attempt.
-   - `prompt`: surface the gate failure and ask the human how to proceed.
-   - `warn`: record the gate failure and continue.
-
-6. Runtime selection note (V1): the step runs the gate `command` as-is and reads no OAT runtime env var. By default, `oat gate review` and `oat gate cross-provider-exec` resolve the current host from built-in `hostDetectionCommand`s and avoid the same runtime when no exact target is supplied. Reusable lifecycle skill-gate commands must not include `--target <id>` so independent review stays provider-neutral. Use explicit targets only for manual/debug commands or deliberate local/user-specific overrides; do not hardcode provider/model targets in bundled skill guidance or shared lifecycle gate examples.
 
 ### Step 7: Output Next Action
 
