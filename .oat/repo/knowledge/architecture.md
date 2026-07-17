@@ -1,170 +1,258 @@
 ---
 oat_generated: true
-oat_generated_at: 2026-07-11
-oat_source_head_sha: 0e25a36d3958a1e09c7bedaddd6d3498dc0905d7
-oat_source_main_merge_base_sha: 17043d653233fb906e018f5872359d99eb556208
+oat_generated_at: 2026-07-17
+oat_source_head_sha: 6c03afde1417fbe29f0e2c81009629f0e36ca945
+oat_source_main_merge_base_sha: 6c03afde1417fbe29f0e2c81009629f0e36ca945
 oat_warning: "GENERATED FILE - Do not edit manually. Regenerate with oat-repo-knowledge-index"
 ---
 
 # Architecture
 
-**Analysis Date:** 2026-07-11
+**Analysis Date:** 2026-07-17
 
 ## Pattern Overview
 
-**Overall:** Canonical TypeScript source → generated dependency-free ESM runtime with single-provider CLI boundary.
-
-The repo enforces **no-install-step shipping**: committed `.mjs` runtime outputs under `plugins/` and `skills/` carry no dependencies and use only Node.js standard library. Canonical logic lives in TypeScript under `src/`, built to committed ESM by `pnpm run build` using esbuild + import rewriting.
+**Overall:** Consensus deliberation engine with provider CLI abstraction, supporting multi-peer iteration (alternating/parallel modes) and session observation/export capabilities.
 
 **Key Characteristics:**
 
-- Single source of truth: canonical TypeScript in `src/`, never hand-edited `.mjs` outputs
-- Build separation: TypeScript is developer-only; shipped runtimes are dependency-free Node ESM
-- External boundary: provider CLI (Claude, Codex, Cursor) is the sole external integration, invoked as subprocess with structured input/output
-- Generated copies: shared logic (transcript-core runtimes, consensus loop core) regenerated per-consumer skill to maintain independence
-- Drift guards: build-check (`pnpm run build:check`) and tests (`tests/tooling/generated-output-sync.test.ts`) enforce consistency
+- Multi-layered architecture: config resolution → core deliberation loop → skills wrappers
+- Provider-agnostic CLI subprocess model with probe-time capability discovery
+- Schema-bound verdict and synthesis payloads conforming to JSON schemas
+- Generated runtime outputs (`.mjs`) from canonical TypeScript source, kept in sync via build step
+- Dependency-free Node.js ESM runtime for shipped skills; development tooling uses pnpm
+- Three deliberation modes: alternating (sequential turns), parallel_revision (independent drafts with mutual awareness), parallel_synthesized (parallel with synthesis layer)
+- Audit trail recorded as JSONL records in run directories; terminal status reports cost, termination reason, artifact hash
 
 ## Layers
 
-**Consensus Core Loop** (`src/consensus/core/consensus-loop.ts`):
+**Consensus Core Loop:**
 
-- Purpose: Orchestrate iterative peer-feedback rounds; manage artifact convergence, verdict parsing, synthesis, and escalation detection
-- Location: `src/consensus/core/`
-- Contains: Loop execution engine, round/turn abstractions, verdict/synthesis payload types, convergence heuristics
-- Depends on: Provider CLI types/invocation, configuration resolution
-- Used by: Consensus skills (decide, create, plan, refine, evaluate) and decision/iteration strategies
+- Purpose: Implements deliberation state machine, verdict parsing, synthesis orchestration, escalation detection
+- Location: `src/consensus/core/consensus-loop.ts`
+- Contains: Iteration modes, verdict types (alternating vs. parallel), loop record structures, turn execution, artifact tracking
+- Depends on: Provider CLI types, hash computation, filesystem I/O
+- Used by: All skill wrappers (create, decide, plan, refine, evaluate, panel) via import
 
-**Provider CLI Integration** (`src/consensus/provider-cli/`):
+**Provider CLI Layer:**
 
-- Purpose: Mediate all external agent invocation through structured subprocess calls; handle output parsing, schema validation, retry logic, host-environment guards
-- Location: `src/consensus/provider-cli/`
-- Contains: CLI argument parsing, provider registry/capabilities probe, structured output extraction, subprocess spawning, host context guards, submit capture limits
-- Depends on: Node child_process, config, types
-- Used by: Consensus loop, individual skills, inventory/config commands
+- Purpose: Abstracts provider (Claude, Codex, Cursor, or custom) communication via local CLI subprocess; probes capabilities, manages invocation, structured output strategies
+- Location: `src/consensus/provider-cli/` (commands.ts, types.ts, adapters.ts, invocation.ts, probe.ts, structured-output.ts)
+- Contains: Provider registry, host context detection, structured output modes (stdout_json, json_envelope, sidecar_file), schema validation, retry logic, submission capture
+- Depends on: Node subprocess, environment detection, filesystem
+- Used by: Consensus loop (via `PeerInvoker` / `SynthesizerInvoker`), provider CLI CLI entrypoint
 
-**Consensus Skills** (consensus `create`, `decide`, `plan`, `refine`, `evaluate`, `panel`):
+**Configuration Layer:**
 
-- Purpose: Expose domain-specific workflows (artifact creation, decision-making, planning, refinement, evaluation, panel discussion) as callable entry points
-- Location: `src/consensus/{decide,create,plan,refine,evaluate,panel}/` and `plugins/consensus/skills/{skill}/`
-- Contains: Skill-specific option parsing, file I/O, state path management, run initialization
-- Depends on: Core loop, config, provider CLI, type definitions
-- Used by: Provider-specific plugins (Claude plugin manifest, Codex plugin, Cursor agent CLI)
+- Purpose: Resolves peer compositions (individual peer selections or scoped defaults), reads/writes per-skill config, merges user/project scope defaults
+- Location: `src/consensus/config/consensus-config.ts`
+- Contains: Peer registry, role-based panel selection, default config persistence (user/project scope), composition resolution
+- Depends on: Filesystem (config directories)
+- Used by: All skill wrappers during initialization
 
-**Session Transcript Capture** (`src/transcript/`):
+**Skills Layer (Deliberation Wrappers):**
 
-- Purpose: Extract and track per-provider transcript metadata; support session observation and export
-- Location: `src/transcript/session-observer/` (live capture), `src/transcript/export-session/` (export pipeline), `src/transcript/core/` (shared runtime definitions)
-- Contains: Runtime-specific transcript shape and query logic, session state tracking, sanitization rules
-- Depends on: Standard library only
-- Used by: Standalone session-observer and export-session-transcript skills
+- Purpose: Each skill (create, decide, plan, refine, evaluate, panel, phone-a-friend) wraps consensus loop with skill-specific argument parsing, prompt builders, and output rendering
+- Location: `src/consensus/{create,decide,plan,refine,evaluate,panel,phone-a-friend}/`
+- Contains: Parsed CLI args, input validation, prompt builders (TurnPrompt, ParallelTurnPrompt, SynthesisPrompt), state path management, artifact rendering
+- Depends on: Consensus core loop, provider CLI, config layer
+- Used by: Generated skill entrypoints (`plugins/consensus/skills/*/scripts/*.mjs`)
 
-**Configuration & Composition** (`src/consensus/config/consensus-config.ts`):
+**Transcript Core Layer:**
 
-- Purpose: Resolve consensus defaults (peers, panelists, panel-size, roles) across user and project scopes; apply scope precedence and workflow-specific overrides
-- Location: `src/consensus/config/`
-- Contains: Config file I/O (YAML), scope resolution, agent ref parsing, defaults merging
-- Depends on: Standard library only (no YAML parser; plain text parsing)
-- Used by: All consensus skills, provider CLI config commands
+- Purpose: Runtime definitions for transcript formats (Claude Code, Codex, Cursor session message schemas)
+- Location: `src/transcript/core/runtimes.ts`
+- Contains: Runtime discriminators, message record types, session metadata shapes per provider
+- Depends on: TypeScript types only
+- Used by: Session-observer, export-session-transcript skills
+
+**Session-Observer Layer:**
+
+- Purpose: Watches provider session directories for new transcripts, extracts changes, computes ranked digests of recent activity, manages state tracking to avoid re-processing
+- Location: `src/transcript/session-observer/session-observer.ts` and `lib/` subdirectory
+- Contains: State management (watch-state.ts), ranking/filtering (rank.ts), digest computation, environment probing (probe-local.ts)
+- Depends on: Transcript core, filesystem watching, Node.js child_process
+- Used by: Session-observer skill entry point
+
+**Export-Session-Transcript Layer:**
+
+- Purpose: Exports full or filtered session transcripts in canonical formats
+- Location: `src/transcript/export-session/export-session-transcript.ts`
+- Contains: Transcript loading, sanitization (sanitize.ts), filtering, output rendering
+- Depends on: Transcript core, filesystem I/O
+- Used by: Export-session-transcript skill entry point
 
 ## Data Flow
 
-**Consensus Loop Turn (Alternating or Parallel Mode):**
+**Skill Invocation (e.g., create, refine):**
 
-1. Caller invokes skill (e.g., `consensus-decide`) with options, input artifact, peer list
-2. Skill validates inputs, resolves config, prepares state directories (records, status, output)
-3. Core loop enters round loop, each round invokes one or more peers:
-   - For alternating: serial peer invocations, each peer critiques and proposes next artifact
-   - For parallel: concurrent peer invocations, synthesis step converges divergent proposals
-4. Provider CLI subprocess is spawned with structured request (provider ID, prompt, schema path, host context)
-5. Provider (Claude/Codex/Cursor) executes, returns structured JSON verdict (REVISE/ACCEPT/CONVERGED/IMPASSE)
-6. Loop parses verdict, records it, updates artifact if revised, checks convergence conditions
-7. After max rounds or convergence, loop terminates; skill writes final artifact + metadata to output path
+1. User invokes skill via provider interface → arguments parsed by skill wrapper
+2. Wrapper resolves consensus composition (peer list) and defaults from config layers
+3. Wrapper constructs LoopOptions and delegates to `runConsensusLoop()`
+4. Loop initializes records, resolves artifact (if resume), and enters turn/round execution
 
-**Escalation & Intervention:**
+**Deliberation Turn (Alternating Mode):**
 
-- Loop detects escalation triggers: persistent disagreement, oscillation, budget exhausted, near-done drift
-- Escalation route determines whether to escalate to host (orchestrator) or user, or auto-resolve (declare done / near-match)
-- Host intervention recorded as `USER_INTERVENTION` or `HOST_DECISION` record type
+1. Current artifact + goal passed to `invokePeer()` (peer invocation callback)
+2. Peer invocation builds turn prompt, invokes provider CLI subprocess with schema path
+3. Provider CLI probes provider (e.g., `claude`) for capabilities, invokes with structured output mode
+4. Provider returns verdict (ACCEPT/REVISE/IMPASSE) + optional revision + critique
+5. Loop validates verdict against schema, updates artifact if REVISE, writes LoopRecord
+6. Loop checks termination conditions (convergence, max rounds, impasse); continues or synthesizes
 
-**Shared Transcript-Core Regeneration:**
+**Parallel Revision Round:**
 
-1. Developer edits canonical source: `src/transcript/core/runtimes.ts` (per-provider transcript shape)
-2. Build step invokes `pnpm run build` → esbuild processes, generates copies to:
-   - `skills/session-observer/scripts/lib/runtimes.mjs`
-   - `skills/export-session-transcript/scripts/lib/runtimes.mjs`
-3. Drift check (`pnpm run build:check`) compares committed copies against fresh build output
-4. If drift detected, test `tests/tooling/generated-output-sync.test.ts` fails; developer reruns build and commits updates
+1. Both peers receive same artifact + goal; each produces independent revision
+2. Both return REVISE or terminal verdicts; loop synthesizes if both REVISE (not converged)
+3. Synthesis invocation: calls `invokeSynthesizer()` with both revisions + prior critiques
+4. Synthesizer produces merged artifact + synthesis reasoning + unresolved disagreements
+5. New artifact replaces working copy; loop enters next round
+
+**Records and Status:**
+
+1. Each turn writes LoopRecord (JSONL) with: timestamp, turn/round index, agent, verdict, reasoning, artifact_hash
+2. At termination, final status written with: status (converged/impasse/escalated), termination_reason, final_artifact_hash, cost
+3. Skill wrapper reads terminal status and artifact, renders final output (markdown, JSON, or section replacement)
+
+**Session Observation:**
+
+1. Session-observer polls provider session directory (Claude: `~/.claude/projects/<slug>/`, Codex: `~/.codex/sessions/`)
+2. For each session file, extracts new messages since prior offset
+3. Computes ranked digest of significant messages (assistant responses, user questions)
+4. Writes state file with offset + digest; subsequent polls only process new messages
+
+**Transcript Export:**
+
+1. Locates provider session directory from runtime context (Claude Code, Codex, Cursor)
+2. Loads full or filtered transcript from JSONL/JSON files
+3. Sanitizes sensitive metadata, renders in canonical format (Markdown, JSON)
+4. Outputs to stdout or specified file
 
 **State Management:**
 
-- Loop records: JSONL format, one record per turn/round/synthesis event, includes verdict payload + artifact hash + metadata
-- Artifact versioning: hash-based (content hash before/after each turn), enables convergence detection
-- Status file: final `LoopStatus` written at termination with convergence reason, cost, attempt counts
+- Consensus loop maintains in-memory records list; appends to JSONL on each turn
+- Config is merged at invocation time (user defaults + project defaults + CLI overrides)
+- Session-observer state is persisted per session (offset + prior digest)
+- Run directories (`--run-dir` or `~/.../<skill>/run-<timestamp>/`) isolate concurrent executions
 
 ## Key Abstractions
 
-**LoopRecord:**
+**Verdict Payload:**
 
-- Purpose: Immutable turn/round event log entry
-- Examples: `src/consensus/core/consensus-loop.ts` (lines 72–101)
-- Pattern: Union type covering synthesis, verdict, intervention, error records; each variant carries schema version + timestamp + context
+- Purpose: Peer response structure validated against skill-specific schema
+- Examples: `src/consensus/core/consensus-loop.ts` (PeerVerdictPayload type); `plugins/consensus/skills/refine/schemas/verdict-*.schema.json`
+- Pattern: Discriminated union on verdict field (ACCEPT/REVISE/IMPASSE + ACCEPT_PEER/CONVERGED for parallel); includes reasoning, optional critique, optional proposed_artifact
 
-**PeerVerdictPayload:**
+**Loop Record:**
 
-- Purpose: Structured peer response: terminal verdict (ACCEPT/CONVERGED/IMPASSE) or revision verdict (REVISE/ACCEPT_PEER with proposed artifact)
-- Examples: `src/consensus/core/consensus-loop.ts` (lines 47–60)
-- Pattern: Discriminated union by verdict value; revision variants include proposed_artifact + optional critique
+- Purpose: Audit trail entry for each deliberation turn or synthesis
+- Examples: `src/consensus/core/consensus-loop.ts` (LoopRecord type); written to `<run-dir>/records.jsonl`
+- Pattern: JSON object with timestamp, turn_index, round_index, agent/synthesizer name, verdict (typed or raw), reasoning, artifact/proposed_artifact, metadata
 
-**ConsensusCliRunRequest / ProviderResult:**
+**Prompt Profile:**
 
-- Purpose: Provider CLI wire protocol — request encodes provider ID, prompt, schema path, host context; result decodes JSON output + diagnostics
-- Examples: `src/consensus/provider-cli/types.ts` (lines 103–200)
-- Pattern: Structured I/O envelope; ProviderDiagnostics tracks strategy used (constrained_native, provider_validated, prompt_only), output mode, exit classification
+- Purpose: Customizable prompt-building strategy for turn/synthesis prompts
+- Examples: `src/consensus/core/consensus-loop.ts` (TurnPromptBuilder, SynthesisPromptBuilder types); default implementations in each skill wrapper
+- Pattern: Functions accepting turn/synthesis input (goal, artifact, peer history) returning string prompt
 
-**IterationMode (alternating vs. parallel_revision vs. parallel_synthesized):**
+**Provider Invocation:**
 
-- Purpose: Control how peers respond and converge
-- Examples: Type definition in `src/consensus/core/consensus-loop.ts` (line 19)
-- Pattern: Alternating = one peer at a time, proposes next artifact; parallel = concurrent peers, synthesis step merges divergent versions
+- Purpose: Encapsulates subprocess invocation logic and capability detection
+- Examples: `src/consensus/provider-cli/invocation.ts` (ProviderInvocationArgs, ProviderResult); adapter implementations in `src/consensus/provider-cli/adapters.ts`
+- Pattern: Stateless callable taking schema path and prompt, returning structured JSON verdict or error
+
+**Configuration Scope:**
+
+- Purpose: User/project/effective config resolution for peer defaults
+- Examples: `src/consensus/config/consensus-config.ts` (ConsensusConfigScope, ConsensusDefaults); stored in `~/.consensus/config.json` (user) or `.consensus/config.json` (project)
+- Pattern: Hierarchical merge: effective = project defaults merged with user defaults, CLI overrides both
 
 ## Entry Points
 
-**Consensus Skill CLI** (e.g., `consensus-decide`):
+**Create Skill:**
 
-- Location: `plugins/consensus/skills/decide/scripts/consensus-decide.mjs` (generated from `src/consensus/decide/consensus-decide.ts`)
-- Triggers: Provider plugin invocation (Claude plugin command, Codex skill, Cursor agent call) or direct CLI `node scripts/consensus-decide.mjs [args]`
-- Responsibilities: Parse args, load input file, resolve config, initialize loop state, invoke core loop, write output
+- Location: `src/consensus/create/consensus-create.ts` (canonical) → generated `plugins/consensus/skills/create/scripts/consensus-create.mjs` (runtime)
+- Triggers: Provider plugin interface or CLI invocation
+- Responsibilities: Parse brief/template, resolve peers, run consensus loop with create goal, render artifact to output file/stdout
 
-**Provider CLI Entry** (`consensus run`):
+**Refine Skill:**
 
-- Location: `src/consensus/provider-cli/cli.ts` (exports Node.js shebang entry + `runConsensusCli`)
-- Triggers: Provider agent/plugin calls `consensus run --provider claude [args]` as subprocess
-- Responsibilities: Parse structured request from stdin/file, probe provider capabilities, invoke provider, parse/validate output, emit structured envelope
+- Location: `src/consensus/refine/consensus-refine.ts` (canonical) → generated `plugins/consensus/skills/refine/scripts/consensus-refine.mjs` (runtime)
+- Triggers: Provider plugin interface or CLI invocation
+- Responsibilities: Parse markdown section, resolve peers, run consensus loop with refine goal, replace section in source file or output full markdown
 
-**Session Observer** (`session-observer`):
+**Evaluate Skill:**
 
-- Location: `skills/session-observer/scripts/session-observer.mjs` (generated from `src/transcript/session-observer/session-observer.ts`)
-- Triggers: Background skill in provider to capture transcript metadata during agent execution
-- Responsibilities: Extract runtime context (Claude/Codex/Cursor), poll session state, record transcript snapshots
+- Location: `src/consensus/evaluate/consensus-evaluate.ts` (canonical) → generated `plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs` (runtime)
+- Triggers: Provider plugin interface or CLI invocation
+- Responsibilities: Parse artifact + rubric, resolve peers, run consensus loop with evaluation goal, render verdict/synthesis to section or file
+
+**Decide Skill:**
+
+- Location: `src/consensus/decide/consensus-decide.ts` (canonical) → generated `plugins/consensus/skills/decide/scripts/consensus-decide.mjs` (runtime)
+- Triggers: Provider plugin interface or CLI invocation
+- Responsibilities: Parse options, resolve peers, run consensus loop with choice goal, render decision to output
+
+**Plan Skill:**
+
+- Location: `src/consensus/plan/consensus-plan.ts` (canonical) → generated `plugins/consensus/skills/plan/scripts/consensus-plan.mjs` (runtime)
+- Triggers: Provider plugin interface or CLI invocation
+- Responsibilities: Parse goal/constraints, resolve peers, run consensus loop with planning goal, render plan to output
+
+**Panel Skill:**
+
+- Location: `src/consensus/panel/consensus-panel.ts` (canonical) → generated `plugins/consensus/skills/panel/scripts/consensus-panel.mjs` (runtime)
+- Triggers: Provider plugin interface or CLI invocation
+- Responsibilities: Parse question, resolve panelists, invoke each with same prompt (no consensus loop), render attributed panel responses
+
+**Phone-a-Friend Skill:**
+
+- Location: `src/consensus/{panel or phone}/...` (likely) → generated `plugins/consensus/skills/phone-a-friend/scripts/...` (runtime)
+- Triggers: Provider plugin interface or CLI invocation
+- Responsibilities: Parse question, select one advisor peer, invoke with advisory schema, render advisory response with reasoning
+
+**Session-Observer Skill:**
+
+- Location: `src/transcript/session-observer/session-observer.ts` (canonical) → generated `skills/session-observer/scripts/session-observer.mjs` (runtime)
+- Triggers: Provider plugin interface during active session or manual CLI invocation
+- Responsibilities: Detect active session, watch for new transcript entries, rank and digest changes, output digest or state summary
+
+**Export-Session-Transcript Skill:**
+
+- Location: `src/transcript/export-session/export-session-transcript.ts` (canonical) → generated `skills/export-session-transcript/scripts/export-session-transcript.mjs` (runtime)
+- Triggers: Manual CLI invocation or provider plugin interface
+- Responsibilities: Load full session transcript, filter if requested, sanitize, output in canonical format
+
+**Provider CLI Entrypoint:**
+
+- Location: `src/consensus/provider-cli/cli.ts` (canonical) → generated `plugins/consensus/scripts/consensus.mjs` (runtime)
+- Triggers: Skill wrapper subprocess invocation (spawn with args)
+- Responsibilities: Parse provider CLI args (run, config, preflight), dispatch to command handler, output JSON envelope (ProviderListEnvelope, ConfigEnvelope, SubmitResult, etc.)
 
 ## Error Handling
 
-**Strategy:** Structured error envelopes with exit codes; provider-level errors captured as ProviderDiagnostics.
+**Strategy:** Multi-level error classification with retry logic at provider CLI level; escalation and impasse detection at loop level; user/host intervention on terminal conditions.
 
 **Patterns:**
 
-- ConsensusError: Base error type with exit code; includes provider context (stdout, stderr, diagnostics)
-- Retry logic: invokeProviderCliWithRetry in `src/consensus/core/consensus-loop.ts` implements exponential backoff for transient failures
-- Submit capture limits: SubmitCaptureLimitError enforces CONSENSUS_SUBMIT_MAX_BYTES_ENV upper bound (prevents DoS)
-- Host guard: evaluateHostGuard in `src/consensus/provider-cli/host-guard.ts` gates subprocess invocation if host relation unsafe (e.g., same-host subprocess in different provider)
-- Schema validation: validateSchemaSubset in `src/consensus/provider-cli/schema-validate.ts` ensures provider output matches expected JSON schema subset
+- Provider CLI errors (auth, timeout, output parsing) trigger automatic retry with exponential backoff (retry options in `RetryOptions`)
+- Verdict parsing failures mark turn as error record but continue loop (records contain `raw_provider_response` for debugging)
+- Termination conditions: convergence (all accept or converged), impasse (repeated rejection loops), max rounds, user/host intervention
+- Escalation triggers (e.g., unresolved disagreements exceed threshold) set `escalation_trigger` field in records, caller can decide intervention
+- Artifact hash mismatch detection via `hashArtifact()` before/after verdicts to detect unexpected mutations
+- Host guard checks prevent unauthorized nested consensus invocations (depth tracking in `HostContext`)
+- Input size cap enforced (`INPUT_SIZE_CAP_BYTES` = 1 MiB) to prevent resource exhaustion
 
 ## Cross-Cutting Concerns
 
-**Logging:** No structured logging framework; output via stdout/stderr WritableLike interface; diagnostics captured in LoopRecord.provider_diagnostics and ProviderDiagnostics.
+**Logging:** No built-in logging library. Errors written to stderr via `ConsensusCliIo.stderr`. Records written to JSONL files for audit trail. Provider diagnostics (capabilities, output strategy, exit codes) captured in `ProviderDiagnostics` and serialized in terminal status.
 
-**Validation:** Input size caps (INPUT_SIZE_CAP_BYTES in `src/consensus/decide/consensus-decide.ts`); provider output schema validation; config key validation (peer/panelist format via PROVIDER_ID_PATTERN); artifact hash normalization (line-ending, trailing whitespace handling).
+**Validation:** Verdict and synthesis payloads validated against JSON schemas before acceptance. Input sizes checked against `INPUT_SIZE_CAP_BYTES`. Host depth validated against `max_depth` to prevent infinite recursion. Provider ID matched against `PROVIDER_ID_PATTERN` (alphanumeric + dash/underscore, 1-32 chars).
 
-**Authentication & Host Context:** Provider CLI receives HostContext (runtime, cwd, run_id, depth); used to validate safe-packet requirements and guard against unsafe same-host subprocess dispatch. No built-in auth; delegates to provider CLI (Claude auth via session token, etc.).
+**Authentication:** Provider authentication deferred to local CLI tools (claude, codex, cursor). Provider CLI reports auth_required status if credentials missing. No built-in credential storage; host provides credentials via environment or native auth flow.
 
-**Structured Output Strategy:** Loop respects provider capabilities (constrained_native, provider_validated, prompt_only, submit_tool_candidate); falls back gracefully if capability unavailable; diagnostics record which strategy actually used.
+**Confinement:** All filesystem writes confined via `confineWrite()` helper to run directory; path traversal blocked. Config reads scoped to user/project config directories. Input reads limited to `INPUT_SIZE_CAP_BYTES`. Run directory path constructed from timestamp + random UUID to ensure uniqueness and isolation.
+
+---
+
+_Architecture analysis: 2026-07-17_

@@ -1,254 +1,194 @@
 ---
 oat_generated: true
-oat_generated_at: 2026-07-11
-oat_source_head_sha: 0e25a36d3958a1e09c7bedaddd6d3498dc0905d7
-oat_source_main_merge_base_sha: 17043d653233fb906e018f5872359d99eb556208
+oat_generated_at: 2026-07-17
+oat_source_head_sha: 6c03afde1417fbe29f0e2c81009629f0e36ca945
+oat_source_main_merge_base_sha: 6c03afde1417fbe29f0e2c81009629f0e36ca945
 oat_warning: 'GENERATED FILE - Do not edit manually. Regenerate with oat-repo-knowledge-index'
 ---
 
 # Testing Patterns
 
-**Analysis Date:** 2026-07-11
+**Analysis Date:** 2026-07-17
 
 ## Test Framework
 
 **Runner:**
 
-- **Vitest** 4.1.9
-- Config: `vitest.config.mjs` at repo root
-- Environment: Node.js (no browser/jsdom)
-- TypeScript support: native (`*.test.ts` files)
+- **Vitest** 4.1.9 (configured in `vitest.config.mjs`)
+- Environment: Node.js
+- TypeScript support via native ESM transpilation
+- Test timeout: 30 seconds (both individual tests and hooks)
+- Include pattern: `tests/**/*.test.ts`, `tests/**/*.test.mts`
 
 **Assertion Library:**
 
-- Vitest's built-in `expect()` API (compatible with Jest)
-- Imports: `import { expect, describe, test, it } from 'vitest'`
-- No external assertion library; vitest expect is primary
+- **Vitest** built-in `expect()` assertions
+- Import: `import { expect, describe, test } from 'vitest';`
+- Methods observed: `.toBe()`, `.toEqual()`, `.toHaveLength()`, `.toContain()`, `.toBeTruthy()`, `.toBeFalsy()`, `.toMatch()`, `.toHaveProperty()`, `.toSomeMethod()`
 
 **Run Commands:**
 
 ```bash
-pnpm run test              # Run all tests (vitest)
-pnpm run test:vitest       # Explicit vitest runner
-npm test                   # Equivalent to pnpm run test
+pnpm run test              # Full Vitest suite (runs all .test.ts files)
+npm test                   # Alias for pnpm run test
+pnpm run build:check       # Verify generated runtime outputs match source
+pnpm run validate          # Repository structure and docs invariants
+pnpm run premerge          # Full pre-merge checks (build + type-check + test + validate + smoke)
 ```
 
-## Test Configuration Details
-
-**Key Settings from `vitest.config.mjs`:**
-
-- Environment: `'node'` — tests run in Node.js, not browser
-- File patterns: `tests/**/*.test.ts`, `tests/**/*.test.mts`
-- Test timeout: `30_000` ms (30 seconds) for all tests
-- Hook timeout: `30_000` ms (same as test timeout)
-- Note: Long timeout accommodates integration tests spawning subprocesses or driving real timers; fast unit tests finish in milliseconds
-
-**Coverage:**
-
-- No coverage enforcement or reporting configured
-- Coverage tools not installed or configured
+Watch mode and coverage:
+- No watch mode script defined in package.json
+- No coverage collection configured in vitest.config.mjs
+- Coverage targets: None enforced (not configured)
 
 ## Test File Organization
 
 **Location:**
 
-- Separate from source: tests live under `tests/` directory tree, source under `src/`
-- Domain-organized: tests grouped by feature domain (e.g., `tests/session-observer/`, `tests/consensus/`, `tests/tooling/`)
-- No co-located `.test.ts` files alongside source files
+- All tests in `tests/` directory
+- Organized by domain/subsystem (mirroring `src/` structure):
+  - `tests/session-observer/` — session-observer skill behavior
+  - `tests/consensus/` — consensus core/wrapper/evaluate tests
+  - `tests/tooling/` — build guards and linting policy tests
+  - `tests/helpers/` — shared test utilities (not test files themselves)
+  - `tests/fixtures/` — static test data and stub binaries
 
 **Naming:**
 
-- Pattern: `*.test.ts` or `*.test.mts` (e.g., `observe.test.ts`, `state.test.ts`, `digest.test.ts`)
-- File-module correspondence: test files usually named after the module they test (e.g., `tests/session-observer/observe.test.ts` tests `src/transcript/session-observer/lib/observe.ts`)
+- Suffix `.test.ts` for TypeScript test files: `observe.test.ts`, `consensus-loop.test.ts`
+- Suffix `.test.mts` for some module tests (rare, seen in config)
+- Legacy `.test.mjs` files must not be reintroduced (enforced by `tests/tooling/no-node-test-runner.test.ts`)
 
 **Structure:**
 
 ```
 tests/
 ├── consensus/
-│   ├── core/                      # Core loop behavior tests
-│   ├── refine/                    # Refine wrapper behavior tests
-│   ├── evaluate/                  # Evaluate skill behavior tests
-│   ├── decide/                    # Decide wrapper tests
+│   ├── install-contract.test.ts
 │   ├── generated-config-import.test.ts
-│   ├── generated-evaluate-import.test.ts
-│   ├── generated-refine-import.test.ts
-│   ├── install-sh.test.ts
-│   └── install-contract.test.ts
+│   └── ...
 ├── session-observer/
 │   ├── observe.test.ts
-│   ├── watch-state.test.ts
 │   ├── cli-session-override.test.ts
-│   ├── digest.test.ts
-│   ├── state.test.ts
-│   ├── helpers/
-│   │   └── tmpdir.ts              # Shared test utilities (no .test.ts extension)
-│   └── fixtures/
-│       ├── claude-code/
-│       │   ├── typical.jsonl
-│       │   ├── empty.jsonl
-│       │   └── with-tool-burst.jsonl
-│       ├── codex/
-│       │   └── typical.jsonl
-│       └── cursor/
-│           └── typical.jsonl
+│   └── ...
+├── session-observer-collab/
+│   ├── control.test.ts
+│   └── ...
 ├── tooling/
 │   ├── generated-output-sync.test.ts
 │   ├── vitest-config.test.ts
 │   └── no-node-test-runner.test.ts
-└── helpers/                       # Shared test utilities (no .test.ts extension)
-    ├── process.mjs
-    └── tmpdir.ts
+├── helpers/
+│   ├── consensus.ts (shared utilities)
+│   ├── process.mjs (subprocess/env helpers)
+│   └── process.d.mts (TypeScript declarations)
+└── fixtures/
+    ├── bin/ (stub binaries for testing)
+    └── sample-input.md
 ```
 
 ## Test Structure
 
 **Suite Organization:**
 
-Files use `describe()` for grouping related tests; flat top-level tests also common:
+Standard Vitest pattern: `describe()` for suites, `test()` for individual tests.
 
+From `tests/session-observer/observe.test.ts:84-205`:
 ```typescript
-// Example from tests/session-observer/observe.test.ts
 describe('observeCatchUp', () => {
   test('builds a catch-up digest from the prior offset and only rewrites changed state', async () => {
     await withTempSessionHome(async (home, stateDir) => {
-      // test body
+      const cwd = '/test/observe-prior-offset';
+      const transcriptPath = await writeClaudeTranscript(
+        home,
+        cwd,
+        'observe-prior.jsonl',
+        'observe-prior',
+        [
+          { role: 'user', content: 'first question' },
+          { role: 'assistant', content: 'first answer' },
+        ],
+      );
+      const first: any = await observeCatchUp({
+        runtime: 'claude-code',
+        cwd,
+        session: 'claude-code:observe-prior',
+      });
+
+      expect(first.ok).toBe(true);
+      expect(first.digest.mode).toBe('catch-up');
+      expect(first.digest.range.fromIndex).toBe(0);
+      expect(first.digest.range.nextIndex).toBe(2);
+      expect(first.markedRead).toBe(true);
+      // ... more assertions
     });
   });
 
   test('uses snippet filtering before ranking candidates', async () => {
-    await withTempSessionHome(async (home) => {
-      // test body
-    });
-  });
-});
-```
-
-Flat tests also used:
-
-```typescript
-// Example from tests/session-observer/state.test.ts
-import { expect, it } from 'vitest';
-
-it('mutate creates state.json on first write', async () => {
-  await withTmpStateDir(async (dir) => {
-    // test body
+    // ... similar structure
   });
 });
 ```
 
 **Patterns:**
 
-- **Setup pattern:** Async test helpers create temp directories/environments, then call test function with context. Cleanup happens in `finally` block.
-  
-  ```typescript
-  // From tests/session-observer/helpers/tmpdir.ts
-  export async function withTmpStateDir(
-    fn: (dir: string) => Promise<void>,
-  ): Promise<void> {
-    const dir = await mkdtemp(join(tmpdir(), 'session-observer-test-'));
-    const prev = process.env.STATE_DIR;
-    process.env.STATE_DIR = dir;
-    try {
-      await fn(dir);
-    } finally {
-      if (prev === undefined) {
-        delete process.env.STATE_DIR;
-      } else {
-        process.env.STATE_DIR = prev;
-      }
-      await rm(dir, { recursive: true, force: true });
-    }
-  }
-  ```
+- **Setup:** Helper functions create fixture state (temp directories, transcript files, environments). Example: `withTempSessionHome()` in `tests/session-observer/observe.test.ts:17-35`
+- **Teardown:** `finally` blocks or `afterEach()` hooks clean up temp resources. Pattern: `await rm(home, { recursive: true, force: true });`
+- **Assertions:** Chain `.toBe()`, `.toEqual()`, `.toContain()`, etc. on `expect()` results
 
-- **Teardown pattern:** Cleanup in `finally` block ensures state is restored even if test fails. File system temp directories cleaned with `rm(dir, { recursive: true, force: true })`. Environment variables restored to previous state (or deleted if previously unset).
+From `tests/consensus/install-contract.test.ts:36-69`:
+```typescript
+describe('consensus install contract', () => {
+  it('keeps README, user guide, install.sh, and resolver shared-path/ref values aligned', async () => {
+    const [readme, installGuide, installSh, resolver] = await Promise.all([
+      repoFile('README.md'),
+      repoFile('documentation/docs/user-guide/installation.md'),
+      repoFile('install.sh'),
+      repoFile('src/consensus/core/consensus-loop.ts'),
+    ]);
 
-- **Assertion pattern:** Direct `expect()` chains; multiple assertions per test are common:
-  
-  ```typescript
-  // From tests/session-observer/observe.test.ts
-  expect(first.ok).toBe(true);
-  expect(first.digest.mode).toBe('catch-up');
-  expect(first.digest.range.fromIndex).toBe(0);
-  expect(first.digest.range.nextIndex).toBe(2);
-  expect(first.markedRead).toBe(true);
-  ```
+    const readmeRefs = extractInstallRefs(readme);
+    expect(readmeRefs).toHaveLength(1);
+    const [readmeRef] = readmeRefs;
+    expect(readmeRef).toMatch(/^v\d+\.\d+\.\d+$/u);
+    expect(['main', 'HEAD']).not.toContain(readmeRef);
+    // ... more assertions
+  });
+});
+```
 
 ## Mocking
 
-**Framework:** Minimal mocking strategy
+**Framework:** No explicit mocking library observed
+
+- Tests use **actual** temp directories (`mkdtemp`) rather than in-memory mocks
+- Stub environments created with helper functions (e.g., `makeStubEnv()`, `makeProviderCliEnv()`)
+- No Sinon, Jest mocks, or Vitest mock utilities observed
 
 **Patterns:**
 
-- No Vitest `vi.mock()` or mock libraries used
-- Instead, tests use:
-  - **Fixtures:** Static JSONL files in `tests/session-observer/fixtures/` (e.g., `claude-code/typical.jsonl`, `codex/typical.jsonl`)
-  - **In-memory data:** Tests build expected data structures and pass them directly
-  - **Stub implementations:** Callback functions passed to tested functions return stub/fixture responses
+**Environment Stubbing** (from `tests/helpers/process.mjs:26-42`):
+```javascript
+export function makeStubEnv(overrides = {}) {
+  return {
+    ...process.env,
+    PATH: `${fixtureBin}${path.delimiter}${process.env.PATH}`,
+    ...overrides,
+  };
+}
 
-**Example from `tests/consensus/decide/wrapper.test.ts`:**
-
-```typescript
-return await runConsensusDecide(
-  [/* args */],
-  {
-    cwd: context.cwd,
-    env: context.env,
-    invokePeer: async ({ provider }) => ({
-      json: {
-        schema_version: 'v1',
-        verdict: 'REVISE',
-        reasoning: `${provider} fixture recommendation`,
-        proposed_artifact: `## Recommendation\n\n${provider} recommends shipping.\n\n## Reasoning\n\nFixture.\n\n## Alternatives\n\n- Wait.\n\n## Dissent / Unresolved Disagreement\n\n- None.\n`,
-      },
-    }),
-    invokeSynthesizer: async () => ({
-      json: {
-        schema_version: 'v1',
-        synthesized_artifact: '## Recommendation\n\nShip now.\n\n...',
-        synthesis_reasoning: 'fixture synthesis',
-        unresolved_disagreements: [],
-      },
-    }),
-  },
-);
+export function makeProviderCliEnv(overrides = {}) {
+  return makeStubEnv({
+    CONSENSUS_CLI_PATH: consensusCliFixture,
+    ...overrides,
+  });
+}
 ```
 
-**What to Mock:**
+Usage: `const child = spawn(command, args, { env: makeStubEnv() });`
 
-- External process calls (via callback parameters)
-- Provider CLI invocations (stubbed with JSON responses)
-- File system operations can be mocked via temp directories with test data
-
-**What NOT to Mock:**
-
-- Filesystem operations: use real temp directories via `mkdtemp` + cleanup
-- Core library functions: test actual implementation (e.g., state persistence, digest building)
-- Date/time: use real `Date` unless specifically testing time-dependent logic
-- Environment variables: set them for the test scope and restore in `finally`
-
-## Fixtures and Factories
-
-**Test Data:**
-
-Fixtures are static JSONL files checked into the repo:
-
+**Fixture Data Creation** (from `tests/session-observer/observe.test.ts:37-82`):
 ```typescript
-// From tests/session-observer/digest.test.ts
-import { fileURLToPath } from 'node:url';
-import { dirname } from 'node:path';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const FIXTURES = join(__dirname, 'fixtures');
-const typicalClaude = join(FIXTURES, 'claude-code', 'typical.jsonl');
-const typicalCodex = join(FIXTURES, 'codex', 'typical.jsonl');
-```
-
-Test helper functions create temporary data and return paths:
-
-```typescript
-// From tests/session-observer/observe.test.ts
 async function writeClaudeTranscript(
   home: string,
   cwd: string,
@@ -272,109 +212,191 @@ async function writeClaudeTranscript(
 }
 ```
 
+**What to Mock:**
+
+- Environment variables: `makeStubEnv()` for process.env overrides
+- File paths: `mkdtemp()` for isolated temp directories
+- Provider CLIs: Fixture binaries under `tests/fixtures/bin/`
+
+**What NOT to Mock:**
+
+- File system operations: Use real temp dirs (mkdtemp) to test actual I/O behavior
+- Child processes: Use real spawning via `spawn()` / `spawnSync()` to test CLI integration
+- Timestamps: Use real timers; no fake time observed
+
+## Fixtures and Factories
+
+**Test Data:**
+
+**Factory Functions** (from `tests/helpers/consensus.ts:37-72`):
+```typescript
+export async function makeLoopOptions({
+  sectionText = 'Brief: create a useful artifact.\n',
+  iteration = 'alternating',
+  coldStart = 'independent_draft',
+  agency = 'moderate',
+  maxRounds = 1,
+  synthesizer = null,
+} = {}) {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-loop-'));
+  const sectionFile = path.join(tempRoot, 'section.md');
+  await writeFile(sectionFile, sectionText);
+
+  return {
+    tempRoot,
+    options: {
+      sectionFile,
+      goal: 'Create an artifact from the brief.',
+      peers: ['claude', 'codex'],
+      maxRounds,
+      iteration,
+      coldStart,
+      agency,
+      synthesizer,
+      outputRecords: path.join(tempRoot, 'records.json'),
+      outputSection: path.join(tempRoot, 'output.md'),
+      outputStatus: path.join(tempRoot, 'status.json'),
+    } satisfies LoopOptions,
+  };
+}
+```
+
+**Fixture Helpers** (from `tests/helpers/process.mjs:59-70`):
+```javascript
+export function parseJsonl(contents) {
+  return String(contents)
+    .trim()
+    .split('\n')
+    .filter(Boolean)
+    .map((line) => JSON.parse(line));
+}
+
+export async function readJson(filePath) {
+  return JSON.parse(await readFile(filePath, 'utf8'));
+}
+```
+
 **Location:**
 
-- Static fixtures: `tests/{domain}/fixtures/` (e.g., `tests/session-observer/fixtures/claude-code/typical.jsonl`)
-- Helper functions: `tests/{domain}/helpers/` (e.g., `tests/session-observer/helpers/tmpdir.ts`) or `tests/helpers/` for cross-domain utilities
-- No `.test.ts` extension on helper files; they are utilities, not test files
+- Domain-specific helpers: `tests/helpers/consensus.ts` (consensus test utilities)
+- General-purpose helpers: `tests/helpers/process.mjs` (subprocess, env, JSON, paths)
+- Static fixtures: `tests/fixtures/` (sample markdown, stub binaries)
+
+## Coverage
+
+**Requirements:** Not enforced
+
+- No coverage targets configured in vitest.config.mjs
+- No CI/pre-commit checks for coverage
+- Generated files (consensus loop/wrapper/evaluate) and OAT-synced files excluded from linting but not coverage
 
 ## Test Types
 
 **Unit Tests:**
 
-- Scope: individual functions and modules (e.g., `state.ts`, `digest.ts`)
-- Approach: 
-  - Import canonical TypeScript source: `import * as state from '../../src/transcript/session-observer/lib/state.js'`
-  - Test behavior via public API
-  - Use temp fixtures and state dirs for isolation
-  - Example: `tests/session-observer/state.test.ts` tests state persistence, concurrency, and recovery
+- Scope: Individual functions and modules
+- Approach: Test functions in isolation with known inputs and expected outputs
+- Example: `tests/session-observer/observe.test.ts` tests the `observeCatchUp()` function with various session/cwd/snippet combinations
+- No mocking of dependencies; uses real temp dirs
 
 **Integration Tests:**
 
-- Scope: multi-module workflows (e.g., end-to-end CLI execution, config resolution)
-- Approach:
-  - Tests spawn actual subprocesses via provider CLI
-  - Isolated consensus configs created in temp directories
-  - Full environment setup: `HOME`, `XDG_CONFIG_HOME`, env vars
-  - Examples: `tests/consensus/decide/wrapper.test.ts`, `tests/consensus/install-contract.test.ts`
+- Scope: Multi-component behavior (e.g., CLI parsing + provider invocation + envelope formatting)
+- Approach: Spawn child processes, invoke CLI with fixture data, assert file/output changes
+- Example: `tests/consensus/install-contract.test.ts` checks that install.sh, README, docs, and source code stay aligned
+- Example: `tests/session-observer-collab/control.test.ts` tests lease management across multiple async operations
 
 **E2E Tests:**
 
-- Scope: **Not formally implemented**
-- Note: Integration tests come close by testing full CLI workflows with fixtures; no separate E2E suite
-- Smoke test (`pnpm run smoke`) provides end-to-end verification of the consensus wrapper flow
+- Not used; CLI/smoke testing handled separately in `scripts/smoke-test.mjs`
 
 ## Common Patterns
 
 **Async Testing:**
 
-```typescript
-// From tests/session-observer/state.test.ts
-it('two concurrent mutate calls both succeed and final state contains both mutations', async () => {
-  await withTmpStateDir(async (_dir) => {
-    // Both mutations write a different session entry; both must land.
-    await Promise.all([
-      state.markRead('claude-code', 'sess-a', {
-        lastRecordIndex: 1,
-        lastTotalRecords: 10,
-        transcriptPath: '/tmp/a.jsonl',
-        recordedCwd: '/proj',
-      }),
-      state.markRead('codex', 'sess-b', {
-        lastRecordIndex: 2,
-        lastTotalRecords: 20,
-        transcriptPath: '/tmp/b.jsonl',
-        recordedCwd: '/proj',
-      }),
-    ]);
+All async tests are declared `async` and return Promises. Vitest awaits them automatically.
 
-    const a: any = await state.getSession('claude-code', 'sess-a');
-    const b: any = await state.getSession('codex', 'sess-b');
-    expect(a, 'sess-a must exist').toBeTruthy();
-    expect(b, 'sess-b must exist').toBeTruthy();
+From `tests/consensus/install-contract.test.ts:37-69`:
+```typescript
+it('keeps README, user guide, install.sh, and resolver shared-path/ref values aligned', async () => {
+  const [readme, installGuide, installSh, resolver] = await Promise.all([
+    repoFile('README.md'),
+    repoFile('documentation/docs/user-guide/installation.md'),
+    repoFile('install.sh'),
+    repoFile('src/consensus/core/consensus-loop.ts'),
+  ]);
+
+  const readmeRefs = extractInstallRefs(readme);
+  expect(readmeRefs).toHaveLength(1);
+  // ... assertions
+});
+```
+
+**Error Testing:**
+
+Tests assert both successful and failed outcomes using discriminated unions. From `tests/session-observer/observe.test.ts:162-174`:
+
+```typescript
+test('returns a no-match outcome without exiting the process', async () => {
+  await withTempSessionHome(async () => {
+    const result: any = await observeCatchUp({
+      runtime: 'claude-code',
+      cwd: '/test/no-transcripts',
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.kind).toBe('noMatch');
+    expect(result.exitCode).toBe(2);
+    expect(result.payload.noMatch).toBe(true);
   });
 });
 ```
 
-- `async`/`await` throughout; all tests are async
-- Concurrency tested with `Promise.all()`
-- Cleanup guaranteed in helper's `finally` block
+**Resource Cleanup:**
 
-**Error Testing:**
+Temp files/dirs cleaned up in finally blocks or afterEach hooks to ensure clean working tree (verified by `npm test` drift guards). From `tests/session-observer-collab/control.test.ts:59-62`:
 
 ```typescript
-// From tests/consensus/decide/wrapper.test.ts
-expect(() => parseDecideArgs([])).toThrow(/requires --options/);
-expect(() => parseDecideArgs(['--options', 'x', '--unknown'])).toThrow(
-  /Unknown argument/,
-);
-
-// Async error testing
-await expect(runInstall(home)).rejects.toMatchObject({
-  code: 'INSTALL_FAILED',
-});
-
-await expect(executeRound(parallelContext({ invokePeer }))).rejects.toSatisfy(
-  (err: any) => err.code === 'PEER_INVOCATION_FAILED',
+afterEach(async () =>
+  Promise.all(
+    roots.splice(0).map((root) => rm(root, { recursive: true, force: true })),
+  ),
 );
 ```
 
-- Synchronous errors: `expect(() => fn()).toThrow(pattern)`
-- Async errors: `await expect(promise).rejects.toMatchObject(expectedError)` or `rejects.toSatisfy(predicate)`
-- Error assertions check both type (`code` property) and message content
+**Subprocess Testing:**
 
-## Test Discipline
+Tests spawn subprocesses and assert exit codes, stdout, stderr. Helper: `runNodeScript()` from `tests/helpers/process.mjs:72-88`:
 
-**From `tests/AGENTS.md`:**
+```typescript
+export async function runNodeScript(scriptPath, args = [], options = {}) {
+  const result = await runNodeScriptResult(scriptPath, args, options);
+  if (result.code === 0) {
+    return { stdout: result.stdout, stderr: result.stderr };
+  }
+  const error = new Error(
+    `Command failed with exit code ${result.code}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`,
+  );
+  error.stdout = result.stdout;
+  error.stderr = result.stderr;
+  error.code = result.code;
+  throw error;
+}
+```
 
-- All suites are Vitest `.test.ts` files using `import { describe, it, expect } from 'vitest'`
-- Prefer importing canonical TypeScript source for unit/library behavior tests
-- Keep shipped `.mjs` entrypoint execution in CLI/integration tests where installed-skill behavior is protected
-- Session-observer tests under `tests/session-observer/`; no `.test.mjs` files should exist
-- Filesystem-touching tests create temp dirs under `os.tmpdir()` (`mkdtemp`) and clean them up — suite must leave clean working tree
-- Guard: `tests/tooling/no-node-test-runner.test.ts` enforces no legacy test-runner imports or `.test.mjs` files
-- Generated-output drift guard: `tests/tooling/generated-output-sync.test.ts` (run `pnpm run build:check` to verify)
+## Build & Validation Integration
+
+**Generated-Output Drift Detection:**
+
+`tests/tooling/generated-output-sync.test.ts` is a drift guard that ensures canonical TypeScript source stays in sync with committed `.mjs` runtime outputs. Enforced via:
+- `pnpm run build:check` (must pass before merge)
+- Local `pre-push` hook
+- CI job `build-and-sync` (PR-scoped)
+
+**Linting Policy Guard:**
+
+`tests/tooling/no-node-test-runner.test.ts` enforces that no legacy `.test.mjs` files or Node test-runner imports are introduced.
 
 ---
 
-_Testing analysis: 2026-07-11_
+_Testing analysis: 2026-07-17_

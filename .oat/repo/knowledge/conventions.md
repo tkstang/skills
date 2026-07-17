@@ -1,212 +1,212 @@
 ---
 oat_generated: true
-oat_generated_at: 2026-07-11
-oat_source_head_sha: 0e25a36d3958a1e09c7bedaddd6d3498dc0905d7
-oat_source_main_merge_base_sha: 17043d653233fb906e018f5872359d99eb556208
+oat_generated_at: 2026-07-17
+oat_source_head_sha: 6c03afde1417fbe29f0e2c81009629f0e36ca945
+oat_source_main_merge_base_sha: 6c03afde1417fbe29f0e2c81009629f0e36ca945
 oat_warning: 'GENERATED FILE - Do not edit manually. Regenerate with oat-repo-knowledge-index'
 ---
 
 # Coding Conventions
 
-**Analysis Date:** 2026-07-11
+**Analysis Date:** 2026-07-17
 
 ## Naming Patterns
 
 **Files:**
 
-- kebab-case for all source files (e.g., `consensus-loop.ts`, `session-observer.ts`)
-- Module filenames match logical module names
-- Generated outputs preserved with `.mjs` extension (e.g., `src/consensus/core/consensus-loop.ts` → `plugins/consensus/scripts/consensus-loop.mjs`)
-- Test files: `*.test.ts` or `*.test.mts` (e.g., `tests/session-observer/observe.test.ts`, `tests/consensus/decide/wrapper.test.ts`)
+- kebab-case for module files: `consensus-loop.ts`, `provider-cli.ts`, `session-observer.ts` (seen in `src/consensus/core/consensus-loop.ts`, `src/consensus/provider-cli/cli.ts`, `src/transcript/session-observer/lib/observe.ts`)
+- Test files use same convention with `.test.ts` suffix: `consensus-loop.test.ts`, `observe.test.ts` (seen in `tests/session-observer/observe.test.ts`, `tests/consensus/install-contract.test.ts`)
 
 **Functions:**
 
-- camelCase for all function names (e.g., `observeCatchUp`, `buildDigest`, `parseDecideArgs` in `src/consensus/provider-cli/args.ts`)
-- Prefix functions with verb: `build*`, `parse*`, `run*`, `render*`, `load*`, `resolve*` (e.g., `buildDigest` in `src/transcript/session-observer/lib/digest.ts`, `resolveConsensusComposition` in `src/consensus/config/consensus-config.js`)
-- Async functions use `async` keyword; callers handle promises explicitly
-- Private helper functions kept within module scope, no leading underscore convention
+- camelCase for function names: `observeCatchUp`, `readUtf8File`, `processExitForEnvelope`, `makeLoopOptions` (seen in `src/transcript/session-observer/lib/observe.ts`, `src/consensus/provider-cli/cli.ts`, `tests/helpers/consensus.ts`)
+- Async functions return `Promise<T>`: `async function readUtf8File(filePath: string, maxBytes?: number): Promise<string>` (seen in `src/consensus/provider-cli/cli.ts:27-30`)
 
 **Variables:**
 
-- camelCase for all variables (e.g., `sessionId`, `recordIndex`, `transcriptPath`, `stateDir` in `src/transcript/session-observer/lib/state.ts`)
-- Environment variables accessed with `process.env.UPPER_SNAKE_CASE` (e.g., `process.env.STATE_DIR`, `process.env.HOME`, `process.env.XDG_CONFIG_HOME`)
-- Constants use UPPER_SNAKE_CASE (e.g., `VALID_RUNTIMES`, `SCHEMA_VERSION`, `LOCK_RETRIES`, `LOCK_INTERVAL_MS` in `src/transcript/session-observer/lib/observe.ts` and `src/transcript/session-observer/lib/state.ts`)
+- camelCase for all variable declarations: `tempRoot`, `sectionFile`, `transcriptPath`, `stateDir`, `cwd` (seen in `tests/helpers/consensus.ts:37-56`, `tests/session-observer/observe.test.ts:24-32`)
 
-**Types:**
+**Types and Interfaces:**
 
-- PascalCase for all TypeScript interfaces and types (e.g., `ConsensusCliRunRequest`, `ObserveOutcome`, `SessionStateEntry`, `Digest` in `src/transcript/session-observer/lib/types.ts`)
-- Discriminated unions using `kind` field for type narrowing (e.g., `ParsedHelpCommand`, `ParsedConfigGetCommand`, `ParsedRunCommand` in `src/consensus/provider-cli/args.ts`)
-- Union types for command parsing results: `ParsedConsensusCliCommand` discriminated by `kind` property
-- `readonly` used for immutable data structures (e.g., `readonly code: string` in error types)
+- PascalCase for all type definitions: `ConsensusCliIo`, `ConsensusCliRunSuccess`, `ProviderCapabilities`, `HostContext`, `ProviderInventoryEntry` (seen in `src/consensus/provider-cli/commands.ts:52-60`, `src/consensus/provider-cli/types.ts`)
+- Suffix `Payload` for verdict/response data: `CritiquePayload`, `RevisionVerdictPayload`, `TerminalVerdictPayload` (seen in `src/consensus/core/consensus-loop.ts:40-54`)
+- Suffix `Envelope` for CLI/transport contracts: `ConsensusCliRunEnvelope`, `ProviderListEnvelope`, `PreflightEnvelope` (seen in `src/consensus/provider-cli/types.ts:175-200`)
+
+**Classes:**
+
+- PascalCase for error classes: `ConsensusCliUsageError`, `SubmitCaptureLimitError`, `ConsensusError`, `PanelError` (seen in `src/consensus/provider-cli/args.ts:10-16`, `src/consensus/core/consensus-loop.ts:476`)
+
+**Constants:**
+
+- UPPER_SNAKE_CASE for constants: `FIRST_SCOPE_PROVIDER_IDS`, `HOST_RUNTIMES`, `CONSENSUS_SHARED_CLI_RELATIVE_PATH`, `MAX_WAIT_MS` (seen in `src/consensus/provider-cli/types.ts:1-14`, `src/consensus/core/consensus-loop.ts`)
+- Declared as `as const` to enable type discrimination: `export const FIRST_SCOPE_PROVIDER_IDS = ['claude', 'codex', 'cursor'] as const;` (seen in `src/consensus/provider-cli/types.ts:1`)
 
 ## Code Style
 
 **Formatting:**
 
-- Tool: **oxfmt** (Prettier-compatible formatter)
-- Config: `.oxfmtrc.json` at repo root
-- Key settings:
-  - Print width: 80 characters
-  - Indent: 2 spaces (no tabs)
-  - Semicolons: required
-  - Quotes: single quotes for JS/TS
-  - Trailing commas: all
-  - Arrow parens: always
-  - Line endings: LF
-  - Prose wrap: preserve (for markdown/comments)
-- Incremental adoption: only staged files formatted via `lint-staged` in pre-commit hook (one-time repo-wide format planned as separate effort)
-- Generated outputs and OAT-synced files excluded from formatting
+- Tool: **oxfmt** (configured in `.oxfmtrc.json`)
+- Print width: 80 characters
+- Tab width: 2 spaces
+- Use spaces, not tabs
+- Semicolons: required
+- Quotes: single quotes for strings
+- Trailing commas: all (except function parameters in some edge cases)
+- Bracket spacing: true
+- Arrow parens: always
+- End of line: LF
+- Incremental adoption: only files changed in a PR are formatted; whole-repo formatting is a planned future cleanup
 
 **Linting:**
 
-- Tool: **oxlint** (Rust-based linter)
-- Config: `.oxlintrc.json` at repo root
-- Enforced categories:
-  - `correctness`: error
-  - `suspicious`: error
-- Environment: `node: true`, `es2024: true`
-- Enabled rules:
-  - `eslint/prefer-const`: error — use `const` for non-reassigned bindings
-  - `eslint/eqeqeq`: error with `"smart"` option — use `===`/`!==` except for null checks
-  - `eslint/no-empty`: error — no empty blocks allowed
-  - `eslint/no-shadow`: warn — warn on shadowed variables (not enforced as error)
-  - `eslint/no-underscore-dangle`: off — leading/trailing underscores allowed
-  - `unicorn/consistent-function-scoping`: off
-- Test file overrides (in `.oxlintrc.json`):
-  - `eslint/no-unused-vars`: off in `**/*.test.mjs`, `**/*.test.js`, `tests/**`
-- Generated outputs (`.mjs` runtime files) excluded from linting
-- Incremental enforcement: linting runs only on staged files via lint-staged pre-commit hook
+- Tool: **oxlint** (configured in `.oxlintrc.json`)
+- Environment: Node.js + ES2024
+- Core rules as errors:
+  - `correctness` category: all errors (e.g., unused variables, logic mistakes)
+  - `suspicious` category: all errors (e.g., ambiguous constructs)
+  - `eslint/prefer-const`: enforce const over let where applicable
+  - `eslint/eqeqeq`: enforce `===` / `!==` (except smart mode allows `== null`)
+  - `eslint/no-empty`: no empty blocks
+- Warnings allowed:
+  - `eslint/no-shadow`: warn only (variables shadowing outer scope)
+- Special cases:
+  - Test files (`.test.mjs`, `.test.js`, `tests/**`): `eslint/no-unused-vars` disabled to allow test setup without assertions
+  - Generated files excluded: consensus loop/wrapper/evaluate runtimes, session-observer, transcript exports
+- Executed via: `pnpm lint` (check) / `pnpm lint:fix` (auto-fix)
 
 ## Import Organization
 
-**Order:**
+**Standard Order:**
 
-1. Node.js standard library imports: `import { ... } from 'node:...'` (e.g., `node:fs/promises`, `node:path`, `node:os`, `node:crypto`)
-2. Relative/project imports: `from './...'` or `from '../../...'` (e.g., `from '../../src/transcript/session-observer/lib/observe.js'`)
-3. Import side effects are avoided
-4. Type imports grouped with regular imports; discriminated by `type` keyword
+1. Node.js standard library: `import { spawn } from 'node:child_process';`, `import os from 'node:os';`
+2. Third-party packages: `import { expect, describe, test } from 'vitest';`
+3. Local source files: relative imports with `.js` extension
+4. Type imports: `import type { ... } from '...';` grouped separately
 
-**Example from `src/consensus/provider-cli/commands.ts`:**
-
+Example from `src/consensus/provider-cli/cli.ts`:
 ```typescript
-import { randomUUID } from 'node:crypto';
-import { mkdir, rename, writeFile } from 'node:fs/promises';
-import { basename, dirname, join } from 'node:path';
+import { readFile, stat } from 'node:fs/promises';
 
-import {
-  clearConsensusConfig,
-  parseConsensusDefaultsConfig,
-  readConsensusConfig,
-  // ... more imports
-} from '../config/consensus-config.js';
-import type {
-  ConsensusAgentRef,
-  ConsensusConfigKey,
-  // ... more type imports
-} from '../config/consensus-config.js';
+import { runConsensusCli } from './commands.js';
+import type { ConsensusCliIo } from './commands.js';
 ```
 
-**Path Aliases:**
+**Path Style:**
 
-- No path aliases configured; all imports use relative paths
-- Depth-based relative import convention: `../` from one level, `../../` from two levels, etc.
+- Relative paths with explicit extensions: `'./commands.js'`, `'../../helpers/consensus.ts'`
+- Absolute paths used for type imports only when necessary
+- No path aliases (@/ style) observed in codebase
 
 ## Error Handling
 
-**Patterns:**
+**Pattern: Custom Error Classes**
 
-- Custom error classes extend `Error` base class and include:
-  - `code` property (readonly string const, e.g., `'CONSENSUS_CLI_USAGE'`)
-  - `name` property set to class name (e.g., `'ConsensusCliUsageError'`)
-  - `details?` optional property for additional context
-
-**Example from `src/consensus/provider-cli/args.ts`:**
+Errors extend `Error` and set the `name` property for identification (seen in `src/consensus/provider-cli/args.ts:10-16`):
 
 ```typescript
 export class ConsensusCliUsageError extends Error {
-  readonly code = 'CONSENSUS_CLI_USAGE' as const;
-  readonly details?: unknown;
-
-  constructor(message: string, details?: unknown) {
+  constructor(message: string, cause?: unknown) {
     super(message);
     this.name = 'ConsensusCliUsageError';
-    this.details = details;
+    if (cause) this.cause = cause;
   }
 }
 ```
 
-- Error handling in async contexts: `try`/`catch` for immediate catches, `rejects.toMatchObject()` in tests (e.g., `await expect(...).rejects.toMatchObject(...)` in `tests/consensus/install-sh.test.ts`)
-- File system operations wrapped with error type checking (e.g., `isErrnoException` type guard in `src/transcript/session-observer/lib/state.ts`)
-- Process environment variable fallbacks use nullish coalescing: `process.env.STATE_DIR ?? join(homedir(), '.local', 'state', 'session-observer')`
+Usage: `throw new ConsensusCliUsageError('Missing required --provider');`
+
+**Error Classes in Codebase:**
+
+- `ConsensusCliUsageError` (src/consensus/provider-cli/args.ts): CLI argument validation errors
+- `SubmitCaptureLimitError` (src/consensus/provider-cli/submit-capture.ts): File size limit exceeded
+- `ConsensusError` (src/consensus/core/consensus-loop.ts): Core consensus loop failures
+- `PanelError` (src/consensus/panel/consensus-panel.ts): Panel consensus failures
+
+**Error Handling in Async Code:**
+
+Errors propagate up call stack; CLI handlers catch and format them into envelope responses (seen in `src/consensus/provider-cli/commands.ts` and `src/consensus/provider-cli/envelope.ts`).
 
 ## Logging
 
-**Framework:** Console API directly (no logging framework)
+**Framework:** console API (Node.js standard)
 
 **Patterns:**
 
-- `console.log()` for informational output to stdout
-- `console.error()` for errors/warnings to stderr
-- No structured logging or log levels implemented
-- Standard library and runtime code avoid logging; CLI wrappers own output behavior
-- Tests do not capture console output; test assertions work against return values and state
+- No centralized logger library observed
+- stderr used for errors and diagnostics: `process.stderr.write()`
+- stdout used for structured output (JSON envelopes)
+- No structured logging fields; plain text for stderr
+- Example from tests: passing `stderr` and `stdout` streams to CLI handler for capture (seen in `src/consensus/provider-cli/commands.ts:52-60`)
 
 ## Comments
 
 **When to Comment:**
 
-- File-level docstrings: JSDoc blocks at top of module explaining purpose and usage (e.g., `/** state.mjs — Atomic, lock-protected persistence... */` in `src/transcript/session-observer/lib/state.ts`)
-- Complex algorithms: inline comments above non-obvious logic (e.g., write protocol steps in state.ts)
-- Usage examples: included in file-level or function-level comments when contract is non-obvious
-- No comments on self-explanatory code
-- Comments for test context: describe test setup and purpose (e.g., `// Each test uses a fresh temp STATE_DIR to ensure isolation` in `tests/session-observer/state.test.ts`)
+- JSDoc on all exported functions and interfaces
+- Descriptive comments on complex algorithms (e.g., session-observer ranking logic)
+- File-level comments explaining module purpose (seen in `tests/helpers/consensus.ts:1-6`)
 
 **JSDoc/TSDoc:**
 
-- Used for function signatures and class members
-- Type annotations preferred over JSDoc `@param` and `@return` tags
-- Example from helper in `tests/session-observer/helpers/tmpdir.ts`:
-
-```typescript
-/**
- * Creates a fresh temp directory, sets process.env.STATE_DIR to it,
- * runs fn(dir), then cleans up regardless of whether fn throws.
- *
- */
-export async function withTmpStateDir(
-  fn: (dir: string) => Promise<void>,
-): Promise<void>
-```
+- Function docs include purpose, parameters, return type, and side effects
+- Example (from `tests/helpers/consensus.ts:22-35`):
+  ```typescript
+  /**
+   * Extract and parse a `<!-- consensus:<label>\n...\n-->` JSON block from a
+   * markdown deliberation artifact. Fails the calling test if the block is absent.
+   */
+  export function extractJsonBlock(markdown: string, label: string): any { ... }
+  ```
+- Parameter descriptions included when behavior is non-obvious
+- Return type inferred from signature (explicit in complex cases)
 
 ## Function Design
 
-**Size:** Functions kept concise; complex operations broken into smaller helpers (e.g., `preferredRuntimeFromState`, `parseConsensusCliArgs` decomposed into sub-parsers)
+**Size:** Most functions 20–100 lines; larger functions (100–500 lines) documented and split when possible.
 
-**Parameters:** 
-- Prefer object/config parameters for functions with >2 params (e.g., `BuildDigestOptions`, `ConsensusCliIo` in `src/consensus/provider-cli/commands.ts`)
-- Callback functions passed as properties of config objects
-- Type annotations mandatory for all parameters
+Large files:
+- `src/consensus/core/consensus-loop.ts`: 3961 lines (core orchestration, not refactored for modularity)
+- `src/consensus/refine/consensus-refine.ts`: 3890 lines (wrapper entrypoint, similar scope)
+
+**Parameters:**
+
+- Single object parameter for functions with 2+ arguments: `{ sessionId, runtime, cwd }` (seen in `src/transcript/session-observer/lib/observe.ts`)
+- Destructuring in parameter list for clarity
+- Optional properties marked with `?`: `maxBytes?: number` (seen in `src/consensus/provider-cli/cli.ts:29`)
 
 **Return Values:**
-- Async functions return `Promise<T>`; use `Promise.all()` for concurrent operations
-- Discriminated unions for outcomes (e.g., `ObserveOutcome | ObserveFailure` with `ok: boolean` discriminator in `src/transcript/session-observer/lib/observe.ts`)
-- No implicit `undefined` returns; explicit `null` for absent values (e.g., `getSession` returns `null` when missing, not `undefined`)
+
+- Discriminated union pattern for outcomes: `{ ok: true, result: T } | { ok: false, error: E }`
+- Async functions return `Promise<T>`
+- Example (from tests, seen in `tests/session-observer/observe.test.ts:98-124`):
+  ```typescript
+  const result = await observeCatchUp({ runtime, cwd, session });
+  expect(result.ok).toBe(true);
+  expect(result.digest.mode).toBe('catch-up');
+  ```
 
 ## Module Design
 
 **Exports:**
 
-- Named exports preferred for multi-export modules
-- Default exports used selectively (e.g., Vitest config, Next.js configs)
-- Export types and interfaces alongside implementations
-- Runtime-exported functions typically accompanied by TypeScript source (e.g., `src/consensus/core/consensus-loop.ts` generates `plugins/consensus/scripts/consensus-loop.mjs`)
+- Separate concerns: types exported from `types.ts`, functions from domain modules
+- Example: `src/consensus/provider-cli/types.ts` exports all CLI interface contracts; `src/consensus/provider-cli/cli.ts` exports function implementations
+- Re-exports grouped: `export { helpText, runConsensusCli } from './commands.js';`
 
 **Barrel Files:**
 
-- Minimal barrel files; most imports go directly to source module
-- Barrel files used in `tests/helpers/` for test utilities but not in main codebase
-- Import depth convention enforced by path structure (encourage specific imports over barrels)
+- Not widely used; imports are direct to source files
+- Example: `import { observeCatchUp } from '../../src/transcript/session-observer/lib/observe.js'` (seen in `tests/session-observer/observe.test.ts:11`)
+
+**Discriminated Unions:**
+
+- Used for type-safe outcome patterns and CLI envelopes
+- Example (from `src/consensus/provider-cli/types.ts`):
+  ```typescript
+  export type ConsensusCliRunEnvelope = ConsensusCliRunSuccess | ConsensusCliRunFailure;
+  ```
+- Runtime checks via `envelope.ok` or `result.kind` to narrow type
 
 ---
 
-_Convention analysis: 2026-07-11_
+_Convention analysis: 2026-07-17_

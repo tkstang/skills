@@ -1,275 +1,377 @@
 ---
 oat_generated: true
-oat_generated_at: 2026-07-11
-oat_source_head_sha: 0e25a36d3958a1e09c7bedaddd6d3498dc0905d7
-oat_source_main_merge_base_sha: 17043d653233fb906e018f5872359d99eb556208
+oat_generated_at: 2026-07-17
+oat_source_head_sha: 6c03afde1417fbe29f0e2c81009629f0e36ca945
+oat_source_main_merge_base_sha: 6c03afde1417fbe29f0e2c81009629f0e36ca945
 oat_warning: "GENERATED FILE - Do not edit manually. Regenerate with oat-repo-knowledge-index"
 ---
 
 # Codebase Structure
 
-**Analysis Date:** 2026-07-11
+**Analysis Date:** 2026-07-17
 
 ## Directory Layout
 
 ```
-skills/
-├── src/                                    # Canonical TypeScript source (developer-only)
-│   ├── consensus/                         # Consensus loop + skills
-│   │   ├── core/                          # Core loop orchestration
-│   │   ├── provider-cli/                  # Provider CLI integration layer
-│   │   ├── config/                        # Configuration resolution
-│   │   ├── decide/                        # Decide skill logic
-│   │   ├── create/                        # Create skill logic
-│   │   ├── plan/                          # Plan skill logic
-│   │   ├── refine/                        # Refine skill logic
-│   │   ├── evaluate/                      # Evaluate skill logic
-│   │   └── panel/                         # Panel skill logic
-│   └── transcript/                        # Transcript capture + export
-│       ├── core/                          # Runtime definitions (canonical source)
-│       ├── session-observer/              # Live session capture
-│       └── export-session/                # Transcript export pipeline
-├── plugins/                               # Built + committed plugin outputs
-│   └── consensus/                         # Consensus plugin (provider-specific skills)
-│       ├── scripts/                       # Shared/plugin-level runtime
-│       │   ├── consensus.mjs              # Main consensus entry
-│       │   └── consensus-loop.mjs         # Generated from core loop
-│       ├── skills/                        # Per-skill plugin entries
-│       │   ├── decide/                    # Decide skill plugin
-│       │   ├── create/                    # Create skill plugin
-│       │   ├── plan/                      # Plan skill plugin
-│       │   ├── refine/                    # Refine skill plugin
-│       │   ├── evaluate/                  # Evaluate skill plugin
-│       │   ├── panel/                     # Panel skill plugin
-│       │   └── phone-a-friend/            # Phone-a-friend skill plugin
-│       ├── .claude-plugin/                # Claude Code plugin manifest
-│       ├── .codex-plugin/                 # Codex plugin manifest
-│       ├── .cursor-plugin/                # Cursor agent plugin manifest
-│       └── SKILL.md                       # Plugin-level metadata
-├── skills/                                # Standalone skills (cross-provider)
-│   ├── session-observer/                  # Live transcript observer skill
-│   │   ├── SKILL.md                       # Skill metadata
-│   │   └── scripts/                       # Generated skill runtime
-│   └── export-session-transcript/         # Transcript export skill
-│       ├── SKILL.md                       # Skill metadata
-│       └── scripts/                       # Generated skill runtime
-├── tests/                                 # Test suite
-│   ├── consensus/                         # Consensus tests by module
-│   │   ├── core/                          # Loop orchestration tests
-│   │   ├── provider-cli/                  # Provider CLI tests
-│   │   ├── decide/                        # Decide skill tests
-│   │   └── [...other skills...]
-│   ├── session-observer/                  # Session observer tests
-│   ├── export-session-transcript/         # Export transcript tests
-│   ├── tooling/                           # Build + validation tests
-│   │   └── generated-output-sync.test.ts # Drift check for built outputs
-│   ├── helpers/                           # Shared test utilities
-│   ├── fixtures/                          # Test data
-│   └── repo/                              # Repository validation tests
-├── scripts/                               # Development/build scripts
-│   ├── build-generated.mjs                # esbuild + import rewrite (TypeScript → ESM)
-│   ├── validate.mjs                       # Repository invariant checks
-│   ├── validate-skill-versions.mjs        # Enforce version bumps on skill edits
-│   ├── validate-internal-flags.mjs        # Enforce OAT internal metadata flags
-│   ├── build-check.mjs                    # Verify generated outputs match source
-│   └── [other tooling scripts]
-├── tools/                                 # Runtime tool configuration
-│   └── git-hooks/                         # Pre-commit, pre-push, commit-msg hooks
-├── documentation/                         # Fumadocs site
-│   ├── docs/                              # Markdown source
-│   │   ├── user-guide/                    # Consumer docs
-│   │   └── engineering/                   # Developer docs
-│   └── components/                        # React components
-├── shared/                                # Deprecated; transcript-core moved to src/
-│   └── transcript-core/README.md          # Migration note
-├── .agents/                               # OAT tooling skills (synced)
-├── package.json                           # Root package manifest
-└── .oxlintrc.json / .oxfmtrc.json        # Linting + formatting config
+skills/ (repository root)
+├── src/                         # Canonical TypeScript source
+│   ├── consensus/               # Consensus deliberation engine
+│   │   ├── core/                # Core loop state machine and types
+│   │   ├── provider-cli/        # Provider abstraction and invocation
+│   │   ├── config/              # Configuration resolution and persistence
+│   │   ├── create/              # Create skill wrapper
+│   │   ├── decide/              # Decide skill wrapper
+│   │   ├── plan/                # Plan skill wrapper
+│   │   ├── refine/              # Refine skill wrapper
+│   │   ├── evaluate/            # Evaluate skill wrapper
+│   │   └── panel/               # Panel skill wrapper
+│   └── transcript/              # Session observation and export
+│       ├── core/                # Runtime definitions (Claude, Codex, Cursor)
+│       ├── session-observer/    # Session watcher and digester
+│       └── export-session/      # Transcript exporter
+├── plugins/                     # Packaged plugins
+│   └── consensus/               # Consensus plugin (ships to providers)
+│       ├── scripts/             # Generated skill runtime scripts
+│       ├── skills/              # Per-skill plugin manifests and schemas
+│       │   ├── create/
+│       │   ├── decide/
+│       │   ├── plan/
+│       │   ├── refine/
+│       │   ├── evaluate/
+│       │   ├── panel/
+│       │   └── phone-a-friend/
+│       └── .{claude,codex,cursor}-plugin/  # Provider-specific manifests
+├── skills/                      # Standalone skills (not in plugin)
+│   ├── session-observer/        # Session observation skill
+│   ├── session-observer-collab/ # Session observation with agent collaboration
+│   └── export-session-transcript/ # Export transcript skill
+├── tests/                       # Vitest suite (organized by domain)
+│   ├── consensus/               # Consensus engine tests
+│   ├── session-observer/        # Session-observer tests
+│   ├── export-session-transcript/ # Export skill tests
+│   ├── session-observer-collab/ # Collaboration tests
+│   ├── transcript-core/         # Transcript format tests
+│   ├── tooling/                 # Build and config tests
+│   ├── repo/                    # Repository invariant tests
+│   ├── release/                 # Release/versioning tests
+│   ├── fixtures/                # Static test fixture files
+│   └── helpers/                 # Shared test utilities
+├── scripts/                     # Build, validation, test infrastructure
+│   ├── build-generated.mjs      # Bundles TS source to .mjs runtimes
+│   ├── validate.mjs             # Repo invariant checks
+│   ├── validate-skill-versions.mjs # Skill version sync checks
+│   ├── validate-internal-flags.mjs # Internal flag stamping for OAT tools
+│   ├── smoke-test.mjs           # End-to-end smoke test
+│   ├── run-vitest.mjs           # Vitest invocation wrapper
+│   ├── sync-transcript-core.mjs # Sync shared transcript types
+│   └── git-hooks/               # Git hook management
+├── .agents/                     # OAT tooling mirrors (synced)
+├── .claude/                     # Claude Code provider config (synced)
+├── .cursor/                     # Cursor provider config (synced)
+├── .oat/                        # OAT tool configuration and knowledge
+├── documentation/               # Fumadocs site (User Guide + Engineering)
+├── shared/                      # Shared code (currently minimal)
+└── tools/                       # Development tools (git hooks manager)
 ```
 
 ## Directory Purposes
 
-**src/** — Canonical TypeScript source
+**src/consensus/core/:**
 
-- Purpose: Single source of truth for non-trivial logic; never shipped directly
-- Contains: TypeScript `.ts` files with full type safety
-- Key files: `src/consensus/core/consensus-loop.ts` (orchestration), `src/consensus/provider-cli/` (CLI integration), `src/transcript/core/runtimes.ts` (shared transcript definitions)
-- Build process: `pnpm run build` compiles to esm `.mjs` under `plugins/` and `skills/`, applies import rewrites to maintain relative path independence
+- Purpose: Core deliberation loop and verdict state machine
+- Contains: Loop record types, verdict types, iteration modes (alternating, parallel_revision, parallel_synthesized), turn execution, synthesis orchestration, escalation detection, artifact tracking
+- Key files: `consensus-loop.ts` (all types and core logic)
 
-**plugins/consensus/** — Provider-specific plugin
+**src/consensus/provider-cli/:**
 
-- Purpose: Consensus workflow exposed as installable plugin for Claude Code, Codex, Cursor
-- Contains: Generated `.mjs` skill scripts, provider plugin manifests (.claude-plugin, .codex-plugin, .cursor-plugin), SKILL.md metadata
-- Key files: `scripts/consensus-loop.mjs` (generated from core loop, shared at plugin root), `skills/*/scripts/consensus-decide.mjs` (generated, one per skill)
-- Committed: Yes (all .mjs outputs). Generated: Yes (never hand-edit).
+- Purpose: Provider abstraction, CLI subprocess invocation, capability discovery, structured output modes
+- Contains: Provider registry, host context detection, command routing (run, config, preflight), schema validation, retry logic, submit capture, environment probing
+- Key files: `cli.ts` (entrypoint), `commands.ts` (command handlers), `types.ts` (provider/host types), `adapters.ts` (provider implementations), `probe.ts` (capability detection), `invocation.ts` (subprocess invocation), `structured-output.ts` (schema binding)
 
-**skills/** — Standalone cross-provider skills
+**src/consensus/config/:**
 
-- Purpose: Session capture and export workflows installable independently of consensus plugin
-- Contains: Generated `.mjs` skill scripts, SKILL.md metadata for each skill
-- Key files: `session-observer/scripts/session-observer.mjs`, `export-session-transcript/scripts/export-session-transcript.mjs`
-- Committed: Yes. Generated: Yes (never hand-edit).
+- Purpose: Peer composition and default configuration resolution
+- Contains: Config scope hierarchy (user/project/effective), peer registry, role-based selection, composition merging
+- Key files: `consensus-config.ts` (all types and resolution logic)
 
-**tests/** — Vitest suite
+**src/consensus/{create,decide,plan,refine,evaluate,panel}/:**
 
-- Purpose: Unit and integration tests for core loop, provider CLI, skills, session capture
-- Contains: `.test.ts` files organized by module mirror to `src/`
-- Key files: `tests/tooling/generated-output-sync.test.ts` (drift check), `tests/consensus/core/` (loop tests), `tests/consensus/provider-cli/` (CLI integration tests)
-- Entry: `pnpm run test` runs full suite; `pnpm run test:vitest` with options for narrowing
+- Purpose: Individual skill wrappers around consensus loop
+- Contains: CLI argument parsing, prompt builders, input validation, output rendering, state path management
+- Key files: `consensus-{skill}.ts` (all skill logic)
 
-**scripts/** — Build and validation tooling
+**src/transcript/core/:**
 
-- Purpose: Canonical source → generated output build, repository invariant checks
-- Contains: Node.js `.mjs` and `.ts` scripts, esbuild config
-- Key files: `build-generated.mjs` (main build orchestrator), `validate.mjs` (repo structure checks), `validate-skill-versions.mjs` (enforce version bumps)
-- Entry: `pnpm run build`, `pnpm run validate`, `pnpm run build:check`
+- Purpose: Runtime definitions for provider session message formats
+- Contains: Runtime type discriminators, message record shapes per provider (Claude Code, Codex, Cursor)
+- Key files: `runtimes.ts` (runtime types and constants)
 
-**documentation/** — Fumadocs site
+**src/transcript/session-observer/:**
 
-- Purpose: User guide (install, use, configure) and engineering docs (architecture, contributing)
-- Contains: Markdown under `docs/` (user-guide, engineering subdirectories), React components, Next.js app
-- Key files: `docs/index.md` (top-level nav), `docs/engineering/architecture/` (technical deep-dive)
-- Entry: `cd documentation && pnpm dev` (local dev server)
+- Purpose: Session watcher and digest computation
+- Contains: Session state tracking, message filtering, ranking, digest building, environment probing
+- Key files: `session-observer.ts` (main entry), `lib/state.ts` (state persistence), `lib/watch-state.ts` (state updates), `lib/rank.ts` (message ranking), `probe-local.ts` (runtime detection)
 
-**tools/git-hooks/** — Git hook scripts
+**src/transcript/export-session/:**
 
-- Purpose: Pre-commit linting, pre-push validation, commit message linting
-- Contains: Bash + Node scripts managed by `manage-hooks.mjs`
-- Key files: `pre-commit` (lint-staged + commitlint), `pre-push` (full build checks), `commit-msg` (commitlint)
-- Entry: Installed by `pnpm install` (via prepare script); managed via `pnpm hooks:*` commands
+- Purpose: Session transcript export and sanitization
+- Contains: Transcript loading, filtering, format conversion, sensitive data removal
+- Key files: `export-session-transcript.ts` (main entry), `sanitize.ts` (data sanitization)
+
+**plugins/consensus/:**
+
+- Purpose: Provider plugin package (ships all consensus skills)
+- Contains: Generated skill runtime scripts (`.mjs`), skill manifests (SKILL.md), JSON schemas, provider-specific plugin configs
+- Generated: Yes (scripts generated from src/ via `pnpm run build`)
+- Committed: Yes (generated outputs committed; regenerate with build step)
+
+**plugins/consensus/skills/{skill}/:**
+
+- Purpose: Per-skill plugin metadata and schemas
+- Contains: SKILL.md (skill contract), schemas (verdict, synthesis, advisory), operator QA references
+- Key files: `SKILL.md` (shipped skill documentation), `schemas/*.schema.json` (verdict/synthesis validation)
+
+**skills/session-observer/:**
+
+- Purpose: Standalone session-observer skill (not in plugin)
+- Contains: Generated runtime script, references, skill metadata
+- Generated: Yes (runtime .mjs generated from src/ via `pnpm run build`)
+- Committed: Yes (committed generated output)
+
+**skills/session-observer-collab/:**
+
+- Purpose: Session-observer with agent collaboration support
+- Contains: Collab control logic, runtime adapters, lifecycle hooks for Codex/Cursor
+- Generated: Yes (scripts generated from source)
+- Committed: Yes
+
+**skills/export-session-transcript/:**
+
+- Purpose: Standalone export-session-transcript skill
+- Contains: Generated runtime script, references, skill metadata
+- Generated: Yes (runtime .mjs generated from src/)
+- Committed: Yes
+
+**tests/consensus/:**
+
+- Purpose: Consensus engine tests (core loop, verdict parsing, synthesizer orchestration)
+- Contains: Import tests for generated runtimes, install contract tests
+- Key files: `generated-config-import.test.ts`, `generated-refine-import.test.ts`, `generated-evaluate-import.test.ts`, `install-contract.test.ts`
+
+**tests/session-observer/:**
+
+- Purpose: Session-observer skill behavior tests
+- Contains: Observation pipeline tests, watch-state tests, CLI override tests
+- Key files: `observe.test.ts`, `watch-state.test.ts`, `cli-session-override.test.ts`
+
+**tests/export-session-transcript/:**
+
+- Purpose: Export skill behavior tests
+- Contains: Export logic tests
+
+**tests/session-observer-collab/:**
+
+- Purpose: Session-observer collaboration and agent integration tests
+- Contains: Codex lifecycle tests, control tests, hook tests, completion selection tests
+
+**tests/transcript-core/:**
+
+- Purpose: Transcript format and runtime validation
+- Contains: Runtime discovery and format tests
+
+**tests/tooling/:**
+
+- Purpose: Build and test infrastructure verification
+- Contains: Generated output sync checks, vitest config validation, no-node-test-runner policy enforcement
+- Key files: `generated-output-sync.test.ts` (drift guard), `vitest-config.test.ts`, `no-node-test-runner.test.ts`
+
+**tests/repo/:**
+
+- Purpose: Repository invariant checks (layout, manifests, metadata)
+- Contains: Plugin manifest validation, skill frontmatter checks, README scope verification
+
+**tests/release/:**
+
+- Purpose: Release and version bump checks
+- Contains: Version script validation, release checklist verification
+
+**tests/helpers/:**
+
+- Purpose: Shared test utilities (not test files; no `.test.ts`)
+- Contains: Subprocess execution helpers, temp directory management, JSONL parsing, fixture utilities, repo root resolution
+
+**tests/fixtures/:**
+
+- Purpose: Static test fixture files (markdown samples, stub binaries, test data)
+- Contains: Sample input files, mock command binaries used by tests
+
+**scripts/:**
+
+- Purpose: Build, validation, and test infrastructure
+- Contains: esbuild bundler script, vitest wrapper, repo invariant validators, smoke test, git hook manager
+- Key files: `build-generated.mjs` (TS → .mjs transpiler), `validate.mjs` (repo checks), `run-vitest.mjs` (test runner)
+
+**scripts/git-hooks/:**
+
+- Purpose: Git hook management and implementations
+- Contains: Hook setup/disable CLI, pre-commit linting, pre-push validation, commit-msg linting
+- Key files: `manage-hooks.mjs` (hook manager), `pre-commit` (runs oxlint/lint-staged), `pre-push` (build check + validate), `commit-msg` (commitlint)
+
+**documentation/:**
+
+- Purpose: Fumadocs site for user and engineering documentation
+- Contains: Next.js + MDX docs app, User Guide (install/use/configure), Engineering (architecture/layout/contributing)
+- Key files: `docs/index.md` (site root), `docs/user-guide/`, `docs/engineering/`
+
+**.agents/, .claude/, .cursor/:**
+
+- Purpose: Provider-specific OAT tooling mirrors (synced, not canonical)
+- Generated: Yes (regenerated by `oat sync` from canonical `.agents/skills/` upstream)
+- Committed: Yes (committed for bootstrapping and CI reference)
+- Note: Do not edit these directly; they are regenerated on each `oat tools update` + `oat sync`
+
+**.oat/:**
+
+- Purpose: OAT tool configuration and generated knowledge
+- Contains: `.oat/config.json` (OAT project config), `.oat/repo/knowledge/` (codebase knowledge docs)
+- Generated: Partially (knowledge docs generated; config managed manually)
+
+**shared/:**
+
+- Purpose: Shared code between skills (currently minimal)
+- Contains: Symlink to transcript-core (if present); mostly placeholder for future shared utilities
 
 ## Key File Locations
 
 **Entry Points:**
 
-- `src/consensus/decide/consensus-decide.ts` → `plugins/consensus/skills/decide/scripts/consensus-decide.mjs` (decide skill entry)
-- `src/consensus/create/consensus-create.ts` → `plugins/consensus/skills/create/scripts/consensus-create.mjs` (create skill entry)
-- `src/consensus/plan/consensus-plan.ts` → `plugins/consensus/skills/plan/scripts/consensus-plan.mjs` (plan skill entry)
-- `src/consensus/refine/consensus-refine.ts` → `plugins/consensus/skills/refine/scripts/consensus-refine.mjs` (refine skill entry)
-- `src/consensus/evaluate/consensus-evaluate.ts` → `plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs` (evaluate skill entry)
-- `src/consensus/panel/consensus-panel.ts` → `plugins/consensus/skills/panel/scripts/consensus-panel.mjs` (panel skill entry)
-- `src/transcript/session-observer/session-observer.ts` → `skills/session-observer/scripts/session-observer.mjs` (session observer entry)
-- `src/transcript/export-session/export-session-transcript.ts` → `skills/export-session-transcript/scripts/export-session-transcript.mjs` (export transcript entry)
+- `src/consensus/create/consensus-create.ts`: Create skill canonical source
+- `src/consensus/refine/consensus-refine.ts`: Refine skill canonical source
+- `src/consensus/evaluate/consensus-evaluate.ts`: Evaluate skill canonical source
+- `src/consensus/decide/consensus-decide.ts`: Decide skill canonical source
+- `src/consensus/plan/consensus-plan.ts`: Plan skill canonical source
+- `src/consensus/panel/consensus-panel.ts`: Panel skill canonical source
+- `src/consensus/provider-cli/cli.ts`: Provider CLI entrypoint (canonical source)
+- `src/transcript/session-observer/session-observer.ts`: Session-observer entrypoint
+- `src/transcript/export-session/export-session-transcript.ts`: Export-session entrypoint
 
 **Configuration:**
 
-- `package.json`: Root manifest; pinned Node/pnpm versions, build/test/validate scripts
-- `.oxlintrc.json`: oxlint configuration (JS/TS linting rules)
-- `.oxfmtrc.json`: oxfmt configuration (JS/TS formatting rules)
-- `tsconfig.json`: TypeScript compiler config
-- `plugins/consensus/SKILL.md`: Plugin-level metadata (version, dependencies, description)
-- `skills/session-observer/SKILL.md`: Standalone skill metadata
-- `skills/export-session-transcript/SKILL.md`: Standalone skill metadata
+- `package.json`: Project metadata, scripts, dependencies, pnpm version pin
+- `tsconfig.json`: TypeScript compiler options
+- `vitest.config.mjs`: Vitest configuration (30s timeout, node environment)
+- `.oxlintrc.json`: oxlint linting rules
+- `.oxfmtrc.json`: oxfmt formatting rules
+- `commitlint.config.js`: Conventional commits enforcement
+- `.lintstagedrc.mjs`: Pre-commit linting scope
 
 **Core Logic:**
 
-- `src/consensus/core/consensus-loop.ts`: Loop orchestration, turn/round execution, convergence detection, escalation routing
-- `src/consensus/provider-cli/` (14 files): CLI argument parsing, provider registry probe, structured output extraction, subprocess spawning, host guards, limits
-- `src/consensus/config/consensus-config.ts`: Configuration resolution, YAML I/O, scope precedence
-- `src/transcript/core/runtimes.ts`: Per-provider transcript shape and query logic (canonical source for generated copies)
+- `src/consensus/core/consensus-loop.ts`: Deliberation state machine, all verdict/loop types
+- `src/consensus/provider-cli/commands.ts`: CLI command handlers (run, config, preflight)
+- `src/consensus/provider-cli/types.ts`: Provider registry, host context, capabilities types
+- `src/consensus/config/consensus-config.ts`: Configuration resolution and merging
 
 **Testing:**
 
-- `tests/tooling/generated-output-sync.test.ts`: Drift check; fails if any `.mjs` diverges from source
-- `tests/consensus/core/`: Loop unit tests (round execution, verdict parsing, convergence)
-- `tests/consensus/provider-cli/`: CLI argument parsing, envelope handling
-- `tests/helpers/`: Shared test utilities (mock runner, fixture loaders)
-- `tests/fixtures/`: Test data (sample prompts, verdicts, configs)
+- `tests/consensus/`: Consensus engine tests (import contract, install contract, generated output checks)
+- `tests/session-observer/`: Session-observer skill tests
+- `tests/tooling/generated-output-sync.test.ts`: Drift guard for generated `.mjs` files
+- `tests/helpers/`: Shared test utilities (subprocess, temp dirs, fixture loading)
 
 ## Naming Conventions
 
 **Files:**
 
-- TypeScript source: camelCase: `consensus-loop.ts`, `provider-cli.ts`, `consensus-decide.ts` (dash-separated compound terms)
-- Generated ESM: `.mjs` extension (generated from `.ts`, never hand-edited, carry `// GENERATED` banner)
-- Tests: `.test.ts` suffix: `consensus-loop.test.ts`, `args.test.ts`
-- Config: lowercase with extensions: `tsconfig.json`, `.oxlintrc.json`, `package.json`
+- Canonical TypeScript source: `src/*/.../*.ts` (e.g., `src/consensus/core/consensus-loop.ts`)
+- Generated runtime: `plugins/consensus/skills/*/scripts/*.mjs` or `skills/*/scripts/*.mjs` (e.g., `plugins/consensus/skills/refine/scripts/consensus-refine.mjs`)
+- Skill metadata: `SKILL.md` (e.g., `plugins/consensus/skills/refine/SKILL.md`)
+- Schemas: `schemas/*.schema.json` (e.g., `plugins/consensus/skills/refine/schemas/verdict-parallel.schema.json`)
+- Tests: `tests/**/*.test.ts` (Vitest convention)
+- Scripts: Named descriptively with `.mjs` (e.g., `build-generated.mjs`, `validate.mjs`)
 
 **Directories:**
 
-- Kebab-case for multi-word directories: `provider-cli`, `session-observer`, `export-session`, `export-session-transcript`
-- Skill names: lowercase, dash-separated: `consensus/decide`, `consensus/plan`, `skills/session-observer`
-- Test mirror structure: `tests/consensus/core/` mirrors `src/consensus/core/`
-- Scope directories: `user-guide`, `engineering` under `documentation/docs/`
+- Skill names: kebab-case (e.g., `session-observer`, `export-session-transcript`)
+- Layer names: kebab-case (e.g., `provider-cli`, `consensus-config`)
+- Domain dirs in tests: pluralized (e.g., `tests/consensus/`, `tests/helpers/`)
+- Config scopes: `user` (user home), `project` (repo root), `effective` (merged)
 
 ## Where to Add New Code
 
 **New Consensus Skill:**
 
-- Canonical source: `src/consensus/{skillname}/consensus-{skillname}.ts` (export main function + types)
-- Plugin output: `plugins/consensus/skills/{skillname}/scripts/consensus-{skillname}.mjs` (generated by build)
-- Plugin manifest: `plugins/consensus/skills/{skillname}/SKILL.md` (metadata, version, usage)
-- Tests: `tests/consensus/{skillname}/consensus-{skillname}.test.ts`
-- Build config: Add entry to `scripts/build-generated.mjs` generatedOutputs array
+- Canonical source: `src/consensus/<skill-name>/<skill-name>-<skill>.ts` (e.g., `src/consensus/phone-a-friend/consensus-phone-a-friend.ts`)
+- Plugin skill dir: `plugins/consensus/skills/<skill-name>/` with SKILL.md, schemas, generated scripts
+- Tests: `tests/consensus/` with skill-specific test file
+- Schema files: `plugins/consensus/skills/<skill-name>/schemas/` (e.g., `verdict-parallel.schema.json`)
+- Entry file: Add to `generatedOutputs` in `scripts/build-generated.mjs` with source/output mapping
 
-**New Standalone Skill:**
+**New Transcript Skill (e.g., transcript filter):**
 
-- Canonical source: `src/transcript/{skillname}/{skillname}.ts`
-- Skill output: `skills/{skillname}/scripts/{skillname}.mjs` (generated)
-- Skill manifest: `skills/{skillname}/SKILL.md`
-- Tests: `tests/{skillname}/{skillname}.test.ts`
-- Build config: Add entry to `scripts/build-generated.mjs` generatedOutputs array
+- Canonical source: `src/transcript/<feature>/<feature>.ts`
+- Standalone skill dir: `skills/<feature-name>/` with SKILL.md, generated scripts
+- Tests: `tests/<feature-name>/` or add to `tests/transcript-core/` if related to core
 
-**New Provider-CLI Integration:**
+**New Provider Integration:**
 
-- Canonical source: Add/edit `src/consensus/provider-cli/*.ts` (e.g., new adapter for future provider)
-- CLI entry: Integration lives in `src/consensus/provider-cli/cli.ts` (shebang entry) or `commands.ts` (subcommand handler)
-- Plugin commands: Regenerate `plugins/consensus/scripts/consensus.mjs` (depends on provider-cli exports)
-- Tests: Mirror test file under `tests/consensus/provider-cli/`
+- Add provider adapter: `src/consensus/provider-cli/adapters.ts` (new export, capability definitions, invocation logic)
+- Update probe: `src/consensus/provider-cli/probe.ts` (probe command for new provider)
+- Tests: `tests/repo/provider-manifest.test.ts` (if adding provider-specific manifest)
 
-**Shared Transcript Logic:**
+**Shared Utilities:**
 
-- Canonical source: `src/transcript/core/runtimes.ts` (per-provider transcript shape)
-- Generated copies: Regenerated to:
-  - `skills/session-observer/scripts/lib/runtimes.mjs`
-  - `skills/export-session-transcript/scripts/lib/runtimes.mjs`
-- Process: Edit canonical, run `pnpm run build`, commit canonical + regenerated copies together
-- Sync alternative: `pnpm run sync:transcript-core` (compatibility wrapper)
+- Provider-agnostic helpers: `shared/` (e.g., transcript-core symlink, future shared modules)
+- Test helpers: `tests/helpers/` (e.g., subprocess utils, fixture loaders)
+
+**Configuration:**
+
+- User/project config: `~/.consensus/config.json` (user) or `.consensus/config.json` (project)
+- No hardcoded defaults in source; all defaults in `src/consensus/config/consensus-config.ts` or skill wrappers
 
 ## Special Directories
 
-**plugins/consensus/scripts/** — Plugin-level shared runtime
+**plugins/consensus/scripts/:**
 
-- Purpose: Consensus loop entry point shared by all skills in the plugin
-- Generated: Yes (`consensus-loop.mjs` from `src/consensus/core/consensus-loop.ts`)
+- Purpose: Generated consensus shared runtime (used by all skills)
+- Generated: Yes (from `src/consensus/core/consensus-loop.ts` via esbuild)
 - Committed: Yes
-- Never edit: Hand-editing `.mjs` breaks generated-output drift check
+- Used by: All consensus skills (import `../../../scripts/consensus-loop.mjs`)
 
-**plugins/consensus/{.claude-plugin,.codex-plugin,.cursor-plugin}/** — Provider-specific manifests
+**plugins/consensus/skills/{skill}/scripts/:**
 
-- Purpose: Plugin metadata and entry-point configuration for each provider (Claude Code, Codex, Cursor)
-- Generated: No (authored manifests)
+- Purpose: Generated skill-specific runtime entrypoint
+- Generated: Yes (from `src/consensus/{skill}/` via esbuild with import rewrites)
 - Committed: Yes
-- Format: JSON or provider-specific config files (claude-plugin.json, codex-plugin.json, cursor-plugin.json structure)
+- Used by: Provider plugin interface or direct CLI invocation
 
-**skills/{skill}/scripts/lib/** — Generated libraries for skills
+**skills/{skill}/scripts/:**
 
-- Purpose: Shared logic copied to each skill (e.g., runtimes.mjs, sanitize.mjs for export-session-transcript)
-- Generated: Yes (from canonical source, one copy per consumer)
+- Purpose: Generated standalone skill runtime entrypoint
+- Generated: Yes (from `src/transcript/*/` via esbuild)
 - Committed: Yes
-- Never edit: Each copy is a generated snapshot; edit canonical source instead
+- Used by: Standalone skill installation (not in plugin)
 
-**.agents/**, **.claude/**, **.cursor/** — Provider synced mirrors
+**.consensus/ (runtime):**
 
-- Purpose: OAT sync mirrors of skills (`.agents/skills/`), agent instructions, provider-specific skill shortcuts
-- Generated: Yes (by `oat sync`, `oat tools update`)
-- Committed: Yes (synced)
-- Never edit: These are auto-generated from canonical skill under `plugins/` or `skills/`
+- Purpose: Shared provider CLI runtime generated by `install.sh`
+- Generated: Yes (installed from `plugins/consensus/scripts/consensus.mjs` or remote)
+- Committed: No (generated at install time)
+- Location: `~/.consensus/consensus.mjs` (if standalone skill install) or via plugin runtime
 
-**shared/transcript-core/** — Deprecated
+**tests/fixtures/:**
 
-- Purpose: Migration note; canonical source moved to `src/transcript/core/runtimes.ts`
+- Purpose: Static test data and mock binaries
 - Generated: No
-- Committed: Yes (README only, explaining the move)
-- Migration: Consumer skills now carry their own generated copy under `scripts/lib/runtimes.mjs`
-
-**tests/fixtures/** — Test data
-
-- Purpose: Reusable test fixtures (sample input files, config YAMLs, verdicts, error responses)
-- Generated: No (hand-authored test assets)
 - Committed: Yes
-- Usage: Tests load fixtures via helpers, e.g., `loadFixture('verdict-accept.json')`
+- Examples: Sample markdown input, stub provider CLIs, JSONL test fixtures
+
+**.git/hooks/ (if enabled):**
+
+- Purpose: Git hook implementations installed by `pnpm prepare` or `pnpm hooks:enable-all`
+- Generated: Symlinks (not committed; created by hook manager)
+- Maintained by: `tools/git-hooks/manage-hooks.mjs`
 
 ---
 
-_Structure analysis: 2026-07-11_
+_Structure analysis: 2026-07-17_
