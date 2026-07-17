@@ -26,8 +26,8 @@
     ]
   },
   "knowledgeIndex": {
-    "lastRunAt": "2026-07-11T22:29:40Z",
-    "commitHash": "17043d653233fb906e018f5872359d99eb556208",
+    "lastRunAt": "2026-07-17T22:59:46Z",
+    "commitHash": "6c03afde1417fbe29f0e2c81009629f0e36ca945",
     "baseBranch": "main",
     "mode": "full",
     "formats": [],
