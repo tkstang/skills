@@ -12,11 +12,12 @@ oat_template: false
 ## Problem Statement
 
 Session Observer currently treats Cursor's optional `turn_ended` lifecycle
-record as the boundary that makes assistant content visible. Live validation
-showed that this record is not a dependable boundary for active collaboration:
-substantive text can be durably present while the observer continues to report
-no completed content. The result is a false negative at exactly the moment a
-collaborating agent needs to catch up.
+record as the boundary that makes assistant content visible. Discovery records
+prior live-session evidence that substantive text can be present while the
+observer continues to report no completed content, but the repository does not
+yet contain a sanitized repeatable probe for that observation. Reproducing and
+durably recording the structural evidence is therefore part of this project's
+acceptance boundary, not an already promoted support claim.
 
 Relaxing the terminal requirement without a stronger observation contract
 would create the opposite failure: provisional, replaced, aborted, synthetic,
@@ -25,7 +26,7 @@ transcript repair, malformed lines, truncation, rotation, weak path matching,
 and multiple consumers also expose ways for the current high-water accounting
 to silently skip, duplicate, or inherit content across the wrong identity.
 
-This project makes Cursor observation reliable by separating record-stable
+This project makes Cursor observation reliable by separating prefix-stable
 content availability from lifecycle completion, requiring exact stateful
 identity and fail-visible continuity, and keeping engagement, activity,
 content, completion, and watcher health as distinct claims. Reliable
@@ -38,9 +39,9 @@ the correctness outcome.
 
 ### Primary Goals
 
-- Make complete, substantive Cursor assistant records observable during an
-  active session without waiting indefinitely for an optional lifecycle
-  terminal.
+- Make structurally stable, substantive Cursor assistant records observable
+  during an active session without waiting indefinitely for an optional
+  lifecycle terminal, while explicitly withholding semantic finality.
 - Preserve a separate, stricter lifecycle-completion boundary for automatic
   continuation and other completion-sensitive consumers.
 - Prevent silent loss, duplication, replay, or cursor inheritance when a
@@ -99,16 +100,23 @@ the correctness outcome.
 
 **FR2: Content-First Cursor Observation**
 
-- **Description:** Surface record-stable substantive assistant content without
+- **Description:** Surface prefix-stable substantive assistant content without
   requiring `turn_ended`, while labeling it separately from lifecycle
   completion.
 - **Acceptance Criteria:**
-  - A syntactically complete, closed Cursor JSONL record containing substantive
-    assistant text can become content-available while lifecycle is pending.
+  - A syntactically closed Cursor JSONL record becomes content-available only
+    after a second observation, separated by the configured stability/debounce
+    interval, verifies that its exact raw prefix is unchanged; lifecycle remains
+    pending.
   - Partial, malformed, metadata-only, tool-only, synthetic-control, empty, and
-    known non-success content is not surfaced as substantive assistant content.
-  - Each source content record is delivered at most once per observer cursor;
-    later lifecycle evidence does not repeat the prose.
+    already-known non-success content is not surfaced as substantive assistant
+    content.
+  - Every structurally stable substantive source record in the consumed range
+    is rendered or explicitly retained as recoverable; normal delivery does not
+    silently discard earlier records from the same open turn.
+  - Each entry has a deterministic source key. Normal operation does not repeat
+    it; a crash-ambiguous replay is labeled with the same key rather than
+    presented as a new entry.
   - Content-available output is explicitly distinguishable from a successful
     completed peer turn.
 - **Priority:** P0
@@ -124,6 +132,9 @@ the correctness outcome.
   - `aborted`, `error`, `cancelled`, and unknown terminal outcomes emit a
     diagnostic, mark the turn non-successful, and never become continuation
     eligible.
+  - Content that was honestly shown as lifecycle-pending before a later
+    non-success terminal remains a historical pending observation; the terminal
+    diagnostic explicitly records that it never became a successful completion.
   - An open turn may report content availability but cannot trigger automatic
     continuation or spend continuation budget.
   - Replayed automatic controls, acknowledgements, status echoes, no-op turns,
@@ -163,16 +174,22 @@ the correctness outcome.
     understand.
 - **Priority:** P0
 
-**FR6: Atomic, Exactly-Once Observer Accounting**
+**FR6: Atomic, Idempotent Observer Accounting**
 
 - **Description:** Persist the next unread Cursor position and continuity
   checkpoint atomically for the single owning observer.
 - **Acceptance Criteria:**
   - State updates remain lock-protected, atomic, crash-safe, and idempotent.
+  - Cursor advancement uses an expected-checkpoint CAS and a metadata-only
+    pending-delivery record so a crash cannot silently convert un-emitted output
+    into consumed state.
   - Concurrent watchers cannot own the same exact target; the losing watcher
-    does not consume or strand the winner's range.
+    acquires no delivery reservation and cannot consume, restore, or strand the
+    winner's range.
   - Restart and catch-up resume at the last verified boundary with no silent
-    duplicate or skipped substantive entry.
+    duplicate or skipped substantive entry; an output/commit crash window is
+    reported as delivery-uncertain and may replay only with the original entry
+    keys.
   - Content-observation and completion-sensitive cursors cannot accidentally
     advance one another.
 - **Priority:** P0
@@ -231,11 +248,13 @@ the correctness outcome.
   harness-native or scheduled wake surfaces after observation correctness is
   proven.
 - **Acceptance Criteria:**
+  - This requirement is satisfied by an evidence-backed tier decision; it does
+    not require shipping a new scheduler, worker, or wake adapter.
   - The evaluation distinguishes event-wake, lifecycle-continuation,
     scheduled-poll, and buffered-manual tiers using effective live behavior.
-  - A deterministic scheduled observer uses an exact private cursor and bounded
-    cadence, expiry, event count, cancellation, and cost; it is not implemented
-    as a periodically invoked LLM.
+  - If a deterministic scheduled observer is selected for a later
+    implementation, it uses an exact private cursor and bounded cadence, expiry,
+    event count, cancellation, and cost; it is not a periodically invoked LLM.
   - A surface is implemented or promoted only if a future notification reaches
     the same pinned parent conversation and passes substantive/no-op,
     interruption, recurrence, restart, late-output, and disarm probes.
@@ -356,11 +375,12 @@ the correctness outcome.
 
 Use the evidence-gated correctness-first approach confirmed in discovery. Add
 a Cursor-specific framed transcript read and turn analysis that preserves
-physical source positions, distinguishes record-stable content availability
+physical source positions, distinguishes prefix-stable content availability
 from terminal completion, and produces explicit activity/content/lifecycle
-status. The ordinary observer consumes content-availability events exactly
-once. Completion-sensitive collaboration uses a separate projection and
-private cursor that remains terminal-success-only.
+status. The ordinary observer uses idempotent keyed delivery with a visible
+uncertain state for the unavoidable output/commit crash window.
+Completion-sensitive collaboration uses a separate projection and private
+cursor that remains terminal-success-only.
 
 Before reusing a persisted Cursor cursor, validate exact identity and an
 append-only prefix checkpoint. Any unverified legacy state, path change,
@@ -374,12 +394,13 @@ evidence phases, not prerequisites for shipping the observation core.
 
 - **Cursor framed transcript reader** — preserves closed, malformed, and
   partial physical frames and supplies continuity material.
-- **Cursor turn analyzer** — projects record-stable content separately from
+- **Cursor turn analyzer** — projects prefix-stable content separately from
   terminal-success completion and failure diagnostics.
 - **Exact identity and continuity guard** — validates candidate identity,
   canonical path, index base, and append-only prefix before cursor reuse.
-- **Versioned observer state and digest projection** — persists verified
-  accounting and reports independent activity/content/lifecycle/health fields.
+- **Cursor-specific state and versioned digest projection** — persists verified
+  frame accounting without changing legacy non-Cursor state semantics and
+  reports independent activity/content/lifecycle/health fields.
 - **Foreground watcher integration** — preserves baseline, debounce,
   ownership, heartbeat, and deterministic cleanup semantics.
 - **Completion-sensitive collaboration adapter** — consumes only confirmed
@@ -402,15 +423,17 @@ evidence phases, not prerequisites for shipping the observation core.
 
 ## Success Metrics
 
-- An active Cursor acceptance fixture and sanitized live probe surface a
-  complete substantive assistant record before `turn_ended` while labeling
-  lifecycle as pending.
+- A synthetic Cursor acceptance fixture and sanitized live probe surface a
+  structurally stable substantive assistant record before `turn_ended` while
+  labeling lifecycle as pending. Synthetic fixture prose is fictional and live
+  prose is replaced by structural placeholders.
 - Terminal success, abort, error, cancellation, unknown outcome, malformed
   frame, partial tail, repair, truncation, replacement, and rotation tests all
   produce the specified non-ambiguous states with no silent loss or duplicate
   prose.
-- Controlled restart/catch-up and duplicate-watcher runs deliver each
-  substantive source record once to the owning observer.
+- Controlled restart/catch-up and duplicate-watcher runs deliver every
+  substantive source record without silent loss; a forced crash-window replay
+  is explicitly labeled delivery-uncertain with stable entry keys.
 - Exact-pin, no-op, synthetic-control, late-output, bounded continuation, and
   deterministic disarm acceptance rows remain green.
 - All existing non-Cursor session-observer and collaboration tests pass.
@@ -424,11 +447,11 @@ evidence phases, not prerequisites for shipping the observation core.
 | ID | Description | Priority | Verification | Planned Tasks |
 | --- | --- | --- | --- | --- |
 | FR1 | Resolve and persist exact Cursor surface identity | P0 | unit + integration: direct/fallback identity, collisions, path mismatch | See plan.md |
-| FR2 | Surface record-stable Cursor content before terminal | P0 | unit + e2e: closed content, partial/malformed and pending lifecycle | See plan.md |
+| FR2 | Surface prefix-stable Cursor content before terminal | P0 | unit + e2e: two-scan stability, partial/malformed and pending lifecycle | See plan.md |
 | FR3 | Reconcile lifecycle separately and gate completion | P0 | unit + integration: success/failure/pending/automatic-control matrix | See plan.md |
 | FR4 | Verify continuity and require explicit recovery | P0 | unit + integration: repair, shrink, replacement, rotation and replay | See plan.md |
 | FR5 | Report independent activity/content/lifecycle/health | P0 | unit + e2e: state transition and heartbeat matrix | See plan.md |
-| FR6 | Persist atomic exactly-once observer accounting | P0 | unit + integration: concurrency, restart and cursor separation | See plan.md |
+| FR6 | Persist atomic idempotent observer accounting | P0 | unit + integration: CAS reservation, crash recovery, concurrency and cursor separation | See plan.md |
 | FR7 | Preserve reliable bounded foreground watch behavior | P0 | integration: baseline, debounce, candidate warning and cleanup | See plan.md |
 | FR8 | Preserve terminal-only bounded collaboration completion | P0 | integration + e2e: exact lease, contiguous range, no-op and disarm | See plan.md |
 | FR9 | Gate Cursor surface support on per-row evidence | P1 | manual + integration: capability matrix and sanitized probes | See plan.md |
@@ -442,9 +465,10 @@ evidence phases, not prerequisites for shipping the observation core.
 
 ## Open Questions
 
-- **Content presentation:** Is record-stable, lifecycle-pending assistant text
-  the right user-facing boundary, or should the observer wait for an additional
-  quiescence interval before presenting the closed record?
+- **Content presentation:** Is prefix-stable, lifecycle-pending assistant text
+  after one unchanged debounce interval the right user-facing boundary, given
+  that it may later receive a non-success terminal and remain visible only as a
+  historical pending observation?
 - **Cursor matrix:** Which Cursor desktop/CLI/background-agent versions and
   stores will be available for sanitized implementation-time probes?
 - **Wake investment:** After the correctness boundary passes, should the
@@ -456,10 +480,10 @@ evidence phases, not prerequisites for shipping the observation core.
 
 ## Assumptions
 
-- Cursor agent-transcript JSONL records are append-oriented and a
-  newline-terminated, parseable record is structurally closed; prefix
-  verification detects violations of that assumption before further cursor
-  advancement.
+- Cursor agent-transcript JSONL records are append-oriented. A
+  newline-terminated parseable record is only a stability candidate; a second
+  observation after the configured interval must verify its exact prefix before
+  it becomes content-available, and a new live probe must validate this policy.
 - Controlled Cursor sessions needed for the baseline live probe will be
   available during implementation.
 - The current agent-transcript store remains the baseline even if broader
