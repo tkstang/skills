@@ -2,7 +2,7 @@
 oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
-oat_last_updated: 2026-07-17
+oat_last_updated: 2026-07-20
 oat_phase: plan
 oat_phase_status: in_progress
 oat_plan_hill_phases: [] # phases to pause AFTER completing (empty = every phase)
@@ -172,7 +172,8 @@ git commit -m "feat(p01-t02): {description}"
 | p02    | code     | pending | -    | -        |
 | final  | code     | pending | -    | -        |
 | spec   | artifact | pending | -    | -        |
-| design | artifact | received | 2026-07-20 | reviews/artifact-design-review-2026-07-20T233233Z.md |
+| design | artifact | fixes_completed | 2026-07-20 | reviews/archived/artifact-design-review-2026-07-20T233233Z.md |
+| plan   | artifact | pending | -    | -        |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 

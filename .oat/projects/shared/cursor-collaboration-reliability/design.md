@@ -117,23 +117,27 @@ Cursor agent-transcript JSONL
    cursor.
 5. A newline-terminated parseable assistant text frame is only a stability
    candidate. For an open turn, wait one configured stability/debounce interval
-   and rescan. Any candidate whose exact prefix still verifies becomes
-   structurally stable. Render every new stable substantive record in source
-   order; tool-only, empty, automatic, partial, malformed, and unstable activity
+   and rescan. Verify the raw prefix only through each candidate's byte
+   boundary; later appended frames do not reset that candidate's stability. Any
+   candidate whose exact bounded prefix still verifies becomes structurally
+   stable. Render every new stable substantive record in source order;
+   tool-only, empty, automatic, partial, malformed, and unstable activity
    remains accounted but not rendered as peer prose.
 6. If the same read already contains a terminal, reconcile it before
    projection: success renders only the final substantive assistant record for
-   a previously unseen completed turn; a non-success terminal suppresses
-   unobserved assistant prose and emits a diagnostic.
+   a previously unseen completed turn and adds frame-based recovery pointers
+   for every earlier substantive assistant record in that turn; a non-success
+   terminal suppresses unobserved assistant prose and emits a diagnostic.
 7. Reserve the exact range and entry keys with an expected-checkpoint CAS before
    output. Render the digest with independent activity, content, lifecycle,
    buffering, continuity, and health fields. After stdout succeeds, atomically
    commit the next observation frame/checkpoint and clear the reservation. A
    crash-stranded reservation is reported as delivery-uncertain and is
    reconstructible from the transcript without storing prose.
-8. A foreground watcher repeats the flow only after file metadata changes.
-   Heartbeats report read health and pending/buffered state; they never count as
-   content or completion.
+8. A foreground watcher repeats the flow after file metadata changes or when a
+   pending candidate reaches its one scheduled stability deadline. Other
+   unchanged polls remain stat-only. Heartbeats report read health and
+   pending/buffered state; they never count as content or completion.
 
 #### Later Terminal Reconciliation
 
@@ -348,7 +352,7 @@ export interface CursorTurnAccumulator {
 }
 
 export function createCursorTurnAccumulator(
-  sessionId: string,
+  identity: CursorIdentityEvidence,
   fromFrameIndex: number,
 ): CursorTurnAccumulator;
 ```
@@ -363,9 +367,10 @@ export function createCursorTurnAccumulator(
 - `turnId` is the exact session plus the structural range start immediately
   after the previous terminal. It does not claim a provider generation ID that
   the measured record shape does not contain.
-- `entryKey` is scoped to exact transcript identity and built from frame and
-  content-block positions. Stability rescans and the consumed-prefix guard make
-  in-place reuse fail closed, so no persisted content hash is required.
+- `entryKey` is scoped to the supplied exact runtime/session/canonical-path
+  identity and built from frame and content-block positions. Stability rescans
+  and the consumed-prefix guard make in-place reuse fail closed, so no persisted
+  content hash is required.
 - After one unchanged debounce interval, an open-turn observation delta emits
   every new stable substantive assistant record in source order. The renderer
   may group them, but it cannot advance across and silently discard an earlier
@@ -374,9 +379,11 @@ export function createCursorTurnAccumulator(
   first. Success selects only the final substantive assistant record;
   non-success suppresses unread assistant prose.
 - A closed record is only a candidate. It becomes content-available after two
-  scans separated by the configured interval return the same file signature,
-  safe boundary, and safe-prefix hash. It remains non-completion-eligible until
-  terminal success. This is the primary user-review decision in the design.
+  scans separated by the configured interval verify the identical raw prefix
+  through that candidate's byte boundary using `verifyPrefixBytes`. Growth
+  after that boundary is permitted and does not restart the candidate's
+  stability interval. The record remains non-completion-eligible until terminal
+  success. This is the primary user-review decision in the design.
 
 ### Exact Identity Resolver
 
@@ -477,6 +484,24 @@ export interface TranscriptContinuityCheckpoint {
   inode: number | null;
 }
 
+export type ContinuityFailureCode =
+  | 'LEGACY_CURSOR_UNVERIFIED'
+  | 'INDEX_BASE_MISMATCH'
+  | 'FILE_IDENTITY_UNAVAILABLE'
+  | 'TRANSCRIPT_SHRANK'
+  | 'PREFIX_MISMATCH'
+  | 'TRANSCRIPT_REPLACED'
+  | 'ROTATION_UNSUPPORTED';
+
+export interface LegacyCursorStateMarker {
+  runtime: 'cursor';
+  sessionId: string;
+  legacyLastRecordIndex: number;
+  backupPath: string;
+  migrationStatus: 'marker-written' | 'legacy-removed' | 'complete';
+  createdAt: string;
+}
+
 export interface CursorTurnReconciliation {
   turnId: string;
   fromFrameIndex: number;
@@ -563,6 +588,11 @@ export function commitCursorDelivery(input: {
   it must equal `continuity.nextFrameIndex`.
 - Prefix SHA-256 is local continuity material, not a durable project-evidence
   value. Diagnostics may report that it mismatched but never print the digest.
+- Stateful Cursor observation requires non-null device and inode values on both
+  the saved checkpoint and current scan. If either value is unavailable, return
+  `FILE_IDENTITY_UNAVAILABLE` without advancing state; stateless diagnostic
+  review may continue, and the capability row records stateful continuity as
+  unsupported for that platform/filesystem.
 - Any device/inode replacement, including the same path with an identical
   prefix, blocks as `TRANSCRIPT_REPLACED`. Prefix equality proves byte
   continuity but not session identity. Cross-path rotation also requires
@@ -736,7 +766,10 @@ identifies the original content frame.
 - Observation projection excludes a terminal's final source entry when its
   `entryKey` is already in reconciliation state; the lifecycle event carries
   the key without prose. On a fresh catch-up that includes the whole completed
-  turn, the final entry is delivered once at the terminal frame.
+  turn, the final entry is delivered once at the terminal frame and every
+  earlier substantive assistant entry is retained in
+  `accounting.recovery.omittedAssistantEntries` as a frame/entry-key pointer
+  without prose.
 - Tail slicing cannot erase recovery pointers for omitted human direction and
   cannot silently discard omitted stable assistant content; both receive frame
   pointers. A sliced or blocked completion digest is never eligible.
@@ -847,9 +880,11 @@ The XML wake envelope adds `schema_version="2"` and `index_base`. The v2 parser
 requires and validates both before exposing range provenance. It accepts the
 legacy envelope as record-index v1 for compatibility, while a v2/frame-index
 producer must include both attributes. Old receivers may classify the envelope
-as automatic control but never use its range to mutate a cursor; frame-index
-collaboration promotion therefore also requires matched producer/receiver
-version evidence.
+as automatic control, but the received range is advisory review provenance:
+existing transcript normalization stores it on the automatic-control entry and
+does not mutate peer state from that entry. Cursor mutation occurs only in the
+producer hook's lease CAS. Frame-index collaboration promotion therefore also
+requires matched producer/receiver version evidence.
 
 **Dependencies:**
 
@@ -1125,6 +1160,14 @@ Session Observer CLI/skill and the synthetic collaboration hook contract.
   Cursor `catch-up`, `catch-up-then-watch`, and `watch` require an exact session
   pin or corroborating harness session identity whenever the store cannot prove
   cwd independently.
+- One-shot `review` and `catch-up` perform at most one bounded inline wait for
+  the configured stability interval when their unread delta contains an open
+  candidate, then run one confirmatory prefix scan. If the candidate prefix no
+  longer verifies, they return exit `0` with
+  `buffered.reason: 'stability-wait'` and do not advance across that candidate.
+  `catch-up-then-watch` and `watch` schedule the same single confirmation in the
+  poll loop and run it at the deadline even if file metadata is otherwise
+  unchanged; they do not wait indefinitely for quiescence.
 - JSON output adds `cursorEvidence`, lifecycle events, continuity state, and
   frame-index accounting.
 - Human-readable output labels open content `CONTENT AVAILABLE — LIFECYCLE
@@ -1282,8 +1325,8 @@ exclusive locks.
 - **Identity Errors:** `IDENTITY_DIAGNOSTIC_ONLY`, `IDENTITY_AMBIGUOUS`,
   `IDENTITY_MISMATCH`, `PATH_OUTSIDE_SUPPORTED_ROOT`.
 - **Continuity Errors:** `LEGACY_CURSOR_UNVERIFIED`, `INDEX_BASE_MISMATCH`,
-  `TRANSCRIPT_SHRANK`, `PREFIX_MISMATCH`, `TRANSCRIPT_REPLACED`,
-  `ROTATION_UNSUPPORTED`.
+  `FILE_IDENTITY_UNAVAILABLE`, `TRANSCRIPT_SHRANK`, `PREFIX_MISMATCH`,
+  `TRANSCRIPT_REPLACED`, `ROTATION_UNSUPPORTED`.
 - **Framing Errors:** `MALFORMED_FRAME_BLOCKED`, `PARTIAL_TAIL_BUFFERED`,
   `UNSUPPORTED_RECORD_SHAPE`. Partial tail is a buffered state, not a hard
   failure; an internal malformed frame blocks advancement.
@@ -1333,7 +1376,7 @@ exclusive locks.
 | FR1 | unit + integration | Direct exact identity, explicit/harness session, fallback diagnostic, duplicate transcript, path alias, slug collision, newer-candidate pin retention |
 | FR2 | unit + e2e | Two-scan prefix stability before terminal, multiple ordered open-turn records, partial tail, malformed frame, tool-only/empty/automatic/no-op suppression, keyed crash replay |
 | FR3 | unit + integration | Same-read success selects final text, later success does not repeat delivered keys, prior pending content plus abort/error/cancel/unknown diagnostic, pending never completion-eligible |
-| FR4 | unit + integration | Append, repaired blocking frame, shrink, prefix rewrite, in-place replacement, path rotation, legacy state, explicit reset/replay |
+| FR4 | unit + integration | Append, repaired blocking frame, shrink, prefix rewrite, in-place replacement, null file identity, path rotation, legacy state, explicit reset/replay |
 | FR5 | unit + e2e | Human input, assistant progress, tool activity, content available, terminal states, partial buffer, blocked continuity, healthy empty heartbeat, stale/error health |
 | FR6 | unit + integration | Expected-checkpoint CAS, reserve/write/commit crash interleavings, duplicate watcher pre-observation race, uncertain keyed replay, separate observation/completion cursors |
 | FR7 | integration | Strict baseline, catch-up-then-watch, debounce, maximum pending, quiet heartbeat, pause/resume/stop, signal cleanup, newer candidate |
@@ -1359,13 +1402,15 @@ exclusive locks.
 - **Key Test Cases:**
   - Malformed and partial frames retain positions and block safely.
   - An open assistant record is buffered after the first scan, becomes
-    observable only after the unchanged confirmatory scan, and remains
+    observable only after a confirmatory scan verifies its bounded raw prefix,
+    remains stable when later frames were appended, and remains
     non-completion-eligible.
   - Two or more stable assistant records in one debounce range are emitted in
     order or receive explicit recovery pointers; none disappear behind the
     advanced cursor.
   - A later terminal changes lifecycle without duplicating text.
-  - Prefix mismatch and legacy state never mutate the cursor.
+  - Prefix mismatch, unavailable device/inode identity, and legacy state never
+    mutate the cursor.
   - Non-Cursor normalizers remain byte-for-byte behavior compatible.
 
 ### Integration Tests

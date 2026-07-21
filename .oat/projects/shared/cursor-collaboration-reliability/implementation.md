@@ -2,7 +2,7 @@
 oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
-oat_last_updated: 2026-07-17
+oat_last_updated: 2026-07-20
 oat_current_task_id: p01-t01
 oat_generated: false
 ---
@@ -10,7 +10,7 @@ oat_generated: false
 # Implementation: cursor-collaboration-reliability
 
 **Started:** 2026-07-17
-**Last Updated:** 2026-07-17
+**Last Updated:** 2026-07-20
 
 > This document is used to resume interrupted implementation sessions.
 >
@@ -105,6 +105,45 @@ oat_generated: false
 
 **Status:** pending
 **Commit:** -
+
+---
+
+## Artifact Review History
+
+### Review Received: design
+
+**Date:** 2026-07-20
+**Review artifact:** `reviews/archived/artifact-design-review-2026-07-20T233233Z.md`
+
+**Findings:**
+
+- Critical: 0
+- Important: 1
+- Medium: 3
+- Minor: 3
+
+**Artifact dispositions:**
+
+- `I1` — `resolve_in_artifact`: candidate stability now verifies only the raw
+  prefix through the candidate boundary; later appends do not restart it.
+- `M1` — `resolve_in_artifact`: one-shot and watch stability-wait behavior is
+  explicit, bounded, and cursor-safe.
+- `M2` — `resolve_in_artifact`: unavailable device/inode identity blocks
+  stateful Cursor use fail-closed.
+- `M3` — `resolve_in_artifact`: earlier substantive entries in a fresh
+  completed turn receive recovery pointers.
+- `m1` — `resolve_in_artifact`: continuity failure and legacy migration marker
+  types are defined.
+- `m2` — `resolve_in_artifact`: the turn accumulator receives exact identity
+  evidence for entry-key scoping.
+- `m3` — `resolve_in_artifact`: legacy receiver safety is grounded in advisory
+  automatic-control provenance and producer-side lease CAS.
+
+**Plan tasks added:** None; this was an artifact review and all findings were
+resolved directly in `design.md`.
+
+**Next:** Re-run the design artifact review or approve the revised design
+before implementation planning.
 
 ---
 
