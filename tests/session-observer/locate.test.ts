@@ -124,7 +124,11 @@ vi.mock('node:fs/promises', async (importOriginal) => {
 // ---------------------------------------------------------------------------
 
 async function withTempHome(fn: (dir: string) => Promise<void>): Promise<void> {
-  const dir = await mkdtemp(join(tmpdir(), 'locate-test-'));
+  const createdDir = await mkdtemp(join(tmpdir(), 'locate-test-'));
+  // macOS exposes /var as a symlink to /private/var. Hand tests the canonical
+  // temp path so ordinary cwd fixtures do not accidentally exercise the raw
+  // alias branch; alias tests below create their own explicit path aliases.
+  const dir = await realpath(createdDir);
   const prevHome = process.env.HOME;
   const prevStateDir = process.env.STATE_DIR;
   process.env.HOME = dir;
@@ -196,6 +200,50 @@ function encodeCwd(cwd: string): string {
 // Encode cwd the way Cursor project dirs do: slash/dot path segments joined by '-'
 function encodeCursorCwd(cwd: string): string {
   return cwd.split(/[/.]/u).filter(Boolean).join('-');
+}
+
+type CursorAliasPlacement = 'leaf' | 'ancestor';
+
+async function createCursorAliasPaths(
+  home: string,
+  placement: CursorAliasPlacement,
+): Promise<{ aliasCwd: string; canonicalCwd: string }> {
+  if (placement === 'leaf') {
+    const canonicalCwd = join(home, 'Code', 'physical-leaf-project');
+    const aliasCwd = join(home, 'Code', 'alias-leaf-project');
+    await mkdir(canonicalCwd, { recursive: true });
+    await symlink(canonicalCwd, aliasCwd, 'dir');
+    return { aliasCwd, canonicalCwd: await realpath(canonicalCwd) };
+  }
+
+  const canonicalParent = join(home, 'Code', 'physical-ancestor');
+  const aliasParent = join(home, 'Code', 'alias-ancestor');
+  const canonicalCwd = join(canonicalParent, 'project');
+  await mkdir(canonicalCwd, { recursive: true });
+  await symlink(canonicalParent, aliasParent, 'dir');
+  return {
+    aliasCwd: join(aliasParent, 'project'),
+    canonicalCwd: await realpath(canonicalCwd),
+  };
+}
+
+async function writeCursorTranscriptForCwd(
+  home: string,
+  cwd: string,
+  sessionId: string,
+): Promise<string> {
+  const transcriptDir = join(
+    home,
+    '.cursor',
+    'projects',
+    encodeCursorCwd(cwd),
+    'agent-transcripts',
+    sessionId,
+  );
+  await mkdir(transcriptDir, { recursive: true });
+  const transcriptPath = join(transcriptDir, 'transcript.jsonl');
+  await writeFile(transcriptPath, CURSOR_TYPICAL, 'utf8');
+  return transcriptPath;
 }
 
 // ---------------------------------------------------------------------------
@@ -1027,70 +1075,106 @@ test('cursor identity: direct hit still detects same-session duplicates in anoth
   });
 });
 
-test('cursor identity: symlink-equivalent cwd resolves to one canonical identity', async () => {
-  await withTempHome(async (home) => {
-    const physicalCwd = join(home, 'Code', 'physical-project');
-    const aliasCwd = join(home, 'Code', 'alias-project');
-    await mkdir(physicalCwd, { recursive: true });
-    await symlink(physicalCwd, aliasCwd, 'dir');
+test.each<CursorAliasPlacement>(['leaf', 'ancestor'])(
+  'cursor identity: canonical store candidate stays exact through a %s cwd alias',
+  async (placement) => {
+    await withTempHome(async (home) => {
+      const { aliasCwd, canonicalCwd } = await createCursorAliasPaths(
+        home,
+        placement,
+      );
+      const sessionId = `session-canonical-${placement}`;
+      const transcriptPath = await writeCursorTranscriptForCwd(
+        home,
+        canonicalCwd,
+        sessionId,
+      );
+      const [candidate] = await discover('cursor', aliasCwd);
 
-    const transcriptDir = join(
-      home,
-      '.cursor',
-      'projects',
-      encodeCursorCwd(await realpath(physicalCwd)),
-      'agent-transcripts',
-      'session-symlink',
-    );
-    await mkdir(transcriptDir, { recursive: true });
-    const transcriptPath = join(transcriptDir, 'transcript.jsonl');
-    await writeFile(transcriptPath, CURSOR_TYPICAL, 'utf8');
-    const [candidate] = await discover('cursor', aliasCwd);
-
-    expect(
-      await resolveCursorIdentity(candidate, aliasCwd, 'session-symlink'),
-    ).toMatchObject({
-      canonicalCwd: await realpath(physicalCwd),
-      canonicalTranscriptPath: await realpath(transcriptPath),
-      strength: 'exact',
+      expect(candidate.cwdEvidence).toBe('direct-parent-dir');
+      expect(
+        await resolveCursorIdentity(candidate, aliasCwd, sessionId),
+      ).toMatchObject({
+        canonicalCwd,
+        canonicalTranscriptPath: await realpath(transcriptPath),
+        strength: 'exact',
+      });
     });
-  });
-});
+  },
+);
 
-test('cursor identity: raw symlink alias store variants remain diagnostic-only', async () => {
-  await withTempHome(async (home) => {
-    const physicalCwd = join(home, 'Code', 'physical-alias-only-project');
-    const aliasCwd = join(home, 'Code', 'raw-alias-only-project');
-    await mkdir(physicalCwd, { recursive: true });
-    await symlink(physicalCwd, aliasCwd, 'dir');
+test.each<CursorAliasPlacement>(['leaf', 'ancestor'])(
+  'cursor identity: %s raw cwd alias-only store remains diagnostic with an explicit pin',
+  async (placement) => {
+    await withTempHome(async (home) => {
+      const { aliasCwd, canonicalCwd } = await createCursorAliasPaths(
+        home,
+        placement,
+      );
+      const sessionId = `session-raw-alias-${placement}`;
+      const transcriptPath = await writeCursorTranscriptForCwd(
+        home,
+        aliasCwd,
+        sessionId,
+      );
 
-    const aliasTranscriptDir = join(
-      home,
-      '.cursor',
-      'projects',
-      encodeCursorCwd(aliasCwd),
-      'agent-transcripts',
-      'session-raw-alias',
-    );
-    await mkdir(aliasTranscriptDir, { recursive: true });
-    const transcriptPath = join(aliasTranscriptDir, 'transcript.jsonl');
-    await writeFile(transcriptPath, CURSOR_TYPICAL, 'utf8');
-
-    const [candidate] = await discover('cursor', aliasCwd);
-    expect(candidate.cwdEvidence).toBe('raw-cwd-alias');
-    expect(
-      await resolveCursorIdentity(candidate, aliasCwd, 'session-raw-alias'),
-    ).toMatchObject({
-      canonicalCwd: await realpath(physicalCwd),
-      canonicalTranscriptPath: await realpath(transcriptPath),
-      strength: 'diagnostic',
-      reasons: expect.arrayContaining([
-        'RAW_CWD_ALIAS_DIAGNOSTIC_ONLY',
-        'WEAK_CWD_EVIDENCE',
-      ]),
+      const [candidate] = await discover('cursor', aliasCwd);
+      expect(candidate.cwdEvidence).toBe('raw-cwd-alias');
+      expect(
+        await resolveCursorIdentity(candidate, aliasCwd, sessionId),
+      ).toMatchObject({
+        canonicalCwd,
+        canonicalTranscriptPath: await realpath(transcriptPath),
+        sessionEvidence: expect.arrayContaining(['explicit-pin']),
+        strength: 'diagnostic',
+        reasons: expect.arrayContaining([
+          'RAW_CWD_ALIAS_DIAGNOSTIC_ONLY',
+          'WEAK_CWD_EVIDENCE',
+        ]),
+      });
     });
-  });
-});
+  },
+);
+
+test.each<CursorAliasPlacement>(['leaf', 'ancestor'])(
+  'cursor identity: canonical/raw %s alias duplicates reject an explicit pin as ambiguous',
+  async (placement) => {
+    await withTempHome(async (home) => {
+      const { aliasCwd, canonicalCwd } = await createCursorAliasPaths(
+        home,
+        placement,
+      );
+      const sessionId = `session-alias-duplicate-${placement}`;
+      await writeCursorTranscriptForCwd(home, canonicalCwd, sessionId);
+      await writeCursorTranscriptForCwd(home, aliasCwd, sessionId);
+
+      const candidates = await discover('cursor', aliasCwd);
+      expect(candidates).toHaveLength(2);
+      const canonical = candidates.find(
+        (candidate) => candidate.cwdEvidence === 'direct-parent-dir',
+      )!;
+      const rawAlias = candidates.find(
+        (candidate) => candidate.cwdEvidence === 'raw-cwd-alias',
+      )!;
+
+      expect(
+        await resolveCursorIdentity(canonical, aliasCwd, sessionId),
+      ).toMatchObject({
+        strength: 'ambiguous',
+        reasons: expect.arrayContaining(['DUPLICATE_SESSION_CANDIDATES']),
+      });
+      expect(
+        await resolveCursorIdentity(rawAlias, aliasCwd, sessionId),
+      ).toMatchObject({
+        strength: 'ambiguous',
+        reasons: expect.arrayContaining([
+          'DUPLICATE_SESSION_CANDIDATES',
+          'RAW_CWD_ALIAS_DIAGNOSTIC_ONLY',
+        ]),
+      });
+    });
+  },
+);
 
 test('cursor identity: transcript symlinks escaping the supported store are rejected', async () => {
   await withTempHome(async (home) => {

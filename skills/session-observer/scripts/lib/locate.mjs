@@ -5,7 +5,6 @@ import { randomUUID } from "node:crypto";
 import {
   readdir,
   stat,
-  lstat,
   mkdir,
   readFile,
   realpath,
@@ -14,7 +13,7 @@ import {
   unlink
 } from "node:fs/promises";
 import { homedir } from "node:os";
-import { join, basename, isAbsolute, relative } from "node:path";
+import { join, basename, isAbsolute, relative, resolve } from "node:path";
 import { promisify } from "node:util";
 import {
   discoverPaths,
@@ -399,16 +398,15 @@ async function cursorCandidate(transcriptPath, now, evidence, fileStat, cache) {
 }
 async function discoverCursor(targetCwd, cache) {
   const [projectsRoot] = discoverPaths("cursor");
-  const canonicalTargetCwd = await canonicalPath(targetCwd) ?? targetCwd.replace(/\/+$/u, "");
+  const normalizedTargetCwd = resolve(targetCwd);
+  const canonicalTargetCwd = await canonicalPath(normalizedTargetCwd) ?? normalizedTargetCwd;
   const canonicalEncodedVariants = new Set(
     encodeCwdVariants("cursor", canonicalTargetCwd)
   );
-  const rawEncodedVariants = new Set(encodeCwdVariants("cursor", targetCwd));
-  let suppliedCwdIsAlias = false;
-  try {
-    suppliedCwdIsAlias = (await lstat(targetCwd)).isSymbolicLink();
-  } catch {
-  }
+  const rawEncodedVariants = new Set(
+    encodeCwdVariants("cursor", normalizedTargetCwd)
+  );
+  const suppliedCwdIsAlias = normalizedTargetCwd !== canonicalTargetCwd;
   const directVariants = [
     ...[...canonicalEncodedVariants].map((encoded) => ({
       encoded,

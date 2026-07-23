@@ -35,7 +35,6 @@ import type { Dirent, Stats } from 'node:fs';
 import {
   readdir,
   stat,
-  lstat,
   mkdir,
   readFile,
   realpath,
@@ -44,7 +43,7 @@ import {
   unlink,
 } from 'node:fs/promises';
 import { homedir } from 'node:os';
-import { join, basename, isAbsolute, relative } from 'node:path';
+import { join, basename, isAbsolute, relative, resolve } from 'node:path';
 import { promisify } from 'node:util';
 
 import type { Runtime, TranscriptMeta } from '../../core/runtimes.js';
@@ -779,18 +778,16 @@ async function discoverCursor(
   cache: ClassificationCache,
 ): Promise<TranscriptCandidate[]> {
   const [projectsRoot] = discoverPaths('cursor');
+  const normalizedTargetCwd = resolve(targetCwd);
   const canonicalTargetCwd =
-    (await canonicalPath(targetCwd)) ?? targetCwd.replace(/\/+$/u, '');
+    (await canonicalPath(normalizedTargetCwd)) ?? normalizedTargetCwd;
   const canonicalEncodedVariants = new Set(
     encodeCwdVariants('cursor', canonicalTargetCwd),
   );
-  const rawEncodedVariants = new Set(encodeCwdVariants('cursor', targetCwd));
-  let suppliedCwdIsAlias = false;
-  try {
-    suppliedCwdIsAlias = (await lstat(targetCwd)).isSymbolicLink();
-  } catch {
-    // A missing/unreadable cwd cannot establish a raw symlink alias.
-  }
+  const rawEncodedVariants = new Set(
+    encodeCwdVariants('cursor', normalizedTargetCwd),
+  );
+  const suppliedCwdIsAlias = normalizedTargetCwd !== canonicalTargetCwd;
   const directVariants = [
     ...[...canonicalEncodedVariants].map((encoded) => ({
       encoded,
