@@ -179,6 +179,8 @@ export interface CursorCandidateObservation {
 
 export interface PendingCursorDelivery {
   deliveryId: string;
+  canonicalCwd: string;
+  transcriptPath: string;
   expectedNextFrameIndex: number;
   expectedCheckpoint: TranscriptContinuityCheckpoint;
   reservedThroughFrameIndex: number;

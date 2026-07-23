@@ -709,6 +709,56 @@ test('cursor identity: duplicate exact-session candidates are ambiguous', async 
   });
 });
 
+test('cursor identity: direct hit still detects same-session duplicates in another slug', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'cross-slug-project');
+    const directDir = join(
+      home,
+      '.cursor',
+      'projects',
+      encodeCursorCwd(targetCwd),
+      'agent-transcripts',
+      'session-cross-slug',
+    );
+    const duplicateDir = join(
+      home,
+      '.cursor',
+      'projects',
+      'other-project-slug',
+      'agent-transcripts',
+      'session-cross-slug',
+    );
+    await mkdir(directDir, { recursive: true });
+    await mkdir(duplicateDir, { recursive: true });
+    await writeFile(
+      join(directDir, 'transcript.jsonl'),
+      CURSOR_TYPICAL,
+      'utf8',
+    );
+    await writeFile(
+      join(duplicateDir, 'transcript.jsonl'),
+      CURSOR_TYPICAL,
+      'utf8',
+    );
+
+    const candidates = await discover('cursor', targetCwd);
+    expect(
+      candidates.filter(
+        (candidate) => candidate.sessionId === 'session-cross-slug',
+      ),
+    ).toHaveLength(2);
+    const direct = candidates.find(
+      (candidate) => candidate.cwdEvidence === 'direct-parent-dir',
+    )!;
+    expect(
+      await resolveCursorIdentity(direct, targetCwd, 'session-cross-slug'),
+    ).toMatchObject({
+      strength: 'ambiguous',
+      reasons: expect.arrayContaining(['DUPLICATE_SESSION_CANDIDATES']),
+    });
+  });
+});
+
 test('cursor identity: symlink-equivalent cwd resolves to one canonical identity', async () => {
   await withTempHome(async (home) => {
     const physicalCwd = join(home, 'Code', 'physical-project');
@@ -720,21 +770,17 @@ test('cursor identity: symlink-equivalent cwd resolves to one canonical identity
       home,
       '.cursor',
       'projects',
-      encodeCursorCwd(physicalCwd),
+      encodeCursorCwd(await realpath(physicalCwd)),
       'agent-transcripts',
       'session-symlink',
     );
     await mkdir(transcriptDir, { recursive: true });
     const transcriptPath = join(transcriptDir, 'transcript.jsonl');
     await writeFile(transcriptPath, CURSOR_TYPICAL, 'utf8');
-    const [candidate] = await discover('cursor', physicalCwd);
+    const [candidate] = await discover('cursor', aliasCwd);
 
     expect(
-      await resolveCursorIdentity(
-        { ...candidate, recordedCwd: aliasCwd },
-        physicalCwd,
-        'session-symlink',
-      ),
+      await resolveCursorIdentity(candidate, aliasCwd, 'session-symlink'),
     ).toMatchObject({
       canonicalCwd: await realpath(physicalCwd),
       canonicalTranscriptPath: await realpath(transcriptPath),

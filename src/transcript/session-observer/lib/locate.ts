@@ -547,13 +547,19 @@ async function discoverCursor(
   targetCwd: string,
 ): Promise<TranscriptCandidate[]> {
   const [projectsRoot] = discoverPaths('cursor');
-  const encodedVariants = encodeCwdVariants('cursor', targetCwd);
+  const canonicalTargetCwd =
+    (await canonicalPath(targetCwd)) ?? targetCwd.replace(/\/+$/u, '');
+  const encodedVariants = [
+    ...new Set([
+      ...encodeCwdVariants('cursor', canonicalTargetCwd),
+      ...encodeCwdVariants('cursor', targetCwd),
+    ]),
+  ];
   const now = Date.now() / 1000;
   const cutoffSec = now - LOOKBACK_DAYS * 86400;
 
   const candidates: TranscriptCandidate[] = [];
   const seenTranscripts = new Set<string>();
-  let directHit = false;
 
   // Cursor direct lookup is intentionally transcript-based, not directory-based:
   // an encoded project dir can exist before it contains usable agent JSONL, so
@@ -564,10 +570,11 @@ async function discoverCursor(
       await collectCursorAgentTranscripts(transcriptsRoot);
     if (transcriptPaths.length === 0) continue;
 
-    directHit = true;
     for (const transcriptPath of transcriptPaths) {
-      if (seenTranscripts.has(transcriptPath)) continue;
-      seenTranscripts.add(transcriptPath);
+      const canonicalTranscriptPath =
+        (await canonicalPath(transcriptPath)) ?? transcriptPath;
+      if (seenTranscripts.has(canonicalTranscriptPath)) continue;
+      seenTranscripts.add(canonicalTranscriptPath);
 
       const candidate = await cursorCandidate(transcriptPath, now, {
         recordedCwd: targetCwd,
@@ -577,8 +584,6 @@ async function discoverCursor(
       if (candidate) candidates.push(candidate);
     }
   }
-
-  if (directHit) return candidates;
 
   let projectDirs: Dirent[] = [];
   try {
@@ -600,8 +605,10 @@ async function discoverCursor(
       await collectCursorAgentTranscripts(transcriptsRoot);
 
     for (const transcriptPath of transcriptPaths) {
-      if (seenTranscripts.has(transcriptPath)) continue;
-      seenTranscripts.add(transcriptPath);
+      const canonicalTranscriptPath =
+        (await canonicalPath(transcriptPath)) ?? transcriptPath;
+      if (seenTranscripts.has(canonicalTranscriptPath)) continue;
+      seenTranscripts.add(canonicalTranscriptPath);
 
       let fileStat;
       try {
@@ -659,6 +666,40 @@ async function canonicalPath(path: string): Promise<string | null> {
   } catch {
     return null;
   }
+}
+
+async function cursorSessionCanonicalPaths(
+  sessionId: string,
+): Promise<Set<string>> {
+  const [projectsRoot] = discoverPaths('cursor');
+  const canonicalPaths = new Set<string>();
+  let projectDirs: Dirent[] = [];
+  try {
+    projectDirs = await readdir(projectsRoot, { withFileTypes: true });
+  } catch {
+    return canonicalPaths;
+  }
+
+  for (const projectDir of projectDirs) {
+    if (!projectDir.isDirectory()) continue;
+    const paths = await collectCursorAgentTranscripts(
+      join(projectsRoot, projectDir.name, 'agent-transcripts'),
+    );
+    for (const transcriptPath of paths) {
+      let discoveredSessionId: string | null = null;
+      try {
+        discoveredSessionId =
+          (await extractMeta('cursor', transcriptPath))?.sessionId ?? null;
+      } catch {
+        // Unreadable candidates cannot corroborate an exact persisted identity.
+      }
+      if (discoveredSessionId !== sessionId) continue;
+      canonicalPaths.add(
+        (await canonicalPath(transcriptPath)) ?? transcriptPath,
+      );
+    }
+  }
+  return canonicalPaths;
 }
 
 /**
@@ -719,16 +760,8 @@ export async function resolveCursorIdentity(
     }
   }
 
-  const sameSessionCandidates = (await discoverCursor(requestedCwd)).filter(
-    (discovered) => discovered.sessionId === candidate.sessionId,
-  );
-  const distinctPaths = new Set<string>();
-  for (const discovered of sameSessionCandidates) {
-    distinctPaths.add(
-      (await canonicalPath(discovered.transcriptPath)) ??
-        discovered.transcriptPath,
-    );
-  }
+  const distinctPaths = await cursorSessionCanonicalPaths(candidate.sessionId);
+  distinctPaths.add(canonicalTranscriptPath);
   if (distinctPaths.size > 1) {
     reasons.push('DUPLICATE_SESSION_CANDIDATES');
   }

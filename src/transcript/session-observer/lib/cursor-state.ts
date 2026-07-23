@@ -1,4 +1,13 @@
-import { chmod, mkdir, open, readFile, rename, unlink } from 'node:fs/promises';
+import {
+  chmod,
+  link,
+  mkdir,
+  open,
+  readFile,
+  rename,
+  stat,
+  unlink,
+} from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
@@ -22,10 +31,15 @@ import type {
 const SCHEMA_VERSION = 2 as const;
 const LOCK_RETRIES = 100;
 const LOCK_INTERVAL_MS = 50;
+const INVALID_LOCK_GRACE_MS = 1000;
 let backupSequence = 0;
+let lockSequence = 0;
 
 export class CursorStateRecoveryRequiredError extends Error {
   readonly code = 'CURSOR_STATE_RECOVERY_REQUIRED';
+  readonly recoveryScope = 'cursor-store';
+  readonly recoveryOperation = 'recoverCursorStateStore';
+  readonly preservesSiblingSessions = false;
 
   constructor(readonly reason: 'corrupt' | 'schema') {
     super(
@@ -209,7 +223,9 @@ function isForwardDeliveryCheckpoint(
     reservedThroughFrameIndex >= expected.nextFrameIndex &&
     intended.nextFrameIndex === reservedThroughFrameIndex + 1 &&
     intended.nextFrameIndex > expected.nextFrameIndex &&
-    intended.prefixBytes >= expected.prefixBytes
+    intended.prefixBytes >= expected.prefixBytes &&
+    (intended.prefixBytes > expected.prefixBytes ||
+      intended.prefixSha256 === expected.prefixSha256)
   );
 }
 
@@ -343,6 +359,8 @@ function isPendingDelivery(value: unknown): value is PendingCursorDelivery {
     isObject(value) &&
     hasOnlyKeys(value, [
       'deliveryId',
+      'canonicalCwd',
+      'transcriptPath',
       'expectedNextFrameIndex',
       'expectedCheckpoint',
       'reservedThroughFrameIndex',
@@ -353,6 +371,10 @@ function isPendingDelivery(value: unknown): value is PendingCursorDelivery {
     ]) &&
     typeof value.deliveryId === 'string' &&
     value.deliveryId.length > 0 &&
+    typeof value.canonicalCwd === 'string' &&
+    value.canonicalCwd.length > 0 &&
+    typeof value.transcriptPath === 'string' &&
+    value.transcriptPath.length > 0 &&
     isNonNegativeInteger(value.expectedNextFrameIndex) &&
     isCheckpoint(value.expectedCheckpoint) &&
     value.expectedNextFrameIndex === value.expectedCheckpoint.nextFrameIndex &&
@@ -404,6 +426,8 @@ function isSessionEntry(value: unknown): value is CursorSessionStateEntry {
       isStabilityCandidate(value.stabilityCandidate)) &&
     (value.pendingDelivery === null ||
       (isPendingDelivery(value.pendingDelivery) &&
+        value.pendingDelivery.canonicalCwd === value.canonicalCwd &&
+        value.pendingDelivery.transcriptPath === value.transcriptPath &&
         checkpointsEqual(
           value.pendingDelivery.expectedCheckpoint,
           value.continuity,
@@ -512,14 +536,58 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function acquireLock(path: string): Promise<void> {
+function processIsAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return !isErrnoException(error) || error.code !== 'ESRCH';
+  }
+}
+
+function lockOwnerPid(owner: string): number | null {
+  const pid = Number(owner.split(':', 1)[0]);
+  return Number.isSafeInteger(pid) && pid > 0 ? pid : null;
+}
+
+async function acquireLock(path: string): Promise<string> {
   for (let attempt = 0; attempt < LOCK_RETRIES; attempt += 1) {
+    const owner = `${process.pid}:${Date.now()}:${++lockSequence}`;
+    const ownerPath = `${path}.${owner}.owner`;
+    let handle;
     try {
-      const handle = await open(path, 'wx', 0o600);
+      handle = await open(ownerPath, 'wx', 0o600);
+      await handle.writeFile(owner, 'utf8');
+      await handle.datasync();
       await handle.close();
-      return;
+      handle = undefined;
+      await link(ownerPath, path);
+      await unlink(ownerPath);
+      return owner;
     } catch (error) {
+      if (handle) await handle.close();
+      await unlink(ownerPath).catch(() => undefined);
       if (!isErrnoException(error) || error.code !== 'EEXIST') throw error;
+      try {
+        const existingOwner = await readFile(path, 'utf8');
+        const ownerPid = lockOwnerPid(existingOwner);
+        const lockStat = await stat(path);
+        const invalidOwnerIsStale =
+          ownerPid === null &&
+          Date.now() - lockStat.mtimeMs >= INVALID_LOCK_GRACE_MS;
+        if (
+          (ownerPid !== null && !processIsAlive(ownerPid)) ||
+          invalidOwnerIsStale
+        ) {
+          await unlink(path);
+          continue;
+        }
+      } catch (lockError) {
+        if (!isErrnoException(lockError) || lockError.code !== 'ENOENT') {
+          throw lockError;
+        }
+        continue;
+      }
       await sleep(LOCK_INTERVAL_MS);
     }
   }
@@ -528,8 +596,9 @@ async function acquireLock(path: string): Promise<void> {
   );
 }
 
-async function releaseLock(path: string): Promise<void> {
+async function releaseLock(path: string, owner: string): Promise<void> {
   try {
+    if ((await readFile(path, 'utf8')) !== owner) return;
     await unlink(path);
   } catch (error) {
     if (!isErrnoException(error) || error.code !== 'ENOENT') throw error;
@@ -623,14 +692,14 @@ async function transactCursorState<T>(
   const dir = stateDir();
   await ensurePrivateDirectory(dir);
   const lock = lockPath(dir);
-  await acquireLock(lock);
+  const owner = await acquireLock(lock);
   try {
     const state = await readCursorState(dir);
     const result = transaction(state);
     if (result.write) await writeCursorState(dir, state);
     return result.value;
   } finally {
-    await releaseLock(lock);
+    await releaseLock(lock, owner);
   }
 }
 
@@ -665,6 +734,8 @@ function pendingDeliveriesEqual(
 ): boolean {
   return (
     left.deliveryId === right.deliveryId &&
+    left.canonicalCwd === right.canonicalCwd &&
+    left.transcriptPath === right.transcriptPath &&
     left.expectedNextFrameIndex === right.expectedNextFrameIndex &&
     checkpointsEqual(left.expectedCheckpoint, right.expectedCheckpoint) &&
     left.reservedThroughFrameIndex === right.reservedThroughFrameIndex &&
@@ -697,28 +768,39 @@ export async function loadCursorState(): Promise<CursorObserverStateV2> {
   const dir = stateDir();
   await ensurePrivateDirectory(dir);
   const lock = lockPath(dir);
-  await acquireLock(lock);
+  const owner = await acquireLock(lock);
   try {
     return await readCursorState(dir);
   } finally {
-    await releaseLock(lock);
+    await releaseLock(lock, owner);
   }
+}
+
+export type CursorStateMutationBoundary = 'locked' | 'written';
+
+export interface CursorStateMutationOptions {
+  onMutationBoundary?(
+    boundary: CursorStateMutationBoundary,
+  ): void | Promise<void>;
 }
 
 export async function mutateCursorState(
   mutate: CursorStateMutator,
+  options: CursorStateMutationOptions = {},
 ): Promise<CursorObserverStateV2> {
   const dir = stateDir();
   await ensurePrivateDirectory(dir);
   const lock = lockPath(dir);
-  await acquireLock(lock);
+  const owner = await acquireLock(lock);
   try {
     const current = await readCursorState(dir);
+    await options.onMutationBoundary?.('locked');
     const next = mutate(current) ?? current;
     await writeCursorState(dir, next);
+    await options.onMutationBoundary?.('written');
     return next;
   } finally {
-    await releaseLock(lock);
+    await releaseLock(lock, owner);
   }
 }
 
@@ -744,7 +826,9 @@ export async function setCursorSession(
         !pendingDeliveriesEqual(
           existing.pendingDelivery,
           entry.pendingDelivery,
-        ))
+        ) ||
+        entry.canonicalCwd !== existing.canonicalCwd ||
+        entry.transcriptPath !== existing.transcriptPath)
     ) {
       throw new Error('DELIVERY_RESERVATION_ACTIVE');
     }
@@ -870,6 +954,12 @@ export async function reserveCursorDelivery(input: {
     if (!checkpointsEqual(entry.continuity, input.expected)) {
       return { write: false, value: 'stale' as const };
     }
+    if (
+      input.pending.canonicalCwd !== entry.canonicalCwd ||
+      input.pending.transcriptPath !== entry.transcriptPath
+    ) {
+      return { write: false, value: 'stale' as const };
+    }
 
     entry.pendingDelivery = structuredClone(input.pending);
     entry.lastStatus = { ...entry.lastStatus, delivery: 'reserved' };
@@ -902,6 +992,10 @@ export async function commitCursorDelivery(input: {
     }
     if (
       !checkpointsEqual(current.continuity, pending.expectedCheckpoint) ||
+      current.canonicalCwd !== pending.canonicalCwd ||
+      current.transcriptPath !== pending.transcriptPath ||
+      input.nextState.canonicalCwd !== current.canonicalCwd ||
+      input.nextState.transcriptPath !== current.transcriptPath ||
       !checkpointsEqual(
         pending.intendedCheckpoint,
         input.nextState.continuity,
@@ -1001,11 +1095,53 @@ export async function resetCursorSessionState(
   return removed;
 }
 
+export async function recoverCursorStateStore(input: {
+  requestedSessionId: string;
+  confirmWholeStoreReset: boolean;
+}): Promise<{
+  status: 'recovered';
+  scope: 'cursor-store';
+  requestedSessionId: string;
+  reason: 'corrupt' | 'schema';
+  preservesSiblingSessions: false;
+}> {
+  if (!input.requestedSessionId || input.confirmWholeStoreReset !== true) {
+    throw new TypeError(
+      'cursor-state: whole-store recovery requires a requested session and explicit confirmation',
+    );
+  }
+
+  const dir = stateDir();
+  await ensurePrivateDirectory(dir);
+  const lock = lockPath(dir);
+  const owner = await acquireLock(lock);
+  try {
+    let reason: 'corrupt' | 'schema';
+    try {
+      await readCursorState(dir);
+      throw new Error('CURSOR_STATE_RECOVERY_NOT_REQUIRED');
+    } catch (error) {
+      if (!(error instanceof CursorStateRecoveryRequiredError)) throw error;
+      reason = error.reason;
+    }
+    await writeCursorState(dir, emptyCursorState());
+    return {
+      status: 'recovered',
+      scope: 'cursor-store',
+      requestedSessionId: input.requestedSessionId,
+      reason,
+      preservesSiblingSessions: false,
+    };
+  } finally {
+    await releaseLock(lock, owner);
+  }
+}
+
 export async function resetAllCursorState(): Promise<number> {
   const dir = stateDir();
   await ensurePrivateDirectory(dir);
   const lock = lockPath(dir);
-  await acquireLock(lock);
+  const owner = await acquireLock(lock);
   try {
     let count = 0;
     try {
@@ -1020,7 +1156,7 @@ export async function resetAllCursorState(): Promise<number> {
     await writeCursorState(dir, emptyCursorState());
     return count;
   } finally {
-    await releaseLock(lock);
+    await releaseLock(lock, owner);
   }
 }
 

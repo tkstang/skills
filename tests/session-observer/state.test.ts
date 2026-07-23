@@ -4,8 +4,11 @@
  * Each test uses a fresh temp STATE_DIR to ensure isolation.
  */
 
+import { spawn } from 'node:child_process';
+import { once } from 'node:events';
 import { readFile, readdir, writeFile, access, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 import { expect, it } from 'vitest';
 
@@ -18,6 +21,51 @@ import { withTmpStateDir } from './helpers/tmpdir.js';
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+const GENERATED_STATE_URL = pathToFileURL(
+  join(process.cwd(), 'skills/session-observer/scripts/lib/state.mjs'),
+).href;
+const GENERATED_CURSOR_STATE_URL = pathToFileURL(
+  join(process.cwd(), 'skills/session-observer/scripts/lib/cursor-state.mjs'),
+).href;
+
+async function killWorkerAtReady(
+  source: string,
+  stateDir: string,
+): Promise<void> {
+  const child = spawn(process.execPath, ['--input-type=module', '-e', source], {
+    env: { ...process.env, STATE_DIR: stateDir },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  const exited = once(child, 'exit');
+  let stderr = '';
+  child.stderr.setEncoding('utf8');
+  child.stderr.on('data', (chunk) => {
+    stderr += chunk;
+  });
+  await new Promise<void>((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      child.kill('SIGKILL');
+      reject(new Error(`worker did not reach boundary: ${stderr}`));
+    }, 5000);
+    child.stdout.setEncoding('utf8');
+    child.stdout.on('data', (chunk: string) => {
+      if (!chunk.includes('READY')) return;
+      clearTimeout(timeout);
+      resolve();
+    });
+    child.once('exit', (code, signal) => {
+      clearTimeout(timeout);
+      reject(
+        new Error(
+          `worker exited before boundary code=${code} signal=${signal}: ${stderr}`,
+        ),
+      );
+    });
+  });
+  child.kill('SIGKILL');
+  await exited;
 }
 
 // ---------------------------------------------------------------------------
@@ -609,6 +657,53 @@ it('restores the exact legacy preimage when a migration marker appears during co
   });
 });
 
+it.each([
+  'marker-written',
+  'backup-written',
+  'legacy-removed',
+  'marker-legacy-removed',
+  'complete',
+] as const)(
+  'reclaims process-crashed migration locks at %s',
+  async (boundary) => {
+    await withTmpStateDir(async (dir) => {
+      await writeFile(
+        join(dir, 'state.json'),
+        JSON.stringify({
+          schemaVersion: 1,
+          sessions: {
+            'cursor:killed-migration': {
+              runtime: 'cursor',
+              sessionId: 'killed-migration',
+              lastRecordIndex: 7,
+              lastTotalRecords: 9,
+            },
+          },
+        }),
+      );
+      await killWorkerAtReady(
+        `
+          const { migrateLegacyCursorState } = await import(${JSON.stringify(GENERATED_STATE_URL)});
+          await migrateLegacyCursorState('killed-migration', {
+            async onBoundary(boundary) {
+              if (boundary !== ${JSON.stringify(boundary)}) return;
+              process.stdout.write('READY\\n');
+              await new Promise(() => {});
+            }
+          });
+        `,
+        dir,
+      );
+
+      await expect(
+        state.migrateLegacyCursorState('killed-migration'),
+      ).resolves.toMatchObject({ migrationStatus: 'complete' });
+      const files = await readdir(dir);
+      expect(files.filter((name) => name.endsWith('.lock'))).toEqual([]);
+    });
+  },
+);
+
 it.each(['legacy-written', 'cursor-updated'] as const)(
   'retries compatibility transition after process failure at %s',
   async (failureBoundary) => {
@@ -669,6 +764,99 @@ it.each(['legacy-written', 'cursor-updated'] as const)(
         sessions: {},
         legacyUnverified: {},
       });
+    });
+  },
+);
+
+it.each(['prechecked', 'legacy-written', 'cursor-updated'] as const)(
+  'reclaims process-crashed compatibility locks at %s',
+  async (boundary) => {
+    await withTmpStateDir(async (dir) => {
+      await writeFile(
+        join(dir, 'state.json'),
+        JSON.stringify({
+          schemaVersion: 1,
+          sessions: {
+            'cursor:killed-compatibility': {
+              runtime: 'cursor',
+              sessionId: 'killed-compatibility',
+              lastRecordIndex: 0,
+              lastTotalRecords: 2,
+            },
+          },
+        }),
+      );
+      await state.load();
+      await killWorkerAtReady(
+        `
+          const { markRead } = await import(${JSON.stringify(GENERATED_STATE_URL)});
+          await markRead(
+            'cursor',
+            'killed-compatibility',
+            {
+              lastRecordIndex: 2,
+              lastTotalRecords: 2,
+              transcriptPath: '/tmp/killed.jsonl',
+              recordedCwd: '/project'
+            },
+            {
+              async onCompatibilityBoundary(boundary) {
+                if (boundary !== ${JSON.stringify(boundary)}) return;
+                process.stdout.write('READY\\n');
+                await new Promise(() => {});
+              }
+            }
+          );
+        `,
+        dir,
+      );
+
+      await expect(
+        state.markRead('cursor', 'killed-compatibility', {
+          lastRecordIndex: 2,
+          lastTotalRecords: 2,
+          transcriptPath: '/tmp/killed.jsonl',
+          recordedCwd: '/project',
+        }),
+      ).resolves.toBeUndefined();
+      expect(
+        (await loadCursorState()).legacyUnverified[
+          'cursor:killed-compatibility'
+        ],
+      ).toBeUndefined();
+      const files = await readdir(dir);
+      expect(files.filter((name) => name.endsWith('.lock'))).toEqual([]);
+    });
+  },
+);
+
+it.each(['locked', 'written'] as const)(
+  'reclaims process-crashed v2 mutation lock at %s',
+  async (boundary) => {
+    await withTmpStateDir(async (dir) => {
+      await mutateCursorState(() => {});
+      await killWorkerAtReady(
+        `
+          const { mutateCursorState } = await import(${JSON.stringify(GENERATED_CURSOR_STATE_URL)});
+          await mutateCursorState(
+            () => {},
+            {
+              async onMutationBoundary(boundary) {
+                if (boundary !== ${JSON.stringify(boundary)}) return;
+                process.stdout.write('READY\\n');
+                await new Promise(() => {});
+              }
+            }
+          );
+        `,
+        dir,
+      );
+
+      await expect(mutateCursorState(() => {})).resolves.toMatchObject({
+        schemaVersion: 2,
+      });
+      const files = await readdir(dir);
+      expect(files.filter((name) => name.endsWith('.lock'))).toEqual([]);
     });
   },
 );

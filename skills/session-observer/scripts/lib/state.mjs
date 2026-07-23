@@ -2,10 +2,12 @@
 // Source: src/transcript/session-observer/lib/state.ts
 import {
   access,
+  link,
   open,
   rename,
   mkdir,
   readFile,
+  stat,
   unlink
 } from "node:fs/promises";
 import { homedir } from "node:os";
@@ -22,8 +24,10 @@ import {
 const SCHEMA_VERSION = 1;
 const LOCK_RETRIES = 100;
 const LOCK_INTERVAL_MS = 50;
+const INVALID_LOCK_GRACE_MS = 1e3;
 const CURSOR_COMPATIBILITY = "pre-integration-record-index";
 let migrationBackupSequence = 0;
+let lockSequence = 0;
 function isErrnoException(err) {
   return err instanceof Error && "code" in err;
 }
@@ -45,27 +49,6 @@ function tmpPath(dir) {
 function bakPath(dir, label) {
   return join(dir, `state.json.${label}-${Date.now()}-${process.pid}.bak`);
 }
-async function acquireLock(lock) {
-  for (let i = 0; i < LOCK_RETRIES; i++) {
-    try {
-      const fh = await open(lock, "wx");
-      await fh.close();
-      return;
-    } catch (err) {
-      if (!isErrnoException(err) || err.code !== "EEXIST") throw err;
-      await sleep(LOCK_INTERVAL_MS);
-    }
-  }
-  throw new Error(
-    `state.mjs: could not acquire lock after ${LOCK_RETRIES} retries`
-  );
-}
-async function releaseLock(lock) {
-  try {
-    await unlink(lock);
-  } catch {
-  }
-}
 function processIsAlive(pid) {
   try {
     process.kill(pid, 0);
@@ -74,24 +57,36 @@ function processIsAlive(pid) {
     return !isErrnoException(error) || error.code !== "ESRCH";
   }
 }
-async function acquireCursorTransitionLock(lock) {
+function lockOwnerPid(owner) {
+  const pid = Number(owner.split(":", 1)[0]);
+  return Number.isSafeInteger(pid) && pid > 0 ? pid : null;
+}
+async function acquireLock(lock) {
   for (let attempt = 0; attempt < LOCK_RETRIES; attempt += 1) {
+    const owner = `${process.pid}:${Date.now()}:${++lockSequence}`;
+    const ownerPath = `${lock}.${owner}.owner`;
     let handle;
     try {
-      handle = await open(lock, "wx", 384);
-      await handle.writeFile(String(process.pid), "utf8");
+      handle = await open(ownerPath, "wx", 384);
+      await handle.writeFile(owner, "utf8");
+      await handle.datasync();
       await handle.close();
       handle = void 0;
-      return;
+      await link(ownerPath, lock);
+      await unlink(ownerPath);
+      return owner;
     } catch (error) {
       if (handle) {
         await handle.close();
-        await unlink(lock).catch(() => void 0);
       }
+      await unlink(ownerPath).catch(() => void 0);
       if (!isErrnoException(error) || error.code !== "EEXIST") throw error;
       try {
-        const ownerPid = Number(await readFile(lock, "utf8"));
-        if (Number.isSafeInteger(ownerPid) && ownerPid > 0 && !processIsAlive(ownerPid)) {
+        const existingOwner = await readFile(lock, "utf8");
+        const ownerPid = lockOwnerPid(existingOwner);
+        const lockStat = await stat(lock);
+        const invalidOwnerIsStale = ownerPid === null && Date.now() - lockStat.mtimeMs >= INVALID_LOCK_GRACE_MS;
+        if (ownerPid !== null && !processIsAlive(ownerPid) || invalidOwnerIsStale) {
           await unlink(lock);
           continue;
         }
@@ -105,18 +100,26 @@ async function acquireCursorTransitionLock(lock) {
     }
   }
   throw new Error(
-    `state.mjs: could not acquire Cursor transition lock after ${LOCK_RETRIES} retries`
+    `state.mjs: could not acquire lock after ${LOCK_RETRIES} retries`
   );
+}
+async function releaseLock(lock, owner) {
+  try {
+    if (await readFile(lock, "utf8") !== owner) return;
+    await unlink(lock);
+  } catch (error) {
+    if (!isErrnoException(error) || error.code !== "ENOENT") throw error;
+  }
 }
 async function withCursorTransitionLock(transition) {
   const dir = stateDir();
   await mkdir(dir, { recursive: true });
   const lock = cursorTransitionLockPath(dir);
-  await acquireCursorTransitionLock(lock);
+  const owner = await acquireLock(lock);
   try {
     return await transition();
   } finally {
-    await releaseLock(lock);
+    await releaseLock(lock, owner);
   }
 }
 function sleep(ms) {
@@ -221,11 +224,11 @@ async function loadLegacyState() {
   const dir = stateDir();
   await mkdir(dir, { recursive: true });
   const lock = lockPath(dir);
-  await acquireLock(lock);
+  const owner = await acquireLock(lock);
   try {
     return await readState(dir);
   } finally {
-    await releaseLock(lock);
+    await releaseLock(lock, owner);
   }
 }
 async function notifyMigrationBoundary(options, boundary) {
@@ -275,7 +278,7 @@ async function removeLegacyCursorForMigration(marker, options) {
   }
   await mkdir(dir, { recursive: true });
   const lock = lockPath(dir);
-  await acquireLock(lock);
+  const owner = await acquireLock(lock);
   try {
     const state = await readState(dir);
     const key = sessionKey("cursor", marker.sessionId);
@@ -296,7 +299,7 @@ async function removeLegacyCursorForMigration(marker, options) {
     await writeState(dir, state);
     await notifyMigrationBoundary(options, "legacy-removed");
   } finally {
-    await releaseLock(lock);
+    await releaseLock(lock, owner);
   }
 }
 async function migrateLegacyCursorStateUnderTransition(sessionId, options = {}) {
@@ -404,14 +407,14 @@ async function mutate(fn) {
   const dir = stateDir();
   await mkdir(dir, { recursive: true });
   const lock = lockPath(dir);
-  await acquireLock(lock);
+  const owner = await acquireLock(lock);
   try {
     const current = await readState(dir);
     const next = fn(current) ?? current;
     await writeState(dir, next);
     return next;
   } finally {
-    await releaseLock(lock);
+    await releaseLock(lock, owner);
   }
 }
 async function getSession(runtime, sessionId) {
