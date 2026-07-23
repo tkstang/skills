@@ -2,12 +2,24 @@
  * observe.test.ts — tests for the reusable catch-up observation pipeline.
  */
 
-import { mkdtemp, rm, mkdir, readFile, writeFile } from 'node:fs/promises';
+import {
+  appendFile,
+  mkdtemp,
+  rm,
+  mkdir,
+  readFile,
+  realpath,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { expect, describe, test } from 'vitest';
 
+import {
+  getCursorSession,
+  mutateCursorState,
+} from '../../src/transcript/session-observer/lib/cursor-state.js';
 import { renderMarkdown } from '../../src/transcript/session-observer/lib/digest.js';
 import { observeCatchUp } from '../../src/transcript/session-observer/lib/observe.js';
 
@@ -22,7 +34,9 @@ function cursorSlug(cwd: string): string {
 async function withTempSessionHome(
   fn: (home: string, stateDir: string) => Promise<void>,
 ): Promise<void> {
-  const home = await mkdtemp(join(tmpdir(), 'observe-test-home-'));
+  const home = await realpath(
+    await mkdtemp(join(tmpdir(), 'observe-test-home-')),
+  );
   const previousHome = process.env.HOME;
   const previousStateDir = process.env.STATE_DIR;
   process.env.HOME = home;
@@ -313,6 +327,263 @@ describe('observeCatchUp', () => {
       expect(raw).toContain('Synthetic direction.');
       expect(raw).toContain('{"malformed":');
       expect(raw.endsWith('Synthetic partial')).toBe(true);
+    });
+  });
+
+  test('reserves a stable pinned Cursor observation until its caller commits delivery', async () => {
+    await withTempSessionHome(async (home) => {
+      const cwd = join(home, 'workspace', 'observe-cursor-pending');
+      await mkdir(cwd, { recursive: true });
+      const sessionId = 'observe-cursor-pending';
+      const transcriptPath = await writeCursorTranscript(home, cwd, sessionId, [
+        {
+          role: 'user',
+          message: {
+            content: [{ type: 'text', text: 'Synthetic direction.' }],
+          },
+        },
+        {
+          role: 'assistant',
+          message: {
+            content: [{ type: 'text', text: 'Synthetic stable observation.' }],
+          },
+        },
+      ]);
+
+      let scanCount = 0;
+      const result = await observeCatchUp(
+        {
+          runtime: 'cursor',
+          cwd,
+          session: `cursor:${sessionId}`,
+          debounceSec: 0,
+        },
+        {
+          now: () => Date.parse('2026-07-22T00:00:00.000Z'),
+          sleep: async () => undefined,
+          ownerPid: 7101,
+          onCursorScan: () => {
+            scanCount += 1;
+          },
+        },
+      );
+
+      expect(result.ok).toBe(true);
+      if (!result.ok || result.runtime !== 'cursor') {
+        throw new Error(result.ok ? 'expected Cursor result' : result.message);
+      }
+      expect(scanCount).toBe(2);
+      expect(result.digest.schemaVersion).toBe(2);
+      expect(result.digest.entries.map((entry) => entry.text)).toEqual([
+        'Synthetic stable observation.',
+      ]);
+      expect(result.digest.cursorEvidence.status.delivery).toBe('reserved');
+      expect(result.delivery).not.toBeNull();
+      expect((await getCursorSession(sessionId))?.lastRecordIndex).toBe(0);
+
+      await expect(result.delivery!.commit()).resolves.toBe('committed');
+      expect((await getCursorSession(sessionId))?.lastRecordIndex).toBe(2);
+      expect((await getCursorSession(sessionId))?.openTurn).not.toBeNull();
+      await expect(result.delivery!.commit()).rejects.toThrow(
+        'CURSOR_DELIVERY_ALREADY_FINALIZED',
+      );
+
+      await appendFile(
+        transcriptPath,
+        `${JSON.stringify({ type: 'turn_ended', status: 'success' })}\n`,
+        'utf8',
+      );
+      const completed = await observeCatchUp(
+        { runtime: 'cursor', cwd, session: `cursor:${sessionId}` },
+        { ownerPid: 7101 },
+      );
+      expect(completed.ok).toBe(true);
+      if (!completed.ok || completed.runtime !== 'cursor') {
+        throw new Error(
+          completed.ok ? 'expected Cursor result' : completed.message,
+        );
+      }
+      expect(completed.digest.entries).toEqual([]);
+      expect(completed.digest.cursorEvidence.lifecycleEvents).toMatchObject([
+        {
+          lifecycle: 'success',
+          contentPreviouslyObservable: true,
+        },
+      ]);
+      await expect(completed.delivery!.abandon()).resolves.toBe('abandoned');
+      expect((await getCursorSession(sessionId))?.lastRecordIndex).toBe(2);
+
+      const retriedCompletion = await observeCatchUp(
+        { runtime: 'cursor', cwd, session: `cursor:${sessionId}` },
+        { ownerPid: 7101 },
+      );
+      expect(retriedCompletion.ok).toBe(true);
+      if (!retriedCompletion.ok || retriedCompletion.runtime !== 'cursor') {
+        throw new Error(
+          retriedCompletion.ok
+            ? 'expected Cursor result'
+            : retriedCompletion.message,
+        );
+      }
+      await retriedCompletion.delivery!.commit();
+      expect((await getCursorSession(sessionId))?.openTurn).toBeNull();
+    });
+  });
+
+  test('blocks Cursor continuity mismatch without mutating its committed checkpoint', async () => {
+    await withTempSessionHome(async (home) => {
+      const cwd = join(home, 'workspace', 'observe-cursor-continuity');
+      await mkdir(cwd, { recursive: true });
+      const sessionId = 'observe-cursor-continuity';
+      const transcriptPath = await writeCursorTranscript(home, cwd, sessionId, [
+        {
+          role: 'user',
+          message: { content: [{ type: 'text', text: 'Original direction.' }] },
+        },
+        {
+          role: 'assistant',
+          message: { content: [{ type: 'text', text: 'Original response.' }] },
+        },
+        { type: 'turn_ended', status: 'success' },
+      ]);
+      const first = await observeCatchUp(
+        { runtime: 'cursor', cwd, session: `cursor:${sessionId}` },
+        { ownerPid: 7102 },
+      );
+      expect(first.ok).toBe(true);
+      if (!first.ok || first.runtime !== 'cursor' || first.delivery === null) {
+        throw new Error('expected reserved Cursor delivery');
+      }
+      await first.delivery.commit();
+      const committed = await getCursorSession(sessionId);
+
+      const raw = await readFile(transcriptPath, 'utf8');
+      await writeFile(
+        transcriptPath,
+        raw.replace('Original direction.', 'Xriginal direction.'),
+        'utf8',
+      );
+      const blocked = await observeCatchUp(
+        { runtime: 'cursor', cwd, session: `cursor:${sessionId}` },
+        { ownerPid: 7102 },
+      );
+
+      expect(blocked).toMatchObject({
+        ok: false,
+        kind: 'continuityBlocked',
+        payload: { continuityBlocked: true, code: 'PREFIX_MISMATCH' },
+      });
+      expect(await getCursorSession(sessionId)).toEqual(committed);
+    });
+  });
+
+  test.each([
+    ['success', 'Synthetic final answer.', 'success'],
+    ['error', 'Synthetic failed draft.', 'error'],
+  ] as const)(
+    'reconciles Cursor %s lifecycle only after delivery commit',
+    async (terminalStatus, assistantText, expectedLifecycle) => {
+      await withTempSessionHome(async (home) => {
+        const cwd = join(home, 'workspace', `observe-cursor-${terminalStatus}`);
+        await mkdir(cwd, { recursive: true });
+        const sessionId = `observe-cursor-${terminalStatus}`;
+        await writeCursorTranscript(home, cwd, sessionId, [
+          {
+            role: 'user',
+            message: {
+              content: [{ type: 'text', text: 'Synthetic direction.' }],
+            },
+          },
+          {
+            role: 'assistant',
+            message: { content: [{ type: 'text', text: assistantText }] },
+          },
+          { type: 'turn_ended', status: terminalStatus },
+        ]);
+
+        const result = await observeCatchUp(
+          { runtime: 'cursor', cwd, session: `cursor:${sessionId}` },
+          { ownerPid: terminalStatus === 'success' ? 7103 : 7104 },
+        );
+
+        expect(result.ok).toBe(true);
+        if (!result.ok || result.runtime !== 'cursor') {
+          throw new Error(
+            result.ok ? 'expected Cursor result' : result.message,
+          );
+        }
+        expect(result.digest.cursorEvidence.status.lifecycle).toBe(
+          expectedLifecycle,
+        );
+        expect(result.digest.entries.map((entry) => entry.text)).toEqual(
+          terminalStatus === 'success' ? [assistantText] : [],
+        );
+        expect(result.delivery).not.toBeNull();
+        expect(
+          (await getCursorSession(sessionId))?.pendingDelivery,
+        ).not.toBeNull();
+        await result.delivery!.commit();
+        expect(await getCursorSession(sessionId)).toMatchObject({
+          lastRecordIndex: 3,
+          openTurn: null,
+          pendingDelivery: null,
+          lastStatus: { lifecycle: expectedLifecycle, delivery: 'committed' },
+        });
+      });
+    },
+  );
+
+  test('surfaces owner conflict and crash replay keys without advancing state', async () => {
+    await withTempSessionHome(async (home) => {
+      const cwd = join(home, 'workspace', 'observe-cursor-crash');
+      await mkdir(cwd, { recursive: true });
+      const sessionId = 'observe-cursor-crash';
+      await writeCursorTranscript(home, cwd, sessionId, [
+        {
+          role: 'user',
+          message: {
+            content: [{ type: 'text', text: 'Synthetic direction.' }],
+          },
+        },
+        {
+          role: 'assistant',
+          message: {
+            content: [{ type: 'text', text: 'Crash-window answer.' }],
+          },
+        },
+        { type: 'turn_ended', status: 'success' },
+      ]);
+      const first = await observeCatchUp(
+        { runtime: 'cursor', cwd, session: `cursor:${sessionId}` },
+        { ownerPid: 7105 },
+      );
+      expect(first.ok).toBe(true);
+      if (!first.ok || first.runtime !== 'cursor' || first.delivery === null) {
+        throw new Error('expected reserved Cursor delivery');
+      }
+      const entryKeys = first.delivery.entryKeys;
+
+      await mutateCursorState((state) => {
+        const pending = state.sessions[`cursor:${sessionId}`]?.pendingDelivery;
+        if (pending) pending.reservedByPid = 9999;
+      });
+      await expect(first.delivery.abandon()).resolves.toBe('owner-conflict');
+
+      const replay = await observeCatchUp(
+        { runtime: 'cursor', cwd, session: `cursor:${sessionId}` },
+        { ownerPid: 7106 },
+      );
+      expect(replay.ok).toBe(true);
+      if (!replay.ok || replay.runtime !== 'cursor') {
+        throw new Error(replay.ok ? 'expected Cursor result' : replay.message);
+      }
+      expect(replay.delivery).toBeNull();
+      expect(replay.deliveryUncertain?.entryKeys).toEqual(entryKeys);
+      expect(replay.digest.entries.map((entry) => entry.entryKey)).toEqual(
+        entryKeys,
+      );
+      expect(replay.digest.cursorEvidence.status.delivery).toBe('uncertain');
+      expect((await getCursorSession(sessionId))?.lastRecordIndex).toBe(0);
     });
   });
 

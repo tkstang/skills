@@ -14,12 +14,16 @@ import {
   copyFile,
   writeFile,
   readFile,
+  realpath,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { expect, describe, test } from 'vitest';
+
+// @ts-expect-error The generated runtime is intentionally declaration-free; this test exercises the shipped artifact.
+import { observeCatchUp as observeGeneratedCatchUp } from '../../skills/session-observer/scripts/lib/observe.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -315,6 +319,68 @@ describe('integration: review', () => {
 // ---------------------------------------------------------------------------
 
 describe('integration: catch-up', () => {
+  test('generated Cursor observation keeps delivery pending until caller finalization', async () => {
+    const tmpDir = await realpath(
+      await mkdtemp(join(tmpdir(), 'integration-cursor-observe-')),
+    );
+    const cwd = join(tmpDir, 'workspace', 'cursor-observe');
+    const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
+    const previousHome = process.env.HOME;
+    const previousStateDir = process.env.STATE_DIR;
+    try {
+      await mkdir(cwd, { recursive: true });
+      await mkdir(stateDir, { recursive: true });
+      process.env.HOME = tmpDir;
+      process.env.STATE_DIR = stateDir;
+      await writeCursorTranscript(tmpDir, cwd, 'generated-cursor-observe', [
+        {
+          role: 'user',
+          message: {
+            content: [{ type: 'text', text: 'Synthetic direction.' }],
+          },
+        },
+        {
+          role: 'assistant',
+          message: { content: [{ type: 'text', text: 'Generated answer.' }] },
+        },
+        { type: 'turn_ended', status: 'success' },
+      ]);
+
+      const observed = await observeGeneratedCatchUp(
+        {
+          runtime: 'cursor',
+          cwd,
+          session: 'cursor:generated-cursor-observe',
+        },
+        { ownerPid: 7201 },
+      );
+      expect(observed.ok).toBe(true);
+      expect(observed.digest.schemaVersion).toBe(2);
+      expect(observed.digest.cursorEvidence.status.delivery).toBe('reserved');
+      const beforeCommit = JSON.parse(
+        await readFile(join(stateDir, 'cursor-state.json'), 'utf8'),
+      );
+      expect(
+        beforeCommit.sessions['cursor:generated-cursor-observe']
+          .lastRecordIndex,
+      ).toBe(0);
+
+      await expect(observed.delivery.commit()).resolves.toBe('committed');
+      const afterCommit = JSON.parse(
+        await readFile(join(stateDir, 'cursor-state.json'), 'utf8'),
+      );
+      expect(
+        afterCommit.sessions['cursor:generated-cursor-observe'].lastRecordIndex,
+      ).toBe(3);
+    } finally {
+      if (previousHome === undefined) delete process.env.HOME;
+      else process.env.HOME = previousHome;
+      if (previousStateDir === undefined) delete process.env.STATE_DIR;
+      else process.env.STATE_DIR = previousStateDir;
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
   test('catch-up twice: first full delta, second no new records', async () => {
     const { tmpDir, cwd, stateDir, cleanup } = await setupTempHome();
     try {

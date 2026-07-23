@@ -5,20 +5,42 @@
  * exit-style outcomes they can render for CLI, watch, or future integrations.
  */
 
+import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 
+import { createCursorTurnAccumulator } from '../../core/cursor-analysis.js';
+import {
+  scanCursorTranscript,
+  type CursorTranscriptScan,
+} from '../../core/cursor-frames.js';
 import type { Runtime } from '../../core/runtimes.js';
+import * as cursorStateLib from './cursor-state.js';
 import { buildDigest } from './digest.js';
-import { discover, findSessionCandidate, gitWorktrees } from './locate.js';
+import {
+  discover,
+  findSessionCandidate,
+  gitWorktrees,
+  resolveCursorIdentity,
+} from './locate.js';
 import { rank } from './rank.js';
 import * as stateLib from './state.js';
 import type {
   BuildDigestOptions,
+  CursorDeliveryHandle,
+  CursorDeliveryUncertain,
+  CursorDigestV2,
+  CursorIdentityEvidence,
+  CursorObserveSuccess,
+  CursorObserveOutcome,
+  CursorSessionStateEntry,
+  CursorTurnReconciliation,
   Digest,
   ObserveArgs,
+  ObserveDeps,
   ObserveFailure,
   ObserveFailureKind,
   ObserveFailurePayload,
+  LegacyObserveOutcome,
   ObserveOutcome,
   ObservedRuntimeResolution,
   PinnedSession,
@@ -28,6 +50,7 @@ import type {
   SelfIdentityResolution,
   SelfIdentitySignal,
   SessionStateEntry,
+  TranscriptContinuityCheckpoint,
   TranscriptCandidate,
 } from './types.js';
 
@@ -447,11 +470,486 @@ async function buildCatchUpDigest(
   });
 }
 
+const EMPTY_SHA256 =
+  'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
+
+interface CursorScanResult {
+  scan: CursorTranscriptScan;
+  analysis: ReturnType<
+    ReturnType<typeof createCursorTurnAccumulator>['finish']
+  >;
+}
+
+function initialCursorStatus(): CursorSessionStateEntry['lastStatus'] {
+  return {
+    engagement: 'unknown',
+    activity: 'none',
+    content: 'none',
+    lifecycle: 'none',
+    delivery: 'none',
+    health: 'unknown',
+  };
+}
+
+function initialCursorSession(
+  identity: CursorIdentityEvidence,
+  scan: CursorTranscriptScan,
+): CursorSessionStateEntry {
+  return {
+    runtime: 'cursor',
+    sessionId: identity.sessionId,
+    indexBase: 'zero-based-jsonl-frame-index',
+    lastRecordIndex: 0,
+    canonicalCwd: identity.canonicalCwd,
+    transcriptPath: identity.canonicalTranscriptPath,
+    continuity: {
+      indexBase: 'zero-based-jsonl-frame-index',
+      nextFrameIndex: 0,
+      prefixBytes: 0,
+      prefixSha256: EMPTY_SHA256,
+      observedSize: scan.file.size,
+      device: scan.file.device,
+      inode: scan.file.inode,
+    },
+    lastStatus: initialCursorStatus(),
+    openTurn: null,
+    stabilityCandidate: null,
+    pendingDelivery: null,
+  };
+}
+
+async function scanCursor(
+  identity: CursorIdentityEvidence,
+  fromFrameIndex: number,
+  verifyPrefixBytes: number | undefined,
+  deps: ObserveDeps,
+): Promise<CursorScanResult> {
+  const accumulator = createCursorTurnAccumulator(identity, fromFrameIndex);
+  const scan = await scanCursorTranscript(identity.canonicalTranscriptPath, {
+    verifyPrefixBytes,
+    onFrame(frame) {
+      accumulator.onFrame(frame);
+    },
+  });
+  deps.onCursorScan?.();
+  return { scan, analysis: accumulator.finish(scan) };
+}
+
+function cursorCandidateObservation(
+  result: CursorScanResult,
+  observedAt: string,
+) {
+  const turn = result.analysis.turns.findLast(
+    (candidate) =>
+      candidate.lifecycle === 'pending' &&
+      candidate.assistantRecords.some(
+        (record) => record.classification === 'substantive',
+      ),
+  );
+  if (turn === undefined || result.scan.safeThroughFrame === null) return null;
+  return {
+    turnId: turn.turnId,
+    fromFrameIndex: turn.fromFrameIndex,
+    throughFrameIndex: result.scan.safeThroughFrame,
+    entryKeys: turn.assistantRecords
+      .filter((record) => record.classification === 'substantive')
+      .map((record) => record.entryKey),
+    prefixBytes: result.scan.safePrefixBytes,
+    prefixSha256: result.scan.safePrefixSha256,
+    observedAt,
+  };
+}
+
+function cursorOpenTurn(
+  state: CursorSessionStateEntry,
+  scanResult: CursorScanResult,
+  digest: CursorDigestV2,
+): CursorTurnReconciliation | null {
+  const turn = scanResult.analysis.turns.findLast(
+    (candidate) => candidate.lifecycle === 'pending',
+  );
+  if (turn === undefined) return null;
+  const prior =
+    state.openTurn?.turnId === turn.turnId ? state.openTurn : undefined;
+  return {
+    turnId: turn.turnId,
+    fromFrameIndex: turn.fromFrameIndex,
+    observedThroughFrame: turn.observedThroughFrame,
+    deliveredEntryKeys: [
+      ...new Set([
+        ...(prior?.deliveredEntryKeys ?? []),
+        ...digest.entries.map((entry) => entry.entryKey),
+      ]),
+    ],
+    assistantEntryKeys: [
+      ...new Set([
+        ...(prior?.assistantEntryKeys ?? []),
+        ...turn.assistantRecords.map((record) => record.entryKey),
+      ]),
+    ],
+    humanRecordIndexes: [
+      ...new Set([
+        ...(prior?.humanRecordIndexes ?? []),
+        ...turn.humanRecordIndexes,
+      ]),
+    ],
+    toolRecordIndexes: [
+      ...new Set([
+        ...(prior?.toolRecordIndexes ?? []),
+        ...turn.toolRecordIndexes,
+      ]),
+    ],
+    hasHumanInput:
+      (prior?.hasHumanInput ?? false) || turn.humanRecordIndexes.length > 0,
+    hasAutomaticControlInput: prior?.hasAutomaticControlInput ?? false,
+    lifecycle: 'pending',
+  };
+}
+
+function createDeliveryHandle(input: {
+  sessionId: string;
+  deliveryId: string;
+  ownerPid: number;
+  entryKeys: string[];
+  nextState: CursorSessionStateEntry;
+}): CursorDeliveryHandle {
+  let finalized = false;
+  const finalize = (): void => {
+    if (finalized) {
+      throw new Error('CURSOR_DELIVERY_ALREADY_FINALIZED');
+    }
+    finalized = true;
+  };
+  return {
+    deliveryId: input.deliveryId,
+    sessionId: input.sessionId,
+    ownerPid: input.ownerPid,
+    entryKeys: [...input.entryKeys],
+    async commit() {
+      finalize();
+      return cursorStateLib.commitCursorDelivery({
+        sessionId: input.sessionId,
+        deliveryId: input.deliveryId,
+        nextState: input.nextState,
+      });
+    },
+    async abandon(options) {
+      finalize();
+      if (options?.deliveryUncertain) {
+        const current = await cursorStateLib.getCursorSession(input.sessionId);
+        if (current?.pendingDelivery?.deliveryId !== input.deliveryId) {
+          return 'stale';
+        }
+        if (current.pendingDelivery.reservedByPid !== input.ownerPid) {
+          return 'owner-conflict';
+        }
+        const recovery = await cursorStateLib.recoverCursorDelivery(
+          input.sessionId,
+        );
+        return recovery.status === 'none' ? 'stale' : recovery.status;
+      }
+      return cursorStateLib.abandonCursorDelivery({
+        sessionId: input.sessionId,
+        deliveryId: input.deliveryId,
+        ownerPid: input.ownerPid,
+      });
+    },
+  };
+}
+
+async function observeCursorSession(
+  cwd: string,
+  candidate: TranscriptCandidate,
+  args: ObserveArgs,
+  deps: ObserveDeps,
+  rankResult?: ReturnType<typeof rank>,
+): Promise<ObserveOutcome> {
+  const expectedSessionId = args.session
+    ? parsePinnedSession(args.session)
+    : null;
+  const identity = await resolveCursorIdentity(
+    candidate,
+    cwd,
+    expectedSessionId && !('error' in expectedSessionId)
+      ? expectedSessionId.sessionId
+      : undefined,
+  );
+  if (identity.strength !== 'exact') {
+    return inputNeededOutcome(
+      'identityBlocked',
+      {
+        identityBlocked: true,
+        runtime: 'cursor',
+        cwd,
+        reasons: identity.reasons,
+      },
+      `Cursor observation requires exact session identity: ${identity.reasons.join(', ') || identity.strength}`,
+    );
+  }
+
+  let state = await cursorStateLib.getCursorSession(identity.sessionId);
+  const analysisFromFrame =
+    state?.openTurn?.fromFrameIndex ?? state?.continuity.nextFrameIndex ?? 0;
+  const first = await scanCursor(
+    identity,
+    analysisFromFrame,
+    state?.continuity.prefixBytes,
+    deps,
+  );
+  const continuity = cursorStateLib.validateCursorContinuity(
+    identity,
+    first.scan,
+    state,
+  );
+  if (continuity.status === 'blocked') {
+    return inputNeededOutcome(
+      'continuityBlocked',
+      {
+        continuityBlocked: true,
+        runtime: 'cursor',
+        cwd,
+        code: continuity.code,
+        message: continuity.message,
+      },
+      continuity.message,
+    );
+  }
+  if (first.scan.blockingFrame?.parseState === 'malformed') {
+    return inputNeededOutcome(
+      'continuityBlocked',
+      {
+        continuityBlocked: true,
+        runtime: 'cursor',
+        cwd,
+        code: 'MALFORMED_FRAME',
+      },
+      `Cursor transcript is blocked by malformed frame ${first.scan.blockingFrame.frameIndex}.`,
+    );
+  }
+
+  if (state === null) {
+    state = initialCursorSession(identity, first.scan);
+    await cursorStateLib.setCursorSession(state);
+  }
+
+  let deliveryUncertain: CursorDeliveryUncertain | null = null;
+  if (state.pendingDelivery !== null) {
+    const recovery = await cursorStateLib.recoverCursorDelivery(
+      identity.sessionId,
+    );
+    if (recovery.status === 'delivery-uncertain') {
+      deliveryUncertain = recovery;
+      state =
+        (await cursorStateLib.getCursorSession(identity.sessionId)) ?? state;
+    }
+  }
+
+  let selected = first;
+  if (deliveryUncertain === null) {
+    const firstObservation = cursorCandidateObservation(
+      first,
+      new Date(deps.now?.() ?? Date.now()).toISOString(),
+    );
+    if (firstObservation !== null) {
+      const stabilityMs = Math.max(0, (args.debounceSec ?? 1) * 1000);
+      const checkpoint = await cursorStateLib.checkpointCursorCandidate({
+        sessionId: identity.sessionId,
+        stabilityMs,
+        observation: firstObservation,
+      });
+      if (checkpoint.status !== 'confirmed') {
+        await (deps.sleep?.(stabilityMs) ??
+          new Promise((resolve) => setTimeout(resolve, stabilityMs)));
+        const second = await scanCursor(
+          identity,
+          analysisFromFrame,
+          firstObservation.prefixBytes,
+          deps,
+        );
+        const secondObservation = cursorCandidateObservation(
+          second,
+          new Date(
+            Math.max(
+              deps.now?.() ?? Date.now(),
+              Date.parse(firstObservation.observedAt) + stabilityMs,
+            ),
+          ).toISOString(),
+        );
+        if (
+          secondObservation !== null &&
+          second.scan.verifiedPrefixSha256 === firstObservation.prefixSha256
+        ) {
+          await cursorStateLib.checkpointCursorCandidate({
+            sessionId: identity.sessionId,
+            stabilityMs,
+            observation: secondObservation,
+          });
+        }
+        selected = second;
+      }
+      state =
+        (await cursorStateLib.getCursorSession(identity.sessionId)) ?? state;
+    }
+  }
+
+  const digest = (await buildDigest('cursor', candidate.transcriptPath, {
+    ...args,
+    fromIndex: continuity.fromFrameIndex,
+    mode: 'catch-up',
+    includeToolCalls: args.includeTools,
+    includeToolResults: args.includeToolResults,
+    includeCommandMessages: args.includeCommandMessages,
+    sessionId: candidate.sessionId,
+    recordedCwd: candidate.recordedCwd,
+    matchedTier:
+      rankResult && 'tier' in rankResult ? rankResult.tier : undefined,
+    active: candidate.active ?? false,
+    warnings: [],
+    fallbacks:
+      rankResult && 'fallbacks' in rankResult ? rankResult.fallbacks : [],
+    cursorProjection: 'observation',
+    cursorIdentity: identity,
+    cursorScan: selected.scan,
+    cursorAnalysis: selected.analysis,
+    cursorState: state,
+    cursorContinuity: continuity.status,
+  })) as CursorDigestV2;
+
+  if (deliveryUncertain !== null) {
+    const replayKeys = new Set(deliveryUncertain.entryKeys);
+    digest.entries = digest.entries.filter((entry) =>
+      replayKeys.has(entry.entryKey),
+    );
+    digest.accounting.rendered = {
+      count: digest.entries.length,
+      fromIndex:
+        digest.entries.length === 0
+          ? null
+          : Math.min(...digest.entries.map((entry) => entry.recordIndex)),
+      toIndex:
+        digest.entries.length === 0
+          ? null
+          : Math.max(...digest.entries.map((entry) => entry.recordIndex)),
+    };
+    digest.range.renderedFromIndex = digest.accounting.rendered.fromIndex;
+    digest.range.renderedToIndex = digest.accounting.rendered.toIndex;
+    digest.cursorEvidence.status.delivery = 'uncertain';
+    return {
+      ok: true,
+      runtime: 'cursor',
+      candidate,
+      rankResult,
+      digest: digest as CursorObserveSuccess['digest'],
+      sessionState: null,
+      cursorState: state,
+      fromIndex: continuity.fromFrameIndex,
+      markedRead: false,
+      delivery: null,
+      deliveryUncertain,
+    };
+  }
+
+  let delivery: CursorDeliveryHandle | null = null;
+  const safeNextIndex = (selected.scan.safeThroughFrame ?? -1) + 1;
+  if (
+    digest.range.nextIndex > continuity.fromFrameIndex &&
+    digest.range.nextIndex === safeNextIndex &&
+    selected.scan.file.device !== null &&
+    selected.scan.file.inode !== null
+  ) {
+    const intendedCheckpoint: TranscriptContinuityCheckpoint = {
+      indexBase: 'zero-based-jsonl-frame-index',
+      nextFrameIndex: digest.range.nextIndex,
+      prefixBytes: selected.scan.safePrefixBytes,
+      prefixSha256: selected.scan.safePrefixSha256,
+      observedSize: selected.scan.file.size,
+      device: selected.scan.file.device,
+      inode: selected.scan.file.inode,
+    };
+    const ownerPid = deps.ownerPid ?? process.pid;
+    const deliveryId = randomUUID();
+    const entryKeys = digest.entries.map((entry) => entry.entryKey);
+    const reservation = await cursorStateLib.reserveCursorDelivery({
+      sessionId: identity.sessionId,
+      ownerPid,
+      expected: state.continuity,
+      pending: {
+        deliveryId,
+        canonicalCwd: state.canonicalCwd,
+        transcriptPath: state.transcriptPath,
+        expectedNextFrameIndex: state.continuity.nextFrameIndex,
+        expectedCheckpoint: state.continuity,
+        reservedThroughFrameIndex: digest.range.nextIndex - 1,
+        entryKeys,
+        intendedCheckpoint,
+        reservedByPid: ownerPid,
+        reservedAt: new Date(deps.now?.() ?? Date.now()).toISOString(),
+      },
+    });
+    if (reservation === 'owner-conflict') {
+      return inputNeededOutcome(
+        'ownerConflict',
+        { ownerConflict: true, runtime: 'cursor', cwd },
+        'Cursor delivery is reserved by another owner.',
+      );
+    }
+    if (reservation === 'stale') {
+      return inputNeededOutcome(
+        'continuityBlocked',
+        {
+          continuityBlocked: true,
+          runtime: 'cursor',
+          cwd,
+          code: 'STALE_RESERVATION',
+        },
+        'Cursor delivery reservation lost its expected checkpoint.',
+      );
+    }
+    digest.cursorEvidence.status.delivery = 'reserved';
+    const nextState: CursorSessionStateEntry = {
+      ...state,
+      lastRecordIndex: digest.range.nextIndex,
+      continuity: intendedCheckpoint,
+      lastStatus: {
+        ...digest.cursorEvidence.status,
+        delivery: 'committed',
+      },
+      openTurn: cursorOpenTurn(state, selected, digest),
+      stabilityCandidate: null,
+      pendingDelivery: null,
+    };
+    delivery = createDeliveryHandle({
+      sessionId: identity.sessionId,
+      deliveryId,
+      ownerPid,
+      entryKeys,
+      nextState,
+    });
+  }
+
+  const currentState =
+    (await cursorStateLib.getCursorSession(identity.sessionId)) ?? state;
+  return {
+    ok: true,
+    runtime: 'cursor',
+    candidate,
+    rankResult,
+    digest: digest as CursorObserveSuccess['digest'],
+    sessionState: null,
+    cursorState: currentState,
+    fromIndex: continuity.fromFrameIndex,
+    markedRead: false,
+    delivery,
+    deliveryUncertain: null,
+  };
+}
+
 async function observePinnedSession(
   runtime: Runtime,
   cwd: string,
   pinnedSession: PinnedSession,
   args: ObserveArgs,
+  deps: ObserveDeps,
 ): Promise<ObserveOutcome> {
   let candidates;
   try {
@@ -477,6 +975,10 @@ async function observePinnedSession(
     return errorOutcome(
       `Pinned session not found: ${args.session}. Run locate to see available sessions.`,
     );
+  }
+
+  if (runtime === 'cursor') {
+    return observeCursorSession(cwd, pinned, args, deps);
   }
 
   const sessionState = await sessionStateFor(
@@ -511,7 +1013,7 @@ async function observePinnedSession(
   );
   return {
     ok: true,
-    runtime: pinnedSession.runtime,
+    runtime: pinnedSession.runtime as Exclude<Runtime, 'cursor'>,
     candidate: pinned,
     digest,
     sessionState,
@@ -526,8 +1028,17 @@ async function observePinnedSession(
  * @param {object} args CLI-like options.
  * @returns {Promise<object>}
  */
+export function observeCatchUp(
+  args: ObserveArgs & { runtime: 'cursor' },
+  deps?: ObserveDeps,
+): Promise<CursorObserveOutcome>;
+export function observeCatchUp(
+  args: ObserveArgs,
+  deps?: ObserveDeps,
+): Promise<LegacyObserveOutcome>;
 export async function observeCatchUp(
   args: ObserveArgs,
+  deps: ObserveDeps = {},
 ): Promise<ObserveOutcome> {
   const { cwd, session, snippet } = args;
   let { runtime } = args;
@@ -568,7 +1079,7 @@ export async function observeCatchUp(
     if (!isRuntime(runtime)) {
       return errorOutcome(`Unknown runtime: ${runtime}`);
     }
-    return observePinnedSession(runtime, cwd, pinnedSession, args);
+    return observePinnedSession(runtime, cwd, pinnedSession, args, deps);
   }
 
   if (!isRuntime(runtime)) {
@@ -648,6 +1159,9 @@ export async function observeCatchUp(
   }
 
   const winner = rankResult.winner;
+  if (runtime === 'cursor') {
+    return observeCursorSession(cwd, winner, args, deps, rankResult);
+  }
   const sessionState = await sessionStateFor(runtime, winner.sessionId);
   const fromIndex = sessionState?.lastRecordIndex ?? 0;
   const warnings = [

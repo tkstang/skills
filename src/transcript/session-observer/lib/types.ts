@@ -660,6 +660,9 @@ export type ObserveFailureKind =
   | 'ambiguousRuntime'
   | 'unengagedOnly'
   | 'ties'
+  | 'identityBlocked'
+  | 'continuityBlocked'
+  | 'ownerConflict'
   | 'error';
 
 export interface ObserveFailure {
@@ -684,11 +687,16 @@ export interface ObserveFailurePayload extends JsonObject {
   sisters?: string[];
   globalRecent?: TranscriptCandidate[];
   message?: string;
+  identityBlocked?: true;
+  continuityBlocked?: true;
+  ownerConflict?: true;
+  code?: string;
+  reasons?: string[];
 }
 
-export interface ObserveSuccess {
+export interface LegacyObserveSuccess {
   ok: true;
-  runtime: Runtime;
+  runtime: Exclude<Runtime, 'cursor'>;
   candidate: TranscriptCandidate;
   rankResult?: RankResult;
   digest: Digest;
@@ -697,7 +705,54 @@ export interface ObserveSuccess {
   markedRead: boolean;
 }
 
-export type ObserveOutcome = ObserveSuccess | ObserveFailure;
+export interface CursorDeliveryUncertain {
+  status: 'delivery-uncertain';
+  deliveryId: string;
+  entryKeys: string[];
+  expectedNextFrameIndex: number;
+  reservedThroughFrameIndex: number;
+}
+
+export interface CursorDeliveryHandle {
+  deliveryId: string;
+  sessionId: string;
+  ownerPid: number;
+  entryKeys: string[];
+  commit(): Promise<'committed' | 'stale'>;
+  abandon(options?: {
+    deliveryUncertain?: boolean;
+  }): Promise<'abandoned' | 'stale' | 'owner-conflict' | 'delivery-uncertain'>;
+}
+
+export interface CursorObserveSuccess {
+  ok: true;
+  runtime: 'cursor';
+  candidate: TranscriptCandidate;
+  rankResult?: RankResult;
+  digest: CursorDigestV2;
+  sessionState: null;
+  cursorState: CursorSessionStateEntry;
+  fromIndex: number;
+  markedRead: false;
+  delivery: CursorDeliveryHandle | null;
+  deliveryUncertain: CursorDeliveryUncertain | null;
+}
+
+export interface ObserveDeps {
+  now?: () => number;
+  sleep?: (ms: number) => Promise<unknown>;
+  ownerPid?: number;
+  onCursorScan?: () => void;
+}
+
+export type ObserveSuccess = LegacyObserveSuccess;
+
+export type ObserveOutcome =
+  | LegacyObserveSuccess
+  | CursorObserveSuccess
+  | ObserveFailure;
+export type CursorObserveOutcome = CursorObserveSuccess | ObserveFailure;
+export type LegacyObserveOutcome = LegacyObserveSuccess | ObserveFailure;
 
 export interface ObservedRuntimeResolution {
   runtime?: Runtime;
