@@ -244,4 +244,49 @@ describe('release-versioning', () => {
       ok: true,
     });
   });
+
+  it('bumpVersion and checkTagVersion derive the skill set from each effective root, not a build-time SKILL_FILES snapshot', async () => {
+    const root = await tempReleaseRoot();
+    // A skill that exists ONLY in this target checkout — not in the source
+    // checkout the module-level SKILL_FILES was derived from. If the
+    // operations reused that DEFAULT_ROOT snapshot they would silently skip
+    // it (under-bumping the target).
+    const extraSkillRelPath = 'skills/extra-scratch-skill/SKILL.md';
+    await mkdir(path.dirname(path.join(root, extraSkillRelPath)), {
+      recursive: true,
+    });
+    await writeFile(
+      path.join(root, extraSkillRelPath),
+      [
+        '---',
+        'name: extra-scratch-skill',
+        'description: Scratch skill present only in this target checkout.',
+        'version: "0.1.0"',
+        'metadata:',
+        '  version: "0.1.0"',
+        '---',
+        '',
+        '# Extra scratch skill',
+        '',
+      ].join('\n'),
+    );
+
+    // Guard: the DEFAULT_ROOT snapshot does not know about this skill.
+    expect(SKILL_FILES).not.toContain(extraSkillRelPath);
+
+    const result = await bumpVersion({ root, version: '0.3.0' });
+
+    // Derived from the target root: the extra skill is bumped in both fields.
+    expect(result.updatedFiles).toContain(extraSkillRelPath);
+    const bumped = await readFile(path.join(root, extraSkillRelPath), 'utf8');
+    expect(bumped).toMatch(/^version: "0\.3\.0"$/m);
+    expect(bumped).toMatch(/^metadata:\n {2}version: "0\.3\.0"$/m);
+
+    // checkTagVersion likewise derives from the target root, so it sees the
+    // extra skill and confirms post-bump consistency across the whole set.
+    expect(await checkTagVersion({ root, tag: 'v0.3.0' })).toEqual({
+      version: '0.3.0',
+      ok: true,
+    });
+  });
 });
