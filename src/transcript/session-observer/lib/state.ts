@@ -102,12 +102,16 @@ function isPidLive(pid: unknown): boolean {
 }
 
 /**
- * Decide whether an existing lock file is stale enough to reclaim: its owner
- * PID is recorded and dead, or the lock predates the entire retry window.
- * The age branch also covers an unreadable/empty lock file and the PID-reuse
- * edge case — a recycled PID that happens to be live keeps the lock only
- * until the age threshold; a healthy writer never holds the lock that long,
- * so this is an acceptable tradeoff rather than a live-owner theft risk.
+ * Decide whether an existing lock file is stale enough to reclaim.
+ *
+ * A parseable, recorded PID is trusted unconditionally: dead means abandoned
+ * (reclaim); live means someone still legitimately owns it, and that is
+ * never aged out — even an unusually slow writer (fs stall, GC pause,
+ * suspended process) must never have its lock stolen. Only when we cannot
+ * establish an owner identity at all (empty/garbage/unreadable content) do
+ * we fall back to age: a lock that old with no readable owner cannot belong
+ * to a healthy writer (a normal acquire+mutate+release cycle finishes in
+ * milliseconds), so it is treated as abandoned.
  */
 async function isLockStale(lock: string): Promise<boolean> {
   let pid: number | null = null;
@@ -119,7 +123,7 @@ async function isLockStale(lock: string): Promise<boolean> {
     // Unreadable (including ENOENT — the owner may have just released it) —
     // fall through to the age check below.
   }
-  if (pid !== null && !isPidLive(pid)) return true;
+  if (pid !== null) return !isPidLive(pid);
 
   try {
     const st = await stat(lock);
@@ -131,11 +135,49 @@ async function isLockStale(lock: string): Promise<boolean> {
   }
 }
 
+/**
+ * Exclusively claim a lock file already judged stale, for removal.
+ *
+ * A plain `unlink(lock)` is not itself exclusive: it operates on whatever
+ * currently occupies the path, not the specific stale instance a caller
+ * observed. If two contenders both judge the same stale lock L reclaimable,
+ * both calling unlink(lock) unconditionally, the following interleaving lets
+ * both end up believing they hold the lock:
+ *   1. A unlinks L, then wins open('wx') and creates its own live lock.
+ *   2. B's (already-decided) unlink call fires next and deletes A's new
+ *      lock — unlink does not check what it is deleting.
+ *   3. B wins its own open('wx'). A and B now both think they own the lock.
+ *
+ * `rename(lock, <unique>)` closes this: rename requires its source to
+ * exist, so at most one contender's rename can ever succeed against a given
+ * stale instance — the loser gets ENOENT and backs off instead of deleting
+ * whatever now occupies the path. Returns true only for the contender that
+ * actually detached the stale file.
+ */
+async function tryReclaim(lock: string): Promise<boolean> {
+  const claim = `${lock}.reclaim.${process.pid}.${Date.now()}`;
+  try {
+    await rename(lock, claim);
+  } catch (err) {
+    // ENOENT: another contender already claimed it, or the owner released
+    // it normally — either way, we reclaimed nothing.
+    if (isErrnoException(err) && err.code === 'ENOENT') return false;
+    throw err;
+  }
+  try {
+    await unlink(claim);
+  } catch {
+    // Best-effort cleanup of our claimed copy; the exclusive removal from
+    // the original path (via rename) already happened regardless.
+  }
+  return true;
+}
+
 async function acquireLock(lock: string): Promise<void> {
   // Reclaim at most once per acquisition attempt: on EEXIST, a stale lock is
-  // unlinked and open('wx') is retried immediately, which is the sole
-  // arbiter of exactly one winner when multiple contenders reclaim at once
-  // (unlink is not itself exclusive — the next open('wx') is).
+  // exclusively claimed (see tryReclaim) and open('wx') is retried
+  // immediately. If the claim loses the race, this attempt does not retry
+  // reclaim again — it falls back to the normal sleep/retry path.
   let reclaimAttempted = false;
   for (let i = 0; i < LOCK_RETRIES; i++) {
     try {
@@ -145,15 +187,11 @@ async function acquireLock(lock: string): Promise<void> {
       return;
     } catch (err) {
       if (!isErrnoException(err) || err.code !== 'EEXIST') throw err;
-      if (!reclaimAttempted && (await isLockStale(lock))) {
+      if (!reclaimAttempted) {
         reclaimAttempted = true;
-        try {
-          await unlink(lock);
-        } catch {
-          // Another contender may have reclaimed it first, or the owner
-          // released it — either way, fall through to retry open('wx').
+        if ((await isLockStale(lock)) && (await tryReclaim(lock))) {
+          continue;
         }
-        continue;
       }
       await sleep(LOCK_INTERVAL_MS);
     }
