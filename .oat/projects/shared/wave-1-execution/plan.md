@@ -222,7 +222,7 @@ gates. Expected: all green.
 | Scope  | Type     | Status  | Date | Artifact |
 | ------ | -------- | ------- | ---- | -------- |
 | p01    | code     | pending | -    | -        |
-| p02    | code     | pending | -    | -        |
+| p02    | code     | passed  | 2026-07-23 | reviews/p02-code-review-2026-07-23.md |
 | p03    | code     | pending | -    | -        |
 | p04    | code     | passed  | 2026-07-23 | reviews/p04-code-review-2026-07-23.md |
 | final  | code     | pending | -    | -        |
