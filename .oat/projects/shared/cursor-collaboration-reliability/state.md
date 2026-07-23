@@ -1,6 +1,6 @@
 ---
-oat_current_task: p03-t07
-oat_last_commit: aee60dc
+oat_current_task: p04-t01
+oat_last_commit: 9c974f9
 oat_blockers: []
 associated_issues:
   - { type: backlog, ref: "BL-260713-cursor-transcript-store" }
@@ -40,7 +40,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-17T21:43:11.125Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-23T20:50:17Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-23T21:05:07Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -52,7 +52,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation - Phase 3 in progress at p03-t07
+Implementation - Phase 3 review pending; next plan task p04-t01
 
 ## Artifacts
 
@@ -60,7 +60,7 @@ Implementation - Phase 3 in progress at p03-t07
 - **Spec:** `spec.md` (complete; requirements formalized from discovery)
 - **Design:** `design.md` (complete; approved after review findings resolved)
 - **Plan:** `plan.md` (complete; approved after a passing artifact review)
-- **Implementation:** `implementation.md` (Phase 3 resumes at `p03-t07`)
+- **Implementation:** `implementation.md` (Phase 3 is 7/7; review pending)
 
 ## Progress
 
@@ -106,7 +106,9 @@ Implementation - Phase 3 in progress at p03-t07
 - ✓ `p03-t05` durable Cursor watch targets complete at `3e36ec5`
 - ✓ `p03-t06` bounded Cursor foreground watch complete at `aee60dc`
 - ⧗ Changed-skill version reconciliation remains assigned to planned task `p05-t05`
-- ⧗ Phase 3 continues at `p03-t07`
+- ✓ `p03-t07` Cursor CLI state/output semantics complete at `9c974f9`
+- ✓ Phase 3 verification passed: 1,358 tests, 1 skipped, plus validation, smoke, type-check, and build parity
+- ⧗ Independent Phase 3 code review pending
 
 ## Blockers
 
@@ -114,4 +116,4 @@ None.
 
 ## Next Milestone
 
-Execute Phase 3 from `p03-t07`.
+Run the independent Phase 3 code review; if it passes, continue at `p04-t01`.

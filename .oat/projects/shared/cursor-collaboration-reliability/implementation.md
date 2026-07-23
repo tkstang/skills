@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-23
-oat_current_task_id: p03-t07
+oat_current_task_id: p04-t01
 oat_generated: false
 ---
 
@@ -28,12 +28,12 @@ oat_generated: false
 | ------- | ----------- | ----- | --------- |
 | Phase 1 | complete    | 5     | 5/5       |
 | Phase 2 | complete    | 8     | 8/8       |
-| Phase 3 | in_progress | 7     | 6/7       |
+| Phase 3 | review_pending | 7     | 7/7       |
 | Phase 4 | pending     | 6     | 0/6       |
 | Phase 5 | pending     | 6     | 0/6       |
 | Phase 6 | pending     | 4     | 0/4       |
 
-**Total:** 19/36 tasks accepted
+**Total:** 20/36 tasks accepted
 
 ---
 
@@ -644,7 +644,19 @@ are resolved; Phase 2 is complete.
 
 ## Phase 3: Digest v2, Observation, Foreground Watch, and CLI
 
-**Status:** in_progress
+**Status:** review_pending
+
+### Phase Summary
+
+**Outcome:**
+
+- Added Cursor digest v2 contracts and separate observation/completion
+  projections while preserving legacy v1 rendering.
+- Integrated exact-identity observation, continuity, reservation/finalization,
+  durable watch targets, bounded foreground watching, and CLI composition.
+- Phase-wide verification passed with 1,358 tests, 1 skipped, plus validation,
+  smoke, type-check, and generated-output parity.
+- Independent Phase 3 code review is the remaining phase gate.
 
 ### Task outcomes
 
@@ -656,6 +668,7 @@ are resolved; Phase 2 is complete.
 | p03-t04 | complete | `5d84895` | Integrated exact-identity framed Cursor observation with continuity-safe bounded confirmation, delivery reservation, caller-owned single-use commit/abandon handles, reconciliation, conflicts, and exact-key crash replay. |
 | p03-t05 | complete | `3e36ec5` | Added durable watch envelope v2 migration with untouched v1 targets, exact Cursor frame/continuity/candidate/owner state, private permissions, owner-scoped CAS, and blocked-to-verified repair. |
 | p03-t06 | complete | `aee60dc` | Added bounded Cursor foreground watch with scheduled stability confirmation, heartbeat/poll bounds, block/repair, reservation/startup race handling, cleanup, and stdout-owned commit/uncertain semantics. |
+| p03-t07 | complete | `9c974f9` | Composed digest-v2 CLI output, transactional review/catch-up finalization, both-store state commands, blocked/uncertain exit semantics, replay guards, and v2 watch status while preserving v1 behavior. |
 
 ### Task p03-t01: Define Cursor digest v2 types and fixture contracts
 
@@ -706,6 +719,15 @@ file-scoped formatting/lint, and diff checks.
 gate intentionally pending; plan task `p05-t05` owns the consolidated skill
 version bump and provider dogfood after all runtime/doc changes land.
 
+### Task p03-t07: Compose Cursor CLI state and output semantics
+
+**Status:** completed
+**Commit:** `9c974f9`
+**Verification:** RED confirmed 9 failures with 56 existing passes; GREEN
+CLI/session-override/integration coverage passed 65/65. Phase-wide verification
+passed 1,358 tests with 1 skipped, repository validation, smoke, type-check, and
+generated build parity.
+
 ---
 
 ## Deviations from Plan / Design
@@ -726,7 +748,7 @@ Track test execution during implementation.
 | ----- | --------- | ------ | ------ | -------- |
 | 1     | Focused re-review + full suite | 137 focused; 1,148 full; 1 skipped | 0 | Frames, analyzer, runtimes, generated outputs, Export compatibility |
 | 2     | Fix-task re-review + full suite | 146 focused; 1,327 full; 1 skipped | 0; review passed | Atomic lock publication, exact raw-alias containment, Cursor v2 recovery guidance, generated outputs |
-| 3     | p03-t01 through p03-t06 focused verification | 99 digest/runtime tests; 2 legacy wake regressions; 25 observe/integration tests; 58 watch/watch-state tests | 0 | Digest/observation/delivery v2, durable targets, bounded foreground watch, v1 compatibility |
+| 3     | Phase-wide suite after p03-t07 | 1,358 passed; 1 skipped | 0 | Digest/observation/delivery v2, durable targets, bounded watch, CLI semantics, v1 compatibility |
 
 ## Final Summary (for PR/docs)
 
