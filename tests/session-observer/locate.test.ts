@@ -19,6 +19,7 @@ import {
   writeFile,
   utimes,
   readFile,
+  readdir,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -447,6 +448,41 @@ test('codex cwd cache: cache hit proved by observable cache-file state', async (
       cachedCandidate.recordedCwd,
       'recordedCwd should come from the cache, not the rewritten transcript',
     ).toBe(targetCwd);
+  });
+});
+
+test('codex cwd cache: saveCwdCache writes atomically — no tmp residue, parseable JSON', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = '/Users/testuser/Code/atomic-cache-project';
+    const sessionDate = '2026/05/15';
+    const sessionDir = join(
+      home,
+      '.codex',
+      'sessions',
+      ...sessionDate.split('/'),
+    );
+    await mkdir(sessionDir, { recursive: true });
+    const transcriptPath = join(sessionDir, 'session-atomic-test.jsonl');
+    await writeFile(transcriptPath, makeCodexTypical(targetCwd), 'utf8');
+
+    // Cache miss on first discover — exercises the saveCwdCache write path.
+    await discover('codex', targetCwd);
+
+    const stateDir = process.env.STATE_DIR!;
+    const entries = await readdir(stateDir);
+    const tmpFiles = entries.filter(
+      (f) => f.includes('codex-cwd-cache') && f.endsWith('.tmp'),
+    );
+    expect(
+      tmpFiles,
+      'no codex-cwd-cache tmp files should remain after a successful save',
+    ).toEqual([]);
+
+    const cacheFilePath = join(stateDir, 'codex-cwd-cache.json');
+    const raw = await readFile(cacheFilePath, 'utf8');
+    expect(() => JSON.parse(raw)).not.toThrow();
+    const parsed = JSON.parse(raw);
+    expect(Object.keys(parsed).length).toBeGreaterThan(0);
   });
 });
 

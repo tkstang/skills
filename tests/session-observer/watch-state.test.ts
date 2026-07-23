@@ -4,7 +4,7 @@
  * Each test uses a fresh temp STATE_DIR to ensure isolation.
  */
 
-import { readFile, readdir, writeFile } from 'node:fs/promises';
+import { readFile, readdir, writeFile, unlink, utimes } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { expect, afterEach, test, vi } from 'vitest';
@@ -463,5 +463,81 @@ test('recordWatcherPoll and recordWatcherError update active heartbeat fields', 
     expect(active.lastPollAt).toBe('2026-06-03T12:00:03.000Z');
     expect(active.lastError).toBeTruthy();
     expect((active.lastError as any).message).toBe('poll failed');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Stale watch.json.lock reclaim (mirrors state.test.ts's coverage of
+// state.ts's identically-shaped, deliberately duplicated acquireLock).
+// ---------------------------------------------------------------------------
+
+test('acquireLock reclaims a watch.json.lock whose owner PID is dead, without waiting out the full retry window', async () => {
+  await withTmpStateDir(async (dir) => {
+    const lock = join(dir, 'watch.json.lock');
+    await writeFile(lock, '999999');
+
+    vi.spyOn(process, 'kill').mockImplementation(
+      (pid: number, signal?: string | number) => {
+        expect(signal).toBe(0);
+        if (pid === 999999) {
+          const err = new Error('no such process') as NodeJS.ErrnoException;
+          err.code = 'ESRCH';
+          throw err;
+        }
+        return true;
+      },
+    );
+
+    const start = Date.now();
+    await watchState.loadWatchState();
+    const elapsed = Date.now() - start;
+    expect(
+      elapsed,
+      'a dead-PID lock should be reclaimed promptly, not waited out',
+    ).toBeLessThan(1000);
+  });
+});
+
+test('acquireLock does not reclaim a fresh live-owner watch.json.lock; stays pending until released', async () => {
+  await withTmpStateDir(async (dir) => {
+    const lock = join(dir, 'watch.json.lock');
+    // Content is this test process's own (live) PID — simulates a healthy,
+    // currently-held lock.
+    await writeFile(lock, String(process.pid));
+
+    let settled = false;
+    const pending = watchState.loadWatchState().finally(() => {
+      settled = true;
+    });
+
+    // Well under the internal stale-age threshold (LOCK_RETRIES * LOCK_INTERVAL_MS).
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(
+      settled,
+      'a live-owner lock must not be reclaimed while fresh',
+    ).toBe(false);
+
+    // Simulate the owner's own releaseLock().
+    await unlink(lock);
+    await pending;
+    expect(settled).toBe(true);
+  });
+});
+
+test('acquireLock reclaims an empty/garbage watch.json.lock once older than the stale threshold', async () => {
+  await withTmpStateDir(async (dir) => {
+    const lock = join(dir, 'watch.json.lock');
+    await writeFile(lock, ''); // no parseable PID — falls back to the age check
+
+    const past = new Date(Date.now() - 60 * 60 * 1000); // 1h ago
+    await utimes(lock, past, past);
+
+    const start = Date.now();
+    await watchState.loadWatchState();
+    const elapsed = Date.now() - start;
+    expect(
+      elapsed,
+      'an aged garbage lock should be reclaimed promptly, not waited out',
+    ).toBeLessThan(1000);
   });
 });

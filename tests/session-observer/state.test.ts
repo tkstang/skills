@@ -4,10 +4,17 @@
  * Each test uses a fresh temp STATE_DIR to ensure isolation.
  */
 
-import { readFile, readdir, writeFile, access, unlink } from 'node:fs/promises';
+import {
+  readFile,
+  readdir,
+  writeFile,
+  access,
+  unlink,
+  utimes,
+} from 'node:fs/promises';
 import { join } from 'node:path';
 
-import { expect, it } from 'vitest';
+import { expect, it, vi } from 'vitest';
 
 import * as state from '../../src/transcript/session-observer/lib/state.js';
 import { withTmpStateDir } from './helpers/tmpdir.js';
@@ -396,5 +403,89 @@ it('setWatchedByPid and clearWatchedByPid preserve read offsets', async () => {
     expect(cleared.lastReadAt).toBe(before.lastReadAt);
     expect(cleared.transcriptPath).toBe(before.transcriptPath);
     expect(cleared.recordedCwd).toBe(before.recordedCwd);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 13. Stale-lock reclaim: dead owner PID
+// ---------------------------------------------------------------------------
+it('acquireLock reclaims a lock whose owner PID is dead, without waiting out the full retry window', async () => {
+  await withTmpStateDir(async (dir) => {
+    const lock = join(dir, 'state.json.lock');
+    await writeFile(lock, '999999');
+
+    const killSpy = vi
+      .spyOn(process, 'kill')
+      .mockImplementation((pid: number, signal?: string | number) => {
+        expect(signal).toBe(0);
+        if (pid === 999999) {
+          const err = new Error('no such process') as NodeJS.ErrnoException;
+          err.code = 'ESRCH';
+          throw err;
+        }
+        return true;
+      });
+
+    try {
+      const start = Date.now();
+      await state.mutate((s: any) => s);
+      const elapsed = Date.now() - start;
+      expect(
+        elapsed,
+        'a dead-PID lock should be reclaimed promptly, not waited out',
+      ).toBeLessThan(1000);
+    } finally {
+      killSpy.mockRestore();
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 14. Stale-lock reclaim: live-owner lock is never stolen while fresh
+// ---------------------------------------------------------------------------
+it('acquireLock does not reclaim a fresh live-owner lock; stays pending until the owner releases it', async () => {
+  await withTmpStateDir(async (dir) => {
+    const lock = join(dir, 'state.json.lock');
+    // Content is this test process's own (live) PID — simulates a healthy,
+    // currently-held lock.
+    await writeFile(lock, String(process.pid));
+
+    let settled = false;
+    const pending = state.mutate((s: any) => s).finally(() => {
+      settled = true;
+    });
+
+    // Well under the internal stale-age threshold (LOCK_RETRIES * LOCK_INTERVAL_MS).
+    await sleep(300);
+    expect(
+      settled,
+      'a live-owner lock must not be reclaimed while fresh',
+    ).toBe(false);
+
+    // Simulate the owner's own releaseLock().
+    await unlink(lock);
+    await pending;
+    expect(settled).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 15. Stale-lock reclaim: aged empty/garbage lock (no parseable PID)
+// ---------------------------------------------------------------------------
+it('acquireLock reclaims an empty/garbage lock once it is older than the stale threshold', async () => {
+  await withTmpStateDir(async (dir) => {
+    const lock = join(dir, 'state.json.lock');
+    await writeFile(lock, ''); // no parseable PID — falls back to the age check
+
+    const past = new Date(Date.now() - 60 * 60 * 1000); // 1h ago: well past any stale threshold
+    await utimes(lock, past, past);
+
+    const start = Date.now();
+    await state.mutate((s: any) => s);
+    const elapsed = Date.now() - start;
+    expect(
+      elapsed,
+      'an aged garbage lock should be reclaimed promptly, not waited out',
+    ).toBeLessThan(1000);
   });
 });
