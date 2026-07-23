@@ -1,6 +1,6 @@
 ---
-oat_current_task: p05-t02
-oat_last_commit: 9604a3a
+oat_current_task: p05-t03
+oat_last_commit: 8bc8ee4
 oat_blockers: []
 associated_issues:
   - { type: backlog, ref: "BL-260713-cursor-transcript-store" }
@@ -40,7 +40,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-17T21:43:11.125Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-23T23:15:38Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-23T23:31:55Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -52,7 +52,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation - Phase 5 in progress at p05-t02
+Implementation - Phase 5 in progress at p05-t03
 
 ## Artifacts
 
@@ -60,7 +60,7 @@ Implementation - Phase 5 in progress at p05-t02
 - **Spec:** `spec.md` (complete; requirements formalized from discovery)
 - **Design:** `design.md` (complete; approved after review findings resolved)
 - **Plan:** `plan.md` (complete; approved after a passing artifact review)
-- **Implementation:** `implementation.md` (Phase 5 resumes at `p05-t02`)
+- **Implementation:** `implementation.md` (Phase 5 resumes at `p05-t03`)
 
 ## Progress
 
@@ -127,7 +127,8 @@ Implementation - Phase 5 in progress at p05-t02
 - ✓ Whole-phase review round 2 passed with zero findings
 - ✓ Phase 4 complete: 6/6 tasks
 - ✓ `p05-t01` sanitized capability evidence and validator complete at `9604a3a`
-- ⧗ Phase 5 continues at `p05-t02`
+- ✓ `p05-t02` observed-side live Cursor acceptance passed at `8bc8ee4`
+- ⧗ Phase 5 continues at `p05-t03`
 
 ## Blockers
 
@@ -135,4 +136,4 @@ None.
 
 ## Next Milestone
 
-Execute Phase 5 from `p05-t02`.
+Execute Phase 5 from `p05-t03`.
