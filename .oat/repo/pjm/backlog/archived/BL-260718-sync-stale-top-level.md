@@ -1,7 +1,7 @@
 ---
 id: BL-260718-sync-stale-top-level
 title: Sync stale top-level documentation surfaces
-status: open
+status: closed
 priority: medium
 scope: task
 scope_estimate: S
@@ -10,7 +10,7 @@ labels:
   - docs
 assignee: null
 created: 2026-07-18T00:04:09Z
-updated: 2026-07-18T00:04:09Z
+updated: '2026-07-23T02:58:08Z'
 associated_issues: []
 external_plans:
   - .oat/repo/reference/external-plans/2026-07-17-docs-staleness-sweep.md
