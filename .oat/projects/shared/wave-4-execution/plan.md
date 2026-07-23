@@ -179,7 +179,7 @@ after p02 (plan order); inserts its RELEASING.md line relative to p01's.
 | ------ | -------- | ------- | ---- | -------- |
 | p01    | code     | passed  | 2026-07-23 | reviews/p01-code-review-2026-07-23.md |
 | p02    | code     | passed  | 2026-07-23 | reviews/p02-code-review-2026-07-23.md |
-| p03    | code     | pending | -    | -        |
+| p03    | code     | passed  | 2026-07-23 | reviews/p03-code-review-2026-07-23.md |
 | final  | code     | pending | -    | -        |
 | plan   | artifact | passed  | 2026-07-23 | reviews/plan-gate-2026-07-23.md |
 | spec   | artifact | pending | -    | -        |
