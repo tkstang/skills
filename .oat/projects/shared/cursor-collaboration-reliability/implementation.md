@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-23
-oat_current_task_id: p05-t05
+oat_current_task_id: p05-t06
 oat_generated: false
 ---
 
@@ -30,10 +30,10 @@ oat_generated: false
 | Phase 2 | complete    | 8     | 8/8       |
 | Phase 3 | complete    | 7     | 7/7       |
 | Phase 4 | complete    | 6     | 6/6       |
-| Phase 5 | in_progress | 6     | 4/6       |
+| Phase 5 | in_progress | 6     | 5/6       |
 | Phase 6 | pending     | 4     | 0/4       |
 
-**Total:** 30/36 tasks accepted
+**Total:** 31/36 tasks accepted
 
 ---
 
@@ -930,6 +930,7 @@ reproduction also passed; Phase 5 is next.
 | p05-t02 | complete | `8bc8ee4` | Added the finite observed-side acceptance harness and recorded 19/19 passing live Cursor 3.11.13 rows while keeping provider transcripts read-only. |
 | p05-t03 | complete | `34b702c` | Recorded the isolated exact collaboration lifecycle through shipped control/hook paths, with provider-delivered routing honestly retained as documented-but-unvalidated. |
 | p05-t04 | complete | `da09616` | Documented content-first Cursor observation, terminal-only completion, exact identity and recovery, state/status facets, schema/index dispatch, lease/wake versions, generated topology, and honest support labels. |
+| p05-t05 | complete | `e77c367` | Bumped the three changed standalone skill versions, regenerated without drift, and verified byte-identical branch dogfooding through canonical user installs and available provider links. |
 
 ### Task p05-t01: Record the baseline capability matrix
 
@@ -961,6 +962,16 @@ and prune 1; evidence/repository validation and formatting/lint passed.
 **Verification:** Documentation formatting and the 34-page production build
 passed; evidence validation, repository validation, lint-staged, diff checks,
 and an explicit 10/10 schema/index agreement cross-check passed.
+
+### Task p05-t05: Bump changed skill versions and dogfood providers
+
+**Status:** completed
+**Commit:** `e77c367`
+**Verification:** Build parity, repository and skill-version validation,
+formatting, and diff checks passed; canonical user installs matched the branch
+byte-for-byte, and OAT reported 188/188 synchronized surfaces with no drift,
+missing entries, or strays. Claude and Copilot links resolved to the canonical
+installs; Cursor skill entries were absent and were not claimed.
 
 ---
 

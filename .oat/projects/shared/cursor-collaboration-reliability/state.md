@@ -1,6 +1,6 @@
 ---
-oat_current_task: p05-t05
-oat_last_commit: da09616
+oat_current_task: p05-t06
+oat_last_commit: e77c367
 oat_blockers: []
 associated_issues:
   - { type: backlog, ref: "BL-260713-cursor-transcript-store" }
@@ -40,7 +40,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-17T21:43:11.125Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-23T23:52:08Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-23T23:57:14Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -52,7 +52,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation - Phase 5 in progress at p05-t05
+Implementation - Phase 5 in progress at p05-t06
 
 ## Artifacts
 
@@ -60,7 +60,7 @@ Implementation - Phase 5 in progress at p05-t05
 - **Spec:** `spec.md` (complete; requirements formalized from discovery)
 - **Design:** `design.md` (complete; approved after review findings resolved)
 - **Plan:** `plan.md` (complete; approved after a passing artifact review)
-- **Implementation:** `implementation.md` (Phase 5 resumes at `p05-t05`)
+- **Implementation:** `implementation.md` (Phase 5 resumes at `p05-t06`)
 
 ## Progress
 
@@ -105,7 +105,7 @@ Implementation - Phase 5 in progress at p05-t05
 - ✓ `p03-t04` Cursor observation and delivery CAS integration complete at `5d84895`
 - ✓ `p03-t05` durable Cursor watch targets complete at `3e36ec5`
 - ✓ `p03-t06` bounded Cursor foreground watch complete at `aee60dc`
-- ⧗ Changed-skill version reconciliation remains assigned to planned task `p05-t05`
+- ✓ Changed-skill version reconciliation and branch dogfooding complete at `e77c367`
 - ✓ `p03-t07` Cursor CLI state/output semantics complete at `9c974f9`
 - ✓ Phase 3 verification passed: 1,358 tests, 1 skipped, plus validation, smoke, type-check, and build parity
 - ✗ Phase 3 review round 1 retained 3 Important findings
@@ -130,7 +130,8 @@ Implementation - Phase 5 in progress at p05-t05
 - ✓ `p05-t02` observed-side live Cursor acceptance passed at `8bc8ee4`
 - ✓ `p05-t03` bounded collaboration lifecycle evidence complete at `34b702c`
 - ✓ `p05-t04` shipped Cursor reliability documentation complete at `da09616`
-- ⧗ Phase 5 continues at `p05-t05`
+- ✓ `p05-t05` skill versioning and branch dogfooding complete at `e77c367`
+- ⧗ Phase 5 continues at `p05-t06`
 
 ## Blockers
 
@@ -138,4 +139,4 @@ None.
 
 ## Next Milestone
 
-Execute Phase 5 from `p05-t05`.
+Execute Phase 5 from `p05-t06`.
