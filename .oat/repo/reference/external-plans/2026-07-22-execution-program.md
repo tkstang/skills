@@ -112,4 +112,14 @@ coverage invariant holds terminally (15/15, none deferred/dropped).
 - **Standing constraint:** the operator-mandated `sol` review model was
   unavailable on this Codex account for every final gate; the account-default
   Codex model at xhigh effort substituted, flagged per wave.
-- **Program recap:** see the ledger line appended after the recap run.
+- **Program recap:** AUTHORED — `.oat/repo/explainers/repo-audit-program-recap/recap.md`,
+  LLM-authored (Opus-class subagent) from a 12-claim synthesized fact base with
+  per-section claim traceability; three fact-base synthesis errors were caught
+  by the author's discrepancy check and corrected before finalization. The
+  explainer-kit unattended build was NOT run: the installed kit rejects
+  `authorModulePath` (`E_INPUT_SCHEMA: Unknown property`) — the authoring seam
+  has not shipped in this install, and an unattended run without it emits raw
+  artifact text as prose (the documented failure mode). Disposition per the
+  optional-step rule: content authored via the caller-owned path (the
+  author module is staged beside the recap for a future kit run); no manifest
+  runId exists. Publishing remains human-gated and was not invoked.
