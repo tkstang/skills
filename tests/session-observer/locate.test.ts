@@ -25,7 +25,49 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { expect, test } from 'vitest';
+import { expect, test, vi } from 'vitest';
+
+// ---------------------------------------------------------------------------
+// Deterministic cache-write-failure harness: a one-shot `rename`
+// interceptor, used by the cwd-cache atomicity regression test below to
+// force saveCwdCache's publish step to fail (mirrors state.test.ts's
+// identical harness for state.ts/watch-state.ts's lock-race tests).
+//
+// vi.hoisted is required because vi.mock factories are hoisted above normal
+// module-scope declarations; without it, the mutable interceptor state
+// referenced inside the factory would be in the temporal dead zone.
+// ---------------------------------------------------------------------------
+type RenameInterceptor = (
+  src: string,
+  dest: string,
+  real: (src: string, dest: string) => Promise<void>,
+) => Promise<void>;
+
+const cacheRaceHarness = vi.hoisted(() => {
+  let renameInterceptor: RenameInterceptor | null = null;
+  return {
+    setRenameInterceptor: (fn: RenameInterceptor | null) => {
+      renameInterceptor = fn;
+    },
+    takeRenameInterceptor: (): RenameInterceptor | null => {
+      const fn = renameInterceptor;
+      renameInterceptor = null; // one-shot
+      return fn;
+    },
+  };
+});
+
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs/promises')>();
+  return {
+    ...actual,
+    rename: (async (src: string, dest: string) => {
+      const interceptor = cacheRaceHarness.takeRenameInterceptor();
+      if (interceptor) return interceptor(src, dest, actual.rename);
+      return actual.rename(src, dest);
+    }) as typeof actual.rename,
+  };
+});
 
 // ---------------------------------------------------------------------------
 // Test helper: temp HOME dir per test
@@ -517,6 +559,100 @@ test('codex cwd cache: concurrent discover calls both save without leaving tmp r
     expect(() => JSON.parse(raw)).not.toThrow();
     const parsed = JSON.parse(raw);
     expect(Object.keys(parsed).length).toBeGreaterThan(0);
+  });
+});
+
+// The two tests above only assert no-tmp-residue + valid nonempty JSON —
+// conditions a direct (non-atomic) `writeFile(path, content)` implementation
+// would *also* satisfy, since it never creates a tmp file at all and always
+// leaves well-formed JSON behind on success. Neither test discriminates
+// "temp file + rename" from "write straight to the destination". This test
+// does, by forcing the *publish* step (the rename) to fail and checking a
+// property only an atomic implementation can guarantee: an interrupted
+// write never mutates the pre-existing destination at all.
+test('codex cwd cache: a failed rename leaves the pre-existing cache byte-identical, no tmp residue, and stays best-effort non-fatal', async () => {
+  await withTempHome(async (home) => {
+    const sessionDir = join(home, '.codex', 'sessions', '2026', '05', '17');
+    await mkdir(sessionDir, { recursive: true });
+    const transcriptPath = join(sessionDir, 'session-rename-fail-test.jsonl');
+    const targetCwd = '/Users/testuser/Code/rename-fail-project';
+    await writeFile(transcriptPath, makeCodexTypical(targetCwd), 'utf8');
+
+    const stateDir = process.env.STATE_DIR!;
+    await mkdir(stateDir, { recursive: true });
+    const cacheFilePath = join(stateDir, 'codex-cwd-cache.json');
+    // Seed a pre-existing, valid cache file with content unrelated to the
+    // transcript above ("byte-identical afterward" is only a meaningful
+    // assertion if a successful save would have visibly changed it).
+    const seeded = JSON.stringify(
+      {
+        'preexisting-transcript.jsonl:100': {
+          recordedCwd: '/seeded/project',
+          sessionId: 'seeded-session',
+        },
+      },
+      null,
+      2,
+    );
+    await writeFile(cacheFilePath, seeded, 'utf8');
+
+    // Force the *next* rename whose destination is the cache file to fail —
+    // simulating a crash/error between the tmp write and the atomic
+    // publish. Matches on the destination path (stable), not the source
+    // (which includes a random per-save tmp filename), and fires exactly
+    // once for saveCwdCache's rename(tmp, codex-cwd-cache.json) call.
+    cacheRaceHarness.setRenameInterceptor(async (src, dest) => {
+      expect(dest).toBe(cacheFilePath);
+      expect(src).toContain('codex-cwd-cache.');
+      expect(src).toContain('.tmp');
+      const err = new Error('simulated rename failure') as NodeJS.ErrnoException;
+      err.code = 'EIO';
+      throw err;
+    });
+
+    // This transcript is a cache miss, so it triggers saveCwdCache. The call
+    // must not throw to the caller — saveCwdCache's catch{} is best-effort,
+    // non-fatal by design.
+    let discoverError: unknown = null;
+    let result: unknown;
+    try {
+      result = await discover('codex', targetCwd);
+    } catch (err) {
+      discoverError = err;
+    }
+    expect(
+      discoverError,
+      'discover() must not throw when saveCwdCache fails to publish (best-effort, non-fatal)',
+    ).toBe(null);
+    expect(Array.isArray(result)).toBe(true);
+
+    // The pre-existing cache file must be untouched. An atomic
+    // temp-file+rename implementation only ever mutates the destination via
+    // the rename step, so a rename failure leaves whatever was already
+    // there completely unchanged — this is the property this test exists to
+    // prove. A direct-writeFile implementation has no such protection: it
+    // truncates/overwrites the destination as part of the write itself,
+    // before any rename is even attempted, so there would be no rename call
+    // for this interceptor to intercept, the write would proceed normally,
+    // and this assertion would fail (the seeded content would already be
+    // gone, replaced by the freshly computed cache).
+    const afterRaw = await readFile(cacheFilePath, 'utf8');
+    expect(
+      afterRaw,
+      'a failed rename must leave the pre-existing cache file byte-identical',
+    ).toBe(seeded);
+
+    // No tmp residue from the failed attempt: saveCwdCache's finally block
+    // unlinks the tmp file it wrote regardless of whether the rename
+    // succeeded.
+    const entries = await readdir(stateDir);
+    const tmpFiles = entries.filter(
+      (f) => f.includes('codex-cwd-cache') && f.endsWith('.tmp'),
+    );
+    expect(
+      tmpFiles,
+      'no codex-cwd-cache tmp files should remain after a failed rename',
+    ).toEqual([]);
   });
 });
 
