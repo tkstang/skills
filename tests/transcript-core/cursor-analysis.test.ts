@@ -184,7 +184,7 @@ describe('createCursorTurnAccumulator', () => {
 
   it('separates automatic controls, acknowledgements, no-op text, and human input', async () => {
     const automaticEnvelope =
-      '<session_observer_wake automatic="true" schema_version="2" runtime="cursor" lease_id="synthetic-lease" peer="cursor:synthetic-peer" records="1-2">Review.</session_observer_wake>';
+      '<session_observer_wake automatic="true" schema_version="2" runtime="cursor" lease_id="synthetic-lease" peer="cursor:synthetic-peer" index_base="zero-based-jsonl-frame-index" records="1-2">Review.</session_observer_wake>';
     const analysis = await analyzeRecords([
       user(automaticEnvelope),
       assistant([{ type: 'text', text: 'Acknowledged.' }]),
@@ -213,7 +213,7 @@ describe('createCursorTurnAccumulator', () => {
 
   it('retains human activity from a mixed automatic-control user record', async () => {
     const automaticEnvelope =
-      '<session_observer_wake automatic="true" schema_version="2" runtime="cursor" lease_id="synthetic-lease" peer="cursor:synthetic-peer" records="1-2">Review.</session_observer_wake>';
+      '<session_observer_wake automatic="true" schema_version="2" runtime="cursor" lease_id="synthetic-lease" peer="cursor:synthetic-peer" index_base="zero-based-jsonl-frame-index" records="1-2">Review.</session_observer_wake>';
     const analysis = await analyzeRecords([
       {
         role: 'user',
@@ -239,7 +239,7 @@ describe('createCursorTurnAccumulator', () => {
 
   it('gives later human input precedence over automatic acknowledgement suppression', async () => {
     const automaticEnvelope =
-      '<session_observer_wake automatic="true" schema_version="2" runtime="cursor" lease_id="synthetic-lease" peer="cursor:synthetic-peer" records="1-2">Review.</session_observer_wake>';
+      '<session_observer_wake automatic="true" schema_version="2" runtime="cursor" lease_id="synthetic-lease" peer="cursor:synthetic-peer" index_base="zero-based-jsonl-frame-index" records="1-2">Review.</session_observer_wake>';
     const analysis = await analyzeRecords([
       user(automaticEnvelope),
       user('Synthetic later human instruction.'),
