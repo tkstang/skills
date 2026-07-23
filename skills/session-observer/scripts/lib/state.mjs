@@ -61,6 +61,20 @@ async function tryReclaim(lock) {
     if (isErrnoException(err) && err.code === "ENOENT") return false;
     throw err;
   }
+  let claimedPid = null;
+  try {
+    const raw = (await readFile(claim, "utf8")).trim();
+    const parsed = Number.parseInt(raw, 10);
+    if (Number.isInteger(parsed) && parsed > 0) claimedPid = parsed;
+  } catch {
+  }
+  if (claimedPid !== null && isPidLive(claimedPid)) {
+    try {
+      await rename(claim, lock);
+    } catch {
+    }
+    return false;
+  }
   try {
     await unlink(claim);
   } catch {
