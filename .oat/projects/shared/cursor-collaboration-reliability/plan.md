@@ -257,6 +257,65 @@ oat_generated: false
 5. Verify: `pnpm exec vitest run tests/session-observer/cursor-state.test.ts && pnpm run type-check && pnpm run build && pnpm run build:check`.
 6. Commit: `feat(p02-t05): add cursor stability and delivery CAS`.
 
+### Task p02-t06: (review) Publish lock contenders atomically
+
+**Requirements:** FR4, FR6, NFR3
+
+**Files:**
+
+- Modify: `src/transcript/session-observer/lib/state.ts`
+- Modify: `src/transcript/session-observer/lib/cursor-state.ts`
+- Modify: `tests/session-observer/state.test.ts`
+- Modify: `tests/session-observer/cursor-state.test.ts`
+- Generate: `skills/session-observer/scripts/lib/{state,cursor-state}.mjs`
+
+**Steps:**
+
+1. Add failing subprocess and injected-error coverage for process death or write/sync failure between contender creation and durable publication for the legacy-state, Cursor-state, and transition-lock queues.
+2. Publish only complete, durably written owner tokens into the ordered queue, using a private owner file plus an atomic publication step; clean up abandoned private files without weakening fail-closed treatment of invalid legacy main locks.
+3. Preserve FIFO acquisition, exact-owner release, valid dead-owner recovery, live legacy empty-lock protection, and the existing state/migration contracts.
+4. Format: `pnpm exec oxfmt --write src/transcript/session-observer/lib/state.ts src/transcript/session-observer/lib/cursor-state.ts tests/session-observer/state.test.ts tests/session-observer/cursor-state.test.ts`.
+5. Run `pnpm run build`; never hand-edit generated state modules.
+6. Verify: `pnpm exec vitest run tests/session-observer/state.test.ts tests/session-observer/cursor-state.test.ts && pnpm run type-check && pnpm run build:check`.
+7. Commit: `fix(p02-t06): publish lock contenders atomically`.
+
+### Task p02-t07: (review) Keep ancestor cwd aliases diagnostic-only
+
+**Requirements:** FR1, NFR1
+
+**Files:**
+
+- Modify: `src/transcript/session-observer/lib/locate.ts`
+- Modify: `tests/session-observer/locate.test.ts`
+- Generate: `skills/session-observer/scripts/lib/locate.mjs`
+
+**Steps:**
+
+1. Add failing identity-matrix cases for leaf and ancestor-component symlink aliases, canonical/raw duplicates, explicit pins, and alias-only transcripts.
+2. Compare normalized supplied cwd spelling with the resolved canonical cwd so every distinct raw-derived encoding is diagnostic-only, regardless of which path component introduces the alias.
+3. Preserve exact canonical candidates, cross-slug duplicate rejection, classification caching, and non-Cursor locate behavior.
+4. Format: `pnpm exec oxfmt --write src/transcript/session-observer/lib/locate.ts tests/session-observer/locate.test.ts`.
+5. Run `pnpm run build`; never hand-edit the generated locate module.
+6. Verify: `pnpm exec vitest run tests/session-observer/locate.test.ts && pnpm run type-check && pnpm run build:check`.
+7. Commit: `fix(p02-t07): keep raw cwd aliases diagnostic-only`.
+
+### Task p02-t08: (review) Align Cursor v2 recovery guidance
+
+**Requirements:** FR4, NFR3
+
+**Files:**
+
+- Modify: `skills/session-observer/SKILL.md`
+
+**Steps:**
+
+1. Replace the generic offset-zeroing language with runtime-specific behavior: Cursor session reset deletes state for replay, while non-Cursor reset retains its record-offset contract.
+2. Document fail-closed corrupt/schema handling, the destructive whole-Cursor-store reset command, sibling-session loss, and the generic recursive-delete fallback as an explicitly secondary destructive escape hatch.
+3. Bump the skill's top-level `version` and `metadata.version` together and confirm release version tooling still covers `session-observer`.
+4. Format: `pnpm exec oxfmt --write skills/session-observer/SKILL.md`.
+5. Verify: `npm run validate && pnpm run validate:skill-versions -- --base-ref origin/main`.
+6. Commit: `docs(p02-t08): align cursor recovery guidance`.
+
 ## Phase 3: Digest v2, Observation, Foreground Watch, and CLI
 
 ### Task p03-t01: Define Cursor digest v2 types and fixture contracts
@@ -755,7 +814,7 @@ oat_generated: false
 | p02    | code     | fixes_completed | 2026-07-23 | reviews/p02-review-2026-07-23T045715Z.md                                  |
 | p02    | code     | fixes_completed | 2026-07-23 | reviews/p02-review-2026-07-23T051820Z.md                                  |
 | p02    | code     | fixes_completed | 2026-07-23 | reviews/p02-review-2026-07-23T054702Z.md                                  |
-| p02    | code     | received        | 2026-07-23 | reviews/p02-review-2026-07-23T114732Z.md                                  |
+| p02    | code     | fixes_added     | 2026-07-23 | reviews/archived/p02-review-2026-07-23T114732Z.md                         |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 
@@ -771,13 +830,13 @@ oat_generated: false
 **Summary:**
 
 - Phase 1: 5 tasks — streaming framing, analysis, shared classification, and generated core outputs.
-- Phase 2: 5 tasks — exact identity, isolated state v2, crash-safe migration, continuity, and delivery CAS.
+- Phase 2: 8 tasks — exact identity, isolated state v2, crash-safe migration, continuity, delivery CAS, atomic lock publication, raw-alias containment, and recovery guidance.
 - Phase 3: 7 tasks — digest v2, observation, foreground watch, status, and CLI composition.
 - Phase 4: 6 tasks — completion schema routing, lease v6, private continuity, Cursor hook, and envelope v2.
 - Phase 5: 6 tasks — live evidence, documentation, versions/provider dogfood, release gates, and backlog lifecycle.
 - Phase 6: 4 tasks — conditional wake-surface measurement, evidence-backed fallback selection, and final release reconciliation.
 
-**Total: 33 tasks**
+**Total: 36 tasks**
 
 Ready for code review and merge after all tasks and review rows pass.
 

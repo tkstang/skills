@@ -1,13 +1,7 @@
 ---
-oat_current_task: p02-t01
+oat_current_task: p02-t06
 oat_last_commit: 471dd5e
-oat_blockers:
-  - task_id: p02-t01
-    reason: "Terminal recovery review found ancestor-component raw cwd aliases can still receive exact identity."
-    since: 2026-07-23
-  - task_id: p02-t03
-    reason: "Terminal recovery review found a publication crash can permanently wedge all three state-lock queues."
-    since: 2026-07-23
+oat_blockers: []
 associated_issues:
   - { type: backlog, ref: "BL-260713-cursor-transcript-store" }
   - { type: backlog, ref: "BL-260713-stronger-cursor-collaboration" }
@@ -46,7 +40,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-17T21:43:11.125Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-23T11:49:55Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-23T12:58:35Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -58,7 +52,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation - Phase 2 blocked after terminal recovery review
+Implementation - Phase 2 review fixes queued
 
 ## Artifacts
 
@@ -66,7 +60,7 @@ Implementation - Phase 2 blocked after terminal recovery review
 - **Spec:** `spec.md` (complete; requirements formalized from discovery)
 - **Design:** `design.md` (complete; approved after review findings resolved)
 - **Plan:** `plan.md` (complete; approved after a passing artifact review)
-- **Implementation:** `implementation.md` (blocked at `p02-t03`; Phase 3 not started)
+- **Implementation:** `implementation.md` (resumes at `p02-t06`; Phase 3 not started)
 
 ## Progress
 
@@ -96,16 +90,14 @@ Implementation - Phase 2 blocked after terminal recovery review
 - ✓ Retained Phase 2 findings repaired at `471dd5e`
 - ✗ Terminal recovery review retained 2 Important findings and 1 Medium finding
 - ✗ Operator-authorized additional recovery cycle exhausted
+- ✓ Terminal review received and archived
+- ⧗ Review tasks `p02-t06` through `p02-t08` queued
 
 ## Blockers
 
-- `p02-t01`: ancestor-component raw cwd aliases can still receive exact
-  identity strength.
-- `p02-t03`: a crash during contender-token publication can permanently wedge
-  all three state-lock queues.
-- Shipped recovery guidance remains stale for Cursor v2 reset and corruption.
+None. The review findings are represented by runnable Phase 2 tasks.
 
 ## Next Milestone
 
-Receive `reviews/p02-review-2026-07-23T114732Z.md`, decide whether to authorize
-another bounded repair cycle, and resume with `oat-project-implement`.
+Execute `p02-t06` through `p02-t08`, then run a fix-task-scoped Phase 2
+re-review.
