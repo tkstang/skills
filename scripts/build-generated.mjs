@@ -44,6 +44,11 @@ export const generatedOutputs = [
     output: 'plugins/consensus/scripts/loop-args.mjs',
   },
   {
+    id: 'consensus-loop-escalation',
+    source: 'src/consensus/core/loop-escalation.ts',
+    output: 'plugins/consensus/scripts/loop-escalation.mjs',
+  },
+  {
     id: 'consensus-cli-helpers',
     source: 'src/consensus/shared/cli-helpers.ts',
     output: 'plugins/consensus/scripts/consensus-cli-helpers.mjs',
