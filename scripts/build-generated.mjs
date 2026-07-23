@@ -19,6 +19,11 @@ export const generatedOutputs = [
     output: 'plugins/consensus/scripts/consensus-loop.mjs',
   },
   {
+    id: 'consensus-cli-helpers',
+    source: 'src/consensus/shared/cli-helpers.ts',
+    output: 'plugins/consensus/scripts/consensus-cli-helpers.mjs',
+  },
+  {
     id: 'consensus-create-config',
     source: 'src/consensus/config/consensus-config.ts',
     output: 'plugins/consensus/skills/create/scripts/consensus-config.mjs',
