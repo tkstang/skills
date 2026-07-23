@@ -488,6 +488,46 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 **Worktree:** Root checkout; sequential plan.
 **Outstanding items:** None.
 
+### Run 3 — Phase p03
+
+**Anchor:** `run-3-phase-p03`
+**Timestamp:** 2026-07-23T21:14:58Z
+**Branch:** `cursor-collaboration-reliability`
+**Tier:** Tier 1 — native Codex subagents
+**Policy:** managed `high`
+**Phase base:** `210efe9`
+**Phase head:** `9c974f9`
+**Outcome:** blocked after review round 1; bounded fix iteration 1 pending
+
+| Phase | Tasks | Implementation | Root Review | Fix Iterations | Verdict |
+| ----- | ----- | -------------- | ----------- | -------------- | ------- |
+| p03   | 7/7   | `f6934db..9c974f9` | Round 1 blocked: 3 Important | 0 completed | blocked |
+
+**Implementation dispatch:**
+
+- Request: `impl-p03-210efe9-20260723T170000Z`
+- Target: `oat-phase-implementer-gpt-5-6-sol-high`
+- Dispatch: scope=p03 action=implementation role=implementer
+  model_axis=selected:gpt-5.6-sol effort_axis=selected:high
+  dispatch_policy=high target=oat-phase-implementer-gpt-5-6-sol-high
+
+**Review rounds:**
+
+1. `reviews/p03-review-2026-07-23T211458Z.md` — blocked with 0 Critical,
+   3 Important, 0 Medium, and 0 Minor; reconnaissance not attempted.
+
+**Review dispatch:**
+
+- Target: `oat-reviewer-gpt-5-6-sol-high`
+- Dispatch: scope=p03 action=review role=reviewer
+  model_axis=selected:gpt-5.6-sol effort_axis=selected:high
+  dispatch_policy=high target=oat-reviewer-gpt-5-6-sol-high
+
+**Optional nested implementation dispatches:** None.
+**Worktree:** Root checkout; sequential plan.
+**Outstanding items:** I1 exact-key uncertain replay, I2 read-only stability
+confirmation, and I3 fail-visible watch health.
+
 <!-- orchestration-runs-end -->
 
 ---
@@ -644,7 +684,7 @@ are resolved; Phase 2 is complete.
 
 ## Phase 3: Digest v2, Observation, Foreground Watch, and CLI
 
-**Status:** review_pending
+**Status:** blocked
 
 ### Phase Summary
 
@@ -656,7 +696,8 @@ are resolved; Phase 2 is complete.
   durable watch targets, bounded foreground watching, and CLI composition.
 - Phase-wide verification passed with 1,358 tests, 1 skipped, plus validation,
   smoke, type-check, and generated-output parity.
-- Independent Phase 3 code review is the remaining phase gate.
+- Independent Phase 3 code review retained 3 Important findings; bounded fix
+  iteration 1 is pending.
 
 ### Task outcomes
 
@@ -727,6 +768,19 @@ version bump and provider dogfood after all runtime/doc changes land.
 CLI/session-override/integration coverage passed 65/65. Phase-wide verification
 passed 1,358 tests with 1 skipped, repository validation, smoke, type-check, and
 generated build parity.
+
+### Review round 1
+
+`reviews/p03-review-2026-07-23T211458Z.md` is BLOCKED with 0 Critical,
+3 Important, 0 Medium, and 0 Minor findings:
+
+- I1: delivery-uncertain replay can lose reserved keys after lifecycle advances.
+- I2: stateless Cursor review bypasses bounded stability confirmation.
+- I3: watch polling/status can report failed, unknown, or uncertain health as
+  healthy.
+
+The original Phase 3 implementer will handle all three findings in bounded fix
+iteration 1 before a fresh whole-phase re-review.
 
 ---
 
