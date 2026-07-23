@@ -210,6 +210,27 @@ const UNKNOWN_CLASSIFICATION: TranscriptClassification = {
  * costs zero I/O; a cache miss reads and parses the file exactly once and
  * derives both the classification and the meta from that one parse.
  */
+// The classification cache holds one entry per past-session transcript for the
+// watcher's whole process lifetime, so an entry must not pin per-transcript
+// data whose size scales with transcript length. `bootstrapRecordIndexes` is
+// the only such field — one array index per bootstrap record — so a large or
+// adversarial transcript could otherwise retain millions of indexes for the
+// life of the watch. Every consumer of the *cached* classification reads it
+// exclusively through engagementCandidateFields() (locate.ts's sole
+// classification consumer), which needs: status, engaged, recordCount,
+// genuineUserMessages, assistantMessages, realMessageCount, hasAssistantAndUser,
+// and the scalar bootstrapRecordCount — never the bootstrapRecordIndexes array
+// itself (rank.ts reads only status/scalar metrics; digest.ts recomputes its
+// own classification from a fresh read, so it is unaffected). Drop the uncapped
+// array to a constant-size [] so a cache entry is O(1) in transcript size while
+// every consumed field stays byte-identical.
+function compactClassificationForCache(
+  classification: TranscriptClassification,
+): TranscriptClassification {
+  if (classification.bootstrapRecordIndexes.length === 0) return classification;
+  return { ...classification, bootstrapRecordIndexes: [] };
+}
+
 async function candidateDerivedFields(
   runtime: Runtime,
   transcriptPath: string,
@@ -221,7 +242,11 @@ async function candidateDerivedFields(
 
   try {
     const records = await readRecords(transcriptPath);
-    const classification = classifyTranscriptRecords(runtime, records);
+    // Compact before both caching and returning so a hit and a miss yield the
+    // same shape (no bootstrapRecordIndexes divergence between the two paths).
+    const classification = compactClassificationForCache(
+      classifyTranscriptRecords(runtime, records),
+    );
     const meta = extractMetaFromRecords(runtime, records, transcriptPath);
     const result: TranscriptDerivedFields = { meta, classification };
     cache.set(transcriptPath, signature.mtimeMs, signature.size, result);

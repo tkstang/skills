@@ -26,12 +26,17 @@ import { runWatchLoop } from '../../src/transcript/session-observer/lib/watch.js
 
 // ---------------------------------------------------------------------------
 // Classification call-count seam (mirrors locate.test.ts's identical
-// harness): counts real readRecords invocations per transcript path — the
-// single choke point locate.ts's candidateDerivedFields() reads through for
-// both classification and meta on a cache miss — while delegating to the
-// actual implementation so behavior is unaffected. Used below to prove the
-// watch loop's shared ClassificationCache reads a static newer-candidate
-// transcript once, not on every poll tick.
+// harness): counts real transcript reads at the node:fs/promises readFile
+// boundary — the physical read that both candidateDerivedFields()'s direct
+// readRecords() call and any (re)introduced extractMeta() call inside
+// core/runtimes.js funnel through. Counting below the runtimes.js module
+// boundary (rather than wrapping the exported readRecords) is deliberate: an
+// export wrapper cannot observe an intra-module extractMeta() re-read, so a
+// reintroduced double read would stay uncounted while these assertions still
+// passed. Used below to prove the watch loop's shared ClassificationCache
+// reads a static newer-candidate transcript once, not on every poll tick.
+// Non-transcript reads (state files) are recorded too but never asserted,
+// since assertions key by the specific transcript path.
 // ---------------------------------------------------------------------------
 const classifyCountHarness = vi.hoisted(() => {
   let counts = new Map<string, number>();
@@ -46,20 +51,16 @@ const classifyCountHarness = vi.hoisted(() => {
   };
 });
 
-vi.mock(
-  '../../src/transcript/core/runtimes.js',
-  async (importOriginal) => {
-    const actual =
-      await importOriginal<typeof import('../../src/transcript/core/runtimes.js')>();
-    return {
-      ...actual,
-      readRecords: (async (transcriptPath: string) => {
-        classifyCountHarness.record(transcriptPath);
-        return actual.readRecords(transcriptPath);
-      }) as typeof actual.readRecords,
-    };
-  },
-);
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs/promises')>();
+  return {
+    ...actual,
+    readFile: (async (...args: unknown[]) => {
+      if (typeof args[0] === 'string') classifyCountHarness.record(args[0]);
+      return (actual.readFile as (...a: unknown[]) => unknown)(...args);
+    }) as typeof actual.readFile,
+  };
+});
 
 const CLI_PATH = fileURLToPath(
   new URL(

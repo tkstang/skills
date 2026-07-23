@@ -56,6 +56,29 @@ describe('runProviderCliCommand deadline escalation (core)', () => {
     expect(elapsedMs).toBeLessThan(200 + PROVIDER_CLI_KILL_GRACE_MS + 2000);
   });
 
+  it('force-settles with the cap error when an output-cap SIGKILL leaves a descendant holding the pipes open and no timeoutMs is set', async () => {
+    // Regression (final gate F1): an output-cap breach SIGKILLs the direct
+    // child, but a detached descendant that inherited the stdio pipes keeps
+    // 'close' from ever firing. The final-resolution safety net used to live
+    // only inside the optional-timeout branch, so with NO timeoutMs the cap
+    // rejection could hang forever (reproduced directly: it hung until an
+    // external harness timeout). The cap kill now schedules forced settlement
+    // independently of timeoutMs, and the cap error must still win.
+    const startedAt = Date.now();
+    await expect(
+      // Intentionally NO timeoutMs — this is the branch the old code missed.
+      runProviderCliCommand(
+        path.join(fixtureBin, 'cap-descendant-holds-pipes'),
+        [],
+      ),
+    ).rejects.toMatchObject({ code: 'SUBPROCESS_OUTPUT_CAP' });
+    const elapsedMs = Date.now() - startedAt;
+    // Bounded purely by the final-resolution safety net (1000ms) plus headroom
+    // for emitting/reading 11 MiB and scheduling — must not hang on the 10s
+    // descendant sleep.
+    expect(elapsedMs).toBeLessThan(1000 + 5000);
+  });
+
   it('leaves a well-behaved stub unaffected by a timeout that never fires, with no dangling timers', async () => {
     const result = await runProviderCliCommand(stubExecutable, ['echo-stdin'], {
       input: 'hello',
