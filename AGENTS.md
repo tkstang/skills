@@ -91,6 +91,7 @@ entries, and the apply script already skips the symlinked mirror automatically.
 - Run `pnpm run build:check` to verify generated runtime outputs match canonical source.
 - Run `npm run validate` for repository structure, manifest, and docs invariants.
 - Run `npm run smoke` for the mocked end-to-end consensus wrapper flow.
+- Run `pnpm run test:live-e2e` as the opt-in live-provider gate (requires an authenticated provider CLI and spends real API quota; see `RELEASING.md`).
 
 ## References
 
