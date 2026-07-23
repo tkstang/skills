@@ -2,14 +2,14 @@
 oat_status: in_progress
 oat_ready_for: null
 oat_blockers:
-  - task_id: p02-t03
-    reason: "Operator-authorized lock fix 471dd5e awaits independent Phase 2 re-review."
+  - task_id: p02-t01
+    reason: "Terminal recovery review found ancestor-component raw cwd aliases can still receive exact identity."
     since: 2026-07-23
-  - task_id: p02-t05
-    reason: "Operator-authorized Cursor state fix 471dd5e awaits independent Phase 2 re-review."
+  - task_id: p02-t03
+    reason: "Terminal recovery review found a publication crash can permanently wedge all three state-lock queues."
     since: 2026-07-23
 oat_last_updated: 2026-07-23
-oat_current_task_id: p02-t03
+oat_current_task_id: p02-t01
 oat_generated: false
 ---
 
@@ -155,11 +155,11 @@ oat_generated: false
 
 | Task    | Status   | Commit    | Outcome |
 | ------- | -------- | --------- | ------- |
-| p02-t01 | complete | `baa0480` | Added exact Cursor transcript discovery and identity resolution. |
+| p02-t01 | blocked  | `471dd5e` | Canonical identity works, but terminal review found ancestor-component raw cwd aliases can still receive exact strength. |
 | p02-t02 | complete | `c373341` | Added the isolated Cursor state v2 store. |
-| p02-t03 | blocked  | `52ce9c1` | Migration and crash recovery were implemented, but final review found ownership-unsafe stale-lock reclamation. |
+| p02-t03 | blocked  | `471dd5e` | Migration and acquired-lock crash recovery work, but a crash during contender publication can permanently wedge all three queues. |
 | p02-t04 | complete | `decf5a5` | Added transcript continuity enforcement and repair classification. |
-| p02-t05 | blocked  | `14a643a` | Stability and delivery CAS were implemented, but final review found an unrestricted setter can rewind state and substitute identity. |
+| p02-t05 | complete | `471dd5e` | Stability and delivery CAS are implemented; create-only initialization and operator-facing recovery passed re-review. |
 
 **Additional implementation/fix commits:**
 
@@ -171,8 +171,10 @@ oat_generated: false
 
 ### Task p02-t01: Resolve exact Cursor identity
 
-**Status:** completed
-**Commit:** `baa0480`
+**Status:** blocked
+**Commit:** `471dd5e`
+**Blocker:** The terminal recovery review found raw cwd aliases whose symlink
+occurs in an ancestor component can still receive exact identity strength.
 
 ### Task p02-t02: Add the isolated Cursor state v2 store
 
@@ -182,10 +184,11 @@ oat_generated: false
 ### Task p02-t03: Make legacy Cursor state migration recoverable
 
 **Status:** blocked
-**Commit:** `52ce9c1`
+**Commit:** `471dd5e`
 **Recovery fix:** `471dd5e`
-**Blocker:** Awaiting independent re-review of the operator-authorized lock
-ownership and recovery fix.
+**Blocker:** The terminal recovery review confirmed that a crash between
+publishing a queue ticket and durably writing its owner metadata can strand an
+invalid earliest contender and permanently wedge all three state-lock queues.
 
 ### Task p02-t04: Enforce transcript continuity
 
@@ -194,11 +197,9 @@ ownership and recovery fix.
 
 ### Task p02-t05: Add stability checkpoints and delivery CAS
 
-**Status:** blocked
-**Commit:** `14a643a`
+**Status:** completed
+**Commit:** `471dd5e`
 **Recovery fix:** `471dd5e`
-**Blocker:** Awaiting independent re-review of the operator-authorized Cursor
-state and recovery-surface fix.
 
 ### Review Retry Limit Exhausted
 
@@ -233,7 +234,20 @@ fail-closed queued ownership across all three stores; makes
 operator CLI; and narrows raw alias behavior to diagnostic-only. The repair
 passed 197 focused tests and 1,310 full-suite tests with 1 skipped, plus
 type-check, build synchronization, validation, smoke, lint, and format checks.
-Phase 2 remains blocked only until a fresh independent review passes.
+The fresh independent review completed and blocked on two newly confirmed
+Important findings plus one Medium shipped-guidance gap.
+
+**Terminal recovery review:**
+`reviews/p02-review-2026-07-23T114732Z.md`
+
+- 0 Critical, 2 Important, 1 Medium, 0 Minor.
+- Important: a crash during contender-token publication can permanently wedge
+  all three state-lock queues.
+- Important: ancestor-component symlink aliases can still promote a raw cwd
+  variant to exact identity.
+- Medium: shipped state-recovery guidance contradicts Cursor v2 behavior.
+- The one operator-authorized recovery cycle is consumed; no additional
+  implementation cycle is authorized in this invocation.
 
 ---
 
@@ -404,7 +418,7 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 **Policy:** managed `high`
 **Phase base:** `eb19baf`
 **Phase head:** `ce73f80`
-**Outcome:** operator-authorized recovery fix complete; independent whole-phase re-review pending
+**Outcome:** blocked after terminal operator-authorized recovery re-review
 
 | Phase | Tasks | Implementation | Root Review | Fix Iterations | Verdict |
 | ----- | ----- | -------------- | ----------- | -------------- | ------- |
@@ -432,6 +446,9 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 6. Merged `origin/main` at `aa35f45` and dispatched one operator-authorized
    same-target continuation.
 7. Recovery continuation produced `471dd5e`; fresh whole-phase review pending.
+8. `reviews/p02-review-2026-07-23T114732Z.md` — blocked with 0 Critical,
+   2 Important, 1 Medium, 0 Minor; reconnaissance attempted with complete
+   orchestration evidence.
 
 **Review dispatch:**
 
@@ -442,7 +459,9 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 
 **Optional nested implementation dispatches:** None.
 **Worktree:** Root checkout; sequential plan.
-**Outstanding items:** Independent whole-Phase 2 re-review of `471dd5e`.
+**Outstanding items:** Two Important findings and one Medium finding from the
+terminal operator-authorized recovery review. The authorized extra cycle is
+exhausted; resume through `oat-project-review-receive`.
 
 <!-- orchestration-runs-end -->
 
@@ -529,6 +548,15 @@ review against the merged basis.
   lint and format checks.
 - A fresh independent whole-Phase 2 review remains the only phase blocker.
 
+**Terminal review result:**
+
+- `reviews/p02-review-2026-07-23T114732Z.md` blocked with 0 Critical,
+  2 Important, 1 Medium, 0 Minor.
+- The publication-crash queue wedge and ancestor-component raw-alias promotion
+  remain unresolved.
+- The operator-authorized extra fix/re-review cycle is exhausted. No further
+  implementation was started.
+
 ---
 
 ## Deviations from Plan / Design
@@ -548,7 +576,7 @@ Track test execution during implementation.
 | Phase | Tests Run | Passed | Failed | Coverage |
 | ----- | --------- | ------ | ------ | -------- |
 | 1     | Focused re-review + full suite | 137 focused; 1,148 full; 1 skipped | 0 | Frames, analyzer, runtimes, generated outputs, Export compatibility |
-| 2     | Operator-recovery focused suite + full suite | 197 focused; 1,310 full; 1 skipped | 0 test failures; re-review pending | Exact identity, queued lock ownership, state migration and recovery CLI, continuity, delivery CAS, generated outputs |
+| 2     | Terminal recovery review + full suite | 249 focused; 1,310 full; 1 skipped | 0 test failures; review blocked | Exact identity, queued lock ownership, state migration and recovery CLI, continuity, delivery CAS, generated outputs |
 
 ## Final Summary (for PR/docs)
 
