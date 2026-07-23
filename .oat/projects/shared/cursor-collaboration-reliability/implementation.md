@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-23
-oat_current_task_id: p02-t07
+oat_current_task_id: p02-t08
 oat_generated: false
 ---
 
@@ -27,13 +27,13 @@ oat_generated: false
 | Phase   | Status      | Tasks | Completed |
 | ------- | ----------- | ----- | --------- |
 | Phase 1 | complete    | 5     | 5/5       |
-| Phase 2 | in_progress | 8     | 6/8       |
+| Phase 2 | in_progress | 8     | 7/8       |
 | Phase 3 | pending     | 7     | 0/7       |
 | Phase 4 | pending     | 6     | 0/6       |
 | Phase 5 | pending     | 6     | 0/6       |
 | Phase 6 | pending     | 4     | 0/4       |
 
-**Total:** 11/36 tasks accepted
+**Total:** 12/36 tasks accepted
 
 ---
 
@@ -154,7 +154,7 @@ oat_generated: false
 | p02-t04 | complete | `decf5a5` | Added transcript continuity enforcement and repair classification. |
 | p02-t05 | complete | `471dd5e` | Stability and delivery CAS are implemented; create-only initialization and operator-facing recovery passed re-review. |
 | p02-t06 | complete | `e1d1a31` | Atomically publishes complete contender tokens and covers publication crash/error boundaries across all three queues. |
-| p02-t07 | pending  | -         | Keep every raw cwd alias distinct from canonical identity diagnostic-only. |
+| p02-t07 | complete | `e08e867` | Keeps raw cwd spellings distinct from canonical identity diagnostic-only, including ancestor-component symlinks. |
 | p02-t08 | pending  | -         | Align shipped Cursor v2 reset and corruption-recovery guidance. |
 
 **Additional implementation/fix commits:**
@@ -205,9 +205,12 @@ generated-output synchronization passed.
 
 ### Task p02-t07: Keep ancestor cwd aliases diagnostic-only
 
-**Status:** pending
+**Status:** completed
+**Commit:** `e08e867`
 **Source:** `I2` from
 `reviews/archived/p02-review-2026-07-23T114732Z.md`
+**Verification:** 40 focused tests, type-check, build, generated-output
+synchronization, lint/format, and diff checks passed.
 
 ### Task p02-t08: Align Cursor v2 recovery guidance
 
