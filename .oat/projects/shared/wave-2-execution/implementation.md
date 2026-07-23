@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-23
-oat_current_task_id: p01-t01
+oat_current_task_id: p04-t01
 oat_generated: false
 ---
 
@@ -12,199 +12,42 @@ oat_generated: false
 **Started:** 2026-07-23
 **Last Updated:** 2026-07-23
 
-> This document is used to resume interrupted implementation sessions.
->
-> Conventions:
->
-> - `oat_current_task_id` always points at the **next plan task to do** (not the last completed task).
-> - When all plan tasks are complete, set `oat_current_task_id: null`.
-> - Reviews are **not** plan tasks. Track review status in `plan.md` under `## Reviews` (e.g., `| final | code | passed | ... |`).
-> - Keep phase/task statuses consistent with the Progress Overview table so restarts resume correctly.
-> - Before running the `oat-project-pr-final` skill, ensure `## Final Summary (for PR/docs)` is filled with what was actually implemented.
-
 ## Progress Overview
 
-| Phase   | Status      | Tasks | Completed |
-| ------- | ----------- | ----- | --------- |
-| Phase 1 | in_progress | N     | 0/N       |
-| Phase 2 | pending     | N     | 0/N       |
-
-**Total:** 0/{N} tasks completed
-
----
-
-## Phase 1: {Phase Name}
-
-**Status:** in_progress
-**Started:** 2026-07-23
-
-### Phase Summary (fill when phase is complete)
-
-**Outcome (what changed):**
-
-- {2-5 bullets describing user-visible / behavior-level changes delivered in this phase}
-
-**Key files touched:**
-
-- `{path}` - {why}
-
-**Verification:**
-
-- Run: `{command(s)}`
-- Result: {pass/fail + notes}
-
-**Notes / Decisions:**
-
-- {trade-offs or deviations discovered during implementation}
-
-### Task p01-t01: {Task Name}
-
-**Status:** completed / in_progress / pending / blocked
-**Commit:** {sha} (if completed)
-
-**Outcome (required when completed):**
-
-- {what materially changed (not “did task”, but “system now does X”)}
-
-**Files changed:**
-
-- `{path}` - {why}
-
-**Verification:**
-
-- Run: `{command(s)}`
-- Result: {pass/fail + notes}
-
-**Notes / Decisions:**
-
-- {gotchas, trade-offs, design deltas, important context for future sessions}
-
-**Issues Encountered:**
-
-- {Issue and resolution}
-
----
-
-### Task p01-t02: {Task Name}
-
-**Status:** pending
-**Commit:** -
-
-**Notes:**
-
-- {Notes will be added during implementation}
-
----
-
-## Phase 2: {Phase Name}
-
-**Status:** pending
-**Started:** -
-
-### Task p02-t01: {Task Name}
-
-**Status:** pending
-**Commit:** -
-
----
-
-## Orchestration Runs
-
-_Each run from `oat-project-implement` appends an entry below with:_
-_- Run header (number, timestamp, branch, tier, policy, phase counts)_
-_- Phase Outcomes table_
-_- Parallel Groups list_
-_- Outstanding Items_
-
-<!-- orchestration-runs-start -->
-
-_Orchestration runs from `oat-project-implement` are appended here, most-recent-first within the file but append-only at the bottom of the log._
-
-<!-- orchestration-runs-end -->
-
----
-
-## Implementation Log
-
-Chronological log of implementation progress.
-
-### 2026-07-23
-
-**Session Start:** {time}
-
-- [x] p01-t01: {Task name} - {commit sha}
-- [ ] p01-t02: {Task name} - in progress
-
-**What changed (high level):**
-
-- {short bullets suitable for PR/docs}
-
-**Decisions:**
-
-- {Decision made and rationale}
-
-**Follow-ups / TODO:**
-
-- {anything discovered during implementation that should be captured for later}
-
-**Blockers:**
-
-- {Blocker description} - {status: resolved/pending}
-
-**Session End:** {time}
-
----
-
-### 2026-07-23
-
-**Session Start:** {time}
-
-{Continue log...}
-
----
-
-## Deviations from Plan / Design
-
-Document any intentional deviations from the original plan, spec, or design. Include accepted review findings where the shipped implementation is source of truth and a lifecycle artifact needs alignment.
-
-| Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
-| ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
-| -             | -               | -                    | -                 | -      | -               | -         |
-
-## Test Results
-
-Track test execution during implementation.
-
-| Phase | Tests Run | Passed | Failed | Coverage |
-| ----- | --------- | ------ | ------ | -------- |
-| 1     | -         | -      | -      | -        |
-| 2     | -         | -      | -      | -        |
-
-## Final Summary (for PR/docs)
-
-**What shipped:**
-
-- {capability 1}
-- {capability 2}
-
-**Behavioral changes (user-facing):**
-
-- {bullet}
-
-**Key files / modules:**
-
-- `{path}` - {purpose}
-
-**Verification performed:**
-
-- {tests/lint/typecheck/build/manual steps}
-
-**Design deltas (if any):**
-
-- {what changed vs design.md and why}
-
-## References
-
-- Plan: `plan.md`
-- Design: `design.md`
-- Spec: `spec.md`
+| Phase | Status      | Tasks | Completed |
+| ----- | ----------- | ----- | --------- |
+| p01   | complete    | 1     | 1/1       |
+| p02   | complete    | 1     | 1/1       |
+| p03   | complete    | 1     | 1/1       |
+| p04   | in_progress | 1     | 0/1       |
+
+**Total:** 3/4 tasks completed. Group 1 (p01-p03) merged at fan-in 3ad6b84;
+integration gates green (premerge exit 0; 5 changed skills verified). p04
+(ungrouped) dispatched at the fan-in tip.
+
+## Phase p01: consensus-subprocess-hardening — complete
+
+4 append-only commits (49228be, 3c2c3ae, 85114b1, 4d840a0). Two Codex rounds
+(final-resolution gap, stdio-destroy leak, capError precedence — fixed with
+reproductions; one scope-grounded rejection). Review PASS (Opus, scope
+expansions judged within-outcome). SKILLs: refine 0.1.7, evaluate 0.1.8,
+panel 0.1.2.
+
+## Phase p02: watch-loop-classification-cache — complete
+
+3 commits (de4ff6c, ecb9a45, e25749f). Codex round: Important (meta re-read per
+tick) + Medium (LRU thrash) + Minor — all fixed. Review PASS; torn-read race
+judged self-healing and pre-existing; follow-up note (directory-mtime
+short-circuit) dispositioned to orchestration log. SKILLs: session-observer
+1.0.7, export-session-transcript 1.0.4.
+
+## Phase p03: skill-files-disk-derivation — complete
+
+1 commit (2e52beb) + bounded correction to a pre-existing source-grep test.
+Review PASS. New shared scripts/lib/discover-skills.mjs; completeness pin
+verified to fail on skill-set change.
+
+## Phase p04: derive-generated-ignore-lists — in progress
+
+Dispatched ungrouped at 3ad6b84 (shares AGENTS.md with p03; sequential per
+plan-gate finding 2).
