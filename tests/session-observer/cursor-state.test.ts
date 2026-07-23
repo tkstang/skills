@@ -1,7 +1,9 @@
 import {
   access,
+  appendFile,
   readFile,
   readdir,
+  rename,
   stat,
   unlink,
   writeFile,
@@ -11,13 +13,21 @@ import { join } from 'node:path';
 import { expect, it } from 'vitest';
 
 import {
+  scanCursorTranscript,
+  type CursorTranscriptScan,
+} from '../../src/transcript/core/cursor-frames.js';
+import {
   getCursorSession,
   loadCursorState,
   mutateCursorState,
   setCursorSession,
+  validateCursorContinuity,
 } from '../../src/transcript/session-observer/lib/cursor-state.js';
 import * as legacyState from '../../src/transcript/session-observer/lib/state.js';
-import type { CursorSessionStateEntry } from '../../src/transcript/session-observer/lib/types.js';
+import type {
+  CursorIdentityEvidence,
+  CursorSessionStateEntry,
+} from '../../src/transcript/session-observer/lib/types.js';
 import { withTmpStateDir } from './helpers/tmpdir.js';
 
 function checkpoint(nextFrameIndex = 3) {
@@ -83,6 +93,67 @@ function sessionEntry(sessionId = 'cursor-session'): CursorSessionStateEntry {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function scan(
+  transcriptPath: string,
+  verifyPrefixBytes?: number,
+): Promise<CursorTranscriptScan> {
+  return scanCursorTranscript(transcriptPath, {
+    verifyPrefixBytes,
+    onFrame() {},
+  });
+}
+
+function exactIdentity(
+  transcriptPath: string,
+  canonicalCwd = '/workspace/project',
+): CursorIdentityEvidence {
+  return {
+    runtime: 'cursor',
+    sessionId: 'continuity-session',
+    projectCwd: canonicalCwd,
+    canonicalCwd,
+    canonicalTranscriptPath: transcriptPath,
+    cwdEvidence: ['direct-project-root'],
+    sessionEvidence: ['explicit-pin', 'transcript-path'],
+    strength: 'exact',
+    reasons: [],
+  };
+}
+
+function entryFromScan(
+  transcriptPath: string,
+  current: CursorTranscriptScan,
+): CursorSessionStateEntry {
+  const nextFrameIndex =
+    current.safeThroughFrame === null ? 0 : current.safeThroughFrame + 1;
+  return {
+    ...sessionEntry('continuity-session'),
+    sessionId: 'continuity-session',
+    lastRecordIndex: nextFrameIndex,
+    transcriptPath,
+    continuity: {
+      indexBase: 'zero-based-jsonl-frame-index',
+      nextFrameIndex,
+      prefixBytes: current.safePrefixBytes,
+      prefixSha256: current.safePrefixSha256,
+      observedSize: current.file.size,
+      device: current.file.device,
+      inode: current.file.inode,
+    },
+    lastStatus: {
+      engagement: 'engaged',
+      activity: 'assistant-progress',
+      content: 'none',
+      lifecycle: 'pending',
+      delivery: 'none',
+      health: 'healthy',
+    },
+    openTurn: null,
+    stabilityCandidate: null,
+    pendingDelivery: null,
+  };
 }
 
 async function writeLegacyState(
@@ -316,5 +387,183 @@ it('blocks migration if a legacy Cursor record index changes after the marker', 
       legacyLastRecordIndex: 5,
       migrationStatus: 'marker-written',
     });
+  });
+});
+
+it('validates append-only Cursor continuity from the exact saved prefix', async () => {
+  await withTmpStateDir(async (dir) => {
+    const transcriptPath = join(dir, 'append.jsonl');
+    await writeFile(transcriptPath, '{"role":"user","content":"one"}\n');
+    const initial = await scan(transcriptPath);
+    const prior = entryFromScan(transcriptPath, initial);
+
+    await appendFile(transcriptPath, '{"role":"assistant","content":"two"}\n');
+    const appended = await scan(transcriptPath, prior.continuity.prefixBytes);
+
+    expect(
+      validateCursorContinuity(exactIdentity(transcriptPath), appended, prior),
+    ).toEqual({
+      status: 'verified',
+      fromFrameIndex: prior.continuity.nextFrameIndex,
+    });
+  });
+});
+
+it('resumes from the verified frame after a blocking partial frame is repaired', async () => {
+  await withTmpStateDir(async (dir) => {
+    const transcriptPath = join(dir, 'repair.jsonl');
+    await writeFile(
+      transcriptPath,
+      '{"role":"user","content":"one"}\n{"role":"assistant"',
+    );
+    const blocked = await scan(transcriptPath);
+    const prior = entryFromScan(transcriptPath, blocked);
+    expect(blocked.blockingFrame?.parseState).toBe('partial');
+
+    await writeFile(
+      transcriptPath,
+      '{"role":"user","content":"one"}\n{"role":"assistant","content":"repaired"}\n',
+    );
+    const repaired = await scan(transcriptPath, prior.continuity.prefixBytes);
+
+    expect(
+      validateCursorContinuity(exactIdentity(transcriptPath), repaired, prior),
+    ).toEqual({
+      status: 'verified',
+      fromFrameIndex: prior.continuity.nextFrameIndex,
+    });
+  });
+});
+
+it('blocks transcript shrink without mutating prior evidence', async () => {
+  await withTmpStateDir(async (dir) => {
+    const transcriptPath = join(dir, 'shrink.jsonl');
+    await writeFile(
+      transcriptPath,
+      '{"role":"user","content":"one"}\n{"role":"assistant","content":"two"}\n',
+    );
+    const initial = await scan(transcriptPath);
+    const prior = entryFromScan(transcriptPath, initial);
+    const snapshot = structuredClone(prior);
+
+    await writeFile(transcriptPath, '{"role":"user","content":"one"}\n');
+    const shrunk = await scan(transcriptPath, prior.continuity.prefixBytes);
+
+    expect(
+      validateCursorContinuity(exactIdentity(transcriptPath), shrunk, prior),
+    ).toMatchObject({
+      status: 'blocked',
+      code: 'TRANSCRIPT_SHRANK',
+      checkpoint: prior.continuity,
+    });
+    expect(prior).toEqual(snapshot);
+  });
+});
+
+it('blocks same-path inode replacement even when the prefix is identical', async () => {
+  await withTmpStateDir(async (dir) => {
+    const transcriptPath = join(dir, 'replace.jsonl');
+    const replacementPath = join(dir, 'replacement.jsonl');
+    const content = '{"role":"user","content":"one"}\n';
+    await writeFile(transcriptPath, content);
+    const initial = await scan(transcriptPath);
+    const prior = entryFromScan(transcriptPath, initial);
+
+    await writeFile(replacementPath, content);
+    await rename(replacementPath, transcriptPath);
+    const replaced = await scan(transcriptPath, prior.continuity.prefixBytes);
+    expect(replaced.file.inode).not.toBe(prior.continuity.inode);
+
+    expect(
+      validateCursorContinuity(exactIdentity(transcriptPath), replaced, prior),
+    ).toMatchObject({
+      status: 'blocked',
+      code: 'TRANSCRIPT_REPLACED',
+    });
+  });
+});
+
+it('blocks canonical-path rotation even when transcript bytes match', async () => {
+  await withTmpStateDir(async (dir) => {
+    const transcriptPath = join(dir, 'original.jsonl');
+    const rotatedPath = join(dir, 'rotated.jsonl');
+    const content = '{"role":"user","content":"one"}\n';
+    await writeFile(transcriptPath, content);
+    const initial = await scan(transcriptPath);
+    const prior = entryFromScan(transcriptPath, initial);
+    await writeFile(rotatedPath, content);
+    const rotated = await scan(rotatedPath, prior.continuity.prefixBytes);
+
+    expect(
+      validateCursorContinuity(exactIdentity(rotatedPath), rotated, prior),
+    ).toMatchObject({
+      status: 'blocked',
+      code: 'ROTATION_UNSUPPORTED',
+    });
+  });
+});
+
+it('blocks an in-place prefix mutation and does not expose the saved hash', async () => {
+  await withTmpStateDir(async (dir) => {
+    const transcriptPath = join(dir, 'prefix.jsonl');
+    await writeFile(transcriptPath, '{"role":"user","content":"one"}\n');
+    const initial = await scan(transcriptPath);
+    const prior = entryFromScan(transcriptPath, initial);
+
+    await writeFile(transcriptPath, '{"role":"user","content":"two"}\n');
+    const mutated = await scan(transcriptPath, prior.continuity.prefixBytes);
+    const result = validateCursorContinuity(
+      exactIdentity(transcriptPath),
+      mutated,
+      prior,
+    );
+    expect(result).toMatchObject({
+      status: 'blocked',
+      code: 'PREFIX_MISMATCH',
+    });
+    expect(result.status).toBe('blocked');
+    if (result.status === 'blocked') {
+      expect(result.message).not.toContain(prior.continuity.prefixSha256);
+    }
+  });
+});
+
+it('blocks stateful continuity when stat identity is unavailable', async () => {
+  await withTmpStateDir(async (dir) => {
+    const transcriptPath = join(dir, 'missing-stat.jsonl');
+    await writeFile(transcriptPath, '{"role":"user","content":"one"}\n');
+    const initial = await scan(transcriptPath);
+    const prior = entryFromScan(transcriptPath, initial);
+    const missingIdentity = {
+      ...initial,
+      file: { ...initial.file, device: null },
+      verifiedPrefixSha256: prior.continuity.prefixSha256,
+    };
+
+    expect(
+      validateCursorContinuity(
+        exactIdentity(transcriptPath),
+        missingIdentity,
+        prior,
+      ),
+    ).toMatchObject({
+      status: 'blocked',
+      code: 'FILE_IDENTITY_UNAVAILABLE',
+    });
+  });
+});
+
+it('explicit reset permits replay from frame zero as new continuity', async () => {
+  await withTmpStateDir(async (dir) => {
+    const transcriptPath = join(dir, 'replay.jsonl');
+    await writeFile(transcriptPath, '{"role":"user","content":"one"}\n');
+    const current = await scan(transcriptPath);
+    await setCursorSession(entryFromScan(transcriptPath, current));
+    await legacyState.resetBySession('cursor', 'continuity-session');
+    expect(await getCursorSession('continuity-session')).toBeNull();
+
+    expect(
+      validateCursorContinuity(exactIdentity(transcriptPath), current, null),
+    ).toEqual({ status: 'new', fromFrameIndex: 0 });
   });
 });

@@ -111,6 +111,25 @@ export interface TranscriptContinuityCheckpoint {
   inode: number | null;
 }
 
+export type ContinuityFailureCode =
+  | 'LEGACY_CURSOR_UNVERIFIED'
+  | 'INDEX_BASE_MISMATCH'
+  | 'FILE_IDENTITY_UNAVAILABLE'
+  | 'TRANSCRIPT_SHRANK'
+  | 'PREFIX_MISMATCH'
+  | 'TRANSCRIPT_REPLACED'
+  | 'ROTATION_UNSUPPORTED';
+
+export type ContinuityResult =
+  | { status: 'new'; fromFrameIndex: 0 }
+  | { status: 'verified'; fromFrameIndex: number }
+  | {
+      status: 'blocked';
+      code: ContinuityFailureCode;
+      message: string;
+      checkpoint: TranscriptContinuityCheckpoint | null;
+    };
+
 export interface LegacyCursorStateMarker {
   runtime: 'cursor';
   sessionId: string;

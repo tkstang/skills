@@ -2,7 +2,11 @@ import { chmod, mkdir, open, readFile, rename, unlink } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
+import type { CursorTranscriptScan } from '../../core/cursor-frames.js';
 import type {
+  ContinuityFailureCode,
+  ContinuityResult,
+  CursorIdentityEvidence,
   CursorObserverStateV2,
   CursorSessionStateEntry,
   CursorStateMutator,
@@ -18,6 +22,109 @@ const SCHEMA_VERSION = 2 as const;
 const LOCK_RETRIES = 100;
 const LOCK_INTERVAL_MS = 50;
 let backupSequence = 0;
+
+function blockedContinuity(
+  code: ContinuityFailureCode,
+  message: string,
+  checkpoint: TranscriptContinuityCheckpoint | null,
+): ContinuityResult {
+  return { status: 'blocked', code, message, checkpoint };
+}
+
+export function validateCursorContinuity(
+  identity: CursorIdentityEvidence,
+  scan: CursorTranscriptScan,
+  prior: CursorSessionStateEntry | null,
+): ContinuityResult {
+  if (identity.runtime !== 'cursor' || identity.strength !== 'exact') {
+    throw new TypeError('Cursor continuity requires an exact Cursor identity');
+  }
+
+  if (scan.file.device === null || scan.file.inode === null) {
+    return blockedContinuity(
+      'FILE_IDENTITY_UNAVAILABLE',
+      'The transcript filesystem did not provide stable device and inode identity.',
+      prior?.continuity ?? null,
+    );
+  }
+
+  if (prior === null) {
+    return { status: 'new', fromFrameIndex: 0 };
+  }
+
+  const checkpoint = prior.continuity;
+  if (
+    prior.indexBase !== 'zero-based-jsonl-frame-index' ||
+    checkpoint.indexBase !== 'zero-based-jsonl-frame-index' ||
+    prior.lastRecordIndex !== checkpoint.nextFrameIndex
+  ) {
+    return blockedContinuity(
+      'INDEX_BASE_MISMATCH',
+      'The saved Cursor position is not a consistent physical-frame checkpoint.',
+      checkpoint,
+    );
+  }
+
+  if (
+    prior.sessionId !== identity.sessionId ||
+    prior.canonicalCwd !== identity.canonicalCwd ||
+    prior.transcriptPath !== identity.canonicalTranscriptPath
+  ) {
+    return blockedContinuity(
+      'ROTATION_UNSUPPORTED',
+      'The exact Cursor session, cwd, or canonical transcript path changed.',
+      checkpoint,
+    );
+  }
+
+  if (checkpoint.device === null || checkpoint.inode === null) {
+    return blockedContinuity(
+      'FILE_IDENTITY_UNAVAILABLE',
+      'The saved checkpoint lacks stable device or inode identity.',
+      checkpoint,
+    );
+  }
+
+  if (
+    scan.file.size < checkpoint.observedSize ||
+    scan.file.size < checkpoint.prefixBytes ||
+    scan.totalFrames < checkpoint.nextFrameIndex
+  ) {
+    return blockedContinuity(
+      'TRANSCRIPT_SHRANK',
+      'The transcript is smaller than the previously observed checkpoint.',
+      checkpoint,
+    );
+  }
+
+  if (
+    scan.file.device !== checkpoint.device ||
+    scan.file.inode !== checkpoint.inode
+  ) {
+    return blockedContinuity(
+      'TRANSCRIPT_REPLACED',
+      'The transcript file identity changed at the same canonical path.',
+      checkpoint,
+    );
+  }
+
+  if (
+    scan.safePrefixBytes < checkpoint.prefixBytes ||
+    scan.verifiedPrefixSha256 === null ||
+    scan.verifiedPrefixSha256 !== checkpoint.prefixSha256
+  ) {
+    return blockedContinuity(
+      'PREFIX_MISMATCH',
+      'The previously verified transcript prefix no longer matches.',
+      checkpoint,
+    );
+  }
+
+  return {
+    status: 'verified',
+    fromFrameIndex: checkpoint.nextFrameIndex,
+  };
+}
 
 function isErrnoException(error: unknown): error is NodeJS.ErrnoException {
   return error instanceof Error && 'code' in error;

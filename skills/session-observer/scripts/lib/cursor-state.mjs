@@ -7,6 +7,71 @@ const SCHEMA_VERSION = 2;
 const LOCK_RETRIES = 100;
 const LOCK_INTERVAL_MS = 50;
 let backupSequence = 0;
+function blockedContinuity(code, message, checkpoint) {
+  return { status: "blocked", code, message, checkpoint };
+}
+function validateCursorContinuity(identity, scan, prior) {
+  if (identity.runtime !== "cursor" || identity.strength !== "exact") {
+    throw new TypeError("Cursor continuity requires an exact Cursor identity");
+  }
+  if (scan.file.device === null || scan.file.inode === null) {
+    return blockedContinuity(
+      "FILE_IDENTITY_UNAVAILABLE",
+      "The transcript filesystem did not provide stable device and inode identity.",
+      prior?.continuity ?? null
+    );
+  }
+  if (prior === null) {
+    return { status: "new", fromFrameIndex: 0 };
+  }
+  const checkpoint = prior.continuity;
+  if (prior.indexBase !== "zero-based-jsonl-frame-index" || checkpoint.indexBase !== "zero-based-jsonl-frame-index" || prior.lastRecordIndex !== checkpoint.nextFrameIndex) {
+    return blockedContinuity(
+      "INDEX_BASE_MISMATCH",
+      "The saved Cursor position is not a consistent physical-frame checkpoint.",
+      checkpoint
+    );
+  }
+  if (prior.sessionId !== identity.sessionId || prior.canonicalCwd !== identity.canonicalCwd || prior.transcriptPath !== identity.canonicalTranscriptPath) {
+    return blockedContinuity(
+      "ROTATION_UNSUPPORTED",
+      "The exact Cursor session, cwd, or canonical transcript path changed.",
+      checkpoint
+    );
+  }
+  if (checkpoint.device === null || checkpoint.inode === null) {
+    return blockedContinuity(
+      "FILE_IDENTITY_UNAVAILABLE",
+      "The saved checkpoint lacks stable device or inode identity.",
+      checkpoint
+    );
+  }
+  if (scan.file.size < checkpoint.observedSize || scan.file.size < checkpoint.prefixBytes || scan.totalFrames < checkpoint.nextFrameIndex) {
+    return blockedContinuity(
+      "TRANSCRIPT_SHRANK",
+      "The transcript is smaller than the previously observed checkpoint.",
+      checkpoint
+    );
+  }
+  if (scan.file.device !== checkpoint.device || scan.file.inode !== checkpoint.inode) {
+    return blockedContinuity(
+      "TRANSCRIPT_REPLACED",
+      "The transcript file identity changed at the same canonical path.",
+      checkpoint
+    );
+  }
+  if (scan.safePrefixBytes < checkpoint.prefixBytes || scan.verifiedPrefixSha256 === null || scan.verifiedPrefixSha256 !== checkpoint.prefixSha256) {
+    return blockedContinuity(
+      "PREFIX_MISMATCH",
+      "The previously verified transcript prefix no longer matches.",
+      checkpoint
+    );
+  }
+  return {
+    status: "verified",
+    fromFrameIndex: checkpoint.nextFrameIndex
+  };
+}
 function isErrnoException(error) {
   return error instanceof Error && "code" in error;
 }
@@ -322,5 +387,6 @@ export {
   mutateCursorState,
   resetAllCursorState,
   resetCursorSessionState,
-  setCursorSession
+  setCursorSession,
+  validateCursorContinuity
 };
