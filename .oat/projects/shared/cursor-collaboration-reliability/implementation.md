@@ -539,12 +539,12 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 **Tier:** Tier 1 — native Codex subagents
 **Policy:** managed `high`
 **Phase base:** `bc731e9`
-**Phase head:** `f84dfd8`
-**Outcome:** blocked after review round 1; bounded fix iteration 1 pending
+**Phase head:** `a81847e`
+**Outcome:** Critical fix completed; whole-phase re-review pending
 
 | Phase | Tasks | Implementation | Root Review | Fix Iterations | Verdict |
 | ----- | ----- | -------------- | ----------- | -------------- | ------- |
-| p04   | 6/6   | `22a7510..f84dfd8` | Round 1 blocked: 1 Critical | 0 completed | blocked |
+| p04   | 6/6   | `22a7510..a81847e` | Round 1 blocked: 1 Critical; round 2 pending | 1 (`a81847e`) | review_pending |
 
 **Implementation dispatch:** request `impl-p04-bc731e9-20260723T214500Z`;
 target `oat-phase-implementer-gpt-5-6-sol-high`.
@@ -553,10 +553,12 @@ target `oat-phase-implementer-gpt-5-6-sol-high`.
 
 1. `reviews/p04-review-2026-07-23T224300Z.md` — blocked with 1 Critical and
    no other findings; reconnaissance not attempted.
+2. Original implementer continuation
+   `fix-p04-round1-f84dfd8-20260723T224500Z` produced `a81847e`; whole-phase
+   re-review pending.
 
 **Worktree:** Root checkout; sequential plan.
-**Outstanding items:** Codex-owner/Cursor-peer frame-index confirmed-completion
-and private-continuity authority path.
+**Outstanding items:** Whole-phase review round 2.
 
 <!-- orchestration-runs-end -->
 
@@ -823,7 +825,7 @@ resolved; Phase 4 is next.
 
 ## Phase 4: Collaboration Compatibility and Completion Safety
 
-**Status:** blocked
+**Status:** review_pending
 
 ### Phase Summary
 
@@ -837,7 +839,8 @@ resolved; Phase 4 is next.
 - Full clean-worktree validation passed with 1,402 tests, 1 skipped, plus
   type-check, generated parity, validation, smoke, lint, and formatting.
 - Independent Phase 4 review retained 1 Critical finding in the
-  Codex-owner/Cursor-peer authority path; bounded fix iteration 1 is pending.
+  Codex-owner/Cursor-peer authority path; bounded fix iteration 1 resolved it
+  in `a81847e`, and whole-phase re-review is pending.
 
 ### Task outcomes
 
@@ -902,10 +905,12 @@ and diff checks.
 ### Review round 1
 
 `reviews/p04-review-2026-07-23T224300Z.md` is BLOCKED with 1 Critical and no
-other findings. The Codex-owner/Cursor-peer route still consumes a legacy
-record-index digest and can advance a frame-index lease without private
-continuity. The original Phase 4 implementer will fix exactly this authority
-path before whole-phase re-review.
+other findings. The original Phase 4 implementer resolved it in `a81847e` with
+framed confirmed-completion, index-base validation, pending polling, and
+mandatory checkpoint-bearing trigger/suppressed CAS. Focused coverage passed
+204 tests, the full suite passed 1,407 with 1 skipped, and build parity,
+validation, smoke, type-check, formatting/lint, and diff checks passed.
+Whole-phase re-review is pending.
 
 ---
 
@@ -919,6 +924,7 @@ Document any intentional deviations from the original plan, spec, or design. Inc
 | p02-t02 | `plan.md` | Add the generated Cursor state module | Added exact `.oxfmtrc.json` and `.oxlintrc.json` exclusions for `cursor-state.mjs` | Repository generated-output policy requires the exclusion | Repository config plus generated-output validator | Bounded file-boundary adaptation |
 | p02-t03 | `plan.md` | Regenerate state runtime output | Added the exact `state.js` to `cursor-state.mjs` import rewrite in `scripts/build-generated.mjs` | Generated ESM must resolve the emitted module filename | Canonical build mapping | Bounded generated-output adaptation |
 | p04-t06 | `plan.md` | Limit safety-matrix changes to collaboration tests/runtime files | Added required `index_base` to three intended-valid v2 fixtures in `tests/transcript-core/cursor-analysis.test.ts` through append-only integration fix `f84dfd8` | Phase-wide validation exposed stale fixtures that contradicted p04-t05's intentional missing-attribute fail-closed contract | Wake-envelope v2 parser contract and full-suite validation | Bounded test-fixture adaptation; no production change |
+| p04 review fix | `reviews/p04-review-2026-07-23T224300Z.md` | Fix Codex-owner/Cursor-peer continuity in hook/runtime adapter | Also added frame analysis modules to `codex-install.mjs` hook bundle dependencies | Full fix verification exposed missing installed-hook runtime dependencies | Codex hook bundle plus full-suite validation | Bounded packaging adaptation required by the reviewed fix |
 
 ## Test Results
 
@@ -929,7 +935,7 @@ Track test execution during implementation.
 | 1     | Focused re-review + full suite | 137 focused; 1,148 full; 1 skipped | 0 | Frames, analyzer, runtimes, generated outputs, Export compatibility |
 | 2     | Fix-task re-review + full suite | 146 focused; 1,327 full; 1 skipped | 0; review passed | Atomic lock publication, exact raw-alias containment, Cursor v2 recovery guidance, generated outputs |
 | 3     | Phase-wide suite after review fixes | 1,363 passed; 1 skipped | 0 | Digest/observation/delivery v2, exact uncertain replay, read-only confirmation, durable fail-visible watch health, CLI semantics, v1 compatibility |
-| 4     | Full clean-worktree validation after p04-t06 integration fix | 1,402 passed; 1 skipped | 0 | Completion/continuity safety, collaboration matrix, wake v1/v2 compatibility, generated parity |
+| 4     | Full suite after review Critical fix | 1,407 passed; 1 skipped | 0 | Both owner runtimes, Cursor frame continuity, collaboration matrix, wake v1/v2 compatibility |
 
 ## Final Summary (for PR/docs)
 
