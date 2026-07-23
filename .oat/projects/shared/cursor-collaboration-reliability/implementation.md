@@ -1,9 +1,15 @@
 ---
 oat_status: in_progress
 oat_ready_for: null
-oat_blockers: []
-oat_last_updated: 2026-07-22
-oat_current_task_id: p02-t01
+oat_blockers:
+  - task_id: p02-t03
+    reason: "Phase 2 review retry limit exhausted with ownership-unsafe stale-lock reclamation still unresolved."
+    since: 2026-07-23
+  - task_id: p02-t05
+    reason: "Phase 2 review retry limit exhausted with unrestricted Cursor state rewind and identity substitution still unresolved."
+    since: 2026-07-23
+oat_last_updated: 2026-07-23
+oat_current_task_id: p02-t03
 oat_generated: false
 ---
 
@@ -27,13 +33,13 @@ oat_generated: false
 | Phase   | Status      | Tasks | Completed |
 | ------- | ----------- | ----- | --------- |
 | Phase 1 | complete    | 5     | 5/5       |
-| Phase 2 | pending     | 5     | 0/5       |
+| Phase 2 | blocked     | 5     | 3/5       |
 | Phase 3 | pending     | 7     | 0/7       |
 | Phase 4 | pending     | 6     | 0/6       |
 | Phase 5 | pending     | 6     | 0/6       |
 | Phase 6 | pending     | 4     | 0/4       |
 
-**Total:** 5/33 tasks completed
+**Total:** 8/33 tasks accepted
 
 ---
 
@@ -129,8 +135,86 @@ oat_generated: false
 
 ## Phase 2: Exact Identity, Continuity, and Cursor State v2
 
-**Status:** pending
-**Next task:** `p02-t01`
+**Status:** blocked
+**Blocked:** 2026-07-23
+
+### Phase Summary
+
+**Outcome:**
+
+- Implemented exact Cursor transcript identity, isolated Cursor state v2,
+  recoverable legacy migration, transcript continuity checks, and delivery
+  reservation/CAS primitives.
+- Preserved pre-integration compatibility and completed two bounded review-fix
+  iterations.
+- The third independent review remained blocked with 0 Critical, 2 Important,
+  1 Medium, and 1 Minor finding. The configured retry limit is exhausted, so
+  Phase 3 did not start.
+
+**Task outcomes:**
+
+| Task    | Status   | Commit    | Outcome |
+| ------- | -------- | --------- | ------- |
+| p02-t01 | complete | `baa0480` | Added exact Cursor transcript discovery and identity resolution. |
+| p02-t02 | complete | `c373341` | Added the isolated Cursor state v2 store. |
+| p02-t03 | blocked  | `52ce9c1` | Migration and crash recovery were implemented, but final review found ownership-unsafe stale-lock reclamation. |
+| p02-t04 | complete | `decf5a5` | Added transcript continuity enforcement and repair classification. |
+| p02-t05 | blocked  | `14a643a` | Stability and delivery CAS were implemented, but final review found an unrestricted setter can rewind state and substitute identity. |
+
+**Additional implementation/fix commits:**
+
+- `f058f30` — preserved pre-integration compatibility.
+- `e4c50fe` — resolved the first Phase 2 review findings.
+- `ce73f80` — resolved the second Phase 2 review findings.
+
+### Task p02-t01: Resolve exact Cursor identity
+
+**Status:** completed
+**Commit:** `baa0480`
+
+### Task p02-t02: Add the isolated Cursor state v2 store
+
+**Status:** completed
+**Commit:** `c373341`
+
+### Task p02-t03: Make legacy Cursor state migration recoverable
+
+**Status:** blocked
+**Commit:** `52ce9c1`
+**Blocker:** The final review found an ABA race in stale-lock reclamation and
+unsafe takeover of live legacy empty locks. Retry limit 2 is exhausted.
+
+### Task p02-t04: Enforce transcript continuity
+
+**Status:** completed
+**Commit:** `decf5a5`
+
+### Task p02-t05: Add stability checkpoints and delivery CAS
+
+**Status:** blocked
+**Commit:** `14a643a`
+**Blocker:** The final review found `setCursorSession()` can still rewind a
+durable checkpoint and substitute exact identity when no delivery is pending.
+Retry limit 2 is exhausted.
+
+### Review Retry Limit Exhausted
+
+**Final review artifact:**
+`reviews/p02-review-2026-07-23T054702Z.md`
+
+**Unresolved findings:**
+
+- Important: stale-lock reclamation is ownership-unsafe across concurrent
+  reclaimers and can steal a live legacy empty lock.
+- Important: an unreserved Cursor state setter can rewind the checkpoint and
+  replace canonical cwd/transcript identity.
+- Medium: corrupt-store recovery exists as a low-level API but is not connected
+  to the documented state/session command.
+- Minor: raw symlink alias behavior needs design alignment or a narrower exact
+  identity rule.
+
+**Resume boundary:** Resolve or explicitly replan these findings, then run
+`oat-project-implement`.
 
 ---
 
@@ -292,6 +376,54 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 **Worktree:** Root checkout; sequential plan.
 **Outstanding items:** None.
 
+### Run 2 — Phase p02
+
+**Anchor:** `run-2-phase-p02`
+**Timestamp:** 2026-07-23T05:49:24Z
+**Branch:** `cursor-collaboration-reliability`
+**Tier:** Tier 1 — native Codex subagents
+**Policy:** managed `high`
+**Phase base:** `eb19baf`
+**Phase head:** `ce73f80`
+**Outcome:** blocked after two bounded fix iterations; retry limit exhausted
+
+| Phase | Tasks | Implementation | Root Review | Fix Iterations | Verdict |
+| ----- | ----- | -------------- | ----------- | -------------- | ------- |
+| p02   | 3/5 accepted | `baa0480..14a643a` plus `f058f30` | Round 3 blocked | 2 (`e4c50fe`, `ce73f80`) | blocked |
+
+**Implementation dispatch:**
+
+- Request: `impl-p02-eb19baf-20260723T041200Z`
+- Target: `oat-phase-implementer-gpt-5-6-sol-high`
+- Dispatch: scope=p02 action=implementation role=implementer
+  model_axis=selected:gpt-5.6-sol effort_axis=selected:high
+  dispatch_policy=high target=oat-phase-implementer-gpt-5-6-sol-high
+
+**Review rounds:**
+
+1. `reviews/p02-review-2026-07-23T045715Z.md` — blocked with 0 Critical,
+   2 Important, 2 Medium, 0 Minor.
+2. Original implementer continuation produced `e4c50fe`.
+3. `reviews/p02-review-2026-07-23T051820Z.md` — blocked with 0 Critical,
+   3 Important, 1 Medium, 0 Minor.
+4. Original implementer continuation produced `ce73f80`.
+5. `reviews/p02-review-2026-07-23T054702Z.md` — blocked with 0 Critical,
+   2 Important, 1 Medium, 1 Minor; reconnaissance attempted with complete
+   orchestration evidence.
+
+**Review dispatch:**
+
+- Target: `oat-reviewer-gpt-5-6-sol-high`
+- Dispatch: scope=p02 action=review role=reviewer
+  model_axis=selected:gpt-5.6-sol effort_axis=selected:high
+  dispatch_policy=high target=oat-reviewer-gpt-5-6-sol-high
+
+**Optional nested implementation dispatches:** None.
+**Worktree:** Root checkout; sequential plan.
+**Outstanding items:** Phase 2 review artifact
+`reviews/p02-review-2026-07-23T054702Z.md`; two Important findings remain and
+the configured retry limit is exhausted.
+
 <!-- orchestration-runs-end -->
 
 ---
@@ -327,6 +459,27 @@ Chronological log of implementation progress.
 
 ---
 
+### 2026-07-23 — Phase 2 blocked
+
+**What changed (high level):**
+
+- Added exact Cursor identity, Cursor state v2, recoverable migration,
+  continuity enforcement, and delivery CAS foundations.
+- Passed all focused and repository verification gates after two review-fix
+  iterations.
+
+**Blockers:**
+
+- Final root review retained two Important findings: unsafe stale-lock
+  reclamation and unrestricted state rewind/identity substitution.
+- The configured retry limit of 2 is exhausted, so Phase 3 was not started.
+
+**Task commits:** `baa0480`, `c373341`, `52ce9c1`, `decf5a5`, `14a643a`
+
+**Compatibility/fix commits:** `f058f30`, `e4c50fe`, `ce73f80`
+
+---
+
 ## Deviations from Plan / Design
 
 Document any intentional deviations from the original plan, spec, or design. Include accepted review findings where the shipped implementation is source of truth and a lifecycle artifact needs alignment.
@@ -334,6 +487,8 @@ Document any intentional deviations from the original plan, spec, or design. Inc
 | Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
 | ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
 | p01-t02, p01-t04 | `plan.md` | Only the explicitly listed canonical, test, build, and generated files | Added exact `.oxfmtrc.json` and `.oxlintrc.json` entries for four new generated outputs | Existing generated-output synchronization tests and repository policy require these exclusions | Repository config plus generated-output validator | Recorded as a bounded file-boundary adaptation; no design/spec change |
+| p02-t02 | `plan.md` | Add the generated Cursor state module | Added exact `.oxfmtrc.json` and `.oxlintrc.json` exclusions for `cursor-state.mjs` | Repository generated-output policy requires the exclusion | Repository config plus generated-output validator | Bounded file-boundary adaptation |
+| p02-t03 | `plan.md` | Regenerate state runtime output | Added the exact `state.js` to `cursor-state.mjs` import rewrite in `scripts/build-generated.mjs` | Generated ESM must resolve the emitted module filename | Canonical build mapping | Bounded generated-output adaptation |
 
 ## Test Results
 
@@ -342,7 +497,7 @@ Track test execution during implementation.
 | Phase | Tests Run | Passed | Failed | Coverage |
 | ----- | --------- | ------ | ------ | -------- |
 | 1     | Focused re-review + full suite | 137 focused; 1,148 full; 1 skipped | 0 | Frames, analyzer, runtimes, generated outputs, Export compatibility |
-| 2     | -         | -      | -      | -        |
+| 2     | Focused final review + full suite | 126 focused; 1,215 full; 1 skipped | 0 test failures; review blocked | Identity, state migration, continuity, locks, delivery CAS, generated outputs |
 
 ## Final Summary (for PR/docs)
 
