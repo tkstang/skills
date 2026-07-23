@@ -9,6 +9,7 @@
     "sync:transcript-core": "node scripts/sync-transcript-core.mjs",
     "test": "pnpm run test:vitest",
     "test:vitest": "node scripts/run-vitest.mjs",
+    "test:live-e2e": "CONSENSUS_LIVE_SUBMIT_E2E=1 node scripts/run-vitest.mjs tests/consensus/provider-cli/e2e/submit-live.e2e.test.ts",
     "type-check": "tsc --noEmit",
     "premerge": "pnpm run build && pnpm run type-check && pnpm run build:check && pnpm run test && pnpm run validate && pnpm run smoke",
     "validate": "node scripts/validate.mjs",

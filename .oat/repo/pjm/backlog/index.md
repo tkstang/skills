@@ -20,14 +20,12 @@
 <!-- OAT BACKLOG-INDEX -->
 | ID | Title | Status | Priority | Scope | Estimate |
 | --- | --- | --- | --- | --- | --- |
-| BL-260718-add-pr-time-ci-gate | Add PR-time CI gate for documentation site | open | medium | task | M |
 | BL-260723-guard-transitive-shared | Guard transitive shared-runtime skill version bumps | open | medium | task | S |
-| BL-260718-harden-install-and-ci-supply | Harden install and CI supply-chain posture | open | medium | task | S |
 | BL-260619-inter-agent-direct-messaging | Inter-agent direct messaging (addressable, prioritized) | open | medium | feature | M |
+| BL-260723-investigate-live-submit | Investigate live submit verdict-source contract mismatch | open | medium | task | S |
 | BL-260619-shared-session-log-substrate | Shared session log substrate (become-observable daemon + merged log) | open | medium | initiative | L |
 | BL-260718-split-consensus-loop-into | Split consensus-loop into cohesive core modules | open | medium | task | L |
 | BL-260718-split-consensus-refine-into | Split consensus-refine into cohesive modules | open | medium | task | L |
-| BL-260718-surface-the-live-provider-e2e | Surface the live-provider E2E gate | open | medium | task | S |
 | BL-260612-add-consensus-research-skill | Add consensus-research skill (investigate question, synthesized findings) | open | low | feature | M |
 | BL-260612-add-deliberation-metrics | Add deliberation metrics (tokens, wall-clock, rounds) to artifacts | open | low | feature | S |
 | BL-260701-add-multi-round-panel | Add multi-round panel discussion | open | low | idea | M |

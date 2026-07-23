@@ -11,6 +11,7 @@
 - `phone-a-friend` skill for one-shot advisory peer consultation, with a reusable advisory JSON schema, schema contract test, operator reference, and example prompt/advisory payloads; the host keeps responsibility for context selection, peer choice, and dispositioning the take.
 - `consensus config get/list/set/clear` for JSON-first user/project/effective panel and consensus defaults, with documented config paths and precedence integrated across the consensus-family wrappers and panel workflow.
 - `session-observer-collab` standalone skill for a bounded N=2 collaboration protocol (one user, two mutually observing agent sessions) with exact peer pins, bounded lifecycle continuation, capability disclosure, versioned XDG lease state, and deterministic closeout; composes the base `session-observer` CLI for transcript discovery, normalization, and offsets.
+- `install.sh` supports optional integrity verification: set `CONSENSUS_INSTALL_SHA256` to the expected checksum and the installer fails closed on mismatch before anything lands in the install target (checksum publication added to the release checklist).
 
 ### Fixed
 

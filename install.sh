@@ -1,6 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Env var overrides:
+#   CONSENSUS_INSTALL_REF          - git ref/tag to fetch from when using the
+#                                     remote path (default: v0.1.2).
+#   CONSENSUS_INSTALL_RAW_BASE     - base URL for the remote fetch (default:
+#                                     raw.githubusercontent.com at the ref above).
+#   CONSENSUS_INSTALL_FORCE_REMOTE - set to "1" to always fetch remotely, even
+#                                     when a local checkout copy is available.
+#   CONSENSUS_INSTALL_SHA256       - optional. When set, the fetched/copied
+#                                     file's SHA-256 is verified against this
+#                                     value before it is installed (applies to
+#                                     both the local-checkout copy path and the
+#                                     remote fetch path). A mismatch fails
+#                                     before anything is written to the install
+#                                     target. Unset -> behavior unchanged.
 CONSENSUS_INSTALL_REF="${CONSENSUS_INSTALL_REF:-v0.1.2}"
 CONSENSUS_INSTALL_REMOTE_PATH="plugins/consensus/scripts/consensus.mjs"
 CONSENSUS_INSTALL_RAW_BASE="${CONSENSUS_INSTALL_RAW_BASE:-https://raw.githubusercontent.com/tkstang/skills/${CONSENSUS_INSTALL_REF}}"
@@ -23,6 +37,28 @@ fetch_url() {
   fi
 
   fail "curl or wget is required to fetch ${1}"
+}
+
+sha256_of() {
+  if command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$1" | cut -d' ' -f1
+    return
+  fi
+
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1" | cut -d' ' -f1
+    return
+  fi
+
+  fail "shasum or sha256sum is required to verify CONSENSUS_INSTALL_SHA256"
+}
+
+verify_checksum() {
+  local expected="$1" file="$2" actual
+  actual="$(sha256_of "$file")"
+  if [ "$actual" != "$expected" ]; then
+    fail "checksum mismatch for ${file}: expected ${expected}, got ${actual}"
+  fi
 }
 
 require_node_22() {
@@ -66,6 +102,10 @@ main() {
     if ! fetch_url "$remote_url" >"$tmp_path"; then
       fail "failed to fetch ${remote_url}"
     fi
+  fi
+
+  if [ -n "${CONSENSUS_INSTALL_SHA256:-}" ]; then
+    verify_checksum "$CONSENSUS_INSTALL_SHA256" "$tmp_path"
   fi
 
   chmod 0644 "$tmp_path" || fail "failed to set permissions on ${tmp_path}"

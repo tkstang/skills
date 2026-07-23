@@ -15,13 +15,29 @@ import type {
   ProviderRuntimePolicy,
 } from '../../../../src/consensus/provider-cli/types.js';
 
-const liveConfig = resolveLiveConfig();
+// CONSENSUS_LIVE_SUBMIT_E2E=1 is an explicit opt-in request to spend real
+// provider quota. When it is unset, this suite must stay a silent skip (the
+// pnpm test default). When it IS set, "no usable provider" must fail loudly
+// instead of silently skipping — a set-but-unusable env var is a
+// misconfiguration the caller asked to be told about, not a green run.
+const liveE2eRequested = process.env.CONSENSUS_LIVE_SUBMIT_E2E === '1';
+const liveConfig = liveE2eRequested ? resolveLiveConfig() : undefined;
 
 describe('live provider submit E2E', () => {
-  it.skipIf(!liveConfig)(
+  it.skipIf(!liveE2eRequested)(
     'a live peer submits a verdict via consensus submit (set CONSENSUS_LIVE_SUBMIT_E2E=1; default provider codex/workspace-write)',
     async () => {
-      const config = liveConfig!;
+      if (!liveConfig) {
+        const provider = process.env.CONSENSUS_LIVE_SUBMIT_PROVIDER ?? 'codex';
+        throw new Error(
+          [
+            `CONSENSUS_LIVE_SUBMIT_E2E=1 was set, but no usable "${provider}" provider was found.`,
+            `Checked via: node plugins/consensus/scripts/consensus.mjs preflight --json --provider ${provider}`,
+            'Authenticate/install that provider CLI (or set CONSENSUS_LIVE_SUBMIT_PROVIDER to one that is ready), then re-run `pnpm run test:live-e2e`.',
+          ].join('\n'),
+        );
+      }
+      const config = liveConfig;
       const tempDir = await mkdtemp(
         path.join(tmpdir(), 'consensus-submit-live-'),
       );
@@ -76,8 +92,6 @@ function resolveLiveConfig():
       cliPath: string;
     }
   | undefined {
-  if (process.env.CONSENSUS_LIVE_SUBMIT_E2E !== '1') return undefined;
-
   const provider = liveProvider();
   const cliPath = path.resolve('plugins/consensus/scripts/consensus.mjs');
   if (!liveProviderIsReady(cliPath, provider)) return undefined;

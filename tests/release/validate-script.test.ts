@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, writeFile, mkdir } from 'node:fs/promises';
+import { mkdtemp, readdir, readFile, writeFile, mkdir } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -10,6 +10,18 @@ const validateWorkflowPath = path.join(
   repoRoot,
   '.github/workflows/validate.yml',
 );
+const workflowsDir = path.join(repoRoot, '.github/workflows');
+
+// Discovered dynamically (not hardcoded) so every current and future workflow
+// file is covered by the SHA-pin regression guard below — a hardcoded list
+// silently stops covering new workflows the moment one is added.
+async function discoverWorkflowPaths(): Promise<string[]> {
+  const entries = await readdir(workflowsDir, { withFileTypes: true });
+  return entries
+    .filter((entry) => entry.isFile() && /\.ya?ml$/.test(entry.name))
+    .map((entry) => path.join(workflowsDir, entry.name))
+    .sort();
+}
 
 async function writeJson(filePath: string, value: unknown) {
   await writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`);
@@ -158,6 +170,48 @@ describe('validate-script', () => {
       'pnpm run validate',
       'pnpm run smoke',
     ]);
+  });
+
+  it('every workflow action is SHA-pinned with a version comment', async () => {
+    // Supply-chain hardening: `uses:` must reference a full 40-hex commit SHA
+    // (never a mutable tag), with a `# vX.Y.Z` comment recording the resolved
+    // version. Cheap drift guard against a future `uses: owner/action@vN` edit
+    // slipping back in.
+    const usesLinePattern = /^\s*(?:-\s*)?uses:\s*(\S+)\s*(#.*)?$/;
+    const shaPinPattern = /^[^@]+@[0-9a-f]{40}$/;
+    const versionCommentPattern = /^#\s*v\d+\.\d+\.\d+\s*$/;
+
+    const workflowPaths = await discoverWorkflowPaths();
+    expect(
+      workflowPaths.length,
+      'expected to discover at least one workflow file',
+    ).toBeGreaterThan(0);
+
+    for (const workflowPath of workflowPaths) {
+      const workflow = await readFile(workflowPath, 'utf8');
+      const lines = workflow.split('\n');
+      const usesLines = lines.filter((line) => usesLinePattern.test(line));
+
+      expect(
+        usesLines.length,
+        `expected at least one 'uses:' line in ${workflowPath}`,
+      ).toBeGreaterThan(0);
+
+      for (const line of usesLines) {
+        const match = line.match(usesLinePattern);
+        expect(match, `unparseable uses line in ${workflowPath}: ${line}`).not.toBeNull();
+        const [, usesValue, comment] = match!;
+
+        expect(
+          usesValue,
+          `${workflowPath}: '${line.trim()}' must pin a full 40-hex commit SHA`,
+        ).toMatch(shaPinPattern);
+        expect(
+          comment,
+          `${workflowPath}: '${line.trim()}' must carry a '# vX.Y.Z' version comment`,
+        ).toMatch(versionCommentPattern);
+      }
+    }
   });
 
   it('parseJsonFile reports valid JSON path context', async () => {

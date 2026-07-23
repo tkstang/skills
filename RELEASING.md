@@ -13,6 +13,17 @@ v0.1 is not ready to tag until the full project validation and provider smoke te
 - Run the live provider E2E release gate in
   `plugins/consensus/references/live-e2e.md` and capture Refine plus Evaluate
   evidence.
+- Run `pnpm run test:live-e2e` (or record why it was waived for this release).
+  It proves the provider-CLI submit-tool boundary
+  (`tests/consensus/provider-cli/e2e/submit-live.e2e.test.ts`) end-to-end
+  against a real provider, as the automatable subset of the manual runbook
+  above — it is not a replacement for it. Prerequisites: an authenticated
+  `codex` CLI by default (`CONSENSUS_LIVE_SUBMIT_PROVIDER` selects
+  `claude`/`codex`/`cursor`), real API quota, and roughly one provider call
+  (a few seconds to low minutes depending on the provider). It requires
+  `CONSENSUS_LIVE_SUBMIT_E2E=1` and fails loudly (not a silent skip) if that
+  is set without a usable provider CLI; `pnpm test` on its own continues to
+  skip this suite by default.
 - Verify sequential `consensus-refine` on a real markdown artifact when the
   live E2E runbook does not already cover the release delta.
 - Verify resume from a generated deliberation artifact.
@@ -25,6 +36,9 @@ v0.1 is not ready to tag until the full project validation and provider smoke te
 - Verify `npx skills add <username>/skills` discovery.
 - Confirm the README install matrix matches the live provider CLIs.
 - Confirm no plugin manifest references `.oat/` or project-local infrastructure.
+- Publish the `consensus.mjs` SHA-256 checksum alongside the tag/release notes
+  (`shasum -a 256 plugins/consensus/scripts/consensus.mjs`), so operators can
+  verify with `CONSENSUS_INSTALL_SHA256` in `install.sh`.
 
 ## v0.1 Readiness Snapshot
 
