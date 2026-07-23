@@ -15,6 +15,7 @@ infrastructure.
   - `skills/session-observer/` — standalone peer transcript review and catch-up skill.
   - `skills/session-observer-collab/` — N=2 collaboration protocol, runtime references, and bounded lifecycle adapters. Its `.mjs` files are authored, dependency-free skill runtime; provider-visible mirrors are generated.
   - `skills/export-session-transcript/` — standalone session transcript export skill.
+- `src/consensus/` — canonical TypeScript source for the consensus loop and each consensus wrapper (`config`, `core`, `create`, `decide`, `evaluate`, `panel`, `plan`, `provider-cli`, `refine`).
 - `src/transcript/` — canonical TypeScript source for transcript-core, session-observer, and export-session runtime code.
 - `shared/transcript-core/` — compatibility documentation pointer for the former shared transcript-core source path.
 - `plugins/consensus/` — self-contained consensus plugin package.
