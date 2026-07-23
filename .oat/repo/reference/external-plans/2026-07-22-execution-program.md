@@ -23,7 +23,7 @@ contract remains its immutable plan file.
 | W1   | Correctness & security core  | 4     | merged   | PR [#50](https://github.com/tkstang/skills/pull/50) · merge 7db7d0f · completion record `.oat/repo/reference/project-summaries/20260723-wave-1-execution.md` · recap: deferred to program close · completion tail: done (per-wave full tail) |
 | W2   | Hardening & contract guards  | 4     | merged   | PR [#51](https://github.com/tkstang/skills/pull/51) · merge 79bf70e · completion record `.oat/repo/reference/project-summaries/20260723-wave-2-execution.md` · recap: deferred to program close · completion tail: done (per-wave full tail) |
 | W3   | Consolidation & tooling nets | 2     | merged   | PR [#52](https://github.com/tkstang/skills/pull/52) · merge e100795 · completion record `.oat/repo/reference/project-summaries/20260723-wave-3-execution.md` · recap: deferred to program close · completion tail: done (per-wave full tail) |
-| W4   | CI & release surface         | 3     | composed | —      |
+| W4   | CI & release surface         | 3     | merged   | PR [#53](https://github.com/tkstang/skills/pull/53) · merge bb1e5ee · completion record `.oat/repo/reference/project-summaries/20260723-wave-4-execution.md` · recap: deferred to program close · completion tail: done (per-wave full tail) |
 | W5   | God-module splits            | 2     | composed | —      |
 
 ## Wave Table (coverage: 15 plans = 15 index rows; verified 2026-07-22)
@@ -40,9 +40,9 @@ contract remains its immutable plan file.
 | [Derive generated ignore lists](./2026-07-17-derive-generated-ignore-lists.md)        | 2026-07-17-repo-audit-plan-index   | W2   | before W3 consolidation (guard protects its new outputs); AGENTS.md soft overlap  | done |
 | [Consolidate consensus CLI helpers](./2026-07-17-consolidate-consensus-cli-helpers.md) | 2026-07-17-repo-audit-plan-index | W3   | hard: after W2 subprocess hardening; benefits from W2 ignore-lists guard          | done |
 | [Worktree and hook tests](./2026-07-17-worktree-and-hook-tests.md)                    | 2026-07-17-repo-audit-plan-index   | W3   | independent                                                                       | done |
-| [Supply-chain/CI hardening](./2026-07-17-supply-chain-ci-hardening.md)                | 2026-07-17-repo-audit-plan-index   | W4   | merge-first in W4 (sets action-pin style; RELEASING.md overlap with live-E2E)     | pending |
-| [Docs PR CI gate](./2026-07-17-docs-pr-ci-gate.md)                                    | 2026-07-17-repo-audit-plan-index   | W4   | after supply-chain merge (adopt pin style)                                        | pending |
-| [Live-provider E2E visibility](./2026-07-17-live-provider-e2e-visibility.md)          | 2026-07-17-repo-audit-plan-index   | W4   | after supply-chain merge (pin style + RELEASING.md rebase)                        | pending |
+| [Supply-chain/CI hardening](./2026-07-17-supply-chain-ci-hardening.md)                | 2026-07-17-repo-audit-plan-index   | W4   | merge-first in W4 (sets action-pin style; RELEASING.md overlap with live-E2E)     | done |
+| [Docs PR CI gate](./2026-07-17-docs-pr-ci-gate.md)                                    | 2026-07-17-repo-audit-plan-index   | W4   | after supply-chain merge (adopt pin style)                                        | done |
+| [Live-provider E2E visibility](./2026-07-17-live-provider-e2e-visibility.md)          | 2026-07-17-repo-audit-plan-index   | W4   | after supply-chain merge (pin style + RELEASING.md rebase)                        | done |
 | [Split consensus-loop module](./2026-07-18-split-consensus-loop-module.md)            | 2026-07-17-repo-audit-plan-index   | W5   | hard: after W3 consolidation; parallel with refine split                          | pending |
 | [Split consensus-refine module](./2026-07-18-split-consensus-refine-module.md)        | 2026-07-17-repo-audit-plan-index   | W5   | hard: after W3 consolidation; parallel with loop split                            | pending |
 
@@ -81,6 +81,8 @@ No rows are deferred or dropped; all 15 plans are scheduled.
 - **Intra-wave ordering:** supply-chain merges FIRST — it sets the action-pin style the other two adopt, and it shares RELEASING.md with live-E2E. Docs-CI gate and live-E2E are mutually disjoint (new workflow files) and merge in either order after it.
 - **Cross-wave prerequisites:** none hard; scheduled after the code waves so workflow changes don't churn under active CI-heavy merging. Independent of W5.
 - **Composition rationale:** groups every `.github/workflows/` + release-process surface into one wave with an explicit merge-first rule, converting three soft file conflicts into a sequence instead of rebase noise.
+
+**W4 merged (2026-07-23, PR #53)** → W5 is the final pending wave; both hard prerequisites (W3 consolidation) and soft prerequisites (W2 derived rewrites) satisfied.
 
 ## Wave 5: God-module splits
 
