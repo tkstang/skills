@@ -145,13 +145,25 @@ interface ProviderCliCommandRunnerResult {
   signal: NodeJS.Signals | null;
   stdout: string;
   stderr: string;
+  /** True when the process was killed after timeoutMs elapsed. */
+  timedOut?: boolean;
 }
 
 interface ProviderCliCommandRunnerOptions {
   cwd?: string;
   env?: NodeJS.ProcessEnv;
   input?: string;
+  /**
+   * Optional deadline in milliseconds. When set, an unresponsive subprocess is
+   * sent SIGTERM at the deadline and escalated to SIGKILL after
+   * PROVIDER_CLI_KILL_GRACE_MS. When unset, behavior is unchanged (no deadline).
+   */
+  timeoutMs?: number;
 }
+
+// Mirrors provider-cli/subprocess.ts's DEFAULT_TERMINATION_GRACE_MS: the
+// pause between SIGTERM and SIGKILL when a caller-supplied timeoutMs expires.
+const PROVIDER_CLI_KILL_GRACE_MS = 250;
 
 interface ProviderReadiness {
   agent: ConsensusAgentRef;
@@ -1117,7 +1129,11 @@ function providerCliSpawnTarget(command: string, args: string[]) {
   return { command, args };
 }
 
-function runProviderCliCommand(
+// Twin: src/consensus/core/consensus-loop.ts has an independently
+// maintained copy of this function. Keep both in sync until the
+// consolidation plan (2026-07-17-consolidate-consensus-cli-helpers.md) merges
+// them.
+export function runProviderCliCommand(
   command: string,
   args: string[],
   options: ProviderCliCommandRunnerOptions = {},
@@ -1131,6 +1147,24 @@ function runProviderCliCommand(
     });
     let stdout = '';
     let stderr = '';
+    let timedOut = false;
+    let deadlineTimer: NodeJS.Timeout | undefined;
+    let killEscalationTimer: NodeJS.Timeout | undefined;
+
+    function clearDeadlineTimers() {
+      if (deadlineTimer) clearTimeout(deadlineTimer);
+      if (killEscalationTimer) clearTimeout(killEscalationTimer);
+    }
+
+    if (options.timeoutMs !== undefined) {
+      deadlineTimer = setTimeout(() => {
+        timedOut = true;
+        child.kill('SIGTERM');
+        killEscalationTimer = setTimeout(() => {
+          child.kill('SIGKILL');
+        }, PROVIDER_CLI_KILL_GRACE_MS);
+      }, options.timeoutMs);
+    }
 
     child.stdout.setEncoding('utf8');
     child.stderr.setEncoding('utf8');
@@ -1140,10 +1174,21 @@ function runProviderCliCommand(
     child.stderr.on('data', (chunk: string) => {
       stderr += chunk;
     });
-    child.on('error', reject);
-    child.on('close', (code, signal) => {
-      resolve({ code, signal, stdout, stderr });
+    child.on('error', (error) => {
+      clearDeadlineTimers();
+      reject(error);
     });
+    child.on('close', (code, signal) => {
+      clearDeadlineTimers();
+      resolve({
+        code,
+        signal,
+        stdout,
+        stderr,
+        ...(timedOut ? { timedOut: true } : {}),
+      });
+    });
+    child.stdin.on('error', () => {});
     child.stdin.end(options.input ?? '');
   });
 }

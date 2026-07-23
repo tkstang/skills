@@ -1,7 +1,14 @@
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
-import { mkdir, open, readFile, rename, unlink, writeFile } from 'node:fs/promises';
+import {
+  mkdir,
+  open,
+  readFile,
+  rename,
+  unlink,
+  writeFile,
+} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -211,6 +218,12 @@ export interface ProviderCliCommandRunnerOptions {
   env?: NodeJS.ProcessEnv;
   cwd?: string;
   input?: string;
+  /**
+   * Optional deadline in milliseconds. When set, an unresponsive subprocess is
+   * sent SIGTERM at the deadline and escalated to SIGKILL after
+   * PROVIDER_CLI_KILL_GRACE_MS. When unset, behavior is unchanged (no deadline).
+   */
+  timeoutMs?: number;
 }
 
 export interface ProviderCliCommandRunnerResult {
@@ -218,6 +231,8 @@ export interface ProviderCliCommandRunnerResult {
   signal?: NodeJS.Signals | null;
   stdout: string;
   stderr?: string;
+  /** True when the process was killed after timeoutMs elapsed. */
+  timedOut?: boolean;
 }
 
 export type ProviderCliCommandRunner = (
@@ -243,8 +258,10 @@ export type ConsensusCliResolution =
       attemptedPaths: string[];
     };
 
-export interface ConsensusCliPathOptions
-  extends Pick<ProviderInvocationArgs, 'consensusCliPath' | 'env'> {
+export interface ConsensusCliPathOptions extends Pick<
+  ProviderInvocationArgs,
+  'consensusCliPath' | 'env'
+> {
   defaultCliPath?: string;
 }
 
@@ -463,6 +480,9 @@ export const SYNTHESIS_CAPS = Object.freeze({
 
 export const LOOP_SCHEMA_VERSION = 'v1';
 export const SUBPROCESS_OUTPUT_CAP_BYTES = 10 * 1024 * 1024;
+// Mirrors provider-cli/subprocess.ts's DEFAULT_TERMINATION_GRACE_MS: the pause
+// between SIGTERM and SIGKILL when a caller-supplied timeoutMs expires.
+export const PROVIDER_CLI_KILL_GRACE_MS = 250;
 export const EXIT_CODES = Object.freeze({
   USAGE: 64,
   DATA: 65,
@@ -697,7 +717,10 @@ async function syncFileIfAvailable(filePath: string): Promise<void> {
  * failure, best-effort remove the temp file and rethrow so the previous
  * `targetPath` contents are left intact.
  */
-async function atomicWriteFile(targetPath: string, data: string): Promise<void> {
+async function atomicWriteFile(
+  targetPath: string,
+  data: string,
+): Promise<void> {
   const tmpPath = `${targetPath}.${process.pid}.tmp`;
   try {
     await writeFile(tmpPath, data);
@@ -1400,6 +1423,10 @@ export function providerCliSpawnTarget(command: string, args: string[]) {
   return { command, args };
 }
 
+// Twin: src/consensus/panel/consensus-panel.ts has an independently
+// maintained copy of this function. Keep both in sync until the
+// consolidation plan (2026-07-17-consolidate-consensus-cli-helpers.md) merges
+// them.
 export function runProviderCliCommand(
   command: string,
   args: string[],
@@ -1429,6 +1456,24 @@ export function runProviderCliCommand(
     let stdoutBytes = 0;
     let stderrBytes = 0;
     let capError: ConsensusError | null = null;
+    let timedOut = false;
+    let deadlineTimer: NodeJS.Timeout | undefined;
+    let killEscalationTimer: NodeJS.Timeout | undefined;
+
+    function clearDeadlineTimers() {
+      if (deadlineTimer) clearTimeout(deadlineTimer);
+      if (killEscalationTimer) clearTimeout(killEscalationTimer);
+    }
+
+    if (options.timeoutMs !== undefined) {
+      deadlineTimer = setTimeout(() => {
+        timedOut = true;
+        child.kill('SIGTERM');
+        killEscalationTimer = setTimeout(() => {
+          child.kill('SIGKILL');
+        }, PROVIDER_CLI_KILL_GRACE_MS);
+      }, options.timeoutMs);
+    }
 
     function capture(
       streamName: 'stdout' | 'stderr',
@@ -1461,8 +1506,12 @@ export function runProviderCliCommand(
     child.stderr.on('data', (chunk: Buffer) =>
       capture('stderr', stderrChunks, chunk),
     );
-    child.on('error', reject);
+    child.on('error', (error) => {
+      clearDeadlineTimers();
+      reject(error);
+    });
     child.on('close', (code, signal) => {
+      clearDeadlineTimers();
       if (capError) {
         reject(capError);
         return;
@@ -1472,9 +1521,11 @@ export function runProviderCliCommand(
         signal,
         stdout: Buffer.concat(stdoutChunks).toString('utf8'),
         stderr: Buffer.concat(stderrChunks).toString('utf8'),
+        ...(timedOut ? { timedOut: true } : {}),
       });
     });
 
+    child.stdin.on('error', () => {});
     child.stdin.end(options.input ?? '');
   });
 }

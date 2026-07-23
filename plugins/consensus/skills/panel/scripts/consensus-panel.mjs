@@ -26,6 +26,7 @@ const PANEL_EXIT_CODES = Object.freeze({
   NOPERM: 77,
   CONFIG: 78
 });
+const PROVIDER_CLI_KILL_GRACE_MS = 250;
 const PROVIDER_ID_PATTERN = /^[a-z][a-z0-9_-]{0,31}$/u;
 const RESPONSE_KEYS = /* @__PURE__ */ new Set([
   "schema_version",
@@ -824,6 +825,22 @@ function runProviderCliCommand(command, args, options = {}) {
     });
     let stdout = "";
     let stderr = "";
+    let timedOut = false;
+    let deadlineTimer;
+    let killEscalationTimer;
+    function clearDeadlineTimers() {
+      if (deadlineTimer) clearTimeout(deadlineTimer);
+      if (killEscalationTimer) clearTimeout(killEscalationTimer);
+    }
+    if (options.timeoutMs !== void 0) {
+      deadlineTimer = setTimeout(() => {
+        timedOut = true;
+        child.kill("SIGTERM");
+        killEscalationTimer = setTimeout(() => {
+          child.kill("SIGKILL");
+        }, PROVIDER_CLI_KILL_GRACE_MS);
+      }, options.timeoutMs);
+    }
     child.stdout.setEncoding("utf8");
     child.stderr.setEncoding("utf8");
     child.stdout.on("data", (chunk) => {
@@ -832,9 +849,21 @@ function runProviderCliCommand(command, args, options = {}) {
     child.stderr.on("data", (chunk) => {
       stderr += chunk;
     });
-    child.on("error", reject);
+    child.on("error", (error) => {
+      clearDeadlineTimers();
+      reject(error);
+    });
     child.on("close", (code, signal) => {
-      resolve({ code, signal, stdout, stderr });
+      clearDeadlineTimers();
+      resolve({
+        code,
+        signal,
+        stdout,
+        stderr,
+        ...timedOut ? { timedOut: true } : {}
+      });
+    });
+    child.stdin.on("error", () => {
     });
     child.stdin.end(options.input ?? "");
   });
@@ -1085,5 +1114,6 @@ export {
   renderPanelArtifact,
   resolvePanelPaths,
   runConsensusPanel,
-  runPanelCli
+  runPanelCli,
+  runProviderCliCommand
 };
