@@ -35,6 +35,89 @@ function digest(entries: object[], fromIndex = 0, totalRecords = 8) {
   };
 }
 
+function cursorCompletionDigest(
+  entries: object[],
+  fromIndex = 3,
+  totalFrames = 8,
+) {
+  const renderedIndexes = entries.map(
+    (entry) => (entry as { recordIndex: number }).recordIndex,
+  );
+  return {
+    schemaVersion: 2,
+    runtime: 'cursor',
+    sessionId: 'cursor-peer',
+    transcriptPath: '/tmp/cursor-peer.jsonl',
+    range: {
+      indexBase: 'zero-based-jsonl-frame-index',
+      fromIndex,
+      toIndex: totalFrames > fromIndex ? totalFrames - 1 : null,
+      nextIndex: totalFrames,
+      totalFrames,
+      renderedFromIndex:
+        renderedIndexes.length > 0 ? Math.min(...renderedIndexes) : null,
+      renderedToIndex:
+        renderedIndexes.length > 0 ? Math.max(...renderedIndexes) : null,
+      newFrames: Math.max(0, totalFrames - fromIndex),
+    },
+    accounting: {
+      indexBase: 'zero-based-jsonl-frame-index',
+      raw: {
+        fromIndex,
+        toIndex: totalFrames > fromIndex ? totalFrames - 1 : null,
+        count: Math.max(0, totalFrames - fromIndex),
+        nextIndex: totalFrames,
+        totalFrames,
+      },
+      rendered: {
+        count: entries.length,
+        fromIndex:
+          renderedIndexes.length > 0 ? Math.min(...renderedIndexes) : null,
+        toIndex:
+          renderedIndexes.length > 0 ? Math.max(...renderedIndexes) : null,
+      },
+      filtered: {
+        toolCalls: 0,
+        automaticControls: 0,
+        emptyOrNoOp: 0,
+        metadataFrames: Math.max(0, totalFrames - fromIndex - entries.length),
+        unstableContent: 0,
+      },
+      buffered: {
+        fromIndex: null as number | null,
+        count: 0,
+        reason: null as 'partial' | 'malformed' | 'stability-wait' | null,
+      },
+      recovery: {
+        omittedUserMessages: [],
+        omittedAssistantEntries: [],
+      },
+    },
+    entries,
+    cursorEvidence: {
+      projection: 'confirmed-completion',
+      continuity: 'verified',
+      status: {
+        engagement: 'engaged',
+        activity: 'assistant-progress',
+        content: entries.length > 0 ? 'available' : 'none',
+        lifecycle: entries.length > 0 ? 'success' : 'none',
+        delivery: 'none',
+        health: 'healthy',
+      },
+      lifecycleEvents: entries.map((entry) => ({
+        turnId: (entry as { turnId: string }).turnId,
+        terminalFrameIndex: (entry as { recordIndex: number }).recordIndex,
+        lifecycle: 'success',
+        finalEntryKey: (entry as { entryKey: string }).entryKey,
+        contentPreviouslyObservable: false,
+      })),
+      bufferedFromFrame: null as number | null,
+      blockingFrame: null,
+    },
+  };
+}
+
 const message = (
   role: 'user' | 'assistant',
   text: string,
@@ -56,6 +139,8 @@ describe('normalized completed continuation selection', () => {
     expect(result).toMatchObject({
       status: 'continuation',
       continuation: true,
+      indexBase: 'zero-based-jsonl-record-index',
+      completedIndex: 6,
       completedRecord: 6,
       nextCursor: 7,
       peerCursor: 7,
@@ -72,6 +157,96 @@ describe('normalized completed continuation selection', () => {
       'second question',
       'LGTM',
     ]);
+  });
+
+  test('selects a confirmed Cursor v2 completion by delivery frame index', () => {
+    const result = selectCompletedContinuation(
+      cursorCompletionDigest([
+        {
+          role: 'assistant',
+          text: 'Synthetic completed result.',
+          recordIndex: 7,
+          sourceFrameIndex: 6,
+          kind: 'message',
+          entryKey: 'entry-assistant-6',
+          turnId: 'turn-3',
+          availability: 'completed',
+        },
+      ]),
+    );
+
+    expect(result).toMatchObject({
+      status: 'continuation',
+      continuation: true,
+      indexBase: 'zero-based-jsonl-frame-index',
+      fromIndex: 3,
+      completedIndex: 7,
+      completedRecord: 7,
+      nextCursor: 8,
+      peerCursor: 8,
+      budgetCost: 1,
+      range: {
+        indexBase: 'zero-based-jsonl-frame-index',
+        fromIndex: 3,
+        toIndex: 7,
+      },
+    });
+    expect(result.reviewEntries).toEqual([
+      expect.objectContaining({
+        recordIndex: 7,
+        sourceFrameIndex: 6,
+        entryKey: 'entry-assistant-6',
+        availability: 'completed',
+      }),
+    ]);
+  });
+
+  test('rejects non-completion, sliced, or incomplete Cursor v2 projections', () => {
+    const entry = {
+      role: 'assistant',
+      text: 'Synthetic completed result.',
+      recordIndex: 7,
+      sourceFrameIndex: 6,
+      kind: 'message',
+      entryKey: 'entry-assistant-6',
+      turnId: 'turn-3',
+      availability: 'completed',
+    };
+    const observation = cursorCompletionDigest([entry]);
+    observation.cursorEvidence.projection = 'observation';
+    expect(() => selectCompletedContinuation(observation)).toThrow(
+      /confirmed-completion/i,
+    );
+
+    const sliced = cursorCompletionDigest([entry]);
+    sliced.accounting.rendered.count = 2;
+    expect(() => selectCompletedContinuation(sliced)).toThrow(/complete/i);
+
+    const incomplete = cursorCompletionDigest([entry]);
+    incomplete.range.nextIndex = 7;
+    incomplete.accounting.raw.nextIndex = 7;
+    incomplete.accounting.buffered = {
+      fromIndex: 7,
+      count: 1,
+      reason: 'stability-wait',
+    };
+    incomplete.cursorEvidence.bufferedFromFrame = 7;
+    expect(() => selectCompletedContinuation(incomplete)).toThrow(/complete/i);
+  });
+
+  test('rejects unknown digest schema and index-base combinations', () => {
+    expect(() =>
+      selectCompletedContinuation({
+        ...digest([], 0, 0),
+        schemaVersion: 3,
+      }),
+    ).toThrow(/schemaVersion/i);
+
+    const mismatched = cursorCompletionDigest([]);
+    mismatched.range.indexBase = 'zero-based-jsonl-record-index';
+    expect(() => selectCompletedContinuation(mismatched)).toThrow(
+      /index base/i,
+    );
   });
 
   test('selects a substantive assistant response after automatic control without treating the envelope as authority', () => {
