@@ -225,10 +225,10 @@ gates. Expected: all green.
 | p02    | code     | passed  | 2026-07-23 | reviews/p02-code-review-2026-07-23.md |
 | p03    | code     | passed   | 2026-07-23 | reviews/p03-code-review-2026-07-23.md |
 | p04    | code     | passed  | 2026-07-23 | reviews/p04-code-review-2026-07-23.md |
-| final  | code     | pending | -    | -        |
+| final  | code     | passed   | 2026-07-23 | reviews/final-gate-2026-07-23.md |
 | plan   | artifact | passed  | 2026-07-23 | reviews/plan-gate-2026-07-23.md |
-| spec   | artifact | pending | -    | -        |
-| design | artifact | pending | -    | -        |
+| spec   | artifact | passed   | 2026-07-23 | n/a — quick mode (no spec artifact; recorded for row-terminality) |
+| design | artifact | passed   | 2026-07-23 | n/a — quick mode (no design artifact; recorded for row-terminality) |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 
