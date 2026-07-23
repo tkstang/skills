@@ -49,7 +49,27 @@ guarded ignore lists; refine byte-identical since authoring).
 
 ---
 
-## End-of-run synthesis (pending — do not skip at project completion)
+## End-of-run synthesis (2026-07-23)
+
+**Convention verdicts:** the per-cluster green-commit discipline made two ~4k-line
+refactors uneventful (16 cluster commits, every one independently gated); the
+anchored-insertion rule produced a zero-conflict cross-lane rebase over three
+shared config files; the facade contract's leak signal (wrapper-output diff)
+never fired — OID-identical trees. The codex `-o` wedge remains the program's
+one persistent tool flake (struck twice more this wave; transcription fallback
+absorbed it both times, and reviewers independently re-verified).
+
+**Skill-signal rulings:** (1) plan-parser heading form (`## Phase <number>:`)
+must be the template's literal example — waves 1-4 shipped unparsed phase
+tables (harmless here, latent elsewhere); (2) `.oat/**` formatter no-op should
+be reflected in the log template's hygiene line; (3) the codex `-o` wedge
+deserves an upstream codex-companion issue rather than more per-wave fallbacks.
+
+**Graduated-entries ledger:** trip-wire comment suggestion (type-only
+loop-types↔loop-validation cycle) — non-blocking, recorded in the p01 review;
+no new backlog items this wave.
+
+## Archived synthesis contract (fulfilled above)
 
 At project completion, BEFORE any archive step, the orchestrator writes:
 (1) verdicts on the conventions this wave exercised, with evidence entries cited;
