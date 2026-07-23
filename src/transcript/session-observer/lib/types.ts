@@ -1,3 +1,4 @@
+import type { CursorLifecycleState } from '../../core/cursor-analysis.js';
 import type {
   AutomaticControlProvenance,
   CursorTerminalStatus,
@@ -88,6 +89,92 @@ export interface CursorIdentityEvidence {
   strength: 'exact' | 'diagnostic' | 'ambiguous';
   reasons: string[];
 }
+
+export type CursorProjection = 'observation' | 'confirmed-completion';
+
+export interface ObservationStatus {
+  engagement: 'engaged' | 'unengaged' | 'unknown';
+  activity: 'none' | 'human-input' | 'assistant-progress' | 'tool-activity';
+  content: 'none' | 'buffered' | 'available' | 'suppressed';
+  lifecycle: CursorLifecycleState | 'none';
+  delivery: 'none' | 'reserved' | 'committed' | 'uncertain';
+  health: 'healthy' | 'blocked' | 'stale' | 'error' | 'unknown';
+}
+
+export interface TranscriptContinuityCheckpoint {
+  indexBase: 'zero-based-jsonl-frame-index';
+  nextFrameIndex: number;
+  prefixBytes: number;
+  prefixSha256: string;
+  observedSize: number;
+  device: number | null;
+  inode: number | null;
+}
+
+export interface LegacyCursorStateMarker {
+  runtime: 'cursor';
+  sessionId: string;
+  legacyLastRecordIndex: number;
+  backupPath: string;
+  migrationStatus: 'marker-written' | 'legacy-removed' | 'complete';
+  createdAt: string;
+}
+
+export interface CursorTurnReconciliation {
+  turnId: string;
+  fromFrameIndex: number;
+  observedThroughFrame: number;
+  deliveredEntryKeys: string[];
+  humanRecordIndexes: number[];
+  toolRecordIndexes: number[];
+  lifecycle: CursorLifecycleState;
+}
+
+export interface CursorStabilityCandidate {
+  turnId: string;
+  fromFrameIndex: number;
+  throughFrameIndex: number;
+  entryKeys: string[];
+  prefixBytes: number;
+  prefixSha256: string;
+  firstObservedAt: string;
+  confirmAfter: string;
+}
+
+export interface PendingCursorDelivery {
+  deliveryId: string;
+  expectedNextFrameIndex: number;
+  reservedThroughFrameIndex: number;
+  entryKeys: string[];
+  intendedCheckpoint: TranscriptContinuityCheckpoint;
+  reservedByPid: number;
+  reservedAt: string;
+}
+
+export interface CursorSessionStateEntry {
+  runtime: 'cursor';
+  sessionId: string;
+  indexBase: 'zero-based-jsonl-frame-index';
+  /** First unconsumed frame; retained under the shared display field name. */
+  lastRecordIndex: number;
+  canonicalCwd: string;
+  transcriptPath: string;
+  continuity: TranscriptContinuityCheckpoint;
+  lastStatus: ObservationStatus;
+  openTurn: CursorTurnReconciliation | null;
+  stabilityCandidate: CursorStabilityCandidate | null;
+  pendingDelivery: PendingCursorDelivery | null;
+}
+
+export interface CursorObserverStateV2 {
+  schemaVersion: 2;
+  sessions: Record<string, CursorSessionStateEntry>;
+  legacyUnverified: Record<string, LegacyCursorStateMarker>;
+}
+
+export type CursorStateMutator = (
+  state: CursorObserverStateV2,
+) => CursorObserverStateV2 | void;
 
 export interface TranscriptIdentityEvidence {
   runtime: Runtime;

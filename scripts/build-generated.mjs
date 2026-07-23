@@ -184,6 +184,11 @@ export const generatedOutputs = [
     output: 'skills/session-observer/scripts/lib/state.mjs',
   },
   {
+    id: 'session-observer-cursor-state',
+    source: 'src/transcript/session-observer/lib/cursor-state.ts',
+    output: 'skills/session-observer/scripts/lib/cursor-state.mjs',
+  },
+  {
     id: 'session-observer-watch-state',
     source: 'src/transcript/session-observer/lib/watch-state.ts',
     output: 'skills/session-observer/scripts/lib/watch-state.mjs',

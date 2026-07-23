@@ -56,6 +56,7 @@
     "skills/session-observer/scripts/lib/cursor-analysis.mjs",
     "skills/session-observer/scripts/lib/session-classifier.mjs",
     "skills/session-observer/scripts/lib/state.mjs",
+    "skills/session-observer/scripts/lib/cursor-state.mjs",
     "skills/session-observer/scripts/lib/watch-state.mjs",
     "skills/session-observer/scripts/lib/watch.mjs",
     "skills/export-session-transcript/scripts/lib/runtimes.mjs",
