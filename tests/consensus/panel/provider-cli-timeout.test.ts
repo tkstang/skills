@@ -6,6 +6,11 @@ import { runProviderCliCommand } from '../../../src/consensus/panel/consensus-pa
 import { fixtureBin } from '../../helpers/process.mjs';
 
 const stubExecutable = path.join(fixtureBin, 'consensus-provider-stub');
+// A shell script, not a Node script: it reaches its `trap '' TERM` line
+// (SIG_IGN, which survives exec) far faster than a Node process can finish
+// booting, so a short deadline doesn't race the stub's own startup — SIGTERM
+// reliably reaches it only after the ignore is already installed.
+const fastIgnoreSigtermStub = path.join(fixtureBin, 'ignore-sigterm-fast');
 
 // Grace window mirrors PROVIDER_CLI_KILL_GRACE_MS in consensus-panel.ts
 // (kept in sync with consensus-loop.ts's exported constant of the same
@@ -13,26 +18,44 @@ const stubExecutable = path.join(fixtureBin, 'consensus-provider-stub');
 const PROVIDER_CLI_KILL_GRACE_MS = 250;
 
 describe('runProviderCliCommand deadline escalation (panel)', () => {
-  it('escalates a stub that ignores SIGTERM and reports a timedOut outcome without hanging', async () => {
+  it('escalates a stub that ignores SIGTERM to SIGKILL and reports a timedOut outcome within the deadline+grace window', async () => {
+    const startedAt = Date.now();
+    const result = await runProviderCliCommand(fastIgnoreSigtermStub, [], {
+      timeoutMs: 500,
+    });
+    const elapsedMs = Date.now() - startedAt;
+
+    expect(result.timedOut).toBe(true);
+    expect(result.signal).toBe('SIGKILL');
+    expect(elapsedMs).toBeLessThan(500 + PROVIDER_CLI_KILL_GRACE_MS + 1000);
+  });
+
+  it('force-settles instead of hanging when a descendant process keeps the stdio pipes open after SIGKILL', async () => {
+    // Regression test: this fixture backgrounds a detached descendant that
+    // inherits its stdio (the pipes the runner reads from) before it even
+    // installs its own SIGTERM trap, so the descendant is holding the pipes
+    // open regardless of which signal ends the direct child. 'close' can
+    // then never fire on its own — without the finalResolutionMs safety net
+    // this hangs forever (reproduced directly: it hung until an external
+    // harness timeout).
     const startedAt = Date.now();
     const result = await runProviderCliCommand(
-      stubExecutable,
-      ['ignore-sigterm'],
-      { timeoutMs: 300 },
+      path.join(fixtureBin, 'descendant-holds-pipes-fast'),
+      [],
+      { timeoutMs: 200 },
     );
     const elapsedMs = Date.now() - startedAt;
 
-    // The stub installs a no-op SIGTERM handler and never exits on its own,
-    // so reaching a settled promise at all proves the deadline fired and
-    // (since SIGTERM alone cannot end it) the SIGKILL escalation ran. Under
-    // scheduler contention the child may not finish installing its handler
-    // before the deadline's SIGTERM arrives, in which case SIGTERM itself
-    // ends it first — both outcomes are correctly reported as timed out, so
-    // the signal identity itself is not asserted here (matching
-    // subprocess.ts's own escalation test, which asserts the same way).
     expect(result.timedOut).toBe(true);
+    expect(result.code).toBeNull();
+    // The direct child dies from whichever signal reaches it first (SIGTERM
+    // if the trap is installed in time, SIGKILL otherwise) — either is a
+    // correct outcome here. What this test proves is that the descendant
+    // holding the pipes open does not stall resolution.
     expect(result.signal).not.toBeNull();
-    expect(elapsedMs).toBeLessThan(300 + PROVIDER_CLI_KILL_GRACE_MS + 25_000);
+    // 200ms deadline + 250ms kill grace + 1000ms final-resolution safety net,
+    // with headroom for scheduling.
+    expect(elapsedMs).toBeLessThan(200 + PROVIDER_CLI_KILL_GRACE_MS + 2000);
   });
 
   it('leaves a well-behaved stub unaffected by a timeout that never fires, with no dangling timers', async () => {

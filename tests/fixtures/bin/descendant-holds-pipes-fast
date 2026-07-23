@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Regression fixture for the "descendant holds the stdio pipes open" hang
+# class, built as a shell script (not a Node script) so it reaches its
+# `trap '' TERM` line before a short deadline can race its own startup — see
+# ignore-sigterm-fast for the same reasoning.
+#
+# Backgrounds a detached `sleep` that inherits this script's stdout/stderr
+# (the pipes the test runner reads from) and outlives it, then ignores
+# SIGTERM itself so only SIGKILL can end this process. Even after SIGKILL,
+# the backgrounded descendant keeps the pipes' write ends open, so a runner
+# that waits exclusively on the child_process 'close' event hangs forever
+# unless it has a final-resolution safety net.
+set -eu
+# Background the pipe-holding descendant FIRST, before installing the trap,
+# so it is already detached and holding the pipes open even in the (rare,
+# cold-start) case where SIGTERM arrives before `trap` executes.
+(sleep 86400 &)
+trap '' TERM
+exec sleep 86400

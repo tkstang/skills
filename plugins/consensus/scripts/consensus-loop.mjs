@@ -44,6 +44,7 @@ const SYNTHESIS_CAPS = Object.freeze({
 const LOOP_SCHEMA_VERSION = "v1";
 const SUBPROCESS_OUTPUT_CAP_BYTES = 10 * 1024 * 1024;
 const PROVIDER_CLI_KILL_GRACE_MS = 250;
+const PROVIDER_CLI_FINAL_RESOLUTION_MS = 1e3;
 const EXIT_CODES = Object.freeze({
   USAGE: 64,
   DATA: 65,
@@ -777,11 +778,26 @@ function runProviderCliCommand(command, args, options = {}) {
     let stderrBytes = 0;
     let capError = null;
     let timedOut = false;
+    let settled = false;
     let deadlineTimer;
     let killEscalationTimer;
+    let finalResolutionTimer;
     function clearDeadlineTimers() {
       if (deadlineTimer) clearTimeout(deadlineTimer);
       if (killEscalationTimer) clearTimeout(killEscalationTimer);
+      if (finalResolutionTimer) clearTimeout(finalResolutionTimer);
+    }
+    function settleResolve(value) {
+      if (settled) return;
+      settled = true;
+      clearDeadlineTimers();
+      resolve(value);
+    }
+    function settleReject(error) {
+      if (settled) return;
+      settled = true;
+      clearDeadlineTimers();
+      reject(error);
     }
     if (options.timeoutMs !== void 0) {
       deadlineTimer = setTimeout(() => {
@@ -789,6 +805,15 @@ function runProviderCliCommand(command, args, options = {}) {
         child.kill("SIGTERM");
         killEscalationTimer = setTimeout(() => {
           child.kill("SIGKILL");
+          finalResolutionTimer = setTimeout(() => {
+            settleResolve({
+              code: null,
+              signal: "SIGKILL",
+              stdout: Buffer.concat(stdoutChunks).toString("utf8"),
+              stderr: Buffer.concat(stderrChunks).toString("utf8"),
+              timedOut: true
+            });
+          }, PROVIDER_CLI_FINAL_RESOLUTION_MS);
         }, PROVIDER_CLI_KILL_GRACE_MS);
       }, options.timeoutMs);
     }
@@ -816,16 +841,14 @@ function runProviderCliCommand(command, args, options = {}) {
       (chunk) => capture("stderr", stderrChunks, chunk)
     );
     child.on("error", (error) => {
-      clearDeadlineTimers();
-      reject(error);
+      settleReject(error);
     });
     child.on("close", (code, signal) => {
-      clearDeadlineTimers();
       if (capError) {
-        reject(capError);
+        settleReject(capError);
         return;
       }
-      resolve({
+      settleResolve({
         code,
         signal,
         stdout: Buffer.concat(stdoutChunks).toString("utf8"),
@@ -2703,6 +2726,7 @@ export {
   EXIT_CODES,
   ITERATION_MODES,
   LOOP_SCHEMA_VERSION,
+  PROVIDER_CLI_FINAL_RESOLUTION_MS,
   PROVIDER_CLI_KILL_GRACE_MS,
   SUBPROCESS_OUTPUT_CAP_BYTES,
   SYNTHESIS_CAPS,
