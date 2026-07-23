@@ -154,3 +154,93 @@ twin: `utimes(lock, -1h)` with own PID, asserts the mutate stays pending until
 - `pnpm run build:check` → all bundles in sync (session-observer-state / watch-state / locate)
 - `git status --short` clean; `git diff --check` clean
 - Scope: state.ts, watch-state.ts, locate.ts (+3 generated .mjs), 3 test files, SKILL.md
+
+---
+
+## Fix-round disposition verification (2026-07-23)
+
+Append-only fix round verified against worktree head 2121b4d (branch wave-1/p03).
+`git log` confirms the original 8 commits (9c48fc2…d66ae63) are unchanged and three
+commits are appended: **e8e567f** (TOCTOU fix), **8017823** (deterministic
+interleaving test + virtual-clock cleanup), **2121b4d** (regenerate outputs).
+History is append-only. All three prior findings verified.
+
+### Finding 1 (Critical TOCTOU) — VERIFIED, closed
+
+- **Code (both twins).** `state.ts:167-227` and `watch-state.ts:157-217` now, after
+  `rename(lock→claim)` succeeds, re-read the claimed file; if it parses to a **live**
+  PID (`isPidLive`, trusted unconditionally as in `isLockStale`), the reclaimer
+  `rename(claim→lock)` restores it best-effort and `return false` — it never unlinks a
+  live owner's data, and on a failed restore it leaves an orphaned `.reclaim.` file
+  rather than risk discarding live data. Only a genuinely ownerless claim (dead/no
+  PID) is unlinked and reclaimed (`return true`). Logic is byte-identical across the
+  two files. This is exactly the remedy Finding 1 recommended (re-verify claimed
+  content).
+- **Comment.** The header comment (state.ts:138-166 / watch-state.ts:128-155) now
+  states the window precisely — rename is exclusive *per-inode* but its source is the
+  *path*, so a preempted loser can detach a winner's fresh live lock — and the inline
+  block (state.ts:198-210 / watch-state.ts:188-200) documents the accepted residual:
+  POSIX `rename(src,dest)` has no fail-if-exists mode, so a THIRD contender that
+  created a fresh lock during the claim→restore gap would be silently overwritten;
+  full closure would need a separate exclusive reclaim-intent gate (larger structural
+  change).
+- **Residual judgment: ACCEPTABLE.** The demonstrated two-contender theft is closed
+  (the loser now backs off through the normal retry path and never creates a competing
+  lock). The remaining residual requires a *third* concurrent reclaimer/acquirer to
+  win `open('wx')` inside the ~one-syscall claim→restore gap, nested inside an already
+  rare orphan + simultaneous-reclaimer scenario — and it still funnels through
+  `open('wx')`. It is of the same narrowness class the plan explicitly accepts
+  (PID-reuse) and does not defeat the Done criterion in any realistically reachable
+  way. Documented honestly rather than papered over.
+- **Test.** New test 18 in both suites forces the exact interleaving deterministically:
+  a one-shot `vi.mock('node:fs/promises')` rename interceptor lets a simulated winner
+  "A" run a full `unlink(lock)`+`writeFile(lock, ownLivePID)` reclaim-recreate with
+  **real fs calls** before B's intercepted rename proceeds against A's now-fresh live
+  lock; it asserts B does **not** acquire (`Promise.race` → `'timed-out'`, `bSettled`
+  false), that the sole surviving lock still holds A's PID, and no `.reclaim.` residue,
+  then releases A and confirms B proceeds via the ordinary path. Present for **both**
+  state and watch-state. **Revert-assessment:** against the pre-fix unconditional
+  reclaim (unlink claim + `return true`), B would find the path empty after the
+  interceptor and win its own `open('wx')` → resolve → the `'timed-out'` assertion
+  fails. So the test genuinely discriminates the fix from the bug, corroborating the
+  implementer's (non-committed) revert check.
+
+### Finding 2 (real-time waits) — VERIFIED, resolved
+
+- All `elapsed < 1000` wall-clock bounds replaced with a path-scoped `open('wx')`
+  call counter asserting `opens < 5` (deterministic; count, not time). All
+  `sleep(300)`/`setTimeout(300)` "stays pending" waits replaced with
+  `vi.waitFor` keyed to a *second* `open('wx')` attempt (condition-driven), then
+  asserting `settled === false`. No load-flaky upper-bound timing assertions remain.
+- The single remaining bounded real-time wait is test 18's
+  `Promise.race([pending, sleep(500)])` absence-proof, explicitly commented as the
+  deliberate exception (proving a non-resolution has no fully deterministic signal;
+  it asserts *which* branch wins, not elapsed duration, so it is not load-flaky in the
+  failing direction). Acceptable.
+
+### Finding 3 (twin cross-reference comments) — VERIFIED
+
+- `state.ts` `tryReclaim` header: "Mirrors watch-state.ts's tryReclaim."; `watch-state.ts`
+  `tryReclaim` header: "Mirrors state.ts's tryReclaim." — reciprocal. `isPidLive` in
+  state.ts already names its watch-state twin. Test harnesses carry mirror notes too.
+  (Nit, non-blocking: the `isLockStale` pair still lacks an explicit reciprocal
+  "mirrors" line, but the complex duplicated logic — `tryReclaim` — is now covered
+  both ways.)
+
+### Verification run (fix round)
+
+- `npx vitest run state.test.ts watch-state.test.ts` → 2 files, **40 passed**
+- `pnpm run build:check` → `session-observer-state` / `session-observer-watch-state`
+  **in sync**; `git status --short` clean
+- History append-only; SKILL.md remains 1.0.6 (top-level + metadata), still ahead of
+  main's 1.0.5 — one bump covers the whole PR.
+
+## Final verdict: PASS
+
+All three phase-review findings are resolved. The Critical TOCTOU window is closed
+in both twins with a precise comment and an honestly-documented, narrower-than-
+PID-reuse residual; the demonstrated theft is now proven closed by a deterministic
+interleaving regression that discriminates the fix from the bug in both suites; the
+real-time waits are replaced with call-count/condition-driven signals (sole
+exception commented); twin cross-references are reciprocal. Suites green, generated
+outputs in sync, history append-only.
