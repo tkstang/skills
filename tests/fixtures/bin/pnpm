@@ -1,0 +1,56 @@
+#!/usr/bin/env node
+// Stub `pnpm` for tests that execute worktree/hook scripts without running the
+// real install/build/test/validate/smoke pipeline. Put this directory first on
+// PATH (see tests/helpers/pnpm-stub.mjs) and configure behavior via env vars:
+//
+//   PNPM_STUB_CALLS_JSONL   file to append one JSON line per invocation to
+//   PNPM_STUB_FAIL_STEP     comma-separated step names that should exit 1
+//   PNPM_STUB_DIRTY_ON_STEP comma-separated step names that should write a
+//                           stray file into the current working directory,
+//                           simulating uncommitted generated-output drift
+//
+// A "step" is `install` for `pnpm install ...`, or the script name for
+// `pnpm run <script>` / `pnpm exec <binary> ...` (e.g. `build`, `test`,
+// `commitlint`, `lint-staged`).
+import { appendFileSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
+
+const args = process.argv.slice(2);
+
+function csv(name) {
+  return String(process.env[name] ?? '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+}
+
+function stepName() {
+  if (args[0] === 'run' || args[0] === 'exec') {
+    return args[1] ?? args[0];
+  }
+  return args[0] ?? '';
+}
+
+const step = stepName();
+
+const callsPath = process.env.PNPM_STUB_CALLS_JSONL;
+if (callsPath) {
+  appendFileSync(callsPath, `${JSON.stringify({ step, args })}\n`);
+}
+
+if (csv('PNPM_STUB_DIRTY_ON_STEP').includes(step)) {
+  writeFileSync(
+    path.join(process.cwd(), `pnpm-stub-drift-${step}.tmp`),
+    'simulated generated-output drift\n',
+  );
+}
+
+if (csv('PNPM_STUB_FAIL_STEP').includes(step)) {
+  process.stderr.write(
+    `pnpm-stub: simulated failure for step "${step}"\nELIFECYCLE  Command failed with exit code 1.\n`,
+  );
+  process.exit(1);
+}
+
+process.stdout.write(`pnpm-stub: ok (${step || 'no-op'})\n`);
+process.exit(0);

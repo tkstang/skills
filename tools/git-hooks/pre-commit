@@ -1,6 +1,11 @@
 #!/bin/sh
 set -e
 
+if ! command -v pnpm >/dev/null 2>&1; then
+  echo "pre-commit: pnpm not found on PATH — install pnpm, or skip this hook with 'git commit --no-verify'" >&2
+  exit 1
+fi
+
 # Git sets GIT_INDEX_FILE for hooks, and lint-staged 17 rewrites non-default
 # values to .git/index.lock. In linked worktrees .git is a file, so let Git
 # resolve the worktree index itself.

@@ -10,10 +10,6 @@ const validateWorkflowPath = path.join(
   repoRoot,
   '.github/workflows/validate.yml',
 );
-const worktreeValidatePath = path.join(
-  repoRoot,
-  'scripts/worktree/validate.sh',
-);
 
 async function writeJson(filePath: string, value: unknown) {
   await writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`);
@@ -142,9 +138,14 @@ describe('validate-script', () => {
     expect(parsed.metadata).toEqual({ version: '0.1.0' });
   });
 
-  it('CI and worktree validation run generated-output verification in order', async () => {
+  // Note: the equivalent ordering assertion for scripts/worktree/validate.sh
+  // was retired in favor of tests/tooling/worktree-scripts.test.ts, which
+  // executes the script for real (via a stubbed pnpm) and asserts the
+  // recorded invocation order — a stronger check than reading source text.
+  // No behavioral test exercises the CI workflow file, so its string-ordering
+  // assertion is kept.
+  it('CI runs generated-output verification in order', async () => {
     const workflow = await readFile(validateWorkflowPath, 'utf8');
-    const worktreeValidation = await readFile(worktreeValidatePath, 'utf8');
 
     assertOrdered(workflow, [
       'pnpm install --frozen-lockfile',
@@ -156,20 +157,6 @@ describe('validate-script', () => {
       'pnpm run test',
       'pnpm run validate',
       'pnpm run smoke',
-    ]);
-
-    assertOrdered(worktreeValidation, [
-      'assert_clean_worktree "before validation"',
-      'run_step "install" pnpm install --frozen-lockfile',
-      'run_step "build generated outputs" pnpm run build',
-      'assert_clean_worktree "after generated-output build"',
-      'run_step "type-check" pnpm run type-check',
-      'run_step "build:check" pnpm run build:check',
-      'run_step "test" pnpm run test',
-      'run_step "validate" pnpm run validate',
-      'run_step "smoke" pnpm run smoke',
-      'run_step "final build:check" pnpm run build:check',
-      'assert_clean_worktree "after validation"',
     ]);
   });
 
