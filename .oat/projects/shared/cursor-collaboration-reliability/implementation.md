@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-22
-oat_current_task_id: p01-t01
+oat_current_task_id: p02-t01
 oat_generated: false
 ---
 
@@ -26,85 +26,111 @@ oat_generated: false
 
 | Phase   | Status      | Tasks | Completed |
 | ------- | ----------- | ----- | --------- |
-| Phase 1 | in_progress | N     | 0/N       |
-| Phase 2 | pending     | N     | 0/N       |
+| Phase 1 | complete    | 5     | 5/5       |
+| Phase 2 | pending     | 5     | 0/5       |
+| Phase 3 | pending     | 7     | 0/7       |
+| Phase 4 | pending     | 6     | 0/6       |
+| Phase 5 | pending     | 6     | 0/6       |
+| Phase 6 | pending     | 4     | 0/4       |
 
-**Total:** 0/{N} tasks completed
+**Total:** 5/33 tasks completed
 
 ---
 
-## Phase 1: {Phase Name}
+## Phase 1: Streaming Cursor Transcript Foundation
 
-**Status:** in_progress
-**Started:** 2026-07-17
+**Status:** complete
+**Completed:** 2026-07-22
 
-### Phase Summary (fill when phase is complete)
+### Phase Summary
 
-**Outcome (what changed):**
+**Outcome:**
 
-- {2-5 bullets describing user-visible / behavior-level changes delivered in this phase}
+- Added a streaming physical-frame reader with exact byte boundaries, prefix
+  snapshots, structural blockers, and bounded segment materialization.
+- Added structural Cursor turn analysis with ordered content, lifecycle,
+  recovery pointers, exact identity scoping, and mixed control/human handling.
+- Promoted shared control classifiers while preserving the existing
+  terminal-only Cursor normalization used by Export Session Transcript.
+- Generated and verified matching runtime modules for Session Observer and
+  Export Session Transcript.
 
 **Key files touched:**
 
-- `{path}` - {why}
+- `src/transcript/core/cursor-frames.ts` — bounded streaming frame scanner.
+- `src/transcript/core/cursor-analysis.ts` — structural turn accumulator.
+- `src/transcript/core/runtimes.ts` — shared control-classification seam.
+- `scripts/build-generated.mjs` — generated mappings for both runtime trees.
+- `tests/transcript-core/` — framed fixtures and scanner/analyzer regressions.
 
 **Verification:**
 
-- Run: `{command(s)}`
-- Result: {pass/fail + notes}
+- Focused Phase 1 re-review matrix: 137 tests passed.
+- Full suite: 1,148 passed and 1 skipped.
+- Type-check, generated-output synchronization, validation, smoke, lint, and
+  formatting passed.
 
 **Notes / Decisions:**
 
-- {trade-offs or deviations discovered during implementation}
+- The repository's generated-output invariant required exact
+  `.oxfmtrc.json`/`.oxlintrc.json` entries for the four new generated modules.
+  Root authorized those bounded file-boundary adaptations in p01-t02 and
+  p01-t04.
+- `framed-blank-lines.jsonl` intentionally ends with a blank physical frame;
+  its contract test asserts that shape even though full-range
+  `git diff --check` reports the trailing blank line.
+- The first phase review found quadratic cross-chunk copying and mixed
+  control/human misclassification. Both were fixed in `0b16bef` and the fresh
+  re-review passed with no findings.
 
-### Task p01-t01: {Task Name}
+### Task Outcomes
 
-**Status:** completed / in_progress / pending / blocked
-**Commit:** {sha} (if completed)
+| Task    | Status   | Commit    | Outcome |
+| ------- | -------- | --------- | ------- |
+| p01-t01 | complete | `8aaafa6` | Recorded the sanitized baseline and physical-frame fixture contract. |
+| p01-t02 | complete | `5386b97` | Added the streaming frame reader and generated outputs. |
+| p01-t03 | complete | `05c5d31` | Exposed shared Cursor control classifiers. |
+| p01-t04 | complete | `c72db9d` | Added the structural Cursor turn analyzer and generated outputs. |
+| p01-t05 | complete | `9417b8d` | Verified generated runtime and Export compatibility. |
 
-**Outcome (required when completed):**
+**Review fix:** `0b16bef` (`fix(p01): address phase review findings`)
 
-- {what materially changed (not “did task”, but “system now does X”)}
+### Task p01-t01: Record the measured baseline and fixture contract
 
-**Files changed:**
+**Status:** completed
+**Commit:** `8aaafa6`
+**Verification:** 13 fixture-contract tests passed.
 
-- `{path}` - {why}
+### Task p01-t02: Implement the streaming Cursor frame reader
 
-**Verification:**
+**Status:** completed
+**Commit:** `5386b97`
+**Verification:** Frame-reader, generated-output, type, and build checks passed.
 
-- Run: `{command(s)}`
-- Result: {pass/fail + notes}
+### Task p01-t03: Establish the shared control-classification seam
 
-**Notes / Decisions:**
+**Status:** completed
+**Commit:** `05c5d31`
+**Verification:** Runtime classifier tests and generated-output checks passed.
 
-- {gotchas, trade-offs, design deltas, important context for future sessions}
+### Task p01-t04: Implement the Cursor turn analyzer
 
-**Issues Encountered:**
+**Status:** completed
+**Commit:** `c72db9d`
+**Verification:** Analyzer, runtime, type, and generated-output checks passed.
 
-- {Issue and resolution}
+### Task p01-t05: Verify combined runtime and Export compatibility
+
+**Status:** completed
+**Commit:** `9417b8d`
+**Verification:** Generated mapping, runtime, Export, type, and build checks passed.
 
 ---
 
-### Task p01-t02: {Task Name}
+## Phase 2: Exact Identity, Continuity, and Cursor State v2
 
 **Status:** pending
-**Commit:** -
-
-**Notes:**
-
-- {Notes will be added during implementation}
-
----
-
-## Phase 2: {Phase Name}
-
-**Status:** pending
-**Started:** -
-
-### Task p02-t01: {Task Name}
-
-**Status:** pending
-**Commit:** -
+**Next task:** `p02-t01`
 
 ---
 
@@ -216,6 +242,56 @@ _- Outstanding Items_
 
 _Orchestration runs from `oat-project-implement` are appended here, most-recent-first within the file but append-only at the bottom of the log._
 
+### Run 1 — Phase p01
+
+**Anchor:** `run-1-phase-p01`
+**Timestamp:** 2026-07-23T04:06:50Z
+**Branch:** `cursor-collaboration-reliability`
+**Tier:** Tier 1 — native Codex subagents
+**Policy:** managed `high`
+**Phase base:** `541e78f`
+**Phase head:** `0b16bef`
+**Outcome:** passed after one bounded fix iteration
+
+| Phase | Tasks | Implementation | Root Review | Fix Iterations | Verdict |
+| ----- | ----- | -------------- | ----------- | -------------- | ------- |
+| p01   | 5/5   | `8aaafa6..9417b8d` | Round 2 passed | 1 (`0b16bef`) | passed |
+
+**Implementation dispatch:**
+
+- Request: `impl-p01-541e78f-20260723T032527Z`
+- Target: `oat-phase-implementer-gpt-5-6-sol-high`
+- Selection: `native-catalog`; candidates
+  `oat-phase-implementer-gpt-5-6-sol-medium`,
+  `oat-phase-implementer-gpt-5-6-sol-high`
+- Dispatch: scope=p01 action=implementation role=implementer producer=unknown
+  provenance=unknown model_axis=selected:gpt-5.6-sol
+  effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high
+  target=oat-phase-implementer-gpt-5-6-sol-high
+
+**Review rounds:**
+
+1. `reviews/p01-review-2026-07-23T035505Z.md` — blocked with 0 Critical,
+   1 Important, 1 Medium, 0 Minor; reconnaissance not attempted.
+2. Original implementer continuation
+   `fix-p01-round1-9417b8d-20260723T040000Z` produced `0b16bef`.
+3. `reviews/p01-review-2026-07-23T040650Z.md` — passed with zero findings;
+   reconnaissance attempted and its complete orchestration evidence is
+   retained in the artifact.
+
+**Review dispatch:**
+
+- Target: `oat-reviewer-gpt-5-6-sol-high`
+- Selection: `native-catalog`
+- Dispatch: scope=p01 action=review role=reviewer producer=unknown
+  provenance=unknown model_axis=selected:gpt-5.6-sol
+  effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high
+  target=oat-reviewer-gpt-5-6-sol-high
+
+**Optional nested implementation dispatches:** None.
+**Worktree:** Root checkout; sequential plan.
+**Outstanding items:** None.
+
 <!-- orchestration-runs-end -->
 
 ---
@@ -224,38 +300,30 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 
 Chronological log of implementation progress.
 
-### 2026-07-17
-
-**Session Start:** {time}
-
-- [x] p01-t01: {Task name} - {commit sha}
-- [ ] p01-t02: {Task name} - in progress
+### 2026-07-22 — Phase 1
 
 **What changed (high level):**
 
-- {short bullets suitable for PR/docs}
+- Added the Cursor streaming frame and structural turn-analysis foundation.
+- Preserved generated runtime and Export compatibility.
+- Passed an independent root-owned review after one bounded fix round.
 
 **Decisions:**
 
-- {Decision made and rationale}
+- Authorized exact generated-output lint/format exclusions because existing
+  repository gates require every new generated module to be excluded.
+- Kept the intentionally trailing blank JSONL frame because it is part of the
+  physical-frame contract.
 
 **Follow-ups / TODO:**
 
-- {anything discovered during implementation that should be captured for later}
+- Continue with exact identity and isolated Cursor state in `p02-t01`.
 
 **Blockers:**
 
-- {Blocker description} - {status: resolved/pending}
+- Phase review I1 and M1 — resolved in `0b16bef`; re-review passed.
 
-**Session End:** {time}
-
----
-
-### 2026-07-17
-
-**Session Start:** {time}
-
-{Continue log...}
+**Task commits:** `8aaafa6`, `5386b97`, `05c5d31`, `c72db9d`, `9417b8d`
 
 ---
 
@@ -265,7 +333,7 @@ Document any intentional deviations from the original plan, spec, or design. Inc
 
 | Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
 | ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
-| -             | -               | -                    | -                 | -      | -               | -         |
+| p01-t02, p01-t04 | `plan.md` | Only the explicitly listed canonical, test, build, and generated files | Added exact `.oxfmtrc.json` and `.oxlintrc.json` entries for four new generated outputs | Existing generated-output synchronization tests and repository policy require these exclusions | Repository config plus generated-output validator | Recorded as a bounded file-boundary adaptation; no design/spec change |
 
 ## Test Results
 
@@ -273,7 +341,7 @@ Track test execution during implementation.
 
 | Phase | Tests Run | Passed | Failed | Coverage |
 | ----- | --------- | ------ | ------ | -------- |
-| 1     | -         | -      | -      | -        |
+| 1     | Focused re-review + full suite | 137 focused; 1,148 full; 1 skipped | 0 | Frames, analyzer, runtimes, generated outputs, Export compatibility |
 | 2     | -         | -      | -      | -        |
 
 ## Final Summary (for PR/docs)

@@ -748,6 +748,8 @@ oat_generated: false
 | p04    | code     | pending         | -          | -                                                                         |
 | p05    | code     | pending         | -          | -                                                                         |
 | p06    | code     | pending         | -          | -                                                                         |
+| p01    | code     | fixes_completed | 2026-07-22 | reviews/p01-review-2026-07-23T035505Z.md                                  |
+| p01    | code     | passed          | 2026-07-22 | reviews/p01-review-2026-07-23T040650Z.md                                  |
 | plan   | artifact | fixes_completed | 2026-07-22 | reviews/artifact-plan-review-2026-07-23T023750Z.md                        |
 | plan   | artifact | passed          | 2026-07-22 | reviews/archived/artifact-plan-review-2026-07-23T025554Z.md               |
 
