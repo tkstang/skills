@@ -45,13 +45,27 @@ async function isLockStale(lock) {
     if (Number.isInteger(parsed) && parsed > 0) pid = parsed;
   } catch {
   }
-  if (pid !== null && !isPidLive(pid)) return true;
+  if (pid !== null) return !isPidLive(pid);
   try {
     const st = await stat(lock);
     return Date.now() - st.mtimeMs > LOCK_STALE_MS;
   } catch {
     return false;
   }
+}
+async function tryReclaim(lock) {
+  const claim = `${lock}.reclaim.${process.pid}.${Date.now()}`;
+  try {
+    await rename(lock, claim);
+  } catch (err) {
+    if (isErrnoException(err) && err.code === "ENOENT") return false;
+    throw err;
+  }
+  try {
+    await unlink(claim);
+  } catch {
+  }
+  return true;
 }
 async function acquireLock(lock) {
   let reclaimAttempted = false;
@@ -63,13 +77,11 @@ async function acquireLock(lock) {
       return;
     } catch (err) {
       if (!isErrnoException(err) || err.code !== "EEXIST") throw err;
-      if (!reclaimAttempted && await isLockStale(lock)) {
+      if (!reclaimAttempted) {
         reclaimAttempted = true;
-        try {
-          await unlink(lock);
-        } catch {
+        if (await isLockStale(lock) && await tryReclaim(lock)) {
+          continue;
         }
-        continue;
       }
       await sleep(LOCK_INTERVAL_MS);
     }
