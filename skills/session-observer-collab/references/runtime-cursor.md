@@ -132,13 +132,13 @@ probe, Stop/`turn_ended` ordering probe, recurring live loop probe, or
 `subagentStop` stronger-tier probe was performed. Those absences are not live
 validation and leave lifecycle continuation **documented-but-unvalidated**.
 
-| Acceptance area       | Current evidence                                                                                                                        | Evidence label               | Live outcome                                                            |
-| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- | ----------------------------------------------------------------------- |
-| Cursor observed side  | Automated normalization covers transcript identity, terminal success/diagnostics, stateless digest inputs, and no required tool result. | `automated-only`             | No live observed-side session run in this task.                         |
-| Cursor continuation   | Adapter tests cover envelope/range, caps, no-op/synthetic suppression, and idle/terminal no-wake behavior.                              | `documented-but-unvalidated` | Not run.                                                                |
-| Cursor identity/order | Exact `conversation_id` lease binding is tested; transcript-directory session extraction is tested.                                     | `documented-but-unvalidated` | Stop relative to `turn_ended` not run.                                  |
-| Cursor interaction    | Bounded wait state is tested.                                                                                                           | `documented-but-unvalidated` | Input during wait, recurring loop behavior, and restart/resume not run. |
-| Stronger tier         | No `subagentStop` behavior is assumed.                                                                                                  | `documented-but-unvalidated` | Not run.                                                                |
+| Acceptance area       | Current evidence                                                                                                                                                                 | Evidence label               | Live outcome                                                            |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- | ----------------------------------------------------------------------- |
+| Cursor observed side  | Automated normalization plus a sanitized, exact-pinned live catch-up and finite foreground watch cover transcript identity, terminal success, and structural observation status. | `live-sanitized`             | Passed against one available controlled Cursor session.                 |
+| Cursor continuation   | Adapter tests cover envelope/range, caps, no-op/synthetic suppression, and idle/terminal no-wake behavior.                                                                       | `documented-but-unvalidated` | Not run.                                                                |
+| Cursor identity/order | Exact `conversation_id` lease binding is tested; transcript-directory session extraction is tested.                                                                              | `documented-but-unvalidated` | Stop relative to `turn_ended` not run.                                  |
+| Cursor interaction    | Bounded wait state is tested.                                                                                                                                                    | `documented-but-unvalidated` | Input during wait, recurring loop behavior, and restart/resume not run. |
+| Stronger tier         | No `subagentStop` behavior is assumed.                                                                                                                                           | `documented-but-unvalidated` | Not run.                                                                |
 
 ## Measured capability matrix (2026-07-23)
 
@@ -163,6 +163,38 @@ provider behavior without a completed controlled probe is
 `measured-structural-only`, and an absent probe surface is `unavailable`.
 Failure outcomes are retained as failures and never relabeled as successful
 capability evidence.
+
+## Observed-side acceptance (2026-07-23)
+
+The finite acceptance harness passed all 19 expected/actual rows. Four rows used
+one available controlled Cursor session with the provider transcript strictly
+read-only and isolated temporary observer state. Fifteen rows used sanitized
+fixture copies in temporary Cursor stores. The harness emitted structural JSON
+only and retained no transcript text, raw session identity, lease identity,
+credential, hostname, or personal absolute path.
+
+```text
+node scripts/probe-cursor-acceptance.mjs --runtime cursor --cwd "<requested-cwd>" --json
+```
+
+| Acceptance row               | Command status                  | Expected structural outcome                          | Actual structural outcome                                                                                | Evidence label             |
+| ---------------------------- | ------------------------------- | ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | -------------------------- |
+| Acting-side `whoami`         | Ran; finite; JSON parsed        | Structural identity result                           | No acting Cursor identity was available in this invocation; the non-identity result was retained         | `measured-structural-only` |
+| Exact Cursor locate          | Ran; exit 0                     | Exact Cursor winner or honest unavailable            | One exact Cursor winner was available; raw identity and path were omitted                                | `live-sanitized`           |
+| Exact-pinned catch-up        | Ran; exit 0                     | Healthy read-only observation                        | Digest schema 2; zero-based JSONL frame index; content available; lifecycle success; health healthy      | `live-sanitized`           |
+| Bounded catch-up-then-watch  | Ran; exit 0; finite deadline    | Clean `max-runtime` stop                             | Baseline and newer-candidate structural events observed, followed by `max-runtime` stop                  | `live-sanitized`           |
+| Second-scan stability        | Ran; exit 0                     | Stable content remains lifecycle-pending             | Content available; lifecycle pending; health healthy                                                     | `automated-only`           |
+| Success/abort/error/cancel   | All four ran; exit 0            | Preserve each terminal outcome                       | Success remained success; abort, error, and cancel remained failures with provisional content suppressed | `automated-only`           |
+| Malformed and partial repair | Both before/after sequences ran | Resume from the verified boundary after repair       | Malformed input failed closed before repair; partial input buffered; both resumed healthy after repair   | `automated-only`           |
+| Shrink and replacement       | Both before/after sequences ran | Block unsafe continuity                              | `TRANSCRIPT_SHRANK` and `TRANSCRIPT_REPLACED` retained as blocked outcomes                               | `automated-only`           |
+| Restart and reset/replay     | Both sequences ran              | Resume without replay; explicitly replay after reset | Append resumed from the saved frame; reset replayed from frame zero                                      | `automated-only`           |
+
+The live result promotes only observed-side reading and finite foreground watch
+behavior for this measured store/version. It does not validate Stop-hook
+ordering, same-conversation continuation, interaction during a hook wait,
+restart/resume lifecycle behavior, recurring hook loops, scheduled callbacks,
+or `subagentStop`; those rows remain `documented-but-unvalidated` or
+`unavailable` as recorded above.
 
 The post-implementation probe will:
 
