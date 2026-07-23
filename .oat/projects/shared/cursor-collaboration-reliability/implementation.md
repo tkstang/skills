@@ -29,7 +29,7 @@ oat_generated: false
 | Phase 1 | complete    | 5     | 5/5       |
 | Phase 2 | complete    | 8     | 8/8       |
 | Phase 3 | complete    | 7     | 7/7       |
-| Phase 4 | review_pending | 6     | 6/6       |
+| Phase 4 | complete    | 6     | 6/6       |
 | Phase 5 | pending     | 6     | 0/6       |
 | Phase 6 | pending     | 4     | 0/4       |
 
@@ -540,11 +540,11 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 **Policy:** managed `high`
 **Phase base:** `bc731e9`
 **Phase head:** `a81847e`
-**Outcome:** Critical fix completed; whole-phase re-review pending
+**Outcome:** passed after one bounded Critical fix iteration
 
 | Phase | Tasks | Implementation | Root Review | Fix Iterations | Verdict |
 | ----- | ----- | -------------- | ----------- | -------------- | ------- |
-| p04   | 6/6   | `22a7510..a81847e` | Round 1 blocked: 1 Critical; round 2 pending | 1 (`a81847e`) | review_pending |
+| p04   | 6/6   | `22a7510..a81847e` | Round 2 passed | 1 (`a81847e`) | passed |
 
 **Implementation dispatch:** request `impl-p04-bc731e9-20260723T214500Z`;
 target `oat-phase-implementer-gpt-5-6-sol-high`.
@@ -554,11 +554,12 @@ target `oat-phase-implementer-gpt-5-6-sol-high`.
 1. `reviews/p04-review-2026-07-23T224300Z.md` — blocked with 1 Critical and
    no other findings; reconnaissance not attempted.
 2. Original implementer continuation
-   `fix-p04-round1-f84dfd8-20260723T224500Z` produced `a81847e`; whole-phase
-   re-review pending.
+   `fix-p04-round1-f84dfd8-20260723T224500Z` produced `a81847e`.
+3. `reviews/p04-review-2026-07-23T230346Z.md` — passed with zero findings;
+   prior Critical resolved; reconnaissance not attempted.
 
 **Worktree:** Root checkout; sequential plan.
-**Outstanding items:** Whole-phase review round 2.
+**Outstanding items:** None.
 
 <!-- orchestration-runs-end -->
 
@@ -825,7 +826,8 @@ resolved; Phase 4 is next.
 
 ## Phase 4: Collaboration Compatibility and Completion Safety
 
-**Status:** review_pending
+**Status:** complete
+**Completed:** 2026-07-23
 
 ### Phase Summary
 
@@ -838,9 +840,8 @@ resolved; Phase 4 is next.
   transcript-core v2 fixtures through append-only integration fix `f84dfd8`.
 - Full clean-worktree validation passed with 1,402 tests, 1 skipped, plus
   type-check, generated parity, validation, smoke, lint, and formatting.
-- Independent Phase 4 review retained 1 Critical finding in the
-  Codex-owner/Cursor-peer authority path; bounded fix iteration 1 resolved it
-  in `a81847e`, and whole-phase re-review is pending.
+- Independent Phase 4 review round 2 passed with zero findings after bounded
+  fix iteration 1 resolved the prior Critical in `a81847e`.
 
 ### Task outcomes
 
@@ -910,7 +911,10 @@ framed confirmed-completion, index-base validation, pending polling, and
 mandatory checkpoint-bearing trigger/suppressed CAS. Focused coverage passed
 204 tests, the full suite passed 1,407 with 1 skipped, and build parity,
 validation, smoke, type-check, formatting/lint, and diff checks passed.
-Whole-phase re-review is pending.
+
+**Round-2 review:** `reviews/p04-review-2026-07-23T230346Z.md` passed with
+0 Critical, 0 Important, 0 Medium, and 0 Minor findings. Manual installed-hook
+reproduction also passed; Phase 5 is next.
 
 ---
 
