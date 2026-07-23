@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-23
-oat_current_task_id: p05-t03
+oat_current_task_id: p05-t04
 oat_generated: false
 ---
 
@@ -30,10 +30,10 @@ oat_generated: false
 | Phase 2 | complete    | 8     | 8/8       |
 | Phase 3 | complete    | 7     | 7/7       |
 | Phase 4 | complete    | 6     | 6/6       |
-| Phase 5 | in_progress | 6     | 2/6       |
+| Phase 5 | in_progress | 6     | 3/6       |
 | Phase 6 | pending     | 4     | 0/4       |
 
-**Total:** 28/36 tasks accepted
+**Total:** 29/36 tasks accepted
 
 ---
 
@@ -928,6 +928,7 @@ reproduction also passed; Phase 5 is next.
 | ------- | -------- | --------- | ------- |
 | p05-t01 | complete | `9604a3a` | Added the sanitized capability-evidence matrix plus a repeatable validator for personal paths, opaque IDs, credentials, prose canaries, and honest evidence labels. |
 | p05-t02 | complete | `8bc8ee4` | Added the finite observed-side acceptance harness and recorded 19/19 passing live Cursor 3.11.13 rows while keeping provider transcripts read-only. |
+| p05-t03 | complete | `34b702c` | Recorded the isolated exact collaboration lifecycle through shipped control/hook paths, with provider-delivered routing honestly retained as documented-but-unvalidated. |
 
 ### Task p05-t01: Record the baseline capability matrix
 
@@ -943,6 +944,14 @@ files, and repository validation, formatting/lint, and diff checks passed.
 **Verification:** Tooling tests passed 3/3; the required live probe passed
 19/19 rows; evidence validation, build parity, repository validation,
 formatting/lint, and diff checks passed.
+
+### Task p05-t03: Probe the bounded collaboration lifecycle
+
+**Status:** completed
+**Commit:** `34b702c`
+**Verification:** Focused collaboration coverage passed 92/92; isolated
+arm/wake/status/disarm/prune produced exact frames 0-5, cursor 6, counters 1/1,
+and prune 1; evidence/repository validation and formatting/lint passed.
 
 ---
 
@@ -968,7 +977,7 @@ Track test execution during implementation.
 | 2     | Fix-task re-review + full suite | 146 focused; 1,327 full; 1 skipped | 0; review passed | Atomic lock publication, exact raw-alias containment, Cursor v2 recovery guidance, generated outputs |
 | 3     | Phase-wide suite after review fixes | 1,363 passed; 1 skipped | 0 | Digest/observation/delivery v2, exact uncertain replay, read-only confirmation, durable fail-visible watch health, CLI semantics, v1 compatibility |
 | 4     | Full suite after review Critical fix | 1,407 passed; 1 skipped | 0 | Both owner runtimes, Cursor frame continuity, collaboration matrix, wake v1/v2 compatibility |
-| 5     | p05-t01 through p05-t02 acceptance verification | 14 evidence tests; 3 probe tests; 19 live rows | 0 | Evidence privacy/labels and observed-side Cursor acceptance |
+| 5     | p05-t01 through p05-t03 acceptance verification | 14 evidence tests; 3 probe tests; 19 live rows; 92 collaboration tests | 0 | Evidence privacy, observed-side acceptance, isolated collaboration lifecycle |
 
 ## Final Summary (for PR/docs)
 
