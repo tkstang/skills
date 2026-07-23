@@ -1,9 +1,9 @@
 ---
-oat_status: in_progress
-oat_ready_for: null
+oat_status: complete
+oat_ready_for: review
 oat_blockers: []
 oat_last_updated: 2026-07-23
-oat_current_task_id: p01-t01
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -12,199 +12,88 @@ oat_generated: false
 **Started:** 2026-07-23
 **Last Updated:** 2026-07-23
 
-> This document is used to resume interrupted implementation sessions.
->
-> Conventions:
->
-> - `oat_current_task_id` always points at the **next plan task to do** (not the last completed task).
-> - When all plan tasks are complete, set `oat_current_task_id: null`.
-> - Reviews are **not** plan tasks. Track review status in `plan.md` under `## Reviews` (e.g., `| final | code | passed | ... |`).
-> - Keep phase/task statuses consistent with the Progress Overview table so restarts resume correctly.
-> - Before running the `oat-project-pr-final` skill, ensure `## Final Summary (for PR/docs)` is filled with what was actually implemented.
+> Reviews are tracked in `plan.md` under `## Reviews`. This document records
+> what happened per phase for resume/audit purposes.
 
 ## Progress Overview
 
-| Phase   | Status      | Tasks | Completed |
-| ------- | ----------- | ----- | --------- |
-| Phase 1 | in_progress | N     | 0/N       |
-| Phase 2 | pending     | N     | 0/N       |
+| Phase | Status   | Tasks | Completed |
+| ----- | -------- | ----- | --------- |
+| p01   | complete | 1     | 1/1       |
+| p02   | complete | 1     | 1/1       |
+| p03   | complete | 1     | 1/1       |
+| p04   | complete | 1     | 1/1       |
 
-**Total:** 0/{N} tasks completed
-
----
-
-## Phase 1: {Phase Name}
-
-**Status:** in_progress
-**Started:** 2026-07-23
-
-### Phase Summary (fill when phase is complete)
-
-**Outcome (what changed):**
-
-- {2-5 bullets describing user-visible / behavior-level changes delivered in this phase}
-
-**Key files touched:**
-
-- `{path}` - {why}
-
-**Verification:**
-
-- Run: `{command(s)}`
-- Result: {pass/fail + notes}
-
-**Notes / Decisions:**
-
-- {trade-offs or deviations discovered during implementation}
-
-### Task p01-t01: {Task Name}
-
-**Status:** completed / in_progress / pending / blocked
-**Commit:** {sha} (if completed)
-
-**Outcome (required when completed):**
-
-- {what materially changed (not “did task”, but “system now does X”)}
-
-**Files changed:**
-
-- `{path}` - {why}
-
-**Verification:**
-
-- Run: `{command(s)}`
-- Result: {pass/fail + notes}
-
-**Notes / Decisions:**
-
-- {gotchas, trade-offs, design deltas, important context for future sessions}
-
-**Issues Encountered:**
-
-- {Issue and resolution}
+**Total:** 4/4 tasks completed. All four phase branches merged into
+`wave-1-execution` (fan-in merges `a367b1d`, `6f1f083`, `1e06803`, `0d81b84`);
+integration DoD gates green post-fan-in (`pnpm run premerge` exit 0; 3 changed
+skills verified against main).
 
 ---
 
-### Task p01-t02: {Task Name}
+## Phase p01: atomic-consensus-records-writes — complete
 
-**Status:** pending
-**Commit:** -
+- Commits (pre-rebase SHAs from the lane; rebased at merge): `7645ef6`
+  implementation, `6a87ab2` append-only test fix.
+- Done criteria confirmed in the phase report and re-verified by review:
+  `atomicWriteFile` (same-dir pid tmp + fsync + rename, original-error rethrow)
+  wired into `flush()`/`writeLoopStatus` only; bytes unchanged; refine
+  0.1.5→0.1.6, evaluate 0.1.6→0.1.7.
+- Cross-model round: Codex FIXES_NEEDED (1 Medium — rename-failure test didn't
+  exercise rename) → fixed append-only; supplementary orchestrator-run Codex
+  pass on the fixed state: PASS, zero findings.
+- Review: PASS (`reviews/p01-code-review-2026-07-23.md`).
 
-**Notes:**
+## Phase p02: cross-provider-recursion-guard — complete
 
-- {Notes will be added during implementation}
+- Commit: `ad21e89` (pre-rebase).
+- Done criteria confirmed: different-host branch mirrors same-host depth
+  semantics; child_env emitted on every allowed known-host result; alternating
+  A→B→A chain blocks at max_depth; unknown-host unchanged; DR intent check
+  clean.
+- Cross-model round: Codex PASS — 128-case base-vs-HEAD matrix, zero
+  blocked→allowed transitions.
+- Review: PASS with independent monotonicity probes
+  (`reviews/p02-code-review-2026-07-23.md`).
 
----
+## Phase p03: session-observer-state-robustness — complete
 
-## Phase 2: {Phase Name}
+- Commits: 8 lane commits + 3 fix-round commits (TOCTOU fix, deterministic
+  interleaving tests + virtual-clock cleanup, regenerate) — all append-only.
+- Cross-model round: Codex FIXES_NEEDED (2 Critical: reclaim double-acquisition
+  race; age-fallback live-owner theft; 1 Medium: tmp-name collision) → all
+  fixed with regression tests.
+- Phase review round: FIXES_NEEDED (1 remaining Critical: isLockStale→tryReclaim
+  TOCTOU; 2 minor) → fix round closed it (post-rename re-verification +
+  restore-on-live); reviewer disposition-verification: final PASS. The
+  documented residual (third contender in the one-syscall claim→restore gap)
+  judged acceptable — narrower than the plan's own accepted PID-reuse residual.
+- Deliberate non-narrowing deviation recorded: live PIDs never age out
+  (honors the plan's done criterion over its literal step wording).
+- session-observer 1.0.5→1.0.6.
+- Review: PASS (`reviews/p03-code-review-2026-07-23.md`, incl. fix-round
+  disposition verification).
 
-**Status:** pending
-**Started:** -
+## Phase p04: docs-staleness-sweep — complete
 
-### Task p02-t01: {Task Name}
-
-**Status:** pending
-**Commit:** -
-
----
-
-## Orchestration Runs
-
-_Each run from `oat-project-implement` appends an entry below with:_
-_- Run header (number, timestamp, branch, tier, policy, phase counts)_
-_- Phase Outcomes table_
-_- Parallel Groups list_
-_- Outstanding Items_
-
-<!-- orchestration-runs-start -->
-
-_Orchestration runs from `oat-project-implement` are appended here, most-recent-first within the file but append-only at the bottom of the log._
-
-<!-- orchestration-runs-end -->
-
----
-
-## Implementation Log
-
-Chronological log of implementation progress.
-
-### 2026-07-23
-
-**Session Start:** {time}
-
-- [x] p01-t01: {Task name} - {commit sha}
-- [ ] p01-t02: {Task name} - in progress
-
-**What changed (high level):**
-
-- {short bullets suitable for PR/docs}
-
-**Decisions:**
-
-- {Decision made and rationale}
-
-**Follow-ups / TODO:**
-
-- {anything discovered during implementation that should be captured for later}
-
-**Blockers:**
-
-- {Blocker description} - {status: resolved/pending}
-
-**Session End:** {time}
-
----
-
-### 2026-07-23
-
-**Session Start:** {time}
-
-{Continue log...}
-
----
-
-## Deviations from Plan / Design
-
-Document any intentional deviations from the original plan, spec, or design. Include accepted review findings where the shipped implementation is source of truth and a lifecycle artifact needs alignment.
-
-| Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
-| ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
-| -             | -               | -                    | -                 | -      | -               | -         |
-
-## Test Results
-
-Track test execution during implementation.
-
-| Phase | Tests Run | Passed | Failed | Coverage |
-| ----- | --------- | ------ | ------ | -------- |
-| 1     | -         | -      | -      | -        |
-| 2     | -         | -      | -      | -        |
+- Commit: `0e1818c` (pre-rebase).
+- Done criteria confirmed: all eight greppable assertions pass; ARCH-07
+  deliberateness confirmed from shipped docs + project summary before the
+  AGENTS.md exception sentence landed; marketplace descriptions synced.
+- Review: PASS (`reviews/p04-code-review-2026-07-23.md`).
 
 ## Final Summary (for PR/docs)
 
-**What shipped:**
-
-- {capability 1}
-- {capability 2}
-
-**Behavioral changes (user-facing):**
-
-- {bullet}
-
-**Key files / modules:**
-
-- `{path}` - {purpose}
-
-**Verification performed:**
-
-- {tests/lint/typecheck/build/manual steps}
-
-**Design deltas (if any):**
-
-- {what changed vs design.md and why}
-
-## References
-
-- Plan: `plan.md`
-- Design: `design.md`
-- Spec: `spec.md`
+Wave 1 of the repo-audit execution program: four external plans executed as
+parallel worktree lanes and merged clean (zero conflicts — write-disjoint
+composition held). Shipped: (1) atomic temp+rename writes for the consensus
+loop's records.json/status (crash can no longer corrupt a resumable session);
+(2) cross-provider recursion-depth enforcement in the provider CLI host guard
+(alternating-provider chains now bounded by max_depth; strictly tightening);
+(3) session-observer stale-lock recovery (PID-recorded locks, race-hardened
+rename-based reclaim with post-claim re-verification) plus atomic codex
+cwd-cache writes; (4) docs staleness sweep (CHANGELOG catch-up, README skill
+list, CONTRIBUTING pnpm commands, marketplace descriptions, repository-layout
+src/consensus, AGENTS.md generated-pipeline exception note). Net +14 tests
+(1104 passing). Skill versions: refine 0.1.6, evaluate 0.1.7, session-observer
+1.0.6.

@@ -15,7 +15,7 @@ oat_children: [] # optional coordination-parent child slugs
 oat_hill_checkpoints: ['p04'] # Configured: which phases require human-in-the-loop lifecycle approval
 oat_hill_completed: [] # Progress: which HiLL checkpoints have been completed
 oat_parallel_execution: true
-oat_phase: plan # Current phase: discovery | spec | design | plan | implement | decomposition
+oat_phase: implement # Current phase: discovery | spec | design | plan | implement | decomposition
 oat_phase_status: complete # Status: in_progress | complete | pr_open
 oat_dispatch_policy:
   mode: managed
@@ -104,8 +104,10 @@ Plan complete. Wave-1 wrapper over four external plans (atomic-consensus-records
 
 - ✓ Preflight: wave-1-execution branch at 36e37fb; baseline green (type-check, build:check, 1090 tests)
 - ✓ Wave-boundary drift refresh: 4/4 PASS, zero shared write surfaces
-- ✓ Wrapper scaffold + plan authored
-- ⧗ Plan gate, then group dispatch (p01–p04)
+- ✓ Wrapper scaffold + plan authored; plan gate passed (1 Critical/7 Important dispositioned)
+- ✓ Group 1 executed: 4 lanes implemented, cross-model reviewed, phase-reviewed (p03 required one fix round: reclaim TOCTOU Critical, closed + verified)
+- ✓ All four phase branches merged; integration DoD gates green (premerge exit 0, 1104 tests)
+- ⧗ Closeout: synthesis → backlog archival → final reviews → sol xhigh gate → complete → PR
 
 ## Blockers
 
@@ -113,4 +115,4 @@ None
 
 ## Next Milestone
 
-After the plan gate passes: bootstrap group-1 worktrees and dispatch the four lanes
+Closeout sequence through oat-project-complete, PR, CI green, merge
