@@ -7,10 +7,10 @@ argument-hint: '[review|catch-up|catch-up-then-watch|locate|whoami|state|watch|w
 disable-model-invocation: false
 user-invocable: true
 allowed-tools: Bash, Read, AskUserQuestion
-version: '1.0.7'
+version: '1.0.8'
 metadata:
   author: thomas.stang
-  version: '1.0.7'
+  version: '1.0.8'
 ---
 
 # session-observer
@@ -53,23 +53,23 @@ Use this skill when any of the following applies:
 
 ### Subcommands
 
-| Subcommand                     | Purpose                                              | State change                                              |
-| ------------------------------ | ---------------------------------------------------- | --------------------------------------------------------- |
-| `review`                       | Full digest from the start                           | None (unless `--mark-read` passed)                        |
-| `catch-up`                     | Delta: records since last read                       | Advances high-water mark on success                       |
-| `catch-up-then-watch`          | Emit unread backlog, then enter foreground watcher   | Advances high-water marks as backlog/deltas are consumed  |
-| `locate`                       | Ranked candidate list (diagnostic)                   | None                                                      |
-| `whoami`                       | Resolve this session's runtime/session/path identity | None; fails closed when identity is ambiguous             |
-| `state get`                    | Print current state                                  | None                                                      |
-| `state reset --runtime <r>`    | Reset all offsets for runtime                        | Zeroes `lastRecordIndex`                                  |
-| `state reset --session <r:id>` | Reset one session                                    | Zeroes `lastRecordIndex`                                  |
-| `state clear`                  | Clear all tracked sessions                           | Empties `sessions` map                                    |
-| `watch`                        | Foreground watcher for debounced catch-up updates    | Advances high-water marks as emitted digests are consumed |
-| `watch-ctl status`             | Print active watcher state                           | None                                                      |
-| `watch-ctl pause`              | Pause event emission while polling continues         | Writes a control directive                                |
-| `watch-ctl resume`             | Resume event emission                                | Writes a control directive                                |
-| `watch-ctl flush`              | Emit pending debounced updates immediately           | Writes a control directive                                |
-| `watch-ctl stop`               | Stop the active watcher                              | Signals the watcher and clears watch metadata on exit     |
+| Subcommand                     | Purpose                                              | State change                                                                    |
+| ------------------------------ | ---------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `review`                       | Full digest from the start                           | None (unless `--mark-read` passed)                                              |
+| `catch-up`                     | Delta: records since last read                       | Advances high-water mark on success                                             |
+| `catch-up-then-watch`          | Emit unread backlog, then enter foreground watcher   | Advances high-water marks as backlog/deltas are consumed                        |
+| `locate`                       | Ranked candidate list (diagnostic)                   | None                                                                            |
+| `whoami`                       | Resolve this session's runtime/session/path identity | None; fails closed when identity is ambiguous                                   |
+| `state get`                    | Print current state                                  | None                                                                            |
+| `state reset --runtime <r>`    | Reset all state for one runtime                      | Non-Cursor: zeroes offsets. Cursor: deletes all Cursor session state for replay |
+| `state reset --session <r:id>` | Reset one session                                    | Non-Cursor: zeroes its offset. Cursor: deletes that session's state for replay  |
+| `state clear`                  | Clear all tracked sessions                           | Clears legacy offsets and the shared Cursor state store                         |
+| `watch`                        | Foreground watcher for debounced catch-up updates    | Advances high-water marks as emitted digests are consumed                       |
+| `watch-ctl status`             | Print active watcher state                           | None                                                                            |
+| `watch-ctl pause`              | Pause event emission while polling continues         | Writes a control directive                                                      |
+| `watch-ctl resume`             | Resume event emission                                | Writes a control directive                                                      |
+| `watch-ctl flush`              | Emit pending debounced updates immediately           | Writes a control directive                                                      |
+| `watch-ctl stop`               | Stop the active watcher                              | Signals the watcher and clears watch metadata on exit                           |
 
 ### Flags (all subcommands accept these)
 
@@ -178,9 +178,11 @@ node <skill-dir>/scripts/session-observer.mjs whoami --json
 node <skill-dir>/scripts/session-observer.mjs locate \
   --runtime claude-code --cwd "$PWD" --json --snippet "the last thing I saw"
 
-# State — inspect or reset tracked offsets
+# State — inspect or reset tracked session state
 node <skill-dir>/scripts/session-observer.mjs state get
 node <skill-dir>/scripts/session-observer.mjs state reset --runtime codex
+node <skill-dir>/scripts/session-observer.mjs state reset \
+  --session cursor:<session-id>
 
 # Watch — foreground monitoring with debounced catch-up updates
 node <skill-dir>/scripts/session-observer.mjs watch \
@@ -379,21 +381,37 @@ The transcript file has fewer records than the stored high-water mark — the pe
 
 **Recovery:** The skill automatically resets the offset to 0 and re-renders the full session. No action needed.
 
-### Corrupt state (warning on startup)
+### Corrupt legacy offset state (warning on startup)
 
 `state.json` contained invalid JSON. The skill backed it up to `state.json.corrupt-<ts>.bak` and started fresh with an empty state. All offsets are reset.
 
 **Recovery:** Run `state get` to confirm the fresh state. If you need the previous offsets, inspect the `.bak` file manually.
 
-### State nuke option
+### Cursor v2 reset and corrupt/schema recovery
 
-If state becomes irreparably inconsistent:
+Cursor uses the shared schema-v2 store `cursor-state.json` in addition to the legacy `state.json` offset store. Reset behavior is deliberately runtime-specific:
+
+- `state reset --session cursor:<session-id>` deletes that Cursor session from both stores. The next `catch-up` replays it from the transcript as a fresh session.
+- `state reset --runtime cursor` deletes every Cursor session from both stores. Every Cursor session is eligible for replay on its next `catch-up`.
+- Non-Cursor session/runtime resets retain their existing record-offset contract: tracked entries stay present and their `lastRecordIndex` is reset to zero.
+
+Corrupt JSON or an unsupported schema in `cursor-state.json` fails closed with `CURSOR_STATE_RECOVERY_REQUIRED`; normal reads, writes, and single-session resets do not silently discard shared state. The supported recovery command is a destructive whole-Cursor-store reset:
+
+```bash
+node <skill-dir>/scripts/session-observer.mjs state reset --runtime cursor
+```
+
+This replaces the shared Cursor store and removes legacy Cursor offset entries. It cannot preserve sibling Cursor sessions: resetting for one corrupt or incompatible store loses state for every Cursor session, and each sibling must replay from its transcript. The CLI's JSON diagnostic reports `scope: "cursor-store"`, `destructive: true`, and `preservesSiblingSessions: false`; surface those consequences before running the recovery command.
+
+### Secondary destructive escape hatch
+
+If the supported `state reset` commands themselves cannot recover the state directory, recursive deletion is a secondary, last-resort escape hatch:
 
 ```bash
 rm -rf ~/.local/state/session-observer
 ```
 
-This removes all tracked offsets. The next `catch-up` will behave like a `review`.
+This removes state for **all** runtimes, including Cursor v2 delivery/replay state and watcher metadata—not only the broken session or runtime. Use it only after the scoped reset commands fail and after confirming no active watcher or observer process is using the directory. Subsequent `catch-up` operations rebuild state by replaying transcripts.
 
 ### Manual verification (does this work on my machine?)
 
@@ -423,8 +441,8 @@ Exit codes 0 (digest found) and 2 (no transcripts for this cwd) are both accepta
 - [ ] `review`, `catch-up`, `locate`, and `state` subcommands respond correctly.
 - [ ] Default output excludes tool calls and results; `--include-tools` adds compact markers; `--debug` adds both.
 - [ ] `catch-up` advances the high-water mark; a second identical `catch-up` emits "no new records."
-- [ ] `state reset --runtime <r>` zeros offsets; subsequent `catch-up` re-emits the full session.
+- [ ] Non-Cursor resets zero offsets; Cursor session/runtime resets delete scoped state for replay; subsequent `catch-up` re-emits transcript content.
 - [ ] Exit codes 0 / 1 / 2 / 3 are produced as documented for their respective conditions.
 - [ ] `--runtime auto` resolves the peer via `SESSION_OBSERVER_SELF`, prior same-cwd state, or tier-population; exits 3 when multiple runtimes have candidates.
 - [ ] No Stoa runtime dependency; no network calls; no writes to transcripts.
-- [ ] State stored at `~/.local/state/session-observer/state.json`; nuke option documented above.
+- [ ] Legacy offsets use `state.json`, Cursor v2 uses `cursor-state.json`, and the secondary destructive escape hatch is documented above.
