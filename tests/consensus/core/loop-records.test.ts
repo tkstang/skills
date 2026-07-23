@@ -1,4 +1,4 @@
-import { mkdtemp, readFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, readFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -131,6 +131,50 @@ it('createRecordsWriter can continue from a one-record write-through file', asyn
   expect(records.map((record: JsonRecord) => record.turn_index)).toEqual([
     1, 2,
   ]);
+});
+
+it('createRecordsWriter leaves no tmp file beside records.json after flush', async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-records-'));
+  const recordsPath = path.join(tempRoot, 'records.json');
+  const writer = await createRecordsWriter(recordsPath, {
+    now: () => '2026-05-04T01:00:00.000Z',
+  });
+
+  await writer.append({ turn_index: 1, verdict: 'ACCEPT' });
+  await writer.close();
+
+  const entries = await readdir(tempRoot);
+  const tmpEntries = entries.filter((entry) => entry.endsWith('.tmp'));
+  expect(tmpEntries).toEqual([]);
+  expect(entries).toContain('records.json');
+});
+
+it('createRecordsWriter rejects and leaves the previous records.json intact when the atomic write cannot complete', async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-records-'));
+  const recordsPath = path.join(tempRoot, 'records.json');
+  const writer = await createRecordsWriter(recordsPath, {
+    now: () => '2026-05-04T01:00:00.000Z',
+  });
+
+  await writer.append({ turn_index: 1, verdict: 'ACCEPT' });
+  const goodContentBeforeFailure = await readFile(recordsPath, 'utf8');
+
+  // Deterministically block the atomic-write temp path (`${recordsPath}.${pid}.tmp`)
+  // by pre-creating a directory there, so the write-before-rename step fails
+  // without ever touching `recordsPath` itself — no mocks, real filesystem
+  // semantics, and no dependency on directory permissions or OS-specific
+  // rename-failure conditions.
+  const blockedTmpPath = `${recordsPath}.${process.pid}.tmp`;
+  await mkdir(blockedTmpPath);
+
+  await expect(
+    writer.append({ turn_index: 2, verdict: 'REVISE' }),
+  ).rejects.toThrow();
+
+  const contentAfterFailure = await readFile(recordsPath, 'utf8');
+  expect(contentAfterFailure).toBe(goodContentBeforeFailure);
+  expect(() => JSON.parse(contentAfterFailure)).not.toThrow();
+  expect(JSON.parse(contentAfterFailure)).toHaveLength(1);
 });
 
 it('buildParallelTurnPrompt frames untrusted content and supplies own/peer revisions and critiques', () => {
@@ -526,4 +570,20 @@ it('writeLoopStatus supports estimated and unavailable cost branches', async () 
   expect('approximate_cost_usd' in (await readJson(unavailablePath))).toBe(
     false,
   );
+});
+
+it('writeLoopStatus leaves no tmp file beside status.json after writing', async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-status-'));
+  const statusPath = path.join(tempRoot, 'status.json');
+
+  await writeLoopStatus(statusPath, {
+    status: 'converged',
+    final_artifact_hash:
+      'sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+  });
+
+  const entries = await readdir(tempRoot);
+  const tmpEntries = entries.filter((entry) => entry.endsWith('.tmp'));
+  expect(tmpEntries).toEqual([]);
+  expect(entries).toContain('status.json');
 });
