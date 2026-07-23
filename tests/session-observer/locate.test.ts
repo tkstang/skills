@@ -11,9 +11,9 @@
  *   7. gitWorktrees: parses real repo --porcelain output
  *   8. gitWorktrees: returns [] when git exec fails
  *   9. classification cache: an unchanged transcript is read+parsed once
- *      across two discover() passes sharing a cache instance (proved by a
- *      readRecords call-count seam that also covers meta extraction, not
- *      just classification)
+ *      across two discover() passes sharing a cache instance (proved by an
+ *      fs-read call-count seam below the runtimes.js module boundary, so it
+ *      also covers meta extraction, not just classification)
  *  10. classification cache: appending to a transcript (mtime/size change)
  *      invalidates the cache and re-classifies
  *  11. ClassificationCache: signature mismatch (mtime or size) never returns
@@ -71,31 +71,22 @@ const cacheRaceHarness = vi.hoisted(() => {
   };
 });
 
-vi.mock('node:fs/promises', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('node:fs/promises')>();
-  return {
-    ...actual,
-    rename: (async (src: string, dest: string) => {
-      const interceptor = cacheRaceHarness.takeRenameInterceptor();
-      if (interceptor) return interceptor(src, dest, actual.rename);
-      return actual.rename(src, dest);
-    }) as typeof actual.rename,
-  };
-});
-
 // ---------------------------------------------------------------------------
-// Classification call-count seam: a read-counting wrapper around
-// readRecords in core/runtimes.js — the single choke point locate.ts's
-// candidateDerivedFields() now reads through for BOTH classification and
-// meta (sessionId/recordedCwd) on a cache miss (see locate.ts's
-// TranscriptDerivedFields). Counting at this layer, rather than around
-// classifyTranscript, is deliberate: an earlier version of this cache only
-// wrapped classification while extractMeta() kept independently re-reading
-// every candidate on every call, silently keeping the full-file read+parse
-// on the hot path. Counting readRecords itself catches that class of gap —
-// it is the one place both derivations now originate from. Counts are keyed
-// by transcriptPath so tests can assert "read exactly once" even across
+// Classification call-count seam: counts real transcript reads at the
+// node:fs/promises readFile boundary — the physical read that BOTH
+// candidateDerivedFields()'s direct readRecords() call and any (re)introduced
+// extractMeta() call inside core/runtimes.js funnel through. Counting here,
+// below the runtimes.js module boundary, is deliberate: a wrapper around the
+// exported readRecords cannot observe an intra-module extractMeta() re-read
+// (ESM intra-module calls bypass an export mock), so a reintroduced double
+// read would have stayed uncounted while these assertions still passed — the
+// exact gap this seam exists to catch. An earlier version of this cache only
+// wrapped classification while extractMeta() independently re-read every
+// candidate; counting the fs read makes that class of regression observable.
+// Counts are keyed by path so tests can assert "read exactly once" across
 // multiple discover() calls sharing one ClassificationCache instance.
+// Non-transcript reads (fixtures, state files) are recorded too but never
+// asserted, since assertions key by the specific transcript path.
 // ---------------------------------------------------------------------------
 const classifyCountHarness = vi.hoisted(() => {
   let counts = new Map<string, number>();
@@ -110,20 +101,21 @@ const classifyCountHarness = vi.hoisted(() => {
   };
 });
 
-vi.mock(
-  '../../src/transcript/core/runtimes.js',
-  async (importOriginal) => {
-    const actual =
-      await importOriginal<typeof import('../../src/transcript/core/runtimes.js')>();
-    return {
-      ...actual,
-      readRecords: (async (transcriptPath: string) => {
-        classifyCountHarness.record(transcriptPath);
-        return actual.readRecords(transcriptPath);
-      }) as typeof actual.readRecords,
-    };
-  },
-);
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs/promises')>();
+  return {
+    ...actual,
+    rename: (async (src: string, dest: string) => {
+      const interceptor = cacheRaceHarness.takeRenameInterceptor();
+      if (interceptor) return interceptor(src, dest, actual.rename);
+      return actual.rename(src, dest);
+    }) as typeof actual.rename,
+    readFile: (async (...args: unknown[]) => {
+      if (typeof args[0] === 'string') classifyCountHarness.record(args[0]);
+      return (actual.readFile as (...a: unknown[]) => unknown)(...args);
+    }) as typeof actual.readFile,
+  };
+});
 
 // ---------------------------------------------------------------------------
 // Test helper: temp HOME dir per test
