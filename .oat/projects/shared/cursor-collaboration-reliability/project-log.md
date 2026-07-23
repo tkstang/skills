@@ -116,7 +116,10 @@ reconnaissance evidence validated artifact=.oat/projects/shared/cursor-collabora
 
 merge=aa35f45 origin_main=8c006a5a focused_tests=187 full_tests=1295 skipped=1 typecheck=passed build_check=passed validate=passed smoke=passed artifact=.oat/projects/shared/cursor-collaboration-reliability/implementation.md#run-2-phase-p02
 
+### 2026-07-23 · structural · oat-project-implement · p02-operator-recovery
+
+operator_authorized=true additional_fix_review_cycles=1 prior_retry_limit=2 review=.oat/projects/shared/cursor-collaboration-reliability/reviews/p02-review-2026-07-23T054702Z.md resume=oat-project-implement artifact=.oat/projects/shared/cursor-collaboration-reliability/implementation.md#run-2-phase-p02
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
-urable observations into tracked surfaces before archiving this project log.
