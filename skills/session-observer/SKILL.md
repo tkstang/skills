@@ -7,10 +7,10 @@ argument-hint: '[review|catch-up|catch-up-then-watch|locate|whoami|state|watch|w
 disable-model-invocation: false
 user-invocable: true
 allowed-tools: Bash, Read, AskUserQuestion
-version: '1.0.8'
+version: '1.0.9'
 metadata:
   author: thomas.stang
-  version: '1.0.8'
+  version: '1.0.9'
 ---
 
 # session-observer
