@@ -49,7 +49,28 @@ p02 PASS. Zero shared surfaces.
 
 ---
 
-## End-of-run synthesis (pending — do not skip at project completion)
+## End-of-run synthesis (2026-07-23)
+
+**Convention verdicts:** two-lane wave ran clean under all adopted rules (zero
+codex-loop overruns — the MAX TWO cap was hit exactly by p01 and held; the
+equivalent-invocation note prevented pnpm `--` recurrence). The
+escalate-to-reviewer path proved out: p01's panel question was an interlocking
+design decision, the implementer correctly did NOT resolve it unilaterally, and
+the Opus reviewer issued a reasoned ruling (exclusion accepted, follow-up
+named). Plan-gate finding 1 (scaffold-readiness ordering) adopted: W4/W5
+scaffold with in_progress and flip atomically at gate pass.
+
+**Skill-signal rulings:** the wrapper's equivalent-invocation note should
+graduate upstream into the wave-execute skill's brief template (pnpm-repo
+clause). No other new signals.
+
+**Graduated-entries ledger:** follow-up backlog item filed at closeout:
+loop-free `cli-helpers-core.ts` split so panel can share the pure helpers
+(reviewer-named shape). p02 review's two informational notes (Array#sort
+in a .ts test; validate.sh intermediate checkpoint untested) recorded here,
+no action required.
+
+## Archived synthesis contract (fulfilled above)
 
 At project completion, BEFORE any archive step, the orchestrator writes:
 (1) verdicts on the conventions this wave exercised, with evidence entries cited;
