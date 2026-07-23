@@ -24,7 +24,7 @@ contract remains its immutable plan file.
 | W2   | Hardening & contract guards  | 4     | merged   | PR [#51](https://github.com/tkstang/skills/pull/51) · merge 79bf70e · completion record `.oat/repo/reference/project-summaries/20260723-wave-2-execution.md` · recap: deferred to program close · completion tail: done (per-wave full tail) |
 | W3   | Consolidation & tooling nets | 2     | merged   | PR [#52](https://github.com/tkstang/skills/pull/52) · merge e100795 · completion record `.oat/repo/reference/project-summaries/20260723-wave-3-execution.md` · recap: deferred to program close · completion tail: done (per-wave full tail) |
 | W4   | CI & release surface         | 3     | merged   | PR [#53](https://github.com/tkstang/skills/pull/53) · merge bb1e5ee · completion record `.oat/repo/reference/project-summaries/20260723-wave-4-execution.md` · recap: deferred to program close · completion tail: done (per-wave full tail) |
-| W5   | God-module splits            | 2     | composed | —      |
+| W5   | God-module splits            | 2     | merged   | PR [#59](https://github.com/tkstang/skills/pull/59) · merge 10c7b9e9 · completion record `.oat/repo/reference/project-summaries/20260723-wave-5-execution.md` · recap: superseded by program recap (below) · completion tail: done (per-wave full tail) |
 
 ## Wave Table (coverage: 15 plans = 15 index rows; verified 2026-07-22)
 
@@ -43,8 +43,8 @@ contract remains its immutable plan file.
 | [Supply-chain/CI hardening](./2026-07-17-supply-chain-ci-hardening.md)                | 2026-07-17-repo-audit-plan-index   | W4   | merge-first in W4 (sets action-pin style; RELEASING.md overlap with live-E2E)     | done |
 | [Docs PR CI gate](./2026-07-17-docs-pr-ci-gate.md)                                    | 2026-07-17-repo-audit-plan-index   | W4   | after supply-chain merge (adopt pin style)                                        | done |
 | [Live-provider E2E visibility](./2026-07-17-live-provider-e2e-visibility.md)          | 2026-07-17-repo-audit-plan-index   | W4   | after supply-chain merge (pin style + RELEASING.md rebase)                        | done |
-| [Split consensus-loop module](./2026-07-18-split-consensus-loop-module.md)            | 2026-07-17-repo-audit-plan-index   | W5   | hard: after W3 consolidation; parallel with refine split                          | pending |
-| [Split consensus-refine module](./2026-07-18-split-consensus-refine-module.md)        | 2026-07-17-repo-audit-plan-index   | W5   | hard: after W3 consolidation; parallel with loop split                            | pending |
+| [Split consensus-loop module](./2026-07-18-split-consensus-loop-module.md)            | 2026-07-17-repo-audit-plan-index   | W5   | hard: after W3 consolidation; parallel with refine split                          | done |
+| [Split consensus-refine module](./2026-07-18-split-consensus-refine-module.md)        | 2026-07-17-repo-audit-plan-index   | W5   | hard: after W3 consolidation; parallel with loop split                            | done |
 
 No rows are deferred or dropped; all 15 plans are scheduled.
 
@@ -90,3 +90,36 @@ No rows are deferred or dropped; all 15 plans are scheduled.
 - **Intra-wave ordering:** independent of each other (different files); parallel worktrees explicitly supported by both plans. Each is internally serial (one green commit per extracted cluster).
 - **Cross-wave prerequisites:** hard on W3 consolidation (both split inventories shrink and both files churn there); soft on W2 ignore-lists/import-rewrite derivation (removes hand-written rewrite tedium for every new module). Final wave; unblocks nothing — it is the program's cleanup payoff.
 - **Composition rationale:** last by design per the index's downgrade decision — largest diffs, zero behavior change, safest when every behavioral fix in the same files has already merged. Fresh line-anchor inventories are mandated by both plans' drift checks, absorbing all earlier-wave churn.
+
+## Program Completion (2026-07-23)
+
+All five waves merged (PRs #50, #51, #52, #53, #59); all 15 plan rows `done`;
+coverage invariant holds terminally (15/15, none deferred/dropped).
+
+- **Completion-tail checkpoint disposition:** the standing operator directive
+  (2026-07-23) ordered the full `oat-project-complete` process per wave; every
+  wave wrapper ran the complete tail at its own closeout (complete-state →
+  archive + S3 sync → summary export → pointer clear → bookkeeping commit).
+  Nothing was deferred to program close — the checkpoint's question has no
+  outstanding action and is recorded as satisfied-by-per-wave-execution.
+- **Process disclosures:** wave-3's PR was merged while its checks report was
+  empty (tree certified retroactively via main's green Validate run on the
+  identical commit; poll-until-registered rule adopted and used for waves 4-5).
+  During wave-5 merge, `gh pr merge 54` (a mistyped PR number) merged
+  Dependabot's deploy-pages 4.0.5→5.0.0 bump ahead of schedule — benign
+  (CI-green pin update via the wave-4-installed automation), left in place,
+  disclosed.
+- **Standing constraint:** the operator-mandated `sol` review model was
+  unavailable on this Codex account for every final gate; the account-default
+  Codex model at xhigh effort substituted, flagged per wave.
+- **Program recap:** AUTHORED — `.oat/repo/explainers/repo-audit-program-recap/recap.md`,
+  LLM-authored (Opus-class subagent) from a 12-claim synthesized fact base with
+  per-section claim traceability; three fact-base synthesis errors were caught
+  by the author's discrepancy check and corrected before finalization. The
+  explainer-kit unattended build was NOT run: the installed kit rejects
+  `authorModulePath` (`E_INPUT_SCHEMA: Unknown property`) — the authoring seam
+  has not shipped in this install, and an unattended run without it emits raw
+  artifact text as prose (the documented failure mode). Disposition per the
+  optional-step rule: content authored via the caller-owned path (the
+  author module is staged beside the recap for a future kit run); no manifest
+  runId exists. Publishing remains human-gated and was not invoked.
