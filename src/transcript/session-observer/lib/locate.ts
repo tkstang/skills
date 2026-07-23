@@ -31,7 +31,15 @@
 
 import { execFile } from 'node:child_process';
 import type { Dirent, Stats } from 'node:fs';
-import { readdir, stat, mkdir, readFile, writeFile } from 'node:fs/promises';
+import {
+  readdir,
+  stat,
+  mkdir,
+  readFile,
+  rename,
+  open,
+  unlink,
+} from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join, basename } from 'node:path';
 import { promisify } from 'node:util';
@@ -133,18 +141,44 @@ async function loadCwdCache(): Promise<CwdCache> {
 }
 
 /**
- * Persist the codex cwd cache to disk.
- * Creates the state dir if needed. Silently drops errors.
+ * Persist the codex cwd cache to disk atomically (temp file + rename), like
+ * the module family's other state files (see state.ts's writeState). This is
+ * a soft, unlocked cache — no lock protocol is added here, only atomicity —
+ * so concurrent writers may still race on the final rename, but neither can
+ * ever observe a partially-written file.
+ * Creates the state dir if needed. Silently drops errors (best-effort).
  * @param {Record<string, { recordedCwd: string }>} cache
  */
 async function saveCwdCache(cache: CwdCache): Promise<void> {
   try {
     const path = cwdCachePath();
-    const stateDir = path.replace(/\/[^/]+$/, '');
-    await mkdir(stateDir, { recursive: true });
-    await writeFile(path, JSON.stringify(cache, null, 2), 'utf8');
+    const dir = path.replace(/\/[^/]+$/, '');
+    await mkdir(dir, { recursive: true });
+    const tmp = join(dir, `codex-cwd-cache.${process.pid}.${Date.now()}.tmp`);
+    let fh;
+    try {
+      fh = await open(tmp, 'w');
+      await fh.write(JSON.stringify(cache, null, 2));
+      await fh.datasync();
+      await fh.close();
+      fh = null;
+      await rename(tmp, path);
+    } finally {
+      if (fh) {
+        try {
+          await fh.close();
+        } catch {
+          /* ignore */
+        }
+      }
+      try {
+        await unlink(tmp);
+      } catch {
+        /* ignore ENOENT (rename succeeded, or tmp was never created) */
+      }
+    }
   } catch {
-    // Cache is best-effort; ignore write failures.
+    // Cache is best-effort; ignore write failures (create, write, or rename).
   }
 }
 
