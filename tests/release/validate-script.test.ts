@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, writeFile, mkdir } from 'node:fs/promises';
+import { mkdtemp, readdir, readFile, writeFile, mkdir } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -10,11 +10,18 @@ const validateWorkflowPath = path.join(
   repoRoot,
   '.github/workflows/validate.yml',
 );
-const workflowPaths = [
-  validateWorkflowPath,
-  path.join(repoRoot, '.github/workflows/release.yml'),
-  path.join(repoRoot, '.github/workflows/deploy-docs.yml'),
-];
+const workflowsDir = path.join(repoRoot, '.github/workflows');
+
+// Discovered dynamically (not hardcoded) so every current and future workflow
+// file is covered by the SHA-pin regression guard below — a hardcoded list
+// silently stops covering new workflows the moment one is added.
+async function discoverWorkflowPaths(): Promise<string[]> {
+  const entries = await readdir(workflowsDir, { withFileTypes: true });
+  return entries
+    .filter((entry) => entry.isFile() && /\.ya?ml$/.test(entry.name))
+    .map((entry) => path.join(workflowsDir, entry.name))
+    .sort();
+}
 
 async function writeJson(filePath: string, value: unknown) {
   await writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`);
@@ -173,6 +180,12 @@ describe('validate-script', () => {
     const usesLinePattern = /^\s*(?:-\s*)?uses:\s*(\S+)\s*(#.*)?$/;
     const shaPinPattern = /^[^@]+@[0-9a-f]{40}$/;
     const versionCommentPattern = /^#\s*v\d+\.\d+\.\d+\s*$/;
+
+    const workflowPaths = await discoverWorkflowPaths();
+    expect(
+      workflowPaths.length,
+      'expected to discover at least one workflow file',
+    ).toBeGreaterThan(0);
 
     for (const workflowPath of workflowPaths) {
       const workflow = await readFile(workflowPath, 'utf8');
