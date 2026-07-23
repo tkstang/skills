@@ -38,6 +38,7 @@
     "plugins/consensus/scripts/loop-provider.mjs",
     "plugins/consensus/scripts/loop-args.mjs",
     "plugins/consensus/scripts/loop-escalation.mjs",
+    "plugins/consensus/scripts/loop-rounds.mjs",
     "plugins/consensus/scripts/consensus-cli-helpers.mjs",
     "plugins/consensus/skills/create/scripts/consensus-cli-helpers.mjs",
     "plugins/consensus/skills/decide/scripts/consensus-cli-helpers.mjs",
