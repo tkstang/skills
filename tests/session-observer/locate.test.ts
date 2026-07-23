@@ -10,6 +10,15 @@
  *   6. cursor: empty direct transcript dirs do not suppress fallback scans
  *   7. gitWorktrees: parses real repo --porcelain output
  *   8. gitWorktrees: returns [] when git exec fails
+ *   9. classification cache: an unchanged transcript is classified once across
+ *      two discover() passes sharing a cache instance (proved by a
+ *      classifyTranscript call-count seam)
+ *  10. classification cache: appending to a transcript (mtime/size change)
+ *      invalidates the cache and re-classifies
+ *  11. ClassificationCache: signature mismatch (mtime or size) never returns
+ *      a stale result
+ *  12. ClassificationCache: evicts the least-recently-used entry once its
+ *      bound is exceeded
  */
 
 import {
@@ -70,6 +79,45 @@ vi.mock('node:fs/promises', async (importOriginal) => {
 });
 
 // ---------------------------------------------------------------------------
+// Classification call-count seam: a read-counting wrapper around
+// classifyTranscript (not raw readFile — extractMeta also reads every
+// candidate transcript unconditionally, so a readFile-level count would
+// conflate cwd/session-id extraction with the classification path this
+// cache targets). Counts are keyed by transcriptPath so tests can assert
+// "classified exactly once" even across multiple discover() calls sharing
+// one ClassificationCache instance.
+// ---------------------------------------------------------------------------
+const classifyCountHarness = vi.hoisted(() => {
+  let counts = new Map<string, number>();
+  return {
+    reset: () => {
+      counts = new Map();
+    },
+    record: (path: string) => {
+      counts.set(path, (counts.get(path) ?? 0) + 1);
+    },
+    countFor: (path: string) => counts.get(path) ?? 0,
+  };
+});
+
+vi.mock(
+  '../../src/transcript/session-observer/lib/session-classifier.js',
+  async (importOriginal) => {
+    const actual =
+      await importOriginal<
+        typeof import('../../src/transcript/session-observer/lib/session-classifier.js')
+      >();
+    return {
+      ...actual,
+      classifyTranscript: (async (runtime: any, transcriptPath: string) => {
+        classifyCountHarness.record(transcriptPath);
+        return actual.classifyTranscript(runtime, transcriptPath);
+      }) as typeof actual.classifyTranscript,
+    };
+  },
+);
+
+// ---------------------------------------------------------------------------
 // Test helper: temp HOME dir per test
 // ---------------------------------------------------------------------------
 
@@ -91,6 +139,7 @@ async function withTempHome(fn: (dir: string) => Promise<void>): Promise<void> {
 }
 
 import {
+  ClassificationCache,
   discover,
   findSessionCandidate,
   gitWorktrees,
@@ -808,4 +857,176 @@ test('gitWorktrees: returns [] when git exec fails (bad path)', async () => {
   const result = await gitWorktrees('/nonexistent/path/that/is/not/a/git/repo');
 
   expect(result, 'should return [] when git fails').toEqual([]);
+});
+
+// ---------------------------------------------------------------------------
+// Classification cache
+// ---------------------------------------------------------------------------
+
+test('classification cache: unchanged transcript is classified once across two discover() passes', async () => {
+  await withTempHome(async (home) => {
+    classifyCountHarness.reset();
+    const targetCwd = join(home, 'Code', 'cache-hit-project');
+    const projectDir = join(home, '.claude', 'projects', encodeCwd(targetCwd));
+    await mkdir(projectDir, { recursive: true });
+    const transcriptPath = join(projectDir, 'typical.jsonl');
+    await writeFile(transcriptPath, CLAUDE_CODE_TYPICAL, 'utf8');
+
+    const cache = new ClassificationCache();
+
+    const first = await discover('claude-code', targetCwd, cache);
+    expect(
+      classifyCountHarness.countFor(transcriptPath),
+      'first discover should classify the transcript once',
+    ).toBe(1);
+    const firstCandidate: any = first.find(
+      (c: any) => c.transcriptPath === transcriptPath,
+    );
+    expect(firstCandidate).toMatchObject({
+      engagementStatus: 'engaged',
+      genuineUserMessages: 1,
+    });
+
+    const second = await discover('claude-code', targetCwd, cache);
+    expect(
+      classifyCountHarness.countFor(transcriptPath),
+      'second discover with the same cache and an unchanged file must not re-classify',
+    ).toBe(1);
+    const secondCandidate: any = second.find(
+      (c: any) => c.transcriptPath === transcriptPath,
+    );
+    // Compare only the classification-derived fields byte-for-byte; ageSec
+    // is intentionally recomputed against wall-clock `now` on every call
+    // (it is not part of the classification cache's signature) and is
+    // expected to differ slightly between the two passes.
+    expect(
+      {
+        engagement: secondCandidate.engagement,
+        engagementStatus: secondCandidate.engagementStatus,
+        engaged: secondCandidate.engaged,
+        recordCount: secondCandidate.recordCount,
+        genuineUserMessages: secondCandidate.genuineUserMessages,
+        assistantMessages: secondCandidate.assistantMessages,
+        realMessageCount: secondCandidate.realMessageCount,
+        hasAssistantAndUser: secondCandidate.hasAssistantAndUser,
+        bootstrapRecordCount: secondCandidate.bootstrapRecordCount,
+      },
+      'cached classification fields must equal the freshly-parsed result',
+    ).toEqual({
+      engagement: firstCandidate.engagement,
+      engagementStatus: firstCandidate.engagementStatus,
+      engaged: firstCandidate.engaged,
+      recordCount: firstCandidate.recordCount,
+      genuineUserMessages: firstCandidate.genuineUserMessages,
+      assistantMessages: firstCandidate.assistantMessages,
+      realMessageCount: firstCandidate.realMessageCount,
+      hasAssistantAndUser: firstCandidate.hasAssistantAndUser,
+      bootstrapRecordCount: firstCandidate.bootstrapRecordCount,
+    });
+  });
+});
+
+test('classification cache: appending to a transcript invalidates the cache and re-classifies', async () => {
+  await withTempHome(async (home) => {
+    classifyCountHarness.reset();
+    const targetCwd = join(home, 'Code', 'cache-invalidate-project');
+    const projectDir = join(home, '.claude', 'projects', encodeCwd(targetCwd));
+    await mkdir(projectDir, { recursive: true });
+    const transcriptPath = join(projectDir, 'typical.jsonl');
+    await writeFile(transcriptPath, CLAUDE_CODE_TYPICAL, 'utf8');
+
+    const cache = new ClassificationCache();
+
+    const first = await discover('claude-code', targetCwd, cache);
+    expect(classifyCountHarness.countFor(transcriptPath)).toBe(1);
+    const firstCandidate: any = first.find(
+      (c: any) => c.transcriptPath === transcriptPath,
+    );
+    expect(firstCandidate.genuineUserMessages).toBe(1);
+
+    // Append another genuine user message: this changes both size and
+    // mtime, which must invalidate the cached entry.
+    await writeFile(
+      transcriptPath,
+      CLAUDE_CODE_TYPICAL +
+        `{"type":"user","message":{"role":"user","content":"Second message"},"sessionId":"cc-session-001"}\n`,
+      'utf8',
+    );
+
+    const second = await discover('claude-code', targetCwd, cache);
+    expect(
+      classifyCountHarness.countFor(transcriptPath),
+      'a changed (mtime, size) signature must trigger re-classification',
+    ).toBe(2);
+    const secondCandidate: any = second.find(
+      (c: any) => c.transcriptPath === transcriptPath,
+    );
+    expect(
+      secondCandidate.genuineUserMessages,
+      'the re-classified result must reflect the appended content',
+    ).toBe(2);
+  });
+});
+
+test('ClassificationCache: a signature mismatch (mtime or size) never returns a stale result', () => {
+  const cache = new ClassificationCache();
+  const classification = {
+    status: 'engaged' as const,
+    engaged: true,
+    recordCount: 3,
+    genuineUserMessages: 1,
+    syntheticUserMessages: 0,
+    assistantMessages: 1,
+    realMessageCount: 2,
+    hasAssistantAndUser: true,
+    bootstrapRecordIndexes: [],
+    bootstrapRecordCount: 0,
+  };
+
+  cache.set('/a/transcript.jsonl', 1_000, 50, classification);
+
+  expect(cache.get('/a/transcript.jsonl', 1_000, 50)).toEqual(classification);
+  expect(
+    cache.get('/a/transcript.jsonl', 1_000, 51),
+    'a size mismatch must be treated as a cache miss',
+  ).toBeUndefined();
+  expect(
+    cache.get('/a/transcript.jsonl', 1_001, 50),
+    'an mtime mismatch must be treated as a cache miss',
+  ).toBeUndefined();
+});
+
+test('ClassificationCache: evicts the least-recently-used entry once its bound is exceeded', () => {
+  const cache = new ClassificationCache(2);
+  const classification = (recordCount: number) => ({
+    status: 'engaged' as const,
+    engaged: true,
+    recordCount,
+    genuineUserMessages: 1,
+    syntheticUserMessages: 0,
+    assistantMessages: 1,
+    realMessageCount: 2,
+    hasAssistantAndUser: true,
+    bootstrapRecordIndexes: [],
+    bootstrapRecordCount: 0,
+  });
+
+  cache.set('/a', 1, 10, classification(1));
+  cache.set('/b', 1, 10, classification(2));
+  expect(cache.size).toBe(2);
+
+  // Touch '/a' so it becomes the most-recently-used, leaving '/b' as the LRU.
+  expect(cache.get('/a', 1, 10)).toBeDefined();
+
+  cache.set('/c', 1, 10, classification(3));
+  expect(
+    cache.size,
+    'the cache must stay within its configured bound',
+  ).toBe(2);
+  expect(
+    cache.get('/b', 1, 10),
+    'the least-recently-used entry should have been evicted',
+  ).toBeUndefined();
+  expect(cache.get('/a', 1, 10), 'recently-touched entries survive').toBeDefined();
+  expect(cache.get('/c', 1, 10), 'the newest entry survives').toBeDefined();
 });

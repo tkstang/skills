@@ -24,6 +24,44 @@ import { expect, afterEach, describe, test, vi } from 'vitest';
 import * as watchState from '../../src/transcript/session-observer/lib/watch-state.js';
 import { runWatchLoop } from '../../src/transcript/session-observer/lib/watch.js';
 
+// ---------------------------------------------------------------------------
+// Classification call-count seam (mirrors locate.test.ts's identical
+// harness): counts real classifyTranscript invocations per transcript path,
+// while delegating to the actual implementation so behavior is unaffected.
+// Used below to prove the watch loop's shared ClassificationCache
+// classifies a static newer-candidate transcript once, not on every poll
+// tick.
+// ---------------------------------------------------------------------------
+const classifyCountHarness = vi.hoisted(() => {
+  let counts = new Map<string, number>();
+  return {
+    reset: () => {
+      counts = new Map();
+    },
+    record: (path: string) => {
+      counts.set(path, (counts.get(path) ?? 0) + 1);
+    },
+    countFor: (path: string) => counts.get(path) ?? 0,
+  };
+});
+
+vi.mock(
+  '../../src/transcript/session-observer/lib/session-classifier.js',
+  async (importOriginal) => {
+    const actual =
+      await importOriginal<
+        typeof import('../../src/transcript/session-observer/lib/session-classifier.js')
+      >();
+    return {
+      ...actual,
+      classifyTranscript: (async (runtime: any, transcriptPath: string) => {
+        classifyCountHarness.record(transcriptPath);
+        return actual.classifyTranscript(runtime, transcriptPath);
+      }) as typeof actual.classifyTranscript,
+    };
+  },
+);
+
 const CLI_PATH = fileURLToPath(
   new URL(
     '../../skills/session-observer/scripts/session-observer.mjs',
@@ -522,6 +560,92 @@ describe('runWatchLoop', () => {
         state?.sessions?.[`claude-code:${watchedSessionId}`],
       ).toBeDefined();
       expect(state?.sessions?.['claude-code:newer-session']).toBeUndefined();
+    });
+  });
+
+  test('classification cache: a static newer-candidate transcript is classified once across many poll ticks', async () => {
+    await withTempSessionHome(async (home) => {
+      classifyCountHarness.reset();
+      const cwd = '/test/watch-classification-cache';
+      const watchedSessionId = 'watched-cache-session';
+      const watchedPath = await writeClaudeTranscript(
+        home,
+        cwd,
+        watchedSessionId,
+        [{ content: 'watched baseline message' }],
+      );
+      const stdout: string[] = [];
+      let nowMs = Date.UTC(2026, 5, 3, 12, 0, 0);
+      let candidateCreated = false;
+      let candidatePath: string | null = null;
+
+      // A larger max-runtime than the "warns once" test above, at the same
+      // poll cadence, so this run drives many more ticks over the same
+      // static candidate — the scenario the plan targets (unchanged past
+      // sessions re-read on every 2s tick for the life of the watch).
+      const result = await runWatchLoop(
+        {
+          runtime: 'claude-code',
+          cwd,
+          json: true,
+          pollSec: 0.02,
+          debounceSec: 0.02,
+          maxRuntimeMin: 0.02,
+        },
+        {
+          writeStdout: (chunk: string) => stdout.push(chunk),
+          now: () => nowMs,
+          sleep: async (ms: number) => {
+            nowMs += ms;
+            if (candidateCreated) return;
+            candidateCreated = true;
+            candidatePath = await writeClaudeTranscript(
+              home,
+              cwd,
+              'static-cache-candidate',
+              [{ content: 'candidate baseline message' }],
+            );
+            const future = new Date(Date.now() + 120_000);
+            await utimes(candidatePath, future, future);
+          },
+        },
+      );
+
+      expect(result.reason).toBe('max-runtime');
+      expect(
+        candidatePath,
+        'the candidate transcript must have been created mid-run',
+      ).not.toBeNull();
+
+      const events = stdout
+        .join('')
+        .trim()
+        .split('\n')
+        .filter(Boolean)
+        .map((line) => JSON.parse(line));
+      const candidateEvents = events.filter(
+        (event) => event.type === 'newer-session-candidate',
+      );
+      // Same de-dup guarantee proven by the "warns once" test above: many
+      // ticks re-discover the candidate, but it is only ever emitted once.
+      // This is the watch-output equivalence half of the regression: the
+      // cache changes how classification is computed, never what watch
+      // events are produced.
+      expect(candidateEvents).toHaveLength(1);
+
+      expect(
+        classifyCountHarness.countFor(candidatePath as unknown as string),
+        'a static candidate, once cached on the tick it first appears, must not be re-classified on any later tick',
+      ).toBe(1);
+      // The watched transcript is also re-discovered (and, absent the cache,
+      // re-classified) on every tick via the same discover() call. Baseline
+      // establishment classifies it once via its own one-shot cache, and the
+      // shared watch-loop cache adds at most one more (first-tick) miss —
+      // so the count must stay flat, not scale with the number of ticks.
+      expect(
+        classifyCountHarness.countFor(watchedPath),
+        'the watched transcript classification count must stay bounded, not scale with poll ticks',
+      ).toBeLessThanOrEqual(2);
     });
   });
 
