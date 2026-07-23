@@ -25,6 +25,9 @@ v0.1 is not ready to tag until the full project validation and provider smoke te
 - Verify `npx skills add <username>/skills` discovery.
 - Confirm the README install matrix matches the live provider CLIs.
 - Confirm no plugin manifest references `.oat/` or project-local infrastructure.
+- Publish the `consensus.mjs` SHA-256 checksum alongside the tag/release notes
+  (`shasum -a 256 plugins/consensus/scripts/consensus.mjs`), so operators can
+  verify with `CONSENSUS_INSTALL_SHA256` in `install.sh`.
 
 ## v0.1 Readiness Snapshot
 

@@ -10,6 +10,11 @@ const validateWorkflowPath = path.join(
   repoRoot,
   '.github/workflows/validate.yml',
 );
+const workflowPaths = [
+  validateWorkflowPath,
+  path.join(repoRoot, '.github/workflows/release.yml'),
+  path.join(repoRoot, '.github/workflows/deploy-docs.yml'),
+];
 
 async function writeJson(filePath: string, value: unknown) {
   await writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`);
@@ -158,6 +163,42 @@ describe('validate-script', () => {
       'pnpm run validate',
       'pnpm run smoke',
     ]);
+  });
+
+  it('every workflow action is SHA-pinned with a version comment', async () => {
+    // Supply-chain hardening: `uses:` must reference a full 40-hex commit SHA
+    // (never a mutable tag), with a `# vX.Y.Z` comment recording the resolved
+    // version. Cheap drift guard against a future `uses: owner/action@vN` edit
+    // slipping back in.
+    const usesLinePattern = /^\s*(?:-\s*)?uses:\s*(\S+)\s*(#.*)?$/;
+    const shaPinPattern = /^[^@]+@[0-9a-f]{40}$/;
+    const versionCommentPattern = /^#\s*v\d+\.\d+\.\d+\s*$/;
+
+    for (const workflowPath of workflowPaths) {
+      const workflow = await readFile(workflowPath, 'utf8');
+      const lines = workflow.split('\n');
+      const usesLines = lines.filter((line) => usesLinePattern.test(line));
+
+      expect(
+        usesLines.length,
+        `expected at least one 'uses:' line in ${workflowPath}`,
+      ).toBeGreaterThan(0);
+
+      for (const line of usesLines) {
+        const match = line.match(usesLinePattern);
+        expect(match, `unparseable uses line in ${workflowPath}: ${line}`).not.toBeNull();
+        const [, usesValue, comment] = match!;
+
+        expect(
+          usesValue,
+          `${workflowPath}: '${line.trim()}' must pin a full 40-hex commit SHA`,
+        ).toMatch(shaPinPattern);
+        expect(
+          comment,
+          `${workflowPath}: '${line.trim()}' must carry a '# vX.Y.Z' version comment`,
+        ).toMatch(versionCommentPattern);
+      }
+    }
   });
 
   it('parseJsonFile reports valid JSON path context', async () => {
