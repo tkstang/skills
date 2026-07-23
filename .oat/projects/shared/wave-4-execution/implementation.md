@@ -1,210 +1,52 @@
 ---
-oat_status: in_progress
-oat_ready_for: null
+oat_status: complete
+oat_ready_for: review
 oat_blockers: []
 oat_last_updated: 2026-07-23
-oat_current_task_id: p01-t01
+oat_current_task_id: null
 oat_generated: false
 ---
 
 # Implementation: wave-4-execution
 
-**Started:** 2026-07-23
-**Last Updated:** 2026-07-23
-
-> This document is used to resume interrupted implementation sessions.
->
-> Conventions:
->
-> - `oat_current_task_id` always points at the **next plan task to do** (not the last completed task).
-> - When all plan tasks are complete, set `oat_current_task_id: null`.
-> - Reviews are **not** plan tasks. Track review status in `plan.md` under `## Reviews` (e.g., `| final | code | passed | ... |`).
-> - Keep phase/task statuses consistent with the Progress Overview table so restarts resume correctly.
-> - Before running the `oat-project-pr-final` skill, ensure `## Final Summary (for PR/docs)` is filled with what was actually implemented.
-
 ## Progress Overview
 
-| Phase   | Status      | Tasks | Completed |
-| ------- | ----------- | ----- | --------- |
-| Phase 1 | in_progress | N     | 0/N       |
-| Phase 2 | pending     | N     | 0/N       |
-
-**Total:** 0/{N} tasks completed
-
----
-
-## Phase 1: {Phase Name}
-
-**Status:** in_progress
-**Started:** 2026-07-23
-
-### Phase Summary (fill when phase is complete)
-
-**Outcome (what changed):**
-
-- {2-5 bullets describing user-visible / behavior-level changes delivered in this phase}
-
-**Key files touched:**
-
-- `{path}` - {why}
-
-**Verification:**
-
-- Run: `{command(s)}`
-- Result: {pass/fail + notes}
-
-**Notes / Decisions:**
-
-- {trade-offs or deviations discovered during implementation}
-
-### Task p01-t01: {Task Name}
-
-**Status:** completed / in_progress / pending / blocked
-**Commit:** {sha} (if completed)
-
-**Outcome (required when completed):**
-
-- {what materially changed (not “did task”, but “system now does X”)}
-
-**Files changed:**
-
-- `{path}` - {why}
-
-**Verification:**
-
-- Run: `{command(s)}`
-- Result: {pass/fail + notes}
-
-**Notes / Decisions:**
-
-- {gotchas, trade-offs, design deltas, important context for future sessions}
-
-**Issues Encountered:**
-
-- {Issue and resolution}
-
----
-
-### Task p01-t02: {Task Name}
-
-**Status:** pending
-**Commit:** -
-
-**Notes:**
-
-- {Notes will be added during implementation}
-
----
-
-## Phase 2: {Phase Name}
-
-**Status:** pending
-**Started:** -
-
-### Task p02-t01: {Task Name}
-
-**Status:** pending
-**Commit:** -
-
----
-
-## Orchestration Runs
-
-_Each run from `oat-project-implement` appends an entry below with:_
-_- Run header (number, timestamp, branch, tier, policy, phase counts)_
-_- Phase Outcomes table_
-_- Parallel Groups list_
-_- Outstanding Items_
-
-<!-- orchestration-runs-start -->
-
-_Orchestration runs from `oat-project-implement` are appended here, most-recent-first within the file but append-only at the bottom of the log._
-
-<!-- orchestration-runs-end -->
-
----
-
-## Implementation Log
-
-Chronological log of implementation progress.
-
-### 2026-07-23
-
-**Session Start:** {time}
-
-- [x] p01-t01: {Task name} - {commit sha}
-- [ ] p01-t02: {Task name} - in progress
-
-**What changed (high level):**
-
-- {short bullets suitable for PR/docs}
-
-**Decisions:**
-
-- {Decision made and rationale}
-
-**Follow-ups / TODO:**
-
-- {anything discovered during implementation that should be captured for later}
-
-**Blockers:**
-
-- {Blocker description} - {status: resolved/pending}
-
-**Session End:** {time}
-
----
-
-### 2026-07-23
-
-**Session Start:** {time}
-
-{Continue log...}
-
----
-
-## Deviations from Plan / Design
-
-Document any intentional deviations from the original plan, spec, or design. Include accepted review findings where the shipped implementation is source of truth and a lifecycle artifact needs alignment.
-
-| Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
-| ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
-| -             | -               | -                    | -                 | -      | -               | -         |
-
-## Test Results
-
-Track test execution during implementation.
-
-| Phase | Tests Run | Passed | Failed | Coverage |
-| ----- | --------- | ------ | ------ | -------- |
-| 1     | -         | -      | -      | -        |
-| 2     | -         | -      | -      | -        |
+| Phase | Status   | Tasks | Completed |
+| ----- | -------- | ----- | --------- |
+| p01   | complete | 1     | 1/1       |
+| p02   | complete | 1     | 1/1       |
+| p03   | complete | 1     | 1/1       |
+
+**Total:** 3/3. p01 merged first (ungrouped); p02/p03 group merged after;
+integration gates green (1170 tests).
+
+## Phase p01: supply-chain-ci-hardening — complete
+
+4 commits. install.sh CONSENSUS_INSTALL_SHA256 verification (both paths,
+fail-closed, 4 automated tests); all 24 workflow uses: SHA-pinned with
+version comments (each pin cross-resolved two ways; reviewer independently
+re-resolved all six); dependabot github-actions; validate.yml concurrency;
+SHA-pin invariant test. Codex R1 Medium (test coverage) fixed; R2 PASS.
+Review PASS.
+
+## Phase p02: docs-pr-ci-gate — complete
+
+1 commit: .github/workflows/docs-ci.yml (pull_request + documentation/**;
+pinned actions; docs-lockfile cache; build + format check; local proof green).
+Review PASS (self-trigger judged correctly out of plan scope; optional
+hardening note recorded).
+
+## Phase p03: live-provider-e2e-visibility — complete
+
+1 commit: test:live-e2e alias; skip-vs-fail tightening (env set + no provider
+= loud actionable failure; default skip unchanged); RELEASING.md run-or-waive
+line; AGENTS.md gate entry; dispatch-only live-e2e.yml. Review PASS.
+NOTE: an accidental single live codex call surfaced a pre-existing
+live-contract mismatch (verdict_source final_message vs submit) — follow-up
+filed at closeout.
 
 ## Final Summary (for PR/docs)
 
-**What shipped:**
-
-- {capability 1}
-- {capability 2}
-
-**Behavioral changes (user-facing):**
-
-- {bullet}
-
-**Key files / modules:**
-
-- `{path}` - {purpose}
-
-**Verification performed:**
-
-- {tests/lint/typecheck/build/manual steps}
-
-**Design deltas (if any):**
-
-- {what changed vs design.md and why}
-
-## References
-
-- Plan: `plan.md`
-- Design: `design.md`
-- Spec: `spec.md`
+Wave 4: supply-chain hardening (install checksum, SHA-pinned actions,
+dependabot, CI concurrency), a PR-time docs build gate, and a visible
+run-or-waive live-provider E2E gate with loud-failure semantics.

@@ -58,7 +58,25 @@ registered checks before merge.
 
 ---
 
-## End-of-run synthesis (pending — do not skip at project completion)
+## End-of-run synthesis (2026-07-23)
+
+**Convention verdicts:** the ungrouped-first lane pattern (style-input
+dependency) worked exactly as composed — p02/p03 authored their new workflows
+against p01's landed pin style with zero rework. Poll-until-registered CI rule
+(W3 lesson) to be exercised at this wave's PR. Gate finding on scaffold
+readiness produced the pre-gate scaffold flow; it caught a real leftover
+(oat_phase: discovery) on its first use — keep it.
+
+**Notable event:** p03's single accidental live provider call surfaced a real
+stub-vs-live contract mismatch (verdict_source 'final_message' vs 'submit') —
+precisely the drift class the live-gate plan exists to expose. Graduated to a
+follow-up backlog item at closeout; the committed changes do not mask it.
+
+**Graduated-entries ledger:** live-contract mismatch follow-up (filed);
+optional docs-ci self-trigger hardening (recorded in p02 review, operator
+optional); W3 CI-watch rule exercised at this wave's PR step.
+
+## Archived synthesis contract (fulfilled above)
 
 At project completion, BEFORE any archive step, the orchestrator writes:
 (1) verdicts on the conventions this wave exercised, with evidence entries cited;
