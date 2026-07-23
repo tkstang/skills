@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-23
-oat_current_task_id: p03-t06
+oat_current_task_id: p03-t07
 oat_generated: false
 ---
 
@@ -28,12 +28,12 @@ oat_generated: false
 | ------- | ----------- | ----- | --------- |
 | Phase 1 | complete    | 5     | 5/5       |
 | Phase 2 | complete    | 8     | 8/8       |
-| Phase 3 | in_progress | 7     | 5/7       |
+| Phase 3 | in_progress | 7     | 6/7       |
 | Phase 4 | pending     | 6     | 0/6       |
 | Phase 5 | pending     | 6     | 0/6       |
 | Phase 6 | pending     | 4     | 0/4       |
 
-**Total:** 18/36 tasks accepted
+**Total:** 19/36 tasks accepted
 
 ---
 
@@ -655,6 +655,7 @@ are resolved; Phase 2 is complete.
 | p03-t03 | complete | `52e5043` | Characterized caller-owned output versus legacy state mutation, deterministic write/stdout failures, and reusable Cursor valid/malformed/unterminated frame fixtures without changing runtime behavior. |
 | p03-t04 | complete | `5d84895` | Integrated exact-identity framed Cursor observation with continuity-safe bounded confirmation, delivery reservation, caller-owned single-use commit/abandon handles, reconciliation, conflicts, and exact-key crash replay. |
 | p03-t05 | complete | `3e36ec5` | Added durable watch envelope v2 migration with untouched v1 targets, exact Cursor frame/continuity/candidate/owner state, private permissions, owner-scoped CAS, and blocked-to-verified repair. |
+| p03-t06 | complete | `aee60dc` | Added bounded Cursor foreground watch with scheduled stability confirmation, heartbeat/poll bounds, block/repair, reservation/startup race handling, cleanup, and stdout-owned commit/uncertain semantics. |
 
 ### Task p03-t01: Define Cursor digest v2 types and fixture contracts
 
@@ -694,6 +695,17 @@ file-scoped formatting/lint, and diff checks.
 watch-state coverage passed 22/22 with type-check, generated build parity,
 file-scoped formatting/lint, and diff checks.
 
+### Task p03-t06: Add bounded Cursor foreground watch behavior
+
+**Status:** completed
+**Commit:** `aee60dc`
+**Verification:** RED confirmed 4 Cursor failures with 51 existing passes; GREEN
+watch/watch-state coverage passed 58/58 with type-check, generated build parity,
+file-scoped formatting/lint, and diff checks.
+**Deferred gate:** The generated watch module makes the changed-skill version
+gate intentionally pending; plan task `p05-t05` owns the consolidated skill
+version bump and provider dogfood after all runtime/doc changes land.
+
 ---
 
 ## Deviations from Plan / Design
@@ -714,7 +726,7 @@ Track test execution during implementation.
 | ----- | --------- | ------ | ------ | -------- |
 | 1     | Focused re-review + full suite | 137 focused; 1,148 full; 1 skipped | 0 | Frames, analyzer, runtimes, generated outputs, Export compatibility |
 | 2     | Fix-task re-review + full suite | 146 focused; 1,327 full; 1 skipped | 0; review passed | Atomic lock publication, exact raw-alias containment, Cursor v2 recovery guidance, generated outputs |
-| 3     | p03-t01 through p03-t05 focused verification | 99 digest/runtime tests; 2 legacy wake regressions; 25 observe/integration tests; 22 watch-state tests | 0 | Digest/observation/delivery v2 plus durable Cursor watch targets and v1 compatibility |
+| 3     | p03-t01 through p03-t06 focused verification | 99 digest/runtime tests; 2 legacy wake regressions; 25 observe/integration tests; 58 watch/watch-state tests | 0 | Digest/observation/delivery v2, durable targets, bounded foreground watch, v1 compatibility |
 
 ## Final Summary (for PR/docs)
 
