@@ -14,7 +14,10 @@ import { join } from 'node:path';
 
 import { afterEach, describe, expect, test } from 'vitest';
 
-import { arm } from '../../skills/session-observer-collab/scripts/collab-control.mjs';
+import {
+  arm,
+  disarm,
+} from '../../skills/session-observer-collab/scripts/collab-control.mjs';
 import { runCursorStopHook } from '../../skills/session-observer-collab/scripts/hooks/cursor-stop.mjs';
 import {
   readLease,
@@ -252,6 +255,133 @@ function digestWithEntries(
 }
 
 describe('Cursor Stop continuation hook', () => {
+  test.each([
+    [
+      'synthetic control',
+      [
+        humanFrame(
+          '<session_observer_wake automatic="true" schema_version="2" runtime="codex" lease_id="lease-1" peer="cursor:peer-1" index_base="zero-based-jsonl-frame-index" records="0-2">Review.</session_observer_wake>',
+        ),
+        assistantFrame('Acknowledged.'),
+        terminalFrame('success'),
+      ],
+    ],
+    [
+      'no-op',
+      [
+        humanFrame('Check for peer changes.'),
+        assistantFrame('[no-op] no substantive peer delta'),
+        terminalFrame('success'),
+      ],
+    ],
+    [
+      'metadata-only',
+      [
+        { type: 'metadata', source: 'synthetic-fixture' },
+        terminalFrame('success'),
+      ],
+    ],
+  ] as const)(
+    'advances a completed Cursor v2 %s range without spending continuation budget',
+    async (_classification, frames) => {
+      const { root, cwd, transcript } = await fixture();
+      await armCursorFrameLease(root, cwd, transcript, [...frames], 0, {
+        waitMs: 1,
+      });
+      const moments = [START + 1, START + 1, START + 2, START + 2];
+
+      await expect(
+        runCursorStopHook(event(), {
+          root,
+          now: () => moments.shift() ?? START + 2,
+          sleep: async () => {},
+        }),
+      ).resolves.toBeNull();
+      expect(await readLease(root, 'cursor-1')).toMatchObject({
+        state: 'idle',
+        peerCursor: frames.length,
+        peerContinuity: { nextFrameIndex: frames.length },
+        continuationCount: 0,
+        loopCount: 0,
+      });
+    },
+  );
+
+  test('does not emit or spend twice when Cursor repeats the same Stop event', async () => {
+    const { root, cwd, transcript } = await fixture();
+    await armCursorFrameLease(
+      root,
+      cwd,
+      transcript,
+      [
+        humanFrame('Review the completed range once.'),
+        assistantFrame('One completed substantive result.'),
+        terminalFrame('success'),
+      ],
+      0,
+      { waitMs: 1 },
+    );
+
+    await expect(
+      runCursorStopHook(event(), {
+        root,
+        now: () => START + 1,
+      }),
+    ).resolves.toEqual({ followup_message: expect.any(String) });
+    const moments = [START + 2, START + 2, START + 3, START + 3];
+    await expect(
+      runCursorStopHook(event(), {
+        root,
+        now: () => moments.shift() ?? START + 3,
+        sleep: async () => {},
+      }),
+    ).resolves.toBeNull();
+
+    expect(await readLease(root, 'cursor-1')).toMatchObject({
+      state: 'idle',
+      peerCursor: 3,
+      peerContinuity: { nextFrameIndex: 3 },
+      continuationCount: 1,
+      loopCount: 1,
+    });
+  });
+
+  test.each(['expired', 'disarmed'])(
+    'does not observe or mutate an explicitly %s Cursor lease',
+    async (state) => {
+      const { root, cwd, transcript } = await fixture();
+      const lease = await armCursorFrameLease(root, cwd, transcript, [
+        humanFrame('This range must remain unread.'),
+        assistantFrame('This output must not wake the owner.'),
+        terminalFrame('success'),
+      ]);
+      if (state === 'disarmed') {
+        await disarm(root, 'cursor-1', START + 1);
+      }
+      let observed = 0;
+
+      await expect(
+        runCursorStopHook(event(), {
+          root,
+          now: () => (state === 'expired' ? START + 60_001 : START + 2),
+          observe: async () => {
+            observed += 1;
+            return digest();
+          },
+        }),
+      ).resolves.toBeNull();
+      expect(observed).toBe(0);
+      expect(await readLease(root, 'cursor-1')).toMatchObject({
+        leaseId: lease.leaseId,
+        state: state === 'disarmed' ? 'disarmed' : 'armed',
+        peerCursor: 0,
+        peerContinuity: lease.peerContinuity,
+        continuationCount: 0,
+        loopCount: 0,
+      });
+    },
+  );
+
   test('waits through a pending frame range and claims only after terminal success', async () => {
     const { root, cwd, transcript } = await fixture();
     await armCursorFrameLease(root, cwd, transcript, [
