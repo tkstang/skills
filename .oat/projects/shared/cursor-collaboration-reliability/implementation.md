@@ -531,6 +531,33 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 **Worktree:** Root checkout; sequential plan.
 **Outstanding items:** None.
 
+### Run 4 — Phase p04
+
+**Anchor:** `run-4-phase-p04`
+**Timestamp:** 2026-07-23T22:43:00Z
+**Branch:** `cursor-collaboration-reliability`
+**Tier:** Tier 1 — native Codex subagents
+**Policy:** managed `high`
+**Phase base:** `bc731e9`
+**Phase head:** `f84dfd8`
+**Outcome:** blocked after review round 1; bounded fix iteration 1 pending
+
+| Phase | Tasks | Implementation | Root Review | Fix Iterations | Verdict |
+| ----- | ----- | -------------- | ----------- | -------------- | ------- |
+| p04   | 6/6   | `22a7510..f84dfd8` | Round 1 blocked: 1 Critical | 0 completed | blocked |
+
+**Implementation dispatch:** request `impl-p04-bc731e9-20260723T214500Z`;
+target `oat-phase-implementer-gpt-5-6-sol-high`.
+
+**Review rounds:**
+
+1. `reviews/p04-review-2026-07-23T224300Z.md` — blocked with 1 Critical and
+   no other findings; reconnaissance not attempted.
+
+**Worktree:** Root checkout; sequential plan.
+**Outstanding items:** Codex-owner/Cursor-peer frame-index confirmed-completion
+and private-continuity authority path.
+
 <!-- orchestration-runs-end -->
 
 ---
@@ -796,7 +823,7 @@ resolved; Phase 4 is next.
 
 ## Phase 4: Collaboration Compatibility and Completion Safety
 
-**Status:** review_pending
+**Status:** blocked
 
 ### Phase Summary
 
@@ -809,7 +836,8 @@ resolved; Phase 4 is next.
   transcript-core v2 fixtures through append-only integration fix `f84dfd8`.
 - Full clean-worktree validation passed with 1,402 tests, 1 skipped, plus
   type-check, generated parity, validation, smoke, lint, and formatting.
-- Independent Phase 4 code review is pending.
+- Independent Phase 4 review retained 1 Critical finding in the
+  Codex-owner/Cursor-peer authority path; bounded fix iteration 1 is pending.
 
 ### Task outcomes
 
@@ -870,6 +898,14 @@ diff checks passed.
 coverage passed 95/95; full clean-worktree validation passed 1,402 tests with
 1 skipped, plus type-check, build parity, validation, smoke, formatting/lint,
 and diff checks.
+
+### Review round 1
+
+`reviews/p04-review-2026-07-23T224300Z.md` is BLOCKED with 1 Critical and no
+other findings. The Codex-owner/Cursor-peer route still consumes a legacy
+record-index digest and can advance a frame-index lease without private
+continuity. The original Phase 4 implementer will fix exactly this authority
+path before whole-phase re-review.
 
 ---
 
