@@ -22,7 +22,7 @@ contract remains its immutable plan file.
 | ---- | ---------------------------- | ----- | -------- | ------ |
 | W1   | Correctness & security core  | 4     | merged   | PR [#50](https://github.com/tkstang/skills/pull/50) · merge 7db7d0f · completion record `.oat/repo/reference/project-summaries/20260723-wave-1-execution.md` · recap: deferred to program close · completion tail: done (per-wave full tail) |
 | W2   | Hardening & contract guards  | 4     | merged   | PR [#51](https://github.com/tkstang/skills/pull/51) · merge 79bf70e · completion record `.oat/repo/reference/project-summaries/20260723-wave-2-execution.md` · recap: deferred to program close · completion tail: done (per-wave full tail) |
-| W3   | Consolidation & tooling nets | 2     | composed | —      |
+| W3   | Consolidation & tooling nets | 2     | merged   | PR [#52](https://github.com/tkstang/skills/pull/52) · merge e100795 · completion record `.oat/repo/reference/project-summaries/20260723-wave-3-execution.md` · recap: deferred to program close · completion tail: done (per-wave full tail) |
 | W4   | CI & release surface         | 3     | composed | —      |
 | W5   | God-module splits            | 2     | composed | —      |
 
@@ -38,8 +38,8 @@ contract remains its immutable plan file.
 | [Watch-loop classification cache](./2026-07-17-watch-loop-classification-cache.md)    | 2026-07-17-repo-audit-plan-index   | W2   | hard: after W1 observer state (same lib)                                          | done |
 | [SKILL_FILES disk derivation](./2026-07-17-skill-files-disk-derivation.md)            | 2026-07-17-repo-audit-plan-index   | W2   | soft: AGENTS.md overlap with ignore-lists lane — merge sequentially               | done |
 | [Derive generated ignore lists](./2026-07-17-derive-generated-ignore-lists.md)        | 2026-07-17-repo-audit-plan-index   | W2   | before W3 consolidation (guard protects its new outputs); AGENTS.md soft overlap  | done |
-| [Consolidate consensus CLI helpers](./2026-07-17-consolidate-consensus-cli-helpers.md) | 2026-07-17-repo-audit-plan-index | W3   | hard: after W2 subprocess hardening; benefits from W2 ignore-lists guard          | pending |
-| [Worktree and hook tests](./2026-07-17-worktree-and-hook-tests.md)                    | 2026-07-17-repo-audit-plan-index   | W3   | independent                                                                       | pending |
+| [Consolidate consensus CLI helpers](./2026-07-17-consolidate-consensus-cli-helpers.md) | 2026-07-17-repo-audit-plan-index | W3   | hard: after W2 subprocess hardening; benefits from W2 ignore-lists guard          | done |
+| [Worktree and hook tests](./2026-07-17-worktree-and-hook-tests.md)                    | 2026-07-17-repo-audit-plan-index   | W3   | independent                                                                       | done |
 | [Supply-chain/CI hardening](./2026-07-17-supply-chain-ci-hardening.md)                | 2026-07-17-repo-audit-plan-index   | W4   | merge-first in W4 (sets action-pin style; RELEASING.md overlap with live-E2E)     | pending |
 | [Docs PR CI gate](./2026-07-17-docs-pr-ci-gate.md)                                    | 2026-07-17-repo-audit-plan-index   | W4   | after supply-chain merge (adopt pin style)                                        | pending |
 | [Live-provider E2E visibility](./2026-07-17-live-provider-e2e-visibility.md)          | 2026-07-17-repo-audit-plan-index   | W4   | after supply-chain merge (pin style + RELEASING.md rebase)                        | pending |
@@ -72,6 +72,8 @@ No rows are deferred or dropped; all 15 plans are scheduled.
 - **Intra-wave ordering:** independent; consolidation is the heavyweight lane (five command modules + consensus-loop.ts + build mappings), worktree/hook tests touch only scripts/worktree, tools/git-hooks, and tests.
 - **Cross-wave prerequisites:** consolidation requires W2 subprocess-hardening merged (same file) and benefits from W2's ignore-lists guard. Unblocks both W5 splits (hard prerequisite for both).
 - **Composition rationale:** deliberately narrow — consolidation reconciles the drifted `parsePeers` semantics and churns six files at once; pairing it only with a fully disjoint test-infrastructure lane keeps merge risk low before the splits.
+
+**W3 merged (2026-07-23, PR #52)** → W4 unblocked (no hard prerequisites); W5 hard prerequisite (consolidation) now satisfied.
 
 ## Wave 4: CI & release surface
 
