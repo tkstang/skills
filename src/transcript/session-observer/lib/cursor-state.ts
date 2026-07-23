@@ -567,8 +567,23 @@ interface LockGeneration {
   inode: number;
 }
 
+export type LockContenderPublicationBoundary =
+  | 'private-created'
+  | 'token-written'
+  | 'token-synced';
+
+export interface LockContenderPublicationOptions {
+  onLockPublicationBoundary?(
+    boundary: LockContenderPublicationBoundary,
+  ): void | Promise<void>;
+}
+
 function lockOwnersPath(path: string): string {
   return `${path}.owners`;
+}
+
+function lockOwnerTokensPath(path: string): string {
+  return `${path}.owner-tokens`;
 }
 
 function contenderTicket(name: string): number | null {
@@ -578,40 +593,81 @@ function contenderTicket(name: string): number | null {
   return Number.isSafeInteger(ticket) ? ticket : null;
 }
 
+function privateTokenPid(name: string): number | null {
+  const match = /^([1-9]\d*)-\d+-[1-9]\d*\.token$/u.exec(name);
+  if (!match) return null;
+  const pid = Number(match[1]);
+  return Number.isSafeInteger(pid) ? pid : null;
+}
+
+async function cleanupAbandonedPrivateTokens(path: string): Promise<void> {
+  const tokens = lockOwnerTokensPath(path);
+  let names: string[];
+  try {
+    names = await readdir(tokens);
+  } catch (error) {
+    if (isErrnoException(error) && error.code === 'ENOENT') return;
+    throw error;
+  }
+  for (const name of names) {
+    const pid = privateTokenPid(name);
+    if (pid === null || processIsAlive(pid)) continue;
+    await unlink(join(tokens, name)).catch((error: unknown) => {
+      if (!isErrnoException(error) || error.code !== 'ENOENT') throw error;
+    });
+  }
+}
+
 async function createLockContender(
   path: string,
   owner: string,
+  options: LockContenderPublicationOptions = {},
 ): Promise<string> {
   const owners = lockOwnersPath(path);
+  const tokens = lockOwnerTokensPath(path);
   await mkdir(owners, { recursive: true, mode: 0o700 });
-  for (let attempt = 0; attempt < LOCK_RETRIES; attempt += 1) {
-    const names = await readdir(owners);
-    let maximum = 0;
-    for (const name of names) {
-      const ticket = contenderTicket(name);
-      if (ticket === null) {
-        throw new Error(`cursor-state: invalid lock contender ${name}`);
+  await mkdir(tokens, { recursive: true, mode: 0o700 });
+  await cleanupAbandonedPrivateTokens(path);
+  const privatePath = join(tokens, `${owner.replaceAll(':', '-')}.token`);
+  let handle;
+  try {
+    handle = await open(privatePath, 'wx', 0o600);
+    await options.onLockPublicationBoundary?.('private-created');
+    await handle.writeFile(owner, 'utf8');
+    await options.onLockPublicationBoundary?.('token-written');
+    await handle.datasync();
+    await options.onLockPublicationBoundary?.('token-synced');
+    await handle.close();
+    handle = undefined;
+
+    for (let attempt = 0; attempt < LOCK_RETRIES; attempt += 1) {
+      const names = await readdir(owners);
+      let maximum = 0;
+      for (const name of names) {
+        const ticket = contenderTicket(name);
+        if (ticket === null) {
+          throw new Error(`cursor-state: invalid lock contender ${name}`);
+        }
+        maximum = Math.max(maximum, ticket);
       }
-      maximum = Math.max(maximum, ticket);
+      const next = maximum + 1;
+      if (!Number.isSafeInteger(next)) {
+        throw new Error('cursor-state: lock contender sequence exhausted');
+      }
+      const ownerPath = join(owners, `${String(next).padStart(20, '0')}.owner`);
+      try {
+        await link(privatePath, ownerPath);
+        await unlink(privatePath).catch(() => undefined);
+        return ownerPath;
+      } catch (error) {
+        if (!isErrnoException(error) || error.code !== 'EEXIST') throw error;
+      }
     }
-    const next = maximum + 1;
-    if (!Number.isSafeInteger(next)) {
-      throw new Error('cursor-state: lock contender sequence exhausted');
-    }
-    const ownerPath = join(owners, `${String(next).padStart(20, '0')}.owner`);
-    let handle;
-    try {
-      handle = await open(ownerPath, 'wx', 0o600);
-      await handle.writeFile(owner, 'utf8');
-      await handle.datasync();
-      await handle.close();
-      return ownerPath;
-    } catch (error) {
-      if (handle) await handle.close();
-      if (!isErrnoException(error) || error.code !== 'EEXIST') throw error;
-    }
+    throw new Error('cursor-state: could not allocate lock contender');
+  } finally {
+    if (handle) await handle.close();
+    await unlink(privatePath).catch(() => undefined);
   }
-  throw new Error('cursor-state: could not allocate lock contender');
 }
 
 async function contenderOwnsTurn(
@@ -670,9 +726,12 @@ function sameLockGeneration(
   );
 }
 
-async function acquireLock(path: string): Promise<LockOwnership> {
+async function acquireLock(
+  path: string,
+  options: LockContenderPublicationOptions = {},
+): Promise<LockOwnership> {
   const owner = `${process.pid}:${Date.now()}:${++lockSequence}`;
-  const ownerPath = await createLockContender(path, owner);
+  const ownerPath = await createLockContender(path, owner, options);
   try {
     for (let attempt = 0; attempt < LOCK_RETRIES; attempt += 1) {
       if (!(await contenderOwnsTurn(path, ownerPath, owner))) {
@@ -901,7 +960,7 @@ export async function loadCursorState(): Promise<CursorObserverStateV2> {
 
 export type CursorStateMutationBoundary = 'locked' | 'written';
 
-export interface CursorStateMutationOptions {
+export interface CursorStateMutationOptions extends LockContenderPublicationOptions {
   onMutationBoundary?(
     boundary: CursorStateMutationBoundary,
   ): void | Promise<void>;
@@ -914,7 +973,7 @@ export async function mutateCursorState(
   const dir = stateDir();
   await ensurePrivateDirectory(dir);
   const lock = lockPath(dir);
-  const owner = await acquireLock(lock);
+  const owner = await acquireLock(lock, options);
   try {
     const current = await readCursorState(dir);
     await options.onMutationBoundary?.('locked');

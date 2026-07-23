@@ -36,6 +36,11 @@ const GENERATED_STATE_URL = pathToFileURL(
 const GENERATED_CURSOR_STATE_URL = pathToFileURL(
   join(process.cwd(), 'skills/session-observer/scripts/lib/cursor-state.mjs'),
 ).href;
+const LOCK_PUBLICATION_BOUNDARIES = [
+  'private-created',
+  'token-written',
+  'token-synced',
+] as const;
 
 async function killWorkerAtReady(
   source: string,
@@ -220,6 +225,106 @@ vi.mock('node:fs/promises', async (importOriginal) => {
     }) as typeof actual.readFile,
   };
 });
+
+it.each(LOCK_PUBLICATION_BOUNDARIES)(
+  'recovers a legacy-state queue after process death at contender publication boundary %s',
+  async (boundary) => {
+    await withTmpStateDir(async (dir) => {
+      await killWorkerAtReady(
+        `
+          const { mutate } = await import(${JSON.stringify(GENERATED_STATE_URL)});
+          await mutate(
+            state => state,
+            {
+              async onLockPublicationBoundary(boundary) {
+                if (boundary !== ${JSON.stringify(boundary)}) return;
+                process.stdout.write('READY\\n');
+                await new Promise(() => {});
+              }
+            }
+          );
+        `,
+        dir,
+      );
+
+      await expect(state.mutate((current) => current)).resolves.toMatchObject({
+        schemaVersion: 1,
+      });
+      expect(await readdir(join(dir, 'state.json.lock.owner-tokens'))).toEqual(
+        [],
+      );
+      expect(await readdir(join(dir, 'state.json.lock.owners'))).toEqual([]);
+    });
+  },
+);
+
+it.each(LOCK_PUBLICATION_BOUNDARIES)(
+  'recovers a transition-lock queue after process death at contender publication boundary %s',
+  async (boundary) => {
+    await withTmpStateDir(async (dir) => {
+      const sessionId = `transition-publication-${boundary}`;
+      const input = {
+        lastRecordIndex: 0,
+        lastTotalRecords: 0,
+        transcriptPath: `/tmp/${sessionId}.jsonl`,
+        recordedCwd: '/project',
+      };
+      await killWorkerAtReady(
+        `
+          const { markRead } = await import(${JSON.stringify(GENERATED_STATE_URL)});
+          await markRead(
+            'cursor',
+            ${JSON.stringify(sessionId)},
+            ${JSON.stringify(input)},
+            {
+              async onLockPublicationBoundary(boundary) {
+                if (boundary !== ${JSON.stringify(boundary)}) return;
+                process.stdout.write('READY\\n');
+                await new Promise(() => {});
+              }
+            }
+          );
+        `,
+        dir,
+      );
+
+      await expect(
+        state.markRead('cursor', sessionId, input),
+      ).resolves.toBeUndefined();
+      expect(
+        await readdir(join(dir, 'cursor-state-transition.lock.owner-tokens')),
+      ).toEqual([]);
+      expect(
+        await readdir(join(dir, 'cursor-state-transition.lock.owners')),
+      ).toEqual([]);
+    });
+  },
+);
+
+it.each([
+  ['write', 'private-created'],
+  ['sync', 'token-written'],
+] as const)(
+  'cleans a private legacy-state token after injected %s failure',
+  async (failure, boundary) => {
+    await withTmpStateDir(async (dir) => {
+      await expect(
+        state.mutate((current) => current, {
+          onLockPublicationBoundary(current) {
+            if (current === boundary) throw new Error(`injected-${failure}`);
+          },
+        }),
+      ).rejects.toThrow(`injected-${failure}`);
+      await expect(state.mutate((current) => current)).resolves.toMatchObject({
+        schemaVersion: 1,
+      });
+      expect(await readdir(join(dir, 'state.json.lock.owner-tokens'))).toEqual(
+        [],
+      );
+      expect(await readdir(join(dir, 'state.json.lock.owners'))).toEqual([]);
+    });
+  },
+);
 
 // ---------------------------------------------------------------------------
 // 1. mutate creates state.json on first write

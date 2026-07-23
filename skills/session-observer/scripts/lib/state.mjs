@@ -71,43 +71,83 @@ function lockOwnerPid(owner) {
 function lockOwnersPath(lock) {
   return `${lock}.owners`;
 }
+function lockOwnerTokensPath(lock) {
+  return `${lock}.owner-tokens`;
+}
 function contenderTicket(name) {
   const match = /^(\d{20})\.owner$/u.exec(name);
   if (!match) return null;
   const ticket = Number(match[1]);
   return Number.isSafeInteger(ticket) ? ticket : null;
 }
-async function createLockContender(lock, owner) {
-  const owners = lockOwnersPath(lock);
-  await mkdir(owners, { recursive: true, mode: 448 });
-  for (let attempt = 0; attempt < LOCK_RETRIES; attempt += 1) {
-    const names = await readdir(owners);
-    let maximum = 0;
-    for (const name of names) {
-      const ticket = contenderTicket(name);
-      if (ticket === null) {
-        throw new Error(`state.mjs: invalid lock contender ${name}`);
-      }
-      maximum = Math.max(maximum, ticket);
-    }
-    const next = maximum + 1;
-    if (!Number.isSafeInteger(next)) {
-      throw new Error("state.mjs: lock contender sequence exhausted");
-    }
-    const ownerPath = join(owners, `${String(next).padStart(20, "0")}.owner`);
-    let handle;
-    try {
-      handle = await open(ownerPath, "wx", 384);
-      await handle.writeFile(owner, "utf8");
-      await handle.datasync();
-      await handle.close();
-      return ownerPath;
-    } catch (error) {
-      if (handle) await handle.close();
-      if (!isErrnoException(error) || error.code !== "EEXIST") throw error;
-    }
+function privateTokenPid(name) {
+  const match = /^([1-9]\d*)-\d+-[1-9]\d*\.token$/u.exec(name);
+  if (!match) return null;
+  const pid = Number(match[1]);
+  return Number.isSafeInteger(pid) ? pid : null;
+}
+async function cleanupAbandonedPrivateTokens(lock) {
+  const tokens = lockOwnerTokensPath(lock);
+  let names;
+  try {
+    names = await readdir(tokens);
+  } catch (error) {
+    if (isErrnoException(error) && error.code === "ENOENT") return;
+    throw error;
   }
-  throw new Error("state.mjs: could not allocate lock contender");
+  for (const name of names) {
+    const pid = privateTokenPid(name);
+    if (pid === null || isPidLive(pid)) continue;
+    await unlink(join(tokens, name)).catch((error) => {
+      if (!isErrnoException(error) || error.code !== "ENOENT") throw error;
+    });
+  }
+}
+async function createLockContender(lock, owner, options = {}) {
+  const owners = lockOwnersPath(lock);
+  const tokens = lockOwnerTokensPath(lock);
+  await mkdir(owners, { recursive: true, mode: 448 });
+  await mkdir(tokens, { recursive: true, mode: 448 });
+  await cleanupAbandonedPrivateTokens(lock);
+  const privatePath = join(tokens, `${owner.replaceAll(":", "-")}.token`);
+  let handle;
+  try {
+    handle = await open(privatePath, "wx", 384);
+    await options.onLockPublicationBoundary?.("private-created");
+    await handle.writeFile(owner, "utf8");
+    await options.onLockPublicationBoundary?.("token-written");
+    await handle.datasync();
+    await options.onLockPublicationBoundary?.("token-synced");
+    await handle.close();
+    handle = void 0;
+    for (let attempt = 0; attempt < LOCK_RETRIES; attempt += 1) {
+      const names = await readdir(owners);
+      let maximum = 0;
+      for (const name of names) {
+        const ticket = contenderTicket(name);
+        if (ticket === null) {
+          throw new Error(`state.mjs: invalid lock contender ${name}`);
+        }
+        maximum = Math.max(maximum, ticket);
+      }
+      const next = maximum + 1;
+      if (!Number.isSafeInteger(next)) {
+        throw new Error("state.mjs: lock contender sequence exhausted");
+      }
+      const ownerPath = join(owners, `${String(next).padStart(20, "0")}.owner`);
+      try {
+        await link(privatePath, ownerPath);
+        await unlink(privatePath).catch(() => void 0);
+        return ownerPath;
+      } catch (error) {
+        if (!isErrnoException(error) || error.code !== "EEXIST") throw error;
+      }
+    }
+    throw new Error("state.mjs: could not allocate lock contender");
+  } finally {
+    if (handle) await handle.close();
+    await unlink(privatePath).catch(() => void 0);
+  }
 }
 async function contenderOwnsTurn(lock, ownerPath, owner) {
   const owners = lockOwnersPath(lock);
@@ -148,9 +188,9 @@ async function readLockGeneration(lock) {
 function sameLockGeneration(left, right) {
   return right !== null && left.rawOwner === right.rawOwner && left.device === right.device && left.inode === right.inode;
 }
-async function acquireLock(lock) {
+async function acquireLock(lock, options = {}) {
   const owner = `${process.pid}:${Date.now()}:${++lockSequence}`;
-  const ownerPath = await createLockContender(lock, owner);
+  const ownerPath = await createLockContender(lock, owner, options);
   try {
     for (let attempt = 0; attempt < LOCK_RETRIES; attempt += 1) {
       if (!await contenderOwnsTurn(lock, ownerPath, owner)) {
@@ -201,11 +241,11 @@ async function releaseLock(lock, ownership) {
     if (!isErrnoException(error) || error.code !== "ENOENT") throw error;
   }
 }
-async function withCursorTransitionLock(transition) {
+async function withCursorTransitionLock(transition, options = {}) {
   const dir = stateDir();
   await mkdir(dir, { recursive: true });
   const lock = cursorTransitionLockPath(dir);
-  const ownership = await acquireLock(lock);
+  const ownership = await acquireLock(lock, options);
   try {
     return await transition();
   } finally {
@@ -493,11 +533,11 @@ async function load() {
   }
   return { schemaVersion: SCHEMA_VERSION, sessions };
 }
-async function mutate(fn) {
+async function mutate(fn, options = {}) {
   const dir = stateDir();
   await mkdir(dir, { recursive: true });
   const lock = lockPath(dir);
-  const owner = await acquireLock(lock);
+  const owner = await acquireLock(lock, options);
   try {
     const current = await readState(dir);
     const next = fn(current) ?? current;
@@ -613,7 +653,7 @@ async function markRead(runtime, sessionId, {
         throw error;
       }
       await options.onCompatibilityBoundary?.("cursor-updated");
-    });
+    }, options);
   }
   const key = sessionKey(runtime, sessionId);
   await mutate((state) => {

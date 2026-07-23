@@ -1,3 +1,5 @@
+import { spawn } from 'node:child_process';
+import { once } from 'node:events';
 import {
   access,
   appendFile,
@@ -9,6 +11,7 @@ import {
   writeFile,
 } from 'node:fs/promises';
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 import { expect, it } from 'vitest';
 
@@ -37,6 +40,53 @@ import type {
   CursorSessionStateEntry,
 } from '../../src/transcript/session-observer/lib/types.js';
 import { withTmpStateDir } from './helpers/tmpdir.js';
+
+const GENERATED_CURSOR_STATE_URL = pathToFileURL(
+  join(process.cwd(), 'skills/session-observer/scripts/lib/cursor-state.mjs'),
+).href;
+const LOCK_PUBLICATION_BOUNDARIES = [
+  'private-created',
+  'token-written',
+  'token-synced',
+] as const;
+
+async function killWorkerAtReady(
+  source: string,
+  stateDir: string,
+): Promise<void> {
+  const child = spawn(process.execPath, ['--input-type=module', '-e', source], {
+    env: { ...process.env, STATE_DIR: stateDir },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  const exited = once(child, 'exit');
+  let stderr = '';
+  child.stderr.setEncoding('utf8');
+  child.stderr.on('data', (chunk) => {
+    stderr += chunk;
+  });
+  await new Promise<void>((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      child.kill('SIGKILL');
+      reject(new Error(`worker did not reach boundary: ${stderr}`));
+    }, 5000);
+    child.stdout.setEncoding('utf8');
+    child.stdout.on('data', (chunk: string) => {
+      if (!chunk.includes('READY')) return;
+      clearTimeout(timeout);
+      resolve();
+    });
+    child.once('exit', (code, signal) => {
+      clearTimeout(timeout);
+      reject(
+        new Error(
+          `worker exited before boundary code=${code} signal=${signal}: ${stderr}`,
+        ),
+      );
+    });
+  });
+  child.kill('SIGKILL');
+  await exited;
+}
 
 function checkpoint(nextFrameIndex = 3) {
   return {
@@ -231,6 +281,67 @@ async function writeLegacyState(
     }),
   );
 }
+
+it.each(LOCK_PUBLICATION_BOUNDARIES)(
+  'recovers the Cursor-state queue after process death at contender publication boundary %s',
+  async (boundary) => {
+    await withTmpStateDir(async (dir) => {
+      await killWorkerAtReady(
+        `
+          const { mutateCursorState } = await import(${JSON.stringify(GENERATED_CURSOR_STATE_URL)});
+          await mutateCursorState(
+            state => state,
+            {
+              async onLockPublicationBoundary(boundary) {
+                if (boundary !== ${JSON.stringify(boundary)}) return;
+                process.stdout.write('READY\\n');
+                await new Promise(() => {});
+              }
+            }
+          );
+        `,
+        dir,
+      );
+
+      await expect(mutateCursorState((state) => state)).resolves.toMatchObject({
+        schemaVersion: 2,
+      });
+      expect(
+        await readdir(join(dir, 'cursor-state.json.lock.owner-tokens')),
+      ).toEqual([]);
+      expect(await readdir(join(dir, 'cursor-state.json.lock.owners'))).toEqual(
+        [],
+      );
+    });
+  },
+);
+
+it.each([
+  ['write', 'private-created'],
+  ['sync', 'token-written'],
+] as const)(
+  'cleans a private Cursor-state token after injected %s failure',
+  async (failure, boundary) => {
+    await withTmpStateDir(async (dir) => {
+      await expect(
+        mutateCursorState((state) => state, {
+          onLockPublicationBoundary(current) {
+            if (current === boundary) throw new Error(`injected-${failure}`);
+          },
+        }),
+      ).rejects.toThrow(`injected-${failure}`);
+      await expect(mutateCursorState((state) => state)).resolves.toMatchObject({
+        schemaVersion: 2,
+      });
+      expect(
+        await readdir(join(dir, 'cursor-state.json.lock.owner-tokens')),
+      ).toEqual([]);
+      expect(await readdir(join(dir, 'cursor-state.json.lock.owners'))).toEqual(
+        [],
+      );
+    });
+  },
+);
 
 it('loads an empty isolated Cursor schema v2 state', async () => {
   await withTmpStateDir(async (dir) => {
