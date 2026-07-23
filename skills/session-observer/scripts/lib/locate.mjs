@@ -69,12 +69,18 @@ const UNKNOWN_CLASSIFICATION = {
   bootstrapRecordIndexes: [],
   bootstrapRecordCount: 0
 };
+function compactClassificationForCache(classification) {
+  if (classification.bootstrapRecordIndexes.length === 0) return classification;
+  return { ...classification, bootstrapRecordIndexes: [] };
+}
 async function candidateDerivedFields(runtime, transcriptPath, signature, cache) {
   const cached = cache.get(transcriptPath, signature.mtimeMs, signature.size);
   if (cached) return cached;
   try {
     const records = await readRecords(transcriptPath);
-    const classification = classifyTranscriptRecords(runtime, records);
+    const classification = compactClassificationForCache(
+      classifyTranscriptRecords(runtime, records)
+    );
     const meta = extractMetaFromRecords(runtime, records, transcriptPath);
     const result = { meta, classification };
     cache.set(transcriptPath, signature.mtimeMs, signature.size, result);

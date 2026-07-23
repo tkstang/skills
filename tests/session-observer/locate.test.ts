@@ -170,6 +170,17 @@ const CLAUDE_CODE_TYPICAL = `{"sessionId":"cc-session-001","type":"summary","sum
 {"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Hi!"}]},"sessionId":"cc-session-001"}
 `;
 
+// A transcript with hidden bootstrap user records (environment_context) plus a
+// genuine exchange. Used to prove the classification cache stores a compact
+// projection that drops the uncapped bootstrapRecordIndexes array while keeping
+// the scalar bootstrapRecordCount the discovery path actually consumes.
+const CLAUDE_CODE_WITH_BOOTSTRAP = `{"sessionId":"cc-bootstrap-001","type":"summary","summary":"Session started"}
+{"type":"user","message":{"role":"user","content":"<environment_context> cwd=/x </environment_context>"},"sessionId":"cc-bootstrap-001"}
+{"type":"user","message":{"role":"user","content":"<environment_context> platform=darwin </environment_context>"},"sessionId":"cc-bootstrap-001"}
+{"type":"user","message":{"role":"user","content":"Real question"},"sessionId":"cc-bootstrap-001"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Real answer"}]},"sessionId":"cc-bootstrap-001"}
+`;
+
 // For Codex: session-started record contains cwd
 function makeCodexTypical(cwd: string): string {
   return `{"type":"session_started","sessionId":"codex-sess-001","cwd":"${cwd}","timestamp":"2026-05-14T10:00:00Z"}
@@ -931,6 +942,42 @@ test('classification cache: unchanged transcript is classified once across two d
       hasAssistantAndUser: firstCandidate.hasAssistantAndUser,
       bootstrapRecordCount: firstCandidate.bootstrapRecordCount,
     });
+  });
+});
+
+test('classification cache: stores a compact projection that drops the uncapped bootstrapRecordIndexes array', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'bootstrap-compact-project');
+    const projectDir = join(home, '.claude', 'projects', encodeCwd(targetCwd));
+    await mkdir(projectDir, { recursive: true });
+    const transcriptPath = join(projectDir, 'with-bootstrap.jsonl');
+    await writeFile(transcriptPath, CLAUDE_CODE_WITH_BOOTSTRAP, 'utf8');
+
+    const cache = new ClassificationCache();
+    const candidates = await discover('claude-code', targetCwd, cache);
+    const candidate: any = candidates.find(
+      (c: any) => c.transcriptPath === transcriptPath,
+    );
+    expect(candidate).toBeDefined();
+
+    // The classifier detected the two environment_context bootstrap records, so
+    // the scalar count the discovery path consumes is preserved...
+    expect(candidate.bootstrapRecordCount).toBeGreaterThan(0);
+    // ...but the uncapped index array is dropped from the cached/derived
+    // classification, so a cache entry cannot pin per-transcript-length memory.
+    expect(candidate.engagement.bootstrapRecordIndexes).toEqual([]);
+    // Engagement is otherwise unchanged: the genuine user turn is still counted.
+    expect(candidate.engagementStatus).toBe('engaged');
+
+    // A second pass (cache hit) must return the same compact shape.
+    const second = await discover('claude-code', targetCwd, cache);
+    const secondCandidate: any = second.find(
+      (c: any) => c.transcriptPath === transcriptPath,
+    );
+    expect(secondCandidate.engagement.bootstrapRecordIndexes).toEqual([]);
+    expect(secondCandidate.bootstrapRecordCount).toBe(
+      candidate.bootstrapRecordCount,
+    );
   });
 });
 
