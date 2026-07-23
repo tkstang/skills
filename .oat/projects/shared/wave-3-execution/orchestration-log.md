@@ -18,7 +18,7 @@ results, STOP/park events, bootstrap statuses, disposition maps) are appended as
 one-liners referencing artifacts by path; judgment entries are agent-authored.
 Never delete entries; strike through with a correction note if one turns out
 wrong. Version-stamp tool-related observations. Keep entries short and factual.
-Run pnpm exec oxfmt --write <file> (source-program example: `pnpm format:fix`)
+Run pnpm exec oxfmt --write <file>
 on this file after writing. Tag entries that bear on the
 wave-skill's design with a **Skill signal (strengthens/contradicts/gap):** line —
 those drive the upstream implementation.

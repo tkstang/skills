@@ -44,7 +44,10 @@ Nothing in this file restates, narrows, or overrides a source plan.
    `pnpm run premerge` then `pnpm run validate:skill-versions --base-ref main`
    (no bare `--` — pnpm 10 rejects it). Node >= 22; `pnpm install
    --frozen-lockfile` in a fresh worktree first. `set -o pipefail` on piped
-   verifications; scoped vitest via `npx vitest run <path>`.
+   verifications. EQUIVALENT-INVOCATION NOTE (non-narrowing): where a source
+   plan writes scoped tests as `pnpm test -- <path>`, use the mechanically
+   equivalent `npx vitest run <path>` — the literal `-- ` form fails on this
+   repo's pnpm 10 (wave-1 evidence); same binary, same scope, additive only.
 4. **STOP → BLOCKED at phase level.** A source-plan STOP parks the phase;
    the sibling continues.
 5. **Group-dependency rule:** one group of two write-disjoint lanes
@@ -158,7 +161,7 @@ gates. Expected: all green.
 | p01    | code     | pending | -    | -        |
 | p02    | code     | pending | -    | -        |
 | final  | code     | pending | -    | -        |
-| plan   | artifact | pending | -    | -        |
+| plan   | artifact | passed  | 2026-07-23 | reviews/plan-gate-2026-07-23.md |
 | spec   | artifact | pending | -    | -        |
 | design | artifact | pending | -    | -        |
 
