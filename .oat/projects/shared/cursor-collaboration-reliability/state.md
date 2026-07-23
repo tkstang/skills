@@ -40,7 +40,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-17T21:43:11.125Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-23T16:35:23Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-23T16:38:25Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -96,6 +96,7 @@ Implementation - Phase 2 fixes complete; scoped re-review pending
 - ✓ `p02-t06` atomic lock contender publication complete at `e1d1a31`
 - ✓ `p02-t07` raw cwd alias containment complete at `e08e867`
 - ✓ `p02-t08` Cursor v2 recovery guidance complete at `45835d9`
+- ✓ Phase 2 fix verification passed: 146 focused and 1,327 full-suite tests
 - ⧗ Authorized fix-task-scoped Phase 2 re-review pending
 
 ## Blockers
