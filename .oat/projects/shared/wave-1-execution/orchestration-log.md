@@ -115,14 +115,64 @@ weaker-anywhere matrix provided strong monotonicity evidence.
 
 ---
 
-## End-of-run synthesis (pending — do not skip at project completion)
+## End-of-run synthesis (2026-07-23)
 
-At project completion, BEFORE any archive step, the orchestrator writes:
-(1) verdicts on the conventions this wave exercised, with evidence entries cited;
-(2) a ruling on every "Skill signal"-tagged entry — what the `oat-wave-execute`
-skill should change; (3) adjustments adopted for later waves, stated as rules;
-(4) a graduated-entries ledger (backlog IDs / upstream refs / closed-with-evidence
-/ open-with-owner).
+**Convention verdicts (evidence cited):**
 
-Roll-up ordering (critical): `summary.md` `## Workflow Observations` and any
-repo-level ledger updates happen BEFORE `oat-project-complete` archives this file.
+1. **Write-disjoint group composition at ceiling 4: WORKED.** Zero merge
+   conflicts across four rebase+merge cycles (fan-in a367b1d/6f1f083/1e06803/0d81b84);
+   the drift-refresh recon's mechanical write-surface intersection was accurate.
+2. **Embedded cross-model reviews: HIGH VALUE.** 3 real defects caught pre-merge
+   (p01 Medium test gap; p03 2 Criticals in lock reclaim), plus p02's 128-case
+   monotonicity matrix as strong security evidence. See "worked-well ·
+   cross-model-reviews" entry.
+3. **Adversarial phase reviewers with own probes: DECISIVE.** The p03 reviewer's
+   independent interleaving analysis found a TOCTOU that BOTH the implementer
+   and Codex missed (`reviews/p03-code-review-2026-07-23.md`) — direct
+   replication of the DR-260715-adversarial-probe-reviewer evidence class.
+4. **Append-only fix rounds + disposition verification: WORKED.** p03's fix
+   round was verified by resuming the same reviewer handle; revert-verification
+   proved the new regression test discriminates the fix.
+5. **Plan gate at bounded scope: WORKED with one calibration note** — the gate
+   flagged the skill-mandated rule-1 addendum as a Critical (it lacked
+   wave-execute contract context); rejected with reasons. Gate prompts should
+   state that wrapper drift-addenda are skill-sanctioned extensions.
+
+**Rulings on Skill-signal entries:**
+
+- *preflight branch base (gap):* ADOPT — when the program artifact is not yet on
+  main, branch the wave from the program commit and let it ride in the wave PR.
+  Recommend upstreaming into the skill's Step 1.
+- *codex `-o` flush (strengthens rule 8):* ADOPT for later waves — implementer
+  briefs now include a fallback: if the `-o` file has not appeared but the codex
+  session completed, transcribe the verdict from the session rollout; if the
+  process died silently, report to the orchestrator instead of waiting.
+- *pnpm `--` forwarding (gap):* ADOPT — later waves' wrapper plans write the DoD
+  as `pnpm run premerge && pnpm run validate:skill-versions --base-ref main`
+  (no bare `--`). Recommend fixing the skill's wrapper-plan template example.
+
+**Adjustments adopted for later waves (as rules):**
+
+1. DoD line uses no bare `--` with pnpm run.
+2. Implementer briefs carry the codex-fallback paragraph (rollout transcription).
+3. Plan-gate prompts note that rule-1 drift-addenda and non-narrowing
+   reconciliations are skill-sanctioned (prevents false Criticals).
+4. Reviewer briefs explicitly grant artifact-writing via bash heredoc (one
+   Explore reviewer refused for lack of a Write tool; orchestrator persisted).
+5. This repo checkout is a linked worktree: always resolve git paths via
+   `git rev-parse --git-path`.
+
+**Graduated-entries ledger:**
+
+- Follow-up candidate → backlog (filed at closeout): atomic conversion of the
+  two deferred write sites (`writeSectionOutput`, `seedRecordsFile`) in
+  consensus-loop.ts — spotted by p01, out of its plan scope.
+- Upstream skill recommendations (owner: operator, next skill revision):
+  Step-1 branch-base note; wrapper-template DoD pnpm form; gate-prompt
+  addendum-context note.
+- Closed-with-evidence: codex `-o` wedge workarounds (both lanes recovered);
+  worktree `.git`-pointer discovery (exclude via resolved path).
+- Open-with-owner: none.
+
+Roll-up: `summary.md` `## Workflow Observations` written from this synthesis
+BEFORE any archive step.
