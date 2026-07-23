@@ -180,6 +180,14 @@ verdict=passed fix_loops=1 review=.oat/projects/shared/cursor-collaboration-reli
 
 dispatch accepted request=impl-p04-bc731e9-20260723T214500Z target=oat-phase-implementer-gpt-5-6-sol-high model_axis=selected:gpt-5.6-sol effort_axis=selected:high capability_floor=satisfied fallback=unused artifact=.oat/projects/shared/cursor-collaboration-reliability/implementation.md#phase-4-collaboration-compatibility-and-completion-safety
 
+### 2026-07-23 · structural · oat-project-implement · p04-integration-fix
+
+continuation accepted request=impl-p04-bc731e9-20260723T214500Z event=fix-p04-envelope-fixtures-e6e4c5d-20260723T224000Z target=oat-phase-implementer-gpt-5-6-sol-high commit=f84dfd8 scope=tests/transcript-core/cursor-analysis.test.ts
+
+### 2026-07-23 · structural · oat-project-implement · p04-phase-verification
+
+implementation=complete tasks=6/6 range=22a7510..f84dfd8 tests=1402_passed,1_skipped validate=passed smoke=passed typecheck=passed build_check=passed review=pending next=p05-t01 artifact=.oat/projects/shared/cursor-collaboration-reliability/implementation.md#phase-4-collaboration-compatibility-and-completion-safety
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

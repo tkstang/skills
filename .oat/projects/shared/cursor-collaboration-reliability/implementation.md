@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-23
-oat_current_task_id: p04-t06
+oat_current_task_id: p05-t01
 oat_generated: false
 ---
 
@@ -29,11 +29,11 @@ oat_generated: false
 | Phase 1 | complete    | 5     | 5/5       |
 | Phase 2 | complete    | 8     | 8/8       |
 | Phase 3 | complete    | 7     | 7/7       |
-| Phase 4 | in_progress | 6     | 5/6       |
+| Phase 4 | review_pending | 6     | 6/6       |
 | Phase 5 | pending     | 6     | 0/6       |
 | Phase 6 | pending     | 4     | 0/4       |
 
-**Total:** 25/36 tasks accepted
+**Total:** 26/36 tasks accepted
 
 ---
 
@@ -796,7 +796,20 @@ resolved; Phase 4 is next.
 
 ## Phase 4: Collaboration Compatibility and Completion Safety
 
-**Status:** in_progress
+**Status:** review_pending
+
+### Phase Summary
+
+**Outcome:**
+
+- Added schema-aware completion selection, lease v6 canonical containment,
+  private continuity CAS, confirmed-completion frame handling, and wake-envelope
+  v2 compatibility.
+- Completed the collaboration safety matrix and aligned intended-valid
+  transcript-core v2 fixtures through append-only integration fix `f84dfd8`.
+- Full clean-worktree validation passed with 1,402 tests, 1 skipped, plus
+  type-check, generated parity, validation, smoke, lint, and formatting.
+- Independent Phase 4 code review is pending.
 
 ### Task outcomes
 
@@ -807,6 +820,8 @@ resolved; Phase 4 is next.
 | p04-t03 | complete | `8e64ff4` | Bound both collaboration CAS routes to lease-private canonical path/device/inode/prefix continuity, with use-time containment revalidation and no observer projection cursor reuse. |
 | p04-t04 | complete | `dff5f92` | Switched Cursor stop handling to framed confirmed-completion selection with pending polling, structural fail-closed continuity, and atomic private frame cursor/checkpoint CAS. |
 | p04-t05 | complete | `ce7f1f6` | Versioned wake envelopes with explicit v2 schema/index-base attributes, derived v1 provenance, fail-closed malformed parsing, and synchronized generated runtimes. |
+| p04-t06 | complete | `e6e4c5d` | Added missing Cursor v2 synthetic/no-op/metadata-only, duplicate-event, expired, and disarmed safety regressions without production changes. |
+| p04-fix | complete | `f84dfd8` | Aligned all three intended-valid transcript-core v2 automatic-control fixtures with the required frame index base. |
 
 ### Task p04-t01: Dispatch completion selection by digest schema
 
@@ -846,6 +861,16 @@ diff checks passed.
 regression passed 104/104, and build parity, type-check, formatting/lint, and
 diff checks passed.
 
+### Task p04-t06: Run the collaboration safety regression matrix
+
+**Status:** completed
+**Commit:** `e6e4c5d`
+**Integration fix:** `f84dfd8`
+**Verification:** Collaboration coverage passed 110/110; focused integration
+coverage passed 95/95; full clean-worktree validation passed 1,402 tests with
+1 skipped, plus type-check, build parity, validation, smoke, formatting/lint,
+and diff checks.
+
 ---
 
 ## Deviations from Plan / Design
@@ -857,6 +882,7 @@ Document any intentional deviations from the original plan, spec, or design. Inc
 | p01-t02, p01-t04 | `plan.md` | Only the explicitly listed canonical, test, build, and generated files | Added exact `.oxfmtrc.json` and `.oxlintrc.json` entries for four new generated outputs | Existing generated-output synchronization tests and repository policy require these exclusions | Repository config plus generated-output validator | Recorded as a bounded file-boundary adaptation; no design/spec change |
 | p02-t02 | `plan.md` | Add the generated Cursor state module | Added exact `.oxfmtrc.json` and `.oxlintrc.json` exclusions for `cursor-state.mjs` | Repository generated-output policy requires the exclusion | Repository config plus generated-output validator | Bounded file-boundary adaptation |
 | p02-t03 | `plan.md` | Regenerate state runtime output | Added the exact `state.js` to `cursor-state.mjs` import rewrite in `scripts/build-generated.mjs` | Generated ESM must resolve the emitted module filename | Canonical build mapping | Bounded generated-output adaptation |
+| p04-t06 | `plan.md` | Limit safety-matrix changes to collaboration tests/runtime files | Added required `index_base` to three intended-valid v2 fixtures in `tests/transcript-core/cursor-analysis.test.ts` through append-only integration fix `f84dfd8` | Phase-wide validation exposed stale fixtures that contradicted p04-t05's intentional missing-attribute fail-closed contract | Wake-envelope v2 parser contract and full-suite validation | Bounded test-fixture adaptation; no production change |
 
 ## Test Results
 
@@ -867,7 +893,7 @@ Track test execution during implementation.
 | 1     | Focused re-review + full suite | 137 focused; 1,148 full; 1 skipped | 0 | Frames, analyzer, runtimes, generated outputs, Export compatibility |
 | 2     | Fix-task re-review + full suite | 146 focused; 1,327 full; 1 skipped | 0; review passed | Atomic lock publication, exact raw-alias containment, Cursor v2 recovery guidance, generated outputs |
 | 3     | Phase-wide suite after review fixes | 1,363 passed; 1 skipped | 0 | Digest/observation/delivery v2, exact uncertain replay, read-only confirmation, durable fail-visible watch health, CLI semantics, v1 compatibility |
-| 4     | p04-t01 through p04-t05 focused verification | 78 focused; 104 collaboration regression | 0 | Completion/continuity safety, wake envelope v1/v2 compatibility, generated parity |
+| 4     | Full clean-worktree validation after p04-t06 integration fix | 1,402 passed; 1 skipped | 0 | Completion/continuity safety, collaboration matrix, wake v1/v2 compatibility, generated parity |
 
 ## Final Summary (for PR/docs)
 

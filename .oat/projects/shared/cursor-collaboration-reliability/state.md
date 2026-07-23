@@ -1,6 +1,6 @@
 ---
-oat_current_task: p04-t06
-oat_last_commit: ce7f1f6
+oat_current_task: p05-t01
+oat_last_commit: f84dfd8
 oat_blockers: []
 associated_issues:
   - { type: backlog, ref: "BL-260713-cursor-transcript-store" }
@@ -40,7 +40,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-17T21:43:11.125Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-23T22:27:48Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-23T22:37:20Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -52,7 +52,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation - Phase 4 in progress at p04-t06
+Implementation - Phase 4 review pending; next plan task p05-t01
 
 ## Artifacts
 
@@ -60,7 +60,7 @@ Implementation - Phase 4 in progress at p04-t06
 - **Spec:** `spec.md` (complete; requirements formalized from discovery)
 - **Design:** `design.md` (complete; approved after review findings resolved)
 - **Plan:** `plan.md` (complete; approved after a passing artifact review)
-- **Implementation:** `implementation.md` (Phase 4 resumes at `p04-t06`)
+- **Implementation:** `implementation.md` (Phase 4 is 6/6; review pending)
 
 ## Progress
 
@@ -118,7 +118,10 @@ Implementation - Phase 4 in progress at p04-t06
 - ✓ `p04-t03` collaboration CAS private continuity complete at `8e64ff4`
 - ✓ `p04-t04` Cursor confirmed-completion frame consumption complete at `dff5f92`
 - ✓ `p04-t05` collaboration wake envelope versioning complete at `ce7f1f6`
-- ⧗ Phase 4 continues at `p04-t06`
+- ✓ `p04-t06` collaboration safety matrix complete at `e6e4c5d`
+- ✓ Bounded v2 fixture integration fix complete at `f84dfd8`
+- ✓ Phase 4 verification passed: 1,402 tests, 1 skipped, plus full clean-worktree gates
+- ⧗ Independent Phase 4 code review pending
 
 ## Blockers
 
@@ -126,4 +129,4 @@ None.
 
 ## Next Milestone
 
-Execute Phase 4 from `p04-t06`.
+Run the independent Phase 4 code review; if it passes, continue at `p05-t01`.
