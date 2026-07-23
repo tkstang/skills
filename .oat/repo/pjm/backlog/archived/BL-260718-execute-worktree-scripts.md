@@ -1,7 +1,7 @@
 ---
 id: BL-260718-execute-worktree-scripts
 title: Execute worktree scripts and git hooks in tests
-status: open
+status: closed
 priority: low
 scope: task
 scope_estimate: M
@@ -11,7 +11,7 @@ labels:
   - dev-tooling
 assignee: null
 created: 2026-07-18T00:04:09Z
-updated: 2026-07-18T00:04:09Z
+updated: '2026-07-23T07:04:55Z'
 associated_issues: []
 external_plans:
   - .oat/repo/reference/external-plans/2026-07-17-worktree-and-hook-tests.md

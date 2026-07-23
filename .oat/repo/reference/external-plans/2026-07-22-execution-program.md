@@ -21,7 +21,7 @@ contract remains its immutable plan file.
 | Wave | Theme                        | Lanes | Status   | Record |
 | ---- | ---------------------------- | ----- | -------- | ------ |
 | W1   | Correctness & security core  | 4     | merged   | PR [#50](https://github.com/tkstang/skills/pull/50) · merge 7db7d0f · completion record `.oat/repo/reference/project-summaries/20260723-wave-1-execution.md` · recap: deferred to program close · completion tail: done (per-wave full tail) |
-| W2   | Hardening & contract guards  | 4     | composed | —      |
+| W2   | Hardening & contract guards  | 4     | merged   | PR [#51](https://github.com/tkstang/skills/pull/51) · merge 79bf70e · completion record `.oat/repo/reference/project-summaries/20260723-wave-2-execution.md` · recap: deferred to program close · completion tail: done (per-wave full tail) |
 | W3   | Consolidation & tooling nets | 2     | composed | —      |
 | W4   | CI & release surface         | 3     | composed | —      |
 | W5   | God-module splits            | 2     | composed | —      |
@@ -34,10 +34,10 @@ contract remains its immutable plan file.
 | [Cross-provider recursion guard](./2026-07-17-cross-provider-recursion-guard.md)      | 2026-07-17-repo-audit-plan-index   | W1   | independent (provider-cli subsystem)                                              | done |
 | [Session-observer state robustness](./2026-07-17-session-observer-state-robustness.md) | 2026-07-17-repo-audit-plan-index | W1   | observer-lib chain link 1                                                         | done |
 | [Docs staleness sweep](./2026-07-17-docs-staleness-sweep.md)                          | 2026-07-17-repo-audit-plan-index   | W1   | independent; only W1 lane touching AGENTS.md/CHANGELOG                            | done |
-| [Consensus subprocess hardening](./2026-07-17-consensus-subprocess-hardening.md)      | 2026-07-17-repo-audit-plan-index   | W2   | hard: after W1 atomic records (same file)                                         | pending |
-| [Watch-loop classification cache](./2026-07-17-watch-loop-classification-cache.md)    | 2026-07-17-repo-audit-plan-index   | W2   | hard: after W1 observer state (same lib)                                          | pending |
-| [SKILL_FILES disk derivation](./2026-07-17-skill-files-disk-derivation.md)            | 2026-07-17-repo-audit-plan-index   | W2   | soft: AGENTS.md overlap with ignore-lists lane — merge sequentially               | pending |
-| [Derive generated ignore lists](./2026-07-17-derive-generated-ignore-lists.md)        | 2026-07-17-repo-audit-plan-index   | W2   | before W3 consolidation (guard protects its new outputs); AGENTS.md soft overlap  | pending |
+| [Consensus subprocess hardening](./2026-07-17-consensus-subprocess-hardening.md)      | 2026-07-17-repo-audit-plan-index   | W2   | hard: after W1 atomic records (same file)                                         | done |
+| [Watch-loop classification cache](./2026-07-17-watch-loop-classification-cache.md)    | 2026-07-17-repo-audit-plan-index   | W2   | hard: after W1 observer state (same lib)                                          | done |
+| [SKILL_FILES disk derivation](./2026-07-17-skill-files-disk-derivation.md)            | 2026-07-17-repo-audit-plan-index   | W2   | soft: AGENTS.md overlap with ignore-lists lane — merge sequentially               | done |
+| [Derive generated ignore lists](./2026-07-17-derive-generated-ignore-lists.md)        | 2026-07-17-repo-audit-plan-index   | W2   | before W3 consolidation (guard protects its new outputs); AGENTS.md soft overlap  | done |
 | [Consolidate consensus CLI helpers](./2026-07-17-consolidate-consensus-cli-helpers.md) | 2026-07-17-repo-audit-plan-index | W3   | hard: after W2 subprocess hardening; benefits from W2 ignore-lists guard          | pending |
 | [Worktree and hook tests](./2026-07-17-worktree-and-hook-tests.md)                    | 2026-07-17-repo-audit-plan-index   | W3   | independent                                                                       | pending |
 | [Supply-chain/CI hardening](./2026-07-17-supply-chain-ci-hardening.md)                | 2026-07-17-repo-audit-plan-index   | W4   | merge-first in W4 (sets action-pin style; RELEASING.md overlap with live-E2E)     | pending |
@@ -63,6 +63,8 @@ No rows are deferred or dropped; all 15 plans are scheduled.
 - **Intra-wave ordering:** subprocess-hardening and watch-cache are independent of each other and of the two guard lanes. SKILL_FILES-derivation and ignore-lists-derivation both edit an AGENTS.md sentence (different sections) — merge sequentially in either order; the second rebases trivially.
 - **Cross-wave prerequisites:** subprocess-hardening requires W1 atomic-records merged; watch-cache requires W1 observer-state merged. The ignore-lists guard must land before W3 consolidation adds new generated outputs (index note: the guard then protects that change too).
 - **Composition rationale:** continues both serial chains at full width while landing the two release/build-contract guards whose presence de-risks everything later in the program.
+
+**W2 merged (2026-07-23, PR #51)** → W3 unblocked: consolidation prerequisites (subprocess hardening merged; ignore-lists guard + derived rewrites active) satisfied.
 
 ## Wave 3: Consolidation & tooling nets
 

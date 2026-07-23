@@ -1,0 +1,13 @@
+#!/usr/bin/env node
+// Stub `oat` CLI for init.sh tests. Records invocations to OAT_STUB_CALLS_JSONL
+// and always exits 0 (init.sh treats `oat ... || echo warn: ...` failures as
+// non-fatal anyway, so this fixture only needs to prove delegation).
+import { appendFileSync } from 'node:fs';
+
+const args = process.argv.slice(2);
+const callsPath = process.env.OAT_STUB_CALLS_JSONL;
+if (callsPath) {
+  appendFileSync(callsPath, `${JSON.stringify({ args })}\n`);
+}
+process.stdout.write(`oat-stub: ok (${args.join(' ')})\n`);
+process.exit(0);

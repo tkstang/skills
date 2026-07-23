@@ -1,14 +1,14 @@
 ---
 name: evaluate
 description: Use when evaluating an artifact against a rubric with two AI peers, unified findings, per-peer reasoning, and dissent preserved in the deliberation log.
-version: '0.1.8'
+version: '0.1.9'
 license: MIT
 compatibility: Agent Skills baseline; requires Node.js 22+ and the generated consensus CLI.
 allowed-tools: Bash(node:*), Bash(consensus:*), Read, Write
 argument-hint: <artifact.md> [--rubric <rubric.md>]
 metadata:
   author: thomas.stang
-  version: '0.1.8'
+  version: '0.1.9'
 ---
 
 # Evaluate

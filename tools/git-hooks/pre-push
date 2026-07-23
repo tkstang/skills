@@ -1,6 +1,11 @@
 #!/bin/sh
 set -e
 
+if ! command -v pnpm >/dev/null 2>&1; then
+  echo "pre-push: pnpm not found on PATH — install pnpm, or skip this hook with 'git push --no-verify'" >&2
+  exit 1
+fi
+
 # Fast pre-flight before pushing: cheap static checks only (~3s). The full
 # Vitest suite and smoke flow run in CI (.github/workflows/validate.yml), so
 # they are intentionally not duplicated here — a pre-push hook should stay fast.

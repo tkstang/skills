@@ -14,6 +14,7 @@ import {
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { parsePeers, parsePositiveInteger } from './consensus-cli-helpers.mjs';
 function isJsonRecord(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
@@ -249,20 +250,6 @@ function required(value, name) {
     throw new Error(`missing required option: ${name}`);
   }
   return value;
-}
-function parsePositiveInteger(value, name) {
-  const parsed = Number.parseInt(value, 10);
-  if (!Number.isInteger(parsed) || parsed < 1 || String(parsed) !== String(value)) {
-    throw new Error(`${name} must be a positive integer`);
-  }
-  return parsed;
-}
-function parsePeers(value) {
-  const peers = String(required(value, "--peers")).split(",").map((peer) => peer.trim()).filter(Boolean);
-  if (peers.length !== 2) {
-    throw new Error("--peers must contain exactly two peers");
-  }
-  return peers;
 }
 function schemaPath() {
   return fileURLToPath(
