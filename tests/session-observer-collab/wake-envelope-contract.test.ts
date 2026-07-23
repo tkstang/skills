@@ -16,7 +16,11 @@ import {
   renderMarkdown,
 } from '../../src/transcript/session-observer/lib/digest.js';
 
-const RANGE = { fromIndex: 12, toIndex: 19 };
+const RECORDS = { fromIndex: 12, toIndex: 19 } as const;
+const RANGE = {
+  indexBase: 'zero-based-jsonl-record-index',
+  ...RECORDS,
+} as const;
 const LEASE = {
   leaseId: 'lease-&-"quoted"',
   peerRuntime: 'claude-code',
@@ -70,6 +74,8 @@ describe('production wake-envelope cross-contract', () => {
     async (producerRuntime, buildEnvelope) => {
       const envelope = buildEnvelope();
       expect(envelope).toMatch(/^<session_observer_wake automatic="true"/u);
+      expect(envelope).toContain('schema_version="2"');
+      expect(envelope).toContain('index_base="zero-based-jsonl-record-index"');
 
       for (const runtime of runtimes) {
         const directory = await mkdtemp(join(tmpdir(), 'wake-contract-'));
@@ -97,10 +103,12 @@ describe('production wake-envelope cross-contract', () => {
             origin: 'automatic-control',
             automaticControl: {
               automatic: true,
+              schemaVersion: 2,
               runtime: producerRuntime,
               leaseId: LEASE.leaseId,
               pinnedPeer: `${LEASE.peerRuntime}:${LEASE.peerSession}`,
-              range: RANGE,
+              indexBase: 'zero-based-jsonl-record-index',
+              range: RECORDS,
             },
           });
           expect(renderMarkdown(digest)).toContain(
@@ -123,6 +131,40 @@ describe('production wake-envelope cross-contract', () => {
           await rm(directory, { recursive: true, force: true });
         }
       }
+    },
+  );
+
+  test.each([
+    ['codex', wakeEnvelope],
+    ['cursor', cursorWakeEnvelope],
+  ] as const)(
+    'emits %s frame-index provenance without granting receiver-side cursor authority',
+    (producerRuntime, buildEnvelope) => {
+      const frameRange = {
+        ...RANGE,
+        indexBase: 'zero-based-jsonl-frame-index',
+      } as const;
+      const envelope = buildEnvelope(
+        { ...LEASE, peerRuntime: 'cursor' },
+        frameRange,
+      );
+
+      expect(envelope).toContain('schema_version="2"');
+      expect(envelope).toContain('index_base="zero-based-jsonl-frame-index"');
+      expect(envelope).toContain(`runtime="${producerRuntime}"`);
+      expect(envelope).toContain('records="12-19"');
+    },
+  );
+
+  test.each([
+    ['codex', wakeEnvelope],
+    ['cursor', cursorWakeEnvelope],
+  ] as const)(
+    'refuses to emit a malformed %s v2 envelope without an index base',
+    (_producerRuntime, buildEnvelope) => {
+      expect(() => buildEnvelope(LEASE, RECORDS)).toThrow(
+        'range.indexBase must be a supported index base',
+      );
     },
   );
 });

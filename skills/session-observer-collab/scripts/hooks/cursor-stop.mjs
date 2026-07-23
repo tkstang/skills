@@ -54,12 +54,24 @@ function escapeAttribute(value) {
     .replaceAll('>', '&gt;');
 }
 
+function completionIndexBase(value) {
+  if (
+    value !== 'zero-based-jsonl-record-index' &&
+    value !== 'zero-based-jsonl-frame-index'
+  ) {
+    throw new TypeError('range.indexBase must be a supported index base');
+  }
+  return value;
+}
+
 export function cursorWakeEnvelope(lease, range) {
   const peer = `${lease.peerRuntime}:${lease.peerSession}`;
+  const indexBase = completionIndexBase(range.indexBase);
   return [
-    '<session_observer_wake automatic="true"',
+    '<session_observer_wake automatic="true" schema_version="2"',
     `  runtime="cursor" lease_id="${escapeAttribute(lease.leaseId)}"`,
-    `  peer="${escapeAttribute(peer)}" records="${range.fromIndex}-${range.toIndex}">`,
+    `  peer="${escapeAttribute(peer)}" index_base="${indexBase}"`,
+    `  records="${range.fromIndex}-${range.toIndex}">`,
     'Review the pinned peer range and respond only if it contains substantive new information.',
     '</session_observer_wake>',
   ].join('\n');

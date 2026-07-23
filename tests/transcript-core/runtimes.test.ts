@@ -725,7 +725,7 @@ describe('normalizeEntries (codex)', () => {
 // ---------------------------------------------------------------------------
 
 describe('Cursor shared control classification', () => {
-  it('parses JSON and XML automatic wake envelopes', () => {
+  it('parses legacy JSON and XML envelopes as record-index v1 provenance', () => {
     expect(
       parseAutomaticControlEnvelope(
         JSON.stringify({
@@ -740,18 +740,42 @@ describe('Cursor shared control classification', () => {
       ),
     ).toMatchObject({
       automatic: true,
+      schemaVersion: 1,
       runtime: 'cursor',
       leaseId: 'synthetic-lease',
+      indexBase: 'zero-based-jsonl-record-index',
       range: { fromIndex: 4, toIndex: 7 },
     });
     expect(
       parseAutomaticControlEnvelope(
-        '<session_observer_wake automatic="true" schema_version="2" runtime="cursor" lease_id="synthetic-lease" peer="cursor:synthetic-peer" records="4-7">Review the exact range.</session_observer_wake>',
+        '<session_observer_wake automatic="true" runtime="cursor" lease_id="synthetic-lease" peer="cursor:synthetic-peer" records="4-7">Review the exact range.</session_observer_wake>',
       ),
     ).toMatchObject({
       automatic: true,
+      schemaVersion: 1,
       runtime: 'cursor',
       leaseId: 'synthetic-lease',
+      indexBase: 'zero-based-jsonl-record-index',
+      range: { fromIndex: 4, toIndex: 7 },
+      wireFormat: 'xml',
+    });
+  });
+
+  it.each([
+    'zero-based-jsonl-record-index',
+    'zero-based-jsonl-frame-index',
+  ] as const)('parses a complete v2 %s envelope', (indexBase) => {
+    expect(
+      parseAutomaticControlEnvelope(
+        `<session_observer_wake automatic="true" schema_version="2" runtime="cursor" lease_id="synthetic-lease" peer="cursor:synthetic-peer" index_base="${indexBase}" records="4-7">Review the exact range.</session_observer_wake>`,
+      ),
+    ).toMatchObject({
+      automatic: true,
+      schemaVersion: 2,
+      runtime: 'cursor',
+      leaseId: 'synthetic-lease',
+      pinnedPeer: 'cursor:synthetic-peer',
+      indexBase,
       range: { fromIndex: 4, toIndex: 7 },
       wireFormat: 'xml',
     });
@@ -761,6 +785,11 @@ describe('Cursor shared control classification', () => {
     '{"session_observer_wake":{"automatic":false}}',
     '<session_observer_wake automatic="false" runtime="cursor" lease_id="x" peer="cursor:y" records="1-2">Review.</session_observer_wake>',
     '<session_observer_wake automatic="true" runtime="cursor" lease_id="x" peer="cursor:y" records="2-1">Review.</session_observer_wake>',
+    '<session_observer_wake automatic="true" schema_version="2" runtime="cursor" lease_id="x" peer="cursor:y" records="1-2">Review.</session_observer_wake>',
+    '<session_observer_wake automatic="true" runtime="cursor" lease_id="x" peer="cursor:y" index_base="zero-based-jsonl-frame-index" records="1-2">Review.</session_observer_wake>',
+    '<session_observer_wake automatic="true" schema_version="2" runtime="cursor" lease_id="x" peer="cursor:y" index_base="records" records="1-2">Review.</session_observer_wake>',
+    '<session_observer_wake automatic="true" schema_version="2.0" runtime="cursor" lease_id="x" peer="cursor:y" index_base="zero-based-jsonl-frame-index" records="1-2">Review.</session_observer_wake>',
+    '<session_observer_wake automatic="true" schema_version="3" runtime="cursor" lease_id="x" peer="cursor:y" index_base="zero-based-jsonl-frame-index" records="1-2">Review.</session_observer_wake>',
     'ordinary human input',
   ])('rejects invalid or non-automatic envelope text: %s', (text) => {
     expect(parseAutomaticControlEnvelope(text)).toBeNull();

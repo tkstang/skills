@@ -41,6 +41,9 @@ export type DigestEntryOrigin =
   | 'human'
   | 'automatic-control'
   | 'runtime-diagnostic';
+export type AutomaticControlIndexBase =
+  | 'zero-based-jsonl-record-index'
+  | 'zero-based-jsonl-frame-index';
 export type CursorTerminalStatus =
   | 'success'
   | 'aborted'
@@ -54,9 +57,11 @@ export type DigestEntryKind =
 
 export interface AutomaticControlProvenance {
   automatic: true;
+  schemaVersion: 1 | 2;
   runtime: string;
   leaseId: string;
   pinnedPeer: JsonObject | string;
+  indexBase: AutomaticControlIndexBase;
   range: {
     fromIndex: number;
     toIndex: number;
@@ -132,6 +137,26 @@ function asString(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined;
 }
 
+function automaticControlVersion(
+  schemaVersion: unknown,
+  indexBase: unknown,
+): Pick<AutomaticControlProvenance, 'schemaVersion' | 'indexBase'> | null {
+  if (schemaVersion === undefined && indexBase === undefined) {
+    return {
+      schemaVersion: 1,
+      indexBase: 'zero-based-jsonl-record-index',
+    };
+  }
+  if (
+    schemaVersion === 2 &&
+    (indexBase === 'zero-based-jsonl-record-index' ||
+      indexBase === 'zero-based-jsonl-frame-index')
+  ) {
+    return { schemaVersion, indexBase };
+  }
+  return null;
+}
+
 function parseAutomaticControlJsonEnvelope(
   text: string,
 ): AutomaticControlProvenance | null {
@@ -144,8 +169,10 @@ function parseAutomaticControlJsonEnvelope(
   if (!isObject(parsed) || !isObject(parsed.session_observer_wake)) return null;
 
   const wake = parsed.session_observer_wake;
+  const version = automaticControlVersion(wake.schemaVersion, wake.indexBase);
   const range = wake.range;
   if (
+    version === null ||
     wake.automatic !== true ||
     !asString(wake.runtime) ||
     !asString(wake.leaseId) ||
@@ -159,7 +186,16 @@ function parseAutomaticControlJsonEnvelope(
     return null;
   }
 
-  return wake as AutomaticControlProvenance;
+  return {
+    ...wake,
+    automatic: true,
+    schemaVersion: version.schemaVersion,
+    runtime: wake.runtime as string,
+    leaseId: wake.leaseId as string,
+    pinnedPeer: wake.pinnedPeer as JsonObject | string,
+    indexBase: version.indexBase,
+    range: range as AutomaticControlProvenance['range'],
+  };
 }
 
 function decodeXmlAttribute(value: string): string | null {
@@ -207,12 +243,22 @@ function parseAutomaticControlXmlEnvelope(
   const attributes = parseXmlAttributes(match[1]);
   if (!attributes || attributes.get('automatic') !== 'true') return null;
 
+  const schemaVersionAttribute = attributes.get('schema_version');
+  const version = automaticControlVersion(
+    schemaVersionAttribute === undefined
+      ? undefined
+      : schemaVersionAttribute === '2'
+        ? 2
+        : null,
+    attributes.get('index_base'),
+  );
   const runtime = attributes.get('runtime');
   const leaseId = attributes.get('lease_id');
   const pinnedPeer = attributes.get('peer');
   const records = attributes.get('records');
   const rangeMatch = /^(\d+)-(\d+)$/u.exec(records ?? '');
   if (
+    version === null ||
     !runtime?.trim() ||
     !leaseId?.trim() ||
     !pinnedPeer?.trim() ||
@@ -232,9 +278,11 @@ function parseAutomaticControlXmlEnvelope(
 
   return {
     automatic: true,
+    schemaVersion: version.schemaVersion,
     runtime,
     leaseId,
     pinnedPeer,
+    indexBase: version.indexBase,
     range: { fromIndex, toIndex },
     wireFormat: 'xml',
     body: match[2].trim(),

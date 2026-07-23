@@ -15,6 +15,18 @@ function isObject(value) {
 function asString(value) {
   return typeof value === "string" ? value : void 0;
 }
+function automaticControlVersion(schemaVersion, indexBase) {
+  if (schemaVersion === void 0 && indexBase === void 0) {
+    return {
+      schemaVersion: 1,
+      indexBase: "zero-based-jsonl-record-index"
+    };
+  }
+  if (schemaVersion === 2 && (indexBase === "zero-based-jsonl-record-index" || indexBase === "zero-based-jsonl-frame-index")) {
+    return { schemaVersion, indexBase };
+  }
+  return null;
+}
 function parseAutomaticControlJsonEnvelope(text) {
   let parsed;
   try {
@@ -24,11 +36,21 @@ function parseAutomaticControlJsonEnvelope(text) {
   }
   if (!isObject(parsed) || !isObject(parsed.session_observer_wake)) return null;
   const wake = parsed.session_observer_wake;
+  const version = automaticControlVersion(wake.schemaVersion, wake.indexBase);
   const range = wake.range;
-  if (wake.automatic !== true || !asString(wake.runtime) || !asString(wake.leaseId) || !isObject(wake.pinnedPeer) && !asString(wake.pinnedPeer) || !isObject(range) || !Number.isInteger(range.fromIndex) || !Number.isInteger(range.toIndex) || range.fromIndex < 0 || range.toIndex < range.fromIndex) {
+  if (version === null || wake.automatic !== true || !asString(wake.runtime) || !asString(wake.leaseId) || !isObject(wake.pinnedPeer) && !asString(wake.pinnedPeer) || !isObject(range) || !Number.isInteger(range.fromIndex) || !Number.isInteger(range.toIndex) || range.fromIndex < 0 || range.toIndex < range.fromIndex) {
     return null;
   }
-  return wake;
+  return {
+    ...wake,
+    automatic: true,
+    schemaVersion: version.schemaVersion,
+    runtime: wake.runtime,
+    leaseId: wake.leaseId,
+    pinnedPeer: wake.pinnedPeer,
+    indexBase: version.indexBase,
+    range
+  };
 }
 function decodeXmlAttribute(value) {
   if (/[<>]|&(?!amp;|quot;|lt;|gt;|apos;)/u.test(value)) return null;
@@ -66,12 +88,17 @@ function parseAutomaticControlXmlEnvelope(text) {
   if (!match) return null;
   const attributes = parseXmlAttributes(match[1]);
   if (!attributes || attributes.get("automatic") !== "true") return null;
+  const schemaVersionAttribute = attributes.get("schema_version");
+  const version = automaticControlVersion(
+    schemaVersionAttribute === void 0 ? void 0 : schemaVersionAttribute === "2" ? 2 : null,
+    attributes.get("index_base")
+  );
   const runtime = attributes.get("runtime");
   const leaseId = attributes.get("lease_id");
   const pinnedPeer = attributes.get("peer");
   const records = attributes.get("records");
   const rangeMatch = /^(\d+)-(\d+)$/u.exec(records ?? "");
-  if (!runtime?.trim() || !leaseId?.trim() || !pinnedPeer?.trim() || !rangeMatch)
+  if (version === null || !runtime?.trim() || !leaseId?.trim() || !pinnedPeer?.trim() || !rangeMatch)
     return null;
   const fromIndex = Number(rangeMatch[1]);
   const toIndex = Number(rangeMatch[2]);
@@ -80,9 +107,11 @@ function parseAutomaticControlXmlEnvelope(text) {
   }
   return {
     automatic: true,
+    schemaVersion: version.schemaVersion,
     runtime,
     leaseId,
     pinnedPeer,
+    indexBase: version.indexBase,
     range: { fromIndex, toIndex },
     wireFormat: "xml",
     body: match[2].trim()
