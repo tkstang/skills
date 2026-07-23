@@ -489,3 +489,89 @@ it('acquireLock reclaims an empty/garbage lock once it is older than the stale t
     ).toBeLessThan(1000);
   });
 });
+
+// ---------------------------------------------------------------------------
+// 16. Stale-lock reclaim: a live-owner lock is never reclaimed via age,
+// however old — the age fallback only applies when no PID can be read.
+// ---------------------------------------------------------------------------
+it('acquireLock never reclaims a lock via age when its recorded PID is confirmed live, no matter how old', async () => {
+  await withTmpStateDir(async (dir) => {
+    const lock = join(dir, 'state.json.lock');
+    await writeFile(lock, String(process.pid)); // live owner: this test process
+    const past = new Date(Date.now() - 60 * 60 * 1000); // far past any age threshold
+    await utimes(lock, past, past);
+
+    let settled = false;
+    const pending = state.mutate((s: any) => s).finally(() => {
+      settled = true;
+    });
+
+    await sleep(300);
+    expect(
+      settled,
+      'a live-owner lock must never be reclaimed via age alone',
+    ).toBe(false);
+
+    await unlink(lock);
+    await pending;
+    expect(settled).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 17. Stale-lock reclaim: concurrent reclaimers never both hold the lock.
+// Regression for the unconditional-unlink race: two contenders racing to
+// reclaim the SAME stale (dead-PID) lock must not both end up believing they
+// hold it. tryReclaim's rename-based exclusive claim (instead of a bare
+// unlink) is what this proves.
+// ---------------------------------------------------------------------------
+it('two concurrent mutate calls against a stale dead-PID lock both land cleanly — no double-acquisition, no residue', async () => {
+  await withTmpStateDir(async (dir) => {
+    const lock = join(dir, 'state.json.lock');
+    await writeFile(lock, '999999');
+
+    const killSpy = vi
+      .spyOn(process, 'kill')
+      .mockImplementation((pid: number, signal?: string | number) => {
+        expect(signal).toBe(0);
+        if (pid === 999999) {
+          const err = new Error('no such process') as NodeJS.ErrnoException;
+          err.code = 'ESRCH';
+          throw err;
+        }
+        return true;
+      });
+
+    try {
+      await Promise.all([
+        state.markRead('claude-code', 'race-a', {
+          lastRecordIndex: 1,
+          lastTotalRecords: 5,
+          transcriptPath: '/tmp/race-a.jsonl',
+          recordedCwd: '/proj',
+        }),
+        state.markRead('codex', 'race-b', {
+          lastRecordIndex: 2,
+          lastTotalRecords: 6,
+          transcriptPath: '/tmp/race-b.jsonl',
+          recordedCwd: '/proj',
+        }),
+      ]);
+    } finally {
+      killSpy.mockRestore();
+    }
+
+    // Both mutations must have landed — proves the two racing acquisitions
+    // were correctly serialized (not both believing they held the lock at
+    // once, which would risk a lost update or a corrupt write).
+    const a: any = await state.getSession('claude-code', 'race-a');
+    const b: any = await state.getSession('codex', 'race-b');
+    expect(a, 'race-a must exist').toBeTruthy();
+    expect(b, 'race-b must exist').toBeTruthy();
+
+    // No leftover reclaim-claim or tmp artifacts from the race.
+    const files = await readdir(dir);
+    expect(files.filter((f) => f.includes('.reclaim.'))).toEqual([]);
+    expect(files.filter((f) => f.endsWith('.tmp'))).toEqual([]);
+  });
+});

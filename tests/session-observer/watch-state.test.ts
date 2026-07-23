@@ -541,3 +541,77 @@ test('acquireLock reclaims an empty/garbage watch.json.lock once older than the 
     ).toBeLessThan(1000);
   });
 });
+
+test('acquireLock never reclaims a watch.json.lock via age when its recorded PID is confirmed live, no matter how old', async () => {
+  await withTmpStateDir(async (dir) => {
+    const lock = join(dir, 'watch.json.lock');
+    await writeFile(lock, String(process.pid)); // live owner: this test process
+    const past = new Date(Date.now() - 60 * 60 * 1000); // far past any age threshold
+    await utimes(lock, past, past);
+
+    let settled = false;
+    const pending = watchState.loadWatchState().finally(() => {
+      settled = true;
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(
+      settled,
+      'a live-owner lock must never be reclaimed via age alone',
+    ).toBe(false);
+
+    await unlink(lock);
+    await pending;
+    expect(settled).toBe(true);
+  });
+});
+
+// Regression for the unconditional-unlink race: two contenders racing to
+// reclaim the SAME stale (dead-PID) lock must not both end up believing they
+// hold it. tryReclaim's rename-based exclusive claim (instead of a bare
+// unlink) is what this proves.
+test('two concurrent startWatcher calls against a stale dead-PID lock both land cleanly — no double-acquisition, no residue', async () => {
+  await withTmpStateDir(async (dir) => {
+    const lock = join(dir, 'watch.json.lock');
+    await writeFile(lock, '999999');
+
+    vi.spyOn(process, 'kill').mockImplementation(
+      (pid: number, signal?: string | number) => {
+        expect(signal).toBe(0);
+        if (pid === 999999) {
+          const err = new Error('no such process') as NodeJS.ErrnoException;
+          err.code = 'ESRCH';
+          throw err;
+        }
+        return true;
+      },
+    );
+
+    const [a, b] = await Promise.all([
+      watchState.startWatcher({
+        runtime: 'codex',
+        cwd: '/repo-a',
+        pid: 3001,
+        startedAt: '2026-06-03T12:00:00.000Z',
+      }),
+      watchState.startWatcher({
+        runtime: 'claude-code',
+        cwd: '/repo-b',
+        pid: 3002,
+        startedAt: '2026-06-03T12:00:01.000Z',
+      }),
+    ]);
+
+    expect(a.pid).toBe(3001);
+    expect(b.pid).toBe(3002);
+
+    const raw = JSON.parse(await readFile(join(dir, 'watch.json'), 'utf8'));
+    expect(
+      (raw.watchers as Array<{ pid: number }>).map((w) => w.pid).sort(),
+    ).toEqual([3001, 3002]);
+
+    const files = await readdir(dir);
+    expect(files.filter((f) => f.includes('.reclaim.'))).toEqual([]);
+    expect(files.filter((f) => f.endsWith('.tmp'))).toEqual([]);
+  });
+});
