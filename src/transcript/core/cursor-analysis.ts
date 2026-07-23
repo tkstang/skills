@@ -79,6 +79,7 @@ interface MutableCursorTurn {
   humanRecordIndexes: number[];
   toolRecordIndexes: number[];
   hasAutomaticControlInput: boolean;
+  hasHumanInput: boolean;
 }
 
 function isJsonObject(value: unknown): value is JsonObject {
@@ -161,6 +162,7 @@ function lifecycleState(status: unknown): CursorLifecycleState {
 function classifyAssistantText(
   block: ContentBlock,
   hasAutomaticControlInput: boolean,
+  hasHumanInput: boolean,
 ): CursorContentClassification {
   if (block.kind === 'runtime-diagnostic') return 'runtime-diagnostic';
   if (block.kind === 'unsupported') return 'unsupported';
@@ -168,7 +170,9 @@ function classifyAssistantText(
   if (isNoOpText(block.text)) return 'no-op';
   if (
     parseAutomaticControlEnvelope(block.text) !== null ||
-    (hasAutomaticControlInput && isAutomaticControlAcknowledgement(block.text))
+    (hasAutomaticControlInput &&
+      !hasHumanInput &&
+      isAutomaticControlAcknowledgement(block.text))
   ) {
     return 'automatic-control';
   }
@@ -204,6 +208,7 @@ export function createCursorTurnAccumulator(
       humanRecordIndexes: [],
       toolRecordIndexes: [],
       hasAutomaticControlInput: false,
+      hasHumanInput: false,
     };
     return current;
   };
@@ -288,14 +293,23 @@ export function createCursorTurnAccumulator(
       }
 
       if (role === 'user') {
-        const automaticControl = blocks.some(
-          (block) =>
-            block.kind === 'text' &&
-            parseAutomaticControlEnvelope(block.text) !== null,
-        );
+        let automaticControl = false;
+        let humanInput = false;
+        for (const block of blocks) {
+          if (block.kind !== 'text' || block.text.trim().length === 0) {
+            continue;
+          }
+          if (parseAutomaticControlEnvelope(block.text) !== null) {
+            automaticControl = true;
+          } else {
+            humanInput = true;
+          }
+        }
         if (automaticControl) {
           turn.hasAutomaticControlInput = true;
-        } else {
+        }
+        if (humanInput) {
+          turn.hasHumanInput = true;
           turn.humanRecordIndexes.push(frame.frameIndex);
         }
         return;
@@ -306,6 +320,7 @@ export function createCursorTurnAccumulator(
         const classification = classifyAssistantText(
           block,
           turn.hasAutomaticControlInput,
+          turn.hasHumanInput,
         );
         turn.assistantRecords.push({
           entryKey: `${turn.turnId}:frame:${frame.frameIndex}:block:${block.blockIndex}`,

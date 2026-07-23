@@ -3,7 +3,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   scanCursorTranscript,
@@ -237,5 +237,83 @@ describe('scanCursorTranscript', () => {
 
     expect(observed).toEqual([0, 1]);
     expect(scan.totalFrames).toBe(2);
+  });
+
+  it('materializes each large cross-chunk frame at most once', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'cursor-frames-large-'));
+    temporaryDirectories.push(directory);
+    const transcriptPath = join(directory, 'transcript.jsonl');
+    const closedFrame = Buffer.from(
+      `${JSON.stringify({
+        role: 'assistant',
+        message: {
+          content: [{ type: 'text', text: 'x'.repeat(320 * 1024) }],
+        },
+      })}\n`,
+      'utf8',
+    );
+    const partialFrame = Buffer.from(
+      JSON.stringify({
+        role: 'assistant',
+        message: {
+          content: [{ type: 'text', text: 'y'.repeat(192 * 1024) }],
+        },
+      }),
+      'utf8',
+    );
+    const transcript = Buffer.concat([closedFrame, partialFrame]);
+    await writeFile(transcriptPath, transcript);
+    const observed: Array<{
+      frameIndex: number;
+      byteStart: number;
+      byteEnd: number;
+      parseState: string;
+    }> = [];
+    const concat = vi.spyOn(Buffer, 'concat');
+
+    try {
+      const scan = await scanCursorTranscript(transcriptPath, {
+        verifyPrefixBytes: closedFrame.length,
+        onFrame(frame) {
+          observed.push({
+            frameIndex: frame.frameIndex,
+            byteStart: frame.byteStart,
+            byteEnd: frame.byteEnd,
+            parseState: frame.parseState,
+          });
+        },
+      });
+
+      expect(observed).toEqual([
+        {
+          frameIndex: 0,
+          byteStart: 0,
+          byteEnd: closedFrame.length,
+          parseState: 'parsed',
+        },
+        {
+          frameIndex: 1,
+          byteStart: closedFrame.length,
+          byteEnd: transcript.length,
+          parseState: 'partial',
+        },
+      ]);
+      expect(scan).toMatchObject({
+        totalFrames: 2,
+        safeThroughFrame: 0,
+        safePrefixBytes: closedFrame.length,
+        safePrefixSha256: sha256(closedFrame),
+        verifiedPrefixSha256: sha256(closedFrame),
+        blockingFrame: {
+          frameIndex: 1,
+          byteStart: closedFrame.length,
+          byteEnd: transcript.length,
+          parseState: 'partial',
+        },
+      });
+      expect(concat.mock.calls.length).toBeLessThanOrEqual(2);
+    } finally {
+      concat.mockRestore();
+    }
   });
 });

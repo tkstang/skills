@@ -95,7 +95,8 @@ export async function scanCursorTranscript(
       options.verifyPrefixBytes === 0
         ? createHash('sha256').digest('hex')
         : null;
-    let carry = Buffer.alloc(0);
+    let carrySegments: Buffer[] = [];
+    let carryLength = 0;
     let carryByteStart = 0;
     let frameIndex = 0;
     let safeThroughFrame: number | null = null;
@@ -118,15 +119,16 @@ export async function scanCursorTranscript(
     };
 
     const emitClosedFrame = async (
+      frameSegments: readonly Buffer[],
       contentBytes: Buffer,
-      rawFrameBytes: Buffer,
       byteStart: number,
     ): Promise<void> => {
       const parsed = parseClosedFrame(contentBytes);
+      const byteEnd = byteStart + contentBytes.length + 1;
       const frame: CursorTranscriptFrame = {
         frameIndex,
         byteStart,
-        byteEnd: byteStart + rawFrameBytes.length,
+        byteEnd,
         closed: true,
         ...parsed,
       };
@@ -135,7 +137,10 @@ export async function scanCursorTranscript(
         blockingFrame === null &&
         (frame.parseState === 'parsed' || frame.parseState === 'blank')
       ) {
-        safePrefixHash.update(rawFrameBytes);
+        for (const segment of frameSegments) {
+          safePrefixHash.update(segment);
+        }
+        safePrefixHash.update('\n');
         safeThroughFrame = frame.frameIndex;
         safePrefixBytes = frame.byteEnd;
       } else if (blockingFrame === null) {
@@ -169,33 +174,39 @@ export async function scanCursorTranscript(
           const newlineOffset = chunk.indexOf(0x0a, chunkOffset);
           if (newlineOffset === -1) {
             const suffix = chunk.subarray(chunkOffset);
-            carry =
-              carry.length === 0
-                ? Buffer.from(suffix)
-                : Buffer.concat([carry, suffix]);
+            if (suffix.length > 0) {
+              carrySegments.push(suffix);
+              carryLength += suffix.length;
+            }
             break;
           }
 
           const segment = chunk.subarray(chunkOffset, newlineOffset);
+          if (segment.length > 0) {
+            carrySegments.push(segment);
+            carryLength += segment.length;
+          }
           const contentBytes =
-            carry.length === 0 ? segment : Buffer.concat([carry, segment]);
-          const rawFrameBytes = Buffer.concat([
-            contentBytes,
-            Buffer.from('\n'),
-          ]);
-          await emitClosedFrame(contentBytes, rawFrameBytes, carryByteStart);
-          carry = Buffer.alloc(0);
+            carrySegments.length === 0
+              ? Buffer.alloc(0)
+              : carrySegments.length === 1
+                ? carrySegments[0]
+                : Buffer.concat(carrySegments, carryLength);
+          const frameByteLength = carryLength + 1;
+          await emitClosedFrame(carrySegments, contentBytes, carryByteStart);
+          carrySegments = [];
+          carryLength = 0;
           chunkOffset = newlineOffset + 1;
-          carryByteStart += rawFrameBytes.length;
+          carryByteStart += frameByteLength;
         }
       }
     }
 
-    if (carry.length > 0) {
+    if (carryLength > 0) {
       const frame: CursorTranscriptFrame = {
         frameIndex,
         byteStart: carryByteStart,
-        byteEnd: carryByteStart + carry.length,
+        byteEnd: carryByteStart + carryLength,
         closed: false,
         parseState: 'partial',
         record: null,

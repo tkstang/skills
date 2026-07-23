@@ -211,6 +211,51 @@ describe('createCursorTurnAccumulator', () => {
     expect(analysis.turns[1].assistantRecords[0].classification).toBe('no-op');
   });
 
+  it('retains human activity from a mixed automatic-control user record', async () => {
+    const automaticEnvelope =
+      '<session_observer_wake automatic="true" schema_version="2" runtime="cursor" lease_id="synthetic-lease" peer="cursor:synthetic-peer" records="1-2">Review.</session_observer_wake>';
+    const analysis = await analyzeRecords([
+      {
+        role: 'user',
+        message: {
+          content: [
+            { type: 'text', text: automaticEnvelope },
+            { type: 'text', text: 'Synthetic human instruction.' },
+          ],
+        },
+      },
+      assistant([{ type: 'text', text: 'Acknowledged.' }]),
+      terminal('success'),
+    ]);
+
+    expect(analysis.turns[0].humanRecordIndexes).toEqual([0]);
+    expect(analysis.turns[0].assistantRecords[0].classification).toBe(
+      'substantive',
+    );
+    expect(analysis.turns[0].finalSubstantiveEntryKey).toBe(
+      analysis.turns[0].assistantRecords[0].entryKey,
+    );
+  });
+
+  it('gives later human input precedence over automatic acknowledgement suppression', async () => {
+    const automaticEnvelope =
+      '<session_observer_wake automatic="true" schema_version="2" runtime="cursor" lease_id="synthetic-lease" peer="cursor:synthetic-peer" records="1-2">Review.</session_observer_wake>';
+    const analysis = await analyzeRecords([
+      user(automaticEnvelope),
+      user('Synthetic later human instruction.'),
+      assistant([{ type: 'text', text: 'Acknowledged.' }]),
+      terminal('success'),
+    ]);
+
+    expect(analysis.turns[0].humanRecordIndexes).toEqual([1]);
+    expect(analysis.turns[0].assistantRecords[0].classification).toBe(
+      'substantive',
+    );
+    expect(analysis.turns[0].finalSubstantiveEntryKey).toBe(
+      analysis.turns[0].assistantRecords[0].entryKey,
+    );
+  });
+
   it('classifies empty, runtime diagnostic, and unsupported assistant blocks', async () => {
     const analysis = await analyzeRecords([
       user('Synthetic classification request.'),

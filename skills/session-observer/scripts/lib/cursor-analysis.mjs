@@ -66,12 +66,12 @@ function contentBlocks(record) {
 function lifecycleState(status) {
   return status === "success" || status === "aborted" || status === "error" || status === "cancelled" ? status : "unknown";
 }
-function classifyAssistantText(block, hasAutomaticControlInput) {
+function classifyAssistantText(block, hasAutomaticControlInput, hasHumanInput) {
   if (block.kind === "runtime-diagnostic") return "runtime-diagnostic";
   if (block.kind === "unsupported") return "unsupported";
   if (block.text.trim().length === 0) return "empty";
   if (isNoOpText(block.text)) return "no-op";
-  if (parseAutomaticControlEnvelope(block.text) !== null || hasAutomaticControlInput && isAutomaticControlAcknowledgement(block.text)) {
+  if (parseAutomaticControlEnvelope(block.text) !== null || hasAutomaticControlInput && !hasHumanInput && isAutomaticControlAcknowledgement(block.text)) {
     return "automatic-control";
   }
   return "substantive";
@@ -99,7 +99,8 @@ function createCursorTurnAccumulator(identity, fromFrameIndex) {
       assistantRecords: [],
       humanRecordIndexes: [],
       toolRecordIndexes: [],
-      hasAutomaticControlInput: false
+      hasAutomaticControlInput: false,
+      hasHumanInput: false
     };
     return current;
   };
@@ -167,12 +168,23 @@ function createCursorTurnAccumulator(identity, fromFrameIndex) {
         turn.toolRecordIndexes.push(frame.frameIndex);
       }
       if (role === "user") {
-        const automaticControl = blocks.some(
-          (block) => block.kind === "text" && parseAutomaticControlEnvelope(block.text) !== null
-        );
+        let automaticControl = false;
+        let humanInput = false;
+        for (const block of blocks) {
+          if (block.kind !== "text" || block.text.trim().length === 0) {
+            continue;
+          }
+          if (parseAutomaticControlEnvelope(block.text) !== null) {
+            automaticControl = true;
+          } else {
+            humanInput = true;
+          }
+        }
         if (automaticControl) {
           turn.hasAutomaticControlInput = true;
-        } else {
+        }
+        if (humanInput) {
+          turn.hasHumanInput = true;
           turn.humanRecordIndexes.push(frame.frameIndex);
         }
         return;
@@ -181,7 +193,8 @@ function createCursorTurnAccumulator(identity, fromFrameIndex) {
         if (block.kind === "tool") continue;
         const classification = classifyAssistantText(
           block,
-          turn.hasAutomaticControlInput
+          turn.hasAutomaticControlInput,
+          turn.hasHumanInput
         );
         turn.assistantRecords.push({
           entryKey: `${turn.turnId}:frame:${frame.frameIndex}:block:${block.blockIndex}`,
