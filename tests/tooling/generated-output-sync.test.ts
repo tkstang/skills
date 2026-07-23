@@ -209,7 +209,10 @@ describe('generated output drift guard', () => {
     );
   });
 
-  it('resolves wrapper loop imports through the plugin-root scripts directory', () => {
+  it('resolves wrapper loop imports through the plugin-root scripts directory', async () => {
+    // importRewrites is derived at build time (see deriveImportRewrites), not
+    // hand-listed per mapping, so this asserts the derived rewrite by reading
+    // the committed generated artifact rather than a static data field.
     const wrapperIds = [
       'consensus-refine',
       'consensus-evaluate',
@@ -221,6 +224,8 @@ describe('generated output drift guard', () => {
       '../../plugins/consensus/scripts/consensus-loop.mjs',
       import.meta.url,
     );
+    const loopRewritePattern =
+      /from\s+['"](\.\.\/\.\.\/\.\.\/scripts\/consensus-loop\.mjs)['"]/;
 
     for (const wrapperId of wrapperIds) {
       const mapping = generatedOutputs.find(
@@ -228,13 +233,15 @@ describe('generated output drift guard', () => {
       );
       expect(mapping).toBeDefined();
 
-      const loopRewrite = mapping.importRewrites.find(
-        (rewrite: any) => rewrite.from === '../core/consensus-loop.js',
-      );
-      expect(loopRewrite.to).toBe('../../../scripts/consensus-loop.mjs');
-
       const wrapperOutput = new URL(`../../${mapping.output}`, import.meta.url);
-      expect(new URL(loopRewrite.to, wrapperOutput).href).toBe(sharedLoop.href);
+      const text = await readFile(wrapperOutput, 'utf8');
+
+      expect(text).not.toContain("from '../core/consensus-loop.js'");
+      const match = text.match(loopRewritePattern);
+      expect(match).not.toBeNull();
+
+      const loopRewriteTo = match![1];
+      expect(new URL(loopRewriteTo, wrapperOutput).href).toBe(sharedLoop.href);
     }
   });
 
@@ -466,6 +473,72 @@ describe('generated output drift guard', () => {
       ),
     ).toThrow(
       'Import rewrite for test-mapping expected emitted output to contain module specifier ../core/consensus-loop.js',
+    );
+  });
+
+  it('derives importRewrites from emitted module specifiers for a real mapping', async () => {
+    // @ts-expect-error No type declarations; this test exercises the shipped artifact.
+    const buildGenerated = await import('../../scripts/build-generated.mjs');
+    const { deriveImportRewrites } = buildGenerated;
+
+    const mapping = generatedOutputs.find(
+      (candidate: any) => candidate.id === 'consensus-refine',
+    );
+    expect(mapping).toBeDefined();
+
+    const emitted = [
+      "import { runConsensusLoop } from '../core/consensus-loop.js';",
+      "import { resolveConsensusComposition } from '../config/consensus-config.js';",
+    ].join('\n');
+
+    const derived = deriveImportRewrites(mapping, emitted);
+
+    expect(derived).toEqual([
+      {
+        from: '../core/consensus-loop.js',
+        to: '../../../scripts/consensus-loop.mjs',
+      },
+      { from: '../config/consensus-config.js', to: './consensus-config.mjs' },
+    ]);
+  });
+
+  it('throws loudly instead of silently skipping an unresolvable relative specifier', async () => {
+    // @ts-expect-error No type declarations; this test exercises the shipped artifact.
+    const buildGenerated = await import('../../scripts/build-generated.mjs');
+    const { deriveImportRewrites } = buildGenerated;
+
+    const mapping = generatedOutputs.find(
+      (candidate: any) => candidate.id === 'session-observer-probe-local',
+    );
+    expect(mapping).toBeDefined();
+
+    const emitted =
+      "import type { TranscriptCandidate } from './lib/types.js';\n" +
+      "import { unmapped } from './lib/does-not-exist.js';\n";
+
+    expect(() => deriveImportRewrites(mapping, emitted)).toThrow(
+      /has no generatedOutputs entry/,
+    );
+  });
+
+  it('throws loudly instead of guessing when multiple fan-out candidates are equally close', async () => {
+    // @ts-expect-error No type declarations; this test exercises the shipped artifact.
+    const buildGenerated = await import('../../scripts/build-generated.mjs');
+    const { deriveImportRewrites } = buildGenerated;
+
+    // A synthetic mapping outside every real consensus skill directory: all
+    // six consensus-config.ts outputs are equally (un)related to it, so the
+    // directory-proximity disambiguation cannot pick a winner.
+    const ambiguousMapping = {
+      id: 'test-ambiguous-mapping',
+      source: 'src/consensus/fake-skill/fake.ts',
+      output: 'somewhere/unrelated/scripts/fake.mjs',
+    };
+    const emitted =
+      "import { resolveConsensusComposition } from '../config/consensus-config.js';\n";
+
+    expect(() => deriveImportRewrites(ambiguousMapping, emitted)).toThrow(
+      /multiple equally-close generated-output candidates/,
     );
   });
 });
