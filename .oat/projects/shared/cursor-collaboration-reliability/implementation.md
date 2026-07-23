@@ -28,7 +28,7 @@ oat_generated: false
 | ------- | ----------- | ----- | --------- |
 | Phase 1 | complete    | 5     | 5/5       |
 | Phase 2 | complete    | 8     | 8/8       |
-| Phase 3 | review_pending | 7     | 7/7       |
+| Phase 3 | complete    | 7     | 7/7       |
 | Phase 4 | pending     | 6     | 0/6       |
 | Phase 5 | pending     | 6     | 0/6       |
 | Phase 6 | pending     | 4     | 0/4       |
@@ -497,11 +497,11 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 **Policy:** managed `high`
 **Phase base:** `210efe9`
 **Phase head:** `0623a74`
-**Outcome:** review round 1 fixes completed; whole-phase re-review pending
+**Outcome:** passed after one bounded fix iteration
 
 | Phase | Tasks | Implementation | Root Review | Fix Iterations | Verdict |
 | ----- | ----- | -------------- | ----------- | -------------- | ------- |
-| p03   | 7/7   | `f6934db..0623a74` | Round 1 blocked: 3 Important; round 2 pending | 1 (`0623a74`) | review_pending |
+| p03   | 7/7   | `f6934db..0623a74` | Round 2 passed | 1 (`0623a74`) | passed |
 
 **Implementation dispatch:**
 
@@ -516,8 +516,9 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 1. `reviews/p03-review-2026-07-23T211458Z.md` — blocked with 0 Critical,
    3 Important, 0 Medium, and 0 Minor; reconnaissance not attempted.
 2. Original implementer continuation
-   `fix-p03-round1-9c974f9-20260723T211800Z` produced `0623a74`; whole-phase
-   re-review pending.
+   `fix-p03-round1-9c974f9-20260723T211800Z` produced `0623a74`.
+3. `reviews/p03-review-2026-07-23T214213Z.md` — passed with zero findings;
+   prior I1, I2, and I3 resolved; reconnaissance not attempted.
 
 **Review dispatch:**
 
@@ -528,7 +529,7 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 
 **Optional nested implementation dispatches:** None.
 **Worktree:** Root checkout; sequential plan.
-**Outstanding items:** Whole-phase review round 2.
+**Outstanding items:** None.
 
 <!-- orchestration-runs-end -->
 
@@ -686,7 +687,8 @@ are resolved; Phase 2 is complete.
 
 ## Phase 3: Digest v2, Observation, Foreground Watch, and CLI
 
-**Status:** review_pending
+**Status:** complete
+**Completed:** 2026-07-23
 
 ### Phase Summary
 
@@ -698,9 +700,8 @@ are resolved; Phase 2 is complete.
   durable watch targets, bounded foreground watching, and CLI composition.
 - Phase-wide verification passed with 1,358 tests, 1 skipped, plus validation,
   smoke, type-check, and generated-output parity.
-- Independent Phase 3 code review retained 3 Important findings; bounded fix
-  iteration 1 resolved all three in `0623a74`, and whole-phase re-review is
-  pending.
+- Independent Phase 3 review round 2 passed with zero findings after bounded
+  fix iteration 1 resolved all three prior Important findings in `0623a74`.
 
 ### Task outcomes
 
@@ -785,8 +786,11 @@ generated build parity.
 The original Phase 3 implementer resolved all three findings in `0623a74`.
 Focused Phase 3 coverage passed 175/175, the full suite passed 1,363 with 1
 skipped, and build, generated parity, type-check, validation, smoke,
-file-scoped formatting/lint, and diff checks passed. A fresh whole-phase
-re-review is pending.
+file-scoped formatting/lint, and diff checks passed.
+
+**Round-2 review:** `reviews/p03-review-2026-07-23T214213Z.md` passed with
+0 Critical, 0 Important, 0 Medium, and 0 Minor findings. I1, I2, and I3 are
+resolved; Phase 4 is next.
 
 ---
 
