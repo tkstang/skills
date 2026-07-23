@@ -3,14 +3,14 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-23
-oat_current_task_id: p03-t01
+oat_current_task_id: p03-t02
 oat_generated: false
 ---
 
 # Implementation: cursor-collaboration-reliability
 
 **Started:** 2026-07-17
-**Last Updated:** 2026-07-22
+**Last Updated:** 2026-07-23
 
 > This document is used to resume interrupted implementation sessions.
 >
@@ -28,12 +28,12 @@ oat_generated: false
 | ------- | ----------- | ----- | --------- |
 | Phase 1 | complete    | 5     | 5/5       |
 | Phase 2 | complete    | 8     | 8/8       |
-| Phase 3 | pending     | 7     | 0/7       |
+| Phase 3 | in_progress | 7     | 1/7       |
 | Phase 4 | pending     | 6     | 0/6       |
 | Phase 5 | pending     | 6     | 0/6       |
 | Phase 6 | pending     | 4     | 0/4       |
 
-**Total:** 13/36 tasks accepted
+**Total:** 14/36 tasks accepted
 
 ---
 
@@ -642,6 +642,25 @@ are resolved; Phase 2 is complete.
 
 ---
 
+## Phase 3: Digest v2, Observation, Foreground Watch, and CLI
+
+**Status:** in_progress
+
+### Task outcomes
+
+| Task    | Status   | Commit    | Outcome |
+| ------- | -------- | --------- | ------- |
+| p03-t01 | complete | `f6934db` | Defined the discriminated Cursor digest v2 frame, accounting, projection, availability, lifecycle, recovery, and blocking contracts with balanced structural-only fixture coverage. |
+
+### Task p03-t01: Define Cursor digest v2 types and fixture contracts
+
+**Status:** completed
+**Commit:** `f6934db`
+**Verification:** Digest tests 30/30, type-check, file-scoped formatting/lint,
+build, generated-output parity, and diff checks passed.
+
+---
+
 ## Deviations from Plan / Design
 
 Document any intentional deviations from the original plan, spec, or design. Include accepted review findings where the shipped implementation is source of truth and a lifecycle artifact needs alignment.
@@ -660,6 +679,7 @@ Track test execution during implementation.
 | ----- | --------- | ------ | ------ | -------- |
 | 1     | Focused re-review + full suite | 137 focused; 1,148 full; 1 skipped | 0 | Frames, analyzer, runtimes, generated outputs, Export compatibility |
 | 2     | Fix-task re-review + full suite | 146 focused; 1,327 full; 1 skipped | 0; review passed | Atomic lock publication, exact raw-alias containment, Cursor v2 recovery guidance, generated outputs |
+| 3     | p03-t01 focused verification | 30 digest tests | 0 | Digest v2 type contract, balanced accounting, structural-only serialization |
 
 ## Final Summary (for PR/docs)
 
