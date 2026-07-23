@@ -19,6 +19,41 @@ export const generatedOutputs = [
     output: 'plugins/consensus/scripts/consensus-loop.mjs',
   },
   {
+    id: 'consensus-loop-validation',
+    source: 'src/consensus/core/loop-validation.ts',
+    output: 'plugins/consensus/scripts/loop-validation.mjs',
+  },
+  {
+    id: 'consensus-loop-records',
+    source: 'src/consensus/core/loop-records.ts',
+    output: 'plugins/consensus/scripts/loop-records.mjs',
+  },
+  {
+    id: 'consensus-loop-prompts',
+    source: 'src/consensus/core/loop-prompts.ts',
+    output: 'plugins/consensus/scripts/loop-prompts.mjs',
+  },
+  {
+    id: 'consensus-loop-provider',
+    source: 'src/consensus/core/loop-provider.ts',
+    output: 'plugins/consensus/scripts/loop-provider.mjs',
+  },
+  {
+    id: 'consensus-loop-args',
+    source: 'src/consensus/core/loop-args.ts',
+    output: 'plugins/consensus/scripts/loop-args.mjs',
+  },
+  {
+    id: 'consensus-loop-escalation',
+    source: 'src/consensus/core/loop-escalation.ts',
+    output: 'plugins/consensus/scripts/loop-escalation.mjs',
+  },
+  {
+    id: 'consensus-loop-rounds',
+    source: 'src/consensus/core/loop-rounds.ts',
+    output: 'plugins/consensus/scripts/loop-rounds.mjs',
+  },
+  {
     id: 'consensus-cli-helpers',
     source: 'src/consensus/shared/cli-helpers.ts',
     output: 'plugins/consensus/scripts/consensus-cli-helpers.mjs',
