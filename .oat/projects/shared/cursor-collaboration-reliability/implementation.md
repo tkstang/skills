@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-23
-oat_current_task_id: p02-t06
+oat_current_task_id: p02-t07
 oat_generated: false
 ---
 
@@ -27,13 +27,13 @@ oat_generated: false
 | Phase   | Status      | Tasks | Completed |
 | ------- | ----------- | ----- | --------- |
 | Phase 1 | complete    | 5     | 5/5       |
-| Phase 2 | in_progress | 8     | 5/8       |
+| Phase 2 | in_progress | 8     | 6/8       |
 | Phase 3 | pending     | 7     | 0/7       |
 | Phase 4 | pending     | 6     | 0/6       |
 | Phase 5 | pending     | 6     | 0/6       |
 | Phase 6 | pending     | 4     | 0/4       |
 
-**Total:** 10/36 tasks accepted
+**Total:** 11/36 tasks accepted
 
 ---
 
@@ -153,7 +153,7 @@ oat_generated: false
 | p02-t03 | complete | `471dd5e` | Added migration and acquired-lock recovery; the remaining publication-boundary gap is isolated in review task p02-t06. |
 | p02-t04 | complete | `decf5a5` | Added transcript continuity enforcement and repair classification. |
 | p02-t05 | complete | `471dd5e` | Stability and delivery CAS are implemented; create-only initialization and operator-facing recovery passed re-review. |
-| p02-t06 | pending  | -         | Publish complete lock contender tokens atomically and cover publication crash boundaries. |
+| p02-t06 | complete | `e1d1a31` | Atomically publishes complete contender tokens and covers publication crash/error boundaries across all three queues. |
 | p02-t07 | pending  | -         | Keep every raw cwd alias distinct from canonical identity diagnostic-only. |
 | p02-t08 | pending  | -         | Align shipped Cursor v2 reset and corruption-recovery guidance. |
 
@@ -196,9 +196,12 @@ oat_generated: false
 
 ### Task p02-t06: Publish lock contenders atomically
 
-**Status:** pending
+**Status:** completed
+**Commit:** `e1d1a31`
 **Source:** `I1` from
 `reviews/archived/p02-review-2026-07-23T114732Z.md`
+**Verification:** 106 focused tests, type-check, lint/format, build, and
+generated-output synchronization passed.
 
 ### Task p02-t07: Keep ancestor cwd aliases diagnostic-only
 
