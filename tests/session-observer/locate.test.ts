@@ -19,6 +19,8 @@ import {
   writeFile,
   utimes,
   readFile,
+  realpath,
+  symlink,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -51,6 +53,7 @@ import {
   discover,
   findSessionCandidate,
   gitWorktrees,
+  resolveCursorIdentity,
 } from '../../src/transcript/session-observer/lib/locate.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -581,6 +584,238 @@ test('cursor: fallback scan excludes transcripts older than 7 days', async () =>
       staleFound,
       'stale Cursor fallback transcript should be excluded',
     ).toBe(undefined);
+  });
+});
+
+test('cursor identity: direct and fallback evidence remain diagnostic without an exact session signal', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'identity-project');
+    const directDir = join(
+      home,
+      '.cursor',
+      'projects',
+      encodeCursorCwd(targetCwd),
+      'agent-transcripts',
+      'session-direct',
+    );
+    await mkdir(directDir, { recursive: true });
+    await writeFile(
+      join(directDir, 'transcript.jsonl'),
+      CURSOR_TYPICAL,
+      'utf8',
+    );
+
+    const [direct] = await discover('cursor', targetCwd);
+    expect(await resolveCursorIdentity(direct, targetCwd)).toMatchObject({
+      runtime: 'cursor',
+      sessionId: 'session-direct',
+      canonicalCwd: targetCwd,
+      cwdEvidence: ['direct-project-root'],
+      sessionEvidence: ['transcript-path'],
+      strength: 'diagnostic',
+    });
+
+    const fallbackCwd = join(home, 'Code', 'missing-project');
+    const [fallback] = await discover('cursor', fallbackCwd);
+    expect(await resolveCursorIdentity(fallback, fallbackCwd)).toMatchObject({
+      cwdEvidence: ['fallback-slug'],
+      sessionEvidence: ['transcript-path'],
+      strength: 'diagnostic',
+    });
+  });
+});
+
+test('cursor identity: store metadata or matching harness evidence can establish exact identity', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'identity-project');
+    await mkdir(targetCwd, { recursive: true });
+    const transcriptDir = join(
+      home,
+      '.cursor',
+      'projects',
+      encodeCursorCwd(targetCwd),
+      'agent-transcripts',
+      'session-exact',
+    );
+    await mkdir(transcriptDir, { recursive: true });
+    await writeFile(
+      join(transcriptDir, 'transcript.jsonl'),
+      CURSOR_TYPICAL,
+      'utf8',
+    );
+
+    const [candidate] = await discover('cursor', targetCwd);
+    expect(
+      await resolveCursorIdentity(
+        { ...candidate, cwdEvidence: 'store-metadata' },
+        targetCwd,
+      ),
+    ).toMatchObject({
+      cwdEvidence: ['store-metadata'],
+      sessionEvidence: ['transcript-path'],
+      strength: 'exact',
+    });
+
+    const previous = process.env.CURSOR_SESSION_ID;
+    process.env.CURSOR_SESSION_ID = 'session-exact';
+    try {
+      expect(await resolveCursorIdentity(candidate, targetCwd)).toMatchObject({
+        cwdEvidence: ['direct-project-root', 'harness-environment'],
+        sessionEvidence: ['harness-environment', 'transcript-path'],
+        strength: 'exact',
+      });
+    } finally {
+      if (previous === undefined) delete process.env.CURSOR_SESSION_ID;
+      else process.env.CURSOR_SESSION_ID = previous;
+    }
+  });
+});
+
+test('cursor identity: duplicate exact-session candidates are ambiguous', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'duplicate-project');
+    const transcriptDir = join(
+      home,
+      '.cursor',
+      'projects',
+      encodeCursorCwd(targetCwd),
+      'agent-transcripts',
+      'session-duplicate',
+    );
+    await mkdir(transcriptDir, { recursive: true });
+    await writeFile(
+      join(transcriptDir, 'transcript.jsonl'),
+      CURSOR_TYPICAL,
+      'utf8',
+    );
+    await writeFile(
+      join(transcriptDir, 'conversation.jsonl'),
+      CURSOR_TYPICAL,
+      'utf8',
+    );
+
+    const candidates = await discover('cursor', targetCwd);
+    expect(candidates).toHaveLength(2);
+    expect(
+      await resolveCursorIdentity(
+        candidates[0],
+        targetCwd,
+        'session-duplicate',
+      ),
+    ).toMatchObject({
+      strength: 'ambiguous',
+      reasons: expect.arrayContaining(['DUPLICATE_SESSION_CANDIDATES']),
+    });
+  });
+});
+
+test('cursor identity: symlink-equivalent cwd resolves to one canonical identity', async () => {
+  await withTempHome(async (home) => {
+    const physicalCwd = join(home, 'Code', 'physical-project');
+    const aliasCwd = join(home, 'Code', 'alias-project');
+    await mkdir(physicalCwd, { recursive: true });
+    await symlink(physicalCwd, aliasCwd, 'dir');
+
+    const transcriptDir = join(
+      home,
+      '.cursor',
+      'projects',
+      encodeCursorCwd(physicalCwd),
+      'agent-transcripts',
+      'session-symlink',
+    );
+    await mkdir(transcriptDir, { recursive: true });
+    const transcriptPath = join(transcriptDir, 'transcript.jsonl');
+    await writeFile(transcriptPath, CURSOR_TYPICAL, 'utf8');
+    const [candidate] = await discover('cursor', physicalCwd);
+
+    expect(
+      await resolveCursorIdentity(
+        { ...candidate, recordedCwd: aliasCwd },
+        physicalCwd,
+        'session-symlink',
+      ),
+    ).toMatchObject({
+      canonicalCwd: await realpath(physicalCwd),
+      canonicalTranscriptPath: await realpath(transcriptPath),
+      strength: 'exact',
+    });
+  });
+});
+
+test('cursor identity: transcript symlinks escaping the supported store are rejected', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'escape-project');
+    const transcriptDir = join(
+      home,
+      '.cursor',
+      'projects',
+      encodeCursorCwd(targetCwd),
+      'agent-transcripts',
+      'session-escape',
+    );
+    await mkdir(transcriptDir, { recursive: true });
+    const directPath = join(transcriptDir, 'transcript.jsonl');
+    await writeFile(directPath, CURSOR_TYPICAL, 'utf8');
+    const [candidate] = await discover('cursor', targetCwd);
+
+    const outsidePath = join(home, 'outside.jsonl');
+    const escapedPath = join(transcriptDir, 'escaped.jsonl');
+    await writeFile(outsidePath, CURSOR_TYPICAL, 'utf8');
+    await symlink(outsidePath, escapedPath);
+
+    expect(
+      await resolveCursorIdentity(
+        { ...candidate, transcriptPath: escapedPath },
+        targetCwd,
+        'session-escape',
+      ),
+    ).toMatchObject({
+      strength: 'ambiguous',
+      reasons: expect.arrayContaining(['PATH_OUTSIDE_SUPPORTED_ROOT']),
+    });
+  });
+});
+
+test('cursor identity: an explicit pin mismatch cannot switch to a changed candidate', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'pin-project');
+    await mkdir(targetCwd, { recursive: true });
+    const transcriptsRoot = join(
+      home,
+      '.cursor',
+      'projects',
+      encodeCursorCwd(targetCwd),
+      'agent-transcripts',
+    );
+    const pinnedDir = join(transcriptsRoot, 'session-pinned');
+    const newerDir = join(transcriptsRoot, 'session-newer');
+    await mkdir(pinnedDir, { recursive: true });
+    await mkdir(newerDir, { recursive: true });
+    await writeFile(
+      join(pinnedDir, 'transcript.jsonl'),
+      CURSOR_TYPICAL,
+      'utf8',
+    );
+    await writeFile(join(newerDir, 'transcript.jsonl'), CURSOR_TYPICAL, 'utf8');
+
+    const candidates = await discover('cursor', targetCwd);
+    const pinned = candidates.find(
+      (candidate) => candidate.sessionId === 'session-pinned',
+    )!;
+    const changed = candidates.find(
+      (candidate) => candidate.sessionId === 'session-newer',
+    )!;
+
+    expect(
+      await resolveCursorIdentity(pinned, targetCwd, 'session-pinned'),
+    ).toMatchObject({ strength: 'exact' });
+    expect(
+      await resolveCursorIdentity(changed, targetCwd, 'session-pinned'),
+    ).toMatchObject({
+      strength: 'ambiguous',
+      reasons: expect.arrayContaining(['IDENTITY_MISMATCH']),
+    });
   });
 });
 

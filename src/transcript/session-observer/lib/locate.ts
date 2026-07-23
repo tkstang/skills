@@ -31,9 +31,16 @@
 
 import { execFile } from 'node:child_process';
 import type { Dirent, Stats } from 'node:fs';
-import { readdir, stat, mkdir, readFile, writeFile } from 'node:fs/promises';
+import {
+  readdir,
+  stat,
+  mkdir,
+  readFile,
+  realpath,
+  writeFile,
+} from 'node:fs/promises';
 import { homedir } from 'node:os';
-import { join, basename } from 'node:path';
+import { join, basename, isAbsolute, relative } from 'node:path';
 import { promisify } from 'node:util';
 
 import type { Runtime } from '../../core/runtimes.js';
@@ -47,6 +54,9 @@ import {
   engagementCandidateFields,
 } from './session-classifier.js';
 import type {
+  CursorCwdEvidence,
+  CursorIdentityEvidence,
+  CursorSessionEvidence,
   EngagementCandidateFields,
   TranscriptCandidate,
 } from './types.js';
@@ -618,6 +628,153 @@ async function discoverCursor(
   }
 
   return candidates;
+}
+
+function cursorCwdEvidence(candidate: TranscriptCandidate): CursorCwdEvidence {
+  if (candidate.cwdEvidence === 'store-metadata') return 'store-metadata';
+  if (candidate.cwdEvidence === 'harness-environment') {
+    return 'harness-environment';
+  }
+  if (candidate.cwdEvidence === 'direct-parent-dir') {
+    return 'direct-project-root';
+  }
+  return 'fallback-slug';
+}
+
+function pathIsWithin(root: string, candidate: string): boolean {
+  const relativePath = relative(root, candidate);
+  return (
+    relativePath === '' ||
+    (!relativePath.startsWith(
+      `..${process.platform === 'win32' ? '\\' : '/'}`,
+    ) &&
+      relativePath !== '..' &&
+      !isAbsolute(relativePath))
+  );
+}
+
+async function canonicalPath(path: string): Promise<string | null> {
+  try {
+    return await realpath(path);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Resolve the exact identity needed before Cursor may own persisted state.
+ *
+ * Discovery/ranking remains deliberately unchanged: weak direct or fallback
+ * candidates can still be shown to a caller, but only this resolver upgrades a
+ * unique, contained candidate with corroborating evidence to `exact`.
+ */
+export async function resolveCursorIdentity(
+  candidate: TranscriptCandidate,
+  requestedCwd: string,
+  expectedSessionId?: string,
+): Promise<CursorIdentityEvidence> {
+  if (candidate.runtime !== 'cursor') {
+    throw new TypeError('resolveCursorIdentity requires a Cursor candidate');
+  }
+
+  const cwdEvidence = [cursorCwdEvidence(candidate)];
+  const sessionEvidence: CursorSessionEvidence[] = ['transcript-path'];
+  const reasons: string[] = [];
+  const canonicalCwd =
+    (await canonicalPath(requestedCwd)) ?? requestedCwd.replace(/\/+$/u, '');
+  const canonicalTranscriptPath =
+    (await canonicalPath(candidate.transcriptPath)) ?? candidate.transcriptPath;
+  const canonicalStoreRoot =
+    (await canonicalPath(join(homedir(), '.cursor', 'projects'))) ??
+    join(homedir(), '.cursor', 'projects');
+
+  if (!pathIsWithin(canonicalStoreRoot, canonicalTranscriptPath)) {
+    reasons.push('PATH_OUTSIDE_SUPPORTED_ROOT');
+  }
+
+  const canonicalRecordedCwd = candidate.recordedCwd
+    ? await canonicalPath(candidate.recordedCwd)
+    : null;
+  if (canonicalRecordedCwd !== null && canonicalRecordedCwd !== canonicalCwd) {
+    reasons.push('CANDIDATE_CWD_MISMATCH');
+  }
+
+  if (expectedSessionId !== undefined) {
+    sessionEvidence.unshift('explicit-pin');
+    if (expectedSessionId !== candidate.sessionId) {
+      reasons.push('IDENTITY_MISMATCH');
+    }
+  }
+
+  const harnessSessionId = process.env.CURSOR_SESSION_ID?.trim();
+  if (harnessSessionId) {
+    sessionEvidence.splice(
+      expectedSessionId === undefined ? 0 : 1,
+      0,
+      'harness-environment',
+    );
+    cwdEvidence.push('harness-environment');
+    if (harnessSessionId !== candidate.sessionId) {
+      reasons.push('HARNESS_SESSION_MISMATCH');
+    }
+  }
+
+  const sameSessionCandidates = (await discoverCursor(requestedCwd)).filter(
+    (discovered) => discovered.sessionId === candidate.sessionId,
+  );
+  const distinctPaths = new Set<string>();
+  for (const discovered of sameSessionCandidates) {
+    distinctPaths.add(
+      (await canonicalPath(discovered.transcriptPath)) ??
+        discovered.transcriptPath,
+    );
+  }
+  if (distinctPaths.size > 1) {
+    reasons.push('DUPLICATE_SESSION_CANDIDATES');
+  }
+
+  const cwdSource = cwdEvidence[0];
+  const cwdMatches =
+    canonicalRecordedCwd === canonicalCwd && cwdSource !== 'fallback-slug';
+  const independentStoreCwd = cwdSource === 'store-metadata';
+  const exactSessionSignal =
+    (expectedSessionId !== undefined &&
+      expectedSessionId === candidate.sessionId) ||
+    harnessSessionId === candidate.sessionId ||
+    independentStoreCwd;
+
+  const hardFailure = reasons.some((reason) =>
+    [
+      'PATH_OUTSIDE_SUPPORTED_ROOT',
+      'CANDIDATE_CWD_MISMATCH',
+      'IDENTITY_MISMATCH',
+      'HARNESS_SESSION_MISMATCH',
+      'DUPLICATE_SESSION_CANDIDATES',
+    ].includes(reason),
+  );
+
+  let strength: CursorIdentityEvidence['strength'];
+  if (hardFailure) {
+    strength = 'ambiguous';
+  } else if (cwdMatches && exactSessionSignal) {
+    strength = 'exact';
+  } else {
+    strength = 'diagnostic';
+    if (!cwdMatches) reasons.push('WEAK_CWD_EVIDENCE');
+    if (!exactSessionSignal) reasons.push('SESSION_SIGNAL_REQUIRED');
+  }
+
+  return {
+    runtime: 'cursor',
+    sessionId: candidate.sessionId,
+    projectCwd: canonicalCwd,
+    canonicalCwd,
+    canonicalTranscriptPath,
+    cwdEvidence,
+    sessionEvidence,
+    strength,
+    reasons,
+  };
 }
 
 // ---------------------------------------------------------------------------

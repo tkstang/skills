@@ -65,6 +65,30 @@ export interface TranscriptCandidate extends EngagementCandidateFields {
   snippetMatch?: SnippetMatch;
 }
 
+export type CursorCwdEvidence =
+  | 'direct-project-root'
+  | 'store-metadata'
+  | 'harness-environment'
+  | 'fallback-slug';
+
+export type CursorSessionEvidence =
+  | 'explicit-pin'
+  | 'harness-environment'
+  | 'transcript-path';
+
+export interface CursorIdentityEvidence {
+  runtime: 'cursor';
+  sessionId: string;
+  /** Canonical cwd used by observer identity and the shared turn analyzer. */
+  projectCwd: string;
+  canonicalCwd: string;
+  canonicalTranscriptPath: string;
+  cwdEvidence: CursorCwdEvidence[];
+  sessionEvidence: CursorSessionEvidence[];
+  strength: 'exact' | 'diagnostic' | 'ambiguous';
+  reasons: string[];
+}
+
 export interface TranscriptIdentityEvidence {
   runtime: Runtime;
   sessionId: string;
