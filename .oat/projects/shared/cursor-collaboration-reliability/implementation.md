@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-23
-oat_current_task_id: p04-t01
+oat_current_task_id: p04-t02
 oat_generated: false
 ---
 
@@ -29,11 +29,11 @@ oat_generated: false
 | Phase 1 | complete    | 5     | 5/5       |
 | Phase 2 | complete    | 8     | 8/8       |
 | Phase 3 | complete    | 7     | 7/7       |
-| Phase 4 | pending     | 6     | 0/6       |
+| Phase 4 | in_progress | 6     | 1/6       |
 | Phase 5 | pending     | 6     | 0/6       |
 | Phase 6 | pending     | 4     | 0/4       |
 
-**Total:** 20/36 tasks accepted
+**Total:** 21/36 tasks accepted
 
 ---
 
@@ -794,6 +794,26 @@ resolved; Phase 4 is next.
 
 ---
 
+## Phase 4: Collaboration Compatibility and Completion Safety
+
+**Status:** in_progress
+
+### Task outcomes
+
+| Task    | Status   | Commit    | Outcome |
+| ------- | -------- | --------- | ------- |
+| p04-t01 | complete | `22a7510` | Added explicit v1 record-index versus v2 frame-index completion dispatch, requiring confirmed-completion projection for v2 while preserving legacy classification. |
+
+### Task p04-t01: Dispatch completion selection by digest schema
+
+**Status:** completed
+**Commit:** `22a7510`
+**Verification:** RED confirmed 4 failures with 20 legacy passes; GREEN
+completion coverage passed 24/24 with type-check, formatting/lint, and diff
+checks.
+
+---
+
 ## Deviations from Plan / Design
 
 Document any intentional deviations from the original plan, spec, or design. Include accepted review findings where the shipped implementation is source of truth and a lifecycle artifact needs alignment.
@@ -813,6 +833,7 @@ Track test execution during implementation.
 | 1     | Focused re-review + full suite | 137 focused; 1,148 full; 1 skipped | 0 | Frames, analyzer, runtimes, generated outputs, Export compatibility |
 | 2     | Fix-task re-review + full suite | 146 focused; 1,327 full; 1 skipped | 0; review passed | Atomic lock publication, exact raw-alias containment, Cursor v2 recovery guidance, generated outputs |
 | 3     | Phase-wide suite after review fixes | 1,363 passed; 1 skipped | 0 | Digest/observation/delivery v2, exact uncertain replay, read-only confirmation, durable fail-visible watch health, CLI semantics, v1 compatibility |
+| 4     | p04-t01 focused verification | 24 completion tests | 0 | Schema/projection/index-base completion dispatch and v1 compatibility |
 
 ## Final Summary (for PR/docs)
 
