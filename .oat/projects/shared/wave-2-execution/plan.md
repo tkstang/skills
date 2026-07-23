@@ -216,7 +216,7 @@ its own worktree based on the post-group-1 integration tip; rebases over p03's
 | ------ | -------- | ------- | ---- | -------- |
 | p01    | code     | pending | -    | -        |
 | p02    | code     | pending | -    | -        |
-| p03    | code     | pending | -    | -        |
+| p03    | code     | passed  | 2026-07-23 | reviews/p03-code-review-2026-07-23.md |
 | p04    | code     | pending | -    | -        |
 | final  | code     | pending | -    | -        |
 | plan   | artifact | passed  | 2026-07-23 | reviews/plan-gate-2026-07-23.md |
