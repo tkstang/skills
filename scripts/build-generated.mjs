@@ -130,6 +130,11 @@ export const generatedOutputs = [
     output: 'plugins/consensus/skills/refine/scripts/refine-args.mjs',
   },
   {
+    id: 'consensus-refine-sections',
+    source: 'src/consensus/refine/refine-sections.ts',
+    output: 'plugins/consensus/skills/refine/scripts/refine-sections.mjs',
+  },
+  {
     id: 'consensus-evaluate',
     source: 'src/consensus/evaluate/consensus-evaluate.ts',
     output: 'plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs',

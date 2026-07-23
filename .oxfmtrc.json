@@ -45,6 +45,7 @@
     "plugins/consensus/skills/refine/scripts/refine-shared.mjs",
     "plugins/consensus/skills/refine/scripts/refine-manifest.mjs",
     "plugins/consensus/skills/refine/scripts/refine-args.mjs",
+    "plugins/consensus/skills/refine/scripts/refine-sections.mjs",
     "plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs",
     "plugins/consensus/skills/create/scripts/consensus-create.mjs",
     "plugins/consensus/skills/decide/scripts/consensus-decide.mjs",
