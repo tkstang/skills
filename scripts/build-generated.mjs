@@ -29,6 +29,11 @@ export const generatedOutputs = [
     output: 'plugins/consensus/scripts/loop-records.mjs',
   },
   {
+    id: 'consensus-loop-prompts',
+    source: 'src/consensus/core/loop-prompts.ts',
+    output: 'plugins/consensus/scripts/loop-prompts.mjs',
+  },
+  {
     id: 'consensus-cli-helpers',
     source: 'src/consensus/shared/cli-helpers.ts',
     output: 'plugins/consensus/scripts/consensus-cli-helpers.mjs',
