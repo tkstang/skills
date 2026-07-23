@@ -512,12 +512,16 @@ describe('generated output drift guard', () => {
     );
     expect(mapping).toBeDefined();
 
-    const emitted =
-      "import type { TranscriptCandidate } from './lib/types.js';\n" +
-      "import { unmapped } from './lib/does-not-exist.js';\n";
+    // A single unmapped runtime import: the case this test exists to guard.
+    // (An earlier version prefixed an `import type './lib/types.js'`, which
+    // also resolves to no generatedOutputs entry and threw first, so the
+    // broad assertion never actually exercised the runtime import below.)
+    const emitted = "import { unmapped } from './lib/does-not-exist.js';\n";
 
+    // Assert the exact offending specifier, not just any unmapped-import
+    // failure, so this can only pass by throwing on './lib/does-not-exist.js'.
     expect(() => deriveImportRewrites(mapping, emitted)).toThrow(
-      /has no generatedOutputs entry/,
+      /module specifier '\.\/lib\/does-not-exist\.js'[\s\S]*has no generatedOutputs entry/,
     );
   });
 
