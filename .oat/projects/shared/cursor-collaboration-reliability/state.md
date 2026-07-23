@@ -40,7 +40,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-17T21:43:11.125Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-23T12:58:35Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-23T15:43:40Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -92,6 +92,7 @@ Implementation - Phase 2 review fixes queued
 - ✗ Operator-authorized additional recovery cycle exhausted
 - ✓ Terminal review received and archived
 - ⧗ Review tasks `p02-t06` through `p02-t08` queued
+- ✓ Operator authorized one fix-task-scoped cycle beyond the review cap
 
 ## Blockers
 
@@ -99,5 +100,5 @@ None. The review findings are represented by runnable Phase 2 tasks.
 
 ## Next Milestone
 
-Execute `p02-t06` through `p02-t08`, then run a fix-task-scoped Phase 2
-re-review.
+Execute `p02-t06` through `p02-t08`, then run the one authorized
+fix-task-scoped Phase 2 re-review.

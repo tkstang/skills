@@ -583,6 +583,10 @@ review against the merged basis.
 
 **New tasks added:** `p02-t06`, `p02-t07`, `p02-t08`
 
+**Cycle-limit override:** The operator explicitly authorized implementation of
+these three tasks and one fix-task-scoped re-review beyond the standard
+three-cycle review cap.
+
 **Finding dispositions:**
 
 - `I1` → `p02-t06`: atomically publish complete lock contender tokens and add
