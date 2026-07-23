@@ -60,3 +60,14 @@ skill should change; (3) adjustments adopted for later waves, stated as rules;
 
 Roll-up ordering (critical): `summary.md` `## Workflow Observations` and any
 repo-level ledger updates happen BEFORE `oat-project-complete` archives this file.
+
+### 2026-07-23 · structural · oat-wave-execute · group-1 reviews
+
+p01 PASS (Opus review; 2 Codex rounds verified, 1 rejection upheld, 3 scope
+expansions judged within-outcome, double-settle probe clean). p02 PASS (Codex
+Important meta-read fix + LRU cap verified; torn-read race judged self-healing
+and pre-existing). p03 PASS (clean). p02 Minor dispositioned by orchestrator:
+the plan-mandated follow-up note for the deferred directory-mtime short-circuit
+is recorded HERE and will be carried into BL-260718-cache-transcript's archive
+summary at closeout — candidate future optimization: skip discovery entirely
+for watch targets whose directory mtime is unchanged since the last tick.
