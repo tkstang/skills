@@ -3,6 +3,8 @@ import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { discoverSkillDirectories } from './lib/discover-skills.mjs';
+
 export const PROVIDER_MANIFESTS = [
   'plugins/consensus/.claude-plugin/plugin.json',
   'plugins/consensus/.cursor-plugin/plugin.json',
@@ -15,18 +17,18 @@ export const MARKETPLACE_MANIFESTS = [
   '.agents/plugins/marketplace.json',
 ];
 
-export const SKILL_FILES = [
-  'skills/session-observer/SKILL.md',
-  'skills/export-session-transcript/SKILL.md',
-  'skills/session-observer-collab/SKILL.md',
-  'plugins/consensus/skills/refine/SKILL.md',
-  'plugins/consensus/skills/evaluate/SKILL.md',
-  'plugins/consensus/skills/create/SKILL.md',
-  'plugins/consensus/skills/decide/SKILL.md',
-  'plugins/consensus/skills/plan/SKILL.md',
-  'plugins/consensus/skills/panel/SKILL.md',
-  'plugins/consensus/skills/phone-a-friend/SKILL.md',
-];
+const DEFAULT_ROOT = path.resolve(
+  fileURLToPath(new URL('..', import.meta.url)),
+);
+
+// Derived from disk via the same discovery contract scripts/validate.mjs uses
+// for structural validation, rather than a hand-maintained list — see
+// tests/release/versioning.test.ts for the completeness pin. Repo-relative,
+// sorted for deterministic release diffs.
+export const SKILL_FILES = (await discoverSkillDirectories(DEFAULT_ROOT)).map(
+  (skillDirectory) =>
+    `${path.relative(DEFAULT_ROOT, skillDirectory).split(path.sep).join('/')}/SKILL.md`,
+);
 
 const SEMVER_PATTERN =
   /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/u;
