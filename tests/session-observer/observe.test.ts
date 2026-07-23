@@ -8,10 +8,15 @@ import { join } from 'node:path';
 
 import { expect, describe, test } from 'vitest';
 
+import { renderMarkdown } from '../../src/transcript/session-observer/lib/digest.js';
 import { observeCatchUp } from '../../src/transcript/session-observer/lib/observe.js';
 
 function claudeSlug(cwd: string): string {
   return cwd.replace(/[/.]/g, '-');
+}
+
+function cursorSlug(cwd: string): string {
+  return cwd.split(/[/.]/u).filter(Boolean).join('-');
 }
 
 async function withTempSessionHome(
@@ -79,6 +84,44 @@ async function writeCodexTranscript(
     'utf8',
   );
   return transcriptPath;
+}
+
+type CursorFixtureFrame = Record<string, unknown> | string;
+
+async function writeCursorTranscript(
+  home: string,
+  cwd: string,
+  sessionId: string,
+  frames: CursorFixtureFrame[],
+  { trailingNewline = true }: { trailingNewline?: boolean } = {},
+): Promise<string> {
+  const dir = join(
+    home,
+    '.cursor',
+    'projects',
+    cursorSlug(cwd),
+    'agent-transcripts',
+    sessionId,
+  );
+  await mkdir(dir, { recursive: true });
+  const transcriptPath = join(dir, `${sessionId}.jsonl`);
+  const body = frames
+    .map((frame) => (typeof frame === 'string' ? frame : JSON.stringify(frame)))
+    .join('\n');
+  await writeFile(
+    transcriptPath,
+    `${body}${trailingNewline ? '\n' : ''}`,
+    'utf8',
+  );
+  return transcriptPath;
+}
+
+async function injectLegacyStateWriteFailure(
+  stateDir: string,
+): Promise<string> {
+  const statePath = join(stateDir, 'state.json');
+  await mkdir(statePath);
+  return statePath;
 }
 
 describe('observeCatchUp', () => {
@@ -156,6 +199,120 @@ describe('observeCatchUp', () => {
         ),
         'snippet-selected digest should retain the existing warning',
       ).toBeTruthy();
+    });
+  });
+
+  test('advances legacy state before returning output for the caller to render', async () => {
+    await withTempSessionHome(async (home, stateDir) => {
+      const cwd = '/test/observe-output-order';
+      await writeClaudeTranscript(
+        home,
+        cwd,
+        'observe-output-order.jsonl',
+        'observe-output-order',
+        [
+          { role: 'user', content: 'Synthetic direction.' },
+          { role: 'assistant', content: 'Synthetic response.' },
+        ],
+      );
+
+      const events: string[] = [];
+      const result = await observeCatchUp({
+        runtime: 'claude-code',
+        cwd,
+        session: 'claude-code:observe-output-order',
+      });
+      events.push('observe-returned');
+
+      expect(result.ok).toBe(true);
+      if (!result.ok) throw new Error(result.message);
+      const state = JSON.parse(
+        await readFile(join(stateDir, 'state.json'), 'utf8'),
+      );
+      events.push('state-observed');
+      const rendered = renderMarkdown(result.digest);
+      events.push('caller-rendered');
+
+      expect(result.markedRead).toBe(true);
+      expect(
+        state.sessions['claude-code:observe-output-order'].lastRecordIndex,
+      ).toBe(result.digest.range.nextIndex);
+      expect(rendered).toContain('Synthetic response.');
+      expect(events).toEqual([
+        'observe-returned',
+        'state-observed',
+        'caller-rendered',
+      ]);
+    });
+  });
+
+  test('returns an output-ready legacy digest when state mutation fails', async () => {
+    await withTempSessionHome(async (home, stateDir) => {
+      const cwd = '/test/observe-state-failure';
+      await writeClaudeTranscript(
+        home,
+        cwd,
+        'observe-state-failure.jsonl',
+        'observe-state-failure',
+        [
+          { role: 'user', content: 'Synthetic direction.' },
+          { role: 'assistant', content: 'Synthetic response survives.' },
+        ],
+      );
+      const failedStatePath = await injectLegacyStateWriteFailure(stateDir);
+
+      const result = await observeCatchUp({
+        runtime: 'claude-code',
+        cwd,
+        session: 'claude-code:observe-state-failure',
+      });
+
+      expect(result.ok).toBe(true);
+      if (!result.ok) throw new Error(result.message);
+      expect(result.markedRead).toBe(false);
+      expect(renderMarkdown(result.digest)).toContain(
+        'Synthetic response survives.',
+      );
+      await expect(readFile(failedStatePath)).rejects.toMatchObject({
+        code: 'EISDIR',
+      });
+    });
+  });
+
+  test('builds reusable Cursor frame fixtures including malformed and partial tails', async () => {
+    await withTempSessionHome(async (home) => {
+      const cwd = '/test/observe-cursor-fixture';
+      const transcriptPath = await writeCursorTranscript(
+        home,
+        cwd,
+        'observe-cursor-fixture',
+        [
+          {
+            role: 'user',
+            message: {
+              content: [{ type: 'text', text: 'Synthetic direction.' }],
+            },
+          },
+          '{"malformed":',
+          '{"role":"assistant","message":{"content":"Synthetic partial',
+        ],
+        { trailingNewline: false },
+      );
+
+      const raw = await readFile(transcriptPath, 'utf8');
+      expect(transcriptPath).toContain(
+        join(
+          '.cursor',
+          'projects',
+          cursorSlug(cwd),
+          'agent-transcripts',
+          'observe-cursor-fixture',
+        ),
+      );
+      expect(raw.split('\n')).toHaveLength(3);
+      expect(raw).toContain('Synthetic direction.');
+      expect(raw).toContain('{"malformed":');
+      expect(raw.endsWith('Synthetic partial')).toBe(true);
     });
   });
 

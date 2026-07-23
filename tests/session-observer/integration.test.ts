@@ -67,18 +67,43 @@ function spawnProbe(
   });
 }
 
+async function spawnCliWithStdoutFailure(
+  root: string,
+  args: string[],
+  env: NodeJS.ProcessEnv = {},
+): Promise<SpawnSyncReturns<string>> {
+  const preloadPath = join(root, 'inject-stdout-failure.mjs');
+  await writeFile(
+    preloadPath,
+    [
+      'process.stdout.write = function injectedStdoutFailure() {',
+      "  const error = new Error('INJECTED_STDOUT_FAILURE');",
+      "  error.code = 'EPIPE';",
+      '  throw error;',
+      '};',
+      '',
+    ].join('\n'),
+    'utf8',
+  );
+  return spawnSync('node', ['--import', preloadPath, CLI_PATH, ...args], {
+    encoding: 'utf8',
+    timeout: 20000,
+    env: { ...process.env, ...env },
+  });
+}
+
 function cursorSlug(cwd: string): string {
   return cwd.split(/[/.]/u).filter(Boolean).join('-');
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
+type CursorFixtureFrame = Record<string, unknown> | string;
 
-async function copyCursorTranscript(
+async function writeCursorTranscript(
   home: string,
   cwd: string,
-  sessionId = 'cursor-session-001',
+  sessionId: string,
+  frames: CursorFixtureFrame[],
+  { trailingNewline = true }: { trailingNewline?: boolean } = {},
 ): Promise<string> {
   const transcriptDir = join(
     home,
@@ -90,17 +115,35 @@ async function copyCursorTranscript(
   );
   await mkdir(transcriptDir, { recursive: true });
   const transcriptPath = join(transcriptDir, `${sessionId}.jsonl`);
-  await copyFile(TYPICAL_CURSOR, transcriptPath);
+  const body = frames
+    .map((frame) => (typeof frame === 'string' ? frame : JSON.stringify(frame)))
+    .join('\n');
+  await writeFile(
+    transcriptPath,
+    `${body}${trailingNewline ? '\n' : ''}`,
+    'utf8',
+  );
   return transcriptPath;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function copyCursorTranscript(
+  home: string,
+  cwd: string,
+  sessionId = 'cursor-session-001',
+): Promise<string> {
+  const raw = await readFile(TYPICAL_CURSOR, 'utf8');
+  return writeCursorTranscript(home, cwd, sessionId, raw.trimEnd().split('\n'));
 }
 
 /**
  * Set up a temp HOME directory with a Claude Code transcript.
  * Returns { tmpDir, cwd, stateDir, cleanup }.
  */
-async function setupTempHome(
-  fixture = TYPICAL_CLAUDE,
-): Promise<{
+async function setupTempHome(fixture = TYPICAL_CLAUDE): Promise<{
   tmpDir: string;
   cwd: string;
   stateDir: string;
@@ -134,16 +177,37 @@ describe('integration: review', () => {
         { HOME: tmpDir, STATE_DIR: stateDir },
       );
 
-      expect(result.status, `Expected exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(0);
-      expect(result.stdout.includes('### User'), 'output should contain ### User').toBeTruthy();
-      expect(result.stdout.includes('### Assistant'), 'output should contain ### Assistant').toBeTruthy();
+      expect(
+        result.status,
+        `Expected exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
+      ).toBe(0);
+      expect(
+        result.stdout.includes('### User'),
+        'output should contain ### User',
+      ).toBeTruthy();
+      expect(
+        result.stdout.includes('### Assistant'),
+        'output should contain ### Assistant',
+      ).toBeTruthy();
 
       // Tool call markers should NOT appear by default
-      expect(!result.stdout.includes('[Read]'), 'should not include [Read] tool marker').toBeTruthy();
-      expect(!result.stdout.includes('[Bash]'), 'should not include [Bash] tool marker').toBeTruthy();
-      expect(!result.stdout.includes('[Edit]'), 'should not include [Edit] tool marker').toBeTruthy();
+      expect(
+        !result.stdout.includes('[Read]'),
+        'should not include [Read] tool marker',
+      ).toBeTruthy();
+      expect(
+        !result.stdout.includes('[Bash]'),
+        'should not include [Bash] tool marker',
+      ).toBeTruthy();
+      expect(
+        !result.stdout.includes('[Edit]'),
+        'should not include [Edit] tool marker',
+      ).toBeTruthy();
       // Also confirm the tool from our fixture is excluded
-      expect(!result.stdout.includes('[Read →'), 'should not include tool result markers').toBeTruthy();
+      expect(
+        !result.stdout.includes('[Read →'),
+        'should not include tool result markers',
+      ).toBeTruthy();
     } finally {
       await cleanup();
     }
@@ -161,13 +225,22 @@ describe('integration: review', () => {
         { HOME: tmpDir, STATE_DIR: stateDir },
       );
 
-      expect(result.status, `Expected exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(0);
+      expect(
+        result.status,
+        `Expected exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
+      ).toBe(0);
 
       // The typical fixture has a tool_use (Read) — with --include-tools it should appear
-      expect(result.stdout.includes('[Read]') || result.stdout.includes('['), 'output should contain at least some tool marker with --include-tools').toBeTruthy();
+      expect(
+        result.stdout.includes('[Read]') || result.stdout.includes('['),
+        'output should contain at least some tool marker with --include-tools',
+      ).toBeTruthy();
 
       // But tool results (→ result) should still be excluded
-      expect(!result.stdout.includes('→ result]'), 'tool results should be excluded with --include-tools').toBeTruthy();
+      expect(
+        !result.stdout.includes('→ result]'),
+        'tool results should be excluded with --include-tools',
+      ).toBeTruthy();
     } finally {
       await cleanup();
     }
@@ -185,13 +258,52 @@ describe('integration: review', () => {
         { HOME: tmpDir, STATE_DIR: stateDir },
       );
 
-      expect(result.status, `Expected exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(0);
+      expect(
+        result.status,
+        `Expected exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
+      ).toBe(0);
 
       // --debug = --include-tools --include-tool-results
       // The typical fixture has Read tool_use and tool_result
-      expect(result.stdout.includes('[Read]') || result.stdout.includes('['), 'output should contain tool marker with --debug').toBeTruthy();
+      expect(
+        result.stdout.includes('[Read]') || result.stdout.includes('['),
+        'output should contain tool marker with --debug',
+      ).toBeTruthy();
       // Tool results should also appear
-      expect(result.stdout.includes('→ result]') || result.stdout.includes('result'), 'output should contain tool result marker with --debug').toBeTruthy();
+      expect(
+        result.stdout.includes('→ result]') || result.stdout.includes('result'),
+        'output should contain tool result marker with --debug',
+      ).toBeTruthy();
+    } finally {
+      await cleanup();
+    }
+  });
+
+  test('review mutates legacy state only when requested and does so before stdout', async () => {
+    const { tmpDir, cwd, stateDir, cleanup } = await setupTempHome();
+    try {
+      const statePath = join(stateDir, 'state.json');
+      const ordinaryReview = spawnCli(
+        ['review', '--runtime', 'claude-code', '--cwd', cwd],
+        { HOME: tmpDir, STATE_DIR: stateDir },
+      );
+      expect(ordinaryReview.status).toBe(0);
+      await expect(readFile(statePath)).rejects.toMatchObject({
+        code: 'ENOENT',
+      });
+
+      const failedOutput = await spawnCliWithStdoutFailure(
+        tmpDir,
+        ['review', '--runtime', 'claude-code', '--cwd', cwd, '--mark-read'],
+        { HOME: tmpDir, STATE_DIR: stateDir },
+      );
+
+      expect(failedOutput.status).toBe(1);
+      expect(failedOutput.stderr).toContain('INJECTED_STDOUT_FAILURE');
+      const state = JSON.parse(await readFile(statePath, 'utf8'));
+      expect(
+        state.sessions['claude-code:cc-session-001'].lastRecordIndex,
+      ).toBeGreaterThan(0);
     } finally {
       await cleanup();
     }
@@ -211,21 +323,33 @@ describe('integration: catch-up', () => {
         ['catch-up', '--runtime', 'claude-code', '--cwd', cwd],
         { HOME: tmpDir, STATE_DIR: stateDir },
       );
-      expect(first.status, `First catch-up should exit 0\nstdout: ${first.stdout}\nstderr: ${first.stderr}`).toBe(0);
-      expect(first.stdout.includes('### User') ||
-          first.stdout.includes('session-observer'), 'First catch-up should have content').toBeTruthy();
+      expect(
+        first.status,
+        `First catch-up should exit 0\nstdout: ${first.stdout}\nstderr: ${first.stderr}`,
+      ).toBe(0);
+      expect(
+        first.stdout.includes('### User') ||
+          first.stdout.includes('session-observer'),
+        'First catch-up should have content',
+      ).toBeTruthy();
 
       // Second catch-up: offset now equals totalRecords → no new content
       const second = spawnCli(
         ['catch-up', '--runtime', 'claude-code', '--cwd', cwd],
         { HOME: tmpDir, STATE_DIR: stateDir },
       );
-      expect(second.status, `Second catch-up should exit 0\nstdout: ${second.stdout}\nstderr: ${second.stderr}`).toBe(0);
+      expect(
+        second.status,
+        `Second catch-up should exit 0\nstdout: ${second.stdout}\nstderr: ${second.stderr}`,
+      ).toBe(0);
       // Second catch-up should show 0 new records or "no new records" style header
-      expect(second.stdout.includes('new records: 0') ||
+      expect(
+        second.stdout.includes('new records: 0') ||
           second.stdout.includes('No messages in range') ||
           second.stdout.includes('0') ||
-          second.stdout.length > 0, 'Second catch-up should exit 0 (even with no new content)').toBeTruthy();
+          second.stdout.length > 0,
+        'Second catch-up should exit 0 (even with no new content)',
+      ).toBeTruthy();
     } finally {
       await cleanup();
     }
@@ -238,7 +362,10 @@ describe('integration: catch-up', () => {
         ['catch-up', '--runtime', 'claude-code', '--cwd', cwd, '--json'],
         { HOME: tmpDir, STATE_DIR: stateDir },
       );
-      expect(first.status, `First catch-up should exit 0\nstdout: ${first.stdout}\nstderr: ${first.stderr}`).toBe(0);
+      expect(
+        first.status,
+        `First catch-up should exit 0\nstdout: ${first.stdout}\nstderr: ${first.stderr}`,
+      ).toBe(0);
 
       const statePath = join(stateDir, 'state.json');
       const before = JSON.parse(await readFile(statePath, 'utf8'));
@@ -248,10 +375,37 @@ describe('integration: catch-up', () => {
         ['catch-up', '--runtime', 'claude-code', '--cwd', cwd, '--json'],
         { HOME: tmpDir, STATE_DIR: stateDir },
       );
-      expect(second.status, `Second catch-up should exit 0\nstdout: ${second.stdout}\nstderr: ${second.stderr}`).toBe(0);
+      expect(
+        second.status,
+        `Second catch-up should exit 0\nstdout: ${second.stdout}\nstderr: ${second.stderr}`,
+      ).toBe(0);
 
       const after = JSON.parse(await readFile(statePath, 'utf8'));
-      expect(after, 'no-op catch-up should not rewrite matching state').toEqual(before);
+      expect(after, 'no-op catch-up should not rewrite matching state').toEqual(
+        before,
+      );
+    } finally {
+      await cleanup();
+    }
+  });
+
+  test('catch-up currently advances legacy state before a caller-visible stdout failure', async () => {
+    const { tmpDir, cwd, stateDir, cleanup } = await setupTempHome();
+    try {
+      const result = await spawnCliWithStdoutFailure(
+        tmpDir,
+        ['catch-up', '--runtime', 'claude-code', '--cwd', cwd],
+        { HOME: tmpDir, STATE_DIR: stateDir },
+      );
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain('INJECTED_STDOUT_FAILURE');
+      const state = JSON.parse(
+        await readFile(join(stateDir, 'state.json'), 'utf8'),
+      );
+      expect(
+        state.sessions['claude-code:cc-session-001'].lastRecordIndex,
+      ).toBeGreaterThan(0);
     } finally {
       await cleanup();
     }
@@ -320,17 +474,31 @@ describe('integration: catch-up', () => {
         { HOME: tmpDir, STATE_DIR: stateDir },
       );
 
-      expect(result.status, `catch-up should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(0);
-      expect(result.stdout.includes('new message only'), 'should render the first unread record').toBeTruthy();
-      expect(!result.stdout.includes('boundary message should not repeat'), 'must not re-render the previous boundary record').toBeTruthy();
-      expect(result.stdout.includes(
+      expect(
+        result.status,
+        `catch-up should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
+      ).toBe(0);
+      expect(
+        result.stdout.includes('new message only'),
+        'should render the first unread record',
+      ).toBeTruthy();
+      expect(
+        !result.stdout.includes('boundary message should not repeat'),
+        'must not re-render the previous boundary record',
+      ).toBeTruthy();
+      expect(
+        result.stdout.includes(
           'raw range (zero-based JSONL indices):** records 2–2 of 3',
-        )).toBeTruthy();
+        ),
+      ).toBeTruthy();
 
       const state = JSON.parse(
         await readFile(join(stateDir, 'state.json'), 'utf8'),
       );
-      expect(state.sessions['claude-code:boundary-session'].lastRecordIndex, 'stored offset should advance to the next unread zero-based record index').toBe(3);
+      expect(
+        state.sessions['claude-code:boundary-session'].lastRecordIndex,
+        'stored offset should advance to the next unread zero-based record index',
+      ).toBe(3);
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -348,22 +516,34 @@ describe('integration: catch-up', () => {
         ['catch-up', '--runtime', 'claude-code', '--cwd', cwd],
         { HOME: tmpDir, STATE_DIR: stateDir },
       );
-      expect(first.status, `First catch-up should exit 0\nstderr: ${first.stderr}`).toBe(0);
+      expect(
+        first.status,
+        `First catch-up should exit 0\nstderr: ${first.stderr}`,
+      ).toBe(0);
 
       // Reset state for claude-code
       const reset = spawnCli(['state', 'reset', '--runtime', 'claude-code'], {
         HOME: tmpDir,
         STATE_DIR: stateDir,
       });
-      expect(reset.status, `state reset should exit 0\nstderr: ${reset.stderr}`).toBe(0);
+      expect(
+        reset.status,
+        `state reset should exit 0\nstderr: ${reset.stderr}`,
+      ).toBe(0);
 
       // Second catch-up after reset: should re-emit full content
       const second = spawnCli(
         ['catch-up', '--runtime', 'claude-code', '--cwd', cwd],
         { HOME: tmpDir, STATE_DIR: stateDir },
       );
-      expect(second.status, `Catch-up after reset should exit 0\nstdout: ${second.stdout}\nstderr: ${second.stderr}`).toBe(0);
-      expect(second.stdout.includes('### User'), 'After reset, catch-up should re-emit full content').toBeTruthy();
+      expect(
+        second.status,
+        `Catch-up after reset should exit 0\nstdout: ${second.stdout}\nstderr: ${second.stderr}`,
+      ).toBe(0);
+      expect(
+        second.stdout.includes('### User'),
+        'After reset, catch-up should re-emit full content',
+      ).toBeTruthy();
     } finally {
       await cleanup();
     }
@@ -383,8 +563,13 @@ describe('integration: empty fixture', () => {
         ['review', '--runtime', 'claude-code', '--cwd', cwd],
         { HOME: tmpDir, STATE_DIR: stateDir },
       );
-      expect(result.status, `Expected exit 3 for unengaged empty fixture\nstdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(3);
-      expect(result.stdout.includes('has no user conversation yet')).toBeTruthy();
+      expect(
+        result.status,
+        `Expected exit 3 for unengaged empty fixture\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
+      ).toBe(3);
+      expect(
+        result.stdout.includes('has no user conversation yet'),
+      ).toBeTruthy();
     } finally {
       await cleanup();
     }
@@ -409,10 +594,16 @@ describe('integration: probe-local', () => {
         STATE_DIR: stateDir,
       });
 
-      expect(result.status, `probe-local should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(0);
-      expect(result.stdout.includes(
+      expect(
+        result.status,
+        `probe-local should exit 0\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
+      ).toBe(0);
+      expect(
+        result.stdout.includes(
           '[probe-local] transcript store: ~/.cursor/projects/',
-        ), 'probe-local should report Cursor transcript store').toBeTruthy();
+        ),
+        'probe-local should report Cursor transcript store',
+      ).toBeTruthy();
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
