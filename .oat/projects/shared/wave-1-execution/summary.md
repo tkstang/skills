@@ -23,8 +23,10 @@ write-disjoint worktree lanes at ceiling 4 and merged conflict-free.
 3. **Session-observer state robustness** (`2026-07-17-session-observer-state-robustness.md`)
    — locks record owner PIDs; stale locks are reclaimed exactly once per
    acquisition via rename-based exclusive claim with post-claim re-verification
-   (live-owner locks are never stolen — proven by deterministic interleaving
-   tests); codex cwd-cache writes are atomic. session-observer 1.0.6.
+   (the demonstrated two-contender theft interleaving is closed and
+   interleaving-tested; a narrow documented multi-contender residual remains,
+   funneled through exclusive lock creation); codex cwd-cache writes are
+   atomic. session-observer 1.0.6.
 4. **Docs staleness sweep** (`2026-07-17-docs-staleness-sweep.md`) — CHANGELOG
    caught up (~3 weeks: phone-a-friend, consensus config, session-observer-collab),
    README standalone-skill list fixed, CONTRIBUTING moved to pnpm commands,
