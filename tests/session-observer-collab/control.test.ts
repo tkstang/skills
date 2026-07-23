@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import {
   chmod,
   mkdtemp,
@@ -71,6 +72,21 @@ async function fixture() {
   await writeFile(transcript, '{}\n');
   return { home, root, cwd, transcript, transcriptStore };
 }
+
+async function cursorContinuity(transcript: string, nextFrameIndex: number) {
+  const contents = await readFile(transcript);
+  const metadata = await stat(transcript);
+  return {
+    indexBase: 'zero-based-jsonl-frame-index',
+    nextFrameIndex,
+    prefixBytes: contents.byteLength,
+    prefixSha256: createHash('sha256').update(contents).digest('hex'),
+    observedSize: metadata.size,
+    device: metadata.dev,
+    inode: metadata.ino,
+  };
+}
+
 afterEach(async () =>
   Promise.all(
     roots.splice(0).map((root) => rm(root, { recursive: true, force: true })),
@@ -1021,6 +1037,10 @@ describe('collaboration lease controls', () => {
     );
     expect((await readLease(root, 'owner-1'))?.state).toBe('waiting');
     expect((await inspectAdapterLease(root, invocation)).eligible).toBe(true);
+    const completion = {
+      peerCursor: 1,
+      peerContinuity: await cursorContinuity(transcript, 1),
+    };
     expect(
       (
         await claimAdapterTrigger(
@@ -1032,7 +1052,7 @@ describe('collaboration lease controls', () => {
             continuationCount: 0,
             loopCount: 0,
           },
-          { peerCursor: 3 },
+          completion,
         )
       ).triggered,
     ).toBe(true);
@@ -1327,11 +1347,19 @@ describe('collaboration lease controls', () => {
       continuationCount: 0,
       loopCount: 0,
     };
+    const peerContinuity = await cursorContinuity(transcript, 1);
+    const completion = {
+      peerCursor: 1,
+      peerContinuity,
+    };
     const [, claim] = await Promise.all([
       disarm(root, 'owner-1', 3_000),
-      claimAdapterTrigger(root, { ...invocation, now: 4_000 }, expected, {
-        peerCursor: 1,
-      }),
+      claimAdapterTrigger(
+        root,
+        { ...invocation, now: 4_000 },
+        expected,
+        completion,
+      ),
     ]);
     expect(claim.triggered === true || claim.reason === 'user-disarmed').toBe(
       true,

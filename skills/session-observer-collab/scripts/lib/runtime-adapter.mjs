@@ -169,7 +169,6 @@ async function validateCursorUpdate(lease, transcript, update) {
     !Object.hasOwn(update, 'peerContinuity') ||
     update.peerContinuity === null
   ) {
-    if (lease.peerContinuity === null) return { ok: true, update };
     return { ok: false, reason: 'continuity-required' };
   }
   if (update.peerContinuity.nextFrameIndex !== update.peerCursor)
@@ -344,6 +343,9 @@ export async function finishAdapterWait(
   };
 }
 
+/**
+ * @param {import('./lease-state.mjs').LeaseUpdate | null | undefined} completion
+ */
 export async function claimAdapterTrigger(
   root,
   invocation,

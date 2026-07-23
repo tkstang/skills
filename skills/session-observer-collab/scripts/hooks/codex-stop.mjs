@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 
-import { readFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { open, readFile } from 'node:fs/promises';
 
+import { createCursorTurnAccumulator } from '../../../session-observer/scripts/lib/cursor-analysis.mjs';
+import { scanCursorTranscript } from '../../../session-observer/scripts/lib/cursor-frames.mjs';
 import { buildDigest } from '../../../session-observer/scripts/lib/digest.mjs';
 import { selectCompletedContinuation } from '../lib/completion-selection.mjs';
 import {
@@ -109,6 +112,49 @@ export const CODEX_STOP_ADAPTER = defineRuntimeAdapter({
 });
 
 async function defaultObserve(lease) {
+  if (lease.peerRuntime === 'cursor') {
+    const identity = {
+      runtime: 'cursor',
+      sessionId: lease.peerSession,
+      projectCwd: lease.ownerCwd,
+      canonicalCwd: lease.ownerCwd,
+      canonicalTranscriptPath: lease.peerCanonicalTranscriptPath,
+      cwdEvidence: ['direct-project-root'],
+      sessionEvidence: ['explicit-pin'],
+      strength: 'exact',
+      reasons: [],
+    };
+    const accumulator = createCursorTurnAccumulator(identity, lease.peerCursor);
+    const scan = await scanCursorTranscript(lease.peerTranscript, {
+      verifyPrefixBytes: lease.peerContinuity?.prefixBytes,
+      onFrame(frame) {
+        accumulator.onFrame(frame);
+      },
+    });
+    const checkpoint = lease.peerContinuity;
+    if (
+      checkpoint !== null &&
+      (scan.file.size < checkpoint.observedSize ||
+        scan.file.size < checkpoint.prefixBytes ||
+        scan.file.device !== checkpoint.device ||
+        scan.file.inode !== checkpoint.inode ||
+        scan.verifiedPrefixSha256 !== checkpoint.prefixSha256)
+    ) {
+      throw new Error('cursor continuity changed during completion read');
+    }
+    return buildDigest('cursor', lease.peerTranscript, {
+      fromIndex: lease.peerCursor,
+      mode: 'review',
+      sessionId: lease.peerSession,
+      recordedCwd: lease.ownerCwd,
+      cursorProjection: 'confirmed-completion',
+      cursorIdentity: identity,
+      cursorScan: scan,
+      cursorAnalysis: accumulator.finish(scan),
+      cursorState: null,
+      cursorContinuity: checkpoint === null ? 'new' : 'verified',
+    });
+  }
   return buildDigest(lease.peerRuntime, lease.peerTranscript, {
     fromIndex: lease.peerCursor,
     mode: 'review',
@@ -116,14 +162,115 @@ async function defaultObserve(lease) {
   });
 }
 
-function validSelection(selection, expected) {
+function validSelection(selection, expected, lease) {
   return (
     selection.continuation === true &&
+    selection.indexBase === lease.peerIndexBase &&
     selection.range !== null &&
     selection.range.fromIndex === expected.peerCursor &&
     selection.range.toIndex === selection.completedRecord &&
     selection.peerCursor === selection.completedRecord + 1
   );
+}
+
+function isPendingCursorCompletion(digest, lease) {
+  return (
+    lease.peerRuntime === 'cursor' &&
+    digest?.schemaVersion === 2 &&
+    digest.runtime === 'cursor' &&
+    digest.range?.indexBase === 'zero-based-jsonl-frame-index' &&
+    digest.accounting?.indexBase === 'zero-based-jsonl-frame-index' &&
+    digest.cursorEvidence?.projection === 'confirmed-completion' &&
+    digest.cursorEvidence?.status?.lifecycle === 'pending' &&
+    digest.cursorEvidence?.blockingFrame === null &&
+    digest.accounting?.buffered?.reason === 'stability-wait' &&
+    digest.range.fromIndex === lease.peerCursor &&
+    digest.range.nextIndex === lease.peerCursor
+  );
+}
+
+function validDigestForLease(digest, lease) {
+  if (lease.peerRuntime !== 'cursor') return digest?.schemaVersion === 1;
+  return (
+    digest?.schemaVersion === 2 &&
+    digest.runtime === 'cursor' &&
+    digest.range?.indexBase === lease.peerIndexBase &&
+    digest.accounting?.indexBase === lease.peerIndexBase &&
+    digest.cursorEvidence?.projection === 'confirmed-completion'
+  );
+}
+
+async function hashPrefix(transcript, prefixBytes) {
+  const hash = createHash('sha256');
+  if (prefixBytes === 0) return hash.digest('hex');
+  const handle = await open(transcript, 'r');
+  try {
+    let bytesRead = 0;
+    const stream = handle.createReadStream({
+      start: 0,
+      end: prefixBytes - 1,
+      autoClose: false,
+    });
+    for await (const chunk of stream) {
+      bytesRead += chunk.byteLength;
+      hash.update(chunk);
+    }
+    if (bytesRead !== prefixBytes)
+      throw new Error('cursor checkpoint prefix is incomplete');
+    return hash.digest('hex');
+  } finally {
+    await handle.close();
+  }
+}
+
+async function cursorCheckpoint(lease, nextFrameIndex) {
+  const frameEnds = [];
+  const scan = await scanCursorTranscript(lease.peerTranscript, {
+    verifyPrefixBytes: lease.peerContinuity?.prefixBytes,
+    onFrame(frame) {
+      frameEnds[frame.frameIndex] =
+        frame.closed &&
+        (frame.parseState === 'parsed' || frame.parseState === 'blank')
+          ? frame.byteEnd
+          : null;
+    },
+  });
+  const prior = lease.peerContinuity;
+  if (
+    (prior !== null &&
+      (scan.file.size < prior.observedSize ||
+        scan.file.size < prior.prefixBytes ||
+        scan.file.device !== prior.device ||
+        scan.file.inode !== prior.inode ||
+        scan.verifiedPrefixSha256 !== prior.prefixSha256)) ||
+    scan.file.device === null ||
+    scan.file.inode === null ||
+    nextFrameIndex > (scan.safeThroughFrame ?? -1) + 1
+  ) {
+    throw new Error('cursor checkpoint continuity is unavailable');
+  }
+  const prefixBytes = nextFrameIndex === 0 ? 0 : frameEnds[nextFrameIndex - 1];
+  if (!Number.isSafeInteger(prefixBytes) || prefixBytes < 0)
+    throw new Error('cursor checkpoint frame is unavailable');
+  return Object.freeze({
+    indexBase: 'zero-based-jsonl-frame-index',
+    nextFrameIndex,
+    prefixBytes,
+    prefixSha256: await hashPrefix(lease.peerTranscript, prefixBytes),
+    observedSize: scan.file.size,
+    device: scan.file.device,
+    inode: scan.file.inode,
+  });
+}
+
+async function cursorUpdate(lease, selection) {
+  if (lease.peerRuntime !== 'cursor') {
+    return Object.freeze({ peerCursor: selection.peerCursor });
+  }
+  return Object.freeze({
+    peerCursor: selection.peerCursor,
+    peerContinuity: await cursorCheckpoint(lease, selection.peerCursor),
+  });
 }
 
 /**
@@ -194,12 +341,25 @@ export async function runCodexStopHook(event, options = {}) {
     while ((currentNow = now()) < deadline) {
       let selection;
       try {
-        selection = selectCompletedContinuation(
-          await waitFor(
-            Promise.resolve().then(() => observe(activeLease)),
-            signal,
-          ),
+        const digest = await waitFor(
+          Promise.resolve().then(() => observe(activeLease)),
+          signal,
         );
+        if (!validDigestForLease(digest, activeLease)) {
+          diagnostic = 'observer-invalid';
+          return allow(diagnostic);
+        }
+        if (isPendingCursorCompletion(digest, activeLease)) {
+          const remaining = deadline - now();
+          if (remaining > 0) {
+            await waitFor(
+              Promise.resolve(sleep(Math.min(POLL_MS, remaining))),
+              signal,
+            );
+          }
+          continue;
+        }
+        selection = selectCompletedContinuation(digest);
       } catch (error) {
         diagnostic =
           error?.code === 'provider-terminated'
@@ -208,7 +368,7 @@ export async function runCodexStopHook(event, options = {}) {
         return allow(diagnostic);
       }
 
-      if (validSelection(selection, expected)) {
+      if (validSelection(selection, expected, activeLease)) {
         const terminal =
           activeLease.continuationCount + selection.budgetCost >=
             activeLease.continuationCap ||
@@ -218,7 +378,7 @@ export async function runCodexStopHook(event, options = {}) {
           { ...invocation, now: currentNow },
           expected,
           {
-            peerCursor: selection.peerCursor,
+            ...(await cursorUpdate(activeLease, selection)),
             loopIncrement: 1,
             terminal,
             diagnostic: null,
@@ -247,7 +407,7 @@ export async function runCodexStopHook(event, options = {}) {
           root,
           { ...invocation, now: currentNow },
           expected,
-          selection.peerCursor,
+          await cursorUpdate(activeLease, selection),
         ).catch((error) => ({
           advanced: false,
           reason: error?.code ?? 'cursor-advance-failed',

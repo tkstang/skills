@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import {
+  appendFile,
   mkdtemp,
   mkdir,
   readFile,
@@ -98,6 +99,39 @@ async function continuity(transcript: string, nextFrameIndex: number) {
   };
 }
 
+async function writeCursorFrames(
+  transcript: string,
+  frames: Array<Record<string, unknown>>,
+) {
+  await writeFile(
+    transcript,
+    frames.map((frame) => `${JSON.stringify(frame)}\n`).join(''),
+  );
+}
+
+async function frameContinuity(transcript: string, nextFrameIndex: number) {
+  const contents = await readFile(transcript);
+  const frameEnds: number[] = [];
+  for (let offset = 0; offset < contents.byteLength; offset += 1) {
+    if (contents[offset] === 0x0a) frameEnds.push(offset + 1);
+  }
+  if (nextFrameIndex > frameEnds.length)
+    throw new Error('nextFrameIndex exceeds the closed frame count');
+  const prefixBytes = nextFrameIndex === 0 ? 0 : frameEnds[nextFrameIndex - 1];
+  const metadata = await stat(transcript);
+  return {
+    indexBase: 'zero-based-jsonl-frame-index' as const,
+    nextFrameIndex,
+    prefixBytes,
+    prefixSha256: createHash('sha256')
+      .update(contents.subarray(0, prefixBytes))
+      .digest('hex'),
+    observedSize: metadata.size,
+    device: metadata.dev,
+    inode: metadata.ino,
+  };
+}
+
 async function armCursorPeerLease(
   root: string,
   cwd: string,
@@ -111,6 +145,31 @@ async function armCursorPeerLease(
     peerContinuity: await continuity(transcript, 0),
   } as any);
 }
+
+async function armCursorFrameLease(
+  root: string,
+  cwd: string,
+  transcript: string,
+  frames: Array<Record<string, unknown>>,
+  overrides: Record<string, string | number> = {},
+): Promise<any> {
+  await writeCursorFrames(transcript, frames);
+  const armed = await armLease(root, cwd, transcript, {
+    peerRuntime: 'cursor',
+    ...overrides,
+  });
+  return writeLease(root, {
+    ...armed.lease,
+    peerContinuity: await frameContinuity(transcript, 0),
+  } as any);
+}
+
+const humanFrame = (text: string) => ({ role: 'user', content: text });
+const assistantFrame = (text: string) => ({
+  role: 'assistant',
+  content: text,
+});
+const terminalFrame = (status: string) => ({ type: 'turn_ended', status });
 
 function digest(fromIndex = 0) {
   const entries = [
@@ -155,6 +214,183 @@ function digest(fromIndex = 0) {
 }
 
 describe('Codex Stop continuation hook', () => {
+  test('claims a Cursor peer completion by physical frame and persists its private checkpoint', async () => {
+    const { root, cwd, transcript } = await fixture();
+    const lease = await armCursorFrameLease(root, cwd, transcript, [
+      humanFrame('Review the Cursor frame range.'),
+      assistantFrame('The framed result is complete.'),
+      terminalFrame('success'),
+    ]);
+
+    const result = await runCodexStopHook(
+      { hook_event_name: 'Stop', session_id: 'codex-1', cwd },
+      { root, now: () => START + 1 },
+    );
+
+    expect(result).toMatchObject({
+      decision: 'block',
+      reason: expect.stringContaining('schema_version="2"'),
+    });
+    expect(result.reason).toContain(
+      'index_base="zero-based-jsonl-frame-index"',
+    );
+    expect(result.reason).toContain('records="0-2"');
+    expect(await readLease(root, 'codex-1')).toMatchObject({
+      leaseId: lease.leaseId,
+      peerIndexBase: 'zero-based-jsonl-frame-index',
+      peerCursor: 3,
+      peerContinuity: {
+        indexBase: 'zero-based-jsonl-frame-index',
+        nextFrameIndex: 3,
+      },
+      continuationCount: 1,
+      loopCount: 1,
+    });
+  });
+
+  test('polls a pending Cursor range without advancing until terminal success', async () => {
+    const { root, cwd, transcript } = await fixture();
+    await armCursorFrameLease(root, cwd, transcript, [
+      humanFrame('Wait for terminal evidence.'),
+      assistantFrame('This result is still pending.'),
+    ]);
+    let currentNow = START + 1;
+    let slept = 0;
+
+    const result = await runCodexStopHook(
+      { hook_event_name: 'Stop', session_id: 'codex-1', cwd },
+      {
+        root,
+        now: () => currentNow,
+        sleep: async () => {
+          slept += 1;
+          await appendFile(
+            transcript,
+            `${JSON.stringify(terminalFrame('success'))}\n`,
+          );
+          currentNow += 1;
+        },
+      },
+    );
+
+    expect(slept).toBe(1);
+    expect(result).toMatchObject({ decision: 'block' });
+    expect(await readLease(root, 'codex-1')).toMatchObject({
+      peerCursor: 3,
+      peerContinuity: { nextFrameIndex: 3 },
+      continuationCount: 1,
+    });
+  });
+
+  test.each([
+    [
+      'terminal failure',
+      [
+        humanFrame('Inspect the failed turn.'),
+        assistantFrame('This output must stay suppressed.'),
+        terminalFrame('error'),
+      ],
+    ],
+    [
+      'no-op',
+      [
+        humanFrame('Check for changes.'),
+        assistantFrame('[no-op] no substantive peer delta'),
+        terminalFrame('success'),
+      ],
+    ],
+  ] as const)(
+    'advances a Cursor peer %s range without spending continuation budget',
+    async (_classification, frames) => {
+      const { root, cwd, transcript } = await fixture();
+      await armCursorFrameLease(root, cwd, transcript, [...frames], {
+        waitMs: 1,
+      });
+      const moments = [START + 1, START + 1, START + 2, START + 2];
+
+      await expect(
+        runCodexStopHook(
+          { hook_event_name: 'Stop', session_id: 'codex-1', cwd },
+          {
+            root,
+            now: () => moments.shift() ?? START + 2,
+            sleep: async () => {},
+          },
+        ),
+      ).resolves.toMatchObject({
+        decision: 'allow',
+        diagnostic: 'wait-timeout',
+      });
+      expect(await readLease(root, 'codex-1')).toMatchObject({
+        state: 'idle',
+        peerCursor: frames.length,
+        peerContinuity: { nextFrameIndex: frames.length },
+        continuationCount: 0,
+        loopCount: 0,
+      });
+    },
+  );
+
+  test('rejects both first-advance checkpoint omission and a mismatched persisted prefix', async () => {
+    const { root, cwd, transcript } = await fixture();
+    const armed = await armLease(root, cwd, transcript, {
+      peerRuntime: 'cursor',
+    });
+    const invocation = {
+      runtime: 'codex',
+      peerRuntime: 'cursor',
+      peerSession: 'peer-1',
+      ownerSession: 'codex-1',
+      cwd,
+      transcript,
+      now: START + 1,
+    };
+    await expect(
+      advanceAdapterCursor(
+        root,
+        invocation,
+        {
+          leaseId: armed.lease.leaseId,
+          peerCursor: 0,
+          continuationCount: 0,
+          loopCount: 0,
+        },
+        1,
+      ),
+    ).resolves.toMatchObject({
+      advanced: false,
+      reason: 'continuity-required',
+    });
+    expect(await readLease(root, 'codex-1')).toEqual(armed.lease);
+
+    const withCheckpoint = await writeLease(root, {
+      ...armed.lease,
+      peerContinuity: {
+        ...(await frameContinuity(transcript, 0)),
+        prefixSha256: 'f'.repeat(64),
+      },
+    } as any);
+    let observed = 0;
+    await expect(
+      runCodexStopHook(
+        { hook_event_name: 'Stop', session_id: 'codex-1', cwd },
+        {
+          root,
+          now: () => START + 1,
+          observe: async () => {
+            observed += 1;
+            return digest();
+          },
+        },
+      ),
+    ).resolves.toMatchObject({
+      decision: 'allow',
+      diagnostic: 'continuity-prefix-mismatch',
+    });
+    expect(observed).toBe(0);
+    expect(await readLease(root, 'codex-1')).toEqual(withCheckpoint);
+  });
+
   test('rejects stored-path substitution and use-time symlink escape without observing or mutating', async () => {
     const { home, root, cwd, transcript, transcriptStore } = await fixture();
     const original = await armCursorPeerLease(root, cwd, transcript);
