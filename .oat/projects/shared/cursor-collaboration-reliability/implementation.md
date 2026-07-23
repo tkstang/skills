@@ -496,12 +496,12 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 **Tier:** Tier 1 — native Codex subagents
 **Policy:** managed `high`
 **Phase base:** `210efe9`
-**Phase head:** `9c974f9`
-**Outcome:** blocked after review round 1; bounded fix iteration 1 pending
+**Phase head:** `0623a74`
+**Outcome:** review round 1 fixes completed; whole-phase re-review pending
 
 | Phase | Tasks | Implementation | Root Review | Fix Iterations | Verdict |
 | ----- | ----- | -------------- | ----------- | -------------- | ------- |
-| p03   | 7/7   | `f6934db..9c974f9` | Round 1 blocked: 3 Important | 0 completed | blocked |
+| p03   | 7/7   | `f6934db..0623a74` | Round 1 blocked: 3 Important; round 2 pending | 1 (`0623a74`) | review_pending |
 
 **Implementation dispatch:**
 
@@ -515,6 +515,9 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 
 1. `reviews/p03-review-2026-07-23T211458Z.md` — blocked with 0 Critical,
    3 Important, 0 Medium, and 0 Minor; reconnaissance not attempted.
+2. Original implementer continuation
+   `fix-p03-round1-9c974f9-20260723T211800Z` produced `0623a74`; whole-phase
+   re-review pending.
 
 **Review dispatch:**
 
@@ -525,8 +528,7 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 
 **Optional nested implementation dispatches:** None.
 **Worktree:** Root checkout; sequential plan.
-**Outstanding items:** I1 exact-key uncertain replay, I2 read-only stability
-confirmation, and I3 fail-visible watch health.
+**Outstanding items:** Whole-phase review round 2.
 
 <!-- orchestration-runs-end -->
 
@@ -684,7 +686,7 @@ are resolved; Phase 2 is complete.
 
 ## Phase 3: Digest v2, Observation, Foreground Watch, and CLI
 
-**Status:** blocked
+**Status:** review_pending
 
 ### Phase Summary
 
@@ -697,7 +699,8 @@ are resolved; Phase 2 is complete.
 - Phase-wide verification passed with 1,358 tests, 1 skipped, plus validation,
   smoke, type-check, and generated-output parity.
 - Independent Phase 3 code review retained 3 Important findings; bounded fix
-  iteration 1 is pending.
+  iteration 1 resolved all three in `0623a74`, and whole-phase re-review is
+  pending.
 
 ### Task outcomes
 
@@ -779,8 +782,11 @@ generated build parity.
 - I3: watch polling/status can report failed, unknown, or uncertain health as
   healthy.
 
-The original Phase 3 implementer will handle all three findings in bounded fix
-iteration 1 before a fresh whole-phase re-review.
+The original Phase 3 implementer resolved all three findings in `0623a74`.
+Focused Phase 3 coverage passed 175/175, the full suite passed 1,363 with 1
+skipped, and build, generated parity, type-check, validation, smoke,
+file-scoped formatting/lint, and diff checks passed. A fresh whole-phase
+re-review is pending.
 
 ---
 
@@ -802,7 +808,7 @@ Track test execution during implementation.
 | ----- | --------- | ------ | ------ | -------- |
 | 1     | Focused re-review + full suite | 137 focused; 1,148 full; 1 skipped | 0 | Frames, analyzer, runtimes, generated outputs, Export compatibility |
 | 2     | Fix-task re-review + full suite | 146 focused; 1,327 full; 1 skipped | 0; review passed | Atomic lock publication, exact raw-alias containment, Cursor v2 recovery guidance, generated outputs |
-| 3     | Phase-wide suite after p03-t07 | 1,358 passed; 1 skipped | 0 | Digest/observation/delivery v2, durable targets, bounded watch, CLI semantics, v1 compatibility |
+| 3     | Phase-wide suite after review fixes | 1,363 passed; 1 skipped | 0 | Digest/observation/delivery v2, exact uncertain replay, read-only confirmation, durable fail-visible watch health, CLI semantics, v1 compatibility |
 
 ## Final Summary (for PR/docs)
 

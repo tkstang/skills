@@ -1,6 +1,6 @@
 ---
 oat_current_task: p04-t01
-oat_last_commit: 9c974f9
+oat_last_commit: 0623a74
 oat_blockers: []
 associated_issues:
   - { type: backlog, ref: "BL-260713-cursor-transcript-store" }
@@ -40,7 +40,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-17T21:43:11.125Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-23T21:17:32Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-23T21:34:38Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -52,7 +52,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation - Phase 3 blocked; fix iteration 1 pending
+Implementation - Phase 3 review round 2 pending
 
 ## Artifacts
 
@@ -60,7 +60,7 @@ Implementation - Phase 3 blocked; fix iteration 1 pending
 - **Spec:** `spec.md` (complete; requirements formalized from discovery)
 - **Design:** `design.md` (complete; approved after review findings resolved)
 - **Plan:** `plan.md` (complete; approved after a passing artifact review)
-- **Implementation:** `implementation.md` (Phase 3 is 7/7; review fixes pending)
+- **Implementation:** `implementation.md` (Phase 3 is 7/7; re-review pending)
 
 ## Progress
 
@@ -109,7 +109,9 @@ Implementation - Phase 3 blocked; fix iteration 1 pending
 - ✓ `p03-t07` Cursor CLI state/output semantics complete at `9c974f9`
 - ✓ Phase 3 verification passed: 1,358 tests, 1 skipped, plus validation, smoke, type-check, and build parity
 - ✗ Phase 3 review round 1 retained 3 Important findings
-- ⧗ Bounded Phase 3 fix iteration 1 pending
+- ✓ Bounded Phase 3 fix iteration 1 completed at `0623a74`
+- ✓ Fix verification passed: 175 focused and 1,363 full-suite tests, 1 skipped
+- ⧗ Whole-phase review round 2 pending
 
 ## Blockers
 
@@ -117,5 +119,4 @@ None.
 
 ## Next Milestone
 
-Resume the original Phase 3 implementer for review findings I1-I3, then run a
-fresh whole-phase review.
+Run whole-phase review round 2; if it passes, continue at `p04-t01`.
