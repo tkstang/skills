@@ -1486,41 +1486,51 @@ export function runProviderCliCommand(
       reject(error);
     }
 
+    // Safety net for a killed child whose stdio pipes were inherited by a
+    // descendant (e.g. a provider CLI that backgrounds a helper process): the
+    // pipes' write ends can stay open after the child dies, so 'close' never
+    // fires. Force settlement instead of hanging forever, mirroring
+    // subprocess.ts's finalResolutionMs. Shared by BOTH kill paths — the
+    // optional-timeout escalation and the output-cap breach below — so a cap
+    // kill is bounded even when no timeoutMs deadline is configured.
+    // Idempotent: the first scheduler wins; a second caller (e.g. a timeout
+    // firing after a cap kill already scheduled this) is a no-op.
+    function scheduleFinalResolution() {
+      if (finalResolutionTimer || settled) return;
+      finalResolutionTimer = setTimeout(() => {
+        // Destroy our own stdio handles so a held-open pipe (from a surviving
+        // descendant) can't keep this process's event loop alive after we've
+        // given up waiting on 'close'. stdin included: it was only .end()ed,
+        // not destroyed, and an unacknowledged write can leave it as an active
+        // handle too.
+        child.stdin.destroy();
+        child.stdout.destroy();
+        child.stderr.destroy();
+        // A capture-cap breach (see `capture` below) is a more specific,
+        // earlier-determined failure than a bare timeout — preserve it
+        // (SUBPROCESS_OUTPUT_CAP must win) instead of overwriting it with a
+        // generic timedOut result.
+        if (capError) {
+          settleReject(capError);
+          return;
+        }
+        settleResolve({
+          code: null,
+          signal: 'SIGKILL',
+          stdout: Buffer.concat(stdoutChunks).toString('utf8'),
+          stderr: Buffer.concat(stderrChunks).toString('utf8'),
+          timedOut: true,
+        });
+      }, PROVIDER_CLI_FINAL_RESOLUTION_MS);
+    }
+
     if (options.timeoutMs !== undefined) {
       deadlineTimer = setTimeout(() => {
         timedOut = true;
         child.kill('SIGTERM');
         killEscalationTimer = setTimeout(() => {
           child.kill('SIGKILL');
-          // Safety net: if a descendant process inherited these stdio pipes
-          // (e.g. a provider CLI that backgrounds a helper process), the
-          // pipes' write ends can stay open after this child is killed, so
-          // 'close' never fires. Force settlement instead of hanging forever,
-          // mirroring subprocess.ts's finalResolutionMs.
-          finalResolutionTimer = setTimeout(() => {
-            // Destroy our own stdio handles so a held-open pipe (from a
-            // surviving descendant) can't keep this process's event loop
-            // alive after we've already given up waiting on 'close'. stdin
-            // included: it was only .end()ed, not destroyed, and an
-            // unacknowledged write can leave it as an active handle too.
-            child.stdin.destroy();
-            child.stdout.destroy();
-            child.stderr.destroy();
-            // A capture-cap breach (see `capture` below) is a more specific,
-            // earlier-determined failure than a bare timeout — preserve it
-            // instead of overwriting it with a generic timedOut result.
-            if (capError) {
-              settleReject(capError);
-              return;
-            }
-            settleResolve({
-              code: null,
-              signal: 'SIGKILL',
-              stdout: Buffer.concat(stdoutChunks).toString('utf8'),
-              stderr: Buffer.concat(stderrChunks).toString('utf8'),
-              timedOut: true,
-            });
-          }, PROVIDER_CLI_FINAL_RESOLUTION_MS);
+          scheduleFinalResolution();
         }, PROVIDER_CLI_KILL_GRACE_MS);
       }, options.timeoutMs);
     }
@@ -1539,6 +1549,10 @@ export function runProviderCliCommand(
       if (nextBytes > SUBPROCESS_OUTPUT_CAP_BYTES) {
         capError = outputCapError(streamName, SUBPROCESS_OUTPUT_CAP_BYTES);
         child.kill('SIGKILL');
+        // If a descendant inherited our stdio pipes, this kill may not make
+        // 'close' fire, so schedule forced settlement to bound the cap
+        // rejection regardless of whether a timeoutMs deadline was set.
+        scheduleFinalResolution();
         return;
       }
 

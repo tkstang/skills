@@ -799,28 +799,32 @@ function runProviderCliCommand(command, args, options = {}) {
       clearDeadlineTimers();
       reject(error);
     }
+    function scheduleFinalResolution() {
+      if (finalResolutionTimer || settled) return;
+      finalResolutionTimer = setTimeout(() => {
+        child.stdin.destroy();
+        child.stdout.destroy();
+        child.stderr.destroy();
+        if (capError) {
+          settleReject(capError);
+          return;
+        }
+        settleResolve({
+          code: null,
+          signal: "SIGKILL",
+          stdout: Buffer.concat(stdoutChunks).toString("utf8"),
+          stderr: Buffer.concat(stderrChunks).toString("utf8"),
+          timedOut: true
+        });
+      }, PROVIDER_CLI_FINAL_RESOLUTION_MS);
+    }
     if (options.timeoutMs !== void 0) {
       deadlineTimer = setTimeout(() => {
         timedOut = true;
         child.kill("SIGTERM");
         killEscalationTimer = setTimeout(() => {
           child.kill("SIGKILL");
-          finalResolutionTimer = setTimeout(() => {
-            child.stdin.destroy();
-            child.stdout.destroy();
-            child.stderr.destroy();
-            if (capError) {
-              settleReject(capError);
-              return;
-            }
-            settleResolve({
-              code: null,
-              signal: "SIGKILL",
-              stdout: Buffer.concat(stdoutChunks).toString("utf8"),
-              stderr: Buffer.concat(stderrChunks).toString("utf8"),
-              timedOut: true
-            });
-          }, PROVIDER_CLI_FINAL_RESOLUTION_MS);
+          scheduleFinalResolution();
         }, PROVIDER_CLI_KILL_GRACE_MS);
       }, options.timeoutMs);
     }
@@ -830,6 +834,7 @@ function runProviderCliCommand(command, args, options = {}) {
       if (nextBytes > SUBPROCESS_OUTPUT_CAP_BYTES) {
         capError = outputCapError(streamName, SUBPROCESS_OUTPUT_CAP_BYTES);
         child.kill("SIGKILL");
+        scheduleFinalResolution();
         return;
       }
       chunks.push(chunk);
