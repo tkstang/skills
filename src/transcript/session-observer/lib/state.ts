@@ -19,12 +19,28 @@
  * across retries.
  */
 
-import { open, rename, mkdir, readFile, unlink } from 'node:fs/promises';
+import {
+  access,
+  open,
+  rename,
+  mkdir,
+  readFile,
+  unlink,
+} from 'node:fs/promises';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 
 import type { Runtime } from '../../core/runtimes.js';
+import {
+  clearCursorState,
+  cursorSessionKey,
+  loadCursorState,
+  mutateCursorState,
+  resetAllCursorState,
+  resetCursorSessionState,
+} from './cursor-state.js';
 import type {
+  LegacyCursorStateMarker,
   MarkReadInput,
   SessionObserverState,
   SessionStateEntry,
@@ -38,6 +54,7 @@ import type {
 const SCHEMA_VERSION = 1;
 const LOCK_RETRIES = 100;
 const LOCK_INTERVAL_MS = 50;
+let migrationBackupSequence = 0;
 
 // ---------------------------------------------------------------------------
 // State dir resolution
@@ -279,7 +296,7 @@ function zeroSession(entry: SessionStateEntry): SessionStateEntry {
  * Load and return the current state without any mutation.
  * Acquires the lock because reading can create corrupt/v0 backup files.
  */
-export async function load(): Promise<SessionObserverState> {
+async function loadLegacyState(): Promise<SessionObserverState> {
   const dir = stateDir();
   await mkdir(dir, { recursive: true });
   const lock = lockPath(dir);
@@ -289,6 +306,230 @@ export async function load(): Promise<SessionObserverState> {
   } finally {
     await releaseLock(lock);
   }
+}
+
+export type LegacyCursorMigrationBoundary =
+  | 'marker-written'
+  | 'backup-written'
+  | 'legacy-removed'
+  | 'marker-legacy-removed'
+  | 'complete';
+
+export interface LegacyCursorMigrationOptions {
+  onBoundary?(boundary: LegacyCursorMigrationBoundary): void | Promise<void>;
+}
+
+async function notifyMigrationBoundary(
+  options: LegacyCursorMigrationOptions,
+  boundary: LegacyCursorMigrationBoundary,
+): Promise<void> {
+  await options.onBoundary?.(boundary);
+}
+
+function nextMigrationBackupPath(dir: string): string {
+  migrationBackupSequence += 1;
+  return join(
+    dir,
+    `state.json.cursor-legacy-${Date.now()}-${process.pid}-${migrationBackupSequence}.bak`,
+  );
+}
+
+async function pathExists(path: string): Promise<boolean> {
+  try {
+    await access(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function writeMigrationBackup(
+  dir: string,
+  destination: string,
+  raw: string,
+): Promise<void> {
+  if (dirname(destination) !== dir) {
+    throw new Error('LEGACY_BACKUP_PATH_INVALID');
+  }
+  if (await pathExists(destination)) return;
+
+  const temporary = `${destination}.${process.pid}.tmp`;
+  let handle;
+  try {
+    handle = await open(temporary, 'w', 0o600);
+    await handle.writeFile(raw, 'utf8');
+    await handle.datasync();
+    await handle.close();
+    handle = undefined;
+    await rename(temporary, destination);
+  } finally {
+    if (handle) await handle.close();
+    try {
+      await unlink(temporary);
+    } catch {
+      // Best-effort cleanup; preserve the original write/rename result.
+    }
+  }
+}
+
+async function removeLegacyCursorForMigration(
+  marker: LegacyCursorStateMarker,
+  options: LegacyCursorMigrationOptions,
+): Promise<void> {
+  const dir = stateDir();
+  if (dirname(marker.backupPath) !== dir) {
+    throw new Error('LEGACY_BACKUP_PATH_INVALID');
+  }
+
+  await mkdir(dir, { recursive: true });
+  const lock = lockPath(dir);
+  await acquireLock(lock);
+  try {
+    const state = await readState(dir);
+    const key = sessionKey('cursor', marker.sessionId);
+    const entry = state.sessions[key];
+    if (!entry) {
+      if (!(await pathExists(marker.backupPath))) {
+        throw new Error('LEGACY_BACKUP_MISSING');
+      }
+      return;
+    }
+    if (
+      entry.runtime !== 'cursor' ||
+      !Number.isSafeInteger(entry.lastRecordIndex) ||
+      entry.lastRecordIndex < 0 ||
+      entry.lastRecordIndex !== marker.legacyLastRecordIndex
+    ) {
+      throw new Error('LEGACY_CURSOR_CHANGED');
+    }
+
+    const raw = await readFile(statePath(dir), 'utf8');
+    await writeMigrationBackup(dir, marker.backupPath, raw);
+    await notifyMigrationBoundary(options, 'backup-written');
+
+    delete state.sessions[key];
+    await writeState(dir, state);
+    await notifyMigrationBoundary(options, 'legacy-removed');
+  } finally {
+    await releaseLock(lock);
+  }
+}
+
+/**
+ * Move one legacy Cursor record-index entry into a durable, non-consumable v2
+ * marker. Each store is independently locked and every cross-store boundary is
+ * replay-safe, so interruption can be retried without trusting either offset.
+ */
+export async function migrateLegacyCursorState(
+  sessionId: string,
+  options: LegacyCursorMigrationOptions = {},
+): Promise<LegacyCursorStateMarker | null> {
+  const key = cursorSessionKey(sessionId);
+  let cursorState = await loadCursorState();
+  let marker = cursorState.legacyUnverified[key];
+
+  if (!marker) {
+    const legacy = await loadLegacyState();
+    const entry = legacy.sessions[sessionKey('cursor', sessionId)];
+    if (!entry) return null;
+    if (
+      entry.runtime !== 'cursor' ||
+      !Number.isSafeInteger(entry.lastRecordIndex) ||
+      entry.lastRecordIndex < 0
+    ) {
+      throw new Error('LEGACY_CURSOR_INVALID');
+    }
+
+    const proposed: LegacyCursorStateMarker = {
+      runtime: 'cursor',
+      sessionId,
+      legacyLastRecordIndex: entry.lastRecordIndex,
+      backupPath: nextMigrationBackupPath(stateDir()),
+      migrationStatus: 'marker-written',
+      createdAt: new Date().toISOString(),
+    };
+    cursorState = await mutateCursorState((state) => {
+      state.legacyUnverified[key] ??= proposed;
+    });
+    marker = cursorState.legacyUnverified[key];
+    await notifyMigrationBoundary(options, 'marker-written');
+  }
+
+  await removeLegacyCursorForMigration(marker, options);
+
+  cursorState = await mutateCursorState((state) => {
+    const current = state.legacyUnverified[key];
+    if (!current) throw new Error('LEGACY_CURSOR_MARKER_MISSING');
+    if (current.migrationStatus === 'marker-written') {
+      current.migrationStatus = 'legacy-removed';
+    }
+  });
+  marker = cursorState.legacyUnverified[key];
+  await notifyMigrationBoundary(options, 'marker-legacy-removed');
+
+  cursorState = await mutateCursorState((state) => {
+    const current = state.legacyUnverified[key];
+    if (!current) throw new Error('LEGACY_CURSOR_MARKER_MISSING');
+    if (current.migrationStatus !== 'complete') {
+      current.migrationStatus = 'complete';
+    }
+  });
+  marker = cursorState.legacyUnverified[key];
+  await notifyMigrationBoundary(options, 'complete');
+  return marker;
+}
+
+function cursorRecoveryEntry(
+  marker: LegacyCursorStateMarker,
+): SessionStateEntry {
+  return {
+    runtime: 'cursor',
+    sessionId: marker.sessionId,
+    lastRecordIndex: 0,
+    lastTotalRecords: marker.legacyLastRecordIndex,
+    recoveryRequired: true,
+    recoveryCode: 'LEGACY_CURSOR_UNVERIFIED',
+    legacyLastRecordIndex: marker.legacyLastRecordIndex,
+    migrationStatus: marker.migrationStatus,
+    backupPath: marker.backupPath,
+  };
+}
+
+/**
+ * Load a display-compatible composition of legacy Claude/Codex state and the
+ * isolated Cursor v2 store. Legacy Cursor entries are migrated before they can
+ * be exposed as consumable offsets.
+ */
+export async function load(): Promise<SessionObserverState> {
+  let legacy = await loadLegacyState();
+  const legacyCursorIds = Object.values(legacy.sessions)
+    .filter((entry) => entry.runtime === 'cursor')
+    .map((entry) => entry.sessionId);
+  for (const sessionId of legacyCursorIds) {
+    await migrateLegacyCursorState(sessionId);
+  }
+
+  legacy = await loadLegacyState();
+  const cursor = await loadCursorState();
+  const sessions = { ...legacy.sessions };
+  for (const entry of Object.values(cursor.sessions)) {
+    sessions[cursorSessionKey(entry.sessionId)] = {
+      runtime: 'cursor',
+      sessionId: entry.sessionId,
+      lastRecordIndex: entry.lastRecordIndex,
+      lastTotalRecords: entry.lastRecordIndex,
+      transcriptPath: entry.transcriptPath,
+      recordedCwd: entry.canonicalCwd,
+      indexBase: entry.indexBase,
+      continuity: entry.continuity,
+      lastStatus: entry.lastStatus,
+      recoveryRequired: false,
+    };
+  }
+  for (const marker of Object.values(cursor.legacyUnverified)) {
+    sessions[cursorSessionKey(marker.sessionId)] = cursorRecoveryEntry(marker);
+  }
+  return { schemaVersion: SCHEMA_VERSION, sessions };
 }
 
 /**
@@ -303,7 +544,7 @@ export async function mutate(fn: StateMutator): Promise<SessionObserverState> {
   const dir = stateDir();
   await mkdir(dir, { recursive: true });
   const lock = lockPath(dir);
-    await acquireLock(lock);
+  await acquireLock(lock);
   try {
     const current = await readState(dir);
     const next = fn(current) ?? current;
@@ -321,7 +562,22 @@ export async function getSession(
   runtime: Runtime,
   sessionId: string,
 ): Promise<SessionStateEntry | null> {
-  const state = await load();
+  if (runtime === 'cursor') {
+    const marker = await migrateLegacyCursorState(sessionId);
+    if (marker) {
+      throw new Error(
+        `LEGACY_CURSOR_UNVERIFIED: reset cursor:${sessionId} to replay from frame zero`,
+      );
+    }
+    const cursor = await loadCursorState();
+    if (cursor.sessions[cursorSessionKey(sessionId)]) {
+      throw new Error(
+        'CURSOR_STATE_V2_REQUIRES_OBSERVATION_PROJECTION: legacy record-index reads are disabled',
+      );
+    }
+    return null;
+  }
+  const state = await loadLegacyState();
   const key = sessionKey(runtime, sessionId);
   return state.sessions[key] ?? null;
 }
@@ -333,8 +589,18 @@ export async function getSession(
 export async function markRead(
   runtime: Runtime,
   sessionId: string,
-  { lastRecordIndex, lastTotalRecords, transcriptPath, recordedCwd }: MarkReadInput,
+  {
+    lastRecordIndex,
+    lastTotalRecords,
+    transcriptPath,
+    recordedCwd,
+  }: MarkReadInput,
 ): Promise<void> {
+  if (runtime === 'cursor') {
+    throw new Error(
+      'CURSOR_STATE_V2_REQUIRED: legacy record-index Cursor writes are disabled',
+    );
+  }
   const key = sessionKey(runtime, sessionId);
   await mutate((state) => {
     const existing = state.sessions[key] ?? {};
@@ -362,6 +628,11 @@ export async function setWatchedByPid(
   sessionId: string,
   pid: number,
 ): Promise<boolean> {
+  if (runtime === 'cursor') {
+    throw new Error(
+      'CURSOR_STATE_V2_REQUIRED: legacy Cursor watcher ownership is disabled',
+    );
+  }
   const key = sessionKey(runtime, sessionId);
   let updated = false;
   await mutate((state) => {
@@ -386,6 +657,11 @@ export async function clearWatchedByPid(
   sessionId: string,
   pid?: number,
 ): Promise<boolean> {
+  if (runtime === 'cursor') {
+    throw new Error(
+      'CURSOR_STATE_V2_REQUIRED: legacy Cursor watcher ownership is disabled',
+    );
+  }
   const key = sessionKey(runtime, sessionId);
   let updated = false;
   await mutate((state) => {
@@ -406,6 +682,25 @@ export async function clearWatchedByPid(
  * Zero all entries for a given runtime. Returns the count of entries zeroed.
  */
 export async function resetByRuntime(runtime: Runtime): Promise<number> {
+  if (runtime === 'cursor') {
+    const cursor = await loadCursorState();
+    const sessionIds = new Set([
+      ...Object.values(cursor.sessions).map((entry) => entry.sessionId),
+      ...Object.values(cursor.legacyUnverified).map(
+        (marker) => marker.sessionId,
+      ),
+    ]);
+    await mutate((state) => {
+      for (const [key, entry] of Object.entries(state.sessions)) {
+        if (entry.runtime === 'cursor') {
+          delete state.sessions[key];
+          sessionIds.add(entry.sessionId);
+        }
+      }
+    });
+    await resetAllCursorState();
+    return sessionIds.size;
+  }
   let count = 0;
   await mutate((state) => {
     for (const [key, entry] of Object.entries(state.sessions)) {
@@ -426,6 +721,14 @@ export async function resetBySession(
   runtime: Runtime,
   sessionId: string,
 ): Promise<void> {
+  if (runtime === 'cursor') {
+    const key = sessionKey(runtime, sessionId);
+    await mutate((state) => {
+      delete state.sessions[key];
+    });
+    await resetCursorSessionState(sessionId);
+    return;
+  }
   const key = sessionKey(runtime, sessionId);
   await mutate((state) => {
     if (state.sessions[key]) {
@@ -443,4 +746,5 @@ export async function clear(): Promise<void> {
     state.sessions = {};
     return state;
   });
+  await clearCursorState();
 }

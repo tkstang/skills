@@ -289,10 +289,38 @@ async function setCursorSession(entry) {
     state.sessions[cursorSessionKey(entry.sessionId)] = entry;
   });
 }
+async function resetCursorSessionState(sessionId) {
+  let removed = false;
+  await mutateCursorState((state) => {
+    const key = cursorSessionKey(sessionId);
+    removed = Object.hasOwn(state.sessions, key) || Object.hasOwn(state.legacyUnverified, key);
+    delete state.sessions[key];
+    delete state.legacyUnverified[key];
+  });
+  return removed;
+}
+async function resetAllCursorState() {
+  let count = 0;
+  await mutateCursorState((state) => {
+    count = (/* @__PURE__ */ new Set([
+      ...Object.keys(state.sessions),
+      ...Object.keys(state.legacyUnverified)
+    ])).size;
+    state.sessions = {};
+    state.legacyUnverified = {};
+  });
+  return count;
+}
+async function clearCursorState() {
+  await resetAllCursorState();
+}
 export {
+  clearCursorState,
   cursorSessionKey,
   getCursorSession,
   loadCursorState,
   mutateCursorState,
+  resetAllCursorState,
+  resetCursorSessionState,
   setCursorSession
 };

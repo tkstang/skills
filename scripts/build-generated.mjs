@@ -182,6 +182,7 @@ export const generatedOutputs = [
     id: 'session-observer-state',
     source: 'src/transcript/session-observer/lib/state.ts',
     output: 'skills/session-observer/scripts/lib/state.mjs',
+    importRewrites: [{ from: './cursor-state.js', to: './cursor-state.mjs' }],
   },
   {
     id: 'session-observer-cursor-state',

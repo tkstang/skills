@@ -16,6 +16,7 @@ import {
   mutateCursorState,
   setCursorSession,
 } from '../../src/transcript/session-observer/lib/cursor-state.js';
+import * as legacyState from '../../src/transcript/session-observer/lib/state.js';
 import type { CursorSessionStateEntry } from '../../src/transcript/session-observer/lib/types.js';
 import { withTmpStateDir } from './helpers/tmpdir.js';
 
@@ -82,6 +83,35 @@ function sessionEntry(sessionId = 'cursor-session'): CursorSessionStateEntry {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function writeLegacyState(
+  dir: string,
+  sessionId: string,
+  lastRecordIndex: number,
+): Promise<void> {
+  await writeFile(
+    join(dir, 'state.json'),
+    JSON.stringify({
+      schemaVersion: 1,
+      sessions: {
+        'claude-code:preserved': {
+          runtime: 'claude-code',
+          sessionId: 'preserved',
+          lastRecordIndex: 4,
+          lastTotalRecords: 4,
+          transcriptPath: '/tmp/claude.jsonl',
+        },
+        [`cursor:${sessionId}`]: {
+          runtime: 'cursor',
+          sessionId,
+          lastRecordIndex,
+          lastTotalRecords: lastRecordIndex + 2,
+          transcriptPath: '/tmp/cursor.jsonl',
+        },
+      },
+    }),
+  );
 }
 
 it('loads an empty isolated Cursor schema v2 state', async () => {
@@ -209,5 +239,82 @@ it('backs up corrupt and invalid-schema Cursor state without trusting it', async
     expect(
       files.some((name) => name.startsWith('cursor-state.json.schema-')),
     ).toBe(true);
+  });
+});
+
+it.each([
+  'marker-written',
+  'backup-written',
+  'legacy-removed',
+  'marker-legacy-removed',
+  'complete',
+] as const)(
+  'resumes legacy Cursor migration after an injected %s failure',
+  async (boundary) => {
+    await withTmpStateDir(async (dir) => {
+      await writeLegacyState(dir, 'legacy-session', 7);
+
+      await expect(
+        legacyState.migrateLegacyCursorState('legacy-session', {
+          onBoundary(reached) {
+            if (reached === boundary) {
+              throw new Error(`injected:${boundary}`);
+            }
+          },
+        }),
+      ).rejects.toThrow(`injected:${boundary}`);
+
+      const marker =
+        await legacyState.migrateLegacyCursorState('legacy-session');
+      expect(marker).toMatchObject({
+        runtime: 'cursor',
+        sessionId: 'legacy-session',
+        legacyLastRecordIndex: 7,
+        migrationStatus: 'complete',
+      });
+      await expect(access(marker!.backupPath)).resolves.not.toThrow();
+
+      const legacy = JSON.parse(
+        await readFile(join(dir, 'state.json'), 'utf8'),
+      );
+      expect(legacy.sessions['cursor:legacy-session']).toBeUndefined();
+      expect(legacy.sessions['claude-code:preserved']).toMatchObject({
+        lastRecordIndex: 4,
+      });
+
+      const cursor = await loadCursorState();
+      expect(cursor.sessions['cursor:legacy-session']).toBeUndefined();
+      expect(cursor.legacyUnverified['cursor:legacy-session']).toEqual(marker);
+    });
+  },
+);
+
+it('blocks migration if a legacy Cursor record index changes after the marker', async () => {
+  await withTmpStateDir(async (dir) => {
+    await writeLegacyState(dir, 'changed-session', 5);
+    await expect(
+      legacyState.migrateLegacyCursorState('changed-session', {
+        onBoundary(boundary) {
+          if (boundary === 'marker-written') {
+            throw new Error('stop-after-marker');
+          }
+        },
+      }),
+    ).rejects.toThrow('stop-after-marker');
+
+    const legacy = JSON.parse(await readFile(join(dir, 'state.json'), 'utf8'));
+    legacy.sessions['cursor:changed-session'].lastRecordIndex = 6;
+    await writeFile(join(dir, 'state.json'), JSON.stringify(legacy));
+
+    await expect(
+      legacyState.migrateLegacyCursorState('changed-session'),
+    ).rejects.toThrow('LEGACY_CURSOR_CHANGED');
+    const marker = (await loadCursorState()).legacyUnverified[
+      'cursor:changed-session'
+    ];
+    expect(marker).toMatchObject({
+      legacyLastRecordIndex: 5,
+      migrationStatus: 'marker-written',
+    });
   });
 });

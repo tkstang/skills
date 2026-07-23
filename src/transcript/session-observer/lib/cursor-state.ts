@@ -458,3 +458,35 @@ export async function setCursorSession(
     state.sessions[cursorSessionKey(entry.sessionId)] = entry;
   });
 }
+
+export async function resetCursorSessionState(
+  sessionId: string,
+): Promise<boolean> {
+  let removed = false;
+  await mutateCursorState((state) => {
+    const key = cursorSessionKey(sessionId);
+    removed =
+      Object.hasOwn(state.sessions, key) ||
+      Object.hasOwn(state.legacyUnverified, key);
+    delete state.sessions[key];
+    delete state.legacyUnverified[key];
+  });
+  return removed;
+}
+
+export async function resetAllCursorState(): Promise<number> {
+  let count = 0;
+  await mutateCursorState((state) => {
+    count = new Set([
+      ...Object.keys(state.sessions),
+      ...Object.keys(state.legacyUnverified),
+    ]).size;
+    state.sessions = {};
+    state.legacyUnverified = {};
+  });
+  return count;
+}
+
+export async function clearCursorState(): Promise<void> {
+  await resetAllCursorState();
+}

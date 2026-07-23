@@ -9,6 +9,7 @@ import { join } from 'node:path';
 
 import { expect, it } from 'vitest';
 
+import { loadCursorState } from '../../src/transcript/session-observer/lib/cursor-state.js';
 import * as state from '../../src/transcript/session-observer/lib/state.js';
 import { withTmpStateDir } from './helpers/tmpdir.js';
 
@@ -118,7 +119,10 @@ it('markRead updates lastRecordIndex, lastTotalRecords, lastReadAt, transcriptPa
     // lastReadAt must be a valid ISO 8601 date at or after `before`
     expect(entry.lastReadAt).toBeTruthy();
     const readAt = new Date(entry.lastReadAt);
-    expect(!isNaN(readAt.getTime()), 'lastReadAt must be a valid date').toBeTruthy();
+    expect(
+      !isNaN(readAt.getTime()),
+      'lastReadAt must be a valid date',
+    ).toBeTruthy();
     expect(
       readAt.toISOString() >= before,
       'lastReadAt must be >= before timestamp',
@@ -151,7 +155,10 @@ it("resetByRuntime('codex') zeros only codex entries; leaves claude-code untouch
 
     // codex entry should be zeroed
     const cxEntry: any = await state.getSession('codex', 'sess-cx');
-    expect(cxEntry, 'codex entry should still exist (just zeroed)').toBeTruthy();
+    expect(
+      cxEntry,
+      'codex entry should still exist (just zeroed)',
+    ).toBeTruthy();
     expect(cxEntry.lastRecordIndex).toBe(0);
     expect(cxEntry.lastTotalRecords).toBe(0);
 
@@ -239,7 +246,10 @@ it('migrateIfNeeded writes a v0 backup and upgrades in memory on older schema', 
     // A backup file with 'v0' in the name must exist (unique timestamped name)
     const files = await readdir(dir);
     const bakFiles = files.filter((f) => f.startsWith('state.json.v0-'));
-    expect(bakFiles.length > 0, 'a v0 backup file must be created').toBeTruthy();
+    expect(
+      bakFiles.length > 0,
+      'a v0 backup file must be created',
+    ).toBeTruthy();
 
     // Migrated state must have schemaVersion: 1
     expect(loaded.schemaVersion).toBe(1);
@@ -263,7 +273,10 @@ it('corrupt state.json is backed up and subsequent load returns empty state', as
     // A .bak file with 'corrupt' in the name must exist
     const files = await readdir(dir);
     const bakFiles = files.filter((f) => f.startsWith('state.json.corrupt-'));
-    expect(bakFiles.length > 0, 'a corrupt backup file must be created').toBeTruthy();
+    expect(
+      bakFiles.length > 0,
+      'a corrupt backup file must be created',
+    ).toBeTruthy();
   });
 });
 
@@ -279,10 +292,9 @@ it('load waits for the state lock before writing corrupt backups', async () => {
     });
 
     await sleep(75);
-    expect(
-      settled,
-      'load() should wait while the state lock exists',
-    ).toBe(false);
+    expect(settled, 'load() should wait while the state lock exists').toBe(
+      false,
+    );
 
     await unlink(lock);
     const loaded = await pendingLoad;
@@ -333,7 +345,9 @@ it('migration via mutate(): re-load after mutate returns upgraded schema (schema
       raw.sessions['claude-code:migrated-session'],
       'session entry must survive migration',
     ).toBeTruthy();
-    expect(raw.sessions['claude-code:migrated-session'].lastRecordIndex).toBe(3);
+    expect(raw.sessions['claude-code:migrated-session'].lastRecordIndex).toBe(
+      3,
+    );
   });
 });
 
@@ -396,5 +410,86 @@ it('setWatchedByPid and clearWatchedByPid preserve read offsets', async () => {
     expect(cleared.lastReadAt).toBe(before.lastReadAt);
     expect(cleared.transcriptPath).toBe(before.transcriptPath);
     expect(cleared.recordedCwd).toBe(before.recordedCwd);
+  });
+});
+
+it('composes legacy state with explicit legacy-unverified Cursor markers', async () => {
+  await withTmpStateDir(async (dir) => {
+    await writeFile(
+      join(dir, 'state.json'),
+      JSON.stringify({
+        schemaVersion: 1,
+        sessions: {
+          'codex:kept': {
+            runtime: 'codex',
+            sessionId: 'kept',
+            lastRecordIndex: 2,
+            lastTotalRecords: 3,
+          },
+          'cursor:legacy': {
+            runtime: 'cursor',
+            sessionId: 'legacy',
+            lastRecordIndex: 9,
+            lastTotalRecords: 11,
+          },
+        },
+      }),
+    );
+
+    const marker = await state.migrateLegacyCursorState('legacy');
+    expect(marker).toMatchObject({
+      legacyLastRecordIndex: 9,
+      migrationStatus: 'complete',
+    });
+
+    const composed: any = await state.load();
+    expect(composed.sessions['codex:kept']).toMatchObject({
+      lastRecordIndex: 2,
+    });
+    expect(composed.sessions['cursor:legacy']).toMatchObject({
+      runtime: 'cursor',
+      recoveryRequired: true,
+      recoveryCode: 'LEGACY_CURSOR_UNVERIFIED',
+      legacyLastRecordIndex: 9,
+    });
+    await expect(state.getSession('cursor', 'legacy')).rejects.toThrow(
+      'LEGACY_CURSOR_UNVERIFIED',
+    );
+  });
+});
+
+it('explicit Cursor reset removes legacy markers without changing non-Cursor state', async () => {
+  await withTmpStateDir(async (dir) => {
+    await writeFile(
+      join(dir, 'state.json'),
+      JSON.stringify({
+        schemaVersion: 1,
+        sessions: {
+          'claude-code:kept': {
+            runtime: 'claude-code',
+            sessionId: 'kept',
+            lastRecordIndex: 3,
+            lastTotalRecords: 4,
+          },
+          'cursor:legacy': {
+            runtime: 'cursor',
+            sessionId: 'legacy',
+            lastRecordIndex: 8,
+            lastTotalRecords: 10,
+          },
+        },
+      }),
+    );
+    await state.migrateLegacyCursorState('legacy');
+
+    await state.resetBySession('cursor', 'legacy');
+
+    expect(await state.getSession('cursor', 'legacy')).toBeNull();
+    expect(await state.getSession('claude-code', 'kept')).toMatchObject({
+      lastRecordIndex: 3,
+    });
+    expect(
+      (await loadCursorState()).legacyUnverified['cursor:legacy'],
+    ).toBeUndefined();
   });
 });
