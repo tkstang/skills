@@ -49,7 +49,53 @@ Shared surface p03∩p04: AGENTS.md, different sentences.
 
 ---
 
-## End-of-run synthesis (pending — do not skip at project completion)
+## End-of-run synthesis (2026-07-23)
+
+**Convention verdicts:**
+
+1. **Wave-1 adopted rules all earned out:** zero pnpm `--` failures (corrected
+   DoD form), zero false plan-gate Criticals (context note), one codex `-o`
+   flush recovered via the briefed fallback (p02's file appeared; p01's rounds
+   flushed; no rollout transcription needed this wave), reviewers wrote or
+   returned artifacts without friction.
+2. **Ungrouped-sequential lane for shared files: WORKED.** The plan gate
+   correctly forced p04 out of the parallel group (AGENTS.md overlap with p03);
+   p04 executed on the post-group tip and its base already contained p03's
+   sentence — zero conflict by construction.
+3. **Cross-model review loop needs a CAP RULE:** p01 entered a third Codex pass
+   before the orchestrator capped it (disposition ≠ re-approval; the phase
+   reviewer owns fix verification). Adopted for later waves: implementer briefs
+   state MAX TWO codex rounds; further verification belongs to the phase
+   reviewer.
+4. **Stale plan premises surfaced twice** (p04: guard test already existed
+   pre-plan; p03: a consumer test greping source text the plan's step-1 didn't
+   catch) — both handled as evidence-backed bounded deviations and verified by
+   reviewers. Signal for the repo-improve plan-authoring process: inventory
+   existing tests for the target property before mandating new test files.
+
+**Ruling on Skill-signal entries:** none new this wave beyond the above; wave-1's
+upstream recommendations stand.
+
+**Adjustments adopted for later waves (rules):**
+
+1. Implementer briefs: max two codex rounds; then disposition and report.
+2. Plan-gate prompts: keep the sanctioned-addenda context note (validated).
+3. Recon briefs: check for pre-existing tests covering a plan-mandated property.
+
+**Graduated-entries ledger:**
+
+- Follow-up (logged, optional): directory-mtime short-circuit for watch
+  discovery (p02 review note; carried into BL-260718-cache-transcript archive
+  summary).
+- Follow-up (logged, optional): structural enforcement for pickImportRewriteTarget
+  proximity assumption (p04 review F1) — informational only.
+- Observation for future plans: runProviderCliCommand twins remain un-unified;
+  timeoutMs is inert until a caller wires it (p01 report) — candidates for the
+  W3 consolidation lane's awareness, not new work items.
+- Closed-with-evidence: codex loop cap (this wave's p01), stale-premise
+  handling ×2.
+
+## Archived synthesis contract (fulfilled above)
 
 At project completion, BEFORE any archive step, the orchestrator writes:
 (1) verdicts on the conventions this wave exercised, with evidence entries cited;

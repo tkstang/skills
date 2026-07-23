@@ -1,9 +1,9 @@
 ---
-oat_status: in_progress
-oat_ready_for: null
+oat_status: complete
+oat_ready_for: review
 oat_blockers: []
 oat_last_updated: 2026-07-23
-oat_current_task_id: p04-t01
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -19,11 +19,11 @@ oat_generated: false
 | p01   | complete    | 1     | 1/1       |
 | p02   | complete    | 1     | 1/1       |
 | p03   | complete    | 1     | 1/1       |
-| p04   | in_progress | 1     | 0/1       |
+| p04   | complete    | 1     | 1/1       |
 
-**Total:** 3/4 tasks completed. Group 1 (p01-p03) merged at fan-in 3ad6b84;
-integration gates green (premerge exit 0; 5 changed skills verified). p04
-(ungrouped) dispatched at the fan-in tip.
+**Total:** 4/4 tasks completed. Group 1 merged at 3ad6b84; p04 merged after;
+final integration gates green (premerge exit 0, 1134 tests; 5 changed skills
+verified against main).
 
 ## Phase p01: consensus-subprocess-hardening — complete
 
@@ -47,7 +47,15 @@ short-circuit) dispositioned to orchestration log. SKILLs: session-observer
 Review PASS. New shared scripts/lib/discover-skills.mjs; completeness pin
 verified to fail on skill-set change.
 
-## Phase p04: derive-generated-ignore-lists — in progress
+## Phase p04: derive-generated-ignore-lists — complete
 
-Dispatched ungrouped at 3ad6b84 (shares AGENTS.md with p03; sequential per
-plan-gate finding 2).
+1 commit (2d3ba9e). All 14 hand-written importRewrites derived (0 mismatches,
+byte-equivalent tree); guard-test ask satisfied by pre-existing coverage
+(stale premise, reviewer-verified). Review PASS.
+
+## Final Summary (for PR/docs)
+
+Wave 2: subprocess hardening (timeout escalation + stdio teardown), watch-loop
+classification cache, SKILL_FILES disk derivation, import-rewrite derivation.
+1134 tests; skill bumps refine 0.1.7 / evaluate 0.1.8 / panel 0.1.2 /
+session-observer 1.0.7 / export-session-transcript 1.0.4.
