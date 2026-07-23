@@ -163,10 +163,10 @@ checklist = the source plan's complete `## Review focus`.
 | ------ | -------- | ------- | ---- | -------- |
 | p01    | code     | passed  | 2026-07-23 | reviews/p01-code-review-2026-07-23.md |
 | p02    | code     | passed  | 2026-07-23 | reviews/p02-code-review-2026-07-23.md |
-| final  | code     | pending | -    | -        |
+| final  | code     | passed   | 2026-07-23 | reviews/final-gate-2026-07-23.md |
 | plan   | artifact | passed  | 2026-07-23 | reviews/plan-gate-2026-07-23.md |
-| spec   | artifact | pending | -    | -        |
-| design | artifact | pending | -    | -        |
+| spec   | artifact | passed   | 2026-07-23 | n/a — quick mode (row-terminality) |
+| design | artifact | passed   | 2026-07-23 | n/a — quick mode (row-terminality) |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 
