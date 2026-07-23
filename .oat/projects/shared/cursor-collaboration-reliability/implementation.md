@@ -3,10 +3,10 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers:
   - task_id: p02-t03
-    reason: "Phase 2 review retry limit exhausted with ownership-unsafe stale-lock reclamation still unresolved."
+    reason: "Operator-authorized lock fix 471dd5e awaits independent Phase 2 re-review."
     since: 2026-07-23
   - task_id: p02-t05
-    reason: "Phase 2 review retry limit exhausted with unrestricted Cursor state rewind and identity substitution still unresolved."
+    reason: "Operator-authorized Cursor state fix 471dd5e awaits independent Phase 2 re-review."
     since: 2026-07-23
 oat_last_updated: 2026-07-23
 oat_current_task_id: p02-t03
@@ -166,6 +166,8 @@ oat_generated: false
 - `f058f30` — preserved pre-integration compatibility.
 - `e4c50fe` — resolved the first Phase 2 review findings.
 - `ce73f80` — resolved the second Phase 2 review findings.
+- `471dd5e` — resolved all four findings retained by the final blocked review
+  after the operator-authorized `origin/main` integration.
 
 ### Task p02-t01: Resolve exact Cursor identity
 
@@ -181,8 +183,9 @@ oat_generated: false
 
 **Status:** blocked
 **Commit:** `52ce9c1`
-**Blocker:** The final review found an ABA race in stale-lock reclamation and
-unsafe takeover of live legacy empty locks. Retry limit 2 is exhausted.
+**Recovery fix:** `471dd5e`
+**Blocker:** Awaiting independent re-review of the operator-authorized lock
+ownership and recovery fix.
 
 ### Task p02-t04: Enforce transcript continuity
 
@@ -193,9 +196,9 @@ unsafe takeover of live legacy empty locks. Retry limit 2 is exhausted.
 
 **Status:** blocked
 **Commit:** `14a643a`
-**Blocker:** The final review found `setCursorSession()` can still rewind a
-durable checkpoint and substitute exact identity when no delivery is pending.
-Retry limit 2 is exhausted.
+**Recovery fix:** `471dd5e`
+**Blocker:** Awaiting independent re-review of the operator-authorized Cursor
+state and recovery-surface fix.
 
 ### Review Retry Limit Exhausted
 
@@ -223,6 +226,14 @@ the merge preserved the Phase 2 identity/state work, incorporated the upstream
 Session Observer cache and stale-lock hardening, regenerated runtime outputs,
 and passed the full integration gate. The round-3 review basis is now stale,
 but its unresolved findings remain the bounded repair scope.
+
+**Recovery fix:** `471dd5e` replaces lock takeover with exact-generation,
+fail-closed queued ownership across all three stores; makes
+`setCursorSession()` create-only; connects corrupt-store recovery to the
+operator CLI; and narrows raw alias behavior to diagnostic-only. The repair
+passed 197 focused tests and 1,310 full-suite tests with 1 skipped, plus
+type-check, build synchronization, validation, smoke, lint, and format checks.
+Phase 2 remains blocked only until a fresh independent review passes.
 
 ---
 
@@ -393,7 +404,7 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 **Policy:** managed `high`
 **Phase base:** `eb19baf`
 **Phase head:** `ce73f80`
-**Outcome:** blocked after two bounded fix iterations; retry limit exhausted
+**Outcome:** operator-authorized recovery fix complete; independent whole-phase re-review pending
 
 | Phase | Tasks | Implementation | Root Review | Fix Iterations | Verdict |
 | ----- | ----- | -------------- | ----------- | -------------- | ------- |
@@ -418,6 +429,9 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 5. `reviews/p02-review-2026-07-23T054702Z.md` — blocked with 0 Critical,
    2 Important, 1 Medium, 1 Minor; reconnaissance attempted with complete
    orchestration evidence.
+6. Merged `origin/main` at `aa35f45` and dispatched one operator-authorized
+   same-target continuation.
+7. Recovery continuation produced `471dd5e`; fresh whole-phase review pending.
 
 **Review dispatch:**
 
@@ -428,9 +442,7 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 
 **Optional nested implementation dispatches:** None.
 **Worktree:** Root checkout; sequential plan.
-**Outstanding items:** Phase 2 review artifact
-`reviews/p02-review-2026-07-23T054702Z.md`; two Important findings remain and
-the configured retry limit is exhausted.
+**Outstanding items:** Independent whole-Phase 2 re-review of `471dd5e`.
 
 <!-- orchestration-runs-end -->
 
@@ -507,6 +519,16 @@ Chronological log of implementation progress.
 `reviews/p02-review-2026-07-23T054702Z.md`, then run a fresh whole-Phase 2
 review against the merged basis.
 
+**Repair result:**
+
+- `471dd5e` resolves all four retained findings across lock ownership,
+  create-only state initialization, operator-facing recovery, and raw-alias
+  diagnostics.
+- Verification passed: 197 focused tests; 1,310 full-suite tests with 1
+  skipped; type-check; build synchronization; validation; smoke; changed-file
+  lint and format checks.
+- A fresh independent whole-Phase 2 review remains the only phase blocker.
+
 ---
 
 ## Deviations from Plan / Design
@@ -526,7 +548,7 @@ Track test execution during implementation.
 | Phase | Tests Run | Passed | Failed | Coverage |
 | ----- | --------- | ------ | ------ | -------- |
 | 1     | Focused re-review + full suite | 137 focused; 1,148 full; 1 skipped | 0 | Frames, analyzer, runtimes, generated outputs, Export compatibility |
-| 2     | Focused final review + full suite | 126 focused; 1,215 full; 1 skipped | 0 test failures; review blocked | Identity, state migration, continuity, locks, delivery CAS, generated outputs |
+| 2     | Operator-recovery focused suite + full suite | 197 focused; 1,310 full; 1 skipped | 0 test failures; re-review pending | Exact identity, queued lock ownership, state migration and recovery CLI, continuity, delivery CAS, generated outputs |
 
 ## Final Summary (for PR/docs)
 

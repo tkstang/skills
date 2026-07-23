@@ -1,12 +1,12 @@
 ---
 oat_current_task: p02-t03
-oat_last_commit: aa35f45
+oat_last_commit: 471dd5e
 oat_blockers:
   - task_id: p02-t03
-    reason: "Phase 2 review retry limit exhausted with ownership-unsafe stale-lock reclamation still unresolved."
+    reason: "Operator-authorized lock fix 471dd5e awaits independent Phase 2 re-review."
     since: 2026-07-23
   - task_id: p02-t05
-    reason: "Phase 2 review retry limit exhausted with unrestricted Cursor state rewind and identity substitution still unresolved."
+    reason: "Operator-authorized Cursor state fix 471dd5e awaits independent Phase 2 re-review."
     since: 2026-07-23
 associated_issues:
   - { type: backlog, ref: "BL-260713-cursor-transcript-store" }
@@ -46,7 +46,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-17T21:43:11.125Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-23T11:14:18Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-23T11:35:35Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -58,7 +58,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation - Phase 2 blocked after review retry exhaustion
+Implementation - Phase 2 recovery fixed; independent re-review pending
 
 ## Artifacts
 
@@ -93,18 +93,15 @@ Implementation - Phase 2 blocked after review retry exhaustion
 - ✗ Final Phase 2 review retained 2 Important findings
 - ✓ Operator authorized one additional bounded recovery cycle
 - ✓ `origin/main` merged and integration gates passed at `aa35f45`
-- ⧗ Repairing the retained Phase 2 findings on the merged basis
+- ✓ Retained Phase 2 findings repaired at `471dd5e`
+- ⧗ Fresh independent whole-Phase 2 review pending
 
 ## Blockers
 
-- `p02-t03`: stale-lock reclamation can race across reclaimers and steal a
-  live legacy empty lock.
-- `p02-t05`: `setCursorSession()` can rewind a checkpoint and substitute exact
-  identity without an active delivery reservation.
-- The final review also records a Medium recovery-route gap and a Minor
-  identity/design-alignment gap.
+- `p02-t03`: lock ownership fix `471dd5e` awaits independent validation.
+- `p02-t05`: create-only state initialization and operator recovery fix
+  `471dd5e` awaits independent validation.
 
 ## Next Milestone
 
-Resolve or explicitly replan the final Phase 2 review findings, then resume
-with `oat-project-implement`.
+Pass a fresh independent whole-Phase 2 review, then advance to Phase 3.
