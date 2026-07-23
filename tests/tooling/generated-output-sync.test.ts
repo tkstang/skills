@@ -64,6 +64,9 @@ describe('generated output drift guard', () => {
     expect(result.stdout).toContain(
       'transcript-core-session-observer: in sync',
     );
+    expect(result.stdout).toContain(
+      'transcript-core-cursor-frames-session-observer: in sync',
+    );
     expect(result.stdout).toContain('session-observer-digest: in sync');
     expect(result.stdout).toContain('session-observer-locate: in sync');
     expect(result.stdout).toContain('session-observer-observe: in sync');
@@ -77,6 +80,9 @@ describe('generated output drift guard', () => {
     expect(result.stdout).toContain('session-observer-cli: in sync');
     expect(result.stdout).toContain('session-observer-probe-local: in sync');
     expect(result.stdout).toContain('transcript-core-export-session: in sync');
+    expect(result.stdout).toContain(
+      'transcript-core-cursor-frames-export-session: in sync',
+    );
     expect(result.stdout).toContain('export-session-sanitize: in sync');
     expect(result.stdout).toContain('export-session-transcript-cli: in sync');
     expect(result.stdout).not.toContain('pending');
@@ -129,8 +135,12 @@ describe('generated output drift guard', () => {
     expect(script).toContain('src/consensus/provider-cli/cli.ts');
     expect(script).toContain('plugins/consensus/scripts/consensus.mjs');
     expect(script).toContain('src/transcript/core/runtimes.ts');
+    expect(script).toContain('src/transcript/core/cursor-frames.ts');
     expect(script).toContain(
       'skills/session-observer/scripts/lib/runtimes.mjs',
+    );
+    expect(script).toContain(
+      'skills/session-observer/scripts/lib/cursor-frames.mjs',
     );
     expect(script).toContain(
       'src/transcript/session-observer/session-observer.ts',
@@ -166,6 +176,9 @@ describe('generated output drift guard', () => {
     expect(script).toContain('skills/session-observer/scripts/lib/watch.mjs');
     expect(script).toContain(
       'skills/export-session-transcript/scripts/lib/runtimes.mjs',
+    );
+    expect(script).toContain(
+      'skills/export-session-transcript/scripts/lib/cursor-frames.mjs',
     );
     expect(script).toContain('src/transcript/export-session/sanitize.ts');
     expect(script).toContain(
