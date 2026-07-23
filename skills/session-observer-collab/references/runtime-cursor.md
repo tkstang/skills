@@ -113,21 +113,28 @@ conversation safely and retains the same synthetic/no-op/loop protections.
 
 ## Evidence status (2026-07-23)
 
-The bounded automated command below passed at the recorded revision. It covers
-adapter input validation, exact lease-session binding, success/non-success
-gates, independent loop limits, finite wait to `idle`, exact range/cursor
-claims, synthetic acknowledgement and `[no-op]` suppression, and the rule that
-idle/terminal leases do not resume on a later generation. The paired runtime
-suite covers transcript-directory session identity, `turn_ended` buffering,
-terminal diagnostics, and the absent-tool-result fixture case.
+The bounded automated commands below passed at the recorded revision. The
+collaboration suite covers adapter input validation, exact lease-session
+binding, terminal success/non-success gates, pending completion, independent
+loop limits, finite wait to `idle`, exact range/cursor claims, lease compare-and-
+swap behavior, synthetic acknowledgement and `[no-op]` suppression, disarm and
+prune cleanup, and the rule that idle/terminal leases do not resume on a later
+generation. The paired runtime suite covers transcript-directory session
+identity, `turn_ended` buffering, terminal diagnostics, and the
+absent-tool-result fixture case.
 
 ```text
-pnpm exec vitest run tests/session-observer-collab/cursor-hook.test.ts tests/transcript-core/runtimes.test.ts
+pnpm exec vitest run tests/session-observer-collab/cursor-hook.test.ts tests/session-observer-collab/control.test.ts tests/session-observer-collab/completion.test.ts tests/session-observer-collab/wake-envelope-contract.test.ts
+pnpm exec vitest run tests/transcript-core/runtimes.test.ts
 ```
 
 The local `cursor-agent` and `agent` command paths were present during this
-task's availability probe, but neither was used to run a Cursor conversation or
-hook. No complete lifecycle run, user-input-during-wait probe, restart/resume
+task's availability probe, but neither was used to run a Cursor conversation.
+The shipped control and Stop-hook executables were exercised manually against
+an isolated temporary home and a copied sanitized fixture. The active provider
+hook routing did not establish a route to this collaboration hook, so the Stop
+payload was not provider-delivered and no provider configuration was changed.
+No complete live lifecycle run, user-input-during-wait probe, restart/resume
 probe, Stop/`turn_ended` ordering probe, recurring live loop probe, or
 `subagentStop` stronger-tier probe was performed. Those absences are not live
 validation and leave lifecycle continuation **documented-but-unvalidated**.
@@ -135,7 +142,7 @@ validation and leave lifecycle continuation **documented-but-unvalidated**.
 | Acceptance area       | Current evidence                                                                                                                                                                 | Evidence label               | Live outcome                                                            |
 | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- | ----------------------------------------------------------------------- |
 | Cursor observed side  | Automated normalization plus a sanitized, exact-pinned live catch-up and finite foreground watch cover transcript identity, terminal success, and structural observation status. | `live-sanitized`             | Passed against one available controlled Cursor session.                 |
-| Cursor continuation   | Adapter tests cover envelope/range, caps, no-op/synthetic suppression, and idle/terminal no-wake behavior.                                                                       | `documented-but-unvalidated` | Not run.                                                                |
+| Cursor continuation   | Adapter tests plus a manual invocation of the shipped control and Stop-hook executables cover exact range, counters, caps, suppression, CAS, and cleanup on temporary state.     | `documented-but-unvalidated` | Automated path passed; provider-delivered Stop was unavailable.         |
 | Cursor identity/order | Exact `conversation_id` lease binding is tested; transcript-directory session extraction is tested.                                                                              | `documented-but-unvalidated` | Stop relative to `turn_ended` not run.                                  |
 | Cursor interaction    | Bounded wait state is tested.                                                                                                                                                    | `documented-but-unvalidated` | Input during wait, recurring loop behavior, and restart/resume not run. |
 | Stronger tier         | No `subagentStop` behavior is assumed.                                                                                                                                           | `documented-but-unvalidated` | Not run.                                                                |
@@ -148,14 +155,14 @@ raw session, lease, or identity value, credential, personal hostname, or
 personal absolute path. Version commands were rerun on the sanitized local
 host; they did not launch a conversation or validate provider behavior.
 
-| Capability                            | Host                             | Provider                           | Version                    | Store                                                                  | Path shape                                                                               | Record shape                                                                                                                | Identity                                                                                                            | Action                                                     | Outcome                                                                           | Evidence label               |
-| ------------------------------------- | -------------------------------- | ---------------------------------- | -------------------------- | ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- | --------------------------------------------------------------------------------- | ---------------------------- |
-| Agent-transcript structural baseline  | `Darwin arm64`; hostname omitted | Cursor desktop CLI                 | `3.11.13` (`arm64`)        | Local Cursor agent-transcript store                                    | `~/.cursor/projects/<encoded-project>/agent-transcripts/<session-id>/<session-id>.jsonl` | Closed JSONL frames have top-level `role` plus nested `message.content`; terminal frames have top-level `type` and `status` | Transcript directory and filename placeholders matched; device and inode availability was recorded only as booleans | `cursor --version`; structural-only local store inspection | Store shape measured; no conversation behavior or lifecycle ordering claimed      | `measured-structural-only`   |
-| Streaming frame and terminal variants | Synthetic repository fixtures    | Cursor transcript fixture contract | Repository revision        | `tests/session-observer/fixtures/cursor/framed-*.jsonl`                | Repository-relative fixture paths only                                                   | Closed, blank, malformed-middle, partial-tail, repaired, appended, and same-length-replaced frames                          | No session, lease, or provider identity stored                                                                      | Focused fixture and reader suites                          | Structural scenarios pass automated checks; fixture prose is explicitly synthetic | `automated-only`             |
-| Terminal failure retention            | Synthetic repository fixtures    | Cursor transcript fixture contract | Repository revision        | Cursor terminal fixtures                                               | Repository-relative fixture paths only                                                   | `aborted`, `error`, and `cancelled` terminal outcomes remain diagnostics and do not promote provisional content             | No raw identity stored                                                                                              | Focused analyzer and runtime suites                        | Failure outcomes retained as failures; no success promotion                       | `automated-only`             |
-| Cursor agent CLI behavior             | `Darwin arm64`; hostname omitted | Cursor agent CLI and `agent` alias | `2026.07.23-e383d2b`       | Agent-transcript baseline only; CLI/background store variants unprobed | Baseline path shape only                                                                 | No provider-generated record captured by this refresh                                                                       | No CLI-to-transcript session binding exercised                                                                      | Version commands only; no conversation launched            | Commands available; behavior unprobed                                             | `documented-but-unvalidated` |
-| Stop-hook lifecycle continuation      | Sanitized local host             | Cursor Stop hook                   | Unprobed provider behavior | Owner-only collaboration lease plus pinned peer transcript             | Redacted placeholders only                                                               | Documented Stop input and one synthetic `followup_message` output                                                           | Exact binding is automated; live identity and ordering remain unprobed                                              | No lifecycle conversation launched                         | Complete lifecycle sequence unavailable in this refresh                           | `documented-but-unvalidated` |
-| Background or other transcript stores | Sanitized local host             | Cursor background/other surfaces   | `unavailable`              | No candidate store produced by a controlled probe                      | Unmeasured                                                                               | Unmeasured                                                                                                                  | Unmeasured                                                                                                          | Preserve the non-claim until a controlled candidate exists | Unavailable; no fallback store inferred                                           | `unavailable`                |
+| Capability                            | Host                             | Provider                           | Version                    | Store                                                                  | Path shape                                                                               | Record shape                                                                                                                | Identity                                                                                                            | Action                                                       | Outcome                                                                           | Evidence label               |
+| ------------------------------------- | -------------------------------- | ---------------------------------- | -------------------------- | ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ | --------------------------------------------------------------------------------- | ---------------------------- |
+| Agent-transcript structural baseline  | `Darwin arm64`; hostname omitted | Cursor desktop CLI                 | `3.11.13` (`arm64`)        | Local Cursor agent-transcript store                                    | `~/.cursor/projects/<encoded-project>/agent-transcripts/<session-id>/<session-id>.jsonl` | Closed JSONL frames have top-level `role` plus nested `message.content`; terminal frames have top-level `type` and `status` | Transcript directory and filename placeholders matched; device and inode availability was recorded only as booleans | `cursor --version`; structural-only local store inspection   | Store shape measured; no conversation behavior or lifecycle ordering claimed      | `measured-structural-only`   |
+| Streaming frame and terminal variants | Synthetic repository fixtures    | Cursor transcript fixture contract | Repository revision        | `tests/session-observer/fixtures/cursor/framed-*.jsonl`                | Repository-relative fixture paths only                                                   | Closed, blank, malformed-middle, partial-tail, repaired, appended, and same-length-replaced frames                          | No session, lease, or provider identity stored                                                                      | Focused fixture and reader suites                            | Structural scenarios pass automated checks; fixture prose is explicitly synthetic | `automated-only`             |
+| Terminal failure retention            | Synthetic repository fixtures    | Cursor transcript fixture contract | Repository revision        | Cursor terminal fixtures                                               | Repository-relative fixture paths only                                                   | `aborted`, `error`, and `cancelled` terminal outcomes remain diagnostics and do not promote provisional content             | No raw identity stored                                                                                              | Focused analyzer and runtime suites                          | Failure outcomes retained as failures; no success promotion                       | `automated-only`             |
+| Cursor agent CLI behavior             | `Darwin arm64`; hostname omitted | Cursor agent CLI and `agent` alias | `2026.07.23-e383d2b`       | Agent-transcript baseline only; CLI/background store variants unprobed | Baseline path shape only                                                                 | No provider-generated record captured by this refresh                                                                       | No CLI-to-transcript session binding exercised                                                                      | Version commands only; no conversation launched              | Commands available; behavior unprobed                                             | `documented-but-unvalidated` |
+| Stop-hook lifecycle continuation      | Sanitized local host             | Cursor Stop hook                   | Unprobed provider behavior | Owner-only collaboration lease plus pinned peer transcript             | Redacted placeholders only                                                               | Documented Stop input and one synthetic `followup_message` output                                                           | Exact binding is automated; live identity and ordering remain unprobed                                              | Shipped control/hook executables on isolated temporary state | Exact automated sequence passed; provider delivery remained unavailable           | `documented-but-unvalidated` |
+| Background or other transcript stores | Sanitized local host             | Cursor background/other surfaces   | `unavailable`              | No candidate store produced by a controlled probe                      | Unmeasured                                                                               | Unmeasured                                                                                                                  | Unmeasured                                                                                                          | Preserve the non-claim until a controlled candidate exists   | Unavailable; no fallback store inferred                                           | `unavailable`                |
 
 Evidence labels are literal: fixture-only proof is `automated-only`, described
 provider behavior without a completed controlled probe is
@@ -195,6 +202,54 @@ ordering, same-conversation continuation, interaction during a hook wait,
 restart/resume lifecycle behavior, recurring hook loops, scheduled callbacks,
 or `subagentStop`; those rows remain `documented-but-unvalidated` or
 `unavailable` as recorded above.
+
+## Collaboration lifecycle acceptance (2026-07-23)
+
+The provider-delivered Stop route was unavailable in this invocation: the
+active provider hook routing did not point to the collaboration Stop hook, and
+the probe did not widen authority by editing provider configuration. The
+complete live lifecycle therefore remains **documented-but-unvalidated** and
+the operational fallback remains buffered manual catch-up.
+
+The shipped control and hook entrypoints were still tested end to end with the
+documented Stop payload on isolated temporary state. The peer transcript was a
+copied sanitized repository fixture under a temporary Cursor store; no live
+provider transcript was mutated. The retained command sequence uses
+placeholders and omits raw session, lease, path, and transcript values:
+
+```text
+HOME="<temporary-home>" node skills/session-observer-collab/scripts/collab-control.mjs arm \
+  --runtime cursor --peer-runtime cursor \
+  --session "<owner-session>" --peer-session "<peer-session>" \
+  --cwd "<temporary-cwd>" --peer-transcript "<temporary-cursor-transcript>" \
+  --wait-ms 100 --lease-ms 60000 --continuation-cap 2 --loop-cap 2 \
+  --cursor 0 --json
+
+printf '%s\n' '{"conversation_id":"<owner-session>","generation_id":"<generation-id>","status":"success","loop_count":0}' |
+  HOME="<temporary-home>" node skills/session-observer-collab/scripts/hooks/cursor-stop.mjs
+
+HOME="<temporary-home>" node skills/session-observer-collab/scripts/collab-control.mjs status \
+  --session "<owner-session>" --json
+HOME="<temporary-home>" node skills/session-observer-collab/scripts/collab-control.mjs disarm \
+  --session "<owner-session>" --json
+HOME="<temporary-home>" node skills/session-observer-collab/scripts/collab-control.mjs prune \
+  --session "<owner-session>" --json
+```
+
+| Acceptance row              | Expected structural outcome                                                      | Actual structural outcome                                                                                  | Evidence label               |
+| --------------------------- | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | ---------------------------- |
+| Exact finite lease arm      | Exact owner/peer/path binding; cursor 0; finite wait, lease, continuation, loops | New lease armed on temporary state                                                                         | `automated-only`             |
+| Successful Stop hook        | Exactly one synthetic follow-up for one completed substantive peer turn          | One follow-up emitted for exact zero-based JSONL frame range `0-5`                                         | `automated-only`             |
+| Post-trigger status         | Advance the private cursor and both counters exactly once                        | State returned to `armed`; cursor 6, continuation count 1, loop count 1                                    | `automated-only`             |
+| Failure and pending gates   | Failure outcomes and pending completion emit no follow-up                        | Focused tests preserved failure outcomes and suppressed pending completion                                 | `automated-only`             |
+| No-op and replay gates      | `[no-op]`, synthetic acknowledgement, stale claim, and replay emit no follow-up  | Focused tests suppressed all four paths; stale compare-and-swap claim did not consume another continuation | `automated-only`             |
+| Disarm and cleanup          | Explicit disarm, targeted prune, and no late wake                                | Lease changed to `disarmed`; targeted prune removed one lease; focused tests suppressed late wake          | `automated-only`             |
+| Provider-delivered callback | The active Cursor conversation delivers Stop to the collaboration hook           | Unavailable; no provider route to this hook was established                                                | `documented-but-unvalidated` |
+
+This automated sequence proves the bounded shipped entrypoint behavior only. It
+does not prove provider callback delivery, Stop relative to `turn_ended`,
+same-conversation follow-up generation, user interaction during the wait,
+restart/resume, recurring live loops, or `subagentStop`.
 
 The post-implementation probe will:
 
