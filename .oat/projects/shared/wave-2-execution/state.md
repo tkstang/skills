@@ -20,7 +20,7 @@ oat_phase_status: complete #
 oat_dispatch_policy:
   mode: managed
   policy: high
-  source: project-state Status: in_progress | complete | pr_open
+  source: project-state
 # oat_orchestration_retry_limit: 2  # optional; override fix-loop retry limit (range 0-5)
 # oat_dispatch_policy: # optional project dispatch policy; managed keeps OAT selection active, inherit leaves controls to the host
 #   mode: managed # managed | inherit
@@ -89,7 +89,7 @@ oat_generated: false
 
 ## Current Phase
 
-Plan complete. Wave-2 wrapper over four external plans (consensus-subprocess-hardening, watch-loop-classification-cache, skill-files-disk-derivation, derive-generated-ignore-lists). One parallel group of four lanes (only AGENTS.md shared between p03/p04, different sentences); drift refresh 2 PASS / 2 non-material MINOR-DRIFT at BASE_SHA ea36369.
+Plan complete. Wave-2 wrapper over four external plans (consensus-subprocess-hardening, watch-loop-classification-cache, skill-files-disk-derivation, derive-generated-ignore-lists). Group 1 = p01–p03 write-disjoint; p04 ungrouped-sequential (AGENTS.md shared with p03); drift refresh 2 PASS / 2 non-material MINOR-DRIFT at BASE_SHA ea36369.
 
 ## Artifacts
 

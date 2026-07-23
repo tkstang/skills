@@ -7,7 +7,7 @@ oat_phase: plan
 oat_phase_status: complete
 oat_plan_hill_phases: ['p04']
 oat_auto_review_at_hill_checkpoints: true
-oat_plan_parallel_groups: [['p01', 'p02', 'p03', 'p04']]
+oat_plan_parallel_groups: [['p01', 'p02', 'p03']]
 oat_plan_source: quick
 oat_import_reference: null
 oat_import_source_path: null
@@ -51,8 +51,10 @@ Nothing in this file restates, narrows, or overrides a source plan.
    fresh worktree first. Run piped verifications under `set -o pipefail`.
 4. **STOP → BLOCKED at phase level.** A source-plan STOP parks the phase;
    siblings continue.
-5. **Group-dependency rule:** single-group wave; terminal when every phase is
-   merged or parked.
+5. **Group-dependency rule:** group 1 = p01–p03 (write-disjoint); p04 is
+   UNGROUPED and executes sequentially after group 1 is terminal (it shares
+   `AGENTS.md` with p03). The wave is terminal when every phase is merged or
+   parked.
 6. **Merge serialization:** one at a time in plan order (p01 → p02 → p03 → p04),
    rebasing each on the updated tip first. Deliberately sequenced shared file:
    `AGENTS.md` (p03 line-36 sentence, p04 line-85 sentence — different regions;
@@ -73,10 +75,9 @@ Nothing in this file restates, narrows, or overrides a source plan.
 
 ## Parallelism
 
-One group: `['p01', 'p02', 'p03', 'p04']` — ceiling 4. Recon intersection:
-zero shared canonical/test/generated/SKILL surfaces between p01 (consensus
-family) and p02 (session-observer family); p03/p04 share only `AGENTS.md` in
-different sentences (sequenced at merge, rule 6).
+Group 1: `['p01', 'p02', 'p03']` — write-disjoint per recon intersection. p04
+is ungrouped-sequential after group 1 (shares `AGENTS.md` with p03 in a
+different sentence; separate-group execution per the wave contract).
 
 > The recon observations below are **non-authoritative grouping evidence only** —
 > each source plan's own live checks govern at execution time.
@@ -131,8 +132,8 @@ Non-authoritative recon evidence — 2 PASS / 2 MINOR-DRIFT (non-material) / 0 S
 
 **Step 4: Cross-model review** — subprocess/lifecycle surface: independent
 cross-model review of the branch diff via the runtime-configured reviewer;
-reviewer attention on timer cleanup across all exit paths and identical patches
-in both copies; disposition every finding in the phase report.
+review checklist = the source plan's complete `## Review focus`; disposition
+every finding in the phase report.
 
 **Step 5: Commit** — e.g. `fix(p01-t01): add timeout escalation to wrapper subprocess path`.
 
@@ -156,9 +157,8 @@ in both copies; disposition every finding in the phase report.
 **Step 3: Verify (wrapper gate)** — source plan `## Done criteria`, then full DoD gates. Expected: all green.
 
 **Step 4: Cross-model review** — behavior-equivalence surface: independent
-cross-model review of the diff; reviewer attention on cache-invalidation
-correctness (mtime/size signature) and byte-identical watch-event output;
-disposition every finding in the phase report.
+cross-model review of the diff; review checklist = the source plan's complete `## Review focus`; disposition
+every finding in the phase report.
 
 **Step 5: Commit** — e.g. `perf(p02-t01): cache transcript classification`.
 
@@ -195,13 +195,13 @@ p04 (shared `AGENTS.md`, different sentences).
 **Source plan (the contract):**
 `.oat/repo/reference/external-plans/2026-07-17-derive-generated-ignore-lists.md`
 
-**Ordering:** group 1; own worktree, parallel with p01–p03. Merges last; rebases
-over p03's `AGENTS.md` edit.
+**Ordering:** UNGROUPED — executes sequentially after group 1 is terminal, in
+its own worktree based on the post-group-1 integration tip; rebases over p03's
+`AGENTS.md` edit by construction.
 
 **Step 1: Drift check** — per the source plan, plus rule-1 addendum.
 
-**Step 2: Execute** the source plan in full (its byte-equivalence STOP for
-derived import rewrites is load-bearing — honor it exactly).
+**Step 2: Execute** the source plan in full.
 
 **Step 3: Verify (wrapper gate)** — source plan `## Done criteria`, then full DoD gates. Expected: all green.
 
@@ -219,7 +219,7 @@ derived import rewrites is load-bearing — honor it exactly).
 | p03    | code     | pending | -    | -        |
 | p04    | code     | pending | -    | -        |
 | final  | code     | pending | -    | -        |
-| plan   | artifact | pending | -    | -        |
+| plan   | artifact | passed  | 2026-07-23 | reviews/plan-gate-2026-07-23.md |
 | spec   | artifact | pending | -    | -        |
 | design | artifact | pending | -    | -        |
 

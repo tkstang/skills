@@ -37,6 +37,14 @@ those drive the upstream implementation.
 
 ## Entries
 
+### 2026-07-23 · structural · oat-wave-execute · preflight
+
+wave-2-execution at ea36369 (origin/main 7db7d0f + W1 wave-close commit).
+Baseline green (full suite). W2 drift refresh: 2 PASS, 2 non-material
+MINOR-DRIFT (W1 anchor shifts; target gaps re-verified present), 0 STOP.
+Shared surface p03∩p04: AGENTS.md, different sentences.
+
+
 
 
 ---
@@ -52,10 +60,3 @@ skill should change; (3) adjustments adopted for later waves, stated as rules;
 
 Roll-up ordering (critical): `summary.md` `## Workflow Observations` and any
 repo-level ledger updates happen BEFORE `oat-project-complete` archives this file.
-
-### 2026-07-23 · structural · oat-wave-execute · preflight
-
-wave-2-execution at ea36369 (origin/main 7db7d0f + W1 wave-close commit).
-Baseline green (full suite). W2 drift refresh: 2 PASS, 2 non-material
-MINOR-DRIFT (W1 anchor shifts; target gaps re-verified present), 0 STOP.
-Shared surface p03∩p04: AGENTS.md, different sentences.
