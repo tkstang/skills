@@ -133,6 +133,12 @@ export const generatedOutputs = [
     output: 'skills/session-observer/scripts/lib/cursor-frames.mjs',
   },
   {
+    id: 'transcript-core-cursor-analysis-session-observer',
+    source: 'src/transcript/core/cursor-analysis.ts',
+    output: 'skills/session-observer/scripts/lib/cursor-analysis.mjs',
+    importRewrites: [{ from: './runtimes.js', to: './runtimes.mjs' }],
+  },
+  {
     id: 'session-observer-digest',
     source: 'src/transcript/session-observer/lib/digest.ts',
     output: 'skills/session-observer/scripts/lib/digest.mjs',
@@ -228,6 +234,12 @@ export const generatedOutputs = [
     id: 'transcript-core-cursor-frames-export-session',
     source: 'src/transcript/core/cursor-frames.ts',
     output: 'skills/export-session-transcript/scripts/lib/cursor-frames.mjs',
+  },
+  {
+    id: 'transcript-core-cursor-analysis-export-session',
+    source: 'src/transcript/core/cursor-analysis.ts',
+    output: 'skills/export-session-transcript/scripts/lib/cursor-analysis.mjs',
+    importRewrites: [{ from: './runtimes.js', to: './runtimes.mjs' }],
   },
   {
     id: 'export-session-sanitize',
