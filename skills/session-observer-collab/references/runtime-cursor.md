@@ -140,6 +140,33 @@ validation and leave lifecycle continuation **documented-but-unvalidated**.
 | Cursor interaction    | Bounded wait state is tested.                                                                                                           | Input during wait, recurring loop behavior, and restart/resume not run. |
 | Stronger tier         | No `subagentStop` behavior is assumed.                                                                                                  | Not run.                                                                |
 
+## Measured structural baseline (2026-07-22)
+
+This sanitized baseline was measured before the streaming frame reader was
+implemented. It retains no transcript prose, raw session value, lease value,
+credential, or personal absolute path.
+
+| Provider                | Version              | Path shape                                                                               | Record shape                                                                                                                         | Identity evidence                                                                                | Probe action                                                                           | Evidence label                                          |
+| ----------------------- | -------------------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| Cursor desktop CLI      | `3.11.13` (`arm64`)  | `~/.cursor/projects/<encoded-project>/agent-transcripts/<session-id>/<session-id>.jsonl` | Closed JSONL frames with top-level `role` plus nested `message.content`; terminal frame with top-level `type` and `status`           | Transcript directory and filename placeholders matched; device and inode metadata were available | `cursor --version`; structural-only local transcript probe                             | Automated-adjacent local measurement; no behavior claim |
+| Cursor agent CLI        | `2026.07.20-8cc9c0b` | Same agent-transcript baseline; CLI/background variants not separately measured          | Local sample contained `user`, `assistant`, `text`, and `turn_ended: success`; other block and terminal variants remain fixture-only | No CLI-to-transcript session binding was exercised                                               | `cursor-agent --version`; no conversation launched                                     | Available, documented-but-unvalidated                   |
+| Background/other stores | unavailable          | Unmeasured                                                                               | Unmeasured                                                                                                                           | Unmeasured                                                                                       | Locate and structurally inspect only if a future controlled probe produces a candidate | Unsupported                                             |
+
+The post-implementation probe will:
+
+1. Create one controlled synthetic Cursor turn and record provider version,
+   redacted path shape, top-level keys, content-block types, terminal status,
+   newline closure, and file-identity availability.
+2. Scan closed, blank, malformed-middle, partial-tail, repaired, appended, and
+   same-length replaced fixtures using zero-based physical frame indexes.
+3. Confirm that a requested verified prefix is snapshotted at the exact byte
+   boundary while later appended bytes remain permitted.
+4. Record only structural labels, byte/index relationships, hashes compared as
+   booleans, and expected-versus-actual outcomes; do not retain hashes, raw
+   identities, paths, credentials, or transcript prose.
+5. Keep every unexecuted store, path, record, identity, or lifecycle row
+   unsupported or documented-but-unvalidated.
+
 ## Required live lifecycle probe
 
 Before changing any lifecycle label, capture sanitized evidence for this exact

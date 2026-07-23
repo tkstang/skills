@@ -1,0 +1,3 @@
+{"role":"user","message":{"content":[{"type":"text","text":"Synthetic request gamma."}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"Synthetic malformed frame"}
+{"role":"assistant","message":{"content":[{"type":"text","text":"Synthetic response after blocker."}]}}
