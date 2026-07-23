@@ -20,6 +20,10 @@
  *      a stale result
  *  12. ClassificationCache: evicts the least-recently-used entry once its
  *      bound is exceeded
+ *  13. ClassificationCache: a small cap thrashes under a full-directory scan
+ *      exceeding it (pins the inherent limit any bounded cache has)
+ *  14. ClassificationCache: the default capacity survives a realistic
+ *      long-lived project directory scan (regression for the 300→5000 fix)
  */
 
 import {
@@ -1043,4 +1047,83 @@ test('ClassificationCache: evicts the least-recently-used entry once its bound i
   ).toBeUndefined();
   expect(cache.get('/a', 1, 10), 'recently-touched entries survive').toBeDefined();
   expect(cache.get('/c', 1, 10), 'the newest entry survives').toBeDefined();
+});
+
+/**
+ * Simulate one discover()-style full directory pass over `keys` in a fixed
+ * cyclic order: for each key, consult the cache first (mirroring
+ * candidateDerivedFields's cache.get()) and only populate it on a miss
+ * (mirroring its cache.set() on miss). Returns the hit count for the pass.
+ * This — not a single blind populate-then-read — is the actual watch-loop
+ * workload: every poll tick re-runs this exact get-or-populate pass over
+ * the same candidate set.
+ */
+function simulateScan(cache: ClassificationCache, keys: string[]): number {
+  let hits = 0;
+  for (const key of keys) {
+    if (cache.get(key, 1, 10)) {
+      hits++;
+    } else {
+      cache.set(key, 1, 10, derivedFields(0));
+    }
+  }
+  return hits;
+}
+
+test('ClassificationCache: a small cap thrashes under repeated full-directory scans exceeding it (documents the inherent limit)', () => {
+  // With a cap strictly below the number of unique keys touched per pass, NO
+  // eviction policy can help: each pass's populate-on-miss evictions land
+  // exactly on the keys the very next pass is about to ask for again, since
+  // every pass walks the same cyclic order. This is what the default was
+  // raised from 300 to 5000 to avoid for realistic candidate counts — see
+  // the ClassificationCache doc comment in locate.ts. This test pins the
+  // underlying property itself, at a small scale, so it stays fast and
+  // deterministic. It takes a second full pass for the cascade to reach
+  // steady state (the first pass is populating an empty cache, so it can
+  // only ever be all misses regardless of cap), so three passes are run and
+  // only the third's hit count is asserted on.
+  const cap = 100;
+  const passSize = 101; // one more unique key than the cache can hold
+  const keys = Array.from({ length: passSize }, (_, i) => `/scan/${i}`);
+  const cache = new ClassificationCache(cap);
+
+  simulateScan(cache, keys); // pass 1: populates an empty cache (all misses)
+  simulateScan(cache, keys); // pass 2: cascade begins
+  const thirdPassHits = simulateScan(cache, keys); // pass 3: steady-state thrash
+
+  expect(
+    thirdPassHits,
+    'once a scan exceeds the cap, repeated identical scans settle into zero hits — this is the workload property the 5000 default is sized to avoid, not something an eviction policy can fix',
+  ).toBe(0);
+});
+
+test('ClassificationCache: the default capacity comfortably survives repeated realistic long-lived project directory scans', () => {
+  // Regression for a cross-model review finding: the original 300-entry
+  // default thrashed completely once a project directory's candidate count
+  // exceeded it (proved above at a small scale, at steady state). 2000
+  // candidates is a generous stand-in for "a repo actively used for years"
+  // — comfortably under the 5000 default — so repeated full-directory scans
+  // (exactly what the watch loop does on every poll tick) must retain every
+  // entry from the second pass onward, with zero re-derivation.
+  const cache = new ClassificationCache();
+  const candidateCount = 2000;
+  const keys = Array.from(
+    { length: candidateCount },
+    (_, i) => `/long-lived-project/${i}.jsonl`,
+  );
+
+  const firstPassHits = simulateScan(cache, keys);
+  expect(firstPassHits, 'the first scan populates an empty cache').toBe(0);
+  expect(cache.size).toBe(candidateCount);
+
+  const secondPassHits = simulateScan(cache, keys);
+  expect(
+    secondPassHits,
+    'every candidate from the first scan must still be cached on the next poll tick\'s scan',
+  ).toBe(candidateCount);
+
+  // A third pass proves this is a stable steady state, not a one-tick
+  // coincidence.
+  const thirdPassHits = simulateScan(cache, keys);
+  expect(thirdPassHits).toBe(candidateCount);
 });

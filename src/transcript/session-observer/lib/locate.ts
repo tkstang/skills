@@ -100,13 +100,31 @@ const LOOKBACK_DAYS = 7;
 // the cached candidates are past, non-watched sessions that are not
 // expected to be rewritten in place during a live watch.
 //
+// Capacity and scan resistance: every discover() call is itself a full
+// linear pass over one project directory's candidates, and the watch loop
+// repeats that same full pass on every poll tick. This is the classic cache
+// workload where a bound smaller than the working set is fatal: with N
+// candidates cycling through a cache capped below N, plain LRU eviction (or
+// any recency/frequency policy — this is a property of the workload, not
+// the algorithm) evicts the entries a later tick's pass is about to need
+// again, so once candidate count exceeds the cap, the hit rate for that
+// excess collapses toward zero — the cache still returns correct results,
+// it just stops saving any I/O for the directory as a whole, silently
+// losing the win this cache exists for. There is no eviction *policy* fix
+// for that; the only real mitigation is sizing the bound comfortably above
+// realistic working sets. 5000 is chosen to comfortably exceed a single
+// project directory's candidate count even for a repo actively used for
+// years (each cached entry is a few small fields, not transcript content,
+// so 5000 entries is a low single-digit-MB bound) while still capping
+// truly pathological directory sizes.
+//
 // Ownership: `discover()` accepts an optional cache and defaults to a fresh
 // per-call instance, so one-shot callers (locate/observe) are unaffected.
 // The watch loop (watch.ts) owns one instance for its process lifetime and
 // threads it through every tick via `findNewerSameCwdCandidates`.
 // ---------------------------------------------------------------------------
 
-const DEFAULT_CLASSIFICATION_CACHE_MAX_ENTRIES = 300;
+const DEFAULT_CLASSIFICATION_CACHE_MAX_ENTRIES = 5000;
 
 interface TranscriptDerivedFields {
   meta: TranscriptMeta | null;

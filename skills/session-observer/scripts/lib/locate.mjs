@@ -27,7 +27,7 @@ import {
 } from './session-classifier.mjs';
 const execFileAsync = promisify(execFile);
 const LOOKBACK_DAYS = 7;
-const DEFAULT_CLASSIFICATION_CACHE_MAX_ENTRIES = 300;
+const DEFAULT_CLASSIFICATION_CACHE_MAX_ENTRIES = 5e3;
 class ClassificationCache {
   maxEntries;
   entries = /* @__PURE__ */ new Map();
