@@ -1,4 +1,13 @@
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import {
+  mkdtemp,
+  mkdir,
+  readFile,
+  realpath,
+  rm,
+  stat,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -9,20 +18,34 @@ import { runCursorStopHook } from '../../skills/session-observer-collab/scripts/
 import {
   readLease,
   stateRoot,
+  writeLease,
 } from '../../skills/session-observer-collab/scripts/lib/lease-state.mjs';
+import {
+  beginAdapterWait,
+  claimAdapterTrigger,
+} from '../../skills/session-observer-collab/scripts/lib/runtime-adapter.mjs';
 
 const roots: string[] = [];
 const START = 1_700_000_000_000;
 
 async function fixture() {
-  const home = await mkdtemp(join(tmpdir(), 'cursor-hook-'));
+  const temporaryHome = await mkdtemp(join(tmpdir(), 'cursor-hook-'));
+  const home = await realpath(temporaryHome);
   roots.push(home);
   const root = stateRoot({ HOME: home } as NodeJS.ProcessEnv);
   const cwd = join(home, 'work');
-  const transcript = join(home, 'peer.jsonl');
+  const transcriptStore = join(
+    home,
+    '.cursor',
+    'projects',
+    'project',
+    'agent-transcripts',
+  );
+  const transcript = join(transcriptStore, 'peer-1', 'peer-1.jsonl');
   await mkdir(cwd);
+  await mkdir(join(transcriptStore, 'peer-1'), { recursive: true });
   await writeFile(transcript, '{}\n');
-  return { root, cwd, transcript };
+  return { root, cwd, transcript, transcriptStore };
 }
 
 afterEach(async () =>
@@ -54,6 +77,34 @@ async function armLease(
     },
     START,
   );
+}
+
+async function continuity(transcript: string, nextFrameIndex: number) {
+  const contents = await readFile(transcript);
+  const metadata = await stat(transcript);
+  return {
+    indexBase: 'zero-based-jsonl-frame-index' as const,
+    nextFrameIndex,
+    prefixBytes: contents.byteLength,
+    prefixSha256: createHash('sha256').update(contents).digest('hex'),
+    observedSize: metadata.size,
+    device: metadata.dev,
+    inode: metadata.ino,
+  };
+}
+
+async function armCursorPeerLease(
+  root: string,
+  cwd: string,
+  transcript: string,
+): Promise<any> {
+  const armed = await armLease(root, cwd, transcript, {
+    peerRuntime: 'cursor',
+  });
+  return writeLease(root, {
+    ...armed.lease,
+    peerContinuity: await continuity(transcript, 0),
+  } as any);
 }
 
 function event(overrides: Record<string, unknown> = {}) {
@@ -140,6 +191,105 @@ function digestWithEntries(
 }
 
 describe('Cursor Stop continuation hook', () => {
+  test.each([
+    ['device', { device: 1 }],
+    ['inode', { inode: 1 }],
+    ['prefix', { prefixSha256: 'f'.repeat(64) }],
+  ])(
+    'rejects a private continuity %s mismatch before observing or mutating the lease',
+    async (_label, mismatch) => {
+      const { root, cwd, transcript } = await fixture();
+      const lease = await armCursorPeerLease(root, cwd, transcript);
+      const before = await writeLease(root, {
+        ...lease,
+        peerContinuity: {
+          ...lease.peerContinuity!,
+          ...mismatch,
+        },
+      } as any);
+      let observed = 0;
+
+      await expect(
+        runCursorStopHook(event(), {
+          root,
+          now: () => START + 1,
+          observe: async () => {
+            observed += 1;
+            return digest();
+          },
+        }),
+      ).resolves.toBeNull();
+
+      expect(observed).toBe(0);
+      expect(await readLease(root, 'cursor-1')).toEqual(before);
+    },
+  );
+
+  test('threads the next private checkpoint through the trigger CAS route', async () => {
+    const { root, cwd, transcript } = await fixture();
+    const lease = await armCursorPeerLease(root, cwd, transcript);
+    const invocation = {
+      runtime: 'cursor',
+      peerRuntime: 'cursor',
+      peerSession: 'peer-1',
+      ownerSession: 'cursor-1',
+      cwd,
+      transcript,
+      now: START + 1,
+    };
+    await expect(
+      claimAdapterTrigger(
+        root,
+        invocation,
+        {
+          leaseId: lease.leaseId,
+          peerCursor: 0,
+          continuationCount: 0,
+          loopCount: 0,
+        },
+        {
+          peerCursor: 1,
+          loopIncrement: 1,
+          terminal: false,
+        } as any,
+      ),
+    ).resolves.toMatchObject({
+      triggered: false,
+      reason: 'continuity-required',
+    });
+    expect(await readLease(root, 'cursor-1')).toEqual(lease);
+
+    const waiting = await beginAdapterWait(root, invocation);
+    const nextContinuity = await continuity(transcript, 3);
+    const claimed = await claimAdapterTrigger(
+      root,
+      invocation,
+      {
+        leaseId: lease.leaseId,
+        peerCursor: 0,
+        continuationCount: 0,
+        loopCount: 0,
+      },
+      {
+        peerCursor: 3,
+        peerContinuity: nextContinuity,
+        loopIncrement: 1,
+        terminal: false,
+      } as any,
+    );
+
+    expect(waiting.waiting).toBe(true);
+    expect(claimed).toMatchObject({
+      triggered: true,
+      lease: {
+        peerCursor: 3,
+        peerContinuity: nextContinuity,
+        continuationCount: 1,
+        loopCount: 1,
+      },
+    });
+  });
+
   test('claims an exact completed range and returns only a followup_message envelope', async () => {
     const { root, cwd, transcript } = await fixture();
     const armed = await armLease(root, cwd, transcript);
@@ -179,10 +329,18 @@ describe('Cursor Stop continuation hook', () => {
       },
     };
 
-    await expect(runCursorStopHook(event({ status: 'error' }), options)).resolves.toBeNull();
-    await expect(runCursorStopHook(event({ status: 'aborted' }), options)).resolves.toBeNull();
-    await expect(runCursorStopHook(event({ status: 'cancelled' }), options)).resolves.toBeNull();
-    await expect(runCursorStopHook(event({ loop_count: -1 }), options)).resolves.toBeNull();
+    await expect(
+      runCursorStopHook(event({ status: 'error' }), options),
+    ).resolves.toBeNull();
+    await expect(
+      runCursorStopHook(event({ status: 'aborted' }), options),
+    ).resolves.toBeNull();
+    await expect(
+      runCursorStopHook(event({ status: 'cancelled' }), options),
+    ).resolves.toBeNull();
+    await expect(
+      runCursorStopHook(event({ loop_count: -1 }), options),
+    ).resolves.toBeNull();
     await expect(
       runCursorStopHook(event({ loop_count: 1 }), { ...options, loopLimit: 1 }),
     ).resolves.toBeNull();

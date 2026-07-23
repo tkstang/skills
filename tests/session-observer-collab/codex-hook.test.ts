@@ -1,4 +1,14 @@
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import {
+  mkdtemp,
+  mkdir,
+  readFile,
+  realpath,
+  rm,
+  stat,
+  symlink,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -9,20 +19,38 @@ import { runCodexStopHook } from '../../skills/session-observer-collab/scripts/h
 import {
   readLease,
   stateRoot,
+  writeLease,
 } from '../../skills/session-observer-collab/scripts/lib/lease-state.mjs';
+import * as runtimeAdapter from '../../skills/session-observer-collab/scripts/lib/runtime-adapter.mjs';
+
+const { beginAdapterWait, inspectAdapterLease } = runtimeAdapter;
+const advanceAdapterCursor = (
+  runtimeAdapter as unknown as {
+    advanceAdapterCursor: (...args: any[]) => Promise<any>;
+  }
+).advanceAdapterCursor;
 
 const roots: string[] = [];
 const START = 1_700_000_000_000;
 
 async function fixture() {
-  const home = await mkdtemp(join(tmpdir(), 'codex-hook-'));
+  const temporaryHome = await mkdtemp(join(tmpdir(), 'codex-hook-'));
+  const home = await realpath(temporaryHome);
   roots.push(home);
   const root = stateRoot({ HOME: home } as NodeJS.ProcessEnv);
   const cwd = join(home, 'work');
-  const transcript = join(home, 'peer.jsonl');
+  const transcriptStore = join(
+    home,
+    '.cursor',
+    'projects',
+    'project',
+    'agent-transcripts',
+  );
+  const transcript = join(transcriptStore, 'peer-1', 'peer-1.jsonl');
   await mkdir(cwd);
+  await mkdir(join(transcriptStore, 'peer-1'), { recursive: true });
   await writeFile(transcript, '{}\n');
-  return { root, cwd, transcript };
+  return { home, root, cwd, transcript, transcriptStore };
 }
 
 afterEach(async () =>
@@ -54,6 +82,34 @@ async function armLease(
     },
     START,
   );
+}
+
+async function continuity(transcript: string, nextFrameIndex: number) {
+  const contents = await readFile(transcript);
+  const metadata = await stat(transcript);
+  return {
+    indexBase: 'zero-based-jsonl-frame-index' as const,
+    nextFrameIndex,
+    prefixBytes: contents.byteLength,
+    prefixSha256: createHash('sha256').update(contents).digest('hex'),
+    observedSize: metadata.size,
+    device: metadata.dev,
+    inode: metadata.ino,
+  };
+}
+
+async function armCursorPeerLease(
+  root: string,
+  cwd: string,
+  transcript: string,
+): Promise<any> {
+  const armed = await armLease(root, cwd, transcript, {
+    peerRuntime: 'cursor',
+  });
+  return writeLease(root, {
+    ...armed.lease,
+    peerContinuity: await continuity(transcript, 0),
+  } as any);
 }
 
 function digest(fromIndex = 0) {
@@ -99,6 +155,117 @@ function digest(fromIndex = 0) {
 }
 
 describe('Codex Stop continuation hook', () => {
+  test('rejects stored-path substitution and use-time symlink escape without observing or mutating', async () => {
+    const { home, root, cwd, transcript, transcriptStore } = await fixture();
+    const original = await armCursorPeerLease(root, cwd, transcript);
+    const outside = join(home, 'outside.jsonl');
+    const other = join(transcriptStore, 'peer-1', 'other.jsonl');
+    await writeFile(outside, '{}\n');
+    await writeFile(other, '{}\n');
+
+    await expect(
+      inspectAdapterLease(root, {
+        runtime: 'codex',
+        peerRuntime: 'cursor',
+        peerSession: 'peer-1',
+        ownerSession: 'codex-1',
+        cwd,
+        transcript: other,
+        now: START + 1,
+      }),
+    ).resolves.toMatchObject({
+      eligible: false,
+      reason: 'continuity-path-mismatch',
+    });
+    expect(await readLease(root, 'codex-1')).toEqual(original);
+
+    for (const substitution of ['stored-path', 'symlink-escape']) {
+      await writeLease(root, original);
+      if (substitution === 'stored-path') {
+        const raw = {
+          ...original,
+          peerTranscript: other,
+        };
+        await writeFile(
+          join(root, 'leases', 'codex-1.json'),
+          `${JSON.stringify(raw)}\n`,
+        );
+      } else {
+        await rm(transcript);
+        await symlink(outside, transcript);
+      }
+      const before = await readFile(
+        join(root, 'leases', 'codex-1.json'),
+        'utf8',
+      );
+      let observed = 0;
+
+      await expect(
+        runCodexStopHook(
+          { hook_event_name: 'Stop', session_id: 'codex-1', cwd },
+          {
+            root,
+            now: () => START + 1,
+            observe: async () => {
+              observed += 1;
+              return digest();
+            },
+          },
+        ),
+      ).resolves.toMatchObject({ decision: 'allow' });
+
+      expect(observed).toBe(0);
+      expect(await readFile(join(root, 'leases', 'codex-1.json'), 'utf8')).toBe(
+        before,
+      );
+      if (substitution === 'symlink-escape') {
+        await rm(transcript);
+        await writeFile(transcript, '{}\n');
+      }
+    }
+  });
+
+  test('threads the next private checkpoint through the safe-cursor CAS route', async () => {
+    const { root, cwd, transcript } = await fixture();
+    const lease = await armCursorPeerLease(root, cwd, transcript);
+    const invocation = {
+      runtime: 'codex',
+      peerRuntime: 'cursor',
+      peerSession: 'peer-1',
+      ownerSession: 'codex-1',
+      cwd,
+      transcript,
+      now: START + 1,
+    };
+    const waiting = await beginAdapterWait(root, invocation);
+    const nextContinuity = await continuity(transcript, 3);
+    const advanced = await advanceAdapterCursor(
+      root,
+      invocation,
+      {
+        leaseId: lease.leaseId,
+        peerCursor: 0,
+        continuationCount: 0,
+        loopCount: 0,
+      },
+      {
+        peerCursor: 3,
+        peerContinuity: nextContinuity,
+      },
+    );
+
+    expect(waiting.waiting).toBe(true);
+    expect(advanced).toMatchObject({
+      advanced: true,
+      lease: {
+        peerCursor: 3,
+        peerContinuity: nextContinuity,
+        continuationCount: 0,
+        loopCount: 0,
+      },
+    });
+  });
+
   test('claims an exact completed range and emits the synthetic wake envelope', async () => {
     const { root, cwd, transcript } = await fixture();
     const armed = await armLease(root, cwd, transcript);
@@ -207,7 +374,8 @@ describe('Codex Stop continuation hook', () => {
         observe: async (lease: { peerCursor: number }) => {
           calls += 1;
           const value = digest(lease.peerCursor);
-          if (lease.peerCursor === 0) value.entries[1].text = '[no-op] caught up';
+          if (lease.peerCursor === 0)
+            value.entries[1].text = '[no-op] caught up';
           return value;
         },
       },
