@@ -20,6 +20,7 @@ import type {
   ProviderDiagnostics,
   ProviderErrorCode,
 } from '../provider-cli/types.js';
+import { parsePeers, parsePositiveInteger } from '../shared/cli-helpers.js';
 
 export type JsonRecord = Record<string, unknown>;
 
@@ -770,31 +771,6 @@ function required<T>(value: T | null | undefined | '', name: string): T {
     throw new Error(`missing required option: ${name}`);
   }
   return value;
-}
-
-function parsePositiveInteger(value: string, name: string): number {
-  const parsed = Number.parseInt(value, 10);
-  if (
-    !Number.isInteger(parsed) ||
-    parsed < 1 ||
-    String(parsed) !== String(value)
-  ) {
-    throw new Error(`${name} must be a positive integer`);
-  }
-  return parsed;
-}
-
-function parsePeers(value: unknown): string[] {
-  const peers = String(required(value, '--peers'))
-    .split(',')
-    .map((peer) => peer.trim())
-    .filter(Boolean);
-
-  if (peers.length !== 2) {
-    throw new Error('--peers must contain exactly two peers');
-  }
-
-  return peers;
 }
 
 function schemaPath() {
