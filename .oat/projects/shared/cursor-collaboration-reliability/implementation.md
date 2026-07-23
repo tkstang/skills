@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-23
-oat_current_task_id: p02-t08
+oat_current_task_id: p03-t01
 oat_generated: false
 ---
 
@@ -27,13 +27,13 @@ oat_generated: false
 | Phase   | Status      | Tasks | Completed |
 | ------- | ----------- | ----- | --------- |
 | Phase 1 | complete    | 5     | 5/5       |
-| Phase 2 | in_progress | 8     | 7/8       |
+| Phase 2 | review_pending | 8  | 8/8       |
 | Phase 3 | pending     | 7     | 0/7       |
 | Phase 4 | pending     | 6     | 0/6       |
 | Phase 5 | pending     | 6     | 0/6       |
 | Phase 6 | pending     | 4     | 0/4       |
 
-**Total:** 12/36 tasks accepted
+**Total:** 13/36 tasks accepted
 
 ---
 
@@ -142,7 +142,8 @@ oat_generated: false
   iterations.
 - The terminal operator-authorized recovery review was received with 0
   Critical, 2 Important, 1 Medium, and 0 Minor findings. Those findings are
-  now queued as `p02-t06` through `p02-t08`; Phase 3 has not started.
+  were implemented as `p02-t06` through `p02-t08`; the authorized
+  fix-task-scoped re-review is pending and Phase 3 has not started.
 
 **Task outcomes:**
 
@@ -155,7 +156,7 @@ oat_generated: false
 | p02-t05 | complete | `471dd5e` | Stability and delivery CAS are implemented; create-only initialization and operator-facing recovery passed re-review. |
 | p02-t06 | complete | `e1d1a31` | Atomically publishes complete contender tokens and covers publication crash/error boundaries across all three queues. |
 | p02-t07 | complete | `e08e867` | Keeps raw cwd spellings distinct from canonical identity diagnostic-only, including ancestor-component symlinks. |
-| p02-t08 | pending  | -         | Align shipped Cursor v2 reset and corruption-recovery guidance. |
+| p02-t08 | complete | `45835d9` | Aligns shipped Cursor v2 reset/corruption recovery guidance and bumps Session Observer to 1.0.8. |
 
 **Additional implementation/fix commits:**
 
@@ -214,9 +215,15 @@ synchronization, lint/format, and diff checks passed.
 
 ### Task p02-t08: Align Cursor v2 recovery guidance
 
-**Status:** pending
+**Status:** completed
+**Commit:** `45835d9`
 **Source:** `M1` from
 `reviews/archived/p02-review-2026-07-23T114732Z.md`
+**Verification:** Repository validation, formatting, diff checks, release-tool
+coverage, and Session Observer version synchronization passed. The
+origin/main-wide version gate remains blocked only by unrelated pre-existing
+changes to `export-session-transcript` and `session-observer-collab`; the
+task-scoped gate is rerun against the p02-t08 base before re-review.
 
 ### Review Retry Limit Exhausted
 
@@ -476,7 +483,7 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 
 **Optional nested implementation dispatches:** None.
 **Worktree:** Root checkout; sequential plan.
-**Outstanding items:** Review tasks `p02-t06` through `p02-t08`.
+**Outstanding items:** One authorized fix-task-scoped Phase 2 re-review.
 
 <!-- orchestration-runs-end -->
 
@@ -609,6 +616,10 @@ intended source of truth.
 **Next:** Execute fix tasks via the `oat-project-implement` skill. After the
 tasks complete, update this review event to `fixes_completed` and run a scoped
 re-review of the fix tasks.
+
+**Fix completion:** `p02-t06` through `p02-t08` completed in `e1d1a31`,
+`e08e867`, and `45835d9`. The bound review event is `fixes_completed`; the
+next boundary is the one authorized fix-task-scoped re-review.
 
 ---
 
