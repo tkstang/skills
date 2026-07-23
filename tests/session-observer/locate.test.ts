@@ -19,6 +19,7 @@ import {
   writeFile,
   utimes,
   readFile,
+  readdir,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -447,6 +448,75 @@ test('codex cwd cache: cache hit proved by observable cache-file state', async (
       cachedCandidate.recordedCwd,
       'recordedCwd should come from the cache, not the rewritten transcript',
     ).toBe(targetCwd);
+  });
+});
+
+test('codex cwd cache: saveCwdCache writes atomically — no tmp residue, parseable JSON', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = '/Users/testuser/Code/atomic-cache-project';
+    const sessionDate = '2026/05/15';
+    const sessionDir = join(
+      home,
+      '.codex',
+      'sessions',
+      ...sessionDate.split('/'),
+    );
+    await mkdir(sessionDir, { recursive: true });
+    const transcriptPath = join(sessionDir, 'session-atomic-test.jsonl');
+    await writeFile(transcriptPath, makeCodexTypical(targetCwd), 'utf8');
+
+    // Cache miss on first discover — exercises the saveCwdCache write path.
+    await discover('codex', targetCwd);
+
+    const stateDir = process.env.STATE_DIR!;
+    const entries = await readdir(stateDir);
+    const tmpFiles = entries.filter(
+      (f) => f.includes('codex-cwd-cache') && f.endsWith('.tmp'),
+    );
+    expect(
+      tmpFiles,
+      'no codex-cwd-cache tmp files should remain after a successful save',
+    ).toEqual([]);
+
+    const cacheFilePath = join(stateDir, 'codex-cwd-cache.json');
+    const raw = await readFile(cacheFilePath, 'utf8');
+    expect(() => JSON.parse(raw)).not.toThrow();
+    const parsed = JSON.parse(raw);
+    expect(Object.keys(parsed).length).toBeGreaterThan(0);
+  });
+});
+
+test('codex cwd cache: concurrent discover calls both save without leaving tmp residue or corrupt JSON', async () => {
+  await withTempHome(async (home) => {
+    const cwdA = '/Users/testuser/Code/concurrent-project-a';
+    const cwdB = '/Users/testuser/Code/concurrent-project-b';
+    const sessionDir = join(home, '.codex', 'sessions', '2026', '05', '16');
+    await mkdir(sessionDir, { recursive: true });
+    const transcriptA = join(sessionDir, 'session-concurrent-a.jsonl');
+    const transcriptB = join(sessionDir, 'session-concurrent-b.jsonl');
+    await writeFile(transcriptA, makeCodexTypical(cwdA), 'utf8');
+    await writeFile(transcriptB, makeCodexTypical(cwdB), 'utf8');
+
+    // Both are cache misses — two discover() calls racing to save the cache
+    // concurrently in the same process (regression for the tmp-name
+    // collision risk when two saves land in the same pid+millisecond).
+    await Promise.all([discover('codex', cwdA), discover('codex', cwdB)]);
+
+    const stateDir = process.env.STATE_DIR!;
+    const entries = await readdir(stateDir);
+    const tmpFiles = entries.filter(
+      (f) => f.includes('codex-cwd-cache') && f.endsWith('.tmp'),
+    );
+    expect(
+      tmpFiles,
+      'no codex-cwd-cache tmp files should remain after concurrent saves',
+    ).toEqual([]);
+
+    const cacheFilePath = join(stateDir, 'codex-cwd-cache.json');
+    const raw = await readFile(cacheFilePath, 'utf8');
+    expect(() => JSON.parse(raw)).not.toThrow();
+    const parsed = JSON.parse(raw);
+    expect(Object.keys(parsed).length).toBeGreaterThan(0);
   });
 });
 
