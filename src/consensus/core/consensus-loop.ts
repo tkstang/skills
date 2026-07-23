@@ -1498,6 +1498,21 @@ export function runProviderCliCommand(
           // 'close' never fires. Force settlement instead of hanging forever,
           // mirroring subprocess.ts's finalResolutionMs.
           finalResolutionTimer = setTimeout(() => {
+            // Destroy our own stdio handles so a held-open pipe (from a
+            // surviving descendant) can't keep this process's event loop
+            // alive after we've already given up waiting on 'close'. stdin
+            // included: it was only .end()ed, not destroyed, and an
+            // unacknowledged write can leave it as an active handle too.
+            child.stdin.destroy();
+            child.stdout.destroy();
+            child.stderr.destroy();
+            // A capture-cap breach (see `capture` below) is a more specific,
+            // earlier-determined failure than a bare timeout — preserve it
+            // instead of overwriting it with a generic timedOut result.
+            if (capError) {
+              settleReject(capError);
+              return;
+            }
             settleResolve({
               code: null,
               signal: 'SIGKILL',

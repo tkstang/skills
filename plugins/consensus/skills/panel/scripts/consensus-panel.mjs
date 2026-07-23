@@ -855,6 +855,9 @@ function runProviderCliCommand(command, args, options = {}) {
         killEscalationTimer = setTimeout(() => {
           child.kill("SIGKILL");
           finalResolutionTimer = setTimeout(() => {
+            child.stdin.destroy();
+            child.stdout.destroy();
+            child.stderr.destroy();
             settleResolve({
               code: null,
               signal: "SIGKILL",

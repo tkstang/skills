@@ -10,10 +10,16 @@
 # the backgrounded descendant keeps the pipes' write ends open, so a runner
 # that waits exclusively on the child_process 'close' event hangs forever
 # unless it has a final-resolution safety net.
+#
+# The descendant's own sleep is intentionally short (well past the runner's
+# deadline+grace+final-resolution window, but not indefinite): nothing in
+# this process tree is reaped by the test harness once detached, so a long
+# duration here would otherwise leak a real OS process for that long on every
+# test run.
 set -eu
 # Background the pipe-holding descendant FIRST, before installing the trap,
 # so it is already detached and holding the pipes open even in the (rare,
 # cold-start) case where SIGTERM arrives before `trap` executes.
-(sleep 86400 &)
+(sleep 10 &)
 trap '' TERM
 exec sleep 86400
