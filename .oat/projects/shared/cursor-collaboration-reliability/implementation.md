@@ -216,6 +216,14 @@ Retry limit 2 is exhausted.
 **Resume boundary:** Resolve or explicitly replan these findings, then run
 `oat-project-implement`.
 
+**Operator-authorized recovery (2026-07-23):** The operator authorized one
+additional bounded Phase 2 repair and re-review cycle beyond the exhausted
+automatic retry limit. Before repair, `origin/main` was merged at `aa35f45`;
+the merge preserved the Phase 2 identity/state work, incorporated the upstream
+Session Observer cache and stale-lock hardening, regenerated runtime outputs,
+and passed the full integration gate. The round-3 review basis is now stale,
+but its unresolved findings remain the bounded repair scope.
+
 ---
 
 ## Artifact Review History
@@ -477,6 +485,27 @@ Chronological log of implementation progress.
 **Task commits:** `baa0480`, `c373341`, `52ce9c1`, `decf5a5`, `14a643a`
 
 **Compatibility/fix commits:** `f058f30`, `e4c50fe`, `ce73f80`
+
+---
+
+### 2026-07-23 — Operator-authorized Phase 2 recovery
+
+**Authorization:**
+
+- One additional bounded fix and independent re-review cycle is authorized
+  beyond the configured automatic retry limit.
+
+**Integration boundary:**
+
+- Merged `origin/main` (`8c006a5a`) into the project branch as `aa35f45`.
+- Resolved overlapping Cursor locate/state/test changes semantically and
+  regenerated all committed runtime outputs from canonical TypeScript.
+- Verified 187 focused tests, 1,295 full-suite tests with 1 skipped,
+  type-check, build synchronization, validation, and smoke.
+
+**Next:** Repair only the unresolved findings from
+`reviews/p02-review-2026-07-23T054702Z.md`, then run a fresh whole-Phase 2
+review against the merged basis.
 
 ---
 
