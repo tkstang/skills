@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-23
-oat_current_task_id: p05-t01
+oat_current_task_id: p05-t02
 oat_generated: false
 ---
 
@@ -30,10 +30,10 @@ oat_generated: false
 | Phase 2 | complete    | 8     | 8/8       |
 | Phase 3 | complete    | 7     | 7/7       |
 | Phase 4 | complete    | 6     | 6/6       |
-| Phase 5 | pending     | 6     | 0/6       |
+| Phase 5 | in_progress | 6     | 1/6       |
 | Phase 6 | pending     | 4     | 0/4       |
 
-**Total:** 26/36 tasks accepted
+**Total:** 27/36 tasks accepted
 
 ---
 
@@ -918,6 +918,25 @@ reproduction also passed; Phase 5 is next.
 
 ---
 
+## Phase 5: Acceptance Evidence, Documentation, and Release Readiness
+
+**Status:** in_progress
+
+### Task outcomes
+
+| Task    | Status   | Commit    | Outcome |
+| ------- | -------- | --------- | ------- |
+| p05-t01 | complete | `9604a3a` | Added the sanitized capability-evidence matrix plus a repeatable validator for personal paths, opaque IDs, credentials, prose canaries, and honest evidence labels. |
+
+### Task p05-t01: Record the baseline capability matrix
+
+**Status:** completed
+**Commit:** `9604a3a`
+**Verification:** Evidence tests passed 14/14, the validator passed across 12
+files, and repository validation, formatting/lint, and diff checks passed.
+
+---
+
 ## Deviations from Plan / Design
 
 Document any intentional deviations from the original plan, spec, or design. Include accepted review findings where the shipped implementation is source of truth and a lifecycle artifact needs alignment.
@@ -940,6 +959,7 @@ Track test execution during implementation.
 | 2     | Fix-task re-review + full suite | 146 focused; 1,327 full; 1 skipped | 0; review passed | Atomic lock publication, exact raw-alias containment, Cursor v2 recovery guidance, generated outputs |
 | 3     | Phase-wide suite after review fixes | 1,363 passed; 1 skipped | 0 | Digest/observation/delivery v2, exact uncertain replay, read-only confirmation, durable fail-visible watch health, CLI semantics, v1 compatibility |
 | 4     | Full suite after review Critical fix | 1,407 passed; 1 skipped | 0 | Both owner runtimes, Cursor frame continuity, collaboration matrix, wake v1/v2 compatibility |
+| 5     | p05-t01 evidence verification | 14 tests; 12 validated files | 0 | Evidence labeling, privacy/redaction validation, repository structure |
 
 ## Final Summary (for PR/docs)
 
