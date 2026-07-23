@@ -40,7 +40,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-17T21:43:11.125Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-23T16:38:25Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-23T16:45:50Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -52,7 +52,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation - Phase 2 fixes complete; scoped re-review pending
+Implementation - Phase 3 ready at p03-t01
 
 ## Artifacts
 
@@ -97,7 +97,9 @@ Implementation - Phase 2 fixes complete; scoped re-review pending
 - ✓ `p02-t07` raw cwd alias containment complete at `e08e867`
 - ✓ `p02-t08` Cursor v2 recovery guidance complete at `45835d9`
 - ✓ Phase 2 fix verification passed: 146 focused and 1,327 full-suite tests
-- ⧗ Authorized fix-task-scoped Phase 2 re-review pending
+- ✓ Authorized fix-task-scoped Phase 2 re-review passed with zero findings
+- ✓ Phase 2 complete: 8/8 tasks
+- ⧗ Phase 3 ready at `p03-t01`
 
 ## Blockers
 
@@ -105,5 +107,4 @@ None. The review findings are represented by runnable Phase 2 tasks.
 
 ## Next Milestone
 
-Run the one authorized fix-task-scoped Phase 2 re-review. Advance to `p03-t01`
-only after it passes.
+Execute Phase 3 from `p03-t01`.

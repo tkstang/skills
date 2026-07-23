@@ -27,7 +27,7 @@ oat_generated: false
 | Phase   | Status      | Tasks | Completed |
 | ------- | ----------- | ----- | --------- |
 | Phase 1 | complete    | 5     | 5/5       |
-| Phase 2 | review_pending | 8  | 8/8       |
+| Phase 2 | complete    | 8     | 8/8       |
 | Phase 3 | pending     | 7     | 0/7       |
 | Phase 4 | pending     | 6     | 0/6       |
 | Phase 5 | pending     | 6     | 0/6       |
@@ -129,7 +129,8 @@ oat_generated: false
 
 ## Phase 2: Exact Identity, Continuity, and Cursor State v2
 
-**Status:** in progress
+**Status:** complete
+**Completed:** 2026-07-23
 
 ### Phase Summary
 
@@ -143,7 +144,7 @@ oat_generated: false
 - The terminal operator-authorized recovery review was received with 0
   Critical, 2 Important, 1 Medium, and 0 Minor findings. Those findings are
   were implemented as `p02-t06` through `p02-t08`; the authorized
-  fix-task-scoped re-review is pending and Phase 3 has not started.
+  fix-task-scoped re-review passed with no findings. Phase 3 is next.
 
 **Task outcomes:**
 
@@ -442,11 +443,11 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 **Policy:** managed `high`
 **Phase base:** `eb19baf`
 **Phase head:** `ce73f80`
-**Outcome:** blocked after terminal operator-authorized recovery re-review
+**Outcome:** passed after operator-authorized review-fix recovery
 
 | Phase | Tasks | Implementation | Root Review | Fix Iterations | Verdict |
 | ----- | ----- | -------------- | ----------- | -------------- | ------- |
-| p02   | 3/5 accepted | `baa0480..14a643a` plus `f058f30` | Round 3 blocked | 2 (`e4c50fe`, `ce73f80`) | blocked |
+| p02   | 8/8 accepted | `baa0480..45835d9` plus compatibility/bookkeeping | Fix-task review passed | 4 review-fix cycles | passed |
 
 **Implementation dispatch:**
 
@@ -473,6 +474,8 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 8. `reviews/archived/p02-review-2026-07-23T114732Z.md` — blocked with 0 Critical,
    2 Important, 1 Medium, 0 Minor; reconnaissance attempted with complete
    orchestration evidence.
+9. `reviews/p02-review-2026-07-23T164415Z.md` — fix-task-scoped review passed
+   with zero findings; reconnaissance not attempted.
 
 **Review dispatch:**
 
@@ -483,7 +486,7 @@ _Orchestration runs from `oat-project-implement` are appended here, most-recent-
 
 **Optional nested implementation dispatches:** None.
 **Worktree:** Root checkout; sequential plan.
-**Outstanding items:** One authorized fix-task-scoped Phase 2 re-review.
+**Outstanding items:** None.
 
 <!-- orchestration-runs-end -->
 
@@ -633,6 +636,10 @@ next boundary is the one authorized fix-task-scoped re-review.
   pre-existing unbumped changes to `export-session-transcript` and
   `session-observer-collab`; it does not flag Session Observer.
 
+**Scoped re-review:** `reviews/p02-review-2026-07-23T164415Z.md` passed with
+0 Critical, 0 Important, 0 Medium, and 0 Minor findings. `I1`, `I2`, and `M1`
+are resolved; Phase 2 is complete.
+
 ---
 
 ## Deviations from Plan / Design
@@ -652,7 +659,7 @@ Track test execution during implementation.
 | Phase | Tests Run | Passed | Failed | Coverage |
 | ----- | --------- | ------ | ------ | -------- |
 | 1     | Focused re-review + full suite | 137 focused; 1,148 full; 1 skipped | 0 | Frames, analyzer, runtimes, generated outputs, Export compatibility |
-| 2     | Terminal recovery review + full suite | 249 focused; 1,310 full; 1 skipped | 0 test failures; review blocked | Exact identity, queued lock ownership, state migration and recovery CLI, continuity, delivery CAS, generated outputs |
+| 2     | Fix-task re-review + full suite | 146 focused; 1,327 full; 1 skipped | 0; review passed | Atomic lock publication, exact raw-alias containment, Cursor v2 recovery guidance, generated outputs |
 
 ## Final Summary (for PR/docs)
 
