@@ -21,7 +21,6 @@
 | ID | Title | Status | Priority | Scope | Estimate |
 | --- | --- | --- | --- | --- | --- |
 | BL-260718-add-pr-time-ci-gate | Add PR-time CI gate for documentation site | open | medium | task | M |
-| BL-260718-consolidate-duplicated | Consolidate duplicated consensus CLI helpers | open | medium | task | M |
 | BL-260723-guard-transitive-shared | Guard transitive shared-runtime skill version bumps | open | medium | task | S |
 | BL-260718-harden-install-and-ci-supply | Harden install and CI supply-chain posture | open | medium | task | S |
 | BL-260619-inter-agent-direct-messaging | Inter-agent direct messaging (addressable, prioritized) | open | medium | feature | M |
@@ -36,11 +35,11 @@
 | BL-260612-add-whole-document | Add whole-document harmonization pass after section convergence | open | low | feature | M |
 | BL-260713-cursor-transcript-store | Cursor transcript-store and slug coverage | open | low | feature | M |
 | BL-260619-define-host-native-dispatch | Define host-native dispatch / safe-packet protocol (reserved seam) | open | low | initiative | L |
-| BL-260718-execute-worktree-scripts | Execute worktree scripts and git hooks in tests | open | low | task | M |
 | BL-260723-make-remaining-consensus-loop | Make remaining consensus-loop write sites atomic | open | low | task | S |
 | BL-260619-multi-peer-3-deliberation | Multi-peer (3+) deliberation extension (reserved / v3+ concern) | open | low | idea | L |
 | BL-260713-optional-idle-session | Optional idle-session application integrations | open | low | idea | M |
 | BL-260713-per-observer-offsets-and-safe | Per-observer offsets and safe N&gt;2 collaboration mesh | open | low | initiative | L |
+| BL-260723-split-loop-free-cli-helpers | Split loop-free cli-helpers core for panel sharing | open | low | task | S |
 | BL-260713-stronger-cursor-collaboration | Stronger Cursor collaboration wake surfaces | open | low | feature | M |
 <!-- END OAT BACKLOG-INDEX -->
 

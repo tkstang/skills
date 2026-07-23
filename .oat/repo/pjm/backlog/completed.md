@@ -10,6 +10,8 @@
 
 ## Completed Items
 
+- 2026-07-23 — BL-260718-execute-worktree-scripts — Execute worktree scripts and git hooks in tests — Shipped in wave-3: validate.sh/init.sh/hooks behaviorally tested with stub-pnpm/oat harnesses and shared GIT_* env scrub; DX-05 pnpm guards added to pre-commit/pre-push; string-match test superseded
+- 2026-07-23 — BL-260718-consolidate-duplicated — Consolidate duplicated consensus CLI helpers — Shipped in wave-3: 17 byte-identical helpers consolidated into src/consensus/shared/cli-helpers.ts (per-skill + plugin-root fan-out); loop parser drift reconciled as documented tightening; re-fork and panel-decoupling guards added; panel excluded by reviewed ruling (follow-up filed for loop-free core split)
 - 2026-07-23 — BL-260718-guard-generated-ignore-lists — Guard generated ignore lists and derive import rewrites — Shipped in wave-2: importRewrites derived from source imports (0 mismatches across 27 mappings, byte-equivalent generated tree, loud-throw failure modes); ignore-list guard satisfied by pre-existing generated-output-sync test (stale plan premise, reviewer-verified)
 - 2026-07-23 — BL-260718-derive-bump-version-skill-list — Derive bump-version skill list from disk — Shipped in wave-2: SKILL_FILES derived from disk via shared scripts/lib/discover-skills.mjs; completeness pinned by independent glob + snapshot tests that provably fail on skill-set drift
 - 2026-07-23 — BL-260718-cache-transcript — Cache transcript classification in watch loop — Shipped in wave-2: (path,mtime,size)-keyed classification+meta cache threaded through watch discovery; unchanged transcripts no longer re-read per tick; session-observer 1.0.7. Optional follow-up noted: directory-mtime short-circuit to skip discovery entirely for unchanged dirs
