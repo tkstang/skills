@@ -10,6 +10,8 @@
 
 ## Completed Items
 
+- 2026-07-23 — BL-260718-split-consensus-refine-into — Split consensus-refine into cohesive modules — Shipped in wave-5: consensus-refine.ts 3,890 to 1,138-line facade over 7 runtime modules; 171/171 declarations preserved; all external importers unchanged; smoke green through the facade; refine 0.1.9
+- 2026-07-23 — BL-260718-split-consensus-loop-into — Split consensus-loop into cohesive core modules — Shipped in wave-5: consensus-loop.ts 4,074 to 1,125-line facade over 7 runtime modules; 98/98 exports byte-identical; wrapper outputs OID-identical; verbatim moves verified at token level; acyclic DAG, no init-order hazards
 - 2026-07-23 — BL-260718-surface-the-live-provider-e2e — Surface the live-provider E2E gate — Shipped in wave-4: pnpm run test:live-e2e with loud-failure semantics when requested without a usable provider; RELEASING.md run-or-waive line; AGENTS.md gate entry; dispatch-only live-e2e.yml. Bonus: an accidental live call surfaced a real stub-vs-live verdict_source mismatch (follow-up filed)
 - 2026-07-23 — BL-260718-add-pr-time-ci-gate — Add PR-time CI gate for documentation site — Shipped in wave-4: path-filtered docs-ci.yml builds the Fumadocs app + format check on PRs touching documentation/, pinned actions, docs-lockfile cache; operator follow-up: mark required in branch protection
 - 2026-07-23 — BL-260718-harden-install-and-ci-supply — Harden install and CI supply-chain posture — Shipped in wave-4: CONSENSUS_INSTALL_SHA256 fail-closed install verification (both paths, tested); all workflow actions SHA-pinned with verified version comments; dependabot github-actions; validate.yml concurrency; SHA-pin invariant test
