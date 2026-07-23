@@ -34,44 +34,66 @@ their installed or locally loaded package shape.
 ```mermaid
 flowchart LR
   subgraph authoring["Canonical authoring"]
-    TS["TypeScript under src/"]
+    CORE["Transcript core TypeScript<br/>runtimes, Cursor frames, analysis"]
+    OBSERVER["Session Observer TypeScript<br/>digest, identity, state, watch, CLI"]
+    OTHER["Other TypeScript under src/"]
     COLLAB["Authored collaboration .mjs<br/>under skills/session-observer-collab/"]
   end
 
   BUILD["pnpm run build"]
-  GENERATED["Committed generated .mjs<br/>under plugins/ and skills/"]
+  OBSOUT["Session Observer generated .mjs<br/>under skills/session-observer/scripts/"]
+  EXPOUT["Export generated .mjs<br/>under skills/export-session-transcript/scripts/"]
+  OTHEROUT["Other committed generated .mjs<br/>under plugins/ and skills/"]
   CHECK["pnpm run build:check<br/>and generated-output-sync test"]
   RUNTIME["Provider install or local-load runtime<br/>no install step for shipped skills"]
   SYNC["oat sync"]
   MIRRORS["Generated .agents/, .claude/,<br/>and .cursor/ mirrors"]
 
-  TS --> BUILD --> GENERATED --> RUNTIME
-  TS -.->|expected output| CHECK
-  GENERATED -.->|checked output| CHECK
+  CORE --> BUILD
+  OBSERVER --> BUILD
+  OTHER --> BUILD
+  BUILD --> OBSOUT --> RUNTIME
+  BUILD --> EXPOUT --> RUNTIME
+  BUILD --> OTHEROUT --> RUNTIME
+  CORE -.->|expected output| CHECK
+  OBSERVER -.->|expected output| CHECK
+  OBSOUT -.->|checked output| CHECK
+  EXPOUT -.->|checked output| CHECK
+  COLLAB -.->|imports observer-generated Cursor modules| OBSOUT
   COLLAB --> RUNTIME
   COLLAB --> SYNC --> MIRRORS
 ```
 
 ## Canonical source → generated output
 
-| Canonical TypeScript source                                  | Generated output                                                                                                   |
-| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
-| `src/consensus/core/consensus-loop.ts`                       | `plugins/consensus/scripts/consensus-loop.mjs`                                                                     |
-| `src/consensus/refine/consensus-refine.ts`                   | `plugins/consensus/skills/refine/scripts/consensus-refine.mjs`                                                     |
-| `src/consensus/evaluate/consensus-evaluate.ts`               | `plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs`                                                 |
-| `src/consensus/create/consensus-create.ts`                   | `plugins/consensus/skills/create/scripts/consensus-create.mjs`                                                     |
-| `src/consensus/decide/consensus-decide.ts`                   | `plugins/consensus/skills/decide/scripts/consensus-decide.mjs`                                                     |
-| `src/consensus/plan/consensus-plan.ts`                       | `plugins/consensus/skills/plan/scripts/consensus-plan.mjs`                                                         |
-| `src/transcript/core/runtimes.ts`                            | `skills/session-observer/scripts/lib/runtimes.mjs` and `skills/export-session-transcript/scripts/lib/runtimes.mjs` |
-| `src/transcript/session-observer/`                           | the generated session-observer CLI, probe, and library files under `skills/session-observer/scripts/`              |
-| `src/transcript/export-session/sanitize.ts`                  | `skills/export-session-transcript/scripts/lib/sanitize.mjs`                                                        |
-| `src/transcript/export-session/export-session-transcript.ts` | `skills/export-session-transcript/scripts/export-session-transcript.mjs`                                           |
+| Canonical TypeScript source                                                                                            | Generated output                                                                                                                 |
+| ---------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `src/consensus/core/consensus-loop.ts`                                                                                 | `plugins/consensus/scripts/consensus-loop.mjs`                                                                                   |
+| `src/consensus/refine/consensus-refine.ts`                                                                             | `plugins/consensus/skills/refine/scripts/consensus-refine.mjs`                                                                   |
+| `src/consensus/evaluate/consensus-evaluate.ts`                                                                         | `plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs`                                                               |
+| `src/consensus/create/consensus-create.ts`                                                                             | `plugins/consensus/skills/create/scripts/consensus-create.mjs`                                                                   |
+| `src/consensus/decide/consensus-decide.ts`                                                                             | `plugins/consensus/skills/decide/scripts/consensus-decide.mjs`                                                                   |
+| `src/consensus/plan/consensus-plan.ts`                                                                                 | `plugins/consensus/skills/plan/scripts/consensus-plan.mjs`                                                                       |
+| `src/transcript/core/runtimes.ts`                                                                                      | `skills/session-observer/scripts/lib/runtimes.mjs` and `skills/export-session-transcript/scripts/lib/runtimes.mjs`               |
+| `src/transcript/core/cursor-frames.ts`                                                                                 | `skills/session-observer/scripts/lib/cursor-frames.mjs` and `skills/export-session-transcript/scripts/lib/cursor-frames.mjs`     |
+| `src/transcript/core/cursor-analysis.ts`                                                                               | `skills/session-observer/scripts/lib/cursor-analysis.mjs` and `skills/export-session-transcript/scripts/lib/cursor-analysis.mjs` |
+| `src/transcript/session-observer/lib/digest.ts`                                                                        | `skills/session-observer/scripts/lib/digest.mjs`                                                                                 |
+| `src/transcript/session-observer/lib/{locate,observe,rank,session-classifier,state,cursor-state,watch-state,watch}.ts` | matching committed `.mjs` files under `skills/session-observer/scripts/lib/`                                                     |
+| `src/transcript/session-observer/session-observer.ts`                                                                  | `skills/session-observer/scripts/session-observer.mjs`                                                                           |
+| `src/transcript/session-observer/probe-local.ts`                                                                       | `skills/session-observer/scripts/probe-local.mjs`                                                                                |
+| `src/transcript/export-session/sanitize.ts`                                                                            | `skills/export-session-transcript/scripts/lib/sanitize.mjs`                                                                      |
+| `src/transcript/export-session/export-session-transcript.ts`                                                           | `skills/export-session-transcript/scripts/export-session-transcript.mjs`                                                         |
 
 `skills/session-observer-collab/` is a different boundary: its dependency-free
 `.mjs` control, hook, and lease modules are authored shipped runtime files, not
 TypeScript build output. Keep those files in the canonical `skills/` tree and
 refresh provider mirrors through `oat sync`; do not hand-edit `.agents/`,
 `.claude/`, or `.cursor/` copies.
+
+The authored collaboration hooks consume the observer-generated Cursor frame,
+analysis, digest, and continuity modules. They do not own a second transcript
+parser. Import rewriting keeps canonical `.js` TypeScript specifiers aligned
+with the committed `.mjs` layout; missing or ambiguous mappings fail the build.
 
 ## Consensus plugin-local runtime layout
 

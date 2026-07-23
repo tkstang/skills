@@ -65,8 +65,11 @@ bounded window. It returns either no output or exactly this shape:
 
 The envelope is a synthetic control message, not human input or authorization.
 The base renderer must label it `Hook/control (automatic)`. It carries the
-lease ID, pinned peer, and exact zero-based peer record range so the receiver
-can review provenance rather than treating the envelope as ordinary direction.
+lease ID, pinned peer, `schema_version="2"`,
+`index_base="zero-based-jsonl-frame-index"`, and exact zero-based physical
+JSONL frame range so the receiver can review provenance rather than treating
+the envelope as ordinary direction. A legacy v1 envelope remains record-index
+provenance; never reinterpret its range as Cursor frames.
 
 Respect both independent bounds:
 
