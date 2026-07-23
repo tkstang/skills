@@ -224,7 +224,7 @@ gates. Expected: all green.
 | p01    | code     | pending | -    | -        |
 | p02    | code     | pending | -    | -        |
 | p03    | code     | pending | -    | -        |
-| p04    | code     | pending | -    | -        |
+| p04    | code     | passed  | 2026-07-23 | reviews/p04-code-review-2026-07-23.md |
 | final  | code     | pending | -    | -        |
 | plan   | artifact | passed  | 2026-07-23 | reviews/plan-gate-2026-07-23.md |
 | spec   | artifact | pending | -    | -        |
