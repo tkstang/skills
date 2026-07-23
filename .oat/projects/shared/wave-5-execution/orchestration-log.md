@@ -60,3 +60,13 @@ skill should change; (3) adjustments adopted for later waves, stated as rules;
 
 Roll-up ordering (critical): `summary.md` `## Workflow Observations` and any
 repo-level ledger updates happen BEFORE `oat-project-complete` archives this file.
+
+### 2026-07-23 · general · bug · plan-parser
+
+Wave-5 plan gate found `## Phase p0N:` headings are invisible to the OAT
+status parser (`## Phase <number>:` required). Waves 1-4 wrappers shared the
+form — their status payloads reported 0 phases throughout (harmless: the
+orchestrator tracked progress manually; all lifecycle gates keyed off
+frontmatter, not the parsed table).
+**Skill signal (gap):** the wrapper-plan template should show the literal
+parsed heading form, not `## Phase { NN }:` with a pNN example.

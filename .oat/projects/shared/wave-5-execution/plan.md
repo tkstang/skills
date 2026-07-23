@@ -1,10 +1,10 @@
 ---
-oat_status: in_progress
-oat_ready_for: null
+oat_status: complete
+oat_ready_for: oat-project-implement
 oat_blockers: []
 oat_last_updated: 2026-07-23
 oat_phase: plan
-oat_phase_status: in_progress
+oat_phase_status: complete
 oat_plan_hill_phases: ['p02']
 oat_auto_review_at_hill_checkpoints: true
 oat_plan_parallel_groups: [['p01', 'p02']]
@@ -46,9 +46,8 @@ mandate ONE GREEN COMMIT PER EXTRACTED CLUSTER; the wrapper adds only the scope.
 1. **Drift check first** per the source plan; its expected-drift carve-outs
    govern (waves 1-3 churn is pre-cleared; re-run the plan's step-1 inventory
    against the live file).
-2. **Execute the source plan's steps** with embedded Verify gates (the
-   per-cluster green-commit gate is the primary safety mechanism); STOP
-   conditions verbatim.
+2. **Execute the source plan's `## Implementation steps`** with each embedded
+   Verify gate; honor its `## STOP conditions` verbatim.
 3. **DoD:** each cluster commit passes the plan's per-commit gate; final state
    passes `pnpm run premerge` then `pnpm run validate:skill-versions
    --base-ref main` (no bare `--`). `set -o pipefail`. EQUIVALENT-INVOCATION:
@@ -65,8 +64,10 @@ mandate ONE GREEN COMMIT PER EXTRACTED CLUSTER; the wrapper adds only the scope.
 7. **Backlog archival NOT part of any task** — once, serialized, after merges.
 8. **Phase review checklist = the source plan's `## Review focus`** (the
    `git diff --color-moved` verbatim-move inspection is mandatory).
-9. **Artifact hygiene:** `pnpm exec oxfmt --write <specific-file>` on markdown
-   you write (never AGENTS.md/generated). Workers report; root appends.
+9. **Artifact hygiene:** no repository formatter applies to `.oat/**`
+   (oxfmt excludes it) — check wrapper artifacts with `git diff --check`.
+   Use `pnpm exec oxfmt --write <file>` only for non-.oat markdown you write
+   (never AGENTS.md/generated files). Workers report; root appends.
 10. **Commit verification after ambiguous results** via `git log`.
 11. **Codex fallback + MAX TWO rounds.**
 
@@ -104,7 +105,7 @@ verbatim-move purity round embedded per lane (high blast-radius refactors)._
 
 ---
 
-## Phase p01: split-consensus-loop-module (group 1)
+## Phase 1: split-consensus-loop-module (group 1)
 
 **Milestone:** the source plan's `## Done criteria` fully satisfied.
 
@@ -117,11 +118,10 @@ verbatim-move purity round embedded per lane (high blast-radius refactors)._
 
 **Step 1: Drift check** — per the source plan (expected-drift carve-outs apply).
 
-**Step 2: Execute** the source plan in full (inventory → leaf-first clusters →
-one green commit each → facade final pass).
+**Step 2: Execute** the source plan in full.
 
-**Step 3: Verify (wrapper gate)** — Done criteria + full DoD. Expected: green;
-zero skill-dir diffs.
+**Step 3: Verify (wrapper gate)** — the source plan's `## Done criteria`, then
+full DoD. Expected: all green.
 
 **Step 4: Cross-model review (one round, MAX TWO)** — verbatim-move purity:
 checklist = the source plan's complete `## Review focus`; disposition every
@@ -131,7 +131,7 @@ finding.
 
 ---
 
-## Phase p02: split-consensus-refine-module (group 1)
+## Phase 2: split-consensus-refine-module (group 1)
 
 **Milestone:** the source plan's `## Done criteria` fully satisfied.
 
@@ -147,8 +147,8 @@ over p01's shared-config insertions per the anchored-insertion rule.
 
 **Step 2: Execute** the source plan in full.
 
-**Step 3: Verify (wrapper gate)** — Done criteria + full DoD (incl. smoke — it
-drives runSequential/runWrapperCli through the facade). Expected: green.
+**Step 3: Verify (wrapper gate)** — the source plan's `## Done criteria`, then
+full DoD. Expected: all green.
 
 **Step 4: Cross-model review (one round, MAX TWO)** — verbatim-move purity:
 checklist = the source plan's complete `## Review focus`.
@@ -164,7 +164,7 @@ checklist = the source plan's complete `## Review focus`.
 | p01    | code     | pending | -    | -        |
 | p02    | code     | pending | -    | -        |
 | final  | code     | pending | -    | -        |
-| plan   | artifact | pending | -    | -        |
+| plan   | artifact | passed  | 2026-07-23 | reviews/plan-gate-2026-07-23.md |
 | spec   | artifact | pending | -    | -        |
 | design | artifact | pending | -    | -        |
 

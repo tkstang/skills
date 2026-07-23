@@ -14,7 +14,7 @@ oat_hill_checkpoints: ['p02'] # Configured: which phases require human-in-the-lo
 oat_hill_completed: [] # Progress: which HiLL checkpoints have been completed
 oat_parallel_execution: true
 oat_phase: plan # Current phase: discovery | spec | design | plan | implement | decomposition
-oat_phase_status: in_progress # Status: in_progress | complete | pr_open
+oat_phase_status: complete # Status: in_progress | complete | pr_open
 # oat_orchestration_retry_limit: 2  # optional; override fix-loop retry limit (range 0-5)
 # oat_dispatch_policy: # optional project dispatch policy; managed keeps OAT selection active, inherit leaves controls to the host
 #   mode: managed # managed | inherit
@@ -81,13 +81,13 @@ oat_generated: false
 
 # Project State: wave-5-execution
 
-**Status:** Plan authored — awaiting plan gate
+**Status:** Plan complete — gate passed
 **Started:** 2026-07-23
 **Last Updated:** 2026-07-23
 
 ## Current Phase
 
-Plan authored (gate pending). Wave-5 (FINAL wave) wrapper over the two
+Plan complete (gate passed). Wave-5 (FINAL wave) wrapper over the two
 god-module facade splits. One parallel group of two lanes (targets disjoint;
 three shared config files with separable-region anchored insertions). Drift
 refresh: both MINOR-DRIFT-expected within the plans' own carve-outs; premises
@@ -106,7 +106,7 @@ verified live at BASE_SHA 4e3c4ca.
 - ✓ Preflight at 4e3c4ca; full baseline green (1170 tests)
 - ✓ Drift refresh: no STOPs; facade preconditions verified
 - ✓ Wrapper scaffold + plan authored
-- ⧗ Plan gate
+- ✓ Plan gate passed (1 Critical phase-heading parse fix + 2 Importants)
 
 ## Blockers
 
@@ -114,4 +114,4 @@ None
 
 ## Next Milestone
 
-Plan gate; then group dispatch (p01 loop split, p02 refine split)
+Group dispatch (p01 loop split, p02 refine split)
