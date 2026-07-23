@@ -1,7 +1,7 @@
 ---
 id: BL-260718-split-consensus-loop-into
 title: Split consensus-loop into cohesive core modules
-status: open
+status: closed
 priority: medium
 scope: task
 scope_estimate: L
@@ -11,7 +11,7 @@ labels:
   - tech-debt
 assignee: null
 created: 2026-07-18T00:20:00Z
-updated: 2026-07-18T00:20:00Z
+updated: '2026-07-23T09:58:41Z'
 associated_issues: []
 external_plans:
   - .oat/repo/reference/external-plans/2026-07-18-split-consensus-loop-module.md

@@ -19,6 +19,41 @@ export const generatedOutputs = [
     output: 'plugins/consensus/scripts/consensus-loop.mjs',
   },
   {
+    id: 'consensus-loop-validation',
+    source: 'src/consensus/core/loop-validation.ts',
+    output: 'plugins/consensus/scripts/loop-validation.mjs',
+  },
+  {
+    id: 'consensus-loop-records',
+    source: 'src/consensus/core/loop-records.ts',
+    output: 'plugins/consensus/scripts/loop-records.mjs',
+  },
+  {
+    id: 'consensus-loop-prompts',
+    source: 'src/consensus/core/loop-prompts.ts',
+    output: 'plugins/consensus/scripts/loop-prompts.mjs',
+  },
+  {
+    id: 'consensus-loop-provider',
+    source: 'src/consensus/core/loop-provider.ts',
+    output: 'plugins/consensus/scripts/loop-provider.mjs',
+  },
+  {
+    id: 'consensus-loop-args',
+    source: 'src/consensus/core/loop-args.ts',
+    output: 'plugins/consensus/scripts/loop-args.mjs',
+  },
+  {
+    id: 'consensus-loop-escalation',
+    source: 'src/consensus/core/loop-escalation.ts',
+    output: 'plugins/consensus/scripts/loop-escalation.mjs',
+  },
+  {
+    id: 'consensus-loop-rounds',
+    source: 'src/consensus/core/loop-rounds.ts',
+    output: 'plugins/consensus/scripts/loop-rounds.mjs',
+  },
+  {
     id: 'consensus-cli-helpers',
     source: 'src/consensus/shared/cli-helpers.ts',
     output: 'plugins/consensus/scripts/consensus-cli-helpers.mjs',
@@ -78,6 +113,41 @@ export const generatedOutputs = [
     id: 'consensus-refine',
     source: 'src/consensus/refine/consensus-refine.ts',
     output: 'plugins/consensus/skills/refine/scripts/consensus-refine.mjs',
+  },
+  {
+    id: 'consensus-refine-shared',
+    source: 'src/consensus/refine/refine-shared.ts',
+    output: 'plugins/consensus/skills/refine/scripts/refine-shared.mjs',
+  },
+  {
+    id: 'consensus-refine-manifest',
+    source: 'src/consensus/refine/refine-manifest.ts',
+    output: 'plugins/consensus/skills/refine/scripts/refine-manifest.mjs',
+  },
+  {
+    id: 'consensus-refine-args',
+    source: 'src/consensus/refine/refine-args.ts',
+    output: 'plugins/consensus/skills/refine/scripts/refine-args.mjs',
+  },
+  {
+    id: 'consensus-refine-sections',
+    source: 'src/consensus/refine/refine-sections.ts',
+    output: 'plugins/consensus/skills/refine/scripts/refine-sections.mjs',
+  },
+  {
+    id: 'consensus-refine-render',
+    source: 'src/consensus/refine/refine-render.ts',
+    output: 'plugins/consensus/skills/refine/scripts/refine-render.mjs',
+  },
+  {
+    id: 'consensus-refine-resume',
+    source: 'src/consensus/refine/refine-resume.ts',
+    output: 'plugins/consensus/skills/refine/scripts/refine-resume.mjs',
+  },
+  {
+    id: 'consensus-refine-escalation',
+    source: 'src/consensus/refine/refine-escalation.ts',
+    output: 'plugins/consensus/skills/refine/scripts/refine-escalation.mjs',
   },
   {
     id: 'consensus-evaluate',
