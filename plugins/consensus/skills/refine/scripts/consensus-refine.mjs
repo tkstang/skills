@@ -34,8 +34,41 @@ import {
   requireConsensusCliPath,
   runConsensusLoop
 } from '../../../scripts/consensus-loop.mjs';
+import {
+  isJsonRecord,
+  asErrorLike,
+  asConsensusRecord,
+  asConsensusRecords,
+  asSectionStatus,
+  inside,
+  nearestExistingPath,
+  syncPathIfAvailable,
+  nowIso,
+  writeJsonl,
+  renderHumanError,
+  consensusBlockPattern,
+  readInputFile,
+  confineWrite,
+  atomicWriteFile,
+  resolveRunDir,
+  resolveOutputPath,
+  resolveResumePath,
+  readJsonFile,
+  readJsonIfPresent,
+  readTextIfPresent
+} from './refine-shared.mjs';
+import {
+  INPUT_SIZE_CAP_BYTES,
+  createJsonlEvent,
+  renderHumanError as renderHumanError2,
+  readInputFile as readInputFile2,
+  confineWrite as confineWrite2,
+  atomicWriteFile as atomicWriteFile2,
+  resolveRunDir as resolveRunDir2,
+  resolveOutputPath as resolveOutputPath2,
+  resolveResumePath as resolveResumePath2
+} from './refine-shared.mjs';
 const execFileAsync = promisify(execFile);
-const INPUT_SIZE_CAP_BYTES = 1024 * 1024;
 const PROVIDER_ID_PATTERN = /^[a-z][a-z0-9-]{0,31}$/u;
 const MAX_ROUNDS_MIN = 1;
 const MAX_ROUNDS_MAX = 100;
@@ -45,81 +78,11 @@ const STRICT_RESUME_HASH_OPTIONS = Object.freeze({
   collapseEofNewlines: false,
   finalNewline: false
 });
-function isJsonRecord(value) {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-}
-function asErrorLike(error) {
-  return isJsonRecord(error) ? error : {};
-}
-function asConsensusRecord(value) {
-  return isJsonRecord(value) ? value : {};
-}
-function asConsensusRecords(value) {
-  return Array.isArray(value) ? value.map(asConsensusRecord) : [];
-}
-function asSectionStatus(value) {
-  return isJsonRecord(value) ? value : {};
-}
 function asProviderInventoryEntry(value) {
   return isJsonRecord(value) ? value : {};
 }
 function asLoopInitialRecords(records) {
   return records ?? [];
-}
-function inside(root, target) {
-  const relative = path.relative(root, target);
-  return relative === "" || !relative.startsWith("..") && !path.isAbsolute(relative);
-}
-async function pathExists(targetPath) {
-  try {
-    await lstat(targetPath);
-    return true;
-  } catch (error) {
-    if (asErrorLike(error).code === "ENOENT") return false;
-    throw error;
-  }
-}
-async function nearestExistingPath(targetPath) {
-  let current = path.resolve(targetPath);
-  while (!await pathExists(current)) {
-    const parent = path.dirname(current);
-    if (parent === current) return current;
-    current = parent;
-  }
-  return current;
-}
-async function syncPathIfAvailable(targetPath) {
-  let handle;
-  try {
-    handle = await open(targetPath, "r");
-    await handle.sync();
-  } finally {
-    await handle?.close();
-  }
-}
-function nowIso() {
-  return (/* @__PURE__ */ new Date()).toISOString();
-}
-function createJsonlEvent(event, payload = {}, options = {}) {
-  return {
-    consensus_schema_version: "v1",
-    event,
-    timestamp: options.now?.() ?? nowIso(),
-    ...payload
-  };
-}
-function writeJsonl(stream, event, payload = {}, options = {}) {
-  const entry = createJsonlEvent(event, payload, options);
-  stream.write(`${JSON.stringify(entry)}
-`);
-  return entry;
-}
-function renderHumanError(error, env = process.env) {
-  const details = asErrorLike(error);
-  if (env.CONSENSUS_LOG === "trace" && details.stack) {
-    return details.stack;
-  }
-  return details.message ?? String(error);
 }
 function dynamicFence(contents, info = "") {
   const text = String(contents ?? "");
@@ -194,9 +157,6 @@ function parseFrontmatter(markdown) {
     frontmatter[match[1]] = parseYamlScalar(match[2]);
   }
   return frontmatter;
-}
-function consensusBlockPattern(label) {
-  return new RegExp(`<!-- consensus:${label}\\n([\\s\\S]*?)\\n-->`, "g");
 }
 function parseConsensusJsonBlock(label, jsonText, index) {
   try {
@@ -592,25 +552,6 @@ async function readResumePathOrText(pathOrText) {
     }
   }
   return { text: value, sourcePath: null };
-}
-async function readJsonFile(filePath) {
-  return JSON.parse(await readFile(filePath, "utf8"));
-}
-async function readJsonIfPresent(filePath, fallback) {
-  try {
-    return await readJsonFile(filePath);
-  } catch (error) {
-    if (asErrorLike(error).code === "ENOENT") return fallback;
-    return fallback;
-  }
-}
-async function readTextIfPresent(filePath) {
-  try {
-    return await readFile(filePath, "utf8");
-  } catch (error) {
-    if (asErrorLike(error).code === "ENOENT") return null;
-    return null;
-  }
 }
 function manifestError(message, details = {}) {
   return new ConsensusError(message, {
@@ -1298,101 +1239,6 @@ function buildSectionsFromBoundaries(lines, boundaries) {
     });
   }
   return sections;
-}
-async function readInputFile(inputPath, options = {}) {
-  const capBytes = options.sizeCapBytes ?? INPUT_SIZE_CAP_BYTES;
-  const fileStat = await stat(inputPath);
-  if (fileStat.size > capBytes) {
-    throw new Error(`input exceeds size cap of ${capBytes} bytes`);
-  }
-  const contents = await readFile(inputPath, "utf8");
-  if (Buffer.byteLength(contents, "utf8") > capBytes) {
-    throw new Error(`input exceeds size cap of ${capBytes} bytes`);
-  }
-  return contents;
-}
-async function confineWrite(targetPath, rootPath) {
-  const root = path.resolve(rootPath);
-  const target = path.isAbsolute(targetPath) ? path.resolve(targetPath) : path.resolve(root, targetPath);
-  if (!inside(root, target)) {
-    throw new Error(`write path is outside allowed root: ${target}`);
-  }
-  if (await pathExists(target)) {
-    const targetStat = await lstat(target);
-    if (targetStat.isSymbolicLink()) {
-      throw new Error(`write target may not be a symlink: ${target}`);
-    }
-  }
-  const realRoot = await realpath(root);
-  const parent = path.dirname(target);
-  const existing = await nearestExistingPath(parent);
-  const realExisting = await realpath(existing);
-  const realParent = path.resolve(
-    realExisting,
-    path.relative(existing, parent)
-  );
-  if (!inside(realRoot, realParent)) {
-    throw new Error(`write path resolves outside allowed root: ${target}`);
-  }
-  return target;
-}
-async function atomicWriteFile(targetPath, contents, options = {}) {
-  const writePath = options.rootPath ? await confineWrite(targetPath, options.rootPath) : path.resolve(targetPath);
-  if (await pathExists(writePath)) {
-    const targetStat = await lstat(writePath);
-    if (targetStat.isSymbolicLink()) {
-      throw new Error(`write target may not be a symlink: ${writePath}`);
-    }
-  }
-  await mkdir(path.dirname(writePath), { recursive: true });
-  const tempPath = path.join(
-    path.dirname(writePath),
-    `.${path.basename(writePath)}.tmp-${process.pid}-${randomBytes(8).toString("hex")}`
-  );
-  try {
-    await writeFile(tempPath, contents);
-    await syncPathIfAvailable(tempPath);
-    await rename(tempPath, writePath);
-    await syncPathIfAvailable(path.dirname(writePath));
-  } catch (error) {
-    const annotatedError = error;
-    try {
-      await unlink(tempPath);
-    } catch (cleanupError) {
-      if (asErrorLike(cleanupError).code !== "ENOENT") {
-        annotatedError.cleanupError = cleanupError;
-      }
-    }
-    throw annotatedError;
-  }
-  return writePath;
-}
-let defaultRunDirCounter = 0;
-function defaultRunDirName() {
-  return `run-${Date.now()}-${process.pid}-${defaultRunDirCounter++}`;
-}
-async function resolveRunDir(options = {}) {
-  const cwd = path.resolve(options.cwd ?? process.cwd());
-  const root = path.resolve(options.allowRoot ?? cwd);
-  const target = options.runDir ? path.isAbsolute(options.runDir) ? options.runDir : path.resolve(cwd, options.runDir) : path.resolve(cwd, ".consensus", defaultRunDirName());
-  return await confineWrite(target, root);
-}
-async function resolveOutputPath(options = {}, inputPath) {
-  if (options.output) {
-    const cwd = path.resolve(options.cwd ?? process.cwd());
-    const root = path.resolve(options.allowRoot ?? cwd);
-    const target2 = path.isAbsolute(options.output) ? options.output : path.resolve(cwd, options.output);
-    return await confineWrite(target2, root);
-  }
-  const target = path.resolve(`${inputPath}.consensus.md`);
-  return await confineWrite(target, path.dirname(path.resolve(inputPath)));
-}
-async function resolveResumePath(options = {}) {
-  if (!options.resume) return null;
-  const cwd = path.resolve(options.cwd ?? process.cwd());
-  const root = path.resolve(options.allowRoot ?? cwd);
-  const target = path.isAbsolute(options.resume) ? options.resume : path.resolve(cwd, options.resume);
-  return await confineWrite(target, root);
 }
 async function defaultRunCommand(command, args, options = {}) {
   const spawnTarget = providerCliSpawnTarget(command, args);
@@ -2794,9 +2640,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
 export {
   INPUT_SIZE_CAP_BYTES,
   PROVIDER_ID_PATTERN,
-  atomicWriteFile,
+  atomicWriteFile2 as atomicWriteFile,
   buildEscalationEvent,
-  confineWrite,
+  confineWrite2 as confineWrite,
   createJsonlEvent,
   detectHost,
   fanInParallelRun,
@@ -2805,13 +2651,13 @@ export {
   parseWrapperArgs,
   preflightConsensusProviderCli,
   prepareParallelRun,
-  readInputFile,
+  readInputFile2 as readInputFile,
   renderDeliberationArtifact,
-  renderHumanError,
-  resolveOutputPath,
+  renderHumanError2 as renderHumanError,
+  resolveOutputPath2 as resolveOutputPath,
   resolvePeers,
-  resolveResumePath,
-  resolveRunDir,
+  resolveResumePath2 as resolveResumePath,
+  resolveRunDir2 as resolveRunDir,
   resolveSynthesizer,
   runSequential,
   runWrapperCli,

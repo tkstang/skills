@@ -115,6 +115,11 @@ export const generatedOutputs = [
     output: 'plugins/consensus/skills/refine/scripts/consensus-refine.mjs',
   },
   {
+    id: 'consensus-refine-shared',
+    source: 'src/consensus/refine/refine-shared.ts',
+    output: 'plugins/consensus/skills/refine/scripts/refine-shared.mjs',
+  },
+  {
     id: 'consensus-evaluate',
     source: 'src/consensus/evaluate/consensus-evaluate.ts',
     output: 'plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs',
