@@ -1,11 +1,3 @@
-import {
-  lstat,
-  mkdir,
-  realpath,
-  rename,
-  unlink,
-  writeFile,
-} from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -43,7 +35,6 @@ import {
   parsePositiveInteger,
   validateProviderId,
   parsePeers,
-  inside,
   promptBlockData,
   parseProviderCliEnvelope,
   providerStatusMap,

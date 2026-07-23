@@ -1,13 +1,4 @@
-import {
-  lstat,
-  mkdir,
-  readFile,
-  realpath,
-  rename,
-  stat,
-  unlink,
-  writeFile,
-} from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -44,7 +35,6 @@ import {
   parsePositiveInteger,
   validateProviderId,
   parsePeers,
-  inside,
   encodePromptBlockData,
   promptBlockData,
   parseProviderCliEnvelope,
