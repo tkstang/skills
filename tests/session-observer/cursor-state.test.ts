@@ -17,9 +17,14 @@ import {
   type CursorTranscriptScan,
 } from '../../src/transcript/core/cursor-frames.js';
 import {
+  abandonCursorDelivery,
+  checkpointCursorCandidate,
+  commitCursorDelivery,
   getCursorSession,
   loadCursorState,
   mutateCursorState,
+  recoverCursorDelivery,
+  reserveCursorDelivery,
   setCursorSession,
   validateCursorContinuity,
 } from '../../src/transcript/session-observer/lib/cursor-state.js';
@@ -65,8 +70,11 @@ function sessionEntry(sessionId = 'cursor-session'): CursorSessionStateEntry {
       fromFrameIndex: 0,
       observedThroughFrame: 2,
       deliveredEntryKeys: ['entry-0'],
+      assistantEntryKeys: ['entry-0'],
       humanRecordIndexes: [0],
       toolRecordIndexes: [],
+      hasHumanInput: true,
+      hasAutomaticControlInput: false,
       lifecycle: 'pending',
     },
     stabilityCandidate: {
@@ -78,13 +86,15 @@ function sessionEntry(sessionId = 'cursor-session'): CursorSessionStateEntry {
       prefixSha256: 'b'.repeat(64),
       firstObservedAt: '2026-07-22T00:00:00.000Z',
       confirmAfter: '2026-07-22T00:00:01.000Z',
+      confirmedAt: null,
     },
     pendingDelivery: {
       deliveryId: 'delivery-0',
-      expectedNextFrameIndex: 0,
-      reservedThroughFrameIndex: 2,
+      expectedNextFrameIndex: 3,
+      expectedCheckpoint: checkpoint(3),
+      reservedThroughFrameIndex: 4,
       entryKeys: ['entry-0'],
-      intendedCheckpoint: checkpoint(),
+      intendedCheckpoint: checkpoint(5),
       reservedByPid: 123,
       reservedAt: '2026-07-22T00:00:01.000Z',
     },
@@ -153,6 +163,37 @@ function entryFromScan(
     openTurn: null,
     stabilityCandidate: null,
     pendingDelivery: null,
+  };
+}
+
+function deliveryEntry(sessionId = 'delivery-session') {
+  return {
+    ...sessionEntry(sessionId),
+    sessionId,
+    continuity: checkpoint(3),
+    lastRecordIndex: 3,
+    openTurn: {
+      turnId: 'turn-delivery',
+      fromFrameIndex: 0,
+      observedThroughFrame: 2,
+      deliveredEntryKeys: [],
+      assistantEntryKeys: ['entry-delivery'],
+      humanRecordIndexes: [0],
+      toolRecordIndexes: [],
+      hasHumanInput: true,
+      hasAutomaticControlInput: false,
+      lifecycle: 'pending' as const,
+    },
+    stabilityCandidate: null,
+    pendingDelivery: null,
+    lastStatus: {
+      engagement: 'engaged' as const,
+      activity: 'assistant-progress' as const,
+      content: 'available' as const,
+      lifecycle: 'pending' as const,
+      delivery: 'none' as const,
+      health: 'healthy' as const,
+    },
   };
 }
 
@@ -565,5 +606,355 @@ it('explicit reset permits replay from frame zero as new continuity', async () =
     expect(
       validateCursorContinuity(exactIdentity(transcriptPath), current, null),
     ).toEqual({ status: 'new', fromFrameIndex: 0 });
+  });
+});
+
+it('confirms a candidate from its exact prefix boundary even when later bytes grow', async () => {
+  await withTmpStateDir(async (dir) => {
+    const sessionId = 'candidate-growth';
+    await setCursorSession(deliveryEntry(sessionId));
+    const transcriptPath = join(dir, 'candidate-growth.jsonl');
+    await writeFile(transcriptPath, '{"role":"assistant","content":"one"}\n');
+    const first = await scan(transcriptPath);
+
+    const staged = await checkpointCursorCandidate({
+      sessionId,
+      stabilityMs: 1000,
+      observation: {
+        turnId: 'turn-growth',
+        fromFrameIndex: 0,
+        throughFrameIndex: 0,
+        entryKeys: ['entry-growth'],
+        prefixBytes: first.safePrefixBytes,
+        prefixSha256: first.safePrefixSha256,
+        observedAt: '2026-07-22T00:00:00.000Z',
+      },
+    });
+    expect(staged).toMatchObject({ status: 'staged' });
+
+    await appendFile(
+      transcriptPath,
+      '{"role":"assistant","content":"later"}\n',
+    );
+    const grown = await scan(transcriptPath, first.safePrefixBytes);
+    expect(grown.file.size).toBeGreaterThan(first.file.size);
+
+    const confirmed = await checkpointCursorCandidate({
+      sessionId,
+      stabilityMs: 1000,
+      observation: {
+        turnId: 'turn-growth',
+        fromFrameIndex: 0,
+        throughFrameIndex: 0,
+        entryKeys: ['entry-growth'],
+        prefixBytes: first.safePrefixBytes,
+        prefixSha256: grown.verifiedPrefixSha256!,
+        observedAt: '2026-07-22T00:00:02.000Z',
+      },
+    });
+    expect(confirmed).toMatchObject({
+      status: 'confirmed',
+      entryKeys: ['entry-growth'],
+    });
+    expect(
+      (await getCursorSession(sessionId))?.stabilityCandidate,
+    ).toMatchObject({
+      prefixBytes: first.safePrefixBytes,
+      confirmedAt: '2026-07-22T00:00:02.000Z',
+    });
+  });
+});
+
+it('replaces a changed stability candidate and restarts its confirmation clock', async () => {
+  await withTmpStateDir(async () => {
+    const sessionId = 'candidate-replaced';
+    await setCursorSession(deliveryEntry(sessionId));
+    const baseObservation = {
+      turnId: 'turn-replaced',
+      fromFrameIndex: 1,
+      throughFrameIndex: 2,
+      entryKeys: ['entry-old'],
+      prefixBytes: 128,
+      prefixSha256: 'c'.repeat(64),
+      observedAt: '2026-07-22T00:00:00.000Z',
+    };
+    await checkpointCursorCandidate({
+      sessionId,
+      stabilityMs: 1000,
+      observation: baseObservation,
+    });
+
+    const replaced = await checkpointCursorCandidate({
+      sessionId,
+      stabilityMs: 1000,
+      observation: {
+        ...baseObservation,
+        entryKeys: ['entry-new'],
+        prefixSha256: 'd'.repeat(64),
+        observedAt: '2026-07-22T00:00:02.000Z',
+      },
+    });
+    expect(replaced).toMatchObject({
+      status: 'replaced',
+      entryKeys: ['entry-new'],
+    });
+    expect(
+      (await getCursorSession(sessionId))?.stabilityCandidate,
+    ).toMatchObject({
+      entryKeys: ['entry-new'],
+      firstObservedAt: '2026-07-22T00:00:02.000Z',
+      confirmAfter: '2026-07-22T00:00:03.000Z',
+      confirmedAt: null,
+    });
+  });
+});
+
+it('restores structural openTurn context across restart without transcript prose', async () => {
+  await withTmpStateDir(async (dir) => {
+    const entry = deliveryEntry('open-turn-restart');
+    await setCursorSession(entry);
+
+    const restarted = await getCursorSession('open-turn-restart');
+    expect(restarted?.openTurn).toEqual(entry.openTurn);
+    expect(restarted?.openTurn).toMatchObject({
+      assistantEntryKeys: ['entry-delivery'],
+      humanRecordIndexes: [0],
+      hasHumanInput: true,
+      hasAutomaticControlInput: false,
+    });
+    expect(
+      await readFile(join(dir, 'cursor-state.json'), 'utf8'),
+    ).not.toContain('assistant prose');
+  });
+});
+
+it('delivery reservation rejects owner conflicts and stale checkpoints', async () => {
+  await withTmpStateDir(async (dir) => {
+    const sessionId = 'delivery-conflict';
+    const entry = deliveryEntry(sessionId);
+    await setCursorSession(entry);
+    const intended = {
+      ...checkpoint(5),
+      prefixBytes: 256,
+      prefixSha256: 'e'.repeat(64),
+      observedSize: 256,
+    };
+    const pending = {
+      deliveryId: 'delivery-conflict-1',
+      expectedNextFrameIndex: 3,
+      expectedCheckpoint: entry.continuity,
+      reservedThroughFrameIndex: 4,
+      entryKeys: ['entry-delivery'],
+      intendedCheckpoint: intended,
+      reservedByPid: 101,
+      reservedAt: '2026-07-22T00:00:00.000Z',
+    };
+
+    await expect(
+      reserveCursorDelivery({
+        sessionId,
+        ownerPid: 101,
+        expected: entry.continuity,
+        pending,
+      }),
+    ).resolves.toBe('reserved');
+    const reservedState = await readFile(
+      join(dir, 'cursor-state.json'),
+      'utf8',
+    );
+    await expect(
+      reserveCursorDelivery({
+        sessionId,
+        ownerPid: 202,
+        expected: entry.continuity,
+        pending: {
+          ...pending,
+          deliveryId: 'delivery-conflict-2',
+          reservedByPid: 202,
+        },
+      }),
+    ).resolves.toBe('owner-conflict');
+    expect(await readFile(join(dir, 'cursor-state.json'), 'utf8')).toBe(
+      reservedState,
+    );
+
+    const staleSession = 'delivery-stale';
+    await setCursorSession(deliveryEntry(staleSession));
+    await expect(
+      reserveCursorDelivery({
+        sessionId: staleSession,
+        ownerPid: 101,
+        expected: checkpoint(2),
+        pending: {
+          ...pending,
+          expectedNextFrameIndex: 2,
+          expectedCheckpoint: checkpoint(2),
+        },
+      }),
+    ).resolves.toBe('stale');
+
+    const structuralStaleSession = 'delivery-structural-stale';
+    const structuralEntry = deliveryEntry(structuralStaleSession);
+    await setCursorSession(structuralEntry);
+    const structurallyChangedExpected = {
+      ...structuralEntry.continuity,
+      prefixSha256: '9'.repeat(64),
+    };
+    await expect(
+      reserveCursorDelivery({
+        sessionId: structuralStaleSession,
+        ownerPid: 101,
+        expected: structurallyChangedExpected,
+        pending: {
+          ...pending,
+          expectedCheckpoint: structurallyChangedExpected,
+        },
+      }),
+    ).resolves.toBe('stale');
+  });
+});
+
+it('abandons a reservation after crash-before-output without advancing state', async () => {
+  await withTmpStateDir(async () => {
+    const sessionId = 'delivery-abandon';
+    const entry = deliveryEntry(sessionId);
+    await setCursorSession(entry);
+    const pending = {
+      deliveryId: 'delivery-abandon-1',
+      expectedNextFrameIndex: 3,
+      expectedCheckpoint: entry.continuity,
+      reservedThroughFrameIndex: 4,
+      entryKeys: ['entry-delivery'],
+      intendedCheckpoint: {
+        ...checkpoint(5),
+        prefixBytes: 256,
+        prefixSha256: 'f'.repeat(64),
+        observedSize: 256,
+      },
+      reservedByPid: 303,
+      reservedAt: '2026-07-22T00:00:00.000Z',
+    };
+    await reserveCursorDelivery({
+      sessionId,
+      ownerPid: 303,
+      expected: entry.continuity,
+      pending,
+    });
+
+    await expect(
+      abandonCursorDelivery({
+        sessionId,
+        deliveryId: pending.deliveryId,
+        ownerPid: 303,
+      }),
+    ).resolves.toBe('abandoned');
+    const after = await getCursorSession(sessionId);
+    expect(after?.continuity).toEqual(entry.continuity);
+    expect(after?.pendingDelivery).toBeNull();
+    expect(after?.lastStatus.delivery).toBe('none');
+  });
+});
+
+it('recovers crash-after-output as replay-safe delivery-uncertain state', async () => {
+  await withTmpStateDir(async () => {
+    const sessionId = 'delivery-uncertain';
+    const entry = deliveryEntry(sessionId);
+    await setCursorSession(entry);
+    const pending = {
+      deliveryId: 'delivery-uncertain-1',
+      expectedNextFrameIndex: 3,
+      expectedCheckpoint: entry.continuity,
+      reservedThroughFrameIndex: 4,
+      entryKeys: ['entry-delivery'],
+      intendedCheckpoint: {
+        ...checkpoint(5),
+        prefixBytes: 256,
+        prefixSha256: '1'.repeat(64),
+        observedSize: 256,
+      },
+      reservedByPid: 404,
+      reservedAt: '2026-07-22T00:00:00.000Z',
+    };
+    await reserveCursorDelivery({
+      sessionId,
+      ownerPid: 404,
+      expected: entry.continuity,
+      pending,
+    });
+
+    const recovered = await recoverCursorDelivery(sessionId);
+    expect(recovered).toEqual({
+      status: 'delivery-uncertain',
+      deliveryId: pending.deliveryId,
+      entryKeys: ['entry-delivery'],
+      expectedNextFrameIndex: 3,
+      reservedThroughFrameIndex: 4,
+    });
+    expect(await recoverCursorDelivery(sessionId)).toEqual(recovered);
+    const after = await getCursorSession(sessionId);
+    expect(after?.continuity).toEqual(entry.continuity);
+    expect(after?.pendingDelivery).toEqual(pending);
+    expect(after?.lastStatus.delivery).toBe('uncertain');
+  });
+});
+
+it('commits a reserved delivery with one checkpoint CAS and is replay-safe', async () => {
+  await withTmpStateDir(async () => {
+    const sessionId = 'delivery-commit';
+    const entry = deliveryEntry(sessionId);
+    await setCursorSession(entry);
+    const intended = {
+      ...checkpoint(5),
+      prefixBytes: 256,
+      prefixSha256: '2'.repeat(64),
+      observedSize: 256,
+    };
+    const pending = {
+      deliveryId: 'delivery-commit-1',
+      expectedNextFrameIndex: 3,
+      expectedCheckpoint: entry.continuity,
+      reservedThroughFrameIndex: 4,
+      entryKeys: ['entry-delivery'],
+      intendedCheckpoint: intended,
+      reservedByPid: 505,
+      reservedAt: '2026-07-22T00:00:00.000Z',
+    };
+    await reserveCursorDelivery({
+      sessionId,
+      ownerPid: 505,
+      expected: entry.continuity,
+      pending,
+    });
+    const nextState = {
+      ...entry,
+      lastRecordIndex: 5,
+      continuity: intended,
+      pendingDelivery: null,
+      openTurn: {
+        ...entry.openTurn!,
+        observedThroughFrame: 4,
+        deliveredEntryKeys: ['entry-delivery'],
+      },
+      lastStatus: {
+        ...entry.lastStatus,
+        delivery: 'committed' as const,
+      },
+    };
+
+    await expect(
+      commitCursorDelivery({
+        sessionId,
+        deliveryId: pending.deliveryId,
+        nextState,
+      }),
+    ).resolves.toBe('committed');
+    expect(await getCursorSession(sessionId)).toEqual(nextState);
+    await expect(
+      commitCursorDelivery({
+        sessionId,
+        deliveryId: pending.deliveryId,
+        nextState,
+      }),
+    ).resolves.toBe('stale');
   });
 });

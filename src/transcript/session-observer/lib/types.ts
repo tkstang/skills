@@ -144,8 +144,11 @@ export interface CursorTurnReconciliation {
   fromFrameIndex: number;
   observedThroughFrame: number;
   deliveredEntryKeys: string[];
+  assistantEntryKeys: string[];
   humanRecordIndexes: number[];
   toolRecordIndexes: number[];
+  hasHumanInput: boolean;
+  hasAutomaticControlInput: boolean;
   lifecycle: CursorLifecycleState;
 }
 
@@ -158,11 +161,23 @@ export interface CursorStabilityCandidate {
   prefixSha256: string;
   firstObservedAt: string;
   confirmAfter: string;
+  confirmedAt: string | null;
+}
+
+export interface CursorCandidateObservation {
+  turnId: string;
+  fromFrameIndex: number;
+  throughFrameIndex: number;
+  entryKeys: string[];
+  prefixBytes: number;
+  prefixSha256: string;
+  observedAt: string;
 }
 
 export interface PendingCursorDelivery {
   deliveryId: string;
   expectedNextFrameIndex: number;
+  expectedCheckpoint: TranscriptContinuityCheckpoint;
   reservedThroughFrameIndex: number;
   entryKeys: string[];
   intendedCheckpoint: TranscriptContinuityCheckpoint;

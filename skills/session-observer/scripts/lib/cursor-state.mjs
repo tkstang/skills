@@ -137,10 +137,13 @@ function isOpenTurn(value) {
     "fromFrameIndex",
     "observedThroughFrame",
     "deliveredEntryKeys",
+    "assistantEntryKeys",
     "humanRecordIndexes",
     "toolRecordIndexes",
+    "hasHumanInput",
+    "hasAutomaticControlInput",
     "lifecycle"
-  ]) && typeof value.turnId === "string" && isNonNegativeInteger(value.fromFrameIndex) && isNonNegativeInteger(value.observedThroughFrame) && isStringArray(value.deliveredEntryKeys) && isIntegerArray(value.humanRecordIndexes) && isIntegerArray(value.toolRecordIndexes) && ["pending", "success", "aborted", "error", "cancelled", "unknown"].includes(
+  ]) && typeof value.turnId === "string" && isNonNegativeInteger(value.fromFrameIndex) && isNonNegativeInteger(value.observedThroughFrame) && isStringArray(value.deliveredEntryKeys) && isStringArray(value.assistantEntryKeys) && isIntegerArray(value.humanRecordIndexes) && isIntegerArray(value.toolRecordIndexes) && typeof value.hasHumanInput === "boolean" && typeof value.hasAutomaticControlInput === "boolean" && ["pending", "success", "aborted", "error", "cancelled", "unknown"].includes(
     String(value.lifecycle)
   );
 }
@@ -153,19 +156,32 @@ function isStabilityCandidate(value) {
     "prefixBytes",
     "prefixSha256",
     "firstObservedAt",
-    "confirmAfter"
-  ]) && typeof value.turnId === "string" && isNonNegativeInteger(value.fromFrameIndex) && isNonNegativeInteger(value.throughFrameIndex) && isStringArray(value.entryKeys) && isNonNegativeInteger(value.prefixBytes) && typeof value.prefixSha256 === "string" && /^[a-f0-9]{64}$/u.test(value.prefixSha256) && typeof value.firstObservedAt === "string" && typeof value.confirmAfter === "string";
+    "confirmAfter",
+    "confirmedAt"
+  ]) && typeof value.turnId === "string" && isNonNegativeInteger(value.fromFrameIndex) && isNonNegativeInteger(value.throughFrameIndex) && isStringArray(value.entryKeys) && isNonNegativeInteger(value.prefixBytes) && typeof value.prefixSha256 === "string" && /^[a-f0-9]{64}$/u.test(value.prefixSha256) && typeof value.firstObservedAt === "string" && Number.isFinite(Date.parse(value.firstObservedAt)) && typeof value.confirmAfter === "string" && Number.isFinite(Date.parse(value.confirmAfter)) && (value.confirmedAt === null || typeof value.confirmedAt === "string" && Number.isFinite(Date.parse(value.confirmedAt)));
+}
+function isCandidateObservation(value) {
+  return isObject(value) && hasOnlyKeys(value, [
+    "turnId",
+    "fromFrameIndex",
+    "throughFrameIndex",
+    "entryKeys",
+    "prefixBytes",
+    "prefixSha256",
+    "observedAt"
+  ]) && typeof value.turnId === "string" && isNonNegativeInteger(value.fromFrameIndex) && isNonNegativeInteger(value.throughFrameIndex) && isStringArray(value.entryKeys) && isNonNegativeInteger(value.prefixBytes) && typeof value.prefixSha256 === "string" && /^[a-f0-9]{64}$/u.test(value.prefixSha256) && typeof value.observedAt === "string" && Number.isFinite(Date.parse(value.observedAt));
 }
 function isPendingDelivery(value) {
   return isObject(value) && hasOnlyKeys(value, [
     "deliveryId",
     "expectedNextFrameIndex",
+    "expectedCheckpoint",
     "reservedThroughFrameIndex",
     "entryKeys",
     "intendedCheckpoint",
     "reservedByPid",
     "reservedAt"
-  ]) && typeof value.deliveryId === "string" && isNonNegativeInteger(value.expectedNextFrameIndex) && isNonNegativeInteger(value.reservedThroughFrameIndex) && isStringArray(value.entryKeys) && isCheckpoint(value.intendedCheckpoint) && isNonNegativeInteger(value.reservedByPid) && typeof value.reservedAt === "string";
+  ]) && typeof value.deliveryId === "string" && value.deliveryId.length > 0 && isNonNegativeInteger(value.expectedNextFrameIndex) && isCheckpoint(value.expectedCheckpoint) && value.expectedNextFrameIndex === value.expectedCheckpoint.nextFrameIndex && isNonNegativeInteger(value.reservedThroughFrameIndex) && isStringArray(value.entryKeys) && isCheckpoint(value.intendedCheckpoint) && value.intendedCheckpoint.nextFrameIndex === value.reservedThroughFrameIndex + 1 && isNonNegativeInteger(value.reservedByPid) && value.reservedByPid > 0 && typeof value.reservedAt === "string" && Number.isFinite(Date.parse(value.reservedAt));
 }
 function isSessionEntry(value) {
   return isObject(value) && hasOnlyKeys(value, [
@@ -180,7 +196,10 @@ function isSessionEntry(value) {
     "openTurn",
     "stabilityCandidate",
     "pendingDelivery"
-  ]) && value.runtime === "cursor" && typeof value.sessionId === "string" && value.sessionId.length > 0 && value.indexBase === "zero-based-jsonl-frame-index" && isNonNegativeInteger(value.lastRecordIndex) && typeof value.canonicalCwd === "string" && value.canonicalCwd.length > 0 && typeof value.transcriptPath === "string" && value.transcriptPath.length > 0 && isCheckpoint(value.continuity) && value.lastRecordIndex === value.continuity.nextFrameIndex && isObservationStatus(value.lastStatus) && (value.openTurn === null || isOpenTurn(value.openTurn)) && (value.stabilityCandidate === null || isStabilityCandidate(value.stabilityCandidate)) && (value.pendingDelivery === null || isPendingDelivery(value.pendingDelivery));
+  ]) && value.runtime === "cursor" && typeof value.sessionId === "string" && value.sessionId.length > 0 && value.indexBase === "zero-based-jsonl-frame-index" && isNonNegativeInteger(value.lastRecordIndex) && typeof value.canonicalCwd === "string" && value.canonicalCwd.length > 0 && typeof value.transcriptPath === "string" && value.transcriptPath.length > 0 && isCheckpoint(value.continuity) && value.lastRecordIndex === value.continuity.nextFrameIndex && isObservationStatus(value.lastStatus) && (value.openTurn === null || isOpenTurn(value.openTurn)) && (value.stabilityCandidate === null || isStabilityCandidate(value.stabilityCandidate)) && (value.pendingDelivery === null || isPendingDelivery(value.pendingDelivery) && checkpointsEqual(
+    value.pendingDelivery.expectedCheckpoint,
+    value.continuity
+  ));
 }
 function isLegacyMarker(value) {
   return isObject(value) && hasOnlyKeys(value, [
@@ -314,6 +333,32 @@ async function writeCursorState(dir, state) {
     JSON.stringify(state, null, 2)
   );
 }
+async function transactCursorState(transaction) {
+  const dir = stateDir();
+  await ensurePrivateDirectory(dir);
+  const lock = lockPath(dir);
+  await acquireLock(lock);
+  try {
+    const state = await readCursorState(dir);
+    const result = transaction(state);
+    if (result.write) await writeCursorState(dir, state);
+    return result.value;
+  } finally {
+    await releaseLock(lock);
+  }
+}
+function checkpointsEqual(left, right) {
+  return left.indexBase === right.indexBase && left.nextFrameIndex === right.nextFrameIndex && left.prefixBytes === right.prefixBytes && left.prefixSha256 === right.prefixSha256 && left.observedSize === right.observedSize && left.device === right.device && left.inode === right.inode;
+}
+function sameStringArray(left, right) {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
+}
+function pendingDeliveriesEqual(left, right) {
+  return left.deliveryId === right.deliveryId && left.expectedNextFrameIndex === right.expectedNextFrameIndex && checkpointsEqual(left.expectedCheckpoint, right.expectedCheckpoint) && left.reservedThroughFrameIndex === right.reservedThroughFrameIndex && sameStringArray(left.entryKeys, right.entryKeys) && checkpointsEqual(left.intendedCheckpoint, right.intendedCheckpoint) && left.reservedByPid === right.reservedByPid && left.reservedAt === right.reservedAt;
+}
+function sameStabilityBoundary(candidate, observation) {
+  return candidate.turnId === observation.turnId && candidate.fromFrameIndex === observation.fromFrameIndex && candidate.throughFrameIndex === observation.throughFrameIndex && candidate.prefixBytes === observation.prefixBytes && candidate.prefixSha256 === observation.prefixSha256 && sameStringArray(candidate.entryKeys, observation.entryKeys);
+}
 function cursorSessionKey(sessionId) {
   return `cursor:${sessionId}`;
 }
@@ -351,7 +396,160 @@ async function setCursorSession(entry) {
     throw new TypeError("cursor-state: invalid Cursor session entry");
   }
   await mutateCursorState((state) => {
-    state.sessions[cursorSessionKey(entry.sessionId)] = entry;
+    const key = cursorSessionKey(entry.sessionId);
+    const existing = state.sessions[key];
+    if (existing?.pendingDelivery && (!entry.pendingDelivery || !pendingDeliveriesEqual(
+      existing.pendingDelivery,
+      entry.pendingDelivery
+    ))) {
+      throw new Error("DELIVERY_RESERVATION_ACTIVE");
+    }
+    state.sessions[key] = entry;
+  });
+}
+async function checkpointCursorCandidate(input) {
+  if (!Number.isSafeInteger(input.stabilityMs) || input.stabilityMs < 0 || !isCandidateObservation(input.observation)) {
+    throw new TypeError("cursor-state: invalid stability observation");
+  }
+  return transactCursorState((state) => {
+    const entry = state.sessions[cursorSessionKey(input.sessionId)];
+    if (!entry) throw new Error("CURSOR_SESSION_NOT_FOUND");
+    if (entry.pendingDelivery) throw new Error("DELIVERY_RESERVATION_ACTIVE");
+    const observedAtMs = Date.parse(input.observation.observedAt);
+    const existing = entry.stabilityCandidate;
+    if (existing && sameStabilityBoundary(existing, input.observation)) {
+      if (existing.confirmedAt !== null) {
+        return {
+          write: false,
+          value: {
+            status: "confirmed",
+            entryKeys: [...existing.entryKeys]
+          }
+        };
+      }
+      if (observedAtMs < Date.parse(existing.confirmAfter)) {
+        return {
+          write: false,
+          value: {
+            status: "waiting",
+            entryKeys: [...existing.entryKeys]
+          }
+        };
+      }
+      existing.confirmedAt = input.observation.observedAt;
+      return {
+        write: true,
+        value: {
+          status: "confirmed",
+          entryKeys: [...existing.entryKeys]
+        }
+      };
+    }
+    const next = {
+      turnId: input.observation.turnId,
+      fromFrameIndex: input.observation.fromFrameIndex,
+      throughFrameIndex: input.observation.throughFrameIndex,
+      entryKeys: [...input.observation.entryKeys],
+      prefixBytes: input.observation.prefixBytes,
+      prefixSha256: input.observation.prefixSha256,
+      firstObservedAt: input.observation.observedAt,
+      confirmAfter: new Date(observedAtMs + input.stabilityMs).toISOString(),
+      confirmedAt: null
+    };
+    entry.stabilityCandidate = next;
+    return {
+      write: true,
+      value: {
+        status: existing === null ? "staged" : "replaced",
+        entryKeys: [...next.entryKeys]
+      }
+    };
+  });
+}
+async function reserveCursorDelivery(input) {
+  if (!isNonNegativeInteger(input.ownerPid) || input.ownerPid === 0 || !isCheckpoint(input.expected) || !isPendingDelivery(input.pending) || input.pending.reservedByPid !== input.ownerPid || input.pending.expectedNextFrameIndex !== input.expected.nextFrameIndex || !checkpointsEqual(input.pending.expectedCheckpoint, input.expected) || input.pending.intendedCheckpoint.nextFrameIndex !== input.pending.reservedThroughFrameIndex + 1) {
+    throw new TypeError("cursor-state: invalid delivery reservation");
+  }
+  return transactCursorState((state) => {
+    const entry = state.sessions[cursorSessionKey(input.sessionId)];
+    if (!entry) return { write: false, value: "stale" };
+    const existing = entry.pendingDelivery;
+    if (existing) {
+      if (existing.reservedByPid !== input.ownerPid) {
+        return { write: false, value: "owner-conflict" };
+      }
+      const idempotent = pendingDeliveriesEqual(existing, input.pending) && checkpointsEqual(entry.continuity, input.expected);
+      return {
+        write: false,
+        value: idempotent ? "reserved" : "owner-conflict"
+      };
+    }
+    if (!checkpointsEqual(entry.continuity, input.expected)) {
+      return { write: false, value: "stale" };
+    }
+    entry.pendingDelivery = structuredClone(input.pending);
+    entry.lastStatus = { ...entry.lastStatus, delivery: "reserved" };
+    return { write: true, value: "reserved" };
+  });
+}
+async function commitCursorDelivery(input) {
+  if (!input.deliveryId || !isSessionEntry(input.nextState) || input.nextState.sessionId !== input.sessionId || input.nextState.pendingDelivery !== null || input.nextState.stabilityCandidate !== null || input.nextState.lastStatus.delivery !== "committed") {
+    throw new TypeError("cursor-state: invalid delivery commit");
+  }
+  return transactCursorState((state) => {
+    const key = cursorSessionKey(input.sessionId);
+    const current = state.sessions[key];
+    const pending = current?.pendingDelivery;
+    if (!current || !pending || pending.deliveryId !== input.deliveryId) {
+      return { write: false, value: "stale" };
+    }
+    if (!checkpointsEqual(current.continuity, pending.expectedCheckpoint) || !checkpointsEqual(pending.intendedCheckpoint, input.nextState.continuity)) {
+      return { write: false, value: "stale" };
+    }
+    state.sessions[key] = structuredClone(input.nextState);
+    return { write: true, value: "committed" };
+  });
+}
+async function abandonCursorDelivery(input) {
+  if (!input.sessionId || !input.deliveryId || !isNonNegativeInteger(input.ownerPid) || input.ownerPid === 0) {
+    throw new TypeError("cursor-state: invalid delivery abandonment");
+  }
+  return transactCursorState((state) => {
+    const entry = state.sessions[cursorSessionKey(input.sessionId)];
+    const pending = entry?.pendingDelivery;
+    if (!entry || !pending || pending.deliveryId !== input.deliveryId) {
+      return { write: false, value: "stale" };
+    }
+    if (pending.reservedByPid !== input.ownerPid) {
+      return { write: false, value: "owner-conflict" };
+    }
+    if (entry.lastStatus.delivery === "uncertain") {
+      return { write: false, value: "delivery-uncertain" };
+    }
+    entry.pendingDelivery = null;
+    entry.lastStatus = { ...entry.lastStatus, delivery: "none" };
+    return { write: true, value: "abandoned" };
+  });
+}
+async function recoverCursorDelivery(sessionId) {
+  return transactCursorState((state) => {
+    const entry = state.sessions[cursorSessionKey(sessionId)];
+    const pending = entry?.pendingDelivery;
+    if (!entry || !pending) {
+      return { write: false, value: { status: "none" } };
+    }
+    const value = {
+      status: "delivery-uncertain",
+      deliveryId: pending.deliveryId,
+      entryKeys: [...pending.entryKeys],
+      expectedNextFrameIndex: pending.expectedNextFrameIndex,
+      reservedThroughFrameIndex: pending.reservedThroughFrameIndex
+    };
+    if (entry.lastStatus.delivery === "uncertain") {
+      return { write: false, value };
+    }
+    entry.lastStatus = { ...entry.lastStatus, delivery: "uncertain" };
+    return { write: true, value };
   });
 }
 async function resetCursorSessionState(sessionId) {
@@ -380,11 +578,16 @@ async function clearCursorState() {
   await resetAllCursorState();
 }
 export {
+  abandonCursorDelivery,
+  checkpointCursorCandidate,
   clearCursorState,
+  commitCursorDelivery,
   cursorSessionKey,
   getCursorSession,
   loadCursorState,
   mutateCursorState,
+  recoverCursorDelivery,
+  reserveCursorDelivery,
   resetAllCursorState,
   resetCursorSessionState,
   setCursorSession,
