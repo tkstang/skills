@@ -3,28 +3,42 @@ name: Live Provider E2E
 # Manual-dispatch-only gate for tests/consensus/provider-cli/e2e/submit-live.e2e.test.ts
 # — the one test that exercises a real provider CLI (claude/codex/cursor)
 # instead of the fixture stubs the rest of the suite uses. It spends real
-# provider API quota and requires an authenticated provider CLI on the
-# runner, so this workflow is intentionally opt-in: manual-dispatch only,
-# never wired to `pull_request`/`push`/tag triggers. See RELEASING.md and
-# `pnpm run test:live-e2e` for the local equivalent.
+# provider API quota, so this workflow is intentionally opt-in:
+# manual-dispatch only, never wired to `pull_request`/`push`/tag triggers.
+# See RELEASING.md and `pnpm run test:live-e2e` for the local equivalent.
 #
-# Required secrets (reference only — this workflow does not create them):
-# configure whichever secret matches the selected `provider` input's CLI
-# auth mechanism as a repository or environment secret before dispatching.
-# Illustrative names, confirm against the installed provider CLI's own docs:
-#   - ANTHROPIC_API_KEY — Claude Code CLI (`provider: claude`)
-#   - OPENAI_API_KEY    — Codex CLI (`provider: codex`, the default)
-#   - CURSOR_API_KEY    — Cursor CLI (`provider: cursor`)
-# Provisioning/installing the provider CLI binaries themselves on the runner
-# is also an operator responsibility this workflow does not perform. Without
-# a usable provider, the live test's gating helper fails loudly (not a
-# silent skip) so a misconfigured run is visible in the job logs.
+# What this job provisions on the runner (pinned, no operator action needed):
+#   - provider: codex  -> `npm install -g @openai/codex@0.145.0`.
+#   - provider: claude -> `npm install -g @anthropic-ai/claude-code@2.1.206`
+#     (the `stable` npm dist-tag at the time this was pinned).
+#   - provider: cursor -> NOT provisioned. Cursor ships no npm package, and its
+#     official installer (`curl https://cursor.com/install -fsS | bash`) has
+#     no version-pin support, so a fresh GitHub-hosted runner cannot get a
+#     reproducible `cursor-agent`. Dispatching with `provider: cursor` fails
+#     fast with an explicit error instead of silently skipping the install;
+#     run Cursor live E2E on a self-hosted runner with `cursor-agent`
+#     pre-installed and authenticated instead.
+#
+# What the operator must configure (not provisioned by this workflow):
+#   - Provider authentication. Configure whichever secret matches the selected
+#     `provider` input's CLI auth mechanism as a repository or environment
+#     secret before dispatching. Illustrative names — confirm the actual env
+#     var against the installed provider CLI's own docs, since this repo's
+#     source never reads them (provider auth is entirely the CLI's own
+#     concern):
+#       - ANTHROPIC_API_KEY — Claude Code CLI (`provider: claude`)
+#       - OPENAI_API_KEY    — Codex CLI (`provider: codex`)
+#       - CURSOR_API_KEY    — Cursor CLI (`provider: cursor`, self-hosted only)
+#   - For `provider: cursor`: the self-hosted runner itself, with
+#     `cursor-agent` already installed and authenticated in that environment.
+# Without a usable provider, the live test's gating helper fails loudly (not a
+# silent skip) so a misconfigured run is visible in the job logs either way.
 
 on:
   workflow_dispatch:
     inputs:
       provider:
-        description: "Provider CLI to exercise (claude, codex, or cursor)"
+        description: "Provider CLI to exercise (codex/claude install here; cursor requires a self-hosted runner, see header)"
         type: choice
         options:
           - codex
@@ -53,5 +67,16 @@ jobs:
           node-version: "22"
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Install codex CLI
+        if: inputs.provider == 'codex'
+        run: npm install -g @openai/codex@0.145.0
+      - name: Install claude CLI
+        if: inputs.provider == 'claude'
+        run: npm install -g @anthropic-ai/claude-code@2.1.206
+      - name: Cursor CLI is unavailable on GitHub-hosted runners
+        if: inputs.provider == 'cursor'
+        run: |
+          echo "::error::provider: cursor has no pinned headless install path on a fresh GitHub-hosted runner (no npm package; the official curl installer has no version pin). Run this job on a self-hosted runner with cursor-agent pre-installed and authenticated, or dispatch with provider: codex or provider: claude instead." >&2
+          exit 1
       - name: Live provider submit E2E
         run: pnpm run test:live-e2e
