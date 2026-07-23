@@ -1,7 +1,7 @@
 ---
 id: BL-260718-surface-the-live-provider-e2e
 title: Surface the live-provider E2E gate
-status: open
+status: closed
 priority: medium
 scope: task
 scope_estimate: S
@@ -11,7 +11,7 @@ labels:
   - release
 assignee: null
 created: 2026-07-18T00:04:09Z
-updated: 2026-07-18T00:04:09Z
+updated: '2026-07-23T08:18:21Z'
 associated_issues: []
 external_plans:
   - .oat/repo/reference/external-plans/2026-07-17-live-provider-e2e-visibility.md
