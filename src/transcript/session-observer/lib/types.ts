@@ -1,5 +1,11 @@
-import type { CursorLifecycleState } from '../../core/cursor-analysis.js';
-import type { CursorFrameIssue } from '../../core/cursor-frames.js';
+import type {
+  CursorLifecycleState,
+  CursorTranscriptAnalysis,
+} from '../../core/cursor-analysis.js';
+import type {
+  CursorFrameIssue,
+  CursorTranscriptScan,
+} from '../../core/cursor-frames.js';
 import type {
   AutomaticControlProvenance,
   CursorTerminalStatus,
@@ -477,6 +483,11 @@ export type SessionDigest = Digest | CursorDigestV2;
 
 export type CursorBuildDigestOptions = BuildDigestOptions & {
   cursorProjection: CursorProjection;
+  cursorIdentity: CursorIdentityEvidence;
+  cursorScan: CursorTranscriptScan;
+  cursorAnalysis: CursorTranscriptAnalysis;
+  cursorState: CursorSessionStateEntry | null;
+  cursorContinuity: 'new' | 'verified';
 };
 
 export interface SessionStateEntry {

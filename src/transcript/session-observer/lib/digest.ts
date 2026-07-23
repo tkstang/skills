@@ -20,6 +20,10 @@
  *     matchedTier, widenedFrom, active, mode, range, accounting, entries, filters, warnings, fallbacks }
  */
 
+import type {
+  CursorAssistantContentRecord,
+  CursorTurnAnalysis,
+} from '../../core/cursor-analysis.js';
 import {
   type DigestEntry,
   type Runtime,
@@ -30,18 +34,26 @@ import {
 import { classifyTranscriptRecords } from './session-classifier.js';
 import type {
   BuildDigestOptions,
+  CursorBuildDigestOptions,
+  CursorDigestAccountingV2,
+  CursorDigestEntryV2,
+  CursorDigestV2,
+  CursorLifecycleEvent,
+  CursorRecoveryPointerV2,
   Digest,
   DigestAccounting,
   DigestFilters,
   DigestRecoveryPointer,
   DigestRange,
+  SessionDigest,
+  TranscriptClassification,
 } from './types.js';
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 1 as const;
 const LARGE_OUTPUT_THRESHOLD = 20_000; // chars
 const AUTO_LARGE_DIGEST_TURNS = 8;
 
@@ -56,16 +68,16 @@ const AUTO_LARGE_DIGEST_TURNS = 8;
  * @param {{ maxTurns?: number, maxBytes?: number }} opts
  * @returns {object[]}
  */
-function applyTailSlice(
-  entries: DigestEntry[],
+function applyTailSlice<T extends DigestEntry>(
+  entries: T[],
   opts: Pick<BuildDigestOptions, 'maxTurns' | 'maxBytes'>,
-): DigestEntry[] {
+): T[] {
   const { maxTurns, maxBytes } = opts;
 
   if (maxBytes && maxBytes > 0) {
     // Walk from the tail, accumulate byte count, include entries until we exceed maxBytes
     let cumBytes = 0;
-    const result: DigestEntry[] = [];
+    const result: T[] = [];
     for (let i = entries.length - 1; i >= 0; i--) {
       const entryBytes = Buffer.byteLength(entries[i].text || '', 'utf8');
       if (cumBytes + entryBytes > maxBytes && result.length > 0) break;
@@ -135,9 +147,9 @@ function omittedUserMessageRecoveryPointers(
  * @param {object[]} entries
  * @returns {object[][]}
  */
-function groupByRole(entries: DigestEntry[]): DigestEntry[][] {
+function groupByRole<T extends DigestEntry>(entries: T[]): T[][] {
   if (entries.length === 0) return [];
-  const groups: DigestEntry[][] = [];
+  const groups: T[][] = [];
   let currentGroup = [entries[0]!];
 
   for (let i = 1; i < entries.length; i++) {
@@ -266,6 +278,540 @@ function formatHeader(digest: Digest): string {
   return lines.join('\n');
 }
 
+function recoveryPointerKey(pointer: CursorRecoveryPointerV2): string {
+  return `${pointer.frameIndex}:${pointer.entryKey}`;
+}
+
+function addCursorRecoveryPointer(
+  pointers: CursorRecoveryPointerV2[],
+  seen: Set<string>,
+  pointer: CursorRecoveryPointerV2,
+): void {
+  const key = recoveryPointerKey(pointer);
+  if (seen.has(key)) return;
+  seen.add(key);
+  pointers.push(pointer);
+}
+
+function cursorRecoveryPointer(
+  transcriptPath: string,
+  frameIndex: number,
+  entryKey: string,
+): CursorRecoveryPointerV2 {
+  return {
+    transcriptPath,
+    indexBase: 'zero-based-jsonl-frame-index',
+    frameIndex,
+    entryKey,
+  };
+}
+
+function cursorEntry(
+  record: CursorAssistantContentRecord,
+  deliveryFrameIndex: number,
+  availability: CursorDigestEntryV2['availability'],
+): CursorDigestEntryV2 {
+  return {
+    role: 'assistant',
+    text: record.text,
+    recordIndex: deliveryFrameIndex,
+    sourceFrameIndex: record.sourceFrameIndex,
+    kind: 'message',
+    entryKey: record.entryKey,
+    turnId: record.turnId,
+    availability,
+  };
+}
+
+function isCursorBuildDigestOptions(
+  opts: BuildDigestOptions | CursorBuildDigestOptions,
+): opts is CursorBuildDigestOptions {
+  return (
+    'cursorProjection' in opts &&
+    'cursorScan' in opts &&
+    'cursorAnalysis' in opts &&
+    'cursorIdentity' in opts &&
+    'cursorContinuity' in opts
+  );
+}
+
+function cursorStateTurn(
+  turn: CursorTurnAnalysis,
+  opts: CursorBuildDigestOptions,
+) {
+  const openTurn = opts.cursorState?.openTurn ?? null;
+  if (openTurn === null) return null;
+  if (openTurn.turnId === turn.turnId) return openTurn;
+  if (
+    turn.lifecycle !== 'pending' &&
+    turn.assistantRecords.length === 0 &&
+    turn.terminalFrameIndex !== null &&
+    opts.cursorAnalysis.turns.find(
+      (candidate) => candidate.terminalFrameIndex !== null,
+    ) === turn
+  ) {
+    return openTurn;
+  }
+  return null;
+}
+
+function cursorEngagement(
+  opts: CursorBuildDigestOptions,
+): TranscriptClassification {
+  const humanFrames = new Set<number>();
+  let assistantMessages = 0;
+  let hasAutomaticControlInput = false;
+
+  for (const turn of opts.cursorAnalysis.turns) {
+    const stateTurn = cursorStateTurn(turn, opts);
+    for (const frameIndex of turn.humanRecordIndexes) {
+      humanFrames.add(frameIndex);
+    }
+    assistantMessages += Math.max(
+      turn.assistantRecords.length,
+      stateTurn?.assistantEntryKeys.length ?? 0,
+    );
+    if (stateTurn) {
+      for (const frameIndex of stateTurn.humanRecordIndexes) {
+        humanFrames.add(frameIndex);
+      }
+      hasAutomaticControlInput ||= stateTurn.hasAutomaticControlInput;
+    }
+  }
+
+  const genuineUserMessages = humanFrames.size;
+  const syntheticUserMessages = hasAutomaticControlInput ? 1 : 0;
+  const engaged = genuineUserMessages > 0 && assistantMessages > 0;
+  return {
+    status: engaged
+      ? 'engaged'
+      : genuineUserMessages > 0 ||
+          assistantMessages > 0 ||
+          syntheticUserMessages > 0
+        ? 'unengaged'
+        : 'unknown',
+    engaged,
+    recordCount: opts.cursorScan.totalFrames,
+    genuineUserMessages,
+    syntheticUserMessages,
+    assistantMessages,
+    realMessageCount: genuineUserMessages + assistantMessages,
+    hasAssistantAndUser: engaged,
+    bootstrapRecordIndexes: [],
+    bootstrapRecordCount: 0,
+  };
+}
+
+function formatCursorHeader(digest: CursorDigestV2): string {
+  const { status } = digest.cursorEvidence;
+  const lines = [
+    '## session-observer digest',
+    '',
+    `**runtime:** ${digest.runtime}`,
+    `**mode:** ${digest.mode}`,
+  ];
+  if (digest.recordedCwd) lines.push(`**cwd:** ${digest.recordedCwd}`);
+  lines.push(`**transcript:** ${digest.transcriptPath}`);
+  if (digest.active) lines.push('**status:** ACTIVE (modified < 60s ago)');
+
+  const { range, accounting } = digest;
+  if (range.newFrames > 0) {
+    lines.push(
+      `**raw range (zero-based JSONL frame indices):** frames ${range.fromIndex}–${range.toIndex} of ${range.totalFrames}`,
+    );
+  } else {
+    lines.push(
+      `**raw range (zero-based JSONL frame indices):** no consumed frames at offset ${range.fromIndex} of ${range.totalFrames}`,
+    );
+  }
+  lines.push(`**raw frames consumed:** ${range.newFrames}`);
+  lines.push(`**rendered messages:** ${accounting.rendered.count}`);
+  lines.push(`**engagement:** ${status.engagement}`);
+  lines.push(`**activity:** ${status.activity}`);
+  lines.push(`**content:** ${status.content}`);
+  lines.push(`**lifecycle:** ${status.lifecycle}`);
+  lines.push(`**delivery:** ${status.delivery}`);
+  lines.push(`**health:** ${status.health}`);
+  lines.push(`**projection:** ${digest.cursorEvidence.projection}`);
+  lines.push(`**continuity:** ${digest.cursorEvidence.continuity}`);
+
+  if (accounting.buffered.count > 0) {
+    lines.push(
+      `**buffered:** ${accounting.buffered.count} frame(s) from ${accounting.buffered.fromIndex} (${accounting.buffered.reason})`,
+    );
+  }
+  if (digest.cursorEvidence.blockingFrame) {
+    const blocking = digest.cursorEvidence.blockingFrame;
+    lines.push(
+      `**blocking frame:** ${blocking.frameIndex} (${blocking.parseState}, bytes ${blocking.byteStart}–${blocking.byteEnd})`,
+    );
+  }
+  for (const event of digest.cursorEvidence.lifecycleEvents) {
+    lines.push(
+      `**lifecycle event:** ${event.lifecycle} at frame ${event.terminalFrameIndex} (turn ${event.turnId}, final entry ${event.finalEntryKey ?? 'none'}, previously observable ${event.contentPreviouslyObservable})`,
+    );
+  }
+
+  const recoveryPointers = [
+    ...accounting.recovery.omittedUserMessages,
+    ...accounting.recovery.omittedAssistantEntries,
+  ];
+  if (recoveryPointers.length > 0) {
+    lines.push(
+      `**recovery pointers:** ${recoveryPointers
+        .map((pointer) => `frame ${pointer.frameIndex} (${pointer.entryKey})`)
+        .join(' · ')}`,
+    );
+  }
+  for (const warning of digest.warnings) {
+    lines.push(`**warning:** ${warning}`);
+  }
+  lines.push('', '---', '');
+  return lines.join('\n');
+}
+
+function buildCursorDigest(
+  transcriptPath: string,
+  opts: CursorBuildDigestOptions,
+): CursorDigestV2 {
+  const { cursorScan: scan, cursorAnalysis: analysis } = opts;
+  if (
+    scan.indexBase !== 'zero-based-jsonl-frame-index' ||
+    opts.cursorIdentity.runtime !== 'cursor'
+  ) {
+    throw new TypeError('Cursor digest requires frame-index Cursor evidence');
+  }
+
+  const fromIndex =
+    opts.fromIndex ?? opts.cursorState?.continuity.nextFrameIndex ?? 0;
+  if (!Number.isSafeInteger(fromIndex) || fromIndex < 0) {
+    throw new TypeError('Cursor digest fromIndex must be non-negative');
+  }
+  const safeNextIndex = Math.max(
+    fromIndex,
+    Math.min(
+      scan.totalFrames,
+      scan.safeThroughFrame === null ? 0 : scan.safeThroughFrame + 1,
+    ),
+  );
+  let nextIndex = safeNextIndex;
+  let stabilityWaitFrom: number | null = null;
+  let latestLifecycle: CursorDigestV2['cursorEvidence']['status']['lifecycle'] =
+    'none';
+  let hasAssistantActivity = false;
+  let hasToolActivity = false;
+  let hasHumanActivity = false;
+  let suppressedContent = false;
+  let unstableContent = 0;
+  const entriesBeforeTailSlice: CursorDigestEntryV2[] = [];
+  const lifecycleEvents: CursorLifecycleEvent[] = [];
+  const omittedUserMessages: CursorRecoveryPointerV2[] = [];
+  const omittedAssistantEntries: CursorRecoveryPointerV2[] = [];
+  const seenUserPointers = new Set<string>();
+  const seenAssistantPointers = new Set<string>();
+
+  for (const turn of analysis.turns) {
+    const stateTurn = cursorStateTurn(turn, opts);
+    const turnId = stateTurn?.turnId ?? turn.turnId;
+    const deliveredEntryKeys = new Set(stateTurn?.deliveredEntryKeys ?? []);
+    const substantiveRecords = turn.assistantRecords.filter(
+      (record) => record.classification === 'substantive',
+    );
+    hasAssistantActivity ||=
+      turn.assistantRecords.length > 0 ||
+      (stateTurn?.assistantEntryKeys.length ?? 0) > 0;
+    hasToolActivity ||=
+      turn.toolRecordIndexes.length > 0 ||
+      (stateTurn?.toolRecordIndexes.length ?? 0) > 0;
+    hasHumanActivity ||=
+      turn.humanRecordIndexes.length > 0 ||
+      (stateTurn?.humanRecordIndexes.length ?? 0) > 0;
+    latestLifecycle = turn.lifecycle;
+
+    const humanFrameIndexes = new Set([
+      ...turn.humanRecordIndexes,
+      ...(stateTurn?.humanRecordIndexes ?? []),
+    ]);
+    for (const frameIndex of humanFrameIndexes) {
+      if (frameIndex < fromIndex || frameIndex >= safeNextIndex) continue;
+      addCursorRecoveryPointer(
+        omittedUserMessages,
+        seenUserPointers,
+        cursorRecoveryPointer(
+          transcriptPath,
+          frameIndex,
+          `${turnId}:frame:${frameIndex}:user`,
+        ),
+      );
+    }
+
+    if (turn.lifecycle === 'pending') {
+      if (opts.cursorProjection === 'confirmed-completion') {
+        stabilityWaitFrom =
+          stabilityWaitFrom === null
+            ? turn.fromFrameIndex
+            : Math.min(stabilityWaitFrom, turn.fromFrameIndex);
+        continue;
+      }
+
+      const candidate = opts.cursorState?.stabilityCandidate;
+      const stableEntryKeys =
+        candidate?.turnId === turnId && candidate.confirmedAt !== null
+          ? new Set(candidate.entryKeys)
+          : new Set<string>();
+      for (const record of substantiveRecords) {
+        if (deliveredEntryKeys.has(record.entryKey)) continue;
+        if (!stableEntryKeys.has(record.entryKey)) {
+          unstableContent += 1;
+          stabilityWaitFrom =
+            stabilityWaitFrom === null
+              ? record.sourceFrameIndex
+              : Math.min(stabilityWaitFrom, record.sourceFrameIndex);
+          continue;
+        }
+        entriesBeforeTailSlice.push(
+          cursorEntry(record, record.sourceFrameIndex, 'pending-lifecycle'),
+        );
+      }
+      continue;
+    }
+
+    const finalEntryKey =
+      turn.finalSubstantiveEntryKey ??
+      (turn.lifecycle === 'success'
+        ? (stateTurn?.assistantEntryKeys.at(-1) ?? null)
+        : null);
+    lifecycleEvents.push({
+      turnId,
+      terminalFrameIndex: turn.terminalFrameIndex!,
+      lifecycle: turn.lifecycle,
+      finalEntryKey,
+      contentPreviouslyObservable:
+        finalEntryKey !== null && deliveredEntryKeys.has(finalEntryKey),
+    });
+
+    if (turn.lifecycle !== 'success') {
+      suppressedContent ||=
+        substantiveRecords.length > 0 ||
+        (stateTurn?.assistantEntryKeys.length ?? 0) > 0;
+      continue;
+    }
+
+    const finalRecord = substantiveRecords.find(
+      (record) => record.entryKey === finalEntryKey,
+    );
+    if (
+      finalRecord &&
+      (opts.cursorProjection === 'confirmed-completion' ||
+        !deliveredEntryKeys.has(finalRecord.entryKey))
+    ) {
+      entriesBeforeTailSlice.push(
+        cursorEntry(finalRecord, turn.terminalFrameIndex!, 'completed'),
+      );
+    }
+    for (const record of substantiveRecords) {
+      if (record.entryKey === finalEntryKey) continue;
+      if (
+        opts.cursorProjection === 'observation' &&
+        deliveredEntryKeys.has(record.entryKey)
+      ) {
+        continue;
+      }
+      addCursorRecoveryPointer(
+        omittedAssistantEntries,
+        seenAssistantPointers,
+        cursorRecoveryPointer(
+          transcriptPath,
+          record.sourceFrameIndex,
+          record.entryKey,
+        ),
+      );
+    }
+  }
+
+  if (stabilityWaitFrom !== null) {
+    nextIndex = Math.min(nextIndex, stabilityWaitFrom);
+  }
+  const entries = applyTailSlice(entriesBeforeTailSlice, {
+    maxTurns: opts.maxTurns,
+    maxBytes: opts.maxBytes,
+  });
+  const retainedEntries = new Set(entries);
+  for (const entry of entriesBeforeTailSlice) {
+    if (retainedEntries.has(entry)) continue;
+    addCursorRecoveryPointer(
+      omittedAssistantEntries,
+      seenAssistantPointers,
+      cursorRecoveryPointer(
+        transcriptPath,
+        entry.sourceFrameIndex,
+        entry.entryKey,
+      ),
+    );
+  }
+
+  const blockingFrame = scan.blockingFrame ?? analysis.blockingFrame;
+  const blockingReason =
+    blockingFrame !== null && blockingFrame.frameIndex <= nextIndex
+      ? blockingFrame.parseState
+      : null;
+  const bufferedReason =
+    stabilityWaitFrom !== null &&
+    (blockingFrame === null || stabilityWaitFrom < blockingFrame.frameIndex)
+      ? 'stability-wait'
+      : blockingReason;
+  const bufferedCount = Math.max(0, scan.totalFrames - nextIndex);
+  const bufferedFromIndex = bufferedCount > 0 ? nextIndex : null;
+  const renderedFromIndex =
+    entries.length > 0
+      ? Math.min(...entries.map((entry) => entry.recordIndex))
+      : null;
+  const renderedToIndex =
+    entries.length > 0
+      ? Math.max(...entries.map((entry) => entry.recordIndex))
+      : null;
+  const rawCount = Math.max(0, nextIndex - fromIndex);
+  const rawToIndex = rawCount > 0 ? nextIndex - 1 : null;
+  const inRawRange = (frameIndex: number) =>
+    frameIndex >= fromIndex && frameIndex < nextIndex;
+  const toolFrames = new Set<number>();
+  let automaticControls = 0;
+  let emptyOrNoOp = 0;
+  for (const turn of analysis.turns) {
+    for (const frameIndex of turn.toolRecordIndexes) {
+      if (inRawRange(frameIndex)) toolFrames.add(frameIndex);
+    }
+    for (const record of turn.assistantRecords) {
+      if (!inRawRange(record.sourceFrameIndex)) continue;
+      if (record.classification === 'automatic-control') {
+        automaticControls += 1;
+      } else if (
+        record.classification === 'empty' ||
+        record.classification === 'no-op'
+      ) {
+        emptyOrNoOp += 1;
+      }
+    }
+  }
+  const accounting: CursorDigestAccountingV2 = {
+    indexBase: 'zero-based-jsonl-frame-index',
+    raw: {
+      fromIndex,
+      toIndex: rawToIndex,
+      count: rawCount,
+      nextIndex,
+      totalFrames: scan.totalFrames,
+    },
+    rendered: {
+      count: entries.length,
+      fromIndex: renderedFromIndex,
+      toIndex: renderedToIndex,
+    },
+    filtered: {
+      toolCalls: toolFrames.size,
+      automaticControls,
+      emptyOrNoOp,
+      metadataFrames: analysis.metadataFrameIndexes.filter(inRawRange).length,
+      unstableContent,
+    },
+    buffered: {
+      fromIndex: bufferedFromIndex,
+      count: bufferedCount,
+      reason: bufferedCount > 0 ? bufferedReason : null,
+    },
+    recovery: {
+      omittedUserMessages,
+      omittedAssistantEntries,
+    },
+  };
+
+  const warnings = [...(opts.warnings ?? [])];
+  for (const event of lifecycleEvents) {
+    if (event.lifecycle !== 'success') {
+      warnings.push(
+        `Cursor lifecycle ${event.lifecycle} at frame ${event.terminalFrameIndex}; observed content did not become a successful completion.`,
+      );
+    }
+  }
+  if (blockingFrame) {
+    warnings.push(
+      blockingFrame.parseState === 'malformed'
+        ? `Cursor transcript is blocked by malformed frame ${blockingFrame.frameIndex}.`
+        : `Cursor transcript has a partial frame at ${blockingFrame.frameIndex}.`,
+    );
+  }
+
+  const engagement = cursorEngagement(opts);
+  const content = entries.length
+    ? 'available'
+    : suppressedContent
+      ? 'suppressed'
+      : bufferedCount > 0
+        ? 'buffered'
+        : 'none';
+  const status: CursorDigestV2['cursorEvidence']['status'] = {
+    engagement: engagement.status,
+    activity: hasAssistantActivity
+      ? 'assistant-progress'
+      : hasToolActivity
+        ? 'tool-activity'
+        : hasHumanActivity
+          ? 'human-input'
+          : 'none',
+    content,
+    lifecycle: latestLifecycle,
+    delivery:
+      opts.cursorState?.pendingDelivery !== null &&
+      opts.cursorState?.pendingDelivery !== undefined
+        ? 'uncertain'
+        : opts.cursorState?.lastStatus.delivery === 'uncertain'
+          ? 'uncertain'
+          : 'none',
+    health: blockingFrame?.parseState === 'malformed' ? 'blocked' : 'healthy',
+  };
+  const filters: DigestFilters = {
+    includeToolCalls: opts.includeToolCalls ?? false,
+    includeToolResults: opts.includeToolResults ?? false,
+    includeCommandMessages: opts.includeCommandMessages ?? false,
+  };
+
+  return {
+    schemaVersion: 2,
+    runtime: 'cursor',
+    sessionId: opts.sessionId ?? opts.cursorIdentity.sessionId,
+    transcriptPath,
+    recordedCwd: opts.recordedCwd ?? opts.cursorIdentity.canonicalCwd,
+    matchedTier: opts.matchedTier ?? null,
+    widenedFrom: opts.widenedFrom ?? null,
+    active: opts.active ?? false,
+    engagement,
+    mode: opts.mode ?? 'review',
+    range: {
+      indexBase: 'zero-based-jsonl-frame-index',
+      fromIndex,
+      toIndex: rawToIndex,
+      nextIndex,
+      totalFrames: scan.totalFrames,
+      renderedFromIndex,
+      renderedToIndex,
+      newFrames: rawCount,
+    },
+    accounting,
+    entries,
+    filters,
+    warnings,
+    fallbacks: opts.fallbacks ?? [],
+    cursorEvidence: {
+      projection: opts.cursorProjection,
+      continuity: opts.cursorContinuity,
+      status,
+      lifecycleEvents,
+      bufferedFromFrame: bufferedFromIndex,
+      blockingFrame,
+    },
+  };
+}
+
 // ---------------------------------------------------------------------------
 // buildDigest
 // ---------------------------------------------------------------------------
@@ -291,11 +837,25 @@ function formatHeader(digest: Digest): string {
  * @param {object[]} [opts.fallbacks]
  * @returns {Promise<object>}  Digest
  */
+export function buildDigest(
+  runtime: 'cursor',
+  transcriptPath: string,
+  opts: CursorBuildDigestOptions,
+): Promise<CursorDigestV2>;
+export function buildDigest(
+  runtime: Runtime,
+  transcriptPath: string,
+  opts?: BuildDigestOptions,
+): Promise<Digest>;
 export async function buildDigest(
   runtime: Runtime,
   transcriptPath: string,
-  opts: BuildDigestOptions = {},
-): Promise<Digest> {
+  opts: BuildDigestOptions | CursorBuildDigestOptions = {},
+): Promise<SessionDigest> {
+  if (runtime === 'cursor' && isCursorBuildDigestOptions(opts)) {
+    return buildCursorDigest(transcriptPath, opts);
+  }
+
   const {
     fromIndex = 0,
     mode = 'review',
@@ -523,11 +1083,15 @@ export async function buildDigest(
  * @param {object} digest
  * @returns {string}
  */
-export function renderMarkdown(digest: Digest): string {
+export function renderMarkdown(digest: SessionDigest): string {
   const parts: string[] = [];
 
   // Header
-  parts.push(formatHeader(digest));
+  parts.push(
+    digest.schemaVersion === 2
+      ? formatCursorHeader(digest)
+      : formatHeader(digest),
+  );
 
   // Content: group by role
   const groups = groupByRole(digest.entries);
@@ -548,6 +1112,13 @@ export function renderMarkdown(digest: Digest): string {
       parts.push(header);
       parts.push('');
       for (const entry of group) {
+        if (digest.schemaVersion === 2) {
+          const cursorDigestEntry = entry as CursorDigestEntryV2;
+          parts.push(
+            `*${cursorDigestEntry.availability}; source frame ${cursorDigestEntry.sourceFrameIndex}; entry ${cursorDigestEntry.entryKey}*`,
+          );
+          parts.push('');
+        }
         parts.push(entry.text);
         parts.push('');
       }
@@ -577,6 +1148,6 @@ export function renderMarkdown(digest: Digest): string {
  * @param {object} digest
  * @returns {string}
  */
-export function renderJson(digest: Digest): string {
+export function renderJson(digest: SessionDigest): string {
   return JSON.stringify(digest, null, 2);
 }

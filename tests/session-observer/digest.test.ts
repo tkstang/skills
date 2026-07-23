@@ -32,13 +32,17 @@ const automaticWakeFixtures = [
   ['cursor', join(FIXTURES, 'cursor', 'automatic-wake.jsonl')],
 ] as const;
 
+import { createCursorTurnAccumulator } from '../../src/transcript/core/cursor-analysis.js';
+import { scanCursorTranscript } from '../../src/transcript/core/cursor-frames.js';
 import {
   buildDigest,
   renderJson,
   renderMarkdown,
 } from '../../src/transcript/session-observer/lib/digest.js';
 import type {
+  CursorIdentityEvidence,
   CursorDigestV2,
+  CursorSessionStateEntry,
   Digest,
   SessionDigest,
 } from '../../src/transcript/session-observer/lib/types.js';
@@ -284,6 +288,480 @@ describe('Cursor digest v2 data contract', () => {
       finalEntryKey: 'entry-assistant-8',
       contentPreviouslyObservable: true,
     });
+  });
+});
+
+async function cursorDigestAnalysis(
+  transcriptPath: string,
+  fromFrameIndex = 0,
+) {
+  const identity = {
+    runtime: 'cursor',
+    sessionId: 'cursor-digest-behavior',
+    projectCwd: '/synthetic/project',
+    canonicalCwd: '/synthetic/project',
+    canonicalTranscriptPath: transcriptPath,
+    cwdEvidence: ['direct-project-root'],
+    sessionEvidence: ['explicit-pin'],
+    strength: 'exact',
+    reasons: [],
+  } satisfies CursorIdentityEvidence;
+  const accumulator = createCursorTurnAccumulator(identity, fromFrameIndex);
+  const scan = await scanCursorTranscript(transcriptPath, {
+    onFrame(frame) {
+      accumulator.onFrame(frame);
+    },
+  });
+
+  return {
+    identity,
+    scan,
+    analysis: accumulator.finish(scan),
+  };
+}
+
+function cursorDigestState(
+  transcriptPath: string,
+  context: Awaited<ReturnType<typeof cursorDigestAnalysis>>,
+  overrides: Partial<CursorSessionStateEntry> = {},
+): CursorSessionStateEntry {
+  return {
+    runtime: 'cursor',
+    sessionId: context.identity.sessionId,
+    indexBase: 'zero-based-jsonl-frame-index',
+    lastRecordIndex: 0,
+    canonicalCwd: context.identity.canonicalCwd,
+    transcriptPath,
+    continuity: {
+      indexBase: 'zero-based-jsonl-frame-index',
+      nextFrameIndex: 0,
+      prefixBytes: 0,
+      prefixSha256:
+        'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+      observedSize: context.scan.file.size,
+      device: context.scan.file.device,
+      inode: context.scan.file.inode,
+    },
+    lastStatus: {
+      engagement: 'unknown',
+      activity: 'none',
+      content: 'none',
+      lifecycle: 'none',
+      delivery: 'none',
+      health: 'healthy',
+    },
+    openTurn: null,
+    stabilityCandidate: null,
+    pendingDelivery: null,
+    ...overrides,
+  };
+}
+
+function cursorDigestOptions(
+  context: Awaited<ReturnType<typeof cursorDigestAnalysis>>,
+  projection: 'observation' | 'confirmed-completion',
+  state: CursorSessionStateEntry | null = null,
+) {
+  return {
+    fromIndex: 0,
+    mode: 'catch-up' as const,
+    cursorProjection: projection,
+    cursorIdentity: context.identity,
+    cursorScan: context.scan,
+    cursorAnalysis: context.analysis,
+    cursorState: state,
+    cursorContinuity: 'new' as const,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Cursor digest v2 behavior
+// ---------------------------------------------------------------------------
+
+describe('Cursor digest v2 behavior', () => {
+  test('projects confirmed open-turn content with frame accounting and truthful pending status', async () => {
+    const tmpDir = await mkdtemp(join(tmpdir(), 'cursor-digest-pending-'));
+    try {
+      const transcriptPath = join(tmpDir, 'pending.jsonl');
+      await writeFile(
+        transcriptPath,
+        [
+          { role: 'user', message: { content: 'Synthetic direction.' } },
+          {
+            role: 'assistant',
+            message: {
+              content: [
+                { type: 'text', text: 'Synthetic stable observation.' },
+              ],
+            },
+          },
+          { type: 'tool_metadata', tool: 'synthetic-tool' },
+        ]
+          .map((record) => JSON.stringify(record))
+          .join('\n') + '\n',
+      );
+      const context = await cursorDigestAnalysis(transcriptPath);
+      const turn = context.analysis.turns[0]!;
+      const entryKey = turn.assistantRecords[0]!.entryKey;
+      const state = cursorDigestState(transcriptPath, context, {
+        stabilityCandidate: {
+          turnId: turn.turnId,
+          fromFrameIndex: 1,
+          throughFrameIndex: 1,
+          entryKeys: [entryKey],
+          prefixBytes: context.scan.safePrefixBytes,
+          prefixSha256: context.scan.safePrefixSha256,
+          firstObservedAt: '2026-07-23T00:00:00.000Z',
+          confirmAfter: '2026-07-23T00:00:01.000Z',
+          confirmedAt: '2026-07-23T00:00:01.000Z',
+        },
+      });
+
+      const digest = await buildDigest(
+        'cursor',
+        transcriptPath,
+        cursorDigestOptions(context, 'observation', state),
+      );
+
+      expect(digest).toMatchObject({
+        schemaVersion: 2,
+        runtime: 'cursor',
+        range: {
+          indexBase: 'zero-based-jsonl-frame-index',
+          fromIndex: 0,
+          toIndex: 2,
+          nextIndex: 3,
+          totalFrames: 3,
+          newFrames: 3,
+        },
+        accounting: {
+          indexBase: 'zero-based-jsonl-frame-index',
+          raw: { count: 3, nextIndex: 3, totalFrames: 3 },
+          rendered: { count: 1, fromIndex: 1, toIndex: 1 },
+          filtered: { metadataFrames: 1, unstableContent: 0 },
+          buffered: { fromIndex: null, count: 0, reason: null },
+        },
+        cursorEvidence: {
+          projection: 'observation',
+          continuity: 'new',
+          status: {
+            engagement: 'engaged',
+            activity: 'assistant-progress',
+            content: 'available',
+            lifecycle: 'pending',
+            delivery: 'none',
+            health: 'healthy',
+          },
+          lifecycleEvents: [],
+          bufferedFromFrame: null,
+          blockingFrame: null,
+        },
+      });
+      expect(digest.entries).toEqual([
+        expect.objectContaining({
+          role: 'assistant',
+          text: 'Synthetic stable observation.',
+          recordIndex: 1,
+          sourceFrameIndex: 1,
+          entryKey,
+          turnId: turn.turnId,
+          availability: 'pending-lifecycle',
+        }),
+      ]);
+      expect(digest.accounting.recovery.omittedUserMessages).toEqual([
+        {
+          transcriptPath,
+          indexBase: 'zero-based-jsonl-frame-index',
+          frameIndex: 0,
+          entryKey: `${turn.turnId}:frame:0:user`,
+        },
+      ]);
+
+      const markdown = renderMarkdown(digest);
+      expect(markdown).toContain('**content:** available');
+      expect(markdown).toContain('**lifecycle:** pending');
+      expect(markdown).toContain('**health:** healthy');
+      expect(markdown.match(/Synthetic stable observation\./g)).toHaveLength(1);
+      expect(JSON.parse(renderJson(digest))).toEqual(digest);
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  test('retains an open turn for completion while observation waits for stability', async () => {
+    const tmpDir = await mkdtemp(join(tmpdir(), 'cursor-digest-buffered-'));
+    try {
+      const transcriptPath = join(tmpDir, 'buffered.jsonl');
+      await writeFile(
+        transcriptPath,
+        [
+          { role: 'user', message: { content: 'Synthetic direction.' } },
+          {
+            role: 'assistant',
+            message: {
+              content: [
+                { type: 'text', text: 'Synthetic unconfirmed observation.' },
+              ],
+            },
+          },
+        ]
+          .map((record) => JSON.stringify(record))
+          .join('\n') + '\n',
+      );
+      const context = await cursorDigestAnalysis(transcriptPath);
+
+      const observation = await buildDigest(
+        'cursor',
+        transcriptPath,
+        cursorDigestOptions(context, 'observation'),
+      );
+      const completion = await buildDigest(
+        'cursor',
+        transcriptPath,
+        cursorDigestOptions(context, 'confirmed-completion'),
+      );
+
+      for (const digest of [observation, completion]) {
+        expect(digest.schemaVersion).toBe(2);
+        expect(digest.entries).toEqual([]);
+        expect(digest.cursorEvidence.status).toMatchObject({
+          content: 'buffered',
+          lifecycle: 'pending',
+          health: 'healthy',
+        });
+      }
+      expect(observation.range.nextIndex).toBe(1);
+      expect(observation.accounting.buffered).toEqual({
+        fromIndex: 1,
+        count: 1,
+        reason: 'stability-wait',
+      });
+      expect(observation.accounting.filtered.unstableContent).toBe(1);
+      expect(completion.range.nextIndex).toBe(0);
+      expect(completion.accounting.buffered).toEqual({
+        fromIndex: 0,
+        count: 2,
+        reason: 'stability-wait',
+      });
+      expect(completion.cursorEvidence.projection).toBe('confirmed-completion');
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  test('separates terminal reconciliation from completion projection and retains recovery pointers', async () => {
+    const tmpDir = await mkdtemp(join(tmpdir(), 'cursor-digest-success-'));
+    try {
+      const transcriptPath = join(tmpDir, 'success.jsonl');
+      await writeFile(
+        transcriptPath,
+        [
+          { role: 'user', message: { content: 'Synthetic direction.' } },
+          {
+            role: 'assistant',
+            message: {
+              content: [{ type: 'text', text: 'Synthetic earlier result.' }],
+            },
+          },
+          {
+            role: 'assistant',
+            message: {
+              content: [{ type: 'text', text: 'Synthetic final result.' }],
+            },
+          },
+          { type: 'turn_ended', status: 'success' },
+        ]
+          .map((record) => JSON.stringify(record))
+          .join('\n') + '\n',
+      );
+      const context = await cursorDigestAnalysis(transcriptPath);
+      const turn = context.analysis.turns[0]!;
+      const [earlier, final] = turn.assistantRecords;
+      const observedState = cursorDigestState(transcriptPath, context, {
+        openTurn: {
+          turnId: turn.turnId,
+          fromFrameIndex: 0,
+          observedThroughFrame: 2,
+          deliveredEntryKeys: [earlier!.entryKey, final!.entryKey],
+          assistantEntryKeys: [earlier!.entryKey, final!.entryKey],
+          humanRecordIndexes: [0],
+          toolRecordIndexes: [],
+          hasHumanInput: true,
+          hasAutomaticControlInput: false,
+          lifecycle: 'pending',
+        },
+      });
+
+      const observation = await buildDigest(
+        'cursor',
+        transcriptPath,
+        cursorDigestOptions(context, 'observation', observedState),
+      );
+      const completion = await buildDigest(
+        'cursor',
+        transcriptPath,
+        cursorDigestOptions(context, 'confirmed-completion', observedState),
+      );
+
+      expect(observation.entries).toEqual([]);
+      expect(observation.cursorEvidence.lifecycleEvents).toEqual([
+        {
+          turnId: turn.turnId,
+          terminalFrameIndex: 3,
+          lifecycle: 'success',
+          finalEntryKey: final!.entryKey,
+          contentPreviouslyObservable: true,
+        },
+      ]);
+      expect(observation.cursorEvidence.status).toMatchObject({
+        content: 'none',
+        lifecycle: 'success',
+      });
+
+      expect(completion.entries).toEqual([
+        expect.objectContaining({
+          text: 'Synthetic final result.',
+          recordIndex: 3,
+          sourceFrameIndex: 2,
+          entryKey: final!.entryKey,
+          availability: 'completed',
+        }),
+      ]);
+      expect(completion.accounting.recovery.omittedAssistantEntries).toEqual([
+        {
+          transcriptPath,
+          indexBase: 'zero-based-jsonl-frame-index',
+          frameIndex: 1,
+          entryKey: earlier!.entryKey,
+        },
+      ]);
+      expect(completion.range.nextIndex).toBe(4);
+
+      const terminalOnlyContext = await cursorDigestAnalysis(transcriptPath, 3);
+      const reconciliation = await buildDigest('cursor', transcriptPath, {
+        ...cursorDigestOptions(
+          terminalOnlyContext,
+          'observation',
+          observedState,
+        ),
+        fromIndex: 3,
+      });
+      expect(reconciliation.entries).toEqual([]);
+      expect(reconciliation.range).toMatchObject({
+        fromIndex: 3,
+        toIndex: 3,
+        nextIndex: 4,
+        newFrames: 1,
+      });
+      expect(reconciliation.cursorEvidence.status).toMatchObject({
+        engagement: 'engaged',
+        activity: 'assistant-progress',
+        lifecycle: 'success',
+      });
+      expect(reconciliation.cursorEvidence.lifecycleEvents).toEqual([
+        {
+          turnId: turn.turnId,
+          terminalFrameIndex: 3,
+          lifecycle: 'success',
+          finalEntryKey: final!.entryKey,
+          contentPreviouslyObservable: true,
+        },
+      ]);
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  test('suppresses non-success prose and reports malformed blocking frames structurally', async () => {
+    const tmpDir = await mkdtemp(join(tmpdir(), 'cursor-digest-blocked-'));
+    try {
+      const failedPath = join(tmpDir, 'failed.jsonl');
+      await writeFile(
+        failedPath,
+        [
+          { role: 'user', message: { content: 'Synthetic direction.' } },
+          {
+            role: 'assistant',
+            message: {
+              content: [{ type: 'text', text: 'Synthetic aborted result.' }],
+            },
+          },
+          { type: 'turn_ended', status: 'aborted' },
+        ]
+          .map((record) => JSON.stringify(record))
+          .join('\n') + '\n',
+      );
+      const failedContext = await cursorDigestAnalysis(failedPath);
+      const failed = await buildDigest(
+        'cursor',
+        failedPath,
+        cursorDigestOptions(failedContext, 'observation'),
+      );
+
+      expect(failed.entries).toEqual([]);
+      expect(failed.cursorEvidence.status).toMatchObject({
+        content: 'suppressed',
+        lifecycle: 'aborted',
+        health: 'healthy',
+      });
+      expect(failed.cursorEvidence.lifecycleEvents).toEqual([
+        expect.objectContaining({
+          terminalFrameIndex: 2,
+          lifecycle: 'aborted',
+          finalEntryKey: null,
+          contentPreviouslyObservable: false,
+        }),
+      ]);
+      expect(failed.warnings.join('\n')).toContain('aborted');
+      expect(failed.warnings.join('\n')).not.toContain(
+        'Synthetic aborted result.',
+      );
+
+      const blockedPath = join(tmpDir, 'blocked.jsonl');
+      await writeFile(
+        blockedPath,
+        `${JSON.stringify({
+          role: 'user',
+          message: { content: 'Synthetic direction.' },
+        })}\n{"malformed":\n${JSON.stringify({
+          role: 'assistant',
+          message: { content: 'Synthetic unreachable result.' },
+        })}\n`,
+      );
+      const blockedContext = await cursorDigestAnalysis(blockedPath);
+      const blocked = await buildDigest(
+        'cursor',
+        blockedPath,
+        cursorDigestOptions(blockedContext, 'observation'),
+      );
+
+      expect(blocked.entries).toEqual([]);
+      expect(blocked.range).toMatchObject({
+        fromIndex: 0,
+        toIndex: 0,
+        nextIndex: 1,
+        totalFrames: 3,
+        newFrames: 1,
+      });
+      expect(blocked.accounting.buffered).toEqual({
+        fromIndex: 1,
+        count: 2,
+        reason: 'malformed',
+      });
+      expect(blocked.cursorEvidence).toMatchObject({
+        status: { content: 'buffered', health: 'blocked' },
+        bufferedFromFrame: 1,
+        blockingFrame: {
+          frameIndex: 1,
+          parseState: 'malformed',
+        },
+      });
+      expect(blocked.warnings.join('\n')).not.toContain(
+        'Synthetic unreachable result.',
+      );
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
   });
 });
 
