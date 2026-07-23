@@ -7,11 +7,22 @@ declare module '*skills/session-observer-collab/scripts/hooks/cursor-stop.mjs' {
     toIndex: number;
   }
 
+  export interface CursorStopObserverDigest {
+    schemaVersion: number;
+    range: object;
+    accounting: object;
+    entries: object[];
+    runtime?: string;
+    cursorEvidence?: object;
+  }
+
   export interface CursorStopHookOptions {
     root?: string;
     env?: NodeJS.ProcessEnv;
     loopLimit?: number;
-    observe?: (lease: Lease) => unknown | Promise<unknown>;
+    observe?: (
+      lease: Lease,
+    ) => CursorStopObserverDigest | Promise<CursorStopObserverDigest>;
     sleep?: (milliseconds: number) => unknown | Promise<unknown>;
     now?: () => number;
   }

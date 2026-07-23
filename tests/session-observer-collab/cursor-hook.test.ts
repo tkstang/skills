@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import {
+  appendFile,
   mkdtemp,
   mkdir,
   readFile,
@@ -93,6 +94,39 @@ async function continuity(transcript: string, nextFrameIndex: number) {
   };
 }
 
+async function writeCursorFrames(
+  transcript: string,
+  frames: Array<Record<string, unknown>>,
+) {
+  await writeFile(
+    transcript,
+    frames.map((frame) => `${JSON.stringify(frame)}\n`).join(''),
+  );
+}
+
+async function frameContinuity(transcript: string, nextFrameIndex: number) {
+  const contents = await readFile(transcript);
+  const frameEnds: number[] = [];
+  for (let offset = 0; offset < contents.byteLength; offset += 1) {
+    if (contents[offset] === 0x0a) frameEnds.push(offset + 1);
+  }
+  if (nextFrameIndex > frameEnds.length)
+    throw new Error('nextFrameIndex exceeds the closed frame count');
+  const prefixBytes = nextFrameIndex === 0 ? 0 : frameEnds[nextFrameIndex - 1];
+  const metadata = await stat(transcript);
+  return {
+    indexBase: 'zero-based-jsonl-frame-index' as const,
+    nextFrameIndex,
+    prefixBytes,
+    prefixSha256: createHash('sha256')
+      .update(contents.subarray(0, prefixBytes))
+      .digest('hex'),
+    observedSize: metadata.size,
+    device: metadata.dev,
+    inode: metadata.ino,
+  };
+}
+
 async function armCursorPeerLease(
   root: string,
   cwd: string,
@@ -106,6 +140,33 @@ async function armCursorPeerLease(
     peerContinuity: await continuity(transcript, 0),
   } as any);
 }
+
+async function armCursorFrameLease(
+  root: string,
+  cwd: string,
+  transcript: string,
+  frames: Array<Record<string, unknown>>,
+  nextFrameIndex = 0,
+  overrides: Record<string, string | number> = {},
+): Promise<any> {
+  await writeCursorFrames(transcript, frames);
+  const armed = await armLease(root, cwd, transcript, {
+    peerRuntime: 'cursor',
+    ...overrides,
+  });
+  return writeLease(root, {
+    ...armed.lease,
+    peerCursor: nextFrameIndex,
+    peerContinuity: await frameContinuity(transcript, nextFrameIndex),
+  } as any);
+}
+
+const humanFrame = (text: string) => ({ role: 'user', content: text });
+const assistantFrame = (text: string) => ({
+  role: 'assistant',
+  content: text,
+});
+const terminalFrame = (status: string) => ({ type: 'turn_ended', status });
 
 function event(overrides: Record<string, unknown> = {}) {
   return {
@@ -191,6 +252,224 @@ function digestWithEntries(
 }
 
 describe('Cursor Stop continuation hook', () => {
+  test('waits through a pending frame range and claims only after terminal success', async () => {
+    const { root, cwd, transcript } = await fixture();
+    await armCursorFrameLease(root, cwd, transcript, [
+      humanFrame('Inspect the frame boundary.'),
+      assistantFrame('The completed result is ready.'),
+    ]);
+    let currentNow = START + 1;
+    let slept = 0;
+
+    const result = await runCursorStopHook(event(), {
+      root,
+      now: () => currentNow,
+      sleep: async () => {
+        slept += 1;
+        await appendFile(
+          transcript,
+          `${JSON.stringify(terminalFrame('success'))}\n`,
+        );
+        currentNow += 1;
+      },
+    });
+
+    expect(slept).toBe(1);
+    expect(result?.followup_message).toContain('records="0-2"');
+    expect(await readLease(root, 'cursor-1')).toMatchObject({
+      peerCursor: 3,
+      peerContinuity: {
+        indexBase: 'zero-based-jsonl-frame-index',
+        nextFrameIndex: 3,
+      },
+      continuationCount: 1,
+      loopCount: 1,
+    });
+  });
+
+  test.each(['aborted', 'error', 'cancelled', 'unknown'])(
+    'consumes a terminal %s frame range without spending a continuation',
+    async (status) => {
+      const { root, cwd, transcript } = await fixture();
+      await armCursorFrameLease(
+        root,
+        cwd,
+        transcript,
+        [
+          humanFrame('Inspect the non-success boundary.'),
+          assistantFrame('This result must remain suppressed.'),
+          terminalFrame(status),
+        ],
+        0,
+        { waitMs: 1 },
+      );
+      const moments = [START + 1, START + 1, START + 2, START + 2];
+
+      await expect(
+        runCursorStopHook(event(), {
+          root,
+          now: () => moments.shift() ?? START + 2,
+          sleep: async () => {},
+        }),
+      ).resolves.toBeNull();
+      expect(await readLease(root, 'cursor-1')).toMatchObject({
+        state: 'idle',
+        peerCursor: 3,
+        peerContinuity: {
+          nextFrameIndex: 3,
+        },
+        continuationCount: 0,
+        loopCount: 0,
+      });
+    },
+  );
+
+  test('fails closed on a malformed frame without advancing private continuity', async () => {
+    const { root, cwd, transcript } = await fixture();
+    const lease = await armCursorFrameLease(root, cwd, transcript, [
+      humanFrame('Inspect malformed input.'),
+    ]);
+    await appendFile(transcript, '{malformed}\n');
+
+    await expect(
+      runCursorStopHook(event(), {
+        root,
+        now: () => START + 1,
+      }),
+    ).resolves.toBeNull();
+    expect(await readLease(root, 'cursor-1')).toMatchObject({
+      peerCursor: lease.peerCursor,
+      peerContinuity: lease.peerContinuity,
+      continuationCount: 0,
+      loopCount: 0,
+    });
+  });
+
+  test.each(['shrink', 'replacement'])(
+    'fails closed on transcript %s without observing or changing the private frame range',
+    async (failure) => {
+      const { root, cwd, transcript } = await fixture();
+      const frames = [
+        humanFrame('Inspect continuity.'),
+        assistantFrame('Completed continuity result.'),
+        terminalFrame('success'),
+      ];
+      const lease = await armCursorFrameLease(root, cwd, transcript, frames, 3);
+      if (failure === 'shrink') {
+        await writeCursorFrames(transcript, frames.slice(0, 1));
+      } else {
+        await rm(transcript);
+        await writeCursorFrames(transcript, frames);
+      }
+      let observed = 0;
+
+      await expect(
+        runCursorStopHook(event(), {
+          root,
+          observe: async () => {
+            observed += 1;
+            return digest();
+          },
+        }),
+      ).resolves.toBeNull();
+      expect(observed).toBe(0);
+      expect(await readLease(root, 'cursor-1')).toEqual(lease);
+    },
+  );
+
+  test('consumes a no-op completion, idles, and ignores late output', async () => {
+    const { root, cwd, transcript } = await fixture();
+    await armCursorFrameLease(
+      root,
+      cwd,
+      transcript,
+      [
+        humanFrame('Check for peer changes.'),
+        assistantFrame('[no-op] no substantive peer delta'),
+        terminalFrame('success'),
+      ],
+      0,
+      { waitMs: 1 },
+    );
+    const moments = [START + 1, START + 1, START + 2, START + 2];
+
+    await expect(
+      runCursorStopHook(event(), {
+        root,
+        now: () => moments.shift() ?? START + 2,
+        sleep: async () => {},
+      }),
+    ).resolves.toBeNull();
+    expect(await readLease(root, 'cursor-1')).toMatchObject({
+      state: 'idle',
+      peerCursor: 3,
+      peerContinuity: { nextFrameIndex: 3 },
+      continuationCount: 0,
+    });
+
+    await appendFile(
+      transcript,
+      [
+        humanFrame('Late direction.'),
+        assistantFrame('Late substantive result.'),
+        terminalFrame('success'),
+      ]
+        .map((frame) => `${JSON.stringify(frame)}\n`)
+        .join(''),
+    );
+    let observed = 0;
+    await expect(
+      runCursorStopHook(event({ generation_id: 'generation-2' }), {
+        root,
+        observe: async () => {
+          observed += 1;
+          return digest(3);
+        },
+      }),
+    ).resolves.toBeNull();
+    expect(observed).toBe(0);
+    expect(await readLease(root, 'cursor-1')).toMatchObject({
+      state: 'idle',
+      peerCursor: 3,
+      peerContinuity: { nextFrameIndex: 3 },
+    });
+  });
+
+  test('claims only the unconsumed successful frame range and enforces the cap', async () => {
+    const { root, cwd, transcript } = await fixture();
+    const lease = await armCursorFrameLease(
+      root,
+      cwd,
+      transcript,
+      [
+        humanFrame('Old failed direction.'),
+        assistantFrame('Old failed result.'),
+        terminalFrame('error'),
+        humanFrame('New direction.'),
+        assistantFrame('New completed result.'),
+        terminalFrame('success'),
+      ],
+      3,
+      { continuationCap: 1, loopCap: 2 },
+    );
+
+    const result = await runCursorStopHook(event(), {
+      root,
+      now: () => START + 1,
+    });
+
+    expect(result?.followup_message).toContain('records="3-5"');
+    expect(await readLease(root, 'cursor-1')).toMatchObject({
+      state: 'triggered',
+      leaseId: lease.leaseId,
+      peerCursor: 6,
+      peerContinuity: { nextFrameIndex: 6 },
+      continuationCount: 1,
+      continuationCap: 1,
+      loopCount: 1,
+    });
+  });
+
   test.each([
     ['device', { device: 1 }],
     ['inode', { inode: 1 }],
