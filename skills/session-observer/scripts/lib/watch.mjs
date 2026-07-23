@@ -283,9 +283,29 @@ function consumedThrough(lastRecordIndex) {
   if (!Number.isFinite(numeric) || numeric <= 0) return null;
   return numeric - 1;
 }
+function cursorTargetHealthReasons(status, continuityState) {
+  const reasons = [];
+  if (continuityState === "blocked" || status.health === "blocked") {
+    reasons.push("cursor-continuity-blocked");
+  } else if (status.health === "stale") {
+    reasons.push("cursor-health-stale");
+  } else if (status.health === "error") {
+    reasons.push("cursor-health-error");
+  } else if (status.health === "unknown") {
+    reasons.push("cursor-health-unknown");
+  }
+  if (status.delivery === "uncertain") {
+    reasons.push("cursor-delivery-uncertain");
+  }
+  return reasons;
+}
 async function targetHeartbeatStatus(target, sessionState) {
   if (target.runtime === "cursor") {
     const status = target.lastStatus ?? emptyCursorStatus();
+    const healthReasons = cursorTargetHealthReasons(
+      status,
+      target.continuityState
+    );
     return {
       runtime: target.runtime,
       sessionId: target.sessionId,
@@ -295,8 +315,9 @@ async function targetHeartbeatStatus(target, sessionState) {
       lastRecordIndex: target.observationCursor ?? 0,
       consumedThrough: consumedThrough(target.observationCursor ?? 0),
       recordsBehind: target.bufferedFromFrame === null || target.bufferedFromFrame === void 0 ? 0 : Math.max(0, target.recordCount - target.bufferedFromFrame),
-      healthy: target.continuityState === "verified" && status.health === "healthy",
-      error: target.continuityState === "blocked" ? "cursor continuity blocked" : status.health === "error" ? "cursor observation error" : null,
+      healthy: healthReasons.length === 0,
+      error: healthReasons[0] ?? null,
+      healthReasons,
       status,
       continuityState: target.continuityState,
       bufferedFromFrame: target.bufferedFromFrame ?? null,
@@ -488,7 +509,7 @@ function applyCursorTargetState(target, state, result) {
   target.continuity = structuredClone(state.continuity);
   target.pendingCandidateDeadline = state.stabilityCandidate ? Date.parse(state.stabilityCandidate.confirmAfter) : null;
   target.lastStatus = structuredClone(state.lastStatus);
-  target.bufferedFromFrame = result?.digest.cursorEvidence.bufferedFromFrame ?? null;
+  target.bufferedFromFrame = result?.digest.cursorEvidence.bufferedFromFrame ?? target.bufferedFromFrame ?? null;
   target.continuityState = target.lastStatus.health === "blocked" ? "blocked" : "verified";
   if (result) target.recordCount = result.digest.range.totalFrames;
 }
@@ -501,7 +522,7 @@ async function persistCursorTarget(target, pid, state, result) {
     expectedObservationCursor,
     next: {
       observationCursor: state.continuity.nextFrameIndex,
-      bufferedFromFrame: result?.digest.cursorEvidence.bufferedFromFrame ?? null,
+      bufferedFromFrame: result?.digest.cursorEvidence.bufferedFromFrame ?? target.bufferedFromFrame ?? null,
       continuity: state.continuity,
       pendingCandidateDeadline: state.stabilityCandidate?.confirmAfter ?? null,
       lastStatus: nextStatus,
@@ -860,16 +881,29 @@ async function establishBaselines(args, targets, pending, deps, eventState) {
       await enqueueRecordsAppendedDuringBaseline(target, pending, deps);
   }
 }
-async function pollTargets(targets, pending, nowMs, statFn) {
+async function pollTargets(targets, pending, nowMs, statFn, watcherPid) {
   for (const target of targets.values()) {
     let signature;
     try {
       signature = await fileSignature(target.transcriptPath, statFn);
     } catch {
+      if (target.runtime === "cursor") {
+        const state = await cursorStateLib.getCursorSession(target.sessionId);
+        if (state) {
+          await persistCursorTarget(target, watcherPid, {
+            ...state,
+            lastStatus: {
+              ...target.lastStatus ?? state.lastStatus,
+              health: "error"
+            }
+          });
+        }
+      }
       continue;
     }
     const deadlineReady = target.runtime === "cursor" && target.pendingCandidateDeadline !== null && target.pendingCandidateDeadline !== void 0 && nowMs >= target.pendingCandidateDeadline;
-    if (!signatureChanged(target.signature, signature) && !deadlineReady)
+    const recoveryVerificationNeeded = target.runtime === "cursor" && (target.lastStatus?.health === "error" || target.lastStatus?.health === "stale");
+    if (!signatureChanged(target.signature, signature) && !deadlineReady && !recoveryVerificationNeeded)
       continue;
     target.signature = signature;
     const existing = pending.get(target.key);
@@ -879,7 +913,7 @@ async function pollTargets(targets, pending, nowMs, statFn) {
       sessionId: target.sessionId,
       firstChangedAt: existing?.firstChangedAt ?? nowMs,
       lastChangedAt: nowMs,
-      readyAt: deadlineReady ? target.pendingCandidateDeadline : null
+      readyAt: recoveryVerificationNeeded ? nowMs : deadlineReady ? target.pendingCandidateDeadline : null
     });
   }
 }
@@ -1025,7 +1059,7 @@ async function emitReadyPending(args, targets, pending, deps, eventState, { forc
 }
 async function flushPendingBeforeMaxRuntime(args, targets, pending, deps, eventState) {
   if (eventState.paused || targets.size === 0) return;
-  await pollTargets(targets, pending, deps.now(), deps.stat);
+  await pollTargets(targets, pending, deps.now(), deps.stat, eventState.pid);
   await emitReadyPending(args, targets, pending, deps, eventState, {
     force: true
   });
@@ -1160,7 +1194,13 @@ async function runWatchLoop(args, deps = {}) {
           eventState
         );
       }
-      await pollTargets(targets, pending, nowMs, resolvedDeps.stat);
+      await pollTargets(
+        targets,
+        pending,
+        nowMs,
+        resolvedDeps.stat,
+        eventState.pid
+      );
       await emitNewerSessionCandidates(
         normalizedArgs,
         targets,
@@ -1234,5 +1274,6 @@ async function runWatchLoop(args, deps = {}) {
   }
 }
 export {
+  cursorTargetHealthReasons,
   runWatchLoop
 };

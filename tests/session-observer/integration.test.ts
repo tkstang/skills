@@ -12,6 +12,7 @@ import {
   rm,
   mkdir,
   copyFile,
+  appendFile,
   writeFile,
   readFile,
   realpath,
@@ -75,16 +76,17 @@ async function spawnCliWithStdoutFailure(
   root: string,
   args: string[],
   env: NodeJS.ProcessEnv = {},
+  { asynchronous = false }: { asynchronous?: boolean } = {},
 ): Promise<SpawnSyncReturns<string>> {
   const preloadPath = join(root, 'inject-stdout-failure.mjs');
   await writeFile(
     preloadPath,
     [
-      'process.stdout.write = function injectedStdoutFailure() {',
-      "  const error = new Error('INJECTED_STDOUT_FAILURE');",
-      "  error.code = 'EPIPE';",
-      '  throw error;',
-      '};',
+      "const error = new Error('INJECTED_STDOUT_FAILURE');",
+      "error.code = 'EPIPE';",
+      asynchronous
+        ? 'process.stdout.write = function injectedStdoutFailure() { return Promise.reject(error); };'
+        : 'process.stdout.write = function injectedStdoutFailure() { throw error; };',
       '',
     ].join('\n'),
     'utf8',
@@ -378,6 +380,94 @@ describe('integration: catch-up', () => {
       if (previousStateDir === undefined) delete process.env.STATE_DIR;
       else process.env.STATE_DIR = previousStateDir;
       await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  test('delivery-uncertain replay preserves every reserved open-turn key after a later terminal', async () => {
+    const home = await realpath(
+      await mkdtemp(join(tmpdir(), 'integration-cursor-uncertain-replay-')),
+    );
+    try {
+      const cwd = join(home, 'workspace', 'cursor-uncertain-replay');
+      const stateDir = join(home, '.state');
+      const sessionId = 'cursor-uncertain-replay';
+      await mkdir(cwd, { recursive: true });
+      await mkdir(stateDir, { recursive: true });
+      const transcriptPath = await writeCursorTranscript(home, cwd, sessionId, [
+        {
+          role: 'user',
+          message: {
+            content: [{ type: 'text', text: 'Inspect the replay boundary.' }],
+          },
+        },
+        {
+          role: 'assistant',
+          message: {
+            content: [{ type: 'text', text: 'First stable replay record.' }],
+          },
+        },
+        {
+          role: 'assistant',
+          message: {
+            content: [{ type: 'text', text: 'Second stable replay record.' }],
+          },
+        },
+        {
+          role: 'assistant',
+          message: {
+            content: [{ type: 'text', text: 'Third stable replay record.' }],
+          },
+        },
+      ]);
+      const args = [
+        'catch-up',
+        '--runtime',
+        'cursor',
+        '--cwd',
+        cwd,
+        '--session',
+        `cursor:${sessionId}`,
+        '--debounce-sec',
+        '0.01',
+        '--json',
+      ];
+      const failed = await spawnCliWithStdoutFailure(
+        home,
+        args,
+        {
+          HOME: home,
+          STATE_DIR: stateDir,
+        },
+        { asynchronous: true },
+      );
+      expect(failed.status).toBe(1);
+      const stranded = JSON.parse(
+        await readFile(join(stateDir, 'cursor-state.json'), 'utf8'),
+      ).sessions[`cursor:${sessionId}`].pendingDelivery;
+      expect(stranded.entryKeys).toHaveLength(3);
+
+      await appendFile(
+        transcriptPath,
+        `${JSON.stringify({ type: 'turn_ended', status: 'success' })}\n`,
+        'utf8',
+      );
+      const replay = spawnCli(args, {
+        HOME: home,
+        STATE_DIR: stateDir,
+      });
+      expect(replay.status, `${replay.stderr}\n${replay.stdout}`).toBe(4);
+      const digest = JSON.parse(replay.stdout);
+      expect(digest.cursorEvidence.status.delivery).toBe('uncertain');
+      expect(digest.entries.map((entry: any) => entry.entryKey)).toEqual(
+        stranded.entryKeys,
+      );
+      expect(digest.entries.map((entry: any) => entry.text)).toEqual([
+        'First stable replay record.',
+        'Second stable replay record.',
+        'Third stable replay record.',
+      ]);
+    } finally {
+      await rm(home, { recursive: true, force: true });
     }
   });
 

@@ -376,6 +376,41 @@ function cursorCandidateObservation(result, observedAt) {
     observedAt
   };
 }
+function reconstructUncertainReplay(pending, result) {
+  const { intendedCheckpoint } = pending;
+  if (intendedCheckpoint.nextFrameIndex !== pending.reservedThroughFrameIndex + 1 || intendedCheckpoint.nextFrameIndex < pending.expectedNextFrameIndex || result.scan.file.device !== intendedCheckpoint.device || result.scan.file.inode !== intendedCheckpoint.inode || result.scan.file.size < intendedCheckpoint.prefixBytes || result.scan.totalFrames < intendedCheckpoint.nextFrameIndex || result.scan.verifiedPrefixSha256 !== intendedCheckpoint.prefixSha256 || new Set(pending.entryKeys).size !== pending.entryKeys.length) {
+    return null;
+  }
+  const records = new Map(
+    result.analysis.turns.flatMap(
+      (turn) => turn.assistantRecords.filter(
+        (record) => record.classification === "substantive" && record.sourceFrameIndex >= pending.expectedNextFrameIndex && record.sourceFrameIndex <= pending.reservedThroughFrameIndex
+      ).map((record) => [record.entryKey, { record, turn }])
+    )
+  );
+  const replay = pending.entryKeys.map((entryKey) => {
+    const matched = records.get(entryKey);
+    if (!matched) return null;
+    const terminalFrameIndex = matched.turn.terminalFrameIndex;
+    const completedWithinReservation = matched.turn.lifecycle === "success" && terminalFrameIndex !== null && terminalFrameIndex <= pending.reservedThroughFrameIndex;
+    return {
+      role: "assistant",
+      text: matched.record.text,
+      recordIndex: completedWithinReservation ? terminalFrameIndex : matched.record.sourceFrameIndex,
+      sourceFrameIndex: matched.record.sourceFrameIndex,
+      kind: "message",
+      entryKey: matched.record.entryKey,
+      turnId: matched.record.turnId,
+      availability: completedWithinReservation ? "completed" : "pending-lifecycle"
+    };
+  });
+  if (replay.some((entry) => entry === null) || replay.some(
+    (entry, index) => index > 0 && entry.sourceFrameIndex < replay[index - 1].sourceFrameIndex
+  )) {
+    return null;
+  }
+  return replay;
+}
 function cursorOpenTurn(state, scanResult, digest) {
   const turn = scanResult.analysis.turns.findLast(
     (candidate) => candidate.lifecycle === "pending"
@@ -531,6 +566,7 @@ async function observeCursorSession(cwd, candidate, args, deps, rankResult) {
     }
   }
   let selected = first;
+  let uncertainReplay = null;
   if (deliveryUncertain === null) {
     const firstObservation = cursorCandidateObservation(
       first,
@@ -571,6 +607,39 @@ async function observeCursorSession(cwd, candidate, args, deps, rankResult) {
       }
       state = await cursorStateLib.getCursorSession(identity.sessionId) ?? state;
     }
+  } else {
+    const pending = state.pendingDelivery;
+    if (pending === null) {
+      return inputNeededOutcome(
+        "continuityBlocked",
+        {
+          continuityBlocked: true,
+          runtime: "cursor",
+          cwd,
+          code: "DELIVERY_REPLAY_RECONSTRUCTION_FAILED"
+        },
+        "Cursor uncertain delivery reservation is unavailable for exact replay."
+      );
+    }
+    selected = await scanCursor(
+      identity,
+      analysisFromFrame,
+      pending.intendedCheckpoint.prefixBytes,
+      deps
+    );
+    uncertainReplay = reconstructUncertainReplay(pending, selected);
+    if (uncertainReplay === null) {
+      return inputNeededOutcome(
+        "continuityBlocked",
+        {
+          continuityBlocked: true,
+          runtime: "cursor",
+          cwd,
+          code: "DELIVERY_REPLAY_RECONSTRUCTION_FAILED"
+        },
+        "Cursor uncertain delivery cannot be reconstructed from the exact reserved prefix."
+      );
+    }
   }
   const digest = await buildDigest("cursor", candidate.transcriptPath, {
     ...args,
@@ -593,10 +662,19 @@ async function observeCursorSession(cwd, candidate, args, deps, rankResult) {
     cursorContinuity: continuity.status
   });
   if (deliveryUncertain !== null) {
-    const replayKeys = new Set(deliveryUncertain.entryKeys);
-    digest.entries = digest.entries.filter(
-      (entry) => replayKeys.has(entry.entryKey)
-    );
+    const pending = state.pendingDelivery;
+    digest.entries = uncertainReplay;
+    digest.range.fromIndex = pending.expectedNextFrameIndex;
+    digest.range.toIndex = pending.reservedThroughFrameIndex;
+    digest.range.nextIndex = pending.intendedCheckpoint.nextFrameIndex;
+    digest.range.newFrames = pending.intendedCheckpoint.nextFrameIndex - pending.expectedNextFrameIndex;
+    digest.accounting.raw = {
+      fromIndex: pending.expectedNextFrameIndex,
+      toIndex: pending.reservedThroughFrameIndex,
+      count: pending.intendedCheckpoint.nextFrameIndex - pending.expectedNextFrameIndex,
+      nextIndex: pending.intendedCheckpoint.nextFrameIndex,
+      totalFrames: selected.scan.totalFrames
+    };
     digest.accounting.rendered = {
       count: digest.entries.length,
       fromIndex: digest.entries.length === 0 ? null : Math.min(...digest.entries.map((entry) => entry.recordIndex)),

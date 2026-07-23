@@ -92,6 +92,40 @@ async function spawnCliWithStdoutFailure(
   });
 }
 
+async function spawnCliWithPrefixChange(
+  root: string,
+  transcriptPath: string,
+  args: string[],
+  env: NodeJS.ProcessEnv = {},
+): Promise<SpawnSyncReturns<string>> {
+  const preloadPath = join(root, 'inject-cursor-prefix-change.mjs');
+  await writeFile(
+    preloadPath,
+    [
+      "import { readFileSync, writeFileSync } from 'node:fs';",
+      `const transcriptPath = ${JSON.stringify(transcriptPath)};`,
+      'const originalSetTimeout = globalThis.setTimeout;',
+      'let changed = false;',
+      'globalThis.setTimeout = (callback, delay, ...args) =>',
+      '  originalSetTimeout(() => {',
+      '    if (!changed) {',
+      '      changed = true;',
+      "      const raw = readFileSync(transcriptPath, 'utf8');",
+      "      writeFileSync(transcriptPath, raw.replace('Stable open response.', 'Xtable open response.'), 'utf8');",
+      '    }',
+      '    callback(...args);',
+      '  }, delay);',
+      '',
+    ].join('\n'),
+    'utf8',
+  );
+  return spawnSync('node', ['--import', preloadPath, CLI_PATH, ...args], {
+    encoding: 'utf8',
+    timeout: 15000,
+    env: { ...process.env, ...HARNESS_ENV, ...env },
+  });
+}
+
 function cursorSlug(cwd: string): string {
   return cwd.split(/[/.]/u).filter(Boolean).join('-');
 }
@@ -514,7 +548,7 @@ describe('CLI subcommand dispatch', () => {
     }
   });
 
-  test('watch-ctl status reports structural Cursor target facets without treating blocked ownership as healthy', async () => {
+  test('watch-ctl status treats unknown health and unresolved Cursor delivery as unhealthy', async () => {
     const home = await realpath(
       await mkdtemp(join(tmpdir(), 'cli-watch-status-cursor-')),
     );
@@ -556,9 +590,9 @@ describe('CLI subcommand dispatch', () => {
           content: 'buffered',
           lifecycle: 'pending',
           delivery: 'uncertain',
-          health: 'blocked',
+          health: 'unknown',
         },
-        continuityState: 'blocked',
+        continuityState: 'verified',
         ownerPid: process.pid,
       };
       const watcher = {
@@ -600,20 +634,25 @@ describe('CLI subcommand dispatch', () => {
       expect(JSON.parse(result.stdout)).toMatchObject({
         active: true,
         healthy: false,
-        health: { reasons: ['cursor-continuity-blocked'] },
+        health: {
+          reasons: ['cursor-health-unknown', 'cursor-delivery-uncertain'],
+        },
         targets: [
           {
             runtime: 'cursor',
             indexBase: 'zero-based-jsonl-frame-index',
             observationCursor: 3,
             bufferedFromFrame: 3,
-            continuityState: 'blocked',
+            continuityState: 'verified',
             recordsBehind: 1,
             healthy: false,
-            healthReasons: ['cursor-continuity-blocked'],
+            healthReasons: [
+              'cursor-health-unknown',
+              'cursor-delivery-uncertain',
+            ],
             lastStatus: {
               delivery: 'uncertain',
-              health: 'blocked',
+              health: 'unknown',
             },
           },
         ],
@@ -1559,6 +1598,176 @@ describe('Cursor CLI state and delivery composition', () => {
       expect(legacyState?.sessions?.['cursor:cursor-review-v2']).toBe(
         undefined,
       );
+    } finally {
+      await rm(home, { recursive: true, force: true });
+    }
+  });
+
+  test.each([
+    { label: 'pinned', pinned: true },
+    { label: 'ranked', pinned: false },
+  ])(
+    '$label stateless Cursor review confirms stable open content without creating state',
+    async ({ pinned }) => {
+      const home = await realpath(
+        await mkdtemp(join(tmpdir(), `cli-cursor-review-${pinned}-`)),
+      );
+      try {
+        const cwd = join(home, 'workspace', `cursor-review-${pinned}`);
+        await mkdir(cwd, { recursive: true });
+        const stateDir = join(home, '.state');
+        const sessionId = `cursor-review-${pinned}`;
+        const transcriptPath = await copyCursorTranscript(home, cwd, sessionId);
+        const frames = [
+          ...(pinned
+            ? []
+            : [
+                {
+                  role: 'user',
+                  message: {
+                    content: [
+                      { type: 'text', text: 'Earlier completed direction.' },
+                    ],
+                  },
+                },
+                {
+                  role: 'assistant',
+                  message: {
+                    content: [
+                      { type: 'text', text: 'Earlier completed response.' },
+                    ],
+                  },
+                },
+                { type: 'turn_ended', status: 'success' },
+              ]),
+          {
+            role: 'user',
+            message: {
+              content: [{ type: 'text', text: 'Review the open response.' }],
+            },
+          },
+          {
+            role: 'assistant',
+            message: {
+              content: [{ type: 'text', text: 'Stable open response.' }],
+            },
+          },
+        ];
+        await writeFile(
+          transcriptPath,
+          frames.map((frame) => JSON.stringify(frame)).join('\n') + '\n',
+          'utf8',
+        );
+        const args = [
+          'review',
+          '--runtime',
+          'cursor',
+          '--cwd',
+          cwd,
+          '--debounce-sec',
+          '0.01',
+          '--json',
+          ...(pinned ? ['--session', `cursor:${sessionId}`] : []),
+        ];
+        const result = spawnCli(args, {
+          HOME: home,
+          STATE_DIR: stateDir,
+        });
+        expect(result.status, `${result.stderr}\n${result.stdout}`).toBe(0);
+        const digest = JSON.parse(result.stdout);
+        expect(digest).toMatchObject({
+          schemaVersion: 2,
+          cursorEvidence: {
+            status: {
+              content: 'available',
+              lifecycle: 'pending',
+              health: 'healthy',
+            },
+          },
+        });
+        expect(digest.entries).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              role: 'assistant',
+              text: 'Stable open response.',
+              availability: 'pending-lifecycle',
+            }),
+          ]),
+        );
+        expect(
+          await readJsonIfExists(join(stateDir, 'cursor-state.json')),
+        ).toBe(null);
+        expect(await readJsonIfExists(join(stateDir, 'state.json'))).toBe(null);
+      } finally {
+        await rm(home, { recursive: true, force: true });
+      }
+    },
+  );
+
+  test('stateless Cursor review buffers a candidate whose exact prefix changes during confirmation', async () => {
+    const home = await realpath(
+      await mkdtemp(join(tmpdir(), 'cli-cursor-review-prefix-change-')),
+    );
+    try {
+      const cwd = join(home, 'workspace', 'cursor-review-prefix-change');
+      await mkdir(cwd, { recursive: true });
+      const stateDir = join(home, '.state');
+      const sessionId = 'cursor-review-prefix-change';
+      const transcriptPath = await copyCursorTranscript(home, cwd, sessionId);
+      await writeFile(
+        transcriptPath,
+        [
+          {
+            role: 'user',
+            message: {
+              content: [
+                { type: 'text', text: 'Review the changing response.' },
+              ],
+            },
+          },
+          {
+            role: 'assistant',
+            message: {
+              content: [{ type: 'text', text: 'Stable open response.' }],
+            },
+          },
+        ]
+          .map((frame) => JSON.stringify(frame))
+          .join('\n') + '\n',
+        'utf8',
+      );
+
+      const result = await spawnCliWithPrefixChange(
+        home,
+        transcriptPath,
+        [
+          'review',
+          '--runtime',
+          'cursor',
+          '--cwd',
+          cwd,
+          '--session',
+          `cursor:${sessionId}`,
+          '--debounce-sec',
+          '0.01',
+          '--json',
+        ],
+        { HOME: home, STATE_DIR: stateDir },
+      );
+      expect(result.status, `${result.stderr}\n${result.stdout}`).toBe(0);
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        entries: [],
+        accounting: {
+          buffered: { reason: 'stability-wait' },
+        },
+        cursorEvidence: {
+          status: { content: 'buffered', lifecycle: 'pending' },
+        },
+      });
+      expect(await readJsonIfExists(join(stateDir, 'cursor-state.json'))).toBe(
+        null,
+      );
+      expect(await readJsonIfExists(join(stateDir, 'state.json'))).toBe(null);
     } finally {
       await rm(home, { recursive: true, force: true });
     }

@@ -40,6 +40,8 @@ import type {
   CliArgs,
   CursorObserveSuccess,
   CursorDigestV2,
+  CursorIdentityEvidence,
+  CursorSessionStateEntry,
   DurableWatchTargetRecord,
   ObserveOutcome,
   ObservedRuntimeResolution,
@@ -55,7 +57,7 @@ import type {
   WatchTargetRecordV2,
 } from './lib/types.js';
 import * as watchStateLib from './lib/watch-state.js';
-import { runWatchLoop } from './lib/watch.js';
+import { cursorTargetHealthReasons, runWatchLoop } from './lib/watch.js';
 
 // ---------------------------------------------------------------------------
 // argv parsing
@@ -659,13 +661,67 @@ async function buildCursorReviewDigest(
     args.cwd,
     args.session ? candidate.sessionId : undefined,
   );
-  const accumulator = createCursorTurnAccumulator(identity, 0);
-  const scan = await scanCursorTranscript(identity.canonicalTranscriptPath, {
-    onFrame(frame) {
-      accumulator.onFrame(frame);
-    },
-  });
-  const analysis = accumulator.finish(scan);
+  const scanReview = async (verifyPrefixBytes?: number) => {
+    const accumulator = createCursorTurnAccumulator(identity, 0);
+    const scan = await scanCursorTranscript(identity.canonicalTranscriptPath, {
+      verifyPrefixBytes,
+      onFrame(frame) {
+        accumulator.onFrame(frame);
+      },
+    });
+    return { scan, analysis: accumulator.finish(scan) };
+  };
+  const candidateObservation = (
+    result: Awaited<ReturnType<typeof scanReview>>,
+    observedAt: string,
+  ) => {
+    const turn = result.analysis.turns.findLast(
+      (candidateTurn) =>
+        candidateTurn.lifecycle === 'pending' &&
+        candidateTurn.assistantRecords.some(
+          (record) => record.classification === 'substantive',
+        ),
+    );
+    if (turn === undefined || result.scan.safeThroughFrame === null)
+      return null;
+    return {
+      turnId: turn.turnId,
+      fromFrameIndex: turn.fromFrameIndex,
+      throughFrameIndex: result.scan.safeThroughFrame,
+      entryKeys: turn.assistantRecords
+        .filter((record) => record.classification === 'substantive')
+        .map((record) => record.entryKey),
+      prefixBytes: result.scan.safePrefixBytes,
+      prefixSha256: result.scan.safePrefixSha256,
+      observedAt,
+    };
+  };
+
+  let selected = await scanReview();
+  let ephemeralState: CursorSessionStateEntry | null = null;
+  const observedAt = new Date().toISOString();
+  const firstObservation = candidateObservation(selected, observedAt);
+  if (firstObservation !== null) {
+    const stabilityMs = Math.max(0, (args.debounceSec ?? 1) * 1000);
+    await new Promise((done) => setTimeout(done, stabilityMs));
+    const confirmedAt = new Date().toISOString();
+    const second = await scanReview(firstObservation.prefixBytes);
+    const exactPrefixConfirmed =
+      second.scan.file.device === selected.scan.file.device &&
+      second.scan.file.inode === selected.scan.file.inode &&
+      second.scan.safePrefixBytes >= firstObservation.prefixBytes &&
+      second.scan.verifiedPrefixSha256 === firstObservation.prefixSha256;
+    selected = second;
+    if (exactPrefixConfirmed) {
+      ephemeralState = statelessCursorReviewState(
+        identity,
+        second.scan.file,
+        firstObservation,
+        confirmedAt,
+        stabilityMs,
+      );
+    }
+  }
   return buildDigest('cursor', identity.canonicalTranscriptPath, {
     fromIndex: 0,
     mode: 'review',
@@ -683,11 +739,68 @@ async function buildCursorReviewDigest(
     fallbacks: options.fallbacks,
     cursorProjection: 'observation',
     cursorIdentity: identity,
-    cursorScan: scan,
-    cursorAnalysis: analysis,
-    cursorState: null,
+    cursorScan: selected.scan,
+    cursorAnalysis: selected.analysis,
+    cursorState: ephemeralState,
     cursorContinuity: 'new',
   });
+}
+
+function statelessCursorReviewState(
+  identity: CursorIdentityEvidence,
+  file: {
+    size: number;
+    device: number | null;
+    inode: number | null;
+  },
+  observation: {
+    turnId: string;
+    fromFrameIndex: number;
+    throughFrameIndex: number;
+    entryKeys: string[];
+    prefixBytes: number;
+    prefixSha256: string;
+    observedAt: string;
+  },
+  confirmedAt: string,
+  stabilityMs: number,
+): CursorSessionStateEntry {
+  return {
+    runtime: 'cursor',
+    sessionId: identity.sessionId,
+    indexBase: 'zero-based-jsonl-frame-index',
+    lastRecordIndex: 0,
+    canonicalCwd: identity.canonicalCwd,
+    transcriptPath: identity.canonicalTranscriptPath,
+    continuity: {
+      indexBase: 'zero-based-jsonl-frame-index',
+      nextFrameIndex: 0,
+      prefixBytes: 0,
+      prefixSha256:
+        'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+      observedSize: file.size,
+      device: file.device,
+      inode: file.inode,
+    },
+    lastStatus: {
+      engagement: 'unknown',
+      activity: 'none',
+      content: 'none',
+      lifecycle: 'none',
+      delivery: 'none',
+      health: 'unknown',
+    },
+    openTurn: null,
+    stabilityCandidate: {
+      ...observation,
+      firstObservedAt: observation.observedAt,
+      confirmAfter: new Date(
+        Date.parse(observation.observedAt) + stabilityMs,
+      ).toISOString(),
+      confirmedAt,
+    },
+    pendingDelivery: null,
+  };
 }
 
 async function runReview(args: CliArgs): Promise<void> {
@@ -1604,17 +1717,10 @@ async function singleWatcherStatusPayload(
         target.bufferedFromFrame === null || transcriptRecords === null
           ? 0
           : Math.max(0, transcriptRecords - target.bufferedFromFrame);
-      const reasons: string[] = [];
-      if (
-        target.continuityState === 'blocked' ||
-        target.lastStatus.health === 'blocked'
-      ) {
-        reasons.push('cursor-continuity-blocked');
-      } else if (target.lastStatus.health === 'stale') {
-        reasons.push('cursor-health-stale');
-      } else if (target.lastStatus.health === 'error') {
-        reasons.push('cursor-health-error');
-      }
+      const reasons = cursorTargetHealthReasons(
+        target.lastStatus,
+        target.continuityState,
+      );
       if (
         secondsSinceLastPoll !== null &&
         secondsSinceLastPoll >

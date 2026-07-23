@@ -19,7 +19,7 @@ import { observeCatchUp, resolveSelfIdentity } from './lib/observe.mjs';
 import { rank } from './lib/rank.mjs';
 import * as stateLib from './lib/state.mjs';
 import * as watchStateLib from './lib/watch-state.mjs';
-import { runWatchLoop } from './lib/watch.mjs';
+import { cursorTargetHealthReasons, runWatchLoop } from './lib/watch.mjs';
 function parseCliArgs(argv) {
   const parsed = parseArgs({
     args: argv,
@@ -443,13 +443,55 @@ async function buildCursorReviewDigest(candidate, args, options) {
     args.cwd,
     args.session ? candidate.sessionId : void 0
   );
-  const accumulator = createCursorTurnAccumulator(identity, 0);
-  const scan = await scanCursorTranscript(identity.canonicalTranscriptPath, {
-    onFrame(frame) {
-      accumulator.onFrame(frame);
+  const scanReview = async (verifyPrefixBytes) => {
+    const accumulator = createCursorTurnAccumulator(identity, 0);
+    const scan = await scanCursorTranscript(identity.canonicalTranscriptPath, {
+      verifyPrefixBytes,
+      onFrame(frame) {
+        accumulator.onFrame(frame);
+      }
+    });
+    return { scan, analysis: accumulator.finish(scan) };
+  };
+  const candidateObservation = (result, observedAt2) => {
+    const turn = result.analysis.turns.findLast(
+      (candidateTurn) => candidateTurn.lifecycle === "pending" && candidateTurn.assistantRecords.some(
+        (record) => record.classification === "substantive"
+      )
+    );
+    if (turn === void 0 || result.scan.safeThroughFrame === null)
+      return null;
+    return {
+      turnId: turn.turnId,
+      fromFrameIndex: turn.fromFrameIndex,
+      throughFrameIndex: result.scan.safeThroughFrame,
+      entryKeys: turn.assistantRecords.filter((record) => record.classification === "substantive").map((record) => record.entryKey),
+      prefixBytes: result.scan.safePrefixBytes,
+      prefixSha256: result.scan.safePrefixSha256,
+      observedAt: observedAt2
+    };
+  };
+  let selected = await scanReview();
+  let ephemeralState = null;
+  const observedAt = (/* @__PURE__ */ new Date()).toISOString();
+  const firstObservation = candidateObservation(selected, observedAt);
+  if (firstObservation !== null) {
+    const stabilityMs = Math.max(0, (args.debounceSec ?? 1) * 1e3);
+    await new Promise((done) => setTimeout(done, stabilityMs));
+    const confirmedAt = (/* @__PURE__ */ new Date()).toISOString();
+    const second = await scanReview(firstObservation.prefixBytes);
+    const exactPrefixConfirmed = second.scan.file.device === selected.scan.file.device && second.scan.file.inode === selected.scan.file.inode && second.scan.safePrefixBytes >= firstObservation.prefixBytes && second.scan.verifiedPrefixSha256 === firstObservation.prefixSha256;
+    selected = second;
+    if (exactPrefixConfirmed) {
+      ephemeralState = statelessCursorReviewState(
+        identity,
+        second.scan.file,
+        firstObservation,
+        confirmedAt,
+        stabilityMs
+      );
     }
-  });
-  const analysis = accumulator.finish(scan);
+  }
   return buildDigest("cursor", identity.canonicalTranscriptPath, {
     fromIndex: 0,
     mode: "review",
@@ -467,11 +509,48 @@ async function buildCursorReviewDigest(candidate, args, options) {
     fallbacks: options.fallbacks,
     cursorProjection: "observation",
     cursorIdentity: identity,
-    cursorScan: scan,
-    cursorAnalysis: analysis,
-    cursorState: null,
+    cursorScan: selected.scan,
+    cursorAnalysis: selected.analysis,
+    cursorState: ephemeralState,
     cursorContinuity: "new"
   });
+}
+function statelessCursorReviewState(identity, file, observation, confirmedAt, stabilityMs) {
+  return {
+    runtime: "cursor",
+    sessionId: identity.sessionId,
+    indexBase: "zero-based-jsonl-frame-index",
+    lastRecordIndex: 0,
+    canonicalCwd: identity.canonicalCwd,
+    transcriptPath: identity.canonicalTranscriptPath,
+    continuity: {
+      indexBase: "zero-based-jsonl-frame-index",
+      nextFrameIndex: 0,
+      prefixBytes: 0,
+      prefixSha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      observedSize: file.size,
+      device: file.device,
+      inode: file.inode
+    },
+    lastStatus: {
+      engagement: "unknown",
+      activity: "none",
+      content: "none",
+      lifecycle: "none",
+      delivery: "none",
+      health: "unknown"
+    },
+    openTurn: null,
+    stabilityCandidate: {
+      ...observation,
+      firstObservedAt: observation.observedAt,
+      confirmAfter: new Date(
+        Date.parse(observation.observedAt) + stabilityMs
+      ).toISOString(),
+      confirmedAt
+    },
+    pendingDelivery: null
+  };
 }
 async function runReview(args) {
   const {
@@ -1128,14 +1207,10 @@ async function singleWatcherStatusPayload(active) {
       const lastRecordIndex2 = target.observationCursor;
       const transcriptRecords2 = target.recordCount;
       const recordsBehind2 = target.bufferedFromFrame === null || transcriptRecords2 === null ? 0 : Math.max(0, transcriptRecords2 - target.bufferedFromFrame);
-      const reasons3 = [];
-      if (target.continuityState === "blocked" || target.lastStatus.health === "blocked") {
-        reasons3.push("cursor-continuity-blocked");
-      } else if (target.lastStatus.health === "stale") {
-        reasons3.push("cursor-health-stale");
-      } else if (target.lastStatus.health === "error") {
-        reasons3.push("cursor-health-error");
-      }
+      const reasons3 = cursorTargetHealthReasons(
+        target.lastStatus,
+        target.continuityState
+      );
       if (secondsSinceLastPoll !== null && secondsSinceLastPoll > Math.max(staleAfterSec, (active.pollSec ?? 2) * 3)) {
         reasons3.push("poll-heartbeat-stale");
       }

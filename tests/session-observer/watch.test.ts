@@ -1027,6 +1027,95 @@ describe('runWatchLoop', () => {
     });
   });
 
+  test('persists repeated Cursor poll failures as unhealthy and clears them only after verified recovery', async () => {
+    await withTempSessionHome(async (home, stateDir) => {
+      const cwd = join(home, 'workspace', 'watch-cursor-poll-recovery');
+      await mkdir(cwd, { recursive: true });
+      const sessionId = 'watch-cursor-poll-recovery';
+      const transcriptPath = await writeCursorTranscript(home, cwd, sessionId, [
+        { role: 'user', content: 'Poll recovery direction.' },
+        { content: 'Poll recovery response.' },
+      ]);
+      await appendCursorFrame(transcriptPath, {
+        type: 'turn_ended',
+        status: 'success',
+      });
+      const stdout: string[] = [];
+      let nowMs = Date.UTC(2026, 5, 3, 12, 0, 0);
+      let transcriptStatCalls = 0;
+      let scanCount = 0;
+      let sawDurableError = false;
+
+      const result = await runWatchLoop(
+        {
+          runtime: 'cursor',
+          cwd,
+          session: `cursor:${sessionId}`,
+          pollSec: 0.02,
+          debounceSec: 0.02,
+          heartbeatSec: 0.02,
+          maxRuntimeMin: 0.008,
+          json: true,
+        },
+        {
+          writeStdout: (chunk: string) => stdout.push(chunk),
+          onCursorScan: () => {
+            scanCount += 1;
+          },
+          now: () => nowMs,
+          sleep: async (ms: number) => {
+            nowMs += ms;
+            const watchJson = await readJsonIfExists(
+              join(stateDir, 'watch.json'),
+            );
+            sawDurableError ||= watchJson?.watchers?.[0]?.targets?.some(
+              (target: any) =>
+                target.runtime === 'cursor' &&
+                target.lastStatus?.health === 'error',
+            );
+          },
+          stat: async (path: string) => {
+            if (path === transcriptPath) {
+              transcriptStatCalls += 1;
+              if (transcriptStatCalls === 2 || transcriptStatCalls === 3) {
+                const error = new Error('synthetic Cursor poll stat failure');
+                Object.assign(error, { code: 'EIO' });
+                throw error;
+              }
+            }
+            return fsStat(path);
+          },
+        },
+      );
+
+      expect(result).toEqual({ reason: 'max-runtime', eventCount: 0 });
+      expect(sawDurableError).toBe(true);
+      const heartbeats = stdout
+        .join('')
+        .trim()
+        .split('\n')
+        .filter(Boolean)
+        .map((line) => JSON.parse(line))
+        .filter((line) => line.type === 'heartbeat');
+      expect(
+        heartbeats.some(
+          (heartbeat) =>
+            heartbeat.healthy === false &&
+            heartbeat.targets[0]?.status?.health === 'error',
+        ),
+      ).toBe(true);
+      expect(
+        heartbeats.some(
+          (heartbeat) =>
+            heartbeat.healthy === true &&
+            heartbeat.targets[0]?.status?.health === 'healthy',
+        ),
+      ).toBe(true);
+      expect(scanCount).toBe(3);
+      expect(transcriptStatCalls).toBeGreaterThan(3);
+    });
+  });
+
   test.each([
     { label: 'synchronous', asynchronous: false },
     { label: 'asynchronous', asynchronous: true },
