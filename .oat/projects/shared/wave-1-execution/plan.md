@@ -47,7 +47,7 @@ governs commit content and granularity; the wrapper adds the `pNN-tNN` scope.
 2. **Execute the source plan's `## Implementation steps`** in order with each
    step's embedded Verify gate; honor its `## STOP conditions` verbatim.
 3. **Confirm the source plan's `## Done criteria`**, then run the full DoD gates:
-   `pnpm run type-check && pnpm run build && pnpm run build:check && pnpm test && npm run validate && pnpm run validate:skill-versions -- --base-ref main`
+   `pnpm run premerge && pnpm run validate:skill-versions -- --base-ref main`
    (Node >= 22; `pnpm install --frozen-lockfile` in a fresh worktree first). Run
    every piped verification under `set -o pipefail` or capture the raw exit code
    before filtering.
@@ -123,7 +123,7 @@ Non-authoritative recon evidence — 4 PASS / 0 MINOR-DRIFT / 0 STOP:
 order; defensive only — no shared files).
 
 **Step 1: Drift check** — per the source plan's `## Drift check`, plus the rule-1
-addendum pathspec extension.
+addendum (see wrapper execution contract rule 1).
 
 **Step 2: Execute** the source plan in full.
 
@@ -135,8 +135,7 @@ independent cross-model review of the cumulative branch diff via the
 runtime-configured reviewer (provider/model/effort owned by dispatch
 configuration, not this plan); disposition every finding in the phase report.
 
-**Step 5: Commit** — one commit per source-plan step grouping, e.g.
-`fix(p01-t01): write consensus records and status atomically`.
+**Step 5: Commit** — e.g. `fix(p01-t01): write consensus records and status atomically`.
 
 ---
 
@@ -153,8 +152,7 @@ configuration, not this plan); disposition every finding in the phase report.
 
 **Step 1: Drift check** — per the source plan's `## Drift check`.
 
-**Step 2: Execute** the source plan in full (including its step-1 decision-record
-intent check — a DR conflict is a source-plan STOP).
+**Step 2: Execute** the source plan in full.
 
 **Step 3: Verify (wrapper gate)** — source plan `## Done criteria`, then full DoD
 gates. Expected: all green.
@@ -184,8 +182,7 @@ the phase report.
 **Step 2: Execute** the source plan in full.
 
 **Step 3: Verify (wrapper gate)** — source plan `## Done criteria`, then full DoD
-gates. Expected: all green. Watch suites are virtual-clock driven — no
-real-time waits in new tests.
+gates. Expected: all green.
 
 **Step 4: Cross-model review** — locking surface: independent cross-model review
 of the diff; reviewer must design at least one adversarial probe of its own
@@ -211,9 +208,7 @@ this wave.
 
 **Step 1: Drift check** — per the source plan's `## Drift check`.
 
-**Step 2: Execute** the source plan in full (its step-1 confirmation gates the
-AGENTS.md exception sentence; an unconfirmed ARCH-07 rationale drops that
-sub-fix and reports, per the plan).
+**Step 2: Execute** the source plan in full.
 
 **Step 3: Verify (wrapper gate)** — the plan's greppable assertions, then full DoD
 gates. Expected: all green.
@@ -231,7 +226,7 @@ gates. Expected: all green.
 | p03    | code     | pending | -    | -        |
 | p04    | code     | pending | -    | -        |
 | final  | code     | pending | -    | -        |
-| plan   | artifact | pending | -    | -        |
+| plan   | artifact | passed  | 2026-07-23 | reviews/plan-gate-2026-07-23.md |
 | spec   | artifact | pending | -    | -        |
 | design | artifact | pending | -    | -        |
 

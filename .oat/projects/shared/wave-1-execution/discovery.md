@@ -36,4 +36,6 @@ plans and the program artifact.
   wave: docs updated where necessary, final Codex sol xhigh review gate on the
   wave's final code (manual `codex exec` fallback), full `oat-project-complete`,
   PR, CI green, merge, then `wave-close` and the next wave. Program recap at
-  program end with an Opus subagent involved.
+  program end with an Opus subagent involved. (The sol xhigh gate is an
+  operator-pinned closeout gate, out of band of the plan's Dispatch Profile;
+  lane dispatch remains runtime-resolved under the managed policy.)

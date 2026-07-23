@@ -113,4 +113,4 @@ None
 
 ## Next Milestone
 
-Plan gate passed; bootstrap group-1 worktrees and dispatch the four lanes
+After the plan gate passes: bootstrap group-1 worktrees and dispatch the four lanes
