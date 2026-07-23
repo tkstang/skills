@@ -304,6 +304,31 @@ describe('scripts/worktree/init.sh', () => {
       path.join(mainRoot, '.oat/projects/local/note.md'),
       'local project\n',
     );
+    await mkdir(path.join(mainRoot, '.oat/projects/archived/old-project'), {
+      recursive: true,
+    });
+    await writeFile(
+      path.join(mainRoot, '.oat/projects/archived/old-project/summary.md'),
+      'archived project\n',
+    );
+
+    // Representative fixtures for copy_matching_files' three -o patterns
+    // (init.sh:95-98): a top-level .mcp.json, a nested .claude/settings.local.json,
+    // and a nested .cursor/mcp.json.
+    await writeFile(
+      path.join(mainRoot, '.mcp.json'),
+      '{"mcpServers":{}}\n',
+    );
+    await mkdir(path.join(mainRoot, '.claude'), { recursive: true });
+    await writeFile(
+      path.join(mainRoot, '.claude/settings.local.json'),
+      '{"claude":true}\n',
+    );
+    await mkdir(path.join(mainRoot, '.cursor'), { recursive: true });
+    await writeFile(
+      path.join(mainRoot, '.cursor/mcp.json'),
+      '{"cursor":true}\n',
+    );
 
     const artifacts = await makeScratchArtifactDir();
     const callsPath = path.join(artifacts, 'calls.jsonl');
@@ -334,6 +359,30 @@ describe('scripts/worktree/init.sh', () => {
       'utf8',
     );
     expect(copiedProject).toBe('local project\n');
+
+    const copiedArchivedProject = await readFile(
+      path.join(targetRoot, '.oat/projects/archived/old-project/summary.md'),
+      'utf8',
+    );
+    expect(copiedArchivedProject).toBe('archived project\n');
+
+    const copiedMcpJson = await readFile(
+      path.join(targetRoot, '.mcp.json'),
+      'utf8',
+    );
+    expect(copiedMcpJson).toBe('{"mcpServers":{}}\n');
+
+    const copiedClaudeSettings = await readFile(
+      path.join(targetRoot, '.claude/settings.local.json'),
+      'utf8',
+    );
+    expect(copiedClaudeSettings).toBe('{"claude":true}\n');
+
+    const copiedCursorMcp = await readFile(
+      path.join(targetRoot, '.cursor/mcp.json'),
+      'utf8',
+    );
+    expect(copiedCursorMcp).toBe('{"cursor":true}\n');
 
     // `oat` is not on the stub PATH, so OAT sync steps must be cleanly
     // skipped rather than erroring.
