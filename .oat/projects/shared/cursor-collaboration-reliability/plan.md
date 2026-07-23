@@ -744,6 +744,7 @@ oat_generated: false
 | p04    | code     | pending         | -          | -                                                                         |
 | p05    | code     | pending         | -          | -                                                                         |
 | p06    | code     | pending         | -          | -                                                                         |
+| plan   | artifact | received        | 2026-07-22 | reviews/artifact-plan-review-2026-07-23T023750Z.md                        |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 
