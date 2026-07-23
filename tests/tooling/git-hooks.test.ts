@@ -18,6 +18,7 @@ import {
   lstat,
   mkdir,
   mkdtemp,
+  readdir,
   readFile,
   readlink,
   rm,
@@ -230,6 +231,89 @@ describe('tools/git-hooks/manage-hooks.mjs', () => {
     for (const hook of hookNames) {
       expect(status.stdout).toMatch(
         new RegExp(`${hook}\\s+.*Disabled \\(intentional\\)`),
+      );
+    }
+  });
+
+  it('scrubs an inherited GIT_CONFIG_* core.hooksPath injection so it cannot redirect the mutation target (F1 regression)', async () => {
+    const root = await makeScratchHooksRepo();
+    const gitHooksDir = gitHooksDirFor(root);
+
+    // A directory standing in for "somewhere outside the scratch repo" —
+    // e.g. the real repo's .git/hooks in the actual prior-incident scenario.
+    // Never touched directly by the test; only reachable if the scrub fails.
+    const sentinelDir = await mkdtemp(
+      path.join(os.tmpdir(), 'git-hooks-sentinel-'),
+    );
+    cleanupDirs.push(sentinelDir);
+
+    // Simulate the inherited-environment leak: something upstream (e.g. a
+    // git hook, or CI) has GIT_CONFIG_COUNT/KEY_0/VALUE_0 set in the
+    // *parent* process env, injecting core.hooksPath=<sentinelDir>. A
+    // correct gitEnv() must strip this before it ever reaches a spawned
+    // `git` (or, transitively, manage-hooks.mjs's own `git` subprocess).
+    const previous = {
+      GIT_CONFIG_COUNT: process.env.GIT_CONFIG_COUNT,
+      GIT_CONFIG_KEY_0: process.env.GIT_CONFIG_KEY_0,
+      GIT_CONFIG_VALUE_0: process.env.GIT_CONFIG_VALUE_0,
+    };
+    process.env.GIT_CONFIG_COUNT = '1';
+    process.env.GIT_CONFIG_KEY_0 = 'core.hooksPath';
+    process.env.GIT_CONFIG_VALUE_0 = sentinelDir;
+
+    let scrubbed: NodeJS.ProcessEnv;
+    try {
+      scrubbed = gitEnv();
+    } finally {
+      for (const [key, value] of Object.entries(previous)) {
+        if (value === undefined) {
+          delete process.env[key];
+        } else {
+          process.env[key] = value;
+        }
+      }
+    }
+
+    // The scrub itself must have removed every injected key.
+    expect(scrubbed.GIT_CONFIG_COUNT).toBeUndefined();
+    expect(scrubbed.GIT_CONFIG_KEY_0).toBeUndefined();
+    expect(scrubbed.GIT_CONFIG_VALUE_0).toBeUndefined();
+
+    // Sanity check: an unscrubbed env really would have redirected git-path
+    // resolution to the sentinel dir (proves this is a real, not theoretical,
+    // vector — and pins the mechanism the scrub defeats).
+    const unscrubbedProbe = await execFile(
+      'git',
+      ['rev-parse', '--git-path', 'hooks'],
+      {
+        cwd: root,
+        env: {
+          ...process.env,
+          GIT_CONFIG_COUNT: '1',
+          GIT_CONFIG_KEY_0: 'core.hooksPath',
+          GIT_CONFIG_VALUE_0: sentinelDir,
+        },
+      },
+    );
+    expect(unscrubbedProbe.stdout.trim()).toBe(sentinelDir);
+
+    const result = await run(
+      process.execPath,
+      [manageHooksScript, 'enable-all'],
+      root,
+      scrubbed,
+    );
+    expect(result.code, result.stderr).toBe(0);
+
+    // Sentinel dir (standing in for "outside the scratch repo") must remain
+    // untouched.
+    expect(await readdir(sentinelDir)).toEqual([]);
+
+    // The scratch repo's own .git/hooks must be the actual mutation target.
+    for (const hook of hookNames) {
+      const linkStat = await lstat(path.join(gitHooksDir, hook));
+      expect(linkStat.isSymbolicLink(), `${hook} should be a symlink`).toBe(
+        true,
       );
     }
   });
@@ -505,5 +589,44 @@ describe('git hook scripts (delegation and exit-code propagation)', () => {
     );
     expect(fileCheckout.code, fileCheckout.stderr).toBe(0);
     expect(await readCalls(fileCallsPath)).toEqual([]);
+  });
+
+  it('post-checkout propagates a nonzero exit code when pnpm install fails (F2)', async () => {
+    const root = await makeScratchHookRunRepo();
+    await writeFile(path.join(root, 'pnpm-lock.yaml'), 'lockfileVersion: 1\n');
+    await execFile('git', ['add', '-A'], { cwd: root, env: gitEnv() });
+    await execFile('git', ['commit', '-q', '-m', 'base'], {
+      cwd: root,
+      env: gitEnv(),
+    });
+    const sha1 = (
+      await execFile('git', ['rev-parse', 'HEAD'], { cwd: root, env: gitEnv() })
+    ).stdout.trim();
+
+    await writeFile(path.join(root, 'pnpm-lock.yaml'), 'lockfileVersion: 2\n');
+    await execFile('git', ['commit', '-aqm', 'bump lockfile'], {
+      cwd: root,
+      env: gitEnv(),
+    });
+    const sha2 = (
+      await execFile('git', ['rev-parse', 'HEAD'], { cwd: root, env: gitEnv() })
+    ).stdout.trim();
+
+    const artifacts = await makeScratchArtifactDir();
+    const callsPath = path.join(artifacts, 'calls.jsonl');
+
+    const result = await run(
+      'sh',
+      [path.join(realHooksDir, 'post-checkout'), sha1, sha2, '1'],
+      root,
+      pnpmStubEnv({
+        PNPM_STUB_CALLS_JSONL: callsPath,
+        PNPM_STUB_FAIL_STEP: 'install',
+      }),
+    );
+
+    expect(result.code).not.toBe(0);
+    const calls = await readCalls(callsPath);
+    expect(calls.map((call) => call.step)).toEqual(['install']);
   });
 });
