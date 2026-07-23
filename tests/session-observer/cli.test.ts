@@ -8,6 +8,7 @@ import {
   rm,
   mkdir,
   copyFile,
+  realpath,
   readFile,
   utimes,
   writeFile,
@@ -56,6 +57,35 @@ function spawnCli(
   env: NodeJS.ProcessEnv = {},
 ): SpawnSyncReturns<string> {
   return spawnSync('node', [CLI_PATH, ...args], {
+    encoding: 'utf8',
+    timeout: 15000,
+    env: { ...process.env, ...HARNESS_ENV, ...env },
+  });
+}
+
+async function spawnCliWithStdoutFailure(
+  root: string,
+  args: string[],
+  mode: 'sync' | 'async',
+  env: NodeJS.ProcessEnv = {},
+): Promise<SpawnSyncReturns<string>> {
+  const preloadPath = join(root, `inject-stdout-${mode}-failure.mjs`);
+  const failure = [
+    "const error = new Error('INJECTED_STDOUT_FAILURE');",
+    "error.code = 'EPIPE';",
+  ];
+  await writeFile(
+    preloadPath,
+    [
+      ...failure,
+      mode === 'sync'
+        ? 'process.stdout.write = function injectedStdoutFailure() { throw error; };'
+        : 'process.stdout.write = function injectedStdoutFailure() { return Promise.reject(error); };',
+      '',
+    ].join('\n'),
+    'utf8',
+  );
+  return spawnSync('node', ['--import', preloadPath, CLI_PATH, ...args], {
     encoding: 'utf8',
     timeout: 15000,
     env: { ...process.env, ...HARNESS_ENV, ...env },
@@ -481,6 +511,115 @@ describe('CLI subcommand dispatch', () => {
       expect(parsed.watcher).toBe(null);
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  test('watch-ctl status reports structural Cursor target facets without treating blocked ownership as healthy', async () => {
+    const home = await realpath(
+      await mkdtemp(join(tmpdir(), 'cli-watch-status-cursor-')),
+    );
+    try {
+      const cwd = join(home, 'workspace', 'watch-status-cursor');
+      await mkdir(cwd, { recursive: true });
+      const stateDir = join(home, '.state');
+      await mkdir(stateDir, { recursive: true });
+      const sessionId = 'watch-status-cursor';
+      const transcriptPath = await copyCursorTranscript(home, cwd, sessionId);
+      const now = new Date().toISOString();
+      const target = {
+        key: `cursor:${sessionId}`,
+        runtime: 'cursor',
+        sessionId,
+        transcriptPath,
+        cwd,
+        recordCount: 4,
+        baselineRecordIndex: 3,
+        engagementStatus: 'engaged',
+        lockedAt: now,
+        indexBase: 'zero-based-jsonl-frame-index',
+        canonicalTranscriptPath: transcriptPath,
+        observationCursor: 3,
+        bufferedFromFrame: 3,
+        continuity: {
+          indexBase: 'zero-based-jsonl-frame-index',
+          nextFrameIndex: 3,
+          prefixBytes: 256,
+          prefixSha256: 'a'.repeat(64),
+          observedSize: 300,
+          device: 41,
+          inode: 42,
+        },
+        pendingCandidateDeadline: null,
+        lastStatus: {
+          engagement: 'engaged',
+          activity: 'assistant-progress',
+          content: 'buffered',
+          lifecycle: 'pending',
+          delivery: 'uncertain',
+          health: 'blocked',
+        },
+        continuityState: 'blocked',
+        ownerPid: process.pid,
+      };
+      const watcher = {
+        pid: process.pid,
+        runtime: 'cursor',
+        requestedRuntime: 'cursor',
+        cwd,
+        session: `cursor:${sessionId}`,
+        startedAt: now,
+        pollSec: 2,
+        debounceSec: 2,
+        maxPendingSec: 30,
+        heartbeatSec: 120,
+        staleAfterSec: 34,
+        lastPollAt: now,
+        lastEventAt: null,
+        eventCount: 0,
+        resolvedRuntime: 'cursor',
+        sessionId,
+        transcriptPath,
+        targets: [target],
+        lastError: null,
+      };
+      await writeFile(
+        join(stateDir, 'watch.json'),
+        JSON.stringify({
+          schemaVersion: 2,
+          active: watcher,
+          watchers: [watcher],
+        }),
+        'utf8',
+      );
+
+      const result = spawnCli(['watch-ctl', 'status', '--json'], {
+        HOME: home,
+        STATE_DIR: stateDir,
+      });
+      expect(result.status, `${result.stderr}\n${result.stdout}`).toBe(0);
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        active: true,
+        healthy: false,
+        health: { reasons: ['cursor-continuity-blocked'] },
+        targets: [
+          {
+            runtime: 'cursor',
+            indexBase: 'zero-based-jsonl-frame-index',
+            observationCursor: 3,
+            bufferedFromFrame: 3,
+            continuityState: 'blocked',
+            recordsBehind: 1,
+            healthy: false,
+            healthReasons: ['cursor-continuity-blocked'],
+            lastStatus: {
+              delivery: 'uncertain',
+              health: 'blocked',
+            },
+          },
+        ],
+      });
+    } finally {
+      await rm(home, { recursive: true, force: true });
     }
   });
 
@@ -1217,11 +1356,14 @@ describe('--runtime auto', () => {
     }
   });
 
-  test('auto prefers the only previously read same-cwd runtime across three matching runtimes', async () => {
-    const tmpDir = await mkdtemp(join(tmpdir(), 'cli-auto-three-state-'));
+  test('legacy Cursor state blocks auto selection until explicit session reset replays frame zero', async () => {
+    const tmpDir = await realpath(
+      await mkdtemp(join(tmpdir(), 'cli-auto-three-state-')),
+    );
     try {
-      const cwd = '/test/three-runtime-project';
-      const encodedCwd = '-test-three-runtime-project';
+      const cwd = join(tmpDir, 'workspace', 'three-runtime-project');
+      await mkdir(cwd, { recursive: true });
+      const encodedCwd = cwd.replace(/[/.]/g, '-');
 
       const claudeProjectDir = join(tmpDir, '.claude', 'projects', encodedCwd);
       await mkdir(claudeProjectDir, { recursive: true });
@@ -1290,14 +1432,349 @@ describe('--runtime auto', () => {
 
       expect(
         result.status,
-        `Expected auto runtime to use cursor state preference, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
+        `Expected legacy Cursor state to block, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
+      ).toBe(4);
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        continuityBlocked: true,
+        runtime: 'cursor',
+        code: 'LEGACY_CURSOR_UNVERIFIED',
+      });
+
+      const getResult = spawnCli(['state', 'get', '--json'], {
+        HOME: tmpDir,
+        STATE_DIR: stateDir,
+      });
+      expect(getResult.status).toBe(0);
+      expect(
+        JSON.parse(getResult.stdout).sessions['cursor:cursor-three'],
+      ).toMatchObject({
+        runtime: 'cursor',
+        sessionId: 'cursor-three',
+        recoveryRequired: true,
+        recoveryCode: 'LEGACY_CURSOR_UNVERIFIED',
+        legacyLastRecordIndex: 0,
+      });
+
+      const resetResult = spawnCli(
+        ['state', 'reset', '--session', 'cursor:cursor-three', '--json'],
+        { HOME: tmpDir, STATE_DIR: stateDir },
+      );
+      expect(resetResult.status).toBe(0);
+
+      const replay = spawnCli(
+        [
+          'catch-up',
+          '--runtime',
+          'cursor',
+          '--cwd',
+          cwd,
+          '--session',
+          'cursor:cursor-three',
+          '--json',
+        ],
+        { HOME: tmpDir, STATE_DIR: stateDir },
+      );
+      expect(
+        replay.status,
+        `Expected explicit reset to replay frame zero\nstdout: ${replay.stdout}\nstderr: ${replay.stderr}`,
       ).toBe(0);
-      const parsed = JSON.parse(result.stdout);
-      expect(parsed.runtime).toBe('cursor');
-      expect(parsed.sessionId).toBe('cursor-three');
-      expect(parsed.entries[0].text).toBe('Can you inspect the failing test?');
+      const replayDigest = JSON.parse(replay.stdout);
+      expect(replayDigest).toMatchObject({
+        schemaVersion: 2,
+        runtime: 'cursor',
+        sessionId: 'cursor-three',
+        range: {
+          indexBase: 'zero-based-jsonl-frame-index',
+          fromIndex: 0,
+          nextIndex: 4,
+        },
+      });
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('Cursor CLI state and delivery composition', () => {
+  test('pinned review renders digest v2 and advances only through --mark-read delivery finalization', async () => {
+    const home = await realpath(
+      await mkdtemp(join(tmpdir(), 'cli-cursor-review-v2-')),
+    );
+    try {
+      const cwd = join(home, 'workspace', 'cursor-review-v2');
+      await mkdir(cwd, { recursive: true });
+      const stateDir = join(home, '.state');
+      await copyCursorTranscript(home, cwd, 'cursor-review-v2');
+      const baseArgs = [
+        'review',
+        '--runtime',
+        'cursor',
+        '--cwd',
+        cwd,
+        '--session',
+        'cursor:cursor-review-v2',
+      ];
+
+      const markdown = spawnCli(baseArgs, {
+        HOME: home,
+        STATE_DIR: stateDir,
+      });
+      expect(markdown.status, `${markdown.stderr}\n${markdown.stdout}`).toBe(0);
+      expect(markdown.stdout).toContain(
+        '**raw range (zero-based JSONL frame indices):**',
+      );
+      expect(markdown.stdout).toContain('**lifecycle:** success');
+      let cursorState = await readJsonIfExists(
+        join(stateDir, 'cursor-state.json'),
+      );
+      expect(cursorState).toBe(null);
+
+      const marked = spawnCli([...baseArgs, '--mark-read', '--json'], {
+        HOME: home,
+        STATE_DIR: stateDir,
+      });
+      expect(marked.status, `${marked.stderr}\n${marked.stdout}`).toBe(0);
+      expect(JSON.parse(marked.stdout)).toMatchObject({
+        schemaVersion: 2,
+        runtime: 'cursor',
+        range: {
+          indexBase: 'zero-based-jsonl-frame-index',
+          fromIndex: 0,
+          nextIndex: 4,
+        },
+        cursorEvidence: {
+          projection: 'observation',
+          status: { delivery: 'reserved', health: 'healthy' },
+        },
+      });
+      cursorState = await readJsonIfExists(join(stateDir, 'cursor-state.json'));
+      expect(
+        cursorState.sessions['cursor:cursor-review-v2'].continuity
+          .nextFrameIndex,
+      ).toBe(4);
+      expect(
+        cursorState.sessions['cursor:cursor-review-v2'].pendingDelivery,
+      ).toBe(null);
+      const legacyState = await readJsonIfExists(join(stateDir, 'state.json'));
+      expect(legacyState?.sessions?.['cursor:cursor-review-v2']).toBe(
+        undefined,
+      );
+    } finally {
+      await rm(home, { recursive: true, force: true });
+    }
+  });
+
+  test.each(['sync', 'async'] as const)(
+    'Cursor catch-up leaves both cursors unchanged after %s stdout failure',
+    async (mode) => {
+      const home = await realpath(
+        await mkdtemp(join(tmpdir(), `cli-cursor-output-${mode}-`)),
+      );
+      try {
+        const cwd = join(home, 'workspace', `cursor-output-${mode}`);
+        await mkdir(cwd, { recursive: true });
+        const stateDir = join(home, '.state');
+        const sessionId = `cursor-output-${mode}`;
+        await copyCursorTranscript(home, cwd, sessionId);
+        const args = [
+          'catch-up',
+          '--runtime',
+          'cursor',
+          '--cwd',
+          cwd,
+          '--session',
+          `cursor:${sessionId}`,
+          '--json',
+        ];
+
+        const failed = await spawnCliWithStdoutFailure(home, args, mode, {
+          HOME: home,
+          STATE_DIR: stateDir,
+        });
+        expect(failed.status).toBe(1);
+        expect(failed.stderr).toContain('INJECTED_STDOUT_FAILURE');
+        let cursorState = await readJsonIfExists(
+          join(stateDir, 'cursor-state.json'),
+        );
+        const failedSession = cursorState.sessions[`cursor:${sessionId}`];
+        expect(failedSession.continuity.nextFrameIndex).toBe(0);
+        expect(failedSession).not.toHaveProperty('completionCursor');
+        if (mode === 'sync') {
+          expect(failedSession.pendingDelivery).toBe(null);
+          expect(failedSession.lastStatus.delivery).toBe('none');
+        } else {
+          expect(failedSession.pendingDelivery).not.toBe(null);
+          expect(failedSession.lastStatus.delivery).toBe('uncertain');
+        }
+
+        const replay = spawnCli(args, {
+          HOME: home,
+          STATE_DIR: stateDir,
+        });
+        expect(replay.status, `${replay.stderr}\n${replay.stdout}`).toBe(
+          mode === 'sync' ? 0 : 4,
+        );
+        const replayDigest = JSON.parse(replay.stdout);
+        if (mode === 'async') {
+          expect(replayDigest.cursorEvidence.status.delivery).toBe('uncertain');
+          expect(
+            replayDigest.entries.map((entry: any) => entry.entryKey),
+          ).toEqual(failedSession.pendingDelivery.entryKeys);
+        }
+        cursorState = await readJsonIfExists(
+          join(stateDir, 'cursor-state.json'),
+        );
+        expect(cursorState.sessions[`cursor:${sessionId}`]).not.toHaveProperty(
+          'completionCursor',
+        );
+      } finally {
+        await rm(home, { recursive: true, force: true });
+      }
+    },
+  );
+
+  test('Cursor continuity failure exits 4 without advancing either cursor', async () => {
+    const home = await realpath(
+      await mkdtemp(join(tmpdir(), 'cli-cursor-blocked-')),
+    );
+    try {
+      const cwd = join(home, 'workspace', 'cursor-blocked');
+      await mkdir(cwd, { recursive: true });
+      const stateDir = join(home, '.state');
+      const sessionId = 'cursor-blocked';
+      const transcriptPath = await copyCursorTranscript(home, cwd, sessionId);
+      const args = [
+        'catch-up',
+        '--runtime',
+        'cursor',
+        '--cwd',
+        cwd,
+        '--session',
+        `cursor:${sessionId}`,
+        '--json',
+      ];
+      const first = spawnCli(args, { HOME: home, STATE_DIR: stateDir });
+      expect(first.status, `${first.stderr}\n${first.stdout}`).toBe(0);
+      const before = await readJsonIfExists(
+        join(stateDir, 'cursor-state.json'),
+      );
+      const original = await readFile(transcriptPath, 'utf8');
+      await writeFile(
+        transcriptPath,
+        original.replace(
+          'Can you inspect the failing test?',
+          'Xan you inspect the failing test?',
+        ),
+        'utf8',
+      );
+
+      const blocked = spawnCli(args, { HOME: home, STATE_DIR: stateDir });
+      expect(blocked.status, `${blocked.stderr}\n${blocked.stdout}`).toBe(4);
+      expect(JSON.parse(blocked.stdout)).toMatchObject({
+        continuityBlocked: true,
+        runtime: 'cursor',
+        code: 'PREFIX_MISMATCH',
+      });
+      expect(
+        await readJsonIfExists(join(stateDir, 'cursor-state.json')),
+      ).toEqual(before);
+    } finally {
+      await rm(home, { recursive: true, force: true });
+    }
+  });
+
+  test('state get reset and clear compose legacy and Cursor stores', async () => {
+    const home = await realpath(
+      await mkdtemp(join(tmpdir(), 'cli-state-composed-')),
+    );
+    try {
+      const cwd = join(home, 'workspace', 'state-composed');
+      await mkdir(cwd, { recursive: true });
+      const stateDir = join(home, '.state');
+      await mkdir(stateDir, { recursive: true });
+      const sessionId = 'cursor-state-composed';
+      await copyCursorTranscript(home, cwd, sessionId);
+      await writeFile(
+        join(stateDir, 'state.json'),
+        JSON.stringify({
+          schemaVersion: 1,
+          sessions: {
+            'codex:kept': {
+              runtime: 'codex',
+              sessionId: 'kept',
+              lastRecordIndex: 2,
+              lastTotalRecords: 2,
+              transcriptPath: '/tmp/codex-kept.jsonl',
+              recordedCwd: '/tmp',
+            },
+          },
+        }),
+        'utf8',
+      );
+      const catchUpArgs = [
+        'catch-up',
+        '--runtime',
+        'cursor',
+        '--cwd',
+        cwd,
+        '--session',
+        `cursor:${sessionId}`,
+        '--json',
+      ];
+      expect(
+        spawnCli(catchUpArgs, {
+          HOME: home,
+          STATE_DIR: stateDir,
+        }).status,
+      ).toBe(0);
+
+      const composed = spawnCli(['state', 'get', '--json'], {
+        HOME: home,
+        STATE_DIR: stateDir,
+      });
+      expect(
+        Object.keys(JSON.parse(composed.stdout).sessions).toSorted(),
+      ).toEqual(['codex:kept', `cursor:${sessionId}`]);
+      const reset = spawnCli(
+        ['state', 'reset', '--session', `cursor:${sessionId}`, '--json'],
+        { HOME: home, STATE_DIR: stateDir },
+      );
+      expect(reset.status).toBe(0);
+      expect(
+        Object.keys(
+          JSON.parse(
+            spawnCli(['state', 'get', '--json'], {
+              HOME: home,
+              STATE_DIR: stateDir,
+            }).stdout,
+          ).sessions,
+        ),
+      ).toEqual(['codex:kept']);
+
+      expect(
+        spawnCli(catchUpArgs, {
+          HOME: home,
+          STATE_DIR: stateDir,
+        }).status,
+      ).toBe(0);
+      const cleared = spawnCli(['state', 'clear', '--json'], {
+        HOME: home,
+        STATE_DIR: stateDir,
+      });
+      expect(cleared.status).toBe(0);
+      expect(
+        JSON.parse(
+          spawnCli(['state', 'get', '--json'], {
+            HOME: home,
+            STATE_DIR: stateDir,
+          }).stdout,
+        ).sessions,
+      ).toEqual({});
+      expect(
+        (await readJsonIfExists(join(stateDir, 'cursor-state.json'))).sessions,
+      ).toEqual({});
+    } finally {
+      await rm(home, { recursive: true, force: true });
     }
   });
 });

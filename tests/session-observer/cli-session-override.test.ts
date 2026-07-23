@@ -12,6 +12,7 @@ import {
   rm,
   mkdir,
   copyFile,
+  realpath,
   readFile,
   writeFile,
 } from 'node:fs/promises';
@@ -74,9 +75,12 @@ async function copyCursorTranscript(
 
 describe('--session override', () => {
   test('review: --runtime auto uses pinned cursor runtime before ambiguity checks', async () => {
-    const tmpDir = await mkdtemp(join(tmpdir(), 'cli-session-auto-cursor-'));
+    const tmpDir = await realpath(
+      await mkdtemp(join(tmpdir(), 'cli-session-auto-cursor-')),
+    );
     try {
-      const cwd = '/test/auto-pinned-cursor-project';
+      const cwd = join(tmpDir, 'workspace', 'auto-pinned-cursor-project');
+      await mkdir(cwd, { recursive: true });
       const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
       await mkdir(stateDir, { recursive: true });
       await copyCursorTranscript(tmpDir, cwd, 'cursor-pinned-auto');
@@ -116,21 +120,31 @@ describe('--session override', () => {
         { HOME: tmpDir, STATE_DIR: stateDir },
       );
 
-      expect(result.status, `auto + pinned cursor session should bypass runtime ambiguity\nstdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(0);
+      expect(
+        result.status,
+        `auto + pinned cursor session should bypass runtime ambiguity\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
+      ).toBe(0);
       const parsed = JSON.parse(result.stdout);
+      expect(parsed.schemaVersion).toBe(2);
       expect(parsed.runtime).toBe('cursor');
       expect(parsed.sessionId).toBe('cursor-pinned-auto');
+      expect(parsed.range.indexBase).toBe('zero-based-jsonl-frame-index');
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
   });
 
   test('catch-up: --runtime auto uses pinned cursor runtime before ambiguity checks', async () => {
-    const tmpDir = await mkdtemp(
-      join(tmpdir(), 'cli-session-auto-cursor-catchup-'),
+    const tmpDir = await realpath(
+      await mkdtemp(join(tmpdir(), 'cli-session-auto-cursor-catchup-')),
     );
     try {
-      const cwd = '/test/auto-pinned-cursor-catchup-project';
+      const cwd = join(
+        tmpDir,
+        'workspace',
+        'auto-pinned-cursor-catchup-project',
+      );
+      await mkdir(cwd, { recursive: true });
       const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
       await mkdir(stateDir, { recursive: true });
       await copyCursorTranscript(tmpDir, cwd, 'cursor-pinned-catchup');
@@ -170,19 +184,37 @@ describe('--session override', () => {
         { HOME: tmpDir, STATE_DIR: stateDir },
       );
 
-      expect(result.status, `auto + pinned cursor catch-up should bypass runtime ambiguity\nstdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(0);
+      expect(
+        result.status,
+        `auto + pinned cursor catch-up should bypass runtime ambiguity\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
+      ).toBe(0);
       const parsed = JSON.parse(result.stdout);
+      expect(parsed.schemaVersion).toBe(2);
       expect(parsed.runtime).toBe('cursor');
       expect(parsed.sessionId).toBe('cursor-pinned-catchup');
+      expect(parsed.cursorEvidence.status.delivery).toBe('reserved');
+      const cursorState = JSON.parse(
+        await readFile(join(stateDir, 'cursor-state.json'), 'utf8'),
+      );
+      expect(
+        cursorState.sessions['cursor:cursor-pinned-catchup'].continuity
+          .nextFrameIndex,
+      ).toBe(4);
+      expect(
+        cursorState.sessions['cursor:cursor-pinned-catchup'].pendingDelivery,
+      ).toBe(null);
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
   });
 
   test('review: --session accepts cursor runtime', async () => {
-    const tmpDir = await mkdtemp(join(tmpdir(), 'cli-session-cursor-'));
+    const tmpDir = await realpath(
+      await mkdtemp(join(tmpdir(), 'cli-session-cursor-')),
+    );
     try {
-      const cwd = '/test/cursor-session-project';
+      const cwd = join(tmpDir, 'workspace', 'cursor-session-project');
+      await mkdir(cwd, { recursive: true });
       const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
       await mkdir(stateDir, { recursive: true });
       await copyCursorTranscript(tmpDir, cwd, 'cursor-pinned');
@@ -201,8 +233,12 @@ describe('--session override', () => {
         { HOME: tmpDir, STATE_DIR: stateDir },
       );
 
-      expect(result.status, `--session should accept cursor, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(0);
+      expect(
+        result.status,
+        `--session should accept cursor, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
+      ).toBe(0);
       const parsed = JSON.parse(result.stdout);
+      expect(parsed.schemaVersion).toBe(2);
       expect(parsed.runtime).toBe('cursor');
       expect(parsed.sessionId).toBe('cursor-pinned');
     } finally {
@@ -269,10 +305,16 @@ describe('--session override', () => {
         { HOME: tmpDir, STATE_DIR: stateDir },
       );
 
-      expect(pinnedResult.status, `--session should resolve to exit 0, got ${pinnedResult.status}\nstdout: ${pinnedResult.stdout}\nstderr: ${pinnedResult.stderr}`).toBe(0);
+      expect(
+        pinnedResult.status,
+        `--session should resolve to exit 0, got ${pinnedResult.status}\nstdout: ${pinnedResult.stdout}\nstderr: ${pinnedResult.stderr}`,
+      ).toBe(0);
 
       const digestData = JSON.parse(pinnedResult.stdout);
-      expect(digestData.entries || digestData.range, 'should return a digest object').toBeTruthy();
+      expect(
+        digestData.entries || digestData.range,
+        'should return a digest object',
+      ).toBeTruthy();
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -325,7 +367,10 @@ describe('--session override', () => {
         { HOME: tmpDir, STATE_DIR: stateDir },
       );
 
-      expect(pinnedResult.status, `catch-up --session should resolve to exit 0, got ${pinnedResult.status}\nstdout: ${pinnedResult.stdout}\nstderr: ${pinnedResult.stderr}`).toBe(0);
+      expect(
+        pinnedResult.status,
+        `catch-up --session should resolve to exit 0, got ${pinnedResult.status}\nstdout: ${pinnedResult.stdout}\nstderr: ${pinnedResult.stderr}`,
+      ).toBe(0);
 
       const statePath = join(stateDir, 'state.json');
       const before = JSON.parse(await readFile(statePath, 'utf8'));
@@ -344,10 +389,16 @@ describe('--session override', () => {
         ],
         { HOME: tmpDir, STATE_DIR: stateDir },
       );
-      expect(secondPinnedResult.status, `second pinned catch-up should exit 0\nstdout: ${secondPinnedResult.stdout}\nstderr: ${secondPinnedResult.stderr}`).toBe(0);
+      expect(
+        secondPinnedResult.status,
+        `second pinned catch-up should exit 0\nstdout: ${secondPinnedResult.stdout}\nstderr: ${secondPinnedResult.stderr}`,
+      ).toBe(0);
 
       const after = JSON.parse(await readFile(statePath, 'utf8'));
-      expect(after, 'pinned no-op catch-up should not rewrite matching state').toEqual(before);
+      expect(
+        after,
+        'pinned no-op catch-up should not rewrite matching state',
+      ).toEqual(before);
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -407,10 +458,15 @@ describe('--session override', () => {
         { HOME: tmpDir, STATE_DIR: stateDir },
       );
 
-      expect(result.status, `watched catch-up should still succeed\nstdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(0);
-      expect(result.stdout.includes(
+      expect(
+        result.status,
+        `watched catch-up should still succeed\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
+      ).toBe(0);
+      expect(
+        result.stdout.includes(
           'watcher pid 12345 is also reading this session',
-        )).toBeTruthy();
+        ),
+      ).toBeTruthy();
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -441,7 +497,10 @@ describe('--session override', () => {
         { HOME: tmpDir, STATE_DIR: stateDir },
       );
 
-      expect(result.status, `--session with non-existent id should exit 1, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(1);
+      expect(
+        result.status,
+        `--session with non-existent id should exit 1, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
+      ).toBe(1);
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -472,7 +531,10 @@ describe('--session override', () => {
         { HOME: tmpDir, STATE_DIR: stateDir },
       );
 
-      expect(result.status, `--session without colon should exit 1, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(1);
+      expect(
+        result.status,
+        `--session without colon should exit 1, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
+      ).toBe(1);
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
