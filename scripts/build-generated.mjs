@@ -145,6 +145,11 @@ export const generatedOutputs = [
     output: 'plugins/consensus/skills/refine/scripts/refine-resume.mjs',
   },
   {
+    id: 'consensus-refine-escalation',
+    source: 'src/consensus/refine/refine-escalation.ts',
+    output: 'plugins/consensus/skills/refine/scripts/refine-escalation.mjs',
+  },
+  {
     id: 'consensus-evaluate',
     source: 'src/consensus/evaluate/consensus-evaluate.ts',
     output: 'plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs',
