@@ -3,6 +3,8 @@ import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { discoverSkillDirectories } from './lib/discover-skills.mjs';
+
 export const PROVIDER_MANIFESTS = [
   'plugins/consensus/.claude-plugin/plugin.json',
   'plugins/consensus/.cursor-plugin/plugin.json',
@@ -15,18 +17,31 @@ export const MARKETPLACE_MANIFESTS = [
   '.agents/plugins/marketplace.json',
 ];
 
-export const SKILL_FILES = [
-  'skills/session-observer/SKILL.md',
-  'skills/export-session-transcript/SKILL.md',
-  'skills/session-observer-collab/SKILL.md',
-  'plugins/consensus/skills/refine/SKILL.md',
-  'plugins/consensus/skills/evaluate/SKILL.md',
-  'plugins/consensus/skills/create/SKILL.md',
-  'plugins/consensus/skills/decide/SKILL.md',
-  'plugins/consensus/skills/plan/SKILL.md',
-  'plugins/consensus/skills/panel/SKILL.md',
-  'plugins/consensus/skills/phone-a-friend/SKILL.md',
-];
+const DEFAULT_ROOT = path.resolve(
+  fileURLToPath(new URL('..', import.meta.url)),
+);
+
+// Derive the repo-relative SKILL.md list from disk via the same discovery
+// contract scripts/validate.mjs uses for structural validation, rather than a
+// hand-maintained list — see tests/release/versioning.test.ts for the
+// completeness pin. Sorted for deterministic release diffs.
+//
+// This MUST be computed against each operation's *effective* root, not a
+// single build-time snapshot of DEFAULT_ROOT: bumpVersion/checkTagVersion
+// accept a caller-supplied `root`, and a target checkout can carry a different
+// skill set than the source checkout this script lives in. Deriving from
+// DEFAULT_ROOT would silently under-bump a target with extra skills (or fail
+// mid-run against one missing a source-checkout skill). Callers derive their
+// own list; the exported SKILL_FILES below is the DEFAULT_ROOT convenience the
+// tests pin against.
+async function skillFilesForRoot(root) {
+  return (await discoverSkillDirectories(root)).map(
+    (skillDirectory) =>
+      `${path.relative(root, skillDirectory).split(path.sep).join('/')}/SKILL.md`,
+  );
+}
+
+export const SKILL_FILES = await skillFilesForRoot(DEFAULT_ROOT);
 
 const SEMVER_PATTERN =
   /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/u;
@@ -121,6 +136,7 @@ function tagToVersion(tag) {
 
 export async function bumpVersion({ root = process.cwd(), version }) {
   const nextVersion = requireSemver(version);
+  const skillFiles = await skillFilesForRoot(root);
   const updatedFiles = [];
 
   for (const relativePath of PROVIDER_MANIFESTS) {
@@ -141,7 +157,7 @@ export async function bumpVersion({ root = process.cwd(), version }) {
     updatedFiles.push(relativePath);
   }
 
-  for (const relativePath of SKILL_FILES) {
+  for (const relativePath of skillFiles) {
     const filePath = path.join(root, relativePath);
     const updated = replaceSkillVersions(
       await readFile(filePath, 'utf8'),
@@ -157,6 +173,7 @@ export async function bumpVersion({ root = process.cwd(), version }) {
 
 export async function checkTagVersion({ root = process.cwd(), tag }) {
   const expectedVersion = tagToVersion(tag);
+  const skillFiles = await skillFilesForRoot(root);
   const mismatches = [];
 
   for (const relativePath of PROVIDER_MANIFESTS) {
@@ -180,7 +197,7 @@ export async function checkTagVersion({ root = process.cwd(), tag }) {
     }
   }
 
-  for (const relativePath of SKILL_FILES) {
+  for (const relativePath of skillFiles) {
     const { topLevel, metadata } = skillFrontmatterVersions(
       await readFile(path.join(root, relativePath), 'utf8'),
       relativePath,

@@ -3,7 +3,14 @@
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
-import { mkdir, open, readFile, rename, unlink, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  open,
+  readFile,
+  rename,
+  unlink,
+  writeFile
+} from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -36,6 +43,8 @@ const SYNTHESIS_CAPS = Object.freeze({
 });
 const LOOP_SCHEMA_VERSION = "v1";
 const SUBPROCESS_OUTPUT_CAP_BYTES = 10 * 1024 * 1024;
+const PROVIDER_CLI_KILL_GRACE_MS = 250;
+const PROVIDER_CLI_FINAL_RESOLUTION_MS = 1e3;
 const EXIT_CODES = Object.freeze({
   USAGE: 64,
   DATA: 65,
@@ -768,12 +777,64 @@ function runProviderCliCommand(command, args, options = {}) {
     let stdoutBytes = 0;
     let stderrBytes = 0;
     let capError = null;
+    let timedOut = false;
+    let settled = false;
+    let deadlineTimer;
+    let killEscalationTimer;
+    let finalResolutionTimer;
+    function clearDeadlineTimers() {
+      if (deadlineTimer) clearTimeout(deadlineTimer);
+      if (killEscalationTimer) clearTimeout(killEscalationTimer);
+      if (finalResolutionTimer) clearTimeout(finalResolutionTimer);
+    }
+    function settleResolve(value) {
+      if (settled) return;
+      settled = true;
+      clearDeadlineTimers();
+      resolve(value);
+    }
+    function settleReject(error) {
+      if (settled) return;
+      settled = true;
+      clearDeadlineTimers();
+      reject(error);
+    }
+    function scheduleFinalResolution() {
+      if (finalResolutionTimer || settled) return;
+      finalResolutionTimer = setTimeout(() => {
+        child.stdin.destroy();
+        child.stdout.destroy();
+        child.stderr.destroy();
+        if (capError) {
+          settleReject(capError);
+          return;
+        }
+        settleResolve({
+          code: null,
+          signal: "SIGKILL",
+          stdout: Buffer.concat(stdoutChunks).toString("utf8"),
+          stderr: Buffer.concat(stderrChunks).toString("utf8"),
+          timedOut: true
+        });
+      }, PROVIDER_CLI_FINAL_RESOLUTION_MS);
+    }
+    if (options.timeoutMs !== void 0) {
+      deadlineTimer = setTimeout(() => {
+        timedOut = true;
+        child.kill("SIGTERM");
+        killEscalationTimer = setTimeout(() => {
+          child.kill("SIGKILL");
+          scheduleFinalResolution();
+        }, PROVIDER_CLI_KILL_GRACE_MS);
+      }, options.timeoutMs);
+    }
     function capture(streamName, chunks, chunk) {
       if (capError) return;
       const nextBytes = streamName === "stdout" ? stdoutBytes + chunk.length : stderrBytes + chunk.length;
       if (nextBytes > SUBPROCESS_OUTPUT_CAP_BYTES) {
         capError = outputCapError(streamName, SUBPROCESS_OUTPUT_CAP_BYTES);
         child.kill("SIGKILL");
+        scheduleFinalResolution();
         return;
       }
       chunks.push(chunk);
@@ -791,18 +852,23 @@ function runProviderCliCommand(command, args, options = {}) {
       "data",
       (chunk) => capture("stderr", stderrChunks, chunk)
     );
-    child.on("error", reject);
+    child.on("error", (error) => {
+      settleReject(error);
+    });
     child.on("close", (code, signal) => {
       if (capError) {
-        reject(capError);
+        settleReject(capError);
         return;
       }
-      resolve({
+      settleResolve({
         code,
         signal,
         stdout: Buffer.concat(stdoutChunks).toString("utf8"),
-        stderr: Buffer.concat(stderrChunks).toString("utf8")
+        stderr: Buffer.concat(stderrChunks).toString("utf8"),
+        ...timedOut ? { timedOut: true } : {}
       });
+    });
+    child.stdin.on("error", () => {
     });
     child.stdin.end(options.input ?? "");
   });
@@ -2672,6 +2738,8 @@ export {
   EXIT_CODES,
   ITERATION_MODES,
   LOOP_SCHEMA_VERSION,
+  PROVIDER_CLI_FINAL_RESOLUTION_MS,
+  PROVIDER_CLI_KILL_GRACE_MS,
   SUBPROCESS_OUTPUT_CAP_BYTES,
   SYNTHESIS_CAPS,
   VERDICT_CAPS,

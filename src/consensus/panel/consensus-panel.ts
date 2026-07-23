@@ -145,13 +145,29 @@ interface ProviderCliCommandRunnerResult {
   signal: NodeJS.Signals | null;
   stdout: string;
   stderr: string;
+  /** True when the process was killed after timeoutMs elapsed. */
+  timedOut?: boolean;
 }
 
 interface ProviderCliCommandRunnerOptions {
   cwd?: string;
   env?: NodeJS.ProcessEnv;
   input?: string;
+  /**
+   * Optional deadline in milliseconds. When set, an unresponsive subprocess is
+   * sent SIGTERM at the deadline and escalated to SIGKILL after
+   * PROVIDER_CLI_KILL_GRACE_MS. When unset, behavior is unchanged (no deadline).
+   */
+  timeoutMs?: number;
 }
+
+// Mirrors provider-cli/subprocess.ts's DEFAULT_TERMINATION_GRACE_MS: the
+// pause between SIGTERM and SIGKILL when a caller-supplied timeoutMs expires.
+const PROVIDER_CLI_KILL_GRACE_MS = 250;
+// Mirrors provider-cli/subprocess.ts's DEFAULT_FINAL_RESOLUTION_MS: how long
+// to wait after SIGKILL for 'close' before forcing settlement anyway (guards
+// against a descendant process holding the stdio pipes open).
+const PROVIDER_CLI_FINAL_RESOLUTION_MS = 1000;
 
 interface ProviderReadiness {
   agent: ConsensusAgentRef;
@@ -1117,7 +1133,11 @@ function providerCliSpawnTarget(command: string, args: string[]) {
   return { command, args };
 }
 
-function runProviderCliCommand(
+// Twin: src/consensus/core/consensus-loop.ts has an independently
+// maintained copy of this function. Keep both in sync — subprocess-runner
+// unification is explicitly deferred, out of scope for both the subprocess
+// hardening and cli-helper consolidation plans.
+export function runProviderCliCommand(
   command: string,
   args: string[],
   options: ProviderCliCommandRunnerOptions = {},
@@ -1131,6 +1151,63 @@ function runProviderCliCommand(
     });
     let stdout = '';
     let stderr = '';
+    let timedOut = false;
+    let settled = false;
+    let deadlineTimer: NodeJS.Timeout | undefined;
+    let killEscalationTimer: NodeJS.Timeout | undefined;
+    let finalResolutionTimer: NodeJS.Timeout | undefined;
+
+    function clearDeadlineTimers() {
+      if (deadlineTimer) clearTimeout(deadlineTimer);
+      if (killEscalationTimer) clearTimeout(killEscalationTimer);
+      if (finalResolutionTimer) clearTimeout(finalResolutionTimer);
+    }
+
+    function settleResolve(value: ProviderCliCommandRunnerResult) {
+      if (settled) return;
+      settled = true;
+      clearDeadlineTimers();
+      resolve(value);
+    }
+
+    function settleReject(error: unknown) {
+      if (settled) return;
+      settled = true;
+      clearDeadlineTimers();
+      reject(error);
+    }
+
+    if (options.timeoutMs !== undefined) {
+      deadlineTimer = setTimeout(() => {
+        timedOut = true;
+        child.kill('SIGTERM');
+        killEscalationTimer = setTimeout(() => {
+          child.kill('SIGKILL');
+          // Safety net: if a descendant process inherited these stdio pipes
+          // (e.g. a provider CLI that backgrounds a helper process), the
+          // pipes' write ends can stay open after this child is killed, so
+          // 'close' never fires. Force settlement instead of hanging forever,
+          // mirroring subprocess.ts's finalResolutionMs.
+          finalResolutionTimer = setTimeout(() => {
+            // Destroy our own stdio handles so a held-open pipe (from a
+            // surviving descendant) can't keep this process's event loop
+            // alive after we've already given up waiting on 'close'. stdin
+            // included: it was only .end()ed, not destroyed, and an
+            // unacknowledged write can leave it as an active handle too.
+            child.stdin.destroy();
+            child.stdout.destroy();
+            child.stderr.destroy();
+            settleResolve({
+              code: null,
+              signal: 'SIGKILL',
+              stdout,
+              stderr,
+              timedOut: true,
+            });
+          }, PROVIDER_CLI_FINAL_RESOLUTION_MS);
+        }, PROVIDER_CLI_KILL_GRACE_MS);
+      }, options.timeoutMs);
+    }
 
     child.stdout.setEncoding('utf8');
     child.stderr.setEncoding('utf8');
@@ -1140,10 +1217,19 @@ function runProviderCliCommand(
     child.stderr.on('data', (chunk: string) => {
       stderr += chunk;
     });
-    child.on('error', reject);
-    child.on('close', (code, signal) => {
-      resolve({ code, signal, stdout, stderr });
+    child.on('error', (error) => {
+      settleReject(error);
     });
+    child.on('close', (code, signal) => {
+      settleResolve({
+        code,
+        signal,
+        stdout,
+        stderr,
+        ...(timedOut ? { timedOut: true } : {}),
+      });
+    });
+    child.stdin.on('error', () => {});
     child.stdin.end(options.input ?? '');
   });
 }

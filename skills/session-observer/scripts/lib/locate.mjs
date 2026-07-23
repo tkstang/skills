@@ -17,33 +17,86 @@ import { promisify } from "node:util";
 import {
   discoverPaths,
   encodeCwdVariants,
-  extractMeta
+  extractMeta,
+  extractMetaFromRecords,
+  readRecords
 } from './runtimes.mjs';
 import {
-  classifyTranscript,
+  classifyTranscriptRecords,
   engagementCandidateFields
 } from './session-classifier.mjs';
 const execFileAsync = promisify(execFile);
 const LOOKBACK_DAYS = 7;
-async function candidateEngagementFields(runtime, transcriptPath) {
-  try {
-    return engagementCandidateFields(
-      await classifyTranscript(runtime, transcriptPath)
-    );
-  } catch {
-    return engagementCandidateFields({
-      status: "unknown",
-      engaged: true,
-      recordCount: null,
-      genuineUserMessages: 0,
-      syntheticUserMessages: 0,
-      assistantMessages: 0,
-      realMessageCount: 0,
-      hasAssistantAndUser: false,
-      bootstrapRecordIndexes: [],
-      bootstrapRecordCount: 0
-    });
+const DEFAULT_CLASSIFICATION_CACHE_MAX_ENTRIES = 5e3;
+class ClassificationCache {
+  maxEntries;
+  entries = /* @__PURE__ */ new Map();
+  constructor(maxEntries = DEFAULT_CLASSIFICATION_CACHE_MAX_ENTRIES) {
+    this.maxEntries = maxEntries;
   }
+  get(transcriptPath, mtimeMs, size) {
+    const entry = this.entries.get(transcriptPath);
+    if (!entry) return void 0;
+    if (entry.mtimeMs !== mtimeMs || entry.size !== size) {
+      this.entries.delete(transcriptPath);
+      return void 0;
+    }
+    this.entries.delete(transcriptPath);
+    this.entries.set(transcriptPath, entry);
+    return entry.result;
+  }
+  set(transcriptPath, mtimeMs, size, result) {
+    this.entries.delete(transcriptPath);
+    this.entries.set(transcriptPath, { mtimeMs, size, result });
+    if (this.entries.size > this.maxEntries) {
+      const oldestKey = this.entries.keys().next().value;
+      if (oldestKey !== void 0) this.entries.delete(oldestKey);
+    }
+  }
+  get size() {
+    return this.entries.size;
+  }
+}
+const UNKNOWN_CLASSIFICATION = {
+  status: "unknown",
+  engaged: true,
+  recordCount: null,
+  genuineUserMessages: 0,
+  syntheticUserMessages: 0,
+  assistantMessages: 0,
+  realMessageCount: 0,
+  hasAssistantAndUser: false,
+  bootstrapRecordIndexes: [],
+  bootstrapRecordCount: 0
+};
+function compactClassificationForCache(classification) {
+  if (classification.bootstrapRecordIndexes.length === 0) return classification;
+  return { ...classification, bootstrapRecordIndexes: [] };
+}
+async function candidateDerivedFields(runtime, transcriptPath, signature, cache) {
+  const cached = cache.get(transcriptPath, signature.mtimeMs, signature.size);
+  if (cached) return cached;
+  try {
+    const records = await readRecords(transcriptPath);
+    const classification = compactClassificationForCache(
+      classifyTranscriptRecords(runtime, records)
+    );
+    const meta = extractMetaFromRecords(runtime, records, transcriptPath);
+    const result = { meta, classification };
+    cache.set(transcriptPath, signature.mtimeMs, signature.size, result);
+    return result;
+  } catch {
+    return { meta: null, classification: UNKNOWN_CLASSIFICATION };
+  }
+}
+async function candidateEngagementFields(runtime, transcriptPath, signature, cache) {
+  const { classification } = await candidateDerivedFields(
+    runtime,
+    transcriptPath,
+    signature,
+    cache
+  );
+  return engagementCandidateFields(classification);
 }
 function cwdCachePath() {
   const stateDir = process.env.STATE_DIR ?? join(homedir(), ".local", "state", "session-observer");
@@ -92,7 +145,7 @@ async function saveCwdCache(cache) {
 function cwdCacheKey(transcriptPath, mtimeSec) {
   return `${transcriptPath}:${mtimeSec}`;
 }
-async function discoverClaudeCode(targetCwd) {
+async function discoverClaudeCode(targetCwd, cache) {
   const [projectsRoot] = discoverPaths("claude-code");
   const encodedVariants = encodeCwdVariants("claude-code", targetCwd);
   const now = Date.now() / 1e3;
@@ -116,13 +169,13 @@ async function discoverClaudeCode(targetCwd) {
         }
         const mtime = Math.floor(fileStat.mtime.getTime() / 1e3);
         const ageSec = now - mtime;
-        let meta;
-        try {
-          meta = await extractMeta("claude-code", transcriptPath);
-        } catch {
-          meta = null;
-        }
-        const sessionId = meta?.sessionId ?? basename(transcriptPath).replace(/\.jsonl$/, "");
+        const derived = await candidateDerivedFields(
+          "claude-code",
+          transcriptPath,
+          fileStat,
+          cache
+        );
+        const sessionId = derived.meta?.sessionId ?? basename(transcriptPath).replace(/\.jsonl$/, "");
         candidates.push({
           runtime: "claude-code",
           transcriptPath,
@@ -134,7 +187,7 @@ async function discoverClaudeCode(targetCwd) {
           mtime,
           size: fileStat.size,
           ageSec,
-          ...await candidateEngagementFields("claude-code", transcriptPath)
+          ...engagementCandidateFields(derived.classification)
         });
       }
       directHit = true;
@@ -170,14 +223,14 @@ async function discoverClaudeCode(targetCwd) {
         }
         const mtime = Math.floor(fileStat.mtime.getTime() / 1e3);
         const ageSec = now - mtime;
-        let meta;
-        try {
-          meta = await extractMeta("claude-code", transcriptPath);
-        } catch {
-          meta = null;
-        }
-        const sessionId = meta?.sessionId ?? basename(transcriptPath).replace(/\.jsonl$/, "");
-        const recordedCwd = meta?.recordedCwd ?? null;
+        const derived = await candidateDerivedFields(
+          "claude-code",
+          transcriptPath,
+          fileStat,
+          cache
+        );
+        const sessionId = derived.meta?.sessionId ?? basename(transcriptPath).replace(/\.jsonl$/, "");
+        const recordedCwd = derived.meta?.recordedCwd ?? null;
         candidates.push({
           runtime: "claude-code",
           transcriptPath,
@@ -188,7 +241,7 @@ async function discoverClaudeCode(targetCwd) {
           mtime,
           size: fileStat.size,
           ageSec,
-          ...await candidateEngagementFields("claude-code", transcriptPath)
+          ...engagementCandidateFields(derived.classification)
         });
       }
     }
@@ -230,12 +283,12 @@ async function collectJsonlFiles(dir) {
   }
   return results;
 }
-async function discoverCodex(_targetCwd) {
+async function discoverCodex(_targetCwd, classificationCache) {
   const [sessionsRoot] = discoverPaths("codex");
   const now = Date.now() / 1e3;
   const cutoffSec = now - LOOKBACK_DAYS * 86400;
   const allFiles = await collectJsonlFiles(sessionsRoot);
-  const cache = await loadCwdCache();
+  const cwdCache = await loadCwdCache();
   let cacheModified = false;
   const candidates = [];
   for (const transcriptPath of allFiles) {
@@ -251,9 +304,9 @@ async function discoverCodex(_targetCwd) {
     const key = cwdCacheKey(transcriptPath, mtime);
     let recordedCwd;
     let sessionId;
-    if (cache[key] && cache[key].sessionId !== void 0) {
-      recordedCwd = cache[key].recordedCwd;
-      sessionId = cache[key].sessionId;
+    if (cwdCache[key] && cwdCache[key].sessionId !== void 0) {
+      recordedCwd = cwdCache[key].recordedCwd;
+      sessionId = cwdCache[key].sessionId;
     } else {
       let meta;
       try {
@@ -263,7 +316,7 @@ async function discoverCodex(_targetCwd) {
       }
       recordedCwd = meta?.recordedCwd ?? null;
       sessionId = meta?.sessionId ?? basename(transcriptPath).replace(/\.jsonl$/, "");
-      cache[key] = { recordedCwd, sessionId };
+      cwdCache[key] = { recordedCwd, sessionId };
       cacheModified = true;
     }
     candidates.push({
@@ -274,11 +327,16 @@ async function discoverCodex(_targetCwd) {
       mtime,
       size: fileStat.size,
       ageSec,
-      ...await candidateEngagementFields("codex", transcriptPath)
+      ...await candidateEngagementFields(
+        "codex",
+        transcriptPath,
+        fileStat,
+        classificationCache
+      )
     });
   }
   if (cacheModified) {
-    await saveCwdCache(cache);
+    await saveCwdCache(cwdCache);
   }
   return candidates;
 }
@@ -307,7 +365,7 @@ async function collectCursorAgentTranscripts(transcriptsRoot) {
   }
   return results;
 }
-async function cursorCandidate(transcriptPath, now, evidence, fileStat = null) {
+async function cursorCandidate(transcriptPath, now, evidence, fileStat, cache) {
   let resolvedStat = fileStat;
   if (!resolvedStat) {
     try {
@@ -318,26 +376,26 @@ async function cursorCandidate(transcriptPath, now, evidence, fileStat = null) {
   }
   const mtime = Math.floor(resolvedStat.mtime.getTime() / 1e3);
   const ageSec = now - mtime;
-  let meta;
-  try {
-    meta = await extractMeta("cursor", transcriptPath);
-  } catch {
-    meta = null;
-  }
+  const derived = await candidateDerivedFields(
+    "cursor",
+    transcriptPath,
+    resolvedStat,
+    cache
+  );
   return {
     runtime: "cursor",
     transcriptPath,
-    sessionId: meta?.sessionId ?? basename(transcriptPath).replace(/\.jsonl$/, ""),
+    sessionId: derived.meta?.sessionId ?? basename(transcriptPath).replace(/\.jsonl$/, ""),
     recordedCwd: evidence.recordedCwd,
     cwdSlug: evidence.cwdSlug,
     cwdEvidence: evidence.cwdEvidence,
     mtime,
     size: resolvedStat.size,
     ageSec,
-    ...await candidateEngagementFields("cursor", transcriptPath)
+    ...engagementCandidateFields(derived.classification)
   };
 }
-async function discoverCursor(targetCwd) {
+async function discoverCursor(targetCwd, cache) {
   const [projectsRoot] = discoverPaths("cursor");
   const encodedVariants = encodeCwdVariants("cursor", targetCwd);
   const now = Date.now() / 1e3;
@@ -353,11 +411,17 @@ async function discoverCursor(targetCwd) {
     for (const transcriptPath of transcriptPaths) {
       if (seenTranscripts.has(transcriptPath)) continue;
       seenTranscripts.add(transcriptPath);
-      const candidate = await cursorCandidate(transcriptPath, now, {
-        recordedCwd: targetCwd,
-        cwdSlug: encoded,
-        cwdEvidence: "direct-parent-dir"
-      });
+      const candidate = await cursorCandidate(
+        transcriptPath,
+        now,
+        {
+          recordedCwd: targetCwd,
+          cwdSlug: encoded,
+          cwdEvidence: "direct-parent-dir"
+        },
+        null,
+        cache
+      );
       if (candidate) candidates.push(candidate);
     }
   }
@@ -396,17 +460,18 @@ async function discoverCursor(targetCwd) {
           cwdSlug: projectDir.name,
           cwdEvidence: "project-dir-slug"
         },
-        fileStat
+        fileStat,
+        cache
       );
       if (candidate) candidates.push(candidate);
     }
   }
   return candidates;
 }
-async function discover(runtime, targetCwd) {
-  if (runtime === "claude-code") return discoverClaudeCode(targetCwd);
-  if (runtime === "codex") return discoverCodex(targetCwd);
-  if (runtime === "cursor") return discoverCursor(targetCwd);
+async function discover(runtime, targetCwd, cache = new ClassificationCache()) {
+  if (runtime === "claude-code") return discoverClaudeCode(targetCwd, cache);
+  if (runtime === "codex") return discoverCodex(targetCwd, cache);
+  if (runtime === "cursor") return discoverCursor(targetCwd, cache);
   throw new Error(`Unknown runtime: ${runtime}`);
 }
 async function findSessionCandidate(runtime, targetCwd, sessionId) {
@@ -415,8 +480,8 @@ async function findSessionCandidate(runtime, targetCwd, sessionId) {
   );
   return matches.length === 1 ? matches[0] : null;
 }
-async function findNewerSameCwdCandidates(runtime, targetCwd, watched) {
-  const candidates = await discover(runtime, targetCwd);
+async function findNewerSameCwdCandidates(runtime, targetCwd, watched, cache = new ClassificationCache()) {
+  const candidates = await discover(runtime, targetCwd, cache);
   return candidates.filter(
     (candidate) => candidate.recordedCwd === targetCwd && candidate.sessionId !== watched.sessionId && candidate.transcriptPath !== watched.transcriptPath && candidate.mtime > watched.mtime
   ).toSorted(
@@ -444,6 +509,7 @@ async function gitWorktrees(cwd) {
   }
 }
 export {
+  ClassificationCache,
   claudeCodeLookupDiagnostics,
   discover,
   findNewerSameCwdCandidates,

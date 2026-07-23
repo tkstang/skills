@@ -1,7 +1,7 @@
 ---
 id: BL-260718-guard-generated-ignore-lists
 title: Guard generated ignore lists and derive import rewrites
-status: open
+status: closed
 priority: medium
 scope: task
 scope_estimate: S
@@ -11,7 +11,7 @@ labels:
   - tooling
 assignee: null
 created: 2026-07-18T00:04:09Z
-updated: 2026-07-18T00:04:09Z
+updated: '2026-07-23T05:16:10Z'
 associated_issues: []
 external_plans:
   - .oat/repo/reference/external-plans/2026-07-17-derive-generated-ignore-lists.md

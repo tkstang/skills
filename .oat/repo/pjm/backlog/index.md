@@ -20,12 +20,9 @@
 <!-- OAT BACKLOG-INDEX -->
 | ID | Title | Status | Priority | Scope | Estimate |
 | --- | --- | --- | --- | --- | --- |
-| BL-260718-harden-consensus-wrapper | Harden consensus wrapper subprocess path | open | high | task | M |
 | BL-260718-add-pr-time-ci-gate | Add PR-time CI gate for documentation site | open | medium | task | M |
-| BL-260718-cache-transcript | Cache transcript classification in watch loop | open | medium | task | M |
 | BL-260718-consolidate-duplicated | Consolidate duplicated consensus CLI helpers | open | medium | task | M |
-| BL-260718-derive-bump-version-skill-list | Derive bump-version skill list from disk | open | medium | task | S |
-| BL-260718-guard-generated-ignore-lists | Guard generated ignore lists and derive import rewrites | open | medium | task | S |
+| BL-260723-guard-transitive-shared | Guard transitive shared-runtime skill version bumps | open | medium | task | S |
 | BL-260718-harden-install-and-ci-supply | Harden install and CI supply-chain posture | open | medium | task | S |
 | BL-260619-inter-agent-direct-messaging | Inter-agent direct messaging (addressable, prioritized) | open | medium | feature | M |
 | BL-260619-shared-session-log-substrate | Shared session log substrate (become-observable daemon + merged log) | open | medium | initiative | L |

@@ -1,7 +1,14 @@
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
-import { mkdir, open, readFile, rename, unlink, writeFile } from 'node:fs/promises';
+import {
+  mkdir,
+  open,
+  readFile,
+  rename,
+  unlink,
+  writeFile,
+} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -211,6 +218,12 @@ export interface ProviderCliCommandRunnerOptions {
   env?: NodeJS.ProcessEnv;
   cwd?: string;
   input?: string;
+  /**
+   * Optional deadline in milliseconds. When set, an unresponsive subprocess is
+   * sent SIGTERM at the deadline and escalated to SIGKILL after
+   * PROVIDER_CLI_KILL_GRACE_MS. When unset, behavior is unchanged (no deadline).
+   */
+  timeoutMs?: number;
 }
 
 export interface ProviderCliCommandRunnerResult {
@@ -218,6 +231,8 @@ export interface ProviderCliCommandRunnerResult {
   signal?: NodeJS.Signals | null;
   stdout: string;
   stderr?: string;
+  /** True when the process was killed after timeoutMs elapsed. */
+  timedOut?: boolean;
 }
 
 export type ProviderCliCommandRunner = (
@@ -243,8 +258,10 @@ export type ConsensusCliResolution =
       attemptedPaths: string[];
     };
 
-export interface ConsensusCliPathOptions
-  extends Pick<ProviderInvocationArgs, 'consensusCliPath' | 'env'> {
+export interface ConsensusCliPathOptions extends Pick<
+  ProviderInvocationArgs,
+  'consensusCliPath' | 'env'
+> {
   defaultCliPath?: string;
 }
 
@@ -463,6 +480,13 @@ export const SYNTHESIS_CAPS = Object.freeze({
 
 export const LOOP_SCHEMA_VERSION = 'v1';
 export const SUBPROCESS_OUTPUT_CAP_BYTES = 10 * 1024 * 1024;
+// Mirrors provider-cli/subprocess.ts's DEFAULT_TERMINATION_GRACE_MS: the pause
+// between SIGTERM and SIGKILL when a caller-supplied timeoutMs expires.
+export const PROVIDER_CLI_KILL_GRACE_MS = 250;
+// Mirrors provider-cli/subprocess.ts's DEFAULT_FINAL_RESOLUTION_MS: how long
+// to wait after SIGKILL for 'close' before forcing settlement anyway (guards
+// against a descendant process holding the stdio pipes open).
+export const PROVIDER_CLI_FINAL_RESOLUTION_MS = 1000;
 export const EXIT_CODES = Object.freeze({
   USAGE: 64,
   DATA: 65,
@@ -697,7 +721,10 @@ async function syncFileIfAvailable(filePath: string): Promise<void> {
  * failure, best-effort remove the temp file and rethrow so the previous
  * `targetPath` contents are left intact.
  */
-async function atomicWriteFile(targetPath: string, data: string): Promise<void> {
+async function atomicWriteFile(
+  targetPath: string,
+  data: string,
+): Promise<void> {
   const tmpPath = `${targetPath}.${process.pid}.tmp`;
   try {
     await writeFile(tmpPath, data);
@@ -1400,6 +1427,10 @@ export function providerCliSpawnTarget(command: string, args: string[]) {
   return { command, args };
 }
 
+// Twin: src/consensus/panel/consensus-panel.ts has an independently
+// maintained copy of this function. Keep both in sync — subprocess-runner
+// unification is explicitly deferred, out of scope for both the subprocess
+// hardening and cli-helper consolidation plans.
 export function runProviderCliCommand(
   command: string,
   args: string[],
@@ -1429,6 +1460,80 @@ export function runProviderCliCommand(
     let stdoutBytes = 0;
     let stderrBytes = 0;
     let capError: ConsensusError | null = null;
+    let timedOut = false;
+    let settled = false;
+    let deadlineTimer: NodeJS.Timeout | undefined;
+    let killEscalationTimer: NodeJS.Timeout | undefined;
+    let finalResolutionTimer: NodeJS.Timeout | undefined;
+
+    function clearDeadlineTimers() {
+      if (deadlineTimer) clearTimeout(deadlineTimer);
+      if (killEscalationTimer) clearTimeout(killEscalationTimer);
+      if (finalResolutionTimer) clearTimeout(finalResolutionTimer);
+    }
+
+    function settleResolve(value: ProviderCliCommandRunnerResult) {
+      if (settled) return;
+      settled = true;
+      clearDeadlineTimers();
+      resolve(value);
+    }
+
+    function settleReject(error: unknown) {
+      if (settled) return;
+      settled = true;
+      clearDeadlineTimers();
+      reject(error);
+    }
+
+    // Safety net for a killed child whose stdio pipes were inherited by a
+    // descendant (e.g. a provider CLI that backgrounds a helper process): the
+    // pipes' write ends can stay open after the child dies, so 'close' never
+    // fires. Force settlement instead of hanging forever, mirroring
+    // subprocess.ts's finalResolutionMs. Shared by BOTH kill paths — the
+    // optional-timeout escalation and the output-cap breach below — so a cap
+    // kill is bounded even when no timeoutMs deadline is configured.
+    // Idempotent: the first scheduler wins; a second caller (e.g. a timeout
+    // firing after a cap kill already scheduled this) is a no-op.
+    function scheduleFinalResolution() {
+      if (finalResolutionTimer || settled) return;
+      finalResolutionTimer = setTimeout(() => {
+        // Destroy our own stdio handles so a held-open pipe (from a surviving
+        // descendant) can't keep this process's event loop alive after we've
+        // given up waiting on 'close'. stdin included: it was only .end()ed,
+        // not destroyed, and an unacknowledged write can leave it as an active
+        // handle too.
+        child.stdin.destroy();
+        child.stdout.destroy();
+        child.stderr.destroy();
+        // A capture-cap breach (see `capture` below) is a more specific,
+        // earlier-determined failure than a bare timeout — preserve it
+        // (SUBPROCESS_OUTPUT_CAP must win) instead of overwriting it with a
+        // generic timedOut result.
+        if (capError) {
+          settleReject(capError);
+          return;
+        }
+        settleResolve({
+          code: null,
+          signal: 'SIGKILL',
+          stdout: Buffer.concat(stdoutChunks).toString('utf8'),
+          stderr: Buffer.concat(stderrChunks).toString('utf8'),
+          timedOut: true,
+        });
+      }, PROVIDER_CLI_FINAL_RESOLUTION_MS);
+    }
+
+    if (options.timeoutMs !== undefined) {
+      deadlineTimer = setTimeout(() => {
+        timedOut = true;
+        child.kill('SIGTERM');
+        killEscalationTimer = setTimeout(() => {
+          child.kill('SIGKILL');
+          scheduleFinalResolution();
+        }, PROVIDER_CLI_KILL_GRACE_MS);
+      }, options.timeoutMs);
+    }
 
     function capture(
       streamName: 'stdout' | 'stderr',
@@ -1444,6 +1549,10 @@ export function runProviderCliCommand(
       if (nextBytes > SUBPROCESS_OUTPUT_CAP_BYTES) {
         capError = outputCapError(streamName, SUBPROCESS_OUTPUT_CAP_BYTES);
         child.kill('SIGKILL');
+        // If a descendant inherited our stdio pipes, this kill may not make
+        // 'close' fire, so schedule forced settlement to bound the cap
+        // rejection regardless of whether a timeoutMs deadline was set.
+        scheduleFinalResolution();
         return;
       }
 
@@ -1461,20 +1570,24 @@ export function runProviderCliCommand(
     child.stderr.on('data', (chunk: Buffer) =>
       capture('stderr', stderrChunks, chunk),
     );
-    child.on('error', reject);
+    child.on('error', (error) => {
+      settleReject(error);
+    });
     child.on('close', (code, signal) => {
       if (capError) {
-        reject(capError);
+        settleReject(capError);
         return;
       }
-      resolve({
+      settleResolve({
         code,
         signal,
         stdout: Buffer.concat(stdoutChunks).toString('utf8'),
         stderr: Buffer.concat(stderrChunks).toString('utf8'),
+        ...(timedOut ? { timedOut: true } : {}),
       });
     });
 
+    child.stdin.on('error', () => {});
     child.stdin.end(options.input ?? '');
   });
 }

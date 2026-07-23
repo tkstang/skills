@@ -6,7 +6,7 @@ import { homedir } from "node:os";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { readRecords } from './runtimes.mjs';
 import { renderMarkdown } from './digest.mjs';
-import { findNewerSameCwdCandidates } from './locate.mjs';
+import { ClassificationCache, findNewerSameCwdCandidates } from './locate.mjs';
 import { observeCatchUp } from './observe.mjs';
 import * as stateLib from './state.mjs';
 import * as watchStateLib from './watch-state.mjs';
@@ -573,7 +573,7 @@ async function pollTargets(targets, pending, nowMs, statFn) {
 function newerCandidateKey(candidate) {
   return `${candidate.runtime}:${candidate.sessionId}:${candidate.transcriptPath}`;
 }
-async function emitNewerSessionCandidates(args, targets, emittedCandidates, deps) {
+async function emitNewerSessionCandidates(args, targets, emittedCandidates, deps, classificationCache) {
   for (const target of targets.values()) {
     const candidates = await findNewerSameCwdCandidates(
       target.runtime,
@@ -582,7 +582,8 @@ async function emitNewerSessionCandidates(args, targets, emittedCandidates, deps
         sessionId: target.sessionId,
         transcriptPath: target.transcriptPath,
         mtime: target.candidateMtime
-      }
+      },
+      classificationCache
     );
     for (const candidate of candidates) {
       const key = newerCandidateKey(candidate);
@@ -738,6 +739,7 @@ async function runWatchLoop(args, deps = {}) {
   const targets = /* @__PURE__ */ new Map();
   const pending = /* @__PURE__ */ new Map();
   const emittedNewerCandidates = /* @__PURE__ */ new Set();
+  const classificationCache = new ClassificationCache();
   const eventState = {
     pid: watcherPid,
     debounceMs,
@@ -803,7 +805,8 @@ async function runWatchLoop(args, deps = {}) {
         normalizedArgs,
         targets,
         emittedNewerCandidates,
-        resolvedDeps
+        resolvedDeps,
+        classificationCache
       );
       await applyControlDirective(
         normalizedArgs,

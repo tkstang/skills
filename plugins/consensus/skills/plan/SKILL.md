@@ -1,14 +1,14 @@
 ---
 name: plan
 description: Use when turning a goal and inline constraints into a structured markdown plan with two AI peers and synthesis.
-version: '0.1.4'
+version: '0.1.5'
 license: MIT
 compatibility: Agent Skills baseline; requires Node.js 22+ and the generated consensus CLI.
 allowed-tools: Bash(node:*), Bash(consensus:*), Read, Write
 argument-hint: --goal <text> [--constraints <text>]
 metadata:
   author: thomas.stang
-  version: '0.1.4'
+  version: '0.1.5'
 ---
 
 # Plan

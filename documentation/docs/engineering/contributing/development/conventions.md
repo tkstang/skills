@@ -35,9 +35,10 @@ generated-output build. Never hand-edit generated `.mjs` outputs with a
 When you ship a behavior or content change to a shipped skill, bump that skill's
 `version`. Keep the top-level `version` and `metadata.version` in sync — the
 skills validator (`scripts/validate.mjs`) requires them to match when both are
-present — and make sure the skill is listed in `SKILL_FILES` in
-`scripts/bump-version.mjs` so the release version-bump tooling updates both fields
-together. Do not hand-edit one field and leave the other stale.
+present. The release version-bump tooling derives the skill list from disk via
+`scripts/lib/discover-skills.mjs` (shared with the validators), so new skills are
+picked up automatically — no manual list to maintain. Do not hand-edit one field
+and leave the other stale.
 
 Changed skills must bump their version. Any change under a canonical skill
 directory (`skills/<name>/` or `plugins/*/skills/<name>/`) — `SKILL.md`,

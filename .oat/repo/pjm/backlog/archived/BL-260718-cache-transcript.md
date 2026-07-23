@@ -1,7 +1,7 @@
 ---
 id: BL-260718-cache-transcript
 title: Cache transcript classification in watch loop
-status: open
+status: closed
 priority: medium
 scope: task
 scope_estimate: M
@@ -11,7 +11,7 @@ labels:
   - performance
 assignee: null
 created: 2026-07-18T00:04:09Z
-updated: 2026-07-18T00:04:09Z
+updated: '2026-07-23T05:16:09Z'
 associated_issues: []
 external_plans:
   - .oat/repo/reference/external-plans/2026-07-17-watch-loop-classification-cache.md

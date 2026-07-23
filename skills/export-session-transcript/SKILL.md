@@ -9,7 +9,7 @@ user-invocable: true
 allowed-tools: Bash, Read
 metadata:
   author: thomas.stang
-  version: '1.0.3'
+  version: '1.0.4'
 ---
 
 # export-session-transcript

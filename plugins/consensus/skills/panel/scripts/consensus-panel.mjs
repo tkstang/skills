@@ -26,6 +26,8 @@ const PANEL_EXIT_CODES = Object.freeze({
   NOPERM: 77,
   CONFIG: 78
 });
+const PROVIDER_CLI_KILL_GRACE_MS = 250;
+const PROVIDER_CLI_FINAL_RESOLUTION_MS = 1e3;
 const PROVIDER_ID_PATTERN = /^[a-z][a-z0-9_-]{0,31}$/u;
 const RESPONSE_KEYS = /* @__PURE__ */ new Set([
   "schema_version",
@@ -824,6 +826,49 @@ function runProviderCliCommand(command, args, options = {}) {
     });
     let stdout = "";
     let stderr = "";
+    let timedOut = false;
+    let settled = false;
+    let deadlineTimer;
+    let killEscalationTimer;
+    let finalResolutionTimer;
+    function clearDeadlineTimers() {
+      if (deadlineTimer) clearTimeout(deadlineTimer);
+      if (killEscalationTimer) clearTimeout(killEscalationTimer);
+      if (finalResolutionTimer) clearTimeout(finalResolutionTimer);
+    }
+    function settleResolve(value) {
+      if (settled) return;
+      settled = true;
+      clearDeadlineTimers();
+      resolve(value);
+    }
+    function settleReject(error) {
+      if (settled) return;
+      settled = true;
+      clearDeadlineTimers();
+      reject(error);
+    }
+    if (options.timeoutMs !== void 0) {
+      deadlineTimer = setTimeout(() => {
+        timedOut = true;
+        child.kill("SIGTERM");
+        killEscalationTimer = setTimeout(() => {
+          child.kill("SIGKILL");
+          finalResolutionTimer = setTimeout(() => {
+            child.stdin.destroy();
+            child.stdout.destroy();
+            child.stderr.destroy();
+            settleResolve({
+              code: null,
+              signal: "SIGKILL",
+              stdout,
+              stderr,
+              timedOut: true
+            });
+          }, PROVIDER_CLI_FINAL_RESOLUTION_MS);
+        }, PROVIDER_CLI_KILL_GRACE_MS);
+      }, options.timeoutMs);
+    }
     child.stdout.setEncoding("utf8");
     child.stderr.setEncoding("utf8");
     child.stdout.on("data", (chunk) => {
@@ -832,9 +877,19 @@ function runProviderCliCommand(command, args, options = {}) {
     child.stderr.on("data", (chunk) => {
       stderr += chunk;
     });
-    child.on("error", reject);
+    child.on("error", (error) => {
+      settleReject(error);
+    });
     child.on("close", (code, signal) => {
-      resolve({ code, signal, stdout, stderr });
+      settleResolve({
+        code,
+        signal,
+        stdout,
+        stderr,
+        ...timedOut ? { timedOut: true } : {}
+      });
+    });
+    child.stdin.on("error", () => {
     });
     child.stdin.end(options.input ?? "");
   });
@@ -1085,5 +1140,6 @@ export {
   renderPanelArtifact,
   resolvePanelPaths,
   runConsensusPanel,
-  runPanelCli
+  runPanelCli,
+  runProviderCliCommand
 };

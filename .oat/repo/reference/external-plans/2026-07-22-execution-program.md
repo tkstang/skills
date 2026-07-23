@@ -20,7 +20,7 @@ contract remains its immutable plan file.
 
 | Wave | Theme                        | Lanes | Status   | Record |
 | ---- | ---------------------------- | ----- | -------- | ------ |
-| W1   | Correctness & security core  | 4     | composed | —      |
+| W1   | Correctness & security core  | 4     | merged   | PR [#50](https://github.com/tkstang/skills/pull/50) · merge 7db7d0f · completion record `.oat/repo/reference/project-summaries/20260723-wave-1-execution.md` · recap: deferred to program close · completion tail: done (per-wave full tail) |
 | W2   | Hardening & contract guards  | 4     | composed | —      |
 | W3   | Consolidation & tooling nets | 2     | composed | —      |
 | W4   | CI & release surface         | 3     | composed | —      |
@@ -30,10 +30,10 @@ contract remains its immutable plan file.
 
 | Plan                                                                                 | Index                              | Wave | Ordering notes                                                                    | Status  |
 | ------------------------------------------------------------------------------------ | ---------------------------------- | ---- | --------------------------------------------------------------------------------- | ------- |
-| [Atomic consensus records writes](./2026-07-17-atomic-consensus-records-writes.md)    | 2026-07-17-repo-audit-plan-index   | W1   | consensus-loop chain link 1                                                       | pending |
-| [Cross-provider recursion guard](./2026-07-17-cross-provider-recursion-guard.md)      | 2026-07-17-repo-audit-plan-index   | W1   | independent (provider-cli subsystem)                                              | pending |
-| [Session-observer state robustness](./2026-07-17-session-observer-state-robustness.md) | 2026-07-17-repo-audit-plan-index | W1   | observer-lib chain link 1                                                         | pending |
-| [Docs staleness sweep](./2026-07-17-docs-staleness-sweep.md)                          | 2026-07-17-repo-audit-plan-index   | W1   | independent; only W1 lane touching AGENTS.md/CHANGELOG                            | pending |
+| [Atomic consensus records writes](./2026-07-17-atomic-consensus-records-writes.md)    | 2026-07-17-repo-audit-plan-index   | W1   | consensus-loop chain link 1                                                       | done |
+| [Cross-provider recursion guard](./2026-07-17-cross-provider-recursion-guard.md)      | 2026-07-17-repo-audit-plan-index   | W1   | independent (provider-cli subsystem)                                              | done |
+| [Session-observer state robustness](./2026-07-17-session-observer-state-robustness.md) | 2026-07-17-repo-audit-plan-index | W1   | observer-lib chain link 1                                                         | done |
+| [Docs staleness sweep](./2026-07-17-docs-staleness-sweep.md)                          | 2026-07-17-repo-audit-plan-index   | W1   | independent; only W1 lane touching AGENTS.md/CHANGELOG                            | done |
 | [Consensus subprocess hardening](./2026-07-17-consensus-subprocess-hardening.md)      | 2026-07-17-repo-audit-plan-index   | W2   | hard: after W1 atomic records (same file)                                         | pending |
 | [Watch-loop classification cache](./2026-07-17-watch-loop-classification-cache.md)    | 2026-07-17-repo-audit-plan-index   | W2   | hard: after W1 observer state (same lib)                                          | pending |
 | [SKILL_FILES disk derivation](./2026-07-17-skill-files-disk-derivation.md)            | 2026-07-17-repo-audit-plan-index   | W2   | soft: AGENTS.md overlap with ignore-lists lane — merge sequentially               | pending |
@@ -54,6 +54,8 @@ No rows are deferred or dropped; all 15 plans are scheduled.
 - **Intra-wave ordering:** fully write-disjoint (consensus-loop.ts / provider-cli / session-observer lib / top-level docs); any merge order. Docs sweep merges trivially whenever ready.
 - **Cross-wave prerequisites:** none inbound. Unblocks W2's subprocess-hardening (consensus-loop.ts) and watch-cache (observer lib) lanes.
 - **Composition rationale:** the audit's recommended top-5 minus subprocess hardening (chained behind atomic records in the same file). Four verified HIGH-confidence fixes with the highest leverage; docs sweep added here because W1 is the only wave where its AGENTS.md/CHANGELOG edits collide with nothing.
+
+**W1 merged (2026-07-23, PR #50)** → W2 unblocked: subprocess-hardening (consensus-loop.ts chain link) and watch-cache (observer lib chain link) prerequisites satisfied.
 
 ## Wave 2: Hardening & contract guards
 
