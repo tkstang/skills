@@ -38,24 +38,26 @@ oat_generated: false
 
 ## Phase 1: Streaming Cursor Transcript Foundation
 
-### Task p01-t01: Define framed-transcript fixtures and scanner contract
+### Task p01-t01: Record the measured baseline and define the scanner contract
 
-**Requirements:** FR4, NFR2, NFR5, NFR6
+**Requirements:** FR4, FR9, NFR2, NFR5, NFR6
 
 **Files:**
 
 - Create: `tests/transcript-core/cursor-frames.test.ts`
 - Create or extend: `tests/session-observer/fixtures/cursor/framed-*.jsonl`
 - Modify: `tests/session-observer/fixtures/README.md`
+- Modify: `skills/session-observer-collab/references/runtime-cursor.md`
 
 **Steps:**
 
-1. Add redacted fixtures and RED tests for blank lines, closed frames, malformed middle frames, unterminated tails, repair, append growth, and prefix replacement.
-2. Assert zero-based physical frame indexes, exact byte boundaries, safe prefix hashes, device/inode metadata, and blocking-frame summaries.
-3. Specify that callbacks stop before the first blocker while `totalFrames` still counts physical frames visible in the scan, including the blocker/tail needed for backlog reporting.
-4. Format: do not JSON-format JSONL fixtures; run `pnpm exec oxfmt --write tests/transcript-core/cursor-frames.test.ts tests/session-observer/fixtures/README.md`.
-5. Verify RED: `pnpm exec vitest run tests/transcript-core/cursor-frames.test.ts`.
-6. Commit: `test(p01-t01): define cursor frame scan contract`.
+1. Before parser implementation, record the measured Cursor store/version/path/record/identity baseline and the exact post-implementation probe plan in `runtime-cursor.md`; label unavailable or unsupported rows honestly and retain no prose or raw identity values.
+2. Add redacted fixtures and RED tests for blank lines, closed frames, malformed middle frames, unterminated tails, repair, append growth, and prefix replacement.
+3. Assert zero-based physical frame indexes, exact byte boundaries, safe prefix hashes, device/inode metadata, and blocking-frame summaries.
+4. Specify that callbacks stop before the first blocker while `totalFrames` still counts physical frames visible in the scan, including the blocker/tail needed for backlog reporting.
+5. Format: do not JSON-format JSONL fixtures; run `pnpm exec oxfmt --write tests/transcript-core/cursor-frames.test.ts tests/session-observer/fixtures/README.md skills/session-observer-collab/references/runtime-cursor.md`.
+6. Verify RED: `pnpm exec vitest run tests/transcript-core/cursor-frames.test.ts`; verify the baseline contains provider/version/shape/action/label fields and no personal absolute path, raw session/lease value, credential, or transcript prose.
+7. Commit: `test(p01-t01): record cursor baseline and frame contract`.
 
 ### Task p01-t02: Implement the streaming Cursor frame reader
 
@@ -329,11 +331,12 @@ oat_generated: false
 
 1. Route Cursor through exact identity, framed scan/analyzer, continuity, digest v2, and Cursor-state reservation APIs.
 2. Make one-shot review/catch-up perform at most one bounded confirmation scan; return pending honestly when the prefix is not yet stable.
-3. Reserve before output and commit after output; surface delivery-uncertain state instead of silently advancing after ambiguous failure.
-4. Format: `pnpm exec oxfmt --write src/transcript/session-observer/lib/observe.ts src/transcript/session-observer/lib/types.ts tests/session-observer/observe.test.ts tests/session-observer/integration.test.ts`.
-5. Run `pnpm run build`; never hand-edit the generated observe module.
-6. Verify: `pnpm exec vitest run tests/session-observer/observe.test.ts tests/session-observer/integration.test.ts && pnpm run type-check && pnpm run build:check`.
-7. Commit: `feat(p03-t04): integrate cursor observation delivery`.
+3. Reserve before rendering and return an explicit uncommitted delivery handle whose `commit`/`abandon` finalizer must be called by the stdout-owning CLI or watch loop; `observe.ts` never claims output success itself.
+4. Surface delivery-uncertain state instead of silently advancing after an ambiguous caller/output failure, and test handle ownership, double-finalization, and stale-owner rejection at the library boundary.
+5. Format: `pnpm exec oxfmt --write src/transcript/session-observer/lib/observe.ts src/transcript/session-observer/lib/types.ts tests/session-observer/observe.test.ts tests/session-observer/integration.test.ts`.
+6. Run `pnpm run build`; never hand-edit the generated observe module.
+7. Verify: `pnpm exec vitest run tests/session-observer/observe.test.ts tests/session-observer/integration.test.ts && pnpm run type-check && pnpm run build:check`.
+8. Commit: `feat(p03-t04): integrate cursor observation delivery`.
 
 ### Task p03-t05: Extend durable watch targets for Cursor
 
@@ -372,10 +375,11 @@ oat_generated: false
 1. Add RED cases for metadata change, scheduled stability confirmation without a second metadata change, debounce, heartbeat, repair, block, reservation conflict, startup duplicate race, cleanup, and unchanged-poll bounds.
 2. Add Cursor to the applicable watch runtime set and drive scans from file identity/prefix plus candidate deadlines, not mtime/size alone.
 3. Report independent facets; blocked continuity is not healthy, pending content is not completed, and baseline delivery uses the same reservation contract with no state restore.
-4. Format: `pnpm exec oxfmt --write src/transcript/session-observer/lib/watch.ts src/transcript/session-observer/lib/types.ts tests/session-observer/watch.test.ts`.
-5. Run `pnpm run build`; never hand-edit the generated watch module.
-6. Verify: `pnpm exec vitest run tests/session-observer/watch.test.ts tests/session-observer/watch-state.test.ts && pnpm run type-check && pnpm run build:check`.
-7. Commit: `feat(p03-t06): watch cursor transcripts safely`.
+4. Make the watch loop await stdout, then commit the delivery handle only on success; abandon or mark delivery-uncertain on injected synchronous/async write failure without advancing either cursor.
+5. Format: `pnpm exec oxfmt --write src/transcript/session-observer/lib/watch.ts src/transcript/session-observer/lib/types.ts tests/session-observer/watch.test.ts`.
+6. Run `pnpm run build`; never hand-edit the generated watch module.
+7. Verify: `pnpm exec vitest run tests/session-observer/watch.test.ts tests/session-observer/watch-state.test.ts && pnpm run type-check && pnpm run build:check`.
+8. Commit: `feat(p03-t06): watch cursor transcripts safely`.
 
 ### Task p03-t07: Compose Cursor CLI state and output semantics
 
@@ -391,8 +395,8 @@ oat_generated: false
 **Steps:**
 
 1. Add RED CLI coverage for digest v2 markdown/JSON, state get/reset/clear across both stores, legacy marker, blocked and delivery-uncertain exits, replay, pinned review/catch-up, and watch status.
-2. Route Cursor `review --mark-read` through reservation semantics; never directly write a legacy record offset.
-3. Preserve v1 flags/output and keep prose out of state/event logs.
+2. Route Cursor `review --mark-read` through the uncommitted delivery handle; await stdout, commit only on success, and abandon or mark delivery-uncertain under injected write failures. Never directly write a legacy record offset.
+3. Preserve v1 flags/output and keep prose out of state/event logs; assert CLI output failure leaves observation and completion cursors unchanged.
 4. Format: `pnpm exec oxfmt --write src/transcript/session-observer/session-observer.ts tests/session-observer/cli.test.ts tests/session-observer/cli-session-override.test.ts`.
 5. Verify: `pnpm exec vitest run tests/session-observer/cli.test.ts tests/session-observer/cli-session-override.test.ts tests/session-observer/integration.test.ts && pnpm run build && pnpm run build:check`.
 6. Commit: `feat(p03-t07): expose cursor state and status in cli`.
@@ -515,7 +519,7 @@ oat_generated: false
 
 1. Add any missing regression cases for pending content, terminal failure, synthetic/no-op/metadata-only turns, caps, expiry, stale CAS, duplicate event, restart, disarm, and legacy non-Cursor paths.
 2. Fix only regressions exposed by the matrix; do not turn live Cursor continuation into an automated-support claim.
-3. Format exact changed authored/test files with `pnpm exec oxfmt --write <changed-file-list>`; never format generated files.
+3. Format changed non-generated authored/test files through the repository exclusions: `pnpm exec lint-staged --diff origin/main --diff-filter ACMR`.
 4. Verify: `pnpm exec vitest run tests/session-observer-collab && pnpm run smoke && pnpm run type-check`.
 5. Commit: `test(p04-t06): cover collaboration completion safety`.
 
@@ -528,15 +532,18 @@ oat_generated: false
 **Files:**
 
 - Modify: `skills/session-observer-collab/references/runtime-cursor.md`
+- Create: `scripts/validate-cursor-evidence.mjs`
+- Create: `tests/tooling/cursor-evidence-validation.test.ts`
 
 **Steps:**
 
-1. Record sanitized host/provider/version/store/path-shape/identity/action/outcome fields for the known agent-transcript baseline.
+1. Refresh the sanitized host/provider/version/store/path-shape/identity/action/outcome fields for the measured agent-transcript baseline established in p01-t01.
 2. Label fixture-only rows `automated-only` and unprobed provider behavior `documented-but-unvalidated`; retain failure/unavailable as valid evidence outcomes.
 3. Store no transcript prose, raw session IDs, absolute personal paths, or credentials.
-4. Format: `pnpm exec oxfmt --write skills/session-observer-collab/references/runtime-cursor.md`.
-5. Verify: `rg -n '/Users/|session[_-]?id.*[0-9a-f]{8}|BEGIN .*PRIVATE|api[_-]?key' skills/session-observer-collab/references/runtime-cursor.md` returns no sensitive evidence rows; then run `pnpm run validate`.
-6. Commit: `docs(p05-t01): record cursor capability evidence labels`.
+4. Implement a repeatable validator over durable Cursor evidence, fixtures, and changed docs that detects POSIX/Windows personal absolute paths, raw session/lease/identity values, credential shapes, and transcript-prose canaries while allowing documented redacted examples.
+5. Format: `pnpm exec oxfmt --write skills/session-observer-collab/references/runtime-cursor.md scripts/validate-cursor-evidence.mjs tests/tooling/cursor-evidence-validation.test.ts`.
+6. Verify: `pnpm exec vitest run tests/tooling/cursor-evidence-validation.test.ts && node scripts/validate-cursor-evidence.mjs && pnpm run validate`.
+7. Commit: `test(p05-t01): validate cursor capability evidence`.
 
 ### Task p05-t02: Run observed-side live Cursor acceptance
 
@@ -545,17 +552,20 @@ oat_generated: false
 **Files:**
 
 - Modify: `skills/session-observer-collab/references/runtime-cursor.md`
+- Create: `scripts/probe-cursor-acceptance.mjs`
+- Create: `tests/tooling/cursor-acceptance-probe.test.ts`
 - Modify only if the probe exposes a defect: canonical source/tests from Phases 1-3
 - Generate if canonical TypeScript changes: every mapped output reported by `scripts/build-generated.mjs`
 
 **Steps:**
 
-1. On an available controlled Cursor session, run `whoami`, exact `locate`, pinned `catch-up`, and `catch-up-then-watch` against active content, second-scan stability, success/abort/error/cancel, malformed/partial repair, shrink/replacement, restart, and reset/replay.
+1. Add a finite JSON-emitting harness that runs `whoami`, exact `locate`, pinned `catch-up`, and bounded `catch-up-then-watch` against an available controlled Cursor session, recording each expected/actual structural row and failing any row whose command was not run.
 2. If Cursor is unavailable, record `unavailable` and retain `documented-but-unvalidated`; do not fabricate evidence or block automated core completion.
-3. Capture only structural/redacted commands, versions, actions, and outcomes. Fix reproducible correctness defects with a targeted test before code; when canonical TypeScript changes, run `pnpm run build`, include every affected generated output in this task, and require `pnpm run build:check` before commit.
-4. Format: `pnpm exec oxfmt --write <exact changed non-generated source/docs/test files>`; never format generated outputs.
-5. Verify: `node skills/session-observer/scripts/probe-local.mjs --runtime cursor --cwd "$PWD"` plus the focused tests for any defect fixed and, after canonical TypeScript fixes, `pnpm run build:check`.
-6. Commit: `test(p05-t02): record cursor observation acceptance`.
+3. Keep real provider transcripts strictly read-only. Copy sanitized structural fixtures into a temporary store for second-scan stability, success/abort/error/cancel, malformed/partial repair, shrink/replacement, restart, and reset/replay scenarios; never mutate a live provider transcript.
+4. Capture only structural/redacted commands, versions, actions, and outcomes. Fix reproducible correctness defects with a targeted test before code; when canonical TypeScript changes, run `pnpm run build`, include every affected generated output in this task, and require `pnpm run build:check` before commit.
+5. Format changed non-generated source/docs/test files through the repository exclusions: `pnpm exec lint-staged --diff origin/main --diff-filter ACMR`.
+6. Verify: `pnpm exec vitest run tests/tooling/cursor-acceptance-probe.test.ts && node scripts/probe-cursor-acceptance.mjs --runtime cursor --cwd "$PWD" --json && node scripts/validate-cursor-evidence.mjs` plus focused tests for any defect fixed and, after canonical TypeScript fixes, `pnpm run build:check`.
+7. Commit: `test(p05-t02): record cursor observation acceptance`.
 
 ### Task p05-t03: Probe the bounded collaboration lifecycle
 
@@ -571,8 +581,8 @@ oat_generated: false
 1. Only after observed-side acceptance passes, arm an exact lease, invoke the actual provider Stop event, inspect structural status, and disarm/prune.
 2. Verify terminal success, terminal failure, pending/no-op suppression, exact range, lease CAS, and cleanup without widening authority.
 3. Treat unavailable or failed live continuation as a valid `documented-but-unvalidated` result and keep buffered-manual fallback.
-4. Format exact changed authored/docs/test files with `pnpm exec oxfmt --write <changed-file-list>`.
-5. Verify focused collaboration tests plus the sanitized command sequence recorded in `runtime-cursor.md`.
+4. Format changed non-generated authored/docs/test files through the repository exclusions: `pnpm exec lint-staged --diff origin/main --diff-filter ACMR`.
+5. Verify focused collaboration tests plus the sanitized command sequence recorded in `runtime-cursor.md`, then run `node scripts/validate-cursor-evidence.mjs`.
 6. Commit: `test(p05-t03): record cursor collaboration acceptance`.
 
 ### Task p05-t04: Author shipped behavior documentation through OAT
@@ -586,14 +596,15 @@ oat_generated: false
 - Modify through `oat-project-document`: `documentation/docs/engineering/architecture/transcript-core.md`
 - Modify through `oat-project-document`: `documentation/docs/engineering/architecture/generated-runtime.md`
 - Modify: `skills/session-observer/{SKILL.md,references/watch-design.md,references/transcript-formats.md}`
+- Modify: `skills/session-observer-collab/SKILL.md`
 
 **Steps:**
 
 1. Invoke `oat-project-document` and follow `documentation/AGENTS.md`; update existing pages rather than creating a new navigation branch.
 2. Document content-first observation, terminal-only completion, exact identity, continuity/recovery, state v2, status facets, envelope/lease versions, generated-module topology, and honest support labels.
-3. Remove stale record-index-only Cursor guidance while preserving non-Cursor behavior.
-4. Format: `pnpm exec oxfmt --write <exact changed non-generated skill/docs files>`.
-5. Verify: `pnpm --dir documentation run docs:format:check && pnpm --dir documentation run build && pnpm run validate`.
+3. Remove stale record-index-only Cursor guidance from both shipped skills; make collaboration raw-evidence and completion instructions dispatch explicitly by digest schema and index base while preserving non-Cursor behavior.
+4. Format changed non-generated skill/docs files through the repository exclusions: `pnpm exec lint-staged --diff origin/main --diff-filter ACMR`.
+5. Verify: `pnpm --dir documentation run docs:format:check && pnpm --dir documentation run build && node scripts/validate-cursor-evidence.mjs && pnpm run validate`; confirm both skills and `runtime-cursor.md` agree on schema/index semantics.
 6. Commit: `docs(p05-t04): document cursor reliability contracts`.
 
 ### Task p05-t05: Bump changed skill versions and dogfood providers
@@ -636,8 +647,8 @@ oat_generated: false
 2. If closing it, set terminal `status: closed` and `updated`, prepend the required entry to `backlog/completed.md`, `git mv` the item into `backlog/archived/`, run `oat backlog regenerate-index`, and update `current-state.md` plus the curated index overview when the operating picture changed. Complete every lifecycle step or none.
 3. Enumerate changed files with `git diff --name-only --diff-filter=ACMR origin/main...HEAD`, then run the exact changed-file oxlint and oxfmt-check pipelines from `.github/workflows/validate.yml`, including its `.oat`/generated/provider/instruction exclusions; do not substitute the whole-repository lint/format shortcuts.
 4. Run generated/runtime/type/test/validation/smoke/docs gates and confirm a clean generated tree. Fix failures narrowly with focused tests, then repeat the failed and aggregate gates.
-5. Format exact changed non-generated files with `pnpm exec oxfmt --write <changed-file-list>`.
-6. Verify: changed-file oxlint/oxfmt checks, then `pnpm run build && pnpm run type-check && pnpm run build:check && pnpm run test && pnpm run validate && pnpm run smoke && pnpm --dir documentation run docs:format:check && pnpm --dir documentation run build && pnpm run validate:skill-versions -- --base-ref origin/main && oat status --scope all --json`.
+5. Format changed non-generated files through the repository exclusions: `pnpm exec lint-staged --diff origin/main --diff-filter ACMR`.
+6. Verify: changed-file oxlint/oxfmt checks, then `node scripts/validate-cursor-evidence.mjs && pnpm run build && pnpm run type-check && pnpm run build:check && pnpm run test && pnpm run validate && pnpm run smoke && pnpm --dir documentation run docs:format:check && pnpm --dir documentation run build && pnpm run validate:skill-versions -- --base-ref origin/main && oat status --scope all --json`.
 7. Commit: `chore(p05-t06): verify baseline cursor reliability release gates`.
 
 ## Phase 6: Conditional Stronger Wake Evaluation
@@ -656,8 +667,8 @@ oat_generated: false
 1. Probe whether the real Cursor Stop surface can deliver a v2 envelope into the same parent conversation with exact identity and one-consumer semantics.
 2. Record success, failure, or unavailable structurally; do not add an executor or broaden hook authority to force success.
 3. Implement only the strongest already-available bounded tier proven by the probe, with focused tests and disarm/restart recovery.
-4. Format exact changed authored/reference/test files with `pnpm exec oxfmt --write <changed-file-list>`.
-5. Verify the recorded live command and `pnpm exec vitest run tests/session-observer-collab`.
+4. Format changed non-generated authored/reference/test files through the repository exclusions: `pnpm exec lint-staged --diff origin/main --diff-filter ACMR`.
+5. Verify the recorded live command, `pnpm exec vitest run tests/session-observer-collab`, and `node scripts/validate-cursor-evidence.mjs`.
 6. Commit: `test(p06-t01): evaluate cursor stop callback delivery`.
 
 ### Task p06-t02: Evaluate managed callback surfaces in order
@@ -674,8 +685,8 @@ oat_generated: false
 1. If same-parent Stop delivery is insufficient, evaluate existing managed local/subagent callback capability; only then evaluate a scheduled callback surface that already exists.
 2. Verify callback effectiveness, exact ownership, bounded polling, interruption/restart, duplicate suppression, and cleanup before implementing any adapter.
 3. Never introduce a background LLM, scheduler, daemon, credential, or external service solely to satisfy this task; `unavailable` is valid.
-4. Format exact changed authored/reference/test files with `pnpm exec oxfmt --write <changed-file-list>`.
-5. Verify focused tests for any implemented adapter plus the sanitized live evidence record.
+4. Format changed non-generated authored/reference/test files through the repository exclusions: `pnpm exec lint-staged --diff origin/main --diff-filter ACMR`.
+5. Verify focused tests for any implemented adapter plus the sanitized live evidence record, then run `node scripts/validate-cursor-evidence.mjs`.
 6. Commit: `test(p06-t02): evaluate managed cursor wake surfaces`.
 
 ### Task p06-t03: Finalize wake-tier and fallback claims
@@ -692,8 +703,8 @@ oat_generated: false
 1. Select the highest evidence-backed tier: same-parent callback, managed callback, or buffered-manual fallback.
 2. Align provider/reference/docs labels to that evidence; do not imply marketplace/provider support beyond the verified path.
 3. Record whether the stronger-wake backlog acceptance criteria are met; defer any terminal backlog mutation to p06-t04 so the full lifecycle and release closeout remain atomic.
-4. Format exact changed non-generated files with `pnpm exec oxfmt --write <changed-file-list>`.
-5. Verify: `pnpm run validate && pnpm --dir documentation run docs:format:check && pnpm --dir documentation run build && pnpm run smoke`.
+4. Format changed non-generated files through the repository exclusions: `pnpm exec lint-staged --diff origin/main --diff-filter ACMR`.
+5. Verify: `node scripts/validate-cursor-evidence.mjs && pnpm run validate && pnpm --dir documentation run docs:format:check && pnpm --dir documentation run build && pnpm run smoke`.
 6. Commit: `docs(p06-t03): finalize cursor wake evidence tier`.
 
 ### Task p06-t04: Reconcile versions, providers, backlog, and final release gates
@@ -714,7 +725,7 @@ oat_generated: false
 2. If a shipped standalone skill changed, repeat the branch dogfood copy/link verification and `oat sync --scope user`; refresh repository views with `oat sync --scope all`, verify actual provider paths/versions, and retain the post-merge reconciliation note.
 3. If the stronger-wake item is satisfied, set terminal status/date, prepend `backlog/completed.md`, `git mv` it to `backlog/archived/`, run `oat backlog regenerate-index`, and conditionally refresh `current-state.md` and the curated overview. Otherwise keep it open with the evidence-backed next step.
 4. Enumerate changed files with `git diff --name-only --diff-filter=ACMR origin/main...HEAD` and run the exact changed-file oxlint/oxfmt-check pipelines from `.github/workflows/validate.yml`; never run whole-repository lint/format checks.
-5. Verify the final tree: `pnpm run build && pnpm run type-check && pnpm run build:check && pnpm run test && pnpm run validate && pnpm run smoke && pnpm --dir documentation run docs:format:check && pnpm --dir documentation run build && pnpm run validate:skill-versions -- --base-ref origin/main && oat status --scope all --json`.
+5. Verify the final tree: `node scripts/validate-cursor-evidence.mjs && pnpm run build && pnpm run type-check && pnpm run build:check && pnpm run test && pnpm run validate && pnpm run smoke && pnpm --dir documentation run docs:format:check && pnpm --dir documentation run build && pnpm run validate:skill-versions -- --base-ref origin/main && oat status --scope all --json`.
 6. Confirm no generated drift, stale changed-skill versions, partial backlog closeout, or branch-only provider mirror remains unexplained.
 7. Commit: `chore(p06-t04): complete final cursor reliability release gates`.
 
@@ -727,8 +738,8 @@ oat_generated: false
 | final  | code     | pending         | -          | -                                                                         |
 | spec   | artifact | pending         | -          | -                                                                         |
 | design | artifact | fixes_completed | 2026-07-20 | reviews/archived/artifact-design-review-2026-07-20T233233Z.md            |
-| plan   | artifact | passed          | 2026-07-22 | -                                                                         |
-| plan   | artifact | received        | 2026-07-22 | reviews/artifact-plan-review-2026-07-23T022120Z.md                        |
+| plan   | artifact | pending         | -          | -                                                                         |
+| plan   | artifact | fixes_completed | 2026-07-22 | reviews/artifact-plan-review-2026-07-23T022120Z.md                        |
 | p03    | code     | pending         | -          | -                                                                         |
 | p04    | code     | pending         | -          | -                                                                         |
 | p05    | code     | pending         | -          | -                                                                         |

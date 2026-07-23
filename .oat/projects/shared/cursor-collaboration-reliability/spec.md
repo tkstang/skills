@@ -446,22 +446,22 @@ evidence phases, not prerequisites for shipping the observation core.
 
 | ID | Description | Priority | Verification | Planned Tasks |
 | --- | --- | --- | --- | --- |
-| FR1 | Resolve and persist exact Cursor surface identity | P0 | unit + integration: direct/fallback identity, collisions, path mismatch | See plan.md |
-| FR2 | Surface prefix-stable Cursor content before terminal | P0 | unit + e2e: two-scan stability, partial/malformed and pending lifecycle | See plan.md |
-| FR3 | Reconcile lifecycle separately and gate completion | P0 | unit + integration: success/failure/pending/automatic-control matrix | See plan.md |
-| FR4 | Verify continuity and require explicit recovery | P0 | unit + integration: repair, shrink, replacement, rotation and replay | See plan.md |
-| FR5 | Report independent activity/content/lifecycle/health | P0 | unit + e2e: state transition and heartbeat matrix | See plan.md |
-| FR6 | Persist atomic idempotent observer accounting | P0 | unit + integration: CAS reservation, crash recovery, concurrency and cursor separation | See plan.md |
-| FR7 | Preserve reliable bounded foreground watch behavior | P0 | integration: baseline, debounce, candidate warning and cleanup | See plan.md |
-| FR8 | Preserve terminal-only bounded collaboration completion | P0 | integration + e2e: exact lease, contiguous range, no-op and disarm | See plan.md |
-| FR9 | Gate Cursor surface support on per-row evidence | P1 | manual + integration: capability matrix and sanitized probes | See plan.md |
-| FR10 | Evaluate stronger wake without making it a ship blocker | P1 | manual + e2e: same-parent callback, interruption, restart and fallback | See plan.md |
-| NFR1 | Fail closed without widening authority | P0 | unit + manual: unsafe path, ambiguity and synthetic provenance | See plan.md |
-| NFR2 | Retain structural state/evidence without prose | P0 | unit + manual: artifact scan and owner-only state | See plan.md |
-| NFR3 | Preserve versioned backward compatibility | P0 | integration: non-Cursor regression and state/schema migration | See plan.md |
-| NFR4 | Keep shipped runtime dependency-free and generated in sync | P0 | integration: build check, validation and skill versions | See plan.md |
-| NFR5 | Keep changed-file processing and all waits bounded | P1 | perf + integration: unchanged poll, changed transcript and lease bounds | See plan.md |
-| NFR6 | Make capability evidence reproducible and honest | P0 | manual + integration: fixtures, probe records and support labels | See plan.md |
+| FR1 | Resolve and persist exact Cursor surface identity | P0 | unit + integration: direct/fallback identity, collisions, path mismatch | p02-t01, p03-t03, p03-t04 |
+| FR2 | Surface prefix-stable Cursor content before terminal | P0 | unit + e2e: two-scan stability, partial/malformed and pending lifecycle | p01-t03–p01-t04, p02-t05, p03-t01–p03-t04, p03-t06, p05-t02 |
+| FR3 | Reconcile lifecycle separately and gate completion | P0 | unit + integration: success/failure/pending/automatic-control matrix | p01-t03–p01-t04, p02-t05, p03-t01–p03-t04, p03-t06, p04-t04, p05-t02 |
+| FR4 | Verify continuity and require explicit recovery | P0 | unit + integration: repair, shrink, replacement, rotation and replay | p01-t01–p01-t02, p02-t02–p02-t05, p03-t03–p03-t07, p04-t04, p05-t02 |
+| FR5 | Report independent activity/content/lifecycle/health | P0 | unit + e2e: state transition and heartbeat matrix | p03-t01–p03-t02, p03-t04–p03-t07, p05-t02, p05-t04 |
+| FR6 | Persist atomic idempotent observer accounting | P0 | unit + integration: CAS reservation, crash recovery, concurrency and cursor separation | p02-t02–p02-t05, p03-t01–p03-t04, p03-t06–p03-t07, p05-t02 |
+| FR7 | Preserve reliable bounded foreground watch behavior | P0 | integration: baseline, debounce, candidate warning and cleanup | p03-t05–p03-t07, p05-t02, p05-t04 |
+| FR8 | Preserve terminal-only bounded collaboration completion | P0 | integration + e2e: exact lease, contiguous range, no-op and disarm | p04-t01–p04-t06, p05-t03–p05-t04 |
+| FR9 | Gate Cursor surface support on per-row evidence | P1 | manual + integration: capability matrix and sanitized probes | p01-t01, p05-t01–p05-t03, p05-t06, p06-t03–p06-t04 |
+| FR10 | Evaluate stronger wake without making it a ship blocker | P1 | manual + e2e: same-parent callback, interruption, restart and fallback | p05-t03, p06-t01–p06-t03 |
+| NFR1 | Fail closed without widening authority | P0 | unit + manual: unsafe path, ambiguity and synthetic provenance | p02-t01, p02-t04, p03-t03–p03-t07, p04-t02–p04-t06, p05-t03, p06-t01–p06-t02 |
+| NFR2 | Retain structural state/evidence without prose | P0 | unit + manual: artifact scan and owner-only state | p01-t01, p01-t04, p02-t02, p02-t05, p03-t01–p03-t02, p03-t04, p03-t06–p03-t07, p04-t02–p04-t06, p05-t01–p05-t03, p06-t01, p06-t03 |
+| NFR3 | Preserve versioned backward compatibility | P0 | integration: non-Cursor regression and state/schema migration | p01-t03–p01-t05, p02-t01–p02-t03, p02-t05, p03-t01–p03-t03, p03-t05, p03-t07, p04-t01–p04-t02, p04-t05–p04-t06, p05-t04–p05-t06, p06-t03–p06-t04 |
+| NFR4 | Keep shipped runtime dependency-free and generated in sync | P0 | integration: build check, validation and skill versions | p01-t03, p01-t05, p05-t05–p05-t06, p06-t04 |
+| NFR5 | Keep changed-file processing and all waits bounded | P1 | perf + integration: unchanged poll, changed transcript and lease bounds | p01-t01–p01-t02, p01-t04, p02-t04–p02-t05, p03-t02, p03-t04, p03-t06, p04-t06, p05-t02, p05-t06, p06-t02, p06-t04 |
+| NFR6 | Make capability evidence reproducible and honest | P0 | manual + integration: fixtures, probe records and support labels | p01-t01, p05-t01–p05-t06, p06-t01–p06-t04 |
 
 ## Open Questions
 
