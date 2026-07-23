@@ -530,6 +530,21 @@ export interface WatchTargetRecord {
   lockedAt: string;
 }
 
+export interface WatchTargetRecordV2 extends WatchTargetRecord {
+  runtime: 'cursor';
+  indexBase: 'zero-based-jsonl-frame-index';
+  canonicalTranscriptPath: string;
+  observationCursor: number;
+  bufferedFromFrame: number | null;
+  continuity: TranscriptContinuityCheckpoint;
+  pendingCandidateDeadline: string | null;
+  lastStatus: ObservationStatus;
+  continuityState: 'verified' | 'blocked';
+  ownerPid: number;
+}
+
+export type DurableWatchTargetRecord = WatchTargetRecord | WatchTargetRecordV2;
+
 export interface WatcherRecord {
   pid: number;
   runtime: WatchRuntimeSelection | string;
@@ -548,7 +563,7 @@ export interface WatcherRecord {
   resolvedRuntime: Runtime | null;
   sessionId: string | null;
   transcriptPath: string | null;
-  targets: WatchTargetRecord[];
+  targets: DurableWatchTargetRecord[];
   lastError: { at: string; message: string } | null;
   [key: string]: unknown;
 }
@@ -581,7 +596,30 @@ export interface WatcherTargetInput {
   baselineRecordIndex?: number | null;
   engagementStatus?: EngagementStatus | null;
   lockedAt?: string | Date;
+  indexBase?: 'zero-based-jsonl-frame-index';
+  canonicalTranscriptPath?: string;
+  observationCursor?: number;
+  bufferedFromFrame?: number | null;
+  continuity?: TranscriptContinuityCheckpoint;
+  pendingCandidateDeadline?: string | Date | null;
+  lastStatus?: ObservationStatus;
+  continuityState?: 'verified' | 'blocked';
 }
+
+export interface CursorWatchTargetTransition {
+  observationCursor: number;
+  bufferedFromFrame: number | null;
+  continuity: TranscriptContinuityCheckpoint;
+  pendingCandidateDeadline: string | Date | null;
+  lastStatus: ObservationStatus;
+  continuityState: 'verified' | 'blocked';
+}
+
+export type CursorWatchTargetCasResult =
+  | { status: 'updated'; target: WatchTargetRecordV2 }
+  | { status: 'stale'; target: WatchTargetRecordV2 }
+  | { status: 'not-owner' }
+  | { status: 'not-found' };
 
 export interface WatchControlFile {
   directive: WatchControlDirective;

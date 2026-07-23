@@ -4,13 +4,20 @@
  * Each test uses a fresh temp STATE_DIR to ensure isolation.
  */
 
-import { readFile, readdir, writeFile, unlink, utimes } from 'node:fs/promises';
+import {
+  readFile,
+  readdir,
+  stat,
+  writeFile,
+  unlink,
+  utimes,
+} from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { expect, afterEach, test, vi } from 'vitest';
 
-import * as watchState from '../../src/transcript/session-observer/lib/watch-state.js';
 import type { WatcherRecord } from '../../src/transcript/session-observer/lib/types.js';
+import * as watchState from '../../src/transcript/session-observer/lib/watch-state.js';
 import { withTmpStateDir } from './helpers/tmpdir.js';
 
 function assertWatcherRecord(value: unknown): asserts value is WatcherRecord {
@@ -24,6 +31,25 @@ function sleep(ms: number): Promise<void> {
 afterEach(() => {
   vi.restoreAllMocks();
 });
+
+const cursorCheckpoint = {
+  indexBase: 'zero-based-jsonl-frame-index' as const,
+  nextFrameIndex: 3,
+  prefixBytes: 256,
+  prefixSha256: 'a'.repeat(64),
+  observedSize: 300,
+  device: 41,
+  inode: 42,
+};
+
+const cursorStatus = {
+  engagement: 'engaged' as const,
+  activity: 'assistant-progress' as const,
+  content: 'buffered' as const,
+  lifecycle: 'pending' as const,
+  delivery: 'none' as const,
+  health: 'healthy' as const,
+};
 
 // ---------------------------------------------------------------------------
 // Deterministic lock-race harness: a one-shot `rename` interceptor and a
@@ -125,7 +151,7 @@ test('startWatcher writes watch.json atomically with active watcher metadata', a
     });
 
     const raw = JSON.parse(await readFile(join(dir, 'watch.json'), 'utf8'));
-    expect(raw.schemaVersion).toBe(1);
+    expect(raw.schemaVersion).toBe(2);
     expect(raw.active).toEqual(active);
     expect(raw.watchers).toEqual([active]);
 
@@ -143,14 +169,13 @@ test('startWatcher refuses a second watcher for the same pid when pid is live', 
       startedAt: '2026-06-03T12:00:00.000Z',
     });
 
-    await expect(
-      () =>
-        watchState.startWatcher({
-          runtime: 'codex',
-          cwd: '/repo',
-          pid: process.pid,
-          startedAt: '2026-06-03T12:01:00.000Z',
-        }),
+    await expect(() =>
+      watchState.startWatcher({
+        runtime: 'codex',
+        cwd: '/repo',
+        pid: process.pid,
+        startedAt: '2026-06-03T12:01:00.000Z',
+      }),
     ).rejects.toThrow(/already active/i);
   });
 });
@@ -321,7 +346,9 @@ test('clearStaleControlDirectives removes directives for dead pids only', async 
     const cleared = await watchState.clearStaleControlDirectives();
     expect(cleared).toBe(1);
     expect(await watchState.readControlDirective({ pid: 424242 })).toBe(null);
-    expect(await watchState.readControlDirective({ pid: process.pid })).toEqual({ directive: 'pause', issuedAt, pid: process.pid });
+    expect(await watchState.readControlDirective({ pid: process.pid })).toEqual(
+      { directive: 'pause', issuedAt, pid: process.pid },
+    );
   });
 });
 
@@ -355,18 +382,22 @@ test('findLiveWatcherForTarget reports a conflicting live watcher for the same t
     expect(conflict?.pid).toBe(111);
 
     // The owning watcher itself is excluded.
-    expect(await watchState.findLiveWatcherForTarget({
+    expect(
+      await watchState.findLiveWatcherForTarget({
         runtime: 'codex',
         sessionId: 'abc',
         excludePid: 111,
-      })).toBe(null);
+      }),
+    ).toBe(null);
 
     // A different session is not a conflict.
-    expect(await watchState.findLiveWatcherForTarget({
+    expect(
+      await watchState.findLiveWatcherForTarget({
         runtime: 'codex',
         sessionId: 'other',
         excludePid: 222,
-      })).toBe(null);
+      }),
+    ).toBe(null);
   });
 });
 
@@ -449,11 +480,13 @@ test('findLiveWatcherForTarget falls back to legacy top-level fields when target
     });
     expect(conflict?.pid).toBe(111);
 
-    expect(await watchState.findLiveWatcherForTarget({
+    expect(
+      await watchState.findLiveWatcherForTarget({
         runtime: 'codex',
         sessionId: 'other-session',
         excludePid: 222,
-      })).toBe(null);
+      }),
+    ).toBe(null);
 
     // The locked recordWatcherTarget gate honors legacy records too.
     await watchState.startWatcher({
@@ -462,16 +495,15 @@ test('findLiveWatcherForTarget falls back to legacy top-level fields when target
       pid: 222,
       startedAt: '2026-06-11T12:00:00.000Z',
     });
-    await expect(
-      () =>
-        watchState.recordWatcherTarget({
-          pid: 222,
-          target: {
-            runtime: 'codex',
-            sessionId: 'legacy-session',
-            transcriptPath: '/tmp/legacy.jsonl',
-          },
-        }),
+    await expect(() =>
+      watchState.recordWatcherTarget({
+        pid: 222,
+        target: {
+          runtime: 'codex',
+          sessionId: 'legacy-session',
+          transcriptPath: '/tmp/legacy.jsonl',
+        },
+      }),
     ).rejects.toThrow(/already watching codex:legacy-session/);
   });
 });
@@ -507,6 +539,267 @@ test('recordWatcherTarget stores resolved pinned target metadata', async () => {
     expect(active.transcriptPath).toBe('/tmp/abc.jsonl');
     expect(active.targets.length).toBe(1);
     expect(active.targets[0].baselineRecordIndex).toBe(5);
+  });
+});
+
+test('persists a frame-index Cursor target with exact continuity and owner-only permissions', async () => {
+  await withTmpStateDir(async (dir) => {
+    await watchState.startWatcher({
+      runtime: 'cursor',
+      cwd: '/repo',
+      session: 'cursor:cursor-watch',
+      pid: process.pid,
+      startedAt: '2026-07-22T12:00:00.000Z',
+    });
+
+    const active = await watchState.recordWatcherTarget({
+      pid: process.pid,
+      target: {
+        runtime: 'cursor',
+        sessionId: 'cursor-watch',
+        transcriptPath: '/alias/cursor-watch.jsonl',
+        recordedCwd: '/repo',
+        lockedAt: '2026-07-22T12:00:01.000Z',
+        indexBase: 'zero-based-jsonl-frame-index',
+        canonicalTranscriptPath: '/canonical/cursor-watch.jsonl',
+        observationCursor: 3,
+        bufferedFromFrame: 3,
+        continuity: cursorCheckpoint,
+        pendingCandidateDeadline: '2026-07-22T12:00:02.000Z',
+        lastStatus: cursorStatus,
+        continuityState: 'verified',
+      },
+    });
+
+    assertWatcherRecord(active);
+    expect(active.targets).toEqual([
+      expect.objectContaining({
+        key: 'cursor:cursor-watch',
+        runtime: 'cursor',
+        indexBase: 'zero-based-jsonl-frame-index',
+        canonicalTranscriptPath: '/canonical/cursor-watch.jsonl',
+        observationCursor: 3,
+        bufferedFromFrame: 3,
+        continuity: cursorCheckpoint,
+        pendingCandidateDeadline: '2026-07-22T12:00:02.000Z',
+        lastStatus: cursorStatus,
+        continuityState: 'verified',
+        ownerPid: process.pid,
+      }),
+    ]);
+
+    const path = join(dir, 'watch.json');
+    const raw = JSON.parse(await readFile(path, 'utf8'));
+    expect(raw.schemaVersion).toBe(2);
+    expect(raw.watchers[0].targets[0].continuity).toMatchObject({
+      device: 41,
+      inode: 42,
+      prefixBytes: 256,
+      prefixSha256: 'a'.repeat(64),
+    });
+    expect((await stat(dir)).mode & 0o777).toBe(0o700);
+    expect((await stat(path)).mode & 0o777).toBe(0o600);
+  });
+});
+
+test('migrates the watch envelope without reinterpreting v1 record-index targets', async () => {
+  await withTmpStateDir(async (dir) => {
+    vi.spyOn(process, 'kill').mockImplementation(() => true);
+    const legacyTarget = {
+      key: 'codex:legacy-watch',
+      runtime: 'codex',
+      sessionId: 'legacy-watch',
+      transcriptPath: '/tmp/legacy-watch.jsonl',
+      cwd: '/repo',
+      recordCount: 8,
+      baselineRecordIndex: 5,
+      engagementStatus: 'engaged',
+      lockedAt: '2026-06-03T12:00:01.000Z',
+    };
+    await writeFile(
+      join(dir, 'watch.json'),
+      JSON.stringify({
+        schemaVersion: 1,
+        active: {
+          pid: 8181,
+          runtime: 'codex',
+          cwd: '/repo',
+          startedAt: '2026-06-03T12:00:00.000Z',
+          targets: [legacyTarget],
+        },
+      }),
+      'utf8',
+    );
+
+    const loaded = await watchState.loadWatchState();
+    expect(loaded.schemaVersion).toBe(2);
+    expect(loaded.watchers[0].targets[0]).toEqual(legacyTarget);
+    expect(loaded.watchers[0].targets[0]).not.toHaveProperty('indexBase');
+    expect(loaded.watchers[0].targets[0].baselineRecordIndex).toBe(5);
+    const migrated = JSON.parse(
+      await readFile(join(dir, 'watch.json'), 'utf8'),
+    );
+    expect(migrated.schemaVersion).toBe(2);
+    expect(migrated.watchers[0].targets[0]).toEqual(legacyTarget);
+  });
+});
+
+test('CAS-updates blocked and repaired Cursor targets for the owning watcher only', async () => {
+  await withTmpStateDir(async () => {
+    vi.spyOn(process, 'kill').mockImplementation(() => true);
+    await watchState.startWatcher({
+      runtime: 'cursor',
+      cwd: '/repo',
+      pid: 9191,
+      startedAt: '2026-07-22T12:00:00.000Z',
+    });
+    await watchState.recordWatcherTarget({
+      pid: 9191,
+      target: {
+        runtime: 'cursor',
+        sessionId: 'cursor-transition',
+        transcriptPath: '/cursor-transition.jsonl',
+        indexBase: 'zero-based-jsonl-frame-index',
+        canonicalTranscriptPath: '/canonical/cursor-transition.jsonl',
+        observationCursor: 3,
+        bufferedFromFrame: 3,
+        continuity: cursorCheckpoint,
+        pendingCandidateDeadline: '2026-07-22T12:00:02.000Z',
+        lastStatus: cursorStatus,
+        continuityState: 'verified',
+      },
+    });
+
+    await expect(
+      watchState.compareAndSetCursorWatchTarget({
+        pid: 9292,
+        key: 'cursor:cursor-transition',
+        expectedObservationCursor: 3,
+        next: {
+          observationCursor: 3,
+          bufferedFromFrame: 3,
+          continuity: cursorCheckpoint,
+          pendingCandidateDeadline: null,
+          lastStatus: {
+            ...cursorStatus,
+            health: 'blocked',
+          },
+          continuityState: 'blocked',
+        },
+      }),
+    ).resolves.toMatchObject({ status: 'not-owner' });
+
+    const blocked = await watchState.compareAndSetCursorWatchTarget({
+      pid: 9191,
+      key: 'cursor:cursor-transition',
+      expectedObservationCursor: 3,
+      next: {
+        observationCursor: 3,
+        bufferedFromFrame: 3,
+        continuity: cursorCheckpoint,
+        pendingCandidateDeadline: null,
+        lastStatus: {
+          ...cursorStatus,
+          health: 'blocked',
+        },
+        continuityState: 'blocked',
+      },
+    });
+    expect(blocked).toMatchObject({
+      status: 'updated',
+      target: {
+        observationCursor: 3,
+        continuityState: 'blocked',
+        lastStatus: { health: 'blocked' },
+      },
+    });
+    const blockedState = await readFile(
+      join(process.env.STATE_DIR!, 'watch.json'),
+      'utf8',
+    );
+
+    await expect(
+      watchState.compareAndSetCursorWatchTarget({
+        pid: 9191,
+        key: 'cursor:cursor-transition',
+        expectedObservationCursor: 2,
+        next: {
+          observationCursor: 4,
+          bufferedFromFrame: null,
+          continuity: {
+            ...cursorCheckpoint,
+            nextFrameIndex: 4,
+            prefixBytes: 300,
+            prefixSha256: 'b'.repeat(64),
+          },
+          pendingCandidateDeadline: null,
+          lastStatus: {
+            ...cursorStatus,
+            content: 'none',
+          },
+          continuityState: 'verified',
+        },
+      }),
+    ).resolves.toMatchObject({ status: 'stale' });
+    expect(
+      await readFile(join(process.env.STATE_DIR!, 'watch.json'), 'utf8'),
+    ).toBe(blockedState);
+    await expect(
+      watchState.compareAndSetCursorWatchTarget({
+        pid: 9191,
+        key: 'cursor:cursor-transition',
+        expectedObservationCursor: 3,
+        next: {
+          observationCursor: 3,
+          bufferedFromFrame: 3,
+          continuity: {
+            ...cursorCheckpoint,
+            prefixSha256: 'c'.repeat(64),
+          },
+          pendingCandidateDeadline: null,
+          lastStatus: {
+            ...cursorStatus,
+            health: 'blocked',
+          },
+          continuityState: 'blocked',
+        },
+      }),
+    ).rejects.toThrow(/cannot change identity or move backward/);
+    expect(
+      await readFile(join(process.env.STATE_DIR!, 'watch.json'), 'utf8'),
+    ).toBe(blockedState);
+
+    const repaired = await watchState.compareAndSetCursorWatchTarget({
+      pid: 9191,
+      key: 'cursor:cursor-transition',
+      expectedObservationCursor: 3,
+      next: {
+        observationCursor: 4,
+        bufferedFromFrame: null,
+        continuity: {
+          ...cursorCheckpoint,
+          nextFrameIndex: 4,
+          prefixBytes: 300,
+          prefixSha256: 'b'.repeat(64),
+        },
+        pendingCandidateDeadline: null,
+        lastStatus: {
+          ...cursorStatus,
+          content: 'none',
+        },
+        continuityState: 'verified',
+      },
+    });
+    expect(repaired).toMatchObject({
+      status: 'updated',
+      target: {
+        observationCursor: 4,
+        bufferedFromFrame: null,
+        pendingCandidateDeadline: null,
+        continuityState: 'verified',
+        lastStatus: { health: 'healthy' },
+      },
+    });
   });
 });
 
@@ -598,10 +891,9 @@ test('acquireLock does not reclaim a fresh live-owner watch.json.lock; stays pen
       },
       { timeout: 2000, interval: 5 },
     );
-    expect(
-      settled,
-      'a live-owner lock must not be reclaimed while fresh',
-    ).toBe(false);
+    expect(settled, 'a live-owner lock must not be reclaimed while fresh').toBe(
+      false,
+    );
 
     // Simulate the owner's own releaseLock().
     lockRaceHarness.stopOpenCounter();
@@ -706,7 +998,7 @@ test('two concurrent startWatcher calls against a stale dead-PID lock both land 
 
     const raw = JSON.parse(await readFile(join(dir, 'watch.json'), 'utf8'));
     expect(
-      (raw.watchers as Array<{ pid: number }>).map((w) => w.pid).sort(),
+      (raw.watchers as Array<{ pid: number }>).map((w) => w.pid).toSorted(),
     ).toEqual([3001, 3002]);
 
     const files = await readdir(dir);
