@@ -125,6 +125,11 @@ export const generatedOutputs = [
     output: 'plugins/consensus/skills/refine/scripts/refine-manifest.mjs',
   },
   {
+    id: 'consensus-refine-args',
+    source: 'src/consensus/refine/refine-args.ts',
+    output: 'plugins/consensus/skills/refine/scripts/refine-args.mjs',
+  },
+  {
     id: 'consensus-evaluate',
     source: 'src/consensus/evaluate/consensus-evaluate.ts',
     output: 'plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs',
