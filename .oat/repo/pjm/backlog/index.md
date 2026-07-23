@@ -20,10 +20,7 @@
 <!-- OAT BACKLOG-INDEX -->
 | ID | Title | Status | Priority | Scope | Estimate |
 | --- | --- | --- | --- | --- | --- |
-| BL-260718-enforce-recursion-depth-across | Enforce recursion depth across provider chains | open | high | task | M |
 | BL-260718-harden-consensus-wrapper | Harden consensus wrapper subprocess path | open | high | task | M |
-| BL-260718-make-consensus-records | Make consensus records and status writes atomic | open | high | task | S |
-| BL-260718-session-observer-stale-lock | Session-observer stale-lock recovery and atomic cache | open | high | task | S |
 | BL-260718-add-pr-time-ci-gate | Add PR-time CI gate for documentation site | open | medium | task | M |
 | BL-260718-cache-transcript | Cache transcript classification in watch loop | open | medium | task | M |
 | BL-260718-consolidate-duplicated | Consolidate duplicated consensus CLI helpers | open | medium | task | M |
@@ -35,7 +32,6 @@
 | BL-260718-split-consensus-loop-into | Split consensus-loop into cohesive core modules | open | medium | task | L |
 | BL-260718-split-consensus-refine-into | Split consensus-refine into cohesive modules | open | medium | task | L |
 | BL-260718-surface-the-live-provider-e2e | Surface the live-provider E2E gate | open | medium | task | S |
-| BL-260718-sync-stale-top-level | Sync stale top-level documentation surfaces | open | medium | task | S |
 | BL-260612-add-consensus-research-skill | Add consensus-research skill (investigate question, synthesized findings) | open | low | feature | M |
 | BL-260612-add-deliberation-metrics | Add deliberation metrics (tokens, wall-clock, rounds) to artifacts | open | low | feature | S |
 | BL-260701-add-multi-round-panel | Add multi-round panel discussion | open | low | idea | M |
@@ -44,6 +40,7 @@
 | BL-260713-cursor-transcript-store | Cursor transcript-store and slug coverage | open | low | feature | M |
 | BL-260619-define-host-native-dispatch | Define host-native dispatch / safe-packet protocol (reserved seam) | open | low | initiative | L |
 | BL-260718-execute-worktree-scripts | Execute worktree scripts and git hooks in tests | open | low | task | M |
+| BL-260723-make-remaining-consensus-loop | Make remaining consensus-loop write sites atomic | open | low | task | S |
 | BL-260619-multi-peer-3-deliberation | Multi-peer (3+) deliberation extension (reserved / v3+ concern) | open | low | idea | L |
 | BL-260713-optional-idle-session | Optional idle-session application integrations | open | low | idea | M |
 | BL-260713-per-observer-offsets-and-safe | Per-observer offsets and safe N&gt;2 collaboration mesh | open | low | initiative | L |

@@ -1,7 +1,7 @@
 ---
 id: BL-260718-session-observer-stale-lock
 title: Session-observer stale-lock recovery and atomic cache
-status: open
+status: closed
 priority: high
 scope: task
 scope_estimate: S
@@ -11,7 +11,7 @@ labels:
   - correctness
 assignee: null
 created: 2026-07-18T00:04:09Z
-updated: 2026-07-18T00:04:09Z
+updated: '2026-07-23T02:58:08Z'
 associated_issues: []
 external_plans:
   - .oat/repo/reference/external-plans/2026-07-17-session-observer-state-robustness.md
