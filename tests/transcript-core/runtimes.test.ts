@@ -21,7 +21,10 @@ import {
   encodeCwd,
   encodeCwdVariants,
   extractMeta,
+  isAutomaticControlAcknowledgement,
+  isNoOpText,
   normalizeEntries,
+  parseAutomaticControlEnvelope,
   readRecords,
 } from '../../src/transcript/core/runtimes.js';
 
@@ -710,6 +713,79 @@ describe('normalizeEntries (codex)', () => {
       includeToolCalls: false,
     });
     expectOk(entries.length > 0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Cursor shared control classification
+// ---------------------------------------------------------------------------
+
+describe('Cursor shared control classification', () => {
+  it('parses JSON and XML automatic wake envelopes', () => {
+    expect(
+      parseAutomaticControlEnvelope(
+        JSON.stringify({
+          session_observer_wake: {
+            automatic: true,
+            runtime: 'cursor',
+            leaseId: 'synthetic-lease',
+            pinnedPeer: 'cursor:synthetic-peer',
+            range: { fromIndex: 4, toIndex: 7 },
+          },
+        }),
+      ),
+    ).toMatchObject({
+      automatic: true,
+      runtime: 'cursor',
+      leaseId: 'synthetic-lease',
+      range: { fromIndex: 4, toIndex: 7 },
+    });
+    expect(
+      parseAutomaticControlEnvelope(
+        '<session_observer_wake automatic="true" schema_version="2" runtime="cursor" lease_id="synthetic-lease" peer="cursor:synthetic-peer" records="4-7">Review the exact range.</session_observer_wake>',
+      ),
+    ).toMatchObject({
+      automatic: true,
+      runtime: 'cursor',
+      leaseId: 'synthetic-lease',
+      range: { fromIndex: 4, toIndex: 7 },
+      wireFormat: 'xml',
+    });
+  });
+
+  it.each([
+    '{"session_observer_wake":{"automatic":false}}',
+    '<session_observer_wake automatic="false" runtime="cursor" lease_id="x" peer="cursor:y" records="1-2">Review.</session_observer_wake>',
+    '<session_observer_wake automatic="true" runtime="cursor" lease_id="x" peer="cursor:y" records="2-1">Review.</session_observer_wake>',
+    'ordinary human input',
+  ])('rejects invalid or non-automatic envelope text: %s', (text) => {
+    expect(parseAutomaticControlEnvelope(text)).toBeNull();
+  });
+
+  it.each([
+    '[no-op]',
+    ' [NO-OP] nothing substantive changed',
+    '[No-Op]\nwaiting',
+  ])('recognizes no-op prefixes: %s', (text) => {
+    expect(isNoOpText(text)).toBe(true);
+  });
+
+  it.each([
+    'Acknowledged.',
+    'got it',
+    'Status: still waiting for peer',
+    'No new updates.',
+  ])('recognizes automatic acknowledgement/status text: %s', (text) => {
+    expect(isAutomaticControlAcknowledgement(text)).toBe(true);
+  });
+
+  it.each([
+    'Acknowledged, and I implemented the requested change.',
+    'Waiting is one state in the new lifecycle model.',
+    'No new updates were expected, so I fixed the parser.',
+  ])('preserves substantive state-word-leading text: %s', (text) => {
+    expect(isAutomaticControlAcknowledgement(text)).toBe(false);
+    expect(isNoOpText(text)).toBe(false);
   });
 });
 

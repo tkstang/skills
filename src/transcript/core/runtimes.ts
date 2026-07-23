@@ -27,6 +27,13 @@ export interface TranscriptMeta {
   recordedCwd: string | null;
 }
 
+export interface CursorIdentityEvidence {
+  runtime: 'cursor';
+  projectCwd: string;
+  sessionId: string;
+  canonicalTranscriptPath: string;
+}
+
 export type DigestEntryRole = 'user' | 'assistant';
 export type DigestEntryDisplayRole = 'queued-user' | 'automatic-control';
 export type DigestEntryOrigin =
@@ -96,6 +103,11 @@ const TOOL_INPUT_LIMIT = 200;
 const TOOL_RESULT_LIMIT = 500;
 const COMMAND_MESSAGE_RE =
   /<(command-message|command-name|command-args)>[\s\S]*?<\/\1>/u;
+const NO_OP_PREFIX = /^\s*\[no-op\](?:\s|$)/iu;
+const AUTOMATIC_ACKNOWLEDGMENT =
+  /^\s*(?:ack(?:nowledged)?|got it|understood|noted|received|ok(?:ay)?|thanks|thank you)[.!]*\s*$/iu;
+const AUTOMATIC_STATUS_ECHO =
+  /^\s*(?:status:\s*)?(?:(?:still\s+)?(?:waiting|holding|idle|armed|monitoring)(?:\s+(?:for|on|until)\s+[^.!?;:]+)?|no (?:new )?(?:input|updates?|messages?|changes?))[.!]*\s*$/iu;
 
 // ---------------------------------------------------------------------------
 // Small helpers
@@ -228,12 +240,22 @@ function parseAutomaticControlXmlEnvelope(
   };
 }
 
-function parseAutomaticControlEnvelope(
+export function parseAutomaticControlEnvelope(
   text: string,
 ): AutomaticControlProvenance | null {
   return (
     parseAutomaticControlXmlEnvelope(text) ??
     parseAutomaticControlJsonEnvelope(text)
+  );
+}
+
+export function isNoOpText(text: string): boolean {
+  return NO_OP_PREFIX.test(text);
+}
+
+export function isAutomaticControlAcknowledgement(text: string): boolean {
+  return (
+    AUTOMATIC_ACKNOWLEDGMENT.test(text) || AUTOMATIC_STATUS_ECHO.test(text)
   );
 }
 

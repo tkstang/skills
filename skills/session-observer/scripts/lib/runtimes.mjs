@@ -6,6 +6,9 @@ import { basename, dirname, join } from "node:path";
 const TOOL_INPUT_LIMIT = 200;
 const TOOL_RESULT_LIMIT = 500;
 const COMMAND_MESSAGE_RE = /<(command-message|command-name|command-args)>[\s\S]*?<\/\1>/u;
+const NO_OP_PREFIX = /^\s*\[no-op\](?:\s|$)/iu;
+const AUTOMATIC_ACKNOWLEDGMENT = /^\s*(?:ack(?:nowledged)?|got it|understood|noted|received|ok(?:ay)?|thanks|thank you)[.!]*\s*$/iu;
+const AUTOMATIC_STATUS_ECHO = /^\s*(?:status:\s*)?(?:(?:still\s+)?(?:waiting|holding|idle|armed|monitoring)(?:\s+(?:for|on|until)\s+[^.!?;:]+)?|no (?:new )?(?:input|updates?|messages?|changes?))[.!]*\s*$/iu;
 function isObject(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -87,6 +90,12 @@ function parseAutomaticControlXmlEnvelope(text) {
 }
 function parseAutomaticControlEnvelope(text) {
   return parseAutomaticControlXmlEnvelope(text) ?? parseAutomaticControlJsonEnvelope(text);
+}
+function isNoOpText(text) {
+  return NO_OP_PREFIX.test(text);
+}
+function isAutomaticControlAcknowledgement(text) {
+  return AUTOMATIC_ACKNOWLEDGMENT.test(text) || AUTOMATIC_STATUS_ECHO.test(text);
 }
 function messageEntry(role, text, recordIndex, displayRole) {
   if (role === "user") {
@@ -475,6 +484,9 @@ export {
   encodeCwd,
   encodeCwdVariants,
   extractMeta,
+  isAutomaticControlAcknowledgement,
+  isNoOpText,
   normalizeEntries,
+  parseAutomaticControlEnvelope,
   readRecords
 };
