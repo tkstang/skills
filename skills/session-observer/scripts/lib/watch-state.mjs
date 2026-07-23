@@ -6,6 +6,7 @@ import {
   mkdir,
   readdir,
   readFile,
+  stat,
   unlink
 } from "node:fs/promises";
 import { homedir } from "node:os";
@@ -13,6 +14,7 @@ import { join } from "node:path";
 const SCHEMA_VERSION = 1;
 const LOCK_RETRIES = 100;
 const LOCK_INTERVAL_MS = 50;
+const LOCK_STALE_MS = LOCK_RETRIES * LOCK_INTERVAL_MS;
 const CONTROL_DIRECTIVES = /* @__PURE__ */ new Set(["flush", "pause", "resume", "stop"]);
 function isErrnoException(err) {
   return err instanceof Error && "code" in err;
@@ -44,14 +46,66 @@ function toIsoTimestamp(value = void 0) {
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
+async function isLockStale(lock) {
+  let pid = null;
+  try {
+    const raw = (await readFile(lock, "utf8")).trim();
+    const parsed = Number.parseInt(raw, 10);
+    if (Number.isInteger(parsed) && parsed > 0) pid = parsed;
+  } catch {
+  }
+  if (pid !== null) return !isPidLive(pid);
+  try {
+    const st = await stat(lock);
+    return Date.now() - st.mtimeMs > LOCK_STALE_MS;
+  } catch {
+    return false;
+  }
+}
+async function tryReclaim(lock) {
+  const claim = `${lock}.reclaim.${process.pid}.${Date.now()}`;
+  try {
+    await rename(lock, claim);
+  } catch (err) {
+    if (isErrnoException(err) && err.code === "ENOENT") return false;
+    throw err;
+  }
+  let claimedPid = null;
+  try {
+    const raw = (await readFile(claim, "utf8")).trim();
+    const parsed = Number.parseInt(raw, 10);
+    if (Number.isInteger(parsed) && parsed > 0) claimedPid = parsed;
+  } catch {
+  }
+  if (claimedPid !== null && isPidLive(claimedPid)) {
+    try {
+      await rename(claim, lock);
+    } catch {
+    }
+    return false;
+  }
+  try {
+    await unlink(claim);
+  } catch {
+  }
+  return true;
+}
 async function acquireLock(lock) {
+  let reclaimAttempted = false;
   for (let i = 0; i < LOCK_RETRIES; i++) {
     try {
       const fh = await open(lock, "wx");
+      await fh.write(String(process.pid));
       await fh.close();
       return;
     } catch (err) {
       if (!isErrnoException(err) || err.code !== "EEXIST") throw err;
+      if (!reclaimAttempted) {
+        reclaimAttempted = true;
+        if (await isLockStale(lock) && await tryReclaim(lock)) {
+          continue;
+        }
+      }
       await sleep(LOCK_INTERVAL_MS);
     }
   }

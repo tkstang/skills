@@ -12,7 +12,9 @@ toward a converged artifact), `evaluate` (judge an artifact against a rubric),
 `panel` (ask multiple peers the same question with side-by-side attributed
 responses), and `phone-a-friend` (ask one peer for a structured advisory take) —
 plus standalone session skills (`session-observer`,
-`export-session-transcript`).
+`session-observer-collab` (coordinate a user and two mutually observing agent
+sessions with exact pins, bounded wake behavior, and explicit authority and
+closeout rules), and `export-session-transcript`).
 
 📖 **Full documentation** is the Fumadocs site under [`documentation/`](documentation/):
 the [User Guide](documentation/docs/user-guide/index.md) (install / use / configure)

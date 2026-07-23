@@ -3,6 +3,9 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+// @ts-expect-error No type declarations for script helpers; importing for runtime behavior.
+import { SKILL_FILES } from '../../scripts/bump-version.mjs';
+
 const refineSkillPath = new URL(
   '../../plugins/consensus/skills/refine/SKILL.md',
   import.meta.url,
@@ -29,10 +32,6 @@ const panelSkillPath = new URL(
 );
 const collaborationSkillPath = new URL(
   '../../skills/session-observer-collab/SKILL.md',
-  import.meta.url,
-);
-const bumpVersionPath = new URL(
-  '../../scripts/bump-version.mjs',
   import.meta.url,
 );
 const skillPaths = [
@@ -324,11 +323,11 @@ describe('skill-frontmatter', () => {
     }
   });
 
-  it('standalone and plugin skills are included in version bump tooling', async () => {
-    const script = await readFile(bumpVersionPath, 'utf8');
-
-    expect(script).toMatch(/plugins\/consensus\/skills\/panel\/SKILL\.md/);
-    expect(script).toMatch(/skills\/session-observer-collab\/SKILL\.md/);
+  it('standalone and plugin skills are included in version bump tooling', () => {
+    // SKILL_FILES is derived from disk (scripts/lib/discover-skills.mjs), so
+    // this checks the resulting set rather than grepping the script source.
+    expect(SKILL_FILES).toContain('plugins/consensus/skills/panel/SKILL.md');
+    expect(SKILL_FILES).toContain('skills/session-observer-collab/SKILL.md');
   });
 
   it('skill instructions cover host orchestration responsibilities', async () => {

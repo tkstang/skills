@@ -14,6 +14,7 @@ import {
   mkdir,
   readdir,
   readFile,
+  stat,
   unlink,
 } from 'node:fs/promises';
 import { homedir } from 'node:os';
@@ -36,6 +37,9 @@ import type {
 const SCHEMA_VERSION = 1;
 const LOCK_RETRIES = 100;
 const LOCK_INTERVAL_MS = 50;
+// A healthy acquire+mutate+release cycle never holds the lock this long, so a
+// lock older than the entire retry window cannot belong to a live writer.
+const LOCK_STALE_MS = LOCK_RETRIES * LOCK_INTERVAL_MS;
 const CONTROL_DIRECTIVES = new Set(['flush', 'pause', 'resume', 'stop']);
 
 function isErrnoException(err: unknown): err is NodeJS.ErrnoException {
@@ -83,14 +87,155 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/**
+ * Decide whether an existing lock file is stale enough to reclaim.
+ *
+ * Mirrors state.ts's isLockStale.
+ *
+ * A parseable, recorded PID is trusted unconditionally: dead means abandoned
+ * (reclaim); live means someone still legitimately owns it, and that is
+ * never aged out — even an unusually slow writer (fs stall, GC pause,
+ * suspended process) must never have its lock stolen. Only when we cannot
+ * establish an owner identity at all (empty/garbage/unreadable content) do
+ * we fall back to age: a lock that old with no readable owner cannot belong
+ * to a healthy writer (a normal acquire+mutate+release cycle finishes in
+ * milliseconds), so it is treated as abandoned.
+ * Uses isPidLive (below) — function declarations hoist, so this can be
+ * defined before that one in file order.
+ */
+async function isLockStale(lock: string): Promise<boolean> {
+  let pid: number | null = null;
+  try {
+    const raw = (await readFile(lock, 'utf8')).trim();
+    const parsed = Number.parseInt(raw, 10);
+    if (Number.isInteger(parsed) && parsed > 0) pid = parsed;
+  } catch {
+    // Unreadable (including ENOENT — the owner may have just released it) —
+    // fall through to the age check below.
+  }
+  if (pid !== null) return !isPidLive(pid);
+
+  try {
+    const st = await stat(lock);
+    return Date.now() - st.mtimeMs > LOCK_STALE_MS;
+  } catch {
+    // Lock disappeared between the read above and this stat — nothing left
+    // to reclaim; the caller's next open('wx') resolves the race on its own.
+    return false;
+  }
+}
+
+/**
+ * Exclusively claim a lock file already judged stale, for removal.
+ *
+ * Mirrors state.ts's tryReclaim.
+ *
+ * A plain `unlink(lock)` is not itself exclusive: it operates on whatever
+ * currently occupies the path, not the specific stale instance a caller
+ * observed. If two contenders both judge the same stale lock L reclaimable,
+ * both calling unlink(lock) unconditionally, the following interleaving lets
+ * both end up believing they hold the lock:
+ *   1. A unlinks L, then wins open('wx') and creates its own live lock.
+ *   2. B's (already-decided) unlink call fires next and deletes A's new
+ *      lock — unlink does not check what it is deleting.
+ *   3. B wins its own open('wx'). A and B now both think they own the lock.
+ *
+ * `rename(lock, <unique>)` narrows this — rename requires its source to
+ * exist, so at most one contender's rename can succeed against a given
+ * *inode*. But rename's source is the *path*, not the inode L referred to at
+ * decision time: if B is preempted between its isLockStale read and this
+ * rename, A can complete an entire reclaim-and-recreate cycle first, and
+ * B's rename would then detach A's fresh, *live* lock instead of the
+ * original stale one — the exclusivity argument holds per-inode but not
+ * across a path takeover in between. So after the rename succeeds, we
+ * re-read what we actually claimed: if it now holds a live PID, we grabbed
+ * a fresh lock, not the stale one we judged — rename it back (best-effort)
+ * and report failure instead of discarding a live owner's lock. Only a
+ * claim that is still genuinely ownerless (dead PID, or no readable PID at
+ * all) is actually removed.
+ */
+async function tryReclaim(lock: string): Promise<boolean> {
+  const claim = `${lock}.reclaim.${process.pid}.${Date.now()}`;
+  try {
+    await rename(lock, claim);
+  } catch (err) {
+    // ENOENT: another contender already claimed it, or the owner released
+    // it normally — either way, we reclaimed nothing.
+    if (isErrnoException(err) && err.code === 'ENOENT') return false;
+    throw err;
+  }
+
+  // Re-verify: what we just detached might not be the stale instance we
+  // judged — it might be a fresh, live lock a concurrent winner created
+  // while we were preempted. Trust a live PID unconditionally, exactly as
+  // isLockStale does.
+  let claimedPid: number | null = null;
+  try {
+    const raw = (await readFile(claim, 'utf8')).trim();
+    const parsed = Number.parseInt(raw, 10);
+    if (Number.isInteger(parsed) && parsed > 0) claimedPid = parsed;
+  } catch {
+    // Unreadable claim content — treat as ownerless, same as isLockStale.
+  }
+
+  if (claimedPid !== null && isPidLive(claimedPid)) {
+    // We grabbed someone else's live lock. Restore it and back off instead
+    // of destroying it. This closes the demonstrated interleaving (B
+    // stealing A's freshly-created live lock and both believing they hold
+    // it): B now correctly reports failure and never proceeds to create its
+    // own competing lock.
+    //
+    // Residual, deliberately accepted: POSIX rename(src, dest) replaces
+    // dest unconditionally (it has no exclusive/"fail if exists" mode, so
+    // this restore cannot itself be gated through open('wx')). If a THIRD
+    // contender created a fresh lock at `lock` during the narrow gap between
+    // our claim-rename and this restore-rename, the restore would silently
+    // overwrite that fresh lock rather than fail loudly. This is a strictly
+    // narrower, second-order race nested inside an already-rare orphan +
+    // simultaneous-reclaimer scenario; closing it fully would require a
+    // separate exclusive reclaim-intent gate around the whole detect+
+    // remove+recreate sequence, which is a larger structural change than
+    // this fix. If the restore-rename itself errors (e.g. ENOENT/EPERM), we
+    // do not delete the claimed copy — it is left as an orphaned
+    // `.reclaim.` file rather than risk discarding a live owner's data.
+    try {
+      await rename(claim, lock);
+    } catch {
+      // Leave the claim in place; never delete data that may still belong
+      // to a live owner.
+    }
+    return false;
+  }
+
+  try {
+    await unlink(claim);
+  } catch {
+    // Best-effort cleanup of our claimed copy; the exclusive removal from
+    // the original path (via rename) already happened regardless.
+  }
+  return true;
+}
+
 async function acquireLock(lock: string): Promise<void> {
+  // Reclaim at most once per acquisition attempt: on EEXIST, a stale lock is
+  // exclusively claimed (see tryReclaim) and open('wx') is retried
+  // immediately. If the claim loses the race, this attempt does not retry
+  // reclaim again — it falls back to the normal sleep/retry path.
+  let reclaimAttempted = false;
   for (let i = 0; i < LOCK_RETRIES; i++) {
     try {
       const fh = await open(lock, 'wx');
+      await fh.write(String(process.pid));
       await fh.close();
       return;
     } catch (err) {
       if (!isErrnoException(err) || err.code !== 'EEXIST') throw err;
+      if (!reclaimAttempted) {
+        reclaimAttempted = true;
+        if ((await isLockStale(lock)) && (await tryReclaim(lock))) {
+          continue;
+        }
+      }
       await sleep(LOCK_INTERVAL_MS);
     }
   }

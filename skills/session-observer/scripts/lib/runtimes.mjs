@@ -210,6 +210,9 @@ function codexSessionIdFromRecord(record) {
 }
 async function extractMeta(runtime, transcriptPath) {
   const records = await readRecords(transcriptPath);
+  return extractMetaFromRecords(runtime, records, transcriptPath);
+}
+function extractMetaFromRecords(runtime, records, transcriptPath) {
   if (runtime === "claude-code") {
     let sessionId;
     for (const record of records) {
@@ -484,6 +487,7 @@ export {
   encodeCwd,
   encodeCwdVariants,
   extractMeta,
+  extractMetaFromRecords,
   isAutomaticControlAcknowledgement,
   isNoOpText,
   normalizeEntries,

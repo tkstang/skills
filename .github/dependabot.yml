@@ -1,0 +1,9 @@
+version: 2
+updates:
+  # Keep SHA-pinned GitHub Actions current. install.sh's checksum verification
+  # and the workflow SHA pins in .github/workflows/ are companion supply-chain
+  # hardening measures; this keeps the pins from going stale.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"

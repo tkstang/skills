@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, writeFile, mkdir } from 'node:fs/promises';
+import { mkdtemp, readdir, readFile, writeFile, mkdir } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -10,10 +10,18 @@ const validateWorkflowPath = path.join(
   repoRoot,
   '.github/workflows/validate.yml',
 );
-const worktreeValidatePath = path.join(
-  repoRoot,
-  'scripts/worktree/validate.sh',
-);
+const workflowsDir = path.join(repoRoot, '.github/workflows');
+
+// Discovered dynamically (not hardcoded) so every current and future workflow
+// file is covered by the SHA-pin regression guard below — a hardcoded list
+// silently stops covering new workflows the moment one is added.
+async function discoverWorkflowPaths(): Promise<string[]> {
+  const entries = await readdir(workflowsDir, { withFileTypes: true });
+  return entries
+    .filter((entry) => entry.isFile() && /\.ya?ml$/.test(entry.name))
+    .map((entry) => path.join(workflowsDir, entry.name))
+    .sort();
+}
 
 async function writeJson(filePath: string, value: unknown) {
   await writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`);
@@ -142,9 +150,14 @@ describe('validate-script', () => {
     expect(parsed.metadata).toEqual({ version: '0.1.0' });
   });
 
-  it('CI and worktree validation run generated-output verification in order', async () => {
+  // Note: the equivalent ordering assertion for scripts/worktree/validate.sh
+  // was retired in favor of tests/tooling/worktree-scripts.test.ts, which
+  // executes the script for real (via a stubbed pnpm) and asserts the
+  // recorded invocation order — a stronger check than reading source text.
+  // No behavioral test exercises the CI workflow file, so its string-ordering
+  // assertion is kept.
+  it('CI runs generated-output verification in order', async () => {
     const workflow = await readFile(validateWorkflowPath, 'utf8');
-    const worktreeValidation = await readFile(worktreeValidatePath, 'utf8');
 
     assertOrdered(workflow, [
       'pnpm install --frozen-lockfile',
@@ -157,20 +170,48 @@ describe('validate-script', () => {
       'pnpm run validate',
       'pnpm run smoke',
     ]);
+  });
 
-    assertOrdered(worktreeValidation, [
-      'assert_clean_worktree "before validation"',
-      'run_step "install" pnpm install --frozen-lockfile',
-      'run_step "build generated outputs" pnpm run build',
-      'assert_clean_worktree "after generated-output build"',
-      'run_step "type-check" pnpm run type-check',
-      'run_step "build:check" pnpm run build:check',
-      'run_step "test" pnpm run test',
-      'run_step "validate" pnpm run validate',
-      'run_step "smoke" pnpm run smoke',
-      'run_step "final build:check" pnpm run build:check',
-      'assert_clean_worktree "after validation"',
-    ]);
+  it('every workflow action is SHA-pinned with a version comment', async () => {
+    // Supply-chain hardening: `uses:` must reference a full 40-hex commit SHA
+    // (never a mutable tag), with a `# vX.Y.Z` comment recording the resolved
+    // version. Cheap drift guard against a future `uses: owner/action@vN` edit
+    // slipping back in.
+    const usesLinePattern = /^\s*(?:-\s*)?uses:\s*(\S+)\s*(#.*)?$/;
+    const shaPinPattern = /^[^@]+@[0-9a-f]{40}$/;
+    const versionCommentPattern = /^#\s*v\d+\.\d+\.\d+\s*$/;
+
+    const workflowPaths = await discoverWorkflowPaths();
+    expect(
+      workflowPaths.length,
+      'expected to discover at least one workflow file',
+    ).toBeGreaterThan(0);
+
+    for (const workflowPath of workflowPaths) {
+      const workflow = await readFile(workflowPath, 'utf8');
+      const lines = workflow.split('\n');
+      const usesLines = lines.filter((line) => usesLinePattern.test(line));
+
+      expect(
+        usesLines.length,
+        `expected at least one 'uses:' line in ${workflowPath}`,
+      ).toBeGreaterThan(0);
+
+      for (const line of usesLines) {
+        const match = line.match(usesLinePattern);
+        expect(match, `unparseable uses line in ${workflowPath}: ${line}`).not.toBeNull();
+        const [, usesValue, comment] = match!;
+
+        expect(
+          usesValue,
+          `${workflowPath}: '${line.trim()}' must pin a full 40-hex commit SHA`,
+        ).toMatch(shaPinPattern);
+        expect(
+          comment,
+          `${workflowPath}: '${line.trim()}' must carry a '# vX.Y.Z' version comment`,
+        ).toMatch(versionCommentPattern);
+      }
+    }
   });
 
   it('parseJsonFile reports valid JSON path context', async () => {

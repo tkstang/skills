@@ -1,14 +1,14 @@
 ---
 name: panel
 description: Use when asking a multi-peer consensus panel for independent, attributed responses while the host stays a neutral moderator.
-version: '0.1.1'
+version: '0.1.2'
 license: MIT
 compatibility: Agent Skills baseline; requires Node.js 22+ and the generated consensus CLI.
 allowed-tools: Bash(node:*), Bash(consensus:*), Read, Write
 argument-hint: --question "<text>" | --question-file <question.md> [--panelists <provider-id,provider-id>] [--panel-size <n>]
 metadata:
   author: thomas.stang
-  version: '0.1.1'
+  version: '0.1.2'
 ---
 
 # Panel

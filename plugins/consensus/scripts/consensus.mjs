@@ -1111,7 +1111,28 @@ function evaluateHostGuard(input) {
     return allowed("unknown", "none");
   }
   if (host.runtime !== provider) {
-    return allowed("different_host", "none");
+    const crossDepth = host.depth + 1;
+    if (crossDepth > host.max_depth) {
+      return {
+        allowed: false,
+        code: "HOST_RECURSION_BLOCKED",
+        message: `Blocked cross-provider peer spawn (${host.runtime}\u2192${provider}) at depth ${crossDepth}; max_depth is ${host.max_depth}.`,
+        host_relation: "different_host",
+        guard: "blocked",
+        diagnostics: {
+          host_relation: "different_host",
+          guard: "blocked",
+          warnings: [
+            `HOST_RECURSION_BLOCKED: cross-provider ${host.runtime}\u2192${provider} peer would exceed max_depth ${host.max_depth}`
+          ]
+        }
+      };
+    }
+    return allowed(
+      "different_host",
+      "subprocess_isolated",
+      buildChildHostEnv(host)
+    );
   }
   const childDepth = host.depth + 1;
   if (childDepth > host.max_depth) {

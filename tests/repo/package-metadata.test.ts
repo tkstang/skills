@@ -28,6 +28,7 @@ describe('package-metadata', () => {
         'smoke',
         'sync:transcript-core',
         'test',
+        'test:live-e2e',
         'test:vitest',
         'type-check',
         'validate',

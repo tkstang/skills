@@ -3,10 +3,10 @@
 import {
   access,
   link,
-  open,
-  rename,
   mkdir,
+  open,
   readFile,
+  rename,
   stat,
   unlink
 } from "node:fs/promises";
@@ -24,7 +24,7 @@ import {
 const SCHEMA_VERSION = 1;
 const LOCK_RETRIES = 100;
 const LOCK_INTERVAL_MS = 50;
-const INVALID_LOCK_GRACE_MS = 1e3;
+const LOCK_STALE_MS = LOCK_RETRIES * LOCK_INTERVAL_MS;
 const CURSOR_COMPATIBILITY = "pre-integration-record-index";
 let migrationBackupSequence = 0;
 let lockSequence = 0;
@@ -49,19 +49,64 @@ function tmpPath(dir) {
 function bakPath(dir, label) {
   return join(dir, `state.json.${label}-${Date.now()}-${process.pid}.bak`);
 }
-function processIsAlive(pid) {
+function isPidLive(pid) {
+  if (typeof pid !== "number" || !Number.isInteger(pid) || pid <= 0)
+    return false;
   try {
     process.kill(pid, 0);
     return true;
-  } catch (error) {
-    return !isErrnoException(error) || error.code !== "ESRCH";
+  } catch (err) {
+    if (isErrnoException(err) && err.code === "ESRCH") return false;
+    if (isErrnoException(err) && err.code === "EPERM") return true;
+    throw err;
   }
 }
 function lockOwnerPid(owner) {
   const pid = Number(owner.split(":", 1)[0]);
   return Number.isSafeInteger(pid) && pid > 0 ? pid : null;
 }
+async function isLockStale(lock) {
+  let pid = null;
+  try {
+    pid = lockOwnerPid((await readFile(lock, "utf8")).trim());
+  } catch {
+  }
+  if (pid !== null) return !isPidLive(pid);
+  try {
+    const st = await stat(lock);
+    return Date.now() - st.mtimeMs > LOCK_STALE_MS;
+  } catch {
+    return false;
+  }
+}
+async function tryReclaim(lock) {
+  const claim = `${lock}.reclaim.${process.pid}.${Date.now()}.${++lockSequence}`;
+  try {
+    await rename(lock, claim);
+  } catch (err) {
+    if (isErrnoException(err) && err.code === "ENOENT") return false;
+    throw err;
+  }
+  let claimedPid = null;
+  try {
+    claimedPid = lockOwnerPid((await readFile(claim, "utf8")).trim());
+  } catch {
+  }
+  if (claimedPid !== null && isPidLive(claimedPid)) {
+    try {
+      await rename(claim, lock);
+    } catch {
+    }
+    return false;
+  }
+  try {
+    await unlink(claim);
+  } catch {
+  }
+  return true;
+}
 async function acquireLock(lock) {
+  let reclaimAttempted = false;
   for (let attempt = 0; attempt < LOCK_RETRIES; attempt += 1) {
     const owner = `${process.pid}:${Date.now()}:${++lockSequence}`;
     const ownerPath = `${lock}.${owner}.owner`;
@@ -81,20 +126,11 @@ async function acquireLock(lock) {
       }
       await unlink(ownerPath).catch(() => void 0);
       if (!isErrnoException(error) || error.code !== "EEXIST") throw error;
-      try {
-        const existingOwner = await readFile(lock, "utf8");
-        const ownerPid = lockOwnerPid(existingOwner);
-        const lockStat = await stat(lock);
-        const invalidOwnerIsStale = ownerPid === null && Date.now() - lockStat.mtimeMs >= INVALID_LOCK_GRACE_MS;
-        if (ownerPid !== null && !processIsAlive(ownerPid) || invalidOwnerIsStale) {
-          await unlink(lock);
+      if (!reclaimAttempted) {
+        reclaimAttempted = true;
+        if (await isLockStale(lock) && await tryReclaim(lock)) {
           continue;
         }
-      } catch (lockError) {
-        if (!isErrnoException(lockError) || lockError.code !== "ENOENT") {
-          throw lockError;
-        }
-        continue;
       }
       await sleep(LOCK_INTERVAL_MS);
     }

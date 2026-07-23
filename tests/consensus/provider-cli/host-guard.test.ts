@@ -62,6 +62,88 @@ describe('provider host runtime guard', () => {
     });
   });
 
+  it('propagates depth to a cross-provider peer and allows within max_depth', () => {
+    const host = hostContext({ runtime: 'claude', depth: 0, max_depth: 1 });
+
+    expect(evaluateHostGuard({ host, provider: 'codex' })).toMatchObject({
+      allowed: true,
+      host_relation: 'different_host',
+      guard: 'subprocess_isolated',
+      child_env: {
+        CONSENSUS_RUN_ID: 'run-123',
+        CONSENSUS_PARENT_HOST: 'claude',
+        CONSENSUS_DEPTH: '1',
+      },
+    });
+  });
+
+  it('blocks a cross-provider peer spawn at the depth cap', () => {
+    const host = hostContext({ runtime: 'claude', depth: 1, max_depth: 1 });
+
+    expect(evaluateHostGuard({ host, provider: 'codex' })).toMatchObject({
+      allowed: false,
+      code: 'HOST_RECURSION_BLOCKED',
+      host_relation: 'different_host',
+      guard: 'blocked',
+      diagnostics: {
+        guard: 'blocked',
+        warnings: [expect.stringContaining('HOST_RECURSION_BLOCKED')],
+      },
+    });
+  });
+
+  it('blocks an alternating cross-provider chain once cumulative depth exceeds max_depth', () => {
+    const maxDepth = 2;
+    // Each hop spawns a peer whose runtime differs from its host, so every
+    // evaluation takes the different_host branch. The spawned peer process
+    // becomes the host for the next hop, carrying the incremented depth
+    // forward via child_env — the exact path that previously reset to 0.
+    let host = hostContext({ runtime: 'claude', depth: 0, max_depth: maxDepth });
+    const providers = ['codex', 'claude', 'codex'] as const;
+    const results = [];
+
+    for (const provider of providers) {
+      const result = evaluateHostGuard({ host, provider });
+      results.push(result);
+      if (!result.allowed) break;
+      host = {
+        ...host,
+        runtime: provider,
+        depth: Number(result.child_env!.CONSENSUS_DEPTH),
+      };
+    }
+
+    expect(results).toHaveLength(3);
+    expect(results[0]).toMatchObject({
+      allowed: true,
+      host_relation: 'different_host',
+      child_env: { CONSENSUS_DEPTH: '1' },
+    });
+    expect(results[1]).toMatchObject({
+      allowed: true,
+      host_relation: 'different_host',
+      child_env: { CONSENSUS_DEPTH: '2' },
+    });
+    expect(results[2]).toMatchObject({
+      allowed: false,
+      code: 'HOST_RECURSION_BLOCKED',
+      host_relation: 'different_host',
+      guard: 'blocked',
+    });
+  });
+
+  it('allows an unknown host and emits no child environment', () => {
+    const host = hostContext({ runtime: 'unknown', depth: 0, max_depth: 1 });
+    const result = evaluateHostGuard({ host, provider: 'codex' });
+
+    expect(result).toMatchObject({
+      allowed: true,
+      host_relation: 'unknown',
+      guard: 'none',
+    });
+    expect(result).not.toHaveProperty('child_env');
+  });
+
   it('never emits the reserved host-native safe-packet guard in first scope', () => {
     const results = [
       evaluateHostGuard({

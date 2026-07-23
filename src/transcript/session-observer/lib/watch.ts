@@ -9,7 +9,7 @@ import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 
 import { type Runtime, readRecords } from '../../core/runtimes.js';
 import { renderMarkdown } from './digest.js';
-import { findNewerSameCwdCandidates } from './locate.js';
+import { ClassificationCache, findNewerSameCwdCandidates } from './locate.js';
 import { observeCatchUp } from './observe.js';
 import * as stateLib from './state.js';
 import type {
@@ -874,6 +874,7 @@ async function emitNewerSessionCandidates(
   targets: Map<string, WatchTarget>,
   emittedCandidates: Set<string>,
   deps: ResolvedWatchDeps,
+  classificationCache: ClassificationCache,
 ): Promise<void> {
   for (const target of targets.values()) {
     const candidates = await findNewerSameCwdCandidates(
@@ -884,6 +885,7 @@ async function emitNewerSessionCandidates(
         transcriptPath: target.transcriptPath,
         mtime: target.candidateMtime,
       },
+      classificationCache,
     );
     for (const candidate of candidates) {
       const key = newerCandidateKey(candidate);
@@ -1101,6 +1103,11 @@ export async function runWatchLoop(
   const targets = new Map<string, WatchTarget>();
   const pending = new Map<string, PendingEntry>();
   const emittedNewerCandidates = new Set<string>();
+  // One classification cache per watch process, threaded through every poll
+  // tick's newer-candidate discovery. See locate.ts's ClassificationCache:
+  // unchanged past-session transcripts are classified once instead of on
+  // every tick for the life of the watch.
+  const classificationCache = new ClassificationCache();
   const eventState: WatchEventState = {
     pid: watcherPid,
     debounceMs,
@@ -1179,6 +1186,7 @@ export async function runWatchLoop(
         targets,
         emittedNewerCandidates,
         resolvedDeps,
+        classificationCache,
       );
       await applyControlDirective(
         normalizedArgs,

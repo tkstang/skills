@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Fast-starting SIGTERM-ignoring stub for deadline-escalation tests.
+#
+# Unlike tests/fixtures/bin/consensus-provider-stub's "ignore-sigterm" mode
+# (a Node script), this is a shell script: it ignores SIGTERM (a POSIX
+# SIG_IGN disposition, which survives exec) before its process image even
+# needs to finish booting a JS engine, removing the race between a short
+# deadline firing and the process finishing startup. It never forks a
+# descendant, so it cannot reproduce the "descendant holds the stdio pipes
+# open" hang class either — only SIGKILL can end it.
+set -eu
+trap '' TERM
+exec sleep 86400

@@ -94,8 +94,10 @@ looks for `~/.consensus/consensus.mjs`.
 
 Wrappers type-check against canonical TypeScript imports such as
 `../core/consensus-loop.js`, `../core/runtimes.js`, and `./sanitize.js`. The build
-rewrites declared module specifiers to shipped local `.mjs` imports and fails if
-an expected source specifier is absent.
+derives each mapping's import rewrites from the source file's own module
+specifiers (resolved against the generated-output mapping table) and rewrites
+them to shipped local `.mjs` imports; an unresolvable or ambiguous specifier
+fails the build loudly rather than being skipped.
 
 For Consensus wrappers, the `../core/consensus-loop.js` import rewrites to the
 shared plugin-local output at `../../../scripts/consensus-loop.mjs`. Keep that

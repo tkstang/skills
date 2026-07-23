@@ -17,6 +17,10 @@ This repo keeps portable skill content separate from provider adapters.
 Run:
 
 ```bash
-npm test
-npm run validate
+pnpm run build
+pnpm run type-check
+pnpm run build:check
+pnpm run test
+pnpm run validate
+pnpm run smoke
 ```

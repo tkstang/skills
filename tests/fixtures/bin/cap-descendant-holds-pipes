@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Regression fixture for the "output cap breach + descendant holds the stdio
+# pipes open" hang class (final-gate F1). Built as a shell script (not Node)
+# so it backgrounds its pipe-holding descendant and starts emitting before a
+# runner can process the first chunk — mirrors descendant-holds-pipes-fast.
+#
+# Backgrounds a detached `sleep` that inherits this script's stdout/stderr
+# (the pipes the runner reads from) and outlives it, then floods stdout with
+# more than runProviderCliCommand's hardcoded 10 MiB SUBPROCESS_OUTPUT_CAP so
+# the runner cap-kills this process with SIGKILL. Even after SIGKILL the
+# backgrounded descendant keeps the pipes' write ends open, so a runner that
+# waits exclusively on the child_process 'close' event never settles the cap
+# rejection unless it has a final-resolution safety net that fires
+# independently of any optional timeoutMs deadline.
+#
+# The descendant's sleep is intentionally short (well past the runner's
+# final-resolution window, but not indefinite) so a detached process is not
+# leaked for long on every test run.
+set -eu
+# Background the pipe-holding descendant FIRST so it is already detached and
+# holding the pipes open by the time output starts flowing and the cap kill
+# lands.
+(sleep 10 &)
+# Emit 11 MiB (> the 10 MiB cap) as fast as possible to force the cap breach.
+head -c 11534336 /dev/zero
+# If the cap kill has not landed yet, stay alive rather than exiting on our
+# own, so the test observes the runner's forced settlement rather than a
+# natural 'close'.
+exec sleep 86400

@@ -85,9 +85,30 @@ it('parseLoopArgs validates the alternating CLI surface', () => {
     /exactly two peers/,
   );
   expect(() => parseLoopArgs(['--max-rounds', '0'])).toThrow(
-    /positive integer/,
+    /must be an integer between 1 and 100/,
   );
   expect(() => parseLoopArgs(['--agency', 'reckless'])).toThrow(/agency/);
+});
+
+// Step-2 reconciliation of the consolidate-cli-helpers refactor: the loop's
+// previously-laxer `parsePositiveInteger`/`parsePeers` now import the shared,
+// stricter command-level variants. This is a deliberate, user-visible
+// validation tightening on the loop CLI entry point (values the loop used to
+// accept are now rejected). These assertions document the chosen behavior.
+it('parseLoopArgs enforces the shared bounded/validated peer + max-rounds semantics', () => {
+  // max-rounds now has an upper bound (previously any positive integer passed).
+  expect(() => parseLoopArgs(baseLoopArgv(['--max-rounds', '101']))).toThrow(
+    /must be an integer between 1 and 100/,
+  );
+  // peers are now provider-id validated (previously any two comma-separated
+  // tokens passed).
+  expect(() => parseLoopArgs(['--peers', 'Claude,codex'])).toThrow(
+    /provider ids must match/,
+  );
+  // A within-bounds, valid invocation is unaffected.
+  const parsed = parseLoopArgs(baseLoopArgv(['--max-rounds', '100']));
+  expect(parsed.maxRounds).toBe(100);
+  expect(parsed.peers).toEqual(['claude', 'codex']);
 });
 
 function baseLoopArgv(extra: string[] = []) {

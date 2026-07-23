@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { isValidSemver } from './bump-version.mjs';
+import { discoverSkillDirectories } from './lib/discover-skills.mjs';
 
 const DEFAULT_ROOT = path.resolve(
   fileURLToPath(new URL('..', import.meta.url)),
@@ -57,44 +58,9 @@ async function pathExists(targetPath) {
   }
 }
 
-async function listSubdirectories(directory) {
-  try {
-    const entries = await readdir(directory, { withFileTypes: true });
-    return entries
-      .filter((entry) => entry.isDirectory())
-      .map((entry) => path.join(directory, entry.name))
-      .toSorted();
-  } catch (error) {
-    if (error.code === 'ENOENT') return [];
-    throw error;
-  }
-}
-
-export async function discoverSkillDirectories(root) {
-  const skillDirectories = new Set();
-
-  for (const skillPath of await listSubdirectories(path.join(root, 'skills'))) {
-    if (await pathExists(path.join(skillPath, 'SKILL.md'))) {
-      skillDirectories.add(skillPath);
-    }
-  }
-
-  for (const pluginPath of await listSubdirectories(
-    path.join(root, 'plugins'),
-  )) {
-    for (const skillPath of await listSubdirectories(
-      path.join(pluginPath, 'skills'),
-    )) {
-      if (await pathExists(path.join(skillPath, 'SKILL.md'))) {
-        skillDirectories.add(skillPath);
-      }
-    }
-  }
-
-  return [...skillDirectories].toSorted((left, right) =>
-    path.relative(root, left).localeCompare(path.relative(root, right)),
-  );
-}
+// Re-exported for existing consumers (e.g. scripts/validate-skill-versions.mjs)
+// that import skill discovery from this module.
+export { discoverSkillDirectories };
 
 export function parseFrontmatter(markdown, source = 'markdown') {
   const match = markdown.match(/^---\n([\s\S]*?)\n---(?:\n|$)/);

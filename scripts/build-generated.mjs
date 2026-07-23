@@ -19,6 +19,67 @@ export const generatedOutputs = [
     output: 'plugins/consensus/scripts/consensus-loop.mjs',
   },
   {
+    id: 'consensus-loop-validation',
+    source: 'src/consensus/core/loop-validation.ts',
+    output: 'plugins/consensus/scripts/loop-validation.mjs',
+  },
+  {
+    id: 'consensus-loop-records',
+    source: 'src/consensus/core/loop-records.ts',
+    output: 'plugins/consensus/scripts/loop-records.mjs',
+  },
+  {
+    id: 'consensus-loop-prompts',
+    source: 'src/consensus/core/loop-prompts.ts',
+    output: 'plugins/consensus/scripts/loop-prompts.mjs',
+  },
+  {
+    id: 'consensus-loop-provider',
+    source: 'src/consensus/core/loop-provider.ts',
+    output: 'plugins/consensus/scripts/loop-provider.mjs',
+  },
+  {
+    id: 'consensus-loop-args',
+    source: 'src/consensus/core/loop-args.ts',
+    output: 'plugins/consensus/scripts/loop-args.mjs',
+  },
+  {
+    id: 'consensus-loop-escalation',
+    source: 'src/consensus/core/loop-escalation.ts',
+    output: 'plugins/consensus/scripts/loop-escalation.mjs',
+  },
+  {
+    id: 'consensus-loop-rounds',
+    source: 'src/consensus/core/loop-rounds.ts',
+    output: 'plugins/consensus/scripts/loop-rounds.mjs',
+  },
+  {
+    id: 'consensus-cli-helpers',
+    source: 'src/consensus/shared/cli-helpers.ts',
+    output: 'plugins/consensus/scripts/consensus-cli-helpers.mjs',
+  },
+  {
+    id: 'consensus-create-cli-helpers',
+    source: 'src/consensus/shared/cli-helpers.ts',
+    output: 'plugins/consensus/skills/create/scripts/consensus-cli-helpers.mjs',
+  },
+  {
+    id: 'consensus-decide-cli-helpers',
+    source: 'src/consensus/shared/cli-helpers.ts',
+    output: 'plugins/consensus/skills/decide/scripts/consensus-cli-helpers.mjs',
+  },
+  {
+    id: 'consensus-plan-cli-helpers',
+    source: 'src/consensus/shared/cli-helpers.ts',
+    output: 'plugins/consensus/skills/plan/scripts/consensus-cli-helpers.mjs',
+  },
+  {
+    id: 'consensus-evaluate-cli-helpers',
+    source: 'src/consensus/shared/cli-helpers.ts',
+    output:
+      'plugins/consensus/skills/evaluate/scripts/consensus-cli-helpers.mjs',
+  },
+  {
     id: 'consensus-create-config',
     source: 'src/consensus/config/consensus-config.ts',
     output: 'plugins/consensus/skills/create/scripts/consensus-config.mjs',
@@ -52,69 +113,66 @@ export const generatedOutputs = [
     id: 'consensus-refine',
     source: 'src/consensus/refine/consensus-refine.ts',
     output: 'plugins/consensus/skills/refine/scripts/consensus-refine.mjs',
-    importRewrites: [
-      {
-        from: '../core/consensus-loop.js',
-        to: '../../../scripts/consensus-loop.mjs',
-      },
-      { from: '../config/consensus-config.js', to: './consensus-config.mjs' },
-    ],
+  },
+  {
+    id: 'consensus-refine-shared',
+    source: 'src/consensus/refine/refine-shared.ts',
+    output: 'plugins/consensus/skills/refine/scripts/refine-shared.mjs',
+  },
+  {
+    id: 'consensus-refine-manifest',
+    source: 'src/consensus/refine/refine-manifest.ts',
+    output: 'plugins/consensus/skills/refine/scripts/refine-manifest.mjs',
+  },
+  {
+    id: 'consensus-refine-args',
+    source: 'src/consensus/refine/refine-args.ts',
+    output: 'plugins/consensus/skills/refine/scripts/refine-args.mjs',
+  },
+  {
+    id: 'consensus-refine-sections',
+    source: 'src/consensus/refine/refine-sections.ts',
+    output: 'plugins/consensus/skills/refine/scripts/refine-sections.mjs',
+  },
+  {
+    id: 'consensus-refine-render',
+    source: 'src/consensus/refine/refine-render.ts',
+    output: 'plugins/consensus/skills/refine/scripts/refine-render.mjs',
+  },
+  {
+    id: 'consensus-refine-resume',
+    source: 'src/consensus/refine/refine-resume.ts',
+    output: 'plugins/consensus/skills/refine/scripts/refine-resume.mjs',
+  },
+  {
+    id: 'consensus-refine-escalation',
+    source: 'src/consensus/refine/refine-escalation.ts',
+    output: 'plugins/consensus/skills/refine/scripts/refine-escalation.mjs',
   },
   {
     id: 'consensus-evaluate',
     source: 'src/consensus/evaluate/consensus-evaluate.ts',
     output: 'plugins/consensus/skills/evaluate/scripts/consensus-evaluate.mjs',
-    importRewrites: [
-      {
-        from: '../core/consensus-loop.js',
-        to: '../../../scripts/consensus-loop.mjs',
-      },
-      { from: '../config/consensus-config.js', to: './consensus-config.mjs' },
-    ],
   },
   {
     id: 'consensus-create',
     source: 'src/consensus/create/consensus-create.ts',
     output: 'plugins/consensus/skills/create/scripts/consensus-create.mjs',
-    importRewrites: [
-      {
-        from: '../core/consensus-loop.js',
-        to: '../../../scripts/consensus-loop.mjs',
-      },
-      { from: '../config/consensus-config.js', to: './consensus-config.mjs' },
-    ],
   },
   {
     id: 'consensus-decide',
     source: 'src/consensus/decide/consensus-decide.ts',
     output: 'plugins/consensus/skills/decide/scripts/consensus-decide.mjs',
-    importRewrites: [
-      {
-        from: '../core/consensus-loop.js',
-        to: '../../../scripts/consensus-loop.mjs',
-      },
-      { from: '../config/consensus-config.js', to: './consensus-config.mjs' },
-    ],
   },
   {
     id: 'consensus-plan',
     source: 'src/consensus/plan/consensus-plan.ts',
     output: 'plugins/consensus/skills/plan/scripts/consensus-plan.mjs',
-    importRewrites: [
-      {
-        from: '../core/consensus-loop.js',
-        to: '../../../scripts/consensus-loop.mjs',
-      },
-      { from: '../config/consensus-config.js', to: './consensus-config.mjs' },
-    ],
   },
   {
     id: 'consensus-panel',
     source: 'src/consensus/panel/consensus-panel.ts',
     output: 'plugins/consensus/skills/panel/scripts/consensus-panel.mjs',
-    importRewrites: [
-      { from: '../config/consensus-config.js', to: './consensus-config.mjs' },
-    ],
   },
   {
     id: 'consensus-provider-cli',
@@ -142,30 +200,16 @@ export const generatedOutputs = [
     id: 'session-observer-digest',
     source: 'src/transcript/session-observer/lib/digest.ts',
     output: 'skills/session-observer/scripts/lib/digest.mjs',
-    importRewrites: [
-      { from: '../../core/runtimes.js', to: './runtimes.mjs' },
-      { from: './session-classifier.js', to: './session-classifier.mjs' },
-    ],
   },
   {
     id: 'session-observer-locate',
     source: 'src/transcript/session-observer/lib/locate.ts',
     output: 'skills/session-observer/scripts/lib/locate.mjs',
-    importRewrites: [
-      { from: '../../core/runtimes.js', to: './runtimes.mjs' },
-      { from: './session-classifier.js', to: './session-classifier.mjs' },
-    ],
   },
   {
     id: 'session-observer-observe',
     source: 'src/transcript/session-observer/lib/observe.ts',
     output: 'skills/session-observer/scripts/lib/observe.mjs',
-    importRewrites: [
-      { from: './digest.js', to: './digest.mjs' },
-      { from: './locate.js', to: './locate.mjs' },
-      { from: './rank.js', to: './rank.mjs' },
-      { from: './state.js', to: './state.mjs' },
-    ],
   },
   {
     id: 'session-observer-rank',
@@ -176,7 +220,6 @@ export const generatedOutputs = [
     id: 'session-observer-session-classifier',
     source: 'src/transcript/session-observer/lib/session-classifier.ts',
     output: 'skills/session-observer/scripts/lib/session-classifier.mjs',
-    importRewrites: [{ from: '../../core/runtimes.js', to: './runtimes.mjs' }],
   },
   {
     id: 'session-observer-state',
@@ -198,38 +241,16 @@ export const generatedOutputs = [
     id: 'session-observer-watch',
     source: 'src/transcript/session-observer/lib/watch.ts',
     output: 'skills/session-observer/scripts/lib/watch.mjs',
-    importRewrites: [
-      { from: '../../core/runtimes.js', to: './runtimes.mjs' },
-      { from: './digest.js', to: './digest.mjs' },
-      { from: './locate.js', to: './locate.mjs' },
-      { from: './observe.js', to: './observe.mjs' },
-      { from: './state.js', to: './state.mjs' },
-      { from: './watch-state.js', to: './watch-state.mjs' },
-    ],
   },
   {
     id: 'session-observer-cli',
     source: 'src/transcript/session-observer/session-observer.ts',
     output: 'skills/session-observer/scripts/session-observer.mjs',
-    importRewrites: [
-      { from: '../core/runtimes.js', to: './lib/runtimes.mjs' },
-      { from: './lib/digest.js', to: './lib/digest.mjs' },
-      { from: './lib/locate.js', to: './lib/locate.mjs' },
-      { from: './lib/observe.js', to: './lib/observe.mjs' },
-      { from: './lib/rank.js', to: './lib/rank.mjs' },
-      { from: './lib/state.js', to: './lib/state.mjs' },
-      { from: './lib/watch-state.js', to: './lib/watch-state.mjs' },
-      { from: './lib/watch.js', to: './lib/watch.mjs' },
-    ],
   },
   {
     id: 'session-observer-probe-local',
     source: 'src/transcript/session-observer/probe-local.ts',
     output: 'skills/session-observer/scripts/probe-local.mjs',
-    importRewrites: [
-      { from: './lib/locate.js', to: './lib/locate.mjs' },
-      { from: './lib/rank.js', to: './lib/rank.mjs' },
-    ],
   },
   {
     id: 'transcript-core-export-session',
@@ -257,10 +278,6 @@ export const generatedOutputs = [
     source: 'src/transcript/export-session/export-session-transcript.ts',
     output:
       'skills/export-session-transcript/scripts/export-session-transcript.mjs',
-    importRewrites: [
-      { from: '../core/runtimes.js', to: './lib/runtimes.mjs' },
-      { from: './sanitize.js', to: './lib/sanitize.mjs' },
-    ],
   },
 ];
 
@@ -317,25 +334,15 @@ function replacementFor(specifier) {
   return `'${specifier}'`;
 }
 
-export function rewriteImportSpecifiers(text, rewrite, mappingId) {
-  const sourceFile = ts.createSourceFile(
-    `${mappingId}.mjs`,
-    text,
-    ts.ScriptTarget.Latest,
-    true,
-    ts.ScriptKind.JS,
-  );
-  const replacements = [];
-
+// Walks the AST of an emitted (or emitted-shaped) module, invoking `visitor`
+// with every static or dynamic module-specifier string-literal node: import
+// declarations, `export ... from`, and dynamic `import(...)` calls. Shared by
+// the rewrite applier and the rewrite deriver so both recognize exactly the
+// same set of import forms.
+function forEachModuleSpecifierNode(sourceFile, visitor) {
   function addModuleSpecifier(moduleSpecifier) {
     if (!ts.isStringLiteral(moduleSpecifier)) return;
-    if (moduleSpecifier.text !== rewrite.from) return;
-
-    replacements.push({
-      start: moduleSpecifier.getStart(sourceFile),
-      end: moduleSpecifier.getEnd(),
-      text: replacementFor(rewrite.to),
-    });
+    visitor(moduleSpecifier);
   }
 
   function visit(node) {
@@ -355,6 +362,27 @@ export function rewriteImportSpecifiers(text, rewrite, mappingId) {
   }
 
   visit(sourceFile);
+}
+
+export function rewriteImportSpecifiers(text, rewrite, mappingId) {
+  const sourceFile = ts.createSourceFile(
+    `${mappingId}.mjs`,
+    text,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.JS,
+  );
+  const replacements = [];
+
+  forEachModuleSpecifierNode(sourceFile, (moduleSpecifier) => {
+    if (moduleSpecifier.text !== rewrite.from) return;
+
+    replacements.push({
+      start: moduleSpecifier.getStart(sourceFile),
+      end: moduleSpecifier.getEnd(),
+      text: replacementFor(rewrite.to),
+    });
+  });
 
   if (replacements.length === 0) {
     throw new Error(
@@ -373,6 +401,116 @@ export function rewriteImportSpecifiers(text, rewrite, mappingId) {
   }
 
   return rewritten;
+}
+
+// Returns every relative ('./' or '../') module specifier that appears in
+// emitted (pre-rewrite) output, de-duplicated and in first-seen order.
+// Type-only imports never reach this list: esbuild already elides them from
+// the emitted JS before this function ever sees the text.
+export function collectRelativeModuleSpecifiers(text, mappingId) {
+  const sourceFile = ts.createSourceFile(
+    `${mappingId}.mjs`,
+    text,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.JS,
+  );
+  const specifiers = [];
+  const seen = new Set();
+
+  forEachModuleSpecifierNode(sourceFile, (moduleSpecifier) => {
+    const specifier = moduleSpecifier.text;
+    if (!specifier.startsWith('./') && !specifier.startsWith('../')) return;
+    if (seen.has(specifier)) return;
+    seen.add(specifier);
+    specifiers.push(specifier);
+  });
+
+  return specifiers;
+}
+
+// Resolves a relative module specifier emitted for `mapping` back to the
+// repo-relative canonical source path it was compiled from (reversing
+// esbuild/tsc's convention of writing '.js' specifiers for '.ts' sources).
+function resolveSpecifierSource(mapping, specifier) {
+  const specifierAsSource = specifier.replace(/\.js$/, '.ts');
+  return path.posix.normalize(
+    path.posix.join(path.posix.dirname(mapping.source), specifierAsSource),
+  );
+}
+
+// Some canonical sources (e.g. consensus-config.ts, transcript core
+// runtimes.ts) fan out to more than one generated output — one per consuming
+// skill. Disambiguate by picking the candidate whose output directory shares
+// the longest path-prefix with the importing mapping's own output directory
+// (the consuming skill's own generated copy is always the closest one).
+function pickImportRewriteTarget(mapping, candidates) {
+  if (candidates.length === 1) return candidates[0];
+
+  const currentDir = path.posix.dirname(mapping.output).split('/');
+  let best = null;
+  let bestScore = -1;
+  let tied = false;
+
+  for (const candidate of candidates) {
+    const candidateDir = path.posix.dirname(candidate.output).split('/');
+    let score = 0;
+    while (
+      score < currentDir.length &&
+      score < candidateDir.length &&
+      currentDir[score] === candidateDir[score]
+    ) {
+      score += 1;
+    }
+
+    if (score > bestScore) {
+      bestScore = score;
+      best = candidate;
+      tied = false;
+    } else if (score === bestScore) {
+      tied = true;
+    }
+  }
+
+  if (tied) {
+    throw new Error(
+      `Import rewrite derivation for ${mapping.id} found multiple equally-close generated-output candidates; add an explicit importRewrites override to disambiguate.`,
+    );
+  }
+
+  return best;
+}
+
+// Derives importRewrites for `mapping` from the module specifiers actually
+// present in its emitted (pre-rewrite) output, rather than a hand-maintained
+// per-entry list. Every relative specifier must resolve to a known
+// generatedOutputs source — an unresolvable specifier is a loud build error,
+// never a silent skip.
+export function deriveImportRewrites(mapping, emittedText) {
+  const specifiers = collectRelativeModuleSpecifiers(emittedText, mapping.id);
+  const rewrites = [];
+
+  for (const specifier of specifiers) {
+    const resolvedSource = resolveSpecifierSource(mapping, specifier);
+    const candidates = generatedOutputs.filter(
+      (candidate) => candidate.source === resolvedSource,
+    );
+
+    if (candidates.length === 0) {
+      throw new Error(
+        `Import rewrite derivation for ${mapping.id} found module specifier '${specifier}' resolving to '${resolvedSource}', which has no generatedOutputs entry. Add a mapping for it or add an explicit importRewrites override.`,
+      );
+    }
+
+    const target = pickImportRewriteTarget(mapping, candidates);
+    const fromDir = path.posix.dirname(mapping.output);
+    let to = path.posix.relative(fromDir, target.output);
+    if (!to.startsWith('.')) to = `./${to}`;
+
+    rewrites.push({ from: specifier, to });
+  }
+
+  return rewrites;
 }
 
 async function buildMapping(mapping) {
@@ -413,7 +551,9 @@ async function buildMapping(mapping) {
   }
 
   let text = outputFile.text;
-  for (const rewrite of mapping.importRewrites ?? []) {
+  const rewrites =
+    mapping.importRewrites ?? deriveImportRewrites(mapping, text);
+  for (const rewrite of rewrites) {
     text = rewriteImportSpecifiers(text, rewrite, mapping.id);
   }
 

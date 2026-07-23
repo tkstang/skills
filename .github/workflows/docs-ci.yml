@@ -1,0 +1,47 @@
+name: Docs CI
+
+# PR-time build gate for the Fumadocs docs app (documentation/). Mirrors the
+# build recipe from deploy-docs.yml (install + build) plus the docs format
+# check, minus the GitHub Pages configure/upload/deploy steps — this job only
+# proves the docs site builds cleanly before merge, it does not publish.
+
+on:
+  pull_request:
+    paths:
+      - 'documentation/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: "${{ github.workflow }}-${{ github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build and format-check docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: pnpm
+          cache-dependency-path: documentation/pnpm-lock.yaml
+
+      - name: Install dependencies
+        working-directory: documentation
+        run: pnpm install --frozen-lockfile
+
+      - name: Build docs (static export -> documentation/out)
+        working-directory: documentation
+        run: pnpm build
+        env:
+          NEXT_PUBLIC_BASE_PATH: /skills
+
+      - name: Check docs formatting
+        working-directory: documentation
+        run: pnpm run docs:format:check
