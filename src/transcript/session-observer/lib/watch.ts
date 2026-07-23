@@ -7,19 +7,30 @@ import { appendFile, lstat, mkdir, realpath, stat } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 
+import { scanCursorTranscript } from '../../core/cursor-frames.js';
 import { type Runtime, readRecords } from '../../core/runtimes.js';
+import * as cursorStateLib from './cursor-state.js';
 import { renderMarkdown } from './digest.js';
-import { ClassificationCache, findNewerSameCwdCandidates } from './locate.js';
+import {
+  ClassificationCache,
+  findNewerSameCwdCandidates,
+  findSessionCandidate,
+  resolveCursorIdentity,
+} from './locate.js';
 import { observeCatchUp } from './observe.js';
 import * as stateLib from './state.js';
 import type {
-  Digest,
+  CursorObserveSuccess,
+  CursorSessionStateEntry,
   DuplicateWatchTargetError,
   EngagementStatus,
+  ObservationStatus,
   ObserveSuccess,
   NewerSessionCandidateEvent,
+  SessionDigest,
   SessionObserverState,
   TranscriptCandidate,
+  TranscriptContinuityCheckpoint,
   TranscriptIdentityEvidence,
   WatchLoopArgs,
   WatchLoopDeps,
@@ -55,6 +66,14 @@ interface WatchTarget {
   candidateMtime: number;
   engagementStatus: EngagementStatus;
   lockedAt: string;
+  indexBase?: 'zero-based-jsonl-record-index' | 'zero-based-jsonl-frame-index';
+  canonicalTranscriptPath?: string;
+  observationCursor?: number;
+  bufferedFromFrame?: number | null;
+  continuity?: TranscriptContinuityCheckpoint;
+  pendingCandidateDeadline?: number | null;
+  lastStatus?: ObservationStatus;
+  continuityState?: 'verified' | 'blocked';
 }
 
 interface PendingEntry {
@@ -63,6 +82,7 @@ interface PendingEntry {
   sessionId: string;
   firstChangedAt: number;
   lastChangedAt: number;
+  readyAt?: number | null;
 }
 
 interface WatchEventState {
@@ -82,17 +102,18 @@ interface ResolvedWatchDeps {
   sleep: (ms: number) => Promise<unknown>;
   stat: (path: string) => Promise<FileSignature>;
   writeStdout: (chunk: string) => boolean | number | void | Promise<unknown>;
+  onCursorScan?: () => void;
 }
 
-type EventRanges = Pick<
-  Digest['range'],
-  | 'fromIndex'
-  | 'toIndex'
-  | 'nextIndex'
-  | 'totalRecords'
-  | 'renderedFromIndex'
-  | 'renderedToIndex'
->;
+interface EventRanges {
+  indexBase?: 'zero-based-jsonl-record-index' | 'zero-based-jsonl-frame-index';
+  fromIndex: number;
+  toIndex: number | null;
+  nextIndex: number;
+  totalRecords: number;
+  renderedFromIndex: number | null;
+  renderedToIndex: number | null;
+}
 
 function toPositiveMs(value: unknown, fallbackSec: number): number {
   const numeric = Number(value);
@@ -167,7 +188,24 @@ async function fileSignature(
   };
 }
 
-function eventRanges(digest: Digest): EventRanges {
+function isCursorDigest(
+  digest: SessionDigest,
+): digest is Extract<SessionDigest, { schemaVersion: 2 }> {
+  return digest.schemaVersion === 2;
+}
+
+function eventRanges(digest: SessionDigest): EventRanges {
+  if (isCursorDigest(digest)) {
+    return {
+      indexBase: digest.range.indexBase,
+      fromIndex: digest.range.fromIndex,
+      toIndex: digest.range.toIndex,
+      nextIndex: digest.range.nextIndex,
+      totalRecords: digest.range.totalFrames,
+      renderedFromIndex: digest.range.renderedFromIndex,
+      renderedToIndex: digest.range.renderedToIndex,
+    };
+  }
   return {
     fromIndex: digest.range.fromIndex,
     toIndex: digest.range.toIndex,
@@ -178,25 +216,31 @@ function eventRanges(digest: Digest): EventRanges {
   };
 }
 
-function eventMetadata(ts: string, digest: Digest, rendered: string) {
+function digestNewRecords(digest: SessionDigest): number {
+  return isCursorDigest(digest)
+    ? digest.range.newFrames
+    : digest.range.newRecords;
+}
+
+function eventMetadata(ts: string, digest: SessionDigest, rendered: string) {
   return {
     type: 'delta',
     ts,
     runtime: digest.runtime,
     sessionId: digest.sessionId,
-    newRecords: digest.range.newRecords,
+    newRecords: digestNewRecords(digest),
     digestChars: rendered.length,
     ranges: eventRanges(digest),
   };
 }
 
-function stdoutEvent(ts: string, digest: Digest, rendered: string) {
+function stdoutEvent(ts: string, digest: SessionDigest, rendered: string) {
   return {
     type: 'delta',
     ts,
     runtime: digest.runtime,
     sessionId: digest.sessionId,
-    newRecords: digest.range.newRecords,
+    newRecords: digestNewRecords(digest),
     digestChars: rendered.length,
     ranges: eventRanges(digest),
     digest,
@@ -429,6 +473,39 @@ async function targetHeartbeatStatus(
   target: WatchTarget,
   sessionState: SessionObserverState,
 ) {
+  if (target.runtime === 'cursor') {
+    const status = target.lastStatus ?? emptyCursorStatus();
+    return {
+      runtime: target.runtime,
+      sessionId: target.sessionId,
+      transcriptPath: target.transcriptPath,
+      indexBase: 'zero-based-jsonl-frame-index',
+      transcriptRecords: target.recordCount,
+      lastRecordIndex: target.observationCursor ?? 0,
+      consumedThrough: consumedThrough(target.observationCursor ?? 0),
+      recordsBehind:
+        target.bufferedFromFrame === null ||
+        target.bufferedFromFrame === undefined
+          ? 0
+          : Math.max(0, target.recordCount - target.bufferedFromFrame),
+      healthy:
+        target.continuityState === 'verified' && status.health === 'healthy',
+      error:
+        target.continuityState === 'blocked'
+          ? 'cursor continuity blocked'
+          : status.health === 'error'
+            ? 'cursor observation error'
+            : null,
+      status,
+      continuityState: target.continuityState,
+      bufferedFromFrame: target.bufferedFromFrame ?? null,
+      pendingCandidateDeadline:
+        target.pendingCandidateDeadline === null ||
+        target.pendingCandidateDeadline === undefined
+          ? null
+          : new Date(target.pendingCandidateDeadline).toISOString(),
+    };
+  }
   const stored = sessionState.sessions?.[target.key] ?? null;
   const lastRecordIndex = Number.isFinite(Number(stored?.lastRecordIndex))
     ? Number(stored.lastRecordIndex)
@@ -675,6 +752,315 @@ function duplicateTargetError(
   );
 }
 
+const EMPTY_SHA256 =
+  'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
+
+function emptyCursorStatus(): ObservationStatus {
+  return {
+    engagement: 'unknown',
+    activity: 'none',
+    content: 'none',
+    lifecycle: 'none',
+    delivery: 'none',
+    health: 'unknown',
+  };
+}
+
+function applyCursorTargetState(
+  target: WatchTarget,
+  state: CursorSessionStateEntry,
+  result?: CursorObserveSuccess,
+): void {
+  target.observationCursor = state.continuity.nextFrameIndex;
+  target.baselineRecordIndex = state.continuity.nextFrameIndex;
+  target.continuity = structuredClone(state.continuity);
+  target.pendingCandidateDeadline = state.stabilityCandidate
+    ? Date.parse(state.stabilityCandidate.confirmAfter)
+    : null;
+  target.lastStatus = structuredClone(state.lastStatus);
+  target.bufferedFromFrame =
+    result?.digest.cursorEvidence.bufferedFromFrame ?? null;
+  target.continuityState =
+    target.lastStatus.health === 'blocked' ? 'blocked' : 'verified';
+  if (result) target.recordCount = result.digest.range.totalFrames;
+}
+
+async function persistCursorTarget(
+  target: WatchTarget,
+  pid: number,
+  state: CursorSessionStateEntry,
+  result?: CursorObserveSuccess,
+): Promise<void> {
+  const expectedObservationCursor = target.observationCursor ?? 0;
+  const nextStatus = state.lastStatus;
+  const updated = await watchStateLib.compareAndSetCursorWatchTarget({
+    pid,
+    key: target.key,
+    expectedObservationCursor,
+    next: {
+      observationCursor: state.continuity.nextFrameIndex,
+      bufferedFromFrame:
+        result?.digest.cursorEvidence.bufferedFromFrame ?? null,
+      continuity: state.continuity,
+      pendingCandidateDeadline: state.stabilityCandidate?.confirmAfter ?? null,
+      lastStatus: nextStatus,
+      continuityState: nextStatus.health === 'blocked' ? 'blocked' : 'verified',
+    },
+  });
+  if (updated.status !== 'updated') {
+    throw new Error(
+      `Cursor watch target CAS ${updated.status} for ${target.key}`,
+    );
+  }
+  applyCursorTargetState(target, state, result);
+}
+
+async function cursorBaselineTarget(
+  args: WatchLoopArgs & { cwd: string },
+  targets: Map<string, WatchTarget>,
+  deps: ResolvedWatchDeps,
+  eventState: WatchEventState,
+): Promise<WatchTarget> {
+  const pinned = args.session?.startsWith('cursor:')
+    ? args.session.slice('cursor:'.length)
+    : '';
+  if (!pinned) {
+    throw new Error('Cursor watch requires --session cursor:<sessionId>');
+  }
+  const candidate = await findSessionCandidate('cursor', args.cwd, pinned);
+  if (!candidate) throw new Error(`Pinned Cursor session not found: ${pinned}`);
+  const identity = await resolveCursorIdentity(candidate, args.cwd, pinned);
+  if (identity.strength !== 'exact') {
+    throw new Error(
+      `Cursor watch requires exact session identity: ${identity.reasons.join(', ') || identity.strength}`,
+    );
+  }
+  const prior = await cursorStateLib.getCursorSession(pinned);
+  const scan = await scanCursorTranscript(identity.canonicalTranscriptPath, {
+    verifyPrefixBytes: prior?.continuity.prefixBytes,
+    onFrame() {},
+  });
+  deps.onCursorScan?.();
+  const continuity: TranscriptContinuityCheckpoint = prior?.continuity ?? {
+    indexBase: 'zero-based-jsonl-frame-index',
+    nextFrameIndex: 0,
+    prefixBytes: 0,
+    prefixSha256: EMPTY_SHA256,
+    observedSize: scan.file.size,
+    device: scan.file.device,
+    inode: scan.file.inode,
+  };
+  if (continuity.device === null || continuity.inode === null) {
+    throw new Error('Cursor watch requires stable device and inode identity');
+  }
+  const key = targetKey('cursor', pinned);
+  const target: WatchTarget = {
+    key,
+    runtime: 'cursor',
+    sessionId: pinned,
+    transcriptPath: identity.canonicalTranscriptPath,
+    recordedCwd: identity.canonicalCwd,
+    signature: { mtimeMs: scan.file.mtimeMs, size: scan.file.size },
+    recordCount: scan.totalFrames,
+    baselineRecordIndex: continuity.nextFrameIndex,
+    candidateMtime: candidate.mtime,
+    engagementStatus:
+      prior?.lastStatus.engagement ?? candidate.engagementStatus,
+    lockedAt: new Date(deps.now()).toISOString(),
+    indexBase: 'zero-based-jsonl-frame-index',
+    canonicalTranscriptPath: identity.canonicalTranscriptPath,
+    observationCursor: continuity.nextFrameIndex,
+    bufferedFromFrame: null,
+    continuity,
+    pendingCandidateDeadline: prior?.stabilityCandidate
+      ? Date.parse(prior.stabilityCandidate.confirmAfter)
+      : null,
+    lastStatus: prior?.lastStatus ?? emptyCursorStatus(),
+    continuityState:
+      prior?.lastStatus.health === 'blocked' ? 'blocked' : 'verified',
+  };
+  await watchStateLib.recordWatcherTarget({
+    pid: eventState.pid,
+    target: {
+      ...target,
+      indexBase: 'zero-based-jsonl-frame-index',
+      canonicalTranscriptPath: identity.canonicalTranscriptPath,
+      observationCursor: continuity.nextFrameIndex,
+      continuity,
+      pendingCandidateDeadline:
+        target.pendingCandidateDeadline === null ||
+        target.pendingCandidateDeadline === undefined
+          ? null
+          : new Date(target.pendingCandidateDeadline).toISOString(),
+      lastStatus: target.lastStatus,
+      continuityState: target.continuityState,
+    },
+  });
+  targets.set(key, target);
+  return target;
+}
+
+async function finalizeCursorOutput(
+  result: CursorObserveSuccess,
+  chunk: string,
+  deps: ResolvedWatchDeps,
+): Promise<void> {
+  let asynchronous = false;
+  try {
+    const output = deps.writeStdout(chunk);
+    if (output && typeof output === 'object' && 'then' in output) {
+      asynchronous = true;
+      await output;
+    }
+  } catch (error) {
+    if (result.delivery) {
+      await result.delivery.abandon({
+        deliveryUncertain: asynchronous,
+      });
+    }
+    throw error;
+  }
+  if (result.delivery) {
+    const committed = await result.delivery.commit();
+    if (committed !== 'committed') {
+      throw new Error(`Cursor delivery commit ${committed}`);
+    }
+  }
+}
+
+async function emitCursorDelta(
+  result: CursorObserveSuccess,
+  target: WatchTarget,
+  args: WatchLoopArgs,
+  deps: ResolvedWatchDeps,
+  eventState: WatchEventState,
+): Promise<boolean> {
+  const newFrames = result.digest.range.newFrames;
+  const shouldRender =
+    newFrames > 0 &&
+    !(args.quietEmpty && result.digest.accounting.rendered.count === 0);
+  if (shouldRender) {
+    const rendered = renderMarkdown(result.digest);
+    const ts = new Date(deps.now()).toISOString();
+    await finalizeCursorOutput(
+      result,
+      args.json
+        ? JSON.stringify(stdoutEvent(ts, result.digest, rendered)) + '\n'
+        : rendered + '\n',
+      deps,
+    );
+    const committedState = await cursorStateLib.getCursorSession(
+      result.digest.sessionId,
+    );
+    if (committedState) {
+      await persistCursorTarget(target, eventState.pid, committedState, result);
+    }
+    await appendEventLog(
+      args.eventLog,
+      eventMetadata(ts, result.digest, rendered),
+    );
+    eventState.eventCount++;
+    eventState.lastHeartbeatAt = deps.now();
+    await watchStateLib.recordWatcherEvent({
+      pid: eventState.pid,
+      lastEventAt: ts,
+    });
+    return true;
+  }
+
+  if (result.delivery) {
+    const committed = await result.delivery.commit();
+    if (committed !== 'committed') {
+      throw new Error(`Cursor delivery commit ${committed}`);
+    }
+  }
+  const current = await cursorStateLib.getCursorSession(
+    result.digest.sessionId,
+  );
+  if (current) {
+    await persistCursorTarget(target, eventState.pid, current, result);
+  }
+  return false;
+}
+
+async function establishCursorBaseline(
+  args: WatchLoopArgs & { cwd: string },
+  targets: Map<string, WatchTarget>,
+  deps: ResolvedWatchDeps,
+  eventState: WatchEventState,
+): Promise<WatchTarget> {
+  const target = await cursorBaselineTarget(args, targets, deps, eventState);
+  const result = await observeCatchUp(
+    { ...args, runtime: 'cursor' },
+    {
+      now: deps.now,
+      sleep: deps.sleep,
+      ownerPid: eventState.pid,
+      onCursorScan: deps.onCursorScan,
+    },
+  );
+  if (!result.ok) {
+    if (result.kind === 'continuityBlocked') {
+      const state = await cursorStateLib.getCursorSession(target.sessionId);
+      if (state) {
+        const blockedState = {
+          ...state,
+          lastStatus: {
+            ...state.lastStatus,
+            health: 'blocked' as const,
+          },
+        };
+        await persistCursorTarget(target, eventState.pid, blockedState);
+      }
+      await emitLockedTarget(args, deps, target);
+      return target;
+    }
+    throw new Error(result.message);
+  }
+  await persistCursorTarget(target, eventState.pid, result.cursorState, result);
+  const skippedFromIndex = result.fromIndex;
+  const skippedToIndex = result.digest.range.nextIndex - 1;
+  const hasStandaloneGap =
+    !args.catchUpFirst && skippedToIndex >= skippedFromIndex;
+  if (hasStandaloneGap && args.strictBaseline) {
+    await result.delivery?.abandon();
+    throw new Error(
+      `strict baseline refused unread range ${skippedFromIndex}-${skippedToIndex} for ${target.key}`,
+    );
+  }
+  try {
+    if (hasStandaloneGap) {
+      await emitBaselineGap(
+        args,
+        deps,
+        target,
+        skippedFromIndex,
+        skippedToIndex,
+      );
+    }
+    await emitLockedTarget(args, deps, target);
+  } catch (error) {
+    await result.delivery?.abandon({ deliveryUncertain: true });
+    throw error;
+  }
+  if (args.catchUpFirst) {
+    await emitCursorDelta(result, target, args, deps, eventState);
+  } else {
+    if (result.delivery) {
+      const committed = await result.delivery.commit();
+      if (committed !== 'committed') {
+        throw new Error(`Cursor baseline delivery commit ${committed}`);
+      }
+    }
+    const current = await cursorStateLib.getCursorSession(target.sessionId);
+    if (current) {
+      await persistCursorTarget(target, eventState.pid, current, result);
+    }
+  }
+  target.signature = await fileSignature(target.transcriptPath, deps.stat);
+  return target;
+}
+
 async function establishBaseline(
   runtime: Runtime | 'auto',
   args: WatchLoopArgs & { cwd: string },
@@ -682,6 +1068,9 @@ async function establishBaseline(
   deps: ResolvedWatchDeps,
   eventState: WatchEventState,
 ): Promise<WatchTarget | null> {
+  if (runtime === 'cursor') {
+    return establishCursorBaseline(args, targets, deps, eventState);
+  }
   const result = await observeCatchUp({ ...args, runtime });
   if (!result.ok) {
     if (result.kind === 'noMatch') return null;
@@ -736,7 +1125,19 @@ async function establishBaseline(
     );
   }
   try {
-    await watchStateLib.recordWatcherTarget({ pid: eventState.pid, target });
+    await watchStateLib.recordWatcherTarget({
+      pid: eventState.pid,
+      target: {
+        runtime: target.runtime,
+        sessionId: target.sessionId,
+        transcriptPath: target.transcriptPath,
+        recordedCwd: target.recordedCwd,
+        recordCount: target.recordCount,
+        baselineRecordIndex: target.baselineRecordIndex,
+        engagementStatus: target.engagementStatus,
+        lockedAt: target.lockedAt,
+      },
+    });
   } catch (err) {
     const duplicate = err as DuplicateWatchTargetError;
     if (duplicate?.code === 'DUPLICATE_WATCH_TARGET') {
@@ -769,6 +1170,7 @@ async function establishBaseline(
         firstChangedAt: deps.now(),
         lastChangedAt: deps.now(),
       },
+      targets,
       args,
       deps,
       eventState,
@@ -852,7 +1254,13 @@ async function pollTargets(
       continue;
     }
 
-    if (!signatureChanged(target.signature, signature)) continue;
+    const deadlineReady =
+      target.runtime === 'cursor' &&
+      target.pendingCandidateDeadline !== null &&
+      target.pendingCandidateDeadline !== undefined &&
+      nowMs >= target.pendingCandidateDeadline;
+    if (!signatureChanged(target.signature, signature) && !deadlineReady)
+      continue;
     target.signature = signature;
     const existing = pending.get(target.key);
     pending.set(target.key, {
@@ -861,6 +1269,7 @@ async function pollTargets(
       sessionId: target.sessionId,
       firstChangedAt: existing?.firstChangedAt ?? nowMs,
       lastChangedAt: nowMs,
+      readyAt: deadlineReady ? target.pendingCandidateDeadline : null,
     });
   }
 }
@@ -898,19 +1307,72 @@ async function emitNewerSessionCandidates(
 
 async function emitPending(
   entry: PendingEntry,
+  targets: Map<string, WatchTarget>,
   args: WatchLoopArgs & { cwd: string },
   deps: ResolvedWatchDeps,
   eventState: WatchEventState,
 ): Promise<boolean> {
-  const result = await observeCatchUp({
-    ...args,
-    runtime: entry.runtime,
-    session: `${entry.runtime}:${entry.sessionId}`,
-    suppressWatchedWarningPid: eventState.pid,
-  });
+  const result =
+    entry.runtime === 'cursor'
+      ? await observeCatchUp(
+          {
+            ...args,
+            runtime: 'cursor',
+            session: `cursor:${entry.sessionId}`,
+            suppressWatchedWarningPid: eventState.pid,
+          },
+          {
+            now: deps.now,
+            sleep: deps.sleep,
+            ownerPid: eventState.pid,
+            onCursorScan: deps.onCursorScan,
+          },
+        )
+      : await observeCatchUp({
+          ...args,
+          runtime: entry.runtime,
+          session: `${entry.runtime}:${entry.sessionId}`,
+          suppressWatchedWarningPid: eventState.pid,
+        });
   if (!result.ok) {
     if (result.kind === 'noMatch') return false;
+    if (
+      entry.runtime === 'cursor' &&
+      (result.kind === 'continuityBlocked' || result.kind === 'ownerConflict')
+    ) {
+      const target = targets.get(entry.key);
+      const state = await cursorStateLib.getCursorSession(entry.sessionId);
+      if (target && state) {
+        const blockedState: CursorSessionStateEntry = {
+          ...state,
+          lastStatus: {
+            ...state.lastStatus,
+            delivery:
+              result.kind === 'ownerConflict'
+                ? 'uncertain'
+                : state.lastStatus.delivery,
+            health: result.kind === 'continuityBlocked' ? 'blocked' : 'error',
+          },
+        };
+        await persistCursorTarget(target, eventState.pid, blockedState);
+      }
+      return false;
+    }
     throw new Error(result.message);
+  }
+
+  if (result.runtime === 'cursor') {
+    const target = targets.get(entry.key);
+    if (!target) return false;
+    await persistCursorTarget(
+      target,
+      eventState.pid,
+      result.cursorState,
+      result,
+    );
+    target.signature = await fileSignature(target.transcriptPath, deps.stat);
+    if (result.deliveryUncertain) return false;
+    return emitCursorDelta(result, target, args, deps, eventState);
   }
 
   const newRecords = result.digest.range.newRecords ?? 0;
@@ -983,6 +1445,7 @@ async function emitObservedDelta(
 
 async function emitReadyPending(
   args: WatchLoopArgs & { cwd: string },
+  targets: Map<string, WatchTarget>,
   pending: Map<string, PendingEntry>,
   deps: ResolvedWatchDeps,
   eventState: WatchEventState,
@@ -995,9 +1458,12 @@ async function emitReadyPending(
     const pendingForMs = nowMs - (entry.firstChangedAt ?? entry.lastChangedAt);
     const ready =
       quietForMs >= eventState.debounceMs ||
-      pendingForMs >= eventState.maxPendingMs;
+      pendingForMs >= eventState.maxPendingMs ||
+      (entry.readyAt !== null &&
+        entry.readyAt !== undefined &&
+        nowMs >= entry.readyAt);
     if (!force && !ready) continue;
-    await emitPending(entry, args, deps, eventState);
+    await emitPending(entry, targets, args, deps, eventState);
     pending.delete(entry.key);
   }
 }
@@ -1011,11 +1477,14 @@ async function flushPendingBeforeMaxRuntime(
 ): Promise<void> {
   if (eventState.paused || targets.size === 0) return;
   await pollTargets(targets, pending, deps.now(), deps.stat);
-  await emitReadyPending(args, pending, deps, eventState, { force: true });
+  await emitReadyPending(args, targets, pending, deps, eventState, {
+    force: true,
+  });
 }
 
 async function applyControlDirective(
   args: WatchLoopArgs & { cwd: string },
+  targets: Map<string, WatchTarget>,
   pending: Map<string, PendingEntry>,
   deps: ResolvedWatchDeps,
   eventState: WatchEventState,
@@ -1035,7 +1504,9 @@ async function applyControlDirective(
       eventState.paused = false;
       return;
     case 'flush':
-      await emitReadyPending(args, pending, deps, eventState, { force: true });
+      await emitReadyPending(args, targets, pending, deps, eventState, {
+        force: true,
+      });
       return;
     case 'stop':
       eventState.stopRequested = true;
@@ -1099,6 +1570,7 @@ export async function runWatchLoop(
     sleep: deps.sleep ?? sleep,
     stat: deps.stat ?? stat,
     writeStdout: deps.writeStdout ?? writeProcessStdout,
+    onCursorScan: deps.onCursorScan,
   };
   const targets = new Map<string, WatchTarget>();
   const pending = new Map<string, PendingEntry>();
@@ -1190,6 +1662,7 @@ export async function runWatchLoop(
       );
       await applyControlDirective(
         normalizedArgs,
+        targets,
         pending,
         resolvedDeps,
         eventState,
@@ -1201,6 +1674,7 @@ export async function runWatchLoop(
       if (!eventState.paused) {
         await emitReadyPending(
           normalizedArgs,
+          targets,
           pending,
           resolvedDeps,
           eventState,
@@ -1261,6 +1735,7 @@ export async function runWatchLoop(
   } finally {
     removeSignalHandlers();
     for (const target of targets.values()) {
+      if (target.runtime === 'cursor') continue;
       await stateLib
         .clearWatchedByPid(target.runtime, target.sessionId, active.pid)
         .catch(() => false);

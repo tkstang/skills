@@ -664,6 +664,7 @@ export interface WatchLoopDeps {
   writeStdout?: (chunk: string) => boolean | number | void | Promise<unknown>;
   pid?: number;
   handleSignals?: boolean;
+  onCursorScan?: () => void;
 }
 
 export interface CliArgs extends WatchLoopArgs {
