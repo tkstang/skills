@@ -1,10 +1,10 @@
 ---
-oat_status: in_progress
-oat_ready_for: null
+oat_status: complete
+oat_ready_for: oat-project-implement
 oat_blockers: []
 oat_last_updated: 2026-07-23
 oat_phase: plan
-oat_phase_status: in_progress
+oat_phase_status: complete
 oat_plan_hill_phases: ['p03']
 oat_auto_review_at_hill_checkpoints: true
 oat_plan_parallel_groups: [['p02', 'p03']]
@@ -59,6 +59,17 @@ Nothing here restates, narrows, or overrides a source plan.
    you write (never AGENTS.md/generated files). Workers report; root appends.
 10. **Commit verification after ambiguous results** via `git log`.
 11. **Codex fallback + MAX TWO rounds** (waves 1-3 adopted rules).
+
+## Planning Checklist
+
+- [x] Phases decomposed from the program's wave map (3 lanes, pointer-only tasks)
+- [x] Parallelism evaluated: p01 deliberately UNGROUPED (style-input dependency
+      for the group's new workflow files); only `[['p02','p03']]` grouped
+      (mutually write-disjoint per recon)
+- [x] HiLL checkpoint at p03 (final phase) — satisfied per standing operator
+      directive at execution time; `oat_auto_review_at_hill_checkpoints` on
+- [x] Drift refresh recorded below; rule-1 addendum for p03's AGENTS.md gap
+- [x] Reviews table covers every phase + final + artifacts
 
 ## Parallelism
 
@@ -170,7 +181,7 @@ after p02 (plan order); inserts its RELEASING.md line relative to p01's.
 | p02    | code     | pending | -    | -        |
 | p03    | code     | pending | -    | -        |
 | final  | code     | pending | -    | -        |
-| plan   | artifact | pending | -    | -        |
+| plan   | artifact | passed  | 2026-07-23 | reviews/plan-gate-2026-07-23.md |
 | spec   | artifact | pending | -    | -        |
 | design | artifact | pending | -    | -        |
 

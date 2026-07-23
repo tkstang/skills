@@ -14,8 +14,8 @@ oat_children: [] # optional coordination-parent child slugs
 oat_hill_checkpoints: ['p03'] # Configured: which phases require human-in-the-loop lifecycle approval
 oat_hill_completed: [] # Progress: which HiLL checkpoints have been completed
 oat_parallel_execution: true
-oat_phase: discovery # Current phase: discovery | spec | design | plan | implement | decomposition
-oat_phase_status: in_progress # Status: in_progress | complete | pr_open
+oat_phase: plan # Current phase: discovery | spec | design | plan | implement | decomposition
+oat_phase_status: complete # Status: in_progress | complete | pr_open
 # oat_orchestration_retry_limit: 2  # optional; override fix-loop retry limit (range 0-5)
 # oat_dispatch_policy: # optional project dispatch policy; managed keeps OAT selection active, inherit leaves controls to the host
 #   mode: managed # managed | inherit
@@ -82,13 +82,13 @@ oat_generated: false
 
 # Project State: wave-4-execution
 
-**Status:** Plan authored — awaiting plan gate
+**Status:** Plan complete — gate passed, ready for implementation
 **Started:** 2026-07-23
 **Last Updated:** 2026-07-23
 
 ## Current Phase
 
-Plan authored (gate pending). Wave-4 wrapper over three external plans
+Plan complete (gate passed). Wave-4 wrapper over three external plans
 (supply-chain-ci-hardening, docs-pr-ci-gate, live-provider-e2e-visibility).
 p01 ungrouped-first (its SHA-pin style feeds p02/p03's new workflow files);
 then group [p02, p03] (mutually write-disjoint). Drift refresh 3/3 PASS at
@@ -107,7 +107,7 @@ BASE_SHA f701e96.
 - ✓ Preflight at f701e96; quick baseline green; merged W3 tree CI-certified on main
 - ✓ Drift refresh: 3/3 PASS (one pathspec gap noted for p03 → rule-1 addendum)
 - ✓ Wrapper scaffold + plan authored
-- ⧗ Plan gate
+- ✓ Plan gate passed (2 findings fixed, atomic flip)
 
 ## Blockers
 
@@ -115,4 +115,4 @@ None
 
 ## Next Milestone
 
-Plan gate; then p01 execute+merge; then group [p02, p03]
+p01 execute+merge; then group [p02, p03]
