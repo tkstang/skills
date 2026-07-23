@@ -12,6 +12,10 @@ import { fileURLToPath } from 'node:url';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+// @ts-expect-error No type declarations; this test exercises the shipped artifact.
+import * as shippedCursorAnalysis from '../../skills/session-observer/scripts/lib/cursor-analysis.mjs';
+// @ts-expect-error No type declarations; this test exercises the shipped artifact.
+import * as shippedCursorFrames from '../../skills/session-observer/scripts/lib/cursor-frames.mjs';
 import type {
   JsonObject,
   Runtime,
@@ -908,6 +912,39 @@ describe('normalizeEntries (cursor)', () => {
       );
     });
   }
+});
+
+describe('shipped Cursor framed runtime modules', () => {
+  it('loads and composes the Session Observer generated frame reader and analyzer', async () => {
+    const accumulator = shippedCursorAnalysis.createCursorTurnAccumulator(
+      {
+        runtime: 'cursor',
+        projectCwd: '/synthetic/project',
+        sessionId: 'synthetic-generated-session',
+        canonicalTranscriptPath: '/synthetic/project/transcript.jsonl',
+      },
+      0,
+    );
+    const scan = await shippedCursorFrames.scanCursorTranscript(
+      fixturePath('cursor', 'framed-closed.jsonl'),
+      { onFrame: accumulator.onFrame },
+    );
+    const analysis = accumulator.finish(scan);
+
+    expect(analysis.turns).toHaveLength(1);
+    expect(analysis.turns[0]).toMatchObject({
+      lifecycle: 'success',
+      fromFrameIndex: 0,
+      observedThroughFrame: 2,
+      humanRecordIndexes: [0],
+      finalSubstantiveEntryKey: expect.any(String),
+    });
+    expect(analysis.turns[0].assistantRecords[0]).toMatchObject({
+      sourceFrameIndex: 1,
+      classification: 'substantive',
+      text: 'Synthetic response beta.',
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------
