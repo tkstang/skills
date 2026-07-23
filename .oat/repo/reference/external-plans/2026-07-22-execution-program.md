@@ -109,9 +109,14 @@ coverage invariant holds terminally (15/15, none deferred/dropped).
   Dependabot's deploy-pages 4.0.5→5.0.0 bump ahead of schedule — benign
   (CI-green pin update via the wave-4-installed automation), left in place,
   disclosed.
-- **Standing constraint:** the operator-mandated `sol` review model was
-  unavailable on this Codex account for every final gate; the account-default
-  Codex model at xhigh effort substituted, flagged per wave.
+- **Standing constraint — CORRECTED 2026-07-23:** the bare `sol` alias was
+  rejected by the API on this account, and each wave's gate artifact flagged a
+  "default model substituted" deviation. Post-program verification of the gate
+  session headers shows the substitution was in fact sol-class all along: the
+  account's config default is `gpt-5.6-sol`, and **all five final gates ran on
+  `gpt-5.6-sol` at xhigh reasoning effort**. The per-wave "sol unavailable"
+  flags overstated the deviation; the operator's sol-xhigh requirement was
+  satisfied in substance on every wave.
 - **Program recap:** AUTHORED — `.oat/repo/explainers/repo-audit-program-recap/recap.md`,
   LLM-authored (Opus-class subagent) from a 12-claim synthesized fact base with
   per-section claim traceability; three fact-base synthesis errors were caught
