@@ -1,8 +1,13 @@
-import { mkdir, mkdtemp, readdir, readFile } from 'node:fs/promises';
+import {
+  mkdtemp,
+  readdir,
+  readFile,
+  rename as fsRename,
+} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
-import { expect, it } from 'vitest';
+import { expect, it, vi } from 'vitest';
 
 import {
   buildParallelTurnPrompt,
@@ -13,6 +18,18 @@ import {
   synthesisSchemaPath,
   writeLoopStatus,
 } from '../../../src/consensus/core/consensus-loop.js';
+
+// `rename` is spied (delegating to the real implementation by default) so a
+// single test can inject a genuine rename() failure and verify atomicWriteFile's
+// error-rethrow and tmp-cleanup behavior, without disturbing every other
+// filesystem call other tests in this file rely on.
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs/promises')>();
+  return {
+    ...actual,
+    rename: vi.fn(actual.rename),
+  };
+});
 
 type JsonRecord = Record<string, any>;
 
@@ -149,7 +166,7 @@ it('createRecordsWriter leaves no tmp file beside records.json after flush', asy
   expect(entries).toContain('records.json');
 });
 
-it('createRecordsWriter rejects and leaves the previous records.json intact when the atomic write cannot complete', async () => {
+it('createRecordsWriter rethrows a rename failure, cleans up the tmp file, and leaves the previous records.json intact and parseable', async () => {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'consensus-records-'));
   const recordsPath = path.join(tempRoot, 'records.json');
   const writer = await createRecordsWriter(recordsPath, {
@@ -159,22 +176,28 @@ it('createRecordsWriter rejects and leaves the previous records.json intact when
   await writer.append({ turn_index: 1, verdict: 'ACCEPT' });
   const goodContentBeforeFailure = await readFile(recordsPath, 'utf8');
 
-  // Deterministically block the atomic-write temp path (`${recordsPath}.${pid}.tmp`)
-  // by pre-creating a directory there, so the write-before-rename step fails
-  // without ever touching `recordsPath` itself — no mocks, real filesystem
-  // semantics, and no dependency on directory permissions or OS-specific
-  // rename-failure conditions.
-  const blockedTmpPath = `${recordsPath}.${process.pid}.tmp`;
-  await mkdir(blockedTmpPath);
+  // Force the rename() step itself to fail (the tmp file is still written and
+  // fsynced first) by rejecting exactly one real `rename` call. This isolates
+  // the rename-failure path specifically, proves the original error is
+  // rethrown (not swallowed or replaced), and proves the best-effort tmp
+  // cleanup runs even though rename never touched `recordsPath`.
+  const renameError = Object.assign(new Error('simulated rename failure'), {
+    code: 'EACCES',
+  });
+  vi.mocked(fsRename).mockImplementationOnce(() =>
+    Promise.reject(renameError),
+  );
 
   await expect(
     writer.append({ turn_index: 2, verdict: 'REVISE' }),
-  ).rejects.toThrow();
+  ).rejects.toBe(renameError);
 
   const contentAfterFailure = await readFile(recordsPath, 'utf8');
   expect(contentAfterFailure).toBe(goodContentBeforeFailure);
-  expect(() => JSON.parse(contentAfterFailure)).not.toThrow();
   expect(JSON.parse(contentAfterFailure)).toHaveLength(1);
+
+  const entries = await readdir(tempRoot);
+  expect(entries.filter((entry) => entry.endsWith('.tmp'))).toEqual([]);
 });
 
 it('buildParallelTurnPrompt frames untrusted content and supplies own/peer revisions and critiques', () => {
