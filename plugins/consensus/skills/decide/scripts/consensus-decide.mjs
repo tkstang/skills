@@ -39,7 +39,7 @@ import {
   providerCliUnavailableError,
   confineWrite,
   atomicWriteFile
-} from '../../../scripts/consensus-cli-helpers.mjs';
+} from './consensus-cli-helpers.mjs';
 const INPUT_SIZE_CAP_BYTES = 1024 * 1024;
 const DEFAULT_DECIDE_GOAL = "Choose between the supplied options.";
 function parseAgency(value) {

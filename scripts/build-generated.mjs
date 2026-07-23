@@ -24,6 +24,27 @@ export const generatedOutputs = [
     output: 'plugins/consensus/scripts/consensus-cli-helpers.mjs',
   },
   {
+    id: 'consensus-create-cli-helpers',
+    source: 'src/consensus/shared/cli-helpers.ts',
+    output: 'plugins/consensus/skills/create/scripts/consensus-cli-helpers.mjs',
+  },
+  {
+    id: 'consensus-decide-cli-helpers',
+    source: 'src/consensus/shared/cli-helpers.ts',
+    output: 'plugins/consensus/skills/decide/scripts/consensus-cli-helpers.mjs',
+  },
+  {
+    id: 'consensus-plan-cli-helpers',
+    source: 'src/consensus/shared/cli-helpers.ts',
+    output: 'plugins/consensus/skills/plan/scripts/consensus-cli-helpers.mjs',
+  },
+  {
+    id: 'consensus-evaluate-cli-helpers',
+    source: 'src/consensus/shared/cli-helpers.ts',
+    output:
+      'plugins/consensus/skills/evaluate/scripts/consensus-cli-helpers.mjs',
+  },
+  {
     id: 'consensus-create-config',
     source: 'src/consensus/config/consensus-config.ts',
     output: 'plugins/consensus/skills/create/scripts/consensus-config.mjs',

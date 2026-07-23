@@ -40,7 +40,7 @@ import {
   providerCliUnavailableError,
   confineWrite,
   atomicWriteFile
-} from '../../../scripts/consensus-cli-helpers.mjs';
+} from './consensus-cli-helpers.mjs';
 const INPUT_SIZE_CAP_BYTES = 1024 * 1024;
 async function preflightEvaluateProviderCli({
   env,

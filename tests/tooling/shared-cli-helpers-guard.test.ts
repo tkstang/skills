@@ -74,4 +74,16 @@ describe('shared cli-helpers re-fork guard', () => {
     );
     expect(redeclared).toEqual([]);
   });
+
+  // Enforce (not just document) panel's deliberate decoupling from the loop.
+  // Panel keeps its own byte-similar helper copies specifically because the
+  // shared module depends on consensus-loop's ConsensusError/EXIT_CODES; a
+  // single import from the shared module would transitively load the entire
+  // loop into panel's runtime. Guard both edges: panel must import neither the
+  // loop nor the shared module that pulls it in.
+  it('consensus-panel.ts stays decoupled from consensus-loop and the shared module', () => {
+    const source = readFileSync('src/consensus/panel/consensus-panel.ts', 'utf8');
+    expect(source).not.toMatch(/from\s+['"]\.\.\/core\/consensus-loop\.js['"]/);
+    expect(source).not.toMatch(/from\s+['"]\.\.\/shared\/cli-helpers\.js['"]/);
+  });
 });
