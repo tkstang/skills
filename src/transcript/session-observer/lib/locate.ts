@@ -30,6 +30,7 @@
  */
 
 import { execFile } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import type { Dirent, Stats } from 'node:fs';
 import {
   readdir,
@@ -154,7 +155,14 @@ async function saveCwdCache(cache: CwdCache): Promise<void> {
     const path = cwdCachePath();
     const dir = path.replace(/\/[^/]+$/, '');
     await mkdir(dir, { recursive: true });
-    const tmp = join(dir, `codex-cwd-cache.${process.pid}.${Date.now()}.tmp`);
+    // pid + timestamp + a random component: two concurrent saves in the same
+    // process landing in the same millisecond must not collide on this path
+    // (a collision would let one writer's rename observe the other's
+    // still-open tmp file, defeating atomicity).
+    const tmp = join(
+      dir,
+      `codex-cwd-cache.${process.pid}.${Date.now()}.${randomUUID()}.tmp`,
+    );
     let fh;
     try {
       fh = await open(tmp, 'w');
