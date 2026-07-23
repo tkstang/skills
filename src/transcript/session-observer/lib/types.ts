@@ -1,4 +1,5 @@
 import type { CursorLifecycleState } from '../../core/cursor-analysis.js';
+import type { CursorFrameIssue } from '../../core/cursor-frames.js';
 import type {
   AutomaticControlProvenance,
   CursorTerminalStatus,
@@ -21,6 +22,9 @@ export type RankTier = 'A' | 'B' | 'C';
 export type EngagementStatus = 'engaged' | 'unengaged' | 'unknown';
 export type DigestMode = 'review' | 'catch-up' | 'locate';
 export type WatchControlDirective = 'flush' | 'pause' | 'resume' | 'stop';
+export type TranscriptIndexBase =
+  | 'zero-based-jsonl-record-index'
+  | 'zero-based-jsonl-frame-index';
 
 export interface TranscriptClassification {
   status: EngagementStatus;
@@ -99,6 +103,23 @@ export interface ObservationStatus {
   lifecycle: CursorLifecycleState | 'none';
   delivery: 'none' | 'reserved' | 'committed' | 'uncertain';
   health: 'healthy' | 'blocked' | 'stale' | 'error' | 'unknown';
+}
+
+export interface CursorLifecycleEvent {
+  turnId: string;
+  terminalFrameIndex: number;
+  lifecycle: Exclude<CursorLifecycleState, 'pending'>;
+  finalEntryKey: string | null;
+  contentPreviouslyObservable: boolean;
+}
+
+export interface CursorDigestEvidence {
+  projection: CursorProjection;
+  continuity: 'new' | 'verified';
+  status: ObservationStatus;
+  lifecycleEvents: CursorLifecycleEvent[];
+  bufferedFromFrame: number | null;
+  blockingFrame: CursorFrameIssue | null;
 }
 
 export interface TranscriptContinuityCheckpoint {
@@ -360,7 +381,7 @@ export interface BuildDigestOptions {
 }
 
 export interface Digest {
-  schemaVersion: number;
+  schemaVersion: 1;
   runtime: Runtime;
   sessionId: string;
   transcriptPath: string;
@@ -377,6 +398,86 @@ export interface Digest {
   warnings: string[];
   fallbacks: TranscriptCandidate[];
 }
+
+export interface CursorDigestRangeV2 {
+  indexBase: 'zero-based-jsonl-frame-index';
+  fromIndex: number;
+  toIndex: number | null;
+  nextIndex: number;
+  totalFrames: number;
+  renderedFromIndex: number | null;
+  renderedToIndex: number | null;
+  newFrames: number;
+}
+
+export interface CursorRecoveryPointerV2 {
+  transcriptPath: string;
+  indexBase: 'zero-based-jsonl-frame-index';
+  frameIndex: number;
+  entryKey: string;
+}
+
+export interface CursorDigestAccountingV2 {
+  indexBase: 'zero-based-jsonl-frame-index';
+  raw: {
+    fromIndex: number;
+    toIndex: number | null;
+    count: number;
+    nextIndex: number;
+    totalFrames: number;
+  };
+  rendered: {
+    count: number;
+    fromIndex: number | null;
+    toIndex: number | null;
+  };
+  filtered: {
+    toolCalls: number;
+    automaticControls: number;
+    emptyOrNoOp: number;
+    metadataFrames: number;
+    unstableContent: number;
+  };
+  buffered: {
+    fromIndex: number | null;
+    count: number;
+    reason: 'partial' | 'malformed' | 'stability-wait' | null;
+  };
+  recovery: {
+    omittedUserMessages: CursorRecoveryPointerV2[];
+    omittedAssistantEntries: CursorRecoveryPointerV2[];
+  };
+}
+
+export interface CursorDigestEntryV2 extends Omit<
+  DigestEntry,
+  'recordIndex' | 'sourceRecordIndex'
+> {
+  /** Delivery frame under the declared frame-index base. */
+  recordIndex: number;
+  /** Original content frame retained when delivery is gated by later evidence. */
+  sourceFrameIndex: number;
+  entryKey: string;
+  turnId: string;
+  availability: 'pending-lifecycle' | 'completed';
+}
+
+export interface CursorDigestV2 extends Omit<
+  Digest,
+  'schemaVersion' | 'range' | 'accounting' | 'entries'
+> {
+  schemaVersion: 2;
+  range: CursorDigestRangeV2;
+  accounting: CursorDigestAccountingV2;
+  entries: CursorDigestEntryV2[];
+  cursorEvidence: CursorDigestEvidence;
+}
+
+export type SessionDigest = Digest | CursorDigestV2;
+
+export type CursorBuildDigestOptions = BuildDigestOptions & {
+  cursorProjection: CursorProjection;
+};
 
 export interface SessionStateEntry {
   runtime: Runtime;

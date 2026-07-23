@@ -37,6 +37,255 @@ import {
   renderJson,
   renderMarkdown,
 } from '../../src/transcript/session-observer/lib/digest.js';
+import type {
+  CursorDigestV2,
+  Digest,
+  SessionDigest,
+} from '../../src/transcript/session-observer/lib/types.js';
+
+const cursorDigestV2Fixture = {
+  schemaVersion: 2,
+  runtime: 'cursor',
+  sessionId: 'cursor-contract-fixture',
+  transcriptPath: '/synthetic/cursor-contract-fixture.jsonl',
+  recordedCwd: '/synthetic/project',
+  matchedTier: 'A',
+  widenedFrom: null,
+  active: true,
+  engagement: {
+    status: 'engaged',
+    engaged: true,
+    recordCount: 12,
+    genuineUserMessages: 1,
+    syntheticUserMessages: 0,
+    assistantMessages: 2,
+    realMessageCount: 3,
+    hasAssistantAndUser: true,
+    bootstrapRecordIndexes: [],
+    bootstrapRecordCount: 0,
+  },
+  mode: 'catch-up',
+  range: {
+    indexBase: 'zero-based-jsonl-frame-index',
+    fromIndex: 4,
+    toIndex: 10,
+    nextIndex: 11,
+    totalFrames: 12,
+    renderedFromIndex: 5,
+    renderedToIndex: 9,
+    newFrames: 7,
+  },
+  accounting: {
+    indexBase: 'zero-based-jsonl-frame-index',
+    raw: {
+      fromIndex: 4,
+      toIndex: 10,
+      count: 7,
+      nextIndex: 11,
+      totalFrames: 12,
+    },
+    rendered: {
+      count: 2,
+      fromIndex: 5,
+      toIndex: 9,
+    },
+    filtered: {
+      toolCalls: 1,
+      automaticControls: 1,
+      emptyOrNoOp: 1,
+      metadataFrames: 2,
+      unstableContent: 0,
+    },
+    buffered: {
+      fromIndex: 11,
+      count: 1,
+      reason: 'malformed',
+    },
+    recovery: {
+      omittedUserMessages: [
+        {
+          transcriptPath: '/synthetic/cursor-contract-fixture.jsonl',
+          indexBase: 'zero-based-jsonl-frame-index',
+          frameIndex: 4,
+          entryKey: 'entry-user-4',
+        },
+      ],
+      omittedAssistantEntries: [
+        {
+          transcriptPath: '/synthetic/cursor-contract-fixture.jsonl',
+          indexBase: 'zero-based-jsonl-frame-index',
+          frameIndex: 7,
+          entryKey: 'entry-assistant-7',
+        },
+      ],
+    },
+  },
+  entries: [
+    {
+      role: 'assistant',
+      text: 'Synthetic pending observation.',
+      recordIndex: 5,
+      sourceFrameIndex: 5,
+      kind: 'message',
+      entryKey: 'entry-assistant-5',
+      turnId: 'turn-1',
+      availability: 'pending-lifecycle',
+    },
+    {
+      role: 'assistant',
+      text: 'Synthetic completed observation.',
+      recordIndex: 9,
+      sourceFrameIndex: 8,
+      kind: 'message',
+      entryKey: 'entry-assistant-8',
+      turnId: 'turn-1',
+      availability: 'completed',
+    },
+  ],
+  filters: {
+    includeToolCalls: false,
+    includeToolResults: false,
+    includeCommandMessages: false,
+  },
+  warnings: [],
+  fallbacks: [],
+  cursorEvidence: {
+    projection: 'observation',
+    continuity: 'verified',
+    status: {
+      engagement: 'engaged',
+      activity: 'assistant-progress',
+      content: 'available',
+      lifecycle: 'success',
+      delivery: 'reserved',
+      health: 'blocked',
+    },
+    lifecycleEvents: [
+      {
+        turnId: 'turn-1',
+        terminalFrameIndex: 9,
+        lifecycle: 'success',
+        finalEntryKey: 'entry-assistant-8',
+        contentPreviouslyObservable: true,
+      },
+    ],
+    bufferedFromFrame: 11,
+    blockingFrame: {
+      frameIndex: 11,
+      byteStart: 820,
+      byteEnd: 854,
+      parseState: 'malformed',
+    },
+  },
+} satisfies CursorDigestV2;
+
+// ---------------------------------------------------------------------------
+// Cursor digest v2 data contract
+// ---------------------------------------------------------------------------
+
+describe('Cursor digest v2 data contract', () => {
+  test('keeps schema-v1 record indexes and schema-v2 frame indexes discriminated', () => {
+    const sessionDigest: SessionDigest = cursorDigestV2Fixture;
+
+    expect(sessionDigest.schemaVersion).toBe(2);
+    expect(sessionDigest.range.indexBase).toBe('zero-based-jsonl-frame-index');
+
+    const legacySchemaVersion: Digest['schemaVersion'] = 1;
+    const legacyIndexBase: Digest['range']['indexBase'] =
+      'zero-based-jsonl-record-index';
+
+    expect(legacySchemaVersion).toBe(1);
+    expect(legacyIndexBase).toBe('zero-based-jsonl-record-index');
+  });
+
+  test('round-trips the fixture without losing frame provenance or lifecycle evidence', () => {
+    const serialized = JSON.stringify(cursorDigestV2Fixture);
+    const parsed = JSON.parse(serialized) as CursorDigestV2;
+    const completionFixture = {
+      ...cursorDigestV2Fixture,
+      cursorEvidence: {
+        ...cursorDigestV2Fixture.cursorEvidence,
+        projection: 'confirmed-completion',
+      },
+    } satisfies CursorDigestV2;
+
+    expect(parsed).toEqual(cursorDigestV2Fixture);
+    expect(parsed.entries).toEqual([
+      expect.objectContaining({
+        recordIndex: 5,
+        sourceFrameIndex: 5,
+        entryKey: 'entry-assistant-5',
+        availability: 'pending-lifecycle',
+      }),
+      expect.objectContaining({
+        recordIndex: 9,
+        sourceFrameIndex: 8,
+        entryKey: 'entry-assistant-8',
+        availability: 'completed',
+      }),
+    ]);
+    expect(parsed.cursorEvidence).toMatchObject({
+      projection: 'observation',
+      continuity: 'verified',
+      bufferedFromFrame: 11,
+      blockingFrame: {
+        frameIndex: 11,
+        parseState: 'malformed',
+      },
+      lifecycleEvents: [
+        {
+          terminalFrameIndex: 9,
+          lifecycle: 'success',
+          finalEntryKey: 'entry-assistant-8',
+        },
+      ],
+    });
+    expect(
+      (JSON.parse(JSON.stringify(completionFixture)) as CursorDigestV2)
+        .cursorEvidence.projection,
+    ).toBe('confirmed-completion');
+  });
+
+  test('balances raw, rendered, filtered, and buffered frame accounting', () => {
+    const { accounting, range } = cursorDigestV2Fixture;
+    const filteredCount = Object.values(accounting.filtered).reduce(
+      (total, count) => total + count,
+      0,
+    );
+
+    expect(accounting.raw.count).toBe(
+      accounting.rendered.count + filteredCount,
+    );
+    expect(accounting.raw.count).toBe(range.newFrames);
+    expect(accounting.raw.nextIndex - accounting.raw.fromIndex).toBe(
+      accounting.raw.count,
+    );
+    expect(accounting.raw.toIndex).toBe(accounting.raw.nextIndex - 1);
+    expect(accounting.buffered.count).toBe(
+      accounting.raw.totalFrames - accounting.raw.nextIndex,
+    );
+    expect(accounting.buffered.fromIndex).toBe(accounting.raw.nextIndex);
+  });
+
+  test('keeps lifecycle, recovery, and blocking metadata structural-only', () => {
+    const structuralMetadata = {
+      cursorEvidence: cursorDigestV2Fixture.cursorEvidence,
+      recovery: cursorDigestV2Fixture.accounting.recovery,
+    };
+    const serialized = JSON.stringify(structuralMetadata);
+
+    expect(serialized).not.toContain('Synthetic pending observation.');
+    expect(serialized).not.toContain('Synthetic completed observation.');
+    expect(serialized).not.toMatch(/"(text|message|prose|rawContent)":/);
+    expect(structuralMetadata.cursorEvidence.lifecycleEvents[0]).toEqual({
+      turnId: 'turn-1',
+      terminalFrameIndex: 9,
+      lifecycle: 'success',
+      finalEntryKey: 'entry-assistant-8',
+      contentPreviouslyObservable: true,
+    });
+  });
+});
 
 // ---------------------------------------------------------------------------
 // buildDigest
