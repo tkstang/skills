@@ -14,6 +14,7 @@ import {
   mkdir,
   readdir,
   readFile,
+  stat,
   unlink,
 } from 'node:fs/promises';
 import { homedir } from 'node:os';
@@ -36,6 +37,9 @@ import type {
 const SCHEMA_VERSION = 1;
 const LOCK_RETRIES = 100;
 const LOCK_INTERVAL_MS = 50;
+// A healthy acquire+mutate+release cycle never holds the lock this long, so a
+// lock older than the entire retry window cannot belong to a live writer.
+const LOCK_STALE_MS = LOCK_RETRIES * LOCK_INTERVAL_MS;
 const CONTROL_DIRECTIVES = new Set(['flush', 'pause', 'resume', 'stop']);
 
 function isErrnoException(err: unknown): err is NodeJS.ErrnoException {
@@ -83,14 +87,62 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/**
+ * Decide whether an existing lock file is stale enough to reclaim: its owner
+ * PID is recorded and dead, or the lock predates the entire retry window.
+ * The age branch also covers an unreadable/empty lock file and the PID-reuse
+ * edge case — a recycled PID that happens to be live keeps the lock only
+ * until the age threshold; a healthy writer never holds the lock that long,
+ * so this is an acceptable tradeoff rather than a live-owner theft risk.
+ * Uses isPidLive (below) — function declarations hoist, so this can be
+ * defined before that one in file order.
+ */
+async function isLockStale(lock: string): Promise<boolean> {
+  let pid: number | null = null;
+  try {
+    const raw = (await readFile(lock, 'utf8')).trim();
+    const parsed = Number.parseInt(raw, 10);
+    if (Number.isInteger(parsed) && parsed > 0) pid = parsed;
+  } catch {
+    // Unreadable (including ENOENT — the owner may have just released it) —
+    // fall through to the age check below.
+  }
+  if (pid !== null && !isPidLive(pid)) return true;
+
+  try {
+    const st = await stat(lock);
+    return Date.now() - st.mtimeMs > LOCK_STALE_MS;
+  } catch {
+    // Lock disappeared between the read above and this stat — nothing left
+    // to reclaim; the caller's next open('wx') resolves the race on its own.
+    return false;
+  }
+}
+
 async function acquireLock(lock: string): Promise<void> {
+  // Reclaim at most once per acquisition attempt: on EEXIST, a stale lock is
+  // unlinked and open('wx') is retried immediately, which is the sole
+  // arbiter of exactly one winner when multiple contenders reclaim at once
+  // (unlink is not itself exclusive — the next open('wx') is).
+  let reclaimAttempted = false;
   for (let i = 0; i < LOCK_RETRIES; i++) {
     try {
       const fh = await open(lock, 'wx');
+      await fh.write(String(process.pid));
       await fh.close();
       return;
     } catch (err) {
       if (!isErrnoException(err) || err.code !== 'EEXIST') throw err;
+      if (!reclaimAttempted && (await isLockStale(lock))) {
+        reclaimAttempted = true;
+        try {
+          await unlink(lock);
+        } catch {
+          // Another contender may have reclaimed it first, or the owner
+          // released it — either way, fall through to retry open('wx').
+        }
+        continue;
+      }
       await sleep(LOCK_INTERVAL_MS);
     }
   }
