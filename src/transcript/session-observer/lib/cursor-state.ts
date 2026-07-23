@@ -386,6 +386,9 @@ function isLegacyMarker(value: unknown): value is LegacyCursorStateMarker {
       'runtime',
       'sessionId',
       'legacyLastRecordIndex',
+      'transcriptPath',
+      'recordedCwd',
+      'lastReadAt',
       'backupPath',
       'migrationStatus',
       'createdAt',
@@ -394,6 +397,14 @@ function isLegacyMarker(value: unknown): value is LegacyCursorStateMarker {
     typeof value.sessionId === 'string' &&
     value.sessionId.length > 0 &&
     isNonNegativeInteger(value.legacyLastRecordIndex) &&
+    (value.transcriptPath === undefined ||
+      typeof value.transcriptPath === 'string') &&
+    (value.recordedCwd === undefined ||
+      value.recordedCwd === null ||
+      typeof value.recordedCwd === 'string') &&
+    (value.lastReadAt === undefined ||
+      (typeof value.lastReadAt === 'string' &&
+        Number.isFinite(Date.parse(value.lastReadAt)))) &&
     typeof value.backupPath === 'string' &&
     ['marker-written', 'legacy-removed', 'complete'].includes(
       String(value.migrationStatus),

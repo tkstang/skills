@@ -21,6 +21,7 @@ import {
 const SCHEMA_VERSION = 1;
 const LOCK_RETRIES = 100;
 const LOCK_INTERVAL_MS = 50;
+const CURSOR_COMPATIBILITY = "pre-integration-record-index";
 let migrationBackupSequence = 0;
 function isErrnoException(err) {
   return err instanceof Error && "code" in err;
@@ -149,6 +150,9 @@ async function writeState(dir, state) {
 function sessionKey(runtime, sessionId) {
   return `${runtime}:${sessionId}`;
 }
+function isCursorCompatibilityEntry(entry) {
+  return entry?.runtime === "cursor" && entry.cursorCompatibility === CURSOR_COMPATIBILITY;
+}
 function zeroSession(entry) {
   return {
     ...entry,
@@ -246,6 +250,7 @@ async function migrateLegacyCursorState(sessionId, options = {}) {
     const legacy = await loadLegacyState();
     const entry = legacy.sessions[sessionKey("cursor", sessionId)];
     if (!entry) return null;
+    if (isCursorCompatibilityEntry(entry)) return null;
     if (entry.runtime !== "cursor" || !Number.isSafeInteger(entry.lastRecordIndex) || entry.lastRecordIndex < 0) {
       throw new Error("LEGACY_CURSOR_INVALID");
     }
@@ -253,6 +258,9 @@ async function migrateLegacyCursorState(sessionId, options = {}) {
       runtime: "cursor",
       sessionId,
       legacyLastRecordIndex: entry.lastRecordIndex,
+      ...typeof entry.transcriptPath === "string" ? { transcriptPath: entry.transcriptPath } : {},
+      ...entry.recordedCwd === null || typeof entry.recordedCwd === "string" ? { recordedCwd: entry.recordedCwd } : {},
+      ...typeof entry.lastReadAt === "string" && Number.isFinite(Date.parse(entry.lastReadAt)) ? { lastReadAt: entry.lastReadAt } : {},
       backupPath: nextMigrationBackupPath(stateDir()),
       migrationStatus: "marker-written",
       createdAt: (/* @__PURE__ */ new Date()).toISOString()
@@ -294,12 +302,17 @@ function cursorRecoveryEntry(marker) {
     recoveryCode: "LEGACY_CURSOR_UNVERIFIED",
     legacyLastRecordIndex: marker.legacyLastRecordIndex,
     migrationStatus: marker.migrationStatus,
-    backupPath: marker.backupPath
+    backupPath: marker.backupPath,
+    ...marker.transcriptPath ? { transcriptPath: marker.transcriptPath } : {},
+    ...marker.recordedCwd !== void 0 ? { recordedCwd: marker.recordedCwd } : {},
+    ...marker.lastReadAt ? { lastReadAt: marker.lastReadAt } : {}
   };
 }
 async function load() {
   let legacy = await loadLegacyState();
-  const legacyCursorIds = Object.values(legacy.sessions).filter((entry) => entry.runtime === "cursor").map((entry) => entry.sessionId);
+  const legacyCursorIds = Object.values(legacy.sessions).filter(
+    (entry) => entry.runtime === "cursor" && !isCursorCompatibilityEntry(entry)
+  ).map((entry) => entry.sessionId);
   for (const sessionId of legacyCursorIds) {
     await migrateLegacyCursorState(sessionId);
   }
@@ -341,16 +354,27 @@ async function mutate(fn) {
 }
 async function getSession(runtime, sessionId) {
   if (runtime === "cursor") {
-    const marker = await migrateLegacyCursorState(sessionId);
-    if (marker) {
-      throw new Error(
-        `LEGACY_CURSOR_UNVERIFIED: reset cursor:${sessionId} to replay from frame zero`
-      );
-    }
+    const legacy = await loadLegacyState();
+    const compatibility = legacy.sessions[sessionKey(runtime, sessionId)];
     const cursor = await loadCursorState();
     if (cursor.sessions[cursorSessionKey(sessionId)]) {
       throw new Error(
         "CURSOR_STATE_V2_REQUIRES_OBSERVATION_PROJECTION: legacy record-index reads are disabled"
+      );
+    }
+    const existingMarker = cursor.legacyUnverified[cursorSessionKey(sessionId)];
+    if (existingMarker?.legacyLastRecordIndex !== void 0) {
+      if (existingMarker.legacyLastRecordIndex === 0) return null;
+      throw new Error(
+        `LEGACY_CURSOR_UNVERIFIED: reset cursor:${sessionId} to replay from frame zero`
+      );
+    }
+    if (isCursorCompatibilityEntry(compatibility)) return compatibility;
+    const marker = await migrateLegacyCursorState(sessionId);
+    if (marker) {
+      if (marker.legacyLastRecordIndex === 0) return null;
+      throw new Error(
+        `LEGACY_CURSOR_UNVERIFIED: reset cursor:${sessionId} to replay from frame zero`
       );
     }
     return null;
@@ -366,9 +390,58 @@ async function markRead(runtime, sessionId, {
   recordedCwd
 }) {
   if (runtime === "cursor") {
-    throw new Error(
-      "CURSOR_STATE_V2_REQUIRED: legacy record-index Cursor writes are disabled"
-    );
+    const key2 = cursorSessionKey(sessionId);
+    const cursor = await loadCursorState();
+    if (cursor.sessions[key2]) {
+      throw new Error(
+        "CURSOR_STATE_V2_REQUIRED: legacy record-index Cursor writes are disabled"
+      );
+    }
+    const marker = cursor.legacyUnverified[key2];
+    if (marker && marker.legacyLastRecordIndex !== 0) {
+      throw new Error(
+        `LEGACY_CURSOR_UNVERIFIED: reset cursor:${sessionId} to replay from frame zero`
+      );
+    }
+    await mutate((state) => {
+      const existing = state.sessions[key2];
+      state.sessions[key2] = {
+        ...existing,
+        runtime,
+        sessionId,
+        lastRecordIndex,
+        lastTotalRecords,
+        lastReadAt: (/* @__PURE__ */ new Date()).toISOString(),
+        transcriptPath,
+        recordedCwd,
+        watchedByPid: existing?.watchedByPid ?? null,
+        cursorCompatibility: CURSOR_COMPATIBILITY
+      };
+    });
+    try {
+      await mutateCursorState((state) => {
+        if (state.sessions[key2]) {
+          throw new Error(
+            "CURSOR_STATE_V2_REQUIRED: legacy record-index Cursor writes are disabled"
+          );
+        }
+        const current = state.legacyUnverified[key2];
+        if (current && current.legacyLastRecordIndex !== 0) {
+          throw new Error(
+            `LEGACY_CURSOR_UNVERIFIED: reset cursor:${sessionId} to replay from frame zero`
+          );
+        }
+        delete state.legacyUnverified[key2];
+      });
+    } catch (error) {
+      await mutate((state) => {
+        if (isCursorCompatibilityEntry(state.sessions[key2])) {
+          delete state.sessions[key2];
+        }
+      });
+      throw error;
+    }
+    return;
   }
   const key = sessionKey(runtime, sessionId);
   await mutate((state) => {
@@ -389,9 +462,15 @@ async function markRead(runtime, sessionId, {
 }
 async function setWatchedByPid(runtime, sessionId, pid) {
   if (runtime === "cursor") {
-    throw new Error(
-      "CURSOR_STATE_V2_REQUIRED: legacy Cursor watcher ownership is disabled"
-    );
+    const key2 = sessionKey(runtime, sessionId);
+    let updated2 = false;
+    await mutate((state) => {
+      const existing = state.sessions[key2];
+      if (!isCursorCompatibilityEntry(existing)) return;
+      state.sessions[key2] = { ...existing, watchedByPid: pid };
+      updated2 = true;
+    });
+    return updated2;
   }
   const key = sessionKey(runtime, sessionId);
   let updated = false;
@@ -409,9 +488,16 @@ async function setWatchedByPid(runtime, sessionId, pid) {
 }
 async function clearWatchedByPid(runtime, sessionId, pid) {
   if (runtime === "cursor") {
-    throw new Error(
-      "CURSOR_STATE_V2_REQUIRED: legacy Cursor watcher ownership is disabled"
-    );
+    const key2 = sessionKey(runtime, sessionId);
+    let updated2 = false;
+    await mutate((state) => {
+      const existing = state.sessions[key2];
+      if (!isCursorCompatibilityEntry(existing)) return;
+      if (pid !== void 0 && existing.watchedByPid !== pid) return;
+      state.sessions[key2] = { ...existing, watchedByPid: null };
+      updated2 = true;
+    });
+    return updated2;
   }
   const key = sessionKey(runtime, sessionId);
   let updated = false;

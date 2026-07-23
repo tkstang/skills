@@ -206,10 +206,13 @@ function isLegacyMarker(value) {
     "runtime",
     "sessionId",
     "legacyLastRecordIndex",
+    "transcriptPath",
+    "recordedCwd",
+    "lastReadAt",
     "backupPath",
     "migrationStatus",
     "createdAt"
-  ]) && value.runtime === "cursor" && typeof value.sessionId === "string" && value.sessionId.length > 0 && isNonNegativeInteger(value.legacyLastRecordIndex) && typeof value.backupPath === "string" && ["marker-written", "legacy-removed", "complete"].includes(
+  ]) && value.runtime === "cursor" && typeof value.sessionId === "string" && value.sessionId.length > 0 && isNonNegativeInteger(value.legacyLastRecordIndex) && (value.transcriptPath === void 0 || typeof value.transcriptPath === "string") && (value.recordedCwd === void 0 || value.recordedCwd === null || typeof value.recordedCwd === "string") && (value.lastReadAt === void 0 || typeof value.lastReadAt === "string" && Number.isFinite(Date.parse(value.lastReadAt))) && typeof value.backupPath === "string" && ["marker-written", "legacy-removed", "complete"].includes(
     String(value.migrationStatus)
   ) && typeof value.createdAt === "string";
 }

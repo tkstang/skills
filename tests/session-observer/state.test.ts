@@ -455,6 +455,87 @@ it('composes legacy state with explicit legacy-unverified Cursor markers', async
     await expect(state.getSession('cursor', 'legacy')).rejects.toThrow(
       'LEGACY_CURSOR_UNVERIFIED',
     );
+    await expect(
+      state.markRead('cursor', 'legacy', {
+        lastRecordIndex: 1,
+        lastTotalRecords: 12,
+        transcriptPath: '/tmp/legacy.jsonl',
+        recordedCwd: '/project',
+      }),
+    ).rejects.toThrow('LEGACY_CURSOR_UNVERIFIED');
+  });
+});
+
+it('preserves zero-offset Cursor preference metadata without creating v2 ownership', async () => {
+  await withTmpStateDir(async (dir) => {
+    await writeFile(
+      join(dir, 'state.json'),
+      JSON.stringify({
+        schemaVersion: 1,
+        sessions: {
+          'cursor:legacy-zero': {
+            runtime: 'cursor',
+            sessionId: 'legacy-zero',
+            lastRecordIndex: 0,
+            lastTotalRecords: 4,
+            lastReadAt: '2026-05-17T12:00:00.000Z',
+            transcriptPath: '/tmp/legacy-zero.jsonl',
+            recordedCwd: '/project',
+          },
+        },
+      }),
+    );
+
+    const composed: any = await state.load();
+    expect(composed.sessions['cursor:legacy-zero']).toMatchObject({
+      runtime: 'cursor',
+      lastRecordIndex: 0,
+      recoveryRequired: true,
+      recordedCwd: '/project',
+      transcriptPath: '/tmp/legacy-zero.jsonl',
+    });
+    await expect(state.getSession('cursor', 'legacy-zero')).resolves.toBeNull();
+    expect((await loadCursorState()).sessions).toEqual({});
+  });
+});
+
+it('projects pre-integration Cursor record indexes without creating v2 ownership', async () => {
+  await withTmpStateDir(async (dir) => {
+    await state.markRead('cursor', 'compat', {
+      lastRecordIndex: 3,
+      lastTotalRecords: 4,
+      transcriptPath: '/tmp/compat.jsonl',
+      recordedCwd: '/project',
+    });
+
+    const raw = JSON.parse(await readFile(join(dir, 'state.json'), 'utf8'));
+    expect(raw.sessions['cursor:compat']).toMatchObject({
+      runtime: 'cursor',
+      lastRecordIndex: 3,
+      cursorCompatibility: 'pre-integration-record-index',
+    });
+    await expect(state.getSession('cursor', 'compat')).resolves.toMatchObject({
+      lastRecordIndex: 3,
+      cursorCompatibility: 'pre-integration-record-index',
+    });
+    await expect(state.load()).resolves.toMatchObject({
+      sessions: {
+        'cursor:compat': {
+          lastRecordIndex: 3,
+          cursorCompatibility: 'pre-integration-record-index',
+        },
+      },
+    });
+    await expect(state.setWatchedByPid('cursor', 'compat', 4321)).resolves.toBe(
+      true,
+    );
+    await expect(
+      state.clearWatchedByPid('cursor', 'compat', 4321),
+    ).resolves.toBe(true);
+
+    const cursor = await loadCursorState();
+    expect(cursor.sessions).toEqual({});
+    expect(cursor.legacyUnverified).toEqual({});
   });
 });
 

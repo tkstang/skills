@@ -134,6 +134,9 @@ export interface LegacyCursorStateMarker {
   runtime: 'cursor';
   sessionId: string;
   legacyLastRecordIndex: number;
+  transcriptPath?: string;
+  recordedCwd?: string | null;
+  lastReadAt?: string;
   backupPath: string;
   migrationStatus: 'marker-written' | 'legacy-removed' | 'complete';
   createdAt: string;
