@@ -26,6 +26,7 @@
     "plugins/consensus/scripts/loop-validation.mjs",
     "plugins/consensus/scripts/loop-records.mjs",
     "plugins/consensus/scripts/loop-prompts.mjs",
+    "plugins/consensus/scripts/loop-provider.mjs",
     "plugins/consensus/scripts/consensus-cli-helpers.mjs",
     "plugins/consensus/skills/create/scripts/consensus-cli-helpers.mjs",
     "plugins/consensus/skills/decide/scripts/consensus-cli-helpers.mjs",
