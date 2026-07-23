@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-23
-oat_current_task_id: p03-t03
+oat_current_task_id: p03-t04
 oat_generated: false
 ---
 
@@ -28,12 +28,12 @@ oat_generated: false
 | ------- | ----------- | ----- | --------- |
 | Phase 1 | complete    | 5     | 5/5       |
 | Phase 2 | complete    | 8     | 8/8       |
-| Phase 3 | in_progress | 7     | 2/7       |
+| Phase 3 | in_progress | 7     | 3/7       |
 | Phase 4 | pending     | 6     | 0/6       |
 | Phase 5 | pending     | 6     | 0/6       |
 | Phase 6 | pending     | 4     | 0/4       |
 
-**Total:** 15/36 tasks accepted
+**Total:** 16/36 tasks accepted
 
 ---
 
@@ -652,6 +652,7 @@ are resolved; Phase 2 is complete.
 | ------- | -------- | --------- | ------- |
 | p03-t01 | complete | `f6934db` | Defined the discriminated Cursor digest v2 frame, accounting, projection, availability, lifecycle, recovery, and blocking contracts with balanced structural-only fixture coverage. |
 | p03-t02 | complete | `330a360` | Added schema-v2 Cursor digest dispatch with separate observation and confirmed-completion projections, independent status facets, recovery/blocking metadata, and preserved v1 rendering. |
+| p03-t03 | complete | `52e5043` | Characterized caller-owned output versus legacy state mutation, deterministic write/stdout failures, and reusable Cursor valid/malformed/unterminated frame fixtures without changing runtime behavior. |
 
 ### Task p03-t01: Define Cursor digest v2 types and fixture contracts
 
@@ -667,6 +668,13 @@ build, generated-output parity, and diff checks passed.
 **Verification:** The specified digest and runtime suites passed 99/99;
 type-check, build, generated-output parity, file-scoped formatting/lint, legacy
 collaboration wake regression, and diff checks passed.
+
+### Task p03-t03: Characterize observation output ownership
+
+**Status:** completed
+**Commit:** `52e5043`
+**Verification:** Observe/integration tests passed 19/19; type-check,
+file-scoped formatting/lint, and diff checks passed.
 
 ---
 
@@ -688,7 +696,7 @@ Track test execution during implementation.
 | ----- | --------- | ------ | ------ | -------- |
 | 1     | Focused re-review + full suite | 137 focused; 1,148 full; 1 skipped | 0 | Frames, analyzer, runtimes, generated outputs, Export compatibility |
 | 2     | Fix-task re-review + full suite | 146 focused; 1,327 full; 1 skipped | 0; review passed | Atomic lock publication, exact raw-alias containment, Cursor v2 recovery guidance, generated outputs |
-| 3     | p03-t01 through p03-t02 focused verification | 99 digest/runtime tests; 2 legacy wake regressions | 0 | Digest v2 contracts and projections, observation/completion separation, v1 rendering compatibility |
+| 3     | p03-t01 through p03-t03 focused verification | 99 digest/runtime tests; 2 legacy wake regressions; 19 observe/integration tests | 0 | Digest v2 contracts/projections, v1 rendering compatibility, output/state ownership characterization |
 
 ## Final Summary (for PR/docs)
 
