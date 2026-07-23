@@ -1,6 +1,9 @@
 export type OwnerRuntime = 'codex' | 'cursor';
 export type PeerRuntime = 'claude-code' | OwnerRuntime;
 export type Runtime = OwnerRuntime;
+export type CompletionIndexBase =
+  | 'zero-based-jsonl-record-index'
+  | 'zero-based-jsonl-frame-index';
 export type LeaseState =
   | 'armed'
   | 'waiting'
@@ -8,8 +11,18 @@ export type LeaseState =
   | 'triggered'
   | 'disarmed';
 
+export interface TranscriptContinuityCheckpoint {
+  indexBase: 'zero-based-jsonl-frame-index';
+  nextFrameIndex: number;
+  prefixBytes: number;
+  prefixSha256: string;
+  observedSize: number;
+  device: number | null;
+  inode: number | null;
+}
+
 export interface Lease {
-  schemaVersion: number;
+  schemaVersion: 6;
   leaseId: string;
   runtime: OwnerRuntime;
   peerRuntime: PeerRuntime;
@@ -17,8 +30,11 @@ export interface Lease {
   ownerCwd: string;
   peerSession: string;
   peerTranscript: string;
+  peerCanonicalTranscriptPath: string;
+  peerIndexBase: CompletionIndexBase;
   state: LeaseState;
   peerCursor: number;
+  peerContinuity: TranscriptContinuityCheckpoint | null;
   continuationCount: number;
   continuationCap: number;
   loopCount: number;
@@ -44,6 +60,7 @@ export interface LeaseCounters {
 
 export interface LeaseUpdate {
   peerCursor: number;
+  peerContinuity?: TranscriptContinuityCheckpoint | null;
   loopIncrement?: number;
   terminal?: boolean;
   diagnostic?: string | null;
@@ -72,6 +89,19 @@ export function validateOwnerRuntime(value: unknown): OwnerRuntime;
 export function validatePeerRuntime(value: unknown): PeerRuntime;
 export function validateRuntime(value: unknown): OwnerRuntime;
 export function validateAbsolutePath(value: unknown, label: string): string;
+export function peerIndexBase(peerRuntime: PeerRuntime): CompletionIndexBase;
+export function validatePeerIndexBase(
+  value: unknown,
+  peerRuntime: PeerRuntime,
+): CompletionIndexBase;
+export function canonicalizePeerTranscript(
+  peerRuntime: PeerRuntime,
+  peerTranscript: unknown,
+): Promise<{
+  readonly peerTranscript: string;
+  readonly peerCanonicalTranscriptPath: string;
+  readonly peerIndexBase: CompletionIndexBase;
+}>;
 export function leasePath(root: string, ownerSession: string): string;
 export function migrateLease(input: unknown): Lease;
 export function validateLease(raw: unknown): Lease;
@@ -104,7 +134,7 @@ export function compareAndSwapCursor(
   root: string,
   ownerSession: string,
   expected: LeaseCounters,
-  peerCursor: number,
+  cursorUpdate: number | Pick<LeaseUpdate, 'peerCursor' | 'peerContinuity'>,
   now?: number,
 ): Promise<
   { ok: true; lease: Lease } | { ok: false; reason: string; lease?: Lease }
@@ -128,9 +158,7 @@ export function recoverOrphanedWait(
   now?: number,
   options?: {
     expected?: { leaseId: string; waitToken: string };
-    isWaiterLive?: (
-      waiter: WaiterIdentity,
-    ) => Promise<boolean | undefined>;
+    isWaiterLive?: (waiter: WaiterIdentity) => Promise<boolean | undefined>;
   },
 ): Promise<{
   recovered: boolean;
@@ -153,14 +181,12 @@ export function pruneLeases(
 ): Promise<string[]>;
 
 declare module '../../skills/session-observer-collab/scripts/lib/lease-state.mjs' {
-  export function createWaiterIdentity(
-    pid?: number,
-  ): Promise<WaiterIdentity>;
+  export function createWaiterIdentity(pid?: number): Promise<WaiterIdentity>;
   export function compareAndSwapCursor(
     root: string,
     ownerSession: string,
     expected: LeaseCounters,
-    peerCursor: number,
+    cursorUpdate: number | Pick<LeaseUpdate, 'peerCursor' | 'peerContinuity'>,
     now?: number,
   ): Promise<
     { ok: true; lease: Lease } | { ok: false; reason: string; lease?: Lease }
@@ -171,9 +197,7 @@ declare module '../../skills/session-observer-collab/scripts/lib/lease-state.mjs
     now?: number,
     options?: {
       expected?: { leaseId: string; waitToken: string };
-      isWaiterLive?: (
-        waiter: WaiterIdentity,
-      ) => Promise<boolean | undefined>;
+      isWaiterLive?: (waiter: WaiterIdentity) => Promise<boolean | undefined>;
     },
   ): Promise<{
     recovered: boolean;

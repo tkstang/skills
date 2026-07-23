@@ -19,6 +19,7 @@ import {
   MAX_LEASE_MS,
   MAX_LOOPS,
   atomicWriteJson,
+  canonicalizePeerTranscript,
   effectiveLease,
   leasePath,
   pruneLeases,
@@ -28,6 +29,7 @@ import {
   validateAbsolutePath,
   validateId,
   validateOwnerRuntime,
+  validatePeerIndexBase,
   validatePeerRuntime,
   withLeaseLock,
 } from './lib/lease-state.mjs';
@@ -135,10 +137,13 @@ export async function arm(root, options, now = Date.now()) {
   const ownerSession = validateId(options.session, 'owner-session');
   const peerSession = validateId(options.peerSession, 'peer-session');
   const ownerCwd = validateAbsolutePath(options.cwd, 'owner-cwd');
-  const peerTranscript = validateAbsolutePath(
+  const peerPath = await canonicalizePeerTranscript(
+    peerRuntime,
     options.peerTranscript,
-    'peer-transcript',
   );
+  if (options.peerIndexBase !== undefined) {
+    validatePeerIndexBase(options.peerIndexBase, peerRuntime);
+  }
   const waitMs = numberOption(
     options.waitMs ?? DEFAULT_WAIT_MS,
     'wait-ms',
@@ -175,17 +180,24 @@ export async function arm(root, options, now = Date.now()) {
     ownerSession,
     ownerCwd,
     peerSession,
-    peerTranscript,
+    ...peerPath,
   };
   const file = leasePath(root, ownerSession);
   return withCodexLifecycleLock(root, () =>
     withLeaseLock(file, async () => {
-      const existing = await readLease(root, ownerSession, {
-        persistMigration: false,
-      });
+      let existing;
+      try {
+        existing = await readLease(root, ownerSession, {
+          persistMigration: false,
+        });
+      } catch (error) {
+        if (error?.code !== 'cursor-lease-rearm-required') throw error;
+        existing = null;
+      }
       const request = {
         ...identity,
         peerCursor: cursor,
+        peerContinuity: null,
         continuationCap,
         loopCap,
         waitMs,
@@ -205,6 +217,7 @@ export async function arm(root, options, now = Date.now()) {
         ...identity,
         state: 'armed',
         peerCursor: cursor,
+        peerContinuity: null,
         continuationCount: 0,
         continuationCap,
         loopCount: 0,
