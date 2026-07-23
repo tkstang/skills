@@ -1057,6 +1057,41 @@ test('cursor identity: symlink-equivalent cwd resolves to one canonical identity
   });
 });
 
+test('cursor identity: raw symlink alias store variants remain diagnostic-only', async () => {
+  await withTempHome(async (home) => {
+    const physicalCwd = join(home, 'Code', 'physical-alias-only-project');
+    const aliasCwd = join(home, 'Code', 'raw-alias-only-project');
+    await mkdir(physicalCwd, { recursive: true });
+    await symlink(physicalCwd, aliasCwd, 'dir');
+
+    const aliasTranscriptDir = join(
+      home,
+      '.cursor',
+      'projects',
+      encodeCursorCwd(aliasCwd),
+      'agent-transcripts',
+      'session-raw-alias',
+    );
+    await mkdir(aliasTranscriptDir, { recursive: true });
+    const transcriptPath = join(aliasTranscriptDir, 'transcript.jsonl');
+    await writeFile(transcriptPath, CURSOR_TYPICAL, 'utf8');
+
+    const [candidate] = await discover('cursor', aliasCwd);
+    expect(candidate.cwdEvidence).toBe('raw-cwd-alias');
+    expect(
+      await resolveCursorIdentity(candidate, aliasCwd, 'session-raw-alias'),
+    ).toMatchObject({
+      canonicalCwd: await realpath(physicalCwd),
+      canonicalTranscriptPath: await realpath(transcriptPath),
+      strength: 'diagnostic',
+      reasons: expect.arrayContaining([
+        'RAW_CWD_ALIAS_DIAGNOSTIC_ONLY',
+        'WEAK_CWD_EVIDENCE',
+      ]),
+    });
+  });
+});
+
 test('cursor identity: transcript symlinks escaping the supported store are rejected', async () => {
   await withTempHome(async (home) => {
     const targetCwd = join(home, 'Code', 'escape-project');

@@ -772,6 +772,22 @@ async function runLocate(args) {
     0
   );
 }
+function cursorStateRecoveryDiagnostic(error) {
+  if (!(error instanceof Error) || !("code" in error) || error.code !== "CURSOR_STATE_RECOVERY_REQUIRED" || !("reason" in error) || error.reason !== "corrupt" && error.reason !== "schema") {
+    return null;
+  }
+  return {
+    error: true,
+    code: "CURSOR_STATE_RECOVERY_REQUIRED",
+    reason: error.reason,
+    recovery: {
+      command: "session-observer state reset --runtime cursor",
+      scope: "cursor-store",
+      destructive: true,
+      preservesSiblingSessions: false
+    }
+  };
+}
 async function runState(args) {
   const { stateOp, json } = args;
   const { runtime } = args;
@@ -819,6 +835,8 @@ async function runState(args) {
             );
           return emit(`Reset session: ${sessionRuntime}:${sessionId}`, 0);
         } catch (err) {
+          const recovery = cursorStateRecoveryDiagnostic(err);
+          if (json && recovery) return emitJson(recovery, 1);
           const message = err instanceof Error ? err.message : String(err);
           return emitError(`Failed to reset state: ${message}`, 1);
         }
@@ -836,9 +854,13 @@ async function runState(args) {
         );
       }
       try {
-        const count = await stateLib.resetByRuntime(runtime);
-        if (json) return emitJson({ reset: true, runtime, count }, 0);
-        return emit(`Reset ${count} session(s) for runtime: ${runtime}`, 0);
+        const result = await stateLib.resetByRuntimeWithDiagnostics(runtime);
+        if (json) return emitJson({ reset: true, ...result }, 0);
+        const recovery = result.recovery ? ` Destructively recovered the ${result.recovery.reason} shared Cursor store; sibling sessions could not be preserved.` : "";
+        return emit(
+          `Reset ${result.count} session(s) for runtime: ${runtime}.${recovery}`,
+          0
+        );
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         return emitError(`Failed to reset state: ${message}`, 1);

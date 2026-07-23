@@ -35,6 +35,7 @@ import type { Dirent, Stats } from 'node:fs';
 import {
   readdir,
   stat,
+  lstat,
   mkdir,
   readFile,
   realpath,
@@ -780,12 +781,29 @@ async function discoverCursor(
   const [projectsRoot] = discoverPaths('cursor');
   const canonicalTargetCwd =
     (await canonicalPath(targetCwd)) ?? targetCwd.replace(/\/+$/u, '');
-  const encodedVariants = [
-    ...new Set([
-      ...encodeCwdVariants('cursor', canonicalTargetCwd),
-      ...encodeCwdVariants('cursor', targetCwd),
-    ]),
+  const canonicalEncodedVariants = new Set(
+    encodeCwdVariants('cursor', canonicalTargetCwd),
+  );
+  const rawEncodedVariants = new Set(encodeCwdVariants('cursor', targetCwd));
+  let suppliedCwdIsAlias = false;
+  try {
+    suppliedCwdIsAlias = (await lstat(targetCwd)).isSymbolicLink();
+  } catch {
+    // A missing/unreadable cwd cannot establish a raw symlink alias.
+  }
+  const directVariants = [
+    ...[...canonicalEncodedVariants].map((encoded) => ({
+      encoded,
+      cwdEvidence: 'direct-parent-dir',
+    })),
+    ...[...rawEncodedVariants]
+      .filter((encoded) => !canonicalEncodedVariants.has(encoded))
+      .map((encoded) => ({
+        encoded,
+        cwdEvidence: suppliedCwdIsAlias ? 'raw-cwd-alias' : 'direct-parent-dir',
+      })),
   ];
+  const encodedVariants = directVariants.map(({ encoded }) => encoded);
   const now = Date.now() / 1000;
   const cutoffSec = now - LOOKBACK_DAYS * 86400;
 
@@ -795,7 +813,7 @@ async function discoverCursor(
   // Cursor direct lookup is intentionally transcript-based, not directory-based:
   // an encoded project dir can exist before it contains usable agent JSONL, so
   // an empty direct dir should still fall through to the fallback project scan.
-  for (const encoded of encodedVariants) {
+  for (const { encoded, cwdEvidence } of directVariants) {
     const transcriptsRoot = join(projectsRoot, encoded, 'agent-transcripts');
     const transcriptPaths =
       await collectCursorAgentTranscripts(transcriptsRoot);
@@ -813,7 +831,7 @@ async function discoverCursor(
         {
           recordedCwd: targetCwd,
           cwdSlug: encoded,
-          cwdEvidence: 'direct-parent-dir',
+          cwdEvidence,
         },
         null,
         cache,
@@ -974,6 +992,9 @@ export async function resolveCursorIdentity(
   const canonicalRecordedCwd = candidate.recordedCwd
     ? await canonicalPath(candidate.recordedCwd)
     : null;
+  if (candidate.cwdEvidence === 'raw-cwd-alias') {
+    reasons.push('RAW_CWD_ALIAS_DIAGNOSTIC_ONLY');
+  }
   if (canonicalRecordedCwd !== null && canonicalRecordedCwd !== canonicalCwd) {
     reasons.push('CANDIDATE_CWD_MISMATCH');
   }

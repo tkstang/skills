@@ -75,8 +75,67 @@ async function killWorkerAtReady(
   await exited;
 }
 
+async function startLegacyEmptyLockHolder(lock: string): Promise<{
+  release(): Promise<void>;
+}> {
+  const child = spawn(
+    process.execPath,
+    [
+      '--input-type=module',
+      '-e',
+      `
+        const { open, unlink } = await import('node:fs/promises');
+        const lock = ${JSON.stringify(lock)};
+        const handle = await open(lock, 'wx', 0o600);
+        await handle.close();
+        process.stdout.write('READY\\n');
+        process.stdin.setEncoding('utf8');
+        process.stdin.once('data', async () => {
+          await unlink(lock);
+          process.stdout.write('RELEASED\\n');
+          process.exit(0);
+        });
+        await new Promise(() => {});
+      `,
+    ],
+    { stdio: ['pipe', 'pipe', 'pipe'] },
+  );
+  let stderr = '';
+  child.stderr.setEncoding('utf8');
+  child.stderr.on('data', (chunk) => {
+    stderr += chunk;
+  });
+  await new Promise<void>((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      child.kill('SIGKILL');
+      reject(new Error(`legacy lock holder did not start: ${stderr}`));
+    }, 5000);
+    child.stdout.setEncoding('utf8');
+    child.stdout.on('data', (chunk: string) => {
+      if (!chunk.includes('READY')) return;
+      clearTimeout(timeout);
+      resolve();
+    });
+    child.once('exit', (code, signal) => {
+      clearTimeout(timeout);
+      reject(
+        new Error(
+          `legacy lock holder exited early code=${code} signal=${signal}: ${stderr}`,
+        ),
+      );
+    });
+  });
+  return {
+    async release() {
+      const exited = once(child, 'exit');
+      child.stdin.write('release\n');
+      await exited;
+    },
+  };
+}
+
 // ---------------------------------------------------------------------------
-// Deterministic lock-race harness: a one-shot `rename` interceptor and a
+// Deterministic lock-race harness: a path-scoped `readFile` interceptor and a
 // path-scoped `open` call counter, used by the stale-lock reclaim tests
 // below in place of wall-clock waits/bounds (see the plan's virtual-clock
 // discipline). state.ts and watch-state.ts have no injectable clock, so
@@ -87,23 +146,33 @@ async function killWorkerAtReady(
 // module-scope declarations; without it, the mutable interceptor/counter
 // state referenced inside the factory would be in the temporal dead zone.
 // ---------------------------------------------------------------------------
-type RenameInterceptor = (
-  src: string,
-  dest: string,
-  real: (src: string, dest: string) => Promise<void>,
-) => Promise<void>;
+type ReadFileInterceptor = (
+  path: string,
+  real: typeof import('node:fs/promises').readFile,
+) => Promise<string>;
 
 const lockRaceHarness = vi.hoisted(() => {
-  let renameInterceptor: RenameInterceptor | null = null;
+  let readInterceptor: {
+    path: string;
+    remaining: number;
+    run: ReadFileInterceptor;
+  } | null = null;
   let openCounter: { path: string; count: number } | null = null;
   return {
-    setRenameInterceptor: (fn: RenameInterceptor | null) => {
-      renameInterceptor = fn;
+    setReadInterceptor: (
+      path: string,
+      call: number,
+      run: ReadFileInterceptor,
+    ) => {
+      readInterceptor = { path, remaining: call, run };
     },
-    takeRenameInterceptor: (): RenameInterceptor | null => {
-      const fn = renameInterceptor;
-      renameInterceptor = null; // one-shot
-      return fn;
+    takeReadInterceptor: (path: string): ReadFileInterceptor | null => {
+      if (!readInterceptor || readInterceptor.path !== path) return null;
+      readInterceptor.remaining -= 1;
+      if (readInterceptor.remaining > 0) return null;
+      const run = readInterceptor.run;
+      readInterceptor = null;
+      return run;
     },
     startOpenCounter: (path: string) => {
       openCounter = { path, count: 0 };
@@ -137,11 +206,18 @@ vi.mock('node:fs/promises', async (importOriginal) => {
         ...rest,
       );
     }) as typeof actual.open,
-    rename: (async (src: string, dest: string) => {
-      const interceptor = lockRaceHarness.takeRenameInterceptor();
-      if (interceptor) return interceptor(src, dest, actual.rename);
-      return actual.rename(src, dest);
-    }) as typeof actual.rename,
+    link: (async (existingPath: string, newPath: string) => {
+      lockRaceHarness.recordOpen(newPath);
+      return actual.link(existingPath, newPath);
+    }) as typeof actual.link,
+    readFile: (async (path: string, ...rest: unknown[]) => {
+      const interceptor = lockRaceHarness.takeReadInterceptor(path);
+      if (interceptor) return interceptor(path, actual.readFile);
+      return (actual.readFile as (...a: unknown[]) => Promise<unknown>)(
+        path,
+        ...rest,
+      );
+    }) as typeof actual.readFile,
   };
 });
 
@@ -974,6 +1050,35 @@ it('explicit Cursor reset removes legacy markers without changing non-Cursor sta
   });
 });
 
+it.each([
+  ['corrupt', '{ corrupt'],
+  ['schema', JSON.stringify({ schemaVersion: 1, sessions: {} })],
+] as const)(
+  'runtime-scoped Cursor reset truthfully reports destructive whole-store %s recovery',
+  async (reason, raw) => {
+    await withTmpStateDir(async (dir) => {
+      await writeFile(join(dir, 'cursor-state.json'), raw);
+      await expect(
+        state.resetByRuntimeWithDiagnostics('cursor'),
+      ).resolves.toMatchObject({
+        runtime: 'cursor',
+        recovery: {
+          performed: true,
+          reason,
+          scope: 'cursor-store',
+          destructive: true,
+          preservesSiblingSessions: false,
+        },
+      });
+      await expect(loadCursorState()).resolves.toEqual({
+        schemaVersion: 2,
+        sessions: {},
+        legacyUnverified: {},
+      });
+    });
+  },
+);
+
 // ---------------------------------------------------------------------------
 // 13. Stale-lock reclaim: dead owner PID
 // Deterministic via the open('wx') call counter rather than a wall-clock
@@ -1059,26 +1164,56 @@ it('acquireLock does not reclaim a fresh live-owner lock; stays pending until th
 });
 
 // ---------------------------------------------------------------------------
-// 15. Stale-lock reclaim: aged empty/garbage lock (no parseable PID)
-// Deterministic via the open('wx') call counter (review finding 2).
+// 15. Pre-upgrade empty locks are owner-unknown and therefore fail closed.
+// A live subprocess models the legacy runtime that published an empty lock.
 // ---------------------------------------------------------------------------
-it('acquireLock reclaims an empty/garbage lock once it is older than the stale threshold', async () => {
-  await withTmpStateDir(async (dir) => {
-    const lock = join(dir, 'state.json.lock');
-    await writeFile(lock, ''); // no parseable PID — falls back to the age check
-
-    const past = new Date(Date.now() - 60 * 60 * 1000); // 1h ago: well past any stale threshold
-    await utimes(lock, past, past);
-
-    lockRaceHarness.startOpenCounter(lock);
-    await state.mutate((s: any) => s);
-    const opens = lockRaceHarness.stopOpenCounter();
-    expect(
-      opens,
-      'an aged garbage lock should be reclaimed within a handful of open("wx") attempts, not the full retry budget',
-    ).toBeLessThan(5);
-  });
-});
+it.each([
+  [
+    'state.json.lock',
+    (dir: string) => join(dir, 'state.json.lock'),
+    () => state.mutate((s: any) => s),
+  ],
+  [
+    'cursor-state.json.lock',
+    (dir: string) => join(dir, 'cursor-state.json.lock'),
+    () => mutateCursorState((s) => s),
+  ],
+  [
+    'cursor-state-transition.lock',
+    (dir: string) => join(dir, 'cursor-state-transition.lock'),
+    () => state.resetByRuntime('cursor'),
+  ],
+] as const)(
+  'a live pre-upgrade empty %s fails closed until its owner releases it',
+  async (_label, lockFor, operation) => {
+    await withTmpStateDir(async (dir) => {
+      const lock = lockFor(dir);
+      const holder = await startLegacyEmptyLockHolder(lock);
+      lockRaceHarness.startOpenCounter(lock);
+      let settled = false;
+      const pending = operation().finally(() => {
+        settled = true;
+      });
+      try {
+        await vi.waitFor(
+          () => {
+            if (lockRaceHarness.peekOpenCount() < 2) {
+              throw new Error('waiting for a second lock attempt');
+            }
+          },
+          { timeout: 2000, interval: 5 },
+        );
+        expect(settled).toBe(false);
+        expect(await readFile(lock, 'utf8')).toBe('');
+      } finally {
+        lockRaceHarness.stopOpenCounter();
+        await holder.release();
+      }
+      await pending;
+      expect(settled).toBe(true);
+    });
+  },
+);
 
 // ---------------------------------------------------------------------------
 // 16. Stale-lock reclaim: a live-owner lock is never reclaimed via age,
@@ -1184,95 +1319,69 @@ it('two concurrent mutate calls against a stale dead-PID lock both land cleanly 
 });
 
 // ---------------------------------------------------------------------------
-// 18. Stale-lock reclaim: the isLockStale → tryReclaim TOCTOU window is
-// closed (review finding 1). tryReclaim's rename-based claim is exclusive
-// per-inode, but its source is the lock *path* — if a losing reclaimer (B)
-// is preempted between its isLockStale read and its rename, a concurrent
-// winner (A) can complete an entire reclaim-and-recreate cycle first,
-// leaving B's rename to detach A's fresh *live* lock instead of the
-// original stale one. Test 17's same-process Promise.all race cannot
-// reproduce this (no control over the interleaving point), so this test
-// forces it deterministically: intercept B's reclaim-claim rename call and,
-// from inside the interceptor, synchronously complete "A"'s full reclaim
-// cycle (real fs calls) before letting B's rename proceed against A's now-
-// fresh lock.
+// 18. Stale-lock reclaim is bound to the exact observed generation.
+// The second read is the removal-time revalidation. Replacing the dead lock
+// immediately before that read deterministically models another reclaimer
+// publishing a fresh live generation in the inspection/removal window.
 // ---------------------------------------------------------------------------
-it("a losing reclaimer never renames away a concurrent winner's fresh live lock (isLockStale→tryReclaim interleaving)", async () => {
-  await withTmpStateDir(async (dir) => {
-    const lock = join(dir, 'state.json.lock');
-    await writeFile(lock, '999999'); // orphaned: dead PID — both "A" and "B" independently judge this stale
-
-    const killSpy = vi
-      .spyOn(process, 'kill')
-      .mockImplementation((pid: number, signal?: string | number) => {
-        expect(signal).toBe(0);
-        if (pid === 999999) {
-          const err = new Error('no such process') as NodeJS.ErrnoException;
-          err.code = 'ESRCH';
-          throw err;
-        }
-        // Any other PID (including this test's own, used for "A"'s fresh
-        // lock below) is live.
-        return true;
-      });
-
-    try {
-      lockRaceHarness.setRenameInterceptor(async (src, dest, real) => {
-        expect(src).toBe(lock);
-        expect(dest).toContain('.reclaim.');
-        // "A" completes an entire reclaim-and-recreate cycle here, using
-        // real fs calls, simulating B having been preempted right after its
-        // isLockStale read returned true (dead PID) but before this rename
-        // ran.
-        await unlink(lock);
-        await writeFile(lock, String(process.pid)); // A's own live PID
-        // Now let B's originally-intended rename proceed — against A's
-        // fresh live lock, not the orphaned one B observed.
-        return real(src, dest);
-      });
-
-      let bSettled = false;
-      const pending = state
-        .mutate((s: any) => s)
-        .finally(() => {
-          bSettled = true;
+it.each([
+  [
+    'state.json.lock',
+    (dir: string) => join(dir, 'state.json.lock'),
+    () => state.mutate((s: any) => s),
+  ],
+  [
+    'cursor-state.json.lock',
+    (dir: string) => join(dir, 'cursor-state.json.lock'),
+    () => mutateCursorState((s) => s),
+  ],
+  [
+    'cursor-state-transition.lock',
+    (dir: string) => join(dir, 'cursor-state-transition.lock'),
+    () => state.resetByRuntime('cursor'),
+  ],
+] as const)(
+  'replacement between inspection and removal never deletes a fresh live generation of %s',
+  async (_label, lockFor, operation) => {
+    await withTmpStateDir(async (dir) => {
+      const lock = lockFor(dir);
+      await writeFile(lock, '999999');
+      const killSpy = vi
+        .spyOn(process, 'kill')
+        .mockImplementation((pid: number, signal?: string | number) => {
+          expect(signal).toBe(0);
+          if (pid === 999999) {
+            const err = new Error('no such process') as NodeJS.ErrnoException;
+            err.code = 'ESRCH';
+            throw err;
+          }
+          return true;
         });
 
-      // Proving B does *not* eventually resolve is an absence, which cannot
-      // be observed at a specific instant the way "at least N open() calls
-      // happened" can (an open('wx') *call* is recorded synchronously, long
-      // before acquireLock's surrounding awaits — including mutate()'s own
-      // read+write+release — have any chance to finish, so polling on call
-      // count alone would race ahead of the buggy code's eventual success
-      // too). state.ts has no injectable clock (review finding 2), so this
-      // is the one wait in this suite that is a genuine, bounded real-time
-      // wait rather than a guessed elapsed bound: it races `pending` against
-      // a generous timeout (10x the internal 50ms retry-poll interval) and
-      // asserts on which one wins, not on how long it took.
-      const outcome = await Promise.race([
-        pending.then(() => 'resolved' as const),
-        sleep(500).then(() => 'timed-out' as const),
-      ]);
+      lockRaceHarness.setReadInterceptor(lock, 2, async (path, real) => {
+        await unlink(path);
+        await writeFile(path, String(process.pid));
+        return real(path, 'utf8');
+      });
 
-      expect(
-        outcome,
-        "B must not resolve after stealing A's fresh live lock — it must detect the live PID, restore it, and back off instead of creating a competing lock",
-      ).toBe('timed-out');
-      expect(bSettled, 'B must still be pending, not resolved').toBe(false);
-
-      // Exactly one lock file exists, and it is still A's.
-      const lockContent = await readFile(lock, 'utf8');
-      expect(lockContent).toBe(String(process.pid));
-      const files = await readdir(dir);
-      expect(files.filter((f) => f.includes('.reclaim.'))).toEqual([]);
-
-      // Simulate A releasing its lock; B's still-pending mutate() should now
-      // proceed normally through the ordinary (non-reclaim) path.
-      await unlink(lock);
-      await pending;
-      expect(bSettled).toBe(true);
-    } finally {
-      killSpy.mockRestore();
-    }
-  });
-});
+      lockRaceHarness.startOpenCounter(lock);
+      let settled = false;
+      const pending = operation().finally(() => {
+        settled = true;
+      });
+      try {
+        await vi.waitFor(() => {
+          expect(lockRaceHarness.peekOpenCount()).toBeGreaterThanOrEqual(3);
+        });
+        expect(await readFile(lock, 'utf8')).toBe(String(process.pid));
+        expect(settled).toBe(false);
+        await unlink(lock);
+        await pending;
+        expect(settled).toBe(true);
+      } finally {
+        lockRaceHarness.stopOpenCounter();
+        killSpy.mockRestore();
+      }
+    });
+  },
+);

@@ -1382,6 +1382,60 @@ describe('state subcommand', () => {
     }
   });
 
+  test.each([
+    ['corrupt', '{ corrupt'],
+    ['schema', JSON.stringify({ schemaVersion: 1, sessions: {} })],
+  ])(
+    'state reset --runtime cursor reports destructive whole-store %s recovery',
+    async (reason, raw) => {
+      const tmpDir = await mkdtemp(join(tmpdir(), 'cli-test-'));
+      try {
+        const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
+        await mkdir(stateDir, { recursive: true });
+        await writeFile(join(stateDir, 'cursor-state.json'), raw, 'utf8');
+
+        const sessionReset = spawnCli(
+          ['state', 'reset', '--session', 'cursor:requested-session', '--json'],
+          { HOME: tmpDir, STATE_DIR: stateDir },
+        );
+        expect(sessionReset.status).toBe(1);
+        expect(JSON.parse(sessionReset.stdout)).toMatchObject({
+          error: true,
+          code: 'CURSOR_STATE_RECOVERY_REQUIRED',
+          reason,
+          recovery: {
+            command: 'session-observer state reset --runtime cursor',
+            scope: 'cursor-store',
+            destructive: true,
+            preservesSiblingSessions: false,
+          },
+        });
+        expect(
+          await readFile(join(stateDir, 'cursor-state.json'), 'utf8'),
+        ).toBe(raw);
+
+        const runtimeReset = spawnCli(
+          ['state', 'reset', '--runtime', 'cursor', '--json'],
+          { HOME: tmpDir, STATE_DIR: stateDir },
+        );
+        expect(runtimeReset.status).toBe(0);
+        expect(JSON.parse(runtimeReset.stdout)).toMatchObject({
+          reset: true,
+          runtime: 'cursor',
+          recovery: {
+            performed: true,
+            reason,
+            scope: 'cursor-store',
+            destructive: true,
+            preservesSiblingSessions: false,
+          },
+        });
+      } finally {
+        await rm(tmpDir, { recursive: true, force: true });
+      }
+    },
+  );
+
   test('state reset --session <r>:<id> resets one entry and leaves others intact', async () => {
     const tmpDir = await mkdtemp(join(tmpdir(), 'cli-test-'));
     try {

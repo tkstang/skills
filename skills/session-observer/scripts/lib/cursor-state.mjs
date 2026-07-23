@@ -6,6 +6,7 @@ import {
   mkdir,
   open,
   readFile,
+  readdir,
   rename,
   stat,
   unlink
@@ -15,13 +16,12 @@ import { join } from "node:path";
 const SCHEMA_VERSION = 2;
 const LOCK_RETRIES = 100;
 const LOCK_INTERVAL_MS = 50;
-const INVALID_LOCK_GRACE_MS = 1e3;
 let backupSequence = 0;
 let lockSequence = 0;
 class CursorStateRecoveryRequiredError extends Error {
   constructor(reason) {
     super(
-      `cursor-state: ${reason} state requires explicit reset and replay before mutation`
+      `cursor-state: ${reason} shared state requires destructive whole-store reset and replay; run session-observer state reset --runtime cursor; sibling Cursor sessions cannot be preserved`
     );
     this.reason = reason;
     this.name = "CursorStateRecoveryRequiredError";
@@ -29,7 +29,9 @@ class CursorStateRecoveryRequiredError extends Error {
   reason;
   code = "CURSOR_STATE_RECOVERY_REQUIRED";
   recoveryScope = "cursor-store";
-  recoveryOperation = "recoverCursorStateStore";
+  recoveryOperation = "state reset --runtime cursor";
+  recoveryCommand = "session-observer state reset --runtime cursor";
+  destructive = true;
   preservesSiblingSessions = false;
 }
 function blockedContinuity(code, message, checkpoint) {
@@ -302,53 +304,141 @@ function processIsAlive(pid) {
   }
 }
 function lockOwnerPid(owner) {
+  if (!/^[1-9]\d*$/u.test(owner) && !/^[1-9]\d*:\d+:[1-9]\d*$/u.test(owner)) {
+    return null;
+  }
   const pid = Number(owner.split(":", 1)[0]);
   return Number.isSafeInteger(pid) && pid > 0 ? pid : null;
 }
-async function acquireLock(path) {
+function lockOwnersPath(path) {
+  return `${path}.owners`;
+}
+function contenderTicket(name) {
+  const match = /^(\d{20})\.owner$/u.exec(name);
+  if (!match) return null;
+  const ticket = Number(match[1]);
+  return Number.isSafeInteger(ticket) ? ticket : null;
+}
+async function createLockContender(path, owner) {
+  const owners = lockOwnersPath(path);
+  await mkdir(owners, { recursive: true, mode: 448 });
   for (let attempt = 0; attempt < LOCK_RETRIES; attempt += 1) {
-    const owner = `${process.pid}:${Date.now()}:${++lockSequence}`;
-    const ownerPath = `${path}.${owner}.owner`;
+    const names = await readdir(owners);
+    let maximum = 0;
+    for (const name of names) {
+      const ticket = contenderTicket(name);
+      if (ticket === null) {
+        throw new Error(`cursor-state: invalid lock contender ${name}`);
+      }
+      maximum = Math.max(maximum, ticket);
+    }
+    const next = maximum + 1;
+    if (!Number.isSafeInteger(next)) {
+      throw new Error("cursor-state: lock contender sequence exhausted");
+    }
+    const ownerPath = join(owners, `${String(next).padStart(20, "0")}.owner`);
     let handle;
     try {
       handle = await open(ownerPath, "wx", 384);
       await handle.writeFile(owner, "utf8");
       await handle.datasync();
       await handle.close();
-      handle = void 0;
-      await link(ownerPath, path);
-      await unlink(ownerPath);
-      return owner;
+      return ownerPath;
     } catch (error) {
       if (handle) await handle.close();
-      await unlink(ownerPath).catch(() => void 0);
       if (!isErrnoException(error) || error.code !== "EEXIST") throw error;
-      try {
-        const existingOwner = await readFile(path, "utf8");
-        const ownerPid = lockOwnerPid(existingOwner);
-        const lockStat = await stat(path);
-        const invalidOwnerIsStale = ownerPid === null && Date.now() - lockStat.mtimeMs >= INVALID_LOCK_GRACE_MS;
-        if (ownerPid !== null && !processIsAlive(ownerPid) || invalidOwnerIsStale) {
-          await unlink(path);
-          continue;
-        }
-      } catch (lockError) {
-        if (!isErrnoException(lockError) || lockError.code !== "ENOENT") {
-          throw lockError;
-        }
-        continue;
-      }
-      await sleep(LOCK_INTERVAL_MS);
     }
   }
+  throw new Error("cursor-state: could not allocate lock contender");
+}
+async function contenderOwnsTurn(path, ownerPath, owner) {
+  const owners = lockOwnersPath(path);
+  const live = [];
+  for (const name of (await readdir(owners)).toSorted()) {
+    if (contenderTicket(name) === null) return false;
+    const contenderPath = join(owners, name);
+    let contenderOwner;
+    try {
+      contenderOwner = await readFile(contenderPath, "utf8");
+    } catch (error) {
+      if (isErrnoException(error) && error.code === "ENOENT") continue;
+      throw error;
+    }
+    const pid = lockOwnerPid(contenderOwner);
+    if (pid === null) return false;
+    if (!processIsAlive(pid)) {
+      await unlink(contenderPath).catch((error) => {
+        if (!isErrnoException(error) || error.code !== "ENOENT") throw error;
+      });
+      continue;
+    }
+    if (contenderPath === ownerPath && contenderOwner !== owner) return false;
+    live.push(contenderPath);
+  }
+  return live[0] === ownerPath;
+}
+async function readLockGeneration(path) {
+  try {
+    const rawOwner = await readFile(path, "utf8");
+    const current = await stat(path);
+    return { rawOwner, device: current.dev, inode: current.ino };
+  } catch (error) {
+    if (isErrnoException(error) && error.code === "ENOENT") return null;
+    throw error;
+  }
+}
+function sameLockGeneration(left, right) {
+  return right !== null && left.rawOwner === right.rawOwner && left.device === right.device && left.inode === right.inode;
+}
+async function acquireLock(path) {
+  const owner = `${process.pid}:${Date.now()}:${++lockSequence}`;
+  const ownerPath = await createLockContender(path, owner);
+  try {
+    for (let attempt = 0; attempt < LOCK_RETRIES; attempt += 1) {
+      if (!await contenderOwnsTurn(path, ownerPath, owner)) {
+        await sleep(LOCK_INTERVAL_MS);
+        continue;
+      }
+      try {
+        await link(ownerPath, path);
+        return { owner, ownerPath };
+      } catch (error) {
+        if (!isErrnoException(error) || error.code !== "EEXIST") throw error;
+      }
+      const observed = await readLockGeneration(path);
+      if (observed === null) continue;
+      const ownerPid = lockOwnerPid(observed.rawOwner);
+      if (ownerPid === null || processIsAlive(ownerPid)) {
+        await sleep(LOCK_INTERVAL_MS);
+        continue;
+      }
+      const current = await readLockGeneration(path);
+      if (!sameLockGeneration(observed, current)) continue;
+      try {
+        await unlink(path);
+      } catch (error) {
+        if (!isErrnoException(error) || error.code !== "ENOENT") throw error;
+      }
+    }
+  } catch (error) {
+    await unlink(ownerPath).catch(() => void 0);
+    throw error;
+  }
+  await unlink(ownerPath).catch(() => void 0);
   throw new Error(
     `cursor-state: could not acquire lock after ${LOCK_RETRIES} retries`
   );
 }
-async function releaseLock(path, owner) {
+async function releaseLock(path, ownership) {
   try {
-    if (await readFile(path, "utf8") !== owner) return;
-    await unlink(path);
+    if (await readFile(path, "utf8") === ownership.owner) {
+      await unlink(path);
+    }
+  } catch (error) {
+    if (!isErrnoException(error) || error.code !== "ENOENT") throw error;
+  }
+  try {
+    await unlink(ownership.ownerPath);
   } catch (error) {
     if (!isErrnoException(error) || error.code !== "ENOENT") throw error;
   }
@@ -474,14 +564,12 @@ async function setCursorSession(entry) {
   }
   await mutateCursorState((state) => {
     const key = cursorSessionKey(entry.sessionId);
-    const existing = state.sessions[key];
-    if (existing?.pendingDelivery && (!entry.pendingDelivery || !pendingDeliveriesEqual(
-      existing.pendingDelivery,
-      entry.pendingDelivery
-    ) || entry.canonicalCwd !== existing.canonicalCwd || entry.transcriptPath !== existing.transcriptPath)) {
-      throw new Error("DELIVERY_RESERVATION_ACTIVE");
+    if (state.sessions[key]) {
+      throw new Error(
+        "CURSOR_SESSION_ALREADY_EXISTS: use delivery checkpoint CAS or explicit reset/replay"
+      );
     }
-    state.sessions[key] = entry;
+    state.sessions[key] = structuredClone(entry);
   });
 }
 async function checkpointCursorCandidate(input) {

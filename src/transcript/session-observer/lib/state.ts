@@ -4,8 +4,9 @@
  * Storage: STATE_DIR/state.json  (default: ~/.local/state/session-observer/state.json)
  * Key format: `${runtime}:${sessionId}`
  *
- * Write protocol (same as Stoa's session-capture.sh.tpl):
- *   1. open(lockPath, 'wx')  — exclusive-create; retry up to LOCK_RETRIES × LOCK_INTERVAL_MS
+ * Write protocol:
+ *   1. Join the monotonic contender queue, then hard-link the elected owner's
+ *      token to lockPath; retry up to LOCK_RETRIES × LOCK_INTERVAL_MS.
  *   2. read + parse state.json  (treat missing / corrupt as empty)
  *   3. apply mutation fn
  *   4. write to state.json.<pid>.tmp
@@ -25,6 +26,7 @@ import {
   mkdir,
   open,
   readFile,
+  readdir,
   rename,
   stat,
   unlink,
@@ -57,7 +59,6 @@ import type {
 const SCHEMA_VERSION = 1;
 const LOCK_RETRIES = 100;
 const LOCK_INTERVAL_MS = 50;
-const LOCK_STALE_MS = LOCK_RETRIES * LOCK_INTERVAL_MS;
 const CURSOR_COMPATIBILITY = 'pre-integration-record-index';
 let migrationBackupSequence = 0;
 let lockSequence = 0;
@@ -131,174 +132,180 @@ function isPidLive(pid: unknown): boolean {
 }
 
 function lockOwnerPid(owner: string): number | null {
+  if (!/^[1-9]\d*$/u.test(owner) && !/^[1-9]\d*:\d+:[1-9]\d*$/u.test(owner)) {
+    return null;
+  }
   const pid = Number(owner.split(':', 1)[0]);
   return Number.isSafeInteger(pid) && pid > 0 ? pid : null;
 }
 
-/**
- * Decide whether an existing lock file is stale enough to reclaim.
- *
- * A parseable, recorded PID is trusted unconditionally: dead means abandoned
- * (reclaim); live means someone still legitimately owns it, and that is
- * never aged out — even an unusually slow writer (fs stall, GC pause,
- * suspended process) must never have its lock stolen. Only when we cannot
- * establish an owner identity at all (empty/garbage/unreadable content) do
- * we fall back to age: a lock that old with no readable owner cannot belong
- * to a healthy writer (a normal acquire+mutate+release cycle finishes in
- * milliseconds), so it is treated as abandoned.
- */
-async function isLockStale(lock: string): Promise<boolean> {
-  let pid: number | null = null;
-  try {
-    pid = lockOwnerPid((await readFile(lock, 'utf8')).trim());
-  } catch {
-    // Unreadable (including ENOENT — the owner may have just released it) —
-    // fall through to the age check below.
-  }
-  if (pid !== null) return !isPidLive(pid);
-
-  try {
-    const st = await stat(lock);
-    return Date.now() - st.mtimeMs > LOCK_STALE_MS;
-  } catch {
-    // Lock disappeared between the read above and this stat — nothing left
-    // to reclaim; the caller's next open('wx') resolves the race on its own.
-    return false;
-  }
+interface LockOwnership {
+  owner: string;
+  ownerPath: string;
 }
 
-/**
- * Exclusively claim a lock file already judged stale, for removal.
- *
- * Mirrors watch-state.ts's tryReclaim.
- *
- * A plain `unlink(lock)` is not itself exclusive: it operates on whatever
- * currently occupies the path, not the specific stale instance a caller
- * observed. If two contenders both judge the same stale lock L reclaimable,
- * both calling unlink(lock) unconditionally, the following interleaving lets
- * both end up believing they hold the lock:
- *   1. A unlinks L, then wins open('wx') and creates its own live lock.
- *   2. B's (already-decided) unlink call fires next and deletes A's new
- *      lock — unlink does not check what it is deleting.
- *   3. B wins its own open('wx'). A and B now both think they own the lock.
- *
- * `rename(lock, <unique>)` narrows this — rename requires its source to
- * exist, so at most one contender's rename can succeed against a given
- * *inode*. But rename's source is the *path*, not the inode L referred to at
- * decision time: if B is preempted between its isLockStale read and this
- * rename, A can complete an entire reclaim-and-recreate cycle first, and
- * B's rename would then detach A's fresh, *live* lock instead of the
- * original stale one — the exclusivity argument holds per-inode but not
- * across a path takeover in between. So after the rename succeeds, we
- * re-read what we actually claimed: if it now holds a live PID, we grabbed
- * a fresh lock, not the stale one we judged — rename it back (best-effort)
- * and report failure instead of discarding a live owner's lock. Only a
- * claim that is still genuinely ownerless (dead PID, or no readable PID at
- * all) is actually removed.
- */
-async function tryReclaim(lock: string): Promise<boolean> {
-  const claim = `${lock}.reclaim.${process.pid}.${Date.now()}.${++lockSequence}`;
-  try {
-    await rename(lock, claim);
-  } catch (err) {
-    // ENOENT: another contender already claimed it, or the owner released
-    // it normally — either way, we reclaimed nothing.
-    if (isErrnoException(err) && err.code === 'ENOENT') return false;
-    throw err;
-  }
-
-  // Re-verify: what we just detached might not be the stale instance we
-  // judged — it might be a fresh, live lock a concurrent winner created
-  // while we were preempted. Trust a live PID unconditionally, exactly as
-  // isLockStale does.
-  let claimedPid: number | null = null;
-  try {
-    claimedPid = lockOwnerPid((await readFile(claim, 'utf8')).trim());
-  } catch {
-    // Unreadable claim content — treat as ownerless, same as isLockStale.
-  }
-
-  if (claimedPid !== null && isPidLive(claimedPid)) {
-    // We grabbed someone else's live lock. Restore it and back off instead
-    // of destroying it. This closes the demonstrated interleaving (B
-    // stealing A's freshly-created live lock and both believing they hold
-    // it): B now correctly reports failure and never proceeds to create its
-    // own competing lock.
-    //
-    // Residual, deliberately accepted: POSIX rename(src, dest) replaces
-    // dest unconditionally (it has no exclusive/"fail if exists" mode, so
-    // this restore cannot itself be gated through open('wx')). If a THIRD
-    // contender created a fresh lock at `lock` during the narrow gap between
-    // our claim-rename and this restore-rename, the restore would silently
-    // overwrite that fresh lock rather than fail loudly. This is a strictly
-    // narrower, second-order race nested inside an already-rare orphan +
-    // simultaneous-reclaimer scenario; closing it fully would require a
-    // separate exclusive reclaim-intent gate around the whole detect+
-    // remove+recreate sequence, which is a larger structural change than
-    // this fix. If the restore-rename itself errors (e.g. ENOENT/EPERM), we
-    // do not delete the claimed copy — it is left as an orphaned
-    // `.reclaim.` file rather than risk discarding a live owner's data.
-    try {
-      await rename(claim, lock);
-    } catch {
-      // Leave the claim in place; never delete data that may still belong
-      // to a live owner.
-    }
-    return false;
-  }
-
-  try {
-    await unlink(claim);
-  } catch {
-    // Best-effort cleanup of our claimed copy; the exclusive removal from
-    // the original path (via rename) already happened regardless.
-  }
-  return true;
+interface LockGeneration {
+  rawOwner: string;
+  device: number;
+  inode: number;
 }
 
-async function acquireLock(lock: string): Promise<string> {
-  // Reclaim at most once per acquisition attempt: on EEXIST, a stale lock is
-  // exclusively claimed (see tryReclaim) and open('wx') is retried
-  // immediately. If the claim loses the race, this attempt does not retry
-  // reclaim again — it falls back to the normal sleep/retry path.
-  let reclaimAttempted = false;
+function lockOwnersPath(lock: string): string {
+  return `${lock}.owners`;
+}
+
+function contenderTicket(name: string): number | null {
+  const match = /^(\d{20})\.owner$/u.exec(name);
+  if (!match) return null;
+  const ticket = Number(match[1]);
+  return Number.isSafeInteger(ticket) ? ticket : null;
+}
+
+async function createLockContender(
+  lock: string,
+  owner: string,
+): Promise<string> {
+  const owners = lockOwnersPath(lock);
+  await mkdir(owners, { recursive: true, mode: 0o700 });
   for (let attempt = 0; attempt < LOCK_RETRIES; attempt += 1) {
-    const owner = `${process.pid}:${Date.now()}:${++lockSequence}`;
-    const ownerPath = `${lock}.${owner}.owner`;
+    const names = await readdir(owners);
+    let maximum = 0;
+    for (const name of names) {
+      const ticket = contenderTicket(name);
+      if (ticket === null) {
+        throw new Error(`state.mjs: invalid lock contender ${name}`);
+      }
+      maximum = Math.max(maximum, ticket);
+    }
+    const next = maximum + 1;
+    if (!Number.isSafeInteger(next)) {
+      throw new Error('state.mjs: lock contender sequence exhausted');
+    }
+    const ownerPath = join(owners, `${String(next).padStart(20, '0')}.owner`);
     let handle;
     try {
       handle = await open(ownerPath, 'wx', 0o600);
       await handle.writeFile(owner, 'utf8');
       await handle.datasync();
       await handle.close();
-      handle = undefined;
-      await link(ownerPath, lock);
-      await unlink(ownerPath);
-      return owner;
+      return ownerPath;
     } catch (error) {
-      if (handle) {
-        await handle.close();
-      }
-      await unlink(ownerPath).catch(() => undefined);
+      if (handle) await handle.close();
       if (!isErrnoException(error) || error.code !== 'EEXIST') throw error;
-      if (!reclaimAttempted) {
-        reclaimAttempted = true;
-        if ((await isLockStale(lock)) && (await tryReclaim(lock))) {
-          continue;
-        }
-      }
-      await sleep(LOCK_INTERVAL_MS);
     }
   }
+  throw new Error('state.mjs: could not allocate lock contender');
+}
+
+async function contenderOwnsTurn(
+  lock: string,
+  ownerPath: string,
+  owner: string,
+): Promise<boolean> {
+  const owners = lockOwnersPath(lock);
+  const live: string[] = [];
+  for (const name of (await readdir(owners)).toSorted()) {
+    if (contenderTicket(name) === null) return false;
+    const path = join(owners, name);
+    let contenderOwner: string;
+    try {
+      contenderOwner = await readFile(path, 'utf8');
+    } catch (error) {
+      if (isErrnoException(error) && error.code === 'ENOENT') continue;
+      throw error;
+    }
+    const pid = lockOwnerPid(contenderOwner);
+    if (pid === null) return false;
+    if (!isPidLive(pid)) {
+      await unlink(path).catch((error: unknown) => {
+        if (!isErrnoException(error) || error.code !== 'ENOENT') throw error;
+      });
+      continue;
+    }
+    if (path === ownerPath && contenderOwner !== owner) return false;
+    live.push(path);
+  }
+  return live[0] === ownerPath;
+}
+
+async function readLockGeneration(
+  lock: string,
+): Promise<LockGeneration | null> {
+  try {
+    const rawOwner = await readFile(lock, 'utf8');
+    const current = await stat(lock);
+    return { rawOwner, device: current.dev, inode: current.ino };
+  } catch (error) {
+    if (isErrnoException(error) && error.code === 'ENOENT') return null;
+    throw error;
+  }
+}
+
+function sameLockGeneration(
+  left: LockGeneration,
+  right: LockGeneration | null,
+): boolean {
+  return (
+    right !== null &&
+    left.rawOwner === right.rawOwner &&
+    left.device === right.device &&
+    left.inode === right.inode
+  );
+}
+
+async function acquireLock(lock: string): Promise<LockOwnership> {
+  const owner = `${process.pid}:${Date.now()}:${++lockSequence}`;
+  const ownerPath = await createLockContender(lock, owner);
+  try {
+    for (let attempt = 0; attempt < LOCK_RETRIES; attempt += 1) {
+      if (!(await contenderOwnsTurn(lock, ownerPath, owner))) {
+        await sleep(LOCK_INTERVAL_MS);
+        continue;
+      }
+      try {
+        await link(ownerPath, lock);
+        return { owner, ownerPath };
+      } catch (error) {
+        if (!isErrnoException(error) || error.code !== 'EEXIST') throw error;
+      }
+      const observed = await readLockGeneration(lock);
+      if (observed === null) continue;
+      const ownerPid = lockOwnerPid(observed.rawOwner);
+      if (ownerPid === null || isPidLive(ownerPid)) {
+        await sleep(LOCK_INTERVAL_MS);
+        continue;
+      }
+      const current = await readLockGeneration(lock);
+      if (!sameLockGeneration(observed, current)) continue;
+      try {
+        await unlink(lock);
+      } catch (error) {
+        if (!isErrnoException(error) || error.code !== 'ENOENT') throw error;
+      }
+    }
+  } catch (error) {
+    await unlink(ownerPath).catch(() => undefined);
+    throw error;
+  }
+  await unlink(ownerPath).catch(() => undefined);
   throw new Error(
     `state.mjs: could not acquire lock after ${LOCK_RETRIES} retries`,
   );
 }
 
-async function releaseLock(lock: string, owner: string): Promise<void> {
+async function releaseLock(
+  lock: string,
+  ownership: LockOwnership,
+): Promise<void> {
   try {
-    if ((await readFile(lock, 'utf8')) !== owner) return;
-    await unlink(lock);
+    if ((await readFile(lock, 'utf8')) === ownership.owner) {
+      await unlink(lock);
+    }
+  } catch (error) {
+    if (!isErrnoException(error) || error.code !== 'ENOENT') throw error;
+  }
+  try {
+    await unlink(ownership.ownerPath);
   } catch (error) {
     if (!isErrnoException(error) || error.code !== 'ENOENT') throw error;
   }
@@ -310,11 +317,11 @@ async function withCursorTransitionLock<T>(
   const dir = stateDir();
   await mkdir(dir, { recursive: true });
   const lock = cursorTransitionLockPath(dir);
-  const owner = await acquireLock(lock);
+  const ownership = await acquireLock(lock);
   try {
     return await transition();
   } finally {
-    await releaseLock(lock, owner);
+    await releaseLock(lock, ownership);
   }
 }
 
@@ -1023,10 +1030,25 @@ export async function clearWatchedByPid(
 /**
  * Zero all entries for a given runtime. Returns the count of entries zeroed.
  */
-export async function resetByRuntime(runtime: Runtime): Promise<number> {
+export interface RuntimeResetDiagnostics {
+  runtime: Runtime;
+  count: number;
+  recovery: {
+    performed: true;
+    reason: 'corrupt' | 'schema';
+    scope: 'cursor-store';
+    destructive: true;
+    preservesSiblingSessions: false;
+  } | null;
+}
+
+export async function resetByRuntimeWithDiagnostics(
+  runtime: Runtime,
+): Promise<RuntimeResetDiagnostics> {
   if (runtime === 'cursor') {
     return withCursorTransitionLock(async () => {
       const sessionIds = new Set<string>();
+      let recovery: RuntimeResetDiagnostics['recovery'] = null;
       try {
         const cursor = await loadCursorState();
         for (const entry of Object.values(cursor.sessions)) {
@@ -1037,6 +1059,13 @@ export async function resetByRuntime(runtime: Runtime): Promise<number> {
         }
       } catch (error) {
         if (!(error instanceof CursorStateRecoveryRequiredError)) throw error;
+        recovery = {
+          performed: true,
+          reason: error.reason,
+          scope: 'cursor-store',
+          destructive: true,
+          preservesSiblingSessions: false,
+        };
       }
       await mutate((state) => {
         for (const [key, entry] of Object.entries(state.sessions)) {
@@ -1047,7 +1076,7 @@ export async function resetByRuntime(runtime: Runtime): Promise<number> {
         }
       });
       await resetAllCursorState();
-      return sessionIds.size;
+      return { runtime, count: sessionIds.size, recovery };
     });
   }
   let count = 0;
@@ -1060,7 +1089,11 @@ export async function resetByRuntime(runtime: Runtime): Promise<number> {
     }
     return state;
   });
-  return count;
+  return { runtime, count, recovery: null };
+}
+
+export async function resetByRuntime(runtime: Runtime): Promise<number> {
+  return (await resetByRuntimeWithDiagnostics(runtime)).count;
 }
 
 /**

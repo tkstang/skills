@@ -312,6 +312,71 @@ it('serializes concurrent Cursor mutations under the Cursor-only lock', async ()
   });
 });
 
+it.each([
+  [
+    'frame rewind',
+    (entry: CursorSessionStateEntry) => ({
+      ...entry,
+      lastRecordIndex: 2,
+      continuity: checkpoint(2),
+    }),
+  ],
+  [
+    'canonical cwd substitution',
+    (entry: CursorSessionStateEntry) => ({
+      ...entry,
+      canonicalCwd: '/workspace/substituted',
+    }),
+  ],
+  [
+    'transcript path substitution',
+    (entry: CursorSessionStateEntry) => ({
+      ...entry,
+      transcriptPath: '/cursor/projects/substituted/transcript.jsonl',
+    }),
+  ],
+  [
+    'device substitution',
+    (entry: CursorSessionStateEntry) => ({
+      ...entry,
+      continuity: { ...entry.continuity, device: 99 },
+    }),
+  ],
+  [
+    'inode substitution',
+    (entry: CursorSessionStateEntry) => ({
+      ...entry,
+      continuity: { ...entry.continuity, inode: 99 },
+    }),
+  ],
+  [
+    'verified prefix substitution',
+    (entry: CursorSessionStateEntry) => ({
+      ...entry,
+      continuity: {
+        ...entry.continuity,
+        prefixSha256: 'f'.repeat(64),
+      },
+    }),
+  ],
+] as const)(
+  'create-only session setter rejects no-pending %s without replacing durable state',
+  async (_label, replacement) => {
+    await withTmpStateDir(async () => {
+      const existing = deliveryEntry(`setter-${_label.replaceAll(' ', '-')}`);
+      expect(existing.pendingDelivery).toBeNull();
+      await setCursorSession(existing);
+
+      await expect(setCursorSession(replacement(existing))).rejects.toThrow(
+        'CURSOR_SESSION_ALREADY_EXISTS',
+      );
+      await expect(getCursorSession(existing.sessionId)).resolves.toEqual(
+        existing,
+      );
+    });
+  },
+);
+
 it('waits for cursor-state.json.lock before reading or writing backups', async () => {
   await withTmpStateDir(async (dir) => {
     await writeFile(join(dir, 'cursor-state.json'), '{ broken');
@@ -417,7 +482,9 @@ it.each([
         await expect(mutation()).rejects.toMatchObject({
           code: 'CURSOR_STATE_RECOVERY_REQUIRED',
           recoveryScope: 'cursor-store',
-          recoveryOperation: 'recoverCursorStateStore',
+          recoveryOperation: 'state reset --runtime cursor',
+          recoveryCommand: 'session-observer state reset --runtime cursor',
+          destructive: true,
           preservesSiblingSessions: false,
         });
         expect(await readFile(path, 'utf8')).toBe(raw);

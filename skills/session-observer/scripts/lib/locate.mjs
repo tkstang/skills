@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
 import {
   readdir,
   stat,
+  lstat,
   mkdir,
   readFile,
   realpath,
@@ -399,17 +400,31 @@ async function cursorCandidate(transcriptPath, now, evidence, fileStat, cache) {
 async function discoverCursor(targetCwd, cache) {
   const [projectsRoot] = discoverPaths("cursor");
   const canonicalTargetCwd = await canonicalPath(targetCwd) ?? targetCwd.replace(/\/+$/u, "");
-  const encodedVariants = [
-    .../* @__PURE__ */ new Set([
-      ...encodeCwdVariants("cursor", canonicalTargetCwd),
-      ...encodeCwdVariants("cursor", targetCwd)
-    ])
+  const canonicalEncodedVariants = new Set(
+    encodeCwdVariants("cursor", canonicalTargetCwd)
+  );
+  const rawEncodedVariants = new Set(encodeCwdVariants("cursor", targetCwd));
+  let suppliedCwdIsAlias = false;
+  try {
+    suppliedCwdIsAlias = (await lstat(targetCwd)).isSymbolicLink();
+  } catch {
+  }
+  const directVariants = [
+    ...[...canonicalEncodedVariants].map((encoded) => ({
+      encoded,
+      cwdEvidence: "direct-parent-dir"
+    })),
+    ...[...rawEncodedVariants].filter((encoded) => !canonicalEncodedVariants.has(encoded)).map((encoded) => ({
+      encoded,
+      cwdEvidence: suppliedCwdIsAlias ? "raw-cwd-alias" : "direct-parent-dir"
+    }))
   ];
+  const encodedVariants = directVariants.map(({ encoded }) => encoded);
   const now = Date.now() / 1e3;
   const cutoffSec = now - LOOKBACK_DAYS * 86400;
   const candidates = [];
   const seenTranscripts = /* @__PURE__ */ new Set();
-  for (const encoded of encodedVariants) {
+  for (const { encoded, cwdEvidence } of directVariants) {
     const transcriptsRoot = join(projectsRoot, encoded, "agent-transcripts");
     const transcriptPaths = await collectCursorAgentTranscripts(transcriptsRoot);
     if (transcriptPaths.length === 0) continue;
@@ -423,7 +438,7 @@ async function discoverCursor(targetCwd, cache) {
         {
           recordedCwd: targetCwd,
           cwdSlug: encoded,
-          cwdEvidence: "direct-parent-dir"
+          cwdEvidence
         },
         null,
         cache
@@ -539,6 +554,9 @@ async function resolveCursorIdentity(candidate, requestedCwd, expectedSessionId)
     reasons.push("PATH_OUTSIDE_SUPPORTED_ROOT");
   }
   const canonicalRecordedCwd = candidate.recordedCwd ? await canonicalPath(candidate.recordedCwd) : null;
+  if (candidate.cwdEvidence === "raw-cwd-alias") {
+    reasons.push("RAW_CWD_ALIAS_DIAGNOSTIC_ONLY");
+  }
   if (canonicalRecordedCwd !== null && canonicalRecordedCwd !== canonicalCwd) {
     reasons.push("CANDIDATE_CWD_MISMATCH");
   }
