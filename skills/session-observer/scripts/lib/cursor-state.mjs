@@ -7,6 +7,17 @@ const SCHEMA_VERSION = 2;
 const LOCK_RETRIES = 100;
 const LOCK_INTERVAL_MS = 50;
 let backupSequence = 0;
+class CursorStateRecoveryRequiredError extends Error {
+  constructor(reason) {
+    super(
+      `cursor-state: ${reason} state requires explicit reset and replay before mutation`
+    );
+    this.reason = reason;
+    this.name = "CursorStateRecoveryRequiredError";
+  }
+  reason;
+  code = "CURSOR_STATE_RECOVERY_REQUIRED";
+}
 function blockedContinuity(code, message, checkpoint) {
   return { status: "blocked", code, message, checkpoint };
 }
@@ -46,7 +57,7 @@ function validateCursorContinuity(identity, scan, prior) {
       checkpoint
     );
   }
-  if (scan.file.size < checkpoint.observedSize || scan.file.size < checkpoint.prefixBytes || scan.totalFrames < checkpoint.nextFrameIndex) {
+  if (scan.file.size < checkpoint.prefixBytes || scan.totalFrames < checkpoint.nextFrameIndex) {
     return blockedContinuity(
       "TRANSCRIPT_SHRANK",
       "The transcript is smaller than the previously observed checkpoint.",
@@ -103,7 +114,10 @@ function isCheckpoint(value) {
     "observedSize",
     "device",
     "inode"
-  ]) && value.indexBase === "zero-based-jsonl-frame-index" && isNonNegativeInteger(value.nextFrameIndex) && isNonNegativeInteger(value.prefixBytes) && typeof value.prefixSha256 === "string" && /^[a-f0-9]{64}$/u.test(value.prefixSha256) && isNonNegativeInteger(value.observedSize) && isNullableNonNegativeInteger(value.device) && isNullableNonNegativeInteger(value.inode);
+  ]) && value.indexBase === "zero-based-jsonl-frame-index" && isNonNegativeInteger(value.nextFrameIndex) && isNonNegativeInteger(value.prefixBytes) && typeof value.prefixSha256 === "string" && /^[a-f0-9]{64}$/u.test(value.prefixSha256) && isNonNegativeInteger(value.observedSize) && value.prefixBytes <= value.observedSize && isNullableNonNegativeInteger(value.device) && isNullableNonNegativeInteger(value.inode);
+}
+function isForwardDeliveryCheckpoint(expected, intended, reservedThroughFrameIndex) {
+  return expected.device !== null && expected.inode !== null && intended.device === expected.device && intended.inode === expected.inode && intended.indexBase === expected.indexBase && reservedThroughFrameIndex >= expected.nextFrameIndex && intended.nextFrameIndex === reservedThroughFrameIndex + 1 && intended.nextFrameIndex > expected.nextFrameIndex && intended.prefixBytes >= expected.prefixBytes;
 }
 function isObservationStatus(value) {
   return isObject(value) && hasOnlyKeys(value, [
@@ -181,7 +195,11 @@ function isPendingDelivery(value) {
     "intendedCheckpoint",
     "reservedByPid",
     "reservedAt"
-  ]) && typeof value.deliveryId === "string" && value.deliveryId.length > 0 && isNonNegativeInteger(value.expectedNextFrameIndex) && isCheckpoint(value.expectedCheckpoint) && value.expectedNextFrameIndex === value.expectedCheckpoint.nextFrameIndex && isNonNegativeInteger(value.reservedThroughFrameIndex) && isStringArray(value.entryKeys) && isCheckpoint(value.intendedCheckpoint) && value.intendedCheckpoint.nextFrameIndex === value.reservedThroughFrameIndex + 1 && isNonNegativeInteger(value.reservedByPid) && value.reservedByPid > 0 && typeof value.reservedAt === "string" && Number.isFinite(Date.parse(value.reservedAt));
+  ]) && typeof value.deliveryId === "string" && value.deliveryId.length > 0 && isNonNegativeInteger(value.expectedNextFrameIndex) && isCheckpoint(value.expectedCheckpoint) && value.expectedNextFrameIndex === value.expectedCheckpoint.nextFrameIndex && isNonNegativeInteger(value.reservedThroughFrameIndex) && isStringArray(value.entryKeys) && isCheckpoint(value.intendedCheckpoint) && isForwardDeliveryCheckpoint(
+    value.expectedCheckpoint,
+    value.intendedCheckpoint,
+    value.reservedThroughFrameIndex
+  ) && isNonNegativeInteger(value.reservedByPid) && value.reservedByPid > 0 && typeof value.reservedAt === "string" && Number.isFinite(Date.parse(value.reservedAt));
 }
 function isSessionEntry(value) {
   return isObject(value) && hasOnlyKeys(value, [
@@ -318,11 +336,11 @@ async function readCursorState(dir) {
     parsed = JSON.parse(raw);
   } catch {
     await writeBackup(dir, "corrupt", raw);
-    return emptyCursorState();
+    throw new CursorStateRecoveryRequiredError("corrupt");
   }
   if (!isCursorState(parsed)) {
     await writeBackup(dir, "schema", raw);
-    return emptyCursorState();
+    throw new CursorStateRecoveryRequiredError("schema");
   }
   return parsed;
 }
@@ -470,7 +488,11 @@ async function checkpointCursorCandidate(input) {
   });
 }
 async function reserveCursorDelivery(input) {
-  if (!isNonNegativeInteger(input.ownerPid) || input.ownerPid === 0 || !isCheckpoint(input.expected) || !isPendingDelivery(input.pending) || input.pending.reservedByPid !== input.ownerPid || input.pending.expectedNextFrameIndex !== input.expected.nextFrameIndex || !checkpointsEqual(input.pending.expectedCheckpoint, input.expected) || input.pending.intendedCheckpoint.nextFrameIndex !== input.pending.reservedThroughFrameIndex + 1) {
+  if (!isNonNegativeInteger(input.ownerPid) || input.ownerPid === 0 || !isCheckpoint(input.expected) || !isPendingDelivery(input.pending) || input.pending.reservedByPid !== input.ownerPid || input.pending.expectedNextFrameIndex !== input.expected.nextFrameIndex || !checkpointsEqual(input.pending.expectedCheckpoint, input.expected) || !isForwardDeliveryCheckpoint(
+    input.expected,
+    input.pending.intendedCheckpoint,
+    input.pending.reservedThroughFrameIndex
+  )) {
     throw new TypeError("cursor-state: invalid delivery reservation");
   }
   return transactCursorState((state) => {
@@ -506,7 +528,14 @@ async function commitCursorDelivery(input) {
     if (!current || !pending || pending.deliveryId !== input.deliveryId) {
       return { write: false, value: "stale" };
     }
-    if (!checkpointsEqual(current.continuity, pending.expectedCheckpoint) || !checkpointsEqual(pending.intendedCheckpoint, input.nextState.continuity)) {
+    if (!checkpointsEqual(current.continuity, pending.expectedCheckpoint) || !checkpointsEqual(
+      pending.intendedCheckpoint,
+      input.nextState.continuity
+    ) || !isForwardDeliveryCheckpoint(
+      pending.expectedCheckpoint,
+      pending.intendedCheckpoint,
+      pending.reservedThroughFrameIndex
+    )) {
       return { write: false, value: "stale" };
     }
     state.sessions[key] = structuredClone(input.nextState);
@@ -566,21 +595,32 @@ async function resetCursorSessionState(sessionId) {
   return removed;
 }
 async function resetAllCursorState() {
-  let count = 0;
-  await mutateCursorState((state) => {
-    count = (/* @__PURE__ */ new Set([
-      ...Object.keys(state.sessions),
-      ...Object.keys(state.legacyUnverified)
-    ])).size;
-    state.sessions = {};
-    state.legacyUnverified = {};
-  });
-  return count;
+  const dir = stateDir();
+  await ensurePrivateDirectory(dir);
+  const lock = lockPath(dir);
+  await acquireLock(lock);
+  try {
+    let count = 0;
+    try {
+      const state = await readCursorState(dir);
+      count = (/* @__PURE__ */ new Set([
+        ...Object.keys(state.sessions),
+        ...Object.keys(state.legacyUnverified)
+      ])).size;
+    } catch (error) {
+      if (!(error instanceof CursorStateRecoveryRequiredError)) throw error;
+    }
+    await writeCursorState(dir, emptyCursorState());
+    return count;
+  } finally {
+    await releaseLock(lock);
+  }
 }
 async function clearCursorState() {
   await resetAllCursorState();
 }
 export {
+  CursorStateRecoveryRequiredError,
   abandonCursorDelivery,
   checkpointCursorCandidate,
   clearCursorState,

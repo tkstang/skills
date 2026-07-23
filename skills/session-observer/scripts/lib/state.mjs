@@ -12,6 +12,7 @@ import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import {
   clearCursorState,
+  CursorStateRecoveryRequiredError,
   cursorSessionKey,
   loadCursorState,
   mutateCursorState,
@@ -34,6 +35,9 @@ function statePath(dir) {
 }
 function lockPath(dir) {
   return join(dir, "state.json.lock");
+}
+function cursorTransitionLockPath(dir) {
+  return join(dir, "cursor-state-transition.lock");
 }
 function tmpPath(dir) {
   return join(dir, `state.json.${process.pid}.tmp`);
@@ -60,6 +64,59 @@ async function releaseLock(lock) {
   try {
     await unlink(lock);
   } catch {
+  }
+}
+function processIsAlive(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return !isErrnoException(error) || error.code !== "ESRCH";
+  }
+}
+async function acquireCursorTransitionLock(lock) {
+  for (let attempt = 0; attempt < LOCK_RETRIES; attempt += 1) {
+    let handle;
+    try {
+      handle = await open(lock, "wx", 384);
+      await handle.writeFile(String(process.pid), "utf8");
+      await handle.close();
+      handle = void 0;
+      return;
+    } catch (error) {
+      if (handle) {
+        await handle.close();
+        await unlink(lock).catch(() => void 0);
+      }
+      if (!isErrnoException(error) || error.code !== "EEXIST") throw error;
+      try {
+        const ownerPid = Number(await readFile(lock, "utf8"));
+        if (Number.isSafeInteger(ownerPid) && ownerPid > 0 && !processIsAlive(ownerPid)) {
+          await unlink(lock);
+          continue;
+        }
+      } catch (lockError) {
+        if (!isErrnoException(lockError) || lockError.code !== "ENOENT") {
+          throw lockError;
+        }
+        continue;
+      }
+      await sleep(LOCK_INTERVAL_MS);
+    }
+  }
+  throw new Error(
+    `state.mjs: could not acquire Cursor transition lock after ${LOCK_RETRIES} retries`
+  );
+}
+async function withCursorTransitionLock(transition) {
+  const dir = stateDir();
+  await mkdir(dir, { recursive: true });
+  const lock = cursorTransitionLockPath(dir);
+  await acquireCursorTransitionLock(lock);
+  try {
+    return await transition();
+  } finally {
+    await releaseLock(lock);
   }
 }
 function sleep(ms) {
@@ -242,7 +299,7 @@ async function removeLegacyCursorForMigration(marker, options) {
     await releaseLock(lock);
   }
 }
-async function migrateLegacyCursorState(sessionId, options = {}) {
+async function migrateLegacyCursorStateUnderTransition(sessionId, options = {}) {
   const key = cursorSessionKey(sessionId);
   let cursorState = await loadCursorState();
   let marker = cursorState.legacyUnverified[key];
@@ -291,6 +348,11 @@ async function migrateLegacyCursorState(sessionId, options = {}) {
   marker = cursorState.legacyUnverified[key];
   await notifyMigrationBoundary(options, "complete");
   return marker;
+}
+async function migrateLegacyCursorState(sessionId, options = {}) {
+  return withCursorTransitionLock(
+    () => migrateLegacyCursorStateUnderTransition(sessionId, options)
+  );
 }
 function cursorRecoveryEntry(marker) {
   return {
@@ -388,60 +450,77 @@ async function markRead(runtime, sessionId, {
   lastTotalRecords,
   transcriptPath,
   recordedCwd
-}) {
+}, options = {}) {
   if (runtime === "cursor") {
-    const key2 = cursorSessionKey(sessionId);
-    const cursor = await loadCursorState();
-    if (cursor.sessions[key2]) {
-      throw new Error(
-        "CURSOR_STATE_V2_REQUIRED: legacy record-index Cursor writes are disabled"
-      );
-    }
-    const marker = cursor.legacyUnverified[key2];
-    if (marker && marker.legacyLastRecordIndex !== 0) {
-      throw new Error(
-        `LEGACY_CURSOR_UNVERIFIED: reset cursor:${sessionId} to replay from frame zero`
-      );
-    }
-    await mutate((state) => {
-      const existing = state.sessions[key2];
-      state.sessions[key2] = {
-        ...existing,
-        runtime,
-        sessionId,
-        lastRecordIndex,
-        lastTotalRecords,
-        lastReadAt: (/* @__PURE__ */ new Date()).toISOString(),
-        transcriptPath,
-        recordedCwd,
-        watchedByPid: existing?.watchedByPid ?? null,
-        cursorCompatibility: CURSOR_COMPATIBILITY
-      };
-    });
-    try {
-      await mutateCursorState((state) => {
-        if (state.sessions[key2]) {
-          throw new Error(
-            "CURSOR_STATE_V2_REQUIRED: legacy record-index Cursor writes are disabled"
-          );
-        }
-        const current = state.legacyUnverified[key2];
-        if (current && current.legacyLastRecordIndex !== 0) {
-          throw new Error(
-            `LEGACY_CURSOR_UNVERIFIED: reset cursor:${sessionId} to replay from frame zero`
-          );
-        }
-        delete state.legacyUnverified[key2];
-      });
-    } catch (error) {
+    return withCursorTransitionLock(async () => {
+      const key2 = cursorSessionKey(sessionId);
+      const cursor = await loadCursorState();
+      if (cursor.sessions[key2]) {
+        throw new Error(
+          "CURSOR_STATE_V2_REQUIRED: legacy record-index Cursor writes are disabled"
+        );
+      }
+      const marker = cursor.legacyUnverified[key2];
+      if (marker && marker.legacyLastRecordIndex !== 0) {
+        throw new Error(
+          `LEGACY_CURSOR_UNVERIFIED: reset cursor:${sessionId} to replay from frame zero`
+        );
+      }
+      await options.onCompatibilityBoundary?.("prechecked");
+      const writeId = `${process.pid}:${Date.now()}:${++migrationBackupSequence}`;
+      let preimage;
       await mutate((state) => {
-        if (isCursorCompatibilityEntry(state.sessions[key2])) {
-          delete state.sessions[key2];
-        }
+        const existing = state.sessions[key2];
+        preimage = existing ? structuredClone(existing) : void 0;
+        state.sessions[key2] = {
+          ...existing,
+          runtime,
+          sessionId,
+          lastRecordIndex,
+          lastTotalRecords,
+          lastReadAt: (/* @__PURE__ */ new Date()).toISOString(),
+          transcriptPath,
+          recordedCwd,
+          watchedByPid: existing?.watchedByPid ?? null,
+          cursorCompatibility: CURSOR_COMPATIBILITY,
+          cursorCompatibilityWriteId: writeId
+        };
       });
-      throw error;
-    }
-    return;
+      await options.onCompatibilityBoundary?.("legacy-written");
+      try {
+        await mutateCursorState((state) => {
+          if (state.sessions[key2]) {
+            throw new Error(
+              "CURSOR_STATE_V2_REQUIRED: legacy record-index Cursor writes are disabled"
+            );
+          }
+          const current = state.legacyUnverified[key2];
+          if (current && current.legacyLastRecordIndex !== 0) {
+            throw new Error(
+              `LEGACY_CURSOR_UNVERIFIED: reset cursor:${sessionId} to replay from frame zero`
+            );
+          }
+          delete state.legacyUnverified[key2];
+        });
+      } catch (error) {
+        let restored = false;
+        await mutate((state) => {
+          const current = state.sessions[key2];
+          if (isCursorCompatibilityEntry(current) && current.cursorCompatibilityWriteId === writeId) {
+            if (preimage) state.sessions[key2] = preimage;
+            else delete state.sessions[key2];
+            restored = true;
+          }
+        });
+        if (!restored) {
+          throw new Error("CURSOR_COMPATIBILITY_ROLLBACK_CONFLICT", {
+            cause: error
+          });
+        }
+        throw error;
+      }
+      await options.onCompatibilityBoundary?.("cursor-updated");
+    });
   }
   const key = sessionKey(runtime, sessionId);
   await mutate((state) => {
@@ -516,23 +595,30 @@ async function clearWatchedByPid(runtime, sessionId, pid) {
 }
 async function resetByRuntime(runtime) {
   if (runtime === "cursor") {
-    const cursor = await loadCursorState();
-    const sessionIds = /* @__PURE__ */ new Set([
-      ...Object.values(cursor.sessions).map((entry) => entry.sessionId),
-      ...Object.values(cursor.legacyUnverified).map(
-        (marker) => marker.sessionId
-      )
-    ]);
-    await mutate((state) => {
-      for (const [key, entry] of Object.entries(state.sessions)) {
-        if (entry.runtime === "cursor") {
-          delete state.sessions[key];
+    return withCursorTransitionLock(async () => {
+      const sessionIds = /* @__PURE__ */ new Set();
+      try {
+        const cursor = await loadCursorState();
+        for (const entry of Object.values(cursor.sessions)) {
           sessionIds.add(entry.sessionId);
         }
+        for (const marker of Object.values(cursor.legacyUnverified)) {
+          sessionIds.add(marker.sessionId);
+        }
+      } catch (error) {
+        if (!(error instanceof CursorStateRecoveryRequiredError)) throw error;
       }
+      await mutate((state) => {
+        for (const [key, entry] of Object.entries(state.sessions)) {
+          if (entry.runtime === "cursor") {
+            delete state.sessions[key];
+            sessionIds.add(entry.sessionId);
+          }
+        }
+      });
+      await resetAllCursorState();
+      return sessionIds.size;
     });
-    await resetAllCursorState();
-    return sessionIds.size;
   }
   let count = 0;
   await mutate((state) => {
@@ -548,12 +634,13 @@ async function resetByRuntime(runtime) {
 }
 async function resetBySession(runtime, sessionId) {
   if (runtime === "cursor") {
-    const key2 = sessionKey(runtime, sessionId);
-    await mutate((state) => {
-      delete state.sessions[key2];
+    return withCursorTransitionLock(async () => {
+      await resetCursorSessionState(sessionId);
+      const key2 = sessionKey(runtime, sessionId);
+      await mutate((state) => {
+        delete state.sessions[key2];
+      });
     });
-    await resetCursorSessionState(sessionId);
-    return;
   }
   const key = sessionKey(runtime, sessionId);
   await mutate((state) => {
@@ -564,11 +651,13 @@ async function resetBySession(runtime, sessionId) {
   });
 }
 async function clear() {
-  await mutate((state) => {
-    state.sessions = {};
-    return state;
+  await withCursorTransitionLock(async () => {
+    await clearCursorState();
+    await mutate((state) => {
+      state.sessions = {};
+      return state;
+    });
   });
-  await clearCursorState();
 }
 export {
   clear,

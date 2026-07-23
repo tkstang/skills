@@ -9,7 +9,10 @@ import { join } from 'node:path';
 
 import { expect, it } from 'vitest';
 
-import { loadCursorState } from '../../src/transcript/session-observer/lib/cursor-state.js';
+import {
+  loadCursorState,
+  mutateCursorState,
+} from '../../src/transcript/session-observer/lib/cursor-state.js';
 import * as state from '../../src/transcript/session-observer/lib/state.js';
 import { withTmpStateDir } from './helpers/tmpdir.js';
 
@@ -538,6 +541,137 @@ it('projects pre-integration Cursor record indexes without creating v2 ownership
     expect(cursor.legacyUnverified).toEqual({});
   });
 });
+
+it('restores the exact legacy preimage when a migration marker appears during compatibility write', async () => {
+  await withTmpStateDir(async (dir) => {
+    await writeFile(
+      join(dir, 'state.json'),
+      JSON.stringify({
+        schemaVersion: 1,
+        sessions: {
+          'claude-code:preserved': {
+            runtime: 'claude-code',
+            sessionId: 'preserved',
+            lastRecordIndex: 4,
+            lastTotalRecords: 4,
+          },
+          'cursor:interleaved': {
+            runtime: 'cursor',
+            sessionId: 'interleaved',
+            lastRecordIndex: 7,
+            lastTotalRecords: 9,
+            transcriptPath: '/tmp/original.jsonl',
+            recordedCwd: '/original',
+            watchedByPid: 77,
+          },
+        },
+      }),
+    );
+    const before = JSON.parse(await readFile(join(dir, 'state.json'), 'utf8'));
+    const backupPath = join(dir, 'interleaved-legacy.bak');
+
+    await expect(
+      state.markRead(
+        'cursor',
+        'interleaved',
+        {
+          lastRecordIndex: 8,
+          lastTotalRecords: 10,
+          transcriptPath: '/tmp/new.jsonl',
+          recordedCwd: '/new',
+        },
+        {
+          async onCompatibilityBoundary(boundary) {
+            if (boundary !== 'prechecked') return;
+            await mutateCursorState((cursor) => {
+              cursor.legacyUnverified['cursor:interleaved'] = {
+                runtime: 'cursor',
+                sessionId: 'interleaved',
+                legacyLastRecordIndex: 7,
+                transcriptPath: '/tmp/original.jsonl',
+                recordedCwd: '/original',
+                backupPath,
+                migrationStatus: 'marker-written',
+                createdAt: '2026-07-23T00:00:00.000Z',
+              };
+            });
+          },
+        },
+      ),
+    ).rejects.toThrow('LEGACY_CURSOR_UNVERIFIED');
+
+    const after = JSON.parse(await readFile(join(dir, 'state.json'), 'utf8'));
+    expect(after).toEqual(before);
+    await expect(
+      state.migrateLegacyCursorState('interleaved'),
+    ).resolves.toMatchObject({ migrationStatus: 'complete' });
+    await expect(access(backupPath)).resolves.not.toThrow();
+  });
+});
+
+it.each(['legacy-written', 'cursor-updated'] as const)(
+  'retries compatibility transition after process failure at %s',
+  async (failureBoundary) => {
+    await withTmpStateDir(async (dir) => {
+      await writeFile(
+        join(dir, 'state.json'),
+        JSON.stringify({
+          schemaVersion: 1,
+          sessions: {
+            'cursor:retry': {
+              runtime: 'cursor',
+              sessionId: 'retry',
+              lastRecordIndex: 0,
+              lastTotalRecords: 2,
+              transcriptPath: '/tmp/retry.jsonl',
+              recordedCwd: '/project',
+            },
+          },
+        }),
+      );
+      await state.load();
+
+      await expect(
+        state.markRead(
+          'cursor',
+          'retry',
+          {
+            lastRecordIndex: 2,
+            lastTotalRecords: 2,
+            transcriptPath: '/tmp/retry.jsonl',
+            recordedCwd: '/project',
+          },
+          {
+            onCompatibilityBoundary(boundary) {
+              if (boundary === failureBoundary) {
+                throw new Error(`injected:${boundary}`);
+              }
+            },
+          },
+        ),
+      ).rejects.toThrow(`injected:${failureBoundary}`);
+
+      await state.markRead('cursor', 'retry', {
+        lastRecordIndex: 2,
+        lastTotalRecords: 2,
+        transcriptPath: '/tmp/retry.jsonl',
+        recordedCwd: '/project',
+      });
+      const legacy = JSON.parse(
+        await readFile(join(dir, 'state.json'), 'utf8'),
+      );
+      expect(legacy.sessions['cursor:retry']).toMatchObject({
+        lastRecordIndex: 2,
+        cursorCompatibility: 'pre-integration-record-index',
+      });
+      expect(await loadCursorState()).toEqual({
+        schemaVersion: 2,
+        sessions: {},
+        legacyUnverified: {},
+      });
+    });
+  },
+);
 
 it('explicit Cursor reset removes legacy markers without changing non-Cursor state', async () => {
   await withTmpStateDir(async (dir) => {

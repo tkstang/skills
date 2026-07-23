@@ -24,6 +24,17 @@ const LOCK_RETRIES = 100;
 const LOCK_INTERVAL_MS = 50;
 let backupSequence = 0;
 
+export class CursorStateRecoveryRequiredError extends Error {
+  readonly code = 'CURSOR_STATE_RECOVERY_REQUIRED';
+
+  constructor(readonly reason: 'corrupt' | 'schema') {
+    super(
+      `cursor-state: ${reason} state requires explicit reset and replay before mutation`,
+    );
+    this.name = 'CursorStateRecoveryRequiredError';
+  }
+}
+
 function blockedContinuity(
   code: ContinuityFailureCode,
   message: string,
@@ -87,7 +98,6 @@ export function validateCursorContinuity(
   }
 
   if (
-    scan.file.size < checkpoint.observedSize ||
     scan.file.size < checkpoint.prefixBytes ||
     scan.totalFrames < checkpoint.nextFrameIndex
   ) {
@@ -179,8 +189,27 @@ function isCheckpoint(value: unknown): value is TranscriptContinuityCheckpoint {
     typeof value.prefixSha256 === 'string' &&
     /^[a-f0-9]{64}$/u.test(value.prefixSha256) &&
     isNonNegativeInteger(value.observedSize) &&
+    (value.prefixBytes as number) <= (value.observedSize as number) &&
     isNullableNonNegativeInteger(value.device) &&
     isNullableNonNegativeInteger(value.inode)
+  );
+}
+
+function isForwardDeliveryCheckpoint(
+  expected: TranscriptContinuityCheckpoint,
+  intended: TranscriptContinuityCheckpoint,
+  reservedThroughFrameIndex: number,
+): boolean {
+  return (
+    expected.device !== null &&
+    expected.inode !== null &&
+    intended.device === expected.device &&
+    intended.inode === expected.inode &&
+    intended.indexBase === expected.indexBase &&
+    reservedThroughFrameIndex >= expected.nextFrameIndex &&
+    intended.nextFrameIndex === reservedThroughFrameIndex + 1 &&
+    intended.nextFrameIndex > expected.nextFrameIndex &&
+    intended.prefixBytes >= expected.prefixBytes
   );
 }
 
@@ -330,8 +359,11 @@ function isPendingDelivery(value: unknown): value is PendingCursorDelivery {
     isNonNegativeInteger(value.reservedThroughFrameIndex) &&
     isStringArray(value.entryKeys) &&
     isCheckpoint(value.intendedCheckpoint) &&
-    value.intendedCheckpoint.nextFrameIndex ===
-      (value.reservedThroughFrameIndex as number) + 1 &&
+    isForwardDeliveryCheckpoint(
+      value.expectedCheckpoint,
+      value.intendedCheckpoint,
+      value.reservedThroughFrameIndex as number,
+    ) &&
     isNonNegativeInteger(value.reservedByPid) &&
     value.reservedByPid > 0 &&
     typeof value.reservedAt === 'string' &&
@@ -554,12 +586,12 @@ async function readCursorState(dir: string): Promise<CursorObserverStateV2> {
     parsed = JSON.parse(raw);
   } catch {
     await writeBackup(dir, 'corrupt', raw);
-    return emptyCursorState();
+    throw new CursorStateRecoveryRequiredError('corrupt');
   }
 
   if (!isCursorState(parsed)) {
     await writeBackup(dir, 'schema', raw);
-    return emptyCursorState();
+    throw new CursorStateRecoveryRequiredError('schema');
   }
   return parsed;
 }
@@ -810,8 +842,11 @@ export async function reserveCursorDelivery(input: {
     input.pending.reservedByPid !== input.ownerPid ||
     input.pending.expectedNextFrameIndex !== input.expected.nextFrameIndex ||
     !checkpointsEqual(input.pending.expectedCheckpoint, input.expected) ||
-    input.pending.intendedCheckpoint.nextFrameIndex !==
-      input.pending.reservedThroughFrameIndex + 1
+    !isForwardDeliveryCheckpoint(
+      input.expected,
+      input.pending.intendedCheckpoint,
+      input.pending.reservedThroughFrameIndex,
+    )
   ) {
     throw new TypeError('cursor-state: invalid delivery reservation');
   }
@@ -867,7 +902,15 @@ export async function commitCursorDelivery(input: {
     }
     if (
       !checkpointsEqual(current.continuity, pending.expectedCheckpoint) ||
-      !checkpointsEqual(pending.intendedCheckpoint, input.nextState.continuity)
+      !checkpointsEqual(
+        pending.intendedCheckpoint,
+        input.nextState.continuity,
+      ) ||
+      !isForwardDeliveryCheckpoint(
+        pending.expectedCheckpoint,
+        pending.intendedCheckpoint,
+        pending.reservedThroughFrameIndex,
+      )
     ) {
       return { write: false, value: 'stale' as const };
     }
@@ -959,16 +1002,26 @@ export async function resetCursorSessionState(
 }
 
 export async function resetAllCursorState(): Promise<number> {
-  let count = 0;
-  await mutateCursorState((state) => {
-    count = new Set([
-      ...Object.keys(state.sessions),
-      ...Object.keys(state.legacyUnverified),
-    ]).size;
-    state.sessions = {};
-    state.legacyUnverified = {};
-  });
-  return count;
+  const dir = stateDir();
+  await ensurePrivateDirectory(dir);
+  const lock = lockPath(dir);
+  await acquireLock(lock);
+  try {
+    let count = 0;
+    try {
+      const state = await readCursorState(dir);
+      count = new Set([
+        ...Object.keys(state.sessions),
+        ...Object.keys(state.legacyUnverified),
+      ]).size;
+    } catch (error) {
+      if (!(error instanceof CursorStateRecoveryRequiredError)) throw error;
+    }
+    await writeCursorState(dir, emptyCursorState());
+    return count;
+  } finally {
+    await releaseLock(lock);
+  }
 }
 
 export async function clearCursorState(): Promise<void> {

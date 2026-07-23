@@ -25,6 +25,8 @@ import {
   mutateCursorState,
   recoverCursorDelivery,
   reserveCursorDelivery,
+  resetAllCursorState,
+  resetCursorSessionState,
   setCursorSession,
   validateCursorContinuity,
 } from '../../src/transcript/session-observer/lib/cursor-state.js';
@@ -320,10 +322,9 @@ it('waits for cursor-state.json.lock before reading or writing backups', async (
     expect(settled).toBe(false);
 
     await unlink(lock);
-    await expect(pending).resolves.toEqual({
-      schemaVersion: 2,
-      sessions: {},
-      legacyUnverified: {},
+    await expect(pending).rejects.toMatchObject({
+      code: 'CURSOR_STATE_RECOVERY_REQUIRED',
+      reason: 'corrupt',
     });
     expect(
       (await readdir(dir)).some((name) =>
@@ -333,26 +334,101 @@ it('waits for cursor-state.json.lock before reading or writing backups', async (
   });
 });
 
-it('backs up corrupt and invalid-schema Cursor state without trusting it', async () => {
-  await withTmpStateDir(async (dir) => {
-    await writeFile(join(dir, 'cursor-state.json'), '{ corrupt');
-    expect((await loadCursorState()).sessions).toEqual({});
+it.each([
+  ['corrupt', '{ corrupt'],
+  ['schema', JSON.stringify({ schemaVersion: 1, sessions: {} })],
+] as const)(
+  'fails closed on %s Cursor state across every mutation path until explicit reset',
+  async (label, raw) => {
+    await withTmpStateDir(async (dir) => {
+      const path = join(dir, 'cursor-state.json');
+      const entry = deliveryEntry('corrupt-session');
+      const pending = {
+        deliveryId: 'corrupt-delivery',
+        expectedNextFrameIndex: 3,
+        expectedCheckpoint: entry.continuity,
+        reservedThroughFrameIndex: 4,
+        entryKeys: ['entry-delivery'],
+        intendedCheckpoint: {
+          ...checkpoint(5),
+          prefixBytes: 256,
+          observedSize: 256,
+        },
+        reservedByPid: 101,
+        reservedAt: '2026-07-22T00:00:00.000Z',
+      };
+      const committed = {
+        ...entry,
+        lastRecordIndex: 5,
+        continuity: pending.intendedCheckpoint,
+        pendingDelivery: null,
+        stabilityCandidate: null,
+        lastStatus: { ...entry.lastStatus, delivery: 'committed' as const },
+      };
+      const mutations = [
+        () => loadCursorState(),
+        () => mutateCursorState(() => {}),
+        () => setCursorSession(entry),
+        () =>
+          checkpointCursorCandidate({
+            sessionId: entry.sessionId,
+            stabilityMs: 100,
+            observation: {
+              turnId: 'turn-corrupt',
+              fromFrameIndex: 3,
+              throughFrameIndex: 4,
+              entryKeys: ['entry-delivery'],
+              prefixBytes: 256,
+              prefixSha256: 'b'.repeat(64),
+              observedAt: '2026-07-22T00:00:00.000Z',
+            },
+          }),
+        () =>
+          reserveCursorDelivery({
+            sessionId: entry.sessionId,
+            ownerPid: 101,
+            expected: entry.continuity,
+            pending,
+          }),
+        () =>
+          commitCursorDelivery({
+            sessionId: entry.sessionId,
+            deliveryId: pending.deliveryId,
+            nextState: committed,
+          }),
+        () =>
+          abandonCursorDelivery({
+            sessionId: entry.sessionId,
+            deliveryId: pending.deliveryId,
+            ownerPid: 101,
+          }),
+        () => recoverCursorDelivery(entry.sessionId),
+        () => resetCursorSessionState(entry.sessionId),
+      ];
 
-    await writeFile(
-      join(dir, 'cursor-state.json'),
-      JSON.stringify({ schemaVersion: 1, sessions: {} }),
-    );
-    expect((await loadCursorState()).sessions).toEqual({});
+      for (const mutation of mutations) {
+        await writeFile(path, raw);
+        await expect(mutation()).rejects.toMatchObject({
+          code: 'CURSOR_STATE_RECOVERY_REQUIRED',
+        });
+        expect(await readFile(path, 'utf8')).toBe(raw);
+      }
 
-    const files = await readdir(dir);
-    expect(
-      files.some((name) => name.startsWith('cursor-state.json.corrupt-')),
-    ).toBe(true);
-    expect(
-      files.some((name) => name.startsWith('cursor-state.json.schema-')),
-    ).toBe(true);
-  });
-});
+      expect(
+        (await readdir(dir)).some((name) =>
+          name.startsWith(`cursor-state.json.${label}-`),
+        ),
+      ).toBe(true);
+      await writeFile(path, raw);
+      await expect(resetAllCursorState()).resolves.toBe(0);
+      await expect(loadCursorState()).resolves.toEqual({
+        schemaVersion: 2,
+        sessions: {},
+        legacyUnverified: {},
+      });
+    });
+  },
+);
 
 it.each([
   'marker-written',
@@ -475,6 +551,42 @@ it('resumes from the verified frame after a blocking partial frame is repaired',
     });
   });
 });
+
+it.each([
+  ['partial', `{"role":"assistant","content":"${'x'.repeat(200)}`],
+  ['malformed', `{"role":"assistant","content":${'x'.repeat(200)}}\n`],
+])(
+  'accepts a shorter repair of an unverified %s tail',
+  async (_parseState, blockingTail) => {
+    await withTmpStateDir(async (dir) => {
+      const transcriptPath = join(dir, 'shorter-repair.jsonl');
+      const verified = '{"role":"user","content":"one"}\n';
+      await writeFile(transcriptPath, verified + blockingTail);
+      const blocked = await scan(transcriptPath);
+      const prior = entryFromScan(transcriptPath, blocked);
+      expect(blocked.file.size).toBeGreaterThan(
+        Buffer.byteLength(verified + '{"role":"assistant","content":"ok"}\n'),
+      );
+
+      await writeFile(
+        transcriptPath,
+        verified + '{"role":"assistant","content":"ok"}\n',
+      );
+      const repaired = await scan(transcriptPath, prior.continuity.prefixBytes);
+
+      expect(
+        validateCursorContinuity(
+          exactIdentity(transcriptPath),
+          repaired,
+          prior,
+        ),
+      ).toEqual({
+        status: 'verified',
+        fromFrameIndex: prior.continuity.nextFrameIndex,
+      });
+    });
+  },
+);
 
 it('blocks transcript shrink without mutating prior evidence', async () => {
   await withTmpStateDir(async (dir) => {
@@ -814,6 +926,66 @@ it('delivery reservation rejects owner conflicts and stale checkpoints', async (
   });
 });
 
+it.each([
+  [
+    'backward frame',
+    {
+      reservedThroughFrameIndex: 1,
+      intendedCheckpoint: checkpoint(2),
+    },
+  ],
+  [
+    'backward prefix',
+    {
+      reservedThroughFrameIndex: 4,
+      intendedCheckpoint: {
+        ...checkpoint(5),
+        prefixBytes: 64,
+        observedSize: 128,
+      },
+    },
+  ],
+  [
+    'mismatched file',
+    {
+      reservedThroughFrameIndex: 4,
+      intendedCheckpoint: {
+        ...checkpoint(5),
+        prefixBytes: 256,
+        observedSize: 256,
+        inode: 99,
+      },
+    },
+  ],
+])('rejects a %s delivery checkpoint', async (_label, invalid) => {
+  await withTmpStateDir(async () => {
+    const sessionId = `delivery-invalid-${String(_label).replaceAll(' ', '-')}`;
+    const entry = deliveryEntry(sessionId);
+    await setCursorSession(entry);
+
+    await expect(
+      reserveCursorDelivery({
+        sessionId,
+        ownerPid: 606,
+        expected: entry.continuity,
+        pending: {
+          deliveryId: `delivery-invalid-${_label}`,
+          expectedNextFrameIndex: 3,
+          expectedCheckpoint: entry.continuity,
+          reservedThroughFrameIndex: invalid.reservedThroughFrameIndex,
+          entryKeys: ['entry-delivery'],
+          intendedCheckpoint: invalid.intendedCheckpoint,
+          reservedByPid: 606,
+          reservedAt: '2026-07-22T00:00:00.000Z',
+        },
+      }),
+    ).rejects.toThrow('invalid delivery reservation');
+    expect((await getCursorSession(sessionId))?.continuity).toEqual(
+      entry.continuity,
+    );
+  });
+});
+
 it('abandons a reservation after crash-before-output without advancing state', async () => {
   await withTmpStateDir(async () => {
     const sessionId = 'delivery-abandon';
@@ -956,5 +1128,72 @@ it('commits a reserved delivery with one checkpoint CAS and is replay-safe', asy
         nextState,
       }),
     ).resolves.toBe('stale');
+  });
+});
+
+it.each([
+  ['backward frame', checkpoint(2)],
+  [
+    'backward prefix',
+    {
+      ...checkpoint(5),
+      prefixBytes: 64,
+      observedSize: 128,
+    },
+  ],
+  [
+    'mismatched file',
+    {
+      ...checkpoint(5),
+      prefixBytes: 256,
+      observedSize: 256,
+      device: 99,
+    },
+  ],
+])('refuses to commit a %s checkpoint through CAS', async (_label, invalid) => {
+  await withTmpStateDir(async () => {
+    const sessionId = `delivery-commit-${String(_label).replaceAll(' ', '-')}`;
+    const entry = deliveryEntry(sessionId);
+    await setCursorSession(entry);
+    const intended = {
+      ...checkpoint(5),
+      prefixBytes: 256,
+      prefixSha256: '3'.repeat(64),
+      observedSize: 256,
+    };
+    const deliveryId = `delivery-commit-${_label}`;
+    await reserveCursorDelivery({
+      sessionId,
+      ownerPid: 707,
+      expected: entry.continuity,
+      pending: {
+        deliveryId,
+        expectedNextFrameIndex: 3,
+        expectedCheckpoint: entry.continuity,
+        reservedThroughFrameIndex: 4,
+        entryKeys: ['entry-delivery'],
+        intendedCheckpoint: intended,
+        reservedByPid: 707,
+        reservedAt: '2026-07-22T00:00:00.000Z',
+      },
+    });
+
+    await expect(
+      commitCursorDelivery({
+        sessionId,
+        deliveryId,
+        nextState: {
+          ...entry,
+          lastRecordIndex: invalid.nextFrameIndex,
+          continuity: invalid,
+          pendingDelivery: null,
+          stabilityCandidate: null,
+          lastStatus: { ...entry.lastStatus, delivery: 'committed' as const },
+        },
+      }),
+    ).resolves.toBe('stale');
+    expect((await getCursorSession(sessionId))?.continuity).toEqual(
+      entry.continuity,
+    );
   });
 });
