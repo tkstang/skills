@@ -38,13 +38,13 @@ oat_generated: false
 
 ## Phase 1: Streaming Cursor Transcript Foundation
 
-### Task p01-t01: Record the measured baseline and define the scanner contract
+### Task p01-t01: Record the measured baseline and fixture contract
 
 **Requirements:** FR4, FR9, NFR2, NFR5, NFR6
 
 **Files:**
 
-- Create: `tests/transcript-core/cursor-frames.test.ts`
+- Create: `tests/transcript-core/cursor-fixtures.test.ts`
 - Create or extend: `tests/session-observer/fixtures/cursor/framed-*.jsonl`
 - Modify: `tests/session-observer/fixtures/README.md`
 - Modify: `skills/session-observer-collab/references/runtime-cursor.md`
@@ -52,11 +52,11 @@ oat_generated: false
 **Steps:**
 
 1. Before parser implementation, record the measured Cursor store/version/path/record/identity baseline and the exact post-implementation probe plan in `runtime-cursor.md`; label unavailable or unsupported rows honestly and retain no prose or raw identity values.
-2. Add redacted fixtures and RED tests for blank lines, closed frames, malformed middle frames, unterminated tails, repair, append growth, and prefix replacement.
-3. Assert zero-based physical frame indexes, exact byte boundaries, safe prefix hashes, device/inode metadata, and blocking-frame summaries.
-4. Specify that callbacks stop before the first blocker while `totalFrames` still counts physical frames visible in the scan, including the blocker/tail needed for backlog reporting.
-5. Format: do not JSON-format JSONL fixtures; run `pnpm exec oxfmt --write tests/transcript-core/cursor-frames.test.ts tests/session-observer/fixtures/README.md skills/session-observer-collab/references/runtime-cursor.md`.
-6. Verify RED: `pnpm exec vitest run tests/transcript-core/cursor-frames.test.ts`; verify the baseline contains provider/version/shape/action/label fields and no personal absolute path, raw session/lease value, credential, or transcript prose.
+2. Add redacted fixtures for blank lines, closed frames, malformed middle frames, unterminated tails, repair, append growth, and prefix replacement.
+3. Add passing fixture-contract tests for JSONL byte preservation, redaction, expected structural labels, and scenario inventory; defer scanner behavior assertions to p01-t02.
+4. Document the intended zero-based physical frame index, blocker/tail scenarios, and prefix-repair cases without asserting unimplemented runtime behavior.
+5. Format: do not JSON-format JSONL fixtures; run `pnpm exec oxfmt --write tests/transcript-core/cursor-fixtures.test.ts tests/session-observer/fixtures/README.md skills/session-observer-collab/references/runtime-cursor.md`.
+6. Verify GREEN: `pnpm exec vitest run tests/transcript-core/cursor-fixtures.test.ts`; verify the baseline contains provider/version/shape/action/label fields and no personal absolute path, raw session/lease value, credential, or transcript prose.
 7. Commit: `test(p01-t01): record cursor baseline and frame contract`.
 
 ### Task p01-t02: Implement the streaming Cursor frame reader
@@ -66,7 +66,7 @@ oat_generated: false
 **Files:**
 
 - Create: `src/transcript/core/cursor-frames.ts`
-- Modify: `tests/transcript-core/cursor-frames.test.ts`
+- Create: `tests/transcript-core/cursor-frames.test.ts`
 - Modify: `scripts/build-generated.mjs`
 - Modify: `tests/tooling/generated-output-sync.test.ts`
 - Generate: `skills/session-observer/scripts/lib/cursor-frames.mjs`
@@ -74,16 +74,16 @@ oat_generated: false
 
 **Steps:**
 
-1. Implement `scanCursorTranscript()` with streaming Node `fs`/`crypto` APIs and released-per-frame callbacks.
-2. Keep malformed/partial input fail-closed, snapshot `verifiedPrefixSha256` exactly at `verifyPrefixBytes`, and permit later bytes without changing the verified prefix.
-3. Add the frame-reader mappings, import rewrites, and mapping assertions for both shipped runtime trees.
-4. Refactor hashing and byte accounting without retaining a transcript-sized record array.
+1. Add scanner behavior tests for physical frame indexes, byte boundaries, safe prefix hashes, device/inode metadata, blocking summaries, repair, append, and replacement; observe them fail before implementation.
+2. Implement `scanCursorTranscript()` with streaming Node `fs`/`crypto` APIs and released-per-frame callbacks.
+3. Keep malformed/partial input fail-closed, snapshot `verifiedPrefixSha256` exactly at `verifyPrefixBytes`, and permit later bytes without changing the verified prefix.
+4. Add the frame-reader mappings, import rewrites, and mapping assertions for both shipped runtime trees; refactor hashing without retaining a transcript-sized record array.
 5. Format: `pnpm exec oxfmt --write src/transcript/core/cursor-frames.ts tests/transcript-core/cursor-frames.test.ts scripts/build-generated.mjs tests/tooling/generated-output-sync.test.ts`.
 6. Run `pnpm run build`; never hand-edit generated outputs.
 7. Verify GREEN: `pnpm exec vitest run tests/transcript-core/cursor-frames.test.ts tests/tooling/generated-output-sync.test.ts && pnpm run type-check && pnpm run build:check`.
 8. Commit: `feat(p01-t02): add streaming cursor frame reader`.
 
-### Task p01-t03: Establish shared control classification and analyzer tests
+### Task p01-t03: Establish the shared control-classification seam
 
 **Requirements:** FR2, FR3, NFR3, NFR4
 
@@ -92,19 +92,18 @@ oat_generated: false
 - Modify: `src/transcript/core/runtimes.ts`
 - Generate: `skills/session-observer/scripts/lib/runtimes.mjs`
 - Generate: `skills/export-session-transcript/scripts/lib/runtimes.mjs`
-- Create: `tests/transcript-core/cursor-analysis.test.ts`
 - Modify: `tests/transcript-core/runtimes.test.ts`
 - Modify: `tests/session-observer/fixtures/cursor/*.jsonl`
 
 **Steps:**
 
-1. Add RED analyzer coverage for structural turn ranges, multiple assistant blocks, human/tool indexes, terminal states, entry-key identity scoping, automatic-control input, acknowledgements, no-op text, diagnostics, and unsupported shapes.
-2. Promote the existing automatic-envelope parser and minimal no-op/ack classification rules into dependency-free canonical core exports; do not import authored collaboration modules into canonical TypeScript.
+1. Add focused automatic-envelope and no-op/ack classifier tests in `runtimes.test.ts`, observe them fail, then promote the existing parser and rules into dependency-free canonical core exports; do not import authored collaboration modules into canonical TypeScript.
+2. Keep analyzer-specific structural-turn assertions deferred to p01-t04 so this task finishes green on the shared seam alone.
 3. Keep the existing terminal-only `normalizeCursor()` projection byte-for-byte compatible in behavior.
 4. Define the analyzer identity input in core as the structural exact identity contract that the Phase 2 resolver will satisfy, avoiding a core-to-observer import.
-5. Format: `pnpm exec oxfmt --write src/transcript/core/runtimes.ts tests/transcript-core/cursor-analysis.test.ts tests/transcript-core/runtimes.test.ts`.
+5. Format: `pnpm exec oxfmt --write src/transcript/core/runtimes.ts tests/transcript-core/runtimes.test.ts`.
 6. Run `pnpm run build`; never hand-edit the two generated runtime copies.
-7. Verify RED/new seam and synchronization: `pnpm exec vitest run tests/transcript-core/cursor-analysis.test.ts tests/transcript-core/runtimes.test.ts && pnpm run build:check`.
+7. Verify GREEN and synchronization: `pnpm exec vitest run tests/transcript-core/runtimes.test.ts && pnpm run build:check`.
 8. Commit: `refactor(p01-t03): expose cursor control classifiers`.
 
 ### Task p01-t04: Implement the Cursor turn analyzer
@@ -114,7 +113,7 @@ oat_generated: false
 **Files:**
 
 - Create: `src/transcript/core/cursor-analysis.ts`
-- Modify: `tests/transcript-core/cursor-analysis.test.ts`
+- Create: `tests/transcript-core/cursor-analysis.test.ts`
 - Modify: `scripts/build-generated.mjs`
 - Modify: `tests/tooling/generated-output-sync.test.ts`
 - Generate: `skills/session-observer/scripts/lib/cursor-analysis.mjs`
@@ -122,9 +121,9 @@ oat_generated: false
 
 **Steps:**
 
-1. Implement `createCursorTurnAccumulator()` over framed callbacks with stable turn IDs, source-ordered content records, classifications, lifecycle, and recovery pointers.
-2. Keep the foundation factory boundary-oriented: tests begin at a structural turn boundary; later observer integration supplies persisted `openTurn` context when an observation cursor resumes mid-turn.
-3. Emit structural candidates only; candidate timing and two-scan confirmation belong to Cursor state/observer orchestration.
+1. Add analyzer tests for structural turn ranges, multiple assistant blocks, human/tool indexes, terminal states, entry-key identity scoping, automatic-control input, acknowledgements, no-op text, diagnostics, and unsupported shapes; observe them fail before implementation.
+2. Implement `createCursorTurnAccumulator()` over framed callbacks with stable turn IDs, source-ordered content records, classifications, lifecycle, and recovery pointers.
+3. Keep the factory boundary-oriented and emit structural candidates only; later observer integration supplies persisted `openTurn` context and two-scan confirmation.
 4. Add analyzer mappings, import rewrites, and mapping assertions for both shipped runtime trees.
 5. Format: `pnpm exec oxfmt --write src/transcript/core/cursor-analysis.ts tests/transcript-core/cursor-analysis.test.ts scripts/build-generated.mjs tests/tooling/generated-output-sync.test.ts`.
 6. Run `pnpm run build`; never hand-edit generated outputs.
@@ -258,7 +257,7 @@ oat_generated: false
 
 ## Phase 3: Digest v2, Observation, Foreground Watch, and CLI
 
-### Task p03-t01: Define Cursor digest v2 and accounting tests
+### Task p03-t01: Define Cursor digest v2 types and fixture contracts
 
 **Requirements:** FR2, FR3, FR5, FR6, NFR2, NFR3
 
@@ -269,11 +268,11 @@ oat_generated: false
 
 **Steps:**
 
-1. Add RED fixtures for discriminated digest v2, frame ranges, observed/omitted/buffered accounting, projection labels, availability, lifecycle, recovery pointers, and blocking frames.
-2. Preserve v1 record-index types as the Claude/Codex branch of the union.
-3. Assert exact accounting and structural-only JSON/event metadata.
+1. Add the discriminated digest v2 types for frame ranges, accounting, projection labels, availability, lifecycle, recovery pointers, and blocking frames while preserving v1 record-index types as the Claude/Codex branch.
+2. Add passing fixture-shape and serialization-characterization tests that exercise only the new data contract; defer `buildDigest` behavior assertions to p03-t02.
+3. Assert fixture accounting is internally balanced and JSON/event metadata remains structural-only.
 4. Format: `pnpm exec oxfmt --write src/transcript/session-observer/lib/types.ts tests/session-observer/digest.test.ts`.
-5. Verify RED: `pnpm exec vitest run tests/session-observer/digest.test.ts`.
+5. Verify GREEN: `pnpm exec vitest run tests/session-observer/digest.test.ts && pnpm run type-check`.
 6. Commit: `test(p03-t01): define cursor digest v2 contract`.
 
 ### Task p03-t02: Build Cursor digest and status projections
@@ -289,15 +288,16 @@ oat_generated: false
 
 **Steps:**
 
-1. Add a Cursor branch that consumes framed analysis and state checkpoints without routing through compact record indexes.
-2. Project observation separately from confirmed completion; terminal success selects the final substantive entry, non-success suppresses unread prose, and pending content remains review-only.
-3. Render independent activity/content/lifecycle/health facets and recovery pointers while preserving existing v1 markdown/JSON output.
-4. Format: `pnpm exec oxfmt --write src/transcript/session-observer/lib/digest.ts src/transcript/session-observer/lib/types.ts tests/session-observer/digest.test.ts`.
-5. Run `pnpm run build`; never hand-edit the generated digest module.
-6. Verify: `pnpm exec vitest run tests/session-observer/digest.test.ts tests/transcript-core/runtimes.test.ts && pnpm run type-check && pnpm run build:check`.
-7. Commit: `feat(p03-t02): add cursor digest v2 projections`.
+1. Add `buildDigest` behavior tests for frame accounting, observation/completion projection, lifecycle, recovery, and blocking states; observe them fail before implementation.
+2. Add a Cursor branch that consumes framed analysis and state checkpoints without routing through compact record indexes.
+3. Project observation separately from confirmed completion; terminal success selects the final substantive entry, non-success suppresses unread prose, and pending content remains review-only.
+4. Render independent activity/content/lifecycle/health facets and recovery pointers while preserving existing v1 markdown/JSON output.
+5. Format: `pnpm exec oxfmt --write src/transcript/session-observer/lib/digest.ts src/transcript/session-observer/lib/types.ts tests/session-observer/digest.test.ts`.
+6. Run `pnpm run build`; never hand-edit the generated digest module.
+7. Verify GREEN: `pnpm exec vitest run tests/session-observer/digest.test.ts tests/transcript-core/runtimes.test.ts && pnpm run type-check && pnpm run build:check`.
+8. Commit: `feat(p03-t02): add cursor digest v2 projections`.
 
-### Task p03-t03: Specify Cursor catch-up reservation behavior
+### Task p03-t03: Characterize observation output ownership
 
 **Requirements:** FR1, FR2, FR3, FR4, FR6, NFR1, NFR3
 
@@ -308,11 +308,11 @@ oat_generated: false
 
 **Steps:**
 
-1. Add RED cases for exact pinned identity, continuity block/no mutation, one bounded inline stability confirmation, pending delivery, success/failure reconciliation, owner conflict, and crash-window replay keys.
-2. Assert reservation happens before rendering, commit only after successful write, and no observe-then-restore mutation is possible.
-3. Preserve non-Cursor catch-up and review behavior.
+1. Add passing characterization tests for current non-Cursor catch-up/review behavior and identify the CLI/watch stdout ownership seams used by the next task.
+2. Add reusable Cursor fixture builders and failure-injection helpers without asserting behavior that the current implementation does not provide.
+3. Verify existing state mutation/output ordering explicitly so p03-t04 can replace it without changing non-Cursor behavior.
 4. Format: `pnpm exec oxfmt --write tests/session-observer/observe.test.ts tests/session-observer/integration.test.ts`.
-5. Verify RED: `pnpm exec vitest run tests/session-observer/observe.test.ts tests/session-observer/integration.test.ts`.
+5. Verify GREEN: `pnpm exec vitest run tests/session-observer/observe.test.ts tests/session-observer/integration.test.ts`.
 6. Commit: `test(p03-t03): define cursor catch-up delivery contract`.
 
 ### Task p03-t04: Integrate Cursor observation and delivery CAS
@@ -329,14 +329,15 @@ oat_generated: false
 
 **Steps:**
 
-1. Route Cursor through exact identity, framed scan/analyzer, continuity, digest v2, and Cursor-state reservation APIs.
-2. Make one-shot review/catch-up perform at most one bounded confirmation scan; return pending honestly when the prefix is not yet stable.
-3. Reserve before rendering and return an explicit uncommitted delivery handle whose `commit`/`abandon` finalizer must be called by the stdout-owning CLI or watch loop; `observe.ts` never claims output success itself.
-4. Surface delivery-uncertain state instead of silently advancing after an ambiguous caller/output failure, and test handle ownership, double-finalization, and stale-owner rejection at the library boundary.
-5. Format: `pnpm exec oxfmt --write src/transcript/session-observer/lib/observe.ts src/transcript/session-observer/lib/types.ts tests/session-observer/observe.test.ts tests/session-observer/integration.test.ts`.
-6. Run `pnpm run build`; never hand-edit the generated observe module.
-7. Verify: `pnpm exec vitest run tests/session-observer/observe.test.ts tests/session-observer/integration.test.ts && pnpm run type-check && pnpm run build:check`.
-8. Commit: `feat(p03-t04): integrate cursor observation delivery`.
+1. Add Cursor behavior tests for exact pinned identity, continuity block/no mutation, one bounded confirmation, pending delivery, success/failure reconciliation, owner conflict, crash-window replay keys, and delivery-handle finalization; observe them fail before implementation.
+2. Route Cursor through exact identity, framed scan/analyzer, continuity, digest v2, and Cursor-state reservation APIs.
+3. Make one-shot review/catch-up perform at most one bounded confirmation scan; return pending honestly when the prefix is not yet stable.
+4. Reserve before rendering and return an explicit uncommitted delivery handle whose `commit`/`abandon` finalizer must be called by the stdout-owning CLI or watch loop; `observe.ts` never claims output success itself.
+5. Surface delivery-uncertain state instead of silently advancing after an ambiguous caller/output failure, and test handle ownership, double-finalization, and stale-owner rejection at the library boundary.
+6. Format: `pnpm exec oxfmt --write src/transcript/session-observer/lib/observe.ts src/transcript/session-observer/lib/types.ts tests/session-observer/observe.test.ts tests/session-observer/integration.test.ts`.
+7. Run `pnpm run build`; never hand-edit the generated observe module.
+8. Verify GREEN: `pnpm exec vitest run tests/session-observer/observe.test.ts tests/session-observer/integration.test.ts && pnpm run type-check && pnpm run build:check`.
+9. Commit: `feat(p03-t04): integrate cursor observation delivery`.
 
 ### Task p03-t05: Extend durable watch targets for Cursor
 
@@ -621,11 +622,11 @@ oat_generated: false
 **Steps:**
 
 1. Bump top-level and metadata versions for all three changed canonical skills; do not invoke the release-wide bump script without a chosen release version.
-2. Run `pnpm run build`, then verify mappings and skill versions against `origin/main`.
-3. For each changed standalone skill, copy/link the current branch version into its canonical user install at `~/.agents/skills/<name>/`, verify its version/content, and verify any `~/.claude/skills/<name>` or `~/.cursor/skills/<name>` entry resolves to that canonical copy before running `oat sync --scope user`.
-4. Check `oat status --scope all --json`, refresh repository views with `oat sync --scope all`, and confirm dogfooding is exercising the branch version rather than a stale main install.
-5. Do not claim a Cursor skill mirror when the provider exposes only agents/rules; record actual provider status.
-6. Format: skill frontmatter/mirrors are managed artifacts; do not run oxfmt over provider mirrors.
+2. Format the canonical skill files before any provider sync: `pnpm exec oxfmt --write skills/session-observer/SKILL.md skills/export-session-transcript/SKILL.md skills/session-observer-collab/SKILL.md`; generated outputs and provider mirrors remain excluded.
+3. Run `pnpm run build`, then verify mappings and skill versions against `origin/main`.
+4. For each changed standalone skill, copy/link the current branch version into its canonical user install at `~/.agents/skills/<name>/`, verify its version/content, and verify any `~/.claude/skills/<name>` or `~/.cursor/skills/<name>` entry resolves to that canonical copy before running `oat sync --scope user`.
+5. Check `oat status --scope all --json`, refresh repository views with `oat sync --scope all`, and confirm dogfooding is exercising the branch version rather than a stale main install.
+6. Do not claim a Cursor skill mirror when the provider exposes only agents/rules; record actual provider status.
 7. Verify: `pnpm run build:check && pnpm run validate:skill-versions -- --base-ref origin/main && oat status --scope all --json`.
 8. Commit: `chore(p05-t05): version and sync cursor reliability skills`.
 
@@ -722,12 +723,13 @@ oat_generated: false
 **Steps:**
 
 1. Diff Phase 6 against its start. If any canonical skill directory changed, bump every affected skill's top-level and metadata version; if canonical TypeScript changed, run `pnpm run build` and include all generated outputs in this task.
-2. If a shipped standalone skill changed, repeat the branch dogfood copy/link verification and `oat sync --scope user`; refresh repository views with `oat sync --scope all`, verify actual provider paths/versions, and retain the post-merge reconciliation note.
-3. If the stronger-wake item is satisfied, set terminal status/date, prepend `backlog/completed.md`, `git mv` it to `backlog/archived/`, run `oat backlog regenerate-index`, and conditionally refresh `current-state.md` and the curated overview. Otherwise keep it open with the evidence-backed next step.
-4. Enumerate changed files with `git diff --name-only --diff-filter=ACMR origin/main...HEAD` and run the exact changed-file oxlint/oxfmt-check pipelines from `.github/workflows/validate.yml`; never run whole-repository lint/format checks.
-5. Verify the final tree: `node scripts/validate-cursor-evidence.mjs && pnpm run build && pnpm run type-check && pnpm run build:check && pnpm run test && pnpm run validate && pnpm run smoke && pnpm --dir documentation run docs:format:check && pnpm --dir documentation run build && pnpm run validate:skill-versions -- --base-ref origin/main && oat status --scope all --json`.
-6. Confirm no generated drift, stale changed-skill versions, partial backlog closeout, or branch-only provider mirror remains unexplained.
-7. Commit: `chore(p06-t04): complete final cursor reliability release gates`.
+2. If canonical skill metadata changed, format the canonical files before sync: `pnpm exec oxfmt --write skills/session-observer/SKILL.md skills/export-session-transcript/SKILL.md skills/session-observer-collab/SKILL.md`; never directly format generated outputs or provider mirrors.
+3. If a shipped standalone skill changed, repeat the branch dogfood copy/link verification and `oat sync --scope user`; refresh repository views with `oat sync --scope all`, verify actual provider paths/versions, and retain the post-merge reconciliation note.
+4. If the stronger-wake item is satisfied, set terminal status/date, prepend `backlog/completed.md`, `git mv` it to `backlog/archived/`, run `oat backlog regenerate-index`, and conditionally refresh `current-state.md` and the curated overview. Otherwise keep it open with the evidence-backed next step.
+5. Enumerate changed files with `git diff --name-only --diff-filter=ACMR origin/main...HEAD` and run the exact changed-file oxlint/oxfmt-check pipelines from `.github/workflows/validate.yml`; never run whole-repository lint/format checks.
+6. Verify the final tree: `node scripts/validate-cursor-evidence.mjs && pnpm run build && pnpm run type-check && pnpm run build:check && pnpm run test && pnpm run validate && pnpm run smoke && pnpm --dir documentation run docs:format:check && pnpm --dir documentation run build && pnpm run validate:skill-versions -- --base-ref origin/main && oat status --scope all --json`.
+7. Confirm no generated drift, stale changed-skill versions, partial backlog closeout, or branch-only provider mirror remains unexplained.
+8. Commit: `chore(p06-t04): complete final cursor reliability release gates`.
 
 ## Reviews
 
@@ -744,7 +746,7 @@ oat_generated: false
 | p04    | code     | pending         | -          | -                                                                         |
 | p05    | code     | pending         | -          | -                                                                         |
 | p06    | code     | pending         | -          | -                                                                         |
-| plan   | artifact | received        | 2026-07-22 | reviews/artifact-plan-review-2026-07-23T023750Z.md                        |
+| plan   | artifact | fixes_completed | 2026-07-22 | reviews/artifact-plan-review-2026-07-23T023750Z.md                        |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 

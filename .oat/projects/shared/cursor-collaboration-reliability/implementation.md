@@ -110,6 +110,43 @@ oat_generated: false
 
 ## Artifact Review History
 
+### Plan Gate Blocked: Retry Limit Exhausted
+
+**Date:** 2026-07-23
+**Gate target:** `cursor-gpt-5-6-sol-max`
+**Policy:** `block`, maximum 2 substantive attempts
+
+**Attempt 1:**
+
+- Artifact: `reviews/artifact-plan-review-2026-07-23T022120Z.md`
+- Findings: 0 Critical, 5 Important, 2 Medium, 0 Minor
+- Disposition: all findings were applied directly to `plan.md` and the
+  requirement mapping; the bound review row is `fixes_completed`.
+- Operational note: the gate emitted human-readable output without the
+  required `receiveEligible` and `handoff` fields, so review-receive was not
+  invoked.
+
+**Attempt 2:**
+
+- Artifact: `reviews/artifact-plan-review-2026-07-23T023750Z.md`
+- Findings: 0 Critical, 1 Important, 1 Medium, 0 Minor
+- Residual Important: p01-t01, p01-t03, p03-t01, and p03-t03 end at explicit
+  RED verification boundaries, but every `oat-project-implement` task must
+  finish with passing verification before its atomic commit.
+- Residual Medium: p05-t05 and p06-t04 edit canonical `SKILL.md` files without
+  an explicit file-scoped write-format command before provider sync.
+- Operational note: this gate also omitted the structured receipt envelope.
+
+**Blocker:** The configured retry limit is exhausted. Planning remains
+`in_progress`; do not mark the plan implementation-ready until the operator
+authorizes a further remediation/review cycle or changes the gate disposition.
+
+**Operator-authorized recovery (2026-07-23):** After correcting the
+user-scoped plan gate command on both Macs to emit JSON, the operator said to
+proceed. The residual RED task-boundary and canonical-skill formatting fixes
+were applied directly to `plan.md`; one fresh gate run is authorized as a new
+operator recovery action rather than an automatic retry.
+
 ### Review Received: design
 
 **Date:** 2026-07-20
