@@ -15,173 +15,45 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parsePeers, parsePositiveInteger } from './consensus-cli-helpers.mjs';
-function isJsonRecord(value) {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-}
-function asErrorLike(error) {
-  return isJsonRecord(error) ? error : {};
-}
-function validationErrors(result) {
-  return result.errors ?? [];
-}
-function validationMetadata(result) {
-  return result.metadata ?? {};
-}
-const VERDICT_CAPS = Object.freeze({
-  reasoning_bytes: 16 * 1024,
-  critique_field_bytes: 16 * 1024,
-  proposed_artifact_bytes: 256 * 1024,
-  concern_bytes: 4 * 1024,
-  max_concerns: 20,
-  total_verdict_bytes: 512 * 1024
-});
-const SYNTHESIS_CAPS = Object.freeze({
-  synthesized_artifact_bytes: 256 * 1024,
-  synthesis_reasoning_bytes: 16 * 1024,
-  disagreement_bytes: 4 * 1024,
-  max_disagreements: 20,
-  total_synthesis_bytes: 512 * 1024
-});
-const LOOP_SCHEMA_VERSION = "v1";
-const SUBPROCESS_OUTPUT_CAP_BYTES = 10 * 1024 * 1024;
-const PROVIDER_CLI_KILL_GRACE_MS = 250;
-const PROVIDER_CLI_FINAL_RESOLUTION_MS = 1e3;
-const EXIT_CODES = Object.freeze({
-  USAGE: 64,
-  DATA: 65,
-  IO: 73,
-  SECTION_ERROR: 74,
-  NOPERM: 77,
-  CONFIG: 78,
-  INTERRUPTED: 130
-});
-class ConsensusError extends Error {
-  code;
-  exitCode;
-  details;
-  stderr;
-  constructor(message, options = {}) {
-    super(message, { cause: options.cause });
-    this.name = "ConsensusError";
-    this.code = options.code ?? "CONSENSUS_ERROR";
-    this.exitCode = options.exitCode ?? EXIT_CODES.CONFIG;
-    this.details = options.details;
-  }
-}
-const DEFAULT_NORMALIZE_OPTIONS = {
-  normalizeLineEndings: true,
-  trimTrailingWhitespace: true,
-  collapseEofNewlines: true,
-  finalNewline: true
-};
-const STRICT_HASH_OPTIONS = {
-  normalizeLineEndings: false,
-  trimTrailingWhitespace: false,
-  collapseEofNewlines: false,
-  finalNewline: false
-};
-const ALTERNATING_VERDICT_BRANCHES = {
-  ACCEPT: {
-    required: ["schema_version", "verdict", "reasoning"],
-    optional: ["concerns"]
-  },
-  REVISE: {
-    required: ["schema_version", "verdict", "reasoning", "proposed_artifact"],
-    optional: ["concerns"]
-  },
-  IMPASSE: {
-    required: ["schema_version", "verdict", "reasoning"],
-    optional: ["concerns"]
-  }
-};
-const PARALLEL_VERDICT_BRANCHES = {
-  REVISE: {
-    required: ["schema_version", "verdict", "reasoning", "proposed_artifact"],
-    optional: ["concerns", "critique"]
-  },
-  ACCEPT_PEER: {
-    required: ["schema_version", "verdict", "reasoning", "proposed_artifact"],
-    optional: ["concerns", "critique"]
-  },
-  CONVERGED: {
-    required: ["schema_version", "verdict", "reasoning"],
-    optional: ["concerns", "critique"]
-  },
-  IMPASSE: {
-    required: ["schema_version", "verdict", "reasoning"],
-    optional: ["concerns", "critique"]
-  }
-};
-const VERDICT_BRANCHES = {
-  alternating: ALTERNATING_VERDICT_BRANCHES,
-  parallel_revision: PARALLEL_VERDICT_BRANCHES,
-  parallel_synthesized: PARALLEL_VERDICT_BRANCHES
-};
-const PARALLEL_MODES = /* @__PURE__ */ new Set([
-  "parallel_revision",
-  "parallel_synthesized"
-]);
-const ITERATION_MODES = Object.freeze([
-  "alternating",
-  "parallel_revision",
-  "parallel_synthesized"
-]);
-const COLD_START_MODES = Object.freeze([
-  "shared_input",
-  "independent_draft"
-]);
-function callsPerRound(mode) {
-  if (mode === "parallel_revision") return { peer: 2, synthesis: 0 };
-  if (mode === "parallel_synthesized") return { peer: 2, synthesis: 1 };
-  return { peer: 1, synthesis: 0 };
-}
-function invalidIterationModeError(value) {
-  return new ConsensusError(
-    `--iteration must be one of ${ITERATION_MODES.join(", ")} (received: ${value})`,
-    {
-      code: "INVALID_ITERATION_MODE",
-      exitCode: EXIT_CODES.USAGE,
-      details: { received: value ?? null, allowed: [...ITERATION_MODES] }
-    }
-  );
-}
-function branchTableForMode(mode = "alternating") {
-  return VERDICT_BRANCHES[mode] ?? ALTERNATING_VERDICT_BRANCHES;
-}
-function verdictVocabularyMessage(mode) {
-  return PARALLEL_MODES.has(mode) ? "verdict must be REVISE, ACCEPT_PEER, CONVERGED, or IMPASSE" : "verdict must be ACCEPT, REVISE, or IMPASSE";
-}
-function normalizeOptions(options = {}) {
-  return { ...DEFAULT_NORMALIZE_OPTIONS, ...options };
-}
-function hashOptionsForAgency(agency = "moderate") {
-  return agency === "minimal" ? STRICT_HASH_OPTIONS : {};
-}
-function convergenceOptionsForAgency(agency = "moderate") {
-  return { agency, hashOptions: hashOptionsForAgency(agency) };
-}
-function verdictDecision(record) {
-  if (typeof record?.verdict === "string") return record.verdict;
-  if (!isJsonRecord(record?.verdict)) return record?.decision ?? null;
-  return record?.verdict?.verdict ?? record?.verdict?.decision ?? record?.decision ?? null;
-}
-function byteLength(value) {
-  return Buffer.byteLength(String(value ?? ""), "utf8");
-}
-function oversizedResult(field, limitBytes, actualBytes) {
-  return {
-    ok: false,
-    metadata: {
-      code: "OVERSIZE_REJECTED",
-      field,
-      limit_bytes: limitBytes,
-      actual_bytes: actualBytes
-    }
-  };
-}
-function pushTypeError(errors, field, expected) {
-  errors.push(`${field} must be ${expected}`);
-}
+import {
+  VERDICT_CAPS,
+  SYNTHESIS_CAPS,
+  LOOP_SCHEMA_VERSION,
+  SUBPROCESS_OUTPUT_CAP_BYTES,
+  PROVIDER_CLI_KILL_GRACE_MS,
+  PROVIDER_CLI_FINAL_RESOLUTION_MS,
+  EXIT_CODES,
+  ConsensusError,
+  ITERATION_MODES,
+  COLD_START_MODES,
+  callsPerRound,
+  invalidIterationModeError,
+  parallelSchemaPath,
+  peerSchemaPathForMode,
+  synthesisSchemaPath,
+  exitCodeForError,
+  normalizeForHash,
+  hashArtifact,
+  validateVerdictShape,
+  normalizeVerdict,
+  validateSynthesisShape,
+  validateSynthesisCaps,
+  validateVerdictCaps,
+  isJsonRecord,
+  asErrorLike,
+  validationErrors,
+  validationMetadata,
+  hashOptionsForAgency,
+  convergenceOptionsForAgency,
+  verdictDecision,
+  roundCount,
+  required,
+  schemaPath,
+  hardErrorMessage,
+  recordHash,
+  formatArtifactHash,
+  PARALLEL_MODES
+} from './loop-validation.mjs';
 function timestamp(options = {}) {
   return options.now?.() ?? (/* @__PURE__ */ new Date()).toISOString();
 }
@@ -241,43 +113,6 @@ function normalizeCost(status) {
   }
   return { cost_source: normalized, approximate_cost_usd: costUsd };
 }
-function roundCount(turns, peerCount) {
-  if (turns === 0) return 0;
-  return Math.ceil(turns / peerCount);
-}
-function required(value, name) {
-  if (!value) {
-    throw new Error(`missing required option: ${name}`);
-  }
-  return value;
-}
-function schemaPath() {
-  return fileURLToPath(
-    new URL(
-      "../skills/refine/schemas/verdict-alternating.schema.json",
-      import.meta.url
-    )
-  );
-}
-function parallelSchemaPath() {
-  return fileURLToPath(
-    new URL(
-      "../skills/refine/schemas/verdict-parallel.schema.json",
-      import.meta.url
-    )
-  );
-}
-function peerSchemaPathForMode(mode) {
-  return PARALLEL_MODES.has(mode) ? parallelSchemaPath() : schemaPath();
-}
-function synthesisSchemaPath() {
-  return fileURLToPath(
-    new URL("../skills/refine/schemas/synthesis.schema.json", import.meta.url)
-  );
-}
-function hardErrorMessage(error) {
-  return asErrorLike(error).message ?? String(error);
-}
 function outputCapError(streamName, capBytes) {
   return new ConsensusError(
     `${streamName} exceeded subprocess output cap (${capBytes} bytes)`,
@@ -287,331 +122,6 @@ function outputCapError(streamName, capBytes) {
       details: { stream: streamName, cap_bytes: capBytes }
     }
   );
-}
-function exitCodeForError(error) {
-  const candidate = asErrorLike(error);
-  if (candidate.name === "AbortError" || candidate.code === "SIGINT") {
-    return EXIT_CODES.INTERRUPTED;
-  }
-  if (Number.isInteger(candidate.exitCode)) {
-    return Number(candidate.exitCode);
-  }
-  if ([
-    "PEER_UNAVAILABLE",
-    "NODE_TOO_OLD",
-    "NODE_VERSION_UNSUPPORTED",
-    "PROVIDER_MISSING",
-    "PROVIDER_UNAVAILABLE",
-    "PROVIDER_AUTH_REQUIRED",
-    "HOST_RECURSION_BLOCKED"
-  ].includes(candidate.code ?? "")) {
-    return EXIT_CODES.CONFIG;
-  }
-  if (["EACCES", "EPERM"].includes(candidate.code ?? "")) {
-    return EXIT_CODES.NOPERM;
-  }
-  if (["ENOENT", "ENOTDIR", "EISDIR"].includes(candidate.code ?? "")) {
-    return EXIT_CODES.IO;
-  }
-  if (error instanceof SyntaxError || candidate.code === "PROVIDER_INVALID_JSON") {
-    return EXIT_CODES.DATA;
-  }
-  if (/^(--|unknown option|missing required option|input path|unexpected positional)/i.test(
-    candidate.message ?? ""
-  )) {
-    return EXIT_CODES.USAGE;
-  }
-  return EXIT_CODES.CONFIG;
-}
-function recordHash(record, options = {}) {
-  const hashOptions = options.hashOptions ?? hashOptionsForAgency(options.agency);
-  if (record?.artifact_hash) return formatArtifactHash(record.artifact_hash);
-  if (record?.final_artifact_hash)
-    return formatArtifactHash(record.final_artifact_hash);
-  if (record?.artifactHash) return formatArtifactHash(record.artifactHash);
-  if (typeof record?.artifact === "string")
-    return hashArtifact(record.artifact, hashOptions);
-  if (typeof record?.proposed_artifact === "string")
-    return hashArtifact(record.proposed_artifact, hashOptions);
-  if (isJsonRecord(record?.verdict) && typeof record.verdict.proposed_artifact === "string") {
-    return hashArtifact(record.verdict.proposed_artifact, hashOptions);
-  }
-  return null;
-}
-function formatArtifactHash(value) {
-  const text = String(value ?? "");
-  if (/^sha256:[0-9a-f]{64}$/u.test(text)) return text;
-  if (/^[0-9a-f]{64}$/u.test(text)) return `sha256:${text}`;
-  return text;
-}
-function normalizeForHash(text, options = {}) {
-  const normalizedOptions = normalizeOptions(options);
-  let normalized = String(text ?? "");
-  if (normalizedOptions.normalizeLineEndings) {
-    normalized = normalized.replace(/\r\n?/g, "\n");
-  }
-  if (normalizedOptions.trimTrailingWhitespace) {
-    normalized = normalized.split("\n").map((line) => line.replace(/[ \t]+$/g, "")).join("\n");
-  }
-  if (normalizedOptions.collapseEofNewlines) {
-    normalized = normalized.replace(/\n+$/g, "");
-  }
-  if (normalizedOptions.finalNewline && normalized.length > 0) {
-    normalized += "\n";
-  }
-  return normalized;
-}
-function hashArtifact(text, options = {}) {
-  return `sha256:${createHash("sha256").update(normalizeForHash(text, options), "utf8").digest("hex")}`;
-}
-function validateVerdictShape(verdict, { mode = "alternating" } = {}) {
-  const errors = [];
-  if (!isJsonRecord(verdict)) {
-    return { ok: false, errors: ["verdict must be an object"] };
-  }
-  if (verdict.schema_version !== LOOP_SCHEMA_VERSION) {
-    errors.push(`schema_version must be "${LOOP_SCHEMA_VERSION}"`);
-  }
-  const branchTable = branchTableForMode(mode);
-  const verdictValue = typeof verdict.verdict === "string" ? verdict.verdict : "";
-  const branch = branchTable[verdictValue];
-  if (!branch) {
-    errors.push(verdictVocabularyMessage(mode));
-  }
-  if (!branch) {
-    return { ok: false, errors };
-  }
-  const allowed = /* @__PURE__ */ new Set([...branch.required, ...branch.optional]);
-  for (const key of Object.keys(verdict)) {
-    if (!allowed.has(key)) {
-      errors.push(`additional property: ${key}`);
-    }
-  }
-  for (const key of branch.required) {
-    if (!(key in verdict)) {
-      errors.push(`missing required property: ${key}`);
-    }
-  }
-  if ("reasoning" in verdict && typeof verdict.reasoning !== "string") {
-    pushTypeError(errors, "reasoning", "a string");
-  }
-  if ("proposed_artifact" in verdict && typeof verdict.proposed_artifact !== "string") {
-    pushTypeError(errors, "proposed_artifact", "a string");
-  }
-  if ("critique" in verdict) {
-    const critique = verdict.critique;
-    if (!isJsonRecord(critique)) {
-      pushTypeError(errors, "critique", "an object");
-    } else {
-      for (const key of ["own_previous", "peer_previous"]) {
-        if (!(key in critique)) {
-          errors.push(`missing required property: critique.${key}`);
-        } else if (typeof critique[key] !== "string") {
-          pushTypeError(errors, `critique.${key}`, "a string");
-        }
-      }
-      for (const key of Object.keys(critique)) {
-        if (key !== "own_previous" && key !== "peer_previous") {
-          errors.push(`additional property: critique.${key}`);
-        }
-      }
-    }
-  }
-  if ("concerns" in verdict) {
-    if (!Array.isArray(verdict.concerns)) {
-      pushTypeError(errors, "concerns", "an array");
-    } else {
-      verdict.concerns.forEach((concern, index) => {
-        if (typeof concern !== "string") {
-          pushTypeError(errors, `concerns[${index}]`, "a string");
-        }
-      });
-    }
-  }
-  return { ok: errors.length === 0, errors };
-}
-function normalizeVerdict(verdict, mode = "alternating") {
-  if (!isJsonRecord(verdict)) return verdict;
-  const verdictValue = typeof verdict.verdict === "string" ? verdict.verdict : "";
-  const branch = branchTableForMode(mode)[verdictValue];
-  if (!branch) return verdict;
-  const allowed = /* @__PURE__ */ new Set([...branch.required, ...branch.optional]);
-  const normalized = { ...verdict };
-  for (const key of Object.keys(normalized)) {
-    if (!allowed.has(key)) delete normalized[key];
-  }
-  return normalized;
-}
-function validateSynthesisShape(synthesis) {
-  if (!isJsonRecord(synthesis)) {
-    return { ok: false, errors: ["synthesis must be an object"] };
-  }
-  const errors = [];
-  const allowed = /* @__PURE__ */ new Set([
-    "schema_version",
-    "synthesized_artifact",
-    "synthesis_reasoning",
-    "unresolved_disagreements"
-  ]);
-  for (const key of Object.keys(synthesis)) {
-    if (!allowed.has(key)) {
-      errors.push(`additional property: ${key}`);
-    }
-  }
-  if (synthesis.schema_version !== LOOP_SCHEMA_VERSION) {
-    errors.push(`schema_version must be "${LOOP_SCHEMA_VERSION}"`);
-  }
-  if (!("synthesized_artifact" in synthesis)) {
-    errors.push("missing required property: synthesized_artifact");
-  } else if (typeof synthesis.synthesized_artifact !== "string") {
-    pushTypeError(errors, "synthesized_artifact", "a string");
-  }
-  if (!("synthesis_reasoning" in synthesis)) {
-    errors.push("missing required property: synthesis_reasoning");
-  } else if (typeof synthesis.synthesis_reasoning !== "string") {
-    pushTypeError(errors, "synthesis_reasoning", "a string");
-  }
-  if (!("unresolved_disagreements" in synthesis)) {
-    errors.push("missing required property: unresolved_disagreements");
-  } else if (!Array.isArray(synthesis.unresolved_disagreements)) {
-    pushTypeError(errors, "unresolved_disagreements", "an array");
-  } else {
-    synthesis.unresolved_disagreements.forEach(
-      (entry, index) => {
-        if (typeof entry !== "string") {
-          pushTypeError(
-            errors,
-            `unresolved_disagreements[${index}]`,
-            "a string"
-          );
-        }
-      }
-    );
-  }
-  return { ok: errors.length === 0, errors };
-}
-function validateSynthesisCaps(synthesis) {
-  const shape = validateSynthesisShape(synthesis);
-  if (!shape.ok) return shape;
-  const payload = synthesis;
-  const totalBytes = byteLength(JSON.stringify(payload));
-  if (totalBytes > SYNTHESIS_CAPS.total_synthesis_bytes) {
-    return oversizedResult(
-      "synthesis",
-      SYNTHESIS_CAPS.total_synthesis_bytes,
-      totalBytes
-    );
-  }
-  const artifactBytes = byteLength(payload.synthesized_artifact);
-  if (artifactBytes > SYNTHESIS_CAPS.synthesized_artifact_bytes) {
-    return oversizedResult(
-      "synthesized_artifact",
-      SYNTHESIS_CAPS.synthesized_artifact_bytes,
-      artifactBytes
-    );
-  }
-  const reasoningBytes = byteLength(payload.synthesis_reasoning);
-  if (reasoningBytes > SYNTHESIS_CAPS.synthesis_reasoning_bytes) {
-    return oversizedResult(
-      "synthesis_reasoning",
-      SYNTHESIS_CAPS.synthesis_reasoning_bytes,
-      reasoningBytes
-    );
-  }
-  if (payload.unresolved_disagreements.length > SYNTHESIS_CAPS.max_disagreements) {
-    return {
-      ok: false,
-      metadata: {
-        code: "OVERSIZE_REJECTED",
-        field: "unresolved_disagreements",
-        limit_count: SYNTHESIS_CAPS.max_disagreements,
-        actual_count: payload.unresolved_disagreements.length
-      }
-    };
-  }
-  for (const [
-    index,
-    disagreement
-  ] of payload.unresolved_disagreements.entries()) {
-    const disagreementBytes = byteLength(disagreement);
-    if (disagreementBytes > SYNTHESIS_CAPS.disagreement_bytes) {
-      return oversizedResult(
-        `unresolved_disagreements[${index}]`,
-        SYNTHESIS_CAPS.disagreement_bytes,
-        disagreementBytes
-      );
-    }
-  }
-  return { ok: true, errors: [] };
-}
-function validateVerdictCaps(verdict, { mode = "alternating" } = {}) {
-  const shape = validateVerdictShape(verdict, { mode });
-  if (!shape.ok) return shape;
-  const payload = verdict;
-  const totalBytes = byteLength(JSON.stringify(payload));
-  if (totalBytes > VERDICT_CAPS.total_verdict_bytes) {
-    return oversizedResult(
-      "verdict",
-      VERDICT_CAPS.total_verdict_bytes,
-      totalBytes
-    );
-  }
-  const reasoningBytes = byteLength(payload.reasoning);
-  if (reasoningBytes > VERDICT_CAPS.reasoning_bytes) {
-    return oversizedResult(
-      "reasoning",
-      VERDICT_CAPS.reasoning_bytes,
-      reasoningBytes
-    );
-  }
-  if ("proposed_artifact" in payload) {
-    const proposedBytes = byteLength(payload.proposed_artifact);
-    if (proposedBytes > VERDICT_CAPS.proposed_artifact_bytes) {
-      return oversizedResult(
-        "proposed_artifact",
-        VERDICT_CAPS.proposed_artifact_bytes,
-        proposedBytes
-      );
-    }
-  }
-  if (payload.critique && typeof payload.critique === "object" && !Array.isArray(payload.critique)) {
-    for (const key of ["own_previous", "peer_previous"]) {
-      if (key in payload.critique) {
-        const critiqueBytes = byteLength(payload.critique[key]);
-        if (critiqueBytes > VERDICT_CAPS.critique_field_bytes) {
-          return oversizedResult(
-            `critique.${key}`,
-            VERDICT_CAPS.critique_field_bytes,
-            critiqueBytes
-          );
-        }
-      }
-    }
-  }
-  if (Array.isArray(payload.concerns)) {
-    if (payload.concerns.length > VERDICT_CAPS.max_concerns) {
-      return {
-        ok: false,
-        metadata: {
-          code: "OVERSIZE_REJECTED",
-          field: "concerns",
-          limit_count: VERDICT_CAPS.max_concerns,
-          actual_count: payload.concerns.length
-        }
-      };
-    }
-    for (const [index, concern] of payload.concerns.entries()) {
-      const concernBytes = byteLength(concern);
-      if (concernBytes > VERDICT_CAPS.concern_bytes) {
-        return oversizedResult(
-          `concerns[${index}]`,
-          VERDICT_CAPS.concern_bytes,
-          concernBytes
-        );
-      }
-    }
-  }
-  return { ok: true, errors: [] };
 }
 async function createRecordsWriter(recordsPath, options = {}) {
   await mkdir(path.dirname(recordsPath), { recursive: true });

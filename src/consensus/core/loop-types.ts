@@ -3,7 +3,7 @@ import type {
   ProviderDiagnostics,
 } from '../provider-cli/types.js';
 
-import type { ConsensusError } from './consensus-loop.js';
+import type { ConsensusError } from './loop-validation.js';
 
 export type JsonRecord = Record<string, unknown>;
 

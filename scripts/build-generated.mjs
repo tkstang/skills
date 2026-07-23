@@ -19,6 +19,11 @@ export const generatedOutputs = [
     output: 'plugins/consensus/scripts/consensus-loop.mjs',
   },
   {
+    id: 'consensus-loop-validation',
+    source: 'src/consensus/core/loop-validation.ts',
+    output: 'plugins/consensus/scripts/loop-validation.mjs',
+  },
+  {
     id: 'consensus-cli-helpers',
     source: 'src/consensus/shared/cli-helpers.ts',
     output: 'plugins/consensus/scripts/consensus-cli-helpers.mjs',
