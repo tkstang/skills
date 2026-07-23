@@ -14,7 +14,7 @@
 
 ### Fixed
 
-- The consensus wrapper subprocess path now supports deadline enforcement with SIGTERM→SIGKILL escalation, guards stdin against failed-spawn writes, and force-settles with stdio teardown when a descendant process holds the pipes open after kill — a stuck provider CLI can no longer hang a wrapper run (`refine` 0.1.7, `evaluate` 0.1.8, `panel` 0.1.2).
+- The consensus wrapper subprocess path now supports caller-supplied deadlines with SIGTERM→SIGKILL escalation, guards stdin against failed-spawn writes, and force-settles with stdio teardown when a descendant process holds the pipes open after kill (`refine` 0.1.7, `evaluate` 0.1.8, `panel` 0.1.2; shared-runtime consumers `create`/`decide`/`plan` 0.1.5). No default timeout is wired yet — deadlines apply where a caller passes one.
 - The `session-observer` watch loop caches transcript classification and metadata by file signature (path, mtime, size), eliminating full re-reads of unchanged transcripts on every poll tick (`session-observer` 1.0.7, `export-session-transcript` 1.0.4).
 - Consensus loop `records.json` and status writes are now atomic (same-directory temp file + fsync + rename), so a crash mid-write can no longer corrupt a resumable deliberation session (`refine` 0.1.6, `evaluate` 0.1.7).
 - The provider CLI host-recursion guard now propagates depth and enforces `max_depth` across cross-provider peer chains; alternating-provider spawn chains can no longer bypass the recursion cap.
