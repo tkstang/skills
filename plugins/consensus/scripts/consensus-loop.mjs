@@ -3,7 +3,7 @@
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
-import { mkdir, open, readFile, writeFile } from "node:fs/promises";
+import { mkdir, open, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -204,6 +204,20 @@ async function syncFileIfAvailable(filePath) {
     await handle.sync();
   } finally {
     await handle?.close();
+  }
+}
+async function atomicWriteFile(targetPath, data) {
+  const tmpPath = `${targetPath}.${process.pid}.tmp`;
+  try {
+    await writeFile(tmpPath, data);
+    await syncFileIfAvailable(tmpPath);
+    await rename(tmpPath, targetPath);
+  } catch (error) {
+    try {
+      await unlink(tmpPath);
+    } catch {
+    }
+    throw error;
   }
 }
 function normalizeCost(status) {
@@ -607,9 +621,8 @@ async function createRecordsWriter(recordsPath, options = {}) {
   await mkdir(path.dirname(recordsPath), { recursive: true });
   const records = await readExistingRecords(recordsPath);
   async function flush() {
-    await writeFile(recordsPath, `${JSON.stringify(records, null, 2)}
+    await atomicWriteFile(recordsPath, `${JSON.stringify(records, null, 2)}
 `);
-    await syncFileIfAvailable(recordsPath);
   }
   if (records.length === 0) {
     await flush();
@@ -658,9 +671,11 @@ async function writeLoopStatus(statusPath, status, _options = {}) {
     }
   }
   Object.assign(normalizedStatus, normalizeCost(status));
-  await writeFile(statusPath, `${JSON.stringify(normalizedStatus, null, 2)}
-`);
-  await syncFileIfAvailable(statusPath);
+  await atomicWriteFile(
+    statusPath,
+    `${JSON.stringify(normalizedStatus, null, 2)}
+`
+  );
   return normalizedStatus;
 }
 const CONSENSUS_SHARED_CLI_RELATIVE_PATH = path.join(

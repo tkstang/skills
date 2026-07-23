@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
-import { mkdir, open, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, open, readFile, rename, unlink, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -690,6 +690,29 @@ async function syncFileIfAvailable(filePath: string): Promise<void> {
   }
 }
 
+/**
+ * Write `data` to `targetPath` atomically: write to a same-directory temp
+ * file, fsync it, then rename over the target. Same-directory placement is
+ * what makes the rename atomic on POSIX (no cross-device rename). On any
+ * failure, best-effort remove the temp file and rethrow so the previous
+ * `targetPath` contents are left intact.
+ */
+async function atomicWriteFile(targetPath: string, data: string): Promise<void> {
+  const tmpPath = `${targetPath}.${process.pid}.tmp`;
+  try {
+    await writeFile(tmpPath, data);
+    await syncFileIfAvailable(tmpPath);
+    await rename(tmpPath, targetPath);
+  } catch (error) {
+    try {
+      await unlink(tmpPath);
+    } catch {
+      /* ignore ENOENT */
+    }
+    throw error;
+  }
+}
+
 function normalizeCost(
   status: LoopStatus,
 ): Pick<LoopStatus, 'cost_source'> &
@@ -1224,8 +1247,7 @@ export async function createRecordsWriter(
   const records = await readExistingRecords(recordsPath);
 
   async function flush() {
-    await writeFile(recordsPath, `${JSON.stringify(records, null, 2)}\n`);
-    await syncFileIfAvailable(recordsPath);
+    await atomicWriteFile(recordsPath, `${JSON.stringify(records, null, 2)}\n`);
   }
 
   if (records.length === 0) {
@@ -1284,8 +1306,10 @@ export async function writeLoopStatus(
 
   Object.assign(normalizedStatus, normalizeCost(status));
 
-  await writeFile(statusPath, `${JSON.stringify(normalizedStatus, null, 2)}\n`);
-  await syncFileIfAvailable(statusPath);
+  await atomicWriteFile(
+    statusPath,
+    `${JSON.stringify(normalizedStatus, null, 2)}\n`,
+  );
   return normalizedStatus;
 }
 
