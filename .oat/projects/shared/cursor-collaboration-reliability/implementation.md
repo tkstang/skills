@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-23
-oat_current_task_id: p03-t05
+oat_current_task_id: p03-t06
 oat_generated: false
 ---
 
@@ -28,12 +28,12 @@ oat_generated: false
 | ------- | ----------- | ----- | --------- |
 | Phase 1 | complete    | 5     | 5/5       |
 | Phase 2 | complete    | 8     | 8/8       |
-| Phase 3 | in_progress | 7     | 4/7       |
+| Phase 3 | in_progress | 7     | 5/7       |
 | Phase 4 | pending     | 6     | 0/6       |
 | Phase 5 | pending     | 6     | 0/6       |
 | Phase 6 | pending     | 4     | 0/4       |
 
-**Total:** 17/36 tasks accepted
+**Total:** 18/36 tasks accepted
 
 ---
 
@@ -654,6 +654,7 @@ are resolved; Phase 2 is complete.
 | p03-t02 | complete | `330a360` | Added schema-v2 Cursor digest dispatch with separate observation and confirmed-completion projections, independent status facets, recovery/blocking metadata, and preserved v1 rendering. |
 | p03-t03 | complete | `52e5043` | Characterized caller-owned output versus legacy state mutation, deterministic write/stdout failures, and reusable Cursor valid/malformed/unterminated frame fixtures without changing runtime behavior. |
 | p03-t04 | complete | `5d84895` | Integrated exact-identity framed Cursor observation with continuity-safe bounded confirmation, delivery reservation, caller-owned single-use commit/abandon handles, reconciliation, conflicts, and exact-key crash replay. |
+| p03-t05 | complete | `3e36ec5` | Added durable watch envelope v2 migration with untouched v1 targets, exact Cursor frame/continuity/candidate/owner state, private permissions, owner-scoped CAS, and blocked-to-verified repair. |
 
 ### Task p03-t01: Define Cursor digest v2 types and fixture contracts
 
@@ -685,6 +686,14 @@ file-scoped formatting/lint, and diff checks passed.
 observe/integration coverage passed 25/25 with type-check, generated build parity,
 file-scoped formatting/lint, and diff checks.
 
+### Task p03-t05: Extend durable watch targets for Cursor
+
+**Status:** completed
+**Commit:** `3e36ec5`
+**Verification:** RED confirmed 3 new failures with 19 existing passes; GREEN
+watch-state coverage passed 22/22 with type-check, generated build parity,
+file-scoped formatting/lint, and diff checks.
+
 ---
 
 ## Deviations from Plan / Design
@@ -705,7 +714,7 @@ Track test execution during implementation.
 | ----- | --------- | ------ | ------ | -------- |
 | 1     | Focused re-review + full suite | 137 focused; 1,148 full; 1 skipped | 0 | Frames, analyzer, runtimes, generated outputs, Export compatibility |
 | 2     | Fix-task re-review + full suite | 146 focused; 1,327 full; 1 skipped | 0; review passed | Atomic lock publication, exact raw-alias containment, Cursor v2 recovery guidance, generated outputs |
-| 3     | p03-t01 through p03-t04 focused verification | 99 digest/runtime tests; 2 legacy wake regressions; 25 observe/integration tests | 0 | Digest v2 projections, v1 compatibility, output ownership, Cursor observation and delivery CAS |
+| 3     | p03-t01 through p03-t05 focused verification | 99 digest/runtime tests; 2 legacy wake regressions; 25 observe/integration tests; 22 watch-state tests | 0 | Digest/observation/delivery v2 plus durable Cursor watch targets and v1 compatibility |
 
 ## Final Summary (for PR/docs)
 

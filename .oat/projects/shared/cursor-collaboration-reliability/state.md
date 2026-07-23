@@ -1,6 +1,6 @@
 ---
-oat_current_task: p03-t05
-oat_last_commit: 5d84895
+oat_current_task: p03-t06
+oat_last_commit: 3e36ec5
 oat_blockers: []
 associated_issues:
   - { type: backlog, ref: "BL-260713-cursor-transcript-store" }
@@ -40,7 +40,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-17T21:43:11.125Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-23T20:23:27Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-23T20:31:53Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -52,7 +52,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation - Phase 3 in progress at p03-t05
+Implementation - Phase 3 in progress at p03-t06
 
 ## Artifacts
 
@@ -60,7 +60,7 @@ Implementation - Phase 3 in progress at p03-t05
 - **Spec:** `spec.md` (complete; requirements formalized from discovery)
 - **Design:** `design.md` (complete; approved after review findings resolved)
 - **Plan:** `plan.md` (complete; approved after a passing artifact review)
-- **Implementation:** `implementation.md` (Phase 3 resumes at `p03-t05`)
+- **Implementation:** `implementation.md` (Phase 3 resumes at `p03-t06`)
 
 ## Progress
 
@@ -103,7 +103,8 @@ Implementation - Phase 3 in progress at p03-t05
 - ✓ `p03-t02` Cursor digest v2 projections complete at `330a360`
 - ✓ `p03-t03` observation output-ownership characterization complete at `52e5043`
 - ✓ `p03-t04` Cursor observation and delivery CAS integration complete at `5d84895`
-- ⧗ Phase 3 continues at `p03-t05`
+- ✓ `p03-t05` durable Cursor watch targets complete at `3e36ec5`
+- ⧗ Phase 3 continues at `p03-t06`
 
 ## Blockers
 
@@ -111,4 +112,4 @@ None.
 
 ## Next Milestone
 
-Execute Phase 3 from `p03-t05`.
+Execute Phase 3 from `p03-t06`.
