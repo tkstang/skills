@@ -61,9 +61,12 @@ Before each phase:
 
 Codex first uses the resolver-returned materialized implementer variant as
 native `agent_type`; only explicit pre-start role rejection permits the exact
-pinned fresh-child route. Claude and Cursor pass the exact resolver model
-argument. After acceptance, missing telemetry, timeout, `BLOCKED`, or any other
-terminal outcome cannot trigger fallback or replacement.
+pinned fresh-child route. Claude passes the exact resolver model argument.
+Cursor launches the exact `providers.cursor.dispatchArgs.variant` native agent
+type first; only explicit pre-start native role-selection rejection permits
+another target-preserving route. After acceptance, missing telemetry, timeout,
+`BLOCKED`, or any other terminal outcome cannot trigger fallback or
+replacement.
 
 Tier 2 inline execution is allowed only under the existing verified-equivalent
 controls or documented inherit/default exception. Inline mode executes the
@@ -118,16 +121,52 @@ artifact under the project's `reviews/` directory.
 For a managed capped review, bind the exact provider argument to the actual
 invocation: `providers.codex.dispatchArgs.variant`,
 `providers.claude.dispatchArgs.model`, or
-`providers.cursor.dispatchArgs.model`. If the root cannot apply, pass, or bind
-the required model or role control, fail closed before launch.
+`providers.cursor.dispatchArgs.variant`. Cursor must launch that exact
+resolver-selected native reviewer variant first and must not normalize its
+mapped model or attach a Task-level model argument. If the root cannot apply,
+pass, or bind the required model, variant, or role control, fail closed before
+launch.
 
 After acceptance, poll, nudge, or continue only through the accepted reviewer
 handle. Only explicit pre-start rejection allows another route. Timeout,
 interruption, `BLOCKED`, or contract refusal is the review outcome and never a
 reason to replace an accepted reviewer.
 
-Validate artifact scope and commit range. Zero Critical and zero Important
-findings passes. Medium/Minor findings are recorded without blocking.
+Before validating the review artifact scope or commit range, or updating any
+project bookkeeping, consume the reviewer's brief artifact-mode confirmation.
+It must contain exactly one of these exact lines:
+
+- `**Reconnaissance:** attempted`
+- `**Reconnaissance:** not-attempted`
+
+A missing, duplicate, or invalid reconnaissance signal is an
+incomplete-artifact error: stop and fail closed without validating the review
+artifact, updating bookkeeping, or appending a project-log entry.
+
+Use the valid signal to validate the review artifact's orchestration evidence:
+
+- For `attempted`, require a complete `## Review Orchestration` section with
+  one compact account of every attempted wave: task class, classification
+  rationale, selected target, acceptance/outcome, floor satisfaction, fallback,
+  and primary reconciliation. Missing or incomplete evidence is an
+  incomplete-artifact error. After successful validation, append exactly once
+  through `oat project log append`, creating one concise structural entry that
+  references the review artifact path.
+- For `not-attempted`, the artifact must not contain
+  `## Review Orchestration`; treat a present section as an inconsistent,
+  incomplete artifact. Do not append a log entry and do not invoke
+  `oat project log append`.
+
+For the attempted branch, do not mirror individual worker records. Defer flags
+and entry format to `oat project log append --help`; never pre-check project-log
+configuration because the helper no-ops when logging is disabled. The reviewer
+and workers never write `project-log.md` or append this entry.
+
+After successful signal and orchestration validation, validate the review
+artifact scope and commit range.
+
+Zero Critical and zero Important findings passes. Medium/Minor findings are
+recorded without blocking.
 
 #### Bounded Fix and Re-Review Loop
 

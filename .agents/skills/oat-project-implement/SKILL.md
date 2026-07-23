@@ -1,12 +1,12 @@
 ---
 name: oat-project-implement
-version: 2.1.2
+version: 2.1.7
 description: Use when plan.md is ready for execution. Dispatches one phase implementer per phase, owns independent phase review and bounded fix routing, and supports plan-declared worktree-isolated parallel phases.
 oat_gateable: true
 argument-hint: '[--retry-limit <N>] [--dry-run]'
 disable-model-invocation: true
 user-invocable: true
-allowed-tools: Read, Write, Bash(git:*), Glob, Grep, AskUserQuestion, Task
+allowed-tools: Read, Write, Bash(git:*), Bash(oat:*), Bash(oat project log:*), Glob, Grep, AskUserQuestion, Task
 metadata:
   internal: true
 ---
@@ -36,6 +36,31 @@ After resolving `ACTIVE_PROVIDER`, read exactly one active-provider reference
 from `.agents/skills/oat-dispatch-subagents/references/`
 (`provider-cursor.md`, `provider-codex.md`, or `provider-claude.md`). Do not
 merge provider mechanics.
+
+## Project Log Append Points
+
+Defer entry flags to `oat project log append --help`; never pre-check config:
+the helper no-ops when the feature is off.
+
+- After every accepted subagent dispatch, use `oat project log append` at
+  `$PROJECT_PATH/implementation.md#<run-anchor>`; never mirror that record.
+- Before validating the review artifact or updating project bookkeeping, consume
+  exactly one brief artifact-mode confirmation of reconnaissance:
+- `**Reconnaissance:** attempted`
+- `**Reconnaissance:** not-attempted`
+  Missing, duplicate, or invalid signals are incomplete-artifact errors: stop
+  and fail closed before validation, bookkeeping, or logging.
+- For `attempted`, require complete `## Review Orchestration` evidence. After
+  validation, append exactly once through `oat project log append`, referencing
+  the artifact without copying records.
+- For `not-attempted`, the artifact must not contain `## Review Orchestration`;
+  do not invoke `oat project log append` or create a log entry.
+- Before every STOP or park return, invoke `oat project log append` for a
+  structural entry naming the triggering condition.
+- After every phase outcome, invoke `oat project log append` for a structural
+  entry with the verdict and fix-loop count.
+- After every parallel-group merge attempt, invoke `oat project log append` for
+  a structural entry with the merge result.
 
 ## Autonomy Policy
 
@@ -190,4 +215,6 @@ Rules:
 - Implementation.md tracks all progress
 - Final verification passes
 - Final review passes (no Critical/Important findings)
+- The configured implementation exit gate has an allowed and fresh disposition
+  before approval-aware sequencing, completion state, or success output
 - No unresolved blockers

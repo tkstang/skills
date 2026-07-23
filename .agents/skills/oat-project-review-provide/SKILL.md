@@ -1,6 +1,6 @@
 ---
 name: oat-project-review-provide
-version: 1.3.20
+version: 1.3.22
 description: Use when the user explicitly asks to review an OAT project — e.g. "review project", "review the project", "run project review", or confirms a previously offered review. Do NOT auto-invoke on completed work alone. Resolves a project review scope and offers before running.
 disable-model-invocation: false
 user-invocable: true
@@ -577,9 +577,12 @@ Build the actual provider invocation before reporting the target as enforced:
   only a verified-equivalent inline route or block the review.
 - Claude requires a non-empty `providers.claude.dispatchArgs.model`; the actual
   provider invocation must include that exact value as its `model` argument.
-- Cursor requires a non-empty `providers.cursor.dispatchArgs.model`; the actual
-  provider invocation must include that exact opaque string as its `model`
-  argument without normalization.
+- Cursor requires a non-empty `providers.cursor.dispatchArgs.variant`; the
+  actual provider invocation must launch that exact resolver-returned native
+  reviewer variant as the native agent type first. Keep Cursor model strings
+  opaque inside the materialized mapping and resolver. Only a recorded
+  pre-start native role-selection rejection of that exact variant before any
+  reviewer starts permits another target-preserving route.
 
 Managed incomplete resolver results, including a missing or incomplete
 candidate ladder, fail closed before review. Route interactive repair through
@@ -611,11 +614,12 @@ be parsed, interpreted, or treated as a passing review.
 
 Before acceptance, an explicit transport or role-selection rejection may retry
 with the same exact role and complete invocation payload, including the Claude
-or Cursor model argument. After acceptance, poll, nudge, or continue only
-through the existing reviewer handle. Terminal timeout, interruption, or
-`BLOCKED` blocks or escalates without another launch. If the host cannot apply
-a required role or model argument before launch, fail closed or block unless
-inline execution has verified equivalent current-host controls.
+model argument or Cursor native variant. After acceptance, poll, nudge, or
+continue only through the existing reviewer handle. Terminal timeout,
+interruption, or `BLOCKED` blocks or escalates without another launch. If the
+host cannot apply a required role, variant, or model argument before launch,
+fail closed or block unless inline execution has verified equivalent
+current-host controls.
 Workflow correctness must not require provider restart or hot reload.
 Never use a managed base role because a target is missing or unavailable; a
 managed base role is forbidden except for
@@ -685,7 +689,11 @@ Before selecting a tier, announce the probe and its result so the user can see w
 Detection logic:
 
 - If the host is Claude Code, use Task-style subagent dispatch with `subagent_type: "oat-reviewer"` and resolve from `.claude/agents/oat-reviewer.md`.
-- If the host is Cursor, invoke `oat-reviewer` using Cursor-native explicit invocation (`/oat-reviewer`) or natural mention, and resolve from `.cursor/agents/oat-reviewer.md` (or `.claude/agents/oat-reviewer.md` compatibility path).
+- If the host is Cursor, invoke the exact resolver-selected native reviewer
+  variant when a concrete managed target exists. Use base `oat-reviewer` only
+  for an explicit inherit/default exception, resolved from
+  `.cursor/agents/oat-reviewer.md` (or the `.claude/agents/oat-reviewer.md`
+  compatibility path).
 - If the host is Codex multi-agent, verify Codex requirements first:
   - `[features] multi_agent = true` is enabled in active Codex config.
   - For a concrete managed target, `agent_type` must be the exact custom role declared under `[agents.<name>]`; built-in roles and auto-selection are not equivalent fallbacks.
@@ -711,7 +719,7 @@ Then spawn the reviewer:
 
 - Use provider-appropriate dispatch:
   - Claude Code: Task tool with `subagent_type: "oat-reviewer"` (resolves from `.claude/agents/oat-reviewer.md`). For a concrete managed target, the payload must also contain `model: providers.claude.dispatchArgs.model` with the resolver-returned value.
-  - Cursor: explicit invocation `/oat-reviewer` (or natural mention) with agent resolved from `.cursor/agents/oat-reviewer.md` or `.claude/agents/oat-reviewer.md` compatibility path. For a concrete managed target, the invocation must also contain `model: providers.cursor.dispatchArgs.model` with the exact opaque resolver-returned string.
+  - Cursor: for a concrete managed target, invoke `providers.cursor.dispatchArgs.variant` as the exact resolver-selected native reviewer variant. Do not attach a Task-level model argument or normalize the mapped model. Base `oat-reviewer` is allowed only for explicit inherit/default behavior. A pre-start native role-selection rejection is the only replacement boundary.
   - Codex style: for a concrete managed target, first spawn the exact resolver-returned native `agent_type`; only an explicit pre-start native role-selection rejection permits the explicitly pinned fresh-child route from Step 6.0. Generic auto-selection is permitted only for the documented base-role exceptions.
 - Pass the Review Scope metadata block from Step 5 as the prompt
 - Include the pre-computed artifact path for the subagent to write to
@@ -726,7 +734,8 @@ After the subagent completes:
   blocks the review; do not invoke fallback and do not infer a pass from a
   missing review artifact or absent findings.
 - Verify the review artifact was written to the expected path
-- Continue with Step 9 (plan update) and Step 9.5 (commit)
+- Continue with Step 8.5 (artifact/orchestration validation), Step 9 (plan
+  update), and Step 9.5 (commit)
 
 **Step 6c: Tier 2 — Fresh Session (recommended fallback)**
 
@@ -900,6 +909,41 @@ Findings: {N} critical, {N} important, {N} medium, {N} minor
 Run the `oat-project-review-receive` skill to convert findings into plan tasks.
 
 ```
+
+### Step 8.5: Validate Review Orchestration and Append Root Log
+
+If `INLINE_ONLY=true`, skip this step because no review artifact or
+artifact-mode confirmation exists.
+
+Before validating the review artifact or updating project bookkeeping, consume
+the reviewer's brief artifact-mode confirmation. It must contain exactly one of
+these exact lines:
+
+- `**Reconnaissance:** attempted`
+- `**Reconnaissance:** not-attempted`
+
+A missing, duplicate, or invalid reconnaissance signal is an
+incomplete-artifact error: stop and fail closed without updating bookkeeping or
+appending a project-log entry.
+
+Use the valid signal to validate the review artifact's orchestration evidence:
+
+- For `attempted`, require a complete `## Review Orchestration` section with
+  one compact account of every attempted wave: task class, classification
+  rationale, selected target, acceptance/outcome, floor satisfaction, fallback,
+  and primary reconciliation. Missing or incomplete evidence is an
+  incomplete-artifact error. After successful validation, append exactly once
+  through `oat project log append`, creating one concise structural entry that
+  references the review artifact path.
+- For `not-attempted`, the artifact must not contain
+  `## Review Orchestration`; treat a present section as an inconsistent,
+  incomplete artifact. Do not append a log entry and do not invoke
+  `oat project log append`.
+
+For the attempted branch, do not duplicate individual worker records. Defer
+flags and entry format to `oat project log append --help`; never pre-check
+project-log configuration because the helper no-ops when logging is disabled.
+The reviewer and workers never write `project-log.md` or append this entry.
 
 ### Step 9: Update Plan Reviews Section
 
