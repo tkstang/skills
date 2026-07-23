@@ -11,6 +11,7 @@
  *   encodeCwd(runtime, cwd)                        → string | null
  *   encodeCwdVariants(runtime, cwd)                → string[]
  *   extractMeta(runtime, transcriptPath)           → Promise<{ sessionId, recordedCwd } | null>
+ *   extractMetaFromRecords(runtime, records, path) → { sessionId, recordedCwd } | null
  *   readRecords(transcriptPath)                    → Promise<JsonObject[]>
  *   normalizeEntries(runtime, records, opts)       → DigestEntry[]
  */
@@ -538,7 +539,27 @@ export async function extractMeta(
   transcriptPath: string,
 ): Promise<TranscriptMeta | null> {
   const records = await readRecords(transcriptPath);
+  return extractMetaFromRecords(runtime, records, transcriptPath);
+}
 
+/**
+ * Same extraction as `extractMeta`, but synchronous over an already-parsed
+ * record array instead of reading the file. Split out so callers that also
+ * need other record-derived data (e.g. session-observer's discovery, which
+ * additionally classifies engagement) can read a transcript once and derive
+ * both from the same parse, instead of each caller independently re-reading
+ * and re-parsing the file.
+ *
+ * @param {'claude-code' | 'codex' | 'cursor'} runtime
+ * @param {object[]} records
+ * @param {string} transcriptPath
+ * @returns {{ sessionId: string, recordedCwd: string | null } | null}
+ */
+export function extractMetaFromRecords(
+  runtime: Runtime,
+  records: JsonObject[],
+  transcriptPath: string,
+): TranscriptMeta | null {
   if (runtime === 'claude-code') {
     let sessionId: string | undefined;
     for (const record of records) {

@@ -17,10 +17,12 @@ import { promisify } from "node:util";
 import {
   discoverPaths,
   encodeCwdVariants,
-  extractMeta
+  extractMeta,
+  extractMetaFromRecords,
+  readRecords
 } from './runtimes.mjs';
 import {
-  classifyTranscript,
+  classifyTranscriptRecords,
   engagementCandidateFields
 } from './session-classifier.mjs';
 const execFileAsync = promisify(execFile);
@@ -55,36 +57,40 @@ class ClassificationCache {
     return this.entries.size;
   }
 }
-async function candidateEngagementFields(runtime, transcriptPath, signature, cache) {
+const UNKNOWN_CLASSIFICATION = {
+  status: "unknown",
+  engaged: true,
+  recordCount: null,
+  genuineUserMessages: 0,
+  syntheticUserMessages: 0,
+  assistantMessages: 0,
+  realMessageCount: 0,
+  hasAssistantAndUser: false,
+  bootstrapRecordIndexes: [],
+  bootstrapRecordCount: 0
+};
+async function candidateDerivedFields(runtime, transcriptPath, signature, cache) {
+  const cached = cache.get(transcriptPath, signature.mtimeMs, signature.size);
+  if (cached) return cached;
   try {
-    const cached = cache.get(
-      transcriptPath,
-      signature.mtimeMs,
-      signature.size
-    );
-    if (cached) return engagementCandidateFields(cached);
-    const classification = await classifyTranscript(runtime, transcriptPath);
-    cache.set(
-      transcriptPath,
-      signature.mtimeMs,
-      signature.size,
-      classification
-    );
-    return engagementCandidateFields(classification);
+    const records = await readRecords(transcriptPath);
+    const classification = classifyTranscriptRecords(runtime, records);
+    const meta = extractMetaFromRecords(runtime, records, transcriptPath);
+    const result = { meta, classification };
+    cache.set(transcriptPath, signature.mtimeMs, signature.size, result);
+    return result;
   } catch {
-    return engagementCandidateFields({
-      status: "unknown",
-      engaged: true,
-      recordCount: null,
-      genuineUserMessages: 0,
-      syntheticUserMessages: 0,
-      assistantMessages: 0,
-      realMessageCount: 0,
-      hasAssistantAndUser: false,
-      bootstrapRecordIndexes: [],
-      bootstrapRecordCount: 0
-    });
+    return { meta: null, classification: UNKNOWN_CLASSIFICATION };
   }
+}
+async function candidateEngagementFields(runtime, transcriptPath, signature, cache) {
+  const { classification } = await candidateDerivedFields(
+    runtime,
+    transcriptPath,
+    signature,
+    cache
+  );
+  return engagementCandidateFields(classification);
 }
 function cwdCachePath() {
   const stateDir = process.env.STATE_DIR ?? join(homedir(), ".local", "state", "session-observer");
@@ -157,13 +163,13 @@ async function discoverClaudeCode(targetCwd, cache) {
         }
         const mtime = Math.floor(fileStat.mtime.getTime() / 1e3);
         const ageSec = now - mtime;
-        let meta;
-        try {
-          meta = await extractMeta("claude-code", transcriptPath);
-        } catch {
-          meta = null;
-        }
-        const sessionId = meta?.sessionId ?? basename(transcriptPath).replace(/\.jsonl$/, "");
+        const derived = await candidateDerivedFields(
+          "claude-code",
+          transcriptPath,
+          fileStat,
+          cache
+        );
+        const sessionId = derived.meta?.sessionId ?? basename(transcriptPath).replace(/\.jsonl$/, "");
         candidates.push({
           runtime: "claude-code",
           transcriptPath,
@@ -175,12 +181,7 @@ async function discoverClaudeCode(targetCwd, cache) {
           mtime,
           size: fileStat.size,
           ageSec,
-          ...await candidateEngagementFields(
-            "claude-code",
-            transcriptPath,
-            fileStat,
-            cache
-          )
+          ...engagementCandidateFields(derived.classification)
         });
       }
       directHit = true;
@@ -216,14 +217,14 @@ async function discoverClaudeCode(targetCwd, cache) {
         }
         const mtime = Math.floor(fileStat.mtime.getTime() / 1e3);
         const ageSec = now - mtime;
-        let meta;
-        try {
-          meta = await extractMeta("claude-code", transcriptPath);
-        } catch {
-          meta = null;
-        }
-        const sessionId = meta?.sessionId ?? basename(transcriptPath).replace(/\.jsonl$/, "");
-        const recordedCwd = meta?.recordedCwd ?? null;
+        const derived = await candidateDerivedFields(
+          "claude-code",
+          transcriptPath,
+          fileStat,
+          cache
+        );
+        const sessionId = derived.meta?.sessionId ?? basename(transcriptPath).replace(/\.jsonl$/, "");
+        const recordedCwd = derived.meta?.recordedCwd ?? null;
         candidates.push({
           runtime: "claude-code",
           transcriptPath,
@@ -234,12 +235,7 @@ async function discoverClaudeCode(targetCwd, cache) {
           mtime,
           size: fileStat.size,
           ageSec,
-          ...await candidateEngagementFields(
-            "claude-code",
-            transcriptPath,
-            fileStat,
-            cache
-          )
+          ...engagementCandidateFields(derived.classification)
         });
       }
     }
@@ -374,28 +370,23 @@ async function cursorCandidate(transcriptPath, now, evidence, fileStat, cache) {
   }
   const mtime = Math.floor(resolvedStat.mtime.getTime() / 1e3);
   const ageSec = now - mtime;
-  let meta;
-  try {
-    meta = await extractMeta("cursor", transcriptPath);
-  } catch {
-    meta = null;
-  }
+  const derived = await candidateDerivedFields(
+    "cursor",
+    transcriptPath,
+    resolvedStat,
+    cache
+  );
   return {
     runtime: "cursor",
     transcriptPath,
-    sessionId: meta?.sessionId ?? basename(transcriptPath).replace(/\.jsonl$/, ""),
+    sessionId: derived.meta?.sessionId ?? basename(transcriptPath).replace(/\.jsonl$/, ""),
     recordedCwd: evidence.recordedCwd,
     cwdSlug: evidence.cwdSlug,
     cwdEvidence: evidence.cwdEvidence,
     mtime,
     size: resolvedStat.size,
     ageSec,
-    ...await candidateEngagementFields(
-      "cursor",
-      transcriptPath,
-      resolvedStat,
-      cache
-    )
+    ...engagementCandidateFields(derived.classification)
   };
 }
 async function discoverCursor(targetCwd, cache) {

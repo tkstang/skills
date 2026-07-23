@@ -10,9 +10,10 @@
  *   6. cursor: empty direct transcript dirs do not suppress fallback scans
  *   7. gitWorktrees: parses real repo --porcelain output
  *   8. gitWorktrees: returns [] when git exec fails
- *   9. classification cache: an unchanged transcript is classified once across
- *      two discover() passes sharing a cache instance (proved by a
- *      classifyTranscript call-count seam)
+ *   9. classification cache: an unchanged transcript is read+parsed once
+ *      across two discover() passes sharing a cache instance (proved by a
+ *      readRecords call-count seam that also covers meta extraction, not
+ *      just classification)
  *  10. classification cache: appending to a transcript (mtime/size change)
  *      invalidates the cache and re-classifies
  *  11. ClassificationCache: signature mismatch (mtime or size) never returns
@@ -80,12 +81,17 @@ vi.mock('node:fs/promises', async (importOriginal) => {
 
 // ---------------------------------------------------------------------------
 // Classification call-count seam: a read-counting wrapper around
-// classifyTranscript (not raw readFile — extractMeta also reads every
-// candidate transcript unconditionally, so a readFile-level count would
-// conflate cwd/session-id extraction with the classification path this
-// cache targets). Counts are keyed by transcriptPath so tests can assert
-// "classified exactly once" even across multiple discover() calls sharing
-// one ClassificationCache instance.
+// readRecords in core/runtimes.js — the single choke point locate.ts's
+// candidateDerivedFields() now reads through for BOTH classification and
+// meta (sessionId/recordedCwd) on a cache miss (see locate.ts's
+// TranscriptDerivedFields). Counting at this layer, rather than around
+// classifyTranscript, is deliberate: an earlier version of this cache only
+// wrapped classification while extractMeta() kept independently re-reading
+// every candidate on every call, silently keeping the full-file read+parse
+// on the hot path. Counting readRecords itself catches that class of gap —
+// it is the one place both derivations now originate from. Counts are keyed
+// by transcriptPath so tests can assert "read exactly once" even across
+// multiple discover() calls sharing one ClassificationCache instance.
 // ---------------------------------------------------------------------------
 const classifyCountHarness = vi.hoisted(() => {
   let counts = new Map<string, number>();
@@ -101,18 +107,16 @@ const classifyCountHarness = vi.hoisted(() => {
 });
 
 vi.mock(
-  '../../src/transcript/session-observer/lib/session-classifier.js',
+  '../../src/transcript/core/runtimes.js',
   async (importOriginal) => {
     const actual =
-      await importOriginal<
-        typeof import('../../src/transcript/session-observer/lib/session-classifier.js')
-      >();
+      await importOriginal<typeof import('../../src/transcript/core/runtimes.js')>();
     return {
       ...actual,
-      classifyTranscript: (async (runtime: any, transcriptPath: string) => {
+      readRecords: (async (transcriptPath: string) => {
         classifyCountHarness.record(transcriptPath);
-        return actual.classifyTranscript(runtime, transcriptPath);
-      }) as typeof actual.classifyTranscript,
+        return actual.readRecords(transcriptPath);
+      }) as typeof actual.readRecords,
     };
   },
 );
@@ -968,57 +972,67 @@ test('classification cache: appending to a transcript invalidates the cache and 
   });
 });
 
-test('ClassificationCache: a signature mismatch (mtime or size) never returns a stale result', () => {
-  const cache = new ClassificationCache();
-  const classification = {
-    status: 'engaged' as const,
-    engaged: true,
-    recordCount: 3,
-    genuineUserMessages: 1,
-    syntheticUserMessages: 0,
-    assistantMessages: 1,
-    realMessageCount: 2,
-    hasAssistantAndUser: true,
-    bootstrapRecordIndexes: [],
-    bootstrapRecordCount: 0,
+// A cache entry now holds both the classification and the transcript's meta
+// (sessionId/recordedCwd), derived from the same parsed-record pass — see
+// locate.ts's TranscriptDerivedFields. This helper builds a fixture entry
+// for the two unit tests below.
+function derivedFields(recordCount: number, sessionId = 'sess') {
+  return {
+    meta: { sessionId, recordedCwd: null },
+    classification: {
+      status: 'engaged' as const,
+      engaged: true,
+      recordCount,
+      genuineUserMessages: 1,
+      syntheticUserMessages: 0,
+      assistantMessages: 1,
+      realMessageCount: 2,
+      hasAssistantAndUser: true,
+      bootstrapRecordIndexes: [],
+      bootstrapRecordCount: 0,
+    },
   };
+}
 
-  cache.set('/a/transcript.jsonl', 1_000, 50, classification);
+test('ClassificationCache: a signature mismatch (mtime or size) never returns a stale result', () => {
+  const entry = derivedFields(3);
 
-  expect(cache.get('/a/transcript.jsonl', 1_000, 50)).toEqual(classification);
+  // Size-mismatch and mtime-mismatch are checked against independent cache
+  // instances (each seeded fresh) so a lazy-delete-on-miss in one assertion
+  // cannot mask the other guard: each get() below exercises exactly one
+  // signature component in isolation.
+  const sizeMismatchCache = new ClassificationCache();
+  sizeMismatchCache.set('/a/transcript.jsonl', 1_000, 50, entry);
   expect(
-    cache.get('/a/transcript.jsonl', 1_000, 51),
+    sizeMismatchCache.get('/a/transcript.jsonl', 1_000, 50),
+  ).toEqual(entry);
+  expect(
+    sizeMismatchCache.get('/a/transcript.jsonl', 1_000, 51),
     'a size mismatch must be treated as a cache miss',
   ).toBeUndefined();
+
+  const mtimeMismatchCache = new ClassificationCache();
+  mtimeMismatchCache.set('/a/transcript.jsonl', 1_000, 50, entry);
   expect(
-    cache.get('/a/transcript.jsonl', 1_001, 50),
+    mtimeMismatchCache.get('/a/transcript.jsonl', 1_000, 50),
+  ).toEqual(entry);
+  expect(
+    mtimeMismatchCache.get('/a/transcript.jsonl', 1_001, 50),
     'an mtime mismatch must be treated as a cache miss',
   ).toBeUndefined();
 });
 
 test('ClassificationCache: evicts the least-recently-used entry once its bound is exceeded', () => {
   const cache = new ClassificationCache(2);
-  const classification = (recordCount: number) => ({
-    status: 'engaged' as const,
-    engaged: true,
-    recordCount,
-    genuineUserMessages: 1,
-    syntheticUserMessages: 0,
-    assistantMessages: 1,
-    realMessageCount: 2,
-    hasAssistantAndUser: true,
-    bootstrapRecordIndexes: [],
-    bootstrapRecordCount: 0,
-  });
 
-  cache.set('/a', 1, 10, classification(1));
-  cache.set('/b', 1, 10, classification(2));
+  cache.set('/a', 1, 10, derivedFields(1));
+  cache.set('/b', 1, 10, derivedFields(2));
   expect(cache.size).toBe(2);
 
   // Touch '/a' so it becomes the most-recently-used, leaving '/b' as the LRU.
   expect(cache.get('/a', 1, 10)).toBeDefined();
 
-  cache.set('/c', 1, 10, classification(3));
+  cache.set('/c', 1, 10, derivedFields(3));
   expect(
     cache.size,
     'the cache must stay within its configured bound',
