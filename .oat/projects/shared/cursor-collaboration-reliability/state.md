@@ -1,6 +1,6 @@
 ---
-oat_current_task: p04-t03
-oat_last_commit: 4ceb7ee
+oat_current_task: p04-t04
+oat_last_commit: 8e64ff4
 oat_blockers: []
 associated_issues:
   - { type: backlog, ref: "BL-260713-cursor-transcript-store" }
@@ -40,7 +40,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-17T21:43:11.125Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-23T21:59:17Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-23T22:09:40Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -52,7 +52,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation - Phase 4 in progress at p04-t03
+Implementation - Phase 4 in progress at p04-t04
 
 ## Artifacts
 
@@ -60,7 +60,7 @@ Implementation - Phase 4 in progress at p04-t03
 - **Spec:** `spec.md` (complete; requirements formalized from discovery)
 - **Design:** `design.md` (complete; approved after review findings resolved)
 - **Plan:** `plan.md` (complete; approved after a passing artifact review)
-- **Implementation:** `implementation.md` (Phase 4 resumes at `p04-t03`)
+- **Implementation:** `implementation.md` (Phase 4 resumes at `p04-t04`)
 
 ## Progress
 
@@ -115,7 +115,8 @@ Implementation - Phase 4 in progress at p04-t03
 - ✓ Phase 3 complete: 7/7 tasks
 - ✓ `p04-t01` completion schema dispatch complete at `22a7510`
 - ✓ `p04-t02` collaboration lease schema v6 migration complete at `4ceb7ee`
-- ⧗ Phase 4 continues at `p04-t03`
+- ✓ `p04-t03` collaboration CAS private continuity complete at `8e64ff4`
+- ⧗ Phase 4 continues at `p04-t04`
 
 ## Blockers
 
@@ -123,4 +124,4 @@ None.
 
 ## Next Milestone
 
-Execute Phase 4 from `p04-t03`.
+Execute Phase 4 from `p04-t04`.
