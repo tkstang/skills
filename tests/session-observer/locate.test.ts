@@ -10,6 +10,20 @@
  *   6. cursor: empty direct transcript dirs do not suppress fallback scans
  *   7. gitWorktrees: parses real repo --porcelain output
  *   8. gitWorktrees: returns [] when git exec fails
+ *   9. classification cache: an unchanged transcript is read+parsed once
+ *      across two discover() passes sharing a cache instance (proved by a
+ *      readRecords call-count seam that also covers meta extraction, not
+ *      just classification)
+ *  10. classification cache: appending to a transcript (mtime/size change)
+ *      invalidates the cache and re-classifies
+ *  11. ClassificationCache: signature mismatch (mtime or size) never returns
+ *      a stale result
+ *  12. ClassificationCache: evicts the least-recently-used entry once its
+ *      bound is exceeded
+ *  13. ClassificationCache: a small cap thrashes under a full-directory scan
+ *      exceeding it (pins the inherent limit any bounded cache has)
+ *  14. ClassificationCache: the default capacity survives a realistic
+ *      long-lived project directory scan (regression for the 300→5000 fix)
  */
 
 import {
@@ -70,6 +84,48 @@ vi.mock('node:fs/promises', async (importOriginal) => {
 });
 
 // ---------------------------------------------------------------------------
+// Classification call-count seam: a read-counting wrapper around
+// readRecords in core/runtimes.js — the single choke point locate.ts's
+// candidateDerivedFields() now reads through for BOTH classification and
+// meta (sessionId/recordedCwd) on a cache miss (see locate.ts's
+// TranscriptDerivedFields). Counting at this layer, rather than around
+// classifyTranscript, is deliberate: an earlier version of this cache only
+// wrapped classification while extractMeta() kept independently re-reading
+// every candidate on every call, silently keeping the full-file read+parse
+// on the hot path. Counting readRecords itself catches that class of gap —
+// it is the one place both derivations now originate from. Counts are keyed
+// by transcriptPath so tests can assert "read exactly once" even across
+// multiple discover() calls sharing one ClassificationCache instance.
+// ---------------------------------------------------------------------------
+const classifyCountHarness = vi.hoisted(() => {
+  let counts = new Map<string, number>();
+  return {
+    reset: () => {
+      counts = new Map();
+    },
+    record: (path: string) => {
+      counts.set(path, (counts.get(path) ?? 0) + 1);
+    },
+    countFor: (path: string) => counts.get(path) ?? 0,
+  };
+});
+
+vi.mock(
+  '../../src/transcript/core/runtimes.js',
+  async (importOriginal) => {
+    const actual =
+      await importOriginal<typeof import('../../src/transcript/core/runtimes.js')>();
+    return {
+      ...actual,
+      readRecords: (async (transcriptPath: string) => {
+        classifyCountHarness.record(transcriptPath);
+        return actual.readRecords(transcriptPath);
+      }) as typeof actual.readRecords,
+    };
+  },
+);
+
+// ---------------------------------------------------------------------------
 // Test helper: temp HOME dir per test
 // ---------------------------------------------------------------------------
 
@@ -91,6 +147,7 @@ async function withTempHome(fn: (dir: string) => Promise<void>): Promise<void> {
 }
 
 import {
+  ClassificationCache,
   discover,
   findSessionCandidate,
   gitWorktrees,
@@ -808,4 +865,265 @@ test('gitWorktrees: returns [] when git exec fails (bad path)', async () => {
   const result = await gitWorktrees('/nonexistent/path/that/is/not/a/git/repo');
 
   expect(result, 'should return [] when git fails').toEqual([]);
+});
+
+// ---------------------------------------------------------------------------
+// Classification cache
+// ---------------------------------------------------------------------------
+
+test('classification cache: unchanged transcript is classified once across two discover() passes', async () => {
+  await withTempHome(async (home) => {
+    classifyCountHarness.reset();
+    const targetCwd = join(home, 'Code', 'cache-hit-project');
+    const projectDir = join(home, '.claude', 'projects', encodeCwd(targetCwd));
+    await mkdir(projectDir, { recursive: true });
+    const transcriptPath = join(projectDir, 'typical.jsonl');
+    await writeFile(transcriptPath, CLAUDE_CODE_TYPICAL, 'utf8');
+
+    const cache = new ClassificationCache();
+
+    const first = await discover('claude-code', targetCwd, cache);
+    expect(
+      classifyCountHarness.countFor(transcriptPath),
+      'first discover should classify the transcript once',
+    ).toBe(1);
+    const firstCandidate: any = first.find(
+      (c: any) => c.transcriptPath === transcriptPath,
+    );
+    expect(firstCandidate).toMatchObject({
+      engagementStatus: 'engaged',
+      genuineUserMessages: 1,
+    });
+
+    const second = await discover('claude-code', targetCwd, cache);
+    expect(
+      classifyCountHarness.countFor(transcriptPath),
+      'second discover with the same cache and an unchanged file must not re-classify',
+    ).toBe(1);
+    const secondCandidate: any = second.find(
+      (c: any) => c.transcriptPath === transcriptPath,
+    );
+    // Compare only the classification-derived fields byte-for-byte; ageSec
+    // is intentionally recomputed against wall-clock `now` on every call
+    // (it is not part of the classification cache's signature) and is
+    // expected to differ slightly between the two passes.
+    expect(
+      {
+        engagement: secondCandidate.engagement,
+        engagementStatus: secondCandidate.engagementStatus,
+        engaged: secondCandidate.engaged,
+        recordCount: secondCandidate.recordCount,
+        genuineUserMessages: secondCandidate.genuineUserMessages,
+        assistantMessages: secondCandidate.assistantMessages,
+        realMessageCount: secondCandidate.realMessageCount,
+        hasAssistantAndUser: secondCandidate.hasAssistantAndUser,
+        bootstrapRecordCount: secondCandidate.bootstrapRecordCount,
+      },
+      'cached classification fields must equal the freshly-parsed result',
+    ).toEqual({
+      engagement: firstCandidate.engagement,
+      engagementStatus: firstCandidate.engagementStatus,
+      engaged: firstCandidate.engaged,
+      recordCount: firstCandidate.recordCount,
+      genuineUserMessages: firstCandidate.genuineUserMessages,
+      assistantMessages: firstCandidate.assistantMessages,
+      realMessageCount: firstCandidate.realMessageCount,
+      hasAssistantAndUser: firstCandidate.hasAssistantAndUser,
+      bootstrapRecordCount: firstCandidate.bootstrapRecordCount,
+    });
+  });
+});
+
+test('classification cache: appending to a transcript invalidates the cache and re-classifies', async () => {
+  await withTempHome(async (home) => {
+    classifyCountHarness.reset();
+    const targetCwd = join(home, 'Code', 'cache-invalidate-project');
+    const projectDir = join(home, '.claude', 'projects', encodeCwd(targetCwd));
+    await mkdir(projectDir, { recursive: true });
+    const transcriptPath = join(projectDir, 'typical.jsonl');
+    await writeFile(transcriptPath, CLAUDE_CODE_TYPICAL, 'utf8');
+
+    const cache = new ClassificationCache();
+
+    const first = await discover('claude-code', targetCwd, cache);
+    expect(classifyCountHarness.countFor(transcriptPath)).toBe(1);
+    const firstCandidate: any = first.find(
+      (c: any) => c.transcriptPath === transcriptPath,
+    );
+    expect(firstCandidate.genuineUserMessages).toBe(1);
+
+    // Append another genuine user message: this changes both size and
+    // mtime, which must invalidate the cached entry.
+    await writeFile(
+      transcriptPath,
+      CLAUDE_CODE_TYPICAL +
+        `{"type":"user","message":{"role":"user","content":"Second message"},"sessionId":"cc-session-001"}\n`,
+      'utf8',
+    );
+
+    const second = await discover('claude-code', targetCwd, cache);
+    expect(
+      classifyCountHarness.countFor(transcriptPath),
+      'a changed (mtime, size) signature must trigger re-classification',
+    ).toBe(2);
+    const secondCandidate: any = second.find(
+      (c: any) => c.transcriptPath === transcriptPath,
+    );
+    expect(
+      secondCandidate.genuineUserMessages,
+      'the re-classified result must reflect the appended content',
+    ).toBe(2);
+  });
+});
+
+// A cache entry now holds both the classification and the transcript's meta
+// (sessionId/recordedCwd), derived from the same parsed-record pass — see
+// locate.ts's TranscriptDerivedFields. This helper builds a fixture entry
+// for the two unit tests below.
+function derivedFields(recordCount: number, sessionId = 'sess') {
+  return {
+    meta: { sessionId, recordedCwd: null },
+    classification: {
+      status: 'engaged' as const,
+      engaged: true,
+      recordCount,
+      genuineUserMessages: 1,
+      syntheticUserMessages: 0,
+      assistantMessages: 1,
+      realMessageCount: 2,
+      hasAssistantAndUser: true,
+      bootstrapRecordIndexes: [],
+      bootstrapRecordCount: 0,
+    },
+  };
+}
+
+test('ClassificationCache: a signature mismatch (mtime or size) never returns a stale result', () => {
+  const entry = derivedFields(3);
+
+  // Size-mismatch and mtime-mismatch are checked against independent cache
+  // instances (each seeded fresh) so a lazy-delete-on-miss in one assertion
+  // cannot mask the other guard: each get() below exercises exactly one
+  // signature component in isolation.
+  const sizeMismatchCache = new ClassificationCache();
+  sizeMismatchCache.set('/a/transcript.jsonl', 1_000, 50, entry);
+  expect(
+    sizeMismatchCache.get('/a/transcript.jsonl', 1_000, 50),
+  ).toEqual(entry);
+  expect(
+    sizeMismatchCache.get('/a/transcript.jsonl', 1_000, 51),
+    'a size mismatch must be treated as a cache miss',
+  ).toBeUndefined();
+
+  const mtimeMismatchCache = new ClassificationCache();
+  mtimeMismatchCache.set('/a/transcript.jsonl', 1_000, 50, entry);
+  expect(
+    mtimeMismatchCache.get('/a/transcript.jsonl', 1_000, 50),
+  ).toEqual(entry);
+  expect(
+    mtimeMismatchCache.get('/a/transcript.jsonl', 1_001, 50),
+    'an mtime mismatch must be treated as a cache miss',
+  ).toBeUndefined();
+});
+
+test('ClassificationCache: evicts the least-recently-used entry once its bound is exceeded', () => {
+  const cache = new ClassificationCache(2);
+
+  cache.set('/a', 1, 10, derivedFields(1));
+  cache.set('/b', 1, 10, derivedFields(2));
+  expect(cache.size).toBe(2);
+
+  // Touch '/a' so it becomes the most-recently-used, leaving '/b' as the LRU.
+  expect(cache.get('/a', 1, 10)).toBeDefined();
+
+  cache.set('/c', 1, 10, derivedFields(3));
+  expect(
+    cache.size,
+    'the cache must stay within its configured bound',
+  ).toBe(2);
+  expect(
+    cache.get('/b', 1, 10),
+    'the least-recently-used entry should have been evicted',
+  ).toBeUndefined();
+  expect(cache.get('/a', 1, 10), 'recently-touched entries survive').toBeDefined();
+  expect(cache.get('/c', 1, 10), 'the newest entry survives').toBeDefined();
+});
+
+/**
+ * Simulate one discover()-style full directory pass over `keys` in a fixed
+ * cyclic order: for each key, consult the cache first (mirroring
+ * candidateDerivedFields's cache.get()) and only populate it on a miss
+ * (mirroring its cache.set() on miss). Returns the hit count for the pass.
+ * This — not a single blind populate-then-read — is the actual watch-loop
+ * workload: every poll tick re-runs this exact get-or-populate pass over
+ * the same candidate set.
+ */
+function simulateScan(cache: ClassificationCache, keys: string[]): number {
+  let hits = 0;
+  for (const key of keys) {
+    if (cache.get(key, 1, 10)) {
+      hits++;
+    } else {
+      cache.set(key, 1, 10, derivedFields(0));
+    }
+  }
+  return hits;
+}
+
+test('ClassificationCache: a small cap thrashes under repeated full-directory scans exceeding it (documents the inherent limit)', () => {
+  // With a cap strictly below the number of unique keys touched per pass, NO
+  // eviction policy can help: each pass's populate-on-miss evictions land
+  // exactly on the keys the very next pass is about to ask for again, since
+  // every pass walks the same cyclic order. This is what the default was
+  // raised from 300 to 5000 to avoid for realistic candidate counts — see
+  // the ClassificationCache doc comment in locate.ts. This test pins the
+  // underlying property itself, at a small scale, so it stays fast and
+  // deterministic. It takes a second full pass for the cascade to reach
+  // steady state (the first pass is populating an empty cache, so it can
+  // only ever be all misses regardless of cap), so three passes are run and
+  // only the third's hit count is asserted on.
+  const cap = 100;
+  const passSize = 101; // one more unique key than the cache can hold
+  const keys = Array.from({ length: passSize }, (_, i) => `/scan/${i}`);
+  const cache = new ClassificationCache(cap);
+
+  simulateScan(cache, keys); // pass 1: populates an empty cache (all misses)
+  simulateScan(cache, keys); // pass 2: cascade begins
+  const thirdPassHits = simulateScan(cache, keys); // pass 3: steady-state thrash
+
+  expect(
+    thirdPassHits,
+    'once a scan exceeds the cap, repeated identical scans settle into zero hits — this is the workload property the 5000 default is sized to avoid, not something an eviction policy can fix',
+  ).toBe(0);
+});
+
+test('ClassificationCache: the default capacity comfortably survives repeated realistic long-lived project directory scans', () => {
+  // Regression for a cross-model review finding: the original 300-entry
+  // default thrashed completely once a project directory's candidate count
+  // exceeded it (proved above at a small scale, at steady state). 2000
+  // candidates is a generous stand-in for "a repo actively used for years"
+  // — comfortably under the 5000 default — so repeated full-directory scans
+  // (exactly what the watch loop does on every poll tick) must retain every
+  // entry from the second pass onward, with zero re-derivation.
+  const cache = new ClassificationCache();
+  const candidateCount = 2000;
+  const keys = Array.from(
+    { length: candidateCount },
+    (_, i) => `/long-lived-project/${i}.jsonl`,
+  );
+
+  const firstPassHits = simulateScan(cache, keys);
+  expect(firstPassHits, 'the first scan populates an empty cache').toBe(0);
+  expect(cache.size).toBe(candidateCount);
+
+  const secondPassHits = simulateScan(cache, keys);
+  expect(
+    secondPassHits,
+    'every candidate from the first scan must still be cached on the next poll tick\'s scan',
+  ).toBe(candidateCount);
+
+  // A third pass proves this is a stable steady state, not a one-tick
+  // coincidence.
+  const thirdPassHits = simulateScan(cache, keys);
+  expect(thirdPassHits).toBe(candidateCount);
 });

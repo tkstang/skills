@@ -45,19 +45,22 @@ import { homedir } from 'node:os';
 import { join, basename } from 'node:path';
 import { promisify } from 'node:util';
 
-import type { Runtime } from '../../core/runtimes.js';
+import type { Runtime, TranscriptMeta } from '../../core/runtimes.js';
 import {
   discoverPaths,
   encodeCwdVariants,
   extractMeta,
+  extractMetaFromRecords,
+  readRecords,
 } from '../../core/runtimes.js';
 import {
-  classifyTranscript,
+  classifyTranscriptRecords,
   engagementCandidateFields,
 } from './session-classifier.js';
 import type {
   EngagementCandidateFields,
   TranscriptCandidate,
+  TranscriptClassification,
 } from './types.js';
 
 const execFileAsync = promisify(execFile);
@@ -68,28 +71,181 @@ const execFileAsync = promisify(execFile);
 
 const LOOKBACK_DAYS = 7;
 
+// ---------------------------------------------------------------------------
+// Classification cache — (path, mtimeMs, size) keyed, process-lifetime,
+// size-capped. Discovery classifies every candidate transcript in a project
+// directory on every call; the watch loop calls discovery on every poll
+// tick, so unchanged past-session transcripts were being fully re-read and
+// re-parsed every 2s for the life of the watch. A transcript's classification
+// (and its sessionId/recordedCwd meta) is deterministic given its content,
+// and (mtimeMs, size) is this codebase's established change signature (see
+// watch.ts's FileSignature), so a signature-keyed cache is a safe,
+// transparent memoization: a hit returns byte-identical results to a fresh
+// read, and any content change (which always changes size, and in practice
+// mtime too) invalidates it.
+//
+// Each cache entry holds BOTH the classification and the meta
+// (sessionId/recordedCwd) derived from the same transcript, because
+// candidate discovery needs both and they come from the same parsed record
+// array — caching only one and still separately re-reading for the other
+// would leave the full-file read+parse on the hot path regardless. A miss
+// reads and parses once and derives both; a hit costs no I/O for either.
+// (Codex is the one runtime that does not read its meta through this path —
+// it already has its own persistent, cross-process cwd cache, see below —
+// so for codex the meta half of a cache entry is simply unused, not wrong.)
+//
+// Residual edge: a same-size, same-mtime rewrite on a coarse-mtime
+// filesystem (e.g. some network/FAT filesystems truncate to 1-2s
+// resolution) could in theory be missed. This is judged acceptable here:
+// the cached candidates are past, non-watched sessions that are not
+// expected to be rewritten in place during a live watch.
+//
+// Capacity and scan resistance: every discover() call is itself a full
+// linear pass over one project directory's candidates, and the watch loop
+// repeats that same full pass on every poll tick. This is the classic cache
+// workload where a bound smaller than the working set is fatal: with N
+// candidates cycling through a cache capped below N, plain LRU eviction (or
+// any recency/frequency policy — this is a property of the workload, not
+// the algorithm) evicts the entries a later tick's pass is about to need
+// again, so once candidate count exceeds the cap, the hit rate for that
+// excess collapses toward zero — the cache still returns correct results,
+// it just stops saving any I/O for the directory as a whole, silently
+// losing the win this cache exists for. There is no eviction *policy* fix
+// for that; the only real mitigation is sizing the bound comfortably above
+// realistic working sets. 5000 is chosen to comfortably exceed a single
+// project directory's candidate count even for a repo actively used for
+// years (each cached entry is a few small fields, not transcript content,
+// so 5000 entries is a low single-digit-MB bound) while still capping
+// truly pathological directory sizes.
+//
+// Ownership: `discover()` accepts an optional cache and defaults to a fresh
+// per-call instance, so one-shot callers (locate/observe) are unaffected.
+// The watch loop (watch.ts) owns one instance for its process lifetime and
+// threads it through every tick via `findNewerSameCwdCandidates`.
+// ---------------------------------------------------------------------------
+
+const DEFAULT_CLASSIFICATION_CACHE_MAX_ENTRIES = 5000;
+
+interface TranscriptDerivedFields {
+  meta: TranscriptMeta | null;
+  classification: TranscriptClassification;
+}
+
+interface ClassificationCacheEntry {
+  mtimeMs: number;
+  size: number;
+  result: TranscriptDerivedFields;
+}
+
+/**
+ * In-memory cache of transcript-derived fields (classification + meta),
+ * keyed by transcript path and guarded by a (mtimeMs, size) signature.
+ * Bounded to `maxEntries`, evicting the least recently used entry
+ * (insertion-ordered Map; a hit or write re-inserts at the end) once the
+ * bound is exceeded.
+ */
+export class ClassificationCache {
+  private readonly maxEntries: number;
+  private readonly entries = new Map<string, ClassificationCacheEntry>();
+
+  constructor(
+    maxEntries: number = DEFAULT_CLASSIFICATION_CACHE_MAX_ENTRIES,
+  ) {
+    this.maxEntries = maxEntries;
+  }
+
+  get(
+    transcriptPath: string,
+    mtimeMs: number,
+    size: number,
+  ): TranscriptDerivedFields | undefined {
+    const entry = this.entries.get(transcriptPath);
+    if (!entry) return undefined;
+    if (entry.mtimeMs !== mtimeMs || entry.size !== size) {
+      // Stale signature (the file changed) — drop it lazily.
+      this.entries.delete(transcriptPath);
+      return undefined;
+    }
+    // Bump recency: re-insert at the end so eviction drops the true LRU.
+    this.entries.delete(transcriptPath);
+    this.entries.set(transcriptPath, entry);
+    return entry.result;
+  }
+
+  set(
+    transcriptPath: string,
+    mtimeMs: number,
+    size: number,
+    result: TranscriptDerivedFields,
+  ): void {
+    this.entries.delete(transcriptPath);
+    this.entries.set(transcriptPath, { mtimeMs, size, result });
+    if (this.entries.size > this.maxEntries) {
+      const oldestKey = this.entries.keys().next().value;
+      if (oldestKey !== undefined) this.entries.delete(oldestKey);
+    }
+  }
+
+  get size(): number {
+    return this.entries.size;
+  }
+}
+
+const UNKNOWN_CLASSIFICATION: TranscriptClassification = {
+  status: 'unknown',
+  engaged: true,
+  recordCount: null,
+  genuineUserMessages: 0,
+  syntheticUserMessages: 0,
+  assistantMessages: 0,
+  realMessageCount: 0,
+  hasAssistantAndUser: false,
+  bootstrapRecordIndexes: [],
+  bootstrapRecordCount: 0,
+};
+
+/**
+ * Read, classify, and extract meta for one transcript in a single pass,
+ * consulting and populating `cache` by (path, mtimeMs, size). A cache hit
+ * costs zero I/O; a cache miss reads and parses the file exactly once and
+ * derives both the classification and the meta from that one parse.
+ */
+async function candidateDerivedFields(
+  runtime: Runtime,
+  transcriptPath: string,
+  signature: { mtimeMs: number; size: number },
+  cache: ClassificationCache,
+): Promise<TranscriptDerivedFields> {
+  const cached = cache.get(transcriptPath, signature.mtimeMs, signature.size);
+  if (cached) return cached;
+
+  try {
+    const records = await readRecords(transcriptPath);
+    const classification = classifyTranscriptRecords(runtime, records);
+    const meta = extractMetaFromRecords(runtime, records, transcriptPath);
+    const result: TranscriptDerivedFields = { meta, classification };
+    cache.set(transcriptPath, signature.mtimeMs, signature.size, result);
+    return result;
+  } catch {
+    // Not cached: a transient read failure should not poison future calls
+    // once the file becomes readable again.
+    return { meta: null, classification: UNKNOWN_CLASSIFICATION };
+  }
+}
+
 async function candidateEngagementFields(
   runtime: Runtime,
   transcriptPath: string,
+  signature: { mtimeMs: number; size: number },
+  cache: ClassificationCache,
 ): Promise<EngagementCandidateFields> {
-  try {
-    return engagementCandidateFields(
-      await classifyTranscript(runtime, transcriptPath),
-    );
-  } catch {
-    return engagementCandidateFields({
-      status: 'unknown',
-      engaged: true,
-      recordCount: null,
-      genuineUserMessages: 0,
-      syntheticUserMessages: 0,
-      assistantMessages: 0,
-      realMessageCount: 0,
-      hasAssistantAndUser: false,
-      bootstrapRecordIndexes: [],
-      bootstrapRecordCount: 0,
-    });
-  }
+  const { classification } = await candidateDerivedFields(
+    runtime,
+    transcriptPath,
+    signature,
+    cache,
+  );
+  return engagementCandidateFields(classification);
 }
 
 // ---------------------------------------------------------------------------
@@ -208,10 +364,12 @@ function cwdCacheKey(transcriptPath: string, mtimeSec: number): string {
  * Discover Claude Code transcript candidates for a target cwd.
  *
  * @param {string} targetCwd
+ * @param {ClassificationCache} cache
  * @returns {Promise<object[]>} Candidate[]
  */
 async function discoverClaudeCode(
   targetCwd: string,
+  cache: ClassificationCache,
 ): Promise<TranscriptCandidate[]> {
   const [projectsRoot] = discoverPaths('claude-code');
   const encodedVariants = encodeCwdVariants('claude-code', targetCwd);
@@ -242,15 +400,16 @@ async function discoverClaudeCode(
         const mtime = Math.floor(fileStat.mtime.getTime() / 1000);
         const ageSec = now - mtime;
 
-        let meta;
-        try {
-          meta = await extractMeta('claude-code', transcriptPath);
-        } catch {
-          meta = null;
-        }
+        const derived = await candidateDerivedFields(
+          'claude-code',
+          transcriptPath,
+          fileStat,
+          cache,
+        );
 
         const sessionId =
-          meta?.sessionId ?? basename(transcriptPath).replace(/\.jsonl$/, '');
+          derived.meta?.sessionId ??
+          basename(transcriptPath).replace(/\.jsonl$/, '');
 
         candidates.push({
           runtime: 'claude-code',
@@ -263,7 +422,7 @@ async function discoverClaudeCode(
           mtime,
           size: fileStat.size,
           ageSec,
-          ...(await candidateEngagementFields('claude-code', transcriptPath)),
+          ...engagementCandidateFields(derived.classification),
         });
       }
       directHit = true;
@@ -309,17 +468,18 @@ async function discoverClaudeCode(
         const mtime = Math.floor(fileStat.mtime.getTime() / 1000);
         const ageSec = now - mtime;
 
-        let meta;
-        try {
-          meta = await extractMeta('claude-code', transcriptPath);
-        } catch {
-          meta = null;
-        }
+        const derived = await candidateDerivedFields(
+          'claude-code',
+          transcriptPath,
+          fileStat,
+          cache,
+        );
 
         const sessionId =
-          meta?.sessionId ?? basename(transcriptPath).replace(/\.jsonl$/, '');
+          derived.meta?.sessionId ??
+          basename(transcriptPath).replace(/\.jsonl$/, '');
         // Glob fallback: recordedCwd comes from the (approximate) decode
-        const recordedCwd = meta?.recordedCwd ?? null;
+        const recordedCwd = derived.meta?.recordedCwd ?? null;
 
         candidates.push({
           runtime: 'claude-code',
@@ -331,7 +491,7 @@ async function discoverClaudeCode(
           mtime,
           size: fileStat.size,
           ageSec,
-          ...(await candidateEngagementFields('claude-code', transcriptPath)),
+          ...engagementCandidateFields(derived.classification),
         });
       }
     }
@@ -400,10 +560,12 @@ async function collectJsonlFiles(dir: string): Promise<string[]> {
  * Uses a cwd-cache keyed by (transcriptPath:mtime) to avoid re-parsing.
  *
  * @param {string} targetCwd
+ * @param {ClassificationCache} classificationCache
  * @returns {Promise<object[]>} Candidate[]
  */
 async function discoverCodex(
   _targetCwd: string,
+  classificationCache: ClassificationCache,
 ): Promise<TranscriptCandidate[]> {
   const [sessionsRoot] = discoverPaths('codex');
   const now = Date.now() / 1000;
@@ -412,7 +574,7 @@ async function discoverCodex(
   // Collect all jsonl files under sessionsRoot
   const allFiles = await collectJsonlFiles(sessionsRoot);
 
-  const cache = await loadCwdCache();
+  const cwdCache = await loadCwdCache();
   let cacheModified = false;
 
   const candidates: TranscriptCandidate[] = [];
@@ -435,10 +597,10 @@ async function discoverCodex(
 
     let recordedCwd: string | null;
     let sessionId: string;
-    if (cache[key] && cache[key].sessionId !== undefined) {
+    if (cwdCache[key] && cwdCache[key].sessionId !== undefined) {
       // Cache hit: use cached values for both recordedCwd and sessionId
-      recordedCwd = cache[key].recordedCwd;
-      sessionId = cache[key].sessionId;
+      recordedCwd = cwdCache[key].recordedCwd;
+      sessionId = cwdCache[key].sessionId;
     } else {
       // Cache miss: parse the transcript
       let meta;
@@ -452,7 +614,7 @@ async function discoverCodex(
         meta?.sessionId ?? basename(transcriptPath).replace(/\.jsonl$/, '');
 
       // Populate cache with both recordedCwd and sessionId
-      cache[key] = { recordedCwd, sessionId };
+      cwdCache[key] = { recordedCwd, sessionId };
       cacheModified = true;
     }
 
@@ -464,12 +626,17 @@ async function discoverCodex(
       mtime,
       size: fileStat.size,
       ageSec,
-      ...(await candidateEngagementFields('codex', transcriptPath)),
+      ...(await candidateEngagementFields(
+        'codex',
+        transcriptPath,
+        fileStat,
+        classificationCache,
+      )),
     });
   }
 
   if (cacheModified) {
-    await saveCwdCache(cache);
+    await saveCwdCache(cwdCache);
   }
 
   return candidates;
@@ -527,13 +694,15 @@ async function collectCursorAgentTranscripts(
  * @param {string} evidence.cwdSlug
  * @param {string} evidence.cwdEvidence
  * @param {import('node:fs').Stats | null} [fileStat]
+ * @param {ClassificationCache} cache
  * @returns {Promise<object | null>}
  */
 async function cursorCandidate(
   transcriptPath: string,
   now: number,
   evidence: CursorCandidateEvidence,
-  fileStat: Stats | null = null,
+  fileStat: Stats | null,
+  cache: ClassificationCache,
 ): Promise<TranscriptCandidate | null> {
   let resolvedStat = fileStat;
   if (!resolvedStat) {
@@ -547,25 +716,26 @@ async function cursorCandidate(
   const mtime = Math.floor(resolvedStat.mtime.getTime() / 1000);
   const ageSec = now - mtime;
 
-  let meta;
-  try {
-    meta = await extractMeta('cursor', transcriptPath);
-  } catch {
-    meta = null;
-  }
+  const derived = await candidateDerivedFields(
+    'cursor',
+    transcriptPath,
+    resolvedStat,
+    cache,
+  );
 
   return {
     runtime: 'cursor',
     transcriptPath,
     sessionId:
-      meta?.sessionId ?? basename(transcriptPath).replace(/\.jsonl$/, ''),
+      derived.meta?.sessionId ??
+      basename(transcriptPath).replace(/\.jsonl$/, ''),
     recordedCwd: evidence.recordedCwd,
     cwdSlug: evidence.cwdSlug,
     cwdEvidence: evidence.cwdEvidence,
     mtime,
     size: resolvedStat.size,
     ageSec,
-    ...(await candidateEngagementFields('cursor', transcriptPath)),
+    ...engagementCandidateFields(derived.classification),
   };
 }
 
@@ -573,10 +743,12 @@ async function cursorCandidate(
  * Discover Cursor transcript candidates for a target cwd.
  *
  * @param {string} targetCwd
+ * @param {ClassificationCache} cache
  * @returns {Promise<object[]>} Candidate[]
  */
 async function discoverCursor(
   targetCwd: string,
+  cache: ClassificationCache,
 ): Promise<TranscriptCandidate[]> {
   const [projectsRoot] = discoverPaths('cursor');
   const encodedVariants = encodeCwdVariants('cursor', targetCwd);
@@ -601,11 +773,17 @@ async function discoverCursor(
       if (seenTranscripts.has(transcriptPath)) continue;
       seenTranscripts.add(transcriptPath);
 
-      const candidate = await cursorCandidate(transcriptPath, now, {
-        recordedCwd: targetCwd,
-        cwdSlug: encoded,
-        cwdEvidence: 'direct-parent-dir',
-      });
+      const candidate = await cursorCandidate(
+        transcriptPath,
+        now,
+        {
+          recordedCwd: targetCwd,
+          cwdSlug: encoded,
+          cwdEvidence: 'direct-parent-dir',
+        },
+        null,
+        cache,
+      );
       if (candidate) candidates.push(candidate);
     }
   }
@@ -654,6 +832,7 @@ async function discoverCursor(
           cwdEvidence: 'project-dir-slug',
         },
         fileStat,
+        cache,
       );
       if (candidate) candidates.push(candidate);
     }
@@ -669,17 +848,26 @@ async function discoverCursor(
 /**
  * Discover candidate transcripts for the given runtime and target cwd.
  *
+ * `cache` is an optional classification cache (see `ClassificationCache`
+ * above). Omit it for one-shot callers — a fresh per-call instance is used,
+ * which keeps single-call semantics identical to the uncached behavior since
+ * nothing outlives the call. Long-lived callers (the watch loop) should
+ * create one instance and pass it on every call so unchanged candidates
+ * across repeated calls are classified once.
+ *
  * @param {'claude-code' | 'codex' | 'cursor'} runtime
  * @param {string} targetCwd
+ * @param {ClassificationCache} [cache]
  * @returns {Promise<object[]>} Candidate[]
  */
 export async function discover(
   runtime: Runtime,
   targetCwd: string,
+  cache: ClassificationCache = new ClassificationCache(),
 ): Promise<TranscriptCandidate[]> {
-  if (runtime === 'claude-code') return discoverClaudeCode(targetCwd);
-  if (runtime === 'codex') return discoverCodex(targetCwd);
-  if (runtime === 'cursor') return discoverCursor(targetCwd);
+  if (runtime === 'claude-code') return discoverClaudeCode(targetCwd, cache);
+  if (runtime === 'codex') return discoverCodex(targetCwd, cache);
+  if (runtime === 'cursor') return discoverCursor(targetCwd, cache);
   throw new Error(`Unknown runtime: ${runtime}`);
 }
 
@@ -699,13 +887,16 @@ export async function findSessionCandidate(
 /**
  * Return same-cwd sessions that are more recently modified than a watched pin.
  * The watcher remains responsible for deciding whether and how to report them.
+ *
+ * @param {ClassificationCache} [cache] See `discover`'s cache parameter.
  */
 export async function findNewerSameCwdCandidates(
   runtime: Runtime,
   targetCwd: string,
   watched: Pick<TranscriptCandidate, 'sessionId' | 'transcriptPath' | 'mtime'>,
+  cache: ClassificationCache = new ClassificationCache(),
 ): Promise<TranscriptCandidate[]> {
-  const candidates = await discover(runtime, targetCwd);
+  const candidates = await discover(runtime, targetCwd, cache);
   return candidates
     .filter(
       (candidate) =>

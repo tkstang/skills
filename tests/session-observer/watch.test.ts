@@ -24,6 +24,43 @@ import { expect, afterEach, describe, test, vi } from 'vitest';
 import * as watchState from '../../src/transcript/session-observer/lib/watch-state.js';
 import { runWatchLoop } from '../../src/transcript/session-observer/lib/watch.js';
 
+// ---------------------------------------------------------------------------
+// Classification call-count seam (mirrors locate.test.ts's identical
+// harness): counts real readRecords invocations per transcript path — the
+// single choke point locate.ts's candidateDerivedFields() reads through for
+// both classification and meta on a cache miss — while delegating to the
+// actual implementation so behavior is unaffected. Used below to prove the
+// watch loop's shared ClassificationCache reads a static newer-candidate
+// transcript once, not on every poll tick.
+// ---------------------------------------------------------------------------
+const classifyCountHarness = vi.hoisted(() => {
+  let counts = new Map<string, number>();
+  return {
+    reset: () => {
+      counts = new Map();
+    },
+    record: (path: string) => {
+      counts.set(path, (counts.get(path) ?? 0) + 1);
+    },
+    countFor: (path: string) => counts.get(path) ?? 0,
+  };
+});
+
+vi.mock(
+  '../../src/transcript/core/runtimes.js',
+  async (importOriginal) => {
+    const actual =
+      await importOriginal<typeof import('../../src/transcript/core/runtimes.js')>();
+    return {
+      ...actual,
+      readRecords: (async (transcriptPath: string) => {
+        classifyCountHarness.record(transcriptPath);
+        return actual.readRecords(transcriptPath);
+      }) as typeof actual.readRecords,
+    };
+  },
+);
+
 const CLI_PATH = fileURLToPath(
   new URL(
     '../../skills/session-observer/scripts/session-observer.mjs',
@@ -522,6 +559,106 @@ describe('runWatchLoop', () => {
         state?.sessions?.[`claude-code:${watchedSessionId}`],
       ).toBeDefined();
       expect(state?.sessions?.['claude-code:newer-session']).toBeUndefined();
+    });
+  });
+
+  test('classification cache: a static newer-candidate transcript is classified once across many poll ticks', async () => {
+    await withTempSessionHome(async (home) => {
+      classifyCountHarness.reset();
+      const cwd = '/test/watch-classification-cache';
+      const watchedSessionId = 'watched-cache-session';
+      const watchedPath = await writeClaudeTranscript(
+        home,
+        cwd,
+        watchedSessionId,
+        [{ content: 'watched baseline message' }],
+      );
+      const stdout: string[] = [];
+      let nowMs = Date.UTC(2026, 5, 3, 12, 0, 0);
+      let candidateCreated = false;
+      let candidatePath: string | null = null;
+
+      // A larger max-runtime than the "warns once" test above, at the same
+      // poll cadence, so this run drives many more ticks over the same
+      // static candidate — the scenario the plan targets (unchanged past
+      // sessions re-read on every 2s tick for the life of the watch).
+      const result = await runWatchLoop(
+        {
+          runtime: 'claude-code',
+          cwd,
+          json: true,
+          pollSec: 0.02,
+          debounceSec: 0.02,
+          maxRuntimeMin: 0.02,
+        },
+        {
+          writeStdout: (chunk: string) => stdout.push(chunk),
+          now: () => nowMs,
+          sleep: async (ms: number) => {
+            nowMs += ms;
+            if (candidateCreated) return;
+            candidateCreated = true;
+            candidatePath = await writeClaudeTranscript(
+              home,
+              cwd,
+              'static-cache-candidate',
+              [{ content: 'candidate baseline message' }],
+            );
+            const future = new Date(Date.now() + 120_000);
+            await utimes(candidatePath, future, future);
+          },
+        },
+      );
+
+      expect(result.reason).toBe('max-runtime');
+      expect(
+        candidatePath,
+        'the candidate transcript must have been created mid-run',
+      ).not.toBeNull();
+
+      const events = stdout
+        .join('')
+        .trim()
+        .split('\n')
+        .filter(Boolean)
+        .map((line) => JSON.parse(line));
+      const candidateEvents = events.filter(
+        (event) => event.type === 'newer-session-candidate',
+      );
+      // Same de-dup guarantee proven by the "warns once" test above: many
+      // ticks re-discover the candidate, but it is only ever emitted once.
+      // This is the watch-output equivalence half of the regression: the
+      // cache changes how classification is computed, never what watch
+      // events are produced.
+      expect(candidateEvents).toHaveLength(1);
+
+      expect(
+        classifyCountHarness.countFor(candidatePath as unknown as string),
+        'a static candidate, once cached on the tick it first appears, must not be re-read on any later tick',
+      ).toBe(1);
+
+      // Sanity: this run actually drove many ticks (otherwise the assertion
+      // below proves nothing). pollSec=0.02 over maxRuntimeMin=0.02 is ~60
+      // ticks; require at least 20 to keep real margin.
+      const pollMsForRun = 20;
+      const tickCount = Math.round(
+        (nowMs - Date.UTC(2026, 5, 3, 12, 0, 0)) / pollMsForRun,
+      );
+      expect(tickCount).toBeGreaterThan(20);
+
+      // The watched transcript is also re-discovered on every tick via the
+      // same discover() call, and is separately read for unrelated purposes
+      // (baseline catch-up content, digest rendering) that this cache does
+      // not — and is not meant to — eliminate; see the plan's "Current
+      // state": the watched transcript changes every tick while being
+      // actively written, so it is not this cache's target, the *other*
+      // (static) candidates are. The property this cache guarantees for it
+      // is only that it isn't read once per poll tick: its read count must
+      // stay a small, flat constant, not scale with the number of ticks.
+      expect(
+        classifyCountHarness.countFor(watchedPath),
+        'the watched transcript read count must stay flat, not scale with poll ticks',
+      ).toBeLessThan(tickCount / 2);
     });
   });
 
