@@ -214,7 +214,7 @@ its own worktree based on the post-group-1 integration tip; rebases over p03's
 
 | Scope  | Type     | Status  | Date | Artifact |
 | ------ | -------- | ------- | ---- | -------- |
-| p01    | code     | pending | -    | -        |
+| p01    | code     | passed  | 2026-07-23 | reviews/p01-code-review-2026-07-23.md |
 | p02    | code     | pending | -    | -        |
 | p03    | code     | passed  | 2026-07-23 | reviews/p03-code-review-2026-07-23.md |
 | p04    | code     | pending | -    | -        |
