@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-24
-oat_current_task_id: p08-t13
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -33,9 +33,9 @@ oat_generated: false
 | Phase 5 | complete    | 6     | 6/6       |
 | Phase 6 | complete    | 4     | 4/4       |
 | Phase 7 | complete    | 4     | 4/4       |
-| Phase 8 | in_progress | 14    | 12/14     |
+| Phase 8 | complete    | 14    | 14/14     |
 
-**Total:** 52/54 tasks accepted
+**Total:** 54/54 tasks accepted
 
 ---
 
@@ -1492,7 +1492,8 @@ privacy classification, and provider-residue checks passed.
 
 ## Phase 8: Terminal Exit-Gate Findings
 
-**Status:** in progress; operator-authorized continuation after 12/14 tasks
+**Status:** complete
+**Completed:** 2026-07-24
 
 ### Operator authorization
 
@@ -1564,8 +1565,8 @@ allowed only after Phase 8 and its fresh reviews pass.
 | `p08-t10` | complete | `bf24dde` |
 | `p08-t11` | complete | `2c68bb6` |
 | `p08-t12` | complete | `b606771` |
-| `p08-t13` | ready; preserved current-state diff | - |
-| `p08-t14` | pending; readiness handshake and final matrix | - |
+| `p08-t13` | complete | `bb435f4` |
+| `p08-t14` | complete | `0712627` |
 
 The first `p08-t13` focused group passed 117/117. The second group passed 161
 tests and failed the SIGTERM-resistant-child regression from `p08-t09`: under
@@ -1590,6 +1591,16 @@ reconciliation with the full release matrix. The loaded matrix exposed a
 fixture race from completed task `p08-t09`, so `plan.md` is now the source of
 truth: `p08-t13` closes the preserved documentation/sync work and `p08-t14`
 adds the deterministic fixture repair before rerunning every final gate.
+
+### Continuation outcome
+
+The same exact-target Phase 8 implementer completed the operator-authorized
+continuation at `bb435f4` and `0712627`. The readiness subset passed five
+consecutive repetitions; acceptance passed 22/22; combined focused groups
+passed 117/117 and 162/162; and the full suite passed 1,515 with 1 skipped.
+Build, type-check, generated parity, validation, smoke, live acceptance,
+evidence/privacy, skill versions, internal flags, docs build, changed-file
+lint/format, provider sync/dogfood, residue, and orphan-process checks passed.
 
 ---
 
@@ -1618,6 +1629,7 @@ Track test execution during implementation.
 | 4     | Full suite after review Critical fix | 1,407 passed; 1 skipped | 0 | Both owner runtimes, Cursor frame continuity, collaboration matrix, wake v1/v2 compatibility |
 | 5     | Full suite after review evidence fixes | 41 focused; 204 targeted; 1,448 full; 1 skipped; fresh probe 19/19 | 0 | Quoted-identity/range/taxonomy enforcement, exact live promotion claims, docs/contracts, provider dogfood |
 | 6     | Full suite after provider-state containment fix | 38 focused; 1,464 full; 1 skipped; both live modes 4/4 cleanup | 0 | Exact provider-root ownership, fail-closed cleanup, executable bounded recipes, buffered-manual fallback |
+| 8     | Full release matrix after terminal-gate remediation | 117 + 162 focused; 1,515 full; 1 skipped; readiness subset 5 consecutive passes | 0 | Delivery confirmation, stability budgets, exact identity/content/turns, completion claims, probe safety, evidence hygiene |
 | final-fix-1 | Full suite after repaired-buffer state fix | 38 focused; 1,465 full; 1 skipped | 0 | Explicit null preservation, repaired-frame advancement, heartbeat/status zero-lag reporting, generated runtime, provider dogfood |
 | final-fix-2 | Full suite after durable transcript-count fix | 60 focused; 1,465 full; 1 skipped | 0 | Validated count transitions, result-less preservation, repaired-frame durable/status/heartbeat agreement, generated runtime, provider dogfood |
 
@@ -1659,12 +1671,13 @@ Track test execution during implementation.
 
 **Verification performed:**
 
-- Final release matrix: 1,490 tests passed with 1 skipped; 190/190 focused
-  cross-fix tests; evidence validator 34 files; build/type/build-check,
+- Final release matrix: 1,515 tests passed with 1 skipped; focused groups
+  passed 117/117 and 162/162; evidence validator 34 files; build/type/build-check,
   validation, smoke, docs format/build (34 pages), skill-version enforcement,
   exact changed-file lint/format, and OAT provider synchronization passed.
 - Independent Phase 1 through Phase 7 reviews and mandatory final lifecycle
-  review round 4 passed after bounded fixes, with zero remaining findings.
+  review round 4 passed after bounded fixes. Phase 8 implementation is complete
+  and awaiting its fresh independent review.
 
 **Design deltas (if any):**
 

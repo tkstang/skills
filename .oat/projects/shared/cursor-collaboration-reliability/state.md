@@ -1,6 +1,6 @@
 ---
-oat_current_task: p08-t13
-oat_last_commit: b606771
+oat_current_task: null
+oat_last_commit: 0712627
 oat_blockers: []
 associated_issues:
   - { type: backlog, ref: "BL-260713-cursor-transcript-store" }
@@ -75,7 +75,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-17T21:43:11.125Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-24T12:33:39Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-24T12:43:05Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -87,7 +87,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation - Phase 8 continuation authorized at `p08-t13`
+Implementation - Phase 8 complete; independent review pending
 
 ## Artifacts
 
@@ -95,7 +95,7 @@ Implementation - Phase 8 continuation authorized at `p08-t13`
 - **Spec:** `spec.md` (complete; requirements formalized from discovery)
 - **Design:** `design.md` (complete; approved after review findings resolved)
 - **Plan:** `plan.md` (complete; approved after a passing artifact review)
-- **Implementation:** `implementation.md` (52/54 tasks complete; `p08-t13` ready)
+- **Implementation:** `implementation.md` (54/54 tasks complete; Phase 8 review pending)
 
 ## Progress
 
@@ -216,16 +216,16 @@ Implementation - Phase 8 continuation authorized at `p08-t13`
 - ✓ Prior configured-gate basis marked stale after substantive remediation
 - ✗ `p08-t13` phase matrix exposed a load-sensitive readiness race in the committed `p08-t09` regression fixture
 - ✓ Operator authorized one new bounded task; stable `p08-t13` narrowed and `p08-t14` appended
+- ✓ `p08-t13` current-state reconciliation complete at `bb435f4`
+- ✓ `p08-t14` deterministic readiness handshake and full matrix complete at `0712627`
+- ✓ Phase 8 complete: 14/14 tasks and 1,515 full-suite tests passed, 1 skipped
 
 ## Blockers
 
-None. The prior accepted implementer remains terminal `BLOCKED`; explicit
-operator authorization established a new continuation boundary for the two
-remaining tasks.
+None.
 
 ## Next Milestone
 
-Complete narrowed task `p08-t13`, then `p08-t14` readiness-handshake repair
-and full release matrix. Continue through independent and final lifecycle
-review, then resolve a fresh configured gate generation. Do not relaunch the
-exhausted generation.
+Run the independent Phase 8 review, then the fresh final lifecycle review.
+Only after both pass, resolve a fresh configured gate generation. Do not
+relaunch the exhausted generation.
