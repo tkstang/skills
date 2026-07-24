@@ -1,6 +1,6 @@
 ---
 oat_current_task: p08-t17
-oat_last_commit: 26d348a
+oat_last_commit: 40b2022
 oat_blockers: []
 associated_issues:
   - { type: backlog, ref: "BL-260713-cursor-transcript-store" }
@@ -75,7 +75,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-17T21:43:11.125Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-24T13:38:11Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-24T13:46:20Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -87,7 +87,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation - Phase 8 review fixes in progress; 56/58 tasks complete
+Implementation - 58/58 tasks complete; fresh final re-review pending
 
 ## Artifacts
 
@@ -95,7 +95,7 @@ Implementation - Phase 8 review fixes in progress; 56/58 tasks complete
 - **Spec:** `spec.md` (complete; requirements formalized from discovery)
 - **Design:** `design.md` (complete; approved after review findings resolved)
 - **Plan:** `plan.md` (complete; approved after a passing artifact review)
-- **Implementation:** `implementation.md` (56/58 tasks complete; review fixes in progress)
+- **Implementation:** `implementation.md` (58/58 tasks complete; fresh final re-review pending)
 
 ## Progress
 
@@ -227,6 +227,9 @@ Implementation - Phase 8 review fixes in progress; 56/58 tasks complete
 - ✓ Full matrix passed: 1,522 tests, 1 skipped; live acceptance 19/19
 - ✗ Fresh final re-review retained 2 Important findings
 - ✓ Fresh final re-review received; findings mapped to `p08-t17` and `p08-t18`
+- ✓ `p08-t17` exact cleanup preservation complete at `e8de07d`
+- ✓ `p08-t18` canonical Phase 8 task records complete at `40b2022`
+- ✓ Live OAT status recognizes Phase 8 at 18/18 and the project at 58/58
 
 ## Blockers
 
@@ -234,5 +237,5 @@ None.
 
 ## Next Milestone
 
-Execute `p08-t17`, then `p08-t18`, and run a fresh final lifecycle re-review.
-Only after it passes may a fresh configured gate generation begin.
+Run a fresh final lifecycle re-review. Only after it passes may a fresh
+configured gate generation begin.

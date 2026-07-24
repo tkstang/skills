@@ -1688,6 +1688,20 @@ artifact removal its own finite aggregate bounds. `p08-t18` records all Phase 8
 outcomes in the canonical task-section shape and requires live OAT status
 read-back. No finding was deferred or rejected.
 
+### Fresh final re-review fix outcome
+
+`p08-t17` completed at `e8de07d` with distinct finite budgets for preservation,
+exact cleanup discovery, removal, and reinspection. Cross-root entry, byte, and
+elapsed-time exhaustion cannot discard already proven artifacts. Focused tests
+passed 141/141, the full suite passed 1,526 with 1 skipped, and live acceptance
+passed 19/19.
+
+`p08-t18` completed at `40b2022` with canonical task sections for all 18 Phase 8
+tasks. Live OAT status read-back now reports Phase 8 at 18/18 and the project at
+58/58 with no current task or blocker. Build parity, type-check, validation,
+smoke, evidence, docs, provider, privacy, residue, and orphan-process gates
+passed.
+
 ### Canonical Phase 8 task outcomes
 
 ### Task p08-t01: Await native stdout delivery before checkpoint commit
