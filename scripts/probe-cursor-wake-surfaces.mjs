@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
+import { createReadStream } from 'node:fs';
 import {
   chmod,
   lstat,
@@ -27,6 +28,7 @@ const PROVIDER_ARTIFACT_CLOCK_SKEW_MS = 2_000;
 const PROVIDER_ARTIFACT_MAX_ENTRIES = 512;
 const PROVIDER_ARTIFACT_MAX_DEPTH = 8;
 const PROVIDER_METADATA_MAX_BYTES = 1_048_576;
+const PROVIDER_FINGERPRINT_MAX_BYTES = 67_108_864;
 
 export const CURSOR_PROVIDER_STATE_ROOTS = Object.freeze([
   Object.freeze({
@@ -447,6 +449,51 @@ async function pathExists(target) {
   }
 }
 
+async function fingerprintProviderEntry(target) {
+  const digest = createHash('sha256');
+  const queue = [{ target, relative: '.', depth: 0 }];
+  let entryCount = 0;
+  let byteCount = 0;
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+    const stats = await lstat(current.target);
+    entryCount += 1;
+    if (
+      entryCount > PROVIDER_ARTIFACT_MAX_ENTRIES ||
+      current.depth > PROVIDER_ARTIFACT_MAX_DEPTH
+    ) {
+      throw new Error('provider entry exceeds fingerprint bounds');
+    }
+    if (stats.isDirectory()) {
+      digest.update(`directory:${current.relative}\0`);
+      const entries = (await readdir(current.target)).toSorted();
+      queue.push(
+        ...entries.map((entry) => ({
+          target: path.join(current.target, entry),
+          relative: path.join(current.relative, entry),
+          depth: current.depth + 1,
+        })),
+      );
+      continue;
+    }
+    if (!stats.isFile()) {
+      throw new Error('provider entry contains unsupported artifact type');
+    }
+    byteCount += stats.size;
+    if (byteCount > PROVIDER_FINGERPRINT_MAX_BYTES) {
+      throw new Error('provider entry exceeds fingerprint byte bound');
+    }
+    digest.update(`file:${current.relative}:${stats.size}\0`);
+    for await (const chunk of createReadStream(current.target)) {
+      digest.update(chunk);
+    }
+    digest.update('\0');
+  }
+
+  return digest.digest('hex');
+}
+
 async function snapshotProviderState(options) {
   try {
     const roots = resolveProviderStateRoots(options);
@@ -471,11 +518,18 @@ async function snapshotProviderState(options) {
         };
       }
       const canonical = await realpath(root.path);
+      const entries = new Map();
+      for (const name of await readdir(root.path)) {
+        entries.set(
+          name,
+          await fingerprintProviderEntry(path.join(root.path, name)),
+        );
+      }
       snapshots.push({
         ...root,
         realPath: canonical,
         fingerprint: safeArtifactFingerprint(stats),
-        entries: new Set(await readdir(root.path)),
+        entries,
       });
     }
     return {
@@ -629,6 +683,7 @@ async function discoverProviderArtifacts(snapshot, workspace, providerWindow) {
     ),
   };
   const artifacts = [];
+  let preExistingPreserved = true;
 
   for (const root of snapshot.roots) {
     const currentRootStats = await lstat(root.path);
@@ -645,6 +700,16 @@ async function discoverProviderArtifacts(snapshot, workspace, providerWindow) {
         artifacts: [],
         diagnostic: 'provider-root-changed-during-probe',
       };
+    }
+    for (const [name, fingerprint] of root.entries) {
+      try {
+        const currentFingerprint = await fingerprintProviderEntry(
+          path.join(root.path, name),
+        );
+        if (currentFingerprint !== fingerprint) preExistingPreserved = false;
+      } catch {
+        preExistingPreserved = false;
+      }
     }
     const newNames = (await readdir(root.path)).filter(
       (name) => !root.entries.has(name),
@@ -663,9 +728,12 @@ async function discoverProviderArtifacts(snapshot, workspace, providerWindow) {
 
   return {
     succeeded: true,
+    preExistingPreserved,
     workspaceContext,
     artifacts,
-    diagnostic: 'discovered-new-provider-state',
+    diagnostic: preExistingPreserved
+      ? 'discovered-new-provider-state'
+      : 'pre-existing-provider-state-changed',
   };
 }
 
@@ -680,6 +748,7 @@ async function cleanupProviderArtifacts(
       declaredRootCount: CURSOR_PROVIDER_STATE_ROOTS.length,
       snapshotSucceeded: false,
       discoveredNewCount: 0,
+      preExistingPreserved: false,
       ownershipProvenCount: 0,
       ambiguousCount: 0,
       removedCount: 0,
@@ -709,6 +778,7 @@ async function cleanupProviderArtifacts(
       declaredRootCount: snapshot.roots.length,
       snapshotSucceeded: true,
       discoveredNewCount: 0,
+      preExistingPreserved: false,
       ownershipProvenCount: 0,
       ambiguousCount: 0,
       removedCount: 0,
@@ -763,6 +833,7 @@ async function cleanupProviderArtifacts(
     }
   }
   const succeeded =
+    discovery.preExistingPreserved &&
     ambiguous.length === 0 &&
     !removalFailed &&
     removedCount === owned.length &&
@@ -771,6 +842,7 @@ async function cleanupProviderArtifacts(
     declaredRootCount: snapshot.roots.length,
     snapshotSucceeded: true,
     discoveredNewCount: discovery.artifacts.length,
+    preExistingPreserved: discovery.preExistingPreserved,
     ownershipProvenCount: owned.length,
     ambiguousCount: ambiguous.length,
     removedCount,
@@ -778,9 +850,11 @@ async function cleanupProviderArtifacts(
     succeeded,
     diagnostic: succeeded
       ? 'removed-exact-proven-provider-state'
-      : ambiguous.length > 0
-        ? 'ambiguous-provider-state-preserved'
-        : 'provider-state-cleanup-failed',
+      : !discovery.preExistingPreserved
+        ? 'pre-existing-provider-state-changed'
+        : ambiguous.length > 0
+          ? 'ambiguous-provider-state-preserved'
+          : 'provider-state-cleanup-failed',
   };
 }
 
@@ -1049,11 +1123,13 @@ export async function runCursorWakeProbe(mode, options = {}) {
           'provider-state-boundary',
           {
             snapshotSucceeded: true,
+            preExistingPreserved: true,
             ambiguousCount: 0,
             existsAfterCount: 0,
           },
           {
             snapshotSucceeded: false,
+            preExistingPreserved: false,
             ambiguousCount: 0,
             existsAfterCount: 0,
           },
@@ -1212,11 +1288,13 @@ export async function runCursorWakeProbe(mode, options = {}) {
         'provider-state-boundary',
         {
           snapshotSucceeded: true,
+          preExistingPreserved: true,
           ambiguousCount: 0,
           existsAfterCount: 0,
         },
         {
           snapshotSucceeded: providerArtifacts.snapshotSucceeded,
+          preExistingPreserved: providerArtifacts.preExistingPreserved,
           ambiguousCount: providerArtifacts.ambiguousCount,
           existsAfterCount: providerArtifacts.existsAfterCount,
         },

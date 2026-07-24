@@ -116,6 +116,12 @@ if (process.env.CURSOR_WAKE_FAKE_CHATS_ROOT) {
     JSON.stringify({ workspace: realpathSync(workspace) }),
   );
 }
+if (process.env.CURSOR_WAKE_FAKE_MUTATE_EXISTING) {
+  writeFileSync(
+    process.env.CURSOR_WAKE_FAKE_MUTATE_EXISTING,
+    'mutated structural fake\\n',
+  );
+}
 if (process.env.CURSOR_WAKE_FAKE_HANG === '1') {
   setInterval(() => {}, 1000);
 } else {
@@ -576,6 +582,59 @@ describe('Cursor wake-surface probe', () => {
     });
     expect(await readdir(boundary.projects)).toEqual([preexistingProject]);
     expect(await readdir(boundary.chats)).toEqual([preexistingChat]);
+  });
+
+  it('fails cleanup evidence when a pre-existing provider entry is mutated', async () => {
+    const root = await temporaryRoot();
+    const boundary = await providerBoundary(root);
+    const preexistingProject = join(
+      boundary.projects,
+      'cursor-wake-probe-preexisting-project',
+    );
+    const preexistingFile = join(preexistingProject, 'worker.log');
+    await mkdir(preexistingProject);
+    await writeFile(preexistingFile, 'original structural fake\n');
+    const provider = await fakeProvider(root);
+    const result = await runCursorWakeProbe(
+      CURSOR_WAKE_PROBE_MODES.TOP_LEVEL_STOP,
+      {
+        providerCommand: process.execPath,
+        providerArgumentPrefix: [provider],
+        providerStateRoots: boundary.providerStateRoots,
+        temporaryParent: root,
+        processCapMs: 2_000,
+        env: {
+          ...process.env,
+          CURSOR_WAKE_FAKE_PROJECTS_ROOT: boundary.projects,
+          CURSOR_WAKE_FAKE_CHATS_ROOT: boundary.chats,
+          CURSOR_WAKE_FAKE_MUTATE_EXISTING: preexistingFile,
+        },
+      },
+    );
+
+    expect(result).toMatchObject({
+      executionStatus: 'safety-failed',
+      evidenceLabel: 'unavailable',
+      cleanup: {
+        succeeded: false,
+        providerArtifacts: {
+          preExistingPreserved: false,
+          discoveredNewCount: 4,
+          ownershipProvenCount: 4,
+          removedCount: 4,
+          existsAfterCount: 0,
+          succeeded: false,
+          diagnostic: 'pre-existing-provider-state-changed',
+        },
+      },
+    });
+    expect(await readdir(boundary.projects)).toEqual([
+      'cursor-wake-probe-preexisting-project',
+    ]);
+    expect(await readdir(boundary.chats)).toEqual([]);
+    expect(await readFile(preexistingFile, 'utf8')).toBe(
+      'mutated structural fake\n',
+    );
   });
 
   it('fails closed and preserves a new symlink that escapes a provider root', async () => {
