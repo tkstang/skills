@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-24
-oat_current_task_id: p08-t21
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -33,9 +33,9 @@ oat_generated: false
 | Phase 5 | complete    | 6     | 6/6       |
 | Phase 6 | complete    | 4     | 4/4       |
 | Phase 7 | complete    | 4     | 4/4       |
-| Phase 8 | in_progress | 21    | 20/21     |
+| Phase 8 | complete    | 21    | 21/21     |
 
-**Total:** 60/61 tasks accepted
+**Total:** 61/61 tasks accepted
 
 ---
 
@@ -1491,7 +1491,8 @@ privacy classification, and provider-residue checks passed.
 
 ## Phase 8: Terminal Exit-Gate Findings
 
-**Status:** in_progress
+**Status:** complete
+**Completed:** 2026-07-24
 
 ### Operator authorization
 
@@ -1571,7 +1572,7 @@ allowed only after Phase 8 and its fresh reviews pass.
 | `p08-t18` | complete | `40b2022` |
 | `p08-t19` | complete | `c195506` |
 | `p08-t20` | complete | `2038dea` |
-| `p08-t21` | pending | - |
+| `p08-t21` | complete | `logical:p08-t21-self-commit` |
 
 The first `p08-t13` focused group passed 117/117. The second group passed 161
 tests and failed the SIGTERM-resistant-child regression from `p08-t09`: under
@@ -1909,6 +1910,13 @@ listings with entry/time-budgeted streaming iteration.
 **Outcome:** Reconciled plan, implementation, and state artifacts to one
 parser-recognized 20-task Phase 8 and 60-task project closeout.
 
+### Task p08-t21: Finalize the implementation handoff narrative
+
+**Status:** completed
+**Commit:** `logical:p08-t21-self-commit`
+**Outcome:** Finalized the current test, task, review, and handoff narrative on
+the parser-recognized 21-task Phase 8 and 61-task project basis.
+
 ---
 
 ## Deviations from Plan / Design
@@ -1936,7 +1944,7 @@ Track test execution during implementation.
 | 4     | Full suite after review Critical fix | 1,407 passed; 1 skipped | 0 | Both owner runtimes, Cursor frame continuity, collaboration matrix, wake v1/v2 compatibility |
 | 5     | Full suite after review evidence fixes | 41 focused; 204 targeted; 1,448 full; 1 skipped; fresh probe 19/19 | 0 | Quoted-identity/range/taxonomy enforcement, exact live promotion claims, docs/contracts, provider dogfood |
 | 6     | Full suite after provider-state containment fix | 38 focused; 1,464 full; 1 skipped; both live modes 4/4 cleanup | 0 | Exact provider-root ownership, fail-closed cleanup, executable bounded recipes, buffered-manual fallback |
-| 8     | Full release matrix after terminal-gate remediation | 117 + 162 focused; 1,515 full; 1 skipped; readiness subset 5 consecutive passes | 0 | Delivery confirmation, stability budgets, exact identity/content/turns, completion claims, probe safety, evidence hygiene |
+| 8     | Full release matrix through final artifact closeout | 26 wake; 143 combined focused; 1,528 full; 1 skipped; live acceptance 19/19 | 0 | Delivery confirmation, exact identity/content/turns, exact cleanup preservation, aggregate scan budgets, bounded `opendir()` enumeration, canonical 61-task handoff |
 | final-fix-1 | Full suite after repaired-buffer state fix | 38 focused; 1,465 full; 1 skipped | 0 | Explicit null preservation, repaired-frame advancement, heartbeat/status zero-lag reporting, generated runtime, provider dogfood |
 | final-fix-2 | Full suite after durable transcript-count fix | 60 focused; 1,465 full; 1 skipped | 0 | Validated count transitions, result-less preservation, repaired-frame durable/status/heartbeat agreement, generated runtime, provider dogfood |
 
@@ -1951,9 +1959,13 @@ Track test execution during implementation.
 - Bounded two-session collaboration with schema-aware completion, lease v6
   private continuity, atomic delivery/wake claims, duplicate/no-op suppression,
   deterministic cleanup, and compatibility across Cursor/Codex owner routes.
+- Exact provider-state ownership and cleanup with aggregate preservation,
+  discovery, removal, and reinspection bounds plus streaming `opendir()`
+  enumeration that charges names before retaining or queueing them.
 - Sanitized live capability evidence, canonical support labels, shipped
   documentation, synchronized skill versions/user installs, and closed
-  transcript-store/stronger-wake investigation backlogs.
+  transcript-store/stronger-wake investigation backlogs, with canonical
+  lifecycle handoff records for all 61 tasks.
 
 **Behavioral changes (user-facing):**
 
@@ -1978,13 +1990,16 @@ Track test execution during implementation.
 
 **Verification performed:**
 
-- Final release matrix: 1,515 tests passed with 1 skipped; focused groups
-  passed 117/117 and 162/162; evidence validator 34 files; build/type/build-check,
-  validation, smoke, docs format/build (34 pages), skill-version enforcement,
-  exact changed-file lint/format, and OAT provider synchronization passed.
-- Independent Phase 1 through Phase 8 reviews passed after bounded fixes. The
-  fresh final lifecycle review fixes `p08-t15` and `p08-t16` are complete;
-  re-review follows.
+- Final release matrix: 1,528 tests passed with 1 skipped; wake-probe tests
+  passed 26/26 and the combined focused group passed 143/143; live acceptance
+  passed 19/19; evidence validation covered 34 files; docs built 34 pages; and
+  build/type/generated, validation, smoke, skill, privacy, residue, and
+  orphan-process gates passed.
+- Exact cleanup (`p08-t17`), bounded provider directory iteration (`p08-t19`),
+  canonical closeout (`p08-t20`), and this final handoff (`p08-t21`) are
+  complete. Live OAT status recognizes Phase 8 at 21/21 and the project at
+  61/61 with no current task or blocker; a fresh final lifecycle review is the
+  next lifecycle action.
 
 **Design deltas (if any):**
 

@@ -1370,11 +1370,11 @@ third gate launch.
 - Phase 5: 6 tasks — live evidence, documentation, versions/provider dogfood, release gates, and backlog lifecycle.
 - Phase 6: 4 tasks — conditional wake-surface measurement, evidence-backed fallback selection, and final release reconciliation.
 - Phase 7: 4 tasks — selected-prefix CAS binding, bounded stability growth, completed-prefix selection, and evidence-safe gate bookkeeping.
-- Phase 8: 20 tasks — delivery completion, stability progress, runtime bounds, canonical identity, structural content/turns, completion suffixes, type parity, probe safety, evidence hygiene, deterministic probe verification, bounded identity/provider-state scans and directory iteration, exact cleanup preservation, canonical task records, and release reconciliation.
+- Phase 8: 21 tasks — delivery completion, stability progress, runtime bounds, canonical identity, structural content/turns, completion suffixes, type parity, probe safety, evidence hygiene, deterministic probe verification, bounded identity/provider-state scans and directory iteration, exact cleanup preservation, canonical task records, release reconciliation, and final implementation handoff.
 
-**Total: 60 tasks**
+**Total: 61 tasks**
 
-Ready for code review and merge after all 60 tasks and review rows pass.
+Ready for code review and merge after all 61 tasks and review rows pass.
 
 ## References
 

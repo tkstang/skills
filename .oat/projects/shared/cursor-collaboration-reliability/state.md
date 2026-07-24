@@ -1,6 +1,6 @@
 ---
-oat_current_task: p08-t21
-oat_last_commit: 531aeaf
+oat_current_task: null
+oat_last_commit: fa8cba9
 oat_blockers: []
 associated_issues:
   - { type: backlog, ref: "BL-260713-cursor-transcript-store" }
@@ -81,13 +81,14 @@ oat_generated: false
 
 # Project State: cursor-collaboration-reliability
 
-**Status:** Implementation Tasks Complete; Fresh Final Review Blocked
+**Status:** Implementation Tasks Complete; Fresh Final Review Pending
 **Started:** 2026-07-17
 **Last Updated:** 2026-07-24
 
 ## Current Phase
 
-Implementation - final artifact closeout in progress; 60/61 tasks complete
+Implementation - Phase 8 complete; 61/61 tasks complete; fresh final review
+pending
 
 ## Artifacts
 
@@ -95,7 +96,7 @@ Implementation - final artifact closeout in progress; 60/61 tasks complete
 - **Spec:** `spec.md` (complete; requirements formalized from discovery)
 - **Design:** `design.md` (complete; approved after review findings resolved)
 - **Plan:** `plan.md` (complete; approved after a passing artifact review)
-- **Implementation:** `implementation.md` (60/61 tasks complete; artifact closeout in progress)
+- **Implementation:** `implementation.md` (61/61 tasks complete; fresh final review pending)
 
 ## Progress
 
@@ -221,7 +222,6 @@ Implementation - final artifact closeout in progress; 60/61 tasks complete
 - ✓ Phase 8 complete: 14/14 tasks and 1,515 full-suite tests passed, 1 skipped
 - ✓ Independent Phase 8 review passed with 0 Critical, 0 Important, 1 Medium, 0 Minor
 - ✗ Fresh final review retained 1 Important and 1 Medium finding
-- ✓ Fresh final review received; findings mapped to `p08-t19` and `p08-t20`
 - ✓ Fresh final review received; findings mapped to `p08-t15` and `p08-t16`
 - ✓ `p08-t15` bounded exact identity indexing complete at `998892c`
 - ✓ `p08-t16` aggregate provider-state scan budgets complete at `9c90704`
@@ -232,11 +232,14 @@ Implementation - final artifact closeout in progress; 60/61 tasks complete
 - ✓ `p08-t18` canonical Phase 8 task records complete at `40b2022`
 - ✓ Live OAT status recognizes Phase 8 at 18/18 and the project at 58/58
 - ✗ Fresh final review retained 1 Important and 1 Medium finding
+- ✓ Fresh final review received; findings mapped to `p08-t19` and `p08-t20`
 - ✓ `p08-t19` bounded provider directory iteration complete at `c195506`
 - ✓ `p08-t20` canonical 60-task closeout complete at `2038dea`
 - ✓ Live OAT status recognizes Phase 8 at 20/20 and the project at 60/60
 - ✗ Fresh final review retained 1 Important artifact-closeout finding
 - ✓ Fresh final review received; finding mapped to `p08-t21`
+- ✓ `p08-t21` final implementation handoff complete at `logical:p08-t21-self-commit`
+- ✓ Live OAT status recognizes Phase 8 at 21/21 and the project at 61/61
 
 ## Blockers
 
@@ -244,4 +247,5 @@ None.
 
 ## Next Milestone
 
-Execute `p08-t21` and run a fresh final lifecycle re-review.
+Run a fresh final lifecycle review from the canonical 61/61 implementation
+basis.
