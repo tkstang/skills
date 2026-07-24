@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-24
-oat_current_task_id: null
+oat_current_task_id: p08-t19
 oat_generated: false
 ---
 
@@ -33,9 +33,9 @@ oat_generated: false
 | Phase 5 | complete    | 6     | 6/6       |
 | Phase 6 | complete    | 4     | 4/4       |
 | Phase 7 | complete    | 4     | 4/4       |
-| Phase 8 | complete    | 18    | 18/18     |
+| Phase 8 | in_progress | 20    | 18/20     |
 
-**Total:** 58/58 tasks accepted
+**Total:** 58/60 tasks accepted
 
 ---
 
@@ -1491,8 +1491,7 @@ privacy classification, and provider-residue checks passed.
 
 ## Phase 8: Terminal Exit-Gate Findings
 
-**Status:** complete
-**Completed:** 2026-07-24
+**Status:** in_progress
 
 ### Operator authorization
 
@@ -1570,6 +1569,8 @@ allowed only after Phase 8 and its fresh reviews pass.
 | `p08-t16` | complete | `9c90704` |
 | `p08-t17` | complete | `e8de07d` |
 | `p08-t18` | complete | this commit |
+| `p08-t19` | pending | - |
+| `p08-t20` | pending | - |
 
 The first `p08-t13` focused group passed 117/117. The second group passed 161
 tests and failed the SIGTERM-resistant-child regression from `p08-t09`: under
@@ -1718,6 +1719,17 @@ lane; corrected launch was rejected before start by the agent-thread limit, so
 the primary reviewer completed it inline. Focused tests passed 141/141, the full
 suite passed 1,526 with 1 skipped, and all build, type, validation, smoke,
 evidence, skill, docs, diff, and live status gates passed.
+
+### Fresh boundedness review received
+
+**Source:** `reviews/archived/final-review-2026-07-24T135210Z.md`
+**Disposition:** `M1 → p08-t19`, `I1 → p08-t20`
+
+The automatic review converted both findings without a disposition prompt.
+`p08-t19` replaces eager provider directory listings with aggregate-bounded
+iteration. `p08-t20` runs last so the plan, implementation, state, and live OAT
+read-back close on one canonical 20-task Phase 8 and 60-task project state. No
+finding was deferred or rejected.
 
 ### Canonical Phase 8 task outcomes
 

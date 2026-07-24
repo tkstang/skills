@@ -1246,6 +1246,44 @@ third gate launch.
 4. Verify plan and implementation totals are 58/58 with no review-history loss; root owns final `state.md` bookkeeping after the task commit.
 5. Commit: `chore(p08-t18): record canonical phase 8 completion`.
 
+### Task p08-t19: (review) Bound provider directory enumeration
+
+**Task Scope:** Moderate
+**Requirements:** NFR5
+
+**Files:**
+
+- Modify: `scripts/probe-cursor-wake-surfaces.mjs`
+- Modify: `tests/tooling/cursor-wake-probe.test.ts`
+
+**Steps:**
+
+1. Add RED oversized provider-root and nested-directory fixtures proving eager `readdir()` materializes names before aggregate limits apply.
+2. Replace eager root, fingerprint-tree, artifact-inspection, and post-run name listings with `opendir()` or equivalently capped iteration.
+3. Consume the shared entry and elapsed-time budget before retaining or queueing each name, and keep queued-name memory within that same finite aggregate bound.
+4. Verify oversized scans stop at the configured limit without materializing complete listings while exact cleanup remains fail-closed and finite.
+5. Run focused wake-probe, live cleanup, full suite, build/type/generated, validation, smoke, evidence/privacy, docs, provider, residue, and orphan-process gates.
+6. Commit: `fix(p08-t19): bound provider directory iteration`.
+
+### Task p08-t20: (review) Reconcile canonical 60-task closeout
+
+**Task Scope:** Minor
+**Requirements:** NFR6
+
+**Files:**
+
+- Modify: `.oat/projects/shared/cursor-collaboration-reliability/plan.md`
+- Modify: `.oat/projects/shared/cursor-collaboration-reliability/implementation.md`
+- Modify: `.oat/projects/shared/cursor-collaboration-reliability/state.md`
+
+**Steps:**
+
+1. Update the plan closeout summary to Phase 8 at 20 tasks and total completion at 60.
+2. Replace the `p08-t18` commit placeholder with `40b2022`, add canonical completed sections for `p08-t19` and `p08-t20`, and preserve all review history.
+3. Clear any stale current task and record the current bookkeeping basis consistently in `state.md`.
+4. Read back `plan.md`, `implementation.md`, `state.md`, and `oat project status --project-path .oat/projects/shared/cursor-collaboration-reliability --json`; require Phase 8 20/20, project 60/60, no current task, and no blocker.
+5. Commit: `chore(p08-t20): reconcile canonical project closeout`.
+
 ## Reviews
 
 | Scope  | Type     | Status          | Date       | Artifact                                                                  |
@@ -1289,7 +1327,7 @@ third gate launch.
 | p08    | code     | passed          | 2026-07-24 | reviews/p08-review-2026-07-24T125308Z.md                                  |
 | final  | code     | fixes_completed | 2026-07-24 | reviews/archived/final-review-2026-07-24T130507Z.md                       |
 | final  | code     | fixes_completed | 2026-07-24 | reviews/archived/final-review-2026-07-24T133133Z.md                       |
-| final  | code     | received        | 2026-07-24 | reviews/final-review-2026-07-24T135210Z.md                                |
+| final  | code     | fixes_added     | 2026-07-24 | reviews/archived/final-review-2026-07-24T135210Z.md                       |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 

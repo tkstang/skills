@@ -1,6 +1,6 @@
 ---
-oat_current_task: null
-oat_last_commit: 40b2022
+oat_current_task: p08-t19
+oat_last_commit: 169924c
 oat_blockers: []
 associated_issues:
   - { type: backlog, ref: "BL-260713-cursor-transcript-store" }
@@ -75,7 +75,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-17T21:43:11.125Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-24T13:55:12Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-24T13:56:50Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -87,7 +87,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation - 58/58 planned tasks complete; fresh final review blocked
+Implementation - Phase 8 boundedness fixes in progress; 58/60 tasks complete
 
 ## Artifacts
 
@@ -95,7 +95,7 @@ Implementation - 58/58 planned tasks complete; fresh final review blocked
 - **Spec:** `spec.md` (complete; requirements formalized from discovery)
 - **Design:** `design.md` (complete; approved after review findings resolved)
 - **Plan:** `plan.md` (complete; approved after a passing artifact review)
-- **Implementation:** `implementation.md` (58/58 planned tasks complete; fresh final review blocked)
+- **Implementation:** `implementation.md` (58/60 tasks complete; boundedness fixes in progress)
 
 ## Progress
 
@@ -221,6 +221,7 @@ Implementation - 58/58 planned tasks complete; fresh final review blocked
 - ✓ Phase 8 complete: 14/14 tasks and 1,515 full-suite tests passed, 1 skipped
 - ✓ Independent Phase 8 review passed with 0 Critical, 0 Important, 1 Medium, 0 Minor
 - ✗ Fresh final review retained 1 Important and 1 Medium finding
+- ✓ Fresh final review received; findings mapped to `p08-t19` and `p08-t20`
 - ✓ Fresh final review received; findings mapped to `p08-t15` and `p08-t16`
 - ✓ `p08-t15` bounded exact identity indexing complete at `998892c`
 - ✓ `p08-t16` aggregate provider-state scan budgets complete at `9c90704`
@@ -234,10 +235,9 @@ Implementation - 58/58 planned tasks complete; fresh final review blocked
 
 ## Blockers
 
-Receive `reviews/final-review-2026-07-24T135210Z.md` and add bounded tasks for
-provider directory iteration and final canonical lifecycle closeout.
+None.
 
 ## Next Milestone
 
-Receive the fresh final review and execute its bounded fixes. Only after a
-passing re-review may a fresh configured gate generation begin.
+Execute `p08-t19`, then final canonical closeout `p08-t20`, and run a fresh
+final lifecycle re-review.
