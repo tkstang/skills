@@ -822,6 +822,126 @@ describe('Cursor wake-surface probe', () => {
     expect(await readdir(boundary.chats)).toEqual([]);
   });
 
+  it.each([
+    ['entry', 'provider-state-scan-entry-budget-exceeded'],
+    ['byte', 'provider-state-scan-byte-budget-exceeded'],
+    ['time', 'provider-state-scan-time-budget-exceeded'],
+  ])(
+    'preserves cross-root exact cleanup after post-run %s-budget exhaustion',
+    async (budget, diagnostic) => {
+      const root = await temporaryRoot();
+      const boundary = await providerBoundary(root);
+      const preexistingChat = join(
+        boundary.chats,
+        'cursor-wake-probe-preexisting-chat',
+      );
+      await mkdir(preexistingChat);
+      if (budget === 'byte') {
+        await writeFile(join(preexistingChat, 'state.log'), 'x');
+      }
+      const provider = await fakeProvider(root);
+      let clockCalls = 0;
+      const scanOptions =
+        budget === 'entry'
+          ? { providerStateScanMaxEntries: 1 }
+          : budget === 'byte'
+            ? { providerStateScanMaxBytes: 1 }
+            : {
+                providerStateScanMaxElapsedMs: 1,
+                providerStateScanNow: () => {
+                  clockCalls += 1;
+                  return clockCalls <= 6 ? 0 : 2;
+                },
+              };
+      const result = await runCursorWakeProbe(
+        CURSOR_WAKE_PROBE_MODES.TOP_LEVEL_STOP,
+        {
+          providerCommand: process.execPath,
+          providerArgumentPrefix: [provider],
+          providerStateRoots: boundary.providerStateRoots,
+          temporaryParent: root,
+          processCapMs: 2_000,
+          env: {
+            ...process.env,
+            CURSOR_WAKE_FAKE_PROJECTS_ROOT: boundary.projects,
+            CURSOR_WAKE_FAKE_CHATS_ROOT: boundary.chats,
+            CURSOR_WAKE_FAKE_EXPAND_EXISTING: preexistingChat,
+          },
+          ...scanOptions,
+        },
+      );
+
+      expect(result).toMatchObject({
+        executionStatus: 'safety-failed',
+        evidenceLabel: 'unavailable',
+        cleanup: {
+          succeeded: false,
+          workspaceExistsAfter: false,
+          providerArtifacts: {
+            snapshotSucceeded: true,
+            preExistingPreserved: false,
+            discoveredNewCount: 4,
+            ownershipProvenCount: 4,
+            removedCount: 4,
+            existsAfterCount: 0,
+            succeeded: false,
+            diagnostic,
+          },
+        },
+      });
+      expect(await readdir(boundary.projects)).toEqual([]);
+      expect(await readdir(boundary.chats)).toEqual([
+        'cursor-wake-probe-preexisting-chat',
+      ]);
+      expect(await readdir(preexistingChat)).toEqual(
+        budget === 'byte' ? ['expanded.log', 'state.log'] : ['expanded.log'],
+      );
+    },
+  );
+
+  it('retains and removes partial exact discovery when the cleanup discovery budget is exhausted', async () => {
+    const root = await temporaryRoot();
+    const boundary = await providerBoundary(root);
+    const provider = await fakeProvider(root);
+    const result = await runCursorWakeProbe(
+      CURSOR_WAKE_PROBE_MODES.TOP_LEVEL_STOP,
+      {
+        providerCommand: process.execPath,
+        providerArgumentPrefix: [provider],
+        providerStateRoots: boundary.providerStateRoots,
+        providerStateCleanupMaxEntries: 3,
+        temporaryParent: root,
+        processCapMs: 2_000,
+        env: {
+          ...process.env,
+          CURSOR_WAKE_FAKE_PROJECTS_ROOT: boundary.projects,
+          CURSOR_WAKE_FAKE_CHATS_ROOT: boundary.chats,
+        },
+      },
+    );
+
+    expect(result).toMatchObject({
+      executionStatus: 'safety-failed',
+      evidenceLabel: 'unavailable',
+      cleanup: {
+        succeeded: false,
+        workspaceExistsAfter: false,
+        providerArtifacts: {
+          snapshotSucceeded: true,
+          preExistingPreserved: true,
+          discoveredNewCount: 1,
+          ownershipProvenCount: 1,
+          removedCount: 1,
+          existsAfterCount: 0,
+          succeeded: false,
+          diagnostic: 'provider-state-cleanup-entry-budget-exceeded',
+        },
+      },
+    });
+    expect(await readdir(boundary.projects)).toHaveLength(2);
+    expect(await readdir(boundary.chats)).toHaveLength(1);
+  });
+
   it('fails closed and preserves a new symlink that escapes a provider root', async () => {
     const root = await temporaryRoot();
     const boundary = await providerBoundary(root);

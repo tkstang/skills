@@ -483,13 +483,37 @@ function createProviderStateScanBudget(options) {
       PROVIDER_STATE_SCAN_MAX_ELAPSED_MS,
     ),
     now,
+    diagnosticPrefix: 'provider-state-scan',
+  };
+}
+
+function createProviderStateCleanupBudget(options) {
+  const now = options.providerStateCleanupNow ?? Date.now;
+  return {
+    entryCount: 0,
+    byteCount: 0,
+    startedAtMs: now(),
+    maxEntries: positiveBound(
+      options.providerStateCleanupMaxEntries,
+      PROVIDER_STATE_SCAN_MAX_ENTRIES,
+    ),
+    maxBytes: positiveBound(
+      options.providerStateCleanupMaxBytes,
+      PROVIDER_STATE_SCAN_MAX_BYTES,
+    ),
+    maxElapsedMs: positiveBound(
+      options.providerStateCleanupMaxElapsedMs,
+      PROVIDER_STATE_SCAN_MAX_ELAPSED_MS,
+    ),
+    now,
+    diagnosticPrefix: 'provider-state-cleanup',
   };
 }
 
 function assertProviderStateScanElapsed(budget) {
   if (budget.now() - budget.startedAtMs > budget.maxElapsedMs) {
     throw new ProviderStateScanBudgetError(
-      'provider-state-scan-time-budget-exceeded',
+      `${budget.diagnosticPrefix}-time-budget-exceeded`,
     );
   }
 }
@@ -499,7 +523,7 @@ function consumeProviderStateScanEntry(budget) {
   budget.entryCount += 1;
   if (budget.entryCount > budget.maxEntries) {
     throw new ProviderStateScanBudgetError(
-      'provider-state-scan-entry-budget-exceeded',
+      `${budget.diagnosticPrefix}-entry-budget-exceeded`,
     );
   }
 }
@@ -509,7 +533,7 @@ function consumeProviderStateScanBytes(budget, bytes) {
   budget.byteCount += bytes;
   if (budget.byteCount > budget.maxBytes) {
     throw new ProviderStateScanBudgetError(
-      'provider-state-scan-byte-budget-exceeded',
+      `${budget.diagnosticPrefix}-byte-budget-exceeded`,
     );
   }
 }
@@ -644,7 +668,7 @@ function containsExactWorkspace(value, workspaces) {
 async function inspectArtifactTree(
   target,
   workspaces,
-  { readWorkspaceMetadata },
+  { readWorkspaceMetadata, aggregateBudget },
 ) {
   const queue = [{ target, depth: 0 }];
   let entryCount = 0;
@@ -654,6 +678,7 @@ async function inspectArtifactTree(
     const current = queue.shift();
     const stats = await lstat(current.target);
     entryCount += 1;
+    consumeProviderStateScanEntry(aggregateBudget);
     if (
       stats.isSymbolicLink() ||
       entryCount > PROVIDER_ARTIFACT_MAX_ENTRIES ||
@@ -675,9 +700,16 @@ async function inspectArtifactTree(
       );
       continue;
     }
+    if (!stats.isFile()) {
+      return {
+        safe: false,
+        workspaceMetadataPresent: false,
+        diagnostic: 'unsafe-provider-artifact-tree',
+      };
+    }
+    consumeProviderStateScanBytes(aggregateBudget, stats.size);
     if (
       readWorkspaceMetadata &&
-      stats.isFile() &&
       path.extname(current.target) === '.json' &&
       stats.size <= PROVIDER_METADATA_MAX_BYTES
     ) {
@@ -702,6 +734,7 @@ async function inspectProviderArtifact(
   name,
   workspaceContext,
   providerWindow,
+  aggregateBudget,
 ) {
   const target = path.join(root.path, name);
   try {
@@ -725,7 +758,10 @@ async function inspectProviderArtifact(
     const tree = await inspectArtifactTree(
       target,
       workspaceContext.exactWorkspaces,
-      { readWorkspaceMetadata: root.policy === 'workspace-metadata' },
+      {
+        readWorkspaceMetadata: root.policy === 'workspace-metadata',
+        aggregateBudget,
+      },
     );
     if (!tree.safe) {
       return { target, owned: false, diagnostic: tree.diagnostic };
@@ -742,7 +778,8 @@ async function inspectProviderArtifact(
       fingerprint: safeArtifactFingerprint(stats),
       diagnostic: owned ? 'exact-provider-ownership-proven' : 'ambiguous-state',
     };
-  } catch {
+  } catch (error) {
+    if (error instanceof ProviderStateScanBudgetError) throw error;
     return { target, owned: false, diagnostic: 'artifact-inspection-failed' };
   }
 }
@@ -772,10 +809,8 @@ async function discoverProviderArtifacts(
   const artifacts = [];
   let preExistingPreserved = true;
   let preservationDiagnostic = null;
-  const aggregateBudget = createProviderStateScanBudget(options);
 
   for (const root of snapshot.roots) {
-    assertProviderStateScanElapsed(aggregateBudget);
     const currentRootStats = await lstat(root.path);
     const currentRootCanonical = await realpath(root.path);
     if (
@@ -791,35 +826,74 @@ async function discoverProviderArtifacts(
         diagnostic: 'provider-root-changed-during-probe',
       };
     }
+  }
+
+  const preservationBudget = createProviderStateScanBudget(options);
+  let preservationBudgetExhausted = false;
+  for (const root of snapshot.roots) {
+    if (preservationBudgetExhausted) {
+      preExistingPreserved = false;
+      continue;
+    }
+    try {
+      assertProviderStateScanElapsed(preservationBudget);
+    } catch (error) {
+      preExistingPreserved = false;
+      preservationDiagnostic ??= providerStateScanDiagnostic(error, null);
+      preservationBudgetExhausted =
+        error instanceof ProviderStateScanBudgetError;
+      continue;
+    }
     for (const [name, fingerprint] of root.entries) {
       try {
         const currentFingerprint = await fingerprintProviderEntry(
           path.join(root.path, name),
-          aggregateBudget,
+          preservationBudget,
         );
         if (currentFingerprint !== fingerprint) preExistingPreserved = false;
       } catch (error) {
         preExistingPreserved = false;
         preservationDiagnostic ??= providerStateScanDiagnostic(error, null);
+        if (error instanceof ProviderStateScanBudgetError) {
+          preservationBudgetExhausted = true;
+          break;
+        }
       }
     }
-    const newNames = (await readdir(root.path)).filter(
-      (name) => !root.entries.has(name),
-    );
-    for (const name of newNames) {
-      artifacts.push(
-        await inspectProviderArtifact(
-          root,
-          name,
-          workspaceContext,
-          providerWindow,
-        ),
+  }
+
+  const cleanupBudget = createProviderStateCleanupBudget(options);
+  let cleanupDiagnostic = null;
+  for (const root of snapshot.roots) {
+    try {
+      assertProviderStateScanElapsed(cleanupBudget);
+      const newNames = (await readdir(root.path)).filter(
+        (name) => !root.entries.has(name),
       );
+      for (const name of newNames) {
+        artifacts.push(
+          await inspectProviderArtifact(
+            root,
+            name,
+            workspaceContext,
+            providerWindow,
+            cleanupBudget,
+          ),
+        );
+      }
+    } catch (error) {
+      cleanupDiagnostic ??= providerStateScanDiagnostic(
+        error,
+        'provider-artifact-discovery-failed',
+      );
+      break;
     }
   }
 
   return {
     succeeded: true,
+    cleanupComplete: cleanupDiagnostic === null,
+    cleanupDiagnostic,
     preExistingPreserved,
     workspaceContext,
     artifacts,
@@ -893,6 +967,8 @@ async function cleanupProviderArtifacts(
     ((target) => rm(target, { recursive: true, force: false }));
   let removedCount = 0;
   let removalFailed = false;
+  let cleanupDiagnostic = discovery.cleanupDiagnostic;
+  const removalBudget = createProviderStateCleanupBudget(options);
 
   for (const artifact of owned) {
     try {
@@ -901,6 +977,7 @@ async function cleanupProviderArtifacts(
         artifact.name,
         discovery.workspaceContext,
         providerWindow,
+        removalBudget,
       );
       const stats = await lstat(artifact.target);
       if (
@@ -911,14 +988,17 @@ async function cleanupProviderArtifacts(
         removalFailed = true;
         continue;
       }
+      assertProviderStateScanElapsed(removalBudget);
       await removeProviderArtifact(artifact.target);
+      assertProviderStateScanElapsed(removalBudget);
       if (await pathExists(artifact.target)) {
         removalFailed = true;
       } else {
         removedCount += 1;
       }
-    } catch {
+    } catch (error) {
       removalFailed = true;
+      cleanupDiagnostic ??= providerStateScanDiagnostic(error, null);
     }
   }
 
@@ -932,6 +1012,8 @@ async function cleanupProviderArtifacts(
   }
   const succeeded =
     discovery.preExistingPreserved &&
+    discovery.cleanupComplete &&
+    cleanupDiagnostic === null &&
     ambiguous.length === 0 &&
     !removalFailed &&
     removedCount === owned.length &&
@@ -948,11 +1030,13 @@ async function cleanupProviderArtifacts(
     succeeded,
     diagnostic: succeeded
       ? 'removed-exact-proven-provider-state'
-      : !discovery.preExistingPreserved
-        ? discovery.diagnostic
-        : ambiguous.length > 0
-          ? 'ambiguous-provider-state-preserved'
-          : 'provider-state-cleanup-failed',
+      : cleanupDiagnostic
+        ? cleanupDiagnostic
+        : !discovery.preExistingPreserved
+          ? discovery.diagnostic
+          : ambiguous.length > 0
+            ? 'ambiguous-provider-state-preserved'
+            : 'provider-state-cleanup-failed',
   };
 }
 
