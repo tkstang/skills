@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-24
-oat_current_task_id: p08-t15
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -33,9 +33,9 @@ oat_generated: false
 | Phase 5 | complete    | 6     | 6/6       |
 | Phase 6 | complete    | 4     | 4/4       |
 | Phase 7 | complete    | 4     | 4/4       |
-| Phase 8 | in_progress | 16    | 14/16     |
+| Phase 8 | complete    | 16    | 16/16     |
 
-**Total:** 54/56 tasks accepted
+**Total:** 56/56 tasks accepted
 
 ---
 
@@ -990,7 +990,8 @@ reproduction also passed; Phase 5 is next.
 
 ## Phase 5: Acceptance Evidence, Documentation, and Release Readiness
 
-**Status:** in progress; fresh final-review fixes added
+**Status:** complete; fresh final re-review pending
+**Completed:** 2026-07-24
 
 ### Phase Summary
 
@@ -1566,8 +1567,8 @@ allowed only after Phase 8 and its fresh reviews pass.
 | `p08-t12` | complete | `b606771` |
 | `p08-t13` | complete | `bb435f4` |
 | `p08-t14` | complete | `0712627` |
-| `p08-t15` | pending; bound exact identity indexing | - |
-| `p08-t16` | pending; bound provider-state scan | - |
+| `p08-t15` | complete | `998892c` |
+| `p08-t16` | complete | `9c90704` |
 
 The first `p08-t13` focused group passed 117/117. The second group passed 161
 tests and failed the SIGTERM-resistant-child regression from `p08-t09`: under
@@ -1640,6 +1641,16 @@ The auto-review path converted both findings without a disposition prompt.
 adds a finite duplicate-session index budget. `p08-t16` applies aggregate
 entry/byte/time budgets to provider-state preservation scans. No finding was
 deferred or rejected.
+
+### Final-review fix outcome
+
+`p08-t15` completed at `998892c` with path-derived identity and finite
+duplicate-index budgets; focused identity/runtime passed 117/117 and
+observer/core compatibility passed 565/565. `p08-t16` completed at `9c90704`
+with aggregate pre/post provider-state budgets and fail-visible diagnostics.
+The final matrix passed 1,522 tests with 1 skipped, live acceptance 19/19,
+evidence validation over 34 files, the 34-page docs build, provider sync
+188/188, dogfood parity, privacy, residue, and orphan-process checks.
 
 ---
 
@@ -1715,8 +1726,8 @@ Track test execution during implementation.
   validation, smoke, docs format/build (34 pages), skill-version enforcement,
   exact changed-file lint/format, and OAT provider synchronization passed.
 - Independent Phase 1 through Phase 8 reviews passed after bounded fixes. The
-  fresh final lifecycle review added `p08-t15` and `p08-t16`; re-review follows
-  those fixes.
+  fresh final lifecycle review fixes `p08-t15` and `p08-t16` are complete;
+  re-review follows.
 
 **Design deltas (if any):**
 

@@ -1,6 +1,6 @@
 ---
-oat_current_task: p08-t15
-oat_last_commit: 15b1552
+oat_current_task: null
+oat_last_commit: 9c90704
 oat_blockers: []
 associated_issues:
   - { type: backlog, ref: "BL-260713-cursor-transcript-store" }
@@ -75,7 +75,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-17T21:43:11.125Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-24T13:10:09Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-24T13:21:55Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -87,7 +87,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation - final-review fixes `p08-t15` and `p08-t16` pending
+Implementation - 56/56 tasks complete; fresh final re-review pending
 
 ## Artifacts
 
@@ -95,7 +95,7 @@ Implementation - final-review fixes `p08-t15` and `p08-t16` pending
 - **Spec:** `spec.md` (complete; requirements formalized from discovery)
 - **Design:** `design.md` (complete; approved after review findings resolved)
 - **Plan:** `plan.md` (complete; approved after a passing artifact review)
-- **Implementation:** `implementation.md` (54/56 tasks complete; final-review fixes pending)
+- **Implementation:** `implementation.md` (56/56 tasks complete; final re-review pending)
 
 ## Progress
 
@@ -222,6 +222,9 @@ Implementation - final-review fixes `p08-t15` and `p08-t16` pending
 - ✓ Independent Phase 8 review passed with 0 Critical, 0 Important, 1 Medium, 0 Minor
 - ✗ Fresh final review retained 1 Important and 1 Medium finding
 - ✓ Fresh final review received; findings mapped to `p08-t15` and `p08-t16`
+- ✓ `p08-t15` bounded exact identity indexing complete at `998892c`
+- ✓ `p08-t16` aggregate provider-state scan budgets complete at `9c90704`
+- ✓ Full matrix passed: 1,522 tests, 1 skipped; live acceptance 19/19
 
 ## Blockers
 
@@ -229,5 +232,5 @@ None.
 
 ## Next Milestone
 
-Execute `p08-t15` and `p08-t16`, then re-run the fresh final lifecycle review.
-Only after it passes may a fresh configured gate generation begin.
+Run the fresh final lifecycle re-review. Only after it passes may a fresh
+configured gate generation begin.
