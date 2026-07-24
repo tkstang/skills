@@ -561,6 +561,34 @@ target `oat-phase-implementer-gpt-5-6-sol-high`.
 **Worktree:** Root checkout; sequential plan.
 **Outstanding items:** None.
 
+### Run 5 — Phase p05
+
+**Anchor:** `run-5-phase-p05`
+**Timestamp:** 2026-07-24T00:16:56Z
+**Branch:** `cursor-collaboration-reliability`
+**Tier:** Tier 1 — native Codex subagents
+**Policy:** managed `high`
+**Phase base:** `7b2b51c`
+**Phase head:** `8989fd7`
+**Outcome:** blocked after review round 1; bounded fix iteration 1 pending
+
+| Phase | Tasks | Implementation | Root Review | Fix Iterations | Verdict |
+| ----- | ----- | -------------- | ----------- | -------------- | ------- |
+| p05   | 6/6   | `9604a3a..8989fd7` | Round 1 blocked: 2 Important | 0 completed | blocked |
+
+**Implementation dispatch:** request
+`impl-p05-7b2b51c-20260723T230700Z`; target
+`oat-phase-implementer-gpt-5-6-sol-high`.
+
+**Review rounds:**
+
+1. `reviews/p05-review-2026-07-24T001656Z.md` — blocked with 0 Critical,
+   2 Important, 0 Medium, and 0 Minor; reconnaissance not attempted.
+
+**Worktree:** Root checkout; sequential plan.
+**Outstanding items:** Evidence-validator privacy/range/taxonomy enforcement
+and exact live-probe promotion criteria.
+
 <!-- orchestration-runs-end -->
 
 ---
@@ -920,7 +948,7 @@ reproduction also passed; Phase 5 is next.
 
 ## Phase 5: Acceptance Evidence, Documentation, and Release Readiness
 
-**Status:** review_pending
+**Status:** blocked
 
 ### Phase Summary
 
@@ -939,7 +967,8 @@ reproduction also passed; Phase 5 is next.
 - The aggregate release matrix passed 1,424 tests with 1 skipped, 34 generated
   docs pages, 52 clean generated outputs, exact changed-file lint/format gates,
   validation, smoke, version validation, and OAT status.
-- Independent Phase 5 code review is pending.
+- Independent Phase 5 review retained 2 Important evidence-contract findings;
+  bounded fix iteration 1 is pending.
 
 ### Task outcomes
 
@@ -1002,6 +1031,21 @@ with 206 focused tests. The final matrix passed exact changed-file lint/format
 gates, evidence validation, build/type/build parity, 1,424 tests with 1
 skipped, validation, smoke, 31 formatted docs files, a 34-page production
 build, three skill-version checks, and 188/188 synchronized OAT surfaces.
+
+### Review round 1
+
+`reviews/p05-review-2026-07-24T001656Z.md` is BLOCKED with 2 Important
+findings and no other findings:
+
+- The evidence validator misses quoted identities, omits committed Phase 5
+  Markdown by default, and does not enforce the governing evidence-label
+  taxonomy row by row.
+- The live acceptance harness can pass promoted rows without enforcing the
+  exact provider-version, schema/index, content/lifecycle, status, and
+  finite-stop claims recorded durably.
+
+The original Phase 5 implementer will fix exactly these evidence-contract
+paths before whole-phase re-review.
 
 ---
 
