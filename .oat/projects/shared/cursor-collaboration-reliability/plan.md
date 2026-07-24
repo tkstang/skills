@@ -1133,7 +1133,7 @@ third gate launch.
 4. Verify focused validator tests and the live merge-base evidence scan before the final release matrix.
 5. Commit: `fix(p08-t12): keep gate evidence bookkeeping safe`.
 
-### Task p08-t13: (review) Reconcile Cursor current-state summary and final gates
+### Task p08-t13: (review) Reconcile Cursor current-state summary
 
 **Task Scope:** Minor
 **Requirements:** FR9, NFR6
@@ -1148,9 +1148,27 @@ third gate launch.
 
 1. Refresh the current-state date/headline to match the recorded buffered-manual posture, closed Cursor backlog items, and remaining v2 follow-ups without changing the evidence-backed body.
 2. Reconcile every changed skill version, generated output, dogfood install, and provider view after p08-t01 through p08-t12.
-3. Run the complete focused commands from the gate artifact plus build, type-check, build-check, full tests, validate, smoke, live evidence scan, skill-version/internal-flag gates, docs format/build, changed-file lint/format, provider sync, privacy, and residue checks.
-4. Confirm no generated drift, machine-local tracked marker, untyped fingerprint prose, or unsupported provider claim remains.
-5. Commit: `chore(p08-t13): reconcile cursor release state`.
+3. Verify the current-state claim against the evidence-backed body, closed backlog items, provider-version evidence, generated parity, provider sync, privacy, and residue checks.
+4. Commit: `chore(p08-t13): reconcile cursor release state`.
+
+### Task p08-t14: Stabilize acceptance-probe readiness and run final gates
+
+**Task Scope:** Moderate
+**Requirements:** FR9, NFR2, NFR6
+
+**Files:**
+
+- Modify: `tests/tooling/cursor-acceptance-probe.test.ts`
+- Modify only if the readiness handshake exposes a production defect: `scripts/probe-cursor-acceptance.mjs`
+
+**Steps:**
+
+1. Reproduce the load-sensitive regression where the SIGTERM-resistant child can receive TERM before installing its handler.
+2. Add an explicit child-readiness handshake before starting the timeout assertion; keep the production TERM-to-KILL contract and finite process budget unchanged.
+3. Verify the acceptance-probe suite repeatedly and as part of the combined focused gate groups that exposed the race.
+4. Run the complete focused commands from the gate artifact plus build, type-check, build-check, full tests, validate, smoke, live evidence scan, skill-version/internal-flag gates, docs format/build, changed-file lint/format, provider sync, privacy, and residue checks.
+5. Confirm no generated drift, machine-local tracked marker, untyped fingerprint prose, unsupported provider claim, orphan probe process, or provider residue remains.
+6. Commit: `test(p08-t14): stabilize acceptance probe readiness`.
 
 ## Reviews
 
@@ -1213,11 +1231,11 @@ third gate launch.
 - Phase 5: 6 tasks — live evidence, documentation, versions/provider dogfood, release gates, and backlog lifecycle.
 - Phase 6: 4 tasks — conditional wake-surface measurement, evidence-backed fallback selection, and final release reconciliation.
 - Phase 7: 4 tasks — selected-prefix CAS binding, bounded stability growth, completed-prefix selection, and evidence-safe gate bookkeeping.
-- Phase 8: 13 tasks — delivery completion, stability progress, runtime bounds, canonical identity, structural content/turns, completion suffixes, type parity, probe safety, evidence hygiene, and release reconciliation.
+- Phase 8: 14 tasks — delivery completion, stability progress, runtime bounds, canonical identity, structural content/turns, completion suffixes, type parity, probe safety, evidence hygiene, deterministic probe verification, and release reconciliation.
 
-**Total: 53 tasks**
+**Total: 54 tasks**
 
-Ready for code review and merge after all 53 tasks and review rows pass.
+Ready for code review and merge after all 54 tasks and review rows pass.
 
 ## References
 

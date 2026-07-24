@@ -368,6 +368,10 @@ scope=p08-t01..p08-t13 authorization=one-bounded-remediation-cycle exhausted_gen
 
 request=a7a7f515-e7f7-43f1-bb59-8572159d5548 target=oat-phase-implementer-gpt-5-6-sol-high status=blocked completed=12_of_13 commits=6da8f79..b606771 failure=p08-t09_fixture_readiness_race preserved=.oat/repo/pjm/current-state.md next=explicit-continuation-boundary
 
+### 2026-07-24 · structural · operator-authorization · p08-continuation
+
+scope=p08-t13..p08-t14 authorization=one-new-bounded-task stable_ids=preserved p08-t13=narrowed-current-state p08-t14=readiness-handshake-and-final-matrix prior_handle=terminal-blocked next=continuation-dispatch
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

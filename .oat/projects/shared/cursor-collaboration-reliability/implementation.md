@@ -1,8 +1,7 @@
 ---
 oat_status: in_progress
 oat_ready_for: null
-oat_blockers:
-  - "p08-t13 phase verification exposed a load-sensitive readiness race in the committed p08-t09 regression fixture"
+oat_blockers: []
 oat_last_updated: 2026-07-24
 oat_current_task_id: p08-t13
 oat_generated: false
@@ -34,9 +33,9 @@ oat_generated: false
 | Phase 5 | complete    | 6     | 6/6       |
 | Phase 6 | complete    | 4     | 4/4       |
 | Phase 7 | complete    | 4     | 4/4       |
-| Phase 8 | blocked     | 13    | 12/13     |
+| Phase 8 | in_progress | 14    | 12/14     |
 
-**Total:** 52/53 tasks accepted
+**Total:** 52/54 tasks accepted
 
 ---
 
@@ -1493,7 +1492,7 @@ privacy classification, and provider-residue checks passed.
 
 ## Phase 8: Terminal Exit-Gate Findings
 
-**Status:** blocked after 12/13 tasks
+**Status:** in progress; operator-authorized continuation after 12/14 tasks
 
 ### Operator authorization
 
@@ -1565,7 +1564,8 @@ allowed only after Phase 8 and its fresh reviews pass.
 | `p08-t10` | complete | `bf24dde` |
 | `p08-t11` | complete | `2c68bb6` |
 | `p08-t12` | complete | `b606771` |
-| `p08-t13` | blocked | - |
+| `p08-t13` | ready; preserved current-state diff | - |
+| `p08-t14` | pending; readiness handshake and final matrix | - |
 
 The first `p08-t13` focused group passed 117/117. The second group passed 161
 tests and failed the SIGTERM-resistant-child regression from `p08-t09`: under
@@ -1575,6 +1575,21 @@ handshake before starting the timeout. Phase rules prohibit amending the
 completed task or adding an unplanned commit, so the accepted attempt stopped.
 The intended `p08-t13` current-state headline diff remains preserved
 uncommitted.
+
+### Operator-authorized continuation
+
+On 2026-07-24 the operator authorized one new bounded plan task after the
+terminal Phase 8 attempt. Stable task IDs were preserved: `p08-t13` was
+narrowed to the already-prepared current-state reconciliation, and new
+`p08-t14` owns the readiness-handshake repair plus the complete release matrix.
+This is an explicit continuation boundary, not replacement or fallback for the
+accepted blocked handle.
+
+**Artifact divergence:** The original `p08-t13` combined current-state
+reconciliation with the full release matrix. The loaded matrix exposed a
+fixture race from completed task `p08-t09`, so `plan.md` is now the source of
+truth: `p08-t13` closes the preserved documentation/sync work and `p08-t14`
+adds the deterministic fixture repair before rerunning every final gate.
 
 ---
 

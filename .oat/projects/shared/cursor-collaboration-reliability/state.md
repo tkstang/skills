@@ -1,8 +1,7 @@
 ---
 oat_current_task: p08-t13
 oat_last_commit: b606771
-oat_blockers:
-  - "Phase 8 attempt blocked at p08-t13 by a load-sensitive p08-t09 test-fixture readiness race; continuation requires a new explicit plan boundary"
+oat_blockers: []
 associated_issues:
   - { type: backlog, ref: "BL-260713-cursor-transcript-store" }
   - { type: backlog, ref: "BL-260713-stronger-cursor-collaboration" }
@@ -76,7 +75,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-17T21:43:11.125Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-24T12:30:10Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-24T12:33:39Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -88,7 +87,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation - Phase 8 blocked after 12/13 tasks
+Implementation - Phase 8 continuation authorized at `p08-t13`
 
 ## Artifacts
 
@@ -96,7 +95,7 @@ Implementation - Phase 8 blocked after 12/13 tasks
 - **Spec:** `spec.md` (complete; requirements formalized from discovery)
 - **Design:** `design.md` (complete; approved after review findings resolved)
 - **Plan:** `plan.md` (complete; approved after a passing artifact review)
-- **Implementation:** `implementation.md` (52/53 tasks complete; `p08-t13` blocked)
+- **Implementation:** `implementation.md` (52/54 tasks complete; `p08-t13` ready)
 
 ## Progress
 
@@ -216,17 +215,17 @@ Implementation - Phase 8 blocked after 12/13 tasks
 - ✓ Phase 8 tasks `p08-t01` through `p08-t12` completed as 12 ordered commits
 - ✓ Prior configured-gate basis marked stale after substantive remediation
 - ✗ `p08-t13` phase matrix exposed a load-sensitive readiness race in the committed `p08-t09` regression fixture
+- ✓ Operator authorized one new bounded task; stable `p08-t13` narrowed and `p08-t14` appended
 
 ## Blockers
 
-The accepted Phase 8 implementer attempt terminated `BLOCKED` at `p08-t13`.
-Under combined-suite load, the SIGTERM-resistant child fixture from `p08-t09`
-can receive TERM before installing its handler. The bounded repair is known,
-but the completed task cannot be amended and an unplanned commit is forbidden.
+None. The prior accepted implementer remains terminal `BLOCKED`; explicit
+operator authorization established a new continuation boundary for the two
+remaining tasks.
 
 ## Next Milestone
 
-Obtain explicit continuation authority to add a new plan boundary for the
-readiness-handshake repair, then complete `p08-t13`, independent and final
-lifecycle review, and a fresh configured gate generation. Do not relaunch the
+Complete narrowed task `p08-t13`, then `p08-t14` readiness-handshake repair
+and full release matrix. Continue through independent and final lifecycle
+review, then resolve a fresh configured gate generation. Do not relaunch the
 exhausted generation.
