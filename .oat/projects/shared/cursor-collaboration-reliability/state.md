@@ -1,6 +1,6 @@
 ---
-oat_current_task: p06-t04
-oat_last_commit: 407bfd2
+oat_current_task: null
+oat_last_commit: 3dac3a0
 oat_blockers: []
 associated_issues:
   - { type: backlog, ref: "BL-260713-cursor-transcript-store" }
@@ -40,7 +40,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-17T21:43:11.125Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-24T01:05:34Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-24T01:14:24Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -52,7 +52,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation - Phase 6 in progress at p06-t04
+Implementation - Tasks complete; awaiting Phase 6 and final reviews
 
 ## Artifacts
 
@@ -60,7 +60,7 @@ Implementation - Phase 6 in progress at p06-t04
 - **Spec:** `spec.md` (complete; requirements formalized from discovery)
 - **Design:** `design.md` (complete; approved after review findings resolved)
 - **Plan:** `plan.md` (complete; approved after a passing artifact review)
-- **Implementation:** `implementation.md` (Phase 6 resumes at `p06-t04`)
+- **Implementation:** `implementation.md` (36/36 tasks complete; closeout reviews pending)
 
 ## Progress
 
@@ -142,7 +142,10 @@ Implementation - Phase 6 in progress at p06-t04
 - ✓ `p06-t01` same-parent Stop callback evaluated as unavailable at `0ef8e5d`
 - ✓ `p06-t02` managed/scheduled wake surfaces evaluated as insufficient at `b030cc5`
 - ✓ `p06-t03` buffered-manual wake tier finalized at `407bfd2`
-- ⧗ Phase 6 continues at `p06-t04`
+- ✓ `p06-t04` final version/provider/backlog/release reconciliation complete at `3dac3a0`
+- ✓ Implementation tasks complete: 36/36
+- ⧗ Independent Phase 6 review pending
+- ⧗ Mandatory final lifecycle review pending
 
 ## Blockers
 
@@ -150,4 +153,5 @@ None.
 
 ## Next Milestone
 
-Execute Phase 6 from `p06-t04`.
+Run the independent Phase 6 review, then continue final implementation
+closeout through the mandatory final review and configured exit gate.

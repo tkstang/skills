@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-23
-oat_current_task_id: p06-t04
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -31,9 +31,9 @@ oat_generated: false
 | Phase 3 | complete    | 7     | 7/7       |
 | Phase 4 | complete    | 6     | 6/6       |
 | Phase 5 | complete    | 6     | 6/6       |
-| Phase 6 | in_progress | 4     | 3/4       |
+| Phase 6 | review_pending | 4     | 4/4       |
 
-**Total:** 35/36 tasks accepted
+**Total:** 36/36 tasks accepted
 
 ---
 
@@ -1067,7 +1067,25 @@ resolved; Phase 6 is next.
 
 ## Phase 6: Conditional Stronger Wake Evaluation
 
-**Status:** in_progress
+**Status:** review_pending
+
+### Phase Summary
+
+**Outcome:**
+
+- Finite authenticated probes found no effective top-level Stop callback,
+  managed-subagent callback, or existing scheduled Cursor wake surface.
+- Retained buffered-manual as the strongest evidence-backed Cursor tier and
+  shipped no new adapter, daemon, scheduler, credential, or authority.
+- Aligned runtime evidence, shipped skill routing, and user documentation with
+  unavailable/unsupported classifications.
+- Bumped and dogfooded `session-observer-collab` 1.0.7 and closed the completed
+  stronger-wake investigation through the full PJM lifecycle.
+- The final release matrix passed 1,448 tests with 1 skipped, fresh Cursor
+  acceptance 19/19, a 33-file evidence scan, 34 generated docs pages, exact
+  changed-file lint/format gates, version validation, and 188/188 synchronized
+  OAT surfaces.
+- Independent Phase 6 code review is pending.
 
 ### Task outcomes
 
@@ -1076,6 +1094,7 @@ resolved; Phase 6 is next.
 | p06-t01 | complete | `0ef8e5d` | Proved the authenticated top-level Cursor Stop project hook unavailable for same-parent delivery; no exact identity/one-consumer tier was promoted and buffered-manual fallback remains. |
 | p06-t02 | complete | `b030cc5` | Proved existing managed subagent and scheduled callback surfaces insufficient without prohibited new infrastructure; shipped no adapter and retained buffered-manual fallback. |
 | p06-t03 | complete | `407bfd2` | Finalized buffered-manual as the highest evidence-backed Cursor wake tier and aligned runtime, shipped-skill, and user-guide claims without autonomous-wake overstatement. |
+| p06-t04 | complete | `3dac3a0` | Reconciled version 1.0.7, provider dogfood, stronger-wake backlog closure, and all final release gates with no generated or provider drift. |
 
 ### Task p06-t01: Measure same-parent Stop callback delivery
 
@@ -1107,6 +1126,16 @@ production build passed. The stronger-wake backlog criteria were recorded as
 satisfied by the completed investigation, with terminal lifecycle mutation
 deferred atomically to p06-t04.
 
+### Task p06-t04: Reconcile versions, providers, backlog, and final release gates
+
+**Status:** completed
+**Commit:** `3dac3a0`
+**Verification:** Fresh Cursor acceptance passed 19/19 (4 live-validated and 15
+automated-only), the evidence validator passed 33 files, and 1,448 tests passed
+with 1 skipped. Build, type-check, generated parity, validation, smoke, the
+34-page docs build, three changed-skill version checks, exact PR-scoped
+lint/format, and 188/188 OAT surface synchronization passed.
+
 ---
 
 ## Deviations from Plan / Design
@@ -1133,29 +1162,61 @@ Track test execution during implementation.
 | 3     | Phase-wide suite after review fixes | 1,363 passed; 1 skipped | 0 | Digest/observation/delivery v2, exact uncertain replay, read-only confirmation, durable fail-visible watch health, CLI semantics, v1 compatibility |
 | 4     | Full suite after review Critical fix | 1,407 passed; 1 skipped | 0 | Both owner runtimes, Cursor frame continuity, collaboration matrix, wake v1/v2 compatibility |
 | 5     | Full suite after review evidence fixes | 41 focused; 204 targeted; 1,448 full; 1 skipped; fresh probe 19/19 | 0 | Quoted-identity/range/taxonomy enforcement, exact live promotion claims, docs/contracts, provider dogfood |
+| 6     | Final conditional-wake release matrix | 1,448 full; 1 skipped; fresh probe 19/19; 33 evidence files; 34 docs pages | 0 | Stop/managed/scheduled capability inventory, buffered-manual fallback, version/backlog/provider reconciliation |
 
 ## Final Summary (for PR/docs)
 
 **What shipped:**
 
-- {capability 1}
-- {capability 2}
+- Content-first, physical-frame Cursor transcript observation with exact
+  session/cwd identity, isolated state v2, crash-safe migration, continuity
+  recovery, schema-aware digest/review/catch-up, bounded foreground watch, and
+  fail-visible status.
+- Bounded two-session collaboration with schema-aware completion, lease v6
+  private continuity, atomic delivery/wake claims, duplicate/no-op suppression,
+  deterministic cleanup, and compatibility across Cursor/Codex owner routes.
+- Sanitized live capability evidence, canonical support labels, shipped
+  documentation, synchronized skill versions/user installs, and closed
+  transcript-store/stronger-wake investigation backlogs.
 
 **Behavioral changes (user-facing):**
 
-- {bullet}
+- Cursor observation now follows actual content frames and terminal successful
+  turns instead of assuming every physical record is user-visible content.
+- Ambiguous identity, transcript replacement, partial frames, uncertain
+  delivery, failed watch health, and malformed completion/wake contracts fail
+  closed with explicit recovery/status guidance.
+- Cursor autonomous callback tiers remain unavailable or unsupported on the
+  measured provider; buffered-manual is the honest, bounded fallback.
 
 **Key files / modules:**
 
-- `{path}` - {purpose}
+- `src/transcript/core/` — streaming Cursor frames, structural turn analysis,
+  shared runtime classification, and generated transcript knowledge.
+- `src/transcript/session-observer/` — Cursor state, identity, continuity,
+  digest/observation, watch, status, and CLI composition.
+- `skills/session-observer-collab/` — lease/completion/wake control, both owner
+  runtime hooks, evidence inventory, and provider-specific operating guidance.
+- `documentation/docs/` — user and engineering contracts for Cursor
+  observation, collaboration, and generated-runtime topology.
 
 **Verification performed:**
 
-- {tests/lint/typecheck/build/manual steps}
+- Final release matrix: 1,448 tests passed with 1 skipped; live Cursor
+  acceptance 19/19; evidence validator 33 files; build/type/build-check,
+  validation, smoke, docs format/build (34 pages), skill-version enforcement,
+  exact PR-scoped lint/format, and OAT provider sync 188/188 passed.
+- Independent Phase 1 through Phase 5 reviews passed after bounded fixes;
+  Phase 6 and mandatory final lifecycle reviews remain pending.
 
 **Design deltas (if any):**
 
-- {what changed vs design.md and why}
+- No stronger Cursor wake adapter was implemented because finite authenticated
+  probes found top-level Stop and managed-subagent callbacks ineffective, no
+  existing scheduled surface, and the private cloud worker outside the
+  credential/external-service authority boundary.
+- The planned evidence-based fallback rule therefore selected buffered-manual;
+  this is a measured disposition, not a reduced safety guarantee.
 
 ## References
 
