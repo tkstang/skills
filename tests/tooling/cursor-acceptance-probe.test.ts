@@ -5,6 +5,7 @@ import * as cursorAcceptanceProbe from '../../scripts/probe-cursor-acceptance.mj
 
 const { runCommand, runLiveAcceptance, runSyntheticAcceptance } =
   cursorAcceptanceProbe;
+const CHILD_READINESS_TIMEOUT_MS = 1_000;
 
 function processExists(pid: number) {
   try {
@@ -142,35 +143,44 @@ describe('Cursor observation acceptance probe', () => {
             process.on('SIGTERM', () => {});
             const descendant = spawn(
               process.execPath,
-              ['-e', "process.on('SIGTERM', () => {}); setInterval(() => {}, 1_000);"],
-              { stdio: 'ignore' },
+              ['-e', "process.on('SIGTERM', () => {}); process.stdout.write('ready'); setInterval(() => {}, 1_000);"],
+              { stdio: ['ignore', 'pipe', 'ignore'] },
             );
-            process.stdout.write(JSON.stringify({ parent: process.pid, descendant: descendant.pid }));
+            descendant.stdout.once('data', () => {
+              process.stdout.write(JSON.stringify({
+                type: 'ready',
+                parent: process.pid,
+                descendant: descendant.pid,
+                readyAt: Date.now(),
+              }));
+            });
             setInterval(() => {}, 1_000);
           `,
         ],
         {
-          timeoutMs: 40,
+          timeoutMs: CHILD_READINESS_TIMEOUT_MS,
           terminationGraceMs: 40,
           resolutionGraceMs: 80,
         },
       );
-      const pids = JSON.parse(result.stdout);
+      const readiness = JSON.parse(result.stdout);
 
       await Promise.all([
-        waitForProcessExit(pids.parent),
-        waitForProcessExit(pids.descendant),
+        waitForProcessExit(readiness.parent),
+        waitForProcessExit(readiness.descendant),
       ]);
 
+      expect(readiness.type).toBe('ready');
       expect(result).toMatchObject({
         commandRun: true,
         exitCode: null,
         signal: 'SIGKILL',
         timedOut: true,
       });
-      expect(Date.now() - startedAt).toBeLessThan(1_000);
-      expect(processExists(pids.parent)).toBe(false);
-      expect(processExists(pids.descendant)).toBe(false);
+      expect(readiness.readyAt).toBeGreaterThanOrEqual(startedAt);
+      expect(Date.now() - readiness.readyAt).toBeLessThan(2_000);
+      expect(processExists(readiness.parent)).toBe(false);
+      expect(processExists(readiness.descendant)).toBe(false);
     },
   );
 
@@ -179,23 +189,25 @@ describe('Cursor observation acceptance probe', () => {
       process.execPath,
       [
         '-e',
-        "process.on('SIGTERM', () => {}); process.stdout.write('ready'); setInterval(() => {}, 1_000);",
+        "process.on('SIGTERM', () => {}); process.stdout.write(JSON.stringify({ type: 'ready', readyAt: Date.now() })); setInterval(() => {}, 1_000);",
       ],
       {
-        timeoutMs: 40,
+        timeoutMs: CHILD_READINESS_TIMEOUT_MS,
         terminationGraceMs: 40,
         resolutionGraceMs: 80,
         useProcessGroup: false,
       },
     );
+    const readiness = JSON.parse(result.stdout);
 
+    expect(readiness.type).toBe('ready');
     expect(result).toMatchObject({
       commandRun: true,
       exitCode: null,
       signal: 'SIGKILL',
       timedOut: true,
-      stdout: 'ready',
     });
+    expect(Date.now() - readiness.readyAt).toBeLessThan(2_000);
   });
 
   it('preserves normal command completion before the hard deadline', async () => {
