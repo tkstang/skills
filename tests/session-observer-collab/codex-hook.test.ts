@@ -5,6 +5,7 @@ import {
   mkdir,
   readFile,
   realpath,
+  rename,
   rm,
   stat,
   symlink,
@@ -515,8 +516,13 @@ describe('Codex Stop continuation hook', () => {
           root,
           now: () => START + 1,
           beforeCursorUpdate: async () => {
+            const replacement = `${transcript}.replacement`;
+            await writeCursorFrames(replacement, frames);
+            expect((await stat(replacement)).ino).not.toBe(
+              (await stat(transcript)).ino,
+            );
             await rm(transcript);
-            await writeCursorFrames(transcript, frames);
+            await rename(replacement, transcript);
           },
         },
       ),
@@ -611,13 +617,10 @@ describe('Codex Stop continuation hook', () => {
               const lockHeld = new Promise<void>((resolve) => {
                 locked = resolve;
               });
-              blocker = withLeaseLock(
-                leasePath(root, 'codex-1'),
-                async () => {
-                  locked();
-                  await new Promise((resolve) => setTimeout(resolve, 25));
-                },
-              );
+              blocker = withLeaseLock(leasePath(root, 'codex-1'), async () => {
+                locked();
+                await new Promise((resolve) => setTimeout(resolve, 25));
+              });
               await lockHeld;
             },
           },
