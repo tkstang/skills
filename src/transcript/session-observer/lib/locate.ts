@@ -974,21 +974,39 @@ export async function resolveCursorIdentity(
   const cwdEvidence = [cursorCwdEvidence(candidate)];
   const sessionEvidence: CursorSessionEvidence[] = ['transcript-path'];
   const reasons: string[] = [];
+  const requestedCanonicalCwd = await canonicalPath(requestedCwd);
+  const resolvedTranscriptPath = await canonicalPath(candidate.transcriptPath);
+  const storeRoot = join(homedir(), '.cursor', 'projects');
+  const resolvedStoreRoot = await canonicalPath(storeRoot);
   const canonicalCwd =
-    (await canonicalPath(requestedCwd)) ?? requestedCwd.replace(/\/+$/u, '');
+    requestedCanonicalCwd ?? requestedCwd.replace(/\/+$/u, '');
   const canonicalTranscriptPath =
-    (await canonicalPath(candidate.transcriptPath)) ?? candidate.transcriptPath;
-  const canonicalStoreRoot =
-    (await canonicalPath(join(homedir(), '.cursor', 'projects'))) ??
-    join(homedir(), '.cursor', 'projects');
+    resolvedTranscriptPath ?? candidate.transcriptPath;
+  const canonicalStoreRoot = resolvedStoreRoot ?? storeRoot;
 
-  if (!pathIsWithin(canonicalStoreRoot, canonicalTranscriptPath)) {
+  if (requestedCanonicalCwd === null) {
+    reasons.push('CWD_CANONICALIZATION_FAILED');
+  }
+  if (resolvedTranscriptPath === null) {
+    reasons.push('TRANSCRIPT_CANONICALIZATION_FAILED');
+  }
+  if (resolvedStoreRoot === null) {
+    reasons.push('STORE_ROOT_CANONICALIZATION_FAILED');
+  }
+  if (
+    resolvedStoreRoot !== null &&
+    resolvedTranscriptPath !== null &&
+    !pathIsWithin(canonicalStoreRoot, canonicalTranscriptPath)
+  ) {
     reasons.push('PATH_OUTSIDE_SUPPORTED_ROOT');
   }
 
   const canonicalRecordedCwd = candidate.recordedCwd
     ? await canonicalPath(candidate.recordedCwd)
     : null;
+  if (candidate.recordedCwd && canonicalRecordedCwd === null) {
+    reasons.push('RECORDED_CWD_CANONICALIZATION_FAILED');
+  }
   if (candidate.cwdEvidence === 'raw-cwd-alias') {
     reasons.push('RAW_CWD_ALIAS_DIAGNOSTIC_ONLY');
   }
@@ -1041,11 +1059,16 @@ export async function resolveCursorIdentity(
       'DUPLICATE_SESSION_CANDIDATES',
     ].includes(reason),
   );
+  const canonicalIdentityReady =
+    requestedCanonicalCwd !== null &&
+    resolvedTranscriptPath !== null &&
+    resolvedStoreRoot !== null &&
+    (candidate.recordedCwd === null || canonicalRecordedCwd !== null);
 
   let strength: CursorIdentityEvidence['strength'];
   if (hardFailure) {
     strength = 'ambiguous';
-  } else if (cwdMatches && exactSessionSignal) {
+  } else if (canonicalIdentityReady && cwdMatches && exactSessionSignal) {
     strength = 'exact';
   } else {
     strength = 'diagnostic';

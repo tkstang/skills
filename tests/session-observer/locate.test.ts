@@ -987,6 +987,69 @@ test('cursor identity: store metadata or matching harness evidence can establish
   });
 });
 
+test('cursor identity: transcript disappearance blocks exact ownership', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'identity-disappeared');
+    await mkdir(targetCwd, { recursive: true });
+    const transcriptPath = await writeCursorTranscriptForCwd(
+      home,
+      targetCwd,
+      'session-disappeared',
+    );
+    const [candidate] = await discover('cursor', targetCwd);
+    await rm(transcriptPath);
+
+    expect(
+      await resolveCursorIdentity(candidate, targetCwd, 'session-disappeared'),
+    ).toMatchObject({
+      strength: 'diagnostic',
+      reasons: expect.arrayContaining(['TRANSCRIPT_CANONICALIZATION_FAILED']),
+    });
+  });
+});
+
+test('cursor identity: a transcript symlink swap cannot retain exact ownership', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'identity-symlink-swap');
+    await mkdir(targetCwd, { recursive: true });
+    const transcriptPath = await writeCursorTranscriptForCwd(
+      home,
+      targetCwd,
+      'session-symlink-swap',
+    );
+    const [candidate] = await discover('cursor', targetCwd);
+    const aliasPath = join(
+      dirname(transcriptPath),
+      'session-symlink-swap-alias.jsonl',
+    );
+    await symlink(transcriptPath, aliasPath);
+    const aliasedCandidate = { ...candidate, transcriptPath: aliasPath };
+    expect(
+      await resolveCursorIdentity(
+        aliasedCandidate,
+        targetCwd,
+        'session-symlink-swap',
+      ),
+    ).toMatchObject({ strength: 'exact' });
+
+    const outsidePath = join(home, 'outside-cursor-transcript.jsonl');
+    await writeFile(outsidePath, CURSOR_TYPICAL, 'utf8');
+    await rm(aliasPath);
+    await symlink(outsidePath, aliasPath);
+
+    expect(
+      await resolveCursorIdentity(
+        aliasedCandidate,
+        targetCwd,
+        'session-symlink-swap',
+      ),
+    ).toMatchObject({
+      strength: 'ambiguous',
+      reasons: expect.arrayContaining(['PATH_OUTSIDE_SUPPORTED_ROOT']),
+    });
+  });
+});
+
 test('cursor identity: duplicate exact-session candidates are ambiguous', async () => {
   await withTempHome(async (home) => {
     const targetCwd = join(home, 'Code', 'duplicate-project');
