@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-24
-oat_current_task_id: p08-t27
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -33,9 +33,9 @@ oat_generated: false
 | Phase 5 | complete    | 6     | 6/6       |
 | Phase 6 | complete    | 4     | 4/4       |
 | Phase 7 | complete    | 4     | 4/4       |
-| Phase 8 | in_progress | 28    | 26/28     |
+| Phase 8 | complete    | 28    | 28/28     |
 
-**Total:** 66/68 tasks accepted
+**Total:** 68/68 tasks accepted
 
 ---
 
@@ -1578,8 +1578,8 @@ allowed only after Phase 8 and its fresh reviews pass.
 | `p08-t24` | complete | `6babe32` |
 | `p08-t25` | complete | `cb58dd9` |
 | `p08-t26` | complete | `63135b1` |
-| `p08-t27` | pending | - |
-| `p08-t28` | pending | - |
+| `p08-t27` | complete | `99464bb` |
+| `p08-t28` | complete | `9b441b9` |
 
 The first `p08-t13` focused group passed 117/117. The second group passed 161
 tests and failed the SIGTERM-resistant-child regression from `p08-t09`: under
@@ -1806,6 +1806,21 @@ bound pinned and generic discovery before body reads, fail closed on incomplete
 identity indexes, and remove the scheduler-sensitive watch timing assertion.
 No finding was deferred or rejected.
 
+### Configured-gate remediation outcome
+
+`p08-t22` through `p08-t26` completed at `f8707e6`, `55446d7`, `6babe32`,
+`cb58dd9`, and `63135b1`. The extended release matrix then exposed the ambient
+trigger type gap and stale dogfood evidence, which became `p08-t27` and
+`p08-t28`.
+
+`p08-t27` completed at `99464bb` with collaboration ambient/runtime CAS type
+parity. `p08-t28` completed at `9b441b9` with an exact bounded snapshot
+diagnostic and current dogfood parity. The full suite passed 1,535 tests with 1
+skipped; live acceptance passed 19/19. Both stronger-wake modes stopped safely
+before provider launch with `provider-state-scan-byte-budget-exceeded`,
+`unavailable`, zero workspace residue, and zero orphan processes. Historical
+callback-delivery evidence and the buffered-manual selection remain unchanged.
+
 ### Canonical Phase 8 task outcomes
 
 ### Task p08-t01: Await native stdout delivery before checkpoint commit
@@ -1985,6 +2000,21 @@ and non-exact while retaining benign absence handling.
 **Commit:** `63135b1`
 **Outcome:** Replaced the scheduler-sensitive wall-clock assertion with an
 exact virtual deadline and bounded-sleep assertions.
+
+### Task p08-t27: Reconcile collaboration trigger update types
+
+**Status:** completed
+**Commit:** `99464bb`
+**Outcome:** Synchronized the ambient trigger-update declaration with the
+runtime `peerContinuity` CAS contract.
+
+### Task p08-t28: Reconcile bounded live evidence and dogfood
+
+**Status:** completed
+**Commit:** `9b441b9`
+**Outcome:** Exposed exact bounded pre-snapshot diagnostics, preserved honest
+unavailable evidence, refreshed dogfood installs, and passed the release
+matrix.
 
 ---
 

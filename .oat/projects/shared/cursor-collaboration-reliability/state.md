@@ -1,6 +1,6 @@
 ---
-oat_current_task: p08-t27
-oat_last_commit: 63135b1
+oat_current_task: null
+oat_last_commit: 9b441b9
 oat_blockers: []
 associated_issues:
   - { type: backlog, ref: "BL-260713-cursor-transcript-store" }
@@ -75,20 +75,20 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-17T21:43:11.125Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-24T15:25:53Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-24T15:35:52Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
 # Project State: cursor-collaboration-reliability
 
-**Status:** Configured Exit-Gate Remediation In Progress
+**Status:** Configured Exit-Gate Remediation Complete; Reviews Pending
 **Started:** 2026-07-17
 **Last Updated:** 2026-07-24
 
 ## Current Phase
 
-Implementation - configured exit-gate remediation in progress; 66/68 tasks
-complete
+Implementation - configured exit-gate remediation complete; 68/68 tasks;
+fresh Phase 8 and final reviews pending
 
 ## Artifacts
 
@@ -96,7 +96,7 @@ complete
 - **Spec:** `spec.md` (complete; requirements formalized from discovery)
 - **Design:** `design.md` (complete; approved after review findings resolved)
 - **Plan:** `plan.md` (complete; approved after a passing artifact review)
-- **Implementation:** `implementation.md` (66/68 tasks complete; gate remediation in progress)
+- **Implementation:** `implementation.md` (68/68 tasks complete; fresh reviews pending)
 
 ## Progress
 
@@ -246,6 +246,10 @@ complete
 - ✓ `p08-t22` through `p08-t26` completed as five ordered commits
 - ✗ Extended release matrix exposed an ambient trigger type gap, stale dogfood installs, and bounded provider-snapshot safety stops
 - ✓ Follow-up tasks `p08-t27` and `p08-t28` added without weakening provider-state bounds
+- ✓ `p08-t27` collaboration trigger type parity complete at `99464bb`
+- ✓ `p08-t28` bounded live evidence and dogfood reconciliation complete at `9b441b9`
+- ✓ Full matrix passed: 1,535 tests, 1 skipped; live acceptance 19/19
+- ✓ Both stronger-wake modes failed safely before launch with exact bounded diagnostics and zero residue
 
 ## Blockers
 
@@ -253,5 +257,5 @@ None.
 
 ## Next Milestone
 
-Execute `p08-t27` and `p08-t28`, then run the required fresh reviews before the
-second configured-gate attempt.
+Run a fresh Phase 8 review and final lifecycle review before the second
+configured-gate attempt.
