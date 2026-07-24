@@ -131,6 +131,16 @@ declare module '*skills/session-observer-collab/scripts/lib/lease-state.mjs' {
   export type PeerRuntime = 'claude-code' | 'codex' | 'cursor';
   export type Runtime = OwnerRuntime;
 
+  export interface TranscriptContinuityCheckpoint {
+    indexBase: string;
+    nextFrameIndex: number;
+    prefixBytes: number;
+    prefixSha256: string;
+    observedSize: number;
+    device: number | null;
+    inode: number | null;
+  }
+
   export interface Lease {
     state: string;
     schemaVersion: number;
@@ -194,6 +204,7 @@ declare module '*skills/session-observer-collab/scripts/lib/lease-state.mjs' {
     },
     update: {
       peerCursor: number;
+      peerContinuity?: TranscriptContinuityCheckpoint | null;
       loopIncrement?: number;
       terminal?: boolean;
       diagnostic?: string | null;

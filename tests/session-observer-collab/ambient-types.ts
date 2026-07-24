@@ -1,5 +1,6 @@
 import { selectCompletedContinuation } from '../../skills/session-observer-collab/scripts/lib/completion-selection.mjs';
 import {
+  compareAndSwapTrigger,
   validateOwnerRuntime,
   validatePeerRuntime,
   type Lease,
@@ -41,6 +42,10 @@ const completion: NonNullable<Parameters<typeof claimAdapterTrigger>[3]> = {
     inode: 1,
   },
 };
+const triggerUpdate: Parameters<typeof compareAndSwapTrigger>[3] = {
+  peerCursor: completion.peerCursor,
+  peerContinuity: completion.peerContinuity,
+};
 
 void peerRuntime;
 void ownerRuntime;
@@ -49,3 +54,4 @@ void waitDeadlineAt;
 void indexBase;
 void selectedPrefix;
 void completion;
+void triggerUpdate;
