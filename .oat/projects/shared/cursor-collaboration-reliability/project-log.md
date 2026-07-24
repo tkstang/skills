@@ -460,6 +460,10 @@ target=cursor-gpt-5-6-sol-max threshold=important findings=critical:2,important:
 
 source=reviews/final-review-2026-07-24T144744Z.md archived=reviews/archived/final-review-2026-07-24T144744Z.md findings=critical:2,important:2,medium:1 disposition=C1:p08-t22,C2:p08-t23,I1:p08-t24,I2:p08-t25,M1:p08-t26 next=p08-t22
 
+### 2026-07-24 · structural · oat-project-implement · gate-remediation-release-matrix-extension
+
+completed=p08-t22:f8707e6,p08-t23:55446d7,p08-t24:6babe32,p08-t25:cb58dd9,p08-t26:63135b1 status=stale followup=p08-t27,p08-t28 blockers=type-contract,dogfood-parity,bounded-live-snapshot next=p08-t27
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

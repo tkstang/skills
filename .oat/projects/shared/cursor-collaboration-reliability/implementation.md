@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-24
-oat_current_task_id: p08-t22
+oat_current_task_id: p08-t27
 oat_generated: false
 ---
 
@@ -33,9 +33,9 @@ oat_generated: false
 | Phase 5 | complete    | 6     | 6/6       |
 | Phase 6 | complete    | 4     | 4/4       |
 | Phase 7 | complete    | 4     | 4/4       |
-| Phase 8 | in_progress | 26    | 21/26     |
+| Phase 8 | in_progress | 28    | 26/28     |
 
-**Total:** 61/66 tasks accepted
+**Total:** 66/68 tasks accepted
 
 ---
 
@@ -1573,11 +1573,13 @@ allowed only after Phase 8 and its fresh reviews pass.
 | `p08-t19` | complete | `c195506` |
 | `p08-t20` | complete | `2038dea` |
 | `p08-t21` | complete | `3357696` |
-| `p08-t22` | pending | - |
-| `p08-t23` | pending | - |
-| `p08-t24` | pending | - |
-| `p08-t25` | pending | - |
-| `p08-t26` | pending | - |
+| `p08-t22` | complete | `f8707e6` |
+| `p08-t23` | complete | `55446d7` |
+| `p08-t24` | complete | `6babe32` |
+| `p08-t25` | complete | `cb58dd9` |
+| `p08-t26` | complete | `63135b1` |
+| `p08-t27` | pending | - |
+| `p08-t28` | pending | - |
 
 The first `p08-t13` focused group passed 117/117. The second group passed 161
 tests and failed the SIGTERM-resistant-child regression from `p08-t09`: under
@@ -1948,6 +1950,41 @@ parser-recognized 20-task Phase 8 and 60-task project closeout.
 **Commit:** `3357696`
 **Outcome:** Finalized the current test, task, review, and handoff narrative on
 the parser-recognized 21-task Phase 8 and 61-task project basis.
+
+### Task p08-t22: Establish Cursor lease continuity at arm
+
+**Status:** completed
+**Commit:** `f8707e6`
+**Outcome:** Validated the public Cursor session/path and persisted a non-null
+safe-boundary continuity checkpoint during arm.
+
+### Task p08-t23: Recheck deadlines immediately before wake claims
+
+**Status:** completed
+**Commit:** `55446d7`
+**Outcome:** Refreshed time immediately before both owner-route trigger CAS
+operations and rejected crossed wait or lease deadlines.
+
+### Task p08-t24: Bound pinned and generic Cursor discovery
+
+**Status:** completed
+**Commit:** `6babe32`
+**Outcome:** Streamed generic discovery metadata and classified only the exact
+pinned session body before unrelated large siblings.
+
+### Task p08-t25: Fail closed on incomplete identity indexes
+
+**Status:** completed
+**Commit:** `cb58dd9`
+**Outcome:** Made permission, iteration, and unexpected index I/O fail visible
+and non-exact while retaining benign absence handling.
+
+### Task p08-t26: Make watch runtime coverage deterministic
+
+**Status:** completed
+**Commit:** `63135b1`
+**Outcome:** Replaced the scheduler-sensitive wall-clock assertion with an
+exact virtual deadline and bounded-sleep assertions.
 
 ---
 

@@ -1,6 +1,6 @@
 ---
-oat_current_task: p08-t22
-oat_last_commit: 3357696
+oat_current_task: p08-t27
+oat_last_commit: 63135b1
 oat_blockers: []
 associated_issues:
   - { type: backlog, ref: "BL-260713-cursor-transcript-store" }
@@ -36,7 +36,7 @@ oat_phase_status: in_progress # Status: in_progress | complete | pr_open
 oat_workflow_mode: spec-driven # spec-driven | quick | import
 oat_workflow_origin: native # native | imported
 oat_implement_exit_gate:
-  status: blocked
+  status: stale
   resolution: configured
   disposition: null
   config_fingerprint: 'sha256:bab3a74fc851ca974017112f07440aee9f6eca4a014c52cb460b003eb7e05b20'
@@ -75,19 +75,19 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-17T21:43:11.125Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-24T14:56:33Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-24T15:25:53Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
 # Project State: cursor-collaboration-reliability
 
-**Status:** Implementation Tasks and Final Review Complete; Exit Gate Pending
+**Status:** Configured Exit-Gate Remediation In Progress
 **Started:** 2026-07-17
 **Last Updated:** 2026-07-24
 
 ## Current Phase
 
-Implementation - configured exit-gate remediation in progress; 61/66 tasks
+Implementation - configured exit-gate remediation in progress; 66/68 tasks
 complete
 
 ## Artifacts
@@ -96,7 +96,7 @@ complete
 - **Spec:** `spec.md` (complete; requirements formalized from discovery)
 - **Design:** `design.md` (complete; approved after review findings resolved)
 - **Plan:** `plan.md` (complete; approved after a passing artifact review)
-- **Implementation:** `implementation.md` (61/66 tasks complete; gate remediation in progress)
+- **Implementation:** `implementation.md` (66/68 tasks complete; gate remediation in progress)
 
 ## Progress
 
@@ -243,6 +243,9 @@ complete
 - ✓ Fresh final lifecycle review passed with zero findings
 - ✗ Fresh configured exit gate retained 2 Critical, 2 Important, and 1 Medium finding
 - ✓ Gate findings mapped to `p08-t22` through `p08-t26`
+- ✓ `p08-t22` through `p08-t26` completed as five ordered commits
+- ✗ Extended release matrix exposed an ambient trigger type gap, stale dogfood installs, and bounded provider-snapshot safety stops
+- ✓ Follow-up tasks `p08-t27` and `p08-t28` added without weakening provider-state bounds
 
 ## Blockers
 
@@ -250,5 +253,5 @@ None.
 
 ## Next Milestone
 
-Execute `p08-t22` through `p08-t26`, then run the required fresh reviews before
-the second configured-gate attempt.
+Execute `p08-t27` and `p08-t28`, then run the required fresh reviews before the
+second configured-gate attempt.

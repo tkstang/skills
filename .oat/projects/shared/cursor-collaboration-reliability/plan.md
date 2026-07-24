@@ -1408,6 +1408,47 @@ third gate launch.
 4. Run build/type/generated, validation, smoke, evidence/privacy, docs, version/provider, residue, and final release gates.
 5. Commit: `test(p08-t26): make watch runtime test deterministic`.
 
+### Task p08-t27: Reconcile collaboration trigger update types
+
+**Task Scope:** Minor
+**Requirements:** NFR3, NFR4, NFR6
+
+**Files:**
+
+- Modify: `skills/session-observer-collab/scripts/mjs-modules.d.ts`
+- Modify: `tests/session-observer-collab/ambient-types.ts`
+- Modify: `skills/session-observer-collab/SKILL.md`
+
+**Steps:**
+
+1. Extend the ambient consumer to pass `peerContinuity` through `compareAndSwapTrigger` and reproduce the aggregate type-check errors.
+2. Synchronize the wildcard ambient trigger-update type with the canonical `LeaseUpdate` contract without weakening other fields.
+3. Bump the collaboration skill version and verify ambient compile, aggregate type-check, collaboration tests, validation, version enforcement, and project sync.
+4. Commit: `fix(p08-t27): sync collaboration trigger types`.
+
+### Task p08-t28: Reconcile bounded live evidence and dogfood
+
+**Task Scope:** Moderate
+**Requirements:** FR9, FR10, NFR2, NFR5, NFR6
+
+**Files:**
+
+- Modify: `scripts/probe-cursor-wake-surfaces.mjs`
+- Modify: `tests/tooling/cursor-wake-probe.test.ts`
+- Modify: `skills/session-observer-collab/references/runtime-cursor.md`
+- Modify: `skills/session-observer-collab/SKILL.md`
+- Modify through root bookkeeping: project implementation and state artifacts
+
+**Steps:**
+
+1. Add coverage proving a pre-launch provider snapshot budget failure exposes its exact finite entry, byte, or elapsed-time diagnostic while retaining `safety-failed`, no provider launch, exact workspace cleanup, and zero residue.
+2. Preserve the finite provider-state bounds; do not enlarge or bypass them to accommodate the current multi-gigabyte provider roots.
+3. Record the current rerun as unavailable because the bounded pre-snapshot failed safely, without rewriting the earlier historical callback-delivery measurement or promoting any stronger wake tier.
+4. Refresh the branch dogfood installs for `session-observer` and `session-observer-collab`, verify Claude and Cursor mirror policy, and run `oat sync --scope user`.
+5. Run type-check, build/generated parity, all tests, validation, smoke, evidence/privacy, flags, skill versions, docs, project/provider sync, live acceptance, both bounded wake modes, residue, and orphan-process checks.
+6. Add canonical completed sections for `p08-t22` through `p08-t28` and reconcile live OAT status to Phase 8 28/28 and project 68/68.
+7. Commit: `chore(p08-t28): reconcile bounded cursor release gates`.
+
 ## Reviews
 
 | Scope  | Type     | Status          | Date       | Artifact                                                      |
@@ -1476,11 +1517,11 @@ third gate launch.
 - Phase 5: 6 tasks — live evidence, documentation, versions/provider dogfood, release gates, and backlog lifecycle.
 - Phase 6: 4 tasks — conditional wake-surface measurement, evidence-backed fallback selection, and final release reconciliation.
 - Phase 7: 4 tasks — selected-prefix CAS binding, bounded stability growth, completed-prefix selection, and evidence-safe gate bookkeeping.
-- Phase 8: 26 tasks — delivery completion, stability progress, runtime bounds, canonical identity, structural content/turns, completion suffixes, type parity, probe safety, evidence hygiene, bounded identity/provider-state scans and directory iteration, exact cleanup preservation, canonical records, initial lease continuity, fresh authorization deadlines, bounded discovery, fail-closed indexing, deterministic watch coverage, and final handoff.
+- Phase 8: 28 tasks — delivery completion, stability progress, runtime bounds, canonical identity, structural content/turns, completion suffixes, type parity, probe safety, evidence hygiene, bounded identity/provider-state scans and directory iteration, exact cleanup preservation, canonical records, initial lease continuity, fresh authorization deadlines, bounded discovery, fail-closed indexing, deterministic watch coverage, live evidence/dogfood reconciliation, and final handoff.
 
-**Total: 66 tasks**
+**Total: 68 tasks**
 
-Ready for code review and merge after all 66 tasks and review rows pass.
+Ready for code review and merge after all 68 tasks and review rows pass.
 
 ## References
 
