@@ -919,6 +919,138 @@ describe('runWatchLoop', () => {
     });
   });
 
+  test('clears repaired Cursor buffering from watch heartbeats and status', async () => {
+    await withTempSessionHome(async (home, stateDir) => {
+      const cwd = join(home, 'workspace', 'watch-cursor-partial-repair');
+      await mkdir(cwd, { recursive: true });
+      const sessionId = 'watch-cursor-partial-repair';
+      const transcriptPath = await writeCursorTranscript(home, cwd, sessionId, [
+        { role: 'user', content: 'Partial repair baseline direction.' },
+        { content: 'Partial repair baseline response.' },
+      ]);
+      await appendCursorFrame(transcriptPath, {
+        type: 'turn_ended',
+        status: 'success',
+      });
+      const repairedFrame = {
+        role: 'assistant',
+        message: {
+          content: [
+            {
+              type: 'text',
+              text: 'Repaired Cursor watch observation.',
+            },
+          ],
+        },
+      };
+      const stdout: string[] = [];
+      let nowMs = Date.now();
+      let stage = 0;
+      let bufferedTarget: any = null;
+      let repairedTarget: any = null;
+      let repairedStatus: any = null;
+
+      const result = await runWatchLoop(
+        {
+          runtime: 'cursor',
+          cwd,
+          session: `cursor:${sessionId}`,
+          pollSec: 0.02,
+          debounceSec: 0.02,
+          heartbeatSec: 0.02,
+          maxRuntimeMin: 0.012,
+          json: true,
+        },
+        {
+          writeStdout: (chunk: string) => stdout.push(chunk),
+          now: () => nowMs,
+          sleep: async (ms: number) => {
+            nowMs += ms;
+            const watchJson = await readJsonIfExists(
+              join(stateDir, 'watch.json'),
+            );
+            const target = watchJson?.watchers?.[0]?.targets?.[0];
+            const cursorState = await readJsonIfExists(
+              join(stateDir, 'cursor-state.json'),
+            );
+            const nextFrameIndex =
+              cursorState?.sessions?.[`cursor:${sessionId}`]?.continuity
+                ?.nextFrameIndex;
+
+            if (stage === 0 && nextFrameIndex === 3) {
+              await appendFile(
+                transcriptPath,
+                JSON.stringify(repairedFrame),
+                'utf8',
+              );
+              stage = 1;
+              return;
+            }
+            if (stage === 1 && target?.bufferedFromFrame === 3) {
+              bufferedTarget = structuredClone(target);
+              await appendFile(transcriptPath, '\n', 'utf8');
+              stage = 2;
+              return;
+            }
+            if (stage === 2 && target?.observationCursor === 4) {
+              repairedTarget = structuredClone(target);
+              const status = await runCli(['watch-ctl', 'status', '--json'], {
+                ...process.env,
+                HOME: home,
+                STATE_DIR: stateDir,
+              });
+              expect(
+                status.status,
+                `status should exit 0\nstdout: ${status.stdout}\nstderr: ${status.stderr}`,
+              ).toBe(0);
+              repairedStatus = JSON.parse(status.stdout);
+              stage = 3;
+            }
+          },
+        },
+      );
+
+      expect(result).toEqual({ reason: 'max-runtime', eventCount: 1 });
+      expect(stage).toBe(3);
+      expect(bufferedTarget).toMatchObject({
+        observationCursor: 3,
+        bufferedFromFrame: 3,
+      });
+      expect(repairedTarget).toMatchObject({
+        observationCursor: 4,
+        bufferedFromFrame: null,
+      });
+      expect(repairedStatus.targets[0]).toMatchObject({
+        runtime: 'cursor',
+        sessionId,
+        lastRecordIndex: 4,
+        bufferedFromFrame: null,
+        recordsBehind: 0,
+      });
+
+      const repairedHeartbeats = stdout
+        .join('')
+        .trim()
+        .split('\n')
+        .filter(Boolean)
+        .map((line) => JSON.parse(line))
+        .filter(
+          (line) =>
+            line.type === 'heartbeat' && line.targets[0]?.lastRecordIndex === 4,
+        );
+      expect(repairedHeartbeats.length).toBeGreaterThan(0);
+      expect(repairedHeartbeats.at(-1)).toMatchObject({
+        recordsBehind: 0,
+        targets: [
+          {
+            bufferedFromFrame: null,
+            recordsBehind: 0,
+          },
+        ],
+      });
+    });
+  });
+
   test('keeps a continuity-blocked Cursor target owned and resumes after the transcript prefix is repaired', async () => {
     await withTempSessionHome(async (home, stateDir) => {
       const cwd = join(home, 'workspace', 'watch-cursor-repair');

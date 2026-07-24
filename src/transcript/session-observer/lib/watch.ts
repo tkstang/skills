@@ -785,6 +785,16 @@ function emptyCursorStatus(): ObservationStatus {
   };
 }
 
+function cursorBufferedFromFrame(
+  target: WatchTarget,
+  result?: CursorObserveSuccess,
+): number | null {
+  const bufferedFromFrame = result?.digest.cursorEvidence.bufferedFromFrame;
+  return bufferedFromFrame === undefined
+    ? (target.bufferedFromFrame ?? null)
+    : bufferedFromFrame;
+}
+
 function applyCursorTargetState(
   target: WatchTarget,
   state: CursorSessionStateEntry,
@@ -797,10 +807,7 @@ function applyCursorTargetState(
     ? Date.parse(state.stabilityCandidate.confirmAfter)
     : null;
   target.lastStatus = structuredClone(state.lastStatus);
-  target.bufferedFromFrame =
-    result?.digest.cursorEvidence.bufferedFromFrame ??
-    target.bufferedFromFrame ??
-    null;
+  target.bufferedFromFrame = cursorBufferedFromFrame(target, result);
   target.continuityState =
     target.lastStatus.health === 'blocked' ? 'blocked' : 'verified';
   if (result) target.recordCount = result.digest.range.totalFrames;
@@ -820,10 +827,7 @@ async function persistCursorTarget(
     expectedObservationCursor,
     next: {
       observationCursor: state.continuity.nextFrameIndex,
-      bufferedFromFrame:
-        result?.digest.cursorEvidence.bufferedFromFrame ??
-        target.bufferedFromFrame ??
-        null,
+      bufferedFromFrame: cursorBufferedFromFrame(target, result),
       continuity: state.continuity,
       pendingCandidateDeadline: state.stabilityCandidate?.confirmAfter ?? null,
       lastStatus: nextStatus,

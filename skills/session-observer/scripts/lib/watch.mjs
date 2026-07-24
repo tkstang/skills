@@ -503,13 +503,17 @@ function emptyCursorStatus() {
     health: "unknown"
   };
 }
+function cursorBufferedFromFrame(target, result) {
+  const bufferedFromFrame = result?.digest.cursorEvidence.bufferedFromFrame;
+  return bufferedFromFrame === void 0 ? target.bufferedFromFrame ?? null : bufferedFromFrame;
+}
 function applyCursorTargetState(target, state, result) {
   target.observationCursor = state.continuity.nextFrameIndex;
   target.baselineRecordIndex = state.continuity.nextFrameIndex;
   target.continuity = structuredClone(state.continuity);
   target.pendingCandidateDeadline = state.stabilityCandidate ? Date.parse(state.stabilityCandidate.confirmAfter) : null;
   target.lastStatus = structuredClone(state.lastStatus);
-  target.bufferedFromFrame = result?.digest.cursorEvidence.bufferedFromFrame ?? target.bufferedFromFrame ?? null;
+  target.bufferedFromFrame = cursorBufferedFromFrame(target, result);
   target.continuityState = target.lastStatus.health === "blocked" ? "blocked" : "verified";
   if (result) target.recordCount = result.digest.range.totalFrames;
 }
@@ -522,7 +526,7 @@ async function persistCursorTarget(target, pid, state, result) {
     expectedObservationCursor,
     next: {
       observationCursor: state.continuity.nextFrameIndex,
-      bufferedFromFrame: result?.digest.cursorEvidence.bufferedFromFrame ?? target.bufferedFromFrame ?? null,
+      bufferedFromFrame: cursorBufferedFromFrame(target, result),
       continuity: state.continuity,
       pendingCandidateDeadline: state.stabilityCandidate?.confirmAfter ?? null,
       lastStatus: nextStatus,
