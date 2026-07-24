@@ -4,18 +4,21 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { parseArgs } from "node:util";
+import { createCursorTurnAccumulator } from './lib/cursor-analysis.mjs';
+import { scanCursorTranscript } from './lib/cursor-frames.mjs';
 import { readRecords } from './lib/runtimes.mjs';
 import { buildDigest, renderMarkdown } from './lib/digest.mjs';
 import {
   discover,
   gitWorktrees,
-  claudeCodeLookupDiagnostics
+  claudeCodeLookupDiagnostics,
+  resolveCursorIdentity
 } from './lib/locate.mjs';
 import { observeCatchUp, resolveSelfIdentity } from './lib/observe.mjs';
 import { rank } from './lib/rank.mjs';
 import * as stateLib from './lib/state.mjs';
 import * as watchStateLib from './lib/watch-state.mjs';
-import { runWatchLoop } from './lib/watch.mjs';
+import { cursorTargetHealthReasons, runWatchLoop } from './lib/watch.mjs';
 function parseCliArgs(argv) {
   const parsed = parseArgs({
     args: argv,
@@ -161,12 +164,49 @@ async function resolveAutoRuntime(targetCwd) {
     )
   };
 }
-function emit(content, exitCode = 0) {
-  process.stdout.write(content + "\n");
+class StdoutWriteError extends Error {
+  asynchronous;
+  constructor(error, asynchronous) {
+    super(error instanceof Error ? error.message : String(error), {
+      cause: error
+    });
+    this.name = "StdoutWriteError";
+    this.asynchronous = asynchronous;
+    if (error instanceof Error && error.stack) this.stack = error.stack;
+  }
+}
+async function writeStdout(content) {
+  let result;
+  const write = process.stdout.write;
+  const callbackExpected = write.length >= 2;
+  let completeCallback;
+  const callbackCompletion = callbackExpected ? new Promise((fulfill, reject) => {
+    completeCallback = (error) => {
+      if (error) reject(error);
+      else fulfill();
+    };
+  }) : null;
+  try {
+    result = write.call(process.stdout, content, completeCallback);
+  } catch (error) {
+    throw new StdoutWriteError(error, false);
+  }
+  try {
+    if (result && typeof result === "object" && "then" in result) {
+      await result;
+    } else if (callbackCompletion) {
+      await callbackCompletion;
+    }
+  } catch (error) {
+    throw new StdoutWriteError(error, true);
+  }
+}
+async function emit(content, exitCode = 0) {
+  await writeStdout(content + "\n");
   process.exit(exitCode);
 }
-function emitJson(obj, exitCode = 0) {
-  process.stdout.write(JSON.stringify(obj, null, 2) + "\n");
+async function emitJson(obj, exitCode = 0) {
+  await writeStdout(JSON.stringify(obj, null, 2) + "\n");
   process.exit(exitCode);
 }
 function emitError(message, exitCode = 1) {
@@ -352,6 +392,172 @@ function printWatchCtlUsage() {
   );
   process.exit(0);
 }
+function cursorContractExitCode(kind, fallback) {
+  return ["identityBlocked", "continuityBlocked", "ownerConflict"].includes(
+    kind
+  ) ? 4 : fallback;
+}
+async function cursorLegacyRecoveryPayload(args) {
+  if (args.runtime !== "cursor" && args.runtime !== "auto") return null;
+  const pinned = parsePinnedSession(args.session);
+  if (pinned && "error" in pinned) return null;
+  const state = await stateLib.load();
+  const markers = Object.values(state.sessions).filter(
+    (entry) => entry.runtime === "cursor" && entry.recoveryRequired === true && entry.recoveryCode === "LEGACY_CURSOR_UNVERIFIED" && (pinned ? pinned.runtime === "cursor" && entry.sessionId === pinned.sessionId : entry.recordedCwd === args.cwd)
+  );
+  if (markers.length !== 1) return null;
+  const sessionId = markers[0].sessionId;
+  return {
+    continuityBlocked: true,
+    runtime: "cursor",
+    cwd: args.cwd,
+    code: "LEGACY_CURSOR_UNVERIFIED",
+    sessionId,
+    message: `Legacy Cursor state for cursor:${sessionId} is not a verified frame cursor. Run session-observer state reset --session cursor:${sessionId} and retry to replay from frame zero.`
+  };
+}
+async function emitObserveFailure(args, result) {
+  const exitCode = cursorContractExitCode(result.kind, result.exitCode);
+  if (result.kind === "error") return emitError(result.message, exitCode);
+  if (args.json) return emitJson(result.payload, exitCode);
+  return emit(result.message, exitCode);
+}
+async function emitCursorResult(args, result, commitDelivery) {
+  const content = args.json ? JSON.stringify(result.digest, null, 2) + "\n" : renderMarkdown(result.digest) + "\n";
+  try {
+    await writeStdout(content);
+  } catch (error) {
+    if (result.delivery) {
+      await result.delivery.abandon({
+        deliveryUncertain: error instanceof StdoutWriteError && error.asynchronous
+      });
+    }
+    throw error;
+  }
+  if (result.delivery) {
+    const finalized = commitDelivery ? await result.delivery.commit() : await result.delivery.abandon();
+    const expected = commitDelivery ? "committed" : "abandoned";
+    if (finalized !== expected) {
+      throw new Error(`Cursor delivery finalization ${finalized}`);
+    }
+  }
+  process.exit(result.deliveryUncertain ? 4 : 0);
+}
+async function buildCursorReviewDigest(candidate, args, options) {
+  const identity = await resolveCursorIdentity(
+    candidate,
+    args.cwd,
+    args.session ? candidate.sessionId : void 0
+  );
+  const scanReview = async (verifyPrefixBytes) => {
+    const accumulator = createCursorTurnAccumulator(identity, 0);
+    const scan = await scanCursorTranscript(identity.canonicalTranscriptPath, {
+      verifyPrefixBytes,
+      onFrame(frame) {
+        accumulator.onFrame(frame);
+      }
+    });
+    return { scan, analysis: accumulator.finish(scan) };
+  };
+  const candidateObservation = (result, observedAt2) => {
+    const turn = result.analysis.turns.findLast(
+      (candidateTurn) => candidateTurn.lifecycle === "pending" && candidateTurn.assistantRecords.some(
+        (record) => record.classification === "substantive"
+      )
+    );
+    if (turn === void 0 || result.scan.safeThroughFrame === null)
+      return null;
+    return {
+      turnId: turn.turnId,
+      fromFrameIndex: turn.fromFrameIndex,
+      throughFrameIndex: result.scan.safeThroughFrame,
+      entryKeys: turn.assistantRecords.filter((record) => record.classification === "substantive").map((record) => record.entryKey),
+      prefixBytes: result.scan.safePrefixBytes,
+      prefixSha256: result.scan.safePrefixSha256,
+      observedAt: observedAt2
+    };
+  };
+  let selected = await scanReview();
+  let ephemeralState = null;
+  const observedAt = (/* @__PURE__ */ new Date()).toISOString();
+  const firstObservation = candidateObservation(selected, observedAt);
+  if (firstObservation !== null) {
+    const stabilityMs = Math.max(0, (args.debounceSec ?? 1) * 1e3);
+    await new Promise((done) => setTimeout(done, stabilityMs));
+    const confirmedAt = (/* @__PURE__ */ new Date()).toISOString();
+    const second = await scanReview(firstObservation.prefixBytes);
+    const exactPrefixConfirmed = second.scan.file.device === selected.scan.file.device && second.scan.file.inode === selected.scan.file.inode && second.scan.safePrefixBytes >= firstObservation.prefixBytes && second.scan.verifiedPrefixSha256 === firstObservation.prefixSha256;
+    selected = second;
+    if (exactPrefixConfirmed) {
+      ephemeralState = statelessCursorReviewState(
+        identity,
+        second.scan.file,
+        firstObservation,
+        confirmedAt,
+        stabilityMs
+      );
+    }
+  }
+  return buildDigest("cursor", identity.canonicalTranscriptPath, {
+    fromIndex: 0,
+    mode: "review",
+    includeToolCalls: args.includeTools,
+    includeToolResults: args.includeToolResults,
+    includeCommandMessages: args.includeCommandMessages,
+    maxTurns: args.maxTurns,
+    maxBytes: args.maxBytes,
+    sessionId: candidate.sessionId,
+    recordedCwd: identity.canonicalCwd,
+    matchedTier: options.matchedTier,
+    widenedFrom: null,
+    active: candidate.active ?? false,
+    warnings: options.warnings ?? [],
+    fallbacks: options.fallbacks,
+    cursorProjection: "observation",
+    cursorIdentity: identity,
+    cursorScan: selected.scan,
+    cursorAnalysis: selected.analysis,
+    cursorState: ephemeralState,
+    cursorContinuity: "new"
+  });
+}
+function statelessCursorReviewState(identity, file, observation, confirmedAt, stabilityMs) {
+  return {
+    runtime: "cursor",
+    sessionId: identity.sessionId,
+    indexBase: "zero-based-jsonl-frame-index",
+    lastRecordIndex: 0,
+    canonicalCwd: identity.canonicalCwd,
+    transcriptPath: identity.canonicalTranscriptPath,
+    continuity: {
+      indexBase: "zero-based-jsonl-frame-index",
+      nextFrameIndex: 0,
+      prefixBytes: 0,
+      prefixSha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      observedSize: file.size,
+      device: file.device,
+      inode: file.inode
+    },
+    lastStatus: {
+      engagement: "unknown",
+      activity: "none",
+      content: "none",
+      lifecycle: "none",
+      delivery: "none",
+      health: "unknown"
+    },
+    openTurn: null,
+    stabilityCandidate: {
+      ...observation,
+      firstObservedAt: observation.observedAt,
+      confirmAfter: new Date(
+        Date.parse(observation.observedAt) + stabilityMs
+      ).toISOString(),
+      confirmedAt
+    },
+    pendingDelivery: null
+  };
+}
 async function runReview(args) {
   const {
     cwd,
@@ -401,6 +607,23 @@ async function runReview(args) {
       1
     );
   }
+  if (runtime === "cursor" && markRead) {
+    const recovery = await cursorLegacyRecoveryPayload({
+      ...args,
+      runtime
+    });
+    if (recovery) {
+      if (json) return emitJson(recovery, 4);
+      return emit(recovery.message, 4);
+    }
+    const result = await observeCatchUp({ ...args, runtime });
+    if (!result.ok) return emitObserveFailure(args, result);
+    if (result.runtime !== "cursor") {
+      throw new Error("Cursor review resolved a non-Cursor observation");
+    }
+    result.digest.mode = "review";
+    return emitCursorResult(args, result, markRead);
+  }
   let candidates;
   try {
     candidates = await discover(runtime, cwd);
@@ -432,7 +655,10 @@ async function runReview(args) {
     }
     let digest2;
     try {
-      digest2 = await buildDigest(pinnedRuntime, pinned.transcriptPath, {
+      digest2 = pinnedRuntime === "cursor" ? await buildCursorReviewDigest(pinned, args, {
+        matchedTier: null,
+        fallbacks: []
+      }) : await buildDigest(pinnedRuntime, pinned.transcriptPath, {
         fromIndex: 0,
         mode: "review",
         includeToolCalls: includeTools,
@@ -451,7 +677,7 @@ async function runReview(args) {
       const message = err instanceof Error ? err.message : String(err);
       return emitError(`Failed to build digest: ${message}`, 1);
     }
-    if (markRead) {
+    if (markRead && digest2.schemaVersion === 1) {
       try {
         await stateLib.markRead(pinnedRuntime, pinned.sessionId, {
           lastRecordIndex: digest2.range.nextIndex,
@@ -530,7 +756,14 @@ async function runReview(args) {
   const fromIndex = 0;
   let digest;
   try {
-    digest = await buildDigest(runtime, winner.transcriptPath, {
+    const warnings = winner.snippetMatch ? [
+      `Selected session by snippet match: ${winner.sessionId} (${winner.recordedCwd ?? "unknown cwd"})`
+    ] : [];
+    digest = runtime === "cursor" ? await buildCursorReviewDigest(winner, args, {
+      matchedTier: rankResult.tier,
+      fallbacks: rankResult.fallbacks,
+      warnings
+    }) : await buildDigest(runtime, winner.transcriptPath, {
       fromIndex,
       mode: "review",
       includeToolCalls: includeTools,
@@ -543,16 +776,14 @@ async function runReview(args) {
       matchedTier: rankResult.tier,
       widenedFrom: null,
       active: winner.active,
-      warnings: winner.snippetMatch ? [
-        `Selected session by snippet match: ${winner.sessionId} (${winner.recordedCwd ?? "unknown cwd"})`
-      ] : [],
+      warnings,
       fallbacks: rankResult.fallbacks
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return emitError(`Failed to build digest: ${message}`, 1);
   }
-  if (markRead) {
+  if (markRead && digest.schemaVersion === 1) {
     try {
       await stateLib.markRead(runtime, winner.sessionId, {
         lastRecordIndex: digest.range.nextIndex,
@@ -567,13 +798,14 @@ async function runReview(args) {
   return emit(renderMarkdown(digest), 0);
 }
 async function runCatchUp(args) {
-  const result = await observeCatchUp(args);
-  if (!result.ok) {
-    if (result.kind === "error")
-      return emitError(result.message, result.exitCode);
-    if (args.json) return emitJson(result.payload, result.exitCode);
-    return emit(result.message, result.exitCode);
+  const recovery = await cursorLegacyRecoveryPayload(args);
+  if (recovery) {
+    if (args.json) return emitJson(recovery, 4);
+    return emit(recovery.message, 4);
   }
+  const result = await observeCatchUp(args);
+  if (!result.ok) return emitObserveFailure(args, result);
+  if (result.runtime === "cursor") return emitCursorResult(args, result, true);
   if (args.json) return emitJson(result.digest, 0);
   return emit(renderMarkdown(result.digest), 0);
 }
@@ -772,6 +1004,22 @@ async function runLocate(args) {
     0
   );
 }
+function cursorStateRecoveryDiagnostic(error) {
+  if (!(error instanceof Error) || !("code" in error) || error.code !== "CURSOR_STATE_RECOVERY_REQUIRED" || !("reason" in error) || error.reason !== "corrupt" && error.reason !== "schema") {
+    return null;
+  }
+  return {
+    error: true,
+    code: "CURSOR_STATE_RECOVERY_REQUIRED",
+    reason: error.reason,
+    recovery: {
+      command: "session-observer state reset --runtime cursor",
+      scope: "cursor-store",
+      destructive: true,
+      preservesSiblingSessions: false
+    }
+  };
+}
 async function runState(args) {
   const { stateOp, json } = args;
   const { runtime } = args;
@@ -819,6 +1067,8 @@ async function runState(args) {
             );
           return emit(`Reset session: ${sessionRuntime}:${sessionId}`, 0);
         } catch (err) {
+          const recovery = cursorStateRecoveryDiagnostic(err);
+          if (json && recovery) return emitJson(recovery, 1);
           const message = err instanceof Error ? err.message : String(err);
           return emitError(`Failed to reset state: ${message}`, 1);
         }
@@ -836,9 +1086,13 @@ async function runState(args) {
         );
       }
       try {
-        const count = await stateLib.resetByRuntime(runtime);
-        if (json) return emitJson({ reset: true, runtime, count }, 0);
-        return emit(`Reset ${count} session(s) for runtime: ${runtime}`, 0);
+        const result = await stateLib.resetByRuntimeWithDiagnostics(runtime);
+        if (json) return emitJson({ reset: true, ...result }, 0);
+        const recovery = result.recovery ? ` Destructively recovered the ${result.recovery.reason} shared Cursor store; sibling sessions could not be preserved.` : "";
+        return emit(
+          `Reset ${result.count} session(s) for runtime: ${runtime}.${recovery}`,
+          0
+        );
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         return emitError(`Failed to reset state: ${message}`, 1);
@@ -926,6 +1180,9 @@ function consumedThrough(lastRecordIndex) {
 async function transcriptRecordCount(transcriptPath) {
   return (await readRecords(transcriptPath)).length;
 }
+function isCursorWatchTarget(target) {
+  return target.runtime === "cursor" && "indexBase" in target && target.indexBase === "zero-based-jsonl-frame-index" && "observationCursor" in target && "lastStatus" in target;
+}
 function stateObject(value) {
   return value !== null && typeof value === "object" ? value : {};
 }
@@ -952,6 +1209,32 @@ async function singleWatcherStatusPayload(active) {
   const secondsSinceStarted = secondsSince(active.startedAt, now);
   const targets = [];
   for (const target of active.targets ?? []) {
+    if (isCursorWatchTarget(target)) {
+      const lastRecordIndex2 = target.observationCursor;
+      const transcriptRecords2 = target.recordCount;
+      const recordsBehind2 = target.bufferedFromFrame === null || transcriptRecords2 === null ? 0 : Math.max(0, transcriptRecords2 - target.bufferedFromFrame);
+      const reasons3 = cursorTargetHealthReasons(
+        target.lastStatus,
+        target.continuityState
+      );
+      if (secondsSinceLastPoll !== null && secondsSinceLastPoll > Math.max(staleAfterSec, (active.pollSec ?? 2) * 3)) {
+        reasons3.push("poll-heartbeat-stale");
+      }
+      targets.push({
+        ...target,
+        transcriptRecords: transcriptRecords2,
+        lastRecordIndex: lastRecordIndex2,
+        consumedThrough: consumedThrough(lastRecordIndex2),
+        recordsBehind: recordsBehind2,
+        secondsSinceLastEmit,
+        secondsSinceLastPoll,
+        staleAfterSec,
+        healthy: reasons3.length === 0,
+        healthReasons: reasons3,
+        error: target.continuityState === "blocked" ? "cursor continuity blocked" : target.lastStatus.health === "error" ? "cursor observation error" : null
+      });
+      continue;
+    }
     const stateKey = `${target.runtime}:${target.sessionId}`;
     const stored = sessionState.sessions?.[stateKey] ?? null;
     const lastRecordIndex = Number.isFinite(Number(stored?.lastRecordIndex)) ? Number(stored.lastRecordIndex) : Number(target.baselineRecordIndex ?? 0);
@@ -1124,7 +1407,7 @@ function selectWatcherForControl(state, args) {
   if (!watcher) return { none: true, watchers };
   return { watcher, watchers };
 }
-function emitNoMatchingWatcher(args, watchers) {
+async function emitNoMatchingWatcher(args, watchers) {
   const payload = {
     active: true,
     noMatchingWatcher: true,
@@ -1146,7 +1429,7 @@ function emitNoMatchingWatcher(args, watchers) {
 async function emitUnmatchedWatcherControl(args, selected) {
   return selected.watchers.length > 0 ? emitNoMatchingWatcher(args, selected.watchers) : emitNoActiveWatcher(args);
 }
-function emitAmbiguousWatcher(args, candidates) {
+async function emitAmbiguousWatcher(args, candidates) {
   const payload = {
     ambiguousWatcher: true,
     message: "Multiple active watchers match. Select one with --runtime, --session, or --pid.",

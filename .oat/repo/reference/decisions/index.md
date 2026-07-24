@@ -9,6 +9,11 @@
 <!-- OAT DECISION-INDEX -->
 | ID | Date | Status | Title | Legacy |
 | --- | --- | --- | --- | --- |
+| DR-260724-content-availability-is-not | 2026-07-24 | accepted | Content availability is not completion | - |
+| DR-260724-gate-capability-claims | 2026-07-24 | accepted | Gate capability claims on evidence | - |
+| DR-260724-separate-observation | 2026-07-24 | accepted | Separate observation and collaboration cursors | - |
+| DR-260724-stateful-work-requires-exact | 2026-07-24 | accepted | Stateful work requires exact identity | - |
+| DR-260724-use-buffered-manual-wake | 2026-07-24 | accepted | Use buffered-manual wake for Cursor | - |
 | DR-260713-acting-runtime-selects-setup | 2026-07-13 | accepted | Acting runtime selects setup | - |
 | DR-260713-bounded-lifecycle-continuation | 2026-07-13 | accepted | Bounded lifecycle continuation | - |
 | DR-260713-collaboration-uses-a-sibling | 2026-07-13 | accepted | Collaboration uses a sibling layer | - |
@@ -29,7 +34,7 @@
 | DR-260627-keep-consensus-skills | 2026-06-27 | accepted | Keep consensus skills discoverable and recover standalone installs via a shared-home installer | - |
 | DR-260622-independent-draft-family | 2026-06-22 | Accepted. | Independent-draft family wrappers stay thin and whole-artifact for v1 | DR-026 |
 | DR-260621-consensus-verdict-submission | 2026-06-21 | Accepted. | Consensus verdict submission uses owned submit CLI with sidecar capture | DR-024 |
-| DR-260621-fumadocs-for-the-documentation | 2026-06-21 | proposed | Fumadocs for the documentation site | DR-025 |
+| DR-260621-fumadocs-for-the-documentation | 2026-06-21 | accepted | Fumadocs for the documentation site | DR-025 |
 | DR-260619-consensus-peer-invocation | 2026-06-19 | Accepted. | Consensus peer invocation owned by provider CLI | DR-023 |
 | DR-260619-shipped-skills-carry | 2026-06-19 | Accepted. | Shipped skills carry a validator-backed top-level `version`, kept in sync with `metadata.version` | DR-022 |
 | DR-260616-build-time-import-rewrites | 2026-06-16 | Accepted. | Build-time import rewrites reconcile canonical source paths with shipped runtime paths | DR-021 |

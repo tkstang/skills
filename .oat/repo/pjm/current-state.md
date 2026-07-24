@@ -1,6 +1,6 @@
 # Skills Repo Current State
 
-**Last updated:** 2026-07-13 (Session Observer Collaboration final review and mandatory verification passed: production wake envelopes are non-human control input across the supported runtimes; setup follows the acting runtime while peer pins remain exact; repeated queued human content remains transaction-distinct; and conflicting identity signals return fail-closed candidates. Codex lifecycle evidence is live-validated for the measured bounded path, while Cursor and Claude Monitor remain documented-but-unvalidated. The four N=2 follow-ups remain open and unchanged. Prior: shared generated runtime output closed — **BL-260620-share-consensus-generated**; provider CLI read-only capture relocated to `.consensus/submit/`; skills.sh hosted safety is verified for the two seeded standalone skills only. See DR-260705.)
+**Last updated:** 2026-07-24 (Cursor transcript observation is evidence-gated and its finite stronger-wake probes retain `buffered-manual` as the strongest supported collaboration tier. **BL-260713-cursor-transcript-store** and **BL-260713-stronger-cursor-collaboration** are closed; two independently verifiable N=2 v2 follow-ups remain open. Codex lifecycle evidence remains live-validated for the measured bounded path, while Claude Monitor remains unvalidated. Prior: shared generated runtime output closed — **BL-260620-share-consensus-generated**; provider CLI read-only capture relocated to `.consensus/submit/`; skills.sh hosted safety is verified for the two seeded standalone skills only. See DR-260705.)
 
 ## Overview
 
@@ -73,10 +73,10 @@ release checklist proves them.
 The final collaboration pass hardens the production XML wake contract,
 transaction-scoped queued-input normalization, fail-closed identity candidates,
 and acting-runtime setup routing. Codex's measured bounded lifecycle path is
-live-validated; Cursor continuation and Claude Monitor remain
-documented-but-unvalidated, with buffered/manual or separately proven scheduler
-fallbacks. The canonical skill and user/provider copies are in parity; the
-four v2 backlog items remain the authoritative deferred boundary.
+live-validated. Cursor's finite Stop and managed-subagent probes found no
+effective callback or existing scheduled surface, so buffered-manual is its
+strongest evidence-backed tier; Claude Monitor remains unvalidated. The
+canonical skill and user/provider copies are in parity.
 
 ### transcript-core (`src/transcript/core/`)
 
@@ -112,14 +112,18 @@ A Fumadocs (Next.js) app at `documentation/` provides the public-facing document
 ### Session-observer collaboration v2 boundary
 
 The v1 collaboration skill is intentionally bounded to a user plus two
-mutually observing agents. Four independently verifiable v2 follow-ups are
-tracked in the backlog: **BL-260713-per-observer-offsets-and-safe** (consumer
-offset namespaces and safe N>2 mesh), **BL-260713-stronger-cursor-collaboration**
-(stronger Cursor wake surfaces), **BL-260713-cursor-transcript-store** (Cursor
-transcript stores and dotted-path slugs), and
-**BL-260713-optional-idle-session** (opt-in application integrations for idle
-sessions). The existing shared-session-log substrate and inter-agent direct
-messaging initiatives remain open and unchanged.
+mutually observing agents. **BL-260713-cursor-transcript-store** is closed with
+evidence-gated Cursor agent-transcript discovery, dotted-path slug handling,
+canonical fail-closed identity, sanitized lifecycle fixtures, restart/catch-up
+coverage, and explicit non-claims for unsupported stores.
+**BL-260713-stronger-cursor-collaboration** is also closed after finite
+version-gated probes found no effective top-level Stop, managed-subagent, or
+existing scheduled callback; buffered-manual remains selected. Two
+independently verifiable v2 follow-ups remain tracked in the backlog:
+**BL-260713-per-observer-offsets-and-safe** (consumer offset namespaces and safe
+N>2 mesh) and **BL-260713-optional-idle-session** (opt-in application
+integrations for idle sessions). The existing shared-session-log substrate and
+inter-agent direct messaging initiatives remain open and unchanged.
 
 - `.oat/repo/pjm/roadmap.md` — active Now/Next/Later planning.
 - `.oat/repo/reference/decisions/` — file-per-record decisions migrated from DR-001 onward; regenerate the index with `oat decision regenerate-index`.

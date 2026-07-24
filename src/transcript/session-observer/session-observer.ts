@@ -22,20 +22,30 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 
+import { createCursorTurnAccumulator } from '../core/cursor-analysis.js';
+import { scanCursorTranscript } from '../core/cursor-frames.js';
 import { type Runtime, readRecords } from '../core/runtimes.js';
 import { buildDigest, renderMarkdown } from './lib/digest.js';
 import {
   discover,
   gitWorktrees,
   claudeCodeLookupDiagnostics,
+  resolveCursorIdentity,
 } from './lib/locate.js';
 import { observeCatchUp, resolveSelfIdentity } from './lib/observe.js';
 import { rank } from './lib/rank.js';
 import * as stateLib from './lib/state.js';
 import type {
   CliArgs,
+  CursorObserveSuccess,
+  CursorDigestV2,
+  CursorIdentityEvidence,
+  CursorSessionStateEntry,
+  DurableWatchTargetRecord,
+  ObserveOutcome,
   ObservedRuntimeResolution,
   PinnedSessionParseResult,
+  RankTier,
   RuntimeCandidateSet,
   SessionObserverState,
   SnippetMatch,
@@ -43,10 +53,10 @@ import type {
   WatchControlDirective,
   WatcherRecord,
   WatchState,
-  WatchTargetRecord,
+  WatchTargetRecordV2,
 } from './lib/types.js';
 import * as watchStateLib from './lib/watch-state.js';
-import { runWatchLoop } from './lib/watch.js';
+import { cursorTargetHealthReasons, runWatchLoop } from './lib/watch.js';
 
 // ---------------------------------------------------------------------------
 // argv parsing
@@ -296,13 +306,58 @@ async function resolveAutoRuntime(
 // Output helpers
 // ---------------------------------------------------------------------------
 
-function emit(content: string, exitCode = 0): never {
-  process.stdout.write(content + '\n');
+class StdoutWriteError extends Error {
+  readonly asynchronous: boolean;
+
+  constructor(error: unknown, asynchronous: boolean) {
+    super(error instanceof Error ? error.message : String(error), {
+      cause: error,
+    });
+    this.name = 'StdoutWriteError';
+    this.asynchronous = asynchronous;
+    if (error instanceof Error && error.stack) this.stack = error.stack;
+  }
+}
+
+async function writeStdout(content: string): Promise<void> {
+  let result: unknown;
+  const write = process.stdout.write as unknown as (
+    chunk: string,
+    complete?: (error?: Error | null) => void,
+  ) => unknown;
+  const callbackExpected = write.length >= 2;
+  let completeCallback: ((error?: Error | null) => void) | undefined;
+  const callbackCompletion = callbackExpected
+    ? new Promise<void>((fulfill, reject) => {
+        completeCallback = (error) => {
+          if (error) reject(error);
+          else fulfill();
+        };
+      })
+    : null;
+  try {
+    result = write.call(process.stdout, content, completeCallback);
+  } catch (error) {
+    throw new StdoutWriteError(error, false);
+  }
+  try {
+    if (result && typeof result === 'object' && 'then' in result) {
+      await result;
+    } else if (callbackCompletion) {
+      await callbackCompletion;
+    }
+  } catch (error) {
+    throw new StdoutWriteError(error, true);
+  }
+}
+
+async function emit(content: string, exitCode = 0): Promise<never> {
+  await writeStdout(content + '\n');
   process.exit(exitCode);
 }
 
-function emitJson(obj: unknown, exitCode = 0): never {
-  process.stdout.write(JSON.stringify(obj, null, 2) + '\n');
+async function emitJson(obj: unknown, exitCode = 0): Promise<never> {
+  await writeStdout(JSON.stringify(obj, null, 2) + '\n');
   process.exit(exitCode);
 }
 
@@ -518,6 +573,247 @@ function printWatchCtlUsage(): never {
 // runReview
 // ---------------------------------------------------------------------------
 
+function cursorContractExitCode(kind: string, fallback: number): number {
+  return ['identityBlocked', 'continuityBlocked', 'ownerConflict'].includes(
+    kind,
+  )
+    ? 4
+    : fallback;
+}
+
+async function cursorLegacyRecoveryPayload(args: CliArgs): Promise<{
+  continuityBlocked: true;
+  runtime: 'cursor';
+  cwd: string;
+  code: 'LEGACY_CURSOR_UNVERIFIED';
+  sessionId: string;
+  message: string;
+} | null> {
+  if (args.runtime !== 'cursor' && args.runtime !== 'auto') return null;
+  const pinned = parsePinnedSession(args.session);
+  if (pinned && 'error' in pinned) return null;
+  const state = await stateLib.load();
+  const markers = Object.values(state.sessions).filter(
+    (entry) =>
+      entry.runtime === 'cursor' &&
+      entry.recoveryRequired === true &&
+      entry.recoveryCode === 'LEGACY_CURSOR_UNVERIFIED' &&
+      (pinned
+        ? pinned.runtime === 'cursor' && entry.sessionId === pinned.sessionId
+        : entry.recordedCwd === args.cwd),
+  );
+  if (markers.length !== 1) return null;
+  const sessionId = markers[0].sessionId;
+  return {
+    continuityBlocked: true,
+    runtime: 'cursor',
+    cwd: args.cwd,
+    code: 'LEGACY_CURSOR_UNVERIFIED',
+    sessionId,
+    message:
+      `Legacy Cursor state for cursor:${sessionId} is not a verified frame cursor. ` +
+      `Run session-observer state reset --session cursor:${sessionId} and retry to replay from frame zero.`,
+  };
+}
+
+async function emitObserveFailure(
+  args: CliArgs,
+  result: Extract<Awaited<ReturnType<typeof observeCatchUp>>, { ok: false }>,
+): Promise<never> {
+  const exitCode = cursorContractExitCode(result.kind, result.exitCode);
+  if (result.kind === 'error') return emitError(result.message, exitCode);
+  if (args.json) return emitJson(result.payload, exitCode);
+  return emit(result.message, exitCode);
+}
+
+async function emitCursorResult(
+  args: CliArgs,
+  result: CursorObserveSuccess,
+  commitDelivery: boolean,
+): Promise<never> {
+  const content = args.json
+    ? JSON.stringify(result.digest, null, 2) + '\n'
+    : renderMarkdown(result.digest) + '\n';
+  try {
+    await writeStdout(content);
+  } catch (error) {
+    if (result.delivery) {
+      await result.delivery.abandon({
+        deliveryUncertain:
+          error instanceof StdoutWriteError && error.asynchronous,
+      });
+    }
+    throw error;
+  }
+
+  if (result.delivery) {
+    const finalized = commitDelivery
+      ? await result.delivery.commit()
+      : await result.delivery.abandon();
+    const expected = commitDelivery ? 'committed' : 'abandoned';
+    if (finalized !== expected) {
+      throw new Error(`Cursor delivery finalization ${finalized}`);
+    }
+  }
+  process.exit(result.deliveryUncertain ? 4 : 0);
+}
+
+async function buildCursorReviewDigest(
+  candidate: TranscriptCandidate,
+  args: CliArgs,
+  options: {
+    matchedTier: RankTier | null;
+    fallbacks: TranscriptCandidate[];
+    warnings?: string[];
+  },
+): Promise<CursorDigestV2> {
+  const identity = await resolveCursorIdentity(
+    candidate,
+    args.cwd,
+    args.session ? candidate.sessionId : undefined,
+  );
+  const scanReview = async (verifyPrefixBytes?: number) => {
+    const accumulator = createCursorTurnAccumulator(identity, 0);
+    const scan = await scanCursorTranscript(identity.canonicalTranscriptPath, {
+      verifyPrefixBytes,
+      onFrame(frame) {
+        accumulator.onFrame(frame);
+      },
+    });
+    return { scan, analysis: accumulator.finish(scan) };
+  };
+  const candidateObservation = (
+    result: Awaited<ReturnType<typeof scanReview>>,
+    observedAt: string,
+  ) => {
+    const turn = result.analysis.turns.findLast(
+      (candidateTurn) =>
+        candidateTurn.lifecycle === 'pending' &&
+        candidateTurn.assistantRecords.some(
+          (record) => record.classification === 'substantive',
+        ),
+    );
+    if (turn === undefined || result.scan.safeThroughFrame === null)
+      return null;
+    return {
+      turnId: turn.turnId,
+      fromFrameIndex: turn.fromFrameIndex,
+      throughFrameIndex: result.scan.safeThroughFrame,
+      entryKeys: turn.assistantRecords
+        .filter((record) => record.classification === 'substantive')
+        .map((record) => record.entryKey),
+      prefixBytes: result.scan.safePrefixBytes,
+      prefixSha256: result.scan.safePrefixSha256,
+      observedAt,
+    };
+  };
+
+  let selected = await scanReview();
+  let ephemeralState: CursorSessionStateEntry | null = null;
+  const observedAt = new Date().toISOString();
+  const firstObservation = candidateObservation(selected, observedAt);
+  if (firstObservation !== null) {
+    const stabilityMs = Math.max(0, (args.debounceSec ?? 1) * 1000);
+    await new Promise((done) => setTimeout(done, stabilityMs));
+    const confirmedAt = new Date().toISOString();
+    const second = await scanReview(firstObservation.prefixBytes);
+    const exactPrefixConfirmed =
+      second.scan.file.device === selected.scan.file.device &&
+      second.scan.file.inode === selected.scan.file.inode &&
+      second.scan.safePrefixBytes >= firstObservation.prefixBytes &&
+      second.scan.verifiedPrefixSha256 === firstObservation.prefixSha256;
+    selected = second;
+    if (exactPrefixConfirmed) {
+      ephemeralState = statelessCursorReviewState(
+        identity,
+        second.scan.file,
+        firstObservation,
+        confirmedAt,
+        stabilityMs,
+      );
+    }
+  }
+  return buildDigest('cursor', identity.canonicalTranscriptPath, {
+    fromIndex: 0,
+    mode: 'review',
+    includeToolCalls: args.includeTools,
+    includeToolResults: args.includeToolResults,
+    includeCommandMessages: args.includeCommandMessages,
+    maxTurns: args.maxTurns,
+    maxBytes: args.maxBytes,
+    sessionId: candidate.sessionId,
+    recordedCwd: identity.canonicalCwd,
+    matchedTier: options.matchedTier,
+    widenedFrom: null,
+    active: candidate.active ?? false,
+    warnings: options.warnings ?? [],
+    fallbacks: options.fallbacks,
+    cursorProjection: 'observation',
+    cursorIdentity: identity,
+    cursorScan: selected.scan,
+    cursorAnalysis: selected.analysis,
+    cursorState: ephemeralState,
+    cursorContinuity: 'new',
+  });
+}
+
+function statelessCursorReviewState(
+  identity: CursorIdentityEvidence,
+  file: {
+    size: number;
+    device: number | null;
+    inode: number | null;
+  },
+  observation: {
+    turnId: string;
+    fromFrameIndex: number;
+    throughFrameIndex: number;
+    entryKeys: string[];
+    prefixBytes: number;
+    prefixSha256: string;
+    observedAt: string;
+  },
+  confirmedAt: string,
+  stabilityMs: number,
+): CursorSessionStateEntry {
+  return {
+    runtime: 'cursor',
+    sessionId: identity.sessionId,
+    indexBase: 'zero-based-jsonl-frame-index',
+    lastRecordIndex: 0,
+    canonicalCwd: identity.canonicalCwd,
+    transcriptPath: identity.canonicalTranscriptPath,
+    continuity: {
+      indexBase: 'zero-based-jsonl-frame-index',
+      nextFrameIndex: 0,
+      prefixBytes: 0,
+      prefixSha256:
+        'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+      observedSize: file.size,
+      device: file.device,
+      inode: file.inode,
+    },
+    lastStatus: {
+      engagement: 'unknown',
+      activity: 'none',
+      content: 'none',
+      lifecycle: 'none',
+      delivery: 'none',
+      health: 'unknown',
+    },
+    openTurn: null,
+    stabilityCandidate: {
+      ...observation,
+      firstObservedAt: observation.observedAt,
+      confirmAfter: new Date(
+        Date.parse(observation.observedAt) + stabilityMs,
+      ).toISOString(),
+      confirmedAt,
+    },
+    pendingDelivery: null,
+  };
+}
+
 async function runReview(args: CliArgs): Promise<void> {
   const {
     cwd,
@@ -573,6 +869,24 @@ async function runReview(args: CliArgs): Promise<void> {
     );
   }
 
+  if (runtime === 'cursor' && markRead) {
+    const recovery = await cursorLegacyRecoveryPayload({
+      ...args,
+      runtime,
+    });
+    if (recovery) {
+      if (json) return emitJson(recovery, 4);
+      return emit(recovery.message, 4);
+    }
+    const result = await observeCatchUp({ ...args, runtime });
+    if (!result.ok) return emitObserveFailure(args, result);
+    if (result.runtime !== 'cursor') {
+      throw new Error('Cursor review resolved a non-Cursor observation');
+    }
+    result.digest.mode = 'review';
+    return emitCursorResult(args, result, markRead);
+  }
+
   // Discover candidates
   let candidates: TranscriptCandidate[];
   try {
@@ -611,26 +925,32 @@ async function runReview(args: CliArgs): Promise<void> {
     // Build digest directly from the pinned candidate
     let digest;
     try {
-      digest = await buildDigest(pinnedRuntime, pinned.transcriptPath, {
-        fromIndex: 0,
-        mode: 'review',
-        includeToolCalls: includeTools,
-        includeToolResults,
-        includeCommandMessages,
-        maxTurns,
-        maxBytes,
-        sessionId: pinned.sessionId,
-        recordedCwd: pinned.recordedCwd,
-        matchedTier: null,
-        widenedFrom: null,
-        active: pinned.active ?? false,
-        fallbacks: [],
-      });
+      digest =
+        pinnedRuntime === 'cursor'
+          ? await buildCursorReviewDigest(pinned, args, {
+              matchedTier: null,
+              fallbacks: [],
+            })
+          : await buildDigest(pinnedRuntime, pinned.transcriptPath, {
+              fromIndex: 0,
+              mode: 'review',
+              includeToolCalls: includeTools,
+              includeToolResults,
+              includeCommandMessages,
+              maxTurns,
+              maxBytes,
+              sessionId: pinned.sessionId,
+              recordedCwd: pinned.recordedCwd,
+              matchedTier: null,
+              widenedFrom: null,
+              active: pinned.active ?? false,
+              fallbacks: [],
+            });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       return emitError(`Failed to build digest: ${message}`, 1);
     }
-    if (markRead) {
+    if (markRead && digest.schemaVersion === 1) {
       try {
         await stateLib.markRead(pinnedRuntime, pinned.sessionId, {
           lastRecordIndex: digest.range.nextIndex,
@@ -726,33 +1046,41 @@ async function runReview(args: CliArgs): Promise<void> {
   // Build digest
   let digest;
   try {
-    digest = await buildDigest(runtime, winner.transcriptPath, {
-      fromIndex,
-      mode: 'review',
-      includeToolCalls: includeTools,
-      includeToolResults,
-      includeCommandMessages,
-      maxTurns,
-      maxBytes,
-      sessionId: winner.sessionId,
-      recordedCwd: winner.recordedCwd,
-      matchedTier: rankResult.tier,
-      widenedFrom: null,
-      active: winner.active,
-      warnings: winner.snippetMatch
-        ? [
-            `Selected session by snippet match: ${winner.sessionId} (${winner.recordedCwd ?? 'unknown cwd'})`,
-          ]
-        : [],
-      fallbacks: rankResult.fallbacks,
-    });
+    const warnings = winner.snippetMatch
+      ? [
+          `Selected session by snippet match: ${winner.sessionId} (${winner.recordedCwd ?? 'unknown cwd'})`,
+        ]
+      : [];
+    digest =
+      runtime === 'cursor'
+        ? await buildCursorReviewDigest(winner, args, {
+            matchedTier: rankResult.tier,
+            fallbacks: rankResult.fallbacks,
+            warnings,
+          })
+        : await buildDigest(runtime, winner.transcriptPath, {
+            fromIndex,
+            mode: 'review',
+            includeToolCalls: includeTools,
+            includeToolResults,
+            includeCommandMessages,
+            maxTurns,
+            maxBytes,
+            sessionId: winner.sessionId,
+            recordedCwd: winner.recordedCwd,
+            matchedTier: rankResult.tier,
+            widenedFrom: null,
+            active: winner.active,
+            warnings,
+            fallbacks: rankResult.fallbacks,
+          });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return emitError(`Failed to build digest: ${message}`, 1);
   }
 
   // Optionally mark read
-  if (markRead) {
+  if (markRead && digest.schemaVersion === 1) {
     try {
       await stateLib.markRead(runtime, winner.sessionId, {
         lastRecordIndex: digest.range.nextIndex,
@@ -774,14 +1102,15 @@ async function runReview(args: CliArgs): Promise<void> {
 // ---------------------------------------------------------------------------
 
 async function runCatchUp(args: CliArgs): Promise<void> {
-  const result = await observeCatchUp(args);
-  if (!result.ok) {
-    if (result.kind === 'error')
-      return emitError(result.message, result.exitCode);
-    if (args.json) return emitJson(result.payload, result.exitCode);
-    return emit(result.message, result.exitCode);
+  const recovery = await cursorLegacyRecoveryPayload(args);
+  if (recovery) {
+    if (args.json) return emitJson(recovery, 4);
+    return emit(recovery.message, 4);
   }
+  const result = (await observeCatchUp(args)) as ObserveOutcome;
+  if (!result.ok) return emitObserveFailure(args, result);
 
+  if (result.runtime === 'cursor') return emitCursorResult(args, result, true);
   if (args.json) return emitJson(result.digest, 0);
   return emit(renderMarkdown(result.digest), 0);
 }
@@ -1009,6 +1338,39 @@ async function runLocate(args: CliArgs): Promise<void> {
 // runState
 // ---------------------------------------------------------------------------
 
+function cursorStateRecoveryDiagnostic(error: unknown): {
+  error: true;
+  code: 'CURSOR_STATE_RECOVERY_REQUIRED';
+  reason: 'corrupt' | 'schema';
+  recovery: {
+    command: 'session-observer state reset --runtime cursor';
+    scope: 'cursor-store';
+    destructive: true;
+    preservesSiblingSessions: false;
+  };
+} | null {
+  if (
+    !(error instanceof Error) ||
+    !('code' in error) ||
+    error.code !== 'CURSOR_STATE_RECOVERY_REQUIRED' ||
+    !('reason' in error) ||
+    (error.reason !== 'corrupt' && error.reason !== 'schema')
+  ) {
+    return null;
+  }
+  return {
+    error: true,
+    code: 'CURSOR_STATE_RECOVERY_REQUIRED',
+    reason: error.reason,
+    recovery: {
+      command: 'session-observer state reset --runtime cursor',
+      scope: 'cursor-store',
+      destructive: true,
+      preservesSiblingSessions: false,
+    },
+  };
+}
+
 async function runState(args: CliArgs): Promise<void> {
   const { stateOp, json } = args;
   const { runtime } = args;
@@ -1061,6 +1423,8 @@ async function runState(args: CliArgs): Promise<void> {
             );
           return emit(`Reset session: ${sessionRuntime}:${sessionId}`, 0);
         } catch (err) {
+          const recovery = cursorStateRecoveryDiagnostic(err);
+          if (json && recovery) return emitJson(recovery, 1);
           const message = err instanceof Error ? err.message : String(err);
           return emitError(`Failed to reset state: ${message}`, 1);
         }
@@ -1079,9 +1443,15 @@ async function runState(args: CliArgs): Promise<void> {
         );
       }
       try {
-        const count = await stateLib.resetByRuntime(runtime);
-        if (json) return emitJson({ reset: true, runtime, count }, 0);
-        return emit(`Reset ${count} session(s) for runtime: ${runtime}`, 0);
+        const result = await stateLib.resetByRuntimeWithDiagnostics(runtime);
+        if (json) return emitJson({ reset: true, ...result }, 0);
+        const recovery = result.recovery
+          ? ` Destructively recovered the ${result.recovery.reason} shared Cursor store; sibling sessions could not be preserved.`
+          : '';
+        return emit(
+          `Reset ${result.count} session(s) for runtime: ${runtime}.${recovery}`,
+          0,
+        );
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         return emitError(`Failed to reset state: ${message}`, 1);
@@ -1159,7 +1529,7 @@ type WatcherHealth = {
   reasons: string[];
 };
 
-type WatchTargetStatus = WatchTargetRecord & {
+type WatchTargetStatus = DurableWatchTargetRecord & {
   transcriptRecords: number | null;
   lastRecordIndex: number;
   consumedThrough: number | null;
@@ -1219,7 +1589,7 @@ type WatcherSummary = {
   resolvedRuntime: Runtime | null;
   cwd: string;
   session: string | null;
-  targets: WatchTargetRecord[];
+  targets: DurableWatchTargetRecord[];
 };
 
 type WatchControlPayload = {
@@ -1301,6 +1671,18 @@ async function transcriptRecordCount(transcriptPath: string): Promise<number> {
   return (await readRecords(transcriptPath)).length;
 }
 
+function isCursorWatchTarget(
+  target: DurableWatchTargetRecord,
+): target is WatchTargetRecordV2 {
+  return (
+    target.runtime === 'cursor' &&
+    'indexBase' in target &&
+    target.indexBase === 'zero-based-jsonl-frame-index' &&
+    'observationCursor' in target &&
+    'lastStatus' in target
+  );
+}
+
 function stateObject(value: unknown): Record<string, unknown> {
   return value !== null && typeof value === 'object'
     ? (value as Record<string, unknown>)
@@ -1339,6 +1721,44 @@ async function singleWatcherStatusPayload(
   const targets: WatchTargetStatus[] = [];
 
   for (const target of active.targets ?? []) {
+    if (isCursorWatchTarget(target)) {
+      const lastRecordIndex = target.observationCursor;
+      const transcriptRecords = target.recordCount;
+      const recordsBehind =
+        target.bufferedFromFrame === null || transcriptRecords === null
+          ? 0
+          : Math.max(0, transcriptRecords - target.bufferedFromFrame);
+      const reasons = cursorTargetHealthReasons(
+        target.lastStatus,
+        target.continuityState,
+      );
+      if (
+        secondsSinceLastPoll !== null &&
+        secondsSinceLastPoll >
+          Math.max(staleAfterSec, (active.pollSec ?? 2) * 3)
+      ) {
+        reasons.push('poll-heartbeat-stale');
+      }
+      targets.push({
+        ...target,
+        transcriptRecords,
+        lastRecordIndex,
+        consumedThrough: consumedThrough(lastRecordIndex),
+        recordsBehind,
+        secondsSinceLastEmit,
+        secondsSinceLastPoll,
+        staleAfterSec,
+        healthy: reasons.length === 0,
+        healthReasons: reasons,
+        error:
+          target.continuityState === 'blocked'
+            ? 'cursor continuity blocked'
+            : target.lastStatus.health === 'error'
+              ? 'cursor observation error'
+              : null,
+      });
+      continue;
+    }
     const stateKey = `${target.runtime}:${target.sessionId}`;
     const stored = sessionState.sessions?.[stateKey] ?? null;
     const lastRecordIndex = Number.isFinite(Number(stored?.lastRecordIndex))
@@ -1564,10 +1984,10 @@ function selectWatcherForControl(
   return { watcher, watchers };
 }
 
-function emitNoMatchingWatcher(
+async function emitNoMatchingWatcher(
   args: CliArgs,
   watchers: WatcherRecord[],
-): never {
+): Promise<never> {
   const payload = {
     active: true,
     noMatchingWatcher: true,
@@ -1598,10 +2018,10 @@ async function emitUnmatchedWatcherControl(
     : emitNoActiveWatcher(args);
 }
 
-function emitAmbiguousWatcher(
+async function emitAmbiguousWatcher(
   args: CliArgs,
   candidates: WatcherRecord[],
-): never {
+): Promise<never> {
   const payload = {
     ambiguousWatcher: true,
     message:

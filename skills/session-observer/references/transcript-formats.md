@@ -21,11 +21,11 @@ Short reference for the Claude Code, Codex, and Cursor JSONL record shapes that 
 Claude Code encodes the project cwd as the **parent directory name**. Current observed project dirs replace `/` and `.` with `-`. For example:
 
 ```
-/Users/alice/Code/my-project
-    → ~/.claude/projects/-Users-alice-Code-my-project/<session-id>.jsonl
+<project-cwd>
+    → ~/.claude/projects/<encoded-project-cwd>/<session-id>.jsonl
 
-/Users/thomas.stang/.superconductor/worktrees/stoa/sc-levitated-phonon-e8a5
-    → ~/.claude/projects/-Users-thomas-stang--superconductor-worktrees-stoa-sc-levitated-phonon-e8a5/<session-id>.jsonl
+<worktree-cwd>
+    → ~/.claude/projects/<encoded-worktree-cwd>/<session-id>.jsonl
 ```
 
 `runtimes.encodeCwd('claude-code', cwd)` returns the preferred encoded form. `runtimes.encodeCwdVariants('claude-code', cwd)` returns the preferred form plus compatibility variants, and `locate.mjs` tries all direct directories before glob fallback.
@@ -173,7 +173,7 @@ The cwd is extracted from the **`session_started` record** at the top of the fil
 {
   "type": "session_started",
   "sessionId": "codex-session-001",
-  "cwd": "/Users/testuser/Code/my-project",
+  "cwd": "<project-cwd>",
   "timestamp": "2026-05-14T10:00:00Z"
 }
 ```
@@ -201,7 +201,7 @@ Session ID appears at the record top level:
 {
   "type": "session_started",
   "sessionId": "codex-session-001",
-  "cwd": "/Users/testuser/Code/my-project",
+  "cwd": "<project-cwd>",
   "timestamp": "2026-05-14T10:00:00Z"
 }
 ```
@@ -264,11 +264,11 @@ Cursor agent transcripts live under:
 The project directory slug is derived from the cwd by splitting on `/` and `.` and joining non-empty segments with `-`. For example:
 
 ```
-/Users/thomas.stang/Code/vox/duet
-    → ~/.cursor/projects/Users-thomas-stang-Code-vox-duet/agent-transcripts/<session-id>/<session-id>.jsonl
+<project-cwd>
+    → ~/.cursor/projects/<encoded-project>/agent-transcripts/<session-id>/<session-id>.jsonl
 ```
 
-Direct hits from `discover('cursor', cwd)` set `recordedCwd = targetCwd` exactly and mark `cwdEvidence = "direct-parent-dir"`. Fallback scans search `~/.cursor/projects/*/agent-transcripts/*/*.jsonl` within the normal 7-day lookback, carry the project `cwdSlug`, and mark `cwdEvidence = "project-dir-slug"`. Ranking treats matching Cursor slug evidence as a weak cwd recovery tier above unrelated global recency.
+Direct hits from `discover('cursor', cwd)` set `recordedCwd = targetCwd` exactly and mark `cwdEvidence = "direct-parent-dir"`. Fallback scans search `~/.cursor/projects/*/agent-transcripts/*/*.jsonl` within the normal 7-day lookback, carry the project `cwdSlug`, and mark `cwdEvidence = "project-dir-slug"`. Ranking treats matching Cursor slug evidence as a diagnostic recovery tier above unrelated global recency, but stateful reads still require an exact session plus canonical cwd/transcript identity.
 
 The SQLite chat-history store at `~/.cursor/chats/*/store.db` exists separately and is intentionally out of scope. This skill supports Cursor **agent transcript JSONL** only.
 
@@ -308,15 +308,54 @@ text: "[Read] {\"file_path\":\"/project/src/index.ts\"}"
 
 Observed Cursor block types in the local spike were `text` and `tool_use`; observed tool names included `Shell`, `Read`, `Grep`, `StrReplace`, `Glob`, and `Write`.
 
+### Physical frames, lifecycle, and projections
+
+Cursor schema v2 positions are physical newline-delimited frame indexes, not
+the schema-v1 parsed-record indexes used by Claude Code and Codex. The streaming
+reader retains closed, blank, malformed, and partial frame boundaries so repair,
+shrink, replacement, and prefix continuity can be checked without silently
+renumbering later content.
+
+A terminal frame has a top-level lifecycle shape such as:
+
+```json
+{ "type": "turn_ended", "status": "success" }
+```
+
+The turn analyzer keeps content availability and lifecycle separate:
+
+- The ordinary `observation` projection may expose prefix-stable substantive
+  assistant content after an unchanged stability interval, labeled
+  `pending-lifecycle`.
+- `success` reconciles a completed turn. `aborted`, `error`, `cancelled`, and
+  unknown terminal outcomes remain diagnostics and do not promote provisional
+  content as successful completion.
+- The `confirmed-completion` projection used by collaboration requires the
+  terminal-success boundary and never consumes an open turn.
+
+Cursor digest schema v2 declares
+`indexBase: "zero-based-jsonl-frame-index"`. Entry `recordIndex` is the frame
+used for delivery/accounting and `sourceFrameIndex` retains the original
+content frame. Non-Cursor digest schema v1 remains
+`zero-based-jsonl-record-index`; consumers must dispatch on schema and index
+base instead of converting between them.
+
+Cursor continuity state stores the canonical identity, first unconsumed frame,
+verified prefix bytes/hash, file device/inode when available, open-turn
+reconciliation, stability candidate, pending delivery, and independent status
+facets. A mismatch blocks state advancement until an explicit reset/replay.
+
 ---
 
 ## Summary of Key Differences
 
 | Aspect                     | Claude Code                                             | Codex                                            | Cursor                                                     |
 | -------------------------- | ------------------------------------------------------- | ------------------------------------------------ | ---------------------------------------------------------- |
-| cwd source                 | Directory name (encoded, lossy)                         | `record.cwd` or `record.payload.cwd`             | Encoded project dir slug                                   |
+| cwd source                 | Directory name (encoded, lossy)                         | `record.cwd` or `record.payload.cwd`             | Exact canonical cwd plus diagnostic encoded project slug   |
 | Session ID source          | `record.sessionId` or `message.sessionId`               | `record.sessionId` (every record)                | Transcript basename or parent dir                          |
 | Message wrapper            | `record.message.role` / `record.message.content`        | `record.payload.role` / `record.payload.content` | `record.role` / `record.message.content`                   |
+| Position contract          | Schema-v1 record index                                  | Schema-v1 record index                           | Schema-v2 physical frame index                             |
+| Completion contract        | Normalized record behavior                              | Normalized record behavior                       | Content-first observation; terminal-only completion        |
 | Tool call format           | `type: "tool_use"` in content array                     | `payload.type === "function_call"`               | `type: "tool_use"` in content array                        |
 | Tool result format         | `type: "tool_result"` with `tool_use_id` (user message) | None in v1                                       | None in v1                                                 |
 | Name-to-result correlation | First-pass `tool_use_id → toolName` map                 | N/A                                              | N/A                                                        |
@@ -326,7 +365,10 @@ Observed Cursor block types in the local spike were `text` and `tool_use`; obser
 
 ## Adding a New Runtime
 
-`src/transcript/core/runtimes.ts` is the only source file with structural knowledge of per-runtime formats. Adding another runtime (e.g. Gemini CLI) requires:
+`src/transcript/core/runtimes.ts` owns base discovery and record normalization.
+Cursor's physical-frame and lifecycle semantics live in the adjacent canonical
+`cursor-frames.ts` and `cursor-analysis.ts` modules. Adding another conventional
+record-based runtime (for example, Gemini CLI) requires:
 
 1. Add a case to `discoverPaths(runtime)`.
 2. Add a case to `encodeCwd(runtime, cwd)`.
@@ -334,4 +376,6 @@ Observed Cursor block types in the local spike were `text` and `tool_use`; obser
 4. Add a case to `extractMeta(runtime, transcriptPath)`.
 5. Add a case to `normalizeEntries(runtime, records, opts)`.
 
-Nothing else in the CLI or library stack needs to change.
+If a new runtime also needs framed continuity or separate observation/completion
+projections, add that behavior to canonical TypeScript and declare its generated
+outputs rather than embedding parser logic in a shipped consumer.

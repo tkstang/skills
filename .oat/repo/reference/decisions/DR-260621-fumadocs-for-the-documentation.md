@@ -2,7 +2,7 @@
 id: DR-260621-fumadocs-for-the-documentation
 title: Fumadocs for the documentation site
 date: 2026-06-21
-status: proposed
+status: accepted
 legacy_id: DR-025
 ---
 

@@ -1,4 +1,12 @@
 import type {
+  CursorLifecycleState,
+  CursorTranscriptAnalysis,
+} from '../../core/cursor-analysis.js';
+import type {
+  CursorFrameIssue,
+  CursorTranscriptScan,
+} from '../../core/cursor-frames.js';
+import type {
   AutomaticControlProvenance,
   CursorTerminalStatus,
   DigestEntry,
@@ -20,6 +28,9 @@ export type RankTier = 'A' | 'B' | 'C';
 export type EngagementStatus = 'engaged' | 'unengaged' | 'unknown';
 export type DigestMode = 'review' | 'catch-up' | 'locate';
 export type WatchControlDirective = 'flush' | 'pause' | 'resume' | 'stop';
+export type TranscriptIndexBase =
+  | 'zero-based-jsonl-record-index'
+  | 'zero-based-jsonl-frame-index';
 
 export interface TranscriptClassification {
   status: EngagementStatus;
@@ -64,6 +75,172 @@ export interface TranscriptCandidate extends EngagementCandidateFields {
   active?: boolean;
   snippetMatch?: SnippetMatch;
 }
+
+export type CursorCwdEvidence =
+  | 'direct-project-root'
+  | 'store-metadata'
+  | 'harness-environment'
+  | 'fallback-slug';
+
+export type CursorSessionEvidence =
+  | 'explicit-pin'
+  | 'harness-environment'
+  | 'transcript-path';
+
+export interface CursorIdentityEvidence {
+  runtime: 'cursor';
+  sessionId: string;
+  /** Canonical cwd used by observer identity and the shared turn analyzer. */
+  projectCwd: string;
+  canonicalCwd: string;
+  canonicalTranscriptPath: string;
+  cwdEvidence: CursorCwdEvidence[];
+  sessionEvidence: CursorSessionEvidence[];
+  strength: 'exact' | 'diagnostic' | 'ambiguous';
+  reasons: string[];
+}
+
+export type CursorProjection = 'observation' | 'confirmed-completion';
+
+export interface ObservationStatus {
+  engagement: 'engaged' | 'unengaged' | 'unknown';
+  activity: 'none' | 'human-input' | 'assistant-progress' | 'tool-activity';
+  content: 'none' | 'buffered' | 'available' | 'suppressed';
+  lifecycle: CursorLifecycleState | 'none';
+  delivery: 'none' | 'reserved' | 'committed' | 'uncertain';
+  health: 'healthy' | 'blocked' | 'stale' | 'error' | 'unknown';
+}
+
+export interface CursorLifecycleEvent {
+  turnId: string;
+  terminalFrameIndex: number;
+  lifecycle: Exclude<CursorLifecycleState, 'pending'>;
+  finalEntryKey: string | null;
+  contentPreviouslyObservable: boolean;
+}
+
+export interface CursorDigestEvidence {
+  projection: CursorProjection;
+  continuity: 'new' | 'verified';
+  status: ObservationStatus;
+  lifecycleEvents: CursorLifecycleEvent[];
+  bufferedFromFrame: number | null;
+  blockingFrame: CursorFrameIssue | null;
+}
+
+export interface TranscriptContinuityCheckpoint {
+  indexBase: 'zero-based-jsonl-frame-index';
+  nextFrameIndex: number;
+  prefixBytes: number;
+  prefixSha256: string;
+  observedSize: number;
+  device: number | null;
+  inode: number | null;
+}
+
+export type ContinuityFailureCode =
+  | 'LEGACY_CURSOR_UNVERIFIED'
+  | 'INDEX_BASE_MISMATCH'
+  | 'FILE_IDENTITY_UNAVAILABLE'
+  | 'TRANSCRIPT_SHRANK'
+  | 'PREFIX_MISMATCH'
+  | 'TRANSCRIPT_REPLACED'
+  | 'ROTATION_UNSUPPORTED';
+
+export type ContinuityResult =
+  | { status: 'new'; fromFrameIndex: 0 }
+  | { status: 'verified'; fromFrameIndex: number }
+  | {
+      status: 'blocked';
+      code: ContinuityFailureCode;
+      message: string;
+      checkpoint: TranscriptContinuityCheckpoint | null;
+    };
+
+export interface LegacyCursorStateMarker {
+  runtime: 'cursor';
+  sessionId: string;
+  legacyLastRecordIndex: number;
+  transcriptPath?: string;
+  recordedCwd?: string | null;
+  lastReadAt?: string;
+  backupPath: string;
+  migrationStatus: 'marker-written' | 'legacy-removed' | 'complete';
+  createdAt: string;
+}
+
+export interface CursorTurnReconciliation {
+  turnId: string;
+  fromFrameIndex: number;
+  observedThroughFrame: number;
+  deliveredEntryKeys: string[];
+  assistantEntryKeys: string[];
+  humanRecordIndexes: number[];
+  toolRecordIndexes: number[];
+  hasHumanInput: boolean;
+  hasAutomaticControlInput: boolean;
+  lifecycle: CursorLifecycleState;
+}
+
+export interface CursorStabilityCandidate {
+  turnId: string;
+  fromFrameIndex: number;
+  throughFrameIndex: number;
+  entryKeys: string[];
+  prefixBytes: number;
+  prefixSha256: string;
+  firstObservedAt: string;
+  confirmAfter: string;
+  confirmedAt: string | null;
+}
+
+export interface CursorCandidateObservation {
+  turnId: string;
+  fromFrameIndex: number;
+  throughFrameIndex: number;
+  entryKeys: string[];
+  prefixBytes: number;
+  prefixSha256: string;
+  observedAt: string;
+}
+
+export interface PendingCursorDelivery {
+  deliveryId: string;
+  canonicalCwd: string;
+  transcriptPath: string;
+  expectedNextFrameIndex: number;
+  expectedCheckpoint: TranscriptContinuityCheckpoint;
+  reservedThroughFrameIndex: number;
+  entryKeys: string[];
+  intendedCheckpoint: TranscriptContinuityCheckpoint;
+  reservedByPid: number;
+  reservedAt: string;
+}
+
+export interface CursorSessionStateEntry {
+  runtime: 'cursor';
+  sessionId: string;
+  indexBase: 'zero-based-jsonl-frame-index';
+  /** First unconsumed frame; retained under the shared display field name. */
+  lastRecordIndex: number;
+  canonicalCwd: string;
+  transcriptPath: string;
+  continuity: TranscriptContinuityCheckpoint;
+  lastStatus: ObservationStatus;
+  openTurn: CursorTurnReconciliation | null;
+  stabilityCandidate: CursorStabilityCandidate | null;
+  pendingDelivery: PendingCursorDelivery | null;
+}
+
+export interface CursorObserverStateV2 {
+  schemaVersion: 2;
+  sessions: Record<string, CursorSessionStateEntry>;
+  legacyUnverified: Record<string, LegacyCursorStateMarker>;
+}
+
+export type CursorStateMutator = (
+  state: CursorObserverStateV2,
+) => CursorObserverStateV2 | void;
 
 export interface TranscriptIdentityEvidence {
   runtime: Runtime;
@@ -210,7 +387,7 @@ export interface BuildDigestOptions {
 }
 
 export interface Digest {
-  schemaVersion: number;
+  schemaVersion: 1;
   runtime: Runtime;
   sessionId: string;
   transcriptPath: string;
@@ -227,6 +404,91 @@ export interface Digest {
   warnings: string[];
   fallbacks: TranscriptCandidate[];
 }
+
+export interface CursorDigestRangeV2 {
+  indexBase: 'zero-based-jsonl-frame-index';
+  fromIndex: number;
+  toIndex: number | null;
+  nextIndex: number;
+  totalFrames: number;
+  renderedFromIndex: number | null;
+  renderedToIndex: number | null;
+  newFrames: number;
+}
+
+export interface CursorRecoveryPointerV2 {
+  transcriptPath: string;
+  indexBase: 'zero-based-jsonl-frame-index';
+  frameIndex: number;
+  entryKey: string;
+}
+
+export interface CursorDigestAccountingV2 {
+  indexBase: 'zero-based-jsonl-frame-index';
+  raw: {
+    fromIndex: number;
+    toIndex: number | null;
+    count: number;
+    nextIndex: number;
+    totalFrames: number;
+  };
+  rendered: {
+    count: number;
+    fromIndex: number | null;
+    toIndex: number | null;
+  };
+  filtered: {
+    toolCalls: number;
+    automaticControls: number;
+    emptyOrNoOp: number;
+    metadataFrames: number;
+    unstableContent: number;
+  };
+  buffered: {
+    fromIndex: number | null;
+    count: number;
+    reason: 'partial' | 'malformed' | 'stability-wait' | null;
+  };
+  recovery: {
+    omittedUserMessages: CursorRecoveryPointerV2[];
+    omittedAssistantEntries: CursorRecoveryPointerV2[];
+  };
+}
+
+export interface CursorDigestEntryV2 extends Omit<
+  DigestEntry,
+  'recordIndex' | 'sourceRecordIndex'
+> {
+  /** Delivery frame under the declared frame-index base. */
+  recordIndex: number;
+  /** Original content frame retained when delivery is gated by later evidence. */
+  sourceFrameIndex: number;
+  entryKey: string;
+  turnId: string;
+  availability: 'pending-lifecycle' | 'completed';
+}
+
+export interface CursorDigestV2 extends Omit<
+  Digest,
+  'schemaVersion' | 'range' | 'accounting' | 'entries'
+> {
+  schemaVersion: 2;
+  range: CursorDigestRangeV2;
+  accounting: CursorDigestAccountingV2;
+  entries: CursorDigestEntryV2[];
+  cursorEvidence: CursorDigestEvidence;
+}
+
+export type SessionDigest = Digest | CursorDigestV2;
+
+export type CursorBuildDigestOptions = BuildDigestOptions & {
+  cursorProjection: CursorProjection;
+  cursorIdentity: CursorIdentityEvidence;
+  cursorScan: CursorTranscriptScan;
+  cursorAnalysis: CursorTranscriptAnalysis;
+  cursorState: CursorSessionStateEntry | null;
+  cursorContinuity: 'new' | 'verified';
+};
 
 export interface SessionStateEntry {
   runtime: Runtime;
@@ -268,6 +530,21 @@ export interface WatchTargetRecord {
   lockedAt: string;
 }
 
+export interface WatchTargetRecordV2 extends WatchTargetRecord {
+  runtime: 'cursor';
+  indexBase: 'zero-based-jsonl-frame-index';
+  canonicalTranscriptPath: string;
+  observationCursor: number;
+  bufferedFromFrame: number | null;
+  continuity: TranscriptContinuityCheckpoint;
+  pendingCandidateDeadline: string | null;
+  lastStatus: ObservationStatus;
+  continuityState: 'verified' | 'blocked';
+  ownerPid: number;
+}
+
+export type DurableWatchTargetRecord = WatchTargetRecord | WatchTargetRecordV2;
+
 export interface WatcherRecord {
   pid: number;
   runtime: WatchRuntimeSelection | string;
@@ -286,7 +563,7 @@ export interface WatcherRecord {
   resolvedRuntime: Runtime | null;
   sessionId: string | null;
   transcriptPath: string | null;
-  targets: WatchTargetRecord[];
+  targets: DurableWatchTargetRecord[];
   lastError: { at: string; message: string } | null;
   [key: string]: unknown;
 }
@@ -319,7 +596,31 @@ export interface WatcherTargetInput {
   baselineRecordIndex?: number | null;
   engagementStatus?: EngagementStatus | null;
   lockedAt?: string | Date;
+  indexBase?: 'zero-based-jsonl-frame-index';
+  canonicalTranscriptPath?: string;
+  observationCursor?: number;
+  bufferedFromFrame?: number | null;
+  continuity?: TranscriptContinuityCheckpoint;
+  pendingCandidateDeadline?: string | Date | null;
+  lastStatus?: ObservationStatus;
+  continuityState?: 'verified' | 'blocked';
 }
+
+export interface CursorWatchTargetTransition {
+  observationCursor: number;
+  recordCount?: number;
+  bufferedFromFrame: number | null;
+  continuity: TranscriptContinuityCheckpoint;
+  pendingCandidateDeadline: string | Date | null;
+  lastStatus: ObservationStatus;
+  continuityState: 'verified' | 'blocked';
+}
+
+export type CursorWatchTargetCasResult =
+  | { status: 'updated'; target: WatchTargetRecordV2 }
+  | { status: 'stale'; target: WatchTargetRecordV2 }
+  | { status: 'not-owner' }
+  | { status: 'not-found' };
 
 export interface WatchControlFile {
   directive: WatchControlDirective;
@@ -364,6 +665,7 @@ export interface WatchLoopDeps {
   writeStdout?: (chunk: string) => boolean | number | void | Promise<unknown>;
   pid?: number;
   handleSignals?: boolean;
+  onCursorScan?: () => void;
 }
 
 export interface CliArgs extends WatchLoopArgs {
@@ -398,6 +700,9 @@ export type ObserveFailureKind =
   | 'ambiguousRuntime'
   | 'unengagedOnly'
   | 'ties'
+  | 'identityBlocked'
+  | 'continuityBlocked'
+  | 'ownerConflict'
   | 'error';
 
 export interface ObserveFailure {
@@ -422,11 +727,16 @@ export interface ObserveFailurePayload extends JsonObject {
   sisters?: string[];
   globalRecent?: TranscriptCandidate[];
   message?: string;
+  identityBlocked?: true;
+  continuityBlocked?: true;
+  ownerConflict?: true;
+  code?: string;
+  reasons?: string[];
 }
 
-export interface ObserveSuccess {
+export interface LegacyObserveSuccess {
   ok: true;
-  runtime: Runtime;
+  runtime: Exclude<Runtime, 'cursor'>;
   candidate: TranscriptCandidate;
   rankResult?: RankResult;
   digest: Digest;
@@ -435,7 +745,54 @@ export interface ObserveSuccess {
   markedRead: boolean;
 }
 
-export type ObserveOutcome = ObserveSuccess | ObserveFailure;
+export interface CursorDeliveryUncertain {
+  status: 'delivery-uncertain';
+  deliveryId: string;
+  entryKeys: string[];
+  expectedNextFrameIndex: number;
+  reservedThroughFrameIndex: number;
+}
+
+export interface CursorDeliveryHandle {
+  deliveryId: string;
+  sessionId: string;
+  ownerPid: number;
+  entryKeys: string[];
+  commit(): Promise<'committed' | 'stale'>;
+  abandon(options?: {
+    deliveryUncertain?: boolean;
+  }): Promise<'abandoned' | 'stale' | 'owner-conflict' | 'delivery-uncertain'>;
+}
+
+export interface CursorObserveSuccess {
+  ok: true;
+  runtime: 'cursor';
+  candidate: TranscriptCandidate;
+  rankResult?: RankResult;
+  digest: CursorDigestV2;
+  sessionState: null;
+  cursorState: CursorSessionStateEntry;
+  fromIndex: number;
+  markedRead: false;
+  delivery: CursorDeliveryHandle | null;
+  deliveryUncertain: CursorDeliveryUncertain | null;
+}
+
+export interface ObserveDeps {
+  now?: () => number;
+  sleep?: (ms: number) => Promise<unknown>;
+  ownerPid?: number;
+  onCursorScan?: () => void;
+}
+
+export type ObserveSuccess = LegacyObserveSuccess;
+
+export type ObserveOutcome =
+  | LegacyObserveSuccess
+  | CursorObserveSuccess
+  | ObserveFailure;
+export type CursorObserveOutcome = CursorObserveSuccess | ObserveFailure;
+export type LegacyObserveOutcome = LegacyObserveSuccess | ObserveFailure;
 
 export interface ObservedRuntimeResolution {
   runtime?: Runtime;

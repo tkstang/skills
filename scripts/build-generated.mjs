@@ -186,6 +186,17 @@ export const generatedOutputs = [
     output: 'skills/session-observer/scripts/lib/runtimes.mjs',
   },
   {
+    id: 'transcript-core-cursor-frames-session-observer',
+    source: 'src/transcript/core/cursor-frames.ts',
+    output: 'skills/session-observer/scripts/lib/cursor-frames.mjs',
+  },
+  {
+    id: 'transcript-core-cursor-analysis-session-observer',
+    source: 'src/transcript/core/cursor-analysis.ts',
+    output: 'skills/session-observer/scripts/lib/cursor-analysis.mjs',
+    importRewrites: [{ from: './runtimes.js', to: './runtimes.mjs' }],
+  },
+  {
     id: 'session-observer-digest',
     source: 'src/transcript/session-observer/lib/digest.ts',
     output: 'skills/session-observer/scripts/lib/digest.mjs',
@@ -214,6 +225,12 @@ export const generatedOutputs = [
     id: 'session-observer-state',
     source: 'src/transcript/session-observer/lib/state.ts',
     output: 'skills/session-observer/scripts/lib/state.mjs',
+    importRewrites: [{ from: './cursor-state.js', to: './cursor-state.mjs' }],
+  },
+  {
+    id: 'session-observer-cursor-state',
+    source: 'src/transcript/session-observer/lib/cursor-state.ts',
+    output: 'skills/session-observer/scripts/lib/cursor-state.mjs',
   },
   {
     id: 'session-observer-watch-state',
@@ -239,6 +256,17 @@ export const generatedOutputs = [
     id: 'transcript-core-export-session',
     source: 'src/transcript/core/runtimes.ts',
     output: 'skills/export-session-transcript/scripts/lib/runtimes.mjs',
+  },
+  {
+    id: 'transcript-core-cursor-frames-export-session',
+    source: 'src/transcript/core/cursor-frames.ts',
+    output: 'skills/export-session-transcript/scripts/lib/cursor-frames.mjs',
+  },
+  {
+    id: 'transcript-core-cursor-analysis-export-session',
+    source: 'src/transcript/core/cursor-analysis.ts',
+    output: 'skills/export-session-transcript/scripts/lib/cursor-analysis.mjs',
+    importRewrites: [{ from: './runtimes.js', to: './runtimes.mjs' }],
   },
   {
     id: 'export-session-sanitize',

@@ -74,7 +74,10 @@ describe('readme-scope', () => {
     expect(docs).toMatch(/N=2/);
     expect(docs).toMatch(/event-wake/);
     expect(docs).toMatch(/Codex validated/);
-    expect(docs).toMatch(/Cursor documented-but-unvalidated/);
+    expect(docs).toMatch(
+      /Cursor unavailable[\s\S]*top-level Stop[\s\S]*managed-subagent/,
+    );
+    expect(docs).toMatch(/Cursor selected[\s\S]*buffered-manual/i);
     expect(docs).toMatch(/Claude Code Monitor unvalidated/);
     expect(docs).toMatch(/exact pins|exact peer pin/i);
     expect(docs).toMatch(/human authority|human direction/i);
@@ -190,9 +193,7 @@ describe('readme-scope', () => {
     expect(docs).toMatch(/consensus config get --json --scope effective/);
     expect(docs).toMatch(/\.config\/consensus\/config\.json/);
     expect(docs).toMatch(/\.consensus\/config\.json/);
-    expect(docs).toMatch(
-      /invocation[\s\S]*project[\s\S]*user[\s\S]*built-in/i,
-    );
+    expect(docs).toMatch(/invocation[\s\S]*project[\s\S]*user[\s\S]*built-in/i);
     expect(docs).not.toMatch(
       /Remaining consensus-family skills are future work:[^\n]*consensus-panel/i,
     );

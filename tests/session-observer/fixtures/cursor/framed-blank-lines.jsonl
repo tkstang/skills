@@ -1,0 +1,4 @@
+{"role":"user","message":{"content":[{"type":"text","text":"Synthetic request alpha."}]}}
+
+{"role":"assistant","message":{"content":[{"type":"text","text":"Synthetic response alpha."}]}}
+

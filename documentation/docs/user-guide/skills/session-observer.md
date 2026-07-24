@@ -8,7 +8,9 @@ description: 'Review what another coding agent did in this project with tool-fre
 `session-observer` is a standalone Agent Skill for checking what another coding
 agent just did in the current project. It lets you (Claude Code, Codex, or
 Cursor) inspect another runtime's transcript, render a tool-free digest, and
-track per-runtime read offsets so follow-up checks surface only new content.
+track per-session read positions so follow-up checks surface only new content.
+Claude Code and Codex retain record-index offsets. Cursor uses a separate
+frame-indexed state and continuity contract.
 
 ## What it does
 
@@ -19,9 +21,12 @@ track per-runtime read offsets so follow-up checks surface only new content.
   slash-command payload records are excluded. Opt in with `--include-tools`
   (adds compact call markers), `--include-command-messages` (adds slash-command
   payloads), or `--debug` (adds tool markers and results).
-- Tracks **per-session read offsets** (a high-water mark over raw transcript
-  records consumed), so `catch-up` shows only records that arrived since the
-  last read. A full `review` reads from the start; `catch-up` reads the delta.
+- Tracks **per-session read positions**, so `catch-up` shows only input that
+  arrived since the last read. Claude Code and Codex count JSONL records;
+  Cursor digest schema v2 counts physical JSONL frames.
+- Uses **content-first Cursor observation**. Prefix-stable substantive content
+  can be reported while lifecycle is still pending. Confirmed completion
+  remains a separate, terminal-only claim.
 - Supports a foreground **watch mode**. `watch` and the top-level `--watch`
   alias poll the active peer transcript, debounce settled changes, emit
   catch-up digests to stdout, and can be controlled with `watch-ctl status`,
@@ -71,7 +76,7 @@ flowchart TD
   K -- No event --> W
   N --> D[Render tool-free digest]
   D --> A{Advance offset?}
-  A -- catch-up or watch success --> O[Store next unread raw-record index]
+  A -- catch-up or watch success --> O[Store next unread runtime position]
   A -->|"review with --mark-read"| O
   A -->|"review without --mark-read"| Z[Leave offset unchanged]
   O --> T{Continue in watch mode?}
@@ -97,7 +102,8 @@ flags are the base observer's collaboration-facing contract:
 Watch output can report `baseline-gap`, `newer-session-candidate`, terminal
 diagnostics, or automatic control input. A newer-session candidate is a warning,
 not permission to switch pins. A filtered or empty digest is not evidence that
-the peer was idle; inspect the raw-record accounting or run a pinned review.
+the peer was idle; inspect the digest's declared schema, index base, and
+accounting or run a pinned review.
 
 For the two-peer handshake, wake tiers, authority rules, and lifecycle setup,
 see [Session Observer Collaboration](session-observer-collab.md).
@@ -114,10 +120,51 @@ same-cwd state, or candidate availability:
 
 For watch mode, `--runtime both` watches Claude Code and Codex in one foreground
 process. Cursor remains supported through explicit `--runtime cursor` or
-`--runtime auto`. `watch-ctl status --json` includes the resolved session id,
-transcript path, current transcript record count, consumed offset, records
-behind, and health flags, so consumers can distinguish peer idleness from
-watcher drift.
+`--runtime auto`. `watch-ctl status --json` includes the resolved session ID,
+transcript path, declared index base, current input count, consumed position,
+buffered/behind position, and health details. Cursor targets also expose
+independent status facets, so engagement, activity, content availability,
+lifecycle, delivery, and watcher health are not inferred from one another.
+
+## Cursor reliability contract
+
+Cursor support is intentionally narrower and more explicit than a generic
+record offset:
+
+- **Surface and identity:** the supported baseline is agent-transcript JSONL
+  under `~/.cursor/projects/`. Stateful reads require an exact session,
+  canonical project cwd, and canonical transcript path. Project-slug or recency
+  matches are diagnostic candidates only and never inherit state or authorize a
+  pin switch.
+- **Digest and index:** Cursor returns digest schema v2 with
+  `indexBase: "zero-based-jsonl-frame-index"`. `fromIndex` is inclusive and
+  `nextIndex` is the first unconsumed safe frame. Entry `recordIndex` is the
+  delivery frame; `sourceFrameIndex` identifies the original content frame.
+  Do not reinterpret these values as schema-v1 record indices.
+- **Observation versus completion:** the ordinary observer requests the
+  `observation` projection. After one unchanged stability interval,
+  substantive content may be `available` with entry availability
+  `pending-lifecycle`. A later `turn_ended` reconciles lifecycle as success,
+  aborted, error, cancelled, or unknown. Completion-sensitive collaboration
+  separately requests `confirmed-completion` and cannot consume an open turn.
+- **State and continuity:** Cursor state lives in the owner-only
+  `cursor-state.json` schema-v2 store. Its first-unconsumed frame, canonical
+  identity, prefix checkpoint, open turn, stability candidate, delivery
+  reservation, and last status are isolated from legacy `state.json` record
+  offsets. Shrink, prefix mismatch, replacement, unsupported rotation, or
+  unverified legacy state blocks advancement instead of silently resetting.
+- **Recovery:** use `state reset --session cursor:<session-id>` to discard one
+  Cursor session's state and explicitly replay from frame zero. Use
+  `state reset --runtime cursor` only when every Cursor session can be reset and
+  replayed. The CLI reports the recovery scope and destructive effect before
+  the broader reset.
+
+Cursor observed-side reading and bounded foreground watching are
+`live-validated` for the measured local Cursor 3.11.13 agent-transcript surface.
+That label does not promote other Cursor stores, lifecycle continuation,
+scheduled callbacks, or background-agent surfaces. Unmeasured behavior remains
+`documented-but-unvalidated` or `unavailable`; collaboration therefore keeps
+buffered manual catch-up when no effective wake route is proven.
 
 ## Permissions
 

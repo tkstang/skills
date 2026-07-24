@@ -64,6 +64,12 @@ describe('generated output drift guard', () => {
     expect(result.stdout).toContain(
       'transcript-core-session-observer: in sync',
     );
+    expect(result.stdout).toContain(
+      'transcript-core-cursor-frames-session-observer: in sync',
+    );
+    expect(result.stdout).toContain(
+      'transcript-core-cursor-analysis-session-observer: in sync',
+    );
     expect(result.stdout).toContain('session-observer-digest: in sync');
     expect(result.stdout).toContain('session-observer-locate: in sync');
     expect(result.stdout).toContain('session-observer-observe: in sync');
@@ -77,6 +83,12 @@ describe('generated output drift guard', () => {
     expect(result.stdout).toContain('session-observer-cli: in sync');
     expect(result.stdout).toContain('session-observer-probe-local: in sync');
     expect(result.stdout).toContain('transcript-core-export-session: in sync');
+    expect(result.stdout).toContain(
+      'transcript-core-cursor-frames-export-session: in sync',
+    );
+    expect(result.stdout).toContain(
+      'transcript-core-cursor-analysis-export-session: in sync',
+    );
     expect(result.stdout).toContain('export-session-sanitize: in sync');
     expect(result.stdout).toContain('export-session-transcript-cli: in sync');
     expect(result.stdout).not.toContain('pending');
@@ -129,8 +141,16 @@ describe('generated output drift guard', () => {
     expect(script).toContain('src/consensus/provider-cli/cli.ts');
     expect(script).toContain('plugins/consensus/scripts/consensus.mjs');
     expect(script).toContain('src/transcript/core/runtimes.ts');
+    expect(script).toContain('src/transcript/core/cursor-frames.ts');
+    expect(script).toContain('src/transcript/core/cursor-analysis.ts');
     expect(script).toContain(
       'skills/session-observer/scripts/lib/runtimes.mjs',
+    );
+    expect(script).toContain(
+      'skills/session-observer/scripts/lib/cursor-frames.mjs',
+    );
+    expect(script).toContain(
+      'skills/session-observer/scripts/lib/cursor-analysis.mjs',
     );
     expect(script).toContain(
       'src/transcript/session-observer/session-observer.ts',
@@ -167,6 +187,12 @@ describe('generated output drift guard', () => {
     expect(script).toContain(
       'skills/export-session-transcript/scripts/lib/runtimes.mjs',
     );
+    expect(script).toContain(
+      'skills/export-session-transcript/scripts/lib/cursor-frames.mjs',
+    );
+    expect(script).toContain(
+      'skills/export-session-transcript/scripts/lib/cursor-analysis.mjs',
+    );
     expect(script).toContain('src/transcript/export-session/sanitize.ts');
     expect(script).toContain(
       'skills/export-session-transcript/scripts/lib/sanitize.mjs',
@@ -177,6 +203,59 @@ describe('generated output drift guard', () => {
     expect(script).toContain(
       'skills/export-session-transcript/scripts/export-session-transcript.mjs',
     );
+  });
+
+  it('maps both Cursor framed modules into both shipped runtime trees', async () => {
+    const expected = [
+      {
+        id: 'transcript-core-cursor-frames-session-observer',
+        source: 'src/transcript/core/cursor-frames.ts',
+        output: 'skills/session-observer/scripts/lib/cursor-frames.mjs',
+        importRewrites: undefined,
+      },
+      {
+        id: 'transcript-core-cursor-analysis-session-observer',
+        source: 'src/transcript/core/cursor-analysis.ts',
+        output: 'skills/session-observer/scripts/lib/cursor-analysis.mjs',
+        importRewrites: [{ from: './runtimes.js', to: './runtimes.mjs' }],
+      },
+      {
+        id: 'transcript-core-cursor-frames-export-session',
+        source: 'src/transcript/core/cursor-frames.ts',
+        output:
+          'skills/export-session-transcript/scripts/lib/cursor-frames.mjs',
+        importRewrites: undefined,
+      },
+      {
+        id: 'transcript-core-cursor-analysis-export-session',
+        source: 'src/transcript/core/cursor-analysis.ts',
+        output:
+          'skills/export-session-transcript/scripts/lib/cursor-analysis.mjs',
+        importRewrites: [{ from: './runtimes.js', to: './runtimes.mjs' }],
+      },
+    ];
+
+    for (const contract of expected) {
+      const mapping = generatedOutputs.find(
+        (candidate: any) => candidate.id === contract.id,
+      );
+      expect(mapping).toMatchObject({
+        id: contract.id,
+        source: contract.source,
+        output: contract.output,
+      });
+      expect(mapping.importRewrites).toEqual(contract.importRewrites);
+
+      const output = await readFile(
+        new URL(`../../${contract.output}`, import.meta.url),
+        'utf8',
+      );
+      expect(output).toContain(`// Source: ${contract.source}`);
+      if (contract.source.endsWith('cursor-analysis.ts')) {
+        expect(output).toContain("from './runtimes.mjs'");
+        expect(output).not.toContain("from './runtimes.js'");
+      }
+    }
   });
 
   it('declares one shared plugin loop output and no per-skill loop outputs', () => {

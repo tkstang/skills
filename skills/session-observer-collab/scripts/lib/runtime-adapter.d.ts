@@ -4,6 +4,7 @@ import type {
   LeaseUpdate,
   OwnerRuntime,
   PeerRuntime,
+  TranscriptContinuityCheckpoint,
   WaiterIdentity,
 } from './lease-state.mjs';
 
@@ -40,6 +41,17 @@ export interface ValidatedInvocation {
   waiter?: WaiterIdentity;
 }
 
+export interface AdapterCursorUpdate {
+  peerCursor: number;
+  peerContinuity: TranscriptContinuityCheckpoint;
+}
+
+export interface ContinuityVerification {
+  verified: boolean;
+  reason: string;
+  canonicalTranscriptPath: string | null;
+}
+
 export const RUNTIME_ADAPTER_VERSION: number;
 export function defineRuntimeAdapter(
   adapter: RuntimeAdapterInput,
@@ -51,6 +63,10 @@ export function inspectAdapterLease(
   root: string,
   invocation: AdapterInvocation,
 ): Promise<{ eligible: boolean; reason: string; lease: Lease | null }>;
+export function verifyAdapterPeerContinuity(
+  lease: Lease,
+  transcript: string,
+): Promise<ContinuityVerification>;
 export function beginAdapterWait(
   root: string,
   invocation: AdapterInvocation,
@@ -74,7 +90,7 @@ export function advanceAdapterCursor(
   root: string,
   invocation: AdapterInvocation,
   expected: LeaseCounters,
-  peerCursor: number,
+  cursorUpdate: number | AdapterCursorUpdate,
 ): Promise<{
   advanced: boolean;
   reason: string;
@@ -85,6 +101,7 @@ export function claimAdapterTrigger(
   invocation: AdapterInvocation,
   expected: LeaseCounters,
   completion: LeaseUpdate | null | undefined,
+  clock?: () => number,
 ): Promise<{
   triggered: boolean;
   reason: string;

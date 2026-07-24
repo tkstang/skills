@@ -19,6 +19,10 @@ import {
   finishAdapterWait,
   inspectAdapterLease,
 } from '../lib/runtime-adapter.mjs';
+import {
+  observeCursorCompletion,
+  verifySelectedPrefix,
+} from '../lib/selected-prefix.mjs';
 
 const POLL_MS = 250;
 
@@ -51,6 +55,17 @@ function counters(lease) {
   };
 }
 
+function refreshWakeAuthorization(now, lease, deadline) {
+  const currentNow = now();
+  if (currentNow >= Date.parse(lease.expiresAt)) {
+    return { authorized: false, currentNow, diagnostic: 'lease-expired' };
+  }
+  if (currentNow >= deadline) {
+    return { authorized: false, currentNow, diagnostic: 'wait-timeout' };
+  }
+  return { authorized: true, currentNow, diagnostic: null };
+}
+
 function allow(diagnostic) {
   return Object.freeze({ decision: 'allow', diagnostic });
 }
@@ -63,12 +78,24 @@ function escapeAttribute(value) {
     .replaceAll('>', '&gt;');
 }
 
+function completionIndexBase(value) {
+  if (
+    value !== 'zero-based-jsonl-record-index' &&
+    value !== 'zero-based-jsonl-frame-index'
+  ) {
+    throw new TypeError('range.indexBase must be a supported index base');
+  }
+  return value;
+}
+
 export function wakeEnvelope(lease, range) {
   const peer = `${lease.peerRuntime}:${lease.peerSession}`;
+  const indexBase = completionIndexBase(range.indexBase);
   return [
-    '<session_observer_wake automatic="true"',
+    '<session_observer_wake automatic="true" schema_version="2"',
     `  runtime="codex" lease_id="${escapeAttribute(lease.leaseId)}"`,
-    `  peer="${escapeAttribute(peer)}" records="${range.fromIndex}-${range.toIndex}">`,
+    `  peer="${escapeAttribute(peer)}" index_base="${indexBase}"`,
+    `  records="${range.fromIndex}-${range.toIndex}">`,
     'Review the pinned peer range and respond only if it contains substantive new information.',
     '</session_observer_wake>',
   ].join('\n');
@@ -97,6 +124,9 @@ export const CODEX_STOP_ADAPTER = defineRuntimeAdapter({
 });
 
 async function defaultObserve(lease) {
+  if (lease.peerRuntime === 'cursor') {
+    return observeCursorCompletion(lease);
+  }
   return buildDigest(lease.peerRuntime, lease.peerTranscript, {
     fromIndex: lease.peerCursor,
     mode: 'review',
@@ -104,14 +134,55 @@ async function defaultObserve(lease) {
   });
 }
 
-function validSelection(selection, expected) {
+function validSelection(selection, expected, lease) {
   return (
     selection.continuation === true &&
+    selection.indexBase === lease.peerIndexBase &&
     selection.range !== null &&
     selection.range.fromIndex === expected.peerCursor &&
     selection.range.toIndex === selection.completedRecord &&
     selection.peerCursor === selection.completedRecord + 1
   );
+}
+
+function isPendingCursorCompletion(digest, lease) {
+  return (
+    lease.peerRuntime === 'cursor' &&
+    digest?.schemaVersion === 2 &&
+    digest.runtime === 'cursor' &&
+    digest.range?.indexBase === 'zero-based-jsonl-frame-index' &&
+    digest.accounting?.indexBase === 'zero-based-jsonl-frame-index' &&
+    digest.cursorEvidence?.projection === 'confirmed-completion' &&
+    digest.cursorEvidence?.status?.lifecycle === 'pending' &&
+    digest.cursorEvidence?.blockingFrame === null &&
+    digest.accounting?.buffered?.reason === 'stability-wait' &&
+    digest.range.fromIndex === lease.peerCursor &&
+    digest.range.nextIndex === lease.peerCursor
+  );
+}
+
+function validDigestForLease(digest, lease) {
+  if (lease.peerRuntime !== 'cursor') return digest?.schemaVersion === 1;
+  return (
+    digest?.schemaVersion === 2 &&
+    digest.runtime === 'cursor' &&
+    digest.range?.indexBase === lease.peerIndexBase &&
+    digest.accounting?.indexBase === lease.peerIndexBase &&
+    digest.cursorEvidence?.projection === 'confirmed-completion'
+  );
+}
+
+async function cursorUpdate(lease, selection) {
+  if (lease.peerRuntime !== 'cursor') {
+    return Object.freeze({ peerCursor: selection.peerCursor });
+  }
+  return Object.freeze({
+    peerCursor: selection.peerCursor,
+    peerContinuity: await verifySelectedPrefix(
+      lease.peerTranscript,
+      selection.selectedPrefix,
+    ),
+  });
 }
 
 /**
@@ -182,12 +253,25 @@ export async function runCodexStopHook(event, options = {}) {
     while ((currentNow = now()) < deadline) {
       let selection;
       try {
-        selection = selectCompletedContinuation(
-          await waitFor(
-            Promise.resolve().then(() => observe(activeLease)),
-            signal,
-          ),
+        const digest = await waitFor(
+          Promise.resolve().then(() => observe(activeLease)),
+          signal,
         );
+        if (!validDigestForLease(digest, activeLease)) {
+          diagnostic = 'observer-invalid';
+          return allow(diagnostic);
+        }
+        if (isPendingCursorCompletion(digest, activeLease)) {
+          const remaining = deadline - now();
+          if (remaining > 0) {
+            await waitFor(
+              Promise.resolve(sleep(Math.min(POLL_MS, remaining))),
+              signal,
+            );
+          }
+          continue;
+        }
+        selection = selectCompletedContinuation(digest);
       } catch (error) {
         diagnostic =
           error?.code === 'provider-terminated'
@@ -196,21 +280,34 @@ export async function runCodexStopHook(event, options = {}) {
         return allow(diagnostic);
       }
 
-      if (validSelection(selection, expected)) {
+      if (validSelection(selection, expected, activeLease)) {
         const terminal =
           activeLease.continuationCount + selection.budgetCost >=
             activeLease.continuationCap ||
           activeLease.loopCount + 1 >= activeLease.loopCap;
+        await options.beforeCursorUpdate?.();
+        const update = await cursorUpdate(activeLease, selection);
+        const authorization = refreshWakeAuthorization(
+          now,
+          activeLease,
+          deadline,
+        );
+        currentNow = authorization.currentNow;
+        if (!authorization.authorized) {
+          diagnostic = authorization.diagnostic;
+          return allow(diagnostic);
+        }
         const claimed = await claimAdapterTrigger(
           root,
           { ...invocation, now: currentNow },
           expected,
           {
-            peerCursor: selection.peerCursor,
+            ...update,
             loopIncrement: 1,
             terminal,
             diagnostic: null,
           },
+          now,
         ).catch((error) => ({
           triggered: false,
           reason: error?.code ?? 'claim-failed',
@@ -231,11 +328,22 @@ export async function runCodexStopHook(event, options = {}) {
           diagnostic = 'noncontiguous-selection';
           return allow(diagnostic);
         }
+        const update = await cursorUpdate(activeLease, selection);
+        const authorization = refreshWakeAuthorization(
+          now,
+          activeLease,
+          deadline,
+        );
+        currentNow = authorization.currentNow;
+        if (!authorization.authorized) {
+          diagnostic = authorization.diagnostic;
+          return allow(diagnostic);
+        }
         const advanced = await advanceAdapterCursor(
           root,
           { ...invocation, now: currentNow },
           expected,
-          selection.peerCursor,
+          update,
         ).catch((error) => ({
           advanced: false,
           reason: error?.code ?? 'cursor-advance-failed',

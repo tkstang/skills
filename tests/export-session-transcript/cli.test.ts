@@ -227,6 +227,39 @@ function codexTranscriptNoCwd(
   return recs.map((r) => JSON.stringify(r)).join('\n') + '\n';
 }
 
+function cursorTranscript(marker: string): string {
+  const records = [
+    {
+      role: 'user',
+      message: {
+        content: [{ type: 'text', text: `EXPORT_SESSION_MARKER=${marker}` }],
+      },
+    },
+    {
+      role: 'user',
+      message: {
+        content: [{ type: 'text', text: 'Synthetic Cursor export request.' }],
+      },
+    },
+    {
+      role: 'assistant',
+      message: {
+        content: [
+          { type: 'text', text: 'Synthetic provisional Cursor response.' },
+        ],
+      },
+    },
+    {
+      role: 'assistant',
+      message: {
+        content: [{ type: 'text', text: 'Synthetic final Cursor response.' }],
+      },
+    },
+    { type: 'turn_ended', status: 'success' },
+  ];
+  return records.map((record) => JSON.stringify(record)).join('\n') + '\n';
+}
+
 async function setupHome(): Promise<string> {
   const home = await mkdtemp(join(tmpdir(), 'export-cli-'));
   await mkdir(join(home, 'Downloads'), { recursive: true });
@@ -256,6 +289,25 @@ async function writeCodex(
   const p = join(dir, `session-${sessionId}.jsonl`);
   await writeFile(p, content, 'utf8');
   return p;
+}
+
+async function writeCursor(
+  home: string,
+  content: string,
+  sessionId = 'cursor-001',
+): Promise<string> {
+  const dir = join(
+    home,
+    '.cursor',
+    'projects',
+    CURSOR_SLUG,
+    'agent-transcripts',
+    sessionId,
+  );
+  await mkdir(dir, { recursive: true });
+  const transcriptPath = join(dir, `${sessionId}.jsonl`);
+  await writeFile(transcriptPath, content, 'utf8');
+  return transcriptPath;
 }
 
 describe('export CLI — session selection', () => {
@@ -539,6 +591,29 @@ describe('export CLI — end-to-end sanitization', () => {
     assert.ok(md.includes('Use fs.readFile.'));
     assert.match(md, /Runtime:\s*codex/);
     assert.match(md, /Exported:/);
+    await rm(home, { recursive: true, force: true });
+  });
+
+  test('cursor: preserves the existing terminal-only projection', async () => {
+    const home = await setupHome();
+    const marker = 'cursormark88';
+    await writeCursor(home, cursorTranscript(marker), 'cursor-terminal');
+    const out = join(home, 'cursor-terminal.md');
+    const result = spawnCli(
+      ['--runtime', 'cursor', '--cwd', CWD, '--match', marker, '--out', out],
+      { HOME: home },
+    );
+
+    assert.equal(result.status, 0, result.stderr);
+    const markdown = await readFile(out, 'utf8');
+    assert.ok(markdown.includes('Synthetic Cursor export request.'));
+    assert.ok(markdown.includes('Synthetic final Cursor response.'));
+    assert.ok(
+      !markdown.includes('Synthetic provisional Cursor response.'),
+      'provisional Cursor response leaked into the terminal-only export',
+    );
+    assert.ok(!markdown.includes(marker), 'marker leaked');
+    assert.match(markdown, /Runtime:\s*cursor/);
     await rm(home, { recursive: true, force: true });
   });
 });

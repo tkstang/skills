@@ -5,6 +5,7 @@
   - [Engineering](engineering/index.md) — How this repo works, how its generated runtime is built, its layout, and how to contribute.
   - Architecture
     - [Architecture](engineering/architecture/index.md) — The single-source-of-truth and generated-runtime philosophy behind this repo: shipped skills run with no install step, built from canonical TypeScript that is developer tooling only.
+    - [Cursor Collaboration Reliability](engineering/architecture/cursor-collaboration-reliability.md) — How exact identity, physical-frame observation, isolated continuity state, and lease-scoped completion make Cursor a reliable observed collaboration peer.
     - [Generated runtime outputs](engineering/architecture/generated-runtime.md) — The build contract for generated runtime .mjs: edit canonical TypeScript under src/, run pnpm run build, verify with build:check, and never hand-edit a // GENERATED-bannered output.
     - [Shared transcript-core](engineering/architecture/transcript-core.md) — How per-provider transcript knowledge has a single source of truth at src/transcript/core/runtimes.ts, with a committed generated copy shipped per consuming skill.
   - Contributing

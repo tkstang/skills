@@ -35,6 +35,98 @@ function digest(entries: object[], fromIndex = 0, totalRecords = 8) {
   };
 }
 
+function cursorCompletionDigest(
+  entries: object[],
+  fromIndex = 3,
+  totalFrames = 8,
+) {
+  const renderedIndexes = entries.map(
+    (entry) => (entry as { recordIndex: number }).recordIndex,
+  );
+  return {
+    schemaVersion: 2,
+    runtime: 'cursor',
+    sessionId: 'cursor-peer',
+    transcriptPath: '/tmp/cursor-peer.jsonl',
+    range: {
+      indexBase: 'zero-based-jsonl-frame-index',
+      fromIndex,
+      toIndex: totalFrames > fromIndex ? totalFrames - 1 : null,
+      nextIndex: totalFrames,
+      totalFrames,
+      renderedFromIndex:
+        renderedIndexes.length > 0 ? Math.min(...renderedIndexes) : null,
+      renderedToIndex:
+        renderedIndexes.length > 0 ? Math.max(...renderedIndexes) : null,
+      newFrames: Math.max(0, totalFrames - fromIndex),
+    },
+    accounting: {
+      indexBase: 'zero-based-jsonl-frame-index',
+      raw: {
+        fromIndex,
+        toIndex: totalFrames > fromIndex ? totalFrames - 1 : null,
+        count: Math.max(0, totalFrames - fromIndex),
+        nextIndex: totalFrames,
+        totalFrames,
+      },
+      rendered: {
+        count: entries.length,
+        fromIndex:
+          renderedIndexes.length > 0 ? Math.min(...renderedIndexes) : null,
+        toIndex:
+          renderedIndexes.length > 0 ? Math.max(...renderedIndexes) : null,
+      },
+      filtered: {
+        toolCalls: 0,
+        automaticControls: 0,
+        emptyOrNoOp: 0,
+        metadataFrames: Math.max(0, totalFrames - fromIndex - entries.length),
+        unstableContent: 0,
+      },
+      buffered: {
+        fromIndex: null as number | null,
+        count: 0,
+        reason: null as 'partial' | 'malformed' | 'stability-wait' | null,
+      },
+      recovery: {
+        omittedUserMessages: [],
+        omittedAssistantEntries: [],
+      },
+    },
+    entries,
+    cursorEvidence: {
+      projection: 'confirmed-completion',
+      continuity: 'verified',
+      status: {
+        engagement: 'engaged',
+        activity: 'assistant-progress',
+        content: entries.length > 0 ? 'available' : 'none',
+        lifecycle: entries.length > 0 ? 'success' : 'none',
+        delivery: 'none',
+        health: 'healthy',
+      },
+      lifecycleEvents: entries.map((entry) => ({
+        turnId: (entry as { turnId: string }).turnId,
+        terminalFrameIndex: (entry as { recordIndex: number }).recordIndex,
+        lifecycle: 'success',
+        finalEntryKey: (entry as { entryKey: string }).entryKey,
+        contentPreviouslyObservable: false,
+      })),
+      bufferedFromFrame: null as number | null,
+      blockingFrame: null,
+      selectedPrefix: {
+        indexBase: 'zero-based-jsonl-frame-index',
+        nextFrameIndex: totalFrames,
+        prefixBytes: totalFrames * 100,
+        prefixSha256: 'a'.repeat(64),
+        observedSize: totalFrames * 100,
+        device: 1,
+        inode: 2,
+      },
+    },
+  };
+}
+
 const message = (
   role: 'user' | 'assistant',
   text: string,
@@ -56,6 +148,8 @@ describe('normalized completed continuation selection', () => {
     expect(result).toMatchObject({
       status: 'continuation',
       continuation: true,
+      indexBase: 'zero-based-jsonl-record-index',
+      completedIndex: 6,
       completedRecord: 6,
       nextCursor: 7,
       peerCursor: 7,
@@ -72,6 +166,279 @@ describe('normalized completed continuation selection', () => {
       'second question',
       'LGTM',
     ]);
+  });
+
+  test('selects a confirmed Cursor v2 completion by delivery frame index', () => {
+    const result = selectCompletedContinuation(
+      cursorCompletionDigest([
+        {
+          role: 'assistant',
+          text: 'Synthetic completed result.',
+          recordIndex: 7,
+          sourceFrameIndex: 6,
+          kind: 'message',
+          entryKey: 'entry-assistant-6',
+          turnId: 'turn-3',
+          availability: 'completed',
+        },
+      ]),
+    );
+
+    expect(result).toMatchObject({
+      status: 'continuation',
+      continuation: true,
+      indexBase: 'zero-based-jsonl-frame-index',
+      fromIndex: 3,
+      completedIndex: 7,
+      completedRecord: 7,
+      nextCursor: 8,
+      peerCursor: 8,
+      budgetCost: 1,
+      range: {
+        indexBase: 'zero-based-jsonl-frame-index',
+        fromIndex: 3,
+        toIndex: 7,
+      },
+      selectedPrefix: {
+        nextFrameIndex: 8,
+        prefixBytes: 800,
+        prefixSha256: 'a'.repeat(64),
+        observedSize: 800,
+        device: 1,
+        inode: 2,
+      },
+    });
+    expect(result.reviewEntries).toEqual([
+      expect.objectContaining({
+        recordIndex: 7,
+        sourceFrameIndex: 6,
+        entryKey: 'entry-assistant-6',
+        availability: 'completed',
+      }),
+    ]);
+  });
+
+  test('selects a complete terminal-success prefix before a valid pending Cursor suffix', () => {
+    const pending = cursorCompletionDigest(
+      [
+        {
+          role: 'assistant',
+          text: 'Synthetic completed prefix.',
+          recordIndex: 5,
+          sourceFrameIndex: 4,
+          kind: 'message',
+          entryKey: 'entry-assistant-4',
+          turnId: 'turn-3',
+          availability: 'completed',
+        },
+      ],
+      3,
+      8,
+    );
+    pending.range.toIndex = 5;
+    pending.range.nextIndex = 6;
+    pending.range.newFrames = 3;
+    pending.accounting.raw.toIndex = 5;
+    pending.accounting.raw.count = 3;
+    pending.accounting.raw.nextIndex = 6;
+    pending.accounting.filtered.metadataFrames = 0;
+    pending.accounting.buffered = {
+      fromIndex: 6,
+      count: 2,
+      reason: 'stability-wait',
+    };
+    pending.cursorEvidence.status.lifecycle = 'pending';
+    pending.cursorEvidence.bufferedFromFrame = 6;
+    pending.cursorEvidence.selectedPrefix.nextFrameIndex = 6;
+    pending.cursorEvidence.selectedPrefix.prefixBytes = 600;
+    pending.cursorEvidence.selectedPrefix.observedSize = 600;
+
+    expect(selectCompletedContinuation(pending)).toMatchObject({
+      status: 'continuation',
+      continuation: true,
+      indexBase: 'zero-based-jsonl-frame-index',
+      fromIndex: 3,
+      completedIndex: 5,
+      completedRecord: 5,
+      nextCursor: 6,
+      peerCursor: 6,
+      budgetCost: 1,
+      range: {
+        indexBase: 'zero-based-jsonl-frame-index',
+        fromIndex: 3,
+        toIndex: 5,
+      },
+      reviewEntries: [
+        expect.objectContaining({
+          text: 'Synthetic completed prefix.',
+          recordIndex: 5,
+          availability: 'completed',
+        }),
+      ],
+      selectedPrefix: {
+        nextFrameIndex: 6,
+        prefixBytes: 600,
+        observedSize: 600,
+      },
+    });
+  });
+
+  test('binds a Cursor completion checkpoint before a safe no-op suffix', () => {
+    const suffixDigest = cursorCompletionDigest(
+      [
+        {
+          role: 'assistant',
+          text: 'Synthetic substantive result.',
+          recordIndex: 2,
+          sourceFrameIndex: 1,
+          kind: 'message',
+          entryKey: 'entry-assistant-1',
+          turnId: 'turn-1',
+          availability: 'completed',
+        },
+      ],
+      0,
+      6,
+    );
+    suffixDigest.cursorEvidence.selectedPrefix.nextFrameIndex = 3;
+    suffixDigest.cursorEvidence.selectedPrefix.prefixBytes = 300;
+    suffixDigest.cursorEvidence.selectedPrefix.observedSize = 300;
+
+    expect(selectCompletedContinuation(suffixDigest)).toMatchObject({
+      continuation: true,
+      peerCursor: 3,
+      selectedPrefix: {
+        nextFrameIndex: 3,
+        prefixBytes: 300,
+        observedSize: 300,
+      },
+    });
+  });
+
+  test('rejects non-completion, unbound, or invalidly buffered Cursor v2 projections', () => {
+    const entry = {
+      role: 'assistant',
+      text: 'Synthetic completed result.',
+      recordIndex: 7,
+      sourceFrameIndex: 6,
+      kind: 'message',
+      entryKey: 'entry-assistant-6',
+      turnId: 'turn-3',
+      availability: 'completed',
+    };
+    const observation = cursorCompletionDigest([entry]);
+    observation.cursorEvidence.projection = 'observation';
+    expect(() => selectCompletedContinuation(observation)).toThrow(
+      /confirmed-completion/i,
+    );
+
+    const unbound = cursorCompletionDigest([entry]);
+    (unbound.cursorEvidence as any).selectedPrefix = null;
+    expect(() => selectCompletedContinuation(unbound)).toThrow(
+      /selected Cursor prefix snapshot/i,
+    );
+
+    const sliced = cursorCompletionDigest([entry]);
+    sliced.accounting.rendered.count = 2;
+    expect(() => selectCompletedContinuation(sliced)).toThrow(/complete/i);
+
+    const invalidSuffixes = [
+      {
+        name: 'malformed',
+        mutate(value: any) {
+          value.cursorEvidence.blockingFrame = {
+            frameIndex: 8,
+            byteStart: 800,
+            byteEnd: 820,
+            parseState: 'malformed',
+          };
+          value.cursorEvidence.status.health = 'blocked';
+          value.accounting.buffered.reason = 'malformed';
+        },
+      },
+      {
+        name: 'partial',
+        mutate(value: any) {
+          value.cursorEvidence.blockingFrame = {
+            frameIndex: 8,
+            byteStart: 800,
+            byteEnd: 820,
+            parseState: 'partial',
+          };
+          value.accounting.buffered.reason = 'partial';
+        },
+      },
+      {
+        name: 'tail-sliced',
+        mutate(value: any) {
+          value.accounting.rendered.count += 1;
+        },
+      },
+      {
+        name: 'discontinuous',
+        mutate(value: any) {
+          value.accounting.raw.toIndex -= 1;
+        },
+      },
+      {
+        name: 'unaccounted',
+        mutate(value: any) {
+          value.accounting.buffered.count -= 1;
+        },
+      },
+    ];
+    const validPending = cursorCompletionDigest(
+      [
+        {
+          ...entry,
+          recordIndex: 5,
+          sourceFrameIndex: 4,
+          entryKey: 'entry-assistant-4',
+        },
+      ],
+      3,
+      8,
+    );
+    validPending.range.toIndex = 5;
+    validPending.range.nextIndex = 6;
+    validPending.range.newFrames = 3;
+    validPending.accounting.raw.toIndex = 5;
+    validPending.accounting.raw.count = 3;
+    validPending.accounting.raw.nextIndex = 6;
+    validPending.accounting.filtered.metadataFrames = 0;
+    validPending.accounting.buffered = {
+      fromIndex: 6,
+      count: 2,
+      reason: 'stability-wait',
+    };
+    validPending.cursorEvidence.status.lifecycle = 'pending';
+    validPending.cursorEvidence.bufferedFromFrame = 6;
+    validPending.cursorEvidence.selectedPrefix.nextFrameIndex = 6;
+    validPending.cursorEvidence.selectedPrefix.prefixBytes = 600;
+    validPending.cursorEvidence.selectedPrefix.observedSize = 600;
+
+    for (const invalid of invalidSuffixes) {
+      const fixture = structuredClone(validPending);
+      invalid.mutate(fixture);
+      expect(() => selectCompletedContinuation(fixture), invalid.name).toThrow(
+        /complete/i,
+      );
+    }
+  });
+
+  test('rejects unknown digest schema and index-base combinations', () => {
+    expect(() =>
+      selectCompletedContinuation({
+        ...digest([], 0, 0),
+        schemaVersion: 3,
+      }),
+    ).toThrow(/schemaVersion/i);
+
+    const mismatched = cursorCompletionDigest([]);
+    mismatched.range.indexBase = 'zero-based-jsonl-record-index';
+    expect(() => selectCompletedContinuation(mismatched)).toThrow(
+      /index base/i,
+    );
   });
 
   test('selects a substantive assistant response after automatic control without treating the envelope as authority', () => {

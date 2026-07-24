@@ -14,3 +14,9 @@ legacy_id: DR-009
 **Decision:** State lives at `~/.local/state/session-observer/state.json`, keyed `${runtime}:${sessionId}` (not by cwd). All mutation happens under an exclusive-create lock with temp+rename atomic writes; corrupt files are backed up to unique timestamped names before reset; transcript shrinkage resets the offset with a warning.
 **Rationale:** Session identity is stabler than cwd (sessions survive directory moves; re-ranking is cheap). XDG state semantics make it durable-but-not-precious. The lock scope covers reads too, because corruption backups write during load.
 - **Status:** Accepted.
+
+**Cursor v2 scope note (2026-07-24):** The shrink-reset clause now applies only
+to the legacy record-index state used by Claude Code and Codex. Cursor uses the
+isolated `cursor-state.json` schema-v2 continuity contract from
+DR-260724-stateful-work-requires-exact; shrink, replacement, rotation, or prefix
+mismatch fails closed and requires explicit reset/replay recovery.

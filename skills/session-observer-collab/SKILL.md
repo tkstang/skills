@@ -7,10 +7,10 @@ argument-hint: '[start|review|watch|close] [--runtime <claude-code|codex|cursor|
 disable-model-invocation: false
 user-invocable: true
 allowed-tools: Bash(node:*) Read AskUserQuestion
-version: '1.0.4'
+version: '1.0.20'
 metadata:
   author: thomas.stang
-  version: '1.0.4'
+  version: '1.0.20'
 ---
 
 # session-observer-collab
@@ -76,11 +76,11 @@ The peer runtime belongs only in the exact observation pin and peer transcript;
 it does not select the local harness setup. Do not load all runtime references
 into the same turn.
 
-| Acting/self runtime | Load this file                      | Initial wake posture                                                                             |
-| ------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------ |
-| Claude Code         | `references/runtime-claude-code.md` | Probe Monitor; otherwise buffered manual                                                         |
-| Codex               | `references/runtime-codex.md`       | Trusted bounded lifecycle continuation when proven                                               |
-| Cursor              | `references/runtime-cursor.md`      | Documented continuation; prove scheduled-poll with an effective scheduler or use buffered manual |
+| Acting/self runtime | Load this file                      | Initial wake posture                                                                            |
+| ------------------- | ----------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Claude Code         | `references/runtime-claude-code.md` | Probe Monitor; otherwise buffered manual                                                        |
+| Codex               | `references/runtime-codex.md`       | Trusted bounded lifecycle continuation when proven                                              |
+| Cursor              | `references/runtime-cursor.md`      | Buffered-manual; re-probe provider callbacks or an existing scheduler before promoting the tier |
 
 Examples keep the local setup and peer observation separate:
 
@@ -144,6 +144,33 @@ Automatic wake is subordinate to human steering. Direct user input, a local
 agent turn in progress, or an explicit disarm cancels/defer the automatic path.
 Timeout means `idle`, not active waiting and not successful delivery.
 
+### Digest, envelope, and lease dispatch
+
+Raw evidence and completion selection must dispatch on the digest schema and
+declared index base before reading a range:
+
+- Digest schema v1 requires `zero-based-jsonl-record-index` and preserves
+  existing Claude Code, Codex, and non-Cursor behavior.
+- Cursor digest schema v2 requires `zero-based-jsonl-frame-index`. Its
+  `recordIndex` is the delivery frame and `sourceFrameIndex` is provenance for
+  the original content frame. Ordinary observation may expose stable content
+  with lifecycle pending, but collaboration accepts only the explicit
+  `confirmed-completion` projection. A complete terminal-success prefix may be
+  selected before a valid `stability-wait` suffix; that later open turn remains
+  unread.
+- Wake envelope v2 requires both `schema_version="2"` and `index_base`; unknown
+  or missing attributes fail closed. A legacy v1 envelope is treated only as
+  record-index automatic-control provenance.
+- Lease schema v6 binds `peerIndexBase`, exact canonical peer identity/path,
+  and the private continuity checkpoint. Cursor cursor/checkpoint changes occur
+  together in the producer-side CAS. Active v5 Cursor leases are incompatible
+  and must be disarmed/re-armed; validated non-Cursor compatibility remains
+  record-indexed.
+
+Never derive a frame range from a v1 record range, reuse the base observer's
+content cursor as a completion cursor, or treat a received envelope as
+authority to mutate peer state.
+
 ## Freshness, Consensus, and Raw Evidence
 
 Before saying _status_, _converged_, _reviewed_, _complete_, or _ready to
@@ -160,11 +187,13 @@ say so plainly, cite the newer bounded evidence, append a correction, and
 re-open the question or yield it to the user. Do not manufacture agreement.
 
 For a disputed, truncated, safety-capped, or decision-bearing digest entry,
-inspect only the transcript file and exact zero-based record indices/range
-identified by the base observer. Read the smallest sufficient range, do not
-broaden to a transcript dump, and redact credentials, tokens, private paths,
-and other secrets before logging or quoting. The raw record resolves evidence;
-it does not change the authority rules above.
+first validate its schema/index pair, then inspect only the transcript file and
+exact range identified by the base observer. Use zero-based JSONL record indexes
+for schema v1 and zero-based physical JSONL frame indexes for Cursor schema v2.
+Read the smallest sufficient range, do not broaden to a transcript dump, and
+redact credentials, tokens, private paths, and other secrets before logging or
+quoting. Raw evidence resolves the claim; it does not change the authority
+rules above.
 
 ## Pause Conditions
 
@@ -257,6 +286,8 @@ lease, take a peer's cursor, or convert the topology to N=3.
 - Both peers announce, cross-check, and pin exact identities before stateful
   watching.
 - The proven capability tier, its limits, and fallback are disclosed honestly.
+- Digest, envelope, and lease schema/index versions are validated before raw
+  evidence or completion ranges are consumed.
 - Direction, local privileged authorization, peer context, and automatic
   control provenance remain distinct.
 - Empty, metadata-only, no-op, synthetic, stale, and replayed input cannot

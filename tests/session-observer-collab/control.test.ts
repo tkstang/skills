@@ -1,15 +1,18 @@
+import { spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import {
   chmod,
   mkdtemp,
   mkdir,
   readFile,
+  realpath,
   stat,
+  symlink,
   writeFile,
 } from 'node:fs/promises';
 import { rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { spawn } from 'node:child_process';
 
 import { afterEach, describe, expect, test } from 'vitest';
 
@@ -39,6 +42,7 @@ import {
   readLease,
   recoverOrphanedWait,
   stateRoot,
+  validateLease,
 } from '../../skills/session-observer-collab/scripts/lib/lease-state.mjs';
 import {
   beginAdapterWait,
@@ -50,15 +54,39 @@ import {
 
 const roots: string[] = [];
 async function fixture() {
-  const home = await mkdtemp(join(tmpdir(), 'collab-control-'));
+  const temporaryHome = await mkdtemp(join(tmpdir(), 'collab-control-'));
+  const home = await realpath(temporaryHome);
   roots.push(home);
   const root = stateRoot({ HOME: home } as NodeJS.ProcessEnv);
   const cwd = join(home, 'work');
-  const transcript = join(home, 'peer.jsonl');
+  const transcriptStore = join(
+    home,
+    '.cursor',
+    'projects',
+    'project',
+    'agent-transcripts',
+  );
+  const transcript = join(transcriptStore, 'peer-1', 'peer-1.jsonl');
   await mkdir(cwd);
+  await mkdir(join(transcriptStore, 'peer-1'), { recursive: true });
   await writeFile(transcript, '{}\n');
-  return { home, root, cwd, transcript };
+  return { home, root, cwd, transcript, transcriptStore };
 }
+
+async function cursorContinuity(transcript: string, nextFrameIndex: number) {
+  const contents = await readFile(transcript);
+  const metadata = await stat(transcript);
+  return {
+    indexBase: 'zero-based-jsonl-frame-index',
+    nextFrameIndex,
+    prefixBytes: contents.byteLength,
+    prefixSha256: createHash('sha256').update(contents).digest('hex'),
+    observedSize: metadata.size,
+    device: metadata.dev,
+    inode: metadata.ino,
+  };
+}
+
 afterEach(async () =>
   Promise.all(
     roots.splice(0).map((root) => rm(root, { recursive: true, force: true })),
@@ -75,6 +103,36 @@ function options(cwd: string, transcript: string) {
     peerTranscript: transcript,
     leaseMs: '60000',
     continuationCap: '2',
+  };
+}
+
+function leaseV5(overrides: Record<string, unknown> = {}) {
+  return {
+    schemaVersion: 5,
+    leaseId: 'legacy-lease',
+    runtime: 'codex',
+    peerRuntime: 'claude-code',
+    ownerSession: 'owner-session',
+    ownerCwd: '/workspace/example',
+    peerSession: 'peer-session',
+    peerTranscript: '/workspace/peer/transcript.jsonl',
+    state: 'armed',
+    peerCursor: 2,
+    continuationCount: 0,
+    continuationCap: 2,
+    loopCount: 0,
+    loopCap: 2,
+    waitMs: 5_000,
+    waitStartedAt: null,
+    waitDeadlineAt: null,
+    waitToken: null,
+    waitPid: null,
+    leaseMs: 60_000,
+    armedAt: '2026-01-01T00:00:00.000Z',
+    expiresAt: '2026-01-01T00:01:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+    diagnostic: null,
+    ...overrides,
   };
 }
 
@@ -457,6 +515,138 @@ describe('collaboration lease controls', () => {
     expect((await stat(leasePath(root, 'owner-1'))).mode & 0o777).toBe(0o600);
   });
 
+  test('arms schema v6 with only a contained canonical Cursor path and private frame cursor', async () => {
+    const { root, cwd, transcript, transcriptStore } = await fixture();
+    const alias = join(transcriptStore, 'peer-1', 'peer-alias.jsonl');
+    await symlink(transcript, alias);
+    const canonicalTranscript = await realpath(transcript);
+
+    const armed = await arm(root, options(cwd, alias), 1_000);
+    expect(armed.lease).toMatchObject({
+      schemaVersion: 6,
+      peerRuntime: 'cursor',
+      peerTranscript: canonicalTranscript,
+      peerCanonicalTranscriptPath: canonicalTranscript,
+      peerIndexBase: 'zero-based-jsonl-frame-index',
+      peerCursor: 0,
+      peerContinuity: {
+        nextFrameIndex: 0,
+        prefixBytes: 0,
+        prefixSha256:
+          'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+        observedSize: 0,
+      },
+    });
+    expect(armed.lease).not.toHaveProperty('lastRecordIndex');
+    expect(armed.lease).not.toHaveProperty('observationCursor');
+    expect((await status(root, 'owner-1', 2_000)).lease).toMatchObject({
+      schemaVersion: 6,
+      peerCanonicalTranscriptPath: canonicalTranscript,
+      peerIndexBase: 'zero-based-jsonl-frame-index',
+      peerContinuity: { nextFrameIndex: 0, prefixBytes: 0 },
+    });
+    expect((await disarm(root, 'owner-1', 3_000)).lease).toMatchObject({
+      schemaVersion: 6,
+      state: 'disarmed',
+      peerCanonicalTranscriptPath: canonicalTranscript,
+      peerContinuity: { nextFrameIndex: 0, prefixBytes: 0 },
+    });
+  });
+
+  test('rejects Cursor arm requests with a mismatched session or a cursor beyond the safe frame prefix', async () => {
+    const { root, cwd, transcript } = await fixture();
+    await expect(
+      arm(
+        root,
+        { ...options(cwd, transcript), peerSession: 'other-peer' },
+        1_000,
+      ),
+    ).rejects.toMatchObject({ code: 'peer-session-transcript-mismatch' });
+    await expect(
+      arm(root, { ...options(cwd, transcript), cursor: '2' }, 1_000),
+    ).rejects.toMatchObject({ code: 'cursor-selected-prefix-mismatch' });
+    expect(await readLease(root, 'owner-1')).toBeNull();
+  });
+
+  test('rejects a Cursor transcript symlink that escapes its supported store', async () => {
+    const { home, root, cwd, transcriptStore } = await fixture();
+    const outside = join(home, 'outside.jsonl');
+    const unsupported = join(home, 'agent-transcripts', 'peer.jsonl');
+    const escaped = join(transcriptStore, 'peer-1', 'escaped.jsonl');
+    await writeFile(outside, '{}\n');
+    await mkdir(join(home, 'agent-transcripts'));
+    await writeFile(unsupported, '{}\n');
+    await symlink(outside, escaped);
+
+    await expect(
+      arm(root, options(cwd, unsupported), 1_000),
+    ).rejects.toMatchObject({
+      code: 'unsupported-peer-transcript-store',
+    });
+    await expect(arm(root, options(cwd, escaped), 1_000)).rejects.toMatchObject(
+      {
+        code: 'peer-transcript-outside-store',
+      },
+    );
+    expect(await readLease(root, 'owner-1')).toBeNull();
+  });
+
+  test('validates v6 index-base and private continuity checkpoint invariants', () => {
+    const cursorLease = {
+      ...leaseV5({
+        schemaVersion: 6,
+        peerRuntime: 'cursor',
+        peerTranscript: '/cursor/projects/project/agent-transcripts/s/s.jsonl',
+        peerCanonicalTranscriptPath:
+          '/cursor/projects/project/agent-transcripts/s/s.jsonl',
+        peerIndexBase: 'zero-based-jsonl-frame-index',
+        peerCursor: 4,
+      }),
+      peerContinuity: {
+        indexBase: 'zero-based-jsonl-frame-index',
+        nextFrameIndex: 4,
+        prefixBytes: 128,
+        prefixSha256: 'a'.repeat(64),
+        observedSize: 256,
+        device: 1,
+        inode: 2,
+      },
+    };
+    expect(validateLease(cursorLease)).toMatchObject({
+      peerIndexBase: 'zero-based-jsonl-frame-index',
+      peerCursor: 4,
+      peerContinuity: { nextFrameIndex: 4 },
+    });
+    expect(() =>
+      validateLease({
+        ...cursorLease,
+        peerContinuity: {
+          ...cursorLease.peerContinuity,
+          nextFrameIndex: 3,
+        },
+      }),
+    ).toThrow(/peer cursor/i);
+    expect(() =>
+      validateLease({
+        ...cursorLease,
+        peerIndexBase: 'zero-based-jsonl-record-index',
+      }),
+    ).toThrow(/index base/i);
+    expect(() =>
+      validateLease({
+        ...leaseV5({
+          schemaVersion: 6,
+          peerCanonicalTranscriptPath: '/workspace/peer/transcript.jsonl',
+          peerIndexBase: 'zero-based-jsonl-record-index',
+          peerContinuity: cursorLease.peerContinuity,
+        }),
+      }),
+    ).toThrow(/continuity/i);
+    expect(() =>
+      validateLease({ ...cursorLease, peerContinuity: null }),
+    ).toThrow(/explicit re-arm/i);
+  });
+
   test('concurrent installs retain every distinct runtime registration', async () => {
     const { root } = await fixture();
     await Promise.all([
@@ -469,8 +659,8 @@ describe('collaboration lease controls', () => {
     });
   });
 
-  test('migrates v1 and fails closed for malformed or unsupported data', async () => {
-    const { root } = await fixture();
+  test('migrates legacy non-Cursor leases and requires explicit Cursor re-arm', async () => {
+    const { root, cwd, transcript } = await fixture();
     await mkdir(join(root, 'leases'), { recursive: true });
     const old = JSON.parse(
       await readFile(
@@ -482,8 +672,12 @@ describe('collaboration lease controls', () => {
     await writeFile(leasePath(root, 'owner-session'), JSON.stringify(old));
     await chmod(leasePath(root, 'owner-session'), 0o600);
     expect(await readLease(root, 'owner-session')).toMatchObject({
-      schemaVersion: 5,
+      schemaVersion: 6,
       peerRuntime: 'claude-code',
+      peerCanonicalTranscriptPath: '/workspace/peer/transcript.jsonl',
+      peerIndexBase: 'zero-based-jsonl-record-index',
+      peerCursor: 2,
+      peerContinuity: null,
       leaseMs: 60_000,
     });
     const missingPeerRuntime = { ...old };
@@ -497,6 +691,61 @@ describe('collaboration lease controls', () => {
       code: 'peer-runtime-rearm-required',
       message: 'legacy lease is missing peerRuntime; re-arm required',
     });
+
+    await writeFile(
+      leasePath(root, 'owner-session'),
+      JSON.stringify(
+        leaseV5({
+          peerRuntime: 'codex',
+          peerCursor: 7,
+        }),
+      ),
+    );
+    await chmod(leasePath(root, 'owner-session'), 0o600);
+    expect(await readLease(root, 'owner-session')).toMatchObject({
+      schemaVersion: 6,
+      peerRuntime: 'codex',
+      peerCanonicalTranscriptPath: '/workspace/peer/transcript.jsonl',
+      peerIndexBase: 'zero-based-jsonl-record-index',
+      peerCursor: 7,
+      peerContinuity: null,
+    });
+
+    await writeFile(
+      leasePath(root, 'owner-1'),
+      JSON.stringify(
+        leaseV5({
+          leaseId: 'legacy-cursor',
+          peerRuntime: 'cursor',
+          ownerSession: 'owner-1',
+          ownerCwd: cwd,
+          peerSession: 'peer-1',
+          peerTranscript: transcript,
+          peerCursor: 0,
+        }),
+      ),
+    );
+    await chmod(leasePath(root, 'owner-1'), 0o600);
+    await expect(readLease(root, 'owner-1')).rejects.toMatchObject({
+      code: 'cursor-lease-rearm-required',
+    });
+    await expect(
+      arm(root, options(cwd, transcript), 2_000),
+    ).resolves.toMatchObject({
+      changed: true,
+      lease: {
+        schemaVersion: 6,
+        peerRuntime: 'cursor',
+        peerIndexBase: 'zero-based-jsonl-frame-index',
+        peerCursor: 0,
+        peerContinuity: {
+          nextFrameIndex: 0,
+          prefixBytes: 0,
+          observedSize: 0,
+        },
+      },
+    });
+
     await writeFile(leasePath(root, 'owner-session'), '{bad');
     await chmod(leasePath(root, 'owner-session'), 0o600);
     await expect(readLease(root, 'owner-session')).rejects.toMatchObject({
@@ -537,21 +786,13 @@ describe('collaboration lease controls', () => {
       continuationCount: 0,
       loopCount: 0,
     };
+    const update = {
+      peerCursor: 1,
+      peerContinuity: await cursorContinuity(transcript, 1),
+    };
     const claims = await Promise.all([
-      compareAndSwapTrigger(
-        root,
-        'owner-1',
-        expected,
-        { peerCursor: 4 },
-        2_000,
-      ),
-      compareAndSwapTrigger(
-        root,
-        'owner-1',
-        expected,
-        { peerCursor: 4 },
-        2_000,
-      ),
+      compareAndSwapTrigger(root, 'owner-1', expected, update, 2_000),
+      compareAndSwapTrigger(root, 'owner-1', expected, update, 2_000),
     ]);
     expect(claims.filter((claim) => claim.ok)).toHaveLength(1);
     expect(claims.filter((claim) => !claim.ok)).toHaveLength(1);
@@ -580,7 +821,18 @@ describe('collaboration lease controls', () => {
       root,
       'owner-1',
       expected,
-      4,
+      {
+        peerCursor: 4,
+        peerContinuity: {
+          indexBase: 'zero-based-jsonl-frame-index',
+          nextFrameIndex: 4,
+          prefixBytes: 128,
+          prefixSha256: 'b'.repeat(64),
+          observedSize: 256,
+          device: 1,
+          inode: 2,
+        },
+      },
       2_000,
     );
     expect(advanced).toMatchObject({
@@ -588,6 +840,7 @@ describe('collaboration lease controls', () => {
       lease: {
         state: 'waiting',
         peerCursor: 4,
+        peerContinuity: { nextFrameIndex: 4 },
         continuationCount: 0,
         loopCount: 0,
       },
@@ -601,7 +854,10 @@ describe('collaboration lease controls', () => {
   test('status recovers a killed generation-bound waiter but preserves a live waiter', async () => {
     const { root, cwd, transcript } = await fixture();
     await arm(root, options(cwd, transcript), 1_000);
-    const child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)']);
+    const child = spawn(process.execPath, [
+      '-e',
+      'setInterval(() => {}, 1000)',
+    ]);
     const waiter = await createWaiterIdentity(child.pid!);
     const invocation = {
       runtime: 'codex',
@@ -650,7 +906,7 @@ describe('collaboration lease controls', () => {
       leaseId: waiting.lease!.leaseId,
       waitToken: String(waiting.lease!.waitToken),
     };
-    await arm(root, { ...options(cwd, transcript), cursor: '4' }, 2_100);
+    await arm(root, { ...options(cwd, transcript), waitMs: '4000' }, 2_100);
     await expect(
       recoverOrphanedWait(root, 'owner-1', 2_200, {
         expected: stale,
@@ -676,7 +932,9 @@ describe('collaboration lease controls', () => {
         isWaiterLive: async () => undefined,
       }),
     ).resolves.toMatchObject({ recovered: false, reason: 'liveness-unknown' });
-    expect(await readLease(root, 'owner-1')).toMatchObject({ state: 'waiting' });
+    expect(await readLease(root, 'owner-1')).toMatchObject({
+      state: 'waiting',
+    });
   });
 
   test('prunes only unambiguously owned expired or missing-resource leases', async () => {
@@ -709,7 +967,11 @@ describe('collaboration lease controls', () => {
         continuationCount: 0,
         loopCount: 0,
       },
-      { peerCursor: 1, terminal: false },
+      {
+        peerCursor: 1,
+        peerContinuity: await cursorContinuity(transcript, 1),
+        terminal: false,
+      },
       2_000,
     );
     await arm(
@@ -799,6 +1061,10 @@ describe('collaboration lease controls', () => {
     );
     expect((await readLease(root, 'owner-1'))?.state).toBe('waiting');
     expect((await inspectAdapterLease(root, invocation)).eligible).toBe(true);
+    const completion = {
+      peerCursor: 1,
+      peerContinuity: await cursorContinuity(transcript, 1),
+    };
     expect(
       (
         await claimAdapterTrigger(
@@ -810,7 +1076,7 @@ describe('collaboration lease controls', () => {
             continuationCount: 0,
             loopCount: 0,
           },
-          { peerCursor: 3 },
+          completion,
         )
       ).triggered,
     ).toBe(true);
@@ -850,7 +1116,11 @@ describe('collaboration lease controls', () => {
         continuationCount: 0,
         loopCount: 0,
       },
-      { peerCursor: 1, terminal: false },
+      {
+        peerCursor: 1,
+        peerContinuity: await cursorContinuity(transcript, 1),
+        terminal: false,
+      },
       101_000,
     );
     expect(
@@ -922,6 +1192,7 @@ describe('collaboration lease controls', () => {
       waitDeadlineAt: null,
     });
 
+    await writeFile(transcript, '{}\n{}\n');
     const rearmed = await arm(
       root,
       { ...options(cwd, transcript), cursor: '1' },
@@ -946,7 +1217,10 @@ describe('collaboration lease controls', () => {
           continuationCount: 0,
           loopCount: 0,
         },
-        { peerCursor: 2 },
+        {
+          peerCursor: 2,
+          peerContinuity: await cursorContinuity(transcript, 2),
+        },
         13_000,
       ),
     ).toMatchObject({
@@ -1026,7 +1300,7 @@ describe('collaboration lease controls', () => {
   });
 
   test('changed arm requests create new generations and stale claims cannot overwrite them', async () => {
-    const { root, cwd, transcript } = await fixture();
+    const { root, cwd, transcript, transcriptStore } = await fixture();
     const first = await arm(root, options(cwd, transcript), 1_000);
     const expected = {
       leaseId: first.lease.leaseId,
@@ -1036,7 +1310,7 @@ describe('collaboration lease controls', () => {
     };
     const second = await arm(
       root,
-      { ...options(cwd, transcript), cursor: '4' },
+      { ...options(cwd, transcript), waitMs: '4000' },
       2_000,
     );
     expect(second.changed).toBe(true);
@@ -1052,10 +1326,13 @@ describe('collaboration lease controls', () => {
     ).resolves.toMatchObject({ ok: false, reason: 'stale' });
     expect(await readLease(root, 'owner-1')).toMatchObject({
       leaseId: second.lease.leaseId,
-      peerCursor: 4,
+      peerCursor: 0,
       continuationCount: 0,
     });
 
+    const otherTranscript = join(transcriptStore, 'peer-2', 'peer-2.jsonl');
+    await mkdir(join(transcriptStore, 'peer-2'));
+    await writeFile(otherTranscript, '{}\n');
     const changedRequests = [
       { waitMs: '6000' },
       { leaseMs: '59000' },
@@ -1063,9 +1340,9 @@ describe('collaboration lease controls', () => {
       { loopCap: '3' },
       { runtime: 'cursor' },
       { peerRuntime: 'codex' },
-      { peerSession: 'peer-2' },
+      { peerSession: 'peer-2', peerTranscript: otherTranscript },
       { cwd: join(cwd, 'other') },
-      { peerTranscript: join(cwd, 'other.jsonl') },
+      { peerSession: 'peer-2', peerTranscript: otherTranscript },
     ];
     let generation = second.lease.leaseId;
     for (const change of changedRequests) {
@@ -1103,11 +1380,19 @@ describe('collaboration lease controls', () => {
       continuationCount: 0,
       loopCount: 0,
     };
+    const peerContinuity = await cursorContinuity(transcript, 1);
+    const completion = {
+      peerCursor: 1,
+      peerContinuity,
+    };
     const [, claim] = await Promise.all([
       disarm(root, 'owner-1', 3_000),
-      claimAdapterTrigger(root, { ...invocation, now: 4_000 }, expected, {
-        peerCursor: 1,
-      }),
+      claimAdapterTrigger(
+        root,
+        { ...invocation, now: 4_000 },
+        expected,
+        completion,
+      ),
     ]);
     expect(claim.triggered === true || claim.reason === 'user-disarmed').toBe(
       true,

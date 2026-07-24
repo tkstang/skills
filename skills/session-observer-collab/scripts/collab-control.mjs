@@ -19,6 +19,7 @@ import {
   MAX_LEASE_MS,
   MAX_LOOPS,
   atomicWriteJson,
+  canonicalizePeerTranscript,
   effectiveLease,
   leasePath,
   pruneLeases,
@@ -28,9 +29,12 @@ import {
   validateAbsolutePath,
   validateId,
   validateOwnerRuntime,
+  validatePeerIndexBase,
   validatePeerRuntime,
+  validatePeerTranscriptSession,
   withLeaseLock,
 } from './lib/lease-state.mjs';
+import { captureCursorArmContinuity } from './lib/selected-prefix.mjs';
 
 export const CONTROL_SCHEMA_VERSION = 1;
 
@@ -135,10 +139,18 @@ export async function arm(root, options, now = Date.now()) {
   const ownerSession = validateId(options.session, 'owner-session');
   const peerSession = validateId(options.peerSession, 'peer-session');
   const ownerCwd = validateAbsolutePath(options.cwd, 'owner-cwd');
-  const peerTranscript = validateAbsolutePath(
+  const peerPath = await canonicalizePeerTranscript(
+    peerRuntime,
     options.peerTranscript,
-    'peer-transcript',
   );
+  validatePeerTranscriptSession(
+    peerRuntime,
+    peerSession,
+    peerPath.peerCanonicalTranscriptPath,
+  );
+  if (options.peerIndexBase !== undefined) {
+    validatePeerIndexBase(options.peerIndexBase, peerRuntime);
+  }
   const waitMs = numberOption(
     options.waitMs ?? DEFAULT_WAIT_MS,
     'wait-ms',
@@ -175,17 +187,31 @@ export async function arm(root, options, now = Date.now()) {
     ownerSession,
     ownerCwd,
     peerSession,
-    peerTranscript,
+    ...peerPath,
   };
   const file = leasePath(root, ownerSession);
   return withCodexLifecycleLock(root, () =>
     withLeaseLock(file, async () => {
-      const existing = await readLease(root, ownerSession, {
-        persistMigration: false,
-      });
+      let existing;
+      try {
+        existing = await readLease(root, ownerSession, {
+          persistMigration: false,
+        });
+      } catch (error) {
+        if (error?.code !== 'cursor-lease-rearm-required') throw error;
+        existing = null;
+      }
+      const peerContinuity =
+        peerRuntime === 'cursor'
+          ? await captureCursorArmContinuity(
+              peerPath.peerCanonicalTranscriptPath,
+              cursor,
+            )
+          : null;
       const request = {
         ...identity,
         peerCursor: cursor,
+        peerContinuity,
         continuationCap,
         loopCap,
         waitMs,
@@ -194,7 +220,11 @@ export async function arm(root, options, now = Date.now()) {
       if (
         existing &&
         ['armed', 'waiting'].includes(effectiveLease(existing, now).state) &&
-        Object.entries(request).every(([key, value]) => existing[key] === value)
+        Object.entries(request).every(([key, value]) =>
+          value !== null && typeof value === 'object'
+            ? JSON.stringify(existing[key]) === JSON.stringify(value)
+            : existing[key] === value,
+        )
       ) {
         return { changed: false, lease: effectiveLease(existing, now) };
       }
@@ -205,6 +235,7 @@ export async function arm(root, options, now = Date.now()) {
         ...identity,
         state: 'armed',
         peerCursor: cursor,
+        peerContinuity,
         continuationCount: 0,
         continuationCap,
         loopCount: 0,

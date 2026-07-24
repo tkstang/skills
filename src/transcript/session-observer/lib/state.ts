@@ -4,8 +4,9 @@
  * Storage: STATE_DIR/state.json  (default: ~/.local/state/session-observer/state.json)
  * Key format: `${runtime}:${sessionId}`
  *
- * Write protocol (same as Stoa's session-capture.sh.tpl):
- *   1. open(lockPath, 'wx')  — exclusive-create; retry up to LOCK_RETRIES × LOCK_INTERVAL_MS
+ * Write protocol:
+ *   1. Join the monotonic contender queue, then hard-link the elected owner's
+ *      token to lockPath; retry up to LOCK_RETRIES × LOCK_INTERVAL_MS.
  *   2. read + parse state.json  (treat missing / corrupt as empty)
  *   3. apply mutation fn
  *   4. write to state.json.<pid>.tmp
@@ -19,12 +20,32 @@
  * across retries.
  */
 
-import { open, rename, mkdir, readFile, stat, unlink } from 'node:fs/promises';
+import {
+  access,
+  link,
+  mkdir,
+  open,
+  readFile,
+  readdir,
+  rename,
+  stat,
+  unlink,
+} from 'node:fs/promises';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 
 import type { Runtime } from '../../core/runtimes.js';
+import {
+  clearCursorState,
+  CursorStateRecoveryRequiredError,
+  cursorSessionKey,
+  loadCursorState,
+  mutateCursorState,
+  resetAllCursorState,
+  resetCursorSessionState,
+} from './cursor-state.js';
 import type {
+  LegacyCursorStateMarker,
   MarkReadInput,
   SessionObserverState,
   SessionStateEntry,
@@ -38,9 +59,14 @@ import type {
 const SCHEMA_VERSION = 1;
 const LOCK_RETRIES = 100;
 const LOCK_INTERVAL_MS = 50;
-// A healthy acquire+mutate+release cycle never holds the lock this long, so a
-// lock older than the entire retry window cannot belong to a live writer.
-const LOCK_STALE_MS = LOCK_RETRIES * LOCK_INTERVAL_MS;
+const CURSOR_COMPATIBILITY = 'pre-integration-record-index';
+let migrationBackupSequence = 0;
+let lockSequence = 0;
+
+interface CursorCompatibilityEntry extends SessionStateEntry {
+  runtime: 'cursor';
+  cursorCompatibility: typeof CURSOR_COMPATIBILITY;
+}
 
 // ---------------------------------------------------------------------------
 // State dir resolution
@@ -63,6 +89,10 @@ function statePath(dir: string): string {
 
 function lockPath(dir: string): string {
   return join(dir, 'state.json.lock');
+}
+
+function cursorTransitionLockPath(dir: string): string {
+  return join(dir, 'cursor-state-transition.lock');
 }
 
 function tmpPath(dir: string): string {
@@ -101,164 +131,257 @@ function isPidLive(pid: unknown): boolean {
   }
 }
 
-/**
- * Decide whether an existing lock file is stale enough to reclaim.
- *
- * A parseable, recorded PID is trusted unconditionally: dead means abandoned
- * (reclaim); live means someone still legitimately owns it, and that is
- * never aged out — even an unusually slow writer (fs stall, GC pause,
- * suspended process) must never have its lock stolen. Only when we cannot
- * establish an owner identity at all (empty/garbage/unreadable content) do
- * we fall back to age: a lock that old with no readable owner cannot belong
- * to a healthy writer (a normal acquire+mutate+release cycle finishes in
- * milliseconds), so it is treated as abandoned.
- */
-async function isLockStale(lock: string): Promise<boolean> {
-  let pid: number | null = null;
-  try {
-    const raw = (await readFile(lock, 'utf8')).trim();
-    const parsed = Number.parseInt(raw, 10);
-    if (Number.isInteger(parsed) && parsed > 0) pid = parsed;
-  } catch {
-    // Unreadable (including ENOENT — the owner may have just released it) —
-    // fall through to the age check below.
+function lockOwnerPid(owner: string): number | null {
+  if (!/^[1-9]\d*$/u.test(owner) && !/^[1-9]\d*:\d+:[1-9]\d*$/u.test(owner)) {
+    return null;
   }
-  if (pid !== null) return !isPidLive(pid);
+  const pid = Number(owner.split(':', 1)[0]);
+  return Number.isSafeInteger(pid) && pid > 0 ? pid : null;
+}
 
+interface LockOwnership {
+  owner: string;
+  ownerPath: string;
+}
+
+interface LockGeneration {
+  rawOwner: string;
+  device: number;
+  inode: number;
+}
+
+export type LockContenderPublicationBoundary =
+  | 'private-created'
+  | 'token-written'
+  | 'token-synced';
+
+export interface LockContenderPublicationOptions {
+  onLockPublicationBoundary?(
+    boundary: LockContenderPublicationBoundary,
+  ): void | Promise<void>;
+}
+
+function lockOwnersPath(lock: string): string {
+  return `${lock}.owners`;
+}
+
+function lockOwnerTokensPath(lock: string): string {
+  return `${lock}.owner-tokens`;
+}
+
+function contenderTicket(name: string): number | null {
+  const match = /^(\d{20})\.owner$/u.exec(name);
+  if (!match) return null;
+  const ticket = Number(match[1]);
+  return Number.isSafeInteger(ticket) ? ticket : null;
+}
+
+function privateTokenPid(name: string): number | null {
+  const match = /^([1-9]\d*)-\d+-[1-9]\d*\.token$/u.exec(name);
+  if (!match) return null;
+  const pid = Number(match[1]);
+  return Number.isSafeInteger(pid) ? pid : null;
+}
+
+async function cleanupAbandonedPrivateTokens(lock: string): Promise<void> {
+  const tokens = lockOwnerTokensPath(lock);
+  let names: string[];
   try {
-    const st = await stat(lock);
-    return Date.now() - st.mtimeMs > LOCK_STALE_MS;
-  } catch {
-    // Lock disappeared between the read above and this stat — nothing left
-    // to reclaim; the caller's next open('wx') resolves the race on its own.
-    return false;
+    names = await readdir(tokens);
+  } catch (error) {
+    if (isErrnoException(error) && error.code === 'ENOENT') return;
+    throw error;
+  }
+  for (const name of names) {
+    const pid = privateTokenPid(name);
+    if (pid === null || isPidLive(pid)) continue;
+    await unlink(join(tokens, name)).catch((error: unknown) => {
+      if (!isErrnoException(error) || error.code !== 'ENOENT') throw error;
+    });
   }
 }
 
-/**
- * Exclusively claim a lock file already judged stale, for removal.
- *
- * Mirrors watch-state.ts's tryReclaim.
- *
- * A plain `unlink(lock)` is not itself exclusive: it operates on whatever
- * currently occupies the path, not the specific stale instance a caller
- * observed. If two contenders both judge the same stale lock L reclaimable,
- * both calling unlink(lock) unconditionally, the following interleaving lets
- * both end up believing they hold the lock:
- *   1. A unlinks L, then wins open('wx') and creates its own live lock.
- *   2. B's (already-decided) unlink call fires next and deletes A's new
- *      lock — unlink does not check what it is deleting.
- *   3. B wins its own open('wx'). A and B now both think they own the lock.
- *
- * `rename(lock, <unique>)` narrows this — rename requires its source to
- * exist, so at most one contender's rename can succeed against a given
- * *inode*. But rename's source is the *path*, not the inode L referred to at
- * decision time: if B is preempted between its isLockStale read and this
- * rename, A can complete an entire reclaim-and-recreate cycle first, and
- * B's rename would then detach A's fresh, *live* lock instead of the
- * original stale one — the exclusivity argument holds per-inode but not
- * across a path takeover in between. So after the rename succeeds, we
- * re-read what we actually claimed: if it now holds a live PID, we grabbed
- * a fresh lock, not the stale one we judged — rename it back (best-effort)
- * and report failure instead of discarding a live owner's lock. Only a
- * claim that is still genuinely ownerless (dead PID, or no readable PID at
- * all) is actually removed.
- */
-async function tryReclaim(lock: string): Promise<boolean> {
-  const claim = `${lock}.reclaim.${process.pid}.${Date.now()}`;
+async function createLockContender(
+  lock: string,
+  owner: string,
+  options: LockContenderPublicationOptions = {},
+): Promise<string> {
+  const owners = lockOwnersPath(lock);
+  const tokens = lockOwnerTokensPath(lock);
+  await mkdir(owners, { recursive: true, mode: 0o700 });
+  await mkdir(tokens, { recursive: true, mode: 0o700 });
+  await cleanupAbandonedPrivateTokens(lock);
+  const privatePath = join(tokens, `${owner.replaceAll(':', '-')}.token`);
+  let handle;
   try {
-    await rename(lock, claim);
-  } catch (err) {
-    // ENOENT: another contender already claimed it, or the owner released
-    // it normally — either way, we reclaimed nothing.
-    if (isErrnoException(err) && err.code === 'ENOENT') return false;
-    throw err;
-  }
+    handle = await open(privatePath, 'wx', 0o600);
+    await options.onLockPublicationBoundary?.('private-created');
+    await handle.writeFile(owner, 'utf8');
+    await options.onLockPublicationBoundary?.('token-written');
+    await handle.datasync();
+    await options.onLockPublicationBoundary?.('token-synced');
+    await handle.close();
+    handle = undefined;
 
-  // Re-verify: what we just detached might not be the stale instance we
-  // judged — it might be a fresh, live lock a concurrent winner created
-  // while we were preempted. Trust a live PID unconditionally, exactly as
-  // isLockStale does.
-  let claimedPid: number | null = null;
-  try {
-    const raw = (await readFile(claim, 'utf8')).trim();
-    const parsed = Number.parseInt(raw, 10);
-    if (Number.isInteger(parsed) && parsed > 0) claimedPid = parsed;
-  } catch {
-    // Unreadable claim content — treat as ownerless, same as isLockStale.
-  }
-
-  if (claimedPid !== null && isPidLive(claimedPid)) {
-    // We grabbed someone else's live lock. Restore it and back off instead
-    // of destroying it. This closes the demonstrated interleaving (B
-    // stealing A's freshly-created live lock and both believing they hold
-    // it): B now correctly reports failure and never proceeds to create its
-    // own competing lock.
-    //
-    // Residual, deliberately accepted: POSIX rename(src, dest) replaces
-    // dest unconditionally (it has no exclusive/"fail if exists" mode, so
-    // this restore cannot itself be gated through open('wx')). If a THIRD
-    // contender created a fresh lock at `lock` during the narrow gap between
-    // our claim-rename and this restore-rename, the restore would silently
-    // overwrite that fresh lock rather than fail loudly. This is a strictly
-    // narrower, second-order race nested inside an already-rare orphan +
-    // simultaneous-reclaimer scenario; closing it fully would require a
-    // separate exclusive reclaim-intent gate around the whole detect+
-    // remove+recreate sequence, which is a larger structural change than
-    // this fix. If the restore-rename itself errors (e.g. ENOENT/EPERM), we
-    // do not delete the claimed copy — it is left as an orphaned
-    // `.reclaim.` file rather than risk discarding a live owner's data.
-    try {
-      await rename(claim, lock);
-    } catch {
-      // Leave the claim in place; never delete data that may still belong
-      // to a live owner.
-    }
-    return false;
-  }
-
-  try {
-    await unlink(claim);
-  } catch {
-    // Best-effort cleanup of our claimed copy; the exclusive removal from
-    // the original path (via rename) already happened regardless.
-  }
-  return true;
-}
-
-async function acquireLock(lock: string): Promise<void> {
-  // Reclaim at most once per acquisition attempt: on EEXIST, a stale lock is
-  // exclusively claimed (see tryReclaim) and open('wx') is retried
-  // immediately. If the claim loses the race, this attempt does not retry
-  // reclaim again — it falls back to the normal sleep/retry path.
-  let reclaimAttempted = false;
-  for (let i = 0; i < LOCK_RETRIES; i++) {
-    try {
-      const fh = await open(lock, 'wx');
-      await fh.write(String(process.pid));
-      await fh.close();
-      return;
-    } catch (err) {
-      if (!isErrnoException(err) || err.code !== 'EEXIST') throw err;
-      if (!reclaimAttempted) {
-        reclaimAttempted = true;
-        if ((await isLockStale(lock)) && (await tryReclaim(lock))) {
-          continue;
+    for (let attempt = 0; attempt < LOCK_RETRIES; attempt += 1) {
+      const names = await readdir(owners);
+      let maximum = 0;
+      for (const name of names) {
+        const ticket = contenderTicket(name);
+        if (ticket === null) {
+          throw new Error(`state.mjs: invalid lock contender ${name}`);
         }
+        maximum = Math.max(maximum, ticket);
       }
-      await sleep(LOCK_INTERVAL_MS);
+      const next = maximum + 1;
+      if (!Number.isSafeInteger(next)) {
+        throw new Error('state.mjs: lock contender sequence exhausted');
+      }
+      const ownerPath = join(owners, `${String(next).padStart(20, '0')}.owner`);
+      try {
+        await link(privatePath, ownerPath);
+        await unlink(privatePath).catch(() => undefined);
+        return ownerPath;
+      } catch (error) {
+        if (!isErrnoException(error) || error.code !== 'EEXIST') throw error;
+      }
     }
+    throw new Error('state.mjs: could not allocate lock contender');
+  } finally {
+    if (handle) await handle.close();
+    await unlink(privatePath).catch(() => undefined);
   }
+}
+
+async function contenderOwnsTurn(
+  lock: string,
+  ownerPath: string,
+  owner: string,
+): Promise<boolean> {
+  const owners = lockOwnersPath(lock);
+  const live: string[] = [];
+  for (const name of (await readdir(owners)).toSorted()) {
+    if (contenderTicket(name) === null) return false;
+    const path = join(owners, name);
+    let contenderOwner: string;
+    try {
+      contenderOwner = await readFile(path, 'utf8');
+    } catch (error) {
+      if (isErrnoException(error) && error.code === 'ENOENT') continue;
+      throw error;
+    }
+    const pid = lockOwnerPid(contenderOwner);
+    if (pid === null) return false;
+    if (!isPidLive(pid)) {
+      await unlink(path).catch((error: unknown) => {
+        if (!isErrnoException(error) || error.code !== 'ENOENT') throw error;
+      });
+      continue;
+    }
+    if (path === ownerPath && contenderOwner !== owner) return false;
+    live.push(path);
+  }
+  return live[0] === ownerPath;
+}
+
+async function readLockGeneration(
+  lock: string,
+): Promise<LockGeneration | null> {
+  try {
+    const rawOwner = await readFile(lock, 'utf8');
+    const current = await stat(lock);
+    return { rawOwner, device: current.dev, inode: current.ino };
+  } catch (error) {
+    if (isErrnoException(error) && error.code === 'ENOENT') return null;
+    throw error;
+  }
+}
+
+function sameLockGeneration(
+  left: LockGeneration,
+  right: LockGeneration | null,
+): boolean {
+  return (
+    right !== null &&
+    left.rawOwner === right.rawOwner &&
+    left.device === right.device &&
+    left.inode === right.inode
+  );
+}
+
+async function acquireLock(
+  lock: string,
+  options: LockContenderPublicationOptions = {},
+): Promise<LockOwnership> {
+  const owner = `${process.pid}:${Date.now()}:${++lockSequence}`;
+  const ownerPath = await createLockContender(lock, owner, options);
+  try {
+    for (let attempt = 0; attempt < LOCK_RETRIES; attempt += 1) {
+      if (!(await contenderOwnsTurn(lock, ownerPath, owner))) {
+        await sleep(LOCK_INTERVAL_MS);
+        continue;
+      }
+      try {
+        await link(ownerPath, lock);
+        return { owner, ownerPath };
+      } catch (error) {
+        if (!isErrnoException(error) || error.code !== 'EEXIST') throw error;
+      }
+      const observed = await readLockGeneration(lock);
+      if (observed === null) continue;
+      const ownerPid = lockOwnerPid(observed.rawOwner);
+      if (ownerPid === null || isPidLive(ownerPid)) {
+        await sleep(LOCK_INTERVAL_MS);
+        continue;
+      }
+      const current = await readLockGeneration(lock);
+      if (!sameLockGeneration(observed, current)) continue;
+      try {
+        await unlink(lock);
+      } catch (error) {
+        if (!isErrnoException(error) || error.code !== 'ENOENT') throw error;
+      }
+    }
+  } catch (error) {
+    await unlink(ownerPath).catch(() => undefined);
+    throw error;
+  }
+  await unlink(ownerPath).catch(() => undefined);
   throw new Error(
     `state.mjs: could not acquire lock after ${LOCK_RETRIES} retries`,
   );
 }
 
-async function releaseLock(lock: string): Promise<void> {
+async function releaseLock(
+  lock: string,
+  ownership: LockOwnership,
+): Promise<void> {
   try {
-    await unlink(lock);
-  } catch {
-    // best-effort; ignore ENOENT
+    if ((await readFile(lock, 'utf8')) === ownership.owner) {
+      await unlink(lock);
+    }
+  } catch (error) {
+    if (!isErrnoException(error) || error.code !== 'ENOENT') throw error;
+  }
+  try {
+    await unlink(ownership.ownerPath);
+  } catch (error) {
+    if (!isErrnoException(error) || error.code !== 'ENOENT') throw error;
+  }
+}
+
+async function withCursorTransitionLock<T>(
+  transition: () => Promise<T>,
+  options: LockContenderPublicationOptions = {},
+): Promise<T> {
+  const dir = stateDir();
+  await mkdir(dir, { recursive: true });
+  const lock = cursorTransitionLockPath(dir);
+  const ownership = await acquireLock(lock, options);
+  try {
+    return await transition();
+  } finally {
+    await releaseLock(lock, ownership);
   }
 }
 
@@ -421,6 +544,15 @@ function sessionKey(runtime: Runtime, sessionId: string): string {
   return `${runtime}:${sessionId}`;
 }
 
+function isCursorCompatibilityEntry(
+  entry: SessionStateEntry | undefined,
+): entry is CursorCompatibilityEntry {
+  return (
+    entry?.runtime === 'cursor' &&
+    entry.cursorCompatibility === CURSOR_COMPATIBILITY
+  );
+}
+
 function zeroSession(entry: SessionStateEntry): SessionStateEntry {
   return {
     ...entry,
@@ -437,16 +569,279 @@ function zeroSession(entry: SessionStateEntry): SessionStateEntry {
  * Load and return the current state without any mutation.
  * Acquires the lock because reading can create corrupt/v0 backup files.
  */
-export async function load(): Promise<SessionObserverState> {
+async function loadLegacyState(): Promise<SessionObserverState> {
   const dir = stateDir();
   await mkdir(dir, { recursive: true });
   const lock = lockPath(dir);
-  await acquireLock(lock);
+  const owner = await acquireLock(lock);
   try {
     return await readState(dir);
   } finally {
-    await releaseLock(lock);
+    await releaseLock(lock, owner);
   }
+}
+
+export type LegacyCursorMigrationBoundary =
+  | 'marker-written'
+  | 'backup-written'
+  | 'legacy-removed'
+  | 'marker-legacy-removed'
+  | 'complete';
+
+export interface LegacyCursorMigrationOptions {
+  onBoundary?(boundary: LegacyCursorMigrationBoundary): void | Promise<void>;
+}
+
+export type CursorCompatibilityWriteBoundary =
+  | 'prechecked'
+  | 'legacy-written'
+  | 'cursor-updated';
+
+export interface CursorCompatibilityWriteOptions extends LockContenderPublicationOptions {
+  onCompatibilityBoundary?(
+    boundary: CursorCompatibilityWriteBoundary,
+  ): void | Promise<void>;
+}
+
+async function notifyMigrationBoundary(
+  options: LegacyCursorMigrationOptions,
+  boundary: LegacyCursorMigrationBoundary,
+): Promise<void> {
+  await options.onBoundary?.(boundary);
+}
+
+function nextMigrationBackupPath(dir: string): string {
+  migrationBackupSequence += 1;
+  return join(
+    dir,
+    `state.json.cursor-legacy-${Date.now()}-${process.pid}-${migrationBackupSequence}.bak`,
+  );
+}
+
+async function pathExists(path: string): Promise<boolean> {
+  try {
+    await access(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function writeMigrationBackup(
+  dir: string,
+  destination: string,
+  raw: string,
+): Promise<void> {
+  if (dirname(destination) !== dir) {
+    throw new Error('LEGACY_BACKUP_PATH_INVALID');
+  }
+  if (await pathExists(destination)) return;
+
+  const temporary = `${destination}.${process.pid}.tmp`;
+  let handle;
+  try {
+    handle = await open(temporary, 'w', 0o600);
+    await handle.writeFile(raw, 'utf8');
+    await handle.datasync();
+    await handle.close();
+    handle = undefined;
+    await rename(temporary, destination);
+  } finally {
+    if (handle) await handle.close();
+    try {
+      await unlink(temporary);
+    } catch {
+      // Best-effort cleanup; preserve the original write/rename result.
+    }
+  }
+}
+
+async function removeLegacyCursorForMigration(
+  marker: LegacyCursorStateMarker,
+  options: LegacyCursorMigrationOptions,
+): Promise<void> {
+  const dir = stateDir();
+  if (dirname(marker.backupPath) !== dir) {
+    throw new Error('LEGACY_BACKUP_PATH_INVALID');
+  }
+
+  await mkdir(dir, { recursive: true });
+  const lock = lockPath(dir);
+  const owner = await acquireLock(lock);
+  try {
+    const state = await readState(dir);
+    const key = sessionKey('cursor', marker.sessionId);
+    const entry = state.sessions[key];
+    if (!entry) {
+      if (!(await pathExists(marker.backupPath))) {
+        throw new Error('LEGACY_BACKUP_MISSING');
+      }
+      return;
+    }
+    if (
+      entry.runtime !== 'cursor' ||
+      !Number.isSafeInteger(entry.lastRecordIndex) ||
+      entry.lastRecordIndex < 0 ||
+      entry.lastRecordIndex !== marker.legacyLastRecordIndex
+    ) {
+      throw new Error('LEGACY_CURSOR_CHANGED');
+    }
+
+    const raw = await readFile(statePath(dir), 'utf8');
+    await writeMigrationBackup(dir, marker.backupPath, raw);
+    await notifyMigrationBoundary(options, 'backup-written');
+
+    delete state.sessions[key];
+    await writeState(dir, state);
+    await notifyMigrationBoundary(options, 'legacy-removed');
+  } finally {
+    await releaseLock(lock, owner);
+  }
+}
+
+/**
+ * Move one legacy Cursor record-index entry into a durable, non-consumable v2
+ * marker. Each store is independently locked and every cross-store boundary is
+ * replay-safe, so interruption can be retried without trusting either offset.
+ */
+async function migrateLegacyCursorStateUnderTransition(
+  sessionId: string,
+  options: LegacyCursorMigrationOptions = {},
+): Promise<LegacyCursorStateMarker | null> {
+  const key = cursorSessionKey(sessionId);
+  let cursorState = await loadCursorState();
+  let marker = cursorState.legacyUnverified[key];
+
+  if (!marker) {
+    const legacy = await loadLegacyState();
+    const entry = legacy.sessions[sessionKey('cursor', sessionId)];
+    if (!entry) return null;
+    if (isCursorCompatibilityEntry(entry)) return null;
+    if (
+      entry.runtime !== 'cursor' ||
+      !Number.isSafeInteger(entry.lastRecordIndex) ||
+      entry.lastRecordIndex < 0
+    ) {
+      throw new Error('LEGACY_CURSOR_INVALID');
+    }
+
+    const proposed: LegacyCursorStateMarker = {
+      runtime: 'cursor',
+      sessionId,
+      legacyLastRecordIndex: entry.lastRecordIndex,
+      ...(typeof entry.transcriptPath === 'string'
+        ? { transcriptPath: entry.transcriptPath }
+        : {}),
+      ...(entry.recordedCwd === null || typeof entry.recordedCwd === 'string'
+        ? { recordedCwd: entry.recordedCwd }
+        : {}),
+      ...(typeof entry.lastReadAt === 'string' &&
+      Number.isFinite(Date.parse(entry.lastReadAt))
+        ? { lastReadAt: entry.lastReadAt }
+        : {}),
+      backupPath: nextMigrationBackupPath(stateDir()),
+      migrationStatus: 'marker-written',
+      createdAt: new Date().toISOString(),
+    };
+    cursorState = await mutateCursorState((state) => {
+      state.legacyUnverified[key] ??= proposed;
+    });
+    marker = cursorState.legacyUnverified[key];
+    await notifyMigrationBoundary(options, 'marker-written');
+  }
+
+  await removeLegacyCursorForMigration(marker, options);
+
+  cursorState = await mutateCursorState((state) => {
+    const current = state.legacyUnverified[key];
+    if (!current) throw new Error('LEGACY_CURSOR_MARKER_MISSING');
+    if (current.migrationStatus === 'marker-written') {
+      current.migrationStatus = 'legacy-removed';
+    }
+  });
+  marker = cursorState.legacyUnverified[key];
+  await notifyMigrationBoundary(options, 'marker-legacy-removed');
+
+  cursorState = await mutateCursorState((state) => {
+    const current = state.legacyUnverified[key];
+    if (!current) throw new Error('LEGACY_CURSOR_MARKER_MISSING');
+    if (current.migrationStatus !== 'complete') {
+      current.migrationStatus = 'complete';
+    }
+  });
+  marker = cursorState.legacyUnverified[key];
+  await notifyMigrationBoundary(options, 'complete');
+  return marker;
+}
+
+export async function migrateLegacyCursorState(
+  sessionId: string,
+  options: LegacyCursorMigrationOptions = {},
+): Promise<LegacyCursorStateMarker | null> {
+  return withCursorTransitionLock(() =>
+    migrateLegacyCursorStateUnderTransition(sessionId, options),
+  );
+}
+
+function cursorRecoveryEntry(
+  marker: LegacyCursorStateMarker,
+): SessionStateEntry {
+  return {
+    runtime: 'cursor',
+    sessionId: marker.sessionId,
+    lastRecordIndex: 0,
+    lastTotalRecords: marker.legacyLastRecordIndex,
+    recoveryRequired: true,
+    recoveryCode: 'LEGACY_CURSOR_UNVERIFIED',
+    legacyLastRecordIndex: marker.legacyLastRecordIndex,
+    migrationStatus: marker.migrationStatus,
+    backupPath: marker.backupPath,
+    ...(marker.transcriptPath ? { transcriptPath: marker.transcriptPath } : {}),
+    ...(marker.recordedCwd !== undefined
+      ? { recordedCwd: marker.recordedCwd }
+      : {}),
+    ...(marker.lastReadAt ? { lastReadAt: marker.lastReadAt } : {}),
+  };
+}
+
+/**
+ * Load a display-compatible composition of legacy Claude/Codex state and the
+ * isolated Cursor v2 store. Legacy Cursor entries are migrated before they can
+ * be exposed as consumable offsets.
+ */
+export async function load(): Promise<SessionObserverState> {
+  let legacy = await loadLegacyState();
+  const legacyCursorIds = Object.values(legacy.sessions)
+    .filter(
+      (entry) =>
+        entry.runtime === 'cursor' && !isCursorCompatibilityEntry(entry),
+    )
+    .map((entry) => entry.sessionId);
+  for (const sessionId of legacyCursorIds) {
+    await migrateLegacyCursorState(sessionId);
+  }
+
+  legacy = await loadLegacyState();
+  const cursor = await loadCursorState();
+  const sessions = { ...legacy.sessions };
+  for (const entry of Object.values(cursor.sessions)) {
+    sessions[cursorSessionKey(entry.sessionId)] = {
+      runtime: 'cursor',
+      sessionId: entry.sessionId,
+      lastRecordIndex: entry.lastRecordIndex,
+      lastTotalRecords: entry.lastRecordIndex,
+      transcriptPath: entry.transcriptPath,
+      recordedCwd: entry.canonicalCwd,
+      indexBase: entry.indexBase,
+      continuity: entry.continuity,
+      lastStatus: entry.lastStatus,
+      recoveryRequired: false,
+    };
+  }
+  for (const marker of Object.values(cursor.legacyUnverified)) {
+    sessions[cursorSessionKey(marker.sessionId)] = cursorRecoveryEntry(marker);
+  }
+  return { schemaVersion: SCHEMA_VERSION, sessions };
 }
 
 /**
@@ -457,18 +852,21 @@ export async function load(): Promise<SessionObserverState> {
  *
  * @param {(state: object) => object} fn
  */
-export async function mutate(fn: StateMutator): Promise<SessionObserverState> {
+export async function mutate(
+  fn: StateMutator,
+  options: LockContenderPublicationOptions = {},
+): Promise<SessionObserverState> {
   const dir = stateDir();
   await mkdir(dir, { recursive: true });
   const lock = lockPath(dir);
-    await acquireLock(lock);
+  const owner = await acquireLock(lock, options);
   try {
     const current = await readState(dir);
     const next = fn(current) ?? current;
     await writeState(dir, next);
     return next;
   } finally {
-    await releaseLock(lock);
+    await releaseLock(lock, owner);
   }
 }
 
@@ -479,7 +877,34 @@ export async function getSession(
   runtime: Runtime,
   sessionId: string,
 ): Promise<SessionStateEntry | null> {
-  const state = await load();
+  if (runtime === 'cursor') {
+    const legacy = await loadLegacyState();
+    const compatibility = legacy.sessions[sessionKey(runtime, sessionId)];
+    const cursor = await loadCursorState();
+    if (cursor.sessions[cursorSessionKey(sessionId)]) {
+      throw new Error(
+        'CURSOR_STATE_V2_REQUIRES_OBSERVATION_PROJECTION: legacy record-index reads are disabled',
+      );
+    }
+    const existingMarker = cursor.legacyUnverified[cursorSessionKey(sessionId)];
+    if (existingMarker?.legacyLastRecordIndex !== undefined) {
+      if (existingMarker.legacyLastRecordIndex === 0) return null;
+      throw new Error(
+        `LEGACY_CURSOR_UNVERIFIED: reset cursor:${sessionId} to replay from frame zero`,
+      );
+    }
+    if (isCursorCompatibilityEntry(compatibility)) return compatibility;
+
+    const marker = await migrateLegacyCursorState(sessionId);
+    if (marker) {
+      if (marker.legacyLastRecordIndex === 0) return null;
+      throw new Error(
+        `LEGACY_CURSOR_UNVERIFIED: reset cursor:${sessionId} to replay from frame zero`,
+      );
+    }
+    return null;
+  }
+  const state = await loadLegacyState();
   const key = sessionKey(runtime, sessionId);
   return state.sessions[key] ?? null;
 }
@@ -491,8 +916,90 @@ export async function getSession(
 export async function markRead(
   runtime: Runtime,
   sessionId: string,
-  { lastRecordIndex, lastTotalRecords, transcriptPath, recordedCwd }: MarkReadInput,
+  {
+    lastRecordIndex,
+    lastTotalRecords,
+    transcriptPath,
+    recordedCwd,
+  }: MarkReadInput,
+  options: CursorCompatibilityWriteOptions = {},
 ): Promise<void> {
+  if (runtime === 'cursor') {
+    return withCursorTransitionLock(async () => {
+      const key = cursorSessionKey(sessionId);
+      const cursor = await loadCursorState();
+      if (cursor.sessions[key]) {
+        throw new Error(
+          'CURSOR_STATE_V2_REQUIRED: legacy record-index Cursor writes are disabled',
+        );
+      }
+      const marker = cursor.legacyUnverified[key];
+      if (marker && marker.legacyLastRecordIndex !== 0) {
+        throw new Error(
+          `LEGACY_CURSOR_UNVERIFIED: reset cursor:${sessionId} to replay from frame zero`,
+        );
+      }
+      await options.onCompatibilityBoundary?.('prechecked');
+
+      const writeId = `${process.pid}:${Date.now()}:${++migrationBackupSequence}`;
+      let preimage: SessionStateEntry | undefined;
+      await mutate((state) => {
+        const existing = state.sessions[key];
+        preimage = existing ? structuredClone(existing) : undefined;
+        state.sessions[key] = {
+          ...existing,
+          runtime,
+          sessionId,
+          lastRecordIndex,
+          lastTotalRecords,
+          lastReadAt: new Date().toISOString(),
+          transcriptPath,
+          recordedCwd,
+          watchedByPid: existing?.watchedByPid ?? null,
+          cursorCompatibility: CURSOR_COMPATIBILITY,
+          cursorCompatibilityWriteId: writeId,
+        };
+      });
+      await options.onCompatibilityBoundary?.('legacy-written');
+
+      try {
+        await mutateCursorState((state) => {
+          if (state.sessions[key]) {
+            throw new Error(
+              'CURSOR_STATE_V2_REQUIRED: legacy record-index Cursor writes are disabled',
+            );
+          }
+          const current = state.legacyUnverified[key];
+          if (current && current.legacyLastRecordIndex !== 0) {
+            throw new Error(
+              `LEGACY_CURSOR_UNVERIFIED: reset cursor:${sessionId} to replay from frame zero`,
+            );
+          }
+          delete state.legacyUnverified[key];
+        });
+      } catch (error) {
+        let restored = false;
+        await mutate((state) => {
+          const current = state.sessions[key];
+          if (
+            isCursorCompatibilityEntry(current) &&
+            current.cursorCompatibilityWriteId === writeId
+          ) {
+            if (preimage) state.sessions[key] = preimage;
+            else delete state.sessions[key];
+            restored = true;
+          }
+        });
+        if (!restored) {
+          throw new Error('CURSOR_COMPATIBILITY_ROLLBACK_CONFLICT', {
+            cause: error,
+          });
+        }
+        throw error;
+      }
+      await options.onCompatibilityBoundary?.('cursor-updated');
+    }, options);
+  }
   const key = sessionKey(runtime, sessionId);
   await mutate((state) => {
     const existing = state.sessions[key] ?? {};
@@ -520,6 +1027,17 @@ export async function setWatchedByPid(
   sessionId: string,
   pid: number,
 ): Promise<boolean> {
+  if (runtime === 'cursor') {
+    const key = sessionKey(runtime, sessionId);
+    let updated = false;
+    await mutate((state) => {
+      const existing = state.sessions[key];
+      if (!isCursorCompatibilityEntry(existing)) return;
+      state.sessions[key] = { ...existing, watchedByPid: pid };
+      updated = true;
+    });
+    return updated;
+  }
   const key = sessionKey(runtime, sessionId);
   let updated = false;
   await mutate((state) => {
@@ -544,6 +1062,18 @@ export async function clearWatchedByPid(
   sessionId: string,
   pid?: number,
 ): Promise<boolean> {
+  if (runtime === 'cursor') {
+    const key = sessionKey(runtime, sessionId);
+    let updated = false;
+    await mutate((state) => {
+      const existing = state.sessions[key];
+      if (!isCursorCompatibilityEntry(existing)) return;
+      if (pid !== undefined && existing.watchedByPid !== pid) return;
+      state.sessions[key] = { ...existing, watchedByPid: null };
+      updated = true;
+    });
+    return updated;
+  }
   const key = sessionKey(runtime, sessionId);
   let updated = false;
   await mutate((state) => {
@@ -563,7 +1093,55 @@ export async function clearWatchedByPid(
 /**
  * Zero all entries for a given runtime. Returns the count of entries zeroed.
  */
-export async function resetByRuntime(runtime: Runtime): Promise<number> {
+export interface RuntimeResetDiagnostics {
+  runtime: Runtime;
+  count: number;
+  recovery: {
+    performed: true;
+    reason: 'corrupt' | 'schema';
+    scope: 'cursor-store';
+    destructive: true;
+    preservesSiblingSessions: false;
+  } | null;
+}
+
+export async function resetByRuntimeWithDiagnostics(
+  runtime: Runtime,
+): Promise<RuntimeResetDiagnostics> {
+  if (runtime === 'cursor') {
+    return withCursorTransitionLock(async () => {
+      const sessionIds = new Set<string>();
+      let recovery: RuntimeResetDiagnostics['recovery'] = null;
+      try {
+        const cursor = await loadCursorState();
+        for (const entry of Object.values(cursor.sessions)) {
+          sessionIds.add(entry.sessionId);
+        }
+        for (const marker of Object.values(cursor.legacyUnverified)) {
+          sessionIds.add(marker.sessionId);
+        }
+      } catch (error) {
+        if (!(error instanceof CursorStateRecoveryRequiredError)) throw error;
+        recovery = {
+          performed: true,
+          reason: error.reason,
+          scope: 'cursor-store',
+          destructive: true,
+          preservesSiblingSessions: false,
+        };
+      }
+      await mutate((state) => {
+        for (const [key, entry] of Object.entries(state.sessions)) {
+          if (entry.runtime === 'cursor') {
+            delete state.sessions[key];
+            sessionIds.add(entry.sessionId);
+          }
+        }
+      });
+      await resetAllCursorState();
+      return { runtime, count: sessionIds.size, recovery };
+    });
+  }
   let count = 0;
   await mutate((state) => {
     for (const [key, entry] of Object.entries(state.sessions)) {
@@ -574,7 +1152,11 @@ export async function resetByRuntime(runtime: Runtime): Promise<number> {
     }
     return state;
   });
-  return count;
+  return { runtime, count, recovery: null };
+}
+
+export async function resetByRuntime(runtime: Runtime): Promise<number> {
+  return (await resetByRuntimeWithDiagnostics(runtime)).count;
 }
 
 /**
@@ -584,6 +1166,15 @@ export async function resetBySession(
   runtime: Runtime,
   sessionId: string,
 ): Promise<void> {
+  if (runtime === 'cursor') {
+    return withCursorTransitionLock(async () => {
+      await resetCursorSessionState(sessionId);
+      const key = sessionKey(runtime, sessionId);
+      await mutate((state) => {
+        delete state.sessions[key];
+      });
+    });
+  }
   const key = sessionKey(runtime, sessionId);
   await mutate((state) => {
     if (state.sessions[key]) {
@@ -597,8 +1188,11 @@ export async function resetBySession(
  * Empty the sessions map while preserving schemaVersion.
  */
 export async function clear(): Promise<void> {
-  await mutate((state) => {
-    state.sessions = {};
-    return state;
+  await withCursorTransitionLock(async () => {
+    await clearCursorState();
+    await mutate((state) => {
+      state.sessions = {};
+      return state;
+    });
   });
 }

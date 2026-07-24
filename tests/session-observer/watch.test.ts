@@ -8,6 +8,7 @@ import {
   mkdtemp,
   rm,
   mkdir,
+  realpath,
   readFile,
   writeFile,
   appendFile,
@@ -21,6 +22,7 @@ import { fileURLToPath } from 'node:url';
 
 import { expect, afterEach, describe, test, vi } from 'vitest';
 
+import { observeCatchUp } from '../../src/transcript/session-observer/lib/observe.js';
 import * as watchState from '../../src/transcript/session-observer/lib/watch-state.js';
 import { runWatchLoop } from '../../src/transcript/session-observer/lib/watch.js';
 
@@ -88,7 +90,9 @@ function sleep(ms: number): Promise<void> {
 async function withTempSessionHome(
   fn: (home: string, stateDir: string) => Promise<void>,
 ): Promise<void> {
-  const home = await mkdtemp(join(tmpdir(), 'watch-test-home-'));
+  const home = await realpath(
+    await mkdtemp(join(tmpdir(), 'watch-test-home-')),
+  );
   const previousHome = process.env.HOME;
   const previousStateDir = process.env.STATE_DIR;
   process.env.HOME = home;
@@ -152,6 +156,13 @@ async function writeCursorTranscript(
     'utf8',
   );
   return transcriptPath;
+}
+
+async function appendCursorFrame(
+  transcriptPath: string,
+  frame: Record<string, unknown>,
+): Promise<void> {
+  await appendFile(transcriptPath, `${JSON.stringify(frame)}\n`, 'utf8');
 }
 
 async function writeCodexTranscript(
@@ -721,33 +732,23 @@ describe('runWatchLoop', () => {
     });
   });
 
-  test('emits a buffered Cursor completion after provisional records were consumed', async () => {
+  test('confirms a changed Cursor transcript on its scheduled stability scan without another metadata change', async () => {
     await withTempSessionHome(async (home, stateDir) => {
-      const cwd = '/test/watch-cursor-buffered-completion';
-      const sessionId = 'watch-cursor-buffered-completion';
+      const cwd = join(home, 'workspace', 'watch-cursor-stability');
+      await mkdir(cwd, { recursive: true });
+      const sessionId = 'watch-cursor-stability';
       const transcriptPath = await writeCursorTranscript(home, cwd, sessionId, [
-        { role: 'user', content: 'Finish the buffered Cursor turn.' },
-        { content: 'The completed Cursor response.' },
+        { role: 'user', content: 'Baseline Cursor direction.' },
+        { content: 'Baseline Cursor response.' },
       ]);
-      await appendFile(
-        transcriptPath,
-        `${JSON.stringify({
-          role: 'assistant',
-          message: {
-            content: [
-              {
-                type: 'tool_use',
-                name: 'read_file',
-                input: { path: 'runtimes.ts' },
-              },
-            ],
-          },
-        })}\n`,
-        'utf8',
-      );
+      await appendCursorFrame(transcriptPath, {
+        type: 'turn_ended',
+        status: 'success',
+      });
       const stdout: string[] = [];
       let nowMs = Date.UTC(2026, 5, 3, 12, 0, 0);
-      let terminalAppended = false;
+      let changed = false;
+      let scanCount = 0;
 
       const result = await runWatchLoop(
         {
@@ -758,31 +759,41 @@ describe('runWatchLoop', () => {
           debounceSec: 0.02,
           maxRuntimeMin: 0.004,
           json: true,
-          includeTools: true,
         },
         {
           writeStdout: (chunk: string) => stdout.push(chunk),
+          onCursorScan: () => {
+            scanCount += 1;
+          },
           now: () => nowMs,
           sleep: async (ms: number) => {
             nowMs += ms;
-            if (terminalAppended) return;
-
-            const state = await readJsonIfExists(join(stateDir, 'state.json'));
+            if (changed) return;
+            const state = await readJsonIfExists(
+              join(stateDir, 'cursor-state.json'),
+            );
             if (
-              state?.sessions?.[`cursor:${sessionId}`]?.lastRecordIndex === 3
-            ) {
-              terminalAppended = true;
-              await appendFile(
-                transcriptPath,
-                `${JSON.stringify({ type: 'turn_ended', status: 'success' })}\n`,
-                'utf8',
-              );
-            }
+              state?.sessions?.[`cursor:${sessionId}`]?.continuity
+                ?.nextFrameIndex !== 3
+            )
+              return;
+            changed = true;
+            await appendCursorFrame(transcriptPath, {
+              role: 'assistant',
+              message: {
+                content: [
+                  {
+                    type: 'text',
+                    text: 'Stable Cursor watch observation.',
+                  },
+                ],
+              },
+            });
           },
         },
       );
 
-      expect(terminalAppended).toBe(true);
+      expect(changed).toBe(true);
       expect(result.reason).toBe('max-runtime');
       expect(result.eventCount).toBe(1);
 
@@ -794,57 +805,669 @@ describe('runWatchLoop', () => {
         .map((line) => JSON.parse(line))
         .filter((line) => line.type === 'delta');
       expect(events).toHaveLength(1);
-      expect(events[0].newRecords).toBe(1);
+      expect(events[0]).toMatchObject({
+        newRecords: 1,
+        ranges: {
+          indexBase: 'zero-based-jsonl-frame-index',
+          fromIndex: 3,
+          toIndex: 3,
+          nextIndex: 4,
+        },
+      });
+      expect(events[0].digest).toMatchObject({
+        schemaVersion: 2,
+        cursorEvidence: {
+          status: {
+            content: 'available',
+            lifecycle: 'pending',
+            delivery: 'reserved',
+            health: 'healthy',
+          },
+        },
+      });
       expect(events[0].digest.entries).toEqual([
         expect.objectContaining({
-          role: 'user',
-          text: 'Finish the buffered Cursor turn.',
-          recordIndex: 3,
-          sourceRecordIndex: 0,
-        }),
-        expect.objectContaining({
-          kind: 'tool_call',
-          toolName: 'read_file',
-          recordIndex: 3,
-          sourceRecordIndex: 2,
-        }),
-        expect.objectContaining({
           role: 'assistant',
-          text: 'The completed Cursor response.',
+          text: 'Stable Cursor watch observation.',
           recordIndex: 3,
-          sourceRecordIndex: 1,
+          sourceFrameIndex: 3,
         }),
       ]);
-      expect(
-        events[0].digest.entries.filter(
-          (entry: { kind: string }) => entry.kind === 'tool_call',
-        ),
-      ).toHaveLength(1);
 
-      const state = await readJsonIfExists(join(stateDir, 'state.json'));
-      expect(state?.sessions?.[`cursor:${sessionId}`]?.lastRecordIndex).toBe(4);
+      const state = await readJsonIfExists(join(stateDir, 'cursor-state.json'));
+      expect(
+        state?.sessions?.[`cursor:${sessionId}`]?.continuity?.nextFrameIndex,
+      ).toBe(4);
+      expect(state?.sessions?.[`cursor:${sessionId}`]?.pendingDelivery).toBe(
+        null,
+      );
+      expect(scanCount).toBe(4);
     });
   });
 
-  for (const status of ['aborted', 'error', 'cancelled']) {
-    test(`emits buffered Cursor input and terminal diagnostic after incremental ${status}`, async () => {
+  test('delivers bounded Cursor prefixes without starvation during continuous max-pending growth', async () => {
+    await withTempSessionHome(async (home, stateDir) => {
+      const cwd = join(home, 'workspace', 'watch-cursor-prefix-growth');
+      await mkdir(cwd, { recursive: true });
+      const sessionId = 'watch-cursor-prefix-growth';
+      const transcriptPath = await writeCursorTranscript(home, cwd, sessionId, [
+        { role: 'user', content: 'Continuous growth baseline direction.' },
+        { content: 'Continuous growth baseline response.' },
+      ]);
+      await appendCursorFrame(transcriptPath, {
+        type: 'turn_ended',
+        status: 'success',
+      });
+      const stdout: string[] = [];
+      const writtenMessages: string[] = [];
+      let nowMs = Date.UTC(2026, 5, 3, 13, 0, 0);
+      let firstDeltaEmitted = false;
+
+      const result = await runWatchLoop(
+        {
+          runtime: 'cursor',
+          cwd,
+          session: `cursor:${sessionId}`,
+          pollSec: 0.02,
+          debounceSec: 0.1,
+          maxPendingSec: 0.06,
+          maxRuntimeMin: 0.006,
+          json: true,
+        },
+        {
+          writeStdout: (chunk: string) => {
+            stdout.push(chunk);
+            if (
+              chunk
+                .trim()
+                .split('\n')
+                .filter(Boolean)
+                .some((line) => JSON.parse(line).type === 'delta')
+            ) {
+              firstDeltaEmitted = true;
+            }
+          },
+          now: () => nowMs,
+          sleep: async (ms: number) => {
+            nowMs += ms;
+            const state = await readJsonIfExists(
+              join(stateDir, 'cursor-state.json'),
+            );
+            if (
+              firstDeltaEmitted ||
+              state?.sessions?.[`cursor:${sessionId}`]?.continuity
+                ?.nextFrameIndex !== 3
+            ) {
+              return;
+            }
+            const text = `Continuous Cursor growth ${writtenMessages.length + 1}.`;
+            writtenMessages.push(text);
+            await appendCursorFrame(transcriptPath, {
+              role: 'assistant',
+              message: {
+                content: [{ type: 'text', text }],
+              },
+            });
+          },
+        },
+      );
+
+      const deltas = stdout
+        .join('')
+        .trim()
+        .split('\n')
+        .filter(Boolean)
+        .map((line) => JSON.parse(line))
+        .filter((line) => line.type === 'delta');
+      const deliveredMessages = deltas.flatMap((delta) =>
+        delta.digest.entries.map((entry: { text: string }) => entry.text),
+      );
+
+      expect(result.reason).toBe('max-runtime');
+      expect(writtenMessages.length).toBeGreaterThanOrEqual(4);
+      expect(deltas.length).toBeGreaterThanOrEqual(2);
+      expect(deltas[0].digest.accounting.buffered).toMatchObject({
+        count: 1,
+        reason: 'stability-wait',
+      });
+      expect(
+        deltas[0].digest.entries.map((entry: { text: string }) => entry.text),
+      ).not.toContain(writtenMessages.at(-1));
+      expect(deliveredMessages).toEqual(writtenMessages);
+      expect(new Set(deliveredMessages).size).toBe(deliveredMessages.length);
+
+      const state = await readJsonIfExists(join(stateDir, 'cursor-state.json'));
+      expect(
+        state?.sessions?.[`cursor:${sessionId}`]?.continuity?.nextFrameIndex,
+      ).toBe(3 + writtenMessages.length);
+      expect(state?.sessions?.[`cursor:${sessionId}`]?.stabilityCandidate).toBe(
+        null,
+      );
+    });
+  });
+
+  test('reports Cursor heartbeat facets without rescanning an unchanged transcript and cleans up ownership', async () => {
+    await withTempSessionHome(async (home, stateDir) => {
+      const cwd = join(home, 'workspace', 'watch-cursor-heartbeat');
+      await mkdir(cwd, { recursive: true });
+      const sessionId = 'watch-cursor-heartbeat';
+      const transcriptPath = await writeCursorTranscript(home, cwd, sessionId, [
+        { role: 'user', content: 'Heartbeat baseline direction.' },
+        { content: 'Heartbeat baseline response.' },
+      ]);
+      await appendCursorFrame(transcriptPath, {
+        type: 'turn_ended',
+        status: 'success',
+      });
+      const stdout: string[] = [];
+      let nowMs = Date.UTC(2026, 5, 3, 12, 0, 0);
+      let scanCount = 0;
+
+      const result = await runWatchLoop(
+        {
+          runtime: 'cursor',
+          cwd,
+          session: `cursor:${sessionId}`,
+          pollSec: 0.02,
+          debounceSec: 0.02,
+          heartbeatSec: 0.04,
+          maxRuntimeMin: 0.003,
+          json: true,
+        },
+        {
+          writeStdout: (chunk: string) => stdout.push(chunk),
+          onCursorScan: () => {
+            scanCount += 1;
+          },
+          now: () => nowMs,
+          sleep: async (ms: number) => {
+            nowMs += ms;
+          },
+        },
+      );
+
+      const heartbeats = stdout
+        .join('')
+        .trim()
+        .split('\n')
+        .filter(Boolean)
+        .map((line) => JSON.parse(line))
+        .filter((line) => line.type === 'heartbeat');
+      expect(result).toEqual({ reason: 'max-runtime', eventCount: 0 });
+      expect(heartbeats.length).toBeGreaterThan(0);
+      expect(heartbeats[0]).toMatchObject({
+        healthy: true,
+        recordsBehind: 0,
+        targets: [
+          {
+            runtime: 'cursor',
+            sessionId,
+            indexBase: 'zero-based-jsonl-frame-index',
+            lastRecordIndex: 3,
+            continuityState: 'verified',
+            status: {
+              lifecycle: 'success',
+              delivery: 'committed',
+              health: 'healthy',
+            },
+          },
+        ],
+      });
+      expect(scanCount).toBe(2);
+      const watchJson = await readJsonIfExists(join(stateDir, 'watch.json'));
+      expect(watchJson?.active).toBe(null);
+      expect(watchJson?.watchers).toEqual([]);
+    });
+  });
+
+  test('clears repaired Cursor buffering from watch heartbeats and status', async () => {
+    await withTempSessionHome(async (home, stateDir) => {
+      const cwd = join(home, 'workspace', 'watch-cursor-partial-repair');
+      await mkdir(cwd, { recursive: true });
+      const sessionId = 'watch-cursor-partial-repair';
+      const transcriptPath = await writeCursorTranscript(home, cwd, sessionId, [
+        { role: 'user', content: 'Partial repair baseline direction.' },
+        { content: 'Partial repair baseline response.' },
+      ]);
+      await appendCursorFrame(transcriptPath, {
+        type: 'turn_ended',
+        status: 'success',
+      });
+      const repairedFrame = {
+        role: 'assistant',
+        message: {
+          content: [
+            {
+              type: 'text',
+              text: 'Repaired Cursor watch observation.',
+            },
+          ],
+        },
+      };
+      const stdout: string[] = [];
+      let nowMs = Date.now();
+      let stage = 0;
+      let bufferedTarget: any = null;
+      let repairedTarget: any = null;
+      let repairedStatus: any = null;
+
+      const result = await runWatchLoop(
+        {
+          runtime: 'cursor',
+          cwd,
+          session: `cursor:${sessionId}`,
+          pollSec: 0.02,
+          debounceSec: 0.02,
+          heartbeatSec: 0.02,
+          maxRuntimeMin: 0.012,
+          json: true,
+        },
+        {
+          writeStdout: (chunk: string) => stdout.push(chunk),
+          now: () => nowMs,
+          sleep: async (ms: number) => {
+            nowMs += ms;
+            const watchJson = await readJsonIfExists(
+              join(stateDir, 'watch.json'),
+            );
+            const target = watchJson?.watchers?.[0]?.targets?.[0];
+            const cursorState = await readJsonIfExists(
+              join(stateDir, 'cursor-state.json'),
+            );
+            const nextFrameIndex =
+              cursorState?.sessions?.[`cursor:${sessionId}`]?.continuity
+                ?.nextFrameIndex;
+
+            if (stage === 0 && nextFrameIndex === 3) {
+              await appendFile(
+                transcriptPath,
+                JSON.stringify(repairedFrame),
+                'utf8',
+              );
+              stage = 1;
+              return;
+            }
+            if (stage === 1 && target?.bufferedFromFrame === 3) {
+              bufferedTarget = structuredClone(target);
+              await appendFile(transcriptPath, '\n', 'utf8');
+              stage = 2;
+              return;
+            }
+            if (stage === 2 && target?.observationCursor === 4) {
+              repairedTarget = structuredClone(target);
+              const status = await runCli(['watch-ctl', 'status', '--json'], {
+                ...process.env,
+                HOME: home,
+                STATE_DIR: stateDir,
+              });
+              expect(
+                status.status,
+                `status should exit 0\nstdout: ${status.stdout}\nstderr: ${status.stderr}`,
+              ).toBe(0);
+              repairedStatus = JSON.parse(status.stdout);
+              stage = 3;
+            }
+          },
+        },
+      );
+
+      expect(result).toEqual({ reason: 'max-runtime', eventCount: 1 });
+      expect(stage).toBe(3);
+      expect(bufferedTarget).toMatchObject({
+        observationCursor: 3,
+        bufferedFromFrame: 3,
+      });
+      expect(repairedTarget).toMatchObject({
+        observationCursor: 4,
+        bufferedFromFrame: null,
+        recordCount: 4,
+      });
+      expect(repairedStatus.targets[0]).toMatchObject({
+        runtime: 'cursor',
+        sessionId,
+        transcriptRecords: 4,
+        lastRecordIndex: 4,
+        bufferedFromFrame: null,
+        recordsBehind: 0,
+      });
+
+      const repairedHeartbeats = stdout
+        .join('')
+        .trim()
+        .split('\n')
+        .filter(Boolean)
+        .map((line) => JSON.parse(line))
+        .filter(
+          (line) =>
+            line.type === 'heartbeat' && line.targets[0]?.lastRecordIndex === 4,
+        );
+      expect(repairedHeartbeats.length).toBeGreaterThanOrEqual(30);
+      for (const heartbeat of repairedHeartbeats) {
+        expect(heartbeat).toMatchObject({
+          recordsBehind: 0,
+          targets: [
+            {
+              transcriptRecords: 4,
+              bufferedFromFrame: null,
+              recordsBehind: 0,
+            },
+          ],
+        });
+      }
+    });
+  });
+
+  test('keeps a continuity-blocked Cursor target owned and resumes after the transcript prefix is repaired', async () => {
+    await withTempSessionHome(async (home, stateDir) => {
+      const cwd = join(home, 'workspace', 'watch-cursor-repair');
+      await mkdir(cwd, { recursive: true });
+      const sessionId = 'watch-cursor-repair';
+      const transcriptPath = await writeCursorTranscript(home, cwd, sessionId, [
+        { role: 'user', content: 'Original Cursor repair direction.' },
+        { content: 'Original Cursor repair response.' },
+      ]);
+      await appendCursorFrame(transcriptPath, {
+        type: 'turn_ended',
+        status: 'success',
+      });
+      const original = await readFile(transcriptPath, 'utf8');
+      const corrupted = original.replace(
+        'Original Cursor repair direction.',
+        'Xriginal Cursor repair direction.',
+      );
+      const stdout: string[] = [];
+      let nowMs = Date.UTC(2026, 5, 3, 12, 0, 0);
+      let stage = 0;
+      let scanCount = 0;
+
+      const result = await runWatchLoop(
+        {
+          runtime: 'cursor',
+          cwd,
+          session: `cursor:${sessionId}`,
+          pollSec: 0.02,
+          debounceSec: 0.02,
+          heartbeatSec: 0.02,
+          maxRuntimeMin: 0.006,
+          json: true,
+        },
+        {
+          writeStdout: (chunk: string) => stdout.push(chunk),
+          onCursorScan: () => {
+            scanCount += 1;
+          },
+          now: () => nowMs,
+          sleep: async (ms: number) => {
+            nowMs += ms;
+            if (stage === 0) {
+              const cursorState = await readJsonIfExists(
+                join(stateDir, 'cursor-state.json'),
+              );
+              if (
+                cursorState?.sessions?.[`cursor:${sessionId}`]?.continuity
+                  ?.nextFrameIndex === 3
+              ) {
+                stage = 1;
+                await writeFile(transcriptPath, corrupted, 'utf8');
+              }
+              return;
+            }
+            if (stage === 1) {
+              const watchJson = await readJsonIfExists(
+                join(stateDir, 'watch.json'),
+              );
+              if (
+                watchJson?.watchers?.[0]?.targets?.[0]?.continuityState ===
+                'blocked'
+              ) {
+                stage = 2;
+                await writeFile(transcriptPath, original, 'utf8');
+              }
+            }
+          },
+        },
+      );
+
+      expect(result).toEqual({ reason: 'max-runtime', eventCount: 0 });
+      expect(stage).toBe(2);
+      const heartbeats = stdout
+        .join('')
+        .trim()
+        .split('\n')
+        .filter(Boolean)
+        .map((line) => JSON.parse(line))
+        .filter((line) => line.type === 'heartbeat');
+      expect(
+        heartbeats.some(
+          (heartbeat) =>
+            heartbeat.healthy === false &&
+            heartbeat.targets[0]?.continuityState === 'blocked',
+        ),
+      ).toBe(true);
+      expect(
+        heartbeats.some(
+          (heartbeat) =>
+            heartbeat.healthy === true &&
+            heartbeat.targets[0]?.continuityState === 'verified',
+        ),
+      ).toBe(true);
+      expect(scanCount).toBe(4);
+      const cursorState = await readJsonIfExists(
+        join(stateDir, 'cursor-state.json'),
+      );
+      expect(
+        cursorState?.sessions?.[`cursor:${sessionId}`]?.continuity
+          ?.nextFrameIndex,
+      ).toBe(3);
+      expect(
+        cursorState?.sessions?.[`cursor:${sessionId}`]?.pendingDelivery,
+      ).toBe(null);
+    });
+  });
+
+  test('persists repeated Cursor poll failures as unhealthy and clears them only after verified recovery', async () => {
+    await withTempSessionHome(async (home, stateDir) => {
+      const cwd = join(home, 'workspace', 'watch-cursor-poll-recovery');
+      await mkdir(cwd, { recursive: true });
+      const sessionId = 'watch-cursor-poll-recovery';
+      const transcriptPath = await writeCursorTranscript(home, cwd, sessionId, [
+        { role: 'user', content: 'Poll recovery direction.' },
+        { content: 'Poll recovery response.' },
+      ]);
+      await appendCursorFrame(transcriptPath, {
+        type: 'turn_ended',
+        status: 'success',
+      });
+      const stdout: string[] = [];
+      let nowMs = Date.UTC(2026, 5, 3, 12, 0, 0);
+      let transcriptStatCalls = 0;
+      let scanCount = 0;
+      let sawDurableError = false;
+
+      const result = await runWatchLoop(
+        {
+          runtime: 'cursor',
+          cwd,
+          session: `cursor:${sessionId}`,
+          pollSec: 0.02,
+          debounceSec: 0.02,
+          heartbeatSec: 0.02,
+          maxRuntimeMin: 0.008,
+          json: true,
+        },
+        {
+          writeStdout: (chunk: string) => stdout.push(chunk),
+          onCursorScan: () => {
+            scanCount += 1;
+          },
+          now: () => nowMs,
+          sleep: async (ms: number) => {
+            nowMs += ms;
+            const watchJson = await readJsonIfExists(
+              join(stateDir, 'watch.json'),
+            );
+            sawDurableError ||= watchJson?.watchers?.[0]?.targets?.some(
+              (target: any) =>
+                target.runtime === 'cursor' &&
+                target.lastStatus?.health === 'error',
+            );
+          },
+          stat: async (path: string) => {
+            if (path === transcriptPath) {
+              transcriptStatCalls += 1;
+              if (transcriptStatCalls === 2 || transcriptStatCalls === 3) {
+                const error = new Error('synthetic Cursor poll stat failure');
+                Object.assign(error, { code: 'EIO' });
+                throw error;
+              }
+            }
+            return fsStat(path);
+          },
+        },
+      );
+
+      expect(result).toEqual({ reason: 'max-runtime', eventCount: 0 });
+      expect(sawDurableError).toBe(true);
+      const heartbeats = stdout
+        .join('')
+        .trim()
+        .split('\n')
+        .filter(Boolean)
+        .map((line) => JSON.parse(line))
+        .filter((line) => line.type === 'heartbeat');
+      expect(
+        heartbeats.some(
+          (heartbeat) =>
+            heartbeat.healthy === false &&
+            heartbeat.targets[0]?.status?.health === 'error',
+        ),
+      ).toBe(true);
+      expect(
+        heartbeats.some(
+          (heartbeat) =>
+            heartbeat.healthy === true &&
+            heartbeat.targets[0]?.status?.health === 'healthy',
+        ),
+      ).toBe(true);
+      expect(scanCount).toBe(3);
+      expect(transcriptStatCalls).toBeGreaterThan(3);
+    });
+  });
+
+  test.each([
+    { label: 'synchronous', asynchronous: false },
+    { label: 'asynchronous', asynchronous: true },
+  ])(
+    'does not advance the Cursor observation cursor after $label stdout failure',
+    async ({ asynchronous }) => {
       await withTempSessionHome(async (home, stateDir) => {
-        const cwd = `/test/watch-cursor-incremental-${status}`;
-        const sessionId = `watch-cursor-incremental-${status}`;
+        const cwd = join(
+          home,
+          'workspace',
+          `watch-cursor-output-${asynchronous ? 'async' : 'sync'}`,
+        );
+        await mkdir(cwd, { recursive: true });
+        const sessionId = `watch-cursor-output-${asynchronous ? 'async' : 'sync'}`;
         const transcriptPath = await writeCursorTranscript(
           home,
           cwd,
           sessionId,
           [
-            { role: 'user', content: `Start the ${status} Cursor turn.` },
-            { content: `provisional ${status} response` },
+            { role: 'user', content: 'Output baseline direction.' },
+            { content: 'Output baseline response.' },
           ],
         );
-        const stdout: string[] = [];
+        await appendCursorFrame(transcriptPath, {
+          type: 'turn_ended',
+          status: 'success',
+        });
         let nowMs = Date.UTC(2026, 5, 3, 12, 0, 0);
-        let terminalAppended = false;
+        let changed = false;
 
-        const result = await runWatchLoop(
+        await expect(
+          runWatchLoop(
+            {
+              runtime: 'cursor',
+              cwd,
+              session: `cursor:${sessionId}`,
+              pollSec: 0.02,
+              debounceSec: 0.02,
+              maxRuntimeMin: 0.004,
+              json: true,
+            },
+            {
+              writeStdout: (chunk: string) => {
+                if (!chunk.includes('"type":"delta"')) return;
+                const failure = new Error('synthetic Cursor stdout failure');
+                if (asynchronous) return Promise.reject(failure);
+                throw failure;
+              },
+              now: () => nowMs,
+              sleep: async (ms: number) => {
+                nowMs += ms;
+                if (changed) return;
+                const state = await readJsonIfExists(
+                  join(stateDir, 'cursor-state.json'),
+                );
+                if (
+                  state?.sessions?.[`cursor:${sessionId}`]?.continuity
+                    ?.nextFrameIndex !== 3
+                )
+                  return;
+                changed = true;
+                await appendCursorFrame(transcriptPath, {
+                  role: 'assistant',
+                  message: {
+                    content: [
+                      {
+                        type: 'text',
+                        text: 'Cursor output must be acknowledged first.',
+                      },
+                    ],
+                  },
+                });
+              },
+            },
+          ),
+        ).rejects.toThrow('synthetic Cursor stdout failure');
+
+        const state = await readJsonIfExists(
+          join(stateDir, 'cursor-state.json'),
+        );
+        const session = state?.sessions?.[`cursor:${sessionId}`];
+        expect(session?.continuity?.nextFrameIndex).toBe(3);
+        if (asynchronous) {
+          expect(session?.pendingDelivery).not.toBe(null);
+          expect(session?.lastStatus?.delivery).toBe('uncertain');
+        } else {
+          expect(session?.pendingDelivery).toBe(null);
+          expect(session?.lastStatus?.delivery).toBe('none');
+        }
+        const watchJson = await readJsonIfExists(join(stateDir, 'watch.json'));
+        expect(watchJson?.active).toBe(null);
+        expect(watchJson?.watchers).toEqual([]);
+      });
+    },
+  );
+
+  test('awaits a native-style stdout callback before committing a Cursor watch delta', async () => {
+    await withTempSessionHome(async (home, stateDir) => {
+      const cwd = join(home, 'workspace', 'watch-cursor-output-callback');
+      await mkdir(cwd, { recursive: true });
+      const sessionId = 'watch-cursor-output-callback';
+      const transcriptPath = await writeCursorTranscript(home, cwd, sessionId, [
+        { role: 'user', content: 'Output callback baseline.' },
+        { content: 'Output callback baseline response.' },
+      ]);
+      await appendCursorFrame(transcriptPath, {
+        type: 'turn_ended',
+        status: 'success',
+      });
+      let nowMs = Date.UTC(2026, 5, 3, 12, 0, 0);
+      let changed = false;
+
+      await expect(
+        runWatchLoop(
           {
             runtime: 'cursor',
             cwd,
@@ -855,56 +1478,182 @@ describe('runWatchLoop', () => {
             json: true,
           },
           {
-            writeStdout: (chunk: string) => stdout.push(chunk),
+            writeStdout: (
+              chunk: string,
+              complete?: (error?: Error | null) => void,
+            ) => {
+              if (!chunk.includes('"type":"delta"')) {
+                complete?.();
+                return true;
+              }
+              setTimeout(
+                () => complete?.(new Error('delayed Cursor stdout failure')),
+                10,
+              );
+              return true;
+            },
             now: () => nowMs,
             sleep: async (ms: number) => {
               nowMs += ms;
-              if (terminalAppended) return;
-
+              if (changed) return;
               const state = await readJsonIfExists(
-                join(stateDir, 'state.json'),
+                join(stateDir, 'cursor-state.json'),
               );
               if (
-                state?.sessions?.[`cursor:${sessionId}`]?.lastRecordIndex === 2
-              ) {
-                terminalAppended = true;
-                await appendFile(
-                  transcriptPath,
-                  `${JSON.stringify({ type: 'turn_ended', status })}\n`,
-                  'utf8',
-                );
-              }
+                state?.sessions?.[`cursor:${sessionId}`]?.continuity
+                  ?.nextFrameIndex !== 3
+              )
+                return;
+              changed = true;
+              await appendCursorFrame(transcriptPath, {
+                role: 'assistant',
+                message: {
+                  content: [
+                    {
+                      type: 'text',
+                      text: 'Cursor callback delivery must finish first.',
+                    },
+                  ],
+                },
+              });
             },
           },
-        );
+        ),
+      ).rejects.toThrow('delayed Cursor stdout failure');
 
-        expect(terminalAppended).toBe(true);
-        expect(result.eventCount).toBe(1);
-        const events = stdout
-          .join('')
-          .trim()
-          .split('\n')
-          .filter(Boolean)
-          .map((line) => JSON.parse(line))
-          .filter((line) => line.type === 'delta');
-        expect(events).toHaveLength(1);
-        expect(events[0].digest.entries).toEqual([
-          expect.objectContaining({
-            role: 'user',
-            text: `Start the ${status} Cursor turn.`,
-            recordIndex: 2,
-            sourceRecordIndex: 0,
-          }),
-          expect.objectContaining({
-            origin: 'runtime-diagnostic',
-            text: `[Cursor turn ended with status: ${status}]`,
-            recordIndex: 2,
-          }),
-        ]);
-        expect(stdout.join('')).not.toContain(`provisional ${status} response`);
+      const state = await readJsonIfExists(join(stateDir, 'cursor-state.json'));
+      const session = state?.sessions?.[`cursor:${sessionId}`];
+      expect(session?.continuity?.nextFrameIndex).toBe(3);
+      expect(session?.pendingDelivery).not.toBe(null);
+      expect(session?.lastStatus?.delivery).toBe('uncertain');
+    });
+  });
+
+  test('bounds Cursor baseline and final flush stability waits by max runtime', async () => {
+    await withTempSessionHome(async (home) => {
+      const cwd = join(home, 'workspace', 'watch-cursor-runtime-budget');
+      await mkdir(cwd, { recursive: true });
+      const sessionId = 'watch-cursor-runtime-budget';
+      await writeCursorTranscript(home, cwd, sessionId, [
+        { role: 'user', content: 'Bound the watcher runtime.' },
+        { content: 'A long stability wait must not overrun it.' },
+      ]);
+      const startedAt = 1_700_000_000_000;
+      let nowMs = startedAt;
+      const sleeps: number[] = [];
+
+      const result = await runWatchLoop(
+        {
+          runtime: 'cursor',
+          cwd,
+          session: `cursor:${sessionId}`,
+          catchUpFirst: true,
+          pollSec: 0.01,
+          debounceSec: 1,
+          maxRuntimeMin: 0.001,
+          json: true,
+        },
+        {
+          writeStdout: () => true,
+          now: () => nowMs,
+          sleep: async (ms: number) => {
+            sleeps.push(ms);
+            nowMs += ms;
+          },
+        },
+      );
+
+      expect(result.reason).toBe('max-runtime');
+      expect(sleeps.length).toBeGreaterThan(0);
+      expect(sleeps.every((ms) => ms >= 0 && ms <= 60)).toBe(true);
+      expect(nowMs - startedAt).toBe(60);
+    });
+  });
+
+  test('surfaces a pre-existing Cursor delivery reservation as uncertain without replaying or advancing it', async () => {
+    await withTempSessionHome(async (home, stateDir) => {
+      const cwd = join(home, 'workspace', 'watch-cursor-reservation');
+      await mkdir(cwd, { recursive: true });
+      const sessionId = 'watch-cursor-reservation';
+      const transcriptPath = await writeCursorTranscript(home, cwd, sessionId, [
+        { role: 'user', content: 'Reserved Cursor direction.' },
+        { content: 'Reserved Cursor response.' },
+      ]);
+      await appendCursorFrame(transcriptPath, {
+        type: 'turn_ended',
+        status: 'success',
+      });
+      const abandonedOwner = await observeCatchUp(
+        {
+          runtime: 'cursor',
+          cwd,
+          session: `cursor:${sessionId}`,
+        },
+        { ownerPid: 9191 },
+      );
+      expect(abandonedOwner.ok).toBe(true);
+      if (
+        !abandonedOwner.ok ||
+        abandonedOwner.runtime !== 'cursor' ||
+        abandonedOwner.delivery === null
+      ) {
+        throw new Error('expected pre-existing Cursor reservation');
+      }
+      vi.spyOn(process, 'kill').mockImplementation(() => true);
+
+      const stdout: string[] = [];
+      let nowMs = Date.UTC(2026, 5, 3, 12, 0, 0);
+      const result = await runWatchLoop(
+        {
+          runtime: 'cursor',
+          cwd,
+          session: `cursor:${sessionId}`,
+          pollSec: 0.02,
+          debounceSec: 0.02,
+          heartbeatSec: 0.02,
+          maxRuntimeMin: 0.002,
+          json: true,
+        },
+        {
+          pid: 9292,
+          handleSignals: false,
+          writeStdout: (chunk: string) => stdout.push(chunk),
+          now: () => nowMs,
+          sleep: async (ms: number) => {
+            nowMs += ms;
+          },
+        },
+      );
+
+      expect(result).toEqual({ reason: 'max-runtime', eventCount: 0 });
+      expect(stdout.join('')).not.toContain('"type":"delta"');
+      const state = await readJsonIfExists(join(stateDir, 'cursor-state.json'));
+      const session = state?.sessions?.[`cursor:${sessionId}`];
+      expect(session?.continuity?.nextFrameIndex).toBe(0);
+      expect(session?.pendingDelivery?.reservedByPid).toBe(9191);
+      expect(session?.lastStatus?.delivery).toBe('uncertain');
+      const heartbeats = stdout
+        .join('')
+        .trim()
+        .split('\n')
+        .filter(Boolean)
+        .map((line) => JSON.parse(line))
+        .filter((line) => line.type === 'heartbeat');
+      expect(heartbeats[0]).toMatchObject({
+        healthy: false,
+        targets: [
+          {
+            lastRecordIndex: 0,
+            continuityState: 'verified',
+            status: {
+              delivery: 'uncertain',
+              health: 'unknown',
+            },
+          },
+        ],
       });
     });
-  }
+  });
 
   test('emits during continuous writes once max pending age is reached', async () => {
     await withTempSessionHome(async (home) => {
@@ -1521,6 +2270,68 @@ describe('runWatchLoop', () => {
         (stdoutA.join('') + stdoutB.join('')).includes('already watching'),
       ).toBeTruthy();
 
+      const watchJson = await readJsonIfExists(join(stateDir, 'watch.json'));
+      expect(watchJson?.watchers ?? []).toEqual([]);
+    });
+  });
+
+  test('reserves an exact Cursor target before observation so one startup-race contender loses cleanly', async () => {
+    await withTempSessionHome(async (home, stateDir) => {
+      const cwd = join(home, 'workspace', 'watch-cursor-startup-race');
+      await mkdir(cwd, { recursive: true });
+      const sessionId = 'watch-cursor-startup-race';
+      const transcriptPath = await writeCursorTranscript(home, cwd, sessionId, [
+        { role: 'user', content: 'Cursor race baseline direction.' },
+        { content: 'Cursor race baseline response.' },
+      ]);
+      await appendCursorFrame(transcriptPath, {
+        type: 'turn_ended',
+        status: 'success',
+      });
+      vi.spyOn(process, 'kill').mockImplementation(() => true);
+
+      const startWatcher = (pid: number) =>
+        runWatchLoop(
+          {
+            runtime: 'cursor',
+            cwd,
+            session: `cursor:${sessionId}`,
+            pollSec: 0.02,
+            debounceSec: 0.02,
+            maxRuntimeMin: 0.005,
+            json: true,
+          },
+          {
+            pid,
+            handleSignals: false,
+            writeStdout: () => {},
+          },
+        );
+
+      const settled = await Promise.allSettled([
+        startWatcher(311),
+        startWatcher(322),
+      ]);
+      const rejected = settled.filter(
+        (result): result is PromiseRejectedResult =>
+          result.status === 'rejected',
+      );
+      const fulfilled = settled.filter(
+        (result): result is PromiseFulfilledResult<any> =>
+          result.status === 'fulfilled',
+      );
+      expect(rejected).toHaveLength(1);
+      expect(rejected[0].reason.message).toMatch(
+        /already watching cursor:watch-cursor-startup-race/,
+      );
+      expect(fulfilled).toHaveLength(1);
+      expect(fulfilled[0].value.reason).toBe('max-runtime');
+      const cursorState = await readJsonIfExists(
+        join(stateDir, 'cursor-state.json'),
+      );
+      expect(
+        cursorState?.sessions?.[`cursor:${sessionId}`]?.pendingDelivery,
+      ).toBe(null);
       const watchJson = await readJsonIfExists(join(stateDir, 'watch.json'));
       expect(watchJson?.watchers ?? []).toEqual([]);
     });

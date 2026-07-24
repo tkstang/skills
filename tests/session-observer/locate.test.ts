@@ -33,6 +33,8 @@ import {
   writeFile,
   utimes,
   readFile,
+  realpath,
+  symlink,
   readdir,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -101,6 +103,23 @@ const classifyCountHarness = vi.hoisted(() => {
   };
 });
 
+const opendirFailureHarness = vi.hoisted(() => {
+  let failedPath: string | null = null;
+  return {
+    failOnceAt: (path: string) => {
+      failedPath = path;
+    },
+    consume: (path: string) => {
+      if (failedPath !== path) return false;
+      failedPath = null;
+      return true;
+    },
+    reset: () => {
+      failedPath = null;
+    },
+  };
+});
+
 vi.mock('node:fs/promises', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs/promises')>();
   return {
@@ -114,6 +133,17 @@ vi.mock('node:fs/promises', async (importOriginal) => {
       if (typeof args[0] === 'string') classifyCountHarness.record(args[0]);
       return (actual.readFile as (...a: unknown[]) => unknown)(...args);
     }) as typeof actual.readFile,
+    opendir: (async (...args: Parameters<typeof actual.opendir>) => {
+      if (
+        typeof args[0] === 'string' &&
+        opendirFailureHarness.consume(args[0])
+      ) {
+        throw Object.assign(new Error('permission denied by test'), {
+          code: 'EACCES',
+        });
+      }
+      return actual.opendir(...args);
+    }) as typeof actual.opendir,
   };
 });
 
@@ -122,14 +152,20 @@ vi.mock('node:fs/promises', async (importOriginal) => {
 // ---------------------------------------------------------------------------
 
 async function withTempHome(fn: (dir: string) => Promise<void>): Promise<void> {
-  const dir = await mkdtemp(join(tmpdir(), 'locate-test-'));
+  const createdDir = await mkdtemp(join(tmpdir(), 'locate-test-'));
+  // macOS exposes /var as a symlink to /private/var. Hand tests the canonical
+  // temp path so ordinary cwd fixtures do not accidentally exercise the raw
+  // alias branch; alias tests below create their own explicit path aliases.
+  const dir = await realpath(createdDir);
   const prevHome = process.env.HOME;
   const prevStateDir = process.env.STATE_DIR;
   process.env.HOME = dir;
   process.env.STATE_DIR = join(dir, '.local', 'state', 'session-observer');
+  opendirFailureHarness.reset();
   try {
     await fn(dir);
   } finally {
+    configureCursorDiscoveryForTest();
     if (prevHome === undefined) delete process.env.HOME;
     else process.env.HOME = prevHome;
     if (prevStateDir === undefined) delete process.env.STATE_DIR;
@@ -140,10 +176,14 @@ async function withTempHome(fn: (dir: string) => Promise<void>): Promise<void> {
 
 import {
   ClassificationCache,
+  configureCursorDiscoveryForTest,
   discover,
   findSessionCandidate,
   gitWorktrees,
+  resolveCursorIdentity,
 } from '../../src/transcript/session-observer/lib/locate.js';
+import { resolveSelfIdentity } from '../../src/transcript/session-observer/lib/observe.js';
+import { runWatchLoop } from '../../src/transcript/session-observer/lib/watch.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const FIXTURES = join(__dirname, 'fixtures');
@@ -193,6 +233,81 @@ function encodeCwd(cwd: string): string {
 // Encode cwd the way Cursor project dirs do: slash/dot path segments joined by '-'
 function encodeCursorCwd(cwd: string): string {
   return cwd.split(/[/.]/u).filter(Boolean).join('-');
+}
+
+type CursorAliasPlacement = 'leaf' | 'ancestor';
+
+async function createCursorAliasPaths(
+  home: string,
+  placement: CursorAliasPlacement,
+): Promise<{ aliasCwd: string; canonicalCwd: string }> {
+  if (placement === 'leaf') {
+    const canonicalCwd = join(home, 'Code', 'physical-leaf-project');
+    const aliasCwd = join(home, 'Code', 'alias-leaf-project');
+    await mkdir(canonicalCwd, { recursive: true });
+    await symlink(canonicalCwd, aliasCwd, 'dir');
+    return { aliasCwd, canonicalCwd: await realpath(canonicalCwd) };
+  }
+
+  const canonicalParent = join(home, 'Code', 'physical-ancestor');
+  const aliasParent = join(home, 'Code', 'alias-ancestor');
+  const canonicalCwd = join(canonicalParent, 'project');
+  await mkdir(canonicalCwd, { recursive: true });
+  await symlink(canonicalParent, aliasParent, 'dir');
+  return {
+    aliasCwd: join(aliasParent, 'project'),
+    canonicalCwd: await realpath(canonicalCwd),
+  };
+}
+
+async function writeCursorTranscriptForCwd(
+  home: string,
+  cwd: string,
+  sessionId: string,
+): Promise<string> {
+  const transcriptDir = join(
+    home,
+    '.cursor',
+    'projects',
+    encodeCursorCwd(cwd),
+    'agent-transcripts',
+    sessionId,
+  );
+  await mkdir(transcriptDir, { recursive: true });
+  const transcriptPath = join(transcriptDir, 'transcript.jsonl');
+  await writeFile(transcriptPath, CURSOR_TYPICAL, 'utf8');
+  return transcriptPath;
+}
+
+async function writeAccumulatedCursorPinStore(home: string): Promise<{
+  targetCwd: string;
+  targetSession: string;
+  targetTranscript: string;
+  unrelatedTranscripts: string[];
+}> {
+  const targetCwd = join(home, 'Code', 'bounded-explicit-pin');
+  await mkdir(targetCwd, { recursive: true });
+  const targetSession = 'session-explicit-target';
+  const targetTranscript = await writeCursorTranscriptForCwd(
+    home,
+    targetCwd,
+    targetSession,
+  );
+  const unrelatedTranscripts = await Promise.all(
+    Array.from({ length: 24 }, (_, index) =>
+      writeCursorTranscriptForCwd(
+        home,
+        targetCwd,
+        `unrelated-session-${index}`,
+      ),
+    ),
+  );
+  return {
+    targetCwd,
+    targetSession,
+    targetTranscript,
+    unrelatedTranscripts,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -665,7 +780,9 @@ test('codex cwd cache: a failed rename leaves the pre-existing cache byte-identi
       expect(dest).toBe(cacheFilePath);
       expect(src).toContain('codex-cwd-cache.');
       expect(src).toContain('.tmp');
-      const err = new Error('simulated rename failure') as NodeJS.ErrnoException;
+      const err = new Error(
+        'simulated rename failure',
+      ) as NodeJS.ErrnoException;
       err.code = 'EIO';
       throw err;
     });
@@ -745,6 +862,267 @@ test('cursor: direct lookup discovers agent transcript with exact cwd evidence',
     expect(c.cwdEvidence).toBe('direct-parent-dir');
   });
 });
+
+test('cursor: explicit session lookup does not read large sibling transcript bodies', async () => {
+  await withTempHome(async (home) => {
+    classifyCountHarness.reset();
+    const targetCwd = join(home, 'Code', 'bounded-pin-project');
+    const targetTranscript = await writeCursorTranscriptForCwd(
+      home,
+      targetCwd,
+      'session-target',
+    );
+    const siblingTranscript = await writeCursorTranscriptForCwd(
+      home,
+      targetCwd,
+      'session-large-sibling',
+    );
+    await writeFile(siblingTranscript, 'x'.repeat(4 * 1024 * 1024), 'utf8');
+
+    await expect(
+      findSessionCandidate('cursor', targetCwd, 'session-target'),
+    ).resolves.toMatchObject({
+      runtime: 'cursor',
+      sessionId: 'session-target',
+      transcriptPath: targetTranscript,
+    });
+    expect(classifyCountHarness.countFor(targetTranscript)).toBe(1);
+    expect(classifyCountHarness.countFor(siblingTranscript)).toBe(0);
+  });
+});
+
+test('cursor: explicit locate pin resolves the exact canonical candidate through a finite metadata scan without unrelated body reads', async () => {
+  await withTempHome(async (home) => {
+    const fixture = await writeAccumulatedCursorPinStore(home);
+    classifyCountHarness.reset();
+    configureCursorDiscoveryForTest({
+      maxEntries: 1_000,
+      maxElapsedMs: 5_000,
+      now: () => 1,
+    });
+
+    await expect(
+      findSessionCandidate(
+        'cursor',
+        fixture.targetCwd,
+        fixture.targetSession,
+      ),
+    ).resolves.toMatchObject({
+      runtime: 'cursor',
+      sessionId: fixture.targetSession,
+      transcriptPath: await realpath(fixture.targetTranscript),
+      recordedCwd: fixture.targetCwd,
+    });
+    expect(classifyCountHarness.countFor(fixture.targetTranscript)).toBe(1);
+    expect(
+      fixture.unrelatedTranscripts.every(
+        (transcriptPath) => classifyCountHarness.countFor(transcriptPath) === 0,
+      ),
+    ).toBe(true);
+  });
+});
+
+test('cursor: explicit locate pin surfaces aggregate metadata-entry exhaustion instead of a missing session', async () => {
+  await withTempHome(async (home) => {
+    const fixture = await writeAccumulatedCursorPinStore(home);
+    classifyCountHarness.reset();
+    configureCursorDiscoveryForTest({
+      maxEntries: 4,
+      maxElapsedMs: 5_000,
+      now: () => 1,
+    });
+
+    await expect(
+      findSessionCandidate(
+        'cursor',
+        fixture.targetCwd,
+        fixture.targetSession,
+      ),
+    ).rejects.toMatchObject({
+      name: 'CursorDiscoveryError',
+      code: 'CURSOR_DISCOVERY_ENTRY_BUDGET_EXCEEDED',
+    });
+    expect(
+      fixture.unrelatedTranscripts.every(
+        (transcriptPath) => classifyCountHarness.countFor(transcriptPath) === 0,
+      ),
+    ).toBe(true);
+  });
+});
+
+test('cursor: public pinned observe identity surfaces elapsed-time exhaustion without unrelated body reads', async () => {
+  await withTempHome(async (home) => {
+    const fixture = await writeAccumulatedCursorPinStore(home);
+    classifyCountHarness.reset();
+    let now = 0;
+    configureCursorDiscoveryForTest({
+      maxEntries: 1_000,
+      maxElapsedMs: 1,
+      now: () => {
+        now += 2;
+        return now;
+      },
+    });
+
+    await expect(
+      resolveSelfIdentity(fixture.targetCwd, {
+        SESSION_OBSERVER_SELF: `cursor:${fixture.targetSession}`,
+      } as NodeJS.ProcessEnv),
+    ).rejects.toMatchObject({
+      name: 'CursorDiscoveryError',
+      code: 'CURSOR_DISCOVERY_TIME_BUDGET_EXCEEDED',
+    });
+    expect(classifyCountHarness.countFor(fixture.targetTranscript)).toBe(0);
+    expect(
+      fixture.unrelatedTranscripts.every(
+        (transcriptPath) => classifyCountHarness.countFor(transcriptPath) === 0,
+      ),
+    ).toBe(true);
+  });
+});
+
+test('cursor: public pinned watch surfaces metadata-entry exhaustion before unrelated body reads', async () => {
+  await withTempHome(async (home) => {
+    const fixture = await writeAccumulatedCursorPinStore(home);
+    classifyCountHarness.reset();
+    configureCursorDiscoveryForTest({
+      maxEntries: 4,
+      maxElapsedMs: 5_000,
+      now: () => 1,
+    });
+
+    await expect(
+      runWatchLoop(
+        {
+          runtime: 'cursor',
+          cwd: fixture.targetCwd,
+          session: `cursor:${fixture.targetSession}`,
+          pollSec: 0.01,
+          debounceSec: 0.01,
+          maxRuntimeMin: 0.001,
+          heartbeatSec: 0,
+        },
+        {
+          handleSignals: false,
+          pid: process.pid,
+          now: () => 1_700_000_000_000,
+          sleep: async () => undefined,
+          writeStdout: async () => undefined,
+        },
+      ),
+    ).rejects.toMatchObject({
+      name: 'CursorDiscoveryError',
+      code: 'CURSOR_DISCOVERY_ENTRY_BUDGET_EXCEEDED',
+      watchErrorEventEmitted: true,
+    });
+    expect(
+      fixture.unrelatedTranscripts.every(
+        (transcriptPath) => classifyCountHarness.countFor(transcriptPath) === 0,
+      ),
+    ).toBe(true);
+  });
+});
+
+test('cursor: explicit pin preserves incomplete-index failure semantics', async () => {
+  await withTempHome(async (home) => {
+    const fixture = await writeAccumulatedCursorPinStore(home);
+    classifyCountHarness.reset();
+    opendirFailureHarness.failOnceAt(
+      join(
+        home,
+        '.cursor',
+        'projects',
+        encodeCursorCwd(fixture.targetCwd),
+        'agent-transcripts',
+      ),
+    );
+
+    await expect(
+      findSessionCandidate(
+        'cursor',
+        fixture.targetCwd,
+        fixture.targetSession,
+      ),
+    ).rejects.toMatchObject({
+      name: 'CursorDiscoveryError',
+      code: 'IDENTITY_INDEX_INCOMPLETE',
+    });
+    expect(classifyCountHarness.countFor(fixture.targetTranscript)).toBe(0);
+  });
+});
+
+test.each([
+  {
+    name: 'entry',
+    options: { maxEntries: 3 },
+    code: 'CURSOR_DISCOVERY_ENTRY_BUDGET_EXCEEDED',
+    maximumBodyReads: 1,
+    transcriptBytes: 1024 * 1024,
+  },
+  {
+    name: 'elapsed time',
+    options: {
+      maxElapsedMs: 0,
+      now: (() => {
+        let tick = 0;
+        return () => {
+          tick += 1;
+          return tick;
+        };
+      })(),
+    },
+    code: 'CURSOR_DISCOVERY_TIME_BUDGET_EXCEEDED',
+    maximumBodyReads: 0,
+    transcriptBytes: 1024 * 1024,
+  },
+  {
+    name: 'byte',
+    options: { maxBytes: 1024 },
+    code: 'CURSOR_DISCOVERY_BYTE_BUDGET_EXCEEDED',
+    maximumBodyReads: 0,
+    transcriptBytes: 1024 * 1024,
+  },
+  {
+    name: 'retained candidate',
+    options: { maxRetainedCandidates: 2, maxBytes: 10 * 1024 * 1024 },
+    code: 'CURSOR_DISCOVERY_RETAINED_CANDIDATE_BUDGET_EXCEEDED',
+    maximumBodyReads: 2,
+    transcriptBytes: 1024 * 1024,
+  },
+])(
+  'cursor: generic unpinned discovery fails visibly at the aggregate $name budget before unbounded body reads or retention',
+  async ({ options, code, maximumBodyReads, transcriptBytes }) => {
+    await withTempHome(async (home) => {
+      classifyCountHarness.reset();
+      const targetCwd = join(home, 'Code', 'bounded-generic-discovery');
+      const transcripts = await Promise.all(
+        Array.from({ length: 6 }, async (_, index) => {
+          const transcriptPath = await writeCursorTranscriptForCwd(
+            home,
+            targetCwd,
+            `large-session-${index}`,
+          );
+          await writeFile(transcriptPath, 'x'.repeat(transcriptBytes), 'utf8');
+          return transcriptPath;
+        }),
+      );
+
+      configureCursorDiscoveryForTest(options);
+      await expect(discover('cursor', targetCwd)).rejects.toMatchObject({
+        name: 'CursorDiscoveryError',
+        code,
+      });
+
+      const bodyReads = transcripts.reduce(
+        (count, transcriptPath) =>
+          count + classifyCountHarness.countFor(transcriptPath),
+        0,
+      );
+      expect(bodyReads).toBeLessThanOrEqual(maximumBodyReads);
+      expect(bodyReads).toBeLessThan(transcripts.length);
+    });
+  },
+);
 
 test('cursor: fallback scan preserves project cwdSlug evidence', async () => {
   await withTempHome(async (home) => {
@@ -847,6 +1225,545 @@ test('cursor: fallback scan excludes transcripts older than 7 days', async () =>
       staleFound,
       'stale Cursor fallback transcript should be excluded',
     ).toBe(undefined);
+  });
+});
+
+test('cursor identity: direct and fallback evidence remain diagnostic without an exact session signal', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'identity-project');
+    const directDir = join(
+      home,
+      '.cursor',
+      'projects',
+      encodeCursorCwd(targetCwd),
+      'agent-transcripts',
+      'session-direct',
+    );
+    await mkdir(directDir, { recursive: true });
+    await writeFile(
+      join(directDir, 'transcript.jsonl'),
+      CURSOR_TYPICAL,
+      'utf8',
+    );
+
+    const [direct] = await discover('cursor', targetCwd);
+    expect(await resolveCursorIdentity(direct, targetCwd)).toMatchObject({
+      runtime: 'cursor',
+      sessionId: 'session-direct',
+      canonicalCwd: targetCwd,
+      cwdEvidence: ['direct-project-root'],
+      sessionEvidence: ['transcript-path'],
+      strength: 'diagnostic',
+    });
+
+    const fallbackCwd = join(home, 'Code', 'missing-project');
+    const [fallback] = await discover('cursor', fallbackCwd);
+    expect(await resolveCursorIdentity(fallback, fallbackCwd)).toMatchObject({
+      cwdEvidence: ['fallback-slug'],
+      sessionEvidence: ['transcript-path'],
+      strength: 'diagnostic',
+    });
+  });
+});
+
+test('cursor identity: store metadata or matching harness evidence can establish exact identity', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'identity-project');
+    await mkdir(targetCwd, { recursive: true });
+    const transcriptDir = join(
+      home,
+      '.cursor',
+      'projects',
+      encodeCursorCwd(targetCwd),
+      'agent-transcripts',
+      'session-exact',
+    );
+    await mkdir(transcriptDir, { recursive: true });
+    await writeFile(
+      join(transcriptDir, 'transcript.jsonl'),
+      CURSOR_TYPICAL,
+      'utf8',
+    );
+
+    const [candidate] = await discover('cursor', targetCwd);
+    expect(
+      await resolveCursorIdentity(
+        { ...candidate, cwdEvidence: 'store-metadata' },
+        targetCwd,
+      ),
+    ).toMatchObject({
+      cwdEvidence: ['store-metadata'],
+      sessionEvidence: ['transcript-path'],
+      strength: 'exact',
+    });
+
+    const previous = process.env.CURSOR_SESSION_ID;
+    process.env.CURSOR_SESSION_ID = 'session-exact';
+    try {
+      expect(await resolveCursorIdentity(candidate, targetCwd)).toMatchObject({
+        cwdEvidence: ['direct-project-root', 'harness-environment'],
+        sessionEvidence: ['harness-environment', 'transcript-path'],
+        strength: 'exact',
+      });
+    } finally {
+      if (previous === undefined) delete process.env.CURSOR_SESSION_ID;
+      else process.env.CURSOR_SESSION_ID = previous;
+    }
+  });
+});
+
+test('cursor identity: transcript disappearance blocks exact ownership', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'identity-disappeared');
+    await mkdir(targetCwd, { recursive: true });
+    const transcriptPath = await writeCursorTranscriptForCwd(
+      home,
+      targetCwd,
+      'session-disappeared',
+    );
+    const [candidate] = await discover('cursor', targetCwd);
+    await rm(transcriptPath);
+
+    expect(
+      await resolveCursorIdentity(candidate, targetCwd, 'session-disappeared'),
+    ).toMatchObject({
+      strength: 'diagnostic',
+      reasons: expect.arrayContaining(['TRANSCRIPT_CANONICALIZATION_FAILED']),
+    });
+  });
+});
+
+test('cursor identity: a transcript symlink swap cannot retain exact ownership', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'identity-symlink-swap');
+    await mkdir(targetCwd, { recursive: true });
+    const transcriptPath = await writeCursorTranscriptForCwd(
+      home,
+      targetCwd,
+      'session-symlink-swap',
+    );
+    const [candidate] = await discover('cursor', targetCwd);
+    const aliasPath = join(
+      dirname(transcriptPath),
+      'session-symlink-swap-alias.jsonl',
+    );
+    await symlink(transcriptPath, aliasPath);
+    const aliasedCandidate = { ...candidate, transcriptPath: aliasPath };
+    expect(
+      await resolveCursorIdentity(
+        aliasedCandidate,
+        targetCwd,
+        'session-symlink-swap',
+      ),
+    ).toMatchObject({ strength: 'exact' });
+
+    const outsidePath = join(home, 'outside-cursor-transcript.jsonl');
+    await writeFile(outsidePath, CURSOR_TYPICAL, 'utf8');
+    await rm(aliasPath);
+    await symlink(outsidePath, aliasPath);
+
+    expect(
+      await resolveCursorIdentity(
+        aliasedCandidate,
+        targetCwd,
+        'session-symlink-swap',
+      ),
+    ).toMatchObject({
+      strength: 'ambiguous',
+      reasons: expect.arrayContaining(['PATH_OUTSIDE_SUPPORTED_ROOT']),
+    });
+  });
+});
+
+test('cursor identity: duplicate exact-session candidates are ambiguous', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'duplicate-project');
+    const transcriptDir = join(
+      home,
+      '.cursor',
+      'projects',
+      encodeCursorCwd(targetCwd),
+      'agent-transcripts',
+      'session-duplicate',
+    );
+    await mkdir(transcriptDir, { recursive: true });
+    await writeFile(
+      join(transcriptDir, 'transcript.jsonl'),
+      CURSOR_TYPICAL,
+      'utf8',
+    );
+    await writeFile(
+      join(transcriptDir, 'conversation.jsonl'),
+      CURSOR_TYPICAL,
+      'utf8',
+    );
+
+    const candidates = await discover('cursor', targetCwd);
+    expect(candidates).toHaveLength(2);
+    expect(
+      await resolveCursorIdentity(
+        candidates[0],
+        targetCwd,
+        'session-duplicate',
+      ),
+    ).toMatchObject({
+      strength: 'ambiguous',
+      reasons: expect.arrayContaining(['DUPLICATE_SESSION_CANDIDATES']),
+    });
+  });
+});
+
+test('cursor identity: direct hit still detects same-session duplicates in another slug', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'cross-slug-project');
+    const directDir = join(
+      home,
+      '.cursor',
+      'projects',
+      encodeCursorCwd(targetCwd),
+      'agent-transcripts',
+      'session-cross-slug',
+    );
+    const duplicateDir = join(
+      home,
+      '.cursor',
+      'projects',
+      'other-project-slug',
+      'agent-transcripts',
+      'session-cross-slug',
+    );
+    await mkdir(directDir, { recursive: true });
+    await mkdir(duplicateDir, { recursive: true });
+    await writeFile(
+      join(directDir, 'transcript.jsonl'),
+      CURSOR_TYPICAL,
+      'utf8',
+    );
+    await writeFile(
+      join(duplicateDir, 'transcript.jsonl'),
+      CURSOR_TYPICAL,
+      'utf8',
+    );
+
+    const candidates = await discover('cursor', targetCwd);
+    expect(
+      candidates.filter(
+        (candidate) => candidate.sessionId === 'session-cross-slug',
+      ),
+    ).toHaveLength(2);
+    const direct = candidates.find(
+      (candidate) => candidate.cwdEvidence === 'direct-parent-dir',
+    )!;
+    expect(
+      await resolveCursorIdentity(direct, targetCwd, 'session-cross-slug'),
+    ).toMatchObject({
+      strength: 'ambiguous',
+      reasons: expect.arrayContaining(['DUPLICATE_SESSION_CANDIDATES']),
+    });
+  });
+});
+
+test('cursor identity: duplicate indexing is path-only across many and large transcripts', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'path-only-identity-project');
+    await mkdir(targetCwd, { recursive: true });
+    const targetTranscript = await writeCursorTranscriptForCwd(
+      home,
+      targetCwd,
+      'session-path-only',
+    );
+    const [candidate] = await discover('cursor', targetCwd);
+    const accumulatedTranscripts: string[] = [];
+
+    for (let index = 0; index < 24; index += 1) {
+      const transcriptDir = join(
+        home,
+        '.cursor',
+        'projects',
+        `accumulated-project-${index}`,
+        'agent-transcripts',
+        `accumulated-session-${index}`,
+      );
+      await mkdir(transcriptDir, { recursive: true });
+      const transcriptPath = join(transcriptDir, 'transcript.jsonl');
+      await writeFile(
+        transcriptPath,
+        index === 0
+          ? `${JSON.stringify({
+              role: 'assistant',
+              message: { content: 'x'.repeat(2_000_000) },
+            })}\n`
+          : CURSOR_TYPICAL,
+        'utf8',
+      );
+      accumulatedTranscripts.push(transcriptPath);
+    }
+
+    classifyCountHarness.reset();
+    await expect(
+      resolveCursorIdentity(candidate, targetCwd, 'session-path-only', {
+        maxEntries: 1_000,
+        maxElapsedMs: 5_000,
+      }),
+    ).resolves.toMatchObject({
+      strength: 'exact',
+      reasons: [],
+    });
+    expect(classifyCountHarness.countFor(targetTranscript)).toBe(0);
+    expect(
+      accumulatedTranscripts.every(
+        (transcriptPath) => classifyCountHarness.countFor(transcriptPath) === 0,
+      ),
+    ).toBe(true);
+  });
+});
+
+test('cursor identity: duplicate indexing fails closed on an unreadable store branch', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'incomplete-index-project');
+    await mkdir(targetCwd, { recursive: true });
+    await writeCursorTranscriptForCwd(
+      home,
+      targetCwd,
+      'session-incomplete-index',
+    );
+    const [candidate] = await discover('cursor', targetCwd);
+    const unreadableRoot = join(
+      home,
+      '.cursor',
+      'projects',
+      'unreadable-project',
+      'agent-transcripts',
+    );
+    await mkdir(join(unreadableRoot, 'unrelated-session'), { recursive: true });
+    opendirFailureHarness.failOnceAt(unreadableRoot);
+
+    await expect(
+      resolveCursorIdentity(candidate, targetCwd, 'session-incomplete-index'),
+    ).resolves.toMatchObject({
+      strength: 'ambiguous',
+      reasons: expect.arrayContaining(['IDENTITY_INDEX_INCOMPLETE']),
+    });
+  });
+});
+
+test('cursor identity: duplicate indexing fails visibly at its aggregate entry budget', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'entry-budget-project');
+    await mkdir(targetCwd, { recursive: true });
+    await writeCursorTranscriptForCwd(home, targetCwd, 'session-entry-budget');
+    const [candidate] = await discover('cursor', targetCwd);
+
+    await expect(
+      resolveCursorIdentity(candidate, targetCwd, 'session-entry-budget', {
+        maxEntries: 1,
+        maxElapsedMs: 5_000,
+      }),
+    ).resolves.toMatchObject({
+      strength: 'ambiguous',
+      reasons: expect.arrayContaining(['IDENTITY_INDEX_ENTRY_BUDGET_EXCEEDED']),
+    });
+  });
+});
+
+test('cursor identity: duplicate indexing fails visibly at its elapsed-time budget', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'time-budget-project');
+    await mkdir(targetCwd, { recursive: true });
+    await writeCursorTranscriptForCwd(home, targetCwd, 'session-time-budget');
+    const [candidate] = await discover('cursor', targetCwd);
+    let now = 0;
+
+    await expect(
+      resolveCursorIdentity(candidate, targetCwd, 'session-time-budget', {
+        maxEntries: 100,
+        maxElapsedMs: 1,
+        now: () => {
+          now += 2;
+          return now;
+        },
+      }),
+    ).resolves.toMatchObject({
+      strength: 'ambiguous',
+      reasons: expect.arrayContaining(['IDENTITY_INDEX_TIME_BUDGET_EXCEEDED']),
+    });
+  });
+});
+
+test.each<CursorAliasPlacement>(['leaf', 'ancestor'])(
+  'cursor identity: canonical store candidate stays exact through a %s cwd alias',
+  async (placement) => {
+    await withTempHome(async (home) => {
+      const { aliasCwd, canonicalCwd } = await createCursorAliasPaths(
+        home,
+        placement,
+      );
+      const sessionId = `session-canonical-${placement}`;
+      const transcriptPath = await writeCursorTranscriptForCwd(
+        home,
+        canonicalCwd,
+        sessionId,
+      );
+      const [candidate] = await discover('cursor', aliasCwd);
+
+      expect(candidate.cwdEvidence).toBe('direct-parent-dir');
+      expect(
+        await resolveCursorIdentity(candidate, aliasCwd, sessionId),
+      ).toMatchObject({
+        canonicalCwd,
+        canonicalTranscriptPath: await realpath(transcriptPath),
+        strength: 'exact',
+      });
+    });
+  },
+);
+
+test.each<CursorAliasPlacement>(['leaf', 'ancestor'])(
+  'cursor identity: %s raw cwd alias-only store remains diagnostic with an explicit pin',
+  async (placement) => {
+    await withTempHome(async (home) => {
+      const { aliasCwd, canonicalCwd } = await createCursorAliasPaths(
+        home,
+        placement,
+      );
+      const sessionId = `session-raw-alias-${placement}`;
+      const transcriptPath = await writeCursorTranscriptForCwd(
+        home,
+        aliasCwd,
+        sessionId,
+      );
+
+      const [candidate] = await discover('cursor', aliasCwd);
+      expect(candidate.cwdEvidence).toBe('raw-cwd-alias');
+      expect(
+        await resolveCursorIdentity(candidate, aliasCwd, sessionId),
+      ).toMatchObject({
+        canonicalCwd,
+        canonicalTranscriptPath: await realpath(transcriptPath),
+        sessionEvidence: expect.arrayContaining(['explicit-pin']),
+        strength: 'diagnostic',
+        reasons: expect.arrayContaining([
+          'RAW_CWD_ALIAS_DIAGNOSTIC_ONLY',
+          'WEAK_CWD_EVIDENCE',
+        ]),
+      });
+    });
+  },
+);
+
+test.each<CursorAliasPlacement>(['leaf', 'ancestor'])(
+  'cursor identity: canonical/raw %s alias duplicates reject an explicit pin as ambiguous',
+  async (placement) => {
+    await withTempHome(async (home) => {
+      const { aliasCwd, canonicalCwd } = await createCursorAliasPaths(
+        home,
+        placement,
+      );
+      const sessionId = `session-alias-duplicate-${placement}`;
+      await writeCursorTranscriptForCwd(home, canonicalCwd, sessionId);
+      await writeCursorTranscriptForCwd(home, aliasCwd, sessionId);
+
+      const candidates = await discover('cursor', aliasCwd);
+      expect(candidates).toHaveLength(2);
+      const canonical = candidates.find(
+        (candidate) => candidate.cwdEvidence === 'direct-parent-dir',
+      )!;
+      const rawAlias = candidates.find(
+        (candidate) => candidate.cwdEvidence === 'raw-cwd-alias',
+      )!;
+
+      expect(
+        await resolveCursorIdentity(canonical, aliasCwd, sessionId),
+      ).toMatchObject({
+        strength: 'ambiguous',
+        reasons: expect.arrayContaining(['DUPLICATE_SESSION_CANDIDATES']),
+      });
+      expect(
+        await resolveCursorIdentity(rawAlias, aliasCwd, sessionId),
+      ).toMatchObject({
+        strength: 'ambiguous',
+        reasons: expect.arrayContaining([
+          'DUPLICATE_SESSION_CANDIDATES',
+          'RAW_CWD_ALIAS_DIAGNOSTIC_ONLY',
+        ]),
+      });
+    });
+  },
+);
+
+test('cursor identity: transcript symlinks escaping the supported store are rejected', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'escape-project');
+    const transcriptDir = join(
+      home,
+      '.cursor',
+      'projects',
+      encodeCursorCwd(targetCwd),
+      'agent-transcripts',
+      'session-escape',
+    );
+    await mkdir(transcriptDir, { recursive: true });
+    const directPath = join(transcriptDir, 'transcript.jsonl');
+    await writeFile(directPath, CURSOR_TYPICAL, 'utf8');
+    const [candidate] = await discover('cursor', targetCwd);
+
+    const outsidePath = join(home, 'outside.jsonl');
+    const escapedPath = join(transcriptDir, 'escaped.jsonl');
+    await writeFile(outsidePath, CURSOR_TYPICAL, 'utf8');
+    await symlink(outsidePath, escapedPath);
+
+    expect(
+      await resolveCursorIdentity(
+        { ...candidate, transcriptPath: escapedPath },
+        targetCwd,
+        'session-escape',
+      ),
+    ).toMatchObject({
+      strength: 'ambiguous',
+      reasons: expect.arrayContaining(['PATH_OUTSIDE_SUPPORTED_ROOT']),
+    });
+  });
+});
+
+test('cursor identity: an explicit pin mismatch cannot switch to a changed candidate', async () => {
+  await withTempHome(async (home) => {
+    const targetCwd = join(home, 'Code', 'pin-project');
+    await mkdir(targetCwd, { recursive: true });
+    const transcriptsRoot = join(
+      home,
+      '.cursor',
+      'projects',
+      encodeCursorCwd(targetCwd),
+      'agent-transcripts',
+    );
+    const pinnedDir = join(transcriptsRoot, 'session-pinned');
+    const newerDir = join(transcriptsRoot, 'session-newer');
+    await mkdir(pinnedDir, { recursive: true });
+    await mkdir(newerDir, { recursive: true });
+    await writeFile(
+      join(pinnedDir, 'transcript.jsonl'),
+      CURSOR_TYPICAL,
+      'utf8',
+    );
+    await writeFile(join(newerDir, 'transcript.jsonl'), CURSOR_TYPICAL, 'utf8');
+
+    const candidates = await discover('cursor', targetCwd);
+    const pinned = candidates.find(
+      (candidate) => candidate.sessionId === 'session-pinned',
+    )!;
+    const changed = candidates.find(
+      (candidate) => candidate.sessionId === 'session-newer',
+    )!;
+
+    expect(
+      await resolveCursorIdentity(pinned, targetCwd, 'session-pinned'),
+    ).toMatchObject({ strength: 'exact' });
+    expect(
+      await resolveCursorIdentity(changed, targetCwd, 'session-pinned'),
+    ).toMatchObject({
+      strength: 'ambiguous',
+      reasons: expect.arrayContaining(['IDENTITY_MISMATCH']),
+    });
   });
 });
 
@@ -1046,9 +1963,9 @@ test('ClassificationCache: a signature mismatch (mtime or size) never returns a 
   // signature component in isolation.
   const sizeMismatchCache = new ClassificationCache();
   sizeMismatchCache.set('/a/transcript.jsonl', 1_000, 50, entry);
-  expect(
-    sizeMismatchCache.get('/a/transcript.jsonl', 1_000, 50),
-  ).toEqual(entry);
+  expect(sizeMismatchCache.get('/a/transcript.jsonl', 1_000, 50)).toEqual(
+    entry,
+  );
   expect(
     sizeMismatchCache.get('/a/transcript.jsonl', 1_000, 51),
     'a size mismatch must be treated as a cache miss',
@@ -1056,9 +1973,9 @@ test('ClassificationCache: a signature mismatch (mtime or size) never returns a 
 
   const mtimeMismatchCache = new ClassificationCache();
   mtimeMismatchCache.set('/a/transcript.jsonl', 1_000, 50, entry);
-  expect(
-    mtimeMismatchCache.get('/a/transcript.jsonl', 1_000, 50),
-  ).toEqual(entry);
+  expect(mtimeMismatchCache.get('/a/transcript.jsonl', 1_000, 50)).toEqual(
+    entry,
+  );
   expect(
     mtimeMismatchCache.get('/a/transcript.jsonl', 1_001, 50),
     'an mtime mismatch must be treated as a cache miss',
@@ -1076,15 +1993,15 @@ test('ClassificationCache: evicts the least-recently-used entry once its bound i
   expect(cache.get('/a', 1, 10)).toBeDefined();
 
   cache.set('/c', 1, 10, derivedFields(3));
-  expect(
-    cache.size,
-    'the cache must stay within its configured bound',
-  ).toBe(2);
+  expect(cache.size, 'the cache must stay within its configured bound').toBe(2);
   expect(
     cache.get('/b', 1, 10),
     'the least-recently-used entry should have been evicted',
   ).toBeUndefined();
-  expect(cache.get('/a', 1, 10), 'recently-touched entries survive').toBeDefined();
+  expect(
+    cache.get('/a', 1, 10),
+    'recently-touched entries survive',
+  ).toBeDefined();
   expect(cache.get('/c', 1, 10), 'the newest entry survives').toBeDefined();
 });
 
@@ -1158,7 +2075,7 @@ test('ClassificationCache: the default capacity comfortably survives repeated re
   const secondPassHits = simulateScan(cache, keys);
   expect(
     secondPassHits,
-    'every candidate from the first scan must still be cached on the next poll tick\'s scan',
+    "every candidate from the first scan must still be cached on the next poll tick's scan",
   ).toBe(candidateCount);
 
   // A third pass proves this is a stable steady state, not a one-tick

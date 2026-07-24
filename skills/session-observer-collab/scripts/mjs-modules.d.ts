@@ -1,6 +1,18 @@
 declare module '*skills/session-observer-collab/scripts/lib/completion-selection.mjs' {
+  export type CompletionIndexBase =
+    | 'zero-based-jsonl-record-index'
+    | 'zero-based-jsonl-frame-index';
+  export interface SelectedCursorPrefix {
+    indexBase: 'zero-based-jsonl-frame-index';
+    nextFrameIndex: number;
+    prefixBytes: number;
+    prefixSha256: string;
+    observedSize: number;
+    device: number;
+    inode: number;
+  }
   export interface SelectedRange {
-    indexBase: 'zero-based-jsonl-record-index';
+    indexBase: CompletionIndexBase;
     fromIndex: number;
     toIndex: number;
   }
@@ -19,6 +31,7 @@ declare module '*skills/session-observer-collab/scripts/lib/completion-selection
   export interface ContinuationSelection {
     status: 'continuation' | 'no-continuation';
     continuation: boolean;
+    indexBase: CompletionIndexBase;
     completedRecord: number | null;
     nextCursor: number;
     peerCursor: number;
@@ -26,6 +39,7 @@ declare module '*skills/session-observer-collab/scripts/lib/completion-selection
     range: SelectedRange | null;
     reviewEntries: readonly SelectedEntry[];
     skipped: readonly SkippedTurn[];
+    selectedPrefix: SelectedCursorPrefix | null;
   }
   export function selectCompletedContinuation(
     observerResult: unknown,
@@ -117,6 +131,16 @@ declare module '*skills/session-observer-collab/scripts/lib/lease-state.mjs' {
   export type PeerRuntime = 'claude-code' | 'codex' | 'cursor';
   export type Runtime = OwnerRuntime;
 
+  export interface TranscriptContinuityCheckpoint {
+    indexBase: string;
+    nextFrameIndex: number;
+    prefixBytes: number;
+    prefixSha256: string;
+    observedSize: number;
+    device: number | null;
+    inode: number | null;
+  }
+
   export interface Lease {
     state: string;
     schemaVersion: number;
@@ -180,11 +204,12 @@ declare module '*skills/session-observer-collab/scripts/lib/lease-state.mjs' {
     },
     update: {
       peerCursor: number;
+      peerContinuity?: TranscriptContinuityCheckpoint | null;
       loopIncrement?: number;
       terminal?: boolean;
       diagnostic?: string | null;
     },
-    now?: number,
+    clock?: number | (() => number),
   ): Promise<
     { ok: true; lease: Lease } | { ok: false; reason: string; lease?: Lease }
   >;
@@ -222,6 +247,15 @@ declare module '*skills/session-observer-collab/scripts/lib/lease-state.mjs' {
 }
 
 declare module '*skills/session-observer-collab/scripts/lib/runtime-adapter.mjs' {
+  export interface TranscriptContinuityCheckpoint {
+    indexBase: string;
+    nextFrameIndex: number;
+    prefixBytes: number;
+    prefixSha256: string;
+    observedSize: number;
+    device: number;
+    inode: number;
+  }
   export interface Lease {
     state: string;
     leaseId: string;
@@ -290,8 +324,14 @@ declare module '*skills/session-observer-collab/scripts/lib/runtime-adapter.mjs'
       loopCount: number;
     },
     completion:
-      | { peerCursor: number; loopIncrement?: number; terminal?: boolean }
+      | {
+          peerCursor: number;
+          peerContinuity: TranscriptContinuityCheckpoint;
+          loopIncrement?: number;
+          terminal?: boolean;
+        }
       | null
       | undefined,
+    clock?: () => number,
   ): Promise<{ triggered: boolean; reason: string; lease: Lease | null }>;
 }

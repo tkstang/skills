@@ -9,6 +9,7 @@
  */
 
 import {
+  chmod,
   open,
   rename,
   mkdir,
@@ -18,10 +19,12 @@ import {
   unlink,
 } from 'node:fs/promises';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { isAbsolute, join } from 'node:path';
 
 import type {
   DuplicateWatchTargetError,
+  CursorWatchTargetCasResult,
+  CursorWatchTargetTransition,
   StartWatcherOptions,
   WatchControlDirective,
   WatchControlFile,
@@ -29,12 +32,12 @@ import type {
   WatcherTargetInput,
   WatchState,
   WatchTargetRecord,
+  WatchTargetRecordV2,
 } from './types.js';
 
-// Version 1 covers both the legacy single-`active` shape and the current
-// `watchers[]` shape: readWatchState lifts a lone `active` into `watchers`,
-// and `active` is maintained as a mirror of `watchers[0]` for old readers.
-const SCHEMA_VERSION = 1;
+// Version 2 adds exact frame-index Cursor targets. Version-1 target objects
+// remain record-index records without inferred Cursor continuity fields.
+const SCHEMA_VERSION = 2;
 const LOCK_RETRIES = 100;
 const LOCK_INTERVAL_MS = 50;
 // A healthy acquire+mutate+release cycle never holds the lock this long, so a
@@ -85,6 +88,11 @@ function toIsoTimestamp(value: unknown = undefined): string {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function ensurePrivateDirectory(dir: string): Promise<void> {
+  await mkdir(dir, { recursive: true, mode: 0o700 });
+  await chmod(dir, 0o700);
 }
 
 /**
@@ -224,7 +232,7 @@ async function acquireLock(lock: string): Promise<void> {
   let reclaimAttempted = false;
   for (let i = 0; i < LOCK_RETRIES; i++) {
     try {
-      const fh = await open(lock, 'wx');
+      const fh = await open(lock, 'wx', 0o600);
       await fh.write(String(process.pid));
       await fh.close();
       return;
@@ -252,13 +260,16 @@ async function releaseLock(lock: string): Promise<void> {
   }
 }
 
-async function readWatchState(dir: string): Promise<WatchState> {
+async function readWatchState(
+  dir: string,
+): Promise<{ state: WatchState; migrationRequired: boolean }> {
   let raw: string;
   try {
     raw = await readFile(watchPath(dir), 'utf8');
+    await chmod(watchPath(dir), 0o600);
   } catch (err) {
     if (isErrnoException(err) && err.code === 'ENOENT')
-      return emptyWatchState();
+      return { state: emptyWatchState(), migrationRequired: false };
     throw err;
   }
 
@@ -268,7 +279,7 @@ async function readWatchState(dir: string): Promise<WatchState> {
       active?: WatcherRecord | null;
     };
   } catch {
-    return emptyWatchState();
+    return { state: emptyWatchState(), migrationRequired: true };
   }
 
   const watchers = Array.isArray(parsed.watchers)
@@ -278,9 +289,12 @@ async function readWatchState(dir: string): Promise<WatchState> {
       : [];
 
   return {
-    schemaVersion: SCHEMA_VERSION,
-    active: watchers[0] ?? parsed.active ?? null,
-    watchers,
+    state: {
+      schemaVersion: SCHEMA_VERSION,
+      active: watchers[0] ?? parsed.active ?? null,
+      watchers,
+    },
+    migrationRequired: parsed.schemaVersion !== SCHEMA_VERSION,
   };
 }
 
@@ -294,12 +308,13 @@ async function writeJsonAtomic(
   const dest = join(dir, basename);
   let fh;
   try {
-    fh = await open(tmp, 'w');
+    fh = await open(tmp, 'w', 0o600);
     await fh.write(JSON.stringify(payload, null, 2));
     await fh.datasync();
     await fh.close();
     fh = null;
     await rename(tmp, dest);
+    await chmod(dest, 0o600);
   } finally {
     if (fh) {
       try {
@@ -363,13 +378,16 @@ async function mutateWatchState<T>(
   fn: (state: WatchState) => T | Promise<T>,
 ): Promise<T> {
   const dir = stateDir();
-  await mkdir(dir, { recursive: true });
+  await ensurePrivateDirectory(dir);
   const lock = lockPath(dir);
   await acquireLock(lock);
   try {
-    const state = await readWatchState(dir);
+    const { state, migrationRequired } = await readWatchState(dir);
+    const before = JSON.stringify(state);
     const result = await fn(state);
-    await writeWatchState(dir, state);
+    if (migrationRequired || JSON.stringify(state) !== before) {
+      await writeWatchState(dir, state);
+    }
     return (result ?? state) as T;
   } finally {
     await releaseLock(lock);
@@ -378,12 +396,13 @@ async function mutateWatchState<T>(
 
 export async function loadWatchState(): Promise<WatchState> {
   const dir = stateDir();
-  await mkdir(dir, { recursive: true });
+  await ensurePrivateDirectory(dir);
   const lock = lockPath(dir);
   await acquireLock(lock);
   try {
-    const state = await readWatchState(dir);
-    if (clearStaleWatchers(state)) {
+    const { state, migrationRequired } = await readWatchState(dir);
+    const staleWatchersCleared = clearStaleWatchers(state);
+    if (migrationRequired || staleWatchersCleared) {
       await writeWatchState(dir, state);
     }
     await clearStaleControlDirectives().catch(() => 0);
@@ -486,9 +505,9 @@ export async function recordWatcherEvent({
   return mutateWatchState((state) => {
     return (
       mutateWatcherByPid(state, pid, (watcher) => ({
-      ...watcher,
-      lastEventAt: toIsoTimestamp(lastEventAt),
-      eventCount: (watcher.eventCount ?? 0) + 1,
+        ...watcher,
+        lastEventAt: toIsoTimestamp(lastEventAt),
+        eventCount: (watcher.eventCount ?? 0) + 1,
       })) ?? state
     );
   });
@@ -526,6 +545,127 @@ function watcherHasTarget(watcher: WatcherRecord, key: string): boolean {
   );
 }
 
+function isNonNegativeInteger(value: unknown): value is number {
+  return Number.isSafeInteger(value) && (value as number) >= 0;
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isCursorContinuity(
+  value: unknown,
+  observationCursor: number | undefined,
+): value is NonNullable<WatcherTargetInput['continuity']> {
+  if (!isObject(value)) return false;
+  return (
+    value.indexBase === 'zero-based-jsonl-frame-index' &&
+    value.nextFrameIndex === observationCursor &&
+    isNonNegativeInteger(value.prefixBytes) &&
+    typeof value.prefixSha256 === 'string' &&
+    /^[a-f0-9]{64}$/u.test(value.prefixSha256) &&
+    isNonNegativeInteger(value.observedSize) &&
+    value.prefixBytes <= value.observedSize &&
+    isNonNegativeInteger(value.device) &&
+    isNonNegativeInteger(value.inode)
+  );
+}
+
+function isObservationStatus(
+  value: unknown,
+): value is NonNullable<WatcherTargetInput['lastStatus']> {
+  if (!isObject(value)) return false;
+  return (
+    ['engaged', 'unengaged', 'unknown'].includes(String(value.engagement)) &&
+    ['none', 'human-input', 'assistant-progress', 'tool-activity'].includes(
+      String(value.activity),
+    ) &&
+    ['none', 'buffered', 'available', 'suppressed'].includes(
+      String(value.content),
+    ) &&
+    [
+      'none',
+      'pending',
+      'success',
+      'aborted',
+      'error',
+      'cancelled',
+      'unknown',
+    ].includes(String(value.lifecycle)) &&
+    ['none', 'reserved', 'committed', 'uncertain'].includes(
+      String(value.delivery),
+    ) &&
+    ['healthy', 'blocked', 'stale', 'error', 'unknown'].includes(
+      String(value.health),
+    )
+  );
+}
+
+function cursorTargetDeadline(value: string | Date | null | undefined) {
+  if (value === null || value === undefined) return null;
+  const timestamp = toIsoTimestamp(value);
+  if (!Number.isFinite(Date.parse(timestamp))) {
+    throw new TypeError(
+      'Cursor pending candidate deadline must be a timestamp',
+    );
+  }
+  return timestamp;
+}
+
+function cursorTargetRecord(
+  target: WatcherTargetInput,
+  base: WatchTargetRecord,
+  ownerPid: number,
+): WatchTargetRecordV2 {
+  const continuity = target.continuity;
+  if (
+    target.indexBase !== 'zero-based-jsonl-frame-index' ||
+    !target.canonicalTranscriptPath ||
+    !isAbsolute(target.canonicalTranscriptPath) ||
+    !isNonNegativeInteger(target.observationCursor) ||
+    (target.bufferedFromFrame !== null &&
+      target.bufferedFromFrame !== undefined &&
+      !isNonNegativeInteger(target.bufferedFromFrame)) ||
+    !isCursorContinuity(continuity, target.observationCursor) ||
+    !isObservationStatus(target.lastStatus) ||
+    (target.continuityState !== 'verified' &&
+      target.continuityState !== 'blocked') ||
+    !Number.isSafeInteger(ownerPid) ||
+    ownerPid <= 0
+  ) {
+    throw new TypeError(
+      'Cursor watch targets require exact frame-index continuity, status, and ownership',
+    );
+  }
+  return {
+    ...base,
+    runtime: 'cursor',
+    indexBase: 'zero-based-jsonl-frame-index',
+    canonicalTranscriptPath: target.canonicalTranscriptPath,
+    observationCursor: target.observationCursor,
+    bufferedFromFrame: target.bufferedFromFrame ?? null,
+    continuity: structuredClone(continuity),
+    pendingCandidateDeadline: cursorTargetDeadline(
+      target.pendingCandidateDeadline,
+    ),
+    lastStatus: structuredClone(target.lastStatus),
+    continuityState: target.continuityState,
+    ownerPid,
+  };
+}
+
+function isCursorWatchTarget(
+  target: WatchTargetRecord,
+): target is WatchTargetRecordV2 {
+  return (
+    target.runtime === 'cursor' &&
+    'indexBase' in target &&
+    target.indexBase === 'zero-based-jsonl-frame-index' &&
+    'ownerPid' in target &&
+    Number.isSafeInteger(target.ownerPid)
+  );
+}
+
 export async function recordWatcherTarget({
   pid,
   target,
@@ -546,8 +686,7 @@ export async function recordWatcherTarget({
     clearStaleWatchers(state);
     const acquireKey = `${target.runtime}:${target.sessionId}`;
     const conflict = state.watchers.find(
-      (watcher) =>
-        watcher.pid !== pid && watcherHasTarget(watcher, acquireKey),
+      (watcher) => watcher.pid !== pid && watcherHasTarget(watcher, acquireKey),
     );
     if (conflict) {
       const err: DuplicateWatchTargetError = new Error(
@@ -567,7 +706,7 @@ export async function recordWatcherTarget({
         const existingIndex = targets.findIndex(
           (existing) => existing.key === key,
         );
-        const targetRecord: WatchTargetRecord = {
+        const baseTargetRecord: WatchTargetRecord = {
           key,
           runtime: target.runtime,
           sessionId: target.sessionId,
@@ -578,6 +717,10 @@ export async function recordWatcherTarget({
           engagementStatus: target.engagementStatus ?? null,
           lockedAt: toIsoTimestamp(target.lockedAt),
         };
+        const targetRecord =
+          target.runtime === 'cursor'
+            ? cursorTargetRecord(target, baseTargetRecord, watcher.pid)
+            : baseTargetRecord;
 
         if (existingIndex === -1) targets.push(targetRecord);
         else
@@ -603,6 +746,97 @@ export async function recordWatcherTarget({
   });
 }
 
+export async function compareAndSetCursorWatchTarget({
+  pid,
+  key,
+  expectedObservationCursor,
+  next,
+}: {
+  pid: number;
+  key: string;
+  expectedObservationCursor: number;
+  next: CursorWatchTargetTransition;
+}): Promise<CursorWatchTargetCasResult> {
+  if (
+    !Number.isSafeInteger(pid) ||
+    pid <= 0 ||
+    !key ||
+    !isNonNegativeInteger(expectedObservationCursor)
+  ) {
+    throw new TypeError('invalid Cursor watch target CAS request');
+  }
+
+  return mutateWatchState((state): CursorWatchTargetCasResult => {
+    clearStaleWatchers(state);
+    const owningWatcher = state.watchers.find((watcher) =>
+      (watcher.targets ?? []).some((target) => target.key === key),
+    );
+    if (owningWatcher === undefined) return { status: 'not-found' };
+    if (owningWatcher.pid !== pid) return { status: 'not-owner' };
+
+    const targetIndex = owningWatcher.targets.findIndex(
+      (target) => target.key === key,
+    );
+    const current = owningWatcher.targets[targetIndex];
+    if (!isCursorWatchTarget(current)) {
+      return { status: 'not-found' };
+    }
+    if (current.ownerPid !== pid) {
+      return { status: 'not-owner' };
+    }
+    if (current.observationCursor !== expectedObservationCursor) {
+      return { status: 'stale', target: structuredClone(current) };
+    }
+    if (
+      next.recordCount !== undefined &&
+      (!isNonNegativeInteger(next.recordCount) ||
+        next.recordCount < next.observationCursor ||
+        (current.recordCount !== null &&
+          next.recordCount < current.recordCount))
+    ) {
+      throw new TypeError(
+        'Cursor watch target frame count must be safe and monotonic',
+      );
+    }
+    const recordCount =
+      next.recordCount === undefined ? current.recordCount : next.recordCount;
+
+    const candidate = cursorTargetRecord(
+      {
+        runtime: 'cursor',
+        sessionId: current.sessionId,
+        transcriptPath: current.transcriptPath,
+        recordedCwd: current.cwd,
+        baselineRecordIndex: current.baselineRecordIndex,
+        engagementStatus: current.engagementStatus,
+        lockedAt: current.lockedAt,
+        indexBase: 'zero-based-jsonl-frame-index',
+        canonicalTranscriptPath: current.canonicalTranscriptPath,
+        ...next,
+        recordCount,
+      },
+      { ...current, recordCount },
+      pid,
+    );
+    if (
+      candidate.continuity.device !== current.continuity.device ||
+      candidate.continuity.inode !== current.continuity.inode ||
+      candidate.observationCursor < current.observationCursor ||
+      candidate.continuity.prefixBytes < current.continuity.prefixBytes ||
+      (candidate.continuity.prefixBytes === current.continuity.prefixBytes &&
+        candidate.continuity.prefixSha256 !== current.continuity.prefixSha256)
+    ) {
+      throw new TypeError(
+        'Cursor watch target CAS cannot change identity or move backward',
+      );
+    }
+
+    owningWatcher.targets[targetIndex] = candidate;
+    syncPrimaryActive(state);
+    return { status: 'updated', target: structuredClone(candidate) };
+  });
+}
+
 /**
  * Find a live watcher (other than excludePid) that has already locked onto the
  * given target session. Used to refuse duplicate watchers that would otherwise
@@ -622,8 +856,7 @@ export async function findLiveWatcherForTarget({
   const key = `${runtime}:${sessionId}`;
   return (
     state.watchers.find(
-      (watcher) =>
-        watcher.pid !== excludePid && watcherHasTarget(watcher, key),
+      (watcher) => watcher.pid !== excludePid && watcherHasTarget(watcher, key),
     ) ?? null
   );
 }
@@ -683,7 +916,10 @@ export async function writeControlDirective(
     throw new Error(`unknown watch control directive: ${directive}`);
   }
   const dir = stateDir();
-  const payload: WatchControlFile = { directive, issuedAt: toIsoTimestamp(issuedAt) };
+  const payload: WatchControlFile = {
+    directive,
+    issuedAt: toIsoTimestamp(issuedAt),
+  };
   if (pid !== undefined) payload.pid = pid;
   const basename =
     pid === undefined ? 'watch.control.json' : `watch.control.${pid}.json`;
@@ -744,9 +980,7 @@ export async function clearStaleControlDirectives(): Promise<number> {
       continue;
     }
     if (entry === 'watch.control.json') {
-      const legacy = await readControlFile(join(dir, entry)).catch(
-        () => null,
-      );
+      const legacy = await readControlFile(join(dir, entry)).catch(() => null);
       if (
         legacy?.pid !== undefined &&
         !isPidLive(legacy.pid) &&

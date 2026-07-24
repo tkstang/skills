@@ -28,12 +28,22 @@ export interface TranscriptMeta {
   recordedCwd: string | null;
 }
 
+export interface CursorIdentityEvidence {
+  runtime: 'cursor';
+  projectCwd: string;
+  sessionId: string;
+  canonicalTranscriptPath: string;
+}
+
 export type DigestEntryRole = 'user' | 'assistant';
 export type DigestEntryDisplayRole = 'queued-user' | 'automatic-control';
 export type DigestEntryOrigin =
   | 'human'
   | 'automatic-control'
   | 'runtime-diagnostic';
+export type AutomaticControlIndexBase =
+  | 'zero-based-jsonl-record-index'
+  | 'zero-based-jsonl-frame-index';
 export type CursorTerminalStatus =
   | 'success'
   | 'aborted'
@@ -47,9 +57,11 @@ export type DigestEntryKind =
 
 export interface AutomaticControlProvenance {
   automatic: true;
+  schemaVersion: 1 | 2;
   runtime: string;
   leaseId: string;
   pinnedPeer: JsonObject | string;
+  indexBase: AutomaticControlIndexBase;
   range: {
     fromIndex: number;
     toIndex: number;
@@ -97,6 +109,11 @@ const TOOL_INPUT_LIMIT = 200;
 const TOOL_RESULT_LIMIT = 500;
 const COMMAND_MESSAGE_RE =
   /<(command-message|command-name|command-args)>[\s\S]*?<\/\1>/u;
+const NO_OP_PREFIX = /^\s*\[no-op\](?:\s|$)/iu;
+const AUTOMATIC_ACKNOWLEDGMENT =
+  /^\s*(?:ack(?:nowledged)?|got it|understood|noted|received|ok(?:ay)?|thanks|thank you)[.!]*\s*$/iu;
+const AUTOMATIC_STATUS_ECHO =
+  /^\s*(?:status:\s*)?(?:(?:still\s+)?(?:waiting|holding|idle|armed|monitoring)(?:\s+(?:for|on|until)\s+[^.!?;:]+)?|no (?:new )?(?:input|updates?|messages?|changes?))[.!]*\s*$/iu;
 
 // ---------------------------------------------------------------------------
 // Small helpers
@@ -120,6 +137,26 @@ function asString(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined;
 }
 
+function automaticControlVersion(
+  schemaVersion: unknown,
+  indexBase: unknown,
+): Pick<AutomaticControlProvenance, 'schemaVersion' | 'indexBase'> | null {
+  if (schemaVersion === undefined && indexBase === undefined) {
+    return {
+      schemaVersion: 1,
+      indexBase: 'zero-based-jsonl-record-index',
+    };
+  }
+  if (
+    schemaVersion === 2 &&
+    (indexBase === 'zero-based-jsonl-record-index' ||
+      indexBase === 'zero-based-jsonl-frame-index')
+  ) {
+    return { schemaVersion, indexBase };
+  }
+  return null;
+}
+
 function parseAutomaticControlJsonEnvelope(
   text: string,
 ): AutomaticControlProvenance | null {
@@ -132,8 +169,10 @@ function parseAutomaticControlJsonEnvelope(
   if (!isObject(parsed) || !isObject(parsed.session_observer_wake)) return null;
 
   const wake = parsed.session_observer_wake;
+  const version = automaticControlVersion(wake.schemaVersion, wake.indexBase);
   const range = wake.range;
   if (
+    version === null ||
     wake.automatic !== true ||
     !asString(wake.runtime) ||
     !asString(wake.leaseId) ||
@@ -147,7 +186,16 @@ function parseAutomaticControlJsonEnvelope(
     return null;
   }
 
-  return wake as AutomaticControlProvenance;
+  return {
+    ...wake,
+    automatic: true,
+    schemaVersion: version.schemaVersion,
+    runtime: wake.runtime as string,
+    leaseId: wake.leaseId as string,
+    pinnedPeer: wake.pinnedPeer as JsonObject | string,
+    indexBase: version.indexBase,
+    range: range as AutomaticControlProvenance['range'],
+  };
 }
 
 function decodeXmlAttribute(value: string): string | null {
@@ -195,12 +243,22 @@ function parseAutomaticControlXmlEnvelope(
   const attributes = parseXmlAttributes(match[1]);
   if (!attributes || attributes.get('automatic') !== 'true') return null;
 
+  const schemaVersionAttribute = attributes.get('schema_version');
+  const version = automaticControlVersion(
+    schemaVersionAttribute === undefined
+      ? undefined
+      : schemaVersionAttribute === '2'
+        ? 2
+        : null,
+    attributes.get('index_base'),
+  );
   const runtime = attributes.get('runtime');
   const leaseId = attributes.get('lease_id');
   const pinnedPeer = attributes.get('peer');
   const records = attributes.get('records');
   const rangeMatch = /^(\d+)-(\d+)$/u.exec(records ?? '');
   if (
+    version === null ||
     !runtime?.trim() ||
     !leaseId?.trim() ||
     !pinnedPeer?.trim() ||
@@ -220,21 +278,33 @@ function parseAutomaticControlXmlEnvelope(
 
   return {
     automatic: true,
+    schemaVersion: version.schemaVersion,
     runtime,
     leaseId,
     pinnedPeer,
+    indexBase: version.indexBase,
     range: { fromIndex, toIndex },
     wireFormat: 'xml',
     body: match[2].trim(),
   };
 }
 
-function parseAutomaticControlEnvelope(
+export function parseAutomaticControlEnvelope(
   text: string,
 ): AutomaticControlProvenance | null {
   return (
     parseAutomaticControlXmlEnvelope(text) ??
     parseAutomaticControlJsonEnvelope(text)
+  );
+}
+
+export function isNoOpText(text: string): boolean {
+  return NO_OP_PREFIX.test(text);
+}
+
+export function isAutomaticControlAcknowledgement(text: string): boolean {
+  return (
+    AUTOMATIC_ACKNOWLEDGMENT.test(text) || AUTOMATIC_STATUS_ECHO.test(text)
   );
 }
 

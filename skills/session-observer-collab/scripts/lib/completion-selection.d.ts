@@ -1,5 +1,9 @@
+export type CompletionIndexBase =
+  | 'zero-based-jsonl-record-index'
+  | 'zero-based-jsonl-frame-index';
+
 export interface SelectedRange {
-  indexBase: 'zero-based-jsonl-record-index';
+  indexBase: CompletionIndexBase;
   fromIndex: number;
   toIndex: number;
 }
@@ -9,6 +13,10 @@ export interface SelectedEntry {
   role: 'user' | 'assistant';
   text: string;
   kind: string;
+  sourceFrameIndex?: number;
+  entryKey?: string;
+  turnId?: string;
+  availability?: 'pending-lifecycle' | 'completed';
   [key: string]: unknown;
 }
 
@@ -26,7 +34,10 @@ export interface SkippedTurn {
 export interface ContinuationSelection {
   status: 'continuation' | 'no-continuation';
   continuation: boolean;
+  indexBase: CompletionIndexBase;
   fromIndex: number;
+  completedIndex: number | null;
+  /** Legacy compatibility alias for completedIndex. */
   completedRecord: number | null;
   nextCursor: number;
   peerCursor: number;
@@ -34,6 +45,7 @@ export interface ContinuationSelection {
   range: SelectedRange | null;
   reviewEntries: readonly SelectedEntry[];
   skipped: readonly SkippedTurn[];
+  selectedPrefix: import('./selected-prefix.mjs').SelectedCursorPrefix | null;
 }
 
 export function selectCompletedContinuation(

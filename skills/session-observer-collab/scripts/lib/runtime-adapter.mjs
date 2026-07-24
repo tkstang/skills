@@ -1,5 +1,9 @@
+import { createHash } from 'node:crypto';
+import { open } from 'node:fs/promises';
+
 import {
   beginLeaseWait,
+  canonicalizePeerTranscript,
   compareAndSwapCursor,
   compareAndSwapTrigger,
   createWaiterIdentity,
@@ -13,6 +17,174 @@ import {
 } from './lease-state.mjs';
 
 export const RUNTIME_ADAPTER_VERSION = 2;
+
+function fileIdentity(value) {
+  return Number.isSafeInteger(value) && value >= 0 ? value : null;
+}
+
+async function hashPrefix(handle, prefixBytes) {
+  const hash = createHash('sha256');
+  if (prefixBytes === 0) return hash.digest('hex');
+  let bytesRead = 0;
+  const stream = handle.createReadStream({
+    start: 0,
+    end: prefixBytes - 1,
+    autoClose: false,
+  });
+  for await (const chunk of stream) {
+    bytesRead += chunk.byteLength;
+    hash.update(chunk);
+  }
+  if (bytesRead !== prefixBytes) return null;
+  return hash.digest('hex');
+}
+
+export async function verifyAdapterPeerContinuity(lease, transcript) {
+  if (lease.peerRuntime !== 'cursor') {
+    const requested = validateAbsolutePath(transcript, 'transcript');
+    return Object.freeze({
+      verified: requested === lease.peerTranscript,
+      reason:
+        requested === lease.peerTranscript ? 'verified' : 'identity-mismatch',
+      canonicalTranscriptPath:
+        requested === lease.peerTranscript ? requested : null,
+    });
+  }
+
+  let requestedPath;
+  let leasedPath;
+  try {
+    requestedPath = await canonicalizePeerTranscript('cursor', transcript);
+    leasedPath = await canonicalizePeerTranscript(
+      'cursor',
+      lease.peerTranscript,
+    );
+  } catch (error) {
+    return Object.freeze({
+      verified: false,
+      reason: error?.code ?? 'continuity-path-mismatch',
+      canonicalTranscriptPath: null,
+    });
+  }
+  if (
+    requestedPath.peerCanonicalTranscriptPath !==
+      lease.peerCanonicalTranscriptPath ||
+    leasedPath.peerCanonicalTranscriptPath !==
+      lease.peerCanonicalTranscriptPath ||
+    requestedPath.peerCanonicalTranscriptPath !==
+      leasedPath.peerCanonicalTranscriptPath
+  ) {
+    return Object.freeze({
+      verified: false,
+      reason: 'continuity-path-mismatch',
+      canonicalTranscriptPath: null,
+    });
+  }
+
+  const checkpoint = lease.peerContinuity;
+  if (checkpoint === null) {
+    return Object.freeze({
+      verified: false,
+      reason: 'cursor-lease-rearm-required',
+      canonicalTranscriptPath: null,
+    });
+  }
+
+  let handle;
+  try {
+    handle = await open(lease.peerCanonicalTranscriptPath, 'r');
+    const metadata = await handle.stat();
+    if (
+      metadata.size < checkpoint.observedSize ||
+      metadata.size < checkpoint.prefixBytes
+    ) {
+      return Object.freeze({
+        verified: false,
+        reason: 'continuity-size-mismatch',
+        canonicalTranscriptPath: lease.peerCanonicalTranscriptPath,
+      });
+    }
+    if (
+      checkpoint.device !== null &&
+      fileIdentity(metadata.dev) !== checkpoint.device
+    ) {
+      return Object.freeze({
+        verified: false,
+        reason: 'continuity-device-mismatch',
+        canonicalTranscriptPath: lease.peerCanonicalTranscriptPath,
+      });
+    }
+    if (
+      checkpoint.inode !== null &&
+      fileIdentity(metadata.ino) !== checkpoint.inode
+    ) {
+      return Object.freeze({
+        verified: false,
+        reason: 'continuity-inode-mismatch',
+        canonicalTranscriptPath: lease.peerCanonicalTranscriptPath,
+      });
+    }
+    if (
+      (await hashPrefix(handle, checkpoint.prefixBytes)) !==
+      checkpoint.prefixSha256
+    ) {
+      return Object.freeze({
+        verified: false,
+        reason: 'continuity-prefix-mismatch',
+        canonicalTranscriptPath: lease.peerCanonicalTranscriptPath,
+      });
+    }
+  } catch (error) {
+    return Object.freeze({
+      verified: false,
+      reason: error?.code ?? 'continuity-read-failed',
+      canonicalTranscriptPath: lease.peerCanonicalTranscriptPath,
+    });
+  } finally {
+    await handle?.close();
+  }
+
+  return Object.freeze({
+    verified: true,
+    reason: 'verified',
+    canonicalTranscriptPath: lease.peerCanonicalTranscriptPath,
+  });
+}
+
+async function validateCursorUpdate(lease, transcript, update) {
+  if (lease.peerRuntime !== 'cursor') {
+    if (
+      update &&
+      typeof update === 'object' &&
+      Object.hasOwn(update, 'peerContinuity') &&
+      update.peerContinuity !== null
+    ) {
+      return { ok: false, reason: 'continuity-not-applicable' };
+    }
+    return { ok: true, update };
+  }
+  if (
+    !update ||
+    typeof update !== 'object' ||
+    !Object.hasOwn(update, 'peerContinuity') ||
+    update.peerContinuity === null
+  ) {
+    return { ok: false, reason: 'continuity-required' };
+  }
+  if (update.peerContinuity.nextFrameIndex !== update.peerCursor)
+    return { ok: false, reason: 'continuity-required' };
+  const proposed = await verifyAdapterPeerContinuity(
+    {
+      ...lease,
+      peerCursor: update.peerCursor,
+      peerContinuity: update.peerContinuity,
+    },
+    transcript,
+  );
+  return proposed.verified
+    ? { ok: true, update }
+    : { ok: false, reason: proposed.reason };
+}
 
 export function defineRuntimeAdapter(adapter) {
   if (!adapter || typeof adapter !== 'object')
@@ -47,10 +219,13 @@ export async function inspectAdapterLease(root, invocation) {
     lease.runtime !== input.runtime ||
     lease.peerRuntime !== input.peerRuntime ||
     lease.peerSession !== input.peerSession ||
-    lease.ownerCwd !== input.cwd ||
-    lease.peerTranscript !== input.transcript
+    lease.ownerCwd !== input.cwd
   ) {
     return { eligible: false, reason: 'identity-mismatch', lease };
+  }
+  const continuity = await verifyAdapterPeerContinuity(lease, input.transcript);
+  if (!continuity.verified) {
+    return { eligible: false, reason: continuity.reason, lease };
   }
   const effective = effectiveLease(lease, input.now);
   return {
@@ -62,6 +237,16 @@ export async function inspectAdapterLease(root, invocation) {
 
 export async function beginAdapterWait(root, invocation) {
   const input = validateAdapterInvocation(invocation);
+  const inspected = await inspectAdapterLease(root, input);
+  if (!inspected.eligible || !inspected.lease) {
+    return {
+      ok: false,
+      waiting: false,
+      changed: false,
+      reason: inspected.reason,
+      lease: inspected.lease,
+    };
+  }
   const waiter = input.waiter ?? (await createWaiterIdentity());
   const result = await beginLeaseWait(
     root,
@@ -71,7 +256,7 @@ export async function beginAdapterWait(root, invocation) {
       peerRuntime: input.peerRuntime,
       peerSession: input.peerSession,
       ownerCwd: input.cwd,
-      peerTranscript: input.transcript,
+      peerTranscript: inspected.lease.peerTranscript,
     },
     input.now,
     waiter,
@@ -88,7 +273,7 @@ export async function advanceAdapterCursor(
   root,
   invocation,
   expected,
-  peerCursor,
+  cursorUpdate,
 ) {
   const inspected = await inspectAdapterLease(root, invocation);
   if (!inspected.eligible)
@@ -97,11 +282,22 @@ export async function advanceAdapterCursor(
       reason: inspected.reason,
       lease: inspected.lease,
     };
+  const checked = await validateCursorUpdate(
+    inspected.lease,
+    invocation.transcript,
+    cursorUpdate,
+  );
+  if (!checked.ok)
+    return {
+      advanced: false,
+      reason: checked.reason,
+      lease: inspected.lease,
+    };
   const result = await compareAndSwapCursor(
     root,
     invocation.ownerSession,
     expected,
-    peerCursor,
+    checked.update,
     invocation.now,
   );
   return {
@@ -147,11 +343,15 @@ export async function finishAdapterWait(
   };
 }
 
+/**
+ * @param {import('./lease-state.mjs').LeaseUpdate | null | undefined} completion
+ */
 export async function claimAdapterTrigger(
   root,
   invocation,
   expected,
   completion,
+  clock = () => invocation.now,
 ) {
   const inspected = await inspectAdapterLease(root, invocation);
   if (!inspected.eligible)
@@ -167,12 +367,23 @@ export async function claimAdapterTrigger(
   ) {
     return { triggered: false, reason: 'no-advance', lease: inspected.lease };
   }
+  const checked = await validateCursorUpdate(
+    inspected.lease,
+    invocation.transcript,
+    completion,
+  );
+  if (!checked.ok)
+    return {
+      triggered: false,
+      reason: checked.reason,
+      lease: inspected.lease,
+    };
   const result = await compareAndSwapTrigger(
     root,
     invocation.ownerSession,
     expected,
-    completion,
-    invocation.now,
+    checked.update,
+    clock,
   );
   return {
     triggered: result.ok,

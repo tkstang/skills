@@ -12,6 +12,10 @@ import { fileURLToPath } from 'node:url';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+// @ts-expect-error No type declarations; this test exercises the shipped artifact.
+import * as shippedCursorAnalysis from '../../skills/session-observer/scripts/lib/cursor-analysis.mjs';
+// @ts-expect-error No type declarations; this test exercises the shipped artifact.
+import * as shippedCursorFrames from '../../skills/session-observer/scripts/lib/cursor-frames.mjs';
 import type {
   JsonObject,
   Runtime,
@@ -21,7 +25,10 @@ import {
   encodeCwd,
   encodeCwdVariants,
   extractMeta,
+  isAutomaticControlAcknowledgement,
+  isNoOpText,
   normalizeEntries,
+  parseAutomaticControlEnvelope,
   readRecords,
 } from '../../src/transcript/core/runtimes.js';
 
@@ -714,6 +721,108 @@ describe('normalizeEntries (codex)', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Cursor shared control classification
+// ---------------------------------------------------------------------------
+
+describe('Cursor shared control classification', () => {
+  it('parses legacy JSON and XML envelopes as record-index v1 provenance', () => {
+    expect(
+      parseAutomaticControlEnvelope(
+        JSON.stringify({
+          session_observer_wake: {
+            automatic: true,
+            runtime: 'cursor',
+            leaseId: 'synthetic-lease',
+            pinnedPeer: 'cursor:synthetic-peer',
+            range: { fromIndex: 4, toIndex: 7 },
+          },
+        }),
+      ),
+    ).toMatchObject({
+      automatic: true,
+      schemaVersion: 1,
+      runtime: 'cursor',
+      leaseId: 'synthetic-lease',
+      indexBase: 'zero-based-jsonl-record-index',
+      range: { fromIndex: 4, toIndex: 7 },
+    });
+    expect(
+      parseAutomaticControlEnvelope(
+        '<session_observer_wake automatic="true" runtime="cursor" lease_id="synthetic-lease" peer="cursor:synthetic-peer" records="4-7">Review the exact range.</session_observer_wake>',
+      ),
+    ).toMatchObject({
+      automatic: true,
+      schemaVersion: 1,
+      runtime: 'cursor',
+      leaseId: 'synthetic-lease',
+      indexBase: 'zero-based-jsonl-record-index',
+      range: { fromIndex: 4, toIndex: 7 },
+      wireFormat: 'xml',
+    });
+  });
+
+  it.each([
+    'zero-based-jsonl-record-index',
+    'zero-based-jsonl-frame-index',
+  ] as const)('parses a complete v2 %s envelope', (indexBase) => {
+    expect(
+      parseAutomaticControlEnvelope(
+        `<session_observer_wake automatic="true" schema_version="2" runtime="cursor" lease_id="synthetic-lease" peer="cursor:synthetic-peer" index_base="${indexBase}" records="4-7">Review the exact range.</session_observer_wake>`,
+      ),
+    ).toMatchObject({
+      automatic: true,
+      schemaVersion: 2,
+      runtime: 'cursor',
+      leaseId: 'synthetic-lease',
+      pinnedPeer: 'cursor:synthetic-peer',
+      indexBase,
+      range: { fromIndex: 4, toIndex: 7 },
+      wireFormat: 'xml',
+    });
+  });
+
+  it.each([
+    '{"session_observer_wake":{"automatic":false}}',
+    '<session_observer_wake automatic="false" runtime="cursor" lease_id="x" peer="cursor:y" records="1-2">Review.</session_observer_wake>',
+    '<session_observer_wake automatic="true" runtime="cursor" lease_id="x" peer="cursor:y" records="2-1">Review.</session_observer_wake>',
+    '<session_observer_wake automatic="true" schema_version="2" runtime="cursor" lease_id="x" peer="cursor:y" records="1-2">Review.</session_observer_wake>',
+    '<session_observer_wake automatic="true" runtime="cursor" lease_id="x" peer="cursor:y" index_base="zero-based-jsonl-frame-index" records="1-2">Review.</session_observer_wake>',
+    '<session_observer_wake automatic="true" schema_version="2" runtime="cursor" lease_id="x" peer="cursor:y" index_base="records" records="1-2">Review.</session_observer_wake>',
+    '<session_observer_wake automatic="true" schema_version="2.0" runtime="cursor" lease_id="x" peer="cursor:y" index_base="zero-based-jsonl-frame-index" records="1-2">Review.</session_observer_wake>',
+    '<session_observer_wake automatic="true" schema_version="3" runtime="cursor" lease_id="x" peer="cursor:y" index_base="zero-based-jsonl-frame-index" records="1-2">Review.</session_observer_wake>',
+    'ordinary human input',
+  ])('rejects invalid or non-automatic envelope text: %s', (text) => {
+    expect(parseAutomaticControlEnvelope(text)).toBeNull();
+  });
+
+  it.each([
+    '[no-op]',
+    ' [NO-OP] nothing substantive changed',
+    '[No-Op]\nwaiting',
+  ])('recognizes no-op prefixes: %s', (text) => {
+    expect(isNoOpText(text)).toBe(true);
+  });
+
+  it.each([
+    'Acknowledged.',
+    'got it',
+    'Status: still waiting for peer',
+    'No new updates.',
+  ])('recognizes automatic acknowledgement/status text: %s', (text) => {
+    expect(isAutomaticControlAcknowledgement(text)).toBe(true);
+  });
+
+  it.each([
+    'Acknowledged, and I implemented the requested change.',
+    'Waiting is one state in the new lifecycle model.',
+    'No new updates were expected, so I fixed the parser.',
+  ])('preserves substantive state-word-leading text: %s', (text) => {
+    expect(isAutomaticControlAcknowledgement(text)).toBe(false);
+    expect(isNoOpText(text)).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // normalizeEntries (cursor)
 // ---------------------------------------------------------------------------
 
@@ -832,6 +941,39 @@ describe('normalizeEntries (cursor)', () => {
       );
     });
   }
+});
+
+describe('shipped Cursor framed runtime modules', () => {
+  it('loads and composes the Session Observer generated frame reader and analyzer', async () => {
+    const accumulator = shippedCursorAnalysis.createCursorTurnAccumulator(
+      {
+        runtime: 'cursor',
+        projectCwd: '/synthetic/project',
+        sessionId: 'synthetic-generated-session',
+        canonicalTranscriptPath: '/synthetic/project/transcript.jsonl',
+      },
+      0,
+    );
+    const scan = await shippedCursorFrames.scanCursorTranscript(
+      fixturePath('cursor', 'framed-closed.jsonl'),
+      { onFrame: accumulator.onFrame },
+    );
+    const analysis = accumulator.finish(scan);
+
+    expect(analysis.turns).toHaveLength(1);
+    expect(analysis.turns[0]).toMatchObject({
+      lifecycle: 'success',
+      fromFrameIndex: 0,
+      observedThroughFrame: 2,
+      humanRecordIndexes: [0],
+      finalSubstantiveEntryKey: expect.any(String),
+    });
+    expect(analysis.turns[0].assistantRecords[0]).toMatchObject({
+      sourceFrameIndex: 1,
+      classification: 'substantive',
+      text: 'Synthetic response beta.',
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------

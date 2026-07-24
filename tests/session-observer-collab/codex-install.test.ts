@@ -115,6 +115,17 @@ describe('installed Codex Stop hook bundle', () => {
         )
       ).mode & 0o777,
     ).toBe(0o600);
+    expect(
+      (
+        await stat(
+          join(
+            supportRoot,
+            versions[0],
+            'session-observer-collab/scripts/lib/selected-prefix.mjs',
+          ),
+        )
+      ).mode & 0o777,
+    ).toBe(0o600);
   });
 
   test('cleans a failed publish and removes only owned installed artifacts', async () => {

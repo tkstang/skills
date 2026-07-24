@@ -4,15 +4,17 @@ import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import {
   readdir,
+  opendir,
   stat,
   mkdir,
   readFile,
+  realpath,
   rename,
   open,
   unlink
 } from "node:fs/promises";
 import { homedir } from "node:os";
-import { join, basename } from "node:path";
+import { join, basename, isAbsolute, relative, resolve } from "node:path";
 import { promisify } from "node:util";
 import {
   discoverPaths,
@@ -27,6 +29,71 @@ import {
 } from './session-classifier.mjs';
 const execFileAsync = promisify(execFile);
 const LOOKBACK_DAYS = 7;
+const CURSOR_IDENTITY_INDEX_MAX_ENTRIES = 2e4;
+const CURSOR_IDENTITY_INDEX_MAX_ELAPSED_MS = 2e3;
+const CURSOR_DISCOVERY_MAX_ENTRIES = 2e4;
+const CURSOR_DISCOVERY_MAX_ELAPSED_MS = 2e3;
+const CURSOR_DISCOVERY_MAX_BYTES = 64 * 1024 * 1024;
+const CURSOR_DISCOVERY_MAX_RETAINED_CANDIDATES = 5e3;
+class CursorDiscoveryError extends Error {
+  code;
+  constructor(code) {
+    super(code);
+    this.name = "CursorDiscoveryError";
+    this.code = code;
+  }
+}
+let cursorDiscoveryTestOptions;
+function configureCursorDiscoveryForTest(options) {
+  cursorDiscoveryTestOptions = options;
+}
+class CursorDiscoveryBudget {
+  maxEntries;
+  maxElapsedMs;
+  maxBytes;
+  maxRetainedCandidates;
+  now;
+  startedAt;
+  entries = 0;
+  bytes = 0;
+  retainedCandidates = 0;
+  constructor(options = {}) {
+    this.maxEntries = options.maxEntries ?? CURSOR_DISCOVERY_MAX_ENTRIES;
+    this.maxElapsedMs = options.maxElapsedMs ?? CURSOR_DISCOVERY_MAX_ELAPSED_MS;
+    this.maxBytes = options.maxBytes ?? CURSOR_DISCOVERY_MAX_BYTES;
+    this.maxRetainedCandidates = options.maxRetainedCandidates ?? CURSOR_DISCOVERY_MAX_RETAINED_CANDIDATES;
+    this.now = options.now ?? Date.now;
+    this.startedAt = this.now();
+  }
+  checkTime() {
+    if (this.now() - this.startedAt > this.maxElapsedMs) {
+      throw new CursorDiscoveryError("CURSOR_DISCOVERY_TIME_BUDGET_EXCEEDED");
+    }
+  }
+  consumeEntry() {
+    this.checkTime();
+    this.entries += 1;
+    if (this.entries > this.maxEntries) {
+      throw new CursorDiscoveryError("CURSOR_DISCOVERY_ENTRY_BUDGET_EXCEEDED");
+    }
+  }
+  retainCandidate() {
+    this.checkTime();
+    this.retainedCandidates += 1;
+    if (this.retainedCandidates > this.maxRetainedCandidates) {
+      throw new CursorDiscoveryError(
+        "CURSOR_DISCOVERY_RETAINED_CANDIDATE_BUDGET_EXCEEDED"
+      );
+    }
+  }
+  reserveBytes(bytes) {
+    this.checkTime();
+    this.bytes += bytes;
+    if (this.bytes > this.maxBytes) {
+      throw new CursorDiscoveryError("CURSOR_DISCOVERY_BYTE_BUDGET_EXCEEDED");
+    }
+  }
+}
 const DEFAULT_CLASSIFICATION_CACHE_MAX_ENTRIES = 5e3;
 class ClassificationCache {
   maxEntries;
@@ -340,32 +407,48 @@ async function discoverCodex(_targetCwd, classificationCache) {
   }
   return candidates;
 }
-async function collectCursorAgentTranscripts(transcriptsRoot) {
-  const results = [];
+async function* collectCursorAgentTranscripts(transcriptsRoot, budget, expectedSessionId, failOnIncomplete = false) {
   let sessionDirs;
   try {
-    sessionDirs = await readdir(transcriptsRoot, { withFileTypes: true });
-  } catch {
-    return results;
-  }
-  for (const sessionDir of sessionDirs) {
-    if (!sessionDir.isDirectory()) continue;
-    const sessionPath = join(transcriptsRoot, sessionDir.name);
-    let entries;
-    try {
-      entries = await readdir(sessionPath, { withFileTypes: true });
-    } catch {
-      continue;
+    sessionDirs = await opendir(transcriptsRoot);
+  } catch (error) {
+    if (failOnIncomplete && !isMissingPathError(error)) {
+      throw new CursorDiscoveryError("IDENTITY_INDEX_INCOMPLETE");
     }
-    for (const entry of entries) {
-      if (entry.isFile() && entry.name.endsWith(".jsonl")) {
-        results.push(join(sessionPath, entry.name));
+    return;
+  }
+  try {
+    for await (const sessionDir of sessionDirs) {
+      budget.consumeEntry();
+      if (!sessionDir.isDirectory()) continue;
+      const sessionPath = join(transcriptsRoot, sessionDir.name);
+      let entries;
+      try {
+        entries = await opendir(sessionPath);
+      } catch (error) {
+        if (failOnIncomplete && !isMissingPathError(error)) {
+          throw new CursorDiscoveryError("IDENTITY_INDEX_INCOMPLETE");
+        }
+        continue;
+      }
+      for await (const entry of entries) {
+        budget.consumeEntry();
+        if (entry.isFile() && entry.name.endsWith(".jsonl")) {
+          const transcriptPath = join(sessionPath, entry.name);
+          if (expectedSessionId === void 0 || cursorSessionIdFromTranscriptPath(transcriptPath) === expectedSessionId) {
+            yield transcriptPath;
+          }
+        }
       }
     }
+  } catch (error) {
+    if (error instanceof CursorDiscoveryError) throw error;
+    if (failOnIncomplete) {
+      throw new CursorDiscoveryError("IDENTITY_INDEX_INCOMPLETE");
+    }
   }
-  return results;
 }
-async function cursorCandidate(transcriptPath, now, evidence, fileStat, cache) {
+async function cursorCandidate(transcriptPath, now, evidence, fileStat, cache, budget) {
   let resolvedStat = fileStat;
   if (!resolvedStat) {
     try {
@@ -376,12 +459,14 @@ async function cursorCandidate(transcriptPath, now, evidence, fileStat, cache) {
   }
   const mtime = Math.floor(resolvedStat.mtime.getTime() / 1e3);
   const ageSec = now - mtime;
+  budget.reserveBytes(resolvedStat.size);
   const derived = await candidateDerivedFields(
     "cursor",
     transcriptPath,
     resolvedStat,
     cache
   );
+  budget.checkTime();
   return {
     runtime: "cursor",
     transcriptPath,
@@ -397,42 +482,64 @@ async function cursorCandidate(transcriptPath, now, evidence, fileStat, cache) {
 }
 async function discoverCursor(targetCwd, cache) {
   const [projectsRoot] = discoverPaths("cursor");
-  const encodedVariants = encodeCwdVariants("cursor", targetCwd);
+  const normalizedTargetCwd = resolve(targetCwd);
+  const canonicalTargetCwd = await canonicalPath(normalizedTargetCwd) ?? normalizedTargetCwd;
+  const canonicalEncodedVariants = new Set(
+    encodeCwdVariants("cursor", canonicalTargetCwd)
+  );
+  const rawEncodedVariants = new Set(
+    encodeCwdVariants("cursor", normalizedTargetCwd)
+  );
+  const suppliedCwdIsAlias = normalizedTargetCwd !== canonicalTargetCwd;
+  const directVariants = [
+    ...[...canonicalEncodedVariants].map((encoded) => ({
+      encoded,
+      cwdEvidence: "direct-parent-dir"
+    })),
+    ...[...rawEncodedVariants].filter((encoded) => !canonicalEncodedVariants.has(encoded)).map((encoded) => ({
+      encoded,
+      cwdEvidence: suppliedCwdIsAlias ? "raw-cwd-alias" : "direct-parent-dir"
+    }))
+  ];
+  const encodedVariants = directVariants.map(({ encoded }) => encoded);
   const now = Date.now() / 1e3;
   const cutoffSec = now - LOOKBACK_DAYS * 86400;
   const candidates = [];
   const seenTranscripts = /* @__PURE__ */ new Set();
-  let directHit = false;
-  for (const encoded of encodedVariants) {
+  const budget = new CursorDiscoveryBudget(cursorDiscoveryTestOptions);
+  for (const { encoded, cwdEvidence } of directVariants) {
     const transcriptsRoot = join(projectsRoot, encoded, "agent-transcripts");
-    const transcriptPaths = await collectCursorAgentTranscripts(transcriptsRoot);
-    if (transcriptPaths.length === 0) continue;
-    directHit = true;
-    for (const transcriptPath of transcriptPaths) {
-      if (seenTranscripts.has(transcriptPath)) continue;
-      seenTranscripts.add(transcriptPath);
+    for await (const transcriptPath of collectCursorAgentTranscripts(
+      transcriptsRoot,
+      budget
+    )) {
+      const canonicalTranscriptPath = await canonicalPath(transcriptPath) ?? transcriptPath;
+      if (seenTranscripts.has(canonicalTranscriptPath)) continue;
+      budget.retainCandidate();
+      seenTranscripts.add(canonicalTranscriptPath);
       const candidate = await cursorCandidate(
         transcriptPath,
         now,
         {
           recordedCwd: targetCwd,
           cwdSlug: encoded,
-          cwdEvidence: "direct-parent-dir"
+          cwdEvidence
         },
         null,
-        cache
+        cache,
+        budget
       );
       if (candidate) candidates.push(candidate);
     }
   }
-  if (directHit) return candidates;
-  let projectDirs = [];
+  let projectDirs;
   try {
-    projectDirs = await readdir(projectsRoot, { withFileTypes: true });
+    projectDirs = await opendir(projectsRoot);
   } catch {
     return candidates;
   }
-  for (const projectDir of projectDirs) {
+  for await (const projectDir of projectDirs) {
+    budget.consumeEntry();
     if (!projectDir.isDirectory()) continue;
     if (encodedVariants.includes(projectDir.name)) continue;
     const transcriptsRoot = join(
@@ -440,10 +547,14 @@ async function discoverCursor(targetCwd, cache) {
       projectDir.name,
       "agent-transcripts"
     );
-    const transcriptPaths = await collectCursorAgentTranscripts(transcriptsRoot);
-    for (const transcriptPath of transcriptPaths) {
-      if (seenTranscripts.has(transcriptPath)) continue;
-      seenTranscripts.add(transcriptPath);
+    for await (const transcriptPath of collectCursorAgentTranscripts(
+      transcriptsRoot,
+      budget
+    )) {
+      const canonicalTranscriptPath = await canonicalPath(transcriptPath) ?? transcriptPath;
+      if (seenTranscripts.has(canonicalTranscriptPath)) continue;
+      budget.retainCandidate();
+      seenTranscripts.add(canonicalTranscriptPath);
       let fileStat;
       try {
         fileStat = await stat(transcriptPath);
@@ -461,12 +572,348 @@ async function discoverCursor(targetCwd, cache) {
           cwdEvidence: "project-dir-slug"
         },
         fileStat,
-        cache
+        cache,
+        budget
       );
       if (candidate) candidates.push(candidate);
     }
   }
   return candidates;
+}
+async function findCursorSessionCandidates(targetCwd, sessionId, cache) {
+  const [projectsRoot] = discoverPaths("cursor");
+  const normalizedTargetCwd = resolve(targetCwd);
+  const canonicalTargetCwd = await canonicalPath(normalizedTargetCwd) ?? normalizedTargetCwd;
+  const canonicalEncodedVariants = new Set(
+    encodeCwdVariants("cursor", canonicalTargetCwd)
+  );
+  const rawEncodedVariants = new Set(
+    encodeCwdVariants("cursor", normalizedTargetCwd)
+  );
+  const suppliedCwdIsAlias = normalizedTargetCwd !== canonicalTargetCwd;
+  const directVariants = [
+    ...[...canonicalEncodedVariants].map((encoded) => ({
+      encoded,
+      cwdEvidence: "direct-parent-dir"
+    })),
+    ...[...rawEncodedVariants].filter((encoded) => !canonicalEncodedVariants.has(encoded)).map((encoded) => ({
+      encoded,
+      cwdEvidence: suppliedCwdIsAlias ? "raw-cwd-alias" : "direct-parent-dir"
+    }))
+  ];
+  const directEvidence = new Map(
+    directVariants.map(({ encoded, cwdEvidence }) => [encoded, cwdEvidence])
+  );
+  const now = Date.now() / 1e3;
+  const cutoffSec = now - LOOKBACK_DAYS * 86400;
+  const candidates = [];
+  const seenTranscripts = /* @__PURE__ */ new Set();
+  const pinnedBudget = new CursorDiscoveryBudget({
+    maxEntries: cursorDiscoveryTestOptions?.maxEntries ?? CURSOR_IDENTITY_INDEX_MAX_ENTRIES,
+    maxElapsedMs: cursorDiscoveryTestOptions?.maxElapsedMs ?? CURSOR_IDENTITY_INDEX_MAX_ELAPSED_MS,
+    maxBytes: Number.MAX_SAFE_INTEGER,
+    maxRetainedCandidates: Number.MAX_SAFE_INTEGER,
+    now: cursorDiscoveryTestOptions?.now
+  });
+  let projectDirs;
+  try {
+    projectDirs = await opendir(projectsRoot);
+  } catch (error) {
+    if (!isMissingPathError(error)) {
+      throw new CursorDiscoveryError("IDENTITY_INDEX_INCOMPLETE");
+    }
+    return candidates;
+  }
+  try {
+    for await (const projectDir of projectDirs) {
+      pinnedBudget.consumeEntry();
+      if (!projectDir.isDirectory()) continue;
+      const cwdEvidence = directEvidence.get(projectDir.name);
+      const transcriptsRoot = join(
+        projectsRoot,
+        projectDir.name,
+        "agent-transcripts"
+      );
+      for await (const transcriptPath of collectCursorAgentTranscripts(
+        transcriptsRoot,
+        // Pinned lookup filters by path before classification. Its aggregate
+        // metadata walk is finite and fails visibly if uniqueness cannot be
+        // established within the same entry/time envelope as identity indexing.
+        pinnedBudget,
+        sessionId,
+        true
+      )) {
+        const canonicalTranscriptPath = await canonicalPath(transcriptPath) ?? transcriptPath;
+        if (seenTranscripts.has(canonicalTranscriptPath)) continue;
+        seenTranscripts.add(canonicalTranscriptPath);
+        let fileStat;
+        try {
+          fileStat = await stat(transcriptPath);
+        } catch (error) {
+          if (isMissingPathError(error)) continue;
+          throw new CursorDiscoveryError("IDENTITY_INDEX_INCOMPLETE");
+        }
+        const mtime = Math.floor(fileStat.mtime.getTime() / 1e3);
+        if (cwdEvidence === void 0 && mtime < cutoffSec) continue;
+        const candidate = await cursorCandidate(
+          transcriptPath,
+          now,
+          {
+            recordedCwd: cwdEvidence === void 0 ? null : targetCwd,
+            cwdSlug: projectDir.name,
+            cwdEvidence: cwdEvidence ?? "project-dir-slug"
+          },
+          fileStat,
+          cache,
+          pinnedBudget
+        );
+        if (candidate?.sessionId === sessionId) candidates.push(candidate);
+      }
+    }
+  } catch (error) {
+    if (error instanceof CursorDiscoveryError) throw error;
+    throw new CursorDiscoveryError("IDENTITY_INDEX_INCOMPLETE");
+  }
+  return candidates;
+}
+function cursorCwdEvidence(candidate) {
+  if (candidate.cwdEvidence === "store-metadata") return "store-metadata";
+  if (candidate.cwdEvidence === "harness-environment") {
+    return "harness-environment";
+  }
+  if (candidate.cwdEvidence === "direct-parent-dir") {
+    return "direct-project-root";
+  }
+  return "fallback-slug";
+}
+function pathIsWithin(root, candidate) {
+  const relativePath = relative(root, candidate);
+  return relativePath === "" || !relativePath.startsWith(
+    `..${process.platform === "win32" ? "\\" : "/"}`
+  ) && relativePath !== ".." && !isAbsolute(relativePath);
+}
+async function canonicalPath(path) {
+  try {
+    return await realpath(path);
+  } catch {
+    return null;
+  }
+}
+function isMissingPathError(error) {
+  return typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT";
+}
+function cursorSessionIdFromTranscriptPath(transcriptPath) {
+  const transcriptBase = basename(transcriptPath).replace(/\.jsonl$/u, "");
+  return transcriptBase && !["transcript", "conversation", "messages"].includes(transcriptBase) ? transcriptBase : basename(join(transcriptPath, ".."));
+}
+async function cursorSessionCanonicalPaths(sessionId, options = {}) {
+  const [projectsRoot] = discoverPaths("cursor");
+  const canonicalPaths = /* @__PURE__ */ new Set();
+  const maxEntries = options.maxEntries ?? CURSOR_IDENTITY_INDEX_MAX_ENTRIES;
+  const maxElapsedMs = options.maxElapsedMs ?? CURSOR_IDENTITY_INDEX_MAX_ELAPSED_MS;
+  const now = options.now ?? Date.now;
+  const startedAt = now();
+  let entryCount = 0;
+  const budgetFailure = (consumeEntry = false) => {
+    if (now() - startedAt > maxElapsedMs) {
+      return "IDENTITY_INDEX_TIME_BUDGET_EXCEEDED";
+    }
+    if (consumeEntry) {
+      entryCount += 1;
+      if (entryCount > maxEntries) {
+        return "IDENTITY_INDEX_ENTRY_BUDGET_EXCEEDED";
+      }
+    }
+    return null;
+  };
+  let projects;
+  try {
+    projects = await opendir(projectsRoot);
+  } catch (error) {
+    return {
+      canonicalPaths,
+      failure: isMissingPathError(error) ? null : "IDENTITY_INDEX_INCOMPLETE"
+    };
+  }
+  try {
+    for await (const projectDir of projects) {
+      let failure = budgetFailure(true);
+      if (failure) return { canonicalPaths, failure };
+      if (!projectDir.isDirectory()) continue;
+      let sessions;
+      try {
+        sessions = await opendir(
+          join(projectsRoot, projectDir.name, "agent-transcripts")
+        );
+      } catch (error) {
+        if (isMissingPathError(error)) continue;
+        return {
+          canonicalPaths,
+          failure: "IDENTITY_INDEX_INCOMPLETE"
+        };
+      }
+      failure = budgetFailure();
+      if (failure) return { canonicalPaths, failure };
+      for await (const sessionDir of sessions) {
+        failure = budgetFailure(true);
+        if (failure) return { canonicalPaths, failure };
+        if (!sessionDir.isDirectory()) continue;
+        let transcripts;
+        try {
+          transcripts = await opendir(
+            join(
+              projectsRoot,
+              projectDir.name,
+              "agent-transcripts",
+              sessionDir.name
+            )
+          );
+        } catch (error) {
+          if (isMissingPathError(error)) continue;
+          return {
+            canonicalPaths,
+            failure: "IDENTITY_INDEX_INCOMPLETE"
+          };
+        }
+        failure = budgetFailure();
+        if (failure) return { canonicalPaths, failure };
+        for await (const entry of transcripts) {
+          failure = budgetFailure(true);
+          if (failure) return { canonicalPaths, failure };
+          if (!entry.isFile() || !entry.name.endsWith(".jsonl")) continue;
+          const transcriptPath = join(
+            projectsRoot,
+            projectDir.name,
+            "agent-transcripts",
+            sessionDir.name,
+            entry.name
+          );
+          if (cursorSessionIdFromTranscriptPath(transcriptPath) !== sessionId) {
+            continue;
+          }
+          let canonicalTranscriptPath;
+          try {
+            canonicalTranscriptPath = await realpath(transcriptPath);
+          } catch (error) {
+            if (isMissingPathError(error)) continue;
+            return {
+              canonicalPaths,
+              failure: "IDENTITY_INDEX_INCOMPLETE"
+            };
+          }
+          canonicalPaths.add(canonicalTranscriptPath);
+          failure = budgetFailure();
+          if (failure) return { canonicalPaths, failure };
+        }
+      }
+    }
+  } catch {
+    return { canonicalPaths, failure: "IDENTITY_INDEX_INCOMPLETE" };
+  }
+  return { canonicalPaths, failure: null };
+}
+async function resolveCursorIdentity(candidate, requestedCwd, expectedSessionId, indexOptions) {
+  if (candidate.runtime !== "cursor") {
+    throw new TypeError("resolveCursorIdentity requires a Cursor candidate");
+  }
+  const cwdEvidence = [cursorCwdEvidence(candidate)];
+  const sessionEvidence = ["transcript-path"];
+  const reasons = [];
+  const requestedCanonicalCwd = await canonicalPath(requestedCwd);
+  const resolvedTranscriptPath = await canonicalPath(candidate.transcriptPath);
+  const storeRoot = join(homedir(), ".cursor", "projects");
+  const resolvedStoreRoot = await canonicalPath(storeRoot);
+  const canonicalCwd = requestedCanonicalCwd ?? requestedCwd.replace(/\/+$/u, "");
+  const canonicalTranscriptPath = resolvedTranscriptPath ?? candidate.transcriptPath;
+  const canonicalStoreRoot = resolvedStoreRoot ?? storeRoot;
+  if (requestedCanonicalCwd === null) {
+    reasons.push("CWD_CANONICALIZATION_FAILED");
+  }
+  if (resolvedTranscriptPath === null) {
+    reasons.push("TRANSCRIPT_CANONICALIZATION_FAILED");
+  }
+  if (resolvedStoreRoot === null) {
+    reasons.push("STORE_ROOT_CANONICALIZATION_FAILED");
+  }
+  if (resolvedStoreRoot !== null && resolvedTranscriptPath !== null && !pathIsWithin(canonicalStoreRoot, canonicalTranscriptPath)) {
+    reasons.push("PATH_OUTSIDE_SUPPORTED_ROOT");
+  }
+  const canonicalRecordedCwd = candidate.recordedCwd ? await canonicalPath(candidate.recordedCwd) : null;
+  if (candidate.recordedCwd && canonicalRecordedCwd === null) {
+    reasons.push("RECORDED_CWD_CANONICALIZATION_FAILED");
+  }
+  if (candidate.cwdEvidence === "raw-cwd-alias") {
+    reasons.push("RAW_CWD_ALIAS_DIAGNOSTIC_ONLY");
+  }
+  if (canonicalRecordedCwd !== null && canonicalRecordedCwd !== canonicalCwd) {
+    reasons.push("CANDIDATE_CWD_MISMATCH");
+  }
+  if (expectedSessionId !== void 0) {
+    sessionEvidence.unshift("explicit-pin");
+    if (expectedSessionId !== candidate.sessionId) {
+      reasons.push("IDENTITY_MISMATCH");
+    }
+  }
+  const harnessSessionId = process.env.CURSOR_SESSION_ID?.trim();
+  if (harnessSessionId) {
+    sessionEvidence.splice(
+      expectedSessionId === void 0 ? 0 : 1,
+      0,
+      "harness-environment"
+    );
+    cwdEvidence.push("harness-environment");
+    if (harnessSessionId !== candidate.sessionId) {
+      reasons.push("HARNESS_SESSION_MISMATCH");
+    }
+  }
+  const identityIndex = await cursorSessionCanonicalPaths(
+    candidate.sessionId,
+    indexOptions
+  );
+  const distinctPaths = identityIndex.canonicalPaths;
+  distinctPaths.add(canonicalTranscriptPath);
+  if (identityIndex.failure) reasons.push(identityIndex.failure);
+  if (distinctPaths.size > 1) {
+    reasons.push("DUPLICATE_SESSION_CANDIDATES");
+  }
+  const cwdSource = cwdEvidence[0];
+  const cwdMatches = canonicalRecordedCwd === canonicalCwd && cwdSource !== "fallback-slug";
+  const independentStoreCwd = cwdSource === "store-metadata";
+  const exactSessionSignal = expectedSessionId !== void 0 && expectedSessionId === candidate.sessionId || harnessSessionId === candidate.sessionId || independentStoreCwd;
+  const hardFailure = reasons.some(
+    (reason) => [
+      "PATH_OUTSIDE_SUPPORTED_ROOT",
+      "CANDIDATE_CWD_MISMATCH",
+      "IDENTITY_MISMATCH",
+      "HARNESS_SESSION_MISMATCH",
+      "DUPLICATE_SESSION_CANDIDATES",
+      "IDENTITY_INDEX_ENTRY_BUDGET_EXCEEDED",
+      "IDENTITY_INDEX_TIME_BUDGET_EXCEEDED",
+      "IDENTITY_INDEX_INCOMPLETE"
+    ].includes(reason)
+  );
+  const canonicalIdentityReady = requestedCanonicalCwd !== null && resolvedTranscriptPath !== null && resolvedStoreRoot !== null && (candidate.recordedCwd === null || canonicalRecordedCwd !== null);
+  let strength;
+  if (hardFailure) {
+    strength = "ambiguous";
+  } else if (canonicalIdentityReady && cwdMatches && exactSessionSignal) {
+    strength = "exact";
+  } else {
+    strength = "diagnostic";
+    if (!cwdMatches) reasons.push("WEAK_CWD_EVIDENCE");
+    if (!exactSessionSignal) reasons.push("SESSION_SIGNAL_REQUIRED");
+  }
+  return {
+    runtime: "cursor",
+    sessionId: candidate.sessionId,
+    projectCwd: canonicalCwd,
+    canonicalCwd,
+    canonicalTranscriptPath,
+    cwdEvidence,
+    sessionEvidence,
+    strength,
+    reasons
+  };
 }
 async function discover(runtime, targetCwd, cache = new ClassificationCache()) {
   if (runtime === "claude-code") return discoverClaudeCode(targetCwd, cache);
@@ -475,7 +922,9 @@ async function discover(runtime, targetCwd, cache = new ClassificationCache()) {
   throw new Error(`Unknown runtime: ${runtime}`);
 }
 async function findSessionCandidate(runtime, targetCwd, sessionId) {
-  const matches = (await discover(runtime, targetCwd)).filter(
+  const cache = new ClassificationCache();
+  const candidates = runtime === "cursor" ? await findCursorSessionCandidates(targetCwd, sessionId, cache) : await discover(runtime, targetCwd, cache);
+  const matches = candidates.filter(
     (candidate) => candidate.recordedCwd === targetCwd && candidate.sessionId === sessionId
   );
   return matches.length === 1 ? matches[0] : null;
@@ -510,9 +959,12 @@ async function gitWorktrees(cwd) {
 }
 export {
   ClassificationCache,
+  CursorDiscoveryError,
   claudeCodeLookupDiagnostics,
+  configureCursorDiscoveryForTest,
   discover,
   findNewerSameCwdCandidates,
   findSessionCandidate,
-  gitWorktrees
+  gitWorktrees,
+  resolveCursorIdentity
 };

@@ -8,13 +8,14 @@ import {
   open,
   readFile,
   readdir,
+  realpath,
   rename,
   rm,
 } from 'node:fs/promises';
 import { homedir } from 'node:os';
-import { dirname, isAbsolute, join, resolve, sep } from 'node:path';
+import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
 
-export const LEASE_SCHEMA_VERSION = 5;
+export const LEASE_SCHEMA_VERSION = 6;
 export const LEASE_STATES = Object.freeze([
   'armed',
   'waiting',
@@ -31,6 +32,9 @@ export const MAX_LOOPS = 1_000;
 const ID = /^[A-Za-z0-9](?:[A-Za-z0-9._:-]{0,127})$/;
 const OWNER_RUNTIMES = new Set(['codex', 'cursor']);
 const PEER_RUNTIMES = new Set(['claude-code', 'codex', 'cursor']);
+const RECORD_INDEX_BASE = 'zero-based-jsonl-record-index';
+const FRAME_INDEX_BASE = 'zero-based-jsonl-frame-index';
+const CURSOR_TRANSCRIPT_STORE = 'agent-transcripts';
 
 export class LeaseError extends Error {
   constructor(code, message) {
@@ -103,6 +107,107 @@ export function validateAbsolutePath(value, label) {
     );
   }
   return resolve(value);
+}
+
+export function peerIndexBase(peerRuntime) {
+  validatePeerRuntime(peerRuntime);
+  return peerRuntime === 'cursor' ? FRAME_INDEX_BASE : RECORD_INDEX_BASE;
+}
+
+export function validatePeerIndexBase(value, peerRuntime) {
+  const expected = peerIndexBase(peerRuntime);
+  if (value !== expected) {
+    throw new LeaseError(
+      'invalid-peer-index-base',
+      `${peerRuntime} peer index base must be ${expected}`,
+    );
+  }
+  return value;
+}
+
+function cursorTranscriptStore(transcriptPath) {
+  let current = dirname(transcriptPath);
+  while (dirname(current) !== current) {
+    if (basename(current) === CURSOR_TRANSCRIPT_STORE) {
+      const projectsRoot = dirname(dirname(current));
+      const cursorRoot = dirname(projectsRoot);
+      if (
+        basename(projectsRoot) !== 'projects' ||
+        basename(cursorRoot) !== '.cursor'
+      ) {
+        throw new LeaseError(
+          'unsupported-peer-transcript-store',
+          'Cursor peer transcript must use the supported .cursor/projects store',
+        );
+      }
+      return current;
+    }
+    current = dirname(current);
+  }
+  throw new LeaseError(
+    'unsupported-peer-transcript-store',
+    'Cursor peer transcript must be inside a supported agent-transcripts store',
+  );
+}
+
+export async function canonicalizePeerTranscript(peerRuntime, peerTranscript) {
+  validatePeerRuntime(peerRuntime);
+  const requested = validateAbsolutePath(peerTranscript, 'peer-transcript');
+  let canonicalTranscript;
+  try {
+    canonicalTranscript = await realpath(requested);
+  } catch (error) {
+    throw new LeaseError(
+      'peer-transcript-unavailable',
+      `peer transcript cannot be canonicalized: ${error.message}`,
+    );
+  }
+
+  if (peerRuntime === 'cursor') {
+    const requestedStore = cursorTranscriptStore(requested);
+    let canonicalStore;
+    try {
+      canonicalStore = await realpath(requestedStore);
+    } catch (error) {
+      throw new LeaseError(
+        'unsupported-peer-transcript-store',
+        `Cursor transcript store cannot be canonicalized: ${error.message}`,
+      );
+    }
+    if (!canonicalTranscript.startsWith(`${canonicalStore}${sep}`)) {
+      throw new LeaseError(
+        'peer-transcript-outside-store',
+        'canonical Cursor peer transcript escapes its supported store',
+      );
+    }
+  }
+
+  return Object.freeze({
+    peerTranscript: canonicalTranscript,
+    peerCanonicalTranscriptPath: canonicalTranscript,
+    peerIndexBase: peerIndexBase(peerRuntime),
+  });
+}
+
+export function validatePeerTranscriptSession(
+  peerRuntime,
+  peerSession,
+  peerTranscript,
+) {
+  validatePeerRuntime(peerRuntime);
+  validateId(peerSession, 'peer-session');
+  const transcript = validateAbsolutePath(peerTranscript, 'peer-transcript');
+  if (
+    peerRuntime === 'cursor' &&
+    (basename(dirname(transcript)) !== peerSession ||
+      basename(transcript) !== `${peerSession}.jsonl`)
+  ) {
+    throw new LeaseError(
+      'peer-session-transcript-mismatch',
+      'Cursor peer session must match the canonical transcript directory and filename',
+    );
+  }
+  return transcript;
 }
 
 export function leasePath(root, ownerSession) {
@@ -184,6 +289,28 @@ export function migrateLease(input) {
       waitPid: null,
     };
   }
+  if (input.schemaVersion === 5) {
+    if (input.peerRuntime === 'cursor') {
+      throw new LeaseError(
+        'cursor-lease-rearm-required',
+        'legacy Cursor lease uses an unverified record cursor; explicit re-arm required',
+      );
+    }
+    input = {
+      ...input,
+      schemaVersion: 6,
+      peerTranscript: validateAbsolutePath(
+        input.peerTranscript,
+        'peer-transcript',
+      ),
+      peerCanonicalTranscriptPath: validateAbsolutePath(
+        input.peerTranscript,
+        'peer-transcript',
+      ),
+      peerIndexBase: RECORD_INDEX_BASE,
+      peerContinuity: null,
+    };
+  }
   if (input.schemaVersion !== LEASE_SCHEMA_VERSION) {
     throw new LeaseError(
       'unsupported-schema',
@@ -200,8 +327,22 @@ export function validateLease(raw) {
   validatePeerRuntime(value.peerRuntime);
   validateId(value.ownerSession, 'owner-session');
   validateId(value.peerSession, 'peer-session');
-  validateAbsolutePath(value.ownerCwd, 'owner-cwd');
-  validateAbsolutePath(value.peerTranscript, 'peer-transcript');
+  value.ownerCwd = validateAbsolutePath(value.ownerCwd, 'owner-cwd');
+  value.peerTranscript = validateAbsolutePath(
+    value.peerTranscript,
+    'peer-transcript',
+  );
+  value.peerCanonicalTranscriptPath = validateAbsolutePath(
+    value.peerCanonicalTranscriptPath,
+    'peer-canonical-transcript-path',
+  );
+  if (value.peerTranscript !== value.peerCanonicalTranscriptPath) {
+    throw new LeaseError(
+      'malformed-lease',
+      'peer transcript must contain only its canonical path',
+    );
+  }
+  validatePeerIndexBase(value.peerIndexBase, value.peerRuntime);
   if (!LEASE_STATES.includes(value.state))
     throw new LeaseError('malformed-lease', 'invalid lease state');
   value.armedAt = timestamp(value.armedAt, 'armedAt');
@@ -234,6 +375,79 @@ export function validateLease(raw) {
   integer(value.waitMs, 'waitMs', 0, MAX_WAIT_MS);
   integer(value.leaseMs, 'leaseMs', 1, MAX_LEASE_MS);
   integer(value.peerCursor, 'peerCursor', 0, Number.MAX_SAFE_INTEGER);
+  if (value.peerRuntime === 'cursor' && value.peerContinuity === null) {
+    throw new LeaseError(
+      'cursor-lease-rearm-required',
+      'Cursor lease is missing a continuity checkpoint; explicit re-arm required',
+    );
+  }
+  if (value.peerContinuity !== null) {
+    const checkpoint = value.peerContinuity;
+    if (
+      !checkpoint ||
+      typeof checkpoint !== 'object' ||
+      Array.isArray(checkpoint) ||
+      value.peerRuntime !== 'cursor' ||
+      value.peerIndexBase !== FRAME_INDEX_BASE
+    ) {
+      throw new LeaseError(
+        'malformed-lease',
+        'peer continuity is allowed only for Cursor frame-index leases',
+      );
+    }
+    if (checkpoint.indexBase !== FRAME_INDEX_BASE) {
+      throw new LeaseError(
+        'malformed-lease',
+        'peer continuity index base must match the lease index base',
+      );
+    }
+    integer(
+      checkpoint.nextFrameIndex,
+      'peerContinuity.nextFrameIndex',
+      0,
+      Number.MAX_SAFE_INTEGER,
+    );
+    integer(
+      checkpoint.prefixBytes,
+      'peerContinuity.prefixBytes',
+      0,
+      Number.MAX_SAFE_INTEGER,
+    );
+    integer(
+      checkpoint.observedSize,
+      'peerContinuity.observedSize',
+      0,
+      Number.MAX_SAFE_INTEGER,
+    );
+    if (
+      checkpoint.nextFrameIndex !== value.peerCursor ||
+      checkpoint.prefixBytes > checkpoint.observedSize
+    ) {
+      throw new LeaseError(
+        'malformed-lease',
+        'peer cursor must match its bounded continuity checkpoint',
+      );
+    }
+    if (
+      typeof checkpoint.prefixSha256 !== 'string' ||
+      !/^[a-f0-9]{64}$/u.test(checkpoint.prefixSha256)
+    ) {
+      throw new LeaseError(
+        'malformed-lease',
+        'peer continuity prefixSha256 must be a lowercase SHA-256 digest',
+      );
+    }
+    for (const field of ['device', 'inode']) {
+      if (checkpoint[field] !== null) {
+        integer(
+          checkpoint[field],
+          `peerContinuity.${field}`,
+          0,
+          Number.MAX_SAFE_INTEGER,
+        );
+      }
+    }
+  }
   integer(value.continuationCount, 'continuationCount', 0, MAX_CONTINUATIONS);
   integer(value.continuationCap, 'continuationCap', 1, MAX_CONTINUATIONS);
   integer(value.loopCount, 'loopCount', 0, MAX_LOOPS);
@@ -451,7 +665,7 @@ export async function compareAndSwapTrigger(
   ownerSession,
   expected,
   update,
-  now = Date.now(),
+  clock = Date.now,
 ) {
   const file = leasePath(root, ownerSession);
   return withLeaseLock(file, async () => {
@@ -467,6 +681,11 @@ export async function compareAndSwapTrigger(
     ) {
       return { ok: false, reason: 'stale', lease: current };
     }
+    // The wait for this lock may itself cross a finite wait or lease deadline.
+    // Read the supplied clock only after the current lease is loaded under the
+    // lock so an authorization made before lock contention cannot authorize a
+    // later mutation.
+    const now = typeof clock === 'function' ? clock() : clock;
     const effective = effectiveLease(current, now);
     if (!['armed', 'waiting'].includes(effective.state))
       return {
@@ -489,6 +708,9 @@ export async function compareAndSwapTrigger(
     const next = validateLease({
       ...current,
       peerCursor: nextCursor,
+      ...(Object.hasOwn(update, 'peerContinuity')
+        ? { peerContinuity: update.peerContinuity }
+        : {}),
       continuationCount: current.continuationCount + 1,
       loopCount: current.loopCount + loopIncrement,
       state: update.terminal === false ? 'armed' : 'triggered',
@@ -508,7 +730,7 @@ export async function compareAndSwapCursor(
   root,
   ownerSession,
   expected,
-  peerCursor,
+  cursorUpdate,
   now = Date.now(),
 ) {
   const file = leasePath(root, ownerSession);
@@ -533,8 +755,14 @@ export async function compareAndSwapCursor(
         lease: effective,
       };
     }
+    const update =
+      cursorUpdate &&
+      typeof cursorUpdate === 'object' &&
+      !Array.isArray(cursorUpdate)
+        ? cursorUpdate
+        : { peerCursor: cursorUpdate };
     const nextCursor = integer(
-      peerCursor,
+      update.peerCursor,
       'peerCursor',
       current.peerCursor + 1,
       Number.MAX_SAFE_INTEGER,
@@ -542,6 +770,9 @@ export async function compareAndSwapCursor(
     const next = validateLease({
       ...current,
       peerCursor: nextCursor,
+      ...(Object.hasOwn(update, 'peerContinuity')
+        ? { peerContinuity: update.peerContinuity }
+        : {}),
       updatedAt: new Date(now).toISOString(),
     });
     await atomicWriteJson(file, next);

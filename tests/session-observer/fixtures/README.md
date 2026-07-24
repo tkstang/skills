@@ -87,3 +87,24 @@ Cursor agent transcripts follow the record shape used in `~/.cursor/projects/<en
 ### partial-tail.jsonl
 
 5 lines where the last line is truncated mid-write. Used to verify that `readRecords` drops the partial trailing line with a warning for Cursor-shaped transcripts.
+
+### Framed transcript contract
+
+The `framed-*.jsonl` files are byte-sensitive inputs for the streaming Cursor
+reader. Do not run a JSON formatter over them. Physical frame indexes are
+zero-based and count blank, malformed, and unterminated frames; a blocker does
+not renumber later physical frames.
+
+| Fixture | Intended structural labels | Scenario |
+| --- | --- | --- |
+| `framed-closed.jsonl` | parsed, parsed, parsed | Fully closed user, assistant, and successful terminal frames |
+| `framed-blank-lines.jsonl` | parsed, blank, parsed, blank | Blank physical frames remain indexed |
+| `framed-malformed-middle.jsonl` | parsed, malformed, parsed | A malformed middle frame blocks the otherwise valid suffix |
+| `framed-unterminated-tail.jsonl` | parsed, partial | A parseable tail without a newline remains partial |
+| `framed-repair-before.jsonl` / `framed-repair-after.jsonl` | parsed, malformed, parsed → parsed, parsed, parsed | A blocking frame is repaired without discarding the following frame |
+| `framed-append-before.jsonl` / `framed-append-after.jsonl` | parsed, parsed → parsed, parsed, parsed | Appended growth preserves the exact prior byte prefix |
+| `framed-replacement-before.jsonl` / `framed-replacement-after.jsonl` | parsed, parsed | Same-length prefix replacement must not be mistaken for append-only growth |
+
+The fixture-contract suite checks inventory, raw UTF-8 round trips, newline
+boundaries, synthetic redaction, and the intended scenario labels. Scanner
+behavior belongs to `tests/transcript-core/cursor-frames.test.ts`.

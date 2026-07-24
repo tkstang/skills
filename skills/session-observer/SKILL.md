@@ -1,21 +1,21 @@
 ---
 name: session-observer
-description: Use when checking what another coding agent (Claude Code, Codex, or Cursor) just did in this project, reviewing a peer session, or catching up on new messages. Locates the active transcript, renders a tool-free digest, and tracks per-runtime read offsets.
+description: Use when checking what another coding agent (Claude Code, Codex, or Cursor) just did in this project, reviewing a peer session, or catching up on new messages. Locates the active transcript, renders a tool-free digest, and tracks runtime-specific read positions.
 license: MIT
 compatibility: Agent Skills baseline; requires Node.js 22+. No third-party runtime dependencies.
 argument-hint: '[review|catch-up|catch-up-then-watch|locate|whoami|state|watch|watch-ctl|--watch] [--runtime <claude-code|codex|cursor|auto|both>] [--debug]'
 disable-model-invocation: false
 user-invocable: true
 allowed-tools: Bash, Read, AskUserQuestion
-version: '1.0.7'
+version: '1.0.23'
 metadata:
   author: thomas.stang
-  version: '1.0.7'
+  version: '1.0.23'
 ---
 
 # session-observer
 
-Lets you (Claude Code, Codex, or Cursor) inspect another runtime's transcript for the current project, render a tool-free digest, and track per-runtime read offsets so follow-up checks surface only new content.
+Lets you (Claude Code, Codex, or Cursor) inspect another runtime's transcript for the current project, render a tool-free digest, and track runtime-specific read positions so follow-up checks surface only new content.
 
 ---
 
@@ -53,23 +53,23 @@ Use this skill when any of the following applies:
 
 ### Subcommands
 
-| Subcommand                     | Purpose                                              | State change                                              |
-| ------------------------------ | ---------------------------------------------------- | --------------------------------------------------------- |
-| `review`                       | Full digest from the start                           | None (unless `--mark-read` passed)                        |
-| `catch-up`                     | Delta: records since last read                       | Advances high-water mark on success                       |
-| `catch-up-then-watch`          | Emit unread backlog, then enter foreground watcher   | Advances high-water marks as backlog/deltas are consumed  |
-| `locate`                       | Ranked candidate list (diagnostic)                   | None                                                      |
-| `whoami`                       | Resolve this session's runtime/session/path identity | None; fails closed when identity is ambiguous             |
-| `state get`                    | Print current state                                  | None                                                      |
-| `state reset --runtime <r>`    | Reset all offsets for runtime                        | Zeroes `lastRecordIndex`                                  |
-| `state reset --session <r:id>` | Reset one session                                    | Zeroes `lastRecordIndex`                                  |
-| `state clear`                  | Clear all tracked sessions                           | Empties `sessions` map                                    |
-| `watch`                        | Foreground watcher for debounced catch-up updates    | Advances high-water marks as emitted digests are consumed |
-| `watch-ctl status`             | Print active watcher state                           | None                                                      |
-| `watch-ctl pause`              | Pause event emission while polling continues         | Writes a control directive                                |
-| `watch-ctl resume`             | Resume event emission                                | Writes a control directive                                |
-| `watch-ctl flush`              | Emit pending debounced updates immediately           | Writes a control directive                                |
-| `watch-ctl stop`               | Stop the active watcher                              | Signals the watcher and clears watch metadata on exit     |
+| Subcommand                     | Purpose                                              | State change                                                                    |
+| ------------------------------ | ---------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `review`                       | Full digest from the start                           | None (unless `--mark-read` passed)                                              |
+| `catch-up`                     | Delta: records since last read                       | Advances high-water mark on success                                             |
+| `catch-up-then-watch`          | Emit unread backlog, then enter foreground watcher   | Advances high-water marks as backlog/deltas are consumed                        |
+| `locate`                       | Ranked candidate list (diagnostic)                   | None                                                                            |
+| `whoami`                       | Resolve this session's runtime/session/path identity | None; fails closed when identity is ambiguous                                   |
+| `state get`                    | Print current state                                  | None                                                                            |
+| `state reset --runtime <r>`    | Reset all state for one runtime                      | Non-Cursor: zeroes offsets. Cursor: deletes all Cursor session state for replay |
+| `state reset --session <r:id>` | Reset one session                                    | Non-Cursor: zeroes its offset. Cursor: deletes that session's state for replay  |
+| `state clear`                  | Clear all tracked sessions                           | Clears legacy offsets and the shared Cursor state store                         |
+| `watch`                        | Foreground watcher for debounced catch-up updates    | Advances high-water marks as emitted digests are consumed                       |
+| `watch-ctl status`             | Print active watcher state                           | None                                                                            |
+| `watch-ctl pause`              | Pause event emission while polling continues         | Writes a control directive                                                      |
+| `watch-ctl resume`             | Resume event emission                                | Writes a control directive                                                      |
+| `watch-ctl flush`              | Emit pending debounced updates immediately           | Writes a control directive                                                      |
+| `watch-ctl stop`               | Stop the active watcher                              | Signals the watcher and clears watch metadata on exit                           |
 
 ### Flags (all subcommands accept these)
 
@@ -110,7 +110,7 @@ Use this skill when any of the following applies:
 
 By default, only natural-language `user`/`assistant` messages are included. Tool calls, tool results, and Claude Code slash-command payload records (`<command-message>`, `<command-name>`, `<command-args>`) are excluded. Opt in with `--include-tools` (adds call markers), `--include-command-messages` (adds slash-command payloads), or `--debug` (adds tool markers and results).
 
-A filtered or empty digest is not evidence that the peer was idle or that the transcript contains no activity. It only means no records matched the current rendering options. Check the raw-record accounting, broaden the filters when appropriate, or inspect the pinned transcript before drawing an absence conclusion.
+A filtered or empty digest is not evidence that the peer was idle or that the transcript contains no activity. It only means no entries matched the current rendering options. Check the digest schema, declared index base, and raw accounting; broaden the filters when appropriate; or inspect the pinned transcript before drawing an absence conclusion.
 
 If a digest would exceed the large-output threshold, the CLI automatically falls back to the last 8 user/assistant turn groups and adds a `Large digest fallback` warning. This protects `catch-up` from dumping pasted skill bodies or large transcript spans. Use `--max-turns` or `--max-bytes` for an explicit bound, or `--include-command-messages` when the slash-command payload itself is the thing being debugged.
 
@@ -178,9 +178,11 @@ node <skill-dir>/scripts/session-observer.mjs whoami --json
 node <skill-dir>/scripts/session-observer.mjs locate \
   --runtime claude-code --cwd "$PWD" --json --snippet "the last thing I saw"
 
-# State — inspect or reset tracked offsets
+# State — inspect or reset tracked session state
 node <skill-dir>/scripts/session-observer.mjs state get
 node <skill-dir>/scripts/session-observer.mjs state reset --runtime codex
+node <skill-dir>/scripts/session-observer.mjs state reset \
+  --session cursor:<session-id>
 
 # Watch — foreground monitoring with debounced catch-up updates
 node <skill-dir>/scripts/session-observer.mjs watch \
@@ -228,7 +230,7 @@ Use `watch` when the user explicitly asks to keep monitoring a peer session, res
 
 For combined catch-up/watch requests, run `catch-up-then-watch`. Starting `watch` alone establishes an initial baseline and does not emit already-unread transcript content.
 
-Each emitted watch digest is equivalent to a debounced `catch-up` result and advances the high-water mark for the consumed raw transcript records. The debounce waits for `--debounce-sec` seconds of quiet, but continuous writes are still emitted after `--max-pending-sec` seconds so a busy transcript cannot starve the watcher indefinitely. If the watcher prints JSON lines, route by stable event type: `baseline`, `delta`, `heartbeat`, `stopped`, or `error`. Respond to `delta` events with digest content; stay quiet on `baseline` and `heartbeat` unless their metadata shows a problem. If it prints markdown, read each emitted digest before commenting.
+Each emitted watch digest is equivalent to a debounced `catch-up` result and advances the runtime-specific high-water mark. Schema-v1/non-Cursor targets consume JSONL records. Cursor schema v2 consumes physical JSONL frames only after its stability, continuity, and delivery checks pass. The debounce waits for `--debounce-sec` seconds of quiet, but continuous writes are still emitted after `--max-pending-sec` seconds so a busy transcript cannot starve the watcher indefinitely. If the watcher prints JSON lines, route by stable event type: `baseline`, `delta`, `heartbeat`, `stopped`, or `error`. Respond to `delta` events with digest content; stay quiet on `baseline` and `heartbeat` unless their metadata shows a problem. If it prints markdown, read each emitted digest before commenting.
 
 `--quiet-empty` is useful for collaboration watches: metadata-only growth still advances the offset, but no empty delta is printed. This does not mean nothing was written; it means the growth did not produce a rendered message under the active filters. `--strict-baseline` protects a standalone `watch` from silently skipping a previously unread range. Without it, such a start emits one `baseline-gap` warning with the zero-based skipped range; with it, startup refuses and leaves the prior offset intact. `catch-up-then-watch` first renders unread backlog and therefore does not create a baseline gap.
 
@@ -240,7 +242,7 @@ While watch is active, keep the collaboration posture. If the user asks a side q
 
 Automatic responses are bounded to the active invocation that started and is polling the watcher. In Claude Code, Codex, Cursor, and similar yield-after-turn harnesses, a backgrounded watch command does not wake the agent when stdout receives a new digest; the caller must keep reading stdout, periodically call `watch-ctl status --json`, or poll the transcript directly. Provider hook integrations that would wake a new invocation after this one ends are deferred; do not imply that watch events will automatically summon an agent after the active invocation has stopped watching.
 
-`watch-ctl status --json` reports the resolved runtime/session/transcript for each target plus live drift fields such as `transcriptRecords`, `lastRecordIndex`, `consumedThrough`, `recordsBehind`, `secondsSinceLastEmit`, and `healthy`. Treat `recordsBehind > 0` with `healthy: false` as a watcher problem or unread backlog, not as peer idleness.
+`watch-ctl status --json` reports the resolved runtime/session/transcript for each target plus its declared `indexBase`, live drift positions, poll/event times, and health. Cursor targets additionally report independent `engagement`, `activity`, `content`, `lifecycle`, `delivery`, and `health` status facets plus continuity and buffering. Treat a blocked/unhealthy target or content behind the verified cursor as a watcher problem or unread/buffered input, not as peer idleness.
 
 Multiple foreground watchers can run at once, including two sessions in the same worktree watching each other; a second watcher for the **same** target session is refused, since duplicates would race over the shared read offset. Use `watch-ctl status --json` to list active watchers. For `pause`, `resume`, `flush`, or `stop`, the command selects the watcher for the current cwd by default, falling back to the only matching watcher when the implicit cwd filter matches none; if more than one watcher matches, disambiguate with `--runtime`, `--session`, or `--pid`.
 
@@ -252,19 +254,26 @@ Read the markdown digest. Then offer a take on what the peer did or said:
 - If the session is marked `ACTIVE`, note that the peer may still be mid-turn.
 - If you noticed something relevant (a bug, a decision, a question), call it out.
 
+For Cursor schema v2, read the independent `cursorEvidence.status` facets.
+`content: "available"` with `lifecycle: "pending"` is a valid content-first
+observation, not a completed turn. `health: "healthy"` means the read and
+continuity check succeeded; it does not prove peer progress. `delivery:
+"uncertain"` requires the stable entry keys to be replayed with that provenance.
+Only a terminal-success `confirmed-completion` projection is eligible for
+collaboration continuation.
+
 ### Step 4: Catch-up bookkeeping
 
-`catch-up` automatically advances the high-water mark on exit 0. The high-water mark advances over **raw transcript records consumed**, not just rendered messages. The header separates:
+`catch-up` automatically advances the high-water mark on exit 0. Interpret every position by the digest's schema and `indexBase`, not by the runtime name alone:
 
-- `raw range (zero-based JSONL indices)` / `raw records consumed` — all transcript records consumed for offset bookkeeping.
-- `rendered messages` — natural-language/tool entries actually shown after filters and tail slicing. Rendered ranges also use zero-based JSONL record indices.
-- `filtered out` — omitted tool calls, tool results, command messages, metadata/non-message records, or tail-sliced entries.
+- **Schema v1** requires `zero-based-jsonl-record-index`. It preserves Claude Code, Codex, and compatibility behavior: raw and rendered positions count parsed JSONL records.
+- **Cursor schema v2** requires `zero-based-jsonl-frame-index`. Raw positions count physical frames, including metadata and terminal boundaries. Entry `recordIndex` is the delivery frame; `sourceFrameIndex` is provenance for the original content frame.
+- `fromIndex` is inclusive and `nextIndex` is the first unconsumed position under the declared base. Filtered entries still count in raw accounting.
+- Unknown schemas, mismatched index bases, or a missing v2 index base are fail-closed. Never convert a v1 record cursor into a v2 frame cursor.
 
-If the header says `raw records consumed: 8` and `rendered messages: 1`, that is normal: the default digest filtered out the other raw records, usually tool activity or Claude slash-command payloads. Do not describe this as a range bug, peer idleness, or evidence that the omitted records do not exist.
+If raw accounting says 8 consumed positions and one rendered entry, that is normal: the active projection/filter omitted the others. Do not describe this as a range bug, peer idleness, or evidence that the omitted input does not exist.
 
-Use one convention everywhere when discussing positions: record numbers are **zero-based JSONL record indices**, not one-based line numbers. If you need one-based line numbers for a separate shell command, label them explicitly as line numbers.
-
-The stored high-water mark is exclusive: after rendering/consuming record `N`, the next catch-up starts at `N + 1`. In the state file this is still named `lastRecordIndex` for compatibility, but semantically it is the next unread zero-based record index.
+The stored high-water mark is exclusive. In compatibility fields it may still be named `lastRecordIndex`; for Cursor v2 it means the next unread zero-based physical frame, not a parsed-record conversion.
 
 If you used `review` and want the same bookkeeping, pass `--mark-read`.
 
@@ -338,7 +347,7 @@ For Cursor cwd issues, the supported transcript store is:
 ~/.cursor/projects/<encoded-project>/agent-transcripts/<session-id>/<session-id>.jsonl
 ```
 
-The encoded project slug splits cwd paths on `/` and `.` and joins non-empty segments with `-` (for example `/Users/thomas.stang/Code/vox/duet` → `Users-thomas-stang-Code-vox-duet`). Cursor's SQLite chat-history store at `~/.cursor/chats/*/store.db` is intentionally out of scope for this skill.
+The encoded project slug splits cwd paths on `/` and `.` and joins non-empty segments with `-` (for example `<project-cwd>` → `<encoded-project>`). Slug evidence is diagnostic only; stateful Cursor reads require the exact session, canonical cwd, and canonical transcript path. Cursor's SQLite chat-history store at `~/.cursor/chats/*/store.db` is intentionally out of scope for this skill.
 
 ### Ties (exit 3, `ties`)
 
@@ -373,27 +382,45 @@ Another `session-observer` process holds the state lock and did not release it. 
 rm ~/.local/state/session-observer/state.json.lock
 ```
 
-### Transcript shrank (warning in digest header)
+### Transcript shrank or continuity changed
 
-The transcript file has fewer records than the stored high-water mark — the peer runtime rewrote or rotated the session file.
+For non-Cursor schema-v1 state, the existing record-offset compatibility behavior applies when a transcript shrinks.
 
-**Recovery:** The skill automatically resets the offset to 0 and re-renders the full session. No action needed.
+Cursor v2 does not silently reset. A shrink, prefix mismatch, replacement, unsupported rotation, file-identity failure, or unverified legacy position returns a structured continuity-blocked result and leaves state unchanged.
 
-### Corrupt state (warning on startup)
+**Recovery:** Confirm the exact Cursor identity and choose explicit replay with `state reset --session cursor:<session-id>`. Use the broader runtime reset only when every Cursor session can be replayed.
+
+### Corrupt legacy offset state (warning on startup)
 
 `state.json` contained invalid JSON. The skill backed it up to `state.json.corrupt-<ts>.bak` and started fresh with an empty state. All offsets are reset.
 
 **Recovery:** Run `state get` to confirm the fresh state. If you need the previous offsets, inspect the `.bak` file manually.
 
-### State nuke option
+### Cursor v2 reset and corrupt/schema recovery
 
-If state becomes irreparably inconsistent:
+Cursor uses the shared schema-v2 store `cursor-state.json` in addition to the legacy `state.json` offset store. Reset behavior is deliberately runtime-specific:
+
+- `state reset --session cursor:<session-id>` deletes that Cursor session from both stores. The next `catch-up` replays it from the transcript as a fresh session.
+- `state reset --runtime cursor` deletes every Cursor session from both stores. Every Cursor session is eligible for replay on its next `catch-up`.
+- Non-Cursor session/runtime resets retain their existing record-offset contract: tracked entries stay present and their `lastRecordIndex` is reset to zero.
+
+Corrupt JSON or an unsupported schema in `cursor-state.json` fails closed with `CURSOR_STATE_RECOVERY_REQUIRED`; normal reads, writes, and single-session resets do not silently discard shared state. The supported recovery command is a destructive whole-Cursor-store reset:
+
+```bash
+node <skill-dir>/scripts/session-observer.mjs state reset --runtime cursor
+```
+
+This replaces the shared Cursor store and removes legacy Cursor offset entries. It cannot preserve sibling Cursor sessions: resetting for one corrupt or incompatible store loses state for every Cursor session, and each sibling must replay from its transcript. The CLI's JSON diagnostic reports `scope: "cursor-store"`, `destructive: true`, and `preservesSiblingSessions: false`; surface those consequences before running the recovery command.
+
+### Secondary destructive escape hatch
+
+If the supported `state reset` commands themselves cannot recover the state directory, recursive deletion is a secondary, last-resort escape hatch:
 
 ```bash
 rm -rf ~/.local/state/session-observer
 ```
 
-This removes all tracked offsets. The next `catch-up` will behave like a `review`.
+This removes state for **all** runtimes, including Cursor v2 delivery/replay state and watcher metadata—not only the broken session or runtime. Use it only after the scoped reset commands fail and after confirming no active watcher or observer process is using the directory. Subsequent `catch-up` operations rebuild state by replaying transcripts.
 
 ### Manual verification (does this work on my machine?)
 
@@ -423,8 +450,8 @@ Exit codes 0 (digest found) and 2 (no transcripts for this cwd) are both accepta
 - [ ] `review`, `catch-up`, `locate`, and `state` subcommands respond correctly.
 - [ ] Default output excludes tool calls and results; `--include-tools` adds compact markers; `--debug` adds both.
 - [ ] `catch-up` advances the high-water mark; a second identical `catch-up` emits "no new records."
-- [ ] `state reset --runtime <r>` zeros offsets; subsequent `catch-up` re-emits the full session.
+- [ ] Non-Cursor resets zero offsets; Cursor session/runtime resets delete scoped state for replay; subsequent `catch-up` re-emits transcript content.
 - [ ] Exit codes 0 / 1 / 2 / 3 are produced as documented for their respective conditions.
 - [ ] `--runtime auto` resolves the peer via `SESSION_OBSERVER_SELF`, prior same-cwd state, or tier-population; exits 3 when multiple runtimes have candidates.
 - [ ] No Stoa runtime dependency; no network calls; no writes to transcripts.
-- [ ] State stored at `~/.local/state/session-observer/state.json`; nuke option documented above.
+- [ ] Legacy offsets use `state.json`, Cursor v2 uses `cursor-state.json`, and the secondary destructive escape hatch is documented above.

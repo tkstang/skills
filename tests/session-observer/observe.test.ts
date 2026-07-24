@@ -2,22 +2,41 @@
  * observe.test.ts — tests for the reusable catch-up observation pipeline.
  */
 
-import { mkdtemp, rm, mkdir, readFile, writeFile } from 'node:fs/promises';
+import {
+  appendFile,
+  mkdtemp,
+  rm,
+  mkdir,
+  readFile,
+  realpath,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { expect, describe, test } from 'vitest';
 
+import {
+  getCursorSession,
+  mutateCursorState,
+} from '../../src/transcript/session-observer/lib/cursor-state.js';
+import { renderMarkdown } from '../../src/transcript/session-observer/lib/digest.js';
 import { observeCatchUp } from '../../src/transcript/session-observer/lib/observe.js';
 
 function claudeSlug(cwd: string): string {
   return cwd.replace(/[/.]/g, '-');
 }
 
+function cursorSlug(cwd: string): string {
+  return cwd.split(/[/.]/u).filter(Boolean).join('-');
+}
+
 async function withTempSessionHome(
   fn: (home: string, stateDir: string) => Promise<void>,
 ): Promise<void> {
-  const home = await mkdtemp(join(tmpdir(), 'observe-test-home-'));
+  const home = await realpath(
+    await mkdtemp(join(tmpdir(), 'observe-test-home-')),
+  );
   const previousHome = process.env.HOME;
   const previousStateDir = process.env.STATE_DIR;
   process.env.HOME = home;
@@ -79,6 +98,44 @@ async function writeCodexTranscript(
     'utf8',
   );
   return transcriptPath;
+}
+
+type CursorFixtureFrame = Record<string, unknown> | string;
+
+async function writeCursorTranscript(
+  home: string,
+  cwd: string,
+  sessionId: string,
+  frames: CursorFixtureFrame[],
+  { trailingNewline = true }: { trailingNewline?: boolean } = {},
+): Promise<string> {
+  const dir = join(
+    home,
+    '.cursor',
+    'projects',
+    cursorSlug(cwd),
+    'agent-transcripts',
+    sessionId,
+  );
+  await mkdir(dir, { recursive: true });
+  const transcriptPath = join(dir, `${sessionId}.jsonl`);
+  const body = frames
+    .map((frame) => (typeof frame === 'string' ? frame : JSON.stringify(frame)))
+    .join('\n');
+  await writeFile(
+    transcriptPath,
+    `${body}${trailingNewline ? '\n' : ''}`,
+    'utf8',
+  );
+  return transcriptPath;
+}
+
+async function injectLegacyStateWriteFailure(
+  stateDir: string,
+): Promise<string> {
+  const statePath = join(stateDir, 'state.json');
+  await mkdir(statePath);
+  return statePath;
 }
 
 describe('observeCatchUp', () => {
@@ -156,6 +213,639 @@ describe('observeCatchUp', () => {
         ),
         'snippet-selected digest should retain the existing warning',
       ).toBeTruthy();
+    });
+  });
+
+  test('advances legacy state before returning output for the caller to render', async () => {
+    await withTempSessionHome(async (home, stateDir) => {
+      const cwd = '/test/observe-output-order';
+      await writeClaudeTranscript(
+        home,
+        cwd,
+        'observe-output-order.jsonl',
+        'observe-output-order',
+        [
+          { role: 'user', content: 'Synthetic direction.' },
+          { role: 'assistant', content: 'Synthetic response.' },
+        ],
+      );
+
+      const events: string[] = [];
+      const result = await observeCatchUp({
+        runtime: 'claude-code',
+        cwd,
+        session: 'claude-code:observe-output-order',
+      });
+      events.push('observe-returned');
+
+      expect(result.ok).toBe(true);
+      if (!result.ok) throw new Error(result.message);
+      const state = JSON.parse(
+        await readFile(join(stateDir, 'state.json'), 'utf8'),
+      );
+      events.push('state-observed');
+      const rendered = renderMarkdown(result.digest);
+      events.push('caller-rendered');
+
+      expect(result.markedRead).toBe(true);
+      expect(
+        state.sessions['claude-code:observe-output-order'].lastRecordIndex,
+      ).toBe(result.digest.range.nextIndex);
+      expect(rendered).toContain('Synthetic response.');
+      expect(events).toEqual([
+        'observe-returned',
+        'state-observed',
+        'caller-rendered',
+      ]);
+    });
+  });
+
+  test('returns an output-ready legacy digest when state mutation fails', async () => {
+    await withTempSessionHome(async (home, stateDir) => {
+      const cwd = '/test/observe-state-failure';
+      await writeClaudeTranscript(
+        home,
+        cwd,
+        'observe-state-failure.jsonl',
+        'observe-state-failure',
+        [
+          { role: 'user', content: 'Synthetic direction.' },
+          { role: 'assistant', content: 'Synthetic response survives.' },
+        ],
+      );
+      const failedStatePath = await injectLegacyStateWriteFailure(stateDir);
+
+      const result = await observeCatchUp({
+        runtime: 'claude-code',
+        cwd,
+        session: 'claude-code:observe-state-failure',
+      });
+
+      expect(result.ok).toBe(true);
+      if (!result.ok) throw new Error(result.message);
+      expect(result.markedRead).toBe(false);
+      expect(renderMarkdown(result.digest)).toContain(
+        'Synthetic response survives.',
+      );
+      await expect(readFile(failedStatePath)).rejects.toMatchObject({
+        code: 'EISDIR',
+      });
+    });
+  });
+
+  test('builds reusable Cursor frame fixtures including malformed and partial tails', async () => {
+    await withTempSessionHome(async (home) => {
+      const cwd = '/test/observe-cursor-fixture';
+      const transcriptPath = await writeCursorTranscript(
+        home,
+        cwd,
+        'observe-cursor-fixture',
+        [
+          {
+            role: 'user',
+            message: {
+              content: [{ type: 'text', text: 'Synthetic direction.' }],
+            },
+          },
+          '{"malformed":',
+          '{"role":"assistant","message":{"content":"Synthetic partial',
+        ],
+        { trailingNewline: false },
+      );
+
+      const raw = await readFile(transcriptPath, 'utf8');
+      expect(transcriptPath).toContain(
+        join(
+          '.cursor',
+          'projects',
+          cursorSlug(cwd),
+          'agent-transcripts',
+          'observe-cursor-fixture',
+        ),
+      );
+      expect(raw.split('\n')).toHaveLength(3);
+      expect(raw).toContain('Synthetic direction.');
+      expect(raw).toContain('{"malformed":');
+      expect(raw.endsWith('Synthetic partial')).toBe(true);
+    });
+  });
+
+  test('reserves a stable pinned Cursor observation until its caller commits delivery', async () => {
+    await withTempSessionHome(async (home) => {
+      const cwd = join(home, 'workspace', 'observe-cursor-pending');
+      await mkdir(cwd, { recursive: true });
+      const sessionId = 'observe-cursor-pending';
+      const transcriptPath = await writeCursorTranscript(home, cwd, sessionId, [
+        {
+          role: 'user',
+          message: {
+            content: [{ type: 'text', text: 'Synthetic direction.' }],
+          },
+        },
+        {
+          role: 'assistant',
+          message: {
+            content: [{ type: 'text', text: 'Synthetic stable observation.' }],
+          },
+        },
+      ]);
+
+      let scanCount = 0;
+      const result = await observeCatchUp(
+        {
+          runtime: 'cursor',
+          cwd,
+          session: `cursor:${sessionId}`,
+          debounceSec: 0,
+        },
+        {
+          now: () => Date.parse('2026-07-22T00:00:00.000Z'),
+          sleep: async () => undefined,
+          ownerPid: 7101,
+          onCursorScan: () => {
+            scanCount += 1;
+          },
+        },
+      );
+
+      expect(result.ok).toBe(true);
+      if (!result.ok || result.runtime !== 'cursor') {
+        throw new Error(result.ok ? 'expected Cursor result' : result.message);
+      }
+      expect(scanCount).toBe(2);
+      expect(result.digest.schemaVersion).toBe(2);
+      expect(result.digest.entries.map((entry) => entry.text)).toEqual([
+        'Synthetic stable observation.',
+      ]);
+      expect(result.digest.cursorEvidence.status.delivery).toBe('reserved');
+      expect(result.delivery).not.toBeNull();
+      expect((await getCursorSession(sessionId))?.lastRecordIndex).toBe(0);
+
+      await expect(result.delivery!.commit()).resolves.toBe('committed');
+      expect((await getCursorSession(sessionId))?.lastRecordIndex).toBe(2);
+      expect((await getCursorSession(sessionId))?.openTurn).not.toBeNull();
+      await expect(result.delivery!.commit()).rejects.toThrow(
+        'CURSOR_DELIVERY_ALREADY_FINALIZED',
+      );
+
+      await appendFile(
+        transcriptPath,
+        `${JSON.stringify({ type: 'turn_ended', status: 'success' })}\n`,
+        'utf8',
+      );
+      const completed = await observeCatchUp(
+        { runtime: 'cursor', cwd, session: `cursor:${sessionId}` },
+        { ownerPid: 7101 },
+      );
+      expect(completed.ok).toBe(true);
+      if (!completed.ok || completed.runtime !== 'cursor') {
+        throw new Error(
+          completed.ok ? 'expected Cursor result' : completed.message,
+        );
+      }
+      expect(completed.digest.entries).toEqual([]);
+      expect(completed.digest.cursorEvidence.lifecycleEvents).toMatchObject([
+        {
+          lifecycle: 'success',
+          contentPreviouslyObservable: true,
+        },
+      ]);
+      await expect(completed.delivery!.abandon()).resolves.toBe('abandoned');
+      expect((await getCursorSession(sessionId))?.lastRecordIndex).toBe(2);
+
+      const retriedCompletion = await observeCatchUp(
+        { runtime: 'cursor', cwd, session: `cursor:${sessionId}` },
+        { ownerPid: 7101 },
+      );
+      expect(retriedCompletion.ok).toBe(true);
+      if (!retriedCompletion.ok || retriedCompletion.runtime !== 'cursor') {
+        throw new Error(
+          retriedCompletion.ok
+            ? 'expected Cursor result'
+            : retriedCompletion.message,
+        );
+      }
+      await retriedCompletion.delivery!.commit();
+      expect((await getCursorSession(sessionId))?.openTurn).toBeNull();
+    });
+  });
+
+  test('delivers the confirmed Cursor prefix while retaining growth from its confirmation interval', async () => {
+    await withTempSessionHome(async (home) => {
+      const cwd = join(home, 'workspace', 'observe-cursor-prefix-growth');
+      await mkdir(cwd, { recursive: true });
+      const sessionId = 'observe-cursor-prefix-growth';
+      const transcriptPath = await writeCursorTranscript(home, cwd, sessionId, [
+        {
+          role: 'user',
+          message: {
+            content: [{ type: 'text', text: 'Bound the stable prefix.' }],
+          },
+        },
+        {
+          role: 'assistant',
+          message: {
+            content: [{ type: 'text', text: 'Frame A is stable.' }],
+          },
+        },
+      ]);
+      const prefixBytes = Buffer.byteLength(
+        await readFile(transcriptPath, 'utf8'),
+      );
+      const laterMetadata = JSON.stringify({
+        type: 'metadata',
+        note: 'safe bytes after frame A',
+      });
+      let nowMs = Date.parse('2026-07-22T01:00:00.000Z');
+      let appended = false;
+
+      const first = await observeCatchUp(
+        {
+          runtime: 'cursor',
+          cwd,
+          session: `cursor:${sessionId}`,
+          debounceSec: 0.1,
+        },
+        {
+          now: () => nowMs,
+          sleep: async (ms: number) => {
+            nowMs += ms;
+            if (appended) return;
+            appended = true;
+            await appendFile(
+              transcriptPath,
+              `${laterMetadata}\n${JSON.stringify({
+                role: 'assistant',
+                message: {
+                  content: [{ type: 'text', text: 'Frame B arrived later.' }],
+                },
+              })}\n`,
+              'utf8',
+            );
+          },
+          ownerPid: 7102,
+        },
+      );
+
+      expect(appended).toBe(true);
+      expect(first.ok).toBe(true);
+      if (!first.ok || first.runtime !== 'cursor') {
+        throw new Error(first.ok ? 'expected Cursor result' : first.message);
+      }
+      expect(first.digest.entries.map((entry) => entry.text)).toEqual([
+        'Frame A is stable.',
+      ]);
+      expect(first.digest.range).toMatchObject({
+        fromIndex: 0,
+        toIndex: 2,
+        nextIndex: 3,
+        totalFrames: 4,
+      });
+      expect(first.digest.accounting.buffered).toEqual({
+        fromIndex: 3,
+        count: 1,
+        reason: 'stability-wait',
+      });
+      expect(first.delivery).not.toBeNull();
+      expect(
+        (await getCursorSession(sessionId))?.pendingDelivery
+          ?.intendedCheckpoint,
+      ).toMatchObject({
+        nextFrameIndex: 3,
+        prefixBytes: prefixBytes + Buffer.byteLength(`${laterMetadata}\n`),
+        observedSize: prefixBytes + Buffer.byteLength(`${laterMetadata}\n`),
+      });
+
+      await expect(first.delivery!.commit()).resolves.toBe('committed');
+      expect(
+        (await getCursorSession(sessionId))?.stabilityCandidate,
+      ).toMatchObject({
+        entryKeys: [expect.any(String)],
+        fromFrameIndex: 3,
+        throughFrameIndex: 3,
+        confirmedAt: null,
+      });
+
+      nowMs += 100;
+      const second = await observeCatchUp(
+        {
+          runtime: 'cursor',
+          cwd,
+          session: `cursor:${sessionId}`,
+          debounceSec: 0.1,
+        },
+        {
+          now: () => nowMs,
+          sleep: async () => {
+            throw new Error('the retained candidate is already due');
+          },
+          ownerPid: 7102,
+        },
+      );
+      expect(second.ok).toBe(true);
+      if (!second.ok || second.runtime !== 'cursor') {
+        throw new Error(second.ok ? 'expected Cursor result' : second.message);
+      }
+      expect(second.digest.entries.map((entry) => entry.text)).toEqual([
+        'Frame B arrived later.',
+      ]);
+      expect(second.digest.range).toMatchObject({
+        fromIndex: 3,
+        toIndex: 3,
+        nextIndex: 4,
+      });
+      await expect(second.delivery!.commit()).resolves.toBe('committed');
+      expect((await getCursorSession(sessionId))?.lastRecordIndex).toBe(4);
+    });
+  });
+
+  test('advances beyond a delivered same-turn stability candidate', async () => {
+    await withTempSessionHome(async (home) => {
+      const cwd = join(home, 'workspace', 'observe-cursor-delivered-candidate');
+      await mkdir(cwd, { recursive: true });
+      const sessionId = 'observe-cursor-delivered-candidate';
+      const transcriptPath = await writeCursorTranscript(home, cwd, sessionId, [
+        {
+          role: 'user',
+          message: {
+            content: [{ type: 'text', text: 'Deliver every safe suffix.' }],
+          },
+        },
+        {
+          role: 'assistant',
+          message: { content: [{ type: 'text', text: 'Candidate A.' }] },
+        },
+      ]);
+      let nowMs = Date.parse('2026-07-24T06:00:00.000Z');
+      const deps = {
+        now: () => nowMs,
+        sleep: async (ms: number) => {
+          nowMs += ms;
+        },
+        ownerPid: 7103,
+      };
+      const args = {
+        runtime: 'cursor' as const,
+        cwd,
+        session: `cursor:${sessionId}`,
+        debounceSec: 0.1,
+      };
+
+      const first = await observeCatchUp(args, deps);
+      expect(first.ok).toBe(true);
+      if (!first.ok || first.runtime !== 'cursor') {
+        throw new Error(first.ok ? 'expected Cursor result' : first.message);
+      }
+      expect(first.digest.entries.map((entry) => entry.text)).toEqual([
+        'Candidate A.',
+      ]);
+      const deliveredCandidate = (await getCursorSession(sessionId))
+        ?.stabilityCandidate;
+      expect(deliveredCandidate).not.toBeNull();
+      await expect(first.delivery!.commit()).resolves.toBe('committed');
+
+      await mutateCursorState((state) => {
+        state.sessions[`cursor:${sessionId}`].stabilityCandidate =
+          deliveredCandidate!;
+      });
+      await appendFile(
+        transcriptPath,
+        `${JSON.stringify({
+          role: 'assistant',
+          message: {
+            content: [{ type: 'text', text: 'Candidate B.' }],
+          },
+        })}\n`,
+        'utf8',
+      );
+
+      const second = await observeCatchUp(args, deps);
+      expect(second.ok).toBe(true);
+      if (!second.ok || second.runtime !== 'cursor') {
+        throw new Error(second.ok ? 'expected Cursor result' : second.message);
+      }
+      expect(second.digest.entries.map((entry) => entry.text)).toEqual([
+        'Candidate B.',
+      ]);
+      await expect(second.delivery!.commit()).resolves.toBe('committed');
+
+      const third = await observeCatchUp(args, deps);
+      expect(third.ok).toBe(true);
+      if (!third.ok || third.runtime !== 'cursor') {
+        throw new Error(third.ok ? 'expected Cursor result' : third.message);
+      }
+      expect(third.digest.entries).toEqual([]);
+      expect((await getCursorSession(sessionId))?.lastRecordIndex).toBe(3);
+    });
+  });
+
+  test('does not start a Cursor stability wait beyond the remaining watch deadline', async () => {
+    await withTempSessionHome(async (home) => {
+      const cwd = join(home, 'workspace', 'observe-cursor-runtime-budget');
+      await mkdir(cwd, { recursive: true });
+      const sessionId = 'observe-cursor-runtime-budget';
+      await writeCursorTranscript(home, cwd, sessionId, [
+        {
+          role: 'user',
+          message: {
+            content: [{ type: 'text', text: 'Respect the watch deadline.' }],
+          },
+        },
+        {
+          role: 'assistant',
+          message: {
+            content: [{ type: 'text', text: 'Do not overrun the budget.' }],
+          },
+        },
+      ]);
+      const nowMs = Date.parse('2026-07-24T06:30:00.000Z');
+      const waits: number[] = [];
+
+      const result = await observeCatchUp(
+        {
+          runtime: 'cursor',
+          cwd,
+          session: `cursor:${sessionId}`,
+          debounceSec: 1,
+        },
+        {
+          now: () => nowMs,
+          sleep: async (ms: number) => {
+            waits.push(ms);
+          },
+          ownerPid: 7104,
+          deadlineMs: nowMs + 60,
+        } as Parameters<typeof observeCatchUp>[1] & { deadlineMs: number },
+      );
+
+      expect(result.ok).toBe(true);
+      if (!result.ok || result.runtime !== 'cursor') {
+        throw new Error(result.ok ? 'expected Cursor result' : result.message);
+      }
+      expect(waits).toEqual([]);
+      expect(result.digest.entries).toEqual([]);
+      expect(result.digest.accounting.buffered).toMatchObject({
+        reason: 'stability-wait',
+      });
+      expect(result.delivery?.entryKeys).toEqual([]);
+      await expect(result.delivery!.abandon()).resolves.toBe('abandoned');
+    });
+  });
+
+  test('blocks Cursor continuity mismatch without mutating its committed checkpoint', async () => {
+    await withTempSessionHome(async (home) => {
+      const cwd = join(home, 'workspace', 'observe-cursor-continuity');
+      await mkdir(cwd, { recursive: true });
+      const sessionId = 'observe-cursor-continuity';
+      const transcriptPath = await writeCursorTranscript(home, cwd, sessionId, [
+        {
+          role: 'user',
+          message: { content: [{ type: 'text', text: 'Original direction.' }] },
+        },
+        {
+          role: 'assistant',
+          message: { content: [{ type: 'text', text: 'Original response.' }] },
+        },
+        { type: 'turn_ended', status: 'success' },
+      ]);
+      const first = await observeCatchUp(
+        { runtime: 'cursor', cwd, session: `cursor:${sessionId}` },
+        { ownerPid: 7102 },
+      );
+      expect(first.ok).toBe(true);
+      if (!first.ok || first.runtime !== 'cursor' || first.delivery === null) {
+        throw new Error('expected reserved Cursor delivery');
+      }
+      await first.delivery.commit();
+      const committed = await getCursorSession(sessionId);
+
+      const raw = await readFile(transcriptPath, 'utf8');
+      await writeFile(
+        transcriptPath,
+        raw.replace('Original direction.', 'Xriginal direction.'),
+        'utf8',
+      );
+      const blocked = await observeCatchUp(
+        { runtime: 'cursor', cwd, session: `cursor:${sessionId}` },
+        { ownerPid: 7102 },
+      );
+
+      expect(blocked).toMatchObject({
+        ok: false,
+        kind: 'continuityBlocked',
+        payload: { continuityBlocked: true, code: 'PREFIX_MISMATCH' },
+      });
+      expect(await getCursorSession(sessionId)).toEqual(committed);
+    });
+  });
+
+  test.each([
+    ['success', 'Synthetic final answer.', 'success'],
+    ['error', 'Synthetic failed draft.', 'error'],
+  ] as const)(
+    'reconciles Cursor %s lifecycle only after delivery commit',
+    async (terminalStatus, assistantText, expectedLifecycle) => {
+      await withTempSessionHome(async (home) => {
+        const cwd = join(home, 'workspace', `observe-cursor-${terminalStatus}`);
+        await mkdir(cwd, { recursive: true });
+        const sessionId = `observe-cursor-${terminalStatus}`;
+        await writeCursorTranscript(home, cwd, sessionId, [
+          {
+            role: 'user',
+            message: {
+              content: [{ type: 'text', text: 'Synthetic direction.' }],
+            },
+          },
+          {
+            role: 'assistant',
+            message: { content: [{ type: 'text', text: assistantText }] },
+          },
+          { type: 'turn_ended', status: terminalStatus },
+        ]);
+
+        const result = await observeCatchUp(
+          { runtime: 'cursor', cwd, session: `cursor:${sessionId}` },
+          { ownerPid: terminalStatus === 'success' ? 7103 : 7104 },
+        );
+
+        expect(result.ok).toBe(true);
+        if (!result.ok || result.runtime !== 'cursor') {
+          throw new Error(
+            result.ok ? 'expected Cursor result' : result.message,
+          );
+        }
+        expect(result.digest.cursorEvidence.status.lifecycle).toBe(
+          expectedLifecycle,
+        );
+        expect(result.digest.entries.map((entry) => entry.text)).toEqual(
+          terminalStatus === 'success' ? [assistantText] : [],
+        );
+        expect(result.delivery).not.toBeNull();
+        expect(
+          (await getCursorSession(sessionId))?.pendingDelivery,
+        ).not.toBeNull();
+        await result.delivery!.commit();
+        expect(await getCursorSession(sessionId)).toMatchObject({
+          lastRecordIndex: 3,
+          openTurn: null,
+          pendingDelivery: null,
+          lastStatus: { lifecycle: expectedLifecycle, delivery: 'committed' },
+        });
+      });
+    },
+  );
+
+  test('surfaces owner conflict and crash replay keys without advancing state', async () => {
+    await withTempSessionHome(async (home) => {
+      const cwd = join(home, 'workspace', 'observe-cursor-crash');
+      await mkdir(cwd, { recursive: true });
+      const sessionId = 'observe-cursor-crash';
+      await writeCursorTranscript(home, cwd, sessionId, [
+        {
+          role: 'user',
+          message: {
+            content: [{ type: 'text', text: 'Synthetic direction.' }],
+          },
+        },
+        {
+          role: 'assistant',
+          message: {
+            content: [{ type: 'text', text: 'Crash-window answer.' }],
+          },
+        },
+        { type: 'turn_ended', status: 'success' },
+      ]);
+      const first = await observeCatchUp(
+        { runtime: 'cursor', cwd, session: `cursor:${sessionId}` },
+        { ownerPid: 7105 },
+      );
+      expect(first.ok).toBe(true);
+      if (!first.ok || first.runtime !== 'cursor' || first.delivery === null) {
+        throw new Error('expected reserved Cursor delivery');
+      }
+      const entryKeys = first.delivery.entryKeys;
+
+      await mutateCursorState((state) => {
+        const pending = state.sessions[`cursor:${sessionId}`]?.pendingDelivery;
+        if (pending) pending.reservedByPid = 9999;
+      });
+      await expect(first.delivery.abandon()).resolves.toBe('owner-conflict');
+
+      const replay = await observeCatchUp(
+        { runtime: 'cursor', cwd, session: `cursor:${sessionId}` },
+        { ownerPid: 7106 },
+      );
+      expect(replay.ok).toBe(true);
+      if (!replay.ok || replay.runtime !== 'cursor') {
+        throw new Error(replay.ok ? 'expected Cursor result' : replay.message);
+      }
+      expect(replay.delivery).toBeNull();
+      expect(replay.deliveryUncertain?.entryKeys).toEqual(entryKeys);
+      expect(replay.digest.entries.map((entry) => entry.entryKey)).toEqual(
+        entryKeys,
+      );
+      expect(replay.digest.cursorEvidence.status.delivery).toBe('uncertain');
+      expect((await getCursorSession(sessionId))?.lastRecordIndex).toBe(0);
     });
   });
 

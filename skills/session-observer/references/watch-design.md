@@ -99,23 +99,27 @@ loop every poll-sec:
   sleep poll-sec
 ```
 
-**Debounce:** when a transcript's mtime first changes, hold for `debounce-sec`. Further changes reset the quiet timer. Emit when the file has been quiet for `debounce-sec`, or when the pending change has been held for `max-pending-sec`. This avoids emitting on half-formed turns while ensuring an actively written transcript cannot starve the watcher forever.
+**Debounce:** when a transcript's mtime first changes, hold for `debounce-sec`. Further changes reset the quiet timer. Emit when the file has been quiet for `debounce-sec`, or when the pending change has been held for `max-pending-sec`. For schema-v1 runtimes this settles record changes. Cursor also requires its framed-reader stability and continuity checks; debounce alone is not terminal completion evidence.
 
 ---
 
 ## Event Emission Pipeline
 
-Emitting a session update is the same pipeline as `catch-up`:
+Emitting a session update is the same orchestration as `catch-up`, with an
+explicit runtime branch:
 
 ```
-locate.discover(runtime, cwd)
-  → rank.rank(candidates, cwd)
-    → digest.buildDigest(runtime, transcriptPath, { fromIndex, ... })
-      → state.markRead(runtime, sessionId, { ... })
-        → emit event (stdout and/or event-log)
+locate exact target
+  → non-Cursor: schema-v1 digest → record-offset markRead
+  → Cursor: scan frames → analyze turns → schema-v2 observation digest
+      → reserve output ownership → emit → commit Cursor state/continuity
+  → emit metadata event (stdout and/or event-log)
 ```
 
-No new parsing code. Watch is a debounce-wrapped loop around the existing `catch-up` pipeline.
+Cursor observation is content-first: stable substantive content may emit with
+lifecycle `pending`, while failure/terminal reconciliation remains separate.
+The completion-sensitive collaboration path is not part of watch and stays
+terminal-only.
 
 ---
 
@@ -128,8 +132,8 @@ No new parsing code. Watch is a debounce-wrapped loop around the existing `catch
     "pid": 12345,
     "runtime": "codex",
     "requestedRuntime": "auto",
-    "cwd": "/Users/.../Code/foo",
-    "session": "codex:rollout-2026-06-04T21-42-00-abc123",
+    "cwd": "<project-cwd>",
+    "session": "codex:<session-id>",
     "startedAt": "2026-05-14T16:42:09Z",
     "pollSec": 3,
     "debounceSec": 3,
@@ -140,14 +144,14 @@ No new parsing code. Watch is a debounce-wrapped loop around the existing `catch
     "eventCount": 4,
     "heartbeatSec": 120,
     "resolvedRuntime": "codex",
-    "sessionId": "rollout-2026-06-04T21-42-00-abc123",
-    "transcriptPath": "/Users/.../.codex/sessions/...jsonl",
+    "sessionId": "<session-id>",
+    "transcriptPath": "<provider-transcript>",
     "targets": [
       {
         "runtime": "codex",
-        "sessionId": "rollout-2026-06-04T21-42-00-abc123",
-        "transcriptPath": "/Users/.../.codex/sessions/...jsonl",
-        "cwd": "/Users/.../Code/foo",
+        "sessionId": "<session-id>",
+        "transcriptPath": "<provider-transcript>",
+        "cwd": "<project-cwd>",
         "recordCount": 458,
         "baselineRecordIndex": 458,
         "engagementStatus": "engaged",
@@ -160,11 +164,11 @@ No new parsing code. Watch is a debounce-wrapped loop around the existing `catch
 }
 ```
 
-**Locking:** same `state.json.lock`-style atomic temp+rename write protocol as `state.json`. Multiple watchers may be active in one state directory, including reciprocal sessions in the same worktree watching each other. Startup refuses when the same live pid already owns a watcher; target acquisition additionally refuses when another live watcher has already locked onto the same target session, because duplicate same-target watchers would race over the shared per-session read offset and each see only an arbitrary partial stream. The authoritative duplicate check happens inside `recordWatcherTarget` under the `watch.json` lock (an unlocked pre-check gives a fast path), so two watchers starting concurrently — before either has recorded its target — still resolve to exactly one owner; the loser restores any read offset its baseline observe consumed before exiting. Legacy single-`active` records without `targets[]` are matched by their top-level `resolvedRuntime`/`sessionId` fields. Stale pids (no such process — `ESRCH` from `kill(pid, 0)`) are cleared on startup without user intervention. The legacy `active` field mirrors the first live watcher for compatibility; `watchers[]` is the multi-watcher source of truth.
+**Locking:** `watch.json` uses the same atomic temp+rename and owner-lock pattern as the state stores. Multiple watchers may be active in one state directory, including reciprocal sessions in the same worktree watching each other. Startup refuses when the same live pid already owns a watcher; target acquisition additionally refuses when another live watcher has already locked onto the same target session, because duplicate same-target watchers would race over the shared per-session position and each see only an arbitrary partial stream. The authoritative duplicate check happens inside `recordWatcherTarget` under the `watch.json` lock (an unlocked pre-check gives a fast path), so two watchers starting concurrently — before either has recorded its target — still resolve to exactly one owner. For Cursor, the loser cannot commit a delivery reservation or frame checkpoint. Legacy single-`active` records without `targets[]` are matched by their top-level `resolvedRuntime`/`sessionId` fields. Stale pids (no such process — `ESRCH` from `kill(pid, 0)`) are cleared on startup without user intervention. The legacy `active` field mirrors the first live watcher for compatibility; `watchers[]` is the multi-watcher source of truth.
 
 **`--runtime both`:** one `active` entry covers both runtimes; `runtime` field is `"both"`. Each runtime has its own debounce timer and read offset inside the single process.
 
-`watch-ctl status --json` enriches this state with live transcript drift and health fields for every active watcher. For each target it reports current `transcriptRecords`, `lastRecordIndex`, `consumedThrough`, `recordsBehind`, `secondsSinceLastEmit`, `secondsSinceLastPoll`, `healthy`, and `healthReasons`. A watcher is unhealthy when transcript records are behind and no digest has emitted beyond the configured stale window, when the poll heartbeat is stale, or when the transcript cannot be read.
+`watch-ctl status --json` enriches this state with live transcript drift and health fields for every active watcher. Schema-v1 targets retain record-index status. A Cursor target declares `zero-based-jsonl-frame-index` and carries `observationCursor`, `bufferedFromFrame`, a continuity checkpoint/state, pending candidate deadline, and the last independent status facets: `engagement`, `activity`, `content`, `lifecycle`, `delivery`, and `health`. `healthy` means polling and continuity verification succeeded; it does not claim substantive peer progress or lifecycle completion. Pending/partial input is buffered, while malformed input, continuity failure, stale polling, or uncertain delivery is fail-visible in `healthReasons`.
 
 ---
 
@@ -177,7 +181,8 @@ Each line in the event log is metadata only — no message content. Delta event 
   "type": "delta",
   "ts": "2026-05-14T16:48:11Z",
   "runtime": "codex",
-  "sessionId": "abc123…",
+  "indexBase": "zero-based-jsonl-record-index",
+  "sessionId": "<session-id>",
   "newRecords": 3,
   "digestChars": 482,
   "ranges": { "fromIndex": 47, "toIndex": 50 },
@@ -185,6 +190,8 @@ Each line in the event log is metadata only — no message content. Delta event 
 ```
 
 Content stays in the rendered stdout digest. The log is for introspection and replay.
+Cursor delta ranges instead declare `zero-based-jsonl-frame-index`; consumers
+must dispatch by schema/index base and never reinterpret them as record ranges.
 
 Event-log paths are constrained to the session-observer state directory. A relative path such as `events/watch.jsonl` writes under `~/.local/state/session-observer/`; absolute paths or `..` segments that escape that directory are rejected.
 
@@ -273,7 +280,8 @@ In yield-after-turn harnesses, a backgrounded watch process does not wake the ag
 
 These are binding for watch mode:
 
-- **Read-only on transcripts.** No writes to `~/.claude/` or `~/.codex/` ever.
+- **Read-only on transcripts.** No writes to `~/.claude/`, `~/.codex/`, or
+  `~/.cursor/` provider data.
 - **Writes only to** `~/.local/state/session-observer/`. No other filesystem mutations.
 - **No memory/vault writes from the watcher.** A future `--capture-notable` flag, if added, must be opt-in and must only write summarized findings, not per-event content.
 - **No network calls.**
