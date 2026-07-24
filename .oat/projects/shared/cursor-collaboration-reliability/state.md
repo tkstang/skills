@@ -50,15 +50,15 @@ oat_implement_exit_gate:
   implementation_fingerprint: 'sha256:effective-delta-v1:ce1cc10c980e670bbb5b28cd62f8c370df088ae47db55f07a4f6aa0ce262c693'
   freshness_head: 36462fc06025412074d15789fe1830b1a89425ce
   freshness_fingerprint: 'sha256:effective-delta-v1:dd2be49e919da83405543d3af308c45ff0a48870e54d3a1db374c8f445a41e08'
-  launch_state: accepted
+  launch_state: result_persisted
   launch_attempt_id: 55369892-1344-48b0-be2e-22605af4a252
   launch_started_at: '2026-07-24T03:34:45Z'
-  launch_result_receipt: '/Users/tstang/Code/cursor-collaboration-reliability/.oat/projects/shared/cursor-collaboration-reliability/gate-runs/55369892-1344-48b0-be2e-22605af4a252.result.json'
+  launch_result_receipt: '.oat/projects/local/cursor-collaboration-reliability/gate-runs/55369892-1344-48b0-be2e-22605af4a252.result.json'
   gate_run_marker: '/var/folders/fp/rnl_nlcj5ngfqfh8nb92vktr0000gn/T/oat-gate-runs/09729d68-6f2a-4a63-be4f-b344c8ac96a0.json'
   gate_run_id: 09729d68-6f2a-4a63-be4f-b344c8ac96a0
-  envelope_status: null
-  artifact: null
-  handoff: null
+  envelope_status: blocked
+  artifact: '.oat/projects/shared/cursor-collaboration-reliability/reviews/final-review-2026-07-24T034752Z.md'
+  handoff: 'Run oat-project-review-receive for .oat/projects/shared/cursor-collaboration-reliability/reviews/final-review-2026-07-24T034752Z.md before treating this gate review as consumed.'
   receive_state: not_started
   receive_correlation: null
   receive_source_artifact: null
@@ -66,16 +66,16 @@ oat_implement_exit_gate:
   receive_event_identity: null
   receive_pre_head: null
   receive_commit: null
-  receive_eligible: false
+  receive_eligible: true
   receive_completed: false
-  failure: null
-  updated_at: '2026-07-24T03:35:25Z'
+  failure: 'review_completed_blocking_findings: critical=1 important=3 medium=0 minor=0 threshold=important'
+  updated_at: '2026-07-24T03:58:06Z'
 oat_docs_updated: complete # null | skipped | complete — documentation sync status
 oat_pr_status: null # null | ready | open | closed | merged — actual PR state for the current project
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-17T21:43:11.125Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-24T03:35:25Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-24T03:58:06Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -87,7 +87,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation - Final review passed; configured exit gate pending
+Implementation - Configured exit gate blocked; receive pending
 
 ## Artifacts
 
@@ -195,7 +195,8 @@ Implementation - Final review passed; configured exit gate pending
 - ✓ Bounded final-review fix iteration 2 completed at `6afb9bf`
 - ✓ Fix verification passed: 60 focused and 1,465 full-suite tests, 1 skipped
 - ✓ Mandatory final lifecycle review round 3 passed with zero findings
-- ⧗ Configured implementation exit gate pending
+- ✗ Configured exit gate attempt 1 retained 1 Critical and 3 Important findings
+- ⧗ Receive eligible gate review before remediation
 
 ## Blockers
 
@@ -203,5 +204,5 @@ None.
 
 ## Next Milestone
 
-Resolve and run the configured implementation exit gate, then continue the
-approval-aware closeout sequence.
+Receive the correlated configured-gate review, then remediate its four blocking
+findings under the persisted `block` policy.

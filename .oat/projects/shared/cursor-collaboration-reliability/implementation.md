@@ -1308,13 +1308,24 @@ and 114/114 user-scope OAT synchronization, privacy, and cleanup checks passed.
 
 ## Configured Implementation Exit Gate
 
-**Status:** pending
+**Status:** blocked; receive pending
 
 The resolved configured gate is a structured cross-family final code review
 with an Important blocking threshold, `onFailure: block`, and at most two
 remediation attempts. Its canonical command has global `--json`, the explicit
 project declaration, and no hard-coded target. Generation basis
-`5d02b91` is fingerprinted against `origin/main`; launch has not started.
+`5d02b91` is fingerprinted against `origin/main`.
+
+### Attempt 1
+
+Gate run `09729d68-6f2a-4a63-be4f-b344c8ac96a0` completed with a validated,
+receive-eligible `blocked` envelope and artifact
+`reviews/final-review-2026-07-24T034752Z.md`. It reports 1 Critical and 3
+Important findings: stale-success wake authorization, bounded stability-prefix
+growth handling, completed-prefix selection before a pending turn, and
+exit-gate bookkeeping privacy/evidence validation. The correlated artifact
+must be received durably before the persisted `block` policy can begin its
+first remediation attempt.
 
 ---
 
