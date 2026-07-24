@@ -600,12 +600,12 @@ target `oat-phase-implementer-gpt-5-6-sol-high`.
 **Tier:** Tier 1 — native Codex subagents
 **Policy:** managed `high`
 **Phase base:** `7307adb`
-**Phase head:** `2cddafe`
-**Outcome:** blocked after review round 2; bounded cleanup fix iteration 2 pending
+**Phase head:** `5375770`
+**Outcome:** Important cleanup fix completed; whole-phase review round 3 pending
 
 | Phase | Tasks | Implementation | Root Review | Fix Iterations | Verdict |
 | ----- | ----- | -------------- | ----------- | -------------- | ------- |
-| p06   | 4/4   | `0ef8e5d..2cddafe` | Round 2 blocked: 1 Important | 1 (`2cddafe`) | blocked |
+| p06   | 4/4   | `0ef8e5d..5375770` | Round 2 blocked: 1 Important; round 3 pending | 2 (`2cddafe`, `5375770`) | review_pending |
 
 **Implementation dispatch:** request
 `impl-p06-7307adb-20260724T005000Z`; target
@@ -621,10 +621,12 @@ target `oat-phase-implementer-gpt-5-6-sol-high`.
 3. `reviews/p06-review-2026-07-24T015318Z.md` — blocked with 0 Critical,
    1 Important, 0 Medium, and 0 Minor; prior finding resolved; reconnaissance
    not attempted.
+4. Original implementer continuation
+   `fix-p06-round2-2cddafe-20260724T015600Z` produced `5375770`; whole-phase
+   review round 3 pending.
 
 **Worktree:** Root checkout; sequential plan.
-**Outstanding items:** Truthful, ownership-proven provider-state isolation and
-cleanup for live wake probes.
+**Outstanding items:** Whole-phase review round 3.
 
 <!-- orchestration-runs-end -->
 
@@ -1101,7 +1103,7 @@ resolved; Phase 6 is next.
 
 ## Phase 6: Conditional Stronger Wake Evaluation
 
-**Status:** blocked
+**Status:** review_pending
 
 ### Phase Summary
 
@@ -1121,8 +1123,8 @@ resolved; Phase 6 is next.
   OAT surfaces.
 - Independent Phase 6 review retained 1 Important evidence-reproducibility
   finding; bounded fix iteration 1 resolved it in `2cddafe`. Round 2 retained
-  1 new Important provider-state cleanup finding; bounded fix iteration 2 is
-  pending.
+  1 new Important provider-state cleanup finding; bounded fix iteration 2
+  resolved it in `5375770`, and whole-phase review round 3 is pending.
 
 ### Task outcomes
 
@@ -1191,9 +1193,13 @@ pending.
 and no other findings. The executable recipe is complete, but real Cursor runs
 also persisted probe-owned transcripts/logs/auth metadata under
 `~/.cursor/projects/` while cleanup reported only the temporary workspace.
-The next bounded fix must account for and safely clean exact ownership-proven
-probe artifacts, test external-write cleanup, and make validator claims match
-the true boundary. The tier and provider outcome remain unchanged.
+The original implementer resolved it in `5375770` by snapshotting both provider
+roots, proving exact new direct-child ownership from workspace mapping,
+birth/linkage/inode/containment evidence, failing closed on ambiguity, removing
+only exact proven artifacts, and verifying absence. Both live modes created,
+proved, and removed 4/4 artifacts with zero remaining; the tier and provider
+outcome remain unchanged. Focused coverage passed 38/38 and the full suite
+passed 1,464 with 1 skipped. Whole-phase review round 3 is pending.
 
 ---
 
@@ -1221,7 +1227,7 @@ Track test execution during implementation.
 | 3     | Phase-wide suite after review fixes | 1,363 passed; 1 skipped | 0 | Digest/observation/delivery v2, exact uncertain replay, read-only confirmation, durable fail-visible watch health, CLI semantics, v1 compatibility |
 | 4     | Full suite after review Critical fix | 1,407 passed; 1 skipped | 0 | Both owner runtimes, Cursor frame continuity, collaboration matrix, wake v1/v2 compatibility |
 | 5     | Full suite after review evidence fixes | 41 focused; 204 targeted; 1,448 full; 1 skipped; fresh probe 19/19 | 0 | Quoted-identity/range/taxonomy enforcement, exact live promotion claims, docs/contracts, provider dogfood |
-| 6     | Full suite after reproducible wake-probe fix | 31 focused; 115 collaboration; 1,457 full; 1 skipped; 22 explicit evidence files | 0 | Executable bounded Stop/managed recipes, structural outcomes, buffered-manual fallback, version/provider reconciliation |
+| 6     | Full suite after provider-state containment fix | 38 focused; 1,464 full; 1 skipped; both live modes 4/4 cleanup | 0 | Exact provider-root ownership, fail-closed cleanup, executable bounded recipes, buffered-manual fallback |
 
 ## Final Summary (for PR/docs)
 
@@ -1261,12 +1267,12 @@ Track test execution during implementation.
 
 **Verification performed:**
 
-- Final release matrix after Phase 6 review fix: 1,457 tests passed with 1 skipped; live Cursor
+- Final release matrix after Phase 6 cleanup fix: 1,464 tests passed with 1 skipped; live Cursor
   acceptance 19/19; evidence validator 33 files; build/type/build-check,
   validation, smoke, docs format/build (34 pages), skill-version enforcement,
   exact PR-scoped lint/format, and OAT provider sync 188/188 passed.
 - Independent Phase 1 through Phase 5 reviews passed after bounded fixes;
-  Phase 6 round-2 and mandatory final lifecycle reviews remain pending.
+  Phase 6 round-3 and mandatory final lifecycle reviews remain pending.
 
 **Design deltas (if any):**
 
