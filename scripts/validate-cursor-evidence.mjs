@@ -34,8 +34,8 @@ const SAFE_GATE_EVIDENCE = [
   /\b(?:implementation|freshness)_fingerprint\b\s*(?::|=)\s*["'`]?sha256:effective-delta-v1:[A-Fa-f0-9]{64}\b/giu,
   /\b(?:gate_run_id|launch_attempt_id|run)\b\s*(?::|=)\s*["'`]?[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[1-5A-Fa-f0-9][A-Fa-f0-9]{3}-[89ABabA-Fa-f0-9][A-Fa-f0-9]{3}-[A-Fa-f0-9]{12}\b/giu,
   /\bGate run\s+`[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[1-5A-Fa-f0-9][A-Fa-f0-9]{3}-[89ABabA-Fa-f0-9][A-Fa-f0-9]{3}-[A-Fa-f0-9]{12}`/gu,
-  /\.oat\/projects\/local\/[A-Za-z0-9._-]+\/gate-runs\/[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[1-5A-Fa-f0-9][A-Fa-f0-9]{3}-[89ABabA-Fa-f0-9][A-Fa-f0-9]{3}-[A-Fa-f0-9]{12}\.result\.json\b/giu,
-  /\bsystem-temp:oat-gate-runs\/[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[1-5A-Fa-f0-9][A-Fa-f0-9]{3}-[89ABabA-Fa-f0-9][A-Fa-f0-9]{3}-[A-Fa-f0-9]{12}\.json\b/giu,
+  /\blaunch_result_receipt\b\s*(?::|=)\s*["'`]?[.]oat\/projects\/local\/[A-Za-z0-9._-]+\/gate-runs\/[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[1-5A-Fa-f0-9][A-Fa-f0-9]{3}-[89ABabA-Fa-f0-9][A-Fa-f0-9]{3}-[A-Fa-f0-9]{12}\.result\.json\b/giu,
+  /\bgate_run_marker\b\s*(?::|=)\s*["'`]?\bsystem-temp:oat-gate-runs\/[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[1-5A-Fa-f0-9][A-Fa-f0-9]{3}-[89ABabA-Fa-f0-9][A-Fa-f0-9]{3}-[A-Fa-f0-9]{12}\.json\b/giu,
   /--base-ref\s+[A-Fa-f0-9]{40}\b/giu,
 ];
 const IDENTITY_KEYS = new Set([

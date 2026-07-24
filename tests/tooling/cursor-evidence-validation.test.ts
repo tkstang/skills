@@ -253,6 +253,53 @@ describe('Cursor evidence validation', () => {
     ).resolves.toMatchObject({ findings: [] });
   });
 
+  it('accepts an active launch only with typed fingerprints and a logical system-temporary marker', async () => {
+    const root = await temporaryRoot();
+    const project = '.oat/projects/shared/cursor-collaboration-reliability';
+    const runId = '24448ac0-ac55-4175-a873-1611596f0385';
+    const launchId = 'f5cb895a-f08c-4e0e-b7a0-a5b2ad38ad72';
+    const fingerprint =
+      '4222336c3eec6bf0973b683c9d25a0b8be5f8c06be8e13f46c9fff72795237d8';
+    await write(
+      root,
+      `${project}/state.md`,
+      [
+        'oat_implement_exit_gate:',
+        '  launch_state: accepted',
+        `  launch_attempt_id: ${launchId}`,
+        `  implementation_fingerprint: 'sha256:effective-delta-v1:${fingerprint}'`,
+        `  launch_result_receipt: '.oat/projects/local/cursor-collaboration-reliability/gate-runs/${launchId}.result.json'`,
+        `  gate_run_marker: 'system-temp:oat-gate-runs/${runId}.json'`,
+        `  gate_run_id: ${runId}`,
+      ].join('\n'),
+    );
+
+    await expect(
+      validateCursorEvidence(root, {
+        files: [`${project}/state.md`],
+      }),
+    ).resolves.toMatchObject({ findings: [] });
+  });
+
+  it.each([
+    [
+      "gate_run_marker: '/var/folders/example/T/oat-gate-runs/24448ac0-ac55-4175-a873-1611596f0385.json'",
+    ],
+    [
+      `The implementation basis is \`sha256:effective-delta-v1:${'4'.repeat(64)}\`.`,
+    ],
+    [
+      'marker: system-temp:oat-gate-runs/24448ac0-ac55-4175-a873-1611596f0385.json',
+    ],
+  ])('rejects untyped active-launch evidence: %s', (text) => {
+    expect(
+      scanCursorEvidenceText(
+        '.oat/projects/shared/project/implementation.md',
+        text,
+      ),
+    ).toContainEqual(expect.objectContaining({ category: 'raw-identity' }));
+  });
+
   it('includes explicitly changed Markdown in the durable scan', async () => {
     const root = await temporaryRoot();
     await write(root, CURSOR_EVIDENCE_REFERENCE, '# placeholder');
