@@ -31,7 +31,7 @@ oat_generated: false
 | Phase 3 | complete    | 7     | 7/7       |
 | Phase 4 | complete    | 6     | 6/6       |
 | Phase 5 | complete    | 6     | 6/6       |
-| Phase 6 | review_pending | 4     | 4/4       |
+| Phase 6 | complete    | 4     | 4/4       |
 
 **Total:** 36/36 tasks accepted
 
@@ -601,11 +601,11 @@ target `oat-phase-implementer-gpt-5-6-sol-high`.
 **Policy:** managed `high`
 **Phase base:** `7307adb`
 **Phase head:** `5375770`
-**Outcome:** Important cleanup fix completed; whole-phase review round 3 pending
+**Outcome:** passed after two bounded Important fix iterations
 
 | Phase | Tasks | Implementation | Root Review | Fix Iterations | Verdict |
 | ----- | ----- | -------------- | ----------- | -------------- | ------- |
-| p06   | 4/4   | `0ef8e5d..5375770` | Round 2 blocked: 1 Important; round 3 pending | 2 (`2cddafe`, `5375770`) | review_pending |
+| p06   | 4/4   | `0ef8e5d..5375770` | Round 3 passed | 2 (`2cddafe`, `5375770`) | passed |
 
 **Implementation dispatch:** request
 `impl-p06-7307adb-20260724T005000Z`; target
@@ -622,11 +622,12 @@ target `oat-phase-implementer-gpt-5-6-sol-high`.
    1 Important, 0 Medium, and 0 Minor; prior finding resolved; reconnaissance
    not attempted.
 4. Original implementer continuation
-   `fix-p06-round2-2cddafe-20260724T015600Z` produced `5375770`; whole-phase
-   review round 3 pending.
+   `fix-p06-round2-2cddafe-20260724T015600Z` produced `5375770`.
+5. `reviews/p06-review-2026-07-24T023404Z.md` — passed with zero findings;
+   both prior findings resolved; reconnaissance not attempted.
 
 **Worktree:** Root checkout; sequential plan.
-**Outstanding items:** Whole-phase review round 3.
+**Outstanding items:** None.
 
 <!-- orchestration-runs-end -->
 
@@ -1103,7 +1104,8 @@ resolved; Phase 6 is next.
 
 ## Phase 6: Conditional Stronger Wake Evaluation
 
-**Status:** review_pending
+**Status:** complete
+**Completed:** 2026-07-24
 
 ### Phase Summary
 
@@ -1124,7 +1126,8 @@ resolved; Phase 6 is next.
 - Independent Phase 6 review retained 1 Important evidence-reproducibility
   finding; bounded fix iteration 1 resolved it in `2cddafe`. Round 2 retained
   1 new Important provider-state cleanup finding; bounded fix iteration 2
-  resolved it in `5375770`, and whole-phase review round 3 is pending.
+  resolved it in `5375770`, and whole-phase review round 3 passed with zero
+  findings.
 
 ### Task outcomes
 
@@ -1199,7 +1202,11 @@ birth/linkage/inode/containment evidence, failing closed on ambiguity, removing
 only exact proven artifacts, and verifying absence. Both live modes created,
 proved, and removed 4/4 artifacts with zero remaining; the tier and provider
 outcome remain unchanged. Focused coverage passed 38/38 and the full suite
-passed 1,464 with 1 skipped. Whole-phase review round 3 is pending.
+passed 1,464 with 1 skipped.
+
+**Round-3 review:** `reviews/p06-review-2026-07-24T023404Z.md` passed with
+0 Critical, 0 Important, 0 Medium, and 0 Minor findings. Both prior findings
+are resolved; mandatory final lifecycle review is next.
 
 ---
 
