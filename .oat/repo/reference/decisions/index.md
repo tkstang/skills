@@ -34,7 +34,7 @@
 | DR-260627-keep-consensus-skills | 2026-06-27 | accepted | Keep consensus skills discoverable and recover standalone installs via a shared-home installer | - |
 | DR-260622-independent-draft-family | 2026-06-22 | Accepted. | Independent-draft family wrappers stay thin and whole-artifact for v1 | DR-026 |
 | DR-260621-consensus-verdict-submission | 2026-06-21 | Accepted. | Consensus verdict submission uses owned submit CLI with sidecar capture | DR-024 |
-| DR-260621-fumadocs-for-the-documentation | 2026-06-21 | proposed | Fumadocs for the documentation site | DR-025 |
+| DR-260621-fumadocs-for-the-documentation | 2026-06-21 | accepted | Fumadocs for the documentation site | DR-025 |
 | DR-260619-consensus-peer-invocation | 2026-06-19 | Accepted. | Consensus peer invocation owned by provider CLI | DR-023 |
 | DR-260619-shipped-skills-carry | 2026-06-19 | Accepted. | Shipped skills carry a validator-backed top-level `version`, kept in sync with `metadata.version` | DR-022 |
 | DR-260616-build-time-import-rewrites | 2026-06-16 | Accepted. | Build-time import rewrites reconcile canonical source paths with shipped runtime paths | DR-021 |
