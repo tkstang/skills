@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-23
-oat_current_task_id: p06-t02
+oat_current_task_id: p06-t03
 oat_generated: false
 ---
 
@@ -31,9 +31,9 @@ oat_generated: false
 | Phase 3 | complete    | 7     | 7/7       |
 | Phase 4 | complete    | 6     | 6/6       |
 | Phase 5 | complete    | 6     | 6/6       |
-| Phase 6 | in_progress | 4     | 1/4       |
+| Phase 6 | in_progress | 4     | 2/4       |
 
-**Total:** 33/36 tasks accepted
+**Total:** 34/36 tasks accepted
 
 ---
 
@@ -1074,6 +1074,7 @@ resolved; Phase 6 is next.
 | Task    | Status   | Commit    | Outcome |
 | ------- | -------- | --------- | ------- |
 | p06-t01 | complete | `0ef8e5d` | Proved the authenticated top-level Cursor Stop project hook unavailable for same-parent delivery; no exact identity/one-consumer tier was promoted and buffered-manual fallback remains. |
+| p06-t02 | complete | `b030cc5` | Proved existing managed subagent and scheduled callback surfaces insufficient without prohibited new infrastructure; shipped no adapter and retained buffered-manual fallback. |
 
 ### Task p06-t01: Measure same-parent Stop callback delivery
 
@@ -1083,6 +1084,17 @@ resolved; Phase 6 is next.
 no top-level Stop callback, while the installed contract exposed
 `followup_message` only for `subagentStop`. Collaboration coverage passed
 115/115 and the evidence validator passed 32 files.
+
+### Task p06-t02: Evaluate managed callback surfaces in order
+
+**Status:** completed
+**Commit:** `b030cc5`
+**Verification:** A controlled Cursor Agent run used the native Subagent tool,
+but project `subagentStart`/`subagentStop` hooks never fired and the parent
+received no callback. No existing cron, LaunchAgent, or Cursor schedule was
+available; the private cloud worker was classified unsupported because it
+requires a token and long-running external service. Collaboration coverage
+passed 115/115 and the evidence validator passed 32 files.
 
 ---
 
