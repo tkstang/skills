@@ -77,6 +77,102 @@ const execFileAsync = promisify(execFile);
 const LOOKBACK_DAYS = 7;
 const CURSOR_IDENTITY_INDEX_MAX_ENTRIES = 20_000;
 const CURSOR_IDENTITY_INDEX_MAX_ELAPSED_MS = 2_000;
+const CURSOR_DISCOVERY_MAX_ENTRIES = 20_000;
+const CURSOR_DISCOVERY_MAX_ELAPSED_MS = 2_000;
+const CURSOR_DISCOVERY_MAX_BYTES = 64 * 1024 * 1024;
+const CURSOR_DISCOVERY_MAX_RETAINED_CANDIDATES = 5_000;
+
+export type CursorDiscoveryFailure =
+  | 'CURSOR_DISCOVERY_ENTRY_BUDGET_EXCEEDED'
+  | 'CURSOR_DISCOVERY_TIME_BUDGET_EXCEEDED'
+  | 'CURSOR_DISCOVERY_BYTE_BUDGET_EXCEEDED'
+  | 'CURSOR_DISCOVERY_RETAINED_CANDIDATE_BUDGET_EXCEEDED';
+
+interface CursorDiscoveryBudgetOptions {
+  maxEntries?: number;
+  maxElapsedMs?: number;
+  maxBytes?: number;
+  maxRetainedCandidates?: number;
+  now?: () => number;
+}
+
+/** A visible failure prevents callers from treating a partial generic scan as exact. */
+export class CursorDiscoveryError extends Error {
+  readonly code: CursorDiscoveryFailure;
+
+  constructor(code: CursorDiscoveryFailure) {
+    super(code);
+    this.name = 'CursorDiscoveryError';
+    this.code = code;
+  }
+}
+
+// Kept outside the public discover() signature so its established optional
+// ClassificationCache third argument stays source-compatible. Tests use this
+// seam to exercise every aggregate limit without constructing a huge store.
+let cursorDiscoveryTestOptions: CursorDiscoveryBudgetOptions | undefined;
+
+export function configureCursorDiscoveryForTest(
+  options?: CursorDiscoveryBudgetOptions,
+): void {
+  cursorDiscoveryTestOptions = options;
+}
+
+class CursorDiscoveryBudget {
+  private readonly maxEntries: number;
+  private readonly maxElapsedMs: number;
+  private readonly maxBytes: number;
+  private readonly maxRetainedCandidates: number;
+  private readonly now: () => number;
+  private readonly startedAt: number;
+  private entries = 0;
+  private bytes = 0;
+  private retainedCandidates = 0;
+
+  constructor(options: CursorDiscoveryBudgetOptions = {}) {
+    this.maxEntries = options.maxEntries ?? CURSOR_DISCOVERY_MAX_ENTRIES;
+    this.maxElapsedMs =
+      options.maxElapsedMs ?? CURSOR_DISCOVERY_MAX_ELAPSED_MS;
+    this.maxBytes = options.maxBytes ?? CURSOR_DISCOVERY_MAX_BYTES;
+    this.maxRetainedCandidates =
+      options.maxRetainedCandidates ??
+      CURSOR_DISCOVERY_MAX_RETAINED_CANDIDATES;
+    this.now = options.now ?? Date.now;
+    this.startedAt = this.now();
+  }
+
+  checkTime(): void {
+    if (this.now() - this.startedAt > this.maxElapsedMs) {
+      throw new CursorDiscoveryError('CURSOR_DISCOVERY_TIME_BUDGET_EXCEEDED');
+    }
+  }
+
+  consumeEntry(): void {
+    this.checkTime();
+    this.entries += 1;
+    if (this.entries > this.maxEntries) {
+      throw new CursorDiscoveryError('CURSOR_DISCOVERY_ENTRY_BUDGET_EXCEEDED');
+    }
+  }
+
+  retainCandidate(): void {
+    this.checkTime();
+    this.retainedCandidates += 1;
+    if (this.retainedCandidates > this.maxRetainedCandidates) {
+      throw new CursorDiscoveryError(
+        'CURSOR_DISCOVERY_RETAINED_CANDIDATE_BUDGET_EXCEEDED',
+      );
+    }
+  }
+
+  reserveBytes(bytes: number): void {
+    this.checkTime();
+    this.bytes += bytes;
+    if (this.bytes > this.maxBytes) {
+      throw new CursorDiscoveryError('CURSOR_DISCOVERY_BYTE_BUDGET_EXCEEDED');
+    }
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Classification cache — (path, mtimeMs, size) keyed, process-lifetime,
@@ -684,6 +780,7 @@ async function discoverCodex(
  */
 async function* collectCursorAgentTranscripts(
   transcriptsRoot: string,
+  budget: CursorDiscoveryBudget,
   expectedSessionId?: string,
 ): AsyncGenerator<string> {
   let sessionDirs;
@@ -694,6 +791,7 @@ async function* collectCursorAgentTranscripts(
   }
 
   for await (const sessionDir of sessionDirs) {
+    budget.consumeEntry();
     if (!sessionDir.isDirectory()) continue;
     const sessionPath = join(transcriptsRoot, sessionDir.name);
 
@@ -705,6 +803,7 @@ async function* collectCursorAgentTranscripts(
     }
 
     for await (const entry of entries) {
+      budget.consumeEntry();
       if (entry.isFile() && entry.name.endsWith('.jsonl')) {
         const transcriptPath = join(sessionPath, entry.name);
         if (
@@ -738,6 +837,7 @@ async function cursorCandidate(
   evidence: CursorCandidateEvidence,
   fileStat: Stats | null,
   cache: ClassificationCache,
+  budget: CursorDiscoveryBudget,
 ): Promise<TranscriptCandidate | null> {
   let resolvedStat = fileStat;
   if (!resolvedStat) {
@@ -751,12 +851,18 @@ async function cursorCandidate(
   const mtime = Math.floor(resolvedStat.mtime.getTime() / 1000);
   const ageSec = now - mtime;
 
+  // Reserve the complete body before candidateDerivedFields() can read it.
+  // Generic discovery has no session pin to justify an unbounded transcript
+  // read, so an over-budget candidate fails before body classification.
+  budget.reserveBytes(resolvedStat.size);
+
   const derived = await candidateDerivedFields(
     'cursor',
     transcriptPath,
     resolvedStat,
     cache,
   );
+  budget.checkTime();
 
   return {
     runtime: 'cursor',
@@ -814,6 +920,7 @@ async function discoverCursor(
 
   const candidates: TranscriptCandidate[] = [];
   const seenTranscripts = new Set<string>();
+  const budget = new CursorDiscoveryBudget(cursorDiscoveryTestOptions);
 
   // Cursor direct lookup is intentionally transcript-based, not directory-based:
   // an encoded project dir can exist before it contains usable agent JSONL, so
@@ -822,10 +929,12 @@ async function discoverCursor(
     const transcriptsRoot = join(projectsRoot, encoded, 'agent-transcripts');
     for await (const transcriptPath of collectCursorAgentTranscripts(
       transcriptsRoot,
+      budget,
     )) {
       const canonicalTranscriptPath =
         (await canonicalPath(transcriptPath)) ?? transcriptPath;
       if (seenTranscripts.has(canonicalTranscriptPath)) continue;
+      budget.retainCandidate();
       seenTranscripts.add(canonicalTranscriptPath);
 
       const candidate = await cursorCandidate(
@@ -838,6 +947,7 @@ async function discoverCursor(
         },
         null,
         cache,
+        budget,
       );
       if (candidate) candidates.push(candidate);
     }
@@ -851,6 +961,7 @@ async function discoverCursor(
   }
 
   for await (const projectDir of projectDirs) {
+    budget.consumeEntry();
     if (!projectDir.isDirectory()) continue;
     if (encodedVariants.includes(projectDir.name)) continue;
 
@@ -861,10 +972,12 @@ async function discoverCursor(
     );
     for await (const transcriptPath of collectCursorAgentTranscripts(
       transcriptsRoot,
+      budget,
     )) {
       const canonicalTranscriptPath =
         (await canonicalPath(transcriptPath)) ?? transcriptPath;
       if (seenTranscripts.has(canonicalTranscriptPath)) continue;
+      budget.retainCandidate();
       seenTranscripts.add(canonicalTranscriptPath);
 
       let fileStat;
@@ -887,6 +1000,7 @@ async function discoverCursor(
         },
         fileStat,
         cache,
+        budget,
       );
       if (candidate) candidates.push(candidate);
     }
@@ -930,6 +1044,12 @@ async function findCursorSessionCandidates(
   const cutoffSec = now - LOOKBACK_DAYS * 86400;
   const candidates: TranscriptCandidate[] = [];
   const seenTranscripts = new Set<string>();
+  const pinnedBudget = new CursorDiscoveryBudget({
+    maxEntries: Number.MAX_SAFE_INTEGER,
+    maxElapsedMs: Number.MAX_SAFE_INTEGER,
+    maxBytes: Number.MAX_SAFE_INTEGER,
+    maxRetainedCandidates: Number.MAX_SAFE_INTEGER,
+  });
 
   let projectDirs;
   try {
@@ -948,6 +1068,9 @@ async function findCursorSessionCandidates(
     );
     for await (const transcriptPath of collectCursorAgentTranscripts(
       transcriptsRoot,
+      // Pinned lookup is path-filtered before body classification and is not
+      // generic discovery; preserve its dedicated exact-session behavior.
+      pinnedBudget,
       sessionId,
     )) {
       const canonicalTranscriptPath =
@@ -974,6 +1097,7 @@ async function findCursorSessionCandidates(
         },
         fileStat,
         cache,
+        pinnedBudget,
       );
       if (candidate?.sessionId === sessionId) candidates.push(candidate);
     }

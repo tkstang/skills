@@ -165,6 +165,7 @@ async function withTempHome(fn: (dir: string) => Promise<void>): Promise<void> {
   try {
     await fn(dir);
   } finally {
+    configureCursorDiscoveryForTest();
     if (prevHome === undefined) delete process.env.HOME;
     else process.env.HOME = prevHome;
     if (prevStateDir === undefined) delete process.env.STATE_DIR;
@@ -175,6 +176,7 @@ async function withTempHome(fn: (dir: string) => Promise<void>): Promise<void> {
 
 import {
   ClassificationCache,
+  configureCursorDiscoveryForTest,
   discover,
   findSessionCandidate,
   gitWorktrees,
@@ -855,6 +857,79 @@ test('cursor: explicit session lookup does not read large sibling transcript bod
     expect(classifyCountHarness.countFor(siblingTranscript)).toBe(0);
   });
 });
+
+test.each([
+  {
+    name: 'entry',
+    options: { maxEntries: 3 },
+    code: 'CURSOR_DISCOVERY_ENTRY_BUDGET_EXCEEDED',
+    maximumBodyReads: 1,
+    transcriptBytes: 1024 * 1024,
+  },
+  {
+    name: 'elapsed time',
+    options: {
+      maxElapsedMs: 0,
+      now: (() => {
+        let tick = 0;
+        return () => {
+          tick += 1;
+          return tick;
+        };
+      })(),
+    },
+    code: 'CURSOR_DISCOVERY_TIME_BUDGET_EXCEEDED',
+    maximumBodyReads: 0,
+    transcriptBytes: 1024 * 1024,
+  },
+  {
+    name: 'byte',
+    options: { maxBytes: 1024 },
+    code: 'CURSOR_DISCOVERY_BYTE_BUDGET_EXCEEDED',
+    maximumBodyReads: 0,
+    transcriptBytes: 1024 * 1024,
+  },
+  {
+    name: 'retained candidate',
+    options: { maxRetainedCandidates: 2, maxBytes: 10 * 1024 * 1024 },
+    code: 'CURSOR_DISCOVERY_RETAINED_CANDIDATE_BUDGET_EXCEEDED',
+    maximumBodyReads: 2,
+    transcriptBytes: 1024 * 1024,
+  },
+])(
+  'cursor: generic unpinned discovery fails visibly at the aggregate $name budget before unbounded body reads or retention',
+  async ({ options, code, maximumBodyReads, transcriptBytes }) => {
+    await withTempHome(async (home) => {
+      classifyCountHarness.reset();
+      const targetCwd = join(home, 'Code', 'bounded-generic-discovery');
+      const transcripts = await Promise.all(
+        Array.from({ length: 6 }, async (_, index) => {
+          const transcriptPath = await writeCursorTranscriptForCwd(
+            home,
+            targetCwd,
+            `large-session-${index}`,
+          );
+          await writeFile(transcriptPath, 'x'.repeat(transcriptBytes), 'utf8');
+          return transcriptPath;
+        }),
+      );
+
+      configureCursorDiscoveryForTest(options);
+      await expect(discover('cursor', targetCwd)).rejects.toMatchObject({
+        name: 'CursorDiscoveryError',
+        code,
+      });
+
+      const bodyReads = transcripts.reduce(
+        (count, transcriptPath) =>
+          count + classifyCountHarness.countFor(transcriptPath),
+        0,
+      );
+      expect(bodyReads).toBeLessThanOrEqual(maximumBodyReads);
+      expect(bodyReads).toBeLessThan(transcripts.length);
+    });
+  },
+);
 
 test('cursor: fallback scan preserves project cwdSlug evidence', async () => {
   await withTempHome(async (home) => {

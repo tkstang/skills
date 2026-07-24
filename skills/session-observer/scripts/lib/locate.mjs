@@ -31,6 +31,69 @@ const execFileAsync = promisify(execFile);
 const LOOKBACK_DAYS = 7;
 const CURSOR_IDENTITY_INDEX_MAX_ENTRIES = 2e4;
 const CURSOR_IDENTITY_INDEX_MAX_ELAPSED_MS = 2e3;
+const CURSOR_DISCOVERY_MAX_ENTRIES = 2e4;
+const CURSOR_DISCOVERY_MAX_ELAPSED_MS = 2e3;
+const CURSOR_DISCOVERY_MAX_BYTES = 64 * 1024 * 1024;
+const CURSOR_DISCOVERY_MAX_RETAINED_CANDIDATES = 5e3;
+class CursorDiscoveryError extends Error {
+  code;
+  constructor(code) {
+    super(code);
+    this.name = "CursorDiscoveryError";
+    this.code = code;
+  }
+}
+let cursorDiscoveryTestOptions;
+function configureCursorDiscoveryForTest(options) {
+  cursorDiscoveryTestOptions = options;
+}
+class CursorDiscoveryBudget {
+  maxEntries;
+  maxElapsedMs;
+  maxBytes;
+  maxRetainedCandidates;
+  now;
+  startedAt;
+  entries = 0;
+  bytes = 0;
+  retainedCandidates = 0;
+  constructor(options = {}) {
+    this.maxEntries = options.maxEntries ?? CURSOR_DISCOVERY_MAX_ENTRIES;
+    this.maxElapsedMs = options.maxElapsedMs ?? CURSOR_DISCOVERY_MAX_ELAPSED_MS;
+    this.maxBytes = options.maxBytes ?? CURSOR_DISCOVERY_MAX_BYTES;
+    this.maxRetainedCandidates = options.maxRetainedCandidates ?? CURSOR_DISCOVERY_MAX_RETAINED_CANDIDATES;
+    this.now = options.now ?? Date.now;
+    this.startedAt = this.now();
+  }
+  checkTime() {
+    if (this.now() - this.startedAt > this.maxElapsedMs) {
+      throw new CursorDiscoveryError("CURSOR_DISCOVERY_TIME_BUDGET_EXCEEDED");
+    }
+  }
+  consumeEntry() {
+    this.checkTime();
+    this.entries += 1;
+    if (this.entries > this.maxEntries) {
+      throw new CursorDiscoveryError("CURSOR_DISCOVERY_ENTRY_BUDGET_EXCEEDED");
+    }
+  }
+  retainCandidate() {
+    this.checkTime();
+    this.retainedCandidates += 1;
+    if (this.retainedCandidates > this.maxRetainedCandidates) {
+      throw new CursorDiscoveryError(
+        "CURSOR_DISCOVERY_RETAINED_CANDIDATE_BUDGET_EXCEEDED"
+      );
+    }
+  }
+  reserveBytes(bytes) {
+    this.checkTime();
+    this.bytes += bytes;
+    if (this.bytes > this.maxBytes) {
+      throw new CursorDiscoveryError("CURSOR_DISCOVERY_BYTE_BUDGET_EXCEEDED");
+    }
+  }
+}
 const DEFAULT_CLASSIFICATION_CACHE_MAX_ENTRIES = 5e3;
 class ClassificationCache {
   maxEntries;
@@ -344,7 +407,7 @@ async function discoverCodex(_targetCwd, classificationCache) {
   }
   return candidates;
 }
-async function* collectCursorAgentTranscripts(transcriptsRoot, expectedSessionId) {
+async function* collectCursorAgentTranscripts(transcriptsRoot, budget, expectedSessionId) {
   let sessionDirs;
   try {
     sessionDirs = await opendir(transcriptsRoot);
@@ -352,6 +415,7 @@ async function* collectCursorAgentTranscripts(transcriptsRoot, expectedSessionId
     return;
   }
   for await (const sessionDir of sessionDirs) {
+    budget.consumeEntry();
     if (!sessionDir.isDirectory()) continue;
     const sessionPath = join(transcriptsRoot, sessionDir.name);
     let entries;
@@ -361,6 +425,7 @@ async function* collectCursorAgentTranscripts(transcriptsRoot, expectedSessionId
       continue;
     }
     for await (const entry of entries) {
+      budget.consumeEntry();
       if (entry.isFile() && entry.name.endsWith(".jsonl")) {
         const transcriptPath = join(sessionPath, entry.name);
         if (expectedSessionId === void 0 || cursorSessionIdFromTranscriptPath(transcriptPath) === expectedSessionId) {
@@ -370,7 +435,7 @@ async function* collectCursorAgentTranscripts(transcriptsRoot, expectedSessionId
     }
   }
 }
-async function cursorCandidate(transcriptPath, now, evidence, fileStat, cache) {
+async function cursorCandidate(transcriptPath, now, evidence, fileStat, cache, budget) {
   let resolvedStat = fileStat;
   if (!resolvedStat) {
     try {
@@ -381,12 +446,14 @@ async function cursorCandidate(transcriptPath, now, evidence, fileStat, cache) {
   }
   const mtime = Math.floor(resolvedStat.mtime.getTime() / 1e3);
   const ageSec = now - mtime;
+  budget.reserveBytes(resolvedStat.size);
   const derived = await candidateDerivedFields(
     "cursor",
     transcriptPath,
     resolvedStat,
     cache
   );
+  budget.checkTime();
   return {
     runtime: "cursor",
     transcriptPath,
@@ -426,13 +493,16 @@ async function discoverCursor(targetCwd, cache) {
   const cutoffSec = now - LOOKBACK_DAYS * 86400;
   const candidates = [];
   const seenTranscripts = /* @__PURE__ */ new Set();
+  const budget = new CursorDiscoveryBudget(cursorDiscoveryTestOptions);
   for (const { encoded, cwdEvidence } of directVariants) {
     const transcriptsRoot = join(projectsRoot, encoded, "agent-transcripts");
     for await (const transcriptPath of collectCursorAgentTranscripts(
-      transcriptsRoot
+      transcriptsRoot,
+      budget
     )) {
       const canonicalTranscriptPath = await canonicalPath(transcriptPath) ?? transcriptPath;
       if (seenTranscripts.has(canonicalTranscriptPath)) continue;
+      budget.retainCandidate();
       seenTranscripts.add(canonicalTranscriptPath);
       const candidate = await cursorCandidate(
         transcriptPath,
@@ -443,7 +513,8 @@ async function discoverCursor(targetCwd, cache) {
           cwdEvidence
         },
         null,
-        cache
+        cache,
+        budget
       );
       if (candidate) candidates.push(candidate);
     }
@@ -455,6 +526,7 @@ async function discoverCursor(targetCwd, cache) {
     return candidates;
   }
   for await (const projectDir of projectDirs) {
+    budget.consumeEntry();
     if (!projectDir.isDirectory()) continue;
     if (encodedVariants.includes(projectDir.name)) continue;
     const transcriptsRoot = join(
@@ -463,10 +535,12 @@ async function discoverCursor(targetCwd, cache) {
       "agent-transcripts"
     );
     for await (const transcriptPath of collectCursorAgentTranscripts(
-      transcriptsRoot
+      transcriptsRoot,
+      budget
     )) {
       const canonicalTranscriptPath = await canonicalPath(transcriptPath) ?? transcriptPath;
       if (seenTranscripts.has(canonicalTranscriptPath)) continue;
+      budget.retainCandidate();
       seenTranscripts.add(canonicalTranscriptPath);
       let fileStat;
       try {
@@ -485,7 +559,8 @@ async function discoverCursor(targetCwd, cache) {
           cwdEvidence: "project-dir-slug"
         },
         fileStat,
-        cache
+        cache,
+        budget
       );
       if (candidate) candidates.push(candidate);
     }
@@ -520,6 +595,12 @@ async function findCursorSessionCandidates(targetCwd, sessionId, cache) {
   const cutoffSec = now - LOOKBACK_DAYS * 86400;
   const candidates = [];
   const seenTranscripts = /* @__PURE__ */ new Set();
+  const pinnedBudget = new CursorDiscoveryBudget({
+    maxEntries: Number.MAX_SAFE_INTEGER,
+    maxElapsedMs: Number.MAX_SAFE_INTEGER,
+    maxBytes: Number.MAX_SAFE_INTEGER,
+    maxRetainedCandidates: Number.MAX_SAFE_INTEGER
+  });
   let projectDirs;
   try {
     projectDirs = await opendir(projectsRoot);
@@ -536,6 +617,9 @@ async function findCursorSessionCandidates(targetCwd, sessionId, cache) {
     );
     for await (const transcriptPath of collectCursorAgentTranscripts(
       transcriptsRoot,
+      // Pinned lookup is path-filtered before body classification and is not
+      // generic discovery; preserve its dedicated exact-session behavior.
+      pinnedBudget,
       sessionId
     )) {
       const canonicalTranscriptPath = await canonicalPath(transcriptPath) ?? transcriptPath;
@@ -558,7 +642,8 @@ async function findCursorSessionCandidates(targetCwd, sessionId, cache) {
           cwdEvidence: cwdEvidence ?? "project-dir-slug"
         },
         fileStat,
-        cache
+        cache,
+        pinnedBudget
       );
       if (candidate?.sessionId === sessionId) candidates.push(candidate);
     }
@@ -848,7 +933,9 @@ async function gitWorktrees(cwd) {
 }
 export {
   ClassificationCache,
+  CursorDiscoveryError,
   claudeCodeLookupDiagnostics,
+  configureCursorDiscoveryForTest,
   discover,
   findNewerSameCwdCandidates,
   findSessionCandidate,
