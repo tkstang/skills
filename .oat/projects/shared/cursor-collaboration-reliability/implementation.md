@@ -1306,6 +1306,18 @@ and 114/114 user-scope OAT synchronization, privacy, and cleanup checks passed.
 
 ---
 
+## Configured Implementation Exit Gate
+
+**Status:** pending
+
+The resolved configured gate is a structured cross-family final code review
+with an Important blocking threshold, `onFailure: block`, and at most two
+remediation attempts. Its canonical command has global `--json`, the explicit
+project declaration, and no hard-coded target. Generation basis
+`5d02b91` is fingerprinted against `origin/main`; launch has not started.
+
+---
+
 ## Deviations from Plan / Design
 
 Document any intentional deviations from the original plan, spec, or design. Include accepted review findings where the shipped implementation is source of truth and a lifecycle artifact needs alignment.

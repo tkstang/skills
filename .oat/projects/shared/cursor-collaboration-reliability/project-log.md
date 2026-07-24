@@ -300,6 +300,10 @@ continuation accepted request=impl-final-7df2f0c-20260724T031400Z event=fix-fina
 
 verdict=passed findings=critical:0,important:0,medium:0,minor:0 prior_findings=resolved reconnaissance=not-attempted review=.oat/projects/shared/cursor-collaboration-reliability/reviews/final-review-2026-07-24T032809Z.md verification=238_suites,1465_passed,1_skipped,60_watch_state,57_evidence_probe,188_all_sync,114_user_sync next=configured-exit-gate
 
+### 2026-07-24 · structural · oat-project-implement · exit-gate-resolution
+
+status=pending resolution=configured disposition=null reviewed_head=5d02b9144cc263660590a7c982024bf29f7351c4 implementation_base_ref=origin/main implementation_fingerprint=sha256:effective-delta-v1:ce1cc10c980e670bbb5b28cd62f8c370df088ae47db55f07a4f6aa0ce262c693 config_fingerprint=sha256:bab3a74fc851ca974017112f07440aee9f6eca4a014c52cb460b003eb7e05b20 command_shape=canonical_json_project_no_target policy=block max_attempts=2
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
