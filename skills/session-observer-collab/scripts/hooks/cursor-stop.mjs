@@ -293,8 +293,12 @@ export async function runCursorStopHook(event, options = {}) {
             terminal,
             diagnostic: null,
           },
+          now,
         ).catch(() => ({ triggered: false, lease: null }));
-        if (!claimed.triggered) return null;
+        if (!claimed.triggered) {
+          diagnostic = claimed.reason;
+          return null;
+        }
         return CURSOR_STOP_ADAPTER.emit(activeLease, selection.range);
       }
 

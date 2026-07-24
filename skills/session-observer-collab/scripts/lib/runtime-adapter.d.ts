@@ -101,6 +101,7 @@ export function claimAdapterTrigger(
   invocation: AdapterInvocation,
   expected: LeaseCounters,
   completion: LeaseUpdate | null | undefined,
+  clock?: () => number,
 ): Promise<{
   triggered: boolean;
   reason: string;

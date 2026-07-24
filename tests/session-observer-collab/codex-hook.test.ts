@@ -18,8 +18,10 @@ import { afterEach, describe, expect, test } from 'vitest';
 import { arm } from '../../skills/session-observer-collab/scripts/collab-control.mjs';
 import { runCodexStopHook } from '../../skills/session-observer-collab/scripts/hooks/codex-stop.mjs';
 import {
+  leasePath,
   readLease,
   stateRoot,
+  withLeaseLock,
   writeLease,
 } from '../../skills/session-observer-collab/scripts/lib/lease-state.mjs';
 import * as runtimeAdapter from '../../skills/session-observer-collab/scripts/lib/runtime-adapter.mjs';
@@ -428,7 +430,14 @@ describe('Codex Stop continuation hook', () => {
         ],
         { waitMs: 1 },
       );
-      const moments = [START + 1, START + 1, START + 1, START + 2, START + 2];
+      const moments = [
+        START + 1,
+        START + 1,
+        START + 1,
+        START + 1,
+        START + 2,
+        START + 2,
+      ];
 
       await expect(
         runCodexStopHook(
@@ -556,6 +565,67 @@ describe('Codex Stop continuation hook', () => {
           },
         ),
       ).resolves.toMatchObject({ decision: 'allow', diagnostic });
+      expect(await readLease(root, 'codex-1')).toMatchObject({
+        state: 'idle',
+        diagnostic,
+        peerCursor: 0,
+        peerContinuity: lease.peerContinuity,
+        continuationCount: 0,
+        loopCount: 0,
+      });
+    },
+  );
+
+  test.each([
+    ['wait deadline', { waitMs: 5, leaseMs: 20 }, 'wait-timeout'],
+    ['lease expiry', { waitMs: 20, leaseMs: 5 }, 'lease-expired'],
+  ])(
+    'refreshes %s authorization after final continuity validation waits on the trigger lock',
+    async (_boundary, overrides, diagnostic) => {
+      const { root, cwd, transcript } = await fixture();
+      const lease = await armCursorFrameLease(
+        root,
+        cwd,
+        transcript,
+        [
+          humanFrame('Check locked trigger authorization.'),
+          assistantFrame('The completed result must not wake late.'),
+          terminalFrame('success'),
+        ],
+        overrides,
+      );
+      let clockReads = 0;
+      let blocker: Promise<void> | undefined;
+
+      await expect(
+        runCodexStopHook(
+          { hook_event_name: 'Stop', session_id: 'codex-1', cwd },
+          {
+            root,
+            now: () => {
+              clockReads += 1;
+              return clockReads >= 4 ? START + 6 : START + 1;
+            },
+            beforeCursorUpdate: async () => {
+              let locked!: () => void;
+              const lockHeld = new Promise<void>((resolve) => {
+                locked = resolve;
+              });
+              blocker = withLeaseLock(
+                leasePath(root, 'codex-1'),
+                async () => {
+                  locked();
+                  await new Promise((resolve) => setTimeout(resolve, 25));
+                },
+              );
+              await lockHeld;
+            },
+          },
+        ),
+      ).resolves.toMatchObject({ decision: 'allow', diagnostic });
+      await blocker;
+
+      expect(clockReads).toBeGreaterThanOrEqual(4);
       expect(await readLease(root, 'codex-1')).toMatchObject({
         state: 'idle',
         diagnostic,

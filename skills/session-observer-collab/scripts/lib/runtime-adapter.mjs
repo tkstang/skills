@@ -351,6 +351,7 @@ export async function claimAdapterTrigger(
   invocation,
   expected,
   completion,
+  clock = () => invocation.now,
 ) {
   const inspected = await inspectAdapterLease(root, invocation);
   if (!inspected.eligible)
@@ -382,7 +383,7 @@ export async function claimAdapterTrigger(
     invocation.ownerSession,
     expected,
     checked.update,
-    invocation.now,
+    clock,
   );
   return {
     triggered: result.ok,

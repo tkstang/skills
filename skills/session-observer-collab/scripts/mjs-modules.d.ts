@@ -96,7 +96,7 @@ declare module '*skills/session-observer-collab/scripts/collab-control.mjs' {
   export function arm(
     root: string,
     options: ArmOptions,
-    now?: number,
+    clock?: number | (() => number),
   ): Promise<{ changed: boolean; lease: Lease }>;
   export function disarm(
     root: string,
@@ -332,5 +332,6 @@ declare module '*skills/session-observer-collab/scripts/lib/runtime-adapter.mjs'
         }
       | null
       | undefined,
+    clock?: () => number,
   ): Promise<{ triggered: boolean; reason: string; lease: Lease | null }>;
 }

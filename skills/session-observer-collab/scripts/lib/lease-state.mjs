@@ -665,7 +665,7 @@ export async function compareAndSwapTrigger(
   ownerSession,
   expected,
   update,
-  now = Date.now(),
+  clock = Date.now,
 ) {
   const file = leasePath(root, ownerSession);
   return withLeaseLock(file, async () => {
@@ -681,6 +681,11 @@ export async function compareAndSwapTrigger(
     ) {
       return { ok: false, reason: 'stale', lease: current };
     }
+    // The wait for this lock may itself cross a finite wait or lease deadline.
+    // Read the supplied clock only after the current lease is loaded under the
+    // lock so an authorization made before lock contention cannot authorize a
+    // later mutation.
+    const now = typeof clock === 'function' ? clock() : clock;
     const effective = effectiveLease(current, now);
     if (!['armed', 'waiting'].includes(effective.state))
       return {

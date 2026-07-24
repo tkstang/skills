@@ -307,6 +307,7 @@ export async function runCodexStopHook(event, options = {}) {
             terminal,
             diagnostic: null,
           },
+          now,
         ).catch((error) => ({
           triggered: false,
           reason: error?.code ?? 'claim-failed',

@@ -126,7 +126,7 @@ export function compareAndSwapTrigger(
   ownerSession: string,
   expected: LeaseCounters,
   update: LeaseUpdate,
-  now?: number,
+  clock?: number | (() => number),
 ): Promise<
   { ok: true; lease: Lease } | { ok: false; reason: string; lease?: Lease }
 >;
