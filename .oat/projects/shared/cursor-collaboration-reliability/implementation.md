@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-23
-oat_current_task_id: p06-t03
+oat_current_task_id: p06-t04
 oat_generated: false
 ---
 
@@ -31,9 +31,9 @@ oat_generated: false
 | Phase 3 | complete    | 7     | 7/7       |
 | Phase 4 | complete    | 6     | 6/6       |
 | Phase 5 | complete    | 6     | 6/6       |
-| Phase 6 | in_progress | 4     | 2/4       |
+| Phase 6 | in_progress | 4     | 3/4       |
 
-**Total:** 34/36 tasks accepted
+**Total:** 35/36 tasks accepted
 
 ---
 
@@ -1075,6 +1075,7 @@ resolved; Phase 6 is next.
 | ------- | -------- | --------- | ------- |
 | p06-t01 | complete | `0ef8e5d` | Proved the authenticated top-level Cursor Stop project hook unavailable for same-parent delivery; no exact identity/one-consumer tier was promoted and buffered-manual fallback remains. |
 | p06-t02 | complete | `b030cc5` | Proved existing managed subagent and scheduled callback surfaces insufficient without prohibited new infrastructure; shipped no adapter and retained buffered-manual fallback. |
+| p06-t03 | complete | `407bfd2` | Finalized buffered-manual as the highest evidence-backed Cursor wake tier and aligned runtime, shipped-skill, and user-guide claims without autonomous-wake overstatement. |
 
 ### Task p06-t01: Measure same-parent Stop callback delivery
 
@@ -1095,6 +1096,16 @@ received no callback. No existing cron, LaunchAgent, or Cursor schedule was
 available; the private cloud worker was classified unsupported because it
 requires a token and long-running external service. Collaboration coverage
 passed 115/115 and the evidence validator passed 32 files.
+
+### Task p06-t03: Finalize wake-tier and fallback claims
+
+**Status:** completed
+**Commit:** `407bfd2`
+**Verification:** The evidence validator passed 32 files, repository
+validation and smoke passed, and documentation formatting plus the 34-page
+production build passed. The stronger-wake backlog criteria were recorded as
+satisfied by the completed investigation, with terminal lifecycle mutation
+deferred atomically to p06-t04.
 
 ---
 
