@@ -50,12 +50,12 @@ oat_implement_exit_gate:
   implementation_fingerprint: 'sha256:effective-delta-v1:f9be17764ea305657aaff5ccab2280886dd44c7ae4ae1689db1bb65155a26c64'
   freshness_head: 30572b125556ea5eb1100e60a8180b01001eca50
   freshness_fingerprint: 'sha256:effective-delta-v1:6750723bc135e2bf76b5a3609d50ad6b15a55d1b16b183d313e042260118cc39'
-  launch_state: intent_persisted
+  launch_state: accepted
   launch_attempt_id: 1c77a396-ad0c-4dbd-85b2-b826245b1496
   launch_started_at: '2026-07-24T14:29:49Z'
   launch_result_receipt: '.oat/projects/local/cursor-collaboration-reliability/gate-runs/1c77a396-ad0c-4dbd-85b2-b826245b1496.result.json'
-  gate_run_marker: null
-  gate_run_id: null
+  gate_run_marker: 'system-temp:oat-gate-runs/91109d6d-8e1d-4107-877c-2de6ebb8875f.json'
+  gate_run_id: 91109d6d-8e1d-4107-877c-2de6ebb8875f
   envelope_status: null
   artifact: null
   handoff: null
@@ -69,13 +69,13 @@ oat_implement_exit_gate:
   receive_eligible: false
   receive_completed: false
   failure: null
-  updated_at: '2026-07-24T14:29:49Z'
+  updated_at: '2026-07-24T14:30:19Z'
 oat_docs_updated: complete # null | skipped | complete — documentation sync status
 oat_pr_status: null # null | ready | open | closed | merged — actual PR state for the current project
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-17T21:43:11.125Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-24T14:29:49Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-24T14:30:19Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
