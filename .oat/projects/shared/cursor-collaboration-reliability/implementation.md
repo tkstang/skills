@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-24
-oat_current_task_id: p08-t34
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -33,9 +33,9 @@ oat_generated: false
 | Phase 5 | complete    | 6     | 6/6       |
 | Phase 6 | complete    | 4     | 4/4       |
 | Phase 7 | complete    | 4     | 4/4       |
-| Phase 8 | in_progress | 34    | 33/34     |
+| Phase 8 | complete    | 34    | 34/34     |
 
-**Total:** 73/74 tasks accepted
+**Total:** 74/74 tasks accepted
 
 ---
 
@@ -1585,7 +1585,7 @@ allowed only after Phase 8 and its fresh reviews pass.
 | `p08-t31` | complete | root bookkeeping |
 | `p08-t32` | complete | `6197aa7` |
 | `p08-t33` | complete | `d23a572` |
-| `p08-t34` | pending | - |
+| `p08-t34` | complete | `3fb193f` |
 
 The first `p08-t13` focused group passed 117/117. The second group passed 161
 tests and failed the SIGTERM-resistant-child regression from `p08-t09`: under
@@ -1990,8 +1990,10 @@ operations and rejected crossed wait or lease deadlines.
 
 **Status:** completed
 **Commit:** `6babe32`
-**Outcome:** Streamed generic discovery metadata and classified only the exact
-pinned session body before unrelated large siblings.
+**Outcome:** Streamed discovery metadata, classified only the exact pinned
+session body before unrelated large siblings, and—through follow-up
+`p08-t34`—applied finite fail-visible metadata traversal bounds to the explicit
+pin path.
 
 ### Task p08-t25: Fail closed on incomplete identity indexes
 
@@ -2060,6 +2062,14 @@ coverage for both contracts.
 **Outcome:** Restored wildcard `run()` to scalar time and added compile-time
 coverage accepting the scalar while rejecting an unsupported callback.
 
+### Task p08-t34: Bound explicit Cursor pin metadata traversal
+
+**Status:** completed
+**Commit:** `3fb193f`
+**Outcome:** Reused finite entry/time identity-index budgets before explicit
+pin classification, preserved zero unrelated body reads, surfaced incomplete
+or exhausted traversal exactly, and added public locate/observe/watch coverage.
+
 ---
 
 ## Deviations from Plan / Design
@@ -2087,7 +2097,7 @@ Track test execution during implementation.
 | 4     | Full suite after review Critical fix | 1,407 passed; 1 skipped | 0 | Both owner runtimes, Cursor frame continuity, collaboration matrix, wake v1/v2 compatibility |
 | 5     | Full suite after review evidence fixes | 41 focused; 204 targeted; 1,448 full; 1 skipped; fresh probe 19/19 | 0 | Quoted-identity/range/taxonomy enforcement, exact live promotion claims, docs/contracts, provider dogfood |
 | 6     | Full suite after provider-state containment fix | 38 focused; 1,464 full; 1 skipped; both live modes 4/4 cleanup | 0 | Exact provider-root ownership, fail-closed cleanup, executable bounded recipes, buffered-manual fallback |
-| 8     | Full release matrix through final Phase 8 remediation | 68 hook; 51 locate; 1,543 full; 1 skipped; live acceptance 19/19 | 0 | Delivery confirmation, exact identity/content/turns, under-lock authorization time, bounded generic discovery and provider-state scans, exact cleanup preservation, canonical 71-task handoff |
+| 8     | Full release matrix through final Phase 8 remediation | 97 locate/watch; 1,548 full; 1 skipped; live acceptance 19/19 | 0 | Delivery confirmation, exact identity/content/turns, under-lock authorization time, bounded generic and explicit-pin discovery, provider-state scans, exact cleanup preservation, canonical 74-task handoff |
 | final-fix-1 | Full suite after repaired-buffer state fix | 38 focused; 1,465 full; 1 skipped | 0 | Explicit null preservation, repaired-frame advancement, heartbeat/status zero-lag reporting, generated runtime, provider dogfood |
 | final-fix-2 | Full suite after durable transcript-count fix | 60 focused; 1,465 full; 1 skipped | 0 | Validated count transitions, result-less preservation, repaired-frame durable/status/heartbeat agreement, generated runtime, provider dogfood |
 
@@ -2108,7 +2118,7 @@ Track test execution during implementation.
 - Sanitized live capability evidence, canonical support labels, shipped
   documentation, synchronized skill versions/user installs, and closed
   transcript-store/stronger-wake investigation backlogs, with canonical
-  lifecycle handoff records for all 73 tasks.
+  lifecycle handoff records for all 74 tasks.
 
 **Behavioral changes (user-facing):**
 
@@ -2133,15 +2143,16 @@ Track test execution during implementation.
 
 **Verification performed:**
 
-- Final release matrix: 1,543 tests passed with 1 skipped; both-owner hook
-  regressions passed 68/68 and public locate coverage passed 51/51; live
-  acceptance passed 19/19; and build/type/generated, validation, smoke, skill,
-  privacy, residue, and orphan-process gates passed.
+- Final release matrix: 1,548 tests passed with 1 skipped; final explicit-pin
+  locate/watch coverage passed 97/97; live acceptance passed 19/19; and
+  build/type/generated, validation, smoke, skill, privacy, residue, and
+  orphan-process gates passed.
 - Exact cleanup (`p08-t17`), bounded provider directory iteration (`p08-t19`),
   under-lock wake authorization (`p08-t29`), bounded public Cursor discovery
-  (`p08-t30`), and this final handoff (`p08-t31`) are complete. Live OAT status
-  recognizes Phase 8 at 33/33 and the project at 73/73 with no current task or
-  blocker; fresh Phase 8 and final lifecycle reviews are the next actions.
+  (`p08-t30`), bounded explicit-pin traversal (`p08-t34`), and the final
+  handoff are complete. Live OAT status recognizes Phase 8 at 34/34 and the
+  project at 74/74 with no current task or blocker; fresh Phase 8 and final
+  lifecycle reviews are the next actions.
 
 **Design deltas (if any):**
 

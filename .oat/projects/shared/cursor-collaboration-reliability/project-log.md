@@ -500,6 +500,10 @@ Fresh Phase 8 review passed with 0 Critical, 0 Important, 0 Medium, and 0 Minor 
 
 Fresh final review retained 1 Important finding: explicit Cursor pin metadata traversal was effectively unbounded before the later identity index; accepted as p08-t34.
 
+### 2026-07-24 · structural · oat-project-implement · p08-t34-complete
+
+Explicit Cursor pin metadata traversal bounded at 3fb193f; focused locate/watch passed 97/97 and the full suite passed 1,548 with 1 skipped; Phase 8 is 34/34 and project 74/74.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

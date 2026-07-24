@@ -1,6 +1,6 @@
 ---
-oat_current_task: p08-t34
-oat_last_commit: 35f82a7
+oat_current_task: null
+oat_last_commit: 3fb193f
 oat_blockers: []
 associated_issues:
   - { type: backlog, ref: "BL-260713-cursor-transcript-store" }
@@ -75,19 +75,19 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-17T21:43:11.125Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-24T16:51:28Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-24T16:57:44Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
 # Project State: cursor-collaboration-reliability
 
-**Status:** Final Review Remediation In Progress
+**Status:** Final Review Remediation Complete; Re-Reviews Pending
 **Started:** 2026-07-17
 **Last Updated:** 2026-07-24
 
 ## Current Phase
 
-Implementation - final review received; 73/74 tasks complete
+Implementation - final review remediated; 74/74 tasks complete
 
 ## Artifacts
 
@@ -95,7 +95,7 @@ Implementation - final review received; 73/74 tasks complete
 - **Spec:** `spec.md` (complete; requirements formalized from discovery)
 - **Design:** `design.md` (complete; approved after review findings resolved)
 - **Plan:** `plan.md` (complete; approved after a passing artifact review)
-- **Implementation:** `implementation.md` (73/74 tasks complete; explicit-pin traversal fix pending)
+- **Implementation:** `implementation.md` (74/74 tasks complete; fresh reviews pending)
 
 ## Progress
 
@@ -264,6 +264,8 @@ Implementation - final review received; 73/74 tasks complete
 - ✓ Fresh Phase 8 review passed with zero findings
 - ✗ Fresh final review retained 1 Important explicit-pin metadata-bound finding
 - ✓ Final finding mapped to `p08-t34`
+- ✓ `p08-t34` bounded explicit Cursor pin traversal complete at `3fb193f`
+- ✓ Final post-fix matrix passed: 1,548 tests, 1 skipped; focused locate/watch 97/97
 
 ## Blockers
 
@@ -271,5 +273,5 @@ None.
 
 ## Next Milestone
 
-Execute `p08-t34`, then repeat the Phase 8 and final lifecycle reviews. The
-operator explicitly waived the configured exit-gate rerun for this project.
+Repeat the Phase 8 and final lifecycle reviews. The operator explicitly waived
+the configured exit-gate rerun for this project.
