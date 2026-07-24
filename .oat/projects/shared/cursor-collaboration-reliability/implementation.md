@@ -1570,7 +1570,7 @@ allowed only after Phase 8 and its fresh reviews pass.
 | `p08-t17` | complete | `e8de07d` |
 | `p08-t18` | complete | `40b2022` |
 | `p08-t19` | complete | `c195506` |
-| `p08-t20` | complete | `logical:p08-t20-self-commit` |
+| `p08-t20` | complete | `2038dea` |
 
 The first `p08-t13` focused group passed 117/117. The second group passed 161
 tests and failed the SIGTERM-resistant-child regression from `p08-t09`: under
@@ -1731,6 +1731,19 @@ iteration. `p08-t20` runs last so the plan, implementation, state, and live OAT
 read-back close on one canonical 20-task Phase 8 and 60-task project state. No
 finding was deferred or rejected.
 
+### Fresh boundedness review fix outcome
+
+`p08-t19` completed at `c195506` with streaming `opendir()` iteration for
+provider roots, nested fingerprint and inspection trees, and post-run name
+discovery. Entry and elapsed-time budgets are consumed before names are
+retained or queued. Focused tests passed 143/143, the full suite passed 1,528
+with 1 skipped, and live acceptance passed 19/19.
+
+`p08-t20` completed at `2038dea` and reconciled the plan, canonical task
+sections, state, and live status to Phase 8 at 20/20 and the project at 60/60,
+with no current task or blocker. The subsequent root bookkeeping commit
+replaced the intentional self-reference marker with this durable task SHA.
+
 ### Canonical Phase 8 task outcomes
 
 ### Task p08-t01: Await native stdout delivery before checkpoint commit
@@ -1865,7 +1878,7 @@ listings with entry/time-budgeted streaming iteration.
 ### Task p08-t20: Reconcile canonical 60-task closeout
 
 **Status:** completed
-**Commit:** `logical:p08-t20-self-commit`
+**Commit:** `2038dea`
 **Outcome:** Reconciled plan, implementation, and state artifacts to one
 parser-recognized 20-task Phase 8 and 60-task project closeout.
 

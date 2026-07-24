@@ -1327,7 +1327,7 @@ third gate launch.
 | p08    | code     | passed          | 2026-07-24 | reviews/p08-review-2026-07-24T125308Z.md                                  |
 | final  | code     | fixes_completed | 2026-07-24 | reviews/archived/final-review-2026-07-24T130507Z.md                       |
 | final  | code     | fixes_completed | 2026-07-24 | reviews/archived/final-review-2026-07-24T133133Z.md                       |
-| final  | code     | fixes_added     | 2026-07-24 | reviews/archived/final-review-2026-07-24T135210Z.md                       |
+| final  | code     | fixes_completed | 2026-07-24 | reviews/archived/final-review-2026-07-24T135210Z.md                       |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 
