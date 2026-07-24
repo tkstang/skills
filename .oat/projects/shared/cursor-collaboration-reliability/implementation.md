@@ -1616,6 +1616,19 @@ provider-root entries; it should receive an aggregate entry/byte/time budget
 in follow-up work. Per-phase blocking policy requires zero Critical and zero
 Important findings, so no Phase 8 fix loop was opened.
 
+### Fresh final lifecycle review after Phase 8
+
+**Artifact:** `reviews/final-review-2026-07-24T130507Z.md`
+**Verdict:** blocked — 0 Critical, 1 Important, 1 Medium, 0 Minor
+
+The Important finding identifies unbounded full-body transcript reads while
+building exact Cursor identity candidates. The Medium resurfaces the
+provider-state fingerprint scan's missing aggregate budget. Both are
+auto-dispositioned for bounded fix tasks because this was an automatic final
+review. The operator's explicit authorization to continue through reviews and
+a fresh gate generation is the review-cycle override for this new Phase 8
+basis.
+
 ---
 
 ## Deviations from Plan / Design

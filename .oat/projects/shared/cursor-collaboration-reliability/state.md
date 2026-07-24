@@ -75,7 +75,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-17T21:43:11.125Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-24T12:55:28Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-24T13:07:06Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -87,7 +87,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation - Phase 8 review passed; fresh final review pending
+Implementation - fresh final review blocked; receive pending
 
 ## Artifacts
 
@@ -220,12 +220,15 @@ Implementation - Phase 8 review passed; fresh final review pending
 - ✓ `p08-t14` deterministic readiness handshake and full matrix complete at `0712627`
 - ✓ Phase 8 complete: 14/14 tasks and 1,515 full-suite tests passed, 1 skipped
 - ✓ Independent Phase 8 review passed with 0 Critical, 0 Important, 1 Medium, 0 Minor
+- ✗ Fresh final review retained 1 Important and 1 Medium finding
 
 ## Blockers
 
-None.
+Fresh final review findings must be received into bounded fix tasks before
+closeout can continue.
 
 ## Next Milestone
 
-Run the fresh final lifecycle review. After it passes, resolve a fresh
-configured gate generation. Do not relaunch the exhausted generation.
+Receive `reviews/final-review-2026-07-24T130507Z.md`, execute its bounded fix
+tasks, and re-run the fresh final lifecycle review. Only after it passes may a
+fresh configured gate generation begin.

@@ -388,6 +388,14 @@ artifact=reviews/p08-review-2026-07-24T125308Z.md reconnaissance=attempted wave=
 
 artifact=reviews/p08-review-2026-07-24T125308Z.md verdict=passed findings=critical:0,important:0,medium:1,minor:0 fix_loops=0 next=fresh-final-review
 
+### 2026-07-24 · structural · oat-project-implement · final-review-orchestration-p08-basis
+
+artifact=reviews/final-review-2026-07-24T130507Z.md reconnaissance=attempted wave=consequential launch=pre-start-rejected-thread-limit fallback=caller-inline floor=met primary=whole-project-inline-verification
+
+### 2026-07-24 · structural · oat-project-implement · final-review-p08-basis
+
+artifact=reviews/final-review-2026-07-24T130507Z.md verdict=blocked findings=critical:0,important:1,medium:1,minor:0 next=receive-and-fix
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
