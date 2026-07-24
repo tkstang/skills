@@ -193,7 +193,7 @@ export async function observeCursorCompletion(lease) {
     lease.peerTranscript,
     scan,
     frameEnds,
-    digest.range.nextIndex,
+    digest.entries.at(-1)?.recordIndex + 1 || digest.range.nextIndex,
   );
   return digest;
 }

@@ -283,6 +283,38 @@ describe('normalized completed continuation selection', () => {
     });
   });
 
+  test('binds a Cursor completion checkpoint before a safe no-op suffix', () => {
+    const suffixDigest = cursorCompletionDigest(
+      [
+        {
+          role: 'assistant',
+          text: 'Synthetic substantive result.',
+          recordIndex: 2,
+          sourceFrameIndex: 1,
+          kind: 'message',
+          entryKey: 'entry-assistant-1',
+          turnId: 'turn-1',
+          availability: 'completed',
+        },
+      ],
+      0,
+      6,
+    );
+    suffixDigest.cursorEvidence.selectedPrefix.nextFrameIndex = 3;
+    suffixDigest.cursorEvidence.selectedPrefix.prefixBytes = 300;
+    suffixDigest.cursorEvidence.selectedPrefix.observedSize = 300;
+
+    expect(selectCompletedContinuation(suffixDigest)).toMatchObject({
+      continuation: true,
+      peerCursor: 3,
+      selectedPrefix: {
+        nextFrameIndex: 3,
+        prefixBytes: 300,
+        observedSize: 300,
+      },
+    });
+  });
+
   test('rejects non-completion, unbound, or invalidly buffered Cursor v2 projections', () => {
     const entry = {
       role: 'assistant',

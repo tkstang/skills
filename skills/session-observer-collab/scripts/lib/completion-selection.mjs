@@ -86,14 +86,14 @@ function nullableIndex(value, label) {
   return integer(value, label);
 }
 
-function validateSelectedPrefix(value, nextIndex) {
+function validateSelectedPrefix(value, selectedNextIndex) {
   if (
     !value ||
     typeof value !== 'object' ||
     Array.isArray(value) ||
     value.indexBase !== FRAME_INDEX_BASE ||
     integer(value.nextFrameIndex, 'selectedPrefix.nextFrameIndex') !==
-      nextIndex ||
+      selectedNextIndex ||
     !Number.isSafeInteger(value.prefixBytes) ||
     value.prefixBytes < 0 ||
     value.observedSize !== value.prefixBytes ||
@@ -255,7 +255,7 @@ function validateV2Digest(input) {
     nextIndex,
     selectedPrefix: validateSelectedPrefix(
       input.cursorEvidence.selectedPrefix,
-      nextIndex,
+      entries.at(-1)?.recordIndex + 1 || nextIndex,
     ),
   };
 }

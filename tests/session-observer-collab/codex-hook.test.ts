@@ -164,10 +164,13 @@ async function armCursorFrameLease(
   } as any);
 }
 
-const humanFrame = (text: string) => ({ role: 'user', content: text });
+const humanFrame = (text: string) => ({
+  role: 'user',
+  message: { content: [{ type: 'text', text }] },
+});
 const assistantFrame = (text: string) => ({
   role: 'assistant',
-  content: text,
+  message: { content: [{ type: 'text', text }] },
 });
 const terminalFrame = (status: string) => ({ type: 'turn_ended', status });
 
@@ -385,6 +388,62 @@ describe('Codex Stop continuation hook', () => {
         peerContinuity: { nextFrameIndex: frames.length },
         continuationCount: 0,
         loopCount: 0,
+      });
+    },
+  );
+
+  test.each([
+    [
+      'closed no-op',
+      [
+        humanFrame('Check the already completed result.'),
+        assistantFrame('[no-op] no substantive peer delta'),
+        terminalFrame('success'),
+      ],
+    ],
+    [
+      'automatic acknowledgement',
+      [
+        humanFrame(
+          '<session_observer_wake automatic="true" schema_version="2" runtime="codex" lease_id="lease-suffix" peer="cursor:peer-1" index_base="zero-based-jsonl-frame-index" records="3-5">Review.</session_observer_wake>',
+        ),
+        assistantFrame('Acknowledged.'),
+        terminalFrame('success'),
+      ],
+    ],
+    ['metadata-only', [{ type: 'metadata', source: 'synthetic-safe-suffix' }]],
+  ] as const)(
+    'claims a substantive Cursor peer completion before a %s suffix',
+    async (_classification, suffix) => {
+      const { root, cwd, transcript } = await fixture();
+      await armCursorFrameLease(
+        root,
+        cwd,
+        transcript,
+        [
+          humanFrame('Produce one substantive result.'),
+          assistantFrame('Substantive result before the safe suffix.'),
+          terminalFrame('success'),
+          ...suffix,
+        ],
+        { waitMs: 1 },
+      );
+      const moments = [START + 1, START + 1, START + 2, START + 2];
+
+      await expect(
+        runCodexStopHook(
+          { hook_event_name: 'Stop', session_id: 'codex-1', cwd },
+          {
+            root,
+            now: () => moments.shift() ?? START + 2,
+            sleep: async () => {},
+          },
+        ),
+      ).resolves.toMatchObject({ decision: 'block' });
+      expect(await readLease(root, 'codex-1')).toMatchObject({
+        peerCursor: 3,
+        peerContinuity: { nextFrameIndex: 3 },
+        continuationCount: 1,
       });
     },
   );
