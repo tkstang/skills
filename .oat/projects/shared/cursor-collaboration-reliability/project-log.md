@@ -364,6 +364,10 @@ run=24448ac0-ac55-4175-a873-1611596f0385 receive_state=completed receive_commit=
 
 scope=p08-t01..p08-t13 authorization=one-bounded-remediation-cycle exhausted_generation=immutable attempts=2_of_2 fresh_gate=permitted_after-passing-review next=p08-t01
 
+### 2026-07-24 · structural · oat-project-implement · p08-blocked
+
+request=a7a7f515-e7f7-43f1-bb59-8572159d5548 target=oat-phase-implementer-gpt-5-6-sol-high status=blocked completed=12_of_13 commits=6da8f79..b606771 failure=p08-t09_fixture_readiness_race preserved=.oat/repo/pjm/current-state.md next=explicit-continuation-boundary
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

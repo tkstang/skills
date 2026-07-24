@@ -1,9 +1,10 @@
 ---
 oat_status: in_progress
 oat_ready_for: null
-oat_blockers: []
+oat_blockers:
+  - "p08-t13 phase verification exposed a load-sensitive readiness race in the committed p08-t09 regression fixture"
 oat_last_updated: 2026-07-24
-oat_current_task_id: p08-t01
+oat_current_task_id: p08-t13
 oat_generated: false
 ---
 
@@ -33,9 +34,9 @@ oat_generated: false
 | Phase 5 | complete    | 6     | 6/6       |
 | Phase 6 | complete    | 4     | 4/4       |
 | Phase 7 | complete    | 4     | 4/4       |
-| Phase 8 | in_progress | 13    | 0/13      |
+| Phase 8 | blocked     | 13    | 12/13     |
 
-**Total:** 40/53 tasks accepted
+**Total:** 52/53 tasks accepted
 
 ---
 
@@ -1492,7 +1493,7 @@ privacy classification, and provider-residue checks passed.
 
 ## Phase 8: Terminal Exit-Gate Findings
 
-**Status:** in progress; bounded recovery authorized
+**Status:** blocked after 12/13 tasks
 
 ### Operator authorization
 
@@ -1542,6 +1543,38 @@ The receive transaction is durably corroborated by commit `8cc9177`. Attempt
 2 of 2 is consumed and the terminal marker is normalized to a repo-neutral
 logical reference. Remediation begins at `p08-t01`; a fresh gate generation is
 allowed only after Phase 8 and its fresh reviews pass.
+
+### Phase implementation attempt
+
+**Request:** `a7a7f515-e7f7-43f1-bb59-8572159d5548`
+**Dispatch:** `oat-phase-implementer-gpt-5-6-sol-high`
+**Base:** `3b4ea80`
+**Status:** `BLOCKED`
+
+| Task | Status | Commit |
+| ---- | ------ | ------ |
+| `p08-t01` | complete | `6da8f79` |
+| `p08-t02` | complete | `0376ec7` |
+| `p08-t03` | complete | `59dcc97` |
+| `p08-t04` | complete | `103e915` |
+| `p08-t05` | complete | `ca4f573` |
+| `p08-t06` | complete | `2a07bd8` |
+| `p08-t07` | complete | `4601949` |
+| `p08-t08` | complete | `b02ddc7` |
+| `p08-t09` | complete; fixture race found by phase matrix | `0a9442c` |
+| `p08-t10` | complete | `bf24dde` |
+| `p08-t11` | complete | `2c68bb6` |
+| `p08-t12` | complete | `b606771` |
+| `p08-t13` | blocked | - |
+
+The first `p08-t13` focused group passed 117/117. The second group passed 161
+tests and failed the SIGTERM-resistant-child regression from `p08-t09`: under
+load, the child can receive TERM before it installs its handler. Isolated
+`p08-t09` verification had passed 22/22. The exact repair is a readiness
+handshake before starting the timeout. Phase rules prohibit amending the
+completed task or adding an unplanned commit, so the accepted attempt stopped.
+The intended `p08-t13` current-state headline diff remains preserved
+uncommitted.
 
 ---
 

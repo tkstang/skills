@@ -1,7 +1,8 @@
 ---
-oat_current_task: p08-t01
-oat_last_commit: d1908d3
-oat_blockers: []
+oat_current_task: p08-t13
+oat_last_commit: b606771
+oat_blockers:
+  - "Phase 8 attempt blocked at p08-t13 by a load-sensitive p08-t09 test-fixture readiness race; continuation requires a new explicit plan boundary"
 associated_issues:
   - { type: backlog, ref: "BL-260713-cursor-transcript-store" }
   - { type: backlog, ref: "BL-260713-stronger-cursor-collaboration" }
@@ -36,7 +37,7 @@ oat_phase_status: in_progress # Status: in_progress | complete | pr_open
 oat_workflow_mode: spec-driven # spec-driven | quick | import
 oat_workflow_origin: native # native | imported
 oat_implement_exit_gate:
-  status: blocked
+  status: stale
   resolution: configured
   disposition: null
   config_fingerprint: 'sha256:bab3a74fc851ca974017112f07440aee9f6eca4a014c52cb460b003eb7e05b20'
@@ -69,13 +70,13 @@ oat_implement_exit_gate:
   receive_eligible: true
   receive_completed: true
   failure: 'review_completed_blocking_findings: critical=3 important=5 medium=4 minor=1 threshold=important'
-  updated_at: '2026-07-24T06:13:27Z'
+  updated_at: '2026-07-24T12:30:10Z'
 oat_docs_updated: complete # null | skipped | complete — documentation sync status
 oat_pr_status: null # null | ready | open | closed | merged — actual PR state for the current project
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-17T21:43:11.125Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-24T11:48:59Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-24T12:30:10Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -87,7 +88,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation - Phase 8 remediation authorized; `p08-t01` ready
+Implementation - Phase 8 blocked after 12/13 tasks
 
 ## Artifacts
 
@@ -95,7 +96,7 @@ Implementation - Phase 8 remediation authorized; `p08-t01` ready
 - **Spec:** `spec.md` (complete; requirements formalized from discovery)
 - **Design:** `design.md` (complete; approved after review findings resolved)
 - **Plan:** `plan.md` (complete; approved after a passing artifact review)
-- **Implementation:** `implementation.md` (40/53 tasks complete; 13 gate fixes queued)
+- **Implementation:** `implementation.md` (52/53 tasks complete; `p08-t13` blocked)
 
 ## Progress
 
@@ -212,14 +213,20 @@ Implementation - Phase 8 remediation authorized; `p08-t01` ready
 - ✓ Durable receive reconciled at `8cc9177`
 - ✗ Configured `block` policy reached `maxAttempts` at attempt 2 of 2
 - ✓ Operator authorized one bounded Phase 8 remediation cycle and a fresh gate generation after a passing review
+- ✓ Phase 8 tasks `p08-t01` through `p08-t12` completed as 12 ordered commits
+- ✓ Prior configured-gate basis marked stale after substantive remediation
+- ✗ `p08-t13` phase matrix exposed a load-sensitive readiness race in the committed `p08-t09` regression fixture
 
 ## Blockers
 
-None. The exhausted two-attempt gate generation remains immutable audit
-history while the explicitly authorized Phase 8 remediation proceeds.
+The accepted Phase 8 implementer attempt terminated `BLOCKED` at `p08-t13`.
+Under combined-suite load, the SIGTERM-resistant child fixture from `p08-t09`
+can receive TERM before installing its handler. The bounded repair is known,
+but the completed task cannot be amended and an unplanned commit is forbidden.
 
 ## Next Milestone
 
-Execute Phase 8 tasks `p08-t01` through `p08-t13`, complete independent and
-final lifecycle review, then resolve and launch a fresh configured gate
-generation. Do not launch a third attempt from the exhausted generation.
+Obtain explicit continuation authority to add a new plan boundary for the
+readiness-handshake repair, then complete `p08-t13`, independent and final
+lifecycle review, and a fresh configured gate generation. Do not relaunch the
+exhausted generation.
