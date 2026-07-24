@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-24
-oat_current_task_id: p07-t03
+oat_current_task_id: p07-t04
 oat_generated: false
 ---
 
@@ -32,9 +32,9 @@ oat_generated: false
 | Phase 4 | complete    | 6     | 6/6       |
 | Phase 5 | complete    | 6     | 6/6       |
 | Phase 6 | complete    | 4     | 4/4       |
-| Phase 7 | in_progress | 4     | 2/4       |
+| Phase 7 | in_progress | 4     | 3/4       |
 
-**Total:** 38/40 tasks accepted
+**Total:** 39/40 tasks accepted
 
 ---
 
@@ -1366,8 +1366,8 @@ attempt 1 of 2 is consumed before Phase 7 implementation begins.
 | ------- | ----------- | --------- | ------- |
 | p07-t01 | complete    | `6454740` | Bound selected Cursor success bytes through both owner-hook CAS paths. |
 | p07-t02 | complete    | `a1a8999` | Confirmed bounded stability prefixes without starvation during growth. |
-| p07-t03 | in_progress | -         | Select a completed prefix before a pending Cursor turn. |
-| p07-t04 | pending     | -         | Make gate bookkeeping evidence-safe and rerun release gates. |
+| p07-t03 | complete    | `31c49e6` | Selected completed prefixes while leaving later pending turns unread. |
+| p07-t04 | in_progress | -         | Make gate bookkeeping evidence-safe and rerun release gates. |
 
 ### Task p07-t01: Bind selected Cursor success bytes through collaboration CAS
 
@@ -1404,6 +1404,24 @@ into the shipped runtime and Session Observer 1.0.12 was dogfooded.
 passed; build, type-check, generated parity, validation, smoke, internal
 flags, changed-file lint/format, 34-page docs build, version enforcement,
 dogfood, and user synchronization passed.
+
+### Task p07-t03: Select a completed prefix before a pending Cursor turn
+
+**Status:** completed
+**Commit:** `31c49e6`
+
+Completion selection now accepts a complete unsliced terminal-success prefix
+when the entire later range is structurally accounted for as healthy pending
+`stability-wait`. Both owner hooks wake exactly once for the completed prefix,
+checkpoint through frame 3, and leave frames 3–4 unread. Malformed, partial,
+tail-sliced, discontinuous, unaccounted, unbound, and non-completion shapes
+remain rejected; the p07-t01 terminal-rewrite and inode protections remain
+green. Session-observer-collab 1.0.11 is dogfooded and synchronized.
+
+**Verification:** 79/79 focused tests and 128/128 collaboration tests passed;
+type-check, generated parity, validation, smoke, internal flags, changed-file
+lint/format, 34-page docs build, version enforcement, dogfood, and user
+synchronization passed.
 
 ---
 
