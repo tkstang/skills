@@ -11,14 +11,14 @@
     "awsRegion": "us-east-1"
   },
   "tools": {
-    "core": true,
+    "core": false,
     "ideas": true,
     "docs": true,
     "workflows": true,
     "utility": true,
     "project-management": true,
     "research": true,
-    "brainstorm": true
+    "brainstorm": false
   },
   "documentation": {
     "root": "documentation",

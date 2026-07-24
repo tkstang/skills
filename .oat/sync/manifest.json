@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "oatVersion": "0.2.12",
+  "oatVersion": "0.2.16",
   "entries": [
     {
       "canonicalPath": ".agents/skills/authoring-docs",
@@ -741,7 +741,17 @@
       "contentHash": null,
       "isFile": false,
       "lastSynced": "2026-07-23T01:05:09.074Z"
+    },
+    {
+      "canonicalPath": ".agents/skills/subagent-orchestration",
+      "providerPath": ".claude/skills/subagent-orchestration",
+      "provider": "claude",
+      "contentType": "skill",
+      "strategy": "symlink",
+      "contentHash": null,
+      "isFile": false,
+      "lastSynced": "2026-07-24T23:20:13.658Z"
     }
   ],
-  "lastUpdated": "2026-07-23T01:05:09.079Z"
+  "lastUpdated": "2026-07-24T23:20:13.658Z"
 }
