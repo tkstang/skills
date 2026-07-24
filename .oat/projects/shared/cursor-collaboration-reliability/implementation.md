@@ -33,8 +33,9 @@ oat_generated: false
 | Phase 5 | complete    | 6     | 6/6       |
 | Phase 6 | complete    | 4     | 4/4       |
 | Phase 7 | complete    | 4     | 4/4       |
+| Phase 8 | pending     | 13    | 0/13      |
 
-**Total:** 40/40 tasks accepted
+**Total:** 40/53 tasks accepted
 
 ---
 
@@ -1368,6 +1369,15 @@ basis is fingerprinted against `origin/main` as
 `sha256:effective-delta-v1:4222336c3eec6bf0973b683c9d25a0b8be5f8c06be8e13f46c9fff72795237d8`.
 Launch and receive state are reset for the second and final attempt.
 
+### Attempt 2 result
+
+Gate run `24448ac0-ac55-4175-a873-1611596f0385` returned one validated,
+receive-eligible `blocked` envelope with 3 Critical, 5 Important, 4 Medium,
+and 1 Minor findings. The corroborated artifact is
+`reviews/archived/final-review-2026-07-24T055647Z.md`. This is the second and
+final attempt permitted by the persisted `block` policy; receive queues the
+findings durably but does not authorize a third launch.
+
 ---
 
 ## Phase 7: Configured Exit-Gate Remediation
@@ -1477,6 +1487,49 @@ validation, smoke, evidence and skill-version gates, internal flags,
 documentation formatting/build, changed-file lint/format, commit-message
 validation, all-scope and user-scope synchronization, byte-identical dogfood,
 privacy classification, and provider-residue checks passed.
+
+---
+
+## Phase 8: Terminal Exit-Gate Findings
+
+**Status:** pending; explicit recovery authorization required
+
+### Review Received: configured exit gate attempt 2
+
+**Date:** 2026-07-24
+**Review artifact:** `reviews/archived/final-review-2026-07-24T055647Z.md`
+
+**Findings:**
+
+- Critical: 3
+- Important: 5
+- Medium: 4
+- Minor: 1
+
+**New tasks added:** `p08-t01` through `p08-t13`
+
+All findings were auto-converted under blocking gate receive rules:
+
+| Finding | Task | Scope | Disposition |
+| ------- | ---- | ----- | ----------- |
+| C1 | `p08-t01` | Moderate | Await callback-confirmed stdout delivery before committing Cursor checkpoints. |
+| C2 | `p08-t02` | Moderate | Advance to a new safe suffix candidate after a committed same-turn delivery. |
+| I3 | `p08-t03` | Moderate | Propagate the remaining watch deadline through stability waits. |
+| I1 | `p08-t04` | Moderate | Require successful canonicalization and containment for exact identity. |
+| I2 | `p08-t05` | Moderate | Reject unsupported top-level assistant content shapes. |
+| M1 | `p08-t06` | Moderate | Slice Cursor output by structural `turnId`. |
+| C3 | `p08-t07` | Moderate | Bind collaboration claims to the selected completion boundary. |
+| M2 | `p08-t08` | Minor | Synchronize ambient collaboration declarations and consumer coverage. |
+| I4 | `p08-t09` | Moderate | Add a finite TERM-to-KILL process timeout to the acceptance probe. |
+| M3 | `p08-t10` | Minor | Require provider-version evidence before live promotion. |
+| M4 | `p08-t11` | Moderate | Prove pre-existing provider state is unchanged or narrow the claim. |
+| I5 | `p08-t12` | Moderate | Keep accepted and terminal gate bookkeeping evidence-safe. |
+| m1 | `p08-t13` | Minor | Reconcile the Cursor current-state headline and final release gates. |
+
+No finding was deferred or rejected. The task order serializes overlapping
+generated observer output, collaboration contracts, probe tooling, evidence
+bookkeeping, and final release reconciliation. The configured gate has reached
+`maxAttempts`; Phase 8 cannot begin automatically within this gate generation.
 
 ---
 

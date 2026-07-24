@@ -887,6 +887,271 @@ oat_generated: false
 7. Run the complete final matrix: build, type-check, build-check, full tests, validate, smoke, 34-file evidence validation, internal flags, changed-file lint/format, documentation format/build, skill-version enforcement, provider dogfood/sync, privacy, and probe-residue cleanup. Confirm session-observer 1.0.12 and session-observer-collab 1.0.11 are synchronized.
 8. Commit: `fix(p07-t04): make gate bookkeeping evidence safe`.
 
+## Phase 8: Terminal Exit-Gate Findings
+
+The second configured gate attempt retained 13 active findings. This phase is
+sequential because observer delivery, stability, identity, digest, collaboration,
+evidence, and release bookkeeping share generated outputs and final verification.
+The configured gate has exhausted its two-attempt remediation allowance; these
+tasks are queued for explicit recovery authorization and do not authorize a
+third gate launch.
+
+### Task p08-t01: (review) Await native stdout delivery before checkpoint commit
+
+**Task Scope:** Moderate
+**Requirements:** FR6, NFR1
+
+**Files:**
+
+- Modify: `src/transcript/session-observer/session-observer.ts`
+- Modify: `src/transcript/session-observer/lib/watch.ts`
+- Modify: `tests/session-observer/{integration,watch}.test.ts`
+- Generate: `skills/session-observer/scripts/{session-observer.mjs,lib/watch.mjs}`
+- Modify: `skills/session-observer/SKILL.md`
+
+**Steps:**
+
+1. Add RED one-shot and watch regressions using boolean-returning native-style sinks with delayed callbacks and asynchronous errors; prove the current path can commit before delivery completes.
+2. Make the production stdout adapter and watch sink contract await callback-confirmed completion and fail closed on pending-write errors before committing a reservation.
+3. Preserve custom async sink compatibility, delivery CAS ownership, and retry semantics; rebuild canonical TypeScript outputs and bump the changed skill version.
+4. Verify focused integration/watch tests, type-check, generated parity, validation, smoke, version enforcement, and dogfood synchronization.
+5. Commit: `fix(p08-t01): await cursor stdout delivery`.
+
+### Task p08-t02: (review) Advance beyond delivered same-turn stability candidates
+
+**Task Scope:** Moderate
+**Requirements:** FR2, FR6
+
+**Files:**
+
+- Modify: `src/transcript/session-observer/lib/observe.ts`
+- Modify if state representation changes: `src/transcript/session-observer/lib/cursor-state.ts`
+- Modify: `tests/session-observer/{observe,watch,cursor-state}.test.ts`
+- Generate: `skills/session-observer/scripts/lib/{observe,cursor-state}.mjs`
+- Modify: `skills/session-observer/SKILL.md`
+
+**Steps:**
+
+1. Add RED repeated-scan cases that deliver candidate A, append B in the same open turn, and prove B remains stranded behind the committed boundary.
+2. Never reinstall a candidate whose entry keys are already committed; after confirming the old boundary, derive and persist the next safe suffix candidate.
+3. Preserve p07 bounded-prefix behavior, exact-once reservation, partial-tail handling, replacement failure, and watch progress; rebuild generated outputs and bump the skill version.
+4. Verify focused observe/watch/state tests plus the Session Observer aggregate, type-check, build-check, validation, smoke, dogfood, and user sync.
+5. Commit: `fix(p08-t02): advance delivered stability candidate`.
+
+### Task p08-t03: (review) Enforce watch runtime budgets through stability waits
+
+**Task Scope:** Moderate
+**Requirements:** FR7, NFR5
+
+**Files:**
+
+- Modify: `src/transcript/session-observer/lib/{watch,observe}.ts`
+- Modify: `tests/session-observer/{watch,observe}.test.ts`
+- Generate: `skills/session-observer/scripts/lib/{watch,observe}.mjs`
+- Modify: `skills/session-observer/SKILL.md`
+
+**Steps:**
+
+1. Add a RED 60 ms runtime / 1,000 ms stability-wait case and bounded flush/baseline variants.
+2. Thread remaining-time budgets through observation and flush operations, cap every sleep, and avoid starting work that cannot fit.
+3. Preserve normal stability confirmation and max-pending behavior; rebuild generated output and bump the skill version.
+4. Verify focused timing tests with deterministic tolerances, the observer aggregate, build/type/build-check, validation, smoke, dogfood, and sync.
+5. Commit: `fix(p08-t03): bound cursor watch stability waits`.
+
+### Task p08-t04: (review) Require canonical transcript identity before exact ownership
+
+**Task Scope:** Moderate
+**Requirements:** FR1, NFR1
+
+**Files:**
+
+- Modify: `src/transcript/session-observer/lib/locate.ts`
+- Modify: `tests/session-observer/locate.test.ts`
+- Generate: `skills/session-observer/scripts/lib/locate.mjs`
+- Modify: `skills/session-observer/SKILL.md`
+
+**Steps:**
+
+1. Add RED missing-path, disappearance, and symlink-swap cases that currently reach exact identity through lexical fallback.
+2. Treat required realpath or containment failure as diagnostic/ambiguous and prohibit exact state ownership without a canonical existing transcript.
+3. Preserve supported-root and cwd matching diagnostics; rebuild generated output and bump the skill version.
+4. Verify locate/CLI/state coverage, build/type/build-check, validation, smoke, dogfood, and sync.
+5. Commit: `fix(p08-t04): require canonical cursor identity`.
+
+### Task p08-t05: (review) Reject unsupported top-level assistant content
+
+**Task Scope:** Moderate
+**Requirements:** FR2, FR3, FR9
+
+**Files:**
+
+- Modify: `src/transcript/core/cursor-analysis.ts`
+- Modify: `tests/transcript-core/cursor-analysis.test.ts`
+- Generate: `skills/session-observer/scripts/lib/cursor-analysis.mjs`
+- Generate: `skills/export-session-transcript/scripts/lib/cursor-analysis.mjs`
+- Modify: `skills/{session-observer,export-session-transcript}/SKILL.md`
+
+**Steps:**
+
+1. Add RED unsupported top-level `content` and missing/non-object `message` fixtures proving they become substantive terminal output.
+2. Classify unmeasured shapes as unsupported unless separately evidence-gated; retain measured nested `message.content` behavior and terminal failure handling.
+3. Rebuild both generated runtime trees, bump both changed skills, and preserve Export compatibility.
+4. Verify analyzer/runtime/Export tests, build/type/build-check, validation, smoke, version enforcement, dogfood, and sync.
+5. Commit: `fix(p08-t05): reject unsupported cursor content`.
+
+### Task p08-t06: (review) Bound Cursor digests by structural turn identity
+
+**Task Scope:** Moderate
+**Requirements:** FR7, NFR5
+
+**Files:**
+
+- Modify: `src/transcript/session-observer/lib/digest.ts`
+- Modify: `tests/session-observer/digest.test.ts`
+- Generate: `skills/session-observer/scripts/lib/digest.mjs`
+- Modify: `skills/session-observer/SKILL.md`
+
+**Steps:**
+
+1. Add a RED Cursor v2 digest with two distinct `turnId` values and `maxTurns: 1`.
+2. Group Cursor entries by structural turn identity while retaining role grouping for runtimes without that identity.
+3. Preserve max-message, byte-budget, slicing, and non-Cursor behavior; rebuild generated output and bump the skill version.
+4. Verify digest/observe/integration tests, build/type/build-check, validation, smoke, dogfood, and sync.
+5. Commit: `fix(p08-t06): bound cursor digest turns`.
+
+### Task p08-t07: (review) Claim substantive completion before safe no-op suffixes
+
+**Task Scope:** Moderate
+**Requirements:** FR8
+
+**Files:**
+
+- Modify: `skills/session-observer-collab/scripts/lib/{selected-prefix,runtime-adapter,completion-selection}.mjs`
+- Modify if contracts change: `skills/session-observer-collab/scripts/lib/{completion-selection,runtime-adapter}.d.ts`
+- Modify: `skills/session-observer-collab/scripts/hooks/{cursor-stop,codex-stop}.mjs`
+- Modify: `tests/session-observer-collab/{completion,cursor-hook,codex-hook}.test.ts`
+- Modify: `skills/session-observer-collab/SKILL.md`
+
+**Steps:**
+
+1. Add RED cases for a substantive success followed by closed no-op, automatic acknowledgement, and metadata-only suffixes through both owner routes.
+2. Bind the verified checkpoint and adapter claim to the selector's chosen completion boundary rather than the full safe digest boundary.
+3. Retain full-suffix structural accounting and p07 terminal-rewrite/inode protections; bump and dogfood the collaboration skill.
+4. Verify completion and both hook suites, installed-bundle coverage, validation, smoke, version enforcement, and sync.
+5. Commit: `fix(p08-t07): claim completion before noop suffix`.
+
+### Task p08-t08: (review) Synchronize collaboration ambient declarations
+
+**Task Scope:** Minor
+**Requirements:** NFR3, NFR6
+
+**Files:**
+
+- Modify: `skills/session-observer-collab/scripts/mjs-modules.d.ts`
+- Modify: `tests/session-observer-collab/ambient-types.ts`
+- Modify if generation is adopted: `scripts/build-generated.mjs`
+- Modify: `skills/session-observer-collab/SKILL.md`
+
+**Steps:**
+
+1. Extend the ambient consumer test to exercise `indexBase`, `selectedPrefix`, and `peerContinuity`, and observe the current compile failures.
+2. Synchronize or generate the wildcard ambient surface from the specific declarations without weakening runtime types.
+3. Bump the collaboration skill version and verify the ambient compile, collaboration aggregate, type-check, validation, version enforcement, dogfood, and sync.
+4. Commit: `fix(p08-t08): sync collaboration ambient types`.
+
+### Task p08-t09: (review) Enforce a hard acceptance-probe process timeout
+
+**Task Scope:** Moderate
+**Requirements:** FR9, NFR5, NFR6
+
+**Files:**
+
+- Modify: `scripts/probe-cursor-acceptance.mjs`
+- Modify: `tests/tooling/cursor-acceptance-probe.test.ts`
+
+**Steps:**
+
+1. Add a RED real-child case that ignores `SIGTERM` and keeps descendants alive.
+2. Implement bounded TERM-to-KILL escalation, process-group termination where supported, and a finite resolution deadline.
+3. Preserve structured timeout evidence and cleanup safety; verify real termination, normal exit, and platform fallback behavior.
+4. Run focused probe tests, validation, smoke, changed-file lint/format, privacy checks, and residue checks.
+5. Commit: `fix(p08-t09): hard bound cursor acceptance probe`.
+
+### Task p08-t10: (review) Require provider version evidence for live promotion
+
+**Task Scope:** Minor
+**Requirements:** FR9, NFR6
+
+**Files:**
+
+- Modify: `scripts/probe-cursor-wake-surfaces.mjs`
+- Modify: `tests/tooling/cursor-wake-probe.test.ts`
+- Modify if claims change: `skills/session-observer-collab/references/runtime-cursor.md`
+
+**Steps:**
+
+1. Add a RED result with successful callback/cleanup but unavailable provider version that currently promotes to `live-validated`.
+2. Require a passed provider-version row for live promotion; otherwise downgrade the aggregate result and labels to unavailable.
+3. Verify promotion taxonomy, sanitized evidence, docs/reference consistency, validation, smoke, and evidence scanning.
+4. Commit: `fix(p08-t10): require version for cursor live evidence`.
+
+### Task p08-t11: (review) Verify pre-existing provider state remains unchanged
+
+**Task Scope:** Moderate
+**Requirements:** FR9, NFR2, NFR6
+
+**Files:**
+
+- Modify: `scripts/probe-cursor-wake-surfaces.mjs`
+- Modify: `tests/tooling/cursor-wake-probe.test.ts`
+- Modify if the narrower claim is selected: `skills/session-observer-collab/references/runtime-cursor.md`
+
+**Steps:**
+
+1. Add a RED probe fixture that mutates content within a pre-existing provider entry while preserving directory names.
+2. Fingerprint relevant pre-existing entries before and after the probe, or narrow the claim explicitly to newly created artifact removal; fail cleanup evidence on unexplained mutation.
+3. Preserve exact ownership and fail-closed cleanup for newly created artifacts.
+4. Verify focused probe tests, live-mode cleanup fixtures, evidence validation, privacy, residue, validation, and smoke.
+5. Commit: `fix(p08-t11): verify cursor probe preserves provider state`.
+
+### Task p08-t12: (review) Keep active and terminal gate bookkeeping evidence-safe
+
+**Task Scope:** Moderate
+**Requirements:** FR9, NFR2, NFR6
+
+**Files:**
+
+- Modify: `scripts/validate-cursor-evidence.mjs`
+- Modify: `tests/tooling/cursor-evidence-validation.test.ts`
+- Modify through OAT bookkeeping: `.oat/projects/shared/cursor-collaboration-reliability/{state,implementation,project-log}.md`
+
+**Steps:**
+
+1. Preserve RED accepted-launch and prose-fingerprint fixtures reproducing the two current raw-identity failures.
+2. Use approved typed fields for fingerprints and repo-neutral `system-temp:` marker references after terminal reconciliation while retaining exact local evidence outside tracked state.
+3. Keep structural exceptions file- and field-qualified; continue rejecting raw session/lease IDs, personal paths, credentials, transcript prose, and arbitrary opaque values.
+4. Verify focused validator tests and the live merge-base evidence scan before the final release matrix.
+5. Commit: `fix(p08-t12): keep gate evidence bookkeeping safe`.
+
+### Task p08-t13: (review) Reconcile Cursor current-state summary and final gates
+
+**Task Scope:** Minor
+**Requirements:** FR9, NFR6
+
+**Files:**
+
+- Modify: `.oat/repo/pjm/current-state.md`
+- Modify if generated rollups change: `.oat/repo/pjm/{backlog/index.md,backlog/completed.md}`
+- Modify as required by prior tasks: shipped skill versions, user/provider mirrors, and generated outputs
+
+**Steps:**
+
+1. Refresh the current-state date/headline to match the recorded buffered-manual posture, closed Cursor backlog items, and remaining v2 follow-ups without changing the evidence-backed body.
+2. Reconcile every changed skill version, generated output, dogfood install, and provider view after p08-t01 through p08-t12.
+3. Run the complete focused commands from the gate artifact plus build, type-check, build-check, full tests, validate, smoke, live evidence scan, skill-version/internal-flag gates, docs format/build, changed-file lint/format, provider sync, privacy, and residue checks.
+4. Confirm no generated drift, machine-local tracked marker, untyped fingerprint prose, or unsupported provider claim remains.
+5. Commit: `chore(p08-t13): reconcile cursor release state`.
+
 ## Reviews
 
 | Scope  | Type     | Status          | Date       | Artifact                                                                  |
@@ -926,7 +1191,7 @@ oat_generated: false
 | final  | code     | fixes_completed | 2026-07-24 | reviews/archived/final-review-2026-07-24T034752Z.md                       |
 | p07    | code     | passed          | 2026-07-24 | reviews/p07-review-2026-07-24T050736Z.md                                  |
 | final  | code     | passed          | 2026-07-24 | reviews/final-review-2026-07-24T051704Z.md                                |
-| final  | code     | received        | 2026-07-24 | reviews/final-review-2026-07-24T055647Z.md                                |
+| final  | code     | fixes_added     | 2026-07-24 | reviews/archived/final-review-2026-07-24T055647Z.md                       |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 
@@ -948,10 +1213,11 @@ oat_generated: false
 - Phase 5: 6 tasks — live evidence, documentation, versions/provider dogfood, release gates, and backlog lifecycle.
 - Phase 6: 4 tasks — conditional wake-surface measurement, evidence-backed fallback selection, and final release reconciliation.
 - Phase 7: 4 tasks — selected-prefix CAS binding, bounded stability growth, completed-prefix selection, and evidence-safe gate bookkeeping.
+- Phase 8: 13 tasks — delivery completion, stability progress, runtime bounds, canonical identity, structural content/turns, completion suffixes, type parity, probe safety, evidence hygiene, and release reconciliation.
 
-**Total: 40 tasks**
+**Total: 53 tasks**
 
-Ready for code review and merge after all 40 tasks and review rows pass.
+Ready for code review and merge after all 53 tasks and review rows pass.
 
 ## References
 

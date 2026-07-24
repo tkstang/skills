@@ -87,7 +87,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation - configured exit-gate attempt 2 blocked; receive pending
+Implementation - Phase 8 fixes queued; gate receive reconciliation pending
 
 ## Artifacts
 
@@ -95,7 +95,7 @@ Implementation - configured exit-gate attempt 2 blocked; receive pending
 - **Spec:** `spec.md` (complete; requirements formalized from discovery)
 - **Design:** `design.md` (complete; approved after review findings resolved)
 - **Plan:** `plan.md` (complete; approved after a passing artifact review)
-- **Implementation:** `implementation.md` (40/40 tasks and final review complete)
+- **Implementation:** `implementation.md` (40/53 tasks complete; 13 gate fixes queued)
 
 ## Progress
 
@@ -207,7 +207,9 @@ Implementation - configured exit-gate attempt 2 blocked; receive pending
 - ✓ Independent Phase 7 review passed with zero findings
 - ✓ Mandatory final lifecycle review round 4 passed with zero findings
 - ✗ Configured exit-gate attempt 2 retained 3 Critical and 5 Important findings
-- ⧗ Receive configured exit-gate attempt 2
+- ✓ Configured exit-gate result corroborated and converted into 13 Phase 8 tasks
+- ✓ Gate review archived at `reviews/archived/final-review-2026-07-24T055647Z.md`
+- ⧗ Reconcile the durable receive commit and apply terminal `block` policy
 
 ## Blockers
 
@@ -215,5 +217,5 @@ None.
 
 ## Next Milestone
 
-Receive configured exit-gate attempt 2, then apply the persisted terminal
-`block` policy at the maximum remediation-attempt boundary.
+Reconcile the configured gate receive commit, persist attempt 2 of 2 as
+consumed, and stop at the configured terminal `block` boundary.
