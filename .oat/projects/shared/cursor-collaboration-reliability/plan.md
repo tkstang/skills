@@ -6,7 +6,7 @@ oat_last_updated: 2026-07-24
 oat_phase: plan
 oat_phase_status: complete
 oat_plan_parallel_groups: []
-oat_plan_hill_phases: ["p06"]
+oat_plan_hill_phases: ['p06']
 oat_auto_review_at_hill_checkpoints: true
 oat_plan_source: spec-driven
 oat_import_reference: null
@@ -1306,50 +1306,51 @@ third gate launch.
 
 ## Reviews
 
-| Scope  | Type     | Status          | Date       | Artifact                                                                  |
-| ------ | -------- | --------------- | ---------- | ------------------------------------------------------------------------- |
-| p01    | code     | pending         | -          | -                                                                         |
-| p02    | code     | pending         | -          | -                                                                         |
-| final  | code     | pending         | -          | -                                                                         |
-| spec   | artifact | pending         | -          | -                                                                         |
-| design | artifact | fixes_completed | 2026-07-20 | reviews/archived/artifact-design-review-2026-07-20T233233Z.md            |
-| plan   | artifact | pending         | -          | -                                                                         |
-| plan   | artifact | fixes_completed | 2026-07-22 | reviews/artifact-plan-review-2026-07-23T022120Z.md                        |
-| p03    | code     | pending         | -          | -                                                                         |
-| p04    | code     | pending         | -          | -                                                                         |
-| p05    | code     | pending         | -          | -                                                                         |
-| p06    | code     | pending         | -          | -                                                                         |
-| p01    | code     | fixes_completed | 2026-07-22 | reviews/p01-review-2026-07-23T035505Z.md                                  |
-| p01    | code     | passed          | 2026-07-22 | reviews/p01-review-2026-07-23T040650Z.md                                  |
-| plan   | artifact | fixes_completed | 2026-07-22 | reviews/artifact-plan-review-2026-07-23T023750Z.md                        |
-| plan   | artifact | passed          | 2026-07-22 | reviews/archived/artifact-plan-review-2026-07-23T025554Z.md               |
-| p02    | code     | fixes_completed | 2026-07-23 | reviews/p02-review-2026-07-23T045715Z.md                                  |
-| p02    | code     | fixes_completed | 2026-07-23 | reviews/p02-review-2026-07-23T051820Z.md                                  |
-| p02    | code     | fixes_completed | 2026-07-23 | reviews/p02-review-2026-07-23T054702Z.md                                  |
-| p02    | code     | fixes_completed | 2026-07-23 | reviews/archived/p02-review-2026-07-23T114732Z.md                         |
-| p02    | code     | passed          | 2026-07-23 | reviews/p02-review-2026-07-23T164415Z.md                                  |
-| p03    | code     | fixes_completed | 2026-07-23 | reviews/p03-review-2026-07-23T211458Z.md                                  |
-| p03    | code     | passed          | 2026-07-23 | reviews/p03-review-2026-07-23T214213Z.md                                  |
-| p04    | code     | fixes_completed | 2026-07-23 | reviews/p04-review-2026-07-23T224300Z.md                                  |
-| p04    | code     | passed          | 2026-07-23 | reviews/p04-review-2026-07-23T230346Z.md                                  |
-| p05    | code     | fixes_completed | 2026-07-24 | reviews/p05-review-2026-07-24T001656Z.md                                  |
-| p05    | code     | passed          | 2026-07-24 | reviews/p05-review-2026-07-24T004530Z.md                                  |
-| p06    | code     | fixes_completed | 2026-07-24 | reviews/p06-review-2026-07-24T012320Z.md                                  |
-| p06    | code     | fixes_completed | 2026-07-24 | reviews/p06-review-2026-07-24T015318Z.md                                  |
-| p06    | code     | passed          | 2026-07-24 | reviews/p06-review-2026-07-24T023404Z.md                                  |
-| final  | code     | fixes_completed | 2026-07-24 | reviews/final-review-2026-07-24T025100Z.md                                |
-| final  | code     | fixes_completed | 2026-07-24 | reviews/final-review-2026-07-24T031130Z.md                                |
-| final  | code     | passed          | 2026-07-24 | reviews/final-review-2026-07-24T032809Z.md                                |
-| final  | code     | fixes_completed | 2026-07-24 | reviews/archived/final-review-2026-07-24T034752Z.md                       |
-| p07    | code     | passed          | 2026-07-24 | reviews/p07-review-2026-07-24T050736Z.md                                  |
-| final  | code     | passed          | 2026-07-24 | reviews/final-review-2026-07-24T051704Z.md                                |
-| final  | code     | fixes_added     | 2026-07-24 | reviews/archived/final-review-2026-07-24T055647Z.md                       |
-| p08    | code     | passed          | 2026-07-24 | reviews/p08-review-2026-07-24T125308Z.md                                  |
-| final  | code     | fixes_completed | 2026-07-24 | reviews/archived/final-review-2026-07-24T130507Z.md                       |
-| final  | code     | fixes_completed | 2026-07-24 | reviews/archived/final-review-2026-07-24T133133Z.md                       |
-| final  | code     | fixes_completed | 2026-07-24 | reviews/archived/final-review-2026-07-24T135210Z.md                       |
-| final  | code     | fixes_completed | 2026-07-24 | reviews/archived/final-review-2026-07-24T141209Z.md                       |
-| final  | code     | passed          | 2026-07-24 | reviews/final-review-2026-07-24T142453Z.md                                |
+| Scope  | Type     | Status          | Date       | Artifact                                                      |
+| ------ | -------- | --------------- | ---------- | ------------------------------------------------------------- |
+| p01    | code     | pending         | -          | -                                                             |
+| p02    | code     | pending         | -          | -                                                             |
+| final  | code     | pending         | -          | -                                                             |
+| spec   | artifact | pending         | -          | -                                                             |
+| design | artifact | fixes_completed | 2026-07-20 | reviews/archived/artifact-design-review-2026-07-20T233233Z.md |
+| plan   | artifact | pending         | -          | -                                                             |
+| plan   | artifact | fixes_completed | 2026-07-22 | reviews/artifact-plan-review-2026-07-23T022120Z.md            |
+| p03    | code     | pending         | -          | -                                                             |
+| p04    | code     | pending         | -          | -                                                             |
+| p05    | code     | pending         | -          | -                                                             |
+| p06    | code     | pending         | -          | -                                                             |
+| p01    | code     | fixes_completed | 2026-07-22 | reviews/p01-review-2026-07-23T035505Z.md                      |
+| p01    | code     | passed          | 2026-07-22 | reviews/p01-review-2026-07-23T040650Z.md                      |
+| plan   | artifact | fixes_completed | 2026-07-22 | reviews/artifact-plan-review-2026-07-23T023750Z.md            |
+| plan   | artifact | passed          | 2026-07-22 | reviews/archived/artifact-plan-review-2026-07-23T025554Z.md   |
+| p02    | code     | fixes_completed | 2026-07-23 | reviews/p02-review-2026-07-23T045715Z.md                      |
+| p02    | code     | fixes_completed | 2026-07-23 | reviews/p02-review-2026-07-23T051820Z.md                      |
+| p02    | code     | fixes_completed | 2026-07-23 | reviews/p02-review-2026-07-23T054702Z.md                      |
+| p02    | code     | fixes_completed | 2026-07-23 | reviews/archived/p02-review-2026-07-23T114732Z.md             |
+| p02    | code     | passed          | 2026-07-23 | reviews/p02-review-2026-07-23T164415Z.md                      |
+| p03    | code     | fixes_completed | 2026-07-23 | reviews/p03-review-2026-07-23T211458Z.md                      |
+| p03    | code     | passed          | 2026-07-23 | reviews/p03-review-2026-07-23T214213Z.md                      |
+| p04    | code     | fixes_completed | 2026-07-23 | reviews/p04-review-2026-07-23T224300Z.md                      |
+| p04    | code     | passed          | 2026-07-23 | reviews/p04-review-2026-07-23T230346Z.md                      |
+| p05    | code     | fixes_completed | 2026-07-24 | reviews/p05-review-2026-07-24T001656Z.md                      |
+| p05    | code     | passed          | 2026-07-24 | reviews/p05-review-2026-07-24T004530Z.md                      |
+| p06    | code     | fixes_completed | 2026-07-24 | reviews/p06-review-2026-07-24T012320Z.md                      |
+| p06    | code     | fixes_completed | 2026-07-24 | reviews/p06-review-2026-07-24T015318Z.md                      |
+| p06    | code     | passed          | 2026-07-24 | reviews/p06-review-2026-07-24T023404Z.md                      |
+| final  | code     | fixes_completed | 2026-07-24 | reviews/final-review-2026-07-24T025100Z.md                    |
+| final  | code     | fixes_completed | 2026-07-24 | reviews/final-review-2026-07-24T031130Z.md                    |
+| final  | code     | passed          | 2026-07-24 | reviews/final-review-2026-07-24T032809Z.md                    |
+| final  | code     | fixes_completed | 2026-07-24 | reviews/archived/final-review-2026-07-24T034752Z.md           |
+| p07    | code     | passed          | 2026-07-24 | reviews/p07-review-2026-07-24T050736Z.md                      |
+| final  | code     | passed          | 2026-07-24 | reviews/final-review-2026-07-24T051704Z.md                    |
+| final  | code     | fixes_added     | 2026-07-24 | reviews/archived/final-review-2026-07-24T055647Z.md           |
+| p08    | code     | passed          | 2026-07-24 | reviews/p08-review-2026-07-24T125308Z.md                      |
+| final  | code     | fixes_completed | 2026-07-24 | reviews/archived/final-review-2026-07-24T130507Z.md           |
+| final  | code     | fixes_completed | 2026-07-24 | reviews/archived/final-review-2026-07-24T133133Z.md           |
+| final  | code     | fixes_completed | 2026-07-24 | reviews/archived/final-review-2026-07-24T135210Z.md           |
+| final  | code     | fixes_completed | 2026-07-24 | reviews/archived/final-review-2026-07-24T141209Z.md           |
+| final  | code     | passed          | 2026-07-24 | reviews/final-review-2026-07-24T142453Z.md                    |
+| final  | code     | received        | 2026-07-24 | reviews/final-review-2026-07-24T144744Z.md                    |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 
