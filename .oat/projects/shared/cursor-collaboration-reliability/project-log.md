@@ -484,6 +484,10 @@ Phase 8 re-review verified all runtime and discovery fixes and retained one Medi
 
 Ambient clock declaration parity completed at 6197aa7; ambient and aggregate type checks, validation, and version structure passed; Phase 8 is 32/32 and the project is 72/72.
 
+### 2026-07-24 · structural · oat-project-review-receive · p08-review-2026-07-24T163609Z
+
+Narrow Phase 8 re-review verified p08-t32 and retained one adjacent Medium wildcard run clock mismatch introduced by that fix; accepted as p08-t33.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

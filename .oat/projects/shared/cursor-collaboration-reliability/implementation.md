@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-07-24
-oat_current_task_id: null
+oat_current_task_id: p08-t33
 oat_generated: false
 ---
 
@@ -33,9 +33,9 @@ oat_generated: false
 | Phase 5 | complete    | 6     | 6/6       |
 | Phase 6 | complete    | 4     | 4/4       |
 | Phase 7 | complete    | 4     | 4/4       |
-| Phase 8 | complete    | 32    | 32/32     |
+| Phase 8 | in_progress | 33    | 32/33     |
 
-**Total:** 72/72 tasks accepted
+**Total:** 72/73 tasks accepted
 
 ---
 
@@ -1584,6 +1584,7 @@ allowed only after Phase 8 and its fresh reviews pass.
 | `p08-t30` | complete | `ff74098` |
 | `p08-t31` | complete | root bookkeeping |
 | `p08-t32` | complete | `6197aa7` |
+| `p08-t33` | pending | - |
 
 The first `p08-t13` focused group passed 117/117. The second group passed 161
 tests and failed the SIGTERM-resistant-child regression from `p08-t09`: under
