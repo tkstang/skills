@@ -1,6 +1,6 @@
 ---
 oat_current_task: null
-oat_last_commit: 0e6cd1c
+oat_last_commit: 779f1ce
 oat_blockers: []
 associated_issues:
   - { type: backlog, ref: "BL-260713-cursor-transcript-store" }
@@ -75,7 +75,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-17T21:43:11.125Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-24T05:09:07Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-24T05:20:09Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
@@ -87,7 +87,7 @@ oat_generated: false
 
 ## Current Phase
 
-Implementation - Phase 7 review passed; mandatory final review pending
+Implementation - mandatory final review passed; configured exit gate pending
 
 ## Artifacts
 
@@ -95,7 +95,7 @@ Implementation - Phase 7 review passed; mandatory final review pending
 - **Spec:** `spec.md` (complete; requirements formalized from discovery)
 - **Design:** `design.md` (complete; approved after review findings resolved)
 - **Plan:** `plan.md` (complete; approved after a passing artifact review)
-- **Implementation:** `implementation.md` (40/40 tasks and Phase 7 review complete)
+- **Implementation:** `implementation.md` (40/40 tasks and final review complete)
 
 ## Progress
 
@@ -205,7 +205,8 @@ Implementation - Phase 7 review passed; mandatory final review pending
 - ✓ `p07-t04` evidence-safe gate bookkeeping complete at `0e6cd1c`
 - ✓ Phase 7 implementation complete: 4/4 tasks
 - ✓ Independent Phase 7 review passed with zero findings
-- ⧗ Mandatory final lifecycle review pending for changed basis
+- ✓ Mandatory final lifecycle review round 4 passed with zero findings
+- ⧗ Configured exit-gate attempt 2 pending for changed basis
 
 ## Blockers
 
@@ -213,5 +214,5 @@ None.
 
 ## Next Milestone
 
-Rerun the mandatory final lifecycle review for the changed implementation
-basis, then regenerate the configured exit gate if it passes.
+Regenerate and execute configured exit-gate attempt 2 against the passing
+changed implementation basis.
