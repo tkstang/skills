@@ -1,6 +1,6 @@
 ---
-oat_current_task: null
-oat_last_commit: d23a572
+oat_current_task: p08-t34
+oat_last_commit: 35f82a7
 oat_blockers: []
 associated_issues:
   - { type: backlog, ref: "BL-260713-cursor-transcript-store" }
@@ -75,19 +75,19 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-07-17T21:43:11.125Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-07-24T16:39:49Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-07-24T16:51:28Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 ---
 
 # Project State: cursor-collaboration-reliability
 
-**Status:** Phase 8 Passed; Final Lifecycle Review Pending
+**Status:** Final Review Remediation In Progress
 **Started:** 2026-07-17
 **Last Updated:** 2026-07-24
 
 ## Current Phase
 
-Implementation - Phase 8 passed; 73/73 tasks complete; final review pending
+Implementation - final review received; 73/74 tasks complete
 
 ## Artifacts
 
@@ -95,7 +95,7 @@ Implementation - Phase 8 passed; 73/73 tasks complete; final review pending
 - **Spec:** `spec.md` (complete; requirements formalized from discovery)
 - **Design:** `design.md` (complete; approved after review findings resolved)
 - **Plan:** `plan.md` (complete; approved after a passing artifact review)
-- **Implementation:** `implementation.md` (73/73 tasks complete; fresh reviews pending)
+- **Implementation:** `implementation.md` (73/74 tasks complete; explicit-pin traversal fix pending)
 
 ## Progress
 
@@ -262,6 +262,8 @@ Implementation - Phase 8 passed; 73/73 tasks complete; final review pending
 - ✓ Medium finding mapped to `p08-t33`
 - ✓ `p08-t33` ambient `run()` clock parity complete at `d23a572`
 - ✓ Fresh Phase 8 review passed with zero findings
+- ✗ Fresh final review retained 1 Important explicit-pin metadata-bound finding
+- ✓ Final finding mapped to `p08-t34`
 
 ## Blockers
 
@@ -269,5 +271,5 @@ None.
 
 ## Next Milestone
 
-Run the fresh final lifecycle review. The operator explicitly waived the
-configured exit-gate rerun for this project.
+Execute `p08-t34`, then repeat the Phase 8 and final lifecycle reviews. The
+operator explicitly waived the configured exit-gate rerun for this project.

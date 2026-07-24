@@ -1541,6 +1541,28 @@ third gate launch.
 3. Bump the collaboration skill version and run ambient, aggregate type, validation, and version gates.
 4. Commit: `fix(p08-t33): restore ambient run clock contract`.
 
+### Task p08-t34: Bound explicit Cursor pin metadata traversal
+
+**Task Scope:** Moderate
+**Requirements:** FR1, NFR5
+
+**Files:**
+
+- Modify: `src/transcript/session-observer/lib/locate.ts`
+- Modify: `tests/session-observer/locate.test.ts`
+- Regenerate the shipped Session Observer runtime
+- Modify: `skills/session-observer/SKILL.md`
+- Reconcile through root bookkeeping: implementation handoff
+
+**Steps:**
+
+1. Apply finite, fail-visible entry and elapsed-time bounds to explicit Cursor pin metadata traversal before candidate classification.
+2. Preserve exact canonical matching, zero unrelated transcript-body reads, and incomplete-index failure semantics.
+3. Add public pinned observe/watch regressions with many unrelated metadata entries and injected time progression.
+4. Bump Session Observer, regenerate output, and run focused locate/watch, type, build, validation, and version gates.
+5. Reconcile the `p08-t24` outcome and final handoff to the bounded contract.
+6. Commit: `fix(p08-t34): bound explicit cursor pin traversal`.
+
 ## Reviews
 
 | Scope  | Type     | Status          | Date       | Artifact                                                      |
@@ -1592,6 +1614,7 @@ third gate launch.
 | p08    | code     | fixes_completed | 2026-07-24 | reviews/archived/p08-review-2026-07-24T163113Z.md             |
 | p08    | code     | fixes_completed | 2026-07-24 | reviews/archived/p08-review-2026-07-24T163609Z.md             |
 | p08    | code     | passed          | 2026-07-24 | reviews/p08-review-2026-07-24T163909Z.md                      |
+| final  | code     | fixes_added     | 2026-07-24 | reviews/final-review-2026-07-24T164909Z.md                    |
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 
@@ -1613,11 +1636,11 @@ third gate launch.
 - Phase 5: 6 tasks — live evidence, documentation, versions/provider dogfood, release gates, and backlog lifecycle.
 - Phase 6: 4 tasks — conditional wake-surface measurement, evidence-backed fallback selection, and final release reconciliation.
 - Phase 7: 4 tasks — selected-prefix CAS binding, bounded stability growth, completed-prefix selection, and evidence-safe gate bookkeeping.
-- Phase 8: 33 tasks — delivery completion, stability progress, runtime bounds, canonical identity, structural content/turns, completion suffixes, type parity, probe safety, evidence hygiene, bounded identity/provider-state scans and directory iteration, exact cleanup preservation, canonical records, under-lock authorization deadlines, fully bounded generic discovery, fail-closed indexing, deterministic watch coverage, ambient clock declaration parity, live evidence/dogfood reconciliation, and final handoff.
+- Phase 8: 34 tasks — delivery completion, stability progress, runtime bounds, canonical identity, structural content/turns, completion suffixes, type parity, probe safety, evidence hygiene, bounded identity/provider-state scans and directory iteration, exact cleanup preservation, canonical records, under-lock authorization deadlines, fully bounded generic and explicit-pin discovery, fail-closed indexing, deterministic watch coverage, ambient clock declaration parity, live evidence/dogfood reconciliation, and final handoff.
 
-**Total: 73 tasks**
+**Total: 74 tasks**
 
-Ready for code review and merge after all 73 tasks and review rows pass.
+Ready for code review and merge after all 74 tasks and review rows pass.
 
 ## References
 

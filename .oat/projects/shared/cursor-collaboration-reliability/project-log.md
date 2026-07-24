@@ -496,6 +496,10 @@ Ambient run clock parity completed at d23a572; ambient and aggregate type checks
 
 Fresh Phase 8 review passed with 0 Critical, 0 Important, 0 Medium, and 0 Minor findings at the 73-task implementation head.
 
+### 2026-07-24 · structural · oat-project-review-receive · final-review-2026-07-24T164909Z
+
+Fresh final review retained 1 Important finding: explicit Cursor pin metadata traversal was effectively unbounded before the later identity index; accepted as p08-t34.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
